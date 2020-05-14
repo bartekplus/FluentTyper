@@ -1,0 +1,49 @@
+{
+    "background": {
+        "page": "background.html",
+        "persistent": true
+    },
+    "content_scripts": [{
+        "css": ["FluentBoard.css", "third_party/horsey/horsey.css"],
+        "js": ["debug.js", "third_party/horsey/horsey.js", "block.js"],
+        "matches": ["http://*/*", "https://*/*"],
+        "run_at": "document_end",
+        "all_frames": true
+    }],
+    "description": "FluentBoard is flash blocker for Chrome, it automatically replace flash with placeholders.",
+    "icons": {
+        "128": "icon128.png",
+        "16": "icon16.png",
+        "32": "icon32.png",
+        "48": "icon48.png"
+    },
+    "web_accessible_resources": [
+        "icon128.png",
+        "icon16.png",
+        "icon32.png",
+        "icon48.png",
+        "close32.png",
+        "beer_donation_button_single.png",
+        "libpresage.*"
+    ],
+    "name": "FluentBoard",
+    "options_page": "options.html",
+    "page_action": {
+        "default_icon": "icon48.png",
+        "default_popup": "popup.html",
+        "default_title": "Do action"
+    },
+    "permissions": [
+        "tabs",
+        "storage",
+        "unlimitedStorage",
+        "<all_urls>"
+    ],
+    "sandbox": {
+        "pages": ["libpresage.html"]
+     },
+    "update_url": "http://clients2.google.com/service/update2/crx",
+    "version": "4.3.0",
+    "manifest_version": 2,
+    "content_security_policy": "script-src 'self' 'wasm-eval'; object-src 'self'"
+}
