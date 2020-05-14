@@ -11,7 +11,28 @@
         return false;
     }
 
-    window.addEventListener("load", function(evt) {
+    function MutationCallback(mutationsList, observer) {
+        var nodesAdded = false;
+        for (let mutation of mutationsList) {
+            if (mutation.type === 'childList') {
+                for (let node of mutation.addedNodes) {
+                    console.log('A child node has been added');
+                    console.log(node);
+                    nodesAdded = true;
+                }
+                for (let node of mutation.removedNodes) {}
+
+            } else if (mutation.type === 'attributes') {
+                console.log('The ' + mutation.attributeName + ' attribute was modified.');
+            }
+        }
+        if (nodesAdded) {
+            attachHorsey();
+        }
+    };
+
+
+    function attachHorsey() {
 
         selectors = ['textarea', '[role="textbox"]']
 
@@ -87,6 +108,21 @@
             }
 
         }
+
+
+    }
+
+    window.addEventListener("load", function(evt) {
+
+        attachHorsey();
+
+        var observerOptions = {
+            childList: true,
+            attributes: false,
+            subtree: true
+        }
+        var observer = new MutationObserver(MutationCallback);
+        observer.observe(document.body, observerOptions);
 
     }, false);
 
