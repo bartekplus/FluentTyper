@@ -16,14 +16,14 @@
         for (let mutation of mutationsList) {
             if (mutation.type === 'childList') {
                 for (let node of mutation.addedNodes) {
-                    console.log('A child node has been added');
-                    console.log(node);
+                    //console.log('A child node has been added');
+                    //console.log(node);
                     nodesAdded = true;
                 }
                 for (let node of mutation.removedNodes) {}
 
             } else if (mutation.type === 'attributes') {
-                console.log('The ' + mutation.attributeName + ' attribute was modified.');
+                //console.log('The ' + mutation.attributeName + ' attribute was modified.');
             }
         }
         if (nodesAdded) {
@@ -34,7 +34,7 @@
 
     function attachHorsey() {
 
-        selectors = ['textarea', '[role="textbox"]']
+        selectors = ['textarea', 'input']
 
         for (var selectorId = 0; selectorId < selectors.length; selectorId++) {
 
