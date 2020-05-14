@@ -90,10 +90,10 @@
                         var _elem = elem;
                         return function(value) {
                             attrib = "";
-                            if (_elem.tagName === "TEXTAREA") {
-                                attrib = "value"
-                            } else {
+                            if (_elem.tagName === "DIV") {
                                 attrib = "textContent";
+                            } else {
+                                attrib = "value"
                             }
 
                             new_value = _elem[attrib].split(' ');
