@@ -43,16 +43,12 @@
         for (var selectorId = 0; selectorId < selectors.length; selectorId++) {
 
             elems = document.querySelectorAll(selectors[selectorId]);
-            console.log(selectors[selectorId]);
-            console.log(elems);
             for (var i = 0; i < elems.length; i++) {
                 elem = elems[i];
 
                 if (elem.getAttribute("type") === "password") {
                     continue;
                 }
-                //console.log("attaching to " + elem);
-                //console.log(elem);
 
                 if (useHorsey) {
 
@@ -65,7 +61,6 @@
                         done: null,
                         elem: elem
                     });
-                    console.log(horseyArr);
                     horseyObj = horsey(elem, {
 
                         source: (function(data, done) {
@@ -86,9 +81,6 @@
                         })(),
 
                         readInput: function(el) {
-                            console.log("MYT TEXT INPUT \n");
-                            console.log("input.selectionStart " + el.selectionStart);
-                            console.log("input.selectionEnd " + el.selectionEnd);
                             inputStr = ""
 
                             if (el.selectionStart == el.selectionEnd) {
@@ -99,9 +91,6 @@
                                 }
 
                                 inputStr = el[attrib].slice(0, el.selectionStart);
-                                console.log(el[attrib]);
-                                console.log(inputStr);
-
                             }
 
                             return inputStr;
@@ -149,7 +138,6 @@
                         done: null
                     });
 
-                    console.log("tibuete \n\n\n");
                     var tribute = new Tribute({
                         // symbol or string that starts the lookup
                         trigger: "",
@@ -195,8 +183,6 @@
                         values: (function(data, done) {
                             var localId = tributeArrId;
                             return function(data, done) {
-                                console.log(data);
-                                console.log("dupa");
                                 tributeArr[localId].done = done;
                                 var message = {
                                     command: 'predictReq',
@@ -206,7 +192,7 @@
                                     }
                                 };
                                 chrome.runtime.sendMessage(message, function(response) {
-                                    console.log("GOT RESPONSE : " + response);
+                                    //console.log("GOT RESPONSE : " + response);
                                 });
                             }
                         })(),
@@ -268,8 +254,6 @@
 
 
     chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
-        console.log(message);
-
         switch (message.command) {
             case "predictResp":
                 if (useHorsey) {
