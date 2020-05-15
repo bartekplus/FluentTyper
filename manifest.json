@@ -25,7 +25,7 @@
         "icon48.png",
         "close32.png",
         "beer_donation_button_single.png",
-        "libpresage.*"
+        "third_party/libpresage/libpresage.*"
     ],
     "name": "FluentBoard",
     "options_page": "options.html",
@@ -41,10 +41,10 @@
         "<all_urls>"
     ],
     "sandbox": {
-        "pages": ["libpresage.html"]
+        "pages": ["third_party/libpresage/libpresage.html"]
      },
     "update_url": "http://clients2.google.com/service/update2/crx",
-    "version": "4.3.0",
+    "version": "1.0.0",
     "manifest_version": 2,
     "content_security_policy": "script-src 'self' 'wasm-eval'; object-src 'self'"
 }
