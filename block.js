@@ -1,15 +1,19 @@
 (function() {
 
-    horseyArr = []
+    const useHorsey = false;
+    horseyArr = [];
+    tributeArr = [];
+    observer = null;
 
-    function isHorseyAttached(elem) {
-        for (var i = 0; i < horseyArr.length; i++) {
-            if (elem == horseyArr[i].elem) {
+    function isHelperAttached(helperArr, elem) {
+        for (var i = 0; i < helperArr.length; i++) {
+            if (elem == helperArr[i].elem) {
                 return true;
             }
         }
         return false;
     }
+
 
     function MutationCallback(mutationsList, observer) {
         var nodesAdded = false;
@@ -27,12 +31,12 @@
             }
         }
         if (nodesAdded) {
-            attachHorsey();
+            attachHelper();
         }
     };
 
 
-    function attachHorsey() {
+    function attachHelper() {
 
         selectors = ['textarea', 'input', '[contentEditable="true"]'];
 
@@ -43,125 +47,246 @@
             console.log(elems);
             for (var i = 0; i < elems.length; i++) {
                 elem = elems[i];
-                if (isHorseyAttached(elem)) {
-                    continue;
-                }
+
                 if (elem.getAttribute("type") === "password") {
                     continue;
                 }
-                console.log("attaching to " + elem);
-                console.log(elem);
+                //console.log("attaching to " + elem);
+                //console.log(elem);
 
-                horseyArrId = horseyArr.length;
-                horseyArr.push({
-                    horsey: null,
-                    done: null,
-                    elem: elem
-                });
-                console.log(horseyArr);
-                horseyObj = horsey(elem, {
+                if (useHorsey) {
 
-                    source: (function(data, done) {
-                        var localId = horseyArrId;
-                        return function(data, done) {
-                            horseyArr[localId].done = done;
-                            var message = {
-                                command: 'predictReq',
-                                context: {
-                                    text: data.input,
-                                    horseyId: localId
+                    if (isHelperAttached(horseyArr, elem)) {
+                        continue;
+                    }
+                    horseyArrId = horseyArr.length;
+                    horseyArr.push({
+                        horsey: null,
+                        done: null,
+                        elem: elem
+                    });
+                    console.log(horseyArr);
+                    horseyObj = horsey(elem, {
+
+                        source: (function(data, done) {
+                            var localId = horseyArrId;
+                            return function(data, done) {
+                                horseyArr[localId].done = done;
+                                var message = {
+                                    command: 'predictReq',
+                                    context: {
+                                        text: data.input,
+                                        horseyId: localId
+                                    }
+                                };
+                                chrome.runtime.sendMessage(message, function(response) {
+                                    console.log("GOT RESPONSE : " + response);
+                                });
+                            }
+                        })(),
+
+                        readInput: function(el) {
+                            console.log("MYT TEXT INPUT \n");
+                            console.log("input.selectionStart " + el.selectionStart);
+                            console.log("input.selectionEnd " + el.selectionEnd);
+                            inputStr = ""
+
+                            if (el.selectionStart == el.selectionEnd) {
+                                if (el.tagName === "DIV") {
+                                    attrib = "textContent";
+                                } else {
+                                    attrib = "value"
                                 }
-                            };
-                            chrome.runtime.sendMessage(message, function(response) {
-                                console.log("GOT RESPONSE : " + response);
-                            });
-                        }
-                    })(),
 
-                    readInput: function(el) {
-                        console.log("MYT TEXT INPUT \n");
-                        console.log("input.selectionStart " + el.selectionStart);
-                        console.log("input.selectionEnd " + el.selectionEnd);
-                        inputStr = ""
+                                inputStr = el[attrib].slice(0, el.selectionStart);
+                                console.log(el[attrib]);
+                                console.log(inputStr);
 
-                        if (el.selectionStart == el.selectionEnd) {
-                            if (el.tagName === "DIV") {
-                                attrib = "textContent";
-                            } else {
-                                attrib = "value"
                             }
 
-                            inputStr = el[attrib].slice(0, el.selectionStart);
-                            console.log(el[attrib]);
-                            console.log(inputStr);
+                            return inputStr;
+                            return (textInput ? el.value : el.innerHTML).trim();
+                        },
 
-                        }
+                        filter(query, suggestion) {
+                            return suggestion;
+                        },
+                        set: (function(value) {
+                            var _elem = elem;
+                            return function(value) {
+                                attrib = "";
+                                if (_elem.tagName === "DIV") {
+                                    attrib = "textContent";
+                                } else {
+                                    attrib = "value"
+                                }
 
-                        return inputStr;
-                        return (textInput ? el.value : el.innerHTML).trim();
-                    },
+                                inputStrToSelection = _elem[attrib].slice(0, _elem.selectionStart);
+                                inputStrFromSelection = _elem[attrib].slice(_elem.selectionStart);
 
-                    filter(query, suggestion) {
-                        return suggestion;
-                    },
-                    set: (function(value) {
-                        var _elem = elem;
-                        return function(value) {
-                            attrib = "";
-                            if (_elem.tagName === "DIV") {
-                                attrib = "textContent";
-                            } else {
-                                attrib = "value"
+
+                                new_value = inputStrToSelection.split(' ');
+                                new_value.pop(); // Remove last elem
+                                new_value.push(value + " "); // Add suggestion and space after it.
+                                new_value = new_value.join(' ');
+                                _elem[attrib] = new_value + inputStrFromSelection; // Concat it with rest of the input
+                                // Update current position
+                                _elem.selectionStart = new_value.length;
+                                _elem.selectionEnd = new_value.length;
                             }
+                        })(),
+                        setAppends: true
+                    })
+                    horseyArr[horseyArrId].horsey = horseyObj;
+                } else {
+                    if (isHelperAttached(tributeArr, elem)) {
+                        continue;
+                    }
+                    tributeArrId = tributeArr.length;
+                    tributeArr.push({
+                        tribute: null,
+                        elem: elem,
+                        done: null
+                    });
 
-                            inputStrToSelection = _elem[attrib].slice(0, _elem.selectionStart);
-                            inputStrFromSelection = _elem[attrib].slice(_elem.selectionStart);
+                    console.log("tibuete \n\n\n");
+                    var tribute = new Tribute({
+                        // symbol or string that starts the lookup
+                        trigger: "",
 
+                        // element to target for @mentions
+                        iframe: null,
 
-                            new_value = inputStrToSelection.split(' ');
-                            new_value.pop(); // Remove last elem
-                            new_value.push(value + " "); // Add suggestion and space after it.
-                            new_value = new_value.join(' ');
-                            _elem[attrib] = new_value + inputStrFromSelection; // Concat it with rest of the input
-                            // Update current position
-                            _elem.selectionStart = new_value.length;
-                            _elem.selectionEnd = new_value.length;
-                        }
-                    })(),
-                    setAppends: true
-                })
-                horseyArr[horseyArrId].horsey = horseyObj;
+                        // class added in the flyout menu for active item
+                        selectClass: 'highlight',
+
+                        // class added to the menu container
+                        containerClass: 'tribute-container',
+
+                        // class added to each list item
+                        itemClass: '',
+
+                        // function called on select that returns the content to insert
+                        selectTemplate: function(item) {
+                            return item.original.value;
+                        },
+
+                        // template for displaying item in menu
+                        menuItemTemplate: function(item) {
+                            return item.string;
+                        },
+
+                        // template for when no match is found (optional),
+                        // If no template is provided, menu is hidden.
+                        noMatchTemplate: null,
+
+                        // specify an alternative parent container for the menu
+                        // container must be a positioned element for the menu to appear correctly ie. `position: relative;`
+                        // default container is the body
+                        menuContainer: document.body,
+
+                        // column to search against in the object (accepts function or string)
+                        lookup: 'key',
+
+                        // column that contains the content to insert by default
+                        fillAttr: 'value',
+
+                        // REQUIRED: array of objects to match
+                        values: (function(data, done) {
+                            var localId = tributeArrId;
+                            return function(data, done) {
+                                console.log(data);
+                                console.log("dupa");
+                                tributeArr[localId].done = done;
+                                var message = {
+                                    command: 'predictReq',
+                                    context: {
+                                        text: data,
+                                        tributeId: localId
+                                    }
+                                };
+                                chrome.runtime.sendMessage(message, function(response) {
+                                    console.log("GOT RESPONSE : " + response);
+                                });
+                            }
+                        })(),
+
+                        // specify whether a space is required before the trigger string
+                        requireLeadingSpace: false,
+
+                        // specify whether a space is allowed in the middle of mentions
+                        allowSpaces: false,
+
+                        // optionally specify a custom suffix for the replace text
+                        // (defaults to empty space if undefined)
+                        replaceTextSuffix: ' ',
+
+                        // specify whether the menu should be positioned.  Set to false and use in conjuction with menuContainer to create an inline menu
+                        // (defaults to true)
+                        positionMenu: true,
+
+                        // when the spacebar is hit, select the current match
+                        spaceSelectsMatch: false,
+
+                        // turn tribute into an autocomplete
+                        autocompleteMode: true,
+
+                        // Customize the elements used to wrap matched strings within the results list
+                        // defaults to <span></span> if undefined
+                        searchOpts: {
+                            pre: '<span>',
+                            post: '</span>',
+                            skip: false // true will skip local search, useful if doing server-side search
+                        },
+
+                        // specify the minimum number of characters that must be typed before menu appears
+                        menuShowMinLength: 0
+                    });
+                    tributeArr[tributeArrId].tribute = tribute;
+                    tribute.attach(elem);
+                }
             }
 
         }
-
-
     }
 
-    window.addEventListener("load", function(evt) {
 
-        attachHorsey();
+    function initializeFluentBoard() {
 
-        var observerOptions = {
-            childList: true,
-            attributes: false,
-            subtree: true
+        attachHelper();
+        if (!observer) {
+            var observerOptions = {
+                childList: true,
+                attributes: false,
+                subtree: true
+            }
+            observer = new MutationObserver(MutationCallback);
+            observer.observe(document.body, observerOptions);
         }
-        var observer = new MutationObserver(MutationCallback);
-        observer.observe(document.body, observerOptions);
+    }
 
-    }, false);
+
 
     chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
         console.log(message);
-        console.log("OOOOOO");
-        console.log(horseyArr);
 
         switch (message.command) {
             case "predictResp":
-                horseyArr[message.context.horseyId].done(null, [{
-                    list: message.context.predictions
-                }]);
+                if (useHorsey) {
+                    horseyArr[message.context.horseyId].done(null, [{
+                        list: message.context.predictions
+                    }]);
+                } else {
+                    x = [];
+                    for (var i = 0; i < message.context.predictions.length; i++) {
+                        x.push({
+                            key: message.context.predictions[i],
+                            value: message.context.predictions[i]
+                        })
+                    }
+
+                    tributeArr[message.context.tributeId].done(x);
+                }
                 break;
             default:
                 console.log("Unknown message");
@@ -169,4 +294,10 @@
                 break;
         }
     })
+
+    window.addEventListener("DOMContentLoaded", function(evt) {
+        initializeFluentBoard();
+    }, false);
+    initializeFluentBoard();
+
 })();
