@@ -166,7 +166,7 @@
 
                         // template for when no match is found (optional),
                         // If no template is provided, menu is hidden.
-                        noMatchTemplate: null,
+                        noMatchTemplate: "",
 
                         // specify an alternative parent container for the menu
                         // container must be a positioned element for the menu to appear correctly ie. `position: relative;`
