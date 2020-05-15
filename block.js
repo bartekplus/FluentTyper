@@ -34,7 +34,7 @@
 
     function attachHorsey() {
 
-        selectors = ['textarea', 'input']
+        selectors = ['textarea', 'input', '[contentEditable="true"]'];
 
         for (var selectorId = 0; selectorId < selectors.length; selectorId++) {
 
@@ -78,6 +78,28 @@
                         }
                     })(),
 
+                    readInput: function(el) {
+                        console.log("MYT TEXT INPUT \n");
+                        console.log("input.selectionStart " + el.selectionStart);
+                        console.log("input.selectionEnd " + el.selectionEnd);
+                        inputStr = ""
+
+                        if (el.selectionStart == el.selectionEnd) {
+                            if (el.tagName === "DIV") {
+                                attrib = "textContent";
+                            } else {
+                                attrib = "value"
+                            }
+
+                            inputStr = el[attrib].slice(0, el.selectionStart);
+                            console.log(el[attrib]);
+                            console.log(inputStr);
+
+                        }
+
+                        return inputStr;
+                        return (textInput ? el.value : el.innerHTML).trim();
+                    },
 
                     filter(query, suggestion) {
                         return suggestion;
@@ -92,10 +114,18 @@
                                 attrib = "value"
                             }
 
-                            new_value = _elem[attrib].split(' ');
+                            inputStrToSelection = _elem[attrib].slice(0, _elem.selectionStart);
+                            inputStrFromSelection = _elem[attrib].slice(_elem.selectionStart);
+
+
+                            new_value = inputStrToSelection.split(' ');
                             new_value.pop(); // Remove last elem
-                            new_value.push(value);
-                            _elem[attrib] = new_value.join(' ');
+                            new_value.push(value + " "); // Add suggestion and space after it.
+                            new_value = new_value.join(' ');
+                            _elem[attrib] = new_value + inputStrFromSelection; // Concat it with rest of the input
+                            // Update current position
+                            _elem.selectionStart = new_value.length;
+                            _elem.selectionEnd = new_value.length;
                         }
                     })(),
                     setAppends: true
