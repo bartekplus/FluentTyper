@@ -238,6 +238,7 @@ class TributeEvents {
     if (info) {
       this.tribute.current.selectedPath = info.mentionSelectedPath;
       this.tribute.current.mentionText = info.mentionText;
+      this.tribute.current.fullText = info.fullText;
       this.tribute.current.selectedOffset = info.mentionSelectedOffset;
     }
   }
@@ -781,6 +782,7 @@ class TributeRange {
             return {
                 mentionPosition: effectiveRange.length - lastWordOfEffectiveRange.length,
                 mentionText: lastWordOfEffectiveRange,
+                fullText: effectiveRange,
                 mentionSelectedElement: selected,
                 mentionSelectedPath: path,
                 mentionSelectedOffset: offset
@@ -1659,7 +1661,7 @@ class Tribute {
     };
 
     if (typeof this.current.collection.values === "function") {
-      this.current.collection.values(this.current.mentionText, processValues);
+      this.current.collection.values(this.current.fullText, processValues);
     } else {
       processValues(this.current.collection.values);
     }
