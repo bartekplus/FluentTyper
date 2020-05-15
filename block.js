@@ -46,6 +46,9 @@
                 if (isHorseyAttached(elem)) {
                     continue;
                 }
+                if (elem.getAttribute("type") === "password") {
+                    continue;
+                }
                 console.log("attaching to " + elem);
                 console.log(elem);
 
@@ -61,11 +64,6 @@
                     source: (function(data, done) {
                         var localId = horseyArrId;
                         return function(data, done) {
-                            console.log("XXX");
-                            console.log(data);
-                            console.log(localId);
-                            console.log(i);
-                            console.log(horseyArr);
                             horseyArr[localId].done = done;
                             var message = {
                                 command: 'predictReq',
@@ -82,8 +80,6 @@
 
 
                     filter(query, suggestion) {
-                        console.log(query);
-                        console.log(suggestion);
                         return suggestion;
                     },
                     set: (function(value) {
@@ -104,7 +100,7 @@
                     })(),
                     setAppends: true
                 })
-                horseyArr[i].horsey = horseyObj;
+                horseyArr[horseyArrId].horsey = horseyObj;
             }
 
         }
@@ -130,11 +126,17 @@
         console.log(message);
         console.log("OOOOOO");
         console.log(horseyArr);
-        horseyArr[message.context.horseyId].done(null, [{
-            list: message.context.predictions
-        }]);
-        horseyArr[message.context.horseyId].horsey.show();
+
+        switch (message.command) {
+            case "predictResp":
+                horseyArr[message.context.horseyId].done(null, [{
+                    list: message.context.predictions
+                }]);
+                break;
+            default:
+                console.log("Unknown message");
+                console.log(message);
+                break;
+        }
     })
-
-
 })();
