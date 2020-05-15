@@ -5,8 +5,9 @@
     },
     "content_scripts": [{
         "css": ["FluentBoard.css", "third_party/horsey/horsey.css", "third_party/tribute/tribute.css"],
-        "js": ["debug.js", "third_party/horsey/horsey.js", "third_party/tribute/tribute.js", "cs.js"],
+        "js": ["debug.js", "third_party/horsey/horsey.js", "third_party/tribute/tribute.min.js", "cs.js"],
         "matches": ["http://*/*", "https://*/*"],
+        "exclude_matches": ["*://*.facebook.com/*", "*://messenger.com/*"],
         "run_at": "document_idle",
         "all_frames": true,
         "match_about_blank" : true
