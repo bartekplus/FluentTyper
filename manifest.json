@@ -5,7 +5,7 @@
     },
     "content_scripts": [{
         "css": ["FluentBoard.css", "third_party/horsey/horsey.css", "third_party/tribute/tribute.css"],
-        "js": ["debug.js", "third_party/horsey/horsey.js", "third_party/tribute/tribute.js", "block.js"],
+        "js": ["debug.js", "third_party/horsey/horsey.js", "third_party/tribute/tribute.js", "cs.js"],
         "matches": ["http://*/*", "https://*/*"],
         "run_at": "document_idle",
         "all_frames": true,
