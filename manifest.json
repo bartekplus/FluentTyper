@@ -14,16 +14,13 @@
     }],
     "description": "FluentBoard is flash blocker for Chrome, it automatically replace flash with placeholders.",
     "icons": {
-        "128": "icon128.png",
-        "16": "icon16.png",
-        "32": "icon32.png",
-        "48": "icon48.png"
+        "128": "icon/icon128.png",
+        "16": "icon/icon16.png",
+        "32": "icon/icon32.png",
+        "48": "icon/icon48.png"
     },
     "web_accessible_resources": [
-        "icon128.png",
-        "icon16.png",
-        "icon32.png",
-        "icon48.png",
+        "icon/icon*",
         "close32.png",
         "beer_donation_button_single.png",
         "third_party/libpresage/libpresage.*"
@@ -31,7 +28,7 @@
     "name": "FluentBoard",
     "options_page": "options.html",
     "page_action": {
-        "default_icon": "icon48.png",
+        "default_icon": "icon/icon64.png",
         "default_popup": "popup.html",
         "default_title": "Do action"
     },

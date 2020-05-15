@@ -1,7 +1,7 @@
 // SAMPLE
 this.manifest = {
     "name": "FluentBoard Settings",
-    "icon": "icon128.png",
+    "icon": "icon/icon128.png",
     "settings": [{
             "tab": i18n.get("settings"),
             "group": i18n.get("General"),
