@@ -91,15 +91,6 @@ chrome.runtime.onMessage.addListener(onRequest);
 setDefault(settings);
 
 function receiveMessage(event) {
-    console.log("Got callback from sandbox " + event)
-    console.log(event)
-
-    predictions = event.data.context.predictions;
-    console.log(predictions)
-
-    for (var i = 0; i < predictions.length; i++) {
-        console.log("predictions : ", predictions[i]);
-    }
 
     chrome.tabs.sendMessage(event.data.context.tabId, event.data, {
         frameId: event.data.context.frameId

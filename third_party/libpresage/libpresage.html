@@ -1,68 +1,67 @@
 <!DOCTYPE html>
 <html>
-<head>
-<meta name="generator" content=
-"HTML Tidy for HTML5 for Linux version 5.7.16">
-<script>
-    presage = null;
-    var presageCallback = {
-            past_stream : "",
 
-            get_past_stream: function() {
-                return this.past_stream;
-            },
-            
-            get_future_stream: function() {
-                return "";
-            }
-        };
-    var Module = {
-      onRuntimeInitialized: function() {
-      
+    <head>
+        <meta name="generator" content="HTML Tidy for HTML5 for Linux version 5.7.16">
+        <script>
+            presage = null;
+            var presageCallback = {
+                past_stream: "",
 
-        var pcObject = Module.PresageCallback.implement(presageCallback);      
-        presage = new Module.Presage(pcObject, "resources_js/presage.xml");
-      }
-    };
+                get_past_stream: function() {
+                    return this.past_stream;
+                },
+
+                get_future_stream: function() {
+                    return "";
+                }
+            };
+            var Module = {
+                onRuntimeInitialized: function() {
 
 
-    window.addEventListener('message', function(event) {
-      console.log("SANDBOX got event " +  event);
-    var command = event.data.command;
-    var name = event.data.name || 'hello';
-    switch(command) {
-      case 'predictReq':
-          presageCallback.past_stream = event.data.context.text;
-          context = event.data.context;
-          console.log("got predict req")
-          if (presage)
-          {
-            predictions = [];
-            predictionsNative = presage.predict();
+                    var pcObject = Module.PresageCallback.implement(presageCallback);
+                    presage = new Module.Presage(pcObject, "resources_js/presage.xml");
+                }
+            };
 
-            for (var i = 0; i < predictionsNative.size(); i++) {
-              predictions.push(predictionsNative.get(i));
-            }
-            context.predictions = predictions;
-            var message = {
-              command: 'predictResp',
-              context: context
-          };
-          event.source.postMessage(message, event.origin);
- 
-          }
-        break;
-  
-      // case 'somethingElse':
-      //   ...
-    }
 
-  });
+            window.addEventListener('message', function(event) {
+                var command = event.data.command;
+                var name = event.data.name || 'hello';
+                switch (command) {
+                    case 'predictReq':
+                        presageCallback.past_stream = event.data.context.text;
+                        context = event.data.context;
+                        if (presage) {
+                            predictions = [];
+                            predictionsNative = presage.predict();
+                            if (predictionsNative.size()) {
 
-</script>
-<title></title>
-</head>
-<body>
-</body>
-<script src="libpresage.js"></script>
+                                for (var i = 0; i < predictionsNative.size(); i++) {
+                                    predictions.push(predictionsNative.get(i));
+                                }
+                                context.predictions = predictions;
+                                var message = {
+                                    command: 'predictResp',
+                                    context: context
+                                };
+                                event.source.postMessage(message, event.origin);
+                            }
+                        }
+                        break;
+
+                        // case 'somethingElse':
+                        //   ...
+                }
+
+            });
+        </script>
+        <title></title>
+    </head>
+
+    <body>
+    </body>
+    <script src="libpresage.js"></script>
+
 </html>
