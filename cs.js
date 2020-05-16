@@ -50,12 +50,14 @@
                     continue;
                 }
 
+                if (isHelperAttached(useHorsey ? horseyArr : tributeArr, elem)) {
+                    continue;
+                }
+                helperArrId = useHorsey ? horseyArr.length : tributeArr.length;
+
                 if (useHorsey) {
 
-                    if (isHelperAttached(horseyArr, elem)) {
-                        continue;
-                    }
-                    horseyArrId = horseyArr.length;
+                    helperArrId = horseyArr.length;
                     horseyArr.push({
                         horsey: null,
                         done: null,
@@ -64,7 +66,7 @@
                     horseyObj = horsey(elem, {
 
                         source: (function(data, done) {
-                            var localId = horseyArrId;
+                            var localId = helperArrId;
                             return function(data, done) {
                                 horseyArr[localId].done = done;
                                 var message = {
@@ -126,12 +128,8 @@
                         })(),
                         setAppends: true
                     })
-                    horseyArr[horseyArrId].horsey = horseyObj;
+                    horseyArr[helperArrId].horsey = horseyObj;
                 } else {
-                    if (isHelperAttached(tributeArr, elem)) {
-                        continue;
-                    }
-                    tributeArrId = tributeArr.length;
                     tributeArr.push({
                         tribute: null,
                         elem: elem,
@@ -181,7 +179,7 @@
 
                         // REQUIRED: array of objects to match
                         values: (function(data, done) {
-                            var localId = tributeArrId;
+                            var localId = helperArrId;
                             return function(data, done) {
                                 tributeArr[localId].done = done;
                                 var message = {
@@ -228,7 +226,7 @@
                         // specify the minimum number of characters that must be typed before menu appears
                         menuShowMinLength: 0
                     });
-                    tributeArr[tributeArrId].tribute = tribute;
+                    tributeArr[helperArrId].tribute = tribute;
                     tribute.attach(elem);
                 }
             }
@@ -250,8 +248,6 @@
             observer.observe(document.body, observerOptions);
         }
     }
-
-
 
     chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
         switch (message.command) {
