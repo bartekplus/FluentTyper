@@ -109,7 +109,5 @@ function receiveMessage(event) {
 
 window.addEventListener("message", receiveMessage, false);
 chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
-    if (changeInfo.url) {
-        chrome.pageAction.show(tabId);
-    }
+    chrome.pageAction.show(tabId);
 });
