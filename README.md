@@ -1,1 +1,1 @@
-# FluentBoard
+# FluentTyper

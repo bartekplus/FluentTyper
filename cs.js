@@ -235,7 +235,7 @@
     }
 
 
-    function initializeFluentBoard() {
+    function initializeFluentTyper() {
 
         attachHelper();
         if (!observer) {
@@ -276,8 +276,8 @@
     })
 
     window.addEventListener("DOMContentLoaded", function(evt) {
-        initializeFluentBoard();
+        initializeFluentTyper();
     }, false);
-    initializeFluentBoard();
+    initializeFluentTyper();
 
 })();

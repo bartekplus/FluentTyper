@@ -24,7 +24,7 @@
         "beer_donation_button_single.png",
         "third_party/libpresage/libpresage.*"
     ],
-    "name": "FluentBoard",
+    "name": "FluentTyper",
     "options_page": "options.html",
     "page_action": {
         "default_icon": "icon/icon64.png",

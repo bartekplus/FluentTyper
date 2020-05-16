@@ -60,7 +60,7 @@ this.i18n = {
     "Credits": {
         "en": "Credits",
     },
-    "x-FluentBoard": {
+    "x-FluentTyper": {
         "en": "The quickest way to contact me or report a bug in FluentTyper is by sending email to:\
             <a href='mailto:bartekplus@gmail.com'>bartekplus@gmail.com</a>",
     },
