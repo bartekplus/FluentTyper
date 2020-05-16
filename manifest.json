@@ -4,7 +4,7 @@
         "persistent": true
     },
     "content_scripts": [{
-        "css": ["FluentBoard.css", "third_party/horsey/horsey.css", "third_party/tribute/tribute.css"],
+        "css": ["third_party/horsey/horsey.css", "third_party/tribute/tribute.css"],
         "js": ["debug.js", "third_party/horsey/horsey.js", "third_party/tribute/tribute.min.js", "cs.js"],
         "matches": ["http://*/*", "https://*/*"],
         "exclude_matches": ["*://*.facebook.com/*", "*://messenger.com/*"],
@@ -12,7 +12,7 @@
         "all_frames": true,
         "match_about_blank" : true
     }],
-    "description": "FluentBoard is flash blocker for Chrome, it automatically replace flash with placeholders.",
+    "description": "Auto completes while you typing. A predictive text entry system attempts to improve the ease and speed of textual input by predicting words.",
     "icons": {
         "128": "icon/icon128.png",
         "16": "icon/icon16.png",
@@ -40,9 +40,9 @@
     ],
     "sandbox": {
         "pages": ["third_party/libpresage/libpresage.html"]
-     },
+    },
     "update_url": "http://clients2.google.com/service/update2/crx",
     "version": "1.0.0",
     "manifest_version": 2,
-    "content_security_policy": "script-src 'self' 'wasm-eval'; object-src 'self'"
+    "content_security_policy": "script-src 'self'; object-src 'self'"
 }
