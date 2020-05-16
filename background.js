@@ -22,32 +22,8 @@ function setDefault(settings) {
     if (settings.get("enable") === undefined) {
         settings.set("enable", true);
     }
-    if (settings.get("showPlaceHolders") === undefined) {
-        settings.set("showPlaceHolders", true);
-    }
-    if (settings.get("placeHolderColor") === undefined) {
-        settings.set("placeHolderColor", "999999");
-    }
-    if (settings.get("placeHolderOpacity") === undefined) {
-        settings.set("placeHolderOpacity", 0.9);
-    }
-    if (settings.get("placeHolderColorHover") === undefined) {
-        settings.set("placeHolderColorHover", "444444");
-    }
-    if (settings.get("placeHolderOpacityHover") === undefined) {
-        settings.set("placeHolderOpacityHover", 0.9);
-    }
-    if (settings.get("placeHolderIcon") === undefined) {
-        settings.set("placeHolderIcon", true);
-    }
-    if (settings.get("showIcon") === undefined) {
-        settings.set("showIcon", true);
-    }
-    if (settings.get("placeHolderIconUrl") === undefined) {
-        settings.set("placeHolderIconUrl", "");
-    }
-    if (settings.get("unBlockActiveTabs") === undefined) {
-        settings.set("unBlockActiveTabs", false);
+    if (settings.get("operatingMode") === undefined) {
+        settings.set("operatingMode", "blacklist");
     }
 }
 
@@ -57,58 +33,70 @@ function sendMsgToSandbox(message) {
     iframe.contentWindow.postMessage(message, '*');
 }
 
+
+
+function isEnabledForDomain(domainURL) {
+    var enabledForDomain = settings.get("enable");
+    if (enabledForDomain) {
+        opMode = settings.get("operatingMode");
+        enabledForDomain = (opMode === "blacklist") ? true : false;
+
+        var domainList = [];
+        domainListAsStr = settings.get("domainList");
+        if (domainListAsStr) {
+            domainList = domainListAsStr.split("|@|");
+        }
+
+        for (var i = 0; i < domainList.length; i++) {
+            if (domainURL.match(domainList[i])) {
+                if (opMode === "blacklist") {
+                    enabledForDomain = false;
+                } else {
+                    enabledForDomain = true;
+                }
+                break;
+            }
+        }
+
+    }
+    return enabledForDomain;
+}
+
+
 // Called when a message is passed.  We assume that the content script
 // wants to show the page action.
 function onRequest(request, sender, sendResponse) {
     "use strict";
-    // Show the page action for the tab that the sender (content script)
-    // was on.
+    var respMsg = {};
+
     if (chrome.runtime.lastError) {
         console.log(chrome.runtime.lastError.message);
     }
-    console.log("SENDERRRRR");
-    console.log(sender);
 
     request.context.tabId = sender.tab.id;
     request.context.frameId = sender.frameId;
+
 
     switch (request.command) {
         case 'predictReq':
             sendMsgToSandbox(request);
             break;
 
-            // case 'somethingElse':
-            //   ...
+        case 'getConfig':
+            respMsg = {
+                command: "getConfig",
+                context: {
+                    enabled: isEnabledForDomain(request.context.domainURL)
+                }
+            };
     }
 
-    sendResponse({});
     // Return nothing to let the connection be cleaned up.
+    sendResponse(respMsg);
 }
 
 // Listen for the content script to send a message to the background page.
 chrome.runtime.onMessage.addListener(onRequest);
-
-function updateTabActiveStatus(tabArray) {
-    "use strict";
-    for (var i = 0; i < tabArray.length; i++) {
-        //   chrome.tabs.sendMessage(tabArray[i].id, {
-        //       message: "active",
-        //       value: tabArray[i].active
-        //   }, function (response) {
-        //       response = response;
-        //   });
-    }
-}
-
-function onTabActivated(info) {
-    "use strict";
-    /* AntiWarning */
-    info = info;
-    chrome.tabs.query({}, updateTabActiveStatus);
-
-}
-
-chrome.tabs.onActivated.addListener(onTabActivated);
 
 setDefault(settings);
 

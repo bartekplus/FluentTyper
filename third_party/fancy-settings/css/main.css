@@ -44,7 +44,7 @@
     position: absolute;
     top: 13px;
     right: 25px;
-    font-size: 26px;
+    font-size: 2em;
     color: #707070;
 }
 
@@ -64,7 +64,7 @@
     padding-right: 25px;
     border-top: 1px solid transparent;
     border-bottom: 1px solid transparent;
-    font-size: 14px;
+    font-size: 1.2em;
     line-height: 28px;
     color: #808080;
     cursor: pointer;

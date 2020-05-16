@@ -11,10 +11,21 @@ this.manifest = {
         }, {
             "tab": i18n.get("settings"),
             "group": i18n.get("General"),
-            "name": "enable",
+            "name": "operatingMode",
             "type": "radioButtons",
-            "options": [["Enabled by default (domain list is a blacklist)"] , [ "Disabled by default (domain list is a whitelist)"]],
+            "options": [
+                ["blacklist", "Enabled by default (domain list is a blacklist)"],
+                ["whitelist", "Disabled by default (domain list is a whitelist)"]
+            ],
             "label": "Operating mode:"
+        }, {
+            "tab": "Domain list",
+            "group": i18n.get("Management"),
+            "name": "domainList",
+            "type": "listBox",
+            "options": function() {
+                return;
+            }()
         }, {
             "tab": "Domain list",
             "group": i18n.get("Management"),
@@ -36,7 +47,7 @@ this.manifest = {
             "type": "button",
             "text": i18n.get("add")
         }, {
-            "tab":  "Domain list",
+            "tab": "Domain list",
             "group": i18n.get("add"),
             "name": "addDomainDsc",
             "type": "description",
