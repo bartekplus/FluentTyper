@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+
+    <head>
+        <meta name="generator" content="HTML Tidy for HTML5 for Linux version 5.7.16">
+        <style type="text/css">
+            body {
+                margin: 5px;
+                padding: 0;
+                font-size: 100%;
+                width: 350px;
+                background-color: #FFFFFF;
+                color: #000000;
+            }
+            /* The switch - the box around the slider */
+            
+            .switch {
+                position: relative;
+                display: inline-block;
+                width: 60px;
+                height: 34px;
+            }
+            /* Hide default HTML checkbox */
+            
+            .switch input {
+                opacity: 0;
+                width: 0;
+                height: 0;
+            }
+            /* The slider */
+            
+            .slider {
+                position: absolute;
+                cursor: pointer;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background-color: #ccc;
+                -webkit-transition: .4s;
+                transition: .4s;
+            }
+            
+            .slider:before {
+                position: absolute;
+                content: "";
+                height: 26px;
+                width: 26px;
+                left: 4px;
+                bottom: 4px;
+                background-color: white;
+                -webkit-transition: .4s;
+                transition: .4s;
+            }
+            
+            input:checked+.slider {
+                background-color: #2196F3;
+            }
+            
+            input:focus+.slider {
+                box-shadow: 0 0 1px #2196F3;
+            }
+            
+            input:checked+.slider:before {
+                -webkit-transform: translateX(26px);
+                -ms-transform: translateX(26px);
+                transform: translateX(26px);
+            }
+            /* Rounded sliders */
+            
+            .slider.round {
+                border-radius: 34px;
+            }
+            
+            .slider.round:before {
+                border-radius: 50%;
+            }
+            
+            .checkboxContainer {
+                display: flex;
+                align-items: center;
+                height: 34px;
+                padding: 5px;
+            }
+            
+            .checkboxLabel {
+                float: left;
+                width: 288px;
+            }
+            
+            .checkboxInputContainer {
+                right: 5px;
+                position: absolute;
+            }
+        </style>
+        <script src="/third_party/fancy-settings/i18n.js"></script>
+        <script src="/third_party/fancy-settings/js/i18n.js"></script>
+        <script src="/third_party/fancy-settings/lib/store.js"></script>
+        <script src="/third_party/fancy-settings/manifest.js"></script>
+        <script src="/utils.js"></script>
+        <script src="popup.js"></script>
+        <title></title>
+
+
+    </head>
+
+    <body>
+        <img src="/icon/LogoFluentTyper.png" alt="FluentTyper"> </img>
+
+        <hr>
+
+        <div class="checkboxContainer">
+            <div class="checkboxLabel">Global toggle: </div>
+            <div class="checkboxInputContainer">
+                <label class="switch"> 
+                <input type="checkbox">
+                <span class="slider round"></span>
+                </label>
+            </div>
+        </div>
+
+
+        <div class="checkboxContainer">
+            <div id="checkboxDomainLabel" class="checkboxLabel">Enable enable autocomplete on: </div>
+            <div class="checkboxInputContainer">
+                <label class="switch"> 
+                <input id="checkboxDomainInput" type="checkbox">
+                <span class="slider round"></span>
+                </label>
+            </div>
+        </div>
+
+
+        <hr>
+
+        <div id="runOptions" class="FFbox FFgrey">
+            Options
+        </div>
+
+        <hr>
+
+        <div>
+            <form action="https://www.paypal.com/cgi-bin/webscr" method="post" target="_blank">
+                <input type="hidden" name="cmd" value="_s-xclick">
+                <input type="hidden" name="encrypted" value="-----BEGIN PKCS7-----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-----END PKCS7----- ">
+                <input type="image" src="beer_donation_button_single.png" border="0" name="submit" alt="PayPal — Płać wygodnie i bezpiecznie"> <img alt="" border="0" src="https://www.paypalobjects.com/pl_PL/i/scr/pixel.gif" width="1" height="1">
+            </form>
+        </div>
+    </body>
+
+</html>

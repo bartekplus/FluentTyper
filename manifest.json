@@ -10,7 +10,7 @@
         "exclude_matches": ["*://*.facebook.com/*", "*://messenger.com/*"],
         "run_at": "document_idle",
         "all_frames": true,
-        "match_about_blank" : true
+        "match_about_blank": true
     }],
     "description": "Auto completes while you typing. A predictive text entry system attempts to improve the ease and speed of textual input by predicting words.",
     "icons": {
@@ -28,7 +28,7 @@
     "options_page": "options.html",
     "page_action": {
         "default_icon": "icon/icon64.png",
-        "default_popup": "popup.html",
+        "default_popup": "popup/popup.html",
         "default_title": "Do action"
     },
     "permissions": [
