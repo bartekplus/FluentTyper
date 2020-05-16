@@ -21,7 +21,6 @@
     },
     "web_accessible_resources": [
         "icon/icon*",
-        "close32.png",
         "beer_donation_button_single.png",
         "third_party/libpresage/libpresage.*"
     ],
