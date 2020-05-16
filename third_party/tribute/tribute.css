@@ -7,24 +7,33 @@
   max-width: 500px;
   overflow: auto;
   display: block;
-  z-index: 999999;
+  z-index: 2147483647;
+  box-shadow: 1px 2px 6px;
+  background-color: #fff;
+  color: #333;
 }
 .tribute-container ul {
   margin: 0;
-  margin-top: 2px;
   padding: 0;
   list-style: none;
-  background: #efefef;
+  background-color: #fff;
 }
 .tribute-container li {
   padding: 5px 5px;
   cursor: pointer;
 }
 .tribute-container li.highlight {
-  background: #ddd;
+  background-color: #333;
+  color: #fff;
+  font-weight: bold;
+}
+.tribute-container li.highlight:hover {
+  background-color: #333;
+  color: #fff;
+  font-weight: bold;
 }
 .tribute-container li span {
-  font-weight: bold;
+  font-weight: normal;
 }
 .tribute-container li.no-match {
   cursor: default;
