@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   sodipodi:docname="LogoFluentTyper.svg"
+   inkscape:version="1.0 (4035a4fb49, 2020-05-01)"
+   id="svg15"
+   version="1.1"
+   viewBox="0 0 784.82245 143.99962"
+   height="143.99962mm"
+   width="784.82245mm">
+  <defs
+     id="defs9" />
+  <sodipodi:namedview
+     fit-margin-bottom="0"
+     fit-margin-right="0"
+     fit-margin-left="0"
+     fit-margin-top="0"
+     inkscape:window-maximized="1"
+     inkscape:window-y="0"
+     inkscape:window-x="0"
+     inkscape:window-height="1013"
+     inkscape:window-width="1920"
+     showgrid="false"
+     inkscape:document-rotation="0"
+     inkscape:current-layer="layer1"
+     inkscape:document-units="mm"
+     inkscape:cy="833.07387"
+     inkscape:cx="-291.34011"
+     inkscape:zoom="0.24748737"
+     inkscape:pageshadow="2"
+     inkscape:pageopacity="0.0"
+     borderopacity="1.0"
+     bordercolor="#666666"
+     pagecolor="#ffffff"
+     id="base" />
+  <metadata
+     id="metadata12">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     id="layer1"
+     inkscape:groupmode="layer"
+     inkscape:label="Layer 1">
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:137.634px;line-height:1.25;font-family:'Berlin Bold';-inkscape-font-specification:'Berlin Bold, ';stroke-width:3.44087"
+       x="141.24731"
+       y="112.3438"
+       id="text12"><tspan
+         sodipodi:role="line"
+         id="tspan10"
+         x="141.24731"
+         y="112.3438"
+         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-family:'Berlin Bold';-inkscape-font-specification:'Berlin Bold,  Bold';stroke-width:3.44087">FluentTyper</tspan></text>
+    <rect
+       ry="20.032738"
+       y="-3.5527137e-15"
+       x="0"
+       height="128"
+       width="128"
+       id="rect36"
+       style="fill:#1a1a1a;stroke-width:0.264583" />
+    <rect
+       ry="20.032742"
+       y="11.999998"
+       x="12"
+       height="104"
+       width="104"
+       id="rect47"
+       style="fill:#ffffff;stroke-width:0.264583" />
+    <rect
+       ry="20.032742"
+       y="16.999998"
+       x="17"
+       height="94"
+       width="94"
+       id="rect49"
+       style="fill:#000000;stroke-width:0.264583" />
+    <text
+       xml:space="preserve"
+       style="font-size:10.5833px;line-height:1.25;font-family:Impact;-inkscape-font-specification:Impact;stroke-width:0.264583"
+       x="29.293154"
+       y="51.404762"
+       id="text102"><tspan
+         sodipodi:role="line"
+         id="tspan100"
+         x="29.293154"
+         y="51.404762"
+         style="stroke-width:0.264583">F</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:86.5314px;line-height:1.25;font-family:Impact;-inkscape-font-specification:Impact;fill:#ffffff;stroke-width:2.16331"
+       x="22.593309"
+       y="94.119179"
+       id="text106"
+       transform="scale(0.98668235,1.0134974)"><tspan
+         sodipodi:role="line"
+         id="tspan104"
+         x="22.593309"
+         y="94.119179"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:expanded;font-family:'Berlin XBold';-inkscape-font-specification:'Berlin XBold Expanded';fill:#ffffff;stroke-width:2.16331">FT</tspan></text>
+  </g>
+</svg>
