@@ -1,4 +1,4 @@
-﻿// SAMPLE
+// SAMPLE
 this.i18n = {
     "domain": {
         "en": "Domain URL"
@@ -46,7 +46,7 @@ this.i18n = {
         "en": "10 - 18 characters"
     },
     "description-url": {
-        "en": "Plese use '*' to match any character."
+        "en": "Regexp are accepted (see <a href='https://www.w3schools.com/jsref/jsref_match.asp'>JavaScript String match() Method</a>)"
     },
     "logout": {
         "en": "Logout"

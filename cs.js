@@ -237,6 +237,10 @@
 
     function initializeFluentTyper() {
 
+        window.addEventListener("DOMContentLoaded", function(evt) {
+            initializeFluentTyper();
+        }, false);
+
         attachHelper();
         if (!observer) {
             var observerOptions = {
@@ -275,9 +279,20 @@
         }
     })
 
-    window.addEventListener("DOMContentLoaded", function(evt) {
-        initializeFluentTyper();
-    }, false);
-    initializeFluentTyper();
+    function getConfig() {
+        var message = {
+            command: 'getConfig',
+            context: {
+                domainURL: document.domain
+            }
+        };
+        chrome.runtime.sendMessage(message, function(response) {
+            if (response.context.enabled) {
+                initializeFluentTyper();
+            }
+        });
 
+    }
+
+    getConfig();
 })();
