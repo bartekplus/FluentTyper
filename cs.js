@@ -133,7 +133,8 @@
                     tributeArr.push({
                         tribute: null,
                         elem: elem,
-                        done: null
+                        done: null,
+                        timeout: null
                     });
 
                     var tribute = new Tribute({
@@ -190,7 +191,7 @@
                                     }
                                 };
                                 chrome.runtime.sendMessage(message, function(response) {
-                                    //console.log("GOT RESPONSE : " + response);
+                                    tributeArr[localId].timeout = setTimeout((function() { return done([]); }), 1000);
                                 });
                             }
                         })(),
@@ -268,7 +269,10 @@
                             value: message.context.predictions[i]
                         })
                     }
-
+                    if (tributeArr[message.context.tributeId].timeout) {
+                        clearTimeout(tributeArr[message.context.tributeId].timeout);
+                        tributeArr[message.context.tributeId].timeout = null;
+                    }
                     tributeArr[message.context.tributeId].done(x);
                 }
                 break;
