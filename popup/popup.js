@@ -12,6 +12,7 @@ function init() {
         var bcgPage = chrome.extension.getBackgroundPage();
         var urlNode = document.getElementById("checkboxDomainLabel");
         var checkboxNode = document.getElementById("checkboxDomainInput");
+        var checkboxEnableNode = document.getElementById("checkboxEnableInput");
 
         var domainURL = getDomain(currentTab.url);
         var opMode = settings.get("operatingMode");
@@ -22,6 +23,10 @@ function init() {
         } else {
             checkboxNode.checked = opMode === "blacklist" ? true : false;
         }
+
+        checkboxEnableNode.checked = settings.get("enable");
+        document.getElementById("runOptions").href = chrome.extension.getURL("options.html");
+
     });
 }
 
@@ -41,20 +46,17 @@ function addRemoveDomain() {
             addDomainToList(settings, domainURL);
         }
     });
-
 }
 
-function runOptions(change) {
-    "use strict";
-    change = change;
-    window.open(chrome.extension.getURL("options.html"));
+function toggleOnOff() {
+    settings.set("enable", !settings.get("enable"));
 }
+
 
 init();
 
 window.document.addEventListener("DOMContentLoaded", function() {
     "use strict";
     window.document.getElementById("checkboxDomainInput").addEventListener("click", addRemoveDomain);
-    //window.document.getElementById("usePlaceHolders").addEventListener("click", usePlaceHolders);
-    //window.document.getElementById("runOptions").addEventListener("click", runOptions);
+    window.document.getElementById("checkboxEnableInput").addEventListener("click", toggleOnOff);
 });
