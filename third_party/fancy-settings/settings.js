@@ -4,12 +4,11 @@ window.addEvent("domready", function () {
         settings.manifest.addDomainBtn.addEvent("action", function () {
         	var domainURL = settings.manifest.domain.get();
         	var elem = new Element("option", {"value": domainURL, "text": domainURL });
-        	//elem.inject(settings.manifest.myListBox.element);
-        	settings.manifest.whiteListBox.add(domainURL);
+        	settings.manifest.domainList.add(domainURL);
         });
         
         settings.manifest.removeDomainBtn.addEvent("action", function () {
-        	settings.manifest.whiteListBox.remove();
+        	settings.manifest.domainList.remove();
         });
     });
 });

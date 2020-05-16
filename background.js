@@ -41,23 +41,13 @@ function isEnabledForDomain(domainURL) {
         opMode = settings.get("operatingMode");
         enabledForDomain = (opMode === "blacklist") ? true : false;
 
-        var domainList = [];
-        domainListAsStr = settings.get("domainList");
-        if (domainListAsStr) {
-            domainList = domainListAsStr.split("|@|");
-        }
-
-        for (var i = 0; i < domainList.length; i++) {
-            if (domainURL.match(domainList[i])) {
-                if (opMode === "blacklist") {
-                    enabledForDomain = false;
-                } else {
-                    enabledForDomain = true;
-                }
-                break;
+        if (isDomainOnList(settings, domainURL)) {
+            if (opMode === "blacklist") {
+                enabledForDomain = false;
+            } else {
+                enabledForDomain = true;
             }
         }
-
     }
     return enabledForDomain;
 }
@@ -118,3 +108,8 @@ function receiveMessage(event) {
 
 
 window.addEventListener("message", receiveMessage, false);
+chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
+    if (changeInfo.url) {
+        chrome.pageAction.show(tabId);
+    }
+});
