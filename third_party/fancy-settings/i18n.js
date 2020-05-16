@@ -1,115 +1,58 @@
 ﻿// SAMPLE
 this.i18n = {
     "domain": {
-        "en": "Domain URL",
-        "pl": "Adres URL"
+        "en": "Domain URL"
     },
     "add": {
-        "en": "Add",
-        "pl": "Dodaj"
+        "en": "Add"
     },
     "remove": {
-        "en": "Remove",
-        "pl": "Usuń"
+        "en": "Remove"
     },
     "x-domain": {
-        "en": "example.com",
+        "en": "example.com"
     },
     "settings": {
-        "en": "Settings",
-        "de": "Optionen",
-        "pl": "Ustawienia"
+        "en": "Settings"
     },
     "Management": {
-        "en": "Management",
-        "pl": "Zarządzaj",
+        "en": "Management"
     },
     "search": {
-        "en": "Search",
-        "de": "Suche",
-        "pl": "Szukaj"
+        "en": "Search"
     },
     "nothing-found": {
-        "en": "No matches were found.",
-        "de": "Keine Übereinstimmungen gefunden."
+        "en": "No matches were found."
     },
     "General": {
-        "en": "General",
-        "pl": "Ogólne",
+        "en": "General"
     },
-
     "information": {
-        "en": "Information",
-        "de": "Information"
+        "en": "Information"
     },
     "login": {
-        "en": "Login",
-        "de": "Anmeldung"
+        "en": "Login"
     },
     "username": {
-        "en": "Username:",
-        "de": "Benutzername:"
+        "en": "Username:"
     },
     "password": {
-        "en": "Password:",
-        "de": "Passwort:"
+        "en": "Password:"
     },
     "x-characters": {
-        "en": "6 - 12 characters",
-        "de": "6 - 12 Zeichen"
+        "en": "6 - 12 characters"
     },
     "x-characters-pw": {
-        "en": "10 - 18 characters",
-        "de": "10 - 18 Zeichen"
+        "en": "10 - 18 characters"
     },
     "description-url": {
-        "en": "Plese use '*' to match any character.",
-
-        "pl": "Użyj '*' aby dopasować dowolny znak "
+        "en": "Plese use '*' to match any character."
     },
     "logout": {
-        "en": "Logout",
-        "de": "Abmeldung"
+        "en": "Logout"
     },
     "enable": {
-        "en": "Enable",
-        "de": "Aktivieren",
-        "pl": "Włączony"
-    },
-    "showPlaceHolders": {
-        "en": "Show PlaceHolders",
-        "pl": "Pokaż wypełniacze"
-    },
-    "disconnect": {
-        "en": "Disconnect:",
-        "de": "Trennen:"
-    },
-    "placeHolderColor": {
-        "en": "PlaceHolder Color",
-    },
-    "placeHolderColorHover": {
-        "en": "PlaceHolder Color on hover",
-    },
-    "x-placeHolderColor": {
-        "en": "999999",
-    },
-    "x-placeHolderColorHover": {
-        "en": "444444",
-    },
-    "placeHolderOpacity": {
-        "en": "PlaceHolder Opacity",
-    },
-    "placeHolderOpacityHover": {
-        "en": "PlaceHolder Opacity on hover",
-    },
-    "x-placeHolderOpacityHover": {
-        "en": "0.9",
-    },
-    "x-placeHolderOpacity": {
-        "en": "0.9",
-    },
-    "placeHolderIcon": {
-        "en": "Show Flash icon",
+        "en": "Enable"
     },
     "About": {
         "en": "About",
@@ -118,29 +61,13 @@ this.i18n = {
         "en": "Credits",
     },
     "x-FluentBoard": {
-        "en": "Please report bugs by mail :<a href='mailto:bartekplus@gmail.com'>bartekplus@gmail.com</a> <br \>\
-                For news/updates follow me on <a href= 'https://plus.google.com/115676770489643621906/'>Google plus</a>",
+        "en": "The quickest way to contact me or report a bug in FluentTyper is by sending email to:\
+            <a href='mailto:bartekplus@gmail.com'>bartekplus@gmail.com</a>",
     },
     "x-Credits": {
-        "en": "With special thanks to: <br \><br \>\
-    	        New features inspiration: <br \>\
-    	        J Irving <br \> <br \>\
-    	        Bug reporters: <br \>\
-    	        <a href='mailto:bartosz.pl@gmail.com'>Bartosz Jabłoński</a>"
+        "en": "With special thanks to: "
     },
     "showIcon": {
         "en": "Show icon in location bar"
-    },
-    "unBlockActiveTabs": {
-        "en": "Automaticly block/unblock flash when tab become active"
-    },
-    "Placeholder": {
-        "en": "Place holder"
-    },
-    "placeHolderIconUrl": {
-        "en": "Alternative place holder icon url"
-    },
-    "bumbleAd": {
-        "en": "<div id='bumbleAd'\></div\>"
-    },
+    }
 };
