@@ -50,7 +50,12 @@ function isDomainOnList(settings, domainURL) {
 
 
 function addDomainToList(settings, domainURL) {
-    domainListAsStr = settings.get("domainList") || [];
+    domainListAsStr = settings.get("domainList");
+    if (domainListAsStr) {
+        domainListAsStr = domainListAsStr.split("|@|");
+    } else {
+        domainListAsStr = [];
+    }
     domainListAsStr.push(domainURL);
 
     settings.set("domainList", domainListAsStr.join("|@|"));
