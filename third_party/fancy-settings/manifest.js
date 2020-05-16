@@ -8,68 +8,7 @@ this.manifest = {
             "name": "enable",
             "type": "checkbox",
             "label": i18n.get("enable")
-        }, {
-            "tab": i18n.get("settings"),
-            "group": i18n.get("General"),
-            "name": "showIcon",
-            "type": "checkbox",
-            "label": i18n.get("showIcon")
-        }, {
-            "tab": i18n.get("settings"),
-            "group": i18n.get("General"),
-            "name": "showPlaceHolders",
-            "type": "checkbox",
-            "label": i18n.get("showPlaceHolders")
-        }, {
-            "tab": i18n.get("settings"),
-            "group": i18n.get("General"),
-            "name": "unBlockActiveTabs",
-            "type": "checkbox",
-            "label": i18n.get("unBlockActiveTabs")
-        }, {
-            "tab": i18n.get("settings"),
-            "group": i18n.get("Placeholder"),
-            "name": "placeHolderColor",
-            "type": "text",
-            "label": i18n.get("placeHolderColor"),
-            "text": i18n.get("x-placeHolderColor"),
-            "colorPicker": true,
-        }, {
-            "tab": i18n.get("settings"),
-            "group": i18n.get("Placeholder"),
-            "name": "placeHolderOpacity",
-            "type": "text",
-            "label": i18n.get("placeHolderOpacity"),
-            "text": i18n.get("x-placeHolderOpacity"),
-        }, {
-            "tab": i18n.get("settings"),
-            "group": i18n.get("Placeholder"),
-            "name": "placeHolderColorHover",
-            "type": "text",
-            "label": i18n.get("placeHolderColorHover"),
-            "text": i18n.get("x-placeHolderColorHover"),
-            "colorPicker": true,
-        }, {
-            "tab": i18n.get("settings"),
-            "group": i18n.get("Placeholder"),
-            "name": "placeHolderOpacityHover",
-            "type": "text",
-            "label": i18n.get("placeHolderOpacityHover"),
-            "text": i18n.get("x-placeHolderOpacityHover"),
-        }, {
-            "tab": i18n.get("settings"),
-            "group": i18n.get("Placeholder"),
-            "name": "placeHolderIcon",
-            "type": "checkbox",
-            "label": i18n.get("placeHolderIcon"),
-        }, {
-            "tab": i18n.get("settings"),
-            "group": i18n.get("Placeholder"),
-            "name": "placeHolderIconUrl",
-            "type": "text",
-            "label": i18n.get("placeHolderIconUrl"),
         },
-
         {
             "tab": "White List",
             "group": i18n.get("Management"),
