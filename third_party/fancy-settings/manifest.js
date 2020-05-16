@@ -1,6 +1,6 @@
 // SAMPLE
 this.manifest = {
-    "name": "FluentBoard Settings",
+    "name": "FluentTyper Settings",
     "icon": "icon/icon128.png",
     "settings": [{
             "tab": i18n.get("settings"),
@@ -53,10 +53,10 @@ this.manifest = {
             "text": i18n.get("description-url")
         }, {
             "tab": i18n.get("About"),
-            "group": i18n.get("FluentBoard"),
-            "name": "FluentBoard",
+            "group": i18n.get("FluentTyper"),
+            "name": "FluentTyper",
             "type": "description",
-            "text": i18n.get("x-FluentBoard")
+            "text": i18n.get("x-FluentTyper")
         }, {
             "tab": i18n.get("About"),
             "group": i18n.get("Credits"),
