@@ -15,18 +15,8 @@ this.manifest = {
             "type": "radioButtons",
             "options": [["Enabled by default (domain list is a blacklist)"] , [ "Disabled by default (domain list is a whitelist)"]],
             "label": "Operating mode:"
-        },
-        {
-            "tab": "White List",
-            "group": i18n.get("Management"),
-            "name": "whiteListBox",
-            "type": "listBox",
-            //"label": "Soup 2 should be:",
-            "options": function () {
-                return;
-            }()
         }, {
-            "tab": "White List",
+            "tab": "Domain list",
             "group": i18n.get("Management"),
             "name": "removeDomainBtn",
             "type": "button",
@@ -40,13 +30,13 @@ this.manifest = {
             "text": i18n.get("x-domain"),
             "store": false
         }, {
-            "tab": "Domain List",
+            "tab": "Domain list",
             "group": i18n.get("add"),
             "name": "addDomainBtn",
             "type": "button",
             "text": i18n.get("add")
         }, {
-            "tab":  "Domain List",
+            "tab":  "Domain list",
             "group": i18n.get("add"),
             "name": "addDomainDsc",
             "type": "description",
