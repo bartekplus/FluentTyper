@@ -166,6 +166,12 @@
 
         var element = this;
         instance.commandEvent = false;
+        TributeEvents.modifiers().forEach(function (o) {
+          if (event.getModifierState(o)) {
+            instance.commandEvent = true;
+            return;
+          }
+        });
         TributeEvents.keys().forEach(function (o) {
           if (o.key === event.keyCode) {
             instance.commandEvent = true;
@@ -214,6 +220,16 @@
         }
 
         instance.updateSelection(this);
+
+        if (event instanceof KeyboardEvent) {
+          TributeEvents.modifiers().forEach(function (o) {
+            if (event.getModifierState(o)) {
+              instance.commandEvent = true;
+              return;
+            }
+          });
+        }
+
         if (event.keyCode === 27) return;
 
         if (!instance.tribute.allowSpaces && instance.tribute.hasTrailingSpace) {
@@ -452,15 +468,17 @@
           key: 27,
           value: "ESCAPE"
         }, {
-          key: 32,
-          value: "SPACE"
-        }, {
           key: 38,
           value: "UP"
         }, {
           key: 40,
           value: "DOWN"
         }];
+      }
+    }, {
+      key: "modifiers",
+      value: function modifiers() {
+        return ["CapsLock", "Control", "Fn", "FnLock", "Hyper", "Meta", "NumLock", "OS", "ScrollLock", "Super", "Symbol", "SymbolLock", "Win"];
       }
     }]);
 
