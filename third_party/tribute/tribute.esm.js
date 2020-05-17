@@ -65,10 +65,6 @@ class TributeEvents {
         value: "ESCAPE"
       },
       {
-        key: 32,
-        value: "SPACE"
-      },
-      {
         key: 38,
         value: "UP"
       },
@@ -76,6 +72,24 @@ class TributeEvents {
         key: 40,
         value: "DOWN"
       }
+    ];
+  }
+
+  static modifiers() {
+    return [
+        "CapsLock",
+        "Control",
+        "Fn",
+        "FnLock",
+        "Hyper",
+        "Meta",
+        "NumLock",
+        "OS",
+        "ScrollLock",
+        "Super",
+        "Symbol",
+        "SymbolLock",
+        "Win"
     ];
   }
 
@@ -107,6 +121,13 @@ class TributeEvents {
 
     let element = this;
     instance.commandEvent = false;
+
+    TributeEvents.modifiers().forEach(o => {
+      if (event.getModifierState(o)) {
+        instance.commandEvent = true;
+        return;
+      }
+    });
 
     TributeEvents.keys().forEach(o => {
       if (o.key === event.keyCode) {
@@ -148,6 +169,15 @@ class TributeEvents {
       instance.inputEvent = false;
     }
     instance.updateSelection(this);
+
+    if (event instanceof KeyboardEvent){
+      TributeEvents.modifiers().forEach(o => {
+        if (event.getModifierState(o)) {
+          instance.commandEvent = true;
+          return;
+        }
+      });
+    }
 
     if (event.keyCode === 27) return;
 
