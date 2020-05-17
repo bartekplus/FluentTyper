@@ -78,3 +78,11 @@ function removeDomainFromList(settings, domainURL) {
         }
     }
 }
+
+function checkLastError() {
+    try {
+        if (chrome.runtime.lastError) {
+            console.log(chrome.runtime.lastError.message);
+        }
+    } catch (e) {};
+}

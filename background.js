@@ -57,9 +57,7 @@ function onRequest(request, sender, sendResponse) {
     "use strict";
     var respMsg = {};
 
-    if (chrome.runtime.lastError) {
-        console.log(chrome.runtime.lastError.message);
-    }
+    checkLastError();
 
     request.context.tabId = sender.tab.id;
     request.context.frameId = sender.frameId;
@@ -89,7 +87,7 @@ chrome.runtime.onMessage.addListener(onRequest);
 setDefault(settings);
 
 function receiveMessage(event) {
-
+    checkLastError();
     chrome.tabs.sendMessage(event.data.context.tabId, event.data, {
         frameId: event.data.context.frameId
     });
@@ -97,5 +95,6 @@ function receiveMessage(event) {
 
 window.addEventListener("message", receiveMessage, false);
 chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
+    checkLastError();
     chrome.pageAction.show(tabId);
 });
