@@ -25,15 +25,18 @@
                 }
             };
 
+            function isString(s) {
+                return typeof(s) === 'string' || s instanceof String;
+            }
 
             window.addEventListener('message', function(event) {
                 var command = event.data.command;
                 var name = event.data.name || 'hello';
                 switch (command) {
                     case 'predictReq':
-                        presageCallback.past_stream = event.data.context.text;
-                        context = event.data.context;
-                        if (presage) {
+                        if (presage && isString(event.data.context.text)) {
+                            presageCallback.past_stream = event.data.context.text;
+                            context = event.data.context;
                             predictions = [];
                             predictionsNative = presage.predict();
                             if (predictionsNative.size()) {
