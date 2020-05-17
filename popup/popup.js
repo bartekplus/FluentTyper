@@ -16,7 +16,7 @@ function init() {
 
         var domainURL = getDomain(currentTab.url);
         var opMode = settings.get("operatingMode");
-        urlNode.innerText = "Enable enable autocomplete on: " + domainURL;
+        urlNode.innerText = "Enable autocomplete on: " + domainURL;
 
         if (isDomainOnList(settings, domainURL)) {
             checkboxNode.checked = opMode === "blacklist" ? false : true;
