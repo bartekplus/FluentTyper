@@ -4,9 +4,9 @@
 // Check whether new version is installed
 chrome.runtime.onInstalled.addListener(function(details) {
     if (details.reason == "install") {
-        chrome.tabs.create({
-            url: "options/index.html"
-        });
+        //chrome.tabs.create({
+        //    url: "options/index.html"
+        //});
     } else if (details.reason == "update") {
         var thisVersion = chrome.runtime.getManifest().version;
         console.log("Updated from " + details.previousVersion + " to " + thisVersion + "!");
@@ -27,12 +27,10 @@ function setDefault(settings) {
     }
 }
 
-
 function sendMsgToSandbox(message) {
     var iframe = document.getElementById('sandboxFrame');
     iframe.contentWindow.postMessage(message, '*');
 }
-
 
 
 function isEnabledForDomain(domainURL) {
@@ -96,7 +94,6 @@ function receiveMessage(event) {
         frameId: event.data.context.frameId
     });
 }
-
 
 window.addEventListener("message", receiveMessage, false);
 chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
