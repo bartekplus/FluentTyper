@@ -65,6 +65,13 @@ this.manifest = {
             "type": "description",
             "text": i18n.get("x-Credits")
         },
+        {
+            "tab": i18n.get("About"),
+            "group": i18n.get("Version"),
+            "name": "Version",
+            "type": "description",
+            "text": chrome.runtime.getManifest().version
+        },
 
     ],
 
