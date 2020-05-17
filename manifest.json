@@ -14,10 +14,14 @@
     }],
     "description": "Auto completes while you typing. FluentTyper attempts to improve the ease and speed of textual input by predicting words.",
     "icons": {
+        "256": "icon/icon256.png",
         "128": "icon/icon128.png",
-        "16": "icon/icon16.png",
+        "96": "icon/icon96.png",
+        "72": "icon/icon72.png",
+        "64": "icon/icon64.png",
+        "48": "icon/icon48.png",
         "32": "icon/icon32.png",
-        "48": "icon/icon48.png"
+        "16": "icon/icon16.png"
     },
     "web_accessible_resources": [
         "icon/icon*",
@@ -27,8 +31,17 @@
     "name": "FluentTyper",
     "options_page": "options.html",
     "page_action": {
-        "default_icon": "icon/icon64.png",
-        "default_popup": "popup/popup.html",
+        "default_icon": {
+            "256": "icon/icon256.png",
+            "128": "icon/icon128.png",
+            "96": "icon/icon96.png",
+            "72": "icon/icon72.png",
+            "64": "icon/icon64.png",
+            "48": "icon/icon48.png",
+            "32": "icon/icon32.png",
+            "16": "icon/icon16.png"
+          },
+          "default_popup": "popup/popup.html",
         "default_title": "Do action"
     },
     "permissions": [
