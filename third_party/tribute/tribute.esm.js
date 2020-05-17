@@ -47,8 +47,7 @@ class TributeEvents {
   }
 
   static keys() {
-    return [
-      {
+    return [{
         key: 9,
         value: "TAB"
       },
@@ -77,15 +76,15 @@ class TributeEvents {
 
   static modifiers() {
     return [
-        "CapsLock",
-        "Control",
-        "Fn",
-        "Hyper",
-        "Meta",
-        "OS",
-        "Super",
-        "Symbol",
-        "Win"
+      "CapsLock",
+      "Control",
+      "Fn",
+      "Hyper",
+      "Meta",
+      "OS",
+      "Super",
+      "Symbol",
+      "Win"
     ];
   }
 
@@ -118,12 +117,14 @@ class TributeEvents {
     let element = this;
     instance.commandEvent = false;
 
-    TributeEvents.modifiers().forEach(o => {
-      if (event.getModifierState(o)) {
-        instance.commandEvent = true;
-        return;
-      }
-    });
+    if (event instanceof KeyboardEvent) {
+      TributeEvents.modifiers().forEach(o => {
+        if (event.getModifierState(o)) {
+          instance.commandEvent = true;
+          return;
+        }
+      });
+    }
 
     TributeEvents.keys().forEach(o => {
       if (o.key === event.keyCode) {
@@ -166,7 +167,7 @@ class TributeEvents {
     }
     instance.updateSelection(this);
 
-    if (event instanceof KeyboardEvent){
+    if (event instanceof KeyboardEvent) {
       TributeEvents.modifiers().forEach(o => {
         if (event.getModifierState(o)) {
           instance.commandEvent = true;
@@ -211,7 +212,7 @@ class TributeEvents {
 
     if (
       ((instance.tribute.current.trigger ||
-        instance.tribute.autocompleteMode) &&
+          instance.tribute.autocompleteMode) &&
         instance.commandEvent === false) ||
       (instance.tribute.isActive && event.keyCode === 8)
     ) {
@@ -283,7 +284,7 @@ class TributeEvents {
 
         if (
           tribute.current.mentionText.length >=
-            tribute.current.collection.menuShowMinLength &&
+          tribute.current.collection.menuShowMinLength &&
           tribute.inputEvent
         ) {
           tribute.showMenuFor(el, true);
