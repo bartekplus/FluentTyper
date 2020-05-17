@@ -74,7 +74,7 @@ function onRequest(request, sender, sendResponse) {
             respMsg = {
                 command: "getConfig",
                 context: {
-                    enabled: isEnabledForDomain(request.context.domainURL)
+                    enabled: isEnabledForDomain(sender.tab.url),
                 }
             };
     }

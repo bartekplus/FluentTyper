@@ -212,9 +212,9 @@
         var message = {
             command: 'getConfig',
             context: {
-                domainURL: document.domain
             }
         };
+
         chrome.runtime.sendMessage(message, function(response) {
             if (response.context.enabled) {
                 initializeFluentTyper();
