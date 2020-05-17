@@ -166,12 +166,16 @@
 
         var element = this;
         instance.commandEvent = false;
-        TributeEvents.modifiers().forEach(function (o) {
-          if (event.getModifierState(o)) {
-            instance.commandEvent = true;
-            return;
-          }
-        });
+
+        if (event instanceof KeyboardEvent) {
+          TributeEvents.modifiers().forEach(function (o) {
+            if (event.getModifierState(o)) {
+              instance.commandEvent = true;
+              return;
+            }
+          });
+        }
+
         TributeEvents.keys().forEach(function (o) {
           if (o.key === event.keyCode) {
             instance.commandEvent = true;
