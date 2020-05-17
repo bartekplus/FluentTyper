@@ -137,6 +137,16 @@
                         timeout: null
                     });
 
+
+                    elem.addEventListener("tribute-replaced", function(e) {
+                        setTimeout((function() {
+                            // Triger predition after replacing text, without user interacction
+                            e.target.dispatchEvent(new KeyboardEvent('keydown', { 'key': ' ' }));
+                            e.target.dispatchEvent(new KeyboardEvent('keyup', { 'key': ' ' }));
+                        }), 10);
+                    });
+
+
                     var tribute = new Tribute({
                         // symbol or string that starts the lookup
                         trigger: "",
