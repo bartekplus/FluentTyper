@@ -12,6 +12,13 @@
         return false;
     }
 
+    function checkLastError() {
+        try {
+            if (chrome.runtime.lastError) {
+                console.log(chrome.runtime.lastError.message);
+            }
+        } catch (e) {};
+    }
 
     function MutationCallback(mutationsList, observer) {
         var nodesAdded = false;
@@ -122,6 +129,7 @@
                                 }
                             };
                             chrome.runtime.sendMessage(message, function(response) {
+                                checkLastError();
                                 tributeArr[localId].timeout = setTimeout((function() { return done([]); }), 1000);
                             });
                         }
@@ -186,6 +194,8 @@
     }
 
     chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
+        checkLastError();
+
         switch (message.command) {
             case "predictResp":
                 keyValPairs = [];
@@ -208,14 +218,17 @@
         }
     })
 
+
+
     function getConfig() {
         var message = {
             command: 'getConfig',
-            context: {
-            }
+            context: {}
         };
 
         chrome.runtime.sendMessage(message, function(response) {
+            checkLastError();
+
             if (response.context.enabled) {
                 initializeFluentTyper();
             }
