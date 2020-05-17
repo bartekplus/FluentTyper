@@ -12,7 +12,7 @@
         "all_frames": true,
         "match_about_blank": true
     }],
-    "description": "Auto completes while you typing. A predictive text entry system attempts to improve the ease and speed of textual input by predicting words.",
+    "description": "Auto completes while you typing. FluentTyper attempts to improve the ease and speed of textual input by predicting words.",
     "icons": {
         "128": "icon/icon128.png",
         "16": "icon/icon16.png",
@@ -34,7 +34,6 @@
     "permissions": [
         "tabs",
         "storage",
-        "unlimitedStorage",
         "<all_urls>"
     ],
     "sandbox": {
