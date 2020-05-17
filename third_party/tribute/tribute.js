@@ -478,7 +478,7 @@
     }, {
       key: "modifiers",
       value: function modifiers() {
-        return ["CapsLock", "Control", "Fn", "FnLock", "Hyper", "Meta", "NumLock", "OS", "ScrollLock", "Super", "Symbol", "SymbolLock", "Win"];
+        return ["CapsLock", "Control", "Fn", "Hyper", "Meta", "OS", "Super", "Symbol", "Win"];
       }
     }]);
 

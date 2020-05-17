@@ -80,15 +80,11 @@ class TributeEvents {
         "CapsLock",
         "Control",
         "Fn",
-        "FnLock",
         "Hyper",
         "Meta",
-        "NumLock",
         "OS",
-        "ScrollLock",
         "Super",
         "Symbol",
-        "SymbolLock",
         "Win"
     ];
   }
