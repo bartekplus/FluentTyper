@@ -32,7 +32,7 @@
         "default_title": "Do action"
     },
     "permissions": [
-        "tabs",
+        "activeTab",
         "storage",
         "<all_urls>"
     ],
