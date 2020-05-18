@@ -25,11 +25,12 @@
         for (let mutation of mutationsList) {
             if (mutation.type === 'childList') {
                 for (let node of mutation.addedNodes) {
-                    //console.log('A child node has been added');
                     //console.log(node);
                     nodesAdded = true;
                 }
-                for (let node of mutation.removedNodes) {}
+                for (let node of mutation.removedNodes) {
+                    //console.log(node);
+                }
 
             } else if (mutation.type === 'attributes') {
                 //console.log('The ' + mutation.attributeName + ' attribute was modified.');
@@ -68,11 +69,12 @@
                 });
 
                 elem.addEventListener("tribute-replaced", function(e) {
-                    setTimeout((function() {
-                        // Triger predition after replacing text, without user interacction
-                        e.target.dispatchEvent(new KeyboardEvent('keydown', { 'key': ' ' }));
-                        e.target.dispatchEvent(new KeyboardEvent('keyup', { 'key': ' ' }));
-                    }), 10);
+                    var x = elem;
+                    //setTimeout((function() {
+                    // Triger predition after replacing text, without user interacction
+                    //e.target.dispatchEvent(new KeyboardEvent('keydown', { 'key': ' ' }));
+                    //e.target.dispatchEvent(new KeyboardEvent('keyup', { 'key': ' ' }));
+                    // }), 10);
                 });
 
                 var tribute = new Tribute({
@@ -143,7 +145,7 @@
 
                     // optionally specify a custom suffix for the replace text
                     // (defaults to empty space if undefined)
-                    replaceTextSuffix: ' ',
+                    replaceTextSuffix: '',
 
                     // specify whether the menu should be positioned.  Set to false and use in conjuction with menuContainer to create an inline menu
                     // (defaults to true)
