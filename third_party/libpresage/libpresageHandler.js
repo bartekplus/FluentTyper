@@ -1,5 +1,10 @@
 presage = null;
 
+var lastPrediction = {
+    past_stream: null,
+    predictions: null
+}
+
 var presageCallback = {
     past_stream: "",
 
@@ -18,17 +23,35 @@ var Module = {
     }
 };
 
-function isString(s) {
-    return typeof(s) === 'string' || s instanceof String;
+function convertString(s) {
+    str = ""
+    if (typeof(s) === 'string' || s instanceof String) {
+        if (s.endsWith(' ')) {
+            str = s.trim() + ' ';
+        } else {
+            str = s.trim();
+        }
+    }
+    return str;
 }
 
 window.addEventListener('message', function(event) {
     var command = event.data.command;
-    var name = event.data.name || 'hello';
     switch (command) {
         case 'predictReq':
-            if (presage && isString(event.data.context.text)) {
-                presageCallback.past_stream = event.data.context.text;
+            past_stream = convertString(event.data.context.text);
+            if (!past_stream || !presage) {
+                // Nothing to do here
+            } else if (past_stream == lastPrediction.past_stream) {
+                context.predictions = lastPrediction.predictions;
+                var message = {
+                    command: 'predictResp',
+                    context: context
+                };
+                event.source.postMessage(message, event.origin);
+
+            } else {
+                presageCallback.past_stream = past_stream
                 context = event.data.context;
                 predictions = [];
                 predictionsNative = presage.predict();
@@ -43,6 +66,8 @@ window.addEventListener('message', function(event) {
                         context: context
                     };
                     event.source.postMessage(message, event.origin);
+                    lastPrediction.past_stream = past_stream;
+                    lastPrediction.predictions = predictions;
                 }
             }
             break;
