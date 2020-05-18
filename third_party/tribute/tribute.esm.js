@@ -47,7 +47,8 @@ class TributeEvents {
   }
 
   static keys() {
-    return [{
+    return [
+      {
         key: 9,
         value: "TAB"
       },
@@ -209,7 +210,7 @@ class TributeEvents {
 
     if (
       ((instance.tribute.current.trigger ||
-          instance.tribute.autocompleteMode) &&
+        instance.tribute.autocompleteMode) &&
         instance.commandEvent === false) ||
       (instance.tribute.isActive && event.keyCode === 8)
     ) {
@@ -281,7 +282,7 @@ class TributeEvents {
 
         if (
           tribute.current.mentionText.length >=
-          tribute.current.collection.menuShowMinLength &&
+            tribute.current.collection.menuShowMinLength &&
           tribute.inputEvent
         ) {
           tribute.showMenuFor(el, true);
