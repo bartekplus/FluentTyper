@@ -2,6 +2,8 @@
 
     tributeArr = [];
     observer = null;
+    pendingReq = null;
+    var PRESAGE_PREDICTION_TIMEOUT_MS = 1000;
 
     function isHelperAttached(helperArr, elem) {
         for (var i = 0; i < helperArr.length; i++) {
@@ -10,6 +12,22 @@
             }
         }
         return false;
+    }
+
+    function cancelPresageRequestTimeout(tributeId) {
+        if (tributeArr[tributeId].timeout) {
+            clearTimeout(tributeArr[tributeId].timeout);
+            tributeArr[tributeId].timeout = null;
+        }
+    }
+
+    function setPresageRequestTimeout(tributeId) {
+        tributeArr[tributeId].timeout = setTimeout((function() {
+            pendingReq = null;
+            tributeArr[tributeId].timeout = null;
+            tributeArr[tributeId].done([]);
+        }), PRESAGE_PREDICTION_TIMEOUT_MS);
+
     }
 
     function checkLastError() {
@@ -65,7 +83,8 @@
                     tribute: null,
                     elem: elem,
                     done: null,
-                    timeout: null
+                    timeout: null,
+                    requestId: 0
                 });
 
                 elem.addEventListener("tribute-replaced", function(e) {
@@ -123,17 +142,29 @@
                         var localId = helperArrId;
                         return function(data, done) {
                             tributeArr[localId].done = done;
+                            tributeArr[localId].requestId += 1;
                             var message = {
                                 command: 'predictReq',
                                 context: {
                                     text: data,
-                                    tributeId: localId
+                                    tributeId: localId,
+                                    requestId: tributeArr[localId].requestId
                                 }
                             };
-                            chrome.runtime.sendMessage(message, function(response) {
-                                checkLastError();
-                                tributeArr[localId].timeout = setTimeout((function() { return done([]); }), 1000);
-                            });
+                            // Check if we are waiting for a response
+                            if (!pendingReq) {
+                                // Set pending request
+                                pendingReq = message;
+                                //Cancel old timeout Fn
+                                cancelPresageRequestTimeout(localId)
+
+                                chrome.runtime.sendMessage(message, function(response) {
+                                    checkLastError();
+                                    setPresageRequestTimeout(localId);
+                                });
+                            } else {
+                                pendingReq = message;
+                            }
                         }
                     })(),
 
@@ -200,18 +231,30 @@
 
         switch (message.command) {
             case "predictResp":
-                keyValPairs = [];
-                for (var i = 0; i < message.context.predictions.length; i++) {
-                    keyValPairs.push({
-                        key: message.context.predictions[i],
-                        value: message.context.predictions[i]
-                    })
+                // We were waiting for prediction
+                if (pendingReq) {
+                    // Check if msg are equal
+                    if (message.context.requestId == tributeArr[message.context.tributeId].requestId) {
+                        keyValPairs = [];
+                        for (var i = 0; i < message.context.predictions.length; i++) {
+                            keyValPairs.push({
+                                key: message.context.predictions[i],
+                                value: message.context.predictions[i]
+                            })
+                        }
+                        //Cancel old timeout Fn
+                        cancelPresageRequestTimeout(message.context.tributeId);
+                        // Send prediction to TributeJs
+                        tributeArr[message.context.tributeId].done(keyValPairs);
+                    } else {
+                        // Msq are not equal, ignore result and send pending msg 
+                         chrome.runtime.sendMessage(pendingReq, function(response) {
+                            checkLastError();
+                            setPresageRequestTimeout(message.context.tributeId);
+                        });
+                    }
+                    pendingReq = null;
                 }
-                if (tributeArr[message.context.tributeId].timeout) {
-                    clearTimeout(tributeArr[message.context.tributeId].timeout);
-                    tributeArr[message.context.tributeId].timeout = null;
-                }
-                tributeArr[message.context.tributeId].done(keyValPairs);
                 break;
             default:
                 console.log("Unknown message");
