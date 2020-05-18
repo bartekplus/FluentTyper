@@ -141,6 +141,11 @@
                     values: (function(data, done) {
                         var localId = helperArrId;
                         return function(data, done) {
+
+                            if (!data)
+                            {
+                              return done([]);
+                            }
                             tributeArr[localId].done = done;
                             tributeArr[localId].requestId += 1;
                             var message = {
