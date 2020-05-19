@@ -1,4 +1,6 @@
-presage = null;
+"use strict";
+
+var presage = null;
 
 var lastPrediction = {
     past_stream: null,
@@ -24,7 +26,7 @@ var Module = {
 };
 
 function convertString(s) {
-    str = ""
+    var str = ""
     if (typeof(s) === 'string' || s instanceof String) {
         if (s.endsWith(' ')) {
             str = s.trim() + ' ';
@@ -40,7 +42,7 @@ window.addEventListener('message', function(event) {
     switch (command) {
         case 'predictReq':
             var context = event.data.context;
-            past_stream = convertString(event.data.context.text);
+            var past_stream = convertString(event.data.context.text);
             if (!past_stream || !presage) {
                 // Nothing to do here
             } else if (past_stream == lastPrediction.past_stream) {
@@ -52,9 +54,9 @@ window.addEventListener('message', function(event) {
                 event.source.postMessage(message, event.origin);
 
             } else {
+                var predictions = [];
                 presageCallback.past_stream = past_stream
-                predictions = [];
-                predictionsNative = presage.predict();
+                var predictionsNative = presage.predict();
                 if (predictionsNative.size()) {
 
                     for (var i = 0; i < predictionsNative.size(); i++) {
