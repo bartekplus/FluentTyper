@@ -6,7 +6,7 @@
     "content_scripts": [{
         "css": ["third_party/tribute/tribute.css"],
         "js": ["third_party/tribute/tribute.min.js", "cs.js"],
-        "matches": ["http://*/*", "https://*/*"],
+        "matches": ["<all_urls>"],
         "run_at": "document_idle",
         "all_frames": true,
         "match_about_blank": true
