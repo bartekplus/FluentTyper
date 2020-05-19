@@ -39,6 +39,7 @@ window.addEventListener('message', function(event) {
     var command = event.data.command;
     switch (command) {
         case 'predictReq':
+            var context = event.data.context;
             past_stream = convertString(event.data.context.text);
             if (!past_stream || !presage) {
                 // Nothing to do here
@@ -52,7 +53,6 @@ window.addEventListener('message', function(event) {
 
             } else {
                 presageCallback.past_stream = past_stream
-                context = event.data.context;
                 predictions = [];
                 predictionsNative = presage.predict();
                 if (predictionsNative.size()) {
