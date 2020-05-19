@@ -3,15 +3,15 @@
 var presage = null
 
 var lastPrediction = {
-  past_stream: null,
+  pastStream: null,
   predictions: null
 }
 
 var presageCallback = {
-  past_stream: '',
+  pastStream: '',
 
   get_past_stream: function () {
-    return this.past_stream
+    return this.pastStream
   },
 
   get_future_stream: function () {
