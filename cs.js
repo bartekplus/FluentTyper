@@ -1,8 +1,10 @@
+"use strict";
+
 (function() {
 
-    tributeArr = [];
-    observer = null;
-    pendingReq = null;
+    var tributeArr = [];
+    var observer = null;
+    var pendingReq = null;
     var PRESAGE_PREDICTION_TIMEOUT_MS = 1000;
 
     function isHelperAttached(helperArr, elem) {
@@ -62,13 +64,13 @@
 
     function attachHelper() {
 
-        selectors = ['textarea', 'input', '[contentEditable="true"]'];
+        var selectors = ['textarea', 'input', '[contentEditable="true"]'];
 
         for (var selectorId = 0; selectorId < selectors.length; selectorId++) {
 
-            elems = document.querySelectorAll(selectors[selectorId]);
+            var elems = document.querySelectorAll(selectors[selectorId]);
             for (var i = 0; i < elems.length; i++) {
-                elem = elems[i];
+                var elem = elems[i];
 
                 if (elem.getAttribute("type") === "password") {
                     continue;
@@ -77,7 +79,7 @@
                 if (isHelperAttached(tributeArr, elem)) {
                     continue;
                 }
-                helperArrId = tributeArr.length;
+                var helperArrId = tributeArr.length;
 
                 tributeArr.push({
                     tribute: null,
@@ -142,9 +144,8 @@
                         var localId = helperArrId;
                         return function(data, done) {
 
-                            if (!data)
-                            {
-                              return done([]);
+                            if (!data) {
+                                return done([]);
                             }
                             tributeArr[localId].done = done;
                             tributeArr[localId].requestId += 1;
@@ -240,7 +241,7 @@
                 if (pendingReq) {
                     // Check if msg are equal
                     if (message.context.requestId == tributeArr[message.context.tributeId].requestId) {
-                        keyValPairs = [];
+                        var keyValPairs = [];
                         for (var i = 0; i < message.context.predictions.length; i++) {
                             keyValPairs.push({
                                 key: message.context.predictions[i],
@@ -253,7 +254,7 @@
                         tributeArr[message.context.tributeId].done(keyValPairs);
                     } else {
                         // Msq are not equal, ignore result and send pending msg 
-                         chrome.runtime.sendMessage(pendingReq, function(response) {
+                        chrome.runtime.sendMessage(pendingReq, function(response) {
                             checkLastError();
                             setPresageRequestTimeout(message.context.tributeId);
                         });
@@ -267,7 +268,6 @@
                 break;
         }
     })
-
 
 
     function getConfig() {
