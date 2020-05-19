@@ -1,5 +1,6 @@
-/*jslint browser:true */
-/*global Store,chrome*/
+"use strict";
+
+var settings = new Store("settings");
 
 // Check whether new version is installed
 chrome.runtime.onInstalled.addListener(function(details) {
@@ -14,7 +15,6 @@ chrome.runtime.onInstalled.addListener(function(details) {
     }
 });
 
-var settings = new Store("settings");
 //setDefault Values
 function setDefault(settings) {
     "use strict";
@@ -36,7 +36,7 @@ function sendMsgToSandbox(message) {
 function isEnabledForDomain(domainURL) {
     var enabledForDomain = settings.get("enable");
     if (enabledForDomain) {
-        opMode = settings.get("operatingMode");
+        var opMode = settings.get("operatingMode");
         enabledForDomain = (opMode === "blacklist") ? true : false;
 
         if (isDomainOnList(settings, domainURL)) {
