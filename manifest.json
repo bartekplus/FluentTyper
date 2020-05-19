@@ -44,7 +44,7 @@
         "default_title": "Do action"
     },
     "permissions": [
-        "activeTab",
+        "tabs",
         "storage",
         "<all_urls>"
     ],
