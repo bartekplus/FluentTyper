@@ -4,7 +4,7 @@
   "description": "",
   "main": "cs.js",
   "scripts": {
-    "test": "eslint --fix *.js && eslint --fix third_party/libpresage/libpresageHandler.js"
+    "test": "eslint --fix *.js && eslint --fix third_party/libpresage/libpresageHandler.js && eslint --fix popup/popup.js"
   },
   "repository": {
     "type": "git",
