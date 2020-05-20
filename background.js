@@ -87,8 +87,16 @@ setDefault(settings)
 
 function receiveMessage (event) {
   checkLastError()
-  chrome.tabs.sendMessage(event.data.context.tabId, event.data, {
-    frameId: event.data.context.frameId
+
+  // Make sure that tabId is still valid
+  chrome.tabs.get(event.data.context.tabId, function (tab) {
+    checkLastError()
+
+    if (tab) {
+      chrome.tabs.sendMessage(event.data.context.tabId, event.data, {
+        frameId: event.data.context.frameId
+      })
+    }
   })
 }
 
