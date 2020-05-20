@@ -1,0 +1,63 @@
+body {
+  background: #fff;
+  color: #000;
+}
+
+img {
+  border: 0;
+}
+
+#main {
+  width: 950px;
+  margin: 20px auto;
+}
+
+#header {
+  width: 952px;
+  height: 145px;
+}
+
+#site_content {
+  width: 950px;
+  border: 1px solid #000;
+}
+
+.swiper-slide-left {
+  width: 300px;
+}
+
+.swiper-slide-right {
+  width: 600px;
+  list-style: inside;
+  font-size: 110%;
+  padding: 1%;
+}
+
+textarea {
+  padding: 5px;
+  box-sizing: border-box;
+  font-size: 105%;
+}
+
+.swiper-container {
+  width: 100%;
+  height: 100%;
+}
+.swiper-slide {
+  text-align: center;
+  font-size: 18px;
+
+  /* Center slide text vertically */
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: -webkit-flex;
+  display: flex;
+  -webkit-box-pack: center;
+  -ms-flex-pack: center;
+  -webkit-justify-content: center;
+  justify-content: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  -webkit-align-items: center;
+  align-items: center;
+}
