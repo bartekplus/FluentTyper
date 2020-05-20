@@ -1,7 +1,5 @@
-/* jslint browser:true */
-/* global Store,chrome */
-
 import { getDomain, isDomainOnList, removeDomainFromList, addDomainToList } from '../utils.js'
+import { Store } from '../third_party/fancy-settings/lib/store.js'
 
 var settings = new Store('settings')
 

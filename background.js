@@ -1,6 +1,8 @@
 'use strict'
-/* global Store */
+
 import { isDomainOnList, checkLastError } from './utils.js'
+
+import { Store } from './third_party/fancy-settings/lib/store.js'
 
 var settings = new Store('settings')
 

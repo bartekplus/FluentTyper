@@ -3,25 +3,30 @@
 // https://github.com/frankkohlhepp/fancy-settings
 // License: LGPL v2.1
 //
-(function () {
-    var lang = navigator.language.split("-")[0];
-    if (this.i18n === undefined) { this.i18n = {}; }
-    this.i18n.get = function (value) {
-        if (value === "lang") {
-            return lang;
-        }
-        
-        if (this.hasOwnProperty(value)) {
-            value = this[value];
-            if (value.hasOwnProperty(lang)) {
-                return value[lang];
-            } else if (value.hasOwnProperty("en")) {
-                return value["en"];
-            } else {
-                return Object.values(value)[0];
-            }
-        } else {
-            return value;
-        }
-    };
-}());
+
+class I18n {
+  constructor () {
+    this.lang = navigator.language.split('-')[0]
+  }
+
+  get (value) {
+    if (value === 'lang') {
+      return this.lang
+    }
+
+    if (I18n.prototype.hasOwnProperty.call(this, value)) {
+      value = this[value]
+      if (I18n.prototype.hasOwnProperty.call(this.lang)) {
+        return value[this.lang]
+      } else if (I18n.prototype.hasOwnProperty.call('en')) {
+        return value.en
+      } else {
+        return Object.values(value)[0]
+      }
+    } else {
+      return value
+    }
+  }
+}
+
+export { I18n }
