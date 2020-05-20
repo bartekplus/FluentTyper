@@ -1,10 +1,11 @@
+'use strict'
+
 import { getDomain, isDomainOnList, removeDomainFromList, addDomainToList } from '../utils.js'
 import { Store } from '../third_party/fancy-settings/lib/store.js'
 
 var settings = new Store('settings')
 
 function init () {
-  'use strict'
   chrome.tabs.query({ active: true }, function (tabs) {
     var currentTab = tabs[0]
     var urlNode = document.getElementById('checkboxDomainLabel')

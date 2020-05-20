@@ -8,6 +8,7 @@ var settings = new Store('settings')
 
 // Check whether new version is installed
 chrome.runtime.onInstalled.addListener(function (details) {
+  checkLastError()
   if (details.reason === 'install') {
     // chrome.tabs.create({
     //    url: "options/index.html"
@@ -21,7 +22,6 @@ chrome.runtime.onInstalled.addListener(function (details) {
 
 // setDefault Values
 function setDefault (settings) {
-  'use strict'
   // First Run - no value stored
   if (settings.get('enable') === undefined) {
     settings.set('enable', true)
@@ -56,7 +56,6 @@ function isEnabledForDomain (domainURL) {
 // Called when a message is passed.  We assume that the content script
 // wants to show the page action.
 function onRequest (request, sender, sendResponse) {
-  'use strict'
   var respMsg = {}
 
   checkLastError()
@@ -105,5 +104,12 @@ function receiveMessage (event) {
 window.addEventListener('message', receiveMessage, false)
 chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
   checkLastError()
-  chrome.pageAction.show(tabId)
+  // Make sure that tabId is still valid
+  chrome.tabs.get(tabId, function (tab) {
+    checkLastError()
+
+    if (tab) {
+      chrome.pageAction.show(tabId)
+    }
+  })
 })
