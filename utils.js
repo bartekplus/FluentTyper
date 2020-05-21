@@ -1,70 +1,76 @@
-'use strict'
+"use strict";
 
-function getDomain (url) {
-  url = url.replace(/(https?:\/\/)?(www.)?/i, '')
+function getDomain(url) {
+  url = url.replace(/(https?:\/\/)?(www.)?/i, "");
 
-  if (url.indexOf('/') !== -1) {
-    return url.split('/')[0]
+  if (url.indexOf("/") !== -1) {
+    return url.split("/")[0];
   }
 
-  return url
+  return url;
 }
 
-function isDomainOnList (settings, domainURL) {
-  var ret = false
-  var domainList = []
-  domainURL = getDomain(domainURL)
+function isDomainOnList(settings, domainURL) {
+  var ret = false;
+  var domainList = [];
+  domainURL = getDomain(domainURL);
 
-  var domainListAsStr = settings.get('domainList')
+  var domainListAsStr = settings.get("domainList");
   if (domainListAsStr) {
-    domainList = domainListAsStr.split('|@|')
+    domainList = domainListAsStr.split("|@|");
   }
 
   for (var i = 0; i < domainList.length; i++) {
     if (domainURL.match(domainList[i])) {
-      ret = true
-      break
+      ret = true;
+      break;
     }
   }
-  return ret
+  return ret;
 }
 
-function addDomainToList (settings, domainURL) {
-  var domainListAsStr = settings.get('domainList')
+function addDomainToList(settings, domainURL) {
+  var domainListAsStr = settings.get("domainList");
   if (domainListAsStr) {
-    domainListAsStr = domainListAsStr.split('|@|')
+    domainListAsStr = domainListAsStr.split("|@|");
   } else {
-    domainListAsStr = []
+    domainListAsStr = [];
   }
-  domainListAsStr.push(domainURL)
+  domainListAsStr.push(domainURL);
 
-  settings.set('domainList', domainListAsStr.join('|@|'))
+  settings.set("domainList", domainListAsStr.join("|@|"));
 }
 
-function removeDomainFromList (settings, domainURL) {
-  var domainList = []
-  var domainListAsStr = settings.get('domainList')
+function removeDomainFromList(settings, domainURL) {
+  var domainList = [];
+  var domainListAsStr = settings.get("domainList");
 
-  domainURL = getDomain(domainURL)
+  domainURL = getDomain(domainURL);
   if (domainListAsStr) {
-    domainList = domainListAsStr.split('|@|')
+    domainList = domainListAsStr.split("|@|");
   }
 
   for (var i = 0; i < domainList.length; i++) {
     if (domainURL.match(domainList[i])) {
-      domainList.splice(i, 1)
-      settings.set('domainList', domainList.join('|@|'))
-      break
+      domainList.splice(i, 1);
+      settings.set("domainList", domainList.join("|@|"));
+      break;
     }
   }
 }
 
-function checkLastError () {
+function checkLastError() {
   try {
     if (chrome.runtime.lastError) {
-      console.log(chrome.runtime.lastError.message)
+      console.log(chrome.runtime.lastError.message);
     }
-  } catch (e) {};
+  } catch (e) {}
 }
 
-export { checkLastError, removeDomainFromList, addDomainToList, isDomainOnList, getDomain }
+export {
+  checkLastError,
+  removeDomainFromList,
+  addDomainToList,
+  isDomainOnList,
+  getDomain,
+};

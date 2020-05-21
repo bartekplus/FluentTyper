@@ -1,156 +1,162 @@
 <!DOCTYPE html>
 <html>
+  <head>
+    <style type="text/css">
+      body {
+        margin: 5px;
+        padding: 0;
+        font-size: 15px;
+        width: 300px;
+        background-color: #ffffff;
+        color: #000000;
+      }
+      /* The switch - the box around the slider */
 
-    <head>
-        <meta name="generator" content="HTML Tidy for HTML5 for Linux version 5.7.16">
-        <style type="text/css">
-            body {
-                margin: 5px;
-                padding: 0;
-                font-size: 15px;
-                width: 300px;
-                background-color: #FFFFFF;
-                color: #000000;
-            }
-            /* The switch - the box around the slider */
-            
-            .switch {
-                position: relative;
-                display: inline-block;
-                width: 60px;
-                height: 34px;
-            }
-            /* Hide default HTML checkbox */
-            
-            .switch input {
-                opacity: 0;
-                width: 0;
-                height: 0;
-            }
-            /* The slider */
-            
-            .slider {
-                position: absolute;
-                cursor: pointer;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background-color: #ccc;
-                -webkit-transition: .4s;
-                transition: .4s;
-            }
-            
-            .slider:before {
-                position: absolute;
-                content: "";
-                height: 26px;
-                width: 26px;
-                left: 4px;
-                bottom: 4px;
-                background-color: white;
-                -webkit-transition: .4s;
-                transition: .4s;
-            }
-            
-            input:checked+.slider {
-                background-color: #2196F3;
-            }
-            
-            input:focus+.slider {
-                box-shadow: 0 0 1px #2196F3;
-            }
-            
-            input:checked+.slider:before {
-                -webkit-transform: translateX(26px);
-                -ms-transform: translateX(26px);
-                transform: translateX(26px);
-            }
-            /* Rounded sliders */
-            
-            .slider.round {
-                border-radius: 34px;
-            }
-            
-            .slider.round:before {
-                border-radius: 50%;
-            }
-            
-            .checkboxContainer {
-                display: flex;
-                align-items: center;
-                height: 34px;
-                padding: 5px;
-            }
-            
-            .checkboxLabel {
-                float: left;
-                width: 240px;
-            }
-            
-            .checkboxInputContainer {
-                right: 5px;
-                position: absolute;
-            }
-            
-            .example_d {
-                color: #000000 !important;
-                text-transform: uppercase;
-                background: #ffffff;
-                padding: 20px;
-                border: 4px solid #000000 !important;
-                /*
+      .switch {
+        position: relative;
+        display: inline-block;
+        width: 60px;
+        height: 34px;
+      }
+      /* Hide default HTML checkbox */
+
+      .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+      /* The slider */
+
+      .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        -webkit-transition: 0.4s;
+        transition: 0.4s;
+      }
+
+      .slider:before {
+        position: absolute;
+        content: "";
+        height: 26px;
+        width: 26px;
+        left: 4px;
+        bottom: 4px;
+        background-color: white;
+        -webkit-transition: 0.4s;
+        transition: 0.4s;
+      }
+
+      input:checked + .slider {
+        background-color: #2196f3;
+      }
+
+      input:focus + .slider {
+        box-shadow: 0 0 1px #2196f3;
+      }
+
+      input:checked + .slider:before {
+        -webkit-transform: translateX(26px);
+        -ms-transform: translateX(26px);
+        transform: translateX(26px);
+      }
+      /* Rounded sliders */
+
+      .slider.round {
+        border-radius: 34px;
+      }
+
+      .slider.round:before {
+        border-radius: 50%;
+      }
+
+      .checkboxContainer {
+        display: flex;
+        align-items: center;
+        height: 34px;
+        padding: 5px;
+      }
+
+      .checkboxLabel {
+        float: left;
+        width: 240px;
+      }
+
+      .checkboxInputContainer {
+        right: 5px;
+        position: absolute;
+      }
+
+      .example_d {
+        color: #000000 !important;
+        text-transform: uppercase;
+        background: #ffffff;
+        padding: 20px;
+        border: 4px solid #000000 !important;
+        /*
                 border-radius: 6px;
                 */
-                border-radius: 50px;
-                display: inline-block;
-                transition: all 0.3s ease 0s;
-            }
-            
-            .example_d:hover {
-                color: #2196F3 !important;
-                border-radius: 50px;
-                border-color: #2196F3 !important;
-                transition: all 0.3s ease 0s;
-            }
-        </style>
-        <script type="module" src="popup.js"></script>
-        <title></title>
+        border-radius: 50px;
+        display: inline-block;
+        transition: all 0.3s ease 0s;
+      }
 
+      .example_d:hover {
+        color: #2196f3 !important;
+        border-radius: 50px;
+        border-color: #2196f3 !important;
+        transition: all 0.3s ease 0s;
+      }
+    </style>
+    <script type="module" src="popup.js"></script>
+    <title></title>
+  </head>
 
-    </head>
+  <body>
+    <img src="/icon/LogoFluentTyper.png" alt="FluentTyper" />
 
-    <body>
-        <img src="/icon/LogoFluentTyper.png" alt="FluentTyper"> </img>
+    <hr />
 
-        <hr>
+    <div class="checkboxContainer">
+      <div class="checkboxLabel">Global toggle:</div>
+      <div class="checkboxInputContainer">
+        <label class="switch">
+          <input id="checkboxEnableInput" type="checkbox" />
+          <span class="slider round"></span>
+        </label>
+      </div>
+    </div>
 
-        <div class="checkboxContainer">
-            <div class="checkboxLabel">Global toggle: </div>
-            <div class="checkboxInputContainer">
-                <label class="switch"> 
-                <input  id="checkboxEnableInput" type="checkbox">
-                <span class="slider round"></span>
-                </label>
-            </div>
-        </div>
+    <div class="checkboxContainer">
+      <div id="checkboxDomainLabel" class="checkboxLabel">
+        Enable enable autocomplete on:
+      </div>
+      <div class="checkboxInputContainer">
+        <label class="switch">
+          <input id="checkboxDomainInput" type="checkbox" />
+          <span class="slider round"></span>
+        </label>
+      </div>
+    </div>
 
+    <hr />
 
-        <div class="checkboxContainer">
-            <div id="checkboxDomainLabel" class="checkboxLabel">Enable enable autocomplete on: </div>
-            <div class="checkboxInputContainer">
-                <label class="switch"> 
-                <input id="checkboxDomainInput" type="checkbox">
-                <span class="slider round"></span>
-                </label>
-            </div>
-        </div>
+    <div class="button_cont" align="center">
+      <a
+        id="runOptions"
+        class="example_d"
+        href="add-website-here"
+        target="_blank"
+        rel="nofollow noopener"
+        >Options</a
+      >
+    </div>
 
-        <hr>
-
-        <div class="button_cont" align="center"><a id="runOptions" class="example_d" href="add-website-here" target="_blank" rel="nofollow noopener">Options</a></div>
-
-        <!-- 
+    <!-- 
         <hr>
         <div>
             <form action="https://www.paypal.com/cgi-bin/webscr" method="post" target="_blank">
@@ -160,6 +166,5 @@
             </form>
         </div>
         -->
-    </body>
-
+  </body>
 </html>
