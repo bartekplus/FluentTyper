@@ -27,7 +27,7 @@ var Store = function (name, defaults) {
         "default"
       );
       if (val && this.get(key) === undefined) {
-        this.set(key, val);
+        this.set(key, manifest.settings[idx].default);
       }
     }
   }
