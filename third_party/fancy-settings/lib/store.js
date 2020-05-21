@@ -5,96 +5,100 @@
 //
 
 var Store = function (name, defaults) {
-  var key
-  this.name = name
+  var key;
+  this.name = name;
 
   if (defaults !== undefined) {
     for (key in defaults) {
-      if (Object.prototype.hasOwnProperty.call(defaults, key) && this.get(key) === undefined) {
-        this.set(key, defaults[key])
+      if (
+        Object.prototype.hasOwnProperty.call(defaults, key) &&
+        this.get(key) === undefined
+      ) {
+        this.set(key, defaults[key]);
       }
     }
   }
-}
+};
 
 Store.prototype.get = function (name) {
-  name = 'store.' + this.name + '.' + name
-  if (localStorage.getItem(name) === null) { return undefined }
-  try {
-    return JSON.parse(localStorage.getItem(name))
-  } catch (e) {
-    return null
+  name = "store." + this.name + "." + name;
+  if (localStorage.getItem(name) === null) {
+    return undefined;
   }
-}
+  try {
+    return JSON.parse(localStorage.getItem(name));
+  } catch (e) {
+    return null;
+  }
+};
 
 Store.prototype.set = function (name, value) {
   if (value === undefined) {
-    this.remove(name)
+    this.remove(name);
   } else {
-    if (typeof value === 'function') {
-      value = null
+    if (typeof value === "function") {
+      value = null;
     } else {
       try {
-        value = JSON.stringify(value)
+        value = JSON.stringify(value);
       } catch (e) {
-        value = null
+        value = null;
       }
     }
 
-    localStorage.setItem('store.' + this.name + '.' + name, value)
+    localStorage.setItem("store." + this.name + "." + name, value);
   }
 
-  return this
-}
+  return this;
+};
 
 Store.prototype.remove = function (name) {
-  localStorage.removeItem('store.' + this.name + '.' + name)
-  return this
-}
+  localStorage.removeItem("store." + this.name + "." + name);
+  return this;
+};
 
 Store.prototype.removeAll = function () {
-  var name,
-    i
+  var name, i;
 
-  name = 'store.' + this.name + '.'
-  for (i = (localStorage.length - 1); i >= 0; i--) {
+  name = "store." + this.name + ".";
+  for (i = localStorage.length - 1; i >= 0; i--) {
     if (localStorage.key(i).substring(0, name.length) === name) {
-      localStorage.removeItem(localStorage.key(i))
+      localStorage.removeItem(localStorage.key(i));
     }
   }
 
-  return this
-}
+  return this;
+};
 
 Store.prototype.toObject = function () {
-  var values,
-    name,
-    i,
-    key,
-    value
+  var values, name, i, key, value;
 
-  values = {}
-  name = 'store.' + this.name + '.'
-  for (i = (localStorage.length - 1); i >= 0; i--) {
+  values = {};
+  name = "store." + this.name + ".";
+  for (i = localStorage.length - 1; i >= 0; i--) {
     if (localStorage.key(i).substring(0, name.length) === name) {
-      key = localStorage.key(i).substring(name.length)
-      value = this.get(key)
-      if (value !== undefined) { values[key] = value }
+      key = localStorage.key(i).substring(name.length);
+      value = this.get(key);
+      if (value !== undefined) {
+        values[key] = value;
+      }
     }
   }
 
-  return values
-}
+  return values;
+};
 
 Store.prototype.fromObject = function (values, merge) {
-  if (merge !== true) { this.removeAll() }
+  if (merge !== true) {
+    this.removeAll();
+  }
   for (var key in values) {
     if (Object.prototype.hasOwnProperty.call(values, key)) {
-      this.set(key, values[key])
+      this.set(key, values[key]);
     }
   }
 
-  return this
-}
+  return this;
+};
 
-export { Store }
+export { Store };

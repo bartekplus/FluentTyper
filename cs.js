@@ -1,117 +1,116 @@
-'use strict';
+"use strict";
 /* global Tribute */
 
 (function () {
-  var tributeArr = []
-  var observer = null
-  var pendingReq = null
-  var PRESAGE_PREDICTION_TIMEOUT_MS = 1000
+  var tributeArr = [];
+  var observer = null;
+  var pendingReq = null;
+  var PRESAGE_PREDICTION_TIMEOUT_MS = 1000;
 
-  function isHelperAttached (helperArr, elem) {
+  function isHelperAttached(helperArr, elem) {
     for (var i = 0; i < helperArr.length; i++) {
       if (elem === helperArr[i].elem) {
-        return true
-      } else if (elem.hasAttribute('data-tribute')) {
-        return true
+        return true;
+      } else if (elem.hasAttribute("data-tribute")) {
+        return true;
       }
     }
-    return false
+    return false;
   }
 
-  function cancelPresageRequestTimeout (tributeId) {
+  function cancelPresageRequestTimeout(tributeId) {
     if (tributeArr[tributeId].timeout) {
-      clearTimeout(tributeArr[tributeId].timeout)
-      tributeArr[tributeId].timeout = null
+      clearTimeout(tributeArr[tributeId].timeout);
+      tributeArr[tributeId].timeout = null;
     }
   }
 
-  function setPresageRequestTimeout (tributeId) {
+  function setPresageRequestTimeout(tributeId) {
     tributeArr[tributeId].timeout = setTimeout(function () {
-      pendingReq = null
-      tributeArr[tributeId].timeout = null
-      tributeArr[tributeId].done([])
-    }, PRESAGE_PREDICTION_TIMEOUT_MS)
+      pendingReq = null;
+      tributeArr[tributeId].timeout = null;
+      tributeArr[tributeId].done([]);
+    }, PRESAGE_PREDICTION_TIMEOUT_MS);
   }
 
-  function checkLastError () {
+  function checkLastError() {
     try {
       if (chrome.runtime.lastError) {
-        console.log(chrome.runtime.lastError.message)
+        console.log(chrome.runtime.lastError.message);
       }
-    } catch (e) {};
+    } catch (e) {}
   }
 
-  function MutationCallback (mutationsList, observer) {
-    var nodesAdded = false
+  function MutationCallback(mutationsList, observer) {
+    var nodesAdded = false;
     for (const mutation of mutationsList) {
-      if (mutation.type === 'childList') {
+      if (mutation.type === "childList") {
         if (mutation.addedNodes) {
-          nodesAdded = true
+          nodesAdded = true;
         }
       }
     }
     if (nodesAdded) {
-      attachHelper()
+      attachHelper();
     }
-  };
+  }
 
-  function attachHelper () {
-    var selectors = ['textarea', 'input', '[contentEditable="true"]']
+  function attachHelper() {
+    var selectors = ["textarea", "input", '[contentEditable="true"]'];
 
     for (var selectorId = 0; selectorId < selectors.length; selectorId++) {
-      var elems = document.querySelectorAll(selectors[selectorId])
+      var elems = document.querySelectorAll(selectors[selectorId]);
       for (var i = 0; i < elems.length; i++) {
-        var elem = elems[i]
+        var elem = elems[i];
 
-        if (elem.getAttribute('type') === 'password') {
-          continue
+        if (elem.getAttribute("type") === "password") {
+          continue;
         }
 
         if (isHelperAttached(tributeArr, elem)) {
-          continue
+          continue;
         }
-        var helperArrId = tributeArr.length
+        var helperArrId = tributeArr.length;
 
         tributeArr.push({
           tribute: null,
           elem: elem,
           done: null,
           timeout: null,
-          requestId: 0
-        })
+          requestId: 0,
+        });
 
-        elem.addEventListener('tribute-replaced', function (e) {
-        })
+        elem.addEventListener("tribute-replaced", function (e) {});
 
         var tribute = new Tribute({
           // symbol or string that starts the lookup
-          trigger: '',
+          trigger: "",
 
           // element to target for @mentions
           iframe: null,
 
           // class added in the flyout menu for active item
-          selectClass: 'highlight',
+          selectClass: "highlight",
 
           // class added to the menu container
-          containerClass: 'tribute-container',
+          containerClass: "tribute-container",
 
           // class added to each list item
-          itemClass: '',
+          itemClass: "",
 
           // function called on select that returns the content to insert
           selectTemplate: function (item) {
-            return item.original.value
+            return item.original.value;
           },
 
           // template for displaying item in menu
           menuItemTemplate: function (item) {
-            return item.string
+            return item.string;
           },
 
           // template for when no match is found (optional),
           // If no template is provided, menu is hidden.
-          noMatchTemplate: '',
+          noMatchTemplate: "",
 
           // specify an alternative parent container for the menu
           // container must be a positioned element for the menu to appear correctly ie. `position: relative;`
@@ -119,43 +118,43 @@
           menuContainer: document.body,
 
           // column to search against in the object (accepts function or string)
-          lookup: 'key',
+          lookup: "key",
 
           // column that contains the content to insert by default
-          fillAttr: 'value',
+          fillAttr: "value",
 
           // REQUIRED: array of objects to match
           values: (function (data, done) {
-            var localId = helperArrId
+            var localId = helperArrId;
             return function (data, done) {
               if (!data) {
-                return done([])
+                return done([]);
               }
-              tributeArr[localId].done = done
-              tributeArr[localId].requestId += 1
+              tributeArr[localId].done = done;
+              tributeArr[localId].requestId += 1;
               var message = {
-                command: 'predictReq',
+                command: "predictReq",
                 context: {
                   text: data,
                   tributeId: localId,
-                  requestId: tributeArr[localId].requestId
-                }
-              }
+                  requestId: tributeArr[localId].requestId,
+                },
+              };
               // Check if we are waiting for a response
               if (!pendingReq) {
                 // Set pending request
-                pendingReq = message
+                pendingReq = message;
                 // Cancel old timeout Fn
-                cancelPresageRequestTimeout(localId)
+                cancelPresageRequestTimeout(localId);
 
                 chrome.runtime.sendMessage(message, function (response) {
-                  checkLastError()
-                  setPresageRequestTimeout(localId)
-                })
+                  checkLastError();
+                  setPresageRequestTimeout(localId);
+                });
               } else {
-                pendingReq = message
+                pendingReq = message;
               }
-            }
+            };
           })(),
 
           // specify whether a space is required before the trigger string
@@ -166,7 +165,7 @@
 
           // optionally specify a custom suffix for the replace text
           // (defaults to empty space if undefined)
-          replaceTextSuffix: '',
+          replaceTextSuffix: "",
 
           // specify whether the menu should be positioned.  Set to false and use in conjuction with menuContainer to create an inline menu
           // (defaults to true)
@@ -181,88 +180,99 @@
           // Customize the elements used to wrap matched strings within the results list
           // defaults to <span></span> if undefined
           searchOpts: {
-            pre: '<span>',
-            post: '</span>',
-            skip: false // true will skip local search, useful if doing server-side search
+            pre: "<span>",
+            post: "</span>",
+            skip: false, // true will skip local search, useful if doing server-side search
           },
 
           // specify the minimum number of characters that must be typed before menu appears
-          menuShowMinLength: 0
-        })
-        tributeArr[helperArrId].tribute = tribute
-        tribute.attach(elem)
+          menuShowMinLength: 0,
+        });
+        tributeArr[helperArrId].tribute = tribute;
+        tribute.attach(elem);
       }
     }
   }
 
-  function initializeFluentTyper () {
-    window.addEventListener('DOMContentLoaded', function (evt) {
-      initializeFluentTyper()
-    }, false)
+  function initializeFluentTyper() {
+    window.addEventListener(
+      "DOMContentLoaded",
+      function (evt) {
+        initializeFluentTyper();
+      },
+      false
+    );
 
-    attachHelper()
+    attachHelper();
     if (!observer) {
       var observerOptions = {
         childList: true,
         attributes: false,
-        subtree: true
-      }
-      observer = new MutationObserver(MutationCallback)
-      observer.observe(document.body, observerOptions)
+        subtree: true,
+      };
+      observer = new MutationObserver(MutationCallback);
+      observer.observe(document.body, observerOptions);
     }
   }
 
-  chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
-    checkLastError()
+  chrome.runtime.onMessage.addListener(function (
+    message,
+    sender,
+    sendResponse
+  ) {
+    checkLastError();
 
     switch (message.command) {
-      case 'predictResp':
+      case "predictResp":
         // We were waiting for prediction
         if (pendingReq) {
           // Check if msg are equal
-          if (message.context.requestId === tributeArr[message.context.tributeId].requestId) {
-            var keyValPairs = []
+          if (
+            message.context.requestId ===
+            tributeArr[message.context.tributeId].requestId
+          ) {
+            var keyValPairs = [];
             for (var i = 0; i < message.context.predictions.length; i++) {
               keyValPairs.push({
                 key: message.context.predictions[i],
-                value: message.context.predictions[i]
-              })
+                value: message.context.predictions[i],
+              });
             }
             // Cancel old timeout Fn
-            cancelPresageRequestTimeout(message.context.tributeId)
+            cancelPresageRequestTimeout(message.context.tributeId);
             // Send prediction to TributeJs
-            tributeArr[message.context.tributeId].done(keyValPairs)
+            tributeArr[message.context.tributeId].done(keyValPairs);
           } else {
             // Msq are not equal, ignore result and send pending msg
             chrome.runtime.sendMessage(pendingReq, function (response) {
-              checkLastError()
-              setPresageRequestTimeout(message.context.tributeId)
-            })
+              checkLastError();
+              setPresageRequestTimeout(message.context.tributeId);
+            });
           }
-          pendingReq = null
+          pendingReq = null;
         }
-        break
+        break;
       default:
-        console.log('Unknown message')
-        console.log(message)
-        break
+        console.log("Unknown message");
+        console.log(message);
+        break;
     }
-  })
+  });
 
-  function getConfig () {
+  function getConfig() {
     var message = {
-      command: 'getConfig',
-      context: {}
-    }
+      command: "getConfig",
+      context: {},
+    };
 
     chrome.runtime.sendMessage(message, function (response) {
-      checkLastError()
+      checkLastError();
 
       if (response.context.enabled) {
-        initializeFluentTyper()
+        initializeFluentTyper();
       }
-    })
+    });
   }
 
-  getConfig()
-})()
+  getConfig();
+})();

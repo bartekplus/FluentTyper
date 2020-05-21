@@ -5,28 +5,28 @@
 //
 
 class I18n {
-  constructor () {
-    this.lang = navigator.language.split('-')[0]
+  constructor() {
+    this.lang = navigator.language.split("-")[0];
   }
 
-  get (value) {
-    if (value === 'lang') {
-      return this.lang
+  get(value) {
+    if (value === "lang") {
+      return this.lang;
     }
 
     if (I18n.prototype.hasOwnProperty.call(this, value)) {
-      value = this[value]
+      value = this[value];
       if (I18n.prototype.hasOwnProperty.call(this.lang)) {
-        return value[this.lang]
-      } else if (I18n.prototype.hasOwnProperty.call('en')) {
-        return value.en
+        return value[this.lang];
+      } else if (I18n.prototype.hasOwnProperty.call("en")) {
+        return value.en;
       } else {
-        return Object.values(value)[0]
+        return Object.values(value)[0];
       }
     } else {
-      return value
+      return value;
     }
   }
 }
 
-export { I18n }
+export { I18n };

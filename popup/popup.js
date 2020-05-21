@@ -1,53 +1,64 @@
-'use strict'
+"use strict";
 
-import { getDomain, isDomainOnList, removeDomainFromList, addDomainToList } from '../utils.js'
-import { Store } from '../third_party/fancy-settings/lib/store.js'
+import {
+  getDomain,
+  isDomainOnList,
+  removeDomainFromList,
+  addDomainToList,
+} from "../utils.js";
+import { Store } from "../third_party/fancy-settings/lib/store.js";
 
-var settings = new Store('settings')
+var settings = new Store("settings");
 
-function init () {
+function init() {
   chrome.tabs.query({ active: true }, function (tabs) {
-    var currentTab = tabs[0]
-    var urlNode = document.getElementById('checkboxDomainLabel')
-    var checkboxNode = document.getElementById('checkboxDomainInput')
-    var checkboxEnableNode = document.getElementById('checkboxEnableInput')
+    var currentTab = tabs[0];
+    var urlNode = document.getElementById("checkboxDomainLabel");
+    var checkboxNode = document.getElementById("checkboxDomainInput");
+    var checkboxEnableNode = document.getElementById("checkboxEnableInput");
 
-    var domainURL = getDomain(currentTab.url)
-    var opMode = settings.get('operatingMode')
-    urlNode.innerText = 'Enable autocomplete on: ' + domainURL
+    var domainURL = getDomain(currentTab.url);
+    var opMode = settings.get("operatingMode");
+    urlNode.innerText = "Enable autocomplete on: " + domainURL;
 
     if (isDomainOnList(settings, domainURL)) {
-      checkboxNode.checked = opMode !== 'blacklist'
+      checkboxNode.checked = opMode !== "blacklist";
     } else {
-      checkboxNode.checked = opMode === 'blacklist'
+      checkboxNode.checked = opMode === "blacklist";
     }
 
-    checkboxEnableNode.checked = settings.get('enable')
-    document.getElementById('runOptions').href = chrome.extension.getURL('options.html')
-  })
+    checkboxEnableNode.checked = settings.get("enable");
+    document.getElementById("runOptions").href = chrome.extension.getURL(
+      "options.html"
+    );
+  });
 }
 
-function addRemoveDomain () {
+function addRemoveDomain() {
   chrome.tabs.query({ active: true }, function (tabs) {
-    var currentTab = tabs[0]
-    var domainURL = getDomain(currentTab.url)
+    var currentTab = tabs[0];
+    var domainURL = getDomain(currentTab.url);
 
     if (isDomainOnList(settings, domainURL)) {
-      removeDomainFromList(settings, domainURL)
+      removeDomainFromList(settings, domainURL);
     } else {
-      addDomainToList(settings, domainURL)
+      addDomainToList(settings, domainURL);
     }
-  })
+  });
 }
 
-function toggleOnOff () {
-  settings.set('enable', !settings.get('enable'))
+function toggleOnOff() {
+  settings.set("enable", !settings.get("enable"));
 }
 
-init()
+init();
 
-window.document.addEventListener('DOMContentLoaded', function () {
-  'use strict'
-  window.document.getElementById('checkboxDomainInput').addEventListener('click', addRemoveDomain)
-  window.document.getElementById('checkboxEnableInput').addEventListener('click', toggleOnOff)
-})
+window.document.addEventListener("DOMContentLoaded", function () {
+  "use strict";
+  window.document
+    .getElementById("checkboxDomainInput")
+    .addEventListener("click", addRemoveDomain);
+  window.document
+    .getElementById("checkboxEnableInput")
+    .addEventListener("click", toggleOnOff);
+});

@@ -5,35 +5,51 @@
 -->
 <!DOCTYPE html>
 <html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title id="title"></title>
+    <!-- Stylesheets -->
+    <link id="favicon" rel="icon" href="" />
+    <link
+      rel="stylesheet"
+      href="third_party/fancy-settings/lib/default.css"
+      media="screen"
+    />
+    <link
+      rel="stylesheet"
+      href="third_party/fancy-settings/css/main.css"
+      media="screen"
+    />
+    <link
+      rel="stylesheet"
+      href="third_party/fancy-settings/css/setting.css"
+      media="screen"
+    />
+    <link
+      rel="stylesheet"
+      href="third_party/fancy-settings/custom.css"
+      media="screen"
+    />
+    <!-- JavaScripts -->
 
-    <head>
-        <meta name="generator" content="HTML Tidy for HTML5 for Linux version 5.7.16">
-        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-        <title id="title"></title>
-        <!-- Stylesheets -->
-        <link id="favicon" rel="icon" href="">
-        <link rel="stylesheet" href="third_party/fancy-settings/lib/default.css" media="screen">
-        <link rel="stylesheet" href="third_party/fancy-settings/css/main.css" media="screen">
-        <link rel="stylesheet" href="third_party/fancy-settings/css/setting.css" media="screen">
-        <link rel="stylesheet" href="third_party/fancy-settings/custom.css" media="screen">
-        <!-- JavaScripts -->
+    <script src="third_party/fancy-settings/lib/mootools-core.js"></script>
+    <script type="module" src="third_party/fancy-settings/settings.js"></script>
+  </head>
 
-        <script src="third_party/fancy-settings/lib/mootools-core.js"></script>
-        <script type="module" src="third_party/fancy-settings/settings.js"></script>
-    </head>
-
-    <body class="no-select">
-        <div id="sidebar" class="fancy"><img id="icon" src="" alt="">
-            <h1 id="settings-label"></h1>
-            <div id="tab-container">
-                <div id="search-container" class="tab"><input id="search" type="search" placeholder=""></div>
-            </div>
+  <body class="no-select">
+    <div id="sidebar" class="fancy">
+      <img id="icon" src="" alt="" />
+      <h1 id="settings-label"></h1>
+      <div id="tab-container">
+        <div id="search-container" class="tab">
+          <input id="search" type="search" placeholder="" />
         </div>
-        <div id="content">
-            <div id="search-result-container" class="tab-content">
-                <h2 id="search-label"></h2>
-            </div>
-        </div>
-    </body>
-
+      </div>
+    </div>
+    <div id="content">
+      <div id="search-result-container" class="tab-content">
+        <h2 id="search-label"></h2>
+      </div>
+    </div>
+  </body>
 </html>

@@ -5,48 +5,50 @@
 //
 
 class Bundle {
-  constructor (creator) {
-    this.creator = creator
+  constructor(creator) {
+    this.creator = creator;
 
     // Create DOM elements
-    this.tab = new Element('div', { class: 'tab' })
-    this.content = new Element('div', { class: 'tab-content' })
+    this.tab = new Element("div", { class: "tab" });
+    this.content = new Element("div", { class: "tab-content" });
 
     // Create event handlers
-    this.tab.addEvent('click', this.activate.bind(this))
-  };
+    this.tab.addEvent("click", this.activate.bind(this));
+  }
 
-  activate () {
+  activate() {
     if (this.creator.activeBundle && this.creator.activeBundle !== this) {
-      this.creator.activeBundle.deactivate()
+      this.creator.activeBundle.deactivate();
     }
 
-    this.tab.addClass('active')
-    this.content.addClass('show')
-    this.creator.activeBundle = this
-  };
+    this.tab.addClass("active");
+    this.content.addClass("show");
+    this.creator.activeBundle = this;
+  }
 
-  deactivate () {
-    this.tab.removeClass('active')
-    this.content.removeClass('show')
-    this.creator.activeBundle = null
+  deactivate() {
+    this.tab.removeClass("active");
+    this.content.removeClass("show");
+    this.creator.activeBundle = null;
   }
 }
 
 class Tab {
-  constructor (tabContainer, tabContentContainer) {
-    this.tabContainer = tabContainer
-    this.tabContentContainer = tabContentContainer
-    this.activeBundle = null
-  };
+  constructor(tabContainer, tabContentContainer) {
+    this.tabContainer = tabContainer;
+    this.tabContentContainer = tabContentContainer;
+    this.activeBundle = null;
+  }
 
-  create () {
-    var bundle = new Bundle(this)
-    bundle.tab.inject(this.tabContainer)
-    bundle.content.inject(this.tabContentContainer)
-    if (!this.activeBundle) { bundle.activate() }
-    return bundle
+  create() {
+    var bundle = new Bundle(this);
+    bundle.tab.inject(this.tabContainer);
+    bundle.content.inject(this.tabContentContainer);
+    if (!this.activeBundle) {
+      bundle.activate();
+    }
+    return bundle;
   }
 }
 
-export { Tab }
+export { Tab };
