@@ -7,6 +7,35 @@
   var pendingReq = null;
   var PRESAGE_PREDICTION_TIMEOUT_MS = 1000;
 
+  function keys(useEnter) {
+    var keyArr = [
+      {
+        key: 9,
+        value: "TAB",
+      },
+      {
+        key: 27,
+        value: "ESCAPE",
+      },
+      {
+        key: 38,
+        value: "UP",
+      },
+      {
+        key: 40,
+        value: "DOWN",
+      },
+    ];
+
+    if (useEnter) {
+      keyArr.push({
+        key: 13,
+        value: "ENTER",
+      });
+    }
+    return keyArr;
+  }
+
   function isHelperAttached(helperArr, elem) {
     for (var i = 0; i < helperArr.length; i++) {
       if (elem === helperArr[i].elem) {
@@ -41,7 +70,7 @@
     } catch (e) {}
   }
 
-  function MutationCallback(mutationsList, observer) {
+  function MutationCallback(options, mutationsList, observer) {
     var nodesAdded = false;
     for (const mutation of mutationsList) {
       if (mutation.type === "childList") {
@@ -51,11 +80,11 @@
       }
     }
     if (nodesAdded) {
-      attachHelper();
+      attachHelper(options);
     }
   }
 
-  function attachHelper() {
+  function attachHelper(options) {
     var selectors = ["textarea", "input", '[contentEditable="true"]'];
 
     for (var selectorId = 0; selectorId < selectors.length; selectorId++) {
@@ -127,7 +156,9 @@
           values: (function (data, done) {
             var localId = helperArrId;
             return function (data, done) {
-              if (!data) {
+              var lines = data.split("\n");
+              var lastLine = lines[lines.length - 1];
+              if (!lastLine) {
                 return done([]);
               }
               tributeArr[localId].done = done;
@@ -135,7 +166,7 @@
               var message = {
                 command: "predictReq",
                 context: {
-                  text: data,
+                  text: lastLine,
                   tributeId: localId,
                   requestId: tributeArr[localId].requestId,
                 },
@@ -187,6 +218,11 @@
 
           // specify the minimum number of characters that must be typed before menu appears
           menuShowMinLength: 0,
+
+          keys: (function () {
+            var useEnter = options.useEnter;
+            return keys.bind(null, useEnter);
+          })(),
         });
         tributeArr[helperArrId].tribute = tribute;
         tribute.attach(elem);
@@ -194,23 +230,24 @@
     }
   }
 
-  function initializeFluentTyper() {
+  function initializeFluentTyper(options) {
     window.addEventListener(
       "DOMContentLoaded",
       function (evt) {
-        initializeFluentTyper();
+        initializeFluentTyper(options);
       },
       false
     );
 
-    attachHelper();
+    attachHelper(options);
     if (!observer) {
       var observerOptions = {
         childList: true,
         attributes: false,
         subtree: true,
       };
-      observer = new MutationObserver(MutationCallback);
+      var mutationCallback = MutationCallback.bind(null, options);
+      observer = new MutationObserver(mutationCallback);
       observer.observe(document.body, observerOptions);
     }
   }
@@ -250,7 +287,7 @@
         break;
       case "getConfig":
         if (message.context.enabled) {
-          initializeFluentTyper();
+          initializeFluentTyper({ useEnter: message.context.useEnter });
         }
         break;
       default:
