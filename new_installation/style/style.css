@@ -8,18 +8,18 @@ img {
 }
 
 #main {
-  width: 950px;
+  width: 1150px;
   margin: 20px auto;
+  text-align: center;
 }
 
 #header {
-  width: 952px;
-  height: 145px;
+  margin: auto;
+  padding: auto;
 }
 
 #site_content {
-  width: 950px;
-  border: 1px solid #000;
+ /* border: 1px solid #000; */
 }
 
 .swiper-slide-left {
@@ -27,10 +27,10 @@ img {
 }
 
 .swiper-slide-right {
-  width: 600px;
   list-style: inside;
   font-size: 110%;
   padding: 1%;
+  width: 750px;
 }
 
 textarea {
