@@ -160,7 +160,6 @@
       key: "keydown",
       value: function keydown(instance, isMenu, event) {
         if (instance.shouldDeactivate(event, isMenu)) {
-          instance.tribute.isActive = false;
           instance.tribute.hideMenu();
         }
 
@@ -355,7 +354,6 @@
             if (_this.tribute.isActive) {
               e.preventDefault();
               e.stopPropagation();
-              _this.tribute.isActive = false;
 
               _this.tribute.hideMenu();
             }
@@ -372,8 +370,6 @@
                 e.stopPropagation();
                 setTimeout(function () {
                   _this.tribute.hideMenu();
-
-                  _this.tribute.isActive = false;
                 }, 0);
               }
             }
@@ -1410,7 +1406,9 @@
           _ref$menuItemLimit = _ref.menuItemLimit,
           menuItemLimit = _ref$menuItemLimit === void 0 ? null : _ref$menuItemLimit,
           _ref$menuShowMinLengt = _ref.menuShowMinLength,
-          menuShowMinLength = _ref$menuShowMinLengt === void 0 ? 0 : _ref$menuShowMinLengt;
+          menuShowMinLength = _ref$menuShowMinLengt === void 0 ? 0 : _ref$menuShowMinLengt,
+          _ref$keys = _ref.keys,
+          keys = _ref$keys === void 0 ? null : _ref$keys;
 
       _classCallCheck(this, Tribute);
 
@@ -1427,6 +1425,10 @@
       this.positionMenu = positionMenu;
       this.hasTrailingSpace = false;
       this.spaceSelectsMatch = spaceSelectsMatch;
+
+      if (keys) {
+        TributeEvents.keys = keys;
+      }
 
       if (this.autocompleteMode) {
         trigger = "";
