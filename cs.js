@@ -215,11 +215,7 @@
     }
   }
 
-  chrome.runtime.onMessage.addListener(function (
-    message,
-    sender,
-    sendResponse
-  ) {
+  function messageHandler(message, sender, sendResponse) {
     checkLastError();
 
     switch (message.command) {
@@ -252,12 +248,19 @@
           pendingReq = null;
         }
         break;
+      case "getConfig":
+        if (message.context.enabled) {
+          initializeFluentTyper();
+        }
+        break;
       default:
         console.log("Unknown message");
         console.log(message);
         break;
     }
-  });
+  }
+
+  chrome.runtime.onMessage.addListener(messageHandler);
 
   function getConfig() {
     var message = {
@@ -265,13 +268,7 @@
       context: {},
     };
 
-    chrome.runtime.sendMessage(message, function (response) {
-      checkLastError();
-
-      if (response.context.enabled) {
-        initializeFluentTyper();
-      }
-    });
+    chrome.runtime.sendMessage(message, messageHandler);
   }
 
   getConfig();
