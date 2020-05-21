@@ -4,6 +4,8 @@
 // License: MIT-license
 //
 
+import { manifest } from "../manifest.js";
+
 var Store = function (name, defaults) {
   var key;
   this.name = name;
@@ -15,6 +17,17 @@ var Store = function (name, defaults) {
         this.get(key) === undefined
       ) {
         this.set(key, defaults[key]);
+      }
+    }
+  } else if (manifest) {
+    for (var idx = 0; idx < manifest.settings.length; idx++) {
+      var key = manifest.settings[idx].name;
+      var val = Object.prototype.hasOwnProperty.call(
+        manifest.settings[idx],
+        "default"
+      );
+      if (val && this.get(key) === undefined) {
+        this.set(key, val);
       }
     }
   }

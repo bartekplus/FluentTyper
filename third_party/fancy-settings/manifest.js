@@ -49,6 +49,7 @@ var manifest = {
       name: "enable",
       type: "checkbox",
       label: i18n.get("enable"),
+      default: true,
     },
     {
       tab: i18n.get("settings"),
@@ -60,6 +61,15 @@ var manifest = {
         ["whitelist", "Disabled by default (domain list is a whitelist)"],
       ],
       label: "Operating mode:",
+      default: "blacklist",
+    },
+    {
+      tab: i18n.get("settings"),
+      group: i18n.get("General"),
+      name: "useEnter",
+      type: "checkbox",
+      label: i18n.get("useEnter"),
+      default: true,
     },
     {
       tab: "Domain list",
