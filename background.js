@@ -22,17 +22,6 @@ chrome.runtime.onInstalled.addListener(function (details) {
   }
 });
 
-// setDefault Values
-function setDefault(settings) {
-  // First Run - no value stored
-  if (settings.get("enable") === undefined) {
-    settings.set("enable", true);
-  }
-  if (settings.get("operatingMode") === undefined) {
-    settings.set("operatingMode", "blacklist");
-  }
-}
-
 function sendMsgToSandbox(message) {
   var iframe = document.getElementById("sandboxFrame");
   iframe.contentWindow.postMessage(message, "*");
@@ -75,6 +64,7 @@ function onRequest(request, sender, sendResponse) {
         command: "getConfig",
         context: {
           enabled: isEnabledForDomain(sender.tab.url),
+          useEnter: settings.get("useEnter"),
         },
       };
   }
@@ -85,8 +75,6 @@ function onRequest(request, sender, sendResponse) {
 
 // Listen for the content script to send a message to the background page.
 chrome.runtime.onMessage.addListener(onRequest);
-
-setDefault(settings);
 
 function receiveMessage(event) {
   checkLastError();
