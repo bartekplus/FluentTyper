@@ -1776,7 +1776,7 @@
     }, {
       key: "hideMenu",
       value: function hideMenu() {
-        if (this.menu) {
+        if (this.menu && this.isActive) {
           this.menu.style.cssText = "display: none;";
           this.isActive = false;
           this.current.element.focus();
