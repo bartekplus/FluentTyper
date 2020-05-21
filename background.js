@@ -10,9 +10,9 @@ var settings = new Store("settings");
 chrome.runtime.onInstalled.addListener(function (details) {
   checkLastError();
   if (details.reason === "install") {
-    // chrome.tabs.create({
-    //    url: "options/index.html"
-    // });
+    chrome.tabs.create({
+      url: "new_installation/index.html",
+    });
   } else if (details.reason === "update") {
     var thisVersion = chrome.runtime.getManifest().version;
     console.log(
