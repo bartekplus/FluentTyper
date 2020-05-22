@@ -5,7 +5,7 @@
   var tributeArr = [];
   var observer = null;
   var pendingReq = null;
-  var PRESAGE_PREDICTION_TIMEOUT_MS = 1000;
+  const PRESAGE_PREDICTION_TIMEOUT_MS = 1000;
 
   function keys(useEnter) {
     var keyArr = [
@@ -54,12 +54,24 @@
     }
   }
 
-  function setPresageRequestTimeout(tributeId) {
-    tributeArr[tributeId].timeout = setTimeout(function () {
+  function requestTimeoutFn(tributeId, requestId) {
+    if (requestId == tributeArr[tributeId].requestId) {
       pendingReq = null;
       tributeArr[tributeId].timeout = null;
       tributeArr[tributeId].done([]);
-    }, PRESAGE_PREDICTION_TIMEOUT_MS);
+    }
+  }
+
+  function setPresageRequestTimeout(tributeId) {
+    var timeoutFn = requestTimeoutFn.bind(
+      null,
+      tributeId,
+      tributeArr[tributeId].requestId
+    );
+    tributeArr[tributeId].timeout = setTimeout(
+      t,
+      PRESAGE_PREDICTION_TIMEOUT_MS
+    );
   }
 
   function checkLastError() {
@@ -275,6 +287,8 @@
             cancelPresageRequestTimeout(message.context.tributeId);
             // Send prediction to TributeJs
             tributeArr[message.context.tributeId].done(keyValPairs);
+            // Clear pending req
+            pendingReq = null;
           } else {
             // Msq are not equal, ignore result and send pending msg
             chrome.runtime.sendMessage(pendingReq, function (response) {
@@ -282,7 +296,6 @@
               setPresageRequestTimeout(message.context.tributeId);
             });
           }
-          pendingReq = null;
         }
         break;
       case "getConfig":
