@@ -1,25 +1,21 @@
 {
-    "env": {
-        "browser": true,
-	"webextensions": true,
-        "es6": true
-    },
-    "extends": [
-        "prettier",
-        "prettier/standard"
-    ],
-    "plugins": ["prettier"],
-    "globals": {
-        "Atomics": "readonly",
-        "SharedArrayBuffer": "readonly"
-    },
-    "parserOptions": {
-        "sourceType": "module",
+  "env": {
+    "browser": true,
+    "webextensions": true,
+    "es6": true
+  },
+  "extends": ["standard", "prettier", "prettier/standard"],
+  "plugins": ["prettier"],
+  "globals": {
+    "Atomics": "readonly",
+    "SharedArrayBuffer": "readonly"
+  },
+  "parserOptions": {
+    "sourceType": "module",
 
-        "ecmaVersion": 11
-    },
-    "rules": {
-       "prettier/prettier": ["error"]
-
-    }
+    "ecmaVersion": 11
+  },
+  "rules": {
+    "prettier/prettier": ["error"]
+  }
 }
