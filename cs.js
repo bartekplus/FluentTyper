@@ -69,7 +69,7 @@
       tributeArr[tributeId].requestId
     );
     tributeArr[tributeId].timeout = setTimeout(
-      t,
+      timeoutFn,
       PRESAGE_PREDICTION_TIMEOUT_MS
     );
   }
