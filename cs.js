@@ -213,7 +213,7 @@
           searchOpts: {
             pre: "<span>",
             post: "</span>",
-            skip: false, // true will skip local search, useful if doing server-side search
+            skip: true, // true will skip local search, useful if doing server-side search
           },
 
           // specify the minimum number of characters that must be typed before menu appears
