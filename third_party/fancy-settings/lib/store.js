@@ -21,11 +21,12 @@ var Store = function (name, defaults) {
     }
   } else if (manifest) {
     for (var idx = 0; idx < manifest.settings.length; idx++) {
-      var key = manifest.settings[idx].name;
       var val = Object.prototype.hasOwnProperty.call(
         manifest.settings[idx],
         "default"
       );
+      key = manifest.settings[idx].name;
+
       if (val && this.get(key) === undefined) {
         this.set(key, manifest.settings[idx].default);
       }
