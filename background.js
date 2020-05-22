@@ -103,3 +103,30 @@ chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
     }
   });
 });
+
+function toggleOnOffActiveTab() {
+  chrome.tabs.query({ active: true }, function (tabs) {
+    checkLastError();
+    var currentTab = tabs[0];
+
+    var message = {
+      command: "toggle",
+      context: {},
+    };
+
+    chrome.tabs.sendMessage(currentTab.id, message);
+    chrome.pageAction.show(currentTab.id);
+  });
+}
+
+chrome.commands.onCommand.addListener(function (command) {
+  switch (command) {
+    case "toggle-ft-active-tab":
+      toggleOnOffActiveTab();
+      break;
+
+    default:
+      console.log("Unknown command: ", command);
+      break;
+  }
+});
