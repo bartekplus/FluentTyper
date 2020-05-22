@@ -65,7 +65,7 @@ var manifest = {
     },
     {
       tab: i18n.get("settings"),
-      group: i18n.get("General"),
+      group: i18n.get("Miscellaneous"),
       name: "useEnter",
       type: "checkbox",
       label: i18n.get("useEnter"),
