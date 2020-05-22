@@ -5,7 +5,7 @@
   var tributeArr = [];
   var observer = null;
   var pendingReq = null;
-  const PRESAGE_PREDICTION_TIMEOUT_MS = 1000;
+  const PRESAGE_PREDICTION_TIMEOUT_MS = 666;
 
   function keys(useEnter) {
     var keyArr = [
@@ -183,16 +183,16 @@
                   requestId: tributeArr[localId].requestId,
                 },
               };
+              // Cancel old timeout Fn
+              cancelPresageRequestTimeout(localId);
+              setPresageRequestTimeout(localId);
               // Check if we are waiting for a response
               if (!pendingReq) {
                 // Set pending request
                 pendingReq = message;
-                // Cancel old timeout Fn
-                cancelPresageRequestTimeout(localId);
 
                 chrome.runtime.sendMessage(message, function (response) {
                   checkLastError();
-                  setPresageRequestTimeout(localId);
                 });
               } else {
                 pendingReq = message;
@@ -271,6 +271,8 @@
       case "predictResp":
         // We were waiting for prediction
         if (pendingReq) {
+          cancelPresageRequestTimeout(message.context.tributeId);
+
           // Check if msg are equal
           if (
             message.context.requestId ===
@@ -284,16 +286,16 @@
               });
             }
             // Cancel old timeout Fn
-            cancelPresageRequestTimeout(message.context.tributeId);
             // Send prediction to TributeJs
             tributeArr[message.context.tributeId].done(keyValPairs);
             // Clear pending req
             pendingReq = null;
           } else {
             // Msq are not equal, ignore result and send pending msg
+            setPresageRequestTimeout(message.context.tributeId);
+
             chrome.runtime.sendMessage(pendingReq, function (response) {
               checkLastError();
-              setPresageRequestTimeout(message.context.tributeId);
             });
           }
         }
