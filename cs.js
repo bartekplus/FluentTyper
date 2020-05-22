@@ -5,6 +5,7 @@
   var tributeArr = [];
   var observer = null;
   var pendingReq = null;
+  var config = { enabled: false, useEnter: false };
   const PRESAGE_PREDICTION_TIMEOUT_MS = 666;
 
   function keys(useEnter) {
@@ -34,6 +35,14 @@
       });
     }
     return keyArr;
+  }
+
+  function detachAllHelpers() {
+    for (var i = 0; i < tributeArr.length; i++) {
+      tributeArr[i].tribute.detach(tributeArr[i].elem);
+      delete tributeArr[i].tribute;
+    }
+    tributeArr = [];
   }
 
   function isHelperAttached(helperArr, elem) {
@@ -82,7 +91,7 @@
     } catch (e) {}
   }
 
-  function MutationCallback(options, mutationsList, observer) {
+  function MutationCallback(mutationsList, observer) {
     var nodesAdded = false;
     for (const mutation of mutationsList) {
       if (mutation.type === "childList") {
@@ -92,11 +101,14 @@
       }
     }
     if (nodesAdded) {
-      attachHelper(options);
+      attachHelper();
     }
   }
 
-  function attachHelper(options) {
+  function attachHelper() {
+    if (!config.enabled) {
+      return;
+    }
     var selectors = ["textarea", "input", '[contentEditable="true"]'];
 
     for (var selectorId = 0; selectorId < selectors.length; selectorId++) {
@@ -232,7 +244,7 @@
           menuShowMinLength: 0,
 
           keys: (function () {
-            var useEnter = options.useEnter;
+            var useEnter = config.useEnter;
             return keys.bind(null, useEnter);
           })(),
         });
@@ -242,26 +254,34 @@
     }
   }
 
-  function initializeFluentTyper(options) {
+  function initializeFluentTyper() {
     window.addEventListener(
       "DOMContentLoaded",
       function (evt) {
-        initializeFluentTyper(options);
+        initializeFluentTyper(config);
       },
       false
     );
 
-    attachHelper(options);
     if (!observer) {
       var observerOptions = {
         childList: true,
         attributes: false,
         subtree: true,
       };
-      var mutationCallback = MutationCallback.bind(null, options);
-      observer = new MutationObserver(mutationCallback);
+      observer = new MutationObserver(MutationCallback);
       observer.observe(document.body, observerOptions);
     }
+  }
+
+  function enable() {
+    config.enabled = true;
+    attachHelper();
+  }
+
+  function disable() {
+    config.enabled = false;
+    detachAllHelpers();
   }
 
   function messageHandler(message, sender, sendResponse) {
@@ -301,10 +321,18 @@
         }
         break;
       case "getConfig":
-        if (message.context.enabled) {
-          initializeFluentTyper({ useEnter: message.context.useEnter });
-        }
+        config.useEnter = message.context.useEnter;
+        config.enabled = message.context.enabled;
+        initializeFluentTyper();
+
         break;
+      case "disable":
+        disable();
+        break;
+      case "enable":
+        enable();
+        break;
+
       default:
         console.log("Unknown message");
         console.log(message);
