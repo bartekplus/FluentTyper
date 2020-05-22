@@ -55,7 +55,7 @@
   }
 
   function requestTimeoutFn(tributeId, requestId) {
-    if (requestId == tributeArr[tributeId].requestId) {
+    if (requestId === tributeArr[tributeId].requestId) {
       pendingReq = null;
       tributeArr[tributeId].timeout = null;
       tributeArr[tributeId].done([]);
