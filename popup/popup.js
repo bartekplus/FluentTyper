@@ -38,17 +38,45 @@ function addRemoveDomain() {
   chrome.tabs.query({ active: true }, function (tabs) {
     var currentTab = tabs[0];
     var domainURL = getDomain(currentTab.url);
+    var opMode = settings.get("operatingMode");
+
+    var message = {
+      command: null,
+      context: {},
+    };
 
     if (isDomainOnList(settings, domainURL)) {
       removeDomainFromList(settings, domainURL);
+      message.command = opMode === "blacklist" ? "enable" : "disable";
     } else {
       addDomainToList(settings, domainURL);
+      message.command = opMode === "blacklist" ? "disable" : "enable";
     }
+
+    chrome.tabs.sendMessage(currentTab.id, message, function (response) {});
   });
 }
 
 function toggleOnOff() {
-  settings.set("enable", !settings.get("enable"));
+  var newMode = !settings.get("enable");
+  settings.set("enable", newMode);
+
+  chrome.tabs.query({}, function (tabs) {
+    for (var i = 0; i < tabs.length; i++) {
+      var message = {
+        command: null,
+        context: {},
+      };
+
+      if (newMode) {
+        message.command = "enable";
+      } else {
+        message.command = "disable";
+      }
+
+      chrome.tabs.sendMessage(tabs[i].id, message, function (response) {});
+    }
+  });
 }
 
 init();
