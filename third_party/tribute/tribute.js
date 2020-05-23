@@ -605,7 +605,7 @@
 
         if (typeof info !== 'undefined') {
           if (!this.tribute.positionMenu) {
-            this.tribute.menu.style.cssText = "display: block;";
+            this.tribute.menu.style.display = "block";
             return;
           }
 
@@ -615,7 +615,12 @@
             coordinates = this.getContentEditableCaretPosition(info.mentionPosition);
           }
 
-          this.tribute.menu.style.cssText = "top: ".concat(coordinates.top, "px;\n                                     left: ").concat(coordinates.left, "px;\n                                     right: ").concat(coordinates.right, "px;\n                                     bottom: ").concat(coordinates.bottom, "px;\n                                     position: absolute;\n                                     display: block;");
+          this.tribute.menu.style.top = "".concat(coordinates.top, "px");
+          this.tribute.menu.style.left = "".concat(coordinates.left, "px");
+          this.tribute.menu.style.right = "".concat(coordinates.right, "px");
+          this.tribute.menu.style.bottom = "".concat(coordinates.bottom, "px");
+          this.tribute.menu.style.position = "absolute";
+          this.tribute.menu.style.display = "block";
 
           if (coordinates.left === 'auto') {
             this.tribute.menu.style.left = 'auto';
@@ -638,13 +643,13 @@
             var menuIsOffScreenVertically = window.innerHeight > menuDimensions.height && (menuIsOffScreen.top || menuIsOffScreen.bottom);
 
             if (menuIsOffScreenHorizontally || menuIsOffScreenVertically) {
-              _this.tribute.menu.style.cssText = 'display: none';
+              _this.tribute.menu.style.display = 'none';
 
               _this.positionMenuAtCaret(scrollTo);
             }
           }, 0);
         } else {
-          this.tribute.menu.style.cssText = 'display: none';
+          this.tribute.menu.style.display = 'none';
         }
       }
     }, {
@@ -986,10 +991,14 @@
           width: null,
           height: null
         };
-        this.tribute.menu.style.cssText = "top: 0px;\n                                 left: 0px;\n                                 position: fixed;\n                                 display: block;\n                                 visibility; hidden;";
+        this.tribute.menu.style.top = "0px";
+        this.tribute.menu.style.left = "0px";
+        this.tribute.menu.style.position = "fixed";
+        this.tribute.menu.style.display = "block"; // this.tribute.menu.style.visibility = `hidden`;
+
         dimensions.width = this.tribute.menu.offsetWidth;
         dimensions.height = this.tribute.menu.offsetHeight;
-        this.tribute.menu.style.cssText = "display: none;";
+        this.tribute.menu.style.display = "none";
         return dimensions;
       }
     }, {
@@ -1576,7 +1585,9 @@
       }
     }, {
       key: "createMenu",
-      value: function createMenu(containerClass) {
+      value: function createMenu(containerClass, element) {
+        var properties = ['fontStyle', 'fontVariant', 'fontWeight', 'fontStretch', 'fontSizeAdjust', 'fontFamily'];
+        var computed = window.getComputedStyle ? getComputedStyle(element) : element.currentStyle;
         var wrapper = this.range.getDocument().createElement("div"),
             ul = this.range.getDocument().createElement("ul");
         wrapper.className = containerClass;
@@ -1588,6 +1599,12 @@
         wrapper.addEventListener("keydown", wrapper.boundKeydown, false);
         wrapper.addEventListener("keyup", wrapper.boundKeyup, false);
         wrapper.addEventListener("input", wrapper.boundInput, false);
+        var elementFontSize = parseInt(computed.fontSize);
+        var diff = parseInt((elementFontSize + 9) / 10);
+        wrapper.style.fontSize = parseInt(computed.fontSize) - diff + 'px';
+        properties.forEach(function (prop) {
+          wrapper.style[prop] = computed[prop];
+        });
 
         if (this.menuContainer) {
           return this.menuContainer.appendChild(wrapper);
@@ -1608,7 +1625,7 @@
         this.currentMentionTextSnapshot = this.current.mentionText; // create the menu if it doesn't exist.
 
         if (!this.menu) {
-          this.menu = this.createMenu(this.current.collection.containerClass);
+          this.menu = this.createMenu(this.current.collection.containerClass, element);
           element.tributeMenu = this.menu;
           this.menuEvents.bind(this.menu);
         }
@@ -1779,7 +1796,7 @@
       key: "hideMenu",
       value: function hideMenu() {
         if (this.menu && this.isActive) {
-          this.menu.style.cssText = "display: none;";
+          this.menu.style.display = "none";
           this.isActive = false;
           this.current.element.focus();
           this.activationPending = false;
