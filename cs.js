@@ -323,9 +323,12 @@
         break;
       case "getConfig":
         config.useEnter = message.context.useEnter;
-        config.enabled = message.context.enabled;
         initializeFluentTyper();
-
+        if (message.context.enabled) {
+          enable();
+        } else {
+          disable();
+        }
         statusMsg = {
           command: "status",
           context: { enabled: config.enabled },
