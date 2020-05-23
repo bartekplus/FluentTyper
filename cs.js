@@ -332,13 +332,6 @@
       case "enable":
         enable();
         break;
-      case "toggle":
-        if (config.enabled) {
-          disable();
-        } else {
-          enable();
-        }
-        break;
 
       default:
         console.log("Unknown message");

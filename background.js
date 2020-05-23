@@ -110,7 +110,7 @@ function toggleOnOffActiveTab() {
     var currentTab = tabs[0];
 
     var message = {
-      command: "toggle",
+      command: isEnabledForDomain(currentTab.url) ? "disable" : "enable",
       context: {},
     };
 
