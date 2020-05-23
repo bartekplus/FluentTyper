@@ -5,7 +5,7 @@
   height: auto;
   max-height: 300px;
   max-width: 500px;
-  overflow: auto;
+  overflow: visible;
   display: block;
   z-index: 2147483647;
   box-shadow: 1px 2px 6px;
