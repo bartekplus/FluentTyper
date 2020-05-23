@@ -91,6 +91,25 @@ function receiveMessage(event) {
   });
 }
 
+function setPageActionIcon(tabId, isActive) {
+  const iconSizes = [16, 32, 48, 64, 72, 96, 128, 256];
+  const icons = {};
+
+  for (let sizeIdx = 0; sizeIdx < iconSizes.length; sizeIdx++) {
+    icons[iconSizes[sizeIdx]] =
+      "icon/icon" +
+      (!isActive ? "Inactive" : "") +
+      +iconSizes[sizeIdx] +
+      ".png";
+  }
+  chrome.pageAction.setIcon({ tabId: tabId, path: icons });
+}
+
+function showPageAction(tabId, isActive) {
+  setPageActionIcon(tabId, isActive);
+  chrome.pageAction.show(tabId);
+}
+
 window.addEventListener("message", receiveMessage, false);
 chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
   checkLastError();
@@ -99,7 +118,8 @@ chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
     checkLastError();
 
     if (tab) {
-      chrome.pageAction.show(tabId);
+      const isActive = isEnabledForDomain(tab.url);
+      showPageAction(tab.id, isActive);
     }
   });
 });
@@ -115,7 +135,7 @@ function toggleOnOffActiveTab() {
     };
 
     chrome.tabs.sendMessage(currentTab.id, message);
-    chrome.pageAction.show(currentTab.id);
+    showPageAction(currentTab, !isEnabledForDomain(currentTab.url));
   });
 }
 
