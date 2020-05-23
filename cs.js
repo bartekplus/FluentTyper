@@ -109,7 +109,12 @@
     if (!config.enabled) {
       return;
     }
-    var selectors = ["textarea", "input", '[contentEditable="true"]'];
+    const selectors = [
+      "textarea",
+      "input",
+      '[contentEditable="true" i]',
+      '[contentEditable="plaintext-only" i]',
+    ];
 
     for (var selectorId = 0; selectorId < selectors.length; selectorId++) {
       var elems = document.querySelectorAll(selectors[selectorId]);
