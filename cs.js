@@ -286,6 +286,7 @@
 
   function messageHandler(message, sender, sendResponse) {
     checkLastError();
+    let statusMsg = null;
 
     switch (message.command) {
       case "predictResp":
@@ -325,18 +326,38 @@
         config.enabled = message.context.enabled;
         initializeFluentTyper();
 
+        statusMsg = {
+          command: "status",
+          context: { enabled: config.enabled },
+        };
+
         break;
       case "disable":
-        disable();
-        break;
       case "enable":
-        enable();
+      case "toggle":
+        if (
+          message.command === "disable" ||
+          (message.command === "toggle" && config.enabled)
+        ) {
+          disable();
+        } else {
+          enable();
+        }
+        statusMsg = {
+          command: "status",
+          context: { enabled: config.enabled },
+        };
+
         break;
 
       default:
         console.log("Unknown message");
         console.log(message);
         break;
+    }
+
+    if (statusMsg) {
+      chrome.runtime.sendMessage(statusMsg);
     }
   }
 

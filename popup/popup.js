@@ -53,7 +53,7 @@ function addRemoveDomain() {
       message.command = opMode === "blacklist" ? "disable" : "enable";
     }
 
-    chrome.tabs.sendMessage(currentTab.id, message, function (response) {});
+    chrome.tabs.sendMessage(currentTab.id, message);
   });
 }
 
@@ -74,7 +74,7 @@ function toggleOnOff() {
         message.command = "disable";
       }
 
-      chrome.tabs.sendMessage(tabs[i].id, message, function (response) {});
+      chrome.tabs.sendMessage(tabs[i].id, message);
     }
   });
 }
