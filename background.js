@@ -58,6 +58,9 @@ function onRequest(request, sender, sendResponse) {
     case "predictReq":
       sendMsgToSandbox(request);
       break;
+    case "status":
+      showPageAction(sender.tab.id, request.context.enabled);
+      break;
 
     case "getConfig":
       respMsg = {
@@ -97,7 +100,7 @@ function setPageActionIcon(tabId, isActive) {
 
   for (let sizeIdx = 0; sizeIdx < iconSizes.length; sizeIdx++) {
     icons[iconSizes[sizeIdx]] =
-      "icon/icon" +
+      "/icon/icon" +
       (!isActive ? "Inactive" : "") +
       +iconSizes[sizeIdx] +
       ".png";
@@ -111,31 +114,18 @@ function showPageAction(tabId, isActive) {
 }
 
 window.addEventListener("message", receiveMessage, false);
-chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
-  checkLastError();
-  // Make sure that tabId is still valid
-  chrome.tabs.get(tabId, function (tab) {
-    checkLastError();
-
-    if (tab) {
-      const isActive = isEnabledForDomain(tab.url);
-      showPageAction(tab.id, isActive);
-    }
-  });
-});
 
 function toggleOnOffActiveTab() {
   chrome.tabs.query({ active: true }, function (tabs) {
     checkLastError();
-    var currentTab = tabs[0];
+    const currentTab = tabs[0];
 
     var message = {
-      command: isEnabledForDomain(currentTab.url) ? "disable" : "enable",
+      command: "toggle",
       context: {},
     };
 
     chrome.tabs.sendMessage(currentTab.id, message);
-    showPageAction(currentTab, !isEnabledForDomain(currentTab.url));
   });
 }
 
