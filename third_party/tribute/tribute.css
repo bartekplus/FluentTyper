@@ -1,41 +1,42 @@
 .tribute-container {
-  position: absolute;
   top: 0;
   left: 0;
-  height: auto;
-  max-height: 300px;
-  max-width: 500px;
-  overflow: visible;
   display: block;
-  z-index: 2147483647;
-  box-shadow: 1px 2px 6px;
-  background-color: #fff;
-  color: #333;
+  position: absolute;
+  height: auto !important;
+  max-height: 300px !important;
+  max-width: 500px !important;
+  overflow: visible !important;
+  z-index: 2147483647 !important;
+  box-shadow: 1px 2px 6px !important;
+  background-color: #fff !important;
+  color: #333 !important;
 }
 .tribute-container ul {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  background-color: #fff;
+  margin: 0 !important;
+  padding: 0 !important;
+  list-style: none !important;
+  background-color: #fff !important;
 }
 .tribute-container li {
-  padding: 3px 5px;
-  cursor: pointer;
+  margin: 0 !important;
+  padding: 3px 5px !important;
+  cursor: pointer !important;
 }
 .tribute-container li.highlight {
-  background-color: #333;
-  color: #fff;
+  background-color: #333 !important;
+  color: #fff !important;
 }
 .tribute-container li.highlight:hover {
-  background-color: #333;
-  color: #fff;
+  background-color: #333 !important;
+  color: #fff !important;
 }
 .tribute-container li span {
-  font-weight: bold;
+  font-weight: bold !important;
 }
 .tribute-container li.no-match {
-  cursor: default;
+  cursor: default !important;
 }
 .tribute-container .menu-highlighted {
-  font-weight: bold;
+  font-weight: bold !important;
 }
