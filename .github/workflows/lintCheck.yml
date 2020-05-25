@@ -17,4 +17,4 @@ jobs:
       with:
         node-version: '14'
     - run: npm ci
-    - run: npm check
+    - run: npm run check
