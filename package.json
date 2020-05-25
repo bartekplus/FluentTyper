@@ -4,7 +4,8 @@
   "description": "",
   "main": "cs.js",
   "scripts": {
-    "lint": "eslint --fix . && prettier **/*.{html,css}  --write"
+    "check": "eslint . && prettier '**/*.{html,css}'  --check",
+    "lint": "eslint --fix . && prettier '**/*.{html,css}'  --write"
   },
   "repository": {
     "type": "git",
