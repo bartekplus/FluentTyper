@@ -11,49 +11,53 @@ import { Store } from "../third_party/fancy-settings/lib/store.js";
 var settings = new Store("settings");
 
 function init() {
-  chrome.tabs.query({ active: true }, function (tabs) {
-    var currentTab = tabs[0];
-    var urlNode = document.getElementById("checkboxDomainLabel");
-    var checkboxNode = document.getElementById("checkboxDomainInput");
-    var checkboxEnableNode = document.getElementById("checkboxEnableInput");
+  chrome.tabs.query({ active: true, lastFocusedWindow: true }, function (tabs) {
+    if (tabs.length === 1) {
+      var currentTab = tabs[0];
+      var urlNode = document.getElementById("checkboxDomainLabel");
+      var checkboxNode = document.getElementById("checkboxDomainInput");
+      var checkboxEnableNode = document.getElementById("checkboxEnableInput");
 
-    var domainURL = getDomain(currentTab.url);
-    var opMode = settings.get("operatingMode");
-    urlNode.innerText = "Enable autocomplete on: " + domainURL;
+      var domainURL = getDomain(currentTab.url);
+      var opMode = settings.get("operatingMode");
+      urlNode.innerText = "Enable autocomplete on: " + domainURL;
 
-    if (isDomainOnList(settings, domainURL)) {
-      checkboxNode.checked = opMode !== "blacklist";
-    } else {
-      checkboxNode.checked = opMode === "blacklist";
+      if (isDomainOnList(settings, domainURL)) {
+        checkboxNode.checked = opMode !== "blacklist";
+      } else {
+        checkboxNode.checked = opMode === "blacklist";
+      }
+
+      checkboxEnableNode.checked = settings.get("enable");
+      document.getElementById("runOptions").href = chrome.extension.getURL(
+        "options.html"
+      );
     }
-
-    checkboxEnableNode.checked = settings.get("enable");
-    document.getElementById("runOptions").href = chrome.extension.getURL(
-      "options.html"
-    );
   });
 }
 
 function addRemoveDomain() {
-  chrome.tabs.query({ active: true }, function (tabs) {
-    var currentTab = tabs[0];
-    var domainURL = getDomain(currentTab.url);
-    var opMode = settings.get("operatingMode");
+  chrome.tabs.query({ active: true, lastFocusedWindow: true }, function (tabs) {
+    if (tabs.length === 1) {
+      var currentTab = tabs[0];
+      var domainURL = getDomain(currentTab.url);
+      var opMode = settings.get("operatingMode");
 
-    var message = {
-      command: null,
-      context: {},
-    };
+      var message = {
+        command: null,
+        context: {},
+      };
 
-    if (isDomainOnList(settings, domainURL)) {
-      removeDomainFromList(settings, domainURL);
-      message.command = opMode === "blacklist" ? "enable" : "disable";
-    } else {
-      addDomainToList(settings, domainURL);
-      message.command = opMode === "blacklist" ? "disable" : "enable";
+      if (isDomainOnList(settings, domainURL)) {
+        removeDomainFromList(settings, domainURL);
+        message.command = opMode === "blacklist" ? "enable" : "disable";
+      } else {
+        addDomainToList(settings, domainURL);
+        message.command = opMode === "blacklist" ? "disable" : "enable";
+      }
+
+      chrome.tabs.sendMessage(currentTab.id, message);
     }
-
-    chrome.tabs.sendMessage(currentTab.id, message);
   });
 }
 

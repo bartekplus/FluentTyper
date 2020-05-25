@@ -116,16 +116,18 @@ function showPageAction(tabId, isActive) {
 window.addEventListener("message", receiveMessage, false);
 
 function toggleOnOffActiveTab() {
-  chrome.tabs.query({ active: true }, function (tabs) {
+  chrome.tabs.query({ active: true, lastFocusedWindow: true }, function (tabs) {
     checkLastError();
-    const currentTab = tabs[0];
+    if (tabs.length === 0) {
+      const currentTab = tabs[0];
 
-    var message = {
-      command: "toggle",
-      context: {},
-    };
+      var message = {
+        command: "toggle",
+        context: {},
+      };
 
-    chrome.tabs.sendMessage(currentTab.id, message);
+      chrome.tabs.sendMessage(currentTab.id, message);
+    }
   });
 }
 
