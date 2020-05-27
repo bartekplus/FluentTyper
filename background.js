@@ -118,7 +118,7 @@ window.addEventListener("message", receiveMessage, false);
 function toggleOnOffActiveTab() {
   chrome.tabs.query({ active: true, lastFocusedWindow: true }, function (tabs) {
     checkLastError();
-    if (tabs.length === 0) {
+    if (tabs.length === 1) {
       const currentTab = tabs[0];
 
       var message = {
