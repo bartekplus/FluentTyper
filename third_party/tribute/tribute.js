@@ -1639,6 +1639,12 @@
           // Tribute may not be active any more by the time the value callback returns
           if (!_this2.activationPending) {
             return;
+          } // Element is no longer in focus - don't show menu
+
+
+          if (document.activeElement !== _this2.current.element) {
+            _this2.activationPending = false;
+            return;
           }
 
           _this2.isActive = true;
@@ -1793,6 +1799,8 @@
     }, {
       key: "hideMenu",
       value: function hideMenu() {
+        this.activationPending = false;
+
         if (this.menu && this.isActive) {
           this.menu.style.display = "none";
           this.isActive = false;
