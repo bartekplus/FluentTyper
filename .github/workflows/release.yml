@@ -17,7 +17,7 @@ jobs:
         uses: TheDoctor0/zip-release@v0.3.0
         with:
           filename: 'FluentTyperChrome.zip'
-          exclusions: '*.git* /*node_modules/* .eslintignore .eslintrc.json .prettierignore'
+          exclusions: '*.git* /*node_modules/* .eslintignore .eslintrc.json .prettierignore *.sh'
       - name: Install jq and fix csp for Firefox
         run: |
           sudo apt-get install -y jq moreutils
@@ -26,7 +26,7 @@ jobs:
         uses: TheDoctor0/zip-release@v0.3.0
         with:
           filename: 'FluentTyperFirefox.zip'
-          exclusions: '*.git* /*node_modules/* .eslintignore .eslintrc.json .prettierignore *.zip'
+          exclusions: '*.git* /*node_modules/* .eslintignore .eslintrc.json .prettierignore *.zip *.sh'
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
