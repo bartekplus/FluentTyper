@@ -39,6 +39,7 @@
 
   function detachAllHelpers() {
     for (var i = 0; i < tributeArr.length; i++) {
+      cancelPresageRequestTimeout(i);
       tributeArr[i].tribute.detach(tributeArr[i].elem);
       delete tributeArr[i].tribute;
     }
@@ -64,7 +65,10 @@
   }
 
   function requestTimeoutFn(tributeId, requestId) {
-    if (requestId === tributeArr[tributeId].requestId) {
+    if (
+      tributeId < tributeArr.length &&
+      requestId === tributeArr[tributeId].requestId
+    ) {
       pendingReq = null;
       tributeArr[tributeId].timeout = null;
       tributeArr[tributeId].done([]);
