@@ -64,7 +64,7 @@ function onRequest(request, sender, sendResponse) {
 
     case "getConfig":
       respMsg = {
-        command: "getConfig",
+        command: "setConfig",
         context: {
           enabled: isEnabledForDomain(sender.tab.url),
           useEnter: settings.get("useEnter"),
