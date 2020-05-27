@@ -21,7 +21,7 @@ jobs:
       - name: Install jq and fix csp for Firefox
         run: |
           sudo apt-get install -y jq moreutils
-          jq ".content_security_policy = \"script-src 'self' 'unsafe-eval'; object-src 'self'\"" manifest.json | sponge manifest.json
+          ./fixManifestForFF.sh
       - name: Zip Release for Firefox
         uses: TheDoctor0/zip-release@v0.3.0
         with:
