@@ -326,7 +326,7 @@
           }
         }
         break;
-      case "getConfig":
+      case "setConfig":
         config.useEnter = message.context.useEnter;
         initializeFluentTyper();
         if (message.context.enabled) {
