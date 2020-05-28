@@ -64,7 +64,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
-          asset_path: ./chrome/FluentTyperChrome.zip
+          asset_path: ./FluentTyperChrome.zip
           asset_name: FluentTyperChrome.zip
           asset_content_type: application/zip
       - name: Upload Release Firefox Asset
@@ -74,6 +74,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
-          asset_path: ./firefox/FluentTyperFirefox.zip
+          asset_path: ./FluentTyperFirefox.zip
           asset_name: FluentTyperFirefox.zip
           asset_content_type: application/zip
