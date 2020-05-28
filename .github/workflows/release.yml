@@ -36,7 +36,8 @@ jobs:
           mkdir -p chrome
           cp -rdf src/* chrome/
           cp -rdf platform/chrome/* chrome
-          jq ".version = \"$SOURCE_TAG\"" chrome/manifest.json | sponge chrome/manifest.json
+          echo $SOURCE_TAG
+          jq ".version = \"${SOURCE_TAG}\"" chrome/manifest.json | sponge chrome/manifest.json
       - name: Zip Release
         uses: TheDoctor0/zip-release@v0.3.0
         with:
@@ -47,7 +48,9 @@ jobs:
           mkdir -p firefox
           cp -rdf src/* firefox/
           cp -rdf platform/firefox/* firefox
-          jq ".version = \"$SOURCE_TAG\"" chrome/manifest.json | sponge chrome/manifest.json
+          echo $SOURCE_TAG
+          echo ${SOURCE_TAG}
+          jq ".version = \"${SOURCE_TAG}\"" chrome/manifest.json | sponge chrome/manifest.json
       - name: Zip Release for Firefox
         uses: TheDoctor0/zip-release@v0.3.0
         with:
