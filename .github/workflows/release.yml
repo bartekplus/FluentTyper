@@ -13,20 +13,26 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
+      - name: Prepare chrome files
+        run: |
+          mkdir -p chrome
+          cp -rdf src/* chrome/
+          cp -rdf platform/chrome/* chrome
       - name: Zip Release
         uses: TheDoctor0/zip-release@v0.3.0
         with:
           filename: 'FluentTyperChrome.zip'
-          exclusions: '*.git* /*node_modules/* .eslintignore .eslintrc.json .prettierignore *.sh'
-      - name: Install jq and fix csp for Firefox
+          path: 'chrome'
+      - name: Prepare firefox files
         run: |
-          sudo apt-get install -y jq moreutils
-          ./fixManifestForFF.sh
+          mkdir -p firefox
+          cp -rdf src/* firefox/
+          cp -rdf platform/firefox/* firefpx
       - name: Zip Release for Firefox
         uses: TheDoctor0/zip-release@v0.3.0
         with:
           filename: 'FluentTyperFirefox.zip'
-          exclusions: '*.git* /*node_modules/* .eslintignore .eslintrc.json .prettierignore *.zip *.sh'
+          path: 'firefox'
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -44,7 +50,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
-          asset_path: ./FluentTyperChrome.zip
+          asset_path: ./chrome/FluentTyperChrome.zip
           asset_name: FluentTyperChrome.zip
           asset_content_type: application/zip
       - name: Upload Release Firefox Asset
@@ -54,6 +60,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
-          asset_path: ./FluentTyperFirefox.zip
+          asset_path: ./firefox/FluentTyperFirefox.zip
           asset_name: FluentTyperFirefox.zip
           asset_content_type: application/zip
