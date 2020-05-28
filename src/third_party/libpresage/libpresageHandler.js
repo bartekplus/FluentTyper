@@ -18,12 +18,15 @@ const presageCallback = {
     return "";
   },
 };
-var Module = { // eslint-disable-line no-var
+/* eslint-disable no-var */
+
+var Module = {
   onRuntimeInitialized: function () {
     const pcObject = Module.PresageCallback.implement(presageCallback);
     presage = new Module.Presage(pcObject, "resources_js/presage.xml");
   },
 };
+/* eslint-enable no-var */
 
 function convertString(s) {
   let str = "";
