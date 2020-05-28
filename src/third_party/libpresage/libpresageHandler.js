@@ -64,11 +64,11 @@ window.addEventListener("message", function (event) {
           for (let i = 0; i < predictionsNative.size(); i++) {
             predictions.push(predictionsNative.get(i));
           }
-          message.context.predictions = predictions;
-          event.source.postMessage(message, event.origin);
-          lastPrediction.pastStream = pastStream;
-          lastPrediction.predictions = predictions;
         }
+        message.context.predictions = predictions;
+        event.source.postMessage(message, event.origin);
+        lastPrediction.pastStream = pastStream;
+        lastPrediction.predictions = predictions;
       }
       break;
 
