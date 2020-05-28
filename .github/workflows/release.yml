@@ -43,7 +43,7 @@ jobs:
         uses: TheDoctor0/zip-release@v0.3.0
         with:
           filename: 'FluentTyperChrome.zip'
-          path: 'chrome'
+          directory: 'chrome'
       - name: Prepare firefox files
         run: |
           mkdir -p firefox
@@ -56,7 +56,7 @@ jobs:
         uses: TheDoctor0/zip-release@v0.3.0
         with:
           filename: 'FluentTyperFirefox.zip'
-          path: 'firefox'
+          directory: 'firefox'
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
