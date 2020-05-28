@@ -1,13 +1,13 @@
 "use strict";
 
-var presage = null;
+let presage = null;
 
-var lastPrediction = {
+const lastPrediction = {
   pastStream: null,
   predictions: null,
 };
 
-var presageCallback = {
+const presageCallback = {
   pastStream: "",
 
   get_past_stream: function () {
@@ -18,15 +18,15 @@ var presageCallback = {
     return "";
   },
 };
-var Module = {
+var Module = { // eslint-disable-line no-var
   onRuntimeInitialized: function () {
-    var pcObject = Module.PresageCallback.implement(presageCallback);
+    const pcObject = Module.PresageCallback.implement(presageCallback);
     presage = new Module.Presage(pcObject, "resources_js/presage.xml");
   },
 };
 
 function convertString(s) {
-  var str = "";
+  let str = "";
   if (typeof s === "string" || s instanceof String) {
     if (s.endsWith(" ")) {
       str = s.trim() + " ";
@@ -38,15 +38,15 @@ function convertString(s) {
 }
 
 window.addEventListener("message", function (event) {
-  var command = event.data.command;
+  const command = event.data.command;
+  const context = event.data.context;
+  const pastStream = convertString(event.data.context.text);
+  const message = {
+    command: "predictResp",
+    context: context,
+  };
   switch (command) {
     case "predictReq":
-      var context = event.data.context;
-      var pastStream = convertString(event.data.context.text);
-      var message = {
-        command: "predictResp",
-        context: context,
-      };
       if (!pastStream || !presage) {
         // Nothing to do here
       } else if (pastStream === lastPrediction.pastStream) {
@@ -54,11 +54,11 @@ window.addEventListener("message", function (event) {
 
         event.source.postMessage(message, event.origin);
       } else {
-        var predictions = [];
+        const predictions = [];
         presageCallback.pastStream = pastStream;
-        var predictionsNative = presage.predict();
+        const predictionsNative = presage.predict();
         if (predictionsNative.size()) {
-          for (var i = 0; i < predictionsNative.size(); i++) {
+          for (let i = 0; i < predictionsNative.size(); i++) {
             predictions.push(predictionsNative.get(i));
           }
           message.context.predictions = predictions;

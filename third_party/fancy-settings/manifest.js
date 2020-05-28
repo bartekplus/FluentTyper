@@ -1,6 +1,6 @@
 import { i18n } from "./i18n.js";
 
-var donateHTML =
+const donateHTML =
   "<p>" +
   "Creating and maintaining FluentTyper has required - and still " +
   "does - a considerable amount of work and effort. If you like " +
@@ -39,7 +39,7 @@ var donateHTML =
   "</form>";
 
 // SAMPLE
-var manifest = {
+const manifest = {
   name: "FluentTyper Settings",
   icon: "icon/icon128.png",
   settings: [

@@ -6,8 +6,8 @@
 
 import { manifest } from "../manifest.js";
 
-var Store = function (name, defaults) {
-  var key;
+const Store = function (name, defaults) {
+  let key;
   this.name = name;
 
   if (defaults !== undefined) {
@@ -20,8 +20,8 @@ var Store = function (name, defaults) {
       }
     }
   } else if (manifest) {
-    for (var idx = 0; idx < manifest.settings.length; idx++) {
-      var val = Object.prototype.hasOwnProperty.call(
+    for (let idx = 0; idx < manifest.settings.length; idx++) {
+      const val = Object.prototype.hasOwnProperty.call(
         manifest.settings[idx],
         "default"
       );
@@ -72,10 +72,8 @@ Store.prototype.remove = function (name) {
 };
 
 Store.prototype.removeAll = function () {
-  var name, i;
-
-  name = "store." + this.name + ".";
-  for (i = localStorage.length - 1; i >= 0; i--) {
+  const name = "store." + this.name + ".";
+  for (let i = localStorage.length - 1; i >= 0; i--) {
     if (localStorage.key(i).substring(0, name.length) === name) {
       localStorage.removeItem(localStorage.key(i));
     }
@@ -85,14 +83,12 @@ Store.prototype.removeAll = function () {
 };
 
 Store.prototype.toObject = function () {
-  var values, name, i, key, value;
-
-  values = {};
-  name = "store." + this.name + ".";
-  for (i = localStorage.length - 1; i >= 0; i--) {
+  const values = {};
+  const name = "store." + this.name + ".";
+  for (let i = localStorage.length - 1; i >= 0; i--) {
     if (localStorage.key(i).substring(0, name.length) === name) {
-      key = localStorage.key(i).substring(name.length);
-      value = this.get(key);
+      const key = localStorage.key(i).substring(name.length);
+      const value = this.get(key);
       if (value !== undefined) {
         values[key] = value;
       }
@@ -106,7 +102,7 @@ Store.prototype.fromObject = function (values, merge) {
   if (merge !== true) {
     this.removeAll();
   }
-  for (var key in values) {
+  for (const key in values) {
     if (Object.prototype.hasOwnProperty.call(values, key)) {
       this.set(key, values[key]);
     }

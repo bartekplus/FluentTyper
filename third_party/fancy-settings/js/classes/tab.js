@@ -41,7 +41,7 @@ class Tab {
   }
 
   create() {
-    var bundle = new Bundle(this);
+    const bundle = new Bundle(this);
     bundle.tab.inject(this.tabContainer);
     bundle.content.inject(this.tabContentContainer);
     if (!this.activeBundle) {

@@ -1,7 +1,7 @@
 import { I18n } from "./js/i18n.js";
 
 // SAMPLE
-var i18n = new I18n();
+let i18n = new I18n();
 i18n = Object.assign(i18n, {
   domain: {
     en: "Domain URL",

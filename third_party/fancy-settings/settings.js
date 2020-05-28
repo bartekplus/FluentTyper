@@ -5,7 +5,7 @@ window.addEvent("domready", function () {
   (() =>
     new FancySettingsWithManifest(function (settings) {
       settings.manifest.addDomainBtn.addEvent("action", function () {
-        var domainURL = settings.manifest.domain.get();
+        const domainURL = settings.manifest.domain.get();
         settings.manifest.domainList.add(domainURL);
       });
 
