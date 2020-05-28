@@ -2,14 +2,14 @@
 /* global Tribute */
 
 (function () {
-  var tributeArr = [];
-  var observer = null;
-  var pendingReq = null;
-  var config = { enabled: false, useEnter: false };
+  let tributeArr = [];
+  let observer = null;
+  let pendingReq = null;
+  const config = { enabled: false, useEnter: false };
   const PRESAGE_PREDICTION_TIMEOUT_MS = 666;
 
   function keys(useEnter) {
-    var keyArr = [
+    const keyArr = [
       {
         key: 9,
         value: "TAB",
@@ -38,7 +38,7 @@
   }
 
   function detachAllHelpers() {
-    for (var i = 0; i < tributeArr.length; i++) {
+    for (let i = 0; i < tributeArr.length; i++) {
       cancelPresageRequestTimeout(i);
       tributeArr[i].tribute.detach(tributeArr[i].elem);
       delete tributeArr[i].tribute;
@@ -47,7 +47,7 @@
   }
 
   function isHelperAttached(helperArr, elem) {
-    for (var i = 0; i < helperArr.length; i++) {
+    for (let i = 0; i < helperArr.length; i++) {
       if (elem === helperArr[i].elem) {
         return true;
       } else if (elem.hasAttribute("data-tribute")) {
@@ -76,7 +76,7 @@
   }
 
   function setPresageRequestTimeout(tributeId) {
-    var timeoutFn = requestTimeoutFn.bind(
+    const timeoutFn = requestTimeoutFn.bind(
       null,
       tributeId,
       tributeArr[tributeId].requestId
@@ -96,7 +96,7 @@
   }
 
   function MutationCallback(mutationsList, observer) {
-    var nodesAdded = false;
+    let nodesAdded = false;
     for (const mutation of mutationsList) {
       if (mutation.type === "childList") {
         if (mutation.addedNodes) {
@@ -120,10 +120,10 @@
       '[contentEditable="plaintext-only" i]',
     ];
 
-    for (var selectorId = 0; selectorId < selectors.length; selectorId++) {
-      var elems = document.querySelectorAll(selectors[selectorId]);
-      for (var i = 0; i < elems.length; i++) {
-        var elem = elems[i];
+    for (let selectorId = 0; selectorId < selectors.length; selectorId++) {
+      const elems = document.querySelectorAll(selectors[selectorId]);
+      for (let i = 0; i < elems.length; i++) {
+        const elem = elems[i];
 
         if (elem.getAttribute("type") === "password") {
           continue;
@@ -132,7 +132,7 @@
         if (isHelperAttached(tributeArr, elem)) {
           continue;
         }
-        var helperArrId = tributeArr.length;
+        const helperArrId = tributeArr.length;
 
         tributeArr.push({
           tribute: null,
@@ -144,7 +144,7 @@
 
         elem.addEventListener("tribute-replaced", function (e) {});
 
-        var tribute = new Tribute({
+        const tribute = new Tribute({
           // symbol or string that starts the lookup
           trigger: "",
 
@@ -187,16 +187,16 @@
 
           // REQUIRED: array of objects to match
           values: (function (data, done) {
-            var localId = helperArrId;
+            const localId = helperArrId;
             return function (data, done) {
-              var lines = data.split("\n");
-              var lastLine = lines[lines.length - 1];
+              const lines = data.split("\n");
+              const lastLine = lines[lines.length - 1];
               if (!lastLine) {
                 return done([]);
               }
               tributeArr[localId].done = done;
               tributeArr[localId].requestId += 1;
-              var message = {
+              const message = {
                 command: "predictReq",
                 context: {
                   text: lastLine,
@@ -253,7 +253,7 @@
           menuShowMinLength: 0,
 
           keys: (function () {
-            var useEnter = config.useEnter;
+            const useEnter = config.useEnter;
             return keys.bind(null, useEnter);
           })(),
         });
@@ -273,7 +273,7 @@
     );
 
     if (!observer) {
-      var observerOptions = {
+      const observerOptions = {
         childList: true,
         attributes: false,
         subtree: true,
@@ -308,8 +308,8 @@
             message.context.requestId ===
             tributeArr[message.context.tributeId].requestId
           ) {
-            var keyValPairs = [];
-            for (var i = 0; i < message.context.predictions.length; i++) {
+            const keyValPairs = [];
+            for (let i = 0; i < message.context.predictions.length; i++) {
               keyValPairs.push({
                 key: message.context.predictions[i],
                 value: message.context.predictions[i],
@@ -376,7 +376,7 @@
   chrome.runtime.onMessage.addListener(messageHandler);
 
   function getConfig() {
-    var message = {
+    const message = {
       command: "getConfig",
       context: {},
     };

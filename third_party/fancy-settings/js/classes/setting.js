@@ -9,7 +9,7 @@
 
 import { Store } from "../../lib/store.js";
 
-var settings = new Store("settings");
+const settings = new Store("settings");
 class Bundle extends Events {
   // Attributes:
   // - tab
@@ -221,7 +221,7 @@ class Text extends Bundle {
   }
 
   addEvents() {
-    var change = function (event) {
+    const change = function (event) {
       if (this.params.name !== undefined) {
         if (this.params.store !== false) {
           settings.set(this.params.name, this.get());
@@ -445,7 +445,7 @@ class PopupButton extends Bundle {
 
     // convert arrays
     if (typeOf(this.params.options) === "array") {
-      var values = [];
+      const values = [];
       this.params.options.each(
         function (values, option) {
           values.push(arrayToObject(option));
@@ -456,7 +456,7 @@ class PopupButton extends Bundle {
       };
     }
 
-    var groups;
+    let groups;
     if (this.params.options.groups !== undefined) {
       groups = {};
       this.params.options.groups.each(
@@ -476,7 +476,7 @@ class PopupButton extends Bundle {
           this.params.searchString += (option.text || option.value) + "•";
 
           // find the parent of this option - either a group or the main element
-          var parent;
+          let parent;
           if (option.group && this.params.options.groups) {
             if (option.group - 1 in this.params.options.groups) {
               option.group = this.params.options.groups[option.group - 1];
@@ -518,7 +518,7 @@ class ListBox extends PopupButton {
   add(domainURL) {
     if (this.params.options.indexOf(domainURL) === -1) {
       this.params.options.push(domainURL);
-      var elem = new Element("option", {
+      const elem = new Element("option", {
         value: domainURL,
         text: domainURL,
       });
@@ -529,7 +529,7 @@ class ListBox extends PopupButton {
 
   remove() {
     if (this.selected) {
-      var idx = this.params.options.indexOf(
+      const idx = this.params.options.indexOf(
         this.selected.get("value").toString()
       );
       if (idx !== -1) {
@@ -542,7 +542,7 @@ class ListBox extends PopupButton {
   }
 
   addEvents() {
-    var change = function (event) {
+    const change = function (event) {
       if (this.params.name !== undefined) {
         this.selected = this.element.getSelected();
         // settings.set(this.params.names, this.get());
@@ -557,7 +557,7 @@ class ListBox extends PopupButton {
     this.selected = null;
     this.params.options = [];
 
-    var initParams = settings.get(this.params.name);
+    let initParams = settings.get(this.params.name);
     if (initParams) {
       initParams = initParams.toString();
       if (initParams.length > 0) {
@@ -633,7 +633,7 @@ class RadioButtons extends Bundle {
   // action -> change
 
   createDOM() {
-    var settingID = String.uniqueID();
+    const settingID = String.uniqueID();
 
     this.bundle = new Element("div", {
       class: "setting bundle radio-buttons",
@@ -652,12 +652,10 @@ class RadioButtons extends Bundle {
     }
     this.params.options.each(
       function (option) {
-        var optionID, container;
-
         this.params.searchString += (option[1] || option[0]) + "•";
 
-        optionID = String.uniqueID();
-        container = new Element("div", {
+        const optionID = String.uniqueID();
+        const container = new Element("div", {
           class: "setting container radio-buttons",
         }).inject(this.bundle);
         this.containers.push(container);
@@ -705,14 +703,14 @@ class RadioButtons extends Bundle {
   }
 
   get() {
-    var checkedEl = this.elements.filter(function (el) {
+    const checkedEl = this.elements.filter(function (el) {
       return el.get("checked");
     });
     return checkedEl[0] && checkedEl[0].get("value");
   }
 
   set(value, noChangeEvent) {
-    var desiredEl = this.elements.filter(function (el) {
+    const desiredEl = this.elements.filter(function (el) {
       return el.get("value") === value;
     });
     desiredEl[0] && desiredEl[0].set("checked", true);
@@ -731,10 +729,8 @@ class Setting {
   }
 
   create(params) {
-    var types, bundle;
-
     // Available types
-    types = {
+    const types = {
       description: Description,
       button: Button,
       text: Text,
@@ -746,7 +742,7 @@ class Setting {
     };
 
     if (Object.prototype.hasOwnProperty.call(types, params.type)) {
-      bundle = new types[params.type](params);
+      const bundle = new types[params.type](params);
       bundle.bundleContainer = this.container;
       bundle.bundle.inject(this.container);
       return bundle;

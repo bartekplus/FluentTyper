@@ -29,7 +29,7 @@ class FancySettings {
   }
 
   create(params) {
-    var tab, group, row, content, bundle;
+    let tab, group, row, content;
 
     // Create tab if it doesn't exist already
     if (this.tabs[params.tab] === undefined) {
@@ -40,7 +40,7 @@ class FancySettings {
       tab.content.tab.set("text", params.tab);
       this.search.bind(tab.content.tab);
 
-      var anchor = location.hash.substring(1);
+      const anchor = location.hash.substring(1);
       if (params.tab === i18n.get(anchor) || params.tab === anchor) {
         tab.content.activate();
       }
@@ -79,18 +79,16 @@ class FancySettings {
     }
 
     // Create and index the setting
-    bundle = group.setting.create(params);
+    const bundle = group.setting.create(params);
     this.search.add(bundle);
 
     return bundle;
   }
 
   align(settings) {
-    var types, type, maxWidth;
-
-    types = ["text", "button", "slider", "popupButton"];
-    type = settings[0].params.type;
-    maxWidth = 0;
+    let maxWidth = 0;
+    const types = ["text", "button", "slider", "popupButton"];
+    const type = settings[0].params.type;
 
     if (!types.contains(type)) {
       throw new Error("invalidType");
@@ -101,14 +99,14 @@ class FancySettings {
         throw new Error("multipleTypes");
       }
 
-      var width = setting.label.offsetWidth;
+      const width = setting.label.offsetWidth;
       if (width > maxWidth) {
         maxWidth = width;
       }
     });
 
     settings.each(function (setting) {
-      var width = setting.label.offsetWidth;
+      const width = setting.label.offsetWidth;
       if (width < maxWidth) {
         if (type === "button" || type === "slider") {
           setting.element.setStyle("margin-left", maxWidth - width + 2 + "px");
@@ -128,10 +126,9 @@ class FancySettings {
   }
 }
 
-var FancySettingsWithManifest = function (callback) {
-  var settings, output;
-
-  settings = new FancySettings(manifest.name, manifest.icon);
+const FancySettingsWithManifest = function (callback) {
+  let output;
+  const settings = new FancySettings(manifest.name, manifest.icon);
   settings.manifest = {};
 
   manifest.settings.each(function (params) {

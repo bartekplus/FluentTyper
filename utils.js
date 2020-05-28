@@ -11,16 +11,16 @@ function getDomain(url) {
 }
 
 function isDomainOnList(settings, domainURL) {
-  var ret = false;
-  var domainList = [];
+  let ret = false;
+  let domainList = [];
   domainURL = getDomain(domainURL);
 
-  var domainListAsStr = settings.get("domainList");
+  const domainListAsStr = settings.get("domainList");
   if (domainListAsStr) {
     domainList = domainListAsStr.split("|@|");
   }
 
-  for (var i = 0; i < domainList.length; i++) {
+  for (let i = 0; i < domainList.length; i++) {
     if (domainURL.match(domainList[i])) {
       ret = true;
       break;
@@ -30,7 +30,7 @@ function isDomainOnList(settings, domainURL) {
 }
 
 function addDomainToList(settings, domainURL) {
-  var domainListAsStr = settings.get("domainList");
+  let domainListAsStr = settings.get("domainList");
   if (domainListAsStr) {
     domainListAsStr = domainListAsStr.split("|@|");
   } else {
@@ -42,15 +42,15 @@ function addDomainToList(settings, domainURL) {
 }
 
 function removeDomainFromList(settings, domainURL) {
-  var domainList = [];
-  var domainListAsStr = settings.get("domainList");
+  let domainList = [];
+  const domainListAsStr = settings.get("domainList");
 
   domainURL = getDomain(domainURL);
   if (domainListAsStr) {
     domainList = domainListAsStr.split("|@|");
   }
 
-  for (var i = 0; i < domainList.length; i++) {
+  for (let i = 0; i < domainList.length; i++) {
     if (domainURL.match(domainList[i])) {
       domainList.splice(i, 1);
       settings.set("domainList", domainList.join("|@|"));

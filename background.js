@@ -4,7 +4,7 @@ import { isDomainOnList, checkLastError } from "./utils.js";
 
 import { Store } from "./third_party/fancy-settings/lib/store.js";
 
-var settings = new Store("settings");
+const settings = new Store("settings");
 
 // Check whether new version is installed
 chrome.runtime.onInstalled.addListener(function (details) {
@@ -14,7 +14,7 @@ chrome.runtime.onInstalled.addListener(function (details) {
       url: "new_installation/index.html",
     });
   } else if (details.reason === "update") {
-    var thisVersion = chrome.runtime.getManifest().version;
+    const thisVersion = chrome.runtime.getManifest().version;
     console.log(
       "Updated from " + details.previousVersion + " to " + thisVersion + "!"
     );
@@ -23,14 +23,14 @@ chrome.runtime.onInstalled.addListener(function (details) {
 });
 
 function sendMsgToSandbox(message) {
-  var iframe = document.getElementById("sandboxFrame");
+  const iframe = document.getElementById("sandboxFrame");
   iframe.contentWindow.postMessage(message, "*");
 }
 
 function isEnabledForDomain(domainURL) {
-  var enabledForDomain = settings.get("enable");
+  let enabledForDomain = settings.get("enable");
   if (enabledForDomain) {
-    var opMode = settings.get("operatingMode");
+    const opMode = settings.get("operatingMode");
     enabledForDomain = opMode === "blacklist";
 
     if (isDomainOnList(settings, domainURL)) {
@@ -47,7 +47,7 @@ function isEnabledForDomain(domainURL) {
 // Called when a message is passed.  We assume that the content script
 // wants to show the page action.
 function onRequest(request, sender, sendResponse) {
-  var respMsg = {};
+  let respMsg = {};
 
   checkLastError();
 
@@ -121,7 +121,7 @@ function toggleOnOffActiveTab() {
     if (tabs.length === 1) {
       const currentTab = tabs[0];
 
-      var message = {
+      const message = {
         command: "toggle",
         context: {},
       };

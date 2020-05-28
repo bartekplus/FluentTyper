@@ -8,18 +8,18 @@ import {
 } from "../utils.js";
 import { Store } from "../third_party/fancy-settings/lib/store.js";
 
-var settings = new Store("settings");
+const settings = new Store("settings");
 
 function init() {
   chrome.tabs.query({ active: true, lastFocusedWindow: true }, function (tabs) {
     if (tabs.length === 1) {
-      var currentTab = tabs[0];
-      var urlNode = document.getElementById("checkboxDomainLabel");
-      var checkboxNode = document.getElementById("checkboxDomainInput");
-      var checkboxEnableNode = document.getElementById("checkboxEnableInput");
+      const currentTab = tabs[0];
+      const urlNode = document.getElementById("checkboxDomainLabel");
+      const checkboxNode = document.getElementById("checkboxDomainInput");
+      const checkboxEnableNode = document.getElementById("checkboxEnableInput");
 
-      var domainURL = getDomain(currentTab.url);
-      var opMode = settings.get("operatingMode");
+      const domainURL = getDomain(currentTab.url);
+      const opMode = settings.get("operatingMode");
       urlNode.innerText = "Enable autocomplete on: " + domainURL;
 
       if (isDomainOnList(settings, domainURL)) {
@@ -39,11 +39,11 @@ function init() {
 function addRemoveDomain() {
   chrome.tabs.query({ active: true, lastFocusedWindow: true }, function (tabs) {
     if (tabs.length === 1) {
-      var currentTab = tabs[0];
-      var domainURL = getDomain(currentTab.url);
-      var opMode = settings.get("operatingMode");
+      const currentTab = tabs[0];
+      const domainURL = getDomain(currentTab.url);
+      const opMode = settings.get("operatingMode");
 
-      var message = {
+      const message = {
         command: null,
         context: {},
       };
@@ -62,12 +62,12 @@ function addRemoveDomain() {
 }
 
 function toggleOnOff() {
-  var newMode = !settings.get("enable");
+  const newMode = !settings.get("enable");
   settings.set("enable", newMode);
 
   chrome.tabs.query({}, function (tabs) {
-    for (var i = 0; i < tabs.length; i++) {
-      var message = {
+    for (let i = 0; i < tabs.length; i++) {
+      const message = {
         command: null,
         context: {},
       };

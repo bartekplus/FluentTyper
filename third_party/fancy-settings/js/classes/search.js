@@ -8,7 +8,6 @@ import { i18n } from "../../i18n.js";
 
 class Search {
   constructor(search, searchResultContainer) {
-    var setting, find;
     this.groups = [];
     this.index = [];
     this.search = search;
@@ -16,7 +15,7 @@ class Search {
     this.setting = new Setting(new Element("div"));
 
     // Create setting for message "nothing found"
-    setting = new Setting(this.searchResultContainer);
+    const setting = new Setting(this.searchResultContainer);
     this.nothingFound = setting.create({
       type: "description",
       text: i18n.get("nothing-found") || "No matches were found.",
@@ -24,7 +23,7 @@ class Search {
     this.nothingFound.bundle.set("id", "nothing-found");
 
     // Create event handlers
-    find = function (event) {
+    const find = function (event) {
       this.find(event.target.get("value"));
     }.bind(this);
 
@@ -46,7 +45,7 @@ class Search {
   }
 
   add(setting) {
-    var searchSetting = this.setting.create(setting.params);
+    const searchSetting = this.setting.create(setting.params);
     setting.search = searchSetting;
     searchSetting.original = setting;
     this.index.push(searchSetting);
@@ -81,7 +80,7 @@ class Search {
     document.body.addClass("searching");
 
     // Filter settings
-    var result = this.index.filter(function (setting) {
+    const result = this.index.filter(function (setting) {
       if (
         setting.params.searchString.contains(searchString.trim().toLowerCase())
       ) {
@@ -92,7 +91,7 @@ class Search {
     // Display settings
     result.each(
       function (setting) {
-        var group, row;
+        let group, row;
 
         // Create group if it doesn't exist already
         if (this.groups[setting.params.group] === undefined) {
