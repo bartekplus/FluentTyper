@@ -56,6 +56,7 @@ function onRequest(request, sender, sendResponse) {
 
   switch (request.command) {
     case "predictReq":
+      request.context.lang = settings.get("language");
       sendMsgToSandbox(request);
       break;
     case "status":

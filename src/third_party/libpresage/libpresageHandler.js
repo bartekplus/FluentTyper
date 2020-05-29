@@ -1,11 +1,9 @@
 "use strict";
 
-let presage = null;
+const LANGS = ["en" ];
+const presage = { };
 
-const lastPrediction = {
-  pastStream: null,
-  predictions: null,
-};
+const lastPrediction = {};
 
 const presageCallback = {
   pastStream: "",
@@ -23,7 +21,10 @@ const presageCallback = {
 var Module = {
   onRuntimeInitialized: function () {
     const pcObject = Module.PresageCallback.implement(presageCallback);
-    presage = new Module.Presage(pcObject, "resources_js/presage.xml");
+    LANGS.forEach(lang => {
+      presage[lang] = new Module.Presage(pcObject, "resources_js/presage_" + lang + ".xml");
+      lastPrediction[lang] = { pastStream : null, predictions: null};
+    });
   },
 };
 /* eslint-enable no-var */
@@ -50,16 +51,16 @@ window.addEventListener("message", function (event) {
   };
   switch (command) {
     case "predictReq":
-      if (!pastStream || !presage) {
+      if (!pastStream || !presage[context.lang]) {
         // Nothing to do here
-      } else if (pastStream === lastPrediction.pastStream) {
-        message.context.predictions = lastPrediction.predictions;
+      } else if (pastStream === lastPrediction[context.lang].pastStream) {
+        message.context.predictions = lastPrediction[context.lang].predictions;
 
         event.source.postMessage(message, event.origin);
       } else {
         const predictions = [];
         presageCallback.pastStream = pastStream;
-        const predictionsNative = presage.predict();
+        const predictionsNative = presage[context.lang].predict();
         if (predictionsNative.size()) {
           for (let i = 0; i < predictionsNative.size(); i++) {
             predictions.push(predictionsNative.get(i));
@@ -67,8 +68,8 @@ window.addEventListener("message", function (event) {
         }
         message.context.predictions = predictions;
         event.source.postMessage(message, event.origin);
-        lastPrediction.pastStream = pastStream;
-        lastPrediction.predictions = predictions;
+        lastPrediction[context.lang].pastStream = pastStream;
+        lastPrediction[context.lang].predictions = predictions;
       }
       break;
 
