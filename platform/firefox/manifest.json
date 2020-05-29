@@ -13,7 +13,7 @@
         "cs.js"
       ],
       "matches": [
-        "<all_urls>"
+        "http://*/*", "https://*/*"
       ],
       "run_at": "document_idle",
       "all_frames": true,
@@ -53,8 +53,7 @@
     "default_title": "Do action"
   },
   "permissions": [
-    "tabs",
-    "<all_urls>"
+    "tabs"
   ],
   "sandbox": {
     "pages": [
