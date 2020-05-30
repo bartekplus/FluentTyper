@@ -139,9 +139,9 @@
     _createClass(TributeEvents, [{
       key: "bind",
       value: function bind(element) {
-        element.boundKeydown = this.keydown.bind(element, this, false);
-        element.boundKeyup = this.keyup.bind(element, this, false);
-        element.boundInput = this.input.bind(element, this, false);
+        element.boundKeydown = this.keydown.bind(element, this);
+        element.boundKeyup = this.keyup.bind(element, this);
+        element.boundInput = this.input.bind(element, this);
         element.addEventListener("keydown", element.boundKeydown, false);
         element.addEventListener("keyup", element.boundKeyup, false);
         element.addEventListener("input", element.boundInput, false);
@@ -158,8 +158,8 @@
       }
     }, {
       key: "keydown",
-      value: function keydown(instance, isMenu, event) {
-        if (instance.shouldDeactivate(event, isMenu)) {
+      value: function keydown(instance, event) {
+        if (instance.shouldDeactivate(event)) {
           instance.tribute.hideMenu();
         }
 
@@ -185,10 +185,10 @@
       }
     }, {
       key: "input",
-      value: function input(instance, isMenu, event) {
+      value: function input(instance, event) {
         instance.inputEvent = event instanceof CustomEvent ? false : true;
         instance.commandEvent = !instance.inputEvent;
-        instance.keyup.call(this, instance, isMenu, event);
+        instance.keyup.call(this, instance, event);
       }
     }, {
       key: "click",
@@ -219,14 +219,12 @@
       }
     }, {
       key: "keyup",
-      value: function keyup(instance, isMenu, event) {
+      value: function keyup(instance, event) {
         if (instance.inputEvent) {
           instance.inputEvent = false;
         }
 
-        if (!isMenu) {
-          instance.updateSelection(this);
-        }
+        instance.updateSelection(this);
 
         if (event instanceof KeyboardEvent) {
           TributeEvents.modifiers().forEach(function (o) {
@@ -271,7 +269,7 @@
       }
     }, {
       key: "shouldDeactivate",
-      value: function shouldDeactivate(event, isMenu) {
+      value: function shouldDeactivate(event) {
         if (!this.tribute.isActive) return false; //if (this.tribute.current.mentionText.length === 0) {
 
         var eventKeyPressed = false;
@@ -279,15 +277,8 @@
           if (event.keyCode === o.key) eventKeyPressed = true;
         });
         if (eventKeyPressed) return false; //}
-        // If it's a menu we need to forward the event
 
-        if (isMenu) {
-          setTimeout(function (element) {
-            element.dispatchEvent(event);
-          }, 0, this.tribute.current.element);
-        }
-
-        if (isMenu || this.tribute.isActive) {
+        if (this.tribute.isActive) {
           return true;
         }
 
@@ -970,10 +961,10 @@
         var doc = document.documentElement;
         var windowLeft = (window.pageXOffset || doc.scrollLeft) - (doc.clientLeft || 0);
         var windowTop = (window.pageYOffset || doc.scrollTop) - (doc.clientTop || 0);
-        var menuTop = typeof coordinates.top === 'number' ? coordinates.top : windowTop + windowHeight - coordinates.bottom - menuDimensions.height;
+        var menuTop = typeof coordinates.top === 'number' ? coordinates.top : coordinates.bottom - menuDimensions.height;
         var menuRight = typeof coordinates.right === 'number' ? coordinates.right : coordinates.left + menuDimensions.width;
         var menuBottom = typeof coordinates.bottom === 'number' ? coordinates.bottom : coordinates.top + menuDimensions.height;
-        var menuLeft = typeof coordinates.left === 'number' ? coordinates.left : windowLeft + windowWidth - coordinates.right - menuDimensions.width;
+        var menuLeft = typeof coordinates.left === 'number' ? coordinates.left : coordinates.right - menuDimensions.width;
         return {
           top: menuTop < Math.floor(windowTop),
           right: menuRight > Math.ceil(windowLeft + windowWidth),
@@ -993,12 +984,15 @@
         };
         this.tribute.menu.style.top = "0px";
         this.tribute.menu.style.left = "0px";
+        this.tribute.menu.style.right = null;
+        this.tribute.menu.style.bottom = null;
         this.tribute.menu.style.position = "fixed";
-        this.tribute.menu.style.display = "block"; // this.tribute.menu.style.visibility = `hidden`;
-
+        this.tribute.menu.style.visibility = "hidden";
+        this.tribute.menu.style.display = "block";
         dimensions.width = this.tribute.menu.offsetWidth;
         dimensions.height = this.tribute.menu.offsetHeight;
         this.tribute.menu.style.display = "none";
+        this.tribute.menu.style.visibility = "visible";
         return dimensions;
       }
     }, {
@@ -1114,19 +1108,20 @@
         var windowHeight = window.innerHeight;
         var menuDimensions = this.getMenuDimensions();
         var menuIsOffScreen = this.isMenuOffScreen(coordinates, menuDimensions);
+        var menuContainer = this.tribute.menuContainer ? this.tribute.menuContainer : document.body;
 
         if (menuIsOffScreen.right) {
           coordinates.left = 'auto';
           coordinates.right = windowWidth - rect.left - windowLeft;
         }
 
-        var parentHeight = this.tribute.menuContainer ? this.tribute.menuContainer.offsetHeight : this.getDocument().body.offsetHeight;
-
         if (menuIsOffScreen.bottom) {
-          var parentRect = this.tribute.menuContainer ? this.tribute.menuContainer.getBoundingClientRect() : this.getDocument().body.getBoundingClientRect();
-          var scrollStillAvailable = parentHeight - (windowHeight - parentRect.top);
-          coordinates.top = 'auto';
-          coordinates.bottom = scrollStillAvailable + (windowHeight - rect.top);
+          var _windowHeight = window.innerHeight;
+
+          var _windowTop = (window.pageYOffset || doc.scrollTop) - (doc.clientTop || 0);
+
+          var scrollHeight = window.innerHeight - document.documentElement.clientHeight;
+          coordinates.top = _windowHeight + _windowTop - scrollHeight - menuDimensions.height;
         }
 
         menuIsOffScreen = this.isMenuOffScreen(coordinates, menuDimensions);
@@ -1142,8 +1137,8 @@
         }
 
         if (!this.menuContainerIsBody) {
-          coordinates.left = coordinates.left ? coordinates.left - this.tribute.menuContainer.offsetLeft : coordinates.left;
-          coordinates.top = coordinates.top ? coordinates.top - this.tribute.menuContainer.offsetTop : coordinates.top;
+          coordinates.left = coordinates.left ? coordinates.left - menuContainer.offsetLeft : coordinates.left;
+          coordinates.top = coordinates.top ? coordinates.top - menuContainer.offsetTop : coordinates.top;
         }
 
         return coordinates;
@@ -1593,12 +1588,6 @@
         wrapper.className = containerClass;
         wrapper.setAttribute("tabindex", "0");
         wrapper.appendChild(ul);
-        wrapper.boundKeydown = this.events.keydown.bind(this, this.events, true);
-        wrapper.boundKeyup = this.events.keyup.bind(this, this.events, true);
-        wrapper.boundInput = this.events.input.bind(this, this.events, true);
-        wrapper.addEventListener("keydown", wrapper.boundKeydown, false);
-        wrapper.addEventListener("keyup", wrapper.boundKeyup, false);
-        wrapper.addEventListener("input", wrapper.boundInput, false);
         wrapper.style.fontSize = Math.round(parseInt(computed.fontSize) * 0.9) + 'px';
         properties.forEach(function (prop) {
           wrapper.style[prop] = computed[prop];
