@@ -334,11 +334,10 @@
             if (_this.tribute.isActive && _this.tribute.current.filteredItems) {
               e.preventDefault();
               e.stopPropagation();
-              setTimeout(function () {
-                _this.tribute.hideMenu();
 
-                _this.tribute.selectItemAtIndex(_this.tribute.menuSelected, e);
-              }, 0);
+              _this.tribute.hideMenu();
+
+              _this.tribute.selectItemAtIndex(_this.tribute.menuSelected, e);
             }
           },
           escape: function escape(e, el) {
@@ -1628,15 +1627,13 @@
           // Tribute may not be active any more by the time the value callback returns
           if (!_this2.activationPending) {
             return;
-          } // Element is no longer in focus - don't show menu
-
-
-          if (document.activeElement !== _this2.current.element) {
-            _this2.activationPending = false;
-            return;
           }
 
-          _this2.isActive = true;
+          _this2.activationPending = false; // Element is no longer in focus - don't show menu
+
+          if (document.activeElement !== _this2.current.element) {
+            return;
+          }
 
           var items = _this2.search.filter(_this2.current.mentionText, values, {
             pre: _this2.current.collection.searchOpts.pre || "<span>",
@@ -1661,7 +1658,7 @@
 
           var ul = _this2.menu.querySelector("ul");
 
-          _this2.range.positionMenuAtCaret(scrollTo);
+          var showMenu = false;
 
           if (!items.length) {
             var noMatchEvent = new CustomEvent("tribute-no-match", {
@@ -1671,42 +1668,48 @@
             _this2.current.element.dispatchEvent(noMatchEvent);
 
             if (typeof _this2.current.collection.noMatchTemplate === "function" && !_this2.current.collection.noMatchTemplate() || !_this2.current.collection.noMatchTemplate) {
-              _this2.hideMenu();
+              showMenu = false;
             } else {
               typeof _this2.current.collection.noMatchTemplate === "function" ? ul.innerHTML = _this2.current.collection.noMatchTemplate() : ul.innerHTML = _this2.current.collection.noMatchTemplate;
+              showMenu = true;
             }
+          } else {
+            ul.innerHTML = "";
 
-            return;
+            var fragment = _this2.range.getDocument().createDocumentFragment();
+
+            items.forEach(function (item, index) {
+              var li = _this2.range.getDocument().createElement("li");
+
+              li.setAttribute("data-index", index);
+              li.className = _this2.current.collection.itemClass;
+              li.addEventListener("mousemove", function (e) {
+                var _this2$_findLiTarget = _this2._findLiTarget(e.target),
+                    _this2$_findLiTarget2 = _slicedToArray(_this2$_findLiTarget, 2),
+                    li = _this2$_findLiTarget2[0],
+                    index = _this2$_findLiTarget2[1];
+
+                if (e.movementY !== 0) {
+                  _this2.events.setActiveLi(index);
+                }
+              });
+
+              if (_this2.menuSelected === index) {
+                li.classList.add(_this2.current.collection.selectClass);
+              }
+
+              li.innerHTML = _this2.current.collection.menuItemTemplate(item);
+              fragment.appendChild(li);
+            });
+            ul.appendChild(fragment);
+            showMenu = true;
           }
 
-          ul.innerHTML = "";
+          if (showMenu) {
+            _this2.isActive = true;
 
-          var fragment = _this2.range.getDocument().createDocumentFragment();
-
-          items.forEach(function (item, index) {
-            var li = _this2.range.getDocument().createElement("li");
-
-            li.setAttribute("data-index", index);
-            li.className = _this2.current.collection.itemClass;
-            li.addEventListener("mousemove", function (e) {
-              var _this2$_findLiTarget = _this2._findLiTarget(e.target),
-                  _this2$_findLiTarget2 = _slicedToArray(_this2$_findLiTarget, 2),
-                  li = _this2$_findLiTarget2[0],
-                  index = _this2$_findLiTarget2[1];
-
-              if (e.movementY !== 0) {
-                _this2.events.setActiveLi(index);
-              }
-            });
-
-            if (_this2.menuSelected === index) {
-              li.classList.add(_this2.current.collection.selectClass);
-            }
-
-            li.innerHTML = _this2.current.collection.menuItemTemplate(item);
-            fragment.appendChild(li);
-          });
-          ul.appendChild(fragment);
+            _this2.range.positionMenuAtCaret(scrollTo);
+          }
         };
 
         if (typeof this.current.collection.values === "function") {
