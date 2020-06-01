@@ -37,11 +37,16 @@
     return keyArr;
   }
 
+  function detachHelper(tributeId) {
+    cancelPresageRequestTimeout(tributeId);
+    tributeArr[tributeId].tribute.detach(tributeArr[tributeId].elem);
+    delete tributeArr[tributeId].tribute;
+    tributeArr.splice(tributeId, 1);
+  }
+
   function detachAllHelpers() {
-    for (let i = 0; i < tributeArr.length; i++) {
-      cancelPresageRequestTimeout(i);
-      tributeArr[i].tribute.detach(tributeArr[i].elem);
-      delete tributeArr[i].tribute;
+    for (let i = tributeArr.length - 1; i >= 0; i--) {
+      detachHelper(i);
     }
     tributeArr = [];
   }
@@ -104,6 +109,12 @@
         }
       }
     }
+    for (let i = tributeArr.length - 1; i >= 0; i--) {
+      if (!document.body.contains(tributeArr[i].elem)) {
+        detachHelper(i);
+      }
+    }
+
     if (nodesAdded) {
       attachHelper();
     }
