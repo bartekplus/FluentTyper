@@ -3,6 +3,7 @@
     "page": "background.html",
     "persistent": true
   },
+  "optional_permissions": ["<all_urls>"],
   "content_scripts": [
     {
       "css": [
@@ -13,7 +14,7 @@
         "cs.js"
       ],
       "matches": [
-        "http://*/*", "https://*/*"
+        "file:///fluenttyper"
       ],
       "run_at": "document_idle",
       "all_frames": true,
@@ -38,7 +39,7 @@
   ],
   "name": "FluentTyper",
   "options_page": "options.html",
-  "page_action": {
+  "browser_action": {
     "default_icon": {
       "256": "icon/icon256.png",
       "128": "icon/icon128.png",

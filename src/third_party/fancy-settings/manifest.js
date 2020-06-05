@@ -62,18 +62,6 @@ const manifest = {
     },
     {
       tab: i18n.get("settings"),
-      group: i18n.get("General"),
-      name: "operatingMode",
-      type: "radioButtons",
-      options: [
-        ["blacklist", "Enabled by default (domain list is a blacklist)"],
-        ["whitelist", "Disabled by default (domain list is a whitelist)"],
-      ],
-      label: "Operating mode:",
-      default: "blacklist",
-    },
-    {
-      tab: i18n.get("settings"),
       group: i18n.get("Miscellaneous"),
       name: "useEnter",
       type: "checkbox",
@@ -93,29 +81,6 @@ const manifest = {
       name: "removeDomainBtn",
       type: "button",
       text: i18n.get("remove"),
-    },
-    {
-      tab: "Domain list",
-      group: i18n.get("add"),
-      name: "domain",
-      type: "text",
-      label: i18n.get("domain"),
-      text: i18n.get("x-domain"),
-      store: false,
-    },
-    {
-      tab: "Domain list",
-      group: i18n.get("add"),
-      name: "addDomainBtn",
-      type: "button",
-      text: i18n.get("add"),
-    },
-    {
-      tab: "Domain list",
-      group: i18n.get("add"),
-      name: "addDomainDsc",
-      type: "description",
-      text: i18n.get("description-url"),
     },
     {
       tab: i18n.get("About"),
