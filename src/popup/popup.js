@@ -19,13 +19,12 @@ function init() {
       const checkboxEnableNode = document.getElementById("checkboxEnableInput");
 
       const domainURL = getDomain(currentTab.url);
-      const opMode = settings.get("operatingMode");
       urlNode.innerText = "Enable autocomplete on: " + domainURL;
 
       if (isDomainOnList(settings, domainURL)) {
-        checkboxNode.checked = opMode !== "blacklist";
+        checkboxNode.checked = true;
       } else {
-        checkboxNode.checked = opMode === "blacklist";
+        checkboxNode.checked = false;
       }
 
       checkboxEnableNode.checked = settings.get("enable");
@@ -36,25 +35,53 @@ function init() {
   });
 }
 
+async function chromePromise(fn, ...args) {
+  return new Promise((resolve, reject) => {
+    fn(...args, (result) => {
+      if (chrome.runtime.lastError) {
+        reject(chrome.runtime.lastError);
+      } else {
+        resolve(result);
+      }
+    });
+  });
+}
+
 function addRemoveDomain() {
-  chrome.tabs.query({ active: true, lastFocusedWindow: true }, function (tabs) {
+  chrome.tabs.query({ active: true, lastFocusedWindow: true }, async function (
+    tabs
+  ) {
     if (tabs.length === 1) {
       const currentTab = tabs[0];
       const domainURL = getDomain(currentTab.url);
-      const opMode = settings.get("operatingMode");
-
+      const checkboxNode = document.getElementById("checkboxDomainInput");
       const message = {
-        command: null,
+        command: "disable",
         context: {},
       };
 
       if (isDomainOnList(settings, domainURL)) {
         removeDomainFromList(settings, domainURL);
-        message.command = opMode === "blacklist" ? "enable" : "disable";
+        message.command = "disable";
       } else {
-        addDomainToList(settings, domainURL);
-        message.command = opMode === "blacklist" ? "disable" : "enable";
+        let granted = true;
+        if (navigator.userAgent.indexOf("Chrome") !== -1) {
+          granted = await chromePromise(chrome.permissions.contains, {
+            origins: [new URL(currentTab.url).origin + "/*"],
+          });
+          if (!granted) {
+            granted = await chromePromise(chrome.permissions.request, {
+              origins: [new URL(currentTab.url).origin + "/*"],
+            });
+          }
+        }
+
+        if (granted) {
+          addDomainToList(settings, domainURL);
+          message.command = "enable";
+        }
       }
+      checkboxNode.checked = message.command === "enable";
 
       chrome.tabs.sendMessage(currentTab.id, message);
     }

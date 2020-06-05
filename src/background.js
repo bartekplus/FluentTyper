@@ -30,15 +30,12 @@ function sendMsgToSandbox(message) {
 function isEnabledForDomain(domainURL) {
   let enabledForDomain = settings.get("enable");
   if (enabledForDomain) {
-    const opMode = settings.get("operatingMode");
-    enabledForDomain = opMode === "blacklist";
+    enabledForDomain = false;
 
     if (isDomainOnList(settings, domainURL)) {
-      if (opMode === "blacklist") {
-        enabledForDomain = false;
-      } else {
-        enabledForDomain = true;
-      }
+      enabledForDomain = true;
+    } else if (domainURL.indexOf(chrome.runtime.getURL("")) !== -1) {
+      enabledForDomain = true;
     }
   }
   return enabledForDomain;
@@ -60,7 +57,7 @@ function onRequest(request, sender, sendResponse) {
       sendMsgToSandbox(request);
       break;
     case "status":
-      showPageAction(sender.tab.id, request.context.enabled);
+      // showPageAction(sender.tab.id, request.context.enabled);
       break;
 
     case "getConfig":
@@ -95,24 +92,17 @@ function receiveMessage(event) {
   });
 }
 
+/*
 function setPageActionIcon(tabId, isActive) {
-  const iconSizes = [16, 32, 48, 64, 72, 96, 128, 256];
-  const icons = {};
-
-  for (let sizeIdx = 0; sizeIdx < iconSizes.length; sizeIdx++) {
-    icons[iconSizes[sizeIdx]] =
-      "/icon/icon" +
-      (!isActive ? "Inactive" : "") +
-      +iconSizes[sizeIdx] +
-      ".png";
-  }
-  chrome.pageAction.setIcon({ tabId: tabId, path: icons });
+  chrome.browserAction.setBadgeText({
+    text: isActive ? "On" : "Off",
+  });
 }
 
 function showPageAction(tabId, isActive) {
   setPageActionIcon(tabId, isActive);
-  chrome.pageAction.show(tabId);
 }
+*/
 
 window.addEventListener("message", receiveMessage, false);
 
