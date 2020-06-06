@@ -11,15 +11,24 @@ import { Store } from "../third_party/fancy-settings/lib/store.js";
 const settings = new Store("settings");
 
 function init() {
-  chrome.tabs.query({ active: true, lastFocusedWindow: true }, function (tabs) {
+  chrome.tabs.query({ active: true, lastFocusedWindow: true }, async function (
+    tabs
+  ) {
     if (tabs.length === 1) {
       const currentTab = tabs[0];
       const urlNode = document.getElementById("checkboxDomainLabel");
       const checkboxNode = document.getElementById("checkboxDomainInput");
       const checkboxEnableNode = document.getElementById("checkboxEnableInput");
-
       const domainURL = getDomain(currentTab.url);
-      urlNode.innerText = "Enable autocomplete on: " + domainURL;
+      const granted = await chromePromise(chrome.permissions.contains, {
+        origins: [new URL(currentTab.url).origin + "/*"],
+      });
+
+      urlNode.innerHTML = "<span>Enable autocomplete on: " + domainURL;
+      if (!granted) {
+        removeDomainFromList(settings, domainURL);
+        urlNode.innerText += "\nAutomatically reloads a page.";
+      }
 
       if (isDomainOnList(settings, domainURL)) {
         checkboxNode.checked = true;
@@ -54,7 +63,6 @@ function addRemoveDomain() {
     if (tabs.length === 1) {
       const currentTab = tabs[0];
       const domainURL = getDomain(currentTab.url);
-      const checkboxNode = document.getElementById("checkboxDomainInput");
       const message = {
         command: "disable",
         context: {},
@@ -73,6 +81,9 @@ function addRemoveDomain() {
             granted = await chromePromise(chrome.permissions.request, {
               origins: [new URL(currentTab.url).origin + "/*"],
             });
+            if (granted) {
+              chrome.tabs.reload(currentTab.id);
+            }
           }
         }
 
@@ -81,7 +92,7 @@ function addRemoveDomain() {
           message.command = "enable";
         }
       }
-      checkboxNode.checked = message.command === "enable";
+      setTimeout(init, 0);
 
       chrome.tabs.sendMessage(currentTab.id, message);
     }
@@ -105,6 +116,7 @@ function toggleOnOff() {
         message.command = "disable";
       }
 
+      setTimeout(init, 0);
       chrome.tabs.sendMessage(tabs[i].id, message);
     }
   });
