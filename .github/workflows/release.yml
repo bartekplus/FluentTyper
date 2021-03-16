@@ -49,7 +49,7 @@ jobs:
           mkdir -p firefox
           cp -rdf src/* firefox/
           cp -rdf platform/firefox/* firefox
-          jq ".version = \"${SOURCE_TAG}\"" chrome/manifest.json | sponge chrome/manifest.json
+          jq ".version = \"${SOURCE_TAG}\"" firefox/manifest.json | sponge firefox/manifest.json
         env:
           SOURCE_TAG: ${{ steps.branch_name.outputs.SOURCE_TAG }}
       - name: Zip Release for Firefox
