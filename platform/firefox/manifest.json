@@ -53,7 +53,8 @@
     "default_title": "Do action"
   },
   "permissions": [
-    "tabs"
+    "tabs",
+    "webNavigation"
   ],
   "sandbox": {
     "pages": [
