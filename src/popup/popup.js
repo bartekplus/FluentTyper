@@ -11,37 +11,40 @@ import { Store } from "../third_party/fancy-settings/lib/store.js";
 const settings = new Store("settings");
 
 function init() {
-  chrome.tabs.query({ active: true, lastFocusedWindow: true }, async function (
-    tabs
-  ) {
-    if (tabs.length === 1) {
-      const currentTab = tabs[0];
-      const urlNode = document.getElementById("checkboxDomainLabel");
-      const checkboxNode = document.getElementById("checkboxDomainInput");
-      const checkboxEnableNode = document.getElementById("checkboxEnableInput");
-      const domainURL = getDomain(currentTab.url);
-      const granted = await chromePromise(chrome.permissions.contains, {
-        origins: [new URL(currentTab.url).origin + "/*"],
-      });
+  chrome.tabs.query(
+    { active: true, lastFocusedWindow: true },
+    async function (tabs) {
+      if (tabs.length === 1) {
+        const currentTab = tabs[0];
+        const urlNode = document.getElementById("checkboxDomainLabel");
+        const checkboxNode = document.getElementById("checkboxDomainInput");
+        const checkboxEnableNode = document.getElementById(
+          "checkboxEnableInput"
+        );
+        const domainURL = getDomain(currentTab.url);
+        const granted = await chromePromise(chrome.permissions.contains, {
+          origins: [new URL(currentTab.url).origin + "/*"],
+        });
 
-      urlNode.innerHTML = "<span>Enable autocomplete on: " + domainURL;
-      if (!granted) {
-        removeDomainFromList(settings, domainURL);
-        urlNode.innerText += "\nAutomatically reloads a page.";
+        urlNode.innerHTML = "<span>Enable autocomplete on: " + domainURL;
+        if (!granted) {
+          removeDomainFromList(settings, domainURL);
+          urlNode.innerText += "\nAutomatically reloads a page.";
+        }
+
+        if (isDomainOnList(settings, domainURL)) {
+          checkboxNode.checked = true;
+        } else {
+          checkboxNode.checked = false;
+        }
+
+        checkboxEnableNode.checked = settings.get("enable");
+        document.getElementById("runOptions").href = chrome.extension.getURL(
+          "options.html"
+        );
       }
-
-      if (isDomainOnList(settings, domainURL)) {
-        checkboxNode.checked = true;
-      } else {
-        checkboxNode.checked = false;
-      }
-
-      checkboxEnableNode.checked = settings.get("enable");
-      document.getElementById("runOptions").href = chrome.extension.getURL(
-        "options.html"
-      );
     }
-  });
+  );
 }
 
 async function chromePromise(fn, ...args) {
@@ -57,46 +60,47 @@ async function chromePromise(fn, ...args) {
 }
 
 function addRemoveDomain() {
-  chrome.tabs.query({ active: true, lastFocusedWindow: true }, async function (
-    tabs
-  ) {
-    if (tabs.length === 1) {
-      const currentTab = tabs[0];
-      const domainURL = getDomain(currentTab.url);
-      const message = {
-        command: "disable",
-        context: {},
-      };
+  chrome.tabs.query(
+    { active: true, lastFocusedWindow: true },
+    async function (tabs) {
+      if (tabs.length === 1) {
+        const currentTab = tabs[0];
+        const domainURL = getDomain(currentTab.url);
+        const message = {
+          command: "disable",
+          context: {},
+        };
 
-      if (isDomainOnList(settings, domainURL)) {
-        removeDomainFromList(settings, domainURL);
-        message.command = "disable";
-      } else {
-        let granted = true;
-        if (navigator.userAgent.indexOf("Chrome") !== -1) {
-          granted = await chromePromise(chrome.permissions.contains, {
-            origins: [new URL(currentTab.url).origin + "/*"],
-          });
-          if (!granted) {
-            granted = await chromePromise(chrome.permissions.request, {
+        if (isDomainOnList(settings, domainURL)) {
+          removeDomainFromList(settings, domainURL);
+          message.command = "disable";
+        } else {
+          let granted = true;
+          if (navigator.userAgent.indexOf("Chrome") !== -1) {
+            granted = await chromePromise(chrome.permissions.contains, {
               origins: [new URL(currentTab.url).origin + "/*"],
             });
-            if (granted) {
-              chrome.tabs.reload(currentTab.id);
+            if (!granted) {
+              granted = await chromePromise(chrome.permissions.request, {
+                origins: [new URL(currentTab.url).origin + "/*"],
+              });
+              if (granted) {
+                chrome.tabs.reload(currentTab.id);
+              }
             }
           }
-        }
 
-        if (granted) {
-          addDomainToList(settings, domainURL);
-          message.command = "enable";
+          if (granted) {
+            addDomainToList(settings, domainURL);
+            message.command = "enable";
+          }
         }
+        setTimeout(init, 0);
+
+        chrome.tabs.sendMessage(currentTab.id, message);
       }
-      setTimeout(init, 0);
-
-      chrome.tabs.sendMessage(currentTab.id, message);
     }
-  });
+  );
 }
 
 function toggleOnOff() {
