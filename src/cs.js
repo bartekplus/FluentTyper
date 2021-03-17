@@ -128,8 +128,15 @@
       const elems = document.querySelectorAll(selectors[selectorId]);
       for (let i = 0; i < elems.length; i++) {
         const elem = elems[i];
+        const inputTypes = ["text", ""];
 
-        if (elem.getAttribute("type") === "password") {
+        const inputType = elem.getAttribute("type")
+          ? elem.getAttribute("type").toLowerCase()
+          : "";
+        if (
+          elem.tagName.toLowerCase() === "input" &&
+          !inputTypes.includes(inputType)
+        ) {
           continue;
         }
 
