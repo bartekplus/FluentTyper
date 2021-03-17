@@ -79,7 +79,10 @@
 	                    !await isOriginPermitted(url) ||
 	                    await wasPreviouslyLoaded(tabId,frameId, loadCheck)
 	                ) {
-	                    return;
+	                    if (url == "about:blank" && !matchAboutBlank)
+	                    {
+	                        return;
+	                    }
 	                }
                     chrome.tabs.executeScript(tabId, {
                         code: `${loadCheck} = true`,
@@ -197,6 +200,7 @@
 	                css: (config.css || []).map(file => convertPath(file)),
 	                allFrames: config.all_frames,
 	                matches: [origin],
+	                matchAboutBlank: config.match_about_blank,
 	                runAt: config.run_at
 	            });
 	            registeredScripts.set(origin, registeredScript);
