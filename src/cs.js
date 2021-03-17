@@ -148,7 +148,7 @@
         requestId: 0,
       });
 
-      elem.addEventListener("tribute-replaced", function (e) {});
+      // elem.addEventListener("tribute-replaced", function (e) {});
 
       const tribute = new Tribute({
         // symbol or string that starts the lookup
