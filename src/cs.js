@@ -52,14 +52,7 @@
   }
 
   function isHelperAttached(helperArr, elem) {
-    for (let i = 0; i < helperArr.length; i++) {
-      if (elem === helperArr[i].elem) {
-        return true;
-      } else if (elem.hasAttribute("data-tribute")) {
-        return true;
-      }
-    }
-    return false;
+    return elem.hasAttribute("data-tribute");
   }
 
   function cancelPresageRequestTimeout(tributeId) {
