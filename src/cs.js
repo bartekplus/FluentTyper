@@ -117,160 +117,154 @@
     if (!config.enabled) {
       return;
     }
-    const selectors = [
-      "textarea",
-      "input",
-      '[contentEditable="true" i]',
-      '[contentEditable="plaintext-only" i]',
-    ];
+    const selectors =
+      "textarea, input, [contentEditable='true' i], [contentEditable='plaintext-only' i]";
 
-    for (let selectorId = 0; selectorId < selectors.length; selectorId++) {
-      const elems = document.querySelectorAll(selectors[selectorId]);
-      for (let i = 0; i < elems.length; i++) {
-        const elem = elems[i];
-        const inputTypes = ["text", ""];
+    const elems = document.querySelectorAll(selectors);
+    for (let i = 0; i < elems.length; i++) {
+      const elem = elems[i];
+      const inputTypes = ["text", ""];
 
-        const inputType = elem.getAttribute("type")
-          ? elem.getAttribute("type").toLowerCase()
-          : "";
-        if (
-          elem.tagName.toLowerCase() === "input" &&
-          !inputTypes.includes(inputType)
-        ) {
-          continue;
-        }
-
-        if (isHelperAttached(tributeArr, elem)) {
-          continue;
-        }
-        const helperArrId = tributeArr.length;
-
-        tributeArr.push({
-          tribute: null,
-          elem: elem,
-          done: null,
-          timeout: null,
-          requestId: 0,
-        });
-
-        elem.addEventListener("tribute-replaced", function (e) {});
-
-        const tribute = new Tribute({
-          // symbol or string that starts the lookup
-          trigger: "",
-
-          // element to target for @mentions
-          iframe: null,
-
-          // class added in the flyout menu for active item
-          selectClass: "highlight",
-
-          // class added to the menu container
-          containerClass: "tribute-container",
-
-          // class added to each list item
-          itemClass: "",
-
-          // function called on select that returns the content to insert
-          selectTemplate: function (item) {
-            return item.original.value;
-          },
-
-          // template for displaying item in menu
-          menuItemTemplate: function (item) {
-            return item.string;
-          },
-
-          // template for when no match is found (optional),
-          // If no template is provided, menu is hidden.
-          noMatchTemplate: "",
-
-          // specify an alternative parent container for the menu
-          // container must be a positioned element for the menu to appear correctly ie. `position: relative;`
-          // default container is the body
-          menuContainer: document.body,
-
-          // column to search against in the object (accepts function or string)
-          lookup: "key",
-
-          // column that contains the content to insert by default
-          fillAttr: "value",
-
-          // REQUIRED: array of objects to match
-          values: (function (data, done) {
-            const localId = helperArrId;
-            return function (data, done) {
-              const lines = data.split("\n");
-              const lastLine = lines[lines.length - 1];
-              if (!lastLine) {
-                return done([]);
-              }
-              tributeArr[localId].done = done;
-              tributeArr[localId].requestId += 1;
-              const message = {
-                command: "predictReq",
-                context: {
-                  text: lastLine,
-                  tributeId: localId,
-                  requestId: tributeArr[localId].requestId,
-                },
-              };
-              // Cancel old timeout Fn
-              cancelPresageRequestTimeout(localId);
-              setPresageRequestTimeout(localId);
-              // Check if we are waiting for a response
-              if (!pendingReq) {
-                // Set pending request
-                pendingReq = message;
-
-                chrome.runtime.sendMessage(message, function (response) {
-                  checkLastError();
-                });
-              } else {
-                pendingReq = message;
-              }
-            };
-          })(),
-
-          // specify whether a space is required before the trigger string
-          requireLeadingSpace: false,
-
-          // specify whether a space is allowed in the middle of mentions
-          allowSpaces: false,
-
-          // optionally specify a custom suffix for the replace text
-          // (defaults to empty space if undefined)
-          replaceTextSuffix: "",
-
-          // specify whether the menu should be positioned.  Set to false and use in conjuction with menuContainer to create an inline menu
-          // (defaults to true)
-          positionMenu: true,
-
-          // when the spacebar is hit, select the current match
-          spaceSelectsMatch: false,
-
-          // turn tribute into an autocomplete
-          autocompleteMode: true,
-
-          // Customize the elements used to wrap matched strings within the results list
-          // defaults to <span></span> if undefined
-          searchOpts: {
-            pre: "<span>",
-            post: "</span>",
-            skip: true, // true will skip local search, useful if doing server-side search
-          },
-
-          // specify the minimum number of characters that must be typed before menu appears
-          menuShowMinLength: 0,
-
-          keys: (function () {
-            const useEnter = config.useEnter;
-            return keys.bind(null, useEnter);
-          })(),
-        });
-        tributeArr[helperArrId].tribute = tribute;
-        tribute.attach(elem);
+      const inputType = elem.getAttribute("type")
+        ? elem.getAttribute("type").toLowerCase()
+        : "";
+      if (
+        elem.tagName.toLowerCase() === "input" &&
+        !inputTypes.includes(inputType)
+      ) {
+        continue;
       }
+
+      if (isHelperAttached(tributeArr, elem)) {
+        continue;
+      }
+      const helperArrId = tributeArr.length;
+
+      tributeArr.push({
+        tribute: null,
+        elem: elem,
+        done: null,
+        timeout: null,
+        requestId: 0,
+      });
+
+      elem.addEventListener("tribute-replaced", function (e) {});
+
+      const tribute = new Tribute({
+        // symbol or string that starts the lookup
+        trigger: "",
+
+        // element to target for @mentions
+        iframe: null,
+
+        // class added in the flyout menu for active item
+        selectClass: "highlight",
+
+        // class added to the menu container
+        containerClass: "tribute-container",
+
+        // class added to each list item
+        itemClass: "",
+
+        // function called on select that returns the content to insert
+        selectTemplate: function (item) {
+          return item.original.value;
+        },
+
+        // template for displaying item in menu
+        menuItemTemplate: function (item) {
+          return item.string;
+        },
+
+        // template for when no match is found (optional),
+        // If no template is provided, menu is hidden.
+        noMatchTemplate: "",
+
+        // specify an alternative parent container for the menu
+        // container must be a positioned element for the menu to appear correctly ie. `position: relative;`
+        // default container is the body
+        menuContainer: document.body,
+
+        // column to search against in the object (accepts function or string)
+        lookup: "key",
+
+        // column that contains the content to insert by default
+        fillAttr: "value",
+
+        // REQUIRED: array of objects to match
+        values: (function (data, done) {
+          const localId = helperArrId;
+          return function (data, done) {
+            const lines = data.split("\n");
+            const lastLine = lines[lines.length - 1];
+            if (!lastLine) {
+              return done([]);
+            }
+            tributeArr[localId].done = done;
+            tributeArr[localId].requestId += 1;
+            const message = {
+              command: "predictReq",
+              context: {
+                text: lastLine,
+                tributeId: localId,
+                requestId: tributeArr[localId].requestId,
+              },
+            };
+            // Cancel old timeout Fn
+            cancelPresageRequestTimeout(localId);
+            setPresageRequestTimeout(localId);
+            // Check if we are waiting for a response
+            if (!pendingReq) {
+              // Set pending request
+              pendingReq = message;
+
+              chrome.runtime.sendMessage(message, function (response) {
+                checkLastError();
+              });
+            } else {
+              pendingReq = message;
+            }
+          };
+        })(),
+
+        // specify whether a space is required before the trigger string
+        requireLeadingSpace: false,
+
+        // specify whether a space is allowed in the middle of mentions
+        allowSpaces: false,
+
+        // optionally specify a custom suffix for the replace text
+        // (defaults to empty space if undefined)
+        replaceTextSuffix: "",
+
+        // specify whether the menu should be positioned.  Set to false and use in conjuction with menuContainer to create an inline menu
+        // (defaults to true)
+        positionMenu: true,
+
+        // when the spacebar is hit, select the current match
+        spaceSelectsMatch: false,
+
+        // turn tribute into an autocomplete
+        autocompleteMode: true,
+
+        // Customize the elements used to wrap matched strings within the results list
+        // defaults to <span></span> if undefined
+        searchOpts: {
+          pre: "<span>",
+          post: "</span>",
+          skip: true, // true will skip local search, useful if doing server-side search
+        },
+
+        // specify the minimum number of characters that must be typed before menu appears
+        menuShowMinLength: 0,
+
+        keys: (function () {
+          const useEnter = config.useEnter;
+          return keys.bind(null, useEnter);
+        })(),
+      });
+      tributeArr[helperArrId].tribute = tribute;
+      tribute.attach(elem);
     }
   }
 
