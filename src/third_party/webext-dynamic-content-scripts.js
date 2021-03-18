@@ -194,17 +194,17 @@
 	async function registerOnOrigins({ origins: newOrigins }) {
 	    const manifest = chrome.runtime.getManifest().content_scripts;
 	    for (const origin of newOrigins || []) {
-	        for (const config of manifest) {
+	        // for (const config of manifest) {
 	            const registeredScript = chrome.contentScripts.register({
-	                js: (config.js || []).map(file => convertPath(file)),
-	                css: (config.css || []).map(file => convertPath(file)),
-	                allFrames: config.all_frames,
+	                js: (["third_party/tribute/tribute.js", "cs.js"]).map(file => convertPath(file)),
+	                css: ( ["third_party/tribute/tribute.css"]).map(file => convertPath(file)),
+	                allFrames: true,
 	                matches: [origin],
-	                matchAboutBlank: config.match_about_blank,
-	                runAt: config.run_at
+	                matchAboutBlank: true,
+	                runAt: "document_idle"
 	            });
 	            registeredScripts.set(origin, registeredScript);
-	        }
+	        //}
 	    }
 	}
 	(async () => {

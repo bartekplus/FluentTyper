@@ -3,23 +3,6 @@
     "page": "background.html",
     "persistent": true
   },
-  "content_scripts": [
-    {
-      "css": [
-        "third_party/tribute/tribute.css"
-      ],
-      "js": [
-        "third_party/tribute/tribute.js",
-        "cs.js"
-      ],
-      "matches": [
-        "http://*/*", "https://*/*"
-      ],
-      "run_at": "document_idle",
-      "all_frames": true,
-      "match_about_blank": true
-    }
-  ],
   "description": "Auto completes while you typing. FluentTyper attempts to improve the ease and speed of textual input by predicting words.",
   "icons": {
     "256": "icon/icon256.png",
@@ -54,7 +37,8 @@
   },
   "permissions": [
     "tabs",
-    "webNavigation"
+    "webNavigation",
+    "<all_urls>"
   ],
   "sandbox": {
     "pages": [
