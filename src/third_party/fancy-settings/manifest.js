@@ -69,6 +69,14 @@ const manifest = {
       default: true,
     },
     {
+      tab: i18n.get("settings"),
+      group: i18n.get("Miscellaneous"),
+      name: "allUrls",
+      type: "checkbox",
+      label: i18n.get("allUrls"),
+      default: false,
+    },
+    {
       tab: "Domain list",
       group: i18n.get("Management"),
       name: "domainList",
