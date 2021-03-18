@@ -1,13 +1,7 @@
 "use strict";
 
 function getDomain(url) {
-  url = url.replace(/(https?:\/\/)?(www.)?/i, "");
-
-  if (url.indexOf("/") !== -1) {
-    return url.split("/")[0];
-  }
-
-  return url;
+  return new URL(url).origin;
 }
 
 function isDomainOnList(settings, domainURL) {
