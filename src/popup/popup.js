@@ -22,20 +22,22 @@ function init() {
           "checkboxEnableInput"
         );
         const domainURL = getDomain(currentTab.url);
-        const granted = await chromePromise(chrome.permissions.contains, {
-          origins: [new URL(currentTab.url).origin + "/*"],
-        });
+        if (domainURL && domainURL !== "null") {
+          const granted = await chromePromise(chrome.permissions.contains, {
+            origins: [new URL(currentTab.url).origin + "/*"],
+          });
 
-        urlNode.innerHTML = "<span>Enable autocomplete on: " + domainURL;
-        if (!granted) {
-          removeDomainFromList(settings, domainURL);
-          urlNode.innerText += "\nAutomatically reloads a page.";
-        }
+          urlNode.innerHTML = "<span>Enable autocomplete on: " + domainURL;
+          if (!granted) {
+            removeDomainFromList(settings, domainURL);
+            urlNode.innerText += "\nAutomatically reloads a page.";
+          }
 
-        if (isDomainOnList(settings, domainURL)) {
-          checkboxNode.checked = true;
-        } else {
-          checkboxNode.checked = false;
+          if (isDomainOnList(settings, domainURL)) {
+            checkboxNode.checked = true;
+          } else {
+            checkboxNode.checked = false;
+          }
         }
 
         checkboxEnableNode.checked = settings.get("enable");
