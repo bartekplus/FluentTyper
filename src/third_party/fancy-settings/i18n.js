@@ -78,6 +78,10 @@ i18n = Object.assign(i18n, {
   showIcon: {
     en: "Show icon in location bar",
   },
+  allUrls: {
+    en:
+      "Request permission to work on all pages - fix an issue where FluentTyper is no working if an iframe source domain doesn't match tab domain.",
+  },
 });
 
 export { i18n };
