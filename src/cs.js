@@ -124,6 +124,9 @@
     for (let i = 0; i < elems.length; i++) {
       const elem = elems[i];
       const inputTypes = ["text", ""];
+      const autocomplete = elem.getAttribute("autocomplete")
+        ? elem.getAttribute("autocomplete").toLowerCase()
+        : "";
 
       const inputType = elem.getAttribute("type")
         ? elem.getAttribute("type").toLowerCase()
@@ -132,6 +135,10 @@
         elem.tagName.toLowerCase() === "input" &&
         !inputTypes.includes(inputType)
       ) {
+        continue;
+      }
+
+      if (autocomplete === "off") {
         continue;
       }
 
