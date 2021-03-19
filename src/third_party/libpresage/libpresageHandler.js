@@ -32,10 +32,11 @@ var Module = {
 function convertString(s) {
   let str = "";
   if (typeof s === "string" || s instanceof String) {
-    if (s.endsWith(" ")) {
-      str = s.trim() + " ";
+    str = s.replace(/\xA0/g,' ');
+    if (str.endsWith(" ")) {
+      str = str.trim() + " ";
     } else {
-      str = s.trim();
+      str = str.trim();
     }
   }
   return str;
