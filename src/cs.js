@@ -8,6 +8,12 @@
   const config = { enabled: false, useEnter: false };
   const PRESAGE_PREDICTION_TIMEOUT_MS = 666;
 
+  if (window.FluentTyper === true) {
+    // Was script alredy injected ?
+    return;
+  }
+  window.FluentTyper = true;
+
   function keys(useEnter) {
     const keyArr = [
       {
@@ -139,7 +145,7 @@
       }
 
       if (autocomplete === "off") {
-        //continue;
+        // continue;
       }
 
       if (isHelperAttached(tributeArr, elem)) {
