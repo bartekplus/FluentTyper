@@ -28,7 +28,8 @@
 	const isFirefox = typeof navigator === 'object' && navigator.userAgent.includes('Firefox/');
 	function getRawRegex(matchPattern) {
 	    if (!patternValidationRegex.test(matchPattern)) {
-	        throw new Error(matchPattern + ' is an invalid pattern, it must match ' + String(patternValidationRegex));
+	        return [];
+	        //throw new Error(matchPattern + ' is an invalid pattern, it must match ' + String(patternValidationRegex));
 	    }
 	    let [, protocol, host, pathname] = matchPattern.split(/(^[^:]+:[/][/])([^/]+)?/);
 	    protocol = protocol
@@ -49,7 +50,7 @@
 	    if (matchPatterns.includes('<all_urls>')) {
 	        return /^(https?|file|ftp):[/]+/;
 	    }
-	    return new RegExp(matchPatterns.map(getRawRegex).join('|'));
+	    return new RegExp(matchPatterns.flatMap(getRawRegex).join('|'));
 	}
 
 	async function isOriginPermitted(url) {
