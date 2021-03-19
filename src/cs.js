@@ -139,7 +139,7 @@
       }
 
       if (autocomplete === "off") {
-        continue;
+        //continue;
       }
 
       if (isHelperAttached(tributeArr, elem)) {
