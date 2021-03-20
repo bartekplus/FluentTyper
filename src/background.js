@@ -66,6 +66,10 @@ function onRequest(request, sender, sendResponse) {
         context: {
           enabled: isEnabledForDomain(sender.tab.url),
           useEnter: settings.get("useEnter"),
+          minWordLenghtToPredict: settings.get("minWordLenghtToPredict"),
+          predictNextWordAfterWhiteSpace: settings.get(
+            "predictNextWordAfterWhiteSpace"
+          ),
         },
       };
   }

@@ -5,7 +5,12 @@
   let tributeArr = [];
   let observer = null;
   let pendingReq = null;
-  const config = { enabled: false, useEnter: false };
+  let config = {
+    enabled: false,
+    useEnter: false,
+    minWordLenghtToPredict: 1,
+    predictNextWordAfterWhiteSpace: true,
+  };
   const PRESAGE_PREDICTION_TIMEOUT_MS = 666;
 
   if (window.FluentTyper === true) {
@@ -13,6 +18,29 @@
     return;
   }
   window.FluentTyper = true;
+
+  function getLastWordLenght(str) {
+    const wordArray = str.split(" ");
+    if (wordArray.length) {
+      return wordArray[wordArray.length - 1].length;
+    }
+
+    return 0;
+  }
+
+  function checkInput(predictionInput) {
+    const isLastCharWhitespace = predictionInput !== predictionInput.trimEnd();
+    const lastWordLenght = getLastWordLenght(predictionInput);
+
+    if (config.predictNextWordAfterWhiteSpace && isLastCharWhitespace) {
+      return true;
+    }
+    if (lastWordLenght >= config.minWordLenghtToPredict) {
+      return true;
+    }
+
+    return false;
+  }
 
   function keys(useEnter) {
     const keyArr = [
@@ -210,7 +238,7 @@
           return function (data, done) {
             const lines = data.split("\n");
             const lastLine = lines[lines.length - 1];
-            if (!lastLine) {
+            if (!lastLine || !checkInput(lastLine)) {
               return done([]);
             }
             tributeArr[localId].done = done;
@@ -349,9 +377,9 @@
         }
         break;
       case "setConfig":
-        config.useEnter = message.context.useEnter;
+        config = message.context;
         initializeFluentTyper();
-        if (message.context.enabled) {
+        if (config.enabled) {
           enable();
         } else {
           disable();
