@@ -367,7 +367,7 @@ class Slider extends Bundle {
 
   addEvents() {
     this.element.addEvent(
-      "change",
+      "input",
       function (event) {
         if (this.params.name !== undefined) {
           settings.set(this.params.name, this.get());
