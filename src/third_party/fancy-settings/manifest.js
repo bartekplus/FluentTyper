@@ -74,6 +74,17 @@ const manifest = {
     {
       tab: i18n.get("settings"),
       group: i18n.get("General"),
+      name: "numSuggestions",
+      type: "slider",
+      min: 1,
+      max: 10,
+      display: true,
+      label: "Number of suggestions:",
+      default: 5,
+    },
+    {
+      tab: i18n.get("settings"),
+      group: i18n.get("General"),
       name: "predictNextWordAfterWhiteSpace",
       type: "checkbox",
       label: "Predict next word after whitespace.",
