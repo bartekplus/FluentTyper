@@ -1,7 +1,7 @@
 "use strict";
 
-const LANGS = ["en" ];
-const presage = { };
+const LANGS = ["en"];
+const presage = {};
 
 const lastPrediction = {};
 
@@ -21,9 +21,12 @@ const presageCallback = {
 var Module = {
   onRuntimeInitialized: function () {
     const pcObject = Module.PresageCallback.implement(presageCallback);
-    LANGS.forEach(lang => {
-      presage[lang] = new Module.Presage(pcObject, "resources_js/presage_" + lang + ".xml");
-      lastPrediction[lang] = { pastStream : null, predictions: null};
+    LANGS.forEach((lang) => {
+      presage[lang] = new Module.Presage(
+        pcObject,
+        "resources_js/presage_" + lang + ".xml"
+      );
+      lastPrediction[lang] = { pastStream: null, predictions: null };
     });
   },
 };
@@ -32,7 +35,7 @@ var Module = {
 function convertString(s) {
   let str = "";
   if (typeof s === "string" || s instanceof String) {
-    str = s.replace(/\xA0/g,' ');
+    str = s.replace(/\xA0/g, " ");
     if (str.endsWith(" ")) {
       str = str.trim() + " ";
     } else {
@@ -45,13 +48,10 @@ function convertString(s) {
 window.addEventListener("message", function (event) {
   const command = event.data.command;
   const context = event.data.context;
-  const pastStream = convertString(event.data.context.text);
-  const message = {
-    command: "predictResp",
-    context: context,
-  };
   switch (command) {
-    case "predictReq":
+    case "predictReq": {
+      const pastStream = convertString(event.data.context.text);
+      const message = { command: "predictResp", context: context };
       if (!pastStream || !presage[context.lang]) {
         // Nothing to do here
       } else if (pastStream === lastPrediction[context.lang].pastStream) {
@@ -73,8 +73,15 @@ window.addEventListener("message", function (event) {
         lastPrediction[context.lang].predictions = predictions;
       }
       break;
-
-    // case 'somethingElse':
-    //   ...
+    }
+    case "config": {
+      const message = { command: "config", context: context };
+      presage[context.lang].config(
+        context.key.toString(),
+        context.value.toString()
+      );
+      event.source.postMessage(message, event.origin);
+      break;
+    }
   }
 });
