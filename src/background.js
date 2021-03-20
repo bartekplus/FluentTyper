@@ -5,6 +5,7 @@ import { isDomainOnList, checkLastError } from "./utils.js";
 import { Store } from "./third_party/fancy-settings/lib/store.js";
 
 const settings = new Store("settings");
+let configUpdated = false;
 
 // Check whether new version is installed
 chrome.runtime.onInstalled.addListener(function (details) {
@@ -53,6 +54,10 @@ function onRequest(request, sender, sendResponse) {
 
   switch (request.command) {
     case "predictReq":
+      if (configUpdated === false) {
+        updatePresageConfig();
+        configUpdated = true;
+      }
       request.context.lang = settings.get("language");
       sendMsgToSandbox(request);
       break;
@@ -137,3 +142,14 @@ chrome.commands.onCommand.addListener(function (command) {
       break;
   }
 });
+
+function updatePresageConfig() {
+  sendMsgToSandbox({
+    command: "config",
+    context: {
+      lang: settings.get("language"),
+      key: "Presage.Selector.SUGGESTIONS",
+      value: settings.get("numSuggestions"),
+    },
+  });
+}
