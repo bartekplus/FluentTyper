@@ -49,8 +49,7 @@ i18n = Object.assign(i18n, {
     en: "10 - 18 characters",
   },
   "description-url": {
-    en:
-      "Regexp are accepted (see <a href='https://www.w3schools.com/jsref/jsref_match.asp'>JavaScript String match() Method</a>)",
+    en: "Regexp are accepted (see <a href='https://www.w3schools.com/jsref/jsref_match.asp'>JavaScript String match() Method</a>)",
   },
   logout: {
     en: "Logout",
@@ -59,8 +58,7 @@ i18n = Object.assign(i18n, {
     en: "Enable",
   },
   useEnter: {
-    en:
-      "Use Enter key to confirm the selection (It might insert a new line on some web pages).",
+    en: "Use Enter key to confirm the selection (It might insert a new line on some web pages).",
   },
   About: {
     en: "About",
@@ -69,8 +67,7 @@ i18n = Object.assign(i18n, {
     en: "Credits",
   },
   "x-FluentTyper": {
-    en:
-      "The quickest way to contact me or report a bug in FluentTyper is by sending email to: <a href='mailto:bartekplus@gmail.com'>bartekplus@gmail.com</a>",
+    en: "The quickest way to contact me or report a bug in FluentTyper is by sending email to: <a href='mailto:bartekplus@gmail.com'>bartekplus@gmail.com</a>",
   },
   "x-Credits": {
     en: "With special thanks to: ",
@@ -79,8 +76,7 @@ i18n = Object.assign(i18n, {
     en: "Show icon in location bar",
   },
   allUrls: {
-    en:
-      "Request permission to work on all pages - fix an issue where FluentTyper is no working if an iframe source domain doesn't match tab domain.",
+    en: "Request permission to work on all pages - fix an issue where FluentTyper is no working if an iframe source domain doesn't match tab domain.",
   },
 });
 

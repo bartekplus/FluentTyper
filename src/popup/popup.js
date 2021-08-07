@@ -41,9 +41,8 @@ function init() {
         }
 
         checkboxEnableNode.checked = settings.get("enable");
-        document.getElementById("runOptions").href = chrome.extension.getURL(
-          "options.html"
-        );
+        document.getElementById("runOptions").href =
+          chrome.extension.getURL("options.html");
       }
     }
   );
