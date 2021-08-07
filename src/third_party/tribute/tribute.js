@@ -1,7 +1,7 @@
 (function (global, factory) {
   typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
   typeof define === 'function' && define.amd ? define(factory) :
-  (global = global || self, global.Tribute = factory());
+  (global = typeof globalThis !== 'undefined' ? globalThis : global || self, global.Tribute = factory());
 }(this, (function () { 'use strict';
 
   function _classCallCheck(instance, Constructor) {
@@ -35,14 +35,17 @@
   }
 
   function _iterableToArrayLimit(arr, i) {
-    if (typeof Symbol === "undefined" || !(Symbol.iterator in Object(arr))) return;
+    var _i = arr == null ? null : typeof Symbol !== "undefined" && arr[Symbol.iterator] || arr["@@iterator"];
+
+    if (_i == null) return;
     var _arr = [];
     var _n = true;
     var _d = false;
-    var _e = undefined;
+
+    var _s, _e;
 
     try {
-      for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) {
+      for (_i = _i.call(arr); !(_n = (_s = _i.next()).done); _n = true) {
         _arr.push(_s.value);
 
         if (i && _arr.length === i) break;
@@ -1236,8 +1239,8 @@
       key: "match",
       value: function match(pattern, string, opts) {
         opts = opts || {};
-        var len = string.length,
-            pre = opts.pre || '',
+        string.length;
+            var pre = opts.pre || '',
             post = opts.post || '',
             compareString = opts.caseSensitive && string || string.toLowerCase();
 
@@ -1718,9 +1721,9 @@
               li.className = _this2.current.collection.itemClass;
               li.addEventListener("mousemove", function (e) {
                 var _this2$_findLiTarget = _this2._findLiTarget(e.target),
-                    _this2$_findLiTarget2 = _slicedToArray(_this2$_findLiTarget, 2),
-                    li = _this2$_findLiTarget2[0],
-                    index = _this2$_findLiTarget2[1];
+                    _this2$_findLiTarget2 = _slicedToArray(_this2$_findLiTarget, 2);
+                    _this2$_findLiTarget2[0];
+                    var index = _this2$_findLiTarget2[1];
 
                 if (e.movementY !== 0) {
                   _this2.events.setActiveLi(index);
