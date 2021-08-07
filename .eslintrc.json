@@ -4,7 +4,7 @@
     "webextensions": true,
     "es6": true
   },
-  "extends": ["standard", "prettier", "prettier/standard"],
+  "extends": ["prettier"],
   "plugins": ["prettier"],
   "globals": {
     "Atomics": "readonly",
