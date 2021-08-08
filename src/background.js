@@ -89,16 +89,23 @@ chrome.runtime.onMessage.addListener(onRequest);
 function receiveMessage(event) {
   checkLastError();
 
-  // Make sure that tabId is still valid
-  chrome.tabs.get(event.data.context.tabId, function (tab) {
-    checkLastError();
+  switch (event.data.command) {
+    case "predictResp":
+      // Make sure that tabId is still valid
+      chrome.tabs.get(event.data.context.tabId, function (tab) {
+        checkLastError();
 
-    if (tab) {
-      chrome.tabs.sendMessage(event.data.context.tabId, event.data, {
-        frameId: event.data.context.frameId,
+        if (tab) {
+          chrome.tabs.sendMessage(event.data.context.tabId, event.data, {
+            frameId: event.data.context.frameId,
+          });
+        }
       });
-    }
-  });
+      break;
+
+    case "config":
+      break;
+  }
 }
 
 /*
