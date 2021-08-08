@@ -2,4 +2,3 @@ src/third_party/fancy-settings/lib/mootools-core.js
 src/third_party/libpresage/libpresage.js
 src/third_party/tribute/*
 src/third_party/swiper/swiper.esm.browser.bundle.js
-src/third_party/webext-dynamic-content-scripts.js
