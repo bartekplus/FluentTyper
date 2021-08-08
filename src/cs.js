@@ -349,6 +349,9 @@
   function messageHandler(message, sender, sendResponse) {
     checkLastError();
     let statusMsg = null;
+    if (!message) {
+      return;
+    }
 
     switch (message.command) {
       case "predictResp":
