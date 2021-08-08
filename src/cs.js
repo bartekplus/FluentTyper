@@ -28,14 +28,21 @@
     return 0;
   }
 
+  function isLetter(character) {
+    return RegExp(/^\p{L}/, "u").test(character);
+  }
+
   function checkInput(predictionInput) {
     const isLastCharWhitespace = predictionInput !== predictionInput.trimEnd();
     const lastWordLenght = getLastWordLenght(predictionInput);
+    const isLastCharLetter = isLetter(
+      predictionInput[predictionInput.length - 1]
+    );
 
     if (config.predictNextWordAfterWhiteSpace && isLastCharWhitespace) {
       return true;
     }
-    if (lastWordLenght >= config.minWordLenghtToPredict) {
+    if (isLastCharLetter && lastWordLenght >= config.minWordLenghtToPredict) {
       return true;
     }
 
