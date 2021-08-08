@@ -20,7 +20,10 @@
     "third_party/libpresage/libpresage.*"
   ],
   "name": "FluentTyper",
-  "options_page": "options.html",
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": false
+  },
   "browser_action": {
     "default_icon": {
       "256": "icon/icon256.png",
@@ -40,12 +43,6 @@
     "webNavigation",
     "<all_urls>"
   ],
-  "sandbox": {
-    "pages": [
-      "third_party/libpresage/libpresage.html"
-    ]
-  },
-  "update_url": "http://clients2.google.com/service/update2/crx",
   "version": "2.1.5",
   "manifest_version": 2,
   "content_security_policy": "script-src 'self' 'unsafe-eval'; object-src 'self'",
