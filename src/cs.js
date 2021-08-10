@@ -11,43 +11,13 @@
     minWordLenghtToPredict: 1,
     predictNextWordAfterWhiteSpace: true,
   };
-  const PRESAGE_PREDICTION_TIMEOUT_MS = 666;
+  const PRESAGE_PREDICTION_TIMEOUT_MS = 444;
 
   if (window.FluentTyper === true) {
     // Was script alredy injected ?
     return;
   }
   window.FluentTyper = true;
-
-  function getLastWordLenght(str) {
-    const wordArray = str.split(" ");
-    if (wordArray.length) {
-      return wordArray[wordArray.length - 1].length;
-    }
-
-    return 0;
-  }
-
-  function isLetter(character) {
-    return RegExp(/^\p{L}/, "u").test(character);
-  }
-
-  function checkInput(predictionInput) {
-    const isLastCharWhitespace = predictionInput !== predictionInput.trimEnd();
-    const lastWordLenght = getLastWordLenght(predictionInput);
-    const isLastCharLetter = isLetter(
-      predictionInput[predictionInput.length - 1]
-    );
-
-    if (config.predictNextWordAfterWhiteSpace && isLastCharWhitespace) {
-      return true;
-    }
-    if (isLastCharLetter && lastWordLenght >= config.minWordLenghtToPredict) {
-      return true;
-    }
-
-    return false;
-  }
 
   function keys(useEnter) {
     const keyArr = [
@@ -245,7 +215,7 @@
           return function (data, done) {
             const lines = data.split("\n");
             const lastLine = lines[lines.length - 1];
-            if (!lastLine || !checkInput(lastLine)) {
+            if (!lastLine) {
               return done([]);
             }
             tributeArr[localId].done = done;
@@ -386,7 +356,7 @@
           }
         }
         break;
-      case "setConfig":
+      case "backgroundPageSetConfig":
         config = message.context;
         initializeFluentTyper();
         if (config.enabled) {
@@ -433,7 +403,7 @@
 
   function getConfig() {
     const message = {
-      command: "getConfig",
+      command: "contentScriptGetConfig",
       context: {},
     };
 

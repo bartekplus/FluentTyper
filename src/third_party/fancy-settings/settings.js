@@ -1,5 +1,13 @@
 import { FancySettingsWithManifest } from "./js/classes/fancy-settings.js";
 
+function optionsPageConfigChange() {
+  const message = {
+    command: "optionsPageConfigChange",
+    context: {},
+  };
+  chrome.runtime.sendMessage(message);
+}
+
 window.addEvent("domready", function () {
   // Option 1: Use the manifest:
   (() =>
@@ -7,6 +15,20 @@ window.addEvent("domready", function () {
       settings.manifest.removeDomainBtn.addEvent("action", function () {
         settings.manifest.domainList.remove();
       });
+
+      // Update pressage config on change
+      settings.manifest.numSuggestions.addEvent("action", function () {
+        optionsPageConfigChange();
+      });
+      settings.manifest.minWordLenghtToPredict.addEvent("action", function () {
+        optionsPageConfigChange();
+      });
+      settings.manifest.predictNextWordAfterWhiteSpace.addEvent(
+        "action",
+        function () {
+          optionsPageConfigChange();
+        }
+      );
       if (navigator.userAgent.indexOf("Chrome") !== -1) {
         settings.manifest.allUrls.element.addEventListener(
           "click",

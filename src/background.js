@@ -5,7 +5,6 @@ import { isDomainOnList, checkLastError } from "./utils.js";
 import { Store } from "./third_party/fancy-settings/lib/store.js";
 
 const settings = new Store("settings");
-let configUpdated = false;
 
 // Check whether new version is installed
 chrome.runtime.onInstalled.addListener(function (details) {
@@ -54,10 +53,6 @@ function onRequest(request, sender, sendResponse) {
 
   switch (request.command) {
     case "predictReq":
-      if (configUpdated === false) {
-        updatePresageConfig();
-        configUpdated = true;
-      }
       request.context.lang = settings.get("language");
       sendMsgToSandbox(request);
       break;
@@ -65,9 +60,13 @@ function onRequest(request, sender, sendResponse) {
       // showPageAction(sender.tab.id, request.context.enabled);
       break;
 
-    case "getConfig":
+    case "optionsPageConfigChange":
+      updatePresageConfig();
+      break;
+
+    case "contentScriptGetConfig":
       respMsg = {
-        command: "setConfig",
+        command: "backgroundPageSetConfig",
         context: {
           enabled: isEnabledForDomain(sender.tab.url),
           useEnter: settings.get("useEnter"),
@@ -152,11 +151,22 @@ chrome.commands.onCommand.addListener(function (command) {
 
 function updatePresageConfig() {
   sendMsgToSandbox({
-    command: "config",
+    command: "backgroundPageSetConfig",
     context: {
       lang: settings.get("language"),
-      key: "Presage.Selector.SUGGESTIONS",
-      value: settings.get("numSuggestions"),
+      numSuggestions: settings.get("numSuggestions"),
+      minWordLenghtToPredict: settings.get("minWordLenghtToPredict"),
+      predictNextWordAfterWhiteSpace: settings.get(
+        "predictNextWordAfterWhiteSpace"
+      ),
     },
   });
 }
+
+// Trigger config update after sandboxFrame 'load' event
+window.addEventListener("DOMContentLoaded", (event) => {
+  const iframe = document.getElementById("sandboxFrame");
+  iframe.addEventListener("load", function () {
+    updatePresageConfig();
+  });
+});

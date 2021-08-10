@@ -2,8 +2,44 @@
 
 const LANGS = ["en"];
 const presage = {};
-
+let presage_config_cache = {};
 const lastPrediction = {};
+
+let config = {
+  minWordLenghtToPredict: 1,
+  predictNextWordAfterWhiteSpace: true,
+  numSuggestions: "5",
+};
+
+function getLastWordLenght(str) {
+  const wordArray = str.split(" ");
+  if (wordArray.length) {
+    return wordArray[wordArray.length - 1].length;
+  }
+
+  return 0;
+}
+
+function isLetter(character) {
+  return RegExp(/^\p{L}/, "u").test(character);
+}
+
+function checkInput(predictionInput) {
+  const isLastCharWhitespace = predictionInput !== predictionInput.trimEnd();
+  const lastWordLenght = getLastWordLenght(predictionInput);
+  const isLastCharLetter = isLetter(
+    predictionInput[predictionInput.length - 1]
+  );
+
+  if (config.predictNextWordAfterWhiteSpace && isLastCharWhitespace) {
+    return true;
+  }
+  if (isLastCharLetter && lastWordLenght >= config.minWordLenghtToPredict) {
+    return true;
+  }
+
+  return false;
+}
 
 const presageCallback = {
   pastStream: "",
@@ -25,6 +61,10 @@ var Module = {
       presage[lang] = new Module.Presage(
         pcObject,
         "resources_js/presage_" + lang + ".xml"
+      );
+      presage[lang].config(
+        "Presage.Selector.SUGGESTIONS",
+        config["numSuggestions"].toString()
       );
       lastPrediction[lang] = { pastStream: null, predictions: null };
     });
@@ -52,11 +92,12 @@ window.addEventListener("message", function (event) {
     case "predictReq": {
       const pastStream = convertString(event.data.context.text);
       const message = { command: "predictResp", context: context };
-      if (!pastStream || !presage[context.lang]) {
-        // Nothing to do here
+      if (!pastStream || !checkInput(pastStream) || !presage[context.lang]) {
+        // Invalid input or presage predition module not ready yet - reply with empty predictions
+        message.context.predictions = [];
+        event.source.postMessage(message, event.origin);
       } else if (pastStream === lastPrediction[context.lang].pastStream) {
         message.context.predictions = lastPrediction[context.lang].predictions;
-
         event.source.postMessage(message, event.origin);
       } else {
         const predictions = [];
@@ -74,12 +115,15 @@ window.addEventListener("message", function (event) {
       }
       break;
     }
-    case "config": {
+    case "backgroundPageSetConfig": {
       const message = { command: "config", context: context };
-      presage[context.lang].config(
-        context.key.toString(),
-        context.value.toString()
-      );
+      config = context;
+      if (presage[context.lang]) {
+        presage[context.lang].config(
+          "Presage.Selector.SUGGESTIONS",
+          config["numSuggestions"].toString()
+        );
+      }
       event.source.postMessage(message, event.origin);
       break;
     }
