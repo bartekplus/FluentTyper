@@ -32,6 +32,7 @@
   const allUrlsRegex = /^(https?|file|ftp):[/]+/;
   function getRawRegex(matchPattern) {
     if (!patternValidationRegex.test(matchPattern)) {
+      return [];
       throw new Error(
         matchPattern +
           " is an invalid pattern, it must match " +
