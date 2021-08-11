@@ -68,13 +68,13 @@ function addRemoveDomain() {
         const currentTab = tabs[0];
         const domainURL = getDomain(currentTab.url);
         const message = {
-          command: "disable",
+          command: "popupPageDisable",
           context: {},
         };
 
         if (isDomainOnList(settings, domainURL)) {
           removeDomainFromList(settings, domainURL);
-          message.command = "disable";
+          message.command = "popupPageDisable";
         } else {
           let granted = true;
           if (navigator.userAgent.indexOf("Chrome") !== -1) {
@@ -93,7 +93,7 @@ function addRemoveDomain() {
 
           if (granted) {
             addDomainToList(settings, domainURL);
-            message.command = "enable";
+            message.command = "popupPageEnable";
           }
         }
         setTimeout(init, 0);

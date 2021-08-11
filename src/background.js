@@ -44,16 +44,15 @@ function isEnabledForDomain(domainURL) {
 // Called when a message is passed.  We assume that the content script
 // wants to show the page action.
 function onRequest(request, sender, sendResponse) {
-  let respMsg = {};
-
   checkLastError();
 
   request.context.tabId = sender.tab.id;
   request.context.frameId = sender.frameId;
 
   switch (request.command) {
-    case "predictReq":
+    case "contentScriptPredictReq":
       request.context.lang = settings.get("language");
+      request.command = "backgroundPagePredictReq";
       sendMsgToSandbox(request);
       break;
     case "status":
@@ -65,21 +64,18 @@ function onRequest(request, sender, sendResponse) {
       break;
 
     case "contentScriptGetConfig":
-      respMsg = {
+      const respMsg = {
         command: "backgroundPageSetConfig",
         context: {
           enabled: isEnabledForDomain(sender.tab.url),
           useEnter: settings.get("useEnter"),
-          minWordLenghtToPredict: settings.get("minWordLenghtToPredict"),
-          predictNextWordAfterWhiteSpace: settings.get(
-            "predictNextWordAfterWhiteSpace"
-          ),
         },
       };
+      sendResponse(respMsg);
+      break;
   }
 
-  // Return nothing to let the connection be cleaned up.
-  sendResponse(respMsg);
+  // SendResponse
 }
 
 // Listen for the content script to send a message to the background page.
@@ -89,12 +85,14 @@ function receiveMessage(event) {
   checkLastError();
 
   switch (event.data.command) {
-    case "predictResp":
+    case "sandBoxPredictResp":
       // Make sure that tabId is still valid
       chrome.tabs.get(event.data.context.tabId, function (tab) {
         checkLastError();
 
         if (tab) {
+          // Update command to indicate orign of the message
+          event.data.command = "backgroundPagePredictResp";
           chrome.tabs.sendMessage(event.data.context.tabId, event.data, {
             frameId: event.data.context.frameId,
           });
@@ -102,7 +100,9 @@ function receiveMessage(event) {
       });
       break;
 
-    case "config":
+    default:
+      console.log("Unkown message:");
+      console.log(event);
       break;
   }
 }
@@ -128,7 +128,7 @@ function toggleOnOffActiveTab() {
       const currentTab = tabs[0];
 
       const message = {
-        command: "toggle",
+        command: "backgroundPageToggle",
         context: {},
       };
 

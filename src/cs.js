@@ -2,413 +2,392 @@
 /* global Tribute */
 
 (function () {
-  let tributeArr = [];
-  let observer = null;
-  let pendingReq = null;
-  let config = {
-    enabled: false,
-    useEnter: false,
-    minWordLenghtToPredict: 1,
-    predictNextWordAfterWhiteSpace: true,
-  };
   const PRESAGE_PREDICTION_TIMEOUT_MS = 444;
 
-  if (window.FluentTyper === true) {
-    // Was script alredy injected ?
-    return;
-  }
-  window.FluentTyper = true;
+  class FluentTyper {
+    constructor() {
+      this.tributeArr = [];
+      this.pendingReq = null;
+      this.config = {
+        enabled: false,
+        useEnter: false,
+      };
 
-  function keys(useEnter) {
-    const keyArr = [
-      {
-        key: 9,
-        value: "TAB",
-      },
-      {
-        key: 27,
-        value: "ESCAPE",
-      },
-      {
-        key: 38,
-        value: "UP",
-      },
-      {
-        key: 40,
-        value: "DOWN",
-      },
-    ];
-
-    if (useEnter) {
-      keyArr.push({
-        key: 13,
-        value: "ENTER",
-      });
+      chrome.runtime.onMessage.addListener(this.messageHandler.bind(this));
+      this.getConfig();
     }
-    return keyArr;
-  }
 
-  function detachHelper(tributeId) {
-    cancelPresageRequestTimeout(tributeId);
-    tributeArr[tributeId].tribute.detach(tributeArr[tributeId].elem);
-    delete tributeArr[tributeId].tribute;
-    tributeArr.splice(tributeId, 1);
-  }
-
-  function detachAllHelpers() {
-    for (let i = tributeArr.length - 1; i >= 0; i--) {
-      detachHelper(i);
-    }
-    tributeArr = [];
-  }
-
-  function isHelperAttached(helperArr, elem) {
-    return elem.hasAttribute("data-tribute");
-  }
-
-  function cancelPresageRequestTimeout(tributeId) {
-    if (tributeArr[tributeId].timeout) {
-      clearTimeout(tributeArr[tributeId].timeout);
-      tributeArr[tributeId].timeout = null;
-    }
-  }
-
-  function requestTimeoutFn(tributeId, requestId) {
-    if (
-      tributeId < tributeArr.length &&
-      requestId === tributeArr[tributeId].requestId
-    ) {
-      pendingReq = null;
-      tributeArr[tributeId].timeout = null;
-      tributeArr[tributeId].done([]);
-    }
-  }
-
-  function setPresageRequestTimeout(tributeId) {
-    const timeoutFn = requestTimeoutFn.bind(
-      null,
-      tributeId,
-      tributeArr[tributeId].requestId
-    );
-    tributeArr[tributeId].timeout = setTimeout(
-      timeoutFn,
-      PRESAGE_PREDICTION_TIMEOUT_MS
-    );
-  }
-
-  function checkLastError() {
-    try {
-      if (chrome.runtime.lastError) {
-        console.log(chrome.runtime.lastError.message);
+    attachMutationObserver() {
+      if (!this.observer) {
+        const MutationCallback = this.MutationCallback.bind(this);
+        const observerOptions = {
+          childList: true,
+          attributes: false,
+          subtree: true,
+        };
+        this.observer = new MutationObserver(MutationCallback);
+        this.observer.observe(document.body, observerOptions);
       }
-    } catch (e) {}
-  }
+    }
+    keys() {
+      const keyArr = [
+        {
+          key: 9,
+          value: "TAB",
+        },
+        {
+          key: 27,
+          value: "ESCAPE",
+        },
+        {
+          key: 38,
+          value: "UP",
+        },
+        {
+          key: 40,
+          value: "DOWN",
+        },
+      ];
 
-  function MutationCallback(mutationsList, observer) {
-    let nodesAdded = false;
-    for (const mutation of mutationsList) {
-      if (mutation.type === "childList") {
-        if (mutation.addedNodes) {
-          nodesAdded = true;
+      if (this.config.useEnter) {
+        keyArr.push({
+          key: 13,
+          value: "ENTER",
+        });
+      }
+      return keyArr;
+    }
+
+    detachHelper(tributeId) {
+      this.cancelPresageRequestTimeout(tributeId);
+      this.tributeArr[tributeId].tribute.detach(
+        this.tributeArr[tributeId].elem
+      );
+      delete this.tributeArr[tributeId].tribute;
+      this.tributeArr.splice(tributeId, 1);
+    }
+
+    detachAllHelpers() {
+      for (let i = this.tributeArr.length - 1; i >= 0; i--) {
+        this.detachHelper(i);
+      }
+      this.tributeArr = [];
+    }
+
+    isHelperAttached(helperArr, elem) {
+      return elem.hasAttribute("data-tribute");
+    }
+
+    cancelPresageRequestTimeout(tributeId) {
+      if (this.tributeArr[tributeId].timeout) {
+        clearTimeout(this.tributeArr[tributeId].timeout);
+        this.tributeArr[tributeId].timeout = null;
+      }
+    }
+
+    requestTimeoutFn(tributeId, requestId) {
+      if (
+        tributeId < this.tributeArr.length &&
+        requestId === this.tributeArr[tributeId].requestId
+      ) {
+        this.pendingReq = null;
+        this.tributeArr[tributeId].timeout = null;
+        this.tributeArr[tributeId].done([]);
+      }
+    }
+    setPresageRequestTimeout(tributeId) {
+      const timeoutFn = this.requestTimeoutFn.bind(
+        this,
+        tributeId,
+        this.tributeArr[tributeId].requestId
+      );
+      this.tributeArr[tributeId].timeout = setTimeout(
+        timeoutFn,
+        PRESAGE_PREDICTION_TIMEOUT_MS
+      );
+    }
+    checkLastError() {
+      try {
+        if (chrome.runtime.lastError) {
+          console.log(chrome.runtime.lastError.message);
+        }
+      } catch (e) {}
+    }
+
+    MutationCallback(mutationsList, observer) {
+      let nodesAdded = false;
+      for (const mutation of mutationsList) {
+        if (mutation.type === "childList") {
+          if (mutation.addedNodes) {
+            nodesAdded = true;
+          }
         }
       }
-    }
-    for (let i = tributeArr.length - 1; i >= 0; i--) {
-      if (!document.body.contains(tributeArr[i].elem)) {
-        detachHelper(i);
+      for (let i = this.tributeArr.length - 1; i >= 0; i--) {
+        if (!document.body.contains(this.tributeArr[i].elem)) {
+          this.detachHelper(i);
+        }
+      }
+
+      if (nodesAdded) {
+        this.attachHelper();
       }
     }
 
-    if (nodesAdded) {
-      attachHelper();
-    }
-  }
-
-  function attachHelper() {
-    if (!config.enabled) {
-      return;
-    }
-    const selectors =
-      "textarea, input, [contentEditable='true' i], [contentEditable='plaintext-only' i]";
-
-    const elems = document.querySelectorAll(selectors);
-    for (let i = 0; i < elems.length; i++) {
-      const elem = elems[i];
-      const inputTypes = ["text", ""];
-      const autocomplete = elem.getAttribute("autocomplete")
-        ? elem.getAttribute("autocomplete").toLowerCase()
-        : "";
-
-      const inputType = elem.getAttribute("type")
-        ? elem.getAttribute("type").toLowerCase()
-        : "";
-      if (
-        elem.tagName.toLowerCase() === "input" &&
-        !inputTypes.includes(inputType)
-      ) {
-        continue;
+    attachHelper() {
+      if (!this.config.enabled) {
+        return;
       }
+      const selectors =
+        "textarea, input, [contentEditable='true' i], [contentEditable='plaintext-only' i]";
 
-      if (autocomplete === "off") {
-        // continue;
-      }
+      const elems = document.querySelectorAll(selectors);
+      for (let i = 0; i < elems.length; i++) {
+        const elem = elems[i];
+        const inputTypes = ["text", ""];
+        const autocomplete = elem.getAttribute("autocomplete")
+          ? elem.getAttribute("autocomplete").toLowerCase()
+          : "";
 
-      if (isHelperAttached(tributeArr, elem)) {
-        continue;
-      }
-      const helperArrId = tributeArr.length;
+        const inputType = elem.getAttribute("type")
+          ? elem.getAttribute("type").toLowerCase()
+          : "";
+        if (
+          elem.tagName.toLowerCase() === "input" &&
+          !inputTypes.includes(inputType)
+        ) {
+          continue;
+        }
 
-      tributeArr.push({
-        tribute: null,
-        elem: elem,
-        done: null,
-        timeout: null,
-        requestId: 0,
-      });
+        if (autocomplete === "off") {
+          // continue;
+        }
 
-      // elem.addEventListener("tribute-replaced", function (e) {});
+        if (this.isHelperAttached(this.tributeArr, elem)) {
+          continue;
+        }
 
-      const tribute = new Tribute({
-        // symbol or string that starts the lookup
-        trigger: "",
+        this.tributeArr.push({
+          tribute: null,
+          elem: elem,
+          done: null,
+          timeout: null,
+          requestId: 0,
+        });
 
-        // element to target for @mentions
-        iframe: null,
-
-        // class added in the flyout menu for active item
-        selectClass: "highlight",
-
-        // class added to the menu container
-        containerClass: "tribute-container",
-
-        // class added to each list item
-        itemClass: "",
-
-        // function called on select that returns the content to insert
-        selectTemplate: function (item) {
-          return item.original.value;
-        },
-
-        // template for displaying item in menu
-        menuItemTemplate: function (item) {
-          return item.string;
-        },
-
-        // template for when no match is found (optional),
-        // If no template is provided, menu is hidden.
-        noMatchTemplate: "",
-
-        // specify an alternative parent container for the menu
-        // container must be a positioned element for the menu to appear correctly ie. `position: relative;`
-        // default container is the body
-        menuContainer: document.body,
-
-        // column to search against in the object (accepts function or string)
-        lookup: "key",
-
-        // column that contains the content to insert by default
-        fillAttr: "value",
-
-        // REQUIRED: array of objects to match
-        values: (function (data, done) {
+        let tribueKeyFn = this.keys.bind(this);
+        let tribueValuesFn = (function (helperArrId, FluentTyperIn) {
           const localId = helperArrId;
+          const FluentTyper = FluentTyperIn;
           return function (data, done) {
             const lines = data.split("\n");
             const lastLine = lines[lines.length - 1];
             if (!lastLine) {
               return done([]);
             }
-            tributeArr[localId].done = done;
-            tributeArr[localId].requestId += 1;
+            FluentTyper.tributeArr[localId].done = done;
+            FluentTyper.tributeArr[localId].requestId += 1;
             const message = {
-              command: "predictReq",
+              command: "contentScriptPredictReq",
               context: {
                 text: lastLine,
                 tributeId: localId,
-                requestId: tributeArr[localId].requestId,
+                requestId: FluentTyper.tributeArr[localId].requestId,
               },
             };
             // Cancel old timeout Fn
-            cancelPresageRequestTimeout(localId);
-            setPresageRequestTimeout(localId);
+            FluentTyper.cancelPresageRequestTimeout(localId);
+            FluentTyper.setPresageRequestTimeout(localId);
             // Check if we are waiting for a response
-            if (!pendingReq) {
+            if (!FluentTyper.pendingReq) {
               // Set pending request
-              pendingReq = message;
-
-              chrome.runtime.sendMessage(message, function (response) {
-                checkLastError();
-              });
+              FluentTyper.pendingReq = message;
+              chrome.runtime.sendMessage(message);
             } else {
-              pendingReq = message;
+              FluentTyper.pendingReq = message;
             }
           };
-        })(),
+        })(this.tributeArr.length - 1, this);
 
-        // specify whether a space is required before the trigger string
-        requireLeadingSpace: false,
+        const tribute = new Tribute({
+          // symbol or string that starts the lookup
+          trigger: "",
 
-        // specify whether a space is allowed in the middle of mentions
-        allowSpaces: false,
+          // element to target for @mentions
+          iframe: null,
 
-        // optionally specify a custom suffix for the replace text
-        // (defaults to empty space if undefined)
-        replaceTextSuffix: "",
+          // class added in the flyout menu for active item
+          selectClass: "highlight",
 
-        // specify whether the menu should be positioned.  Set to false and use in conjuction with menuContainer to create an inline menu
-        // (defaults to true)
-        positionMenu: true,
+          // class added to the menu container
+          containerClass: "tribute-container",
 
-        // when the spacebar is hit, select the current match
-        spaceSelectsMatch: false,
+          // class added to each list item
+          itemClass: "",
 
-        // turn tribute into an autocomplete
-        autocompleteMode: true,
+          // function called on select that returns the content to insert
+          selectTemplate: function (item) {
+            return item.original.value;
+          },
 
-        // Customize the elements used to wrap matched strings within the results list
-        // defaults to <span></span> if undefined
-        searchOpts: {
-          pre: "<span>",
-          post: "</span>",
-          skip: true, // true will skip local search, useful if doing server-side search
-        },
+          // template for displaying item in menu
+          menuItemTemplate: function (item) {
+            return item.string;
+          },
 
-        // specify the minimum number of characters that must be typed before menu appears
-        menuShowMinLength: 0,
+          // template for when no match is found (optional),
+          // If no template is provided, menu is hidden.
+          noMatchTemplate: "",
 
-        keys: (function () {
-          const useEnter = config.useEnter;
-          return keys.bind(null, useEnter);
-        })(),
-      });
-      tributeArr[helperArrId].tribute = tribute;
-      tribute.attach(elem);
-    }
-  }
+          // specify an alternative parent container for the menu
+          // container must be a positioned element for the menu to appear correctly ie. `position: relative;`
+          // default container is the body
+          menuContainer: document.body,
 
-  function initializeFluentTyper() {
-    window.addEventListener(
-      "DOMContentLoaded",
-      function (evt) {
-        initializeFluentTyper(config);
-      },
-      false
-    );
+          // column to search against in the object (accepts function or string)
+          lookup: "key",
 
-    if (!observer) {
-      const observerOptions = {
-        childList: true,
-        attributes: false,
-        subtree: true,
-      };
-      observer = new MutationObserver(MutationCallback);
-      observer.observe(document.body, observerOptions);
-    }
-  }
+          // column that contains the content to insert by default
+          fillAttr: "value",
 
-  function enable() {
-    config.enabled = true;
-    attachHelper();
-  }
+          // REQUIRED: array of objects to match
+          values: tribueValuesFn,
 
-  function disable() {
-    config.enabled = false;
-    detachAllHelpers();
-  }
-
-  function messageHandler(message, sender, sendResponse) {
-    checkLastError();
-    let statusMsg = null;
-    if (!message) {
-      return;
+          // specify whether a space is required before the trigger string
+          requireLeadingSpace: false,
+          // specify whether a space is allowed in the middle of mentions
+          allowSpaces: false,
+          // optionally specify a custom suffix for the replace text
+          // (defaults to empty space if undefined)
+          replaceTextSuffix: "",
+          // specify whether the menu should be positioned.  Set to false and use in conjuction with menuContainer to create an inline menu
+          // (defaults to true)
+          positionMenu: true,
+          // when the spacebar is hit, select the current match
+          spaceSelectsMatch: false,
+          // turn tribute into an autocomplete
+          autocompleteMode: true,
+          // Customize the elements used to wrap matched strings within the results list
+          // defaults to <span></span> if undefined
+          searchOpts: {
+            pre: "<span>",
+            post: "</span>",
+            skip: true, // true will skip local search, useful if doing server-side search
+          },
+          // specify the minimum number of characters that must be typed before menu appears
+          menuShowMinLength: 0,
+          keys: tribueKeyFn,
+        });
+        this.tributeArr[this.tributeArr.length - 1].tribute = tribute;
+        tribute.attach(elem);
+      }
     }
 
-    switch (message.command) {
-      case "predictResp":
-        // We were waiting for prediction
-        if (pendingReq) {
-          cancelPresageRequestTimeout(message.context.tributeId);
+    setConfig(config) {
+      this.config = config;
+      if (this.config.enabled) {
+        this.attachHelper();
+      } else {
+        this.detachAllHelpers();
+      }
+    }
+    enable() {
+      this.config.enabled = true;
+      this.attachHelper();
+      this.attachMutationObserver();
+    }
+    disable() {
+      this.config.enabled = false;
+      this.detachAllHelpers();
+    }
 
-          // Check if msg are equal
-          if (
-            message.context.requestId ===
-            tributeArr[message.context.tributeId].requestId
-          ) {
-            const keyValPairs = [];
-            for (let i = 0; i < message.context.predictions.length; i++) {
-              keyValPairs.push({
-                key: message.context.predictions[i],
-                value: message.context.predictions[i],
-              });
+    messageHandler(message, sender, sendResponse) {
+      this.checkLastError();
+      let sendStatusMsg = false;
+      if (!message) {
+        return;
+      }
+
+      switch (message.command) {
+        case "backgroundPagePredictResp":
+          // We were waiting for prediction
+          if (this.pendingReq) {
+            this.cancelPresageRequestTimeout(message.context.tributeId);
+
+            // Check if msg are equal
+            if (
+              message.context.requestId ===
+              this.tributeArr[message.context.tributeId].requestId
+            ) {
+              const keyValPairs = [];
+              for (let i = 0; i < message.context.predictions.length; i++) {
+                keyValPairs.push({
+                  key: message.context.predictions[i],
+                  value: message.context.predictions[i],
+                });
+              }
+              // Cancel old timeout Fn
+              // Send prediction to TributeJs
+              this.tributeArr[message.context.tributeId].done(keyValPairs);
+              // Clear pending req
+              this.pendingReq = null;
+            } else {
+              // Msq are not equal, ignore result and send pending msg
+              this.setPresageRequestTimeout(message.context.tributeId);
+              chrome.runtime.sendMessage(this.pendingReq);
             }
-            // Cancel old timeout Fn
-            // Send prediction to TributeJs
-            tributeArr[message.context.tributeId].done(keyValPairs);
-            // Clear pending req
-            pendingReq = null;
-          } else {
-            // Msq are not equal, ignore result and send pending msg
-            setPresageRequestTimeout(message.context.tributeId);
-
-            chrome.runtime.sendMessage(pendingReq, function (response) {
-              checkLastError();
-            });
           }
-        }
-        break;
-      case "backgroundPageSetConfig":
-        config = message.context;
-        initializeFluentTyper();
-        if (config.enabled) {
-          enable();
-        } else {
-          disable();
-        }
-        statusMsg = {
+          break;
+        case "backgroundPageSetConfig":
+          this.setConfig(message.context);
+          sendStatusMsg = true;
+          break;
+        case "popupPageDisable":
+          this.disable();
+          sendStatusMsg = true;
+          break;
+        case "popupPageEnable":
+          this.enable();
+          sendStatusMsg = true;
+          break;
+        case "backgroundPageToggle":
+          if (this.config.enabled) {
+            this.disable();
+          } else {
+            this.enable();
+          }
+          sendStatusMsg = true;
+          break;
+
+        default:
+          console.log("Unknown message:");
+          console.log(message);
+          break;
+      }
+
+      if (sendStatusMsg) {
+        const statusMsg = {
           command: "status",
-          context: { enabled: config.enabled },
+          context: { enabled: this.config.enabled },
         };
-
-        break;
-      case "disable":
-      case "enable":
-      case "toggle":
-        if (
-          message.command === "disable" ||
-          (message.command === "toggle" && config.enabled)
-        ) {
-          disable();
-        } else {
-          enable();
-        }
-        statusMsg = {
-          command: "status",
-          context: { enabled: config.enabled },
-        };
-
-        break;
-
-      default:
-        console.log("Unknown message");
-        console.log(message);
-        break;
+        // Send updated status
+        if (sendResponse) sendResponse(statusMsg);
+      }
     }
 
-    if (statusMsg) {
-      chrome.runtime.sendMessage(statusMsg);
+    getConfig() {
+      const message = {
+        command: "contentScriptGetConfig",
+        context: {},
+      };
+
+      chrome.runtime.sendMessage(message, this.messageHandler.bind(this));
     }
   }
 
-  chrome.runtime.onMessage.addListener(messageHandler);
-
-  function getConfig() {
-    const message = {
-      command: "contentScriptGetConfig",
-      context: {},
-    };
-
-    chrome.runtime.sendMessage(message, messageHandler);
+  if (window.FluentTyper) {
+    // Was script alredy injected ?
+    return;
   }
-
-  getConfig();
+  window.FluentTyper = new FluentTyper();
 })();

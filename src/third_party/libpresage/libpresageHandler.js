@@ -89,9 +89,9 @@ window.addEventListener("message", function (event) {
   const command = event.data.command;
   const context = event.data.context;
   switch (command) {
-    case "predictReq": {
+    case "backgroundPagePredictReq": {
       const pastStream = convertString(event.data.context.text);
-      const message = { command: "predictResp", context: context };
+      const message = { command: "sandBoxPredictResp", context: context };
       if (!pastStream || !checkInput(pastStream) || !presage[context.lang]) {
         // Invalid input or presage predition module not ready yet - reply with empty predictions
         message.context.predictions = [];
@@ -124,8 +124,10 @@ window.addEventListener("message", function (event) {
           config["numSuggestions"].toString()
         );
       }
-      event.source.postMessage(message, event.origin);
       break;
     }
+    default:
+      console.log("Unknown message:");
+      console.log(event);
   }
 });
