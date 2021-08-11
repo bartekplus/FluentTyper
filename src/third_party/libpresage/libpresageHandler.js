@@ -84,8 +84,9 @@ function convertString(s) {
   }
   return str;
 }
+let predictionTimeouts = {};
 
-window.addEventListener("message", function (event) {
+function runPrediction(event) {
   const command = event.data.command;
   const context = event.data.context;
   switch (command) {
@@ -102,6 +103,10 @@ window.addEventListener("message", function (event) {
       } else {
         const predictions = [];
         presageCallback.pastStream = pastStream;
+        for (let i = 0; i < 0; i++) {
+          let predictionsNative2 = presage[context.lang].predict();
+          predictionsNative2 = predictionsNative2;
+        }
         const predictionsNative = presage[context.lang].predict();
         if (predictionsNative.size()) {
           for (let i = 0; i < predictionsNative.size(); i++) {
@@ -116,7 +121,6 @@ window.addEventListener("message", function (event) {
       break;
     }
     case "backgroundPageSetConfig": {
-      const message = { command: "config", context: context };
       config = context;
       if (presage[context.lang]) {
         presage[context.lang].config(
@@ -130,4 +134,20 @@ window.addEventListener("message", function (event) {
       console.log("Unknown message:");
       console.log(event);
   }
+  predictionTimeouts[event.data.context.tabId][event.data.context.frameId] =
+    null;
+}
+
+window.addEventListener("message", function (event) {
+  if (!predictionTimeouts[event.data.context.tabId]) {
+    predictionTimeouts[event.data.context.tabId] = {};
+  } else if (
+    predictionTimeouts[event.data.context.tabId][event.data.context.frameId]
+  ) {
+    this.clearTimeout(
+      predictionTimeouts[event.data.context.tabId][event.data.context.frameId]
+    );
+  }
+  predictionTimeouts[event.data.context.tabId][event.data.context.frameId] =
+    this.setTimeout(runPrediction.bind(null, event), 0);
 });
