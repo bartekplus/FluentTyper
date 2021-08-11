@@ -199,13 +199,8 @@
             FluentTyper.cancelPresageRequestTimeout(localId);
             FluentTyper.setPresageRequestTimeout(localId);
             // Check if we are waiting for a response
-            if (!FluentTyper.pendingReq) {
-              // Set pending request
-              FluentTyper.pendingReq = message;
-              chrome.runtime.sendMessage(message);
-            } else {
-              FluentTyper.pendingReq = message;
-            }
+            FluentTyper.pendingReq = message;
+            chrome.runtime.sendMessage(message);
           };
         })(this.tributeArr.length - 1, this);
 
@@ -332,9 +327,7 @@
               // Clear pending req
               this.pendingReq = null;
             } else {
-              // Msq are not equal, ignore result and send pending msg
-              this.setPresageRequestTimeout(message.context.tributeId);
-              chrome.runtime.sendMessage(this.pendingReq);
+              // Msq are not equal, ignore result and wait for next prediction
             }
           }
           break;
