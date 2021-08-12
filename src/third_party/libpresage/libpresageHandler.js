@@ -72,18 +72,15 @@ var Module = {
 };
 /* eslint-enable no-var */
 
-function convertString(s) {
-  let str = null;
-  if (typeof s === "string" || s instanceof String) {
-    // replace &#160; with space
-    str = s.replace(/\xA0/g, " ");
+function convertString(str) {
+  if (typeof str === "string" || str instanceof String) {
     // Check if string end with whitespace
     const endWithSpace = str !== str.trimEnd();
     // Get 3 last words and filter empty
     const wordArray = str
       .split(/\s+/) // Split ony any whitespace
       .filter(function (e) {
-        return e.trim(); // filter empty elemeents
+        return e.trim(); // filter empty elements
       })
       .splice(-3); // Get last 3 words
     str = wordArray.join(" ");
