@@ -105,9 +105,15 @@
     }
     const matchesRegex = patternToRegex(...matches);
     const inject = async (url, tabId, frameId) => {
+      let isOriginPermittedRet = false;
+      try {
+        isOriginPermittedRet = await isOriginPermitted(url);
+      } catch (error) {
+        console.log(console.error());
+      }
       if (
         !matchesRegex.test(url) ||
-        !(await isOriginPermitted(url)) ||
+        !isOriginPermittedRet ||
         (await wasPreviouslyLoaded(tabId, frameId, { js, css }))
       ) {
         return;
