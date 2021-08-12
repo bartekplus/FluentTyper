@@ -166,7 +166,11 @@ function updatePresageConfig() {
 // Trigger config update after sandboxFrame 'load' event
 window.addEventListener("DOMContentLoaded", (event) => {
   const iframe = document.getElementById("sandboxFrame");
-  iframe.addEventListener("load", function () {
-    updatePresageConfig();
-  });
+  if (navigator.userAgent.indexOf("Chrome") !== -1) {
+    setTimeout(updatePresageConfig, 3000);
+  } else {
+    iframe.addEventListener("load", function () {
+      updatePresageConfig();
+    });
+  }
 });

@@ -73,16 +73,28 @@ var Module = {
 /* eslint-enable no-var */
 
 function convertString(s) {
-  let str = "";
+  let str = null;
   if (typeof s === "string" || s instanceof String) {
+    // replace &#160; with space
     str = s.replace(/\xA0/g, " ");
-    if (str.endsWith(" ")) {
-      str = str.trim() + " ";
-    } else {
-      str = str.trim();
+    // Check if string end with whitespace
+    const endWithSpace = str !== str.trimEnd();
+    // Get 3 last words and filter empty
+    const wordArray = str
+      .split(/\s+/) // Split ony any whitespace
+      .filter(function (e) {
+        return e.trim(); // filter empty elemeents
+      })
+      .splice(-3); // Get last 3 words
+    str = wordArray.join(" ");
+    if (endWithSpace) {
+      str += " ";
     }
+
+    if (checkInput(str)) return str;
   }
-  return str;
+
+  return null;
 }
 let predictionTimeouts = {};
 
@@ -93,7 +105,7 @@ function runPrediction(event) {
     case "backgroundPagePredictReq": {
       const pastStream = convertString(event.data.context.text);
       const message = { command: "sandBoxPredictResp", context: context };
-      if (!pastStream || !checkInput(pastStream) || !presage[context.lang]) {
+      if (!pastStream || !presage[context.lang]) {
         // Invalid input or presage predition module not ready yet - reply with empty predictions
         message.context.predictions = [];
         event.source.postMessage(message, event.origin);
@@ -139,15 +151,15 @@ function runPrediction(event) {
 }
 
 window.addEventListener("message", function (event) {
-  if (!predictionTimeouts[event.data.context.tabId]) {
-    predictionTimeouts[event.data.context.tabId] = {};
-  } else if (
-    predictionTimeouts[event.data.context.tabId][event.data.context.frameId]
-  ) {
-    this.clearTimeout(
-      predictionTimeouts[event.data.context.tabId][event.data.context.frameId]
-    );
+  const tabId = event.data.context.tabId;
+  const frameId = event.data.context.frameId;
+  if (!predictionTimeouts[tabId]) {
+    predictionTimeouts[tabId] = {};
+  } else if (predictionTimeouts[tabId][frameId]) {
+    this.clearTimeout(predictionTimeouts[tabId][frameId]);
   }
-  predictionTimeouts[event.data.context.tabId][event.data.context.frameId] =
-    this.setTimeout(runPrediction.bind(null, event), 0);
+  predictionTimeouts[tabId][frameId] = this.setTimeout(
+    runPrediction.bind(null, event),
+    0
+  );
 });
