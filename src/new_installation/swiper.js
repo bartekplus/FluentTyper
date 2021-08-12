@@ -1,4 +1,4 @@
-import Swiper from "../third_party/swiper/swiper.esm.browser.bundle.js";
+import Swiper from "../third_party/swiper/swiper-bundle.esm.browser.js";
 
 window.addEventListener("DOMContentLoaded", function () {
   (() =>
