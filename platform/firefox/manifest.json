@@ -37,7 +37,7 @@
     "beer_donation_button_single.png",
     "third_party/libpresage/libpresage.*"
   ],
-  "name": "FluentTyper",
+  "name": "FluentTyper: Autocomplete and Spell Checker",
   "options_ui": {
     "page": "options.html",
     "open_in_tab": false
