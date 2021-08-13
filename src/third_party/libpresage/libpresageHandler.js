@@ -16,7 +16,8 @@ class PresageHandler {
   constructor(
     numSuggestions = 5,
     minWordLenghtToPredict = 1,
-    predictNextWordAfterWhiteSpace = true
+    predictNextWordAfterWhiteSpace = true,
+    insertSpaceAfterAutocomplete = true
   ) {
     const SUPPORTED_LANGUAGES = ["en"];
     // last presage prediction per lang
@@ -31,8 +32,10 @@ class PresageHandler {
     this.numSuggestions = numSuggestions;
     // Minimum characters typed by user to start prediction
     this.minWordLenghtToPredict = minWordLenghtToPredict;
-    // Indicates if new predition should be gnerated after whitespace
+    // Predict next word after whitespace
     this.predictNextWordAfterWhiteSpace = predictNextWordAfterWhiteSpace;
+    // Automatically insert space after autocomplete
+    this.insertSpaceAfterAutocomplete = insertSpaceAfterAutocomplete;
     //Precompiled regular expressions
     this.whiteSpaceRegEx = RegExp(/\s+/);
     this.letterRegEx = RegExp(/^\p{L}/, "u");
@@ -83,7 +86,8 @@ class PresageHandler {
         this.setConfig(
           context.numSuggestions,
           context.minWordLenghtToPredict,
-          context.predictNextWordAfterWhiteSpace
+          context.predictNextWordAfterWhiteSpace,
+          context.insertSpaceAfterAutocomplete
         );
         break;
       }
@@ -96,11 +100,13 @@ class PresageHandler {
   setConfig(
     numSuggestions,
     minWordLenghtToPredict,
-    predictNextWordAfterWhiteSpace
+    predictNextWordAfterWhiteSpace,
+    insertSpaceAfterAutocomplete
   ) {
     this.numSuggestions = numSuggestions;
     this.minWordLenghtToPredict = minWordLenghtToPredict;
     this.predictNextWordAfterWhiteSpace = predictNextWordAfterWhiteSpace;
+    this.insertSpaceAfterAutocomplete = insertSpaceAfterAutocomplete;
 
     for (const [lang, libPresage] of Object.entries(this.libPresage)) {
       libPresage.config(
@@ -182,6 +188,13 @@ class PresageHandler {
       this.lastPrediction[context.lang].pastStream = pastStream;
       this.lastPrediction[context.lang].predictions =
         message.context.predictions;
+    }
+    if (this.insertSpaceAfterAutocomplete) {
+      console.log(message.context.predictions);
+      message.context.predictions = message.context.predictions.map(
+        (pred) => `${pred} `
+      );
+      console.log(message.context.predictions);
     }
     this.predictionTimeouts[event.data.context.tabId][
       event.data.context.frameId

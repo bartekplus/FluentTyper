@@ -160,6 +160,9 @@ import { Store } from "./third_party/fancy-settings/lib/store.js";
           predictNextWordAfterWhiteSpace: this.settings.get(
             "predictNextWordAfterWhiteSpace"
           ),
+          insertSpaceAfterAutocomplete: this.settings.get(
+            "insertSpaceAfterAutocomplete"
+          ),
         },
       });
     }

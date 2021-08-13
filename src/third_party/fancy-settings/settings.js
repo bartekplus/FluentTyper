@@ -17,18 +17,16 @@ window.addEvent("domready", function () {
       });
 
       // Update pressage config on change
-      settings.manifest.numSuggestions.addEvent("action", function () {
-        optionsPageConfigChange();
-      });
-      settings.manifest.minWordLenghtToPredict.addEvent("action", function () {
-        optionsPageConfigChange();
-      });
-      settings.manifest.predictNextWordAfterWhiteSpace.addEvent(
-        "action",
-        function () {
+      [
+        "numSuggestions",
+        "minWordLenghtToPredict",
+        "predictNextWordAfterWhiteSpace",
+        "insertSpaceAfterAutocomplete",
+      ].forEach((element) => {
+        settings.manifest[element].addEvent("action", function () {
           optionsPageConfigChange();
-        }
-      );
+        });
+      });
       if (navigator.userAgent.indexOf("Chrome") !== -1) {
         settings.manifest.allUrls.element.addEventListener(
           "click",
