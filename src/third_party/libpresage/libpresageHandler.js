@@ -34,6 +34,8 @@ class PresageHandler {
     this.insertSpaceAfterAutocomplete = true;
     // Capitalize the first word of each sentence
     this.autoCapitalize = true;
+    // Automatically remove space before: .!? characters.
+    this.removeSpace = false;
     //Precompiled regular expressions
     this.whiteSpaceRegEx = RegExp(/\s+/);
     this.letterRegEx = RegExp(/^\p{L}/, "u");
@@ -86,7 +88,8 @@ class PresageHandler {
           context.minWordLenghtToPredict,
           context.predictNextWordAfterWhiteSpace,
           context.insertSpaceAfterAutocomplete,
-          context.autoCapitalize
+          context.autoCapitalize,
+          context.removeSpace
         );
         break;
       }
@@ -101,13 +104,15 @@ class PresageHandler {
     minWordLenghtToPredict,
     predictNextWordAfterWhiteSpace,
     insertSpaceAfterAutocomplete,
-    autoCapitalize
+    autoCapitalize,
+    removeSpace
   ) {
     this.numSuggestions = numSuggestions;
     this.minWordLenghtToPredict = minWordLenghtToPredict;
     this.predictNextWordAfterWhiteSpace = predictNextWordAfterWhiteSpace;
     this.insertSpaceAfterAutocomplete = insertSpaceAfterAutocomplete;
     this.autoCapitalize = autoCapitalize;
+    this.removeSpace = removeSpace;
 
     for (const [lang, libPresage] of Object.entries(this.libPresage)) {
       libPresage.config(
@@ -167,11 +172,12 @@ class PresageHandler {
           break;
         }
         if (NEW_SENTENCE_CHARS.includes(element.slice(-1))) {
-          wordArray = wordArray.splice(index + 1);
+          wordArray = wordArray.splice(index);
+          wordArray[0] = element.slice(-1);
           break;
         }
       }
-
+      console.log("a");
       str = wordArray.join(" ");
       if (endWithSpace) {
         str += " ";
@@ -217,9 +223,18 @@ class PresageHandler {
     const context = event.data.context;
     const pastStream = this.convertString(event.data.context.text);
     const message = { command: "sandBoxPredictResp", context: context };
-    if (!pastStream || !this.libPresage[context.lang]) {
-      // Invalid input or presage predition module not ready yet - reply with empty predictions
-      message.context.predictions = [];
+    message.context.predictions = [];
+    message.context.forceReplace = null;
+    if (!this.libPresage[context.lang]) {
+      // Do nothing reply with empty predictions
+    } else if (!pastStream && this.removeSpace) {
+      // Invalid input to perform prediction
+      // Try to remove space
+      NEW_SENTENCE_CHARS.forEach((element) => {
+        if (event.data.context.text.endsWith(" " + element)) {
+          message.context.forceReplace = { text: element, length: 1 };
+        }
+      });
     } else if (pastStream === this.lastPrediction[context.lang].pastStream) {
       message.context.predictions =
         this.lastPrediction[context.lang].predictions;

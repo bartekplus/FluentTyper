@@ -164,6 +164,7 @@ import { Store } from "./third_party/fancy-settings/lib/store.js";
             "insertSpaceAfterAutocomplete"
           ),
           autoCapitalize: this.settings.get("autoCapitalize"),
+          removeSpace: this.settings.get("removeSpace"),
         },
       });
     }

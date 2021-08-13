@@ -96,7 +96,15 @@ const manifest = {
       name: "insertSpaceAfterAutocomplete",
       type: "checkbox",
       label: "Automatically insert space after autocomplete.",
-      default: true,
+      default: false,
+    },
+    {
+      tab: i18n.get("settings"),
+      group: i18n.get("General"),
+      name: "removeSpace",
+      type: "checkbox",
+      label: "Automatically remove space before: <b>.!?</b> characters.",
+      default: false,
     },
     {
       tab: i18n.get("settings"),
