@@ -163,6 +163,7 @@ import { Store } from "./third_party/fancy-settings/lib/store.js";
           insertSpaceAfterAutocomplete: this.settings.get(
             "insertSpaceAfterAutocomplete"
           ),
+          autoCapitalize: this.settings.get("autoCapitalize"),
         },
       });
     }
