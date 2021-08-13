@@ -323,7 +323,11 @@
               }
               // Cancel old timeout Fn
               // Send prediction to TributeJs
-              this.tributeArr[message.context.tributeId].done(keyValPairs);
+              this.tributeArr[message.context.tributeId].done(
+                keyValPairs,
+                message.context.forceReplace
+              );
+
               // Clear pending req
               this.pendingReq = null;
             } else {

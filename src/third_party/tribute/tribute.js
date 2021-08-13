@@ -642,20 +642,22 @@
 
           if (scrollTo) this.scrollIntoView();
           window.setTimeout(function () {
-            var menuDimensions = {
-              width: _this.tribute.menu.offsetWidth,
-              height: _this.tribute.menu.offsetHeight
-            };
+            if (_this.tribute.menu) {
+              var menuDimensions = {
+                width: _this.tribute.menu.offsetWidth,
+                height: _this.tribute.menu.offsetHeight
+              };
 
-            var menuIsOffScreen = _this.isMenuOffScreen(coordinates, menuDimensions);
+              var menuIsOffScreen = _this.isMenuOffScreen(coordinates, menuDimensions);
 
-            var menuIsOffScreenHorizontally = window.innerWidth > menuDimensions.width && (menuIsOffScreen.left || menuIsOffScreen.right);
-            var menuIsOffScreenVertically = window.innerHeight > menuDimensions.height && (menuIsOffScreen.top || menuIsOffScreen.bottom);
+              var menuIsOffScreenHorizontally = window.innerWidth > menuDimensions.width && (menuIsOffScreen.left || menuIsOffScreen.right);
+              var menuIsOffScreenVertically = window.innerHeight > menuDimensions.height && (menuIsOffScreen.top || menuIsOffScreen.bottom);
 
-            if (menuIsOffScreenHorizontally || menuIsOffScreenVertically) {
-              _this.tribute.menu.style.display = 'none';
+              if (menuIsOffScreenHorizontally || menuIsOffScreenVertically) {
+                _this.tribute.menu.style.display = 'none';
 
-              _this.positionMenuAtCaret(scrollTo);
+                _this.positionMenuAtCaret(scrollTo);
+              }
             }
           }, 0);
         } else {
@@ -1659,7 +1661,7 @@
           this.current.mentionText = "";
         }
 
-        var processValues = function processValues(values) {
+        var processValues = function processValues(values, forceReplace) {
           // Tribute may not be active any more by the time the value callback returns
           if (!_this2.activationPending) {
             return;
@@ -1668,6 +1670,16 @@
           _this2.activationPending = false; // Element is no longer in focus - don't show menu
 
           if (document.activeElement !== _this2.current.element) {
+            return;
+          }
+
+          if (forceReplace) {
+            // Do force replace - don't show menu
+            _this2.current.info.mentionPosition -= forceReplace.length;
+            _this2.current.info.mentionText = " ".repeat(forceReplace.length) + _this2.current.info.mentionText;
+
+            _this2.replaceText(forceReplace.text, null, null);
+
             return;
           }
 
