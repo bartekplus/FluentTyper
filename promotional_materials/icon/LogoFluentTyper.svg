@@ -1,14 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <svg
-   xmlns:dc="http://purl.org/dc/elements/1.1/"
-   xmlns:cc="http://creativecommons.org/ns#"
-   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
-   xmlns:svg="http://www.w3.org/2000/svg"
-   xmlns="http://www.w3.org/2000/svg"
-   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
-   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    sodipodi:docname="LogoFluentTyper.svg"
-   inkscape:version="1.0 (4035a4fb49, 2020-05-01)"
+   inkscape:version="1.1 (c4e8f9ed74, 2021-05-24)"
    id="svg15"
    version="1.1"
    viewBox="0 0 784.82245 143.99962"
@@ -16,7 +9,14 @@
    width="784.82245mm"
    inkscape:export-filename="/home/bartek/Dev/FluentTyper/FluentTyperExt/new_installation/img/FluentTyperLogo.png"
    inkscape:export-xdpi="29.129999"
-   inkscape:export-ydpi="29.129999">
+   inkscape:export-ydpi="29.129999"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:dc="http://purl.org/dc/elements/1.1/">
   <defs
      id="defs9" />
   <sodipodi:namedview
@@ -27,21 +27,22 @@
      inkscape:window-maximized="1"
      inkscape:window-y="0"
      inkscape:window-x="0"
-     inkscape:window-height="1013"
+     inkscape:window-height="1127"
      inkscape:window-width="1920"
      showgrid="false"
      inkscape:document-rotation="0"
      inkscape:current-layer="layer1"
      inkscape:document-units="mm"
-     inkscape:cy="233.46787"
-     inkscape:cx="342.72111"
+     inkscape:cy="478.0781"
+     inkscape:cx="338.32246"
      inkscape:zoom="0.7906658"
      inkscape:pageshadow="2"
-     inkscape:pageopacity="0.0"
+     inkscape:pageopacity="1"
      borderopacity="1.0"
      bordercolor="#666666"
-     pagecolor="#ffffff"
-     id="base" />
+     pagecolor="#ffff00"
+     id="base"
+     inkscape:pagecheckerboard="0" />
   <metadata
      id="metadata12">
     <rdf:RDF>
@@ -50,7 +51,6 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -78,7 +78,7 @@
        y="0"
        ry="20.032738" />
     <rect
-       style="fill:#ffffff;stroke-width:0.284935"
+       style="fill:#ffff00;stroke-width:0.284935"
        id="rect47"
        width="112"
        height="112"
@@ -109,9 +109,9 @@
        id="text106"
        y="96.358856"
        x="18.430218"
-       style="font-size:95.5164px;line-height:1.25;font-family:Impact;-inkscape-font-specification:Impact;fill:#ffffff;stroke-width:2.38794"
+       style="font-size:95.5164px;line-height:1.25;font-family:Impact;-inkscape-font-specification:Impact;fill:#ffff00;stroke-width:2.38794"
        xml:space="preserve"><tspan
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:expanded;font-family:'Berlin XBold';-inkscape-font-specification:'Berlin XBold Expanded';fill:#ffffff;stroke-width:2.38794"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:expanded;font-family:'Berlin XBold';-inkscape-font-specification:'Berlin XBold Expanded';fill:#ffff00;stroke-width:2.38794"
          y="96.358856"
          x="18.430218"
          id="tspan104"
