@@ -22,6 +22,7 @@ window.addEvent("domready", function () {
         "minWordLenghtToPredict",
         "predictNextWordAfterWhiteSpace",
         "insertSpaceAfterAutocomplete",
+        "autoCapitalize",
       ].forEach((element) => {
         settings.manifest[element].addEvent("action", function () {
           optionsPageConfigChange();

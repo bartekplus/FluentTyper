@@ -100,6 +100,14 @@ const manifest = {
     },
     {
       tab: i18n.get("settings"),
+      group: i18n.get("General"),
+      name: "autoCapitalize",
+      type: "checkbox",
+      label: "Capitalize the first word of each sentence.",
+      default: true,
+    },
+    {
+      tab: i18n.get("settings"),
       group: i18n.get("Miscellaneous"),
       name: "useEnter",
       type: "checkbox",
