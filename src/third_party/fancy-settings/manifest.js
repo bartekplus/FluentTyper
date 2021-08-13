@@ -92,6 +92,14 @@ const manifest = {
     },
     {
       tab: i18n.get("settings"),
+      group: i18n.get("General"),
+      name: "insertSpaceAfterAutocomplete",
+      type: "checkbox",
+      label: "Automatically insert space after autocomplete.",
+      default: true,
+    },
+    {
+      tab: i18n.get("settings"),
       group: i18n.get("Miscellaneous"),
       name: "useEnter",
       type: "checkbox",
