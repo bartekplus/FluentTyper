@@ -1,13 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <svg
-   xmlns:dc="http://purl.org/dc/elements/1.1/"
-   xmlns:cc="http://creativecommons.org/ns#"
-   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
-   xmlns:svg="http://www.w3.org/2000/svg"
-   xmlns="http://www.w3.org/2000/svg"
-   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
-   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   inkscape:version="1.0 (4035a4fb49, 2020-05-01)"
+   inkscape:version="1.1 (c4e8f9ed74, 2021-05-24)"
    sodipodi:docname="icon.svg"
    id="svg8"
    version="1.1"
@@ -16,7 +9,14 @@
    width="128mm"
    inkscape:export-filename="/home/bartek/Dev/FluentTyper/Promo/icon/icon256.png"
    inkscape:export-xdpi="50.799999"
-   inkscape:export-ydpi="50.799999">
+   inkscape:export-ydpi="50.799999"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:dc="http://purl.org/dc/elements/1.1/">
   <defs
      id="defs2" />
   <sodipodi:namedview
@@ -27,21 +27,22 @@
      inkscape:window-maximized="1"
      inkscape:window-y="0"
      inkscape:window-x="0"
-     inkscape:window-height="1013"
+     inkscape:window-height="1127"
      inkscape:window-width="1920"
      showgrid="false"
      inkscape:document-rotation="0"
      inkscape:current-layer="layer1"
      inkscape:document-units="mm"
-     inkscape:cy="205.33978"
-     inkscape:cx="32.36033"
-     inkscape:zoom="1.1150604"
+     inkscape:cy="-308.50347"
+     inkscape:cx="1042.9928"
+     inkscape:zoom="0.5575302"
      inkscape:pageshadow="2"
      inkscape:pageopacity="0.0"
      borderopacity="1.0"
      bordercolor="#666666"
      pagecolor="#ffffff"
-     id="base" />
+     id="base"
+     inkscape:pagecheckerboard="0" />
   <metadata
      id="metadata5">
     <rdf:RDF>
@@ -73,7 +74,7 @@
        height="112"
        width="112"
        id="rect47"
-       style="fill:#ffffff;stroke-width:0.284936" />
+       style="fill:#ffff00;stroke-width:0.284936" />
     <rect
        ry="21.737656"
        y="13"
@@ -95,7 +96,7 @@
          style="stroke-width:0.264583">F</tspan></text>
     <text
        xml:space="preserve"
-       style="font-size:95.5165px;line-height:1.25;font-family:Impact;-inkscape-font-specification:Impact;fill:#ffffff;stroke-width:2.38794"
+       style="font-size:95.5165px;line-height:1.25;font-family:Impact;-inkscape-font-specification:Impact;fill:#ffff00;stroke-width:2.38794"
        x="18.430218"
        y="96.358856"
        id="text106"
@@ -104,6 +105,6 @@
          id="tspan104"
          x="18.430218"
          y="96.358856"
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:expanded;font-family:'Berlin XBold';-inkscape-font-specification:'Berlin XBold Expanded';fill:#ffffff;stroke-width:2.38794">FT</tspan></text>
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:expanded;font-family:'Berlin XBold';-inkscape-font-specification:'Berlin XBold Expanded';fill:#ffff00;stroke-width:2.38794">FT</tspan></text>
   </g>
 </svg>

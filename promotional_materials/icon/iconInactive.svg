@@ -8,15 +8,15 @@
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    inkscape:version="1.0 (4035a4fb49, 2020-05-01)"
-   sodipodi:docname="icon.svg"
+   sodipodi:docname="iconInactive.svg"
    id="svg8"
    version="1.1"
    viewBox="0 0 128 128"
    height="128mm"
    width="128mm"
-   inkscape:export-filename="/home/bartek/Dev/FluentTyper/Promo/icon/icon256.png"
-   inkscape:export-xdpi="50.799999"
-   inkscape:export-ydpi="50.799999">
+   inkscape:export-filename="/home/bartek/Dev/FluentTyper/FluentTyperExt/icon/iconInactive32.png"
+   inkscape:export-xdpi="6.3499999"
+   inkscape:export-ydpi="6.3499999">
   <defs
      id="defs2" />
   <sodipodi:namedview
@@ -33,7 +33,7 @@
      inkscape:document-rotation="0"
      inkscape:current-layer="layer1"
      inkscape:document-units="mm"
-     inkscape:cy="205.33978"
+     inkscape:cy="203.09775"
      inkscape:cx="32.36033"
      inkscape:zoom="1.1150604"
      inkscape:pageshadow="2"
@@ -73,7 +73,7 @@
        height="112"
        width="112"
        id="rect47"
-       style="fill:#ffffff;stroke-width:0.284936" />
+       style="fill:#7f7f7f;stroke-width:0.284936;fill-opacity:1" />
     <rect
        ry="21.737656"
        y="13"
@@ -95,7 +95,7 @@
          style="stroke-width:0.264583">F</tspan></text>
     <text
        xml:space="preserve"
-       style="font-size:95.5165px;line-height:1.25;font-family:Impact;-inkscape-font-specification:Impact;fill:#ffffff;stroke-width:2.38794"
+       style="font-size:95.5165px;line-height:1.25;font-family:Impact;-inkscape-font-specification:Impact;fill:#7f7f7f;stroke-width:2.38794;fill-opacity:1;"
        x="18.430218"
        y="96.358856"
        id="text106"
@@ -104,6 +104,6 @@
          id="tspan104"
          x="18.430218"
          y="96.358856"
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:expanded;font-family:'Berlin XBold';-inkscape-font-specification:'Berlin XBold Expanded';fill:#ffffff;stroke-width:2.38794">FT</tspan></text>
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:expanded;font-family:'Berlin XBold';-inkscape-font-specification:'Berlin XBold Expanded';fill:#7f7f7f;stroke-width:2.38794;fill-opacity:1;">FT</tspan></text>
   </g>
 </svg>
