@@ -1,0 +1,16 @@
+[bumpver]
+current_version = "2020.8.13"
+version_pattern = "YYYY.MM.DD[.INC0]"
+commit_message = "Bump version {old_version} -> {new_version}"
+commit = true
+tag = true
+push = true
+
+[bumpver.file_patterns]
+"platform/firefox/manifest.json" = [
+    '"version": "{version}"',
+]
+"bumpver.toml" = [
+    'current_version = "{version}"',
+]
+
