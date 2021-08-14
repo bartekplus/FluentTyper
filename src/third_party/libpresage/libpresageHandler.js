@@ -130,7 +130,7 @@ class PresageHandler {
     // Check for new sentence start
     // Use only words from new setence for prediction
     let newSentence = false;
-    for (let index = 0; index < wordArray.length; index++) {
+    for (let index = wordArray.length - 1; index >= 0; index--) {
       const element = wordArray[index];
 
       if (
@@ -178,7 +178,11 @@ class PresageHandler {
           firstCharacterOfLastWord === firstCharacterOfLastWord.toUpperCase()
         ) {
           doCapitalize = true;
-        } else if (newSentence && wordArray.length === 1) {
+        } else if (
+          newSentence &&
+          ((!endsWithSpace && wordArray.length === 1) ||
+            (endsWithSpace && wordArray.length === 0))
+        ) {
           doCapitalize = true;
         }
       }
@@ -196,26 +200,6 @@ class PresageHandler {
     }
 
     return { predictionInput, doPrediction, doCapitalize };
-  }
-
-  doAutoCapitalize(pastStream, predictions) {
-    const firstCharacterOfLastWord = lastWord ? lastWord[0] : " ";
-    const lastCharacterOfLastWord = lastWord ? lastWord.slice(-1) : " ";
-    if (
-      !isLastCharWhitespace &&
-      this.isLetter(firstCharacterOfLastWord) &&
-      firstCharacterOfLastWord === firstCharacterOfLastWord.toUpperCase()
-    ) {
-      doCapitalize = true;
-    } else if (NEW_SENTENCE_CHARS.includes(lastCharacterOfLastWord)) {
-      doCapitalize = true;
-    }
-    if (doCapitalize) {
-      return predictions.map(
-        (pred) => pred.charAt(0).toUpperCase() + pred.slice(1)
-      );
-    }
-    return predictions;
   }
 
   runPrediction(event) {
