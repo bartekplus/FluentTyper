@@ -36,7 +36,7 @@ jobs:
         env:
           SOURCE_TAG: ${{ steps.branch_name.outputs.SOURCE_TAG }}
       - name: Zip Release
-        uses: TheDoctor0/zip-release@v0.3.0
+        uses: TheDoctor0/zip-release@master
         with:
           filename: 'FluentTyperChrome.zip'
           directory: 'chrome'
@@ -48,7 +48,7 @@ jobs:
         env:
           SOURCE_TAG: ${{ steps.branch_name.outputs.SOURCE_TAG }}
       - name: Zip Release for Firefox
-        uses: TheDoctor0/zip-release@v0.3.0
+        uses: TheDoctor0/zip-release@master
         with:
           filename: 'FluentTyperFirefox.zip'
           directory: 'firefox'
