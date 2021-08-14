@@ -122,84 +122,83 @@ class PresageHandler {
     }
   }
 
-  getLastWordLenght(str) {
-    const wordArray = str.split(this.whiteSpaceRegEx);
-    if (wordArray.length) {
-      return wordArray[wordArray.length - 1].length;
-    }
-
-    return 0;
-  }
-
   isLetter(character) {
     return this.letterRegEx.test(character);
   }
 
-  checkInput(predictionInput) {
-    const isLastCharWhitespace = predictionInput !== predictionInput.trimEnd();
-    const lastWordLenght = this.getLastWordLenght(predictionInput);
-    const isLastCharLetter = this.isLetter(
-      predictionInput[predictionInput.length - 1]
-    );
+  removePrevSentence(wordArray) {
+    // Check for new sentence start
+    // Use only words from new setence for prediction
+    let newSentence = false;
+    for (let index = 0; index < wordArray.length; index++) {
+      const element = wordArray[index];
 
-    if (this.predictNextWordAfterWhiteSpace && isLastCharWhitespace) {
-      return true;
+      if (
+        // Checks for "." in wordArray
+        NEW_SENTENCE_CHARS.includes(element) ||
+        //Checks for "WORD." in wordArray
+        NEW_SENTENCE_CHARS.includes(element.slice(-1))
+      ) {
+        wordArray = wordArray.splice(index + 1);
+        newSentence = true;
+        break;
+      }
     }
-    if (isLastCharLetter && lastWordLenght >= this.minWordLenghtToPredict) {
-      return true;
-    }
-
-    return false;
+    return { wordArray, newSentence };
   }
 
-  convertString(str) {
-    if (typeof str === "string" || str instanceof String) {
-      // Check if string end with whitespace
-      const endWithSpace = str !== str.trimEnd();
+  processInput(predictionInput) {
+    let doCapitalize = false;
+    let doPrediction = false;
+    if (
+      typeof predictionInput === "string" ||
+      predictionInput instanceof String
+    ) {
+      const endsWithSpace = predictionInput !== predictionInput.trimEnd();
       // Get 3 last words and filter empty
-      let wordArray = str
+      const lastWordsArray = predictionInput
         .split(this.whiteSpaceRegEx) // Split on any whitespace
         .filter(function (e) {
           return e.trim(); // filter empty elements
         })
         .splice(-3); // Get last 3 words
-      // Check for new sentence start
-      for (let index = 0; index < wordArray.length; index++) {
-        const element = wordArray[index];
-        // Use only words from new setence for prediction
-        if (NEW_SENTENCE_CHARS.includes(element)) {
-          wordArray = wordArray.splice(index);
-          break;
+      const { wordArray, newSentence } =
+        this.removePrevSentence(lastWordsArray);
+      predictionInput = wordArray.join(" ") + (endsWithSpace ? " " : "");
+      const lastWord = wordArray.length ? wordArray[wordArray.length - 1] : "";
+      const lastCharacterOfLastWord = lastWord.slice(-1);
+      const isLastCharLetter = this.isLetter(lastCharacterOfLastWord);
+
+      // Check if autoCapitalize should be run
+      if (this.autoCapitalize) {
+        const firstCharacterOfLastWord = lastWord.slice(0, 1);
+        if (
+          !endsWithSpace &&
+          this.isLetter(firstCharacterOfLastWord) &&
+          firstCharacterOfLastWord === firstCharacterOfLastWord.toUpperCase()
+        ) {
+          doCapitalize = true;
+        } else if (newSentence && wordArray.length === 1) {
+          doCapitalize = true;
         }
-        if (NEW_SENTENCE_CHARS.includes(element.slice(-1))) {
-          wordArray = wordArray.splice(index);
-          wordArray[0] = element.slice(-1);
-          break;
-        }
-      }
-      console.log("a");
-      str = wordArray.join(" ");
-      if (endWithSpace) {
-        str += " ";
       }
 
-      if (this.checkInput(str)) return str;
+      // Check if we have valid precition input
+      if (this.predictNextWordAfterWhiteSpace && endsWithSpace) {
+        doPrediction = true;
+      } else if (
+        !endsWithSpace &&
+        isLastCharLetter &&
+        lastWord.length >= this.minWordLenghtToPredict
+      ) {
+        doPrediction = true;
+      }
     }
 
-    return null;
+    return { predictionInput, doPrediction, doCapitalize };
   }
 
   doAutoCapitalize(pastStream, predictions) {
-    if (!pastStream) return predictions;
-    let doCapitalize = false;
-    const isLastCharWhitespace = pastStream !== pastStream.trimEnd();
-    // Split past stream into words
-    const lastWord = pastStream
-      .split(this.whiteSpaceRegEx)
-      .filter(function (e) {
-        return e.trim(); // filter empty elements
-      })
-      .splice(-1)[0];
     const firstCharacterOfLastWord = lastWord ? lastWord[0] : " ";
     const lastCharacterOfLastWord = lastWord ? lastWord.slice(-1) : " ";
     if (
@@ -221,13 +220,33 @@ class PresageHandler {
 
   runPrediction(event) {
     const context = event.data.context;
-    const pastStream = this.convertString(event.data.context.text);
+    const { predictionInput, doPrediction, doCapitalize } = this.processInput(
+      event.data.context.text
+    );
     const message = { command: "sandBoxPredictResp", context: context };
     message.context.predictions = [];
     message.context.forceReplace = null;
     if (!this.libPresage[context.lang]) {
       // Do nothing reply with empty predictions
-    } else if (!pastStream && this.removeSpace) {
+    } else if (
+      // Do prediction - return cached version
+      doPrediction &&
+      predictionInput === this.lastPrediction[context.lang].pastStream
+    ) {
+      message.context.predictions =
+        this.lastPrediction[context.lang].predictions;
+    } else if (doPrediction) {
+      // Do prediction
+      message.context.predictions = [];
+      this.libPresageCallback[context.lang].pastStream = predictionInput;
+      const predictionsNative = this.libPresage[context.lang].predict();
+      for (let i = 0; i < predictionsNative.size(); i++) {
+        message.context.predictions.push(predictionsNative.get(i));
+      }
+      this.lastPrediction[context.lang].pastStream = predictionInput;
+      this.lastPrediction[context.lang].predictions =
+        message.context.predictions;
+    } else if (!predictionInput && this.removeSpace) {
       // Invalid input to perform prediction
       // Try to remove space
       NEW_SENTENCE_CHARS.forEach((element) => {
@@ -235,19 +254,6 @@ class PresageHandler {
           message.context.forceReplace = { text: element, length: 1 };
         }
       });
-    } else if (pastStream === this.lastPrediction[context.lang].pastStream) {
-      message.context.predictions =
-        this.lastPrediction[context.lang].predictions;
-    } else {
-      message.context.predictions = [];
-      this.libPresageCallback[context.lang].pastStream = pastStream;
-      const predictionsNative = this.libPresage[context.lang].predict();
-      for (let i = 0; i < predictionsNative.size(); i++) {
-        message.context.predictions.push(predictionsNative.get(i));
-      }
-      this.lastPrediction[context.lang].pastStream = pastStream;
-      this.lastPrediction[context.lang].predictions =
-        message.context.predictions;
     }
     // Add space if needed
     if (this.insertSpaceAfterAutocomplete) {
@@ -256,10 +262,9 @@ class PresageHandler {
       );
     }
     // Auto capitalize if needed
-    if (this.autoCapitalize) {
-      message.context.predictions = this.doAutoCapitalize(
-        pastStream,
-        message.context.predictions
+    if (this.autoCapitalize && doCapitalize) {
+      message.context.predictions = message.context.predictions.map(
+        (pred) => pred.charAt(0).toUpperCase() + pred.slice(1)
       );
     }
     this.predictionTimeouts[event.data.context.tabId][
