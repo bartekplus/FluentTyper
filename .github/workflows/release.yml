@@ -28,15 +28,11 @@ jobs:
           SOURCE_NAME: ${{ steps.branch_name.outputs.SOURCE_NAME }}
           SOURCE_BRANCH: ${{ steps.branch_name.outputs.SOURCE_BRANCH }}
           SOURCE_TAG: ${{ steps.branch_name.outputs.SOURCE_TAG }}
-      - name: Install jq and fix csp for Firefox
-        run: |
-          sudo apt-get install -y jq moreutils
       - name: Prepare chrome files
         run: |
           mkdir -p chrome
           cp -rdf src/* chrome/
           cp -rdf platform/chrome/* chrome
-          jq ".version = \"${SOURCE_TAG}\"" chrome/manifest.json | sponge chrome/manifest.json
         env:
           SOURCE_TAG: ${{ steps.branch_name.outputs.SOURCE_TAG }}
       - name: Zip Release
@@ -49,7 +45,6 @@ jobs:
           mkdir -p firefox
           cp -rdf src/* firefox/
           cp -rdf platform/firefox/* firefox
-          jq ".version = \"${SOURCE_TAG}\"" firefox/manifest.json | sponge firefox/manifest.json
         env:
           SOURCE_TAG: ${{ steps.branch_name.outputs.SOURCE_TAG }}
       - name: Zip Release for Firefox
