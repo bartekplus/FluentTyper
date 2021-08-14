@@ -10,6 +10,9 @@ push = true
 "platform/firefox/manifest.json" = [
     '"version": "{version}"',
 ]
+"platform/chrome/manifest.json" = [
+    '"version": "{version}"',
+]
 "bumpver.toml" = [
     'current_version = "{version}"',
 ]
