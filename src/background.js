@@ -22,6 +22,15 @@ import { Store } from "./third_party/fancy-settings/lib/store.js";
         "DOMContentLoaded",
         this.onDOMContentLoaded.bind(this)
       );
+
+      this.migrateStore();
+    }
+
+    migrateStore() {
+      const domainList = this.settings.get("domainList");
+      if (typeof domainList === "string" || domainList instanceof String) {
+        this.settings.set("domainList", domainList.split("|@|"));
+      }
     }
 
     onInstalled(details) {
