@@ -65,7 +65,6 @@
       "third_party/libpresage/libpresage.html"
     ]
   },
-  "update_url": "http://clients2.google.com/service/update2/crx",
   "version": "2021.8.15.7",
   "manifest_version": 2,
   "content_security_policy": "script-src 'self'; object-src 'self'",
