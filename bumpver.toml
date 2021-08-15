@@ -7,6 +7,9 @@ tag = true
 push = true
 
 [bumpver.file_patterns]
+"platform/edge/manifest.json" = [
+    '"version": "{version}"',
+]
 "platform/firefox/manifest.json" = [
     '"version": "{version}"',
 ]

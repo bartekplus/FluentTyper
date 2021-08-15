@@ -10,6 +10,9 @@ jobs:
   build:
     name: Upload Release Asset
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        browser: ["edge", "chrome", "firefox"]
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -28,30 +31,18 @@ jobs:
           SOURCE_NAME: ${{ steps.branch_name.outputs.SOURCE_NAME }}
           SOURCE_BRANCH: ${{ steps.branch_name.outputs.SOURCE_BRANCH }}
           SOURCE_TAG: ${{ steps.branch_name.outputs.SOURCE_TAG }}
-      - name: Prepare chrome files
+      - name: Prepare files
         run: |
-          mkdir -p chrome
-          cp -rdf src/* chrome/
-          cp -rdf platform/chrome/* chrome
+          mkdir -p ${{ matrix.browser }}
+          cp -rdf src/* ${{ matrix.browser }}/
+          cp -rdf platform/${{ matrix.browser }}/* ${{ matrix.browser }}
         env:
           SOURCE_TAG: ${{ steps.branch_name.outputs.SOURCE_TAG }}
       - name: Zip Release
         uses: TheDoctor0/zip-release@master
         with:
-          filename: 'FluentTyperChrome.zip'
-          directory: 'chrome'
-      - name: Prepare firefox files
-        run: |
-          mkdir -p firefox
-          cp -rdf src/* firefox/
-          cp -rdf platform/firefox/* firefox
-        env:
-          SOURCE_TAG: ${{ steps.branch_name.outputs.SOURCE_TAG }}
-      - name: Zip Release for Firefox
-        uses: TheDoctor0/zip-release@master
-        with:
-          filename: 'FluentTyperFirefox.zip'
-          directory: 'firefox'
+          filename: 'FluentTyper_${{ matrix.browser }}.zip'
+          directory: '${{ matrix.browser }}'
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -62,23 +53,13 @@ jobs:
           release_name: Release ${{ github.ref }}
           draft: false
           prerelease: false
-      - name: Upload Release Chrome Asset
-        id: upload-release-asset-chrome
+      - name: Upload Release Asset
+        id: upload-release-asset-${{ matrix.browser }}
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
-          asset_path: ./chrome/FluentTyperChrome.zip
-          asset_name: FluentTyperChrome.zip
-          asset_content_type: application/zip
-      - name: Upload Release Firefox Asset
-        id: upload-release-asset-firefox
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
-          asset_path: ./firefox/FluentTyperFirefox.zip
-          asset_name: FluentTyperFirefox.zip
+          asset_path: ./${{ matrix.browser }}/FluentTyper_${{ matrix.browser }}.zip
+          asset_name: FluentTyper_${{ matrix.browser }}.zip
           asset_content_type: application/zip
