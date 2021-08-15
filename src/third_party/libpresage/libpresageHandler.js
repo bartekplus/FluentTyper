@@ -197,6 +197,7 @@ class PresageHandler {
       ) {
         doPrediction = true;
       }
+      doPrediction = doPrediction && this.numSuggestions > 0;
     }
 
     return { predictionInput, doPrediction, doCapitalize };
