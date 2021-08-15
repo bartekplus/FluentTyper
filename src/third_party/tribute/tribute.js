@@ -1023,7 +1023,7 @@
       key: "getTextAreaOrInputUnderlinePosition",
       value: function getTextAreaOrInputUnderlinePosition(element, position, flipped) {
         var properties = ['direction', 'boxSizing', 'width', 'height', 'overflowX', 'overflowY', 'borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth', 'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft', 'fontStyle', 'fontVariant', 'fontWeight', 'fontStretch', 'fontSize', 'fontSizeAdjust', 'lineHeight', 'fontFamily', 'textAlign', 'textTransform', 'textIndent', 'textDecoration', 'letterSpacing', 'wordSpacing'];
-        var isFirefox = window.mozInnerScreenX !== null;
+        var isFirefox = window.mozInnerScreenX !== null && window.mozInnerScreenX !== undefined;
         var div = this.getDocument().createElement('div');
         div.id = 'input-textarea-caret-position-mirror-div';
         this.getDocument().body.appendChild(div);
