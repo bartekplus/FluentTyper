@@ -11,9 +11,9 @@
           new Promise((resolve, reject) => {
             target[prop](...arguments_, (result) => {
               if (chrome.runtime.lastError) {
-                reject(new Error(chrome.runtime.lastError.message));
+                resolve([undefined, chrome.runtime.lastError.message]);
               } else {
-                resolve(result);
+                resolve([result, undefined]);
               }
             });
           });
@@ -81,10 +81,14 @@
       document[key] = true;
       return wasLoaded;
     };
-    const result = await chromeP.tabs.executeScript(tabId, {
+    const [result, error] = await chromeP.tabs.executeScript(tabId, {
       frameId,
       code: `(${loadCheck.toString()})(${JSON.stringify(args)})`,
     });
+    if (error) {
+      console.log(error);
+      return true;
+    }
     return result === null || result === void 0 ? void 0 : result[0];
   }
   async function registerContentScript$1(contentScriptOptions, callback) {
@@ -105,13 +109,11 @@
     }
     const matchesRegex = patternToRegex(...matches);
     const inject = async (url, tabId, frameId) => {
-      let isOriginPermittedRet = false;
-      try {
-        isOriginPermittedRet = await isOriginPermitted(url);
-      } catch (error) {
-        console.log(console.error());
-      }
+      const [isOriginPermittedRet, isOriginPermittedErr] =
+        await isOriginPermitted(url);
+      console.log("aaaa");
       if (
+        isOriginPermittedErr ||
         !matchesRegex.test(url) ||
         !isOriginPermittedRet ||
         (await wasPreviouslyLoaded(tabId, frameId, { js, css }))
