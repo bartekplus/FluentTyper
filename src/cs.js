@@ -281,9 +281,9 @@
     setConfig(config) {
       this.config = config;
       if (this.config.enabled) {
-        this.attachHelper();
+        this.enable();
       } else {
-        this.detachAllHelpers();
+        this.disable();
       }
     }
     enable() {
