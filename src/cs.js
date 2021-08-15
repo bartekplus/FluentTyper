@@ -275,6 +275,9 @@
         });
         this.tributeArr[this.tributeArr.length - 1].tribute = tribute;
         tribute.attach(elem);
+        elem.addEventListener("tribute-replaced", (event) => {
+          event.target.dispatchEvent(new Event("input"));
+        });
       }
     }
 
