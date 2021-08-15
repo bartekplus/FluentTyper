@@ -111,7 +111,6 @@
     const inject = async (url, tabId, frameId) => {
       const [isOriginPermittedRet, isOriginPermittedErr] =
         await isOriginPermitted(url);
-      console.log("aaaa");
       if (
         isOriginPermittedErr ||
         !matchesRegex.test(url) ||
