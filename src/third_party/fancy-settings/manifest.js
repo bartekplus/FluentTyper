@@ -136,6 +136,7 @@ const manifest = {
       name: "domainList",
       type: "listBox",
       options: (function () {})(),
+      default: [],
     },
     {
       tab: "Domain list",

@@ -523,7 +523,7 @@ class ListBox extends PopupButton {
         text: domainURL,
       });
       elem.inject(this.element);
-      settings.set(this.params.name, this.params.options.join("|@|"));
+      settings.set(this.params.name, this.params.options);
     }
   }
 
@@ -534,7 +534,7 @@ class ListBox extends PopupButton {
       );
       if (idx !== -1) {
         this.params.options.splice(idx, 1);
-        settings.set(this.params.name, this.params.options.join("|@|"));
+        settings.set(this.params.name, this.params.options);
         this.selected.dispose();
         this.selected = null;
       }
@@ -559,10 +559,7 @@ class ListBox extends PopupButton {
 
     let initParams = settings.get(this.params.name);
     if (initParams) {
-      initParams = initParams.toString();
-      if (initParams.length > 0) {
-        this.params.options = initParams.split("|@|");
-      }
+      this.params.options = initParams;
     }
     try {
       this.params.options.every(
