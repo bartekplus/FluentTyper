@@ -38,6 +38,9 @@ const donateHTML =
   "/>" +
   "</form>";
 
+const testFluentTyperHTML =
+  '<textarea rows="12" cols="45" placeholder="Click here and start typing…"></textarea>';
+
 // SAMPLE
 const manifest = {
   name: "FluentTyper Settings",
@@ -144,6 +147,12 @@ const manifest = {
       name: "removeDomainBtn",
       type: "button",
       text: i18n.get("remove"),
+    },
+    {
+      tab: i18n.get("Test FlutenTyper"),
+      name: "Test FlutenTyper",
+      type: "description",
+      text: testFluentTyperHTML,
     },
     {
       tab: i18n.get("About"),
