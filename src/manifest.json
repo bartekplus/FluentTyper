@@ -1,0 +1,81 @@
+{
+  "background": {
+    "page": "background.html",
+    "persistent": true
+  },
+  "optional_permissions": ["<all_urls>"],
+  "content_scripts": [
+    {
+      "css": [
+        "third_party/tribute/tribute.css"
+      ],
+      "js": [
+        "third_party/tribute/tribute.js",
+        "cs.js"
+      ],
+      "matches": [
+        "file:///fluenttyper"
+      ],
+      "run_at": "document_idle",
+      "all_frames": true,
+      "match_about_blank": true
+    }
+  ],
+  "description": "Auto completes while you typing. FluentTyper attempts to improve the ease and speed of textual input by predicting words.",
+  "icons": {
+    "256": "icon/icon256.png",
+    "128": "icon/icon128.png",
+    "96": "icon/icon96.png",
+    "72": "icon/icon72.png",
+    "64": "icon/icon64.png",
+    "48": "icon/icon48.png",
+    "32": "icon/icon32.png",
+    "16": "icon/icon16.png"
+  },
+  "web_accessible_resources": [
+    "icon/icon*",
+    "beer_donation_button_single.png",
+    "third_party/libpresage/libpresage.*"
+  ],
+  "name": "FluentTyper: Autocomplete and Spell Checker",
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": false
+  },
+  "browser_action": {
+    "default_icon": {
+      "256": "icon/icon256.png",
+      "128": "icon/icon128.png",
+      "96": "icon/icon96.png",
+      "72": "icon/icon72.png",
+      "64": "icon/icon64.png",
+      "48": "icon/icon48.png",
+      "32": "icon/icon32.png",
+      "16": "icon/icon16.png"
+    },
+    "default_popup": "popup/popup.html",
+    "default_title": "Do action"
+  },
+  "permissions": [
+    "activeTab",
+    "webNavigation"
+  ],
+  "sandbox": {
+    "pages": [
+      "third_party/libpresage/libpresage.html"
+    ]
+  },
+  "update_url": "http://clients2.google.com/service/update2/crx",
+  "version": "2021.8.14.3",
+  "manifest_version": 2,
+  "content_security_policy": "script-src 'self'; object-src 'self'",
+  "commands": {
+    "toggle-ft-active-tab": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+F",
+        "mac": "Command+Shift+F"
+      },
+      "description": "Toggle on/off FluentTyper on active tab"
+    }
+  }
+}

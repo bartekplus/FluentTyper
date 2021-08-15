@@ -76,10 +76,10 @@ const manifest = {
       group: i18n.get("General"),
       name: "numSuggestions",
       type: "slider",
-      min: 1,
+      min: 0,
       max: 10,
       display: true,
-      label: "Number of suggestions:",
+      label: "Number of suggestions (Set to 0 to disable prediction):",
       default: 5,
     },
     {
