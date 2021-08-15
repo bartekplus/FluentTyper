@@ -23,20 +23,27 @@ function init() {
         );
         const domainURL = getDomain(currentTab.url);
         if (domainURL && domainURL !== "null") {
-          const granted = await chromePromise(chrome.permissions.contains, {
-            origins: [new URL(currentTab.url).origin + "/*"],
-          });
-
-          urlNode.innerHTML = "<span>Enable autocomplete on: " + domainURL;
-          if (!granted) {
-            removeDomainFromList(settings, domainURL);
-            urlNode.innerText += "\nAutomatically reloads a page.";
-          }
-
-          if (isDomainOnList(settings, domainURL)) {
-            checkboxNode.checked = true;
+          const [granted, error] = await chromePromise(
+            chrome.permissions.contains,
+            {
+              origins: [new URL(currentTab.url).origin + "/*"],
+            }
+          );
+          if (error) {
+            checkboxNode.disabled = true;
+            console.log(error);
           } else {
-            checkboxNode.checked = false;
+            urlNode.innerHTML = "<span>Enable autocomplete on: " + domainURL;
+            if (!granted) {
+              removeDomainFromList(settings, domainURL);
+              urlNode.innerText += "\nAutomatically reloads a page.";
+            }
+
+            if (isDomainOnList(settings, domainURL)) {
+              checkboxNode.checked = true;
+            } else {
+              checkboxNode.checked = false;
+            }
           }
         }
 
@@ -52,9 +59,9 @@ async function chromePromise(fn, ...args) {
   return new Promise((resolve, reject) => {
     fn(...args, (result) => {
       if (chrome.runtime.lastError) {
-        reject(chrome.runtime.lastError);
+        resolve([undefined, chrome.runtime.lastError.message]);
       } else {
-        resolve(result);
+        resolve([result, undefined]);
       }
     });
   });
@@ -77,14 +84,21 @@ function addRemoveDomain() {
           message.command = "popupPageDisable";
         } else {
           let granted = true;
+          let error = null;
           if (navigator.userAgent.indexOf("Chrome") !== -1) {
-            granted = await chromePromise(chrome.permissions.contains, {
-              origins: [new URL(currentTab.url).origin + "/*"],
-            });
-            if (!granted) {
-              granted = await chromePromise(chrome.permissions.request, {
+            [granted, error] = await chromePromise(
+              chrome.permissions.contains,
+              {
                 origins: [new URL(currentTab.url).origin + "/*"],
-              });
+              }
+            );
+            if (!error && !granted) {
+              [granted, error] = await chromePromise(
+                chrome.permissions.request,
+                {
+                  origins: [new URL(currentTab.url).origin + "/*"],
+                }
+              );
               if (granted) {
                 chrome.tabs.reload(currentTab.id);
               }
