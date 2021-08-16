@@ -19,10 +19,10 @@
   "homepage": "https://github.com/bartekplus/FluentTyper#readme",
   "devDependencies": {
     "eslint": "latest",
-    "eslint-config-prettier": "latest",
+    "eslint-config-prettier": "^8.3.0",
     "eslint-plugin-import": "latest",
     "eslint-plugin-node": "latest",
-    "eslint-plugin-prettier": "latest",
+    "eslint-plugin-prettier": "^3.4.0",
     "eslint-plugin-promise": "latest",
     "prettier": "latest"
   }
