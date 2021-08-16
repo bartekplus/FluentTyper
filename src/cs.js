@@ -138,8 +138,7 @@
       if (!this.config.enabled) {
         return;
       }
-      const selectors =
-        "textarea, input, [contentEditable='true' i], [contentEditable='plaintext-only' i]";
+      const selectors = "textarea, input, [contentEditable]";
 
       const elems = document.querySelectorAll(selectors);
       for (let i = 0; i < elems.length; i++) {
@@ -148,6 +147,9 @@
         const autocomplete = elem.getAttribute("autocomplete")
           ? elem.getAttribute("autocomplete").toLowerCase()
           : "";
+        const contentEditable = elem.getAttribute("contentEditable")
+          ? elem.getAttribute("contentEditable").toLowerCase()
+          : "true";
 
         const inputType = elem.getAttribute("type")
           ? elem.getAttribute("type").toLowerCase()
@@ -161,6 +163,9 @@
 
         if (autocomplete === "off") {
           // continue;
+        }
+        if (contentEditable === "false") {
+          continue;
         }
 
         if (this.isHelperAttached(this.tributeArr, elem)) {
@@ -262,6 +267,7 @@
           spaceSelectsMatch: false,
           // turn tribute into an autocomplete
           autocompleteMode: true,
+          autocompleteSeparator: RegExp(/\s+/),
           // Customize the elements used to wrap matched strings within the results list
           // defaults to <span></span> if undefined
           searchOpts: {
