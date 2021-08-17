@@ -208,9 +208,13 @@ class PresageHandler {
     const { predictionInput, doPrediction, doCapitalize } = this.processInput(
       event.data.context.text
     );
-    const message = { command: "sandBoxPredictResp", context: context };
+    const message = {
+      command: "sandBoxPredictResp",
+      context: context,
+    };
     message.context.predictions = [];
     message.context.forceReplace = null;
+    message.context.triggerInputEvent = this.insertSpaceAfterAutocomplete;
     if (!this.libPresage[context.lang]) {
       // Do nothing reply with empty predictions
     } else if (

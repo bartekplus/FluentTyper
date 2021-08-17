@@ -178,6 +178,7 @@
           done: null,
           timeout: null,
           requestId: 0,
+          triggerInputEvent: false,
         });
 
         let tribueKeyFn = this.keys.bind(this);
@@ -281,9 +282,21 @@
         });
         this.tributeArr[this.tributeArr.length - 1].tribute = tribute;
         tribute.attach(elem);
-        elem.addEventListener("tribute-replaced", (event) => {
-          event.target.dispatchEvent(new Event("input"));
-        });
+        elem.addEventListener(
+          "tribute-replaced",
+          this.tributeReplacedEventHandler.bind(
+            this,
+            this.tributeArr.length - 1
+          )
+        );
+      }
+    }
+
+    tributeReplacedEventHandler(helperArrId) {
+      if (this.tributeArr[helperArrId].triggerInputEvent) {
+        setTimeout(() => {
+          this.tributeArr[helperArrId].elem.dispatchEvent(new Event("input"));
+        }, 0);
       }
     }
 
@@ -330,6 +343,9 @@
                   value: message.context.predictions[i],
                 });
               }
+              this.tributeArr[message.context.tributeId].triggerInputEvent =
+                message.context.triggerInputEvent;
+
               // Cancel old timeout Fn
               // Send prediction to TributeJs
               this.tributeArr[message.context.tributeId].done(
