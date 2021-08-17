@@ -88,9 +88,10 @@ const manifest = {
     {
       tab: i18n.get("settings"),
       group: i18n.get("General"),
-      name: "predictNextWordAfterWhiteSpace",
+      name: "predictNextWordAfterSeparatorChar",
       type: "checkbox",
-      label: "Predict next word after whitespace.",
+      label:
+        "Predict next word after sperator char (whitespace, !, \", #, $, %, &, ', (, ), *, +, -, ., /, :, ;, <, =, >, ?, @, [, \\, ], ^, _, `, {, |, }, ~).",
       default: true,
     },
     {

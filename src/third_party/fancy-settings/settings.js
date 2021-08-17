@@ -20,7 +20,7 @@ window.addEvent("domready", function () {
       [
         "numSuggestions",
         "minWordLenghtToPredict",
-        "predictNextWordAfterWhiteSpace",
+        "predictNextWordAfterSeparatorChar",
         "insertSpaceAfterAutocomplete",
         "autoCapitalize",
         "removeSpace",
