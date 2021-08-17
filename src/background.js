@@ -166,8 +166,8 @@ import { Store } from "./third_party/fancy-settings/lib/store.js";
           lang: this.settings.get("language"),
           numSuggestions: this.settings.get("numSuggestions"),
           minWordLenghtToPredict: this.settings.get("minWordLenghtToPredict"),
-          predictNextWordAfterWhiteSpace: this.settings.get(
-            "predictNextWordAfterWhiteSpace"
+          predictNextWordAfterSeparatorChar: this.settings.get(
+            "predictNextWordAfterSeparatorChar"
           ),
           insertSpaceAfterAutocomplete: this.settings.get(
             "insertSpaceAfterAutocomplete"

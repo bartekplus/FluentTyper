@@ -268,7 +268,9 @@
           spaceSelectsMatch: false,
           // turn tribute into an autocomplete
           autocompleteMode: true,
-          autocompleteSeparator: RegExp(/\s+/),
+          autocompleteSeparator: RegExp(
+            /\s+|!|"|#|\$|%|&|'|\(|\)|\*|\+|,|-|\.|\/|:|;|<|=|>|\?|@|\[|\\|\]|\^|_|`|{|\||}|~/
+          ),
           // Customize the elements used to wrap matched strings within the results list
           // defaults to <span></span> if undefined
           searchOpts: {
