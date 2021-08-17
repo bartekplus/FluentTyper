@@ -705,11 +705,12 @@
           });
 
           if (!this.isContentEditable(context.element)) {
+            var textEndsWithSpace = text !== text.trimEnd();
             var myField = this.tribute.current.element;
             var textSuffix = typeof this.tribute.replaceTextSuffix == 'string' ? this.tribute.replaceTextSuffix : ' ';
             text += textSuffix;
             var startPos = info.mentionPosition;
-            var endPos = info.mentionPosition + info.mentionText.length + textSuffix.length;
+            var endPos = info.mentionPosition + info.mentionText.length + textSuffix.length + textEndsWithSpace;
 
             if (!this.tribute.autocompleteMode) {
               endPos += info.mentionTriggerChar.length - 1;
@@ -720,11 +721,13 @@
             myField.selectionEnd = startPos + text.length;
           } else {
             // add a space to the end of the pasted text
+            var _textEndsWithSpace = text !== text.trimEnd();
+
             var _textSuffix = typeof this.tribute.replaceTextSuffix == 'string' ? this.tribute.replaceTextSuffix : '\xA0';
 
             text += _textSuffix;
 
-            var _endPos = info.mentionPosition + info.mentionText.length;
+            var _endPos = info.mentionPosition + info.mentionText.length + _textEndsWithSpace;
 
             if (!this.tribute.autocompleteMode) {
               _endPos += info.mentionTriggerChar.length;
