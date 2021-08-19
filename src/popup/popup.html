@@ -1,163 +1,54 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <style type="text/css">
-      body {
-        margin: 5px;
-        padding: 0;
-        font-size: 15px;
-        width: 300px;
-        background-color: #ffffff;
-        color: #000000;
-      }
-      /* The switch - the box around the slider */
-
-      .switch {
-        position: relative;
-        display: inline-block;
-        width: 60px;
-        height: 34px;
-      }
-      /* Hide default HTML checkbox */
-
-      .switch input {
-        opacity: 0;
-        width: 0;
-        height: 0;
-      }
-      /* The slider */
-
-      .slider {
-        position: absolute;
-        cursor: pointer;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-color: #ccc;
-        -webkit-transition: 0.4s;
-        transition: 0.4s;
-      }
-
-      .slider:before {
-        position: absolute;
-        content: "";
-        height: 26px;
-        width: 26px;
-        left: 4px;
-        bottom: 4px;
-        background-color: white;
-        -webkit-transition: 0.4s;
-        transition: 0.4s;
-      }
-
-      input:checked + .slider {
-        background-color: #2196f3;
-      }
-
-      input:focus + .slider {
-        box-shadow: 0 0 1px #2196f3;
-      }
-
-      input:checked + .slider:before {
-        -webkit-transform: translateX(26px);
-        -ms-transform: translateX(26px);
-        transform: translateX(26px);
-      }
-      /* Rounded sliders */
-
-      .slider.round {
-        border-radius: 34px;
-      }
-
-      .slider.round:before {
-        border-radius: 50%;
-      }
-
-      .checkboxContainer {
-        display: flex;
-        align-items: center;
-        height: 34px;
-        padding: 5px;
-      }
-
-      .checkboxLabel {
-        float: left;
-        width: 240px;
-      }
-
-      .checkboxInputContainer {
-        right: 5px;
-        position: absolute;
-      }
-
-      .example_d {
-        color: #000000 !important;
-        text-transform: uppercase;
-        background: #ffffff;
-        padding: 20px;
-        border: 4px solid #000000 !important;
-        /*
-                border-radius: 6px;
-                */
-        border-radius: 50px;
-        display: inline-block;
-        transition: all 0.3s ease 0s;
-      }
-
-      .example_d:hover {
-        color: #2196f3 !important;
-        border-radius: 50px;
-        border-color: #2196f3 !important;
-        transition: all 0.3s ease 0s;
-      }
-    </style>
+    <link rel="stylesheet" href="/third_party/bulma/bulma.min.css" />
+    <link rel="stylesheet" href="/third_party/bulma/bulma-switch.min.css" />
     <script type="module" src="popup.js"></script>
     <title></title>
   </head>
 
   <body>
-    <img src="/icon/LogoFluentTyper.png" alt="FluentTyper" />
+    <div class="container">
+      <section class="section is-medium">
+        <p class="title">
+          <img src="/icon/LogoFluentTyper.png" alt="FluentTyper" />
+        </p>
+        <p class="subtitle">Autocomplete and Spell Checker</p>
 
-    <hr />
+        <div class="field">
+          <input
+            id="checkboxEnableInput"
+            type="checkbox"
+            name="checkboxEnableInput"
+            class="switch"
+          />
+          <label for="checkboxEnableInput">Global toggle</label>
+        </div>
 
-    <div class="checkboxContainer">
-      <div class="checkboxLabel">Global toggle:</div>
-      <div class="checkboxInputContainer">
-        <label class="switch">
-          <input id="checkboxEnableInput" type="checkbox" />
-          <span class="slider round"></span>
-        </label>
-      </div>
-    </div>
+        <div class="field">
+          <input
+            id="checkboxDomainInput"
+            type="checkbox"
+            name="checkboxDomainInput"
+            class="switch"
+          />
+          <label for="checkboxDomainInput" id="checkboxDomainLabel"
+            >Enable enable autocomplete on:
+          </label>
+        </div>
 
-    <div class="checkboxContainer">
-      <div id="checkboxDomainLabel" class="checkboxLabel">
-        Enable enable autocomplete on:
-      </div>
-      <div class="checkboxInputContainer">
-        <label class="switch">
-          <input id="checkboxDomainInput" type="checkbox" />
-          <span class="slider round"></span>
-        </label>
-      </div>
-    </div>
+        <a
+        class="button is-primary is-outlined"
+                  id="runOptions"
+          href="/options.html"
+          target="_blank"
+          rel="nofollow noopener"
+          >Options</a
+        >
 
-    <hr />
-
-    <div class="button_cont" align="center">
-      <a
-        id="runOptions"
-        class="example_d"
-        href="add-website-here"
-        target="_blank"
-        rel="nofollow noopener"
-        >Options</a
-      >
-    </div>
-
-    <!-- 
+        <!-- 
         <hr>
         <div>
             <form action="https://www.paypal.com/cgi-bin/webscr" method="post" target="_blank">
@@ -167,5 +58,7 @@
             </form>
         </div>
         -->
+      </section>
+    </div>
   </body>
 </html>
