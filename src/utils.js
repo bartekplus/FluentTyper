@@ -1,7 +1,11 @@
 "use strict";
 
 function getDomain(url) {
-  return new URL(url).origin;
+  try {
+    return new URL(url).origin;
+  } catch (error) {
+    return undefined;
+  }
 }
 
 function isDomainOnList(settings, domainURL) {
