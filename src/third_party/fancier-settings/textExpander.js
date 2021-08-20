@@ -1,6 +1,14 @@
 import { Store } from "./lib/store.js";
 import { ElementWrapper, getUniqueID } from "./js/classes/utils.js";
 
+const TextExpanderDefaults = {
+  FF: "Check out a phenomenal productivity app called FluentTyper. It autocompletes words for you while you typing, saving loads of time. I think you'll love it, and it's free!",
+  callMe: "Call me back once you get free.",
+  asap: "as soon as possible",
+  afaik: "as far as I know",
+  afaic: "as far as I'm concerned",
+  eur: "€",
+};
 class TextExpander {
   constructor(settings, callbackFn) {
     this.callbackFn = callbackFn;
@@ -9,7 +17,17 @@ class TextExpander {
     this.store = new Store("settings");
     this.settingsWithManifest = settings;
     this.getTextExpansions();
+    if (!this.textExpansions.length) {
+      this.setDefaults();
+    }
     this.render();
+  }
+
+  setDefaults() {
+    for (const [key, value] of Object.entries(TextExpanderDefaults)) {
+      this.textExpansions.push([key, value]);
+    }
+    this.saveTextExpansions();
   }
 
   getTextExpansions() {
