@@ -4,7 +4,7 @@
   display: block;
   position: absolute;
   height: auto !important;
-  overflow: visible !important;
+  overflow: hidden !important;
   z-index: 2147483647 !important;
   box-shadow: 1px 2px 6px !important;
   background-color: #f8f8f8 !important;
