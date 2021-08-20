@@ -4,12 +4,11 @@
 // License: LGPL v2.1
 //
 
-// Defines in mootools-core.js
-/* global Events, typeOf */
-
 import { Store } from "../../lib/store.js";
+import { Events, ElementWrapper, getUniqueID } from "./utils.js";
 
 const settings = new Store("settings");
+
 class Bundle extends Events {
   // Attributes:
   // - tab
@@ -29,8 +28,6 @@ class Bundle extends Events {
   constructor(params) {
     super(params);
     this.params = params;
-    this.params.searchString =
-      "•" + this.params.tab + "•" + this.params.group + "•";
 
     this.createDOM();
     this.setupDOM();
@@ -39,8 +36,6 @@ class Bundle extends Events {
     if (this.params.name !== undefined) {
       this.set(settings.get(this.params.name), true);
     }
-
-    this.params.searchString = this.params.searchString.toLowerCase();
   }
 
   addEvents() {
@@ -77,29 +72,22 @@ class Description extends Bundle {
   constructor(params) {
     super(params);
     this.params = params;
-    this.params.searchString = "";
 
     this.createDOM();
     this.setupDOM();
   }
 
   createDOM() {
-    this.bundle = new Element("div", {
-      class: "setting bundle description",
-    });
+    this.bundle = new ElementWrapper("div", {});
 
-    this.container = new Element("div", {
-      class: "setting container description",
-    });
+    this.container = new ElementWrapper("div", {});
 
-    this.element = new Element("p", {
-      class: "setting element description",
-    });
+    this.element = new ElementWrapper("p", {});
   }
 
   setupDOM() {
     if (this.params.text !== undefined) {
-      this.element.set("html", this.params.text);
+      this.element.set("innerHTML", this.params.text);
     }
 
     this.element.inject(this.container);
@@ -114,45 +102,37 @@ class Button extends Bundle {
   constructor(params) {
     super(params);
     this.params = params;
-    this.params.searchString =
-      "•" + this.params.tab + "•" + this.params.group + "•";
 
     this.createDOM();
     this.setupDOM();
     this.addEvents();
-
-    this.params.searchString = this.params.searchString.toLowerCase();
   }
 
   createDOM() {
-    this.bundle = new Element("div", {
-      class: "setting bundle button",
+    this.bundle = new ElementWrapper("div", {
+      class: "field",
     });
 
-    this.container = new Element("div", {
-      class: "setting container button",
+    this.container = new ElementWrapper("div", {
+      class: "control",
     });
 
-    this.element = new Element("input", {
-      class: "setting element button",
+    this.element = new ElementWrapper("input", {
+      class: "button is-primary is-outlined",
       type: "button",
     });
 
-    this.label = new Element("label", {
-      class: "setting label button",
-    });
+    this.label = new ElementWrapper("label", {});
   }
 
   setupDOM() {
     if (this.params.label !== undefined) {
-      this.label.set("html", this.params.label);
+      this.label.set("innerHTML", this.params.label);
       this.label.inject(this.container);
-      this.params.searchString += this.params.label + "•";
     }
 
     if (this.params.text !== undefined) {
       this.element.set("value", this.params.text);
-      this.params.searchString += this.params.text + "•";
     }
 
     this.element.inject(this.container);
@@ -174,46 +154,43 @@ class Text extends Bundle {
   // action -> change & keyup
 
   createDOM() {
-    this.bundle = new Element("div", {
+    this.bundle = new ElementWrapper("div", {
       class: "setting bundle text",
     });
 
-    this.container = new Element("div", {
+    this.container = new ElementWrapper("div", {
       class: "setting container text",
     });
 
     if (this.params.colorPicker === true) {
-      this.element = new Element("input", {
+      this.element = new ElementWrapper("input", {
         class: "color",
         type: "text",
       });
     } else {
-      this.element = new Element("input", {
+      this.element = new ElementWrapper("input", {
         class: "setting element text",
         type: "text",
       });
     }
 
-    this.label = new Element("label", {
+    this.label = new ElementWrapper("label", {
       class: "setting label text",
     });
   }
 
   setupDOM() {
     if (this.params.label !== undefined) {
-      this.label.set("html", this.params.label);
+      this.label.set("innerHTML", this.params.label);
       this.label.inject(this.container);
-      this.params.searchString += this.params.label + "•";
     }
 
     if (this.params.text !== undefined) {
       this.element.set("placeholder", this.params.text);
-      this.params.searchString += this.params.text + "•";
     }
 
     if (this.params.masked === true) {
       this.element.set("type", "password");
-      this.params.searchString += "password" + "•";
     }
 
     this.element.inject(this.container);
@@ -241,23 +218,22 @@ class Checkbox extends Bundle {
   // action -> change
 
   createDOM() {
-    this.bundle = new Element("div", {
-      class: "setting bundle checkbox",
+    this.bundle = new ElementWrapper("div", { class: "field" });
+
+    this.container = new ElementWrapper("div", {
+      class: "control",
     });
 
-    this.container = new Element("div", {
-      class: "setting container checkbox",
-    });
-
-    this.element = new Element("input", {
-      id: String.uniqueID(),
-      class: "setting element checkbox",
+    let id = getUniqueID();
+    this.element = new ElementWrapper("input", {
+      id: id,
+      name: id,
+      class: "switch",
       type: "checkbox",
       value: "true",
     });
 
-    this.label = new Element("label", {
-      class: "setting label checkbox",
+    this.label = new ElementWrapper("label", {
       for: this.element.get("id"),
     });
   }
@@ -267,9 +243,8 @@ class Checkbox extends Bundle {
     this.container.inject(this.bundle);
 
     if (this.params.label !== undefined) {
-      this.label.set("html", this.params.label);
+      this.label.set("innerHTML", this.params.label);
       this.label.inject(this.container);
-      this.params.searchString += this.params.label + "•";
     }
   }
 
@@ -295,8 +270,6 @@ class Slider extends Bundle {
   constructor(params) {
     super(params);
     this.params = params;
-    this.params.searchString =
-      "•" + this.params.tab + "•" + this.params.group + "•";
 
     this.createDOM();
     this.setupDOM();
@@ -307,38 +280,36 @@ class Slider extends Bundle {
     } else {
       this.set(0, true);
     }
-
-    this.params.searchString = this.params.searchString.toLowerCase();
   }
 
   createDOM() {
-    this.bundle = new Element("div", {
-      class: "setting bundle slider",
+    this.bundle = new ElementWrapper("div", {
+      class: "field",
     });
 
-    this.container = new Element("div", {
-      class: "setting container slider",
+    this.container = new ElementWrapper("div", {
+      class: "control",
     });
 
-    this.element = new Element("input", {
-      class: "setting element slider",
+    this.element = new ElementWrapper("input", {
+      name: getUniqueID(),
+      class:
+        "slider is-fullwidth" +
+        (this.params.display === true ? " has-output" : ""),
       type: "range",
     });
 
-    this.label = new Element("label", {
-      class: "setting label slider",
-    });
+    this.label = new ElementWrapper("label", {});
 
-    this.display = new Element("span", {
-      class: "setting display slider",
+    this.display = new ElementWrapper("output", {
+      for: this.element.get("name"),
     });
   }
 
   setupDOM() {
     if (this.params.label !== undefined) {
-      this.label.set("html", this.params.label);
+      this.label.set("innerHTML", this.params.label);
       this.label.inject(this.container);
-      this.params.searchString += this.params.label + "•";
     }
 
     if (this.params.max !== undefined) {
@@ -356,9 +327,9 @@ class Slider extends Bundle {
     this.element.inject(this.container);
     if (this.params.display === true) {
       if (this.params.displayModifier !== undefined) {
-        this.display.set("text", this.params.displayModifier(0));
+        this.display.set("innerText", this.params.displayModifier(0));
       } else {
-        this.display.set("text", 0);
+        this.display.set("innerText", 0);
       }
       this.display.inject(this.container);
     }
@@ -374,9 +345,12 @@ class Slider extends Bundle {
         }
 
         if (this.params.displayModifier !== undefined) {
-          this.display.set("text", this.params.displayModifier(this.get()));
+          this.display.set(
+            "innerText",
+            this.params.displayModifier(this.get())
+          );
         } else {
-          this.display.set("text", this.get());
+          this.display.set("innerText", this.get());
         }
         this.fireEvent("action", this.get());
       }.bind(this)
@@ -384,7 +358,7 @@ class Slider extends Bundle {
   }
 
   get() {
-    return Number.from(this.element.get("value"));
+    return Number(this.element.get("value"));
   }
 
   set(value, noChangeEvent) {
@@ -395,11 +369,11 @@ class Slider extends Bundle {
     } else {
       if (this.params.displayModifier !== undefined) {
         this.display.set(
-          "text",
-          this.params.displayModifier(Number.from(value))
+          "innerText",
+          this.params.displayModifier(Number(value))
         );
       } else {
-        this.display.set("text", Number.from(value));
+        this.display.set("innerText", Number(value));
       }
     }
 
@@ -412,21 +386,20 @@ class PopupButton extends Bundle {
   // action -> change
 
   createDOM() {
-    this.bundle = new Element("div", {
-      class: "setting bundle popup-button",
+    this.bundle = new ElementWrapper("div", {
+      class: "field",
     });
 
-    this.container = new Element("div", {
-      class: "setting container popup-button",
+    this.control = new ElementWrapper("div", {
+      class: "control",
+    });
+    this.container = new ElementWrapper("div", {
+      class: "select",
     });
 
-    this.element = new Element("select", {
-      class: "setting element popup-button",
-    });
+    this.element = new ElementWrapper("select", {});
 
-    this.label = new Element("label", {
-      class: "setting label popup-button",
-    });
+    this.label = new ElementWrapper("label", {});
 
     if (this.params.options === undefined) {
       return;
@@ -434,7 +407,7 @@ class PopupButton extends Bundle {
 
     // convert array syntax into object syntax for options
     function arrayToObject(option) {
-      if (typeOf(option) === "array") {
+      if (Array.isArray(option)) {
         option = {
           value: option[0],
           text: option[1] || option[0],
@@ -444,13 +417,11 @@ class PopupButton extends Bundle {
     }
 
     // convert arrays
-    if (typeOf(this.params.options) === "array") {
+    if (Array.isArray(this.params.options)) {
       const values = [];
-      this.params.options.each(
-        function (values, option) {
-          values.push(arrayToObject(option));
-        }.bind(this, values)
-      );
+      this.params.options.forEach((option) => {
+        values.push(arrayToObject(option));
+      });
       this.params.options = {
         values: values,
       };
@@ -461,8 +432,7 @@ class PopupButton extends Bundle {
       groups = {};
       this.params.options.groups.each(
         function (groups, group) {
-          this.params.searchString += group + "•";
-          groups[group] = new Element("optgroup", {
+          groups[group] = new ElementWrapper("optgroup", {
             label: group,
           }).inject(this.element);
         }.bind(this, groups)
@@ -470,44 +440,41 @@ class PopupButton extends Bundle {
     }
 
     if (this.params.options.values !== undefined) {
-      this.params.options.values.each(
-        function (groups, option) {
-          option = arrayToObject(option);
-          this.params.searchString += (option.text || option.value) + "•";
+      this.params.options.values.forEach((option) => {
+        option = arrayToObject(option);
 
-          // find the parent of this option - either a group or the main element
-          let parent;
-          if (option.group && this.params.options.groups) {
-            if (option.group - 1 in this.params.options.groups) {
-              option.group = this.params.options.groups[option.group - 1];
-            }
-            if (option.group in groups) {
-              parent = groups[option.group];
-            } else {
-              parent = this.element;
-            }
+        // find the parent of this option - either a group or the main element
+        let parent;
+        if (option.group && this.params.options.groups) {
+          if (option.group - 1 in this.params.options.groups) {
+            option.group = this.params.options.groups[option.group - 1];
+          }
+          if (option.group in groups) {
+            parent = groups[option.group];
           } else {
             parent = this.element;
           }
+        } else {
+          parent = this.element;
+        }
 
-          new Element("option", {
-            value: option.value,
-            text: option.text || option.value,
-          }).inject(parent);
-        }.bind(this, groups)
-      );
+        new ElementWrapper("option", {
+          value: option.value,
+          text: option.text || option.value,
+        }).inject(parent);
+      });
     }
   }
 
   setupDOM() {
     if (this.params.label !== undefined) {
-      this.label.set("html", this.params.label);
-      this.label.inject(this.container);
-      this.params.searchString += this.params.label + "•";
+      this.label.set("innerHTML", this.params.label);
+      this.label.inject(this.bundle);
     }
 
     this.element.inject(this.container);
-    this.container.inject(this.bundle);
+    this.container.inject(this.control);
+    this.control.inject(this.bundle);
   }
 }
 
@@ -518,7 +485,7 @@ class ListBox extends PopupButton {
   add(domainURL) {
     if (this.params.options.indexOf(domainURL) === -1) {
       this.params.options.push(domainURL);
-      const elem = new Element("option", {
+      const elem = new ElementWrapper("option", {
         value: domainURL,
         text: domainURL,
       });
@@ -529,15 +496,17 @@ class ListBox extends PopupButton {
 
   remove() {
     if (this.selected) {
-      const idx = this.params.options.indexOf(
-        this.selected.get("value").toString()
-      );
-      if (idx !== -1) {
-        this.params.options.splice(idx, 1);
-        settings.set(this.params.name, this.params.options);
-        this.selected.dispose();
-        this.selected = null;
-      }
+      this.selected.forEach((element) => {
+        const idx = this.params.options.indexOf(
+          element.get("value").toString()
+        );
+        if (idx !== -1) {
+          this.params.options.splice(idx, 1);
+          settings.set(this.params.name, this.params.options);
+          element.dispose();
+          element = null;
+        }
+      });
     }
   }
 
@@ -565,9 +534,7 @@ class ListBox extends PopupButton {
       this.params.options.every(
         function (option) {
           if (option) {
-            // this.params.searchString += (option) + "•";
-
-            new Element("option", {
+            new ElementWrapper("option", {
               value: option,
               text: option,
             }).inject(this.element);
@@ -578,24 +545,28 @@ class ListBox extends PopupButton {
     } catch (e) {}
 
     this.element.inject(this.container);
-    this.container.inject(this.bundle);
+    this.container.inject(this.control);
+    this.control.inject(this.bundle);
   }
 
   createDOM() {
-    this.bundle = new Element("div", {
-      class: "setting bundle list-box",
+    this.bundle = new ElementWrapper("div", {
+      class: "field",
     });
 
-    this.container = new Element("div", {
-      class: "setting container list-box",
+    this.control = new ElementWrapper("div", {
+      class: "control",
+    });
+    this.container = new ElementWrapper("div", {
+      class: "select is-multiple is-fullwidth",
     });
 
-    this.element = new Element("select", {
-      class: "setting element list-box",
-      size: "2",
+    this.element = new ElementWrapper("select", {
+      multiple: true,
+      size: "10",
     });
 
-    this.label = new Element("label", {
+    this.label = new ElementWrapper("label", {
       class: "setting label list-box",
     });
     if (this.params.options === undefined) {
@@ -603,9 +574,7 @@ class ListBox extends PopupButton {
     }
     this.params.options.every(
       function (option) {
-        // this.params.searchString += (option) + "•";
-
-        new Element("option", {
+        new ElementWrapper("option", {
           value: option,
           text: option,
         }).inject(this.element);
@@ -630,13 +599,13 @@ class RadioButtons extends Bundle {
   // action -> change
 
   createDOM() {
-    const settingID = String.uniqueID();
+    const settingID = getUniqueID();
 
-    this.bundle = new Element("div", {
+    this.bundle = new ElementWrapper("div", {
       class: "setting bundle radio-buttons",
     });
 
-    this.label = new Element("label", {
+    this.label = new ElementWrapper("label", {
       class: "setting label radio-buttons",
     });
 
@@ -649,16 +618,14 @@ class RadioButtons extends Bundle {
     }
     this.params.options.each(
       function (option) {
-        this.params.searchString += (option[1] || option[0]) + "•";
-
-        const optionID = String.uniqueID();
-        const container = new Element("div", {
+        const optionID = getUniqueID();
+        const container = new ElementWrapper("div", {
           class: "setting container radio-buttons",
         }).inject(this.bundle);
         this.containers.push(container);
 
         this.elements.push(
-          new Element("input", {
+          new ElementWrapper("input", {
             id: optionID,
             name: settingID,
             class: "setting element radio-buttons",
@@ -668,7 +635,7 @@ class RadioButtons extends Bundle {
         );
 
         this.labels.push(
-          new Element("label", {
+          new ElementWrapper("label", {
             class: "setting element-label radio-buttons",
             for: optionID,
             text: option[1] || option[0],
@@ -680,9 +647,8 @@ class RadioButtons extends Bundle {
 
   setupDOM() {
     if (this.params.label !== undefined) {
-      this.label.set("html", this.params.label);
+      this.label.set("innerHTML", this.params.label);
       this.label.inject(this.bundle, "top");
-      this.params.searchString += this.params.label + "•";
     }
   }
 
