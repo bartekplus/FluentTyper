@@ -17,7 +17,7 @@ class FancierSettings {
       document.getElementById("favicon")["href"] = icon;
       document.getElementById("icon")["src"] = icon;
     } catch (err) {
-      console.error(err);
+      console.log(err);
     }
 
     this.tabs = [];
