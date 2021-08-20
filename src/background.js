@@ -165,7 +165,7 @@ import { Store } from "./third_party/fancier-settings/lib/store.js";
         context: {
           lang: this.settings.get("language"),
           numSuggestions: this.settings.get("numSuggestions"),
-          minWordLenghtToPredict: this.settings.get("minWordLenghtToPredict"),
+          minWordLengthToPredict: this.settings.get("minWordLengthToPredict"),
           predictNextWordAfterSeparatorChar: this.settings.get(
             "predictNextWordAfterSeparatorChar"
           ),
