@@ -135,6 +135,19 @@ const manifest = {
       label: i18n.get("allUrls"),
       default: false,
     },
+
+    {
+      tab: i18n.get("Text Expander"),
+      name: "TextExpander",
+      type: "description",
+      text: "",
+    },
+    {
+      tab: i18n.get("Test FlutenTyper"),
+      name: "Test FlutenTyper",
+      type: "description",
+      text: testFluentTyperHTML,
+    },
     {
       tab: "Domain list",
       group: i18n.get("Management"),
@@ -149,18 +162,6 @@ const manifest = {
       name: "removeDomainBtn",
       type: "button",
       text: i18n.get("remove"),
-    },
-    {
-      tab: i18n.get("Text Expander"),
-      name: "TextExpander",
-      type: "description",
-      text: "",
-    },
-    {
-      tab: i18n.get("Test FlutenTyper"),
-      name: "Test FlutenTyper",
-      type: "description",
-      text: testFluentTyperHTML,
     },
     {
       tab: i18n.get("About"),
