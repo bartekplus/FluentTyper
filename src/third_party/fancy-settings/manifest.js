@@ -1,13 +1,14 @@
 import { i18n } from "./i18n.js";
 
 const donateHTML =
-  "<p>" +
+  '<p class="content">' +
   "Creating and maintaining FluentTyper has required - and still " +
   "does - a considerable amount of work and effort. If you like " +
   "FluentTyper, then you may wish to support FluentTyper " +
   "development by making a voluntary donation. This will also " +
   "enable future enhancement to the extension. " +
   "</p>" +
+  '<div class="columns is-centered">' +
   "<form " +
   'action="https://www.paypal.com/cgi-bin/webscr"' +
   'method="post"' +
@@ -36,10 +37,10 @@ const donateHTML =
   '  width="1"' +
   '  height="1"' +
   "/>" +
-  "</form>";
-
+  "</form>" +
+  "</div>";
 const testFluentTyperHTML =
-  '<textarea rows="12" cols="45" placeholder="Click here and start typing…"></textarea>';
+  '<textarea class="textarea is-full"  rows="12" placeholder="Click here and start typing…"></textarea>';
 
 // SAMPLE
 const manifest = {
@@ -150,8 +151,9 @@ const manifest = {
       text: i18n.get("remove"),
     },
     {
-      tab: i18n.get("Test FlutenTyper"),
-      name: "Test FlutenTyper",
+      tab: i18n.get("Test area"),
+      name: "Test area",
+      group: i18n.get("Test area"),
       type: "description",
       text: testFluentTyperHTML,
     },

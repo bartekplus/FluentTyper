@@ -4,16 +4,22 @@
 // License: LGPL v2.1
 //
 
+import { ElementWrapper } from "./utils.js";
+
 class Bundle {
   constructor(creator) {
     this.creator = creator;
 
     // Create DOM elements
-    this.tab = new Element("div", { class: "tab" });
-    this.content = new Element("div", { class: "tab-content" });
+    this.tabA = new ElementWrapper("a");
+    this.tabLi = new ElementWrapper("li");
+    this.tabA.inject(this.tabLi);
+    this.content = new ElementWrapper("div", {
+      class: "content-tab is-hidden",
+    });
 
     // Create event handlers
-    this.tab.addEvent("click", this.activate.bind(this));
+    this.tabA.addEvent("click", this.activate.bind(this));
   }
 
   activate() {
@@ -21,14 +27,14 @@ class Bundle {
       this.creator.activeBundle.deactivate();
     }
 
-    this.tab.addClass("active");
-    this.content.addClass("show");
+    this.tabLi.element.classList.add("is-active");
+    this.content.element.classList.remove("is-hidden");
     this.creator.activeBundle = this;
   }
 
   deactivate() {
-    this.tab.removeClass("active");
-    this.content.removeClass("show");
+    this.tabLi.element.classList.remove("is-active");
+    this.content.element.classList.add("is-hidden");
     this.creator.activeBundle = null;
   }
 }
@@ -42,7 +48,7 @@ class Tab {
 
   create() {
     const bundle = new Bundle(this);
-    bundle.tab.inject(this.tabContainer);
+    bundle.tabLi.inject(this.tabContainer);
     bundle.content.inject(this.tabContentContainer);
     if (!this.activeBundle) {
       bundle.activate();

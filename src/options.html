@@ -10,53 +10,28 @@
     <title id="title"></title>
     <!-- Stylesheets -->
     <link id="favicon" rel="icon" href="" />
-    <link
-      rel="stylesheet"
-      href="third_party/fancy-settings/lib/default.css"
-      media="screen"
-    />
-    <link
-      rel="stylesheet"
-      href="third_party/fancy-settings/css/main.css"
-      media="screen"
-    />
-    <link
-      rel="stylesheet"
-      href="third_party/fancy-settings/css/setting.css"
-      media="screen"
-    />
-    <link
-      rel="stylesheet"
-      href="third_party/fancy-settings/custom.css"
-      media="screen"
-    />
+    <link rel="stylesheet" href="/third_party/bulma/bulma.min.css" />
+    <link rel="stylesheet" href="/third_party/bulma/bulma-divider.min.css" />
+    <link rel="stylesheet" href="/third_party/bulma/bulma-slider.min.css" />
+    <link rel="stylesheet" href="/third_party/bulma/bulma-switch.min.css" />
     <link
       rel="stylesheet"
       type="text/css"
       href="/third_party/tribute/tribute.css"
     />
     <!-- JavaScripts -->
-
-    <script src="third_party/fancy-settings/lib/mootools-core.js"></script>
     <script type="module" src="third_party/fancy-settings/settings.js"></script>
     <script src="third_party/tribute/tribute.js"></script>
     <script src="/cs.js"></script>
   </head>
 
-  <body class="no-select">
-    <div id="sidebar" class="fancy">
-      <img id="icon" src="" alt="" />
-      <h1 id="settings-label"></h1>
-      <div id="tab-container">
-        <div id="search-container" class="tab">
-          <input id="search" type="search" placeholder="" />
-        </div>
+  <body>
+    <div class="container is-two-thirds">
+      <div class="tabs">
+        <ul id="tab-container"></ul>
       </div>
-    </div>
-    <div id="content">
-      <div id="search-result-container" class="tab-content">
-        <h2 id="search-label"></h2>
-      </div>
+
+      <div id="content"></div>
     </div>
   </body>
 </html>

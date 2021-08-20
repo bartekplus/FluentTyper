@@ -8,7 +8,7 @@ function optionsPageConfigChange() {
   chrome.runtime.sendMessage(message);
 }
 
-window.addEvent("domready", function () {
+window.addEventListener("DOMContentLoaded", function () {
   // Option 1: Use the manifest:
   (() =>
     new FancySettingsWithManifest(function (settings) {
@@ -30,7 +30,7 @@ window.addEvent("domready", function () {
         });
       });
       if (navigator.userAgent.indexOf("Chrome") !== -1) {
-        settings.manifest.allUrls.element.addEventListener(
+        settings.manifest.allUrls.element.element.addEventListener(
           "click",
           function () {
             const fn = this.checked
