@@ -67,12 +67,12 @@ const manifest = {
     {
       tab: i18n.get("settings"),
       group: i18n.get("General"),
-      name: "minWordLenghtToPredict",
+      name: "minWordLengthToPredict",
       type: "slider",
       min: 1,
       max: 12,
       display: true,
-      label: "Minimum word lenght to start prediction:",
+      label: "Minimum word length to start prediction:",
       default: 1,
     },
     {
@@ -92,7 +92,7 @@ const manifest = {
       name: "predictNextWordAfterSeparatorChar",
       type: "checkbox",
       label:
-        "Predict next word after sperator char (whitespace, !, \", #, $, %, &, ', (, ), *, +, -, ., /, :, ;, <, =, >, ?, @, [, \\, ], ^, _, `, {, |, }, ~).",
+        "Predict next word after separator char (whitespace, !, \", #, $, %, &, ', (, ), *, +, -, ., /, :, ;, <, =, >, ?, @, [, \\, ], ^, _, `, {, |, }, ~).",
       default: true,
     },
     {

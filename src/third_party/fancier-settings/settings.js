@@ -19,7 +19,7 @@ window.addEventListener("DOMContentLoaded", function () {
       // Update pressage config on change
       [
         "numSuggestions",
-        "minWordLenghtToPredict",
+        "minWordLengthToPredict",
         "predictNextWordAfterSeparatorChar",
         "insertSpaceAfterAutocomplete",
         "autoCapitalize",
