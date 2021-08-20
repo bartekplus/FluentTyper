@@ -6,7 +6,7 @@ import {
   removeDomainFromList,
   addDomainToList,
 } from "../utils.js";
-import { Store } from "../third_party/fancy-settings/lib/store.js";
+import { Store } from "../third_party/fancier-settings/lib/store.js";
 
 const settings = new Store("settings");
 
