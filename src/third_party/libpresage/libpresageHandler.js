@@ -96,7 +96,8 @@ class PresageHandler {
           context.predictNextWordAfterSeparatorChar,
           context.insertSpaceAfterAutocomplete,
           context.autoCapitalize,
-          context.removeSpace
+          context.removeSpace,
+          context.textExpansions
         );
         break;
       }
@@ -106,13 +107,28 @@ class PresageHandler {
     }
   }
 
+  setupTextExpansions() {
+    let str = "";
+    this.textExpansions.forEach((textExpansion) => {
+      str += `${textExpansion[0]}\t${textExpansion[1]}\n`;
+    });
+    Module.FS.writeFile("/textExpansions.txt", str);
+    for (const [lang, libPresage] of Object.entries(this.libPresage)) {
+      libPresage.config(
+        "Presage.Predictors.DefaultAbbreviationExpansionPredictor.ABBREVIATIONS",
+        "/textExpansions.txt"
+      );
+    }
+  }
+
   setConfig(
     numSuggestions,
     minWordLengthToPredict,
     predictNextWordAfterSeparatorChar,
     insertSpaceAfterAutocomplete,
     autoCapitalize,
-    removeSpace
+    removeSpace,
+    textExpansions
   ) {
     this.numSuggestions = numSuggestions;
     this.minWordLengthToPredict = minWordLengthToPredict;
@@ -120,6 +136,8 @@ class PresageHandler {
     this.insertSpaceAfterAutocomplete = insertSpaceAfterAutocomplete;
     this.autoCapitalize = autoCapitalize;
     this.removeSpace = removeSpace;
+    this.textExpansions = textExpansions;
+    this.setupTextExpansions();
 
     for (const [lang, libPresage] of Object.entries(this.libPresage)) {
       libPresage.config(
