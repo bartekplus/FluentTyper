@@ -1,7 +1,7 @@
 "use strict";
 
 import { isDomainOnList, checkLastError } from "./utils.js";
-import { Store } from "./third_party/fancy-settings/lib/store.js";
+import { Store } from "./third_party/fancier-settings/lib/store.js";
 
 (function () {
   const SANDBOX_FRAME_INIT_TIME_MS = 3000;

@@ -1,3 +1,8 @@
+//
+// Copyright (c) 2021 Bartosz Tomczyk
+// License: LGPL v2.1
+//
+
 // based on mootools
 class Events {
   constructor() {

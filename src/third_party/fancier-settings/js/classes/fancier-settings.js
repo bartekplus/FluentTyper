@@ -1,6 +1,6 @@
 //
+// Copyright (c) 2021 Bartosz Tomczyk
 // Copyright (c) 2011 Frank Kohlhepp
-// https://github.com/frankkohlhepp/fancy-settings
 // License: LGPL v2.1
 //
 
@@ -10,7 +10,7 @@ import { Setting } from "./setting.js";
 import { manifest } from "../../manifest.js";
 import { ElementWrapper } from "./utils.js";
 
-class FancySettings {
+class FancierSettings {
   constructor(name, icon) {
     try {
       document.getElementById("title")["text"] = name;
@@ -105,9 +105,9 @@ class FancySettings {
   }
 }
 
-const FancySettingsWithManifest = function (callback) {
+const FancierSettingsWithManifest = function (callback) {
   let output;
-  const settings = new FancySettings(manifest.name, manifest.icon);
+  const settings = new FancierSettings(manifest.name, manifest.icon);
   settings.manifest = {};
 
   manifest.settings.forEach(function (params) {
@@ -133,4 +133,4 @@ const FancySettingsWithManifest = function (callback) {
   }
 };
 
-export { FancySettings, FancySettingsWithManifest };
+export { FancierSettings, FancierSettingsWithManifest };
