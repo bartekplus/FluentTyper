@@ -49,7 +49,8 @@ window.addEventListener("DOMContentLoaded", function () {
           }
         );
       } else {
-        settings.manifest.allUrls.element.parentElement.style.display = "none";
+        settings.manifest.allUrls.element.element.parentElement.style.display =
+          "none";
       }
     }))();
 });
