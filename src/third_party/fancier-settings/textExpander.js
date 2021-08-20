@@ -48,6 +48,7 @@ class TextExpander {
         idErrMsg: idErrMsg,
         class: "input",
         type: "text",
+        contentEditable: false,
         required: true,
         pattern: index == 0 ? "[A-Za-z0-9]{1,32}" : "(.*?)+",
       });
