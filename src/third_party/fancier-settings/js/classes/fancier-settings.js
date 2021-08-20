@@ -57,7 +57,7 @@ class FancierSettings {
       group.content.element.appendChild(
         new ElementWrapper("div", {
           class: "divider",
-          innerText: params.group,
+          innerText: params.group || params.tab,
         }).element
       );
 
