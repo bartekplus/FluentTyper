@@ -1,4 +1,5 @@
 import { FancierSettingsWithManifest } from "./js/classes/fancier-settings.js";
+import { TextExpander } from "./textExpander.js";
 
 function optionsPageConfigChange() {
   const message = {
@@ -12,6 +13,7 @@ window.addEventListener("DOMContentLoaded", function () {
   // Option 1: Use the manifest:
   (() =>
     new FancierSettingsWithManifest(function (settings) {
+      new TextExpander(settings, optionsPageConfigChange);
       settings.manifest.removeDomainBtn.addEvent("action", function () {
         settings.manifest.domainList.remove();
       });

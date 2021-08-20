@@ -174,6 +174,7 @@ import { Store } from "./third_party/fancier-settings/lib/store.js";
           ),
           autoCapitalize: this.settings.get("autoCapitalize"),
           removeSpace: this.settings.get("removeSpace"),
+          textExpansions: this.settings.get("textExpansions"),
         },
       });
     }
