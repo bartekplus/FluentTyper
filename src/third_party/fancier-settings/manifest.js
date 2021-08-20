@@ -151,9 +151,14 @@ const manifest = {
       text: i18n.get("remove"),
     },
     {
-      tab: i18n.get("Test area"),
-      name: "Test area",
-      group: i18n.get("Test area"),
+      tab: i18n.get("Text Expander"),
+      name: "TextExpander",
+      type: "description",
+      text: "",
+    },
+    {
+      tab: i18n.get("Test FlutenTyper"),
+      name: "Test FlutenTyper",
       type: "description",
       text: testFluentTyperHTML,
     },
