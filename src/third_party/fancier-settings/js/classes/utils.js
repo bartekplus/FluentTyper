@@ -107,7 +107,8 @@ class ElementWrapper extends Events {
     return this.element[prop];
   }
   set(key, value) {
-    if (key in this.propertySetters) this.element[key] = value;
+    if (key in this.propertySetters)
+      this.element[this.propertySetters[key]] = value;
     else this.element.setAttribute(key, value);
   }
   addEvent(type, fn) {
