@@ -92,20 +92,37 @@ class ElementWrapper extends Events {
       text: "textContent",
       innerText: "innerText",
     };
-    this.element = document.createElement(tag);
+
+    if (tag instanceof HTMLElement) this.element = tag;
+    else this.element = document.createElement(tag);
+
     for (const [key, value] of Object.entries(props)) {
       this.set(key, value);
     }
   }
+
   inject(parent) {
     if (parent instanceof ElementWrapper)
       parent.element.appendChild(this.element);
     else parent.appendChild(this.element);
   }
 
+  getSelected() {
+    let selected = Array.from(this.element.options)
+      .filter((o) => o.selected)
+      .map((o) => new ElementWrapper(o));
+    return selected;
+  }
+
+  dispose() {
+    if (this.element.parentNode)
+      this.element.parentNode.removeChild(this.element);
+  }
+
   get(prop) {
     return this.element[prop];
   }
+
   set(key, value) {
     if (key in this.propertySetters)
       this.element[this.propertySetters[key]] = value;
