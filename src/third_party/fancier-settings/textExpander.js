@@ -64,10 +64,7 @@ class TextExpander {
       let errMsgNode = new ElementWrapper("p", {
         id: idErrMsg,
         class: "help is-danger is-hidden",
-        text:
-          index == 0
-            ? "Please use only letters and numbers no white space are allowed, between 1-32 characters."
-            : "Shortcut text cannot be empty.",
+        text: "",
       });
       errMsgNode.inject(fielInput);
     });
@@ -83,12 +80,31 @@ class TextExpander {
   }
 
   shortcutInputChange() {
+    let isValid = true;
     [
       document.getElementById(this.addNewShortcutIDs[0]),
       document.getElementById(this.addNewShortcutIDs[1]),
-    ].forEach((element) => {
+    ].forEach((element, index) => {
       let errMsgNode = document.getElementById(element.id + "ErrMsg");
-      if (element.checkValidity()) {
+      let errMsgStr = "";
+      if (!element.checkValidity()) {
+        isValid = false;
+        errMsgStr =
+          index == 0
+            ? "Please use only letters and numbers no white space are allowed, between 1-32 characters."
+            : "Shortcut text cannot be empty.";
+      } // Validate if there is no key duplicate
+      else if (index == 0) {
+        this.textExpansions.forEach((textExpansion) => {
+          if (textExpansion[0] === element.value) {
+            isValid = false;
+            errMsgStr = "Shortcut name is already used.";
+          }
+        });
+      }
+
+      errMsgNode.textContent = errMsgStr;
+      if (isValid) {
         element.classList.remove("is-danger");
         errMsgNode.classList.remove("is-active");
         errMsgNode.classList.add("is-hidden");
@@ -98,6 +114,7 @@ class TextExpander {
         errMsgNode.classList.remove("is-hidden");
       }
     });
+    return isValid;
   }
 
   delShortcut(index) {
@@ -110,7 +127,7 @@ class TextExpander {
     let shortcatElem = document.getElementById(this.addNewShortcutIDs[0]);
     let shortcatTextElem = document.getElementById(this.addNewShortcutIDs[1]);
     this.shortcutInputChange();
-    if (shortcatElem.checkValidity() && shortcatTextElem.checkValidity()) {
+    if (this.shortcutInputChange()) {
       this.textExpansions.unshift([shortcatElem.value, shortcatTextElem.value]);
       this.saveTextExpansions();
       this.render();
