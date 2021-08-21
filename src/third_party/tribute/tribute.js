@@ -161,11 +161,9 @@
       value: function bind(element) {
         element.boundKeyDown = this.keydown.bind(element, this);
         element.boundKeyUp = this.keyup.bind(element, this);
-        element.boundKeyPress = this.keypress.bind(element, this);
         element.boundInput = this.input.bind(element, this);
         element.addEventListener("keydown", element.boundKeyDown, true);
         element.addEventListener("keyup", element.boundKeyUp, true);
-        element.addEventListener("keypress", element.boundKeyPress, true);
         element.addEventListener("input", element.boundInput, true);
       }
     }, {
@@ -173,11 +171,9 @@
       value: function unbind(element) {
         element.removeEventListener("keydown", element.boundKeyDown, true);
         element.removeEventListener("keyup", element.boundKeyUp, true);
-        element.removeEventListener("keypress", element.boundKeyPress, true);
         element.removeEventListener("input", element.boundInput, true);
         delete element.boundKeyDown;
         delete element.boundKeyUp;
-        delete element.boundKeyPress;
         delete element.boundInput;
       }
     }, {
@@ -232,28 +228,27 @@
           tribute.hideMenu(); // TODO: should fire with externalTrigger and target is outside of menu
         } else if (tribute.current.element && !tribute.current.externalTrigger) {
           tribute.current.externalTrigger = false;
-          setTimeout(function () {
-            return tribute.hideMenu();
-          });
+          tribute.hideMenu();
         }
-      }
-    }, {
-      key: "keypress",
-      value: function keypress(instance, event) {
-        instance.keyup.call(this, instance, event);
       }
     }, {
       key: "keyup",
       value: function keyup(instance, event) {
-        instance.updateSelection(this);
-
+        // Check for modifiers keys
         if (event instanceof KeyboardEvent) {
           TributeEvents.modifiers().forEach(function (o) {
             if (event.getModifierState(o)) {
               return;
             }
           });
-        }
+        } // Check for control keys
+
+
+        TributeEvents.keys().forEach(function (o) {
+          if (o.key === event.keyCode) {
+            return;
+          }
+        });
 
         if (!instance.tribute.allowSpaces && instance.tribute.hasTrailingSpace) {
           instance.tribute.hasTrailingSpace = false;
@@ -261,33 +256,33 @@
           return;
         }
 
-        if (!instance.tribute.isActive) {
-          var keyCode = instance.getKeyCode(instance, this, event);
+        if (!instance.updateSelection(this)) return; // Get and validate trigger char
 
-          if (keyCode && !isNaN(keyCode)) {
-            if (instance.tribute.autocompleteMode && String.fromCharCode(keyCode).match(/(\w|\s)/g)) {
-              instance.tribute.current.trigger = "";
-            } else {
-              instance.tribute.current.trigger = instance.tribute.triggers().find(function (trigger) {
-                return trigger.charCodeAt(0) === keyCode;
-              });
-            }
-          } else if (instance.tribute.autocompleteMode && event instanceof InputEvent) {
+        var keyCode = instance.getKeyCode(instance, this, event);
+
+        if (keyCode && !isNaN(keyCode)) {
+          if (instance.tribute.autocompleteMode && String.fromCharCode(keyCode).match(/(\w|\s)/g)) {
             instance.tribute.current.trigger = "";
+          } else {
+            instance.tribute.current.trigger = instance.tribute.triggers().find(function (trigger) {
+              return trigger.charCodeAt(0) === keyCode;
+            });
           }
-
-          instance.tribute.current.collection = instance.tribute.collection.find(function (item) {
-            return item.trigger === instance.tribute.current.trigger;
-          });
+        } else if (instance.tribute.autocompleteMode && event instanceof InputEvent) {
+          instance.tribute.current.trigger = "";
         }
 
-        if (instance.tribute.current.mentionText.length < instance.tribute.current.collection.menuShowMinLength) {
+        if (!(instance.tribute.current.trigger || instance.tribute.current.trigger === "" && instance.tribute.autocompleteMode)) return; // Get and validate collection
+
+        instance.tribute.current.collection = instance.tribute.collection.find(function (item) {
+          return item.trigger === instance.tribute.current.trigger;
+        });
+
+        if (!instance.tribute.current.collection || instance.tribute.current.collection.menuShowMinLength > instance.tribute.current.mentionText.length) {
           return;
         }
 
-        if (instance.tribute.current.trigger || instance.tribute.current.trigger === "" && instance.tribute.autocompleteMode) {
-          instance.tribute.showMenuFor(this, true);
-        }
+        instance.tribute.showMenuFor(this, true);
       }
     }, {
       key: "shouldDeactivate",
@@ -318,6 +313,7 @@
     }, {
       key: "updateSelection",
       value: function updateSelection(el) {
+        var success = false;
         this.tribute.current.element = el;
         var info = this.tribute.range.getTriggerInfo(false, this.tribute.hasTrailingSpace, true, this.tribute.allowSpaces, this.tribute.autocompleteMode);
 
@@ -327,7 +323,12 @@
           this.tribute.current.fullText = info.fullText;
           this.tribute.current.selectedOffset = info.mentionSelectedOffset;
           this.tribute.current.info = info;
+          success = true;
+        } else {
+          this.tribute.current = {};
         }
+
+        return success;
       }
     }, {
       key: "callbacks",
@@ -719,7 +720,7 @@
               _endPos += info.mentionTriggerChar.length;
             }
 
-            this.pasteHtml(text, info.mentionPosition, _endPos);
+            this.tribute.useHTML ? this.pasteHtml(text, info.mentionPosition, _endPos) : this.pasteText(text, info.mentionPosition, _endPos);
           }
 
           context.element.dispatchEvent(new CustomEvent('input', {
@@ -731,6 +732,35 @@
     }, {
       key: "pasteHtml",
       value: function pasteHtml(html, startPos, endPos) {
+        var range, sel;
+        sel = this.getWindowSelection();
+        range = this.getDocument().createRange();
+        range.setStart(sel.anchorNode, startPos);
+        range.setEnd(sel.anchorNode, endPos);
+        range.deleteContents();
+        var el = this.getDocument().createElement('div');
+        el.innerHTML = html;
+        var frag = this.getDocument().createDocumentFragment(),
+            node,
+            lastNode;
+
+        while (node = el.firstChild) {
+          lastNode = frag.appendChild(node);
+        }
+
+        range.insertNode(frag); // Preserve the selection
+
+        if (lastNode) {
+          range = range.cloneRange();
+          range.setStartAfter(lastNode);
+          range.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }
+      }
+    }, {
+      key: "pasteText",
+      value: function pasteText(html, startPos, endPos) {
         var range, sel;
         sel = this.getWindowSelection();
         range = this.getDocument().createRange();
@@ -1246,10 +1276,7 @@
 
         var c = pattern[patternIndex];
         var index = string.indexOf(c, stringIndex);
-        var best = {
-          score: 0,
-          cache: []
-        };
+        var best;
         var temp;
 
         while (index > -1) {
@@ -1391,7 +1418,9 @@
           _ref$menuShowMinLengt = _ref.menuShowMinLength,
           menuShowMinLength = _ref$menuShowMinLengt === void 0 ? 0 : _ref$menuShowMinLengt,
           _ref$keys = _ref.keys,
-          keys = _ref$keys === void 0 ? null : _ref$keys;
+          keys = _ref$keys === void 0 ? null : _ref$keys,
+          _ref$useHTML = _ref.useHTML,
+          useHTML = _ref$useHTML === void 0 ? true : _ref$useHTML;
 
       _classCallCheck(this, Tribute);
 
@@ -1407,6 +1436,7 @@
       this.positionMenu = positionMenu;
       this.hasTrailingSpace = false;
       this.spaceSelectsMatch = spaceSelectsMatch;
+      this.useHTML = useHTML;
 
       if (keys) {
         TributeEvents.keys = keys;
