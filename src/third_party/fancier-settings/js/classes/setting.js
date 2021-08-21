@@ -702,6 +702,7 @@ class Setting {
       popupButton: PopupButton,
       listBox: ListBox,
       radioButtons: RadioButtons,
+      valueOnly: Bundle,
     };
 
     if (Object.prototype.hasOwnProperty.call(types, params.type)) {

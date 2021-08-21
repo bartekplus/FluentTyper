@@ -40,6 +40,8 @@ class PresageHandler {
     this.autoCapitalize = true;
     // Automatically remove space before: .!? characters.
     this.removeSpace = false;
+    // Text Expander config
+    this.textExpansions = [];
     //Precompiled regular expressions
     this.separatorCharRegEx = RegExp(
       /\s+|!|"|#|\$|%|&|'|\(|\)|\*|\+|,|-|\.|\/|:|;|<|=|>|\?|@|\[|\\|\]|\^|_|`|{|\||}|~/
