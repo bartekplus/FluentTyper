@@ -28,46 +28,67 @@ class TextExpander {
       clonedNode;
   }
 
-  renderNode(key, val, shortcatIndex) {
-    const newNode = shortcatIndex === null;
-    let field = new ElementWrapper("div", { class: "field is-horizontal" });
-    field.inject(this.settingsWithManifest.manifest.textExpansions.bundle);
-    let fieldBody = new ElementWrapper("div", { class: "field-body" });
-    fieldBody.inject(field);
-    [key, val].forEach((value, index) => {
-      let fielInput = new ElementWrapper("div", { class: "field" });
-      fielInput.inject(fieldBody);
+  renderNode(key, val, shortcutIndex) {
+    const newNode = shortcutIndex === null;
+    const fieldElem = new ElementWrapper("div", {
+      class: "field is-horizontal",
+    });
+    const fieldBody = new ElementWrapper("div", { class: "field-body" });
+    fieldElem.inject(this.settingsWithManifest.manifest.textExpansions.bundle);
+    fieldBody.inject(fieldElem);
 
-      let control = new ElementWrapper("p", {
+    [
+      {
+        type: "input",
+        id: newNode ? this.addNewShortcutIDs[0] : getUniqueID(),
+        class: "input",
+        pattern: "[A-Za-z0-9]{1,32}",
+        maxLength: 32,
+        value: key,
+        rows: "",
+      },
+      {
+        type: "textarea",
+        id: newNode ? this.addNewShortcutIDs[1] : getUniqueID(),
+        class: "textarea",
+        pattern: "(.*?)+",
+        maxLength: 1024,
+        value: val,
+        rows: 2,
+      },
+    ].forEach((input) => {
+      const idErrMsg = input.id + "ErrMsg";
+      const fieldElem = new ElementWrapper("div", { class: "field" });
+      const controlElem = new ElementWrapper("p", {
         class: "control is-expanded",
       });
-      control.inject(fielInput);
-      const id = newNode ? this.addNewShortcutIDs[index] : getUniqueID();
-      const idErrMsg = id + "ErrMsg";
-      let input = new ElementWrapper("input", {
-        id: id,
+      const inputElem = new ElementWrapper(input.type, {
+        id: input.id,
         idErrMsg: idErrMsg,
-        class: "input",
-        type: "text",
+        class: input.class,
         contentEditable: false,
         required: true,
-        pattern: index == 0 ? "[A-Za-z0-9]{1,32}" : "(.*?)+",
+        pattern: input.pattern,
+        maxlength: input.maxLength,
+        rows: input.rows,
       });
-      if (!newNode) {
-        input.set("readonly", true);
-        input.set("disabled", true);
-      }
-      input.set(newNode ? "placeholder" : "value", value);
-      input.inject(control);
-      if (newNode) input.addEvent("input", this.shortcutInputChange.bind(this));
-
-      //Error msg:
-      let errMsgNode = new ElementWrapper("p", {
+      const errMsgNode = new ElementWrapper("p", {
         id: idErrMsg,
         class: "help is-danger is-hidden",
-        text: "",
       });
-      errMsgNode.inject(fielInput);
+
+      if (newNode) {
+        inputElem.set("placeholder", input.value);
+        inputElem.addEvent("input", this.shortcutInputChange.bind(this));
+      } else {
+        inputElem.set("value", input.value);
+        inputElem.set("readonly", true);
+        inputElem.set("disabled", true);
+      }
+      inputElem.inject(controlElem);
+      fieldElem.inject(fieldBody);
+      controlElem.inject(fieldElem);
+      errMsgNode.inject(fieldElem);
     });
 
     let button = new ElementWrapper("a", {
@@ -77,7 +98,7 @@ class TextExpander {
     });
     button.inject(fieldBody);
     if (newNode) button.addEvent("click", this.addNewShortcut.bind(this));
-    else button.addEvent("click", this.delShortcut.bind(this, shortcatIndex));
+    else button.addEvent("click", this.delShortcut.bind(this, shortcutIndex));
   }
 
   shortcutInputChange() {
