@@ -244,6 +244,22 @@ class PresageHandler {
     message.context.triggerInputEvent = this.insertSpaceAfterAutocomplete;
     if (!this.libPresage[context.lang]) {
       // Do nothing reply with empty predictions
+    } else if (!predictionInput && this.removeSpace) {
+      // Invalid input to perform prediction
+      // Try to remove space
+      NEW_SENTENCE_CHARS.forEach((element) => {
+        if (
+          event.data.context.text.endsWith(" " + element) ||
+          event.data.context.text.endsWith("\xA0" + element)
+        ) {
+          const txt =
+            element + (this.insertSpaceAfterAutocomplete ? "\xA0" : "");
+          message.context.forceReplace = {
+            text: txt,
+            length: element.length + 1, // +1 for space we are going to remove
+          };
+        }
+      });
     } else if (
       // Do prediction - return cached version
       doPrediction &&
@@ -262,14 +278,6 @@ class PresageHandler {
       this.lastPrediction[context.lang].pastStream = predictionInput;
       this.lastPrediction[context.lang].predictions =
         message.context.predictions;
-    } else if (!predictionInput && this.removeSpace) {
-      // Invalid input to perform prediction
-      // Try to remove space
-      NEW_SENTENCE_CHARS.forEach((element) => {
-        if (event.data.context.text.endsWith(" " + element)) {
-          message.context.forceReplace = { text: element, length: 1 };
-        }
-      });
     }
     // Add space if needed
     if (this.insertSpaceAfterAutocomplete) {
