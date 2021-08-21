@@ -159,32 +159,35 @@
     _createClass(TributeEvents, [{
       key: "bind",
       value: function bind(element) {
-        element.boundKeydown = this.keydown.bind(element, this);
-        element.boundKeyup = this.keyup.bind(element, this);
+        element.boundKeyDown = this.keydown.bind(element, this);
+        element.boundKeyUp = this.keyup.bind(element, this);
+        element.boundKeyPress = this.keypress.bind(element, this);
         element.boundInput = this.input.bind(element, this);
-        element.addEventListener("keydown", element.boundKeydown, true);
-        element.addEventListener("keyup", element.boundKeyup, true);
+        element.addEventListener("keydown", element.boundKeyDown, true);
+        element.addEventListener("keyup", element.boundKeyUp, true);
+        element.addEventListener("keypress", element.boundKeyPress, true);
         element.addEventListener("input", element.boundInput, true);
       }
     }, {
       key: "unbind",
       value: function unbind(element) {
-        element.removeEventListener("keydown", element.boundKeydown, true);
-        element.removeEventListener("keyup", element.boundKeyup, true);
+        element.removeEventListener("keydown", element.boundKeyDown, true);
+        element.removeEventListener("keyup", element.boundKeyUp, true);
+        element.removeEventListener("keypress", element.boundKeyPress, true);
         element.removeEventListener("input", element.boundInput, true);
-        delete element.boundKeydown;
-        delete element.boundKeyup;
+        delete element.boundKeyDown;
+        delete element.boundKeyUp;
+        delete element.boundKeyPress;
         delete element.boundInput;
       }
     }, {
       key: "keydown",
       value: function keydown(instance, event) {
+        var _this = this;
+
         if (instance.shouldDeactivate(event)) {
           instance.tribute.hideMenu();
         }
-
-        var element = this;
-        instance.commandEvent = false;
 
         if (event instanceof KeyboardEvent) {
           TributeEvents.modifiers().forEach(function (o) {
@@ -197,8 +200,7 @@
         if (instance.tribute.isActive) {
           TributeEvents.keys().forEach(function (o) {
             if (o.key === event.keyCode) {
-              instance.commandEvent = true;
-              instance.callbacks()[o.value.toLowerCase()](event, element);
+              instance.callbacks()[o.value.toLowerCase()](event, _this);
             }
           });
         }
@@ -206,9 +208,7 @@
     }, {
       key: "input",
       value: function input(instance, event) {
-        instance.inputEvent = event instanceof CustomEvent ? false : true;
-        instance.commandEvent = !instance.inputEvent;
-        instance.keyup.call(this, instance, event);
+        if (event instanceof InputEvent) instance.keyup.call(this, instance, event);
       }
     }, {
       key: "click",
@@ -238,12 +238,13 @@
         }
       }
     }, {
+      key: "keypress",
+      value: function keypress(instance, event) {
+        instance.keyup.call(this, instance, event);
+      }
+    }, {
       key: "keyup",
       value: function keyup(instance, event) {
-        if (instance.inputEvent) {
-          instance.inputEvent = false;
-        }
-
         instance.updateSelection(this);
 
         if (event instanceof KeyboardEvent) {
@@ -254,54 +255,49 @@
           });
         }
 
-        if (event.keyCode === 27) return;
-
         if (!instance.tribute.allowSpaces && instance.tribute.hasTrailingSpace) {
           instance.tribute.hasTrailingSpace = false;
-          instance.commandEvent = true;
           instance.callbacks()["space"](event, this);
           return;
         }
 
         if (!instance.tribute.isActive) {
-          if (instance.tribute.autocompleteMode) {
-            instance.callbacks().triggerChar(event, this, "");
-          } else {
-            var keyCode = instance.getKeyCode(instance, this, event);
-            if (isNaN(keyCode) || !keyCode) return;
-            var trigger = instance.tribute.triggers().find(function (trigger) {
-              return trigger.charCodeAt(0) === keyCode;
-            });
+          var keyCode = instance.getKeyCode(instance, this, event);
 
-            if (typeof trigger !== "undefined") {
-              instance.callbacks().triggerChar(event, this, trigger);
+          if (keyCode && !isNaN(keyCode)) {
+            if (instance.tribute.autocompleteMode && String.fromCharCode(keyCode).match(/(\w|\s)/g)) {
+              instance.tribute.current.trigger = "";
+            } else {
+              instance.tribute.current.trigger = instance.tribute.triggers().find(function (trigger) {
+                return trigger.charCodeAt(0) === keyCode;
+              });
             }
+          } else if (instance.tribute.autocompleteMode && event instanceof InputEvent) {
+            instance.tribute.current.trigger = "";
           }
+
+          instance.tribute.current.collection = instance.tribute.collection.find(function (item) {
+            return item.trigger === instance.tribute.current.trigger;
+          });
         }
 
         if (instance.tribute.current.mentionText.length < instance.tribute.current.collection.menuShowMinLength) {
           return;
         }
 
-        if ((instance.tribute.current.trigger || instance.tribute.autocompleteMode) && instance.commandEvent === false || instance.tribute.isActive && event.keyCode === 8) {
+        if (instance.tribute.current.trigger || instance.tribute.current.trigger === "" && instance.tribute.autocompleteMode) {
           instance.tribute.showMenuFor(this, true);
         }
       }
     }, {
       key: "shouldDeactivate",
       value: function shouldDeactivate(event) {
-        if (!this.tribute.isActive) return false; //if (this.tribute.current.mentionText.length === 0) {
-
-        var eventKeyPressed = false;
+        var controlKeyPressed = false;
         TributeEvents.keys().forEach(function (o) {
-          if (event.keyCode === o.key) eventKeyPressed = true;
+          if (event.keyCode === o.key) controlKeyPressed = true;
         });
-        if (eventKeyPressed) return false; //}
-
-        if (this.tribute.isActive) {
-          return true;
-        }
-
+        if (controlKeyPressed) return false;
+        if (this.tribute.isActive) return true;
         return false;
       }
     }, {
@@ -311,11 +307,13 @@
         var tribute = instance.tribute;
         var info = tribute.range.getTriggerInfo(false, tribute.hasTrailingSpace, true, tribute.allowSpaces, tribute.autocompleteMode);
 
-        if (info) {
+        if (info && info.mentionTriggerChar) {
           return info.mentionTriggerChar.charCodeAt(0);
-        } else {
-          return false;
+        } else if (event instanceof KeyboardEvent) {
+          return event.keyCode || event.which || event.code;
         }
+
+        return false;
       }
     }, {
       key: "updateSelection",
@@ -334,103 +332,91 @@
     }, {
       key: "callbacks",
       value: function callbacks() {
-        var _this = this;
+        var _this2 = this;
 
         return {
-          triggerChar: function triggerChar(e, el, trigger) {
-            var tribute = _this.tribute;
-            tribute.current.trigger = trigger;
-            var collectionItem = tribute.collection.find(function (item) {
-              return item.trigger === trigger;
-            });
-            tribute.current.collection = collectionItem;
-
-            if (tribute.current.mentionText.length >= tribute.current.collection.menuShowMinLength && tribute.inputEvent) {
-              tribute.showMenuFor(el, true);
-            }
-          },
           enter: function enter(e, el) {
             // choose selection
-            if (_this.tribute.isActive && _this.tribute.current.filteredItems) {
+            if (_this2.tribute.isActive && _this2.tribute.current.filteredItems) {
               e.preventDefault();
               e.stopPropagation();
 
-              _this.tribute.selectItemAtIndex(_this.tribute.menuSelected, e);
+              _this2.tribute.selectItemAtIndex(_this2.tribute.menuSelected, e);
 
-              _this.tribute.hideMenu();
+              _this2.tribute.hideMenu();
             }
           },
           escape: function escape(e, el) {
-            if (_this.tribute.isActive) {
+            if (_this2.tribute.isActive) {
               e.preventDefault();
               e.stopPropagation();
 
-              _this.tribute.hideMenu();
+              _this2.tribute.hideMenu();
             }
           },
           tab: function tab(e, el) {
             // choose first match
-            _this.callbacks().enter(e, el);
+            _this2.callbacks().enter(e, el);
           },
           space: function space(e, el) {
-            if (_this.tribute.isActive) {
-              if (_this.tribute.spaceSelectsMatch) {
-                _this.callbacks().enter(e, el);
-              } else if (!_this.tribute.allowSpaces) {
+            if (_this2.tribute.isActive) {
+              if (_this2.tribute.spaceSelectsMatch) {
+                _this2.callbacks().enter(e, el);
+              } else if (!_this2.tribute.allowSpaces) {
                 e.stopPropagation();
                 setTimeout(function () {
-                  _this.tribute.hideMenu();
+                  _this2.tribute.hideMenu();
                 }, 0);
               }
             }
           },
           up: function up(e, el) {
             // navigate up ul
-            if (_this.tribute.isActive && _this.tribute.current.filteredItems) {
+            if (_this2.tribute.isActive && _this2.tribute.current.filteredItems) {
               e.preventDefault();
               e.stopPropagation();
-              var count = _this.tribute.current.filteredItems.length,
-                  selected = _this.tribute.menuSelected;
+              var count = _this2.tribute.current.filteredItems.length,
+                  selected = _this2.tribute.menuSelected;
 
               if (count > selected && selected > 0) {
-                _this.tribute.menuSelected--;
+                _this2.tribute.menuSelected--;
 
-                _this.setActiveLi();
+                _this2.setActiveLi();
               } else if (selected === 0) {
-                _this.tribute.menuSelected = count - 1;
+                _this2.tribute.menuSelected = count - 1;
 
-                _this.setActiveLi();
+                _this2.setActiveLi();
 
-                _this.tribute.menu.scrollTop = _this.tribute.menu.scrollHeight;
+                _this2.tribute.menu.scrollTop = _this2.tribute.menu.scrollHeight;
               }
             }
           },
           down: function down(e, el) {
             // navigate down ul
-            if (_this.tribute.isActive && _this.tribute.current.filteredItems) {
+            if (_this2.tribute.isActive && _this2.tribute.current.filteredItems) {
               e.preventDefault();
               e.stopPropagation();
-              var count = _this.tribute.current.filteredItems.length - 1,
-                  selected = _this.tribute.menuSelected;
+              var count = _this2.tribute.current.filteredItems.length - 1,
+                  selected = _this2.tribute.menuSelected;
 
               if (count > selected) {
-                _this.tribute.menuSelected++;
+                _this2.tribute.menuSelected++;
 
-                _this.setActiveLi();
+                _this2.setActiveLi();
               } else if (count === selected) {
-                _this.tribute.menuSelected = 0;
+                _this2.tribute.menuSelected = 0;
 
-                _this.setActiveLi();
+                _this2.setActiveLi();
 
-                _this.tribute.menu.scrollTop = 0;
+                _this2.tribute.menu.scrollTop = 0;
               }
             }
           },
           "delete": function _delete(e, el) {
-            if (_this.tribute.isActive && _this.tribute.current.mentionText.length < 1) {
-              _this.tribute.hideMenu();
-            } else if (_this.tribute.isActive) {
-              _this.tribute.showMenuFor(el);
+            if (_this2.tribute.isActive && _this2.tribute.current.mentionText.length < 1) {
+              _this2.tribute.hideMenu();
+            } else if (_this2.tribute.isActive) {
+              _this2.tribute.showMenuFor(el);
             }
           }
         };
@@ -1413,7 +1399,6 @@
       this.autocompleteSeparator = autocompleteSeparator;
       this.menuSelected = 0;
       this.current = {};
-      this.inputEvent = false;
       this.isActive = false;
       this.activationPending = false;
       this.menuContainer = menuContainer;
