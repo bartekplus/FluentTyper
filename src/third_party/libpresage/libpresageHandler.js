@@ -274,7 +274,7 @@ class PresageHandler {
     // Add space if needed
     if (this.insertSpaceAfterAutocomplete) {
       message.context.predictions = message.context.predictions.map(
-        (pred) => `${pred} `
+        (pred) => `${pred}\xA0`
       );
     }
     // Auto capitalize if needed
