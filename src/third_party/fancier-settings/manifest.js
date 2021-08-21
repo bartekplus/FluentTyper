@@ -138,9 +138,20 @@ const manifest = {
 
     {
       tab: i18n.get("Text Expander"),
-      name: "TextExpander",
-      type: "description",
+      name: "textExpansions",
+      type: "valueOnly",
       text: "",
+      default: [
+        [
+          "FF",
+          "Check out a phenomenal productivity app called FluentTyper. It autocompletes words for you while you typing, saving loads of time. I think you'll love it, and it's free!",
+        ],
+        ["callMe", "Call me back once you get free."],
+        ["asap", "as soon as possible"],
+        ["afaik", "as far as I know"],
+        ["afaic", "as far as I'm concerned"],
+        ["eur", "€"],
+      ],
     },
     {
       tab: i18n.get("Test FlutenTyper"),
