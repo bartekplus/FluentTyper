@@ -28,6 +28,8 @@ class Bundle extends Events {
   constructor(params) {
     super(params);
     this.params = params;
+    this.bundle = new ElementWrapper("div", {});
+    this.element = new ElementWrapper("span", {});
 
     this.createDOM();
     this.setupDOM();
@@ -37,6 +39,8 @@ class Bundle extends Events {
       this.set(settings.get(this.params.name), true);
     }
   }
+  createDOM() {}
+  setupDOM() {}
 
   addEvents() {
     this.element.addEvent(
