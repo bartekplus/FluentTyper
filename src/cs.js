@@ -145,14 +145,14 @@
         const elem = elems[i];
         const inputTypes = ["text", ""];
         const autocomplete = elem.getAttribute("autocomplete")
-          ? elem.getAttribute("autocomplete").toLowerCase()
+          ? elem.getAttribute("autocomplete").toLowerCase().trim()
           : "";
         const contentEditable = elem.getAttribute("contentEditable")
-          ? elem.getAttribute("contentEditable").toLowerCase()
+          ? elem.getAttribute("contentEditable").toLowerCase().trim()
           : "true";
 
         const inputType = elem.getAttribute("type")
-          ? elem.getAttribute("type").toLowerCase()
+          ? elem.getAttribute("type").toLowerCase().trim()
           : "";
         if (
           elem.tagName.toLowerCase() === "input" &&

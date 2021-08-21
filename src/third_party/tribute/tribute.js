@@ -1113,8 +1113,19 @@
         div.style.height = rect.height + 'px';
         div.scrollTop = element.scrollTop;
         var spanRect = span.getBoundingClientRect();
+        var divRect = div.getBoundingClientRect();
         this.getDocument().body.removeChild(div);
-        return this.getFixedCoordinatesRelativeToRect(spanRect);
+
+        var clamp = function clamp(number, min, max) {
+          return Math.max(min, Math.min(number, max));
+        };
+
+        var finalRect = {
+          height: Math.min(divRect.height, spanRect.height),
+          left: clamp(spanRect.left, divRect.left, divRect.left + divRect.width),
+          top: clamp(spanRect.top, divRect.top, divRect.top + divRect.height)
+        };
+        return this.getFixedCoordinatesRelativeToRect(finalRect);
       }
     }, {
       key: "getContentEditableCaretPosition",
