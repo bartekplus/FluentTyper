@@ -285,21 +285,6 @@
         });
         this.tributeArr[this.tributeArr.length - 1].tribute = tribute;
         tribute.attach(elem);
-        elem.addEventListener(
-          "tribute-replaced",
-          this.tributeReplacedEventHandler.bind(
-            this,
-            this.tributeArr.length - 1
-          )
-        );
-      }
-    }
-
-    tributeReplacedEventHandler(helperArrId) {
-      if (this.tributeArr[helperArrId].triggerInputEvent) {
-        setTimeout(() => {
-          this.tributeArr[helperArrId].elem.dispatchEvent(new Event("input"));
-        }, 0);
       }
     }
 
