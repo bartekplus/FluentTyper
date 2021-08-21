@@ -21,16 +21,17 @@ class TextExpander {
   }
 
   clearRender() {
-    let node = this.settingsWithManifest.manifest.TextExpander.bundle.element;
+    let node = this.settingsWithManifest.manifest.textExpansions.bundle.element;
     let clonedNode = node.cloneNode(false);
     node.parentNode.replaceChild(clonedNode, node);
-    this.settingsWithManifest.manifest.TextExpander.bundle.element = clonedNode;
+    this.settingsWithManifest.manifest.textExpansions.bundle.element =
+      clonedNode;
   }
 
   renderNode(key, val, shortcatIndex) {
     const newNode = shortcatIndex === null;
     let field = new ElementWrapper("div", { class: "field is-horizontal" });
-    field.inject(this.settingsWithManifest.manifest.TextExpander.bundle);
+    field.inject(this.settingsWithManifest.manifest.textExpansions.bundle);
     let fieldBody = new ElementWrapper("div", { class: "field-body" });
     fieldBody.inject(field);
     [key, val].forEach((value, index) => {
