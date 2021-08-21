@@ -704,6 +704,7 @@
             var textEndsWithSpace = text !== text.trimEnd();
             var myField = this.tribute.current.element;
             var textSuffix = typeof this.tribute.replaceTextSuffix == 'string' ? this.tribute.replaceTextSuffix : ' ';
+            text = this.stripHtml(text);
             text += textSuffix;
             var startPos = info.mentionPosition;
             var endPos = info.mentionPosition + info.mentionText.length + textSuffix.length + textEndsWithSpace;
@@ -761,23 +762,33 @@
         range.insertNode(frag); // Preserve the selection
 
         if (lastNode) {
-          range = range.cloneRange();
-          range.setStartAfter(lastNode);
+          range = this.getDocument().createRange();
+          range.setStart(lastNode, lastNode.length);
           range.collapse(true);
           sel.removeAllRanges();
           sel.addRange(range);
+          sel.collapseToEnd();
         }
+      }
+    }, {
+      key: "stripHtml",
+      value: function stripHtml(html) {
+        var tmp = document.createElement("DIV");
+        tmp.innerHTML = html;
+        return tmp.textContent || tmp.innerText || "";
       }
     }, {
       key: "pasteText",
       value: function pasteText(html, startPos, endPos) {
+        text = this.stripHtml(html);
         var range = this.getDocument().createRange();
         var sel = this.getWindowSelection();
-        sel.anchorNode.nodeValue = sel.anchorNode.nodeValue.substring(0, startPos) + html + sel.anchorNode.nodeValue.substring(endPos, sel.anchorNode.nodeValue.length);
-        range.setStart(sel.anchorNode, startPos + html.length);
+        sel.anchorNode.nodeValue = sel.anchorNode.nodeValue.substring(0, startPos) + text + sel.anchorNode.nodeValue.substring(endPos, sel.anchorNode.nodeValue.length);
+        range.setStart(sel.anchorNode, startPos + text.length);
         range.collapse(true);
         sel.removeAllRanges();
         sel.addRange(range);
+        sel.collapseToEnd();
       }
     }, {
       key: "getWindowSelection",
