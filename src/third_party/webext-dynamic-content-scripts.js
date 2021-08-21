@@ -117,7 +117,7 @@
         !isOriginPermittedRet ||
         (await wasPreviouslyLoaded(tabId, frameId, { js, css }))
       ) {
-        return;
+        if (url == "about:blank" && !matchAboutBlank) return;
       }
       for (const file of css) {
         void chrome.tabs.insertCSS(tabId, {
