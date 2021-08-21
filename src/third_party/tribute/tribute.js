@@ -186,11 +186,14 @@
         }
 
         if (event instanceof KeyboardEvent) {
+          var controlKeyPressed = false;
           TributeEvents.modifiers().forEach(function (o) {
             if (event.getModifierState(o)) {
+              controlKeyPressed = true;
               return;
             }
           });
+          if (controlKeyPressed) return;
         }
 
         if (instance.tribute.isActive) {
@@ -204,7 +207,12 @@
     }, {
       key: "input",
       value: function input(instance, event) {
-        if (event instanceof InputEvent) instance.keyup.call(this, instance, event);
+        if (event instanceof CustomEvent) {
+          var str = event.detail.text;
+          event.keyCode = str.charCodeAt(str.length - 1);
+        }
+
+        instance.keyup.call(this, instance, event);
       }
     }, {
       key: "click",
@@ -224,8 +232,7 @@
             }
           }
 
-          tribute.selectItemAtIndex(li.getAttribute("data-index"), event);
-          tribute.hideMenu(); // TODO: should fire with externalTrigger and target is outside of menu
+          tribute.selectItemAtIndex(li.getAttribute("data-index"), event); // TODO: should fire with externalTrigger and target is outside of menu
         } else if (tribute.current.element && !tribute.current.externalTrigger) {
           tribute.current.externalTrigger = false;
           tribute.hideMenu();
@@ -234,31 +241,33 @@
     }, {
       key: "keyup",
       value: function keyup(instance, event) {
-        // Check for modifiers keys
+        if (!instance.updateSelection(this)) return;
+        var keyCode = instance.getKeyCode(instance, this, event); // Check for modifiers keys
+
         if (event instanceof KeyboardEvent) {
+          var controlKeyPressed = false;
           TributeEvents.modifiers().forEach(function (o) {
             if (event.getModifierState(o)) {
+              controlKeyPressed = true;
+              return;
+            }
+          }); // Check for control keys
+
+          TributeEvents.keys().forEach(function (o) {
+            if (o.key === keyCode) {
+              controlKeyPressed = true;
               return;
             }
           });
-        } // Check for control keys
-
-
-        TributeEvents.keys().forEach(function (o) {
-          if (o.key === event.keyCode) {
-            return;
-          }
-        });
+          if (controlKeyPressed) return;
+        }
 
         if (!instance.tribute.allowSpaces && instance.tribute.hasTrailingSpace) {
           instance.tribute.hasTrailingSpace = false;
           instance.callbacks()["space"](event, this);
           return;
-        }
+        } // Get and validate trigger char
 
-        if (!instance.updateSelection(this)) return; // Get and validate trigger char
-
-        var keyCode = instance.getKeyCode(instance, this, event);
 
         if (keyCode && !isNaN(keyCode)) {
           if (instance.tribute.autocompleteMode && String.fromCharCode(keyCode).match(/(\w|\s)/g)) {
@@ -289,7 +298,10 @@
       value: function shouldDeactivate(event) {
         var controlKeyPressed = false;
         TributeEvents.keys().forEach(function (o) {
-          if (event.keyCode === o.key) controlKeyPressed = true;
+          if (event.keyCode === o.key) {
+            controlKeyPressed = true;
+            return;
+          }
         });
         if (controlKeyPressed) return false;
         if (this.tribute.isActive) return true;
@@ -304,11 +316,9 @@
 
         if (info && info.mentionTriggerChar) {
           return info.mentionTriggerChar.charCodeAt(0);
-        } else if (event instanceof KeyboardEvent) {
-          return event.keyCode || event.which || event.code;
+        } else {
+          return event.keyCode || event.which || event.code || false;
         }
-
-        return false;
       }
     }, {
       key: "updateSelection",
@@ -343,8 +353,6 @@
               e.stopPropagation();
 
               _this2.tribute.selectItemAtIndex(_this2.tribute.menuSelected, e);
-
-              _this2.tribute.hideMenu();
             }
           },
           escape: function escape(e, el) {
@@ -677,57 +685,56 @@
       }
     }, {
       key: "replaceTriggerText",
-      value: function replaceTriggerText(text, requireLeadingSpace, hasTrailingSpace, originalEvent, item) {
-        var info = this.tribute.current.info; //this.getTriggerInfo(true, hasTrailingSpace, requireLeadingSpace, this.tribute.allowSpaces, this.tribute.autocompleteMode)
+      value: function replaceTriggerText(text, requireLeadingSpace, hasTrailingSpace, originalEvent, item, current) {
+        var info = current.info;
+        var detail = {
+          item: item,
+          instance: current,
+          context: current.info,
+          event: originalEvent,
+          text: text
+        };
+        var replaceEvent = new CustomEvent('tribute-replaced', {
+          detail: detail
+        });
 
-        if (info !== undefined) {
-          var context = this.tribute.current;
-          var replaceEvent = new CustomEvent('tribute-replaced', {
-            detail: {
-              item: item,
-              instance: context,
-              context: info,
-              event: originalEvent
-            }
-          });
+        if (!this.isContentEditable(current.element)) {
+          var textEndsWithSpace = text !== text.trimEnd();
+          var myField = current.element;
+          var textSuffix = typeof this.tribute.replaceTextSuffix == 'string' ? this.tribute.replaceTextSuffix : ' ';
+          text += textSuffix;
+          var startPos = info.mentionPosition;
+          var endPos = info.mentionPosition + info.mentionText.length + textSuffix.length + textEndsWithSpace;
 
-          if (!this.isContentEditable(context.element)) {
-            var textEndsWithSpace = text !== text.trimEnd();
-            var myField = this.tribute.current.element;
-            var textSuffix = typeof this.tribute.replaceTextSuffix == 'string' ? this.tribute.replaceTextSuffix : ' ';
-            text += textSuffix;
-            var startPos = info.mentionPosition;
-            var endPos = info.mentionPosition + info.mentionText.length + textSuffix.length + textEndsWithSpace;
-
-            if (!this.tribute.autocompleteMode) {
-              endPos += info.mentionTriggerChar.length - 1;
-            }
-
-            myField.value = myField.value.substring(0, startPos) + text + myField.value.substring(endPos, myField.value.length);
-            myField.selectionStart = startPos + text.length;
-            myField.selectionEnd = startPos + text.length;
-          } else {
-            // add a space to the end of the pasted text
-            var _textEndsWithSpace = text !== text.trimEnd();
-
-            var _textSuffix = typeof this.tribute.replaceTextSuffix == 'string' ? this.tribute.replaceTextSuffix : '\xA0';
-
-            text += _textSuffix;
-
-            var _endPos = info.mentionPosition + info.mentionText.length + _textEndsWithSpace;
-
-            if (!this.tribute.autocompleteMode) {
-              _endPos += info.mentionTriggerChar.length;
-            }
-
-            this.tribute.useHTML ? this.pasteHtml(text, info.mentionPosition, _endPos) : this.pasteText(text, info.mentionPosition, _endPos);
+          if (!this.tribute.autocompleteMode) {
+            endPos += info.mentionTriggerChar.length - 1;
           }
 
-          context.element.dispatchEvent(new CustomEvent('input', {
-            bubbles: true
-          }));
-          context.element.dispatchEvent(replaceEvent);
+          myField.value = myField.value.substring(0, startPos) + text + myField.value.substring(endPos, myField.value.length);
+          myField.selectionStart = startPos + text.length;
+          myField.selectionEnd = startPos + text.length;
+        } else {
+          // add a space to the end of the pasted text
+          var _textEndsWithSpace = text !== text.trimEnd();
+
+          var _textSuffix = typeof this.tribute.replaceTextSuffix == 'string' ? this.tribute.replaceTextSuffix : '\xA0';
+
+          text += _textSuffix;
+
+          var _endPos = info.mentionPosition + info.mentionText.length + _textEndsWithSpace;
+
+          if (!this.tribute.autocompleteMode) {
+            _endPos += info.mentionTriggerChar.length;
+          }
+
+          this.tribute.useHTML ? this.pasteHtml(text, info.mentionPosition, _endPos) : this.pasteText(text, info.mentionPosition, _endPos);
         }
+
+        current.element.dispatchEvent(new CustomEvent('input', {
+          bubbles: true,
+          detail: detail
+        }));
+        current.element.dispatchEvent(replaceEvent);
       }
     }, {
       key: "pasteHtml",
@@ -1668,7 +1675,7 @@
             _this2.current.info.mentionPosition -= forceReplace.length;
             _this2.current.info.mentionText = " ".repeat(forceReplace.length) + _this2.current.info.mentionText;
 
-            _this2.replaceText(forceReplace.text, null, null);
+            _this2.replaceText(forceReplace.text, null, null, _this2.current);
 
             return;
           }
@@ -1834,8 +1841,6 @@
     }, {
       key: "hideMenu",
       value: function hideMenu() {
-        this.activationPending = false;
-
         if (this.menu) {
           this.menu.remove();
           this.menu = null;
@@ -1848,16 +1853,18 @@
     }, {
       key: "selectItemAtIndex",
       value: function selectItemAtIndex(index, originalEvent) {
+        var current = this.current;
+        this.hideMenu();
         index = parseInt(index);
         if (typeof index !== "number" || isNaN(index) || !originalEvent.target) return;
-        var item = this.current.filteredItems[index];
-        var content = this.current.collection.selectTemplate(item);
-        if (content !== null) this.replaceText(content, originalEvent, item);
+        var item = current.filteredItems[index];
+        var content = current.collection.selectTemplate(item);
+        if (content !== null) this.replaceText(content, originalEvent, item, current);
       }
     }, {
       key: "replaceText",
-      value: function replaceText(content, originalEvent, item) {
-        this.range.replaceTriggerText(content, true, true, originalEvent, item);
+      value: function replaceText(content, originalEvent, item, current) {
+        this.range.replaceTriggerText(content, true, true, originalEvent, item, current);
       }
     }, {
       key: "_append",
