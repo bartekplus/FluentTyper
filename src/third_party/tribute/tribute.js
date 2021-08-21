@@ -210,9 +210,8 @@
         if (event instanceof CustomEvent) {
           var str = event.detail.text;
           event.keyCode = str.charCodeAt(str.length - 1);
-        }
-
-        instance.keyup.call(this, instance, event);
+          setTimeout(instance.keyup.bind(this, instance, event), 0);
+        } else instance.keyup.call(this, instance, event);
       }
     }, {
       key: "click",
@@ -685,56 +684,60 @@
       }
     }, {
       key: "replaceTriggerText",
-      value: function replaceTriggerText(text, requireLeadingSpace, hasTrailingSpace, originalEvent, item, current) {
-        var info = current.info;
-        var detail = {
-          item: item,
-          instance: current,
-          context: current.info,
-          event: originalEvent,
-          text: text
-        };
-        var replaceEvent = new CustomEvent('tribute-replaced', {
-          detail: detail
-        });
+      value: function replaceTriggerText(text, requireLeadingSpace, hasTrailingSpace, originalEvent, item) {
+        var info = this.tribute.current.info; //this.getTriggerInfo(true, hasTrailingSpace, requireLeadingSpace, this.tribute.allowSpaces, this.tribute.autocompleteMode)
 
-        if (!this.isContentEditable(current.element)) {
-          var textEndsWithSpace = text !== text.trimEnd();
-          var myField = current.element;
-          var textSuffix = typeof this.tribute.replaceTextSuffix == 'string' ? this.tribute.replaceTextSuffix : ' ';
-          text += textSuffix;
-          var startPos = info.mentionPosition;
-          var endPos = info.mentionPosition + info.mentionText.length + textSuffix.length + textEndsWithSpace;
+        if (info !== undefined) {
+          var context = this.tribute.current;
+          var detail = {
+            item: item,
+            instance: context,
+            context: info,
+            event: originalEvent,
+            text: text
+          };
+          var replaceEvent = new CustomEvent('tribute-replaced', {
+            detail: detail
+          });
 
-          if (!this.tribute.autocompleteMode) {
-            endPos += info.mentionTriggerChar.length - 1;
+          if (!this.isContentEditable(context.element)) {
+            var textEndsWithSpace = text !== text.trimEnd();
+            var myField = this.tribute.current.element;
+            var textSuffix = typeof this.tribute.replaceTextSuffix == 'string' ? this.tribute.replaceTextSuffix : ' ';
+            text += textSuffix;
+            var startPos = info.mentionPosition;
+            var endPos = info.mentionPosition + info.mentionText.length + textSuffix.length + textEndsWithSpace;
+
+            if (!this.tribute.autocompleteMode) {
+              endPos += info.mentionTriggerChar.length - 1;
+            }
+
+            myField.value = myField.value.substring(0, startPos) + text + myField.value.substring(endPos, myField.value.length);
+            myField.selectionStart = startPos + text.length;
+            myField.selectionEnd = startPos + text.length;
+          } else {
+            // add a space to the end of the pasted text
+            var _textEndsWithSpace = text !== text.trimEnd();
+
+            var _textSuffix = typeof this.tribute.replaceTextSuffix == 'string' ? this.tribute.replaceTextSuffix : '\xA0';
+
+            text += _textSuffix;
+
+            var _endPos = info.mentionPosition + info.mentionText.length + _textEndsWithSpace;
+
+            if (!this.tribute.autocompleteMode) {
+              _endPos += info.mentionTriggerChar.length;
+            }
+
+            this.tribute.useHTML ? this.pasteHtml(text, info.mentionPosition, _endPos) : this.pasteText(text, info.mentionPosition, _endPos);
           }
 
-          myField.value = myField.value.substring(0, startPos) + text + myField.value.substring(endPos, myField.value.length);
-          myField.selectionStart = startPos + text.length;
-          myField.selectionEnd = startPos + text.length;
-        } else {
-          // add a space to the end of the pasted text
-          var _textEndsWithSpace = text !== text.trimEnd();
-
-          var _textSuffix = typeof this.tribute.replaceTextSuffix == 'string' ? this.tribute.replaceTextSuffix : '\xA0';
-
-          text += _textSuffix;
-
-          var _endPos = info.mentionPosition + info.mentionText.length + _textEndsWithSpace;
-
-          if (!this.tribute.autocompleteMode) {
-            _endPos += info.mentionTriggerChar.length;
-          }
-
-          this.tribute.useHTML ? this.pasteHtml(text, info.mentionPosition, _endPos) : this.pasteText(text, info.mentionPosition, _endPos);
+          context.element.dispatchEvent(new CustomEvent('input', {
+            bubbles: true,
+            detail: detail
+          }));
+          context.element.dispatchEvent(replaceEvent);
         }
-
-        current.element.dispatchEvent(new CustomEvent('input', {
-          bubbles: true,
-          detail: detail
-        }));
-        current.element.dispatchEvent(replaceEvent);
       }
     }, {
       key: "pasteHtml",
@@ -743,7 +746,7 @@
         sel = this.getWindowSelection();
         range = this.getDocument().createRange();
         range.setStart(sel.anchorNode, startPos);
-        range.setEnd(sel.anchorNode, endPos);
+        range.setEnd(sel.anchorNode, Math.min(endPos, sel.anchorNode.length));
         range.deleteContents();
         var el = this.getDocument().createElement('div');
         el.innerHTML = html;
@@ -1675,7 +1678,7 @@
             _this2.current.info.mentionPosition -= forceReplace.length;
             _this2.current.info.mentionText = " ".repeat(forceReplace.length) + _this2.current.info.mentionText;
 
-            _this2.replaceText(forceReplace.text, null, null, _this2.current);
+            _this2.replaceText(forceReplace.text, null, null);
 
             return;
           }
@@ -1846,25 +1849,23 @@
           this.menu = null;
         }
 
-        this.current = {};
         this.isActive = false;
         this.activationPending = false;
       }
     }, {
       key: "selectItemAtIndex",
       value: function selectItemAtIndex(index, originalEvent) {
-        var current = this.current;
         this.hideMenu();
         index = parseInt(index);
         if (typeof index !== "number" || isNaN(index) || !originalEvent.target) return;
-        var item = current.filteredItems[index];
-        var content = current.collection.selectTemplate(item);
-        if (content !== null) this.replaceText(content, originalEvent, item, current);
+        var item = this.current.filteredItems[index];
+        var content = this.current.collection.selectTemplate(item);
+        if (content !== null) this.replaceText(content, originalEvent, item);
       }
     }, {
       key: "replaceText",
-      value: function replaceText(content, originalEvent, item, current) {
-        this.range.replaceTriggerText(content, true, true, originalEvent, item, current);
+      value: function replaceText(content, originalEvent, item) {
+        this.range.replaceTriggerText(content, true, true, originalEvent, item);
       }
     }, {
       key: "_append",
