@@ -10,52 +10,50 @@ class Events {
     this.events = {};
   }
 
-  addEvent(type, fn, internal) {
+  addEvent(type, fn) {
     type = this.removeOn(type);
 
     if (!(type in this.events)) this.events[type] = [];
-    if (this.events[type].indexOf(fn) == -1) this.events[type].push(fn);
-    if (internal) fn.internal = true;
+    if (this.events[type].indexOf(fn) === -1) this.events[type].push(fn);
     return this;
   }
 
   addEvents(events) {
-    for (let type in events) this.addEvent(type, events[type]);
+    for (const type in events) this.addEvent(type, events[type]);
     return this;
   }
 
-  fireEvent(type, args, delay) {
+  fireEvent(type, args) {
     type = this.removeOn(type);
-    let events = this.events[type];
+    const events = this.events[type];
     if (!events) return this;
     args = Array(args);
     events.forEach((fn) => {
-      if (delay) fn.delay(delay, this, args);
-      else fn.apply(this, args);
+      fn.apply(this, args);
     });
     return this;
   }
 
   removeEvent(type, fn) {
     type = this.removeOn(type);
-    let events = this.events[type];
-    if (events && !fn.internal) {
-      let index = events.indexOf(fn);
-      if (index != -1) delete events[index];
+    const events = this.events[type];
+    if (events) {
+      const index = events.indexOf(fn);
+      if (index !== -1) delete events[index];
     }
     return this;
   }
 
   removeEvents(events) {
     let type;
-    if (typeOf(events) == "object") {
+    if (typeof events === "object") {
       for (type in events) this.removeEvent(type, events[type]);
       return this;
     }
     if (events) events = this.removeOn(events);
     for (type in this.events) {
-      if (events && events != type) continue;
-      let fns = this.events[type];
+      if (events && events !== type) continue;
+      const fns = this.events[type];
       for (let i = fns.length; i--; ) {
         if (i in fns) {
           this.removeEvent(type, fns[i]);
@@ -112,7 +110,7 @@ class ElementWrapper extends Events {
   }
 
   getSelected() {
-    let selected = Array.from(this.element.options)
+    const selected = Array.from(this.element.options)
       .filter((o) => o.selected)
       .map((o) => new ElementWrapper(o));
     return selected;

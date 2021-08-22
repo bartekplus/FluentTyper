@@ -1,5 +1,3 @@
-"use strict";
-
 import { isDomainOnList, checkLastError } from "./utils.js";
 import { Store } from "./third_party/fancier-settings/lib/store.js";
 
@@ -89,14 +87,13 @@ import { Store } from "./third_party/fancier-settings/lib/store.js";
           break;
 
         case "contentScriptGetConfig":
-          const respMsg = {
+          sendResponse({
             command: "backgroundPageSetConfig",
             context: {
               enabled: this.isEnabledForDomain(sender.tab.url),
               useEnter: this.settings.get("useEnter"),
             },
-          };
-          sendResponse(respMsg);
+          });
           break;
       }
     }
@@ -187,7 +184,7 @@ import { Store } from "./third_party/fancier-settings/lib/store.js";
     }
 
     // Trigger config update after sandboxFrame 'load' event
-    onDOMContentLoaded(event) {
+    onDOMContentLoaded() {
       if (navigator.userAgent.indexOf("Chrome") !== -1) {
         setTimeout(
           this.onSandboxFrameLoaded.bind(this),
@@ -199,5 +196,5 @@ import { Store } from "./third_party/fancier-settings/lib/store.js";
       }
     }
   }
-  const backgroundPage = new BackgrounPage();
+  new BackgrounPage();
 })();

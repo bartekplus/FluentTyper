@@ -47,7 +47,7 @@ class Bundle extends Events {
     if (this.element) {
       this.element.addEvent(
         "change",
-        function (event) {
+        function () {
           if (this.params.name !== undefined) {
             settings.set(this.params.name, this.get());
           }
@@ -285,7 +285,7 @@ class Text extends Bundle {
   }
 
   addEvents() {
-    const change = function (event) {
+    const change = function () {
       if (this.params.name !== undefined) {
         if (this.params.store !== false) {
           settings.set(this.params.name, this.get());
@@ -341,7 +341,7 @@ class Textarea extends Bundle {
   }
 
   addEvents() {
-    let change = function (event) {
+    const change = function () {
       if (this.params.name !== undefined) {
         settings.set(this.params.name, this.get());
       }
@@ -365,7 +365,7 @@ class Checkbox extends Bundle {
       class: "control",
     });
 
-    let id = getUniqueID();
+    const id = getUniqueID();
     this.element = new ElementWrapper("input", {
       id: id,
       name: id,
@@ -480,7 +480,7 @@ class Slider extends Bundle {
   addEvents() {
     this.element.addEvent(
       "input",
-      function (event) {
+      function () {
         if (this.params.name !== undefined) {
           settings.set(this.params.name, this.get());
         }
@@ -652,7 +652,7 @@ class ListBox extends PopupButton {
   }
 
   addEvents() {
-    const change = function (event) {
+    const change = function () {
       if (this.params.name !== undefined) {
         this.selected = this.element.getSelected();
         // settings.set(this.params.names, this.get());
@@ -668,7 +668,7 @@ class ListBox extends PopupButton {
     this.selected = null;
     this.params.options = [];
 
-    let initParams = settings.get(this.params.name);
+    const initParams = settings.get(this.params.name);
     if (initParams) {
       this.params.options = initParams;
     }
@@ -684,7 +684,9 @@ class ListBox extends PopupButton {
           return true;
         }.bind(this)
       );
-    } catch (e) {}
+    } catch (e) {
+      console.error(e);
+    }
 
     this.element.inject(this.container);
     this.container.inject(this.control);
@@ -771,7 +773,6 @@ class RadioButtons extends Bundle {
           id: optionID,
           name: settingID,
           type: "radio",
-          name: "anwser",
           value: option[0],
         });
         const labelText = new ElementWrapper("span", {
@@ -797,7 +798,7 @@ class RadioButtons extends Bundle {
   addEvents() {
     this.bundle.addEvent(
       "change",
-      function (event) {
+      function () {
         if (this.params.name !== undefined) {
           settings.set(this.params.name, this.get());
         }

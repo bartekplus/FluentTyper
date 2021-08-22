@@ -1,5 +1,3 @@
-"use strict";
-
 function getDomain(url) {
   try {
     return new URL(url).origin;
@@ -10,7 +8,7 @@ function getDomain(url) {
 
 function isDomainOnList(settings, domainURL) {
   let ret = false;
-  let domainList = settings.get("domainList");
+  const domainList = settings.get("domainList");
   domainURL = getDomain(domainURL);
 
   for (let i = 0; i < domainList.length; i++) {
@@ -23,7 +21,7 @@ function isDomainOnList(settings, domainURL) {
 }
 
 function addDomainToList(settings, domainURL) {
-  let domainList = settings.get("domainList");
+  const domainList = settings.get("domainList");
 
   domainList.push(domainURL);
 
@@ -31,7 +29,7 @@ function addDomainToList(settings, domainURL) {
 }
 
 function removeDomainFromList(settings, domainURL) {
-  let domainList = settings.get("domainList");
+  const domainList = settings.get("domainList");
 
   domainURL = getDomain(domainURL);
 
@@ -49,7 +47,9 @@ function checkLastError() {
     if (chrome.runtime.lastError) {
       console.log(chrome.runtime.lastError.message);
     }
-  } catch (e) {}
+  } catch (e) {
+    console.error(e);
+  }
 }
 
 export {

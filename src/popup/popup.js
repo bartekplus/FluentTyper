@@ -1,5 +1,3 @@
-"use strict";
-
 import {
   getDomain,
   isDomainOnList,
@@ -57,7 +55,7 @@ function init() {
 }
 
 async function chromePromise(fn, ...args) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     fn(...args, (result) => {
       if (chrome.runtime.lastError) {
         resolve([undefined, chrome.runtime.lastError.message]);
@@ -145,7 +143,6 @@ function toggleOnOff() {
 init();
 
 window.document.addEventListener("DOMContentLoaded", function () {
-  "use strict";
   window.document
     .getElementById("checkboxDomainInput")
     .addEventListener("click", addRemoveDomain);

@@ -1,6 +1,6 @@
-(function () {
-  "use strict";
+/* global globalThis */
 
+(function () {
   function NestedProxy(target) {
     return new Proxy(target, {
       get(target, prop) {
@@ -8,7 +8,7 @@
           return new NestedProxy(target[prop]);
         }
         return (...arguments_) =>
-          new Promise((resolve, reject) => {
+          new Promise((resolve) => {
             target[prop](...arguments_, (result) => {
               if (chrome.runtime.lastError) {
                 resolve([undefined, chrome.runtime.lastError.message]);
@@ -33,11 +33,6 @@
   function getRawRegex(matchPattern) {
     if (!patternValidationRegex.test(matchPattern)) {
       return [];
-      throw new Error(
-        matchPattern +
-          " is an invalid pattern, it must match " +
-          String(patternValidationRegex)
-      );
     }
     let [, protocol, host, pathname] = matchPattern.split(
       /(^[^:]+:[/][/])([^/]+)?/
@@ -117,7 +112,7 @@
         !isOriginPermittedRet ||
         (await wasPreviouslyLoaded(tabId, frameId, { js, css }))
       ) {
-        if (url == "about:blank" && !matchAboutBlank) return;
+        if (url === "about:blank" && !matchAboutBlank) return;
       }
       for (const file of css) {
         void chrome.tabs.insertCSS(tabId, {

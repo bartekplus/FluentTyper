@@ -29,7 +29,7 @@ class FancierSettings {
   }
 
   create(params) {
-    let tab, group, row, content;
+    let tab, group;
 
     // Create tab if it doesn't exist already
     if (this.tabs[params.tab] === undefined) {

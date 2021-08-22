@@ -1,12 +1,8 @@
-"use strict";
-
-let presageHandler = null;
-
 function initlizePresageHandler() {
-  presageHandler = new PresageHandler();
+  new PresageHandler();
 }
 
-let Module = {
+const Module = {
   onRuntimeInitialized: function () {
     setTimeout(initlizePresageHandler, 0);
   },
@@ -115,7 +111,7 @@ class PresageHandler {
       str += `${textExpansion[0]}\t${textExpansion[1]}\n`;
     });
     Module.FS.writeFile("/textExpansions.txt", str);
-    for (const [lang, libPresage] of Object.entries(this.libPresage)) {
+    for (const [, libPresage] of Object.entries(this.libPresage)) {
       libPresage.config(
         "Presage.Predictors.DefaultAbbreviationExpansionPredictor.ABBREVIATIONS",
         "/textExpansions.txt"
@@ -141,7 +137,7 @@ class PresageHandler {
     this.textExpansions = textExpansions;
     this.setupTextExpansions();
 
-    for (const [lang, libPresage] of Object.entries(this.libPresage)) {
+    for (const [, libPresage] of Object.entries(this.libPresage)) {
       libPresage.config(
         "Presage.Selector.SUGGESTIONS",
         this.numSuggestions.toString()

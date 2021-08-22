@@ -21,8 +21,9 @@ class TextExpander {
   }
 
   clearRender() {
-    let node = this.settingsWithManifest.manifest.textExpansions.bundle.element;
-    let clonedNode = node.cloneNode(false);
+    const node =
+      this.settingsWithManifest.manifest.textExpansions.bundle.element;
+    const clonedNode = node.cloneNode(false);
     node.parentNode.replaceChild(clonedNode, node);
     this.settingsWithManifest.manifest.textExpansions.bundle.element =
       clonedNode;
@@ -33,7 +34,7 @@ class TextExpander {
     const columnElem = new ElementWrapper("div", {
       class: "columns is-expanded",
     });
-    let columnsElems = [];
+    const columnsElems = [];
     for (let index = 0; index < 3; index++) {
       let columnClass = "column";
       switch (index) {
@@ -109,7 +110,7 @@ class TextExpander {
       errMsgNode.inject(fieldElem);
     });
 
-    let button = new ElementWrapper("a", {
+    const button = new ElementWrapper("a", {
       class: "button is-fullwidth" + (newNode ? " is-success" : " is-danger"),
       text: newNode ? "Add" : "Remove",
     });
@@ -128,16 +129,16 @@ class TextExpander {
       document.getElementById(this.addNewShortcutIDs[0]),
       document.getElementById(this.addNewShortcutIDs[1]),
     ].forEach((element, index) => {
-      let errMsgNode = document.getElementById(element.id + "ErrMsg");
+      const errMsgNode = document.getElementById(element.id + "ErrMsg");
       let errMsgStr = "";
       if (!element.checkValidity()) {
         isValid = false;
         errMsgStr =
-          index == 0
+          index === 0
             ? "Please use only letters and numbers no white space are allowed, between 1-32 characters."
             : "Shortcut text cannot be empty.";
       } // Validate if there is no key duplicate
-      else if (index == 0) {
+      else if (index === 0) {
         this.textExpansions.forEach((textExpansion) => {
           if (textExpansion[0] === element.value) {
             isValid = false;
@@ -167,8 +168,8 @@ class TextExpander {
   }
 
   addNewShortcut() {
-    let shortcatElem = document.getElementById(this.addNewShortcutIDs[0]);
-    let shortcatTextElem = document.getElementById(this.addNewShortcutIDs[1]);
+    const shortcatElem = document.getElementById(this.addNewShortcutIDs[0]);
+    const shortcatTextElem = document.getElementById(this.addNewShortcutIDs[1]);
     this.shortcutInputChange();
     if (this.shortcutInputChange()) {
       this.textExpansions.unshift([shortcatElem.value, shortcatTextElem.value]);
