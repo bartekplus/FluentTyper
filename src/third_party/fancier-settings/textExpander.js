@@ -29,14 +29,32 @@ class TextExpander {
   }
 
   renderNode(key, val, shortcutIndex) {
-    const newNode = shortcutIndex === null;
-    const fieldElem = new ElementWrapper("div", {
-      class: "field is-horizontal",
+    const dividerElem = new ElementWrapper("hr", {});
+    const columnElem = new ElementWrapper("div", {
+      class: "columns is-expanded",
     });
-    const fieldBody = new ElementWrapper("div", { class: "field-body" });
-    fieldElem.inject(this.settingsWithManifest.manifest.textExpansions.bundle);
-    fieldBody.inject(fieldElem);
+    let columnsElems = [];
+    for (let index = 0; index < 3; index++) {
+      let columnClass = "column";
+      switch (index) {
+        case 0:
+          columnClass += " is-5";
+          break;
+        case 1:
+          columnClass += " is-6";
+          break;
+        case 2:
+          columnClass += " has-text-centered ";
+          break;
 
+        default:
+          break;
+      }
+      columnsElems[index] = new ElementWrapper("div", { class: columnClass });
+      columnsElems[index].inject(columnElem);
+    }
+
+    const newNode = shortcutIndex === null;
     [
       {
         type: "input",
@@ -56,7 +74,7 @@ class TextExpander {
         value: val,
         rows: 2,
       },
-    ].forEach((input) => {
+    ].forEach((input, idx) => {
       const idErrMsg = input.id + "ErrMsg";
       const fieldElem = new ElementWrapper("div", { class: "field" });
       const controlElem = new ElementWrapper("p", {
@@ -85,20 +103,23 @@ class TextExpander {
         inputElem.set("readonly", true);
         inputElem.set("disabled", true);
       }
+      fieldElem.inject(columnsElems[idx]);
       inputElem.inject(controlElem);
-      fieldElem.inject(fieldBody);
       controlElem.inject(fieldElem);
       errMsgNode.inject(fieldElem);
     });
 
     let button = new ElementWrapper("a", {
-      class: "button " + (newNode ? " is-success" : " is-danger"),
-      //TODO: Use proper column width and remove "hardspace" workaround
-      text: newNode ? "\xa0\xa0\xa0Add\xa0\xa0\xa0" : "Remove",
+      class: "button is-fullwidth" + (newNode ? " is-success" : " is-danger"),
+      text: newNode ? "Add" : "Remove",
     });
-    button.inject(fieldBody);
+    button.inject(columnsElems[2]);
     if (newNode) button.addEvent("click", this.addNewShortcut.bind(this));
     else button.addEvent("click", this.delShortcut.bind(this, shortcutIndex));
+    columnElem.inject(this.settingsWithManifest.manifest.textExpansions.bundle);
+    dividerElem.inject(
+      this.settingsWithManifest.manifest.textExpansions.bundle
+    );
   }
 
   shortcutInputChange() {
@@ -160,7 +181,6 @@ class TextExpander {
     this.clearRender();
 
     this.renderNode("Shortcut", "Shortcut text", null);
-
     this.textExpansions.forEach((element, index) => {
       this.renderNode(element[0], element[1], index);
     });
