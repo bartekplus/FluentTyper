@@ -29,7 +29,6 @@ class Bundle extends Events {
     super(params);
     this.params = params;
     this.bundle = new ElementWrapper("div", {});
-    this.element = new ElementWrapper("span", {});
 
     this.createDOM();
     this.setupDOM();
@@ -43,16 +42,18 @@ class Bundle extends Events {
   setupDOM() {}
 
   addEvents() {
-    this.element.addEvent(
-      "change",
-      function (event) {
-        if (this.params.name !== undefined) {
-          settings.set(this.params.name, this.get());
-        }
+    if (this.element) {
+      this.element.addEvent(
+        "change",
+        function (event) {
+          if (this.params.name !== undefined) {
+            settings.set(this.params.name, this.get());
+          }
 
-        this.fireEvent("action", this.get());
-      }.bind(this)
-    );
+          this.fireEvent("action", this.get());
+        }.bind(this)
+      );
+    }
   }
 
   get() {
@@ -60,10 +61,12 @@ class Bundle extends Events {
   }
 
   set(value, noChangeEvent) {
-    this.element.set("value", value);
+    if (this.element) {
+      this.element.set("value", value);
 
-    if (noChangeEvent !== true) {
-      this.element.fireEvent("change");
+      if (noChangeEvent !== true) {
+        this.element.fireEvent("change");
+      }
     }
 
     return this;
