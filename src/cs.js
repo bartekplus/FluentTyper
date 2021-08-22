@@ -1,4 +1,3 @@
-"use strict";
 /* global Tribute */
 
 (function () {
@@ -111,10 +110,12 @@
         if (chrome.runtime.lastError) {
           console.log(chrome.runtime.lastError.message);
         }
-      } catch (e) {}
+      } catch (e) {
+        console.error(e);
+      }
     }
 
-    MutationCallback(mutationsList, observer) {
+    MutationCallback(mutationsList) {
       let nodesAdded = false;
       for (const mutation of mutationsList) {
         if (mutation.type === "childList") {
@@ -181,8 +182,8 @@
           triggerInputEvent: false,
         });
 
-        let tribueKeyFn = this.keys.bind(this);
-        let tribueValuesFn = (function (helperArrId, FluentTyperIn) {
+        const tribueKeyFn = this.keys.bind(this);
+        const tribueValuesFn = (function (helperArrId, FluentTyperIn) {
           const localId = helperArrId;
           const FluentTyper = FluentTyperIn;
           return function (data, done) {
