@@ -186,17 +186,12 @@
           const localId = helperArrId;
           const FluentTyper = FluentTyperIn;
           return function (data, done) {
-            const lines = data.split("\n");
-            const lastLine = lines[lines.length - 1];
-            if (!lastLine) {
-              return done([]);
-            }
             FluentTyper.tributeArr[localId].done = done;
             FluentTyper.tributeArr[localId].requestId += 1;
             const message = {
               command: "contentScriptPredictReq",
               context: {
-                text: lastLine,
+                text: data,
                 tributeId: localId,
                 requestId: FluentTyper.tributeArr[localId].requestId,
               },
