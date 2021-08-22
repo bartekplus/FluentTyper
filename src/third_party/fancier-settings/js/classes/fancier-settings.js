@@ -1,6 +1,7 @@
 //
 // Copyright (c) 2021 Bartosz Tomczyk
 // Copyright (c) 2011 Frank Kohlhepp
+// https://github.com/bartekplus/fancier-settings
 // License: LGPL v2.1
 //
 
@@ -77,11 +78,11 @@ class FancierSettings {
     const types = ["text", "button", "slider", "popupButton"];
     const type = settings[0].params.type;
 
-    if (!types.contains(type)) {
+    if (!types.includes(type)) {
       throw new Error("invalidType");
     }
 
-    settings.each(function (setting) {
+    settings.forEach(function (setting) {
       if (setting.params.type !== type) {
         throw new Error("multipleTypes");
       }
@@ -92,7 +93,7 @@ class FancierSettings {
       }
     });
 
-    settings.each(function (setting) {
+    settings.forEach(function (setting) {
       const width = setting.label.offsetWidth;
       if (width < maxWidth) {
         if (type === "button" || type === "slider") {
@@ -118,14 +119,14 @@ const FancierSettingsWithManifest = function (callback) {
   });
 
   if (manifest.alignment !== undefined) {
-    document.body.addClass("measuring");
-    manifest.alignment.each(function (group) {
+    document.body.classList.add("measuring");
+    manifest.alignment.forEach(function (group) {
       group = group.map(function (name) {
         return settings.manifest[name];
       });
       settings.align(group);
     });
-    document.body.removeClass("measuring");
+    document.body.classList.remove("measuring");
   }
 
   if (callback !== undefined) {

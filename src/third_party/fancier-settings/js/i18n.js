@@ -1,6 +1,7 @@
 //
 // Copyright (c) 2021 Bartosz Tomczyk
 // Copyright (c) 2011 Frank Kohlhepp
+// https://github.com/bartekplus/fancier-settings
 // License: LGPL v2.1
 //
 
