@@ -91,6 +91,7 @@ class ElementWrapper extends Events {
       innerHTML: "innerHTML",
       text: "textContent",
       innerText: "innerText",
+      checked: "checked",
     };
 
     if (tag instanceof HTMLElement) this.element = tag;
