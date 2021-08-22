@@ -1,6 +1,7 @@
 //
 // Copyright (c) 2021 Bartosz Tomczyk
 // Copyright (c) 2011 Frank Kohlhepp
+// https://github.com/bartekplus/fancier-settings
 // License: LGPL v2.1
 //
 
@@ -35,7 +36,8 @@ class Bundle extends Events {
     this.addEvents();
 
     if (this.params.name !== undefined) {
-      this.set(settings.get(this.params.name), true);
+      const value = settings.get(this.params.name);
+      if (value !== undefined) this.set(value, true);
     }
   }
   createDOM() {}
@@ -129,7 +131,9 @@ class Button extends Bundle {
       type: "button",
     });
 
-    this.label = new ElementWrapper("label", {});
+    this.label = new ElementWrapper("label", {
+      class: "label",
+    });
   }
 
   setupDOM() {
@@ -156,17 +160,93 @@ class Button extends Bundle {
   }
 }
 
+class ModalButton extends Button {
+  // label, text
+  // action -> click
+
+  constructor(params) {
+    super(params);
+    this.params = params;
+
+    this.createDOM();
+    this.setupDOM();
+    this.addEvents();
+  }
+
+  createDOM() {
+    super.createDOM();
+
+    //-- add modal specific DOM creation
+    this.modalBackdrop = new ElementWrapper("div", {
+      class: "container is-hidden",
+    });
+
+    this.modalContainer = new ElementWrapper("div", {
+      class: "field",
+    });
+
+    this.modalTitle = new ElementWrapper("h2", {
+      class: "subtitle",
+    });
+
+    this.modalDone = new ElementWrapper("input", {
+      class: "button is-primary is-outlined",
+    });
+  }
+
+  setupDOM() {
+    //-- add modal specific DOM setup
+    super.setupDOM();
+    if (this.params.modal.title !== undefined) {
+      this.modalTitle.set("html", this.params.modal.title);
+      this.modalTitle.inject(this.modalContainer);
+    }
+
+    this.modalContainer.inject(this.modalBackdrop);
+    this.modalBackdrop.inject(this.container);
+
+    this.params.modal.contents.forEach(
+      function (item) {
+        new Setting(this.modalContainer).create(item);
+      }.bind(this)
+    );
+
+    this.modalDone.set("value", "Done");
+    this.modalDone.inject(this.modalContainer);
+  }
+
+  addEvents() {
+    //-- add model specific events
+    if (this.element) {
+      this.element.addEvent(
+        "click",
+        function () {
+          this.modalBackdrop.element.classList.remove("is-hidden");
+        }.bind(this)
+      );
+
+      this.modalDone.addEvent(
+        "click",
+        function () {
+          this.modalBackdrop.element.classList.add("is-hidden");
+          this.fireEvent("modal_done");
+        }.bind(this)
+      );
+    }
+  }
+}
+
 class Text extends Bundle {
   // label, text, masked
   // action -> change & keyup
 
   createDOM() {
     this.bundle = new ElementWrapper("div", {
-      class: "setting bundle text",
+      class: "field",
     });
 
     this.container = new ElementWrapper("div", {
-      class: "setting container text",
+      class: "control",
     });
 
     if (this.params.colorPicker === true) {
@@ -176,13 +256,13 @@ class Text extends Bundle {
       });
     } else {
       this.element = new ElementWrapper("input", {
-        class: "setting element text",
+        class: "input",
         type: "text",
       });
     }
 
     this.label = new ElementWrapper("label", {
-      class: "setting label text",
+      class: "label",
     });
   }
 
@@ -210,6 +290,60 @@ class Text extends Bundle {
         if (this.params.store !== false) {
           settings.set(this.params.name, this.get());
         }
+      }
+
+      this.fireEvent("action", this.get());
+    }.bind(this);
+
+    this.element.addEvent("change", change);
+    this.element.addEvent("keyup", change);
+  }
+}
+
+class Textarea extends Bundle {
+  // label, text, value
+  // action -> change & keyup
+
+  createDOM() {
+    this.bundle = new ElementWrapper("div", {
+      class: "field",
+    });
+
+    this.container = new ElementWrapper("div", {
+      class: "control",
+    });
+
+    this.element = new ElementWrapper("textarea", {
+      class: "textarea",
+    });
+
+    this.label = new ElementWrapper("label", {
+      class: "label",
+    });
+  }
+
+  setupDOM() {
+    if (this.params.label !== undefined) {
+      this.label.set("html", this.params.label);
+      this.label.inject(this.container);
+    }
+
+    if (this.params.text !== undefined) {
+      this.element.set("placeholder", this.params.text);
+    }
+
+    if (this.params.value !== undefined) {
+      this.element.appendText(this.params.text);
+    }
+
+    this.element.inject(this.container);
+    this.container.inject(this.bundle);
+  }
+
+  addEvents() {
+    let change = function (event) {
+      if (this.params.name !== undefined) {
+        settings.set(this.params.name, this.get());
       }
 
       this.fireEvent("action", this.get());
@@ -406,7 +540,7 @@ class PopupButton extends Bundle {
 
     this.element = new ElementWrapper("select", {});
 
-    this.label = new ElementWrapper("label", {});
+    this.label = new ElementWrapper("label", { class: "label" });
 
     if (this.params.options === undefined) {
       return;
@@ -437,7 +571,7 @@ class PopupButton extends Bundle {
     let groups;
     if (this.params.options.groups !== undefined) {
       groups = {};
-      this.params.options.groups.each(
+      this.params.options.groups.forEach(
         function (groups, group) {
           groups[group] = new ElementWrapper("optgroup", {
             label: group,
@@ -489,12 +623,12 @@ class ListBox extends PopupButton {
   // label, options[{value, text}]
   // action -> change
 
-  add(domainURL) {
-    if (this.params.options.indexOf(domainURL) === -1) {
-      this.params.options.push(domainURL);
+  add(item) {
+    if (this.params.options.indexOf(item) === -1) {
+      this.params.options.push(item);
       const elem = new ElementWrapper("option", {
-        value: domainURL,
-        text: domainURL,
+        value: item,
+        text: item,
       });
       elem.inject(this.element);
       settings.set(this.params.name, this.params.options);
@@ -530,6 +664,7 @@ class ListBox extends PopupButton {
   }
 
   setupDOM() {
+    super.setupDOM();
     this.selected = null;
     this.params.options = [];
 
@@ -538,7 +673,7 @@ class ListBox extends PopupButton {
       this.params.options = initParams;
     }
     try {
-      this.params.options.every(
+      this.params.options.forEach(
         function (option) {
           if (option) {
             new ElementWrapper("option", {
@@ -557,6 +692,7 @@ class ListBox extends PopupButton {
   }
 
   createDOM() {
+    super.createDOM();
     this.bundle = new ElementWrapper("div", {
       class: "field",
     });
@@ -574,16 +710,16 @@ class ListBox extends PopupButton {
     });
 
     this.label = new ElementWrapper("label", {
-      class: "setting label list-box",
+      class: "label",
     });
     if (this.params.options === undefined) {
       return;
     }
-    this.params.options.every(
+    this.params.options.values.forEach(
       function (option) {
         new ElementWrapper("option", {
-          value: option,
-          text: option,
+          value: option.value,
+          text: option.text,
         }).inject(this.element);
         return true;
       }.bind(this)
@@ -609,45 +745,44 @@ class RadioButtons extends Bundle {
     const settingID = getUniqueID();
 
     this.bundle = new ElementWrapper("div", {
-      class: "setting bundle radio-buttons",
+      class: "field",
     });
-
+    this.control = new ElementWrapper("div", {
+      class: "control",
+    });
     this.label = new ElementWrapper("label", {
-      class: "setting label radio-buttons",
+      class: "label",
     });
 
-    this.containers = [];
+    this.label.inject(this.control);
+
     this.elements = [];
-    this.labels = [];
 
     if (this.params.options === undefined) {
       return;
     }
-    this.params.options.each(
+    this.params.options.forEach(
       function (option) {
         const optionID = getUniqueID();
-        const container = new ElementWrapper("div", {
-          class: "setting container radio-buttons",
-        }).inject(this.bundle);
-        this.containers.push(container);
+        const radioLabel = new ElementWrapper("label", {
+          class: "radio",
+        });
+        const radio = new ElementWrapper("input", {
+          id: optionID,
+          name: settingID,
+          type: "radio",
+          name: "anwser",
+          value: option[0],
+        });
+        const labelText = new ElementWrapper("span", {
+          text: " " + option[0] + " ",
+        });
 
-        this.elements.push(
-          new ElementWrapper("input", {
-            id: optionID,
-            name: settingID,
-            class: "setting element radio-buttons",
-            type: "radio",
-            value: option[0],
-          }).inject(container)
-        );
+        this.elements.push(radio);
 
-        this.labels.push(
-          new ElementWrapper("label", {
-            class: "setting element-label radio-buttons",
-            for: optionID,
-            text: option[1] || option[0],
-          }).inject(container)
-        );
+        radio.inject(radioLabel);
+        labelText.inject(radioLabel);
+        radioLabel.inject(this.control);
       }.bind(this)
     );
   }
@@ -655,8 +790,8 @@ class RadioButtons extends Bundle {
   setupDOM() {
     if (this.params.label !== undefined) {
       this.label.set("innerHTML", this.params.label);
-      this.label.inject(this.bundle, "top");
     }
+    this.control.inject(this.bundle);
   }
 
   addEvents() {
@@ -704,12 +839,14 @@ class Setting {
       description: Description,
       button: Button,
       text: Text,
+      textarea: Textarea,
       checkbox: Checkbox,
       slider: Slider,
       popupButton: PopupButton,
       listBox: ListBox,
       radioButtons: RadioButtons,
       valueOnly: Bundle,
+      modalButton: ModalButton,
     };
 
     if (Object.prototype.hasOwnProperty.call(types, params.type)) {

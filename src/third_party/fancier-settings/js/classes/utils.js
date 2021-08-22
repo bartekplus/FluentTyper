@@ -1,6 +1,7 @@
 //
 // Copyright (c) 2021 Bartosz Tomczyk
 // License: LGPL v2.1
+// https://github.com/bartekplus/fancier-settings
 //
 
 // based on mootools
@@ -106,6 +107,8 @@ class ElementWrapper extends Events {
     if (parent instanceof ElementWrapper)
       parent.element.appendChild(this.element);
     else parent.appendChild(this.element);
+
+    return this;
   }
 
   getSelected() {
