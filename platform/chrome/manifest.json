@@ -40,7 +40,7 @@
   "name": "FluentTyper: Autocomplete and Spell Checker",
   "options_ui": {
     "page": "options.html",
-    "open_in_tab": false
+    "open_in_tab": true
   },
   "browser_action": {
     "default_icon": {
