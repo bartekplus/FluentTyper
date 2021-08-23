@@ -33,11 +33,11 @@ function init() {
           } else {
             urlNode.innerHTML = "<span>Enable autocomplete on: " + domainURL;
             if (!granted) {
-              removeDomainFromList(settings, domainURL);
+              await removeDomainFromList(settings, domainURL);
               urlNode.innerText += "\nAutomatically reloads a page.";
             }
 
-            if (isDomainOnList(settings, domainURL)) {
+            if (await isDomainOnList(settings, domainURL)) {
               checkboxNode.checked = true;
             } else {
               checkboxNode.checked = false;
@@ -45,7 +45,7 @@ function init() {
           }
         }
 
-        checkboxEnableNode.checked = settings.get("enable");
+        checkboxEnableNode.checked = await settings.get("enable");
         document.getElementById("runOptions").onclick = function () {
           chrome.runtime.openOptionsPage();
         };
@@ -66,7 +66,7 @@ async function chromePromise(fn, ...args) {
   });
 }
 
-function addRemoveDomain() {
+async function addRemoveDomain() {
   chrome.tabs.query(
     { active: true, lastFocusedWindow: true },
     async function (tabs) {
@@ -78,8 +78,8 @@ function addRemoveDomain() {
           context: {},
         };
 
-        if (isDomainOnList(settings, domainURL)) {
-          removeDomainFromList(settings, domainURL);
+        if (await isDomainOnList(settings, domainURL)) {
+          await removeDomainFromList(settings, domainURL);
           message.command = "popupPageDisable";
         } else {
           let granted = true;
@@ -117,8 +117,8 @@ function addRemoveDomain() {
   );
 }
 
-function toggleOnOff() {
-  const newMode = !settings.get("enable");
+async function toggleOnOff() {
+  const newMode = !(await settings.get("enable"));
   settings.set("enable", newMode);
 
   chrome.tabs.query({}, function (tabs) {
@@ -129,9 +129,9 @@ function toggleOnOff() {
       };
 
       if (newMode) {
-        message.command = "enable";
+        message.command = "popupPageEnable";
       } else {
-        message.command = "disable";
+        message.command = "popupPageDisable";
       }
 
       setTimeout(init, 0);

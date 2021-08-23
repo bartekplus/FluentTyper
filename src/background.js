@@ -25,10 +25,21 @@ import { Store } from "./third_party/fancier-settings/lib/store.js";
     }
 
     migrateStore() {
-      const domainList = this.settings.get("domainList");
-      if (typeof domainList === "string" || domainList instanceof String) {
-        this.settings.set("domainList", domainList.split("|@|"));
-      }
+      const promise = this.settings.get("domainList");
+      promise
+        .then(
+          function (domainList) {
+            if (
+              typeof domainList === "string" ||
+              domainList instanceof String
+            ) {
+              this.settings.set("domainList", domainList.split("|@|"));
+            }
+          }.bind(this)
+        )
+        .catch(function (e) {
+          console.error(e);
+        });
     }
 
     onInstalled(details) {
@@ -51,12 +62,12 @@ import { Store } from "./third_party/fancier-settings/lib/store.js";
       iframe.contentWindow.postMessage(message, "*");
     }
 
-    isEnabledForDomain(domainURL) {
-      let enabledForDomain = this.settings.get("enable");
+    async isEnabledForDomain(domainURL) {
+      let enabledForDomain = await this.settings.get("enable");
       if (enabledForDomain) {
         enabledForDomain = false;
 
-        if (isDomainOnList(this.settings, domainURL)) {
+        if (await isDomainOnList(this.settings, domainURL)) {
           enabledForDomain = true;
         } else if (domainURL.indexOf(chrome.runtime.getURL("")) !== -1) {
           enabledForDomain = true;
@@ -67,6 +78,7 @@ import { Store } from "./third_party/fancier-settings/lib/store.js";
 
     //Messages from option page and content script
     onMessage(request, sender, sendResponse) {
+      let asyncResponse = false;
       checkLastError();
 
       request.context.tabId = sender.tab.id;
@@ -74,9 +86,19 @@ import { Store } from "./third_party/fancier-settings/lib/store.js";
 
       switch (request.command) {
         case "contentScriptPredictReq":
-          request.context.lang = this.settings.get("language");
-          request.command = "backgroundPagePredictReq";
-          this.sendMsgToSandbox(request);
+          this.settings
+            .get("language")
+            .then(
+              function (lang) {
+                request.context.lang = lang;
+                request.command = "backgroundPagePredictReq";
+                this.sendMsgToSandbox(request);
+              }.bind(this)
+            )
+            .catch(function (e) {
+              console.error(e);
+            });
+
           break;
         case "status":
           // showPageAction(sender.tab.id, request.context.enabled);
@@ -87,15 +109,27 @@ import { Store } from "./third_party/fancier-settings/lib/store.js";
           break;
 
         case "contentScriptGetConfig":
-          sendResponse({
-            command: "backgroundPageSetConfig",
-            context: {
-              enabled: this.isEnabledForDomain(sender.tab.url),
-              useEnter: this.settings.get("useEnter"),
-            },
-          });
+          asyncResponse = true;
+          Promise.all([
+            this.isEnabledForDomain(sender.tab.url),
+            this.settings.get("useEnter"),
+          ])
+            .then((values) => {
+              sendResponse({
+                command: "backgroundPageSetConfig",
+                context: {
+                  enabled: values[0],
+                  useEnter: values[1],
+                },
+              });
+            })
+            .catch(function (e) {
+              console.error(e);
+            });
+
           break;
       }
+      return asyncResponse;
     }
 
     //Messages from option page and content script
@@ -156,22 +190,24 @@ import { Store } from "./third_party/fancier-settings/lib/store.js";
       }
     }
 
-    updatePresageConfig() {
+    async updatePresageConfig() {
       this.sendMsgToSandbox({
         command: "backgroundPageSetConfig",
         context: {
-          lang: this.settings.get("language"),
-          numSuggestions: this.settings.get("numSuggestions"),
-          minWordLengthToPredict: this.settings.get("minWordLengthToPredict"),
-          predictNextWordAfterSeparatorChar: this.settings.get(
+          lang: await this.settings.get("language"),
+          numSuggestions: await this.settings.get("numSuggestions"),
+          minWordLengthToPredict: await this.settings.get(
+            "minWordLengthToPredict"
+          ),
+          predictNextWordAfterSeparatorChar: await this.settings.get(
             "predictNextWordAfterSeparatorChar"
           ),
-          insertSpaceAfterAutocomplete: this.settings.get(
+          insertSpaceAfterAutocomplete: await this.settings.get(
             "insertSpaceAfterAutocomplete"
           ),
-          autoCapitalize: this.settings.get("autoCapitalize"),
-          removeSpace: this.settings.get("removeSpace"),
-          textExpansions: this.settings.get("textExpansions"),
+          autoCapitalize: await this.settings.get("autoCapitalize"),
+          removeSpace: await this.settings.get("removeSpace"),
+          textExpansions: await this.settings.get("textExpansions"),
         },
       });
     }
