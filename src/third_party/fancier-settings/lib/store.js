@@ -66,9 +66,7 @@ class chromeStorageBackend {
 }
 
 class localStorageBackend {
-  constructor(useLocalBackend) {
-    this.backend = useLocalBackend ? chrome.storage.local : chrome.storage.sync;
-  }
+
   async get(key) {
     return new Promise((resolve, reject) => {
       try {
