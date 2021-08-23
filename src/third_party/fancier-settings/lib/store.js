@@ -66,7 +66,6 @@ class chromeStorageBackend {
 }
 
 class localStorageBackend {
-
   async get(key) {
     return new Promise((resolve, reject) => {
       try {
