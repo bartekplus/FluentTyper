@@ -10,7 +10,7 @@ const settings = new Store("settings");
 
 function init() {
   chrome.tabs.query(
-    { active: true, lastFocusedWindow: true },
+    { active: true, currentWindow: true },
     async function (tabs) {
       if (tabs.length === 1) {
         const currentTab = tabs[0];
@@ -32,23 +32,17 @@ function init() {
             console.log(error);
           } else {
             urlNode.innerHTML = "<span>Enable autocomplete on: " + domainURL;
-            if (!granted) {
-              await removeDomainFromList(settings, domainURL);
-              urlNode.innerText += "\nAutomatically reloads a page.";
-            }
-
-            if (await isDomainOnList(settings, domainURL)) {
+            if (granted && (await isDomainOnList(settings, domainURL))) {
               checkboxNode.checked = true;
             } else {
+              removeDomainFromList(settings, domainURL);
+              urlNode.innerText += "\nAutomatically reloads a page.";
               checkboxNode.checked = false;
             }
           }
         }
 
         checkboxEnableNode.checked = await settings.get("enable");
-        document.getElementById("runOptions").onclick = function () {
-          chrome.runtime.openOptionsPage();
-        };
       }
     }
   );
@@ -68,7 +62,7 @@ async function chromePromise(fn, ...args) {
 
 async function addRemoveDomain() {
   chrome.tabs.query(
-    { active: true, lastFocusedWindow: true },
+    { active: true, currentWindow: true },
     async function (tabs) {
       if (tabs.length === 1) {
         const currentTab = tabs[0];
@@ -140,13 +134,15 @@ async function toggleOnOff() {
   });
 }
 
-init();
-
 window.document.addEventListener("DOMContentLoaded", function () {
+  init();
   window.document
     .getElementById("checkboxDomainInput")
     .addEventListener("click", addRemoveDomain);
   window.document
     .getElementById("checkboxEnableInput")
     .addEventListener("click", toggleOnOff);
+  document.getElementById("runOptions").onclick = function () {
+    chrome.runtime.openOptionsPage();
+  };
 });
