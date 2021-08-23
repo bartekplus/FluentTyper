@@ -160,22 +160,19 @@ import { Store } from "./third_party/fancier-settings/lib/store.js";
     }
 
     toggleOnOffActiveTab() {
-      chrome.tabs.query(
-        { active: true, lastFocusedWindow: true },
-        function (tabs) {
-          checkLastError();
-          if (tabs.length === 1) {
-            const currentTab = tabs[0];
+      chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+        checkLastError();
+        if (tabs.length === 1) {
+          const currentTab = tabs[0];
 
-            const message = {
-              command: "backgroundPageToggle",
-              context: {},
-            };
+          const message = {
+            command: "backgroundPageToggle",
+            context: {},
+          };
 
-            chrome.tabs.sendMessage(currentTab.id, message);
-          }
+          chrome.tabs.sendMessage(currentTab.id, message);
         }
-      );
+      });
     }
 
     onCommand(command) {
