@@ -6,9 +6,9 @@ function getDomain(url) {
   }
 }
 
-function isDomainOnList(settings, domainURL) {
+async function isDomainOnList(settings, domainURL) {
   let ret = false;
-  const domainList = settings.get("domainList");
+  const domainList = await settings.get("domainList");
   domainURL = getDomain(domainURL);
 
   for (let i = 0; i < domainList.length; i++) {
@@ -20,8 +20,8 @@ function isDomainOnList(settings, domainURL) {
   return ret;
 }
 
-function addDomainToList(settings, domainURL) {
-  const domainList = settings.get("domainList");
+async function addDomainToList(settings, domainURL) {
+  const domainList = await settings.get("domainList");
 
   domainList.push(domainURL);
 
@@ -29,17 +29,21 @@ function addDomainToList(settings, domainURL) {
 }
 
 function removeDomainFromList(settings, domainURL) {
-  const domainList = settings.get("domainList");
-
-  domainURL = getDomain(domainURL);
-
-  for (let i = 0; i < domainList.length; i++) {
-    if (domainURL.match(domainList[i])) {
-      domainList.splice(i, 1);
-      settings.set("domainList", domainList);
-      break;
-    }
-  }
+  const promise = settings.get("domainList");
+  promise
+    .then(function (domainList) {
+      domainURL = getDomain(domainURL);
+      for (let i = 0; i < domainList.length; i++) {
+        if (domainURL.match(domainList[i])) {
+          domainList.splice(i, 1);
+          settings.set("domainList", domainList);
+          break;
+        }
+      }
+    })
+    .catch(function (e) {
+      console.error(e);
+    });
 }
 
 function checkLastError() {
