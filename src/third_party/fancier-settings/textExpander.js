@@ -9,11 +9,18 @@ class TextExpander {
     this.store = new Store("settings");
     this.settingsWithManifest = settings;
     this.getTextExpansions();
-    this.render();
   }
 
   getTextExpansions() {
-    this.textExpansions = this.store.get(this.textExpansionsStoreKey) || [];
+    const promise = this.store.get(this.textExpansionsStoreKey);
+    promise
+      .then((value) => {
+        this.textExpansions = value || [];
+        this.render();
+      })
+      .catch(function (e) {
+        console.error(e);
+      });
   }
   saveTextExpansions() {
     this.store.set(this.textExpansionsStoreKey, this.textExpansions);
