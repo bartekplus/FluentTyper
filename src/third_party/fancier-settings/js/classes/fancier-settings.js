@@ -72,38 +72,6 @@ class FancierSettings {
 
     return bundle;
   }
-
-  align(settings) {
-    let maxWidth = 0;
-    const types = ["text", "button", "slider", "popupButton"];
-    const type = settings[0].params.type;
-
-    if (!types.includes(type)) {
-      throw new Error("invalidType");
-    }
-
-    settings.forEach(function (setting) {
-      if (setting.params.type !== type) {
-        throw new Error("multipleTypes");
-      }
-
-      const width = setting.label.offsetWidth;
-      if (width > maxWidth) {
-        maxWidth = width;
-      }
-    });
-
-    settings.forEach(function (setting) {
-      const width = setting.label.offsetWidth;
-      if (width < maxWidth) {
-        if (type === "button" || type === "slider") {
-          setting.element.setStyle("margin-left", maxWidth - width + 2 + "px");
-        } else {
-          setting.element.setStyle("margin-left", maxWidth - width + "px");
-        }
-      }
-    });
-  }
 }
 
 const FancierSettingsWithManifest = function (callback) {
@@ -117,17 +85,6 @@ const FancierSettingsWithManifest = function (callback) {
       settings.manifest[params.name] = output;
     }
   });
-
-  if (manifest.alignment !== undefined) {
-    document.body.classList.add("measuring");
-    manifest.alignment.forEach(function (group) {
-      group = group.map(function (name) {
-        return settings.manifest[name];
-      });
-      settings.align(group);
-    });
-    document.body.classList.remove("measuring");
-  }
 
   if (callback !== undefined) {
     callback(settings);

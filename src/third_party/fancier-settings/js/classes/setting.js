@@ -36,8 +36,14 @@ class Bundle extends Events {
     this.addEvents();
 
     if (this.params.name !== undefined) {
-      const value = settings.get(this.params.name);
-      if (value !== undefined) this.set(value, true);
+      const promise = settings.get(this.params.name);
+      promise
+        .then((value) => {
+          if (value !== undefined) this.set(value, true);
+        })
+        .catch(function (e) {
+          console.error(e);
+        });
     }
   }
   createDOM() {}
@@ -417,7 +423,14 @@ class Slider extends Bundle {
     this.addEvents();
 
     if (this.params.name !== undefined) {
-      this.set(settings.get(this.params.name) || 0, true);
+      const promise = settings.get(this.params.name);
+      promise
+        .then((value) => {
+          this.set(value || 0, true);
+        })
+        .catch(function (e) {
+          console.error(e);
+        });
     } else {
       this.set(0, true);
     }
@@ -668,29 +681,35 @@ class ListBox extends PopupButton {
     this.selected = null;
     this.params.options = [];
 
-    const initParams = settings.get(this.params.name);
-    if (initParams) {
-      this.params.options = initParams;
-    }
-    try {
-      this.params.options.forEach(
-        function (option) {
-          if (option) {
-            new ElementWrapper("option", {
-              value: option,
-              text: option,
-            }).inject(this.element);
-          }
-          return true;
-        }.bind(this)
-      );
-    } catch (e) {
-      console.error(e);
-    }
+    const promise = settings.get(this.params.name);
+    promise
+      .then((initParams) => {
+        if (initParams) {
+          this.params.options = initParams;
+        }
+        try {
+          this.params.options.forEach(
+            function (option) {
+              if (option) {
+                new ElementWrapper("option", {
+                  value: option,
+                  text: option,
+                }).inject(this.element);
+              }
+              return true;
+            }.bind(this)
+          );
+        } catch (e) {
+          console.error(e);
+        }
 
-    this.element.inject(this.container);
-    this.container.inject(this.control);
-    this.control.inject(this.bundle);
+        this.element.inject(this.container);
+        this.container.inject(this.control);
+        this.control.inject(this.bundle);
+      })
+      .catch(function (e) {
+        console.error(e);
+      });
   }
 
   createDOM() {
