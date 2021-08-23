@@ -515,19 +515,21 @@
 
         this.menuClickEvent = this.tribute.events.click.bind(null, this);
         this.menuContainerScrollEvent = this.debounce(function () {
-          if (_this.tribute.isActive) {
-            _this.tribute.hideMenu();
-          }
+          _this.tribute.hideMenu();
         }, 10, false);
         this.windowResizeEvent = this.debounce(function () {
-          if (_this.tribute.isActive) {
-            _this.tribute.hideMenu();
-          }
-        }, 10, false); // fixes IE11 issues with mousedown
+          _this.tribute.hideMenu();
+        }, 10, false);
+
+        this.windowBlurEvent = function () {
+          _this.tribute.hideMenu();
+        }; // fixes IE11 issues with mousedown
+
 
         this.tribute.range.getDocument().addEventListener("MSPointerDown", this.menuClickEvent, false);
         this.tribute.range.getDocument().addEventListener("mousedown", this.menuClickEvent, false);
         window.addEventListener("resize", this.windowResizeEvent);
+        window.addEventListener("blur", this.windowBlurEvent);
 
         if (this.menuContainer) {
           this.menuContainer.addEventListener("scroll", this.menuContainerScrollEvent, false);
