@@ -178,9 +178,11 @@ class PresageHandler {
       predictionInput instanceof String
     ) {
       const endsWithSpace = predictionInput !== predictionInput.trimEnd();
-      const endsWithSeparatorChar = predictionInput[
-        predictionInput.length - 1
-      ].match(this.separatorCharRegEx);
+      const endsWithSeparatorChar =
+        !predictionInput ||
+        predictionInput[predictionInput.length - 1]?.match(
+          this.separatorCharRegEx
+        );
       // Get last PAST_WORDS_COUNT words and filter empty
       const lastWordsArray = predictionInput
         .split(this.whiteSpaceRegEx) // Split on any whitespace
