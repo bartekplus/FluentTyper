@@ -782,7 +782,7 @@
     }, {
       key: "pasteText",
       value: function pasteText(html, startPos, endPos) {
-        text = this.stripHtml(html);
+        var text = this.stripHtml(html);
         var range = this.getDocument().createRange();
         var sel = this.getWindowSelection();
         sel.anchorNode.nodeValue = sel.anchorNode.nodeValue.substring(0, startPos) + text + sel.anchorNode.nodeValue.substring(endPos, sel.anchorNode.nodeValue.length);
