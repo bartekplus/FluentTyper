@@ -4,114 +4,33 @@
   (global = typeof globalThis !== 'undefined' ? globalThis : global || self, global.Tribute = factory());
 }(this, (function () { 'use strict';
 
-  function _classCallCheck(instance, Constructor) {
-    if (!(instance instanceof Constructor)) {
-      throw new TypeError("Cannot call a class as a function");
-    }
-  }
-
-  function _defineProperties(target, props) {
-    for (var i = 0; i < props.length; i++) {
-      var descriptor = props[i];
-      descriptor.enumerable = descriptor.enumerable || false;
-      descriptor.configurable = true;
-      if ("value" in descriptor) descriptor.writable = true;
-      Object.defineProperty(target, descriptor.key, descriptor);
-    }
-  }
-
-  function _createClass(Constructor, protoProps, staticProps) {
-    if (protoProps) _defineProperties(Constructor.prototype, protoProps);
-    if (staticProps) _defineProperties(Constructor, staticProps);
-    return Constructor;
-  }
-
-  function _slicedToArray(arr, i) {
-    return _arrayWithHoles(arr) || _iterableToArrayLimit(arr, i) || _unsupportedIterableToArray(arr, i) || _nonIterableRest();
-  }
-
-  function _arrayWithHoles(arr) {
-    if (Array.isArray(arr)) return arr;
-  }
-
-  function _iterableToArrayLimit(arr, i) {
-    var _i = arr == null ? null : typeof Symbol !== "undefined" && arr[Symbol.iterator] || arr["@@iterator"];
-
-    if (_i == null) return;
-    var _arr = [];
-    var _n = true;
-    var _d = false;
-
-    var _s, _e;
-
-    try {
-      for (_i = _i.call(arr); !(_n = (_s = _i.next()).done); _n = true) {
-        _arr.push(_s.value);
-
-        if (i && _arr.length === i) break;
-      }
-    } catch (err) {
-      _d = true;
-      _e = err;
-    } finally {
-      try {
-        if (!_n && _i["return"] != null) _i["return"]();
-      } finally {
-        if (_d) throw _e;
-      }
-    }
-
-    return _arr;
-  }
-
-  function _unsupportedIterableToArray(o, minLen) {
-    if (!o) return;
-    if (typeof o === "string") return _arrayLikeToArray(o, minLen);
-    var n = Object.prototype.toString.call(o).slice(8, -1);
-    if (n === "Object" && o.constructor) n = o.constructor.name;
-    if (n === "Map" || n === "Set") return Array.from(o);
-    if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _arrayLikeToArray(o, minLen);
-  }
-
-  function _arrayLikeToArray(arr, len) {
-    if (len == null || len > arr.length) len = arr.length;
-
-    for (var i = 0, arr2 = new Array(len); i < len; i++) arr2[i] = arr[i];
-
-    return arr2;
-  }
-
-  function _nonIterableRest() {
-    throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.");
-  }
-
   if (!Array.prototype.find) {
-    Object.defineProperty(Array.prototype, 'find', {
-      value: function value(predicate) {
+    Object.defineProperty(Array.prototype, "find", {
+      value: function (predicate) {
         // 1. Let O be ? ToObject(this value).
-        if (this == null) {
+        if (this === null) {
           throw TypeError('"this" is null or not defined');
         }
 
-        var o = Object(this); // 2. Let len be ? ToLength(? Get(O, "length")).
+        const o = Object(this); // 2. Let len be ? ToLength(? Get(O, "length")).
 
-        var len = o.length >>> 0; // 3. If IsCallable(predicate) is false, throw a TypeError exception.
+        const len = o.length >>> 0; // 3. If IsCallable(predicate) is false, throw a TypeError exception.
 
-        if (typeof predicate !== 'function') {
-          throw TypeError('predicate must be a function');
+        if (typeof predicate !== "function") {
+          throw TypeError("predicate must be a function");
         } // 4. If thisArg was supplied, let T be thisArg; else let T be undefined.
 
 
-        var thisArg = arguments[1]; // 5. Let k be 0.
+        const thisArg = arguments[1]; // 5. Let k be 0.
 
-        var k = 0; // 6. Repeat, while k < len
+        let k = 0; // 6. Repeat, while k < len
 
         while (k < len) {
           // a. Let Pk be ! ToString(k).
           // b. Let kValue be ? Get(O, Pk).
           // c. Let testResult be ToBoolean(? Call(predicate, T, « kValue, k, O »)).
           // d. If testResult is true, return kValue.
-          var kValue = o[k];
+          const kValue = o[k];
 
           if (predicate.call(thisArg, kValue, k, o)) {
             return kValue;
@@ -129,1334 +48,1211 @@
     });
   }
 
-  if (typeof window !== 'undefined' && typeof window.CustomEvent !== "function") {
-    var CustomEvent$1 = function CustomEvent(event, params) {
-      params = params || {
-        bubbles: false,
-        cancelable: false,
-        detail: undefined
-      };
-      var evt = document.createEvent('CustomEvent');
-      evt.initCustomEvent(event, params.bubbles, params.cancelable, params.detail);
-      return evt;
+  function CustomEvent$1(event, params) {
+    params = params || {
+      bubbles: false,
+      cancelable: false,
+      detail: undefined
     };
+    const evt = document.createEvent("CustomEvent");
+    evt.initCustomEvent(event, params.bubbles, params.cancelable, params.detail);
+    return evt;
+  }
 
-    if (typeof window.Event !== 'undefined') {
+  if (typeof window !== "undefined" && typeof window.CustomEvent !== "function") {
+    if (typeof window.Event !== "undefined") {
       CustomEvent$1.prototype = window.Event.prototype;
     }
 
     window.CustomEvent = CustomEvent$1;
   }
 
-  var TributeEvents = /*#__PURE__*/function () {
-    function TributeEvents(tribute) {
-      _classCallCheck(this, TributeEvents);
-
+  /*eslint no-unused-vars: ["error", { "argsIgnorePattern": "^_" }]*/
+  class TributeEvents {
+    constructor(tribute) {
       this.tribute = tribute;
       this.tribute.events = this;
     }
 
-    _createClass(TributeEvents, [{
-      key: "bind",
-      value: function bind(element) {
-        element.boundKeyDown = this.keydown.bind(element, this);
-        element.boundKeyUp = this.keyup.bind(element, this);
-        element.boundInput = this.input.bind(element, this);
-        element.addEventListener("keydown", element.boundKeyDown, true);
-        element.addEventListener("keyup", element.boundKeyUp, true);
-        element.addEventListener("input", element.boundInput, true);
+    static keys() {
+      return [{
+        key: 9,
+        value: "TAB"
+      }, {
+        key: 13,
+        value: "ENTER"
+      }, {
+        key: 27,
+        value: "ESCAPE"
+      }, {
+        key: 38,
+        value: "UP"
+      }, {
+        key: 40,
+        value: "DOWN"
+      }];
+    }
+
+    static modifiers() {
+      return ["CapsLock", "Control", "Fn", "Hyper", "Meta", "OS", "Super", "Symbol", "Win"];
+    }
+
+    bind(element) {
+      element.boundKeyDown = this.keydown.bind(element, this);
+      element.boundKeyUp = this.keyup.bind(element, this);
+      element.boundInput = this.input.bind(element, this);
+      element.addEventListener("keydown", element.boundKeyDown, true);
+      element.addEventListener("keyup", element.boundKeyUp, true);
+      element.addEventListener("input", element.boundInput, true);
+    }
+
+    unbind(element) {
+      element.removeEventListener("keydown", element.boundKeyDown, true);
+      element.removeEventListener("keyup", element.boundKeyUp, true);
+      element.removeEventListener("input", element.boundInput, true);
+      delete element.boundKeyDown;
+      delete element.boundKeyUp;
+      delete element.boundInput;
+    }
+
+    keydown(instance, event) {
+      if (instance.shouldDeactivate(event)) {
+        instance.tribute.hideMenu();
       }
-    }, {
-      key: "unbind",
-      value: function unbind(element) {
-        element.removeEventListener("keydown", element.boundKeyDown, true);
-        element.removeEventListener("keyup", element.boundKeyUp, true);
-        element.removeEventListener("input", element.boundInput, true);
-        delete element.boundKeyDown;
-        delete element.boundKeyUp;
-        delete element.boundInput;
-      }
-    }, {
-      key: "keydown",
-      value: function keydown(instance, event) {
-        var _this = this;
 
-        if (instance.shouldDeactivate(event)) {
-          instance.tribute.hideMenu();
-        }
-
-        if (event instanceof KeyboardEvent) {
-          var controlKeyPressed = false;
-          TributeEvents.modifiers().forEach(function (o) {
-            if (event.getModifierState(o)) {
-              controlKeyPressed = true;
-              return;
-            }
-          });
-          if (controlKeyPressed) return;
-        }
-
-        if (instance.tribute.isActive) {
-          TributeEvents.keys().forEach(function (o) {
-            if (o.key === event.keyCode) {
-              instance.callbacks()[o.value.toLowerCase()](event, _this);
-            }
-          });
-        }
-      }
-    }, {
-      key: "input",
-      value: function input(instance, event) {
-        if (event instanceof CustomEvent) {
-          var str = event.detail.text;
-          event.keyCode = str.charCodeAt(str.length - 1);
-          setTimeout(instance.keyup.bind(this, instance, event), 0);
-        } else instance.keyup.call(this, instance, event);
-      }
-    }, {
-      key: "click",
-      value: function click(instance, event) {
-        var tribute = instance.tribute;
-
-        if (tribute.menu && tribute.menu.contains(event.target)) {
-          var li = event.target;
-          event.preventDefault();
-          event.stopPropagation();
-
-          while (li.nodeName.toLowerCase() !== "li") {
-            li = li.parentNode;
-
-            if (!li || li === tribute.menu) {
-              throw new Error("cannot find the <li> container for the click");
-            }
-          }
-
-          tribute.selectItemAtIndex(li.getAttribute("data-index"), event); // TODO: should fire with externalTrigger and target is outside of menu
-        } else if (tribute.current.element && !tribute.current.externalTrigger) {
-          tribute.current.externalTrigger = false;
-          tribute.hideMenu();
-        }
-      }
-    }, {
-      key: "keyup",
-      value: function keyup(instance, event) {
-        if (!instance.updateSelection(this)) return;
-        var keyCode = instance.getKeyCode(instance, this, event); // Check for modifiers keys
-
-        if (event instanceof KeyboardEvent) {
-          var controlKeyPressed = false;
-          TributeEvents.modifiers().forEach(function (o) {
-            if (event.getModifierState(o)) {
-              controlKeyPressed = true;
-              return;
-            }
-          }); // Check for control keys
-
-          TributeEvents.keys().forEach(function (o) {
-            if (o.key === keyCode) {
-              controlKeyPressed = true;
-              return;
-            }
-          });
-          if (controlKeyPressed) return;
-        }
-
-        if (!instance.tribute.allowSpaces && instance.tribute.hasTrailingSpace) {
-          instance.tribute.hasTrailingSpace = false;
-          instance.callbacks()["space"](event, this);
-          return;
-        } // Get and validate trigger char
-
-
-        if (keyCode && !isNaN(keyCode)) {
-          if (instance.tribute.autocompleteMode && String.fromCharCode(keyCode).match(/(\w|\s)/g)) {
-            instance.tribute.current.trigger = "";
-          } else {
-            instance.tribute.current.trigger = instance.tribute.triggers().find(function (trigger) {
-              return trigger.charCodeAt(0) === keyCode;
-            });
-          }
-        } else if (instance.tribute.autocompleteMode && event instanceof InputEvent) {
-          instance.tribute.current.trigger = "";
-        }
-
-        if (!(instance.tribute.current.trigger || instance.tribute.current.trigger === "" && instance.tribute.autocompleteMode)) return; // Get and validate collection
-
-        instance.tribute.current.collection = instance.tribute.collection.find(function (item) {
-          return item.trigger === instance.tribute.current.trigger;
-        });
-
-        if (!instance.tribute.current.collection || instance.tribute.current.collection.menuShowMinLength > instance.tribute.current.mentionText.length) {
-          return;
-        }
-
-        instance.tribute.showMenuFor(this, true);
-      }
-    }, {
-      key: "shouldDeactivate",
-      value: function shouldDeactivate(event) {
-        var controlKeyPressed = false;
-        TributeEvents.keys().forEach(function (o) {
-          if (event.keyCode === o.key) {
+      if (event instanceof KeyboardEvent) {
+        let controlKeyPressed = false;
+        TributeEvents.modifiers().forEach(o => {
+          if (event.getModifierState(o)) {
             controlKeyPressed = true;
             return;
           }
         });
-        if (controlKeyPressed) return false;
-        if (this.tribute.isActive) return true;
-        return false;
+        if (controlKeyPressed) return;
       }
-    }, {
-      key: "getKeyCode",
-      value: function getKeyCode(instance, el, event) {
 
-        var tribute = instance.tribute;
-        var info = tribute.range.getTriggerInfo(false, tribute.hasTrailingSpace, true, tribute.allowSpaces, tribute.autocompleteMode);
+      if (instance.tribute.isActive) {
+        TributeEvents.keys().forEach(o => {
+          if (o.key === event.keyCode) {
+            instance.callbacks()[o.value.toLowerCase()](event, this);
+          }
+        });
+      }
+    }
 
-        if (info && info.mentionTriggerChar) {
-          return info.mentionTriggerChar.charCodeAt(0);
-        } else {
-          return event.keyCode || event.which || event.code || false;
+    input(instance, event) {
+      if (event instanceof CustomEvent) {
+        const str = event.detail.text;
+        event.keyCode = str.charCodeAt(str.length - 1);
+        setTimeout(instance.keyup.bind(this, instance, event), 0);
+      } else instance.keyup.call(this, instance, event);
+    }
+
+    click(instance, event) {
+      const tribute = instance.tribute;
+
+      if (tribute.menu && tribute.menu.contains(event.target)) {
+        let li = event.target;
+        event.preventDefault();
+        event.stopPropagation();
+
+        while (li.nodeName.toLowerCase() !== "li") {
+          li = li.parentNode;
+
+          if (!li || li === tribute.menu) {
+            throw new Error("cannot find the <li> container for the click");
+          }
         }
-      }
-    }, {
-      key: "updateSelection",
-      value: function updateSelection(el) {
-        var success = false;
-        this.tribute.current.element = el;
-        var info = this.tribute.range.getTriggerInfo(false, this.tribute.hasTrailingSpace, true, this.tribute.allowSpaces, this.tribute.autocompleteMode);
 
-        if (info) {
-          this.tribute.current.selectedPath = info.mentionSelectedPath;
-          this.tribute.current.mentionText = info.mentionText;
-          this.tribute.current.fullText = info.fullText;
-          this.tribute.current.selectedOffset = info.mentionSelectedOffset;
-          this.tribute.current.info = info;
-          success = true;
+        tribute.selectItemAtIndex(li.getAttribute("data-index"), event); // TODO: should fire with externalTrigger and target is outside of menu
+      } else if (tribute.current.element && !tribute.current.externalTrigger) {
+        tribute.current.externalTrigger = false;
+        tribute.hideMenu();
+      }
+    }
+
+    keyup(instance, event) {
+      if (!instance.updateSelection(this)) return;
+      const keyCode = instance.getKeyCode(instance, this, event); // Check for modifiers keys
+
+      if (event instanceof KeyboardEvent) {
+        let controlKeyPressed = false;
+        TributeEvents.modifiers().forEach(o => {
+          if (event.getModifierState(o)) {
+            controlKeyPressed = true;
+            return;
+          }
+        }); // Check for control keys
+
+        TributeEvents.keys().forEach(o => {
+          if (o.key === keyCode) {
+            controlKeyPressed = true;
+            return;
+          }
+        });
+        if (controlKeyPressed) return;
+      }
+
+      if (!instance.tribute.allowSpaces && instance.tribute.hasTrailingSpace) {
+        instance.tribute.hasTrailingSpace = false;
+        instance.callbacks()["space"](event, this);
+        return;
+      } // Get and validate trigger char
+
+
+      if (keyCode && !isNaN(keyCode)) {
+        if (instance.tribute.autocompleteMode && String.fromCharCode(keyCode).match(/(\w|\s)/g)) {
+          instance.tribute.current.trigger = "";
         } else {
-          this.tribute.current = {};
+          instance.tribute.current.trigger = instance.tribute.triggers().find(trigger => {
+            return trigger.charCodeAt(0) === keyCode;
+          });
         }
-
-        return success;
+      } else if (instance.tribute.autocompleteMode && event instanceof InputEvent) {
+        instance.tribute.current.trigger = "";
       }
-    }, {
-      key: "callbacks",
-      value: function callbacks() {
-        var _this2 = this;
 
-        return {
-          enter: function enter(e, el) {
-            // choose selection
-            if (_this2.tribute.isActive && _this2.tribute.current.filteredItems) {
-              e.preventDefault();
+      if (!(instance.tribute.current.trigger || instance.tribute.current.trigger === "" && instance.tribute.autocompleteMode)) return; // Get and validate collection
+
+      instance.tribute.current.collection = instance.tribute.collection.find(item => {
+        return item.trigger === instance.tribute.current.trigger;
+      });
+
+      if (!instance.tribute.current.collection || instance.tribute.current.collection.menuShowMinLength > instance.tribute.current.mentionText.length) {
+        return;
+      }
+
+      instance.tribute.showMenuFor(this, true);
+    }
+
+    shouldDeactivate(event) {
+      let controlKeyPressed = false;
+      TributeEvents.keys().forEach(o => {
+        if (event.keyCode === o.key) {
+          controlKeyPressed = true;
+          return;
+        }
+      });
+      if (controlKeyPressed) return false;
+      if (this.tribute.isActive) return true;
+      return false;
+    }
+
+    getKeyCode(instance, el, event) {
+      const tribute = instance.tribute;
+      const info = tribute.range.getTriggerInfo(false, tribute.hasTrailingSpace, true, tribute.allowSpaces, tribute.autocompleteMode);
+
+      if (info && info.mentionTriggerChar) {
+        return info.mentionTriggerChar.charCodeAt(0);
+      } else {
+        return event.keyCode || event.which || event.code || false;
+      }
+    }
+
+    updateSelection(el) {
+      let success = false;
+      this.tribute.current.element = el;
+      const info = this.tribute.range.getTriggerInfo(false, this.tribute.hasTrailingSpace, true, this.tribute.allowSpaces, this.tribute.autocompleteMode);
+
+      if (info) {
+        this.tribute.current.selectedPath = info.mentionSelectedPath;
+        this.tribute.current.mentionText = info.mentionText;
+        this.tribute.current.fullText = info.fullText;
+        this.tribute.current.selectedOffset = info.mentionSelectedOffset;
+        this.tribute.current.info = info;
+        success = true;
+      } else {
+        this.tribute.current = {};
+      }
+
+      return success;
+    }
+
+    callbacks() {
+      return {
+        enter: (e, _el) => {
+          // choose selection
+          if (this.tribute.isActive && this.tribute.current.filteredItems) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.tribute.selectItemAtIndex(this.tribute.menuSelected, e);
+          }
+        },
+        escape: (e, _el) => {
+          if (this.tribute.isActive) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.tribute.hideMenu();
+          }
+        },
+        tab: (e, el) => {
+          // choose first match
+          this.callbacks().enter(e, el);
+        },
+        space: (e, el) => {
+          if (this.tribute.isActive) {
+            if (this.tribute.spaceSelectsMatch) {
+              this.callbacks().enter(e, el);
+            } else if (!this.tribute.allowSpaces) {
               e.stopPropagation();
-
-              _this2.tribute.selectItemAtIndex(_this2.tribute.menuSelected, e);
-            }
-          },
-          escape: function escape(e, el) {
-            if (_this2.tribute.isActive) {
-              e.preventDefault();
-              e.stopPropagation();
-
-              _this2.tribute.hideMenu();
-            }
-          },
-          tab: function tab(e, el) {
-            // choose first match
-            _this2.callbacks().enter(e, el);
-          },
-          space: function space(e, el) {
-            if (_this2.tribute.isActive) {
-              if (_this2.tribute.spaceSelectsMatch) {
-                _this2.callbacks().enter(e, el);
-              } else if (!_this2.tribute.allowSpaces) {
-                e.stopPropagation();
-                setTimeout(function () {
-                  _this2.tribute.hideMenu();
-                }, 0);
-              }
-            }
-          },
-          up: function up(e, el) {
-            // navigate up ul
-            if (_this2.tribute.isActive && _this2.tribute.current.filteredItems) {
-              e.preventDefault();
-              e.stopPropagation();
-              var count = _this2.tribute.current.filteredItems.length,
-                  selected = _this2.tribute.menuSelected;
-
-              if (count > selected && selected > 0) {
-                _this2.tribute.menuSelected--;
-
-                _this2.setActiveLi();
-              } else if (selected === 0) {
-                _this2.tribute.menuSelected = count - 1;
-
-                _this2.setActiveLi();
-
-                _this2.tribute.menu.scrollTop = _this2.tribute.menu.scrollHeight;
-              }
-            }
-          },
-          down: function down(e, el) {
-            // navigate down ul
-            if (_this2.tribute.isActive && _this2.tribute.current.filteredItems) {
-              e.preventDefault();
-              e.stopPropagation();
-              var count = _this2.tribute.current.filteredItems.length - 1,
-                  selected = _this2.tribute.menuSelected;
-
-              if (count > selected) {
-                _this2.tribute.menuSelected++;
-
-                _this2.setActiveLi();
-              } else if (count === selected) {
-                _this2.tribute.menuSelected = 0;
-
-                _this2.setActiveLi();
-
-                _this2.tribute.menu.scrollTop = 0;
-              }
-            }
-          },
-          "delete": function _delete(e, el) {
-            if (_this2.tribute.isActive && _this2.tribute.current.mentionText.length < 1) {
-              _this2.tribute.hideMenu();
-            } else if (_this2.tribute.isActive) {
-              _this2.tribute.showMenuFor(el);
+              setTimeout(() => {
+                this.tribute.hideMenu();
+              }, 0);
             }
           }
-        };
-      }
-    }, {
-      key: "setActiveLi",
-      value: function setActiveLi(index) {
-        var lis = this.tribute.menu.querySelectorAll("li"),
+        },
+        up: (e, _el) => {
+          // navigate up ul
+          if (this.tribute.isActive && this.tribute.current.filteredItems) {
+            e.preventDefault();
+            e.stopPropagation();
+            const count = this.tribute.current.filteredItems.length,
+                  selected = this.tribute.menuSelected;
+
+            if (count > selected && selected > 0) {
+              this.tribute.menuSelected--;
+              this.setActiveLi();
+            } else if (selected === 0) {
+              this.tribute.menuSelected = count - 1;
+              this.setActiveLi();
+              this.tribute.menu.scrollTop = this.tribute.menu.scrollHeight;
+            }
+          }
+        },
+        down: (e, _el) => {
+          // navigate down ul
+          if (this.tribute.isActive && this.tribute.current.filteredItems) {
+            e.preventDefault();
+            e.stopPropagation();
+            const count = this.tribute.current.filteredItems.length - 1,
+                  selected = this.tribute.menuSelected;
+
+            if (count > selected) {
+              this.tribute.menuSelected++;
+              this.setActiveLi();
+            } else if (count === selected) {
+              this.tribute.menuSelected = 0;
+              this.setActiveLi();
+              this.tribute.menu.scrollTop = 0;
+            }
+          }
+        },
+        delete: (e, el) => {
+          if (this.tribute.isActive && this.tribute.current.mentionText.length < 1) {
+            this.tribute.hideMenu();
+          } else if (this.tribute.isActive) {
+            this.tribute.showMenuFor(el);
+          }
+        }
+      };
+    }
+
+    setActiveLi(index) {
+      const lis = this.tribute.menu.querySelectorAll("li"),
             length = lis.length >>> 0;
-        if (index) this.tribute.menuSelected = parseInt(index);
+      if (index) this.tribute.menuSelected = parseInt(index);
 
-        for (var i = 0; i < length; i++) {
-          var li = lis[i];
+      for (let i = 0; i < length; i++) {
+        const li = lis[i];
 
-          if (i === this.tribute.menuSelected) {
-            li.classList.add(this.tribute.current.collection.selectClass);
-            var liClientRect = li.getBoundingClientRect();
-            var menuClientRect = this.tribute.menu.getBoundingClientRect();
+        if (i === this.tribute.menuSelected) {
+          li.classList.add(this.tribute.current.collection.selectClass);
+          const liClientRect = li.getBoundingClientRect();
+          const menuClientRect = this.tribute.menu.getBoundingClientRect();
 
-            if (liClientRect.bottom > menuClientRect.bottom) {
-              var scrollDistance = liClientRect.bottom - menuClientRect.bottom;
-              this.tribute.menu.scrollTop += scrollDistance;
-            } else if (liClientRect.top < menuClientRect.top) {
-              var _scrollDistance = menuClientRect.top - liClientRect.top;
-
-              this.tribute.menu.scrollTop -= _scrollDistance;
-            }
-          } else {
-            li.classList.remove(this.tribute.current.collection.selectClass);
+          if (liClientRect.bottom > menuClientRect.bottom) {
+            const scrollDistance = liClientRect.bottom - menuClientRect.bottom;
+            this.tribute.menu.scrollTop += scrollDistance;
+          } else if (liClientRect.top < menuClientRect.top) {
+            const scrollDistance = menuClientRect.top - liClientRect.top;
+            this.tribute.menu.scrollTop -= scrollDistance;
           }
+        } else {
+          li.classList.remove(this.tribute.current.collection.selectClass);
         }
       }
-    }, {
-      key: "getFullHeight",
-      value: function getFullHeight(elem, includeMargin) {
-        var height = elem.getBoundingClientRect().height;
+    }
 
-        if (includeMargin) {
-          var style = elem.currentStyle || window.getComputedStyle(elem);
-          return height + parseFloat(style.marginTop) + parseFloat(style.marginBottom);
-        }
+    getFullHeight(elem, includeMargin) {
+      const height = elem.getBoundingClientRect().height;
 
-        return height;
+      if (includeMargin) {
+        const style = elem.currentStyle || window.getComputedStyle(elem);
+        return height + parseFloat(style.marginTop) + parseFloat(style.marginBottom);
       }
-    }], [{
-      key: "keys",
-      value: function keys() {
-        return [{
-          key: 9,
-          value: "TAB"
-        }, {
-          key: 13,
-          value: "ENTER"
-        }, {
-          key: 27,
-          value: "ESCAPE"
-        }, {
-          key: 38,
-          value: "UP"
-        }, {
-          key: 40,
-          value: "DOWN"
-        }];
-      }
-    }, {
-      key: "modifiers",
-      value: function modifiers() {
-        return ["CapsLock", "Control", "Fn", "Hyper", "Meta", "OS", "Super", "Symbol", "Win"];
-      }
-    }]);
 
-    return TributeEvents;
-  }();
+      return height;
+    }
 
-  var TributeMenuEvents = /*#__PURE__*/function () {
-    function TributeMenuEvents(tribute) {
-      _classCallCheck(this, TributeMenuEvents);
+  }
 
+  /*eslint no-unused-vars: ["error", { "argsIgnorePattern": "^_" }]*/
+  class TributeMenuEvents {
+    constructor(tribute) {
       this.tribute = tribute;
       this.tribute.menuEvents = this;
       this.menu = this.tribute.menu;
     }
 
-    _createClass(TributeMenuEvents, [{
-      key: "bind",
-      value: function bind(menu) {
-        var _this = this;
+    bind(_menu) {
+      this.menuClickEvent = this.tribute.events.click.bind(null, this);
+      this.menuContainerScrollEvent = this.debounce(() => {
+        this.tribute.hideMenu();
+      }, 10, false);
+      this.windowResizeEvent = this.debounce(() => {
+        this.tribute.hideMenu();
+      }, 10, false);
 
-        this.menuClickEvent = this.tribute.events.click.bind(null, this);
-        this.menuContainerScrollEvent = this.debounce(function () {
-          _this.tribute.hideMenu();
-        }, 10, false);
-        this.windowResizeEvent = this.debounce(function () {
-          _this.tribute.hideMenu();
-        }, 10, false);
-
-        this.windowBlurEvent = function () {
-          _this.tribute.hideMenu();
-        }; // fixes IE11 issues with mousedown
+      this.windowBlurEvent = () => {
+        this.tribute.hideMenu();
+      }; // fixes IE11 issues with mousedown
 
 
-        this.tribute.range.getDocument().addEventListener("MSPointerDown", this.menuClickEvent, false);
-        this.tribute.range.getDocument().addEventListener("mousedown", this.menuClickEvent, false);
-        window.addEventListener("resize", this.windowResizeEvent);
-        window.addEventListener("blur", this.windowBlurEvent);
+      this.tribute.range.getDocument().addEventListener("MSPointerDown", this.menuClickEvent, false);
+      this.tribute.range.getDocument().addEventListener("mousedown", this.menuClickEvent, false);
+      window.addEventListener("resize", this.windowResizeEvent);
+      window.addEventListener("blur", this.windowBlurEvent);
 
-        if (this.menuContainer) {
-          this.menuContainer.addEventListener("scroll", this.menuContainerScrollEvent, false);
-        } else {
-          window.addEventListener("scroll", this.menuContainerScrollEvent);
-        }
+      if (this.menuContainer) {
+        this.menuContainer.addEventListener("scroll", this.menuContainerScrollEvent, false);
+      } else {
+        window.addEventListener("scroll", this.menuContainerScrollEvent);
       }
-    }, {
-      key: "unbind",
-      value: function unbind(menu) {
-        this.tribute.range.getDocument().removeEventListener("mousedown", this.menuClickEvent, false);
-        this.tribute.range.getDocument().removeEventListener("MSPointerDown", this.menuClickEvent, false);
-        window.removeEventListener("resize", this.windowResizeEvent);
+    }
 
-        if (this.menuContainer) {
-          this.menuContainer.removeEventListener("scroll", this.menuContainerScrollEvent, false);
-        } else {
-          window.removeEventListener("scroll", this.menuContainerScrollEvent);
-        }
+    unbind(_menu) {
+      this.tribute.range.getDocument().removeEventListener("mousedown", this.menuClickEvent, false);
+      this.tribute.range.getDocument().removeEventListener("MSPointerDown", this.menuClickEvent, false);
+      window.removeEventListener("resize", this.windowResizeEvent);
+
+      if (this.menuContainer) {
+        this.menuContainer.removeEventListener("scroll", this.menuContainerScrollEvent, false);
+      } else {
+        window.removeEventListener("scroll", this.menuContainerScrollEvent);
       }
-    }, {
-      key: "debounce",
-      value: function debounce(func, wait, immediate) {
-        var _arguments = arguments,
-            _this2 = this;
+    }
 
-        var timeout;
-        return function () {
-          var context = _this2,
-              args = _arguments;
+    debounce(func, wait, immediate) {
+      let timeout;
+      return () => {
+        const context = this,
+              args = arguments;
 
-          var later = function later() {
-            timeout = null;
-            if (!immediate) func.apply(context, args);
-          };
-
-          var callNow = immediate && !timeout;
-          clearTimeout(timeout);
-          timeout = setTimeout(later, wait);
-          if (callNow) func.apply(context, args);
+        const later = () => {
+          timeout = null;
+          if (!immediate) func.apply(context, args);
         };
-      }
-    }]);
 
-    return TributeMenuEvents;
-  }();
+        const callNow = immediate && !timeout;
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+        if (callNow) func.apply(context, args);
+      };
+    }
 
-  var TributeRange = /*#__PURE__*/function () {
-    function TributeRange(tribute) {
-      _classCallCheck(this, TributeRange);
+  }
 
+  /*eslint no-unused-vars: ["error", { "argsIgnorePattern": "^_" }]*/
+
+  class TributeRange {
+    constructor(tribute) {
       this.tribute = tribute;
       this.tribute.range = this;
     }
 
-    _createClass(TributeRange, [{
-      key: "getDocument",
-      value: function getDocument() {
-        var iframe;
+    getDocument() {
+      let iframe;
 
-        if (this.tribute.current.collection) {
-          iframe = this.tribute.current.collection.iframe;
-        }
-
-        if (!iframe) {
-          return document;
-        }
-
-        return iframe.contentWindow.document;
+      if (this.tribute.current.collection) {
+        iframe = this.tribute.current.collection.iframe;
       }
-    }, {
-      key: "positionMenuAtCaret",
-      value: function positionMenuAtCaret(scrollTo) {
-        var context = this.tribute.current,
-            coordinates;
-        var info = this.getTriggerInfo(false, this.tribute.hasTrailingSpace, true, this.tribute.allowSpaces, this.tribute.autocompleteMode);
 
-        if (typeof info !== 'undefined') {
-          if (!this.tribute.positionMenu) {
-            this.tribute.menu.style.display = "block";
+      if (!iframe) {
+        return document;
+      }
+
+      return iframe.contentWindow.document;
+    }
+
+    positionMenuAtCaret(scrollTo) {
+      const context = this.tribute.current;
+      let coordinates;
+      const info = this.getTriggerInfo(false, this.tribute.hasTrailingSpace, true, this.tribute.allowSpaces, this.tribute.autocompleteMode);
+
+      if (typeof info !== "undefined") {
+        if (!this.tribute.positionMenu) {
+          this.tribute.menu.style.display = `block`;
+          return;
+        }
+
+        if (!this.isContentEditable(context.element)) {
+          coordinates = this.getTextAreaOrInputUnderlinePosition(this.tribute.current.element, info.mentionPosition + info.mentionText.length);
+        } else {
+          coordinates = this.getContentEditableCaretPosition(info.mentionPosition + info.mentionText.length);
+        }
+
+        this.tribute.menu.style.top = `${coordinates.top}px`;
+        this.tribute.menu.style.left = `${coordinates.left}px`;
+        this.tribute.menu.style.right = `${coordinates.right}px`;
+        this.tribute.menu.style.bottom = `${coordinates.bottom}px`;
+        this.tribute.menu.style["max-heigh"] = `${coordinates.maxHeight || 500}px`;
+        this.tribute.menu.style["max-width"] = `${coordinates.maxWidth || 300}px`;
+        this.tribute.menu.style.position = `${coordinates.position || "absolute"}`;
+        this.tribute.menu.style.display = `block`;
+
+        if (coordinates.left === "auto") {
+          this.tribute.menu.style.left = "auto";
+        }
+
+        if (coordinates.top === "auto") {
+          this.tribute.menu.style.top = "auto";
+        }
+
+        if (scrollTo) this.scrollIntoView();
+      } else {
+        this.tribute.menu.style.display = "none";
+      }
+    }
+
+    get menuContainerIsBody() {
+      return this.tribute.menuContainer === document.body || !this.tribute.menuContainer;
+    }
+
+    selectElement(targetElement, path, offset) {
+      let elem = targetElement;
+
+      if (path) {
+        for (let i = 0; i < path.length; i++) {
+          elem = elem.childNodes[path[i]];
+
+          if (elem === undefined) {
             return;
           }
 
-          if (!this.isContentEditable(context.element)) {
-            coordinates = this.getTextAreaOrInputUnderlinePosition(this.tribute.current.element, info.mentionPosition + info.mentionText.length);
-          } else {
-            coordinates = this.getContentEditableCaretPosition(info.mentionPosition + info.mentionText.length);
+          while (elem.length < offset) {
+            offset -= elem.length;
+            elem = elem.nextSibling;
           }
 
-          this.tribute.menu.style.top = "".concat(coordinates.top, "px");
-          this.tribute.menu.style.left = "".concat(coordinates.left, "px");
-          this.tribute.menu.style.right = "".concat(coordinates.right, "px");
-          this.tribute.menu.style.bottom = "".concat(coordinates.bottom, "px");
-          this.tribute.menu.style["max-heigh"] = "".concat(coordinates.maxHeight || 500, "px");
-          this.tribute.menu.style["max-width"] = "".concat(coordinates.maxWidth || 300, "px");
-          this.tribute.menu.style.position = "".concat(coordinates.position || 'absolute');
-          this.tribute.menu.style.display = "block";
-
-          if (coordinates.left === 'auto') {
-            this.tribute.menu.style.left = 'auto';
-          }
-
-          if (coordinates.top === 'auto') {
-            this.tribute.menu.style.top = 'auto';
-          }
-
-          if (scrollTo) this.scrollIntoView();
-        } else {
-          this.tribute.menu.style.display = 'none';
-        }
-      }
-    }, {
-      key: "menuContainerIsBody",
-      get: function get() {
-        return this.tribute.menuContainer === document.body || !this.tribute.menuContainer;
-      }
-    }, {
-      key: "selectElement",
-      value: function selectElement(targetElement, path, offset) {
-        var range;
-        var elem = targetElement;
-
-        if (path) {
-          for (var i = 0; i < path.length; i++) {
-            elem = elem.childNodes[path[i]];
-
-            if (elem === undefined) {
-              return;
-            }
-
-            while (elem.length < offset) {
-              offset -= elem.length;
-              elem = elem.nextSibling;
-            }
-
-            if (elem.childNodes.length === 0 && !elem.length) {
-              elem = elem.previousSibling;
-            }
+          if (elem.childNodes.length === 0 && !elem.length) {
+            elem = elem.previousSibling;
           }
         }
-
-        var sel = this.getWindowSelection();
-        range = this.getDocument().createRange();
-        range.setStart(elem, offset);
-        range.setEnd(elem, offset);
-        range.collapse(true);
-
-        try {
-          sel.removeAllRanges();
-        } catch (error) {}
-
-        sel.addRange(range);
-        targetElement.focus();
       }
-    }, {
-      key: "replaceTriggerText",
-      value: function replaceTriggerText(text, requireLeadingSpace, hasTrailingSpace, originalEvent, item) {
-        var info = this.tribute.current.info; //this.getTriggerInfo(true, hasTrailingSpace, requireLeadingSpace, this.tribute.allowSpaces, this.tribute.autocompleteMode)
 
-        if (info !== undefined) {
-          var context = this.tribute.current;
-          var detail = {
-            item: item,
-            instance: context,
-            context: info,
-            event: originalEvent,
-            text: text
-          };
-          var replaceEvent = new CustomEvent('tribute-replaced', {
-            detail: detail
-          });
+      const sel = this.getWindowSelection();
+      const range = this.getDocument().createRange();
+      range.setStart(elem, offset);
+      range.setEnd(elem, offset);
+      range.collapse(true);
 
-          if (!this.isContentEditable(context.element)) {
-            var textEndsWithSpace = text !== text.trimEnd();
-            var myField = this.tribute.current.element;
-            var textSuffix = typeof this.tribute.replaceTextSuffix == 'string' ? this.tribute.replaceTextSuffix : ' ';
-            text = this.stripHtml(text);
-            text += textSuffix;
-            var startPos = info.mentionPosition;
-            var endPos = info.mentionPosition + info.mentionText.length + textSuffix.length + textEndsWithSpace;
-
-            if (!this.tribute.autocompleteMode) {
-              endPos += info.mentionTriggerChar.length - 1;
-            }
-
-            myField.value = myField.value.substring(0, startPos) + text + myField.value.substring(endPos, myField.value.length);
-            myField.selectionStart = startPos + text.length;
-            myField.selectionEnd = startPos + text.length;
-          } else {
-            // add a space to the end of the pasted text
-            var _textEndsWithSpace = text !== text.trimEnd();
-
-            var _textSuffix = typeof this.tribute.replaceTextSuffix == 'string' ? this.tribute.replaceTextSuffix : '\xA0';
-
-            text += _textSuffix;
-
-            var _endPos = info.mentionPosition + info.mentionText.length + _textEndsWithSpace;
-
-            if (!this.tribute.autocompleteMode) {
-              _endPos += info.mentionTriggerChar.length;
-            }
-
-            this.tribute.useHTML ? this.pasteHtml(text, info.mentionPosition, _endPos) : this.pasteText(text, info.mentionPosition, _endPos);
-          }
-
-          context.element.dispatchEvent(new CustomEvent('input', {
-            bubbles: true,
-            detail: detail
-          }));
-          context.element.dispatchEvent(replaceEvent);
-        }
-      }
-    }, {
-      key: "pasteHtml",
-      value: function pasteHtml(html, startPos, endPos) {
-        var range, sel;
-        sel = this.getWindowSelection();
-        range = this.getDocument().createRange();
-        range.setStart(sel.anchorNode, startPos);
-        range.setEnd(sel.anchorNode, Math.min(endPos, sel.anchorNode.length));
-        range.deleteContents();
-        var el = this.getDocument().createElement('div');
-        el.innerHTML = html;
-        var frag = this.getDocument().createDocumentFragment(),
-            node,
-            lastNode;
-
-        while (node = el.firstChild) {
-          lastNode = frag.appendChild(node);
-        }
-
-        range.insertNode(frag); // Preserve the selection
-
-        if (lastNode) {
-          range = this.getDocument().createRange();
-          range.setStart(lastNode, lastNode.length);
-          range.collapse(true);
-          sel.removeAllRanges();
-          sel.addRange(range);
-          sel.collapseToEnd();
-        }
-      }
-    }, {
-      key: "stripHtml",
-      value: function stripHtml(html) {
-        var tmp = document.createElement("DIV");
-        tmp.innerHTML = html;
-        return tmp.textContent || tmp.innerText || "";
-      }
-    }, {
-      key: "pasteText",
-      value: function pasteText(html, startPos, endPos) {
-        var text = this.stripHtml(html);
-        var range = this.getDocument().createRange();
-        var sel = this.getWindowSelection();
-        sel.anchorNode.nodeValue = sel.anchorNode.nodeValue.substring(0, startPos) + text + sel.anchorNode.nodeValue.substring(endPos, sel.anchorNode.nodeValue.length);
-        range.setStart(sel.anchorNode, startPos + text.length);
-        range.collapse(true);
+      try {
         sel.removeAllRanges();
-        sel.addRange(range);
-        sel.collapseToEnd();
+      } catch (error) {
+        console.error(error);
       }
-    }, {
-      key: "getWindowSelection",
-      value: function getWindowSelection() {
-        if (this.tribute.collection.iframe) {
-          return this.tribute.collection.iframe.contentWindow.getSelection();
-        }
 
-        return this.tribute.current.element.getRootNode().getSelection();
-      }
-    }, {
-      key: "getNodePositionInParent",
-      value: function getNodePositionInParent(element) {
-        if (element.parentNode === null) {
-          return 0;
-        }
+      sel.addRange(range);
+      targetElement.focus();
+    }
 
-        for (var i = 0; i < element.parentNode.childNodes.length; i++) {
-          var node = element.parentNode.childNodes[i];
+    replaceTriggerText(text, requireLeadingSpace, hasTrailingSpace, originalEvent, item) {
+      const info = this.tribute.current.info; //this.getTriggerInfo(true, hasTrailingSpace, requireLeadingSpace, this.tribute.allowSpaces, this.tribute.autocompleteMode)
 
-          if (node === element) {
-            return i;
-          }
-        }
-      }
-    }, {
-      key: "getContentEditableSelectedPath",
-      value: function getContentEditableSelectedPath(ctx) {
-        var sel = this.getWindowSelection();
-        var selected = sel.anchorNode;
-        var path = [];
-        var offset;
-
-        if (selected != null) {
-          var i;
-          var ce = selected.contentEditable;
-
-          while (selected !== null && ce !== 'true') {
-            i = this.getNodePositionInParent(selected);
-            path.push(i);
-            selected = selected.parentNode;
-
-            if (selected !== null) {
-              ce = selected.contentEditable;
-            }
-          }
-
-          path.reverse(); // getRangeAt may not exist, need alternative
-
-          offset = sel.getRangeAt(0).startOffset;
-          return {
-            selected: selected,
-            path: path,
-            offset: offset
-          };
-        }
-      }
-    }, {
-      key: "getWholeWordsUpToCharIndex",
-      value: function getWholeWordsUpToCharIndex(str, minLen) {
-        var pos = 0;
-        var arr = str.split(this.tribute.autocompleteSeparator).filter(function (e) {
-          return e.trim();
+      if (info !== undefined) {
+        const context = this.tribute.current;
+        const detail = {
+          item: item,
+          instance: context,
+          context: info,
+          event: originalEvent,
+          text: text
+        };
+        const replaceEvent = new CustomEvent("tribute-replaced", {
+          detail: detail
         });
-        var text = str;
-
-        for (var i = 0, len = arr.length; i < len; i++) {
-          var idx = str.indexOf(arr[i]);
-          pos = pos + idx;
-          str = str.slice(idx);
-
-          if (minLen >= pos && minLen <= pos + arr[i].length) {
-            minLen = pos + arr[i].length;
-            break;
-          }
-        }
-
-        return text.substring(0, minLen);
-      }
-    }, {
-      key: "getTextPrecedingCurrentSelection",
-      value: function getTextPrecedingCurrentSelection() {
-        var context = this.tribute.current,
-            text = '';
 
         if (!this.isContentEditable(context.element)) {
-          var textComponent = this.tribute.current.element;
+          const textEndsWithSpace = text !== text.trimEnd();
+          const myField = this.tribute.current.element;
+          const textSuffix = typeof this.tribute.replaceTextSuffix === "string" ? this.tribute.replaceTextSuffix : " ";
+          text = this.stripHtml(text);
+          text += textSuffix;
+          const startPos = info.mentionPosition;
+          let endPos = info.mentionPosition + info.mentionText.length + textSuffix.length + textEndsWithSpace;
 
-          if (textComponent) {
-            var startPos = textComponent.selectionStart;
-
-            if (textComponent.value && startPos >= 0) {
-              text = textComponent.value.substring(0);
-              text = this.getWholeWordsUpToCharIndex(text, startPos);
-            }
+          if (!this.tribute.autocompleteMode) {
+            endPos += info.mentionTriggerChar.length - 1;
           }
+
+          myField.value = myField.value.substring(0, startPos) + text + myField.value.substring(endPos, myField.value.length);
+          myField.selectionStart = startPos + text.length;
+          myField.selectionEnd = startPos + text.length;
         } else {
-          var selectedElem = this.getWindowSelection().anchorNode;
+          // add a space to the end of the pasted text
+          const textEndsWithSpace = text !== text.trimEnd();
+          const textSuffix = typeof this.tribute.replaceTextSuffix === "string" ? this.tribute.replaceTextSuffix : "\xA0";
+          text += textSuffix;
+          let endPos = info.mentionPosition + info.mentionText.length + textEndsWithSpace;
 
-          if (selectedElem != null) {
-            var workingNodeContent = selectedElem.textContent;
-            var selectStartOffset = this.getWindowSelection().getRangeAt(0).startOffset;
-
-            if (workingNodeContent && selectStartOffset >= 0) {
-              text = workingNodeContent.substring(0);
-              text = this.getWholeWordsUpToCharIndex(text, selectStartOffset);
-            }
+          if (!this.tribute.autocompleteMode) {
+            endPos += info.mentionTriggerChar.length;
           }
+
+          this.tribute.useHTML ? this.pasteHtml(text, info.mentionPosition, endPos) : this.pasteText(text, info.mentionPosition, endPos);
         }
 
-        return text;
+        context.element.dispatchEvent(new CustomEvent("input", {
+          bubbles: true,
+          detail: detail
+        }));
+        context.element.dispatchEvent(replaceEvent);
       }
-    }, {
-      key: "getLastWordInText",
-      value: function getLastWordInText(text) {
-        var separator = this.tribute.autocompleteSeparator ? this.tribute.autocompleteSeparator : /\s+/;
-        var wordsArray = text.split(separator);
-        if (!wordsArray.length) return " ";
-        return wordsArray[wordsArray.length - 1];
+    }
+
+    pasteHtml(html, startPos, endPos) {
+      const sel = this.getWindowSelection();
+      const range = this.getDocument().createRange();
+      range.setStart(sel.anchorNode, startPos);
+      range.setEnd(sel.anchorNode, Math.min(endPos, sel.anchorNode.length));
+      range.deleteContents();
+      const el = this.getDocument().createElement("div");
+      el.innerHTML = html;
+      const frag = this.getDocument().createDocumentFragment();
+      let node, lastNode;
+
+      while (node = el.firstChild) {
+        lastNode = frag.appendChild(node);
       }
-    }, {
-      key: "getTriggerInfo",
-      value: function getTriggerInfo(menuAlreadyActive, hasTrailingSpace, requireLeadingSpace, allowSpaces, isAutocomplete) {
-        var _this = this;
 
-        var ctx = this.tribute.current;
-        var selected, path, offset;
+      range.insertNode(frag); // Preserve the selection
 
-        if (!this.isContentEditable(ctx.element)) {
-          selected = this.tribute.current.element;
-        } else {
-          var selectionInfo = this.getContentEditableSelectedPath(ctx);
+      if (lastNode) {
+        const newRange = this.getDocument().createRange();
+        newRange.setStart(lastNode, lastNode.length);
+        newRange.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(newRange);
+        sel.collapseToEnd();
+      }
+    }
 
-          if (selectionInfo) {
-            selected = selectionInfo.selected;
-            path = selectionInfo.path;
-            offset = selectionInfo.offset;
-          }
-        }
+    stripHtml(html) {
+      const tmp = document.createElement("DIV");
+      tmp.innerHTML = html;
+      return tmp.textContent || tmp.innerText || "";
+    }
 
-        var effectiveRange = this.getTextPrecedingCurrentSelection();
-        var lastWordOfEffectiveRange = this.getLastWordInText(effectiveRange);
+    pasteText(html, startPos, endPos) {
+      const text = this.stripHtml(html);
+      const range = this.getDocument().createRange();
+      const sel = this.getWindowSelection();
+      sel.anchorNode.nodeValue = sel.anchorNode.nodeValue.substring(0, startPos) + text + sel.anchorNode.nodeValue.substring(endPos, sel.anchorNode.nodeValue.length);
+      range.setStart(sel.anchorNode, startPos + text.length);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+      sel.collapseToEnd();
+    }
 
-        if (isAutocomplete) {
-          return {
-            mentionPosition: effectiveRange.length - lastWordOfEffectiveRange.length,
-            mentionText: lastWordOfEffectiveRange,
-            fullText: effectiveRange,
-            mentionSelectedElement: selected,
-            mentionSelectedPath: path,
-            mentionSelectedOffset: offset
-          };
-        }
+    getWindowSelection() {
+      if (this.tribute.collection.iframe) {
+        return this.tribute.collection.iframe.contentWindow.getSelection();
+      }
 
-        if (effectiveRange !== undefined && effectiveRange !== null) {
-          var mostRecentTriggerCharPos = -1;
-          var triggerChar;
-          this.tribute.collection.forEach(function (config) {
-            var c = config.trigger;
-            var idx = config.requireLeadingSpace ? _this.lastIndexWithLeadingSpace(effectiveRange, c) : effectiveRange.lastIndexOf(c);
+      return this.tribute.current.element.getRootNode().getSelection();
+    }
 
-            if (idx > mostRecentTriggerCharPos) {
-              mostRecentTriggerCharPos = idx;
-              triggerChar = c;
-              requireLeadingSpace = config.requireLeadingSpace;
-            }
-          });
+    getNodePositionInParent(element) {
+      if (element.parentNode === null) {
+        return 0;
+      }
 
-          if (mostRecentTriggerCharPos >= 0 && (mostRecentTriggerCharPos === 0 || !requireLeadingSpace || /\s/.test(effectiveRange.substring(mostRecentTriggerCharPos - 1, mostRecentTriggerCharPos)))) {
-            var currentTriggerSnippet = effectiveRange.substring(mostRecentTriggerCharPos + triggerChar.length, effectiveRange.length);
-            triggerChar = effectiveRange.substring(mostRecentTriggerCharPos, mostRecentTriggerCharPos + triggerChar.length);
-            var firstSnippetChar = currentTriggerSnippet.substring(0, 1);
-            var leadingSpace = currentTriggerSnippet.length > 0 && (firstSnippetChar === ' ' || firstSnippetChar === '\xA0');
+      for (let i = 0; i < element.parentNode.childNodes.length; i++) {
+        const node = element.parentNode.childNodes[i];
 
-            if (hasTrailingSpace) {
-              currentTriggerSnippet = currentTriggerSnippet.trim();
-            }
-
-            var regex = allowSpaces ? /[^\S ]/g : /[\xA0\s]/g;
-            this.tribute.hasTrailingSpace = regex.test(currentTriggerSnippet);
-
-            if (!leadingSpace && (menuAlreadyActive || !regex.test(currentTriggerSnippet))) {
-              return {
-                mentionPosition: mostRecentTriggerCharPos,
-                mentionText: currentTriggerSnippet,
-                mentionSelectedElement: selected,
-                mentionSelectedPath: path,
-                mentionSelectedOffset: offset,
-                mentionTriggerChar: triggerChar
-              };
-            }
-          }
+        if (node === element) {
+          return i;
         }
       }
-    }, {
-      key: "lastIndexWithLeadingSpace",
-      value: function lastIndexWithLeadingSpace(str, trigger) {
-        var reversedStr = str.split('').reverse().join('');
-        var index = -1;
+    }
 
-        for (var cidx = 0, len = str.length; cidx < len; cidx++) {
-          var firstChar = cidx === str.length - 1;
-          var leadingSpace = /\s/.test(reversedStr[cidx + 1]);
-          var match = true;
+    getContentEditableSelectedPath(_ctx) {
+      const sel = this.getWindowSelection();
+      let selected = sel.anchorNode;
+      const path = [];
+      let offset;
 
-          for (var triggerIdx = trigger.length - 1; triggerIdx >= 0; triggerIdx--) {
-            if (trigger[triggerIdx] !== reversedStr[cidx - triggerIdx]) {
-              match = false;
-              break;
-            }
+      if (selected !== null) {
+        let i;
+        let ce = selected.contentEditable;
+
+        while (selected !== null && ce !== "true") {
+          i = this.getNodePositionInParent(selected);
+          path.push(i);
+          selected = selected.parentNode;
+
+          if (selected !== null) {
+            ce = selected.contentEditable;
+          }
+        }
+
+        path.reverse(); // getRangeAt may not exist, need alternative
+
+        offset = sel.getRangeAt(0).startOffset;
+        return {
+          selected: selected,
+          path: path,
+          offset: offset
+        };
+      }
+    }
+
+    getWholeWordsUpToCharIndex(str, minLen) {
+      let pos = 0;
+      const arr = str.split(this.tribute.autocompleteSeparator).filter(function (e) {
+        return e.trim();
+      });
+      const text = str;
+
+      for (let i = 0, len = arr.length; i < len; i++) {
+        const idx = str.indexOf(arr[i]);
+        pos = pos + idx;
+        str = str.slice(idx);
+
+        if (minLen >= pos && minLen <= pos + arr[i].length) {
+          minLen = pos + arr[i].length;
+          break;
+        }
+      }
+
+      return text.substring(0, minLen);
+    }
+
+    getTextPrecedingCurrentSelection() {
+      const context = this.tribute.current;
+      let text = "";
+
+      if (!this.isContentEditable(context.element)) {
+        const textComponent = this.tribute.current.element;
+
+        if (textComponent) {
+          const startPos = textComponent.selectionStart;
+
+          if (textComponent.value && startPos >= 0) {
+            text = textComponent.value.substring(0);
+            text = this.getWholeWordsUpToCharIndex(text, startPos);
+          }
+        }
+      } else {
+        const selectedElem = this.getWindowSelection().anchorNode;
+
+        if (selectedElem !== null) {
+          const workingNodeContent = selectedElem.textContent;
+          const selectStartOffset = this.getWindowSelection().getRangeAt(0).startOffset;
+
+          if (workingNodeContent && selectStartOffset >= 0) {
+            text = workingNodeContent.substring(0);
+            text = this.getWholeWordsUpToCharIndex(text, selectStartOffset);
+          }
+        }
+      }
+
+      return text;
+    }
+
+    getLastWordInText(text) {
+      const separator = this.tribute.autocompleteSeparator ? this.tribute.autocompleteSeparator : /\s+/;
+      const wordsArray = text.split(separator);
+      if (!wordsArray.length) return " ";
+      return wordsArray[wordsArray.length - 1];
+    }
+
+    getTriggerInfo(menuAlreadyActive, hasTrailingSpace, requireLeadingSpace, allowSpaces, isAutocomplete) {
+      const ctx = this.tribute.current;
+      let selected, path, offset;
+
+      if (!this.isContentEditable(ctx.element)) {
+        selected = this.tribute.current.element;
+      } else {
+        const selectionInfo = this.getContentEditableSelectedPath(ctx);
+
+        if (selectionInfo) {
+          selected = selectionInfo.selected;
+          path = selectionInfo.path;
+          offset = selectionInfo.offset;
+        }
+      }
+
+      const effectiveRange = this.getTextPrecedingCurrentSelection();
+      const lastWordOfEffectiveRange = this.getLastWordInText(effectiveRange);
+
+      if (isAutocomplete) {
+        return {
+          mentionPosition: effectiveRange.length - lastWordOfEffectiveRange.length,
+          mentionText: lastWordOfEffectiveRange,
+          fullText: effectiveRange,
+          mentionSelectedElement: selected,
+          mentionSelectedPath: path,
+          mentionSelectedOffset: offset
+        };
+      }
+
+      if (effectiveRange !== undefined && effectiveRange !== null) {
+        let mostRecentTriggerCharPos = -1;
+        let triggerChar;
+        this.tribute.collection.forEach(config => {
+          const c = config.trigger;
+          const idx = config.requireLeadingSpace ? this.lastIndexWithLeadingSpace(effectiveRange, c) : effectiveRange.lastIndexOf(c);
+
+          if (idx > mostRecentTriggerCharPos) {
+            mostRecentTriggerCharPos = idx;
+            triggerChar = c;
+            requireLeadingSpace = config.requireLeadingSpace;
+          }
+        });
+
+        if (mostRecentTriggerCharPos >= 0 && (mostRecentTriggerCharPos === 0 || !requireLeadingSpace || /\s/.test(effectiveRange.substring(mostRecentTriggerCharPos - 1, mostRecentTriggerCharPos)))) {
+          let currentTriggerSnippet = effectiveRange.substring(mostRecentTriggerCharPos + triggerChar.length, effectiveRange.length);
+          triggerChar = effectiveRange.substring(mostRecentTriggerCharPos, mostRecentTriggerCharPos + triggerChar.length);
+          const firstSnippetChar = currentTriggerSnippet.substring(0, 1);
+          const leadingSpace = currentTriggerSnippet.length > 0 && (firstSnippetChar === " " || firstSnippetChar === "\xA0");
+
+          if (hasTrailingSpace) {
+            currentTriggerSnippet = currentTriggerSnippet.trim();
           }
 
-          if (match && (firstChar || leadingSpace)) {
-            index = str.length - 1 - cidx;
+          const regex = allowSpaces ? /[^\S ]/g : /[\xA0\s]/g;
+          this.tribute.hasTrailingSpace = regex.test(currentTriggerSnippet);
+
+          if (!leadingSpace && (menuAlreadyActive || !regex.test(currentTriggerSnippet))) {
+            return {
+              mentionPosition: mostRecentTriggerCharPos,
+              mentionText: currentTriggerSnippet,
+              mentionSelectedElement: selected,
+              mentionSelectedPath: path,
+              mentionSelectedOffset: offset,
+              mentionTriggerChar: triggerChar
+            };
+          }
+        }
+      }
+    }
+
+    lastIndexWithLeadingSpace(str, trigger) {
+      const reversedStr = str.split("").reverse().join("");
+      let index = -1;
+
+      for (let cidx = 0, len = str.length; cidx < len; cidx++) {
+        const firstChar = cidx === str.length - 1;
+        const leadingSpace = /\s/.test(reversedStr[cidx + 1]);
+        let match = true;
+
+        for (let triggerIdx = trigger.length - 1; triggerIdx >= 0; triggerIdx--) {
+          if (trigger[triggerIdx] !== reversedStr[cidx - triggerIdx]) {
+            match = false;
             break;
           }
         }
 
-        return index;
-      }
-    }, {
-      key: "isContentEditable",
-      value: function isContentEditable(element) {
-        return element.nodeName !== 'INPUT' && element.nodeName !== 'TEXTAREA';
-      }
-    }, {
-      key: "isMenuOffScreen",
-      value: function isMenuOffScreen(coordinates, menuDimensions) {
-        var windowWidth = window.innerWidth;
-        var windowHeight = window.innerHeight;
-        var doc = document.documentElement;
-        var windowLeft = (window.pageXOffset || doc.scrollLeft) - (doc.clientLeft || 0);
-        var windowTop = (window.pageYOffset || doc.scrollTop) - (doc.clientTop || 0);
-        var menuTop = typeof coordinates.top === 'number' ? coordinates.top : coordinates.bottom - menuDimensions.height;
-        var menuRight = typeof coordinates.right === 'number' ? coordinates.right : coordinates.left + menuDimensions.width;
-        var menuBottom = typeof coordinates.bottom === 'number' ? coordinates.bottom : coordinates.top + menuDimensions.height;
-        var menuLeft = typeof coordinates.left === 'number' ? coordinates.left : coordinates.right - menuDimensions.width;
-        return {
-          top: menuTop < Math.floor(windowTop),
-          right: menuRight > Math.ceil(windowLeft + windowWidth),
-          bottom: menuBottom > Math.ceil(windowTop + windowHeight),
-          left: menuLeft < Math.floor(windowLeft)
-        };
-      }
-    }, {
-      key: "getMenuDimensions",
-      value: function getMenuDimensions() {
-        // Width of the menu depends of its contents and position
-        // We must check what its width would be without any obstruction
-        // This way, we can achieve good positioning for flipping the menu
-        var dimensions = {
-          width: null,
-          height: null
-        };
-        this.tribute.menu.style.top = "0px";
-        this.tribute.menu.style.left = "0px";
-        this.tribute.menu.style.right = null;
-        this.tribute.menu.style.bottom = null;
-        this.tribute.menu.style.position = "fixed";
-        this.tribute.menu.style.visibility = "hidden";
-        this.tribute.menu.style.display = "block";
-        dimensions.width = this.tribute.menu.offsetWidth;
-        dimensions.height = this.tribute.menu.offsetHeight;
-        this.tribute.menu.style.display = "none";
-        this.tribute.menu.style.visibility = "visible";
-        return dimensions;
-      }
-    }, {
-      key: "getTextAreaOrInputUnderlinePosition",
-      value: function getTextAreaOrInputUnderlinePosition(element, position, flipped) {
-        var properties = ['direction', 'boxSizing', 'width', 'height', 'overflowX', 'overflowY', 'borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth', 'borderStyle', 'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft', 'fontStyle', 'fontVariant', 'fontWeight', 'fontStretch', 'fontSize', 'fontSizeAdjust', 'lineHeight', 'fontFamily', 'textAlign', 'textTransform', 'textIndent', 'textDecoration', 'letterSpacing', 'wordSpacing'];
-        var div = this.getDocument().createElement('div');
-        div.id = 'input-textarea-caret-position-mirror-div';
-        this.getDocument().body.appendChild(div);
-        var style = div.style;
-        var computed = window.getComputedStyle ? getComputedStyle(element) : element.currentStyle;
-        style.whiteSpace = 'pre-wrap';
-
-        if (element.nodeName !== 'INPUT') {
-          style.wordWrap = 'break-word';
-        } // position off-screen
-
-
-        style.position = 'absolute';
-        style.visibility = 'hidden'; // transfer the element's properties to the div
-
-        properties.forEach(function (prop) {
-          style[prop] = computed[prop];
-        }); //NOT SURE WHY THIS IS HERE AND IT DOESNT SEEM HELPFUL
-        // if (isFirefox) {
-        //     style.width = `${(parseInt(computed.width) - 2)}px`
-        //     if (element.scrollHeight > parseInt(computed.height))
-        //         style.overflowY = 'scroll'
-        // } else {
-        //     style.overflow = 'hidden'
-        // }
-
-        var span0 = document.createElement('span');
-        span0.textContent = element.value.substring(0, position);
-        div.appendChild(span0);
-
-        if (element.nodeName === 'INPUT') {
-          div.textContent = div.textContent.replace(/\s/g, ' ');
-        } //Create a span in the div that represents where the cursor
-        //should be
-
-
-        var span = this.getDocument().createElement('span'); //we give it no content as this represents the cursor
-
-        div.appendChild(span);
-        var span2 = this.getDocument().createElement('span');
-        span2.textContent = element.value.substring(position, position + 1);
-        div.appendChild(span2);
-        var rect = element.getBoundingClientRect(); //position the div exactly over the element
-        //so we can get the bounding client rect for the span and
-        //it should represent exactly where the cursor is
-
-        div.style.position = 'fixed';
-        div.style.left = rect.left + 'px';
-        div.style.top = rect.top + 'px';
-        div.style.width = rect.width + 'px';
-        div.style.height = rect.height + 'px';
-        div.scrollTop = element.scrollTop;
-        var spanRect = span.getBoundingClientRect();
-        var divRect = div.getBoundingClientRect();
-        this.getDocument().body.removeChild(div);
-
-        var clamp = function clamp(number, min, max) {
-          return Math.max(min, Math.min(number, max));
-        };
-
-        var finalRect = {
-          height: Math.min(divRect.height, spanRect.height),
-          left: clamp(spanRect.left, divRect.left, divRect.left + divRect.width),
-          top: clamp(spanRect.top, divRect.top, divRect.top + divRect.height)
-        };
-        return this.getFixedCoordinatesRelativeToRect(finalRect);
-      }
-    }, {
-      key: "getContentEditableCaretPosition",
-      value: function getContentEditableCaretPosition(selectedNodePosition) {
-        var range;
-        var sel = this.getWindowSelection();
-        range = this.getDocument().createRange();
-        range.setStart(sel.anchorNode, selectedNodePosition);
-        range.setEnd(sel.anchorNode, selectedNodePosition);
-        range.collapse(false);
-        var rect = range.getBoundingClientRect();
-        return this.getFixedCoordinatesRelativeToRect(rect);
-      }
-    }, {
-      key: "getFixedCoordinatesRelativeToRect",
-      value: function getFixedCoordinatesRelativeToRect(rect) {
-        var coordinates = {
-          position: 'fixed',
-          left: rect.left,
-          top: rect.top + rect.height
-        };
-        var menuDimensions = this.getMenuDimensions();
-        var availableSpaceOnTop = rect.top;
-        var availableSpaceOnBottom = window.innerHeight - (rect.top + rect.height); //check to see where's the right place to put the menu vertically
-
-        if (availableSpaceOnBottom < menuDimensions.height) {
-          if (availableSpaceOnTop >= menuDimensions.height || availableSpaceOnTop > availableSpaceOnBottom) {
-            coordinates.top = 'auto';
-            coordinates.bottom = window.innerHeight - rect.top;
-
-            if (availableSpaceOnBottom < menuDimensions.height) {
-              coordinates.maxHeight = availableSpaceOnTop;
-            }
-          } else {
-            if (availableSpaceOnTop < menuDimensions.height) {
-              coordinates.maxHeight = availableSpaceOnBottom;
-            }
-          }
-        }
-
-        var availableSpaceOnLeft = rect.left;
-        var availableSpaceOnRight = window.innerWidth - rect.left; //check to see where's the right place to put the menu horizontally
-
-        if (availableSpaceOnRight < menuDimensions.width) {
-          if (availableSpaceOnLeft >= menuDimensions.width || availableSpaceOnLeft > availableSpaceOnRight) {
-            coordinates.left = 'auto';
-            coordinates.right = window.innerWidth - rect.left;
-
-            if (availableSpaceOnRight < menuDimensions.width) {
-              coordinates.maxWidth = availableSpaceOnLeft;
-            }
-          } else {
-            if (availableSpaceOnLeft < menuDimensions.width) {
-              coordinates.maxWidth = availableSpaceOnRight;
-            }
-          }
-        }
-
-        return coordinates;
-      }
-    }, {
-      key: "scrollIntoView",
-      value: function scrollIntoView(elem) {
-        var reasonableBuffer = 20,
-            clientRect;
-        var maxScrollDisplacement = 100;
-        var e = this.menu;
-        if (typeof e === 'undefined') return;
-
-        while (clientRect === undefined || clientRect.height === 0) {
-          clientRect = e.getBoundingClientRect();
-
-          if (clientRect.height === 0) {
-            e = e.childNodes[0];
-
-            if (e === undefined || !e.getBoundingClientRect) {
-              return;
-            }
-          }
-        }
-
-        var elemTop = clientRect.top;
-        var elemBottom = elemTop + clientRect.height;
-
-        if (elemTop < 0) {
-          window.scrollTo(0, window.pageYOffset + clientRect.top - reasonableBuffer);
-        } else if (elemBottom > window.innerHeight) {
-          var maxY = window.pageYOffset + clientRect.top - reasonableBuffer;
-
-          if (maxY - window.pageYOffset > maxScrollDisplacement) {
-            maxY = window.pageYOffset + maxScrollDisplacement;
-          }
-
-          var targetY = window.pageYOffset - (window.innerHeight - elemBottom);
-
-          if (targetY > maxY) {
-            targetY = maxY;
-          }
-
-          window.scrollTo(0, targetY);
+        if (match && (firstChar || leadingSpace)) {
+          index = str.length - 1 - cidx;
+          break;
         }
       }
-    }]);
 
-    return TributeRange;
-  }();
+      return index;
+    }
 
+    isContentEditable(element) {
+      return element.nodeName !== "INPUT" && element.nodeName !== "TEXTAREA";
+    }
+
+    isMenuOffScreen(coordinates, menuDimensions) {
+      const windowWidth = window.innerWidth;
+      const windowHeight = window.innerHeight;
+      const doc = document.documentElement;
+      const windowLeft = (window.pageXOffset || doc.scrollLeft) - (doc.clientLeft || 0);
+      const windowTop = (window.pageYOffset || doc.scrollTop) - (doc.clientTop || 0);
+      const menuTop = typeof coordinates.top === "number" ? coordinates.top : coordinates.bottom - menuDimensions.height;
+      const menuRight = typeof coordinates.right === "number" ? coordinates.right : coordinates.left + menuDimensions.width;
+      const menuBottom = typeof coordinates.bottom === "number" ? coordinates.bottom : coordinates.top + menuDimensions.height;
+      const menuLeft = typeof coordinates.left === "number" ? coordinates.left : coordinates.right - menuDimensions.width;
+      return {
+        top: menuTop < Math.floor(windowTop),
+        right: menuRight > Math.ceil(windowLeft + windowWidth),
+        bottom: menuBottom > Math.ceil(windowTop + windowHeight),
+        left: menuLeft < Math.floor(windowLeft)
+      };
+    }
+
+    getMenuDimensions() {
+      // Width of the menu depends of its contents and position
+      // We must check what its width would be without any obstruction
+      // This way, we can achieve good positioning for flipping the menu
+      const dimensions = {
+        width: null,
+        height: null
+      };
+      this.tribute.menu.style.top = `0px`;
+      this.tribute.menu.style.left = `0px`;
+      this.tribute.menu.style.right = null;
+      this.tribute.menu.style.bottom = null;
+      this.tribute.menu.style.position = `fixed`;
+      this.tribute.menu.style.visibility = `hidden`;
+      this.tribute.menu.style.display = `block`;
+      dimensions.width = this.tribute.menu.offsetWidth;
+      dimensions.height = this.tribute.menu.offsetHeight;
+      this.tribute.menu.style.display = `none`;
+      this.tribute.menu.style.visibility = `visible`;
+      return dimensions;
+    }
+
+    getTextAreaOrInputUnderlinePosition(element, position, _flipped) {
+      const properties = ["direction", "boxSizing", "width", "height", "overflowX", "overflowY", "borderTopWidth", "borderRightWidth", "borderBottomWidth", "borderLeftWidth", "borderStyle", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft", "fontStyle", "fontVariant", "fontWeight", "fontStretch", "fontSize", "fontSizeAdjust", "lineHeight", "fontFamily", "textAlign", "textTransform", "textIndent", "textDecoration", "letterSpacing", "wordSpacing"];
+      const div = this.getDocument().createElement("div");
+      div.id = "input-textarea-caret-position-mirror-div";
+      this.getDocument().body.appendChild(div);
+      const style = div.style;
+      const computed = window.getComputedStyle ? getComputedStyle(element) : element.currentStyle;
+      style.whiteSpace = "pre-wrap";
+
+      if (element.nodeName !== "INPUT") {
+        style.wordWrap = "break-word";
+      } // position off-screen
+
+
+      style.position = "absolute";
+      style.visibility = "hidden"; // transfer the element's properties to the div
+
+      properties.forEach(prop => {
+        style[prop] = computed[prop];
+      }); //NOT SURE WHY THIS IS HERE AND IT DOESNT SEEM HELPFUL
+      // if (isFirefox) {
+      //     style.width = `${(parseInt(computed.width) - 2)}px`
+      //     if (element.scrollHeight > parseInt(computed.height))
+      //         style.overflowY = 'scroll'
+      // } else {
+      //     style.overflow = 'hidden'
+      // }
+
+      const span0 = document.createElement("span");
+      span0.textContent = element.value.substring(0, position);
+      div.appendChild(span0);
+
+      if (element.nodeName === "INPUT") {
+        div.textContent = div.textContent.replace(/\s/g, " ");
+      } //Create a span in the div that represents where the cursor
+      //should be
+
+
+      const span = this.getDocument().createElement("span"); //we give it no content as this represents the cursor
+
+      div.appendChild(span);
+      const span2 = this.getDocument().createElement("span");
+      span2.textContent = element.value.substring(position, position + 1);
+      div.appendChild(span2);
+      const rect = element.getBoundingClientRect(); //position the div exactly over the element
+      //so we can get the bounding client rect for the span and
+      //it should represent exactly where the cursor is
+
+      div.style.position = "fixed";
+      div.style.left = rect.left + "px";
+      div.style.top = rect.top + "px";
+      div.style.width = rect.width + "px";
+      div.style.height = rect.height + "px";
+      div.scrollTop = element.scrollTop;
+      const spanRect = span.getBoundingClientRect();
+      const divRect = div.getBoundingClientRect();
+      this.getDocument().body.removeChild(div);
+
+      const clamp = function (number, min, max) {
+        return Math.max(min, Math.min(number, max));
+      };
+
+      const finalRect = {
+        height: Math.min(divRect.height, spanRect.height),
+        left: clamp(spanRect.left, divRect.left, divRect.left + divRect.width),
+        top: clamp(spanRect.top, divRect.top, divRect.top + divRect.height)
+      };
+      return this.getFixedCoordinatesRelativeToRect(finalRect);
+    }
+
+    getContentEditableCaretPosition(selectedNodePosition) {
+      const sel = this.getWindowSelection();
+      const range = this.getDocument().createRange();
+      range.setStart(sel.anchorNode, selectedNodePosition);
+      range.setEnd(sel.anchorNode, selectedNodePosition);
+      range.collapse(false);
+      const rect = range.getBoundingClientRect();
+      return this.getFixedCoordinatesRelativeToRect(rect);
+    }
+
+    getFixedCoordinatesRelativeToRect(rect) {
+      const coordinates = {
+        position: "fixed",
+        left: rect.left,
+        top: rect.top + rect.height
+      };
+      const menuDimensions = this.getMenuDimensions();
+      const availableSpaceOnTop = rect.top;
+      const availableSpaceOnBottom = window.innerHeight - (rect.top + rect.height); //check to see where's the right place to put the menu vertically
+
+      if (availableSpaceOnBottom < menuDimensions.height) {
+        if (availableSpaceOnTop >= menuDimensions.height || availableSpaceOnTop > availableSpaceOnBottom) {
+          coordinates.top = "auto";
+          coordinates.bottom = window.innerHeight - rect.top;
+
+          if (availableSpaceOnBottom < menuDimensions.height) {
+            coordinates.maxHeight = availableSpaceOnTop;
+          }
+        } else {
+          if (availableSpaceOnTop < menuDimensions.height) {
+            coordinates.maxHeight = availableSpaceOnBottom;
+          }
+        }
+      }
+
+      const availableSpaceOnLeft = rect.left;
+      const availableSpaceOnRight = window.innerWidth - rect.left; //check to see where's the right place to put the menu horizontally
+
+      if (availableSpaceOnRight < menuDimensions.width) {
+        if (availableSpaceOnLeft >= menuDimensions.width || availableSpaceOnLeft > availableSpaceOnRight) {
+          coordinates.left = "auto";
+          coordinates.right = window.innerWidth - rect.left;
+
+          if (availableSpaceOnRight < menuDimensions.width) {
+            coordinates.maxWidth = availableSpaceOnLeft;
+          }
+        } else {
+          if (availableSpaceOnLeft < menuDimensions.width) {
+            coordinates.maxWidth = availableSpaceOnRight;
+          }
+        }
+      }
+
+      return coordinates;
+    }
+
+    scrollIntoView(_elem) {
+      const reasonableBuffer = 20;
+      const maxScrollDisplacement = 100;
+      let clientRect;
+      let e = this.menu;
+      if (typeof e === "undefined") return;
+
+      while (clientRect === undefined || clientRect.height === 0) {
+        clientRect = e.getBoundingClientRect();
+
+        if (clientRect.height === 0) {
+          e = e.childNodes[0];
+
+          if (e === undefined || !e.getBoundingClientRect) {
+            return;
+          }
+        }
+      }
+
+      const elemTop = clientRect.top;
+      const elemBottom = elemTop + clientRect.height;
+
+      if (elemTop < 0) {
+        window.scrollTo(0, window.pageYOffset + clientRect.top - reasonableBuffer);
+      } else if (elemBottom > window.innerHeight) {
+        let maxY = window.pageYOffset + clientRect.top - reasonableBuffer;
+
+        if (maxY - window.pageYOffset > maxScrollDisplacement) {
+          maxY = window.pageYOffset + maxScrollDisplacement;
+        }
+
+        let targetY = window.pageYOffset - (window.innerHeight - elemBottom);
+
+        if (targetY > maxY) {
+          targetY = maxY;
+        }
+
+        window.scrollTo(0, targetY);
+      }
+    }
+
+  }
+
+  /*eslint no-unused-vars: ["error", { "argsIgnorePattern": "^_" }]*/
   // Thanks to https://github.com/mattyork/fuzzy
-  var TributeSearch = /*#__PURE__*/function () {
-    function TributeSearch(tribute) {
-      _classCallCheck(this, TributeSearch);
-
+  class TributeSearch {
+    constructor(tribute) {
       this.tribute = tribute;
       this.tribute.search = this;
     }
 
-    _createClass(TributeSearch, [{
-      key: "simpleFilter",
-      value: function simpleFilter(pattern, array) {
-        var _this = this;
+    simpleFilter(pattern, array) {
+      return array.filter(string => {
+        return this.test(pattern, string);
+      });
+    }
 
-        return array.filter(function (string) {
-          return _this.test(pattern, string);
-        });
-      }
-    }, {
-      key: "test",
-      value: function test(pattern, string) {
-        return this.match(pattern, string) !== null;
-      }
-    }, {
-      key: "match",
-      value: function match(pattern, string, opts) {
-        opts = opts || {};
-        string.length;
-            var pre = opts.pre || '',
-            post = opts.post || '',
+    test(pattern, string) {
+      return this.match(pattern, string) !== null;
+    }
+
+    match(pattern, string, opts) {
+      opts = opts || {};
+      const pre = opts.pre || "",
+            post = opts.post || "",
             compareString = opts.caseSensitive && string || string.toLowerCase();
 
-        if (opts.skip) {
-          return {
-            rendered: string,
-            score: 0
-          };
-        }
-
-        pattern = opts.caseSensitive && pattern || pattern.toLowerCase();
-        var patternCache = this.traverse(compareString, pattern, 0, 0, []);
-
-        if (!patternCache) {
-          return null;
-        }
-
+      if (opts.skip) {
         return {
-          rendered: this.render(string, patternCache.cache, pre, post),
-          score: patternCache.score
+          rendered: string,
+          score: 0
         };
       }
-    }, {
-      key: "traverse",
-      value: function traverse(string, pattern, stringIndex, patternIndex, patternCache) {
-        if (this.tribute.autocompleteSeparator) {
-          // if the pattern search at end
-          pattern = pattern.split(this.tribute.autocompleteSeparator).splice(-1)[0];
+
+      pattern = opts.caseSensitive && pattern || pattern.toLowerCase();
+      const patternCache = this.traverse(compareString, pattern, 0, 0, []);
+
+      if (!patternCache) {
+        return null;
+      }
+
+      return {
+        rendered: this.render(string, patternCache.cache, pre, post),
+        score: patternCache.score
+      };
+    }
+
+    traverse(string, pattern, stringIndex, patternIndex, patternCache) {
+      if (this.tribute.autocompleteSeparator) {
+        // if the pattern search at end
+        pattern = pattern.split(this.tribute.autocompleteSeparator).splice(-1)[0];
+      }
+
+      if (pattern.length === patternIndex) {
+        // calculate score and copy the cache containing the indices where it's found
+        return {
+          score: this.calculateScore(patternCache),
+          cache: patternCache.slice()
+        };
+      } // if string at end or remaining pattern > remaining string
+
+
+      if (string.length === stringIndex || pattern.length - patternIndex > string.length - stringIndex) {
+        return undefined;
+      }
+
+      const c = pattern[patternIndex];
+      let index = string.indexOf(c, stringIndex);
+      let best;
+      let temp;
+
+      while (index > -1) {
+        patternCache.push(index);
+        temp = this.traverse(string, pattern, index + 1, patternIndex + 1, patternCache);
+        patternCache.pop(); // if downstream traversal failed, return best answer so far
+
+        if (!temp) {
+          return best;
         }
 
-        if (pattern.length === patternIndex) {
-          // calculate score and copy the cache containing the indices where it's found
-          return {
-            score: this.calculateScore(patternCache),
-            cache: patternCache.slice()
+        if (!best || best.score < temp.score) {
+          best = temp;
+        }
+
+        index = string.indexOf(c, index + 1);
+      }
+
+      return best;
+    }
+
+    calculateScore(patternCache) {
+      let score = 0;
+      let temp = 1;
+      patternCache.forEach((index, i) => {
+        if (i > 0) {
+          if (patternCache[i - 1] + 1 === index) {
+            temp += temp + 1;
+          } else {
+            temp = 1;
+          }
+        }
+
+        score += temp;
+      });
+      return score;
+    }
+
+    render(string, indices, pre, post) {
+      let rendered = string.substring(0, indices[0]);
+      indices.forEach((index, i) => {
+        rendered += pre + string[index] + post + string.substring(index + 1, indices[i + 1] ? indices[i + 1] : string.length);
+      });
+      return rendered;
+    }
+
+    filter(pattern, arr, opts) {
+      opts = opts || {};
+      return arr.reduce((prev, element, idx, _arr) => {
+        let str = element;
+
+        if (opts.extract) {
+          str = opts.extract(element);
+
+          if (!str) {
+            // take care of undefineds / nulls / etc.
+            str = "";
+          }
+        }
+
+        const rendered = this.match(pattern, str, opts);
+
+        if (rendered !== null) {
+          prev[prev.length] = {
+            string: rendered.rendered,
+            score: rendered.score,
+            index: idx,
+            original: element
           };
-        } // if string at end or remaining pattern > remaining string
-
-
-        if (string.length === stringIndex || pattern.length - patternIndex > string.length - stringIndex) {
-          return undefined;
         }
 
-        var c = pattern[patternIndex];
-        var index = string.indexOf(c, stringIndex);
-        var best;
-        var temp;
+        return prev;
+      }, []).sort((a, b) => {
+        const compare = b.score - a.score;
+        if (compare) return compare;
+        return a.index - b.index;
+      });
+    }
 
-        while (index > -1) {
-          patternCache.push(index);
-          temp = this.traverse(string, pattern, index + 1, patternIndex + 1, patternCache);
-          patternCache.pop(); // if downstream traversal failed, return best answer so far
+  }
 
-          if (!temp) {
-            return best;
-          }
-
-          if (!best || best.score < temp.score) {
-            best = temp;
-          }
-
-          index = string.indexOf(c, index + 1);
-        }
-
-        return best;
-      }
-    }, {
-      key: "calculateScore",
-      value: function calculateScore(patternCache) {
-        var score = 0;
-        var temp = 1;
-        patternCache.forEach(function (index, i) {
-          if (i > 0) {
-            if (patternCache[i - 1] + 1 === index) {
-              temp += temp + 1;
-            } else {
-              temp = 1;
-            }
-          }
-
-          score += temp;
-        });
-        return score;
-      }
-    }, {
-      key: "render",
-      value: function render(string, indices, pre, post) {
-        var rendered = string.substring(0, indices[0]);
-        indices.forEach(function (index, i) {
-          rendered += pre + string[index] + post + string.substring(index + 1, indices[i + 1] ? indices[i + 1] : string.length);
-        });
-        return rendered;
-      }
-    }, {
-      key: "filter",
-      value: function filter(pattern, arr, opts) {
-        var _this2 = this;
-
-        opts = opts || {};
-        return arr.reduce(function (prev, element, idx, arr) {
-          var str = element;
-
-          if (opts.extract) {
-            str = opts.extract(element);
-
-            if (!str) {
-              // take care of undefineds / nulls / etc.
-              str = '';
-            }
-          }
-
-          var rendered = _this2.match(pattern, str, opts);
-
-          if (rendered != null) {
-            prev[prev.length] = {
-              string: rendered.rendered,
-              score: rendered.score,
-              index: idx,
-              original: element
-            };
-          }
-
-          return prev;
-        }, []).sort(function (a, b) {
-          var compare = b.score - a.score;
-          if (compare) return compare;
-          return a.index - b.index;
-        });
-      }
-    }]);
-
-    return TributeSearch;
-  }();
-
-  var Tribute = /*#__PURE__*/function () {
-    function Tribute(_ref) {
-      var _this = this;
-
-      var _ref$values = _ref.values,
-          values = _ref$values === void 0 ? null : _ref$values,
-          _ref$loadingItemTempl = _ref.loadingItemTemplate,
-          loadingItemTemplate = _ref$loadingItemTempl === void 0 ? null : _ref$loadingItemTempl,
-          _ref$iframe = _ref.iframe,
-          iframe = _ref$iframe === void 0 ? null : _ref$iframe,
-          _ref$selectClass = _ref.selectClass,
-          selectClass = _ref$selectClass === void 0 ? "highlight" : _ref$selectClass,
-          _ref$containerClass = _ref.containerClass,
-          containerClass = _ref$containerClass === void 0 ? "tribute-container" : _ref$containerClass,
-          _ref$itemClass = _ref.itemClass,
-          itemClass = _ref$itemClass === void 0 ? "" : _ref$itemClass,
-          _ref$trigger = _ref.trigger,
-          trigger = _ref$trigger === void 0 ? "@" : _ref$trigger,
-          _ref$autocompleteMode = _ref.autocompleteMode,
-          autocompleteMode = _ref$autocompleteMode === void 0 ? false : _ref$autocompleteMode,
-          _ref$autocompleteSepa = _ref.autocompleteSeparator,
-          autocompleteSeparator = _ref$autocompleteSepa === void 0 ? null : _ref$autocompleteSepa,
-          _ref$selectTemplate = _ref.selectTemplate,
-          selectTemplate = _ref$selectTemplate === void 0 ? null : _ref$selectTemplate,
-          _ref$menuItemTemplate = _ref.menuItemTemplate,
-          menuItemTemplate = _ref$menuItemTemplate === void 0 ? null : _ref$menuItemTemplate,
-          _ref$lookup = _ref.lookup,
-          lookup = _ref$lookup === void 0 ? "key" : _ref$lookup,
-          _ref$fillAttr = _ref.fillAttr,
-          fillAttr = _ref$fillAttr === void 0 ? "value" : _ref$fillAttr,
-          _ref$collection = _ref.collection,
-          collection = _ref$collection === void 0 ? null : _ref$collection,
-          _ref$menuContainer = _ref.menuContainer,
-          menuContainer = _ref$menuContainer === void 0 ? null : _ref$menuContainer,
-          _ref$noMatchTemplate = _ref.noMatchTemplate,
-          noMatchTemplate = _ref$noMatchTemplate === void 0 ? null : _ref$noMatchTemplate,
-          _ref$requireLeadingSp = _ref.requireLeadingSpace,
-          requireLeadingSpace = _ref$requireLeadingSp === void 0 ? true : _ref$requireLeadingSp,
-          _ref$allowSpaces = _ref.allowSpaces,
-          allowSpaces = _ref$allowSpaces === void 0 ? false : _ref$allowSpaces,
-          _ref$replaceTextSuffi = _ref.replaceTextSuffix,
-          replaceTextSuffix = _ref$replaceTextSuffi === void 0 ? null : _ref$replaceTextSuffi,
-          _ref$positionMenu = _ref.positionMenu,
-          positionMenu = _ref$positionMenu === void 0 ? true : _ref$positionMenu,
-          _ref$spaceSelectsMatc = _ref.spaceSelectsMatch,
-          spaceSelectsMatch = _ref$spaceSelectsMatc === void 0 ? false : _ref$spaceSelectsMatc,
-          _ref$searchOpts = _ref.searchOpts,
-          searchOpts = _ref$searchOpts === void 0 ? {} : _ref$searchOpts,
-          _ref$menuItemLimit = _ref.menuItemLimit,
-          menuItemLimit = _ref$menuItemLimit === void 0 ? null : _ref$menuItemLimit,
-          _ref$menuShowMinLengt = _ref.menuShowMinLength,
-          menuShowMinLength = _ref$menuShowMinLengt === void 0 ? 0 : _ref$menuShowMinLengt,
-          _ref$keys = _ref.keys,
-          keys = _ref$keys === void 0 ? null : _ref$keys,
-          _ref$useHTML = _ref.useHTML,
-          useHTML = _ref$useHTML === void 0 ? true : _ref$useHTML;
-
-      _classCallCheck(this, Tribute);
-
+  class Tribute {
+    constructor({
+      values = null,
+      loadingItemTemplate = null,
+      iframe = null,
+      selectClass = "highlight",
+      containerClass = "tribute-container",
+      itemClass = "",
+      trigger = "@",
+      autocompleteMode = false,
+      autocompleteSeparator = null,
+      selectTemplate = null,
+      menuItemTemplate = null,
+      lookup = "key",
+      fillAttr = "value",
+      collection = null,
+      menuContainer = null,
+      noMatchTemplate = null,
+      requireLeadingSpace = true,
+      allowSpaces = false,
+      replaceTextSuffix = null,
+      positionMenu = true,
+      spaceSelectsMatch = false,
+      searchOpts = {},
+      menuItemLimit = null,
+      menuShowMinLength = 0,
+      keys = null,
+      useHTML = true
+    }) {
       this.autocompleteMode = autocompleteMode;
       this.autocompleteSeparator = autocompleteSeparator;
       this.menuSelected = 0;
@@ -1497,20 +1293,20 @@
           // function called that returns content for an item
           menuItemTemplate: (menuItemTemplate || Tribute.defaultMenuItemTemplate).bind(this),
           // function called when menu is empty, disables hiding of menu.
-          noMatchTemplate: function (t) {
+          noMatchTemplate: (t => {
             if (typeof t === "string") {
               if (t.trim() === "") return null;
               return t;
             }
 
             if (typeof t === "function") {
-              return t.bind(_this);
+              return t.bind(this);
             }
 
             return noMatchTemplate || function () {
               return "<li>No Match Found!</li>";
-            }.bind(_this);
-          }(noMatchTemplate),
+            };
+          })(noMatchTemplate),
           // column to search against in the object
           lookup: lookup,
           // column that contains the content to insert by default
@@ -1526,30 +1322,30 @@
         }];
       } else if (collection) {
         if (this.autocompleteMode) console.warn("Tribute in autocomplete mode does not work for collections");
-        this.collection = collection.map(function (item) {
+        this.collection = collection.map(item => {
           return {
             trigger: item.trigger || trigger,
             iframe: item.iframe || iframe,
             selectClass: item.selectClass || selectClass,
             containerClass: item.containerClass || containerClass,
             itemClass: item.itemClass || itemClass,
-            selectTemplate: (item.selectTemplate || Tribute.defaultSelectTemplate).bind(_this),
-            menuItemTemplate: (item.menuItemTemplate || Tribute.defaultMenuItemTemplate).bind(_this),
+            selectTemplate: (item.selectTemplate || Tribute.defaultSelectTemplate).bind(this),
+            menuItemTemplate: (item.menuItemTemplate || Tribute.defaultMenuItemTemplate).bind(this),
             // function called when menu is empty, disables hiding of menu.
-            noMatchTemplate: function (t) {
+            noMatchTemplate: (t => {
               if (typeof t === "string") {
                 if (t.trim() === "") return null;
                 return t;
               }
 
               if (typeof t === "function") {
-                return t.bind(_this);
+                return t.bind(this);
               }
 
               return noMatchTemplate || function () {
                 return "<li>No Match Found!</li>";
-              }.bind(_this);
-            }(noMatchTemplate),
+              };
+            })(noMatchTemplate),
             lookup: item.lookup || lookup,
             fillAttr: item.fillAttr || fillAttr,
             values: item.values,
@@ -1570,423 +1366,383 @@
       new TributeSearch(this);
     }
 
-    _createClass(Tribute, [{
-      key: "isActive",
-      get: function get() {
-        return this._isActive;
-      },
-      set: function set(val) {
-        if (this._isActive != val) {
-          this._isActive = val;
+    get isActive() {
+      return this._isActive;
+    }
 
-          if (this.current.element) {
-            var noMatchEvent = new CustomEvent("tribute-active-".concat(val));
-            this.current.element.dispatchEvent(noMatchEvent);
-          }
+    set isActive(val) {
+      if (this._isActive !== val) {
+        this._isActive = val;
+
+        if (this.current.element) {
+          const noMatchEvent = new CustomEvent(`tribute-active-${val}`);
+          this.current.element.dispatchEvent(noMatchEvent);
         }
       }
-    }, {
-      key: "triggers",
-      value: function triggers() {
-        return this.collection.map(function (config) {
-          return config.trigger;
-        });
+    }
+
+    static defaultSelectTemplate(item) {
+      if (typeof item === "undefined") return `${this.current.collection.trigger}${this.current.mentionText}`;
+
+      if (this.range.isContentEditable(this.current.element)) {
+        return '<span class="tribute-mention">' + (this.current.collection.trigger + item.original[this.current.collection.fillAttr]) + "</span>";
       }
-    }, {
-      key: "attach",
-      value: function attach(el) {
-        if (!el) {
-          throw new Error("[Tribute] Must pass in a DOM node or NodeList.");
-        } // Check if it is a jQuery collection
+
+      return this.current.collection.trigger + item.original[this.current.collection.fillAttr];
+    }
+
+    static defaultMenuItemTemplate(matchItem) {
+      return matchItem.string;
+    }
+
+    static inputTypes() {
+      return ["TEXTAREA", "INPUT"];
+    }
+
+    triggers() {
+      return this.collection.map(config => {
+        return config.trigger;
+      });
+    }
+
+    attach(el) {
+      if (!el) {
+        throw new Error("[Tribute] Must pass in a DOM node or NodeList.");
+      }
+      /* global jQuery */
+      // Check if it is a jQuery collection
 
 
-        if (typeof jQuery !== "undefined" && el instanceof jQuery) {
-          el = el.get();
-        } // Is el an Array/Array-like object?
+      if (typeof jQuery !== "undefined" && el instanceof jQuery) {
+        el = el.get();
+      } // Is el an Array/Array-like object?
 
 
-        if (el.constructor === NodeList || el.constructor === HTMLCollection || el.constructor === Array) {
-          var length = el.length;
+      if (el.constructor === NodeList || el.constructor === HTMLCollection || el.constructor === Array) {
+        const length = el.length;
 
-          for (var i = 0; i < length; ++i) {
-            this._attach(el[i]);
-          }
+        for (let i = 0; i < length; ++i) {
+          this._attach(el[i]);
+        }
+      } else {
+        this._attach(el);
+      }
+    }
+
+    _attach(el) {
+      if (el.hasAttribute("data-tribute")) {
+        console.warn("Tribute was already bound to " + el.nodeName);
+      }
+
+      this.ensureEditable(el);
+      this.events.bind(el);
+      el.setAttribute("data-tribute", true);
+    }
+
+    ensureEditable(element) {
+      if (Tribute.inputTypes().indexOf(element.nodeName) === -1) {
+        if (element.contentEditable) {
+          element.contentEditable = true;
         } else {
-          this._attach(el);
+          throw new Error("[Tribute] Cannot bind to " + element.nodeName);
         }
       }
-    }, {
-      key: "_attach",
-      value: function _attach(el) {
-        if (el.hasAttribute("data-tribute")) {
-          console.warn("Tribute was already bound to " + el.nodeName);
-        }
+    }
 
-        this.ensureEditable(el);
-        this.events.bind(el);
-        el.setAttribute("data-tribute", true);
-      }
-    }, {
-      key: "ensureEditable",
-      value: function ensureEditable(element) {
-        if (Tribute.inputTypes().indexOf(element.nodeName) === -1) {
-          if (element.contentEditable) {
-            element.contentEditable = true;
-          } else {
-            throw new Error("[Tribute] Cannot bind to " + element.nodeName);
-          }
-        }
-      }
-    }, {
-      key: "createMenu",
-      value: function createMenu(containerClass, element) {
-        var properties = ['fontStyle', 'fontVariant', 'fontWeight', 'fontStretch', 'fontSizeAdjust', 'fontFamily'];
-        var computed = window.getComputedStyle ? getComputedStyle(element) : element.currentStyle;
-        var wrapper = this.range.getDocument().createElement("div"),
+    createMenu(containerClass, element) {
+      const properties = ["fontStyle", "fontVariant", "fontWeight", "fontStretch", "fontSizeAdjust", "fontFamily"];
+      const computed = window.getComputedStyle ? getComputedStyle(element) : element.currentStyle;
+      const wrapper = this.range.getDocument().createElement("div"),
             ul = this.range.getDocument().createElement("ul");
-        wrapper.className = containerClass;
-        wrapper.setAttribute("tabindex", "0");
-        wrapper.appendChild(ul);
-        wrapper.style.fontSize = Math.round(parseInt(computed.fontSize) * 0.9) + 'px';
-        wrapper.style.display = "none";
-        properties.forEach(function (prop) {
-          wrapper.style[prop] = computed[prop];
-        });
+      wrapper.className = containerClass;
+      wrapper.setAttribute("tabindex", "0");
+      wrapper.appendChild(ul);
+      wrapper.style.fontSize = Math.round(parseInt(computed.fontSize) * 0.9) + "px";
+      wrapper.style.display = "none";
+      properties.forEach(prop => {
+        wrapper.style[prop] = computed[prop];
+      });
 
-        if (this.menuContainer) {
-          return this.menuContainer.appendChild(wrapper);
-        }
-
-        return this.range.getDocument().body.appendChild(wrapper);
+      if (this.menuContainer) {
+        return this.menuContainer.appendChild(wrapper);
       }
-    }, {
-      key: "showMenuFor",
-      value: function showMenuFor(element, scrollTo) {
-        var _this2 = this;
 
-        // Only proceed if menu isn't already shown for the current element & mentionText
-        if (this.isActive && this.current.element === element && this.current.mentionText === this.currentMentionTextSnapshot) {
+      return this.range.getDocument().body.appendChild(wrapper);
+    }
+
+    showMenuFor(element, scrollTo) {
+      // Only proceed if menu isn't already shown for the current element & mentionText
+      if (this.isActive && this.current.element === element && this.current.mentionText === this.currentMentionTextSnapshot) {
+        return;
+      }
+
+      this.currentMentionTextSnapshot = this.current.mentionText; // create the menu if it doesn't exist.
+
+      if (!this.menu) {
+        this.menu = this.createMenu(this.current.collection.containerClass, element);
+        element.tributeMenu = this.menu;
+        this.menuEvents.bind(this.menu);
+      }
+
+      this.activationPending = true;
+      this.menuSelected = 0;
+
+      if (!this.current.mentionText) {
+        this.current.mentionText = "";
+      }
+
+      const processValues = (values, forceReplace) => {
+        // Tribute may not be active any more by the time the value callback returns
+        if (!this.activationPending) {
           return;
         }
 
-        this.currentMentionTextSnapshot = this.current.mentionText; // create the menu if it doesn't exist.
+        this.activationPending = false; // Element is no longer in focus - don't show menu
 
-        if (!this.menu) {
-          this.menu = this.createMenu(this.current.collection.containerClass, element);
-          element.tributeMenu = this.menu;
-          this.menuEvents.bind(this.menu);
+        if (document.activeElement !== this.current.element) {
+          return;
         }
 
-        this.activationPending = true;
-        this.menuSelected = 0;
-
-        if (!this.current.mentionText) {
-          this.current.mentionText = "";
+        if (forceReplace) {
+          // Do force replace - don't show menu
+          this.current.info.mentionPosition -= forceReplace.length;
+          this.current.info.mentionText = " ".repeat(forceReplace.length) + this.current.info.mentionText;
+          this.replaceText(forceReplace.text, null, null);
+          return;
         }
 
-        var processValues = function processValues(values, forceReplace) {
-          // Tribute may not be active any more by the time the value callback returns
-          if (!_this2.activationPending) {
-            return;
-          }
-
-          _this2.activationPending = false; // Element is no longer in focus - don't show menu
-
-          if (document.activeElement !== _this2.current.element) {
-            return;
-          }
-
-          if (forceReplace) {
-            // Do force replace - don't show menu
-            _this2.current.info.mentionPosition -= forceReplace.length;
-            _this2.current.info.mentionText = " ".repeat(forceReplace.length) + _this2.current.info.mentionText;
-
-            _this2.replaceText(forceReplace.text, null, null);
-
-            return;
-          }
-
-          var items = _this2.search.filter(_this2.current.mentionText, values, {
-            pre: _this2.current.collection.searchOpts.pre || "<span>",
-            post: _this2.current.collection.searchOpts.post || "</span>",
-            skip: _this2.current.collection.searchOpts.skip,
-            extract: function extract(el) {
-              if (typeof _this2.current.collection.lookup === "string") {
-                return el[_this2.current.collection.lookup];
-              } else if (typeof _this2.current.collection.lookup === "function") {
-                return _this2.current.collection.lookup(el, _this2.current.mentionText);
-              } else {
-                throw new Error("Invalid lookup attribute, lookup must be string or function.");
-              }
-            }
-          });
-
-          if (_this2.current.collection.menuItemLimit) {
-            items = items.slice(0, _this2.current.collection.menuItemLimit);
-          }
-
-          _this2.current.filteredItems = items;
-
-          var ul = _this2.menu.querySelector("ul");
-
-          var showMenu = false;
-
-          if (!items.length) {
-            var noMatchEvent = new CustomEvent("tribute-no-match", {
-              detail: _this2.menu
-            });
-
-            _this2.current.element.dispatchEvent(noMatchEvent);
-
-            if (typeof _this2.current.collection.noMatchTemplate === "function" && !_this2.current.collection.noMatchTemplate() || !_this2.current.collection.noMatchTemplate) {
-              showMenu = false;
+        let items = this.search.filter(this.current.mentionText, values, {
+          pre: this.current.collection.searchOpts.pre || "<span>",
+          post: this.current.collection.searchOpts.post || "</span>",
+          skip: this.current.collection.searchOpts.skip,
+          extract: el => {
+            if (typeof this.current.collection.lookup === "string") {
+              return el[this.current.collection.lookup];
+            } else if (typeof this.current.collection.lookup === "function") {
+              return this.current.collection.lookup(el, this.current.mentionText);
             } else {
-              typeof _this2.current.collection.noMatchTemplate === "function" ? ul.innerHTML = _this2.current.collection.noMatchTemplate() : ul.innerHTML = _this2.current.collection.noMatchTemplate;
-              showMenu = true;
+              throw new Error("Invalid lookup attribute, lookup must be string or function.");
             }
-          } else {
-            ul.innerHTML = "";
-
-            var fragment = _this2.range.getDocument().createDocumentFragment();
-
-            items.forEach(function (item, index) {
-              var li = _this2.range.getDocument().createElement("li");
-
-              li.setAttribute("data-index", index);
-              li.className = _this2.current.collection.itemClass;
-              li.addEventListener("mousemove", function (e) {
-                var _this2$_findLiTarget = _this2._findLiTarget(e.target),
-                    _this2$_findLiTarget2 = _slicedToArray(_this2$_findLiTarget, 2);
-                    _this2$_findLiTarget2[0];
-                    var index = _this2$_findLiTarget2[1];
-
-                if (e.movementY !== 0) {
-                  _this2.events.setActiveLi(index);
-                }
-              });
-
-              if (_this2.menuSelected === index) {
-                li.classList.add(_this2.current.collection.selectClass);
-              }
-
-              li.innerHTML = _this2.current.collection.menuItemTemplate(item);
-              fragment.appendChild(li);
-            });
-            ul.appendChild(fragment);
-            showMenu = true;
-          }
-
-          if (showMenu) {
-            _this2.isActive = true;
-
-            _this2.range.positionMenuAtCaret(scrollTo);
-          }
-        };
-
-        if (typeof this.current.collection.values === "function") {
-          if (this.current.collection.loadingItemTemplate) {
-            this.menu.querySelector("ul").innerHTML = this.current.collection.loadingItemTemplate;
-            this.range.positionMenuAtCaret(scrollTo);
-          }
-
-          this.current.collection.values(this.current.fullText, processValues);
-        } else {
-          processValues(this.current.collection.values);
-        }
-      }
-    }, {
-      key: "_findLiTarget",
-      value: function _findLiTarget(el) {
-        if (!el) return [];
-        var index = el.getAttribute("data-index");
-        return !index ? this._findLiTarget(el.parentNode) : [el, index];
-      }
-    }, {
-      key: "showMenuForCollection",
-      value: function showMenuForCollection(element, collectionIndex) {
-        if (element !== document.activeElement) {
-          this.placeCaretAtEnd(element);
-        }
-
-        this.current.collection = this.collection[collectionIndex || 0];
-        this.current.externalTrigger = true;
-        this.current.element = element;
-        if (element.isContentEditable) this.insertTextAtCursor(this.current.collection.trigger);else this.insertAtCaret(element, this.current.collection.trigger);
-        this.showMenuFor(element);
-      } // TODO: make sure this works for inputs/textareas
-
-    }, {
-      key: "placeCaretAtEnd",
-      value: function placeCaretAtEnd(el) {
-        el.focus();
-
-        if (typeof window.getSelection != "undefined" && typeof document.createRange != "undefined") {
-          var range = document.createRange();
-          range.selectNodeContents(el);
-          range.collapse(false);
-          var sel = window.getSelection();
-          sel.removeAllRanges();
-          sel.addRange(range);
-        } else if (typeof document.body.createTextRange != "undefined") {
-          var textRange = document.body.createTextRange();
-          textRange.moveToElementText(el);
-          textRange.collapse(false);
-          textRange.select();
-        }
-      } // for contenteditable
-
-    }, {
-      key: "insertTextAtCursor",
-      value: function insertTextAtCursor(text) {
-        var sel, range;
-        sel = window.getSelection();
-        range = sel.getRangeAt(0);
-        range.deleteContents();
-        var textNode = document.createTextNode(text);
-        range.insertNode(textNode);
-        range.selectNodeContents(textNode);
-        range.collapse(false);
-        sel.removeAllRanges();
-        sel.addRange(range);
-      } // for regular inputs
-
-    }, {
-      key: "insertAtCaret",
-      value: function insertAtCaret(textarea, text) {
-        var scrollPos = textarea.scrollTop;
-        var caretPos = textarea.selectionStart;
-        var front = textarea.value.substring(0, caretPos);
-        var back = textarea.value.substring(textarea.selectionEnd, textarea.value.length);
-        textarea.value = front + text + back;
-        caretPos = caretPos + text.length;
-        textarea.selectionStart = caretPos;
-        textarea.selectionEnd = caretPos;
-        textarea.focus();
-        textarea.scrollTop = scrollPos;
-      }
-    }, {
-      key: "hideMenu",
-      value: function hideMenu() {
-        if (this.menu) {
-          this.menu.remove();
-          this.menu = null;
-        }
-
-        this.isActive = false;
-        this.activationPending = false;
-      }
-    }, {
-      key: "selectItemAtIndex",
-      value: function selectItemAtIndex(index, originalEvent) {
-        this.hideMenu();
-        index = parseInt(index);
-        if (typeof index !== "number" || isNaN(index) || !originalEvent.target) return;
-        var item = this.current.filteredItems[index];
-        var content = this.current.collection.selectTemplate(item);
-        if (content !== null) this.replaceText(content, originalEvent, item);
-      }
-    }, {
-      key: "replaceText",
-      value: function replaceText(content, originalEvent, item) {
-        this.range.replaceTriggerText(content, true, true, originalEvent, item);
-      }
-    }, {
-      key: "_append",
-      value: function _append(collection, newValues, replace) {
-        if (typeof collection.values === "function") {
-          throw new Error("Unable to append to values, as it is a function.");
-        } else if (!replace) {
-          collection.values = collection.values.concat(newValues);
-        } else {
-          collection.values = newValues;
-        }
-      }
-    }, {
-      key: "append",
-      value: function append(collectionIndex, newValues, replace) {
-        var index = parseInt(collectionIndex);
-        if (typeof index !== "number") throw new Error("please provide an index for the collection to update.");
-        var collection = this.collection[index];
-
-        this._append(collection, newValues, replace);
-      }
-    }, {
-      key: "appendCurrent",
-      value: function appendCurrent(newValues, replace) {
-        if (this.isActive) {
-          this._append(this.current.collection, newValues, replace);
-        } else {
-          throw new Error("No active state. Please use append instead and pass an index.");
-        }
-      }
-    }, {
-      key: "detach",
-      value: function detach(el) {
-        if (!el) {
-          throw new Error("[Tribute] Must pass in a DOM node or NodeList.");
-        } // Check if it is a jQuery collection
-
-
-        if (typeof jQuery !== "undefined" && el instanceof jQuery) {
-          el = el.get();
-        } // Is el an Array/Array-like object?
-
-
-        if (el.constructor === NodeList || el.constructor === HTMLCollection || el.constructor === Array) {
-          var length = el.length;
-
-          for (var i = 0; i < length; ++i) {
-            this._detach(el[i]);
-          }
-        } else {
-          this._detach(el);
-        }
-      }
-    }, {
-      key: "_detach",
-      value: function _detach(el) {
-        var _this3 = this;
-
-        this.events.unbind(el);
-
-        if (el.tributeMenu) {
-          this.menuEvents.unbind(el.tributeMenu);
-        }
-
-        setTimeout(function () {
-          el.removeAttribute("data-tribute");
-          _this3.isActive = false;
-
-          if (el.tributeMenu) {
-            el.tributeMenu.remove();
           }
         });
-      }
-    }], [{
-      key: "defaultSelectTemplate",
-      value: function defaultSelectTemplate(item) {
-        if (typeof item === "undefined") return "".concat(this.current.collection.trigger).concat(this.current.mentionText);
 
-        if (this.range.isContentEditable(this.current.element)) {
-          return '<span class="tribute-mention">' + (this.current.collection.trigger + item.original[this.current.collection.fillAttr]) + "</span>";
+        if (this.current.collection.menuItemLimit) {
+          items = items.slice(0, this.current.collection.menuItemLimit);
         }
 
-        return this.current.collection.trigger + item.original[this.current.collection.fillAttr];
-      }
-    }, {
-      key: "defaultMenuItemTemplate",
-      value: function defaultMenuItemTemplate(matchItem) {
-        return matchItem.string;
-      }
-    }, {
-      key: "inputTypes",
-      value: function inputTypes() {
-        return ["TEXTAREA", "INPUT"];
-      }
-    }]);
+        this.current.filteredItems = items;
+        const ul = this.menu.querySelector("ul");
+        let showMenu = false;
 
-    return Tribute;
-  }();
+        if (!items.length) {
+          const noMatchEvent = new CustomEvent("tribute-no-match", {
+            detail: this.menu
+          });
+          this.current.element.dispatchEvent(noMatchEvent);
+
+          if (typeof this.current.collection.noMatchTemplate === "function" && !this.current.collection.noMatchTemplate() || !this.current.collection.noMatchTemplate) {
+            showMenu = false;
+          } else {
+            typeof this.current.collection.noMatchTemplate === "function" ? ul.innerHTML = this.current.collection.noMatchTemplate() : ul.innerHTML = this.current.collection.noMatchTemplate;
+            showMenu = true;
+          }
+        } else {
+          ul.innerHTML = "";
+          const fragment = this.range.getDocument().createDocumentFragment();
+          items.forEach((item, index) => {
+            const li = this.range.getDocument().createElement("li");
+            li.setAttribute("data-index", index);
+            li.className = this.current.collection.itemClass;
+            li.addEventListener("mousemove", e => {
+              const [, index] = this._findLiTarget(e.target);
+
+              if (e.movementY !== 0) {
+                this.events.setActiveLi(index);
+              }
+            });
+
+            if (this.menuSelected === index) {
+              li.classList.add(this.current.collection.selectClass);
+            }
+
+            li.innerHTML = this.current.collection.menuItemTemplate(item);
+            fragment.appendChild(li);
+          });
+          ul.appendChild(fragment);
+          showMenu = true;
+        }
+
+        if (showMenu) {
+          this.isActive = true;
+          this.range.positionMenuAtCaret(scrollTo);
+        }
+      };
+
+      if (typeof this.current.collection.values === "function") {
+        if (this.current.collection.loadingItemTemplate) {
+          this.menu.querySelector("ul").innerHTML = this.current.collection.loadingItemTemplate;
+          this.range.positionMenuAtCaret(scrollTo);
+        }
+
+        this.current.collection.values(this.current.fullText, processValues);
+      } else {
+        processValues(this.current.collection.values);
+      }
+    }
+
+    _findLiTarget(el) {
+      if (!el) return [];
+      const index = el.getAttribute("data-index");
+      return !index ? this._findLiTarget(el.parentNode) : [el, index];
+    }
+
+    showMenuForCollection(element, collectionIndex) {
+      if (element !== document.activeElement) {
+        this.placeCaretAtEnd(element);
+      }
+
+      this.current.collection = this.collection[collectionIndex || 0];
+      this.current.externalTrigger = true;
+      this.current.element = element;
+      if (element.isContentEditable) this.insertTextAtCursor(this.current.collection.trigger);else this.insertAtCaret(element, this.current.collection.trigger);
+      this.showMenuFor(element);
+    } // TODO: make sure this works for inputs/textareas
+
+
+    placeCaretAtEnd(el) {
+      el.focus();
+
+      if (typeof window.getSelection !== "undefined" && typeof document.createRange !== "undefined") {
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        range.collapse(false);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      } else if (typeof document.body.createTextRange !== "undefined") {
+        const textRange = document.body.createTextRange();
+        textRange.moveToElementText(el);
+        textRange.collapse(false);
+        textRange.select();
+      }
+    } // for contenteditable
+
+
+    insertTextAtCursor(text) {
+      const sel = window.getSelection();
+      const range = sel.getRangeAt(0);
+      range.deleteContents();
+      const textNode = document.createTextNode(text);
+      range.insertNode(textNode);
+      range.selectNodeContents(textNode);
+      range.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    } // for regular inputs
+
+
+    insertAtCaret(textarea, text) {
+      const scrollPos = textarea.scrollTop;
+      let caretPos = textarea.selectionStart;
+      const front = textarea.value.substring(0, caretPos);
+      const back = textarea.value.substring(textarea.selectionEnd, textarea.value.length);
+      textarea.value = front + text + back;
+      caretPos = caretPos + text.length;
+      textarea.selectionStart = caretPos;
+      textarea.selectionEnd = caretPos;
+      textarea.focus();
+      textarea.scrollTop = scrollPos;
+    }
+
+    hideMenu() {
+      if (this.menu) {
+        this.menu.remove();
+        this.menu = null;
+      }
+
+      this.isActive = false;
+      this.activationPending = false;
+    }
+
+    selectItemAtIndex(index, originalEvent) {
+      this.hideMenu();
+      index = parseInt(index);
+      if (typeof index !== "number" || isNaN(index) || !originalEvent.target) return;
+      const item = this.current.filteredItems[index];
+      const content = this.current.collection.selectTemplate(item);
+      if (content !== null) this.replaceText(content, originalEvent, item);
+    }
+
+    replaceText(content, originalEvent, item) {
+      this.range.replaceTriggerText(content, true, true, originalEvent, item);
+    }
+
+    _append(collection, newValues, replace) {
+      if (typeof collection.values === "function") {
+        throw new Error("Unable to append to values, as it is a function.");
+      } else if (!replace) {
+        collection.values = collection.values.concat(newValues);
+      } else {
+        collection.values = newValues;
+      }
+    }
+
+    append(collectionIndex, newValues, replace) {
+      const index = parseInt(collectionIndex);
+      if (typeof index !== "number") throw new Error("please provide an index for the collection to update.");
+      const collection = this.collection[index];
+
+      this._append(collection, newValues, replace);
+    }
+
+    appendCurrent(newValues, replace) {
+      if (this.isActive) {
+        this._append(this.current.collection, newValues, replace);
+      } else {
+        throw new Error("No active state. Please use append instead and pass an index.");
+      }
+    }
+
+    detach(el) {
+      if (!el) {
+        throw new Error("[Tribute] Must pass in a DOM node or NodeList.");
+      } // Check if it is a jQuery collection
+
+
+      if (typeof jQuery !== "undefined" && el instanceof jQuery) {
+        el = el.get();
+      } // Is el an Array/Array-like object?
+
+
+      if (el.constructor === NodeList || el.constructor === HTMLCollection || el.constructor === Array) {
+        const length = el.length;
+
+        for (let i = 0; i < length; ++i) {
+          this._detach(el[i]);
+        }
+      } else {
+        this._detach(el);
+      }
+    }
+
+    _detach(el) {
+      this.events.unbind(el);
+
+      if (el.tributeMenu) {
+        this.menuEvents.unbind(el.tributeMenu);
+      }
+
+      setTimeout(() => {
+        el.removeAttribute("data-tribute");
+        this.isActive = false;
+
+        if (el.tributeMenu) {
+          el.tributeMenu.remove();
+        }
+      });
+    }
+
+  }
 
   /**
    * Tribute.js
