@@ -67,7 +67,7 @@
     ]
   },
   "update_url": "http://clients2.google.com/service/update2/crx",
-  "version": "2021.8.24.2",
+  "version": "2021.8.25",
   "manifest_version": 2,
   "content_security_policy": "script-src 'self'; object-src 'self'",
   "commands": {
