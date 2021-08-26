@@ -30,30 +30,10 @@
       }
     }
     keys() {
-      const keyArr = [
-        {
-          key: 9,
-          value: "TAB",
-        },
-        {
-          key: 27,
-          value: "ESCAPE",
-        },
-        {
-          key: 38,
-          value: "UP",
-        },
-        {
-          key: 40,
-          value: "DOWN",
-        },
-      ];
+      const keyArr = ["Tab", "Escape", "ArrowUp", "ArrowDown"];
 
       if (this.config.useEnter) {
-        keyArr.push({
-          key: 13,
-          value: "ENTER",
-        });
+        keyArr.push("Enter");
       }
       return keyArr;
     }
@@ -282,6 +262,42 @@
         });
         this.tributeArr[this.tributeArr.length - 1].tribute = tribute;
         tribute.attach(elem);
+
+        elem.addEventListener(
+          "tribute-replaced",
+          this.tributeReplacedEventHandler.bind(
+            this,
+            this.tributeArr.length - 1
+          )
+        );
+
+        elem.addEventListener(
+          "keydown",
+          this.elementKeyDownEventHandler.bind(this, this.tributeArr.length - 1)
+        );
+      }
+    }
+
+    triggerTribute(helperArrId) {
+      setTimeout(
+        function (helperArrId) {
+          this.tributeArr[helperArrId].tribute.showMenuForCollection(
+            this.tributeArr[helperArrId].elem
+          );
+        }.bind(this, helperArrId),
+        0
+      );
+    }
+
+    elementKeyDownEventHandler(helperArrId, event) {
+      if (event.getModifierState("Control") && event.code === "Space") {
+        this.triggerTribute(helperArrId);
+      }
+    }
+
+    tributeReplacedEventHandler(helperArrId) {
+      if (this.tributeArr[helperArrId].triggerInputEvent) {
+        this.triggerTribute(helperArrId);
       }
     }
 
