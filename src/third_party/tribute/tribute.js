@@ -75,22 +75,7 @@
     }
 
     static keys() {
-      return [{
-        key: 9,
-        value: "TAB"
-      }, {
-        key: 13,
-        value: "ENTER"
-      }, {
-        key: 27,
-        value: "ESCAPE"
-      }, {
-        key: 38,
-        value: "UP"
-      }, {
-        key: 40,
-        value: "DOWN"
-      }];
+      return ["Tab", "Enter", "Escape", "ArrowUp", "ArrowDown"];
     }
 
     static modifiers() {
@@ -132,20 +117,18 @@
       }
 
       if (instance.tribute.isActive) {
-        TributeEvents.keys().forEach(o => {
-          if (o.key === event.keyCode) {
-            instance.callbacks()[o.value.toLowerCase()](event, this);
+        TributeEvents.keys().forEach(key => {
+          if (key === event.code) {
+            instance.callbacks()[key](event, this);
           }
         });
       }
     }
 
     input(instance, event) {
-      if (event instanceof CustomEvent) {
-        const str = event.detail.text;
-        event.keyCode = str.charCodeAt(str.length - 1);
-        setTimeout(instance.keyup.bind(this, instance, event), 0);
-      } else instance.keyup.call(this, instance, event);
+      if (!(event instanceof CustomEvent)) {
+        instance.keyup.call(this, instance, event);
+      }
     }
 
     click(instance, event) {
@@ -164,9 +147,8 @@
           }
         }
 
-        tribute.selectItemAtIndex(li.getAttribute("data-index"), event); // TODO: should fire with externalTrigger and target is outside of menu
-      } else if (tribute.current.element && !tribute.current.externalTrigger) {
-        tribute.current.externalTrigger = false;
+        tribute.selectItemAtIndex(li.getAttribute("data-index"), event);
+      } else {
         tribute.hideMenu();
       }
     }
@@ -184,8 +166,8 @@
           }
         }); // Check for control keys
 
-        TributeEvents.keys().forEach(o => {
-          if (o.key === keyCode) {
+        TributeEvents.keys().forEach(key => {
+          if (key === event.code) {
             controlKeyPressed = true;
             return;
           }
@@ -195,7 +177,7 @@
 
       if (!instance.tribute.allowSpaces && instance.tribute.hasTrailingSpace) {
         instance.tribute.hasTrailingSpace = false;
-        instance.callbacks()["space"](event, this);
+        instance.callbacks().Space(event, this);
         return;
       } // Get and validate trigger char
 
@@ -227,8 +209,8 @@
 
     shouldDeactivate(event) {
       let controlKeyPressed = false;
-      TributeEvents.keys().forEach(o => {
-        if (event.keyCode === o.key) {
+      TributeEvents.keys().forEach(key => {
+        if (key === event.code) {
           controlKeyPressed = true;
           return;
         }
@@ -272,7 +254,7 @@
 
     callbacks() {
       return {
-        enter: (e, _el) => {
+        Enter: (e, _el) => {
           // choose selection
           if (this.tribute.isActive && this.tribute.current.filteredItems) {
             e.preventDefault();
@@ -280,21 +262,21 @@
             this.tribute.selectItemAtIndex(this.tribute.menuSelected, e);
           }
         },
-        escape: (e, _el) => {
+        Escape: (e, _el) => {
           if (this.tribute.isActive) {
             e.preventDefault();
             e.stopPropagation();
             this.tribute.hideMenu();
           }
         },
-        tab: (e, el) => {
+        Tab: (e, el) => {
           // choose first match
-          this.callbacks().enter(e, el);
+          this.callbacks().Enter(e, el);
         },
-        space: (e, el) => {
+        Space: (e, el) => {
           if (this.tribute.isActive) {
             if (this.tribute.spaceSelectsMatch) {
-              this.callbacks().enter(e, el);
+              this.callbacks().Enter(e, el);
             } else if (!this.tribute.allowSpaces) {
               e.stopPropagation();
               setTimeout(() => {
@@ -303,7 +285,7 @@
             }
           }
         },
-        up: (e, _el) => {
+        ArrowUp: (e, _el) => {
           // navigate up ul
           if (this.tribute.isActive && this.tribute.current.filteredItems) {
             e.preventDefault();
@@ -321,7 +303,7 @@
             }
           }
         },
-        down: (e, _el) => {
+        ArrowDown: (e, _el) => {
           // navigate down ul
           if (this.tribute.isActive && this.tribute.current.filteredItems) {
             e.preventDefault();
@@ -339,7 +321,7 @@
             }
           }
         },
-        delete: (e, el) => {
+        Delete: (e, el) => {
           if (this.tribute.isActive && this.tribute.current.mentionText.length < 1) {
             this.tribute.hideMenu();
           } else if (this.tribute.isActive) {
@@ -614,9 +596,22 @@
 
     pasteHtml(html, startPos, endPos) {
       const sel = this.getWindowSelection();
-      const range = this.getDocument().createRange();
-      range.setStart(sel.anchorNode, startPos);
-      range.setEnd(sel.anchorNode, Math.min(endPos, sel.anchorNode.length));
+      let range;
+
+      if (sel.modify) {
+        sel.collapseToEnd();
+
+        for (let index = 0; index < endPos - startPos; index++) {
+          sel.modify("extend", "backward", "character");
+        }
+
+        range = sel.getRangeAt(0);
+      } else {
+        range = this.getDocument().createRange();
+        range.setStart(sel.anchorNode, Math.min(startPos, sel.anchorNode.length));
+        range.setEnd(sel.anchorNode, Math.min(endPos, sel.anchorNode.length));
+      }
+
       range.deleteContents();
       const el = this.getDocument().createElement("div");
       el.innerHTML = html;
@@ -748,9 +743,18 @@
           }
         }
       } else {
-        const selectedElem = this.getWindowSelection().anchorNode;
+        const sel = this.getWindowSelection();
 
-        if (selectedElem !== null) {
+        if (sel.modify) {
+          const range = sel.getRangeAt(0);
+          sel.collapseToEnd();
+          sel.modify("extend", "backward", "line");
+          text = sel.toString(); // restore selection
+
+          sel.removeAllRanges();
+          sel.addRange(range);
+        } else {
+          const selectedElem = sel.anchorNode;
           const workingNodeContent = selectedElem.textContent;
           const selectStartOffset = this.getWindowSelection().getRangeAt(0).startOffset;
 
@@ -983,11 +987,23 @@
 
     getContentEditableCaretPosition(selectedNodePosition) {
       const sel = this.getWindowSelection();
-      const range = this.getDocument().createRange();
-      const textNode = sel.anchorNode.nodeType === Node.TEXT_NODE ? sel.anchorNode : sel.anchorNode.childNodes[0];
-      range.setStart(textNode, selectedNodePosition);
-      range.setEnd(textNode, selectedNodePosition);
-      range.collapse(false);
+      let range = null;
+
+      if (sel.modify) {
+        const rangeOrig = sel.getRangeAt(0);
+        sel.collapseToEnd();
+        range = sel.getRangeAt(0); // restore selection
+
+        sel.removeAllRanges();
+        sel.addRange(rangeOrig);
+      } else {
+        range = this.getDocument().createRange();
+        const textNode = sel.anchorNode.nodeType === Node.TEXT_NODE ? sel.anchorNode : sel.anchorNode.childNodes[0];
+        range.setStart(textNode, selectedNodePosition);
+        range.setEnd(textNode, selectedNodePosition);
+        range.collapse(false);
+      }
+
       const rect = range.getBoundingClientRect();
       return this.getFixedCoordinatesRelativeToRect(rect);
     }
@@ -1601,14 +1617,15 @@
     }
 
     showMenuForCollection(element, collectionIndex) {
+      if (!this.events.updateSelection(element)) return;
+
       if (element !== document.activeElement) {
         this.placeCaretAtEnd(element);
+        if (element.isContentEditable) this.insertTextAtCursor(this.current.collection.trigger);else this.insertAtCaret(element, this.current.collection.trigger);
       }
 
       this.current.collection = this.collection[collectionIndex || 0];
-      this.current.externalTrigger = true;
       this.current.element = element;
-      if (element.isContentEditable) this.insertTextAtCursor(this.current.collection.trigger);else this.insertAtCaret(element, this.current.collection.trigger);
       this.showMenuFor(element);
     } // TODO: make sure this works for inputs/textareas
 
