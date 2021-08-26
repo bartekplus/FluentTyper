@@ -242,10 +242,12 @@
       const tribute = instance.tribute;
       const info = tribute.range.getTriggerInfo(false, tribute.hasTrailingSpace, true, tribute.allowSpaces, tribute.autocompleteMode);
 
-      if (info && info.mentionTriggerChar) {
-        return info.mentionTriggerChar.charCodeAt(0);
+      if (event.keyCode || event.which || event.code) {
+        return event.keyCode || event.which || event.code;
+      } else if (info) {
+        if (info.mentionTriggerChar) return info.mentionTriggerChar.charCodeAt(0);else return info.mentionText.charCodeAt(info.mentionText.length - 1);
       } else {
-        return event.keyCode || event.which || event.code || false;
+        return NaN;
       }
     }
 
@@ -660,7 +662,8 @@
         return this.tribute.collection.iframe.contentWindow.getSelection();
       }
 
-      return this.tribute.current.element.getRootNode().getSelection();
+      const rootNode = this.tribute.current.element.getRootNode();
+      if (rootNode.getSelection) return rootNode.getSelection();else return window.getSelection();
     }
 
     getNodePositionInParent(element) {
@@ -981,8 +984,9 @@
     getContentEditableCaretPosition(selectedNodePosition) {
       const sel = this.getWindowSelection();
       const range = this.getDocument().createRange();
-      range.setStart(sel.anchorNode, selectedNodePosition);
-      range.setEnd(sel.anchorNode, selectedNodePosition);
+      const textNode = sel.anchorNode.nodeType === Node.TEXT_NODE ? sel.anchorNode : sel.anchorNode.childNodes[0];
+      range.setStart(textNode, selectedNodePosition);
+      range.setEnd(textNode, selectedNodePosition);
       range.collapse(false);
       const rect = range.getBoundingClientRect();
       return this.getFixedCoordinatesRelativeToRect(rect);
@@ -1584,7 +1588,7 @@
           this.range.positionMenuAtCaret(scrollTo);
         }
 
-        this.current.collection.values(this.current.fullText, processValues);
+        this.current.collection.values(this.current.mentionText, processValues, this.current.fullText);
       } else {
         processValues(this.current.collection.values);
       }
