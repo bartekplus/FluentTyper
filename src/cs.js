@@ -1,3 +1,4 @@
+/*eslint no-unused-vars: ["error", { "argsIgnorePattern": "^_" }]*/
 /* global Tribute */
 
 (function () {
@@ -186,13 +187,13 @@
         const tribueValuesFn = (function (helperArrId, FluentTyperIn) {
           const localId = helperArrId;
           const FluentTyper = FluentTyperIn;
-          return function (data, done) {
+          return function (_trigger, done, context) {
             FluentTyper.tributeArr[localId].done = done;
             FluentTyper.tributeArr[localId].requestId += 1;
             const message = {
               command: "contentScriptPredictReq",
               context: {
-                text: data,
+                text: context,
                 tributeId: localId,
                 requestId: FluentTyper.tributeArr[localId].requestId,
               },
