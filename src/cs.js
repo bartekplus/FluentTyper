@@ -104,17 +104,10 @@
     }
 
     isInDocument(element) {
-      let currentElement = element;
-      while (currentElement && currentElement.parentNode) {
-        if (currentElement.parentNode === document) {
-          return true;
-        } else if (currentElement.parentNode instanceof DocumentFragment) {
-          currentElement = currentElement.parentNode.host;
-        } else {
-          currentElement = currentElement.parentNode;
-        }
+      while (element.parentNode || element.host) {
+        element = element.parentNode || element.host;
       }
-      return false;
+      return element === document;
     }
 
     MutationCallback(mutationsList) {
