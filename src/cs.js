@@ -39,11 +39,16 @@
     }
 
     detachHelper(tributeId) {
+      const elem = this.tributeArr[tributeId].elem;
       this.cancelPresageRequestTimeout(tributeId);
-      this.tributeArr[tributeId].tribute.detach(
-        this.tributeArr[tributeId].elem
-      );
+      this.tributeArr[tributeId].tribute.detach(elem);
       delete this.tributeArr[tributeId].tribute;
+      elem.removeEventListener(
+        "tribute-replaced",
+        elem.tributeReplacedEventHandler
+      );
+      elem.removeEventListener("keydown", elem.elementKeyDownEventHandler);
+
       this.tributeArr.splice(tributeId, 1);
     }
 
@@ -276,29 +281,32 @@
         this.tributeArr[this.tributeArr.length - 1].tribute = tribute;
         tribute.attach(elem);
 
-        elem.addEventListener(
-          "tribute-replaced",
+        elem.tributeReplacedEventHandler = this.debounce(
           this.tributeReplacedEventHandler.bind(
             this,
             this.tributeArr.length - 1
-          )
+          ),
+          16
+        );
+        elem.addEventListener(
+          "tribute-replaced",
+          elem.tributeReplacedEventHandler
         );
 
-        elem.addEventListener(
-          "keydown",
-          this.elementKeyDownEventHandler.bind(this, this.tributeArr.length - 1)
+        elem.elementKeyDownEventHandler = this.debounce(
+          this.elementKeyDownEventHandler.bind(
+            this,
+            this.tributeArr.length - 1
+          ),
+          32
         );
+        elem.addEventListener("keydown", elem.elementKeyDownEventHandler);
       }
     }
 
     triggerTribute(helperArrId) {
-      setTimeout(
-        function (helperArrId) {
-          this.tributeArr[helperArrId].tribute.showMenuForCollection(
-            this.tributeArr[helperArrId].elem
-          );
-        }.bind(this, helperArrId),
-        0
+      this.tributeArr[helperArrId].tribute.showMenuForCollection(
+        this.tributeArr[helperArrId].elem
       );
     }
 
@@ -418,6 +426,16 @@
       };
 
       chrome.runtime.sendMessage(message, this.messageHandler.bind(this));
+    }
+
+    debounce(func, timeout) {
+      let timer;
+      return (...args) => {
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+          func.apply(this, args);
+        }, timeout);
+      };
     }
   }
 
