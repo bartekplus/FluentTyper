@@ -272,7 +272,6 @@
           // specify the minimum number of characters that must be typed before menu appears
           menuShowMinLength: 0,
           keys: tribueKeyFn,
-          useHTML: true,
         });
         this.tributeArr[this.tributeArr.length - 1].tribute = tribute;
         tribute.attach(elem);
