@@ -96,6 +96,20 @@
       }
     }
 
+    isInDocument(element) {
+      let currentElement = element;
+      while (currentElement && currentElement.parentNode) {
+        if (currentElement.parentNode === document) {
+          return true;
+        } else if (currentElement.parentNode instanceof DocumentFragment) {
+          currentElement = currentElement.parentNode.host;
+        } else {
+          currentElement = currentElement.parentNode;
+        }
+      }
+      return false;
+    }
+
     MutationCallback(mutationsList) {
       let nodesAdded = false;
       for (const mutation of mutationsList) {
@@ -106,7 +120,7 @@
         }
       }
       for (let i = this.tributeArr.length - 1; i >= 0; i--) {
-        if (!document.body.contains(this.tributeArr[i].elem)) {
+        if (!this.isInDocument(this.tributeArr[i].elem)) {
           this.detachHelper(i);
         }
       }
