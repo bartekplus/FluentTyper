@@ -84,20 +84,18 @@
 
     bind(element) {
       element.boundKeyDown = this.keydown.bind(element, this);
-      element.boundKeyUp = this.keyup.bind(element, this);
-      element.boundInput = this.input.bind(element, this);
+      element.boundKeyUpInput = this.tribute.debounce(this.input.bind(element, this), 16);
       element.addEventListener("keydown", element.boundKeyDown, true);
-      element.addEventListener("keyup", element.boundKeyUp, true);
-      element.addEventListener("input", element.boundInput, true);
+      element.addEventListener("keyup", element.boundKeyUpInput, true);
+      element.addEventListener("input", element.boundKeyUpInput, true);
     }
 
     unbind(element) {
       element.removeEventListener("keydown", element.boundKeyDown, true);
-      element.removeEventListener("keyup", element.boundKeyUp, true);
-      element.removeEventListener("input", element.boundInput, true);
+      element.removeEventListener("keyup", element.boundKeyUpInput, true);
+      element.removeEventListener("input", element.boundKeyUpInput, true);
       delete element.boundKeyDown;
-      delete element.boundKeyUp;
-      delete element.boundInput;
+      delete element.boundKeyUpInput;
     }
 
     keydown(instance, event) {
@@ -154,9 +152,7 @@
     }
 
     keyup(instance, event) {
-      if (!instance.updateSelection(this)) return;
-      const keyCode = instance.getKeyCode(instance, this, event); // Check for modifiers keys
-
+      // Check for modifiers keys
       if (event instanceof KeyboardEvent) {
         let controlKeyPressed = false;
         TributeEvents.modifiers().forEach(o => {
@@ -175,33 +171,33 @@
         if (controlKeyPressed) return;
       }
 
+      if (!instance.updateSelection(this)) return;
+
       if (!instance.tribute.allowSpaces && instance.tribute.hasTrailingSpace) {
         instance.tribute.hasTrailingSpace = false;
         instance.callbacks().Space(event, this);
         return;
-      } // Get and validate trigger char
-
-
-      if (keyCode && !isNaN(keyCode)) {
-        if (instance.tribute.autocompleteMode && String.fromCharCode(keyCode).match(/(\w|\s)/g)) {
-          instance.tribute.current.trigger = "";
-        } else {
-          instance.tribute.current.trigger = instance.tribute.triggers().find(trigger => {
-            return trigger.charCodeAt(0) === keyCode;
-          });
-        }
-      } else if (instance.tribute.autocompleteMode && event instanceof InputEvent) {
-        instance.tribute.current.trigger = "";
       }
 
-      if (!(instance.tribute.current.trigger || instance.tribute.current.trigger === "" && instance.tribute.autocompleteMode)) return; // Get and validate collection
+      const keyCode = instance.getKeyCode(event); // Exit if no keyCode
 
-      instance.tribute.current.collection = instance.tribute.collection.find(item => {
-        return item.trigger === instance.tribute.current.trigger;
-      });
-
-      if (!instance.tribute.current.collection || instance.tribute.current.collection.menuShowMinLength > instance.tribute.current.mentionText.length) {
+      if (isNaN(keyCode)) {
         return;
+      }
+
+      if (!instance.tribute.autocompleteMode) {
+        const trigger = instance.tribute.triggers().find(trigger => {
+          return trigger.charCodeAt(0) === keyCode;
+        });
+        if (!trigger) return;
+        const collection = instance.tribute.collection.find(item => {
+          return item.trigger === trigger;
+        });
+        if (!collection) return;
+        if (collection.menuShowMinLength > instance.tribute.current.mentionText.length) return;
+        instance.tribute.current.collection = collection;
+      } else {
+        instance.tribute.current.collection = instance.tribute.collection[0];
       }
 
       instance.tribute.showMenuFor(this, true);
@@ -220,9 +216,11 @@
       return false;
     }
 
-    getKeyCode(instance, el, event) {
-      if (event.keyCode || event.which || event.code) {
-        return event.keyCode || event.which || event.code;
+    getKeyCode(event) {
+      const keyCode = event.keyCode || event.which || event.code;
+
+      if (keyCode) {
+        return keyCode;
       } else {
         if (this.tribute.current.mentionTriggerChar) return this.tribute.current.mentionTriggerChar.charCodeAt(0);else if (this.tribute.current.mentionText) return this.tribute.current.mentionText.charCodeAt(this.tribute.current.mentionText.length - 1);
       }
@@ -373,10 +371,10 @@
 
     bind(_menu) {
       this.menuClickEvent = this.tribute.events.click.bind(null, this);
-      this.menuContainerScrollEvent = this.debounce(() => {
+      this.menuContainerScrollEvent = this.tribute.debounce(() => {
         this.tribute.hideMenu();
       }, 10, false);
-      this.windowResizeEvent = this.debounce(() => {
+      this.windowResizeEvent = this.tribute.debounce(() => {
         this.tribute.hideMenu();
       }, 10, false);
 
@@ -407,24 +405,6 @@
       } else {
         window.removeEventListener("scroll", this.menuContainerScrollEvent);
       }
-    }
-
-    debounce(func, wait, immediate) {
-      let timeout;
-      return () => {
-        const context = this,
-              args = arguments;
-
-        const later = () => {
-          timeout = null;
-          if (!immediate) func.apply(context, args);
-        };
-
-        const callNow = immediate && !timeout;
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-        if (callNow) func.apply(context, args);
-      };
     }
 
   }
@@ -487,7 +467,7 @@
     }
 
     get menuContainerIsBody() {
-      return this.tribute.menuContainer === document.body || !this.tribute.menuContainer;
+      return this.tribute.menuContainer === this.getDocument().body || !this.tribute.menuContainer;
     }
 
     replaceTriggerText(text, originalEvent, item) {
@@ -566,7 +546,7 @@
     }
 
     stripHtml(html) {
-      const tmp = document.createElement("DIV");
+      const tmp = this.getDocument().createElement("DIV");
       tmp.innerHTML = html;
       return tmp.textContent || tmp.innerText || "";
     }
@@ -770,7 +750,7 @@
     isMenuOffScreen(coordinates, menuDimensions) {
       const windowWidth = window.innerWidth;
       const windowHeight = window.innerHeight;
-      const doc = document.documentElement;
+      const doc = this.getDocument().documentElement;
       const windowLeft = (window.pageXOffset || doc.scrollLeft) - (doc.clientLeft || 0);
       const windowTop = (window.pageYOffset || doc.scrollTop) - (doc.clientTop || 0);
       const menuTop = typeof coordinates.top === "number" ? coordinates.top : coordinates.bottom - menuDimensions.height;
@@ -827,7 +807,7 @@
       properties.forEach(prop => {
         style[prop] = computed[prop];
       });
-      const span0 = document.createElement("span");
+      const span0 = this.getDocument().createElement("span");
       span0.textContent = element.value.substring(0, position);
       div.appendChild(span0);
 
@@ -1421,7 +1401,7 @@
 
         this.activationPending = false; // Element is no longer in focus - don't show menu
 
-        if (document.activeElement !== this.current.element) {
+        if (this.range.getDocument().activeElement !== this.current.element) {
           return;
         }
 
@@ -1521,7 +1501,7 @@
     showMenuForCollection(element, collectionIndex) {
       if (!this.events.updateSelection(element)) return;
 
-      if (element !== document.activeElement) {
+      if (element !== this.range.getDocument().activeElement) {
         this.placeCaretAtEnd(element);
         if (element.isContentEditable) this.insertTextAtCursor(this.current.collection.trigger);else this.insertAtCaret(element, this.current.collection.trigger);
       }
@@ -1535,15 +1515,15 @@
     placeCaretAtEnd(el) {
       el.focus();
 
-      if (typeof window.getSelection !== "undefined" && typeof document.createRange !== "undefined") {
-        const range = document.createRange();
+      if (typeof window.getSelection !== "undefined" && typeof this.range.getDocument().createRange !== "undefined") {
+        const range = this.range.getDocument().createRange();
         range.selectNodeContents(el);
         range.collapse(false);
         const sel = window.getSelection();
         sel.removeAllRanges();
         sel.addRange(range);
-      } else if (typeof document.body.createTextRange !== "undefined") {
-        const textRange = document.body.createTextRange();
+      } else if (typeof this.range.getDocument().body.createTextRange !== "undefined") {
+        const textRange = this.range.getDocument().body.createTextRange();
         textRange.moveToElementText(el);
         textRange.collapse(false);
         textRange.select();
@@ -1555,7 +1535,7 @@
       const sel = window.getSelection();
       const range = sel.getRangeAt(0);
       range.deleteContents();
-      const textNode = document.createTextNode(text);
+      const textNode = this.range.getDocument().createTextNode(text);
       range.insertNode(textNode);
       range.selectNodeContents(textNode);
       range.collapse(false);
@@ -1667,6 +1647,16 @@
           el.tributeMenu.remove();
         }
       });
+    }
+
+    debounce(func, timeout) {
+      let timer;
+      return (...args) => {
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+          func.apply(this, args);
+        }, timeout);
+      };
     }
 
   }
