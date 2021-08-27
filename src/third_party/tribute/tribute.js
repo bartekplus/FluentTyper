@@ -221,35 +221,28 @@
     }
 
     getKeyCode(instance, el, event) {
-      const tribute = instance.tribute;
-      const info = tribute.range.getTriggerInfo(false, tribute.hasTrailingSpace, true, tribute.allowSpaces, tribute.autocompleteMode);
-
       if (event.keyCode || event.which || event.code) {
         return event.keyCode || event.which || event.code;
-      } else if (info) {
-        if (info.mentionTriggerChar) return info.mentionTriggerChar.charCodeAt(0);else return info.mentionText.charCodeAt(info.mentionText.length - 1);
       } else {
-        return NaN;
+        if (this.tribute.current.mentionTriggerChar) return this.tribute.current.mentionTriggerChar.charCodeAt(0);else if (this.tribute.current.mentionText) return this.tribute.current.mentionText.charCodeAt(this.tribute.current.mentionText.length - 1);
       }
+
+      return NaN;
     }
 
     updateSelection(el) {
-      let success = false;
       this.tribute.current.element = el;
       const info = this.tribute.range.getTriggerInfo(false, this.tribute.hasTrailingSpace, true, this.tribute.allowSpaces, this.tribute.autocompleteMode);
 
       if (info) {
-        this.tribute.current.selectedPath = info.mentionSelectedPath;
+        this.tribute.current.mentionTriggerChar = info.mentionTriggerChar;
         this.tribute.current.mentionText = info.mentionText;
+        this.tribute.current.mentionPosition = info.mentionPosition;
         this.tribute.current.fullText = info.fullText;
-        this.tribute.current.selectedOffset = info.mentionSelectedOffset;
-        this.tribute.current.info = info;
-        success = true;
-      } else {
-        this.tribute.current = {};
+        return true;
       }
 
-      return success;
+      return false;
     }
 
     callbacks() {
@@ -461,175 +454,129 @@
     positionMenuAtCaret(scrollTo) {
       const context = this.tribute.current;
       let coordinates;
-      const info = this.getTriggerInfo(false, this.tribute.hasTrailingSpace, true, this.tribute.allowSpaces, this.tribute.autocompleteMode);
 
-      if (typeof info !== "undefined") {
-        if (!this.tribute.positionMenu) {
-          this.tribute.menu.style.display = `block`;
-          return;
-        }
-
-        if (!this.isContentEditable(context.element)) {
-          coordinates = this.getTextAreaOrInputUnderlinePosition(this.tribute.current.element, info.mentionPosition + info.mentionText.length);
-        } else {
-          coordinates = this.getContentEditableCaretPosition(info.mentionPosition + info.mentionText.length);
-        }
-
-        this.tribute.menu.style.top = `${coordinates.top}px`;
-        this.tribute.menu.style.left = `${coordinates.left}px`;
-        this.tribute.menu.style.right = `${coordinates.right}px`;
-        this.tribute.menu.style.bottom = `${coordinates.bottom}px`;
-        this.tribute.menu.style["max-heigh"] = `${coordinates.maxHeight || 500}px`;
-        this.tribute.menu.style["max-width"] = `${coordinates.maxWidth || 300}px`;
-        this.tribute.menu.style.position = `${coordinates.position || "absolute"}`;
+      if (!this.tribute.positionMenu) {
         this.tribute.menu.style.display = `block`;
-
-        if (coordinates.left === "auto") {
-          this.tribute.menu.style.left = "auto";
-        }
-
-        if (coordinates.top === "auto") {
-          this.tribute.menu.style.top = "auto";
-        }
-
-        if (scrollTo) this.scrollIntoView();
-      } else {
-        this.tribute.menu.style.display = "none";
+        return;
       }
+
+      if (!this.isContentEditable(context.element)) {
+        coordinates = this.getTextAreaOrInputUnderlinePosition(context.element, context.mentionPosition + context.mentionText.length);
+      } else {
+        coordinates = this.getContentEditableCaretPosition(context.mentionPosition + context.mentionText.length);
+      }
+
+      this.tribute.menu.style.top = `${coordinates.top}px`;
+      this.tribute.menu.style.left = `${coordinates.left}px`;
+      this.tribute.menu.style.right = `${coordinates.right}px`;
+      this.tribute.menu.style.bottom = `${coordinates.bottom}px`;
+      this.tribute.menu.style["max-heigh"] = `${coordinates.maxHeight || 500}px`;
+      this.tribute.menu.style["max-width"] = `${coordinates.maxWidth || 300}px`;
+      this.tribute.menu.style.position = `${coordinates.position || "absolute"}`;
+      this.tribute.menu.style.display = `block`;
+
+      if (coordinates.left === "auto") {
+        this.tribute.menu.style.left = "auto";
+      }
+
+      if (coordinates.top === "auto") {
+        this.tribute.menu.style.top = "auto";
+      }
+
+      if (scrollTo) this.scrollIntoView();
     }
 
     get menuContainerIsBody() {
       return this.tribute.menuContainer === document.body || !this.tribute.menuContainer;
     }
 
-    selectElement(targetElement, path, offset) {
-      let elem = targetElement;
+    replaceTriggerText(text, originalEvent, item) {
+      const context = this.tribute.current;
+      const detail = {
+        item: item,
+        context: context,
+        event: originalEvent,
+        text: text
+      };
+      const replaceEvent = new CustomEvent("tribute-replaced");
 
-      if (path) {
-        for (let i = 0; i < path.length; i++) {
-          elem = elem.childNodes[path[i]];
+      if (!this.isContentEditable(context.element)) {
+        const textEndsWithSpace = text !== text.trimEnd();
+        const myField = this.tribute.current.element;
+        const textSuffix = typeof this.tribute.replaceTextSuffix === "string" ? this.tribute.replaceTextSuffix : " ";
+        text = this.stripHtml(text);
+        text += textSuffix;
+        const startPos = context.mentionPosition;
+        let endPos = context.mentionPosition + context.mentionText.length + textSuffix.length + textEndsWithSpace;
 
-          if (elem === undefined) {
-            return;
-          }
-
-          while (elem.length < offset) {
-            offset -= elem.length;
-            elem = elem.nextSibling;
-          }
-
-          if (elem.childNodes.length === 0 && !elem.length) {
-            elem = elem.previousSibling;
-          }
-        }
-      }
-
-      const sel = this.getWindowSelection();
-      const range = this.getDocument().createRange();
-      range.setStart(elem, offset);
-      range.setEnd(elem, offset);
-      range.collapse(true);
-
-      try {
-        sel.removeAllRanges();
-      } catch (error) {
-        console.error(error);
-      }
-
-      sel.addRange(range);
-      targetElement.focus();
-    }
-
-    replaceTriggerText(text, requireLeadingSpace, hasTrailingSpace, originalEvent, item) {
-      const info = this.tribute.current.info; //this.getTriggerInfo(true, hasTrailingSpace, requireLeadingSpace, this.tribute.allowSpaces, this.tribute.autocompleteMode)
-
-      if (info !== undefined) {
-        const context = this.tribute.current;
-        const detail = {
-          item: item,
-          instance: context,
-          context: info,
-          event: originalEvent,
-          text: text
-        };
-        const replaceEvent = new CustomEvent("tribute-replaced", {
-          detail: detail
-        });
-
-        if (!this.isContentEditable(context.element)) {
-          const textEndsWithSpace = text !== text.trimEnd();
-          const myField = this.tribute.current.element;
-          const textSuffix = typeof this.tribute.replaceTextSuffix === "string" ? this.tribute.replaceTextSuffix : " ";
-          text = this.stripHtml(text);
-          text += textSuffix;
-          const startPos = info.mentionPosition;
-          let endPos = info.mentionPosition + info.mentionText.length + textSuffix.length + textEndsWithSpace;
-
-          if (!this.tribute.autocompleteMode) {
-            endPos += info.mentionTriggerChar.length - 1;
-          }
-
-          myField.value = myField.value.substring(0, startPos) + text + myField.value.substring(endPos, myField.value.length);
-          myField.selectionStart = startPos + text.length;
-          myField.selectionEnd = startPos + text.length;
-        } else {
-          // add a space to the end of the pasted text
-          const textEndsWithSpace = text !== text.trimEnd();
-          const textSuffix = typeof this.tribute.replaceTextSuffix === "string" ? this.tribute.replaceTextSuffix : "\xA0";
-          text += textSuffix;
-          let endPos = info.mentionPosition + info.mentionText.length + textEndsWithSpace;
-
-          if (!this.tribute.autocompleteMode) {
-            endPos += info.mentionTriggerChar.length;
-          }
-
-          this.tribute.useHTML ? this.pasteHtml(text, info.mentionPosition, endPos) : this.pasteText(text, info.mentionPosition, endPos);
+        if (!this.tribute.autocompleteMode) {
+          endPos += context.mentionTriggerChar.length - 1;
         }
 
-        context.element.dispatchEvent(new CustomEvent("input", {
-          bubbles: true,
-          detail: detail
-        }));
-        context.element.dispatchEvent(replaceEvent);
+        myField.value = myField.value.substring(0, startPos) + text + myField.value.substring(endPos, myField.value.length);
+        myField.selectionStart = startPos + text.length;
+        myField.selectionEnd = startPos + text.length;
+      } else {
+        // add a space to the end of the pasted text
+        const textEndsWithSpace = text !== text.trimEnd();
+        const textSuffix = typeof this.tribute.replaceTextSuffix === "string" ? this.tribute.replaceTextSuffix : "\xA0";
+        text += textSuffix;
+        let endPos = context.mentionPosition + context.mentionText.length + textEndsWithSpace;
+
+        if (!this.tribute.autocompleteMode) {
+          endPos += context.mentionTriggerChar.length;
+        }
+
+        this.tribute.useHTML ? this.pasteHtml(text, context.mentionPosition, endPos) : this.pasteText(text, context.mentionPosition, endPos);
       }
+
+      context.element.dispatchEvent(new CustomEvent("input", {
+        bubbles: true,
+        detail: detail
+      }));
+      context.element.dispatchEvent(replaceEvent);
     }
 
     pasteHtml(html, startPos, endPos) {
       const {
         sel
       } = this.getContentEditableSelectionStart(true);
-      let range = null;
 
-      if (sel.modify) {
-        for (let index = 0; index < endPos - startPos; index++) {
-          sel.modify("extend", "backward", "character");
+      if (sel) {
+        let range = null;
+
+        if (sel.modify) {
+          for (let index = 0; index < endPos - startPos; index++) {
+            sel.modify("extend", "backward", "character");
+          }
+
+          range = sel.getRangeAt(0);
+        } else {
+          range = this.getDocument().createRange();
+          range.setStart(sel.anchorNode, Math.min(startPos, sel.anchorNode.length));
+          range.setEnd(sel.anchorNode, Math.min(endPos, sel.anchorNode.length));
         }
 
-        range = sel.getRangeAt(0);
-      } else {
-        range.setStart(sel.anchorNode, Math.min(startPos, sel.anchorNode.length));
-        range.setEnd(sel.anchorNode, Math.min(endPos, sel.anchorNode.length));
-      }
+        range.deleteContents();
+        const el = this.getDocument().createElement("div");
+        el.innerHTML = html;
+        const frag = this.getDocument().createDocumentFragment();
+        let node, lastNode;
 
-      range.deleteContents();
-      const el = this.getDocument().createElement("div");
-      el.innerHTML = html;
-      const frag = this.getDocument().createDocumentFragment();
-      let node, lastNode;
+        while (node = el.firstChild) {
+          lastNode = frag.appendChild(node);
+        }
 
-      while (node = el.firstChild) {
-        lastNode = frag.appendChild(node);
-      }
+        range.insertNode(frag); // Preserve the selection
 
-      range.insertNode(frag); // Preserve the selection
-
-      if (lastNode) {
-        const newRange = this.getDocument().createRange();
-        newRange.setStart(lastNode, lastNode.length);
-        newRange.collapse(true);
-        sel.removeAllRanges();
-        sel.addRange(newRange);
-        sel.collapseToEnd();
+        if (lastNode) {
+          range.setStart(lastNode, lastNode.length);
+          range.setEnd(lastNode, lastNode.length);
+          range.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(range);
+          sel.collapseToEnd();
+        }
       }
     }
 
@@ -660,23 +607,42 @@
       if (rootNode.getSelection) return rootNode.getSelection();else return window.getSelection();
     }
 
-    getContentEditableSelectionStart(moveToEndofWord) {
+    getContentEditableSelectionStart(moveToEndOfWord) {
       const sel = this.getWindowSelection();
+
+      if (!sel.isCollapsed) {
+        return {
+          sel: null,
+          range: null,
+          direction: null
+        };
+      }
+
+      const direction = sel.anchorOffset <= sel.focusOffset;
       const range = sel.getRangeAt(0);
       const selectedElem = sel.anchorNode;
       const workingNodeContent = selectedElem.textContent;
-      const selectStartOffset = this.getWindowSelection().getRangeAt(0).startOffset;
+      const selectStartOffset = range.startOffset;
 
       if (sel.modify) {
-        const nextChar = workingNodeContent.length > selectStartOffset ? workingNodeContent[selectStartOffset] : null;
-        const nextCharisWhitespce = nextChar && nextChar !== nextChar.trim();
+        let nextChar = workingNodeContent.length > selectStartOffset ? workingNodeContent[selectStartOffset] : null;
+
+        if (nextChar === null) {
+          if (selectedElem.nextSibling && selectedElem.nextSibling.textContent) {
+            const nextNodeText = selectedElem.nextSibling.textContent;
+            nextChar = nextNodeText.length ? nextNodeText[0] : null;
+          }
+        }
+
+        const nextCharIsSeparator = nextChar && nextChar.match(this.tribute.autocompleteSeparator);
         sel.collapseToEnd();
-        if (nextChar && !nextCharisWhitespce && moveToEndofWord) sel.modify("move", "forward", "word");
+        if (nextChar && !nextCharIsSeparator && moveToEndOfWord) sel.modify("move", "forward", "word");
       }
 
       return {
         sel,
-        range
+        range,
+        direction
       };
     }
 
@@ -703,15 +669,16 @@
 
     getTextPrecedingCurrentSelection() {
       const context = this.tribute.current;
-      let text = "";
+      let text = null;
 
       if (!this.isContentEditable(context.element)) {
         const textComponent = this.tribute.current.element;
 
         if (textComponent) {
           const startPos = textComponent.selectionStart;
+          const endPos = textComponent.selectionEnd;
 
-          if (textComponent.value && startPos >= 0) {
+          if (textComponent.value && startPos >= 0 && startPos === endPos) {
             text = textComponent.value.substring(0);
             text = this.getWholeWordsUpToCharIndex(text, startPos);
           }
@@ -719,28 +686,30 @@
       } else {
         const {
           sel,
-          range
+          range,
+          direction
         } = this.getContentEditableSelectionStart(true);
-        const selectedElem = sel.anchorNode;
-        const workingNodeContent = selectedElem.textContent;
-        const selectStartOffset = this.getWindowSelection().getRangeAt(0).startOffset;
 
-        if (sel.modify) {
-          const lastChar = workingNodeContent[Math.max(0, selectStartOffset - 1)];
-          const addWhiteSpace = lastChar !== lastChar.trim();
+        if (sel) {
+          const selectedElem = sel.anchorNode;
+          const workingNodeContent = selectedElem.textContent;
+          const selectStartOffset = range.startOffset;
 
-          for (let index = 0; index < this.tribute.numberOfWordsInContextText; index++) {
-            sel.modify("extend", "backward", "word");
-          }
+          if (sel.modify) {
+            const lastChar = workingNodeContent[Math.max(0, selectStartOffset - 1)];
+            const addWhiteSpace = lastChar && lastChar !== lastChar.trim();
 
-          text = sel.toString().trim() + (addWhiteSpace ? " " : ""); // restore selection
+            for (let index = 0; index < this.tribute.numberOfWordsInContextText; index++) {
+              sel.modify("extend", "backward", "word");
+            }
 
-          sel.removeAllRanges();
-          sel.addRange(range);
-        } else {
-          if (workingNodeContent && selectStartOffset >= 0) {
-            text = workingNodeContent.substring(0);
-            text = this.getWholeWordsUpToCharIndex(text, selectStartOffset);
+            text = sel.toString().trim() + (addWhiteSpace ? " " : "");
+            this.restoreSelection(sel, range, direction);
+          } else {
+            if (workingNodeContent && selectStartOffset >= 0) {
+              text = workingNodeContent.substring(0);
+              text = this.getWholeWordsUpToCharIndex(text, selectStartOffset);
+            }
           }
         }
       }
@@ -757,6 +726,7 @@
 
     getTriggerInfo(menuAlreadyActive, hasTrailingSpace, requireLeadingSpace, allowSpaces, isAutocomplete) {
       const effectiveRange = this.getTextPrecedingCurrentSelection();
+      if (effectiveRange === null) return null;
       const lastWordOfEffectiveRange = this.getLastWordInText(effectiveRange);
 
       if (isAutocomplete) {
@@ -893,15 +863,7 @@
 
       properties.forEach(prop => {
         style[prop] = computed[prop];
-      }); //NOT SURE WHY THIS IS HERE AND IT DOESNT SEEM HELPFUL
-      // if (isFirefox) {
-      //     style.width = `${(parseInt(computed.width) - 2)}px`
-      //     if (element.scrollHeight > parseInt(computed.height))
-      //         style.overflowY = 'scroll'
-      // } else {
-      //     style.overflow = 'hidden'
-      // }
-
+      });
       const span0 = document.createElement("span");
       span0.textContent = element.value.substring(0, position);
       div.appendChild(span0);
@@ -947,13 +909,28 @@
     getContentEditableCaretPosition(_selectedNodePosition) {
       const {
         sel,
-        range
+        range,
+        direction
       } = this.getContentEditableSelectionStart(false);
       const newRange = sel.getRangeAt(0); // restore selection
 
-      sel.removeAllRanges();
-      sel.addRange(range);
-      const rect = newRange.getBoundingClientRect();
+      this.restoreSelection(sel, range, direction);
+      let rect = newRange.getBoundingClientRect();
+
+      if (sel.anchorNode.parentNode) {
+        const parentNodeRect = sel.anchorNode.parentNode.getBoundingClientRect();
+
+        const clamp = function (number, min, max) {
+          return Math.max(min, Math.min(number, max));
+        };
+
+        rect = {
+          height: Math.min(parentNodeRect.height, rect.height),
+          left: clamp(rect.left, parentNodeRect.left, parentNodeRect.left + parentNodeRect.width),
+          top: clamp(rect.top, parentNodeRect.top, parentNodeRect.top + parentNodeRect.height)
+        };
+      }
+
       return this.getFixedCoordinatesRelativeToRect(rect);
     }
 
@@ -1041,6 +1018,19 @@
         }
 
         window.scrollTo(0, targetY);
+      }
+    }
+
+    restoreSelection(sel, range, directionFwd = true) {
+      sel.removeAllRanges();
+
+      if (directionFwd) {
+        sel.addRange(range);
+      } else {
+        const endRange = range.cloneRange();
+        endRange.collapse(false);
+        sel.addRange(endRange);
+        sel.extend(range.startContainer, range.startOffset);
       }
     }
 
@@ -1476,8 +1466,8 @@
 
         if (forceReplace) {
           // Do force replace - don't show menu
-          this.current.info.mentionPosition -= forceReplace.length;
-          this.current.info.mentionText = " ".repeat(forceReplace.length) + this.current.info.mentionText;
+          this.current.mentionPosition -= forceReplace.length;
+          this.current.mentionText = " ".repeat(forceReplace.length) + this.current.mentionText;
           this.replaceText(forceReplace.text, null, null);
           return;
         }
@@ -1634,19 +1624,23 @@
 
       this.isActive = false;
       this.activationPending = false;
+      this.current = {};
     }
 
     selectItemAtIndex(index, originalEvent) {
-      this.hideMenu();
       index = parseInt(index);
-      if (typeof index !== "number" || isNaN(index) || !originalEvent.target) return;
-      const item = this.current.filteredItems[index];
-      const content = this.current.collection.selectTemplate(item);
-      if (content !== null) this.replaceText(content, originalEvent, item);
+
+      if (!(typeof index !== "number" || isNaN(index) || !originalEvent.target)) {
+        const item = this.current.filteredItems[index];
+        const content = this.current.collection.selectTemplate(item);
+        if (content !== null) this.replaceText(content, originalEvent, item);
+      }
+
+      this.hideMenu();
     }
 
     replaceText(content, originalEvent, item) {
-      this.range.replaceTriggerText(content, true, true, originalEvent, item);
+      this.range.replaceTriggerText(content, originalEvent, item);
     }
 
     _append(collection, newValues, replace) {
