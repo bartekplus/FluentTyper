@@ -6,7 +6,8 @@
 
   class FluentTyper {
     constructor() {
-      this.tributeArr = [];
+      this.newTributeId = 0;
+      this.tributeArr = {};
       this.pendingReq = null;
       this.config = {
         enabled: false,
@@ -49,14 +50,15 @@
       );
       elem.removeEventListener("keydown", elem.elementKeyDownEventHandler);
 
-      this.tributeArr.splice(tributeId, 1);
+      delete this.tributeArr[tributeId];
     }
 
     detachAllHelpers() {
-      for (let i = this.tributeArr.length - 1; i >= 0; i--) {
-        this.detachHelper(i);
+      for (const [key] of Object.entries(this.tributeArr)) {
+        this.detachHelper(key);
       }
-      this.tributeArr = [];
+
+      this.tributeArr = {};
     }
 
     isHelperAttached(helperArr, elem) {
@@ -72,7 +74,7 @@
 
     requestTimeoutFn(tributeId, requestId) {
       if (
-        tributeId < this.tributeArr.length &&
+        this.tributeArr[tributeId] &&
         requestId === this.tributeArr[tributeId].requestId
       ) {
         this.pendingReq = null;
@@ -124,9 +126,9 @@
           }
         }
       }
-      for (let i = this.tributeArr.length - 1; i >= 0; i--) {
-        if (!this.isInDocument(this.tributeArr[i].elem)) {
-          this.detachHelper(i);
+      for (const [key] of Object.entries(this.tributeArr)) {
+        if (!this.isInDocument(this.tributeArr[key].elem)) {
+          this.detachHelper(key);
         }
       }
 
@@ -173,38 +175,36 @@
           continue;
         }
 
-        this.tributeArr.push({
+        const tribueId = this.newTributeId;
+        this.newTributeId += 1;
+        this.tributeArr[tribueId] = {
           tribute: null,
           elem: elem,
           done: null,
           timeout: null,
           requestId: 0,
           triggerInputEvent: false,
-        });
+        };
 
         const tribueKeyFn = this.keys.bind(this);
-        const tribueValuesFn = (function (helperArrId, FluentTyperIn) {
-          const localId = helperArrId;
-          const FluentTyper = FluentTyperIn;
-          return function (_trigger, done, context) {
-            FluentTyper.tributeArr[localId].done = done;
-            FluentTyper.tributeArr[localId].requestId += 1;
-            const message = {
-              command: "contentScriptPredictReq",
-              context: {
-                text: context,
-                tributeId: localId,
-                requestId: FluentTyper.tributeArr[localId].requestId,
-              },
-            };
-            // Cancel old timeout Fn
-            FluentTyper.cancelPresageRequestTimeout(localId);
-            FluentTyper.setPresageRequestTimeout(localId);
-            // Check if we are waiting for a response
-            FluentTyper.pendingReq = message;
-            chrome.runtime.sendMessage(message);
+        const tribueValuesFn = function (helperArrId, _trigger, done, context) {
+          this.tributeArr[helperArrId].done = done;
+          this.tributeArr[helperArrId].requestId += 1;
+          const message = {
+            command: "contentScriptPredictReq",
+            context: {
+              text: context,
+              tributeId: helperArrId,
+              requestId: this.tributeArr[helperArrId].requestId,
+            },
           };
-        })(this.tributeArr.length - 1, this);
+          // Cancel old timeout Fn
+          this.cancelPresageRequestTimeout(helperArrId);
+          this.setPresageRequestTimeout(helperArrId);
+          // Check if we are waiting for a response
+          this.pendingReq = message;
+          chrome.runtime.sendMessage(message);
+        }.bind(this, tribueId);
 
         const tribute = new Tribute({
           // symbol or string that starts the lookup
@@ -278,14 +278,11 @@
           menuShowMinLength: 0,
           keys: tribueKeyFn,
         });
-        this.tributeArr[this.tributeArr.length - 1].tribute = tribute;
+        this.tributeArr[tribueId].tribute = tribute;
         tribute.attach(elem);
 
         elem.tributeReplacedEventHandler = this.debounce(
-          this.tributeReplacedEventHandler.bind(
-            this,
-            this.tributeArr.length - 1
-          ),
+          this.tributeReplacedEventHandler.bind(this, tribueId),
           16
         );
         elem.addEventListener(
@@ -294,10 +291,7 @@
         );
 
         elem.elementKeyDownEventHandler = this.debounce(
-          this.elementKeyDownEventHandler.bind(
-            this,
-            this.tributeArr.length - 1
-          ),
+          this.elementKeyDownEventHandler.bind(this, tribueId),
           32
         );
         elem.addEventListener("keydown", elem.elementKeyDownEventHandler);
