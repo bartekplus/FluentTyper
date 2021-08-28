@@ -502,9 +502,11 @@
         myField.selectionStart = startPos + text.length;
         myField.selectionEnd = startPos + text.length;
       } else {
+        const strippedText = this.stripHtml(text);
+        const isHTML = text !== strippedText;
         const textSuffix = typeof this.tribute.replaceTextSuffix === "string" ? this.tribute.replaceTextSuffix : "\xA0";
         text += textSuffix;
-        this.pasteHtml(text, context.mentionText.length + context.mentionTriggerChar.length);
+        if (isHTML) this.pasteHtml(text, context.mentionText.length + context.mentionTriggerChar.length);else this.pasteText(strippedText, context.mentionText.length + context.mentionTriggerChar.length);
       }
 
       context.element.dispatchEvent(new CustomEvent("input", {
@@ -512,6 +514,26 @@
         detail: detail
       }));
       context.element.dispatchEvent(replaceEvent);
+    }
+
+    pasteText(text, numOfCharsToRemove) {
+      const {
+        sel,
+        range
+      } = this.getContentEditableSelectionStart(true);
+
+      for (let index = 0; index < numOfCharsToRemove; index++) {
+        sel.modify("extend", "backward", "character");
+      }
+
+      const pre = sel.anchorNode.nodeValue.substring(0, sel.anchorOffset - 1);
+      const post = sel.anchorNode.nodeValue.substring(sel.anchorOffset - 1, sel.anchorNode.nodeValue.length);
+      sel.anchorNode.nodeValue = pre + text + post;
+      range.setStart(sel.anchorNode, sel.anchorOffset - 1 + text.length);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+      sel.collapseToEnd();
     }
 
     pasteHtml(html, numOfCharsToRemove) {
