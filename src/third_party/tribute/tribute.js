@@ -135,7 +135,7 @@
       if (tribute.menu && tribute.menu.contains(event.target)) {
         let li = event.target;
         event.preventDefault();
-        event.stopPropagation();
+        event.stopImmediatePropagation();
 
         while (li.nodeName.toLowerCase() !== "li") {
           li = li.parentNode;
@@ -249,14 +249,14 @@
           // choose selection
           if (this.tribute.isActive && this.tribute.current.filteredItems) {
             e.preventDefault();
-            e.stopPropagation();
+            e.stopImmediatePropagation();
             this.tribute.selectItemAtIndex(this.tribute.menuSelected, e);
           }
         },
         Escape: (e, _el) => {
           if (this.tribute.isActive) {
             e.preventDefault();
-            e.stopPropagation();
+            e.stopImmediatePropagation();
             this.tribute.hideMenu();
           }
         },
@@ -269,7 +269,7 @@
             if (this.tribute.spaceSelectsMatch) {
               this.callbacks().Enter(e, el);
             } else if (!this.tribute.allowSpaces) {
-              e.stopPropagation();
+              e.stopImmediatePropagation();
               setTimeout(() => {
                 this.tribute.hideMenu();
               }, 0);
@@ -280,7 +280,7 @@
           // navigate up ul
           if (this.tribute.isActive && this.tribute.current.filteredItems) {
             e.preventDefault();
-            e.stopPropagation();
+            e.stopImmediatePropagation();
             const count = this.tribute.current.filteredItems.length,
                   selected = this.tribute.menuSelected;
 
@@ -298,7 +298,7 @@
           // navigate down ul
           if (this.tribute.isActive && this.tribute.current.filteredItems) {
             e.preventDefault();
-            e.stopPropagation();
+            e.stopImmediatePropagation();
             const count = this.tribute.current.filteredItems.length - 1,
                   selected = this.tribute.menuSelected;
 
@@ -645,12 +645,19 @@
           const selectStartOffset = range.startOffset;
           const lastChar = workingNodeContent[Math.max(0, selectStartOffset - 1)];
           const addWhiteSpace = lastChar && lastChar !== lastChar.trim();
+          text = sel.toString().trim();
 
           for (let index = 0; index < this.tribute.numberOfWordsInContextText; index++) {
             sel.modify("extend", "backward", "word");
+            const newText = sel.toString().trim();
+
+            if (newText.length > text.length && newText.endsWith(text)) {
+              // Workarounds Firefox issue, where selection sometimes collapse or move instead of extend
+              text = newText;
+            }
           }
 
-          text = sel.toString().trim() + (addWhiteSpace ? " " : "");
+          text += addWhiteSpace ? " " : "";
           this.restoreSelection(sel, range, direction);
         }
       }
