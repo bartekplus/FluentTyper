@@ -6,6 +6,7 @@
 
   class FluentTyper {
     constructor() {
+      this.SELECTORS = "textarea, input, [contentEditable]";
       this.newTributeId = 0;
       this.tributeArr = {};
       this.pendingReq = null;
@@ -61,8 +62,14 @@
       this.tributeArr = {};
     }
 
-    isHelperAttached(helperArr, elem) {
-      return elem.hasAttribute("data-tribute");
+    isHelperAttached(elem) {
+      for (const [key] of Object.entries(this.tributeArr)) {
+        if (elem === this.tributeArr[key].elem) {
+          return true;
+        }
+      }
+
+      return false;
     }
 
     cancelPresageRequestTimeout(tributeId) {
@@ -111,183 +118,206 @@
     }
 
     MutationCallback(mutationsList) {
-      let nodesAdded = false;
-      for (const mutation of mutationsList) {
-        if (mutation.type === "childList") {
-          if (mutation.addedNodes) {
-            nodesAdded = true;
-          }
-        }
-      }
       for (const [key] of Object.entries(this.tributeArr)) {
         if (!this.isInDocument(this.tributeArr[key].elem)) {
           this.detachHelper(key);
         }
       }
 
-      if (nodesAdded) {
-        this.attachHelper();
+      for (const mutation of mutationsList) {
+        mutation.addedNodes.forEach((element) => {
+          this.queryAndAttachHelper(element);
+        });
       }
     }
 
-    attachHelper() {
+    checkElemProperty(elem, propertyName, expectedValue, defaultValue) {
+      const elemValue = elem.hasAttribute(propertyName)
+        ? elem.getAttribute(propertyName).toLowerCase().trim()
+        : defaultValue;
+
+      return Boolean(
+        elemValue === expectedValue || elemValue.match(expectedValue)
+      );
+    }
+
+    attachHelperToNode(elem) {
       if (!this.config.enabled) {
         return;
       }
-      const selectors = "textarea, input, [contentEditable]";
+      const properties = {
+        contentEditable: ["true", "true", true],
+        // autocomplete: [null, true],
+        type: ["text", "text", true],
+        name: ["username", "", false],
+        id: ["username", "", false],
+      };
+      let propertiesCheck = true;
 
-      const elems = document.querySelectorAll(selectors);
-      for (let i = 0; i < elems.length; i++) {
-        const elem = elems[i];
-        const inputTypes = ["text", ""];
-        const autocomplete = elem.getAttribute("autocomplete")
-          ? elem.getAttribute("autocomplete").toLowerCase().trim()
-          : "";
-        const contentEditable = elem.getAttribute("contentEditable")
-          ? elem.getAttribute("contentEditable").toLowerCase().trim()
-          : "true";
+      for (const [prop, val] of Object.entries(properties)) {
+        const expectedValue = val[0];
+        const defaultValue = val[1];
+        const reverseCheck = !val[2];
+        let checkVal = this.checkElemProperty(
+          elem,
+          prop,
+          expectedValue,
+          defaultValue
+        );
+        if (reverseCheck) checkVal = !checkVal;
 
-        const inputType = elem.getAttribute("type")
-          ? elem.getAttribute("type").toLowerCase().trim()
-          : "";
-        if (
-          elem.tagName.toLowerCase() === "input" &&
-          !inputTypes.includes(inputType)
-        ) {
-          continue;
+        if (!checkVal) {
+          propertiesCheck = false;
+          break;
         }
+      }
+      if (!propertiesCheck) {
+        return;
+      }
 
-        if (autocomplete === "off") {
-          // continue;
-        }
-        if (contentEditable === "false") {
-          continue;
-        }
+      if (this.isHelperAttached(elem)) {
+        return;
+      }
 
-        if (this.isHelperAttached(this.tributeArr, elem)) {
-          continue;
-        }
+      const tribueId = this.newTributeId;
+      this.newTributeId += 1;
+      this.tributeArr[tribueId] = {
+        tribute: null,
+        elem: elem,
+        done: null,
+        timeout: null,
+        requestId: 0,
+        triggerInputEvent: false,
+      };
 
-        const tribueId = this.newTributeId;
-        this.newTributeId += 1;
-        this.tributeArr[tribueId] = {
-          tribute: null,
-          elem: elem,
-          done: null,
-          timeout: null,
-          requestId: 0,
-          triggerInputEvent: false,
+      const tribueKeyFn = this.keys.bind(this);
+      const tribueValuesFn = function (helperArrId, _trigger, done, context) {
+        this.tributeArr[helperArrId].done = done;
+        this.tributeArr[helperArrId].requestId += 1;
+        const message = {
+          command: "contentScriptPredictReq",
+          context: {
+            text: context,
+            tributeId: helperArrId,
+            requestId: this.tributeArr[helperArrId].requestId,
+          },
         };
+        // Cancel old timeout Fn
+        this.cancelPresageRequestTimeout(helperArrId);
+        this.setPresageRequestTimeout(helperArrId);
+        // Check if we are waiting for a response
+        this.pendingReq = message;
+        chrome.runtime.sendMessage(message);
+      }.bind(this, tribueId);
 
-        const tribueKeyFn = this.keys.bind(this);
-        const tribueValuesFn = function (helperArrId, _trigger, done, context) {
-          this.tributeArr[helperArrId].done = done;
-          this.tributeArr[helperArrId].requestId += 1;
-          const message = {
-            command: "contentScriptPredictReq",
-            context: {
-              text: context,
-              tributeId: helperArrId,
-              requestId: this.tributeArr[helperArrId].requestId,
-            },
-          };
-          // Cancel old timeout Fn
-          this.cancelPresageRequestTimeout(helperArrId);
-          this.setPresageRequestTimeout(helperArrId);
-          // Check if we are waiting for a response
-          this.pendingReq = message;
-          chrome.runtime.sendMessage(message);
-        }.bind(this, tribueId);
+      const tribute = new Tribute({
+        // symbol or string that starts the lookup
+        trigger: "",
 
-        const tribute = new Tribute({
-          // symbol or string that starts the lookup
-          trigger: "",
+        // element to target for @mentions
+        iframe: null,
 
-          // element to target for @mentions
-          iframe: null,
+        // class added in the flyout menu for active item
+        selectClass: "highlight",
 
-          // class added in the flyout menu for active item
-          selectClass: "highlight",
+        // class added to the menu container
+        containerClass: "tribute-container",
 
-          // class added to the menu container
-          containerClass: "tribute-container",
+        // class added to each list item
+        itemClass: "",
 
-          // class added to each list item
-          itemClass: "",
+        // function called on select that returns the content to insert
+        selectTemplate: function (item) {
+          return item.original.value;
+        },
 
-          // function called on select that returns the content to insert
-          selectTemplate: function (item) {
-            return item.original.value;
-          },
+        // template for displaying item in menu
+        menuItemTemplate: function (item) {
+          return item.string;
+        },
 
-          // template for displaying item in menu
-          menuItemTemplate: function (item) {
-            return item.string;
-          },
+        // template for when no match is found (optional),
+        // If no template is provided, menu is hidden.
+        noMatchTemplate: "",
 
-          // template for when no match is found (optional),
-          // If no template is provided, menu is hidden.
-          noMatchTemplate: "",
+        // specify an alternative parent container for the menu
+        // container must be a positioned element for the menu to appear correctly ie. `position: relative;`
+        // default container is the body
+        menuContainer: document.body,
 
-          // specify an alternative parent container for the menu
-          // container must be a positioned element for the menu to appear correctly ie. `position: relative;`
-          // default container is the body
-          menuContainer: document.body,
+        // column to search against in the object (accepts function or string)
+        lookup: "key",
 
-          // column to search against in the object (accepts function or string)
-          lookup: "key",
+        // column that contains the content to insert by default
+        fillAttr: "value",
 
-          // column that contains the content to insert by default
-          fillAttr: "value",
+        // REQUIRED: array of objects to match
+        values: tribueValuesFn,
 
-          // REQUIRED: array of objects to match
-          values: tribueValuesFn,
+        // specify whether a space is required before the trigger string
+        requireLeadingSpace: false,
+        // specify whether a space is allowed in the middle of mentions
+        allowSpaces: false,
+        // optionally specify a custom suffix for the replace text
+        // (defaults to empty space if undefined)
+        replaceTextSuffix: "",
+        // specify whether the menu should be positioned.  Set to false and use in conjuction with menuContainer to create an inline menu
+        // (defaults to true)
+        positionMenu: true,
+        // when the spacebar is hit, select the current match
+        spaceSelectsMatch: false,
+        // turn tribute into an autocomplete
+        autocompleteMode: true,
+        autocompleteSeparator: RegExp(
+          /\s+|!|"|#|\$|%|&|'|\(|\)|\*|\+|,|-|\.|\/|:|;|<|=|>|\?|@|\[|\\|\]|\^|_|`|{|\||}|~/
+        ),
+        // Customize the elements used to wrap matched strings within the results list
+        // defaults to <span></span> if undefined
+        searchOpts: {
+          pre: "<span>",
+          post: "</span>",
+          skip: true, // true will skip local search, useful if doing server-side search
+        },
+        // specify the minimum number of characters that must be typed before menu appears
+        menuShowMinLength: 0,
+        keys: tribueKeyFn,
+      });
+      this.tributeArr[tribueId].tribute = tribute;
+      tribute.attach(elem);
 
-          // specify whether a space is required before the trigger string
-          requireLeadingSpace: false,
-          // specify whether a space is allowed in the middle of mentions
-          allowSpaces: false,
-          // optionally specify a custom suffix for the replace text
-          // (defaults to empty space if undefined)
-          replaceTextSuffix: "",
-          // specify whether the menu should be positioned.  Set to false and use in conjuction with menuContainer to create an inline menu
-          // (defaults to true)
-          positionMenu: true,
-          // when the spacebar is hit, select the current match
-          spaceSelectsMatch: false,
-          // turn tribute into an autocomplete
-          autocompleteMode: true,
-          autocompleteSeparator: RegExp(
-            /\s+|!|"|#|\$|%|&|'|\(|\)|\*|\+|,|-|\.|\/|:|;|<|=|>|\?|@|\[|\\|\]|\^|_|`|{|\||}|~/
-          ),
-          // Customize the elements used to wrap matched strings within the results list
-          // defaults to <span></span> if undefined
-          searchOpts: {
-            pre: "<span>",
-            post: "</span>",
-            skip: true, // true will skip local search, useful if doing server-side search
-          },
-          // specify the minimum number of characters that must be typed before menu appears
-          menuShowMinLength: 0,
-          keys: tribueKeyFn,
-        });
-        this.tributeArr[tribueId].tribute = tribute;
-        tribute.attach(elem);
+      elem.tributeReplacedEventHandler = this.debounce(
+        this.tributeReplacedEventHandler.bind(this, tribueId),
+        16
+      );
+      elem.addEventListener(
+        "tribute-replaced",
+        elem.tributeReplacedEventHandler
+      );
 
-        elem.tributeReplacedEventHandler = this.debounce(
-          this.tributeReplacedEventHandler.bind(this, tribueId),
-          16
-        );
-        elem.addEventListener(
-          "tribute-replaced",
-          elem.tributeReplacedEventHandler
-        );
+      elem.elementKeyDownEventHandler = this.debounce(
+        this.elementKeyDownEventHandler.bind(this, tribueId),
+        32
+      );
+      elem.addEventListener("keydown", elem.elementKeyDownEventHandler);
+    }
 
-        elem.elementKeyDownEventHandler = this.debounce(
-          this.elementKeyDownEventHandler.bind(this, tribueId),
-          32
-        );
-        elem.addEventListener("keydown", elem.elementKeyDownEventHandler);
+    queryAndAttachHelper(elem) {
+      if (!this.config.enabled) {
+        return;
+      }
+      let elems = [];
+      if (elem) {
+        if (elem.matches && elem.matches(this.SELECTORS)) {
+          elems = [elem];
+        } else if (elem.querySelectorAll) {
+          elems = elem.querySelectorAll(this.SELECTORS);
+        }
+      } else {
+        elems = document.querySelectorAll(this.SELECTORS);
+      }
+
+      for (let i = 0; i < elems.length; i++) {
+        this.attachHelperToNode(elems[i]);
       }
     }
 
@@ -298,7 +328,12 @@
     }
 
     elementKeyDownEventHandler(helperArrId, event) {
-      if (event.getModifierState("Control") && event.code === "Space") {
+      if (
+        event &&
+        event.code === "Space" &&
+        event.getModifierState &&
+        event.getModifierState("Control")
+      ) {
         this.triggerTribute(helperArrId);
       }
     }
@@ -319,7 +354,7 @@
     }
     enable() {
       this.config.enabled = true;
-      this.attachHelper();
+      this.queryAndAttachHelper();
       this.attachMutationObserver();
     }
     disable() {
