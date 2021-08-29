@@ -40,7 +40,7 @@ class PresageHandler {
     this.textExpansions = [];
     //Precompiled regular expressions
     this.separatorCharRegEx = RegExp(
-      /\s+|!|"|#|\$|%|&|'|\(|\)|\*|\+|,|-|\.|\/|:|;|<|=|>|\?|@|\[|\\|\]|\^|_|`|{|\||}|~/
+      /\s+|!|"|#|\$|%|&|\(|\)|\*|\+|,|-|\.|\/|:|;|<|=|>|\?|@|\[|\\|\]|\^|_|`|{|\||}|~/
     );
     this.whiteSpaceRegEx = RegExp(/\s+/);
     this.letterRegEx = RegExp(/^\p{L}/, "u");
