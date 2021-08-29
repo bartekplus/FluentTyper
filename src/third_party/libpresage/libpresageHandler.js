@@ -279,9 +279,11 @@ class PresageHandler {
     }
     // Add space if needed
     if (this.insertSpaceAfterAutocomplete) {
-      message.context.predictions = message.context.predictions.map(
-        (pred) => `${pred}\xA0`
-      );
+      if (!context.nextChar.match(this.separatorCharRegEx)) {
+        message.context.predictions = message.context.predictions.map(
+          (pred) => `${pred}\xA0`
+        );
+      }
     }
     // Auto capitalize if needed
     if (this.autoCapitalize && doCapitalize) {

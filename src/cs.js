@@ -191,13 +191,20 @@
       };
 
       const tribueKeyFn = this.keys.bind(this);
-      const tribueValuesFn = function (helperArrId, _trigger, done, context) {
+      const tribueValuesFn = function (
+        helperArrId,
+        _trigger,
+        done,
+        context,
+        nextChar
+      ) {
         this.tributeArr[helperArrId].done = done;
         this.tributeArr[helperArrId].requestId += 1;
         const message = {
           command: "contentScriptPredictReq",
           context: {
             text: context,
+            nextChar: nextChar,
             tributeId: helperArrId,
             requestId: this.tributeArr[helperArrId].requestId,
           },
