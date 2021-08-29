@@ -145,27 +145,49 @@
       if (!this.config.enabled) {
         return;
       }
-      const properties = {
-        contentEditable: ["true", "true", true],
-        // autocomplete: [null, true],
-        type: ["text", "text", true],
-        name: ["username", "", false],
-        id: ["username", "", false],
-      };
+      const properties = [
+        {
+          property: "contentEditable",
+          expectedValue: RegExp(/.*/),
+          defaultValue: "true",
+          reverseCheck: false,
+        },
+        {
+          property: "type",
+          expectedValue: "text",
+          defaultValue: "text",
+          reverseCheck: false,
+        },
+        {
+          property: "name",
+          expectedValue: "username",
+          defaultValue: "",
+          reverseCheck: true,
+        },
+        {
+          property: "name",
+          expectedValue: "password",
+          defaultValue: "",
+          reverseCheck: true,
+        },
+        {
+          property: "id",
+          expectedValue: "username",
+          defaultValue: "",
+          reverseCheck: true,
+        },
+      ];
       let propertiesCheck = true;
 
-      for (const [prop, val] of Object.entries(properties)) {
-        const expectedValue = val[0];
-        const defaultValue = val[1];
-        const reverseCheck = !val[2];
+      for (let index = 0; index < properties.length; index++) {
+        const check = properties[index];
         let checkVal = this.checkElemProperty(
           elem,
-          prop,
-          expectedValue,
-          defaultValue
+          check.property,
+          check.expectedValue,
+          check.defaultValue
         );
-        if (reverseCheck) checkVal = !checkVal;
-
+        if (check.reverseCheck) checkVal = !checkVal;
         if (!checkVal) {
           propertiesCheck = false;
           break;
