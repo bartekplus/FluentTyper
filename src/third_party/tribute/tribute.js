@@ -242,6 +242,7 @@
         this.tribute.current.mentionText = info.mentionText;
         this.tribute.current.mentionPosition = info.mentionPosition;
         this.tribute.current.fullText = info.fullText;
+        this.tribute.current.nextChar = info.nextChar;
         return true;
       }
 
@@ -486,13 +487,12 @@
       const replaceEvent = new CustomEvent("tribute-replaced");
 
       if (!this.isContentEditable(context.element)) {
-        const textEndsWithSpace = text !== text.trimEnd();
         const myField = this.tribute.current.element;
         const textSuffix = typeof this.tribute.replaceTextSuffix === "string" ? this.tribute.replaceTextSuffix : " ";
         text = this.stripHtml(text);
         text += textSuffix;
         const startPos = context.mentionPosition;
-        let endPos = context.mentionPosition + context.mentionText.length + textSuffix.length + textEndsWithSpace;
+        let endPos = context.mentionPosition + context.mentionText.length + textSuffix.length;
 
         if (!this.tribute.autocompleteMode) {
           endPos += context.mentionTriggerChar.length - 1;
@@ -504,9 +504,7 @@
       } else {
         const textSuffix = typeof this.tribute.replaceTextSuffix === "string" ? this.tribute.replaceTextSuffix : "\xA0";
         text += textSuffix;
-        const strippedText = this.stripHtml(text);
-        const isHTML = text !== strippedText;
-        if (isHTML) this.pasteHtml(text, context.mentionText.length + context.mentionTriggerChar.length);else this.pasteText(strippedText, context.mentionText.length + context.mentionTriggerChar.length);
+        this.pasteContentEditable(text, context.mentionText.length + context.mentionTriggerChar.length);
       }
 
       context.element.dispatchEvent(new CustomEvent("input", {
@@ -516,11 +514,26 @@
       context.element.dispatchEvent(replaceEvent);
     }
 
-    pasteText(text, numOfCharsToRemove) {
+    pasteContentEditable(html, numOfCharsToRemove) {
       const {
         sel,
         range
       } = this.getContentEditableSelectionStart(true);
+
+      if (sel) {
+        const strippedText = this.stripHtml(html);
+        const isHTML = html !== strippedText;
+        const useSimpleReplace = !isHTML && sel.anchorOffset >= numOfCharsToRemove && sel.anchorOffset <= sel.anchorNode.nodeValue.length;
+
+        if (useSimpleReplace) {
+          this.pasteText(sel, range, strippedText, numOfCharsToRemove);
+        } else {
+          this.pasteHtml(sel, range, html, numOfCharsToRemove);
+        }
+      }
+    }
+
+    pasteText(sel, range, text, numOfCharsToRemove) {
       const pre = sel.anchorNode.nodeValue.substring(0, sel.anchorOffset - numOfCharsToRemove);
       const post = sel.anchorNode.nodeValue.substring(sel.anchorOffset, sel.anchorNode.nodeValue.length);
       sel.anchorNode.nodeValue = pre + text + post;
@@ -531,39 +544,31 @@
       sel.collapseToEnd();
     }
 
-    pasteHtml(html, numOfCharsToRemove) {
-      const {
-        sel
-      } = this.getContentEditableSelectionStart(true);
+    pasteHtml(sel, _range, html, numOfCharsToRemove) {
+      for (let index = 0; index < numOfCharsToRemove; index++) {
+        sel.modify("extend", "backward", "character");
+      }
 
-      if (sel) {
-        let range = null;
+      const newRange = sel.getRangeAt(0);
+      newRange.deleteContents();
+      const el = this.getDocument().createElement("div");
+      el.innerHTML = html;
+      const frag = this.getDocument().createDocumentFragment();
+      let node, lastNode;
 
-        for (let index = 0; index < numOfCharsToRemove; index++) {
-          sel.modify("extend", "backward", "character");
-        }
+      while (node = el.firstChild) {
+        lastNode = frag.appendChild(node);
+      }
 
-        range = sel.getRangeAt(0);
-        range.deleteContents();
-        const el = this.getDocument().createElement("div");
-        el.innerHTML = html;
-        const frag = this.getDocument().createDocumentFragment();
-        let node, lastNode;
+      newRange.insertNode(frag); // Preserve the selection
 
-        while (node = el.firstChild) {
-          lastNode = frag.appendChild(node);
-        }
-
-        range.insertNode(frag); // Preserve the selection
-
-        if (lastNode) {
-          range.setStart(lastNode, lastNode.length);
-          range.setEnd(lastNode, lastNode.length);
-          range.collapse(true);
-          sel.removeAllRanges();
-          sel.addRange(range);
-          sel.collapseToEnd();
-        }
+      if (lastNode) {
+        newRange.setStart(lastNode, lastNode.length);
+        newRange.setEnd(lastNode, lastNode.length);
+        newRange.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(newRange);
+        sel.collapseToEnd();
       }
     }
 
@@ -635,12 +640,14 @@
         }
       }
 
-      return text.substring(0, minLen);
+      const nextChar = text.length > minLen ? text[minLen] : "";
+      return [text.substring(0, minLen), nextChar];
     }
 
-    getTextPrecedingCurrentSelection() {
+    getTextForCurrentSelection() {
       const context = this.tribute.current;
-      let text = null;
+      let effectiveRange = null;
+      let nextChar = "";
 
       if (!this.isContentEditable(context.element)) {
         const textComponent = this.tribute.current.element;
@@ -650,8 +657,9 @@
           const endPos = textComponent.selectionEnd;
 
           if (textComponent.value && startPos >= 0 && startPos === endPos) {
-            text = textComponent.value.substring(0);
-            text = this.getWholeWordsUpToCharIndex(text, startPos);
+            const result = this.getWholeWordsUpToCharIndex(textComponent.value, startPos);
+            effectiveRange = result[0];
+            nextChar = result[1];
           }
         }
       } else {
@@ -667,24 +675,28 @@
           const selectStartOffset = sel.getRangeAt(0).startOffset;
           const lastChar = workingNodeContent[Math.max(0, selectStartOffset - 1)];
           const addWhiteSpace = lastChar && lastChar !== lastChar.trim();
-          text = sel.toString().trim();
+          effectiveRange = sel.toString().trim();
+          nextChar = workingNodeContent.length > selectStartOffset ? workingNodeContent[selectStartOffset] : "";
 
           for (let index = 0; index < this.tribute.numberOfWordsInContextText; index++) {
             sel.modify("extend", "backward", "word");
             const newText = sel.toString().trim();
 
-            if (newText.length > text.length && newText.endsWith(text)) {
+            if (newText.length > effectiveRange.length && newText.endsWith(effectiveRange)) {
               // Workarounds Firefox issue, where selection sometimes collapse or move instead of extend
-              text = newText;
+              effectiveRange = newText;
             }
           }
 
-          text += addWhiteSpace ? " " : "";
+          effectiveRange += addWhiteSpace ? " " : "";
           this.restoreSelection(sel, range, direction);
         }
       }
 
-      return text;
+      return {
+        effectiveRange,
+        nextChar
+      };
     }
 
     getLastWordInText(text) {
@@ -695,7 +707,10 @@
     }
 
     getTriggerInfo(menuAlreadyActive, hasTrailingSpace, requireLeadingSpace, allowSpaces, isAutocomplete) {
-      const effectiveRange = this.getTextPrecedingCurrentSelection();
+      const {
+        effectiveRange,
+        nextChar
+      } = this.getTextForCurrentSelection();
       if (effectiveRange === null) return null;
       const lastWordOfEffectiveRange = this.getLastWordInText(effectiveRange);
 
@@ -704,6 +719,7 @@
           mentionPosition: effectiveRange.length - lastWordOfEffectiveRange.length,
           mentionText: lastWordOfEffectiveRange,
           fullText: effectiveRange,
+          nextChar: nextChar,
           mentionTriggerChar: ""
         };
       }
@@ -740,7 +756,8 @@
               mentionPosition: mostRecentTriggerCharPos,
               mentionText: currentTriggerSnippet,
               mentionTriggerChar: triggerChar,
-              fullText: effectiveRange
+              fullText: effectiveRange,
+              nextChar: ""
             };
           }
         }
@@ -1515,7 +1532,7 @@
           this.range.positionMenuAtCaret(scrollTo);
         }
 
-        this.current.collection.values(this.current.mentionText, processValues, this.current.fullText);
+        this.current.collection.values(this.current.mentionText, processValues, this.current.fullText, this.current.nextChar);
       } else {
         processValues(this.current.collection.values);
       }
