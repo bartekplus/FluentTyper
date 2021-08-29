@@ -57,9 +57,6 @@ i18n = Object.assign(i18n, {
   enable: {
     en: "Enable",
   },
-  useEnter: {
-    en: "Use Enter key to confirm the selection (It might insert a new line on some web pages).",
-  },
   About: {
     en: "About",
   },
