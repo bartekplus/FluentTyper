@@ -152,6 +152,12 @@
           reverseCheck: false,
         },
         {
+          property: "contentEditable",
+          expectedValue: "false",
+          defaultValue: "",
+          reverseCheck: true,
+        },
+        {
           property: "type",
           expectedValue: "text",
           defaultValue: "text",
