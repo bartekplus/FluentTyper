@@ -12,7 +12,6 @@
       this.pendingReq = null;
       this.config = {
         enabled: false,
-        useEnter: false,
       };
 
       chrome.runtime.onMessage.addListener(this.messageHandler.bind(this));
@@ -32,11 +31,8 @@
       }
     }
     keys() {
-      const keyArr = ["Tab", "Escape", "ArrowUp", "ArrowDown"];
+      const keyArr = ["Tab", "Escape", "ArrowUp", "ArrowDown", "Enter"];
 
-      if (this.config.useEnter) {
-        keyArr.push("Enter");
-      }
       return keyArr;
     }
 

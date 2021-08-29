@@ -110,16 +110,12 @@ import { Store } from "./third_party/fancier-settings/lib/store.js";
 
         case "contentScriptGetConfig":
           asyncResponse = true;
-          Promise.all([
-            this.isEnabledForDomain(sender.tab.url),
-            this.settings.get("useEnter"),
-          ])
+          Promise.all([this.isEnabledForDomain(sender.tab.url)])
             .then((values) => {
               sendResponse({
                 command: "backgroundPageSetConfig",
                 context: {
                   enabled: values[0],
-                  useEnter: values[1],
                 },
               });
             })

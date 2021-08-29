@@ -122,14 +122,6 @@ const manifest = {
     {
       tab: i18n.get("settings"),
       group: i18n.get("Miscellaneous"),
-      name: "useEnter",
-      type: "checkbox",
-      label: i18n.get("useEnter"),
-      default: true,
-    },
-    {
-      tab: i18n.get("settings"),
-      group: i18n.get("Miscellaneous"),
       name: "allUrls",
       type: "checkbox",
       label: i18n.get("allUrls"),
