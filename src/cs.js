@@ -24,7 +24,7 @@
         const MutationCallback = this.MutationCallback.bind(this);
         const observerOptions = {
           childList: true,
-          attributes: false,
+          attributes: true,
           subtree: true,
         };
         this.observer = new MutationObserver(MutationCallback);
@@ -128,6 +128,9 @@
         mutation.addedNodes.forEach((element) => {
           this.queryAndAttachHelper(element);
         });
+        if (mutation.type === "attributes") {
+          this.queryAndAttachHelper(mutation.target);
+        }
       }
     }
 
