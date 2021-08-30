@@ -500,13 +500,26 @@
       chrome.runtime.sendMessage(message, this.messageHandler.bind(this));
     }
 
-    debounce(func, timeout) {
-      let timer;
+    debounce(
+      func,
+      wait,
+      option = {
+        leading: true,
+        trailing: true,
+      }
+    ) {
+      let timer = null;
       return (...args) => {
+        const timerExpired = (callFunc) => {
+          timer = null;
+          if (callFunc) func.apply(this, args);
+        };
+
+        const callNow = option.leading && timer === null;
+        const timeoutFn = timerExpired.bind(this, !callNow && option.trailing);
         clearTimeout(timer);
-        timer = setTimeout(() => {
-          func.apply(this, args);
-        }, timeout);
+        timer = setTimeout(timeoutFn, wait);
+        if (callNow) func.apply(this, args);
       };
     }
   }
