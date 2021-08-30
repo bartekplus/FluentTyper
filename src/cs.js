@@ -337,7 +337,8 @@
 
       elem.tributeReplacedEventHandler = this.debounce(
         this.tributeReplacedEventHandler.bind(this, tribueId),
-        16
+        16,
+        { leading: false, trailing: true }
       );
       elem.addEventListener(
         "tribute-replaced",
