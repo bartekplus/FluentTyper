@@ -63,7 +63,7 @@
     "webNavigation",
     "<all_urls>"
   ],
-  "version": "2021.8.30.2",
+  "version": "2021.8.30.3",
   "manifest_version": 2,
   "content_security_policy": "script-src 'self' 'unsafe-eval'; object-src 'self'",
   "commands": {
