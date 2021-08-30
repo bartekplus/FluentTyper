@@ -24,6 +24,7 @@
         const observerOptions = {
           childList: true,
           attributes: true,
+          attributeFilter: ["contentEditable", "type", "name", "id"],
           subtree: true,
         };
         this.observer = new MutationObserver(MutationCallback);
@@ -181,8 +182,27 @@
           defaultValue: "",
           reverseCheck: true,
         },
+        /*
+        {
+          property: "autocomplete",
+          expectedValue: "off",
+          defaultValue: "",
+          reverseCheck: true,
+        },
+
+        {
+          property: "aria-autocomplete",
+          expectedValue: RegExp(/^inline$|^list$|^both$/),
+          defaultValue: "",
+          reverseCheck: true,
+        },
+        */
       ];
       let propertiesCheck = true;
+
+      if (this.isHelperAttached(elem)) {
+        return;
+      }
 
       for (let index = 0; index < properties.length; index++) {
         const check = properties[index];
@@ -199,10 +219,6 @@
         }
       }
       if (!propertiesCheck) {
-        return;
-      }
-
-      if (this.isHelperAttached(elem)) {
         return;
       }
 
