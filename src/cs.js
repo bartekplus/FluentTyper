@@ -24,7 +24,7 @@
         const observerOptions = {
           childList: true,
           attributes: true,
-          attributeFilter: ["contentEditable", "type", "name", "id"],
+          attributeFilter: ["contenteditable", "type", "name", "id"],
           subtree: true,
         };
         this.observer = new MutationObserver(MutationCallback);
