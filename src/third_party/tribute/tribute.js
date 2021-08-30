@@ -291,11 +291,9 @@
                   selected = this.tribute.menuSelected;
 
             if (count > selected && selected > 0) {
-              this.tribute.menuSelected--;
-              this.setActiveLi();
+              this.setActiveLi(selected - 1);
             } else if (selected === 0) {
-              this.tribute.menuSelected = count - 1;
-              this.setActiveLi();
+              this.setActiveLi(count - 1);
               this.tribute.menu.scrollTop = this.tribute.menu.scrollHeight;
             }
           }
@@ -309,11 +307,9 @@
                   selected = this.tribute.menuSelected;
 
             if (count > selected) {
-              this.tribute.menuSelected++;
-              this.setActiveLi();
+              this.setActiveLi(selected + 1);
             } else if (count === selected) {
-              this.tribute.menuSelected = 0;
-              this.setActiveLi();
+              this.setActiveLi(0);
               this.tribute.menu.scrollTop = 0;
             }
           }
@@ -331,7 +327,7 @@
     setActiveLi(index) {
       const lis = this.tribute.menu.querySelectorAll("li"),
             length = lis.length >>> 0;
-      if (index) this.tribute.menuSelected = parseInt(index);
+      this.tribute.menuSelected = index;
 
       for (let i = 0; i < length; i++) {
         const li = lis[i];
@@ -612,7 +608,7 @@
         }
       }
 
-      const nextCharIsSeparator = nextChar && nextChar.match(this.tribute.autocompleteSeparator);
+      const nextCharIsSeparator = !this.tribute.autocompleteSeparator || nextChar && nextChar.match(this.tribute.autocompleteSeparator);
       sel.collapseToEnd();
       if (nextChar && !nextCharIsSeparator && moveToEndOfWord) sel.modify("move", "forward", "word");
       return {
@@ -623,25 +619,25 @@
     }
 
     getWholeWordsUpToCharIndex(str, minLen) {
-      let pos = 0;
-      const arr = str.split(this.tribute.autocompleteSeparator).filter(function (e) {
-        return e.trim();
-      });
-      const text = str;
+      if (this.tribute.autocompleteSeparator) {
+        let searchPos = 0;
+        const arr = str.split(this.tribute.autocompleteSeparator).filter(function (e) {
+          return e.trim();
+        });
 
-      for (let i = 0, len = arr.length; i < len; i++) {
-        const idx = str.indexOf(arr[i]);
-        pos = pos + idx;
-        str = str.slice(idx);
+        for (let i = 0, len = arr.length; i < len; i++) {
+          const idx = str.indexOf(arr[i], searchPos);
+          searchPos += arr[i].length;
 
-        if (minLen >= pos && minLen <= pos + arr[i].length) {
-          minLen = pos + arr[i].length;
-          break;
+          if (minLen >= idx && minLen <= idx + arr[i].length) {
+            minLen = idx + arr[i].length;
+            break;
+          }
         }
       }
 
-      const nextChar = text.length > minLen ? text[minLen] : "";
-      return [text.substring(0, minLen), nextChar];
+      const nextChar = str.length > minLen ? str[minLen] : "";
+      return [str.substring(0, minLen), nextChar];
     }
 
     getTextForCurrentSelection() {
@@ -700,10 +696,13 @@
     }
 
     getLastWordInText(text) {
-      const separator = this.tribute.autocompleteSeparator ? this.tribute.autocompleteSeparator : /\s+/;
-      const wordsArray = text.split(separator);
-      if (!wordsArray.length) return " ";
-      return wordsArray[wordsArray.length - 1];
+      if (this.tribute.autocompleteSeparator) {
+        const wordsArray = text.split(this.tribute.autocompleteSeparator);
+        if (!wordsArray.length) return " ";
+        return wordsArray[wordsArray.length - 1];
+      }
+
+      return text;
     }
 
     getTriggerInfo(menuAlreadyActive, hasTrailingSpace, requireLeadingSpace, allowSpaces, isAutocomplete) {
@@ -1182,7 +1181,7 @@
       itemClass = "",
       trigger = "@",
       autocompleteMode = false,
-      autocompleteSeparator = null,
+      autocompleteSeparator = RegExp(/\s+/),
       selectTemplate = null,
       menuItemTemplate = null,
       lookup = "key",
@@ -1462,7 +1461,8 @@
         let items = this.search.filter(this.current.mentionText, values, {
           pre: this.current.collection.searchOpts.pre || "<span>",
           post: this.current.collection.searchOpts.post || "</span>",
-          skip: this.current.collection.searchOpts.skip,
+          skip: this.current.collection.searchOpts.skip || false,
+          caseSensitive: this.current.collection.searchOpts.caseSensitive || false,
           extract: el => {
             if (typeof this.current.collection.lookup === "string") {
               return el[this.current.collection.lookup];
@@ -1501,13 +1501,9 @@
             const li = this.range.getDocument().createElement("li");
             li.setAttribute("data-index", index);
             li.className = this.current.collection.itemClass;
-            li.addEventListener("mousemove", e => {
-              const [, index] = this._findLiTarget(e.target);
-
-              if (e.movementY !== 0) {
-                this.events.setActiveLi(index);
-              }
-            });
+            li.addEventListener("mouseover", function (index) {
+              this.events.setActiveLi(index);
+            }.bind(this, index));
 
             if (this.menuSelected === index) {
               li.classList.add(this.current.collection.selectClass);
@@ -1536,12 +1532,6 @@
       } else {
         processValues(this.current.collection.values);
       }
-    }
-
-    _findLiTarget(el) {
-      if (!el) return [];
-      const index = el.getAttribute("data-index");
-      return !index ? this._findLiTarget(el.parentNode) : [el, index];
     }
 
     showMenuForCollection(element, collectionIndex) {
