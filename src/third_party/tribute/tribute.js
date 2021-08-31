@@ -276,7 +276,6 @@
         this.tribute.hideMenu();
       }, DEBOUNCE_TIMEOUT_MS);
       this.windowResizeEvent = this.tribute.debounce(() => {
-        console.log("a");
         this.tribute.hideMenu();
       }, DEBOUNCE_TIMEOUT_MS);
 
