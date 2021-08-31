@@ -475,11 +475,13 @@
         this.pasteContentEditable(text, context.mentionText.length + context.mentionTriggerChar.length);
       }
 
-      context.element.dispatchEvent(new CustomEvent("input", {
-        bubbles: true,
-        detail: detail
-      }));
-      context.element.dispatchEvent(replaceEvent);
+      setTimeout(() => {
+        context.element.dispatchEvent(new CustomEvent("input", {
+          bubbles: true,
+          detail: detail
+        }));
+        context.element.dispatchEvent(replaceEvent);
+      }, 0);
     }
 
     pasteContentEditable(html, numOfCharsToRemove) {
