@@ -4,69 +4,6 @@
   (global = typeof globalThis !== 'undefined' ? globalThis : global || self, global.Tribute = factory());
 }(this, (function () { 'use strict';
 
-  if (!Array.prototype.find) {
-    Object.defineProperty(Array.prototype, "find", {
-      value: function (predicate) {
-        // 1. Let O be ? ToObject(this value).
-        if (this === null) {
-          throw TypeError('"this" is null or not defined');
-        }
-
-        const o = Object(this); // 2. Let len be ? ToLength(? Get(O, "length")).
-
-        const len = o.length >>> 0; // 3. If IsCallable(predicate) is false, throw a TypeError exception.
-
-        if (typeof predicate !== "function") {
-          throw TypeError("predicate must be a function");
-        } // 4. If thisArg was supplied, let T be thisArg; else let T be undefined.
-
-
-        const thisArg = arguments[1]; // 5. Let k be 0.
-
-        let k = 0; // 6. Repeat, while k < len
-
-        while (k < len) {
-          // a. Let Pk be ! ToString(k).
-          // b. Let kValue be ? Get(O, Pk).
-          // c. Let testResult be ToBoolean(? Call(predicate, T, « kValue, k, O »)).
-          // d. If testResult is true, return kValue.
-          const kValue = o[k];
-
-          if (predicate.call(thisArg, kValue, k, o)) {
-            return kValue;
-          } // e. Increase k by 1.
-
-
-          k++;
-        } // 7. Return undefined.
-
-
-        return undefined;
-      },
-      configurable: true,
-      writable: true
-    });
-  }
-
-  function CustomEvent$1(event, params) {
-    params = params || {
-      bubbles: false,
-      cancelable: false,
-      detail: undefined
-    };
-    const evt = document.createEvent("CustomEvent");
-    evt.initCustomEvent(event, params.bubbles, params.cancelable, params.detail);
-    return evt;
-  }
-
-  if (typeof window !== "undefined" && typeof window.CustomEvent !== "function") {
-    if (typeof window.Event !== "undefined") {
-      CustomEvent$1.prototype = window.Event.prototype;
-    }
-
-    window.CustomEvent = CustomEvent$1;
-  }
-
   /*eslint no-unused-vars: ["error", { "argsIgnorePattern": "^_" }]*/
   class TributeEvents {
     constructor(tribute) {
@@ -322,17 +259,6 @@
       }
     }
 
-    getFullHeight(elem, includeMargin) {
-      const height = elem.getBoundingClientRect().height;
-
-      if (includeMargin) {
-        const style = elem.currentStyle || window.getComputedStyle(elem);
-        return height + parseFloat(style.marginTop) + parseFloat(style.marginBottom);
-      }
-
-      return height;
-    }
-
   }
 
   /*eslint no-unused-vars: ["error", { "argsIgnorePattern": "^_" }]*/
@@ -344,20 +270,20 @@
     }
 
     bind(_menu) {
+      const DEBOUNCE_TIMEOUT_MS = 100;
       this.menuClickEvent = this.tribute.events.click.bind(null, this);
       this.menuContainerScrollEvent = this.tribute.debounce(() => {
         this.tribute.hideMenu();
-      }, 10, false);
+      }, DEBOUNCE_TIMEOUT_MS);
       this.windowResizeEvent = this.tribute.debounce(() => {
+        console.log("a");
         this.tribute.hideMenu();
-      }, 10, false);
+      }, DEBOUNCE_TIMEOUT_MS);
 
       this.windowBlurEvent = () => {
         this.tribute.hideMenu();
-      }; // fixes IE11 issues with mousedown
+      };
 
-
-      this.tribute.range.getDocument().addEventListener("MSPointerDown", this.menuClickEvent, false);
       this.tribute.range.getDocument().addEventListener("mousedown", this.menuClickEvent, false);
       window.addEventListener("resize", this.windowResizeEvent);
       window.addEventListener("blur", this.windowBlurEvent);
@@ -371,8 +297,8 @@
 
     unbind(_menu) {
       this.tribute.range.getDocument().removeEventListener("mousedown", this.menuClickEvent, false);
-      this.tribute.range.getDocument().removeEventListener("MSPointerDown", this.menuClickEvent, false);
       window.removeEventListener("resize", this.windowResizeEvent);
+      window.removeEventListener("blur", this.windowBlurEvent);
 
       if (this.menuContainer) {
         this.menuContainer.removeEventListener("scroll", this.menuContainerScrollEvent, false);
@@ -384,7 +310,7 @@
   }
 
   /*eslint no-unused-vars: ["error", { "argsIgnorePattern": "^_" }]*/
-
+  // Thanks to https://github.com/jeff-collins/ment.io
   class TributeRange {
     constructor(tribute) {
       this.tribute = tribute;
@@ -440,10 +366,6 @@
       if (scrollTo) this.scrollIntoView();
     }
 
-    get menuContainerIsBody() {
-      return this.tribute.menuContainer === this.getDocument().body || !this.tribute.menuContainer;
-    }
-
     replaceTriggerText(text, originalEvent, item) {
       const context = this.tribute.current;
       const detail = {
@@ -475,13 +397,11 @@
         this.pasteContentEditable(text, context.mentionText.length + context.mentionTriggerChar.length);
       }
 
-      setTimeout(() => {
-        context.element.dispatchEvent(new CustomEvent("input", {
-          bubbles: true,
-          detail: detail
-        }));
-        context.element.dispatchEvent(replaceEvent);
-      }, 0);
+      context.element.dispatchEvent(new CustomEvent("input", {
+        bubbles: true,
+        detail: detail
+      }));
+      context.element.dispatchEvent(replaceEvent);
     }
 
     pasteContentEditable(html, numOfCharsToRemove) {
@@ -650,7 +570,7 @@
 
           for (let index = 0; index < this.tribute.numberOfWordsInContextText; index++) {
             sel.modify("extend", "backward", "word");
-            const newText = sel.toString().trim();
+            const newText = sel.toString();
 
             if (newText.length > effectiveRange.length && newText.endsWith(effectiveRange)) {
               // Workarounds Firefox issue, where selection sometimes collapse or move instead of extend
@@ -679,6 +599,10 @@
       return text;
     }
 
+    escapeRegExp(string) {
+      return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    }
+
     getTriggerInfo(allowSpaces, isAutocomplete) {
       let requireLeadingSpace = true;
       const {
@@ -703,7 +627,14 @@
         let triggerChar;
         this.tribute.collection.forEach(config => {
           const c = config.trigger;
-          const idx = config.requireLeadingSpace ? this.lastIndexWithLeadingSpace(effectiveRange, c) : effectiveRange.lastIndexOf(c);
+          const regExpStr = "(" + (config.requireLeadingSpace ? "\\s" : "") + this.escapeRegExp(c) + ")(?!.*\\1)";
+          const searchRes = effectiveRange.match(RegExp(regExpStr));
+
+          const idx = (() => {
+            if (searchRes) return searchRes.index + (config.requireLeadingSpace ? 1 : 0);
+            if (effectiveRange.startsWith(c)) return 0;
+            return -1;
+          })();
 
           if (idx > mostRecentTriggerCharPos) {
             mostRecentTriggerCharPos = idx;
@@ -730,31 +661,6 @@
           }
         }
       }
-    }
-
-    lastIndexWithLeadingSpace(str, trigger) {
-      const reversedStr = str.split("").reverse().join("");
-      let index = -1;
-
-      for (let cidx = 0, len = str.length; cidx < len; cidx++) {
-        const firstChar = cidx === str.length - 1;
-        const leadingSpace = /\s/.test(reversedStr[cidx + 1]);
-        let match = true;
-
-        for (let triggerIdx = trigger.length - 1; triggerIdx >= 0; triggerIdx--) {
-          if (trigger[triggerIdx] !== reversedStr[cidx - triggerIdx]) {
-            match = false;
-            break;
-          }
-        }
-
-        if (match && (firstChar || leadingSpace)) {
-          index = str.length - 1 - cidx;
-          break;
-        }
-      }
-
-      return index;
     }
 
     isContentEditable(element) {
@@ -1001,16 +907,6 @@
       this.tribute.search = this;
     }
 
-    simpleFilter(pattern, array) {
-      return array.filter(string => {
-        return this.test(pattern, string);
-      });
-    }
-
-    test(pattern, string) {
-      return this.match(pattern, string) !== null;
-    }
-
     match(pattern, string, opts) {
       opts = opts || {};
       const pre = opts.pre || "",
@@ -1164,7 +1060,7 @@
       positionMenu = true,
       spaceSelectsMatch = false,
       searchOpts = {},
-      menuItemLimit = null,
+      menuItemLimit = undefined,
       menuShowMinLength = 0,
       keys = null,
       numberOfWordsInContextText = 5
@@ -1441,11 +1337,7 @@
             }
           }
         });
-
-        if (this.current.collection.menuItemLimit) {
-          items = items.slice(0, this.current.collection.menuItemLimit);
-        }
-
+        items = items.slice(0, this.current.collection.menuItemLimit);
         this.current.filteredItems = items;
         const ul = this.menu.querySelector("ul");
         let showMenu = false;
