@@ -72,9 +72,6 @@ i18n = Object.assign(i18n, {
   showIcon: {
     en: "Show icon in location bar",
   },
-  allUrls: {
-    en: '<strong>Request permission for "access all sites"</strong> - it fixes an issue where FluentTyper is not working on some sites.',
-  },
 });
 
 export { i18n };

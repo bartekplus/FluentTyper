@@ -31,28 +31,5 @@ window.addEventListener("DOMContentLoaded", function () {
           optionsPageConfigChange();
         });
       });
-      if (navigator.userAgent.indexOf("Chrome") !== -1) {
-        settings.manifest.allUrls.element.element.addEventListener(
-          "click",
-          function () {
-            const fn = this.checked
-              ? chrome.permissions.request
-              : chrome.permissions.remove;
-            fn(
-              {
-                origins: ["<all_urls>"],
-              },
-              function (success) {
-                if (!success) {
-                  settings.manifest.allUrls.fireEvent("change");
-                }
-              }
-            );
-          }
-        );
-      } else {
-        settings.manifest.allUrls.element.element.parentElement.style.display =
-          "none";
-      }
     }))();
 });
