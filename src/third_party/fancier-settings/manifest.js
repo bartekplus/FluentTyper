@@ -119,14 +119,6 @@ const manifest = {
       label: "Capitalize the first word of each sentence.",
       default: true,
     },
-    {
-      tab: i18n.get("settings"),
-      group: i18n.get("Miscellaneous"),
-      name: "allUrls",
-      type: "checkbox",
-      label: i18n.get("allUrls"),
-      default: false,
-    },
 
     {
       tab: i18n.get("Text Expander"),
