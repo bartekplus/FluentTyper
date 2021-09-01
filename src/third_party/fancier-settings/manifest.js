@@ -59,7 +59,7 @@ const manifest = {
       tab: i18n.get("settings"),
       group: i18n.get("General"),
       name: "language",
-      type: "popupButton",
+      type: "valueOnly",
       options: [["en", "English"]],
       label: "Prediction language:",
       default: "en",
