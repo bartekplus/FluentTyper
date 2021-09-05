@@ -9,6 +9,17 @@ function optionsPageConfigChange() {
   chrome.runtime.sendMessage(message);
 }
 
+function fallbackLanguageVibility(settings, value) {
+  if (value === "auto_detect")
+    settings.manifest.fallbackLanguage.bundle.element.classList.remove(
+      "is-hidden"
+    );
+  else
+    settings.manifest.fallbackLanguage.bundle.element.classList.add(
+      "is-hidden"
+    );
+}
+
 window.addEventListener("DOMContentLoaded", function () {
   // Option 1: Use the manifest:
   (() =>
@@ -18,8 +29,15 @@ window.addEventListener("DOMContentLoaded", function () {
         settings.manifest.domainList.remove();
       });
 
+      fallbackLanguageVibility(settings, settings.manifest.language.get());
+      settings.manifest.language.addEvent("action", function (value) {
+        fallbackLanguageVibility(settings, value);
+      });
+
       // Update pressage config on change
       [
+        "language",
+        "fallbackLanguage",
         "numSuggestions",
         "minWordLengthToPredict",
         "predictNextWordAfterSeparatorChar",

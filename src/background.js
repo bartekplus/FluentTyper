@@ -1,5 +1,6 @@
 import { isDomainOnList, checkLastError } from "./utils.js";
 import { Store } from "./third_party/fancier-settings/lib/store.js";
+import { SUPPORTED_LANGUAGES } from "./third_party/libpresage/lang.js";
 
 (function () {
   const SANDBOX_FRAME_INIT_TIME_MS = 3000;
@@ -7,6 +8,8 @@ import { Store } from "./third_party/fancier-settings/lib/store.js";
   class BackgrounPage {
     constructor() {
       this.settings = new Store("settings");
+      this.language = "";
+      this.fallbackLanguage = "";
 
       chrome.runtime.onInstalled.addListener(this.onInstalled.bind(this));
       chrome.runtime.onMessage.addListener(this.onMessage.bind(this));
@@ -76,6 +79,26 @@ import { Store } from "./third_party/fancier-settings/lib/store.js";
       return enabledForDomain;
     }
 
+    detectLanguage(request) {
+      chrome.i18n.detectLanguage(request.context.text, (result) => {
+        let detectedLanguage = null;
+        let maxpercentage = -1;
+        for (let i = 0; i < result.languages.length; i++) {
+          if (result.languages[i].percentage > maxpercentage) {
+            detectedLanguage = result.languages[i].language;
+            maxpercentage = result.languages[i].percentage;
+          }
+        }
+        if (SUPPORTED_LANGUAGES.includes(detectedLanguage)) {
+          request.context.lang = detectedLanguage;
+          this.sendMsgToSandbox(request);
+        } else if (SUPPORTED_LANGUAGES.includes(this.fallbackLanguage)) {
+          request.context.lang = this.fallbackLanguage;
+          this.sendMsgToSandbox(request);
+        }
+      });
+    }
+
     //Messages from option page and content script
     onMessage(request, sender, sendResponse) {
       let asyncResponse = false;
@@ -86,18 +109,13 @@ import { Store } from "./third_party/fancier-settings/lib/store.js";
 
       switch (request.command) {
         case "contentScriptPredictReq":
-          this.settings
-            .get("language")
-            .then(
-              function (lang) {
-                request.context.lang = lang;
-                request.command = "backgroundPagePredictReq";
-                this.sendMsgToSandbox(request);
-              }.bind(this)
-            )
-            .catch(function (e) {
-              console.error(e);
-            });
+          request.command = "backgroundPagePredictReq";
+          if (this.language === "auto_detect") {
+            request.context.lang = this.detectLanguage(request);
+          } else {
+            request.context.lang = this.language;
+            this.sendMsgToSandbox(request);
+          }
 
           break;
         case "status":
@@ -184,10 +202,11 @@ import { Store } from "./third_party/fancier-settings/lib/store.js";
     }
 
     async updatePresageConfig() {
+      this.language = await this.settings.get("language");
+      this.fallbackLanguage = await this.settings.get("fallbackLanguage");
       this.sendMsgToSandbox({
         command: "backgroundPageSetConfig",
         context: {
-          lang: await this.settings.get("language"),
           numSuggestions: await this.settings.get("numSuggestions"),
           minWordLengthToPredict: await this.settings.get(
             "minWordLengthToPredict"

@@ -59,9 +59,24 @@ const manifest = {
       tab: i18n.get("settings"),
       group: i18n.get("General"),
       name: "language",
-      type: "valueOnly",
-      options: [["en", "English"]],
+      type: "popupButton",
+      options: [
+        ["auto_detect", "Auto detect"],
+        ["en", "English"],
+      ],
       label: "Prediction language:",
+      default: "en",
+    },
+    {
+      tab: i18n.get("settings"),
+      group: i18n.get("General"),
+      name: "fallbackLanguage",
+      type: "popupButton",
+      options: [
+        ["none", "None"],
+        ["en", "English"],
+      ],
+      label: "Fallback prediction language:",
       default: "en",
     },
     {
