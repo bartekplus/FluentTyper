@@ -1,0 +1,3 @@
+const SUPPORTED_LANGUAGES = ["en"];
+
+export { SUPPORTED_LANGUAGES };
