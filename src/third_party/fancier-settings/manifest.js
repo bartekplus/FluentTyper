@@ -115,7 +115,7 @@ const manifest = {
       group: i18n.get("General"),
       name: "removeSpace",
       type: "checkbox",
-      label: "Automatically remove space before: <b>.!?</b> characters.",
+      label: "Automatically remove space before: <b>.!?,</b> characters.",
       default: false,
     },
     {
@@ -125,6 +125,15 @@ const manifest = {
       type: "checkbox",
       label: "Capitalize the first word of each sentence.",
       default: true,
+    },
+    {
+      tab: i18n.get("settings"),
+      group: i18n.get("General"),
+      name: "dontPredictChars",
+      type: "text",
+      label:
+        "List of space-separated chars that will not trigger prediction if a word starts with it.",
+      default: "",
     },
 
     {
