@@ -108,7 +108,7 @@ const manifest = {
       name: "insertSpaceAfterAutocomplete",
       type: "checkbox",
       label: "Automatically insert space after autocomplete.",
-      default: false,
+      default: true,
     },
     {
       tab: i18n.get("settings"),
@@ -116,7 +116,7 @@ const manifest = {
       name: "removeSpace",
       type: "checkbox",
       label: "Automatically remove space before punctuation characters.",
-      default: false,
+      default: true,
     },
     {
       tab: i18n.get("settings"),
