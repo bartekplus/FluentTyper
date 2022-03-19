@@ -1,6 +1,6 @@
 import { SUPPORTED_LANGUAGES } from "./lang.js";
 
-const NEW_SENTENCE_CHARS = [".", "?", "!"];
+const NEW_SENTENCE_CHARS = [".", "?", "!", ","];
 const PAST_WORDS_COUNT = 5;
 const SUGGESTIIBT_COUNT = 5;
 const MIN_WORD_LENGHT_TO_PREDICT = 1;
@@ -29,6 +29,8 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
       this.insertSpaceAfterAutocomplete = true;
       // Capitalize the first word of each sentence
       this.autoCapitalize = true;
+      // List of space-separated chars that will not trigger prediction if a word starts with it
+      this.dontPredictChars = [];
       // Automatically remove space before: .!? characters.
       this.removeSpace = false;
       // Text Expander config
@@ -89,6 +91,7 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
             context.minWordLengthToPredict,
             context.insertSpaceAfterAutocomplete,
             context.autoCapitalize,
+            context.dontPredictChars,
             context.removeSpace,
             context.textExpansions
           );
@@ -119,6 +122,7 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
       minWordLengthToPredict,
       insertSpaceAfterAutocomplete,
       autoCapitalize,
+      dontPredictChars,
       removeSpace,
       textExpansions
     ) {
@@ -127,6 +131,7 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
       this.predictNextWordAfterSeparatorChar = minWordLengthToPredict === 0;
       this.insertSpaceAfterAutocomplete = insertSpaceAfterAutocomplete;
       this.autoCapitalize = autoCapitalize;
+      this.dontPredictChars = dontPredictChars.split(" ");
       this.removeSpace = removeSpace;
       this.textExpansions = textExpansions;
       this.setupTextExpansions();
@@ -196,6 +201,8 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
           ? wordArray[wordArray.length - 1]
           : "";
 
+        console.log("wordArray " + wordArray);
+
         // Check if autoCapitalize should be run
         if (this.autoCapitalize) {
           const firstCharacterOfLastWord = lastWord.slice(0, 1);
@@ -221,11 +228,16 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
           !endsWithSeparatorChar &&
           lastWord.length >= this.minWordLengthToPredict
         ) {
-          doPrediction = true;
-        }
-
-        if (this.isNumber(lastWord)) {
-          doPrediction = false;
+          if (this.isNumber(lastWord)) {
+            doPrediction = false;
+          } else if (
+            lastWord.length &&
+            this.dontPredictChars.includes(lastWord[0])
+          ) {
+            doPrediction = false;
+          } else {
+            doPrediction = true;
+          }
         }
         doPrediction = doPrediction && this.numSuggestions > 0;
       }
