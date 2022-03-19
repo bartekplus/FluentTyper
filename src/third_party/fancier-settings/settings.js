@@ -40,7 +40,6 @@ window.addEventListener("DOMContentLoaded", function () {
         "fallbackLanguage",
         "numSuggestions",
         "minWordLengthToPredict",
-        "predictNextWordAfterSeparatorChar",
         "insertSpaceAfterAutocomplete",
         "autoCapitalize",
         "removeSpace",

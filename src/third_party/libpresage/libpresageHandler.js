@@ -24,7 +24,7 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
       // Minimum characters typed by user to start prediction
       this.minWordLengthToPredict = MIN_WORD_LENGHT_TO_PREDICT;
       // Predict next word after separator char
-      this.predictNextWordAfterSeparatorChar = true;
+      this.predictNextWordAfterSeparatorChar = MIN_WORD_LENGHT_TO_PREDICT === 0;
       // Automatically insert space after autocomplete
       this.insertSpaceAfterAutocomplete = true;
       // Capitalize the first word of each sentence
@@ -39,6 +39,7 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
       );
       this.whiteSpaceRegEx = RegExp(/\s+/);
       this.letterRegEx = RegExp(/^\p{L}/, "u");
+      this.numberRegEx = RegExp(/^\d+$/);
       // Attach event listener
       window.addEventListener("message", this.messageHandler.bind(this));
       SUPPORTED_LANGUAGES.forEach((lang) => {
@@ -86,7 +87,6 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
           this.setConfig(
             context.numSuggestions,
             context.minWordLengthToPredict,
-            context.predictNextWordAfterSeparatorChar,
             context.insertSpaceAfterAutocomplete,
             context.autoCapitalize,
             context.removeSpace,
@@ -117,7 +117,6 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
     setConfig(
       numSuggestions,
       minWordLengthToPredict,
-      predictNextWordAfterSeparatorChar,
       insertSpaceAfterAutocomplete,
       autoCapitalize,
       removeSpace,
@@ -125,8 +124,7 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
     ) {
       this.numSuggestions = numSuggestions;
       this.minWordLengthToPredict = minWordLengthToPredict;
-      this.predictNextWordAfterSeparatorChar =
-        predictNextWordAfterSeparatorChar;
+      this.predictNextWordAfterSeparatorChar = minWordLengthToPredict === 0;
       this.insertSpaceAfterAutocomplete = insertSpaceAfterAutocomplete;
       this.autoCapitalize = autoCapitalize;
       this.removeSpace = removeSpace;
@@ -143,6 +141,11 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
 
     isLetter(character) {
       return this.letterRegEx.test(character);
+    }
+
+    isNumber(str) {
+      const match = str.match(this.numberRegEx);
+      return Boolean(match);
     }
 
     removePrevSentence(wordArray) {
@@ -219,6 +222,10 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
           lastWord.length >= this.minWordLengthToPredict
         ) {
           doPrediction = true;
+        }
+
+        if (this.isNumber(lastWord)) {
+          doPrediction = false;
         }
         doPrediction = doPrediction && this.numSuggestions > 0;
       }

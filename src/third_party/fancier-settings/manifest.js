@@ -84,10 +84,11 @@ const manifest = {
       group: i18n.get("General"),
       name: "minWordLengthToPredict",
       type: "slider",
-      min: 1,
+      min: 0,
       max: 12,
       display: true,
-      label: "Minimum word length to start prediction:",
+      label:
+        "Minimum word length to start prediction (If set to '0' then predict will start after any separator char (whitespace, !, \", #, $, %, &, ', (, ), *, +, -, ., /, :, ;, <, =, >, ?, @, [, \\, ], ^, _, `, {, |, }, ~) ):",
       default: 1,
     },
     {
@@ -100,15 +101,6 @@ const manifest = {
       display: true,
       label: "Number of suggestions (Set to 0 to disable prediction):",
       default: 5,
-    },
-    {
-      tab: i18n.get("settings"),
-      group: i18n.get("General"),
-      name: "predictNextWordAfterSeparatorChar",
-      type: "checkbox",
-      label:
-        "Predict next word after separator char (whitespace, !, \", #, $, %, &, ', (, ), *, +, -, ., /, :, ;, <, =, >, ?, @, [, \\, ], ^, _, `, {, |, }, ~).",
-      default: true,
     },
     {
       tab: i18n.get("settings"),
