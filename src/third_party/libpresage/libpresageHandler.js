@@ -1,6 +1,9 @@
 import { SUPPORTED_LANGUAGES } from "./lang.js";
 
 const NEW_SENTENCE_CHARS = [".", "?", "!", ","];
+const REMOVE_SPACE_CHARS = [".", "?", "!", ",", ":", "—", "–", "-", "’"];
+const NO_SPACE_AFTER_CHARS = ["—", "–", "-"];
+const SPACE_CHARS = ["\xA0", " "];
 const PAST_WORDS_COUNT = 5;
 const SUGGESTIIBT_COUNT = 5;
 const MIN_WORD_LENGHT_TO_PREDICT = 1;
@@ -45,7 +48,7 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
       // Attach event listener
       window.addEventListener("message", this.messageHandler.bind(this));
       SUPPORTED_LANGUAGES.forEach((lang) => {
-        this.lastPrediction[lang] = { pastStream: null, predictions: [] };
+        this.lastPrediction[lang] = { pastStream: "", predictions: [] };
         this.libPresageCallback[lang] = {
           pastStream: "",
 
@@ -201,8 +204,6 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
           ? wordArray[wordArray.length - 1]
           : "";
 
-        console.log("wordArray " + wordArray);
-
         // Check if autoCapitalize should be run
         if (this.autoCapitalize) {
           const firstCharacterOfLastWord = lastWord.slice(0, 1);
@@ -259,22 +260,35 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
       message.context.triggerInputEvent = this.insertSpaceAfterAutocomplete;
       if (!this.libPresage[context.lang]) {
         // Do nothing reply with empty predictions
-      } else if (!predictionInput && this.removeSpace) {
-        // Invalid input to perform prediction
-        // Try to remove space
-        NEW_SENTENCE_CHARS.forEach((element) => {
-          if (
-            event.data.context.text.endsWith(" " + element) ||
-            event.data.context.text.endsWith("\xA0" + element)
-          ) {
-            const txt =
-              element + (this.insertSpaceAfterAutocomplete ? "\xA0" : "");
-            message.context.forceReplace = {
-              text: txt,
-              length: element.length + 1, // +1 for space we are going to remove
-            };
-          }
-        });
+      } else if (
+        !doPrediction &&
+        this.removeSpace &&
+        event.data.context.text.length
+      ) {
+        if (
+          REMOVE_SPACE_CHARS.includes(
+            event.data.context.text[event.data.context.text.length - 1]
+          ) &&
+          SPACE_CHARS.includes(
+            event.data.context.text[event.data.context.text.length - 2]
+          ) &&
+          !SPACE_CHARS.includes(
+            event.data.context.text[event.data.context.text.length - 3]
+          )
+        ) {
+          const txt =
+            event.data.context.text[event.data.context.text.length - 1] +
+            (this.insertSpaceAfterAutocomplete &&
+            !NO_SPACE_AFTER_CHARS.includes(
+              event.data.context.text[event.data.context.text.length - 1]
+            )
+              ? event.data.context.text[event.data.context.text.length - 2]
+              : "");
+          message.context.forceReplace = {
+            text: txt,
+            length: 2,
+          };
+        }
       } else if (
         // Do prediction - return cached version
         doPrediction &&
