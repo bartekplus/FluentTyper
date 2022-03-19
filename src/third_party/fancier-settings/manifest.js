@@ -115,7 +115,7 @@ const manifest = {
       group: i18n.get("General"),
       name: "removeSpace",
       type: "checkbox",
-      label: "Automatically remove space before: <b>.!?,</b> characters.",
+      label: "Automatically remove space before punctuation characters.",
       default: false,
     },
     {
