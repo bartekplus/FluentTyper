@@ -300,9 +300,12 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
         // Do prediction
         message.context.predictions = [];
         this.libPresageCallback[context.lang].pastStream = predictionInput;
-        const predictionsNative = this.libPresage[context.lang].predict();
+        const predictionsNative =
+          this.libPresage[context.lang].predictWithProbability();
         for (let i = 0; i < predictionsNative.size(); i++) {
-          message.context.predictions.push(predictionsNative.get(i));
+          const result = predictionsNative.get(i);
+          message.context.predictions.push(result.prediction);
+          //result.probability
         }
         this.lastPrediction[context.lang].pastStream = predictionInput;
         this.lastPrediction[context.lang].predictions =
