@@ -246,6 +246,27 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
       return { predictionInput, doPrediction, doCapitalize };
     }
 
+    removeSpaceHandler(inputStr) {
+      if (
+        this.removeSpace &&
+        REMOVE_SPACE_CHARS.includes(inputStr[inputStr.length - 1]) &&
+        SPACE_CHARS.includes(inputStr[inputStr.length - 2]) &&
+        !SPACE_CHARS.includes(inputStr[inputStr.length - 3])
+      ) {
+        const txt =
+          inputStr[inputStr.length - 1] +
+          (this.insertSpaceAfterAutocomplete &&
+          !NO_SPACE_AFTER_CHARS.includes(inputStr[inputStr.length - 1])
+            ? inputStr[inputStr.length - 2]
+            : "");
+        return {
+          text: txt,
+          length: 2,
+        };
+      }
+      return null;
+    }
+
     runPrediction(event) {
       const context = event.data.context;
       const { predictionInput, doPrediction, doCapitalize } = this.processInput(
@@ -260,35 +281,10 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
       message.context.triggerInputEvent = this.insertSpaceAfterAutocomplete;
       if (!this.libPresage[context.lang]) {
         // Do nothing reply with empty predictions
-      } else if (
-        !doPrediction &&
-        this.removeSpace &&
-        event.data.context.text.length
-      ) {
-        if (
-          REMOVE_SPACE_CHARS.includes(
-            event.data.context.text[event.data.context.text.length - 1]
-          ) &&
-          SPACE_CHARS.includes(
-            event.data.context.text[event.data.context.text.length - 2]
-          ) &&
-          !SPACE_CHARS.includes(
-            event.data.context.text[event.data.context.text.length - 3]
-          )
-        ) {
-          const txt =
-            event.data.context.text[event.data.context.text.length - 1] +
-            (this.insertSpaceAfterAutocomplete &&
-            !NO_SPACE_AFTER_CHARS.includes(
-              event.data.context.text[event.data.context.text.length - 1]
-            )
-              ? event.data.context.text[event.data.context.text.length - 2]
-              : "");
-          message.context.forceReplace = {
-            text: txt,
-            length: 2,
-          };
-        }
+      } else if (!doPrediction && event.data.context.text.length) {
+        message.context.forceReplace = this.removeSpaceHandler(
+          event.data.context.text
+        );
       } else if (
         // Do prediction - return cached version
         doPrediction &&
