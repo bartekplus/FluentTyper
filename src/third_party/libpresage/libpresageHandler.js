@@ -267,8 +267,33 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
       return null;
     }
 
+    doPredictionHandler(predictionInput, lang) {
+      if (predictionInput === this.lastPrediction[lang].pastStream) {
+        return this.lastPrediction[lang].predictions;
+      }
+
+      // Do prediction
+      this.libPresageCallback[lang].pastStream = predictionInput;
+      const predictions = [];
+      const predictionsNative = this.libPresage[lang].predictWithProbability();
+      for (let i = 0; i < predictionsNative.size(); i++) {
+        const result = predictionsNative.get(i);
+        predictions.push(result.prediction);
+        //result.probability
+      }
+      this.lastPrediction[lang].pastStream = predictionInput;
+      this.lastPrediction[lang].predictions = predictions;
+
+      return predictions;
+    }
+
     runPrediction(event) {
-      const context = event.data.context;
+      const context = {
+        ...event.data.context,
+        predictions: [],
+        forceReplace: null,
+        triggerInputEvent: this.insertSpaceAfterAutocomplete,
+      };
       const { predictionInput, doPrediction, doCapitalize } = this.processInput(
         event.data.context.text
       );
@@ -276,9 +301,7 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
         command: "sandBoxPredictResp",
         context: context,
       };
-      message.context.predictions = [];
-      message.context.forceReplace = null;
-      message.context.triggerInputEvent = this.insertSpaceAfterAutocomplete;
+
       if (!this.libPresage[context.lang]) {
         // Do nothing reply with empty predictions
       } else if (!doPrediction && event.data.context.text.length) {
@@ -286,26 +309,13 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
           event.data.context.text
         );
       } else if (
-        // Do prediction - return cached version
-        doPrediction &&
-        predictionInput === this.lastPrediction[context.lang].pastStream
-      ) {
-        message.context.predictions =
-          this.lastPrediction[context.lang].predictions;
-      } else if (doPrediction) {
         // Do prediction
-        message.context.predictions = [];
-        this.libPresageCallback[context.lang].pastStream = predictionInput;
-        const predictionsNative =
-          this.libPresage[context.lang].predictWithProbability();
-        for (let i = 0; i < predictionsNative.size(); i++) {
-          const result = predictionsNative.get(i);
-          message.context.predictions.push(result.prediction);
-          //result.probability
-        }
-        this.lastPrediction[context.lang].pastStream = predictionInput;
-        this.lastPrediction[context.lang].predictions =
-          message.context.predictions;
+        doPrediction
+      ) {
+        message.context.predictions = this.doPredictionHandler(
+          predictionInput,
+          context.lang
+        );
       }
       // Add space if needed
       if (this.insertSpaceAfterAutocomplete) {
