@@ -60,7 +60,6 @@
     "storage",
     "activeTab",
     "tabs",
-    "webNavigation",
     "<all_urls>"
   ],
   "version": "2022.3.19.4",

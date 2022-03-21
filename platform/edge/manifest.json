@@ -58,8 +58,7 @@
   },
   "permissions": [
     "storage",
-    "activeTab",
-    "webNavigation"
+    "activeTab"
   ],
   "sandbox": {
     "pages": [
