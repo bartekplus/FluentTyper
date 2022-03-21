@@ -12,6 +12,7 @@
       this.pendingReq = null;
       this.config = {
         enabled: false,
+        autocomplete: false,
       };
 
       chrome.runtime.onMessage.addListener(this.messageHandler.bind(this));
@@ -323,7 +324,7 @@
         // (defaults to true)
         positionMenu: true,
         // when the spacebar is hit, select the current match
-        spaceSelectsMatch: true,
+        spaceSelectsMatch: this.config.autocomplete,
         // turn tribute into an autocomplete
         autocompleteMode: true,
         autocompleteSeparator: RegExp(

@@ -105,6 +105,15 @@ const manifest = {
     {
       tab: i18n.get("settings"),
       group: i18n.get("General"),
+      name: "autocomplete",
+      type: "checkbox",
+      label:
+        "Auto-completes word on 'space' (Returns to original text on 'backspace').",
+      default: true,
+    },
+    {
+      tab: i18n.get("settings"),
+      group: i18n.get("General"),
       name: "insertSpaceAfterAutocomplete",
       type: "checkbox",
       label: "Automatically insert space after autocomplete.",
