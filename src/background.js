@@ -128,12 +128,16 @@ import { SUPPORTED_LANGUAGES } from "./third_party/libpresage/lang.js";
 
         case "contentScriptGetConfig":
           asyncResponse = true;
-          Promise.all([this.isEnabledForDomain(sender.tab.url)])
+          Promise.all([
+            this.isEnabledForDomain(sender.tab.url),
+            this.settings.get("autocomplete"),
+          ])
             .then((values) => {
               sendResponse({
                 command: "backgroundPageSetConfig",
                 context: {
                   enabled: values[0],
+                  autocomplete: values[1],
                 },
               });
             })
