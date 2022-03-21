@@ -2,7 +2,7 @@
   typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
   typeof define === 'function' && define.amd ? define(factory) :
   (global = typeof globalThis !== 'undefined' ? globalThis : global || self, global.Tribute = factory());
-}(this, (function () { 'use strict';
+})(this, (function () { 'use strict';
 
   /*eslint no-unused-vars: ["error", { "argsIgnorePattern": "^_" }]*/
   class TributeEvents {
@@ -12,7 +12,7 @@
     }
 
     static keys() {
-      return ["Tab", "Enter", "Escape", "ArrowUp", "ArrowDown"];
+      return ["Tab", "Enter", "Escape", "ArrowUp", "ArrowDown", "Backspace"];
     }
 
     static modifiers() {
@@ -49,9 +49,10 @@
         });
       }
 
-      if (instance.tribute.isActive && !controlKeyPressed) {
+      if (!controlKeyPressed) {
         TributeEvents.keys().forEach(key => {
-          if (key === event.code) {
+          if (key === event.code && ( // Special handling of Backspace
+          instance.tribute.isActive || event.code == "Backspace")) {
             instance.callbacks()[key](event, this);
             keyProcessed = true;
             return;
@@ -59,13 +60,26 @@
         });
       }
 
-      if (!keyProcessed) instance.tribute.hideMenu();
+      if (!keyProcessed) {
+        instance.tribute.lastReplacement = null;
+        instance.tribute.hideMenu();
+      }
     }
 
     input(instance, event) {
-      if (!(event instanceof CustomEvent)) {
-        instance.keyup.call(this, instance, event);
+      const cEvent = event instanceof CustomEvent;
+      const iEvent = event instanceof InputEvent;
+      const iEventHandle = iEvent && (event.inputType == "insertText" || event.inputType == "insertCompositionText" || event.inputType.startsWith("deleteContent"));
+
+      if (cEvent) {
+        return;
       }
+
+      if (iEvent && !iEventHandle) {
+        return;
+      }
+
+      instance.keyup.call(this, instance, event);
     }
 
     click(instance, event) {
@@ -170,6 +184,18 @@
 
     callbacks() {
       return {
+        Backspace: (e, _el) => {
+          if (this.tribute.lastReplacement) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            this.tribute.current = { ...this.tribute.lastReplacement
+            };
+            this.tribute.current.mentionText = this.tribute.lastReplacement.content;
+            this.tribute.replaceText(this.tribute.lastReplacement.mentionText, e, null);
+            this.tribute.lastReplacement = null;
+            this.tribute.current = {};
+          }
+        },
         Enter: (e, _el) => {
           // choose selection
           if (this.tribute.isActive && this.tribute.current.filteredItems) {
@@ -1062,12 +1088,14 @@
       menuItemLimit = undefined,
       menuShowMinLength = 0,
       keys = null,
-      numberOfWordsInContextText = 5
+      numberOfWordsInContextText = 5,
+      supportRevert = false
     }) {
       this.autocompleteMode = autocompleteMode;
       this.autocompleteSeparator = autocompleteSeparator;
       this.menuSelected = 0;
       this.current = {};
+      this.lastReplacement = null;
       this.isActive = false;
       this.activationPending = false;
       this.menuContainer = menuContainer;
@@ -1076,6 +1104,7 @@
       this.positionMenu = positionMenu;
       this.spaceSelectsMatch = spaceSelectsMatch;
       this.numberOfWordsInContextText = numberOfWordsInContextText;
+      this.supportRevert = supportRevert;
 
       if (keys) {
         TributeEvents.keys = keys;
@@ -1476,6 +1505,12 @@
     }
 
     replaceText(content, originalEvent, item) {
+      if (this.supportRevert) {
+        this.lastReplacement = { ...this.current
+        };
+        this.lastReplacement.content = content;
+      }
+
       this.range.replaceTriggerText(content, originalEvent, item);
     }
 
@@ -1572,4 +1607,4 @@
 
   return Tribute;
 
-})));
+}));

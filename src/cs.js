@@ -32,7 +32,15 @@
       }
     }
     keys() {
-      const keyArr = ["Tab", "Escape", "ArrowUp", "ArrowDown", "Enter"];
+      const keyArr = [
+        "Tab",
+        "Escape",
+        "ArrowUp",
+        "ArrowDown",
+        "Enter",
+        "Space",
+        "Backspace",
+      ];
 
       return keyArr;
     }
@@ -315,7 +323,7 @@
         // (defaults to true)
         positionMenu: true,
         // when the spacebar is hit, select the current match
-        spaceSelectsMatch: false,
+        spaceSelectsMatch: true,
         // turn tribute into an autocomplete
         autocompleteMode: true,
         autocompleteSeparator: RegExp(
@@ -331,6 +339,7 @@
         // specify the minimum number of characters that must be typed before menu appears
         menuShowMinLength: 0,
         keys: tribueKeyFn,
+        supportRevert: true,
       });
       this.tributeArr[tribueId].tribute = tribute;
       tribute.attach(elem);
@@ -391,6 +400,7 @@
 
     tributeReplacedEventHandler(helperArrId) {
       if (this.tributeArr[helperArrId].triggerInputEvent) {
+        this.tributeArr[helperArrId].triggerInputEvent = false;
         this.triggerTribute(helperArrId);
       }
     }
@@ -438,9 +448,10 @@
                   value: message.context.predictions[i],
                 });
               }
-              this.tributeArr[message.context.tributeId].triggerInputEvent =
-                message.context.triggerInputEvent;
-
+              if (keyValPairs.length) {
+                this.tributeArr[message.context.tributeId].triggerInputEvent =
+                  message.context.triggerInputEvent;
+              }
               // Cancel old timeout Fn
               // Send prediction to TributeJs
               this.tributeArr[message.context.tributeId].done(
