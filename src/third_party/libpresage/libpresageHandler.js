@@ -319,7 +319,8 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
       }
       // Add space if needed
       if (this.insertSpaceAfterAutocomplete) {
-        if (!context.nextChar.match(this.separatorCharRegEx)) {
+        // TODO: this might result in double space in some cases or a missing space.
+        if (!REMOVE_SPACE_CHARS.includes(context.nextChar)) {
           message.context.predictions = message.context.predictions.map(
             (pred) => `${pred}\xA0`
           );
