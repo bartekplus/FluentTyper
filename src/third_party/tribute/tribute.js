@@ -195,6 +195,8 @@
             this.tribute.lastReplacement = null;
             this.tribute.current = {};
           }
+
+          this.tribute.hideMenu();
         },
         Enter: (e, _el) => {
           // choose selection
