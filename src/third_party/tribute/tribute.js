@@ -23,14 +23,14 @@
       const KEY_EVENT_TIMEOUT_MS = 32;
       element.boundKeyDown = this.tribute.debounce(this.keydown.bind(element, this), KEY_EVENT_TIMEOUT_MS);
       element.boundKeyUpInput = this.tribute.debounce(this.input.bind(element, this), KEY_EVENT_TIMEOUT_MS);
-      element.addEventListener("keydown", element.boundKeyDown, true);
-      element.addEventListener("keyup", element.boundKeyUpInput, true);
+      element.addEventListener("keydown", element.boundKeyDown, true); // element.addEventListener("keyup", element.boundKeyUpInput, true);
+
       element.addEventListener("input", element.boundKeyUpInput, true);
     }
 
     unbind(element) {
-      element.removeEventListener("keydown", element.boundKeyDown, true);
-      element.removeEventListener("keyup", element.boundKeyUpInput, true);
+      element.removeEventListener("keydown", element.boundKeyDown, true); // element.removeEventListener("keyup", element.boundKeyUpInput, true);
+
       element.removeEventListener("input", element.boundKeyUpInput, true);
       delete element.boundKeyDown;
       delete element.boundKeyUpInput;
@@ -159,8 +159,18 @@
 
       if (keyCode) {
         return keyCode;
-      } else {
-        if (this.tribute.current.mentionTriggerChar) return this.tribute.current.mentionTriggerChar.charCodeAt(0);else if (this.tribute.current.mentionText) return this.tribute.current.mentionText.charCodeAt(this.tribute.current.mentionText.length - 1);
+      }
+
+      if (event instanceof InputEvent && event.data) {
+        return event.data.charCodeAt(event.data.length - 1);
+      }
+
+      if (this.tribute.current.mentionTriggerChar) {
+        return this.tribute.current.mentionTriggerChar.charCodeAt(0);
+      }
+
+      if (this.tribute.current.mentionText) {
+        return this.tribute.current.mentionText.charCodeAt(this.tribute.current.mentionText.length - 1);
       }
 
       return NaN;
