@@ -186,12 +186,15 @@
       return {
         Backspace: (e, _el) => {
           if (this.tribute.lastReplacement) {
-            e.preventDefault();
-            e.stopImmediatePropagation();
-            this.tribute.current = { ...this.tribute.lastReplacement
-            };
-            this.tribute.current.mentionText = this.tribute.lastReplacement.content;
-            this.tribute.replaceText(this.tribute.lastReplacement.mentionText, e, null);
+            if (this.tribute.events.updateSelection(_el) && this.tribute.current.mentionPosition == this.tribute.lastReplacement.mentionPosition + this.tribute.lastReplacement.content.length) {
+              e.preventDefault();
+              e.stopImmediatePropagation();
+              this.tribute.current = { ...this.tribute.lastReplacement
+              };
+              this.tribute.current.mentionText = this.tribute.lastReplacement.content;
+              this.tribute.replaceText(this.tribute.lastReplacement.mentionText, e, null);
+            }
+
             this.tribute.lastReplacement = null;
             this.tribute.current = {};
           }
@@ -1347,7 +1350,7 @@
         if (forceReplace) {
           // Do force replace - don't show menu
           this.current.mentionPosition -= forceReplace.length;
-          this.current.mentionText = " ".repeat(forceReplace.length) + this.current.mentionText;
+          this.current.mentionText = this.current.fullText.slice(-forceReplace.length);
           this.replaceText(forceReplace.text, null, null);
           return;
         }
