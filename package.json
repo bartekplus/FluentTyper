@@ -24,6 +24,6 @@
     "eslint-plugin-node": "latest",
     "eslint-plugin-prettier": "^4.0.0",
     "eslint-plugin-promise": "^6.0.0",
-    "prettier": "^2.6.0"
+    "prettier": "^2.6.1"
   }
 }

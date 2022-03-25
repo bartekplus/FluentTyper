@@ -73,8 +73,8 @@ const manifest = {
       name: "fallbackLanguage",
       type: "popupButton",
       options: [
-        ["none", "None"],
         ["en", "English"],
+        ["none", "None"],
       ],
       label: "Fallback prediction language:",
       default: "en",
