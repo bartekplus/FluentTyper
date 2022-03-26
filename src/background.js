@@ -1,4 +1,4 @@
-import { isDomainOnList, checkLastError } from "./utils.js";
+import { isDomainOnBlackList, checkLastError } from "./utils.js";
 import { Store } from "./third_party/fancier-settings/lib/store.js";
 import { SUPPORTED_LANGUAGES } from "./third_party/libpresage/lang.js";
 
@@ -23,26 +23,6 @@ import { SUPPORTED_LANGUAGES } from "./third_party/libpresage/lang.js";
         "DOMContentLoaded",
         this.onDOMContentLoaded.bind(this)
       );
-
-      this.migrateStore();
-    }
-
-    migrateStore() {
-      const promise = this.settings.get("domainList");
-      promise
-        .then(
-          function (domainList) {
-            if (
-              typeof domainList === "string" ||
-              domainList instanceof String
-            ) {
-              this.settings.set("domainList", domainList.split("|@|"));
-            }
-          }.bind(this)
-        )
-        .catch(function (e) {
-          console.error(e);
-        });
     }
 
     onInstalled(details) {
@@ -68,12 +48,8 @@ import { SUPPORTED_LANGUAGES } from "./third_party/libpresage/lang.js";
     async isEnabledForDomain(domainURL) {
       let enabledForDomain = await this.settings.get("enable");
       if (enabledForDomain) {
-        enabledForDomain = false;
-
-        if (await isDomainOnList(this.settings, domainURL)) {
-          enabledForDomain = true;
-        } else if (domainURL.indexOf(chrome.runtime.getURL("")) !== -1) {
-          enabledForDomain = true;
+        if (await isDomainOnBlackList(this.settings, domainURL)) {
+          enabledForDomain = false;
         }
       }
       return enabledForDomain;

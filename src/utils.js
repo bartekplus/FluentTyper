@@ -1,3 +1,5 @@
+const SETTINGS_DOMAIN_BLACKLIST = "domainBlackList";
+
 function getDomain(url) {
   try {
     return new URL(url).origin;
@@ -6,13 +8,14 @@ function getDomain(url) {
   }
 }
 
-async function isDomainOnList(settings, domainURL) {
+async function isDomainOnBlackList(settings, domainURL) {
   let ret = false;
-  const domainList = await settings.get("domainList");
+  const domainBlackList = await settings.get(SETTINGS_DOMAIN_BLACKLIST);
   domainURL = getDomain(domainURL);
 
-  for (let i = 0; i < domainList.length; i++) {
-    if (domainURL.match(domainList[i])) {
+  console.log(domainBlackList);
+  for (let i = 0; i < domainBlackList.length; i++) {
+    if (domainURL.match(domainBlackList[i])) {
       ret = true;
       break;
     }
@@ -20,23 +23,23 @@ async function isDomainOnList(settings, domainURL) {
   return ret;
 }
 
-async function addDomainToList(settings, domainURL) {
-  const domainList = await settings.get("domainList");
+async function addDomainToBlackList(settings, domainURL) {
+  const domainBlackList = await settings.get(SETTINGS_DOMAIN_BLACKLIST);
 
-  domainList.push(domainURL);
+  domainBlackList.push(domainURL);
 
-  settings.set("domainList", domainList);
+  settings.set(SETTINGS_DOMAIN_BLACKLIST, domainBlackList);
 }
 
-function removeDomainFromList(settings, domainURL) {
-  const promise = settings.get("domainList");
+function removeDomainFromBlackList(settings, domainURL) {
+  const promise = settings.get(SETTINGS_DOMAIN_BLACKLIST);
   promise
-    .then(function (domainList) {
+    .then(function (domainBlackList) {
       domainURL = getDomain(domainURL);
-      for (let i = 0; i < domainList.length; i++) {
-        if (domainURL.match(domainList[i])) {
-          domainList.splice(i, 1);
-          settings.set("domainList", domainList);
+      for (let i = 0; i < domainBlackList.length; i++) {
+        if (domainURL.match(domainBlackList[i])) {
+          domainBlackList.splice(i, 1);
+          settings.set(SETTINGS_DOMAIN_BLACKLIST, domainBlackList);
           break;
         }
       }
@@ -57,9 +60,10 @@ function checkLastError() {
 }
 
 export {
+  SETTINGS_DOMAIN_BLACKLIST,
   checkLastError,
-  removeDomainFromList,
-  addDomainToList,
-  isDomainOnList,
+  removeDomainFromBlackList,
+  addDomainToBlackList,
+  isDomainOnBlackList,
   getDomain,
 };
