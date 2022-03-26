@@ -26,7 +26,7 @@ window.addEventListener("DOMContentLoaded", function () {
     new FancierSettingsWithManifest(function (settings) {
       new TextExpander(settings, optionsPageConfigChange);
       settings.manifest.removeDomainBtn.addEvent("action", function () {
-        settings.manifest.domainList.remove();
+        settings.manifest.domainBlackList.remove();
       });
 
       fallbackLanguageVibility(settings, settings.manifest.language.get());

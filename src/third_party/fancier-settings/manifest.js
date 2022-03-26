@@ -169,15 +169,15 @@ const manifest = {
       text: testFluentTyperHTML,
     },
     {
-      tab: "Domain list",
+      tab: "Domain blocklist",
       group: i18n.get("Management"),
-      name: "domainList",
+      name: "domainBlackList",
       type: "listBox",
       options: (function () {})(),
       default: [],
     },
     {
-      tab: "Domain list",
+      tab: "Domain blocklist",
       group: i18n.get("Management"),
       name: "removeDomainBtn",
       type: "button",
