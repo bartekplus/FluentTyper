@@ -1,6 +1,6 @@
 import { SUPPORTED_LANGUAGES } from "./lang.js";
 
-const NEW_SENTENCE_CHARS = [".", "?", "!", ","];
+const NEW_SENTENCE_CHARS = [".", "?", "!"];
 const REMOVE_SPACE_CHARS = [".", "?", "!", ",", ":", "—", "–", "-", "’"];
 const NO_SPACE_AFTER_CHARS = ["—", "–", "-"];
 const SPACE_CHARS = ["\xA0", " "];
