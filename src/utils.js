@@ -13,7 +13,6 @@ async function isDomainOnBlackList(settings, domainURL) {
   const domainBlackList = await settings.get(SETTINGS_DOMAIN_BLACKLIST);
   domainURL = getDomain(domainURL);
 
-  console.log(domainBlackList);
   for (let i = 0; i < domainBlackList.length; i++) {
     if (domainURL.match(domainBlackList[i])) {
       ret = true;
