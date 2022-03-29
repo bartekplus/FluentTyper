@@ -44,7 +44,6 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
       );
       this.whiteSpaceRegEx = RegExp(/\s+/);
       this.letterRegEx = RegExp(/^\p{L}/, "u");
-      this.numberRegEx = RegExp(/^\d+$/);
       // Attach event listener
       window.addEventListener("message", this.messageHandler.bind(this));
       SUPPORTED_LANGUAGES.forEach((lang) => {
@@ -152,8 +151,7 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
     }
 
     isNumber(str) {
-      const match = str.match(this.numberRegEx);
-      return Boolean(match);
+      return !isNaN(str) && !isNaN(parseFloat(str));
     }
 
     removePrevSentence(wordArray) {
@@ -199,9 +197,10 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
           .splice(-PAST_WORDS_COUNT); // Get last 3 words
         const { wordArray, newSentence } =
           this.removePrevSentence(lastWordsArray);
-        predictionInput = wordArray.join(" ") + (endsWithSpace ? " " : "");
-        const lastWord = wordArray.length
-          ? wordArray[wordArray.length - 1]
+        const tokesArray = wordArray.join(" ").split(this.separatorCharRegEx);
+        predictionInput = tokesArray.join(" ") + (endsWithSpace ? " " : "");
+        const lastWord = tokesArray.length
+          ? tokesArray[tokesArray.length - 1]
           : "";
 
         // Check if autoCapitalize should be run
@@ -215,8 +214,8 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
             doCapitalize = true;
           } else if (
             newSentence &&
-            ((!endsWithSpace && wordArray.length === 1) ||
-              (endsWithSpace && wordArray.length === 0))
+            ((!endsWithSpace && tokesArray.length === 1) ||
+              (endsWithSpace && tokesArray.length === 0))
           ) {
             doCapitalize = true;
           }
