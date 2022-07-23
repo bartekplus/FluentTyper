@@ -46,26 +46,35 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
       this.letterRegEx = RegExp(/^\p{L}/, "u");
       // Attach event listener
       window.addEventListener("message", this.messageHandler.bind(this));
-      SUPPORTED_LANGUAGES.forEach((lang) => {
-        this.lastPrediction[lang] = { pastStream: "", predictions: [] };
-        this.libPresageCallback[lang] = {
-          pastStream: "",
+      SUPPORTED_LANGUAGES.forEach((locale) => {
+        const lang = locale[0];
+        try {
+          this.lastPrediction[lang] = { pastStream: "", predictions: [] };
+          this.libPresageCallback[lang] = {
+            pastStream: "",
 
-          get_past_stream: function () {
-            return this.pastStream;
-          },
+            get_past_stream: function () {
+              return this.pastStream;
+            },
 
-          get_future_stream: function () {
-            return "";
-          },
-        };
-        this.libPresageCallbackImpl[lang] = Module.PresageCallback.implement(
-          this.libPresageCallback[lang]
-        );
-        this.libPresage[lang] = new Module.Presage(
-          this.libPresageCallbackImpl[lang],
-          "resources_js/presage_" + lang + ".xml"
-        );
+            get_future_stream: function () {
+              return "";
+            },
+          };
+          this.libPresageCallbackImpl[lang] = Module.PresageCallback.implement(
+            this.libPresageCallback[lang]
+          );
+          this.libPresage[lang] = new Module.Presage(
+            this.libPresageCallbackImpl[lang],
+            "resources_js/" + lang + "/presage.xml"
+          );
+        } catch (error) {
+          console.log(
+            "Failed to create Presage instance for %s language: %s",
+            locale,
+            error
+          );
+        }
       });
     }
 

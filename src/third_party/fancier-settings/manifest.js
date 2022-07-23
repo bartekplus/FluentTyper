@@ -1,4 +1,5 @@
 import { i18n } from "./i18n.js";
+import { SUPPORTED_LANGUAGES } from "../libpresage/lang.js";
 
 const donateHTML =
   '<p class="content">' +
@@ -60,10 +61,7 @@ const manifest = {
       group: i18n.get("General"),
       name: "language",
       type: "popupButton",
-      options: [
-        ["auto_detect", "Auto detect"],
-        ["en", "English"],
-      ],
+      options: SUPPORTED_LANGUAGES,
       label: "Prediction language:",
       default: "en",
     },
@@ -72,10 +70,7 @@ const manifest = {
       group: i18n.get("General"),
       name: "fallbackLanguage",
       type: "popupButton",
-      options: [
-        ["en", "English"],
-        ["none", "None"],
-      ],
+      options: SUPPORTED_LANGUAGES,
       label: "Fallback prediction language:",
       default: "en",
     },

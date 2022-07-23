@@ -5,6 +5,7 @@ import {
   addDomainToBlackList,
 } from "../utils.js";
 import { Store } from "../third_party/fancier-settings/lib/store.js";
+import { SUPPORTED_LANGUAGES } from "../third_party/libpresage/lang.js";
 
 const settings = new Store("settings");
 
@@ -35,11 +36,23 @@ function init() {
 
         checkboxEnableNode.checked = await settings.get("enable");
       }
+      const language = await settings.get("language");
+      const select = window.document.getElementById("languageSelect");
+      SUPPORTED_LANGUAGES.forEach((locale) => {
+        const opt = window.document.createElement("option");
+        opt.value = locale[0];
+        opt.innerHTML = locale[1];
+        select.appendChild(opt);
+      });
+      select.value = language;
     }
   );
   window.document
     .getElementById("checkboxEnableInput")
     .addEventListener("click", toggleOnOff);
+  window.document
+    .getElementById("languageSelect")
+    .addEventListener("change", languageChangeEvent);
   document.getElementById("runOptions").onclick = function () {
     chrome.runtime.openOptionsPage();
   };
@@ -61,6 +74,16 @@ async function addRemoveDomain(tabId, domainURL) {
     addDomainToBlackList(settings, domainURL);
   }
   chrome.tabs.sendMessage(tabId, message);
+}
+
+async function languageChangeEvent() {
+  const select = window.document.getElementById("languageSelect");
+  settings.set("language", select.value);
+  const message = {
+    command: "optionsPageConfigChange",
+    context: {},
+  };
+  chrome.runtime.sendMessage(message);
 }
 
 async function toggleOnOff() {
