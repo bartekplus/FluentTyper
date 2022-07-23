@@ -38,12 +38,15 @@ function init() {
       }
       const language = await settings.get("language");
       const select = window.document.getElementById("languageSelect");
-      SUPPORTED_LANGUAGES.forEach((locale) => {
+      for (const [langCode, lang] of Object.entries({
+        ...{ auto_detect: "Auto detect" },
+        ...SUPPORTED_LANGUAGES,
+      })) {
         const opt = window.document.createElement("option");
-        opt.value = locale[0];
-        opt.innerHTML = locale[1];
+        opt.value = langCode;
+        opt.innerHTML = lang;
         select.appendChild(opt);
-      });
+      }
       select.value = language;
     }
   );
