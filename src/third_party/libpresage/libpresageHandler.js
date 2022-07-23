@@ -46,8 +46,7 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
       this.letterRegEx = RegExp(/^\p{L}/, "u");
       // Attach event listener
       window.addEventListener("message", this.messageHandler.bind(this));
-      SUPPORTED_LANGUAGES.forEach((locale) => {
-        const lang = locale[0];
+      for (const [lang] of Object.entries(SUPPORTED_LANGUAGES)) {
         try {
           this.lastPrediction[lang] = { pastStream: "", predictions: [] };
           this.libPresageCallback[lang] = {
@@ -71,11 +70,11 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
         } catch (error) {
           console.log(
             "Failed to create Presage instance for %s language: %s",
-            locale,
+            lang,
             error
           );
         }
-      });
+      }
     }
 
     messageHandler(event) {

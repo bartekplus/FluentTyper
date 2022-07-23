@@ -1,5 +1,6 @@
 import { isDomainOnBlackList, checkLastError } from "./utils.js";
 import { Store } from "./third_party/fancier-settings/lib/store.js";
+import { SUPPORTED_LANGUAGES } from "./third_party/libpresage/lang.js";
 
 (function () {
   const SANDBOX_FRAME_INIT_TIME_MS = 3000;
@@ -55,31 +56,32 @@ import { Store } from "./third_party/fancier-settings/lib/store.js";
     }
 
     detectLanguage(request) {
-      //Needs improvments - not working reliable for short inputs
-      //Fallback to "en" by default - to keep it backward compatible
-
-      request.context.lang = this.fallbackLanguage;
-      this.sendMsgToSandbox(request);
-
-      /*
       chrome.i18n.detectLanguage(request.context.text, (result) => {
         let detectedLanguage = null;
         let maxpercentage = -1;
         for (let i = 0; i < result.languages.length; i++) {
-          if (result.languages[i].percentage > maxpercentage) {
-            detectedLanguage = result.languages[i].language;
-            maxpercentage = result.languages[i].percentage;
+          if (result.languages[i].language in SUPPORTED_LANGUAGES) {
+            if (result.languages[i].percentage > maxpercentage) {
+              detectedLanguage = result.languages[i].language;
+              maxpercentage = result.languages[i].percentage;
+            }
           }
         }
-        if (SUPPORTED_LANGUAGES.includes(detectedLanguage)) {
+
+        if (detectedLanguage) {
           request.context.lang = detectedLanguage;
           this.sendMsgToSandbox(request);
-        } else if (SUPPORTED_LANGUAGES.includes(this.fallbackLanguage)) {
-          request.context.lang = this.fallbackLanguage;
-          this.sendMsgToSandbox(request);
+        } else {
+          chrome.tabs.detectLanguage(request.context.tabId, (ret) => {
+            let lang = this.fallbackLanguage;
+            if (ret in SUPPORTED_LANGUAGES) {
+              lang = ret;
+            }
+            request.context.lang = lang;
+            this.sendMsgToSandbox(request);
+          });
         }
       });
-      */
     }
 
     //Messages from option page and content script
