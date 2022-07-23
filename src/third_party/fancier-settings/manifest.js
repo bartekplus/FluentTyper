@@ -138,6 +138,14 @@ const manifest = {
     {
       tab: i18n.get("settings"),
       group: i18n.get("General"),
+      name: "selectByDigit",
+      type: "checkbox",
+      label: "Select suggestion using digit keys.",
+      default: false,
+    },
+    {
+      tab: i18n.get("settings"),
+      group: i18n.get("General"),
       name: "dontPredictChars",
       type: "text",
       label:
