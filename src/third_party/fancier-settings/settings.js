@@ -44,6 +44,7 @@ window.addEventListener("DOMContentLoaded", function () {
         "autoCapitalize",
         "dontPredictChars",
         "removeSpace",
+        "selectByDigit",
       ].forEach((element) => {
         settings.manifest[element].addEvent("action", function () {
           optionsPageConfigChange();

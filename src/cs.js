@@ -341,6 +341,7 @@
         menuShowMinLength: 0,
         keys: tribueKeyFn,
         supportRevert: true,
+        selectByDigit: this.config.selectByDigit,
       });
       this.tributeArr[tribueId].tribute = tribute;
       tribute.attach(elem);

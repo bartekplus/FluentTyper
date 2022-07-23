@@ -107,6 +107,7 @@ import { SUPPORTED_LANGUAGES } from "./third_party/libpresage/lang.js";
           Promise.all([
             this.isEnabledForDomain(sender.tab.url),
             this.settings.get("autocomplete"),
+            this.settings.get("selectByDigit"),
           ])
             .then((values) => {
               sendResponse({
@@ -114,6 +115,7 @@ import { SUPPORTED_LANGUAGES } from "./third_party/libpresage/lang.js";
                 context: {
                   enabled: values[0],
                   autocomplete: values[1],
+                  selectByDigit: values[2],
                 },
               });
             })
