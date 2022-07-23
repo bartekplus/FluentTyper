@@ -1,4 +1,4 @@
-/*! bulma.io v0.9.3 | MIT License | github.com/jgthms/bulma */
+/*! bulma.io v0.9.4 | MIT License | github.com/jgthms/bulma */
 .button,
 .file-cta,
 .file-name,
@@ -639,7 +639,7 @@ fieldset[disabled] .button.is-text {
 .button.is-white[disabled],
 fieldset[disabled] .button.is-white {
   background-color: #fff;
-  border-color: transparent;
+  border-color: #fff;
   box-shadow: none;
 }
 .button.is-white.is-inverted {
@@ -743,7 +743,7 @@ fieldset[disabled] .button.is-white.is-inverted.is-outlined {
 .button.is-black[disabled],
 fieldset[disabled] .button.is-black {
   background-color: #0a0a0a;
-  border-color: transparent;
+  border-color: #0a0a0a;
   box-shadow: none;
 }
 .button.is-black.is-inverted {
@@ -847,7 +847,7 @@ fieldset[disabled] .button.is-black.is-inverted.is-outlined {
 .button.is-light[disabled],
 fieldset[disabled] .button.is-light {
   background-color: #f5f5f5;
-  border-color: transparent;
+  border-color: #f5f5f5;
   box-shadow: none;
 }
 .button.is-light.is-inverted {
@@ -951,7 +951,7 @@ fieldset[disabled] .button.is-light.is-inverted.is-outlined {
 .button.is-dark[disabled],
 fieldset[disabled] .button.is-dark {
   background-color: #363636;
-  border-color: transparent;
+  border-color: #363636;
   box-shadow: none;
 }
 .button.is-dark.is-inverted {
@@ -1055,7 +1055,7 @@ fieldset[disabled] .button.is-dark.is-inverted.is-outlined {
 .button.is-primary[disabled],
 fieldset[disabled] .button.is-primary {
   background-color: #00d1b2;
-  border-color: transparent;
+  border-color: #00d1b2;
   box-shadow: none;
 }
 .button.is-primary.is-inverted {
@@ -1175,7 +1175,7 @@ fieldset[disabled] .button.is-primary.is-inverted.is-outlined {
 .button.is-link[disabled],
 fieldset[disabled] .button.is-link {
   background-color: #485fc7;
-  border-color: transparent;
+  border-color: #485fc7;
   box-shadow: none;
 }
 .button.is-link.is-inverted {
@@ -1295,7 +1295,7 @@ fieldset[disabled] .button.is-link.is-inverted.is-outlined {
 .button.is-info[disabled],
 fieldset[disabled] .button.is-info {
   background-color: #3e8ed0;
-  border-color: transparent;
+  border-color: #3e8ed0;
   box-shadow: none;
 }
 .button.is-info.is-inverted {
@@ -1415,7 +1415,7 @@ fieldset[disabled] .button.is-info.is-inverted.is-outlined {
 .button.is-success[disabled],
 fieldset[disabled] .button.is-success {
   background-color: #48c78e;
-  border-color: transparent;
+  border-color: #48c78e;
   box-shadow: none;
 }
 .button.is-success.is-inverted {
@@ -1535,7 +1535,7 @@ fieldset[disabled] .button.is-success.is-inverted.is-outlined {
 .button.is-warning[disabled],
 fieldset[disabled] .button.is-warning {
   background-color: #ffe08a;
-  border-color: transparent;
+  border-color: #ffe08a;
   box-shadow: none;
 }
 .button.is-warning.is-inverted {
@@ -1655,7 +1655,7 @@ fieldset[disabled] .button.is-warning.is-inverted.is-outlined {
 .button.is-danger[disabled],
 fieldset[disabled] .button.is-danger {
   background-color: #f14668;
-  border-color: transparent;
+  border-color: #f14668;
   box-shadow: none;
 }
 .button.is-danger.is-inverted {
@@ -1872,6 +1872,36 @@ fieldset[disabled] .button {
 .buttons.is-right:not(.has-addons) .button:not(.is-fullwidth) {
   margin-left: 0.25rem;
   margin-right: 0.25rem;
+}
+@media screen and (max-width: 768px) {
+  .button.is-responsive.is-small {
+    font-size: 0.5625rem;
+  }
+  .button.is-responsive,
+  .button.is-responsive.is-normal {
+    font-size: 0.65625rem;
+  }
+  .button.is-responsive.is-medium {
+    font-size: 0.75rem;
+  }
+  .button.is-responsive.is-large {
+    font-size: 1rem;
+  }
+}
+@media screen and (min-width: 769px) and (max-width: 1023px) {
+  .button.is-responsive.is-small {
+    font-size: 0.65625rem;
+  }
+  .button.is-responsive,
+  .button.is-responsive.is-normal {
+    font-size: 0.75rem;
+  }
+  .button.is-responsive.is-medium {
+    font-size: 1rem;
+  }
+  .button.is-responsive.is-large {
+    font-size: 1.25rem;
+  }
 }
 .container {
   flex-grow: 1;
@@ -2624,7 +2654,7 @@ div.icon-text {
   color: #363636;
 }
 .table th:not([align]) {
-  text-align: inherit;
+  text-align: left;
 }
 .table tr.is-selected {
   background-color: #00d1b2;
@@ -2679,16 +2709,14 @@ div.icon-text {
 .table.is-hoverable.is-striped tbody tr:not(.is-selected):hover {
   background-color: #fafafa;
 }
-.table.is-hoverable.is-striped
-  tbody
-  tr:not(.is-selected):hover:nth-child(even) {
+.table.is-hoverable.is-striped tbody tr:not(.is-selected):hover:nth-child(2n) {
   background-color: #f5f5f5;
 }
 .table.is-narrow td,
 .table.is-narrow th {
   padding: 0.25em 0.5em;
 }
-.table.is-striped tbody tr:not(.is-selected):nth-child(even) {
+.table.is-striped tbody tr:not(.is-selected):nth-child(2n) {
   background-color: #fafafa;
 }
 .table-container {
@@ -3545,7 +3573,8 @@ fieldset[disabled] .select select:hover {
   font-size: 1.5rem;
 }
 .select.is-disabled::after {
-  border-color: #7a7a7a;
+  border-color: #7a7a7a !important;
+  opacity: 0.5;
 }
 .select.is-fullwidth {
   width: 100%;
@@ -5582,6 +5611,11 @@ html.has-navbar-fixed-bottom {
 }
 .navbar-burger {
   color: #4a4a4a;
+  -moz-appearance: none;
+  -webkit-appearance: none;
+  appearance: none;
+  background: 0 0;
+  border: none;
   cursor: pointer;
   display: block;
   height: 3.25rem;
@@ -5601,7 +5635,7 @@ html.has-navbar-fixed-bottom {
   transition-timing-function: ease-out;
   width: 16px;
 }
-.navbar-burger span:nth-child(1) {
+.navbar-burger span:first-child {
   top: calc(50% - 6px);
 }
 .navbar-burger span:nth-child(2) {
@@ -5613,7 +5647,7 @@ html.has-navbar-fixed-bottom {
 .navbar-burger:hover {
   background-color: rgba(0, 0, 0, 0.05);
 }
-.navbar-burger.is-active span:nth-child(1) {
+.navbar-burger.is-active span:first-child {
   transform: translateY(5px) rotate(45deg);
 }
 .navbar-burger.is-active span:nth-child(2) {
@@ -6037,8 +6071,11 @@ a.navbar-item:hover {
 .pagination-previous:active {
   box-shadow: inset 0 1px 2px rgba(10, 10, 10, 0.2);
 }
+.pagination-link.is-disabled,
 .pagination-link[disabled],
+.pagination-next.is-disabled,
 .pagination-next[disabled],
+.pagination-previous.is-disabled,
 .pagination-previous[disabled] {
   background-color: #dbdbdb;
   border-color: #dbdbdb;
