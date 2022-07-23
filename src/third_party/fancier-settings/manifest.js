@@ -109,7 +109,7 @@ const manifest = {
       type: "checkbox",
       label:
         "Auto-completes word on 'space' (Returns to original text on 'backspace').",
-      default: true,
+      default: false,
     },
     {
       tab: i18n.get("settings"),
