@@ -1,6 +1,5 @@
 import { isDomainOnBlackList, checkLastError } from "./utils.js";
 import { Store } from "./third_party/fancier-settings/lib/store.js";
-import { SUPPORTED_LANGUAGES } from "./third_party/libpresage/lang.js";
 
 (function () {
   const SANDBOX_FRAME_INIT_TIME_MS = 3000;
@@ -56,6 +55,13 @@ import { SUPPORTED_LANGUAGES } from "./third_party/libpresage/lang.js";
     }
 
     detectLanguage(request) {
+      //Needs improvments - not working reliable for short inputs
+      //Fallback to "en" by default - to keep it backward compatible
+
+      request.context.lang = this.fallbackLanguage;
+      this.sendMsgToSandbox(request);
+
+      /*
       chrome.i18n.detectLanguage(request.context.text, (result) => {
         let detectedLanguage = null;
         let maxpercentage = -1;
@@ -73,6 +79,7 @@ import { SUPPORTED_LANGUAGES } from "./third_party/libpresage/lang.js";
           this.sendMsgToSandbox(request);
         }
       });
+      */
     }
 
     //Messages from option page and content script
@@ -80,7 +87,7 @@ import { SUPPORTED_LANGUAGES } from "./third_party/libpresage/lang.js";
       let asyncResponse = false;
       checkLastError();
 
-      request.context.tabId = sender.tab.id;
+      request.context.tabId = sender?.tab?.id;
       request.context.frameId = sender.frameId;
 
       switch (request.command) {

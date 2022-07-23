@@ -9,7 +9,7 @@ function optionsPageConfigChange() {
   chrome.runtime.sendMessage(message);
 }
 
-function fallbackLanguageVibility(settings, value) {
+function fallbackLanguageVisibility(settings, value) {
   if (value === "auto_detect")
     settings.manifest.fallbackLanguage.bundle.element.classList.remove(
       "is-hidden"
@@ -29,9 +29,9 @@ window.addEventListener("DOMContentLoaded", function () {
         settings.manifest.domainBlackList.remove();
       });
 
-      fallbackLanguageVibility(settings, settings.manifest.language.get());
+      fallbackLanguageVisibility(settings, settings.manifest.language.get());
       settings.manifest.language.addEvent("action", function (value) {
-        fallbackLanguageVibility(settings, value);
+        fallbackLanguageVisibility(settings, value);
       });
 
       // Update pressage config on change
