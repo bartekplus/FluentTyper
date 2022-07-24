@@ -70,6 +70,7 @@ import { SUPPORTED_LANGUAGES } from "./third_party/libpresage/lang.js";
 
         if (detectedLanguage) {
           request.context.lang = detectedLanguage;
+          request.context.langName = SUPPORTED_LANGUAGES[request.context.lang];
           this.sendMsgToSandbox(request);
         } else {
           chrome.tabs.detectLanguage(request.context.tabId, (ret) => {
@@ -78,6 +79,8 @@ import { SUPPORTED_LANGUAGES } from "./third_party/libpresage/lang.js";
               lang = ret;
             }
             request.context.lang = lang;
+            request.context.langName =
+              SUPPORTED_LANGUAGES[request.context.lang];
             this.sendMsgToSandbox(request);
           });
         }
@@ -96,9 +99,11 @@ import { SUPPORTED_LANGUAGES } from "./third_party/libpresage/lang.js";
         case "contentScriptPredictReq":
           request.command = "backgroundPagePredictReq";
           if (this.language === "auto_detect") {
-            request.context.lang = this.detectLanguage(request);
+            this.detectLanguage(request);
           } else {
             request.context.lang = this.language;
+            request.context.langName =
+              SUPPORTED_LANGUAGES[request.context.lang];
             this.sendMsgToSandbox(request);
           }
 

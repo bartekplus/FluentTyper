@@ -458,7 +458,8 @@
               // Send prediction to TributeJs
               this.tributeArr[message.context.tributeId].done(
                 keyValPairs,
-                message.context.forceReplace
+                message.context.forceReplace,
+                "Lang: " + message.context.langName
               );
 
               // Clear pending req
