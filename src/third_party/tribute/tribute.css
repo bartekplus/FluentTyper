@@ -16,6 +16,15 @@
   list-style: none !important;
   background-color:#f8f8f8 !important;
 }
+.tribute-container lh {
+  margin: 0 !important;
+  padding: 3px 5px !important;
+  font-size: 65% !important;
+  background-color:#3e8ed0 !important;
+  box-sizing: border-box;
+  display: block;
+}
+
 .tribute-container li {
   margin: 0 !important;
   padding: 3px 5px !important;
