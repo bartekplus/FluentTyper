@@ -211,7 +211,6 @@ import { SUPPORTED_LANGUAGES } from "./third_party/libpresage/lang.js";
             "insertSpaceAfterAutocomplete"
           ),
           autoCapitalize: await this.settings.get("autoCapitalize"),
-          dontPredictChars: await this.settings.get("dontPredictChars"),
           removeSpace: await this.settings.get("removeSpace"),
           textExpansions: await this.settings.get("textExpansions"),
         },
