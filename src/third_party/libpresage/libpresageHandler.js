@@ -32,8 +32,6 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
       this.insertSpaceAfterAutocomplete = true;
       // Capitalize the first word of each sentence
       this.autoCapitalize = true;
-      // List of space-separated chars that will not trigger prediction if a word starts with it
-      this.dontPredictChars = [];
       // Automatically remove space before: .!? characters.
       this.removeSpace = false;
       // Text Expander config
@@ -101,7 +99,6 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
             context.minWordLengthToPredict,
             context.insertSpaceAfterAutocomplete,
             context.autoCapitalize,
-            context.dontPredictChars,
             context.removeSpace,
             context.textExpansions
           );
@@ -132,7 +129,6 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
       minWordLengthToPredict,
       insertSpaceAfterAutocomplete,
       autoCapitalize,
-      dontPredictChars,
       removeSpace,
       textExpansions
     ) {
@@ -141,7 +137,6 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
       this.predictNextWordAfterSeparatorChar = minWordLengthToPredict === 0;
       this.insertSpaceAfterAutocomplete = insertSpaceAfterAutocomplete;
       this.autoCapitalize = autoCapitalize;
-      this.dontPredictChars = dontPredictChars.split(" ");
       this.removeSpace = removeSpace;
       this.textExpansions = textExpansions;
       this.setupTextExpansions();
@@ -158,14 +153,23 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
       return this.letterRegEx.test(character);
     }
 
-    isNumber(str) {
-      return !isNaN(str) && !isNaN(parseFloat(str));
+    countDigits(str) {
+      return str.replace(/[^0-9]/g, "").length;
     }
 
-    removePrevSentence(wordArray) {
+    isNumber(str) {
+      // the string is a number, or there are at least two digits in it
+      return (
+        (!isNaN(str) && !isNaN(parseFloat(str))) || this.countDigits(str) > 1
+      );
+    }
+
+    removePrevSentence(wordArrayOrig) {
       // Check for new sentence start
       // Use only words from new setence for prediction
       let newSentence = false;
+      // Make copy of the array
+      let wordArray = wordArrayOrig.slice();
       for (let index = wordArray.length - 1; index >= 0; index--) {
         const element = wordArray[index];
 
@@ -183,72 +187,101 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
       return { wordArray, newSentence };
     }
 
+    // Check if autoCapitalize should be run
+    checkAutoCapitalize(tokensArray, newSentence, endsWithSpace) {
+      // autoCapitalize feature is disabled
+      if (!this.autoCapitalize) return false;
+      const lastWord = tokensArray.length
+        ? tokensArray[tokensArray.length - 1]
+        : "";
+      const firstCharacterOfLastWord = lastWord.slice(0, 1);
+
+      // Handle following case:
+      // Prediction input meets the conditions:
+      //   * doesn't end with whitespace
+      //   * first letter of last word is uppercase
+      //   * eg.  " Xyz"
+      if (
+        !endsWithSpace &&
+        this.isLetter(firstCharacterOfLastWord) &&
+        firstCharacterOfLastWord === firstCharacterOfLastWord.toUpperCase()
+      )
+        return true;
+
+      // Handle following case:
+      // Prediction input meets the conditions:
+      //   * it includes one of NEW_SENTENCE_CHARS and there is exacly one word after it
+      //       and last word doesn't end with whitespace
+      //   * or it includes one of NEW_SENTENCE_CHARS and there are no words after it
+      //       and it ends with whitespace
+      //   * eg.  "xyz. xyz" or "xyz. "
+      if (
+        newSentence &&
+        ((!endsWithSpace && tokensArray.length === 1) ||
+          (endsWithSpace && tokensArray.length === 0))
+      )
+        return true;
+
+      return false;
+    }
+
+    // Check if prediction should be run
+    checkDoPrediction(lastWord, endsWithSpace) {
+      console.log("a");
+      // Num suggestions set to zero - disable prediction
+      if (this.numSuggestions <= 0) return false;
+
+      // Don't run precition on numbers
+      if (!endsWithSpace && this.isNumber(lastWord)) return false;
+
+      // Input ends with whitespace and minimum word length to start prediction is not set to 0 eg. "xyz abc "
+      if (endsWithSpace && !this.predictNextWordAfterSeparatorChar)
+        return false;
+
+      // Word is too short to start prediction
+      if (!endsWithSpace && lastWord.length < this.minWordLengthToPredict) return false;
+
+      // Last word includes separator char eg. "xyc@abc", "zyz?abc"
+      if (!endsWithSpace && this.separatorCharRegEx.test(lastWord))
+        return false;
+
+      return true;
+    }
+
     processInput(predictionInput) {
       let doCapitalize = false;
       let doPrediction = false;
       if (
-        typeof predictionInput === "string" ||
-        predictionInput instanceof String
-      ) {
-        const endsWithSpace = predictionInput !== predictionInput.trimEnd();
-        const endsWithSeparatorChar =
-          !predictionInput ||
-          predictionInput[predictionInput.length - 1]?.match(
-            this.separatorCharRegEx
-          );
-        // Get last PAST_WORDS_COUNT words and filter empty
-        const lastWordsArray = predictionInput
-          .split(this.whiteSpaceRegEx) // Split on any whitespace
-          .filter(function (e) {
-            return e.trim(); // filter empty elements
-          })
-          .splice(-PAST_WORDS_COUNT); // Get last 3 words
-        const { wordArray, newSentence } =
-          this.removePrevSentence(lastWordsArray);
-        const tokesArray = wordArray.join(" ").split(this.separatorCharRegEx);
-        predictionInput = tokesArray.join(" ") + (endsWithSpace ? " " : "");
-        const lastWord = tokesArray.length
-          ? tokesArray[tokesArray.length - 1]
-          : "";
+        typeof predictionInput !== "string" &&
+        !(predictionInput instanceof String)
+      )
+        return { predictionInput, doPrediction, doCapitalize };
+      const endsWithSpace = predictionInput !== predictionInput.trimEnd();
+      // Get last PAST_WORDS_COUNT words and filter empty
+      const lastWordsArray = predictionInput
+        .split(this.whiteSpaceRegEx) // Split on any whitespace
+        .filter(function (e) {
+          return e.trim(); // filter empty elements
+        })
+        .splice(-PAST_WORDS_COUNT); // Get last PAST_WORDS_COUNT words
+      const { wordArray, newSentence } =
+        this.removePrevSentence(lastWordsArray);
+      const tokensArray = wordArray
+        .join(" ")
+        .split(this.separatorCharRegEx)
+        .filter((o) => o);
+      predictionInput = tokensArray.join(" ") + (endsWithSpace ? " " : "");
+      const lastWord = lastWordsArray.length
+        ? lastWordsArray[lastWordsArray.length - 1]
+        : "";
 
-        // Check if autoCapitalize should be run
-        if (this.autoCapitalize) {
-          const firstCharacterOfLastWord = lastWord.slice(0, 1);
-          if (
-            !endsWithSpace &&
-            this.isLetter(firstCharacterOfLastWord) &&
-            firstCharacterOfLastWord === firstCharacterOfLastWord.toUpperCase()
-          ) {
-            doCapitalize = true;
-          } else if (
-            newSentence &&
-            ((!endsWithSpace && tokesArray.length === 1) ||
-              (endsWithSpace && tokesArray.length === 0))
-          ) {
-            doCapitalize = true;
-          }
-        }
+      doCapitalize = this.checkAutoCapitalize(
+        wordArray,
+        newSentence,
+        endsWithSpace
+      );
 
-        // Check if we have valid precition input
-        if (this.predictNextWordAfterSeparatorChar && endsWithSeparatorChar) {
-          doPrediction = true;
-        } else if (
-          !endsWithSeparatorChar &&
-          lastWord.length >= this.minWordLengthToPredict
-        ) {
-          if (this.isNumber(lastWord)) {
-            doPrediction = false;
-          } else if (
-            lastWord.length &&
-            this.dontPredictChars.includes(lastWord[0])
-          ) {
-            doPrediction = false;
-          } else {
-            doPrediction = true;
-          }
-        }
-        doPrediction = doPrediction && this.numSuggestions > 0;
-      }
+      doPrediction = this.checkDoPrediction(lastWord, endsWithSpace);
 
       return { predictionInput, doPrediction, doCapitalize };
     }
@@ -334,7 +367,7 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
         }
       }
       // Auto capitalize if needed
-      if (this.autoCapitalize && doCapitalize) {
+      if (doCapitalize) {
         message.context.predictions = message.context.predictions.map(
           (pred) => pred.charAt(0).toUpperCase() + pred.slice(1)
         );

@@ -142,16 +142,6 @@ const manifest = {
       default: false,
     },
     {
-      tab: i18n.get("settings"),
-      group: i18n.get("General"),
-      name: "dontPredictChars",
-      type: "text",
-      label:
-        "List of space-separated chars that will not trigger prediction if a word starts with it.",
-      default: "",
-    },
-
-    {
       tab: i18n.get("Text Expander"),
       name: "textExpansions",
       type: "valueOnly",
