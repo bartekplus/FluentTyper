@@ -113,7 +113,7 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
     setupTextExpansions() {
       let str = "";
       this.textExpansions.forEach((textExpansion) => {
-        str += `${textExpansion[0]}\t${textExpansion[1]}\n`;
+        str += `${textExpansion[0].toLowerCase()}\t${textExpansion[1]}\n`;
       });
       Module.FS.writeFile("/textExpansions.txt", str);
       for (const [, libPresage] of Object.entries(this.libPresage)) {
