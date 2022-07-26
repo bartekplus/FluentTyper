@@ -227,7 +227,6 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
 
     // Check if prediction should be run
     checkDoPrediction(lastWord, endsWithSpace) {
-      console.log("a");
       // Num suggestions set to zero - disable prediction
       if (this.numSuggestions <= 0) return false;
 
