@@ -238,7 +238,8 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
         return false;
 
       // Word is too short to start prediction
-      if (!endsWithSpace && lastWord.length < this.minWordLengthToPredict) return false;
+      if (!endsWithSpace && lastWord.length < this.minWordLengthToPredict)
+        return false;
 
       // Last word includes separator char eg. "xyc@abc", "zyz?abc"
       if (!endsWithSpace && this.separatorCharRegEx.test(lastWord))
