@@ -68,7 +68,7 @@ class TextExpander {
         type: "input",
         id: newNode ? this.addNewShortcutIDs[0] : getUniqueID(),
         class: "input",
-        pattern: "[A-Za-z0-9]{1,32}",
+        pattern: "(?:[A-Za-z])*(?:[0-9])?(?:[A-Za-z])*(?:[0-9])?(?:[A-Za-z])*",
         maxLength: 32,
         value: key,
         rows: "",
@@ -142,7 +142,7 @@ class TextExpander {
         isValid = false;
         errMsgStr =
           index === 0
-            ? "Please use only letters and numbers no white space are allowed, between 1-32 characters."
+            ? "Please use only letters and numbers (two or less digits), no white space or special characters are allowed, between 1-32 characters."
             : "Shortcut text cannot be empty.";
       } // Validate if there is no key duplicate
       else if (index === 0) {
