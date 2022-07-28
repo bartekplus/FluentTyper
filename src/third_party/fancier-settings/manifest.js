@@ -83,9 +83,10 @@ const manifest = {
     {
       tab: i18n.get("settings"),
       group: i18n.get("General"),
-      name: "removeSpace",
+      name: "applySpacingRules",
       type: "checkbox",
-      label: "Automatically remove space before punctuation characters.",
+      label:
+        "Automatically apply spacing rules for punctuations and special haracters.",
       default: true,
     },
     {

@@ -54,8 +54,8 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
       this.insertSpaceAfterAutocomplete = true;
       // Capitalize the first word of each sentence
       this.autoCapitalize = true;
-      // Automatically remove space before: .!? characters.
-      this.removeSpace = false;
+      // Apply SPACING_RULES
+      this.applySpacingRules = false;
       // Text Expander config
       this.textExpansions = [];
       //Precompiled regular expressions
@@ -123,7 +123,7 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
             context.minWordLengthToPredict,
             context.insertSpaceAfterAutocomplete,
             context.autoCapitalize,
-            context.removeSpace,
+            context.applySpacingRules,
             context.textExpansions
           );
           break;
@@ -153,7 +153,7 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
       minWordLengthToPredict,
       insertSpaceAfterAutocomplete,
       autoCapitalize,
-      removeSpace,
+      applySpacingRules,
       textExpansions
     ) {
       this.numSuggestions = numSuggestions;
@@ -161,7 +161,7 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
       this.predictNextWordAfterSeparatorChar = minWordLengthToPredict === 0;
       this.insertSpaceAfterAutocomplete = insertSpaceAfterAutocomplete;
       this.autoCapitalize = autoCapitalize;
-      this.removeSpace = removeSpace;
+      this.applySpacingRules = applySpacingRules;
       this.textExpansions = textExpansions;
       this.setupTextExpansions();
 
@@ -310,7 +310,9 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
       return { predictionInput, doPrediction, doCapitalize };
     }
 
-    removeSpaceHandler(inputStr) {
+    spacingRulesHandler(inputStr) {
+      if (!inputStr) return;
+
       const lastChar = inputStr[inputStr.length - 1];
       const lastCharMin1 = inputStr[inputStr.length - 2];
       const lastCharMin2 = inputStr[inputStr.length - 3];
@@ -325,15 +327,12 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
         return null;
 
       const txt =
-        (this.insertSpaceAfterAutocomplete &&
-        SPACING_RULES[lastChar].spaceBefore
-          ? "\xA0"
-          : "") +
+        (SPACING_RULES[lastChar].spaceBefore ? "\xA0" : "") +
         lastChar +
         (this.insertSpaceAfterAutocomplete && SPACING_RULES[lastChar].spaceAfter
           ? "\xA0"
           : "");
-      console.log("aaaaaaaaaaaaaaaa");
+
       return {
         text: txt,
         length: 2 - SPACING_RULES[lastChar].spaceBefore,
@@ -375,8 +374,8 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
         context: context,
       };
 
-      if (event.data.context.text.length) {
-        message.context.forceReplace = this.removeSpaceHandler(
+      if (this.applySpacingRules) {
+        message.context.forceReplace = this.spacingRulesHandler(
           event.data.context.text
         );
       }

@@ -42,8 +42,7 @@ window.addEventListener("DOMContentLoaded", function () {
         "minWordLengthToPredict",
         "insertSpaceAfterAutocomplete",
         "autoCapitalize",
-        "dontPredictChars",
-        "removeSpace",
+        "applySpacingRules",
         "selectByDigit",
       ].forEach((element) => {
         settings.manifest[element].addEvent("action", function () {
