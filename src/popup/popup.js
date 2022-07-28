@@ -24,7 +24,7 @@ function init() {
         if (domainURL && domainURL !== "null") {
           const blocked = await isDomainOnBlackList(settings, domainURL);
           checkboxNode.checked = !blocked;
-          urlNode.innerHTML = "<span>Enable autocomplete on: " + domainURL;
+          urlNode.innerHTML = "<span>Enable autocomplete on:<br> " + domainURL;
 
           window.document
             .getElementById("checkboxDomainInput")
