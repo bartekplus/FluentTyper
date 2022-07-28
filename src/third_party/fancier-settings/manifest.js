@@ -2,44 +2,7 @@ import { i18n } from "./i18n.js";
 import { SUPPORTED_LANGUAGES } from "../libpresage/lang.js";
 
 const donateHTML =
-  '<p class="content">' +
-  "Creating and maintaining FluentTyper has required - and still " +
-  "does - a considerable amount of work and effort. If you like " +
-  "FluentTyper, then you may wish to support FluentTyper " +
-  "development by making a voluntary donation. This will also " +
-  "enable future enhancement to the extension. " +
-  "</p>" +
-  '<div class="columns is-centered">' +
-  "<form " +
-  'action="https://www.paypal.com/cgi-bin/webscr"' +
-  'method="post"' +
-  'target="_top"' +
-  ">" +
-  '<input type="hidden" name="cmd" value="_donations" />' +
-  '<input type="hidden" name="business" value="FNA6UN4JRSRTU" />' +
-  "<input" +
-  '  type="hidden"' +
-  '  name="item_name"' +
-  '  value="Support for Development of FluentTyper"' +
-  "/>" +
-  '<input type="hidden" name="currency_code" value="USD" />' +
-  "<input" +
-  '  type="image"' +
-  '  src="https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif"' +
-  '  border="0"' +
-  '  name="submit"' +
-  '  title="PayPal - The safer, easier way to pay online!"' +
-  '  alt="Donate with PayPal button"' +
-  "/>" +
-  "<img" +
-  '  alt=""' +
-  '  border="0"' +
-  '  src="https://www.paypal.com/en_US/i/scr/pixel.gif"' +
-  '  width="1"' +
-  '  height="1"' +
-  "/>" +
-  "</form>" +
-  "</div>";
+  '<div class="has-text-centered"><a href="https://www.buymeacoffee.com/FluentTyper" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png"  alt="Buy Me A Coffee" style="height: 60px !important; width: 217px !important"/></a></div>';
 const testFluentTyperHTML =
   '<textarea class="textarea is-full"  rows="12" placeholder="Click here and start typing…"></textarea>';
 
