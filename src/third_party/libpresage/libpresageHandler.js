@@ -1,8 +1,28 @@
 import { SUPPORTED_LANGUAGES } from "./lang.js";
 
 const NEW_SENTENCE_CHARS = [".", "?", "!"];
-const REMOVE_SPACE_CHARS = [".", "?", "!", ",", ":", "—", "–", "-", "’"];
-const NO_SPACE_AFTER_CHARS = ["—", "–", "-"];
+const REMOVE_SPACE_CHARS = {
+  ".": { spaceBefore: false, spaceAfter: true },
+  ",": { spaceBefore: false, spaceAfter: true },
+  "]": { spaceBefore: false, spaceAfter: true },
+  "}": { spaceBefore: false, spaceAfter: true },
+  ">": { spaceBefore: false, spaceAfter: true },
+  "!": { spaceBefore: false, spaceAfter: true },
+  ":": { spaceBefore: false, spaceAfter: true },
+  ";": { spaceBefore: false, spaceAfter: true },
+  "?": { spaceBefore: false, spaceAfter: true },
+  "[": { spaceBefore: true, spaceAfter: false },
+  "{": { spaceBefore: true, spaceAfter: false },
+  "<": { spaceBefore: true, spaceAfter: false },
+  "/": { spaceBefore: true, spaceAfter: false },
+  "—": { spaceBefore: false, spaceAfter: false },
+  "–": { spaceBefore: false, spaceAfter: false },
+  "-": { spaceBefore: false, spaceAfter: false },
+  "’": { spaceBefore: false, spaceAfter: false },
+  "*": { spaceBefore: false, spaceAfter: false },
+  "+": { spaceBefore: false, spaceAfter: false },
+  "=": { spaceBefore: false, spaceAfter: false },
+};
 const SPACE_CHARS = ["\xA0", " "];
 const PAST_WORDS_COUNT = 5;
 const SUGGESTIIBT_COUNT = 5;
@@ -287,24 +307,29 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
     }
 
     removeSpaceHandler(inputStr) {
+      const lastChar = inputStr[inputStr.length - 1];
+      const lastCharMin1 = inputStr[inputStr.length - 2];
+      const lastCharMin2 = inputStr[inputStr.length - 3];
+
+      if (!(lastChar in REMOVE_SPACE_CHARS)) return null;
+      if (SPACE_CHARS.includes(lastCharMin2)) return null;
       if (
-        this.removeSpace &&
-        REMOVE_SPACE_CHARS.includes(inputStr[inputStr.length - 1]) &&
-        SPACE_CHARS.includes(inputStr[inputStr.length - 2]) &&
-        !SPACE_CHARS.includes(inputStr[inputStr.length - 3])
-      ) {
-        const txt =
-          inputStr[inputStr.length - 1] +
-          (this.insertSpaceAfterAutocomplete &&
-          !NO_SPACE_AFTER_CHARS.includes(inputStr[inputStr.length - 1])
-            ? inputStr[inputStr.length - 2]
-            : "");
-        return {
-          text: txt,
-          length: 2,
-        };
-      }
-      return null;
+        REMOVE_SPACE_CHARS[lastChar].spaceBefore ===
+        SPACE_CHARS.includes(lastCharMin1)
+      )
+        return null;
+
+      const txt =
+        lastChar +
+        (this.insertSpaceAfterAutocomplete &&
+        REMOVE_SPACE_CHARS[lastChar].spaceAfter
+          ? lastCharMin1
+          : "");
+
+      return {
+        text: txt,
+        length: 2,
+      };
     }
 
     doPredictionHandler(predictionInput, lang) {
@@ -359,8 +384,10 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
       }
       // Add space if needed
       if (this.insertSpaceAfterAutocomplete) {
-        // TODO: this might result in double space in some cases or a missing space.
-        if (!REMOVE_SPACE_CHARS.includes(context.nextChar)) {
+        if (
+          !(context.nextChar in REMOVE_SPACE_CHARS) ||
+          REMOVE_SPACE_CHARS[context.nextChar].spaceBefore === true
+        ) {
           message.context.predictions = message.context.predictions.map(
             (pred) => `${pred}\xA0`
           );
