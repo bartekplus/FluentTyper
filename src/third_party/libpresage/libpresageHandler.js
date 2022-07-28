@@ -1,10 +1,11 @@
 import { SUPPORTED_LANGUAGES } from "./lang.js";
 
 const NEW_SENTENCE_CHARS = [".", "?", "!"];
-const REMOVE_SPACE_CHARS = {
+const SPACING_RULES = {
   ".": { spaceBefore: false, spaceAfter: true },
   ",": { spaceBefore: false, spaceAfter: true },
   "]": { spaceBefore: false, spaceAfter: true },
+  ")": { spaceBefore: false, spaceAfter: true },
   "}": { spaceBefore: false, spaceAfter: true },
   ">": { spaceBefore: false, spaceAfter: true },
   "!": { spaceBefore: false, spaceAfter: true },
@@ -12,9 +13,10 @@ const REMOVE_SPACE_CHARS = {
   ";": { spaceBefore: false, spaceAfter: true },
   "?": { spaceBefore: false, spaceAfter: true },
   "[": { spaceBefore: true, spaceAfter: false },
+  "(": { spaceBefore: true, spaceAfter: false },
   "{": { spaceBefore: true, spaceAfter: false },
   "<": { spaceBefore: true, spaceAfter: false },
-  "/": { spaceBefore: true, spaceAfter: false },
+  "/": { spaceBefore: true, spaceAfter: true },
   "—": { spaceBefore: false, spaceAfter: false },
   "–": { spaceBefore: false, spaceAfter: false },
   "-": { spaceBefore: false, spaceAfter: false },
@@ -60,6 +62,8 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
       this.separatorCharRegEx = RegExp(
         /\s+|!|"|#|\$|%|&|\(|\)|\*|\+|,|-|\.|\/|:|;|<|=|>|\?|@|\[|\\|\]|\^|_|`|{|\||}|~/
       );
+      // Subset of separatorCharRegEx - keep predicting after those chars
+      this.keepPredCharRegEx = RegExp(/\[|\(|{|<|\/|-|\*|\+|=/);
       this.whiteSpaceRegEx = RegExp(/\s+/);
       this.letterRegEx = RegExp(/^\p{L}/, "u");
       // Attach event listener
@@ -262,7 +266,11 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
         return false;
 
       // Last word includes separator char eg. "xyc@abc", "zyz?abc"
-      if (!endsWithSpace && this.separatorCharRegEx.test(lastWord))
+      if (
+        !endsWithSpace &&
+        (lastWord.match(this.separatorCharRegEx) || []).length !==
+          (lastWord.match(this.keepPredCharRegEx) || []).length
+      )
         return false;
 
       return true;
@@ -286,11 +294,7 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
         .splice(-PAST_WORDS_COUNT); // Get last PAST_WORDS_COUNT words
       const { wordArray, newSentence } =
         this.removePrevSentence(lastWordsArray);
-      const tokensArray = wordArray
-        .join(" ")
-        .split(this.separatorCharRegEx)
-        .filter((o) => o);
-      predictionInput = tokensArray.join(" ") + (endsWithSpace ? " " : "");
+      predictionInput = wordArray.join(" ") + (endsWithSpace ? " " : "");
       const lastWord = lastWordsArray.length
         ? lastWordsArray[lastWordsArray.length - 1]
         : "";
@@ -311,24 +315,28 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
       const lastCharMin1 = inputStr[inputStr.length - 2];
       const lastCharMin2 = inputStr[inputStr.length - 3];
 
-      if (!(lastChar in REMOVE_SPACE_CHARS)) return null;
+      if (!lastCharMin1) return null;
+      if (!(lastChar in SPACING_RULES)) return null;
       if (SPACE_CHARS.includes(lastCharMin2)) return null;
       if (
-        REMOVE_SPACE_CHARS[lastChar].spaceBefore ===
+        SPACING_RULES[lastChar].spaceBefore ===
         SPACE_CHARS.includes(lastCharMin1)
       )
         return null;
 
       const txt =
-        lastChar +
         (this.insertSpaceAfterAutocomplete &&
-        REMOVE_SPACE_CHARS[lastChar].spaceAfter
-          ? lastCharMin1
+        SPACING_RULES[lastChar].spaceBefore
+          ? "\xA0"
+          : "") +
+        lastChar +
+        (this.insertSpaceAfterAutocomplete && SPACING_RULES[lastChar].spaceAfter
+          ? "\xA0"
           : "");
-
+      console.log("aaaaaaaaaaaaaaaa");
       return {
         text: txt,
-        length: 2,
+        length: 2 - SPACING_RULES[lastChar].spaceBefore,
       };
     }
 
@@ -367,14 +375,17 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
         context: context,
       };
 
-      if (!this.libPresage[context.lang]) {
-        // Do nothing reply with empty predictions
-      } else if (!doPrediction && event.data.context.text.length) {
+      if (event.data.context.text.length) {
         message.context.forceReplace = this.removeSpaceHandler(
           event.data.context.text
         );
+      }
+
+      if (!this.libPresage[context.lang]) {
+        // Do nothing reply with empty predictions
       } else if (
         // Do prediction
+        !message.context.forceReplace &&
         doPrediction
       ) {
         message.context.predictions = this.doPredictionHandler(
@@ -385,8 +396,8 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
       // Add space if needed
       if (this.insertSpaceAfterAutocomplete) {
         if (
-          !(context.nextChar in REMOVE_SPACE_CHARS) ||
-          REMOVE_SPACE_CHARS[context.nextChar].spaceBefore === true
+          !(context.nextChar in SPACING_RULES) ||
+          SPACING_RULES[context.nextChar].spaceBefore === true
         ) {
           message.context.predictions = message.context.predictions.map(
             (pred) => `${pred}\xA0`
