@@ -1,4 +1,4 @@
-import { isDomainOnBlackList, checkLastError } from "./utils.js";
+import { getDomain, isDomainOnBlackList, checkLastError } from "./utils.js";
 import { Store } from "./third_party/fancier-settings/lib/store.js";
 import { SUPPORTED_LANGUAGES } from "./third_party/libpresage/lang.js";
 
@@ -119,7 +119,7 @@ import { SUPPORTED_LANGUAGES } from "./third_party/libpresage/lang.js";
         case "contentScriptGetConfig":
           asyncResponse = true;
           Promise.all([
-            this.isEnabledForDomain(sender.tab.url),
+            this.isEnabledForDomain(getDomain(sender.tab.url)),
             this.settings.get("autocomplete"),
             this.settings.get("selectByDigit"),
           ])

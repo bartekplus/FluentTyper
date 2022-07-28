@@ -5,68 +5,141 @@
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <link rel="stylesheet" href="/third_party/bulma/bulma.min.css" />
     <link rel="stylesheet" href="/third_party/bulma/bulma-switch.min.css" />
+    <link rel="stylesheet" href="/third_party/bulma/bulma-divider.min.css" />
     <script type="module" src="popup.js"></script>
     <title></title>
+    <style>
+      html {
+        width: 332px;
+      }
+      hr {
+        margin: 1rem 0;
+      }
+
+      .grid-container {
+        display: grid;
+        grid-template-columns: 75px 75px 75px 75px;
+        grid-template-rows: auto;
+        grid-template-areas:
+          "header header header header"
+          "main main main sidebar"
+          "left left right right"
+          ". center center .";
+      }
+      .grid-header {
+        grid-area: header;
+        display: flex;
+
+        justify-content: center;
+        align-content: center;
+      }
+      .grid-main {
+        grid-area: main;
+        display: flex;
+        justify-content: center;
+        align-content: center;
+        flex-direction: column;
+      }
+      .grid-sidebar {
+        grid-area: sidebar;
+      }
+      .grid-center {
+        grid-area: center;
+      }
+      .grid-left {
+        grid-area: left;
+        display: flex;
+        justify-content: center;
+        align-content: center;
+        flex-direction: column;
+      }
+      .grid-right {
+        grid-area: right;
+      }
+    </style>
   </head>
 
   <body>
-    <div class="container">
-      <section class="section is-medium">
-        <p class="title">
-          <img src="/icon/LogoFluentTyper.png" alt="FluentTyper" />
-        </p>
-        <p class="subtitle">Autocomplete and Spell Checker</p>
-
-        <div class="field">
-          <input
-            id="checkboxEnableInput"
-            type="checkbox"
-            name="checkboxEnableInput"
-            class="switch"
-          />
-          <label for="checkboxEnableInput">Global toggle</label>
+    <div class="container p-4">
+      <div class="grid-container">
+        <div class="grid-header">
+          <p class="title">
+            <img src="/icon/LogoFluentTyper.png" alt="FluentTyper" />
+          </p>
         </div>
+      </div>
 
-        <div class="field">
-          <input
-            id="checkboxDomainInput"
-            type="checkbox"
-            name="checkboxDomainInput"
-            class="switch"
-          />
-          <label for="checkboxDomainInput" id="checkboxDomainLabel"
-            >Enable enable autocomplete on:
-          </label>
-        </div>
+      <hr />
 
-        <div class="field">
-          <label class="label">Language</label>
-          <div class="control">
-            <div class="select">
-              <select id="languageSelect"></select>
-            </div>
+      <div class="grid-container">
+        <div class="grid-main">Global toggle</div>
+
+        <div class="grid-sidebar">
+          <div class="field">
+            <input
+              id="checkboxEnableInput"
+              type="checkbox"
+              name="checkboxEnableInput"
+              class="switch"
+            />
+            <label for="checkboxEnableInput" style="margin-top: 0"></label>
           </div>
         </div>
+      </div>
 
-        <a
-          class="button is-primary is-outlined"
-          id="runOptions"
-          target="_blank"
-          rel="nofollow noopener"
-          >Options</a
-        >
-
-        <!-- 
-        <hr>
-        <div>
-            <form action="https://www.paypal.com/cgi-bin/webscr" method="post" target="_blank">
-                <input type="hidden" name="cmd" value="_s-xclick">
-                <input type="hidden" name="encrypted" value="-----BEGIN PKCS7-----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-----END PKCS7----- ">
-                <input type="image" src="beer_donation_button_single.png" border="0" name="submit" alt="PayPal — Płać wygodnie i bezpiecznie"> <img alt="" border="0" src="https://www.paypalobjects.com/pl_PL/i/scr/pixel.gif" width="1" height="1">
-            </form>
+      <div class="grid-container">
+        <div class="grid-main" id="checkboxDomainLabel">
+          Enable enable autocomplete on:
         </div>
-        -->
-      </section>
+
+        <div class="grid-sidebar">
+          <div class="field">
+            <input
+              id="checkboxDomainInput"
+              type="checkbox"
+              name="checkboxDomainInput"
+              class="switch"
+            />
+            <label for="checkboxDomainInput" style="margin-top: 0"> </label>
+          </div>
+        </div>
+      </div>
+
+      <hr />
+
+      <div class="grid-container">
+        <div class="grid-left">I write in:</div>
+
+        <div class="grid-right">
+          <div class="select">
+            <select id="languageSelect"></select>
+          </div>
+        </div>
+      </div>
+      <hr />
+
+      <div class="grid-container">
+        <div class="grid-center has-text-centered">
+          <a
+            class="button is-primary is-outlined"
+            id="runOptions"
+            target="_blank"
+            rel="nofollow noopener"
+            >Options</a
+          >
+        </div>
+      </div>
+
+      <hr />
+
+      <div class="has-text-centered">
+        <a href="https://www.buymeacoffee.com/FluentTyper" target="_blank"
+          ><img
+            src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png"
+            alt="Buy Me A Coffee"
+            style="height: 60px !important; width: 217px !important"
+        /></a>
+      </div>
     </div>
   </body>
 </html>

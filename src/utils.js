@@ -2,7 +2,7 @@ const SETTINGS_DOMAIN_BLACKLIST = "domainBlackList";
 
 function getDomain(url) {
   try {
-    return new URL(url).origin;
+    return new URL(url).hostname;
   } catch (error) {
     return undefined;
   }
@@ -11,7 +11,6 @@ function getDomain(url) {
 async function isDomainOnBlackList(settings, domainURL) {
   let ret = false;
   const domainBlackList = await settings.get(SETTINGS_DOMAIN_BLACKLIST);
-  domainURL = getDomain(domainURL);
 
   for (let i = 0; i < domainBlackList.length; i++) {
     if (domainURL.match(domainBlackList[i])) {
@@ -34,7 +33,6 @@ function removeDomainFromBlackList(settings, domainURL) {
   const promise = settings.get(SETTINGS_DOMAIN_BLACKLIST);
   promise
     .then(function (domainBlackList) {
-      domainURL = getDomain(domainURL);
       for (let i = 0; i < domainBlackList.length; i++) {
         if (domainURL.match(domainBlackList[i])) {
           domainBlackList.splice(i, 1);

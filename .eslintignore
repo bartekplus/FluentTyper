@@ -1,4 +1,9 @@
 src/third_party/fancy-settings/lib/mootools-core.js
 src/third_party/libpresage/libpresage.js
+src/third_party/libpresage/en.js
+src/third_party/libpresage/es.js
+src/third_party/libpresage/fr.js
+src/third_party/libpresage/hr.js
+src/third_party/libpresage/common.js
 src/third_party/tribute/*
 src/third_party/swiper/swiper-bundle.esm.browser.js
