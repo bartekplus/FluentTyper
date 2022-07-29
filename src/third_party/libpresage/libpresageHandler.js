@@ -173,6 +173,10 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
       }
     }
 
+    isWhiteSpace(character) {
+      return this.whiteSpaceRegEx.test(character);
+    }
+
     isLetter(character) {
       return this.letterRegEx.test(character);
     }
@@ -395,8 +399,9 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
       // Add space if needed
       if (this.insertSpaceAfterAutocomplete) {
         if (
-          !(context.nextChar in SPACING_RULES) ||
-          SPACING_RULES[context.nextChar].spaceBefore === true
+          !this.isWhiteSpace(context.nextChar) &&
+          (!(context.nextChar in SPACING_RULES) ||
+            SPACING_RULES[context.nextChar].spaceBefore === true)
         ) {
           message.context.predictions = message.context.predictions.map(
             (pred) => `${pred}\xA0`
