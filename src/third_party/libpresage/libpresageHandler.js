@@ -30,6 +30,12 @@ const PAST_WORDS_COUNT = 5;
 const SUGGESTIIBT_COUNT = 5;
 const MIN_WORD_LENGHT_TO_PREDICT = 1;
 
+const Capitalization = Object.freeze({
+  FirstLetter: Symbol("letter"),
+  WholeWord: Symbol("word"),
+  None: Symbol("none"),
+});
+
 (async function () {
   const { default: modP } = await import("./libpresage.js");
   const Module = await modP();
@@ -217,12 +223,24 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
 
     // Check if autoCapitalize should be run
     checkAutoCapitalize(tokensArray, newSentence, endsWithSpace) {
-      // autoCapitalize feature is disabled
-      if (!this.autoCapitalize) return false;
       const lastWord = tokensArray.length
         ? tokensArray[tokensArray.length - 1]
-        : "";
+        : undefined;
       const firstCharacterOfLastWord = lastWord.slice(0, 1);
+
+      // Handle following case:
+      // Prediction input meets the conditions:
+      //   * doesn't end with whitespace
+      //   * first letter of last word is uppercase
+      //   * word is at least 2 characters
+      //   * eg.  " XYZ"
+      if (
+        !endsWithSpace &&
+        lastWord &&
+        lastWord.length > 1 &&
+        lastWord === lastWord.toUpperCase()
+      )
+        return Capitalization.WholeWord;
 
       // Handle following case:
       // Prediction input meets the conditions:
@@ -234,9 +252,10 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
         this.isLetter(firstCharacterOfLastWord) &&
         firstCharacterOfLastWord === firstCharacterOfLastWord.toUpperCase()
       )
-        return true;
+        return Capitalization.FirstLetter;
 
       // Handle following case:
+      // Auto Capitalize is enabled and
       // Prediction input meets the conditions:
       //   * it includes one of NEW_SENTENCE_CHARS and there is exacly one word after it
       //       and last word doesn't end with whitespace
@@ -244,13 +263,14 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
       //       and it ends with whitespace
       //   * eg.  "xyz. xyz" or "xyz. "
       if (
+        this.autoCapitalize &&
         newSentence &&
         ((!endsWithSpace && tokensArray.length === 1) ||
           (endsWithSpace && tokensArray.length === 0))
       )
-        return true;
+        return Capitalization.FirstLetter;
 
-      return false;
+      return Capitalization.None;
     }
 
     // Check if prediction should be run
@@ -408,12 +428,22 @@ const MIN_WORD_LENGHT_TO_PREDICT = 1;
           );
         }
       }
-      // Auto capitalize if needed
-      if (doCapitalize) {
-        message.context.predictions = message.context.predictions.map(
-          (pred) => pred.charAt(0).toUpperCase() + pred.slice(1)
-        );
+
+      switch (doCapitalize) {
+        case Capitalization.FirstLetter:
+          message.context.predictions = message.context.predictions.map(
+            (pred) => pred.charAt(0).toUpperCase() + pred.slice(1)
+          );
+          break;
+        case Capitalization.WholeWord:
+          message.context.predictions = message.context.predictions.map(
+            (pred) => pred.toUpperCase()
+          );
+          break;
+        case Capitalization.None:
+        default:
       }
+
       this.predictionTimeouts[event.data.context.tabId][
         event.data.context.frameId
       ] = null;
