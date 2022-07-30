@@ -23,6 +23,7 @@ jobs:
         release_name: Release ${{ github.ref }}
         draft: false
         prerelease: false
+        generate_release_notes: true
 
   build_release:
     name: Build Release
