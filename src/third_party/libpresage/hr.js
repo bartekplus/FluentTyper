@@ -26,9 +26,7 @@
         err('warning: you defined Module.locateFilePackage, that has been renamed to Module.locateFile (using your locateFilePackage for now)');
       }
       var REMOTE_PACKAGE_NAME = Module['locateFile'] ? Module['locateFile'](REMOTE_PACKAGE_BASE, '') : REMOTE_PACKAGE_BASE;
-
-      var REMOTE_PACKAGE_SIZE = metadata['remote_package_size'];
-      var PACKAGE_UUID = metadata['package_uuid'];
+var REMOTE_PACKAGE_SIZE = metadata['remote_package_size'];
 
       function fetchRemotePackage(packageName, packageSize, callback, errback) {
         if (typeof process === 'object' && typeof process.versions === 'object' && typeof process.versions.node === 'string') {
@@ -181,6 +179,6 @@ Module['FS_createPath']("/resources_js/hr", "aspell", true, true);
     }
 
     }
-    loadPackage({"files": [{"filename": "/resources_js/hr/presage.xml", "start": 0, "end": 2798}, {"filename": "/resources_js/hr/hunspell/hr_HR.dic", "start": 2798, "end": 734617}, {"filename": "/resources_js/hr/hunspell/hr_HR.aff", "start": 734617, "end": 830419}, {"filename": "/resources_js/hr/ngrams_db/ngrams.counts", "start": 830419, "end": 6841235}, {"filename": "/resources_js/hr/ngrams_db/ngrams.trie", "start": 6841235, "end": 12317699}, {"filename": "/resources_js/hr/aspell/hr.multi", "start": 12317699, "end": 12317769}, {"filename": "/resources_js/hr/aspell/standard.kbd", "start": 12317769, "end": 12317869}, {"filename": "/resources_js/hr/aspell/iso-8859-2.cset", "start": 12317869, "end": 12332002}, {"filename": "/resources_js/hr/aspell/iso-8859-2.cmap", "start": 12332002, "end": 12363291}, {"filename": "/resources_js/hr/aspell/hr_affix.dat", "start": 12363291, "end": 12364486}, {"filename": "/resources_js/hr/aspell/hr.rws", "start": 12364486, "end": 19246054}, {"filename": "/resources_js/hr/aspell/aspell-hr", "start": 19246054, "end": 19246223}, {"filename": "/resources_js/hr/aspell/croatian.alias", "start": 19246223, "end": 19246295}, {"filename": "/resources_js/hr/aspell/hr.dat", "start": 19246295, "end": 19246410}], "remote_package_size": 19246410, "package_uuid": "b56c9ed4-3c8c-43fd-9c2c-5ac2cdbd984a"});
+    loadPackage({"files": [{"filename": "/resources_js/hr/presage.xml", "start": 0, "end": 2805}, {"filename": "/resources_js/hr/hunspell/hr_HR.dic", "start": 2805, "end": 734624}, {"filename": "/resources_js/hr/hunspell/hr_HR.aff", "start": 734624, "end": 830426}, {"filename": "/resources_js/hr/ngrams_db/ngrams.counts", "start": 830426, "end": 6841242}, {"filename": "/resources_js/hr/ngrams_db/ngrams.trie", "start": 6841242, "end": 12317706}, {"filename": "/resources_js/hr/aspell/hr.multi", "start": 12317706, "end": 12317776}, {"filename": "/resources_js/hr/aspell/standard.kbd", "start": 12317776, "end": 12317876}, {"filename": "/resources_js/hr/aspell/iso-8859-2.cset", "start": 12317876, "end": 12332009}, {"filename": "/resources_js/hr/aspell/iso-8859-2.cmap", "start": 12332009, "end": 12363298}, {"filename": "/resources_js/hr/aspell/hr_affix.dat", "start": 12363298, "end": 12364493}, {"filename": "/resources_js/hr/aspell/hr.rws", "start": 12364493, "end": 19246061}, {"filename": "/resources_js/hr/aspell/aspell-hr", "start": 19246061, "end": 19246230}, {"filename": "/resources_js/hr/aspell/croatian.alias", "start": 19246230, "end": 19246302}, {"filename": "/resources_js/hr/aspell/hr.dat", "start": 19246302, "end": 19246417}], "remote_package_size": 19246417});
 
   })();
