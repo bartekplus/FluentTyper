@@ -26,9 +26,7 @@
         err('warning: you defined Module.locateFilePackage, that has been renamed to Module.locateFile (using your locateFilePackage for now)');
       }
       var REMOTE_PACKAGE_NAME = Module['locateFile'] ? Module['locateFile'](REMOTE_PACKAGE_BASE, '') : REMOTE_PACKAGE_BASE;
-
-      var REMOTE_PACKAGE_SIZE = metadata['remote_package_size'];
-      var PACKAGE_UUID = metadata['package_uuid'];
+var REMOTE_PACKAGE_SIZE = metadata['remote_package_size'];
 
       function fetchRemotePackage(packageName, packageSize, callback, errback) {
         if (typeof process === 'object' && typeof process.versions === 'object' && typeof process.versions.node === 'string') {
@@ -178,6 +176,6 @@ Module['FS_createPath']("/resources_js", "common", true, true);
     }
 
     }
-    loadPackage({"files": [{"filename": "/resources_js/common/abbreviations.txt", "start": 0, "end": 173}], "remote_package_size": 173, "package_uuid": "a465bcc0-721b-45c2-9506-076d0fb5612c"});
+    loadPackage({"files": [{"filename": "/resources_js/common/abbreviations.txt", "start": 0, "end": 173}], "remote_package_size": 173});
 
   })();
