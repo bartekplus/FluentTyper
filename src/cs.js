@@ -10,13 +10,42 @@
       this.newTributeId = 0;
       this.tributeArr = {};
       this.pendingReq = null;
-      this.config = {
-        enabled: false,
-        autocomplete: false,
-      };
-
+      this._enabled = false;
+      this.autocomplete = false;
+      this.lang = "";
+      this.autocompleteSeparator = RegExp(
+        /\s+|!|"|#|\$|%|&|\(|\)|\*|\+|,|-|\.|\/|:|;|<|=|>|\?|@|\[|\\|\]|\^|_|`|{|\||}|~/
+      );
+      this._autocompleteSeparatorSource = this.autocompleteSeparator.source;
       chrome.runtime.onMessage.addListener(this.messageHandler.bind(this));
       this.getConfig();
+    }
+
+    set enabled(newValue) {
+      if (this._enabled !== newValue) {
+        this._enabled = newValue;
+        if (newValue) {
+          this.enable();
+        } else {
+          this.disable();
+        }
+      }
+    }
+    get enabled() {
+      return this._enabled;
+    }
+
+    set autocompleteSeparatorSource(newValue) {
+      this._autocompleteSeparatorSource = newValue;
+      this.autocompleteSeparator = RegExp(newValue);
+      for (const [key] of Object.entries(this.tributeArr)) {
+        this.tributeArr[key].tribute.autocompleteSeparator =
+          this.autocompleteSeparator;
+      }
+    }
+
+    get autocompleteSeparatorSource() {
+      return this._autocompleteSeparatorSource;
     }
 
     attachMutationObserver() {
@@ -151,7 +180,7 @@
     }
 
     attachHelperToNode(elem) {
-      if (!this.config.enabled) {
+      if (!this.enabled) {
         return;
       }
       const properties = [
@@ -259,6 +288,7 @@
             nextChar: nextChar,
             tributeId: helperArrId,
             requestId: this.tributeArr[helperArrId].requestId,
+            lang: this.lang,
           },
         };
         // Cancel old timeout Fn
@@ -266,7 +296,7 @@
         this.setPresageRequestTimeout(helperArrId);
         // Check if we are waiting for a response
         this.pendingReq = message;
-        chrome.runtime.sendMessage(message);
+        chrome.runtime.sendMessage(message, this.messageHandler.bind(this));
       }.bind(this, tribueId);
 
       const tribute = new Tribute({
@@ -324,12 +354,10 @@
         // (defaults to true)
         positionMenu: true,
         // when the spacebar is hit, select the current match
-        spaceSelectsMatch: this.config.autocomplete,
+        spaceSelectsMatch: this.autocomplete,
         // turn tribute into an autocomplete
         autocompleteMode: true,
-        autocompleteSeparator: RegExp(
-          /\s+|!|"|#|\$|%|&|\(|\)|\*|\+|,|-|\.|\/|:|;|<|=|>|\?|@|\[|\\|\]|\^|_|`|{|\||}|~/
-        ),
+        autocompleteSeparator: this.autocompleteSeparator,
         // Customize the elements used to wrap matched strings within the results list
         // defaults to <span></span> if undefined
         searchOpts: {
@@ -341,7 +369,7 @@
         menuShowMinLength: 0,
         keys: tribueKeyFn,
         supportRevert: true,
-        selectByDigit: this.config.selectByDigit,
+        selectByDigit: this.selectByDigit,
       });
       this.tributeArr[tribueId].tribute = tribute;
       tribute.attach(elem);
@@ -364,7 +392,7 @@
     }
 
     queryAndAttachHelper(elem) {
-      if (!this.config.enabled) {
+      if (!this.enabled) {
         return;
       }
       let elems = [];
@@ -406,22 +434,25 @@
         this.triggerTribute(helperArrId);
       }
     }
+    updateLangConfig(lang, autocompleteSeparatorSource, tributeId) {
+      this.autocompleteSeparatorSource = autocompleteSeparatorSource;
+      this.lang = lang;
+      this.triggerTribute(tributeId);
+    }
 
     setConfig(config) {
-      this.config = config;
-      if (this.config.enabled) {
-        this.enable();
-      } else {
-        this.disable();
-      }
+      this.autocomplete = config.autocomplete;
+      this.autocompleteSeparatorSource = config.autocompleteSeparatorSource;
+      this.lang = config.lang;
+      this.selectByDigit = config.selectByDigit;
+      this.enabled = config.enabled;
     }
+
     enable() {
-      this.config.enabled = true;
       this.queryAndAttachHelper();
       this.attachMutationObserver();
     }
     disable() {
-      this.config.enabled = false;
       this.detachAllHelpers();
     }
 
@@ -473,20 +504,24 @@
           this.setConfig(message.context);
           sendStatusMsg = true;
           break;
+        case "backgroundPageUpdateLangConfig":
+          this.updateLangConfig(
+            message.context.lang,
+            message.context.autocompleteSeparatorSource,
+            message.context.tributeId
+          );
+          sendStatusMsg = true;
+          break;
         case "popupPageDisable":
-          this.disable();
+          this.enabled = false;
           sendStatusMsg = true;
           break;
         case "popupPageEnable":
-          this.enable();
+          this.enabled = true;
           sendStatusMsg = true;
           break;
         case "backgroundPageToggle":
-          if (this.config.enabled) {
-            this.disable();
-          } else {
-            this.enable();
-          }
+          this.enabled = !this.enabled;
           sendStatusMsg = true;
           break;
 
@@ -499,7 +534,7 @@
       if (sendStatusMsg) {
         const statusMsg = {
           command: "status",
-          context: { enabled: this.config.enabled },
+          context: { enabled: this.enabled },
         };
         // Send updated status
         if (sendResponse) sendResponse(statusMsg);

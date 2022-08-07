@@ -1,6 +1,10 @@
 import { getDomain, isDomainOnBlackList, checkLastError } from "./utils.js";
 import { Store } from "./third_party/fancier-settings/lib/store.js";
-import { SUPPORTED_LANGUAGES } from "./third_party/libpresage/lang.js";
+import {
+  SUPPORTED_LANGUAGES,
+  DEFAULT_SEPERATOR_CHARS_REGEX,
+  LANG_SEPERATOR_CHARS_REGEX,
+} from "./third_party/libpresage/lang.js";
 
 (function () {
   const SANDBOX_FRAME_INIT_TIME_MS = 3000;
@@ -55,7 +59,7 @@ import { SUPPORTED_LANGUAGES } from "./third_party/libpresage/lang.js";
       return enabledForDomain;
     }
 
-    detectLanguage(request) {
+    detectLanguage(request, sendResponse) {
       chrome.i18n.detectLanguage(request.context.text, (result) => {
         let detectedLanguage = null;
         let maxpercentage = -1;
@@ -69,19 +73,46 @@ import { SUPPORTED_LANGUAGES } from "./third_party/libpresage/lang.js";
         }
 
         if (detectedLanguage) {
-          request.context.lang = detectedLanguage;
-          request.context.langName = SUPPORTED_LANGUAGES[request.context.lang];
-          this.sendMsgToSandbox(request);
+          if (detectedLanguage !== request.context.lang) {
+            sendResponse({
+              command: "backgroundPageUpdateLangConfig",
+              context: {
+                lang: detectedLanguage,
+                autocompleteSeparatorSource:
+                  LANG_SEPERATOR_CHARS_REGEX[detectedLanguage].source,
+                tributeId: request.context.tributeId,
+              },
+            });
+          } else {
+            request.context.lang = detectedLanguage;
+            request.context.langName =
+              SUPPORTED_LANGUAGES[request.context.lang];
+            this.sendMsgToSandbox(request);
+            sendResponse();
+          }
         } else {
           chrome.tabs.detectLanguage(request.context.tabId, (ret) => {
             let lang = this.fallbackLanguage;
             if (ret in SUPPORTED_LANGUAGES) {
               lang = ret;
             }
-            request.context.lang = lang;
-            request.context.langName =
-              SUPPORTED_LANGUAGES[request.context.lang];
-            this.sendMsgToSandbox(request);
+            if (lang !== request.context.lang) {
+              sendResponse({
+                command: "backgroundPageUpdateLangConfig",
+                context: {
+                  lang: lang,
+                  autocompleteSeparatorSource:
+                    LANG_SEPERATOR_CHARS_REGEX[lang].source,
+                  tributeId: request.context.tributeId,
+                },
+              });
+            } else {
+              request.context.lang = lang;
+              request.context.langName =
+                SUPPORTED_LANGUAGES[request.context.lang];
+              this.sendMsgToSandbox(request);
+              sendResponse();
+            }
           });
         }
       });
@@ -99,12 +130,26 @@ import { SUPPORTED_LANGUAGES } from "./third_party/libpresage/lang.js";
         case "contentScriptPredictReq":
           request.command = "backgroundPagePredictReq";
           if (this.language === "auto_detect") {
-            this.detectLanguage(request);
+            asyncResponse = true;
+            this.detectLanguage(request, sendResponse);
           } else {
-            request.context.lang = this.language;
-            request.context.langName =
-              SUPPORTED_LANGUAGES[request.context.lang];
-            this.sendMsgToSandbox(request);
+            if (request.context.lang !== this.language) {
+              sendResponse({
+                command: "backgroundPageUpdateLangConfig",
+                context: {
+                  lang: this.language,
+                  autocompleteSeparatorSource:
+                    LANG_SEPERATOR_CHARS_REGEX[this.language].source,
+                  tributeId: request.context.tributeId,
+                },
+              });
+            } else {
+              request.context.lang = this.language;
+              request.context.langName =
+                SUPPORTED_LANGUAGES[request.context.lang];
+              this.sendMsgToSandbox(request);
+              sendResponse();
+            }
           }
 
           break;
@@ -122,6 +167,11 @@ import { SUPPORTED_LANGUAGES } from "./third_party/libpresage/lang.js";
             this.isEnabledForDomain(getDomain(sender.tab.url)),
             this.settings.get("autocomplete"),
             this.settings.get("selectByDigit"),
+            this.settings.get("language"),
+            (
+              LANG_SEPERATOR_CHARS_REGEX[this.language] ||
+              DEFAULT_SEPERATOR_CHARS_REGEX
+            ).source,
           ])
             .then((values) => {
               sendResponse({
@@ -130,6 +180,11 @@ import { SUPPORTED_LANGUAGES } from "./third_party/libpresage/lang.js";
                   enabled: values[0],
                   autocomplete: values[1],
                   selectByDigit: values[2],
+                  lang: values[3],
+                  autocompleteSeparatorSource: (
+                    LANG_SEPERATOR_CHARS_REGEX[values[3]] ||
+                    DEFAULT_SEPERATOR_CHARS_REGEX
+                  ).source,
                 },
               });
             })

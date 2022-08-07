@@ -1,4 +1,7 @@
-import { SUPPORTED_LANGUAGES } from "./lang.js";
+import {
+  SUPPORTED_LANGUAGES,
+  LANG_ADDITIONAL_SEPERATOR_REGEX,
+} from "./lang.js";
 
 const NEW_SENTENCE_CHARS = [".", "?", "!"];
 const SPACING_RULES = {
@@ -300,7 +303,7 @@ const Capitalization = Object.freeze({
       return true;
     }
 
-    processInput(predictionInput) {
+    processInput(predictionInput, language) {
       let doCapitalize = false;
       let doPrediction = false;
       if (
@@ -309,6 +312,13 @@ const Capitalization = Object.freeze({
       )
         return { predictionInput, doPrediction, doCapitalize };
       const endsWithSpace = predictionInput !== predictionInput.trimEnd();
+      // Workaround; Lang specific separator chars should be handled by Presage
+      if (LANG_ADDITIONAL_SEPERATOR_REGEX[language]) {
+        predictionInput = predictionInput.replace(
+          LANG_ADDITIONAL_SEPERATOR_REGEX[language],
+          "*"
+        );
+      }
       // Get last PAST_WORDS_COUNT words and filter empty
       const lastWordsArray = predictionInput
         .split(this.whiteSpaceRegEx) // Split on any whitespace
@@ -391,7 +401,8 @@ const Capitalization = Object.freeze({
         triggerInputEvent: this.insertSpaceAfterAutocomplete,
       };
       const { predictionInput, doPrediction, doCapitalize } = this.processInput(
-        event.data.context.text
+        event.data.context.text,
+        context.lang
       );
       const message = {
         command: "sandBoxPredictResp",
