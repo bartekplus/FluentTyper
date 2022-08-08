@@ -2,7 +2,7 @@
 /* global Tribute */
 
 (function () {
-  const PRESAGE_PREDICTION_TIMEOUT_MS = 444;
+  const PRESAGE_PREDICTION_TIMEOUT_MS = 1111;
 
   class FluentTyper {
     constructor() {
