@@ -228,7 +228,7 @@ const Capitalization = Object.freeze({
     checkAutoCapitalize(tokensArray, newSentence, endsWithSpace) {
       const lastWord = tokensArray.length
         ? tokensArray[tokensArray.length - 1]
-        : undefined;
+        : "";
       const firstCharacterOfLastWord = lastWord.slice(0, 1);
 
       // Handle following case:
