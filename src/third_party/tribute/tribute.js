@@ -215,14 +215,14 @@
       return {
         Backspace: (e, _el) => {
           if (this.tribute.lastReplacement) {
-            if (this.tribute.events.updateSelection(_el) && this.tribute.current.mentionPosition == this.tribute.lastReplacement.mentionPosition + this.tribute.lastReplacement.content.length) {
+            if (this.tribute.events.updateSelection(_el) && this.tribute.current.mentionPosition + this.tribute.current.mentionText.length == this.tribute.lastReplacement.mentionPosition + this.tribute.lastReplacement.content.length) {
               e.preventDefault();
               e.stopImmediatePropagation();
-              const addSpace = this.tribute.lastReplacement.content !== this.tribute.lastReplacement.content.trimEnd();
+
               this.tribute.current = { ...this.tribute.lastReplacement
               };
               this.tribute.current.mentionText = this.tribute.lastReplacement.content;
-              this.tribute.replaceText(this.tribute.lastReplacement.mentionText + (addSpace ? " " : ""), e, null);
+              this.tribute.replaceText(this.tribute.lastReplacement.mentionText + (""), e, null);
             }
 
             this.tribute.lastReplacement = null;
