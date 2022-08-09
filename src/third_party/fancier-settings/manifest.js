@@ -49,7 +49,7 @@ const manifest = {
       max: 12,
       display: true,
       label:
-        "Minimum word length to start prediction (If set to '0' then predict will start after any separator char (whitespace, !, \", #, $, %, &, ', (, ), *, +, -, ., /, :, ;, <, =, >, ?, @, [, \\, ], ^, _, `, {, |, }, ~) ):",
+        "Minimum word length to start prediction (If set to '0' then predict will start after whitespace",
       default: 1,
     },
     {
@@ -86,7 +86,7 @@ const manifest = {
       name: "applySpacingRules",
       type: "checkbox",
       label:
-        "Automatically apply spacing rules for punctuations and special haracters.",
+        "Automatically apply spacing rules for punctuations and special characters.",
       default: true,
     },
     {
