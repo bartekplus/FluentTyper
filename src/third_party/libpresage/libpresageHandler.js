@@ -316,7 +316,7 @@ const Capitalization = Object.freeze({
       if (LANG_ADDITIONAL_SEPERATOR_REGEX[language]) {
         predictionInput = predictionInput.replace(
           LANG_ADDITIONAL_SEPERATOR_REGEX[language],
-          "*"
+          " "
         );
       }
       // Get last PAST_WORDS_COUNT words and filter empty
