@@ -129,7 +129,6 @@ describe("features", () => {
         }
       );
     });
-    
 
     describe.each([
       [" XYZ", true, "OUT"],
