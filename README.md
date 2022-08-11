@@ -2,9 +2,8 @@
 ![Logo](https://github.com/bartekplus/FluentTyper/raw/master/promotional_materials/icon/LogoFluentTyper.png)
 
 
-![test workflow](https://github.com/bartekplus/FluentTyper/actions/workflows/test.yml/badge.svg)
-![lint workflow](https://github.com/bartekplus/FluentTyper/actions/workflows/lintCheck.yml/badge.svg)
-![release workflow](https://github.com/bartekplus/FluentTyper/actions/workflows/release.yml/badge.svg)
+[![Unit test](https://github.com/bartekplus/FluentTyper/actions/workflows/test.yml/badge.svg)](https://github.com/bartekplus/FluentTyper/actions/workflows/test.yml)
+[![ESLint & Prettier check](https://github.com/bartekplus/FluentTyper/actions/workflows/lintCheck.yml/badge.svg)](https://github.com/bartekplus/FluentTyper/actions/workflows/lintCheck.yml)
 
 
 # FluentTyper: Autocomplete and Spell Checker
