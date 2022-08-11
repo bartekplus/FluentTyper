@@ -143,14 +143,12 @@ describe("features", () => {
       "input: '%s', autoCapitalize: %s, expected: %s",
       (input, autoCapitalize, expected) => {
         test(`returns ${expected}`, () => {
-          console.log(expected);
           mod.PresageCallback.predictions = [expected.toLowerCase()];
           testContext.autoCapitalize = autoCapitalize;
           setConfig();
 
           const result = testContext.ph.runPrediction(input, "", lang);
           const expectedPrediction = expected;
-          console.log(result);
 
           expect(result.predictions[0]).toBe(expectedPrediction);
         });
