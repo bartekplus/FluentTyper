@@ -2,6 +2,11 @@
 ![Logo](https://github.com/bartekplus/FluentTyper/raw/master/promotional_materials/icon/LogoFluentTyper.png)
 
 
+![test workflow](https://github.com/bartekplus/FluentTyper/actions/workflows/test.yml/badge.svg)
+![lint workflow](https://github.com/bartekplus/FluentTyper/actions/workflows/lintCheck.yml/badge.svg)
+![release workflow](https://github.com/bartekplus/FluentTyper/actions/workflows/release.yml/badge.svg)
+
+
 # FluentTyper: Autocomplete and Spell Checker
 
 FluentTyper attempts to improve the ease and speed of textual input by predicting words. It autocompletes words for you while you typing. 
