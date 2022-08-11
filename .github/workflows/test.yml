@@ -1,4 +1,4 @@
-name: ESLint & Prettier check
+name: Unit test
 
 on:
   push:
