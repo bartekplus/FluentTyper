@@ -350,9 +350,16 @@ class PresageHandler {
       .splice(-PAST_WORDS_COUNT); // Get last PAST_WORDS_COUNT words
     const { wordArray, newSentence } = this.removePrevSentence(lastWordsArray);
     predictionInput = wordArray.join(" ") + (endsWithSpace ? " " : "");
-    const lastWord = lastWordsArray.length
+    let lastWord = lastWordsArray.length
       ? lastWordsArray[lastWordsArray.length - 1]
       : "";
+    lastWord =
+      lastWord
+        .split(this.keepPredCharRegEx) // Split on keepPredCharRegEx
+        .filter(function (e) {
+          return e.trim(); // filter empty elements
+        })
+        .pop() || "";
 
     doCapitalize = this.checkAutoCapitalize(
       wordArray,

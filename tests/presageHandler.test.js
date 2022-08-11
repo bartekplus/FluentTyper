@@ -35,54 +35,68 @@ beforeEach(() => {
 });
 
 describe("bugs", () => {
-  test("#3 In French, it should consider a single quote as a word separator", () => {
-    mod.PresageCallback.predictions = [""];
+  describe.each(Object.keys(SUPPORTED_LANGUAGES))("Lang: %s", (lang) => {
+    test("#3 In French, it should consider a single quote as a word separator", () => {
+      mod.PresageCallback.predictions = [""];
 
-    for (const [lang] of Object.entries(SUPPORTED_LANGUAGES)) {
       testContext.ph.runPrediction("L'agglo", "", lang);
       const expectedPastStream = lang === "fr" ? "L agglo" : "L'agglo";
-
       expect(testContext.ph.libPresageCallback[lang].pastStream).toBe(
         expectedPastStream
       );
-    }
-  });
+    });
 
-  test("#5 #6 - letter case after a single quote", () => {
-    mod.PresageCallback.predictions = ["avent"];
+    test("#5 #6 - letter case after a single quote", () => {
+      mod.PresageCallback.predictions = ["avent"];
 
-    for (const [lang] of Object.entries(SUPPORTED_LANGUAGES)) {
-      const result = testContext.ph.runPrediction("L'avent", "", lang);
-      const expectedPredictions = lang === "fr" ? "avent" : "Avent";
-
+      let result = testContext.ph.runPrediction("L'avent", "", lang);
+      let expectedPredictions = lang === "fr" ? "avent" : "Avent";
       expect(result.predictions[0]).toBe(expectedPredictions);
-    }
 
-    for (const [lang] of Object.entries(SUPPORTED_LANGUAGES)) {
-      const result = testContext.ph.runPrediction("l'Avent", "", lang);
-      const expectedPredictions = lang === "fr" ? "Avent" : "avent";
-
+      result = testContext.ph.runPrediction("l'Avent", "", lang);
+      expectedPredictions = lang === "fr" ? "Avent" : "avent";
       expect(result.predictions[0]).toBe(expectedPredictions);
-    }
-  });
+    });
 
-  test("#7 - Special signs should not be taken into account for the letter count", () => {
-    mod.PresageCallback.predictions = ["avent"];
-    testContext.minWordLengthToPredict = 5;
-    setConfig();
+    test("#7 - Special signs should not be taken into account for the letter count", () => {
+      mod.PresageCallback.predictions = ["avent"];
+      testContext.minWordLengthToPredict = 5;
+      setConfig();
 
-    for (const [lang] of Object.entries(SUPPORTED_LANGUAGES)) {
-      const result = testContext.ph.runPrediction("L'ave", "", lang);
-      const expectedPredictionsCount = lang === "fr" ? 0 : 1;
+      let result = testContext.ph.runPrediction("L'ave", "", lang);
+      let expectedPredictionsCount = lang === "fr" ? 0 : 1;
       expect(result.predictions.length).toBe(expectedPredictionsCount);
-    }
 
-    for (const [lang] of Object.entries(SUPPORTED_LANGUAGES)) {
-      const result = testContext.ph.runPrediction("l'Avent", "", lang);
-      const expectedPredictionsCount = 1;
+      result = testContext.ph.runPrediction("l'Avent", "", lang);
+      expectedPredictionsCount = 1;
 
       expect(result.predictions.length).toBe(expectedPredictionsCount);
-    }
+    });
+
+    test.each([
+      ["[wha", 4, false],
+      ["[to+bb", 3, false],
+      ["aa=bb", 3, false],
+      ["xyz{bb", 3, false],
+      ["poi*bb", 3, false],
+      ["fh*bb{o", 2, false],
+      ["aaa*tb/a", 2, false],
+      ["xx*bb-xy", 3, false],
+      ["aaa*bb{*dea", 4, false],
+      ["aaabb=cc", 3, false],
+      ["this[should=work", 4, true],
+    ])(
+      "#11 - don't take non-letter character into word length; intput %s",
+      (input, minWordLengthToPredict, predict) => {
+        mod.PresageCallback.predictions = ["ble"];
+        testContext.minWordLengthToPredict = minWordLengthToPredict;
+        setConfig();
+
+        const result = testContext.ph.runPrediction(input, "", lang);
+        const expectedPredictionsCount = predict ? 1 : 0;
+        expect(result.predictions.length).toBe(expectedPredictionsCount);
+      }
+    );
   });
 });
 
