@@ -81,7 +81,6 @@ class PresageHandler {
           pastStream: "",
 
           get_past_stream: function () {
-            console.log("aaaaaaaaaaXXXXXXXXXXXXXXxx", this.pastStream);
             return this.pastStream;
           },
 
