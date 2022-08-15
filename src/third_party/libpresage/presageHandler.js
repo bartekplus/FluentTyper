@@ -69,7 +69,7 @@ class PresageHandler {
       /\s+|!|"|#|\$|%|&|\(|\)|\*|\+|,|-|\.|\/|:|;|<|=|>|\?|@|\[|\\|\]|\^|_|`|{|\||}|~/
     );
     // Subset of separatorCharRegEx - keep predicting after those chars
-    this.keepPredCharRegEx = RegExp(/\[|\(|{|<|\/|-|\*|\+|=/);
+    this.keepPredCharRegEx = RegExp(/\[|\(|{|<|\/|-|\*|\+|=|"/);
     this.whiteSpaceRegEx = RegExp(/\s+/);
     this.letterRegEx = RegExp(/^\p{L}/, "u");
     // Attach event listener

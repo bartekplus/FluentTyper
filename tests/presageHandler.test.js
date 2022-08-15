@@ -154,7 +154,7 @@ describe("features", () => {
       [" xyz. ", true, "Out"],
       [" xyz. ", false, "out"],
     ])(
-      "input: '%s', autoCapitalize: %s, expected: %s",
+      "input: '%s', autoCapitalize: %s, expected: '%s'",
       (input, autoCapitalize, expected) => {
         test(`returns ${expected}`, () => {
           mod.PresageCallback.predictions = [expected.toLowerCase()];
@@ -168,5 +168,25 @@ describe("features", () => {
         });
       }
     );
+
+    test.each([
+      "[abc",
+      "(abc",
+      "{abc",
+      "<abc",
+      "/abc",
+      "-abc",
+      "*abc",
+      "+abc",
+      "=abc",
+      '"abc',
+    ])("#11 - Check keepPredCharRegEx functionality intput '%s'", (input) => {
+      mod.PresageCallback.predictions = ["ble"];
+      setConfig();
+
+      const result = testContext.ph.runPrediction(input, "", lang);
+      const expectedPredictionsCount = 1;
+      expect(result.predictions.length).toBe(expectedPredictionsCount);
+    });
   });
 });
