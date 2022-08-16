@@ -1,2 +1,0 @@
-src/third_party/libpresage/libpresage.data filter=lfs diff=lfs merge=lfs -text
-/src/third_party/libpresage/libpresage.data filter=lfs diff=lfs merge=lfs -text
