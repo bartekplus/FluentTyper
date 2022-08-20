@@ -72,8 +72,7 @@ class PresageHandler {
     this.keepPredCharRegEx = RegExp(/\[|\(|{|<|\/|-|\*|\+|=|"/);
     this.whiteSpaceRegEx = RegExp(/\s+/);
     this.letterRegEx = RegExp(/^\p{L}/, "u");
-    // Attach event listener
-    window.addEventListener("message", this.messageHandler.bind(this));
+
     for (const [lang] of Object.entries(SUPPORTED_LANGUAGES)) {
       try {
         this.lastPrediction[lang] = { pastStream: "", predictions: [] };
