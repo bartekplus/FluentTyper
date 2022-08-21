@@ -29,21 +29,16 @@ async function addDomainToBlackList(settings, domainURL) {
   settings.set(SETTINGS_DOMAIN_BLACKLIST, domainBlackList);
 }
 
-function removeDomainFromBlackList(settings, domainURL) {
-  const promise = settings.get(SETTINGS_DOMAIN_BLACKLIST);
-  promise
-    .then(function (domainBlackList) {
-      for (let i = 0; i < domainBlackList.length; i++) {
-        if (domainURL.match(domainBlackList[i])) {
-          domainBlackList.splice(i, 1);
-          settings.set(SETTINGS_DOMAIN_BLACKLIST, domainBlackList);
-          break;
-        }
-      }
-    })
-    .catch(function (e) {
-      console.error(e);
-    });
+async function removeDomainFromBlackList(settings, domainURL) {
+  const domainBlackList = await settings.get(SETTINGS_DOMAIN_BLACKLIST);
+
+  for (let i = 0; i < domainBlackList.length; i++) {
+    if (domainURL.match(domainBlackList[i])) {
+      domainBlackList.splice(i, 1);
+      settings.set(SETTINGS_DOMAIN_BLACKLIST, domainBlackList);
+      break;
+    }
+  }
 }
 
 function checkLastError() {
