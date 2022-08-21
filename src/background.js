@@ -64,63 +64,29 @@ class BackgrounServiceWorker {
     return enabledForDomain;
   }
 
-  detectLanguage(request, sendResponse) {
-    chrome.i18n.detectLanguage(request.context.text, (result) => {
-      let detectedLanguage = null;
-      let maxpercentage = -1;
-      for (let i = 0; i < result.languages.length; i++) {
-        if (result.languages[i].language in SUPPORTED_LANGUAGES) {
-          if (result.languages[i].percentage > maxpercentage) {
-            detectedLanguage = result.languages[i].language;
-            maxpercentage = result.languages[i].percentage;
-          }
+  async detectLanguage(text, tabId) {
+    const fallbackLanguage = this.settings.get("fallbackLanguage");
+    const result = await chrome.i18n.detectLanguage(text);
+
+    let detectedLanguage = null;
+    let maxpercentage = -1;
+
+    for (let i = 0; i < result.languages.length; i++) {
+      if (result.languages[i].language in SUPPORTED_LANGUAGES) {
+        if (result.languages[i].percentage > maxpercentage) {
+          detectedLanguage = result.languages[i].language;
+          maxpercentage = result.languages[i].percentage;
         }
       }
+    }
+    if (detectedLanguage) return detectedLanguage;
 
-      if (detectedLanguage) {
-        if (detectedLanguage !== request.context.lang) {
-          sendResponse({
-            command: "backgroundPageUpdateLangConfig",
-            context: {
-              lang: detectedLanguage,
-              autocompleteSeparatorSource:
-                LANG_SEPERATOR_CHARS_REGEX[detectedLanguage].source,
-              tributeId: request.context.tributeId,
-            },
-          });
-        } else {
-          request.context.lang = detectedLanguage;
-          request.context.langName = SUPPORTED_LANGUAGES[request.context.lang];
-          this.runPrediction(request);
-          sendResponse();
-        }
-      } else {
-        chrome.tabs.detectLanguage(request.context.tabId, async (ret) => {
-          let lang = await this.settings.get("fallbackLanguage");
+    const pageLang = await chrome.tabs.detectLanguage(tabId);
+    if (pageLang in SUPPORTED_LANGUAGES) {
+      return pageLang;
+    }
 
-          if (ret in SUPPORTED_LANGUAGES) {
-            lang = ret;
-          }
-          if (lang !== request.context.lang) {
-            sendResponse({
-              command: "backgroundPageUpdateLangConfig",
-              context: {
-                lang: lang,
-                autocompleteSeparatorSource:
-                  LANG_SEPERATOR_CHARS_REGEX[lang].source,
-                tributeId: request.context.tributeId,
-              },
-            });
-          } else {
-            request.context.lang = lang;
-            request.context.langName =
-              SUPPORTED_LANGUAGES[request.context.lang];
-            this.runPrediction(request);
-            sendResponse();
-          }
-        });
-      }
-    });
+    return fallbackLanguage;
   }
 
   toggleOnOffActiveTab() {
@@ -197,28 +163,30 @@ function onMessage(request, sender, sendResponse) {
       asyncResponse = true;
       backgrounServiceWorker.settings
         .get("language")
-        .then((language) => {
+        .then(async (language) => {
           if (language === "auto_detect") {
-            asyncResponse = true;
-            backgrounServiceWorker.detectLanguage(request, sendResponse);
+            language = await backgrounServiceWorker.detectLanguage(
+              request.context.text,
+              request.context.tabId
+            );
+          }
+
+          if (request.context.lang !== language) {
+            sendResponse({
+              command: "backgroundPageUpdateLangConfig",
+              context: {
+                lang: language,
+                autocompleteSeparatorSource:
+                  LANG_SEPERATOR_CHARS_REGEX[language].source,
+                tributeId: request.context.tributeId,
+              },
+            });
           } else {
-            if (request.context.lang !== language) {
-              sendResponse({
-                command: "backgroundPageUpdateLangConfig",
-                context: {
-                  lang: language,
-                  autocompleteSeparatorSource:
-                    LANG_SEPERATOR_CHARS_REGEX[language].source,
-                  tributeId: request.context.tributeId,
-                },
-              });
-            } else {
-              request.context.lang = language;
-              request.context.langName =
-                SUPPORTED_LANGUAGES[request.context.lang];
-              backgrounServiceWorker.runPrediction(request);
-              sendResponse();
-            }
+            request.context.lang = language;
+            request.context.langName =
+              SUPPORTED_LANGUAGES[request.context.lang];
+            backgrounServiceWorker.runPrediction(request);
+            sendResponse();
           }
         })
         .catch(function (e) {
