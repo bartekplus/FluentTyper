@@ -103,65 +103,6 @@ class PresageHandler {
     }
   }
 
-  runPredictionHandler(event) {
-    const context = {
-      ...event.data.context,
-      predictions: [],
-      forceReplace: null,
-      triggerInputEvent: this.insertSpaceAfterAutocomplete,
-    };
-    const message = {
-      command: "sandBoxPredictResp",
-      context: context,
-    };
-    const result = this.runPrediction(
-      event.data.context.text,
-      event.data.context.nextChar,
-      event.data.context.lang
-    );
-    message.context.predictions = result.predictions;
-    message.context.forceReplace = result.forceReplace;
-    this.predictionTimeouts[event.data.context.tabId][
-      event.data.context.frameId
-    ] = null;
-    event.source.postMessage(message, event.origin);
-  }
-
-  messageHandler(event) {
-    const command = event.data.command;
-    const context = event.data.context;
-    switch (command) {
-      case "backgroundPagePredictReq": {
-        const tabId = event.data.context.tabId;
-        const frameId = event.data.context.frameId;
-        if (!this.predictionTimeouts[tabId]) {
-          this.predictionTimeouts[tabId] = {};
-        } else if (this.predictionTimeouts[tabId][frameId]) {
-          clearTimeout(this.predictionTimeouts[tabId][frameId]);
-        }
-        this.predictionTimeouts[tabId][frameId] = setTimeout(
-          this.runPredictionHandler.bind(this, event),
-          0
-        );
-        break;
-      }
-      case "backgroundPageSetConfig": {
-        this.setConfig(
-          context.numSuggestions,
-          context.minWordLengthToPredict,
-          context.insertSpaceAfterAutocomplete,
-          context.autoCapitalize,
-          context.applySpacingRules,
-          context.textExpansions
-        );
-        break;
-      }
-      default:
-        console.log("Unknown message:");
-        console.log(event);
-    }
-  }
-
   setupTextExpansions() {
     if (!this.textExpansions) return;
 

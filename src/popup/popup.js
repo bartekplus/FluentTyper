@@ -5,7 +5,7 @@ import {
   addDomainToBlackList,
 } from "../utils.js";
 import { Store } from "../third_party/fancier-settings/lib/store.js";
-import { SUPPORTED_LANGUAGES } from "../third_party/libpresage/lang.js";
+import { SUPPORTED_LANGUAGES } from "../lang.js";
 
 const settings = new Store("settings");
 

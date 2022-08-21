@@ -4,16 +4,16 @@ import {
   SUPPORTED_LANGUAGES,
   DEFAULT_SEPERATOR_CHARS_REGEX,
   LANG_SEPERATOR_CHARS_REGEX,
-} from "./third_party/libpresage/lang.js";
-import { PresageHandler } from "./third_party/libpresage/presageHandler.js";
+} from "./lang.js";
+import { PresageHandler } from "./presageHandler.js";
 import libPresageMod from "./third_party/libpresage/libpresage.js";
 
-class BackgrounPage {
+class BackgrounServiceWorker {
   constructor() {
-    if (BackgrounPage.instance) {
-      return BackgrounPage.instance;
+    if (BackgrounServiceWorker.instance) {
+      return BackgrounServiceWorker.instance;
     }
-    BackgrounPage.instance = this;
+    BackgrounServiceWorker.instance = this;
 
     this.settings = new Store("settings");
   }
@@ -169,10 +169,10 @@ function onInstalled(details) {
 }
 
 function onCommand(command) {
-  const backgrounPage = new BackgrounPage();
+  const backgrounServiceWorker = new BackgrounServiceWorker();
   switch (command) {
     case "toggle-ft-active-tab":
-      backgrounPage.toggleOnOffActiveTab();
+      backgrounServiceWorker.toggleOnOffActiveTab();
       break;
 
     default:
@@ -183,8 +183,7 @@ function onCommand(command) {
 
 //Messages from option page and content script
 function onMessage(request, sender, sendResponse) {
-  console.log("xxxxxxxxx");
-  const backgrounPage = new BackgrounPage();
+  const backgrounServiceWorker = new BackgrounServiceWorker();
   let asyncResponse = false;
   checkLastError();
 
@@ -196,12 +195,12 @@ function onMessage(request, sender, sendResponse) {
       request.command = "backgroundPagePredictReq";
 
       asyncResponse = true;
-      backgrounPage.settings
+      backgrounServiceWorker.settings
         .get("language")
         .then((language) => {
           if (language === "auto_detect") {
             asyncResponse = true;
-            backgrounPage.detectLanguage(request, sendResponse);
+            backgrounServiceWorker.detectLanguage(request, sendResponse);
           } else {
             if (request.context.lang !== language) {
               sendResponse({
@@ -217,7 +216,7 @@ function onMessage(request, sender, sendResponse) {
               request.context.lang = language;
               request.context.langName =
                 SUPPORTED_LANGUAGES[request.context.lang];
-              backgrounPage.runPrediction(request);
+              backgrounServiceWorker.runPrediction(request);
               sendResponse();
             }
           }
@@ -229,19 +228,18 @@ function onMessage(request, sender, sendResponse) {
       break;
 
     case "optionsPageConfigChange":
-      backgrounPage.updatePresageConfig();
+      backgrounServiceWorker.updatePresageConfig();
       break;
 
     case "contentScriptGetConfig":
       asyncResponse = true;
       Promise.all([
-        backgrounPage.isEnabledForDomain(getDomain(sender.tab.url)),
-        backgrounPage.settings.get("autocomplete"),
-        backgrounPage.settings.get("selectByDigit"),
-        backgrounPage.settings.get("language"),
+        backgrounServiceWorker.isEnabledForDomain(getDomain(sender.tab.url)),
+        backgrounServiceWorker.settings.get("autocomplete"),
+        backgrounServiceWorker.settings.get("selectByDigit"),
+        backgrounServiceWorker.settings.get("language"),
       ])
         .then((values) => {
-          console.log("ogien!");
           sendResponse({
             command: "backgroundPageSetConfig",
             context: {
