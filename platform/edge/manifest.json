@@ -34,7 +34,6 @@
   },
   "web_accessible_resources": [
     "icon/icon*",
-    "beer_donation_button_single.png",
     "third_party/libpresage/*"
   ],
   "name": "FluentTyper: Autocomplete and Spell Checker",
