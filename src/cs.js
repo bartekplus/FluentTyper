@@ -49,17 +49,19 @@
     }
 
     attachMutationObserver() {
+      const observerOptions = {
+        childList: true,
+        attributes: true,
+        attributeFilter: ["contenteditable", "type", "name", "id"],
+        subtree: true,
+      };
+
       if (!this.observer) {
         const MutationCallback = this.MutationCallback.bind(this);
-        const observerOptions = {
-          childList: true,
-          attributes: true,
-          attributeFilter: ["contenteditable", "type", "name", "id"],
-          subtree: true,
-        };
         this.observer = new MutationObserver(MutationCallback);
-        this.observer.observe(document.body, observerOptions);
       }
+
+      this.observer.observe(document.body, observerOptions);
     }
     keys() {
       const keyArr = [
@@ -153,6 +155,8 @@
     }
 
     MutationCallback(mutationsList) {
+      this.observer.disconnect();
+
       for (const [key] of Object.entries(this.tributeArr)) {
         if (!this.isInDocument(this.tributeArr[key].elem)) {
           this.detachHelper(key);
@@ -161,12 +165,18 @@
 
       for (const mutation of mutationsList) {
         mutation.addedNodes.forEach((element) => {
-          this.queryAndAttachHelper(element);
+          if (this.isInDocument(element)) {
+            this.queryAndAttachHelper(element);
+          }
         });
         if (mutation.type === "attributes") {
-          this.queryAndAttachHelper(mutation.target);
+          if (this.isInDocument(mutation.target)) {
+            this.queryAndAttachHelper(mutation.target);
+          }
         }
       }
+
+      this.attachMutationObserver();
     }
 
     checkElemProperty(elem, propertyName, expectedValue, defaultValue) {
