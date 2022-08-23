@@ -57,8 +57,8 @@
       };
 
       if (!this.observer) {
-        const MutationCallback = this.MutationCallback.bind(this);
-        this.observer = new MutationObserver(MutationCallback);
+        const mutationCallback = this.mutationCallback.bind(this);
+        this.observer = new MutationObserver(mutationCallback);
       }
 
       this.observer.observe(document.body, observerOptions);
@@ -154,7 +154,7 @@
       return element === document;
     }
 
-    MutationCallback(mutationsList) {
+    processMuations(mutationsList) {
       this.observer.disconnect();
 
       for (const [key] of Object.entries(this.tributeArr)) {
@@ -177,6 +177,10 @@
       }
 
       this.attachMutationObserver();
+    }
+
+    mutationCallback(mutationsList) {
+      setTimeout(this.processMuations.bind(this, mutationsList), 0);
     }
 
     checkElemProperty(elem, propertyName, expectedValue, defaultValue) {
