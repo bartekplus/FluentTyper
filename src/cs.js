@@ -2,8 +2,6 @@
 /* global Tribute */
 
 (function () {
-  const PRESAGE_PREDICTION_TIMEOUT_MS = 1111;
-
   class FluentTyper {
     constructor() {
       this.SELECTORS = "textarea, input, [contentEditable]";
@@ -79,7 +77,6 @@
 
     detachHelper(tributeId) {
       const elem = this.tributeArr[tributeId].elem;
-      this.cancelPresageRequestTimeout(tributeId);
       this.tributeArr[tributeId].tribute.detach(elem);
       delete this.tributeArr[tributeId].tribute;
       elem.removeEventListener(
@@ -109,34 +106,6 @@
       return false;
     }
 
-    cancelPresageRequestTimeout(tributeId) {
-      if (this.tributeArr[tributeId].timeout) {
-        clearTimeout(this.tributeArr[tributeId].timeout);
-        this.tributeArr[tributeId].timeout = null;
-      }
-    }
-
-    requestTimeoutFn(tributeId, requestId) {
-      if (
-        this.tributeArr[tributeId] &&
-        requestId === this.tributeArr[tributeId].requestId
-      ) {
-        this.pendingReq = null;
-        this.tributeArr[tributeId].timeout = null;
-        this.tributeArr[tributeId].done([]);
-      }
-    }
-    setPresageRequestTimeout(tributeId) {
-      const timeoutFn = this.requestTimeoutFn.bind(
-        this,
-        tributeId,
-        this.tributeArr[tributeId].requestId
-      );
-      this.tributeArr[tributeId].timeout = setTimeout(
-        timeoutFn,
-        PRESAGE_PREDICTION_TIMEOUT_MS
-      );
-    }
     checkLastError() {
       try {
         if (chrome.runtime.lastError) {
@@ -280,7 +249,6 @@
         tribute: null,
         elem: elem,
         done: null,
-        timeout: null,
         requestId: 0,
         triggerInputEvent: false,
       };
@@ -305,10 +273,6 @@
             lang: this.lang,
           },
         };
-        // Cancel old timeout Fn
-        this.cancelPresageRequestTimeout(helperArrId);
-        this.setPresageRequestTimeout(helperArrId);
-        // Check if we are waiting for a response
         this.pendingReq = message;
         chrome.runtime.sendMessage(message, this.messageHandler.bind(this));
       }.bind(this, tribueId);
@@ -481,8 +445,6 @@
         case "backgroundPagePredictResp":
           // We were waiting for prediction
           if (this.pendingReq) {
-            this.cancelPresageRequestTimeout(message.context.tributeId);
-
             // Check if msg are equal
             if (
               message.context.requestId ===
@@ -499,7 +461,6 @@
                 this.tributeArr[message.context.tributeId].triggerInputEvent =
                   message.context.triggerInputEvent;
               }
-              // Cancel old timeout Fn
               // Send prediction to TributeJs
               this.tributeArr[message.context.tributeId].done(
                 keyValPairs,
