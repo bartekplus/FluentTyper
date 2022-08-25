@@ -1,9 +1,11 @@
 {
   "background": {
-    "page": "background.html",
-    "persistent": true
+    "service_worker": "background.js",
+    "type": "module"
   },
-  "optional_permissions": ["<all_urls>"],
+  "optional_host_permissions": [
+    "<all_urls>"
+  ],
   "content_scripts": [
     {
       "css": [
@@ -33,16 +35,42 @@
     "16": "icon/icon16.png"
   },
   "web_accessible_resources": [
-    "icon/icon*",
-    "beer_donation_button_single.png",
-    "third_party/libpresage/*"
+    {
+      "resources": [
+        "icon/icon*",
+        "third_party/libpresage/*"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
   ],
   "name": "FluentTyper: Autocomplete and Spell Checker",
   "options_ui": {
     "page": "options.html",
     "open_in_tab": true
   },
-  "browser_action": {
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  "update_url": "http://clients2.google.com/service/update2/crx",
+  "version": "2022.8.23",
+  "manifest_version": 3,
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
+  },
+  "commands": {
+    "toggle-ft-active-tab": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+F",
+        "mac": "Command+Shift+F"
+      },
+      "description": "Toggle on/off FluentTyper on active tab"
+    }
+  },
+  "offline_enabled": true,
+  "action": {
     "default_icon": {
       "256": "icon/icon256.png",
       "128": "icon/icon128.png",
@@ -55,28 +83,5 @@
     },
     "default_popup": "popup/popup.html",
     "default_title": "Do action"
-  },
-  "permissions": [
-    "storage",
-    "activeTab"
-  ],
-  "sandbox": {
-    "pages": [
-      "third_party/libpresage/libpresage.html"
-    ]
-  },
-  "update_url": "http://clients2.google.com/service/update2/crx",
-  "version": "2022.8.23",
-  "manifest_version": 2,
-  "content_security_policy": "script-src 'self'; object-src 'self'",
-  "commands": {
-    "toggle-ft-active-tab": {
-      "suggested_key": {
-        "default": "Ctrl+Shift+F",
-        "mac": "Command+Shift+F"
-      },
-      "description": "Toggle on/off FluentTyper on active tab"
-    }
-  },
-  "offline_enabled": true
+  }
 }
