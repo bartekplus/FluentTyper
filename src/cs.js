@@ -2,6 +2,7 @@
 /* global Tribute */
 
 (function () {
+  const WATCHDOG_INTERVAL_MS = 1000;
   class FluentTyper {
     constructor() {
       this.SELECTORS = "textarea, input, [contentEditable]";
@@ -15,8 +16,22 @@
         /\s+|!|"|#|\$|%|&|\(|\)|\*|\+|,|-|\.|\/|:|;|<|=|>|\?|@|\[|\\|\]|\^|_|`|{|\||}|~/
       );
       this._autocompleteSeparatorSource = this.autocompleteSeparator.source;
+      this.observerNode = document.body || document.documentElement;
+
       chrome.runtime.onMessage.addListener(this.messageHandler.bind(this));
       this.getConfig();
+      setInterval(this.watchDog.bind(this), WATCHDOG_INTERVAL_MS);
+    }
+
+    watchDog() {
+      const oNode = document.body || document.documentElement;
+      if (this.observerNode !== oNode) {
+        if (this.enabled) {
+          this.disable();
+          this.enable();
+        }
+        this.observerNode = oNode;
+      }
     }
 
     set enabled(newValue) {
@@ -59,7 +74,7 @@
         this.observer = new MutationObserver(mutationCallback);
       }
 
-      this.observer.observe(document.body, observerOptions);
+      this.observer.observe(this.observerNode, observerOptions);
     }
     keys() {
       const keyArr = [
@@ -431,6 +446,7 @@
       this.attachMutationObserver();
     }
     disable() {
+      this.observer = null;
       this.detachAllHelpers();
     }
 
