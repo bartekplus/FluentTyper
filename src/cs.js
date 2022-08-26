@@ -236,10 +236,6 @@
       ];
       let propertiesCheck = true;
 
-      if (this.isHelperAttached(elem)) {
-        return;
-      }
-
       for (let index = 0; index < properties.length; index++) {
         const check = properties[index];
         let checkVal = this.checkElemProperty(
@@ -400,6 +396,17 @@
       }
 
       for (let i = 0; i < elems.length; i++) {
+        let skip = false;
+        for (const [key] of Object.entries(this.tributeArr)) {
+          if (elems[i].contains(this.tributeArr[key].elem)) {
+            this.detachHelper(key);
+          } else if (this.tributeArr[key].elem.contains(elems[i])) {
+            skip = true;
+          }
+        }
+        if (skip) continue;
+        if (this.isHelperAttached(elems[i])) continue;
+
         this.attachHelperToNode(elems[i]);
       }
     }
