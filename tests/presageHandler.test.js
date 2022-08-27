@@ -188,5 +188,29 @@ describe("features", () => {
       const expectedPredictionsCount = 1;
       expect(result.predictions.length).toBe(expectedPredictionsCount);
     });
+
+    describe.each([
+      ["test", "\n", true, "test\xA0"],
+      ["test", "\n", false, "test"],
+      ["test", "", true, "test\xA0"],
+      ["test", "", false, "test"],
+      ["test", " ", true, "test"],
+      ["test", " ", false, "test"],
+    ])(
+      "input: '%s', nextChar: '%s', insertSpaceAfterAutocomplete: %s, expected: '%s'",
+      (input, nextChar, insertSpaceAfterAutocomplete, expected) => {
+        test(`returns '${expected}'`, () => {
+          mod.PresageCallback.predictions = [input.toLowerCase()];
+          testContext.insertSpaceAfterAutocomplete =
+            insertSpaceAfterAutocomplete;
+          setConfig();
+
+          const result = testContext.ph.runPrediction(input, nextChar, lang);
+          const expectedPrediction = expected;
+
+          expect(result.predictions[0]).toBe(expectedPrediction);
+        });
+      }
+    );
   });
 });
