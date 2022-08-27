@@ -71,6 +71,7 @@ class PresageHandler {
     // Subset of separatorCharRegEx - keep predicting after those chars
     this.keepPredCharRegEx = RegExp(/\[|\(|{|<|\/|-|\*|\+|=|"/);
     this.whiteSpaceRegEx = RegExp(/\s+/);
+    this.whiteSpaceRegExExcludeNewLine = RegExp(/[^\S\r\n]+/);
     this.letterRegEx = RegExp(/^\p{L}/, "u");
 
     for (const [lang] of Object.entries(SUPPORTED_LANGUAGES)) {
@@ -144,8 +145,9 @@ class PresageHandler {
     }
   }
 
-  isWhiteSpace(character) {
-    return this.whiteSpaceRegEx.test(character);
+  isWhiteSpace(character, matchNewLine = true) {
+    if (matchNewLine) return this.whiteSpaceRegEx.test(character);
+    return this.whiteSpaceRegExExcludeNewLine.test(character);
   }
 
   isLetter(character) {
@@ -382,7 +384,7 @@ class PresageHandler {
     // Add space if needed
     if (this.insertSpaceAfterAutocomplete) {
       if (
-        !this.isWhiteSpace(nextChar) &&
+        !this.isWhiteSpace(nextChar, false) &&
         (!(nextChar in SPACING_RULES) ||
           SPACING_RULES[nextChar].spaceBefore === true)
       ) {
