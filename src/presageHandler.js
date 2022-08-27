@@ -145,7 +145,7 @@ class PresageHandler {
     }
   }
 
-  isWhiteSpace(character, matchNewLine=true) {
+  isWhiteSpace(character, matchNewLine = true) {
     if (matchNewLine) return this.whiteSpaceRegEx.test(character);
     return this.whiteSpaceRegExExcludeNewLine.test(character);
   }
