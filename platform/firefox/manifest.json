@@ -61,7 +61,7 @@
     "tabs",
     "<all_urls>"
   ],
-  "version": "2022.8.27.1",
+  "version": "2022.8.27.2",
   "manifest_version": 2,
   "content_security_policy": "script-src 'self' 'unsafe-eval'; object-src 'self'",
   "commands": {
