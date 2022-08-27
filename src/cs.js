@@ -398,6 +398,8 @@
       for (let i = 0; i < elems.length; i++) {
         let skip = false;
         for (const [key] of Object.entries(this.tributeArr)) {
+          if (elems[i] === this.tributeArr[key].elem) continue;
+
           if (elems[i].contains(this.tributeArr[key].elem)) {
             this.detachHelper(key);
           } else if (this.tributeArr[key].elem.contains(elems[i])) {
