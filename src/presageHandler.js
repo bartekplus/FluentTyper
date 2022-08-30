@@ -3,30 +3,37 @@ import {
   LANG_ADDITIONAL_SEPERATOR_REGEX,
 } from "./lang.js";
 
+const Spacing = Object.freeze({
+  INSERT_SPACE: Symbol("INSERT_SPACE"),
+  REMOVE_SPACE: Symbol("REMOVE_SPACE"),
+  NO_CHANGE: Symbol("NO_CHANGE"),
+});
+
 const NEW_SENTENCE_CHARS = [".", "?", "!"];
 const SPACING_RULES = {
-  ".": { spaceBefore: false, spaceAfter: true },
-  ",": { spaceBefore: false, spaceAfter: true },
-  "]": { spaceBefore: false, spaceAfter: true },
-  ")": { spaceBefore: false, spaceAfter: true },
-  "}": { spaceBefore: false, spaceAfter: true },
-  ">": { spaceBefore: false, spaceAfter: true },
-  "!": { spaceBefore: false, spaceAfter: true },
-  ":": { spaceBefore: false, spaceAfter: true },
-  ";": { spaceBefore: false, spaceAfter: true },
-  "?": { spaceBefore: false, spaceAfter: true },
-  "[": { spaceBefore: true, spaceAfter: false },
-  "(": { spaceBefore: true, spaceAfter: false },
-  "{": { spaceBefore: true, spaceAfter: false },
-  "<": { spaceBefore: true, spaceAfter: false },
-  "/": { spaceBefore: true, spaceAfter: true },
-  "—": { spaceBefore: false, spaceAfter: false },
-  "–": { spaceBefore: false, spaceAfter: false },
-  "-": { spaceBefore: false, spaceAfter: false },
-  "’": { spaceBefore: false, spaceAfter: false },
-  "*": { spaceBefore: false, spaceAfter: false },
-  "+": { spaceBefore: false, spaceAfter: false },
-  "=": { spaceBefore: false, spaceAfter: false },
+  ".": { spaceBefore: Spacing.REMOVE_SPACE, spaceAfter: Spacing.INSERT_SPACE },
+  ",": { spaceBefore: Spacing.REMOVE_SPACE, spaceAfter: Spacing.INSERT_SPACE },
+  "]": { spaceBefore: Spacing.REMOVE_SPACE, spaceAfter: Spacing.INSERT_SPACE },
+  ")": { spaceBefore: Spacing.REMOVE_SPACE, spaceAfter: Spacing.INSERT_SPACE },
+  "}": { spaceBefore: Spacing.REMOVE_SPACE, spaceAfter: Spacing.INSERT_SPACE },
+  ">": { spaceBefore: Spacing.REMOVE_SPACE, spaceAfter: Spacing.INSERT_SPACE },
+  "!": { spaceBefore: Spacing.REMOVE_SPACE, spaceAfter: Spacing.INSERT_SPACE },
+  ":": { spaceBefore: Spacing.REMOVE_SPACE, spaceAfter: Spacing.INSERT_SPACE },
+  ";": { spaceBefore: Spacing.REMOVE_SPACE, spaceAfter: Spacing.INSERT_SPACE },
+  "?": { spaceBefore: Spacing.REMOVE_SPACE, spaceAfter: Spacing.INSERT_SPACE },
+  "[": { spaceBefore: Spacing.INSERT_SPACE, spaceAfter: Spacing.REMOVE_SPACE },
+  "(": { spaceBefore: Spacing.INSERT_SPACE, spaceAfter: Spacing.REMOVE_SPACE },
+  "{": { spaceBefore: Spacing.INSERT_SPACE, spaceAfter: Spacing.REMOVE_SPACE },
+  "<": { spaceBefore: Spacing.INSERT_SPACE, spaceAfter: Spacing.REMOVE_SPACE },
+  "/": { spaceBefore: Spacing.INSERT_SPACE, spaceAfter: Spacing.INSERT_SPACE },
+  // TODO: Validate spacing rules for below symbols
+  "—": { spaceBefore: Spacing.NO_CHANGE, spaceAfter: Spacing.NO_CHANGE },
+  "–": { spaceBefore: Spacing.NO_CHANGE, spaceAfter: Spacing.NO_CHANGE },
+  "-": { spaceBefore: Spacing.NO_CHANGE, spaceAfter: Spacing.NO_CHANGE },
+  "’": { spaceBefore: Spacing.NO_CHANGE, spaceAfter: Spacing.NO_CHANGE },
+  "*": { spaceBefore: Spacing.NO_CHANGE, spaceAfter: Spacing.NO_CHANGE },
+  "+": { spaceBefore: Spacing.NO_CHANGE, spaceAfter: Spacing.NO_CHANGE },
+  "=": { spaceBefore: Spacing.NO_CHANGE, spaceAfter: Spacing.NO_CHANGE },
 };
 const SPACE_CHARS = ["\xA0", " "];
 const PAST_WORDS_COUNT = 5;
@@ -324,20 +331,27 @@ class PresageHandler {
     if (!(lastChar in SPACING_RULES)) return null;
     if (SPACE_CHARS.includes(lastCharMin2)) return null;
     if (
-      SPACING_RULES[lastChar].spaceBefore === SPACE_CHARS.includes(lastCharMin1)
+      (SPACING_RULES[lastChar].spaceBefore === Spacing.INSERT_SPACE) ===
+      SPACE_CHARS.includes(lastCharMin1)
     )
       return null;
 
     const txt =
-      (SPACING_RULES[lastChar].spaceBefore ? "\xA0" : "") +
+      (SPACING_RULES[lastChar].spaceBefore === Spacing.INSERT_SPACE
+        ? "\xA0"
+        : "") +
       lastChar +
-      (this.insertSpaceAfterAutocomplete && SPACING_RULES[lastChar].spaceAfter
+      (this.insertSpaceAfterAutocomplete &&
+      SPACING_RULES[lastChar].spaceAfter === Spacing.INSERT_SPACE
         ? "\xA0"
         : "");
 
+    if (txt === lastChar) return null;
+
     return {
       text: txt,
-      length: 2 - SPACING_RULES[lastChar].spaceBefore,
+      length:
+        2 - (SPACING_RULES[lastChar].spaceBefore === Spacing.INSERT_SPACE),
     };
   }
 
@@ -386,7 +400,7 @@ class PresageHandler {
       if (
         !this.isWhiteSpace(nextChar, false) &&
         (!(nextChar in SPACING_RULES) ||
-          SPACING_RULES[nextChar].spaceBefore === true)
+          SPACING_RULES[nextChar].spaceBefore === Spacing.INSERT_SPACE)
       ) {
         predictions = predictions.map((pred) => `${pred}\xA0`);
       }
