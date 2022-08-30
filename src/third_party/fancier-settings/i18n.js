@@ -3,8 +3,8 @@ import { I18n } from "./js/i18n.js";
 // SAMPLE
 let i18n = new I18n();
 i18n = Object.assign(i18n, {
-  domain: {
-    en: "Domain URL",
+  add_domain: {
+    en: "Add new domain URL to blocklist",
   },
   add: {
     en: "Add",
@@ -13,7 +13,7 @@ i18n = Object.assign(i18n, {
     en: "Remove",
   },
   "x-domain": {
-    en: "example.com",
+    en: "http://example.com",
   },
   settings: {
     en: "Settings",

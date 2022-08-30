@@ -34,6 +34,17 @@ window.addEventListener("DOMContentLoaded", function () {
         fallbackLanguageVisibility(settings, value);
       });
 
+      settings.manifest.addDomainBtn.addEvent("action", function () {
+        if (settings.manifest.domain.element.element.checkValidity()) {
+          const domainURL = settings.manifest.domain.get();
+          const hostName = new URL(domainURL).hostname;
+          if (hostName) {
+            settings.manifest.domainBlackList.add(hostName);
+            settings.manifest.domain.element.element.value = "";
+          }
+        }
+      });
+
       // Update pressage config on change
       [
         "language",

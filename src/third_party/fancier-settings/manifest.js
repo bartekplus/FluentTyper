@@ -144,6 +144,23 @@ const manifest = {
       text: i18n.get("remove"),
     },
     {
+      tab: "Domain blocklist",
+      group: i18n.get("Management"),
+      name: "domain",
+      type: "text",
+      subtype: "url",
+      label: i18n.get("add_domain"),
+      text: i18n.get("x-domain"),
+      store: false,
+    },
+    {
+      tab: "Domain blocklist",
+      group: i18n.get("Management"),
+      name: "addDomainBtn",
+      type: "button",
+      text: i18n.get("add"),
+    },
+    {
       tab: i18n.get("About"),
       group: i18n.get("FluentTyper"),
       name: "FluentTyper",
