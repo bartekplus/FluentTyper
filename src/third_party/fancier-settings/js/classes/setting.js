@@ -286,12 +286,28 @@ class Text extends Bundle {
       this.element.set("type", "password");
     }
 
+    if (this.params.subtype !== undefined) {
+      this.element.set("type", this.params.subtype);
+    }
+
+    if (this.params.pattern !== undefined) {
+      this.element.set("pattern", this.params.pattern);
+    }
+
     this.element.inject(this.container);
     this.container.inject(this.bundle);
   }
 
   addEvents() {
     const change = function () {
+      if (this.element.element.checkValidity()) {
+        this.element.element.classList.add("is-success");
+        this.element.element.classList.remove("is-danger");
+      } else {
+        this.element.element.classList.remove("is-success");
+        this.element.element.classList.add("is-danger");
+      }
+
       if (this.params.name !== undefined) {
         if (this.params.store !== false) {
           settings.set(this.params.name, this.get());
