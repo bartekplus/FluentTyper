@@ -1,4 +1,5 @@
 import { FancierSettingsWithManifest } from "./js/classes/fancier-settings.js";
+import { Store } from "./lib/store.js";
 import { TextExpander } from "./textExpander.js";
 
 function optionsPageConfigChange() {
@@ -23,13 +24,15 @@ function fallbackLanguageVisibility(settings, value) {
 window.addEventListener("DOMContentLoaded", function () {
   // Option 1: Use the manifest:
   (() =>
-    new FancierSettingsWithManifest(function (settings) {
+    new FancierSettingsWithManifest(async function (settings) {
       new TextExpander(settings, optionsPageConfigChange);
       settings.manifest.removeDomainBtn.addEvent("action", function () {
         settings.manifest.domainBlackList.remove();
       });
 
-      fallbackLanguageVisibility(settings, settings.manifest.language.get());
+      const store = new Store("settings");
+      fallbackLanguageVisibility(settings, await store.get("language"));
+
       settings.manifest.language.addEvent("action", function (value) {
         fallbackLanguageVisibility(settings, value);
       });
