@@ -455,6 +455,9 @@
       this.attachMutationObserver();
     }
     disable() {
+      if (this.observer) {
+        this.observer.disconnect();
+      }
       this.observer = null;
       this.detachAllHelpers();
     }
