@@ -35,11 +35,6 @@ var Module = (() => {
                     var REMOTE_PACKAGE_SIZE = metadata["remote_package_size"];
 
                     function fetchRemotePackage(packageName, packageSize, callback, errback) {
-                        const url = chrome.runtime.getURL("third_party/libpresage/" + packageName);
-                        fetch(url).then(async response => {
-                            callback(await response.arrayBuffer());
-                        }).catch(onerror);
-                        return;
                         if (typeof process === "object" && typeof process.versions === "object" && typeof process.versions.node === "string") {
                             require("fs").readFile(packageName, function(err, contents) {
                                 if (err) {
@@ -47,6 +42,15 @@ var Module = (() => {
                                 } else {
                                     callback(contents.buffer)
                                 }
+                            });
+                            return
+                        }
+                        if (typeof XMLHttpRequest === "undefined") {
+                            const url = chrome.runtime.getURL("third_party/libpresage/" + packageName);
+                            fetch(url).then(function(response) {
+                                return response.arrayBuffer()
+                            }).then(function(data) {
+                                callback(data)
                             });
                             return
                         }
@@ -87,7 +91,7 @@ var Module = (() => {
                             throw new Error("NetworkError for: " + packageName)
                         };
                         xhr.onload = function(event) {
-                            if (xhr.status == 200 || xhr.status == 304 || xhr.status == 206 || xhr.status == 0 && xhr.response) {
+                            if (xhr.status >= 200 && xhr.status < 300 || xhr.status == 304 || xhr.status == 0 && xhr.response) {
                                 var packageData = xhr.response;
                                 callback(packageData)
                             } else {
@@ -149,7 +153,7 @@ var Module = (() => {
 
                         function processPackageData(arrayBuffer) {
                             assert(arrayBuffer, "Loading data file failed.");
-                            assert(arrayBuffer instanceof ArrayBuffer, "bad input to processPackageData");
+                            assert(arrayBuffer.constructor.name === ArrayBuffer.name, "bad input to processPackageData");
                             var byteArray = new Uint8Array(arrayBuffer);
                             DataRequest.prototype.byteArray = byteArray;
                             var files = metadata["files"];
@@ -210,11 +214,6 @@ var Module = (() => {
                     var REMOTE_PACKAGE_SIZE = metadata["remote_package_size"];
 
                     function fetchRemotePackage(packageName, packageSize, callback, errback) {
-                         const url = chrome.runtime.getURL("third_party/libpresage/" + packageName);
-                        fetch(url).then(async response => {
-                            callback(await response.arrayBuffer());
-                        }).catch(onerror);
-                        return;
                         if (typeof process === "object" && typeof process.versions === "object" && typeof process.versions.node === "string") {
                             require("fs").readFile(packageName, function(err, contents) {
                                 if (err) {
@@ -222,6 +221,15 @@ var Module = (() => {
                                 } else {
                                     callback(contents.buffer)
                                 }
+                            });
+                            return
+                        }
+                        if (typeof XMLHttpRequest === "undefined") {
+                            const url = chrome.runtime.getURL("third_party/libpresage/" + packageName);
+                            fetch(url).then(function(response) {
+                                return response.arrayBuffer()
+                            }).then(function(data) {
+                                callback(data)
                             });
                             return
                         }
@@ -262,7 +270,7 @@ var Module = (() => {
                             throw new Error("NetworkError for: " + packageName)
                         };
                         xhr.onload = function(event) {
-                            if (xhr.status == 200 || xhr.status == 304 || xhr.status == 206 || xhr.status == 0 && xhr.response) {
+                            if (xhr.status >= 200 && xhr.status < 300 || xhr.status == 304 || xhr.status == 0 && xhr.response) {
                                 var packageData = xhr.response;
                                 callback(packageData)
                             } else {
@@ -292,9 +300,9 @@ var Module = (() => {
                         }
                         Module["FS_createPath"]("/", "resources_js", true, true);
                         Module["FS_createPath"]("/resources_js", "en", true, true);
+                        Module["FS_createPath"]("/resources_js/en", "aspell", true, true);
                         Module["FS_createPath"]("/resources_js/en", "hunspell", true, true);
                         Module["FS_createPath"]("/resources_js/en", "ngrams_db", true, true);
-                        Module["FS_createPath"]("/resources_js/en", "aspell", true, true);
 
                         function DataRequest(start, end, audio) {
                             this.start = start;
@@ -327,7 +335,7 @@ var Module = (() => {
 
                         function processPackageData(arrayBuffer) {
                             assert(arrayBuffer, "Loading data file failed.");
-                            assert(arrayBuffer instanceof ArrayBuffer, "bad input to processPackageData");
+                            assert(arrayBuffer.constructor.name === ArrayBuffer.name, "bad input to processPackageData");
                             var byteArray = new Uint8Array(arrayBuffer);
                             DataRequest.prototype.byteArray = byteArray;
                             var files = metadata["files"];
@@ -357,124 +365,124 @@ var Module = (() => {
                 };
                 loadPackage({
                     "files": [{
-                        "filename": "/resources_js/en/presage.xml",
+                        "filename": "/resources_js/en/aspell/en-common.rws",
                         "start": 0,
-                        "end": 2812
-                    }, {
-                        "filename": "/resources_js/en/hunspell/en_US.dic",
-                        "start": 2812,
-                        "end": 869370
-                    }, {
-                        "filename": "/resources_js/en/hunspell/en_US.aff",
-                        "start": 869370,
-                        "end": 872461
-                    }, {
-                        "filename": "/resources_js/en/ngrams_db/ngrams.counts",
-                        "start": 872461,
-                        "end": 13504909
-                    }, {
-                        "filename": "/resources_js/en/ngrams_db/ngrams.trie",
-                        "start": 13504909,
-                        "end": 26013541
-                    }, {
-                        "filename": "/resources_js/en/aspell/en-wo_accents-only.rws",
-                        "start": 26013541,
-                        "end": 26189621
-                    }, {
-                        "filename": "/resources_js/en/aspell/en_US.multi",
-                        "start": 26189621,
-                        "end": 26189707
-                    }, {
-                        "filename": "/resources_js/en/aspell/standard.kbd",
-                        "start": 26189707,
-                        "end": 26189807
-                    }, {
-                        "filename": "/resources_js/en/aspell/en-variant_0.rws",
-                        "start": 26189807,
-                        "end": 26229583
-                    }, {
-                        "filename": "/resources_js/en/aspell/en_US-wo_accents-only.rws",
-                        "start": 26229583,
-                        "end": 26331615
-                    }, {
-                        "filename": "/resources_js/en/aspell/en-variant_1.rws",
-                        "start": 26331615,
-                        "end": 26425055
-                    }, {
-                        "filename": "/resources_js/en/aspell/en_US-w_accents-only.rws",
-                        "start": 26425055,
-                        "end": 26527087
-                    }, {
-                        "filename": "/resources_js/en/aspell/en-w_accents-only.rws",
-                        "start": 26527087,
-                        "end": 26703167
-                    }, {
-                        "filename": "/resources_js/en/aspell/en-variant_2.rws",
-                        "start": 26703167,
-                        "end": 26805327
-                    }, {
-                        "filename": "/resources_js/en/aspell/en_US-variant_1.multi",
-                        "start": 26805327,
-                        "end": 26805409
-                    }, {
-                        "filename": "/resources_js/en/aspell/en_affix.dat",
-                        "start": 26805409,
-                        "end": 26810084
-                    }, {
-                        "filename": "/resources_js/en/aspell/en.multi",
-                        "start": 26810084,
-                        "end": 26810167
-                    }, {
-                        "filename": "/resources_js/en/aspell/en_US-wo_accents.multi",
-                        "start": 26810167,
-                        "end": 26810274
-                    }, {
-                        "filename": "/resources_js/en/aspell/en-w_accents.multi",
-                        "start": 26810274,
-                        "end": 26810377
-                    }, {
-                        "filename": "/resources_js/en/aspell/en-wo_accents.multi",
-                        "start": 26810377,
-                        "end": 26810481
-                    }, {
-                        "filename": "/resources_js/en/aspell/en-variant_2.multi",
-                        "start": 26810481,
-                        "end": 26810561
+                        "end": 2423456
                     }, {
                         "filename": "/resources_js/en/aspell/en-variant_0.multi",
-                        "start": 26810561,
-                        "end": 26810641
+                        "start": 2423456,
+                        "end": 2423536
                     }, {
-                        "filename": "/resources_js/en/aspell/en_US-w_accents.multi",
-                        "start": 26810641,
-                        "end": 26810747
-                    }, {
-                        "filename": "/resources_js/en/aspell/iso-8859-1.cset",
-                        "start": 26810747,
-                        "end": 26824595
-                    }, {
-                        "filename": "/resources_js/en/aspell/iso-8859-1.cmap",
-                        "start": 26824595,
-                        "end": 26855489
-                    }, {
-                        "filename": "/resources_js/en/aspell/en_phonet.dat",
-                        "start": 26855489,
-                        "end": 26862762
-                    }, {
-                        "filename": "/resources_js/en/aspell/en-common.rws",
-                        "start": 26862762,
-                        "end": 29286218
-                    }, {
-                        "filename": "/resources_js/en/aspell/en_US-variant_0.multi",
-                        "start": 29286218,
-                        "end": 29286300
+                        "filename": "/resources_js/en/aspell/en-variant_0.rws",
+                        "start": 2423536,
+                        "end": 2463312
                     }, {
                         "filename": "/resources_js/en/aspell/en-variant_1.multi",
-                        "start": 29286300,
-                        "end": 29286380
+                        "start": 2463312,
+                        "end": 2463392
+                    }, {
+                        "filename": "/resources_js/en/aspell/en-variant_1.rws",
+                        "start": 2463392,
+                        "end": 2556832
+                    }, {
+                        "filename": "/resources_js/en/aspell/en-variant_2.multi",
+                        "start": 2556832,
+                        "end": 2556912
+                    }, {
+                        "filename": "/resources_js/en/aspell/en-variant_2.rws",
+                        "start": 2556912,
+                        "end": 2659072
+                    }, {
+                        "filename": "/resources_js/en/aspell/en-w_accents-only.rws",
+                        "start": 2659072,
+                        "end": 2835152
+                    }, {
+                        "filename": "/resources_js/en/aspell/en-w_accents.multi",
+                        "start": 2835152,
+                        "end": 2835255
+                    }, {
+                        "filename": "/resources_js/en/aspell/en-wo_accents-only.rws",
+                        "start": 2835255,
+                        "end": 3011335
+                    }, {
+                        "filename": "/resources_js/en/aspell/en-wo_accents.multi",
+                        "start": 3011335,
+                        "end": 3011439
                     }, {
                         "filename": "/resources_js/en/aspell/en.dat",
-                        "start": 29286380,
+                        "start": 3011439,
+                        "end": 3011527
+                    }, {
+                        "filename": "/resources_js/en/aspell/en.multi",
+                        "start": 3011527,
+                        "end": 3011610
+                    }, {
+                        "filename": "/resources_js/en/aspell/en_US-variant_0.multi",
+                        "start": 3011610,
+                        "end": 3011692
+                    }, {
+                        "filename": "/resources_js/en/aspell/en_US-variant_1.multi",
+                        "start": 3011692,
+                        "end": 3011774
+                    }, {
+                        "filename": "/resources_js/en/aspell/en_US-w_accents-only.rws",
+                        "start": 3011774,
+                        "end": 3113806
+                    }, {
+                        "filename": "/resources_js/en/aspell/en_US-w_accents.multi",
+                        "start": 3113806,
+                        "end": 3113912
+                    }, {
+                        "filename": "/resources_js/en/aspell/en_US-wo_accents-only.rws",
+                        "start": 3113912,
+                        "end": 3215944
+                    }, {
+                        "filename": "/resources_js/en/aspell/en_US-wo_accents.multi",
+                        "start": 3215944,
+                        "end": 3216051
+                    }, {
+                        "filename": "/resources_js/en/aspell/en_US.multi",
+                        "start": 3216051,
+                        "end": 3216137
+                    }, {
+                        "filename": "/resources_js/en/aspell/en_affix.dat",
+                        "start": 3216137,
+                        "end": 3220812
+                    }, {
+                        "filename": "/resources_js/en/aspell/en_phonet.dat",
+                        "start": 3220812,
+                        "end": 3228085
+                    }, {
+                        "filename": "/resources_js/en/aspell/iso-8859-1.cmap",
+                        "start": 3228085,
+                        "end": 3258979
+                    }, {
+                        "filename": "/resources_js/en/aspell/iso-8859-1.cset",
+                        "start": 3258979,
+                        "end": 3272827
+                    }, {
+                        "filename": "/resources_js/en/aspell/standard.kbd",
+                        "start": 3272827,
+                        "end": 3272927
+                    }, {
+                        "filename": "/resources_js/en/hunspell/en_US.aff",
+                        "start": 3272927,
+                        "end": 3276018
+                    }, {
+                        "filename": "/resources_js/en/hunspell/en_US.dic",
+                        "start": 3276018,
+                        "end": 4142576
+                    }, {
+                        "filename": "/resources_js/en/ngrams_db/ngrams.counts",
+                        "start": 4142576,
+                        "end": 16775024
+                    }, {
+                        "filename": "/resources_js/en/ngrams_db/ngrams.trie",
+                        "start": 16775024,
+                        "end": 29283656
+                    }, {
+                        "filename": "/resources_js/en/presage.xml",
+                        "start": 29283656,
                         "end": 29286468
                     }],
                     "remote_package_size": 29286468
@@ -504,11 +512,6 @@ var Module = (() => {
                     var REMOTE_PACKAGE_SIZE = metadata["remote_package_size"];
 
                     function fetchRemotePackage(packageName, packageSize, callback, errback) {
-                         const url = chrome.runtime.getURL("third_party/libpresage/" + packageName);
-                        fetch(url).then(async response => {
-                            callback(await response.arrayBuffer());
-                        }).catch(onerror);
-                        return;
                         if (typeof process === "object" && typeof process.versions === "object" && typeof process.versions.node === "string") {
                             require("fs").readFile(packageName, function(err, contents) {
                                 if (err) {
@@ -516,6 +519,15 @@ var Module = (() => {
                                 } else {
                                     callback(contents.buffer)
                                 }
+                            });
+                            return
+                        }
+                        if (typeof XMLHttpRequest === "undefined") {
+                            const url = chrome.runtime.getURL("third_party/libpresage/" + packageName);
+                            fetch(url).then(function(response) {
+                                return response.arrayBuffer()
+                            }).then(function(data) {
+                                callback(data)
                             });
                             return
                         }
@@ -556,7 +568,7 @@ var Module = (() => {
                             throw new Error("NetworkError for: " + packageName)
                         };
                         xhr.onload = function(event) {
-                            if (xhr.status == 200 || xhr.status == 304 || xhr.status == 206 || xhr.status == 0 && xhr.response) {
+                            if (xhr.status >= 200 && xhr.status < 300 || xhr.status == 304 || xhr.status == 0 && xhr.response) {
                                 var packageData = xhr.response;
                                 callback(packageData)
                             } else {
@@ -586,9 +598,9 @@ var Module = (() => {
                         }
                         Module["FS_createPath"]("/", "resources_js", true, true);
                         Module["FS_createPath"]("/resources_js", "es", true, true);
+                        Module["FS_createPath"]("/resources_js/es", "aspell", true, true);
                         Module["FS_createPath"]("/resources_js/es", "hunspell", true, true);
                         Module["FS_createPath"]("/resources_js/es", "ngrams_db", true, true);
-                        Module["FS_createPath"]("/resources_js/es", "aspell", true, true);
 
                         function DataRequest(start, end, audio) {
                             this.start = start;
@@ -621,7 +633,7 @@ var Module = (() => {
 
                         function processPackageData(arrayBuffer) {
                             assert(arrayBuffer, "Loading data file failed.");
-                            assert(arrayBuffer instanceof ArrayBuffer, "bad input to processPackageData");
+                            assert(arrayBuffer.constructor.name === ArrayBuffer.name, "bad input to processPackageData");
                             var byteArray = new Uint8Array(arrayBuffer);
                             DataRequest.prototype.byteArray = byteArray;
                             var files = metadata["files"];
@@ -651,64 +663,64 @@ var Module = (() => {
                 };
                 loadPackage({
                     "files": [{
-                        "filename": "/resources_js/es/presage.xml",
+                        "filename": "/resources_js/es/aspell/castellano.alias",
                         "start": 0,
-                        "end": 2803
-                    }, {
-                        "filename": "/resources_js/es/hunspell/es.dic",
-                        "start": 2803,
-                        "end": 825072
-                    }, {
-                        "filename": "/resources_js/es/hunspell/es.aff",
-                        "start": 825072,
-                        "end": 994529
-                    }, {
-                        "filename": "/resources_js/es/ngrams_db/ngrams.counts",
-                        "start": 994529,
-                        "end": 6849729
-                    }, {
-                        "filename": "/resources_js/es/ngrams_db/ngrams.trie",
-                        "start": 6849729,
-                        "end": 14373329
-                    }, {
-                        "filename": "/resources_js/es/aspell/standard.kbd",
-                        "start": 14373329,
-                        "end": 14373429
-                    }, {
-                        "filename": "/resources_js/es/aspell/es.rws",
-                        "start": 14373429,
-                        "end": 15652613
-                    }, {
-                        "filename": "/resources_js/es/aspell/es_affix.dat",
-                        "start": 15652613,
-                        "end": 15839008
-                    }, {
-                        "filename": "/resources_js/es/aspell/spanish.alias",
-                        "start": 15839008,
-                        "end": 15839080
-                    }, {
-                        "filename": "/resources_js/es/aspell/es.multi",
-                        "start": 15839080,
-                        "end": 15839150
-                    }, {
-                        "filename": "/resources_js/es/aspell/espanol.alias",
-                        "start": 15839150,
-                        "end": 15839222
-                    }, {
-                        "filename": "/resources_js/es/aspell/iso-8859-1.cset",
-                        "start": 15839222,
-                        "end": 15853070
-                    }, {
-                        "filename": "/resources_js/es/aspell/iso-8859-1.cmap",
-                        "start": 15853070,
-                        "end": 15883964
+                        "end": 72
                     }, {
                         "filename": "/resources_js/es/aspell/es.dat",
-                        "start": 15883964,
-                        "end": 15884096
+                        "start": 72,
+                        "end": 204
                     }, {
-                        "filename": "/resources_js/es/aspell/castellano.alias",
-                        "start": 15884096,
+                        "filename": "/resources_js/es/aspell/es.multi",
+                        "start": 204,
+                        "end": 274
+                    }, {
+                        "filename": "/resources_js/es/aspell/es.rws",
+                        "start": 274,
+                        "end": 1279458
+                    }, {
+                        "filename": "/resources_js/es/aspell/es_affix.dat",
+                        "start": 1279458,
+                        "end": 1465853
+                    }, {
+                        "filename": "/resources_js/es/aspell/espanol.alias",
+                        "start": 1465853,
+                        "end": 1465925
+                    }, {
+                        "filename": "/resources_js/es/aspell/iso-8859-1.cmap",
+                        "start": 1465925,
+                        "end": 1496819
+                    }, {
+                        "filename": "/resources_js/es/aspell/iso-8859-1.cset",
+                        "start": 1496819,
+                        "end": 1510667
+                    }, {
+                        "filename": "/resources_js/es/aspell/spanish.alias",
+                        "start": 1510667,
+                        "end": 1510739
+                    }, {
+                        "filename": "/resources_js/es/aspell/standard.kbd",
+                        "start": 1510739,
+                        "end": 1510839
+                    }, {
+                        "filename": "/resources_js/es/hunspell/es.aff",
+                        "start": 1510839,
+                        "end": 1680296
+                    }, {
+                        "filename": "/resources_js/es/hunspell/es.dic",
+                        "start": 1680296,
+                        "end": 2502565
+                    }, {
+                        "filename": "/resources_js/es/ngrams_db/ngrams.counts",
+                        "start": 2502565,
+                        "end": 8357765
+                    }, {
+                        "filename": "/resources_js/es/ngrams_db/ngrams.trie",
+                        "start": 8357765,
+                        "end": 15881365
+                    }, {
+                        "filename": "/resources_js/es/presage.xml",
+                        "start": 15881365,
                         "end": 15884168
                     }],
                     "remote_package_size": 15884168
@@ -738,11 +750,6 @@ var Module = (() => {
                     var REMOTE_PACKAGE_SIZE = metadata["remote_package_size"];
 
                     function fetchRemotePackage(packageName, packageSize, callback, errback) {
-                         const url = chrome.runtime.getURL("third_party/libpresage/" + packageName);
-                        fetch(url).then(async response => {
-                            callback(await response.arrayBuffer());
-                        }).catch(onerror);
-                        return;
                         if (typeof process === "object" && typeof process.versions === "object" && typeof process.versions.node === "string") {
                             require("fs").readFile(packageName, function(err, contents) {
                                 if (err) {
@@ -750,6 +757,15 @@ var Module = (() => {
                                 } else {
                                     callback(contents.buffer)
                                 }
+                            });
+                            return
+                        }
+                        if (typeof XMLHttpRequest === "undefined") {
+                            const url = chrome.runtime.getURL("third_party/libpresage/" + packageName);
+                            fetch(url).then(function(response) {
+                                return response.arrayBuffer()
+                            }).then(function(data) {
+                                callback(data)
                             });
                             return
                         }
@@ -790,7 +806,7 @@ var Module = (() => {
                             throw new Error("NetworkError for: " + packageName)
                         };
                         xhr.onload = function(event) {
-                            if (xhr.status == 200 || xhr.status == 304 || xhr.status == 206 || xhr.status == 0 && xhr.response) {
+                            if (xhr.status >= 200 && xhr.status < 300 || xhr.status == 304 || xhr.status == 0 && xhr.response) {
                                 var packageData = xhr.response;
                                 callback(packageData)
                             } else {
@@ -820,9 +836,9 @@ var Module = (() => {
                         }
                         Module["FS_createPath"]("/", "resources_js", true, true);
                         Module["FS_createPath"]("/resources_js", "fr", true, true);
+                        Module["FS_createPath"]("/resources_js/fr", "aspell", true, true);
                         Module["FS_createPath"]("/resources_js/fr", "hunspell", true, true);
                         Module["FS_createPath"]("/resources_js/fr", "ngrams_db", true, true);
-                        Module["FS_createPath"]("/resources_js/fr", "aspell", true, true);
 
                         function DataRequest(start, end, audio) {
                             this.start = start;
@@ -855,7 +871,7 @@ var Module = (() => {
 
                         function processPackageData(arrayBuffer) {
                             assert(arrayBuffer, "Loading data file failed.");
-                            assert(arrayBuffer instanceof ArrayBuffer, "bad input to processPackageData");
+                            assert(arrayBuffer.constructor.name === ArrayBuffer.name, "bad input to processPackageData");
                             var byteArray = new Uint8Array(arrayBuffer);
                             DataRequest.prototype.byteArray = byteArray;
                             var files = metadata["files"];
@@ -885,232 +901,232 @@ var Module = (() => {
                 };
                 loadPackage({
                     "files": [{
-                        "filename": "/resources_js/fr/presage.xml",
+                        "filename": "/resources_js/fr/aspell/fr-40-only.rws",
                         "start": 0,
-                        "end": 2809
-                    }, {
-                        "filename": "/resources_js/fr/hunspell/fr_FR.aff",
-                        "start": 2809,
-                        "end": 295078
-                    }, {
-                        "filename": "/resources_js/fr/hunspell/fr_FR.dic",
-                        "start": 295078,
-                        "end": 2887129
-                    }, {
-                        "filename": "/resources_js/fr/ngrams_db/ngrams.counts",
-                        "start": 2887129,
-                        "end": 11149053
-                    }, {
-                        "filename": "/resources_js/fr/ngrams_db/ngrams.trie",
-                        "start": 11149053,
-                        "end": 22438461
-                    }, {
-                        "filename": "/resources_js/fr/aspell/fr_FR-lrg.alias",
-                        "start": 22438461,
-                        "end": 22438539
-                    }, {
-                        "filename": "/resources_js/fr/aspell/fr-med.alias",
-                        "start": 22438539,
-                        "end": 22438617
-                    }, {
-                        "filename": "/resources_js/fr/aspell/fr.dat",
-                        "start": 22438617,
-                        "end": 22438743
-                    }, {
-                        "filename": "/resources_js/fr/aspell/fr_FR-med.alias",
-                        "start": 22438743,
-                        "end": 22438821
-                    }, {
-                        "filename": "/resources_js/fr/aspell/fr_CH-only.rws",
-                        "start": 22438821,
-                        "end": 22441637
-                    }, {
-                        "filename": "/resources_js/fr/aspell/suisse-lrg.alias",
-                        "start": 22441637,
-                        "end": 22441715
-                    }, {
-                        "filename": "/resources_js/fr/aspell/fr_FR-80.multi",
-                        "start": 22441715,
-                        "end": 22441831
-                    }, {
-                        "filename": "/resources_js/fr/aspell/fr-60.multi",
-                        "start": 22441831,
-                        "end": 22441909
-                    }, {
-                        "filename": "/resources_js/fr/aspell/french-sml.alias",
-                        "start": 22441909,
-                        "end": 22441987
-                    }, {
-                        "filename": "/resources_js/fr/aspell/fr_CH-80.multi",
-                        "start": 22441987,
-                        "end": 22442122
-                    }, {
-                        "filename": "/resources_js/fr/aspell/standard.kbd",
-                        "start": 22442122,
-                        "end": 22442222
-                    }, {
-                        "filename": "/resources_js/fr/aspell/francais-40.alias",
-                        "start": 22442222,
-                        "end": 22442300
-                    }, {
-                        "filename": "/resources_js/fr/aspell/french-40.alias",
-                        "start": 22442300,
-                        "end": 22442378
+                        "end": 5826736
                     }, {
                         "filename": "/resources_js/fr/aspell/fr-40.multi",
-                        "start": 22442378,
-                        "end": 22442456
-                    }, {
-                        "filename": "/resources_js/fr/aspell/suisse-80.alias",
-                        "start": 22442456,
-                        "end": 22442534
-                    }, {
-                        "filename": "/resources_js/fr/aspell/fr_FR-60.multi",
-                        "start": 22442534,
-                        "end": 22442631
-                    }, {
-                        "filename": "/resources_js/fr/aspell/french-med.alias",
-                        "start": 22442631,
-                        "end": 22442709
-                    }, {
-                        "filename": "/resources_js/fr/aspell/nroff.amf",
-                        "start": 22442709,
-                        "end": 22442858
-                    }, {
-                        "filename": "/resources_js/fr/aspell/suisse-med.alias",
-                        "start": 22442858,
-                        "end": 22442936
-                    }, {
-                        "filename": "/resources_js/fr/aspell/francais-med.alias",
-                        "start": 22442936,
-                        "end": 22443014
-                    }, {
-                        "filename": "/resources_js/fr/aspell/fr_CH-60.multi",
-                        "start": 22443014,
-                        "end": 22443130
-                    }, {
-                        "filename": "/resources_js/fr/aspell/fr_CH.multi",
-                        "start": 22443130,
-                        "end": 22443208
-                    }, {
-                        "filename": "/resources_js/fr/aspell/suisse-60.alias",
-                        "start": 22443208,
-                        "end": 22443286
-                    }, {
-                        "filename": "/resources_js/fr/aspell/french-60.alias",
-                        "start": 22443286,
-                        "end": 22443364
-                    }, {
-                        "filename": "/resources_js/fr/aspell/francais.alias",
-                        "start": 22443364,
-                        "end": 22443439
-                    }, {
-                        "filename": "/resources_js/fr/aspell/suisse.alias",
-                        "start": 22443439,
-                        "end": 22443514
-                    }, {
-                        "filename": "/resources_js/fr/aspell/fr-sml.alias",
-                        "start": 22443514,
-                        "end": 22443592
-                    }, {
-                        "filename": "/resources_js/fr/aspell/suisse-40.alias",
-                        "start": 22443592,
-                        "end": 22443670
-                    }, {
-                        "filename": "/resources_js/fr/aspell/fr_FR-sml.alias",
-                        "start": 22443670,
-                        "end": 22443748
-                    }, {
-                        "filename": "/resources_js/fr/aspell/fr_CH-40.multi",
-                        "start": 22443748,
-                        "end": 22443845
-                    }, {
-                        "filename": "/resources_js/fr/aspell/francais-60.alias",
-                        "start": 22443845,
-                        "end": 22443923
-                    }, {
-                        "filename": "/resources_js/fr/aspell/francais-80.alias",
-                        "start": 22443923,
-                        "end": 22444001
-                    }, {
-                        "filename": "/resources_js/fr/aspell/suisse-sml.alias",
-                        "start": 22444001,
-                        "end": 22444079
-                    }, {
-                        "filename": "/resources_js/fr/aspell/fr-80-only.rws",
-                        "start": 22444079,
-                        "end": 22778959
-                    }, {
-                        "filename": "/resources_js/fr/aspell/fr-lrg.alias",
-                        "start": 22778959,
-                        "end": 22779037
-                    }, {
-                        "filename": "/resources_js/fr/aspell/fr_phonet.dat",
-                        "start": 22779037,
-                        "end": 22781968
-                    }, {
-                        "filename": "/resources_js/fr/aspell/iso-8859-1.cset",
-                        "start": 22781968,
-                        "end": 22795816
-                    }, {
-                        "filename": "/resources_js/fr/aspell/iso-8859-1.cmap",
-                        "start": 22795816,
-                        "end": 22826710
-                    }, {
-                        "filename": "/resources_js/fr/aspell/fr.multi",
-                        "start": 22826710,
-                        "end": 22826785
-                    }, {
-                        "filename": "/resources_js/fr/aspell/french.alias",
-                        "start": 22826785,
-                        "end": 22826860
-                    }, {
-                        "filename": "/resources_js/fr/aspell/fr_FR.multi",
-                        "start": 22826860,
-                        "end": 22826938
-                    }, {
-                        "filename": "/resources_js/fr/aspell/francais-sml.alias",
-                        "start": 22826938,
-                        "end": 22827016
-                    }, {
-                        "filename": "/resources_js/fr/aspell/fr_CH-sml.alias",
-                        "start": 22827016,
-                        "end": 22827094
-                    }, {
-                        "filename": "/resources_js/fr/aspell/francais-lrg.alias",
-                        "start": 22827094,
-                        "end": 22827172
-                    }, {
-                        "filename": "/resources_js/fr/aspell/french-lrg.alias",
-                        "start": 22827172,
-                        "end": 22827250
-                    }, {
-                        "filename": "/resources_js/fr/aspell/fr-40-only.rws",
-                        "start": 22827250,
-                        "end": 28653986
-                    }, {
-                        "filename": "/resources_js/fr/aspell/french-80.alias",
-                        "start": 28653986,
-                        "end": 28654064
-                    }, {
-                        "filename": "/resources_js/fr/aspell/fr_CH-lrg.alias",
-                        "start": 28654064,
-                        "end": 28654142
-                    }, {
-                        "filename": "/resources_js/fr/aspell/fr_CH-med.alias",
-                        "start": 28654142,
-                        "end": 28654220
+                        "start": 5826736,
+                        "end": 5826814
                     }, {
                         "filename": "/resources_js/fr/aspell/fr-60-only.rws",
-                        "start": 28654220,
-                        "end": 40244956
+                        "start": 5826814,
+                        "end": 17417550
                     }, {
-                        "filename": "/resources_js/fr/aspell/fr_FR-40.multi",
-                        "start": 40244956,
-                        "end": 40245034
+                        "filename": "/resources_js/fr/aspell/fr-60.multi",
+                        "start": 17417550,
+                        "end": 17417628
+                    }, {
+                        "filename": "/resources_js/fr/aspell/fr-80-only.rws",
+                        "start": 17417628,
+                        "end": 17752508
                     }, {
                         "filename": "/resources_js/fr/aspell/fr-80.multi",
-                        "start": 40245034,
+                        "start": 17752508,
+                        "end": 17752586
+                    }, {
+                        "filename": "/resources_js/fr/aspell/fr-lrg.alias",
+                        "start": 17752586,
+                        "end": 17752664
+                    }, {
+                        "filename": "/resources_js/fr/aspell/fr-med.alias",
+                        "start": 17752664,
+                        "end": 17752742
+                    }, {
+                        "filename": "/resources_js/fr/aspell/fr-sml.alias",
+                        "start": 17752742,
+                        "end": 17752820
+                    }, {
+                        "filename": "/resources_js/fr/aspell/fr.dat",
+                        "start": 17752820,
+                        "end": 17752946
+                    }, {
+                        "filename": "/resources_js/fr/aspell/fr.multi",
+                        "start": 17752946,
+                        "end": 17753021
+                    }, {
+                        "filename": "/resources_js/fr/aspell/fr_CH-40.multi",
+                        "start": 17753021,
+                        "end": 17753118
+                    }, {
+                        "filename": "/resources_js/fr/aspell/fr_CH-60.multi",
+                        "start": 17753118,
+                        "end": 17753234
+                    }, {
+                        "filename": "/resources_js/fr/aspell/fr_CH-80.multi",
+                        "start": 17753234,
+                        "end": 17753369
+                    }, {
+                        "filename": "/resources_js/fr/aspell/fr_CH-lrg.alias",
+                        "start": 17753369,
+                        "end": 17753447
+                    }, {
+                        "filename": "/resources_js/fr/aspell/fr_CH-med.alias",
+                        "start": 17753447,
+                        "end": 17753525
+                    }, {
+                        "filename": "/resources_js/fr/aspell/fr_CH-only.rws",
+                        "start": 17753525,
+                        "end": 17756341
+                    }, {
+                        "filename": "/resources_js/fr/aspell/fr_CH-sml.alias",
+                        "start": 17756341,
+                        "end": 17756419
+                    }, {
+                        "filename": "/resources_js/fr/aspell/fr_CH.multi",
+                        "start": 17756419,
+                        "end": 17756497
+                    }, {
+                        "filename": "/resources_js/fr/aspell/fr_FR-40.multi",
+                        "start": 17756497,
+                        "end": 17756575
+                    }, {
+                        "filename": "/resources_js/fr/aspell/fr_FR-60.multi",
+                        "start": 17756575,
+                        "end": 17756672
+                    }, {
+                        "filename": "/resources_js/fr/aspell/fr_FR-80.multi",
+                        "start": 17756672,
+                        "end": 17756788
+                    }, {
+                        "filename": "/resources_js/fr/aspell/fr_FR-lrg.alias",
+                        "start": 17756788,
+                        "end": 17756866
+                    }, {
+                        "filename": "/resources_js/fr/aspell/fr_FR-med.alias",
+                        "start": 17756866,
+                        "end": 17756944
+                    }, {
+                        "filename": "/resources_js/fr/aspell/fr_FR-sml.alias",
+                        "start": 17756944,
+                        "end": 17757022
+                    }, {
+                        "filename": "/resources_js/fr/aspell/fr_FR.multi",
+                        "start": 17757022,
+                        "end": 17757100
+                    }, {
+                        "filename": "/resources_js/fr/aspell/fr_phonet.dat",
+                        "start": 17757100,
+                        "end": 17760031
+                    }, {
+                        "filename": "/resources_js/fr/aspell/francais-40.alias",
+                        "start": 17760031,
+                        "end": 17760109
+                    }, {
+                        "filename": "/resources_js/fr/aspell/francais-60.alias",
+                        "start": 17760109,
+                        "end": 17760187
+                    }, {
+                        "filename": "/resources_js/fr/aspell/francais-80.alias",
+                        "start": 17760187,
+                        "end": 17760265
+                    }, {
+                        "filename": "/resources_js/fr/aspell/francais-lrg.alias",
+                        "start": 17760265,
+                        "end": 17760343
+                    }, {
+                        "filename": "/resources_js/fr/aspell/francais-med.alias",
+                        "start": 17760343,
+                        "end": 17760421
+                    }, {
+                        "filename": "/resources_js/fr/aspell/francais-sml.alias",
+                        "start": 17760421,
+                        "end": 17760499
+                    }, {
+                        "filename": "/resources_js/fr/aspell/francais.alias",
+                        "start": 17760499,
+                        "end": 17760574
+                    }, {
+                        "filename": "/resources_js/fr/aspell/french-40.alias",
+                        "start": 17760574,
+                        "end": 17760652
+                    }, {
+                        "filename": "/resources_js/fr/aspell/french-60.alias",
+                        "start": 17760652,
+                        "end": 17760730
+                    }, {
+                        "filename": "/resources_js/fr/aspell/french-80.alias",
+                        "start": 17760730,
+                        "end": 17760808
+                    }, {
+                        "filename": "/resources_js/fr/aspell/french-lrg.alias",
+                        "start": 17760808,
+                        "end": 17760886
+                    }, {
+                        "filename": "/resources_js/fr/aspell/french-med.alias",
+                        "start": 17760886,
+                        "end": 17760964
+                    }, {
+                        "filename": "/resources_js/fr/aspell/french-sml.alias",
+                        "start": 17760964,
+                        "end": 17761042
+                    }, {
+                        "filename": "/resources_js/fr/aspell/french.alias",
+                        "start": 17761042,
+                        "end": 17761117
+                    }, {
+                        "filename": "/resources_js/fr/aspell/iso-8859-1.cmap",
+                        "start": 17761117,
+                        "end": 17792011
+                    }, {
+                        "filename": "/resources_js/fr/aspell/iso-8859-1.cset",
+                        "start": 17792011,
+                        "end": 17805859
+                    }, {
+                        "filename": "/resources_js/fr/aspell/nroff.amf",
+                        "start": 17805859,
+                        "end": 17806008
+                    }, {
+                        "filename": "/resources_js/fr/aspell/standard.kbd",
+                        "start": 17806008,
+                        "end": 17806108
+                    }, {
+                        "filename": "/resources_js/fr/aspell/suisse-40.alias",
+                        "start": 17806108,
+                        "end": 17806186
+                    }, {
+                        "filename": "/resources_js/fr/aspell/suisse-60.alias",
+                        "start": 17806186,
+                        "end": 17806264
+                    }, {
+                        "filename": "/resources_js/fr/aspell/suisse-80.alias",
+                        "start": 17806264,
+                        "end": 17806342
+                    }, {
+                        "filename": "/resources_js/fr/aspell/suisse-lrg.alias",
+                        "start": 17806342,
+                        "end": 17806420
+                    }, {
+                        "filename": "/resources_js/fr/aspell/suisse-med.alias",
+                        "start": 17806420,
+                        "end": 17806498
+                    }, {
+                        "filename": "/resources_js/fr/aspell/suisse-sml.alias",
+                        "start": 17806498,
+                        "end": 17806576
+                    }, {
+                        "filename": "/resources_js/fr/aspell/suisse.alias",
+                        "start": 17806576,
+                        "end": 17806651
+                    }, {
+                        "filename": "/resources_js/fr/hunspell/fr_FR.aff",
+                        "start": 17806651,
+                        "end": 18098920
+                    }, {
+                        "filename": "/resources_js/fr/hunspell/fr_FR.dic",
+                        "start": 18098920,
+                        "end": 20690971
+                    }, {
+                        "filename": "/resources_js/fr/ngrams_db/ngrams.counts",
+                        "start": 20690971,
+                        "end": 28952895
+                    }, {
+                        "filename": "/resources_js/fr/ngrams_db/ngrams.trie",
+                        "start": 28952895,
+                        "end": 40242303
+                    }, {
+                        "filename": "/resources_js/fr/presage.xml",
+                        "start": 40242303,
                         "end": 40245112
                     }],
                     "remote_package_size": 40245112
@@ -1140,11 +1156,6 @@ var Module = (() => {
                     var REMOTE_PACKAGE_SIZE = metadata["remote_package_size"];
 
                     function fetchRemotePackage(packageName, packageSize, callback, errback) {
-                         const url = chrome.runtime.getURL("third_party/libpresage/" + packageName);
-                        fetch(url).then(async response => {
-                            callback(await response.arrayBuffer());
-                        }).catch(onerror);
-                        return;
                         if (typeof process === "object" && typeof process.versions === "object" && typeof process.versions.node === "string") {
                             require("fs").readFile(packageName, function(err, contents) {
                                 if (err) {
@@ -1152,6 +1163,15 @@ var Module = (() => {
                                 } else {
                                     callback(contents.buffer)
                                 }
+                            });
+                            return
+                        }
+                        if (typeof XMLHttpRequest === "undefined") {
+                            const url = chrome.runtime.getURL("third_party/libpresage/" + packageName);
+                            fetch(url).then(function(response) {
+                                return response.arrayBuffer()
+                            }).then(function(data) {
+                                callback(data)
                             });
                             return
                         }
@@ -1192,7 +1212,7 @@ var Module = (() => {
                             throw new Error("NetworkError for: " + packageName)
                         };
                         xhr.onload = function(event) {
-                            if (xhr.status == 200 || xhr.status == 304 || xhr.status == 206 || xhr.status == 0 && xhr.response) {
+                            if (xhr.status >= 200 && xhr.status < 300 || xhr.status == 304 || xhr.status == 0 && xhr.response) {
                                 var packageData = xhr.response;
                                 callback(packageData)
                             } else {
@@ -1222,9 +1242,9 @@ var Module = (() => {
                         }
                         Module["FS_createPath"]("/", "resources_js", true, true);
                         Module["FS_createPath"]("/resources_js", "hr", true, true);
+                        Module["FS_createPath"]("/resources_js/hr", "aspell", true, true);
                         Module["FS_createPath"]("/resources_js/hr", "hunspell", true, true);
                         Module["FS_createPath"]("/resources_js/hr", "ngrams_db", true, true);
-                        Module["FS_createPath"]("/resources_js/hr", "aspell", true, true);
 
                         function DataRequest(start, end, audio) {
                             this.start = start;
@@ -1257,7 +1277,7 @@ var Module = (() => {
 
                         function processPackageData(arrayBuffer) {
                             assert(arrayBuffer, "Loading data file failed.");
-                            assert(arrayBuffer instanceof ArrayBuffer, "bad input to processPackageData");
+                            assert(arrayBuffer.constructor.name === ArrayBuffer.name, "bad input to processPackageData");
                             var byteArray = new Uint8Array(arrayBuffer);
                             DataRequest.prototype.byteArray = byteArray;
                             var files = metadata["files"];
@@ -1287,60 +1307,60 @@ var Module = (() => {
                 };
                 loadPackage({
                     "files": [{
-                        "filename": "/resources_js/hr/presage.xml",
-                        "start": 0,
-                        "end": 2805
-                    }, {
-                        "filename": "/resources_js/hr/hunspell/hr_HR.dic",
-                        "start": 2805,
-                        "end": 734624
-                    }, {
-                        "filename": "/resources_js/hr/hunspell/hr_HR.aff",
-                        "start": 734624,
-                        "end": 830426
-                    }, {
-                        "filename": "/resources_js/hr/ngrams_db/ngrams.counts",
-                        "start": 830426,
-                        "end": 6841242
-                    }, {
-                        "filename": "/resources_js/hr/ngrams_db/ngrams.trie",
-                        "start": 6841242,
-                        "end": 12317706
-                    }, {
-                        "filename": "/resources_js/hr/aspell/hr.multi",
-                        "start": 12317706,
-                        "end": 12317776
-                    }, {
-                        "filename": "/resources_js/hr/aspell/standard.kbd",
-                        "start": 12317776,
-                        "end": 12317876
-                    }, {
-                        "filename": "/resources_js/hr/aspell/iso-8859-2.cset",
-                        "start": 12317876,
-                        "end": 12332009
-                    }, {
-                        "filename": "/resources_js/hr/aspell/iso-8859-2.cmap",
-                        "start": 12332009,
-                        "end": 12363298
-                    }, {
-                        "filename": "/resources_js/hr/aspell/hr_affix.dat",
-                        "start": 12363298,
-                        "end": 12364493
-                    }, {
-                        "filename": "/resources_js/hr/aspell/hr.rws",
-                        "start": 12364493,
-                        "end": 19246061
-                    }, {
                         "filename": "/resources_js/hr/aspell/aspell-hr",
-                        "start": 19246061,
-                        "end": 19246230
+                        "start": 0,
+                        "end": 169
                     }, {
                         "filename": "/resources_js/hr/aspell/croatian.alias",
-                        "start": 19246230,
-                        "end": 19246302
+                        "start": 169,
+                        "end": 241
                     }, {
                         "filename": "/resources_js/hr/aspell/hr.dat",
-                        "start": 19246302,
+                        "start": 241,
+                        "end": 356
+                    }, {
+                        "filename": "/resources_js/hr/aspell/hr.multi",
+                        "start": 356,
+                        "end": 426
+                    }, {
+                        "filename": "/resources_js/hr/aspell/hr.rws",
+                        "start": 426,
+                        "end": 6881994
+                    }, {
+                        "filename": "/resources_js/hr/aspell/hr_affix.dat",
+                        "start": 6881994,
+                        "end": 6883189
+                    }, {
+                        "filename": "/resources_js/hr/aspell/iso-8859-2.cmap",
+                        "start": 6883189,
+                        "end": 6914478
+                    }, {
+                        "filename": "/resources_js/hr/aspell/iso-8859-2.cset",
+                        "start": 6914478,
+                        "end": 6928611
+                    }, {
+                        "filename": "/resources_js/hr/aspell/standard.kbd",
+                        "start": 6928611,
+                        "end": 6928711
+                    }, {
+                        "filename": "/resources_js/hr/hunspell/hr_HR.aff",
+                        "start": 6928711,
+                        "end": 7024513
+                    }, {
+                        "filename": "/resources_js/hr/hunspell/hr_HR.dic",
+                        "start": 7024513,
+                        "end": 7756332
+                    }, {
+                        "filename": "/resources_js/hr/ngrams_db/ngrams.counts",
+                        "start": 7756332,
+                        "end": 13767148
+                    }, {
+                        "filename": "/resources_js/hr/ngrams_db/ngrams.trie",
+                        "start": 13767148,
+                        "end": 19243612
+                    }, {
+                        "filename": "/resources_js/hr/presage.xml",
+                        "start": 19243612,
                         "end": 19246417
                     }],
                     "remote_package_size": 19246417
@@ -1393,10 +1413,6 @@ var Module = (() => {
                         }
                     }
                     readAsync = (url, onload, onerror) => {
-                        fetch(url).then(async response => {
-                            onload(await response.arrayBuffer());
-                        }).catch(onerror);
-                        return;
                         var xhr = new XMLHttpRequest;
                         xhr.open("GET", url, true);
                         xhr.responseType = "arraybuffer";
@@ -1421,10 +1437,6 @@ var Module = (() => {
             if (Module["thisProgram"]) thisProgram = Module["thisProgram"];
             if (Module["quit"]) quit_ = Module["quit"];
             var POINTER_SIZE = 4;
-            var tempRet0 = 0;
-            var setTempRet0 = value => {
-                tempRet0 = value
-            };
             var wasmBinary;
             if (Module["wasmBinary"]) wasmBinary = Module["wasmBinary"];
             var noExitRuntime = Module["noExitRuntime"] || true;
@@ -1629,10 +1641,8 @@ var Module = (() => {
             }
 
             function abort(what) {
-                {
-                    if (Module["onAbort"]) {
-                        Module["onAbort"](what)
-                    }
+                if (Module["onAbort"]) {
+                    Module["onAbort"](what)
                 }
                 what = "Aborted(" + what + ")";
                 err(what);
@@ -1746,7 +1756,7 @@ var Module = (() => {
                         return exports
                     } catch (e) {
                         err("Module.instantiateWasm callback failed with error: " + e);
-                        return false
+                        readyPromiseReject(e)
                     }
                 }
                 instantiateAsync().catch(readyPromiseReject);
@@ -1755,47 +1765,10 @@ var Module = (() => {
             var tempDouble;
             var tempI64;
 
-            function ExitStatus(status) {
-                this.name = "ExitStatus";
-                this.message = "Program terminated with exit(" + status + ")";
-                this.status = status
-            }
-
             function callRuntimeCallbacks(callbacks) {
                 while (callbacks.length > 0) {
                     callbacks.shift()(Module)
                 }
-            }
-
-            function demangle(func) {
-                return func
-            }
-
-            function demangleAll(text) {
-                var regex = /\b_Z[\w\d_]+/g;
-                return text.replace(regex, function(x) {
-                    var y = demangle(x);
-                    return x === y ? x : y + " [" + x + "]"
-                })
-            }
-
-            function jsStackTrace() {
-                var error = new Error;
-                if (!error.stack) {
-                    try {
-                        throw new Error
-                    } catch (e) {
-                        error = e
-                    }
-                    if (!error.stack) {
-                        return "(no stack trace available)"
-                    }
-                }
-                return error.stack.toString()
-            }
-
-            function writeArrayToMemory(array, buffer) {
-                HEAP8.set(array, buffer)
             }
 
             function ___assert_fail(condition, filename, line, func) {
@@ -1941,7 +1914,7 @@ var Module = (() => {
                     return path.substr(lastSlash + 1)
                 },
                 join: function() {
-                    var paths = Array.prototype.slice.call(arguments, 0);
+                    var paths = Array.prototype.slice.call(arguments);
                     return PATH.normalize(paths.join("/"))
                 },
                 join2: (l, r) => {
@@ -2039,10 +2012,10 @@ var Module = (() => {
                         stream.seekable = false
                     },
                     close: function(stream) {
-                        stream.tty.ops.flush(stream.tty)
+                        stream.tty.ops.fsync(stream.tty)
                     },
-                    flush: function(stream) {
-                        stream.tty.ops.flush(stream.tty)
+                    fsync: function(stream) {
+                        stream.tty.ops.fsync(stream.tty)
                     },
                     read: function(stream, buffer, offset, length, pos) {
                         if (!stream.tty || !stream.tty.ops.get_char) {
@@ -2115,7 +2088,7 @@ var Module = (() => {
                             if (val != 0) tty.output.push(val)
                         }
                     },
-                    flush: function(tty) {
+                    fsync: function(tty) {
                         if (tty.output && tty.output.length > 0) {
                             out(UTF8ArrayToString(tty.output, 0));
                             tty.output = []
@@ -2131,7 +2104,7 @@ var Module = (() => {
                             if (val != 0) tty.output.push(val)
                         }
                     },
-                    flush: function(tty) {
+                    fsync: function(tty) {
                         if (tty.output && tty.output.length > 0) {
                             err(UTF8ArrayToString(tty.output, 0));
                             tty.output = []
@@ -2141,7 +2114,8 @@ var Module = (() => {
             };
 
             function zeroMemory(address, size) {
-                HEAPU8.fill(0, address, address + size)
+                HEAPU8.fill(0, address, address + size);
+                return address
             }
 
             function alignMemory(size, alignment) {
@@ -2152,8 +2126,7 @@ var Module = (() => {
                 size = alignMemory(size, 65536);
                 var ptr = _emscripten_builtin_memalign(65536, size);
                 if (!ptr) return 0;
-                zeroMemory(ptr, size);
-                return ptr
+                return zeroMemory(ptr, size)
             }
             var MEMFS = {
                 ops_table: null,
@@ -2455,13 +2428,7 @@ var Module = (() => {
                         }
                     },
                     msync: function(stream, buffer, offset, length, mmapFlags) {
-                        if (!FS.isFile(stream.node.mode)) {
-                            throw new FS.ErrnoError(43)
-                        }
-                        if (mmapFlags & 2) {
-                            return 0
-                        }
-                        var bytesWritten = MEMFS.stream_ops.write(stream, buffer, 0, length, offset, false);
+                        MEMFS.stream_ops.write(stream, buffer, 0, length, offset, false);
                         return 0
                     }
                 }
@@ -2497,7 +2464,7 @@ var Module = (() => {
                 filesystems: null,
                 syncFSRequests: 0,
                 lookupPath: (path, opts = {}) => {
-                    path = PATH_FS.resolve(FS.cwd(), path);
+                    path = PATH_FS.resolve(path);
                     if (!path) return {
                         path: "",
                         node: null
@@ -2510,7 +2477,7 @@ var Module = (() => {
                     if (opts.recurse_count > 8) {
                         throw new FS.ErrnoError(32)
                     }
-                    var parts = PATH.normalizeArray(path.split("/").filter(p => !!p), false);
+                    var parts = path.split("/").filter(p => !!p);
                     var current = FS.root;
                     var current_path = "/";
                     for (var i = 0; i < parts.length; i++) {
@@ -3432,7 +3399,7 @@ var Module = (() => {
                     return stream.stream_ops.mmap(stream, length, position, prot, flags)
                 },
                 msync: (stream, buffer, offset, length, mmapFlags) => {
-                    if (!stream || !stream.stream_ops.msync) {
+                    if (!stream.stream_ops.msync) {
                         return 0
                     }
                     return stream.stream_ops.msync(stream, buffer, offset, length, mmapFlags)
@@ -4059,8 +4026,7 @@ var Module = (() => {
                     if (dirfd === -100) {
                         dir = FS.cwd()
                     } else {
-                        var dirstream = FS.getStream(dirfd);
-                        if (!dirstream) throw new FS.ErrnoError(8);
+                        var dirstream = SYSCALLS.getStreamFromFD(dirfd);
                         dir = dirstream.path
                     }
                     if (path.length == 0) {
@@ -4083,7 +4049,7 @@ var Module = (() => {
                     HEAP32[buf >> 2] = stat.dev;
                     HEAP32[buf + 8 >> 2] = stat.ino;
                     HEAP32[buf + 12 >> 2] = stat.mode;
-                    HEAP32[buf + 16 >> 2] = stat.nlink;
+                    HEAPU32[buf + 16 >> 2] = stat.nlink;
                     HEAP32[buf + 20 >> 2] = stat.uid;
                     HEAP32[buf + 24 >> 2] = stat.gid;
                     HEAP32[buf + 28 >> 2] = stat.rdev;
@@ -4091,15 +4057,21 @@ var Module = (() => {
                     HEAP32[buf + 48 >> 2] = 4096;
                     HEAP32[buf + 52 >> 2] = stat.blocks;
                     tempI64 = [Math.floor(stat.atime.getTime() / 1e3) >>> 0, (tempDouble = Math.floor(stat.atime.getTime() / 1e3), +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? (Math.min(+Math.floor(tempDouble / 4294967296), 4294967295) | 0) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], HEAP32[buf + 56 >> 2] = tempI64[0], HEAP32[buf + 60 >> 2] = tempI64[1];
-                    HEAP32[buf + 64 >> 2] = 0;
+                    HEAPU32[buf + 64 >> 2] = 0;
                     tempI64 = [Math.floor(stat.mtime.getTime() / 1e3) >>> 0, (tempDouble = Math.floor(stat.mtime.getTime() / 1e3), +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? (Math.min(+Math.floor(tempDouble / 4294967296), 4294967295) | 0) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], HEAP32[buf + 72 >> 2] = tempI64[0], HEAP32[buf + 76 >> 2] = tempI64[1];
-                    HEAP32[buf + 80 >> 2] = 0;
+                    HEAPU32[buf + 80 >> 2] = 0;
                     tempI64 = [Math.floor(stat.ctime.getTime() / 1e3) >>> 0, (tempDouble = Math.floor(stat.ctime.getTime() / 1e3), +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? (Math.min(+Math.floor(tempDouble / 4294967296), 4294967295) | 0) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], HEAP32[buf + 88 >> 2] = tempI64[0], HEAP32[buf + 92 >> 2] = tempI64[1];
-                    HEAP32[buf + 96 >> 2] = 0;
+                    HEAPU32[buf + 96 >> 2] = 0;
                     tempI64 = [stat.ino >>> 0, (tempDouble = stat.ino, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? (Math.min(+Math.floor(tempDouble / 4294967296), 4294967295) | 0) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], HEAP32[buf + 104 >> 2] = tempI64[0], HEAP32[buf + 108 >> 2] = tempI64[1];
                     return 0
                 },
                 doMsync: function(addr, stream, len, flags, offset) {
+                    if (!FS.isFile(stream.node.mode)) {
+                        throw new FS.ErrnoError(43)
+                    }
+                    if (flags & 2) {
+                        return 0
+                    }
                     var buffer = HEAPU8.slice(addr, addr + len);
                     FS.msync(stream, buffer, offset, len, flags)
                 },
@@ -5881,17 +5853,14 @@ var Module = (() => {
                 var maxIdx = idx + maxBytesToRead / 2;
                 while (!(idx >= maxIdx) && HEAPU16[idx]) ++idx;
                 endPtr = idx << 1;
-                if (endPtr - ptr > 32 && UTF16Decoder) {
-                    return UTF16Decoder.decode(HEAPU8.subarray(ptr, endPtr))
-                } else {
-                    var str = "";
-                    for (var i = 0; !(i >= maxBytesToRead / 2); ++i) {
-                        var codeUnit = HEAP16[ptr + i * 2 >> 1];
-                        if (codeUnit == 0) break;
-                        str += String.fromCharCode(codeUnit)
-                    }
-                    return str
+                if (endPtr - ptr > 32 && UTF16Decoder) return UTF16Decoder.decode(HEAPU8.subarray(ptr, endPtr));
+                var str = "";
+                for (var i = 0; !(i >= maxBytesToRead / 2); ++i) {
+                    var codeUnit = HEAP16[ptr + i * 2 >> 1];
+                    if (codeUnit == 0) break;
+                    str += String.fromCharCode(codeUnit)
                 }
+                return str
             }
 
             function stringToUTF16(str, outPtr, maxBytesToWrite) {
@@ -6060,10 +6029,6 @@ var Module = (() => {
                 })
             }
 
-            function __emscripten_date_now() {
-                return Date.now()
-            }
-
             function emval_allocateDestructors(destructorsRef) {
                 var destructors = [];
                 HEAPU32[destructorsRef >> 2] = Emval.toHandle(destructors);
@@ -6159,14 +6124,14 @@ var Module = (() => {
                 return Emval.toHandle(v)
             }
 
-            function __mmap_js(len, prot, flags, fd, off, allocated) {
+            function __mmap_js(len, prot, flags, fd, off, allocated, addr) {
                 try {
-                    var stream = FS.getStream(fd);
-                    if (!stream) return -8;
+                    var stream = SYSCALLS.getStreamFromFD(fd);
                     var res = FS.mmap(stream, len, off, prot, flags);
                     var ptr = res.ptr;
                     HEAP32[allocated >> 2] = res.allocated;
-                    return ptr
+                    HEAPU32[addr >> 2] = ptr;
+                    return 0
                 } catch (e) {
                     if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
                     return -e.errno
@@ -6175,13 +6140,11 @@ var Module = (() => {
 
             function __munmap_js(addr, len, prot, flags, fd, offset) {
                 try {
-                    var stream = FS.getStream(fd);
-                    if (stream) {
-                        if (prot & 2) {
-                            SYSCALLS.doMsync(addr, stream, len, flags, offset)
-                        }
-                        FS.munmap(stream)
+                    var stream = SYSCALLS.getStreamFromFD(fd);
+                    if (prot & 2) {
+                        SYSCALLS.doMsync(addr, stream, len, flags, offset)
                     }
+                    FS.munmap(stream)
                 } catch (e) {
                     if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
                     return -e.errno
@@ -6190,6 +6153,10 @@ var Module = (() => {
 
             function _abort() {
                 abort("")
+            }
+
+            function _emscripten_date_now() {
+                return Date.now()
             }
 
             function _emscripten_memcpy_big(dest, src, num) {
@@ -6316,7 +6283,7 @@ var Module = (() => {
                 try {
                     var stream = SYSCALLS.getStreamFromFD(fd);
                     var num = doReadv(stream, iov, iovcnt);
-                    HEAP32[pnum >> 2] = num;
+                    HEAPU32[pnum >> 2] = num;
                     return 0
                 } catch (e) {
                     if (typeof FS == "undefined" || !(e instanceof FS.ErrnoError)) throw e;
@@ -6364,10 +6331,6 @@ var Module = (() => {
                 }
             }
 
-            function _setTempRet0(val) {
-                setTempRet0(val)
-            }
-
             function __isLeapYear(year) {
                 return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)
             }
@@ -6401,6 +6364,10 @@ var Module = (() => {
                     }
                 }
                 return newDate
+            }
+
+            function writeArrayToMemory(array, buffer) {
+                HEAP8.set(array, buffer)
             }
 
             function _strftime(s, maxsize, format, tm) {
@@ -6641,167 +6608,8 @@ var Module = (() => {
                 return bytes.length - 1
             }
 
-            function _strftime_l(s, maxsize, format, tm) {
+            function _strftime_l(s, maxsize, format, tm, loc) {
                 return _strftime(s, maxsize, format, tm)
-            }
-
-            function uleb128Encode(n, target) {
-                if (n < 128) {
-                    target.push(n)
-                } else {
-                    target.push(n % 128 | 128, n >> 7)
-                }
-            }
-
-            function sigToWasmTypes(sig) {
-                var typeNames = {
-                    "i": "i32",
-                    "j": "i64",
-                    "f": "f32",
-                    "d": "f64",
-                    "p": "i32"
-                };
-                var type = {
-                    parameters: [],
-                    results: sig[0] == "v" ? [] : [typeNames[sig[0]]]
-                };
-                for (var i = 1; i < sig.length; ++i) {
-                    type.parameters.push(typeNames[sig[i]])
-                }
-                return type
-            }
-
-            function convertJsFunctionToWasm(func, sig) {
-                if (typeof WebAssembly.Function == "function") {
-                    return new WebAssembly.Function(sigToWasmTypes(sig), func)
-                }
-                var typeSectionBody = [1, 96];
-                var sigRet = sig.slice(0, 1);
-                var sigParam = sig.slice(1);
-                var typeCodes = {
-                    "i": 127,
-                    "p": 127,
-                    "j": 126,
-                    "f": 125,
-                    "d": 124
-                };
-                uleb128Encode(sigParam.length, typeSectionBody);
-                for (var i = 0; i < sigParam.length; ++i) {
-                    typeSectionBody.push(typeCodes[sigParam[i]])
-                }
-                if (sigRet == "v") {
-                    typeSectionBody.push(0)
-                } else {
-                    typeSectionBody.push(1, typeCodes[sigRet])
-                }
-                var bytes = [0, 97, 115, 109, 1, 0, 0, 0, 1];
-                uleb128Encode(typeSectionBody.length, bytes);
-                bytes.push.apply(bytes, typeSectionBody);
-                bytes.push(2, 7, 1, 1, 101, 1, 102, 0, 0, 7, 5, 1, 1, 102, 0, 0);
-                var module = new WebAssembly.Module(new Uint8Array(bytes));
-                var instance = new WebAssembly.Instance(module, {
-                    "e": {
-                        "f": func
-                    }
-                });
-                var wrappedFunc = instance.exports["f"];
-                return wrappedFunc
-            }
-
-            function updateTableMap(offset, count) {
-                if (functionsInTableMap) {
-                    for (var i = offset; i < offset + count; i++) {
-                        var item = getWasmTableEntry(i);
-                        if (item) {
-                            functionsInTableMap.set(item, i)
-                        }
-                    }
-                }
-            }
-            var functionsInTableMap = undefined;
-            var freeTableIndexes = [];
-
-            function getEmptyTableSlot() {
-                if (freeTableIndexes.length) {
-                    return freeTableIndexes.pop()
-                }
-                try {
-                    wasmTable.grow(1)
-                } catch (err) {
-                    if (!(err instanceof RangeError)) {
-                        throw err
-                    }
-                    throw "Unable to grow wasm table. Set ALLOW_TABLE_GROWTH."
-                }
-                return wasmTable.length - 1
-            }
-
-            function setWasmTableEntry(idx, func) {
-                wasmTable.set(idx, func);
-                wasmTableMirror[idx] = wasmTable.get(idx)
-            }
-            var ALLOC_STACK = 1;
-
-            function warnOnce(text) {
-                if (!warnOnce.shown) warnOnce.shown = {};
-                if (!warnOnce.shown[text]) {
-                    warnOnce.shown[text] = 1;
-                    err(text)
-                }
-            }
-
-            function getCFunc(ident) {
-                var func = Module["_" + ident];
-                return func
-            }
-
-            function ccall(ident, returnType, argTypes, args, opts) {
-                var toC = {
-                    "string": str => {
-                        var ret = 0;
-                        if (str !== null && str !== undefined && str !== 0) {
-                            var len = (str.length << 2) + 1;
-                            ret = stackAlloc(len);
-                            stringToUTF8(str, ret, len)
-                        }
-                        return ret
-                    },
-                    "array": arr => {
-                        var ret = stackAlloc(arr.length);
-                        writeArrayToMemory(arr, ret);
-                        return ret
-                    }
-                };
-
-                function convertReturnValue(ret) {
-                    if (returnType === "string") {
-                        return UTF8ToString(ret)
-                    }
-                    if (returnType === "boolean") return Boolean(ret);
-                    return ret
-                }
-                var func = getCFunc(ident);
-                var cArgs = [];
-                var stack = 0;
-                if (args) {
-                    for (var i = 0; i < args.length; i++) {
-                        var converter = toC[argTypes[i]];
-                        if (converter) {
-                            if (stack === 0) stack = stackSave();
-                            cArgs[i] = converter(args[i])
-                        } else {
-                            cArgs[i] = args[i]
-                        }
-                    }
-                }
-                var ret = func.apply(null, cArgs);
-
-                function onDone(ret) {
-                    if (stack !== 0) stackRestore(stack);
-                    return convertReturnValue(ret)
-                }
-                ret = onDone(ret);
-                return ret
             }
             var FSNode = function(parent, name, mode, rdev) {
                 if (!parent) {
@@ -6864,7 +6672,6 @@ var Module = (() => {
             init_ClassHandle();
             init_RegisteredPointer();
             UnboundTypeError = Module["UnboundTypeError"] = extendError(Error, "UnboundTypeError");
-            var ASSERTIONS = false;
             var decodeBase64 = typeof atob == "function" ? atob : function(input) {
                 var keyStr = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
                 var output = "";
@@ -6940,7 +6747,6 @@ var Module = (() => {
                 "_embind_register_value_object": __embind_register_value_object,
                 "_embind_register_value_object_field": __embind_register_value_object_field,
                 "_embind_register_void": __embind_register_void,
-                "_emscripten_date_now": __emscripten_date_now,
                 "_emval_call_method": __emval_call_method,
                 "_emval_call_void_method": __emval_call_void_method,
                 "_emval_decref": __emval_decref,
@@ -6951,6 +6757,7 @@ var Module = (() => {
                 "_mmap_js": __mmap_js,
                 "_munmap_js": __munmap_js,
                 "abort": _abort,
+                "emscripten_date_now": _emscripten_date_now,
                 "emscripten_memcpy_big": _emscripten_memcpy_big,
                 "emscripten_resize_heap": _emscripten_resize_heap,
                 "environ_get": _environ_get,
@@ -6959,7 +6766,6 @@ var Module = (() => {
                 "fd_read": _fd_read,
                 "fd_seek": _fd_seek,
                 "fd_write": _fd_write,
-                "setTempRet0": _setTempRet0,
                 "strftime_l": _strftime_l
             };
             var asm = createWasm();
@@ -7068,61 +6874,6 @@ var Module = (() => {
                 }
             }
             run();
-            var workerResponded = false,
-                workerCallbackId = -1;
-            (function() {
-                var messageBuffer = null,
-                    buffer = 0,
-                    bufferSize = 0;
-
-                function flushMessages() {
-                    if (!messageBuffer) return;
-                    if (runtimeInitialized) {
-                        var temp = messageBuffer;
-                        messageBuffer = null;
-                        temp.forEach(function(message) {
-                            onmessage(message)
-                        })
-                    }
-                }
-
-                function messageResender() {
-                    flushMessages();
-                    if (messageBuffer) {
-                        setTimeout(messageResender, 100)
-                    }
-                }
-                onmessage = msg => {
-                    if (!runtimeInitialized) {
-                        if (!messageBuffer) {
-                            messageBuffer = [];
-                            setTimeout(messageResender, 100)
-                        }
-                        messageBuffer.push(msg);
-                        return
-                    }
-                    flushMessages();
-                    var func = Module["_" + msg.data["funcName"]];
-                    if (!func) throw "invalid worker function to call: " + msg.data["funcName"];
-                    var data = msg.data["data"];
-                    if (data) {
-                        if (!data.byteLength) data = new Uint8Array(data);
-                        if (!buffer || bufferSize < data.length) {
-                            if (buffer) _free(buffer);
-                            bufferSize = data.length;
-                            buffer = _malloc(data.length)
-                        }
-                        HEAPU8.set(data, buffer)
-                    }
-                    workerResponded = false;
-                    workerCallbackId = msg.data["callbackId"];
-                    if (data) {
-                        func(buffer, data.length)
-                    } else {
-                        func(0, 0)
-                    }
-                }
-            })();
 
 
             return Module.ready
