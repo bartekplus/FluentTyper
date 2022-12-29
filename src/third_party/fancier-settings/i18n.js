@@ -4,7 +4,7 @@ import { I18n } from "./js/i18n.js";
 let i18n = new I18n();
 i18n = Object.assign(i18n, {
   add_domain: {
-    en: "Add new domain URL to blocklist",
+    en: "Add new domain URL to list",
   },
   add: {
     en: "Add",

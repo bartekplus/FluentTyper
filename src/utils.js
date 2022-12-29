@@ -1,4 +1,8 @@
 const SETTINGS_DOMAIN_BLACKLIST = "domainBlackList";
+const DOMAIN_LIST_MODE = {
+  blackList: "Blacklist - enabled on all websites, disabled on specific sites",
+  whiteList: "Whitelist - disabled on all websites, enabled on specific sites",
+};
 
 function getDomain(url) {
   try {
@@ -8,12 +12,12 @@ function getDomain(url) {
   }
 }
 
-async function isDomainOnBlackList(settings, domainURL) {
+async function isDomainOnList(settings, domainURL) {
   let ret = false;
-  const domainBlackList = await settings.get(SETTINGS_DOMAIN_BLACKLIST);
+  const domainkList = await settings.get(SETTINGS_DOMAIN_BLACKLIST);
 
-  for (let i = 0; i < domainBlackList.length; i++) {
-    if (domainURL.match(domainBlackList[i])) {
+  for (let i = 0; i < domainkList.length; i++) {
+    if (domainURL.match(domainkList[i])) {
       ret = true;
       break;
     }
@@ -21,21 +25,21 @@ async function isDomainOnBlackList(settings, domainURL) {
   return ret;
 }
 
-async function addDomainToBlackList(settings, domainURL) {
-  const domainBlackList = await settings.get(SETTINGS_DOMAIN_BLACKLIST);
+async function addDomainToList(settings, domainURL) {
+  const domainkList = await settings.get(SETTINGS_DOMAIN_BLACKLIST);
 
-  domainBlackList.push(domainURL);
+  domainkList.push(domainURL);
 
-  settings.set(SETTINGS_DOMAIN_BLACKLIST, domainBlackList);
+  settings.set(SETTINGS_DOMAIN_BLACKLIST, domainkList);
 }
 
-async function removeDomainFromBlackList(settings, domainURL) {
-  const domainBlackList = await settings.get(SETTINGS_DOMAIN_BLACKLIST);
+async function removeDomainFromList(settings, domainURL) {
+  const domainkList = await settings.get(SETTINGS_DOMAIN_BLACKLIST);
 
-  for (let i = 0; i < domainBlackList.length; i++) {
-    if (domainURL.match(domainBlackList[i])) {
-      domainBlackList.splice(i, 1);
-      settings.set(SETTINGS_DOMAIN_BLACKLIST, domainBlackList);
+  for (let i = 0; i < domainkList.length; i++) {
+    if (domainURL.match(domainkList[i])) {
+      domainkList.splice(i, 1);
+      settings.set(SETTINGS_DOMAIN_BLACKLIST, domainkList);
       break;
     }
   }
@@ -51,11 +55,25 @@ function checkLastError() {
   }
 }
 
+async function isEnabledForDomain(settings, domainURL) {
+  let enabledForDomain = await settings.get("enable");
+  if (enabledForDomain) {
+    const domainListMode = await settings.get("domainListMode");
+    const isDomainOnBWList = await isDomainOnList(settings, domainURL);
+    enabledForDomain =
+      (domainListMode === "blackList" && !isDomainOnBWList) ||
+      (domainListMode === "whiteList" && isDomainOnBWList);
+  }
+  return enabledForDomain;
+}
+
 export {
   SETTINGS_DOMAIN_BLACKLIST,
+  DOMAIN_LIST_MODE,
+  isEnabledForDomain,
   checkLastError,
-  removeDomainFromBlackList,
-  addDomainToBlackList,
-  isDomainOnBlackList,
+  removeDomainFromList,
+  addDomainToList,
+  isDomainOnList,
   getDomain,
 };

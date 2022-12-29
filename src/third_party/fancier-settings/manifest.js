@@ -1,5 +1,6 @@
 import { i18n } from "./i18n.js";
 import { SUPPORTED_LANGUAGES } from "../../lang.js";
+import { DOMAIN_LIST_MODE } from "../../utils.js";
 
 const donateHTML =
   '<div class="has-text-centered"><a href="https://www.buymeacoffee.com/FluentTyper" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png"  alt="Buy Me A Coffee" style="height: 60px !important; width: 217px !important"/></a></div>';
@@ -30,6 +31,17 @@ const manifest = {
       }),
       label: "Prediction language:",
       default: "en",
+    },
+    {
+      tab: i18n.get("settings"),
+      group: i18n.get("General"),
+      name: "domainListMode",
+      type: "popupButton",
+      options: Object.entries({
+        ...DOMAIN_LIST_MODE,
+      }),
+      label: "Domain list mode:",
+      default: "blackList",
     },
     {
       tab: i18n.get("settings"),
@@ -129,7 +141,7 @@ const manifest = {
       text: testFluentTyperHTML,
     },
     {
-      tab: "Domain blocklist",
+      tab: "Domain black/white list",
       group: i18n.get("Management"),
       name: "domainBlackList",
       type: "listBox",
@@ -137,14 +149,14 @@ const manifest = {
       default: [],
     },
     {
-      tab: "Domain blocklist",
+      tab: "Domain black/white list",
       group: i18n.get("Management"),
       name: "removeDomainBtn",
       type: "button",
       text: i18n.get("remove"),
     },
     {
-      tab: "Domain blocklist",
+      tab: "Domain black/white list",
       group: i18n.get("Management"),
       name: "domain",
       type: "text",
@@ -154,7 +166,7 @@ const manifest = {
       store: false,
     },
     {
-      tab: "Domain blocklist",
+      tab: "Domain black/white list",
       group: i18n.get("Management"),
       name: "addDomainBtn",
       type: "button",

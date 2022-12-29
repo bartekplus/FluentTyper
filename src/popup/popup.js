@@ -1,8 +1,8 @@
 import {
   getDomain,
-  isDomainOnBlackList,
-  removeDomainFromBlackList,
-  addDomainToBlackList,
+  isEnabledForDomain,
+  removeDomainFromList,
+  addDomainToList,
 } from "../utils.js";
 import { Store } from "../third_party/fancier-settings/lib/store.js";
 import { SUPPORTED_LANGUAGES } from "../lang.js";
@@ -22,8 +22,9 @@ function init() {
         );
         const domainURL = getDomain(currentTab.url);
         if (domainURL && domainURL !== "null") {
-          const blocked = await isDomainOnBlackList(settings, domainURL);
-          checkboxNode.checked = !blocked;
+          const enabled = await isEnabledForDomain(settings, domainURL);
+
+          checkboxNode.checked = enabled;
           urlNode.innerHTML = "<span>Enable autocomplete on:<br> " + domainURL;
 
           window.document
@@ -68,13 +69,14 @@ async function addRemoveDomain(tabId, domainURL) {
     command: checkboxNode.checked ? "popupPageEnable" : "popupPageDisable",
     context: {},
   };
+  const domainListMode = await settings.get("domainListMode");
 
   urlNode.innerHTML = "<span>Enable autocomplete on: " + domainURL;
 
-  if (checkboxNode.checked) {
-    removeDomainFromBlackList(settings, domainURL);
+  if (checkboxNode.checked && domainListMode === "blackList") {
+    removeDomainFromList(settings, domainURL);
   } else {
-    addDomainToBlackList(settings, domainURL);
+    addDomainToList(settings, domainURL);
   }
   chrome.tabs.sendMessage(tabId, message);
 }

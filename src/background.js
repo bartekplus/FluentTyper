@@ -1,4 +1,4 @@
-import { getDomain, isDomainOnBlackList, checkLastError } from "./utils.js";
+import { getDomain, isEnabledForDomain, checkLastError } from "./utils.js";
 import { Store } from "./third_party/fancier-settings/lib/store.js";
 import {
   SUPPORTED_LANGUAGES,
@@ -52,16 +52,6 @@ class BackgrounServiceWorker {
         });
       }
     });
-  }
-
-  async isEnabledForDomain(domainURL) {
-    let enabledForDomain = await this.settings.get("enable");
-    if (enabledForDomain) {
-      if (await isDomainOnBlackList(this.settings, domainURL)) {
-        enabledForDomain = false;
-      }
-    }
-    return enabledForDomain;
   }
 
   async detectLanguage(text, tabId) {
@@ -202,7 +192,10 @@ function onMessage(request, sender, sendResponse) {
     case "contentScriptGetConfig":
       asyncResponse = true;
       Promise.all([
-        backgrounServiceWorker.isEnabledForDomain(getDomain(sender.tab.url)),
+        isEnabledForDomain(
+          backgrounServiceWorker.settings,
+          getDomain(sender.tab.url)
+        ),
         backgrounServiceWorker.settings.get("autocomplete"),
         backgrounServiceWorker.settings.get("selectByDigit"),
         backgrounServiceWorker.settings.get("language"),
