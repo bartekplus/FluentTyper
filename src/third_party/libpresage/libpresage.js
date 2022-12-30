@@ -45,9 +45,9 @@ var Module = (() => {
                             });
                             return
                         }
+                        packageName = chrome.runtime.getURL("third_party/libpresage/" + packageName);
                         if (typeof XMLHttpRequest === "undefined") {
-                            const url = chrome.runtime.getURL("third_party/libpresage/" + packageName);
-                            fetch(url).then(function(response) {
+                            fetch(packageName).then(function(response) {
                                 return response.arrayBuffer()
                             }).then(function(data) {
                                 callback(data)
@@ -224,9 +224,9 @@ var Module = (() => {
                             });
                             return
                         }
+                        packageName = chrome.runtime.getURL("third_party/libpresage/" + packageName);
                         if (typeof XMLHttpRequest === "undefined") {
-                            const url = chrome.runtime.getURL("third_party/libpresage/" + packageName);
-                            fetch(url).then(function(response) {
+                            fetch(packageName).then(function(response) {
                                 return response.arrayBuffer()
                             }).then(function(data) {
                                 callback(data)
@@ -522,9 +522,9 @@ var Module = (() => {
                             });
                             return
                         }
+                        packageName = chrome.runtime.getURL("third_party/libpresage/" + packageName);
                         if (typeof XMLHttpRequest === "undefined") {
-                            const url = chrome.runtime.getURL("third_party/libpresage/" + packageName);
-                            fetch(url).then(function(response) {
+                            fetch(packageName).then(function(response) {
                                 return response.arrayBuffer()
                             }).then(function(data) {
                                 callback(data)
@@ -760,9 +760,9 @@ var Module = (() => {
                             });
                             return
                         }
+                        packageName = chrome.runtime.getURL("third_party/libpresage/" + packageName);
                         if (typeof XMLHttpRequest === "undefined") {
-                            const url = chrome.runtime.getURL("third_party/libpresage/" + packageName);
-                            fetch(url).then(function(response) {
+                            fetch(packageName).then(function(response) {
                                 return response.arrayBuffer()
                             }).then(function(data) {
                                 callback(data)
@@ -1166,9 +1166,9 @@ var Module = (() => {
                             });
                             return
                         }
+                        packageName = chrome.runtime.getURL("third_party/libpresage/" + packageName);
                         if (typeof XMLHttpRequest === "undefined") {
-                            const url = chrome.runtime.getURL("third_party/libpresage/" + packageName);
-                            fetch(url).then(function(response) {
+                            fetch(packageName).then(function(response) {
                                 return response.arrayBuffer()
                             }).then(function(data) {
                                 callback(data)
