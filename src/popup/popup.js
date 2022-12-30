@@ -1,9 +1,4 @@
-import {
-  getDomain,
-  isEnabledForDomain,
-  removeDomainFromList,
-  addDomainToList,
-} from "../utils.js";
+import { getDomain, isEnabledForDomain, blockUnBlockDomain } from "../utils.js";
 import { Store } from "../third_party/fancier-settings/lib/store.js";
 import { SUPPORTED_LANGUAGES } from "../lang.js";
 
@@ -69,15 +64,11 @@ async function addRemoveDomain(tabId, domainURL) {
     command: checkboxNode.checked ? "popupPageEnable" : "popupPageDisable",
     context: {},
   };
-  const domainListMode = await settings.get("domainListMode");
 
   urlNode.innerHTML = "<span>Enable autocomplete on: " + domainURL;
 
-  if (checkboxNode.checked && domainListMode === "blackList") {
-    removeDomainFromList(settings, domainURL);
-  } else {
-    addDomainToList(settings, domainURL);
-  }
+  blockUnBlockDomain(settings, domainURL, !checkboxNode.checked);
+
   chrome.tabs.sendMessage(tabId, message);
 }
 

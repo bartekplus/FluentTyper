@@ -67,13 +67,25 @@ async function isEnabledForDomain(settings, domainURL) {
   return enabledForDomain;
 }
 
+async function blockUnBlockDomain(settings, domainURL, block = false) {
+  const domainListMode = await settings.get("domainListMode");
+
+  if (
+    (block && domainListMode === "blackList") ||
+    (!block && domainListMode !== "blackList")
+  ) {
+    addDomainToList(settings, domainURL);
+  } else {
+    removeDomainFromList(settings, domainURL);
+  }
+}
+
 export {
   SETTINGS_DOMAIN_BLACKLIST,
   DOMAIN_LIST_MODE,
   isEnabledForDomain,
   checkLastError,
-  removeDomainFromList,
-  addDomainToList,
   isDomainOnList,
   getDomain,
+  blockUnBlockDomain,
 };
