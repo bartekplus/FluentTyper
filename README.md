@@ -22,10 +22,10 @@ FluentTyper works on almost all websites, however, there are some exceptions lik
 
 FluentTyper cares about privacy of your data. It does not upload any of your data to the internet, it works offline and predictions are generated on your own PC.
 
-FluentTyper is a writing assistant with functionalities of:  spell checker, text expander and predictive auto complete.
+FluentTyper is a writing assistant with functionalities of: spell checker, text expander and predictive auto complete.
 
-Start typing, FluentTyper will show a popup with the list of suggested words(like your phone keyboard).
-Use the arrow keys to select a word in the list of suggested words.
+Start typing, FluentTyper will show a popup with the list of suggested words (like your phone keyboard).
+Use the arrow keys (↑, ↓) to select a word in the list of suggested words.
 Use Enter or Tab key to confirm selection.
 Use Escape key or just continue typing to hide the list of suggested words.
 
@@ -54,6 +54,6 @@ Supported languages:
 If you have any feedback, please reach out to me at bartekplus+ff@gmail.com
 
 
-## Buy Me A Coffee
+## Buy Me a Coffee
 
-[!["Buy Me A Coffee"](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://www.buymeacoffee.com/FluentTyper)
+[!["Buy Me a Coffee"](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://www.buymeacoffee.com/FluentTyper)
