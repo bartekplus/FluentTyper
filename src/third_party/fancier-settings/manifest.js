@@ -135,8 +135,8 @@ const manifest = {
       ],
     },
     {
-      tab: i18n.get("Test FlutenTyper"),
-      name: "Test FlutenTyper",
+      tab: i18n.get("Test FluentTyper"),
+      name: "Test FluentTyper",
       type: "description",
       text: testFluentTyperHTML,
     },
