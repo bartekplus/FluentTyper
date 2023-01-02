@@ -34,6 +34,7 @@ Supported languages:
 - Spanish
 - French
 - Croatian
+- Greek (dictionary based prediction)
 
 ## Installation
 
