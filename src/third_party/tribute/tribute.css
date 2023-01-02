@@ -6,7 +6,7 @@
   height: auto !important;
   overflow: hidden !important;
   z-index: 2147483647 !important;
-  box-shadow: 1px 2px 6px !important;
+  box-shadow: 1px 2px 6px #303030 !important;
   background-color: #f8f8f8 !important;
   color: #303030 !important;
 }
@@ -14,13 +14,12 @@
   margin: 0 !important;
   padding: 0 !important;
   list-style: none !important;
-  background-color:#f8f8f8 !important;
 }
 .tribute-container lh {
   margin: 0 !important;
   padding: 3px 5px !important;
   font-size: 65% !important;
-  background-color:#3e8ed0 !important;
+  background-color: #3e8ed0 !important;
   box-sizing: border-box;
   display: block;
 }
@@ -46,4 +45,21 @@
 }
 .tribute-container .menu-highlighted {
   font-weight: bold !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  .tribute-container {
+    color: #f8f8f8 !important;
+    background-color: #303030 !important;
+    box-shadow: 1px 2px 6px #303030 !important;
+  }
+  .tribute-container lh {
+    color: #f8f8f8 !important;
+    background-color: #1a466b !important;
+  }
+  .tribute-container li.highlight,
+  .tribute-container li.highlight:hover {
+    color: #303030 !important;
+    background-color: #f8f8f8 !important;
+  }
 }

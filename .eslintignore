@@ -5,5 +5,5 @@ src/third_party/libpresage/es.js
 src/third_party/libpresage/fr.js
 src/third_party/libpresage/hr.js
 src/third_party/libpresage/common.js
-src/third_party/tribute/*
+src/third_party/tribute/tribute.js
 src/third_party/swiper/swiper-bundle.esm.browser.js
