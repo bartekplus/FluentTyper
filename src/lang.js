@@ -4,6 +4,7 @@ const SUPPORTED_LANGUAGES = {
   hr: "Croatian",
   es: "Spanish",
   el: "Greek",
+  textExpander: "Text Expander",
 };
 
 const DEFAULT_SEPERATOR_CHARS_REGEX = RegExp(
@@ -17,6 +18,7 @@ const LANG_SEPERATOR_CHARS_REGEX = {
   hr: DEFAULT_SEPERATOR_CHARS_REGEX,
   es: DEFAULT_SEPERATOR_CHARS_REGEX,
   el: DEFAULT_SEPERATOR_CHARS_REGEX,
+  textExpander: DEFAULT_SEPERATOR_CHARS_REGEX,
 };
 const LANG_ADDITIONAL_SEPERATOR_REGEX = {
   en: null,
@@ -24,6 +26,7 @@ const LANG_ADDITIONAL_SEPERATOR_REGEX = {
   hr: null,
   es: null,
   el: null,
+  textExpander: null,
 };
 export {
   SUPPORTED_LANGUAGES,
