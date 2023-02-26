@@ -4,6 +4,7 @@ const SUPPORTED_LANGUAGES = {
   hr: "Croatian",
   es: "Spanish",
   el: "Greek",
+  sv: "Swedish",
   textExpander: "Text Expander",
 };
 

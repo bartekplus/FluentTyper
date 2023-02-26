@@ -2,8 +2,7 @@ var Module = (() => {
     var _scriptDir = import.meta.url;
 
     return (
-        function(Module) {
-            Module = Module || {};
+        function(Module = {}) {
 
             var Module = typeof Module != "undefined" ? Module : {};
             var readyPromiseResolve, readyPromiseReject;
@@ -1590,9 +1589,234 @@ var Module = (() => {
                     }, {
                         "filename": "/resources_js/el/presage.xml",
                         "start": 38510965,
-                        "end": 38513282
+                        "end": 38513279
                     }],
-                    "remote_package_size": 38513282
+                    "remote_package_size": 38513279
+                })
+            })();
+            var Module = typeof Module !== "undefined" ? Module : {};
+            if (!Module.expectedDataFileDownloads) {
+                Module.expectedDataFileDownloads = 0
+            }
+            Module.expectedDataFileDownloads++;
+            (function() {
+                if (Module["ENVIRONMENT_IS_PTHREAD"]) return;
+                var loadPackage = function(metadata) {
+                    var PACKAGE_PATH = "";
+                    if (typeof window === "object") {
+                        PACKAGE_PATH = window["encodeURIComponent"](window.location.pathname.toString().substring(0, window.location.pathname.toString().lastIndexOf("/")) + "/")
+                    } else if (typeof process === "undefined" && typeof location !== "undefined") {
+                        PACKAGE_PATH = encodeURIComponent(location.pathname.toString().substring(0, location.pathname.toString().lastIndexOf("/")) + "/")
+                    }
+                    var PACKAGE_NAME = "sv.data";
+                    var REMOTE_PACKAGE_BASE = "sv.data";
+                    if (typeof Module["locateFilePackage"] === "function" && !Module["locateFile"]) {
+                        Module["locateFile"] = Module["locateFilePackage"];
+                        err("warning: you defined Module.locateFilePackage, that has been renamed to Module.locateFile (using your locateFilePackage for now)")
+                    }
+                    var REMOTE_PACKAGE_NAME = Module["locateFile"] ? Module["locateFile"](REMOTE_PACKAGE_BASE, "") : REMOTE_PACKAGE_BASE;
+                    var REMOTE_PACKAGE_SIZE = metadata["remote_package_size"];
+
+                    function fetchRemotePackage(packageName, packageSize, callback, errback) {
+                        if (typeof process === "object" && typeof process.versions === "object" && typeof process.versions.node === "string") {
+                            require("fs").readFile(packageName, function(err, contents) {
+                                if (err) {
+                                    errback(err)
+                                } else {
+                                    callback(contents.buffer)
+                                }
+                            });
+                            return
+                        }
+                        packageName = chrome.runtime.getURL("third_party/libpresage/" + packageName);
+                        if (typeof XMLHttpRequest === "undefined") {
+                            fetch(packageName).then(function(response) {
+                                return response.arrayBuffer()
+                            }).then(function(data) {
+                                callback(data)
+                            });
+                            return
+                        }
+                        var xhr = new XMLHttpRequest;
+                        xhr.open("GET", packageName, true);
+                        xhr.responseType = "arraybuffer";
+                        xhr.onprogress = function(event) {
+                            var url = packageName;
+                            var size = packageSize;
+                            if (event.total) size = event.total;
+                            if (event.loaded) {
+                                if (!xhr.addedTotal) {
+                                    xhr.addedTotal = true;
+                                    if (!Module.dataFileDownloads) Module.dataFileDownloads = {};
+                                    Module.dataFileDownloads[url] = {
+                                        loaded: event.loaded,
+                                        total: size
+                                    }
+                                } else {
+                                    Module.dataFileDownloads[url].loaded = event.loaded
+                                }
+                                var total = 0;
+                                var loaded = 0;
+                                var num = 0;
+                                for (var download in Module.dataFileDownloads) {
+                                    var data = Module.dataFileDownloads[download];
+                                    total += data.total;
+                                    loaded += data.loaded;
+                                    num++
+                                }
+                                total = Math.ceil(total * Module.expectedDataFileDownloads / num);
+                                if (Module["setStatus"]) Module["setStatus"]("Downloading data... (" + loaded + "/" + total + ")")
+                            } else if (!Module.dataFileDownloads) {
+                                if (Module["setStatus"]) Module["setStatus"]("Downloading data...")
+                            }
+                        };
+                        xhr.onerror = function(event) {
+                            throw new Error("NetworkError for: " + packageName)
+                        };
+                        xhr.onload = function(event) {
+                            if (xhr.status >= 200 && xhr.status < 300 || xhr.status == 304 || xhr.status == 0 && xhr.response) {
+                                var packageData = xhr.response;
+                                callback(packageData)
+                            } else {
+                                throw new Error(xhr.statusText + " : " + xhr.responseURL)
+                            }
+                        };
+                        xhr.send(null)
+                    }
+
+                    function handleError(error) {
+                        console.error("package error:", error)
+                    }
+                    var fetchedCallback = null;
+                    var fetched = Module["getPreloadedPackage"] ? Module["getPreloadedPackage"](REMOTE_PACKAGE_NAME, REMOTE_PACKAGE_SIZE) : null;
+                    if (!fetched) fetchRemotePackage(REMOTE_PACKAGE_NAME, REMOTE_PACKAGE_SIZE, function(data) {
+                        if (fetchedCallback) {
+                            fetchedCallback(data);
+                            fetchedCallback = null
+                        } else {
+                            fetched = data
+                        }
+                    }, handleError);
+
+                    function runWithFS() {
+                        function assert(check, msg) {
+                            if (!check) throw msg + (new Error).stack
+                        }
+                        Module["FS_createPath"]("/", "resources_js", true, true);
+                        Module["FS_createPath"]("/resources_js", "sv", true, true);
+                        Module["FS_createPath"]("/resources_js/sv", "aspell", true, true);
+                        Module["FS_createPath"]("/resources_js/sv", "hunspell", true, true);
+
+                        function DataRequest(start, end, audio) {
+                            this.start = start;
+                            this.end = end;
+                            this.audio = audio
+                        }
+                        DataRequest.prototype = {
+                            requests: {},
+                            open: function(mode, name) {
+                                this.name = name;
+                                this.requests[name] = this;
+                                Module["addRunDependency"]("fp " + this.name)
+                            },
+                            send: function() {},
+                            onload: function() {
+                                var byteArray = this.byteArray.subarray(this.start, this.end);
+                                this.finish(byteArray)
+                            },
+                            finish: function(byteArray) {
+                                var that = this;
+                                Module["FS_createDataFile"](this.name, null, byteArray, true, true, true);
+                                Module["removeRunDependency"]("fp " + that.name);
+                                this.requests[this.name] = null
+                            }
+                        };
+                        var files = metadata["files"];
+                        for (var i = 0; i < files.length; ++i) {
+                            new DataRequest(files[i]["start"], files[i]["end"], files[i]["audio"] || 0).open("GET", files[i]["filename"])
+                        }
+
+                        function processPackageData(arrayBuffer) {
+                            assert(arrayBuffer, "Loading data file failed.");
+                            assert(arrayBuffer.constructor.name === ArrayBuffer.name, "bad input to processPackageData");
+                            var byteArray = new Uint8Array(arrayBuffer);
+                            DataRequest.prototype.byteArray = byteArray;
+                            var files = metadata["files"];
+                            for (var i = 0; i < files.length; ++i) {
+                                DataRequest.prototype.requests[files[i].filename].onload()
+                            }
+                            Module["removeRunDependency"]("datafile_sv.data")
+                        }
+                        Module["addRunDependency"]("datafile_sv.data");
+                        if (!Module.preloadResults) Module.preloadResults = {};
+                        Module.preloadResults[PACKAGE_NAME] = {
+                            fromCache: false
+                        };
+                        if (fetched) {
+                            processPackageData(fetched);
+                            fetched = null
+                        } else {
+                            fetchedCallback = processPackageData
+                        }
+                    }
+                    if (Module["calledRun"]) {
+                        runWithFS()
+                    } else {
+                        if (!Module["preRun"]) Module["preRun"] = [];
+                        Module["preRun"].push(runWithFS)
+                    }
+                };
+                loadPackage({
+                    "files": [{
+                        "filename": "/resources_js/sv/aspell/iso-8859-1.cmap",
+                        "start": 0,
+                        "end": 30894
+                    }, {
+                        "filename": "/resources_js/sv/aspell/iso-8859-1.cset",
+                        "start": 30894,
+                        "end": 44742
+                    }, {
+                        "filename": "/resources_js/sv/aspell/standard.kbd",
+                        "start": 44742,
+                        "end": 44842
+                    }, {
+                        "filename": "/resources_js/sv/aspell/sv.dat",
+                        "start": 44842,
+                        "end": 44991
+                    }, {
+                        "filename": "/resources_js/sv/aspell/sv.multi",
+                        "start": 44991,
+                        "end": 45061
+                    }, {
+                        "filename": "/resources_js/sv/aspell/sv.rws",
+                        "start": 45061,
+                        "end": 3561797
+                    }, {
+                        "filename": "/resources_js/sv/aspell/sv_phonet.dat",
+                        "start": 3561797,
+                        "end": 3566277
+                    }, {
+                        "filename": "/resources_js/sv/aspell/svenska.alias",
+                        "start": 3566277,
+                        "end": 3566349
+                    }, {
+                        "filename": "/resources_js/sv/aspell/swedish.alias",
+                        "start": 3566349,
+                        "end": 3566421
+                    }, {
+                        "filename": "/resources_js/sv/hunspell/sv_SE.aff",
+                        "start": 3566421,
+                        "end": 3585004
+                    }, {
+                        "filename": "/resources_js/sv/hunspell/sv_SE.dic",
+                        "start": 3585004,
+                        "end": 5929206
+                    }, {
+                        "filename": "/resources_js/sv/presage.xml",
+                        "start": 5929206,
+                        "end": 5931520
+                    }],
+                    "remote_package_size": 5931520
                 })
             })();
             var Module = typeof Module !== "undefined" ? Module : {};
@@ -1844,7 +2068,6 @@ var Module = (() => {
             if (Module["arguments"]) arguments_ = Module["arguments"];
             if (Module["thisProgram"]) thisProgram = Module["thisProgram"];
             if (Module["quit"]) quit_ = Module["quit"];
-            var POINTER_SIZE = 4;
             var wasmBinary;
             if (Module["wasmBinary"]) wasmBinary = Module["wasmBinary"];
             var noExitRuntime = Module["noExitRuntime"] || true;
@@ -1956,20 +2179,19 @@ var Module = (() => {
                 }
                 return len
             }
-            var buffer, HEAP8, HEAPU8, HEAP16, HEAPU16, HEAP32, HEAPU32, HEAPF32, HEAPF64;
+            var HEAP8, HEAPU8, HEAP16, HEAPU16, HEAP32, HEAPU32, HEAPF32, HEAPF64;
 
-            function updateGlobalBufferAndViews(buf) {
-                buffer = buf;
-                Module["HEAP8"] = HEAP8 = new Int8Array(buf);
-                Module["HEAP16"] = HEAP16 = new Int16Array(buf);
-                Module["HEAP32"] = HEAP32 = new Int32Array(buf);
-                Module["HEAPU8"] = HEAPU8 = new Uint8Array(buf);
-                Module["HEAPU16"] = HEAPU16 = new Uint16Array(buf);
-                Module["HEAPU32"] = HEAPU32 = new Uint32Array(buf);
-                Module["HEAPF32"] = HEAPF32 = new Float32Array(buf);
-                Module["HEAPF64"] = HEAPF64 = new Float64Array(buf)
+            function updateMemoryViews() {
+                var b = wasmMemory.buffer;
+                Module["HEAP8"] = HEAP8 = new Int8Array(b);
+                Module["HEAP16"] = HEAP16 = new Int16Array(b);
+                Module["HEAP32"] = HEAP32 = new Int32Array(b);
+                Module["HEAPU8"] = HEAPU8 = new Uint8Array(b);
+                Module["HEAPU16"] = HEAPU16 = new Uint16Array(b);
+                Module["HEAPU32"] = HEAPU32 = new Uint32Array(b);
+                Module["HEAPF32"] = HEAPF32 = new Float32Array(b);
+                Module["HEAPF64"] = HEAPF64 = new Float64Array(b)
             }
-            var INITIAL_MEMORY = Module["INITIAL_MEMORY"] || 16777216;
             var wasmTable;
             var __ATPRERUN__ = [];
             var __ATINIT__ = [];
@@ -2073,7 +2295,7 @@ var Module = (() => {
                     wasmBinaryFile = locateFile(wasmBinaryFile)
                 }
             } else {
-                wasmBinaryFile = new URL("libpresage.wasm", import.meta.url).toString()
+                wasmBinaryFile = new URL("libpresage.wasm", import.meta.url).href
             }
 
             function getBinary(file) {
@@ -2112,15 +2334,15 @@ var Module = (() => {
 
             function createWasm() {
                 var info = {
-                    "env": asmLibraryArg,
-                    "wasi_snapshot_preview1": asmLibraryArg
+                    "env": wasmImports,
+                    "wasi_snapshot_preview1": wasmImports
                 };
 
                 function receiveInstance(instance, module) {
                     var exports = instance.exports;
                     Module["asm"] = exports;
                     wasmMemory = Module["asm"]["memory"];
-                    updateGlobalBufferAndViews(wasmMemory.buffer);
+                    updateMemoryViews();
                     wasmTable = Module["asm"]["__indirect_function_table"];
                     addOnInit(Module["asm"]["__wasm_call_ctors"]);
                     removeRunDependency("wasm-instantiate")
@@ -2181,10 +2403,6 @@ var Module = (() => {
 
             function ___assert_fail(condition, filename, line, func) {
                 abort("Assertion failed: " + UTF8ToString(condition) + ", at: " + [filename ? UTF8ToString(filename) : "unknown filename", line, func ? UTF8ToString(func) : "unknown function"])
-            }
-
-            function ___cxa_allocate_exception(size) {
-                return _malloc(size + 24) + 24
             }
 
             function ExceptionInfo(excPtr) {
@@ -2812,7 +3030,7 @@ var Module = (() => {
                         var ptr;
                         var allocated;
                         var contents = stream.node.contents;
-                        if (!(flags & 2) && contents.buffer === buffer) {
+                        if (!(flags & 2) && contents.buffer === HEAP8.buffer) {
                             allocated = false;
                             ptr = contents.byteOffset
                         } else {
@@ -4336,9 +4554,7 @@ var Module = (() => {
                 },
                 DB_VERSION: 20,
                 DB_STORE_NAME: "FILE_DATA",
-                saveFilesToDB: (paths, onload, onerror) => {
-                    onload = onload || (() => {});
-                    onerror = onerror || (() => {});
+                saveFilesToDB: (paths, onload = (() => {}), onerror = (() => {})) => {
                     var indexedDB = FS.indexedDB();
                     try {
                         var openRequest = indexedDB.open(FS.DB_NAME(), FS.DB_VERSION)
@@ -4377,9 +4593,7 @@ var Module = (() => {
                     };
                     openRequest.onerror = onerror
                 },
-                loadFilesFromDB: (paths, onload, onerror) => {
-                    onload = onload || (() => {});
-                    onerror = onerror || (() => {});
+                loadFilesFromDB: (paths, onload = (() => {}), onerror = (() => {})) => {
                     var indexedDB = FS.indexedDB();
                     try {
                         var openRequest = indexedDB.open(FS.DB_NAME(), FS.DB_VERSION)
@@ -4464,12 +4678,15 @@ var Module = (() => {
                     tempI64 = [stat.size >>> 0, (tempDouble = stat.size, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? (Math.min(+Math.floor(tempDouble / 4294967296), 4294967295) | 0) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], HEAP32[buf + 40 >> 2] = tempI64[0], HEAP32[buf + 44 >> 2] = tempI64[1];
                     HEAP32[buf + 48 >> 2] = 4096;
                     HEAP32[buf + 52 >> 2] = stat.blocks;
-                    tempI64 = [Math.floor(stat.atime.getTime() / 1e3) >>> 0, (tempDouble = Math.floor(stat.atime.getTime() / 1e3), +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? (Math.min(+Math.floor(tempDouble / 4294967296), 4294967295) | 0) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], HEAP32[buf + 56 >> 2] = tempI64[0], HEAP32[buf + 60 >> 2] = tempI64[1];
-                    HEAPU32[buf + 64 >> 2] = 0;
-                    tempI64 = [Math.floor(stat.mtime.getTime() / 1e3) >>> 0, (tempDouble = Math.floor(stat.mtime.getTime() / 1e3), +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? (Math.min(+Math.floor(tempDouble / 4294967296), 4294967295) | 0) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], HEAP32[buf + 72 >> 2] = tempI64[0], HEAP32[buf + 76 >> 2] = tempI64[1];
-                    HEAPU32[buf + 80 >> 2] = 0;
-                    tempI64 = [Math.floor(stat.ctime.getTime() / 1e3) >>> 0, (tempDouble = Math.floor(stat.ctime.getTime() / 1e3), +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? (Math.min(+Math.floor(tempDouble / 4294967296), 4294967295) | 0) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], HEAP32[buf + 88 >> 2] = tempI64[0], HEAP32[buf + 92 >> 2] = tempI64[1];
-                    HEAPU32[buf + 96 >> 2] = 0;
+                    var atime = stat.atime.getTime();
+                    var mtime = stat.mtime.getTime();
+                    var ctime = stat.ctime.getTime();
+                    tempI64 = [Math.floor(atime / 1e3) >>> 0, (tempDouble = Math.floor(atime / 1e3), +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? (Math.min(+Math.floor(tempDouble / 4294967296), 4294967295) | 0) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], HEAP32[buf + 56 >> 2] = tempI64[0], HEAP32[buf + 60 >> 2] = tempI64[1];
+                    HEAPU32[buf + 64 >> 2] = atime % 1e3 * 1e3;
+                    tempI64 = [Math.floor(mtime / 1e3) >>> 0, (tempDouble = Math.floor(mtime / 1e3), +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? (Math.min(+Math.floor(tempDouble / 4294967296), 4294967295) | 0) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], HEAP32[buf + 72 >> 2] = tempI64[0], HEAP32[buf + 76 >> 2] = tempI64[1];
+                    HEAPU32[buf + 80 >> 2] = mtime % 1e3 * 1e3;
+                    tempI64 = [Math.floor(ctime / 1e3) >>> 0, (tempDouble = Math.floor(ctime / 1e3), +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? (Math.min(+Math.floor(tempDouble / 4294967296), 4294967295) | 0) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], HEAP32[buf + 88 >> 2] = tempI64[0], HEAP32[buf + 92 >> 2] = tempI64[1];
+                    HEAPU32[buf + 96 >> 2] = ctime % 1e3 * 1e3;
                     tempI64 = [stat.ino >>> 0, (tempDouble = stat.ino, +Math.abs(tempDouble) >= 1 ? tempDouble > 0 ? (Math.min(+Math.floor(tempDouble / 4294967296), 4294967295) | 0) >>> 0 : ~~+Math.ceil((tempDouble - +(~~tempDouble >>> 0)) / 4294967296) >>> 0 : 0)], HEAP32[buf + 104 >> 2] = tempI64[0], HEAP32[buf + 108 >> 2] = tempI64[1];
                     return 0
                 },
@@ -4731,7 +4948,7 @@ var Module = (() => {
                     path = SYSCALLS.getStr(path);
                     var nofollow = flags & 256;
                     var allowEmpty = flags & 4096;
-                    flags = flags & ~4352;
+                    flags = flags & ~6400;
                     path = SYSCALLS.calculateAt(dirfd, path, allowEmpty);
                     return SYSCALLS.doStat(nofollow ? FS.lstat : FS.stat, path, buf)
                 } catch (e) {
@@ -4795,7 +5012,7 @@ var Module = (() => {
             function __dlinit(main_dso_handle) {}
             var dlopenMissingError = "To use dlopen, you need enable dynamic linking, see https://github.com/emscripten-core/emscripten/wiki/Linking";
 
-            function __dlopen_js(filename, flag) {
+            function __dlopen_js(handle) {
                 abort(dlopenMissingError)
             }
 
@@ -6158,7 +6375,7 @@ var Module = (() => {
                     var heap = HEAPU32;
                     var size = heap[handle];
                     var data = heap[handle + 1];
-                    return new TA(buffer, data, size)
+                    return new TA(heap.buffer, data, size)
                 }
                 name = readLatin1String(name);
                 registerType(rawType, {
@@ -6476,7 +6693,7 @@ var Module = (() => {
             function emval_lookupTypes(argCount, argTypes) {
                 var a = new Array(argCount);
                 for (var i = 0; i < argCount; ++i) {
-                    a[i] = requireRegisteredType(HEAPU32[argTypes + i * POINTER_SIZE >> 2], "parameter " + i)
+                    a[i] = requireRegisteredType(HEAPU32[argTypes + i * 4 >> 2], "parameter " + i)
                 }
                 return a
             }
@@ -6576,9 +6793,10 @@ var Module = (() => {
             }
 
             function emscripten_realloc_buffer(size) {
+                var b = wasmMemory.buffer;
                 try {
-                    wasmMemory.grow(size - buffer.byteLength + 65535 >>> 16);
-                    updateGlobalBufferAndViews(wasmMemory.buffer);
+                    wasmMemory.grow(size - b.byteLength + 65535 >>> 16);
+                    updateMemoryViews();
                     return 1
                 } catch (e) {}
             }
@@ -6682,7 +6900,10 @@ var Module = (() => {
                     var curr = FS.read(stream, HEAP8, ptr, len, offset);
                     if (curr < 0) return -1;
                     ret += curr;
-                    if (curr < len) break
+                    if (curr < len) break;
+                    if (typeof offset !== "undefined") {
+                        offset += curr
+                    }
                 }
                 return ret
             }
@@ -6722,7 +6943,10 @@ var Module = (() => {
                     iov += 8;
                     var curr = FS.write(stream, HEAP8, ptr, len, offset);
                     if (curr < 0) return -1;
-                    ret += curr
+                    ret += curr;
+                    if (typeof offset !== "undefined") {
+                        offset += curr
+                    }
                 }
                 return ret
             }
@@ -7118,9 +7342,8 @@ var Module = (() => {
                     throw new Error("Converting base64 string to bytes failed.")
                 }
             }
-            var asmLibraryArg = {
+            var wasmImports = {
                 "__assert_fail": ___assert_fail,
-                "__cxa_allocate_exception": ___cxa_allocate_exception,
                 "__cxa_throw": ___cxa_throw,
                 "__syscall_faccessat": ___syscall_faccessat,
                 "__syscall_fcntl64": ___syscall_fcntl64,
@@ -7177,23 +7400,23 @@ var Module = (() => {
                 "strftime_l": _strftime_l
             };
             var asm = createWasm();
-            var ___wasm_call_ctors = Module["___wasm_call_ctors"] = function() {
-                return (___wasm_call_ctors = Module["___wasm_call_ctors"] = Module["asm"]["__wasm_call_ctors"]).apply(null, arguments)
+            var ___wasm_call_ctors = function() {
+                return (___wasm_call_ctors = Module["asm"]["__wasm_call_ctors"]).apply(null, arguments)
             };
-            var _malloc = Module["_malloc"] = function() {
-                return (_malloc = Module["_malloc"] = Module["asm"]["malloc"]).apply(null, arguments)
+            var _malloc = function() {
+                return (_malloc = Module["asm"]["malloc"]).apply(null, arguments)
             };
-            var _free = Module["_free"] = function() {
-                return (_free = Module["_free"] = Module["asm"]["free"]).apply(null, arguments)
+            var _free = function() {
+                return (_free = Module["asm"]["free"]).apply(null, arguments)
             };
-            var ___errno_location = Module["___errno_location"] = function() {
-                return (___errno_location = Module["___errno_location"] = Module["asm"]["__errno_location"]).apply(null, arguments)
+            var ___errno_location = function() {
+                return (___errno_location = Module["asm"]["__errno_location"]).apply(null, arguments)
             };
-            var _emscripten_builtin_memalign = Module["_emscripten_builtin_memalign"] = function() {
-                return (_emscripten_builtin_memalign = Module["_emscripten_builtin_memalign"] = Module["asm"]["emscripten_builtin_memalign"]).apply(null, arguments)
+            var _emscripten_builtin_memalign = function() {
+                return (_emscripten_builtin_memalign = Module["asm"]["emscripten_builtin_memalign"]).apply(null, arguments)
             };
-            var ___cxa_is_pointer_type = Module["___cxa_is_pointer_type"] = function() {
-                return (___cxa_is_pointer_type = Module["___cxa_is_pointer_type"] = Module["asm"]["__cxa_is_pointer_type"]).apply(null, arguments)
+            var ___cxa_is_pointer_type = function() {
+                return (___cxa_is_pointer_type = Module["asm"]["__cxa_is_pointer_type"]).apply(null, arguments)
             };
             var ___getTypeName = Module["___getTypeName"] = function() {
                 return (___getTypeName = Module["___getTypeName"] = Module["asm"]["__getTypeName"]).apply(null, arguments)
@@ -7201,17 +7424,17 @@ var Module = (() => {
             var __embind_initialize_bindings = Module["__embind_initialize_bindings"] = function() {
                 return (__embind_initialize_bindings = Module["__embind_initialize_bindings"] = Module["asm"]["_embind_initialize_bindings"]).apply(null, arguments)
             };
-            var ___dl_seterr = Module["___dl_seterr"] = function() {
-                return (___dl_seterr = Module["___dl_seterr"] = Module["asm"]["__dl_seterr"]).apply(null, arguments)
+            var ___dl_seterr = function() {
+                return (___dl_seterr = Module["asm"]["__dl_seterr"]).apply(null, arguments)
             };
-            var stackSave = Module["stackSave"] = function() {
-                return (stackSave = Module["stackSave"] = Module["asm"]["stackSave"]).apply(null, arguments)
+            var stackSave = function() {
+                return (stackSave = Module["asm"]["stackSave"]).apply(null, arguments)
             };
-            var stackRestore = Module["stackRestore"] = function() {
-                return (stackRestore = Module["stackRestore"] = Module["asm"]["stackRestore"]).apply(null, arguments)
+            var stackRestore = function() {
+                return (stackRestore = Module["asm"]["stackRestore"]).apply(null, arguments)
             };
-            var stackAlloc = Module["stackAlloc"] = function() {
-                return (stackAlloc = Module["stackAlloc"] = Module["asm"]["stackAlloc"]).apply(null, arguments)
+            var stackAlloc = function() {
+                return (stackAlloc = Module["asm"]["stackAlloc"]).apply(null, arguments)
             };
             var dynCall_jiji = Module["dynCall_jiji"] = function() {
                 return (dynCall_jiji = Module["dynCall_jiji"] = Module["asm"]["dynCall_jiji"]).apply(null, arguments)
@@ -7243,8 +7466,7 @@ var Module = (() => {
                 if (!calledRun) dependenciesFulfilled = runCaller
             };
 
-            function run(args) {
-                args = args || arguments_;
+            function run() {
                 if (runDependencies > 0) {
                     return
                 }
