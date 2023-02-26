@@ -106,6 +106,37 @@ class BackgrounServiceWorker {
       await this.settings.get("applySpacingRules"),
       await this.settings.get("textExpansions")
     );
+
+    chrome.tabs.query({}, function (tabs) {
+      checkLastError();
+      tabs.forEach(async (tab) => {
+        if (!tab.url) return;
+        const backgrounServiceWorker = new BackgrounServiceWorker();
+        const message = {
+          command: "backgroundPageSetConfig",
+          context: {
+            enabled: await isEnabledForDomain(
+              backgrounServiceWorker.settings,
+              getDomain(tab.url)
+            ),
+            autocomplete: await backgrounServiceWorker.settings.get(
+              "autocomplete"
+            ),
+            selectByDigit: await backgrounServiceWorker.settings.get(
+              "selectByDigit"
+            ),
+            lang: await backgrounServiceWorker.settings.get("language"),
+            autocompleteSeparatorSource: (
+              LANG_SEPERATOR_CHARS_REGEX[
+                await backgrounServiceWorker.settings.get("language")
+              ] || DEFAULT_SEPERATOR_CHARS_REGEX
+            ).source,
+          },
+        };
+
+        chrome.tabs.sendMessage(tab.id, message);
+      });
+    });
   }
 }
 
