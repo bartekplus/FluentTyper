@@ -13,16 +13,17 @@ function getDomain(url) {
 }
 
 async function isDomainOnList(settings, domainURL) {
-  let ret = false;
+  if (!domainURL) {
+    return false;
+  }
   const domainkList = await settings.get(SETTINGS_DOMAIN_BLACKLIST);
 
   for (let i = 0; i < domainkList.length; i++) {
     if (domainURL.match(domainkList[i])) {
-      ret = true;
-      break;
+      return true;
     }
   }
-  return ret;
+  return false;
 }
 
 async function addDomainToList(settings, domainURL) {

@@ -447,6 +447,8 @@
       this.autocompleteSeparatorSource = config.autocompleteSeparatorSource;
       this.lang = config.lang;
       this.selectByDigit = config.selectByDigit;
+      // Force restart to relaod config
+      this.enabled = false;
       this.enabled = config.enabled;
     }
 
