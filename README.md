@@ -35,6 +35,7 @@ Supported languages:
 - French
 - Croatian
 - Greek (dictionary based prediction)
+- Swedish (dictionary based prediction)
 
 ## Installation
 
