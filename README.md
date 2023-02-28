@@ -18,7 +18,7 @@ Ever get tired of typing out long email addresses, phrases you frequently use, o
 
 FluentTyper allows you to type in letter combinations like “callMe” and have “Call me back once you get free.” show up on the computer screen instead.
 
-FluentTyper works on almost all websites, however, there are some exceptions like Google Docs. If you encounter an incompatible website, please let me know at <bartekplus+ff@gmail.com> and I'll try to fix it.
+FluentTyper works on almost all websites, however, there are some exceptions like Google Docs. If you encounter an incompatible website, please let me know at <bartekplus+ff@gmail.com> or create an issue on [GitHub](https://github.com/bartekplus/FluentTyper) and I'll try to fix it.
 
 FluentTyper cares about privacy of your data. It does not upload any of your data to the internet, it works offline and predictions are generated on your own PC.
 
@@ -53,7 +53,7 @@ Supported languages:
 
 ## Feedback
 
-If you have any feedback, please reach out to me at bartekplus+ff@gmail.com
+If you have any feedback, please reach out to me at <bartekplus+ff@gmail.com> or create an issue on [GitHub](https://github.com/bartekplus/FluentTyper).
 
 
 ## Buy Me a Coffee
