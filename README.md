@@ -8,26 +8,25 @@
 
 # FluentTyper: Autocomplete and Spell Checker
 
-FluentTyper attempts to improve the ease and speed of textual input by predicting words. It autocompletes words for you while you typing. 
+FluentTyper aims to improve the ease and speed of textual input by predicting words. It autocompletes words for you as you type.
 
-FluentTyper saves your time when writing, improves your writing with spelling, autocomplete suggestions and text expansions.
+FluentTyper saves you time when writing, improves your writing with spelling and autocomplete suggestions, and provides text expansions.
 
-It allows you to create smart text expansions to get more done and streamline your work.
+FluentTyper also enables you to create intelligent text expansions, allowing you to accomplish more and streamline your work.
 
-Ever get tired of typing out long email addresses, phrases you frequently use, or just want to save time daily when you are typing on the computer? FluentTyper is here to help you!
+Do you ever get tired of typing out long email addresses or frequently used phrases, and wish you could save time when typing on your computer? FluentTyper is here to help!
 
-FluentTyper allows you to type in letter combinations like “callMe” and have “Call me back once you get free.” show up on the computer screen instead.
+With FluentTyper, you can type in letter combinations like 'callMe' and have 'Call me back once you're free' appear on your computer screen.
 
-FluentTyper works on almost all websites, however, there are some exceptions like Google Docs. If you encounter an incompatible website, please let me know at <bartekplus+ff@gmail.com> or create an issue on [GitHub](https://github.com/bartekplus/FluentTyper) and I'll try to fix it.
+FluentTyper works on most websites, but there are some exceptions, such as Google Docs. If you encounter an incompatible website, please create an issue on [GitHub](https://github.com/bartekplus/FluentTyper), and I'll do my best to resolve it.
 
-FluentTyper cares about privacy of your data. It does not upload any of your data to the internet, it works offline and predictions are generated on your own PC.
+FluentTyper values the privacy of your data. It doesn't upload any of your data to the internet, and it works offline. Predictions are generated on your own PC
 
-FluentTyper is a writing assistant with functionalities of: spell checker, text expander and predictive auto complete.
+FluentTyper is a writing assistant with features such as a spell checker, text expander, and predictive auto-complete."
 
-Start typing, FluentTyper will show a popup with the list of suggested words (like your phone keyboard).
-Use the arrow keys (↑, ↓) to select a word in the list of suggested words.
-Use Enter or Tab key to confirm selection.
-Use Escape key or just continue typing to hide the list of suggested words.
+As you start typing, FluentTyper will display a pop-up with a list of suggested words, similar to your phone keyboard.
+You can use the arrow keys (↑, ↓) to navigate the list of suggested words, and then press Enter or Tab to confirm your selection.
+To hide the list of suggested words, you can either press the Escape key or continue typing.
 
 Supported languages:
 - English
@@ -53,7 +52,7 @@ Supported languages:
 
 ## Feedback
 
-If you have any feedback, please reach out to me at <bartekplus+ff@gmail.com> or create an issue on [GitHub](https://github.com/bartekplus/FluentTyper).
+If you have any feedback, please create an issue on [GitHub](https://github.com/bartekplus/FluentTyper).
 
 
 ## Buy Me a Coffee

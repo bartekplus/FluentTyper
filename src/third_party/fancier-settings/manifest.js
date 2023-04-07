@@ -3,7 +3,9 @@ import { SUPPORTED_LANGUAGES } from "../../lang.js";
 import { DOMAIN_LIST_MODE } from "../../utils.js";
 
 const donateHTML =
-  '<div class="has-text-centered"><a href="https://www.buymeacoffee.com/FluentTyper" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png"  alt="Buy Me A Coffee" style="height: 60px !important; width: 217px !important"/></a></div>';
+  '<div class="has-text-centered"> \
+  Developing and maintaining FluentTyper requires a significant amount of work and effort. If you find FluentTyper useful, you may wish to consider supporting its development by making a voluntary donation. Your support will also enable future enhancements to the extension <br>\
+  <a href="https://www.buymeacoffee.com/FluentTyper" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png"  alt="Buy Me A Coffee" style="height: 60px !important; width: 217px !important"/></a></div>';
 const testFluentTyperHTML =
   '<textarea class="textarea is-full"  rows="12" placeholder="Click here and start typing…"></textarea>';
 
@@ -61,7 +63,7 @@ const manifest = {
       max: 12,
       display: true,
       label:
-        "Minimum word length to start prediction (If set to '0' then predict will start after whitespace",
+        "This setting determines the minimum word length required to trigger the prediction feature. If set to '0', predictions will appear after a whitespace:",
       default: 1,
     },
     {
@@ -72,7 +74,8 @@ const manifest = {
       min: 0,
       max: 10,
       display: true,
-      label: "Number of suggestions (Set to 0 to disable prediction):",
+      label:
+        "This setting controls the number of suggestions that will appear in the prediction list. To disable prediction altogether, set this value to 0.",
       default: 5,
     },
     {
@@ -81,7 +84,7 @@ const manifest = {
       name: "autocomplete",
       type: "checkbox",
       label:
-        "Auto-completes word on 'space' (Returns to original text on 'backspace').",
+        "Enable this option to automatically complete words as you type by pressing the spacebar. To undo auto-completion and revert to the original text, simply press the backspace key.",
       default: false,
     },
     {
@@ -89,7 +92,8 @@ const manifest = {
       group: i18n.get("General"),
       name: "insertSpaceAfterAutocomplete",
       type: "checkbox",
-      label: "Automatically insert space after autocomplete.",
+      label:
+        "Enable this option to have a space automatically inserted after autocomplete suggestions while typing.",
       default: true,
     },
     {
@@ -98,7 +102,7 @@ const manifest = {
       name: "applySpacingRules",
       type: "checkbox",
       label:
-        "Automatically apply spacing rules for punctuations and special characters.",
+        "Enable this option to automatically apply consistent spacing rules for punctuation and special characters throughout your document.",
       default: true,
     },
     {
@@ -106,7 +110,8 @@ const manifest = {
       group: i18n.get("General"),
       name: "autoCapitalize",
       type: "checkbox",
-      label: "Capitalize the first word of each sentence.",
+      label:
+        "Enable this option to automatically capitalize the first word of each sentence in your document.",
       default: true,
     },
     {
@@ -114,7 +119,8 @@ const manifest = {
       group: i18n.get("General"),
       name: "selectByDigit",
       type: "checkbox",
-      label: "Select suggestion using digit keys.",
+      label:
+        "Enable this option to select suggestions using the digit keys on your keyboard.",
       default: false,
     },
     {
@@ -125,7 +131,7 @@ const manifest = {
       default: [
         [
           "FF",
-          "Check out a phenomenal productivity app called FluentTyper. It autocompletes words for you while you typing, saving loads of time. I think you'll love it, and it's free!",
+          "Check out FluentTyper, a phenomenal productivity app that autocompletes words as you type, saving loads of time. It's free, and I think you'll love it!",
         ],
         ["callMe", "Call me back once you get free."],
         ["asap", "as soon as possible"],

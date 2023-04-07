@@ -64,7 +64,7 @@ i18n = Object.assign(i18n, {
     en: "Credits",
   },
   "x-FluentTyper": {
-    en: "The quickest way to contact me or report a bug in FluentTyper is by sending email to <a href='mailto:bartekplus@gmail.com'>bartekplus@gmail.com</a> or create an issue on <a href='https://github.com/bartekplus/FluentTyper'>GitHub</a>.",
+    en: "The fastest way to contact me or report a bug in FluentTyper is by creating an issue on <a href='https://github.com/bartekplus/FluentTyper'>GitHub</a>.",
   },
   "x-Credits": {
     en: "With special thanks to: ",
