@@ -19,6 +19,7 @@ const LANG_SEPERATOR_CHARS_REGEX = {
   hr: DEFAULT_SEPERATOR_CHARS_REGEX,
   es: DEFAULT_SEPERATOR_CHARS_REGEX,
   el: DEFAULT_SEPERATOR_CHARS_REGEX,
+  sv: DEFAULT_SEPERATOR_CHARS_REGEX,
   textExpander: DEFAULT_SEPERATOR_CHARS_REGEX,
 };
 const LANG_ADDITIONAL_SEPERATOR_REGEX = {
@@ -27,6 +28,7 @@ const LANG_ADDITIONAL_SEPERATOR_REGEX = {
   hr: null,
   es: null,
   el: null,
+  sv: null,
   textExpander: null,
 };
 export {
