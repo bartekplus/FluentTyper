@@ -8,18 +8,20 @@ import {
 import { PresageHandler } from "./presageHandler.js";
 import libPresageMod from "./third_party/libpresage/libpresage.js";
 
-class BackgrounServiceWorker {
+class BackgroundServiceWorker {
   constructor() {
-    if (BackgrounServiceWorker.instance) {
-      return BackgrounServiceWorker.instance;
+    if (BackgroundServiceWorker.instance) {
+      return BackgroundServiceWorker.instance;
     }
-    BackgrounServiceWorker.instance = this;
+    BackgroundServiceWorker.instance = this;
 
     this.settings = new Store("settings");
   }
 
   async _doInitializePresagee() {
+    // Import the Presage module using the libPresageMod() function and wait for it to resolve
     const Module = await libPresageMod();
+    // Instantiate a new PresageHandler object and assign it to the presageHandler property of 'this'
     this.presageHandler = new PresageHandler(Module);
     this.updatePresageConfig();
   }
@@ -32,56 +34,91 @@ class BackgrounServiceWorker {
   }
 
   async runPrediction(message) {
+    // Await the initialization of Presage to ensure it is ready for use
     await this._initializePresage();
-    const result = this.presageHandler.runPrediction(
+
+    // Use destructuring to extract the predictions and forceReplace properties from the result object returned by the presageHandler
+    const { predictions, forceReplace } = this.presageHandler.runPrediction(
       message.context.text,
       message.context.nextChar,
       message.context.lang
     );
-    message.context.predictions = result.predictions;
-    message.context.forceReplace = result.forceReplace;
 
-    chrome.tabs.get(message.context.tabId, function (tab) {
-      checkLastError();
+    // Update the message context with the predictions and forceReplace properties
+    message.context.predictions = predictions;
+    message.context.forceReplace = forceReplace;
 
-      if (tab) {
-        // Update command to indicate orign of the message
-        message.command = "backgroundPagePredictResp";
-        chrome.tabs.sendMessage(message.context.tabId, message, {
-          frameId: message.context.frameId,
-        });
-      }
-    });
+    // Use Promise-based APIs instead of callbacks wherever possible
+    const tab = await chrome.tabs
+      .get(message.context.tabId)
+      .catch(checkLastError);
+
+    if (tab) {
+      // Update command to indicate origin of the message
+      message.command = "backgroundPagePredictResp";
+
+      // Use the Promise-based sendMessage method instead of the callback-based version
+      await chrome.tabs.sendMessage(message.context.tabId, message, {
+        frameId: message.context.frameId,
+      });
+    }
   }
 
+  /**
+   * Detects the language of the given text, using the Chrome i18n API,
+   * and falls back to the configured fallback language if no supported
+   * language is detected.
+   *
+   * @param {string} text - The text to detect the language of.
+   * @param {number} tabId - The ID of the tab where the text is located.
+   * @returns {string} The detected language, or the fallback language if no
+   * supported language is detected.
+   */
   async detectLanguage(text, tabId) {
     const fallbackLanguage = this.settings.get("fallbackLanguage");
+
+    // Use the Chrome i18n API to detect the language of the given text.
     const result = await chrome.i18n.detectLanguage(text);
 
     let detectedLanguage = null;
-    let maxpercentage = -1;
+    let maxPercentage = -1;
 
-    for (let i = 0; i < result.languages.length; i++) {
-      if (result.languages[i].language in SUPPORTED_LANGUAGES) {
-        if (result.languages[i].percentage > maxpercentage) {
-          detectedLanguage = result.languages[i].language;
-          maxpercentage = result.languages[i].percentage;
-        }
+    // Loop through the detected languages and find the supported language with the highest percentage.
+    for (const language of result.languages) {
+      if (
+        language.language in SUPPORTED_LANGUAGES &&
+        language.percentage > maxPercentage
+      ) {
+        detectedLanguage = language.language;
+        maxPercentage = language.percentage;
       }
     }
-    if (detectedLanguage) return detectedLanguage;
 
+    // If a supported language was detected, return it.
+    if (detectedLanguage) {
+      return detectedLanguage;
+    }
+
+    // Otherwise, try to detect the language of the tab and return it if it's a supported language.
     const pageLang = await chrome.tabs.detectLanguage(tabId);
     if (pageLang in SUPPORTED_LANGUAGES) {
       return pageLang;
     }
 
+    // If the language of the tab is not supported, return the fallback language.
     return fallbackLanguage;
   }
 
+  /**
+   * Toggles the content script on or off for the active tab.
+   */
   toggleOnOffActiveTab() {
+    // Query for the active tab in the current window.
     chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+      // Check for any error that occurred during the query.
       checkLastError();
+
+      // If exactly one tab was found, send a message to toggle the content script.
       if (tabs.length === 1) {
         const currentTab = tabs[0];
 
@@ -95,9 +132,14 @@ class BackgrounServiceWorker {
     });
   }
 
+  /**
+   * Updates the configuration of the Presage handler and sends it to all tabs.
+   */
   async updatePresageConfig() {
+    // Initialize the Presage handler.
     await this._initializePresage();
 
+    // Set the Presage handler configuration based on the settings.
     this.presageHandler.setConfig(
       await this.settings.get("numSuggestions"),
       await this.settings.get("minWordLengthToPredict"),
@@ -107,91 +149,142 @@ class BackgrounServiceWorker {
       await this.settings.get("textExpansions")
     );
 
-    chrome.tabs.query({}, function (tabs) {
+    // Query all tabs and send a message with the new configuration to each one.
+    chrome.tabs.query({}, async function (tabs) {
+      // Check for any error that occurred during the query.
       checkLastError();
-      tabs.forEach(async (tab) => {
-        if (!tab.url) return;
-        const backgrounServiceWorker = new BackgrounServiceWorker();
+
+      // Create a background service worker to access the settings.
+      const backgroundServiceWorker = new BackgroundServiceWorker();
+
+      // Loop through all tabs and send a message to each one.
+      for (const tab of tabs) {
+        // Skip tabs that don't have a URL.
+        if (!tab.url) {
+          continue;
+        }
+
+        // Get the domain of the current tab.
+        const domain = getDomain(tab.url);
+
+        // Check if the extension is enabled for the current domain.
+        const enabled = await isEnabledForDomain(
+          backgroundServiceWorker.settings,
+          domain
+        );
+
+        // Create a message object with the current configuration.
         const message = {
           command: "backgroundPageSetConfig",
           context: {
-            enabled: await isEnabledForDomain(
-              backgrounServiceWorker.settings,
-              getDomain(tab.url)
-            ),
-            autocomplete: await backgrounServiceWorker.settings.get(
+            enabled: enabled,
+            autocomplete: await backgroundServiceWorker.settings.get(
               "autocomplete"
             ),
-            selectByDigit: await backgrounServiceWorker.settings.get(
+            selectByDigit: await backgroundServiceWorker.settings.get(
               "selectByDigit"
             ),
-            lang: await backgrounServiceWorker.settings.get("language"),
-            autocompleteSeparatorSource: (
+            lang: await backgroundServiceWorker.settings.get("language"),
+            autocompleteSeparatorSource:
               LANG_SEPERATOR_CHARS_REGEX[
-                await backgrounServiceWorker.settings.get("language")
-              ] || DEFAULT_SEPERATOR_CHARS_REGEX
-            ).source,
+                (await backgroundServiceWorker.settings.get("language")) || ""
+              ] || DEFAULT_SEPERATOR_CHARS_REGEX.source,
           },
         };
 
+        // Send the message to the current tab.
         chrome.tabs.sendMessage(tab.id, message);
-      });
+      }
     });
   }
 }
 
+/**
+ * Function that is called when the extension is installed or updated.
+ * @param {Object} details - The installation or update details.
+ */
 function onInstalled(details) {
+  // Check for any errors that occurred during the installation or update.
   checkLastError();
+
+  // If the extension was just installed, open the "new installation" page.
   if (details.reason === "install") {
     chrome.tabs.create({
       url: "new_installation/index.html",
     });
-  } else if (details.reason === "update") {
+  }
+  // If the extension was just updated, log the previous and current versions to the console.
+  else if (details.reason === "update") {
     const thisVersion = chrome.runtime.getManifest().version;
-    console.log(
-      "Updated from " + details.previousVersion + " to " + thisVersion + "!"
-    );
+    console.log(`Updated from ${details.previousVersion} to ${thisVersion}!`);
+    // TODO: Uncomment the following line to open the options page after an update.
     // chrome.tabs.create({url: "options/index.html"});
   }
 }
 
+/**
+ * Function that is called when a registered command is invoked.
+ * @param {string} command - The command that was invoked.
+ */
 function onCommand(command) {
-  const backgrounServiceWorker = new BackgrounServiceWorker();
+  // Create a new instance of the background service worker.
+  const backgroundServiceWorker = new BackgroundServiceWorker();
+
+  // Use a switch statement to determine which command was invoked.
   switch (command) {
     case "toggle-ft-active-tab":
-      backgrounServiceWorker.toggleOnOffActiveTab();
+      // Call the toggleOnOffActiveTab method on the background service worker.
+      backgroundServiceWorker.toggleOnOffActiveTab();
       break;
 
     default:
-      console.log("Unknown command: ", command);
+      // Log an error message if the command is unknown.
+      console.error("Unknown command: ", command);
       break;
   }
 }
 
-//Messages from option page and content script
+/**
+ * Handles messages received from the options page and content script.
+ * @param {Object} request - The message sent by the sender.
+ * @param {Object} sender - The sender of the message.
+ * @param {Function} sendResponse - A function to send a response to the sender.
+ * @returns {boolean} - A flag indicating whether the response is async.
+ */
 function onMessage(request, sender, sendResponse) {
-  const backgrounServiceWorker = new BackgrounServiceWorker();
+  // Create a new instance of the background service worker.
+  const backgroundServiceWorker = new BackgroundServiceWorker();
+
+  // Set asyncResponse to false by default.
   let asyncResponse = false;
+
+  // Check for any errors that occurred previously.
   checkLastError();
 
+  // Add tabId and frameId to the request context.
   request.context.tabId = sender?.tab?.id;
   request.context.frameId = sender.frameId;
 
+  // Use a switch statement to determine which command was sent in the message.
   switch (request.command) {
     case "contentScriptPredictReq":
+      // Modify the command and set asyncResponse to true.
       request.command = "backgroundPagePredictReq";
-
       asyncResponse = true;
-      backgrounServiceWorker.settings
+
+      // Get the language from the settings.
+      backgroundServiceWorker.settings
         .get("language")
         .then(async (language) => {
+          // If language is set to auto-detect, detect the language.
           if (language === "auto_detect") {
-            language = await backgrounServiceWorker.detectLanguage(
+            language = await backgroundServiceWorker.detectLanguage(
               request.context.text,
               request.context.tabId
             );
           }
 
+          // If the language has changed, update the configuration.
           if (request.context.lang !== language) {
             sendResponse({
               command: "backgroundPageUpdateLangConfig",
@@ -203,10 +296,11 @@ function onMessage(request, sender, sendResponse) {
               },
             });
           } else {
+            // Otherwise, run prediction and send a response.
             request.context.lang = language;
             request.context.langName =
               SUPPORTED_LANGUAGES[request.context.lang];
-            backgrounServiceWorker.runPrediction(request);
+            backgroundServiceWorker.runPrediction(request);
             sendResponse();
           }
         })
@@ -217,19 +311,21 @@ function onMessage(request, sender, sendResponse) {
       break;
 
     case "optionsPageConfigChange":
-      backgrounServiceWorker.updatePresageConfig();
+      // Update the Presage configuration.
+      backgroundServiceWorker.updatePresageConfig();
       break;
 
     case "contentScriptGetConfig":
+      // Get the configuration from the settings and send a response.
       asyncResponse = true;
       Promise.all([
         isEnabledForDomain(
-          backgrounServiceWorker.settings,
+          backgroundServiceWorker.settings,
           getDomain(sender.tab.url)
         ),
-        backgrounServiceWorker.settings.get("autocomplete"),
-        backgrounServiceWorker.settings.get("selectByDigit"),
-        backgrounServiceWorker.settings.get("language"),
+        backgroundServiceWorker.settings.get("autocomplete"),
+        backgroundServiceWorker.settings.get("selectByDigit"),
+        backgroundServiceWorker.settings.get("language"),
       ])
         .then((values) => {
           sendResponse({
@@ -253,6 +349,7 @@ function onMessage(request, sender, sendResponse) {
       break;
   }
 
+  // Return the asyncResponse flag.
   return asyncResponse;
 }
 
