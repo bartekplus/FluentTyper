@@ -54,7 +54,8 @@ Supported languages:
 
 If you have any feedback, please create an issue on [GitHub](https://github.com/bartekplus/FluentTyper).
 
-
 ## Buy Me a Coffee
 
-[!["Buy Me a Coffee"](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://www.buymeacoffee.com/FluentTyper)
+<p align="center" width="100%">
+    <a href="https://www.buymeacoffee.com/FluentTyper"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png"></a>
+</p>
