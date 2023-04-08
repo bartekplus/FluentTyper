@@ -34,10 +34,7 @@ function init() {
       }
       const language = await settings.get("language");
       const select = window.document.getElementById("languageSelect");
-      for (const [langCode, lang] of Object.entries({
-        ...{ auto_detect: "Auto detect" },
-        ...SUPPORTED_LANGUAGES,
-      })) {
+      for (const [langCode, lang] of Object.entries(SUPPORTED_LANGUAGES)) {
         const opt = window.document.createElement("option");
         opt.value = langCode;
         opt.innerHTML = lang;

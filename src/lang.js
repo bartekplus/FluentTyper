@@ -1,4 +1,5 @@
 const SUPPORTED_LANGUAGES = {
+  auto_detect: "Auto detect",
   en: "English",
   fr: "French",
   hr: "Croatian",
@@ -12,6 +13,7 @@ const DEFAULT_SEPERATOR_CHARS_REGEX = RegExp(
   /\s+|!|"|#|\$|%|&|\(|\)|\*|\+|,|-|\.|\/|:|;|<|=|>|\?|@|\[|\\|\]|\^|_|`|{|\||}|~/
 );
 const LANG_SEPERATOR_CHARS_REGEX = {
+  auto_detect: DEFAULT_SEPERATOR_CHARS_REGEX,
   en: DEFAULT_SEPERATOR_CHARS_REGEX,
   fr: RegExp(
     /\s+|!|"|#|\$|%|&|\(|\)|\*|\+|,|-|\.|\/|:|;|<|=|>|\?|@|\[|\\|\]|\^|_|`|{|\||}|~|'/
@@ -23,6 +25,7 @@ const LANG_SEPERATOR_CHARS_REGEX = {
   textExpander: DEFAULT_SEPERATOR_CHARS_REGEX,
 };
 const LANG_ADDITIONAL_SEPERATOR_REGEX = {
+  auto_detect: null,
   en: null,
   fr: RegExp(/'/g),
   hr: null,
