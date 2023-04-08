@@ -132,6 +132,36 @@ class BackgroundServiceWorker {
     });
   }
 
+  // Define an asynchronous function that takes a boolean value indicating whether to enable the background page configuration message
+  async getBackgroundPageSetConfigMsg(isEnabled) {
+    // Create an instance of the BackgroundServiceWorker class to access the settings
+    const backgroundServiceWorker = new BackgroundServiceWorker();
+
+    // Retrieve the "language" setting value from the BackgroundServiceWorker instance
+    const language = await backgroundServiceWorker.settings.get("language");
+
+    // Define an object containing the configuration information that will be sent as a message
+    const message = {
+      command: "backgroundPageSetConfig",
+      context: {
+        enabled: isEnabled, // Set the enabled value to the boolean parameter passed to the function
+        autocomplete: await backgroundServiceWorker.settings.get(
+          "autocomplete"
+        ), // Retrieve the "autocomplete" setting value from the BackgroundServiceWorker instance
+        selectByDigit: await backgroundServiceWorker.settings.get(
+          "selectByDigit"
+        ), // Retrieve the "selectByDigit" setting value from the BackgroundServiceWorker instance
+        lang: language, // Set the "lang" value to the retrieved language setting value
+        autocompleteSeparatorSource: language
+          ? LANG_SEPERATOR_CHARS_REGEX[language].source // Retrieve the separator character regex pattern based on the language setting value
+          : DEFAULT_SEPERATOR_CHARS_REGEX.source, // Use the default pattern if the language setting value is undefined or null
+      },
+    };
+
+    // Return the configuration message object
+    return message;
+  }
+
   /**
    * Updates the configuration of the Presage handler and sends it to all tabs.
    */
@@ -173,24 +203,9 @@ class BackgroundServiceWorker {
           domain
         );
 
-        // Create a message object with the current configuration.
-        const message = {
-          command: "backgroundPageSetConfig",
-          context: {
-            enabled: enabled,
-            autocomplete: await backgroundServiceWorker.settings.get(
-              "autocomplete"
-            ),
-            selectByDigit: await backgroundServiceWorker.settings.get(
-              "selectByDigit"
-            ),
-            lang: await backgroundServiceWorker.settings.get("language"),
-            autocompleteSeparatorSource:
-              LANG_SEPERATOR_CHARS_REGEX[
-                (await backgroundServiceWorker.settings.get("language")) || ""
-              ] || DEFAULT_SEPERATOR_CHARS_REGEX.source,
-          },
-        };
+        // Get a message object with the current configuration.
+        const message =
+          backgroundServiceWorker.getBackgroundPageSetConfigMsg(enabled);
 
         // Send the message to the current tab.
         chrome.tabs.sendMessage(tab.id, message);
@@ -318,29 +333,17 @@ function onMessage(request, sender, sendResponse) {
     case "contentScriptGetConfig":
       // Get the configuration from the settings and send a response.
       asyncResponse = true;
-      Promise.all([
-        isEnabledForDomain(
-          backgroundServiceWorker.settings,
-          getDomain(sender.tab.url)
-        ),
-        backgroundServiceWorker.settings.get("autocomplete"),
-        backgroundServiceWorker.settings.get("selectByDigit"),
-        backgroundServiceWorker.settings.get("language"),
-      ])
-        .then((values) => {
-          sendResponse({
-            command: "backgroundPageSetConfig",
-            context: {
-              enabled: values[0],
-              autocomplete: values[1],
-              selectByDigit: values[2],
-              lang: values[3],
-              autocompleteSeparatorSource: (
-                LANG_SEPERATOR_CHARS_REGEX[values[3]] ||
-                DEFAULT_SEPERATOR_CHARS_REGEX
-              ).source,
-            },
-          });
+      isEnabledForDomain(
+        backgroundServiceWorker.settings,
+        getDomain(sender.tab.url)
+      )
+        .then(async (isEnabled) => {
+          return backgroundServiceWorker.getBackgroundPageSetConfigMsg(
+            isEnabled
+          );
+        })
+        .then(async (message) => {
+          sendResponse(message);
         })
         .catch(function (e) {
           console.error(e);

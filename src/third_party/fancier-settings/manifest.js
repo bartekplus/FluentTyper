@@ -27,10 +27,7 @@ const manifest = {
       group: i18n.get("General"),
       name: "language",
       type: "popupButton",
-      options: Object.entries({
-        ...{ auto_detect: "Auto detect" },
-        ...SUPPORTED_LANGUAGES,
-      }),
+      options: Object.entries(SUPPORTED_LANGUAGES),
       label: "Prediction language:",
       default: "en",
     },
