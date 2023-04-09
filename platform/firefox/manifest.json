@@ -21,7 +21,7 @@
       "match_about_blank": true
     }
   ],
-  "description": "Auto completes while you typing. FluentTyper attempts to improve the ease and speed of textual input by predicting words.",
+  "description": "FluentTyper aims to improve the ease and speed of textual input by predicting words. It autocompletes words for you as you type.",
   "icons": {
     "256": "icon/icon256.png",
     "128": "icon/icon128.png",
