@@ -395,8 +395,25 @@
         myField.selectionStart = startPos + text.length;
         myField.selectionEnd = startPos + text.length;
       } else {
+        const {
+          sel,
+          range
+        } = this.getContentEditableSelectionStart(true);
+        const staticRange = new StaticRange({
+          startContainer: sel.anchorNode,
+          startOffset: sel.anchorOffset - context.mentionText.length,
+          endContainer: sel.anchorNode,
+          endOffset: sel.anchorOffset
+        });
         const textSuffix = typeof this.tribute.replaceTextSuffix === "string" ? this.tribute.replaceTextSuffix : "\xA0";
         text += textSuffix;
+        context.element.dispatchEvent(new InputEvent("beforeinput", {
+          bubbles: true,
+          data: text,
+          cancelable: true,
+          inputType: "insertReplacementText",
+          targetRanges: [staticRange]
+        }));
         this.pasteContentEditable(text, context.mentionText.length + context.mentionTriggerChar.length);
       }
       context.element.dispatchEvent(new CustomEvent("input", {
