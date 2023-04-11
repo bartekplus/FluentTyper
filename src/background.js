@@ -48,20 +48,17 @@ class BackgroundServiceWorker {
     message.context.predictions = predictions;
     message.context.forceReplace = forceReplace;
 
-    // Use Promise-based APIs instead of callbacks wherever possible
-    const tab = await chrome.tabs
-      .get(message.context.tabId)
-      .catch(checkLastError);
+    chrome.tabs.get(message.context.tabId, function (tab) {
+      checkLastError();
 
-    if (tab) {
-      // Update command to indicate origin of the message
-      message.command = "backgroundPagePredictResp";
-
-      // Use the Promise-based sendMessage method instead of the callback-based version
-      await chrome.tabs.sendMessage(message.context.tabId, message, {
-        frameId: message.context.frameId,
-      });
-    }
+      if (tab) {
+        // Update command to indicate origin of the message
+        message.command = "backgroundPagePredictResp";
+        chrome.tabs.sendMessage(message.context.tabId, message, {
+          frameId: message.context.frameId,
+        });
+      }
+    });
   }
 
   /**
