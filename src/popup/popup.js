@@ -82,6 +82,25 @@ function init() {
   };
 }
 
+// Define an asynchronous function called 'languageChangeEvent'
+async function languageChangeEvent() {
+
+  // Get the 'select' element with an ID of 'languageSelect'
+  const select = window.document.getElementById("languageSelect");
+  
+  // Set the 'language' value in the 'settings' object to the value of the 'select' element
+  settings.set("language", select.value);
+  
+  // Create a 'message' object with a 'command' property and a 'context' property
+  const message = {
+    command: "optionsPageConfigChange",
+    context: {},
+  };
+  
+  // Send the 'message' object to the extension's background script
+  chrome.runtime.sendMessage(message);
+}
+
 async function addRemoveDomain(tabId, domainURL) {
   const urlNode = document.getElementById("checkboxDomainLabel");
   const checkboxNode = document.getElementById("checkboxDomainInput");
