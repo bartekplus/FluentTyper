@@ -3,6 +3,8 @@ import {
   LANG_ADDITIONAL_SEPERATOR_REGEX,
 } from "./lang.js";
 
+import { TEMPALTE_VARIABLES } from "./variables.js";
+
 const Spacing = Object.freeze({
   INSERT_SPACE: Symbol("INSERT_SPACE"),
   REMOVE_SPACE: Symbol("REMOVE_SPACE"),
@@ -136,9 +138,8 @@ class PresageHandler {
     // Construct a string with each text expansion formatted as a tab-separated entry and newline-separated row
     let textExpansionsStr = "";
     this.textExpansions.forEach((textExpansion) => {
-      textExpansionsStr += `${textExpansion[0].toLowerCase()}\t${JSON.stringify(
-        textExpansion[1]
-      )}\n`;
+      const jsonObj = JSON.stringify(textExpansion[1]);
+      textExpansionsStr += `${textExpansion[0].toLowerCase()}\t${jsonObj}\n`;
     });
 
     // Write the text expansions to a text file
@@ -231,6 +232,16 @@ class PresageHandler {
     return (
       (!isNaN(str) && !isNaN(parseFloat(str))) || this.countDigits(str) > 1
     );
+  }
+
+  parseStringTemplate(str, obj) {
+    const parts = str.split(/\$\{(?!\d)[\wæøåÆØÅ]*\}/);
+    const args = str.match(/[^{}]+(?=})/g) || [];
+    const parameters = args.map(
+      (argument) =>
+        obj[argument] || (obj[argument] === undefined ? "" : obj[argument])
+    );
+    return String.raw({ raw: parts }, ...parameters);
   }
 
   /**
@@ -359,7 +370,7 @@ class PresageHandler {
    *
    * @param {string} predictionInput - The input string to process.
    * @param {string} language - The language of the input string.
-   * @returns {object} - An object containing the processed input string,
+   * @returns {object} - An object containing the processed input string, last word,
    *                     a flag indicating whether to perform prediction, and
    *                     a flag indicating whether to perform auto-capitalization.
    */
@@ -417,8 +428,8 @@ class PresageHandler {
     // Check if prediction should be performed
     const doPrediction = this.checkDoPrediction(lastWord, endsWithSpace);
 
-    // Return an object with the processed input string and the flags for auto-capitalization and prediction
-    return { predictionInput, doPrediction, doCapitalize };
+    // Return an object with the processed input string, last word and the flags for auto-capitalization and prediction
+    return { predictionInput, lastWord, doPrediction, doCapitalize };
   }
 
   /**
@@ -494,7 +505,7 @@ class PresageHandler {
   doPredictionHandler(predictionInput, lang) {
     // If the input is the same as the previous prediction input, return the previous prediction results
     if (predictionInput === this.lastPrediction[lang].pastStream) {
-      return this.lastPrediction[lang].predictions;
+      return this.lastPrediction[lang].predictions.slice();
     }
 
     // Perform prediction
@@ -502,20 +513,32 @@ class PresageHandler {
     const predictions = [];
     const predictionsNative = this.libPresage[lang].predictWithProbability();
 
+    const expandedTemplateVariables = Object.fromEntries(
+      Object.entries(TEMPALTE_VARIABLES).map(([k, v]) => [k, v()])
+    );
+
     // Loop through the predicted results and add them to the predictions array
     for (let i = 0; i < predictionsNative.size(); i++) {
       const result = predictionsNative.get(i);
+      let text = null;
       try {
-        predictions.push(JSON.parse(result.prediction));
+        text = JSON.parse(result.prediction);
       } catch (error) {
-        predictions.push(result.prediction);
+        text = result.prediction;
       }
 
+      if (text) {
+        text = this.parseStringTemplate(text, expandedTemplateVariables);
+        predictions.push(text);
+      }
       //result.probability
     }
 
     // Update the last prediction with the current input and results
-    this.lastPrediction[lang] = { pastStream: predictionInput, predictions };
+    this.lastPrediction[lang] = {
+      pastStream: predictionInput,
+      predictions: predictions.slice(),
+    };
 
     // Return the predicted results
     return predictions;
@@ -534,10 +557,8 @@ class PresageHandler {
     let forceReplace = null;
 
     // Process the input text to get the prediction input, prediction flag and capitalization flag
-    const { predictionInput, doPrediction, doCapitalize } = this.processInput(
-      text,
-      lang
-    );
+    const { predictionInput, lastWord, doPrediction, doCapitalize } =
+      this.processInput(text, lang);
 
     // Apply spacing rules if necessary
     if (this.applySpacingRules) {
@@ -551,6 +572,11 @@ class PresageHandler {
     // If forceReplace is not set and prediction is necessary, perform the prediction
     else if (!forceReplace && doPrediction) {
       predictions = this.doPredictionHandler(predictionInput, lang);
+    }
+
+    // Insert variables as first prediction
+    if (lastWord.toLowerCase() in TEMPALTE_VARIABLES) {
+      predictions.unshift(TEMPALTE_VARIABLES[lastWord]());
     }
 
     // If insertSpaceAfterAutocomplete is true, add a space after each prediction if necessary
