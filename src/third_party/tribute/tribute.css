@@ -28,6 +28,9 @@
   margin: 0 !important;
   padding: 3px 5px !important;
   cursor: pointer !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
 }
 .tribute-container li.highlight {
   background-color: #303030 !important;

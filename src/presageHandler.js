@@ -136,9 +136,9 @@ class PresageHandler {
     // Construct a string with each text expansion formatted as a tab-separated entry and newline-separated row
     let textExpansionsStr = "";
     this.textExpansions.forEach((textExpansion) => {
-      textExpansionsStr += `${textExpansion[0].toLowerCase()}\t${
+      textExpansionsStr += `${textExpansion[0].toLowerCase()}\t${JSON.stringify(
         textExpansion[1]
-      }\n`;
+      )}\n`;
     });
 
     // Write the text expansions to a text file
@@ -505,7 +505,12 @@ class PresageHandler {
     // Loop through the predicted results and add them to the predictions array
     for (let i = 0; i < predictionsNative.size(); i++) {
       const result = predictionsNative.get(i);
-      predictions.push(result.prediction);
+      try {
+        predictions.push(JSON.parse(result.prediction));
+      } catch (error) {
+        predictions.push(result.prediction);
+      }
+
       //result.probability
     }
 
