@@ -24,12 +24,12 @@
       element.boundKeyDown = this.tribute.debounce(this.keydown.bind(element, this), KEY_EVENT_TIMEOUT_MS);
       element.boundKeyUpInput = this.tribute.debounce(this.input.bind(element, this), KEY_EVENT_TIMEOUT_MS);
       element.addEventListener("keydown", element.boundKeyDown, true);
-      // element.addEventListener("keyup", element.boundKeyUpInput, true);
+      element.addEventListener("keyup", element.boundKeyUpInput, true);
       element.addEventListener("input", element.boundKeyUpInput, true);
     }
     unbind(element) {
       element.removeEventListener("keydown", element.boundKeyDown, true);
-      // element.removeEventListener("keyup", element.boundKeyUpInput, true);
+      element.removeEventListener("keyup", element.boundKeyUpInput, true);
       element.removeEventListener("input", element.boundKeyUpInput, true);
       delete element.boundKeyDown;
       delete element.boundKeyUpInput;
