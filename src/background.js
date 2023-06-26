@@ -145,6 +145,9 @@ class BackgroundServiceWorker {
         autocomplete: await backgroundServiceWorker.settings.get(
           "autocomplete"
         ), // Retrieve the "autocomplete" setting value from the BackgroundServiceWorker instance
+        autocompleteOnEnter: await backgroundServiceWorker.settings.get(
+          "autocompleteOnEnter"
+        ), // Retrieve the "autocompleteOnEnter" setting value from the BackgroundServiceWorker instance
         selectByDigit: await backgroundServiceWorker.settings.get(
           "selectByDigit"
         ), // Retrieve the "selectByDigit" setting value from the BackgroundServiceWorker instance
@@ -202,7 +205,7 @@ class BackgroundServiceWorker {
 
         // Get a message object with the current configuration.
         const message =
-          backgroundServiceWorker.getBackgroundPageSetConfigMsg(enabled);
+          await backgroundServiceWorker.getBackgroundPageSetConfigMsg(enabled);
 
         // Send the message to the current tab.
         chrome.tabs.sendMessage(tab.id, message);

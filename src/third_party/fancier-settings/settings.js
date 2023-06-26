@@ -51,6 +51,7 @@ window.addEventListener("DOMContentLoaded", function () {
       // Update pressage config on change
       [
         "autocomplete",
+        "autocompleteOnEnter",
         "language",
         "domainListMode",
         "fallbackLanguage",

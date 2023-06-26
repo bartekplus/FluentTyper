@@ -18,6 +18,8 @@
       this._enabled = false;
       // Flag indicating whether autocomplete is enabled or disabled
       this.autocomplete = false;
+      // Flag indicating whether autocomplete on 'enter' key is enabled or disabled
+      this.autocompleteOnEnter = true;
       // User language for autocomplete
       this.lang = "";
       // Regular expression for splitting text into autocomplete segments
@@ -119,10 +121,13 @@
         "Escape",
         "ArrowUp",
         "ArrowDown",
-        "Enter",
         "Space",
         "Backspace",
       ];
+
+      if (this.autocompleteOnEnter) {
+        keyArr.push("Enter");
+      }
 
       // Return the array of key names
       return keyArr;
@@ -589,6 +594,8 @@
     setConfig(config) {
       // Set the autocomplete option
       this.autocomplete = config.autocomplete;
+      // Set the autocompleteOnEnter option
+      this.autocompleteOnEnter = config.autocompleteOnEnter;
       // Set the autocompleteSeparatorSource option
       this.autocompleteSeparatorSource = config.autocompleteSeparatorSource;
       // Set the lang option
