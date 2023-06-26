@@ -81,8 +81,17 @@ const manifest = {
       name: "autocomplete",
       type: "checkbox",
       label:
-        "Enable this option to automatically complete words as you type by pressing the spacebar. To undo auto-completion and revert to the original text, simply press the backspace key.",
+        "Enable this option to automatically complete words as you type by pressing the 'spacebar'. To undo auto-completion and revert to the original text, simply press the 'backspace' key.",
       default: false,
+    },
+    {
+      tab: i18n.get("settings"),
+      group: i18n.get("General"),
+      name: "autocompleteOnEnter",
+      type: "checkbox",
+      label:
+        "Enable this option to automatically complete words as you type by pressing the 'enter' key. To undo auto-completion and revert to the original text, simply press the 'backspace' key.",
+      default: true,
     },
     {
       tab: i18n.get("settings"),
