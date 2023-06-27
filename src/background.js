@@ -176,7 +176,9 @@ class BackgroundServiceWorker {
       await this.settings.get("insertSpaceAfterAutocomplete"),
       await this.settings.get("autoCapitalize"),
       await this.settings.get("applySpacingRules"),
-      await this.settings.get("textExpansions")
+      await this.settings.get("textExpansions"),
+      await this.settings.get("timeFormat"),
+      await this.settings.get("dateFormat")
     );
 
     // Query all tabs and send a message with the new configuration to each one.

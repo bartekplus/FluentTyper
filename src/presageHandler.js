@@ -3,7 +3,7 @@ import {
   LANG_ADDITIONAL_SEPERATOR_REGEX,
 } from "./lang.js";
 
-import { TEMPALTE_VARIABLES } from "./variables.js";
+import { DATE_TIME_VARIABLES } from "./variables.js";
 
 const Spacing = Object.freeze({
   INSERT_SPACE: Symbol("INSERT_SPACE"),
@@ -70,6 +70,8 @@ class PresageHandler {
     this.autoCapitalize = true; // Capitalize the first word of each sentence
     this.applySpacingRules = false; // Apply spacing rules
     this.textExpansions = []; // Text expander config
+    this.timeFormat = ""; // Custom time format
+    this.dateFormat = ""; // Custom time format
 
     // Precompiled regular expressions
     this.separatorCharRegEx =
@@ -169,7 +171,9 @@ class PresageHandler {
     insertSpaceAfterAutocomplete,
     autoCapitalize,
     applySpacingRules,
-    textExpansions
+    textExpansions,
+    timeFormat,
+    dateFormat
   ) {
     this.numSuggestions = numSuggestions;
     this.minWordLengthToPredict = minWordLengthToPredict;
@@ -178,6 +182,8 @@ class PresageHandler {
     this.autoCapitalize = autoCapitalize;
     this.applySpacingRules = applySpacingRules;
     this.textExpansions = textExpansions;
+    this.timeFormat = timeFormat;
+    this.dateFormat = dateFormat;
     this.setupTextExpansions();
     for (const [, libPresage] of Object.entries(this.libPresage)) {
       libPresage.config(
@@ -242,6 +248,25 @@ class PresageHandler {
         obj[argument] || (obj[argument] === undefined ? "" : obj[argument])
     );
     return String.raw({ raw: parts }, ...parameters);
+  }
+
+  /**
+   * Expand template variables
+   *
+   * @param {string} lang The language to use for prediction.
+   * @returns {Object} An expanded template variables
+   */
+  getExpandedVariables(lang) {
+    const expandedTemplateVariables = {};
+    expandedTemplateVariables["time"] = DATE_TIME_VARIABLES.time(
+      lang,
+      this.timeFormat
+    );
+    expandedTemplateVariables["date"] = DATE_TIME_VARIABLES.date(
+      lang,
+      this.dateFormat
+    );
+    return expandedTemplateVariables;
   }
 
   /**
@@ -513,9 +538,7 @@ class PresageHandler {
     const predictions = [];
     const predictionsNative = this.libPresage[lang].predictWithProbability();
 
-    const expandedTemplateVariables = Object.fromEntries(
-      Object.entries(TEMPALTE_VARIABLES).map(([k, v]) => [k, v()])
-    );
+    const expandedTemplateVariables = this.getExpandedVariables(lang);
 
     // Loop through the predicted results and add them to the predictions array
     for (let i = 0; i < predictionsNative.size(); i++) {
@@ -555,6 +578,7 @@ class PresageHandler {
   runPrediction(text, nextChar, lang) {
     let predictions = [];
     let forceReplace = null;
+    const expandedTemplateVariables = this.getExpandedVariables(lang);
 
     // Process the input text to get the prediction input, prediction flag and capitalization flag
     const { predictionInput, lastWord, doPrediction, doCapitalize } =
@@ -575,8 +599,8 @@ class PresageHandler {
     }
 
     // Insert variables as first prediction
-    if (lastWord.toLowerCase() in TEMPALTE_VARIABLES) {
-      predictions.unshift(TEMPALTE_VARIABLES[lastWord]());
+    if (lastWord.toLowerCase() in expandedTemplateVariables) {
+      predictions.unshift(expandedTemplateVariables[lastWord.toLowerCase()]);
     }
 
     // If insertSpaceAfterAutocomplete is true, add a space after each prediction if necessary

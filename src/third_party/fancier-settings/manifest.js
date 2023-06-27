@@ -130,6 +130,24 @@ const manifest = {
       default: false,
     },
     {
+      tab: i18n.get("Advanced"),
+      group: i18n.get("Features suitable only for technical users"),
+      name: "timeFormat",
+      type: "text",
+      label:
+        "Time format e.g. 'ttt' -> '1:07:04 PM EDT' - more information about supported tokens <a href='https://moment.github.io/luxon/#/formatting?id=table-of-tokens'>here</a>",
+      default: "",
+    },
+    {
+      tab: i18n.get("Advanced"),
+      group: i18n.get("Features suitable only for technical users"),
+      name: "dateFormat",
+      type: "text",
+      label:
+        "Date format e.g. 'fff' -> 'August 6, 2014, 1:07 PM EDT' - more information about supported tokens <a href='https://moment.github.io/luxon/#/formatting?id=table-of-tokens'>here</a>",
+      default: "",
+    },
+    {
       tab: i18n.get("Text Expander"),
       name: "textExpansions",
       type: "valueOnly",
