@@ -1,6 +1,7 @@
 import { i18n } from "./i18n.js";
 import { SUPPORTED_LANGUAGES } from "../../lang.js";
 import { DOMAIN_LIST_MODE } from "../../utils.js";
+import { DATE_TIME_VARIABLES } from "../../variables.js";
 
 const donateHTML =
   '<div class="has-text-centered"> \
@@ -127,6 +128,16 @@ const manifest = {
       type: "checkbox",
       label:
         "Enable this option to select suggestions using the digit keys on your keyboard.",
+      default: false,
+    },
+    {
+      tab: i18n.get("Advanced"),
+      group: i18n.get("Features suitable only for technical users"),
+      name: "variableExpansion",
+      type: "checkbox",
+      label:
+        "Enable this option to enable support for variables. Variables can also used in 'text Expander' as '${variable}'. Supported variables: " +
+        Object.keys(DATE_TIME_VARIABLES),
       default: false,
     },
     {

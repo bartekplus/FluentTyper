@@ -70,6 +70,7 @@ class PresageHandler {
     this.autoCapitalize = true; // Capitalize the first word of each sentence
     this.applySpacingRules = false; // Apply spacing rules
     this.textExpansions = []; // Text expander config
+    this.variableExpansion = false; // Variable expansion support
     this.timeFormat = ""; // Custom time format
     this.dateFormat = ""; // Custom time format
 
@@ -172,6 +173,7 @@ class PresageHandler {
     autoCapitalize,
     applySpacingRules,
     textExpansions,
+    variableExpansion,
     timeFormat,
     dateFormat
   ) {
@@ -182,6 +184,7 @@ class PresageHandler {
     this.autoCapitalize = autoCapitalize;
     this.applySpacingRules = applySpacingRules;
     this.textExpansions = textExpansions;
+    this.variableExpansion = variableExpansion;
     this.timeFormat = timeFormat;
     this.dateFormat = dateFormat;
     this.setupTextExpansions();
@@ -258,6 +261,11 @@ class PresageHandler {
    */
   getExpandedVariables(lang) {
     const expandedTemplateVariables = {};
+
+    if (this.variableExpansion === false) {
+      return expandedTemplateVariables;
+    }
+
     expandedTemplateVariables["time"] = DATE_TIME_VARIABLES.time(
       lang,
       this.timeFormat

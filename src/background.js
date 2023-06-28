@@ -177,6 +177,7 @@ class BackgroundServiceWorker {
       await this.settings.get("autoCapitalize"),
       await this.settings.get("applySpacingRules"),
       await this.settings.get("textExpansions"),
+      await this.settings.get("variableExpansion"),
       await this.settings.get("timeFormat"),
       await this.settings.get("dateFormat")
     );

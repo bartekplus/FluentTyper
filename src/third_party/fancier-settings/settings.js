@@ -61,6 +61,7 @@ window.addEventListener("DOMContentLoaded", function () {
         "autoCapitalize",
         "applySpacingRules",
         "selectByDigit",
+        "variableExpansion",
         "timeFormat",
         "dateFormat",
       ].forEach((element) => {
