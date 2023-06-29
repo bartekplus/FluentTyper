@@ -136,7 +136,7 @@ const manifest = {
       name: "variableExpansion",
       type: "checkbox",
       label:
-        "Enable this option to enable support for variables. Variables can also used in 'text Expander' as '${variable}'. Supported variables: " +
+        "Enable this option to activate support for variables. Variables can be used in 'text expander' as '${variable}'. Supported variables include:" +
         Object.keys(DATE_TIME_VARIABLES),
       default: false,
     },
@@ -146,7 +146,7 @@ const manifest = {
       name: "timeFormat",
       type: "text",
       label:
-        "Time format e.g. 'ttt' -> '1:07:04 PM EDT' - more information about supported tokens <a href='https://moment.github.io/luxon/#/formatting?id=table-of-tokens'>here</a>",
+        "Custom time format e.g. 'ttt' -> '1:07:04 PM EDT' - more information about supported tokens <a href='https://moment.github.io/luxon/#/formatting?id=table-of-tokens'>here</a>",
       default: "",
     },
     {
@@ -155,7 +155,7 @@ const manifest = {
       name: "dateFormat",
       type: "text",
       label:
-        "Date format e.g. 'fff' -> 'August 6, 2014, 1:07 PM EDT' - more information about supported tokens <a href='https://moment.github.io/luxon/#/formatting?id=table-of-tokens'>here</a>",
+        "Custom date format e.g. 'fff' -> 'August 6, 2014, 1:07 PM EDT' - more information about supported tokens <a href='https://moment.github.io/luxon/#/formatting?id=table-of-tokens'>here</a>",
       default: "",
     },
     {

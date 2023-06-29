@@ -586,7 +586,6 @@ class PresageHandler {
   runPrediction(text, nextChar, lang) {
     let predictions = [];
     let forceReplace = null;
-    const expandedTemplateVariables = this.getExpandedVariables(lang);
 
     // Process the input text to get the prediction input, prediction flag and capitalization flag
     const { predictionInput, lastWord, doPrediction, doCapitalize } =
@@ -604,11 +603,6 @@ class PresageHandler {
     // If forceReplace is not set and prediction is necessary, perform the prediction
     else if (!forceReplace && doPrediction) {
       predictions = this.doPredictionHandler(predictionInput, lang);
-    }
-
-    // Insert variables as first prediction
-    if (lastWord.toLowerCase() in expandedTemplateVariables) {
-      predictions.unshift(expandedTemplateVariables[lastWord.toLowerCase()]);
     }
 
     // If insertSpaceAfterAutocomplete is true, add a space after each prediction if necessary
