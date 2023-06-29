@@ -61,6 +61,9 @@ window.addEventListener("DOMContentLoaded", function () {
         "autoCapitalize",
         "applySpacingRules",
         "selectByDigit",
+        "variableExpansion",
+        "timeFormat",
+        "dateFormat",
       ].forEach((element) => {
         settings.manifest[element].addEvent("action", function () {
           optionsPageConfigChange();

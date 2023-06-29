@@ -1,6 +1,7 @@
 import { i18n } from "./i18n.js";
 import { SUPPORTED_LANGUAGES } from "../../lang.js";
 import { DOMAIN_LIST_MODE } from "../../utils.js";
+import { DATE_TIME_VARIABLES } from "../../variables.js";
 
 const donateHTML =
   '<div class="has-text-centered"> \
@@ -128,6 +129,34 @@ const manifest = {
       label:
         "Enable this option to select suggestions using the digit keys on your keyboard.",
       default: false,
+    },
+    {
+      tab: i18n.get("Advanced"),
+      group: i18n.get("Features suitable only for technical users"),
+      name: "variableExpansion",
+      type: "checkbox",
+      label:
+        "Enable this option to activate support for variables. Variables can be used in 'text expander' as '${variable}'. Supported variables include: " +
+        Object.keys(DATE_TIME_VARIABLES),
+      default: false,
+    },
+    {
+      tab: i18n.get("Advanced"),
+      group: i18n.get("Features suitable only for technical users"),
+      name: "timeFormat",
+      type: "text",
+      label:
+        "Custom time format e.g. 'ttt' -> '1:07:04 PM EDT' - more information about supported tokens <a href='https://moment.github.io/luxon/#/formatting?id=table-of-tokens'>here</a>",
+      default: "",
+    },
+    {
+      tab: i18n.get("Advanced"),
+      group: i18n.get("Features suitable only for technical users"),
+      name: "dateFormat",
+      type: "text",
+      label:
+        "Custom date format e.g. 'fff' -> 'August 6, 2014, 1:07 PM EDT' - more information about supported tokens <a href='https://moment.github.io/luxon/#/formatting?id=table-of-tokens'>here</a>",
+      default: "",
     },
     {
       tab: i18n.get("Text Expander"),

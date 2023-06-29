@@ -3,6 +3,8 @@ import {
   LANG_ADDITIONAL_SEPERATOR_REGEX,
 } from "./lang.js";
 
+import { DATE_TIME_VARIABLES } from "./variables.js";
+
 const Spacing = Object.freeze({
   INSERT_SPACE: Symbol("INSERT_SPACE"),
   REMOVE_SPACE: Symbol("REMOVE_SPACE"),
@@ -68,6 +70,9 @@ class PresageHandler {
     this.autoCapitalize = true; // Capitalize the first word of each sentence
     this.applySpacingRules = false; // Apply spacing rules
     this.textExpansions = []; // Text expander config
+    this.variableExpansion = false; // Variable expansion support
+    this.timeFormat = ""; // Custom time format
+    this.dateFormat = ""; // Custom time format
 
     // Precompiled regular expressions
     this.separatorCharRegEx =
@@ -136,9 +141,8 @@ class PresageHandler {
     // Construct a string with each text expansion formatted as a tab-separated entry and newline-separated row
     let textExpansionsStr = "";
     this.textExpansions.forEach((textExpansion) => {
-      textExpansionsStr += `${textExpansion[0].toLowerCase()}\t${JSON.stringify(
-        textExpansion[1]
-      )}\n`;
+      const jsonObj = JSON.stringify(textExpansion[1]);
+      textExpansionsStr += `${textExpansion[0].toLowerCase()}\t${jsonObj}\n`;
     });
 
     // Write the text expansions to a text file
@@ -168,7 +172,10 @@ class PresageHandler {
     insertSpaceAfterAutocomplete,
     autoCapitalize,
     applySpacingRules,
-    textExpansions
+    textExpansions,
+    variableExpansion,
+    timeFormat,
+    dateFormat
   ) {
     this.numSuggestions = numSuggestions;
     this.minWordLengthToPredict = minWordLengthToPredict;
@@ -177,6 +184,9 @@ class PresageHandler {
     this.autoCapitalize = autoCapitalize;
     this.applySpacingRules = applySpacingRules;
     this.textExpansions = textExpansions;
+    this.variableExpansion = variableExpansion;
+    this.timeFormat = timeFormat;
+    this.dateFormat = dateFormat;
     this.setupTextExpansions();
     for (const [, libPresage] of Object.entries(this.libPresage)) {
       libPresage.config(
@@ -231,6 +241,41 @@ class PresageHandler {
     return (
       (!isNaN(str) && !isNaN(parseFloat(str))) || this.countDigits(str) > 1
     );
+  }
+
+  parseStringTemplate(str, obj) {
+    const parts = str.split(/\$\{(?!\d)[\wæøåÆØÅ]*\}/);
+    const args = str.match(/[^{}]+(?=})/g) || [];
+    const parameters = args.map(
+      (argument) =>
+        obj[argument] ||
+        (obj[argument] === undefined ? "${" + argument + "}" : obj[argument])
+    );
+    return String.raw({ raw: parts }, ...parameters);
+  }
+
+  /**
+   * Expand template variables
+   *
+   * @param {string} lang The language to use for prediction.
+   * @returns {Object} An expanded template variables
+   */
+  getExpandedVariables(lang) {
+    const expandedTemplateVariables = {};
+
+    if (this.variableExpansion === false) {
+      return expandedTemplateVariables;
+    }
+
+    expandedTemplateVariables["time"] = DATE_TIME_VARIABLES.time(
+      lang,
+      this.timeFormat
+    );
+    expandedTemplateVariables["date"] = DATE_TIME_VARIABLES.date(
+      lang,
+      this.dateFormat
+    );
+    return expandedTemplateVariables;
   }
 
   /**
@@ -359,7 +404,7 @@ class PresageHandler {
    *
    * @param {string} predictionInput - The input string to process.
    * @param {string} language - The language of the input string.
-   * @returns {object} - An object containing the processed input string,
+   * @returns {object} - An object containing the processed input string, last word,
    *                     a flag indicating whether to perform prediction, and
    *                     a flag indicating whether to perform auto-capitalization.
    */
@@ -417,8 +462,8 @@ class PresageHandler {
     // Check if prediction should be performed
     const doPrediction = this.checkDoPrediction(lastWord, endsWithSpace);
 
-    // Return an object with the processed input string and the flags for auto-capitalization and prediction
-    return { predictionInput, doPrediction, doCapitalize };
+    // Return an object with the processed input string, last word and the flags for auto-capitalization and prediction
+    return { predictionInput, lastWord, doPrediction, doCapitalize };
   }
 
   /**
@@ -494,7 +539,7 @@ class PresageHandler {
   doPredictionHandler(predictionInput, lang) {
     // If the input is the same as the previous prediction input, return the previous prediction results
     if (predictionInput === this.lastPrediction[lang].pastStream) {
-      return this.lastPrediction[lang].predictions;
+      return this.lastPrediction[lang].predictions.slice();
     }
 
     // Perform prediction
@@ -502,20 +547,30 @@ class PresageHandler {
     const predictions = [];
     const predictionsNative = this.libPresage[lang].predictWithProbability();
 
+    const expandedTemplateVariables = this.getExpandedVariables(lang);
+
     // Loop through the predicted results and add them to the predictions array
     for (let i = 0; i < predictionsNative.size(); i++) {
       const result = predictionsNative.get(i);
+      let text = null;
       try {
-        predictions.push(JSON.parse(result.prediction));
+        text = JSON.parse(result.prediction);
       } catch (error) {
-        predictions.push(result.prediction);
+        text = result.prediction;
       }
 
+      if (text) {
+        text = this.parseStringTemplate(text, expandedTemplateVariables);
+        predictions.push(text);
+      }
       //result.probability
     }
 
     // Update the last prediction with the current input and results
-    this.lastPrediction[lang] = { pastStream: predictionInput, predictions };
+    this.lastPrediction[lang] = {
+      pastStream: predictionInput,
+      predictions: predictions.slice(),
+    };
 
     // Return the predicted results
     return predictions;
