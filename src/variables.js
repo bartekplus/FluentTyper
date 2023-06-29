@@ -1,6 +1,5 @@
 import { DateTime } from "./third_party/luxon/luxon.js";
 
-
 function getCurrentDateTime(lang) {
   let now = DateTime.now();
 
@@ -11,7 +10,7 @@ function getCurrentDateTime(lang) {
     console.log("Failed to set locatle to: " + lang);
     console.log(error);
   }
-  
+
   return now;
 }
 

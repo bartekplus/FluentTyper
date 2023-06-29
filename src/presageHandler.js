@@ -248,7 +248,8 @@ class PresageHandler {
     const args = str.match(/[^{}]+(?=})/g) || [];
     const parameters = args.map(
       (argument) =>
-        obj[argument] || (obj[argument] === undefined ? "" : obj[argument])
+        obj[argument] ||
+        (obj[argument] === undefined ? "${" + argument + "}" : obj[argument])
     );
     return String.raw({ raw: parts }, ...parameters);
   }
@@ -588,8 +589,10 @@ class PresageHandler {
     let forceReplace = null;
 
     // Process the input text to get the prediction input, prediction flag and capitalization flag
-    const { predictionInput, lastWord, doPrediction, doCapitalize } =
-      this.processInput(text, lang);
+    const { predictionInput, doPrediction, doCapitalize } = this.processInput(
+      text,
+      lang
+    );
 
     // Apply spacing rules if necessary
     if (this.applySpacingRules) {

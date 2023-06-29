@@ -136,7 +136,7 @@ const manifest = {
       name: "variableExpansion",
       type: "checkbox",
       label:
-        "Enable this option to activate support for variables. Variables can be used in 'text expander' as '${variable}'. Supported variables include:" +
+        "Enable this option to activate support for variables. Variables can be used in 'text expander' as '${variable}'. Supported variables include: " +
         Object.keys(DATE_TIME_VARIABLES),
       default: false,
     },
