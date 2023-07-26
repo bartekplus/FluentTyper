@@ -53,7 +53,7 @@ jobs:
       - name: Prepare files
         run: |
           mkdir -p ${{ matrix.browser }}
-          cp -rdf src/* ${{ matrix.browser }}/
+          rsync -a --exclude='LICENSE*' src/ ${{ matrix.browser }}/
           cp -rdf platform/${{ matrix.browser }}/* ${{ matrix.browser }}
         env:
           SOURCE_TAG: ${{ steps.branch_name.outputs.SOURCE_TAG }}
