@@ -1,0 +1,4 @@
+# Not a directory listing
+homepage-refers-to-filesystem-listing *
+# Aspell dictionaries are supposed to be in the text section
+wrong-section-according-to-package-name *

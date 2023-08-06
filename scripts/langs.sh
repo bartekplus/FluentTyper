@@ -1,0 +1,9 @@
+
+LANGS=( el en es fr hr sv )
+declare -A LANGS_HUNSPELL
+LANGS_HUNSPELL[el]="el_GR"
+LANGS_HUNSPELL[en]="en_US"
+LANGS_HUNSPELL[es]="es"
+LANGS_HUNSPELL[fr]="fr_FR"
+LANGS_HUNSPELL[hr]="hr_HR"
+LANGS_HUNSPELL[sv]="sv_SE"
