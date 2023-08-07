@@ -33,8 +33,8 @@ Supported languages:
 - Spanish
 - French
 - Croatian
-- Greek (dictionary based prediction)
-- Swedish (dictionary based prediction)
+- Greek
+- Swedish
 
 ## Installation
 

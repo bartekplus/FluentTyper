@@ -1,0 +1,6 @@
+name el
+charset iso-8859-7
+#special ' -** - -** . -**
+soundslike el
+keyboard el
+#data-encoding utf-8

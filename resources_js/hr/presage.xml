@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<Presage>
+    <PredictorRegistry>
+        <LOGGER>ERROR</LOGGER>
+        <PREDICTORS>DefaultSmoothedNgramTriePredictor DefaultAspellPredictor DefaultHunspellPredictor DefaultAbbreviationExpansionPredictor DefaultRecencyPredictor</PREDICTORS>
+    </PredictorRegistry>
+    <ContextTracker>
+        <LOGGER>ERROR</LOGGER>
+        <SLIDING_WINDOW_SIZE>0</SLIDING_WINDOW_SIZE>
+	<LOWERCASE_MODE>yes</LOWERCASE_MODE>
+	<ONLINE_LEARNING>no</ONLINE_LEARNING>
+    </ContextTracker>
+    <Selector>
+        <LOGGER>ERROR</LOGGER>
+        <SUGGESTIONS>6</SUGGESTIONS>
+        <REPEAT_SUGGESTIONS>no</REPEAT_SUGGESTIONS>
+        <GREEDY_SUGGESTION_THRESHOLD>0</GREEDY_SUGGESTION_THRESHOLD>
+    </Selector>
+    <PredictorActivator>
+        <LOGGER>ERROR</LOGGER>
+        <PREDICT_TIME>1000</PREDICT_TIME>
+        <MAX_PARTIAL_PREDICTION_SIZE>60</MAX_PARTIAL_PREDICTION_SIZE>
+        <COMBINATION_POLICY>Meritocracy</COMBINATION_POLICY>
+    </PredictorActivator>
+    <ProfileManager>
+        <LOGGER>ERROR</LOGGER>
+        <AUTOPERSIST>false</AUTOPERSIST>
+    </ProfileManager>
+    <Predictors>
+    <DefaultSmoothedNgramTriePredictor>
+            <PREDICTOR>SmoothedNgramTriePredictor</PREDICTOR>
+            <LOGGER>ERROR</LOGGER>
+            <DBFILENAME>/resources_js/hr/ngrams_db</DBFILENAME>
+            <DELTAS>0.125 0.25 0.5 0.75 0.875</DELTAS>
+            <COUNT_THRESHOLD>0</COUNT_THRESHOLD>
+            <DatabaseConnector>
+                <LOGGER>ERROR</LOGGER>
+            </DatabaseConnector>
+        </DefaultSmoothedNgramTriePredictor>
+        <DefaultRecencyPredictor>
+            <PREDICTOR>RecencyPredictor</PREDICTOR>
+            <LOGGER>ERROR</LOGGER>
+            <LAMBDA>2</LAMBDA>
+            <N_0>0.00001</N_0>
+            <CUTOFF_THRESHOLD>20</CUTOFF_THRESHOLD>
+        </DefaultRecencyPredictor>
+        <DefaultHunspellPredictor>
+            <PREDICTOR>HunspellPredictor</PREDICTOR>
+            <LOGGER>ERROR</LOGGER>
+            <DICTIONARYBASE>/resources_js/hr/hunspell/hr_HR</DICTIONARYBASE>
+            <PROBABILITY>0.00000001</PROBABILITY>
+        </DefaultHunspellPredictor>
+        <DefaultAspellPredictor>
+            <PREDICTOR>AspellPredictor</PREDICTOR>
+            <LOGGER>ERROR</LOGGER>
+            <LANG>hr_HR</LANG>
+            <MASTER>/resources_js/hr/aspell/hr.multi</MASTER>
+            <PROBABILITY>0.00000001</PROBABILITY>
+        </DefaultAspellPredictor>
+        <DefaultAbbreviationExpansionPredictor>
+            <PREDICTOR>AbbreviationExpansionPredictor</PREDICTOR>
+            <LOGGER>ERROR</LOGGER>
+            <ABBREVIATIONS>/resources_js/common/abbreviations.txt</ABBREVIATIONS>
+            <PREPEND_BACKSPACES>no</PREPEND_BACKSPACES>
+        </DefaultAbbreviationExpansionPredictor>
+    </Predictors>
+</Presage>
