@@ -11,7 +11,7 @@ import re
 
 
 NGRAM_COUNT = 4
-NGRAM_DIV = 1.5
+NGRAM_DIV = 1.33
 NGRAM_MIN_COUNT = 10
 LANGS = {
     "el": "greek",
@@ -58,7 +58,7 @@ if __name__ == "__main__":
 
     tokens = []
     tk = TweetTokenizer()
-    counter = 0
+    counter = 1
     ngram = [Counter() for i in range(NGRAM_COUNT)]
     print(args)
     print(args.inputfile)
@@ -71,9 +71,6 @@ if __name__ == "__main__":
         except Exception as e:
             print(e)
             continue
-
-        if counter % 100000 == 0:
-            print(f"Processing {counter} line")
 
         for sentence in sent_tokenize(line, language=LANGS[args.language]):
             sentence = fix_common_errors(sentence)
@@ -102,14 +99,18 @@ if __name__ == "__main__":
                 n = ngrams(tokens, c + 1)
                 ngram[c].update(n)
 
+        if counter % 100000 == 0:
+            print(f"Processed {counter} lines")
+
         counter += 1
 
     last_ngram_count = 0
     filenames = []
     for c in range(NGRAM_COUNT):
-        print(f"Generating {c+1}ngram.txt")
         # fdist = FreqDist(ngram[c - 1])
-        f_name = f"{base_path}_{c+1}.txt"
+        f_name = f"{base_path}_ngram_{c+1}.txt"
+        print(f"Generating {f_name}")
+
         filenames.append(f_name)
         f_ngram = open(f_name, "w")
 
@@ -125,7 +126,7 @@ if __name__ == "__main__":
         last_ngram_count = ngram_count
         f_ngram.close()
 
-    with open(f"{base_path}_merged.txt", "w") as outfile:
+    with open(f"{base_path}_ngram_merged.txt", "w") as outfile:
         for fname in filenames:
             with open(fname) as infile:
                 for line in infile:
