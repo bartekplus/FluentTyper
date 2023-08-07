@@ -34,22 +34,14 @@ parser.add_argument(
     "-l", "--language", type=str, help="language of the sentences", required=True
 )
 
+_replacements = {r"’": "'"}
 
-def replace_character_in_middle(text, character_to_replace, replacement_character):
-    # Create a regular expression pattern to match the character in the middle of words
-    pattern = r"\b(\w+)" + re.escape(character_to_replace) + r"(\w+)\b"
-
-    # Define the replacement pattern
-    replacement_pattern = r"\1" + replacement_character + r"\2"
-
-    # Use re.sub() to perform the replacement
-    replaced_text = re.sub(pattern, replacement_pattern, text)
-
-    return replaced_text
+_replacements_dict = list((re.compile(p), r) for p, r in _replacements.items())
 
 
 def fix_common_errors(line):
-    line = replace_character_in_middle(line, "’", "'")
+    for pattern_re, replaced_str in _replacements_dict:
+        line = pattern_re.sub(replaced_str, line)
     return line
 
 
@@ -58,7 +50,7 @@ def filter_tokens(tokens_raw):
     for token in tokens_raw:
         SKIPPED_CHARS = '!"#$%&()*+,./:;<=>?@[\\]^_`{|}~'
 
-        token = token.strip()
+        token = token.strip().lower()
 
         if not token:
             continue
@@ -72,14 +64,15 @@ def filter_tokens(tokens_raw):
             continue
         elif not token[0].isalpha():
             continue
-        tokens.append(token.lower())
+
+        tokens.append(token)
     return tokens
 
 
 if __name__ == "__main__":
     args = parser.parse_args()
 
-    tk = TweetTokenizer()
+    tk = TweetTokenizer(match_phone_numbers=False)
     counter = 1
     ngram = [Counter() for i in range(NGRAM_COUNT)]
     base_path = os.path.splitext(args.inputfile.name)[0]
@@ -96,6 +89,9 @@ if __name__ == "__main__":
             tokens_raw = filter_tokens(tokens_raw)
 
             for c in range(NGRAM_COUNT):
+                tokens = tokens_raw
+                if c + 1 == 0:
+                    tokens = [t for t in tokens_raw if len(t) > 1]
                 n = ngrams(tokens_raw, c + 1)
                 ngram[c].update(n)
 
