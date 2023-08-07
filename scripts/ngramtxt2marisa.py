@@ -121,10 +121,10 @@ trie.save(os.path.join(args.output, "ngrams.trie"))
 
 print("Keys: ", len(trie), "\n")
 
-arr = np.zeros(len(trie)+1, dtype=np.int32)
+arr = np.zeros(len(trie) + 1, dtype=np.int32)
 arr[0] = scount
 for k, v in data.items():
-    arr[ trie.key_id(k) + 1 ] = int(v / factor)
+    arr[trie.key_id(k) + 1] = int(v / factor)
 
 binwrite = open(os.path.join(args.output, "ngrams.counts"), "wb")
 arr.tofile(binwrite)

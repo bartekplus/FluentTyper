@@ -53,16 +53,35 @@ def fix_common_errors(line):
     return line
 
 
+def filter_tokens(tokens_raw):
+    tokens = []
+    for token in tokens_raw:
+        SKIPPED_CHARS = '!"#$%&()*+,./:;<=>?@[\\]^_`{|}~'
+
+        token = token.strip()
+
+        if not token:
+            continue
+        elif not token.isprintable():
+            continue
+        elif len(token) == 1 and not token.isalpha():
+            continue
+        elif token.isdigit():
+            continue
+        if any([x in token for x in SKIPPED_CHARS]):
+            continue
+        elif not token[0].isalpha():
+            continue
+        tokens.append(token.lower())
+    return tokens
+
+
 if __name__ == "__main__":
     args = parser.parse_args()
 
-    tokens = []
     tk = TweetTokenizer()
     counter = 1
     ngram = [Counter() for i in range(NGRAM_COUNT)]
-    print(args)
-    print(args.inputfile)
-
     base_path = os.path.splitext(args.inputfile.name)[0]
 
     for line in args.inputfile:
@@ -71,32 +90,13 @@ if __name__ == "__main__":
         except Exception as e:
             print(e)
             continue
-
         for sentence in sent_tokenize(line, language=LANGS[args.language]):
             sentence = fix_common_errors(sentence)
-            tokens = []
             tokens_raw = tk.tokenize(sentence)
-            for token in tokens_raw:
-                SKIPPED_CHARS = '!"#$%&()*+,./:;<=>?@[\\]^_`{|}~'
-
-                token = token.strip()
-
-                if not token:
-                    continue
-                elif not token.isprintable():
-                    continue
-                elif len(token) == 1 and not token.isalpha():
-                    continue
-                elif token.isdigit():
-                    continue
-                if any([x in token for x in SKIPPED_CHARS]):
-                    continue
-                elif not token[0].isalpha():
-                    continue
-                tokens.append(token.lower())
+            tokens_raw = filter_tokens(tokens_raw)
 
             for c in range(NGRAM_COUNT):
-                n = ngrams(tokens, c + 1)
+                n = ngrams(tokens_raw, c + 1)
                 ngram[c].update(n)
 
         if counter % 100000 == 0:
