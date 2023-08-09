@@ -97,21 +97,15 @@ do
     cp "${lang}".data "${SCRIPT_DIR}"/../src/third_party/libpresage/
 done
 
-#python3 /opt/homebrew/Cellar/emscripten/3.1.44/libexec/tools/file_packager.py es.data --preload ${SCRIPT_DIR}/../resources_js/es/ --js-output=es.js
-#python3 /opt/homebrew/Cellar/emscripten/3.1.44/libexec/tools/file_packager.py fr.data --preload ${SCRIPT_DIR}/../resources_js/fr/ --js-output=fr.js
-#python3 /opt/homebrew/Cellar/emscripten/3.1.44/libexec/tools/file_packager.py hr.data --preload ${SCRIPT_DIR}/../resources_js/hr/ --js-output=hr.js
-#python3 /opt/homebrew/Cellar/emscripten/3.1.44/libexec/tools/file_packager.py el.data --preload ${SCRIPT_DIR}/../resources_js/el/ --js-output=el.js
-#python3 /opt/homebrew/Cellar/emscripten/3.1.44/libexec/tools/file_packager.py sv.data --preload ${SCRIPT_DIR}/../resources_js/sv/ --js-output=sv.js
-
 python3 /opt/homebrew/Cellar/emscripten/3.1.44/libexec/tools/file_packager.py textExpander.data --preload "${SCRIPT_DIR}"/../resources_js/textExpander@/resources_js/textExpander --js-output=textExpander.js
 python3 /opt/homebrew/Cellar/emscripten/3.1.44/libexec/tools/file_packager.py common.data --preload "${SCRIPT_DIR}"/../resources_js/common@/resources_js/common --js-output=common.js
 
 emcc "${BUILD_DIR_PRESAGE}"/src/lib/.libs/libpresage.so.1.1.1 -o libpresage.js -s ALLOW_MEMORY_GROWTH=1 -O2 \
-    "${LDFLAGS}" \
+    ${LDFLAGS} \
     -lhunspell -laspell -lmarisa \
     -s "EXPORTED_RUNTIME_METHODS=['FS']" -s MODULARIZE=1 -s ENVIRONMENT=web -s TEXTDECODER=1 -s EXPORT_ES6=1 -s NO_EXIT_RUNTIME=1 \
     --llvm-lto 1 -sFORCE_FILESYSTEM  -s NO_DYNAMIC_EXECUTION=1 \
-    "${BUILD_CMD}" --pre-js common.js --pre-js textExpander.js \
+    ${BUILD_CMD} --pre-js common.js --pre-js textExpander.js \
     -sSTACK_SIZE=5MB
 
 cp libpresage.* "${SCRIPT_DIR}"/../src/third_party/libpresage/
