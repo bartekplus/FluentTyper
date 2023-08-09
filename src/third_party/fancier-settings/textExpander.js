@@ -144,14 +144,6 @@ class TextExpander {
           index === 0
             ? "Please use only letters and numbers (two or less digits), no white space or special characters are allowed, between 1-32 characters."
             : "Shortcut text cannot be empty.";
-      } // Validate if there is no key duplicate
-      else if (index === 0) {
-        this.textExpansions.forEach((textExpansion) => {
-          if (textExpansion[0] === element.value) {
-            isValid = false;
-            errMsgStr = "Shortcut name is already used.";
-          }
-        });
       }
 
       errMsgNode.textContent = errMsgStr;

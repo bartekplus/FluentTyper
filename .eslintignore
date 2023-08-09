@@ -8,3 +8,4 @@ src/third_party/libpresage/common.js
 src/third_party/tribute/tribute.js
 src/third_party/swiper/swiper-bundle.esm.browser.js
 src/third_party/luxon/luxon.js
+scripts/**
