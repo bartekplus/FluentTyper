@@ -1,5 +1,9 @@
-import { Store } from "./lib/store.js";
-import { ElementWrapper, getUniqueID } from "./js/classes/utils.js";
+import { Store } from "./third_party/fancier-settings/lib/store.js";
+import {
+  ElementWrapper,
+  getUniqueID,
+} from "./third_party/fancier-settings/js/classes/utils.js";
+import { parse } from "./third_party/csv-parse/sync.js";
 
 class TextExpander {
   constructor(settings, callbackFn) {
@@ -8,6 +12,7 @@ class TextExpander {
     this.addNewShortcutIDs = ["newShortcut", "newShortcatText"];
     this.store = new Store("settings");
     this.settingsWithManifest = settings;
+    this.importedElemCount = 0;
     this.getTextExpansions();
   }
 
@@ -34,6 +39,106 @@ class TextExpander {
     node.parentNode.replaceChild(clonedNode, node);
     this.settingsWithManifest.manifest.textExpansions.bundle.element =
       clonedNode;
+  }
+
+  fileInputChange() {
+    const fileInput = document.getElementById("csvFileInput");
+    const fileNameSpanElem = document.getElementById("fileNameSpanElemId");
+
+    fileNameSpanElem.value = "ble";
+    fileNameSpanElem.textContent = fileInput.files[0].name;
+    const reader = new FileReader();
+    reader.addEventListener(
+      "load",
+      () => {
+        // this will then display a text file
+        const parsedData = parse(reader.result, {
+          skip_records_with_error: true,
+          relax_column_count: true,
+          columns: false,
+          skip_empty_lines: true,
+        });
+        const shortcutElem = document.getElementById(this.addNewShortcutIDs[0]);
+        const shortcutTextElem = document.getElementById(
+          this.addNewShortcutIDs[1]
+        );
+        parsedData.forEach((element) => {
+          if (element.length === 2) {
+            shortcutElem.value = element[0];
+            shortcutTextElem.value = element[1];
+
+            if (this.addNewShortcut(false)) {
+              this.importedElemCount += 1;
+            }
+          }
+        });
+        this.render();
+      },
+      false
+    );
+    if (fileInput.files[0]) {
+      reader.readAsText(fileInput.files[0]);
+    }
+  }
+
+  getTextExpansionsAsCSVBlob() {
+    let csvData = "";
+    this.textExpansions.forEach((element) => {
+      csvData += element[0] + "," + '"' + element[1] + '"' + "\n";
+    });
+    return new Blob([csvData], { type: "text/csv" });
+  }
+
+  renderImportExport() {
+    const fileElem = new ElementWrapper("div", { class: "file block" });
+    const fileLabelElem = new ElementWrapper("label", { class: "file-label" });
+    const inputElem = new ElementWrapper("input", {
+      class: "file-input",
+      type: "file",
+      id: "csvFileInput",
+      accept: ".csv",
+    });
+    const fileCTA = new ElementWrapper("span", { class: "file-cta" });
+    const fileLabelSpanElem = new ElementWrapper("span", {
+      class: "file-label",
+      text: "Import CSV",
+    });
+    const fileNameSpanElem = new ElementWrapper("span", {
+      class: "file-name",
+      id: "fileNameSpanElemId",
+      text: "Select CSV file to import",
+    });
+    const dividerElem = new ElementWrapper("hr", {});
+
+    inputElem.addEvent("input", this.fileInputChange.bind(this));
+    fileLabelSpanElem.inject(fileCTA);
+    inputElem.inject(fileLabelElem);
+    fileCTA.inject(fileLabelElem);
+    fileNameSpanElem.inject(fileLabelElem);
+    fileLabelElem.inject(fileElem);
+    fileElem.inject(this.settingsWithManifest.manifest.textExpansions.bundle);
+    if (this.importedElemCount) {
+      const block = new ElementWrapper("div", { class: "block" });
+      const notification = new ElementWrapper("div", {
+        class: "notification is-primary",
+        text: "Imported records: " + this.importedElemCount,
+      });
+
+      this.importedElemCount = 0;
+      notification.inject(block);
+      block.inject(this.settingsWithManifest.manifest.textExpansions.bundle);
+    }
+
+    const button = new ElementWrapper("a", {
+      class: "button",
+      href: window.URL.createObjectURL(this.getTextExpansionsAsCSVBlob()),
+      text: "Export Text Expander database as CSV",
+      download: "FluentTyperTextExpanderDataBase.csv",
+    });
+    button.inject(this.settingsWithManifest.manifest.textExpansions.bundle);
+    dividerElem.inject(
+      this.settingsWithManifest.manifest.textExpansions.bundle
+    );
   }
 
   renderNode(key, val, shortcutIndex) {
@@ -130,13 +235,26 @@ class TextExpander {
     );
   }
 
+  setInputState(element, errMsgStr, isValid) {
+    const errMsgNode = document.getElementById(element.id + "ErrMsg");
+    errMsgNode.textContent = errMsgStr;
+    if (isValid) {
+      element.classList.remove("is-danger");
+      errMsgNode.classList.remove("is-active");
+      errMsgNode.classList.add("is-hidden");
+    } else {
+      element.classList.add("is-danger");
+      errMsgNode.classList.add("is-active");
+      errMsgNode.classList.remove("is-hidden");
+    }
+  }
+
   shortcutInputChange() {
     let isValid = true;
     [
       document.getElementById(this.addNewShortcutIDs[0]),
       document.getElementById(this.addNewShortcutIDs[1]),
     ].forEach((element, index) => {
-      const errMsgNode = document.getElementById(element.id + "ErrMsg");
       let errMsgStr = "";
       if (!element.checkValidity()) {
         isValid = false;
@@ -145,17 +263,7 @@ class TextExpander {
             ? "Please use only letters and numbers (two or less digits), no white space or special characters are allowed, between 1-32 characters."
             : "Shortcut text cannot be empty.";
       }
-
-      errMsgNode.textContent = errMsgStr;
-      if (isValid) {
-        element.classList.remove("is-danger");
-        errMsgNode.classList.remove("is-active");
-        errMsgNode.classList.add("is-hidden");
-      } else {
-        element.classList.add("is-danger");
-        errMsgNode.classList.add("is-active");
-        errMsgNode.classList.remove("is-hidden");
-      }
+      this.setInputState(element, errMsgStr, isValid);
     });
     return isValid;
   }
@@ -166,20 +274,25 @@ class TextExpander {
     this.render();
   }
 
-  addNewShortcut() {
+  addNewShortcut(render = true) {
     const shortcatElem = document.getElementById(this.addNewShortcutIDs[0]);
     const shortcatTextElem = document.getElementById(this.addNewShortcutIDs[1]);
     this.shortcutInputChange();
     if (this.shortcutInputChange()) {
       this.textExpansions.unshift([shortcatElem.value, shortcatTextElem.value]);
       this.saveTextExpansions();
-      this.render();
+      if (render) {
+        this.render();
+      }
+      return true;
     }
+    return false;
   }
 
   render() {
     this.clearRender();
 
+    this.renderImportExport();
     this.renderNode("Shortcut", "Shortcut text", null);
     this.textExpansions.forEach((element, index) => {
       this.renderNode(element[0], element[1], index);

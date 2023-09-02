@@ -1,11 +1,2 @@
-src/third_party/libpresage/libpresage.js
-src/third_party/libpresage/en.js
-src/third_party/libpresage/es.js
-src/third_party/libpresage/fr.js
-src/third_party/libpresage/hr.js
-src/third_party/libpresage/common.js
-src/third_party/libpresage/libpresage.wasm
-src/third_party/tribute/tribute.js
-src/third_party/swiper
-src/third_party/luxon/luxon.js
+src/third_party/
 scripts/
