@@ -54,7 +54,7 @@
     "storage",
     "activeTab"
   ],
-  "version": "2023.8.16",
+  "version": "2023.9.3",
   "manifest_version": 3,
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
