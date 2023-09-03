@@ -1,6 +1,6 @@
 import { FancierSettingsWithManifest } from "./js/classes/fancier-settings.js";
 import { Store } from "./lib/store.js";
-import { TextExpander } from "./textExpander.js";
+import { TextExpander } from "../../textExpander.js";
 
 function optionsPageConfigChange() {
   const message = {
