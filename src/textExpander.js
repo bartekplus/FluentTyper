@@ -4,6 +4,7 @@ import {
   getUniqueID,
 } from "./third_party/fancier-settings/js/classes/utils.js";
 import { parse } from "./third_party/csv-parse/sync.js";
+import { stringify } from "./third_party/csv-stringify/sync.js";
 
 class TextExpander {
   constructor(settings, callbackFn) {
@@ -45,7 +46,6 @@ class TextExpander {
     const fileInput = document.getElementById("csvFileInput");
     const fileNameSpanElem = document.getElementById("fileNameSpanElemId");
 
-    fileNameSpanElem.value = "ble";
     fileNameSpanElem.textContent = fileInput.files[0].name;
     const reader = new FileReader();
     reader.addEventListener(
@@ -82,10 +82,8 @@ class TextExpander {
   }
 
   getTextExpansionsAsCSVBlob() {
-    let csvData = "";
-    this.textExpansions.forEach((element) => {
-      csvData += element[0] + "," + '"' + element[1] + '"' + "\n";
-    });
+    const csvData = stringify(this.textExpansions);
+
     return new Blob([csvData], { type: "text/csv" });
   }
 
