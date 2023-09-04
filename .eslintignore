@@ -1,3 +1,2 @@
 src/third_party/**
-!src/third_party/fancier-settings/textExpander.js
 scripts/**
