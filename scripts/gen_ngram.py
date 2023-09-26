@@ -1,14 +1,14 @@
+#!/usr/bin/env python3
+
 import argparse
-
-
 import os
 from codecs import encode, decode
-from nltk import sent_tokenize, FreqDist
+from nltk import sent_tokenize
 from nltk.util import ngrams
 from nltk.tokenize import TweetTokenizer
 from collections import Counter
 import re
-
+import nltk
 
 NGRAM_COUNT = 4
 NGRAM_DIV = 1.33
@@ -72,6 +72,8 @@ def filter_tokens(tokens_raw):
 if __name__ == "__main__":
     args = parser.parse_args()
 
+    # download tokenizer data
+    nltk.download("punkt")
     tk = TweetTokenizer(match_phone_numbers=False)
     counter = 1
     ngram = [Counter() for i in range(NGRAM_COUNT)]
@@ -103,7 +105,6 @@ if __name__ == "__main__":
     last_ngram_count = 0
     filenames = []
     for c in range(NGRAM_COUNT):
-        # fdist = FreqDist(ngram[c - 1])
         f_name = f"{base_path}_ngram_{c+1}.txt"
         print(f"Generating {f_name}")
 

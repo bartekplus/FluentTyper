@@ -27,11 +27,11 @@
         <AUTOPERSIST>false</AUTOPERSIST>
     </ProfileManager>
     <Predictors>
-    <DefaultSmoothedNgramTriePredictor>
+        <DefaultSmoothedNgramTriePredictor>
             <PREDICTOR>SmoothedNgramTriePredictor</PREDICTOR>
             <LOGGER>ERROR</LOGGER>
             <DBFILENAME>/resources_js/hr/ngrams_db</DBFILENAME>
-            <DELTAS>0.125 0.25 0.5 0.75 0.875</DELTAS>
+            <DELTAS>0.125 0.25 0.5 0.75</DELTAS>
             <COUNT_THRESHOLD>0</COUNT_THRESHOLD>
             <DatabaseConnector>
                 <LOGGER>ERROR</LOGGER>
@@ -47,13 +47,13 @@
         <DefaultHunspellPredictor>
             <PREDICTOR>HunspellPredictor</PREDICTOR>
             <LOGGER>ERROR</LOGGER>
-            <DICTIONARYBASE>/resources_js/hr/hunspell/hr_HR</DICTIONARYBASE>
+            <DICTIONARYBASE>/resources_js/hr/hunspell/hr</DICTIONARYBASE>
             <PROBABILITY>0.00000001</PROBABILITY>
         </DefaultHunspellPredictor>
         <DefaultAspellPredictor>
             <PREDICTOR>AspellPredictor</PREDICTOR>
             <LOGGER>ERROR</LOGGER>
-            <LANG>hr_HR</LANG>
+            <LANG>hr</LANG>
             <MASTER>/resources_js/hr/aspell/hr.multi</MASTER>
             <PROBABILITY>0.00000001</PROBABILITY>
         </DefaultAspellPredictor>

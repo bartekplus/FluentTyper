@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<Presage>
+    <PredictorRegistry>
+        <LOGGER>ERROR</LOGGER>
+        <PREDICTORS>DefaultAbbreviationExpansionPredictor</PREDICTORS>
+    </PredictorRegistry>
+    <ContextTracker>
+        <LOGGER>ERROR</LOGGER>
+        <SLIDING_WINDOW_SIZE>0</SLIDING_WINDOW_SIZE>
+	<LOWERCASE_MODE>yes</LOWERCASE_MODE>
+	<ONLINE_LEARNING>no</ONLINE_LEARNING>
+    </ContextTracker>
+    <Selector>
+        <LOGGER>ERROR</LOGGER>
+        <SUGGESTIONS>6</SUGGESTIONS>
+        <REPEAT_SUGGESTIONS>no</REPEAT_SUGGESTIONS>
+        <GREEDY_SUGGESTION_THRESHOLD>0</GREEDY_SUGGESTION_THRESHOLD>
+    </Selector>
+    <PredictorActivator>
+        <LOGGER>ERROR</LOGGER>
+        <PREDICT_TIME>1000</PREDICT_TIME>
+        <MAX_PARTIAL_PREDICTION_SIZE>60</MAX_PARTIAL_PREDICTION_SIZE>
+        <COMBINATION_POLICY>Meritocracy</COMBINATION_POLICY>
+    </PredictorActivator>
+    <ProfileManager>
+        <LOGGER>ERROR</LOGGER>
+        <AUTOPERSIST>false</AUTOPERSIST>
+    </ProfileManager>
+    <Predictors>
+        <DefaultAbbreviationExpansionPredictor>
+            <PREDICTOR>AbbreviationExpansionPredictor</PREDICTOR>
+            <LOGGER>ERROR</LOGGER>
+            <ABBREVIATIONS>/resources_js/common/abbreviations.txt</ABBREVIATIONS>
+            <PREPEND_BACKSPACES>no</PREPEND_BACKSPACES>
+        </DefaultAbbreviationExpansionPredictor>
+    </Predictors>
+</Presage>

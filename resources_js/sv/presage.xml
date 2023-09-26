@@ -47,7 +47,7 @@
         <DefaultHunspellPredictor>
             <PREDICTOR>HunspellPredictor</PREDICTOR>
             <LOGGER>ERROR</LOGGER>
-            <DICTIONARYBASE>/resources_js/sv/hunspell/sv_SE</DICTIONARYBASE>
+            <DICTIONARYBASE>/resources_js/sv/hunspell/sv</DICTIONARYBASE>
             <PROBABILITY>0.00000001</PROBABILITY>
         </DefaultHunspellPredictor>
         <DefaultAspellPredictor>

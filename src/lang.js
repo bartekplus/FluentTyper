@@ -6,6 +6,8 @@ const SUPPORTED_LANGUAGES = {
   es: "Spanish",
   el: "Greek",
   sv: "Swedish",
+  de: "German",
+  pl: "Polish",
   textExpander: "Text Expander",
 };
 
@@ -22,6 +24,8 @@ const LANG_SEPERATOR_CHARS_REGEX = {
   es: DEFAULT_SEPERATOR_CHARS_REGEX,
   el: DEFAULT_SEPERATOR_CHARS_REGEX,
   sv: DEFAULT_SEPERATOR_CHARS_REGEX,
+  de: DEFAULT_SEPERATOR_CHARS_REGEX,
+  pl: DEFAULT_SEPERATOR_CHARS_REGEX,
   textExpander: DEFAULT_SEPERATOR_CHARS_REGEX,
 };
 const LANG_ADDITIONAL_SEPERATOR_REGEX = {
@@ -32,6 +36,8 @@ const LANG_ADDITIONAL_SEPERATOR_REGEX = {
   es: null,
   el: null,
   sv: null,
+  de: null,
+  pl: null,
   textExpander: null,
 };
 export {

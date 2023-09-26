@@ -47,14 +47,14 @@
         <DefaultHunspellPredictor>
             <PREDICTOR>HunspellPredictor</PREDICTOR>
             <LOGGER>ERROR</LOGGER>
-            <DICTIONARYBASE>/resources_js/fr/hunspell/fr_FR</DICTIONARYBASE>
+            <DICTIONARYBASE>/resources_js/fr/hunspell/fr</DICTIONARYBASE>
             <PROBABILITY>0.00000001</PROBABILITY>
         </DefaultHunspellPredictor>
         <DefaultAspellPredictor>
             <PREDICTOR>AspellPredictor</PREDICTOR>
             <LOGGER>ERROR</LOGGER>
             <LANG>fr_FR</LANG>
-            <MASTER>/resources_js/fr/aspell/fr.multi</MASTER>
+            <MASTER>/resources_js/fr/aspell/fr_FR.multi</MASTER>
             <PROBABILITY>0.00000001</PROBABILITY>
         </DefaultAspellPredictor>
         <DefaultAbbreviationExpansionPredictor>

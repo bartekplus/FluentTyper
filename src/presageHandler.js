@@ -84,6 +84,7 @@ class PresageHandler {
 
     // Initialize Presage and PresageCallback objects for each supported language
     for (const [lang] of Object.entries(SUPPORTED_LANGUAGES)) {
+      if (lang === "auto_detect") continue;
       try {
         // Initialize the lastPrediction object for the language
         this.lastPrediction[lang] = { pastStream: "", predictions: [] };
