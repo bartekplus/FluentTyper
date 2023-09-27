@@ -37,7 +37,7 @@ while getopts ":hl:v:" arg; do
 done
 
 
-trap 'trap - SIGTERM && jobs -p | xargs -r kill' SIGINT SIGTERM EXIT
+trap 'trap - SIGTERM && jobs -p | xargs -r kill' SIGINT SIGTERM
 
 waitforjobs() {
     while test $(jobs -p | wc -w) -ge "$1"; do wait -n; done

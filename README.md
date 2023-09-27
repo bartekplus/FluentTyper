@@ -35,6 +35,8 @@ Supported languages:
 - Croatian
 - Greek
 - Swedish
+- Polish
+- German
 
 ## Installation
 
