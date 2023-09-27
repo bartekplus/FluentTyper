@@ -111,8 +111,6 @@ if scount > 2**31:
     )
     sys.exit(-1)
 
-print()
-
 # save ngrams
 print("Saving in Marisa format")
 trie = marisa_trie.Trie(keyset)

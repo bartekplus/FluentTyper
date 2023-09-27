@@ -36,6 +36,7 @@ beforeEach(() => {
 
 describe("bugs", () => {
   describe.each(Object.keys(SUPPORTED_LANGUAGES))("Lang: %s", (lang) => {
+    if (lang === "auto_detect") return;
     test("#3 In French, it should consider a single quote as a word separator", () => {
       mod.PresageCallback.predictions = [""];
 
@@ -102,6 +103,7 @@ describe("bugs", () => {
 
 describe("features", () => {
   describe.each(Object.keys(SUPPORTED_LANGUAGES))("Lang: %s", (lang) => {
+    if (lang === "auto_detect") return;
     describe.each(["test", "testword"])("input: %s", (input) => {
       describe.each([true, false])(
         "input ends with space: %s",

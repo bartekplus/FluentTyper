@@ -1,13 +1,26 @@
 #!/usr/bin/env bash
 
-set -eu
+set -euo pipefail
 
+DEBUG=false
 CWD=$(pwd)
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 BUILD_DIR="${SCRIPT_DIR}/.deps"
-source "${SCRIPT_DIR}/langs.sh"
-export CXXFLAGS="-O2"
-export CFLAGS="-O2"
+export CXXFLAGS="-O3"
+export CFLAGS="-O3"
+
+while getopts ":hd" arg; do
+  case $arg in
+    d)
+      DEBUG=true
+      ;;
+    h | *) # Display help.
+      usage
+      exit 0
+      ;;
+  esac
+done
+
 
 mkdir -p "${BUILD_DIR}"
 # Build deps
@@ -90,26 +103,28 @@ chronic emmake make -j || true
 echo "PRESAGE built"
 
 BUILD_CMD=""
-for lang in "${LANGS[@]}"
+for dir_path in ${SCRIPT_DIR}/../resources_js/*/ ;
 do
-    python3 /opt/homebrew/Cellar/emscripten/3.1.44/libexec/tools/file_packager.py "${lang}".data --preload "${SCRIPT_DIR}"/../resources_js/"${lang}"@/resources_js/"${lang}" --js-output="${lang}".js
-    BUILD_CMD="${BUILD_CMD} --pre-js ${lang}.js"
-    cp "${lang}".data "${SCRIPT_DIR}"/../src/third_party/libpresage/
+    dir=$(basename $dir_path)
+    python3 /opt/homebrew/Cellar/emscripten/3.1.46/libexec/tools/file_packager.py "${dir}".data --preload "${SCRIPT_DIR}"/../resources_js/"${dir}"@/resources_js/"${dir}" --js-output="${dir}".js
+    BUILD_CMD="${BUILD_CMD} --pre-js ${dir}.js"
+    cp "${dir}".data "${SCRIPT_DIR}"/../src/third_party/libpresage/
 done
 
-python3 /opt/homebrew/Cellar/emscripten/3.1.44/libexec/tools/file_packager.py textExpander.data --preload "${SCRIPT_DIR}"/../resources_js/textExpander@/resources_js/textExpander --js-output=textExpander.js
-python3 /opt/homebrew/Cellar/emscripten/3.1.44/libexec/tools/file_packager.py common.data --preload "${SCRIPT_DIR}"/../resources_js/common@/resources_js/common --js-output=common.js
+if [ "$DEBUG" = true ] ; then
+    COMPILE_OPTIONS=" -O0 -sASSERTIONS -sNO_DISABLE_EXCEPTION_CATCHING "
+else
+    COMPILE_OPTIONS=" -O3 -s NO_EXIT_RUNTIME=1 "
+fi
 
-emcc "${BUILD_DIR_PRESAGE}"/src/lib/.libs/libpresage.so.1.1.1 -o libpresage.js -s ALLOW_MEMORY_GROWTH=1 -O2 \
-    ${LDFLAGS} \
+emcc "${BUILD_DIR_PRESAGE}"/src/lib/.libs/libpresage.so.1.1.1 -o libpresage.js -s ALLOW_MEMORY_GROWTH=1 \
+    ${LDFLAGS} ${COMPILE_OPTIONS} \
     -lhunspell -laspell -lmarisa \
-    -s "EXPORTED_RUNTIME_METHODS=['FS']" -s MODULARIZE=1 -s ENVIRONMENT=web -s TEXTDECODER=1 -s EXPORT_ES6=1 -s NO_EXIT_RUNTIME=1 \
+    -s "EXPORTED_RUNTIME_METHODS=['FS']" -s MODULARIZE=1 -s ENVIRONMENT=web -s TEXTDECODER=1 -s EXPORT_ES6=1  \
     --llvm-lto 1 -sFORCE_FILESYSTEM  -s NO_DYNAMIC_EXECUTION=1 \
-    ${BUILD_CMD} --pre-js common.js --pre-js textExpander.js \
+    ${BUILD_CMD} \
     -sSTACK_SIZE=5MB
 
 cp libpresage.* "${SCRIPT_DIR}"/../src/third_party/libpresage/
-
-
 
 cd "${CWD}"

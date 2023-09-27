@@ -1,0 +1,10 @@
+# German data file for Aspell 0.60.5
+
+name	de
+charset	iso8859-1
+#special . --*
+
+#soundslike	de
+soundslike	none
+affix		de
+affix-compress	true

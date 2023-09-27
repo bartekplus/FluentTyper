@@ -35,6 +35,8 @@ Usage:
 
   --obj-output=FILE create an object file from embedded files, for direct linking into a wasm binary.
 
+  --depfile=FILE Writes a dependency list containing the list of directories and files walked, compatible with Make, Ninja, CMake, etc.
+
   --wasm64 When used with `--obj-output` create a wasm64 object file
 
   --export-name=EXPORT_NAME Use custom export name (default is `Module`)
@@ -82,11 +84,11 @@ sys.path.insert(0, __rootdir__)
 from tools import shared, utils, js_manipulation
 
 
-DEBUG = os.environ.get('EMCC_DEBUG')
+DEBUG = os.environ.get("EMCC_DEBUG")
 
-IMAGE_SUFFIXES = ('.jpg', '.png', '.bmp')
-AUDIO_SUFFIXES = ('.ogg', '.wav', '.mp3')
-AUDIO_MIMETYPES = {'ogg': 'audio/ogg', 'wav': 'audio/wav', 'mp3': 'audio/mpeg'}
+IMAGE_SUFFIXES = (".jpg", ".png", ".bmp")
+AUDIO_SUFFIXES = (".ogg", ".wav", ".mp3")
+AUDIO_MIMETYPES = {"ogg": "audio/ogg", "wav": "audio/wav", "mp3": "audio/mpeg"}
 
 DDS_HEADER_SIZE = 128
 
@@ -96,186 +98,203 @@ AV_WORKAROUND = 0
 
 excluded_patterns: List[str] = []
 new_data_files = []
+walked = []
 
 
 class Options:
-  def __init__(self):
-    self.export_name = 'Module'
-    self.has_preloaded = False
-    self.has_embedded = False
-    self.jsoutput = None
-    self.obj_output = None
-    self.from_emcc = False
-    self.force = True
-    # If set to True, IndexedDB (IDBFS in library_idbfs.js) is used to locally
-    # cache VFS XHR so that subsequent page loads can read the data from the
-    # offline cache instead.
-    self.use_preload_cache = False
-    self.indexeddb_name = 'EM_PRELOAD_CACHE'
-    # If set to True, the package metadata is stored separately from js-output
-    # file which makes js-output file immutable to the package content changes.
-    # If set to False, the package metadata is stored inside the js-output file
-    # which makes js-output file to mutate on each invocation of this packager tool.
-    self.separate_metadata = False
-    self.lz4 = False
-    self.use_preload_plugins = False
-    self.support_node = True
-    self.wasm64 = False
+    def __init__(self):
+        self.export_name = "Module"
+        self.has_preloaded = False
+        self.has_embedded = False
+        self.jsoutput = None
+        self.obj_output = None
+        self.depfile = None
+        self.from_emcc = False
+        self.force = True
+        # If set to True, IndexedDB (IDBFS in library_idbfs.js) is used to locally
+        # cache VFS XHR so that subsequent page loads can read the data from the
+        # offline cache instead.
+        self.use_preload_cache = False
+        self.indexeddb_name = "EM_PRELOAD_CACHE"
+        # If set to True, the package metadata is stored separately from js-output
+        # file which makes js-output file immutable to the package content changes.
+        # If set to False, the package metadata is stored inside the js-output file
+        # which makes js-output file to mutate on each invocation of this packager tool.
+        self.separate_metadata = False
+        self.lz4 = False
+        self.use_preload_plugins = False
+        self.support_node = True
+        self.wasm64 = False
 
 
 class DataFile:
-  def __init__(self, srcpath, dstpath, mode, explicit_dst_path):
-    self.srcpath = srcpath
-    self.dstpath = dstpath
-    self.mode = mode
-    self.explicit_dst_path = explicit_dst_path
+    def __init__(self, srcpath, dstpath, mode, explicit_dst_path):
+        self.srcpath = srcpath
+        self.dstpath = dstpath
+        self.mode = mode
+        self.explicit_dst_path = explicit_dst_path
 
 
 options = Options()
 
 
 def err(*args):
-  print(*args, file=sys.stderr)
-
-
-def to_unix_path(p):
-  return p.replace(os.path.sep, '/')
+    print(*args, file=sys.stderr)
 
 
 def base64_encode(b):
-  b64 = base64.b64encode(b)
-  return b64.decode('ascii')
+    b64 = base64.b64encode(b)
+    return b64.decode("ascii")
 
 
 def has_hidden_attribute(filepath):
-  """Win32 code to test whether the given file has the hidden property set."""
+    """Win32 code to test whether the given file has the hidden property set."""
 
-  if sys.platform != 'win32':
-    return False
+    if sys.platform != "win32":
+        return False
 
-  try:
-    attrs = ctypes.windll.kernel32.GetFileAttributesW(
-        u'%s' % filepath)
-    assert attrs != -1
-    result = bool(attrs & 2)
-  except Exception:
-    result = False
-  return result
+    try:
+        attrs = ctypes.windll.kernel32.GetFileAttributesW("%s" % filepath)
+        assert attrs != -1
+        result = bool(attrs & 2)
+    except Exception:
+        result = False
+    return result
 
 
 def should_ignore(fullname):
-  """The packager should never preload/embed files if the file
-  is hidden (Win32) or it matches any pattern specified in --exclude"""
-  if has_hidden_attribute(fullname):
-    return True
+    """The packager should never preload/embed files if the file
+    is hidden (Win32) or it matches any pattern specified in --exclude"""
+    if has_hidden_attribute(fullname):
+        return True
 
-  for p in excluded_patterns:
-    if fnmatch.fnmatch(fullname, p):
-      return True
-  return False
+    for p in excluded_patterns:
+        if fnmatch.fnmatch(fullname, p):
+            return True
+    return False
 
 
 def add(mode, rootpathsrc, rootpathdst):
-  """Expand directories into individual files
+    """Expand directories into individual files
 
-  rootpathsrc: The path name of the root directory on the local FS we are
-               adding to emscripten virtual FS.
-  rootpathdst: The name we want to make the source path available on the
-               emscripten virtual FS.
-  """
-  for dirpath, dirnames, filenames in os.walk(rootpathsrc):
-    new_dirnames = []
-    for name in dirnames:
-      fullname = os.path.join(dirpath, name)
-      if not should_ignore(fullname):
-        new_dirnames.append(name)
-      elif DEBUG:
-        err('Skipping directory "%s" from inclusion in the emscripten '
-            'virtual file system.' % fullname)
-    for name in filenames:
-      fullname = os.path.join(dirpath, name)
-      if not should_ignore(fullname):
-        # Convert source filename relative to root directory of target FS.
-        dstpath = os.path.join(rootpathdst,
-                               os.path.relpath(fullname, rootpathsrc))
-        new_data_files.append(DataFile(srcpath=fullname, dstpath=dstpath,
-                                       mode=mode, explicit_dst_path=True))
-      elif DEBUG:
-        err('Skipping file "%s" from inclusion in the emscripten '
-            'virtual file system.' % fullname)
-    dirnames.clear()
-    dirnames.extend(new_dirnames)
+    rootpathsrc: The path name of the root directory on the local FS we are
+                 adding to emscripten virtual FS.
+    rootpathdst: The name we want to make the source path available on the
+                 emscripten virtual FS.
+    """
+    walked.append(rootpathsrc)
+    for dirpath, dirnames, filenames in os.walk(rootpathsrc):
+        new_dirnames = []
+        for name in dirnames:
+            fullname = os.path.join(dirpath, name)
+            if not should_ignore(fullname):
+                walked.append(fullname)
+                new_dirnames.append(name)
+            elif DEBUG:
+                err(
+                    'Skipping directory "%s" from inclusion in the emscripten '
+                    "virtual file system." % fullname
+                )
+        for name in filenames:
+            fullname = os.path.join(dirpath, name)
+            if not should_ignore(fullname):
+                walked.append(fullname)
+                # Convert source filename relative to root directory of target FS.
+                dstpath = os.path.join(
+                    rootpathdst, os.path.relpath(fullname, rootpathsrc)
+                )
+                new_data_files.append(
+                    DataFile(
+                        srcpath=fullname,
+                        dstpath=dstpath,
+                        mode=mode,
+                        explicit_dst_path=True,
+                    )
+                )
+            elif DEBUG:
+                err(
+                    'Skipping file "%s" from inclusion in the emscripten '
+                    "virtual file system." % fullname
+                )
+        dirnames.clear()
+        dirnames.extend(new_dirnames)
 
 
 def to_asm_string(string):
-  """Convert a python string to string suitable for including in an
-  assembly file using the `.asciz` directive.
+    """Convert a python string to string suitable for including in an
+    assembly file using the `.asciz` directive.
 
-  The result will be an UTF-8 encoded string in the data section.
-  """
-  # See MCAsmStreamer::PrintQuotedString in llvm/lib/MC/MCAsmStreamer.cpp
-  # And isPrint in llvm/include/llvm/ADT/StringExtras.h
+    The result will be an UTF-8 encoded string in the data section.
+    """
+    # See MCAsmStreamer::PrintQuotedString in llvm/lib/MC/MCAsmStreamer.cpp
+    # And isPrint in llvm/include/llvm/ADT/StringExtras.h
 
-  def is_print(c):
-    return c >= 0x20 and c <= 0x7E
+    def is_print(c):
+        return c >= 0x20 and c <= 0x7E
 
-  def escape(c):
-    if is_print(c):
-      return chr(c)
-    escape_chars = {
-      '\b': '\\b',
-      '\f': '\\f',
-      '\n': '\\n',
-      '\r': '\\r',
-      '\t': '\\t',
-    }
-    if c in escape_chars:
-      return escape_chars[c]
-    # Enscode all other chars are three octal digits(!)
-    return '\\%s%s%s' % (oct(c >> 6), oct(c >> 3), oct(c >> 0))
+    def escape(c):
+        if is_print(c):
+            return chr(c)
+        escape_chars = {
+            "\b": "\\b",
+            "\f": "\\f",
+            "\n": "\\n",
+            "\r": "\\r",
+            "\t": "\\t",
+        }
+        if c in escape_chars:
+            return escape_chars[c]
+        # Enscode all other chars are three octal digits(!)
+        return "\\%s%s%s" % (oct(c >> 6), oct(c >> 3), oct(c >> 0))
 
-  return ''.join(escape(c) for c in string.encode('utf-8'))
+    return "".join(escape(c) for c in string.encode("utf-8"))
 
 
 def to_c_symbol(filename, used):
-  """Convert a filename (python string) to a legal C symbols, avoiding collisions."""
-  def escape(c):
-     if c.isalnum():
-       return c
-     else:
-       return '_'
-  c_symbol = ''.join(escape(c) for c in filename)
-  # Handle collisions
-  if c_symbol in used:
-    counter = 2
-    while c_symbol + str(counter) in used:
-      counter = counter + 1
-    c_symbol = c_symbol + str(counter)
-  used.add(c_symbol)
-  return c_symbol
+    """Convert a filename (python string) to a legal C symbols, avoiding collisions."""
+
+    def escape(c):
+        if c.isalnum():
+            return c
+        else:
+            return "_"
+
+    c_symbol = "".join(escape(c) for c in filename)
+    # Handle collisions
+    if c_symbol in used:
+        counter = 2
+        while c_symbol + str(counter) in used:
+            counter = counter + 1
+        c_symbol = c_symbol + str(counter)
+    used.add(c_symbol)
+    return c_symbol
 
 
 def generate_object_file(data_files):
-  embed_files = [f for f in data_files if f.mode == 'embed']
-  assert embed_files
+    embed_files = [f for f in data_files if f.mode == "embed"]
+    assert embed_files
 
-  asm_file = shared.replace_suffix(options.obj_output, '.s')
+    asm_file = shared.replace_suffix(options.obj_output, ".s")
 
-  used = set()
-  for f in embed_files:
-    f.c_symbol_name = '__em_file_data_%s' % to_c_symbol(f.dstpath, used)
-
-  with open(asm_file, 'w') as out:
-    out.write('# Emscripten embedded file data, generated by tools/file_packager.py\n')
-
+    used = set()
     for f in embed_files:
-      if DEBUG:
-        err('embedding %s at %s' % (f.srcpath, f.dstpath))
+        f.c_symbol_name = "__em_file_data_%s" % to_c_symbol(f.dstpath, used)
 
-      size = os.path.getsize(f.srcpath)
-      dstpath = to_asm_string(f.dstpath)
-      srcpath = to_unix_path(f.srcpath)
-      out.write(dedent(f'''
+    with open(asm_file, "w") as out:
+        out.write(
+            "# Emscripten embedded file data, generated by tools/file_packager.py\n"
+        )
+
+        for f in embed_files:
+            if DEBUG:
+                err("embedding %s at %s" % (f.srcpath, f.dstpath))
+
+            size = os.path.getsize(f.srcpath)
+            dstpath = to_asm_string(f.dstpath)
+            srcpath = utils.normalize_path(f.srcpath)
+            out.write(
+                dedent(
+                    f"""
       .section .rodata.{f.c_symbol_name},"",@
 
       # The name of file
@@ -287,17 +306,21 @@ def generate_object_file(data_files):
       {f.c_symbol_name}:
       .incbin "{srcpath}"
       .size {f.c_symbol_name}, {size}
-      '''))
+      """
+                )
+            )
 
-    if options.wasm64:
-      align = 3
-      ptr_type = 'i64'
-      bits = 64
-    else:
-      align = 2
-      ptr_type = 'i32'
-      bits = 32
-    out.write(dedent(f'''
+        if options.wasm64:
+            align = 3
+            ptr_type = "i64"
+            bits = 64
+        else:
+            align = 2
+            ptr_type = "i32"
+            bits = 32
+        out.write(
+            dedent(
+                f"""
       .functype _emscripten_fs_load_embedded_files ({ptr_type}) -> ()
       .section .text,"",@
       init_file_data:
@@ -320,262 +343,322 @@ def generate_object_file(data_files):
       .section .rodata.__emscripten_embedded_file_data,"",@
       __emscripten_embedded_file_data:
       .p2align {align}
-      '''))
+      """
+            )
+        )
 
-    for f in embed_files:
-      # The `.dc.a` directive gives us a pointer (address) sized entry.
-      # See https://sourceware.org/binutils/docs/as/Dc.html
-      out.write(dedent(f'''\
+        for f in embed_files:
+            # The `.dc.a` directive gives us a pointer (address) sized entry.
+            # See https://sourceware.org/binutils/docs/as/Dc.html
+            out.write(
+                dedent(
+                    f"""\
         .p2align %s
         .dc.a {f.c_symbol_name}_name
         .p2align %s
         .int32 {os.path.getsize(f.srcpath)}
         .p2align %s
         .dc.a {f.c_symbol_name}
-        ''' % (align, align, align)))
+        """
+                    % (align, align, align)
+                )
+            )
 
-    ptr_size = 4
-    elem_size = (2 * ptr_size) + 4
-    total_size = len(embed_files) * elem_size + 4
-    out.write(dedent(f'''\
+        ptr_size = 4
+        elem_size = (2 * ptr_size) + 4
+        total_size = len(embed_files) * elem_size + 4
+        out.write(
+            dedent(
+                f"""\
       .dc.a 0
       .size __emscripten_embedded_file_data, {total_size}
-      '''))
-  if options.wasm64:
-    target = 'wasm64-unknown-emscripten'
-  else:
-    target = 'wasm32-unknown-emscripten'
-  shared.check_call([shared.EMCC,
-                     '-c',
-                     '--target=' + target,
-                     '-o', options.obj_output,
-                     asm_file])
+      """
+            )
+        )
+    if options.wasm64:
+        target = "wasm64-unknown-emscripten"
+    else:
+        target = "wasm32-unknown-emscripten"
+    shared.check_call(
+        [shared.EMCC, "-c", "--target=" + target, "-o", options.obj_output, asm_file]
+    )
 
 
 def main():
-  if len(sys.argv) == 1:
-    err('''Usage: file_packager TARGET [--preload A [B..]] [--embed C [D..]] [--exclude E [F..]]] [--js-output=OUTPUT.js] [--no-force] [--use-preload-cache] [--indexedDB-name=EM_PRELOAD_CACHE] [--separate-metadata] [--lz4] [--use-preload-plugins]
-  See the source for more details.''')
-    return 1
-
-  data_target = sys.argv[1]
-  data_files = []
-  plugins = []
-  leading = ''
-
-  for arg in sys.argv[2:]:
-    if arg == '--preload':
-      leading = 'preload'
-    elif arg == '--embed':
-      leading = 'embed'
-    elif arg == '--exclude':
-      leading = 'exclude'
-    elif arg == '--no-force':
-      options.force = False
-      leading = ''
-    elif arg == '--use-preload-cache':
-      options.use_preload_cache = True
-      leading = ''
-    elif arg.startswith('--indexedDB-name'):
-      options.indexeddb_name = arg.split('=', 1)[1] if '=' in arg else None
-      leading = ''
-    elif arg == '--no-heap-copy':
-      err('ignoring legacy flag --no-heap-copy (that is the only mode supported now)')
-      leading = ''
-    elif arg == '--separate-metadata':
-      options.separate_metadata = True
-      leading = ''
-    elif arg == '--lz4':
-      options.lz4 = True
-      leading = ''
-    elif arg == '--use-preload-plugins':
-      options.use_preload_plugins = True
-      leading = ''
-    elif arg == '--no-node':
-      options.support_node = False
-      leading = ''
-    elif arg.startswith('--js-output'):
-      options.jsoutput = arg.split('=', 1)[1] if '=' in arg else None
-      leading = ''
-    elif arg.startswith('--obj-output'):
-      options.obj_output = arg.split('=', 1)[1] if '=' in arg else None
-      leading = ''
-    elif arg == '--wasm64':
-      options.wasm64 = True
-    elif arg.startswith('--export-name'):
-      if '=' in arg:
-        options.export_name = arg.split('=', 1)[1]
-      leading = ''
-    elif arg.startswith('--from-emcc'):
-      options.from_emcc = True
-      leading = ''
-    elif arg.startswith('--plugin'):
-      plugin = utils.read_file(arg.split('=', 1)[1])
-      eval(plugin) # should append itself to plugins
-      leading = ''
-    elif leading == 'preload' or leading == 'embed':
-      mode = leading
-      # position of @ if we're doing 'src@dst'. '__' is used to keep the index
-      # same with the original if they escaped with '@@'.
-      at_position = arg.replace('@@', '__').find('@')
-      # '@@' in input string means there is an actual @ character, a single '@'
-      # means the 'src@dst' notation.
-      uses_at_notation = (at_position != -1)
-
-      if uses_at_notation:
-        srcpath = arg[0:at_position].replace('@@', '@') # split around the @
-        dstpath = arg[at_position + 1:].replace('@@', '@')
-      else:
-        # Use source path as destination path.
-        srcpath = dstpath = arg.replace('@@', '@')
-      if os.path.isfile(srcpath) or os.path.isdir(srcpath):
-        data_files.append(DataFile(srcpath=srcpath, dstpath=dstpath, mode=mode,
-                                   explicit_dst_path=uses_at_notation))
-      else:
-        err('error: ' + arg + ' does not exist')
+    if len(sys.argv) == 1:
+        err(
+            """Usage: file_packager TARGET [--preload A [B..]] [--embed C [D..]] [--exclude E [F..]]] [--js-output=OUTPUT.js] [--no-force] [--use-preload-cache] [--indexedDB-name=EM_PRELOAD_CACHE] [--separate-metadata] [--lz4] [--use-preload-plugins]
+  See the source for more details."""
+        )
         return 1
-    elif leading == 'exclude':
-      excluded_patterns.append(arg)
-    else:
-      err('Unknown parameter:', arg)
-      return 1
 
-  options.has_preloaded = any(f.mode == 'preload' for f in data_files)
-  options.has_embedded = any(f.mode == 'embed' for f in data_files)
+    data_target = sys.argv[1]
+    data_files = []
+    plugins = []
+    leading = ""
 
-  if options.separate_metadata:
-    if not options.has_preloaded or not options.jsoutput:
-      err('cannot separate-metadata without both --preloaded files '
-          'and a specified --js-output')
-      return 1
+    for arg in sys.argv[2:]:
+        if arg == "--preload":
+            leading = "preload"
+        elif arg == "--embed":
+            leading = "embed"
+        elif arg == "--exclude":
+            leading = "exclude"
+        elif arg == "--no-force":
+            options.force = False
+            leading = ""
+        elif arg == "--use-preload-cache":
+            options.use_preload_cache = True
+            leading = ""
+        elif arg.startswith("--indexedDB-name"):
+            options.indexeddb_name = arg.split("=", 1)[1] if "=" in arg else None
+            leading = ""
+        elif arg == "--no-heap-copy":
+            err(
+                "ignoring legacy flag --no-heap-copy (that is the only mode supported now)"
+            )
+            leading = ""
+        elif arg == "--separate-metadata":
+            options.separate_metadata = True
+            leading = ""
+        elif arg == "--lz4":
+            options.lz4 = True
+            leading = ""
+        elif arg == "--use-preload-plugins":
+            options.use_preload_plugins = True
+            leading = ""
+        elif arg == "--no-node":
+            options.support_node = False
+            leading = ""
+        elif arg.startswith("--js-output"):
+            options.jsoutput = arg.split("=", 1)[1] if "=" in arg else None
+            leading = ""
+        elif arg.startswith("--obj-output"):
+            options.obj_output = arg.split("=", 1)[1] if "=" in arg else None
+            leading = ""
+        elif arg.startswith("--depfile"):
+            options.depfile = arg.split("=", 1)[1] if "=" in arg else None
+            leading = ""
+        elif arg == "--wasm64":
+            options.wasm64 = True
+        elif arg.startswith("--export-name"):
+            if "=" in arg:
+                options.export_name = arg.split("=", 1)[1]
+            leading = ""
+        elif arg.startswith("--from-emcc"):
+            options.from_emcc = True
+            leading = ""
+        elif arg.startswith("--plugin"):
+            plugin = utils.read_file(arg.split("=", 1)[1])
+            eval(plugin)  # should append itself to plugins
+            leading = ""
+        elif leading == "preload" or leading == "embed":
+            mode = leading
+            # position of @ if we're doing 'src@dst'. '__' is used to keep the index
+            # same with the original if they escaped with '@@'.
+            at_position = arg.replace("@@", "__").find("@")
+            # '@@' in input string means there is an actual @ character, a single '@'
+            # means the 'src@dst' notation.
+            uses_at_notation = at_position != -1
 
-  if not options.from_emcc:
-    err('Remember to build the main file with `-sFORCE_FILESYSTEM` '
-        'so that it includes support for loading this file package')
+            if uses_at_notation:
+                srcpath = arg[0:at_position].replace("@@", "@")  # split around the @
+                dstpath = arg[at_position + 1 :].replace("@@", "@")
+            else:
+                # Use source path as destination path.
+                srcpath = dstpath = arg.replace("@@", "@")
+            if os.path.isfile(srcpath) or os.path.isdir(srcpath):
+                data_files.append(
+                    DataFile(
+                        srcpath=srcpath,
+                        dstpath=dstpath,
+                        mode=mode,
+                        explicit_dst_path=uses_at_notation,
+                    )
+                )
+            else:
+                err("error: " + arg + " does not exist")
+                return 1
+        elif leading == "exclude":
+            excluded_patterns.append(arg)
+        else:
+            err("Unknown parameter:", arg)
+            return 1
 
-  if options.jsoutput and os.path.abspath(options.jsoutput) == os.path.abspath(data_target):
-    err('error: TARGET should not be the same value of --js-output')
-    return 1
+    options.has_preloaded = any(f.mode == "preload" for f in data_files)
+    options.has_embedded = any(f.mode == "embed" for f in data_files)
 
-  for file_ in data_files:
-    if not should_ignore(file_.srcpath):
-      if os.path.isdir(file_.srcpath):
-        add(file_.mode, file_.srcpath, file_.dstpath)
-      else:
-        new_data_files.append(file_)
-  data_files = [file_ for file_ in new_data_files
-                if not os.path.isdir(file_.srcpath)]
-  if len(data_files) == 0:
-    err('Nothing to do!')
-    sys.exit(1)
+    if options.separate_metadata:
+        if not options.has_preloaded or not options.jsoutput:
+            err(
+                "cannot separate-metadata without both --preloaded files "
+                "and a specified --js-output"
+            )
+            return 1
 
-  # Absolutize paths, and check that they make sense
-  # os.getcwd() always returns the hard path with any symbolic links resolved,
-  # even if we cd'd into a symbolic link.
-  curr_abspath = os.path.abspath(os.getcwd())
+    if not options.from_emcc:
+        err(
+            "Remember to build the main file with `-sFORCE_FILESYSTEM` "
+            "so that it includes support for loading this file package"
+        )
 
-  for file_ in data_files:
-    if not file_.explicit_dst_path:
-      # This file was not defined with src@dst, so we inferred the destination
-      # from the source. In that case, we require that the destination be
-      # within the current working directory.
-      path = file_.dstpath
-      # Use os.path.realpath to resolve any symbolic links to hard paths,
-      # to match the structure in curr_abspath.
-      abspath = os.path.realpath(os.path.abspath(path))
-      if DEBUG:
-        err(path, abspath, curr_abspath)
-      if not abspath.startswith(curr_abspath):
-        err('Error: Embedding "%s" which is not contained within the current directory '
-            '"%s".  This is invalid since the current directory becomes the '
-            'root that the generated code will see.  To include files outside of the current '
-            'working directoty you can use the `--preload-file srcpath@dstpath` syntax to '
-            'explicitly specify the target location.' % (path, curr_abspath))
+    if options.jsoutput and os.path.abspath(options.jsoutput) == os.path.abspath(
+        data_target
+    ):
+        err("error: TARGET should not be the same value of --js-output")
+        return 1
+
+    walked.append(__file__)
+    for file_ in data_files:
+        if not should_ignore(file_.srcpath):
+            if os.path.isdir(file_.srcpath):
+                add(file_.mode, file_.srcpath, file_.dstpath)
+            else:
+                walked.append(file_.srcpath)
+                new_data_files.append(file_)
+    data_files = [file_ for file_ in new_data_files if not os.path.isdir(file_.srcpath)]
+    if len(data_files) == 0:
+        err("Nothing to do!")
         sys.exit(1)
-      file_.dstpath = abspath[len(curr_abspath) + 1:]
-      if os.path.isabs(path):
-        err('Warning: Embedding an absolute file/directory name "%s" to the '
-            'virtual filesystem. The file will be made available in the '
-            'relative path "%s". You can use the `--preload-file srcpath@dstpath` '
-            'syntax to explicitly specify the target location the absolute source '
-            'path should be directed to.' % (path, file_.dstpath))
 
-  for file_ in data_files:
-    # name in the filesystem, native and emulated
-    file_.dstpath = to_unix_path(file_.dstpath)
-    # If user has submitted a directory name as the destination but omitted
-    # the destination filename, use the filename from source file
-    if file_.dstpath.endswith('/'):
-      file_.dstpath = file_.dstpath + os.path.basename(file_.srcpath)
-    # make destination path always relative to the root
-    file_.dstpath = posixpath.normpath(os.path.join('/', file_.dstpath))
-    if DEBUG:
-      err('Packaging file "%s" to VFS in path "%s".' % (file_.srcpath,  file_.dstpath))
+    # Absolutize paths, and check that they make sense
+    # os.getcwd() always returns the hard path with any symbolic links resolved,
+    # even if we cd'd into a symbolic link.
+    curr_abspath = os.path.abspath(os.getcwd())
 
-  # Remove duplicates (can occur naively, for example preload dir/, preload dir/subdir/)
-  seen = set()
+    for file_ in data_files:
+        if not file_.explicit_dst_path:
+            # This file was not defined with src@dst, so we inferred the destination
+            # from the source. In that case, we require that the destination be
+            # within the current working directory.
+            path = file_.dstpath
+            # Use os.path.realpath to resolve any symbolic links to hard paths,
+            # to match the structure in curr_abspath.
+            abspath = os.path.realpath(os.path.abspath(path))
+            if DEBUG:
+                err(path, abspath, curr_abspath)
+            if not abspath.startswith(curr_abspath):
+                err(
+                    'Error: Embedding "%s" which is not contained within the current directory '
+                    '"%s".  This is invalid since the current directory becomes the '
+                    "root that the generated code will see.  To include files outside of the current "
+                    "working directoty you can use the `--preload-file srcpath@dstpath` syntax to "
+                    "explicitly specify the target location." % (path, curr_abspath)
+                )
+                sys.exit(1)
+            file_.dstpath = abspath[len(curr_abspath) + 1 :]
+            if os.path.isabs(path):
+                err(
+                    'Warning: Embedding an absolute file/directory name "%s" to the '
+                    "virtual filesystem. The file will be made available in the "
+                    'relative path "%s". You can use the `--preload-file srcpath@dstpath` '
+                    "syntax to explicitly specify the target location the absolute source "
+                    "path should be directed to." % (path, file_.dstpath)
+                )
 
-  def was_seen(name):
-    if name in seen:
-      return True
-    seen.add(name)
-    return False
+    for file_ in data_files:
+        # name in the filesystem, native and emulated
+        file_.dstpath = utils.normalize_path(file_.dstpath)
+        # If user has submitted a directory name as the destination but omitted
+        # the destination filename, use the filename from source file
+        if file_.dstpath.endswith("/"):
+            file_.dstpath = file_.dstpath + os.path.basename(file_.srcpath)
+        # make destination path always relative to the root
+        file_.dstpath = posixpath.normpath(os.path.join("/", file_.dstpath))
+        if DEBUG:
+            err(
+                'Packaging file "%s" to VFS in path "%s".'
+                % (file_.srcpath, file_.dstpath)
+            )
 
-  # The files are sorted by the dstpath to make the order of files reproducible
-  # across file systems / operating systems (os.walk does not produce the same
-  # file order on different file systems / operating systems)
-  data_files = sorted(data_files, key=lambda file_: file_.dstpath)
-  data_files = [file_ for file_ in data_files if not was_seen(file_.dstpath)]
+    # Remove duplicates (can occur naively, for example preload dir/, preload dir/subdir/)
+    seen = set()
 
-  if AV_WORKAROUND:
-    random.shuffle(data_files)
+    def was_seen(name):
+        if name in seen:
+            return True
+        seen.add(name)
+        return False
 
-  # Apply plugins
-  for file_ in data_files:
-    for plugin in plugins:
-      plugin(file_)
+    # The files are sorted by the dstpath to make the order of files reproducible
+    # across file systems / operating systems (os.walk does not produce the same
+    # file order on different file systems / operating systems)
+    data_files = sorted(data_files, key=lambda file_: file_.dstpath)
+    data_files = [file_ for file_ in data_files if not was_seen(file_.dstpath)]
 
-  metadata = {'files': []}
+    if AV_WORKAROUND:
+        random.shuffle(data_files)
 
-  if options.obj_output:
-    if not options.has_embedded:
-      err('--obj-output is only applicable when embedding files')
-      return 1
-    generate_object_file(data_files)
-    if not options.has_preloaded:
-      return 0
+    # Apply plugins
+    for file_ in data_files:
+        for plugin in plugins:
+            plugin(file_)
 
-  ret = generate_js(data_target, data_files, metadata)
+    metadata = {"files": []}
 
-  if options.force or len(data_files):
-    if options.jsoutput is None:
-      print(ret)
-    else:
-      # Overwrite the old jsoutput file (if exists) only when its content
-      # differs from the current generated one, otherwise leave the file
-      # untouched preserving its old timestamp
-      if os.path.isfile(options.jsoutput):
-        old = utils.read_file(options.jsoutput)
-        if old != ret:
-          utils.write_file(options.jsoutput, ret)
-      else:
-        utils.write_file(options.jsoutput, ret)
-      if options.separate_metadata:
-        utils.write_file(options.jsoutput + '.metadata', json.dumps(metadata, separators=(',', ':')))
+    if options.obj_output:
+        if not options.has_embedded:
+            err("--obj-output is only applicable when embedding files")
+            return 1
+        generate_object_file(data_files)
+        if not options.has_preloaded:
+            return 0
 
-  return 0
+    ret = generate_js(data_target, data_files, metadata)
+
+    if options.force or len(data_files):
+        if options.jsoutput is None:
+            print(ret)
+        else:
+            # Overwrite the old jsoutput file (if exists) only when its content
+            # differs from the current generated one, otherwise leave the file
+            # untouched preserving its old timestamp
+            if os.path.isfile(options.jsoutput):
+                old = utils.read_file(options.jsoutput)
+                if old != ret:
+                    utils.write_file(options.jsoutput, ret)
+            else:
+                utils.write_file(options.jsoutput, ret)
+            if options.separate_metadata:
+                utils.write_file(
+                    options.jsoutput + ".metadata",
+                    json.dumps(metadata, separators=(",", ":")),
+                )
+
+    if options.depfile:
+        with open(options.depfile, "w") as f:
+            for target in [data_target, options.jsoutput]:
+                if target:
+                    f.write(escape_for_makefile(target))
+                    f.write(" \\\n")
+            f.write(": \\\n")
+            for dependency in walked:
+                f.write(escape_for_makefile(dependency))
+                f.write(" \\\n")
+
+    return 0
+
+
+def escape_for_makefile(fpath):
+    # Escapes for CMake's "pathname" grammar as described here:
+    #   https://cmake.org/cmake/help/latest/command/add_custom_command.html#grammar-token-depfile-pathname
+    # Which is congruent with how Ninja and GNU Make expect characters escaped.
+    fpath = utils.normalize_path(fpath)
+    return fpath.replace("$", "$$").replace("#", "\\#").replace(" ", "\\ ")
 
 
 def generate_js(data_target, data_files, metadata):
-  # emcc will add this to the output itself, so it is only needed for
-  # standalone calls
-  if options.from_emcc:
-    ret = ''
-  else:
-    ret = '''
-  var Module = typeof %(EXPORT_NAME)s !== 'undefined' ? %(EXPORT_NAME)s : {};\n''' % {"EXPORT_NAME": options.export_name}
+    # emcc will add this to the output itself, so it is only needed for
+    # standalone calls
+    if options.from_emcc:
+        ret = ""
+    else:
+        ret = """
+  var Module = typeof %(EXPORT_NAME)s !== 'undefined' ? %(EXPORT_NAME)s : {};\n""" % {
+            "EXPORT_NAME": options.export_name
+        }
 
-  ret += '''
+    ret += """
   if (!Module.expectedDataFileDownloads) {
     Module.expectedDataFileDownloads = 0;
   }
@@ -584,61 +667,65 @@ def generate_js(data_target, data_files, metadata):
   (function() {
     // Do not attempt to redownload the virtual filesystem data when in a pthread or a Wasm Worker context.
     if (Module['ENVIRONMENT_IS_PTHREAD'] || Module['$ww']) return;
-    var loadPackage = function(metadata) {\n'''
+    var loadPackage = function(metadata) {\n"""
 
-  code = '''
+    code = """
       function assert(check, msg) {
         if (!check) throw msg + new Error().stack;
-      }\n'''
+      }\n"""
 
-  # Set up folders
-  partial_dirs = []
-  for file_ in data_files:
-    dirname = os.path.dirname(file_.dstpath)
-    dirname = dirname.lstrip('/') # absolute paths start with '/', remove that
-    if dirname != '':
-      parts = dirname.split('/')
-      for i in range(len(parts)):
-        partial = '/'.join(parts[:i + 1])
-        if partial not in partial_dirs:
-          code += ('''Module['FS_createPath'](%s, %s, true, true);\n'''
-                   % (json.dumps('/' + '/'.join(parts[:i])), json.dumps(parts[i])))
-          partial_dirs.append(partial)
+    # Set up folders
+    partial_dirs = []
+    for file_ in data_files:
+        dirname = os.path.dirname(file_.dstpath)
+        dirname = dirname.lstrip("/")  # absolute paths start with '/', remove that
+        if dirname != "":
+            parts = dirname.split("/")
+            for i in range(len(parts)):
+                partial = "/".join(parts[: i + 1])
+                if partial not in partial_dirs:
+                    code += """Module['FS_createPath'](%s, %s, true, true);\n""" % (
+                        json.dumps("/" + "/".join(parts[:i])),
+                        json.dumps(parts[i]),
+                    )
+                    partial_dirs.append(partial)
 
-  if options.has_preloaded:
-    # Bundle all datafiles into one archive. Avoids doing lots of simultaneous
-    # XHRs which has overhead.
-    start = 0
-    with open(data_target, 'wb') as data:
-      for file_ in data_files:
-        file_.data_start = start
-        curr = utils.read_binary(file_.srcpath)
-        file_.data_end = start + len(curr)
-        if AV_WORKAROUND:
-            curr += '\x00'
-        start += len(curr)
-        data.write(curr)
+    if options.has_preloaded:
+        # Bundle all datafiles into one archive. Avoids doing lots of simultaneous
+        # XHRs which has overhead.
+        start = 0
+        with open(data_target, "wb") as data:
+            for file_ in data_files:
+                file_.data_start = start
+                curr = utils.read_binary(file_.srcpath)
+                file_.data_end = start + len(curr)
+                if AV_WORKAROUND:
+                    curr += "\x00"
+                start += len(curr)
+                data.write(curr)
 
-    if start > 256 * 1024 * 1024:
-      err('warning: file packager is creating an asset bundle of %d MB. '
-          'this is very large, and browsers might have trouble loading it. '
-          'see https://hacks.mozilla.org/2015/02/synchronous-execution-and-filesystem-access-in-emscripten/'
-          % (start / (1024 * 1024)))
+        if start > 256 * 1024 * 1024:
+            err(
+                "warning: file packager is creating an asset bundle of %d MB. "
+                "this is very large, and browsers might have trouble loading it. "
+                "see https://hacks.mozilla.org/2015/02/synchronous-execution-and-filesystem-access-in-emscripten/"
+                % (start / (1024 * 1024))
+            )
 
-    create_preloaded = '''
+        create_preloaded = """
           Module['FS_createPreloadedFile'](this.name, null, byteArray, true, true, function() {
             Module['removeRunDependency'](`fp ${that.name}`);
           }, function() {
             err(`Preloading file ${that.name} failed`);
-          }, false, true); // canOwn this data in the filesystem, it is a slide into the heap that will never change\n'''
-    create_data = '''// canOwn this data in the filesystem, it is a slide into the heap that will never change
+          }, false, true); // canOwn this data in the filesystem, it is a slide into the heap that will never change\n"""
+        create_data = """// canOwn this data in the filesystem, it is a slide into the heap that will never change
           Module['FS_createDataFile'](this.name, null, byteArray, true, true, true);
-          Module['removeRunDependency'](`fp ${that.name}`);'''
+          Module['removeRunDependency'](`fp ${that.name}`);"""
 
-    if not options.lz4:
-      # Data requests - for getting a block of data out of the big archive - have
-      # a similar API to XHRs
-      code += '''
+        if not options.lz4:
+            # Data requests - for getting a block of data out of the big archive - have
+            # a similar API to XHRs
+            code += """
       /** @constructor */
       function DataRequest(start, end, audio) {
         this.start = start;
@@ -667,67 +754,81 @@ def generate_js(data_target, data_files, metadata):
       var files = metadata['files'];
       for (var i = 0; i < files.length; ++i) {
         new DataRequest(files[i]['start'], files[i]['end'], files[i]['audio'] || 0).open('GET', files[i]['filename']);
-      }\n''' % (create_preloaded if options.use_preload_plugins else create_data)
+      }\n""" % (
+                create_preloaded if options.use_preload_plugins else create_data
+            )
 
-  if options.has_embedded and not options.obj_output:
-    err('--obj-output is recommended when using --embed.  This outputs an object file for linking directly into your application is more effecient than JS encoding')
+    if options.has_embedded and not options.obj_output:
+        err(
+            "--obj-output is recommended when using --embed.  This outputs an object file for linking directly into your application is more effecient than JS encoding"
+        )
 
-  for counter, file_ in enumerate(data_files):
-    filename = file_.dstpath
-    dirname = os.path.dirname(filename)
-    basename = os.path.basename(filename)
-    if file_.mode == 'embed':
-      if not options.obj_output:
-        # Embed (only needed when not generating object file output)
-        data = base64_encode(utils.read_binary(file_.srcpath))
-        code += "      var fileData%d = '%s';\n" % (counter, data)
-        # canOwn this data in the filesystem (i.e. there is no need to create a copy in the FS layer).
-        code += ("      Module['FS_createDataFile']('%s', '%s', atob(fileData%d), true, true, true);\n"
-                 % (dirname, basename, counter))
-    elif file_.mode == 'preload':
-      # Preload
-      metadata_el = {
-        'filename': file_.dstpath,
-        'start': file_.data_start,
-        'end': file_.data_end,
-      }
-      if filename[-4:] in AUDIO_SUFFIXES:
-        metadata_el['audio'] = 1
+    for counter, file_ in enumerate(data_files):
+        filename = file_.dstpath
+        dirname = os.path.dirname(filename)
+        basename = os.path.basename(filename)
+        if file_.mode == "embed":
+            if not options.obj_output:
+                # Embed (only needed when not generating object file output)
+                data = base64_encode(utils.read_binary(file_.srcpath))
+                code += "      var fileData%d = '%s';\n" % (counter, data)
+                # canOwn this data in the filesystem (i.e. there is no need to create a copy in the FS layer).
+                code += (
+                    "      Module['FS_createDataFile']('%s', '%s', atob(fileData%d), true, true, true);\n"
+                    % (dirname, basename, counter)
+                )
+        elif file_.mode == "preload":
+            # Preload
+            metadata_el = {
+                "filename": file_.dstpath,
+                "start": file_.data_start,
+                "end": file_.data_end,
+            }
+            if filename[-4:] in AUDIO_SUFFIXES:
+                metadata_el["audio"] = 1
 
-      metadata['files'].append(metadata_el)
-    else:
-      assert 0
+            metadata["files"].append(metadata_el)
+        else:
+            assert 0
 
-  if options.has_preloaded:
-    if not options.lz4:
-      # Get the big archive and split it up
-      use_data = '''// Reuse the bytearray from the XHR as the source for file reads.
+    if options.has_preloaded:
+        if not options.lz4:
+            # Get the big archive and split it up
+            use_data = """// Reuse the bytearray from the XHR as the source for file reads.
           DataRequest.prototype.byteArray = byteArray;
           var files = metadata['files'];
           for (var i = 0; i < files.length; ++i) {
             DataRequest.prototype.requests[files[i].filename].onload();
-          }'''
-      use_data += ("          Module['removeRunDependency']('datafile_%s');\n"
-                   % js_manipulation.escape_for_js_string(data_target))
+          }"""
+            use_data += (
+                "          Module['removeRunDependency']('datafile_%s');\n"
+                % js_manipulation.escape_for_js_string(data_target)
+            )
 
-    else:
-      # LZ4FS usage
-      temp = data_target + '.orig'
-      shutil.move(data_target, temp)
-      meta = shared.run_js_tool(utils.path_from_root('tools/lz4-compress.js'),
-                                [utils.path_from_root('third_party/mini-lz4.js'),
-                                temp, data_target], stdout=PIPE)
-      os.unlink(temp)
-      use_data = '''var compressedData = %s;
+        else:
+            # LZ4FS usage
+            temp = data_target + ".orig"
+            shutil.move(data_target, temp)
+            meta = shared.run_js_tool(
+                utils.path_from_root("tools/lz4-compress.js"),
+                [utils.path_from_root("third_party/mini-lz4.js"), temp, data_target],
+                stdout=PIPE,
+            )
+            os.unlink(temp)
+            use_data = """var compressedData = %s;
             compressedData['data'] = byteArray;
             assert(typeof Module['LZ4'] === 'object', 'LZ4 not present - was your app build with -sLZ4?');
             Module['LZ4'].loadPackage({ 'metadata': metadata, 'compressedData': compressedData }, %s);
-            Module['removeRunDependency']('datafile_%s');''' % (meta, "true" if options.use_preload_plugins else "false", js_manipulation.escape_for_js_string(data_target))
+            Module['removeRunDependency']('datafile_%s');""" % (
+                meta,
+                "true" if options.use_preload_plugins else "false",
+                js_manipulation.escape_for_js_string(data_target),
+            )
 
-    package_name = data_target
-    remote_package_size = os.path.getsize(package_name)
-    remote_package_name = os.path.basename(package_name)
-    ret += '''
+        package_name = data_target
+        remote_package_size = os.path.getsize(package_name)
+        remote_package_name = os.path.basename(package_name)
+        ret += """
       var PACKAGE_PATH = '';
       if (typeof window === 'object') {
         PACKAGE_PATH = window['encodeURIComponent'](window.location.pathname.toString().substring(0, window.location.pathname.toString().lastIndexOf('/')) + '/');
@@ -741,18 +842,22 @@ def generate_js(data_target, data_files, metadata):
         Module['locateFile'] = Module['locateFilePackage'];
         err('warning: you defined Module.locateFilePackage, that has been renamed to Module.locateFile (using your locateFilePackage for now)');
       }
-      var REMOTE_PACKAGE_NAME = Module['locateFile'] ? Module['locateFile'](REMOTE_PACKAGE_BASE, '') : REMOTE_PACKAGE_BASE;\n''' % (js_manipulation.escape_for_js_string(data_target), js_manipulation.escape_for_js_string(remote_package_name))
-    metadata['remote_package_size'] = remote_package_size
-    ret += '''var REMOTE_PACKAGE_SIZE = metadata['remote_package_size'];\n'''
+      var REMOTE_PACKAGE_NAME = Module['locateFile'] ? Module['locateFile'](REMOTE_PACKAGE_BASE, '') : REMOTE_PACKAGE_BASE;\n""" % (
+            js_manipulation.escape_for_js_string(data_target),
+            js_manipulation.escape_for_js_string(remote_package_name),
+        )
+        metadata["remote_package_size"] = remote_package_size
+        ret += """var REMOTE_PACKAGE_SIZE = metadata['remote_package_size'];\n"""
 
-    if options.use_preload_cache:
-      # Set the id to a hash of the preloaded data, so that caches survive over multiple builds
-      # if the data has not changed.
-      data = utils.read_binary(data_target)
-      package_uuid = 'sha256-' + hashlib.sha256(data).hexdigest()
-      metadata['package_uuid'] = str(package_uuid)
+        if options.use_preload_cache:
+            # Set the id to a hash of the preloaded data, so that caches survive over multiple builds
+            # if the data has not changed.
+            data = utils.read_binary(data_target)
+            package_uuid = "sha256-" + hashlib.sha256(data).hexdigest()
+            metadata["package_uuid"] = str(package_uuid)
 
-      code += r'''
+            code += (
+                r'''
         var PACKAGE_UUID = metadata['package_uuid'];
         var indexedDB;
         if (typeof window === 'object') {
@@ -765,7 +870,9 @@ def generate_js(data_target, data_files, metadata):
         }
         var IDB_RO = "readonly";
         var IDB_RW = "readwrite";
-        var DB_NAME = "''' + options.indexeddb_name + '''";
+        var DB_NAME = "'''
+                + options.indexeddb_name
+                + """";
         var DB_VERSION = 1;
         var METADATA_STORE_NAME = 'METADATA';
         var PACKAGE_STORE_NAME = 'PACKAGES';
@@ -913,12 +1020,13 @@ def generate_js(data_target, data_files, metadata):
               errback(error);
             };
           }
-        }\n'''
+        }\n"""
+            )
 
-    # add Node.js support code, if necessary
-    node_support_code = ''
-    if options.support_node:
-      node_support_code = '''
+        # add Node.js support code, if necessary
+        node_support_code = ""
+        if options.support_node:
+            node_support_code = """
         if (typeof process === 'object' && typeof process.versions === 'object' && typeof process.versions.node === 'string') {
           require('fs').readFile(packageName, function(err, contents) {
             if (err) {
@@ -928,8 +1036,8 @@ def generate_js(data_target, data_files, metadata):
             }
           });
           return;
-        }'''.strip()
-    ret += '''
+        }""".strip()
+        ret += """
       function fetchRemotePackage(packageName, packageSize, callback, errback) {
         %(node_support_code)s
         packageName = chrome.runtime.getURL("third_party/libpresage/" + packageName);
@@ -990,9 +1098,11 @@ def generate_js(data_target, data_files, metadata):
 
       function handleError(error) {
         console.error('package error:', error);
-      };\n''' % {'node_support_code': node_support_code}
+      };\n""" % {
+            "node_support_code": node_support_code
+        }
 
-    code += '''
+        code += """
       function processPackageData(arrayBuffer) {
         assert(arrayBuffer, 'Loading data file failed.');
         assert(arrayBuffer.constructor.name === ArrayBuffer.name, 'bad input to processPackageData');
@@ -1000,15 +1110,18 @@ def generate_js(data_target, data_files, metadata):
         var curr;
         %s
       };
-      Module['addRunDependency']('datafile_%s');\n''' % (use_data, js_manipulation.escape_for_js_string(data_target))
-    # use basename because from the browser's point of view,
-    # we need to find the datafile in the same dir as the html file
+      Module['addRunDependency']('datafile_%s');\n""" % (
+            use_data,
+            js_manipulation.escape_for_js_string(data_target),
+        )
+        # use basename because from the browser's point of view,
+        # we need to find the datafile in the same dir as the html file
 
-    code += '''
-      if (!Module.preloadResults) Module.preloadResults = {};\n'''
+        code += """
+      if (!Module.preloadResults) Module.preloadResults = {};\n"""
 
-    if options.use_preload_cache:
-      code += '''
+        if options.use_preload_cache:
+            code += """
         function preloadFallback(error) {
           console.error(error);
           console.error('falling back to default preload behavior');
@@ -1038,13 +1151,13 @@ def generate_js(data_target, data_files, metadata):
           }
         , preloadFallback);
 
-        if (Module['setStatus']) Module['setStatus']('Downloading...');\n'''
-    else:
-      # Not using preload cache, so we might as well start the xhr ASAP,
-      # potentially before JS parsing of the main codebase if it's after us.
-      # Only tricky bit is the fetch is async, but also when runWithFS is called
-      # is async, so we handle both orderings.
-      ret += '''
+        if (Module['setStatus']) Module['setStatus']('Downloading...');\n"""
+        else:
+            # Not using preload cache, so we might as well start the xhr ASAP,
+            # potentially before JS parsing of the main codebase if it's after us.
+            # Only tricky bit is the fetch is async, but also when runWithFS is called
+            # is async, so we handle both orderings.
+            ret += """
       var fetchedCallback = null;
       var fetched = Module['getPreloadedPackage'] ? Module['getPreloadedPackage'](REMOTE_PACKAGE_NAME, REMOTE_PACKAGE_SIZE) : null;
 
@@ -1055,31 +1168,31 @@ def generate_js(data_target, data_files, metadata):
         } else {
           fetched = data;
         }
-      }, handleError);\n'''
+      }, handleError);\n"""
 
-      code += '''
+            code += """
       Module.preloadResults[PACKAGE_NAME] = {fromCache: false};
       if (fetched) {
         processPackageData(fetched);
         fetched = null;
       } else {
         fetchedCallback = processPackageData;
-      }\n'''
+      }\n"""
 
-  ret += '''
-    function runWithFS() {\n'''
-  ret += code
-  ret += '''
+    ret += """
+    function runWithFS() {\n"""
+    ret += code
+    ret += """
     }
     if (Module['calledRun']) {
       runWithFS();
     } else {
       if (!Module['preRun']) Module['preRun'] = [];
       Module["preRun"].push(runWithFS); // FS is not initialized yet, wait for it
-    }\n'''
+    }\n"""
 
-  if options.separate_metadata:
-      _metadata_template = '''
+    if options.separate_metadata:
+        _metadata_template = """
     Module['removeRunDependency']('%(metadata_file)s');
   }
 
@@ -1110,18 +1223,25 @@ def generate_js(data_target, data_files, metadata):
   } else {
     if (!Module['preRun']) Module['preRun'] = [];
     Module["preRun"].push(runMetaWithFS);
-  }\n''' % {'metadata_file': os.path.basename(options.jsoutput + '.metadata')}
+  }\n""" % {
+            "metadata_file": os.path.basename(options.jsoutput + ".metadata")
+        }
 
-  else:
-      _metadata_template = '''
+    else:
+        _metadata_template = """
     }
-    loadPackage(%s);\n''' % json.dumps(metadata)
+    loadPackage(%s);\n""" % json.dumps(
+            metadata
+        )
 
-  ret += '''%s
-  })();\n''' % _metadata_template
+    ret += (
+        """%s
+  })();\n"""
+        % _metadata_template
+    )
 
-  return ret
+    return ret
 
 
-if __name__ == '__main__':
-  sys.exit(main())
+if __name__ == "__main__":
+    sys.exit(main())
