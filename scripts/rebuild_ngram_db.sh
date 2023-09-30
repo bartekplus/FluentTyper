@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-MAX_FILES=25
+MAX_FILES=30
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 OSCAR_CORUPS_VERSION="OSCAR-2301"
 LANGUAGE_DETECTION_PROB="0.925"
@@ -36,6 +36,22 @@ while getopts ":hl:v:" arg; do
   esac
 done
 
+# Check if the 'nproc' command is available (Linux)
+if command -v nproc >/dev/null 2>&1; then
+  num_cpus=$(nproc)
+# Check if the 'sysctl' command is available (macOS)
+elif command -v sysctl >/dev/null 2>&1; then
+  num_cpus=$(sysctl -n hw.ncpu)
+else
+  echo "Unable to determine the number of CPUs."
+  exit 1
+fi
+# Num CPUs minus 1
+if [ "$num_cpus" -gt 1 ]; then
+  num_cpus=$((num_cpus - 1))
+else
+  num_cpus=1
+fi
 
 trap 'trap - SIGTERM && jobs -p | xargs -r kill' SIGINT SIGTERM
 
@@ -57,7 +73,7 @@ download_and_extract() {
         unzstd "${FILE_PATH}.zst"
     fi
 
-    waitforjobs 8
+    waitforjobs ${num_cpus}
 
     # Filter content
     echo "Extracting data from ${FILE_PATH}"
@@ -83,6 +99,8 @@ fi
 cd ${OSCAR_CORUPS_VERSION}
 WORK_DIR="${SCRIPT_DIR}/tmp"
 mkdir -p "${WORK_DIR}"
+trap 'rm -rf ${WORK_DIR}' SIGINT SIGTERM EXIT
+
 git lfs install
 
 FILE_COUNT=$(ls "${LANG}"_meta/"${LANG}"_meta_part_*.zst |wc -l)
