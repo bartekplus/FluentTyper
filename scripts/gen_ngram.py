@@ -46,27 +46,37 @@ def fix_common_errors(line):
 
 
 def filter_tokens(tokens_raw):
+    tokens_array = []
     tokens = []
     for token in tokens_raw:
         SKIPPED_CHARS = '!"#$%&()*+,./:;<=>?@[\\]^_`{|}~'
-
+        split = False
+        token_orig = token.strip()
         token = token.strip().lower()
 
         if not token:
-            continue
+            split = True
         elif not token.isprintable():
-            continue
+            split = True
         elif len(token) == 1 and not token.isalpha():
-            continue
+            split = True
         elif token.isdigit():
-            continue
+            split = True
         if any([x in token for x in SKIPPED_CHARS]):
-            continue
+            split = True
         elif not token[0].isalpha():
-            continue
+            split = True
+        elif len(token) > 1 and token_orig == token_orig.upper():
+            split = True
 
-        tokens.append(token)
-    return tokens
+        if split:
+            tokens_array.append(tokens)
+            tokens = []
+        else:
+            tokens.append(token)
+
+    tokens_array.append(tokens)
+    return tokens_array
 
 
 if __name__ == "__main__":
@@ -88,14 +98,12 @@ if __name__ == "__main__":
         for sentence in sent_tokenize(line, language=LANGS[args.language]):
             sentence = fix_common_errors(sentence)
             tokens_raw = tk.tokenize(sentence)
-            tokens_raw = filter_tokens(tokens_raw)
+            tokens_array = filter_tokens(tokens_raw)
 
-            for c in range(NGRAM_COUNT):
-                tokens = tokens_raw
-                if c + 1 == 0:
-                    tokens = [t for t in tokens_raw if len(t) > 1]
-                n = ngrams(tokens_raw, c + 1)
-                ngram[c].update(n)
+            for tokens in tokens_array:
+                for c in range(NGRAM_COUNT):
+                    n = ngrams(tokens, c + 1)
+                    ngram[c].update(n)
 
         if counter % 100000 == 0:
             print(f"Processed {counter} lines")
