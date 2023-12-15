@@ -155,6 +155,10 @@ describe("features", () => {
       [" xyz. xyz", false, "out"],
       [" xyz. ", true, "Out"],
       [" xyz. ", false, "out"],
+      ['"Xyz', false, "Out"],
+      ['"xyz', false, "out"],
+      ['"Xyz', true, "Out"],
+      ['"xyz', true, "out"],
     ])(
       "input: '%s', autoCapitalize: %s, expected: '%s'",
       (input, autoCapitalize, expected) => {

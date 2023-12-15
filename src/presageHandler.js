@@ -313,15 +313,13 @@ class PresageHandler {
 
   /**
    * Checks if auto capitalization should be applied based on the input tokens and punctuation marks.
-   * @param {string[]} tokensArray - The array of input tokens.
+   * @param {string[]} lastWord - Last Word of input
+   * @param {string[]} wordCount - Word count in the sentence
    * @param {boolean} newSentence - Indicates if the input includes a new sentence.
    * @param {boolean} endsWithSpace - Indicates if the input ends with a whitespace.
    * @returns {Capitalization} The type of capitalization to be applied.
    */
-  checkAutoCapitalize(tokensArray, newSentence, endsWithSpace) {
-    const lastWord = tokensArray.length
-      ? tokensArray[tokensArray.length - 1]
-      : "";
+  checkAutoCapitalize(lastWord, wordCount, newSentence, endsWithSpace) {
     const firstCharacterOfLastWord = lastWord.slice(0, 1);
 
     // Check for whole word capitalization
@@ -360,8 +358,8 @@ class PresageHandler {
     if (
       this.autoCapitalize &&
       newSentence &&
-      ((!endsWithSpace && tokensArray.length === 1) ||
-        (endsWithSpace && tokensArray.length === 0))
+      ((!endsWithSpace && wordCount === 1) ||
+        (endsWithSpace && wordCount === 0))
     )
       return Capitalization.FirstLetter;
 
@@ -388,6 +386,11 @@ class PresageHandler {
     if (!endsWithSpace && lastWord.length < this.minWordLengthToPredict)
       return false;
 
+    console.log(
+      lastWord,
+      (lastWord.match(this.separatorCharRegEx) || []).length,
+      (lastWord.match(this.keepPredCharRegEx) || []).length
+    );
     // If the last word includes a separator character, disable prediction
     if (
       !endsWithSpace &&
@@ -424,7 +427,10 @@ class PresageHandler {
     // Replace additional separators with spaces, if necessary
     const additionalSeparatorRegex = LANG_ADDITIONAL_SEPERATOR_REGEX[language];
     if (additionalSeparatorRegex) {
-      predictionInput = predictionInput.replace(additionalSeparatorRegex, " ");
+      predictionInput = predictionInput.replaceAll(
+        RegExp(additionalSeparatorRegex, "g"),
+        " "
+      );
     }
 
     // Split the input string into an array of words, removing whitespace and empty strings
@@ -455,7 +461,8 @@ class PresageHandler {
 
     // Check if auto-capitalization should be performed
     const doCapitalize = this.checkAutoCapitalize(
-      wordArray,
+      lastWord,
+      wordArray.length,
       newSentence,
       endsWithSpace
     );
