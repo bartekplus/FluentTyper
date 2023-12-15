@@ -118,7 +118,7 @@ class localStorageBackend {
 }
 
 class Store {
-  constructor(storageName, defaults, useLocalBackend = false) {
+  constructor(storageName, defaults, useLocalBackend = true) {
     this.storageName = storageName;
     this.storageBackend = chrome.storage
       ? new chromeStorageBackend(useLocalBackend)
