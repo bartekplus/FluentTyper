@@ -72,6 +72,7 @@ class TextExpander {
             }
           }
         });
+        this.saveTextExpansions();
         this.render();
       },
       false
@@ -272,14 +273,14 @@ class TextExpander {
     this.render();
   }
 
-  addNewShortcut(render = true) {
+  addNewShortcut(renderAndSave = true) {
     const shortcatElem = document.getElementById(this.addNewShortcutIDs[0]);
     const shortcatTextElem = document.getElementById(this.addNewShortcutIDs[1]);
     this.shortcutInputChange();
     if (this.shortcutInputChange()) {
       this.textExpansions.unshift([shortcatElem.value, shortcatTextElem.value]);
-      this.saveTextExpansions();
-      if (render) {
+      if (renderAndSave) {
+        this.saveTextExpansions();
         this.render();
       }
       return true;

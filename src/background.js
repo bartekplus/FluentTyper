@@ -237,6 +237,13 @@ function onInstalled(details) {
     console.log(`Updated from ${details.previousVersion} to ${thisVersion}!`);
     // TODO: Uncomment the following line to open the options page after an update.
     // chrome.tabs.create({url: "options/index.html"});
+    try {
+      chrome.storage.sync.get(null, (result) => {
+        chrome.storage.local.set(result);
+      });
+    } catch (error) {
+      console.log(error);
+    }
   }
 }
 
