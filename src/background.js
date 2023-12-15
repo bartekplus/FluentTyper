@@ -238,9 +238,16 @@ function onInstalled(details) {
     // TODO: Uncomment the following line to open the options page after an update.
     // chrome.tabs.create({url: "options/index.html"});
     try {
-      chrome.storage.sync.get(null, (result) => {
-        chrome.storage.local.set(result);
-      });
+      if (
+        details.previousVersion.localeCompare("2023.09.30", undefined, {
+          numeric: true,
+          sensitivity: "base",
+        }) <= 0
+      ) {
+        chrome.storage.sync.get(null, (result) => {
+          chrome.storage.local.set(result);
+        });
+      }
     } catch (error) {
       console.log(error);
     }
