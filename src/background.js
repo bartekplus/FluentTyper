@@ -238,16 +238,7 @@ function onInstalled(details) {
     // TODO: Uncomment the following line to open the options page after an update.
     // chrome.tabs.create({url: "options/index.html"});
     try {
-      if (
-        details.previousVersion.localeCompare("2023.09.30", undefined, {
-          numeric: true,
-          sensitivity: "base",
-        }) <= 0
-      ) {
-        chrome.storage.sync.get(null, (result) => {
-          chrome.storage.local.set(result);
-        });
-      }
+      migrateToLocalStore(details.previousVersion);
     } catch (error) {
       console.log(error);
     }
@@ -373,6 +364,30 @@ function onMessage(request, sender, sendResponse) {
   return asyncResponse;
 }
 
+function migrateToLocalStore(lastVersion) {
+  const currentVersion = chrome.runtime.getManifest().version;
+  const migrateStore =
+    !lastVersion ||
+    lastVersion.localeCompare("2023.09.30", undefined, {
+      numeric: true,
+      sensitivity: "base",
+    }) <= 0;
+
+  if (migrateStore) {
+    chrome.storage.sync.get(null, (result) => {
+      chrome.storage.local.set(result);
+    });
+  }
+  chrome.storage.local.set({ lastVersion: currentVersion });
+}
+
 chrome.runtime.onInstalled.addListener(onInstalled);
 chrome.commands.onCommand.addListener(onCommand);
 chrome.runtime.onMessage.addListener(onMessage);
+chrome.storage.local.get("lastVersion", (result) => {
+  try {
+    migrateToLocalStore(result.lastVersion);
+  } catch (error) {
+    console.log(error);
+  }
+});
