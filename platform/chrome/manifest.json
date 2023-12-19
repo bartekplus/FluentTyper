@@ -55,7 +55,7 @@
     "activeTab"
   ],
   "update_url": "http://clients2.google.com/service/update2/crx",
-  "version": "2023.12.15.1",
+  "version": "2023.12.19",
   "manifest_version": 3,
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
