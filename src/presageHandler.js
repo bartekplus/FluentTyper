@@ -386,11 +386,6 @@ class PresageHandler {
     if (!endsWithSpace && lastWord.length < this.minWordLengthToPredict)
       return false;
 
-    console.log(
-      lastWord,
-      (lastWord.match(this.separatorCharRegEx) || []).length,
-      (lastWord.match(this.keepPredCharRegEx) || []).length
-    );
     // If the last word includes a separator character, disable prediction
     if (
       !endsWithSpace &&

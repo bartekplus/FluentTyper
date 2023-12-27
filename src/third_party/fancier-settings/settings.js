@@ -1,5 +1,7 @@
 import { FancierSettingsWithManifest } from "./js/classes/fancier-settings.js";
 import { Store } from "./lib/store.js";
+import { ElementWrapper } from "./js/classes/utils.js";
+
 import { TextExpander } from "../../textExpander.js";
 
 function optionsPageConfigChange() {
@@ -19,6 +21,31 @@ function fallbackLanguageVisibility(settings, value) {
     settings.manifest.fallbackLanguage.bundle.element.classList.add(
       "is-hidden"
     );
+}
+
+function importSettingButtonFileSelected(settings) {
+  const importInputElem = settings.manifest.importSettingButton.element.element;
+  const fr = new FileReader();
+  fr.addEventListener("load", () => {
+    try {
+      const jsonSettings = JSON.parse(fr.result);
+      console.log(jsonSettings);
+      chrome.storage.local.set(jsonSettings);
+      optionsPageConfigChange();
+      location.reload();
+    } catch (error) {
+      const block = new ElementWrapper("div", { class: "block" });
+      const notification = new ElementWrapper("div", {
+        class: "notification is-danger",
+        text: "Failed to import JSON file:  " + error,
+      });
+
+      notification.inject(block);
+      block.inject(settings.manifest.importSettingButton.bundle);
+    }
+  });
+
+  fr.readAsText(importInputElem.files[0]);
 }
 
 window.addEventListener("DOMContentLoaded", function () {
@@ -47,6 +74,38 @@ window.addEventListener("DOMContentLoaded", function () {
           }
         }
       });
+
+      settings.manifest.exportSettingButton.addEvent("action", function () {
+        chrome.storage.local.get(null, function (items) {
+          // null implies all items
+          // Convert object to a JSON.
+          const result = JSON.stringify(items);
+          const blob = new Blob([result], { type: "application/json" });
+          const dlink = document.createElement("a");
+          dlink.download = name;
+          dlink.href = window.URL.createObjectURL(blob);
+          (dlink.download = "FluentTyperSettings.json"),
+            (dlink.onclick = function () {
+              // revokeObjectURL needs a delay to work properly
+              const that = this;
+              setTimeout(function () {
+                window.URL.revokeObjectURL(that.href);
+              }, 1500);
+            });
+
+          dlink.click();
+          dlink.remove();
+        });
+      });
+
+      const importInputElem =
+        settings.manifest.importSettingButton.element.element;
+      importInputElem.type = "file";
+      importInputElem.accept = ".json";
+      importInputElem.addEventListener(
+        "input",
+        importSettingButtonFileSelected.bind(null, settings)
+      );
 
       // Update pressage config on change
       [
