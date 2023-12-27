@@ -131,6 +131,23 @@ const manifest = {
       default: false,
     },
     {
+      tab: i18n.get("settings"),
+      group: i18n.get("Import & Export Setting"),
+      name: "importSettingButton",
+      type: "button",
+      text: i18n.get("Import JSON settings"),
+      label: "Import JSON settings:",
+
+    },
+    {
+      tab: i18n.get("settings"),
+      group: i18n.get("Import & Export Setting"),
+      name: "exportSettingButton",
+      type: "button",
+      text: i18n.get("Export settings"),
+      label: "Export JSON settings:",
+    },
+    {
       tab: i18n.get("Advanced"),
       group: i18n.get("Features suitable only for technical users"),
       name: "variableExpansion",
