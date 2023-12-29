@@ -5,7 +5,7 @@ window.addEventListener("DOMContentLoaded", function () {
     new Swiper(".swiper-container", {
       pagination: {
         el: ".swiper-pagination",
-        dynamicBullets: true,
+        dynamicBullets: false,
       },
       navigation: {
         nextEl: ".swiper-button-next",
