@@ -232,17 +232,10 @@ const manifest = {
     },
     {
       tab: i18n.get("About"),
-      group: i18n.get("FluentTyper"),
+      group: i18n.get("Contact"),
       name: "FluentTyper",
       type: "description",
       text: i18n.get("x-FluentTyper"),
-    },
-    {
-      tab: i18n.get("About"),
-      group: i18n.get("Credits"),
-      name: "Credits",
-      type: "description",
-      text: i18n.get("x-Credits"),
     },
     {
       tab: i18n.get("About"),
