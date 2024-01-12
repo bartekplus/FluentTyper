@@ -376,9 +376,11 @@ function migrateToLocalStore(lastVersion) {
   if (migrateStore) {
     chrome.storage.sync.get(null, (result) => {
       chrome.storage.local.set(result);
+      chrome.storage.local.set({ lastVersion: currentVersion });
     });
+  } else {
+    chrome.storage.local.set({ lastVersion: currentVersion });
   }
-  chrome.storage.local.set({ lastVersion: currentVersion });
 }
 
 chrome.runtime.onInstalled.addListener(onInstalled);
