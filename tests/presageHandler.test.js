@@ -41,7 +41,9 @@ describe("bugs", () => {
       mod.PresageCallback.predictions = [""];
 
       testContext.ph.runPrediction("L'agglo", "", lang);
-      const expectedPastStream = lang === "fr" ? "L agglo" : "L'agglo";
+      const expectedPastStream = (
+        lang === "fr" ? "L agglo" : "L'agglo"
+      ).toLocaleLowerCase();
       expect(testContext.ph.libPresageCallback[lang].pastStream).toBe(
         expectedPastStream
       );

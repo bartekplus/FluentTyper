@@ -465,6 +465,10 @@ class PresageHandler {
     // Check if prediction should be performed
     const doPrediction = this.checkDoPrediction(lastWord, endsWithSpace);
 
+    // Lower case is somehow broken in libPresage
+    // Let's do conversion in JS
+    predictionInput = predictionInput.toLowerCase();
+
     // Return an object with the processed input string, last word and the flags for auto-capitalization and prediction
     return { predictionInput, lastWord, doPrediction, doCapitalize };
   }
