@@ -111,6 +111,7 @@ window.addEventListener("DOMContentLoaded", function () {
       [
         "autocomplete",
         "autocompleteOnEnter",
+        "autocompleteOnTab",
         "language",
         "domainListMode",
         "fallbackLanguage",

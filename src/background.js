@@ -148,6 +148,9 @@ class BackgroundServiceWorker {
         autocompleteOnEnter: await backgroundServiceWorker.settings.get(
           "autocompleteOnEnter"
         ), // Retrieve the "autocompleteOnEnter" setting value from the BackgroundServiceWorker instance
+        autocompleteOnTab: await backgroundServiceWorker.settings.get(
+          "autocompleteOnTab"
+        ), // Retrieve the "autocompleteOnTab" setting value from the BackgroundServiceWorker instance
         selectByDigit: await backgroundServiceWorker.settings.get(
           "selectByDigit"
         ), // Retrieve the "selectByDigit" setting value from the BackgroundServiceWorker instance

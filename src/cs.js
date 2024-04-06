@@ -20,6 +20,8 @@
       this.autocomplete = false;
       // Flag indicating whether autocomplete on 'enter' key is enabled or disabled
       this.autocompleteOnEnter = true;
+      // Flag indicating whether autocomplete on 'tab' key is enabled or disabled
+      this.autocompleteOnTab = true;
       // User language for autocomplete
       this.lang = "";
       // Regular expression for splitting text into autocomplete segments
@@ -120,17 +122,13 @@
     // Returns an array of keys used for special handling in key event listeners
     keys() {
       // Define an array of key names
-      const keyArr = [
-        "Tab",
-        "Escape",
-        "ArrowUp",
-        "ArrowDown",
-        "Space",
-        "Backspace",
-      ];
+      const keyArr = ["Escape", "ArrowUp", "ArrowDown", "Space", "Backspace"];
 
       if (this.autocompleteOnEnter) {
         keyArr.push("Enter");
+      }
+      if (this.autocompleteOnTab) {
+        keyArr.push("Tab");
       }
 
       // Return the array of key names
@@ -593,6 +591,8 @@
       this.autocomplete = config.autocomplete;
       // Set the autocompleteOnEnter option
       this.autocompleteOnEnter = config.autocompleteOnEnter;
+      // Set the autocompleteOnTab option
+      this.autocompleteOnTab = config.autocompleteOnTab;
       // Set the autocompleteSeparatorSource option
       this.autocompleteSeparatorSource = config.autocompleteSeparatorSource;
       // Set the lang option
