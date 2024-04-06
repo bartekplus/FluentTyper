@@ -99,6 +99,15 @@ const manifest = {
     {
       tab: i18n.get("settings"),
       group: i18n.get("General"),
+      name: "autocompleteOnTab",
+      type: "checkbox",
+      label:
+        "Enable this option to automatically complete words as you type by pressing the 'tab' key. To undo auto-completion and revert to the original text, simply press the 'backspace' key.",
+      default: true,
+    },
+    {
+      tab: i18n.get("settings"),
+      group: i18n.get("General"),
       name: "insertSpaceAfterAutocomplete",
       type: "checkbox",
       label:
