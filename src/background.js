@@ -109,7 +109,7 @@ class BackgroundServiceWorker {
   /**
    * Toggles the content script on or off for the active tab.
    */
-  toggleOnOffActiveTab() {
+  sendCommandToActiveTabContentScript(command) {
     // Query for the active tab in the current window.
     chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
       // Check for any error that occurred during the query.
@@ -120,7 +120,7 @@ class BackgroundServiceWorker {
         const currentTab = tabs[0];
 
         const message = {
-          command: "backgroundPageToggle",
+          command: command,
           context: {},
         };
 
@@ -155,6 +155,9 @@ class BackgroundServiceWorker {
         autocompleteSeparatorSource: language
           ? LANG_SEPERATOR_CHARS_REGEX[language].source // Retrieve the separator character regex pattern based on the language setting value
           : DEFAULT_SEPERATOR_CHARS_REGEX.source, // Use the default pattern if the language setting value is undefined or null
+        minWordLengthToPredict: await backgroundServiceWorker.settings.get(
+          "minWordLengthToPredict"
+        ),
       },
     };
 
@@ -257,9 +260,16 @@ function onCommand(command) {
   switch (command) {
     case "toggle-ft-active-tab":
       // Call the toggleOnOffActiveTab method on the background service worker.
-      backgroundServiceWorker.toggleOnOffActiveTab();
+      backgroundServiceWorker.sendCommandToActiveTabContentScript(
+        "toggle-ft-active-tab"
+      );
       break;
 
+    case "trigger-ft-active-tab":
+      backgroundServiceWorker.sendCommandToActiveTabContentScript(
+        "trigger-ft-active-tab"
+      );
+      break;
     default:
       // Log an error message if the command is unknown.
       console.error("Unknown command: ", command);

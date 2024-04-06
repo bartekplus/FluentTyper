@@ -27,9 +27,8 @@ class Events {
     type = this.removeOn(type);
     const events = this.events[type];
     if (!events) return this;
-    args = Array(args);
     events.forEach((fn) => {
-      fn.apply(this, args);
+      fn.apply(this, [args]);
     });
     return this;
   }

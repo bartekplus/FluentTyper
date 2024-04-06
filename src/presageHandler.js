@@ -179,8 +179,8 @@ class PresageHandler {
     dateFormat
   ) {
     this.numSuggestions = numSuggestions;
-    this.minWordLengthToPredict = minWordLengthToPredict;
-    this.predictNextWordAfterSeparatorChar = minWordLengthToPredict === 0;
+    this.minWordLengthToPredict = Math.max(0, minWordLengthToPredict);
+    this.predictNextWordAfterSeparatorChar = this.minWordLengthToPredict === 0;
     this.insertSpaceAfterAutocomplete = insertSpaceAfterAutocomplete;
     this.autoCapitalize = autoCapitalize;
     this.applySpacingRules = applySpacingRules;

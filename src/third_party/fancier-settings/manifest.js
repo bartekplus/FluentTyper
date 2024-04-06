@@ -57,11 +57,11 @@ const manifest = {
       group: i18n.get("General"),
       name: "minWordLengthToPredict",
       type: "slider",
-      min: 0,
+      min: -1,
       max: 12,
       display: true,
       label:
-        "This setting determines the minimum word length required to trigger the prediction feature. If set to '0', predictions will appear after a whitespace:",
+        "This setting determines the minimum word length required to trigger the prediction feature. <br>If set to '0', predictions will appear after a whitespace.<br>If set to '-1', predictions must be triggered manually using a key shortcut.",
       default: 1,
     },
     {
