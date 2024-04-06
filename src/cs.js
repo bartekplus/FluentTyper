@@ -31,6 +31,10 @@
       this._autocompleteSeparatorSource = this.autocompleteSeparator.source;
       // Node for observing DOM changes
       this.observerNode = document.body || document.documentElement;
+      // Active element - last element that received key input
+      this.activeHelperArrId = null;
+      // Minimum characters typed by user to start prediction
+      this.minWordLengthToPredict = 0;
 
       // Add message listener for handling plugin messages
       chrome.runtime.onMessage.addListener(this.messageHandler.bind(this));
@@ -437,7 +441,7 @@
         // when the spacebar is hit, select the current match
         spaceSelectsMatch: this.autocomplete,
         // turn tribute into an autocomplete
-        autocompleteMode: true,
+        autocompleteMode: this.minWordLengthToPredict !== Number.MAX_VALUE,
         autocompleteSeparator: this.autocompleteSeparator,
         // Customize the elements used to wrap matched strings within the results list
         // defaults to <span></span> if undefined
@@ -447,7 +451,7 @@
           skip: true, // true will skip local search, useful if doing server-side search
         },
         // specify the minimum number of characters that must be typed before menu appears
-        menuShowMinLength: 0,
+        menuShowMinLength: this.minWordLengthToPredict,
         keys: tribueKeyFn,
         supportRevert: true,
         selectByDigit: this.selectByDigit,
@@ -545,16 +549,9 @@
      * @param {string} helperArrId - The ID of the Tribute element's helper array to handle key down events for.
      * @param {KeyboardEvent} event - The key down event to handle.
      */
-    elementKeyDownEventHandler(helperArrId, event) {
+    elementKeyDownEventHandler(helperArrId) {
+      this.activeHelperArrId = helperArrId;
       // If the event is a spacebar press with the control key held down, trigger the Tribute.js menu for the Tribute element with the given helper array ID.
-      if (
-        event &&
-        event.code === "Space" &&
-        event.getModifierState &&
-        event.getModifierState("Control")
-      ) {
-        this.triggerTribute(helperArrId);
-      }
     }
 
     /**
@@ -602,7 +599,9 @@
       this.lang = config.lang;
       // Set the selectByDigit option
       this.selectByDigit = config.selectByDigit;
-
+      // Minimum characters typed by user to start prediction
+      this.minWordLengthToPredict =
+        config.minWordLengthToPredict === -1 ? Number.MAX_VALUE : 0;
       // Force restart to reload config
       this.enabled = false;
       this.enabled = config.enabled;
@@ -715,9 +714,14 @@
           // Send a status message to the sender
           sendStatusMsg = true;
           break;
-        case "backgroundPageToggle":
+        case "toggle-ft-active-tab":
           // Toggle TributeJS enable/disable state
           this.enabled = !this.enabled;
+          // Send a status message to the sender
+          sendStatusMsg = true;
+          break;
+        case "trigger-ft-active-tab":
+          this.triggerTribute(this.activeHelperArrId);
           // Send a status message to the sender
           sendStatusMsg = true;
           break;

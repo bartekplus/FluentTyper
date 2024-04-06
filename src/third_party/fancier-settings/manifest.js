@@ -57,11 +57,13 @@ const manifest = {
       group: i18n.get("General"),
       name: "minWordLengthToPredict",
       type: "slider",
-      min: 0,
+      min: -1,
       max: 12,
       display: true,
       label:
-        "This setting determines the minimum word length required to trigger the prediction feature. If set to '0', predictions will appear after a whitespace:",
+        "This setting determines the minimum word length required to trigger the prediction feature.<br>" +
+        "If set to '0', predictions will appear after a whitespace.<br>If set to '-1', predictions must be triggered manually using a key shortcut.<br>" +
+        "Default shortcut: Ctrl+Period. To change, consult your browser's help section (<a href='https://support.mozilla.org/en-US/kb/manage-extension-shortcuts-firefox'>Firefox</a>, <a href='chrome://extensions/shortcuts'>Chrome</a>). Please note that some key combinations may not work.",
       default: 1,
     },
     {
