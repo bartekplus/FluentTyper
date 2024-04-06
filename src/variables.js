@@ -4,10 +4,13 @@ function getCurrentDateTime(lang) {
   let now = DateTime.now();
 
   try {
+    if (["textExpander", "auto_detect"].includes(lang)) {
+      lang = undefined;
+    }
     new Intl.DateTimeFormat(lang);
     now = DateTime.now().setLocale(lang);
   } catch (error) {
-    console.log("Failed to set locatle to: " + lang);
+    console.log("Failed to set locale to: " + lang);
     console.log(error);
   }
 
