@@ -117,13 +117,13 @@ class PresageHandler {
         // Initialize the libPresage object for the language
         this.libPresage[lang] = new this.Module.Presage(
           this.libPresageCallbackImpl[lang],
-          "resources_js/" + lang + "/presage.xml"
+          "resources_js/" + lang + "/presage.xml",
         );
       } catch (error) {
         console.log(
           "Failed to create Presage instance for %s language: %s",
           lang,
-          error
+          error,
         );
       }
     }
@@ -153,7 +153,7 @@ class PresageHandler {
     for (const [, libPresage] of Object.entries(this.libPresage)) {
       libPresage.config(
         "Presage.Predictors.DefaultAbbreviationExpansionPredictor.ABBREVIATIONS",
-        "/textExpansions.txt"
+        "/textExpansions.txt",
       );
     }
   }
@@ -176,7 +176,7 @@ class PresageHandler {
     textExpansions,
     variableExpansion,
     timeFormat,
-    dateFormat
+    dateFormat,
   ) {
     this.numSuggestions = numSuggestions;
     this.minWordLengthToPredict = Math.max(0, minWordLengthToPredict);
@@ -192,7 +192,7 @@ class PresageHandler {
     for (const [, libPresage] of Object.entries(this.libPresage)) {
       libPresage.config(
         "Presage.Selector.SUGGESTIONS",
-        this.numSuggestions.toString()
+        this.numSuggestions.toString(),
       );
     }
   }
@@ -250,7 +250,7 @@ class PresageHandler {
     const parameters = args.map(
       (argument) =>
         obj[argument] ||
-        (obj[argument] === undefined ? "${" + argument + "}" : obj[argument])
+        (obj[argument] === undefined ? "${" + argument + "}" : obj[argument]),
     );
     return String.raw({ raw: parts }, ...parameters);
   }
@@ -270,11 +270,11 @@ class PresageHandler {
 
     expandedTemplateVariables["time"] = DATE_TIME_VARIABLES.time(
       lang,
-      this.timeFormat
+      this.timeFormat,
     );
     expandedTemplateVariables["date"] = DATE_TIME_VARIABLES.date(
       lang,
-      this.dateFormat
+      this.dateFormat,
     );
     return expandedTemplateVariables;
   }
@@ -424,7 +424,7 @@ class PresageHandler {
     if (additionalSeparatorRegex) {
       predictionInput = predictionInput.replaceAll(
         RegExp(additionalSeparatorRegex, "g"),
-        " "
+        " ",
       );
     }
 
@@ -459,7 +459,7 @@ class PresageHandler {
       lastWord,
       wordArray.length,
       newSentence,
-      endsWithSpace
+      endsWithSpace,
     );
 
     // Check if prediction should be performed
@@ -562,7 +562,7 @@ class PresageHandler {
       let text = null;
       try {
         text = JSON.parse(result.prediction);
-      } catch (error) {
+      } catch {
         text = result.prediction;
       }
 
@@ -598,7 +598,7 @@ class PresageHandler {
     // Process the input text to get the prediction input, prediction flag and capitalization flag
     const { predictionInput, doPrediction, doCapitalize } = this.processInput(
       text,
-      lang
+      lang,
     );
 
     // Apply spacing rules if necessary
@@ -630,7 +630,7 @@ class PresageHandler {
     switch (doCapitalize) {
       case Capitalization.FirstLetter:
         predictions = predictions.map(
-          (pred) => pred.charAt(0).toUpperCase() + pred.slice(1)
+          (pred) => pred.charAt(0).toUpperCase() + pred.slice(1),
         );
         break;
       case Capitalization.WholeWord:

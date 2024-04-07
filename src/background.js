@@ -41,7 +41,7 @@ class BackgroundServiceWorker {
     const { predictions, forceReplace } = this.presageHandler.runPrediction(
       message.context.text,
       message.context.nextChar,
-      message.context.lang
+      message.context.lang,
     );
 
     // Update the message context with the predictions and forceReplace properties
@@ -142,24 +142,21 @@ class BackgroundServiceWorker {
       command: "backgroundPageSetConfig",
       context: {
         enabled: isEnabled, // Set the enabled value to the boolean parameter passed to the function
-        autocomplete: await backgroundServiceWorker.settings.get(
-          "autocomplete"
-        ), // Retrieve the "autocomplete" setting value from the BackgroundServiceWorker instance
+        autocomplete:
+          await backgroundServiceWorker.settings.get("autocomplete"), // Retrieve the "autocomplete" setting value from the BackgroundServiceWorker instance
         autocompleteOnEnter: await backgroundServiceWorker.settings.get(
-          "autocompleteOnEnter"
+          "autocompleteOnEnter",
         ), // Retrieve the "autocompleteOnEnter" setting value from the BackgroundServiceWorker instance
-        autocompleteOnTab: await backgroundServiceWorker.settings.get(
-          "autocompleteOnTab"
-        ), // Retrieve the "autocompleteOnTab" setting value from the BackgroundServiceWorker instance
-        selectByDigit: await backgroundServiceWorker.settings.get(
-          "selectByDigit"
-        ), // Retrieve the "selectByDigit" setting value from the BackgroundServiceWorker instance
+        autocompleteOnTab:
+          await backgroundServiceWorker.settings.get("autocompleteOnTab"), // Retrieve the "autocompleteOnTab" setting value from the BackgroundServiceWorker instance
+        selectByDigit:
+          await backgroundServiceWorker.settings.get("selectByDigit"), // Retrieve the "selectByDigit" setting value from the BackgroundServiceWorker instance
         lang: language, // Set the "lang" value to the retrieved language setting value
         autocompleteSeparatorSource: language
           ? LANG_SEPERATOR_CHARS_REGEX[language].source // Retrieve the separator character regex pattern based on the language setting value
           : DEFAULT_SEPERATOR_CHARS_REGEX.source, // Use the default pattern if the language setting value is undefined or null
         minWordLengthToPredict: await backgroundServiceWorker.settings.get(
-          "minWordLengthToPredict"
+          "minWordLengthToPredict",
         ),
       },
     };
@@ -185,7 +182,7 @@ class BackgroundServiceWorker {
       await this.settings.get("textExpansions"),
       await this.settings.get("variableExpansion"),
       await this.settings.get("timeFormat"),
-      await this.settings.get("dateFormat")
+      await this.settings.get("dateFormat"),
     );
 
     // Query all tabs and send a message with the new configuration to each one.
@@ -209,7 +206,7 @@ class BackgroundServiceWorker {
         // Check if the extension is enabled for the current domain.
         const enabled = await isEnabledForDomain(
           backgroundServiceWorker.settings,
-          domain
+          domain,
         );
 
         // Get a message object with the current configuration.
@@ -264,13 +261,13 @@ function onCommand(command) {
     case "toggle-ft-active-tab":
       // Call the toggleOnOffActiveTab method on the background service worker.
       backgroundServiceWorker.sendCommandToActiveTabContentScript(
-        "toggle-ft-active-tab"
+        "toggle-ft-active-tab",
       );
       break;
 
     case "trigger-ft-active-tab":
       backgroundServiceWorker.sendCommandToActiveTabContentScript(
-        "trigger-ft-active-tab"
+        "trigger-ft-active-tab",
       );
       break;
     default:
@@ -316,7 +313,7 @@ function onMessage(request, sender, sendResponse) {
           if (language === "auto_detect") {
             language = await backgroundServiceWorker.detectLanguage(
               request.context.text,
-              request.context.tabId
+              request.context.tabId,
             );
           }
 
@@ -356,11 +353,11 @@ function onMessage(request, sender, sendResponse) {
       asyncResponse = true;
       isEnabledForDomain(
         backgroundServiceWorker.settings,
-        getDomain(sender.tab.url)
+        getDomain(sender.tab.url),
       )
         .then(async (isEnabled) => {
           return backgroundServiceWorker.getBackgroundPageSetConfigMsg(
-            isEnabled
+            isEnabled,
           );
         })
         .then(async (message) => {
