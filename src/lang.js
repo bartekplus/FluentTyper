@@ -12,13 +12,13 @@ const SUPPORTED_LANGUAGES = {
 };
 
 const DEFAULT_SEPERATOR_CHARS_REGEX = RegExp(
-  /\s+|!|"|#|\$|%|&|\(|\)|\*|\+|,|-|\.|\/|:|;|<|=|>|\?|@|\[|\\|\]|\^|_|`|{|\||}|~/
+  /\s+|!|"|#|\$|%|&|\(|\)|\*|\+|,|-|\.|\/|:|;|<|=|>|\?|@|\[|\\|\]|\^|_|`|{|\||}|~/,
 );
 const LANG_SEPERATOR_CHARS_REGEX = {
   auto_detect: DEFAULT_SEPERATOR_CHARS_REGEX,
   en: DEFAULT_SEPERATOR_CHARS_REGEX,
   fr: RegExp(
-    /\s+|!|"|#|\$|%|&|\(|\)|\*|\+|,|-|\.|\/|:|;|<|=|>|\?|@|\[|\\|\]|\^|_|`|{|\||}|~|'/
+    /\s+|!|"|#|\$|%|&|\(|\)|\*|\+|,|-|\.|\/|:|;|<|=|>|\?|@|\[|\\|\]|\^|_|`|{|\||}|~|'/,
   ),
   hr: DEFAULT_SEPERATOR_CHARS_REGEX,
   es: DEFAULT_SEPERATOR_CHARS_REGEX,

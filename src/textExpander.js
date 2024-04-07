@@ -60,7 +60,7 @@ class TextExpander {
         });
         const shortcutElem = document.getElementById(this.addNewShortcutIDs[0]);
         const shortcutTextElem = document.getElementById(
-          this.addNewShortcutIDs[1]
+          this.addNewShortcutIDs[1],
         );
         parsedData.forEach((element) => {
           if (element.length === 2) {
@@ -75,7 +75,7 @@ class TextExpander {
         this.saveTextExpansions();
         this.render();
       },
-      false
+      false,
     );
     if (fileInput.files[0]) {
       reader.readAsText(fileInput.files[0]);
@@ -136,7 +136,7 @@ class TextExpander {
     });
     button.inject(this.settingsWithManifest.manifest.textExpansions.bundle);
     dividerElem.inject(
-      this.settingsWithManifest.manifest.textExpansions.bundle
+      this.settingsWithManifest.manifest.textExpansions.bundle,
     );
   }
 
@@ -230,7 +230,7 @@ class TextExpander {
     else button.addEvent("click", this.delShortcut.bind(this, shortcutIndex));
     columnElem.inject(this.settingsWithManifest.manifest.textExpansions.bundle);
     dividerElem.inject(
-      this.settingsWithManifest.manifest.textExpansions.bundle
+      this.settingsWithManifest.manifest.textExpansions.bundle,
     );
   }
 

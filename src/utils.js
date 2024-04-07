@@ -13,7 +13,7 @@ const DOMAIN_LIST_MODE = {
 function getDomain(url) {
   try {
     return new URL(url).hostname;
-  } catch (error) {
+  } catch {
     return undefined;
   }
 }

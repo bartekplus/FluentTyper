@@ -19,7 +19,7 @@ function setConfig() {
     testContext.insertSpaceAfterAutocomplete,
     testContext.autoCapitalize,
     testContext.applySpacingRules,
-    testContext.textExpansions
+    testContext.textExpansions,
   );
 }
 
@@ -45,7 +45,7 @@ describe("bugs", () => {
         lang === "fr" ? "L agglo" : "L'agglo"
       ).toLocaleLowerCase();
       expect(testContext.ph.libPresageCallback[lang].pastStream).toBe(
-        expectedPastStream
+        expectedPastStream,
       );
     });
 
@@ -98,7 +98,7 @@ describe("bugs", () => {
         const result = testContext.ph.runPrediction(input, "", lang);
         const expectedPredictionsCount = predict ? 1 : 0;
         expect(result.predictions.length).toBe(expectedPredictionsCount);
-      }
+      },
     );
   });
 });
@@ -125,7 +125,7 @@ describe("features", () => {
                   : 0;
 
               expect(result.predictions.length).toBe(expectedPredictionsCount);
-            }
+            },
           );
 
           test.each([true, false])(
@@ -142,9 +142,9 @@ describe("features", () => {
                 pred + (insertSpaceAfterAutocomplete ? "\xA0" : "");
 
               expect(result.predictions[0]).toBe(expectedPrediction);
-            }
+            },
           );
-        }
+        },
       );
     });
 
@@ -174,7 +174,7 @@ describe("features", () => {
 
           expect(result.predictions[0]).toBe(expectedPrediction);
         });
-      }
+      },
     );
 
     test.each([
@@ -218,7 +218,7 @@ describe("features", () => {
 
           expect(result.predictions[0]).toBe(expectedPrediction);
         });
-      }
+      },
     );
   });
 });

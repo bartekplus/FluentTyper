@@ -27,7 +27,7 @@
       // Regular expression for splitting text into autocomplete segments
       this.autocompleteSeparator = RegExp(
         // Matches whitespace, punctuation, and other separator characters
-        /\s+|!|"|#|\$|%|&|\(|\)|\*|\+|,|-|\.|\/|:|;|<|=|>|\?|@|\[|\\|\]|\^|_|`|{|\||}|~/
+        /\s+|!|"|#|\$|%|&|\(|\)|\*|\+|,|-|\.|\/|:|;|<|=|>|\?|@|\[|\\|\]|\^|_|`|{|\||}|~/,
       );
       // Source string of the autocomplete separator regular expression
       this._autocompleteSeparatorSource = this.autocompleteSeparator.source;
@@ -146,7 +146,7 @@
       // Remove event listeners and delete the Tribute instance from the tributeArr object
       elem.removeEventListener(
         "tribute-replaced",
-        elem.tributeReplacedEventHandler
+        elem.tributeReplacedEventHandler,
       );
       elem.removeEventListener("keydown", elem.elementKeyDownEventHandler);
       delete this.tributeArr[tributeId];
@@ -264,7 +264,7 @@
 
       // Check if the property value matches the expected value or pattern
       return Boolean(
-        elemValue === expectedValue || elemValue.match(expectedValue)
+        elemValue === expectedValue || elemValue.match(expectedValue),
       );
     }
 
@@ -327,7 +327,7 @@
           elem,
           check.property,
           check.expectedValue,
-          check.defaultValue
+          check.defaultValue,
         );
         if (check.reverseCheck) checkVal = !checkVal;
         if (!checkVal) {
@@ -359,7 +359,7 @@
         _trigger,
         done,
         context,
-        nextChar
+        nextChar,
       ) {
         // Update the Tribute object in the Tribute array for the element
         this.tributeArr[helperArrId].done = done;
@@ -461,16 +461,16 @@
       elem.tributeReplacedEventHandler = this.debounce(
         this.tributeReplacedEventHandler.bind(this, tribueId),
         16,
-        { leading: false, trailing: true }
+        { leading: false, trailing: true },
       );
       elem.addEventListener(
         "tribute-replaced",
-        elem.tributeReplacedEventHandler
+        elem.tributeReplacedEventHandler,
       );
 
       elem.elementKeyDownEventHandler = this.debounce(
         this.elementKeyDownEventHandler.bind(this, tribueId),
-        32
+        32,
       );
       elem.addEventListener("keydown", elem.elementKeyDownEventHandler);
     }
@@ -536,7 +536,7 @@
     triggerTribute(helperArrId) {
       // Show the Tribute.js menu for the Tribute element with the given helper array ID.
       this.tributeArr[helperArrId].tribute.showMenuForCollection(
-        this.tributeArr[helperArrId].elem
+        this.tributeArr[helperArrId].elem,
       );
     }
 
@@ -663,7 +663,7 @@
                 (prediction) => ({
                   key: prediction,
                   value: prediction,
-                })
+                }),
               );
 
               // If there are any key-value pairs, update the triggerInputEvent value in tributeArr
@@ -676,7 +676,7 @@
               this.tributeArr[message.context.tributeId].done(
                 keyValPairs,
                 message.context.forceReplace,
-                "Lang: " + message.context.langName
+                "Lang: " + message.context.langName,
               );
 
               // Clear pending request
@@ -697,7 +697,7 @@
           this.updateLangConfig(
             message.context.lang,
             message.context.autocompleteSeparatorSource,
-            message.context.tributeId
+            message.context.tributeId,
           );
           // Send a status message to the sender
           sendStatusMsg = true;
@@ -761,7 +761,7 @@
         // Options object with leading and trailing options
         leading: true,
         trailing: true,
-      }
+      },
     ) {
       let timer = null;
 

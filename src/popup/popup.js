@@ -19,7 +19,7 @@ function init() {
         const urlNode = document.getElementById("checkboxDomainLabel");
         const checkboxNode = document.getElementById("checkboxDomainInput");
         const checkboxEnableNode = document.getElementById(
-          "checkboxEnableInput"
+          "checkboxEnableInput",
         );
 
         // Get the domain URL of the current tab
@@ -41,7 +41,7 @@ function init() {
             .getElementById("checkboxDomainInput")
             .addEventListener(
               "click",
-              addRemoveDomain.bind(null, currentTab.id, domainURL)
+              addRemoveDomain.bind(null, currentTab.id, domainURL),
             );
         }
 
@@ -65,7 +65,7 @@ function init() {
 
       // Set the selected option to the current language
       select.value = language;
-    }
+    },
   );
 
   // Add a click event listener to the enable checkbox to toggle the feature on or off
