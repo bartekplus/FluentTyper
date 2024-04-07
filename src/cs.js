@@ -439,7 +439,7 @@
         // when the spacebar is hit, select the current match
         spaceSelectsMatch: this.autocomplete,
         // turn tribute into an autocomplete
-        autocompleteMode: this.minWordLengthToPredict !== Number.MAX_VALUE,
+        autocompleteMode: true,
         autocompleteSeparator: this.autocompleteSeparator,
         // Customize the elements used to wrap matched strings within the results list
         // defaults to <span></span> if undefined
