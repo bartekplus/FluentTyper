@@ -14,11 +14,14 @@ NGRAM_COUNT = 4
 NGRAM_DIV = 1.33
 NGRAM_MIN_COUNT = 10
 LANGS = {
+    "de": "german",
     "el": "greek",
     "en": "english",
     "es": "spanish",
     "fr": "french",
     "hr": "croatian",
+    "pl": "polish",
+    "pt": "portuguese",
     "sv": "swedish",
 }
 

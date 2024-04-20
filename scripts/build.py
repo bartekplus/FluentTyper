@@ -3,57 +3,60 @@
 from collections import namedtuple
 import argparse
 import os
-import shutil
 from string import Template
 import distutils
+import langcodes
 
 Language = namedtuple(
-    typename="Language", field_names=["name", "variant", "aspell_url"]
+    typename="Language", field_names=["language", "aspell_url", "aspell_language"], defaults=(None,)
 )
 
-LANGS = {
-    "de": Language(
-        "de",
-        "de",
-        "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-de-20161207.7.0-2.3.i586.rpm",
+LANG_ARR = [
+   Language(
+        langcodes.Language.get('de-DE'),
+        "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-de-20161207.7.0-4.1.i586.rpm",
+        "de"
     ),
-    "el": Language(
-        "el",
-        "el",
-        "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-el-0.50.3+0.08-2.3.i586.rpm",
+    Language(
+        langcodes.Language.get('el-GR'),
+        "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-el-0.50.3+0.08-4.1.i586.rpm",
+        "el"
     ),
-    "en": Language(
-        "en",
-        "en_US",
-        "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-en-2020.12.07-2.3.i586.rpm",
+    Language(
+        langcodes.Language.get('en-US'),
+        "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-en-2020.12.07-2.5.i586.rpm",
     ),
-    "es": Language(
-        "es",
-        "es",
-        "https://rpmfind.net/linux/mageia/distrib/9/i586/media/core/release/aspell-es-1.11.2-10.mga9.i586.rpm",
+    Language(
+        langcodes.Language.get('es-ES'),
+        "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-es-1.11.2-4.1.i586.rpm",
+        "es"
     ),
-    "fr": Language(
-        "fr",
-        "fr_FR",
-        "https://rpmfind.net/linux/mageia/distrib/9/i586/media/core/release/aspell-fr-0.60-4.mga9.i586.rpm",
+    Language(
+        langcodes.Language.get('fr-FR'),
+        "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-fr-0.50.3-4.1.i586.rpm",
     ),
-    "hr": Language(
-        "hr",
-        "hr",
-        "https://rpmfind.net/linux/mageia/distrib/9/i586/media/core/release/aspell-hr-0.51.0-19.mga9.i586.rpm",
+    Language(
+        langcodes.Language.get('hr-HR'),
+        "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-hr-0.51.0-4.1.i586.rpm",
+        "hr"
     ),
-    "pl": Language(
-        "pl",
-        "pl",
-        "https://rpmfind.net/linux/remi/enterprise/6/remi/i386/aspell-pl-6.0_20061121-4.el6.remi.i686.rpm",
+    Language(
+        langcodes.Language.get('pl-PL'),
+        "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-pl-0.60.2015.04.28-4.1.i586.rpm",
+        "pl"
     ),
-    "sv": Language(
-        "sv",
-        "sv",
-        "https://rpmfind.net/linux/mageia/distrib/9/i586/media/core/release/aspell-sv-0.51.0-19.mga9.i586.rpm",
+    Language(
+        langcodes.Language.get('pt-BR'),
+        "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-pt_BR-20131030.12.0-4.1.i586.rpm",
     ),
-}
+    Language(
+        langcodes.Language.get('sv-SE'),
+        "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-sv-0.51.0-4.1.i586.rpm",
+        "sv"
+    ),
+]
 
+LANGS = {str(value.language).replace("-", "_"): value for index, value in enumerate(LANG_ARR)}
 SCRIPT_DIR = os.path.abspath(os.path.realpath(os.path.dirname(__file__)))
 RESOURCES_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "resources_js"))
 RESOURCES_TEMPLATE_DIR = os.path.abspath(
@@ -102,11 +105,10 @@ def run_cmd(cmd: str):
     print(f"Running cmd: {cmd}")
     assert 0 == os.system(cmd)
 
-
 def update_template(template_file, lang, debug: bool) -> None:
     replacement = {
-        "LANG": lang,
-        "LANG_VARIANT": LANGS[lang].variant,
+        "LANG_VARIANT": lang,
+        "LANG_ASPELL": LANGS[lang].aspell_language if LANGS[lang].aspell_language else lang,
         "LOGGER": ("DEBUG" if debug else "ERROR"),
     }
 
@@ -181,7 +183,7 @@ if __name__ == "__main__":
             install_hunspell_dictionary(lang)
 
             rebuild_ngram_cmd = (
-                f"{REBUILD_NGRAM_PATH} -l {lang} -v {LANGS[lang].variant}"
+                f"{REBUILD_NGRAM_PATH} -l {LANGS[lang].language.language} -v {lang}"
             )
             run_cmd(rebuild_ngram_cmd)
     rebuild_lib_preseage_cmd = f"{REBUILD_LIB_PRESAGEH}" + (" -d" if args.debug else "")

@@ -1,0 +1,8 @@
+name            pt_BR
+charset         iso-8859-1
+soundslike	generic
+special         - -*- ' -*- ª --* º --* µ **-
+keyboard        br-abnt2
+affix           pt_BR
+affix-compress  true
+repl-table	pt_BR_affix.dat

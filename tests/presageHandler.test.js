@@ -42,7 +42,7 @@ describe("bugs", () => {
 
       testContext.ph.runPrediction("L'agglo", "", lang);
       const expectedPastStream = (
-        lang === "fr" ? "L agglo" : "L'agglo"
+        lang === "fr_FR" ? "L agglo" : "L'agglo"
       ).toLocaleLowerCase();
       expect(testContext.ph.libPresageCallback[lang].pastStream).toBe(
         expectedPastStream,
@@ -53,11 +53,11 @@ describe("bugs", () => {
       mod.PresageCallback.predictions = ["avent"];
 
       let result = testContext.ph.runPrediction("L'avent", "", lang);
-      let expectedPredictions = lang === "fr" ? "avent" : "Avent";
+      let expectedPredictions = lang === "fr_FR" ? "avent" : "Avent";
       expect(result.predictions[0]).toBe(expectedPredictions);
 
       result = testContext.ph.runPrediction("l'Avent", "", lang);
-      expectedPredictions = lang === "fr" ? "Avent" : "avent";
+      expectedPredictions = lang === "fr_FR" ? "Avent" : "avent";
       expect(result.predictions[0]).toBe(expectedPredictions);
     });
 
@@ -67,7 +67,7 @@ describe("bugs", () => {
       setConfig();
 
       let result = testContext.ph.runPrediction("L'ave", "", lang);
-      let expectedPredictionsCount = lang === "fr" ? 0 : 1;
+      let expectedPredictionsCount = lang === "fr_FR" ? 0 : 1;
       expect(result.predictions.length).toBe(expectedPredictionsCount);
 
       result = testContext.ph.runPrediction("l'Avent", "", lang);

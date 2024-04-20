@@ -30,7 +30,7 @@ const manifest = {
       type: "popupButton",
       options: Object.entries(SUPPORTED_LANGUAGES),
       label: "Prediction language:",
-      default: "en",
+      default: "en_US",
     },
     {
       tab: i18n.get("settings"),
@@ -50,7 +50,7 @@ const manifest = {
       type: "popupButton",
       options: Object.entries(SUPPORTED_LANGUAGES),
       label: "Fallback prediction language:",
-      default: "en",
+      default: "en_US",
     },
     {
       tab: i18n.get("settings"),

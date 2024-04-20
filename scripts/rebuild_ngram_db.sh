@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-MAX_FILES=30
+MAX_FILES=1
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 OSCAR_CORUPS_VERSION="OSCAR-2301"
 LANGUAGE_DETECTION_PROB="0.925"
@@ -82,7 +82,7 @@ download_and_extract() {
         select ( .metadata.harmful_pp >= '${HARMFUL_SCORE}') |
         .content ' \
     "${FILE_PATH}" >> "${WORK_DIR}/${LANG}_sentences_${i}.txt" && \
-    DICPATH="${SCRIPT_DIR}"/../resources_js/"${LANG}"/hunspell hunspell -i utf-8 -d "${LANG}" -G -L "${WORK_DIR}/${LANG}_sentences_${i}.txt" >  "${WORK_DIR}/${LANG}_sentences_checked_${i}.txt"  && \
+    DICPATH="${SCRIPT_DIR}"/../resources_js/"${LANG_VARIANT}"/hunspell hunspell -i utf-8 -d "${LANG_VARIANT}" -G -L "${WORK_DIR}/${LANG}_sentences_${i}.txt" >  "${WORK_DIR}/${LANG}_sentences_checked_${i}.txt"  && \
     rm -rf "${WORK_DIR}/${LANG}_sentences_${i}.txt" &
 }
 
@@ -125,8 +125,8 @@ cat "${WORK_DIR}"/"${LANG}"_sentences_checked_*.txt > "${WORK_DIR}/${LANG}_sente
 rm -rf "${WORK_DIR}"/"${LANG}"_sentences_checked_*.txt 
 
 # Generate ngrams 
-"${SCRIPT_DIR}"/gen_ngram.py -i "${WORK_DIR}/${LANG}_sentences_checked.txt" -l en
+"${SCRIPT_DIR}"/gen_ngram.py -i "${WORK_DIR}/${LANG}_sentences_checked.txt" -l ${LANG}
 # generate marisa-trie database from ngrams
-"${SCRIPT_DIR}"/ngramtxt2marisa.py --overwrite --output "${SCRIPT_DIR}"/../resources_js/"${LANG}"/ngrams_db/ --inputfile "${WORK_DIR}/${LANG}_sentences_checked_ngram_merged.txt"
+"${SCRIPT_DIR}"/ngramtxt2marisa.py --overwrite --output "${SCRIPT_DIR}"/../resources_js/"${LANG_VARIANT}"/ngrams_db/ --inputfile "${WORK_DIR}/${LANG}_sentences_checked_ngram_merged.txt"
 
 git lfs prune

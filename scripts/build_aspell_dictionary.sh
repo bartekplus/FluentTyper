@@ -30,9 +30,7 @@ while getopts ":hu:d:" arg; do
   esac
 done
 
-
 trap 'rm -rf ${WORK_DIR}' SIGINT SIGTERM EXIT
-
 
 # Make dest dir
 mkdir -p ${DEST_DIR}
@@ -41,9 +39,9 @@ mkdir -p ${DEST_DIR}
 WORK_DIR=`mktemp -d`
 cd ${WORK_DIR}
 # Download dictionary
-chronic wget -q ${URL} -O ./dict.rpm
+chronic wget -timeout=10 -q ${URL} -O ./dict.rpm
 #extract 
 tar -zxf dict.rpm
 # Copy
 cp -H ./usr/lib/aspell-0.60/* ${DEST_DIR} || true
-cp ./var/lib/aspell-0.60/* ${DEST_DIR} || true
+cp  ./var/lib/aspell-0.60/* ${DEST_DIR} || true
