@@ -36,5 +36,25 @@ done
 # Make dest dir
 mkdir -p ${DEST_DIR}
 # Download dictionary
-chronic wget -q "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/${LANG}/index.aff" -O "${DEST_DIR}/${LANG}.aff"
-chronic wget -q "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/${LANG}/index.dic" -O "${DEST_DIR}/${LANG}.dic"
+
+if [ "$LANG" = "pt_BR" ]; then
+  trap 'rm -rf ${WORK_DIR}' SIGINT SIGTERM EXIT
+  WORK_DIR=`mktemp -d`
+  cd ${WORK_DIR}
+  # Download dictionary
+  chronic wget -q https://pt-br.libreoffice.org/assets/Uploads/PT-BR-Documents/VERO/ptBR-2013-10-30AOC-2.zip -O ./dict.zip
+  unzip dict.zip
+  cp "${LANG}.aff" "${DEST_DIR}/${LANG}.aff"
+  cp "${LANG}.dic" "${DEST_DIR}/${LANG}.dic"
+else
+# Download dictionary
+  if [[ `wget -S --spider https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/${LANG}/index.aff  2>&1 | grep 'HTTP/1.1 200 OK'` ]]; then
+    chronic wget -timeout=10 -q "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/${LANG}/index.aff" -O "${DEST_DIR}/${LANG}.aff"
+    chronic wget -timeout=10 -q "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/${LANG}/index.dic" -O "${DEST_DIR}/${LANG}.dic"
+  else
+    # Try with just a country code
+    LANG_SHORT="${LANG:0:2}"
+    chronic wget -timeout=10 -q "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/${LANG_SHORT}/index.aff" -O "${DEST_DIR}/${LANG}.aff"
+    chronic wget -timeout=10 -q "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/${LANG_SHORT}/index.dic" -O "${DEST_DIR}/${LANG}.dic"
+  fi
+fi

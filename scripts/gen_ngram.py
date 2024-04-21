@@ -14,11 +14,14 @@ NGRAM_COUNT = 4
 NGRAM_DIV = 1.33
 NGRAM_MIN_COUNT = 10
 LANGS = {
+    "de": "german",
     "el": "greek",
     "en": "english",
     "es": "spanish",
     "fr": "french",
     "hr": "croatian",
+    "pl": "polish",
+    "pt": "portuguese",
     "sv": "swedish",
 }
 
@@ -54,15 +57,16 @@ def filter_tokens(tokens_raw):
         token_orig = token.strip()
         token = token.strip().lower()
 
+        
         if not token:
             split = True
         elif not token.isprintable():
             split = True
-        elif len(token) == 1 and not token.isalpha():
+        elif len(token) <= 1 and not token.isalpha():
             split = True
         elif token.isdigit():
             split = True
-        if any([x in token for x in SKIPPED_CHARS]):
+        elif any([x in token for x in SKIPPED_CHARS]):
             split = True
         elif not token[0].isalpha():
             split = True

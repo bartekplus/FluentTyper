@@ -30,7 +30,7 @@
         <DefaultSmoothedNgramTriePredictor>
             <PREDICTOR>SmoothedNgramTriePredictor</PREDICTOR>
             <LOGGER>$LOGGER</LOGGER>
-            <DBFILENAME>/resources_js/${LANG}/ngrams_db</DBFILENAME>
+            <DBFILENAME>/resources_js/${LANG_VARIANT}/ngrams_db</DBFILENAME>
             <DELTAS>0.125 0.25 0.5 0.75</DELTAS>
             <COUNT_THRESHOLD>0</COUNT_THRESHOLD>
             <DatabaseConnector>
@@ -47,14 +47,14 @@
         <DefaultHunspellPredictor>
             <PREDICTOR>HunspellPredictor</PREDICTOR>
             <LOGGER>$LOGGER</LOGGER>
-            <DICTIONARYBASE>/resources_js/${LANG}/hunspell/$LANG</DICTIONARYBASE>
+            <DICTIONARYBASE>/resources_js/${LANG_VARIANT}/hunspell/$LANG_VARIANT</DICTIONARYBASE>
             <PROBABILITY>0.00000001</PROBABILITY>
         </DefaultHunspellPredictor>
         <DefaultAspellPredictor>
             <PREDICTOR>AspellPredictor</PREDICTOR>
             <LOGGER>$LOGGER</LOGGER>
             <LANG>$LANG_VARIANT</LANG>
-            <MASTER>/resources_js/${LANG}/aspell/$LANG_VARIANT.multi</MASTER>
+            <MASTER>/resources_js/${LANG_VARIANT}/aspell/$LANG_ASPELL.multi</MASTER>
             <PROBABILITY>0.00000001</PROBABILITY>
         </DefaultAspellPredictor>
         <DefaultAbbreviationExpansionPredictor>

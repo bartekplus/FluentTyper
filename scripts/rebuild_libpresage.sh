@@ -101,12 +101,16 @@ fi
 cd "${BUILD_DIR_PRESAGE}"
 chronic emmake make -j || true
 echo "PRESAGE built"
+echo "PRESAGE buil1"
+
 
 BUILD_CMD=""
 for dir_path in ${SCRIPT_DIR}/../resources_js/*/ ;
 do
+    VERSION_INFO="$(emcc -v 2>&1)"
+    VER=$(echo "$VERSION_INFO" | grep -oE -m 1 '\d+\.\d+\.\d+')
     dir=$(basename $dir_path)
-    python3 /opt/homebrew/Cellar/emscripten/3.1.46/libexec/tools/file_packager.py "${dir}".data --preload "${SCRIPT_DIR}"/../resources_js/"${dir}"@/resources_js/"${dir}" --js-output="${dir}".js
+    python3 /opt/homebrew/Cellar/emscripten/${VER}/libexec/tools/file_packager.py "${dir}".data --preload "${SCRIPT_DIR}"/../resources_js/"${dir}"@/resources_js/"${dir}" --js-output="${dir}".js
     BUILD_CMD="${BUILD_CMD} --pre-js ${dir}.js"
     cp "${dir}".data "${SCRIPT_DIR}"/../src/third_party/libpresage/
 done

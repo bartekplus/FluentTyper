@@ -2,6 +2,7 @@ import { getDomain, isEnabledForDomain, checkLastError } from "./utils.js";
 import { Store } from "./third_party/fancier-settings/lib/store.js";
 import {
   SUPPORTED_LANGUAGES,
+  SUPPORTED_LANGUAGES_SHORT_CODE,
   DEFAULT_SEPERATOR_CHARS_REGEX,
   LANG_SEPERATOR_CHARS_REGEX,
 } from "./lang.js";
@@ -75,7 +76,8 @@ class BackgroundServiceWorker {
     const fallbackLanguage = this.settings.get("fallbackLanguage");
 
     // Use the Chrome i18n API to detect the language of the given text.
-    const result = await chrome.i18n.detectLanguage(text);
+    const api = typeof browser === "undefined" ? chrome : browser;
+    const result = await api.i18n.detectLanguage(text);
 
     let detectedLanguage = null;
     let maxPercentage = -1;
@@ -88,18 +90,27 @@ class BackgroundServiceWorker {
       ) {
         detectedLanguage = language.language;
         maxPercentage = language.percentage;
+      } else if (
+        language.language in SUPPORTED_LANGUAGES_SHORT_CODE &&
+        language.percentage > maxPercentage
+      ) {
+        detectedLanguage = SUPPORTED_LANGUAGES_SHORT_CODE[language.language];
+        maxPercentage = language.percentage;
       }
     }
 
     // If a supported language was detected, return it.
     if (detectedLanguage) {
-      return detectedLanguage;
+      //return detectedLanguage;
     }
 
     // Otherwise, try to detect the language of the tab and return it if it's a supported language.
-    const pageLang = await chrome.tabs.detectLanguage(tabId);
+    const pageLang = await api.tabs.detectLanguage(tabId);
     if (pageLang in SUPPORTED_LANGUAGES) {
       return pageLang;
+    }
+    if (pageLang in SUPPORTED_LANGUAGES_SHORT_CODE) {
+      return SUPPORTED_LANGUAGES_SHORT_CODE[pageLang];
     }
 
     // If the language of the tab is not supported, return the fallback language.
@@ -374,11 +385,18 @@ function onMessage(request, sender, sendResponse) {
   return asyncResponse;
 }
 
-function migrateToLocalStore(lastVersion) {
+async function migrateToLocalStore(lastVersion) {
   const currentVersion = chrome.runtime.getManifest().version;
   const migrateStore =
     !lastVersion ||
     lastVersion.localeCompare("2023.09.30", undefined, {
+      numeric: true,
+      sensitivity: "base",
+    }) <= 0;
+
+  const updateLang =
+    !lastVersion ||
+    lastVersion.localeCompare("2024.02.7", undefined, {
       numeric: true,
       sensitivity: "base",
     }) <= 0;
@@ -388,9 +406,22 @@ function migrateToLocalStore(lastVersion) {
       chrome.storage.local.set(result);
       chrome.storage.local.set({ lastVersion: currentVersion });
     });
-  } else {
-    chrome.storage.local.set({ lastVersion: currentVersion });
   }
+
+  if (updateLang) {
+    const backgroundServiceWorker = new BackgroundServiceWorker();
+    const langProps = ["language", "fallbackLanguage"];
+    for (const langProp of langProps) {
+      const language = await backgroundServiceWorker.settings.get(langProp);
+      for (const key of Object.keys(SUPPORTED_LANGUAGES)) {
+        if (key.startsWith(language)) {
+          await backgroundServiceWorker.settings.set(langProp, key);
+          break;
+        }
+      }
+    }
+  }
+  chrome.storage.local.set({ lastVersion: currentVersion });
 }
 
 chrome.runtime.onInstalled.addListener(onInstalled);
