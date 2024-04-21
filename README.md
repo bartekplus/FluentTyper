@@ -37,6 +37,7 @@ Supported languages:
 - Swedish
 - Polish
 - German
+- Brazilian Portuguese
 
 ## Installation
 
