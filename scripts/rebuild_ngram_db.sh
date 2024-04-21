@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-MAX_FILES=1
+MAX_FILES=25
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 OSCAR_CORUPS_VERSION="OSCAR-2301"
 LANGUAGE_DETECTION_PROB="0.925"
@@ -83,7 +83,8 @@ download_and_extract() {
         .content ' \
     "${FILE_PATH}" >> "${WORK_DIR}/${LANG}_sentences_${i}.txt" && \
     DICPATH="${SCRIPT_DIR}"/../resources_js/"${LANG_VARIANT}"/hunspell hunspell -i utf-8 -d "${LANG_VARIANT}" -G -L "${WORK_DIR}/${LANG}_sentences_${i}.txt" >  "${WORK_DIR}/${LANG}_sentences_checked_${i}.txt"  && \
-    rm -rf "${WORK_DIR}/${LANG}_sentences_${i}.txt" &
+    rm -rf "${WORK_DIR}/${LANG}_sentences_${i}.txt" && \
+    rm -rf "${FILE_PATH}" &
 }
 
 if [ "$LANG" = "hr" ]; then
@@ -93,7 +94,7 @@ fi
 
 cd "${SCRIPT_DIR}"
 if [ ! -d ${OSCAR_CORUPS_VERSION} ]; then
-    GIT_LFS_SKIP_SMUDGE=1 git clone https://huggingface.co/datasets/oscar-corpus/${OSCAR_CORUPS_VERSION}
+    GIT_LFS_SKIP_SMUDGE=1 git clone ssh://git@hf.co/datasets/oscar-corpus/${OSCAR_CORUPS_VERSION}
 fi
 
 cd ${OSCAR_CORUPS_VERSION}
