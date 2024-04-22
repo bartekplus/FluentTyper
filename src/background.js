@@ -396,7 +396,7 @@ async function migrateToLocalStore(lastVersion) {
 
   const updateLang =
     !lastVersion ||
-    lastVersion.localeCompare("2024.02.7", undefined, {
+    lastVersion.localeCompare("2024.04.21", undefined, {
       numeric: true,
       sensitivity: "base",
     }) <= 0;
