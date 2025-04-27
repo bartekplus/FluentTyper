@@ -1,5 +1,5 @@
 langcodes==3.3.0
 marisa-trie==1.1.0
-nltk==3.8.1
+nltk==3.9
 numpy==1.26.4
 setuptools==69.5.1
