@@ -89,7 +89,7 @@ class TextExpander {
   }
 
   renderImportExport() {
-    const fileElem = new ElementWrapper("div", { class: "file block" });
+    const fileElem = new ElementWrapper("div", { class: "file block buttons" });
     const fileLabelElem = new ElementWrapper("label", { class: "file-label" });
     const inputElem = new ElementWrapper("input", {
       class: "file-input",
@@ -134,7 +134,15 @@ class TextExpander {
       text: "Export Text Expander database as CSV",
       download: "FluentTyperTextExpanderDataBase.csv",
     });
-    button.inject(this.settingsWithManifest.manifest.textExpansions.bundle);
+    button.inject(fileElem);
+
+    const buttonRemoveAll = new ElementWrapper("a", {
+      class: "button is-danger",
+      text: "Remove all",
+    });
+    buttonRemoveAll.inject(fileElem);
+    buttonRemoveAll.addEvent("click", this.delAllShortcuts.bind(this));
+
     dividerElem.inject(
       this.settingsWithManifest.manifest.textExpansions.bundle,
     );
@@ -269,6 +277,12 @@ class TextExpander {
 
   delShortcut(index) {
     this.textExpansions.splice(index, 1);
+    this.saveTextExpansions();
+    this.render();
+  }
+
+  delAllShortcuts() {
+    this.textExpansions = [];
     this.saveTextExpansions();
     this.render();
   }
