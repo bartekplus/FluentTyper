@@ -143,6 +143,15 @@ const manifest = {
     },
     {
       tab: i18n.get("settings"),
+      group: i18n.get("General"),
+      name: "revertOnBackspace",
+      type: "checkbox",
+      label:
+        "Enable this option to use the undo feature for your last edit. When disabled, the backspace key will function normally, deleting only the last character.",
+      default: true,
+    },
+    {
+      tab: i18n.get("settings"),
       group: i18n.get("Import & Export Setting"),
       name: "importSettingButton",
       type: "button",
