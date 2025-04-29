@@ -37,6 +37,8 @@
       this.activeHelperArrId = null;
       // Minimum characters typed by user to start prediction
       this.minWordLengthToPredict = 0;
+      // Flag indicating whether backspace reverts last edit or deletes last character
+      this.revertOnBackspace = true;
 
       // Add message listener for handling plugin messages
       chrome.runtime.onMessage.addListener(this.messageHandler.bind(this));
@@ -122,13 +124,16 @@
     // Returns an array of keys used for special handling in key event listeners
     keys() {
       // Define an array of key names
-      const keyArr = ["Escape", "ArrowUp", "ArrowDown", "Space", "Backspace"];
+      const keyArr = ["Escape", "ArrowUp", "ArrowDown", "Space"];
 
       if (this.autocompleteOnEnter) {
         keyArr.push("Enter");
       }
       if (this.autocompleteOnTab) {
         keyArr.push("Tab");
+      }
+      if (this.revertOnBackspace) {
+        keyArr.push("Backspace");
       }
 
       // Return the array of key names
@@ -605,6 +610,7 @@
       // Force restart to reload config
       this.enabled = false;
       this.enabled = config.enabled;
+      this.revertOnBackspace = config.revertOnBackspace;
     }
 
     /**

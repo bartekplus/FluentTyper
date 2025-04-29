@@ -124,6 +124,7 @@ window.addEventListener("DOMContentLoaded", function () {
         "variableExpansion",
         "timeFormat",
         "dateFormat",
+        "revertOnBackspace",
       ].forEach((element) => {
         settings.manifest[element].addEvent("action", function () {
           optionsPageConfigChange();

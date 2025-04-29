@@ -169,6 +169,8 @@ class BackgroundServiceWorker {
         minWordLengthToPredict: await backgroundServiceWorker.settings.get(
           "minWordLengthToPredict",
         ),
+        revertOnBackspace:
+          await backgroundServiceWorker.settings.get("revertOnBackspace"),
       },
     };
 
