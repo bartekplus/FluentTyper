@@ -606,7 +606,9 @@
       this.selectByDigit = config.selectByDigit;
       // Minimum characters typed by user to start prediction
       this.minWordLengthToPredict =
-        config.minWordLengthToPredict === -1 ? Number.MAX_VALUE : 0;
+        config.minWordLengthToPredict === -1
+          ? Number.MAX_VALUE
+          : config.minWordLengthToPredict;
       // Force restart to reload config
       this.enabled = false;
       this.enabled = config.enabled;
