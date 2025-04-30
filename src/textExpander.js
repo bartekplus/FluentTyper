@@ -290,7 +290,6 @@ class TextExpander {
   addNewShortcut(renderAndSave = true) {
     const shortcatElem = document.getElementById(this.addNewShortcutIDs[0]);
     const shortcatTextElem = document.getElementById(this.addNewShortcutIDs[1]);
-    this.shortcutInputChange();
     if (this.shortcutInputChange()) {
       this.textExpansions.unshift([shortcatElem.value, shortcatTextElem.value]);
       if (renderAndSave) {
