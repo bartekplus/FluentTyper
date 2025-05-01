@@ -17,6 +17,7 @@ class BackgroundServiceWorker {
     BackgroundServiceWorker.instance = this;
 
     this.settings = new Store("settings");
+    this.language = "auto_detect";
   }
 
   async _doInitializePresagee() {
@@ -120,7 +121,7 @@ class BackgroundServiceWorker {
   /**
    * Toggles the content script on or off for the active tab.
    */
-  sendCommandToActiveTabContentScript(command) {
+  sendCommandToActiveTabContentScript(command, context = {}) {
     // Query for the active tab in the current window.
     chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
       // Check for any error that occurred during the query.
@@ -132,7 +133,7 @@ class BackgroundServiceWorker {
 
         const message = {
           command: command,
-          context: {},
+          context: context,
         };
 
         chrome.tabs.sendMessage(currentTab.id, message);
@@ -141,18 +142,16 @@ class BackgroundServiceWorker {
   }
 
   // Define an asynchronous function that takes a boolean value indicating whether to enable the background page configuration message
-  async getBackgroundPageSetConfigMsg(isEnabled) {
+  async getBackgroundPageSetConfigMsg() {
     // Create an instance of the BackgroundServiceWorker class to access the settings
     const backgroundServiceWorker = new BackgroundServiceWorker();
-
-    // Retrieve the "language" setting value from the BackgroundServiceWorker instance
-    const language = await backgroundServiceWorker.settings.get("language");
+    backgroundServiceWorker.language =
+      await backgroundServiceWorker.settings.get("language");
 
     // Define an object containing the configuration information that will be sent as a message
     const message = {
       command: "backgroundPageSetConfig",
       context: {
-        enabled: isEnabled, // Set the enabled value to the boolean parameter passed to the function
         autocomplete:
           await backgroundServiceWorker.settings.get("autocomplete"), // Retrieve the "autocomplete" setting value from the BackgroundServiceWorker instance
         autocompleteOnEnter: await backgroundServiceWorker.settings.get(
@@ -162,9 +161,9 @@ class BackgroundServiceWorker {
           await backgroundServiceWorker.settings.get("autocompleteOnTab"), // Retrieve the "autocompleteOnTab" setting value from the BackgroundServiceWorker instance
         selectByDigit:
           await backgroundServiceWorker.settings.get("selectByDigit"), // Retrieve the "selectByDigit" setting value from the BackgroundServiceWorker instance
-        lang: language, // Set the "lang" value to the retrieved language setting value
-        autocompleteSeparatorSource: language
-          ? LANG_SEPERATOR_CHARS_REGEX[language].source // Retrieve the separator character regex pattern based on the language setting value
+        lang: backgroundServiceWorker.language, // Set the "lang" value to the retrieved language setting value
+        autocompleteSeparatorSource: backgroundServiceWorker.language
+          ? LANG_SEPERATOR_CHARS_REGEX[backgroundServiceWorker.language].source // Retrieve the separator character regex pattern based on the language setting value
           : DEFAULT_SEPERATOR_CHARS_REGEX.source, // Use the default pattern if the language setting value is undefined or null
         minWordLengthToPredict: await backgroundServiceWorker.settings.get(
           "minWordLengthToPredict",
@@ -184,7 +183,10 @@ class BackgroundServiceWorker {
   async updatePresageConfig() {
     // Initialize the Presage handler.
     await this._initializePresage();
+    const backgroundServiceWorker = new BackgroundServiceWorker();
 
+    backgroundServiceWorker.language =
+      await backgroundServiceWorker.settings.get("language");
     // Set the Presage handler configuration based on the settings.
     this.presageHandler.setConfig(
       await this.settings.get("numSuggestions"),
@@ -204,7 +206,10 @@ class BackgroundServiceWorker {
       checkLastError();
 
       // Create a background service worker to access the settings.
-      const backgroundServiceWorker = new BackgroundServiceWorker();
+
+      // Get a message object with the current configuration.
+      const message =
+        await backgroundServiceWorker.getBackgroundPageSetConfigMsg();
 
       // Loop through all tabs and send a message to each one.
       for (const tab of tabs) {
@@ -221,10 +226,7 @@ class BackgroundServiceWorker {
           backgroundServiceWorker.settings,
           domain,
         );
-
-        // Get a message object with the current configuration.
-        const message =
-          await backgroundServiceWorker.getBackgroundPageSetConfigMsg(enabled);
+        message.context.enabled = enabled;
 
         // Send the message to the current tab.
         chrome.tabs.sendMessage(tab.id, message);
@@ -283,6 +285,34 @@ function onCommand(command) {
         "trigger-ft-active-tab",
       );
       break;
+    case "toggle-ft-active-lang":
+      // Define the list of languages to cycle through, including auto_detect
+      const availableLangs = [
+        ...Object.keys(SUPPORTED_LANGUAGES), // Get keys if it's an object
+      ];
+
+      // Supported LANGAUGE if associative array -> fix it
+      const currentLangIndex = availableLangs.indexOf(
+        backgroundServiceWorker.language,
+      );
+      // Calculate the next index, wrapping around
+      const nextLangIndex = (currentLangIndex + 1) % availableLangs.length;
+      const nextLang = availableLangs[nextLangIndex];
+
+      backgroundServiceWorker.settings.set("language", nextLang);
+      backgroundServiceWorker.language = nextLang;
+
+      const context = {
+        lang: nextLang,
+        autocompleteSeparatorSource:
+          LANG_SEPERATOR_CHARS_REGEX[nextLang].source,
+      };
+
+      backgroundServiceWorker.sendCommandToActiveTabContentScript(
+        "backgroundPageUpdateLangConfig",
+        context,
+      );
+      break;
     default:
       // Log an error message if the command is unknown.
       console.error("Unknown command: ", command);
@@ -322,6 +352,8 @@ function onMessage(request, sender, sendResponse) {
       backgroundServiceWorker.settings
         .get("language")
         .then(async (language) => {
+          backgroundServiceWorker.language = language;
+
           // If language is set to auto-detect, detect the language.
           if (language === "auto_detect") {
             language = await backgroundServiceWorker.detectLanguage(
@@ -369,9 +401,10 @@ function onMessage(request, sender, sendResponse) {
         getDomain(sender.tab.url),
       )
         .then(async (isEnabled) => {
-          return backgroundServiceWorker.getBackgroundPageSetConfigMsg(
-            isEnabled,
-          );
+          const message =
+            await backgroundServiceWorker.getBackgroundPageSetConfigMsg();
+          message.context.enabled = isEnabled;
+          return message;
         })
         .then(async (message) => {
           sendResponse(message);

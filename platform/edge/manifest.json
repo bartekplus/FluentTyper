@@ -67,6 +67,13 @@
       },
       "description": "Toggle on/off FluentTyper on active tab"
     },
+    "toggle-ft-active-lang": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+L",
+        "mac": "Command+Shift+L"
+      },
+      "description": "Change FluentTyper active language"
+    },
     "trigger-ft-active-tab": {
       "suggested_key": {
         "default": "Ctrl+Period"
