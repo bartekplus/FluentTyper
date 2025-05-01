@@ -705,7 +705,7 @@
           this.updateLangConfig(
             message.context.lang,
             message.context.autocompleteSeparatorSource,
-            message.context.tributeId,
+            this.activeHelperArrId,
           );
           // Send a status message to the sender
           sendStatusMsg = true;
