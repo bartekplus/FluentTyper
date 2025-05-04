@@ -57,7 +57,7 @@
         // If the observerNode has changed and the plugin is enabled, disable and re-enable it
         if (this.enabled) {
           this.disable();
-          this.enable();
+          setTimeout(this.enable.bind(this));
         }
         // Update the observerNode to the current node
         this.observerNode = currentNode;

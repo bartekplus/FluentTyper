@@ -73,6 +73,7 @@ class PresageHandler {
     this.variableExpansion = false; // Variable expansion support
     this.timeFormat = ""; // Custom time format
     this.dateFormat = ""; // Custom time format
+    this.userDictionaryList = []; // User dictionary
 
     // Precompiled regular expressions
     this.separatorCharRegEx =
@@ -159,6 +160,29 @@ class PresageHandler {
   }
 
   /**
+   * Sets up user dictionary by writing them to a text file and configuring
+   * dictionary predictor for each libPresage instance
+   */
+  setupUserDictionary() {
+    // Check if there are any text expansions to set up
+    if (!this.userDictionaryList) {
+      return;
+    }
+    const userDictionaryStr = this.userDictionaryList.join("\n");
+
+    // Write the user dictionary
+    this.Module.FS.writeFile("/userDictionary.txt", userDictionaryStr);
+
+    // Configure abbreviation expansion predictor for each libPresage instance
+    for (const [, libPresage] of Object.entries(this.libPresage)) {
+      libPresage.config(
+        "Presage.Predictors.DefaultDictionaryPredictor.DICTIONARY",
+        "/userDictionary.txt",
+      );
+    }
+  }
+
+  /**
     Sets the configuration for the Presage engine.
     @param {number} numSuggestions - The number of suggestions to generate.
     @param {number} minWordLengthToPredict - The minimum number of characters that the user must type before the engine starts predicting.
@@ -177,6 +201,7 @@ class PresageHandler {
     variableExpansion,
     timeFormat,
     dateFormat,
+    userDictionaryList,
   ) {
     this.numSuggestions = numSuggestions;
     this.minWordLengthToPredict = Math.max(0, minWordLengthToPredict);
@@ -188,7 +213,9 @@ class PresageHandler {
     this.variableExpansion = variableExpansion;
     this.timeFormat = timeFormat;
     this.dateFormat = dateFormat;
+    this.userDictionaryList = userDictionaryList;
     this.setupTextExpansions();
+    this.setupUserDictionary();
     for (const [, libPresage] of Object.entries(this.libPresage)) {
       libPresage.config(
         "Presage.Selector.SUGGESTIONS",

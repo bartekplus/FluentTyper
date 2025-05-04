@@ -50,13 +50,13 @@ class BackgroundServiceWorker {
     message.context.predictions = predictions;
     message.context.forceReplace = forceReplace;
 
-    chrome.tabs.get(message.context.tabId, function (tab) {
+    chrome.tabs.get(message.context.tabId, async function (tab) {
       checkLastError();
 
       if (tab) {
         // Update command to indicate origin of the message
         message.command = "backgroundPagePredictResp";
-        chrome.tabs.sendMessage(message.context.tabId, message, {
+        await chrome.tabs.sendMessage(message.context.tabId, message, {
           frameId: message.context.frameId,
         });
       }
@@ -123,22 +123,25 @@ class BackgroundServiceWorker {
    */
   sendCommandToActiveTabContentScript(command, context = {}) {
     // Query for the active tab in the current window.
-    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-      // Check for any error that occurred during the query.
-      checkLastError();
+    chrome.tabs.query(
+      { active: true, currentWindow: true },
+      async function (tabs) {
+        // Check for any error that occurred during the query.
+        checkLastError();
 
-      // If exactly one tab was found, send a message to toggle the content script.
-      if (tabs.length === 1) {
-        const currentTab = tabs[0];
+        // If exactly one tab was found, send a message to toggle the content script.
+        if (tabs.length === 1) {
+          const currentTab = tabs[0];
 
-        const message = {
-          command: command,
-          context: context,
-        };
+          const message = {
+            command: command,
+            context: context,
+          };
 
-        chrome.tabs.sendMessage(currentTab.id, message);
-      }
-    });
+          await chrome.tabs.sendMessage(currentTab.id, message);
+        }
+      },
+    );
   }
 
   // Define an asynchronous function that takes a boolean value indicating whether to enable the background page configuration message
@@ -183,10 +186,8 @@ class BackgroundServiceWorker {
   async updatePresageConfig() {
     // Initialize the Presage handler.
     await this._initializePresage();
-    const backgroundServiceWorker = new BackgroundServiceWorker();
 
-    backgroundServiceWorker.language =
-      await backgroundServiceWorker.settings.get("language");
+    this.language = await this.settings.get("language");
     // Set the Presage handler configuration based on the settings.
     this.presageHandler.setConfig(
       await this.settings.get("numSuggestions"),
@@ -198,6 +199,7 @@ class BackgroundServiceWorker {
       await this.settings.get("variableExpansion"),
       await this.settings.get("timeFormat"),
       await this.settings.get("dateFormat"),
+      await this.settings.get("userDictionaryList"),
     );
 
     // Query all tabs and send a message with the new configuration to each one.
@@ -206,6 +208,7 @@ class BackgroundServiceWorker {
       checkLastError();
 
       // Create a background service worker to access the settings.
+      const backgroundServiceWorker = new BackgroundServiceWorker();
 
       // Get a message object with the current configuration.
       const message =
@@ -229,7 +232,11 @@ class BackgroundServiceWorker {
         message.context.enabled = enabled;
 
         // Send the message to the current tab.
-        chrome.tabs.sendMessage(tab.id, message);
+        try {
+          await chrome.tabs.sendMessage(tab.id, message);
+        } catch (error) {
+          console.log(error);
+        }
       }
     });
   }
@@ -462,9 +469,11 @@ async function migrateToLocalStore(lastVersion) {
 chrome.runtime.onInstalled.addListener(onInstalled);
 chrome.commands.onCommand.addListener(onCommand);
 chrome.runtime.onMessage.addListener(onMessage);
-chrome.storage.local.get("lastVersion", (result) => {
+chrome.storage.local.get("lastVersion", async (result) => {
   try {
     migrateToLocalStore(result.lastVersion);
+    const backgroundServiceWorker = new BackgroundServiceWorker();
+    await backgroundServiceWorker._initializePresage();
   } catch (error) {
     console.log(error);
   }

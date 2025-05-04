@@ -46,6 +46,50 @@ function importSettingButtonFileSelected(settings) {
   });
 
   fr.readAsText(importInputElem.files[0]);
+  importInputElem.value = null;
+}
+
+function importUserDictFileSelected(settings) {
+  const importInputElem = settings.manifest.importUserDictButton.element.element;
+  const fr = new FileReader();
+  fr.addEventListener("load", () => {
+    try {
+      const fileContent = fr.result;
+      const lines = fileContent.split('\n');
+      // Regex to match a single word (letters, numbers, underscore) without spaces or other special chars
+      const wordRegex = /^\w+$/;
+      let count = 0;
+
+      lines.forEach(line => {
+        const word = line.trim();
+        if (word && wordRegex.test(word)) {
+          settings.manifest.userDictionaryList.add(word, false);
+          count +=1;
+        }
+      });
+      settings.manifest.userDictionaryList.store();
+
+      const block = new ElementWrapper("div", { class: "block" });
+      const notification = new ElementWrapper("div", {
+        class: "notification is-success",
+        text: "Imported:  " + count + " words",
+      });
+
+      notification.inject(block);
+      block.inject(settings.manifest.importUserDictButton.bundle);
+    } catch (error) {
+      const block = new ElementWrapper("div", { class: "block" });
+      const notification = new ElementWrapper("div", {
+        class: "notification is-danger",
+        text: "Failed to import user dictionary file:  " + error,
+      });
+
+      notification.inject(block);
+      block.inject(settings.manifest.importUserDictButton.bundle);
+    }
+  });
+  fr.readAsText(importInputElem.files[0]);
+  importInputElem.value = null;
 }
 
 window.addEventListener("DOMContentLoaded", function () {
@@ -73,6 +117,22 @@ window.addEventListener("DOMContentLoaded", function () {
             settings.manifest.domain.element.element.value = "";
           }
         }
+      });
+
+      // User dictionary add action
+      settings.manifest.addUserWordBtn.addEvent("action", function () {
+        if (settings.manifest.userDictionary.element.element.checkValidity()) {
+            const word = settings.manifest.userDictionary.get();
+            settings.manifest.userDictionaryList.add(word);
+            settings.manifest.userDictionary.element.element.value = "";
+        }
+      });
+      // User dictionary remove action
+      settings.manifest.removeUserWordBtn.addEvent("action", function () {
+        settings.manifest.userDictionaryList.remove();
+      });
+      settings.manifest.removeAllUserWordsBtn.addEvent("action", function () {
+        settings.manifest.userDictionaryList.removeAll();
       });
 
       settings.manifest.exportSettingButton.addEvent("action", function () {
@@ -107,6 +167,15 @@ window.addEventListener("DOMContentLoaded", function () {
         importSettingButtonFileSelected.bind(null, settings)
       );
 
+      const importUserDictElem =
+      settings.manifest.importUserDictButton.element.element;
+      importUserDictElem.type = "file";
+      importUserDictElem.accept = ".txt";
+      importUserDictElem.addEventListener(
+      "input",
+      importUserDictFileSelected.bind(null, settings)
+    );
+
       // Update pressage config on change
       [
         "autocomplete",
@@ -125,6 +194,8 @@ window.addEventListener("DOMContentLoaded", function () {
         "timeFormat",
         "dateFormat",
         "revertOnBackspace",
+        "textExpansions",
+        "userDictionaryList",
       ].forEach((element) => {
         settings.manifest[element].addEvent("action", function () {
           optionsPageConfigChange();

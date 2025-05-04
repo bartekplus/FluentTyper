@@ -55,7 +55,7 @@ BUILD_DIR_ASPELL="${BUILD_DIR}/aspell"
 
 if [ ! -d "${BUILD_DIR_ASPELL}" ]; then
     cd "${BUILD_DIR}"
-    chronic git clone --depth 1 --branch rel-0.60.8 git@github.com:GNUAspell/aspell.git
+    chronic git clone --depth 1 git@github.com:GNUAspell/aspell.git
     cd "${BUILD_DIR_ASPELL}"
     chronic emconfigure ./autogen
     chronic emconfigure ./configure --enable-static=yes  --enable-shared=no --host=i686-gnu 
