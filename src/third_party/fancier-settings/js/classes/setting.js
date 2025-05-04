@@ -133,7 +133,7 @@ class Button extends Bundle {
     });
 
     this.element = new ElementWrapper("input", {
-      class: "button is-primary is-outlined",
+      class: "button is-primary",
       type: "button",
     });
 
@@ -196,7 +196,7 @@ class ModalButton extends Button {
     });
 
     this.modalDone = new ElementWrapper("input", {
-      class: "button is-primary is-outlined",
+      class: "button is-primary",
     });
   }
 
@@ -652,7 +652,7 @@ class ListBox extends PopupButton {
   // label, options[{value, text}]
   // action -> change
 
-  add(item) {
+  add(item, store=true) {
     if (this.params.options.indexOf(item) === -1) {
       this.params.options.push(item);
       const elem = new ElementWrapper("option", {
@@ -660,8 +660,15 @@ class ListBox extends PopupButton {
         text: item,
       });
       elem.inject(this.element);
-      settings.set(this.params.name, this.params.options);
+      if (store) {
+        this.store();
+      }
     }
+  }
+
+  store() {
+    settings.set(this.params.name, this.params.options);
+    this.fireEvent("action", this.get());
   }
 
   remove() {
@@ -677,7 +684,17 @@ class ListBox extends PopupButton {
           element = null;
         }
       });
+      this.fireEvent("action", this.get());
     }
+  }
+
+  removeAll() {
+    this.params.options = [];
+    settings.set(this.params.name, this.params.options);
+    while (this.element.element.firstChild) {
+      this.element.element.removeChild(this.element.element.firstChild);
+    }
+    this.fireEvent("action", this.get());
   }
 
   addEvents() {
