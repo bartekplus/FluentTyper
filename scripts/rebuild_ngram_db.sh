@@ -4,9 +4,10 @@ set -euo pipefail
 
 MAX_FILES=25
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-OSCAR_CORUPS_VERSION="OSCAR-2301"
-LANGUAGE_DETECTION_PROB="0.925"
-HARMFUL_SCORE="275.0"
+OSCAR_REPO_NAME="community-oscar"
+OSCAR_CORUPS_VERSION="2024-38"
+LANGUAGE_DETECTION_PROB="0.95"
+HARMFUL_SCORE="300.0"
 LANG=""
 LANG_VARIANT=""
 
@@ -93,20 +94,25 @@ if [ "$LANG" = "hr" ]; then
 fi
 
 cd "${SCRIPT_DIR}"
-if [ ! -d ${OSCAR_CORUPS_VERSION} ]; then
-    GIT_LFS_SKIP_SMUDGE=1 git clone ssh://git@hf.co/datasets/oscar-corpus/${OSCAR_CORUPS_VERSION}
+if [ ! -d ${OSCAR_REPO_NAME} ]; then
+    GIT_LFS_SKIP_SMUDGE=1 git clone ssh://git@hf.co/datasets/oscar-corpus/community-oscar
 fi
 
-cd ${OSCAR_CORUPS_VERSION}
+cd ${OSCAR_REPO_NAME}
 WORK_DIR="${SCRIPT_DIR}/tmp"
 mkdir -p "${WORK_DIR}"
 trap 'rm -rf ${WORK_DIR}' SIGINT SIGTERM EXIT
 
 git lfs install
 
-FILE_COUNT=$(ls "${LANG}"_meta/"${LANG}"_meta_part_*.zst |wc -l)
-FILE_STEP=$((${FILE_COUNT} / ${MAX_FILES}))
-FILE_MAX=$((${FILE_STEP} * ${MAX_FILES}))
+FILE_COUNT=$(ls "data/${OSCAR_CORUPS_VERSION}/${LANG}"_meta/"${LANG}"_meta_part_*.zst |wc -l)
+if [[ "${FILE_COUNT}" -lt "${MAX_FILES}" ]]; then
+  MAX_FILES_TO_PROCESS="${FILE_COUNT}"
+else
+  MAX_FILES_TO_PROCESS="${MAX_FILES}"
+fi
+FILE_STEP=$((${FILE_COUNT} / ${MAX_FILES_TO_PROCESS}))
+FILE_MAX=$((${FILE_STEP} * ${MAX_FILES_TO_PROCESS}))
 
 SENTENCES_FILE="${WORK_DIR}/${LANG}_sentences.txt"
 rm -rf "${SENTENCES_FILE}"
@@ -114,7 +120,8 @@ rm -rf "${SENTENCES_FILE}"
 for i in $(seq 1 $FILE_STEP $FILE_MAX)
 do
     FILE_NAME="${LANG}_meta_part_${i}.jsonl"
-    FILE_PATH="${LANG}_meta/${FILE_NAME}"
+    FILE_PATH="data/${OSCAR_CORUPS_VERSION}/${LANG}_meta/${FILE_NAME}"
+    echo "Processing ${FILE_PATH}"
     download_and_extract "$FILE_PATH" "$LANG" "$WORK_DIR"
 done    
 
