@@ -9,6 +9,10 @@ from nltk.tokenize import TweetTokenizer
 from collections import Counter
 import re
 import nltk
+import multiprocessing
+import itertools
+import functools
+
 
 NGRAM_COUNT = 4
 NGRAM_DIV = 1.33
@@ -57,7 +61,6 @@ def filter_tokens(tokens_raw):
         token_orig = token.strip()
         token = token.strip().lower()
 
-        
         if not token:
             split = True
         elif not token.isprintable():
@@ -83,36 +86,80 @@ def filter_tokens(tokens_raw):
     return tokens_array
 
 
-if __name__ == "__main__":
-    args = parser.parse_args()
+def process_chunk(language, chunk):
+    """Processes a chunk of lines to count n-grams."""
+    local_ngram_counters = [Counter() for _ in range(NGRAM_COUNT)]
+    tk = TweetTokenizer(match_phone_numbers=False)  # Initialize tokenizer per process
+    lines_processed_in_chunk = 0
 
-    # download tokenizer data
-    nltk.download("punkt")
-    tk = TweetTokenizer(match_phone_numbers=False)
-    counter = 1
-    ngram = [Counter() for i in range(NGRAM_COUNT)]
-    base_path = os.path.splitext(args.inputfile.name)[0]
-
-    for line in args.inputfile:
+    for line in chunk:
         try:
             line = decode(encode(line, "latin-1", "backslashreplace"), "unicode-escape")
         except Exception as e:
-            print(e)
+            # print(f"Error decoding line, skipping: {e}") # Optional: log errors
             continue
-        for sentence in sent_tokenize(line, language=LANGS[args.language]):
+
+        lines_processed_in_chunk += 1  # Count successfully decoded lines
+        # Assuming LANGS is accessible globally or passed if needed
+        for sentence in sent_tokenize(line, language=LANGS[language]):
             sentence = fix_common_errors(sentence)
             tokens_raw = tk.tokenize(sentence)
             tokens_array = filter_tokens(tokens_raw)
 
             for tokens in tokens_array:
+                if not tokens:
+                    continue
                 for c in range(NGRAM_COUNT):
+                    # Generate n-grams for the current level
                     n = ngrams(tokens, c + 1)
-                    ngram[c].update(n)
+                    local_ngram_counters[c].update(n)
 
-        if counter % 100000 == 0:
-            print(f"Processed {counter} lines")
+    return local_ngram_counters, lines_processed_in_chunk
 
-        counter += 1
+
+if __name__ == "__main__":
+    args = parser.parse_args()
+
+    # download tokenizer data
+    nltk.download("punkt")
+    nltk.download("punkt_tab")
+    # Determine number of processes
+    num_processes = multiprocessing.cpu_count()
+    print(f"Using {num_processes} processes for parallel processing.")
+    # Define chunk size
+    chunk_size = 100000  # Adjust as needed based on memory/performanc
+    # Initialize global counters
+    final_ngram_counters = [Counter() for _ in range(NGRAM_COUNT)]
+    base_path = os.path.splitext(args.inputfile.name)[0]
+    total_lines_processed = 0
+    print("Starting n-gram processing...")
+    with multiprocessing.Pool(processes=num_processes) as pool:
+        # Read file in chunks and map to workers
+        line_iterator = iter(args.inputfile)
+
+        def chunk_generator():
+            while True:
+                chunk = list(itertools.islice(line_iterator, chunk_size))
+                if not chunk:
+                    return  # Stop iteration when file ends
+                yield chunk
+
+        # Create a partial function with the language argument fixed.
+        # Only the chunk will be passed in each call by imap_unordered.
+        partial_process_chunk = functools.partial(process_chunk, args.language)
+
+        # Process chunks in parallel using imap_unordered
+        for result_counters, lines_in_chunk in pool.imap_unordered(
+            partial_process_chunk, chunk_generator()
+        ):
+            # Merge results from the completed chunk processing
+            for i in range(NGRAM_COUNT):
+                final_ngram_counters[i].update(result_counters[i])
+            total_lines_processed += lines_in_chunk
+            print(f"Processed {total_lines_processed} lines...")
+
+    print(f"Finished processing. Total lines: {total_lines_processed}")
+    args.inputfile.close()  # Close the input file
 
     last_ngram_count = 0
     filenames = []
@@ -124,7 +171,7 @@ if __name__ == "__main__":
         f_ngram = open(f_name, "w")
 
         ngram_count = 0
-        for k, v in ngram[c].most_common(
+        for k, v in final_ngram_counters[c].most_common(
             n=round(last_ngram_count // NGRAM_DIV) if last_ngram_count else None
         ):
             if v < NGRAM_MIN_COUNT:
