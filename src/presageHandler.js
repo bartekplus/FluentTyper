@@ -164,10 +164,6 @@ class PresageHandler {
    * dictionary predictor for each libPresage instance
    */
   setupUserDictionary() {
-    // Check if there are any text expansions to set up
-    if (!this.userDictionaryList) {
-      return;
-    }
     const userDictionaryStr = this.userDictionaryList.join("\n");
 
     // Write the user dictionary

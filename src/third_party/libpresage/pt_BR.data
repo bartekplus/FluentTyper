@@ -492173,7 +492173,7 @@ H  tÿÿÿ  Ù  bÿÿÿö  H  rÿÿÿÅM  Gá   ÿÿÿ	   á   oÿÿÿS    tÿÿÿ	   â   aÿÿÿ…
 <Presage>
     <PredictorRegistry>
         <LOGGER>ERROR</LOGGER>
-        <PREDICTORS>DefaultSmoothedNgramTriePredictor DefaultAspellPredictor DefaultHunspellPredictor DefaultAbbreviationExpansionPredictor DefaultRecencyPredictor</PREDICTORS>
+        <PREDICTORS>DefaultSmoothedNgramTriePredictor DefaultAspellPredictor DefaultHunspellPredictor DefaultAbbreviationExpansionPredictor DefaultDictionaryPredictor DefaultRecencyPredictor</PREDICTORS>
     </PredictorRegistry>
     <ContextTracker>
         <LOGGER>ERROR</LOGGER>
