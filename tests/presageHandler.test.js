@@ -10,6 +10,7 @@ const testContext = {
   autoCapitalize: true,
   applySpacingRules: true,
   textExpansions: null,
+  variableExpansion: false,
   timeFormat: "",
   dateFormat: "",
   userDictionaryList: [],
@@ -23,6 +24,7 @@ function setConfig() {
     testContext.autoCapitalize,
     testContext.applySpacingRules,
     testContext.textExpansions,
+    testContext.variableExpansion,
     testContext.timeFormat,
     testContext.dateFormat,
     testContext.userDictionaryList,
@@ -36,6 +38,7 @@ beforeEach(() => {
   testContext.autoCapitalize = true;
   testContext.applySpacingRules = true;
   testContext.textExpansions = null;
+  testContext.variableExpansion = false;
   testContext.timeFormat = "";
   testContext.dateFormat = "";
   testContext.userDictionaryList = [];

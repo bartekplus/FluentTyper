@@ -40,6 +40,7 @@ class Module {
   constructor() {
     this.Presage = FakeLibPresage;
     this.PresageCallback = new PresageCallback();
+    this.FS = { writeFile: () => {} };
   }
 }
 const mod = new Module();
