@@ -2,13 +2,11 @@
   "name": "fluenttyper",
   "version": "1.0.0",
   "description": "",
-  "main": "cs.js",
   "scripts": {
     "check": "eslint . && prettier '**/*.{html,css}'  --check",
     "lint": "eslint --fix . && prettier '**/*.{html,css}'  --write",
     "test": "node --experimental-vm-modules $(yarn bin jest)"
   },
-  "type": "module",
   "jest": {
     "testEnvironment": "jsdom"
   },

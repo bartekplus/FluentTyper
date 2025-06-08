@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ES2022",
+    "outDir": "./build",
+    "rootDir": "./src",
+    "strict": true,
+    "esModuleInterop": true,
+    "allowJs": true, // Allow JavaScript files to be compiled
+    "checkJs": false, // Don't type-check JS files initially
+    "lib": ["DOM", "ES2022"],
+    "moduleResolution": "bundler",
+    "sourceMap": false,
+    "typeRoots": [ "node_modules/@types" ]
+  },
+  "include": ["src/**/*"],
+  "exclude": ["src/third_party"] // Exclude third_party from compilation
+}

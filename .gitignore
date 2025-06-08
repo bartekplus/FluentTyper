@@ -1,3 +1,5 @@
+build
 node_modules
 promotional_materials/font/berlin.zip
+scripts/.deps
 .DS_Store
