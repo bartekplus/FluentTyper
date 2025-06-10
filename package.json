@@ -50,6 +50,7 @@
     "webpack-merge": "6.0.1"
   },
   "dependencies": {
+    "buffer": "^6.0.3",
     "csv-parse": "^5.6.0",
     "csv-stringify": "^6.5.2",
     "luxon": "^3.6.1"

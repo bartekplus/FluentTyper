@@ -1,5 +1,6 @@
 import path from "path";
 import CopyPlugin from "copy-webpack-plugin";
+import webpack from "webpack";
 const srcDir = path.join(path.dirname(new URL(import.meta.url).pathname), "..", "src");
 
 export default {
@@ -35,6 +36,9 @@ export default {
             patterns: [{ from: ".", to: "../build", context: "public" }],
             options: {},
         }),
+        new webpack.ProvidePlugin({
+            Buffer: ["buffer", "Buffer"],
+        })
     ],
     performance: {
         maxAssetSize: 67108864
