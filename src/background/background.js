@@ -1,4 +1,4 @@
-import { getDomain, isEnabledForDomain, checkLastError } from "../shared/utils.js";
+import { getDomain, isEnabledForDomain, checkLastError } from "../shared/utils.ts";
 import { Store } from "../third_party/fancier-settings/lib/store.js";
 import {
   SUPPORTED_LANGUAGES,
