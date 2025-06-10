@@ -1,5 +1,5 @@
 import { i18n } from "./i18n.js";
-import { SUPPORTED_LANGUAGES } from "../../shared/lang.js";
+import { SUPPORTED_LANGUAGES } from "../../shared/lang.ts";
 import { DOMAIN_LIST_MODE } from "../../shared/utils.js";
 import { DATE_TIME_VARIABLES } from "../../shared/variables.js";
 

@@ -5,7 +5,7 @@ import {
   SUPPORTED_LANGUAGES_SHORT_CODE,
   DEFAULT_SEPERATOR_CHARS_REGEX,
   LANG_SEPERATOR_CHARS_REGEX,
-} from "../shared/lang.js";
+} from "../shared/lang.ts";
 import { PresageHandler } from "./presageHandler.js";
 import libPresageMod from "../third_party/libpresage/libpresage.js";
 

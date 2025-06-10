@@ -6,7 +6,7 @@ export default {
     entry: {
         'popup/popup': path.join(srcDir, 'popup', 'popup.js'),
         'background': path.join(srcDir, 'background', 'background.js'),
-        'content_script': path.join(srcDir, 'content-script', 'cs.js'),
+        'content_script': path.join(srcDir, 'content-script', 'content_script.js'),
         'third_party/fancier-settings/settings': path.join(srcDir, 'third_party', 'fancier-settings', 'settings.js'),
     },
     output: {

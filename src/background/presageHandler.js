@@ -1,7 +1,7 @@
 import {
   SUPPORTED_LANGUAGES,
   LANG_ADDITIONAL_SEPERATOR_REGEX,
-} from "../shared/lang.js";
+} from "../shared/lang.ts";
 
 import { DATE_TIME_VARIABLES } from "../shared/variables.js";
 
