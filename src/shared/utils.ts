@@ -1,14 +1,14 @@
-// Converted to TypeScript from utils.js
-
+import { getErrorMessage } from "./error";  
 const SETTINGS_DOMAIN_BLACKLIST = "domainBlackList";
 const DOMAIN_LIST_MODE = {
   blackList: "Blacklist - enabled on all websites, disabled on specific sites",
   whiteList: "Whitelist - disabled on all websites, enabled on specific sites",
 };
 
+type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 export interface Settings {
-  get: (key: string) => Promise<any>;
-  set?: (key: string, value: any) => Promise<void>;
+  get: (key: string) => Promise<JsonValue>;
+  set?: (key: string, value: JsonValue) => Promise<void>;
 }
 
 /**
@@ -38,13 +38,13 @@ async function isDomainOnList(settings: Settings, domainURL: string): Promise<bo
       throw new Error("The domain list is not an array.");
     }
     for (let i = 0; i < domainList.length; i++) {
-      if (domainURL.match(domainList[i])) {
+      if (domainURL.match(domainList[i] as string)) {
         return true;
       }
     }
     return false;
-  } catch (error: any) {
-    console.error(`Error checking domain list: ${error.message}`);
+  } catch (error: unknown) {
+    console.error(`Error checking domain list: ${getErrorMessage(error)}`);
     return false;
   }
 }
@@ -62,8 +62,8 @@ async function addDomainToList(settings: Settings, domainURL: string): Promise<v
     if (settings.set) {
       await settings.set(SETTINGS_DOMAIN_BLACKLIST, domainList);
     }
-  } catch (error: any) {
-    console.error(`Error adding domain to list: ${error.message}`);
+  } catch (error: unknown) {
+    console.error(`Error adding domain to list: ${getErrorMessage(error)}`);
   }
 }
 
@@ -77,7 +77,7 @@ async function removeDomainFromList(settings: Settings, domainURL: string): Prom
       throw new Error("The domain list is not an array.");
     }
     for (let i = 0; i < domainList.length; i++) {
-      if (domainURL.match(domainList[i])) {
+      if (domainURL.match(domainList[i] as string)) {
         domainList.splice(i, 1);
         if (settings.set) {
           await settings.set(SETTINGS_DOMAIN_BLACKLIST, domainList);
@@ -85,8 +85,8 @@ async function removeDomainFromList(settings: Settings, domainURL: string): Prom
         break;
       }
     }
-  } catch (error: any) {
-    console.error(`Error removing domain from list: ${error.message}`);
+  } catch (error: unknown) {
+    console.error(`Error removing domain from list: ${getErrorMessage(error)}`);
   }
 }
 
@@ -94,7 +94,7 @@ async function removeDomainFromList(settings: Settings, domainURL: string): Prom
  * Checks if the extension is enabled for the given domain URL.
  */
 async function isEnabledForDomain(settings: Settings, domainURL: string): Promise<boolean> {
-  let enabledForDomain = await settings.get("enable");
+  let enabledForDomain = Boolean(await settings.get("enable"));
   if (enabledForDomain) {
     const domainListMode = await settings.get("domainListMode");
     const isDomainOnBWList = await isDomainOnList(settings, domainURL);
@@ -110,11 +110,11 @@ async function isEnabledForDomain(settings: Settings, domainURL: string): Promis
  */
 function checkLastError(): void {
   try {
-    if ((chrome as any).runtime.lastError) {
-      console.log("Runtime error:", (chrome as any).runtime.lastError.message);
+    if (chrome.runtime.lastError) {
+      console.log("Runtime error:", chrome.runtime.lastError.message);
     }
-  } catch (error: any) {
-    console.error("Error while checking runtime error:", error);
+  } catch (error: unknown) {
+    console.error(`Error while checking runtime error: ${getErrorMessage(error)}`);
   }
 }
 

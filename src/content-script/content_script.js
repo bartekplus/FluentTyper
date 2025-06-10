@@ -1,5 +1,4 @@
 /*eslint no-unused-vars: ["error", { "argsIgnorePattern": "^_" }]*/
-/* global Tribute */
 
 import Tribute from "../third_party/tribute/tribute.esm.js";
 

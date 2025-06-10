@@ -292,7 +292,7 @@ function onCommand(command) {
         "trigger-ft-active-tab",
       );
       break;
-    case "toggle-ft-active-lang":
+    case "toggle-ft-active-lang": {
       // Define the list of languages to cycle through, including auto_detect
       const availableLangs = [
         ...Object.keys(SUPPORTED_LANGUAGES), // Get keys if it's an object
@@ -320,6 +320,7 @@ function onCommand(command) {
         context,
       );
       break;
+    }
     default:
       // Log an error message if the command is unknown.
       console.error("Unknown command: ", command);
