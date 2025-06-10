@@ -1,6 +1,6 @@
 import { mod } from "./fakeLibPresage.js";
-import { PresageHandler } from "../src/presageHandler.js";
-import { SUPPORTED_LANGUAGES } from "../src/lang.js";
+import { PresageHandler } from "../src/background/presageHandler.js";
+import { SUPPORTED_LANGUAGES } from "../src/shared/lang.js";
 
 const testContext = {
   ph: null,
