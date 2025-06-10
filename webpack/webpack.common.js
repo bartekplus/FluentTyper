@@ -1,8 +1,8 @@
-const path = require("path");
-const CopyPlugin = require("copy-webpack-plugin");
-const srcDir = path.join(__dirname, "..", "src");
+import path from "path";
+import CopyPlugin from "copy-webpack-plugin";
+const srcDir = path.join(path.dirname(new URL(import.meta.url).pathname), "..", "src");
 
-module.exports = {
+export default {
     entry: {
         'popup/popup': path.join(srcDir, 'popup', 'popup.js'),
         'background': path.join(srcDir, 'background', 'background.js'),
@@ -10,7 +10,7 @@ module.exports = {
         'third_party/fancier-settings/settings': path.join(srcDir, 'third_party', 'fancier-settings', 'settings.js'),
     },
     output: {
-        path: path.join(__dirname, "../build"),
+        path: path.join(path.dirname(new URL(import.meta.url).pathname), "../build"),
         filename: "[name].js",
         clean: true,
         chunkFormat: false,

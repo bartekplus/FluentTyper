@@ -1,4 +1,4 @@
-import { getDomain, isEnabledForDomain, blockUnBlockDomain } from "../shared/utils";
+import { getDomain, isEnabledForDomain, blockUnBlockDomain } from "../shared/utils.js";
 import { Store } from "../third_party/fancier-settings/lib/store.js";
 import { SUPPORTED_LANGUAGES } from "../shared/lang.js";
 

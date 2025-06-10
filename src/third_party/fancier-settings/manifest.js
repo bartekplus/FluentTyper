@@ -1,7 +1,7 @@
 import { i18n } from "./i18n.js";
-import { SUPPORTED_LANGUAGES } from "../../shared/lang";
-import { DOMAIN_LIST_MODE } from "../../shared/utils";
-import { DATE_TIME_VARIABLES } from "../../shared/variables";
+import { SUPPORTED_LANGUAGES } from "../../shared/lang.js";
+import { DOMAIN_LIST_MODE } from "../../shared/utils.js";
+import { DATE_TIME_VARIABLES } from "../../shared/variables.js";
 
 const donateHTML =
   '<div class="has-text-centered"> \

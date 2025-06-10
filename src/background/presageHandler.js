@@ -1,9 +1,9 @@
 import {
   SUPPORTED_LANGUAGES,
   LANG_ADDITIONAL_SEPERATOR_REGEX,
-} from "../shared/lang";
+} from "../shared/lang.js";
 
-import { DATE_TIME_VARIABLES } from "../shared/variables";
+import { DATE_TIME_VARIABLES } from "../shared/variables.js";
 
 const Spacing = Object.freeze({
   INSERT_SPACE: Symbol("INSERT_SPACE"),

@@ -1,13 +1,13 @@
-import { getDomain, isEnabledForDomain, checkLastError } from "../shared/utils";
-import { Store } from "../third_party/fancier-settings/lib/store";
+import { getDomain, isEnabledForDomain, checkLastError } from "../shared/utils.js";
+import { Store } from "../third_party/fancier-settings/lib/store.js";
 import {
   SUPPORTED_LANGUAGES,
   SUPPORTED_LANGUAGES_SHORT_CODE,
   DEFAULT_SEPERATOR_CHARS_REGEX,
   LANG_SEPERATOR_CHARS_REGEX,
-} from "../shared/lang";
-import { PresageHandler } from "./presageHandler";
-import libPresageMod from "../third_party/libpresage/libpresage";
+} from "../shared/lang.js";
+import { PresageHandler } from "./presageHandler.js";
+import libPresageMod from "../third_party/libpresage/libpresage.js";
 
 class BackgroundServiceWorker {
   constructor() {
