@@ -3,8 +3,8 @@ import {
   ElementWrapper,
   getUniqueID,
 } from "../third_party/fancier-settings/js/classes/utils.js";
-import { parse } from "../third_party/csv-parse/sync.js";
-import { stringify } from "../third_party/csv-stringify/sync.js";
+import { parse } from "csv-parse/sync";
+import { stringify } from "csv-stringify/sync";
 
 class TextExpander {
   constructor(settings, callbackFn) {
