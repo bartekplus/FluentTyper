@@ -12,7 +12,10 @@
     "update": "ncu -u && npm update --save-dev"
   },
   "jest": {
-    "testEnvironment": "jsdom"
+    "testEnvironment": "jsdom",
+    "transform": {
+      "^.+\\.tsx?$": "ts-jest"
+    }
   },
   "repository": {
     "type": "git",
