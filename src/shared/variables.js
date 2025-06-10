@@ -1,4 +1,4 @@
-import { DateTime } from "./third_party/luxon/luxon.js";
+import { DateTime } from "../third_party/luxon/luxon";
 
 function getCurrentDateTime(lang) {
   let now = DateTime.now();

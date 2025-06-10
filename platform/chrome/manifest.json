@@ -13,7 +13,7 @@
       ],
       "js": [
         "third_party/tribute/tribute.js",
-        "cs.js"
+        "content_script.js"
       ],
       "matches": [
         "<all_urls>"
@@ -47,7 +47,7 @@
   ],
   "name": "FluentTyper: Autocomplete and Spell Checker",
   "options_ui": {
-    "page": "options.html",
+    "page": "options/options.html",
     "open_in_tab": true
   },
   "permissions": [

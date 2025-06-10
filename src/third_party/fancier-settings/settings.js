@@ -2,7 +2,7 @@ import { FancierSettingsWithManifest } from "./js/classes/fancier-settings.js";
 import { Store } from "./lib/store.js";
 import { ElementWrapper } from "./js/classes/utils.js";
 
-import { TextExpander } from "../../textExpander.js";
+import { TextExpander } from "../../options/textExpander.js";
 
 function optionsPageConfigChange() {
   const message = {

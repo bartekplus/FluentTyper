@@ -7,12 +7,11 @@
     "strict": true,
     "esModuleInterop": true,
     "allowJs": true, // Allow JavaScript files to be compiled
-    "checkJs": false, // Don't type-check JS files initially
+    "checkJs": false,
     "lib": ["DOM", "ES2022"],
     "moduleResolution": "bundler",
     "sourceMap": false,
     "typeRoots": [ "node_modules/@types" ]
   },
-  "include": ["src/**/*"],
-  "exclude": ["src/third_party"] // Exclude third_party from compilation
+  "include": ["src/**/*"]
 }

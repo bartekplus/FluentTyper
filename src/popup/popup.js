@@ -1,6 +1,6 @@
-import { getDomain, isEnabledForDomain, blockUnBlockDomain } from "../utils.js";
+import { getDomain, isEnabledForDomain, blockUnBlockDomain } from "../shared/utils";
 import { Store } from "../third_party/fancier-settings/lib/store.js";
-import { SUPPORTED_LANGUAGES } from "../lang.js";
+import { SUPPORTED_LANGUAGES } from "../shared/lang.js";
 
 const settings = new Store("settings");
 
