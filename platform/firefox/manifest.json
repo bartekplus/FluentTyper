@@ -10,7 +10,6 @@
         "third_party/tribute/tribute.css"
       ],
       "js": [
-        "third_party/tribute/tribute.js",
         "content_script.js"
       ],
       "matches": [
