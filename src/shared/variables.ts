@@ -1,14 +1,15 @@
-import { DateTime } from "../third_party/luxon/luxon.js";
+import { DateTime, Settings } from "luxon";
 
-function getCurrentDateTime(lang?: string): DateTime {
+function getCurrentDateTime(lang: string): DateTime {
   let now = DateTime.now();
 
   try {
     if (["textExpander", "auto_detect"].includes(lang as string)) {
-      lang = undefined;
+      lang = Settings.defaultLocale;
     }
-    new Intl.DateTimeFormat(lang);
-    now = DateTime.now().setLocale(lang);
+    // Convert underscores to hyphens for valid BCP 47 locale tags
+    const normalizedLang = lang.replace(/_/g, "-");
+    now = DateTime.now().setLocale(normalizedLang);
   } catch (error) {
     console.log("Failed to set locale to: " + lang);
     console.log(error);
@@ -18,12 +19,12 @@ function getCurrentDateTime(lang?: string): DateTime {
 }
 
 interface DateTimeVariables {
-  time: (lang?: string, format?: string) => string;
-  date: (lang?: string, format?: string) => string;
+  time: (lang: string, format?: string) => string;
+  date: (lang: string, format?: string) => string;
 }
 
 const DATE_TIME_VARIABLES: DateTimeVariables = {
-  time: (lang?: string, format?: string): string => {
+  time: (lang: string, format?: string): string => {
     const now = getCurrentDateTime(lang);
 
     if (format) {
@@ -31,7 +32,7 @@ const DATE_TIME_VARIABLES: DateTimeVariables = {
     }
     return now.toLocaleString(DateTime.TIME_SIMPLE);
   },
-  date: (lang?: string, format?: string): string => {
+  date: (lang: string, format?: string): string => {
     const now = getCurrentDateTime(lang);
 
     if (format) {
