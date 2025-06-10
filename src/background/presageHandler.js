@@ -3,7 +3,7 @@ import {
   LANG_ADDITIONAL_SEPERATOR_REGEX,
 } from "../shared/lang.ts";
 
-import { DATE_TIME_VARIABLES } from "../shared/variables.js";
+import { DATE_TIME_VARIABLES } from "../shared/variables.ts";
 
 const Spacing = Object.freeze({
   INSERT_SPACE: Symbol("INSERT_SPACE"),

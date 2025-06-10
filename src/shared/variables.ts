@@ -1,10 +1,10 @@
 import { DateTime } from "../third_party/luxon/luxon.js";
 
-function getCurrentDateTime(lang) {
+function getCurrentDateTime(lang?: string): DateTime {
   let now = DateTime.now();
 
   try {
-    if (["textExpander", "auto_detect"].includes(lang)) {
+    if (["textExpander", "auto_detect"].includes(lang as string)) {
       lang = undefined;
     }
     new Intl.DateTimeFormat(lang);
@@ -17,8 +17,13 @@ function getCurrentDateTime(lang) {
   return now;
 }
 
-const DATE_TIME_VARIABLES = {
-  time: (lang, format) => {
+interface DateTimeVariables {
+  time: (lang?: string, format?: string) => string;
+  date: (lang?: string, format?: string) => string;
+}
+
+const DATE_TIME_VARIABLES: DateTimeVariables = {
+  time: (lang?: string, format?: string): string => {
     const now = getCurrentDateTime(lang);
 
     if (format) {
@@ -26,7 +31,7 @@ const DATE_TIME_VARIABLES = {
     }
     return now.toLocaleString(DateTime.TIME_SIMPLE);
   },
-  date: (lang, format) => {
+  date: (lang?: string, format?: string): string => {
     const now = getCurrentDateTime(lang);
 
     if (format) {
