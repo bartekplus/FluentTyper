@@ -1,14 +1,10 @@
-import {
-  SUPPORTED_LANGUAGES,
-  LANG_ADDITIONAL_SEPERATOR_REGEX,
-} from "../shared/lang.ts";
+import { SUPPORTED_LANGUAGES } from "../shared/lang.ts";
 import { DATE_TIME_VARIABLES } from "../shared/variables.ts";
-import { isWhiteSpace, isNumber } from "../shared/utils.ts";
+import { isWhiteSpace } from "../shared/utils.ts";
 import { SpacingRulesHandler, Spacing, SPACING_RULES } from "./spacingRulesHandler.ts";
-import { Capitalization, checkAutoCapitalize } from "./capitalizationHelper.ts";
+import { Capitalization } from "./capitalizationHelper.ts";
+import { PredictionInputProcessor } from "./predictionInputProcessor.ts";
 
-const NEW_SENTENCE_CHARS = [".", "?", "!"];
-const PAST_WORDS_COUNT = 5;
 const SUGGESTION_COUNT = 5;
 const MIN_WORD_LENGTH_TO_PREDICT = 1;
 
@@ -39,6 +35,10 @@ class PresageHandler {
     this.dateFormat = ""; // Custom time format
     this.userDictionaryList = []; // User dictionary
     this.spacingHandler = {} // Spacing rules handler
+    this.predictionInputProcessor = new PredictionInputProcessor(
+      MIN_WORD_LENGTH_TO_PREDICT,
+      this.autoCapitalize
+    );
 
 
     // Precompiled regular expressions
@@ -228,30 +228,8 @@ class PresageHandler {
    * @returns {object} An object containing the modified array of words and a boolean value indicating whether a new sentence was found.
    */
   removePrevSentence(wordArrayOrig) {
-    // set initial variables
-    let newSentence = false;
-    let wordArray = wordArrayOrig.slice(); // make a copy of the original array
-
-    // iterate backwards through the array to find the start of the previous sentence
-    for (let index = wordArray.length - 1; index >= 0; index--) {
-      const element = wordArray[index];
-
-      // check for characters that indicate the start of a new sentence
-      if (
-        // check for "." in the current element
-        NEW_SENTENCE_CHARS.includes(element) ||
-        // check for "WORD." in the current element
-        NEW_SENTENCE_CHARS.includes(element.slice(-1))
-      ) {
-        // if a new sentence is found, slice the array from the start of the new sentence
-        wordArray = wordArray.splice(index + 1);
-        newSentence = true;
-        break;
-      }
-    }
-
-    // return the modified array and a boolean indicating whether a new sentence was found
-    return { wordArray, newSentence };
+    // Use the new PredictionInputProcessor utility
+    return this.predictionInputProcessor.removePrevSentence(wordArrayOrig);
   }
 
   /**
@@ -261,27 +239,13 @@ class PresageHandler {
   @returns {boolean} - Whether or not to run prediction
   */
   checkDoPrediction(lastWord, endsWithSpace) {
-    // If the number of suggestions is set to zero, disable prediction
-    if (this.numSuggestions <= 0) return false;
-    // Don't run prediction on numbers
-    if (!endsWithSpace && isNumber(lastWord)) return false;
-
-    // If the input ends with whitespace and the minimum word length to start prediction is not set to 0, disable prediction
-    if (endsWithSpace && !this.predictNextWordAfterSeparatorChar) return false;
-
-    // If the last word is too short to start prediction, disable prediction
-    if (!endsWithSpace && lastWord.length < this.minWordLengthToPredict)
-      return false;
-
-    // If the last word includes a separator character, disable prediction
-    if (
-      !endsWithSpace &&
-      (lastWord.match(this.separatorCharRegEx) || []).length !==
-        (lastWord.match(this.keepPredCharRegEx) || []).length
-    )
-      return false;
-
-    return true;
+    // Use the new PredictionInputProcessor utility
+    return this.predictionInputProcessor.checkDoPrediction(
+      lastWord,
+      endsWithSpace,
+      this.numSuggestions,
+      this.predictNextWordAfterSeparatorChar
+    );
   }
 
   /**
@@ -295,70 +259,13 @@ class PresageHandler {
    *                     a flag indicating whether to perform auto-capitalization.
    */
   processInput(predictionInput, language) {
-    // Check if the input string is valid
-    if (
-      typeof predictionInput !== "string" &&
-      !(predictionInput instanceof String)
-    ) {
-      return { predictionInput, doPrediction: false, doCapitalize: false };
-    }
-    // Check if predictionInput ends with a space
-    const endsWithSpace = predictionInput !== predictionInput.trimEnd();
-
-    // Workaround; Lang specific separator chars should be handled by Presage
-    // Replace additional separators with spaces, if necessary
-    const additionalSeparatorRegex = LANG_ADDITIONAL_SEPERATOR_REGEX[language];
-    if (additionalSeparatorRegex) {
-      predictionInput = predictionInput.replaceAll(
-        RegExp(additionalSeparatorRegex, "g"),
-        " ",
-      );
-    }
-
-    // Split the input string into an array of words, removing whitespace and empty strings
-    const lastWordsArray = predictionInput
-      .split(this.whiteSpaceRegEx) // Split on any whitespace
-      .filter(function (e) {
-        return e.trim(); // filter empty elements
-      })
-      .splice(-PAST_WORDS_COUNT); // Get last PAST_WORDS_COUNT words
-
-    // Remove previous sentence from lastWordsArray and get the new sentence
-    const { wordArray, newSentence } = this.removePrevSentence(lastWordsArray);
-
-    // Join the remaining words in wordArray and add a space if endsWithSpace is true
-    predictionInput = wordArray.join(" ") + (endsWithSpace ? " " : "");
-
-    // Get the last word from lastWordsArray and remove any keepPredCharRegEx characters
-    let lastWord = lastWordsArray.length
-      ? lastWordsArray[lastWordsArray.length - 1]
-      : "";
-    lastWord =
-      lastWord
-        .split(this.keepPredCharRegEx) // Split on keepPredCharRegEx
-        .filter(function (e) {
-          return e.trim(); // filter empty elements
-        })
-        .pop() || "";
-
-    // Check if auto-capitalization should be performed
-    const doCapitalize = checkAutoCapitalize({
-      lastWord,
-      wordCount: wordArray.length,
-      newSentence,
-      endsWithSpace,
-      autoCapitalize: this.autoCapitalize,
-    });
-
-    // Check if prediction should be performed
-    const doPrediction = this.checkDoPrediction(lastWord, endsWithSpace);
-
-    // Lower case is somehow broken in libPresage
-    // Let's do conversion in JS
-    predictionInput = predictionInput.toLowerCase();
-
-    // Return an object with the processed input string, last word and the flags for auto-capitalization and prediction
-    return { predictionInput, lastWord, doPrediction, doCapitalize };
+    // Use the new PredictionInputProcessor utility
+    return this.predictionInputProcessor.processInput(
+      predictionInput,
+      language,
+      this.numSuggestions,
+      this.predictNextWordAfterSeparatorChar
+    );
   }
 
   /**

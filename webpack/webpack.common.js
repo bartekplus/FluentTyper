@@ -41,6 +41,7 @@ export default {
         })
     ],
     performance: {
-        maxAssetSize: 67108864
+        maxAssetSize: 67108864,
+        maxEntrypointSize: 1048576
     },
 };
