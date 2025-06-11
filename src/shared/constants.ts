@@ -2,17 +2,19 @@
 // filepath: /Users/bartosztomczyk/Devel/FluentTyper/src/shared/constants.js
 
 // Command Strings
-export const CMD_CONTENT_SCRIPT_PREDICT_REQ = "contentScriptPredictReq";
-export const CMD_BACKGROUND_PAGE_PREDICT_RESP = "backgroundPagePredictResp";
-export const CMD_BACKGROUND_PAGE_PREDICT_REQ = "backgroundPagePredictReq";
-export const CMD_BACKGROUND_PAGE_SET_CONFIG = "backgroundPageSetConfig";
+export const CMD_CONTENT_SCRIPT_PREDICT_REQ = "CMD_CONTENT_SCRIPT_PREDICT_REQ";
+export const CMD_BACKGROUND_PAGE_PREDICT_RESP =
+  "CMD_BACKGROUND_PAGE_PREDICT_RESP";
+export const CMD_BACKGROUND_PAGE_PREDICT_REQ =
+  "CMD_BACKGROUND_PAGE_PREDICT_REQ";
+export const CMD_BACKGROUND_PAGE_SET_CONFIG = "CMD_BACKGROUND_PAGE_SET_CONFIG";
 export const CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG =
-  "backgroundPageUpdateLangConfig";
-export const CMD_OPTIONS_PAGE_CONFIG_CHANGE = "optionsPageConfigChange";
-export const CMD_CONTENT_SCRIPT_GET_CONFIG = "contentScriptGetConfig";
-export const CMD_TOGGLE_FT_ACTIVE_TAB = "toggle-ft-active-tab";
-export const CMD_TRIGGER_FT_ACTIVE_TAB = "trigger-ft-active-tab";
-export const CMD_TOGGLE_FT_ACTIVE_LANG = "toggle-ft-active-lang";
+  "CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG";
+export const CMD_OPTIONS_PAGE_CONFIG_CHANGE = "CMD_OPTIONS_PAGE_CONFIG_CHANGE";
+export const CMD_CONTENT_SCRIPT_GET_CONFIG = "CMD_CONTENT_SCRIPT_GET_CONFIG";
+export const CMD_TOGGLE_FT_ACTIVE_TAB = "CMD_TOGGLE_FT_ACTIVE_TAB";
+export const CMD_TRIGGER_FT_ACTIVE_TAB = "CMD_TRIGGER_FT_ACTIVE_TAB";
+export const CMD_TOGGLE_FT_ACTIVE_LANG = "CMD_TOGGLE_FT_ACTIVE_LANG";
 
 // Config Keys
 export const KEY_AUTOCOMPLETE = "autocomplete";

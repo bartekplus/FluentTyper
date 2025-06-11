@@ -28,6 +28,8 @@ export interface PredictResponseContext {
   lang: string;
   tabId: number;
   frameId?: number;
+  tributeId: number;
+  requestId: number;
   predictions: string[];
   forceReplace: string | null;
 }

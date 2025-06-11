@@ -30,18 +30,21 @@ import {
 
 class BackgroundServiceWorker {
   static instance: BackgroundServiceWorker;
-  settingsManager: SettingsManager = new SettingsManager();
-  languageDetector: LanguageDetector = new LanguageDetector(
-    this.settingsManager,
-  );
-  predictionManager: PredictionManager = new PredictionManager();
-  tabMessenger: TabMessenger = new TabMessenger();
-  language: string = "auto_detect";
+  settingsManager!: SettingsManager;
+  languageDetector!: LanguageDetector;
+  predictionManager!: PredictionManager;
+  tabMessenger!: TabMessenger;
+  language!: string;
 
   constructor() {
     if (BackgroundServiceWorker.instance) {
       return BackgroundServiceWorker.instance;
     }
+    this.settingsManager = new SettingsManager();
+    this.languageDetector = new LanguageDetector(this.settingsManager);
+    this.predictionManager = new PredictionManager();
+    this.tabMessenger = new TabMessenger();
+    this.language = "auto_detect";
     BackgroundServiceWorker.instance = this;
   }
 
@@ -59,6 +62,8 @@ class BackgroundServiceWorker {
         nextChar: message.context.nextChar,
         lang: message.context.lang,
         tabId: message.context.tabId,
+        tributeId: message.context.tributeId,
+        requestId: message.context.requestId,
         frameId: message.context.frameId,
         predictions: predictions,
         forceReplace: forceReplace,

@@ -10,7 +10,7 @@ const srcDir = path.join(
 export default {
   entry: {
     "popup/popup": path.join(srcDir, "popup", "popup.js"),
-    background: path.join(srcDir, "background", "background.js"),
+    background: path.join(srcDir, "background", "background.ts"),
     content_script: path.join(srcDir, "content-script", "content_script.js"),
     "third_party/fancier-settings/settings": path.join(
       srcDir,

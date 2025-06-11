@@ -4,6 +4,8 @@ import Tribute from "../third_party/tribute/tribute.esm.js";
 import { DomObserver } from "./dom-observer.ts";
 import { debounce } from "../shared/utils.ts";
 import {
+  CMD_BACKGROUND_PAGE_PREDICT_RESP,
+  CMD_CONTENT_SCRIPT_GET_CONFIG,
   CMD_BACKGROUND_PAGE_SET_CONFIG,
   CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
   CMD_CONTENT_SCRIPT_PREDICT_REQ,
@@ -385,6 +387,7 @@ import {
         // Set the pending request to the generated message
         this.pendingReq = message;
         // Send the message to the background script for prediction and handle the response
+        console.log("Sending message to background script for prediction");
         chrome.runtime.sendMessage(message, this.messageHandler.bind(this));
       }.bind(this, tribueId);
 
@@ -666,10 +669,11 @@ import {
       if (!message) {
         return;
       }
+      console.log(message);
 
       // Handle message based on command
       switch (message.command) {
-        case "backgroundPagePredictResp":
+        case CMD_BACKGROUND_PAGE_PREDICT_RESP:
           // We were waiting for a prediction
           if (this.pendingReq) {
             // Check if the message requestId matches the tributeArr requestId
@@ -764,7 +768,7 @@ import {
     // Method to get configuration using chrome runtime sendMessage API
     getConfig() {
       const message = {
-        command: "contentScriptGetConfig",
+        command: CMD_CONTENT_SCRIPT_GET_CONFIG,
         context: {},
       };
 
