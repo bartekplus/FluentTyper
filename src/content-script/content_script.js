@@ -1,6 +1,7 @@
 /*eslint no-unused-vars: ["error", { "argsIgnorePattern": "^_" }]*/
 
 import Tribute from "../third_party/tribute/tribute.esm.js";
+import { DomObserver } from "./dom-observer.ts";
 
 (function () {
   const WATCHDOG_INTERVAL_MS = 1000;
@@ -34,6 +35,10 @@ import Tribute from "../third_party/tribute/tribute.esm.js";
       this._autocompleteSeparatorSource = this.autocompleteSeparator.source;
       // Node for observing DOM changes
       this.observerNode = document.body || document.documentElement;
+      this.domObserver = new DomObserver(
+        this.observerNode,
+        this.mutationCallback.bind(this),
+      );
       // Active element - last element that received key input
       this.activeHelperArrId = null;
       // Minimum characters typed by user to start prediction
@@ -62,6 +67,7 @@ import Tribute from "../third_party/tribute/tribute.esm.js";
         }
         // Update the observerNode to the current node
         this.observerNode = currentNode;
+        this.domObserver.setNode(currentNode);
       }
     }
 
@@ -104,22 +110,7 @@ import Tribute from "../third_party/tribute/tribute.esm.js";
 
     // Attaches a MutationObserver to the current observerNode to listen for changes in the DOM
     attachMutationObserver() {
-      // Define options for the MutationObserver
-      const observerOptions = {
-        childList: true,
-        attributes: true,
-        attributeFilter: ["contenteditable", "type", "name", "id"],
-        subtree: true,
-      };
-
-      // Create a new MutationObserver if one doesn't already exist
-      if (!this.observer) {
-        const mutationCallback = this.mutationCallback.bind(this);
-        this.observer = new MutationObserver(mutationCallback);
-      }
-
-      // Attach the MutationObserver to the observerNode with the specified options
-      this.observer.observe(this.observerNode, observerOptions);
+      this.domObserver.attach();
     }
 
     // Returns an array of keys used for special handling in key event listeners
@@ -216,7 +207,7 @@ import Tribute from "../third_party/tribute/tribute.esm.js";
      */
     processMutations(mutationsList) {
       // Disconnect the observer so we can safely modify the DOM
-      this.observer.disconnect();
+      this.domObserver.disconnect();
 
       // Detach any Tribute components whose elements are no longer in the document
       for (const [key] of Object.entries(this.tributeArr)) {
@@ -631,11 +622,7 @@ import Tribute from "../third_party/tribute/tribute.esm.js";
      */
     disable() {
       // If there is an observer, disconnect it
-      if (this.observer) {
-        this.observer.disconnect();
-      }
-      // Set the observer to null
-      this.observer = null;
+      this.domObserver.disconnect();
       // Detach all helpers
       this.detachAllHelpers();
     }
