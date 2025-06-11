@@ -328,6 +328,80 @@ function onCommand(command) {
   }
 }
 
+// --- Message Handlers ---
+async function handleContentScriptPredictReq(request, sender, sendResponse, backgroundServiceWorker) {
+  // Modify the command and set asyncResponse to true.
+  request.command = "backgroundPagePredictReq";
+
+  // Get the language from the settings.
+  backgroundServiceWorker.settings
+    .get("language")
+    .then(async (language) => {
+      backgroundServiceWorker.language = language;
+
+      // If language is set to auto-detect, detect the language.
+      if (language === "auto_detect") {
+        language = await backgroundServiceWorker.detectLanguage(
+          request.context.text,
+          request.context.tabId,
+        );
+      }
+
+      // If the language has changed, update the configuration.
+      if (request.context.lang !== language) {
+        sendResponse({
+          command: "backgroundPageUpdateLangConfig",
+          context: {
+            lang: language,
+            autocompleteSeparatorSource:
+              LANG_SEPERATOR_CHARS_REGEX[language].source,
+            tributeId: request.context.tributeId,
+          },
+        });
+      } else {
+        // Otherwise, run prediction and send a response.
+        request.context.lang = language;
+        request.context.langName =
+          SUPPORTED_LANGUAGES[request.context.lang];
+        backgroundServiceWorker.runPrediction(request);
+        sendResponse();
+      }
+    })
+    .catch(function (e) {
+      console.error(e);
+    });
+}
+
+function handleOptionsPageConfigChange(request, sender, sendResponse, backgroundServiceWorker) {
+  backgroundServiceWorker.updatePresageConfig();
+}
+
+async function handleContentScriptGetConfig(request, sender, sendResponse, backgroundServiceWorker) {
+  isEnabledForDomain(
+    backgroundServiceWorker.settings,
+    getDomain(sender.tab.url),
+  )
+    .then(async (isEnabled) => {
+      const message =
+        await backgroundServiceWorker.getBackgroundPageSetConfigMsg();
+      message.context.enabled = isEnabled;
+      return message;
+    })
+    .then(async (message) => {
+      sendResponse(message);
+    })
+    .catch(function (e) {
+      console.error(e);
+    });
+  return true;
+}
+
+const messageHandlers = {
+  contentScriptPredictReq: handleContentScriptPredictReq,
+  optionsPageConfigChange: handleOptionsPageConfigChange,
+  contentScriptGetConfig: handleContentScriptGetConfig,
+};
+
 /**
  * Handles messages received from the options page and content script.
  * @param {Object} request - The message sent by the sender.
@@ -339,9 +413,6 @@ function onMessage(request, sender, sendResponse) {
   // Create a new instance of the background service worker.
   const backgroundServiceWorker = new BackgroundServiceWorker();
 
-  // Set asyncResponse to false by default.
-  let asyncResponse = false;
-
   // Check for any errors that occurred previously.
   checkLastError();
 
@@ -349,83 +420,15 @@ function onMessage(request, sender, sendResponse) {
   request.context.tabId = sender?.tab?.id;
   request.context.frameId = sender.frameId;
 
-  // Use a switch statement to determine which command was sent in the message.
-  switch (request.command) {
-    case "contentScriptPredictReq":
-      // Modify the command and set asyncResponse to true.
-      request.command = "backgroundPagePredictReq";
-      asyncResponse = true;
-
-      // Get the language from the settings.
-      backgroundServiceWorker.settings
-        .get("language")
-        .then(async (language) => {
-          backgroundServiceWorker.language = language;
-
-          // If language is set to auto-detect, detect the language.
-          if (language === "auto_detect") {
-            language = await backgroundServiceWorker.detectLanguage(
-              request.context.text,
-              request.context.tabId,
-            );
-          }
-
-          // If the language has changed, update the configuration.
-          if (request.context.lang !== language) {
-            sendResponse({
-              command: "backgroundPageUpdateLangConfig",
-              context: {
-                lang: language,
-                autocompleteSeparatorSource:
-                  LANG_SEPERATOR_CHARS_REGEX[language].source,
-                tributeId: request.context.tributeId,
-              },
-            });
-          } else {
-            // Otherwise, run prediction and send a response.
-            request.context.lang = language;
-            request.context.langName =
-              SUPPORTED_LANGUAGES[request.context.lang];
-            backgroundServiceWorker.runPrediction(request);
-            sendResponse();
-          }
-        })
-        .catch(function (e) {
-          console.error(e);
-        });
-
-      break;
-
-    case "optionsPageConfigChange":
-      // Update the Presage configuration.
-      backgroundServiceWorker.updatePresageConfig();
-      break;
-
-    case "contentScriptGetConfig":
-      // Get the configuration from the settings and send a response.
-      asyncResponse = true;
-      isEnabledForDomain(
-        backgroundServiceWorker.settings,
-        getDomain(sender.tab.url),
-      )
-        .then(async (isEnabled) => {
-          const message =
-            await backgroundServiceWorker.getBackgroundPageSetConfigMsg();
-          message.context.enabled = isEnabled;
-          return message;
-        })
-        .then(async (message) => {
-          sendResponse(message);
-        })
-        .catch(function (e) {
-          console.error(e);
-        });
-
-      break;
+  // Use a handler map to determine which handler to call.
+  const handler = messageHandlers[request.command];
+  if (handler) {
+    const result = handler(request, sender, sendResponse, backgroundServiceWorker);
+    if (result && typeof result.then === "function") {
+      return true;
+    }
   }
-
-  // Return the asyncResponse flag.
-  return asyncResponse;
+  return false;
 }
 
 async function migrateToLocalStore(lastVersion) {
