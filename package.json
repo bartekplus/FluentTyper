@@ -6,8 +6,8 @@
   "scripts": {
     "watch": "webpack --config webpack/webpack.dev.js --watch",
     "build": "webpack --config webpack/webpack.prod.js && cp -R platform/${PLATFORM:-firefox}/* build/",
-    "check": "eslint . && prettier '**/*.{html,css}'  --check",
-    "lint": "eslint --fix . && prettier '**/*.{html,css}'  --write",
+    "check": "eslint . && prettier '**/*.{html,css}' --check",
+    "lint": "eslint --fix . && prettier '**/*.{html,css,js,ts}' --write",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest",
     "update": "ncu -u && npm update --save-dev"
   },

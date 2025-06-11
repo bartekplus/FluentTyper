@@ -11,7 +11,7 @@ import {
   CMD_TRIGGER_FT_ACTIVE_TAB,
   POPUP_PAGE_ENABLE,
   POPUP_PAGE_DISABLE,
-  STATUS_COMMAND
+  STATUS_COMMAND,
 } from "../shared/constants.ts";
 
 (function () {

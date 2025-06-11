@@ -6,7 +6,10 @@ export class UserDictionaryManager {
   private module: PresageModule;
   private libPresage: Record<string, PresageInstance>;
 
-  constructor(module: PresageModule, libPresage: Record<string, PresageInstance>) {
+  constructor(
+    module: PresageModule,
+    libPresage: Record<string, PresageInstance>,
+  ) {
     this.module = module;
     this.libPresage = libPresage;
   }

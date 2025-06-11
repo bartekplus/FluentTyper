@@ -1,4 +1,8 @@
-import { getDomain, isEnabledForDomain, blockUnBlockDomain } from "../shared/utils.ts";
+import {
+  getDomain,
+  isEnabledForDomain,
+  blockUnBlockDomain,
+} from "../shared/utils.ts";
 import { Store } from "../third_party/fancier-settings/lib/store.js";
 import { SUPPORTED_LANGUAGES } from "../shared/lang.ts";
 import { POPUP_PAGE_ENABLE, POPUP_PAGE_DISABLE } from "../shared/constants.ts";

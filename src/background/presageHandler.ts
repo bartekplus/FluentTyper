@@ -1,6 +1,10 @@
 import { SUPPORTED_LANGUAGES } from "../shared/lang";
 import { isWhiteSpace } from "../shared/utils";
-import { SpacingRulesHandler, Spacing, SPACING_RULES } from "./spacingRulesHandler";
+import {
+  SpacingRulesHandler,
+  Spacing,
+  SPACING_RULES,
+} from "./spacingRulesHandler";
 import { Capitalization } from "./capitalizationHelper";
 import { PredictionInputProcessor } from "./predictionInputProcessor";
 import { TemplateExpander, TemplateVariables } from "./TemplateExpander";
@@ -83,10 +87,11 @@ export class PresageHandler {
     this.applySpacingRules = false;
     this.userDictionaryList = [];
     this.spacingHandler = new SpacingRulesHandler(
-      this.insertSpaceAfterAutocomplete);
+      this.insertSpaceAfterAutocomplete,
+    );
     this.predictionInputProcessor = new PredictionInputProcessor(
       MIN_WORD_LENGTH_TO_PREDICT,
-      this.autoCapitalize
+      this.autoCapitalize,
     );
     for (const [lang] of Object.entries(SUPPORTED_LANGUAGES)) {
       if (lang === "auto_detect") continue;
@@ -115,14 +120,21 @@ export class PresageHandler {
         );
       }
     }
-    this.textExpansionManager = new TextExpansionManager(this.Module as PresageModule, this.libPresage);
-    this.userDictionaryManager = new UserDictionaryManager(this.Module as PresageModule, this.libPresage);
+    this.textExpansionManager = new TextExpansionManager(
+      this.Module as PresageModule,
+      this.libPresage,
+    );
+    this.userDictionaryManager = new UserDictionaryManager(
+      this.Module as PresageModule,
+      this.libPresage,
+    );
   }
 
   setConfig(config: PresageConfig): void {
     this.numSuggestions = config.numSuggestions;
     this.minWordLengthToPredict = Math.max(0, config.minWordLengthToPredict);
-    this.predictNextWordAfterSeparatorChar = this.minWordLengthToPredict === 0 ? true : false;
+    this.predictNextWordAfterSeparatorChar =
+      this.minWordLengthToPredict === 0 ? true : false;
     this.insertSpaceAfterAutocomplete = config.insertSpaceAfterAutocomplete;
     this.autoCapitalize = config.autoCapitalize;
     this.applySpacingRules = config.applySpacingRules;
@@ -132,7 +144,9 @@ export class PresageHandler {
     this.userDictionaryList = config.userDictionaryList || [];
     this.textExpansionManager.setTextExpansions(config.textExpansions);
     this.userDictionaryManager.setUserDictionaryList(this.userDictionaryList);
-    this.spacingHandler = new SpacingRulesHandler(config.insertSpaceAfterAutocomplete);
+    this.spacingHandler = new SpacingRulesHandler(
+      config.insertSpaceAfterAutocomplete,
+    );
     this.presageEngine.setConfig({
       numSuggestions: config.numSuggestions,
       minWordLengthToPredict: config.minWordLengthToPredict,
@@ -149,13 +163,20 @@ export class PresageHandler {
       lang,
       this.variableExpansion ?? false,
       this.timeFormat ?? "",
-      this.dateFormat ?? ""
+      this.dateFormat ?? "",
     );
   }
 
-  removePrevSentence(wordArrayOrig: string[]): { wordArray: string[]; foundNewSentence: boolean } {
-    const result = this.predictionInputProcessor.removePrevSentence(wordArrayOrig);
-    return { wordArray: result.wordArray, foundNewSentence: result.newSentence };
+  removePrevSentence(wordArrayOrig: string[]): {
+    wordArray: string[];
+    foundNewSentence: boolean;
+  } {
+    const result =
+      this.predictionInputProcessor.removePrevSentence(wordArrayOrig);
+    return {
+      wordArray: result.wordArray,
+      foundNewSentence: result.newSentence,
+    };
   }
 
   checkDoPrediction(lastWord: string, endsWithSpace: boolean): boolean {
@@ -163,36 +184,50 @@ export class PresageHandler {
       lastWord,
       endsWithSpace,
       this.numSuggestions,
-      this.predictNextWordAfterSeparatorChar
+      this.predictNextWordAfterSeparatorChar,
     );
   }
 
   processInput(
     predictionInput: string,
-    language: string
-  ): { predictionInput: string; lastWord: string; doPrediction: boolean; doCapitalize: Capitalization } {
+    language: string,
+  ): {
+    predictionInput: string;
+    lastWord: string;
+    doPrediction: boolean;
+    doCapitalize: Capitalization;
+  } {
     return this.predictionInputProcessor.processInput(
       predictionInput,
       language,
       this.numSuggestions,
-      this.predictNextWordAfterSeparatorChar
+      this.predictNextWordAfterSeparatorChar,
     );
   }
 
   doPredictionHandler(predictionInput: string, lang: string): string[] {
     const predictions = this.presageEngine.predict(predictionInput, lang);
     const expandedTemplateVariables = this.getExpandedVariables(lang);
-    return predictions.map(text => this.parseStringTemplate(text, expandedTemplateVariables));
+    return predictions.map((text) =>
+      this.parseStringTemplate(text, expandedTemplateVariables),
+    );
   }
 
-  runPrediction(text: string, nextChar: string, lang: string): PredictionResult {
+  runPrediction(
+    text: string,
+    nextChar: string,
+    lang: string,
+  ): PredictionResult {
     let predictions: string[] = [];
     let forceReplace: string | null = null;
     const { predictionInput, doPrediction, doCapitalize } = this.processInput(
       text,
       lang,
     );
-    if (this.applySpacingRules && this.spacingHandler instanceof SpacingRulesHandler) {
+    if (
+      this.applySpacingRules &&
+      this.spacingHandler instanceof SpacingRulesHandler
+    ) {
       const spacingResult = this.spacingHandler.applySpacingRules(text);
       forceReplace = spacingResult ? spacingResult.text : null;
     }

@@ -52,8 +52,7 @@ export function checkAutoCapitalize({
   if (
     autoCapitalize &&
     newSentence &&
-    ((!endsWithSpace && wordCount === 1) ||
-      (endsWithSpace && wordCount === 0))
+    ((!endsWithSpace && wordCount === 1) || (endsWithSpace && wordCount === 0))
   )
     return Capitalization.FirstLetter;
 

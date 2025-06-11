@@ -1,7 +1,13 @@
 // Handles all settings-related logic for FluentTyper
 import { Store } from "../third_party/fancier-settings/lib/store.js";
 
-export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+export type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [key: string]: JsonValue };
 
 export interface Settings {
   get: (key: string) => Promise<JsonValue>;

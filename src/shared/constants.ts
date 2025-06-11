@@ -3,9 +3,11 @@
 
 // Command Strings
 export const CMD_CONTENT_SCRIPT_PREDICT_REQ = "contentScriptPredictReq";
+export const CMD_BACKGROUND_PAGE_PREDICT_RESP = "backgroundPagePredictResp";
 export const CMD_BACKGROUND_PAGE_PREDICT_REQ = "backgroundPagePredictReq";
 export const CMD_BACKGROUND_PAGE_SET_CONFIG = "backgroundPageSetConfig";
-export const CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG = "backgroundPageUpdateLangConfig";
+export const CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG =
+  "backgroundPageUpdateLangConfig";
 export const CMD_OPTIONS_PAGE_CONFIG_CHANGE = "optionsPageConfigChange";
 export const CMD_CONTENT_SCRIPT_GET_CONFIG = "contentScriptGetConfig";
 export const CMD_TOGGLE_FT_ACTIVE_TAB = "toggle-ft-active-tab";
@@ -22,7 +24,8 @@ export const KEY_AUTOCOMPLETE_SEPARATOR_SOURCE = "autocompleteSeparatorSource";
 export const KEY_MIN_WORD_LENGTH_TO_PREDICT = "minWordLengthToPredict";
 export const KEY_REVERT_ON_BACKSPACE = "revertOnBackspace";
 export const KEY_NUM_SUGGESTIONS = "numSuggestions";
-export const KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE = "insertSpaceAfterAutocomplete";
+export const KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE =
+  "insertSpaceAfterAutocomplete";
 export const KEY_AUTO_CAPITALIZE = "autoCapitalize";
 export const KEY_APPLY_SPACING_RULES = "applySpacingRules";
 export const KEY_TEXT_EXPANSIONS = "textExpansions";

@@ -1,4 +1,3 @@
-
 /**
  * DomObserver class encapsulates MutationObserver logic for DOM changes.
  * It notifies a callback when relevant mutations occur.

@@ -5,7 +5,11 @@ import {
   CMD_TRIGGER_FT_ACTIVE_TAB,
   CMD_TOGGLE_FT_ACTIVE_LANG,
 } from "../shared/constants.ts";
-import { getDomain, isEnabledForDomain, checkLastError } from "../shared/utils.ts";
+import {
+  getDomain,
+  isEnabledForDomain,
+  checkLastError,
+} from "../shared/utils.ts";
 import { Store } from "../third_party/fancier-settings/lib/store.js";
 import {
   SUPPORTED_LANGUAGES,
@@ -29,7 +33,10 @@ class BackgroundServiceWorker {
 
     this.settingsManager = new SettingsManager(Store);
     this.languageDetector = new LanguageDetector(this.settingsManager);
-    this.predictionManager = new PredictionManager(PresageHandler, libPresageMod);
+    this.predictionManager = new PredictionManager(
+      PresageHandler,
+      libPresageMod,
+    );
     this.tabMessenger = new TabMessenger();
     this.language = "auto_detect";
   }
@@ -112,8 +119,12 @@ class BackgroundServiceWorker {
     this.language = await this.settingsManager.get("language");
     const config = {
       numSuggestions: await this.settingsManager.get("numSuggestions"),
-      minWordLengthToPredict: await this.settingsManager.get("minWordLengthToPredict"),
-      insertSpaceAfterAutocomplete: await this.settingsManager.get("insertSpaceAfterAutocomplete"),
+      minWordLengthToPredict: await this.settingsManager.get(
+        "minWordLengthToPredict",
+      ),
+      insertSpaceAfterAutocomplete: await this.settingsManager.get(
+        "insertSpaceAfterAutocomplete",
+      ),
       autoCapitalize: await this.settingsManager.get("autoCapitalize"),
       applySpacingRules: await this.settingsManager.get("applySpacingRules"),
       textExpansions: await this.settingsManager.get("textExpansions"),
@@ -125,7 +136,7 @@ class BackgroundServiceWorker {
     this.predictionManager.setConfig(config);
     this.tabMessenger.sendToAllTabs(
       await this.getBackgroundPageSetConfigMsg(),
-      this.settingsManager
+      this.settingsManager,
     );
   }
 }
@@ -217,13 +228,19 @@ function onCommand(command) {
 }
 
 // --- Message Handlers ---
-async function handleContentScriptPredictReq(request, sender, sendResponse, backgroundServiceWorker) {
+async function handleContentScriptPredictReq(
+  request,
+  sender,
+  sendResponse,
+  backgroundServiceWorker,
+) {
   // Modify the command and set asyncResponse to true.
   request.command = "backgroundPagePredictReq";
 
   try {
     // Get the language from the settings.
-    let language = await backgroundServiceWorker.settingsManager.get("language");
+    let language =
+      await backgroundServiceWorker.settingsManager.get("language");
     backgroundServiceWorker.language = language;
 
     // If language is set to auto-detect, detect the language.
@@ -248,8 +265,7 @@ async function handleContentScriptPredictReq(request, sender, sendResponse, back
     } else {
       // Otherwise, run prediction and send a response.
       request.context.lang = language;
-      request.context.langName =
-        SUPPORTED_LANGUAGES[request.context.lang];
+      request.context.langName = SUPPORTED_LANGUAGES[request.context.lang];
       await backgroundServiceWorker.runPrediction(request);
       sendResponse();
     }
@@ -258,17 +274,28 @@ async function handleContentScriptPredictReq(request, sender, sendResponse, back
   }
 }
 
-function handleOptionsPageConfigChange(request, sender, sendResponse, backgroundServiceWorker) {
+function handleOptionsPageConfigChange(
+  request,
+  sender,
+  sendResponse,
+  backgroundServiceWorker,
+) {
   backgroundServiceWorker.updatePresageConfig();
 }
 
-async function handleContentScriptGetConfig(request, sender, sendResponse, backgroundServiceWorker) {
+async function handleContentScriptGetConfig(
+  request,
+  sender,
+  sendResponse,
+  backgroundServiceWorker,
+) {
   try {
     const isEnabled = await isEnabledForDomain(
       backgroundServiceWorker.settingsManager,
       getDomain(sender.tab.url),
     );
-    const message = await backgroundServiceWorker.getBackgroundPageSetConfigMsg();
+    const message =
+      await backgroundServiceWorker.getBackgroundPageSetConfigMsg();
     message.context.enabled = isEnabled;
     sendResponse(message);
   } catch (e) {
@@ -305,7 +332,12 @@ function onMessage(request, sender, sendResponse) {
   const handler = messageHandlers[request.command];
   if (handler) {
     // Always return true for async handlers
-    const result = handler(request, sender, sendResponse, backgroundServiceWorker);
+    const result = handler(
+      request,
+      sender,
+      sendResponse,
+      backgroundServiceWorker,
+    );
     if (result && typeof result.then === "function") {
       return true;
     }

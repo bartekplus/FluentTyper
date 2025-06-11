@@ -1,6 +1,9 @@
 // Handles language detection logic for FluentTyper
-import { SUPPORTED_LANGUAGES, SUPPORTED_LANGUAGES_SHORT_CODE } from "../shared/lang";
-import { SettingsManager, JsonValue } from "../shared/settingsManager";
+import {
+  SUPPORTED_LANGUAGES,
+  SUPPORTED_LANGUAGES_SHORT_CODE,
+} from "../shared/lang";
+import { SettingsManager } from "../shared/settingsManager";
 
 export class LanguageDetector {
   private settings: SettingsManager;
@@ -8,9 +11,14 @@ export class LanguageDetector {
     this.settings = settings;
   }
 
-  async detectLanguage(text: string, tabId: number): Promise<JsonValue> {
-    const fallbackLanguage = await this.settings.get("fallbackLanguage");
-    const api = typeof (globalThis as any).browser === "undefined" ? chrome : (globalThis as any).browser;
+  async detectLanguage(text: string, tabId: number): Promise<string> {
+    const fallbackLanguage = (await this.settings.get(
+      "fallbackLanguage",
+    )) as string;
+    const api =
+      typeof (globalThis as any).browser === "undefined"
+        ? chrome
+        : (globalThis as any).browser;
     const result = await api.i18n.detectLanguage(text);
     let detectedLanguage: string | null = null;
     let maxPercentage = -1;

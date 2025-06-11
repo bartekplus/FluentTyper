@@ -36,7 +36,7 @@ export class TemplateExpander {
     lang: string,
     variableExpansion: boolean,
     timeFormat: string,
-    dateFormat: string
+    dateFormat: string,
   ): TemplateVariables {
     const expandedTemplateVariables: TemplateVariables = {};
     if (!variableExpansion) return expandedTemplateVariables;

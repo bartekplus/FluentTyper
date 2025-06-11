@@ -1,5 +1,5 @@
 import { SettingsManager } from "./settingsManager";
-import { getErrorMessage } from "./error";  
+import { getErrorMessage } from "./error";
 export const SETTINGS_DOMAIN_BLACKLIST = "domainBlackList";
 export const DOMAIN_LIST_MODE = {
   blackList: "Blacklist - enabled on all websites, disabled on specific sites",
@@ -23,7 +23,10 @@ export function getDomain(url: string): string | undefined {
 /**
  * Checks if a given domain URL is on the domain blacklist/whitelist.
  */
-export async function isDomainOnList(settings: SettingsManager, domainURL: string): Promise<boolean> {
+export async function isDomainOnList(
+  settings: SettingsManager,
+  domainURL: string,
+): Promise<boolean> {
   if (!domainURL) {
     return false;
   }
@@ -47,7 +50,10 @@ export async function isDomainOnList(settings: SettingsManager, domainURL: strin
 /**
  * Adds a domain URL to the domain blacklist/whitelist.
  */
-export async function addDomainToList(settings: SettingsManager, domainURL: string): Promise<void> {
+export async function addDomainToList(
+  settings: SettingsManager,
+  domainURL: string,
+): Promise<void> {
   try {
     const domainList = await settings.get(SETTINGS_DOMAIN_BLACKLIST);
     if (!Array.isArray(domainList)) {
@@ -65,7 +71,10 @@ export async function addDomainToList(settings: SettingsManager, domainURL: stri
 /**
  * Removes a domain URL from the domain blacklist/whitelist.
  */
-export async function removeDomainFromList(settings: SettingsManager, domainURL: string): Promise<void> {
+export async function removeDomainFromList(
+  settings: SettingsManager,
+  domainURL: string,
+): Promise<void> {
   try {
     const domainList = await settings.get(SETTINGS_DOMAIN_BLACKLIST);
     if (!Array.isArray(domainList)) {
@@ -88,7 +97,10 @@ export async function removeDomainFromList(settings: SettingsManager, domainURL:
 /**
  * Checks if the extension is enabled for the given domain URL.
  */
-export async function isEnabledForDomain(settings: SettingsManager, domainURL: string): Promise<boolean> {
+export async function isEnabledForDomain(
+  settings: SettingsManager,
+  domainURL: string,
+): Promise<boolean> {
   let enabledForDomain = Boolean(await settings.get("enable"));
   if (enabledForDomain) {
     const domainListMode = await settings.get("domainListMode");
@@ -109,14 +121,20 @@ export function checkLastError(): void {
       console.log("Runtime error:", chrome.runtime.lastError.message);
     }
   } catch (error: unknown) {
-    console.error(`Error while checking runtime error: ${getErrorMessage(error)}`);
+    console.error(
+      `Error while checking runtime error: ${getErrorMessage(error)}`,
+    );
   }
 }
 
 /**
  * Toggles the blocked/unblocked status of a domain based on the current domain list mode.
  */
-export async function blockUnBlockDomain(settings: SettingsManager, domainURL: string, block = false): Promise<void> {
+export async function blockUnBlockDomain(
+  settings: SettingsManager,
+  domainURL: string,
+  block = false,
+): Promise<void> {
   const domainListMode = await settings.get("domainListMode");
   if (
     (block && domainListMode === "blackList") ||
@@ -137,7 +155,10 @@ export async function blockUnBlockDomain(settings: SettingsManager, domainURL: s
 export function debounce(
   func: (...args: undefined[]) => void,
   wait: number,
-  options: { leading?: boolean; trailing?: boolean } = { leading: true, trailing: true }
+  options: { leading?: boolean; trailing?: boolean } = {
+    leading: true,
+    trailing: true,
+  },
 ): (...args: undefined[]) => void {
   let timer: ReturnType<typeof setTimeout> | null = null;
 
@@ -161,7 +182,10 @@ export function debounce(
  * @param {boolean} matchNewLine - Optional parameter indicating whether to match newline characters as well (default is true).
  * @returns {boolean} True if the character is a whitespace, false otherwise.
  */
-export function isWhiteSpace(character: string, matchNewLine: boolean = true): boolean {
+export function isWhiteSpace(
+  character: string,
+  matchNewLine: boolean = true,
+): boolean {
   const whiteSpaceRegEx = /\s+/;
   const whiteSpaceRegExExcludeNewLine = /[^\S\r\n]+/;
   if (matchNewLine) {

@@ -31,7 +31,10 @@ export async function migrateToLocalStore(lastVersion?: string): Promise<void> {
 
   if (updateLang) {
     const settingsManager = new SettingsManager();
-    const langProps: Array<"language" | "fallbackLanguage"> = ["language", "fallbackLanguage"];
+    const langProps: Array<"language" | "fallbackLanguage"> = [
+      "language",
+      "fallbackLanguage",
+    ];
     for (const langProp of langProps) {
       const language = await settingsManager.get(langProp);
       for (const key of Object.keys(SUPPORTED_LANGUAGES)) {

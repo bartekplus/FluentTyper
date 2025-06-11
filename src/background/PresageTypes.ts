@@ -11,7 +11,10 @@ export interface PresageCallback {
 }
 
 export interface Presage {
-  predictWithProbability: () => { size: () => number; get: (i: number) => { prediction: string } };
+  predictWithProbability: () => {
+    size: () => number;
+    get: (i: number) => { prediction: string };
+  };
   config: (key: string, value: string) => void;
 }
 

@@ -15,8 +15,12 @@ export class PredictionInputProcessor {
   minWordLengthToPredict: number;
   autoCapitalize: boolean;
 
-  constructor(minWordLengthToPredict = MIN_WORD_LENGTH_TO_PREDICT, autoCapitalize = true) {
-    this.separatorCharRegEx = /\s+|!|"|#|\$|%|&|\(|\)|\*|\+|,|-|\.|\/|:|;|<|=|>|\?|@|\[|\\|\]|\^|_|`|{|\||}|~/;
+  constructor(
+    minWordLengthToPredict = MIN_WORD_LENGTH_TO_PREDICT,
+    autoCapitalize = true,
+  ) {
+    this.separatorCharRegEx =
+      /\s+|!|"|#|\$|%|&|\(|\)|\*|\+|,|-|\.|\/|:|;|<|=|>|\?|@|\[|\\|\]|\^|_|`|{|\||}|~/;
     this.keepPredCharRegEx = /\[|\(|{|<|\/|-|\*|\+|=|"/;
     this.whiteSpaceRegEx = /\s+/;
     this.letterRegEx = /^\p{L}/u;
@@ -24,7 +28,10 @@ export class PredictionInputProcessor {
     this.autoCapitalize = autoCapitalize;
   }
 
-  removePrevSentence(wordArrayOrig: string[]): { wordArray: string[]; newSentence: boolean } {
+  removePrevSentence(wordArrayOrig: string[]): {
+    wordArray: string[];
+    newSentence: boolean;
+  } {
     let newSentence = false;
     let wordArray = wordArrayOrig.slice();
     for (let index = wordArray.length - 1; index >= 0; index--) {
@@ -41,11 +48,17 @@ export class PredictionInputProcessor {
     return { wordArray, newSentence };
   }
 
-  checkDoPrediction(lastWord: string, endsWithSpace: boolean, numSuggestions: number, predictNextWordAfterSeparatorChar: boolean): boolean {
+  checkDoPrediction(
+    lastWord: string,
+    endsWithSpace: boolean,
+    numSuggestions: number,
+    predictNextWordAfterSeparatorChar: boolean,
+  ): boolean {
     if (numSuggestions <= 0) return false;
     if (!endsWithSpace && isNumber(lastWord)) return false;
     if (endsWithSpace && !predictNextWordAfterSeparatorChar) return false;
-    if (!endsWithSpace && lastWord.length < this.minWordLengthToPredict) return false;
+    if (!endsWithSpace && lastWord.length < this.minWordLengthToPredict)
+      return false;
     if (
       !endsWithSpace &&
       (lastWord.match(this.separatorCharRegEx) || []).length !==
@@ -59,7 +72,7 @@ export class PredictionInputProcessor {
     predictionInput: string,
     language: string,
     numSuggestions: number,
-    predictNextWordAfterSeparatorChar: boolean
+    predictNextWordAfterSeparatorChar: boolean,
   ): {
     predictionInput: string;
     lastWord: string;
@@ -67,7 +80,12 @@ export class PredictionInputProcessor {
     doCapitalize: Capitalization;
   } {
     if (typeof predictionInput !== "string") {
-      return { predictionInput, doPrediction: false, doCapitalize: Capitalization.None, lastWord: "" };
+      return {
+        predictionInput,
+        doPrediction: false,
+        doCapitalize: Capitalization.None,
+        lastWord: "",
+      };
     }
     const endsWithSpace = predictionInput !== predictionInput.trimEnd();
     const additionalSeparatorRegex = LANG_ADDITIONAL_SEPERATOR_REGEX[language];
@@ -102,7 +120,7 @@ export class PredictionInputProcessor {
       lastWord,
       endsWithSpace,
       numSuggestions,
-      predictNextWordAfterSeparatorChar
+      predictNextWordAfterSeparatorChar,
     );
     predictionInput = predictionInput.toLowerCase();
     return { predictionInput, lastWord, doPrediction, doCapitalize };

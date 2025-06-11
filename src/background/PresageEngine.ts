@@ -18,7 +18,10 @@ export class PresageEngine {
   private libPresage: Record<string, Presage> = {};
   private libPresageCallback: Record<string, PresageCallback> = {};
   private libPresageCallbackImpl: Record<string, unknown> = {};
-  private lastPrediction: Record<string, { pastStream: string; predictions: string[] }> = {};
+  private lastPrediction: Record<
+    string,
+    { pastStream: string; predictions: string[] }
+  > = {};
   private config: PresageEngineConfig;
 
   constructor(Module: PresageModule, config: PresageEngineConfig) {
@@ -41,16 +44,17 @@ export class PresageEngine {
             return "";
           },
         };
-        this.libPresageCallbackImpl[lang] = this.Module.PresageCallback.implement(this.libPresageCallback[lang]);
+        this.libPresageCallbackImpl[lang] =
+          this.Module.PresageCallback.implement(this.libPresageCallback[lang]);
         this.libPresage[lang] = new this.Module.Presage(
           this.libPresageCallbackImpl[lang],
-          "resources_js/" + lang + "/presage.xml"
+          "resources_js/" + lang + "/presage.xml",
         );
       } catch (error) {
         console.log(
           "Failed to create Presage instance for %s language: %s",
           lang,
-          error
+          error,
         );
       }
     }
@@ -61,7 +65,7 @@ export class PresageEngine {
     for (const [, libPresage] of Object.entries(this.libPresage)) {
       libPresage.config(
         "Presage.Selector.SUGGESTIONS",
-        this.config.numSuggestions.toString()
+        this.config.numSuggestions.toString(),
       );
     }
   }
