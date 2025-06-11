@@ -6,7 +6,7 @@ import {
   DEFAULT_SEPERATOR_CHARS_REGEX,
   LANG_SEPERATOR_CHARS_REGEX,
 } from "../shared/lang.ts";
-import { PresageHandler } from "./presageHandler.js";
+import { PresageHandler } from "./presageHandler.ts";
 import libPresageMod from "../third_party/libpresage/libpresage.js";
 
 class BackgroundServiceWorker {
