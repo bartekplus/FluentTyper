@@ -6,6 +6,7 @@ import { PredictionInputProcessor } from "./predictionInputProcessor.ts";
 import { TemplateExpander } from "./TemplateExpander.ts";
 import { UserDictionaryManager } from "./UserDictionaryManager.ts";
 import { TextExpansionManager } from "./TextExpansionManager.ts";
+import { PresageEngine } from "./PresageEngine.ts";
 
 const SUGGESTION_COUNT = 5;
 const MIN_WORD_LENGTH_TO_PREDICT = 1;
@@ -19,6 +20,14 @@ class PresageHandler {
   constructor(Module) {
     // Set the module object
     this.Module = Module;
+
+    // Engine wrapper
+    const engineConfig = {
+      numSuggestions: SUGGESTION_COUNT,
+      minWordLengthToPredict: MIN_WORD_LENGTH_TO_PREDICT,
+      insertSpaceAfterAutocomplete: true,
+    };
+    this.presageEngine = new PresageEngine(Module, engineConfig);
 
     // Initialize variables
     this.lastPrediction = {}; // Last presage prediction per language
@@ -134,12 +143,11 @@ class PresageHandler {
     this.textExpansionManager.setTextExpansions(textExpansions);
     this.userDictionaryManager.setUserDictionaryList(userDictionaryList);
     this.spacingHandler = new SpacingRulesHandler(insertSpaceAfterAutocomplete);
-    for (const [, libPresage] of Object.entries(this.libPresage)) {
-      libPresage.config(
-        "Presage.Selector.SUGGESTIONS",
-        this.numSuggestions.toString(),
-      );
-    }
+    this.presageEngine.setConfig({
+      numSuggestions,
+      minWordLengthToPredict,
+      insertSpaceAfterAutocomplete,
+    });
   }
 
   parseStringTemplate(str, obj) {
@@ -215,43 +223,11 @@ class PresageHandler {
    * @returns {Array} An array of predicted results.
    */
   doPredictionHandler(predictionInput, lang) {
-    // If the input is the same as the previous prediction input, return the previous prediction results
-    if (predictionInput === this.lastPrediction[lang].pastStream) {
-      return this.lastPrediction[lang].predictions.slice();
-    }
-
-    // Perform prediction
-    this.libPresageCallback[lang].pastStream = predictionInput;
-    const predictions = [];
-    const predictionsNative = this.libPresage[lang].predictWithProbability();
-
+    // Use PresageEngine for prediction
+    const predictions = this.presageEngine.predict(predictionInput, lang);
+    // Template expansion logic remains here
     const expandedTemplateVariables = this.getExpandedVariables(lang);
-
-    // Loop through the predicted results and add them to the predictions array
-    for (let i = 0; i < predictionsNative.size(); i++) {
-      const result = predictionsNative.get(i);
-      let text = null;
-      try {
-        text = JSON.parse(result.prediction);
-      } catch {
-        text = result.prediction;
-      }
-
-      if (text) {
-        text = this.parseStringTemplate(text, expandedTemplateVariables);
-        predictions.push(text);
-      }
-      //result.probability
-    }
-
-    // Update the last prediction with the current input and results
-    this.lastPrediction[lang] = {
-      pastStream: predictionInput,
-      predictions: predictions.slice(),
-    };
-
-    // Return the predicted results
-    return predictions;
+    return predictions.map(text => this.parseStringTemplate(text, expandedTemplateVariables));
   }
 
   /**
@@ -265,28 +241,18 @@ class PresageHandler {
   runPrediction(text, nextChar, lang) {
     let predictions = [];
     let forceReplace = null;
-
-    // Process the input text to get the prediction input, prediction flag and capitalization flag
     const { predictionInput, doPrediction, doCapitalize } = this.processInput(
       text,
       lang,
     );
-
-    // Apply spacing rules if necessary
     if (this.applySpacingRules) {
       forceReplace = this.spacingHandler.applySpacingRules(text);
     }
-
-    // If the Presage library for the given language does not exist, do nothing and return empty predictions
-    if (!this.libPresage[lang]) {
+    if (!this.presageEngine.hasLanguage(lang)) {
       // Do nothing, reply with empty predictions
-    }
-    // If forceReplace is not set and prediction is necessary, perform the prediction
-    else if (!forceReplace && doPrediction) {
+    } else if (!forceReplace && doPrediction) {
       predictions = this.doPredictionHandler(predictionInput, lang);
     }
-
-    // If insertSpaceAfterAutocomplete is true, add a space after each prediction if necessary
     if (this.insertSpaceAfterAutocomplete) {
       if (
         !isWhiteSpace(nextChar, false) &&
@@ -296,8 +262,6 @@ class PresageHandler {
         predictions = predictions.map((pred) => `${pred}\xA0`);
       }
     }
-
-    // Depending on the capitalization flag, modify the predictions accordingly
     switch (doCapitalize) {
       case Capitalization.FirstLetter:
         predictions = predictions.map(
@@ -310,8 +274,6 @@ class PresageHandler {
       case Capitalization.None:
       default:
     }
-
-    // Return the predictions and forceReplace flag
     return { predictions, forceReplace };
   }
 }
