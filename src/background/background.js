@@ -18,6 +18,7 @@ import { SettingsManager } from "../shared/settingsManager.ts";
 import { LanguageDetector } from "./languageDetector.ts";
 import { PredictionManager } from "./predictionManager.ts";
 import { TabMessenger } from "./tabMessenger.ts";
+import { migrateToLocalStore } from "./migration.ts";
 
 class BackgroundServiceWorker {
   constructor() {
@@ -314,51 +315,12 @@ function onMessage(request, sender, sendResponse) {
   return false;
 }
 
-async function migrateToLocalStore(lastVersion) {
-  const currentVersion = chrome.runtime.getManifest().version;
-  const migrateStore =
-    !lastVersion ||
-    lastVersion.localeCompare("2023.09.30", undefined, {
-      numeric: true,
-      sensitivity: "base",
-    }) <= 0;
-
-  const updateLang =
-    !lastVersion ||
-    lastVersion.localeCompare("2024.04.21", undefined, {
-      numeric: true,
-      sensitivity: "base",
-    }) <= 0;
-
-  if (migrateStore) {
-    chrome.storage.sync.get(null, (result) => {
-      chrome.storage.local.set(result);
-      chrome.storage.local.set({ lastVersion: currentVersion });
-    });
-  }
-
-  if (updateLang) {
-    const backgroundServiceWorker = new BackgroundServiceWorker();
-    const langProps = ["language", "fallbackLanguage"];
-    for (const langProp of langProps) {
-      const language = await backgroundServiceWorker.settingsManager.get(langProp);
-      for (const key of Object.keys(SUPPORTED_LANGUAGES)) {
-        if (key.startsWith(language)) {
-          await backgroundServiceWorker.settingsManager.set(langProp, key);
-          break;
-        }
-      }
-    }
-  }
-  chrome.storage.local.set({ lastVersion: currentVersion });
-}
-
 chrome.runtime.onInstalled.addListener(onInstalled);
 chrome.commands.onCommand.addListener(onCommand);
 chrome.runtime.onMessage.addListener(onMessage);
 chrome.storage.local.get("lastVersion", async (result) => {
   try {
-    migrateToLocalStore(result.lastVersion);
+    await migrateToLocalStore(result.lastVersion);
     const backgroundServiceWorker = new BackgroundServiceWorker();
     await backgroundServiceWorker.predictionManager.initialize();
   } catch (error) {
