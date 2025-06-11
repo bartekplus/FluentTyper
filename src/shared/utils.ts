@@ -133,6 +133,33 @@ async function blockUnBlockDomain(settings: Settings, domainURL: string, block =
   }
 }
 
+/**
+ * Debounce function to limit the rate of function calls.
+ * @param func Function to be debounced
+ * @param wait Time to wait before calling the function
+ * @param options Options object with leading and trailing options
+ */
+export function debounce(
+  func: (...args: undefined[]) => void,
+  wait: number,
+  options: { leading?: boolean; trailing?: boolean } = { leading: true, trailing: true }
+): (...args: undefined[]) => void {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  return (...args: undefined[]) => {
+    const timerExpired = (callFunc: boolean) => {
+      timer = null;
+      if (callFunc) func(...args);
+    };
+
+    const callNow = !!options.leading && timer === null;
+    const timeoutFn = () => timerExpired(!callNow && !!options.trailing);
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(timeoutFn, wait);
+    if (callNow) func(...args);
+  };
+}
+
 export {
   SETTINGS_DOMAIN_BLACKLIST,
   DOMAIN_LIST_MODE,

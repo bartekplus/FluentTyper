@@ -2,6 +2,7 @@
 
 import Tribute from "../third_party/tribute/tribute.esm.js";
 import { DomObserver } from "./dom-observer.ts";
+import { debounce } from "../shared/utils.ts";
 
 (function () {
   const WATCHDOG_INTERVAL_MS = 1000;
@@ -455,7 +456,7 @@ import { DomObserver } from "./dom-observer.ts";
       tribute.attach(elem);
 
       // Add event listeners for the tribute-replaced and keydown events.
-      elem.tributeReplacedEventHandler = this.debounce(
+      elem.tributeReplacedEventHandler = debounce(
         this.tributeReplacedEventHandler.bind(this, tribueId),
         16,
         { leading: false, trailing: true },
@@ -465,7 +466,7 @@ import { DomObserver } from "./dom-observer.ts";
         elem.tributeReplacedEventHandler,
       );
 
-      elem.elementKeyDownEventHandler = this.debounce(
+      elem.elementKeyDownEventHandler = debounce(
         this.elementKeyDownEventHandler.bind(this, tribueId),
         32,
       );
@@ -747,32 +748,6 @@ import { DomObserver } from "./dom-observer.ts";
 
       // Send message and attach messageHandler function as callback
       chrome.runtime.sendMessage(message, this.messageHandler.bind(this));
-    }
-
-    // Debounce function to limit the rate of function calls
-    debounce(
-      func, // Function to be debounced
-      wait, // Time to wait before calling the function
-      options = {
-        // Options object with leading and trailing options
-        leading: true,
-        trailing: true,
-      },
-    ) {
-      let timer = null;
-
-      return (...args) => {
-        const timerExpired = (callFunc) => {
-          timer = null;
-          if (callFunc) func.apply(this, args);
-        };
-
-        const callNow = options.leading && timer === null;
-        const timeoutFn = timerExpired.bind(this, !callNow && options.trailing);
-        clearTimeout(timer);
-        timer = setTimeout(timeoutFn, wait);
-        if (callNow) func.apply(this, args);
-      };
     }
   }
 
