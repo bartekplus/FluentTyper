@@ -3,19 +3,14 @@ import {
   LANG_ADDITIONAL_SEPERATOR_REGEX,
 } from "../shared/lang.ts";
 import { DATE_TIME_VARIABLES } from "../shared/variables.ts";
-import { isWhiteSpace, isLetter, isNumber } from "../shared/utils.ts";
+import { isWhiteSpace, isNumber } from "../shared/utils.ts";
 import { SpacingRulesHandler, Spacing, SPACING_RULES } from "./spacingRulesHandler.ts";
+import { Capitalization, checkAutoCapitalize } from "./capitalizationHelper.ts";
 
 const NEW_SENTENCE_CHARS = [".", "?", "!"];
 const PAST_WORDS_COUNT = 5;
 const SUGGESTION_COUNT = 5;
 const MIN_WORD_LENGTH_TO_PREDICT = 1;
-
-const Capitalization = Object.freeze({
-  FirstLetter: Symbol("letter"),
-  WholeWord: Symbol("word"),
-  None: Symbol("none"),
-});
 
 class PresageHandler {
   /**
@@ -260,62 +255,6 @@ class PresageHandler {
   }
 
   /**
-   * Checks if auto capitalization should be applied based on the input tokens and punctuation marks.
-   * @param {string[]} lastWord - Last Word of input
-   * @param {string[]} wordCount - Word count in the sentence
-   * @param {boolean} newSentence - Indicates if the input includes a new sentence.
-   * @param {boolean} endsWithSpace - Indicates if the input ends with a whitespace.
-   * @returns {Capitalization} The type of capitalization to be applied.
-   */
-  checkAutoCapitalize(lastWord, wordCount, newSentence, endsWithSpace) {
-    const firstCharacterOfLastWord = lastWord.slice(0, 1);
-
-    // Check for whole word capitalization
-    // when the input meets the conditions
-    // * doesn't end with whitespace
-    // * first letter of last word is uppercase
-    // * word is at least 2 characters
-    // * eg.  " XYZ"
-    if (
-      !endsWithSpace &&
-      lastWord &&
-      lastWord.length > 1 &&
-      lastWord === lastWord.toUpperCase()
-    )
-      return Capitalization.WholeWord;
-
-    // Check for first letter capitalization
-    // when the input meets the conditions
-    // * doesn't end with whitespace
-    // * first letter of last word is uppercase
-    // * eg.  " Xyz"
-    if (
-      !endsWithSpace &&
-      isLetter(firstCharacterOfLastWord) &&
-      firstCharacterOfLastWord === firstCharacterOfLastWord.toUpperCase()
-    )
-      return Capitalization.FirstLetter;
-
-    // Check for first letter capitalization
-    // when auto capitalization is enabled and the input meets the conditions
-    // * it includes one of NEW_SENTENCE_CHARS and there is exactly one word after it and
-    //   last word doesn't end with whitespace
-    // * or it includes one of NEW_SENTENCE_CHARS and there are no words after it
-    //   and it ends with whitespace
-    // * eg.  "xyz. xyz" or "xyz. "
-    if (
-      this.autoCapitalize &&
-      newSentence &&
-      ((!endsWithSpace && wordCount === 1) ||
-        (endsWithSpace && wordCount === 0))
-    )
-      return Capitalization.FirstLetter;
-
-    // If none of the above cases apply, do not apply capitalization
-    return Capitalization.None;
-  }
-
-  /**
   Checks if prediction should be run based on the last word and whether it ends with space
   @param {string} lastWord - The last word in the input string
   @param {boolean} endsWithSpace - Indicates if the input string ends with a space character
@@ -403,12 +342,13 @@ class PresageHandler {
         .pop() || "";
 
     // Check if auto-capitalization should be performed
-    const doCapitalize = this.checkAutoCapitalize(
+    const doCapitalize = checkAutoCapitalize({
       lastWord,
-      wordArray.length,
+      wordCount: wordArray.length,
       newSentence,
       endsWithSpace,
-    );
+      autoCapitalize: this.autoCapitalize,
+    });
 
     // Check if prediction should be performed
     const doPrediction = this.checkDoPrediction(lastWord, endsWithSpace);
