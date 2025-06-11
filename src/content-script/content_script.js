@@ -63,8 +63,7 @@ import { debounce } from "../shared/utils.ts";
       if (this.observerNode !== currentNode) {
         // If the observerNode has changed and the plugin is enabled, disable and re-enable it
         if (this.enabled) {
-          this.disable();
-          setTimeout(this.enable.bind(this));
+          this.restart();
         }
         // Update the observerNode to the current node
         this.observerNode = currentNode;
@@ -602,10 +601,13 @@ import { debounce } from "../shared/utils.ts";
         config.minWordLengthToPredict === -1
           ? Number.MAX_VALUE
           : config.minWordLengthToPredict;
-      // Force restart to reload config
-      this.enabled = false;
-      this.enabled = config.enabled;
       this.revertOnBackspace = config.revertOnBackspace;
+      // Force restart to reload config
+      if (this.enabled && config.enabled) {
+        this.restart();
+      } else {
+        this.enabled = config.enabled;
+      }
     }
 
     /**
@@ -626,6 +628,16 @@ import { debounce } from "../shared/utils.ts";
       this.domObserver.disconnect();
       // Detach all helpers
       this.detachAllHelpers();
+    }
+    /**
+     * Restarts Tribute by disabling and then enabling it again.
+     * This is useful for reloading the configuration or applying changes.
+     */
+    restart() {
+      // Disable Tribute
+      this.disable();
+      // Enable Tribute
+      setTimeout(this.enable.bind(this));
     }
 
     /**
