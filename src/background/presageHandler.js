@@ -4,6 +4,8 @@ import { SpacingRulesHandler, Spacing, SPACING_RULES } from "./spacingRulesHandl
 import { Capitalization } from "./capitalizationHelper.ts";
 import { PredictionInputProcessor } from "./predictionInputProcessor.ts";
 import { TemplateExpander } from "./TemplateExpander.ts";
+import { UserDictionaryManager } from "./UserDictionaryManager.ts";
+import { TextExpansionManager } from "./TextExpansionManager.ts";
 
 const SUGGESTION_COUNT = 5;
 const MIN_WORD_LENGTH_TO_PREDICT = 1;
@@ -30,9 +32,6 @@ class PresageHandler {
     this.autoCapitalize = true; // Capitalize the first word of each sentence
     this.applySpacingRules = false; // Apply spacing rules
     this.textExpansions = []; // Text expander config
-    this.variableExpansion = false; // Variable expansion support
-    this.timeFormat = ""; // Custom time format
-    this.dateFormat = ""; // Custom time format
     this.userDictionaryList = []; // User dictionary
     this.spacingHandler = {} // Spacing rules handler
     this.predictionInputProcessor = new PredictionInputProcessor(
@@ -94,54 +93,10 @@ class PresageHandler {
         );
       }
     }
-  }
 
-  /**
-   * Sets up the text expansions by writing them to a text file and configuring
-   * abbreviation expansion predictor for each libPresage instance
-   */
-  setupTextExpansions() {
-    // Check if there are any text expansions to set up
-    if (!this.textExpansions) {
-      return;
-    }
-
-    // Construct a string with each text expansion formatted as a tab-separated entry and newline-separated row
-    let textExpansionsStr = "";
-    this.textExpansions.forEach((textExpansion) => {
-      const jsonObj = JSON.stringify(textExpansion[1]);
-      textExpansionsStr += `${textExpansion[0].toLowerCase()}\t${jsonObj}\n`;
-    });
-
-    // Write the text expansions to a text file
-    this.Module.FS.writeFile("/textExpansions.txt", textExpansionsStr);
-
-    // Configure abbreviation expansion predictor for each libPresage instance
-    for (const [, libPresage] of Object.entries(this.libPresage)) {
-      libPresage.config(
-        "Presage.Predictors.DefaultAbbreviationExpansionPredictor.ABBREVIATIONS",
-        "/textExpansions.txt",
-      );
-    }
-  }
-
-  /**
-   * Sets up user dictionary by writing them to a text file and configuring
-   * dictionary predictor for each libPresage instance
-   */
-  setupUserDictionary() {
-    const userDictionaryStr = this.userDictionaryList.join("\n");
-
-    // Write the user dictionary
-    this.Module.FS.writeFile("/userDictionary.txt", userDictionaryStr);
-
-    // Configure abbreviation expansion predictor for each libPresage instance
-    for (const [, libPresage] of Object.entries(this.libPresage)) {
-      libPresage.config(
-        "Presage.Predictors.DefaultDictionaryPredictor.DICTIONARY",
-        "/userDictionary.txt",
-      );
-    }
+    // Initialize managers
+    this.textExpansionManager = new TextExpansionManager(this.Module, this.libPresage);
+    this.userDictionaryManager = new UserDictionaryManager(this.Module, this.libPresage);
   }
 
   /**
@@ -176,8 +131,8 @@ class PresageHandler {
     this.timeFormat = timeFormat;
     this.dateFormat = dateFormat;
     this.userDictionaryList = userDictionaryList;
-    this.setupTextExpansions();
-    this.setupUserDictionary();
+    this.textExpansionManager.setTextExpansions(textExpansions);
+    this.userDictionaryManager.setUserDictionaryList(userDictionaryList);
     this.spacingHandler = new SpacingRulesHandler(insertSpaceAfterAutocomplete);
     for (const [, libPresage] of Object.entries(this.libPresage)) {
       libPresage.config(
