@@ -220,43 +220,41 @@ async function handleContentScriptPredictReq(request, sender, sendResponse, back
   // Modify the command and set asyncResponse to true.
   request.command = "backgroundPagePredictReq";
 
-  // Get the language from the settings.
-  backgroundServiceWorker.settingsManager
-    .get("language")
-    .then(async (language) => {
-      backgroundServiceWorker.language = language;
+  try {
+    // Get the language from the settings.
+    let language = await backgroundServiceWorker.settingsManager.get("language");
+    backgroundServiceWorker.language = language;
 
-      // If language is set to auto-detect, detect the language.
-      if (language === "auto_detect") {
-        language = await backgroundServiceWorker.detectLanguage(
-          request.context.text,
-          request.context.tabId,
-        );
-      }
+    // If language is set to auto-detect, detect the language.
+    if (language === "auto_detect") {
+      language = await backgroundServiceWorker.detectLanguage(
+        request.context.text,
+        request.context.tabId,
+      );
+    }
 
-      // If the language has changed, update the configuration.
-      if (request.context.lang !== language) {
-        sendResponse({
-          command: "backgroundPageUpdateLangConfig",
-          context: {
-            lang: language,
-            autocompleteSeparatorSource:
-              LANG_SEPERATOR_CHARS_REGEX[language].source,
-            tributeId: request.context.tributeId,
-          },
-        });
-      } else {
-        // Otherwise, run prediction and send a response.
-        request.context.lang = language;
-        request.context.langName =
-          SUPPORTED_LANGUAGES[request.context.lang];
-        backgroundServiceWorker.runPrediction(request);
-        sendResponse();
-      }
-    })
-    .catch(function (e) {
-      console.error(e);
-    });
+    // If the language has changed, update the configuration.
+    if (request.context.lang !== language) {
+      sendResponse({
+        command: "backgroundPageUpdateLangConfig",
+        context: {
+          lang: language,
+          autocompleteSeparatorSource:
+            LANG_SEPERATOR_CHARS_REGEX[language].source,
+          tributeId: request.context.tributeId,
+        },
+      });
+    } else {
+      // Otherwise, run prediction and send a response.
+      request.context.lang = language;
+      request.context.langName =
+        SUPPORTED_LANGUAGES[request.context.lang];
+      await backgroundServiceWorker.runPrediction(request);
+      sendResponse();
+    }
+  } catch (e) {
+    console.error(e);
+  }
 }
 
 function handleOptionsPageConfigChange(request, sender, sendResponse, backgroundServiceWorker) {
@@ -264,22 +262,17 @@ function handleOptionsPageConfigChange(request, sender, sendResponse, background
 }
 
 async function handleContentScriptGetConfig(request, sender, sendResponse, backgroundServiceWorker) {
-  isEnabledForDomain(
-    backgroundServiceWorker.settingsManager,
-    getDomain(sender.tab.url),
-  )
-    .then(async (isEnabled) => {
-      const message =
-        await backgroundServiceWorker.getBackgroundPageSetConfigMsg();
-      message.context.enabled = isEnabled;
-      return message;
-    })
-    .then(async (message) => {
-      sendResponse(message);
-    })
-    .catch(function (e) {
-      console.error(e);
-    });
+  try {
+    const isEnabled = await isEnabledForDomain(
+      backgroundServiceWorker.settingsManager,
+      getDomain(sender.tab.url),
+    );
+    const message = await backgroundServiceWorker.getBackgroundPageSetConfigMsg();
+    message.context.enabled = isEnabled;
+    sendResponse(message);
+  } catch (e) {
+    console.error(e);
+  }
   return true;
 }
 
@@ -310,10 +303,13 @@ function onMessage(request, sender, sendResponse) {
   // Use a handler map to determine which handler to call.
   const handler = messageHandlers[request.command];
   if (handler) {
+    // Always return true for async handlers
     const result = handler(request, sender, sendResponse, backgroundServiceWorker);
     if (result && typeof result.then === "function") {
       return true;
     }
+    // For sync handlers, still return true to allow async sendResponse
+    return true;
   }
   return false;
 }
