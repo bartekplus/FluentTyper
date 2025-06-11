@@ -1,9 +1,9 @@
 import { SUPPORTED_LANGUAGES } from "../shared/lang.ts";
-import { DATE_TIME_VARIABLES } from "../shared/variables.ts";
 import { isWhiteSpace } from "../shared/utils.ts";
 import { SpacingRulesHandler, Spacing, SPACING_RULES } from "./spacingRulesHandler.ts";
 import { Capitalization } from "./capitalizationHelper.ts";
 import { PredictionInputProcessor } from "./predictionInputProcessor.ts";
+import { TemplateExpander } from "./TemplateExpander.ts";
 
 const SUGGESTION_COUNT = 5;
 const MIN_WORD_LENGTH_TO_PREDICT = 1;
@@ -188,14 +188,7 @@ class PresageHandler {
   }
 
   parseStringTemplate(str, obj) {
-    const parts = str.split(/\$\{(?!\d)[\wæøåÆØÅ]*\}/);
-    const args = str.match(/[^{}]+(?=})/g) || [];
-    const parameters = args.map(
-      (argument) =>
-        obj[argument] ||
-        (obj[argument] === undefined ? "${" + argument + "}" : obj[argument]),
-    );
-    return String.raw({ raw: parts }, ...parameters);
+    return TemplateExpander.parseStringTemplate(str, obj);
   }
 
   /**
@@ -205,21 +198,12 @@ class PresageHandler {
    * @returns {Object} An expanded template variables
    */
   getExpandedVariables(lang) {
-    const expandedTemplateVariables = {};
-
-    if (this.variableExpansion === false) {
-      return expandedTemplateVariables;
-    }
-
-    expandedTemplateVariables["time"] = DATE_TIME_VARIABLES.time(
+    return TemplateExpander.getExpandedVariables(
       lang,
+      this.variableExpansion,
       this.timeFormat,
+      this.dateFormat
     );
-    expandedTemplateVariables["date"] = DATE_TIME_VARIABLES.date(
-      lang,
-      this.dateFormat,
-    );
-    return expandedTemplateVariables;
   }
 
   /**
