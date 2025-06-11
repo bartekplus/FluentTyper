@@ -4,40 +4,9 @@ import {
 } from "../shared/lang.ts";
 import { DATE_TIME_VARIABLES } from "../shared/variables.ts";
 import { isWhiteSpace, isLetter, isNumber } from "../shared/utils.ts";
-
-const Spacing = Object.freeze({
-  INSERT_SPACE: Symbol("INSERT_SPACE"),
-  REMOVE_SPACE: Symbol("REMOVE_SPACE"),
-  NO_CHANGE: Symbol("NO_CHANGE"),
-});
+import { SpacingRulesHandler, Spacing, SPACING_RULES } from "./spacingRulesHandler.ts";
 
 const NEW_SENTENCE_CHARS = [".", "?", "!"];
-const SPACING_RULES = {
-  ".": { spaceBefore: Spacing.REMOVE_SPACE, spaceAfter: Spacing.INSERT_SPACE },
-  ",": { spaceBefore: Spacing.REMOVE_SPACE, spaceAfter: Spacing.INSERT_SPACE },
-  "]": { spaceBefore: Spacing.REMOVE_SPACE, spaceAfter: Spacing.INSERT_SPACE },
-  ")": { spaceBefore: Spacing.REMOVE_SPACE, spaceAfter: Spacing.INSERT_SPACE },
-  "}": { spaceBefore: Spacing.REMOVE_SPACE, spaceAfter: Spacing.INSERT_SPACE },
-  ">": { spaceBefore: Spacing.REMOVE_SPACE, spaceAfter: Spacing.INSERT_SPACE },
-  "!": { spaceBefore: Spacing.REMOVE_SPACE, spaceAfter: Spacing.INSERT_SPACE },
-  ":": { spaceBefore: Spacing.REMOVE_SPACE, spaceAfter: Spacing.INSERT_SPACE },
-  ";": { spaceBefore: Spacing.REMOVE_SPACE, spaceAfter: Spacing.INSERT_SPACE },
-  "?": { spaceBefore: Spacing.REMOVE_SPACE, spaceAfter: Spacing.INSERT_SPACE },
-  "[": { spaceBefore: Spacing.INSERT_SPACE, spaceAfter: Spacing.REMOVE_SPACE },
-  "(": { spaceBefore: Spacing.INSERT_SPACE, spaceAfter: Spacing.REMOVE_SPACE },
-  "{": { spaceBefore: Spacing.INSERT_SPACE, spaceAfter: Spacing.REMOVE_SPACE },
-  "<": { spaceBefore: Spacing.INSERT_SPACE, spaceAfter: Spacing.REMOVE_SPACE },
-  "/": { spaceBefore: Spacing.INSERT_SPACE, spaceAfter: Spacing.INSERT_SPACE },
-  // TODO: Validate spacing rules for below symbols
-  "—": { spaceBefore: Spacing.NO_CHANGE, spaceAfter: Spacing.NO_CHANGE },
-  "–": { spaceBefore: Spacing.NO_CHANGE, spaceAfter: Spacing.NO_CHANGE },
-  "-": { spaceBefore: Spacing.NO_CHANGE, spaceAfter: Spacing.NO_CHANGE },
-  "’": { spaceBefore: Spacing.NO_CHANGE, spaceAfter: Spacing.NO_CHANGE },
-  "*": { spaceBefore: Spacing.NO_CHANGE, spaceAfter: Spacing.NO_CHANGE },
-  "+": { spaceBefore: Spacing.NO_CHANGE, spaceAfter: Spacing.NO_CHANGE },
-  "=": { spaceBefore: Spacing.NO_CHANGE, spaceAfter: Spacing.NO_CHANGE },
-};
-const SPACE_CHARS = ["\xA0", " "];
 const PAST_WORDS_COUNT = 5;
 const SUGGESTION_COUNT = 5;
 const MIN_WORD_LENGTH_TO_PREDICT = 1;
@@ -74,6 +43,8 @@ class PresageHandler {
     this.timeFormat = ""; // Custom time format
     this.dateFormat = ""; // Custom time format
     this.userDictionaryList = []; // User dictionary
+    this.spacingHandler = {} // Spacing rules handler
+
 
     // Precompiled regular expressions
     this.separatorCharRegEx =
@@ -212,6 +183,7 @@ class PresageHandler {
     this.userDictionaryList = userDictionaryList;
     this.setupTextExpansions();
     this.setupUserDictionary();
+    this.spacingHandler = new SpacingRulesHandler(insertSpaceAfterAutocomplete);
     for (const [, libPresage] of Object.entries(this.libPresage)) {
       libPresage.config(
         "Presage.Selector.SUGGESTIONS",
@@ -450,69 +422,6 @@ class PresageHandler {
   }
 
   /**
-   * Handles spacing rules based on the last character in the input string.
-   * @param {string} inputStr - The input string to apply spacing rules to.
-   * @returns {object} An object containing the updated text and its length, or null if no changes were made.
-   */
-  spacingRulesHandler(inputStr) {
-    // Return null if inputStr is falsy.
-    if (!inputStr) {
-      return null;
-    }
-
-    const { length } = inputStr;
-
-    // Get the last three characters from inputStr.
-    const lastChar = inputStr[length - 1];
-    const lastCharMin1 = inputStr[length - 2];
-    const lastCharMin2 = inputStr[length - 3];
-
-    // Return null if lastCharMin1 is falsy.
-    if (!lastCharMin1) {
-      return null;
-    }
-
-    // Return null if lastChar is not a key in SPACING_RULES.
-    if (!SPACING_RULES[lastChar]) {
-      return null;
-    }
-
-    // Return null if lastCharMin2 is a space character.
-    if (SPACE_CHARS.includes(lastCharMin2)) {
-      return null;
-    }
-
-    // Return null if the spacing before lastChar should insert a space, but lastCharMin1 is already a space character.
-    if (
-      (SPACING_RULES[lastChar].spaceBefore === Spacing.INSERT_SPACE) ===
-      SPACE_CHARS.includes(lastCharMin1)
-    ) {
-      return null;
-    }
-
-    // Construct the updated text based on the spacing rules.
-    const insertSpaceBefore =
-      SPACING_RULES[lastChar].spaceBefore === Spacing.INSERT_SPACE;
-    const insertSpaceAfter =
-      this.insertSpaceAfterAutocomplete &&
-      SPACING_RULES[lastChar].spaceAfter === Spacing.INSERT_SPACE;
-    const text = `${insertSpaceBefore ? "\xA0" : ""}${lastChar}${
-      insertSpaceAfter ? "\xA0" : ""
-    }`;
-
-    // Return null if txt is the same as lastChar.
-    if (text === lastChar) {
-      return null;
-    }
-
-    // Return an object containing the updated text and its length.
-    return {
-      text,
-      length: 2 - Number(insertSpaceBefore),
-    };
-  }
-
-  /**
    * Handles predictions for a given input and language.
    *
    * @param {string} predictionInput The input to predict on.
@@ -579,7 +488,7 @@ class PresageHandler {
 
     // Apply spacing rules if necessary
     if (this.applySpacingRules) {
-      forceReplace = this.spacingRulesHandler(text);
+      forceReplace = this.spacingHandler.applySpacingRules(text);
     }
 
     // If the Presage library for the given language does not exist, do nothing and return empty predictions
