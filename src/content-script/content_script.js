@@ -8,7 +8,10 @@ import {
   CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
   CMD_CONTENT_SCRIPT_PREDICT_REQ,
   CMD_TOGGLE_FT_ACTIVE_TAB,
-  CMD_TRIGGER_FT_ACTIVE_TAB
+  CMD_TRIGGER_FT_ACTIVE_TAB,
+  POPUP_PAGE_ENABLE,
+  POPUP_PAGE_DISABLE,
+  STATUS_COMMAND
 } from "../shared/constants.ts";
 
 (function () {
@@ -718,13 +721,13 @@ import {
           // Send a status message to the sender
           sendStatusMsg = true;
           break;
-        case "popupPageDisable":
+        case POPUP_PAGE_DISABLE:
           // Disable TributeJS
           this.enabled = false;
           // Send a status message to the sender
           sendStatusMsg = true;
           break;
-        case "popupPageEnable":
+        case POPUP_PAGE_ENABLE:
           // Enable TributeJS
           this.enabled = true;
           // Send a status message to the sender
@@ -751,7 +754,7 @@ import {
       // Send a status message to the sender if required
       if (sendStatusMsg) {
         const statusMsg = {
-          command: "status",
+          command: STATUS_COMMAND,
           context: { enabled: this.enabled },
         };
         if (sendResponse) sendResponse(statusMsg);

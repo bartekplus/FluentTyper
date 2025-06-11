@@ -1,6 +1,7 @@
 import { getDomain, isEnabledForDomain, blockUnBlockDomain } from "../shared/utils.ts";
 import { Store } from "../third_party/fancier-settings/lib/store.js";
 import { SUPPORTED_LANGUAGES } from "../shared/lang.ts";
+import { POPUP_PAGE_ENABLE, POPUP_PAGE_DISABLE } from "../shared/constants.ts";
 
 const settings = new Store("settings");
 
@@ -92,7 +93,7 @@ async function addRemoveDomain(tabId, domainURL) {
 
   // Create a message object to send to the content script
   const message = {
-    command: checkboxNode.checked ? "popupPageEnable" : "popupPageDisable",
+    command: checkboxNode.checked ? POPUP_PAGE_ENABLE : POPUP_PAGE_DISABLE,
     context: {},
   };
 
@@ -142,9 +143,9 @@ async function toggleOnOff() {
 
       // Set the appropriate command based on the new mode
       if (newMode) {
-        message.command = "popupPageEnable";
+        message.command = POPUP_PAGE_ENABLE;
       } else {
-        message.command = "popupPageDisable";
+        message.command = POPUP_PAGE_DISABLE;
       }
 
       // Send the message to the content script in the current tab

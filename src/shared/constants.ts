@@ -33,3 +33,8 @@ export const KEY_USER_DICTIONARY_LIST = "userDictionaryList";
 export const KEY_LANGUAGE = "language";
 export const KEY_FALLBACK_LANGUAGE = "fallbackLanguage";
 export const KEY_DOMAIN_LIST_MODE = "domainListMode";
+
+// Popup Commands
+export const POPUP_PAGE_ENABLE = "popupPageEnable";
+export const POPUP_PAGE_DISABLE = "popupPageDisable";
+export const STATUS_COMMAND = "status";
