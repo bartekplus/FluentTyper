@@ -159,3 +159,49 @@ export function debounce(
     if (callNow) func(...args);
   };
 }
+
+/**
+ * Check if a given character is a whitespace.
+ * @param {string} character - The character to be checked.
+ * @param {boolean} matchNewLine - Optional parameter indicating whether to match newline characters as well (default is true).
+ * @returns {boolean} True if the character is a whitespace, false otherwise.
+ */
+export function isWhiteSpace(character: string, matchNewLine: boolean = true): boolean {
+  const whiteSpaceRegEx = /\s+/;
+  const whiteSpaceRegExExcludeNewLine = /[^\S\r\n]+/;
+  if (matchNewLine) {
+    return whiteSpaceRegEx.test(character);
+  } else {
+    return whiteSpaceRegExExcludeNewLine.test(character);
+  }
+}
+
+/**
+ * Check if a given character is a letter.
+ * @param {string} character - The character to be checked.
+ * @returns {boolean} True if the character is a letter, false otherwise.
+ */
+export function isLetter(character: string): boolean {
+  const letterRegEx = /^\p{L}/u;
+  return letterRegEx.test(character);
+}
+
+/**
+ * Count the number of digits in a given string.
+ * @param {string} str - The string to be counted.
+ * @returns {number} The number of digits in the string.
+ */
+export function countDigits(str: string): number {
+  return str.replace(/[^0-9]/g, "").length;
+}
+
+/**
+ * Check if a given string is a number.
+ * @param {string} str - The string to be checked.
+ * @returns {boolean} True if the string is a number, false otherwise.
+ */
+export function isNumber(str: string): boolean {
+  return (
+    (!isNaN(Number(str)) && !isNaN(parseFloat(str))) || countDigits(str) > 1
+  );
+}

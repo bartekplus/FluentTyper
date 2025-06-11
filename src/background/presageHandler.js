@@ -2,8 +2,8 @@ import {
   SUPPORTED_LANGUAGES,
   LANG_ADDITIONAL_SEPERATOR_REGEX,
 } from "../shared/lang.ts";
-
 import { DATE_TIME_VARIABLES } from "../shared/variables.ts";
+import { isWhiteSpace, isLetter, isNumber } from "../shared/utils.ts";
 
 const Spacing = Object.freeze({
   INSERT_SPACE: Symbol("INSERT_SPACE"),
@@ -220,53 +220,6 @@ class PresageHandler {
     }
   }
 
-  /**
-   * Check if a given character is a whitespace.
-   * @param {string} character - The character to be checked.
-   * @param {boolean} matchNewLine - Optional parameter indicating whether to match newline characters as well (default is true).
-   * @returns {boolean} True if the character is a whitespace, false otherwise.
-   */
-  isWhiteSpace(character, matchNewLine = true) {
-    // return true if character matches the whitespace regular expression based on the matchNewLine parameter
-    if (matchNewLine) {
-      return this.whiteSpaceRegEx.test(character);
-    } else {
-      return this.whiteSpaceRegExExcludeNewLine.test(character);
-    }
-  }
-
-  /**
-   * Check if a given character is a letter.
-   * @param {string} character - The character to be checked.
-   * @returns {boolean} True if the character is a letter, false otherwise.
-   */
-  isLetter(character) {
-    // return true if character matches the letter regular expression
-    return this.letterRegEx.test(character);
-  }
-
-  /**
-   * Count the number of digits in a given string.
-   * @param {string} str - The string to be counted.
-   * @returns {number} The number of digits in the string.
-   */
-  countDigits(str) {
-    // replace all non-digit characters with an empty string and return the length of the resulting string
-    return str.replace(/[^0-9]/g, "").length;
-  }
-
-  /**
-   * Check if a given string is a number.
-   * @param {string} str - The string to be checked.
-   * @returns {boolean} True if the string is a number, false otherwise.
-   */
-  isNumber(str) {
-    // return true if the string is a valid number or if it contains at least two digits
-    return (
-      (!isNaN(str) && !isNaN(parseFloat(str))) || this.countDigits(str) > 1
-    );
-  }
-
   parseStringTemplate(str, obj) {
     const parts = str.split(/\$\{(?!\d)[\wæøåÆØÅ]*\}/);
     const args = str.match(/[^{}]+(?=})/g) || [];
@@ -366,7 +319,7 @@ class PresageHandler {
     // * eg.  " Xyz"
     if (
       !endsWithSpace &&
-      this.isLetter(firstCharacterOfLastWord) &&
+      isLetter(firstCharacterOfLastWord) &&
       firstCharacterOfLastWord === firstCharacterOfLastWord.toUpperCase()
     )
       return Capitalization.FirstLetter;
@@ -400,7 +353,7 @@ class PresageHandler {
     // If the number of suggestions is set to zero, disable prediction
     if (this.numSuggestions <= 0) return false;
     // Don't run prediction on numbers
-    if (!endsWithSpace && this.isNumber(lastWord)) return false;
+    if (!endsWithSpace && isNumber(lastWord)) return false;
 
     // If the input ends with whitespace and the minimum word length to start prediction is not set to 0, disable prediction
     if (endsWithSpace && !this.predictNextWordAfterSeparatorChar) return false;
@@ -641,7 +594,7 @@ class PresageHandler {
     // If insertSpaceAfterAutocomplete is true, add a space after each prediction if necessary
     if (this.insertSpaceAfterAutocomplete) {
       if (
-        !this.isWhiteSpace(nextChar, false) &&
+        !isWhiteSpace(nextChar, false) &&
         (!(nextChar in SPACING_RULES) ||
           SPACING_RULES[nextChar].spaceBefore === Spacing.INSERT_SPACE)
       ) {
