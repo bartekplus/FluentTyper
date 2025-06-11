@@ -28,6 +28,19 @@ interface LibPresageCallback {
   get_future_stream: () => string;
 }
 
+export type PresageConfig = {
+  numSuggestions: number;
+  minWordLengthToPredict: number;
+  insertSpaceAfterAutocomplete: boolean;
+  autoCapitalize: boolean;
+  applySpacingRules: boolean;
+  textExpansions: Array<[string, object]>;
+  variableExpansion?: boolean;
+  timeFormat?: string;
+  dateFormat?: string;
+  userDictionaryList?: string[];
+};
+
 export class PresageHandler {
   private Module: PresageModule;
   private presageEngine: PresageEngine;
@@ -106,35 +119,24 @@ export class PresageHandler {
     this.userDictionaryManager = new UserDictionaryManager(this.Module as PresageModule, this.libPresage);
   }
 
-  setConfig(
-    numSuggestions: number,
-    minWordLengthToPredict: number,
-    insertSpaceAfterAutocomplete: boolean,
-    autoCapitalize: boolean,
-    applySpacingRules: boolean,
-    textExpansions: Array<[string, object]>,
-    variableExpansion?: boolean,
-    timeFormat?: string,
-    dateFormat?: string,
-    userDictionaryList?: string[],
-  ): void {
-    this.numSuggestions = numSuggestions;
-    this.minWordLengthToPredict = Math.max(0, minWordLengthToPredict);
+  setConfig(config: PresageConfig): void {
+    this.numSuggestions = config.numSuggestions;
+    this.minWordLengthToPredict = Math.max(0, config.minWordLengthToPredict);
     this.predictNextWordAfterSeparatorChar = this.minWordLengthToPredict === 0 ? true : false;
-    this.insertSpaceAfterAutocomplete = insertSpaceAfterAutocomplete;
-    this.autoCapitalize = autoCapitalize;
-    this.applySpacingRules = applySpacingRules;
-    this.variableExpansion = variableExpansion;
-    this.timeFormat = timeFormat;
-    this.dateFormat = dateFormat;
-    this.userDictionaryList = userDictionaryList || [];
-    this.textExpansionManager.setTextExpansions(textExpansions);
+    this.insertSpaceAfterAutocomplete = config.insertSpaceAfterAutocomplete;
+    this.autoCapitalize = config.autoCapitalize;
+    this.applySpacingRules = config.applySpacingRules;
+    this.variableExpansion = config.variableExpansion;
+    this.timeFormat = config.timeFormat;
+    this.dateFormat = config.dateFormat;
+    this.userDictionaryList = config.userDictionaryList || [];
+    this.textExpansionManager.setTextExpansions(config.textExpansions);
     this.userDictionaryManager.setUserDictionaryList(this.userDictionaryList);
-    this.spacingHandler = new SpacingRulesHandler(insertSpaceAfterAutocomplete);
+    this.spacingHandler = new SpacingRulesHandler(config.insertSpaceAfterAutocomplete);
     this.presageEngine.setConfig({
-      numSuggestions,
-      minWordLengthToPredict,
-      insertSpaceAfterAutocomplete,
+      numSuggestions: config.numSuggestions,
+      minWordLengthToPredict: config.minWordLengthToPredict,
+      insertSpaceAfterAutocomplete: config.insertSpaceAfterAutocomplete,
     });
   }
 

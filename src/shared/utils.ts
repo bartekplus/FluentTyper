@@ -1,15 +1,10 @@
+import { SettingsManager } from "./settingsManager";
 import { getErrorMessage } from "./error";  
 export const SETTINGS_DOMAIN_BLACKLIST = "domainBlackList";
 export const DOMAIN_LIST_MODE = {
   blackList: "Blacklist - enabled on all websites, disabled on specific sites",
   whiteList: "Whitelist - disabled on all websites, enabled on specific sites",
 };
-
-type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
-export interface Settings {
-  get: (key: string) => Promise<JsonValue>;
-  set?: (key: string, value: JsonValue) => Promise<void>;
-}
 
 /**
  * Extracts the domain from a URL.
@@ -28,7 +23,7 @@ export function getDomain(url: string): string | undefined {
 /**
  * Checks if a given domain URL is on the domain blacklist/whitelist.
  */
-export async function isDomainOnList(settings: Settings, domainURL: string): Promise<boolean> {
+export async function isDomainOnList(settings: SettingsManager, domainURL: string): Promise<boolean> {
   if (!domainURL) {
     return false;
   }
@@ -52,7 +47,7 @@ export async function isDomainOnList(settings: Settings, domainURL: string): Pro
 /**
  * Adds a domain URL to the domain blacklist/whitelist.
  */
-export async function addDomainToList(settings: Settings, domainURL: string): Promise<void> {
+export async function addDomainToList(settings: SettingsManager, domainURL: string): Promise<void> {
   try {
     const domainList = await settings.get(SETTINGS_DOMAIN_BLACKLIST);
     if (!Array.isArray(domainList)) {
@@ -70,7 +65,7 @@ export async function addDomainToList(settings: Settings, domainURL: string): Pr
 /**
  * Removes a domain URL from the domain blacklist/whitelist.
  */
-export async function removeDomainFromList(settings: Settings, domainURL: string): Promise<void> {
+export async function removeDomainFromList(settings: SettingsManager, domainURL: string): Promise<void> {
   try {
     const domainList = await settings.get(SETTINGS_DOMAIN_BLACKLIST);
     if (!Array.isArray(domainList)) {
@@ -93,7 +88,7 @@ export async function removeDomainFromList(settings: Settings, domainURL: string
 /**
  * Checks if the extension is enabled for the given domain URL.
  */
-export async function isEnabledForDomain(settings: Settings, domainURL: string): Promise<boolean> {
+export async function isEnabledForDomain(settings: SettingsManager, domainURL: string): Promise<boolean> {
   let enabledForDomain = Boolean(await settings.get("enable"));
   if (enabledForDomain) {
     const domainListMode = await settings.get("domainListMode");
@@ -121,7 +116,7 @@ export function checkLastError(): void {
 /**
  * Toggles the blocked/unblocked status of a domain based on the current domain list mode.
  */
-export async function blockUnBlockDomain(settings: Settings, domainURL: string, block = false): Promise<void> {
+export async function blockUnBlockDomain(settings: SettingsManager, domainURL: string, block = false): Promise<void> {
   const domainListMode = await settings.get("domainListMode");
   if (
     (block && domainListMode === "blackList") ||

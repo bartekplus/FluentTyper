@@ -2,12 +2,15 @@ import { getDomain, isEnabledForDomain, checkLastError } from "../shared/utils.t
 import { Store } from "../third_party/fancier-settings/lib/store.js";
 import {
   SUPPORTED_LANGUAGES,
-  SUPPORTED_LANGUAGES_SHORT_CODE,
   DEFAULT_SEPERATOR_CHARS_REGEX,
   LANG_SEPERATOR_CHARS_REGEX,
 } from "../shared/lang.ts";
 import { PresageHandler } from "./presageHandler.ts";
 import libPresageMod from "../third_party/libpresage/libpresage.js";
+import { SettingsManager } from "../shared/settingsManager.ts";
+import { LanguageDetector } from "./languageDetector.ts";
+import { PredictionManager } from "./predictionManager.ts";
+import { TabMessenger } from "./tabMessenger.ts";
 
 class BackgroundServiceWorker {
   constructor() {
@@ -16,45 +19,25 @@ class BackgroundServiceWorker {
     }
     BackgroundServiceWorker.instance = this;
 
-    this.settings = new Store("settings");
+    this.settingsManager = new SettingsManager(Store);
+    this.languageDetector = new LanguageDetector(this.settingsManager);
+    this.predictionManager = new PredictionManager(PresageHandler, libPresageMod);
+    this.tabMessenger = new TabMessenger();
     this.language = "auto_detect";
   }
 
-  async _doInitializePresagee() {
-    // Import the Presage module using the libPresageMod() function and wait for it to resolve
-    const Module = await libPresageMod();
-    // Instantiate a new PresageHandler object and assign it to the presageHandler property of 'this'
-    this.presageHandler = new PresageHandler(Module);
-    this.updatePresageConfig();
-  }
-
-  async _initializePresage() {
-    if (!this.initializationPromise) {
-      this.initializationPromise = this._doInitializePresagee();
-    }
-    return this.initializationPromise;
-  }
-
   async runPrediction(message) {
-    // Await the initialization of Presage to ensure it is ready for use
-    await this._initializePresage();
-
-    // Use destructuring to extract the predictions and forceReplace properties from the result object returned by the presageHandler
-    const { predictions, forceReplace } = this.presageHandler.runPrediction(
+    await this.predictionManager.initialize();
+    const { predictions, forceReplace } = this.predictionManager.runPrediction(
       message.context.text,
       message.context.nextChar,
       message.context.lang,
     );
-
-    // Update the message context with the predictions and forceReplace properties
     message.context.predictions = predictions;
     message.context.forceReplace = forceReplace;
-
     chrome.tabs.get(message.context.tabId, async function (tab) {
       checkLastError();
-
       if (tab) {
-        // Update command to indicate origin of the message
         message.command = "backgroundPagePredictResp";
         await chrome.tabs.sendMessage(message.context.tabId, message, {
           frameId: message.context.frameId,
@@ -74,105 +57,38 @@ class BackgroundServiceWorker {
    * supported language is detected.
    */
   async detectLanguage(text, tabId) {
-    const fallbackLanguage = this.settings.get("fallbackLanguage");
-
-    // Use the Chrome i18n API to detect the language of the given text.
-    const api = typeof browser === "undefined" ? chrome : browser;
-    const result = await api.i18n.detectLanguage(text);
-
-    let detectedLanguage = null;
-    let maxPercentage = -1;
-
-    // Loop through the detected languages and find the supported language with the highest percentage.
-    for (const language of result.languages) {
-      if (
-        language.language in SUPPORTED_LANGUAGES &&
-        language.percentage > maxPercentage
-      ) {
-        detectedLanguage = language.language;
-        maxPercentage = language.percentage;
-      } else if (
-        language.language in SUPPORTED_LANGUAGES_SHORT_CODE &&
-        language.percentage > maxPercentage
-      ) {
-        detectedLanguage = SUPPORTED_LANGUAGES_SHORT_CODE[language.language];
-        maxPercentage = language.percentage;
-      }
-    }
-
-    // If a supported language was detected, return it.
-    if (detectedLanguage) {
-      //return detectedLanguage;
-    }
-
-    // Otherwise, try to detect the language of the tab and return it if it's a supported language.
-    const pageLang = await api.tabs.detectLanguage(tabId);
-    if (pageLang in SUPPORTED_LANGUAGES) {
-      return pageLang;
-    }
-    if (pageLang in SUPPORTED_LANGUAGES_SHORT_CODE) {
-      return SUPPORTED_LANGUAGES_SHORT_CODE[pageLang];
-    }
-
-    // If the language of the tab is not supported, return the fallback language.
-    return fallbackLanguage;
+    return await this.languageDetector.detectLanguage(text, tabId);
   }
 
   /**
    * Toggles the content script on or off for the active tab.
    */
   sendCommandToActiveTabContentScript(command, context = {}) {
-    // Query for the active tab in the current window.
-    chrome.tabs.query(
-      { active: true, currentWindow: true },
-      async function (tabs) {
-        // Check for any error that occurred during the query.
-        checkLastError();
-
-        // If exactly one tab was found, send a message to toggle the content script.
-        if (tabs.length === 1) {
-          const currentTab = tabs[0];
-
-          const message = {
-            command: command,
-            context: context,
-          };
-
-          await chrome.tabs.sendMessage(currentTab.id, message);
-        }
-      },
-    );
+    this.tabMessenger.sendToActiveTab(command, context);
   }
 
   // Define an asynchronous function that takes a boolean value indicating whether to enable the background page configuration message
   async getBackgroundPageSetConfigMsg() {
-    // Create an instance of the BackgroundServiceWorker class to access the settings
-    const backgroundServiceWorker = new BackgroundServiceWorker();
-    backgroundServiceWorker.language =
-      await backgroundServiceWorker.settings.get("language");
+    this.language = await this.settingsManager.get("language");
 
     // Define an object containing the configuration information that will be sent as a message
     const message = {
       command: "backgroundPageSetConfig",
       context: {
-        autocomplete:
-          await backgroundServiceWorker.settings.get("autocomplete"), // Retrieve the "autocomplete" setting value from the BackgroundServiceWorker instance
-        autocompleteOnEnter: await backgroundServiceWorker.settings.get(
+        autocomplete: await this.settingsManager.get("autocomplete"), // Retrieve the "autocomplete" setting value from the BackgroundServiceWorker instance
+        autocompleteOnEnter: await this.settingsManager.get(
           "autocompleteOnEnter",
         ), // Retrieve the "autocompleteOnEnter" setting value from the BackgroundServiceWorker instance
-        autocompleteOnTab:
-          await backgroundServiceWorker.settings.get("autocompleteOnTab"), // Retrieve the "autocompleteOnTab" setting value from the BackgroundServiceWorker instance
-        selectByDigit:
-          await backgroundServiceWorker.settings.get("selectByDigit"), // Retrieve the "selectByDigit" setting value from the BackgroundServiceWorker instance
-        lang: backgroundServiceWorker.language, // Set the "lang" value to the retrieved language setting value
-        autocompleteSeparatorSource: backgroundServiceWorker.language
-          ? LANG_SEPERATOR_CHARS_REGEX[backgroundServiceWorker.language].source // Retrieve the separator character regex pattern based on the language setting value
+        autocompleteOnTab: await this.settingsManager.get("autocompleteOnTab"), // Retrieve the "autocompleteOnTab" setting value from the BackgroundServiceWorker instance
+        selectByDigit: await this.settingsManager.get("selectByDigit"), // Retrieve the "selectByDigit" setting value from the BackgroundServiceWorker instance
+        lang: this.language, // Set the "lang" value to the retrieved language setting value
+        autocompleteSeparatorSource: this.language
+          ? LANG_SEPERATOR_CHARS_REGEX[this.language].source // Retrieve the separator character regex pattern based on the language setting value
           : DEFAULT_SEPERATOR_CHARS_REGEX.source, // Use the default pattern if the language setting value is undefined or null
-        minWordLengthToPredict: await backgroundServiceWorker.settings.get(
+        minWordLengthToPredict: await this.settingsManager.get(
           "minWordLengthToPredict",
         ),
-        revertOnBackspace:
-          await backgroundServiceWorker.settings.get("revertOnBackspace"),
+        revertOnBackspace: await this.settingsManager.get("revertOnBackspace"),
       },
     };
 
@@ -184,61 +100,25 @@ class BackgroundServiceWorker {
    * Updates the configuration of the Presage handler and sends it to all tabs.
    */
   async updatePresageConfig() {
-    // Initialize the Presage handler.
-    await this._initializePresage();
-
-    this.language = await this.settings.get("language");
-    // Set the Presage handler configuration based on the settings.
-    this.presageHandler.setConfig(
-      await this.settings.get("numSuggestions"),
-      await this.settings.get("minWordLengthToPredict"),
-      await this.settings.get("insertSpaceAfterAutocomplete"),
-      await this.settings.get("autoCapitalize"),
-      await this.settings.get("applySpacingRules"),
-      await this.settings.get("textExpansions"),
-      await this.settings.get("variableExpansion"),
-      await this.settings.get("timeFormat"),
-      await this.settings.get("dateFormat"),
-      await this.settings.get("userDictionaryList"),
+    await this.predictionManager.initialize();
+    this.language = await this.settingsManager.get("language");
+    const config = {
+      numSuggestions: await this.settingsManager.get("numSuggestions"),
+      minWordLengthToPredict: await this.settingsManager.get("minWordLengthToPredict"),
+      insertSpaceAfterAutocomplete: await this.settingsManager.get("insertSpaceAfterAutocomplete"),
+      autoCapitalize: await this.settingsManager.get("autoCapitalize"),
+      applySpacingRules: await this.settingsManager.get("applySpacingRules"),
+      textExpansions: await this.settingsManager.get("textExpansions"),
+      variableExpansion: await this.settingsManager.get("variableExpansion"),
+      timeFormat: await this.settingsManager.get("timeFormat"),
+      dateFormat: await this.settingsManager.get("dateFormat"),
+      userDictionaryList: await this.settingsManager.get("userDictionaryList"),
+    };
+    this.predictionManager.setConfig(config);
+    this.tabMessenger.sendToAllTabs(
+      await this.getBackgroundPageSetConfigMsg(),
+      this.settingsManager
     );
-
-    // Query all tabs and send a message with the new configuration to each one.
-    chrome.tabs.query({}, async function (tabs) {
-      // Check for any error that occurred during the query.
-      checkLastError();
-
-      // Create a background service worker to access the settings.
-      const backgroundServiceWorker = new BackgroundServiceWorker();
-
-      // Get a message object with the current configuration.
-      const message =
-        await backgroundServiceWorker.getBackgroundPageSetConfigMsg();
-
-      // Loop through all tabs and send a message to each one.
-      for (const tab of tabs) {
-        // Skip tabs that don't have a URL.
-        if (!tab.url) {
-          continue;
-        }
-
-        // Get the domain of the current tab.
-        const domain = getDomain(tab.url);
-
-        // Check if the extension is enabled for the current domain.
-        const enabled = await isEnabledForDomain(
-          backgroundServiceWorker.settings,
-          domain,
-        );
-        message.context.enabled = enabled;
-
-        // Send the message to the current tab.
-        try {
-          await chrome.tabs.sendMessage(tab.id, message);
-        } catch (error) {
-          console.log(error);
-        }
-      }
-    });
   }
 }
 
@@ -306,7 +186,7 @@ function onCommand(command) {
       const nextLangIndex = (currentLangIndex + 1) % availableLangs.length;
       const nextLang = availableLangs[nextLangIndex];
 
-      backgroundServiceWorker.settings.set("language", nextLang);
+      backgroundServiceWorker.settingsManager.set("language", nextLang);
       backgroundServiceWorker.language = nextLang;
 
       const context = {
@@ -334,7 +214,7 @@ async function handleContentScriptPredictReq(request, sender, sendResponse, back
   request.command = "backgroundPagePredictReq";
 
   // Get the language from the settings.
-  backgroundServiceWorker.settings
+  backgroundServiceWorker.settingsManager
     .get("language")
     .then(async (language) => {
       backgroundServiceWorker.language = language;
@@ -378,7 +258,7 @@ function handleOptionsPageConfigChange(request, sender, sendResponse, background
 
 async function handleContentScriptGetConfig(request, sender, sendResponse, backgroundServiceWorker) {
   isEnabledForDomain(
-    backgroundServiceWorker.settings,
+    backgroundServiceWorker.settingsManager,
     getDomain(sender.tab.url),
   )
     .then(async (isEnabled) => {
@@ -458,10 +338,10 @@ async function migrateToLocalStore(lastVersion) {
     const backgroundServiceWorker = new BackgroundServiceWorker();
     const langProps = ["language", "fallbackLanguage"];
     for (const langProp of langProps) {
-      const language = await backgroundServiceWorker.settings.get(langProp);
+      const language = await backgroundServiceWorker.settingsManager.get(langProp);
       for (const key of Object.keys(SUPPORTED_LANGUAGES)) {
         if (key.startsWith(language)) {
-          await backgroundServiceWorker.settings.set(langProp, key);
+          await backgroundServiceWorker.settingsManager.set(langProp, key);
           break;
         }
       }
@@ -477,7 +357,7 @@ chrome.storage.local.get("lastVersion", async (result) => {
   try {
     migrateToLocalStore(result.lastVersion);
     const backgroundServiceWorker = new BackgroundServiceWorker();
-    await backgroundServiceWorker._initializePresage();
+    await backgroundServiceWorker.predictionManager.initialize();
   } catch (error) {
     console.log(error);
   }
