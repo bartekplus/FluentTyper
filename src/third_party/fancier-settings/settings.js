@@ -3,6 +3,26 @@ import { Store } from "./lib/store.js";
 import { ElementWrapper } from "./js/classes/utils.js";
 
 import { TextExpander } from "../../options/textExpander.js";
+import { 
+  KEY_AUTOCOMPLETE,
+  KEY_AUTOCOMPLETE_ON_ENTER,
+  KEY_AUTOCOMPLETE_ON_TAB,
+  KEY_LANGUAGE,
+  KEY_FALLBACK_LANGUAGE,
+  KEY_NUM_SUGGESTIONS,
+  KEY_MIN_WORD_LENGTH_TO_PREDICT,
+  KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
+  KEY_AUTO_CAPITALIZE,
+  KEY_APPLY_SPACING_RULES,
+  KEY_SELECT_BY_DIGIT,
+  KEY_VARIABLE_EXPANSION,
+  KEY_TIME_FORMAT,
+  KEY_DATE_FORMAT,
+  KEY_REVERT_ON_BACKSPACE,
+  KEY_TEXT_EXPANSIONS,
+  KEY_USER_DICTIONARY_LIST,
+  KEY_DOMAIN_LIST_MODE
+} from "../../shared/constants.ts";
 
 function optionsPageConfigChange() {
   const message = {
@@ -178,24 +198,24 @@ window.addEventListener("DOMContentLoaded", function () {
 
       // Update pressage config on change
       [
-        "autocomplete",
-        "autocompleteOnEnter",
-        "autocompleteOnTab",
-        "language",
-        "domainListMode",
-        "fallbackLanguage",
-        "numSuggestions",
-        "minWordLengthToPredict",
-        "insertSpaceAfterAutocomplete",
-        "autoCapitalize",
-        "applySpacingRules",
-        "selectByDigit",
-        "variableExpansion",
-        "timeFormat",
-        "dateFormat",
-        "revertOnBackspace",
-        "textExpansions",
-        "userDictionaryList",
+        KEY_AUTOCOMPLETE,
+        KEY_AUTOCOMPLETE_ON_ENTER,
+        KEY_AUTOCOMPLETE_ON_TAB,
+        KEY_LANGUAGE,
+        KEY_DOMAIN_LIST_MODE,
+        KEY_FALLBACK_LANGUAGE,
+        KEY_NUM_SUGGESTIONS,
+        KEY_MIN_WORD_LENGTH_TO_PREDICT,
+        KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
+        KEY_AUTO_CAPITALIZE,
+        KEY_APPLY_SPACING_RULES,
+        KEY_SELECT_BY_DIGIT,
+        KEY_VARIABLE_EXPANSION,
+        KEY_TIME_FORMAT,
+        KEY_DATE_FORMAT,
+        KEY_REVERT_ON_BACKSPACE,
+        KEY_TEXT_EXPANSIONS,
+        KEY_USER_DICTIONARY_LIST,
       ].forEach((element) => {
         settings.manifest[element].addEvent("action", function () {
           optionsPageConfigChange();

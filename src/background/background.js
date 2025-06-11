@@ -1,3 +1,10 @@
+import {
+  CMD_BACKGROUND_PAGE_SET_CONFIG,
+  CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
+  CMD_TOGGLE_FT_ACTIVE_TAB,
+  CMD_TRIGGER_FT_ACTIVE_TAB,
+  CMD_TOGGLE_FT_ACTIVE_LANG,
+} from "../shared/constants.ts";
 import { getDomain, isEnabledForDomain, checkLastError } from "../shared/utils.ts";
 import { Store } from "../third_party/fancier-settings/lib/store.js";
 import {
@@ -73,7 +80,7 @@ class BackgroundServiceWorker {
 
     // Define an object containing the configuration information that will be sent as a message
     const message = {
-      command: "backgroundPageSetConfig",
+      command: CMD_BACKGROUND_PAGE_SET_CONFIG,
       context: {
         autocomplete: await this.settingsManager.get("autocomplete"), // Retrieve the "autocomplete" setting value from the BackgroundServiceWorker instance
         autocompleteOnEnter: await this.settingsManager.get(
@@ -160,19 +167,19 @@ function onCommand(command) {
 
   // Use a switch statement to determine which command was invoked.
   switch (command) {
-    case "toggle-ft-active-tab":
+    case CMD_TOGGLE_FT_ACTIVE_TAB:
       // Call the toggleOnOffActiveTab method on the background service worker.
       backgroundServiceWorker.sendCommandToActiveTabContentScript(
-        "toggle-ft-active-tab",
+        CMD_TOGGLE_FT_ACTIVE_TAB,
       );
       break;
 
-    case "trigger-ft-active-tab":
+    case CMD_TRIGGER_FT_ACTIVE_TAB:
       backgroundServiceWorker.sendCommandToActiveTabContentScript(
-        "trigger-ft-active-tab",
+        CMD_TRIGGER_FT_ACTIVE_TAB,
       );
       break;
-    case "toggle-ft-active-lang": {
+    case CMD_TOGGLE_FT_ACTIVE_LANG: {
       // Define the list of languages to cycle through, including auto_detect
       const availableLangs = [
         ...Object.keys(SUPPORTED_LANGUAGES), // Get keys if it's an object
@@ -196,7 +203,7 @@ function onCommand(command) {
       };
 
       backgroundServiceWorker.sendCommandToActiveTabContentScript(
-        "backgroundPageUpdateLangConfig",
+        CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
         context,
       );
       break;

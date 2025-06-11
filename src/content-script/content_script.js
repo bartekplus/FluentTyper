@@ -3,6 +3,13 @@
 import Tribute from "../third_party/tribute/tribute.esm.js";
 import { DomObserver } from "./dom-observer.ts";
 import { debounce } from "../shared/utils.ts";
+import {
+  CMD_BACKGROUND_PAGE_SET_CONFIG,
+  CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
+  CMD_CONTENT_SCRIPT_PREDICT_REQ,
+  CMD_TOGGLE_FT_ACTIVE_TAB,
+  CMD_TRIGGER_FT_ACTIVE_TAB
+} from "../shared/constants.ts";
 
 (function () {
   const WATCHDOG_INTERVAL_MS = 1000;
@@ -363,7 +370,7 @@ import { debounce } from "../shared/utils.ts";
         this.tributeArr[helperArrId].requestId += 1;
         // Create the message to send to the background script for prediction
         const message = {
-          command: "contentScriptPredictReq",
+          command: CMD_CONTENT_SCRIPT_PREDICT_REQ,
           context: {
             text: context,
             nextChar: nextChar,
@@ -695,13 +702,13 @@ import { debounce } from "../shared/utils.ts";
             }
           }
           break;
-        case "backgroundPageSetConfig":
+        case CMD_BACKGROUND_PAGE_SET_CONFIG:
           // Update config object with the context object
           this.setConfig(message.context);
           // Send a status message to the sender
           sendStatusMsg = true;
           break;
-        case "backgroundPageUpdateLangConfig":
+        case CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG:
           // Update the language configuration in tributeArr
           this.updateLangConfig(
             message.context.lang,
@@ -723,13 +730,13 @@ import { debounce } from "../shared/utils.ts";
           // Send a status message to the sender
           sendStatusMsg = true;
           break;
-        case "toggle-ft-active-tab":
+        case CMD_TOGGLE_FT_ACTIVE_TAB:
           // Toggle TributeJS enable/disable state
           this.enabled = !this.enabled;
           // Send a status message to the sender
           sendStatusMsg = true;
           break;
-        case "trigger-ft-active-tab":
+        case CMD_TRIGGER_FT_ACTIVE_TAB:
           this.triggerTribute(this.activeHelperArrId);
           // Send a status message to the sender
           sendStatusMsg = true;

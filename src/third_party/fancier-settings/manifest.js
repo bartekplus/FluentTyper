@@ -2,6 +2,26 @@ import { i18n } from "./i18n.js";
 import { SUPPORTED_LANGUAGES } from "../../shared/lang.ts";
 import { DOMAIN_LIST_MODE } from "../../shared/utils.ts";
 import { DATE_TIME_VARIABLES } from "../../shared/variables.ts";
+import {
+  KEY_AUTOCOMPLETE,
+  KEY_AUTOCOMPLETE_ON_ENTER,
+  KEY_AUTOCOMPLETE_ON_TAB,
+  KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
+  KEY_APPLY_SPACING_RULES,
+  KEY_AUTO_CAPITALIZE,
+  KEY_SELECT_BY_DIGIT,
+  KEY_REVERT_ON_BACKSPACE,
+  KEY_LANGUAGE,
+  KEY_FALLBACK_LANGUAGE,
+  KEY_MIN_WORD_LENGTH_TO_PREDICT,
+  KEY_NUM_SUGGESTIONS,
+  KEY_VARIABLE_EXPANSION,
+  KEY_TIME_FORMAT,
+  KEY_DATE_FORMAT,
+  KEY_TEXT_EXPANSIONS,
+  KEY_USER_DICTIONARY_LIST,
+  KEY_DOMAIN_LIST_MODE,
+} from "../../shared/constants.ts";
 
 const donateHTML =
   '<div class="has-text-centered"> \
@@ -26,7 +46,7 @@ const manifest = {
     {
       tab: i18n.get("settings"),
       group: i18n.get("General"),
-      name: "language",
+      name: KEY_LANGUAGE,
       type: "popupButton",
       options: Object.entries(SUPPORTED_LANGUAGES),
       label: "Prediction language:",
@@ -35,7 +55,7 @@ const manifest = {
     {
       tab: i18n.get("settings"),
       group: i18n.get("General"),
-      name: "domainListMode",
+      name: KEY_DOMAIN_LIST_MODE,
       type: "popupButton",
       options: Object.entries({
         ...DOMAIN_LIST_MODE,
@@ -46,7 +66,7 @@ const manifest = {
     {
       tab: i18n.get("settings"),
       group: i18n.get("General"),
-      name: "fallbackLanguage",
+      name: KEY_FALLBACK_LANGUAGE,
       type: "popupButton",
       options: Object.entries(SUPPORTED_LANGUAGES),
       label: "Fallback prediction language:",
@@ -55,7 +75,7 @@ const manifest = {
     {
       tab: i18n.get("settings"),
       group: i18n.get("General"),
-      name: "minWordLengthToPredict",
+      name: KEY_MIN_WORD_LENGTH_TO_PREDICT,
       type: "slider",
       min: -1,
       max: 12,
@@ -69,7 +89,7 @@ const manifest = {
     {
       tab: i18n.get("settings"),
       group: i18n.get("General"),
-      name: "numSuggestions",
+      name: KEY_NUM_SUGGESTIONS,
       type: "slider",
       min: 0,
       max: 10,
@@ -81,7 +101,7 @@ const manifest = {
     {
       tab: i18n.get("settings"),
       group: i18n.get("General"),
-      name: "autocomplete",
+      name: KEY_AUTOCOMPLETE,
       type: "checkbox",
       label:
         "Enable this option to automatically complete words as you type by pressing the 'spacebar'. To undo auto-completion and revert to the original text, simply press the 'backspace' key.",
@@ -90,7 +110,7 @@ const manifest = {
     {
       tab: i18n.get("settings"),
       group: i18n.get("General"),
-      name: "autocompleteOnEnter",
+      name: KEY_AUTOCOMPLETE_ON_ENTER,
       type: "checkbox",
       label:
         "Enable this option to automatically complete words as you type by pressing the 'enter' key. To undo auto-completion and revert to the original text, simply press the 'backspace' key.",
@@ -99,7 +119,7 @@ const manifest = {
     {
       tab: i18n.get("settings"),
       group: i18n.get("General"),
-      name: "autocompleteOnTab",
+      name: KEY_AUTOCOMPLETE_ON_TAB,
       type: "checkbox",
       label:
         "Enable this option to automatically complete words as you type by pressing the 'tab' key. To undo auto-completion and revert to the original text, simply press the 'backspace' key.",
@@ -108,7 +128,7 @@ const manifest = {
     {
       tab: i18n.get("settings"),
       group: i18n.get("General"),
-      name: "insertSpaceAfterAutocomplete",
+      name: KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
       type: "checkbox",
       label:
         "Enable this option to have a space automatically inserted after autocomplete suggestions while typing.",
@@ -117,7 +137,7 @@ const manifest = {
     {
       tab: i18n.get("settings"),
       group: i18n.get("General"),
-      name: "applySpacingRules",
+      name: KEY_APPLY_SPACING_RULES,
       type: "checkbox",
       label:
         "Enable this option to automatically apply consistent spacing rules for punctuation and special characters throughout your document.",
@@ -126,7 +146,7 @@ const manifest = {
     {
       tab: i18n.get("settings"),
       group: i18n.get("General"),
-      name: "autoCapitalize",
+      name: KEY_AUTO_CAPITALIZE,
       type: "checkbox",
       label:
         "Enable this option to automatically capitalize the first word of each sentence in your document.",
@@ -135,7 +155,7 @@ const manifest = {
     {
       tab: i18n.get("settings"),
       group: i18n.get("General"),
-      name: "selectByDigit",
+      name: KEY_SELECT_BY_DIGIT,
       type: "checkbox",
       label:
         "Enable this option to select suggestions using the digit keys on your keyboard.",
@@ -144,7 +164,7 @@ const manifest = {
     {
       tab: i18n.get("settings"),
       group: i18n.get("General"),
-      name: "revertOnBackspace",
+      name: KEY_REVERT_ON_BACKSPACE,
       type: "checkbox",
       label:
         "Enable this option to use the undo feature for your last edit. When disabled, the backspace key will function normally, deleting only the last character.",
@@ -169,7 +189,7 @@ const manifest = {
     {
       tab: i18n.get("Advanced"),
       group: i18n.get("Features suitable only for technical users"),
-      name: "variableExpansion",
+      name: KEY_VARIABLE_EXPANSION,
       type: "checkbox",
       label:
         "Enable this option to activate support for variables. Variables can be used in 'text expander' as '${variable}'. Supported variables include: " +
@@ -179,7 +199,7 @@ const manifest = {
     {
       tab: i18n.get("Advanced"),
       group: i18n.get("Features suitable only for technical users"),
-      name: "timeFormat",
+      name: KEY_TIME_FORMAT,
       type: "text",
       label:
         "Custom time format e.g. 'ttt' -> '1:07:04 PM EDT' - more information about supported tokens <a href='https://moment.github.io/luxon/#/formatting?id=table-of-tokens'>here</a>",
@@ -188,7 +208,7 @@ const manifest = {
     {
       tab: i18n.get("Advanced"),
       group: i18n.get("Features suitable only for technical users"),
-      name: "dateFormat",
+      name: KEY_DATE_FORMAT,
       type: "text",
       label:
         "Custom date format e.g. 'fff' -> 'August 6, 2014, 1:07 PM EDT' - more information about supported tokens <a href='https://moment.github.io/luxon/#/formatting?id=table-of-tokens'>here</a>",
@@ -196,7 +216,7 @@ const manifest = {
     },
     {
       tab: i18n.get("Text Expander"),
-      name: "textExpansions",
+      name: KEY_TEXT_EXPANSIONS,
       type: "valueOnly",
       text: "",
       default: [
@@ -252,7 +272,7 @@ const manifest = {
     {
       tab: "User dictionary",
       group: i18n.get("Management"),
-      name: "userDictionaryList",
+      name: KEY_USER_DICTIONARY_LIST,
       type: "listBox",
       options: (function () {})(),
       default: [],
