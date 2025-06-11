@@ -1,4 +1,4 @@
-const SUPPORTED_LANGUAGES: Record<string, string> = {
+export const SUPPORTED_LANGUAGES: Record<string, string> = {
   auto_detect: "Auto detect",
   en_US: "English (US)",
   fr_FR: "French",
@@ -11,7 +11,7 @@ const SUPPORTED_LANGUAGES: Record<string, string> = {
   pt_BR: "Brazilian Portuguese",
   textExpander: "Text Expander",
 };
-const SUPPORTED_LANGUAGES_SHORT_CODE: Record<string, string> = {
+export const SUPPORTED_LANGUAGES_SHORT_CODE: Record<string, string> = {
   en: "en_US",
   fr: "fr_FR",
   hr: "hr_HR",
@@ -23,10 +23,10 @@ const SUPPORTED_LANGUAGES_SHORT_CODE: Record<string, string> = {
   pr: "pt_BR",
 };
 
-const DEFAULT_SEPERATOR_CHARS_REGEX: RegExp = RegExp(
+export const DEFAULT_SEPERATOR_CHARS_REGEX: RegExp = RegExp(
   /\s+|!|"|#|\$|%|&|\(|\)|\*|\+|,|-|\.|\/|:|;|<|=|>|\?|@|\[|\\|\]|\^|_|`|{|\||}|~/,
 );
-const LANG_SEPERATOR_CHARS_REGEX: Record<string, RegExp> = {
+export const LANG_SEPERATOR_CHARS_REGEX: Record<string, RegExp> = {
   auto_detect: DEFAULT_SEPERATOR_CHARS_REGEX,
   en_US: DEFAULT_SEPERATOR_CHARS_REGEX,
   fr_FR: RegExp(
@@ -41,7 +41,7 @@ const LANG_SEPERATOR_CHARS_REGEX: Record<string, RegExp> = {
   pt_BR: DEFAULT_SEPERATOR_CHARS_REGEX,
   textExpander: DEFAULT_SEPERATOR_CHARS_REGEX,
 };
-const LANG_ADDITIONAL_SEPERATOR_REGEX: Record<string, RegExp | null> = {
+export const LANG_ADDITIONAL_SEPERATOR_REGEX: Record<string, RegExp | null> = {
   auto_detect: null,
   en_US: null,
   fr_FR: RegExp(/'/g),
@@ -53,11 +53,4 @@ const LANG_ADDITIONAL_SEPERATOR_REGEX: Record<string, RegExp | null> = {
   pl_PL: null,
   pt_BR: null,
   textExpander: null,
-};
-export {
-  SUPPORTED_LANGUAGES,
-  SUPPORTED_LANGUAGES_SHORT_CODE,
-  DEFAULT_SEPERATOR_CHARS_REGEX,
-  LANG_SEPERATOR_CHARS_REGEX,
-  LANG_ADDITIONAL_SEPERATOR_REGEX,
 };

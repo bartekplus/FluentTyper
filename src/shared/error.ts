@@ -23,10 +23,6 @@ function toErrorWithMessage(maybeError: unknown): ErrorWithMessage {
 	}
 }
 
-function getErrorMessage(error: unknown) {
+export function getErrorMessage(error: unknown) {
 	return toErrorWithMessage(error).message
-}
-
-export {
-    getErrorMessage
 }

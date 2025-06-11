@@ -23,7 +23,7 @@ interface DateTimeVariables {
   date: (lang: string, format?: string) => string;
 }
 
-const DATE_TIME_VARIABLES: DateTimeVariables = {
+export const DATE_TIME_VARIABLES: DateTimeVariables = {
   time: (lang: string, format?: string): string => {
     const now = getCurrentDateTime(lang);
 
@@ -41,5 +41,3 @@ const DATE_TIME_VARIABLES: DateTimeVariables = {
     return now.toLocaleString(DateTime.DATE_SHORT);
   },
 };
-
-export { DATE_TIME_VARIABLES };

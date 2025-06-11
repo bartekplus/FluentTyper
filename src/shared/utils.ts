@@ -1,6 +1,6 @@
 import { getErrorMessage } from "./error";  
-const SETTINGS_DOMAIN_BLACKLIST = "domainBlackList";
-const DOMAIN_LIST_MODE = {
+export const SETTINGS_DOMAIN_BLACKLIST = "domainBlackList";
+export const DOMAIN_LIST_MODE = {
   blackList: "Blacklist - enabled on all websites, disabled on specific sites",
   whiteList: "Whitelist - disabled on all websites, enabled on specific sites",
 };
@@ -17,7 +17,7 @@ export interface Settings {
  * @param url The URL to extract the domain from.
  * @returns The domain extracted from the URL, or undefined if the URL is invalid.
  */
-function getDomain(url: string): string | undefined {
+export function getDomain(url: string): string | undefined {
   try {
     return new URL(url).hostname;
   } catch {
@@ -28,7 +28,7 @@ function getDomain(url: string): string | undefined {
 /**
  * Checks if a given domain URL is on the domain blacklist/whitelist.
  */
-async function isDomainOnList(settings: Settings, domainURL: string): Promise<boolean> {
+export async function isDomainOnList(settings: Settings, domainURL: string): Promise<boolean> {
   if (!domainURL) {
     return false;
   }
@@ -52,7 +52,7 @@ async function isDomainOnList(settings: Settings, domainURL: string): Promise<bo
 /**
  * Adds a domain URL to the domain blacklist/whitelist.
  */
-async function addDomainToList(settings: Settings, domainURL: string): Promise<void> {
+export async function addDomainToList(settings: Settings, domainURL: string): Promise<void> {
   try {
     const domainList = await settings.get(SETTINGS_DOMAIN_BLACKLIST);
     if (!Array.isArray(domainList)) {
@@ -70,7 +70,7 @@ async function addDomainToList(settings: Settings, domainURL: string): Promise<v
 /**
  * Removes a domain URL from the domain blacklist/whitelist.
  */
-async function removeDomainFromList(settings: Settings, domainURL: string): Promise<void> {
+export async function removeDomainFromList(settings: Settings, domainURL: string): Promise<void> {
   try {
     const domainList = await settings.get(SETTINGS_DOMAIN_BLACKLIST);
     if (!Array.isArray(domainList)) {
@@ -93,7 +93,7 @@ async function removeDomainFromList(settings: Settings, domainURL: string): Prom
 /**
  * Checks if the extension is enabled for the given domain URL.
  */
-async function isEnabledForDomain(settings: Settings, domainURL: string): Promise<boolean> {
+export async function isEnabledForDomain(settings: Settings, domainURL: string): Promise<boolean> {
   let enabledForDomain = Boolean(await settings.get("enable"));
   if (enabledForDomain) {
     const domainListMode = await settings.get("domainListMode");
@@ -108,7 +108,7 @@ async function isEnabledForDomain(settings: Settings, domainURL: string): Promis
 /**
  * Checks for errors in the last runtime operation and logs them to the console.
  */
-function checkLastError(): void {
+export function checkLastError(): void {
   try {
     if (chrome.runtime.lastError) {
       console.log("Runtime error:", chrome.runtime.lastError.message);
@@ -121,7 +121,7 @@ function checkLastError(): void {
 /**
  * Toggles the blocked/unblocked status of a domain based on the current domain list mode.
  */
-async function blockUnBlockDomain(settings: Settings, domainURL: string, block = false): Promise<void> {
+export async function blockUnBlockDomain(settings: Settings, domainURL: string, block = false): Promise<void> {
   const domainListMode = await settings.get("domainListMode");
   if (
     (block && domainListMode === "blackList") ||
@@ -159,13 +159,3 @@ export function debounce(
     if (callNow) func(...args);
   };
 }
-
-export {
-  SETTINGS_DOMAIN_BLACKLIST,
-  DOMAIN_LIST_MODE,
-  isEnabledForDomain,
-  checkLastError,
-  isDomainOnList,
-  getDomain,
-  blockUnBlockDomain,
-};
