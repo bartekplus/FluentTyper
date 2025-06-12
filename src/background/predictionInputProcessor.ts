@@ -1,6 +1,6 @@
 // Utility for processing prediction input for PresageHandler
 import { LANG_ADDITIONAL_SEPERATOR_REGEX } from "../shared/lang";
-import { checkAutoCapitalize, Capitalization } from "./capitalizationHelper";
+import { checkAutoCapitalize, Capitalization } from "./CapitalizationHelper";
 import { isNumber } from "../shared/utils";
 
 export const NEW_SENTENCE_CHARS = [".", "?", "!"];

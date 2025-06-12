@@ -1,0 +1,2130 @@
+
+> fluenttyper@1.0.0 test
+> NODE_OPTIONS=--experimental-vm-modules jest -t bugs
+
+  console.log
+    Processing input: "L'agglo" for language "en_US" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): l'agglo
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "L'avent" for language "en_US" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): l'avent
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "l'Avent" for language "en_US" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "L'ave" for language "en_US" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): l'ave
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "l'Avent" for language "en_US" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): l'avent
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "[wha" for language "en_US" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "[to+bb" for language "en_US" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "aa=bb" for language "en_US" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "xyz{bb" for language "en_US" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "poi*bb" for language "en_US" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "fh*bb{o" for language "en_US" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "aaa*tb/a" for language "en_US" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "xx*bb-xy" for language "en_US" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "aaa*bb{*dea" for language "en_US" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "aaabb=cc" for language "en_US" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "this[should=work" for language "en_US" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): this[should=work
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "L'agglo" for language "fr_FR" with additional separator regex: /'/g
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): l agglo
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "L'avent" for language "fr_FR" with additional separator regex: /'/g
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): l avent
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "l'Avent" for language "fr_FR" with additional separator regex: /'/g
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "L'ave" for language "fr_FR" with additional separator regex: /'/g
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "l'Avent" for language "fr_FR" with additional separator regex: /'/g
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): l avent
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "[wha" for language "fr_FR" with additional separator regex: /'/g
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "[to+bb" for language "fr_FR" with additional separator regex: /'/g
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "aa=bb" for language "fr_FR" with additional separator regex: /'/g
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "xyz{bb" for language "fr_FR" with additional separator regex: /'/g
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "poi*bb" for language "fr_FR" with additional separator regex: /'/g
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "fh*bb{o" for language "fr_FR" with additional separator regex: /'/g
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "aaa*tb/a" for language "fr_FR" with additional separator regex: /'/g
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "xx*bb-xy" for language "fr_FR" with additional separator regex: /'/g
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "aaa*bb{*dea" for language "fr_FR" with additional separator regex: /'/g
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "aaabb=cc" for language "fr_FR" with additional separator regex: /'/g
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "this[should=work" for language "fr_FR" with additional separator regex: /'/g
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): this[should=work
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "L'agglo" for language "hr_HR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): l'agglo
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "L'avent" for language "hr_HR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): l'avent
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "l'Avent" for language "hr_HR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "L'ave" for language "hr_HR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): l'ave
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "l'Avent" for language "hr_HR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): l'avent
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "[wha" for language "hr_HR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "[to+bb" for language "hr_HR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "aa=bb" for language "hr_HR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "xyz{bb" for language "hr_HR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "poi*bb" for language "hr_HR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "fh*bb{o" for language "hr_HR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "aaa*tb/a" for language "hr_HR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "xx*bb-xy" for language "hr_HR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "aaa*bb{*dea" for language "hr_HR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "aaabb=cc" for language "hr_HR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "this[should=work" for language "hr_HR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): this[should=work
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "L'agglo" for language "es_ES" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): l'agglo
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "L'avent" for language "es_ES" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): l'avent
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "l'Avent" for language "es_ES" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "L'ave" for language "es_ES" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): l'ave
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "l'Avent" for language "es_ES" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): l'avent
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "[wha" for language "es_ES" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "[to+bb" for language "es_ES" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "aa=bb" for language "es_ES" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "xyz{bb" for language "es_ES" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "poi*bb" for language "es_ES" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "fh*bb{o" for language "es_ES" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "aaa*tb/a" for language "es_ES" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "xx*bb-xy" for language "es_ES" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "aaa*bb{*dea" for language "es_ES" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "aaabb=cc" for language "es_ES" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "this[should=work" for language "es_ES" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): this[should=work
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "L'agglo" for language "el_GR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): l'agglo
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "L'avent" for language "el_GR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): l'avent
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "l'Avent" for language "el_GR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "L'ave" for language "el_GR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): l'ave
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "l'Avent" for language "el_GR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): l'avent
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "[wha" for language "el_GR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "[to+bb" for language "el_GR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "aa=bb" for language "el_GR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "xyz{bb" for language "el_GR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "poi*bb" for language "el_GR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "fh*bb{o" for language "el_GR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "aaa*tb/a" for language "el_GR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "xx*bb-xy" for language "el_GR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "aaa*bb{*dea" for language "el_GR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "aaabb=cc" for language "el_GR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "this[should=work" for language "el_GR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): this[should=work
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "L'agglo" for language "sv_SE" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): l'agglo
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "L'avent" for language "sv_SE" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): l'avent
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "l'Avent" for language "sv_SE" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "L'ave" for language "sv_SE" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): l'ave
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "l'Avent" for language "sv_SE" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): l'avent
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "[wha" for language "sv_SE" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "[to+bb" for language "sv_SE" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "aa=bb" for language "sv_SE" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "xyz{bb" for language "sv_SE" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "poi*bb" for language "sv_SE" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "fh*bb{o" for language "sv_SE" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "aaa*tb/a" for language "sv_SE" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "xx*bb-xy" for language "sv_SE" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "aaa*bb{*dea" for language "sv_SE" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "aaabb=cc" for language "sv_SE" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "this[should=work" for language "sv_SE" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): this[should=work
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "L'agglo" for language "de_DE" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): l'agglo
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "L'avent" for language "de_DE" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): l'avent
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "l'Avent" for language "de_DE" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "L'ave" for language "de_DE" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): l'ave
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "l'Avent" for language "de_DE" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): l'avent
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "[wha" for language "de_DE" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "[to+bb" for language "de_DE" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "aa=bb" for language "de_DE" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "xyz{bb" for language "de_DE" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "poi*bb" for language "de_DE" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "fh*bb{o" for language "de_DE" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "aaa*tb/a" for language "de_DE" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "xx*bb-xy" for language "de_DE" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "aaa*bb{*dea" for language "de_DE" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "aaabb=cc" for language "de_DE" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "this[should=work" for language "de_DE" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): this[should=work
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "L'agglo" for language "pl_PL" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): l'agglo
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "L'avent" for language "pl_PL" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): l'avent
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "l'Avent" for language "pl_PL" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "L'ave" for language "pl_PL" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): l'ave
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "l'Avent" for language "pl_PL" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): l'avent
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "[wha" for language "pl_PL" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "[to+bb" for language "pl_PL" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "aa=bb" for language "pl_PL" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "xyz{bb" for language "pl_PL" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "poi*bb" for language "pl_PL" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "fh*bb{o" for language "pl_PL" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "aaa*tb/a" for language "pl_PL" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "xx*bb-xy" for language "pl_PL" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "aaa*bb{*dea" for language "pl_PL" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "aaabb=cc" for language "pl_PL" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "this[should=work" for language "pl_PL" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): this[should=work
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "L'agglo" for language "pt_BR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): l'agglo
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "L'avent" for language "pt_BR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): l'avent
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "l'Avent" for language "pt_BR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "L'ave" for language "pt_BR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): l'ave
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "l'Avent" for language "pt_BR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): l'avent
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "[wha" for language "pt_BR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "[to+bb" for language "pt_BR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "aa=bb" for language "pt_BR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "xyz{bb" for language "pt_BR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "poi*bb" for language "pt_BR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "fh*bb{o" for language "pt_BR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "aaa*tb/a" for language "pt_BR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "xx*bb-xy" for language "pt_BR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "aaa*bb{*dea" for language "pt_BR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "aaabb=cc" for language "pt_BR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "this[should=work" for language "pt_BR" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): this[should=work
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "L'agglo" for language "textExpander" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): l'agglo
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "L'avent" for language "textExpander" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): l'avent
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "l'Avent" for language "textExpander" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "L'ave" for language "textExpander" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): l'ave
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "l'Avent" for language "textExpander" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): l'avent
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+  console.log
+    Processing input: "[wha" for language "textExpander" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "[to+bb" for language "textExpander" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "aa=bb" for language "textExpander" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "xyz{bb" for language "textExpander" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "poi*bb" for language "textExpander" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "fh*bb{o" for language "textExpander" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "aaa*tb/a" for language "textExpander" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "xx*bb-xy" for language "textExpander" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "aaa*bb{*dea" for language "textExpander" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "aaabb=cc" for language "textExpander" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    Processing input: "this[should=work" for language "textExpander" with additional separator regex: null
+
+      at PredictionInputProcessor.processInput (src/background/PredictionInputProcessor.ts:67:17)
+
+  console.log
+    predictionInput(set as pastStream): this[should=work
+
+      at PresageEngine.predict (src/background/PresageEngine.ts:66:17)
+
+(node:98946) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+FAIL tests/presageHandler.test.js
+  bugs
+    Lang: en_US
+      ✕ #3 In French, it should consider a single quote as a word separator (12 ms)
+      ✓ #5 #6 - letter case after a single quote (2 ms)
+      ✓ #7 - Special signs should not be taken into account for the letter count (2 ms)
+      ✓ #11 - don't take non-letter character into word length; intput [wha (1 ms)
+      ✓ #11 - don't take non-letter character into word length; intput [to+bb
+      ✓ #11 - don't take non-letter character into word length; intput aa=bb (1 ms)
+      ✓ #11 - don't take non-letter character into word length; intput xyz{bb
+      ✓ #11 - don't take non-letter character into word length; intput poi*bb (1 ms)
+      ✓ #11 - don't take non-letter character into word length; intput fh*bb{o
+      ✓ #11 - don't take non-letter character into word length; intput aaa*tb/a (1 ms)
+      ✓ #11 - don't take non-letter character into word length; intput xx*bb-xy
+      ✓ #11 - don't take non-letter character into word length; intput aaa*bb{*dea (1 ms)
+      ✓ #11 - don't take non-letter character into word length; intput aaabb=cc
+      ✓ #11 - don't take non-letter character into word length; intput this[should=work (1 ms)
+    Lang: fr_FR
+      ✕ #3 In French, it should consider a single quote as a word separator (1 ms)
+      ✓ #5 #6 - letter case after a single quote (1 ms)
+      ✓ #7 - Special signs should not be taken into account for the letter count (1 ms)
+      ✓ #11 - don't take non-letter character into word length; intput [wha (1 ms)
+      ✓ #11 - don't take non-letter character into word length; intput [to+bb
+      ✓ #11 - don't take non-letter character into word length; intput aa=bb
+      ✓ #11 - don't take non-letter character into word length; intput xyz{bb (1 ms)
+      ✓ #11 - don't take non-letter character into word length; intput poi*bb
+      ✓ #11 - don't take non-letter character into word length; intput fh*bb{o (1 ms)
+      ✓ #11 - don't take non-letter character into word length; intput aaa*tb/a
+      ✓ #11 - don't take non-letter character into word length; intput xx*bb-xy
+      ✓ #11 - don't take non-letter character into word length; intput aaa*bb{*dea
+      ✓ #11 - don't take non-letter character into word length; intput aaabb=cc
+      ✓ #11 - don't take non-letter character into word length; intput this[should=work (1 ms)
+    Lang: hr_HR
+      ✕ #3 In French, it should consider a single quote as a word separator (1 ms)
+      ✓ #5 #6 - letter case after a single quote (1 ms)
+      ✓ #7 - Special signs should not be taken into account for the letter count (1 ms)
+      ✓ #11 - don't take non-letter character into word length; intput [wha (9 ms)
+      ✓ #11 - don't take non-letter character into word length; intput [to+bb
+      ✓ #11 - don't take non-letter character into word length; intput aa=bb (1 ms)
+      ✓ #11 - don't take non-letter character into word length; intput xyz{bb
+      ✓ #11 - don't take non-letter character into word length; intput poi*bb
+      ✓ #11 - don't take non-letter character into word length; intput fh*bb{o (1 ms)
+      ✓ #11 - don't take non-letter character into word length; intput aaa*tb/a
+      ✓ #11 - don't take non-letter character into word length; intput xx*bb-xy (1 ms)
+      ✓ #11 - don't take non-letter character into word length; intput aaa*bb{*dea
+      ✓ #11 - don't take non-letter character into word length; intput aaabb=cc
+      ✓ #11 - don't take non-letter character into word length; intput this[should=work (1 ms)
+    Lang: es_ES
+      ✕ #3 In French, it should consider a single quote as a word separator (1 ms)
+      ✓ #5 #6 - letter case after a single quote (1 ms)
+      ✓ #7 - Special signs should not be taken into account for the letter count (1 ms)
+      ✓ #11 - don't take non-letter character into word length; intput [wha
+      ✓ #11 - don't take non-letter character into word length; intput [to+bb (1 ms)
+      ✓ #11 - don't take non-letter character into word length; intput aa=bb
+      ✓ #11 - don't take non-letter character into word length; intput xyz{bb
+      ✓ #11 - don't take non-letter character into word length; intput poi*bb
+      ✓ #11 - don't take non-letter character into word length; intput fh*bb{o (1 ms)
+      ✓ #11 - don't take non-letter character into word length; intput aaa*tb/a
+      ✓ #11 - don't take non-letter character into word length; intput xx*bb-xy
+      ✓ #11 - don't take non-letter character into word length; intput aaa*bb{*dea (1 ms)
+      ✓ #11 - don't take non-letter character into word length; intput aaabb=cc
+      ✓ #11 - don't take non-letter character into word length; intput this[should=work (1 ms)
+    Lang: el_GR
+      ✕ #3 In French, it should consider a single quote as a word separator (1 ms)
+      ✓ #5 #6 - letter case after a single quote (1 ms)
+      ✓ #7 - Special signs should not be taken into account for the letter count (1 ms)
+      ✓ #11 - don't take non-letter character into word length; intput [wha
+      ✓ #11 - don't take non-letter character into word length; intput [to+bb (1 ms)
+      ✓ #11 - don't take non-letter character into word length; intput aa=bb
+      ✓ #11 - don't take non-letter character into word length; intput xyz{bb
+      ✓ #11 - don't take non-letter character into word length; intput poi*bb (1 ms)
+      ✓ #11 - don't take non-letter character into word length; intput fh*bb{o
+      ✓ #11 - don't take non-letter character into word length; intput aaa*tb/a
+      ✓ #11 - don't take non-letter character into word length; intput xx*bb-xy (1 ms)
+      ✓ #11 - don't take non-letter character into word length; intput aaa*bb{*dea
+      ✓ #11 - don't take non-letter character into word length; intput aaabb=cc (1 ms)
+      ✓ #11 - don't take non-letter character into word length; intput this[should=work
+    Lang: sv_SE
+      ✕ #3 In French, it should consider a single quote as a word separator (1 ms)
+      ✓ #5 #6 - letter case after a single quote (1 ms)
+      ✓ #7 - Special signs should not be taken into account for the letter count (1 ms)
+      ✓ #11 - don't take non-letter character into word length; intput [wha
+      ✓ #11 - don't take non-letter character into word length; intput [to+bb (1 ms)
+      ✓ #11 - don't take non-letter character into word length; intput aa=bb
+      ✓ #11 - don't take non-letter character into word length; intput xyz{bb
+      ✓ #11 - don't take non-letter character into word length; intput poi*bb (1 ms)
+      ✓ #11 - don't take non-letter character into word length; intput fh*bb{o
+      ✓ #11 - don't take non-letter character into word length; intput aaa*tb/a
+      ✓ #11 - don't take non-letter character into word length; intput xx*bb-xy (1 ms)
+      ✓ #11 - don't take non-letter character into word length; intput aaa*bb{*dea
+      ✓ #11 - don't take non-letter character into word length; intput aaabb=cc (1 ms)
+      ✓ #11 - don't take non-letter character into word length; intput this[should=work
+    Lang: de_DE
+      ✕ #3 In French, it should consider a single quote as a word separator (1 ms)
+      ✓ #5 #6 - letter case after a single quote (1 ms)
+      ✓ #7 - Special signs should not be taken into account for the letter count (1 ms)
+      ✓ #11 - don't take non-letter character into word length; intput [wha
+      ✓ #11 - don't take non-letter character into word length; intput [to+bb (1 ms)
+      ✓ #11 - don't take non-letter character into word length; intput aa=bb
+      ✓ #11 - don't take non-letter character into word length; intput xyz{bb
+      ✓ #11 - don't take non-letter character into word length; intput poi*bb
+      ✓ #11 - don't take non-letter character into word length; intput fh*bb{o
+      ✓ #11 - don't take non-letter character into word length; intput aaa*tb/a (1 ms)
+      ✓ #11 - don't take non-letter character into word length; intput xx*bb-xy
+      ✓ #11 - don't take non-letter character into word length; intput aaa*bb{*dea
+      ✓ #11 - don't take non-letter character into word length; intput aaabb=cc (1 ms)
+      ✓ #11 - don't take non-letter character into word length; intput this[should=work
+    Lang: pl_PL
+      ✕ #3 In French, it should consider a single quote as a word separator (1 ms)
+      ✓ #5 #6 - letter case after a single quote (1 ms)
+      ✓ #7 - Special signs should not be taken into account for the letter count (1 ms)
+      ✓ #11 - don't take non-letter character into word length; intput [wha
+      ✓ #11 - don't take non-letter character into word length; intput [to+bb (1 ms)
+      ✓ #11 - don't take non-letter character into word length; intput aa=bb
+      ✓ #11 - don't take non-letter character into word length; intput xyz{bb
+      ✓ #11 - don't take non-letter character into word length; intput poi*bb (1 ms)
+      ✓ #11 - don't take non-letter character into word length; intput fh*bb{o
+      ✓ #11 - don't take non-letter character into word length; intput aaa*tb/a
+      ✓ #11 - don't take non-letter character into word length; intput xx*bb-xy (1 ms)
+      ✓ #11 - don't take non-letter character into word length; intput aaa*bb{*dea
+      ✓ #11 - don't take non-letter character into word length; intput aaabb=cc
+      ✓ #11 - don't take non-letter character into word length; intput this[should=work (1 ms)
+    Lang: pt_BR
+      ✕ #3 In French, it should consider a single quote as a word separator (1 ms)
+      ✓ #5 #6 - letter case after a single quote (1 ms)
+      ✓ #7 - Special signs should not be taken into account for the letter count (1 ms)
+      ✓ #11 - don't take non-letter character into word length; intput [wha
+      ✓ #11 - don't take non-letter character into word length; intput [to+bb
+      ✓ #11 - don't take non-letter character into word length; intput aa=bb (1 ms)
+      ✓ #11 - don't take non-letter character into word length; intput xyz{bb
+      ✓ #11 - don't take non-letter character into word length; intput poi*bb
+      ✓ #11 - don't take non-letter character into word length; intput fh*bb{o (1 ms)
+      ✓ #11 - don't take non-letter character into word length; intput aaa*tb/a
+      ✓ #11 - don't take non-letter character into word length; intput xx*bb-xy (1 ms)
+      ✓ #11 - don't take non-letter character into word length; intput aaa*bb{*dea
+      ✓ #11 - don't take non-letter character into word length; intput aaabb=cc
+      ✓ #11 - don't take non-letter character into word length; intput this[should=work (1 ms)
+    Lang: textExpander
+      ✕ #3 In French, it should consider a single quote as a word separator
+      ✓ #5 #6 - letter case after a single quote
+      ✓ #7 - Special signs should not be taken into account for the letter count (2 ms)
+      ✓ #11 - don't take non-letter character into word length; intput [wha
+      ✓ #11 - don't take non-letter character into word length; intput [to+bb
+      ✓ #11 - don't take non-letter character into word length; intput aa=bb (1 ms)
+      ✓ #11 - don't take non-letter character into word length; intput xyz{bb
+      ✓ #11 - don't take non-letter character into word length; intput poi*bb
+      ✓ #11 - don't take non-letter character into word length; intput fh*bb{o (1 ms)
+      ✓ #11 - don't take non-letter character into word length; intput aaa*tb/a
+      ✓ #11 - don't take non-letter character into word length; intput xx*bb-xy
+      ✓ #11 - don't take non-letter character into word length; intput aaa*bb{*dea (1 ms)
+      ✓ #11 - don't take non-letter character into word length; intput aaabb=cc
+      ✓ #11 - don't take non-letter character into word length; intput this[should=work (1 ms)
+  features
+    Lang: en_US
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '[abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '(abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '{abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '<abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '/abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '-abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '*abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '+abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '=abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '"abc'
+      input: test
+        input ends with space: true
+          ○ skipped minWordLengthToPredict: 0
+          ○ skipped minWordLengthToPredict: 3
+          ○ skipped minWordLengthToPredict: 5
+          ○ skipped insertSpaceAfterAutocomplete: true
+          ○ skipped insertSpaceAfterAutocomplete: false
+        input ends with space: false
+          ○ skipped minWordLengthToPredict: 0
+          ○ skipped minWordLengthToPredict: 3
+          ○ skipped minWordLengthToPredict: 5
+          ○ skipped insertSpaceAfterAutocomplete: true
+          ○ skipped insertSpaceAfterAutocomplete: false
+      input: testword
+        input ends with space: true
+          ○ skipped minWordLengthToPredict: 0
+          ○ skipped minWordLengthToPredict: 3
+          ○ skipped minWordLengthToPredict: 5
+          ○ skipped insertSpaceAfterAutocomplete: true
+          ○ skipped insertSpaceAfterAutocomplete: false
+        input ends with space: false
+          ○ skipped minWordLengthToPredict: 0
+          ○ skipped minWordLengthToPredict: 3
+          ○ skipped minWordLengthToPredict: 5
+          ○ skipped insertSpaceAfterAutocomplete: true
+          ○ skipped insertSpaceAfterAutocomplete: false
+      input: ' XYZ', autoCapitalize: true, expected: 'OUT'
+        ○ skipped returns OUT
+      input: ' XYZ', autoCapitalize: false, expected: 'OUT'
+        ○ skipped returns OUT
+      input: ' Xyz', autoCapitalize: true, expected: 'Out'
+        ○ skipped returns Out
+      input: ' Xyz', autoCapitalize: false, expected: 'Out'
+        ○ skipped returns Out
+      input: ' xyz. xyz', autoCapitalize: true, expected: 'Out'
+        ○ skipped returns Out
+      input: ' xyz. xyz', autoCapitalize: false, expected: 'out'
+        ○ skipped returns out
+      input: ' xyz. ', autoCapitalize: true, expected: 'Out'
+        ○ skipped returns Out
+      input: ' xyz. ', autoCapitalize: false, expected: 'out'
+        ○ skipped returns out
+      input: '"Xyz', autoCapitalize: false, expected: 'Out'
+        ○ skipped returns Out
+      input: '"xyz', autoCapitalize: false, expected: 'out'
+        ○ skipped returns out
+      input: '"Xyz', autoCapitalize: true, expected: 'Out'
+        ○ skipped returns Out
+      input: '"xyz', autoCapitalize: true, expected: 'out'
+        ○ skipped returns out
+      input: 'test', nextChar: '
+', insertSpaceAfterAutocomplete: true, expected: 'test '
+        ○ skipped returns 'test '
+      input: 'test', nextChar: '
+', insertSpaceAfterAutocomplete: false, expected: 'test'
+        ○ skipped returns 'test'
+      input: 'test', nextChar: '', insertSpaceAfterAutocomplete: true, expected: 'test '
+        ○ skipped returns 'test '
+      input: 'test', nextChar: '', insertSpaceAfterAutocomplete: false, expected: 'test'
+        ○ skipped returns 'test'
+      input: 'test', nextChar: ' ', insertSpaceAfterAutocomplete: true, expected: 'test'
+        ○ skipped returns 'test'
+      input: 'test', nextChar: ' ', insertSpaceAfterAutocomplete: false, expected: 'test'
+        ○ skipped returns 'test'
+    Lang: fr_FR
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '[abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '(abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '{abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '<abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '/abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '-abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '*abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '+abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '=abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '"abc'
+      input: test
+        input ends with space: true
+          ○ skipped minWordLengthToPredict: 0
+          ○ skipped minWordLengthToPredict: 3
+          ○ skipped minWordLengthToPredict: 5
+          ○ skipped insertSpaceAfterAutocomplete: true
+          ○ skipped insertSpaceAfterAutocomplete: false
+        input ends with space: false
+          ○ skipped minWordLengthToPredict: 0
+          ○ skipped minWordLengthToPredict: 3
+          ○ skipped minWordLengthToPredict: 5
+          ○ skipped insertSpaceAfterAutocomplete: true
+          ○ skipped insertSpaceAfterAutocomplete: false
+      input: testword
+        input ends with space: true
+          ○ skipped minWordLengthToPredict: 0
+          ○ skipped minWordLengthToPredict: 3
+          ○ skipped minWordLengthToPredict: 5
+          ○ skipped insertSpaceAfterAutocomplete: true
+          ○ skipped insertSpaceAfterAutocomplete: false
+        input ends with space: false
+          ○ skipped minWordLengthToPredict: 0
+          ○ skipped minWordLengthToPredict: 3
+          ○ skipped minWordLengthToPredict: 5
+          ○ skipped insertSpaceAfterAutocomplete: true
+          ○ skipped insertSpaceAfterAutocomplete: false
+      input: ' XYZ', autoCapitalize: true, expected: 'OUT'
+        ○ skipped returns OUT
+      input: ' XYZ', autoCapitalize: false, expected: 'OUT'
+        ○ skipped returns OUT
+      input: ' Xyz', autoCapitalize: true, expected: 'Out'
+        ○ skipped returns Out
+      input: ' Xyz', autoCapitalize: false, expected: 'Out'
+        ○ skipped returns Out
+      input: ' xyz. xyz', autoCapitalize: true, expected: 'Out'
+        ○ skipped returns Out
+      input: ' xyz. xyz', autoCapitalize: false, expected: 'out'
+        ○ skipped returns out
+      input: ' xyz. ', autoCapitalize: true, expected: 'Out'
+        ○ skipped returns Out
+      input: ' xyz. ', autoCapitalize: false, expected: 'out'
+        ○ skipped returns out
+      input: '"Xyz', autoCapitalize: false, expected: 'Out'
+        ○ skipped returns Out
+      input: '"xyz', autoCapitalize: false, expected: 'out'
+        ○ skipped returns out
+      input: '"Xyz', autoCapitalize: true, expected: 'Out'
+        ○ skipped returns Out
+      input: '"xyz', autoCapitalize: true, expected: 'out'
+        ○ skipped returns out
+      input: 'test', nextChar: '
+', insertSpaceAfterAutocomplete: true, expected: 'test '
+        ○ skipped returns 'test '
+      input: 'test', nextChar: '
+', insertSpaceAfterAutocomplete: false, expected: 'test'
+        ○ skipped returns 'test'
+      input: 'test', nextChar: '', insertSpaceAfterAutocomplete: true, expected: 'test '
+        ○ skipped returns 'test '
+      input: 'test', nextChar: '', insertSpaceAfterAutocomplete: false, expected: 'test'
+        ○ skipped returns 'test'
+      input: 'test', nextChar: ' ', insertSpaceAfterAutocomplete: true, expected: 'test'
+        ○ skipped returns 'test'
+      input: 'test', nextChar: ' ', insertSpaceAfterAutocomplete: false, expected: 'test'
+        ○ skipped returns 'test'
+    Lang: hr_HR
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '[abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '(abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '{abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '<abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '/abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '-abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '*abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '+abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '=abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '"abc'
+      input: test
+        input ends with space: true
+          ○ skipped minWordLengthToPredict: 0
+          ○ skipped minWordLengthToPredict: 3
+          ○ skipped minWordLengthToPredict: 5
+          ○ skipped insertSpaceAfterAutocomplete: true
+          ○ skipped insertSpaceAfterAutocomplete: false
+        input ends with space: false
+          ○ skipped minWordLengthToPredict: 0
+          ○ skipped minWordLengthToPredict: 3
+          ○ skipped minWordLengthToPredict: 5
+          ○ skipped insertSpaceAfterAutocomplete: true
+          ○ skipped insertSpaceAfterAutocomplete: false
+      input: testword
+        input ends with space: true
+          ○ skipped minWordLengthToPredict: 0
+          ○ skipped minWordLengthToPredict: 3
+          ○ skipped minWordLengthToPredict: 5
+          ○ skipped insertSpaceAfterAutocomplete: true
+          ○ skipped insertSpaceAfterAutocomplete: false
+        input ends with space: false
+          ○ skipped minWordLengthToPredict: 0
+          ○ skipped minWordLengthToPredict: 3
+          ○ skipped minWordLengthToPredict: 5
+          ○ skipped insertSpaceAfterAutocomplete: true
+          ○ skipped insertSpaceAfterAutocomplete: false
+      input: ' XYZ', autoCapitalize: true, expected: 'OUT'
+        ○ skipped returns OUT
+      input: ' XYZ', autoCapitalize: false, expected: 'OUT'
+        ○ skipped returns OUT
+      input: ' Xyz', autoCapitalize: true, expected: 'Out'
+        ○ skipped returns Out
+      input: ' Xyz', autoCapitalize: false, expected: 'Out'
+        ○ skipped returns Out
+      input: ' xyz. xyz', autoCapitalize: true, expected: 'Out'
+        ○ skipped returns Out
+      input: ' xyz. xyz', autoCapitalize: false, expected: 'out'
+        ○ skipped returns out
+      input: ' xyz. ', autoCapitalize: true, expected: 'Out'
+        ○ skipped returns Out
+      input: ' xyz. ', autoCapitalize: false, expected: 'out'
+        ○ skipped returns out
+      input: '"Xyz', autoCapitalize: false, expected: 'Out'
+        ○ skipped returns Out
+      input: '"xyz', autoCapitalize: false, expected: 'out'
+        ○ skipped returns out
+      input: '"Xyz', autoCapitalize: true, expected: 'Out'
+        ○ skipped returns Out
+      input: '"xyz', autoCapitalize: true, expected: 'out'
+        ○ skipped returns out
+      input: 'test', nextChar: '
+', insertSpaceAfterAutocomplete: true, expected: 'test '
+        ○ skipped returns 'test '
+      input: 'test', nextChar: '
+', insertSpaceAfterAutocomplete: false, expected: 'test'
+        ○ skipped returns 'test'
+      input: 'test', nextChar: '', insertSpaceAfterAutocomplete: true, expected: 'test '
+        ○ skipped returns 'test '
+      input: 'test', nextChar: '', insertSpaceAfterAutocomplete: false, expected: 'test'
+        ○ skipped returns 'test'
+      input: 'test', nextChar: ' ', insertSpaceAfterAutocomplete: true, expected: 'test'
+        ○ skipped returns 'test'
+      input: 'test', nextChar: ' ', insertSpaceAfterAutocomplete: false, expected: 'test'
+        ○ skipped returns 'test'
+    Lang: es_ES
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '[abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '(abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '{abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '<abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '/abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '-abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '*abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '+abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '=abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '"abc'
+      input: test
+        input ends with space: true
+          ○ skipped minWordLengthToPredict: 0
+          ○ skipped minWordLengthToPredict: 3
+          ○ skipped minWordLengthToPredict: 5
+          ○ skipped insertSpaceAfterAutocomplete: true
+          ○ skipped insertSpaceAfterAutocomplete: false
+        input ends with space: false
+          ○ skipped minWordLengthToPredict: 0
+          ○ skipped minWordLengthToPredict: 3
+          ○ skipped minWordLengthToPredict: 5
+          ○ skipped insertSpaceAfterAutocomplete: true
+          ○ skipped insertSpaceAfterAutocomplete: false
+      input: testword
+        input ends with space: true
+          ○ skipped minWordLengthToPredict: 0
+          ○ skipped minWordLengthToPredict: 3
+          ○ skipped minWordLengthToPredict: 5
+          ○ skipped insertSpaceAfterAutocomplete: true
+          ○ skipped insertSpaceAfterAutocomplete: false
+        input ends with space: false
+          ○ skipped minWordLengthToPredict: 0
+          ○ skipped minWordLengthToPredict: 3
+          ○ skipped minWordLengthToPredict: 5
+          ○ skipped insertSpaceAfterAutocomplete: true
+          ○ skipped insertSpaceAfterAutocomplete: false
+      input: ' XYZ', autoCapitalize: true, expected: 'OUT'
+        ○ skipped returns OUT
+      input: ' XYZ', autoCapitalize: false, expected: 'OUT'
+        ○ skipped returns OUT
+      input: ' Xyz', autoCapitalize: true, expected: 'Out'
+        ○ skipped returns Out
+      input: ' Xyz', autoCapitalize: false, expected: 'Out'
+        ○ skipped returns Out
+      input: ' xyz. xyz', autoCapitalize: true, expected: 'Out'
+        ○ skipped returns Out
+      input: ' xyz. xyz', autoCapitalize: false, expected: 'out'
+        ○ skipped returns out
+      input: ' xyz. ', autoCapitalize: true, expected: 'Out'
+        ○ skipped returns Out
+      input: ' xyz. ', autoCapitalize: false, expected: 'out'
+        ○ skipped returns out
+      input: '"Xyz', autoCapitalize: false, expected: 'Out'
+        ○ skipped returns Out
+      input: '"xyz', autoCapitalize: false, expected: 'out'
+        ○ skipped returns out
+      input: '"Xyz', autoCapitalize: true, expected: 'Out'
+        ○ skipped returns Out
+      input: '"xyz', autoCapitalize: true, expected: 'out'
+        ○ skipped returns out
+      input: 'test', nextChar: '
+', insertSpaceAfterAutocomplete: true, expected: 'test '
+        ○ skipped returns 'test '
+      input: 'test', nextChar: '
+', insertSpaceAfterAutocomplete: false, expected: 'test'
+        ○ skipped returns 'test'
+      input: 'test', nextChar: '', insertSpaceAfterAutocomplete: true, expected: 'test '
+        ○ skipped returns 'test '
+      input: 'test', nextChar: '', insertSpaceAfterAutocomplete: false, expected: 'test'
+        ○ skipped returns 'test'
+      input: 'test', nextChar: ' ', insertSpaceAfterAutocomplete: true, expected: 'test'
+        ○ skipped returns 'test'
+      input: 'test', nextChar: ' ', insertSpaceAfterAutocomplete: false, expected: 'test'
+        ○ skipped returns 'test'
+    Lang: el_GR
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '[abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '(abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '{abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '<abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '/abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '-abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '*abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '+abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '=abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '"abc'
+      input: test
+        input ends with space: true
+          ○ skipped minWordLengthToPredict: 0
+          ○ skipped minWordLengthToPredict: 3
+          ○ skipped minWordLengthToPredict: 5
+          ○ skipped insertSpaceAfterAutocomplete: true
+          ○ skipped insertSpaceAfterAutocomplete: false
+        input ends with space: false
+          ○ skipped minWordLengthToPredict: 0
+          ○ skipped minWordLengthToPredict: 3
+          ○ skipped minWordLengthToPredict: 5
+          ○ skipped insertSpaceAfterAutocomplete: true
+          ○ skipped insertSpaceAfterAutocomplete: false
+      input: testword
+        input ends with space: true
+          ○ skipped minWordLengthToPredict: 0
+          ○ skipped minWordLengthToPredict: 3
+          ○ skipped minWordLengthToPredict: 5
+          ○ skipped insertSpaceAfterAutocomplete: true
+          ○ skipped insertSpaceAfterAutocomplete: false
+        input ends with space: false
+          ○ skipped minWordLengthToPredict: 0
+          ○ skipped minWordLengthToPredict: 3
+          ○ skipped minWordLengthToPredict: 5
+          ○ skipped insertSpaceAfterAutocomplete: true
+          ○ skipped insertSpaceAfterAutocomplete: false
+      input: ' XYZ', autoCapitalize: true, expected: 'OUT'
+        ○ skipped returns OUT
+      input: ' XYZ', autoCapitalize: false, expected: 'OUT'
+        ○ skipped returns OUT
+      input: ' Xyz', autoCapitalize: true, expected: 'Out'
+        ○ skipped returns Out
+      input: ' Xyz', autoCapitalize: false, expected: 'Out'
+        ○ skipped returns Out
+      input: ' xyz. xyz', autoCapitalize: true, expected: 'Out'
+        ○ skipped returns Out
+      input: ' xyz. xyz', autoCapitalize: false, expected: 'out'
+        ○ skipped returns out
+      input: ' xyz. ', autoCapitalize: true, expected: 'Out'
+        ○ skipped returns Out
+      input: ' xyz. ', autoCapitalize: false, expected: 'out'
+        ○ skipped returns out
+      input: '"Xyz', autoCapitalize: false, expected: 'Out'
+        ○ skipped returns Out
+      input: '"xyz', autoCapitalize: false, expected: 'out'
+        ○ skipped returns out
+      input: '"Xyz', autoCapitalize: true, expected: 'Out'
+        ○ skipped returns Out
+      input: '"xyz', autoCapitalize: true, expected: 'out'
+        ○ skipped returns out
+      input: 'test', nextChar: '
+', insertSpaceAfterAutocomplete: true, expected: 'test '
+        ○ skipped returns 'test '
+      input: 'test', nextChar: '
+', insertSpaceAfterAutocomplete: false, expected: 'test'
+        ○ skipped returns 'test'
+      input: 'test', nextChar: '', insertSpaceAfterAutocomplete: true, expected: 'test '
+        ○ skipped returns 'test '
+      input: 'test', nextChar: '', insertSpaceAfterAutocomplete: false, expected: 'test'
+        ○ skipped returns 'test'
+      input: 'test', nextChar: ' ', insertSpaceAfterAutocomplete: true, expected: 'test'
+        ○ skipped returns 'test'
+      input: 'test', nextChar: ' ', insertSpaceAfterAutocomplete: false, expected: 'test'
+        ○ skipped returns 'test'
+    Lang: sv_SE
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '[abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '(abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '{abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '<abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '/abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '-abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '*abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '+abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '=abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '"abc'
+      input: test
+        input ends with space: true
+          ○ skipped minWordLengthToPredict: 0
+          ○ skipped minWordLengthToPredict: 3
+          ○ skipped minWordLengthToPredict: 5
+          ○ skipped insertSpaceAfterAutocomplete: true
+          ○ skipped insertSpaceAfterAutocomplete: false
+        input ends with space: false
+          ○ skipped minWordLengthToPredict: 0
+          ○ skipped minWordLengthToPredict: 3
+          ○ skipped minWordLengthToPredict: 5
+          ○ skipped insertSpaceAfterAutocomplete: true
+          ○ skipped insertSpaceAfterAutocomplete: false
+      input: testword
+        input ends with space: true
+          ○ skipped minWordLengthToPredict: 0
+          ○ skipped minWordLengthToPredict: 3
+          ○ skipped minWordLengthToPredict: 5
+          ○ skipped insertSpaceAfterAutocomplete: true
+          ○ skipped insertSpaceAfterAutocomplete: false
+        input ends with space: false
+          ○ skipped minWordLengthToPredict: 0
+          ○ skipped minWordLengthToPredict: 3
+          ○ skipped minWordLengthToPredict: 5
+          ○ skipped insertSpaceAfterAutocomplete: true
+          ○ skipped insertSpaceAfterAutocomplete: false
+      input: ' XYZ', autoCapitalize: true, expected: 'OUT'
+        ○ skipped returns OUT
+      input: ' XYZ', autoCapitalize: false, expected: 'OUT'
+        ○ skipped returns OUT
+      input: ' Xyz', autoCapitalize: true, expected: 'Out'
+        ○ skipped returns Out
+      input: ' Xyz', autoCapitalize: false, expected: 'Out'
+        ○ skipped returns Out
+      input: ' xyz. xyz', autoCapitalize: true, expected: 'Out'
+        ○ skipped returns Out
+      input: ' xyz. xyz', autoCapitalize: false, expected: 'out'
+        ○ skipped returns out
+      input: ' xyz. ', autoCapitalize: true, expected: 'Out'
+        ○ skipped returns Out
+      input: ' xyz. ', autoCapitalize: false, expected: 'out'
+        ○ skipped returns out
+      input: '"Xyz', autoCapitalize: false, expected: 'Out'
+        ○ skipped returns Out
+      input: '"xyz', autoCapitalize: false, expected: 'out'
+        ○ skipped returns out
+      input: '"Xyz', autoCapitalize: true, expected: 'Out'
+        ○ skipped returns Out
+      input: '"xyz', autoCapitalize: true, expected: 'out'
+        ○ skipped returns out
+      input: 'test', nextChar: '
+', insertSpaceAfterAutocomplete: true, expected: 'test '
+        ○ skipped returns 'test '
+      input: 'test', nextChar: '
+', insertSpaceAfterAutocomplete: false, expected: 'test'
+        ○ skipped returns 'test'
+      input: 'test', nextChar: '', insertSpaceAfterAutocomplete: true, expected: 'test '
+        ○ skipped returns 'test '
+      input: 'test', nextChar: '', insertSpaceAfterAutocomplete: false, expected: 'test'
+        ○ skipped returns 'test'
+      input: 'test', nextChar: ' ', insertSpaceAfterAutocomplete: true, expected: 'test'
+        ○ skipped returns 'test'
+      input: 'test', nextChar: ' ', insertSpaceAfterAutocomplete: false, expected: 'test'
+        ○ skipped returns 'test'
+    Lang: de_DE
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '[abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '(abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '{abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '<abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '/abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '-abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '*abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '+abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '=abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '"abc'
+      input: test
+        input ends with space: true
+          ○ skipped minWordLengthToPredict: 0
+          ○ skipped minWordLengthToPredict: 3
+          ○ skipped minWordLengthToPredict: 5
+          ○ skipped insertSpaceAfterAutocomplete: true
+          ○ skipped insertSpaceAfterAutocomplete: false
+        input ends with space: false
+          ○ skipped minWordLengthToPredict: 0
+          ○ skipped minWordLengthToPredict: 3
+          ○ skipped minWordLengthToPredict: 5
+          ○ skipped insertSpaceAfterAutocomplete: true
+          ○ skipped insertSpaceAfterAutocomplete: false
+      input: testword
+        input ends with space: true
+          ○ skipped minWordLengthToPredict: 0
+          ○ skipped minWordLengthToPredict: 3
+          ○ skipped minWordLengthToPredict: 5
+          ○ skipped insertSpaceAfterAutocomplete: true
+          ○ skipped insertSpaceAfterAutocomplete: false
+        input ends with space: false
+          ○ skipped minWordLengthToPredict: 0
+          ○ skipped minWordLengthToPredict: 3
+          ○ skipped minWordLengthToPredict: 5
+          ○ skipped insertSpaceAfterAutocomplete: true
+          ○ skipped insertSpaceAfterAutocomplete: false
+      input: ' XYZ', autoCapitalize: true, expected: 'OUT'
+        ○ skipped returns OUT
+      input: ' XYZ', autoCapitalize: false, expected: 'OUT'
+        ○ skipped returns OUT
+      input: ' Xyz', autoCapitalize: true, expected: 'Out'
+        ○ skipped returns Out
+      input: ' Xyz', autoCapitalize: false, expected: 'Out'
+        ○ skipped returns Out
+      input: ' xyz. xyz', autoCapitalize: true, expected: 'Out'
+        ○ skipped returns Out
+      input: ' xyz. xyz', autoCapitalize: false, expected: 'out'
+        ○ skipped returns out
+      input: ' xyz. ', autoCapitalize: true, expected: 'Out'
+        ○ skipped returns Out
+      input: ' xyz. ', autoCapitalize: false, expected: 'out'
+        ○ skipped returns out
+      input: '"Xyz', autoCapitalize: false, expected: 'Out'
+        ○ skipped returns Out
+      input: '"xyz', autoCapitalize: false, expected: 'out'
+        ○ skipped returns out
+      input: '"Xyz', autoCapitalize: true, expected: 'Out'
+        ○ skipped returns Out
+      input: '"xyz', autoCapitalize: true, expected: 'out'
+        ○ skipped returns out
+      input: 'test', nextChar: '
+', insertSpaceAfterAutocomplete: true, expected: 'test '
+        ○ skipped returns 'test '
+      input: 'test', nextChar: '
+', insertSpaceAfterAutocomplete: false, expected: 'test'
+        ○ skipped returns 'test'
+      input: 'test', nextChar: '', insertSpaceAfterAutocomplete: true, expected: 'test '
+        ○ skipped returns 'test '
+      input: 'test', nextChar: '', insertSpaceAfterAutocomplete: false, expected: 'test'
+        ○ skipped returns 'test'
+      input: 'test', nextChar: ' ', insertSpaceAfterAutocomplete: true, expected: 'test'
+        ○ skipped returns 'test'
+      input: 'test', nextChar: ' ', insertSpaceAfterAutocomplete: false, expected: 'test'
+        ○ skipped returns 'test'
+    Lang: pl_PL
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '[abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '(abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '{abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '<abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '/abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '-abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '*abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '+abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '=abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '"abc'
+      input: test
+        input ends with space: true
+          ○ skipped minWordLengthToPredict: 0
+          ○ skipped minWordLengthToPredict: 3
+          ○ skipped minWordLengthToPredict: 5
+          ○ skipped insertSpaceAfterAutocomplete: true
+          ○ skipped insertSpaceAfterAutocomplete: false
+        input ends with space: false
+          ○ skipped minWordLengthToPredict: 0
+          ○ skipped minWordLengthToPredict: 3
+          ○ skipped minWordLengthToPredict: 5
+          ○ skipped insertSpaceAfterAutocomplete: true
+          ○ skipped insertSpaceAfterAutocomplete: false
+      input: testword
+        input ends with space: true
+          ○ skipped minWordLengthToPredict: 0
+          ○ skipped minWordLengthToPredict: 3
+          ○ skipped minWordLengthToPredict: 5
+          ○ skipped insertSpaceAfterAutocomplete: true
+          ○ skipped insertSpaceAfterAutocomplete: false
+        input ends with space: false
+          ○ skipped minWordLengthToPredict: 0
+          ○ skipped minWordLengthToPredict: 3
+          ○ skipped minWordLengthToPredict: 5
+          ○ skipped insertSpaceAfterAutocomplete: true
+          ○ skipped insertSpaceAfterAutocomplete: false
+      input: ' XYZ', autoCapitalize: true, expected: 'OUT'
+        ○ skipped returns OUT
+      input: ' XYZ', autoCapitalize: false, expected: 'OUT'
+        ○ skipped returns OUT
+      input: ' Xyz', autoCapitalize: true, expected: 'Out'
+        ○ skipped returns Out
+      input: ' Xyz', autoCapitalize: false, expected: 'Out'
+        ○ skipped returns Out
+      input: ' xyz. xyz', autoCapitalize: true, expected: 'Out'
+        ○ skipped returns Out
+      input: ' xyz. xyz', autoCapitalize: false, expected: 'out'
+        ○ skipped returns out
+      input: ' xyz. ', autoCapitalize: true, expected: 'Out'
+        ○ skipped returns Out
+      input: ' xyz. ', autoCapitalize: false, expected: 'out'
+        ○ skipped returns out
+      input: '"Xyz', autoCapitalize: false, expected: 'Out'
+        ○ skipped returns Out
+      input: '"xyz', autoCapitalize: false, expected: 'out'
+        ○ skipped returns out
+      input: '"Xyz', autoCapitalize: true, expected: 'Out'
+        ○ skipped returns Out
+      input: '"xyz', autoCapitalize: true, expected: 'out'
+        ○ skipped returns out
+      input: 'test', nextChar: '
+', insertSpaceAfterAutocomplete: true, expected: 'test '
+        ○ skipped returns 'test '
+      input: 'test', nextChar: '
+', insertSpaceAfterAutocomplete: false, expected: 'test'
+        ○ skipped returns 'test'
+      input: 'test', nextChar: '', insertSpaceAfterAutocomplete: true, expected: 'test '
+        ○ skipped returns 'test '
+      input: 'test', nextChar: '', insertSpaceAfterAutocomplete: false, expected: 'test'
+        ○ skipped returns 'test'
+      input: 'test', nextChar: ' ', insertSpaceAfterAutocomplete: true, expected: 'test'
+        ○ skipped returns 'test'
+      input: 'test', nextChar: ' ', insertSpaceAfterAutocomplete: false, expected: 'test'
+        ○ skipped returns 'test'
+    Lang: pt_BR
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '[abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '(abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '{abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '<abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '/abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '-abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '*abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '+abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '=abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '"abc'
+      input: test
+        input ends with space: true
+          ○ skipped minWordLengthToPredict: 0
+          ○ skipped minWordLengthToPredict: 3
+          ○ skipped minWordLengthToPredict: 5
+          ○ skipped insertSpaceAfterAutocomplete: true
+          ○ skipped insertSpaceAfterAutocomplete: false
+        input ends with space: false
+          ○ skipped minWordLengthToPredict: 0
+          ○ skipped minWordLengthToPredict: 3
+          ○ skipped minWordLengthToPredict: 5
+          ○ skipped insertSpaceAfterAutocomplete: true
+          ○ skipped insertSpaceAfterAutocomplete: false
+      input: testword
+        input ends with space: true
+          ○ skipped minWordLengthToPredict: 0
+          ○ skipped minWordLengthToPredict: 3
+          ○ skipped minWordLengthToPredict: 5
+          ○ skipped insertSpaceAfterAutocomplete: true
+          ○ skipped insertSpaceAfterAutocomplete: false
+        input ends with space: false
+          ○ skipped minWordLengthToPredict: 0
+          ○ skipped minWordLengthToPredict: 3
+          ○ skipped minWordLengthToPredict: 5
+          ○ skipped insertSpaceAfterAutocomplete: true
+          ○ skipped insertSpaceAfterAutocomplete: false
+      input: ' XYZ', autoCapitalize: true, expected: 'OUT'
+        ○ skipped returns OUT
+      input: ' XYZ', autoCapitalize: false, expected: 'OUT'
+        ○ skipped returns OUT
+      input: ' Xyz', autoCapitalize: true, expected: 'Out'
+        ○ skipped returns Out
+      input: ' Xyz', autoCapitalize: false, expected: 'Out'
+        ○ skipped returns Out
+      input: ' xyz. xyz', autoCapitalize: true, expected: 'Out'
+        ○ skipped returns Out
+      input: ' xyz. xyz', autoCapitalize: false, expected: 'out'
+        ○ skipped returns out
+      input: ' xyz. ', autoCapitalize: true, expected: 'Out'
+        ○ skipped returns Out
+      input: ' xyz. ', autoCapitalize: false, expected: 'out'
+        ○ skipped returns out
+      input: '"Xyz', autoCapitalize: false, expected: 'Out'
+        ○ skipped returns Out
+      input: '"xyz', autoCapitalize: false, expected: 'out'
+        ○ skipped returns out
+      input: '"Xyz', autoCapitalize: true, expected: 'Out'
+        ○ skipped returns Out
+      input: '"xyz', autoCapitalize: true, expected: 'out'
+        ○ skipped returns out
+      input: 'test', nextChar: '
+', insertSpaceAfterAutocomplete: true, expected: 'test '
+        ○ skipped returns 'test '
+      input: 'test', nextChar: '
+', insertSpaceAfterAutocomplete: false, expected: 'test'
+        ○ skipped returns 'test'
+      input: 'test', nextChar: '', insertSpaceAfterAutocomplete: true, expected: 'test '
+        ○ skipped returns 'test '
+      input: 'test', nextChar: '', insertSpaceAfterAutocomplete: false, expected: 'test'
+        ○ skipped returns 'test'
+      input: 'test', nextChar: ' ', insertSpaceAfterAutocomplete: true, expected: 'test'
+        ○ skipped returns 'test'
+      input: 'test', nextChar: ' ', insertSpaceAfterAutocomplete: false, expected: 'test'
+        ○ skipped returns 'test'
+    Lang: textExpander
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '[abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '(abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '{abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '<abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '/abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '-abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '*abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '+abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '=abc'
+      ○ skipped #11 - Check keepPredCharRegEx functionality intput '"abc'
+      input: test
+        input ends with space: true
+          ○ skipped minWordLengthToPredict: 0
+          ○ skipped minWordLengthToPredict: 3
+          ○ skipped minWordLengthToPredict: 5
+          ○ skipped insertSpaceAfterAutocomplete: true
+          ○ skipped insertSpaceAfterAutocomplete: false
+        input ends with space: false
+          ○ skipped minWordLengthToPredict: 0
+          ○ skipped minWordLengthToPredict: 3
+          ○ skipped minWordLengthToPredict: 5
+          ○ skipped insertSpaceAfterAutocomplete: true
+          ○ skipped insertSpaceAfterAutocomplete: false
+      input: testword
+        input ends with space: true
+          ○ skipped minWordLengthToPredict: 0
+          ○ skipped minWordLengthToPredict: 3
+          ○ skipped minWordLengthToPredict: 5
+          ○ skipped insertSpaceAfterAutocomplete: true
+          ○ skipped insertSpaceAfterAutocomplete: false
+        input ends with space: false
+          ○ skipped minWordLengthToPredict: 0
+          ○ skipped minWordLengthToPredict: 3
+          ○ skipped minWordLengthToPredict: 5
+          ○ skipped insertSpaceAfterAutocomplete: true
+          ○ skipped insertSpaceAfterAutocomplete: false
+      input: ' XYZ', autoCapitalize: true, expected: 'OUT'
+        ○ skipped returns OUT
+      input: ' XYZ', autoCapitalize: false, expected: 'OUT'
+        ○ skipped returns OUT
+      input: ' Xyz', autoCapitalize: true, expected: 'Out'
+        ○ skipped returns Out
+      input: ' Xyz', autoCapitalize: false, expected: 'Out'
+        ○ skipped returns Out
+      input: ' xyz. xyz', autoCapitalize: true, expected: 'Out'
+        ○ skipped returns Out
+      input: ' xyz. xyz', autoCapitalize: false, expected: 'out'
+        ○ skipped returns out
+      input: ' xyz. ', autoCapitalize: true, expected: 'Out'
+        ○ skipped returns Out
+      input: ' xyz. ', autoCapitalize: false, expected: 'out'
+        ○ skipped returns out
+      input: '"Xyz', autoCapitalize: false, expected: 'Out'
+        ○ skipped returns Out
+      input: '"xyz', autoCapitalize: false, expected: 'out'
+        ○ skipped returns out
+      input: '"Xyz', autoCapitalize: true, expected: 'Out'
+        ○ skipped returns Out
+      input: '"xyz', autoCapitalize: true, expected: 'out'
+        ○ skipped returns out
+      input: 'test', nextChar: '
+', insertSpaceAfterAutocomplete: true, expected: 'test '
+        ○ skipped returns 'test '
+      input: 'test', nextChar: '
+', insertSpaceAfterAutocomplete: false, expected: 'test'
+        ○ skipped returns 'test'
+      input: 'test', nextChar: '', insertSpaceAfterAutocomplete: true, expected: 'test '
+        ○ skipped returns 'test '
+      input: 'test', nextChar: '', insertSpaceAfterAutocomplete: false, expected: 'test'
+        ○ skipped returns 'test'
+      input: 'test', nextChar: ' ', insertSpaceAfterAutocomplete: true, expected: 'test'
+        ○ skipped returns 'test'
+      input: 'test', nextChar: ' ', insertSpaceAfterAutocomplete: false, expected: 'test'
+        ○ skipped returns 'test'
+
+  ● bugs › Lang: en_US › #3 In French, it should consider a single quote as a word separator
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "l'agglo"
+    Received: ""
+
+      57 |         lang === "fr_FR" ? "L agglo" : "L'agglo"
+      58 |       ).toLocaleLowerCase();
+    > 59 |       expect(testContext.ph.libPresageCallback[lang].pastStream).toBe(
+         |                                                                  ^
+      60 |         expectedPastStream,
+      61 |       );
+      62 |     });
+
+      at Object.<anonymous> (tests/presageHandler.test.js:59:66)
+
+  ● bugs › Lang: fr_FR › #3 In French, it should consider a single quote as a word separator
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "l agglo"
+    Received: ""
+
+      57 |         lang === "fr_FR" ? "L agglo" : "L'agglo"
+      58 |       ).toLocaleLowerCase();
+    > 59 |       expect(testContext.ph.libPresageCallback[lang].pastStream).toBe(
+         |                                                                  ^
+      60 |         expectedPastStream,
+      61 |       );
+      62 |     });
+
+      at Object.<anonymous> (tests/presageHandler.test.js:59:66)
+
+  ● bugs › Lang: hr_HR › #3 In French, it should consider a single quote as a word separator
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "l'agglo"
+    Received: ""
+
+      57 |         lang === "fr_FR" ? "L agglo" : "L'agglo"
+      58 |       ).toLocaleLowerCase();
+    > 59 |       expect(testContext.ph.libPresageCallback[lang].pastStream).toBe(
+         |                                                                  ^
+      60 |         expectedPastStream,
+      61 |       );
+      62 |     });
+
+      at Object.<anonymous> (tests/presageHandler.test.js:59:66)
+
+  ● bugs › Lang: es_ES › #3 In French, it should consider a single quote as a word separator
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "l'agglo"
+    Received: ""
+
+      57 |         lang === "fr_FR" ? "L agglo" : "L'agglo"
+      58 |       ).toLocaleLowerCase();
+    > 59 |       expect(testContext.ph.libPresageCallback[lang].pastStream).toBe(
+         |                                                                  ^
+      60 |         expectedPastStream,
+      61 |       );
+      62 |     });
+
+      at Object.<anonymous> (tests/presageHandler.test.js:59:66)
+
+  ● bugs › Lang: el_GR › #3 In French, it should consider a single quote as a word separator
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "l'agglo"
+    Received: ""
+
+      57 |         lang === "fr_FR" ? "L agglo" : "L'agglo"
+      58 |       ).toLocaleLowerCase();
+    > 59 |       expect(testContext.ph.libPresageCallback[lang].pastStream).toBe(
+         |                                                                  ^
+      60 |         expectedPastStream,
+      61 |       );
+      62 |     });
+
+      at Object.<anonymous> (tests/presageHandler.test.js:59:66)
+
+  ● bugs › Lang: sv_SE › #3 In French, it should consider a single quote as a word separator
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "l'agglo"
+    Received: ""
+
+      57 |         lang === "fr_FR" ? "L agglo" : "L'agglo"
+      58 |       ).toLocaleLowerCase();
+    > 59 |       expect(testContext.ph.libPresageCallback[lang].pastStream).toBe(
+         |                                                                  ^
+      60 |         expectedPastStream,
+      61 |       );
+      62 |     });
+
+      at Object.<anonymous> (tests/presageHandler.test.js:59:66)
+
+  ● bugs › Lang: de_DE › #3 In French, it should consider a single quote as a word separator
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "l'agglo"
+    Received: ""
+
+      57 |         lang === "fr_FR" ? "L agglo" : "L'agglo"
+      58 |       ).toLocaleLowerCase();
+    > 59 |       expect(testContext.ph.libPresageCallback[lang].pastStream).toBe(
+         |                                                                  ^
+      60 |         expectedPastStream,
+      61 |       );
+      62 |     });
+
+      at Object.<anonymous> (tests/presageHandler.test.js:59:66)
+
+  ● bugs › Lang: pl_PL › #3 In French, it should consider a single quote as a word separator
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "l'agglo"
+    Received: ""
+
+      57 |         lang === "fr_FR" ? "L agglo" : "L'agglo"
+      58 |       ).toLocaleLowerCase();
+    > 59 |       expect(testContext.ph.libPresageCallback[lang].pastStream).toBe(
+         |                                                                  ^
+      60 |         expectedPastStream,
+      61 |       );
+      62 |     });
+
+      at Object.<anonymous> (tests/presageHandler.test.js:59:66)
+
+  ● bugs › Lang: pt_BR › #3 In French, it should consider a single quote as a word separator
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "l'agglo"
+    Received: ""
+
+      57 |         lang === "fr_FR" ? "L agglo" : "L'agglo"
+      58 |       ).toLocaleLowerCase();
+    > 59 |       expect(testContext.ph.libPresageCallback[lang].pastStream).toBe(
+         |                                                                  ^
+      60 |         expectedPastStream,
+      61 |       );
+      62 |     });
+
+      at Object.<anonymous> (tests/presageHandler.test.js:59:66)
+
+  ● bugs › Lang: textExpander › #3 In French, it should consider a single quote as a word separator
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "l'agglo"
+    Received: ""
+
+      57 |         lang === "fr_FR" ? "L agglo" : "L'agglo"
+      58 |       ).toLocaleLowerCase();
+    > 59 |       expect(testContext.ph.libPresageCallback[lang].pastStream).toBe(
+         |                                                                  ^
+      60 |         expectedPastStream,
+      61 |       );
+      62 |     });
+
+      at Object.<anonymous> (tests/presageHandler.test.js:59:66)
+
+Test Suites: 1 failed, 1 total
+Tests:       10 failed, 480 skipped, 130 passed, 620 total
+Snapshots:   0 total
+Time:        1.349 s
+Ran all test suites with tests matching "bugs".

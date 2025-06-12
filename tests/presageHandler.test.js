@@ -1,5 +1,5 @@
 import { mod } from "./fakeLibPresage.js";
-import { PresageHandler } from "../src/background/presageHandler.js";
+import { PresageHandler } from "../src/background/presageHandler.ts";
 import { SUPPORTED_LANGUAGES } from "../src/shared/lang.ts";
 
 const testContext = {
@@ -17,18 +17,18 @@ const testContext = {
 };
 
 function setConfig() {
-  testContext.ph.setConfig(
-    testContext.numSuggestions,
-    testContext.minWordLengthToPredict,
-    testContext.insertSpaceAfterAutocomplete,
-    testContext.autoCapitalize,
-    testContext.applySpacingRules,
-    testContext.textExpansions,
-    testContext.variableExpansion,
-    testContext.timeFormat,
-    testContext.dateFormat,
-    testContext.userDictionaryList,
-  );
+  testContext.ph.setConfig({
+    numSuggestions: testContext.numSuggestions,
+    minWordLengthToPredict: testContext.minWordLengthToPredict,
+    insertSpaceAfterAutocomplete: testContext.insertSpaceAfterAutocomplete,
+    autoCapitalize: testContext.autoCapitalize,
+    applySpacingRules: testContext.applySpacingRules,
+    textExpansions: testContext.textExpansions,
+    variableExpansion: testContext.variableExpansion,
+    timeFormat: testContext.timeFormat,
+    dateFormat: testContext.dateFormat,
+    userDictionaryList: testContext.userDictionaryList,
+  });
 }
 
 beforeEach(() => {
@@ -56,7 +56,7 @@ describe("bugs", () => {
       const expectedPastStream = (
         lang === "fr_FR" ? "L agglo" : "L'agglo"
       ).toLocaleLowerCase();
-      expect(testContext.ph.libPresageCallback[lang].pastStream).toBe(
+      expect(testContext.ph.getLastPredictionInput(lang)).toBe(
         expectedPastStream,
       );
     });

@@ -1,17 +1,18 @@
 // Manages user dictionary logic for Presage
-import type { PresageInstance, PresageModule } from "./PresageTypes";
+import type { PresageModule } from "./PresageTypes";
+import { PresageEngine } from "./PresageEngine";
 
 export class UserDictionaryManager {
   private userDictionaryList: string[] = [];
   private module: PresageModule;
-  private libPresage: Record<string, PresageInstance>;
+  private presageEngineRecord: Record<string, PresageEngine>;
 
   constructor(
     module: PresageModule,
-    libPresage: Record<string, PresageInstance>,
+    presageEngineRecord: Record<string, PresageEngine>,
   ) {
     this.module = module;
-    this.libPresage = libPresage;
+    this.presageEngineRecord = presageEngineRecord;
   }
 
   setUserDictionaryList(userDictionaryList: string[]) {
@@ -22,8 +23,8 @@ export class UserDictionaryManager {
   private setupUserDictionary() {
     const userDictionaryStr = this.userDictionaryList.join("\n");
     this.module.FS.writeFile("/userDictionary.txt", userDictionaryStr);
-    for (const [, libPresage] of Object.entries(this.libPresage)) {
-      libPresage.config(
+    for (const [, presageEngine] of Object.entries(this.presageEngineRecord)) {
+      presageEngine.libPresage.config(
         "Presage.Predictors.DefaultDictionaryPredictor.DICTIONARY",
         "/userDictionary.txt",
       );

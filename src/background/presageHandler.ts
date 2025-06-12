@@ -5,13 +5,13 @@ import {
   Spacing,
   SPACING_RULES,
 } from "./spacingRulesHandler";
-import { Capitalization } from "./capitalizationHelper";
-import { PredictionInputProcessor } from "./predictionInputProcessor";
+import { Capitalization } from "./CapitalizationHelper";
+import { PredictionInputProcessor } from "./PredictionInputProcessor";
 import { TemplateExpander, TemplateVariables } from "./TemplateExpander";
-import { PresageModule, PresageInstance } from "./PresageTypes";
+import { PresageModule } from "./PresageTypes";
 import { UserDictionaryManager } from "./UserDictionaryManager";
 import { TextExpansionManager } from "./TextExpansionManager";
-import { PresageEngine } from "./PresageEngine";
+import { PresageEngine, PresageEngineConfig } from "./PresageEngine";
 
 const SUGGESTION_COUNT = 5;
 const MIN_WORD_LENGTH_TO_PREDICT = 1;
@@ -24,12 +24,6 @@ export interface PredictionResult {
 interface LastPrediction {
   pastStream: string;
   predictions: string[];
-}
-
-interface LibPresageCallback {
-  pastStream: string;
-  get_past_stream: () => string;
-  get_future_stream: () => string;
 }
 
 export type PresageConfig = {
@@ -46,12 +40,8 @@ export type PresageConfig = {
 };
 
 export class PresageHandler {
-  private Module: PresageModule;
-  private presageEngine: PresageEngine;
+  private presageEngines: Record<string, PresageEngine>;
   private lastPrediction: Record<string, LastPrediction>;
-  private libPresage: Record<string, PresageInstance>;
-  private libPresageCallback: Record<string, LibPresageCallback>;
-  private libPresageCallbackImpl: Record<string, unknown>;
   private numSuggestions: number;
   private minWordLengthToPredict: number;
   private predictNextWordAfterSeparatorChar: boolean;
@@ -68,17 +58,11 @@ export class PresageHandler {
   private dateFormat?: string;
 
   constructor(Module: PresageModule) {
-    this.Module = Module;
-    const engineConfig = {
+    const engineConfig: PresageEngineConfig = {
       numSuggestions: SUGGESTION_COUNT,
-      minWordLengthToPredict: MIN_WORD_LENGTH_TO_PREDICT,
-      insertSpaceAfterAutocomplete: true,
     };
-    this.presageEngine = new PresageEngine(Module, engineConfig);
+    this.presageEngines = {};
     this.lastPrediction = {};
-    this.libPresage = {};
-    this.libPresageCallback = {};
-    this.libPresageCallbackImpl = {};
     this.numSuggestions = SUGGESTION_COUNT;
     this.minWordLengthToPredict = MIN_WORD_LENGTH_TO_PREDICT;
     this.predictNextWordAfterSeparatorChar = false;
@@ -90,28 +74,18 @@ export class PresageHandler {
       this.insertSpaceAfterAutocomplete,
     );
     this.predictionInputProcessor = new PredictionInputProcessor(
-      MIN_WORD_LENGTH_TO_PREDICT,
+      this.minWordLengthToPredict,
       this.autoCapitalize,
     );
     for (const [lang] of Object.entries(SUPPORTED_LANGUAGES)) {
       if (lang === "auto_detect") continue;
       try {
         this.lastPrediction[lang] = { pastStream: "", predictions: [] };
-        this.libPresageCallback[lang] = {
-          pastStream: "",
-          get_past_stream: function () {
-            return this.pastStream;
-          },
-          get_future_stream: function () {
-            return "";
-          },
-        };
-        this.libPresageCallbackImpl[lang] =
-          this.Module.PresageCallback.implement(this.libPresageCallback[lang]);
-        this.libPresage[lang] = new this.Module.Presage(
-          this.libPresageCallbackImpl[lang],
-          "resources_js/" + lang + "/presage.xml",
-        ) as PresageInstance;
+        this.presageEngines[lang] = new PresageEngine(
+          Module,
+          engineConfig,
+          lang,
+        );
       } catch (error) {
         console.log(
           "Failed to create Presage instance for %s language: %s",
@@ -121,12 +95,12 @@ export class PresageHandler {
       }
     }
     this.textExpansionManager = new TextExpansionManager(
-      this.Module as PresageModule,
-      this.libPresage,
+      Module,
+      this.presageEngines,
     );
     this.userDictionaryManager = new UserDictionaryManager(
-      this.Module as PresageModule,
-      this.libPresage,
+      Module,
+      this.presageEngines,
     );
   }
 
@@ -147,11 +121,15 @@ export class PresageHandler {
     this.spacingHandler = new SpacingRulesHandler(
       config.insertSpaceAfterAutocomplete,
     );
-    this.presageEngine.setConfig({
-      numSuggestions: config.numSuggestions,
-      minWordLengthToPredict: config.minWordLengthToPredict,
-      insertSpaceAfterAutocomplete: config.insertSpaceAfterAutocomplete,
-    });
+    this.predictionInputProcessor = new PredictionInputProcessor(
+      this.minWordLengthToPredict,
+      this.autoCapitalize,
+    );
+    for (const [, presageEngine] of Object.entries(this.presageEngines)) {
+      presageEngine.setConfig({
+        numSuggestions: this.numSuggestions,
+      });
+    }
   }
 
   parseStringTemplate(str: string, obj: TemplateVariables): string {
@@ -206,11 +184,19 @@ export class PresageHandler {
   }
 
   doPredictionHandler(predictionInput: string, lang: string): string[] {
-    const predictions = this.presageEngine.predict(predictionInput, lang);
+    if (predictionInput === this.lastPrediction[lang]?.pastStream) {
+      return this.lastPrediction[lang].predictions.slice();
+    }
+    const predictions = this.presageEngines[lang].predict(predictionInput);
     const expandedTemplateVariables = this.getExpandedVariables(lang);
-    return predictions.map((text) =>
+    const expandedPredictions = predictions.map((text) =>
       this.parseStringTemplate(text, expandedTemplateVariables),
     );
+    this.lastPrediction[lang] = {
+      pastStream: predictionInput,
+      predictions: expandedPredictions.slice(),
+    };
+    return expandedPredictions;
   }
 
   runPrediction(
@@ -231,7 +217,7 @@ export class PresageHandler {
       const spacingResult = this.spacingHandler.applySpacingRules(text);
       forceReplace = spacingResult ? spacingResult.text : null;
     }
-    if (!this.presageEngine.hasLanguage(lang)) {
+    if (!(lang in this.presageEngines)) {
       // Do nothing, reply with empty predictions
     } else if (!forceReplace && doPrediction) {
       predictions = this.doPredictionHandler(predictionInput, lang);
@@ -258,5 +244,12 @@ export class PresageHandler {
       default:
     }
     return { predictions, forceReplace };
+  }
+
+  getLastPredictionInput(lang: string): string {
+    if (lang in this.lastPrediction) {
+      return this.lastPrediction[lang].pastStream;
+    }
+    return "";
   }
 }

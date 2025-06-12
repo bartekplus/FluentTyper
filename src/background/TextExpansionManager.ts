@@ -1,17 +1,18 @@
 // Manages text expansion logic for Presage
-import type { PresageInstance, PresageModule } from "./PresageTypes";
+import type { PresageModule } from "./PresageTypes";
+import { PresageEngine } from "./PresageEngine";
 
 export class TextExpansionManager {
   private textExpansions: Array<[string, object]> = [];
   private module: PresageModule;
-  private libPresage: Record<string, PresageInstance>;
+  private presageEngineRecord: Record<string, PresageEngine>;
 
   constructor(
     module: PresageModule,
-    libPresage: Record<string, PresageInstance>,
+    presageEngineRecord: Record<string, PresageEngine>,
   ) {
     this.module = module;
-    this.libPresage = libPresage;
+    this.presageEngineRecord = presageEngineRecord;
   }
 
   setTextExpansions(textExpansions: Array<[string, object]>) {
@@ -27,8 +28,8 @@ export class TextExpansionManager {
       textExpansionsStr += `${textExpansion[0].toLowerCase()}\t${jsonObj}\n`;
     });
     this.module.FS.writeFile("/textExpansions.txt", textExpansionsStr);
-    for (const [, libPresage] of Object.entries(this.libPresage)) {
-      libPresage.config(
+    for (const [, presageEngine] of Object.entries(this.presageEngineRecord)) {
+      presageEngine.libPresage.config(
         "Presage.Predictors.DefaultAbbreviationExpansionPredictor.ABBREVIATIONS",
         "/textExpansions.txt",
       );
