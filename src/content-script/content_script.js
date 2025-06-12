@@ -15,6 +15,7 @@ import {
   POPUP_PAGE_DISABLE,
   STATUS_COMMAND,
 } from "../shared/constants.ts";
+import { SUPPORTED_LANGUAGES } from "../shared/lang.ts";
 
 (function () {
   const WATCHDOG_INTERVAL_MS = 1000;
@@ -699,7 +700,7 @@ import {
               this.tributeArr[message.context.tributeId].done(
                 keyValPairs,
                 message.context.forceReplace,
-                "Lang: " + message.context.langName,
+                "Lang: " + SUPPORTED_LANGUAGES[message.context.lang],
               );
 
               // Clear pending request
