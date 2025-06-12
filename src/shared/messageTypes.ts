@@ -5,7 +5,6 @@ export interface SetConfigContext {
   autocompleteOnTab: boolean;
   selectByDigit: boolean;
   lang: string;
-  autocompleteSeparatorSource: string;
   minWordLengthToPredict: number;
   revertOnBackspace: boolean;
   enabled: boolean;
@@ -37,7 +36,6 @@ export interface PredictResponseContext {
 // Context for CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG
 export interface UpdateLangConfigContext {
   lang: string;
-  autocompleteSeparatorSource: string;
 }
 
 // Context for CMD_CONTENT_SCRIPT_PREDICT_REQ

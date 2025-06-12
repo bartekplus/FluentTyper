@@ -15,7 +15,10 @@ import {
   POPUP_PAGE_DISABLE,
   STATUS_COMMAND,
 } from "../shared/constants.ts";
-import { SUPPORTED_LANGUAGES } from "../shared/lang.ts";
+import {
+  SUPPORTED_LANGUAGES,
+  LANG_SEPERATOR_CHARS_REGEX,
+} from "../shared/lang.ts";
 
 (function () {
   const WATCHDOG_INTERVAL_MS = 1000;
@@ -41,12 +44,10 @@ import { SUPPORTED_LANGUAGES } from "../shared/lang.ts";
       // User language for autocomplete
       this.lang = "";
       // Regular expression for splitting text into autocomplete segments
-      this.autocompleteSeparator = RegExp(
+      this._autocompleteSeparator = RegExp(
         // Matches whitespace, punctuation, and other separator characters
         /\s+|!|"|#|\$|%|&|\(|\)|\*|\+|,|-|\.|\/|:|;|<|=|>|\?|@|\[|\\|\]|\^|_|`|{|\||}|~/,
       );
-      // Source string of the autocomplete separator regular expression
-      this._autocompleteSeparatorSource = this.autocompleteSeparator.source;
       // Node for observing DOM changes
       this.observerNode = document.body || document.documentElement;
       this.domObserver = new DomObserver(
@@ -103,22 +104,16 @@ import { SUPPORTED_LANGUAGES } from "../shared/lang.ts";
     get enabled() {
       return this._enabled;
     }
-    // Setter for the autocompleteSeparatorSource property, which updates the autocompleteSeparator property and applies it to all existing Tribute instances
-    set autocompleteSeparatorSource(newValue) {
-      // Update the autocompleteSeparatorSource property with the new value
-      this._autocompleteSeparatorSource = newValue;
-      // Update the autocompleteSeparator property with a new RegExp object created from the new value
-      this.autocompleteSeparator = RegExp(newValue);
+    set autocompleteSeparator(autocompleteSeparatorRegex) {
+      this._autocompleteSeparator = autocompleteSeparatorRegex;
       // Loop through all Tribute instances and update their autocompleteSeparator properties to the new value
       for (const [key] of Object.entries(this.tributeArr)) {
         this.tributeArr[key].tribute.autocompleteSeparator =
-          this.autocompleteSeparator;
+          autocompleteSeparatorRegex;
       }
     }
-
-    // Getter for the autocompleteSeparatorSource property, which returns the current value of the property
-    get autocompleteSeparatorSource() {
-      return this._autocompleteSeparatorSource;
+    get autocompleteSeparator() {
+      return this._autocompleteSeparator;
     }
 
     // Attaches a MutationObserver to the current observerNode to listen for changes in the DOM
@@ -581,12 +576,11 @@ import { SUPPORTED_LANGUAGES } from "../shared/lang.ts";
      * This method updates the language configuration, autocomplete separator source, and triggers the Tribute.js menu to appear for the Tribute element with the given helper array ID.
      *
      * @param {string} lang - The language to use for the Tribute element.
-     * @param {string} autocompleteSeparatorSource - The source of the separator character(s) to use for autocompletion.
      * @param {string} tributeId - The ID of the Tribute element's helper array to update and trigger.
      */
-    updateLangConfig(lang, autocompleteSeparatorSource, tributeId) {
+    updateLangConfig(lang, tributeId) {
       // Update the language configuration and autocomplete separator source.
-      this.autocompleteSeparatorSource = autocompleteSeparatorSource;
+      this.autocompleteSeparator = LANG_SEPERATOR_CHARS_REGEX[lang];
       this.lang = lang;
 
       // Trigger the Tribute.js menu for the Tribute element with the given helper array ID.
@@ -604,10 +598,9 @@ import { SUPPORTED_LANGUAGES } from "../shared/lang.ts";
       this.autocompleteOnEnter = config.autocompleteOnEnter;
       // Set the autocompleteOnTab option
       this.autocompleteOnTab = config.autocompleteOnTab;
-      // Set the autocompleteSeparatorSource option
-      this.autocompleteSeparatorSource = config.autocompleteSeparatorSource;
       // Set the lang option
       this.lang = config.lang;
+      this.autocompleteSeparator = LANG_SEPERATOR_CHARS_REGEX[config.lang];
       // Set the selectByDigit option
       this.selectByDigit = config.selectByDigit;
       // Minimum characters typed by user to start prediction
@@ -718,11 +711,7 @@ import { SUPPORTED_LANGUAGES } from "../shared/lang.ts";
           break;
         case CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG:
           // Update the language configuration in tributeArr
-          this.updateLangConfig(
-            message.context.lang,
-            message.context.autocompleteSeparatorSource,
-            this.activeHelperArrId,
-          );
+          this.updateLangConfig(message.context.lang, this.activeHelperArrId);
           // Send a status message to the sender
           sendStatusMsg = true;
           break;

@@ -2,13 +2,16 @@ import {
   CMD_TOGGLE_FT_ACTIVE_TAB,
   CMD_TRIGGER_FT_ACTIVE_TAB,
   CMD_TOGGLE_FT_ACTIVE_LANG,
+  CMD_BACKGROUND_PAGE_PREDICT_REQ,
+  CMD_BACKGROUND_PAGE_PREDICT_RESP,
+  CMD_BACKGROUND_PAGE_SET_CONFIG,
+  CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
+  CMD_CONTENT_SCRIPT_PREDICT_REQ,
+  CMD_OPTIONS_PAGE_CONFIG_CHANGE,
+  CMD_CONTENT_SCRIPT_GET_CONFIG,
 } from "../shared/constants";
 import { getDomain, isEnabledForDomain, checkLastError } from "../shared/utils";
-import {
-  SUPPORTED_LANGUAGES,
-  DEFAULT_SEPERATOR_CHARS_REGEX,
-  LANG_SEPERATOR_CHARS_REGEX,
-} from "../shared/lang";
+import { SUPPORTED_LANGUAGES } from "../shared/lang";
 import { SettingsManager } from "../shared/settingsManager";
 import { LanguageDetector } from "./languageDetector";
 import { PresageConfig } from "./presageHandler";
@@ -56,7 +59,7 @@ class BackgroundServiceWorker {
       message.context.lang!,
     );
     const predictResponseMessage: PredictResponseMessage = {
-      command: "CMD_BACKGROUND_PAGE_PREDICT_RESP",
+      command: CMD_BACKGROUND_PAGE_PREDICT_RESP,
       context: {
         text: message.context.text,
         nextChar: message.context.nextChar,
@@ -94,7 +97,7 @@ class BackgroundServiceWorker {
   async getBackgroundPageSetConfigMsg(): Promise<ConfigMessage> {
     this.language = (await this.settingsManager.get("language")) as string;
     const message: ConfigMessage = {
-      command: "CMD_BACKGROUND_PAGE_SET_CONFIG",
+      command: CMD_BACKGROUND_PAGE_SET_CONFIG,
       context: {
         enabled: (await this.settingsManager.get("enabled")) as boolean,
         autocomplete: (await this.settingsManager.get(
@@ -110,9 +113,6 @@ class BackgroundServiceWorker {
           "selectByDigit",
         )) as boolean,
         lang: this.language,
-        autocompleteSeparatorSource: this.language
-          ? LANG_SEPERATOR_CHARS_REGEX[this.language].source
-          : DEFAULT_SEPERATOR_CHARS_REGEX.source,
         minWordLengthToPredict: (await this.settingsManager.get(
           "minWordLengthToPredict",
         )) as number,
@@ -185,14 +185,14 @@ function onCommand(command: string) {
   switch (command) {
     case CMD_TOGGLE_FT_ACTIVE_TAB: {
       const message: ToggleActiveTabMessage = {
-        command: "CMD_TOGGLE_FT_ACTIVE_TAB",
+        command: CMD_TOGGLE_FT_ACTIVE_TAB,
       };
       backgroundServiceWorker.sendCommandToActiveTabContentScript(message);
       break;
     }
     case CMD_TRIGGER_FT_ACTIVE_TAB: {
       const message: TriggerActiveTabMessage = {
-        command: "CMD_TRIGGER_FT_ACTIVE_TAB",
+        command: CMD_TRIGGER_FT_ACTIVE_TAB,
       };
 
       backgroundServiceWorker.sendCommandToActiveTabContentScript(message);
@@ -207,16 +207,15 @@ function onCommand(command: string) {
       const nextLang = availableLangs[nextLangIndex];
       backgroundServiceWorker.settingsManager.set("language", nextLang);
       backgroundServiceWorker.language = nextLang;
-      const context = {
-        lang: nextLang,
-        autocompleteSeparatorSource:
-          LANG_SEPERATOR_CHARS_REGEX[nextLang].source,
+      const updateLangConfigMessage: UpdateLangConfigMessage = {
+        command: CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
+        context: {
+          lang: nextLang,
+        },
       };
-      const message: UpdateLangConfigMessage = {
-        command: "CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG",
-        context: context,
-      };
-      backgroundServiceWorker.sendCommandToActiveTabContentScript(message);
+      backgroundServiceWorker.sendCommandToActiveTabContentScript(
+        updateLangConfigMessage,
+      );
       break;
     }
     default:
@@ -243,18 +242,16 @@ async function handleContentScriptPredictReq(
       );
     }
     if (request.context.lang !== language) {
-      sendResponse({
-        command: "backgroundPageUpdateLangConfig",
+      const updateLangConfigMessage: UpdateLangConfigMessage = {
+        command: CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
         context: {
           lang: language,
-          autocompleteSeparatorSource:
-            LANG_SEPERATOR_CHARS_REGEX[language].source,
-          tributeId: request.context.tributeId,
         },
-      });
+      };
+      sendResponse(updateLangConfigMessage);
     } else {
       const predictRequestMessage: PredictRequestMessage = {
-        command: "CMD_BACKGROUND_PAGE_PREDICT_REQ",
+        command: CMD_BACKGROUND_PAGE_PREDICT_REQ,
         context: {
           text: request.context.text,
           nextChar: request.context.nextChar,
@@ -314,7 +311,7 @@ function onMessage(
   checkLastError();
 
   switch (request.command) {
-    case "CMD_CONTENT_SCRIPT_PREDICT_REQ": {
+    case CMD_CONTENT_SCRIPT_PREDICT_REQ: {
       handleContentScriptPredictReq(
         request,
         sender,
@@ -323,7 +320,7 @@ function onMessage(
       );
       return true;
     }
-    case "CMD_OPTIONS_PAGE_CONFIG_CHANGE": {
+    case CMD_OPTIONS_PAGE_CONFIG_CHANGE: {
       handleOptionsPageConfigChange(
         request,
         sender,
@@ -332,7 +329,7 @@ function onMessage(
       );
       return false;
     }
-    case "CMD_CONTENT_SCRIPT_GET_CONFIG": {
+    case CMD_CONTENT_SCRIPT_GET_CONFIG: {
       handleContentScriptGetConfig(
         request,
         sender,
