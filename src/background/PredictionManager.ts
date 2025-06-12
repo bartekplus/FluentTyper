@@ -4,7 +4,7 @@ import {
   PresageHandler,
   PredictionResult,
   PresageConfig,
-} from "./presageHandler";
+} from "./PresageHandler";
 import libPresageMod from "../third_party/libpresage/libpresage.js";
 
 export class PredictionManager {

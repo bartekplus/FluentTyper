@@ -4,7 +4,7 @@ import {
   SpacingRulesHandler,
   Spacing,
   SPACING_RULES,
-} from "./spacingRulesHandler";
+} from "./SpacingRulesHandler";
 import { Capitalization } from "./CapitalizationHelper";
 import { PredictionInputProcessor } from "./PredictionInputProcessor";
 import { TemplateExpander, TemplateVariables } from "./TemplateExpander";

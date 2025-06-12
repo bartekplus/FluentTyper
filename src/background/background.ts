@@ -13,11 +13,11 @@ import {
 import { getDomain, isEnabledForDomain, checkLastError } from "../shared/utils";
 import { SUPPORTED_LANGUAGES } from "../shared/lang";
 import { SettingsManager } from "../shared/settingsManager";
-import { LanguageDetector } from "./languageDetector";
-import { PresageConfig } from "./presageHandler";
-import { PredictionManager } from "./predictionManager";
-import { TabMessenger } from "./tabMessenger";
-import { migrateToLocalStore } from "./migration";
+import { LanguageDetector } from "./LanguageDetector";
+import { PresageConfig } from "./PresageHandler";
+import { PredictionManager } from "./PredictionManager";
+import { TabMessenger } from "./TabMessenger";
+import { migrateToLocalStore } from "./Migration";
 import {
   Message,
   PredictRequestMessage,
