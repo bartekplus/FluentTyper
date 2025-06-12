@@ -1,6 +1,3 @@
-// CapitalizationHelper.ts
-// Utility for capitalization logic, extracted from presageHandler.js
-
 import { isLetter } from "../shared/utils";
 
 export enum Capitalization {
