@@ -26,7 +26,7 @@ import {
 
 function optionsPageConfigChange() {
   const message = {
-    command: "optionsPageConfigChange",
+    command: "CMD_OPTIONS_PAGE_CONFIG_CHANGE",
     context: {},
   };
   chrome.runtime.sendMessage(message);

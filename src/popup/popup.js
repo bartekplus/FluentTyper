@@ -5,7 +5,7 @@ import {
 } from "../shared/utils.ts";
 import { Store } from "../third_party/fancier-settings/lib/store.js";
 import { SUPPORTED_LANGUAGES } from "../shared/lang.ts";
-import { POPUP_PAGE_ENABLE, POPUP_PAGE_DISABLE } from "../shared/constants.ts";
+import { POPUP_PAGE_ENABLE, POPUP_PAGE_DISABL, CMD_OPTIONS_PAGE_CONFIG_CHANGE } from "../shared/constants.ts";
 
 const settings = new Store("settings");
 
@@ -121,7 +121,7 @@ async function languageChangeEvent() {
 
   // Create a 'message' object with a 'command' property and a 'context' property
   const message = {
-    command: "optionsPageConfigChange",
+    command: "CMD_OPTIONS_PAGE_CONFIG_CHANGE",
     context: {},
   };
 
