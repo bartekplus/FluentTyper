@@ -18,7 +18,7 @@ const MIN_WORD_LENGTH_TO_PREDICT = 1;
 
 export interface PredictionResult {
   predictions: string[];
-  forceReplace: string | null;
+  forceReplace?: string;
 }
 
 interface LastPrediction {
@@ -205,7 +205,7 @@ export class PresageHandler {
     lang: string,
   ): PredictionResult {
     let predictions: string[] = [];
-    let forceReplace: string | null = null;
+    let forceReplace: string | undefined = undefined;
     const { predictionInput, doPrediction, doCapitalize } = this.processInput(
       text,
       lang,
@@ -215,7 +215,7 @@ export class PresageHandler {
       this.spacingHandler instanceof SpacingRulesHandler
     ) {
       const spacingResult = this.spacingHandler.applySpacingRules(text);
-      forceReplace = spacingResult ? spacingResult.text : null;
+      forceReplace = spacingResult ? spacingResult.text : undefined;
     }
     if (!(lang in this.presageEngines)) {
       // Do nothing, reply with empty predictions

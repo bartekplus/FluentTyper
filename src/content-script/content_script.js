@@ -1,8 +1,7 @@
 /*eslint no-unused-vars: ["error", { "argsIgnorePattern": "^_" }]*/
 
-import Tribute from "../third_party/tribute/tribute.esm.js";
-import { DomObserver } from "./dom-observer.ts";
-import { debounce } from "../shared/utils.ts";
+import { TributeManager } from "./TributeManager.ts";
+import { DomObserver } from "./DomObserver.ts";
 import {
   CMD_BACKGROUND_PAGE_PREDICT_RESP,
   CMD_CONTENT_SCRIPT_GET_CONFIG,
@@ -15,10 +14,7 @@ import {
   POPUP_PAGE_DISABLE,
   STATUS_COMMAND,
 } from "../shared/constants.ts";
-import {
-  SUPPORTED_LANGUAGES,
-  LANG_SEPERATOR_CHARS_REGEX,
-} from "../shared/lang.ts";
+import { LANG_SEPERATOR_CHARS_REGEX } from "../shared/lang.ts";
 
 (function () {
   const WATCHDOG_INTERVAL_MS = 1000;
@@ -27,10 +23,8 @@ import {
     constructor() {
       // CSS selectors for identifying elements that support fluent typing
       this.SELECTORS = "textarea, input, [contentEditable]";
-      // Counter for generating unique tribute IDs
-      this.newTributeId = 0;
-      // Object for storing tribute instances
-      this.tributeArr = {};
+      // Tribute Manager instance
+      this.tributeManager = null;
       // Reference to the current pending request
       this.pendingReq = null;
       // Flag indicating whether the plugin is enabled or disabled
@@ -43,11 +37,6 @@ import {
       this.autocompleteOnTab = true;
       // User language for autocomplete
       this.lang = "";
-      // Regular expression for splitting text into autocomplete segments
-      this._autocompleteSeparator = RegExp(
-        // Matches whitespace, punctuation, and other separator characters
-        /\s+|!|"|#|\$|%|&|\(|\)|\*|\+|,|-|\.|\/|:|;|<|=|>|\?|@|\[|\\|\]|\^|_|`|{|\||}|~/,
-      );
       // Node for observing DOM changes
       this.observerNode = document.body || document.documentElement;
       this.domObserver = new DomObserver(
@@ -104,68 +93,51 @@ import {
     get enabled() {
       return this._enabled;
     }
-    set autocompleteSeparator(autocompleteSeparatorRegex) {
-      this._autocompleteSeparator = autocompleteSeparatorRegex;
-      // Loop through all Tribute instances and update their autocompleteSeparator properties to the new value
-      for (const [key] of Object.entries(this.tributeArr)) {
-        this.tributeArr[key].tribute.autocompleteSeparator =
-          autocompleteSeparatorRegex;
-      }
-    }
-    get autocompleteSeparator() {
-      return this._autocompleteSeparator;
-    }
 
     // Attaches a MutationObserver to the current observerNode to listen for changes in the DOM
     attachMutationObserver() {
       this.domObserver.attach();
     }
 
-    // Returns an array of keys used for special handling in key event listeners
-    keys() {
-      // Define an array of key names
-      const keyArr = ["Escape", "ArrowUp", "ArrowDown", "Space"];
+    // Callback for TributeManager to request predictions
+    handleGetPrediction(context) {
+      const message = {
+        command: CMD_CONTENT_SCRIPT_PREDICT_REQ,
+        context: {
+          text: context.text,
+          nextChar: context.nextChar,
+          tributeId: context.tributeId,
+          requestId: context.requestId,
+          lang: this.lang, // FluentTyper's current language
+        },
+      };
+      this.pendingReq = message;
 
-      if (this.autocompleteOnEnter) {
-        keyArr.push("Enter");
-      }
-      if (this.autocompleteOnTab) {
-        keyArr.push("Tab");
-      }
-      if (this.revertOnBackspace) {
-        keyArr.push("Backspace");
-      }
-
-      // Return the array of key names
-      return keyArr;
+      chrome.runtime.sendMessage(message, (response) => {
+        this.messageHandler(response); // Pass response to messageHandler
+        this.checkLastError();
+      });
     }
 
-    // Detaches the Tribute instance associated with the specified tributeId from its element
-    detachHelper(tributeId) {
-      // Get the element associated with the tributeId
-      const elem = this.tributeArr[tributeId].elem;
-
-      // Detach the Tribute instance from the element
-      this.tributeArr[tributeId].tribute.detach(elem);
-
-      // Remove event listeners and delete the Tribute instance from the tributeArr object
-      elem.removeEventListener(
-        "tribute-replaced",
-        elem.tributeReplacedEventHandler,
-      );
-      elem.removeEventListener("keydown", elem.elementKeyDownEventHandler);
-      delete this.tributeArr[tributeId];
+    // Callback for TributeManager when a tribute element is triggered (e.g. by keydown)
+    handleTributeTrigger(helperArrId) {
+      this.activeHelperArrId = helperArrId;
     }
 
-    // Detaches all Tribute instances from their elements
-    detachAllHelpers() {
-      // Iterate over each Tribute instance in tributeArr and detach it
-      for (const [key] of Object.entries(this.tributeArr)) {
-        this.detachHelper(key);
-      }
-
-      // Reset tributeArr to an empty object
-      this.tributeArr = {};
+    initializeTributeManager() {
+      this.tributeManager = new TributeManager({
+        selectors: this.SELECTORS,
+        minWordLengthToPredict: this.minWordLengthToPredict,
+        autocomplete: this.autocomplete,
+        autocompleteOnEnter: this.autocompleteOnEnter,
+        autocompleteOnTab: this.autocompleteOnTab,
+        lang: this.lang,
+        autocompleteSeparator: LANG_SEPERATOR_CHARS_REGEX[this.lang] || /\s+/,
+        selectByDigit: this.selectByDigit,
+        revertOnBackspace: this.revertOnBackspace,
+        getPrediction: this.handleGetPrediction.bind(this),
+        onTrigger: this.handleTributeTrigger.bind(this),
+      });
     }
 
     // Checks if a Tribute instance is attached to the specified element
@@ -173,12 +145,13 @@ import {
       // Iterate over each Tribute instance in tributeArr
       for (const [key] of Object.entries(this.tributeArr)) {
         // If the Tribute instance's element matches the specified element, return true
-        if (elem === this.tributeArr[key].elem) {
+        if (
+          this.tributeManager &&
+          elem === this.tributeManager.tributeArr[key].elem
+        ) {
           return true;
         }
       }
-
-      // If no matching Tribute instance is found, return false
       return false;
     }
 
@@ -218,9 +191,13 @@ import {
       this.domObserver.disconnect();
 
       // Detach any Tribute components whose elements are no longer in the document
-      for (const [key] of Object.entries(this.tributeArr)) {
-        if (!this.isInDocument(this.tributeArr[key].elem)) {
-          this.detachHelper(key);
+      if (this.tributeManager) {
+        for (const [key, entry] of Object.entries(
+          this.tributeManager.tributeArr,
+        )) {
+          if (!this.isInDocument(entry.elem)) {
+            this.tributeManager.detachHelper(key);
+          }
         }
       }
 
@@ -228,14 +205,16 @@ import {
       for (const mutation of mutationsList) {
         mutation.addedNodes.forEach((element) => {
           if (this.isInDocument(element)) {
-            this.queryAndAttachHelper(element);
+            if (this.tributeManager)
+              this.tributeManager.queryAndAttachHelper(element);
           }
         });
 
         // Attach Tribute components to any mutated attributes that are in the document
         if (mutation.type === "attributes") {
           if (this.isInDocument(mutation.target)) {
-            this.queryAndAttachHelper(mutation.target);
+            if (this.tributeManager)
+              this.tributeManager.queryAndAttachHelper(mutation.target);
           }
         }
       }
@@ -254,340 +233,6 @@ import {
     }
 
     /**
-     * Checks whether an element has a certain property and its value matches the expected value or pattern.
-     * @param {Element} elem - The element to check.
-     * @param {string} propertyName - The name of the property to check.
-     * @param {string} expectedValue - The expected value or pattern for the property value.
-     * @param {string} defaultValue - The default value to use if the property is not found.
-     * @returns {boolean} - True if the property value matches the expected value or pattern, false otherwise.
-     */
-    checkElemProperty(elem, propertyName, expectedValue, defaultValue) {
-      // Get the value of the property from the element's attribute or use the default value
-      const elemValue = elem.hasAttribute(propertyName)
-        ? elem.getAttribute(propertyName).toLowerCase().trim()
-        : defaultValue;
-
-      // Check if the property value matches the expected value or pattern
-      return Boolean(
-        elemValue === expectedValue || elemValue.match(expectedValue),
-      );
-    }
-
-    /**
-     * Attaches a helper to a given element.
-     *
-     * @param {Element} elem - The element to attach the helper to.
-     */
-    attachHelperToNode(elem) {
-      // If Tribute is not enabled, return
-      if (!this.enabled) {
-        return;
-      }
-
-      // Define an array of properties to check against for the given element
-      const properties = [
-        {
-          property: "contentEditable",
-          expectedValue: RegExp(/.*/),
-          defaultValue: "true",
-          reverseCheck: false,
-        },
-        {
-          property: "contentEditable",
-          expectedValue: "false",
-          defaultValue: "",
-          reverseCheck: true,
-        },
-        {
-          property: "type",
-          expectedValue: "text",
-          defaultValue: "text",
-          reverseCheck: false,
-        },
-        {
-          property: "name",
-          expectedValue: "username",
-          defaultValue: "",
-          reverseCheck: true,
-        },
-        {
-          property: "name",
-          expectedValue: "password",
-          defaultValue: "",
-          reverseCheck: true,
-        },
-        {
-          property: "id",
-          expectedValue: "username",
-          defaultValue: "",
-          reverseCheck: true,
-        },
-      ];
-
-      // Check if the element passes all the property checks
-      let propertiesCheck = true;
-      for (let index = 0; index < properties.length; index++) {
-        const check = properties[index];
-        let checkVal = this.checkElemProperty(
-          elem,
-          check.property,
-          check.expectedValue,
-          check.defaultValue,
-        );
-        if (check.reverseCheck) checkVal = !checkVal;
-        if (!checkVal) {
-          propertiesCheck = false;
-          break;
-        }
-      }
-
-      // If the element does not pass all the property checks, return
-      if (!propertiesCheck) {
-        return;
-      }
-
-      // Generate a new Tribute ID for the element and add it to the Tribute array
-      const tribueId = this.newTributeId;
-      this.newTributeId += 1;
-      this.tributeArr[tribueId] = {
-        tribute: null,
-        elem: elem,
-        done: null,
-        requestId: 0,
-        triggerInputEvent: false,
-      };
-
-      // Define the Tribute key and value functions for the element
-      const tribueKeyFn = this.keys.bind(this);
-      const tribueValuesFn = function (
-        helperArrId,
-        _trigger,
-        done,
-        context,
-        nextChar,
-      ) {
-        // Update the Tribute object in the Tribute array for the element
-        this.tributeArr[helperArrId].done = done;
-        this.tributeArr[helperArrId].requestId += 1;
-        // Create the message to send to the background script for prediction
-        const message = {
-          command: CMD_CONTENT_SCRIPT_PREDICT_REQ,
-          context: {
-            text: context,
-            nextChar: nextChar,
-            tributeId: helperArrId,
-            requestId: this.tributeArr[helperArrId].requestId,
-            lang: this.lang,
-          },
-        };
-        // Set the pending request to the generated message
-        this.pendingReq = message;
-        // Send the message to the background script for prediction and handle the response
-        console.log("Sending message to background script for prediction");
-        chrome.runtime.sendMessage(message, this.messageHandler.bind(this));
-      }.bind(this, tribueId);
-
-      // Create a new Tribute object for the element and attach it to the element
-      const tribute = new Tribute({
-        // symbol or string that starts the lookup
-        trigger: "",
-
-        // element to target for @mentions
-        iframe: null,
-
-        // class added in the flyout menu for active item
-        selectClass: "highlight",
-
-        // class added to the menu container
-        containerClass: "tribute-container",
-
-        // class added to each list item
-        itemClass: "",
-
-        // function called on select that returns the content to insert
-        selectTemplate: function (item) {
-          return item.original.value;
-        },
-
-        // template for displaying item in menu
-        menuItemTemplate: function (item) {
-          return item.string;
-        },
-
-        // template for when no match is found (optional),
-        // If no template is provided, menu is hidden.
-        noMatchTemplate: "",
-
-        // specify an alternative parent container for the menu
-        // container must be a positioned element for the menu to appear correctly ie. `position: relative;`
-        // default container is the body
-        menuContainer: document.body,
-
-        // column to search against in the object (accepts function or string)
-        lookup: "key",
-
-        // column that contains the content to insert by default
-        fillAttr: "value",
-
-        // REQUIRED: array of objects to match
-        values: tribueValuesFn,
-
-        // specify whether a space is required before the trigger string
-        requireLeadingSpace: false,
-        // specify whether a space is allowed in the middle of mentions
-        allowSpaces: false,
-        // optionally specify a custom suffix for the replace text
-        // (defaults to empty space if undefined)
-        replaceTextSuffix: "",
-        // specify whether the menu should be positioned.  Set to false and use in conjuction with menuContainer to create an inline menu
-        // (defaults to true)
-        positionMenu: true,
-        // when the spacebar is hit, select the current match
-        spaceSelectsMatch: this.autocomplete,
-        // turn tribute into an autocomplete
-        autocompleteMode: true,
-        autocompleteSeparator: this.autocompleteSeparator,
-        // Customize the elements used to wrap matched strings within the results list
-        // defaults to <span></span> if undefined
-        searchOpts: {
-          pre: "<span>",
-          post: "</span>",
-          skip: true, // true will skip local search, useful if doing server-side search
-        },
-        // specify the minimum number of characters that must be typed before menu appears
-        menuShowMinLength: this.minWordLengthToPredict,
-        keys: tribueKeyFn,
-        supportRevert: true,
-        selectByDigit: this.selectByDigit,
-      });
-      this.tributeArr[tribueId].tribute = tribute;
-      tribute.attach(elem);
-
-      // Add event listeners for the tribute-replaced and keydown events.
-      elem.tributeReplacedEventHandler = debounce(
-        this.tributeReplacedEventHandler.bind(this, tribueId),
-        16,
-        { leading: false, trailing: true },
-      );
-      elem.addEventListener(
-        "tribute-replaced",
-        elem.tributeReplacedEventHandler,
-      );
-
-      elem.elementKeyDownEventHandler = debounce(
-        this.elementKeyDownEventHandler.bind(this, tribueId),
-        32,
-      );
-      elem.addEventListener("keydown", elem.elementKeyDownEventHandler);
-    }
-
-    /**
-     * This method queries for elements that match the provided selector(s), and attaches a helper element to each element found, unless a helper element has already been attached to the element.
-     *
-     * @param {HTMLElement} elem - The element to query for matching elements within. If omitted, the entire document is searched.
-     */
-    queryAndAttachHelper(elem) {
-      // Check if the feature is enabled before executing.
-      if (!this.enabled) {
-        return;
-      }
-
-      let elems = [];
-
-      // If an element is provided, check if it matches the provided selector(s). If so, add it to the array of elements to attach a helper element to.
-      if (elem) {
-        if (elem.matches && elem.matches(this.SELECTORS)) {
-          elems = [elem];
-        } else if (elem.querySelectorAll) {
-          elems = elem.querySelectorAll(this.SELECTORS);
-        }
-      } else {
-        // If no element is provided, query for all elements that match the provided selector(s) within the entire document.
-        elems = document.querySelectorAll(this.SELECTORS);
-      }
-
-      // Loop through each element found.
-      for (let i = 0; i < elems.length; i++) {
-        let skip = false;
-        // Loop through each existing tribute element to check for overlaps.
-        for (const [key] of Object.entries(this.tributeArr)) {
-          // If the current element being checked is the same as the existing tribute element, skip to the next existing tribute element.
-          if (elems[i] === this.tributeArr[key].elem) continue;
-
-          // If the existing tribute element contains the current element being checked, detach the helper element from the existing tribute element.
-          if (elems[i].contains(this.tributeArr[key].elem)) {
-            this.detachHelper(key);
-          } else if (this.tributeArr[key].elem.contains(elems[i])) {
-            // If the current element being checked is contained within the existing tribute element, skip to the next current element.
-            skip = true;
-          }
-        }
-
-        // If the current element being checked should be skipped, skip to the next element.
-        if (skip) continue;
-
-        // If a helper element has already been attached to the current element being checked, skip to the next element.
-        if (this.isHelperAttached(elems[i])) continue;
-
-        // Attach a helper element to the current element being checked.
-        this.attachHelperToNode(elems[i]);
-      }
-    }
-
-    /**
-     * This method triggers the Tribute.js menu to appear for the Tribute element with the given helper array ID.
-     *
-     * @param {string} helperArrId - The ID of the Tribute element's helper array to trigger.
-     */
-    triggerTribute(helperArrId) {
-      // Show the Tribute.js menu for the Tribute element with the given helper array ID.
-      this.tributeArr[helperArrId].tribute.showMenuForCollection(
-        this.tributeArr[helperArrId].elem,
-      );
-    }
-
-    /**
-     * This method handles key down events for an element with the given helper array ID.
-     * If the event is a spacebar press with the control key held down, this method triggers the Tribute.js menu to appear for the Tribute element with the given helper array ID.
-     *
-     * @param {string} helperArrId - The ID of the Tribute element's helper array to handle key down events for.
-     * @param {KeyboardEvent} event - The key down event to handle.
-     */
-    elementKeyDownEventHandler(helperArrId) {
-      this.activeHelperArrId = helperArrId;
-      // If the event is a spacebar press with the control key held down, trigger the Tribute.js menu for the Tribute element with the given helper array ID.
-    }
-
-    /**
-     * This method handles Tribute.js "tribute-replaced" events for the Tribute element with the given helper array ID.
-     * If the Tribute element's triggerInputEvent flag is set to true, this method triggers the Tribute.js menu to appear for the Tribute element with the given helper array ID.
-     *
-     * @param {string} helperArrId - The ID of the Tribute element's helper array to handle "tribute-replaced" events for.
-     */
-    tributeReplacedEventHandler(helperArrId) {
-      // If the Tribute element's triggerInputEvent flag is set to true, trigger the Tribute.js menu for the Tribute element with the given helper array ID.
-      if (this.tributeArr[helperArrId].triggerInputEvent) {
-        this.tributeArr[helperArrId].triggerInputEvent = false;
-        this.triggerTribute(helperArrId);
-      }
-    }
-
-    /**
-     * This method updates the language configuration, autocomplete separator source, and triggers the Tribute.js menu to appear for the Tribute element with the given helper array ID.
-     *
-     * @param {string} lang - The language to use for the Tribute element.
-     * @param {string} tributeId - The ID of the Tribute element's helper array to update and trigger.
-     */
-    updateLangConfig(lang, tributeId) {
-      // Update the language configuration and autocomplete separator source.
-      this.autocompleteSeparator = LANG_SEPERATOR_CHARS_REGEX[lang];
-      this.lang = lang;
-
-      // Trigger the Tribute.js menu for the Tribute element with the given helper array ID.
-      this.triggerTribute(tributeId);
-    }
-
-    /**
      * Sets the configuration options for Tribute.
      * @param {object} config - The configuration options to set.
      */
@@ -598,18 +243,16 @@ import {
       this.autocompleteOnEnter = config.autocompleteOnEnter;
       // Set the autocompleteOnTab option
       this.autocompleteOnTab = config.autocompleteOnTab;
-      // Set the lang option
       this.lang = config.lang;
-      this.autocompleteSeparator = LANG_SEPERATOR_CHARS_REGEX[config.lang];
-      // Set the selectByDigit option
       this.selectByDigit = config.selectByDigit;
-      // Minimum characters typed by user to start prediction
       this.minWordLengthToPredict =
         config.minWordLengthToPredict === -1
           ? Number.MAX_VALUE
           : config.minWordLengthToPredict;
       this.revertOnBackspace = config.revertOnBackspace;
-      // Force restart to reload config
+      this.tributeManager = null;
+      // If enabled state is the same but other configs changed, and it is enabled, restart to apply.
+      // If enabled state changes, the setter for 'enabled' will handle it.
       if (this.enabled && config.enabled) {
         this.restart();
       } else {
@@ -621,8 +264,11 @@ import {
      * Enables Tribute by querying for and attaching helpers, and attaching a mutation observer.
      */
     enable() {
-      // Query and attach helpers to nodes
-      this.queryAndAttachHelper();
+      if (!this.tributeManager) {
+        this.initializeTributeManager();
+      }
+      // Query and attach helpers to nodes via TributeManager
+      if (this.tributeManager) this.tributeManager.queryAndAttachHelper();
       // Attach a mutation observer
       this.attachMutationObserver();
     }
@@ -633,8 +279,8 @@ import {
     disable() {
       // If there is an observer, disconnect it
       this.domObserver.disconnect();
-      // Detach all helpers
-      this.detachAllHelpers();
+      // Detach all helpers via TributeManager
+      if (this.tributeManager) this.tributeManager.detachAllHelpers();
     }
     /**
      * Restarts Tribute by disabling and then enabling it again.
@@ -644,7 +290,9 @@ import {
       // Disable Tribute
       this.disable();
       // Enable Tribute
-      setTimeout(this.enable.bind(this));
+      setTimeout(() => {
+        if (this._enabled) this.enable();
+      }, 0); // Ensure enable is called if still enabled
     }
 
     /**
@@ -663,44 +311,24 @@ import {
       if (!message) {
         return;
       }
-      console.log(message);
 
       // Handle message based on command
       switch (message.command) {
         case CMD_BACKGROUND_PAGE_PREDICT_RESP:
-          // We were waiting for a prediction
-          if (this.pendingReq) {
-            // Check if the message requestId matches the tributeArr requestId
-            if (
-              message.context.requestId ===
-              this.tributeArr[message.context.tributeId].requestId
-            ) {
-              // Convert the predictions array into an array of key-value pairs
-              const keyValPairs = message.context.predictions.map(
-                (prediction) => ({
-                  key: prediction,
-                  value: prediction,
-                }),
-              );
-
-              // If there are any key-value pairs, update the triggerInputEvent value in tributeArr
-              if (keyValPairs.length) {
-                this.tributeArr[message.context.tributeId].triggerInputEvent =
-                  message.context.triggerInputEvent;
-              }
-
-              // Send the key-value pairs to TributeJS for autocomplete
-              this.tributeArr[message.context.tributeId].done(
-                keyValPairs,
-                message.context.forceReplace,
-                "Lang: " + SUPPORTED_LANGUAGES[message.context.lang],
-              );
-
-              // Clear pending request
-              this.pendingReq = null;
-            } else {
-              // Message requestId does not match tributeArr requestId, ignore result and wait for next prediction
-            }
+          if (
+            this.pendingReq &&
+            this.tributeManager &&
+            message.context.tributeId !== undefined && // Ensure tributeId is present
+            this.pendingReq.context.tributeId === message.context.tributeId &&
+            this.pendingReq.context.requestId === message.context.requestId
+          ) {
+            this.tributeManager.fulfillPrediction(message.context);
+            this.pendingReq = null;
+          } else {
+            console.log(
+              "Prediction response ignored (mismatch or no pending request):",
+              message.context,
+            );
           }
           break;
         case CMD_BACKGROUND_PAGE_SET_CONFIG:
@@ -709,9 +337,20 @@ import {
           // Send a status message to the sender
           sendStatusMsg = true;
           break;
+        case CMD_CONTENT_SCRIPT_GET_CONFIG: // This case might be handled by the initial getConfig call's callback
+          this.setConfig(message.context);
+          // Send a status message to the sender
+          sendStatusMsg = true;
+          break;
         case CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG:
           // Update the language configuration in tributeArr
-          this.updateLangConfig(message.context.lang, this.activeHelperArrId);
+          this.lang = message.context.lang;
+          if (this.tributeManager && this.activeHelperArrId !== null) {
+            this.tributeManager.updateLangConfig(
+              this.lang,
+              this.activeHelperArrId,
+            );
+          }
           // Send a status message to the sender
           sendStatusMsg = true;
           break;
@@ -734,14 +373,15 @@ import {
           sendStatusMsg = true;
           break;
         case CMD_TRIGGER_FT_ACTIVE_TAB:
-          this.triggerTribute(this.activeHelperArrId);
+          if (this.tributeManager && this.activeHelperArrId !== null) {
+            this.tributeManager.triggerTribute(this.activeHelperArrId);
+          }
           // Send a status message to the sender
           sendStatusMsg = true;
           break;
         default:
           // Unknown message type, log it to the console
-          console.log("Unknown message:");
-          console.log(message);
+          console.log("Unknown message:", message);
           break;
       }
 
@@ -763,7 +403,10 @@ import {
       };
 
       // Send message and attach messageHandler function as callback
-      chrome.runtime.sendMessage(message, this.messageHandler.bind(this));
+      chrome.runtime.sendMessage(message, (response) => {
+        this.messageHandler(response); // Pass response to messageHandler
+        this.checkLastError();
+      });
     }
   }
 

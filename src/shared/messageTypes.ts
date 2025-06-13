@@ -30,7 +30,7 @@ export interface PredictResponseContext {
   tributeId: number;
   requestId: number;
   predictions: string[];
-  forceReplace: string | null;
+  forceReplace?: string;
 }
 
 // Context for CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG
