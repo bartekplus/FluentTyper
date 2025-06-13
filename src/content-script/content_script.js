@@ -56,6 +56,9 @@ import { LANG_SEPERATOR_CHARS_REGEX } from "../shared/lang.ts";
       this.getConfig();
       // Set up a watchdog timer for checking the plugin status periodically
       setInterval(this.watchDog.bind(this), WATCHDOG_INTERVAL_MS);
+      navigation.addEventListener("navigate", () => {
+        this.getConfig(); // Re-fetch config on navigation change
+      });
     }
 
     // Checks if the observerNode has changed and re-enables the plugin if necessary
@@ -333,11 +336,6 @@ import { LANG_SEPERATOR_CHARS_REGEX } from "../shared/lang.ts";
           break;
         case CMD_BACKGROUND_PAGE_SET_CONFIG:
           // Update config object with the context object
-          this.setConfig(message.context);
-          // Send a status message to the sender
-          sendStatusMsg = true;
-          break;
-        case CMD_CONTENT_SCRIPT_GET_CONFIG: // This case might be handled by the initial getConfig call's callback
           this.setConfig(message.context);
           // Send a status message to the sender
           sendStatusMsg = true;
