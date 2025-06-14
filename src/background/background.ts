@@ -14,8 +14,7 @@ import { getDomain, isEnabledForDomain, checkLastError } from "../shared/utils";
 import { SUPPORTED_LANGUAGES } from "../shared/lang";
 import { SettingsManager } from "../shared/settingsManager";
 import { LanguageDetector } from "./LanguageDetector";
-import { PresageConfig } from "./PresageHandler";
-import { PredictionManager } from "./PredictionManager";
+import { PresageHandler, PresageConfig } from "./PresageHandler";
 import { TabMessenger } from "./TabMessenger";
 import { migrateToLocalStore } from "./Migration";
 import {
@@ -35,7 +34,7 @@ class BackgroundServiceWorker {
   static instance: BackgroundServiceWorker;
   settingsManager!: SettingsManager;
   languageDetector!: LanguageDetector;
-  predictionManager!: PredictionManager;
+  presageHandler!: PresageHandler;
   tabMessenger!: TabMessenger;
   language!: string;
 
@@ -45,19 +44,19 @@ class BackgroundServiceWorker {
     }
     this.settingsManager = new SettingsManager();
     this.languageDetector = new LanguageDetector(this.settingsManager);
-    this.predictionManager = new PredictionManager();
+    this.presageHandler = new PresageHandler();
     this.tabMessenger = new TabMessenger();
     this.language = "auto_detect";
     BackgroundServiceWorker.instance = this;
   }
 
   async runPrediction(message: PredictRequestMessage) {
-    await this.predictionManager.initialize();
-    const { predictions, forceReplace } = this.predictionManager.runPrediction(
-      message.context.text!,
-      message.context.nextChar!,
-      message.context.lang!,
-    );
+    const { predictions, forceReplace } =
+      await this.presageHandler.runPrediction(
+        message.context.text!,
+        message.context.nextChar!,
+        message.context.lang!,
+      );
     const predictResponseMessage: PredictResponseMessage = {
       command: CMD_BACKGROUND_PAGE_PREDICT_RESP,
       context: {
@@ -125,7 +124,7 @@ class BackgroundServiceWorker {
   }
 
   async updatePresageConfig() {
-    await this.predictionManager.initialize();
+    await this.presageHandler.initialize();
     this.language = (await this.settingsManager.get("language")) as string;
     const config: PresageConfig = {
       numSuggestions: (await this.settingsManager.get(
@@ -155,7 +154,7 @@ class BackgroundServiceWorker {
         "userDictionaryList",
       )) as string[],
     };
-    this.predictionManager.setConfig(config);
+    this.presageHandler.setConfig(config);
     this.tabMessenger.sendToAllTabs(
       await this.getBackgroundPageSetConfigMsg(),
       this.settingsManager,
@@ -352,7 +351,7 @@ chrome.storage.local.get("lastVersion", async (result) => {
   try {
     await migrateToLocalStore(result.lastVersion);
     const backgroundServiceWorker = new BackgroundServiceWorker();
-    await backgroundServiceWorker.predictionManager.initialize();
+    await backgroundServiceWorker.presageHandler.initialize();
   } catch (error) {
     console.log(error);
   }

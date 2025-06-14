@@ -12,6 +12,7 @@ import { PresageModule } from "./PresageTypes";
 import { UserDictionaryManager } from "./UserDictionaryManager";
 import { TextExpansionManager } from "./TextExpansionManager";
 import { PresageEngine, PresageEngineConfig } from "./PresageEngine";
+import libPresageMod from "../third_party/libpresage/libpresage.js";
 
 const SUGGESTION_COUNT = 5;
 const MIN_WORD_LENGTH_TO_PREDICT = 1;
@@ -51,16 +52,15 @@ export class PresageHandler {
   private userDictionaryList: string[];
   private spacingHandler: SpacingRulesHandler;
   private predictionInputProcessor: PredictionInputProcessor;
-  private textExpansionManager: TextExpansionManager;
-  private userDictionaryManager: UserDictionaryManager;
+  private textExpansionManager!: TextExpansionManager;
+  private userDictionaryManager!: UserDictionaryManager;
   private variableExpansion?: boolean;
   private timeFormat?: string;
   private dateFormat?: string;
+  private libPresageMod: () => Promise<PresageModule>;
+  private initializationPromise: Promise<void> | null = null;
 
-  constructor(Module: PresageModule) {
-    const engineConfig: PresageEngineConfig = {
-      numSuggestions: SUGGESTION_COUNT,
-    };
+  constructor() {
     this.presageEngines = {};
     this.lastPrediction = {};
     this.numSuggestions = SUGGESTION_COUNT;
@@ -77,6 +77,22 @@ export class PresageHandler {
       this.minWordLengthToPredict,
       this.autoCapitalize,
     );
+    this.libPresageMod = libPresageMod as () => Promise<PresageModule>;
+    this.initialize();
+  }
+
+  async initialize(): Promise<void> {
+    if (!this.initializationPromise) {
+      this.initializationPromise = this._doInitializePresage();
+    }
+    return this.initializationPromise;
+  }
+
+  private async _doInitializePresage(): Promise<void> {
+    const Module = await this.libPresageMod();
+    const engineConfig: PresageEngineConfig = {
+      numSuggestions: this.numSuggestions,
+    };
     for (const [lang] of Object.entries(SUPPORTED_LANGUAGES)) {
       if (lang === "auto_detect") continue;
       try {
@@ -199,11 +215,12 @@ export class PresageHandler {
     return expandedPredictions;
   }
 
-  runPrediction(
+  async runPrediction(
     text: string,
     nextChar: string,
     lang: string,
-  ): PredictionResult {
+  ): Promise<PredictionResult> {
+    await this._doInitializePresage();
     let predictions: string[] = [];
     let forceReplace: string | undefined = undefined;
     const { predictionInput, doPrediction, doCapitalize } = this.processInput(
