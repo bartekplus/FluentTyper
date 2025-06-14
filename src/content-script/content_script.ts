@@ -14,7 +14,6 @@ import {
 } from "../shared/constants";
 import { LANG_SEPERATOR_CHARS_REGEX } from "../shared/lang";
 import { checkLastError } from "../shared/utils";
-
 import { Message , ContentScriptPredictRequestContext, ContentScriptPredictRequestMessage, PopupPageStatusMessage, ContentScriptGetConfigMessage, SetConfigContext} from "../shared/messageTypes";
 
 /**
@@ -29,7 +28,7 @@ declare global {
 /**
  * FluentTyper class for creating a fluent typing experience with autocomplete functionality.
  */
-export class FluentTyper {
+class FluentTyper {
   private readonly SELECTORS: string = "textarea, input, [contentEditable]";
   public tributeManager: TributeManager | null = null;
   private pendingReq: ContentScriptPredictRequestMessage | null = null;
@@ -37,7 +36,7 @@ export class FluentTyper {
   public autocomplete: boolean = false;
   public autocompleteOnEnter: boolean = true;
   public autocompleteOnTab: boolean = true;
-  public lang: string = "";
+  public lang: string = "en_US";
   public domObserver: DomObserver;
   public activeHelperArrId: string | null = null;
   public minWordLengthToPredict: number = 0;
