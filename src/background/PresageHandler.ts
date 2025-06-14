@@ -157,15 +157,6 @@ export class PresageHandler {
     };
   }
 
-  checkDoPrediction(lastWord: string, endsWithSpace: boolean): boolean {
-    return this.predictionInputProcessor.checkDoPrediction(
-      lastWord,
-      endsWithSpace,
-      this.numSuggestions,
-      this.predictNextWordAfterSeparatorChar,
-    );
-  }
-
   processInput(
     predictionInput: string,
     language: string,

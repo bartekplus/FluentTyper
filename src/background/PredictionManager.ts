@@ -29,11 +29,12 @@ export class PredictionManager {
     this.presageHandler = new PresageHandler(Module);
   }
 
-  runPrediction(
+  async runPrediction(
     text: string,
     nextChar: string,
     lang: string,
-  ): PredictionResult {
+  ): Promise<PredictionResult> {
+    await this.initialize();
     if (!this.presageHandler) throw new Error("Presage not initialized");
     return this.presageHandler.runPrediction(text, nextChar, lang);
   }

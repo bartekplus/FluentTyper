@@ -289,7 +289,7 @@ class FluentTyper {
           this.tributeManager.fulfillPrediction(message.context);
           this.pendingReq = null;
         } else {
-          console.log(
+          console.debug(
             "Prediction response ignored (mismatch or no pending request):",
             message.context,
           );

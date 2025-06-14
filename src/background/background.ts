@@ -52,12 +52,18 @@ class BackgroundServiceWorker {
   }
 
   async runPrediction(message: PredictRequestMessage) {
-    await this.predictionManager.initialize();
-    const { predictions, forceReplace } = this.predictionManager.runPrediction(
-      message.context.text!,
-      message.context.nextChar!,
-      message.context.lang!,
-    );
+    const { predictions, forceReplace } =
+      await this.predictionManager.runPrediction(
+        message.context.text!,
+        message.context.nextChar!,
+        message.context.lang!,
+      );
+    if (
+      (!Array.isArray(predictions) || predictions.length === 0) &&
+      !forceReplace
+    ) {
+      return;
+    }
     const predictResponseMessage: PredictResponseMessage = {
       command: CMD_BACKGROUND_PAGE_PREDICT_RESP,
       context: {
