@@ -21,6 +21,7 @@ import {
   KEY_TEXT_EXPANSIONS,
   KEY_USER_DICTIONARY_LIST,
   KEY_DOMAIN_LIST_MODE,
+  KEY_DISPLAY_LANG_HEADER,
 } from "../../shared/constants.ts";
 
 const donateHTML =
@@ -169,6 +170,15 @@ const manifest = {
       label:
         "Enable this option to use the undo feature for your last edit. When disabled, the backspace key will function normally, deleting only the last character.",
       default: true,
+    },
+    {
+      tab: i18n.get("settings"),
+      group: i18n.get("General"),
+      name: KEY_DISPLAY_LANG_HEADER,
+      type: "checkbox",
+      label:
+        "Enable this option to display the language header in the prediction list. This is particularly useful when using multiple languages, as it helps you quickly identify the language of each suggestion.",
+      default: false,
     },
     {
       tab: i18n.get("settings"),

@@ -40,15 +40,19 @@ class FluentTyper {
   public tributeManager: TributeManager | null = null;
   private pendingReq: ContentScriptPredictRequestMessage | null = null;
   private _enabled: boolean = false;
-  public autocomplete: boolean = false;
-  public autocompleteOnEnter: boolean = true;
-  public autocompleteOnTab: boolean = true;
-  public lang: string = "en_US";
+  public config: SetConfigContext = {
+    enabled: false,
+    autocomplete: false,
+    autocompleteOnEnter: true,
+    autocompleteOnTab: true,
+    lang: "en_US",
+    selectByDigit: false,
+    minWordLengthToPredict: 0,
+    revertOnBackspace: true,
+    displayLangHeader: true,
+  };
   public domObserver: DomObserver;
   public activeHelperArrId: string | null = null;
-  public minWordLengthToPredict: number = 0;
-  public revertOnBackspace: boolean = true;
-  public selectByDigit: boolean = false;
   private hostName: string = window.location.hostname;
 
   constructor() {
@@ -119,7 +123,7 @@ class FluentTyper {
         nextChar: context.nextChar,
         tributeId: context.tributeId,
         requestId: context.requestId,
-        lang: this.lang,
+        lang: this.config.lang,
       },
     };
     this.pendingReq = message;
@@ -139,20 +143,21 @@ class FluentTyper {
   initializeTributeManager(): void {
     this.tributeManager = new TributeManager({
       selectors: this.SELECTORS,
-      minWordLengthToPredict: this.minWordLengthToPredict,
-      autocomplete: this.autocomplete,
-      autocompleteOnEnter: this.autocompleteOnEnter,
-      autocompleteOnTab: this.autocompleteOnTab,
-      lang: this.lang,
-      selectByDigit: this.selectByDigit,
-      revertOnBackspace: this.revertOnBackspace,
+      minWordLengthToPredict: this.config.minWordLengthToPredict,
+      autocomplete: this.config.autocomplete,
+      autocompleteOnEnter: this.config.autocompleteOnEnter,
+      autocompleteOnTab: this.config.autocompleteOnTab,
+      lang: this.config.lang,
+      selectByDigit: this.config.selectByDigit,
+      revertOnBackspace: this.config.revertOnBackspace,
+      displayLangHeader: this.config.displayLangHeader,
       getPrediction: this.handleGetPrediction.bind(this),
       onTrigger: this.handleTributeTrigger.bind(this),
     });
     // Set autocompleteSeparator property after construction
     if (this.tributeManager) {
       this.tributeManager.autocompleteSeparator =
-        LANG_SEPERATOR_CHARS_REGEX[this.lang] || /\s+/;
+        LANG_SEPERATOR_CHARS_REGEX[this.config.lang] || /\s+/;
     }
   }
 
@@ -219,16 +224,7 @@ class FluentTyper {
    * Sets the configuration options for Tribute.
    */
   setConfig(config: SetConfigContext): void {
-    this.autocomplete = config.autocomplete;
-    this.autocompleteOnEnter = config.autocompleteOnEnter;
-    this.autocompleteOnTab = config.autocompleteOnTab;
-    this.lang = config.lang;
-    this.selectByDigit = config.selectByDigit;
-    this.minWordLengthToPredict =
-      config.minWordLengthToPredict === -1
-        ? Number.MAX_VALUE
-        : config.minWordLengthToPredict;
-    this.revertOnBackspace = config.revertOnBackspace;
+    this.config = config;
     this.tributeManager = null;
     if (this.enabled && config.enabled) {
       this.restart();
@@ -300,10 +296,10 @@ class FluentTyper {
         sendStatusMsg = true;
         break;
       case CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG:
-        this.lang = message.context.lang;
+        this.config.lang = message.context.lang;
         if (this.tributeManager && this.activeHelperArrId !== null) {
           this.tributeManager.updateLangConfig(
-            this.lang,
+            this.config.lang,
             this.activeHelperArrId,
           );
         }

@@ -34,6 +34,7 @@ export class TributeManager {
     lang,
     selectByDigit,
     revertOnBackspace,
+    displayLangHeader,
     // Callbacks to FluentTyper
     getPrediction,
     onTrigger,
@@ -46,6 +47,7 @@ export class TributeManager {
     lang: string;
     selectByDigit: boolean;
     revertOnBackspace: boolean;
+    displayLangHeader: boolean;
     // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
     getPrediction?: Function;
     // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
@@ -63,6 +65,7 @@ export class TributeManager {
     this._autocompleteSeparator = LANG_SEPERATOR_CHARS_REGEX[lang];
     this.selectByDigit = selectByDigit;
     this.revertOnBackspace = revertOnBackspace;
+    this.displayLangHeader = displayLangHeader;
     this.getPrediction = getPrediction; // callback to main class
     this.onTrigger = onTrigger; // callback to main class
   }
@@ -76,6 +79,7 @@ export class TributeManager {
   private _autocompleteSeparator: RegExp;
   public selectByDigit: boolean;
   public revertOnBackspace: boolean;
+  public displayLangHeader: boolean;
 
   set autocompleteSeparator(val) {
     this._autocompleteSeparator = val;
@@ -219,9 +223,10 @@ export class TributeManager {
         value: prediction,
       }));
 
-      const header: string | undefined = context.lang
-        ? `Lang: ${SUPPORTED_LANGUAGES[context.lang]}`
-        : undefined;
+      const header: string | undefined =
+        this.displayLangHeader && context.lang
+          ? `Lang: ${SUPPORTED_LANGUAGES[context.lang]}`
+          : undefined;
       tributeEntry.done(keyValPairs, context.forceReplace, header);
     }
   }

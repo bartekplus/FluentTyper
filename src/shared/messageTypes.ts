@@ -8,6 +8,7 @@ export interface SetConfigContext {
   minWordLengthToPredict: number;
   revertOnBackspace: boolean;
   enabled: boolean;
+  displayLangHeader: boolean;
 }
 
 // Context for CMD_BACKGROUND_PAGE_PREDICT_REQ

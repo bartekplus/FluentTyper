@@ -21,7 +21,8 @@ import {
   KEY_REVERT_ON_BACKSPACE,
   KEY_TEXT_EXPANSIONS,
   KEY_USER_DICTIONARY_LIST,
-  KEY_DOMAIN_LIST_MODE
+  KEY_DOMAIN_LIST_MODE,
+  KEY_DISPLAY_LANG_HEADER
 } from "../../shared/constants.ts";
 
 function optionsPageConfigChange() {
@@ -216,6 +217,7 @@ window.addEventListener("DOMContentLoaded", function () {
         KEY_REVERT_ON_BACKSPACE,
         KEY_TEXT_EXPANSIONS,
         KEY_USER_DICTIONARY_LIST,
+        KEY_DISPLAY_LANG_HEADER
       ].forEach((element) => {
         settings.manifest[element].addEvent("action", function () {
           optionsPageConfigChange();

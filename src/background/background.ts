@@ -9,6 +9,13 @@ import {
   CMD_CONTENT_SCRIPT_PREDICT_REQ,
   CMD_OPTIONS_PAGE_CONFIG_CHANGE,
   CMD_CONTENT_SCRIPT_GET_CONFIG,
+  KEY_DISPLAY_LANG_HEADER,
+  KEY_REVERT_ON_BACKSPACE,
+  KEY_MIN_WORD_LENGTH_TO_PREDICT,
+  KEY_SELECT_BY_DIGIT,
+  KEY_AUTOCOMPLETE_ON_TAB,
+  KEY_AUTOCOMPLETE_ON_ENTER,
+  KEY_AUTOCOMPLETE,
 } from "../shared/constants";
 import { getDomain, isEnabledForDomain, checkLastError } from "../shared/utils";
 import { SUPPORTED_LANGUAGES } from "../shared/lang";
@@ -107,23 +114,26 @@ class BackgroundServiceWorker {
       context: {
         enabled: (await this.settingsManager.get("enabled")) as boolean,
         autocomplete: (await this.settingsManager.get(
-          "autocomplete",
+          KEY_AUTOCOMPLETE,
         )) as boolean,
         autocompleteOnEnter: (await this.settingsManager.get(
-          "autocompleteOnEnter",
+          KEY_AUTOCOMPLETE_ON_ENTER,
         )) as boolean,
         autocompleteOnTab: (await this.settingsManager.get(
-          "autocompleteOnTab",
+          KEY_AUTOCOMPLETE_ON_TAB,
         )) as boolean,
         selectByDigit: (await this.settingsManager.get(
-          "selectByDigit",
+          KEY_SELECT_BY_DIGIT,
         )) as boolean,
         lang: this.language,
         minWordLengthToPredict: (await this.settingsManager.get(
-          "minWordLengthToPredict",
+          KEY_MIN_WORD_LENGTH_TO_PREDICT,
         )) as number,
         revertOnBackspace: (await this.settingsManager.get(
-          "revertOnBackspace",
+          KEY_REVERT_ON_BACKSPACE,
+        )) as boolean,
+        displayLangHeader: (await this.settingsManager.get(
+          KEY_DISPLAY_LANG_HEADER,
         )) as boolean,
       },
     };

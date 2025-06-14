@@ -38,6 +38,7 @@ export const KEY_USER_DICTIONARY_LIST = "userDictionaryList";
 export const KEY_LANGUAGE = "language";
 export const KEY_FALLBACK_LANGUAGE = "fallbackLanguage";
 export const KEY_DOMAIN_LIST_MODE = "domainListMode";
+export const KEY_DISPLAY_LANG_HEADER = "displayLangHeader";
 
 // Popup Commands
 export const CMD_POPUP_PAGE_ENABLE = "CMD_POPUP_PAGE_ENABLE";
