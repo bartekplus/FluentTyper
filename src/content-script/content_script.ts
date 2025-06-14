@@ -10,11 +10,18 @@ import {
   CMD_TRIGGER_FT_ACTIVE_TAB,
   CMD_POPUP_PAGE_ENABLE,
   CMD_POPUP_PAGE_DISABLE,
-  CMD_STATUS_COMMAND
+  CMD_STATUS_COMMAND,
 } from "../shared/constants";
 import { LANG_SEPERATOR_CHARS_REGEX } from "../shared/lang";
 import { checkLastError } from "../shared/utils";
-import { Message , ContentScriptPredictRequestContext, ContentScriptPredictRequestMessage, PopupPageStatusMessage, ContentScriptGetConfigMessage, SetConfigContext} from "../shared/messageTypes";
+import {
+  Message,
+  ContentScriptPredictRequestContext,
+  ContentScriptPredictRequestMessage,
+  PopupPageStatusMessage,
+  ContentScriptGetConfigMessage,
+  SetConfigContext,
+} from "../shared/messageTypes";
 
 /**
  * Extend the Window interface to include FluentTyper.
@@ -52,7 +59,7 @@ class FluentTyper {
     chrome.runtime.onMessage.addListener(this.messageHandler.bind(this));
     this.getConfig();
     setInterval(this.watchDog.bind(this), 1000);
-    (window as any).navigation?.addEventListener?.("navigate", () => {
+    window.navigation.addEventListener("navigate", () => {
       if (this.hostName !== window.location.hostname) {
         // Re-fetch config if the host name has changed
         this.hostName = window.location.hostname;

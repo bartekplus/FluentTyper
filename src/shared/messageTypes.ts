@@ -90,9 +90,9 @@ export type Message =
       command: "CMD_CONTENT_SCRIPT_GET_CONFIG";
       context: ContentScriptGetConfigContext;
     }
-    | { command: "CMD_POPUP_PAGE_ENABLE"; context: PopupPageEnableContext }
-    | { command: "CMD_POPUP_PAGE_DISABLE"; context: PopupPageDisableContext }
-    | { command: "CMD_STATUS_COMMAND"; context: PopupPageStatusContext };
+  | { command: "CMD_POPUP_PAGE_ENABLE"; context: PopupPageEnableContext }
+  | { command: "CMD_POPUP_PAGE_DISABLE"; context: PopupPageDisableContext }
+  | { command: "CMD_STATUS_COMMAND"; context: PopupPageStatusContext };
 export type ConfigMessage = Extract<
   Message,
   { command: "CMD_BACKGROUND_PAGE_SET_CONFIG" }
@@ -139,4 +139,5 @@ export type PopupPageDisableMessage = Extract<
 >;
 export type PopupPageStatusMessage = Extract<
   Message,
-  { command: "CMD_STATUS_COMMAND" }>;
+  { command: "CMD_STATUS_COMMAND" }
+>;

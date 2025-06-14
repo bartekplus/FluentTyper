@@ -10,7 +10,11 @@ import {
   CMD_POPUP_PAGE_DISABLE,
   CMD_OPTIONS_PAGE_CONFIG_CHANGE,
 } from "../shared/constants";
-import { OptionsPageConfigChangeMessage ,PopupPageEnableMessage, PopupPageDisableMessage } from "../shared/messageTypes";
+import {
+  OptionsPageConfigChangeMessage,
+  PopupPageEnableMessage,
+  PopupPageDisableMessage,
+} from "../shared/messageTypes";
 
 const settings = new SettingsManager();
 

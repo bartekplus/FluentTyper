@@ -30,6 +30,7 @@
   "devDependencies": {
     "@eslint/js": "^9.29.0",
     "@types/chrome": "0.0.326",
+    "@types/dom-navigation": "^1.0.5",
     "@types/jest": "29.5.14",
     "@types/luxon": "^3.6.2",
     "copy-webpack-plugin": "^13.0.0",

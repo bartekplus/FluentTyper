@@ -374,9 +374,9 @@ export class TributeManager {
 
   tributeReplacedEventHandler(helperArrId: string) {
     console.log(
-      `tribute-replaced event triggered for helperArrId: ${helperArrId}`,)
-    if (
-      this.tributeArr[helperArrId]) {
+      `tribute-replaced event triggered for helperArrId: ${helperArrId}`,
+    );
+    if (this.tributeArr[helperArrId]) {
       this.triggerTribute(helperArrId);
     }
   }
