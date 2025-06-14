@@ -39,4 +39,8 @@ export class DomObserver {
       this.attach();
     }
   }
+
+  getNode() {
+    return this.node;
+  }
 }

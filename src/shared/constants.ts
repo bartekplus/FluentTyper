@@ -40,6 +40,6 @@ export const KEY_FALLBACK_LANGUAGE = "fallbackLanguage";
 export const KEY_DOMAIN_LIST_MODE = "domainListMode";
 
 // Popup Commands
-export const POPUP_PAGE_ENABLE = "popupPageEnable";
-export const POPUP_PAGE_DISABLE = "popupPageDisable";
-export const STATUS_COMMAND = "status";
+export const CMD_POPUP_PAGE_ENABLE = "CMD_POPUP_PAGE_ENABLE";
+export const CMD_POPUP_PAGE_DISABLE = "CMD_POPUP_PAGE_DISABLE";
+export const CMD_STATUS_COMMAND = "CMD_STATUS_COMMAND";

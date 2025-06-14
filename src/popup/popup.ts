@@ -6,11 +6,11 @@ import {
 import { SettingsManager } from "../shared/settingsManager";
 import { SUPPORTED_LANGUAGES } from "../shared/lang";
 import {
-  POPUP_PAGE_ENABLE,
-  POPUP_PAGE_DISABLE,
+  CMD_POPUP_PAGE_ENABLE,
+  CMD_POPUP_PAGE_DISABLE,
   CMD_OPTIONS_PAGE_CONFIG_CHANGE,
 } from "../shared/constants";
-import { OptionsPageConfigChangeMessage } from "../shared/messageTypes";
+import { OptionsPageConfigChangeMessage ,PopupPageEnableMessage, PopupPageDisableMessage } from "../shared/messageTypes";
 
 const settings = new SettingsManager();
 
@@ -74,11 +74,18 @@ async function addRemoveDomain(tabId: number, domainURL: string) {
   const checkboxNode = document.getElementById(
     "checkboxDomainInput",
   ) as HTMLInputElement;
-  // Use a plain object for popupPageEnable/Disable, not the Message union
-  const message = {
-    command: checkboxNode.checked ? POPUP_PAGE_ENABLE : POPUP_PAGE_DISABLE,
-    context: {},
-  };
+  let message: PopupPageEnableMessage | PopupPageDisableMessage;
+  if (checkboxNode.checked) {
+    message = {
+      command: CMD_POPUP_PAGE_ENABLE,
+      context: {},
+    };
+  } else {
+    message = {
+      command: CMD_POPUP_PAGE_DISABLE,
+      context: {},
+    };
+  }
   urlNode.innerHTML = `<span>Enable autocomplete on: ${domainURL}`;
   await blockUnBlockDomain(settings, domainURL, !checkboxNode.checked);
   chrome.tabs.sendMessage(tabId, message);
@@ -101,11 +108,18 @@ async function toggleOnOff() {
   await settings.set("enable", newMode);
   chrome.tabs.query({}, function (tabs) {
     for (let i = 0; i < tabs.length; i++) {
-      // Use a plain object for popupPageEnable/Disable, not the Message union
-      const message = {
-        command: newMode ? POPUP_PAGE_ENABLE : POPUP_PAGE_DISABLE,
-        context: {},
-      };
+      let message: PopupPageEnableMessage | PopupPageDisableMessage;
+      if (newMode) {
+        message = {
+          command: CMD_POPUP_PAGE_ENABLE,
+          context: {},
+        };
+      } else {
+        message = {
+          command: CMD_POPUP_PAGE_DISABLE,
+          context: {},
+        };
+      }
       chrome.tabs.sendMessage(tabs[i].id!, message);
     }
   });

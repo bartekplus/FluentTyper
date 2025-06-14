@@ -53,6 +53,14 @@ export interface OptionsPageConfigChangeContext {}
 // Context for CMD_CONTENT_SCRIPT_GET_CONFIG
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface ContentScriptGetConfigContext {}
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface PopupPageEnableContext {}
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface PopupPageDisableContext {}
+export interface PopupPageStatusContext {
+  enabled: boolean;
+}
+
 // Discriminated union for Message
 export type Message =
   | { command: "CMD_BACKGROUND_PAGE_SET_CONFIG"; context: SetConfigContext }
@@ -81,7 +89,10 @@ export type Message =
   | {
       command: "CMD_CONTENT_SCRIPT_GET_CONFIG";
       context: ContentScriptGetConfigContext;
-    };
+    }
+    | { command: "CMD_POPUP_PAGE_ENABLE"; context: PopupPageEnableContext }
+    | { command: "CMD_POPUP_PAGE_DISABLE"; context: PopupPageDisableContext }
+    | { command: "CMD_STATUS_COMMAND"; context: PopupPageStatusContext };
 export type ConfigMessage = Extract<
   Message,
   { command: "CMD_BACKGROUND_PAGE_SET_CONFIG" }
@@ -118,3 +129,14 @@ export type ContentScriptGetConfigMessage = Extract<
   Message,
   { command: "CMD_CONTENT_SCRIPT_GET_CONFIG" }
 >;
+export type PopupPageEnableMessage = Extract<
+  Message,
+  { command: "CMD_POPUP_PAGE_ENABLE" }
+>;
+export type PopupPageDisableMessage = Extract<
+  Message,
+  { command: "CMD_POPUP_PAGE_DISABLE" }
+>;
+export type PopupPageStatusMessage = Extract<
+  Message,
+  { command: "CMD_STATUS_COMMAND" }>;

@@ -4,13 +4,13 @@ import {
   SUPPORTED_LANGUAGES,
 } from "../shared/lang";
 import { debounce } from "../shared/utils"; // Assuming debounce is available here
+import { PredictResponseContext } from "../shared/messageTypes";
 
 interface TributeEntry {
   tribute: Tribute;
   elem: Element;
   done?: (results: any[], forceReplace?: string, menuHeader?: string) => void;
   requestId?: number;
-  triggerInputEvent?: boolean;
   // Store handler references for proper removal
   tributeReplacedHandlerRef?: EventListenerOrEventListenerObject;
   elementKeyDownHandlerRef?: EventListenerOrEventListenerObject;
@@ -116,7 +116,6 @@ export class TributeManager {
     this.tributeArr[tributeId] = {
       elem: elem,
       requestId: 0,
-      triggerInputEvent: false,
     } as TributeEntry; // Cast to allow tribute to be added next
 
     const tribueKeyFn = this.keys.bind(this);
@@ -208,14 +207,7 @@ export class TributeManager {
     elem.addEventListener("keydown", boundElementKeyDownHandler);
   }
 
-  public fulfillPrediction(context: {
-    tributeId: number;
-    requestId: number;
-    predictions: string[];
-    triggerInputEvent: boolean;
-    forceReplace?: string; // forceReplace is used to replace the current input text with the prediction
-    lang: string; // lang from prediction response, could be used for menu header
-  }) {
+  public fulfillPrediction(context: PredictResponseContext) {
     const tributeEntry = this.tributeArr[context.tributeId];
     if (
       tributeEntry &&
@@ -226,10 +218,6 @@ export class TributeManager {
         key: prediction,
         value: prediction,
       }));
-
-      if (keyValPairs.length) {
-        tributeEntry.triggerInputEvent = context.triggerInputEvent;
-      }
 
       const header: string | undefined = context.lang
         ? `Lang: ${SUPPORTED_LANGUAGES[context.lang]}`
@@ -372,7 +360,6 @@ export class TributeManager {
       }
       if (skip) continue;
       if (this.isHelperAttached(filteredElems[i])) continue;
-      console.debug("Attaching Tribute helper to element:", filteredElems[i]);
       this.attachHelperToNode(filteredElems[i]);
     }
   }
@@ -386,11 +373,10 @@ export class TributeManager {
   }
 
   tributeReplacedEventHandler(helperArrId: string) {
+    console.log(
+      `tribute-replaced event triggered for helperArrId: ${helperArrId}`,)
     if (
-      this.tributeArr[helperArrId] &&
-      this.tributeArr[helperArrId].triggerInputEvent
-    ) {
-      this.tributeArr[helperArrId].triggerInputEvent = false;
+      this.tributeArr[helperArrId]) {
       this.triggerTribute(helperArrId);
     }
   }
