@@ -1,6 +1,8 @@
 import path from "path";
 import CopyPlugin from "copy-webpack-plugin";
 import webpack from "webpack";
+
+const platform = process.env.PLATFORM || "firefox";
 const srcDir = path.join(
   path.dirname(new URL(import.meta.url).pathname),
   "..",
@@ -45,7 +47,19 @@ export default {
   },
   plugins: [
     new CopyPlugin({
-      patterns: [{ from: ".", to: "../build", context: "public" }],
+      patterns: [
+        { from: ".", to: "../build", context: "public" },
+        {
+          from: path.resolve(
+            path.dirname(new URL(import.meta.url).pathname),
+            `../platform/${platform}`
+          ),
+          to: path.resolve(
+            path.dirname(new URL(import.meta.url).pathname),
+            "../build"
+          ),
+        },
+      ],
       options: {},
     }),
     new webpack.ProvidePlugin({
