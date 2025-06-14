@@ -50,11 +50,16 @@ jobs:
           SOURCE_NAME: ${{ steps.branch_name.outputs.SOURCE_NAME }}
           SOURCE_BRANCH: ${{ steps.branch_name.outputs.SOURCE_BRANCH }}
           SOURCE_TAG: ${{ steps.branch_name.outputs.SOURCE_TAG }}
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
       - name: Prepare files
         run: |
-          mkdir -p ${{ matrix.browser }}
+          npm ci
+          PLATFORM=${{ matrix.browser }} npm run build
           rsync -a --exclude='LICENSE*' src/ ${{ matrix.browser }}/
-          cp -rdf platform/${{ matrix.browser }}/* ${{ matrix.browser }}
+          mv build ${{ matrix.browser }}
         env:
           SOURCE_TAG: ${{ steps.branch_name.outputs.SOURCE_TAG }}
       - name: Zip Release

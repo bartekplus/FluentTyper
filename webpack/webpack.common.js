@@ -1,6 +1,7 @@
 import path from "path";
 import CopyPlugin from "copy-webpack-plugin";
 import webpack from "webpack";
+import process from "process";
 
 const platform = process.env.PLATFORM || "firefox";
 const srcDir = path.join(
@@ -52,11 +53,11 @@ export default {
         {
           from: path.resolve(
             path.dirname(new URL(import.meta.url).pathname),
-            `../platform/${platform}`
+            `../platform/${platform}`,
           ),
           to: path.resolve(
             path.dirname(new URL(import.meta.url).pathname),
-            "../build"
+            "../build",
           ),
         },
       ],
