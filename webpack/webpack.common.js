@@ -21,6 +21,11 @@ export default {
       "fancier-settings",
       "settings.js",
     ),
+    "new_installation/swiper": path.join(
+      srcDir,
+      "new_installation",
+      "swiper.js",
+    ),
   },
   output: {
     path: path.join(

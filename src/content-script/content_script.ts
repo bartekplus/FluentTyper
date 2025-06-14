@@ -59,20 +59,28 @@ class FluentTyper {
     chrome.runtime.onMessage.addListener(this.messageHandler.bind(this));
     this.getConfig();
     setInterval(this.watchDog.bind(this), 1000);
-    window.navigation.addEventListener("navigate", () => {
-      if (this.hostName !== window.location.hostname) {
-        // Re-fetch config if the host name has changed
-        this.hostName = window.location.hostname;
-        this.getConfig(); // on navigation change
-      }
+    window.navigation?.addEventListener("navigate", () => {
+      this.checkHostName();
     });
   }
 
+  checkHostName(): boolean {
+    if (this.hostName !== window.location.hostname) {
+      // Re-fetch config if the host name has changed
+      this.hostName = window.location.hostname;
+      this.getConfig();
+      return true;
+    }
+    return false;
+  }
   /**
    * Checks if the node has changed and re-enables the plugin if necessary.
    */
   watchDog(): void {
     const currentNode = document.body || document.documentElement;
+    if (this.checkHostName()) {
+      return;
+    }
     if (this.domObserver.getNode() !== currentNode) {
       if (this.enabled) {
         this.restart();
