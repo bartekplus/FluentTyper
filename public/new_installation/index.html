@@ -1,129 +1,430 @@
 <!doctype html>
-<html>
+<html lang="en">
   <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <title>FluentTyper</title>
-    <link rel="stylesheet" type="text/css" href="style/style.css" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Welcome to FluentTyper!</title>
     <link
       rel="stylesheet"
       type="text/css"
-      href="/third_party/swiper/swiper-bundle.css"
+      href="/third_party/bulma/bulma.min.css"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
     />
     <link
       rel="stylesheet"
       type="text/css"
       href="/third_party/tribute/tribute.css"
     />
-    <script src="swiper.js"></script>
     <script src="/content_script.js"></script>
+    <style>
+      /* CSS Variables for Theming */
+      :root {
+        --background-color: #f8fafc;
+        --text-color: #363636;
+        --text-color-light: #5a5a5a;
+        --box-background-color: #ffffff;
+        --box-shadow-color: rgba(71, 85, 105, 0.1);
+        --accent-color: #4f46e5;
+        --feature-box-bg: #f8fafc;
+        --input-bg-color: #ffffff;
+        --input-border-color: #dbdbdb;
+        --footer-text-color: #7a7a7a;
+        --link-color: #363636;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --background-color: #1e293b; /* slate-800 */
+          --text-color: #e2e8f0; /* slate-200 */
+          --text-color-light: #94a3b8; /* slate-400 */
+          --box-background-color: #334155; /* slate-700 */
+          --box-shadow-color: rgba(0, 0, 0, 0.2);
+          --feature-box-bg: #475569; /* slate-600 */
+          --input-bg-color: #475569;
+          --input-border-color: #64748b; /* slate-500 */
+          --footer-text-color: #94a3b8; /* slate-400 */
+          --link-color: #cbd5e1; /* slate-300 */
+        }
+      }
+
+      /* General Styles */
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: var(--background-color);
+        color: var(--text-color);
+      }
+
+      .section {
+        padding: 3rem 1.5rem;
+      }
+
+      /* Bulma Overrides & Custom Components */
+      .title,
+      .subtitle {
+        color: var(--text-color);
+      }
+
+      .box {
+        background-color: var(--box-background-color);
+        color: var(--text-color);
+      }
+
+      .section-glow {
+        box-shadow: 0 0 40px -10px var(--box-shadow-color);
+        border-radius: 1rem;
+      }
+
+      .hero.is-primary-custom {
+        background-color: var(--accent-color);
+      }
+
+      .hero.is-primary-custom .title,
+      .hero.is-primary-custom .subtitle {
+        color: white;
+      }
+
+      .button.is-warning-custom {
+        background-color: #facc15; /* Yellow color */
+        color: #1e293b; /* Slate 900 */
+        font-weight: bold;
+        border: none;
+      }
+
+      .button.is-warning-custom:hover {
+        background-color: #fde047;
+      }
+
+      .feature-box {
+        background-color: var(--feature-box-bg);
+        padding: 1.5rem;
+        border-radius: 0.5rem;
+        height: 100%;
+      }
+
+      .quick-start-list li {
+        display: flex;
+        align-items: flex-start;
+        margin-bottom: 1rem;
+      }
+
+      .quick-start-list .number {
+        color: var(--accent-color);
+        font-weight: bold;
+        margin-right: 0.75rem;
+      }
+
+      .has-text-grey-dark {
+        color: var(--text-color-light) !important;
+      }
+
+      .textarea,
+      .input {
+        background-color: var(--input-bg-color);
+        border-color: var(--input-border-color);
+        color: var(--text-color);
+      }
+
+      .textarea::placeholder,
+      .input::placeholder {
+        color: var(--text-color-light);
+      }
+
+      .footer {
+        background: none;
+      }
+
+      .footer .content p {
+        color: var(--footer-text-color);
+      }
+
+      .footer .content a {
+        color: var(--link-color);
+      }
+    </style>
   </head>
   <body>
-    <div id="main">
-      <div id="header">
-        <div id="logo">
-          <img src="img/FluentTyperLogo.png" width="900" />
-        </div>
-      </div>
-      <div id="site_content">
-        <div class="swiper-container">
-          <div class="swiper-wrapper">
-            <div class="swiper-slide">
-              <div class="swiper-slide-left">
-                <h2>
-                  Thank you for installing FluentTyper. If you find FluentTyper
-                  useful, please consider making a donation to help support its
-                  development.
-                </h2>
+    <section class="section">
+      <div class="container" style="max-width: 896px">
+        <!-- Header Section -->
+        <header class="has-text-centered mb-6 pt-6">
+          <h1 class="title is-1 is-size-2-mobile has-text-weight-bold">
+            Welcome to FluentTyper!
+          </h1>
+          <p class="is-size-5 has-text-grey-dark">
+            Thank you for installing the extension that will supercharge your
+            writing.
+          </p>
+        </header>
+
+        <!-- Main Content -->
+        <main>
+          <!-- What is FluentTyper? Section -->
+          <section
+            id="intro"
+            class="mb-6 box section-glow"
+            style="padding: 2.5rem"
+          >
+            <h2 class="title is-2 has-text-centered mb-5">
+              Type Smarter, Not Harder
+            </h2>
+            <p
+              class="is-size-5 has-text-grey-dark has-text-centered"
+              style="max-width: 48rem; margin: 0 auto 2rem auto"
+            >
+              FluentTyper is your personal writing assistant. It saves you time,
+              reduces errors, and helps you communicate more effectively with
+              powerful features like word prediction, a spell checker, and
+              intelligent text snippets.
+            </p>
+
+            <!-- Key Features -->
+            <div class="columns is-desktop is-centered">
+              <div class="column">
+                <div class="feature-box has-text-centered">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    style="
+                      width: 3rem;
+                      height: 3rem;
+                      margin: 0 auto 0.75rem auto;
+                      color: var(--accent-color);
+                    "
+                  >
+                    <path
+                      d="m12 3-1.9 5.8a2 2 0 0 1-1.2 1.2L3 12l5.8 1.9a2 2 0 0 1 1.2 1.2L12 21l1.9-5.8a2 2 0 0 1 1.2-1.2L21 12l-5.8-1.9a2 2 0 0 1-1.2-1.2z"
+                    ></path>
+                  </svg>
+                  <h3 class="title is-5 has-text-weight-semibold">
+                    Autocomplete
+                  </h3>
+                  <p class="is-size-7">
+                    Predicts words as you type, just like your phone.
+                  </p>
+                </div>
               </div>
-              <div class="swiper-slide-right">
-                <p>
-                  FluentTyper is more than just a time-saver; it's a tool that
-                  improves your writing with features like spell checking,
-                  auto-complete suggestions, and text expansions. It's perfect
-                  for those who frequently type long email addresses, commonly
-                  used phrases, or anyone looking to streamline their daily
-                  typing tasks.
-                </p>
-                <p>
-                  Developing and maintaining FluentTyper requires a significant
-                  amount of work and effort. If you find FluentTyper useful, you
-                  may wish to consider supporting its development by making a
-                  voluntary donation. Your support will also enable future
-                  enhancements to the extension.
-                </p>
-                <a
-                  href="https://www.buymeacoffee.com/FluentTyper"
-                  target="_blank"
-                  ><img
-                    src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png"
-                    alt="Buy Me A Coffee"
-                    style="height: 60px !important; width: 217px !important"
-                /></a>
+              <div class="column">
+                <div class="feature-box has-text-centered">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    style="
+                      width: 3rem;
+                      height: 3rem;
+                      margin: 0 auto 0.75rem auto;
+                      color: var(--accent-color);
+                    "
+                  >
+                    <path
+                      d="M12 20.94c1.5 0 2.75 1.06 4 1.06 3 0 6-8 6-12.5A4.5 4.5 0 0 0 17.5 5c-.58 0-1.13.1-1.64.29a4.5 4.5 0 1 0-6.72 0A4.5 4.5 0 0 0 4.5 9.5c0 4.5 3 12.5 6 12.5s2.5-1.06 4-1.06Z"
+                    ></path>
+                    <path d="M12 2v2"></path>
+                  </svg>
+                  <h3 class="title is-5 has-text-weight-semibold">
+                    Text Expander
+                  </h3>
+                  <p class="is-size-7">
+                    Create shortcuts for long phrases and email addresses.
+                  </p>
+                </div>
+              </div>
+              <div class="column">
+                <div class="feature-box has-text-centered">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    style="
+                      width: 3rem;
+                      height: 3rem;
+                      margin: 0 auto 0.75rem auto;
+                      color: var(--accent-color);
+                    "
+                  >
+                    <path
+                      d="M21.2 13.2A6.5 6.5 0 0 0 12 5.5a6.5 6.5 0 0 0-9.2 7.7"
+                    ></path>
+                    <path d="m2 12 3 3 3-3"></path>
+                    <path
+                      d="M2.8 10.8A6.5 6.5 0 0 1 12 18.5a6.5 6.5 0 0 1 9.2-7.7"
+                    ></path>
+                    <path d="m22 12-3-3-3 3"></path>
+                  </svg>
+                  <h3 class="title is-5 has-text-weight-semibold">
+                    Privacy Focused
+                  </h3>
+                  <p class="is-size-7">
+                    Works 100% offline. Your data never leaves your computer.
+                  </p>
+                </div>
               </div>
             </div>
-            <div class="swiper-slide">
-              <div class="swiper-slide-left">
-                <h2>FluentTyper in action</h2>
-              </div>
-              <div class="swiper-slide-right">
-                <iframe
-                  width="720"
-                  height="405"
-                  src="https://www.youtube.com/embed/gYeTpX3kqIE"
-                  frameborder="0"
-                  allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
-                  allowfullscreen
-                ></iframe>
-              </div>
+          </section>
+
+          <!-- See it in Action Section -->
+          <section id="demo" class="mb-6">
+            <h2 class="title is-2 has-text-centered mb-5">See It in Action</h2>
+            <figure class="image is-16by9 section-glow">
+              <iframe
+                class="has-ratio"
+                src="https://www.youtube.com/embed/gYeTpX3kqIE"
+                frameborder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowfullscreen
+              ></iframe>
+            </figure>
+          </section>
+
+          <!-- Getting Started Section -->
+          <section id="getting-started" class="mb-6">
+            <h2 class="title is-2 has-text-centered mb-5">Quick Start Guide</h2>
+            <div
+              class="box section-glow"
+              style="padding: 2.5rem; max-width: 48rem; margin: 0 auto"
+            >
+              <ul class="quick-start-list">
+                <li>
+                  <span class="number">1.</span>
+                  <span
+                    >After installation, please
+                    <strong class="has-text-weight-semibold"
+                      >reload any open tabs</strong
+                    >
+                    for FluentTyper to activate.</span
+                  >
+                </li>
+                <li>
+                  <span class="number">2.</span>
+                  <span
+                    >Start typing in any text box, and a suggestion menu will
+                    appear.</span
+                  >
+                </li>
+                <li>
+                  <span class="number">3.</span>
+                  <span
+                    >Use
+                    <strong class="has-text-weight-semibold"
+                      >Arrow Keys (↑, ↓)</strong
+                    >
+                    to select a suggestion.</span
+                  >
+                </li>
+                <li>
+                  <span class="number">4.</span>
+                  <span
+                    >Press
+                    <strong class="has-text-weight-semibold">Enter</strong> or
+                    <strong class="has-text-weight-semibold">Tab</strong> to
+                    accept it.</span
+                  >
+                </li>
+                <li>
+                  <span class="number">5.</span>
+                  <span
+                    >Press
+                    <strong class="has-text-weight-semibold">Escape</strong> to
+                    hide the suggestions.</span
+                  >
+                </li>
+              </ul>
             </div>
-            <div class="swiper-slide">
-              <div class="swiper-slide-left">
-                <h2>Cheat sheet</h2>
-              </div>
-              <div class="swiper-slide-right">
-                <ul>
-                  <li>
-                    After installing the extension, you must reload all open web
-                    pages or restart your browser to begin using it
-                  </li>
-                  <li>
-                    As you type, FluentTyper will show a pop-up menu with a list
-                    of suggested words to complete your text
-                  </li>
-                  <li>
-                    You can use the arrow keys (↑, ↓) to navigate the list of
-                    suggested words
-                  </li>
-                  <li>Press Enter or Tab to confirm your selection</li>
-                  <li>
-                    To hide the list of suggested words, you can either press
-                    the Escape key or continue typing
-                  </li>
-                  <li>To undo autocorrection, press the Backspace key</li>
-                </ul>
-              </div>
+          </section>
+
+          <!-- Try Me Now Section -->
+          <section id="try" class="mb-6 has-text-centered">
+            <h2 class="title is-2 has-text-centered mb-5">Try It Live!</h2>
+            <div
+              class="box section-glow"
+              style="padding: 2.5rem; max-width: 48rem; margin: 0 auto"
+            >
+              <p class="has-text-grey-dark mb-4">
+                Click the text area below and start typing. Try typing "Helo" or
+                "I can't wiat".
+              </p>
+              <textarea
+                id="try-me-textarea"
+                rows="8"
+                class="textarea is-medium"
+                placeholder="Start typing here…"
+              ></textarea>
             </div>
-            <div class="swiper-slide">
-              <div class="swiper-slide-left">
-                <h1>Try me now</h1>
-              </div>
-              <div class="swiper-slide-right">
-                <textarea
-                  rows="12"
-                  cols="45"
-                  placeholder="Click here and start typing…"
-                ></textarea>
-              </div>
+          </section>
+
+          <!-- Donation Section -->
+          <section
+            id="support"
+            class="hero is-primary-custom section-glow has-text-centered"
+          >
+            <div class="hero-body">
+              <p class="title is-2">Enjoying FluentTyper?</p>
+              <p
+                class="subtitle is-5"
+                style="max-width: 48rem; margin: 0 auto 2rem auto"
+              >
+                FluentTyper is a one-person project, built with a passion for
+                making technology more efficient. Your support helps cover
+                maintenance costs, fuels development of new features, and keeps
+                the extension completely free and ad-free for everyone.
+              </p>
+              <a
+                href="https://www.buymeacoffee.com/FluentTyper"
+                target="_blank"
+                class="button is-warning-custom is-large"
+              >
+                Support Development with a Coffee
+              </a>
+              <p class="mt-4 subtitle" style="opacity: 0.8">
+                Your contribution makes a real difference!
+              </p>
+            </div>
+          </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer" style="padding-top: 4rem">
+          <div class="content has-text-centered">
+            <div class="mt-4">
+              <a
+                href="https://github.com/bartekplus/FluentTyper"
+                target="_blank"
+                class="mr-4"
+                >GitHub</a
+              >
+              <a
+                href="https://github.com/bartekplus/FluentTyper/issues"
+                target="_blank"
+                >Report an Issue</a
+              >
             </div>
           </div>
-          <!-- Add Pagination -->
-          <div class="swiper-pagination"></div>
-          <!-- Add Arrows -->
-          <div class="swiper-button-next"></div>
-          <div class="swiper-button-prev"></div>
-        </div>
+        </footer>
       </div>
-    </div>
-    <div id="footer"></div>
+    </section>
   </body>
 </html>
