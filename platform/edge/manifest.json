@@ -37,7 +37,7 @@
     {
       "resources": [
         "icon/icon*",
-        "third_party/libpresage/*"
+        "third_party/*"
       ],
       "matches": [
         "<all_urls>"
