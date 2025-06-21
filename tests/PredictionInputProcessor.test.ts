@@ -1,4 +1,7 @@
-import { PredictionInputProcessor, MIN_WORD_LENGTH_TO_PREDICT } from "../src/background/PredictionInputProcessor";
+import {
+  PredictionInputProcessor,
+  MIN_WORD_LENGTH_TO_PREDICT,
+} from "../src/background/PredictionInputProcessor";
 import { Capitalization } from "../src/background/CapitalizationHelper";
 
 describe("PredictionInputProcessor", () => {
@@ -21,7 +24,7 @@ describe("PredictionInputProcessor", () => {
 
   describe("removePrevSentence", () => {
     it("should remove words before the last sentence-ending character", () => {
-      const input = ["Hello", ".",  "World"];
+      const input = ["Hello", ".", "World"];
       const { wordArray, newSentence } = processor.removePrevSentence(input);
       expect(wordArray).toEqual(["World"]);
       expect(newSentence).toBe(true);

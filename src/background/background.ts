@@ -29,6 +29,7 @@ import {
   KEY_USER_DICTIONARY_LIST,
 } from "../shared/constants";
 import { getDomain, isEnabledForDomain, checkLastError } from "../shared/utils";
+import { getErrorMessage } from "../shared/error";
 import { SUPPORTED_LANGUAGES } from "../shared/lang";
 import { SettingsManager } from "../shared/settingsManager";
 import { LanguageDetector } from "./LanguageDetector";
@@ -202,7 +203,7 @@ function onInstalled(details: chrome.runtime.InstalledDetails) {
     try {
       migrateToLocalStore(details.previousVersion);
     } catch (error) {
-      console.log(error);
+      console.warn(`migrateToLocalStore failed: ${getErrorMessage(error)}`);
     }
   }
 }
@@ -294,8 +295,10 @@ async function handleContentScriptPredictReq(
       await backgroundServiceWorker.runPrediction(predictRequestMessage);
       sendResponse();
     }
-  } catch (e) {
-    console.error(e);
+  } catch (error) {
+    console.error(
+      `handleContentScriptPredictReq failed: ${getErrorMessage(error)}`,
+    );
   }
 }
 
@@ -323,8 +326,10 @@ async function handleContentScriptGetConfig(
       await backgroundServiceWorker.getBackgroundPageSetConfigMsg();
     message.context.enabled = isEnabled;
     sendResponse(message);
-  } catch (e) {
-    console.error(e);
+  } catch (error) {
+    console.error(
+      `handleContentScriptGetConfig failed: ${getErrorMessage(error)}`,
+    );
   }
   return true;
 }
@@ -382,6 +387,6 @@ chrome.storage.local.get("lastVersion", async (result) => {
     await backgroundServiceWorker.predictionManager.initialize();
     await backgroundServiceWorker.updatePresageConfig();
   } catch (error) {
-    console.log(error);
+    console.warn(`lastVersion handler failed: ${getErrorMessage(error)}`);
   }
 });

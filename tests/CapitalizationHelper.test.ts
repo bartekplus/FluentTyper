@@ -1,4 +1,7 @@
-import { checkAutoCapitalize, Capitalization } from "../src/background/CapitalizationHelper";
+import {
+  checkAutoCapitalize,
+  Capitalization,
+} from "../src/background/CapitalizationHelper";
 
 describe("checkAutoCapitalize", () => {
   it("should return WholeWord when lastWord is all uppercase and not ending with space", () => {
@@ -9,7 +12,7 @@ describe("checkAutoCapitalize", () => {
         newSentence: false,
         endsWithSpace: false,
         autoCapitalize: false,
-      })
+      }),
     ).toBe(Capitalization.WholeWord);
   });
 
@@ -21,7 +24,7 @@ describe("checkAutoCapitalize", () => {
         newSentence: false,
         endsWithSpace: false,
         autoCapitalize: false,
-      })
+      }),
     ).toBe(Capitalization.FirstLetter);
   });
 
@@ -33,7 +36,7 @@ describe("checkAutoCapitalize", () => {
         newSentence: true,
         endsWithSpace: false,
         autoCapitalize: true,
-      })
+      }),
     ).toBe(Capitalization.FirstLetter);
   });
 
@@ -45,7 +48,7 @@ describe("checkAutoCapitalize", () => {
         newSentence: true,
         endsWithSpace: true,
         autoCapitalize: true,
-      })
+      }),
     ).toBe(Capitalization.FirstLetter);
   });
 
@@ -57,7 +60,7 @@ describe("checkAutoCapitalize", () => {
         newSentence: false,
         endsWithSpace: false,
         autoCapitalize: false,
-      })
+      }),
     ).toBe(Capitalization.None);
   });
 
@@ -69,7 +72,7 @@ describe("checkAutoCapitalize", () => {
         newSentence: false,
         endsWithSpace: false,
         autoCapitalize: false,
-      })
+      }),
     ).toBe(Capitalization.None);
   });
 });

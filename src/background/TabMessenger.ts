@@ -2,6 +2,7 @@
 import { SettingsManager } from "../shared/settingsManager";
 import { getDomain, isEnabledForDomain, checkLastError } from "../shared/utils";
 import { Message, ConfigMessage } from "../shared/messageTypes";
+import { getErrorMessage } from "../shared/error";
 
 export class TabMessenger {
   sendToActiveTab(message: Message): void {
@@ -33,7 +34,7 @@ export class TabMessenger {
         try {
           await chrome.tabs.sendMessage(tab.id, message);
         } catch (error) {
-          console.log(error);
+          console.warn(`sendToAllTabs failed: ${getErrorMessage(error)}`);
         }
       }
     });

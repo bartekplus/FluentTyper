@@ -1,4 +1,5 @@
 import { DateTime, Settings } from "luxon";
+import { getErrorMessage } from "./error";
 
 function getCurrentDateTime(lang: string): DateTime {
   let now = DateTime.now();
@@ -11,8 +12,9 @@ function getCurrentDateTime(lang: string): DateTime {
     const normalizedLang = lang.replace(/_/g, "-");
     now = DateTime.now().setLocale(normalizedLang);
   } catch (error) {
-    console.log("Failed to set locale to: " + lang);
-    console.log(error);
+    console.warn(
+      `Failed to set locale to ${lang} language: ${getErrorMessage(error)}`,
+    );
   }
 
   return now;

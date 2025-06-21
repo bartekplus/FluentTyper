@@ -5,6 +5,7 @@ import {
   Spacing,
   SPACING_RULES,
 } from "./SpacingRulesHandler";
+import { getErrorMessage } from "../shared/error";
 import { Capitalization } from "./CapitalizationHelper";
 import { PredictionInputProcessor } from "./PredictionInputProcessor";
 import { TemplateExpander, TemplateVariables } from "./TemplateExpander";
@@ -87,10 +88,8 @@ export class PresageHandler {
           lang,
         );
       } catch (error) {
-        console.log(
-          "Failed to create Presage instance for %s language: %s",
-          lang,
-          error,
+        console.warn(
+          `Failed to create Presage instance for ${lang} language: ${getErrorMessage(error)}`,
         );
       }
     }
