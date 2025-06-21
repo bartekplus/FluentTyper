@@ -115,7 +115,7 @@ const manifest = {
       type: "checkbox",
       label:
         "Enable this option to automatically complete words as you type by pressing the 'enter' key. To undo auto-completion and revert to the original text, simply press the 'backspace' key.",
-      default: true,
+      default: false,
     },
     {
       tab: i18n.get("settings"),

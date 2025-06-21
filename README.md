@@ -25,7 +25,7 @@ FluentTyper values the privacy of your data. It doesn't upload any of your data 
 FluentTyper is a writing assistant with features such as a spell checker, text expander, and predictive auto-complete."
 
 As you start typing, FluentTyper will display a pop-up with a list of suggested words, similar to your phone keyboard.
-You can use the arrow keys (↑, ↓) to navigate the list of suggested words, and then press Enter or Tab to confirm your selection.
+You can use the arrow keys (↑, ↓) to navigate the list of suggested words, and then press Tab to confirm your selection.
 To hide the list of suggested words, you can either press the Escape key or continue typing.
 
 Supported languages:
