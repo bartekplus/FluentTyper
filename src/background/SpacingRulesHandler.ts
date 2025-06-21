@@ -45,7 +45,10 @@ export class SpacingRulesHandler {
   insertSpaceAfterAutocomplete: boolean;
   applySpacingRulesEnabled: boolean = false;
 
-  constructor(insertSpaceAfterAutocomplete: boolean = true, applySpacingRulesEnabled: boolean = false) {
+  constructor(
+    insertSpaceAfterAutocomplete: boolean = true,
+    applySpacingRulesEnabled: boolean = false,
+  ) {
     this.insertSpaceAfterAutocomplete = insertSpaceAfterAutocomplete;
     this.applySpacingRulesEnabled = applySpacingRulesEnabled;
   }

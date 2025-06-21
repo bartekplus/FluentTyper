@@ -19,7 +19,7 @@ const MIN_WORD_LENGTH_TO_PREDICT = 1;
 
 export interface PredictionResult {
   predictions: string[];
-  forceReplace: ForceReplaceType|null;
+  forceReplace: ForceReplaceType | null;
 }
 
 interface LastPrediction {
@@ -70,7 +70,8 @@ export class PresageHandler {
     this.autoCapitalize = true;
     this.userDictionaryList = [];
     this.spacingHandler = new SpacingRulesHandler(
-      this.insertSpaceAfterAutocomplete, false
+      this.insertSpaceAfterAutocomplete,
+      false,
     );
     this.predictionInputProcessor = new PredictionInputProcessor(
       this.minWordLengthToPredict,
@@ -117,7 +118,8 @@ export class PresageHandler {
     this.textExpansionManager.setTextExpansions(config.textExpansions);
     this.userDictionaryManager.setUserDictionaryList(this.userDictionaryList);
     this.spacingHandler = new SpacingRulesHandler(
-      config.insertSpaceAfterAutocomplete, config.applySpacingRules
+      config.insertSpaceAfterAutocomplete,
+      config.applySpacingRules,
     );
     this.predictionInputProcessor = new PredictionInputProcessor(
       this.minWordLengthToPredict,
@@ -198,7 +200,7 @@ export class PresageHandler {
       text,
       lang,
     );
-    const forceReplace =  this.spacingHandler.applySpacingRules(text)
+    const forceReplace = this.spacingHandler.applySpacingRules(text);
     if (!(lang in this.presageEngines)) {
       // Do nothing, reply with empty predictions
     } else if (!forceReplace && doPrediction) {
