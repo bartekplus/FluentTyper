@@ -16,6 +16,17 @@ import {
   KEY_AUTOCOMPLETE_ON_TAB,
   KEY_AUTOCOMPLETE_ON_ENTER,
   KEY_AUTOCOMPLETE,
+  KEY_LANGUAGE,
+  KEY_ENABLED,
+  KEY_NUM_SUGGESTIONS,
+  KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
+  KEY_AUTO_CAPITALIZE,
+  KEY_APPLY_SPACING_RULES,
+  KEY_TEXT_EXPANSIONS,
+  KEY_VARIABLE_EXPANSION,
+  KEY_TIME_FORMAT,
+  KEY_DATE_FORMAT,
+  KEY_USER_DICTIONARY_LIST,
 } from "../shared/constants";
 import { getDomain, isEnabledForDomain, checkLastError } from "../shared/utils";
 import { SUPPORTED_LANGUAGES } from "../shared/lang";
@@ -108,11 +119,11 @@ class BackgroundServiceWorker {
   }
 
   async getBackgroundPageSetConfigMsg(): Promise<ConfigMessage> {
-    this.language = (await this.settingsManager.get("language")) as string;
+    this.language = (await this.settingsManager.get(KEY_LANGUAGE)) as string;
     const message: ConfigMessage = {
       command: CMD_BACKGROUND_PAGE_SET_CONFIG,
       context: {
-        enabled: (await this.settingsManager.get("enabled")) as boolean,
+        enabled: (await this.settingsManager.get(KEY_ENABLED)) as boolean,
         autocomplete: (await this.settingsManager.get(
           KEY_AUTOCOMPLETE,
         )) as boolean,
@@ -142,33 +153,33 @@ class BackgroundServiceWorker {
 
   async updatePresageConfig() {
     await this.predictionManager.initialize();
-    this.language = (await this.settingsManager.get("language")) as string;
+    this.language = (await this.settingsManager.get(KEY_LANGUAGE)) as string;
     const config: PresageConfig = {
       numSuggestions: (await this.settingsManager.get(
-        "numSuggestions",
+        KEY_NUM_SUGGESTIONS,
       )) as number,
       minWordLengthToPredict: (await this.settingsManager.get(
-        "minWordLengthToPredict",
+        KEY_MIN_WORD_LENGTH_TO_PREDICT,
       )) as number,
       insertSpaceAfterAutocomplete: (await this.settingsManager.get(
-        "insertSpaceAfterAutocomplete",
+        KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
       )) as boolean,
       autoCapitalize: (await this.settingsManager.get(
-        "autoCapitalize",
+        KEY_AUTO_CAPITALIZE,
       )) as boolean,
       applySpacingRules: (await this.settingsManager.get(
-        "applySpacingRules",
+        KEY_APPLY_SPACING_RULES,
       )) as boolean,
       textExpansions: (await this.settingsManager.get(
-        "textExpansions",
+        KEY_TEXT_EXPANSIONS,
       )) as Array<[string, object]>,
       variableExpansion: (await this.settingsManager.get(
-        "variableExpansion",
+        KEY_VARIABLE_EXPANSION,
       )) as boolean,
-      timeFormat: (await this.settingsManager.get("timeFormat")) as string,
-      dateFormat: (await this.settingsManager.get("dateFormat")) as string,
+      timeFormat: (await this.settingsManager.get(KEY_TIME_FORMAT)) as string,
+      dateFormat: (await this.settingsManager.get(KEY_DATE_FORMAT)) as string,
       userDictionaryList: (await this.settingsManager.get(
-        "userDictionaryList",
+        KEY_USER_DICTIONARY_LIST,
       )) as string[],
     };
     this.predictionManager.setConfig(config);
@@ -248,7 +259,7 @@ async function handleContentScriptPredictReq(
 ) {
   try {
     let language = (await backgroundServiceWorker.settingsManager.get(
-      "language",
+      KEY_LANGUAGE,
     )) as string;
     backgroundServiceWorker.language = language;
     if (language === "auto_detect") {

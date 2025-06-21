@@ -21,7 +21,6 @@ export const KEY_AUTOCOMPLETE = "autocomplete";
 export const KEY_AUTOCOMPLETE_ON_ENTER = "autocompleteOnEnter";
 export const KEY_AUTOCOMPLETE_ON_TAB = "autocompleteOnTab";
 export const KEY_SELECT_BY_DIGIT = "selectByDigit";
-export const KEY_LANG = "lang";
 export const KEY_AUTOCOMPLETE_SEPARATOR_SOURCE = "autocompleteSeparatorSource";
 export const KEY_MIN_WORD_LENGTH_TO_PREDICT = "minWordLengthToPredict";
 export const KEY_REVERT_ON_BACKSPACE = "revertOnBackspace";
@@ -39,6 +38,7 @@ export const KEY_LANGUAGE = "language";
 export const KEY_FALLBACK_LANGUAGE = "fallbackLanguage";
 export const KEY_DOMAIN_LIST_MODE = "domainListMode";
 export const KEY_DISPLAY_LANG_HEADER = "displayLangHeader";
+export const KEY_ENABLED = "enabled";
 
 // Popup Commands
 export const CMD_POPUP_PAGE_ENABLE = "CMD_POPUP_PAGE_ENABLE";
