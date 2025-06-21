@@ -169,7 +169,8 @@ export class TributeManager {
       values: tribueValuesFn,
       requireLeadingSpace: false,
       allowSpaces: false,
-      replaceTextSuffix: undefined,
+      // @ts-expect-error ignore Tribute errors
+      replaceTextSuffix: "",
       positionMenu: true,
       spaceSelectsMatch: this.autocomplete,
       autocompleteMode: true,
