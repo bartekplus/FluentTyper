@@ -1,8 +1,11 @@
 <!doctype html>
-<html>
+<html lang="en">
   <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FluentTyper Settings</title>
+
+    <!-- External Stylesheets -->
     <link
       rel="stylesheet"
       type="text/css"
@@ -13,149 +16,258 @@
       type="text/css"
       href="/third_party/bulma/bulma-switch.min.css"
     />
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
-      type="text/css"
-      href="/third_party/bulma/bulma-divider.min.css"
     />
+
+    <!-- JavaScript -->
     <script src="/popup/popup.js"></script>
-    <title></title>
+
     <style>
-      html {
-        width: 332px;
-      }
-      hr {
-        margin: 1rem 0;
+      /* CSS Variables for Theming (from index.html) */
+      :root {
+        --background-color: #f8fafc;
+        --text-color: #363636;
+        --text-color-light: #5a5a5a;
+        --box-background-color: #ffffff;
+        --box-shadow-color: rgba(71, 85, 105, 0.1);
+        --accent-color: #4f46e5;
+        --input-bg-color: #f8fafc;
+        --input-border-color: #dbdbdb;
+        --footer-text-color: #7a7a7a;
+        --link-color: #363636;
+        --divider-color: #f1f5f9; /* slate-100 */
       }
 
-      .grid-container {
-        display: grid;
-        grid-template-columns: 75px 65px 85px 75px;
-        grid-template-rows: auto;
-        grid-template-areas:
-          "header header header header"
-          "main main main sidebar"
-          "left left right right"
-          ". center center .";
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --background-color: #1e293b; /* slate-800 */
+          --text-color: #e2e8f0; /* slate-200 */
+          --text-color-light: #94a3b8; /* slate-400 */
+          --box-background-color: #334155; /* slate-700 */
+          --box-shadow-color: rgba(0, 0, 0, 0.25);
+          --input-bg-color: #475569; /* slate-600 */
+          --input-border-color: #64748b; /* slate-500 */
+          --footer-text-color: #94a3b8; /* slate-400 */
+          --link-color: #cbd5e1; /* slate-300 */
+          --divider-color: #475569; /* slate-600 */
+        }
       }
-      .grid-header {
-        grid-area: header;
-        display: flex;
 
-        justify-content: center;
-        align-content: center;
+      /* General Styles */
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: var(--background-color);
+        color: var(--text-color);
+        padding: 0.75rem; /* Add some padding around the body */
       }
-      .grid-main {
-        grid-area: main;
+
+      /* Header */
+      .popup-header {
         display: flex;
+        align-items: center;
         justify-content: center;
-        align-content: center;
         flex-direction: column;
+        margin-bottom: 1rem;
       }
-      .grid-sidebar {
-        grid-area: sidebar;
+      .popup-header img {
+        width: 48px;
+        height: 48px;
+        border-radius: 0.75rem;
+        box-shadow: 0 4px 10px var(--box-shadow-color);
       }
-      .grid-center {
-        grid-area: center;
-      }
-      .grid-left {
-        grid-area: left;
-        display: flex;
-        justify-content: center;
-        align-content: center;
-        flex-direction: column;
-      }
-      .grid-right {
-        grid-area: right;
+      .popup-header .title {
+        color: var(--text-color);
+        margin-top: 0.5rem;
+        margin-bottom: 0;
       }
 
-      .img_round {
-        border-radius: 10px;
+      /* Settings Box */
+      .settings-box {
+        background-color: var(--box-background-color);
+        border-radius: 0.75rem;
+        box-shadow: 0 0 20px -5px var(--box-shadow-color);
+        padding: 0.25rem 1rem; /* Adjust padding to work with columns */
+      }
+
+      /* Setting Item (Label + Control) */
+      .setting-item {
+        border-bottom: 1px solid var(--divider-color);
+      }
+      .setting-item:last-child {
+        border-bottom: none;
+      }
+      .setting-item .label-text {
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: var(--text-color);
+      }
+      .setting-item .label-text small {
+        display: block;
+        font-weight: 400;
+        color: var(--text-color-light);
+      }
+
+      /* Customizing Bulma Switch */
+      .switch[type="checkbox"]:checked + label::before {
+        background: var(--accent-color);
+      }
+
+      /* Select (Dropdown) */
+      .select select {
+        background-color: var(--input-bg-color);
+        border-color: var(--input-border-color);
+        color: var(--text-color);
+        font-weight: 500;
+      }
+      .select:not(.is-multiple)::after {
+        border-color: var(--accent-color);
+      }
+
+      /* Buttons */
+      .button {
+        border-radius: 0.5rem;
+        font-weight: 600;
+      }
+      .button.is-primary-custom {
+        background-color: var(--accent-color);
+        color: white;
+        border: none;
+      }
+      .button.is-primary-custom:hover {
+        background-color: #4338ca; /* A slightly darker accent */
+      }
+      .button.is-warning-custom {
+        background-color: #facc15; /* Yellow color */
+        color: #1e293b; /* Slate 900 */
+        font-weight: bold;
+        border: none;
+        width: 100%;
+      }
+      .button.is-warning-custom:hover {
+        background-color: #fde047;
+      }
+
+      /* Footer Links */
+      .footer-links {
+        text-align: center;
+        margin-top: 1rem;
+      }
+      .footer-links a {
+        font-size: 0.8rem;
+        color: var(--text-color-light);
+        text-decoration: none;
+      }
+      .footer-links a:hover {
+        color: var(--accent-color);
+        text-decoration: underline;
       }
     </style>
   </head>
-
   <body>
-    <div class="container p-4">
-      <div class="grid-container">
-        <div class="grid-header">
-          <p class="title">
-            <img class="img_round" src="/icon/LogoFluentTyperYellow.png" />
-          </p>
+    <!-- Header -->
+    <header class="popup-header">
+      <h1 class="title is-5">FluentTyper</h1>
+    </header>
+
+    <!-- Main Settings -->
+    <main class="settings-box">
+      <!-- Global Toggle -->
+      <div class="columns is-mobile setting-item is-vcentered">
+        <div class="column">
+          <div class="label-text">
+            Enable Extension
+            <small>Turn FluentTyper on or off globally.</small>
+          </div>
         </div>
-      </div>
-
-      <hr />
-
-      <div class="grid-container">
-        <div class="grid-main">Global toggle</div>
-
-        <div class="grid-sidebar">
+        <div class="column is-narrow">
           <div class="field">
             <input
               id="checkboxEnableInput"
               type="checkbox"
               name="checkboxEnableInput"
-              class="switch"
+              class="switch is-rounded"
+              checked
             />
-            <label for="checkboxEnableInput" style="margin-top: 0"></label>
+            <label for="checkboxEnableInput"></label>
           </div>
         </div>
       </div>
 
-      <div class="grid-container">
-        <div class="grid-main" id="checkboxDomainLabel">
-          Enable autocomplete on:
+      <!-- Per-site Toggle -->
+      <div class="columns is-mobile setting-item is-vcentered">
+        <div class="column">
+          <div class="label-text">
+            <span id="checkboxDomainLabel">Enable on this site</span>
+            <small>Allow suggestions on the current domain.</small>
+          </div>
         </div>
-
-        <div class="grid-sidebar">
+        <div class="column is-narrow">
           <div class="field">
             <input
               id="checkboxDomainInput"
               type="checkbox"
               name="checkboxDomainInput"
-              class="switch"
+              class="switch is-rounded"
+              checked
             />
-            <label for="checkboxDomainInput" style="margin-top: 0"> </label>
+            <label for="checkboxDomainInput"></label>
           </div>
         </div>
       </div>
 
-      <hr />
-
-      <div class="grid-container">
-        <div class="grid-left">I write in:</div>
-
-        <div class="grid-right">
-          <div class="select">
+      <!-- Language Selection -->
+      <div class="columns is-mobile setting-item is-vcentered">
+        <div class="column">
+          <div class="label-text">
+            Language
+            <small>Set your primary writing language.</small>
+          </div>
+        </div>
+        <div class="column is-narrow">
+          <div class="select is-small is-rounded">
             <select id="languageSelect"></select>
           </div>
         </div>
       </div>
-      <hr />
+    </main>
 
-      <div class="grid-container">
-        <div class="grid-center has-text-centered">
-          <a
-            class="button is-primary is-outlined"
-            id="runOptions"
-            target="_blank"
-            rel="nofollow noopener"
-            >Options</a
-          >
-        </div>
-      </div>
-
-      <hr />
-
-      <div class="has-text-centered">
-        <a href="https://www.buymeacoffee.com/FluentTyper" target="_blank"
-          ><img
-            src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png"
-            alt="Buy Me A Coffee"
-            style="height: 60px !important; width: 217px !important"
-        /></a>
-      </div>
+    <!-- Actions -->
+    <div class="mt-4">
+      <a
+        class="button is-primary-custom is-fullwidth"
+        id="runOptions"
+        target="_blank"
+        rel="noopener"
+      >
+        Advanced Options
+      </a>
     </div>
+
+    <div class="mt-3">
+      <a
+        href="https://www.buymeacoffee.com/FluentTyper"
+        target="_blank"
+        class="button is-warning-custom"
+      >
+        Support Development
+      </a>
+    </div>
+
+    <!-- Footer Links -->
+    <footer class="footer-links">
+      <a href="https://github.com/bartekplus/FluentTyper" target="_blank"
+        >GitHub</a
+      >
+      &nbsp;&middot;&nbsp;
+      <a href="https://github.com/bartekplus/FluentTyper/issues" target="_blank"
+        >Report Issue</a
+      >
+    </footer>
   </body>
 </html>
