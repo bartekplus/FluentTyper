@@ -54,7 +54,7 @@ describe("PredictionInputProcessor", () => {
 
   describe("processInput", () => {
     it("should handle non-string input", () => {
-      // @ts-expect-error
+      // @ts-expect-error // Testing non-string input
       const result = processor.processInput(123, "en_US", 1, true);
       expect(result.doPrediction).toBe(false);
       expect(result.doCapitalize).toBe(Capitalization.None);
