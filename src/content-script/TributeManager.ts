@@ -4,12 +4,12 @@ import {
   SUPPORTED_LANGUAGES,
 } from "../shared/lang";
 import { debounce } from "../shared/utils"; // Assuming debounce is available here
-import { PredictResponseContext } from "../shared/messageTypes";
+import { PredictResponseContext,ForceReplaceType } from "../shared/messageTypes";
 
 interface TributeEntry {
   tribute: Tribute;
   elem: Element;
-  done?: (results: any[], forceReplace?: string, menuHeader?: string) => void;
+  done?: (results: any[], forceReplace: ForceReplaceType| null, menuHeader?: string) => void;
   requestId?: number;
   // Store handler references for proper removal
   tributeReplacedHandlerRef?: EventListenerOrEventListenerObject;
@@ -127,7 +127,7 @@ export class TributeManager {
       _trigger: string, // text typed so far - not used directly here, context.text is used
       done: (
         results: any[],
-        forceReplace?: string,
+        forceReplace: ForceReplaceType | null,
         menuHeader?: string,
       ) => void,
       fullText: string,

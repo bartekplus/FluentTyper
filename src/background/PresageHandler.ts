@@ -12,13 +12,14 @@ import { PresageModule } from "./PresageTypes";
 import { UserDictionaryManager } from "./UserDictionaryManager";
 import { TextExpansionManager } from "./TextExpansionManager";
 import { PresageEngine, PresageEngineConfig } from "./PresageEngine";
+import { ForceReplaceType } from "../shared/messageTypes";
 
 const SUGGESTION_COUNT = 5;
 const MIN_WORD_LENGTH_TO_PREDICT = 1;
 
 export interface PredictionResult {
   predictions: string[];
-  forceReplace?: string;
+  forceReplace: ForceReplaceType|null;
 }
 
 interface LastPrediction {
@@ -47,7 +48,6 @@ export class PresageHandler {
   private predictNextWordAfterSeparatorChar: boolean;
   private insertSpaceAfterAutocomplete: boolean;
   private autoCapitalize: boolean;
-  private applySpacingRules: boolean;
   private userDictionaryList: string[];
   private spacingHandler: SpacingRulesHandler;
   private predictionInputProcessor: PredictionInputProcessor;
@@ -68,10 +68,9 @@ export class PresageHandler {
     this.predictNextWordAfterSeparatorChar = false;
     this.insertSpaceAfterAutocomplete = true;
     this.autoCapitalize = true;
-    this.applySpacingRules = false;
     this.userDictionaryList = [];
     this.spacingHandler = new SpacingRulesHandler(
-      this.insertSpaceAfterAutocomplete,
+      this.insertSpaceAfterAutocomplete, false
     );
     this.predictionInputProcessor = new PredictionInputProcessor(
       this.minWordLengthToPredict,
@@ -111,7 +110,6 @@ export class PresageHandler {
       this.minWordLengthToPredict === 0 ? true : false;
     this.insertSpaceAfterAutocomplete = config.insertSpaceAfterAutocomplete;
     this.autoCapitalize = config.autoCapitalize;
-    this.applySpacingRules = config.applySpacingRules;
     this.variableExpansion = config.variableExpansion;
     this.timeFormat = config.timeFormat;
     this.dateFormat = config.dateFormat;
@@ -119,7 +117,7 @@ export class PresageHandler {
     this.textExpansionManager.setTextExpansions(config.textExpansions);
     this.userDictionaryManager.setUserDictionaryList(this.userDictionaryList);
     this.spacingHandler = new SpacingRulesHandler(
-      config.insertSpaceAfterAutocomplete,
+      config.insertSpaceAfterAutocomplete, config.applySpacingRules
     );
     this.predictionInputProcessor = new PredictionInputProcessor(
       this.minWordLengthToPredict,
@@ -196,18 +194,11 @@ export class PresageHandler {
     lang: string,
   ): PredictionResult {
     let predictions: string[] = [];
-    let forceReplace: string | undefined = undefined;
     const { predictionInput, doPrediction, doCapitalize } = this.processInput(
       text,
       lang,
     );
-    if (
-      this.applySpacingRules &&
-      this.spacingHandler instanceof SpacingRulesHandler
-    ) {
-      const spacingResult = this.spacingHandler.applySpacingRules(text);
-      forceReplace = spacingResult ? spacingResult.text : undefined;
-    }
+    const forceReplace =  this.spacingHandler.applySpacingRules(text)
     if (!(lang in this.presageEngines)) {
       // Do nothing, reply with empty predictions
     } else if (!forceReplace && doPrediction) {

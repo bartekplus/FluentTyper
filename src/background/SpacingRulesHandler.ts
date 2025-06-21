@@ -1,6 +1,7 @@
 // spacingRulesHandler.ts
 // Handles spacing rules logic for FluentTyper
 
+import { ForceReplaceType } from "../shared/messageTypes";
 export enum Spacing {
   INSERT_SPACE = "INSERT_SPACE",
   REMOVE_SPACE = "REMOVE_SPACE",
@@ -40,16 +41,13 @@ export const SPACING_RULES: Record<string, SpacingRule> = {
 
 export const SPACE_CHARS: string[] = ["\xA0", " "];
 
-export interface SpacingHandlerResult {
-  text: string;
-  length: number;
-}
-
 export class SpacingRulesHandler {
   insertSpaceAfterAutocomplete: boolean;
+  applySpacingRulesEnabled: boolean = false;
 
-  constructor(insertSpaceAfterAutocomplete: boolean = true) {
+  constructor(insertSpaceAfterAutocomplete: boolean = true, applySpacingRulesEnabled: boolean = false) {
     this.insertSpaceAfterAutocomplete = insertSpaceAfterAutocomplete;
+    this.applySpacingRulesEnabled = applySpacingRulesEnabled;
   }
 
   static get Spacing() {
@@ -64,8 +62,8 @@ export class SpacingRulesHandler {
     return SPACE_CHARS;
   }
 
-  applySpacingRules(inputStr: string): SpacingHandlerResult | null {
-    if (!inputStr) {
+  applySpacingRules(inputStr: string): ForceReplaceType | null {
+    if (!inputStr || this.applySpacingRulesEnabled === false) {
       return null;
     }
     const { length } = inputStr;

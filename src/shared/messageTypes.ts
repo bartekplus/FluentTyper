@@ -21,6 +21,12 @@ export interface PredictRequestContext {
   tributeId: number;
   requestId: number;
 }
+
+export interface ForceReplaceType {
+  text: string;
+  length: number;
+}
+
 // Context for CMD_BACKGROUND_PAGE_PREDICT_RESP
 export interface PredictResponseContext {
   text: string;
@@ -31,7 +37,7 @@ export interface PredictResponseContext {
   tributeId: number;
   requestId: number;
   predictions: string[];
-  forceReplace?: string;
+  forceReplace: ForceReplaceType|null;
 }
 
 // Context for CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG

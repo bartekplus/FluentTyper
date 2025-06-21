@@ -380,6 +380,7 @@ chrome.storage.local.get("lastVersion", async (result) => {
     await migrateToLocalStore(result.lastVersion);
     const backgroundServiceWorker = new BackgroundServiceWorker();
     await backgroundServiceWorker.predictionManager.initialize();
+    await backgroundServiceWorker.updatePresageConfig();
   } catch (error) {
     console.log(error);
   }
