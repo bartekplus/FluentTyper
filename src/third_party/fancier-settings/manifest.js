@@ -138,15 +138,6 @@ const manifest = {
     {
       tab: i18n.get("settings"),
       group: i18n.get("General"),
-      name: KEY_APPLY_SPACING_RULES,
-      type: "checkbox",
-      label:
-        "Enable this option to automatically apply consistent spacing rules for punctuation and special characters throughout your document.",
-      default: true,
-    },
-    {
-      tab: i18n.get("settings"),
-      group: i18n.get("General"),
       name: KEY_AUTO_CAPITALIZE,
       type: "checkbox",
       label:
@@ -196,9 +187,17 @@ const manifest = {
       text: i18n.get("Export settings"),
       label: "Export JSON settings:",
     },
-    {
+{
       tab: i18n.get("Advanced"),
       group: i18n.get("Features suitable only for technical users"),
+      name: KEY_APPLY_SPACING_RULES,
+      type: "checkbox",
+      label:
+        "Automatically apply consistent spacing rules for punctuation and special characters throughout your document. Note: This is an early beta feature and may not work as expected. Please use at your own risk.",
+      default: false,
+    },
+    {
+
       name: KEY_VARIABLE_EXPANSION,
       type: "checkbox",
       label:
