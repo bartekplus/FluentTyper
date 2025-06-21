@@ -298,12 +298,6 @@ export class TributeManager {
         reverseCheck: true,
       },
       {
-        property: "type",
-        expectedValue: "text",
-        defaultValue: "text",
-        reverseCheck: false,
-      },
-      {
         property: "name",
         expectedValue: "username",
         defaultValue: "",
@@ -333,11 +327,9 @@ export class TributeManager {
       // Skip if it's an input element and not of a text-like type
       if (currentElem.tagName === "INPUT") {
         const inputType = (currentElem as HTMLInputElement).type.toLowerCase();
-        if (
-          !["text", "search", "url", "tel", "email", ""].includes(inputType)
-        ) {
+        if (!["text", "search", ""].includes(inputType)) {
           // Empty string for default type
-          propertiesCheck = true;
+          propertiesCheck = false;
         }
       }
 
@@ -364,11 +356,13 @@ export class TributeManager {
     for (let i = 0; i < filteredElems.length; i++) {
       let skip = false;
       for (const [key] of Object.entries(this.tributeArr)) {
-          const keyAsNumber = Number(key);
+        const keyAsNumber = Number(key);
         if (filteredElems[i] === this.tributeArr[keyAsNumber].elem) continue;
         if (filteredElems[i].contains(this.tributeArr[keyAsNumber].elem)) {
           this.detachHelper(keyAsNumber);
-        } else if (this.tributeArr[keyAsNumber].elem.contains(filteredElems[i])) {
+        } else if (
+          this.tributeArr[keyAsNumber].elem.contains(filteredElems[i])
+        ) {
           skip = true;
         }
       }
