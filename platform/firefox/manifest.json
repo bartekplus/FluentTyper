@@ -35,7 +35,8 @@
   },
   "web_accessible_resources": [
     "icon/icon*",
-    "third_party/*"
+    "third_party/*",
+    "css/*"
   ],
   "name": "FluentTyper: Autocomplete and Spell Checker",
   "options_ui": {

@@ -1,0 +1,178 @@
+/*
+ * FluentTyper Theme
+ *
+ * This file centralizes the visual styling for the FluentTyper extension.
+ * It overrides default Bulma variables to create a consistent look and feel
+ * across all components and pages.
+ *
+ * It should be included in your HTML files *after* the main Bulma stylesheet.
+ */
+
+/* 1. CORE THEME & COLOR DEFINITIONS
+----------------------------------------------------------------*/
+
+:root {
+  /* Primary Palette */
+  --accent-color: #4f46e5;
+  --accent-color-darker: #4338ca;
+  --warning-color: #facc15;
+  --warning-text-color: #1e293b;
+
+  /* Light Mode Palette */
+  --background-color: #f8fafc; /* slate-50 */
+  --text-color: #0f172a; /* slate-900 */
+  --text-color-light: #64748b; /* slate-500 */
+  --box-background-color: #ffffff;
+  --box-shadow-color: rgba(71, 85, 105, 0.1);
+  --input-bg-color: #f8fafc; /* slate-50 */
+  --input-border-color: #e2e8f0; /* slate-200 */
+  --divider-color: #f1f5f9; /* slate-100 */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Dark Mode Palette */
+    --background-color: #1e293b; /* slate-800 */
+    --text-color: #e2e8f0; /* slate-200 */
+    --text-color-light: #94a3b8; /* slate-400 */
+    --box-background-color: #334155; /* slate-700 */
+    --box-shadow-color: rgba(0, 0, 0, 0.25);
+    --input-bg-color: #475569; /* slate-600 */
+    --input-border-color: #64748b; /* slate-500 */
+    --divider-color: #475569; /* slate-600 */
+  }
+}
+
+/* 2. BULMA VARIABLE OVERRIDES
+ * This section maps our custom palette to Bulma's variables.
+----------------------------------------------------------------*/
+:root {
+  /* General */
+  --bulma-body-background-color: var(--background-color);
+  --bulma-body-color: var(--text-color);
+  --bulma-body-font-family: "Inter", sans-serif;
+  --bulma-body-font-size: 1rem;
+
+  /* Colors */
+  --bulma-primary: var(--accent-color);
+  --bulma-link: var(--accent-color);
+
+  /* Components */
+  --bulma-box-background-color: var(--box-background-color);
+  --bulma-box-color: var(--text-color);
+  --bulma-box-shadow: 0 0 20px -5px var(--box-shadow-color);
+
+  --bulma-button-border-radius: 0.5rem;
+  --bulma-button-font-weight: 600;
+
+  --bulma-input-background-color: var(--input-bg-color);
+  --bulma-input-border-color: var(--input-border-color);
+  --bulma-input-color: var(--text-color);
+  --bulma-input-placeholder-color: var(--text-color-light);
+
+  --bulma-select-border-color: var(--input-border-color);
+  --bulma-select-arrow: var(--accent-color);
+
+  --bulma-switch-background: var(--input-border-color);
+  --bulma-switch-checked-background: var(--accent-color);
+}
+
+/* 3. POPUP-SPECIFIC STYLES
+----------------------------------------------------------------*/
+
+/* General Body */
+body.fluenttyper-popup {
+  font-family: var(--bulma-body-font-family);
+  background-color: var(--background-color);
+  color: var(--text-color);
+  padding: 0.75rem;
+  width: 350px;
+}
+
+/* Header */
+.popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  margin-bottom: 1rem;
+}
+.popup-header img {
+  width: 48px;
+  height: 48px;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 10px var(--box-shadow-color);
+}
+.popup-header .title {
+  color: var(--text-color);
+  margin-top: 0.5rem;
+  margin-bottom: 0;
+}
+
+/* Settings Box */
+.settings-box {
+  background-color: var(--box-background-color);
+  border-radius: 0.75rem;
+  box-shadow: var(--bulma-box-shadow);
+  padding: 0.25rem 1rem; /* Adjust padding to work with columns */
+}
+
+/* Setting Item (using Bulma columns) */
+.setting-item {
+  border-bottom: 1px solid var(--divider-color);
+}
+.setting-item:last-child {
+  border-bottom: none;
+}
+.setting-item .label-text {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-color);
+}
+.setting-item .label-text small {
+  display: block;
+  font-weight: 400;
+  color: var(--text-color-light);
+}
+
+/* Select (Dropdown in popup) */
+.settings-box .select select {
+  background-color: var(--input-bg-color);
+  color: var(--text-color);
+  font-weight: 500;
+}
+
+/* Custom Buttons */
+.button.is-primary-custom {
+  background-color: var(--accent-color);
+  color: white;
+  border: none;
+}
+.button.is-primary-custom:hover {
+  background-color: var(--accent-color-darker);
+}
+.button.is-warning-custom {
+  background-color: var(--warning-color);
+  color: var(--warning-text-color);
+  font-weight: bold;
+  border: none;
+  width: 100%;
+}
+.button.is-warning-custom:hover {
+  background-color: #fde047; /* Lighter yellow for hover */
+}
+
+/* Footer Links */
+.footer-links {
+  text-align: center;
+  margin-top: 1rem;
+}
+.footer-links a {
+  font-size: 0.8rem;
+  color: var(--text-color-light);
+  text-decoration: none;
+}
+.footer-links a:hover {
+  color: var(--accent-color);
+  text-decoration: underline;
+}

@@ -5,7 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>FluentTyper Settings</title>
 
-    <!-- External Stylesheets -->
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Core Stylesheets -->
     <link
       rel="stylesheet"
       type="text/css"
@@ -17,168 +25,23 @@
       href="/third_party/bulma/bulma-switch.min.css"
     />
 
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
+    <!-- CUSTOM THEME - Must be placed AFTER Bulma to override styles -->
+    <link rel="stylesheet" type="text/css" href="/css/fluenttyper-theme.css" />
 
     <!-- JavaScript -->
     <script src="/popup/popup.js"></script>
-
-    <style>
-      /* CSS Variables for Theming (from index.html) */
-      :root {
-        --background-color: #f8fafc;
-        --text-color: #363636;
-        --text-color-light: #5a5a5a;
-        --box-background-color: #ffffff;
-        --box-shadow-color: rgba(71, 85, 105, 0.1);
-        --accent-color: #4f46e5;
-        --input-bg-color: #f8fafc;
-        --input-border-color: #dbdbdb;
-        --footer-text-color: #7a7a7a;
-        --link-color: #363636;
-        --divider-color: #f1f5f9; /* slate-100 */
-      }
-
-      @media (prefers-color-scheme: dark) {
-        :root {
-          --background-color: #1e293b; /* slate-800 */
-          --text-color: #e2e8f0; /* slate-200 */
-          --text-color-light: #94a3b8; /* slate-400 */
-          --box-background-color: #334155; /* slate-700 */
-          --box-shadow-color: rgba(0, 0, 0, 0.25);
-          --input-bg-color: #475569; /* slate-600 */
-          --input-border-color: #64748b; /* slate-500 */
-          --footer-text-color: #94a3b8; /* slate-400 */
-          --link-color: #cbd5e1; /* slate-300 */
-          --divider-color: #475569; /* slate-600 */
-        }
-      }
-
-      /* General Styles */
-      body {
-        font-family: "Inter", sans-serif;
-        background-color: var(--background-color);
-        color: var(--text-color);
-        padding: 0.75rem; /* Add some padding around the body */
-      }
-
-      /* Header */
-      .popup-header {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-direction: column;
-        margin-bottom: 1rem;
-      }
-      .popup-header img {
-        width: 48px;
-        height: 48px;
-        border-radius: 0.75rem;
-        box-shadow: 0 4px 10px var(--box-shadow-color);
-      }
-      .popup-header .title {
-        color: var(--text-color);
-        margin-top: 0.5rem;
-        margin-bottom: 0;
-      }
-
-      /* Settings Box */
-      .settings-box {
-        background-color: var(--box-background-color);
-        border-radius: 0.75rem;
-        box-shadow: 0 0 20px -5px var(--box-shadow-color);
-        padding: 0.25rem 1rem; /* Adjust padding to work with columns */
-      }
-
-      /* Setting Item (Label + Control) */
-      .setting-item {
-        border-bottom: 1px solid var(--divider-color);
-      }
-      .setting-item:last-child {
-        border-bottom: none;
-      }
-      .setting-item .label-text {
-        font-size: 0.9rem;
-        font-weight: 500;
-        color: var(--text-color);
-      }
-      .setting-item .label-text small {
-        display: block;
-        font-weight: 400;
-        color: var(--text-color-light);
-      }
-
-      /* Customizing Bulma Switch */
-      .switch[type="checkbox"]:checked + label::before {
-        background: var(--accent-color);
-      }
-
-      /* Select (Dropdown) */
-      .select select {
-        background-color: var(--input-bg-color);
-        border-color: var(--input-border-color);
-        color: var(--text-color);
-        font-weight: 500;
-      }
-      .select:not(.is-multiple)::after {
-        border-color: var(--accent-color);
-      }
-
-      /* Buttons */
-      .button {
-        border-radius: 0.5rem;
-        font-weight: 600;
-      }
-      .button.is-primary-custom {
-        background-color: var(--accent-color);
-        color: white;
-        border: none;
-      }
-      .button.is-primary-custom:hover {
-        background-color: #4338ca; /* A slightly darker accent */
-      }
-      .button.is-warning-custom {
-        background-color: #facc15; /* Yellow color */
-        color: #1e293b; /* Slate 900 */
-        font-weight: bold;
-        border: none;
-        width: 100%;
-      }
-      .button.is-warning-custom:hover {
-        background-color: #fde047;
-      }
-
-      /* Footer Links */
-      .footer-links {
-        text-align: center;
-        margin-top: 1rem;
-      }
-      .footer-links a {
-        font-size: 0.8rem;
-        color: var(--text-color-light);
-        text-decoration: none;
-      }
-      .footer-links a:hover {
-        color: var(--accent-color);
-        text-decoration: underline;
-      }
-    </style>
   </head>
-  <body>
+  <body class="fluenttyper-popup">
     <!-- Header -->
-    <header class="popup-header">
+    <header class="popup-header" style="display: none">
+      <img src="/icon/LogoFluentTyperYellow.png" alt="FluentTyper Logo" />
       <h1 class="title is-5">FluentTyper</h1>
     </header>
 
     <!-- Main Settings -->
     <main class="settings-box">
       <!-- Global Toggle -->
-      <div class="columns is-mobile setting-item is-vcentered">
+      <div class="columns is-mobile is-vcentered setting-item">
         <div class="column">
           <div class="label-text">
             Enable Extension
@@ -200,7 +63,7 @@
       </div>
 
       <!-- Per-site Toggle -->
-      <div class="columns is-mobile setting-item is-vcentered">
+      <div class="columns is-mobile is-vcentered setting-item">
         <div class="column">
           <div class="label-text">
             <span id="checkboxDomainLabel">Enable on this site</span>
@@ -222,7 +85,7 @@
       </div>
 
       <!-- Language Selection -->
-      <div class="columns is-mobile setting-item is-vcentered">
+      <div class="columns is-mobile is-vcentered setting-item">
         <div class="column">
           <div class="label-text">
             Language

@@ -37,7 +37,8 @@
     {
       "resources": [
         "icon/icon*",
-        "third_party/*"
+        "third_party/*",
+        "css/*"
       ],
       "matches": [
         "<all_urls>"
