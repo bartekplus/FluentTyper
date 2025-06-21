@@ -52,7 +52,7 @@ class FluentTyper {
     displayLangHeader: true,
   };
   public domObserver: DomObserver;
-  public activeHelperArrId: string | null = null;
+  public activeHelperArrId: number | null = null;
   private hostName: string = window.location.hostname;
 
   constructor() {
@@ -136,7 +136,7 @@ class FluentTyper {
   /**
    * Callback for TributeManager when a tribute element is triggered (e.g. by keydown).
    */
-  handleTributeTrigger(helperArrId: string): void {
+  handleTributeTrigger(helperArrId: number): void {
     this.activeHelperArrId = helperArrId;
   }
 
@@ -162,19 +162,6 @@ class FluentTyper {
   }
 
   /**
-   * Checks if a Tribute instance is attached to the specified element.
-   */
-  isHelperAttached(elem: HTMLElement): boolean {
-    if (!this.tributeManager) return false;
-    for (const [key] of Object.entries(this.tributeManager.tributeArr)) {
-      if (elem === this.tributeManager.tributeArr[key].elem) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  /**
    * Checks if the given element is part of the document tree.
    */
   isInDocument(element: Element): boolean {
@@ -191,7 +178,7 @@ class FluentTyper {
         this.tributeManager.tributeArr,
       )) {
         if (!this.isInDocument(entry.elem)) {
-          this.tributeManager.detachHelper(key);
+          this.tributeManager.detachHelper(Number(key));
         }
       }
     }

@@ -26,7 +26,7 @@ interface TributeEntry {
 export class TributeManager {
   SELECTORS: string;
   private newTributeId: number;
-  tributeArr: Record<string, TributeEntry>;
+  tributeArr: Record<number, TributeEntry>;
   // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
   getPrediction: Function | undefined;
   // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
@@ -91,7 +91,7 @@ export class TributeManager {
   set autocompleteSeparator(val) {
     this._autocompleteSeparator = val;
     for (const [key] of Object.entries(this.tributeArr)) {
-      this.tributeArr[key].tribute.autocompleteSeparator = val;
+      this.tributeArr[Number(key)].tribute.autocompleteSeparator = val;
     }
   }
   get autocompleteSeparator() {
@@ -199,12 +199,12 @@ export class TributeManager {
 
     // Event listeners
     const boundTributeReplacedHandler = debounce(
-      this.tributeReplacedEventHandler.bind(this, tributeId.toString()),
+      this.tributeReplacedEventHandler.bind(this, tributeId),
       16,
       { leading: false, trailing: true },
     );
     const boundElementKeyDownHandler = debounce(
-      this.elementKeyDownEventHandler.bind(this, tributeId.toString()),
+      this.elementKeyDownEventHandler.bind(this, tributeId),
       32,
     );
     // @ts-expect-error ignore Tribute errors
@@ -239,7 +239,7 @@ export class TributeManager {
     }
   }
 
-  detachHelper(tributeId: string) {
+  detachHelper(tributeId: number) {
     const entry = this.tributeArr[tributeId];
     if (!entry) return;
     const elem = entry.elem;
@@ -258,14 +258,14 @@ export class TributeManager {
 
   detachAllHelpers() {
     for (const [key] of Object.entries(this.tributeArr)) {
-      this.detachHelper(key);
+      this.detachHelper(Number(key));
     }
     this.tributeArr = {};
   }
 
   isHelperAttached(elem: Element) {
     for (const [key] of Object.entries(this.tributeArr)) {
-      if (elem === this.tributeArr[key].elem) {
+      if (elem === this.tributeArr[Number(key)].elem) {
         return true;
       }
     }
@@ -364,10 +364,11 @@ export class TributeManager {
     for (let i = 0; i < filteredElems.length; i++) {
       let skip = false;
       for (const [key] of Object.entries(this.tributeArr)) {
-        if (filteredElems[i] === this.tributeArr[key].elem) continue;
-        if (filteredElems[i].contains(this.tributeArr[key].elem)) {
-          this.detachHelper(key);
-        } else if (this.tributeArr[key].elem.contains(filteredElems[i])) {
+          const keyAsNumber = Number(key);
+        if (filteredElems[i] === this.tributeArr[keyAsNumber].elem) continue;
+        if (filteredElems[i].contains(this.tributeArr[keyAsNumber].elem)) {
+          this.detachHelper(keyAsNumber);
+        } else if (this.tributeArr[keyAsNumber].elem.contains(filteredElems[i])) {
           skip = true;
         }
       }
@@ -377,7 +378,7 @@ export class TributeManager {
     }
   }
 
-  triggerTribute(helperArrId: string) {
+  triggerTribute(helperArrId: number) {
     if (this.tributeArr[helperArrId]) {
       this.tributeArr[helperArrId].tribute.showMenuForCollection(
         this.tributeArr[helperArrId].elem,
@@ -385,18 +386,18 @@ export class TributeManager {
     }
   }
 
-  tributeReplacedEventHandler(helperArrId: string) {
+  tributeReplacedEventHandler(helperArrId: number) {
     if (this.tributeArr[helperArrId]) {
       this.triggerTribute(helperArrId);
     }
   }
 
-  elementKeyDownEventHandler(helperArrId: string) {
+  elementKeyDownEventHandler(helperArrId: number) {
     if (this.onTrigger && this.tributeArr[helperArrId])
       this.onTrigger(helperArrId);
   }
 
-  updateLangConfig(lang: string, tributeId: string) {
+  updateLangConfig(lang: string, tributeId: number) {
     this.autocompleteSeparator = LANG_SEPERATOR_CHARS_REGEX[lang];
     this.lang = lang;
     this.triggerTribute(tributeId);
