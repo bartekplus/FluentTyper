@@ -206,6 +206,30 @@ export class PresageHandler {
     } else if (!forceReplace && doPrediction) {
       predictions = this.doPredictionHandler(predictionInput, lang);
     }
+    // Sort prediction so that the most relevant ones are at the top
+    // eg. if input is "the act", then "act" will be first and "action" will be second
+    if (predictions.length > 1 && predictionInput.trim().length > 0) {
+      const inputLower = predictionInput.trim().toLowerCase();
+      predictions.sort((a, b) => {
+        const aLower = a.toLowerCase();
+        const bLower = b.toLowerCase();
+        // Exact match first
+        if (aLower === inputLower && bLower !== inputLower) return -1;
+        if (bLower === inputLower && aLower !== inputLower) return 1;
+        // Keep original order for now, follow presage order
+        return 0;
+        // Prefix match next
+        const aStarts = aLower.startsWith(inputLower);
+        const bStarts = bLower.startsWith(inputLower);
+        if (aStarts && !bStarts) return -1;
+        if (bStarts && !aStarts) return 1;
+        // Shorter words first (e.g. "act" before "action")
+        if (aLower.length !== bLower.length)
+          return aLower.length - bLower.length;
+        // Otherwise, keep original order
+        return 0;
+      });
+    }
     if (this.insertSpaceAfterAutocomplete) {
       if (
         !isWhiteSpace(nextChar, false) &&
