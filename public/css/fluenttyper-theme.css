@@ -27,6 +27,9 @@
   --input-bg-color: #f8fafc; /* slate-50 */
   --input-border-color: #e2e8f0; /* slate-200 */
   --divider-color: #f1f5f9; /* slate-100 */
+  --feature-box-bg: #f8fafc;
+  --footer-text-color: #7a7a7a;
+  --link-color: #363636;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -40,6 +43,9 @@
     --input-bg-color: #475569; /* slate-600 */
     --input-border-color: #64748b; /* slate-500 */
     --divider-color: #475569; /* slate-600 */
+    --feature-box-bg: #475569;
+    --footer-text-color: #94a3b8; /* slate-400 */
+    --link-color: #cbd5e1; /* slate-300 */
   }
 }
 
@@ -75,6 +81,7 @@
 
   --bulma-switch-background: var(--input-border-color);
   --bulma-switch-checked-background: var(--accent-color);
+  --bulma-text-weak: var(--text-color-light);
 }
 
 /* 3. POPUP-SPECIFIC STYLES
