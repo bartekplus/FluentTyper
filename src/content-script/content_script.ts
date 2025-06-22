@@ -13,7 +13,7 @@ import {
   CMD_STATUS_COMMAND,
 } from "../shared/constants";
 import { LANG_SEPERATOR_CHARS_REGEX } from "../shared/lang";
-import { checkLastError } from "../shared/utils";
+import { checkLastError, isInDocument } from "../shared/utils";
 import {
   Message,
   ContentScriptPredictRequestContext,
@@ -162,36 +162,21 @@ class FluentTyper {
   }
 
   /**
-   * Checks if the given element is part of the document tree.
-   */
-  isInDocument(element: Element): boolean {
-    return element.ownerDocument === document;
-  }
-
-  /**
    * Processes the mutations and attaches or detaches Tribute components as needed.
    */
   processMutations(mutationsList: MutationRecord[]): void {
     this.domObserver.disconnect();
-    if (this.tributeManager) {
-      for (const [key, entry] of Object.entries(
-        this.tributeManager.tributeArr,
-      )) {
-        if (!this.isInDocument(entry.elem)) {
-          this.tributeManager.detachHelper(Number(key));
-        }
-      }
-    }
+    this.tributeManager?.removeHelpersNotInDocument();
     for (const mutation of mutationsList) {
       mutation.addedNodes.forEach((element) => {
-        if (element instanceof Element && this.isInDocument(element)) {
+        if (element instanceof Element && isInDocument(element)) {
           this.tributeManager?.queryAndAttachHelper(element);
         }
       });
       if (mutation.type === "attributes") {
         if (
           mutation.target instanceof Element &&
-          this.isInDocument(mutation.target)
+          isInDocument(mutation.target)
         ) {
           this.tributeManager?.queryAndAttachHelper(mutation.target);
         }

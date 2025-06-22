@@ -3,7 +3,7 @@ import {
   LANG_SEPERATOR_CHARS_REGEX,
   SUPPORTED_LANGUAGES,
 } from "../shared/lang";
-import { debounce } from "../shared/utils"; // Assuming debounce is available here
+import { debounce, isInDocument } from "../shared/utils"; // Assuming debounce is available here
 import {
   PredictResponseContext,
   ForceReplaceType,
@@ -24,13 +24,23 @@ interface TributeEntry {
 }
 
 export class TributeManager {
-  SELECTORS: string;
+  private SELECTORS: string;
   private newTributeId: number;
-  tributeArr: Record<number, TributeEntry>;
+  private tributeArr: Record<number, TributeEntry>;
   // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
-  getPrediction: Function | undefined;
+  private getPrediction: Function | undefined;
   // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
-  onTrigger: Function | undefined;
+  private onTrigger: Function | undefined;
+  private minWordLengthToPredict: number;
+  private autocomplete: boolean;
+  private autocompleteOnEnter: boolean;
+  private autocompleteOnTab: boolean;
+  private lang: string;
+  private _autocompleteSeparator: RegExp;
+  private selectByDigit: boolean;
+  private revertOnBackspace: boolean;
+  private displayLangHeader: boolean;
+  private reTriggerTributeOnReplaceEvent: boolean = false;
 
   constructor({
     selectors,
@@ -76,17 +86,6 @@ export class TributeManager {
     this.getPrediction = getPrediction; // callback to main class
     this.onTrigger = onTrigger; // callback to main class
   }
-
-  // Make these properties public so FluentTyper can update them
-  public minWordLengthToPredict: number;
-  public autocomplete: boolean;
-  public autocompleteOnEnter: boolean;
-  public autocompleteOnTab: boolean;
-  public lang: string;
-  private _autocompleteSeparator: RegExp;
-  public selectByDigit: boolean;
-  public revertOnBackspace: boolean;
-  public displayLangHeader: boolean;
 
   set autocompleteSeparator(val) {
     this._autocompleteSeparator = val;
@@ -272,6 +271,15 @@ export class TributeManager {
     return false;
   }
 
+  removeHelpersNotInDocument() {
+    // This method is used to clean up any helpers that are no longer in the document.
+    for (const [key, entry] of Object.entries(this.tributeArr)) {
+      if (!isInDocument(entry.elem)) {
+        this.detachHelper(Number(key));
+      }
+    }
+  }
+
   queryAndAttachHelper(elem?: Element) {
     let elems: Element[] = [];
     if (elem) {
@@ -381,7 +389,7 @@ export class TributeManager {
   }
 
   tributeReplacedEventHandler(helperArrId: number) {
-    if (this.tributeArr[helperArrId]) {
+    if (this.tributeArr[helperArrId] && this.reTriggerTributeOnReplaceEvent) {
       this.triggerTribute(helperArrId);
     }
   }

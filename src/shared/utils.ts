@@ -224,3 +224,10 @@ export function isNumber(str: string): boolean {
     (!isNaN(Number(str)) && !isNaN(parseFloat(str))) || countDigits(str) > 1
   );
 }
+
+/**
+ * Checks if the given element is part of the document tree.
+ */
+export function isInDocument(element: Element): boolean {
+  return element.ownerDocument === document;
+}
