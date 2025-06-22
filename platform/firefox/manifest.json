@@ -67,21 +67,21 @@
   "manifest_version": 2,
   "content_security_policy": "script-src 'self' 'unsafe-eval'; object-src 'self'",
   "commands": {
-    "toggle-ft-active-tab": {
+    "CMD_TOGGLE_FT_ACTIVE_TAB": {
       "suggested_key": {
         "default": "Ctrl+Shift+F",
         "mac": "Command+Shift+F"
       },
       "description": "Toggle on/off FluentTyper on active tab"
     },
-    "toggle-ft-active-lang": {
+    "CMD_TOGGLE_FT_ACTIVE_LANG": {
       "suggested_key": {
         "default": "Ctrl+Shift+L",
         "mac": "Command+Shift+L"
       },
       "description": "Change FluentTyper active language"
     },
-    "trigger-ft-active-tab": {
+    "CMD_TRIGGER_FT_ACTIVE_TAB": {
       "suggested_key": {
         "default": "Ctrl+Period"
       },
