@@ -1,5 +1,5 @@
 
-![Logo](https://github.com/bartekplus/FluentTyper/raw/master/public/icon/LogoFluentTyper.png)
+![Logo](public/icon/LogoFluentTyper.png)
 
 
 [![Unit test](https://github.com/bartekplus/FluentTyper/actions/workflows/test.yml/badge.svg)](https://github.com/bartekplus/FluentTyper/actions/workflows/test.yml)
