@@ -24,14 +24,14 @@
   ],
   "description": "FluentTyper aims to improve the ease and speed of textual input by predicting words. It autocompletes words for you as you type.",
   "icons": {
-    "16": "icon/icon16.ico",
-    "32": "icon/icon32.ico",
-    "48": "icon/icon48.ico",
-    "64": "icon/icon64.ico",
-    "72": "icon/icon72.ico",
-    "96": "icon/icon96.ico",
-    "128": "icon/icon128.ico",
-    "256": "icon/icon256.ico"
+    "16": "icon/icon16.png",
+    "32": "icon/icon32.png",
+    "48": "icon/icon48.png",
+    "64": "icon/icon64.png",
+    "72": "icon/icon72.png",
+    "96": "icon/icon96.png",
+    "128": "icon/icon128.png",
+    "256": "icon/icon256.png"
   },
   "web_accessible_resources": [
     "icon/icon*",
@@ -45,17 +45,17 @@
   },
   "browser_action": {
     "default_icon": {
-      "16": "icon/icon16.ico",
-      "32": "icon/icon32.ico",
-      "48": "icon/icon48.ico",
-      "64": "icon/icon64.ico",
-      "72": "icon/icon72.ico",
-      "96": "icon/icon96.ico",
-      "128": "icon/icon128.ico",
-      "256": "icon/icon256.ico"
+      "16": "icon/icon16.png",
+      "32": "icon/icon32.png",
+      "48": "icon/icon48.png",
+      "64": "icon/icon64.png",
+      "72": "icon/icon72.png",
+      "96": "icon/icon96.png",
+      "128": "icon/icon128.png",
+      "256": "icon/icon256.png"
     },
     "default_popup": "popup/popup.html",
-    "default_title": "Do action"
+    "default_title": "FluentTyper"
   },
   "permissions": [
     "storage",

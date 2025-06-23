@@ -35,7 +35,7 @@ const testFluentTyperHTML =
 // --- Manifest Definition ---
 const manifest = {
   name: "FluentTyper Settings",
-  icon: "/icon/icon128.ico",
+  icon: "/icon/icon128.png",
   settings: [
     // =========================================================================
     // TAB: Core Settings
