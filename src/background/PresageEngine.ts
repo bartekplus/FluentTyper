@@ -3,7 +3,7 @@ import { Presage, PresageModule, PresageCallback } from "./PresageTypes";
 
 export interface PresagePrediction {
   prediction: string;
-  probability?: number;
+  probability: number;
 }
 
 export interface PresageEngineConfig {

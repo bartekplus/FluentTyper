@@ -17,7 +17,7 @@ export interface PredictRequestContext {
   nextChar: string;
   lang: string;
   tabId: number;
-  frameId?: number;
+  frameId: number;
   tributeId: number;
   requestId: number;
 }
@@ -33,7 +33,7 @@ export interface PredictResponseContext {
   nextChar: string;
   lang: string;
   tabId: number;
-  frameId?: number;
+  frameId: number;
   tributeId: number;
   requestId: number;
   predictions: string[];

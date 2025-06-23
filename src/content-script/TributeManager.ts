@@ -17,7 +17,7 @@ interface TributeEntry {
     forceReplace: ForceReplaceType | null,
     menuHeader?: string,
   ) => void;
-  requestId?: number;
+  requestId: number;
   // Store handler references for proper removal
   tributeReplacedHandlerRef?: EventListenerOrEventListenerObject;
 }
@@ -27,7 +27,7 @@ export class TributeManager {
   private newTributeId: number;
   private tributeArr: Record<number, TributeEntry>;
   // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
-  private getPrediction: Function | undefined;
+  private getPrediction: Function;
 
   private minWordLengthToPredict: number;
   private autocomplete: boolean;
@@ -64,7 +64,7 @@ export class TributeManager {
     revertOnBackspace: boolean;
     displayLangHeader: boolean;
     // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
-    getPrediction?: Function;
+    getPrediction: Function;
   }) {
     this.SELECTORS = selectors;
     this.newTributeId = 0;
@@ -139,18 +139,16 @@ export class TributeManager {
       if (!currentEntry) return;
 
       currentEntry.done = done;
-      currentEntry.requestId = (currentEntry.requestId || 0) + 1;
+      currentEntry.requestId += 1;
       this.activeHelperArrId = tributeId;
 
-      if (this.getPrediction) {
-        this.getPrediction({
-          text: fullText,
-          nextChar: nextChar,
-          tributeId: tributeId,
-          requestId: currentEntry.requestId,
-          lang: this.lang,
-        });
-      }
+      this.getPrediction({
+        text: fullText,
+        nextChar: nextChar,
+        tributeId: tributeId,
+        requestId: currentEntry.requestId,
+        lang: this.lang,
+      });
     };
 
     const tribute = new Tribute({

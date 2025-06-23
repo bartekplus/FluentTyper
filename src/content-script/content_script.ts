@@ -240,12 +240,10 @@ class FluentTyper {
       case CMD_BACKGROUND_PAGE_PREDICT_RESP:
         if (
           this.pendingReq &&
-          this.tributeManager &&
-          message.context.tributeId !== undefined &&
           this.pendingReq.context.tributeId === message.context.tributeId &&
           this.pendingReq.context.requestId === message.context.requestId
         ) {
-          this.tributeManager.fulfillPrediction(message.context);
+          this.tributeManager?.fulfillPrediction(message.context);
           this.pendingReq = null;
         } else {
           console.debug(

@@ -285,7 +285,7 @@ async function handleContentScriptPredictReq(
           nextChar: request.context.nextChar,
           lang: language,
           tabId: sender.tab!.id!,
-          frameId: sender.frameId,
+          frameId: sender.frameId!,
           // langName: SUPPORTED_LANGUAGES[language],
           tributeId: request.context.tributeId,
           requestId: request.context.requestId,
