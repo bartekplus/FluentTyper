@@ -1,14 +1,16 @@
 import path from "path";
+import { fileURLToPath } from "url";
 import CopyPlugin from "copy-webpack-plugin";
 import webpack from "webpack";
 import process from "process";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const platform = process.env.PLATFORM || "firefox";
-const srcDir = path.join(
-  path.dirname(new URL(import.meta.url).pathname),
-  "..",
-  "src",
-);
+const rootDir = path.resolve(__dirname, "..");
+const srcDir = path.join(rootDir, "src");
+const buildDir = path.join(rootDir, "build");
+const platformDir = path.join(rootDir, "platform", platform);
 
 export default {
   entry: {
@@ -23,10 +25,7 @@ export default {
     ),
   },
   output: {
-    path: path.join(
-      path.dirname(new URL(import.meta.url).pathname),
-      "../build",
-    ),
+    path: buildDir,
     filename: "[name].js",
     clean: true,
     chunkFormat: false,
@@ -49,19 +48,9 @@ export default {
   plugins: [
     new CopyPlugin({
       patterns: [
-        { from: ".", to: "../build", context: "public" },
-        {
-          from: path.resolve(
-            path.dirname(new URL(import.meta.url).pathname),
-            `../platform/${platform}`,
-          ),
-          to: path.resolve(
-            path.dirname(new URL(import.meta.url).pathname),
-            "../build",
-          ),
-        },
+        { from: ".", to: ".", context: path.join(rootDir, "public") },
+        { from: ".", to: ".", context: platformDir },
       ],
-      options: {},
     }),
     new webpack.ProvidePlugin({
       Buffer: ["buffer", "Buffer"],
