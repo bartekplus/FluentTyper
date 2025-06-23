@@ -52,7 +52,6 @@ class FluentTyper {
     displayLangHeader: true,
   };
   public domObserver: DomObserver;
-  public activeHelperArrId: number | null = null;
   private hostName: string = window.location.hostname;
 
   constructor() {
@@ -133,13 +132,6 @@ class FluentTyper {
     });
   }
 
-  /**
-   * Callback for TributeManager when a tribute element is triggered (e.g. by keydown).
-   */
-  handleTributeTrigger(helperArrId: number): void {
-    this.activeHelperArrId = helperArrId;
-  }
-
   initializeTributeManager(): void {
     this.tributeManager = new TributeManager({
       selectors: this.SELECTORS,
@@ -152,7 +144,6 @@ class FluentTyper {
       revertOnBackspace: this.config.revertOnBackspace,
       displayLangHeader: this.config.displayLangHeader,
       getPrediction: this.handleGetPrediction.bind(this),
-      onTrigger: this.handleTributeTrigger.bind(this),
     });
     // Set autocompleteSeparator property after construction
     if (this.tributeManager) {
@@ -269,12 +260,7 @@ class FluentTyper {
         break;
       case CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG:
         this.config.lang = message.context.lang;
-        if (this.tributeManager && this.activeHelperArrId !== null) {
-          this.tributeManager.updateLangConfig(
-            this.config.lang,
-            this.activeHelperArrId,
-          );
-        }
+        this.tributeManager?.updateLangConfig(this.config.lang);
         sendStatusMsg = true;
         break;
       case CMD_POPUP_PAGE_DISABLE:
@@ -290,9 +276,7 @@ class FluentTyper {
         sendStatusMsg = true;
         break;
       case CMD_TRIGGER_FT_ACTIVE_TAB:
-        if (this.tributeManager && this.activeHelperArrId !== null) {
-          this.tributeManager.triggerTribute(this.activeHelperArrId);
-        }
+        this.tributeManager?.triggerActiveTribute();
         sendStatusMsg = true;
         break;
       default:

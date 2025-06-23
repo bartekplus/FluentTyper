@@ -20,7 +20,6 @@ interface TributeEntry {
   requestId?: number;
   // Store handler references for proper removal
   tributeReplacedHandlerRef?: EventListenerOrEventListenerObject;
-  elementKeyDownHandlerRef?: EventListenerOrEventListenerObject;
 }
 
 export class TributeManager {
@@ -29,8 +28,7 @@ export class TributeManager {
   private tributeArr: Record<number, TributeEntry>;
   // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
   private getPrediction: Function | undefined;
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
-  private onTrigger: Function | undefined;
+
   private minWordLengthToPredict: number;
   private autocomplete: boolean;
   private autocompleteOnEnter: boolean;
@@ -41,6 +39,7 @@ export class TributeManager {
   private revertOnBackspace: boolean;
   private displayLangHeader: boolean;
   private reTriggerTributeOnReplaceEvent: boolean = false;
+  private activeHelperArrId: number | null = null;
 
   constructor({
     selectors,
@@ -54,7 +53,6 @@ export class TributeManager {
     displayLangHeader,
     // Callbacks to FluentTyper
     getPrediction,
-    onTrigger,
   }: {
     selectors: string;
     minWordLengthToPredict: number;
@@ -67,8 +65,6 @@ export class TributeManager {
     displayLangHeader: boolean;
     // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
     getPrediction?: Function;
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
-    onTrigger?: Function;
   }) {
     this.SELECTORS = selectors;
     this.newTributeId = 0;
@@ -84,7 +80,7 @@ export class TributeManager {
     this.revertOnBackspace = revertOnBackspace;
     this.displayLangHeader = displayLangHeader;
     this.getPrediction = getPrediction; // callback to main class
-    this.onTrigger = onTrigger; // callback to main class
+    this.activeHelperArrId = null;
   }
 
   set autocompleteSeparator(val) {
@@ -144,6 +140,7 @@ export class TributeManager {
 
       currentEntry.done = done;
       currentEntry.requestId = (currentEntry.requestId || 0) + 1;
+      this.activeHelperArrId = tributeId;
 
       if (this.getPrediction) {
         this.getPrediction({
@@ -202,20 +199,11 @@ export class TributeManager {
       16,
       { leading: false, trailing: true },
     );
-    const boundElementKeyDownHandler = debounce(
-      this.elementKeyDownEventHandler.bind(this, tributeId),
-      32,
-    );
     // @ts-expect-error ignore Tribute errors
     this.tributeArr[tributeId].tributeReplacedHandlerRef =
       boundTributeReplacedHandler;
     // @ts-expect-error ignore Tribute errors
-    this.tributeArr[tributeId].elementKeyDownHandlerRef =
-      boundElementKeyDownHandler;
-    // @ts-expect-error ignore Tribute errors
     elem.addEventListener("tribute-replaced", boundTributeReplacedHandler);
-    // @ts-expect-error ignore Tribute errors
-    elem.addEventListener("keydown", boundElementKeyDownHandler);
   }
 
   public fulfillPrediction(context: PredictResponseContext) {
@@ -248,9 +236,6 @@ export class TributeManager {
         "tribute-replaced",
         entry.tributeReplacedHandlerRef,
       );
-    }
-    if (entry.elementKeyDownHandlerRef) {
-      elem.removeEventListener("keydown", entry.elementKeyDownHandlerRef);
     }
     delete this.tributeArr[tributeId];
   }
@@ -380,28 +365,25 @@ export class TributeManager {
     }
   }
 
-  triggerTribute(helperArrId: number) {
-    if (this.tributeArr[helperArrId]) {
-      this.tributeArr[helperArrId].tribute.showMenuForCollection(
-        this.tributeArr[helperArrId].elem,
+  triggerActiveTribute() {
+    if (this.activeHelperArrId === null) return;
+    if (this.tributeArr[this.activeHelperArrId]) {
+      this.tributeArr[this.activeHelperArrId].tribute.showMenuForCollection(
+        this.tributeArr[this.activeHelperArrId].elem,
       );
     }
   }
 
   tributeReplacedEventHandler(helperArrId: number) {
     if (this.tributeArr[helperArrId] && this.reTriggerTributeOnReplaceEvent) {
-      this.triggerTribute(helperArrId);
+      this.activeHelperArrId = helperArrId;
+      this.triggerActiveTribute();
     }
   }
 
-  elementKeyDownEventHandler(helperArrId: number) {
-    if (this.onTrigger && this.tributeArr[helperArrId])
-      this.onTrigger(helperArrId);
-  }
-
-  updateLangConfig(lang: string, tributeId: number) {
+  updateLangConfig(lang: string) {
     this.autocompleteSeparator = LANG_SEPERATOR_CHARS_REGEX[lang];
     this.lang = lang;
-    this.triggerTribute(tributeId);
+    this.triggerActiveTribute();
   }
 }
