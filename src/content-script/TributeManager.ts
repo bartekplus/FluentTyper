@@ -20,6 +20,7 @@ interface TributeEntry {
   requestId: number;
   // Store handler references for proper removal
   tributeReplacedHandlerRef?: EventListenerOrEventListenerObject;
+  elementKeyDownHandlerRef?: EventListenerOrEventListenerObject;
 }
 
 export class TributeManager {
@@ -181,7 +182,10 @@ export class TributeManager {
         post: "</span>",
         skip: true,
       },
-      menuShowMinLength: this.minWordLengthToPredict,
+      menuShowMinLength:
+        this.minWordLengthToPredict === -1
+          ? Number.MAX_VALUE
+          : this.minWordLengthToPredict,
       // @ts-expect-error ignore Tribute errors
       keys: tribueKeyFn,
       supportRevert: true, // Assuming this is related to revertOnBackspace
@@ -197,11 +201,20 @@ export class TributeManager {
       16,
       { leading: false, trailing: true },
     );
+    const boundElementKeyDownHandler = debounce(
+      this.elementKeyDownEventHandler.bind(this, tributeId),
+      32,
+    );
     // @ts-expect-error ignore Tribute errors
     this.tributeArr[tributeId].tributeReplacedHandlerRef =
       boundTributeReplacedHandler;
     // @ts-expect-error ignore Tribute errors
+    this.tributeArr[tributeId].elementKeyDownHandlerRef =
+      boundElementKeyDownHandler;
+    // @ts-expect-error ignore Tribute errors
     elem.addEventListener("tribute-replaced", boundTributeReplacedHandler);
+    // @ts-expect-error ignore Tribute errors
+    elem.addEventListener("keydown", boundElementKeyDownHandler);
   }
 
   public fulfillPrediction(context: PredictResponseContext) {
@@ -234,6 +247,9 @@ export class TributeManager {
         "tribute-replaced",
         entry.tributeReplacedHandlerRef,
       );
+    }
+    if (entry.elementKeyDownHandlerRef) {
+      elem.removeEventListener("keydown", entry.elementKeyDownHandlerRef);
     }
     delete this.tributeArr[tributeId];
   }
@@ -373,10 +389,14 @@ export class TributeManager {
   }
 
   tributeReplacedEventHandler(helperArrId: number) {
+    this.activeHelperArrId = helperArrId;
     if (this.tributeArr[helperArrId] && this.reTriggerTributeOnReplaceEvent) {
-      this.activeHelperArrId = helperArrId;
       this.triggerActiveTribute();
     }
+  }
+
+  elementKeyDownEventHandler(helperArrId: number) {
+    this.activeHelperArrId = helperArrId;
   }
 
   updateLangConfig(lang: string) {
