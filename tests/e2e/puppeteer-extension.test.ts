@@ -70,7 +70,7 @@ describe("Chrome Extension E2E Test", () => {
     expect(popupPage).toBeDefined();
   }, 20000);
 
-  test("Prediction popup appears in textarea", async () => {
+  test("Prediction popup appears in textarea when typing and prediction is inserted on click", async () => {
     await page.goto("file://" + TEST_PAGE_PATH);
     page.bringToFront();
     await page.waitForSelector("#test-textarea");
@@ -88,8 +88,53 @@ describe("Chrome Extension E2E Test", () => {
     // Check if first li is "hello"
     const firstLiText = await page.$eval(
       ".tribute-container li:first-child",
-      (li) => li.textContent?.trim(),
+      (li) => li.textContent,
     );
-    expect(firstLiText?.toLowerCase()).toBe("have");
+    expect(firstLiText?.toLowerCase()).toBe("have\xa0");
+
+    // Click on the first suggestion
+    await page.click(".tribute-container li:first-child");
+    const textAreaText = await page.$eval(
+      "#test-textarea",
+      (textarea) => (textarea as HTMLTextAreaElement).value,
+    );
+    expect(textAreaText).toBe("have\xa0");
+  }, 15000);
+
+  test("Prediction popup appears in textarea when typing and prediction is inserted on TAB", async () => {
+    page = await browser.newPage();
+    await page.goto("file://" + TEST_PAGE_PATH);
+    page.bringToFront();
+    await page.waitForSelector("#test-textarea");
+    const textarea = await page.$("#test-textarea");
+    await textarea!.type("w"); // Type a few letters
+    // Wait for prediction popup
+    await page.waitForSelector(".tribute-container li");
+    // Check if there are DEFAULT_NUM_SUGGESTIONS li elements inside the predictionPopup
+    const liCount = await page.$$eval(
+      ".tribute-container li",
+      (lis) => lis.length,
+    );
+    expect(liCount).toBe(DEFAULT_NUM_SUGGESTIONS);
+
+    // Check if first li is "with"
+    const firstLiText = await page.$eval(
+      ".tribute-container li:first-child",
+      (li) => li.textContent,
+    );
+    expect(firstLiText?.toLowerCase()).toBe("with\xa0");
+
+    await page.keyboard.press("Tab");
+    // Wait for the textarea value to become "with\xa0"
+    await page.waitForFunction(
+      () =>
+        (document.querySelector("#test-textarea") as HTMLTextAreaElement)
+          .value !== "w",
+    );
+    const textAreaText = await page.$eval(
+      "#test-textarea",
+      (textarea) => (textarea as HTMLTextAreaElement).value,
+    );
+    expect(textAreaText).toBe("with\xa0");
   }, 15000);
 });
