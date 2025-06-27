@@ -22,6 +22,7 @@ import {
   KEY_USER_DICTIONARY_LIST,
   KEY_DOMAIN_LIST_MODE,
   KEY_DISPLAY_LANG_HEADER,
+  DEFAULT_NUM_SUGGESTIONS,
 } from "../../shared/constants.ts";
 
 // --- UI Content ---
@@ -58,7 +59,7 @@ const manifest = {
       max: 10,
       display: true,
       label: i18n.get("Number of predictions to show:") + ":&nbsp;<small>" + i18n.get("Controls how many suggestions appear. Set to 0 to disable the prediction list entirely.") + "</small>",
-      default: 5,
+      default: DEFAULT_NUM_SUGGESTIONS,
     },
     {
       tab: i18n.get("Core Settings"),

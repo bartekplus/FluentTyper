@@ -8,17 +8,12 @@
     "build": "webpack --config webpack/webpack.prod.js",
     "check": "eslint . && prettier '**/*.{html,css}' --check",
     "lint": "eslint --fix . && prettier '**/*.{html,css,js,ts}' --write",
-    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest --config=jest.config.ts",
+    "test:e2e": "PLATFORM=chrome $npm_execpath run build && jest --config=jest-e2e.config.ts",
     "update": "ncu -u && npm update",
     "preversion": "npm test",
     "version": "node scripts/update-manifest-version.cjs",
     "postversion": "git push && git push --tags"
-  },
-  "jest": {
-    "testEnvironment": "jsdom",
-    "transform": {
-      "^.+\\.tsx?$": "ts-jest"
-    }
   },
   "repository": {
     "type": "git",
@@ -43,7 +38,7 @@
     "jest": "^30.0.3",
     "jest-environment-jsdom": "^30.0.2",
     "npm-check-updates": "latest",
-    "prettier": "^3.6.1",
+    "prettier": "^3.6.2",
     "rimraf": "^6.0.1",
     "ts-jest": "^29.4.0",
     "ts-loader": "^9.5.2",
@@ -51,7 +46,9 @@
     "typescript-eslint": "^8.35.0",
     "webpack": "^5.99.9",
     "webpack-cli": "^6.0.1",
-    "webpack-merge": "^6.0.1"
+    "webpack-merge": "^6.0.1",
+    "puppeteer": "^24.11.0",
+    "jest-puppeteer": "^11.0.0"
   },
   "dependencies": {
     "buffer": "^6.0.3",
