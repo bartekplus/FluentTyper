@@ -121,32 +121,37 @@ class BackgroundServiceWorker {
 
   async getBackgroundPageSetConfigMsg(): Promise<ConfigMessage> {
     this.language = (await this.settingsManager.get(KEY_LANGUAGE)) as string;
+    const [
+      enabled,
+      autocomplete,
+      autocompleteOnEnter,
+      autocompleteOnTab,
+      selectByDigit,
+      minWordLengthToPredict,
+      revertOnBackspace,
+      displayLangHeader,
+    ] = await Promise.all([
+      this.settingsManager.get(KEY_ENABLED),
+      this.settingsManager.get(KEY_AUTOCOMPLETE),
+      this.settingsManager.get(KEY_AUTOCOMPLETE_ON_ENTER),
+      this.settingsManager.get(KEY_AUTOCOMPLETE_ON_TAB),
+      this.settingsManager.get(KEY_SELECT_BY_DIGIT),
+      this.settingsManager.get(KEY_MIN_WORD_LENGTH_TO_PREDICT),
+      this.settingsManager.get(KEY_REVERT_ON_BACKSPACE),
+      this.settingsManager.get(KEY_DISPLAY_LANG_HEADER),
+    ]);
     const message: ConfigMessage = {
       command: CMD_BACKGROUND_PAGE_SET_CONFIG,
       context: {
-        enabled: (await this.settingsManager.get(KEY_ENABLED)) as boolean,
-        autocomplete: (await this.settingsManager.get(
-          KEY_AUTOCOMPLETE,
-        )) as boolean,
-        autocompleteOnEnter: (await this.settingsManager.get(
-          KEY_AUTOCOMPLETE_ON_ENTER,
-        )) as boolean,
-        autocompleteOnTab: (await this.settingsManager.get(
-          KEY_AUTOCOMPLETE_ON_TAB,
-        )) as boolean,
-        selectByDigit: (await this.settingsManager.get(
-          KEY_SELECT_BY_DIGIT,
-        )) as boolean,
+        enabled: enabled as boolean,
+        autocomplete: autocomplete as boolean,
+        autocompleteOnEnter: autocompleteOnEnter as boolean,
+        autocompleteOnTab: autocompleteOnTab as boolean,
+        selectByDigit: selectByDigit as boolean,
         lang: this.language,
-        minWordLengthToPredict: (await this.settingsManager.get(
-          KEY_MIN_WORD_LENGTH_TO_PREDICT,
-        )) as number,
-        revertOnBackspace: (await this.settingsManager.get(
-          KEY_REVERT_ON_BACKSPACE,
-        )) as boolean,
-        displayLangHeader: (await this.settingsManager.get(
-          KEY_DISPLAY_LANG_HEADER,
-        )) as boolean,
+        minWordLengthToPredict: minWordLengthToPredict as number,
+        revertOnBackspace: revertOnBackspace as boolean,
+        displayLangHeader: displayLangHeader as boolean,
       },
     };
     return message;
@@ -155,33 +160,40 @@ class BackgroundServiceWorker {
   async updatePresageConfig() {
     await this.predictionManager.initialize();
     this.language = (await this.settingsManager.get(KEY_LANGUAGE)) as string;
+    const [
+      numSuggestions,
+      minWordLengthToPredict,
+      insertSpaceAfterAutocomplete,
+      autoCapitalize,
+      applySpacingRules,
+      textExpansions,
+      variableExpansion,
+      timeFormat,
+      dateFormat,
+      userDictionaryList,
+    ] = await Promise.all([
+      this.settingsManager.get(KEY_NUM_SUGGESTIONS),
+      this.settingsManager.get(KEY_MIN_WORD_LENGTH_TO_PREDICT),
+      this.settingsManager.get(KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE),
+      this.settingsManager.get(KEY_AUTO_CAPITALIZE),
+      this.settingsManager.get(KEY_APPLY_SPACING_RULES),
+      this.settingsManager.get(KEY_TEXT_EXPANSIONS),
+      this.settingsManager.get(KEY_VARIABLE_EXPANSION),
+      this.settingsManager.get(KEY_TIME_FORMAT),
+      this.settingsManager.get(KEY_DATE_FORMAT),
+      this.settingsManager.get(KEY_USER_DICTIONARY_LIST),
+    ]);
     const config: PresageConfig = {
-      numSuggestions: (await this.settingsManager.get(
-        KEY_NUM_SUGGESTIONS,
-      )) as number,
-      minWordLengthToPredict: (await this.settingsManager.get(
-        KEY_MIN_WORD_LENGTH_TO_PREDICT,
-      )) as number,
-      insertSpaceAfterAutocomplete: (await this.settingsManager.get(
-        KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
-      )) as boolean,
-      autoCapitalize: (await this.settingsManager.get(
-        KEY_AUTO_CAPITALIZE,
-      )) as boolean,
-      applySpacingRules: (await this.settingsManager.get(
-        KEY_APPLY_SPACING_RULES,
-      )) as boolean,
-      textExpansions: (await this.settingsManager.get(
-        KEY_TEXT_EXPANSIONS,
-      )) as Array<[string, object]>,
-      variableExpansion: (await this.settingsManager.get(
-        KEY_VARIABLE_EXPANSION,
-      )) as boolean,
-      timeFormat: (await this.settingsManager.get(KEY_TIME_FORMAT)) as string,
-      dateFormat: (await this.settingsManager.get(KEY_DATE_FORMAT)) as string,
-      userDictionaryList: (await this.settingsManager.get(
-        KEY_USER_DICTIONARY_LIST,
-      )) as string[],
+      numSuggestions: numSuggestions as number,
+      minWordLengthToPredict: minWordLengthToPredict as number,
+      insertSpaceAfterAutocomplete: insertSpaceAfterAutocomplete as boolean,
+      autoCapitalize: autoCapitalize as boolean,
+      applySpacingRules: applySpacingRules as boolean,
+      textExpansions: textExpansions as Array<[string, object]>,
+      variableExpansion: variableExpansion as boolean,
+      timeFormat: timeFormat as string,
+      dateFormat: dateFormat as string,
+      userDictionaryList: userDictionaryList as string[],
     };
     this.predictionManager.setConfig(config);
     this.tabMessenger.sendToAllTabs(
