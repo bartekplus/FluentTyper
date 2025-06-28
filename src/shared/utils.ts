@@ -60,9 +60,7 @@ export async function addDomainToList(
       throw new Error("The domain list is not an array.");
     }
     domainList.push(domainURL);
-    if (settings.set) {
-      await settings.set(SETTINGS_DOMAIN_BLACKLIST, domainList);
-    }
+    settings.set(SETTINGS_DOMAIN_BLACKLIST, domainList);
   } catch (error: unknown) {
     console.error(`Error adding domain to list: ${getErrorMessage(error)}`);
   }
@@ -83,9 +81,7 @@ export async function removeDomainFromList(
     for (let i = 0; i < domainList.length; i++) {
       if (domainURL.match(domainList[i] as string)) {
         domainList.splice(i, 1);
-        if (settings.set) {
-          await settings.set(SETTINGS_DOMAIN_BLACKLIST, domainList);
-        }
+        settings.set(SETTINGS_DOMAIN_BLACKLIST, domainList);
         break;
       }
     }
@@ -101,10 +97,13 @@ export async function isEnabledForDomain(
   settings: SettingsManager,
   domainURL: string,
 ): Promise<boolean> {
-  let enabledForDomain = Boolean(await settings.get("enable"));
+  const [enable, domainListMode, isDomainOnBWList] = await Promise.all([
+    settings.get("enable"),
+    settings.get("domainListMode"),
+    isDomainOnList(settings, domainURL),
+  ]);
+  let enabledForDomain = Boolean(enable);
   if (enabledForDomain) {
-    const domainListMode = await settings.get("domainListMode");
-    const isDomainOnBWList = await isDomainOnList(settings, domainURL);
     enabledForDomain =
       (domainListMode === "blackList" && !isDomainOnBWList) ||
       (domainListMode === "whiteList" && isDomainOnBWList);
