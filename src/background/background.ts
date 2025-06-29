@@ -305,7 +305,6 @@ async function handleContentScriptPredictReq(
       };
 
       await backgroundServiceWorker.runPrediction(predictRequestMessage);
-      sendResponse();
     }
   } catch (error) {
     console.error(

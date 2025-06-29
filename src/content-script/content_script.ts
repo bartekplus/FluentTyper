@@ -22,6 +22,7 @@ import {
   ContentScriptGetConfigMessage,
   SetConfigContext,
 } from "../shared/messageTypes";
+import { info, debug, error, warning, stackTrace } from "../shared/logger";
 
 /**
  * Extend the Window interface to include FluentTyper.
@@ -55,6 +56,7 @@ class FluentTyper {
   private hostName: string = window.location.hostname;
 
   constructor() {
+    info("FluentTyper constructor called");
     this.domObserver = new DomObserver(
       document.body || document.documentElement,
       this.mutationCallback.bind(this),
@@ -69,7 +71,7 @@ class FluentTyper {
 
   checkHostName(): boolean {
     if (this.hostName !== window.location.hostname) {
-      // Re-fetch config if the host name has changed
+      info("Host name changed, re-fetching config");
       this.hostName = window.location.hostname;
       this.getConfig();
       return true;
@@ -82,9 +84,11 @@ class FluentTyper {
   watchDog(): void {
     const currentNode = document.body || document.documentElement;
     if (this.checkHostName()) {
+      debug("Host name changed in watchDog, returning");
       return;
     }
     if (this.domObserver.getNode() !== currentNode) {
+      warning("DOM node changed, restarting");
       if (this.enabled) {
         this.restart();
       }
@@ -93,7 +97,9 @@ class FluentTyper {
   }
 
   set enabled(newValue: boolean) {
+    debug("enabled setter called with:", newValue);
     if (this._enabled !== newValue) {
+      info(`FluentTyper enabled set to ${newValue}`);
       this._enabled = newValue;
       if (newValue) {
         this.enable();
@@ -115,6 +121,7 @@ class FluentTyper {
    * Callback for TributeManager to request predictions.
    */
   handleGetPrediction(context: ContentScriptPredictRequestContext): void {
+    debug("handleGetPrediction called with context:", context);
     const message: ContentScriptPredictRequestMessage = {
       command: CMD_CONTENT_SCRIPT_PREDICT_REQ,
       context: {
@@ -133,6 +140,7 @@ class FluentTyper {
   }
 
   initializeTributeManager(): void {
+    info("Initializing TributeManager with config:", this.config);
     this.tributeManager = new TributeManager({
       selectors: this.SELECTORS,
       minWordLengthToPredict: this.config.minWordLengthToPredict,
@@ -161,6 +169,7 @@ class FluentTyper {
     for (const mutation of mutationsList) {
       mutation.addedNodes.forEach((element) => {
         if (element instanceof Element && isInDocument(element)) {
+          debug("Attaching helper to added element:", element);
           this.tributeManager?.queryAndAttachHelper(element);
         }
       });
@@ -169,6 +178,10 @@ class FluentTyper {
           mutation.target instanceof Element &&
           isInDocument(mutation.target)
         ) {
+          debug(
+            "Attaching helper to attribute-changed element:",
+            mutation.target,
+          );
           this.tributeManager?.queryAndAttachHelper(mutation.target);
         }
       }
@@ -187,9 +200,11 @@ class FluentTyper {
    * Sets the configuration options for Tribute.
    */
   setConfig(config: SetConfigContext): void {
+    info("setConfig called with config:", config);
     this.config = config;
     this.tributeManager = null;
     if (this.enabled && config.enabled) {
+      warning("Restarting due to config change");
       this.restart();
     } else {
       this.enabled = config.enabled;
@@ -200,6 +215,7 @@ class FluentTyper {
    * Enables Tribute by querying for and attaching helpers, and attaching a mutation observer.
    */
   enable(): void {
+    info("Enabling FluentTyper");
     if (!this.tributeManager) {
       this.initializeTributeManager();
     }
@@ -211,6 +227,7 @@ class FluentTyper {
    * Disables Tribute by disconnecting the mutation observer and detaching all helpers.
    */
   disable(): void {
+    info("Disabling FluentTyper");
     this.domObserver.disconnect();
     this.tributeManager?.detachAllHelpers();
   }
@@ -219,6 +236,7 @@ class FluentTyper {
    * Restarts Tribute by disabling and then enabling it again.
    */
   restart(): void {
+    warning("Restarting FluentTyper");
     this.disable();
     setTimeout(() => {
       if (this._enabled) this.enable();
@@ -235,50 +253,61 @@ class FluentTyper {
   ): void {
     checkLastError();
     let sendStatusMsg = false;
-    if (!message) return;
+    if (!message) {
+      error("Received empty message in messageHandler");
+      return;
+    }
     switch (message.command) {
       case CMD_BACKGROUND_PAGE_PREDICT_RESP:
+        debug("Handling CMD_BACKGROUND_PAGE_PREDICT_RESP");
         if (
           this.pendingReq &&
           this.pendingReq.context.tributeId === message.context.tributeId &&
           this.pendingReq.context.requestId === message.context.requestId
         ) {
+          info("Fulfilling prediction with context:", message.context);
           this.tributeManager?.fulfillPrediction(message.context);
           this.pendingReq = null;
         } else {
-          console.debug(
+          warning(
             "Prediction response ignored (mismatch or no pending request):",
             message.context,
           );
         }
         break;
       case CMD_BACKGROUND_PAGE_SET_CONFIG:
+        debug("Handling CMD_BACKGROUND_PAGE_SET_CONFIG");
         this.setConfig(message.context);
         sendStatusMsg = true;
         break;
       case CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG:
+        debug("Handling CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG");
         this.config.lang = message.context.lang;
         this.tributeManager?.updateLangConfig(this.config.lang);
         sendStatusMsg = true;
         break;
       case CMD_POPUP_PAGE_DISABLE:
+        debug("Handling CMD_POPUP_PAGE_DISABLE");
         this.enabled = false;
         sendStatusMsg = true;
         break;
       case CMD_POPUP_PAGE_ENABLE:
+        debug("Handling CMD_POPUP_PAGE_ENABLE");
         this.enabled = true;
         sendStatusMsg = true;
         break;
       case CMD_TOGGLE_FT_ACTIVE_TAB:
+        debug("Handling CMD_TOGGLE_FT_ACTIVE_TAB");
         this.enabled = !this.enabled;
         sendStatusMsg = true;
         break;
       case CMD_TRIGGER_FT_ACTIVE_TAB:
+        debug("Handling CMD_TRIGGER_FT_ACTIVE_TAB");
         this.tributeManager?.triggerActiveTribute();
         sendStatusMsg = true;
         break;
       default:
-        console.log("Unknown message:", message);
+        stackTrace("Unknown message command:", message.command, message);
         break;
     }
     if (sendStatusMsg) {
@@ -294,6 +323,7 @@ class FluentTyper {
    * Method to get configuration using chrome runtime sendMessage API.
    */
   getConfig(): void {
+    info("getConfig called");
     const message: ContentScriptGetConfigMessage = {
       command: CMD_CONTENT_SCRIPT_GET_CONFIG,
       context: {},
