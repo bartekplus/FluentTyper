@@ -42,6 +42,9 @@ export class TributeManager {
   private reTriggerTributeOnReplaceEvent: boolean = false;
   private activeHelperArrId: number | null = null;
 
+  // Logging prefix for all logs in this module
+  private static readonly LOG_PREFIX = "[TributeManager]";
+
   constructor({
     selectors,
     minWordLengthToPredict,
@@ -82,9 +85,32 @@ export class TributeManager {
     this.displayLangHeader = displayLangHeader;
     this.getPrediction = getPrediction; // callback to main class
     this.activeHelperArrId = null;
+    console.info(
+      "[%s:%s] Initialized TributeManager",
+      TributeManager.LOG_PREFIX,
+      this.constructor.name,
+      {
+        selectors,
+        minWordLengthToPredict,
+        autocomplete,
+        autocompleteOnEnter,
+        autocompleteOnTab,
+        lang,
+        selectByDigit,
+        revertOnBackspace,
+        displayLangHeader,
+      },
+    );
   }
 
   set autocompleteSeparator(val) {
+    console.info(
+      "[%s:%s:%s] Setting autocompleteSeparator",
+      TributeManager.LOG_PREFIX,
+      this.constructor.name,
+      "set autocompleteSeparator",
+      val,
+    );
     this._autocompleteSeparator = val;
     for (const [key] of Object.entries(this.tributeArr)) {
       this.tributeArr[Number(key)].tribute.autocompleteSeparator = val;
@@ -111,7 +137,6 @@ export class TributeManager {
     const elemValue = elem.hasAttribute(propertyName)
       ? elem.getAttribute(propertyName)!.toLowerCase().trim()
       : defaultValue;
-
     if (typeof expectedValue === "string") {
       return elemValue === expectedValue;
     }
@@ -119,6 +144,13 @@ export class TributeManager {
   }
 
   private attachHelperToNode(elem: Element) {
+    console.info(
+      "[%s:%s:%s] Attaching to: %o",
+      TributeManager.LOG_PREFIX,
+      this.constructor.name,
+      this.attachHelperToNode.name,
+      elem,
+    );
     const tributeId = this.newTributeId++;
     this.tributeArr[tributeId] = {
       elem: elem,
@@ -143,6 +175,19 @@ export class TributeManager {
       currentEntry.requestId += 1;
       this.activeHelperArrId = tributeId;
 
+      console.info(
+        "[%s:%s:%s] Requesting prediction",
+        TributeManager.LOG_PREFIX,
+        this.constructor.name,
+        "attachHelperToNode:valuesFn",
+        {
+          fullText,
+          nextChar,
+          tributeId,
+          requestId: currentEntry.requestId,
+          lang: this.lang,
+        },
+      );
       this.getPrediction({
         text: fullText,
         nextChar: nextChar,
@@ -218,6 +263,13 @@ export class TributeManager {
   }
 
   public fulfillPrediction(context: PredictResponseContext) {
+    console.info(
+      "[%s:%s:%s] fulfillPrediction called",
+      TributeManager.LOG_PREFIX,
+      this.constructor.name,
+      this.fulfillPrediction.name,
+      context,
+    );
     const tributeEntry = this.tributeArr[context.tributeId];
     if (
       tributeEntry &&
@@ -233,7 +285,26 @@ export class TributeManager {
         this.displayLangHeader && context.lang
           ? `Lang: ${SUPPORTED_LANGUAGES[context.lang]}`
           : undefined;
+
+      console.info(
+        "[%s:%s:%s] Fulfilling prediction",
+        TributeManager.LOG_PREFIX,
+        this.constructor.name,
+        this.fulfillPrediction.name,
+        {
+          keyValPairs,
+          header,
+        },
+      );
       tributeEntry.done(keyValPairs, context.forceReplace, header);
+    } else {
+      console.warn(
+        "[%s:%s:%s] fulfillPrediction: No matching tributeEntry or requestId mismatch",
+        TributeManager.LOG_PREFIX,
+        this.constructor.name,
+        this.fulfillPrediction.name,
+        context,
+      );
     }
   }
 
@@ -359,7 +430,6 @@ export class TributeManager {
 
       if (propertiesCheck) filteredElems.push(currentElem);
     }
-
     for (let i = 0; i < filteredElems.length; i++) {
       let skip = false;
       for (const [key] of Object.entries(this.tributeArr)) {
@@ -380,10 +450,24 @@ export class TributeManager {
   }
 
   triggerActiveTribute() {
+    console.info(
+      "[%s:%s:%s] triggerActiveTribute called",
+      TributeManager.LOG_PREFIX,
+      this.constructor.name,
+      this.triggerActiveTribute.name,
+      { activeHelperArrId: this.activeHelperArrId },
+    );
     if (this.activeHelperArrId === null) return;
     if (this.tributeArr[this.activeHelperArrId]) {
       this.tributeArr[this.activeHelperArrId].tribute.showMenuForCollection(
         this.tributeArr[this.activeHelperArrId].elem,
+      );
+      console.info(
+        "[%s:%s:%s] Active tribute menu shown",
+        TributeManager.LOG_PREFIX,
+        this.constructor.name,
+        this.triggerActiveTribute.name,
+        { activeHelperArrId: this.activeHelperArrId },
       );
     }
   }

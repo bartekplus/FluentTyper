@@ -288,7 +288,9 @@ async function handleContentScriptPredictReq(
           lang: language,
         },
       };
-      sendResponse(updateLangConfigMessage);
+      backgroundServiceWorker.sendCommandToActiveTabContentScript(
+        updateLangConfigMessage,
+      );
     } else {
       const predictRequestMessage: PredictRequestMessage = {
         command: CMD_BACKGROUND_PAGE_PREDICT_REQ,
@@ -304,7 +306,7 @@ async function handleContentScriptPredictReq(
         },
       };
 
-      await backgroundServiceWorker.runPrediction(predictRequestMessage);
+      backgroundServiceWorker.runPrediction(predictRequestMessage);
     }
   } catch (error) {
     console.error(
@@ -361,7 +363,7 @@ function onMessage(
         sendResponse,
         backgroundServiceWorker,
       );
-      return true;
+      return false;
     }
     case CMD_OPTIONS_PAGE_CONFIG_CHANGE: {
       handleOptionsPageConfigChange(

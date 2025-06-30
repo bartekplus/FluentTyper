@@ -4,8 +4,8 @@
   "description": "",
   "type": "module",
   "scripts": {
-    "watch": "webpack --config webpack/webpack.dev.js --watch",
-    "build": "webpack --config webpack/webpack.prod.js",
+    "watch": "webpack --mode=development --config webpack/webpack.js --watch",
+    "build": "webpack --mode=production --config webpack/webpack.js",
     "check": "eslint . && prettier '**/*.{html,css}' --check",
     "lint": "eslint --fix . && prettier '**/*.{html,css,js,ts}' --write",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --config=jest.config.ts",
@@ -26,14 +26,13 @@
   },
   "homepage": "https://github.com/bartekplus/FluentTyper#readme",
   "devDependencies": {
-    "@eslint/js": "^9.29.0",
-    "@types/chrome": "^0.0.326",
-    "@types/debug": "^4.1.12",
+    "@eslint/js": "^9.30.0",
+    "@types/chrome": "^0.0.328",
     "@types/dom-navigation": "^1.0.5",
     "@types/jest": "^30.0.0",
     "@types/luxon": "^3.6.2",
     "copy-webpack-plugin": "^13.0.0",
-    "eslint": "^9.29.0",
+    "eslint": "^9.30.0",
     "glob": "^11.0.3",
     "globals": "^16.2.0",
     "jest": "^30.0.3",
@@ -41,12 +40,13 @@
     "jest-puppeteer": "^11.0.0",
     "npm-check-updates": "latest",
     "prettier": "^3.6.2",
-    "puppeteer": "^24.11.0",
+    "puppeteer": "^24.11.1",
     "rimraf": "^6.0.1",
+    "terser-webpack-plugin": "^5.3.14",
     "ts-jest": "^29.4.0",
     "ts-loader": "^9.5.2",
     "typescript": "^5.8.3",
-    "typescript-eslint": "^8.35.0",
+    "typescript-eslint": "^8.35.1",
     "webpack": "^5.99.9",
     "webpack-cli": "^6.0.1",
     "webpack-merge": "^6.0.1"
@@ -55,7 +55,6 @@
     "buffer": "^6.0.3",
     "csv-parse": "^5.6.0",
     "csv-stringify": "^6.5.2",
-    "debug": "^4.4.1",
     "luxon": "^3.6.1"
   }
 }
