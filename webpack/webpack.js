@@ -63,10 +63,13 @@ export default (env, argv) => {
       maxEntrypointSize: 1048576,
     },
     optimization: {
-      minimize: argv.mode === "production",
+      minimize: true,
       minimizer: [
         new TerserPlugin({
           terserOptions: {
+            format: {
+              beautify: argv.mode !== "production",
+            },
             compress: {
               drop_console: argv.mode === "production",
             },
