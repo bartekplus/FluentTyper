@@ -22,7 +22,7 @@
       "match_about_blank": true
     }
   ],
-  "description": "FluentTyper aims to improve the ease and speed of textual input by predicting words. It autocompletes words for you as you type.",
+  "description": "Type less, do more. Get smart autocomplete, spell check, and text expansion to boost your productivity on any website.",
   "icons": {
     "16": "icon/icon16.png",
     "32": "icon/icon32.png",
