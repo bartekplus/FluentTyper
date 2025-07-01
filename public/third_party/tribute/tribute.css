@@ -39,7 +39,7 @@
   height: auto !important;
   overflow: hidden !important;
   z-index: 2147483647 !important;
-  display: block !important;
+  display: block;
 
   /* --- Aesthetics & Theming --- */
   background-color: var(--tribute-bg-light) !important;
