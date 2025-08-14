@@ -113,6 +113,71 @@ function importUserDictFileSelected(settings) {
   importInputElem.value = null;
 }
 
+function applyThemeColors(settings) {
+  const themeColors = {
+    tributeBgLight: settings.manifest.tributeBgLight.get(),
+    tributeTextLight: settings.manifest.tributeTextLight.get(),
+    tributeHighlightBgLight: settings.manifest.tributeHighlightBgLight.get(),
+    tributeBorderLight: settings.manifest.tributeBorderLight.get(),
+    tributeBgDark: settings.manifest.tributeBgDark.get(),
+    tributeTextDark: settings.manifest.tributeTextDark.get(),
+    tributeHighlightBgDark: settings.manifest.tributeHighlightBgDark.get(),
+    tributeBorderDark: settings.manifest.tributeBorderDark.get()
+  };
+
+  console.log('FluentTyper Theme Colors:', themeColors);
+
+  // Create or update custom CSS to override the CSS variables
+  let styleElement = document.getElementById('tribute-theme-overrides');
+  if (!styleElement) {
+    styleElement = document.createElement('style');
+    styleElement.id = 'tribute-theme-overrides';
+    document.head.appendChild(styleElement);
+  }
+
+  const cssOverrides = `
+    :root {
+      --tribute-bg-light: ${themeColors.tributeBgLight} !important;
+      --tribute-text-light: ${themeColors.tributeTextLight} !important;
+      --tribute-highlight-bg-light: ${themeColors.tributeHighlightBgLight} !important;
+      --tribute-border-color-light: ${themeColors.tributeBorderLight} !important;
+      --tribute-bg-dark: ${themeColors.tributeBgDark} !important;
+      --tribute-text-dark: ${themeColors.tributeTextDark} !important;
+      --tribute-highlight-bg-dark: ${themeColors.tributeHighlightBgDark} !important;
+      --tribute-border-color-dark: ${themeColors.tributeBorderDark} !important;
+    }
+  `;
+
+  styleElement.textContent = cssOverrides;
+
+  // Also save the theme configuration to storage so content scripts can access it
+  const themeConfig = {
+    themeColors: themeColors
+  };
+  chrome.storage.local.set({ themeConfig: themeConfig });
+}
+
+function resetThemeToDefaults(settings) {
+  const defaults = {
+    tributeBgLight: "#ffffff",
+    tributeTextLight: "#2d3748",
+    tributeHighlightBgLight: "#edf2f7",
+    tributeBorderLight: "#e2e8f0",
+    tributeBgDark: "#2d3748",
+    tributeTextDark: "#e2e8f0",
+    tributeHighlightBgDark: "#4a5568",
+    tributeBorderDark: "#4a5568"
+  };
+
+  // Update all the theme settings to defaults
+  Object.keys(defaults).forEach(key => {
+    settings.manifest[key].set(defaults[key]);
+  });
+
+  // Apply the default theme
+  applyThemeColors(settings);
+}
+
 window.addEventListener("DOMContentLoaded", function () {
   // Option 1: Use the manifest:
   (() =>
@@ -196,6 +261,28 @@ window.addEventListener("DOMContentLoaded", function () {
       "input",
       importUserDictFileSelected.bind(null, settings)
     );
+
+      // Theme settings event listeners
+      const themeSettings = [
+        'tributeBgLight', 'tributeTextLight', 'tributeHighlightBgLight', 'tributeBorderLight',
+        'tributeBgDark', 'tributeTextDark', 'tributeHighlightBgDark', 'tributeBorderDark'
+      ];
+
+      themeSettings.forEach(settingName => {
+        settings.manifest[settingName].addEvent("action", function () {
+          applyThemeColors(settings);
+        });
+      });
+
+      // Reset theme button
+      settings.manifest.resetThemeBtn.addEvent("action", function () {
+        resetThemeToDefaults(settings);
+      });
+
+      // Apply current theme colors on load
+      setTimeout(() => {
+        applyThemeColors(settings);
+      }, 100);
 
       // Update pressage config on change
       [

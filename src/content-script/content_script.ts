@@ -69,7 +69,15 @@ class FluentTyper {
       this.mutationCallback.bind(this),
     );
     chrome.runtime.onMessage.addListener(this.messageHandler.bind(this));
+    chrome.storage.onChanged.addListener((changes, namespace) => {
+      if (namespace === 'local' && changes.themeConfig) {
+        if (changes.themeConfig.newValue && changes.themeConfig.newValue.themeColors) {
+          this.applyThemeColors(changes.themeConfig.newValue.themeColors);
+        }
+      }
+    });
     this.getConfig();
+    this.loadAndApplyTheme();
     setInterval(this.watchDog.bind(this), 1000);
     window.navigation?.addEventListener("navigate", () => {
       this.checkHostName();
@@ -424,6 +432,51 @@ class FluentTyper {
       checkLastError();
       this.messageHandler(response);
     });
+  }
+
+  /**
+   * Loads and applies theme colors from storage.
+   */
+  private loadAndApplyTheme(): void {
+    chrome.storage.local.get('themeConfig', (result) => {
+      if (result.themeConfig && result.themeConfig.themeColors) {
+        this.applyThemeColors(result.themeConfig.themeColors);
+      }
+    });
+  }
+
+  /**
+   * Applies custom theme colors by injecting CSS variables.
+   */
+  private applyThemeColors(themeColors: any): void {
+    console.log('FluentTyper: Applying theme colors to content script:', themeColors);
+    
+    // Remove existing theme style if it exists
+    const existingStyle = document.getElementById('fluent-typer-theme-overrides');
+    if (existingStyle) {
+      existingStyle.remove();
+    }
+
+    // Create new style element with theme overrides
+    const styleElement = document.createElement('style');
+    styleElement.id = 'fluent-typer-theme-overrides';
+    
+    const cssOverrides = `
+      :root {
+        --tribute-bg-light: ${themeColors.tributeBgLight} !important;
+        --tribute-text-light: ${themeColors.tributeTextLight} !important;
+        --tribute-highlight-bg-light: ${themeColors.tributeHighlightBgLight} !important;
+        --tribute-border-color-light: ${themeColors.tributeBorderLight} !important;
+        --tribute-bg-dark: ${themeColors.tributeBgDark} !important;
+        --tribute-text-dark: ${themeColors.tributeTextDark} !important;
+        --tribute-highlight-bg-dark: ${themeColors.tributeHighlightBgDark} !important;
+        --tribute-border-color-dark: ${themeColors.tributeBorderDark} !important;
+      }
+    `;
+
+    console.log('FluentTyper: Applying CSS overrides:', cssOverrides);
+    styleElement.textContent = cssOverrides;
+    document.head.appendChild(styleElement);
   }
 }
 

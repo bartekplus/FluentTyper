@@ -309,6 +309,83 @@ const manifest = {
     },
 
     // =========================================================================
+    // TAB: Theming
+    // For customizing the appearance of the tribute suggestions popup.
+    // =========================================================================
+    {
+      tab: i18n.get("Theming"),
+      group: i18n.get("Light Theme Colors"),
+      name: "tributeBgLight",
+      type: "text",
+      label: i18n.get("Background Color") + ":&nbsp;<small>" + i18n.get("Background color of the suggestion popup in light mode (e.g., #ffffff)") + "</small>",
+      default: "#ffffff",
+    },
+    {
+      tab: i18n.get("Theming"),
+      group: i18n.get("Light Theme Colors"),
+      name: "tributeTextLight",
+      type: "text",
+      label: i18n.get("Text Color") + ":&nbsp;<small>" + i18n.get("Main text color in light mode (e.g., #2d3748)") + "</small>",
+      default: "#2d3748",
+    },
+    {
+      tab: i18n.get("Theming"),
+      group: i18n.get("Light Theme Colors"),
+      name: "tributeHighlightBgLight",
+      type: "text",
+      label: i18n.get("Highlight Background") + ":&nbsp;<small>" + i18n.get("Background color for highlighted suggestions in light mode (e.g., #edf2f7)") + "</small>",
+      default: "#edf2f7",
+    },
+    {
+      tab: i18n.get("Theming"),
+      group: i18n.get("Light Theme Colors"),
+      name: "tributeBorderLight",
+      type: "text",
+      label: i18n.get("Border Color") + ":&nbsp;<small>" + i18n.get("Border color of the popup in light mode (e.g., #e2e8f0)") + "</small>",
+      default: "#e2e8f0",
+    },
+    {
+      tab: i18n.get("Theming"),
+      group: i18n.get("Dark Theme Colors"),
+      name: "tributeBgDark",
+      type: "text",
+      label: i18n.get("Background Color") + ":&nbsp;<small>" + i18n.get("Background color of the suggestion popup in dark mode (e.g., #2d3748)") + "</small>",
+      default: "#2d3748",
+    },
+    {
+      tab: i18n.get("Theming"),
+      group: i18n.get("Dark Theme Colors"),
+      name: "tributeTextDark",
+      type: "text",
+      label: i18n.get("Text Color") + ":&nbsp;<small>" + i18n.get("Main text color in dark mode (e.g., #e2e8f0)") + "</small>",
+      default: "#e2e8f0",
+    },
+    {
+      tab: i18n.get("Theming"),
+      group: i18n.get("Dark Theme Colors"),
+      name: "tributeHighlightBgDark",
+      type: "text",
+      label: i18n.get("Highlight Background") + ":&nbsp;<small>" + i18n.get("Background color for highlighted suggestions in dark mode (e.g., #4a5568)") + "</small>",
+      default: "#4a5568",
+    },
+    {
+      tab: i18n.get("Theming"),
+      group: i18n.get("Dark Theme Colors"),
+      name: "tributeBorderDark",
+      type: "text",
+      label: i18n.get("Border Color") + ":&nbsp;<small>" + i18n.get("Border color of the popup in dark mode (e.g., #4a5568)") + "</small>",
+      default: "#4a5568",
+    },
+    {
+      tab: i18n.get("Theming"),
+      group: i18n.get("Theme Controls"),
+      name: "resetThemeBtn",
+      type: "button",
+      text: i18n.get("Reset to Default Colors"),
+      label: i18n.get("Reset all theme colors to their default values."),
+    },
+
+    // =========================================================================
     // TAB: Advanced
     // For power-user features and data management.
     // =========================================================================
