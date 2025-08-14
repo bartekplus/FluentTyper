@@ -471,6 +471,9 @@ class FluentTyper {
         --tribute-text-dark: ${themeColors.tributeTextDark} !important;
         --tribute-highlight-bg-dark: ${themeColors.tributeHighlightBgDark} !important;
         --tribute-border-color-dark: ${themeColors.tributeBorderDark} !important;
+        --tribute-font-size: ${themeColors.tributeFontSize} !important;
+        --tribute-padding-vertical: ${themeColors.tributePaddingVertical} !important;
+        --tribute-padding-horizontal: ${themeColors.tributePaddingHorizontal} !important;
       }
     `;
 

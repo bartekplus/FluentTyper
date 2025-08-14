@@ -122,7 +122,10 @@ function applyThemeColors(settings) {
     tributeBgDark: settings.manifest.tributeBgDark.get(),
     tributeTextDark: settings.manifest.tributeTextDark.get(),
     tributeHighlightBgDark: settings.manifest.tributeHighlightBgDark.get(),
-    tributeBorderDark: settings.manifest.tributeBorderDark.get()
+    tributeBorderDark: settings.manifest.tributeBorderDark.get(),
+    tributeFontSize: settings.manifest.tributeFontSize.get(),
+    tributePaddingVertical: settings.manifest.tributePaddingVertical.get(),
+    tributePaddingHorizontal: settings.manifest.tributePaddingHorizontal.get()
   };
 
   console.log('FluentTyper Theme Colors:', themeColors);
@@ -145,6 +148,9 @@ function applyThemeColors(settings) {
       --tribute-text-dark: ${themeColors.tributeTextDark} !important;
       --tribute-highlight-bg-dark: ${themeColors.tributeHighlightBgDark} !important;
       --tribute-border-color-dark: ${themeColors.tributeBorderDark} !important;
+      --tribute-font-size: ${themeColors.tributeFontSize} !important;
+      --tribute-padding-vertical: ${themeColors.tributePaddingVertical} !important;
+      --tribute-padding-horizontal: ${themeColors.tributePaddingHorizontal} !important;
     }
   `;
 
@@ -166,7 +172,10 @@ function resetThemeToDefaults(settings) {
     tributeBgDark: "#2d3748",
     tributeTextDark: "#e2e8f0",
     tributeHighlightBgDark: "#4a5568",
-    tributeBorderDark: "#4a5568"
+    tributeBorderDark: "#4a5568",
+    tributeFontSize: "0.9rem",
+    tributePaddingVertical: "0.6rem",
+    tributePaddingHorizontal: "0.8rem"
   };
 
   // Update all the theme settings to defaults
@@ -265,7 +274,8 @@ window.addEventListener("DOMContentLoaded", function () {
       // Theme settings event listeners
       const themeSettings = [
         'tributeBgLight', 'tributeTextLight', 'tributeHighlightBgLight', 'tributeBorderLight',
-        'tributeBgDark', 'tributeTextDark', 'tributeHighlightBgDark', 'tributeBorderDark'
+        'tributeBgDark', 'tributeTextDark', 'tributeHighlightBgDark', 'tributeBorderDark',
+        'tributeFontSize', 'tributePaddingVertical', 'tributePaddingHorizontal'
       ];
 
       themeSettings.forEach(settingName => {
