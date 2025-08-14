@@ -314,6 +314,19 @@ const manifest = {
     // =========================================================================
     {
       tab: i18n.get("Theming"),
+      group: i18n.get("Theme Presets"),
+      name: "themePreset",
+      type: "popupButton",
+      options: [
+        ["default", "Default Theme"],
+        ["compact", "Compact & Airy"],
+        ["custom", "Custom"]
+      ],
+      label: i18n.get("Choose a theme preset") + ":&nbsp;<small>" + i18n.get("Select a built-in theme or choose Custom to configure your own colors and spacing.") + "</small>",
+      default: "default",
+    },
+    {
+      tab: i18n.get("Theming"),
       group: i18n.get("Light Theme Colors"),
       name: "tributeBgLight",
       type: "text",

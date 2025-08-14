@@ -163,8 +163,8 @@ function applyThemeColors(settings) {
   chrome.storage.local.set({ themeConfig: themeConfig });
 }
 
-function resetThemeToDefaults(settings) {
-  const defaults = {
+const themePresets = {
+  default: {
     tributeBgLight: "#ffffff",
     tributeTextLight: "#2d3748",
     tributeHighlightBgLight: "#edf2f7",
@@ -176,7 +176,74 @@ function resetThemeToDefaults(settings) {
     tributeFontSize: "0.9rem",
     tributePaddingVertical: "0.6rem",
     tributePaddingHorizontal: "0.8rem"
-  };
+  },
+  compact: {
+    tributeBgLight: "rgba(255, 255, 255, 0.85)",
+    tributeTextLight: "#1a202c",
+    tributeHighlightBgLight: "rgba(237, 242, 247, 0.9)",
+    tributeBorderLight: "rgba(226, 232, 240, 0.7)",
+    tributeBgDark: "rgba(45, 55, 72, 0.85)",
+    tributeTextDark: "#f7fafc",
+    tributeHighlightBgDark: "rgba(74, 85, 104, 0.9)",
+    tributeBorderDark: "rgba(74, 85, 104, 0.7)",
+    tributeFontSize: "0.85rem",
+    tributePaddingVertical: "0.4rem",
+    tributePaddingHorizontal: "0.6rem"
+  }
+};
+
+function themeControlsVisibility(settings, presetName) {
+  const isCustom = presetName === 'custom';
+  
+  const themeControls = [
+    'tributeBgLight', 'tributeTextLight', 'tributeHighlightBgLight', 'tributeBorderLight',
+    'tributeBgDark', 'tributeTextDark', 'tributeHighlightBgDark', 'tributeBorderDark',
+    'tributeFontSize', 'tributePaddingVertical', 'tributePaddingHorizontal',
+    'resetThemeBtn'
+  ];
+  
+  themeControls.forEach(controlName => {
+    if (settings.manifest[controlName] && settings.manifest[controlName].bundle && settings.manifest[controlName].bundle.element) {
+      if (isCustom) {
+        settings.manifest[controlName].bundle.element.classList.remove('is-hidden');
+      } else {
+        settings.manifest[controlName].bundle.element.classList.add('is-hidden');
+      }
+    }
+  });
+}
+
+function applyThemePreset(settings, presetName) {
+  if (presetName === 'custom') {
+    // Don't change anything for custom theme, just show controls
+    themeControlsVisibility(settings, presetName);
+    return;
+  }
+  
+  const preset = themePresets[presetName];
+  if (!preset) {
+    console.warn(`FluentTyper: Unknown theme preset: ${presetName}`);
+    return;
+  }
+
+  console.log(`FluentTyper: Applying ${presetName} theme preset`);
+  
+  // Hide theme controls for preset themes
+  themeControlsVisibility(settings, presetName);
+  
+  // Update all the theme settings to preset values
+  Object.keys(preset).forEach(key => {
+    if (settings.manifest[key]) {
+      settings.manifest[key].set(preset[key]);
+    }
+  });
+
+  // Apply the preset theme
+  applyThemeColors(settings);
+}
+
+function resetThemeToDefaults(settings) {
+  const defaults = themePresets.default;
 
   // Update all the theme settings to defaults
   Object.keys(defaults).forEach(key => {
@@ -271,6 +338,11 @@ window.addEventListener("DOMContentLoaded", function () {
       importUserDictFileSelected.bind(null, settings)
     );
 
+      // Theme preset dropdown event listener
+      settings.manifest.themePreset.addEvent("action", function (value) {
+        applyThemePreset(settings, value);
+      });
+
       // Theme settings event listeners
       const themeSettings = [
         'tributeBgLight', 'tributeTextLight', 'tributeHighlightBgLight', 'tributeBorderLight',
@@ -280,6 +352,8 @@ window.addEventListener("DOMContentLoaded", function () {
 
       themeSettings.forEach(settingName => {
         settings.manifest[settingName].addEvent("action", function () {
+          // When user modifies individual theme settings, switch to custom mode
+          settings.manifest.themePreset.set('custom');
           applyThemeColors(settings);
         });
       });
@@ -287,10 +361,13 @@ window.addEventListener("DOMContentLoaded", function () {
       // Reset theme button
       settings.manifest.resetThemeBtn.addEvent("action", function () {
         resetThemeToDefaults(settings);
+        settings.manifest.themePreset.set('default');
       });
 
-      // Apply current theme colors on load
-      setTimeout(() => {
+      // Apply current theme colors and visibility on load
+      setTimeout(async () => {
+        const currentPreset = await settings.manifest.themePreset.get();
+        themeControlsVisibility(settings, currentPreset);
         applyThemeColors(settings);
       }, 100);
 
