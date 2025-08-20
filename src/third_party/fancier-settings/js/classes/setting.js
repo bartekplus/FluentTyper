@@ -294,6 +294,10 @@ class Text extends Bundle {
       this.element.set("pattern", this.params.pattern);
     }
 
+    if (this.params.required === true) {
+      this.element.set("required", true);
+    }
+
     this.element.inject(this.container);
     this.container.inject(this.bundle);
   }
