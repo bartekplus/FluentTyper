@@ -192,65 +192,17 @@ const themePresets = {
   }
 };
 
-function themeControlsVisibility(settings, presetName) {
-  const isCustom = presetName === 'custom';
-  
-  const themeControls = [
-    'tributeBgLight', 'tributeTextLight', 'tributeHighlightBgLight', 'tributeBorderLight',
-    'tributeBgDark', 'tributeTextDark', 'tributeHighlightBgDark', 'tributeBorderDark',
-    'tributeFontSize', 'tributePaddingVertical', 'tributePaddingHorizontal',
-    'resetThemeBtn'
-  ];
-  
-  themeControls.forEach(controlName => {
-    if (settings.manifest[controlName] && settings.manifest[controlName].bundle && settings.manifest[controlName].bundle.element) {
-      if (isCustom) {
-        settings.manifest[controlName].bundle.element.classList.remove('is-hidden');
-      } else {
-        settings.manifest[controlName].bundle.element.classList.add('is-hidden');
-      }
-    }
-  });
-}
-
 function applyThemePreset(settings, presetName) {
-  if (presetName === 'custom') {
-    // Don't change anything for custom theme, just show controls
-    themeControlsVisibility(settings, presetName);
-    return;
-  }
-  
-  const preset = themePresets[presetName];
-  if (!preset) {
-    console.warn(`FluentTyper: Unknown theme preset: ${presetName}`);
-    return;
-  }
+  const presetToApply = presetName === 'compact' ? themePresets.compact : themePresets.default;
 
   console.log(`FluentTyper: Applying ${presetName} theme preset`);
-  
-  // Hide theme controls for preset themes
-  themeControlsVisibility(settings, presetName);
-  
-  // Update all the theme settings to preset values
-  Object.keys(preset).forEach(key => {
+
+  Object.keys(presetToApply).forEach(key => {
     if (settings.manifest[key]) {
-      settings.manifest[key].set(preset[key]);
+      settings.manifest[key].set(presetToApply[key]);
     }
   });
 
-  // Apply the preset theme
-  applyThemeColors(settings);
-}
-
-function resetThemeToDefaults(settings) {
-  const defaults = themePresets.default;
-
-  // Update all the theme settings to defaults
-  Object.keys(defaults).forEach(key => {
-    settings.manifest[key].set(defaults[key]);
-  });
-
-  // Apply the default theme
   applyThemeColors(settings);
 }
 
@@ -338,9 +290,12 @@ window.addEventListener("DOMContentLoaded", function () {
       importUserDictFileSelected.bind(null, settings)
     );
 
-      // Theme preset dropdown event listener
-      settings.manifest.themePreset.addEvent("action", function (value) {
-        applyThemePreset(settings, value);
+      // Theme preset buttons
+      settings.manifest.useDefaultThemeBtn.addEvent("action", function () {
+        applyThemePreset(settings, 'default');
+      });
+      settings.manifest.useCompactThemeBtn.addEvent("action", function () {
+        applyThemePreset(settings, 'compact');
       });
 
       // Theme settings event listeners
@@ -352,24 +307,9 @@ window.addEventListener("DOMContentLoaded", function () {
 
       themeSettings.forEach(settingName => {
         settings.manifest[settingName].addEvent("action", function () {
-          // When user modifies individual theme settings, switch to custom mode
-          settings.manifest.themePreset.set('custom');
           applyThemeColors(settings);
         });
       });
-
-      // Reset theme button
-      settings.manifest.resetThemeBtn.addEvent("action", function () {
-        resetThemeToDefaults(settings);
-        settings.manifest.themePreset.set('default');
-      });
-
-      // Apply current theme colors and visibility on load
-      setTimeout(async () => {
-        const currentPreset = await settings.manifest.themePreset.get();
-        themeControlsVisibility(settings, currentPreset);
-        applyThemeColors(settings);
-      }, 100);
 
       // Update pressage config on change
       [
@@ -399,3 +339,4 @@ window.addEventListener("DOMContentLoaded", function () {
       });
     }))();
 });
+

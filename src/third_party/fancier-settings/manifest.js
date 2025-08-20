@@ -315,15 +315,18 @@ const manifest = {
     {
       tab: i18n.get("Theming"),
       group: i18n.get("Theme Presets"),
-      name: "themePreset",
-      type: "popupButton",
-      options: [
-        ["default", "Default Theme"],
-        ["compact", "Compact & Airy"],
-        ["custom", "Custom"]
-      ],
-      label: i18n.get("Choose a theme preset") + ":&nbsp;<small>" + i18n.get("Select a built-in theme or choose Custom to configure your own colors and spacing.") + "</small>",
-      default: "default",
+      name: "useDefaultThemeBtn",
+      type: "button",
+      text: i18n.get("Use default theme"),
+      label: i18n.get("Apply the default FluentTyper theme values."),
+    },
+    {
+      tab: i18n.get("Theming"),
+      group: i18n.get("Theme Presets"),
+      name: "useCompactThemeBtn",
+      type: "button",
+      text: i18n.get("Use compact & airy theme"),
+      label: i18n.get("Apply the compact & airy theme values."),
     },
     {
       tab: i18n.get("Theming"),
@@ -412,14 +415,6 @@ const manifest = {
       type: "text",
       label: i18n.get("Horizontal Padding") + ":&nbsp;<small>" + i18n.get("Left and right padding for suggestions (e.g., 0.8rem, 12px)") + "</small>",
       default: "0.8rem",
-    },
-    {
-      tab: i18n.get("Theming"),
-      group: i18n.get("Theme Controls"),
-      name: "resetThemeBtn",
-      type: "button",
-      text: i18n.get("Reset to Default Colors"),
-      label: i18n.get("Reset all theme colors to their default values."),
     },
 
     // =========================================================================
