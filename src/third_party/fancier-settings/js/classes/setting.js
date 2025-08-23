@@ -556,6 +556,35 @@ class Slider extends Bundle {
 }
 
 class PopupButton extends Bundle {
+  // Dynamically set options for the select element
+  setOptions(options, selectedValue) {
+    this.params.options = options;
+    // Remove all options from the select element
+    const selectElem = this.element && this.element.element ? this.element.element : null;
+    if (selectElem && selectElem.tagName === "SELECT") {
+      while (selectElem.options.length > 0) {
+        selectElem.remove(0);
+      }
+      // Add new options
+      options.forEach(option => {
+        let value, text;
+        if (typeof option === "object" && option.value !== undefined) {
+          value = option.value;
+          text = option.text || option.value;
+        } else {
+          value = option;
+          text = option;
+        }
+        const opt = document.createElement("option");
+        opt.value = value;
+        opt.text = text;
+        if (selectedValue !== undefined && value === selectedValue) {
+          opt.selected = true;
+        }
+        selectElem.add(opt);
+      });
+    }
+  }
   // label, options[{value, text}]
   // action -> change
 
@@ -713,11 +742,13 @@ class ListBox extends PopupButton {
     this.element.addEvent("change", change);
   }
 
-  setupDOM() {
+  setupDOM(inject=true) {
     super.setupDOM();
     this.selected = null;
     this.params.options = [];
-
+    if(!inject) {
+      return;
+    }
     const promise = settings.get(this.params.name);
     promise
       .then((initParams) => {
@@ -725,6 +756,7 @@ class ListBox extends PopupButton {
           this.params.options = initParams;
         }
         try {
+          console.log("Setting values for ListBox", this.params.options);
           this.params.options.forEach(
             function (option) {
               if (option) {
@@ -885,6 +917,60 @@ class RadioButtons extends Bundle {
   }
 }
 
+class ListBoxMultiselect extends ListBox {
+  addEvents() {
+    const change = function () {
+      if (this.params.name !== undefined) {
+        this.selected = this.element.getSelected();
+        const values = [];
+        this.selected.forEach((element) => {
+          values.push(element.get("value"));
+        });
+        settings.set(this.params.name, values);
+      }
+      this.fireEvent("action", this.get());
+    }.bind(this);
+
+    this.element.addEvent("change", change);
+  }
+
+
+    setupDOM() {
+    super.setupDOM(false);
+    this.selected = null;
+    this.params.options = [];
+
+    const promise = settings.get(this.params.name);
+    promise
+      .then((initParams) => {
+        if (initParams) {
+          this.params.options = initParams;
+        }
+        try {
+        const options = this.element.element.options;
+
+      if (Array.isArray(this.params.options)) {
+          // For each option in the select, set selected if value is in values
+          for (let i = 0; i < options.length; i++) {
+            options[i].selected = this.params.options.includes(options[i].value);
+          }
+        }
+
+        } catch (e) {
+          console.error(e);
+        }
+
+        this.element.inject(this.container);
+        this.container.inject(this.control);
+        this.control.inject(this.bundle);
+      })
+      .catch(function (e) {
+        console.error(e);
+      });
+  }
+}
+
+
 class Setting {
   constructor(container) {
     this.container = container;
@@ -901,6 +987,7 @@ class Setting {
       slider: Slider,
       popupButton: PopupButton,
       listBox: ListBox,
+      listBoxMultiselect: ListBoxMultiselect,
       radioButtons: RadioButtons,
       valueOnly: Bundle,
       modalButton: ModalButton,
