@@ -40,6 +40,8 @@ export const KEY_DOMAIN_LIST_MODE = "domainListMode";
 export const KEY_DISPLAY_LANG_HEADER = "displayLangHeader";
 export const KEY_ENABLED = "enabled";
 // Theming Config Keys
+export const KEY_USE_DEFAULT_THEME_BTN = "useDefaultThemeBtn";
+export const KEY_USE_COMPACT_THEME_BTN = "useCompactThemeBtn";
 export const KEY_TRIBUTE_BG_LIGHT = "tributeBgLight";
 export const KEY_TRIBUTE_TEXT_LIGHT = "tributeTextLight";
 export const KEY_TRIBUTE_HIGHLIGHT_BG_LIGHT = "tributeHighlightBgLight";

@@ -22,7 +22,21 @@ import {
   KEY_TEXT_EXPANSIONS,
   KEY_USER_DICTIONARY_LIST,
   KEY_DOMAIN_LIST_MODE,
-  KEY_DISPLAY_LANG_HEADER
+  KEY_DISPLAY_LANG_HEADER,
+  // theme settings
+  KEY_USE_DEFAULT_THEME_BTN,
+  KEY_USE_COMPACT_THEME_BTN,
+  KEY_TRIBUTE_BG_LIGHT,
+  KEY_TRIBUTE_TEXT_LIGHT,
+  KEY_TRIBUTE_HIGHLIGHT_BG_LIGHT,
+  KEY_TRIBUTE_BORDER_LIGHT,
+  KEY_TRIBUTE_BG_DARK,
+  KEY_TRIBUTE_TEXT_DARK,
+  KEY_TRIBUTE_HIGHLIGHT_BG_DARK,
+  KEY_TRIBUTE_BORDER_DARK,
+  KEY_TRIBUTE_FONT_SIZE,
+  KEY_TRIBUTE_PADDING_VERTICAL,
+  KEY_TRIBUTE_PADDING_HORIZONTAL,
 } from "../../shared/constants.ts";
 
 function optionsPageConfigChange() {
@@ -113,22 +127,20 @@ function importUserDictFileSelected(settings) {
   importInputElem.value = null;
 }
 
-function applyThemeColors(settings) {
-  const themeColors = {
-    tributeBgLight: settings.manifest.tributeBgLight.get(),
-    tributeTextLight: settings.manifest.tributeTextLight.get(),
-    tributeHighlightBgLight: settings.manifest.tributeHighlightBgLight.get(),
-    tributeBorderLight: settings.manifest.tributeBorderLight.get(),
-    tributeBgDark: settings.manifest.tributeBgDark.get(),
-    tributeTextDark: settings.manifest.tributeTextDark.get(),
-    tributeHighlightBgDark: settings.manifest.tributeHighlightBgDark.get(),
-    tributeBorderDark: settings.manifest.tributeBorderDark.get(),
-    tributeFontSize: settings.manifest.tributeFontSize.get(),
-    tributePaddingVertical: settings.manifest.tributePaddingVertical.get(),
-    tributePaddingHorizontal: settings.manifest.tributePaddingHorizontal.get()
+function applyTheme(settings) {
+  const themeConfig = {
+    tributeBgLight: settings.manifest[KEY_TRIBUTE_BG_LIGHT].get(),
+    tributeTextLight: settings.manifest[KEY_TRIBUTE_TEXT_LIGHT].get(),
+    tributeHighlightBgLight: settings.manifest[KEY_TRIBUTE_HIGHLIGHT_BG_LIGHT].get(),
+    tributeBorderLight: settings.manifest[KEY_TRIBUTE_BORDER_LIGHT].get(),
+    tributeBgDark: settings.manifest[KEY_TRIBUTE_BG_DARK].get(),
+    tributeTextDark: settings.manifest[KEY_TRIBUTE_TEXT_DARK].get(),
+    tributeHighlightBgDark: settings.manifest[KEY_TRIBUTE_HIGHLIGHT_BG_DARK].get(),
+    tributeBorderDark: settings.manifest[KEY_TRIBUTE_BORDER_DARK].get(),
+    tributeFontSize: settings.manifest[KEY_TRIBUTE_FONT_SIZE].get(),
+    tributePaddingVertical: settings.manifest[KEY_TRIBUTE_PADDING_VERTICAL].get(),
+    tributePaddingHorizontal: settings.manifest[KEY_TRIBUTE_PADDING_HORIZONTAL].get()
   };
-
-  console.log('FluentTyper Theme Colors:', themeColors);
 
   // Create or update custom CSS to override the CSS variables
   let styleElement = document.getElementById('tribute-theme-overrides');
@@ -140,26 +152,22 @@ function applyThemeColors(settings) {
 
   const cssOverrides = `
     :root {
-      --tribute-bg-light: ${themeColors.tributeBgLight} !important;
-      --tribute-text-light: ${themeColors.tributeTextLight} !important;
-      --tribute-highlight-bg-light: ${themeColors.tributeHighlightBgLight} !important;
-      --tribute-border-color-light: ${themeColors.tributeBorderLight} !important;
-      --tribute-bg-dark: ${themeColors.tributeBgDark} !important;
-      --tribute-text-dark: ${themeColors.tributeTextDark} !important;
-      --tribute-highlight-bg-dark: ${themeColors.tributeHighlightBgDark} !important;
-      --tribute-border-color-dark: ${themeColors.tributeBorderDark} !important;
-      --tribute-font-size: ${themeColors.tributeFontSize} !important;
-      --tribute-padding-vertical: ${themeColors.tributePaddingVertical} !important;
-      --tribute-padding-horizontal: ${themeColors.tributePaddingHorizontal} !important;
+      --tribute-bg-light: ${themeConfig.tributeBgLight} !important;
+      --tribute-text-light: ${themeConfig.tributeTextLight} !important;
+      --tribute-highlight-bg-light: ${themeConfig.tributeHighlightBgLight} !important;
+      --tribute-border-color-light: ${themeConfig.tributeBorderLight} !important;
+      --tribute-bg-dark: ${themeConfig.tributeBgDark} !important;
+      --tribute-text-dark: ${themeConfig.tributeTextDark} !important;
+      --tribute-highlight-bg-dark: ${themeConfig.tributeHighlightBgDark} !important;
+      --tribute-border-color-dark: ${themeConfig.tributeBorderDark} !important;
+      --tribute-font-size: ${themeConfig.tributeFontSize} !important;
+      --tribute-padding-vertical: ${themeConfig.tributePaddingVertical} !important;
+      --tribute-padding-horizontal: ${themeConfig.tributePaddingHorizontal} !important;
     }
   `;
 
   styleElement.textContent = cssOverrides;
 
-  // Also save the theme configuration to storage so content scripts can access it
-  const themeConfig = {
-    themeColors: themeColors
-  };
   chrome.storage.local.set({ themeConfig: themeConfig });
 }
 
@@ -203,7 +211,7 @@ function applyThemePreset(settings, presetName) {
     }
   });
 
-  applyThemeColors(settings);
+  applyTheme(settings);
 }
 
 window.addEventListener("DOMContentLoaded", function () {
@@ -291,23 +299,23 @@ window.addEventListener("DOMContentLoaded", function () {
     );
 
       // Theme preset buttons
-      settings.manifest.useDefaultThemeBtn.addEvent("action", function () {
+      settings.manifest[KEY_USE_DEFAULT_THEME_BTN].addEvent("action", function () {
         applyThemePreset(settings, 'default');
       });
-      settings.manifest.useCompactThemeBtn.addEvent("action", function () {
+      settings.manifest[KEY_USE_COMPACT_THEME_BTN].addEvent("action", function () {
         applyThemePreset(settings, 'compact');
       });
 
       // Theme settings event listeners
       const themeSettings = [
-        'tributeBgLight', 'tributeTextLight', 'tributeHighlightBgLight', 'tributeBorderLight',
-        'tributeBgDark', 'tributeTextDark', 'tributeHighlightBgDark', 'tributeBorderDark',
-        'tributeFontSize', 'tributePaddingVertical', 'tributePaddingHorizontal'
+        KEY_TRIBUTE_BG_LIGHT, KEY_TRIBUTE_TEXT_LIGHT, KEY_TRIBUTE_HIGHLIGHT_BG_LIGHT, KEY_TRIBUTE_BORDER_LIGHT,
+        KEY_TRIBUTE_BG_DARK, KEY_TRIBUTE_TEXT_DARK, KEY_TRIBUTE_HIGHLIGHT_BG_DARK, KEY_TRIBUTE_BORDER_DARK,
+        KEY_TRIBUTE_FONT_SIZE, KEY_TRIBUTE_PADDING_VERTICAL, KEY_TRIBUTE_PADDING_HORIZONTAL
       ];
 
       themeSettings.forEach(settingName => {
         settings.manifest[settingName].addEvent("action", function () {
-          applyThemeColors(settings);
+          applyTheme(settings);
         });
       });
 

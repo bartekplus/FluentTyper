@@ -71,8 +71,8 @@ class FluentTyper {
     chrome.runtime.onMessage.addListener(this.messageHandler.bind(this));
     chrome.storage.onChanged.addListener((changes, namespace) => {
       if (namespace === 'local' && changes.themeConfig) {
-        if (changes.themeConfig.newValue && changes.themeConfig.newValue.themeColors) {
-          this.applyThemeColors(changes.themeConfig.newValue.themeColors);
+        if (typeof changes.themeConfig.newValue === 'object') {
+          this.applyTheme(changes.themeConfig.newValue);
         }
       }
     });
@@ -439,8 +439,8 @@ class FluentTyper {
    */
   private loadAndApplyTheme(): void {
     chrome.storage.local.get('themeConfig', (result) => {
-      if (result.themeConfig && result.themeConfig.themeColors) {
-        this.applyThemeColors(result.themeConfig.themeColors);
+      if (typeof result.themeConfig === 'object') {
+        this.applyTheme(result.themeConfig);
       }
     });
   }
@@ -448,8 +448,8 @@ class FluentTyper {
   /**
    * Applies custom theme colors by injecting CSS variables.
    */
-  private applyThemeColors(themeColors: any): void {
-    console.log('FluentTyper: Applying theme colors to content script:', themeColors);
+  private applyTheme(themeSettings: any): void {
+    console.log('FluentTyper: Applying theme settings to content script:', themeSettings);
     
     // Remove existing theme style if it exists
     const existingStyle = document.getElementById('fluent-typer-theme-overrides');
@@ -463,17 +463,17 @@ class FluentTyper {
     
     const cssOverrides = `
       :root {
-        --tribute-bg-light: ${themeColors.tributeBgLight} !important;
-        --tribute-text-light: ${themeColors.tributeTextLight} !important;
-        --tribute-highlight-bg-light: ${themeColors.tributeHighlightBgLight} !important;
-        --tribute-border-color-light: ${themeColors.tributeBorderLight} !important;
-        --tribute-bg-dark: ${themeColors.tributeBgDark} !important;
-        --tribute-text-dark: ${themeColors.tributeTextDark} !important;
-        --tribute-highlight-bg-dark: ${themeColors.tributeHighlightBgDark} !important;
-        --tribute-border-color-dark: ${themeColors.tributeBorderDark} !important;
-        --tribute-font-size: ${themeColors.tributeFontSize} !important;
-        --tribute-padding-vertical: ${themeColors.tributePaddingVertical} !important;
-        --tribute-padding-horizontal: ${themeColors.tributePaddingHorizontal} !important;
+        --tribute-bg-light: ${themeSettings.tributeBgLight} !important;
+        --tribute-text-light: ${themeSettings.tributeTextLight} !important;
+        --tribute-highlight-bg-light: ${themeSettings.tributeHighlightBgLight} !important;
+        --tribute-border-color-light: ${themeSettings.tributeBorderLight} !important;
+        --tribute-bg-dark: ${themeSettings.tributeBgDark} !important;
+        --tribute-text-dark: ${themeSettings.tributeTextDark} !important;
+        --tribute-highlight-bg-dark: ${themeSettings.tributeHighlightBgDark} !important;
+        --tribute-border-color-dark: ${themeSettings.tributeBorderDark} !important;
+        --tribute-font-size: ${themeSettings.tributeFontSize} !important;
+        --tribute-padding-vertical: ${themeSettings.tributePaddingVertical} !important;
+        --tribute-padding-horizontal: ${themeSettings.tributePaddingHorizontal} !important;
       }
     `;
 

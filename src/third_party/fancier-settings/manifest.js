@@ -22,6 +22,8 @@ import {
   KEY_USER_DICTIONARY_LIST,
   KEY_DOMAIN_LIST_MODE,
   KEY_DISPLAY_LANG_HEADER,
+  KEY_USE_DEFAULT_THEME_BTN,
+  KEY_USE_COMPACT_THEME_BTN,
   KEY_TRIBUTE_BG_LIGHT,
   KEY_TRIBUTE_TEXT_LIGHT,
   KEY_TRIBUTE_HIGHLIGHT_BG_LIGHT,
@@ -326,7 +328,7 @@ const manifest = {
     {
       tab: i18n.get("Theming"),
       group: i18n.get("Theme Presets"),
-      name: "useDefaultThemeBtn",
+      name: KEY_USE_DEFAULT_THEME_BTN,
       type: "button",
       text: i18n.get("Use default theme"),
       label: i18n.get("Apply the default FluentTyper theme values."),
@@ -334,7 +336,7 @@ const manifest = {
     {
       tab: i18n.get("Theming"),
       group: i18n.get("Theme Presets"),
-      name: "useCompactThemeBtn",
+      name: KEY_USE_COMPACT_THEME_BTN,
       type: "button",
       text: i18n.get("Use compact & airy theme"),
       label: i18n.get("Apply the compact & airy theme values."),
