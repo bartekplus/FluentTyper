@@ -50,10 +50,17 @@ function init() {
         checkboxEnableNode.checked = Boolean(await settings.get("enable"));
       }
       const language = (await settings.get("language")) as string;
+      const enabledLanguages = await settings.get("enabled_languages") as string[];
       const select = window.document.getElementById(
         "languageSelect",
       ) as HTMLSelectElement;
-      for (const [langCode, lang] of Object.entries(SUPPORTED_LANGUAGES)) {
+
+      let languages = SUPPORTED_LANGUAGES;
+      if (enabledLanguages && enabledLanguages.length > 0) {
+        languages = Object.fromEntries(Object.entries(SUPPORTED_LANGUAGES).filter(([key]) => enabledLanguages.includes(key)));
+      }
+
+      for (const [langCode, lang] of Object.entries(languages)) {
         const opt = window.document.createElement("option");
         opt.value = langCode;
         opt.innerHTML = lang;
@@ -99,6 +106,20 @@ async function languageChangeEvent() {
   const select = window.document.getElementById(
     "languageSelect",
   ) as HTMLSelectElement;
+
+  const enabledLanguages = (await settings.get("enabled_languages")) as string[];
+  const currentLanguage = select.value;
+
+  let languages = Object.keys(SUPPORTED_LANGUAGES);
+  if (enabledLanguages && enabledLanguages.length > 0) {
+    languages = enabledLanguages;
+  }
+
+  const currentIndex = languages.indexOf(currentLanguage);
+  const nextIndex = (currentIndex + 1) % languages.length;
+  const nextLanguage = languages[nextIndex];
+  select.value = nextLanguage;
+
   const message: OptionsPageConfigChangeMessage = {
     command: CMD_OPTIONS_PAGE_CONFIG_CHANGE,
     context: {},

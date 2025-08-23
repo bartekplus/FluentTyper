@@ -142,6 +142,15 @@ const manifest = {
     {
       tab: i18n.get("Language"),
       group: i18n.get("Language Selection"),
+      name: "enabled_languages",
+      type: "listBoxMultiselect",
+      label: i18n.get("Enabled Languages"),
+      options: Object.entries(SUPPORTED_LANGUAGES),
+      default: Object.keys(SUPPORTED_LANGUAGES),
+    },
+    {
+      tab: i18n.get("Language"),
+      group: i18n.get("Language Selection"),
       name: KEY_FALLBACK_LANGUAGE,
       type: "popupButton",
       options: Object.entries(SUPPORTED_LANGUAGES),
