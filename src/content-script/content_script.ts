@@ -466,10 +466,12 @@ class FluentTyper {
         --tribute-bg-light: ${themeSettings.tributeBgLight} !important;
         --tribute-text-light: ${themeSettings.tributeTextLight} !important;
         --tribute-highlight-bg-light: ${themeSettings.tributeHighlightBgLight} !important;
+        --tribute-highlight-text-light: ${themeSettings.tributeHighlightTextLight} !important;
         --tribute-border-color-light: ${themeSettings.tributeBorderLight} !important;
         --tribute-bg-dark: ${themeSettings.tributeBgDark} !important;
         --tribute-text-dark: ${themeSettings.tributeTextDark} !important;
         --tribute-highlight-bg-dark: ${themeSettings.tributeHighlightBgDark} !important;
+        --tribute-highlight-text-dark: ${themeSettings.tributeHighlightTextDark} !important;
         --tribute-border-color-dark: ${themeSettings.tributeBorderDark} !important;
         --tribute-font-size: ${themeSettings.tributeFontSize} !important;
         --tribute-padding-vertical: ${themeSettings.tributePaddingVertical} !important;

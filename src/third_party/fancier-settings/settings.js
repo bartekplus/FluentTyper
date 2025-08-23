@@ -29,10 +29,12 @@ import {
   KEY_TRIBUTE_BG_LIGHT,
   KEY_TRIBUTE_TEXT_LIGHT,
   KEY_TRIBUTE_HIGHLIGHT_BG_LIGHT,
+  KEY_TRIBUTE_HIGHLIGHT_TEXT_LIGHT,
   KEY_TRIBUTE_BORDER_LIGHT,
   KEY_TRIBUTE_BG_DARK,
   KEY_TRIBUTE_TEXT_DARK,
   KEY_TRIBUTE_HIGHLIGHT_BG_DARK,
+  KEY_TRIBUTE_HIGHLIGHT_TEXT_DARK,
   KEY_TRIBUTE_BORDER_DARK,
   KEY_TRIBUTE_FONT_SIZE,
   KEY_TRIBUTE_PADDING_VERTICAL,
@@ -132,10 +134,12 @@ function applyTheme(settings) {
     tributeBgLight: settings.manifest[KEY_TRIBUTE_BG_LIGHT].get(),
     tributeTextLight: settings.manifest[KEY_TRIBUTE_TEXT_LIGHT].get(),
     tributeHighlightBgLight: settings.manifest[KEY_TRIBUTE_HIGHLIGHT_BG_LIGHT].get(),
+    tributeHighlightTextLight: settings.manifest[KEY_TRIBUTE_HIGHLIGHT_TEXT_LIGHT].get(),
     tributeBorderLight: settings.manifest[KEY_TRIBUTE_BORDER_LIGHT].get(),
     tributeBgDark: settings.manifest[KEY_TRIBUTE_BG_DARK].get(),
     tributeTextDark: settings.manifest[KEY_TRIBUTE_TEXT_DARK].get(),
     tributeHighlightBgDark: settings.manifest[KEY_TRIBUTE_HIGHLIGHT_BG_DARK].get(),
+    tributeHighlightTextDark: settings.manifest[KEY_TRIBUTE_HIGHLIGHT_TEXT_DARK].get(),
     tributeBorderDark: settings.manifest[KEY_TRIBUTE_BORDER_DARK].get(),
     tributeFontSize: settings.manifest[KEY_TRIBUTE_FONT_SIZE].get(),
     tributePaddingVertical: settings.manifest[KEY_TRIBUTE_PADDING_VERTICAL].get(),
@@ -155,10 +159,12 @@ function applyTheme(settings) {
       --tribute-bg-light: ${themeConfig.tributeBgLight} !important;
       --tribute-text-light: ${themeConfig.tributeTextLight} !important;
       --tribute-highlight-bg-light: ${themeConfig.tributeHighlightBgLight} !important;
+      --tribute-highlight-text-light: ${themeConfig.tributeHighlightTextLight} !important;
       --tribute-border-color-light: ${themeConfig.tributeBorderLight} !important;
       --tribute-bg-dark: ${themeConfig.tributeBgDark} !important;
       --tribute-text-dark: ${themeConfig.tributeTextDark} !important;
       --tribute-highlight-bg-dark: ${themeConfig.tributeHighlightBgDark} !important;
+      --tribute-highlight-text-dark: ${themeConfig.tributeHighlightTextDark} !important;
       --tribute-border-color-dark: ${themeConfig.tributeBorderDark} !important;
       --tribute-font-size: ${themeConfig.tributeFontSize} !important;
       --tribute-padding-vertical: ${themeConfig.tributePaddingVertical} !important;
@@ -176,10 +182,12 @@ const themePresets = {
     tributeBgLight: "#ffffff",
     tributeTextLight: "#2d3748",
     tributeHighlightBgLight: "#edf2f7",
+    tributeHighlightTextLight: "#2d3748",
     tributeBorderLight: "#e2e8f0",
     tributeBgDark: "#2d3748",
     tributeTextDark: "#e2e8f0",
     tributeHighlightBgDark: "#4a5568",
+    tributeHighlightTextDark: "#ffffff",
     tributeBorderDark: "#4a5568",
     tributeFontSize: "0.9rem",
     tributePaddingVertical: "0.6rem",
@@ -189,10 +197,12 @@ const themePresets = {
     tributeBgLight: "rgba(255, 255, 255, 0.85)",
     tributeTextLight: "#1a202c",
     tributeHighlightBgLight: "rgba(237, 242, 247, 0.9)",
+    tributeHighlightTextLight: "#1a202c",
     tributeBorderLight: "rgba(226, 232, 240, 0.7)",
     tributeBgDark: "rgba(45, 55, 72, 0.85)",
     tributeTextDark: "#f7fafc",
     tributeHighlightBgDark: "rgba(74, 85, 104, 0.9)",
+    tributeHighlightTextDark: "#f7fafc",
     tributeBorderDark: "rgba(74, 85, 104, 0.7)",
     tributeFontSize: "0.85rem",
     tributePaddingVertical: "0.4rem",
@@ -308,8 +318,10 @@ window.addEventListener("DOMContentLoaded", function () {
 
       // Theme settings event listeners
       const themeSettings = [
-        KEY_TRIBUTE_BG_LIGHT, KEY_TRIBUTE_TEXT_LIGHT, KEY_TRIBUTE_HIGHLIGHT_BG_LIGHT, KEY_TRIBUTE_BORDER_LIGHT,
-        KEY_TRIBUTE_BG_DARK, KEY_TRIBUTE_TEXT_DARK, KEY_TRIBUTE_HIGHLIGHT_BG_DARK, KEY_TRIBUTE_BORDER_DARK,
+        KEY_TRIBUTE_BG_LIGHT, KEY_TRIBUTE_TEXT_LIGHT, KEY_TRIBUTE_HIGHLIGHT_BG_LIGHT,
+        KEY_TRIBUTE_HIGHLIGHT_TEXT_LIGHT, KEY_TRIBUTE_BORDER_LIGHT,
+        KEY_TRIBUTE_BG_DARK, KEY_TRIBUTE_TEXT_DARK, KEY_TRIBUTE_HIGHLIGHT_BG_DARK,
+        KEY_TRIBUTE_HIGHLIGHT_TEXT_DARK, KEY_TRIBUTE_BORDER_DARK,
         KEY_TRIBUTE_FONT_SIZE, KEY_TRIBUTE_PADDING_VERTICAL, KEY_TRIBUTE_PADDING_HORIZONTAL
       ];
 
