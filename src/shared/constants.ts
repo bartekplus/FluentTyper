@@ -39,6 +39,18 @@ export const KEY_FALLBACK_LANGUAGE = "fallbackLanguage";
 export const KEY_DOMAIN_LIST_MODE = "domainListMode";
 export const KEY_DISPLAY_LANG_HEADER = "displayLangHeader";
 export const KEY_ENABLED = "enabled";
+// Theming Config Keys
+export const KEY_TRIBUTE_BG_LIGHT = "tributeBgLight";
+export const KEY_TRIBUTE_TEXT_LIGHT = "tributeTextLight";
+export const KEY_TRIBUTE_HIGHLIGHT_BG_LIGHT = "tributeHighlightBgLight";
+export const KEY_TRIBUTE_BORDER_LIGHT = "tributeBorderLight";
+export const KEY_TRIBUTE_BG_DARK = "tributeBgDark";
+export const KEY_TRIBUTE_TEXT_DARK = "tributeTextDark";
+export const KEY_TRIBUTE_HIGHLIGHT_BG_DARK = "tributeHighlightBgDark";
+export const KEY_TRIBUTE_BORDER_DARK = "tributeBorderDark";
+export const KEY_TRIBUTE_FONT_SIZE = "tributeFontSize";
+export const KEY_TRIBUTE_PADDING_VERTICAL = "tributePaddingVertical";
+export const KEY_TRIBUTE_PADDING_HORIZONTAL = "tributePaddingHorizontal";
 
 // Popup Commands
 export const CMD_POPUP_PAGE_ENABLE = "CMD_POPUP_PAGE_ENABLE";

@@ -22,6 +22,17 @@ import {
   KEY_USER_DICTIONARY_LIST,
   KEY_DOMAIN_LIST_MODE,
   KEY_DISPLAY_LANG_HEADER,
+  KEY_TRIBUTE_BG_LIGHT,
+  KEY_TRIBUTE_TEXT_LIGHT,
+  KEY_TRIBUTE_HIGHLIGHT_BG_LIGHT,
+  KEY_TRIBUTE_BORDER_LIGHT,
+  KEY_TRIBUTE_BG_DARK,
+  KEY_TRIBUTE_TEXT_DARK,
+  KEY_TRIBUTE_HIGHLIGHT_BG_DARK,
+  KEY_TRIBUTE_BORDER_DARK,
+  KEY_TRIBUTE_FONT_SIZE,
+  KEY_TRIBUTE_PADDING_VERTICAL,
+  KEY_TRIBUTE_PADDING_HORIZONTAL,
   DEFAULT_NUM_SUGGESTIONS,
 } from "../../shared/constants.ts";
 
@@ -331,7 +342,7 @@ const manifest = {
     {
       tab: i18n.get("Theming"),
       group: i18n.get("Light Theme Colors"),
-      name: "tributeBgLight",
+      name: KEY_TRIBUTE_BG_LIGHT,
       type: "text",
       required: true,
       label: i18n.get("Background Color") + ":&nbsp;<small>" + i18n.get("Background color of the suggestion popup in light mode (e.g., #ffffff)") + "</small>",
@@ -340,7 +351,7 @@ const manifest = {
     {
       tab: i18n.get("Theming"),
       group: i18n.get("Light Theme Colors"),
-      name: "tributeTextLight",
+      name: KEY_TRIBUTE_TEXT_LIGHT,
       type: "text",
       required: true,
       label: i18n.get("Text Color") + ":&nbsp;<small>" + i18n.get("Main text color in light mode (e.g., #2d3748)") + "</small>",
@@ -349,7 +360,7 @@ const manifest = {
     {
       tab: i18n.get("Theming"),
       group: i18n.get("Light Theme Colors"),
-      name: "tributeHighlightBgLight",
+      name: KEY_TRIBUTE_HIGHLIGHT_BG_LIGHT,
       type: "text",
       required: true,
       label: i18n.get("Highlight Background") + ":&nbsp;<small>" + i18n.get("Background color for highlighted suggestions in light mode (e.g., #edf2f7)") + "</small>",
@@ -358,7 +369,7 @@ const manifest = {
     {
       tab: i18n.get("Theming"),
       group: i18n.get("Light Theme Colors"),
-      name: "tributeBorderLight",
+      name: KEY_TRIBUTE_BORDER_LIGHT,
       type: "text",
       required: true,
       label: i18n.get("Border Color") + ":&nbsp;<small>" + i18n.get("Border color of the popup in light mode (e.g., #e2e8f0)") + "</small>",
@@ -367,7 +378,7 @@ const manifest = {
     {
       tab: i18n.get("Theming"),
       group: i18n.get("Dark Theme Colors"),
-      name: "tributeBgDark",
+      name: KEY_TRIBUTE_BG_DARK,
       type: "text",
       required: true,
       label: i18n.get("Background Color") + ":&nbsp;<small>" + i18n.get("Background color of the suggestion popup in dark mode (e.g., #2d3748)") + "</small>",
@@ -376,7 +387,7 @@ const manifest = {
     {
       tab: i18n.get("Theming"),
       group: i18n.get("Dark Theme Colors"),
-      name: "tributeTextDark",
+      name: KEY_TRIBUTE_TEXT_DARK,
       type: "text",
       required: true,
       label: i18n.get("Text Color") + ":&nbsp;<small>" + i18n.get("Main text color in dark mode (e.g., #e2e8f0)") + "</small>",
@@ -385,7 +396,7 @@ const manifest = {
     {
       tab: i18n.get("Theming"),
       group: i18n.get("Dark Theme Colors"),
-      name: "tributeHighlightBgDark",
+      name: KEY_TRIBUTE_HIGHLIGHT_BG_DARK,
       type: "text",
       required: true,
       label: i18n.get("Highlight Background") + ":&nbsp;<small>" + i18n.get("Background color for highlighted suggestions in dark mode (e.g., #4a5568)") + "</small>",
@@ -394,7 +405,7 @@ const manifest = {
     {
       tab: i18n.get("Theming"),
       group: i18n.get("Dark Theme Colors"),
-      name: "tributeBorderDark",
+      name: KEY_TRIBUTE_BORDER_DARK,
       type: "text",
       required: true,
       label: i18n.get("Border Color") + ":&nbsp;<small>" + i18n.get("Border color of the popup in dark mode (e.g., #4a5568)") + "</small>",
@@ -403,7 +414,7 @@ const manifest = {
     {
       tab: i18n.get("Theming"),
       group: i18n.get("Typography & Spacing"),
-      name: "tributeFontSize",
+      name: KEY_TRIBUTE_FONT_SIZE,
       type: "text",
       required: true,
       label: i18n.get("Font Size") + ":&nbsp;<small>" + i18n.get("Font size for suggestion text (e.g., 0.9rem, 14px)") + "</small>",
@@ -412,7 +423,7 @@ const manifest = {
     {
       tab: i18n.get("Theming"),
       group: i18n.get("Typography & Spacing"),
-      name: "tributePaddingVertical",
+      name: KEY_TRIBUTE_PADDING_VERTICAL,
       type: "text",
       required: true,
       label: i18n.get("Vertical Padding") + ":&nbsp;<small>" + i18n.get("Top and bottom padding for suggestions (e.g., 0.6rem, 8px)") + "</small>",
@@ -421,7 +432,7 @@ const manifest = {
     {
       tab: i18n.get("Theming"),
       group: i18n.get("Typography & Spacing"),
-      name: "tributePaddingHorizontal",
+      name: KEY_TRIBUTE_PADDING_HORIZONTAL,
       type: "text",
       required: true,
       label: i18n.get("Horizontal Padding") + ":&nbsp;<small>" + i18n.get("Left and right padding for suggestions (e.g., 0.8rem, 12px)") + "</small>",
