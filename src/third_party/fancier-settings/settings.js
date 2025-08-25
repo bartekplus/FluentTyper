@@ -129,53 +129,8 @@ function importUserDictFileSelected(settings) {
   importInputElem.value = null;
 }
 
-function applyTheme(settings) {
-  const themeConfig = {
-    tributeBgLight: settings.manifest[KEY_TRIBUTE_BG_LIGHT].get(),
-    tributeTextLight: settings.manifest[KEY_TRIBUTE_TEXT_LIGHT].get(),
-    tributeHighlightBgLight: settings.manifest[KEY_TRIBUTE_HIGHLIGHT_BG_LIGHT].get(),
-    tributeHighlightTextLight: settings.manifest[KEY_TRIBUTE_HIGHLIGHT_TEXT_LIGHT].get(),
-    tributeBorderLight: settings.manifest[KEY_TRIBUTE_BORDER_LIGHT].get(),
-    tributeBgDark: settings.manifest[KEY_TRIBUTE_BG_DARK].get(),
-    tributeTextDark: settings.manifest[KEY_TRIBUTE_TEXT_DARK].get(),
-    tributeHighlightBgDark: settings.manifest[KEY_TRIBUTE_HIGHLIGHT_BG_DARK].get(),
-    tributeHighlightTextDark: settings.manifest[KEY_TRIBUTE_HIGHLIGHT_TEXT_DARK].get(),
-    tributeBorderDark: settings.manifest[KEY_TRIBUTE_BORDER_DARK].get(),
-    tributeFontSize: settings.manifest[KEY_TRIBUTE_FONT_SIZE].get(),
-    tributePaddingVertical: settings.manifest[KEY_TRIBUTE_PADDING_VERTICAL].get(),
-    tributePaddingHorizontal: settings.manifest[KEY_TRIBUTE_PADDING_HORIZONTAL].get()
-  };
-
-  // Create or update custom CSS to override the CSS variables
-  let styleElement = document.getElementById('tribute-theme-overrides');
-  if (!styleElement) {
-    styleElement = document.createElement('style');
-    styleElement.id = 'tribute-theme-overrides';
-    document.head.appendChild(styleElement);
-  }
-
-  const cssOverrides = `
-    :root {
-      --tribute-bg-light: ${themeConfig.tributeBgLight} !important;
-      --tribute-text-light: ${themeConfig.tributeTextLight} !important;
-      --tribute-highlight-bg-light: ${themeConfig.tributeHighlightBgLight} !important;
-      --tribute-highlight-text-light: ${themeConfig.tributeHighlightTextLight} !important;
-      --tribute-border-color-light: ${themeConfig.tributeBorderLight} !important;
-      --tribute-bg-dark: ${themeConfig.tributeBgDark} !important;
-      --tribute-text-dark: ${themeConfig.tributeTextDark} !important;
-      --tribute-highlight-bg-dark: ${themeConfig.tributeHighlightBgDark} !important;
-      --tribute-highlight-text-dark: ${themeConfig.tributeHighlightTextDark} !important;
-      --tribute-border-color-dark: ${themeConfig.tributeBorderDark} !important;
-      --tribute-font-size: ${themeConfig.tributeFontSize} !important;
-      --tribute-padding-vertical: ${themeConfig.tributePaddingVertical} !important;
-      --tribute-padding-horizontal: ${themeConfig.tributePaddingHorizontal} !important;
-    }
-  `;
-
-  styleElement.textContent = cssOverrides;
-
-  chrome.storage.local.set({ themeConfig: themeConfig });
-}
+// Theme application is now handled through the messaging system
+// This function is no longer needed as themes are applied via background script
 
 const themePresets = {
   default: {
@@ -221,7 +176,7 @@ function applyThemePreset(settings, presetName) {
     }
   });
 
-  applyTheme(settings);
+  // Theme will be applied through the messaging system when settings change
 }
 
 window.addEventListener("DOMContentLoaded", function () {
@@ -325,11 +280,8 @@ window.addEventListener("DOMContentLoaded", function () {
         KEY_TRIBUTE_FONT_SIZE, KEY_TRIBUTE_PADDING_VERTICAL, KEY_TRIBUTE_PADDING_HORIZONTAL
       ];
 
-      themeSettings.forEach(settingName => {
-        settings.manifest[settingName].addEvent("action", function () {
-          applyTheme(settings);
-        });
-      });
+      // Theme settings are now handled through the messaging system
+      // No direct theme application needed here
 
       // Update pressage config on change
       [
@@ -351,7 +303,21 @@ window.addEventListener("DOMContentLoaded", function () {
         KEY_REVERT_ON_BACKSPACE,
         KEY_TEXT_EXPANSIONS,
         KEY_USER_DICTIONARY_LIST,
-        KEY_DISPLAY_LANG_HEADER
+        KEY_DISPLAY_LANG_HEADER,
+        // Theme settings
+        KEY_TRIBUTE_BG_LIGHT,
+        KEY_TRIBUTE_TEXT_LIGHT,
+        KEY_TRIBUTE_HIGHLIGHT_BG_LIGHT,
+        KEY_TRIBUTE_HIGHLIGHT_TEXT_LIGHT,
+        KEY_TRIBUTE_BORDER_LIGHT,
+        KEY_TRIBUTE_BG_DARK,
+        KEY_TRIBUTE_TEXT_DARK,
+        KEY_TRIBUTE_HIGHLIGHT_BG_DARK,
+        KEY_TRIBUTE_HIGHLIGHT_TEXT_DARK,
+        KEY_TRIBUTE_BORDER_DARK,
+        KEY_TRIBUTE_FONT_SIZE,
+        KEY_TRIBUTE_PADDING_VERTICAL,
+        KEY_TRIBUTE_PADDING_HORIZONTAL
       ].forEach((element) => {
         settings.manifest[element].addEvent("action", function () {
           optionsPageConfigChange();

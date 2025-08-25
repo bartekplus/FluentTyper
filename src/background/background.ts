@@ -140,6 +140,38 @@ class BackgroundServiceWorker {
       this.settingsManager.get(KEY_REVERT_ON_BACKSPACE),
       this.settingsManager.get(KEY_DISPLAY_LANG_HEADER),
     ]);
+
+    // Get theme configuration
+    const [
+      tributeBgLight,
+      tributeTextLight,
+      tributeHighlightBgLight,
+      tributeHighlightTextLight,
+      tributeBorderLight,
+      tributeBgDark,
+      tributeTextDark,
+      tributeHighlightBgDark,
+      tributeHighlightTextDark,
+      tributeBorderDark,
+      tributeFontSize,
+      tributePaddingVertical,
+      tributePaddingHorizontal,
+    ] = await Promise.all([
+      this.settingsManager.get("tributeBgLight"),
+      this.settingsManager.get("tributeTextLight"),
+      this.settingsManager.get("tributeHighlightBgLight"),
+      this.settingsManager.get("tributeHighlightTextLight"),
+      this.settingsManager.get("tributeBorderLight"),
+      this.settingsManager.get("tributeBgDark"),
+      this.settingsManager.get("tributeTextDark"),
+      this.settingsManager.get("tributeHighlightBgDark"),
+      this.settingsManager.get("tributeHighlightTextDark"),
+      this.settingsManager.get("tributeBorderDark"),
+      this.settingsManager.get("tributeFontSize"),
+      this.settingsManager.get("tributePaddingVertical"),
+      this.settingsManager.get("tributePaddingHorizontal"),
+    ]);
+
     const message: ConfigMessage = {
       command: CMD_BACKGROUND_PAGE_SET_CONFIG,
       context: {
@@ -152,6 +184,21 @@ class BackgroundServiceWorker {
         minWordLengthToPredict: minWordLengthToPredict as number,
         revertOnBackspace: revertOnBackspace as boolean,
         displayLangHeader: displayLangHeader as boolean,
+        themeConfig: {
+          tributeBgLight: tributeBgLight as string,
+          tributeTextLight: tributeTextLight as string,
+          tributeHighlightBgLight: tributeHighlightBgLight as string,
+          tributeHighlightTextLight: tributeHighlightTextLight as string,
+          tributeBorderLight: tributeBorderLight as string,
+          tributeBgDark: tributeBgDark as string,
+          tributeTextDark: tributeTextDark as string,
+          tributeHighlightBgDark: tributeHighlightBgDark as string,
+          tributeHighlightTextDark: tributeHighlightTextDark as string,
+          tributeBorderDark: tributeBorderDark as string,
+          tributeFontSize: tributeFontSize as string,
+          tributePaddingVertical: tributePaddingVertical as string,
+          tributePaddingHorizontal: tributePaddingHorizontal as string,
+        },
       },
     };
     return message;
