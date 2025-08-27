@@ -22,7 +22,23 @@ import {
   KEY_TEXT_EXPANSIONS,
   KEY_USER_DICTIONARY_LIST,
   KEY_DOMAIN_LIST_MODE,
-  KEY_DISPLAY_LANG_HEADER
+  KEY_DISPLAY_LANG_HEADER,
+  // theme settings
+  KEY_USE_DEFAULT_THEME_BTN,
+  KEY_USE_COMPACT_THEME_BTN,
+  KEY_TRIBUTE_BG_LIGHT,
+  KEY_TRIBUTE_TEXT_LIGHT,
+  KEY_TRIBUTE_HIGHLIGHT_BG_LIGHT,
+  KEY_TRIBUTE_HIGHLIGHT_TEXT_LIGHT,
+  KEY_TRIBUTE_BORDER_LIGHT,
+  KEY_TRIBUTE_BG_DARK,
+  KEY_TRIBUTE_TEXT_DARK,
+  KEY_TRIBUTE_HIGHLIGHT_BG_DARK,
+  KEY_TRIBUTE_HIGHLIGHT_TEXT_DARK,
+  KEY_TRIBUTE_BORDER_DARK,
+  KEY_TRIBUTE_FONT_SIZE,
+  KEY_TRIBUTE_PADDING_VERTICAL,
+  KEY_TRIBUTE_PADDING_HORIZONTAL,
 } from "../../shared/constants.ts";
 
 function optionsPageConfigChange() {
@@ -113,6 +129,56 @@ function importUserDictFileSelected(settings) {
   importInputElem.value = null;
 }
 
+// Theme application is now handled through the messaging system
+// This function is no longer needed as themes are applied via background script
+
+const themePresets = {
+  default: {
+    tributeBgLight: "#ffffff",
+    tributeTextLight: "#2d3748",
+    tributeHighlightBgLight: "#edf2f7",
+    tributeHighlightTextLight: "#2d3748",
+    tributeBorderLight: "#e2e8f0",
+    tributeBgDark: "#2d3748",
+    tributeTextDark: "#e2e8f0",
+    tributeHighlightBgDark: "#4a5568",
+    tributeHighlightTextDark: "#ffffff",
+    tributeBorderDark: "#4a5568",
+    tributeFontSize: "0.9rem",
+    tributePaddingVertical: "0.6rem",
+    tributePaddingHorizontal: "0.8rem"
+  },
+  compact: {
+    tributeBgLight: "rgba(255, 255, 255, 0.85)",
+    tributeTextLight: "#1a202c",
+    tributeHighlightBgLight: "rgba(237, 242, 247, 0.9)",
+    tributeHighlightTextLight: "#1a202c",
+    tributeBorderLight: "rgba(226, 232, 240, 0.7)",
+    tributeBgDark: "rgba(45, 55, 72, 0.85)",
+    tributeTextDark: "#f7fafc",
+    tributeHighlightBgDark: "rgba(74, 85, 104, 0.9)",
+    tributeHighlightTextDark: "#f7fafc",
+    tributeBorderDark: "rgba(74, 85, 104, 0.7)",
+    tributeFontSize: "0.85rem",
+    tributePaddingVertical: "0.4rem",
+    tributePaddingHorizontal: "0.6rem"
+  }
+};
+
+function applyThemePreset(settings, presetName) {
+  const presetToApply = presetName === 'compact' ? themePresets.compact : themePresets.default;
+
+  console.log(`FluentTyper: Applying ${presetName} theme preset`);
+
+  Object.keys(presetToApply).forEach(key => {
+    if (settings.manifest[key]) {
+      settings.manifest[key].set(presetToApply[key]);
+    }
+  });
+
+  // Theme will be applied through the messaging system when settings change
+}
+
 window.addEventListener("DOMContentLoaded", function () {
   // Option 1: Use the manifest:
   (() =>
@@ -197,6 +263,26 @@ window.addEventListener("DOMContentLoaded", function () {
       importUserDictFileSelected.bind(null, settings)
     );
 
+      // Theme preset buttons
+      settings.manifest[KEY_USE_DEFAULT_THEME_BTN].addEvent("action", function () {
+        applyThemePreset(settings, 'default');
+      });
+      settings.manifest[KEY_USE_COMPACT_THEME_BTN].addEvent("action", function () {
+        applyThemePreset(settings, 'compact');
+      });
+
+      // Theme settings event listeners
+      const themeSettings = [
+        KEY_TRIBUTE_BG_LIGHT, KEY_TRIBUTE_TEXT_LIGHT, KEY_TRIBUTE_HIGHLIGHT_BG_LIGHT,
+        KEY_TRIBUTE_HIGHLIGHT_TEXT_LIGHT, KEY_TRIBUTE_BORDER_LIGHT,
+        KEY_TRIBUTE_BG_DARK, KEY_TRIBUTE_TEXT_DARK, KEY_TRIBUTE_HIGHLIGHT_BG_DARK,
+        KEY_TRIBUTE_HIGHLIGHT_TEXT_DARK, KEY_TRIBUTE_BORDER_DARK,
+        KEY_TRIBUTE_FONT_SIZE, KEY_TRIBUTE_PADDING_VERTICAL, KEY_TRIBUTE_PADDING_HORIZONTAL
+      ];
+
+      // Theme settings are now handled through the messaging system
+      // No direct theme application needed here
+
       // Update pressage config on change
       [
         KEY_AUTOCOMPLETE,
@@ -217,7 +303,21 @@ window.addEventListener("DOMContentLoaded", function () {
         KEY_REVERT_ON_BACKSPACE,
         KEY_TEXT_EXPANSIONS,
         KEY_USER_DICTIONARY_LIST,
-        KEY_DISPLAY_LANG_HEADER
+        KEY_DISPLAY_LANG_HEADER,
+        // Theme settings
+        KEY_TRIBUTE_BG_LIGHT,
+        KEY_TRIBUTE_TEXT_LIGHT,
+        KEY_TRIBUTE_HIGHLIGHT_BG_LIGHT,
+        KEY_TRIBUTE_HIGHLIGHT_TEXT_LIGHT,
+        KEY_TRIBUTE_BORDER_LIGHT,
+        KEY_TRIBUTE_BG_DARK,
+        KEY_TRIBUTE_TEXT_DARK,
+        KEY_TRIBUTE_HIGHLIGHT_BG_DARK,
+        KEY_TRIBUTE_HIGHLIGHT_TEXT_DARK,
+        KEY_TRIBUTE_BORDER_DARK,
+        KEY_TRIBUTE_FONT_SIZE,
+        KEY_TRIBUTE_PADDING_VERTICAL,
+        KEY_TRIBUTE_PADDING_HORIZONTAL
       ].forEach((element) => {
         settings.manifest[element].addEvent("action", function () {
           optionsPageConfigChange();
@@ -225,3 +325,4 @@ window.addEventListener("DOMContentLoaded", function () {
       });
     }))();
 });
+
