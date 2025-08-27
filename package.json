@@ -1,6 +1,6 @@
 {
   "name": "fluenttyper",
-  "version": "2025.7.5",
+  "version": "2025.8.0",
   "description": "Type less, do more. Get smart autocomplete, spell check, and text expansion to boost your productivity on any website.",
   "type": "module",
   "scripts": {
