@@ -63,11 +63,11 @@ class FluentTyper {
       "[%s:%s] Initializing on %s",
       FluentTyper.LOG_PREFIX,
       this.constructor.name,
-      window.location.hostname
+      window.location.hostname,
     );
     this.domObserver = new DomObserver(
       document.body || document.documentElement,
-      this.mutationCallback.bind(this)
+      this.mutationCallback.bind(this),
     );
     chrome.runtime.onMessage.addListener(this.messageHandler.bind(this));
     this.getConfig();
@@ -83,7 +83,7 @@ class FluentTyper {
         "[%s:%s:%s] Host name changed, re-fetching config",
         FluentTyper.LOG_PREFIX,
         this.constructor.name,
-        this.checkHostName.name
+        this.checkHostName.name,
       );
       this.hostName = window.location.hostname;
       this.getConfig();
@@ -101,7 +101,7 @@ class FluentTyper {
         "[%s:%s:%s] Host name changed in watchDog, returning",
         FluentTyper.LOG_PREFIX,
         this.constructor.name,
-        this.watchDog.name
+        this.watchDog.name,
       );
       return;
     }
@@ -110,7 +110,7 @@ class FluentTyper {
         "[%s:%s:%s] DOM node changed, restarting",
         FluentTyper.LOG_PREFIX,
         this.constructor.name,
-        this.watchDog.name
+        this.watchDog.name,
       );
       if (this.enabled) {
         this.restart();
@@ -126,7 +126,7 @@ class FluentTyper {
         FluentTyper.LOG_PREFIX,
         this.constructor.name,
         "set enabled",
-        newValue
+        newValue,
       );
       this._enabled = newValue;
       if (newValue) {
@@ -154,7 +154,7 @@ class FluentTyper {
       FluentTyper.LOG_PREFIX,
       this.constructor.name,
       this.handleGetPrediction.name,
-      context
+      context,
     );
     const message: ContentScriptPredictRequestMessage = {
       command: CMD_CONTENT_SCRIPT_PREDICT_REQ,
@@ -176,7 +176,7 @@ class FluentTyper {
       FluentTyper.LOG_PREFIX,
       this.constructor.name,
       this.initializeTributeManager.name,
-      this.config
+      this.config,
     );
     this.tributeManager = new TributeManager({
       selectors: this.SELECTORS,
@@ -206,7 +206,7 @@ class FluentTyper {
       FluentTyper.LOG_PREFIX,
       this.constructor.name,
       this.processMutations.name,
-      mutationsList.length
+      mutationsList.length,
     );
     this.domObserver.disconnect();
     this.tributeManager?.removeHelpersNotInDocument();
@@ -245,7 +245,7 @@ class FluentTyper {
       FluentTyper.LOG_PREFIX,
       this.constructor.name,
       this.setConfig.name,
-      config
+      config,
     );
     this.config = config;
     this.tributeManager = null;
@@ -260,7 +260,7 @@ class FluentTyper {
         "[%s:%s:%s] Restarting due to config change",
         FluentTyper.LOG_PREFIX,
         this.constructor.name,
-        this.setConfig.name
+        this.setConfig.name,
       );
       this.restart();
     } else {
@@ -276,7 +276,7 @@ class FluentTyper {
       "[%s:%s:%s] Enabling FluentTyper",
       FluentTyper.LOG_PREFIX,
       this.constructor.name,
-      this.enable.name
+      this.enable.name,
     );
     if (!this.tributeManager) {
       this.initializeTributeManager();
@@ -294,7 +294,7 @@ class FluentTyper {
       "[%s:%s:%s] Disabling FluentTyper",
       FluentTyper.LOG_PREFIX,
       this.constructor.name,
-      this.disable.name
+      this.disable.name,
     );
     this.domObserver.disconnect();
     this.tributeManager?.detachAllHelpers();
@@ -309,7 +309,7 @@ class FluentTyper {
       "[%s:%s:%s] Restarting FluentTyper",
       FluentTyper.LOG_PREFIX,
       this.constructor.name,
-      this.restart.name
+      this.restart.name,
     );
     this.disable();
     setTimeout(() => {
@@ -323,7 +323,7 @@ class FluentTyper {
   messageHandler(
     message: Message,
     sender?: chrome.runtime.MessageSender,
-    sendResponse?: (response: any) => void
+    sendResponse?: (response: any) => void,
   ): void {
     checkLastError();
     let sendStatusMsg = false;
@@ -332,7 +332,7 @@ class FluentTyper {
         "[%s:%s:%s] Received empty message in messageHandler",
         FluentTyper.LOG_PREFIX,
         this.constructor.name,
-        this.messageHandler.name
+        this.messageHandler.name,
       );
       return;
     }
@@ -342,7 +342,7 @@ class FluentTyper {
       this.constructor.name,
       this.messageHandler.name,
       message.command,
-      message
+      message,
     );
 
     switch (message.command) {
@@ -357,7 +357,7 @@ class FluentTyper {
             FluentTyper.LOG_PREFIX,
             this.constructor.name,
             this.messageHandler.name,
-            message.context
+            message.context,
           );
           this.tributeManager?.fulfillPrediction(message.context);
           this.pendingReq = null;
@@ -367,7 +367,7 @@ class FluentTyper {
             FluentTyper.LOG_PREFIX,
             this.constructor.name,
             this.messageHandler.name,
-            message.context
+            message.context,
           );
         }
         break;
@@ -405,7 +405,7 @@ class FluentTyper {
           this.constructor.name,
           this.messageHandler.name,
           message.command,
-          message
+          message,
         );
         break;
     }
@@ -439,12 +439,12 @@ class FluentTyper {
   private applyTheme(themeSettings: any): void {
     console.log(
       "FluentTyper: Applying theme settings to content script:",
-      themeSettings
+      themeSettings,
     );
 
     // Remove existing theme style if it exists
     const existingStyle = document.getElementById(
-      "fluent-typer-theme-overrides"
+      "fluent-typer-theme-overrides",
     );
     if (existingStyle) {
       existingStyle.remove();
