@@ -9,6 +9,22 @@ export interface SetConfigContext {
   revertOnBackspace: boolean;
   enabled: boolean;
   displayLangHeader: boolean;
+  // Theme configuration
+  themeConfig?: {
+    tributeBgLight: string;
+    tributeTextLight: string;
+    tributeHighlightBgLight: string;
+    tributeHighlightTextLight: string;
+    tributeBorderLight: string;
+    tributeBgDark: string;
+    tributeTextDark: string;
+    tributeHighlightBgDark: string;
+    tributeHighlightTextDark: string;
+    tributeBorderDark: string;
+    tributeFontSize: string;
+    tributePaddingVertical: string;
+    tributePaddingHorizontal: string;
+  };
 }
 
 // Context for CMD_BACKGROUND_PAGE_PREDICT_REQ
