@@ -29,7 +29,7 @@ import {
   KEY_USER_DICTIONARY_LIST,
 } from "../shared/constants";
 import { getDomain, isEnabledForDomain, checkLastError } from "../shared/utils";
-import { getErrorMessage } from "../shared/error";
+import { logError } from "../shared/error";
 import { SUPPORTED_LANGUAGES } from "../shared/lang";
 import { SettingsManager } from "../shared/settingsManager";
 import { LanguageDetector } from "./LanguageDetector";
@@ -50,7 +50,7 @@ import {
   ContentScriptGetConfigMessage,
 } from "../shared/messageTypes";
 
-class BackgroundServiceWorker {
+export class BackgroundServiceWorker {
   static instance: BackgroundServiceWorker;
   settingsManager!: SettingsManager;
   languageDetector!: LanguageDetector;
@@ -262,7 +262,7 @@ function onInstalled(details: chrome.runtime.InstalledDetails) {
     try {
       migrateToLocalStore(details.previousVersion);
     } catch (error) {
-      console.warn(`migrateToLocalStore failed: ${getErrorMessage(error)}`);
+      logError("migrateToLocalStore", error);
     }
   }
 }
@@ -306,7 +306,7 @@ function onCommand(command: string) {
       break;
     }
     default:
-      console.error("Unknown command: ", command);
+      logError("onCommand", `Unknown command: ${command}`);
       break;
   }
 }
@@ -356,9 +356,7 @@ async function handleContentScriptPredictReq(
       backgroundServiceWorker.runPrediction(predictRequestMessage);
     }
   } catch (error) {
-    console.error(
-      `handleContentScriptPredictReq failed: ${getErrorMessage(error)}`,
-    );
+    logError("handleContentScriptPredictReq", error);
   }
 }
 
@@ -387,9 +385,7 @@ async function handleContentScriptGetConfig(
     message.context.enabled = isEnabled;
     sendResponse(message);
   } catch (error) {
-    console.error(
-      `handleContentScriptGetConfig failed: ${getErrorMessage(error)}`,
-    );
+    logError("handleContentScriptGetConfig", error);
   }
   return true;
 }
@@ -431,7 +427,7 @@ function onMessage(
       return true;
     }
     default: {
-      console.warn(`Unknown command: ${request.command}`);
+      logError("onMessage", `Unknown command: ${request.command}`);
       return false;
     }
   }
@@ -447,6 +443,6 @@ chrome.storage.local.get("lastVersion", async (result) => {
     await backgroundServiceWorker.predictionManager.initialize();
     await backgroundServiceWorker.updatePresageConfig();
   } catch (error) {
-    console.warn(`lastVersion handler failed: ${getErrorMessage(error)}`);
+    logError("lastVersion handler", error);
   }
 });
