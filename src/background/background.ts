@@ -442,7 +442,7 @@ chrome.commands.onCommand.addListener(onCommand);
 chrome.runtime.onMessage.addListener(onMessage);
 chrome.storage.local.get("lastVersion", async (result) => {
   try {
-    await migrateToLocalStore(result.lastVersion);
+    await migrateToLocalStore(result.lastVersion as string);
     const backgroundServiceWorker = new BackgroundServiceWorker();
     await backgroundServiceWorker.predictionManager.initialize();
     await backgroundServiceWorker.updatePresageConfig();
