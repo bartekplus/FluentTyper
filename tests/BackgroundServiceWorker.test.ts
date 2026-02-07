@@ -93,11 +93,10 @@ describe("BackgroundServiceWorker", () => {
     describe("runPrediction", () => {
         it("should not send message if no predictions and no forceReplace", async () => {
             // Setup mock return
-            const mockPredictionManager = (worker as any).predictionManager;
-            mockPredictionManager.runPrediction.mockResolvedValue({
+            (worker.predictionManager.runPrediction as jest.Mock).mockResolvedValue({
                 predictions: [],
                 forceReplace: null
-            });
+            } as unknown as any);
 
             await worker.runPrediction({
                 command: "CMD_BACKGROUND_PAGE_PREDICT_REQ",
@@ -116,15 +115,14 @@ describe("BackgroundServiceWorker", () => {
         });
 
         it("should send message if predictions exist", async () => {
-            const mockPredictionManager = (worker as any).predictionManager;
-            mockPredictionManager.runPrediction.mockResolvedValue({
+            (worker.predictionManager.runPrediction as jest.Mock).mockResolvedValue({
                 predictions: ["tested"],
                 forceReplace: null
-            });
+            } as unknown as any);
             const tabId = 123;
             // Mock chrome.tabs.get callback
-            (global.chrome.tabs.get as jest.Mock).mockImplementation((id: any, cb: any) => {
-                cb({ id: tabId });
+            (global.chrome.tabs.get as jest.Mock).mockImplementation((id: number, cb: (tab: chrome.tabs.Tab) => void) => {
+                cb({ id: tabId } as chrome.tabs.Tab);
             });
 
             await worker.runPrediction({

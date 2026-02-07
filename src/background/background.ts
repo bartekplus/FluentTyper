@@ -29,7 +29,7 @@ import {
   KEY_USER_DICTIONARY_LIST,
 } from "../shared/constants";
 import { getDomain, isEnabledForDomain, checkLastError } from "../shared/utils";
-import { getErrorMessage, logError } from "../shared/error";
+import { logError } from "../shared/error";
 import { SUPPORTED_LANGUAGES } from "../shared/lang";
 import { SettingsManager } from "../shared/settingsManager";
 import { LanguageDetector } from "./LanguageDetector";
