@@ -567,6 +567,12 @@ class PopupButton extends Bundle {
       }
       // Add new options
       options.forEach(option => {
+        if (Array.isArray(option)) {
+          option = {
+            value: option[0],
+            text: option[1] || option[0],
+          };
+        }
         let value, text;
         if (typeof option === "object" && option.value !== undefined) {
           value = option.value;
@@ -756,7 +762,6 @@ class ListBox extends PopupButton {
           this.params.options = initParams;
         }
         try {
-          console.log("Setting values for ListBox", this.params.options);
           this.params.options.forEach(
             function (option) {
               if (option) {
@@ -921,12 +926,7 @@ class ListBoxMultiselect extends ListBox {
   addEvents() {
     const change = function () {
       if (this.params.name !== undefined) {
-        this.selected = this.element.getSelected();
-        const values = [];
-        this.selected.forEach((element) => {
-          values.push(element.get("value"));
-        });
-        settings.set(this.params.name, values);
+        settings.set(this.params.name, this.get());
       }
       this.fireEvent("action", this.get());
     }.bind(this);
@@ -934,39 +934,37 @@ class ListBoxMultiselect extends ListBox {
     this.element.addEvent("change", change);
   }
 
+  setupDOM() {
+    if (this.params.label !== undefined) {
+      this.label.set("innerHTML", this.params.label);
+      this.label.inject(this.bundle);
+    }
 
-    setupDOM() {
-    super.setupDOM(false);
-    this.selected = null;
-    this.params.options = [];
+    this.element.inject(this.container);
+    this.container.inject(this.control);
+    this.control.inject(this.bundle);
+  }
 
-    const promise = settings.get(this.params.name);
-    promise
-      .then((initParams) => {
-        if (initParams) {
-          this.params.options = initParams;
-        }
-        try {
-        const options = this.element.element.options;
+  get() {
+    return Array.from(this.element.element.options)
+      .filter((option) => option.selected)
+      .map((option) => option.value);
+  }
 
-      if (Array.isArray(this.params.options)) {
-          // For each option in the select, set selected if value is in values
-          for (let i = 0; i < options.length; i++) {
-            options[i].selected = this.params.options.includes(options[i].value);
-          }
-        }
+  set(values, noChangeEvent) {
+    const selectedValues = Array.isArray(values)
+      ? values.map((value) => value.toString())
+      : [];
+    const selectedSet = new Set(selectedValues);
+    const options = this.element.element.options;
+    for (let i = 0; i < options.length; i++) {
+      options[i].selected = selectedSet.has(options[i].value);
+    }
 
-        } catch (e) {
-          console.error(e);
-        }
-
-        this.element.inject(this.container);
-        this.container.inject(this.control);
-        this.control.inject(this.bundle);
-      })
-      .catch(function (e) {
-        console.error(e);
-      });
+    if (noChangeEvent !== true) {
+      this.element.fireEvent("change");
+    }
+    return this;
   }
 }
 

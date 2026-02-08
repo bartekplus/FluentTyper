@@ -1,7 +1,7 @@
 import { FancierSettingsWithManifest } from "./js/classes/fancier-settings.js";
 import { Store } from "./lib/store.js";
 import { ElementWrapper } from "./js/classes/utils.js";
-import { SUPPORTED_LANGUAGES } from "../../shared/lang.ts";
+import { SUPPORTED_LANGUAGES, resolveEnabledLanguages } from "../../shared/lang.ts";
 import { TextExpander } from "../../options/textExpander.js";
 import {
   KEY_AUTOCOMPLETE,
@@ -9,6 +9,7 @@ import {
   KEY_AUTOCOMPLETE_ON_TAB,
   KEY_LANGUAGE,
   KEY_FALLBACK_LANGUAGE,
+  KEY_ENABLED_LANGUAGES,
   KEY_NUM_SUGGESTIONS,
   KEY_MIN_WORD_LENGTH_TO_PREDICT,
   KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
@@ -58,6 +59,68 @@ function fallbackLanguageVisibility(settings, value) {
     settings.manifest.fallbackLanguage.bundle.element.classList.add(
       "is-hidden"
     );
+}
+
+function buildLanguageOptions(enabledLanguages, allowAutoDetect) {
+  const options = enabledLanguages.map((lang) => [
+    lang,
+    SUPPORTED_LANGUAGES[lang],
+  ]);
+  if (allowAutoDetect) {
+    options.unshift(["auto_detect", SUPPORTED_LANGUAGES.auto_detect]);
+  }
+  return options;
+}
+
+function arraysEqual(a, b) {
+  if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) {
+    return false;
+  }
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
+async function validateLanguageSettings(settings, store) {
+  const enabledLanguagesRaw = await store.get(KEY_ENABLED_LANGUAGES);
+  const enabledLanguages = resolveEnabledLanguages(enabledLanguagesRaw);
+  const allowAutoDetect = enabledLanguages.length > 1;
+  const language = (await store.get(KEY_LANGUAGE)) || enabledLanguages[0];
+  const fallbackLanguage =
+    (await store.get(KEY_FALLBACK_LANGUAGE)) || enabledLanguages[0];
+
+  const resolvedLanguage =
+    language === "auto_detect" && allowAutoDetect
+      ? "auto_detect"
+      : enabledLanguages.includes(language)
+        ? language
+        : enabledLanguages[0];
+  const resolvedFallbackLanguage = enabledLanguages.includes(fallbackLanguage)
+    ? fallbackLanguage
+    : enabledLanguages[0];
+
+  const primaryOptions = buildLanguageOptions(
+    enabledLanguages,
+    allowAutoDetect,
+  );
+  const fallbackOptions = buildLanguageOptions(enabledLanguages, false);
+  settings.manifest.language.setOptions(primaryOptions, resolvedLanguage);
+  settings.manifest.fallbackLanguage.setOptions(
+    fallbackOptions,
+    resolvedFallbackLanguage,
+  );
+
+  if (!arraysEqual(enabledLanguagesRaw, enabledLanguages)) {
+    settings.manifest[KEY_ENABLED_LANGUAGES].set(enabledLanguages);
+  }
+
+  if (resolvedLanguage !== language) {
+    settings.manifest.language.set(resolvedLanguage);
+  }
+  if (resolvedFallbackLanguage !== fallbackLanguage) {
+    settings.manifest.fallbackLanguage.set(resolvedFallbackLanguage);
+  }
 }
 
 function importSettingButtonFileSelected(settings) {
@@ -239,17 +302,17 @@ window.addEventListener("DOMContentLoaded", function () {
       });
 
       const store = new Store("settings");
-      fallbackLanguageVisibility(settings, await store.get("language"));
+      fallbackLanguageVisibility(settings, await store.get(KEY_LANGUAGE));
 
       settings.manifest.language.addEvent("action", function (value) {
         fallbackLanguageVisibility(settings, value);
-        validateLanguageSettings(settings);
+        validateLanguageSettings(settings, store);
       });
 
-      settings.manifest.enabled_languages.addEvent("action", function () {
-        validateLanguageSettings(settings);
+      settings.manifest[KEY_ENABLED_LANGUAGES].addEvent("action", function () {
+        validateLanguageSettings(settings, store);
       });
-      validateLanguageSettings(settings);
+      validateLanguageSettings(settings, store);
 
       settings.manifest.addDomainBtn.addEvent("action", function () {
         if (settings.manifest.domain.element.element.checkValidity()) {
@@ -345,6 +408,7 @@ window.addEventListener("DOMContentLoaded", function () {
         KEY_AUTOCOMPLETE_ON_ENTER,
         KEY_AUTOCOMPLETE_ON_TAB,
         KEY_LANGUAGE,
+        KEY_ENABLED_LANGUAGES,
         KEY_DOMAIN_LIST_MODE,
         KEY_FALLBACK_LANGUAGE,
         KEY_NUM_SUGGESTIONS,
@@ -381,4 +445,3 @@ window.addEventListener("DOMContentLoaded", function () {
       });
     }))();
 });
-

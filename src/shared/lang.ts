@@ -11,6 +11,36 @@ export const SUPPORTED_LANGUAGES: Record<string, string> = {
   pt_BR: "Brazilian Portuguese",
   textExpander: "Text Expander",
 };
+
+export const SUPPORTED_LANGUAGE_KEYS = Object.keys(SUPPORTED_LANGUAGES);
+export const SUPPORTED_PREDICTION_LANGUAGE_KEYS =
+  SUPPORTED_LANGUAGE_KEYS.filter((lang) => lang !== "auto_detect");
+
+export function resolveEnabledLanguages(enabledLanguages: unknown): string[] {
+  if (!Array.isArray(enabledLanguages)) {
+    return SUPPORTED_PREDICTION_LANGUAGE_KEYS.slice();
+  }
+  const enabledSet = new Set(
+    enabledLanguages.filter(
+      (lang): lang is string =>
+        typeof lang === "string" &&
+        lang in SUPPORTED_LANGUAGES &&
+        lang !== "auto_detect",
+    ),
+  );
+  const filtered = SUPPORTED_PREDICTION_LANGUAGE_KEYS.filter((lang) =>
+    enabledSet.has(lang),
+  );
+  return filtered.length > 0
+    ? filtered
+    : SUPPORTED_PREDICTION_LANGUAGE_KEYS.slice();
+}
+
+export function resolveEnabledPredictionLanguages(
+  enabledLanguages: unknown,
+): string[] {
+  return resolveEnabledLanguages(enabledLanguages);
+}
 export const SUPPORTED_LANGUAGES_SHORT_CODE: Record<string, string> = {
   en: "en_US",
   fr: "fr_FR",

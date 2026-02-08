@@ -1,14 +1,67 @@
-import puppeteer, { Browser, Page } from "puppeteer";
+import puppeteer, { Browser, Page, WebWorker } from "puppeteer";
 import path from "path";
-import { DEFAULT_NUM_SUGGESTIONS } from "../../src/shared/constants";
-import { SUPPORTED_LANGUAGES } from "../../src/shared/lang";
+import {
+  DEFAULT_NUM_SUGGESTIONS,
+  KEY_ENABLED_LANGUAGES,
+  KEY_FALLBACK_LANGUAGE,
+  KEY_LANGUAGE,
+} from "../../src/shared/constants";
+import { SUPPORTED_PREDICTION_LANGUAGE_KEYS } from "../../src/shared/lang";
 
 const EXTENSION_PATH = path.resolve(__dirname, "../../build/");
 const TEST_PAGE_PATH = path.resolve(__dirname, "test-page.html");
+const SETTINGS_PREFIX = "store.settings.";
+
+async function setSetting(
+  worker: WebWorker,
+  key: string,
+  value: unknown,
+): Promise<void> {
+  const storageKey = `${SETTINGS_PREFIX}${key}`;
+  await worker.evaluate(
+    (storageKeyInner, valueInner) =>
+      chrome.storage.local.set({
+        [storageKeyInner]: JSON.stringify(valueInner),
+      }),
+    storageKey,
+    value,
+  );
+}
+
+async function getSetting<T>(
+  worker: WebWorker,
+  key: string,
+): Promise<T | undefined> {
+  const storageKey = `${SETTINGS_PREFIX}${key}`;
+  return worker.evaluate(
+    (storageKeyInner) =>
+      new Promise((resolve) => {
+        chrome.storage.local.get(storageKeyInner, (result) => {
+          const rawValue = (result as Record<string, string | undefined>)[
+            storageKeyInner
+          ];
+          resolve(rawValue ? JSON.parse(rawValue) : undefined);
+        });
+      }),
+    storageKey,
+  ) as Promise<T | undefined>;
+}
+
+async function openOptionsPage(browser: Browser, worker: WebWorker) {
+  await worker.evaluate("chrome.runtime.openOptionsPage();");
+  const optionsTarget = await browser.waitForTarget(
+    (target) =>
+      target.type() === "page" && target.url().endsWith("options/options.html"),
+  );
+  const optionsPage = await optionsTarget.asPage();
+  await optionsPage.waitForSelector("#content");
+  return optionsPage;
+}
 
 describe("Chrome Extension E2E Test", () => {
   let browser: Browser;
   let page: Page;
+  let worker: WebWorker;
 
   beforeAll(async () => {
     browser = await puppeteer.launch({
@@ -21,6 +74,13 @@ describe("Chrome Extension E2E Test", () => {
     });
     const pages = await browser.pages();
     page = pages[0];
+    const serviceWorkerTarget = await browser.waitForTarget(
+      (target) =>
+        target.type() === "service_worker" &&
+        target.url().endsWith("background.js"),
+      { timeout: 30000 },
+    );
+    worker = (await serviceWorkerTarget.worker())!;
   }, 20000);
 
   afterAll(async () => {
@@ -35,29 +95,12 @@ describe("Chrome Extension E2E Test", () => {
         target.url().endsWith("new_installation/index.html"),
     );
 
-    const serviceWorker = await browser.waitForTarget(
-      // Assumes that there is only one service worker created by the extension and its URL ends with background.js.
-      (target) =>
-        target.type() === "service_worker" &&
-        target.url().endsWith("background.js"),
-    );
     expect(newInstallationPage).toBeDefined();
-    expect(serviceWorker).toBeDefined();
+    expect(worker).toBeDefined();
   }, 20000);
 
   test("Extension installs and popup loads", async () => {
-    // Find the extension ID
-    const serviceWorker = await browser.waitForTarget(
-      // Assumes that there is only one service worker created by the extension and its URL ends with background.js.
-      (target) =>
-        target.type() === "service_worker" &&
-        target.url().endsWith("background.js"),
-    );
-    expect(serviceWorker).toBeDefined();
-
-    const worker = await serviceWorker.worker();
     expect(worker).toBeDefined();
-
     await worker!.evaluate("chrome.action.openPopup();");
 
     const popupTarget = await browser.waitForTarget(
@@ -137,7 +180,129 @@ describe("Chrome Extension E2E Test", () => {
       (textarea) => (textarea as HTMLTextAreaElement).value,
     );
     expect(textAreaText).toBe("with\xa0");
-  }, 15000);
+  }, 30000);
+
+  test("Enabled languages restrict popup language list", async () => {
+    const enabledLanguages = ["en_US", "de_DE"];
+    await setSetting(worker!, KEY_ENABLED_LANGUAGES, enabledLanguages);
+    await setSetting(worker!, KEY_LANGUAGE, "en_US");
+
+    await worker!.evaluate("chrome.action.openPopup();");
+    const popupTarget = await browser.waitForTarget((target) =>
+      target.url().endsWith("popup.html"),
+    );
+    const popupPage = await popupTarget.asPage();
+    await popupPage.waitForSelector("#languageSelect");
+
+    const options = await popupPage.$$eval("#languageSelect option", (opts) =>
+      opts.map((opt) => (opt as HTMLOptionElement).value),
+    );
+    expect(options).toEqual(["auto_detect", ...enabledLanguages]);
+
+    await popupPage.select("#languageSelect", "de_DE");
+    await new Promise((r) => setTimeout(r, 300));
+    const storedLanguage = await getSetting<string>(worker!, KEY_LANGUAGE);
+    expect(storedLanguage).toBe("de_DE");
+
+    await popupPage.close();
+
+    await setSetting(
+      worker!,
+      KEY_ENABLED_LANGUAGES,
+      SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+    );
+    await setSetting(worker!, KEY_LANGUAGE, "en_US");
+  }, 20000);
+
+  test("Auto detect is only allowed when multiple languages are enabled", async () => {
+    await setSetting(worker!, KEY_ENABLED_LANGUAGES, ["en_US"]);
+    await setSetting(worker!, KEY_LANGUAGE, "auto_detect");
+    await setSetting(worker!, KEY_FALLBACK_LANGUAGE, "auto_detect");
+
+    const optionsPageSingle = await openOptionsPage(browser, worker!);
+    await new Promise((r) => setTimeout(r, 300));
+    await optionsPageSingle.close();
+
+    const storedLanguageSingle = await getSetting<string>(
+      worker!,
+      KEY_LANGUAGE,
+    );
+    const storedFallbackSingle = await getSetting<string>(
+      worker!,
+      KEY_FALLBACK_LANGUAGE,
+    );
+    expect(storedLanguageSingle).toBe("en_US");
+    expect(storedFallbackSingle).toBe("en_US");
+
+    await setSetting(worker!, KEY_ENABLED_LANGUAGES, ["en_US", "de_DE"]);
+    await setSetting(worker!, KEY_LANGUAGE, "auto_detect");
+    await setSetting(worker!, KEY_FALLBACK_LANGUAGE, "auto_detect");
+
+    const optionsPageMulti = await openOptionsPage(browser, worker!);
+    await new Promise((r) => setTimeout(r, 300));
+    await optionsPageMulti.close();
+
+    const storedLanguageMulti = await getSetting<string>(worker!, KEY_LANGUAGE);
+    const storedFallbackMulti = await getSetting<string>(
+      worker!,
+      KEY_FALLBACK_LANGUAGE,
+    );
+    expect(storedLanguageMulti).toBe("auto_detect");
+    expect(storedFallbackMulti).toBe("en_US");
+
+    const enabledLanguages = await getSetting<string[]>(
+      worker!,
+      KEY_ENABLED_LANGUAGES,
+    );
+    expect(enabledLanguages).toEqual(["en_US", "de_DE"]);
+  }, 20000);
+
+  test("Auto detect in popup detects language and predicts", async () => {
+    page = await browser.newPage();
+    await page.goto("file://" + TEST_PAGE_PATH);
+    page.bringToFront();
+    await page.waitForSelector("#test-textarea");
+    const textarea = await page.$("#test-textarea");
+
+    await setSetting(worker!, KEY_ENABLED_LANGUAGES, ["en_US", "el_GR"]);
+    await setSetting(worker!, KEY_LANGUAGE, "en_US");
+
+    await worker!.evaluate("chrome.action.openPopup();");
+    const popupTarget = await browser.waitForTarget((target) =>
+      target.url().endsWith("popup.html"),
+    );
+    const popupPage = await popupTarget.asPage();
+    await popupPage.waitForSelector("#languageSelect");
+    await popupPage.select("#languageSelect", "auto_detect");
+    await new Promise((r) => setTimeout(r, 300));
+    await popupPage.close();
+
+    const storedLanguage = await getSetting<string>(worker!, KEY_LANGUAGE);
+    expect(storedLanguage).toBe("auto_detect");
+
+    await worker!.evaluate(
+      "chrome.runtime.sendMessage({command: 'CMD_OPTIONS_PAGE_CONFIG_CHANGE', context: {}});",
+    );
+    await new Promise((r) => setTimeout(r, 600));
+
+    await textarea!.click();
+    await page.evaluate(
+      () =>
+        ((
+          document.querySelector("#test-textarea") as HTMLTextAreaElement
+        ).value = ""),
+    );
+    await textarea!.type("φιλο");
+    await new Promise((r) => setTimeout(r, 300));
+    await textarea!.type("σ");
+
+    await page.waitForSelector(".tribute-container li", { timeout: 5000 });
+    const firstLiText = await page.$eval(
+      ".tribute-container li:first-child",
+      (li) => li.textContent,
+    );
+    expect(firstLiText?.toLowerCase()).toContain("φιλοσοφία");
+  }, 30000);
 
   const LANGUAGE_TEST_DATA: Record<
     string,
@@ -162,27 +327,18 @@ describe("Chrome Extension E2E Test", () => {
     await page.waitForSelector("#test-textarea");
     const textarea = await page.$("#test-textarea");
 
-    for (const lang of Object.keys(SUPPORTED_LANGUAGES)) {
-      if (lang === "auto_detect") continue;
+    await setSetting(
+      worker!,
+      KEY_ENABLED_LANGUAGES,
+      SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+    );
 
-      // 1. Open popup and change language
-      const serviceWorker = await browser.waitForTarget(
-        (target) =>
-          target.type() === "service_worker" &&
-          target.url().endsWith("background.js"),
+    for (const lang of SUPPORTED_PREDICTION_LANGUAGE_KEYS) {
+      await setSetting(worker!, KEY_LANGUAGE, lang);
+      await worker!.evaluate(
+        "chrome.runtime.sendMessage({command: 'CMD_OPTIONS_PAGE_CONFIG_CHANGE', context: {}});",
       );
-      const worker = await serviceWorker.worker();
-      await worker!.evaluate("chrome.action.openPopup();");
-
-      const popupTarget = await browser.waitForTarget((target) =>
-        target.url().endsWith("popup.html"),
-      );
-      const popupPage = await popupTarget.asPage();
-      await popupPage!.waitForSelector("#languageSelect");
-      await popupPage!.select("#languageSelect", lang);
-      // Wait a bit for the config to be saved and propagated
-      await new Promise((r) => setTimeout(r, 500));
-      await popupPage!.close();
+      await new Promise((r) => setTimeout(r, 600));
 
       // 2. Type input and verify prediction
       const testData = LANGUAGE_TEST_DATA[lang];
@@ -204,7 +360,7 @@ describe("Chrome Extension E2E Test", () => {
       await new Promise((r) => setTimeout(r, 1000));
 
       try {
-        await page.waitForSelector(".tribute-container li", { timeout: 2000 });
+        await page.waitForSelector(".tribute-container li", { timeout: 5000 });
         const firstLiText = await page.$eval(
           ".tribute-container li:first-child",
           (li) => li.textContent,
@@ -230,5 +386,5 @@ describe("Chrome Extension E2E Test", () => {
       // But clearing the input usually clears predictions.
       await new Promise((r) => setTimeout(r, 200));
     }
-  }, 60000); // Increased timeout for iterating all languages
+  }, 90000); // Increased timeout for iterating all languages
 });
