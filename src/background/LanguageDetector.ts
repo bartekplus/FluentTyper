@@ -15,10 +15,9 @@ export class LanguageDetector {
     const fallbackLanguage = (await this.settings.get(
       "fallbackLanguage",
     )) as string;
+    const globalAny = globalThis as { browser?: typeof chrome };
     const api =
-      typeof (globalThis as any).browser === "undefined"
-        ? chrome
-        : (globalThis as any).browser;
+      typeof globalAny.browser === "undefined" ? chrome : globalAny.browser;
     const result = await api.i18n.detectLanguage(text);
     let detectedLanguage: string | null = null;
     let maxPercentage = -1;

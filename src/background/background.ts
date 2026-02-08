@@ -314,7 +314,7 @@ function onCommand(command: string) {
 async function handleContentScriptPredictReq(
   request: ContentScriptPredictRequestMessage,
   sender: chrome.runtime.MessageSender,
-  sendResponse: (response?: any) => void,
+  sendResponse: (response?: unknown) => void,
   backgroundServiceWorker: BackgroundServiceWorker,
 ) {
   try {
@@ -363,7 +363,7 @@ async function handleContentScriptPredictReq(
 function handleOptionsPageConfigChange(
   request: OptionsPageConfigChangeMessage,
   sender: chrome.runtime.MessageSender,
-  sendResponse: (response?: any) => void,
+  sendResponse: (response?: unknown) => void,
   backgroundServiceWorker: BackgroundServiceWorker,
 ) {
   backgroundServiceWorker.updatePresageConfig();
@@ -372,7 +372,7 @@ function handleOptionsPageConfigChange(
 async function handleContentScriptGetConfig(
   request: ContentScriptGetConfigMessage,
   sender: chrome.runtime.MessageSender,
-  sendResponse: (response?: any) => void,
+  sendResponse: (response?: unknown) => void,
   backgroundServiceWorker: BackgroundServiceWorker,
 ) {
   try {
@@ -393,7 +393,7 @@ async function handleContentScriptGetConfig(
 function onMessage(
   request: Message,
   sender: chrome.runtime.MessageSender,
-  sendResponse: (response?: any) => void,
+  sendResponse: (response?: unknown) => void,
 ): boolean {
   const backgroundServiceWorker = new BackgroundServiceWorker();
   checkLastError();

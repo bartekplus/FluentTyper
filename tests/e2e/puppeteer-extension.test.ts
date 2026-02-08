@@ -194,7 +194,9 @@ describe("Chrome Extension E2E Test", () => {
       await textarea!.click();
       // Ensure textarea is focused and clear
       await page.evaluate(
-        () => ((document.querySelector("#test-textarea") as any).value = ""),
+        () =>
+          (document.querySelector("#test-textarea") as HTMLTextAreaElement)
+            .value = "",
       );
       await textarea!.type(testData.input);
       // Wait for predictions to update after typing
@@ -217,7 +219,9 @@ describe("Chrome Extension E2E Test", () => {
 
       // Cleanup for next iteration
       await page.evaluate(
-        () => ((document.querySelector("#test-textarea") as any).value = ""),
+        () =>
+          (document.querySelector("#test-textarea") as HTMLTextAreaElement)
+            .value = "",
       );
       // Wait for predictions to disappear
       // Note: Tribute might not remove the container, just hide it.
