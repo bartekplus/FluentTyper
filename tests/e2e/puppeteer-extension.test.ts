@@ -1,6 +1,7 @@
 import puppeteer, { Browser, Page } from "puppeteer";
 import path from "path";
 import { DEFAULT_NUM_SUGGESTIONS } from "../../src/shared/constants";
+import { SUPPORTED_LANGUAGES } from "../../src/shared/lang";
 
 const EXTENSION_PATH = path.resolve(__dirname, "../../build/");
 const TEST_PAGE_PATH = path.resolve(__dirname, "test-page.html");
@@ -137,4 +138,91 @@ describe("Chrome Extension E2E Test", () => {
     );
     expect(textAreaText).toBe("with\xa0");
   }, 15000);
+
+  const LANGUAGE_TEST_DATA: Record<
+    string,
+    { input: string; expected: string }
+  > = {
+    en_US: { input: "impor", expected: "important" },
+    fr_FR: { input: "champig", expected: "champignon" },
+    hr_HR: { input: "prijat", expected: "prijatelj" },
+    es_ES: { input: "estup", expected: "estupenda" },
+    el_GR: { input: "φιλοσ", expected: "φιλοσοφία" },
+    sv_SE: { input: "tillsamm", expected: "tillsammans" },
+    de_DE: { input: "schmetter", expected: "schmetterling" },
+    pl_PL: { input: "chrabą", expected: "chrabąszcz" },
+    pt_BR: { input: "caipir", expected: "caipira" },
+    textExpander: { input: "asap", expected: "as soon as possible" },
+  };
+
+  test("Prediction works for all supported languages", async () => {
+    page = await browser.newPage();
+    await page.goto("file://" + TEST_PAGE_PATH);
+    page.bringToFront();
+    await page.waitForSelector("#test-textarea");
+    const textarea = await page.$("#test-textarea");
+
+    for (const lang of Object.keys(SUPPORTED_LANGUAGES)) {
+      if (lang === "auto_detect") continue;
+
+      // 1. Open popup and change language
+      const serviceWorker = await browser.waitForTarget(
+        (target) =>
+          target.type() === "service_worker" &&
+          target.url().endsWith("background.js"),
+      );
+      const worker = await serviceWorker.worker();
+      await worker!.evaluate("chrome.action.openPopup();");
+
+      const popupTarget = await browser.waitForTarget((target) =>
+        target.url().endsWith("popup.html"),
+      );
+      const popupPage = await popupTarget.asPage();
+      await popupPage!.waitForSelector("#languageSelect");
+      await popupPage!.select("#languageSelect", lang);
+      // Wait a bit for the config to be saved and propagated
+      await new Promise((r) => setTimeout(r, 500));
+      await popupPage!.close();
+
+      // 2. Type input and verify prediction
+      const testData = LANGUAGE_TEST_DATA[lang];
+      if (!testData) {
+        console.warn(`No test data for language: ${lang}`);
+        continue;
+      }
+
+      await textarea!.click();
+      // Ensure textarea is focused and clear
+      await page.evaluate(
+        () => ((document.querySelector("#test-textarea") as any).value = ""),
+      );
+      await textarea!.type(testData.input);
+      // Wait for predictions to update after typing
+      await new Promise((r) => setTimeout(r, 1000));
+
+      try {
+        await page.waitForSelector(".tribute-container li", { timeout: 2000 });
+        const firstLiText = await page.$eval(
+          ".tribute-container li:first-child",
+          (li) => li.textContent,
+        );
+        expect(firstLiText?.toLowerCase()).toContain(
+          testData.expected.toLowerCase(),
+        );
+      } catch (e) {
+        throw new Error(
+          `Failed verification for language ${lang}. Input: ${testData.input}, Expected: ${testData.expected}. Error: ${e}`,
+        );
+      }
+
+      // Cleanup for next iteration
+      await page.evaluate(
+        () => ((document.querySelector("#test-textarea") as any).value = ""),
+      );
+      // Wait for predictions to disappear
+      // Note: Tribute might not remove the container, just hide it.
+      // But clearing the input usually clears predictions.
+      await new Promise((r) => setTimeout(r, 200));
+    }
+  }, 60000); // Increased timeout for iterating all languages
 });
