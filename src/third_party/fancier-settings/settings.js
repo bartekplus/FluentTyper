@@ -3,7 +3,7 @@ import { Store } from "./lib/store.js";
 import { ElementWrapper } from "./js/classes/utils.js";
 import { SUPPORTED_LANGUAGES } from "../../shared/lang.ts";
 import { TextExpander } from "../../options/textExpander.js";
-import { 
+import {
   KEY_AUTOCOMPLETE,
   KEY_AUTOCOMPLETE_ON_ENTER,
   KEY_AUTOCOMPLETE_ON_TAB,
@@ -101,7 +101,7 @@ function importUserDictFileSelected(settings) {
         const word = line.trim();
         if (word && wordRegex.test(word)) {
           settings.manifest.userDictionaryList.add(word, false);
-          count +=1;
+          count += 1;
         }
       });
       settings.manifest.userDictionaryList.store();
@@ -199,12 +199,12 @@ const themePresets = {
   compact: {
     tributeBgLight: "rgba(255, 255, 255, 0.85)",
     tributeTextLight: "#1a202c",
-    tributeHighlightBgLight: "rgba(237, 242, 247, 0.9)",
+    tributeHighlightBgLight: "rgba(226, 232, 240, 0.9)",
     tributeHighlightTextLight: "#1a202c",
     tributeBorderLight: "rgba(226, 232, 240, 0.7)",
     tributeBgDark: "rgba(45, 55, 72, 0.85)",
     tributeTextDark: "#f7fafc",
-    tributeHighlightBgDark: "rgba(74, 85, 104, 0.9)",
+    tributeHighlightBgDark: "rgba(113, 128, 150, 0.9)",
     tributeHighlightTextDark: "#f7fafc",
     tributeBorderDark: "rgba(74, 85, 104, 0.7)",
     tributeFontSize: "0.85rem",
@@ -265,9 +265,9 @@ window.addEventListener("DOMContentLoaded", function () {
       // User dictionary add action
       settings.manifest.addUserWordBtn.addEvent("action", function () {
         if (settings.manifest.userDictionary.element.element.checkValidity()) {
-            const word = settings.manifest.userDictionary.get();
-            settings.manifest.userDictionaryList.add(word);
-            settings.manifest.userDictionary.element.element.value = "";
+          const word = settings.manifest.userDictionary.get();
+          settings.manifest.userDictionaryList.add(word);
+          settings.manifest.userDictionary.element.element.value = "";
         }
       });
       // User dictionary remove action
@@ -311,13 +311,13 @@ window.addEventListener("DOMContentLoaded", function () {
       );
 
       const importUserDictElem =
-      settings.manifest.importUserDictButton.element.element;
+        settings.manifest.importUserDictButton.element.element;
       importUserDictElem.type = "file";
       importUserDictElem.accept = ".txt";
       importUserDictElem.addEventListener(
-      "input",
-      importUserDictFileSelected.bind(null, settings)
-    );
+        "input",
+        importUserDictFileSelected.bind(null, settings)
+      );
 
       // Theme preset buttons
       settings.manifest[KEY_USE_DEFAULT_THEME_BTN].addEvent("action", function () {

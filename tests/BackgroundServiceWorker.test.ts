@@ -67,7 +67,7 @@ jest.unstable_mockModule("../src/background/TabMessenger", () => ({
 import type { BackgroundServiceWorker as BackgroundServiceWorkerType } from "../src/background/background";
 
 describe("BackgroundServiceWorker", () => {
-  let BackgroundServiceWorkerClass: { new(): BackgroundServiceWorkerType };
+  let BackgroundServiceWorkerClass: { new (): BackgroundServiceWorkerType };
   let worker: BackgroundServiceWorkerType;
 
   beforeAll(async () => {
