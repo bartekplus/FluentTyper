@@ -1,5 +1,8 @@
 import { i18n } from "./i18n.js";
-import { SUPPORTED_LANGUAGES } from "../../shared/lang.ts";
+import {
+  SUPPORTED_LANGUAGES,
+  SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+} from "../../shared/lang.ts";
 import { DOMAIN_LIST_MODE } from "../../shared/utils.ts";
 import { DATE_TIME_VARIABLES } from "../../shared/variables.ts";
 import {
@@ -12,6 +15,7 @@ import {
   KEY_SELECT_BY_DIGIT,
   KEY_REVERT_ON_BACKSPACE,
   KEY_LANGUAGE,
+  KEY_ENABLED_LANGUAGES,
   KEY_FALLBACK_LANGUAGE,
   KEY_MIN_WORD_LENGTH_TO_PREDICT,
   KEY_NUM_SUGGESTIONS,
@@ -157,10 +161,22 @@ const manifest = {
     {
       tab: i18n.get("Language"),
       group: i18n.get("Language Selection"),
+      name: KEY_ENABLED_LANGUAGES,
+      type: "listBoxMultiselect",
+      label: i18n.get("Enabled Languages"),
+      options: SUPPORTED_PREDICTION_LANGUAGE_KEYS.map((lang) => [
+        lang,
+        SUPPORTED_LANGUAGES[lang],
+      ]),
+      default: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+    },
+    {
+      tab: i18n.get("Language"),
+      group: i18n.get("Language Selection"),
       name: KEY_FALLBACK_LANGUAGE,
       type: "popupButton",
       options: Object.entries(SUPPORTED_LANGUAGES),
-      label: i18n.get("Secondary (fallback) language:") + ":&nbsp;<small>" + i18n.get("If no predictions are found in the primary language, FluentTyper will search in this language instead.") + "</small>",
+      label: i18n.get("Secondary (fallback) language:") + ":&nbsp;<small>" + i18n.get("Used only when auto-detection fails, to decide which language to try next.") + "</small>",
       default: "en_US",
     },
     {

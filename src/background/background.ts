@@ -17,6 +17,7 @@ import {
   KEY_AUTOCOMPLETE_ON_ENTER,
   KEY_AUTOCOMPLETE,
   KEY_LANGUAGE,
+  KEY_ENABLED_LANGUAGES,
   KEY_ENABLED,
   KEY_NUM_SUGGESTIONS,
   KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
@@ -30,7 +31,7 @@ import {
 } from "../shared/constants";
 import { getDomain, isEnabledForDomain, checkLastError } from "../shared/utils";
 import { logError } from "../shared/error";
-import { SUPPORTED_LANGUAGES } from "../shared/lang";
+import { resolveEnabledLanguages } from "../shared/lang";
 import { SettingsManager } from "../shared/settingsManager";
 import { LanguageDetector } from "./LanguageDetector";
 import { PresageConfig } from "./PresageHandler";
@@ -111,8 +112,16 @@ export class BackgroundServiceWorker {
     });
   }
 
-  async detectLanguage(text: string, tabId: number): Promise<string> {
-    return await this.languageDetector.detectLanguage(text, tabId);
+  async detectLanguage(
+    text: string,
+    tabId: number,
+    enabledLanguages?: string[],
+  ): Promise<string> {
+    return await this.languageDetector.detectLanguage(
+      text,
+      tabId,
+      enabledLanguages,
+    );
   }
 
   sendCommandToActiveTabContentScript(message: Message) {
@@ -120,7 +129,7 @@ export class BackgroundServiceWorker {
   }
 
   async getBackgroundPageSetConfigMsg(): Promise<ConfigMessage> {
-    this.language = (await this.settingsManager.get(KEY_LANGUAGE)) as string;
+    this.language = await resolveActiveLanguage(this.settingsManager);
     const [
       enabled,
       autocomplete,
@@ -206,7 +215,7 @@ export class BackgroundServiceWorker {
 
   async updatePresageConfig() {
     await this.predictionManager.initialize();
-    this.language = (await this.settingsManager.get(KEY_LANGUAGE)) as string;
+    this.language = await resolveActiveLanguage(this.settingsManager);
     const [
       numSuggestions,
       minWordLengthToPredict,
@@ -250,6 +259,34 @@ export class BackgroundServiceWorker {
   }
 }
 
+async function getEnabledLanguages(
+  settingsManager: SettingsManager,
+): Promise<string[]> {
+  const enabledLanguages = await settingsManager.get(KEY_ENABLED_LANGUAGES);
+  return resolveEnabledLanguages(enabledLanguages);
+}
+
+async function resolveActiveLanguage(
+  settingsManager: SettingsManager,
+): Promise<string> {
+  const [language, enabledLanguagesRaw] = await Promise.all([
+    settingsManager.get(KEY_LANGUAGE),
+    settingsManager.get(KEY_ENABLED_LANGUAGES),
+  ]);
+  const enabledLanguages = resolveEnabledLanguages(enabledLanguagesRaw);
+  const currentLanguage = typeof language === "string" ? language : "";
+  const allowAutoDetect = enabledLanguages.length > 1;
+  if (currentLanguage === "auto_detect" && allowAutoDetect) {
+    return currentLanguage;
+  }
+  if (enabledLanguages.includes(currentLanguage)) {
+    return currentLanguage;
+  }
+  const fallbackLanguage = enabledLanguages[0];
+  await settingsManager.set(KEY_LANGUAGE, fallbackLanguage);
+  return fallbackLanguage;
+}
+
 function onInstalled(details: chrome.runtime.InstalledDetails) {
   checkLastError();
   if (details.reason === "install") {
@@ -286,23 +323,34 @@ function onCommand(command: string) {
       break;
     }
     case CMD_TOGGLE_FT_ACTIVE_LANG: {
-      const availableLangs = [...Object.keys(SUPPORTED_LANGUAGES)];
-      const currentLangIndex = availableLangs.indexOf(
-        backgroundServiceWorker.language,
-      );
-      const nextLangIndex = (currentLangIndex + 1) % availableLangs.length;
-      const nextLang = availableLangs[nextLangIndex];
-      backgroundServiceWorker.settingsManager.set("language", nextLang);
-      backgroundServiceWorker.language = nextLang;
-      const updateLangConfigMessage: UpdateLangConfigMessage = {
-        command: CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
-        context: {
-          lang: nextLang,
-        },
-      };
-      backgroundServiceWorker.sendCommandToActiveTabContentScript(
-        updateLangConfigMessage,
-      );
+      (async () => {
+        const availableLangs = await getEnabledLanguages(
+          backgroundServiceWorker.settingsManager,
+        );
+        const currentLanguage = await resolveActiveLanguage(
+          backgroundServiceWorker.settingsManager,
+        );
+        backgroundServiceWorker.language = currentLanguage;
+        const currentLangIndex = availableLangs.indexOf(currentLanguage);
+        const nextLangIndex =
+          (currentLangIndex >= 0 ? currentLangIndex + 1 : 0) %
+          availableLangs.length;
+        const nextLang = availableLangs[nextLangIndex];
+        await backgroundServiceWorker.settingsManager.set(
+          KEY_LANGUAGE,
+          nextLang,
+        );
+        backgroundServiceWorker.language = nextLang;
+        const updateLangConfigMessage: UpdateLangConfigMessage = {
+          command: CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
+          context: {
+            lang: nextLang,
+          },
+        };
+        backgroundServiceWorker.sendCommandToActiveTabContentScript(
+          updateLangConfigMessage,
+        );
+      })().catch((error) => logError("onCommand", error));
       break;
     }
     default:
@@ -318,14 +366,18 @@ async function handleContentScriptPredictReq(
   backgroundServiceWorker: BackgroundServiceWorker,
 ) {
   try {
-    let language = (await backgroundServiceWorker.settingsManager.get(
-      KEY_LANGUAGE,
-    )) as string;
+    let language = await resolveActiveLanguage(
+      backgroundServiceWorker.settingsManager,
+    );
     backgroundServiceWorker.language = language;
     if (language === "auto_detect") {
+      const enabledLanguages = await getEnabledLanguages(
+        backgroundServiceWorker.settingsManager,
+      );
       language = await backgroundServiceWorker.detectLanguage(
         request.context.text!,
         sender.tab!.id!,
+        enabledLanguages,
       );
     }
     if (request.context.lang !== language) {

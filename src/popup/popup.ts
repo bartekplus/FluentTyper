@@ -4,11 +4,13 @@ import {
   blockUnBlockDomain,
 } from "../shared/utils";
 import { SettingsManager } from "../shared/settingsManager";
-import { SUPPORTED_LANGUAGES } from "../shared/lang";
+import { SUPPORTED_LANGUAGES, resolveEnabledLanguages } from "../shared/lang";
 import {
   CMD_POPUP_PAGE_ENABLE,
   CMD_POPUP_PAGE_DISABLE,
   CMD_OPTIONS_PAGE_CONFIG_CHANGE,
+  KEY_ENABLED_LANGUAGES,
+  KEY_LANGUAGE,
 } from "../shared/constants";
 import {
   OptionsPageConfigChangeMessage,
@@ -49,17 +51,44 @@ function init() {
         }
         checkboxEnableNode.checked = Boolean(await settings.get("enable"));
       }
-      const language = (await settings.get("language")) as string;
+      let language = (await settings.get(KEY_LANGUAGE)) as string;
+      const enabledLanguages = resolveEnabledLanguages(
+        await settings.get(KEY_ENABLED_LANGUAGES),
+      );
       const select = window.document.getElementById(
         "languageSelect",
       ) as HTMLSelectElement;
-      for (const [langCode, lang] of Object.entries(SUPPORTED_LANGUAGES)) {
+      const allowAutoDetect = enabledLanguages.length > 1;
+      const isAutoDetect = language === "auto_detect";
+      const isValidLanguage = enabledLanguages.includes(language);
+      const displayLanguage =
+        isAutoDetect && allowAutoDetect
+          ? "auto_detect"
+          : isValidLanguage
+            ? language
+            : enabledLanguages[0];
+
+      if (!isValidLanguage && !(isAutoDetect && allowAutoDetect)) {
+        language = displayLanguage;
+        await settings.set(KEY_LANGUAGE, language);
+        chrome.runtime.sendMessage({
+          command: CMD_OPTIONS_PAGE_CONFIG_CHANGE,
+          context: {},
+        });
+      }
+      if (allowAutoDetect) {
         const opt = window.document.createElement("option");
-        opt.value = langCode;
-        opt.innerHTML = lang;
+        opt.value = "auto_detect";
+        opt.innerHTML = SUPPORTED_LANGUAGES.auto_detect;
         select.appendChild(opt);
       }
-      select.value = language;
+      for (const langCode of enabledLanguages) {
+        const opt = window.document.createElement("option");
+        opt.value = langCode;
+        opt.innerHTML = SUPPORTED_LANGUAGES[langCode];
+        select.appendChild(opt);
+      }
+      select.value = displayLanguage;
     },
   );
   window.document
@@ -99,11 +128,12 @@ async function languageChangeEvent() {
   const select = window.document.getElementById(
     "languageSelect",
   ) as HTMLSelectElement;
+
   const message: OptionsPageConfigChangeMessage = {
     command: CMD_OPTIONS_PAGE_CONFIG_CHANGE,
     context: {},
   };
-  await settings.set("language", select.value);
+  await settings.set(KEY_LANGUAGE, select.value);
   chrome.runtime.sendMessage(message);
 }
 

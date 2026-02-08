@@ -2,6 +2,7 @@
 import {
   SUPPORTED_LANGUAGES,
   SUPPORTED_LANGUAGES_SHORT_CODE,
+  resolveEnabledPredictionLanguages,
 } from "../shared/lang";
 import { SettingsManager } from "../shared/settingsManager";
 
@@ -11,10 +12,21 @@ export class LanguageDetector {
     this.settings = settings;
   }
 
-  async detectLanguage(text: string, tabId: number): Promise<string> {
-    const fallbackLanguage = (await this.settings.get(
+  async detectLanguage(
+    text: string,
+    tabId: number,
+    enabledLanguages?: string[],
+  ): Promise<string> {
+    const fallbackLanguageRaw = (await this.settings.get(
       "fallbackLanguage",
     )) as string;
+    const allowedLanguages =
+      resolveEnabledPredictionLanguages(enabledLanguages);
+    const fallbackLanguage =
+      fallbackLanguageRaw && fallbackLanguageRaw !== "auto_detect"
+        ? fallbackLanguageRaw
+        : allowedLanguages[0];
+    const allowedSet = new Set(allowedLanguages);
     const globalAny = globalThis as { browser?: typeof chrome };
     const api =
       typeof globalAny.browser === "undefined" ? chrome : globalAny.browser;
@@ -22,17 +34,18 @@ export class LanguageDetector {
     let detectedLanguage: string | null = null;
     let maxPercentage = -1;
     for (const language of result.languages) {
+      let resolvedLanguage: string | null = null;
+      if (language.language in SUPPORTED_LANGUAGES) {
+        resolvedLanguage = language.language;
+      } else if (language.language in SUPPORTED_LANGUAGES_SHORT_CODE) {
+        resolvedLanguage = SUPPORTED_LANGUAGES_SHORT_CODE[language.language];
+      }
       if (
-        language.language in SUPPORTED_LANGUAGES &&
+        resolvedLanguage &&
+        allowedSet.has(resolvedLanguage) &&
         language.percentage > maxPercentage
       ) {
-        detectedLanguage = language.language;
-        maxPercentage = language.percentage;
-      } else if (
-        language.language in SUPPORTED_LANGUAGES_SHORT_CODE &&
-        language.percentage > maxPercentage
-      ) {
-        detectedLanguage = SUPPORTED_LANGUAGES_SHORT_CODE[language.language];
+        detectedLanguage = resolvedLanguage;
         maxPercentage = language.percentage;
       }
     }
@@ -40,12 +53,18 @@ export class LanguageDetector {
       return detectedLanguage;
     }
     const pageLang = await api.tabs.detectLanguage(tabId);
-    if (pageLang in SUPPORTED_LANGUAGES) {
+    if (pageLang in SUPPORTED_LANGUAGES && allowedSet.has(pageLang)) {
       return pageLang;
     }
-    if (pageLang in SUPPORTED_LANGUAGES_SHORT_CODE) {
+    if (
+      pageLang in SUPPORTED_LANGUAGES_SHORT_CODE &&
+      allowedSet.has(SUPPORTED_LANGUAGES_SHORT_CODE[pageLang])
+    ) {
       return SUPPORTED_LANGUAGES_SHORT_CODE[pageLang];
     }
-    return fallbackLanguage;
+    if (allowedSet.has(fallbackLanguage)) {
+      return fallbackLanguage;
+    }
+    return allowedLanguages[0];
   }
 }
