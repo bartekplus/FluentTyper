@@ -23,7 +23,7 @@ export async function migrateToLocalStore(lastVersion?: string): Promise<void> {
     }) <= 0;
 
   if (migrateStore) {
-    chrome.storage.sync.get(null, (result: { [key: string]: any }) => {
+    chrome.storage.sync.get(null, (result: { [key: string]: unknown }) => {
       chrome.storage.local.set(result);
       chrome.storage.local.set({ lastVersion: currentVersion });
     });

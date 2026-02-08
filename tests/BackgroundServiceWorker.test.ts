@@ -17,7 +17,7 @@ const mockChrome = {
   },
   storage: {
     local: {
-      get: jest.fn((key: string, callback: (result: any) => void) => {
+      get: jest.fn((key: string, callback: (result: unknown) => void) => {
         if (typeof key === "string") {
           callback({});
         } else {
@@ -27,7 +27,7 @@ const mockChrome = {
       set: jest.fn(),
     },
     sync: {
-      get: jest.fn((key: any, callback: (result: any) => void) => {
+      get: jest.fn((key: unknown, callback: (result: unknown) => void) => {
         callback({});
       }),
       set: jest.fn(),
@@ -37,7 +37,7 @@ const mockChrome = {
     get: jest.fn((key: string) => key),
   },
 };
-(global as any).chrome = mockChrome;
+(global as unknown as { chrome: unknown }).chrome = mockChrome;
 
 // Define mocks using unstable_mockModule BEFORE importing the module under test
 jest.unstable_mockModule("../src/shared/settingsManager", () => ({
@@ -67,7 +67,7 @@ jest.unstable_mockModule("../src/background/TabMessenger", () => ({
 import type { BackgroundServiceWorker as BackgroundServiceWorkerType } from "../src/background/background";
 
 describe("BackgroundServiceWorker", () => {
-  let BackgroundServiceWorkerClass: any;
+  let BackgroundServiceWorkerClass: { new(): BackgroundServiceWorkerType };
   let worker: BackgroundServiceWorkerType;
 
   beforeAll(async () => {
@@ -78,7 +78,9 @@ describe("BackgroundServiceWorker", () => {
   beforeEach(() => {
     // Clear instance
     if (BackgroundServiceWorkerClass) {
-      (BackgroundServiceWorkerClass as any).instance = undefined;
+      (
+        BackgroundServiceWorkerClass as unknown as { instance: unknown }
+      ).instance = undefined;
       worker = new BackgroundServiceWorkerClass();
     }
   });
@@ -93,7 +95,11 @@ describe("BackgroundServiceWorker", () => {
   describe("runPrediction", () => {
     it("should not send message if no predictions and no forceReplace", async () => {
       // Setup mock return
-      (worker.predictionManager.runPrediction as any).mockResolvedValue({
+      (
+        worker.predictionManager.runPrediction as jest.Mock<
+          () => Promise<unknown>
+        >
+      ).mockResolvedValue({
         predictions: [],
         forceReplace: null,
       });
@@ -115,7 +121,11 @@ describe("BackgroundServiceWorker", () => {
     });
 
     it("should send message if predictions exist", async () => {
-      (worker.predictionManager.runPrediction as any).mockResolvedValue({
+      (
+        worker.predictionManager.runPrediction as jest.Mock<
+          () => Promise<unknown>
+        >
+      ).mockResolvedValue({
         predictions: ["tested"],
         forceReplace: null,
       });

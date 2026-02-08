@@ -323,7 +323,7 @@ class FluentTyper {
   messageHandler(
     message: Message,
     sender?: chrome.runtime.MessageSender,
-    sendResponse?: (response: any) => void,
+    sendResponse?: (response: unknown) => void,
   ): void {
     checkLastError();
     let sendStatusMsg = false;
@@ -427,16 +427,18 @@ class FluentTyper {
       command: CMD_CONTENT_SCRIPT_GET_CONFIG,
       context: {},
     };
-    chrome.runtime.sendMessage(msg, (response: any) => {
+    chrome.runtime.sendMessage(msg, (response: unknown) => {
       checkLastError();
-      this.messageHandler(response);
+      this.messageHandler(response as Message);
     });
   }
 
   /**
    * Applies custom theme colors by injecting CSS variables.
    */
-  private applyTheme(themeSettings: any): void {
+  private applyTheme(
+    themeSettings: NonNullable<SetConfigContext["themeConfig"]>,
+  ): void {
     console.log(
       "FluentTyper: Applying theme settings to content script:",
       themeSettings,

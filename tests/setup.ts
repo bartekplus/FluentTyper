@@ -16,7 +16,7 @@ const mockChrome = {
   },
   storage: {
     local: {
-      get: jest.fn((key: string, callback: (result: any) => void) => {
+      get: jest.fn((key: string, callback: (result: unknown) => void) => {
         if (typeof key === "string") {
           callback({});
         } else {
@@ -30,4 +30,4 @@ const mockChrome = {
     get: jest.fn((key: string) => key),
   },
 };
-(global as any).chrome = mockChrome;
+(global as unknown as { chrome: unknown }).chrome = mockChrome;
