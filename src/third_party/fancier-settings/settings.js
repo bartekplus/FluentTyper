@@ -192,54 +192,6 @@ function importUserDictFileSelected(settings) {
   importInputElem.value = null;
 }
 
-async function validateLanguageSettings(settings) {
-  const store = new Store("settings");
-  let enabledLanguages = await store.get("enabled_languages");
-  let language = await store.get("language");
-
-  let languagesChanged = false;
-  let primaryLangChanged = false;
-
-  if (!Array.isArray(enabledLanguages)) {
-    enabledLanguages = [];
-  }
-
-  // Rule 1: Ensure at least one language is selected.
-  // Rule 2: If only one language is selected, it cannot be "auto_detect".
-  if (enabledLanguages.length === 0 || (enabledLanguages.length === 1 && enabledLanguages[0] === "auto_detect")) {
-    console.warn("No languages selected or only 'auto_detect' is selected. Defaulting to 'en_US'.");
-    enabledLanguages = ["en_US"];
-    languagesChanged = true;
-  }
-
-  console.warn("languages", enabledLanguages, "primary language", language);
-  // Rule 3: Ensure the primary language is in the list of enabled languages.
-  if (!enabledLanguages.includes(language)) {
-    language = enabledLanguages[0];
-    primaryLangChanged = true;
-  }
-  
-  // Limit language options to only enabled_languages
-  const availableLanguages = Object.entries(SUPPORTED_LANGUAGES).filter(
-    ([key]) => enabledLanguages.includes(key)
-  ).map(([key, value]) => ({ value: key, text: value }));
-  settings.manifest.language.setOptions(availableLanguages, language);
-
-  console.warn("availableLanguages", availableLanguages);
-
-  // Apply the changes to the settings UI and storage.
-  if (languagesChanged) {
-    console.warn("Languages changed, updating settings.");
-    settings.manifest.enabled_languages.set(enabledLanguages);
-  }
-  if (primaryLangChanged) {
-    console.warn("Primary language changed, updating settings.", language);
-    settings.manifest.language.set(language);
-  }
-    return;
-
-}
-
 // Theme application is now handled through the messaging system
 // This function is no longer needed as themes are applied via background script
 
