@@ -9,11 +9,16 @@ import {
   ForceReplaceType,
 } from "../shared/messageTypes";
 
+interface TributeItem {
+  original: { value: string };
+  string: string;
+}
+
 interface TributeEntry {
   tribute: Tribute;
   elem: Element;
   done?: (
-    results: any[],
+    results: unknown[],
     forceReplace: ForceReplaceType | null,
     menuHeader?: string,
   ) => void;
@@ -161,7 +166,7 @@ export class TributeManager {
     const tribueValuesFn = (
       _trigger: string, // text typed so far - not used directly here, context.text is used
       done: (
-        results: any[],
+        results: unknown[],
         forceReplace: ForceReplaceType | null,
         menuHeader?: string,
       ) => void,
@@ -204,9 +209,9 @@ export class TributeManager {
       containerClass: "tribute-container",
       itemClass: "",
       // @ts-expect-error ignore Tribute errors
-      selectTemplate: (item: any) => item.original.value,
+      selectTemplate: (item: TributeItem) => item.original.value,
       // @ts-expect-error ignore Tribute errors
-      menuItemTemplate: (item) => item.string,
+      menuItemTemplate: (item: TributeItem) => item.string,
       noMatchTemplate: undefined,
       // @ts-expect-error ignore Tribute errors
       menuContainer: document.body,
