@@ -3,7 +3,7 @@ import {
   LANG_SEPERATOR_CHARS_REGEX,
   SUPPORTED_LANGUAGES,
 } from "../shared/lang";
-import { debounce, isInDocument } from "../shared/utils"; // Assuming debounce is available here
+import { isInDocument } from "../shared/utils";
 import {
   PredictResponseContext,
   ForceReplaceType,
