@@ -3,11 +3,12 @@ import {
   LANG_SEPERATOR_CHARS_REGEX,
   SUPPORTED_LANGUAGES,
 } from "../shared/lang";
-import { debounce, isInDocument } from "../shared/utils"; // Assuming debounce is available here
+import { isInDocument } from "../shared/utils";
 import {
   PredictResponseContext,
   ForceReplaceType,
 } from "../shared/messageTypes";
+import { SPACING_RULES, Spacing } from "../background/SpacingRulesHandler";
 
 interface TributeItem {
   original: { value: string };
@@ -26,6 +27,8 @@ interface TributeEntry {
   // Store handler references for proper removal
   tributeReplacedHandlerRef?: EventListenerOrEventListenerObject;
   elementKeyDownHandlerRef?: EventListenerOrEventListenerObject;
+  missingTrailingSpace?: boolean;
+  expectedCursorPos?: number;
 }
 
 export class TributeManager {
@@ -251,25 +254,18 @@ export class TributeManager {
     this.tributeArr[tributeId].tribute = tribute;
     tribute.attach(elem);
 
-    // Event listeners
-    const boundTributeReplacedHandler = debounce(
-      this.tributeReplacedEventHandler.bind(this, tributeId),
-      16,
-      { leading: false, trailing: true },
-    );
-    const boundElementKeyDownHandler = debounce(
-      this.elementKeyDownEventHandler.bind(this, tributeId),
-      32,
-    );
-    // @ts-expect-error ignore Tribute errors
+    const boundTributeReplacedHandler =
+      this.tributeReplacedEventHandler.bind(this, tributeId);
+    // MUST be synchronous so event.preventDefault() works reliably without letter duplication.
+    const boundElementKeyDownHandler =
+      this.elementKeyDownEventHandler.bind(this, tributeId);
+
     this.tributeArr[tributeId].tributeReplacedHandlerRef =
       boundTributeReplacedHandler;
-    // @ts-expect-error ignore Tribute errors
     this.tributeArr[tributeId].elementKeyDownHandlerRef =
       boundElementKeyDownHandler;
-    // @ts-expect-error ignore Tribute errors
+
     elem.addEventListener("tribute-replaced", boundTributeReplacedHandler);
-    // @ts-expect-error ignore Tribute errors
     elem.addEventListener("keydown", boundElementKeyDownHandler);
   }
 
@@ -485,13 +481,97 @@ export class TributeManager {
 
   tributeReplacedEventHandler(helperArrId: number) {
     this.activeHelperArrId = helperArrId;
+
+    // We check if the inserted text ends with a space. If not, the user might need one.
+    // However, we only know if they need one AFTER they start typing. 
+    // So we mark that a replacement just happened.
+    const entry = this.tributeArr[helperArrId];
+    if (entry) {
+      entry.missingTrailingSpace = true;
+      const elem = entry.elem;
+      let cursorPos = 0;
+      if (elem instanceof HTMLTextAreaElement || elem instanceof HTMLInputElement) {
+        cursorPos = elem.selectionStart ?? 0;
+      } else {
+        const sel = window.getSelection();
+        if (sel && sel.anchorNode && sel.anchorNode.textContent) {
+          cursorPos = sel.anchorOffset;
+        }
+      }
+      entry.expectedCursorPos = cursorPos;
+    }
+
     if (this.tributeArr[helperArrId] && this.reTriggerTributeOnReplaceEvent) {
       this.triggerActiveTribute();
     }
   }
 
-  elementKeyDownEventHandler(helperArrId: number) {
+  elementKeyDownEventHandler(helperArrId: number, event: Event) {
     this.activeHelperArrId = helperArrId;
+    const entry = this.tributeArr[helperArrId];
+
+    // Only perform logic if we just had a replacement
+    if (entry && entry.missingTrailingSpace) {
+      const keyboardEvent = event as KeyboardEvent;
+      const key = keyboardEvent.key;
+
+      // Ignore modifier keys that don't change cursor or insert text
+      if (["Shift", "Control", "Alt", "Meta", "CapsLock", "Escape"].includes(key)) {
+        return;
+      }
+
+      const elem = entry.elem;
+      let currentPos = 0;
+      if (elem instanceof HTMLTextAreaElement || elem instanceof HTMLInputElement) {
+        currentPos = elem.selectionStart ?? 0;
+      } else {
+        const sel = window.getSelection();
+        if (sel && sel.anchorNode && sel.anchorNode.textContent) {
+          currentPos = sel.anchorOffset;
+        }
+      }
+
+      // If the cursor moved from the expected position or user pressed a navigational key
+      if (currentPos !== entry.expectedCursorPos || key.length > 1) {
+        entry.missingTrailingSpace = false;
+        return;
+      }
+
+      // If user types a visible character
+      if (key && key.length === 1 && key.trim()) {
+        // Clear flag immediately so it only applies to the VERY FIRST key pressed after autocomplete.
+        entry.missingTrailingSpace = false;
+        const elem = entry.elem;
+        let charBeforeCursor = "";
+
+        if (elem instanceof HTMLTextAreaElement || elem instanceof HTMLInputElement) {
+          const cursorPos = elem.selectionStart ?? 0;
+          charBeforeCursor = cursorPos > 0 ? elem.value[cursorPos - 1] : "";
+        } else {
+          const sel = window.getSelection();
+          if (sel && sel.anchorNode && sel.anchorNode.textContent) {
+            const offset = sel.anchorOffset;
+            charBeforeCursor = offset > 0 ? sel.anchorNode.textContent[offset - 1] : "";
+          }
+        }
+
+        // If there's ALREADY a whitespace, do nothing
+        if (!charBeforeCursor || /\s/.test(charBeforeCursor)) {
+          return;
+        }
+
+        // Check spacing rules
+        const spacingRule = SPACING_RULES[key];
+        if (
+          !spacingRule ||
+          (spacingRule.spaceBefore !== Spacing.REMOVE_SPACE &&
+            spacingRule.spaceBefore !== Spacing.NO_CHANGE)
+        ) {
+          event.preventDefault();
+          document.execCommand("insertText", false, "\xA0" + key);
+        }
+      }
+    }
   }
 
   updateLangConfig(lang: string) {
