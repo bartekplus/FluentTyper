@@ -183,6 +183,42 @@ describe("Chrome Extension E2E Test", () => {
     expect(textAreaText).toBe("with\xa0");
   }, 30000);
 
+  test("Cursor movement cancels missing space auto-insertion", async () => {
+    page = await browser.newPage();
+    await page.goto("file://" + TEST_PAGE_PATH);
+    page.bringToFront();
+    await page.waitForSelector("#test-textarea");
+    const textarea = await page.$("#test-textarea");
+
+    // Type a partial word to trigger autocomplete
+    await textarea!.type("h");
+    await page.waitForSelector(".tribute-container li");
+
+    // Press Tab to autocomplete to "have\xa0"
+    await page.keyboard.press("Tab");
+    await page.waitForFunction(
+      () =>
+        (document.querySelector("#test-textarea") as HTMLTextAreaElement)
+          .value === "have\xa0",
+    );
+
+    // Now move the cursor left (over the \xa0)
+    await page.keyboard.press("ArrowLeft");
+
+    // Type 'x'
+    await textarea!.type("x");
+
+    // Evaluate if 'x' was inserted WITHOUT an extra space before it.
+    // If the flag wasn't cleared, it would insert \xa0 before x -> "have\xa0x\xa0"
+    // Since expected behavior clears the flag, it should be "havex\xa0"
+    await new Promise((r) => setTimeout(r, 100));
+    const textAreaText = await page.$eval(
+      "#test-textarea",
+      (textarea) => (textarea as HTMLTextAreaElement).value,
+    );
+    expect(textAreaText).toBe("havex\xa0");
+  }, 15000);
+
   test("Inline suggestion prediction is inserted on TAB", async () => {
     page = await browser.newPage();
     await page.goto("file://" + TEST_PAGE_PATH);

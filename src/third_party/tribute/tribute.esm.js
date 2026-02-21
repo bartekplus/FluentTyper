@@ -207,7 +207,7 @@ class TributeEvents {
         return trigger.charCodeAt(0) === keyCode;
       });
 
-      if (instance.tribute.isActive) ; else if (trigger) {
+      if (instance.tribute.isActive); else if (trigger) {
         // not active, but we found a trigger
         instance.tribute.current.collection = instance.tribute.collection.find((item) => {
           return item.trigger === trigger;
@@ -636,7 +636,7 @@ class TributeRange {
       event: originalEvent,
       text: text,
     };
-    const replaceEvent = new CustomEvent("tribute-replaced");
+    const replaceEvent = new CustomEvent("tribute-replaced", { detail: detail });
 
     if (!this.isContentEditable(context.element)) {
       const myField = this.tribute.current.element;
