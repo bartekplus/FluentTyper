@@ -55,7 +55,7 @@ export class PresageEngine {
     const predictions: string[] = [];
     const predictionsNative = this.libPresage.predictWithProbability();
     for (let i = 0; i < predictionsNative.size(); i++) {
-      let text: string | null = null;
+      let text: string | null;
       try {
         text = JSON.parse(predictionsNative.get(i).prediction);
       } catch {

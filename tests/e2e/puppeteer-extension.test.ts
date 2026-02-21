@@ -449,6 +449,7 @@ describe("Chrome Extension E2E Test", () => {
       } catch (e) {
         throw new Error(
           `Failed verification for language ${lang}. Input: ${testData.input}, Expected: ${testData.expected}. Error: ${e}`,
+          { cause: e },
         );
       }
 
