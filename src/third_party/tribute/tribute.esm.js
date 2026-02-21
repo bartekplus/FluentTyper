@@ -506,9 +506,9 @@ class TributeRange {
     const coordinates = isContentEditable
       ? this.getContentEditableInlinePosition()
       : this.getTextAreaOrInputUnderlinePosition(
-          context.element,
-          context.mentionPosition + context.mentionText.length
-        );
+        context.element,
+        context.mentionPosition + context.mentionText.length
+      );
     if (!coordinates) {
       return;
     }
@@ -517,8 +517,9 @@ class TributeRange {
     div.className = "tribute-inline";
     div.innerText = text;
 
-    // Calculate dynamic color
-    const computedStyle = getComputedStyle(context.element);
+    // Calculate dynamic color and font styles
+    const targetElement = isContentEditable ? (this.getContentEditableTargetElement() || context.element) : context.element;
+    const computedStyle = getComputedStyle(targetElement);
     div.style.color = computedStyle.color;
     div.style.opacity = 0.5;
 
@@ -532,8 +533,28 @@ class TributeRange {
     div.style.pointerEvents = "none";
     div.style.whiteSpace = "pre-wrap";
     div.style.zIndex = 10000;
+
+    // Copy font styles precisely rather than relying on shorthand which Firefox can omit
     div.style.font = computedStyle.font;
+    div.style.fontFamily = computedStyle.fontFamily;
+    div.style.fontSize = computedStyle.fontSize;
+    div.style.fontWeight = computedStyle.fontWeight;
+    div.style.fontStyle = computedStyle.fontStyle;
+    div.style.fontVariant = computedStyle.fontVariant;
+    div.style.letterSpacing = computedStyle.letterSpacing;
+    div.style.wordSpacing = computedStyle.wordSpacing;
+    div.style.textTransform = computedStyle.textTransform;
     div.style.lineHeight = computedStyle.lineHeight;
+    div.style.direction = computedStyle.direction;
+
+    // Preserve font feature settings and rendering for subpixel matching
+    div.style.fontFeatureSettings = computedStyle.fontFeatureSettings;
+    div.style.fontKerning = computedStyle.fontKerning;
+    div.style.textAlign = computedStyle.textAlign;
+
+    // Preserve OS-level font smoothing (often causes mismatches if missing, especially on macOS)
+    div.style.WebkitFontSmoothing = computedStyle.WebkitFontSmoothing;
+    div.style.MozOsxFontSmoothing = computedStyle.MozOsxFontSmoothing;
 
     if (coordinates.maxWidth) {
       div.style.maxWidth = coordinates.maxWidth + "px";
@@ -563,7 +584,8 @@ class TributeRange {
 
     if (!rect) return null;
 
-    const computedStyle = getComputedStyle(this.tribute.current.element);
+    const targetElement = this.getContentEditableTargetElement() || this.tribute.current.element;
+    const computedStyle = getComputedStyle(targetElement);
     const fontSize = parseFloat(computedStyle.fontSize) || 0;
     let lineHeight = parseFloat(computedStyle.lineHeight);
     if (!lineHeight || Number.isNaN(lineHeight)) {
@@ -581,6 +603,16 @@ class TributeRange {
       height,
       maxWidth,
     };
+  }
+
+  getContentEditableTargetElement() {
+    const selection = this.getWindowSelection();
+    if (!selection || selection.rangeCount === 0) return null;
+    let node = selection.getRangeAt(0).startContainer;
+    if (node.nodeType === 3) {
+      node = node.parentNode;
+    }
+    return node;
   }
 
   hideInlineSuggestion() {
