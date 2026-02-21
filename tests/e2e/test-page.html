@@ -1,10 +1,93 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <title>Test Page</title>
-  </head>
-  <body>
-    <textarea id="test-textarea" rows="5" cols="40"></textarea>
-  </body>
+
+<head>
+  <meta charset="UTF-8" />
+  <title>FluentTyper Test Page</title>
+  <style>
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: #f4f7f6;
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 50px;
+    }
+
+    h1 {
+      font-weight: 600;
+      color: #2c3e50;
+      margin-bottom: 30px;
+    }
+
+    .container {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      width: 100%;
+      max-width: 600px;
+      background: #fff;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.05);
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    label {
+      font-size: 0.9em;
+      font-weight: 500;
+      color: #555;
+    }
+
+    textarea,
+    input[type="text"],
+    [contenteditable="true"] {
+      padding: 12px 16px;
+      font-family: inherit;
+      font-size: 1rem;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      box-sizing: border-box;
+    }
+
+    textarea:focus,
+    input[type="text"]:focus,
+    [contenteditable="true"]:focus {
+      outline: none;
+      border-color: #3498db;
+      box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+    }
+
+    [contenteditable="true"] {
+      min-height: 80px;
+      cursor: text;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>FluentTyper Testing Environment</h1>
+  <div class="container">
+    <div class="input-group">
+      <label for="test-textarea">Textarea</label>
+      <textarea id="test-textarea" rows="4"></textarea>
+    </div>
+    <div class="input-group">
+      <label for="test-input">Text Input</label>
+      <input type="text" id="test-input">
+    </div>
+    <div class="input-group">
+      <label for="test-contenteditable">Content Editable Div</label>
+      <div contenteditable="true" id="test-contenteditable"></div>
+    </div>
+  </div>
+</body>
+
 </html>
