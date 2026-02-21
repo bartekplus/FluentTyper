@@ -53,6 +53,7 @@ class FluentTyper {
     minWordLengthToPredict: 0,
     revertOnBackspace: true,
     displayLangHeader: true,
+    inline_suggestion: false,
     themeConfig: undefined,
   };
   public domObserver: DomObserver;
@@ -188,6 +189,7 @@ class FluentTyper {
       selectByDigit: this.config.selectByDigit,
       revertOnBackspace: this.config.revertOnBackspace,
       displayLangHeader: this.config.displayLangHeader,
+      inline_suggestion: this.config.inline_suggestion,
       getPrediction: this.handleGetPrediction.bind(this),
     });
     // Set autocompleteSeparator property after construction

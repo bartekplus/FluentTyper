@@ -41,6 +41,7 @@ import {
   KEY_TRIBUTE_FONT_SIZE,
   KEY_TRIBUTE_PADDING_VERTICAL,
   KEY_TRIBUTE_PADDING_HORIZONTAL,
+  KEY_INLINE_SUGGESTION,
   DEFAULT_NUM_SUGGESTIONS,
 } from "../../shared/constants.ts";
 
@@ -284,7 +285,7 @@ const manifest = {
       type: "button",
       text: i18n.get("Remove Selected"),
     },
-    
+
 
     // =========================================================================
     // TAB: My Dictionary
@@ -487,6 +488,14 @@ const manifest = {
       name: KEY_APPLY_SPACING_RULES,
       type: "checkbox",
       label: i18n.get("Apply automatic spacing rules for punctuation") + ":&nbsp;<small>" + i18n.get("Note: This is a beta feature and may not work as expected. Please use at your own risk.") + "</small>",
+      default: false,
+    },
+    {
+      tab: i18n.get("Advanced"),
+      group: i18n.get("Experimental Features"),
+      name: KEY_INLINE_SUGGESTION,
+      type: "checkbox",
+      label: i18n.get("Enable inline suggestion") + ":&nbsp;<small>" + i18n.get("Note: This is an experimental feature that works only with the Tab key. Once switched, 'Accept with Tab key' will be forced and 'Number of predictions' will be forced to 10.") + "</small>",
       default: false,
     },
     {

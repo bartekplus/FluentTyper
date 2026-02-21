@@ -44,6 +44,7 @@ export class TributeManager {
   private selectByDigit: boolean;
   private revertOnBackspace: boolean;
   private displayLangHeader: boolean;
+  private inline_suggestion: boolean;
   private reTriggerTributeOnReplaceEvent: boolean = false;
   private activeHelperArrId: number | null = null;
 
@@ -60,6 +61,7 @@ export class TributeManager {
     selectByDigit,
     revertOnBackspace,
     displayLangHeader,
+    inline_suggestion,
     // Callbacks to FluentTyper
     getPrediction,
   }: {
@@ -72,6 +74,7 @@ export class TributeManager {
     selectByDigit: boolean;
     revertOnBackspace: boolean;
     displayLangHeader: boolean;
+    inline_suggestion: boolean;
     // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
     getPrediction: Function;
   }) {
@@ -88,6 +91,7 @@ export class TributeManager {
     this.selectByDigit = selectByDigit;
     this.revertOnBackspace = revertOnBackspace;
     this.displayLangHeader = displayLangHeader;
+    this.inline_suggestion = inline_suggestion;
     this.getPrediction = getPrediction; // callback to main class
     this.activeHelperArrId = null;
     console.info(
@@ -104,6 +108,7 @@ export class TributeManager {
         selectByDigit,
         revertOnBackspace,
         displayLangHeader,
+        inline_suggestion,
       },
     );
   }
@@ -227,6 +232,7 @@ export class TributeManager {
       spaceSelectsMatch: this.autocomplete,
       autocompleteMode: true,
       autocompleteSeparator: this.autocompleteSeparator,
+      inline: this.inline_suggestion,
       searchOpts: {
         pre: "<span>",
         post: "</span>",
