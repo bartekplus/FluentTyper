@@ -254,11 +254,15 @@ export class TributeManager {
     this.tributeArr[tributeId].tribute = tribute;
     tribute.attach(elem);
 
-    const boundTributeReplacedHandler =
-      this.tributeReplacedEventHandler.bind(this, tributeId);
+    const boundTributeReplacedHandler = this.tributeReplacedEventHandler.bind(
+      this,
+      tributeId,
+    );
     // MUST be synchronous so event.preventDefault() works reliably without letter duplication.
-    const boundElementKeyDownHandler =
-      this.elementKeyDownEventHandler.bind(this, tributeId);
+    const boundElementKeyDownHandler = this.elementKeyDownEventHandler.bind(
+      this,
+      tributeId,
+    );
 
     this.tributeArr[tributeId].tributeReplacedHandlerRef =
       boundTributeReplacedHandler;
@@ -483,14 +487,17 @@ export class TributeManager {
     this.activeHelperArrId = helperArrId;
 
     // We check if the inserted text ends with a space. If not, the user might need one.
-    // However, we only know if they need one AFTER they start typing. 
+    // However, we only know if they need one AFTER they start typing.
     // So we mark that a replacement just happened.
     const entry = this.tributeArr[helperArrId];
     if (entry) {
       entry.missingTrailingSpace = true;
       const elem = entry.elem;
       let cursorPos = 0;
-      if (elem instanceof HTMLTextAreaElement || elem instanceof HTMLInputElement) {
+      if (
+        elem instanceof HTMLTextAreaElement ||
+        elem instanceof HTMLInputElement
+      ) {
         cursorPos = elem.selectionStart ?? 0;
       } else {
         const sel = window.getSelection();
@@ -516,13 +523,18 @@ export class TributeManager {
       const key = keyboardEvent.key;
 
       // Ignore modifier keys that don't change cursor or insert text
-      if (["Shift", "Control", "Alt", "Meta", "CapsLock", "Escape"].includes(key)) {
+      if (
+        ["Shift", "Control", "Alt", "Meta", "CapsLock", "Escape"].includes(key)
+      ) {
         return;
       }
 
       const elem = entry.elem;
       let currentPos = 0;
-      if (elem instanceof HTMLTextAreaElement || elem instanceof HTMLInputElement) {
+      if (
+        elem instanceof HTMLTextAreaElement ||
+        elem instanceof HTMLInputElement
+      ) {
         currentPos = elem.selectionStart ?? 0;
       } else {
         const sel = window.getSelection();
@@ -544,14 +556,18 @@ export class TributeManager {
         const elem = entry.elem;
         let charBeforeCursor = "";
 
-        if (elem instanceof HTMLTextAreaElement || elem instanceof HTMLInputElement) {
+        if (
+          elem instanceof HTMLTextAreaElement ||
+          elem instanceof HTMLInputElement
+        ) {
           const cursorPos = elem.selectionStart ?? 0;
           charBeforeCursor = cursorPos > 0 ? elem.value[cursorPos - 1] : "";
         } else {
           const sel = window.getSelection();
           if (sel && sel.anchorNode && sel.anchorNode.textContent) {
             const offset = sel.anchorOffset;
-            charBeforeCursor = offset > 0 ? sel.anchorNode.textContent[offset - 1] : "";
+            charBeforeCursor =
+              offset > 0 ? sel.anchorNode.textContent[offset - 1] : "";
           }
         }
 

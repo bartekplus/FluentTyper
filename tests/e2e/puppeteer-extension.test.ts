@@ -115,82 +115,83 @@ describe("Chrome Extension E2E Test", () => {
     expect(popupPage).toBeDefined();
   }, 20000);
 
-  test.each([
-    ["#test-textarea"],
-    ["#test-input"],
-    ["#test-contenteditable"],
-  ])("Prediction popup appears in %s when typing and prediction is inserted on click", async (selector) => {
-    await page.goto("file://" + TEST_PAGE_PATH);
-    page.bringToFront();
-    await page.waitForSelector(selector);
-    const element = await page.$(selector);
-    await element!.type("h"); // Type a few letters
-    // Wait for prediction popup
-    await page.waitForSelector(".tribute-container li");
-    // Check if there are DEFAULT_NUM_SUGGESTIONS li elements inside the predictionPopup
-    const liCount = await page.$$eval(
-      ".tribute-container li",
-      (lis) => lis.length,
-    );
-    expect(liCount).toBe(DEFAULT_NUM_SUGGESTIONS);
+  test.each([["#test-textarea"], ["#test-input"], ["#test-contenteditable"]])(
+    "Prediction popup appears in %s when typing and prediction is inserted on click",
+    async (selector) => {
+      await page.goto("file://" + TEST_PAGE_PATH);
+      page.bringToFront();
+      await page.waitForSelector(selector);
+      const element = await page.$(selector);
+      await element!.type("h"); // Type a few letters
+      // Wait for prediction popup
+      await page.waitForSelector(".tribute-container li");
+      // Check if there are DEFAULT_NUM_SUGGESTIONS li elements inside the predictionPopup
+      const liCount = await page.$$eval(
+        ".tribute-container li",
+        (lis) => lis.length,
+      );
+      expect(liCount).toBe(DEFAULT_NUM_SUGGESTIONS);
 
-    // Check if first li is "have\xa0"
-    const firstLiText = await page.$eval(
-      ".tribute-container li:first-child",
-      (li) => li.textContent,
-    );
-    expect(firstLiText?.toLowerCase()).toBe("have\xa0");
+      // Check if first li is "have\xa0"
+      const firstLiText = await page.$eval(
+        ".tribute-container li:first-child",
+        (li) => li.textContent,
+      );
+      expect(firstLiText?.toLowerCase()).toBe("have\xa0");
 
-    // Click on the first suggestion
-    await page.click(".tribute-container li:first-child");
-    const elementText = await page.$eval(
-      selector,
-      (el) => (el as HTMLInputElement).value ?? el.textContent,
-    );
-    expect(elementText).toBe("have\xa0");
-  }, 15000);
+      // Click on the first suggestion
+      await page.click(".tribute-container li:first-child");
+      const elementText = await page.$eval(
+        selector,
+        (el) => (el as HTMLInputElement).value ?? el.textContent,
+      );
+      expect(elementText).toBe("have\xa0");
+    },
+    15000,
+  );
 
-  test.each([
-    ["#test-textarea"],
-    ["#test-input"],
-    ["#test-contenteditable"],
-  ])("Prediction popup appears in %s when typing and prediction is inserted on TAB", async (selector) => {
-    page = await browser.newPage();
-    await page.goto("file://" + TEST_PAGE_PATH);
-    page.bringToFront();
-    await page.waitForSelector(selector);
-    const element = await page.$(selector);
-    await element!.type("w"); // Type a few letters
-    // Wait for prediction popup
-    await page.waitForSelector(".tribute-container li");
-    // Check if there are DEFAULT_NUM_SUGGESTIONS li elements inside the predictionPopup
-    const liCount = await page.$$eval(
-      ".tribute-container li",
-      (lis) => lis.length,
-    );
-    expect(liCount).toBe(DEFAULT_NUM_SUGGESTIONS);
+  test.each([["#test-textarea"], ["#test-input"], ["#test-contenteditable"]])(
+    "Prediction popup appears in %s when typing and prediction is inserted on TAB",
+    async (selector) => {
+      page = await browser.newPage();
+      await page.goto("file://" + TEST_PAGE_PATH);
+      page.bringToFront();
+      await page.waitForSelector(selector);
+      const element = await page.$(selector);
+      await element!.type("w"); // Type a few letters
+      // Wait for prediction popup
+      await page.waitForSelector(".tribute-container li");
+      // Check if there are DEFAULT_NUM_SUGGESTIONS li elements inside the predictionPopup
+      const liCount = await page.$$eval(
+        ".tribute-container li",
+        (lis) => lis.length,
+      );
+      expect(liCount).toBe(DEFAULT_NUM_SUGGESTIONS);
 
-    // Check if first li is "with"
-    const firstLiText = await page.$eval(
-      ".tribute-container li:first-child",
-      (li) => li.textContent,
-    );
-    expect(firstLiText?.toLowerCase()).toBe("with\xa0");
+      // Check if first li is "with"
+      const firstLiText = await page.$eval(
+        ".tribute-container li:first-child",
+        (li) => li.textContent,
+      );
+      expect(firstLiText?.toLowerCase()).toBe("with\xa0");
 
-    await page.keyboard.press("Tab");
-    // Wait for the textarea value to become "with\xa0"
-    await page.waitForFunction(
-      (sel) =>
-        ((document.querySelector(sel) as HTMLInputElement).value ?? document.querySelector(sel)?.textContent) !== "w",
-      {},
-      selector
-    );
-    const elementText = await page.$eval(
-      selector,
-      (el) => (el as HTMLInputElement).value ?? el.textContent,
-    );
-    expect(elementText).toBe("with\xa0");
-  }, 30000);
+      await page.keyboard.press("Tab");
+      // Wait for the textarea value to become "with\xa0"
+      await page.waitForFunction(
+        (sel) =>
+          ((document.querySelector(sel) as HTMLInputElement).value ??
+            document.querySelector(sel)?.textContent) !== "w",
+        {},
+        selector,
+      );
+      const elementText = await page.$eval(
+        selector,
+        (el) => (el as HTMLInputElement).value ?? el.textContent,
+      );
+      expect(elementText).toBe("with\xa0");
+    },
+    30000,
+  );
 
   test("Cursor movement cancels missing space auto-insertion", async () => {
     page = await browser.newPage();
@@ -228,50 +229,51 @@ describe("Chrome Extension E2E Test", () => {
     expect(textAreaText).toBe("havex\xa0");
   }, 15000);
 
-  test.each([
-    ["#test-textarea"],
-    ["#test-input"],
-    ["#test-contenteditable"],
-  ])("Inline suggestion prediction is inserted on TAB in %s", async (selector) => {
-    page = await browser.newPage();
-    await page.goto("file://" + TEST_PAGE_PATH);
-    page.bringToFront();
+  test.each([["#test-textarea"], ["#test-input"], ["#test-contenteditable"]])(
+    "Inline suggestion prediction is inserted on TAB in %s",
+    async (selector) => {
+      page = await browser.newPage();
+      await page.goto("file://" + TEST_PAGE_PATH);
+      page.bringToFront();
 
-    await setSetting(worker!, KEY_INLINE_SUGGESTION, true);
-    await worker!.evaluate(
-      "chrome.runtime.sendMessage({command: 'CMD_OPTIONS_PAGE_CONFIG_CHANGE', context: {}});",
-    );
-    await new Promise((r) => setTimeout(r, 50));
+      await setSetting(worker!, KEY_INLINE_SUGGESTION, true);
+      await worker!.evaluate(
+        "chrome.runtime.sendMessage({command: 'CMD_OPTIONS_PAGE_CONFIG_CHANGE', context: {}});",
+      );
+      await new Promise((r) => setTimeout(r, 50));
 
-    await page.waitForSelector(selector);
-    const element = await page.$(selector);
-    await element!.type("w");
+      await page.waitForSelector(selector);
+      const element = await page.$(selector);
+      await element!.type("w");
 
-    // Wait for the prediction engine to fetch result
-    await new Promise((r) => setTimeout(r, 50));
+      // Wait for the prediction engine to fetch result
+      await new Promise((r) => setTimeout(r, 50));
 
-    await page.keyboard.press("Tab");
+      await page.keyboard.press("Tab");
 
-    // Wait for the textarea value to change
-    await page.waitForFunction(
-      (sel) =>
-        ((document.querySelector(sel) as HTMLInputElement).value ?? document.querySelector(sel)?.textContent) !== "w",
-      { timeout: 5000 },
-      selector
-    );
-    const elementText = await page.$eval(
-      selector,
-      (el) => (el as HTMLInputElement).value ?? el.textContent,
-    );
-    expect(elementText).toBe("with\xa0");
+      // Wait for the textarea value to change
+      await page.waitForFunction(
+        (sel) =>
+          ((document.querySelector(sel) as HTMLInputElement).value ??
+            document.querySelector(sel)?.textContent) !== "w",
+        { timeout: 5000 },
+        selector,
+      );
+      const elementText = await page.$eval(
+        selector,
+        (el) => (el as HTMLInputElement).value ?? el.textContent,
+      );
+      expect(elementText).toBe("with\xa0");
 
-    // Cleanup
-    await setSetting(worker!, KEY_INLINE_SUGGESTION, false);
-    await worker!.evaluate(
-      "chrome.runtime.sendMessage({command: 'CMD_OPTIONS_PAGE_CONFIG_CHANGE', context: {}});",
-    );
-    await new Promise((r) => setTimeout(r, 50));
-  }, 30000);
+      // Cleanup
+      await setSetting(worker!, KEY_INLINE_SUGGESTION, false);
+      await worker!.evaluate(
+        "chrome.runtime.sendMessage({command: 'CMD_OPTIONS_PAGE_CONFIG_CHANGE', context: {}});",
+      );
+      await new Promise((r) => setTimeout(r, 50));
+    },
+    30000,
+  );
 
   test("Enabled languages restrict popup language list", async () => {
     const enabledLanguages = ["en_US", "de_DE"];
@@ -379,9 +381,9 @@ describe("Chrome Extension E2E Test", () => {
     await textarea!.click();
     await page.evaluate(
       () =>
-      ((
-        document.querySelector("#test-textarea") as HTMLTextAreaElement
-      ).value = ""),
+        ((
+          document.querySelector("#test-textarea") as HTMLTextAreaElement
+        ).value = ""),
     );
     await textarea!.type("φιλο");
     await new Promise((r) => setTimeout(r, 50));
@@ -442,9 +444,9 @@ describe("Chrome Extension E2E Test", () => {
       // Ensure textarea is focused and clear
       await page.evaluate(
         () =>
-        ((
-          document.querySelector("#test-textarea") as HTMLTextAreaElement
-        ).value = ""),
+          ((
+            document.querySelector("#test-textarea") as HTMLTextAreaElement
+          ).value = ""),
       );
       await textarea!.type(testData.input);
       // Wait for predictions to update after typing
@@ -469,9 +471,9 @@ describe("Chrome Extension E2E Test", () => {
       // Cleanup for next iteration
       await page.evaluate(
         () =>
-        ((
-          document.querySelector("#test-textarea") as HTMLTextAreaElement
-        ).value = ""),
+          ((
+            document.querySelector("#test-textarea") as HTMLTextAreaElement
+          ).value = ""),
       );
       // Wait for predictions to disappear
       // Note: Tribute might not remove the container, just hide it.
@@ -480,86 +482,96 @@ describe("Chrome Extension E2E Test", () => {
     }
   }, 90000); // Increased timeout for iterating all languages
 
-  test.each([
-    ["#test-textarea"],
-    ["#test-input"],
-    ["#test-contenteditable"],
-  ])("Prediction popup can be closed via Escape key in %s", async (selector) => {
-    page = await browser.newPage();
-    await page.goto("file://" + TEST_PAGE_PATH);
-    page.bringToFront();
+  test.each([["#test-textarea"], ["#test-input"], ["#test-contenteditable"]])(
+    "Prediction popup can be closed via Escape key in %s",
+    async (selector) => {
+      page = await browser.newPage();
+      await page.goto("file://" + TEST_PAGE_PATH);
+      page.bringToFront();
 
-    await setSetting(worker!, KEY_LANGUAGE, "en_US");
-    await worker!.evaluate(
-      "chrome.runtime.sendMessage({command: 'CMD_OPTIONS_PAGE_CONFIG_CHANGE', context: {}});"
-    );
-    await new Promise((r) => setTimeout(r, 100));
+      await setSetting(worker!, KEY_LANGUAGE, "en_US");
+      await worker!.evaluate(
+        "chrome.runtime.sendMessage({command: 'CMD_OPTIONS_PAGE_CONFIG_CHANGE', context: {}});",
+      );
+      await new Promise((r) => setTimeout(r, 100));
 
-    await page.waitForSelector(selector);
-    const element = await page.$(selector);
+      await page.waitForSelector(selector);
+      const element = await page.$(selector);
 
-    await element!.type("h"); // Trigger popup
-    await page.waitForSelector(".tribute-container li", { timeout: 4000 });
+      await element!.type("h"); // Trigger popup
+      await page.waitForSelector(".tribute-container li", { timeout: 4000 });
 
-    // Add a small delay
-    await new Promise((r) => setTimeout(r, 100));
-    await page.keyboard.press("Escape");
+      // Add a small delay
+      await new Promise((r) => setTimeout(r, 100));
+      await page.keyboard.press("Escape");
 
-    // Wait for the popup to disappear
-    await page.waitForFunction(
-      () => !document.querySelector(".tribute-container") || document.querySelector(".tribute-container")?.getAttribute("style")?.includes("display: none"),
-      { timeout: 5000 }
-    );
-  }, 15000);
+      // Wait for the popup to disappear
+      await page.waitForFunction(
+        () =>
+          !document.querySelector(".tribute-container") ||
+          document
+            .querySelector(".tribute-container")
+            ?.getAttribute("style")
+            ?.includes("display: none"),
+        { timeout: 5000 },
+      );
+    },
+    15000,
+  );
 
-  test.each([
-    ["#test-textarea"],
-    ["#test-input"],
-    ["#test-contenteditable"],
-  ])("Text expansion works correctly in %s", async (selector) => {
-    page = await browser.newPage();
-    await page.goto("file://" + TEST_PAGE_PATH);
-    page.bringToFront();
+  test.each([["#test-textarea"], ["#test-input"], ["#test-contenteditable"]])(
+    "Text expansion works correctly in %s",
+    async (selector) => {
+      page = await browser.newPage();
+      await page.goto("file://" + TEST_PAGE_PATH);
+      page.bringToFront();
 
-    await setSetting(worker!, KEY_ENABLED_LANGUAGES, ["textExpander"]);
-    await setSetting(worker!, KEY_LANGUAGE, "textExpander");
-    await worker!.evaluate(
-      "chrome.runtime.sendMessage({command: 'CMD_OPTIONS_PAGE_CONFIG_CHANGE', context: {}});",
-    );
-    await new Promise((r) => setTimeout(r, 100));
+      await setSetting(worker!, KEY_ENABLED_LANGUAGES, ["textExpander"]);
+      await setSetting(worker!, KEY_LANGUAGE, "textExpander");
+      await worker!.evaluate(
+        "chrome.runtime.sendMessage({command: 'CMD_OPTIONS_PAGE_CONFIG_CHANGE', context: {}});",
+      );
+      await new Promise((r) => setTimeout(r, 100));
 
-    await page.waitForSelector(selector);
-    const element = await page.$(selector);
-    await element!.type("asap"); // Trigger text expansion
+      await page.waitForSelector(selector);
+      const element = await page.$(selector);
+      await element!.type("asap"); // Trigger text expansion
 
-    await page.waitForSelector(".tribute-container li");
-    const firstLiText = await page.$eval(
-      ".tribute-container li:first-child",
-      (li) => li.textContent,
-    );
-    expect(firstLiText?.toLowerCase()).toBe("as soon as possible\xa0");
+      await page.waitForSelector(".tribute-container li");
+      const firstLiText = await page.$eval(
+        ".tribute-container li:first-child",
+        (li) => li.textContent,
+      );
+      expect(firstLiText?.toLowerCase()).toBe("as soon as possible\xa0");
 
-    await page.keyboard.press("Tab");
+      await page.keyboard.press("Tab");
 
-    // Wait for insertion
-    await page.waitForFunction(
-      (sel) =>
-        ((document.querySelector(sel) as HTMLInputElement).value ?? document.querySelector(sel)?.textContent) !== "asap",
-      {},
-      selector
-    );
-    const elementText = await page.$eval(
-      selector,
-      (el) => (el as HTMLInputElement).value ?? el.textContent,
-    );
-    expect(elementText).toBe("as soon as possible\xa0");
+      // Wait for insertion
+      await page.waitForFunction(
+        (sel) =>
+          ((document.querySelector(sel) as HTMLInputElement).value ??
+            document.querySelector(sel)?.textContent) !== "asap",
+        {},
+        selector,
+      );
+      const elementText = await page.$eval(
+        selector,
+        (el) => (el as HTMLInputElement).value ?? el.textContent,
+      );
+      expect(elementText).toBe("as soon as possible\xa0");
 
-    // Cleanup
-    await setSetting(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-    await setSetting(worker!, KEY_LANGUAGE, "en_US");
-    await worker!.evaluate(
-      "chrome.runtime.sendMessage({command: 'CMD_OPTIONS_PAGE_CONFIG_CHANGE', context: {}});",
-    );
-    await new Promise((r) => setTimeout(r, 100));
-  }, 30000);
+      // Cleanup
+      await setSetting(
+        worker!,
+        KEY_ENABLED_LANGUAGES,
+        SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+      );
+      await setSetting(worker!, KEY_LANGUAGE, "en_US");
+      await worker!.evaluate(
+        "chrome.runtime.sendMessage({command: 'CMD_OPTIONS_PAGE_CONFIG_CHANGE', context: {}});",
+      );
+      await new Promise((r) => setTimeout(r, 100));
+    },
+    30000,
+  );
 });
