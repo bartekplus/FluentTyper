@@ -380,7 +380,7 @@ describe("Chrome Extension E2E Test", () => {
       await worker!.evaluate(
         "chrome.runtime.sendMessage({command: 'CMD_OPTIONS_PAGE_CONFIG_CHANGE', context: {}});",
       );
-      await new Promise((r) => setTimeout(r, 600));
+      await new Promise((r) => setTimeout(r, 60));
 
       // 2. Type input and verify prediction
       const testData = LANGUAGE_TEST_DATA[lang];
@@ -399,10 +399,10 @@ describe("Chrome Extension E2E Test", () => {
       );
       await textarea!.type(testData.input);
       // Wait for predictions to update after typing
-      await new Promise((r) => setTimeout(r, 1000));
+      await new Promise((r) => setTimeout(r, 100));
 
       try {
-        await page.waitForSelector(".tribute-container li", { timeout: 5000 });
+        await page.waitForSelector(".tribute-container li", { timeout: 500 });
         const firstLiText = await page.$eval(
           ".tribute-container li:first-child",
           (li) => li.textContent,
