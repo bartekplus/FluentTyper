@@ -5,6 +5,7 @@ import {
   KEY_ENABLED_LANGUAGES,
   KEY_FALLBACK_LANGUAGE,
   KEY_LANGUAGE,
+  KEY_INLINE_SUGGESTION,
 } from "../../src/shared/constants";
 import { SUPPORTED_PREDICTION_LANGUAGE_KEYS } from "../../src/shared/lang";
 
@@ -182,6 +183,47 @@ describe("Chrome Extension E2E Test", () => {
     expect(textAreaText).toBe("with\xa0");
   }, 30000);
 
+  test("Inline suggestion prediction is inserted on TAB", async () => {
+    page = await browser.newPage();
+    await page.goto("file://" + TEST_PAGE_PATH);
+    page.bringToFront();
+
+    await setSetting(worker!, KEY_INLINE_SUGGESTION, true);
+    await worker!.evaluate(
+      "chrome.runtime.sendMessage({command: 'CMD_OPTIONS_PAGE_CONFIG_CHANGE', context: {}});",
+    );
+    await new Promise((r) => setTimeout(r, 600));
+
+    await page.waitForSelector("#test-textarea");
+    const textarea = await page.$("#test-textarea");
+    await textarea!.type("w");
+
+    // Wait for the prediction engine to fetch result
+    await new Promise((r) => setTimeout(r, 1000));
+
+    await page.keyboard.press("Tab");
+
+    // Wait for the textarea value to change
+    await page.waitForFunction(
+      () =>
+        (document.querySelector("#test-textarea") as HTMLTextAreaElement)
+          .value !== "w",
+      { timeout: 5000 }
+    );
+    const textAreaText = await page.$eval(
+      "#test-textarea",
+      (textarea) => (textarea as HTMLTextAreaElement).value,
+    );
+    expect(textAreaText).toBe("with\xa0");
+
+    // Cleanup
+    await setSetting(worker!, KEY_INLINE_SUGGESTION, false);
+    await worker!.evaluate(
+      "chrome.runtime.sendMessage({command: 'CMD_OPTIONS_PAGE_CONFIG_CHANGE', context: {}});",
+    );
+    await new Promise((r) => setTimeout(r, 600));
+  }, 30000);
+
   test("Enabled languages restrict popup language list", async () => {
     const enabledLanguages = ["en_US", "de_DE"];
     await setSetting(worker!, KEY_ENABLED_LANGUAGES, enabledLanguages);
@@ -288,9 +330,9 @@ describe("Chrome Extension E2E Test", () => {
     await textarea!.click();
     await page.evaluate(
       () =>
-        ((
-          document.querySelector("#test-textarea") as HTMLTextAreaElement
-        ).value = ""),
+      ((
+        document.querySelector("#test-textarea") as HTMLTextAreaElement
+      ).value = ""),
     );
     await textarea!.type("φιλο");
     await new Promise((r) => setTimeout(r, 300));
@@ -338,7 +380,7 @@ describe("Chrome Extension E2E Test", () => {
       await worker!.evaluate(
         "chrome.runtime.sendMessage({command: 'CMD_OPTIONS_PAGE_CONFIG_CHANGE', context: {}});",
       );
-      await new Promise((r) => setTimeout(r, 600));
+      await new Promise((r) => setTimeout(r, 60));
 
       // 2. Type input and verify prediction
       const testData = LANGUAGE_TEST_DATA[lang];
@@ -351,16 +393,16 @@ describe("Chrome Extension E2E Test", () => {
       // Ensure textarea is focused and clear
       await page.evaluate(
         () =>
-          ((
-            document.querySelector("#test-textarea") as HTMLTextAreaElement
-          ).value = ""),
+        ((
+          document.querySelector("#test-textarea") as HTMLTextAreaElement
+        ).value = ""),
       );
       await textarea!.type(testData.input);
       // Wait for predictions to update after typing
-      await new Promise((r) => setTimeout(r, 1000));
+      await new Promise((r) => setTimeout(r, 100));
 
       try {
-        await page.waitForSelector(".tribute-container li", { timeout: 5000 });
+        await page.waitForSelector(".tribute-container li", { timeout: 500 });
         const firstLiText = await page.$eval(
           ".tribute-container li:first-child",
           (li) => li.textContent,
@@ -377,9 +419,9 @@ describe("Chrome Extension E2E Test", () => {
       // Cleanup for next iteration
       await page.evaluate(
         () =>
-          ((
-            document.querySelector("#test-textarea") as HTMLTextAreaElement
-          ).value = ""),
+        ((
+          document.querySelector("#test-textarea") as HTMLTextAreaElement
+        ).value = ""),
       );
       // Wait for predictions to disappear
       // Note: Tribute might not remove the container, just hide it.

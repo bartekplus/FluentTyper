@@ -130,3 +130,8 @@
     color: var(--tribute-header-text-dark) !important;
   }
 }
+
+.tribute-inline {
+  pointer-events: none;
+  white-space: pre-wrap;
+}

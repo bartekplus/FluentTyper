@@ -10,6 +10,7 @@ import {
   CMD_OPTIONS_PAGE_CONFIG_CHANGE,
   CMD_CONTENT_SCRIPT_GET_CONFIG,
   KEY_DISPLAY_LANG_HEADER,
+  KEY_INLINE_SUGGESTION,
   KEY_REVERT_ON_BACKSPACE,
   KEY_MIN_WORD_LENGTH_TO_PREDICT,
   KEY_SELECT_BY_DIGIT,
@@ -139,6 +140,7 @@ export class BackgroundServiceWorker {
       minWordLengthToPredict,
       revertOnBackspace,
       displayLangHeader,
+      inline_suggestion,
     ] = await Promise.all([
       this.settingsManager.get(KEY_ENABLED),
       this.settingsManager.get(KEY_AUTOCOMPLETE),
@@ -148,6 +150,7 @@ export class BackgroundServiceWorker {
       this.settingsManager.get(KEY_MIN_WORD_LENGTH_TO_PREDICT),
       this.settingsManager.get(KEY_REVERT_ON_BACKSPACE),
       this.settingsManager.get(KEY_DISPLAY_LANG_HEADER),
+      this.settingsManager.get(KEY_INLINE_SUGGESTION),
     ]);
 
     // Get theme configuration
@@ -193,6 +196,7 @@ export class BackgroundServiceWorker {
         minWordLengthToPredict: minWordLengthToPredict as number,
         revertOnBackspace: revertOnBackspace as boolean,
         displayLangHeader: displayLangHeader as boolean,
+        inline_suggestion: inline_suggestion as boolean,
         themeConfig: {
           tributeBgLight: tributeBgLight as string,
           tributeTextLight: tributeTextLight as string,
