@@ -25,7 +25,18 @@
       h1 {
         font-weight: 600;
         color: #2c3e50;
+        margin-bottom: 10px;
+        text-align: center;
+      }
+
+      h2#test-name {
+        font-weight: 400;
+        color: #7f8c8d;
+        margin-top: 0;
         margin-bottom: 30px;
+        font-size: 1.2rem;
+        text-align: center;
+        max-width: 800px;
       }
 
       .container {
@@ -83,6 +94,7 @@
 
   <body>
     <h1>FluentTyper Testing Environment</h1>
+    <h2 id="test-name"></h2>
     <div class="container">
       <div class="input-group">
         <label for="test-textarea">Textarea</label>
@@ -97,5 +109,12 @@
         <div contenteditable="true" id="test-contenteditable"></div>
       </div>
     </div>
+    <script>
+      const params = new URLSearchParams(window.location.search);
+      const testName = params.get("testName");
+      if (testName) {
+        document.getElementById("test-name").textContent = testName;
+      }
+    </script>
   </body>
 </html>
