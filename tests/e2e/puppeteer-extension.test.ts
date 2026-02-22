@@ -6,6 +6,7 @@ import {
   KEY_FALLBACK_LANGUAGE,
   KEY_LANGUAGE,
   KEY_INLINE_SUGGESTION,
+  KEY_MIN_WORD_LENGTH_TO_PREDICT,
 } from "../../src/shared/constants";
 import { SUPPORTED_PREDICTION_LANGUAGE_KEYS } from "../../src/shared/lang";
 
@@ -656,6 +657,81 @@ describe("Chrome Extension E2E Test", () => {
         SUPPORTED_PREDICTION_LANGUAGE_KEYS,
       );
       await setSetting(worker!, KEY_LANGUAGE, "en_US");
+      await worker!.evaluate(
+        "chrome.runtime.sendMessage({command: 'CMD_OPTIONS_PAGE_CONFIG_CHANGE', context: {}});",
+      );
+    },
+    30000,
+  );
+
+  test.each([["#test-textarea"], ["#test-input"], ["#test-contenteditable"]])(
+    "KEY_MIN_WORD_LENGTH_TO_PREDICT set to 0 predicts immediately after space in %s",
+    async (selector) => {
+      page = await browser.newPage();
+      await page.goto("file://" + TEST_PAGE_PATH);
+      page.bringToFront();
+
+      await setSetting(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 0);
+      await setSetting(worker!, KEY_LANGUAGE, "en_US");
+      await worker!.evaluate(
+        "chrome.runtime.sendMessage({command: 'CMD_OPTIONS_PAGE_CONFIG_CHANGE', context: {}});",
+      );
+      await new Promise((r) => setTimeout(r, 100));
+
+      await page.waitForSelector(selector);
+      const element = await page.$(selector);
+
+      // Type a word and a space
+      await element!.type("this is ");
+
+      // Since it's 0, it should predict after space
+      await page.waitForSelector(".tribute-container li", { timeout: 5000 });
+      const firstLiText = await page.$eval(
+        ".tribute-container li:first-child",
+        (li) => li.textContent,
+      );
+      expect(firstLiText).toBeTruthy();
+
+      // Cleanup
+      await setSetting(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await worker!.evaluate(
+        "chrome.runtime.sendMessage({command: 'CMD_OPTIONS_PAGE_CONFIG_CHANGE', context: {}});",
+      );
+      await new Promise((r) => setTimeout(r, 100));
+    },
+    30000,
+  );
+
+  test.each([["#test-textarea"], ["#test-input"], ["#test-contenteditable"]])(
+    "KEY_MIN_WORD_LENGTH_TO_PREDICT set to -1 does not predict automatically in %s",
+    async (selector) => {
+      page = await browser.newPage();
+      await page.goto("file://" + TEST_PAGE_PATH);
+      page.bringToFront();
+
+      await setSetting(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, -1);
+      await setSetting(worker!, KEY_LANGUAGE, "en_US");
+      await worker!.evaluate(
+        "chrome.runtime.sendMessage({command: 'CMD_OPTIONS_PAGE_CONFIG_CHANGE', context: {}});",
+      );
+      await new Promise((r) => setTimeout(r, 100));
+
+      await page.waitForSelector(selector);
+      const element = await page.$(selector);
+
+      // Type something
+      await element!.type("this is impor");
+
+      // It should NOT show predictions 
+      await new Promise((r) => setTimeout(r, 500));
+      const hasPredictions = await page.evaluate(() => {
+        const container = document.querySelector(".tribute-container");
+        return container && !container.getAttribute("style")?.includes("display: none");
+      });
+      expect(hasPredictions).toBeFalsy();
+
+      // Cleanup
+      await setSetting(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
       await worker!.evaluate(
         "chrome.runtime.sendMessage({command: 'CMD_OPTIONS_PAGE_CONFIG_CHANGE', context: {}});",
       );

@@ -60,8 +60,7 @@ const manifest = {
   icon: "/icon/icon128.png",
   settings: [
     // =========================================================================
-    // TAB: Core Settings
-    // The most essential features for controlling the extension's behavior.
+    // TAB: Typing & Autocomplete (Merged Core & Autocomplete)
     // =========================================================================
     {
       tab: i18n.get("core_settings"),
@@ -93,13 +92,8 @@ const manifest = {
       label: i18n.get("min_chars_label") + ":&nbsp;<small>" + i18n.get("min_chars_desc") + "</small>",
       default: 1,
     },
-
-    // =========================================================================
-    // TAB: Autocomplete
-    // All settings related to how completions are accepted and behave.
-    // =========================================================================
     {
-      tab: i18n.get("autocomplete_tab"),
+      tab: i18n.get("core_settings"),
       group: i18n.get("accept_predictions"),
       name: KEY_AUTOCOMPLETE_ON_TAB,
       type: "checkbox",
@@ -107,7 +101,7 @@ const manifest = {
       default: true,
     },
     {
-      tab: i18n.get("autocomplete_tab"),
+      tab: i18n.get("core_settings"),
       group: i18n.get("accept_predictions"),
       name: KEY_AUTOCOMPLETE_ON_ENTER,
       type: "checkbox",
@@ -115,7 +109,7 @@ const manifest = {
       default: false,
     },
     {
-      tab: i18n.get("autocomplete_tab"),
+      tab: i18n.get("core_settings"),
       group: i18n.get("accept_predictions"),
       name: KEY_AUTOCOMPLETE,
       type: "checkbox",
@@ -123,7 +117,7 @@ const manifest = {
       default: false,
     },
     {
-      tab: i18n.get("autocomplete_tab"),
+      tab: i18n.get("core_settings"),
       group: i18n.get("accept_predictions"),
       name: KEY_SELECT_BY_DIGIT,
       type: "checkbox",
@@ -131,7 +125,15 @@ const manifest = {
       default: false,
     },
     {
-      tab: i18n.get("autocomplete_tab"),
+      tab: i18n.get("core_settings"),
+      group: i18n.get("behavior_after_completion"),
+      name: KEY_AUTO_CAPITALIZE,
+      type: "checkbox",
+      label: i18n.get("auto_capitalize_label"),
+      default: true,
+    },
+    {
+      tab: i18n.get("core_settings"),
       group: i18n.get("behavior_after_completion"),
       name: KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
       type: "checkbox",
@@ -139,7 +141,7 @@ const manifest = {
       default: true,
     },
     {
-      tab: i18n.get("autocomplete_tab"),
+      tab: i18n.get("core_settings"),
       group: i18n.get("behavior_after_completion"),
       name: KEY_REVERT_ON_BACKSPACE,
       type: "checkbox",
@@ -147,7 +149,7 @@ const manifest = {
       default: false,
     },
     {
-      tab: i18n.get("autocomplete_tab"),
+      tab: i18n.get("core_settings"),
       group: i18n.get("behavior_after_completion"),
       name: KEY_APPLY_SPACING_RULES,
       type: "checkbox",
@@ -155,7 +157,7 @@ const manifest = {
       default: false,
     },
     {
-      tab: i18n.get("autocomplete_tab"),
+      tab: i18n.get("core_settings"),
       group: i18n.get("behavior_after_completion"),
       name: KEY_INLINE_SUGGESTION,
       type: "checkbox",
@@ -165,7 +167,6 @@ const manifest = {
 
     // =========================================================================
     // TAB: Language
-    // All language-specific settings in one place.
     // =========================================================================
     {
       tab: i18n.get("language_tab"),
@@ -217,18 +218,9 @@ const manifest = {
       label: i18n.get("show_lang_header_label") + ":&nbsp;<small>" + i18n.get("show_lang_header_desc") + "</small>",
       default: false,
     },
-    {
-      tab: i18n.get("language_tab"),
-      group: i18n.get("formatting_rules"),
-      name: KEY_AUTO_CAPITALIZE,
-      type: "checkbox",
-      label: i18n.get("auto_capitalize_label"),
-      default: true,
-    },
 
     // =========================================================================
-    // TAB: Shortcuts & Expansions
-    // A unified home for the powerful Text Expander and its related settings.
+    // TAB: Dictionary & Expansions
     // =========================================================================
     {
       tab: i18n.get("shortcuts_expansions_tab"),
@@ -268,10 +260,57 @@ const manifest = {
       label: i18n.get("custom_time_format_label") + ":&nbsp;<small>" + i18n.get("custom_time_format_desc") + "</small>",
       default: "",
     },
+    {
+      tab: i18n.get("shortcuts_expansions_tab"),
+      group: i18n.get("custom_words"),
+      name: KEY_USER_DICTIONARY_LIST,
+      type: "listBox",
+      label: i18n.get("personal_dict_label"),
+      default: [],
+    },
+    {
+      tab: i18n.get("shortcuts_expansions_tab"),
+      group: i18n.get("add_remove_words"),
+      name: "userDictionary",
+      type: "text",
+      subtype: "text",
+      pattern: '^\\S+$',
+      label: i18n.get("add_new_word_label"),
+      text: i18n.get("my_custom_word_placeholder"),
+      store: false,
+    },
+    {
+      tab: i18n.get("shortcuts_expansions_tab"),
+      group: i18n.get("add_remove_words"),
+      name: "addUserWordBtn",
+      type: "button",
+      text: i18n.get("add_word_btn"),
+    },
+    {
+      tab: i18n.get("shortcuts_expansions_tab"),
+      group: i18n.get("add_remove_words"),
+      name: "removeUserWordBtn",
+      type: "button",
+      text: i18n.get("remove_word_btn"),
+    },
+    {
+      tab: i18n.get("shortcuts_expansions_tab"),
+      group: i18n.get("dict_mgmt"),
+      name: "importUserDictButton",
+      type: "button",
+      text: i18n.get("import_dict_btn"),
+      label: i18n.get("import_dict_desc"),
+    },
+    {
+      tab: i18n.get("shortcuts_expansions_tab"),
+      group: i18n.get("dict_mgmt"),
+      name: "removeAllUserWordsBtn",
+      type: "button",
+      text: i18n.get("clear_dict_btn"),
+    },
 
     // =========================================================================
     // TAB: Site Management
-    // For the domain blacklist/whitelist.
     // =========================================================================
     {
       tab: i18n.get("site_mgmt_tab"),
@@ -315,63 +354,8 @@ const manifest = {
       text: i18n.get("remove_selected_btn"),
     },
 
-
     // =========================================================================
-    // TAB: My Dictionary
-    // A friendlier home for the User Dictionary.
-    // =========================================================================
-    {
-      tab: i18n.get("my_dict_tab"),
-      group: i18n.get("custom_words"),
-      name: KEY_USER_DICTIONARY_LIST,
-      type: "listBox",
-      label: i18n.get("personal_dict_label"),
-      default: [],
-    },
-    {
-      tab: i18n.get("my_dict_tab"),
-      group: i18n.get("add_remove_words"),
-      name: "userDictionary",
-      type: "text",
-      subtype: "text",
-      pattern: '^\\S+$',
-      label: i18n.get("add_new_word_label"),
-      text: i18n.get("my_custom_word_placeholder"),
-      store: false,
-    },
-    {
-      tab: i18n.get("my_dict_tab"),
-      group: i18n.get("add_remove_words"),
-      name: "addUserWordBtn",
-      type: "button",
-      text: i18n.get("add_word_btn"),
-    },
-    {
-      tab: i18n.get("my_dict_tab"),
-      group: i18n.get("add_remove_words"),
-      name: "removeUserWordBtn",
-      type: "button",
-      text: i18n.get("remove_word_btn"),
-    },
-    {
-      tab: i18n.get("my_dict_tab"),
-      group: i18n.get("dict_mgmt"),
-      name: "importUserDictButton",
-      type: "button",
-      text: i18n.get("import_dict_btn"),
-      label: i18n.get("import_dict_desc"),
-    },
-    {
-      tab: i18n.get("my_dict_tab"),
-      group: i18n.get("dict_mgmt"),
-      name: "removeAllUserWordsBtn",
-      type: "button",
-      text: i18n.get("clear_dict_btn"),
-    },
-
-    // =========================================================================
-    // TAB: Theming
-    // For customizing the appearance of the tribute suggestions popup.
+    // TAB: Appearance
     // =========================================================================
     {
       tab: i18n.get("theming_tab"),
@@ -394,6 +378,7 @@ const manifest = {
       group: i18n.get("light_theme_colors"),
       name: KEY_TRIBUTE_BG_LIGHT,
       type: "text",
+      subtype: "color",
       required: true,
       label: i18n.get("bg_color_label") + ":&nbsp;<small>" + i18n.get("light_bg_color_desc") + "</small>",
       default: "#ffffff",
@@ -403,6 +388,7 @@ const manifest = {
       group: i18n.get("light_theme_colors"),
       name: KEY_TRIBUTE_TEXT_LIGHT,
       type: "text",
+      subtype: "color",
       required: true,
       label: i18n.get("text_color_label") + ":&nbsp;<small>" + i18n.get("light_text_color_desc") + "</small>",
       default: "#2d3748",
@@ -412,6 +398,7 @@ const manifest = {
       group: i18n.get("light_theme_colors"),
       name: KEY_TRIBUTE_HIGHLIGHT_BG_LIGHT,
       type: "text",
+      subtype: "color",
       required: true,
       label: i18n.get("highlight_bg_label") + ":&nbsp;<small>" + i18n.get("light_highlight_bg_desc") + "</small>",
       default: "#edf2f7",
@@ -421,6 +408,7 @@ const manifest = {
       group: i18n.get("light_theme_colors"),
       name: KEY_TRIBUTE_HIGHLIGHT_TEXT_LIGHT,
       type: "text",
+      subtype: "color",
       required: true,
       label: i18n.get("highlight_text_label") + ":&nbsp;<small>" + i18n.get("light_highlight_text_desc") + "</small>",
       default: "#2d3748",
@@ -430,6 +418,7 @@ const manifest = {
       group: i18n.get("light_theme_colors"),
       name: KEY_TRIBUTE_BORDER_LIGHT,
       type: "text",
+      subtype: "color",
       required: true,
       label: i18n.get("border_color_label") + ":&nbsp;<small>" + i18n.get("light_border_color_desc") + "</small>",
       default: "#e2e8f0",
@@ -439,6 +428,7 @@ const manifest = {
       group: i18n.get("dark_theme_colors"),
       name: KEY_TRIBUTE_BG_DARK,
       type: "text",
+      subtype: "color",
       required: true,
       label: i18n.get("bg_color_label") + ":&nbsp;<small>" + i18n.get("dark_bg_color_desc") + "</small>",
       default: "#2d3748",
@@ -448,6 +438,7 @@ const manifest = {
       group: i18n.get("dark_theme_colors"),
       name: KEY_TRIBUTE_TEXT_DARK,
       type: "text",
+      subtype: "color",
       required: true,
       label: i18n.get("text_color_label") + ":&nbsp;<small>" + i18n.get("dark_text_color_desc") + "</small>",
       default: "#e2e8f0",
@@ -457,6 +448,7 @@ const manifest = {
       group: i18n.get("dark_theme_colors"),
       name: KEY_TRIBUTE_HIGHLIGHT_BG_DARK,
       type: "text",
+      subtype: "color",
       required: true,
       label: i18n.get("highlight_bg_label") + ":&nbsp;<small>" + i18n.get("dark_highlight_bg_desc") + "</small>",
       default: "#4a5568",
@@ -466,6 +458,7 @@ const manifest = {
       group: i18n.get("dark_theme_colors"),
       name: KEY_TRIBUTE_HIGHLIGHT_TEXT_DARK,
       type: "text",
+      subtype: "color",
       required: true,
       label: i18n.get("highlight_text_label") + ":&nbsp;<small>" + i18n.get("dark_highlight_text_desc") + "</small>",
       default: "#ffffff",
@@ -475,6 +468,7 @@ const manifest = {
       group: i18n.get("dark_theme_colors"),
       name: KEY_TRIBUTE_BORDER_DARK,
       type: "text",
+      subtype: "color",
       required: true,
       label: i18n.get("border_color_label") + ":&nbsp;<small>" + i18n.get("dark_border_color_desc") + "</small>",
       default: "#4a5568",
@@ -483,8 +477,13 @@ const manifest = {
       tab: i18n.get("theming_tab"),
       group: i18n.get("typography_spacing"),
       name: KEY_TRIBUTE_FONT_SIZE,
-      type: "text",
-      required: true,
+      type: "popupButton",
+      options: [
+        ["0.8rem", "Smaller (0.8rem)"],
+        ["0.85rem", "Compact (0.85rem)"],
+        ["0.9rem", "Normal (0.9rem)"],
+        ["1rem", "Large (1rem)"],
+      ],
       label: i18n.get("font_size_label") + ":&nbsp;<small>" + i18n.get("font_size_desc") + "</small>",
       default: "0.9rem",
     },
@@ -492,8 +491,12 @@ const manifest = {
       tab: i18n.get("theming_tab"),
       group: i18n.get("typography_spacing"),
       name: KEY_TRIBUTE_PADDING_VERTICAL,
-      type: "text",
-      required: true,
+      type: "popupButton",
+      options: [
+        ["0.4rem", "Compact (0.4rem)"],
+        ["0.6rem", "Normal (0.6rem)"],
+        ["0.8rem", "Large (0.8rem)"],
+      ],
       label: i18n.get("vertical_padding_label") + ":&nbsp;<small>" + i18n.get("vertical_padding_desc") + "</small>",
       default: "0.6rem",
     },
@@ -501,15 +504,18 @@ const manifest = {
       tab: i18n.get("theming_tab"),
       group: i18n.get("typography_spacing"),
       name: KEY_TRIBUTE_PADDING_HORIZONTAL,
-      type: "text",
-      required: true,
+      type: "popupButton",
+      options: [
+        ["0.6rem", "Compact (0.6rem)"],
+        ["0.8rem", "Normal (0.8rem)"],
+        ["1rem", "Large (1rem)"],
+      ],
       label: i18n.get("horizontal_padding_label") + ":&nbsp;<small>" + i18n.get("horizontal_padding_desc") + "</small>",
       default: "0.8rem",
     },
 
     // =========================================================================
-    // TAB: Advanced
-    // For power-user features and data management.
+    // TAB: Data & Backup
     // =========================================================================
     {
       tab: i18n.get("advanced_tab"),
@@ -529,20 +535,15 @@ const manifest = {
     },
 
     // =========================================================================
-    // TAB: Test Pad
-    // Renamed for clarity.
+    // TAB: About & Support
     // =========================================================================
     {
-      tab: i18n.get("test_pad_tab"),
+      tab: i18n.get("about_support_tab"),
+      group: "Test Pad", // Added a simple group for the Test Pad
       name: "Test FluentTyper",
       type: "description",
       text: testFluentTyperHTML,
     },
-
-    // =========================================================================
-    // TAB: About & Support
-    // Merging "About" and "Donate" into one clear section.
-    // =========================================================================
     {
       tab: i18n.get("about_support_tab"),
       group: i18n.get("about_fluent_typer_group"),
