@@ -11,16 +11,33 @@ import {
   CMD_OPTIONS_PAGE_CONFIG_CHANGE,
   KEY_ENABLED_LANGUAGES,
   KEY_LANGUAGE,
+  KEY_EXTENSION_LANGUAGE,
 } from "../shared/constants";
 import {
   OptionsPageConfigChangeMessage,
   PopupPageEnableMessage,
   PopupPageDisableMessage,
 } from "../shared/messageTypes";
+import { i18n } from "../third_party/fancier-settings/i18n.js";
 
 const settings = new SettingsManager();
 
+function translateUI() {
+  const elements = document.querySelectorAll("[data-i18n]");
+  elements.forEach((el) => {
+    const key = el.getAttribute("data-i18n");
+    if (key) {
+      const translated = i18n.get(key);
+      if (translated) {
+        el.innerHTML = translated;
+      }
+    }
+  });
+}
+
 function init() {
+  translateUI();
+
   chrome.tabs.query(
     { active: true, currentWindow: true },
     async function (tabs) {
@@ -39,7 +56,7 @@ function init() {
         if (domainURL && domainURL !== "null") {
           const enabled = await isEnabledForDomain(settings, domainURL);
           checkboxNode.checked = enabled;
-          urlNode.innerHTML = `<span>Enable autocomplete on:<br> ${domainURL}`;
+          urlNode.innerHTML = `<span>${i18n.get("popup_enable_autocomplete_on")}${domainURL}`;
           if (typeof currentTab.id === "number") {
             window.document
               .getElementById("checkboxDomainInput")
@@ -119,7 +136,7 @@ async function addRemoveDomain(tabId: number, domainURL: string) {
       context: {},
     };
   }
-  urlNode.innerHTML = `<span>Enable autocomplete on: ${domainURL}`;
+  urlNode.innerHTML = `<span>${i18n.get("popup_enable_autocomplete_on")}${domainURL}`;
   await blockUnBlockDomain(settings, domainURL, !checkboxNode.checked);
   chrome.tabs.sendMessage(tabId, message);
 }
