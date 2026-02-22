@@ -28,7 +28,7 @@ function translateUI() {
     if (key) {
       const translated = i18n.get(key);
       if (translated) {
-        el.innerHTML = translated;
+        el.textContent = translated;
       }
     }
   });
