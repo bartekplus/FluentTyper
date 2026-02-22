@@ -8,10 +8,8 @@ import { SUPPORTED_LANGUAGES, resolveEnabledLanguages } from "../shared/lang";
 import {
   CMD_POPUP_PAGE_ENABLE,
   CMD_POPUP_PAGE_DISABLE,
-  CMD_OPTIONS_PAGE_CONFIG_CHANGE,
   KEY_ENABLED_LANGUAGES,
   KEY_LANGUAGE,
-  KEY_EXTENSION_LANGUAGE,
 } from "../shared/constants";
 import {
   OptionsPageConfigChangeMessage,

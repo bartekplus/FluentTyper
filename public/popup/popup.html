@@ -1,107 +1,147 @@
 <!doctype html>
 <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FluentTyper Settings</title>
 
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>FluentTyper Settings</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
 
-  <!-- Google Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <!-- Core Stylesheets -->
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="/third_party/bulma/bulma.min.css"
+    />
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="/third_party/bulma/bulma-switch.min.css"
+    />
 
-  <!-- Core Stylesheets -->
-  <link rel="stylesheet" type="text/css" href="/third_party/bulma/bulma.min.css" />
-  <link rel="stylesheet" type="text/css" href="/third_party/bulma/bulma-switch.min.css" />
+    <!-- CUSTOM THEME - Must be placed AFTER Bulma to override styles -->
+    <link rel="stylesheet" type="text/css" href="/css/fluenttyper-theme.css" />
 
-  <!-- CUSTOM THEME - Must be placed AFTER Bulma to override styles -->
-  <link rel="stylesheet" type="text/css" href="/css/fluenttyper-theme.css" />
+    <!-- JavaScript -->
+    <script src="/popup/popup.js"></script>
+  </head>
 
-  <!-- JavaScript -->
-  <script src="/popup/popup.js"></script>
-</head>
+  <body class="fluenttyper-popup">
+    <!-- Header -->
+    <header class="popup-header" style="display: none">
+      <img src="/icon/LogoFluentTyper.png" alt="FluentTyper Logo" />
+      <h1 class="title is-5">FluentTyper</h1>
+    </header>
 
-<body class="fluenttyper-popup">
-  <!-- Header -->
-  <header class="popup-header" style="display: none">
-    <img src="/icon/LogoFluentTyper.png" alt="FluentTyper Logo" />
-    <h1 class="title is-5">FluentTyper</h1>
-  </header>
-
-  <!-- Main Settings -->
-  <main class="settings-box">
-    <!-- Global Toggle -->
-    <div class="columns is-mobile is-vcentered setting-item">
-      <div class="column">
-        <div class="label-text">
-          <span data-i18n="popup_enable_extension">Enable Extension</span>
-          <small data-i18n="popup_enable_extension_desc">Turn FluentTyper on or off globally.</small>
+    <!-- Main Settings -->
+    <main class="settings-box">
+      <!-- Global Toggle -->
+      <div class="columns is-mobile is-vcentered setting-item">
+        <div class="column">
+          <div class="label-text">
+            <span data-i18n="popup_enable_extension">Enable Extension</span>
+            <small data-i18n="popup_enable_extension_desc"
+              >Turn FluentTyper on or off globally.</small
+            >
+          </div>
+        </div>
+        <div class="column is-narrow">
+          <div class="field">
+            <input
+              id="checkboxEnableInput"
+              type="checkbox"
+              name="checkboxEnableInput"
+              class="switch is-rounded"
+              checked
+            />
+            <label for="checkboxEnableInput"></label>
+          </div>
         </div>
       </div>
-      <div class="column is-narrow">
-        <div class="field">
-          <input id="checkboxEnableInput" type="checkbox" name="checkboxEnableInput" class="switch is-rounded"
-            checked />
-          <label for="checkboxEnableInput"></label>
+
+      <!-- Per-site Toggle -->
+      <div class="columns is-mobile is-vcentered setting-item">
+        <div class="column">
+          <div class="label-text">
+            <span id="checkboxDomainLabel" data-i18n="popup_enable_on_site"
+              >Enable on this site</span
+            >
+            <small data-i18n="popup_enable_on_site_desc"
+              >Allow suggestions on the current domain.</small
+            >
+          </div>
+        </div>
+        <div class="column is-narrow">
+          <div class="field">
+            <input
+              id="checkboxDomainInput"
+              type="checkbox"
+              name="checkboxDomainInput"
+              class="switch is-rounded"
+              checked
+            />
+            <label for="checkboxDomainInput"></label>
+          </div>
         </div>
       </div>
+
+      <!-- Language Selection -->
+      <div class="columns is-mobile is-vcentered setting-item">
+        <div class="column">
+          <div class="label-text">
+            <span data-i18n="popup_language">Language</span>
+            <small data-i18n="popup_language_desc"
+              >Set your primary writing language.</small
+            >
+          </div>
+        </div>
+        <div class="column is-narrow">
+          <div class="select is-small is-rounded">
+            <select id="languageSelect"></select>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Actions -->
+    <div class="mt-4">
+      <a
+        class="button is-primary-custom is-fullwidth"
+        id="runOptions"
+        target="_blank"
+        rel="noopener"
+        data-i18n="popup_advanced_options"
+      >
+        Advanced Options
+      </a>
     </div>
 
-    <!-- Per-site Toggle -->
-    <div class="columns is-mobile is-vcentered setting-item">
-      <div class="column">
-        <div class="label-text">
-          <span id="checkboxDomainLabel" data-i18n="popup_enable_on_site">Enable on this site</span>
-          <small data-i18n="popup_enable_on_site_desc">Allow suggestions on the current domain.</small>
-        </div>
-      </div>
-      <div class="column is-narrow">
-        <div class="field">
-          <input id="checkboxDomainInput" type="checkbox" name="checkboxDomainInput" class="switch is-rounded"
-            checked />
-          <label for="checkboxDomainInput"></label>
-        </div>
-      </div>
+    <div class="mt-3">
+      <a
+        href="https://www.buymeacoffee.com/FluentTyper"
+        target="_blank"
+        class="button is-warning-custom"
+        data-i18n="popup_support_development"
+      >
+        Support Development
+      </a>
     </div>
 
-    <!-- Language Selection -->
-    <div class="columns is-mobile is-vcentered setting-item">
-      <div class="column">
-        <div class="label-text">
-          <span data-i18n="popup_language">Language</span>
-          <small data-i18n="popup_language_desc">Set your primary writing language.</small>
-        </div>
-      </div>
-      <div class="column is-narrow">
-        <div class="select is-small is-rounded">
-          <select id="languageSelect"></select>
-        </div>
-      </div>
-    </div>
-  </main>
-
-  <!-- Actions -->
-  <div class="mt-4">
-    <a class="button is-primary-custom is-fullwidth" id="runOptions" target="_blank" rel="noopener"
-      data-i18n="popup_advanced_options">
-      Advanced Options
-    </a>
-  </div>
-
-  <div class="mt-3">
-    <a href="https://www.buymeacoffee.com/FluentTyper" target="_blank" class="button is-warning-custom"
-      data-i18n="popup_support_development">
-      Support Development
-    </a>
-  </div>
-
-  <!-- Footer Links -->
-  <footer class="footer-links">
-    <a href="https://github.com/bartekplus/FluentTyper" target="_blank">GitHub</a>
-    &nbsp;&middot;&nbsp;
-    <a href="https://github.com/bartekplus/FluentTyper/issues" target="_blank">Report Issue</a>
-  </footer>
-</body>
-
+    <!-- Footer Links -->
+    <footer class="footer-links">
+      <a href="https://github.com/bartekplus/FluentTyper" target="_blank"
+        >GitHub</a
+      >
+      &nbsp;&middot;&nbsp;
+      <a href="https://github.com/bartekplus/FluentTyper/issues" target="_blank"
+        >Report Issue</a
+      >
+    </footer>
+  </body>
 </html>
