@@ -17,9 +17,9 @@ class I18n {
 
     if (I18n.prototype.hasOwnProperty.call(this, value)) {
       value = this[value];
-      if (I18n.prototype.hasOwnProperty.call(this.lang)) {
+      if (Object.prototype.hasOwnProperty.call(value, this.lang)) {
         return value[this.lang];
-      } else if (I18n.prototype.hasOwnProperty.call("en")) {
+      } else if (Object.prototype.hasOwnProperty.call(value, "en")) {
         return value.en;
       } else {
         return Object.values(value)[0];

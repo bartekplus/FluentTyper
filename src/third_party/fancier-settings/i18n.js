@@ -1,6 +1,30 @@
 import { I18n } from "./js/i18n.js";
+import { KEY_EXTENSION_LANGUAGE } from "../../shared/constants.ts";
 
 let i18n = new I18n();
+// Override language from localStorage if extension language is set.
+// Uses synchronous localStorage (available in page contexts like options page)
+// instead of async chrome.storage.local to avoid top-level await which breaks
+// webpack bundling for service workers.
+try {
+  if (typeof localStorage !== "undefined") {
+    const storageKey = `store.settings.${KEY_EXTENSION_LANGUAGE}`;
+    const rawValue = localStorage.getItem(storageKey);
+    if (rawValue) {
+      const extLang = JSON.parse(rawValue);
+      if (extLang && extLang !== "auto_detect") {
+        // Locale codes use underscore (e.g. en_US), i18n uses short codes (e.g. en)
+        let shortCode = extLang.split("_")[0];
+        // Map pt -> pr to match i18n translation keys for Portuguese
+        if (shortCode === "pt") shortCode = "pr";
+        i18n.lang = shortCode;
+      }
+    }
+  }
+} catch (e) {
+  // Silently ignore - use default navigator language
+}
+
 i18n = Object.assign(i18n, {
   "add_domain": {
     "en": "Add a new domain URL to the list",
@@ -12,6 +36,50 @@ i18n = Object.assign(i18n, {
     "de": "Neue Domain-URL zur Liste hinzufügen",
     "pl": "Dodaj nowy URL domeny do listy",
     "pr": "Adicionar um novo URL de domínio à lista",
+  },
+  "extension_ui_language": {
+    "en": "Extension UI Language",
+    "fr": "Langue de l'interface",
+    "hr": "Jezik sučelja proširenja",
+    "es": "Idioma de la interfaz",
+    "el": "Γλώσσα διεπαφής επέκτασης",
+    "sv": "Tilläggets gränssnittsspråk",
+    "de": "Sprache der Erweiterungsoberfläche",
+    "pl": "Język interfejsu rozszerzenia",
+    "pr": "Idioma da interface da extensão",
+  },
+  "extension_language_label": {
+    "en": "Extension Language:",
+    "fr": "Langues de l'extension :",
+    "hr": "Jezik proširenja:",
+    "es": "Idioma de la extensión:",
+    "el": "Γλώσσα επέκτασης:",
+    "sv": "Tilläggsspråk:",
+    "de": "Erweiterungssprache:",
+    "pl": "Język rozszerzenia:",
+    "pr": "Idioma da extensão:",
+  },
+  "extension_language_desc": {
+    "en": "Select the language for the extension's user interface. If auto-detect fails, UI falls back to English by default.",
+    "fr": "Sélectionnez la langue de l'interface utilisateur de l'extension. Si la détection automatique échoue, l'interface utilise l'anglais par défaut.",
+    "hr": "Odaberite jezik za korisničko sučelje proširenja. Ako automatsko otkrivanje ne uspije, korisničko sučelje prema zadanim postavkama prebacuje na engleski.",
+    "es": "Seleccione el idioma para la interfaz de usuario de la extensión. Si la autodetección falla, la interfaz vuelve al inglés por defecto.",
+    "el": "Επιλέξτε τη γλώσσα για τη διεπαφή χρήστη της επέκτασης. Εάν η αυτόματη ανίχνευση αποτύχει, η διεπαφή επιστρέφει στα αγγλικά από προεπιλογή.",
+    "sv": "Välj språk för tilläggets användargränssnitt. Om den automatiska upptäckten misslyckas visas gränssnittet på engelska som standard.",
+    "de": "Wählen Sie die Sprache für die Benutzeroberfläche der Erweiterung. Wenn die automatische Erkennung fehlschlägt, fällt die Benutzeroberfläche standardmäßig auf Englisch zurück.",
+    "pl": "Wybierz język interfejsu rozszerzenia. W razie braku danego języka, domyślnie ustawiony będzie angielski.",
+    "pr": "Selecione o idioma para a interface do usuário da extensão. Se a detecção automática falhar, a interface retornará ao inglês por padrão.",
+  },
+  "auto_detect_lang": {
+    "en": "Auto Detect (Browser Language)",
+    "fr": "Détection automatique (langue du navigateur)",
+    "hr": "Automatsko otkrivanje (jezik preglednika)",
+    "es": "Detección automática (idioma del navegador)",
+    "el": "Αυτόματη ανίχνευση (γλώσσα προγράμματος περιήγησης)",
+    "sv": "Känn av automatiskt (webbläsarens språk)",
+    "de": "Automatische Erkennung (Browsersprache)",
+    "pl": "Wykryj automatycznie (język przeglądarki)",
+    "pr": "Detecção automática (idioma do navegador)",
   },
   "add": {
     "en": "Add",

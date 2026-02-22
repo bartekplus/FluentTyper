@@ -381,9 +381,9 @@ describe("Chrome Extension E2E Test", () => {
     await textarea!.click();
     await page.evaluate(
       () =>
-        ((
-          document.querySelector("#test-textarea") as HTMLTextAreaElement
-        ).value = ""),
+      ((
+        document.querySelector("#test-textarea") as HTMLTextAreaElement
+      ).value = ""),
     );
     await textarea!.type("φιλο");
     await new Promise((r) => setTimeout(r, 50));
@@ -444,9 +444,9 @@ describe("Chrome Extension E2E Test", () => {
       // Ensure textarea is focused and clear
       await page.evaluate(
         () =>
-          ((
-            document.querySelector("#test-textarea") as HTMLTextAreaElement
-          ).value = ""),
+        ((
+          document.querySelector("#test-textarea") as HTMLTextAreaElement
+        ).value = ""),
       );
       await textarea!.type(testData.input);
       // Wait for predictions to update after typing
@@ -471,9 +471,9 @@ describe("Chrome Extension E2E Test", () => {
       // Cleanup for next iteration
       await page.evaluate(
         () =>
-          ((
-            document.querySelector("#test-textarea") as HTMLTextAreaElement
-          ).value = ""),
+        ((
+          document.querySelector("#test-textarea") as HTMLTextAreaElement
+        ).value = ""),
       );
       // Wait for predictions to disappear
       // Note: Tribute might not remove the container, just hide it.
@@ -481,6 +481,71 @@ describe("Chrome Extension E2E Test", () => {
       await new Promise((r) => setTimeout(r, 50));
     }
   }, 90000); // Increased timeout for iterating all languages
+
+  test("Extension UI language translates options page correctly", async () => {
+    // i18n short codes mapped to full locale codes and expected divider text
+    const TEST_LANGS: { locale: string; expected: string }[] = [
+      { locale: "en_US", expected: "Extension UI Language" },
+      { locale: "fr_FR", expected: "Langue de l'interface" },
+      { locale: "hr_HR", expected: "Jezik su\u010Delja pro\u0161irenja" },
+      { locale: "es_ES", expected: "Idioma de la interfaz" },
+      { locale: "el_GR", expected: "\u0393\u03BB\u03CE\u03C3\u03C3\u03B1 \u03B4\u03B9\u03B5\u03C0\u03B1\u03C6\u03AE\u03C2 \u03B5\u03C0\u03AD\u03BA\u03C4\u03B1\u03C3\u03B7\u03C2" },
+      { locale: "sv_SE", expected: "Till\u00E4ggets gr\u00E4nssnittsspr\u00E5k" },
+      { locale: "de_DE", expected: "Sprache der Erweiterungsoberfl\u00E4che" },
+      { locale: "pl_PL", expected: "J\u0119zyk interfejsu rozszerzenia" },
+      { locale: "pt_BR", expected: "Idioma da interface da extens\u00E3o" },
+    ];
+
+    for (const { locale, expected } of TEST_LANGS) {
+      // 1. Set the extension language in chrome.storage.local
+      await setSetting(worker!, "extensionLanguage", locale);
+
+      // 2. Open options page to sync localStorage in the extension context
+      const syncPage = await openOptionsPage(browser, worker!);
+      await syncPage.waitForSelector("#content", { timeout: 5000 });
+      // Write to localStorage directly within the extension's origin
+      await syncPage.evaluate((loc: string) => {
+        localStorage.setItem(
+          "store.settings.extensionLanguage",
+          JSON.stringify(loc),
+        );
+      }, locale);
+      await syncPage.close();
+
+      // 3. Reopen the options page - i18n.js will now read from localStorage
+      const optionsPage = await openOptionsPage(browser, worker!);
+      await optionsPage.waitForSelector("#content .divider", { timeout: 5000 });
+
+      const textFound = await optionsPage.evaluate((exp: string) => {
+        const dividers = document.querySelectorAll(".divider");
+        for (const d of dividers) {
+          if (d.textContent?.includes(exp)) return true;
+        }
+        return false;
+      }, expected);
+
+      expect(textFound).toBe(true);
+      await optionsPage.close();
+    }
+
+    // Cleanup: reset extension language back to auto_detect
+    await setSetting(worker!, "extensionLanguage", "auto_detect");
+    // Also update localStorage in the extension context
+    const cleanupPage = await openOptionsPage(browser, worker!);
+    await cleanupPage.waitForSelector("#content", { timeout: 5000 });
+    await cleanupPage.evaluate(() => {
+      localStorage.setItem(
+        "store.settings.extensionLanguage",
+        JSON.stringify("auto_detect"),
+      );
+    });
+    await cleanupPage.close();
+    await worker!.evaluate(
+      "chrome.runtime.sendMessage({command: 'CMD_OPTIONS_PAGE_CONFIG_CHANGE', context: {}});",
+    );
+    await new Promise((r) => setTimeout(r, 50));
+  }, 120000);
+
 
   test.each([["#test-textarea"], ["#test-input"], ["#test-contenteditable"]])(
     "Prediction popup can be closed via Escape key in %s",
