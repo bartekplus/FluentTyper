@@ -26,6 +26,7 @@ import {
   KEY_USER_DICTIONARY_LIST,
   KEY_DOMAIN_LIST_MODE,
   KEY_DISPLAY_LANG_HEADER,
+  KEY_EXTENSION_LANGUAGE,
   KEY_USE_DEFAULT_THEME_BTN,
   KEY_USE_COMPACT_THEME_BTN,
   KEY_TRIBUTE_BG_LIGHT,
@@ -145,11 +146,39 @@ const manifest = {
       label: i18n.get("smart_backspace_label") + ":&nbsp;<small>" + i18n.get("smart_backspace_desc") + "</small>",
       default: false,
     },
+    {
+      tab: i18n.get("autocomplete_tab"),
+      group: i18n.get("behavior_after_completion"),
+      name: KEY_APPLY_SPACING_RULES,
+      type: "checkbox",
+      label: i18n.get("apply_spacing_rules_label") + ":&nbsp;<small>" + i18n.get("apply_spacing_rules_desc") + "</small>",
+      default: false,
+    },
+    {
+      tab: i18n.get("autocomplete_tab"),
+      group: i18n.get("behavior_after_completion"),
+      name: KEY_INLINE_SUGGESTION,
+      type: "checkbox",
+      label: i18n.get("enable_inline_suggestion_label") + ":&nbsp;<small>" + i18n.get("enable_inline_suggestion_desc") + "</small>",
+      default: false,
+    },
 
     // =========================================================================
     // TAB: Language
     // All language-specific settings in one place.
     // =========================================================================
+    {
+      tab: i18n.get("language_tab"),
+      group: i18n.get("extension_ui_language"),
+      name: KEY_EXTENSION_LANGUAGE,
+      type: "popupButton",
+      options: [
+        ["auto_detect", i18n.get("auto_detect_lang")],
+        ...Object.entries(SUPPORTED_LANGUAGES).filter(([key]) => key !== "textExpander" && key !== "auto_detect"),
+      ],
+      label: i18n.get("extension_language_label") + ":&nbsp;<small>" + i18n.get("extension_language_desc") + "</small>",
+      default: "auto_detect",
+    },
     {
       tab: i18n.get("language_tab"),
       group: i18n.get("language_selection"),
@@ -482,22 +511,6 @@ const manifest = {
     // TAB: Advanced
     // For power-user features and data management.
     // =========================================================================
-    {
-      tab: i18n.get("advanced_tab"),
-      group: i18n.get("experimental_features"),
-      name: KEY_APPLY_SPACING_RULES,
-      type: "checkbox",
-      label: i18n.get("apply_spacing_rules_label") + ":&nbsp;<small>" + i18n.get("apply_spacing_rules_desc") + "</small>",
-      default: false,
-    },
-    {
-      tab: i18n.get("advanced_tab"),
-      group: i18n.get("experimental_features"),
-      name: KEY_INLINE_SUGGESTION,
-      type: "checkbox",
-      label: i18n.get("enable_inline_suggestion_label") + ":&nbsp;<small>" + i18n.get("enable_inline_suggestion_desc") + "</small>",
-      default: false,
-    },
     {
       tab: i18n.get("advanced_tab"),
       group: i18n.get("config_data"),

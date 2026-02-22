@@ -1,6 +1,30 @@
 import { I18n } from "./js/i18n.js";
+import { KEY_EXTENSION_LANGUAGE } from "../../shared/constants.ts";
 
 let i18n = new I18n();
+// Override language from localStorage if extension language is set.
+// Uses synchronous localStorage (available in page contexts like options page)
+// instead of async chrome.storage.local to avoid top-level await which breaks
+// webpack bundling for service workers.
+try {
+  if (typeof localStorage !== "undefined") {
+    const storageKey = `store.settings.${KEY_EXTENSION_LANGUAGE}`;
+    const rawValue = localStorage.getItem(storageKey);
+    if (rawValue) {
+      const extLang = JSON.parse(rawValue);
+      if (extLang && extLang !== "auto_detect") {
+        // Locale codes use underscore (e.g. en_US), i18n uses short codes (e.g. en)
+        let shortCode = extLang.split("_")[0];
+        // Map pt -> pr to match i18n translation keys for Portuguese
+        if (shortCode === "pt") shortCode = "pr";
+        i18n.lang = shortCode;
+      }
+    }
+  }
+} catch (e) {
+  // Silently ignore - use default navigator language
+}
+
 i18n = Object.assign(i18n, {
   "add_domain": {
     "en": "Add a new domain URL to the list",
@@ -12,6 +36,50 @@ i18n = Object.assign(i18n, {
     "de": "Neue Domain-URL zur Liste hinzufügen",
     "pl": "Dodaj nowy URL domeny do listy",
     "pr": "Adicionar um novo URL de domínio à lista",
+  },
+  "extension_ui_language": {
+    "en": "Extension UI Language",
+    "fr": "Langue de l'interface",
+    "hr": "Jezik sučelja proširenja",
+    "es": "Idioma de la interfaz",
+    "el": "Γλώσσα διεπαφής επέκτασης",
+    "sv": "Tilläggets gränssnittsspråk",
+    "de": "Sprache der Erweiterungsoberfläche",
+    "pl": "Język interfejsu rozszerzenia",
+    "pr": "Idioma da interface da extensão",
+  },
+  "extension_language_label": {
+    "en": "Extension Language:",
+    "fr": "Langues de l'extension :",
+    "hr": "Jezik proširenja:",
+    "es": "Idioma de la extensión:",
+    "el": "Γλώσσα επέκτασης:",
+    "sv": "Tilläggsspråk:",
+    "de": "Erweiterungssprache:",
+    "pl": "Język rozszerzenia:",
+    "pr": "Idioma da extensão:",
+  },
+  "extension_language_desc": {
+    "en": "Select the language for the extension's user interface. If auto-detect fails, UI falls back to English by default.",
+    "fr": "Sélectionnez la langue de l'interface utilisateur de l'extension. Si la détection automatique échoue, l'interface utilise l'anglais par défaut.",
+    "hr": "Odaberite jezik za korisničko sučelje proširenja. Ako automatsko otkrivanje ne uspije, korisničko sučelje prema zadanim postavkama prebacuje na engleski.",
+    "es": "Seleccione el idioma para la interfaz de usuario de la extensión. Si la autodetección falla, la interfaz vuelve al inglés por defecto.",
+    "el": "Επιλέξτε τη γλώσσα για τη διεπαφή χρήστη της επέκτασης. Εάν η αυτόματη ανίχνευση αποτύχει, η διεπαφή επιστρέφει στα αγγλικά από προεπιλογή.",
+    "sv": "Välj språk för tilläggets användargränssnitt. Om den automatiska upptäckten misslyckas visas gränssnittet på engelska som standard.",
+    "de": "Wählen Sie die Sprache für die Benutzeroberfläche der Erweiterung. Wenn die automatische Erkennung fehlschlägt, fällt die Benutzeroberfläche standardmäßig auf Englisch zurück.",
+    "pl": "Wybierz język interfejsu rozszerzenia. W razie braku danego języka, domyślnie ustawiony będzie angielski.",
+    "pr": "Selecione o idioma para a interface do usuário da extensão. Se a detecção automática falhar, a interface retornará ao inglês por padrão.",
+  },
+  "auto_detect_lang": {
+    "en": "Auto Detect (Browser Language)",
+    "fr": "Détection automatique (langue du navigateur)",
+    "hr": "Automatsko otkrivanje (jezik preglednika)",
+    "es": "Detección automática (idioma del navegador)",
+    "el": "Αυτόματη ανίχνευση (γλώσσα προγράμματος περιήγησης)",
+    "sv": "Känn av automatiskt (webbläsarens språk)",
+    "de": "Automatische Erkennung (Browsersprache)",
+    "pl": "Wykryj automatycznie (język przeglądarki)",
+    "pr": "Detecção automática (idioma do navegador)",
   },
   "add": {
     "en": "Add",
@@ -1442,6 +1510,105 @@ i18n = Object.assign(i18n, {
     "de": "Entwicklung Unterstützen",
     "pl": "Wesprzyj Rozwój",
     "pr": "Apoiar o Desenvolvimento",
+  },
+  "popup_enable_extension": {
+    en: "Enable Extension",
+    fr: "Activer l'extension",
+    pr: "Ativar a extensão",
+    hr: "Omogući proširenje",
+    el: "Ενεργοποίηση επέκτασης",
+    sv: "Aktivera tillägget",
+    de: "Erweiterung aktivieren",
+    es: "Habilitar la extensión",
+    pl: "Włącz rozszerzenie",
+  },
+  "popup_enable_extension_desc": {
+    en: "Turn FluentTyper on or off globally.",
+    fr: "Activer ou désactiver FluentTyper globalement.",
+    pr: "Ativar ou desativar o FluentTyper globalmente.",
+    hr: "Uključi ili isključi FluentTyper globalno.",
+    el: "Ενεργοποίηση ή απενεργοποίηση του FluentTyper παγκοσμίως.",
+    sv: "Slå på eller stäng av FluentTyper globalt.",
+    de: "FluentTyper global ein- oder ausschalten.",
+    es: "Activar o desactivar FluentTyper globalmente.",
+    pl: "Włącz lub wyłącz FluentTyper globalnie.",
+  },
+  "popup_enable_on_site": {
+    en: "Enable on this site",
+    fr: "Activer sur ce site",
+    pr: "Ativar neste site",
+    hr: "Omogući na ovoj web lokaciji",
+    el: "Ενεργοποίηση σε αυτόν τον ιστότοπο",
+    sv: "Aktivera på denna webbplats",
+    de: "Auf dieser Website aktivieren",
+    es: "Habilitar en este sitio",
+    pl: "Włącz na tej stronie",
+  },
+  "popup_enable_on_site_desc": {
+    en: "Allow suggestions on the current domain.",
+    fr: "Autoriser les suggestions sur le domaine actuel.",
+    pr: "Permitir sugestões no domínio atual.",
+    hr: "Dopusti prijedloge na trenutnoj domeni.",
+    el: "Να επιτρέπονται οι προτάσεις στον τρέχοντα τομέα.",
+    sv: "Tillåt förslag på den aktuella domänen.",
+    de: "Vorschläge in der aktuellen Domäne zulassen.",
+    es: "Permitir sugerencias en el dominio actual.",
+    pl: "Zezwalaj na sugestie w bieżącej domenie.",
+  },
+  "popup_enable_autocomplete_on": {
+    en: "Enable autocomplete on:<br> ",
+    fr: "Activer la saisie automatique sur :<br> ",
+    pr: "Ativar o preenchimento automático em:<br> ",
+    hr: "Omogući automatsko dovršavanje na:<br> ",
+    el: "Ενεργοποίηση αυτόματης συμπλήρωσης σε:<br> ",
+    sv: "Aktivera Komplettera automatiskt på:<br> ",
+    de: "Aktivieren Sie die automatische Vervollständigung für:<br> ",
+    es: "Habilitar el autocompletado en:<br> ",
+    pl: "Włącz autouzupełnianie w obszarze:<br> ",
+  },
+  "popup_language": {
+    en: "Language",
+    fr: "Langue",
+    pr: "Idioma",
+    hr: "Jezik",
+    el: "Γλώσσα",
+    sv: "Språk",
+    de: "Sprache",
+    es: "Idioma",
+    pl: "Język",
+  },
+  "popup_language_desc": {
+    en: "Set your primary writing language.",
+    fr: "Définissez votre langue d'écriture principale.",
+    pr: "Configure seu idioma principal de escrita.",
+    hr: "Postavite svoj primarni jezik za pisanje.",
+    el: "Ορίστε την κύρια γλώσσα γραφής σας.",
+    sv: "Ställ in ditt primära skrivspråk.",
+    de: "Legen Sie Ihre primäre Schreibsprache fest.",
+    es: "Configure su idioma principal de escritura.",
+    pl: "Ustaw swój główny język pisania.",
+  },
+  "popup_advanced_options": {
+    en: "Advanced Options",
+    fr: "Options avancées",
+    pr: "Opções avançadas",
+    hr: "Napredne opcije",
+    el: "Επιλογές για προχωρημένους",
+    sv: "Avancerade alternativ",
+    de: "Erweiterte Optionen",
+    es: "Opciones avanzadas",
+    pl: "Zaawansowane opcje",
+  },
+  "popup_support_development": {
+    en: "Support Development",
+    fr: "Soutenir le développement",
+    pr: "Apoiar o desenvolvimento",
+    hr: "Podrži razvoj",
+    el: "Υποστήριξη της ανάπτυξης",
+    sv: "Stödutveckling",
+    de: "Unterstützen Sie die Entwicklung",
+    es: "Apoye el desarrollo",
+    pl: "Wesprzyj rozwój projektu",
   },
 });
 

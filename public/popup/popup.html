@@ -31,6 +31,7 @@
     <!-- JavaScript -->
     <script src="/popup/popup.js"></script>
   </head>
+
   <body class="fluenttyper-popup">
     <!-- Header -->
     <header class="popup-header" style="display: none">
@@ -44,8 +45,10 @@
       <div class="columns is-mobile is-vcentered setting-item">
         <div class="column">
           <div class="label-text">
-            Enable Extension
-            <small>Turn FluentTyper on or off globally.</small>
+            <span data-i18n="popup_enable_extension">Enable Extension</span>
+            <small data-i18n="popup_enable_extension_desc"
+              >Turn FluentTyper on or off globally.</small
+            >
           </div>
         </div>
         <div class="column is-narrow">
@@ -66,8 +69,12 @@
       <div class="columns is-mobile is-vcentered setting-item">
         <div class="column">
           <div class="label-text">
-            <span id="checkboxDomainLabel">Enable on this site</span>
-            <small>Allow suggestions on the current domain.</small>
+            <span id="checkboxDomainLabel" data-i18n="popup_enable_on_site"
+              >Enable on this site</span
+            >
+            <small data-i18n="popup_enable_on_site_desc"
+              >Allow suggestions on the current domain.</small
+            >
           </div>
         </div>
         <div class="column is-narrow">
@@ -88,8 +95,10 @@
       <div class="columns is-mobile is-vcentered setting-item">
         <div class="column">
           <div class="label-text">
-            Language
-            <small>Set your primary writing language.</small>
+            <span data-i18n="popup_language">Language</span>
+            <small data-i18n="popup_language_desc"
+              >Set your primary writing language.</small
+            >
           </div>
         </div>
         <div class="column is-narrow">
@@ -107,6 +116,7 @@
         id="runOptions"
         target="_blank"
         rel="noopener"
+        data-i18n="popup_advanced_options"
       >
         Advanced Options
       </a>
@@ -117,6 +127,7 @@
         href="https://www.buymeacoffee.com/FluentTyper"
         target="_blank"
         class="button is-warning-custom"
+        data-i18n="popup_support_development"
       >
         Support Development
       </a>

@@ -17,10 +17,26 @@ import {
   PopupPageEnableMessage,
   PopupPageDisableMessage,
 } from "../shared/messageTypes";
+import { i18n } from "../third_party/fancier-settings/i18n.js";
 
 const settings = new SettingsManager();
 
+function translateUI() {
+  const elements = document.querySelectorAll("[data-i18n]");
+  elements.forEach((el) => {
+    const key = el.getAttribute("data-i18n");
+    if (key) {
+      const translated = i18n.get(key);
+      if (translated) {
+        el.textContent = translated;
+      }
+    }
+  });
+}
+
 function init() {
+  translateUI();
+
   chrome.tabs.query(
     { active: true, currentWindow: true },
     async function (tabs) {
@@ -39,7 +55,10 @@ function init() {
         if (domainURL && domainURL !== "null") {
           const enabled = await isEnabledForDomain(settings, domainURL);
           checkboxNode.checked = enabled;
-          urlNode.innerHTML = `<span>Enable autocomplete on:<br> ${domainURL}`;
+          urlNode.innerHTML = `<span>${i18n.get("popup_enable_autocomplete_on")}</span>`;
+          urlNode
+            .querySelector("span")!
+            .appendChild(document.createTextNode(domainURL));
           if (typeof currentTab.id === "number") {
             window.document
               .getElementById("checkboxDomainInput")
@@ -79,13 +98,13 @@ function init() {
       if (allowAutoDetect) {
         const opt = window.document.createElement("option");
         opt.value = "auto_detect";
-        opt.innerHTML = SUPPORTED_LANGUAGES.auto_detect;
+        opt.textContent = SUPPORTED_LANGUAGES.auto_detect;
         select.appendChild(opt);
       }
       for (const langCode of enabledLanguages) {
         const opt = window.document.createElement("option");
         opt.value = langCode;
-        opt.innerHTML = SUPPORTED_LANGUAGES[langCode];
+        opt.textContent = SUPPORTED_LANGUAGES[langCode];
         select.appendChild(opt);
       }
       select.value = displayLanguage;
@@ -119,7 +138,8 @@ async function addRemoveDomain(tabId: number, domainURL: string) {
       context: {},
     };
   }
-  urlNode.innerHTML = `<span>Enable autocomplete on: ${domainURL}`;
+  urlNode.innerHTML = `<span>${i18n.get("popup_enable_autocomplete_on")}</span>`;
+  urlNode.querySelector("span")!.appendChild(document.createTextNode(domainURL));
   await blockUnBlockDomain(settings, domainURL, !checkboxNode.checked);
   chrome.tabs.sendMessage(tabId, message);
 }

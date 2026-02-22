@@ -25,6 +25,7 @@ import {
   KEY_DOMAIN_LIST_MODE,
   KEY_DISPLAY_LANG_HEADER,
   KEY_INLINE_SUGGESTION,
+  KEY_EXTENSION_LANGUAGE,
   // theme settings
   KEY_USE_DEFAULT_THEME_BTN,
   KEY_USE_COMPACT_THEME_BTN,
@@ -350,6 +351,15 @@ window.addEventListener("DOMContentLoaded", function () {
         }
       });
 
+      settings.manifest[KEY_EXTENSION_LANGUAGE].addEvent("action", function () {
+        // Sync to localStorage so i18n.js can read it synchronously on next page load
+        const langValue = settings.manifest[KEY_EXTENSION_LANGUAGE].get();
+        const storageKey = `store.settings.${KEY_EXTENSION_LANGUAGE}`;
+        localStorage.setItem(storageKey, JSON.stringify(langValue));
+        optionsPageConfigChange();
+        setTimeout(() => location.reload(), 100);
+      });
+
       // Theme settings event listeners
       const themeSettings = [
         KEY_TRIBUTE_BG_LIGHT, KEY_TRIBUTE_TEXT_LIGHT, KEY_TRIBUTE_HIGHLIGHT_BG_LIGHT,
@@ -385,6 +395,7 @@ window.addEventListener("DOMContentLoaded", function () {
         KEY_USER_DICTIONARY_LIST,
         KEY_DISPLAY_LANG_HEADER,
         KEY_INLINE_SUGGESTION,
+        KEY_EXTENSION_LANGUAGE,
         // Theme settings
         KEY_TRIBUTE_BG_LIGHT,
         KEY_TRIBUTE_TEXT_LIGHT,
