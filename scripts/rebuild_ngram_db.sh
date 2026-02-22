@@ -2,12 +2,13 @@
 
 set -euo pipefail
 
-MAX_FILES=25
+MAX_FILES=1
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 OSCAR_REPO_NAME="community-oscar"
 OSCAR_CORUPS_VERSION="2024-38"
-LANGUAGE_DETECTION_PROB="0.95"
+LANGUAGE_DETECTION_PROB="0.975"
 HARMFUL_SCORE="300.0"
+CACHE_DIR="${SCRIPT_DIR}/.cache/oscar_processed"
 LANG=""
 LANG_VARIANT=""
 
@@ -63,29 +64,35 @@ waitforjobs() {
 download_and_extract() {
     FILE_PATH=$1
     WORK_DIR=$3
+    FILE_INDEX=$4
 
-    if [ ! -f "${FILE_PATH}" ]; then
-        git lfs pull --include "${FILE_PATH}.zst"
-        if [ ! -f "${FILE_PATH}.zst" ]; then
-            echo "${FILE_PATH}.zst not found"
-            return 0
-        fi
-        echo "Decompressing ${FILE_PATH}.zst"
-        unzstd "${FILE_PATH}.zst"
+    OUTPUT_FILE="${WORK_DIR}/${LANG}_sentences_checked_${FILE_INDEX}.txt"
+    CACHE_FILE="${CACHE_DIR}/${OSCAR_CORUPS_VERSION}_${LANG}_${LANG_VARIANT}_${FILE_INDEX}.txt"
+
+    if [ -s "${CACHE_FILE}" ]; then
+        echo "Using cached data for ${FILE_PATH}"
+        cp "${CACHE_FILE}" "${OUTPUT_FILE}"
+        return 0
+    fi
+
+    git lfs pull --include "${FILE_PATH}.zst"
+    if [ ! -f "${FILE_PATH}.zst" ]; then
+        echo "${FILE_PATH}.zst not found"
+        return 0
     fi
 
     waitforjobs ${num_cpus}
 
-    # Filter content
-    echo "Extracting data from ${FILE_PATH}"
-    jq -r 'select( .metadata.quality_warnings == null) |
-        select ( .metadata.identification.prob >= '${LANGUAGE_DETECTION_PROB}') |
-        select ( .metadata.harmful_pp >= '${HARMFUL_SCORE}') |
-        .content ' \
-    "${FILE_PATH}" >> "${WORK_DIR}/${LANG}_sentences_${i}.txt" && \
-    DICPATH="${SCRIPT_DIR}"/../resources_js/"${LANG_VARIANT}"/hunspell hunspell -i utf-8 -d "${LANG_VARIANT}" -G -L "${WORK_DIR}/${LANG}_sentences_${i}.txt" >  "${WORK_DIR}/${LANG}_sentences_checked_${i}.txt"  && \
-    rm -rf "${WORK_DIR}/${LANG}_sentences_${i}.txt" && \
-    rm -rf "${FILE_PATH}" &
+    # Extract, filter, and spellcheck directly from stream
+    echo "Extracting and filtering data from ${FILE_PATH}.zst"
+    unzstd -c "${FILE_PATH}.zst" | \
+    jq --argjson prob "${LANGUAGE_DETECTION_PROB}" --argjson harmful "${HARMFUL_SCORE}" -r \
+        'select(.metadata.quality_warnings == null and .metadata.identification.prob >= $prob and .metadata.harmful_pp >= $harmful) | .content' | \
+    awk 'NF>=3' | \
+    grep -vE "http[s]?://|www\.|<[^>]+>|[0-9]{4,}|[_=@#%^*+~\|/]{2,}|{}" | \
+    DICPATH="${SCRIPT_DIR}"/../resources_js/"${LANG_VARIANT}"/hunspell hunspell -i utf-8 -d "${LANG_VARIANT}" -G -L > "${CACHE_FILE}" && \
+    cp "${CACHE_FILE}" "${OUTPUT_FILE}" && \
+    rm -f "${FILE_PATH}.zst" &
 }
 
 if [ "$LANG" = "hr" ]; then
@@ -100,7 +107,7 @@ fi
 
 cd ${OSCAR_REPO_NAME}
 WORK_DIR="${SCRIPT_DIR}/tmp"
-mkdir -p "${WORK_DIR}"
+mkdir -p "${WORK_DIR}" "${CACHE_DIR}"
 trap 'rm -rf ${WORK_DIR}' SIGINT SIGTERM EXIT
 
 git lfs install
@@ -122,7 +129,7 @@ do
     FILE_NAME="${LANG}_meta_part_${i}.jsonl"
     FILE_PATH="data/${OSCAR_CORUPS_VERSION}/${LANG}_meta/${FILE_NAME}"
     echo "Processing ${FILE_PATH}"
-    download_and_extract "$FILE_PATH" "$LANG" "$WORK_DIR"
+    download_and_extract "$FILE_PATH" "$LANG" "$WORK_DIR" "$i"
 done    
 
 echo "Waiting for download background jobs to complete"
@@ -136,5 +143,9 @@ rm -rf "${WORK_DIR}"/"${LANG}"_sentences_checked_*.txt
 "${SCRIPT_DIR}"/gen_ngram.py -i "${WORK_DIR}/${LANG}_sentences_checked.txt" -l ${LANG}
 # generate marisa-trie database from ngrams
 "${SCRIPT_DIR}"/ngramtxt2marisa.py --overwrite --output "${SCRIPT_DIR}"/../resources_js/"${LANG_VARIANT}"/ngrams_db/ --inputfile "${WORK_DIR}/${LANG}_sentences_checked_ngram_merged.txt"
+
+echo "✅ N-gram DB successfully generated."
+echo "If you want to package it for extension use, run:"
+echo "  ./rebuild_libpresage.sh --package --link"
 
 git lfs prune
