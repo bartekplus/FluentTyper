@@ -99,7 +99,7 @@ describe("Chrome Extension E2E Test", () => {
 
     expect(newInstallationPage).toBeDefined();
     expect(worker).toBeDefined();
-  }, 20000);
+  }, 2000);
 
   test("Extension installs and popup loads", async () => {
     expect(worker).toBeDefined();
@@ -114,7 +114,7 @@ describe("Chrome Extension E2E Test", () => {
 
     const popupPage = popupTarget.asPage();
     expect(popupPage).toBeDefined();
-  }, 20000);
+  }, 2000);
 
   test.each([["#test-textarea"], ["#test-input"], ["#test-contenteditable"]])(
     "Prediction popup appears in %s when typing and prediction is inserted on click",
@@ -148,7 +148,7 @@ describe("Chrome Extension E2E Test", () => {
       );
       expect(elementText).toBe("have\xa0");
     },
-    15000,
+    1500,
   );
 
   test.each([["#test-textarea"], ["#test-input"], ["#test-contenteditable"]])(
@@ -191,7 +191,7 @@ describe("Chrome Extension E2E Test", () => {
       );
       expect(elementText).toBe("with\xa0");
     },
-    30000,
+    3000,
   );
 
   test("Cursor movement cancels missing space auto-insertion", async () => {
@@ -228,7 +228,7 @@ describe("Chrome Extension E2E Test", () => {
       (textarea) => (textarea as HTMLTextAreaElement).value,
     );
     expect(textAreaText).toBe("havex\xa0");
-  }, 15000);
+  }, 1500);
 
   test.each([["#test-textarea"], ["#test-input"], ["#test-contenteditable"]])(
     "Inline suggestion prediction is inserted on TAB in %s",
@@ -257,7 +257,7 @@ describe("Chrome Extension E2E Test", () => {
         (sel) =>
           ((document.querySelector(sel) as HTMLInputElement).value ??
             document.querySelector(sel)?.textContent) !== "w",
-        { timeout: 5000 },
+        { timeout: 500 },
         selector,
       );
       const elementText = await page.$eval(
@@ -273,7 +273,7 @@ describe("Chrome Extension E2E Test", () => {
       );
       await new Promise((r) => setTimeout(r, 50));
     },
-    30000,
+    3000,
   );
 
   test("Enabled languages restrict popup language list", async () => {
@@ -306,7 +306,7 @@ describe("Chrome Extension E2E Test", () => {
       SUPPORTED_PREDICTION_LANGUAGE_KEYS,
     );
     await setSetting(worker!, KEY_LANGUAGE, "en_US");
-  }, 20000);
+  }, 2000);
 
   test("Auto detect is only allowed when multiple languages are enabled", async () => {
     await setSetting(worker!, KEY_ENABLED_LANGUAGES, ["en_US"]);
@@ -349,7 +349,7 @@ describe("Chrome Extension E2E Test", () => {
       KEY_ENABLED_LANGUAGES,
     );
     expect(enabledLanguages).toEqual(["en_US", "de_DE"]);
-  }, 20000);
+  }, 2000);
 
   test("Auto detect in popup detects language and predicts", async () => {
     page = await browser.newPage();
@@ -390,13 +390,13 @@ describe("Chrome Extension E2E Test", () => {
     await new Promise((r) => setTimeout(r, 50));
     await textarea!.type("σ");
 
-    await page.waitForSelector(".tribute-container li", { timeout: 5000 });
+    await page.waitForSelector(".tribute-container li", { timeout: 500 });
     const firstLiText = await page.$eval(
       ".tribute-container li:first-child",
       (li) => li.textContent,
     );
     expect(firstLiText?.toLowerCase()).toContain("φιλοσοφία");
-  }, 30000);
+  }, 3000);
 
   const LANGUAGE_TEST_DATA: Record<
     string,
@@ -481,7 +481,7 @@ describe("Chrome Extension E2E Test", () => {
       // But clearing the input usually clears predictions.
       await new Promise((r) => setTimeout(r, 50));
     }
-  }, 90000); // Increased timeout for iterating all languages
+  }, 9000); // Increased timeout for iterating all languages
 
   test("Extension UI language translates options page correctly", async () => {
     // i18n short codes mapped to full locale codes and expected divider text
@@ -503,7 +503,7 @@ describe("Chrome Extension E2E Test", () => {
 
       // 2. Open options page to sync localStorage in the extension context
       const syncPage = await openOptionsPage(browser, worker!);
-      await syncPage.waitForSelector("#content", { timeout: 5000 });
+      await syncPage.waitForSelector("#content", { timeout: 500 });
       // Write to localStorage directly within the extension's origin
       await syncPage.evaluate((loc: string) => {
         localStorage.setItem(
@@ -515,7 +515,7 @@ describe("Chrome Extension E2E Test", () => {
 
       // 3. Reopen the options page - i18n.js will now read from localStorage
       const optionsPage = await openOptionsPage(browser, worker!);
-      await optionsPage.waitForSelector("#content .divider", { timeout: 5000 });
+      await optionsPage.waitForSelector("#content .divider", { timeout: 500 });
 
       const textFound = await optionsPage.evaluate((exp: string) => {
         const dividers = document.querySelectorAll(".divider");
@@ -533,7 +533,7 @@ describe("Chrome Extension E2E Test", () => {
       await popupPage.goto(
         `chrome-extension://${worker!.url().split("/")[2]}/popup/popup.html`,
       );
-      await popupPage.waitForSelector(".settings-box", { timeout: 5000 });
+      await popupPage.waitForSelector(".settings-box", { timeout: 500 });
 
       // Wait a moment for translations to apply
       await new Promise((r) => setTimeout(r, 100));
@@ -557,7 +557,7 @@ describe("Chrome Extension E2E Test", () => {
     await setSetting(worker!, "extensionLanguage", "auto_detect");
     // Also update localStorage in the extension context
     const cleanupPage = await openOptionsPage(browser, worker!);
-    await cleanupPage.waitForSelector("#content", { timeout: 5000 });
+    await cleanupPage.waitForSelector("#content", { timeout: 500 });
     await cleanupPage.evaluate(() => {
       localStorage.setItem(
         "store.settings.extensionLanguage",
@@ -569,7 +569,7 @@ describe("Chrome Extension E2E Test", () => {
       "chrome.runtime.sendMessage({command: 'CMD_OPTIONS_PAGE_CONFIG_CHANGE', context: {}});",
     );
     await new Promise((r) => setTimeout(r, 50));
-  }, 120000);
+  }, 12000);
 
 
   test.each([["#test-textarea"], ["#test-input"], ["#test-contenteditable"]])(
@@ -603,10 +603,10 @@ describe("Chrome Extension E2E Test", () => {
             .querySelector(".tribute-container")
             ?.getAttribute("style")
             ?.includes("display: none"),
-        { timeout: 5000 },
+        { timeout: 500 },
       );
     },
-    15000,
+    1500,
   );
 
   test.each([["#test-textarea"], ["#test-input"], ["#test-contenteditable"]])(
@@ -661,7 +661,7 @@ describe("Chrome Extension E2E Test", () => {
         "chrome.runtime.sendMessage({command: 'CMD_OPTIONS_PAGE_CONFIG_CHANGE', context: {}});",
       );
     },
-    30000,
+    3000,
   );
 
   test.each([["#test-textarea"], ["#test-input"], ["#test-contenteditable"]])(
@@ -685,7 +685,7 @@ describe("Chrome Extension E2E Test", () => {
       await element!.type("this is ");
 
       // Since it's 0, it should predict after space
-      await page.waitForSelector(".tribute-container li", { timeout: 5000 });
+      await page.waitForSelector(".tribute-container li", { timeout: 500 });
       const firstLiText = await page.$eval(
         ".tribute-container li:first-child",
         (li) => li.textContent,
@@ -699,7 +699,7 @@ describe("Chrome Extension E2E Test", () => {
       );
       await new Promise((r) => setTimeout(r, 100));
     },
-    30000,
+    3000,
   );
 
   test.each([["#test-textarea"], ["#test-input"], ["#test-contenteditable"]])(
@@ -737,6 +737,6 @@ describe("Chrome Extension E2E Test", () => {
       );
       await new Promise((r) => setTimeout(r, 100));
     },
-    30000,
+    3000,
   );
 });
