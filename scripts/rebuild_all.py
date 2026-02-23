@@ -27,7 +27,6 @@ LANGUAGES: tuple[LanguageConfig, ...] = (
         short="de",
         variant="de_DE",
         aspell_urls=(
-            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-de-20161207.7.0-4.1.i586.rpm",
             "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-de-20161207.7.0-4.4.i586.rpm",
         ),
         aspell_lang="de",
@@ -36,7 +35,6 @@ LANGUAGES: tuple[LanguageConfig, ...] = (
         short="el",
         variant="el_GR",
         aspell_urls=(
-            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-el-0.50.3+0.08-4.1.i586.rpm",
             "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-el-0.50.3+0.08-4.4.i586.rpm",
         ),
         aspell_lang="el",
@@ -45,7 +43,6 @@ LANGUAGES: tuple[LanguageConfig, ...] = (
         short="en",
         variant="en_US",
         aspell_urls=(
-            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-en-2020.12.07-2.5.i586.rpm",
             "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-en-2020.12.07-2.8.i586.rpm",
         ),
     ),
@@ -53,7 +50,6 @@ LANGUAGES: tuple[LanguageConfig, ...] = (
         short="es",
         variant="es_ES",
         aspell_urls=(
-            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-es-1.11.2-4.1.i586.rpm",
             "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-es-1.11.2-4.4.i586.rpm",
         ),
         aspell_lang="es",
@@ -62,7 +58,6 @@ LANGUAGES: tuple[LanguageConfig, ...] = (
         short="fr",
         variant="fr_FR",
         aspell_urls=(
-            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-fr-0.50.3-4.1.i586.rpm",
             "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-fr-0.50.3-4.4.i586.rpm",
         ),
     ),
@@ -70,7 +65,6 @@ LANGUAGES: tuple[LanguageConfig, ...] = (
         short="hr",
         variant="hr_HR",
         aspell_urls=(
-            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-hr-0.51.0-4.1.i586.rpm",
             "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-hr-0.51.0-4.4.i586.rpm",
         ),
         aspell_lang="hr",
@@ -79,7 +73,6 @@ LANGUAGES: tuple[LanguageConfig, ...] = (
         short="pl",
         variant="pl_PL",
         aspell_urls=(
-            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-pl-0.60.2015.04.28-4.1.i586.rpm",
             "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-pl-0.60.2015.04.28-4.4.i586.rpm",
         ),
         aspell_lang="pl",
@@ -88,7 +81,6 @@ LANGUAGES: tuple[LanguageConfig, ...] = (
         short="pt",
         variant="pt_BR",
         aspell_urls=(
-            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-pt_BR-20131030.12.0-4.1.i586.rpm",
             "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-pt_BR-20131030.12.0-4.4.i586.rpm",
         ),
     ),
@@ -96,7 +88,6 @@ LANGUAGES: tuple[LanguageConfig, ...] = (
         short="sv",
         variant="sv_SE",
         aspell_urls=(
-            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-sv-0.51.0-4.1.i586.rpm",
             "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-sv-0.51.0-4.4.i586.rpm",
         ),
         aspell_lang="sv",
