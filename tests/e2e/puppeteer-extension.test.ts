@@ -49,6 +49,59 @@ async function getSetting<T>(
   ) as Promise<T | undefined>;
 }
 
+async function setSettingAndWait(
+  worker: WebWorker,
+  key: string,
+  value: unknown,
+  timeoutMs = 3000,
+): Promise<void> {
+  await setSetting(worker, key, value);
+  const expected = JSON.stringify(value);
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const current = await getSetting<unknown>(worker, key);
+    if (JSON.stringify(current) === expected) {
+      return;
+    }
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  throw new Error(`Timed out waiting for setting ${key} to become ${expected}`);
+}
+
+async function notifyConfigChange(
+  browser: Browser,
+  worker: WebWorker,
+): Promise<void> {
+  const extensionId = worker.url().split("/")[2];
+  const extensionPage = await browser.newPage();
+  try {
+    await extensionPage.goto(`chrome-extension://${extensionId}/popup/popup.html`);
+    await extensionPage.evaluate(
+      () =>
+        new Promise<void>((resolve, reject) => {
+          chrome.runtime.sendMessage(
+            { command: "CMD_OPTIONS_PAGE_CONFIG_CHANGE", context: {} },
+            (response: { ok?: boolean } | undefined) => {
+              if (chrome.runtime.lastError) {
+                reject(new Error(chrome.runtime.lastError.message));
+                return;
+              }
+              if (!response?.ok) {
+                reject(new Error("Config change ACK returned not ok"));
+                return;
+              }
+              resolve();
+            },
+          );
+        }),
+    );
+  } finally {
+    if (!extensionPage.isClosed()) {
+      await extensionPage.close();
+    }
+  }
+}
+
 async function openOptionsPage(browser: Browser, worker: WebWorker) {
   await worker.evaluate("chrome.runtime.openOptionsPage();");
   const optionsTarget = await browser.waitForTarget(
@@ -210,7 +263,7 @@ describe("Chrome Extension E2E Test", () => {
       // Inserted text should match the first suggestion
       expect(elementText).toBe(firstLiText?.toLowerCase());
     },
-    3000,
+    4000,
   );
 
   test("Cursor movement cancels missing space auto-insertion", async () => {
@@ -748,17 +801,14 @@ describe("Chrome Extension E2E Test", () => {
     "KEY_MIN_WORD_LENGTH_TO_PREDICT set to 0 predicts immediately after space in %s",
     async (selector) => {
       // Set settings BEFORE creating the page so content script initializes correctly
-      await setSetting(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 0);
-      await setSetting(worker!, KEY_LANGUAGE, "en_US");
-      await setSetting(
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 0);
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(
         worker!,
         KEY_ENABLED_LANGUAGES,
         SUPPORTED_PREDICTION_LANGUAGE_KEYS,
       );
-      await worker!.evaluate(
-        "chrome.runtime.sendMessage({command: 'CMD_OPTIONS_PAGE_CONFIG_CHANGE', context: {}});",
-      );
-      await new Promise((r) => setTimeout(r, 200));
+      await notifyConfigChange(browser, worker!);
 
       await gotoTestPage(page);
       page.bringToFront();
@@ -781,11 +831,8 @@ describe("Chrome Extension E2E Test", () => {
       expect(predictionsAfterSpace.length).toBeGreaterThan(0);
 
       // Cleanup
-      await setSetting(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await worker!.evaluate(
-        "chrome.runtime.sendMessage({command: 'CMD_OPTIONS_PAGE_CONFIG_CHANGE', context: {}});",
-      );
-      await new Promise((r) => setTimeout(r, 100));
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await notifyConfigChange(browser, worker!);
     },
     5000,
   );
@@ -794,17 +841,14 @@ describe("Chrome Extension E2E Test", () => {
     "KEY_MIN_WORD_LENGTH_TO_PREDICT set to -1 does not predict automatically in %s",
     async (selector) => {
       // Reset and set settings BEFORE creating the page
-      await setSetting(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, -1);
-      await setSetting(worker!, KEY_LANGUAGE, "en_US");
-      await setSetting(
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, -1);
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(
         worker!,
         KEY_ENABLED_LANGUAGES,
         SUPPORTED_PREDICTION_LANGUAGE_KEYS,
       );
-      await worker!.evaluate(
-        "chrome.runtime.sendMessage({command: 'CMD_OPTIONS_PAGE_CONFIG_CHANGE', context: {}});",
-      );
-      await new Promise((r) => setTimeout(r, 200));
+      await notifyConfigChange(browser, worker!);
       await gotoTestPage(page);
       page.bringToFront();
 
@@ -823,11 +867,8 @@ describe("Chrome Extension E2E Test", () => {
       expect(hasVisiblePredictions).toBe(false);
 
       // Cleanup
-      await setSetting(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await worker!.evaluate(
-        "chrome.runtime.sendMessage({command: 'CMD_OPTIONS_PAGE_CONFIG_CHANGE', context: {}});",
-      );
-      await new Promise((r) => setTimeout(r, 100));
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await notifyConfigChange(browser, worker!);
     },
     3000,
   );

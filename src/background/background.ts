@@ -416,13 +416,19 @@ async function handleContentScriptPredictReq(
   }
 }
 
-function handleOptionsPageConfigChange(
+async function handleOptionsPageConfigChange(
   request: OptionsPageConfigChangeMessage,
   sender: chrome.runtime.MessageSender,
   sendResponse: (response?: unknown) => void,
   backgroundServiceWorker: BackgroundServiceWorker,
 ) {
-  backgroundServiceWorker.updatePresageConfig();
+  try {
+    await backgroundServiceWorker.updatePresageConfig();
+    sendResponse({ ok: true });
+  } catch (error) {
+    logError("handleOptionsPageConfigChange", error);
+    sendResponse({ ok: false });
+  }
 }
 
 async function handleContentScriptGetConfig(
@@ -471,7 +477,7 @@ function onMessage(
         sendResponse,
         backgroundServiceWorker,
       );
-      return false;
+      return true;
     }
     case CMD_CONTENT_SCRIPT_GET_CONFIG: {
       handleContentScriptGetConfig(
