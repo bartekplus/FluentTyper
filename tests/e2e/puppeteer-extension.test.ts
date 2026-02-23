@@ -20,6 +20,7 @@ const TEST_INPUT_SELECTORS = [
   "#test-contenteditable",
   CKEDITOR_SELECTOR,
 ] as const;
+const IS_CI = process.env.CI === "true" || process.env.CI === "1";
 
 async function setSetting(
   worker: WebWorker,
@@ -172,19 +173,33 @@ async function waitForInputReady(page: Page, selector: string) {
   await page.waitForSelector(selector, { timeout: 10000 });
 }
 
+async function clickAndType(page: Page, selector: string, text: string) {
+  await page.click(selector);
+  await page.keyboard.type(text);
+}
+
 describe("Chrome Extension E2E Test", () => {
   let browser: Browser;
   let page: Page;
   let worker: WebWorker;
 
   beforeAll(async () => {
+    const launchArgs = [
+      `--disable-extensions-except=${EXTENSION_PATH}`,
+      `--load-extension=${EXTENSION_PATH}`,
+      "--allow-file-access-from-files",
+    ];
+    if (IS_CI) {
+      launchArgs.push(
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+      );
+    }
+
     browser = await puppeteer.launch({
-      headless: false, // Extension UI cannot be tested in headless mode
-      args: [
-        `--disable-extensions-except=${EXTENSION_PATH}`,
-        `--load-extension=${EXTENSION_PATH}`,
-        "--allow-file-access-from-files",
-      ],
+      headless: IS_CI,
+      args: launchArgs,
       defaultViewport: null,
     });
     const pages = await browser.pages();
@@ -257,8 +272,7 @@ describe("Chrome Extension E2E Test", () => {
       });
       page.bringToFront();
       await waitForInputReady(page, selector);
-      const element = await page.$(selector);
-      await element!.type("h"); // Type a few letters
+      await clickAndType(page, selector, "h"); // Type a few letters
       // Wait for prediction popup
       await page.waitForSelector(".tribute-container li");
       // Check if there are DEFAULT_NUM_SUGGESTIONS li elements inside the predictionPopup
@@ -295,8 +309,7 @@ describe("Chrome Extension E2E Test", () => {
       });
       page.bringToFront();
       await waitForInputReady(page, selector);
-      const element = await page.$(selector);
-      await element!.type("w"); // Type a few letters
+      await clickAndType(page, selector, "w"); // Type a few letters
       // Wait for prediction popup
       await page.waitForSelector(".tribute-container li");
       // Check if there are DEFAULT_NUM_SUGGESTIONS li elements inside the predictionPopup
@@ -336,10 +349,9 @@ describe("Chrome Extension E2E Test", () => {
     await gotoTestPage(page);
     page.bringToFront();
     await page.waitForSelector("#test-textarea");
-    const textarea = await page.$("#test-textarea");
 
     // Type a partial word to trigger autocomplete
-    await textarea!.type("h");
+    await clickAndType(page, "#test-textarea", "h");
     await page.waitForSelector(".tribute-container li");
 
     // Press Tab to autocomplete (prediction depends on DB)
@@ -363,7 +375,7 @@ describe("Chrome Extension E2E Test", () => {
     await page.keyboard.press("ArrowLeft");
 
     // Type 'x'
-    await textarea!.type("x");
+    await page.keyboard.type("x");
 
     // Evaluate if 'x' was inserted WITHOUT an extra space before it.
     // If the flag wasn't cleared, it would insert \xa0 before x -> "word\xa0x\xa0"
@@ -391,8 +403,7 @@ describe("Chrome Extension E2E Test", () => {
       await new Promise((r) => setTimeout(r, 50));
 
       await waitForInputReady(page, selector);
-      const element = await page.$(selector);
-      await element!.type("w");
+      await clickAndType(page, selector, "w");
 
       // Wait for the prediction engine to fetch result
       await new Promise((r) => setTimeout(r, 50));
@@ -503,7 +514,6 @@ describe("Chrome Extension E2E Test", () => {
     await gotoTestPage(page);
     page.bringToFront();
     await page.waitForSelector("#test-textarea");
-    const textarea = await page.$("#test-textarea");
 
     await setSetting(worker!, KEY_ENABLED_LANGUAGES, ["en_US", "el_GR"]);
     await setSetting(worker!, KEY_LANGUAGE, "en_US");
@@ -526,16 +536,16 @@ describe("Chrome Extension E2E Test", () => {
     );
     await new Promise((r) => setTimeout(r, 50));
 
-    await textarea!.click();
+    await page.click("#test-textarea");
     await page.evaluate(
       () =>
       ((
         document.querySelector("#test-textarea") as HTMLTextAreaElement
       ).value = ""),
     );
-    await textarea!.type("φιλο");
+    await clickAndType(page, "#test-textarea", "φιλο");
     await new Promise((r) => setTimeout(r, 50));
-    await textarea!.type("σ");
+    await page.keyboard.type("σ");
 
     await page.waitForSelector(".tribute-container li", { timeout: 500 });
     // Check that at least one suggestion contains the expected Greek word
@@ -789,9 +799,7 @@ describe("Chrome Extension E2E Test", () => {
       await new Promise((r) => setTimeout(r, 100));
 
       await waitForInputReady(page, selector);
-      const element = await page.$(selector);
-
-      await element!.type("h"); // Trigger popup
+      await clickAndType(page, selector, "h"); // Trigger popup
       await page.waitForSelector(".tribute-container li", { timeout: 4000 });
 
       // Add a small delay
@@ -828,8 +836,7 @@ describe("Chrome Extension E2E Test", () => {
       await new Promise((r) => setTimeout(r, 100));
 
       await waitForInputReady(page, selector);
-      const element = await page.$(selector);
-      await element!.type("asap"); // Trigger text expansion
+      await clickAndType(page, selector, "asap"); // Trigger text expansion
 
       await page.waitForSelector(".tribute-container li");
       const firstLiText = await page.$eval(
@@ -888,17 +895,16 @@ describe("Chrome Extension E2E Test", () => {
       page.bringToFront();
 
       await waitForInputReady(page, selector);
-      const element = await page.$(selector);
 
       // Step 1: Type "a" and confirm predictions appear
-      await element!.type("a");
+      await clickAndType(page, selector, "a");
       await page.waitForSelector(".tribute-container li", { timeout: 2000 });
       const predictionsAfterLetter = await page.$$(".tribute-container li");
       expect(predictionsAfterLetter.length).toBeGreaterThan(0);
 
       // Step 2: Type space — with MIN_WORD_LENGTH=0, predictions should reappear
       // (next-word prediction after separator char)
-      await element!.type(" ");
+      await page.keyboard.type(" ");
       await new Promise((r) => setTimeout(r, 200));
       await page.waitForSelector(".tribute-container li", { timeout: 2000 });
       const predictionsAfterSpace = await page.$$(".tribute-container li");
@@ -929,10 +935,9 @@ describe("Chrome Extension E2E Test", () => {
       page.bringToFront();
 
       await waitForInputReady(page, selector);
-      const element = await page.$(selector);
 
       // Type something
-      await element!.type("this is impor");
+      await clickAndType(page, selector, "this is impor");
 
       // It should NOT show predictions
       await new Promise((r) => setTimeout(r, 500));
