@@ -17,7 +17,7 @@ OSCAR_REPO_NAME = "community-oscar"
 OSCAR_CORPUS_VERSION = "2024-38"
 LANGUAGE_DETECTION_PROB = "0.975"
 HARMFUL_SCORE = "300.0"
-MAX_FILES_DEFAULT = 1
+MAX_FILES_DEFAULT = 10
 JQ_FILTER = "select(.metadata.quality_warnings == null and .metadata.identification.prob >= $prob and .metadata.harmful_pp >= $harmful) | .content"
 GREP_FILTER = r"http[s]?://|www\.|<[^>]+>|[0-9]{4,}|[_=@#%^*+~\|/]{2,}|{}"
 
