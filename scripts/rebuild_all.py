@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import concurrent.futures
+import os
 import shlex
 import shutil
 import subprocess
@@ -27,6 +28,7 @@ LANGUAGES: tuple[LanguageConfig, ...] = (
         short="de",
         variant="de_DE",
         aspell_urls=(
+            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-de-20161207.7.0-4.1.i586.rpm",
             "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-de-20161207.7.0-4.4.i586.rpm",
         ),
         aspell_lang="de",
@@ -35,6 +37,7 @@ LANGUAGES: tuple[LanguageConfig, ...] = (
         short="el",
         variant="el_GR",
         aspell_urls=(
+            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-el-0.50.3+0.08-4.1.i586.rpm",
             "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-el-0.50.3+0.08-4.4.i586.rpm",
         ),
         aspell_lang="el",
@@ -43,6 +46,7 @@ LANGUAGES: tuple[LanguageConfig, ...] = (
         short="en",
         variant="en_US",
         aspell_urls=(
+            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-en-2020.12.07-2.5.i586.rpm",
             "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-en-2020.12.07-2.8.i586.rpm",
         ),
     ),
@@ -50,6 +54,7 @@ LANGUAGES: tuple[LanguageConfig, ...] = (
         short="es",
         variant="es_ES",
         aspell_urls=(
+            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-es-1.11.2-4.1.i586.rpm",
             "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-es-1.11.2-4.4.i586.rpm",
         ),
         aspell_lang="es",
@@ -58,6 +63,7 @@ LANGUAGES: tuple[LanguageConfig, ...] = (
         short="fr",
         variant="fr_FR",
         aspell_urls=(
+            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-fr-0.50.3-4.1.i586.rpm",
             "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-fr-0.50.3-4.4.i586.rpm",
         ),
     ),
@@ -65,6 +71,7 @@ LANGUAGES: tuple[LanguageConfig, ...] = (
         short="hr",
         variant="hr_HR",
         aspell_urls=(
+            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-hr-0.51.0-4.1.i586.rpm",
             "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-hr-0.51.0-4.4.i586.rpm",
         ),
         aspell_lang="hr",
@@ -73,6 +80,7 @@ LANGUAGES: tuple[LanguageConfig, ...] = (
         short="pl",
         variant="pl_PL",
         aspell_urls=(
+            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-pl-0.60.2015.04.28-4.1.i586.rpm",
             "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-pl-0.60.2015.04.28-4.4.i586.rpm",
         ),
         aspell_lang="pl",
@@ -81,6 +89,7 @@ LANGUAGES: tuple[LanguageConfig, ...] = (
         short="pt",
         variant="pt_BR",
         aspell_urls=(
+            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-pt_BR-20131030.12.0-4.1.i586.rpm",
             "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-pt_BR-20131030.12.0-4.4.i586.rpm",
         ),
     ),
@@ -88,6 +97,7 @@ LANGUAGES: tuple[LanguageConfig, ...] = (
         short="sv",
         variant="sv_SE",
         aspell_urls=(
+            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-sv-0.51.0-4.1.i586.rpm",
             "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-sv-0.51.0-4.4.i586.rpm",
         ),
         aspell_lang="sv",
@@ -178,8 +188,14 @@ def has_ngram_db(lang: LanguageConfig) -> bool:
     return (ngram_dir / "ngrams.trie").is_file() and (ngram_dir / "ngrams.counts").is_file()
 
 
-def rebuild_ngram_db(lang: LanguageConfig) -> None:
-    run_python(REBUILD_NGRAM_PATH, ["-l", lang.short, "-v", lang.variant])
+def rebuild_ngram_db(
+    lang: LanguageConfig,
+    jobs: int,
+) -> None:
+    args = ["-l", lang.short, "-v", lang.variant]
+    if jobs > 0:
+        args.extend(["--jobs", str(jobs)])
+    run_python(REBUILD_NGRAM_PATH, args)
 
 
 def prepare_language(
@@ -219,13 +235,19 @@ def parse_languages(selected: Iterable[str]) -> list[LanguageConfig]:
     return output
 
 
-def build_libpresage(debug: bool, repack_only: bool) -> None:
+def build_libpresage(debug: bool, repack_only: bool, jobs: int) -> None:
     args: list[str] = []
     if repack_only:
         args.extend(["--package", "--link"])
     if debug:
         args.append("-d")
+    if jobs > 1:
+        args.extend(["--package-jobs", str(jobs)])
     run_python(REBUILD_LIBPRESAGE_PATH, args)
+
+
+def auto_jobs() -> int:
+    return max(1, os.cpu_count() or 1)
 
 
 def main() -> int:
@@ -272,8 +294,8 @@ def main() -> int:
     parser.add_argument(
         "--jobs",
         type=int,
-        default=1,
-        help="Number of parallel workers for language preparation (templates + dictionaries). Default: 1.",
+        default=0,
+        help="Global parallelism level used across rebuild phases. 0 = auto-detect.",
     )
 
     args = parser.parse_args()
@@ -282,14 +304,15 @@ def main() -> int:
     except ValueError as exc:
         parser.error(str(exc))
 
-    if args.jobs < 1:
-        print("--jobs must be >= 1", file=sys.stderr)
+    if args.jobs < 0:
+        print("--jobs must be >= 0", file=sys.stderr)
         return 2
+    effective_jobs = auto_jobs() if args.jobs == 0 else args.jobs
 
     create_resource_js()
 
     if not args.repack:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=args.jobs) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=effective_jobs) as executor:
             futures = [
                 executor.submit(
                     prepare_language,
@@ -309,7 +332,10 @@ def main() -> int:
                     print(f"Skipping n-gram rebuild for {lang.variant} (existing DB found)")
                     continue
                 print(f"=== Rebuilding n-gram DB for {lang.short} ({lang.variant}) ===")
-                rebuild_ngram_db(lang)
+                rebuild_ngram_db(
+                    lang,
+                    jobs=effective_jobs,
+                )
         else:
             print("Skipping n-gram rebuild step")
     else:
@@ -319,7 +345,11 @@ def main() -> int:
         print("Skipping libpresage step")
     else:
         print("=== Building libpresage ===")
-        build_libpresage(debug=args.debug, repack_only=args.repack)
+        build_libpresage(
+            debug=args.debug,
+            repack_only=args.repack,
+            jobs=effective_jobs,
+        )
 
     print("Rebuild completed.")
     return 0

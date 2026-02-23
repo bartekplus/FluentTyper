@@ -161,15 +161,17 @@ def main() -> int:
     parser.add_argument(
         "--jobs",
         type=int,
-        default=cpu_workers(),
-        help="Parallel workers for extract/filter/spellcheck stage",
+        default=0,
+        help="Global worker count for this script (extract/filter + n-gram generation). 0 = auto-detect.",
     )
     args = parser.parse_args()
 
     lang = args.lang
     lang_variant = args.variant
     max_files = max(1, args.max_files)
-    jobs = max(1, args.jobs)
+    if args.jobs < 0:
+        raise RuntimeError("--jobs must be >= 0")
+    jobs = cpu_workers() if args.jobs == 0 else max(1, args.jobs)
 
     if lang == "hr":
         print("Low quality HR dataset, skipping")
@@ -197,7 +199,17 @@ def main() -> int:
         merged_output = merge_outputs(work_dir, lang)
         gen_ngram_script = (SCRIPT_DIR / "gen_ngram.py").resolve()
         marisa_script = (SCRIPT_DIR / "ngramtxt2marisa.py").resolve()
-        run_cmd(["python3", str(gen_ngram_script), "-i", str(merged_output), "-l", lang])
+        gen_ngram_cmd = [
+            "python3",
+            str(gen_ngram_script),
+            "-i",
+            str(merged_output),
+            "-l",
+            lang,
+            "--processes",
+            str(jobs),
+        ]
+        run_cmd(gen_ngram_cmd)
         run_cmd(
             [
                 "python3",
@@ -211,8 +223,6 @@ def main() -> int:
         )
 
     print("✅ N-gram DB successfully generated.")
-    print("If you want to package it for extension use, run:")
-    print("  ./rebuild_libpresage.sh --package --link")
     run_cmd(["git", "lfs", "prune"], cwd=repo_dir)
     return 0
 

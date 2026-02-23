@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import os
 import re
 import shlex
@@ -258,6 +259,12 @@ def main() -> int:
     parser.add_argument("--package", action="store_true", help="Package data files")
     parser.add_argument("--link", action="store_true", help="Link output library")
     parser.add_argument("--all", action="store_true", help="Run all stages")
+    parser.add_argument(
+        "--package-jobs",
+        type=int,
+        default=1,
+        help="Number of parallel workers for resource packaging.",
+    )
     args = parser.parse_args()
 
     build_deps = args.deps
@@ -308,12 +315,27 @@ def main() -> int:
     if package_data or link_lib:
         file_packager = find_file_packager()
         resource_dirs = sorted(path for path in (PROJECT_ROOT / "resources_js").iterdir() if path.is_dir())
-        for resource_dir in resource_dirs:
-            if package_data:
-                print(f"Packaging data for {resource_dir.name}")
-                pre_js_files.append(package_resource_dir(file_packager, resource_dir, gen_dir))
+        if package_data:
+            package_jobs = max(1, args.package_jobs)
+            if package_jobs == 1:
+                for resource_dir in resource_dirs:
+                    print(f"Packaging data for {resource_dir.name}")
+                    pre_js_files.append(package_resource_dir(file_packager, resource_dir, gen_dir))
             else:
-                pre_js_files.append(gen_dir / f"{resource_dir.name}.js")
+                with concurrent.futures.ThreadPoolExecutor(max_workers=min(package_jobs, len(resource_dirs))) as executor:
+                    futures = {
+                        executor.submit(package_resource_dir, file_packager, resource_dir, gen_dir): resource_dir
+                        for resource_dir in resource_dirs
+                    }
+                    packaged: list[Path] = []
+                    for future in concurrent.futures.as_completed(futures):
+                        resource_dir = futures[future]
+                        print(f"Packaging data for {resource_dir.name}")
+                        packaged.append(future.result())
+                    # Keep deterministic link order.
+                    pre_js_files.extend(sorted(packaged, key=lambda p: p.name))
+        else:
+            pre_js_files.extend(gen_dir / f"{resource_dir.name}.js" for resource_dir in resource_dirs)
 
     if link_lib:
         link_library(debug=args.debug, pre_js_files=pre_js_files, gen_dir=gen_dir)
