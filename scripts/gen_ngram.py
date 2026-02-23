@@ -40,8 +40,21 @@ parser.add_argument(
 parser.add_argument(
     "-l", "--language", type=str, help="language of the sentences", required=True
 )
+parser.add_argument(
+    "--processes",
+    type=int,
+    default=0,
+    help="Number of worker processes. Default 0 = CPU count.",
+)
+parser.add_argument(
+    "--chunk-size",
+    type=int,
+    default=100000,
+    help="Input lines per chunk sent to worker processes.",
+)
 
 _replacements = {r"’": "'"}
+SKIPPED_CHARS = set('!"#$%&()*+,./:;<=>?@[\\]^_`{|}~')
 
 _replacements_dict = list((re.compile(p), r) for p, r in _replacements.items())
 
@@ -56,7 +69,6 @@ def filter_tokens(tokens_raw):
     tokens_array = []
     tokens = []
     for token in tokens_raw:
-        SKIPPED_CHARS = '!"#$%&()*+,./:;<=>?@[\\]^_`{|}~'
         split = False
         token_orig = token.strip()
         token = token.strip().lower()
@@ -69,7 +81,7 @@ def filter_tokens(tokens_raw):
             split = True
         elif token.isdigit():
             split = True
-        elif any([x in token for x in SKIPPED_CHARS]):
+        elif any((x in token) for x in SKIPPED_CHARS):
             split = True
         elif not token[0].isalpha():
             split = True
@@ -84,6 +96,29 @@ def filter_tokens(tokens_raw):
 
     tokens_array.append(tokens)
     return tokens_array
+
+
+def ensure_nltk_tokenizers():
+    required = (
+        ("punkt", "tokenizers/punkt"),
+        ("punkt_tab", "tokenizers/punkt_tab"),
+    )
+    for package_name, resource_path in required:
+        try:
+            nltk.data.find(resource_path)
+            continue
+        except LookupError:
+            pass
+
+        print(f"Missing NLTK resource '{package_name}', attempting download...")
+        nltk.download(package_name, quiet=True)
+        try:
+            nltk.data.find(resource_path)
+        except LookupError as exc:
+            raise RuntimeError(
+                f"Required NLTK resource '{package_name}' is not available. "
+                "Install it with: python3 -m nltk.downloader punkt punkt_tab"
+            ) from exc
 
 
 def process_chunk(language, chunk):
@@ -120,14 +155,16 @@ def process_chunk(language, chunk):
 if __name__ == "__main__":
     args = parser.parse_args()
 
-    # download tokenizer data
-    nltk.download("punkt")
-    nltk.download("punkt_tab")
+    try:
+        ensure_nltk_tokenizers()
+    except RuntimeError as exc:
+        print(exc)
+        raise SystemExit(1)
     # Determine number of processes
-    num_processes = multiprocessing.cpu_count()
+    num_processes = args.processes if args.processes > 0 else multiprocessing.cpu_count()
     print(f"Using {num_processes} processes for parallel processing.")
     # Define chunk size
-    chunk_size = 100000  # Adjust as needed based on memory/performanc
+    chunk_size = args.chunk_size
     # Initialize global counters
     final_ngram_counters = [Counter() for _ in range(NGRAM_COUNT)]
     base_path = os.path.splitext(args.inputfile.name)[0]

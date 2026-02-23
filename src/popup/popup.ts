@@ -139,7 +139,9 @@ async function addRemoveDomain(tabId: number, domainURL: string) {
     };
   }
   urlNode.innerHTML = `<span>${i18n.get("popup_enable_autocomplete_on")}</span>`;
-  urlNode.querySelector("span")!.appendChild(document.createTextNode(domainURL));
+  urlNode
+    .querySelector("span")!
+    .appendChild(document.createTextNode(domainURL));
   await blockUnBlockDomain(settings, domainURL, !checkboxNode.checked);
   chrome.tabs.sendMessage(tabId, message);
 }
