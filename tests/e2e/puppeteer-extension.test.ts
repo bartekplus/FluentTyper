@@ -13,6 +13,13 @@ import { SUPPORTED_PREDICTION_LANGUAGE_KEYS } from "../../src/shared/lang";
 const EXTENSION_PATH = path.resolve(__dirname, "../../build/");
 const TEST_PAGE_PATH = path.resolve(__dirname, "test-page.html");
 const SETTINGS_PREFIX = "store.settings.";
+const CKEDITOR_SELECTOR = ".ck-editor__editable";
+const TEST_INPUT_SELECTORS = [
+  "#test-textarea",
+  "#test-input",
+  "#test-contenteditable",
+  CKEDITOR_SELECTOR,
+] as const;
 
 async function setSetting(
   worker: WebWorker,
@@ -113,11 +120,56 @@ async function openOptionsPage(browser: Browser, worker: WebWorker) {
   return optionsPage;
 }
 
-async function gotoTestPage(page: Page) {
+function shouldEnableCkEditor(selector: string) {
+  return selector === CKEDITOR_SELECTOR;
+}
+
+async function gotoTestPage(
+  page: Page,
+  options: { enableCkEditor?: boolean } = {},
+) {
   const testName = expect.getState().currentTestName || "Unknown Test";
-  await page.goto(
-    `file://${TEST_PAGE_PATH}?testName=${encodeURIComponent(testName)}`,
-  );
+  const params = new URLSearchParams({ testName });
+  if (options.enableCkEditor) {
+    params.set("enableCkEditor", "1");
+  }
+  await page.goto(`file://${TEST_PAGE_PATH}?${params.toString()}`);
+}
+
+async function waitForInputReady(page: Page, selector: string) {
+  if (selector === CKEDITOR_SELECTOR) {
+    await page.waitForFunction(
+      () =>
+        Boolean(
+          (
+            window as typeof window & {
+              __testCkEditorReady?: boolean;
+              __testCkEditorError?: string | null;
+            }
+          ).__testCkEditorReady ||
+            (
+              window as typeof window & {
+                __testCkEditorError?: string | null;
+              }
+            ).__testCkEditorError,
+        ),
+      { timeout: 10000 },
+    );
+
+    const ckEditorError = await page.evaluate(
+      () =>
+        (
+          window as typeof window & {
+            __testCkEditorError?: string | null;
+          }
+        ).__testCkEditorError,
+    );
+    if (ckEditorError) {
+      throw new Error(`CKEditor failed to initialize: ${ckEditorError}`);
+    }
+  }
+
+  await page.waitForSelector(selector, { timeout: 10000 });
 }
 
 describe("Chrome Extension E2E Test", () => {
@@ -131,6 +183,7 @@ describe("Chrome Extension E2E Test", () => {
       args: [
         `--disable-extensions-except=${EXTENSION_PATH}`,
         `--load-extension=${EXTENSION_PATH}`,
+        "--allow-file-access-from-files",
       ],
       defaultViewport: null,
     });
@@ -187,12 +240,23 @@ describe("Chrome Extension E2E Test", () => {
     expect(popupPage).toBeDefined();
   }, 2000);
 
-  test.each([["#test-textarea"], ["#test-input"], ["#test-contenteditable"]])(
+  test("CKEditor 5 input initializes on test page", async () => {
+    await gotoTestPage(page, { enableCkEditor: true });
+    page.bringToFront();
+    await waitForInputReady(page, CKEDITOR_SELECTOR);
+
+    const ckEditorElement = await page.$(CKEDITOR_SELECTOR);
+    expect(ckEditorElement).toBeTruthy();
+  }, 15000);
+
+  test.each(TEST_INPUT_SELECTORS)(
     "Prediction popup appears in %s when typing and prediction is inserted on click",
     async (selector) => {
-      await gotoTestPage(page);
+      await gotoTestPage(page, {
+        enableCkEditor: shouldEnableCkEditor(selector),
+      });
       page.bringToFront();
-      await page.waitForSelector(selector);
+      await waitForInputReady(page, selector);
       const element = await page.$(selector);
       await element!.type("h"); // Type a few letters
       // Wait for prediction popup
@@ -220,15 +284,17 @@ describe("Chrome Extension E2E Test", () => {
       // Inserted text should match what was shown in the suggestion
       expect(elementText).toBe(firstLiText?.toLowerCase());
     },
-    1500,
+    30000,
   );
 
-  test.each([["#test-textarea"], ["#test-input"], ["#test-contenteditable"]])(
+  test.each(TEST_INPUT_SELECTORS)(
     "Prediction popup appears in %s when typing and prediction is inserted on TAB",
     async (selector) => {
-      await gotoTestPage(page);
+      await gotoTestPage(page, {
+        enableCkEditor: shouldEnableCkEditor(selector),
+      });
       page.bringToFront();
-      await page.waitForSelector(selector);
+      await waitForInputReady(page, selector);
       const element = await page.$(selector);
       await element!.type("w"); // Type a few letters
       // Wait for prediction popup
@@ -263,7 +329,7 @@ describe("Chrome Extension E2E Test", () => {
       // Inserted text should match the first suggestion
       expect(elementText).toBe(firstLiText?.toLowerCase());
     },
-    4000,
+    30000,
   );
 
   test("Cursor movement cancels missing space auto-insertion", async () => {
@@ -310,10 +376,12 @@ describe("Chrome Extension E2E Test", () => {
     expect(textAreaText).toBe(wordPart + "x\xa0");
   }, 1500);
 
-  test.each([["#test-textarea"], ["#test-input"], ["#test-contenteditable"]])(
+  test.each(TEST_INPUT_SELECTORS)(
     "Inline suggestion prediction is inserted on TAB in %s",
     async (selector) => {
-      await gotoTestPage(page);
+      await gotoTestPage(page, {
+        enableCkEditor: shouldEnableCkEditor(selector),
+      });
       page.bringToFront();
 
       await setSetting(worker!, KEY_INLINE_SUGGESTION, true);
@@ -322,7 +390,7 @@ describe("Chrome Extension E2E Test", () => {
       );
       await new Promise((r) => setTimeout(r, 50));
 
-      await page.waitForSelector(selector);
+      await waitForInputReady(page, selector);
       const element = await page.$(selector);
       await element!.type("w");
 
@@ -353,7 +421,7 @@ describe("Chrome Extension E2E Test", () => {
       );
       await new Promise((r) => setTimeout(r, 50));
     },
-    3000,
+    30000,
   );
 
   test("Enabled languages restrict popup language list", async () => {
@@ -706,10 +774,12 @@ describe("Chrome Extension E2E Test", () => {
     await new Promise((r) => setTimeout(r, 50));
   }, 12000);
 
-  test.each([["#test-textarea"], ["#test-input"], ["#test-contenteditable"]])(
+  test.each(TEST_INPUT_SELECTORS)(
     "Prediction popup can be closed via Escape key in %s",
     async (selector) => {
-      await gotoTestPage(page);
+      await gotoTestPage(page, {
+        enableCkEditor: shouldEnableCkEditor(selector),
+      });
       page.bringToFront();
 
       await setSetting(worker!, KEY_LANGUAGE, "en_US");
@@ -718,7 +788,7 @@ describe("Chrome Extension E2E Test", () => {
       );
       await new Promise((r) => setTimeout(r, 100));
 
-      await page.waitForSelector(selector);
+      await waitForInputReady(page, selector);
       const element = await page.$(selector);
 
       await element!.type("h"); // Trigger popup
@@ -739,13 +809,15 @@ describe("Chrome Extension E2E Test", () => {
         { timeout: 500 },
       );
     },
-    3000,
+    30000,
   );
 
-  test.each([["#test-textarea"], ["#test-input"], ["#test-contenteditable"]])(
+  test.each(TEST_INPUT_SELECTORS)(
     "Text expansion works correctly in %s",
     async (selector) => {
-      await gotoTestPage(page);
+      await gotoTestPage(page, {
+        enableCkEditor: shouldEnableCkEditor(selector),
+      });
       page.bringToFront();
 
       await setSetting(worker!, KEY_ENABLED_LANGUAGES, ["textExpander"]);
@@ -755,7 +827,7 @@ describe("Chrome Extension E2E Test", () => {
       );
       await new Promise((r) => setTimeout(r, 100));
 
-      await page.waitForSelector(selector);
+      await waitForInputReady(page, selector);
       const element = await page.$(selector);
       await element!.type("asap"); // Trigger text expansion
 
@@ -794,10 +866,10 @@ describe("Chrome Extension E2E Test", () => {
       );
       await new Promise((r) => setTimeout(r, 100));
     },
-    3000,
+    30000,
   );
 
-  test.each([["#test-textarea"], ["#test-input"], ["#test-contenteditable"]])(
+  test.each(TEST_INPUT_SELECTORS)(
     "KEY_MIN_WORD_LENGTH_TO_PREDICT set to 0 predicts immediately after space in %s",
     async (selector) => {
       // Set settings BEFORE creating the page so content script initializes correctly
@@ -810,10 +882,12 @@ describe("Chrome Extension E2E Test", () => {
       );
       await notifyConfigChange(browser, worker!);
 
-      await gotoTestPage(page);
+      await gotoTestPage(page, {
+        enableCkEditor: shouldEnableCkEditor(selector),
+      });
       page.bringToFront();
 
-      await page.waitForSelector(selector);
+      await waitForInputReady(page, selector);
       const element = await page.$(selector);
 
       // Step 1: Type "a" and confirm predictions appear
@@ -834,10 +908,10 @@ describe("Chrome Extension E2E Test", () => {
       await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
       await notifyConfigChange(browser, worker!);
     },
-    5000,
+    30000,
   );
 
-  test.each([["#test-textarea"], ["#test-input"], ["#test-contenteditable"]])(
+  test.each(TEST_INPUT_SELECTORS)(
     "KEY_MIN_WORD_LENGTH_TO_PREDICT set to -1 does not predict automatically in %s",
     async (selector) => {
       // Reset and set settings BEFORE creating the page
@@ -849,10 +923,12 @@ describe("Chrome Extension E2E Test", () => {
         SUPPORTED_PREDICTION_LANGUAGE_KEYS,
       );
       await notifyConfigChange(browser, worker!);
-      await gotoTestPage(page);
+      await gotoTestPage(page, {
+        enableCkEditor: shouldEnableCkEditor(selector),
+      });
       page.bringToFront();
 
-      await page.waitForSelector(selector);
+      await waitForInputReady(page, selector);
       const element = await page.$(selector);
 
       // Type something
@@ -870,6 +946,6 @@ describe("Chrome Extension E2E Test", () => {
       await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
       await notifyConfigChange(browser, worker!);
     },
-    3000,
+    30000,
   );
 });

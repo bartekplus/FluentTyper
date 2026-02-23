@@ -89,6 +89,10 @@
         min-height: 80px;
         cursor: text;
       }
+
+      .ck-editor__editable {
+        min-height: 80px;
+      }
     </style>
   </head>
 
@@ -108,12 +112,57 @@
         <label for="test-contenteditable">Content Editable Div</label>
         <div contenteditable="true" id="test-contenteditable"></div>
       </div>
+      <div class="input-group" id="test-ckeditor-group">
+        <label for="test-ckeditor">CKEditor 5</label>
+        <textarea id="test-ckeditor" rows="4"></textarea>
+      </div>
     </div>
     <script>
       const params = new URLSearchParams(window.location.search);
       const testName = params.get("testName");
+      const enableCkEditor = params.get("enableCkEditor") === "1";
       if (testName) {
         document.getElementById("test-name").textContent = testName;
+      }
+
+      window.__testCkEditorReady = false;
+      window.__testCkEditorError = null;
+      const ckEditorGroup = document.getElementById("test-ckeditor-group");
+      if (!enableCkEditor) {
+        ckEditorGroup.style.display = "none";
+      } else {
+        const script = document.createElement("script");
+        script.src =
+          "../../node_modules/@ckeditor/ckeditor5-build-classic/build/ckeditor.js";
+        script.onload = () => {
+          if (!window.ClassicEditor) {
+            window.__testCkEditorError = "ClassicEditor global is unavailable";
+            return;
+          }
+
+          window.ClassicEditor.create(
+            document.getElementById("test-ckeditor"),
+            {
+              licenseKey: "GPL",
+            },
+          )
+            .then((editor) => {
+              editor.ui.view.editable.element.id = "test-ckeditor-editable";
+              window.__testCkEditorReady = true;
+              window.__testCkEditor = editor;
+            })
+            .catch((error) => {
+              window.__testCkEditorError = error?.message || String(error);
+              console.error(
+                "CKEditor initialization failed in e2e test page.",
+                error,
+              );
+            });
+        };
+        script.onerror = () => {
+          window.__testCkEditorError = "Failed to load CKEditor script";
+        };
+        document.head.appendChild(script);
       }
     </script>
   </body>
