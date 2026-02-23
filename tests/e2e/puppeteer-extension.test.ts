@@ -92,6 +92,17 @@ describe("Chrome Extension E2E Test", () => {
     worker = (await serviceWorkerTarget.worker())!;
   }, 20000);
 
+  beforeEach(async () => {
+    page = await browser.newPage();
+    await page.bringToFront();
+  });
+
+  afterEach(async () => {
+    if (!page.isClosed()) {
+      await page.close();
+    }
+  });
+
   afterAll(async () => {
     await browser.close();
   });
@@ -162,7 +173,6 @@ describe("Chrome Extension E2E Test", () => {
   test.each([["#test-textarea"], ["#test-input"], ["#test-contenteditable"]])(
     "Prediction popup appears in %s when typing and prediction is inserted on TAB",
     async (selector) => {
-      page = await browser.newPage();
       await gotoTestPage(page);
       page.bringToFront();
       await page.waitForSelector(selector);
@@ -204,7 +214,6 @@ describe("Chrome Extension E2E Test", () => {
   );
 
   test("Cursor movement cancels missing space auto-insertion", async () => {
-    page = await browser.newPage();
     await gotoTestPage(page);
     page.bringToFront();
     await page.waitForSelector("#test-textarea");
@@ -251,7 +260,6 @@ describe("Chrome Extension E2E Test", () => {
   test.each([["#test-textarea"], ["#test-input"], ["#test-contenteditable"]])(
     "Inline suggestion prediction is inserted on TAB in %s",
     async (selector) => {
-      page = await browser.newPage();
       await gotoTestPage(page);
       page.bringToFront();
 
@@ -371,7 +379,6 @@ describe("Chrome Extension E2E Test", () => {
   }, 2000);
 
   test("Auto detect in popup detects language and predicts", async () => {
-    page = await browser.newPage();
     await gotoTestPage(page);
     page.bringToFront();
     await page.waitForSelector("#test-textarea");
@@ -401,9 +408,9 @@ describe("Chrome Extension E2E Test", () => {
     await textarea!.click();
     await page.evaluate(
       () =>
-        ((
-          document.querySelector("#test-textarea") as HTMLTextAreaElement
-        ).value = ""),
+      ((
+        document.querySelector("#test-textarea") as HTMLTextAreaElement
+      ).value = ""),
     );
     await textarea!.type("φιλο");
     await new Promise((r) => setTimeout(r, 50));
@@ -437,7 +444,6 @@ describe("Chrome Extension E2E Test", () => {
   };
 
   test("Prediction works for all supported languages", async () => {
-    page = await browser.newPage();
     await gotoTestPage(page);
     page.bringToFront();
     await page.waitForSelector("#test-textarea");
@@ -467,9 +473,9 @@ describe("Chrome Extension E2E Test", () => {
       // Ensure textarea is focused and clear
       await page.evaluate(
         () =>
-          ((
-            document.querySelector("#test-textarea") as HTMLTextAreaElement
-          ).value = ""),
+        ((
+          document.querySelector("#test-textarea") as HTMLTextAreaElement
+        ).value = ""),
       );
       await textarea!.type(testData.input);
       // Wait for predictions to update after typing
@@ -500,9 +506,9 @@ describe("Chrome Extension E2E Test", () => {
       // Cleanup for next iteration
       await page.evaluate(
         () =>
-          ((
-            document.querySelector("#test-textarea") as HTMLTextAreaElement
-          ).value = ""),
+        ((
+          document.querySelector("#test-textarea") as HTMLTextAreaElement
+        ).value = ""),
       );
       // Wait for predictions to disappear
       await new Promise((r) => setTimeout(r, 50));
@@ -523,53 +529,53 @@ describe("Chrome Extension E2E Test", () => {
       expected: string;
       popupExpected: string;
     }[] = [
-      {
-        locale: "en_US",
-        expected: "Extension UI Language",
-        popupExpected: "Advanced Options",
-      },
-      {
-        locale: "fr_FR",
-        expected: "Langue de l'interface",
-        popupExpected: "Options avancées",
-      },
-      {
-        locale: "hr_HR",
-        expected: "Jezik su\u010Delja pro\u0161irenja",
-        popupExpected: "Napredne opcije",
-      },
-      {
-        locale: "es_ES",
-        expected: "Idioma de la interfaz",
-        popupExpected: "Opciones avanzadas",
-      },
-      {
-        locale: "el_GR",
-        expected:
-          "\u0393\u03BB\u03CE\u03C3\u03C3\u03B1 \u03B4\u03B9\u03B5\u03C0\u03B1\u03C6\u03AE\u03C2 \u03B5\u03C0\u03AD\u03BA\u03C4\u03B1\u03C3\u03B7\u03C2",
-        popupExpected: "Επιλογές για προχωρημένους",
-      },
-      {
-        locale: "sv_SE",
-        expected: "Till\u00E4ggets gr\u00E4nssnittsspr\u00E5k",
-        popupExpected: "Avancerade alternativ",
-      },
-      {
-        locale: "de_DE",
-        expected: "Sprache der Erweiterungsoberfl\u00E4che",
-        popupExpected: "Erweiterte Optionen",
-      },
-      {
-        locale: "pl_PL",
-        expected: "J\u0119zyk interfejsu rozszerzenia",
-        popupExpected: "Zaawansowane opcje",
-      },
-      {
-        locale: "pt_BR",
-        expected: "Idioma da interface da extens\u00E3o",
-        popupExpected: "Opções avançadas",
-      },
-    ];
+        {
+          locale: "en_US",
+          expected: "Extension UI Language",
+          popupExpected: "Advanced Options",
+        },
+        {
+          locale: "fr_FR",
+          expected: "Langue de l'interface",
+          popupExpected: "Options avancées",
+        },
+        {
+          locale: "hr_HR",
+          expected: "Jezik su\u010Delja pro\u0161irenja",
+          popupExpected: "Napredne opcije",
+        },
+        {
+          locale: "es_ES",
+          expected: "Idioma de la interfaz",
+          popupExpected: "Opciones avanzadas",
+        },
+        {
+          locale: "el_GR",
+          expected:
+            "\u0393\u03BB\u03CE\u03C3\u03C3\u03B1 \u03B4\u03B9\u03B5\u03C0\u03B1\u03C6\u03AE\u03C2 \u03B5\u03C0\u03AD\u03BA\u03C4\u03B1\u03C3\u03B7\u03C2",
+          popupExpected: "Επιλογές για προχωρημένους",
+        },
+        {
+          locale: "sv_SE",
+          expected: "Till\u00E4ggets gr\u00E4nssnittsspr\u00E5k",
+          popupExpected: "Avancerade alternativ",
+        },
+        {
+          locale: "de_DE",
+          expected: "Sprache der Erweiterungsoberfl\u00E4che",
+          popupExpected: "Erweiterte Optionen",
+        },
+        {
+          locale: "pl_PL",
+          expected: "J\u0119zyk interfejsu rozszerzenia",
+          popupExpected: "Zaawansowane opcje",
+        },
+        {
+          locale: "pt_BR",
+          expected: "Idioma da interface da extens\u00E3o",
+          popupExpected: "Opções avançadas",
+        },
+      ];
 
     for (const { locale, expected, popupExpected } of TEST_LANGS) {
       // 1. Set the extension language in chrome.storage.local
@@ -650,7 +656,6 @@ describe("Chrome Extension E2E Test", () => {
   test.each([["#test-textarea"], ["#test-input"], ["#test-contenteditable"]])(
     "Prediction popup can be closed via Escape key in %s",
     async (selector) => {
-      page = await browser.newPage();
       await gotoTestPage(page);
       page.bringToFront();
 
@@ -687,7 +692,6 @@ describe("Chrome Extension E2E Test", () => {
   test.each([["#test-textarea"], ["#test-input"], ["#test-contenteditable"]])(
     "Text expansion works correctly in %s",
     async (selector) => {
-      page = await browser.newPage();
       await gotoTestPage(page);
       page.bringToFront();
 
@@ -756,7 +760,6 @@ describe("Chrome Extension E2E Test", () => {
       );
       await new Promise((r) => setTimeout(r, 200));
 
-      page = await browser.newPage();
       await gotoTestPage(page);
       page.bringToFront();
 
@@ -802,8 +805,6 @@ describe("Chrome Extension E2E Test", () => {
         "chrome.runtime.sendMessage({command: 'CMD_OPTIONS_PAGE_CONFIG_CHANGE', context: {}});",
       );
       await new Promise((r) => setTimeout(r, 200));
-
-      page = await browser.newPage();
       await gotoTestPage(page);
       page.bringToFront();
 
