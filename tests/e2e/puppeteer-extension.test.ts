@@ -42,29 +42,30 @@ async function setSetting(
       await worker.evaluate(
         (storageKeyInner, valueInner) =>
           new Promise<void>((resolve, reject) => {
-            const storage =
-              (
-                globalThis as typeof globalThis & {
-                  chrome?: typeof chrome;
-                }
-              ).chrome?.storage?.local;
+            const storage = (
+              globalThis as typeof globalThis & {
+                chrome?: typeof chrome;
+              }
+            ).chrome?.storage?.local;
             if (!storage) {
               reject(new Error("chrome.storage.local is unavailable"));
               return;
             }
-            storage.set({ [storageKeyInner]: JSON.stringify(valueInner) }, () => {
-              const runtime =
-                (
+            storage.set(
+              { [storageKeyInner]: JSON.stringify(valueInner) },
+              () => {
+                const runtime = (
                   globalThis as typeof globalThis & {
                     chrome?: typeof chrome;
                   }
                 ).chrome?.runtime;
-              if (runtime?.lastError) {
-                reject(new Error(runtime.lastError.message));
-                return;
-              }
-              resolve();
-            });
+                if (runtime?.lastError) {
+                  reject(new Error(runtime.lastError.message));
+                  return;
+                }
+                resolve();
+              },
+            );
           }),
         storageKey,
         value,
@@ -92,23 +93,21 @@ async function getSetting<T>(
       return (await worker.evaluate(
         (storageKeyInner) =>
           new Promise((resolve, reject) => {
-            const storage =
-              (
-                globalThis as typeof globalThis & {
-                  chrome?: typeof chrome;
-                }
-              ).chrome?.storage?.local;
+            const storage = (
+              globalThis as typeof globalThis & {
+                chrome?: typeof chrome;
+              }
+            ).chrome?.storage?.local;
             if (!storage) {
               reject(new Error("chrome.storage.local is unavailable"));
               return;
             }
             storage.get(storageKeyInner, (result) => {
-              const runtime =
-                (
-                  globalThis as typeof globalThis & {
-                    chrome?: typeof chrome;
-                  }
-                ).chrome?.runtime;
+              const runtime = (
+                globalThis as typeof globalThis & {
+                  chrome?: typeof chrome;
+                }
+              ).chrome?.runtime;
               if (runtime?.lastError) {
                 reject(new Error(runtime.lastError.message));
                 return;
@@ -158,7 +157,9 @@ async function notifyConfigChange(
   const extensionId = worker.url().split("/")[2];
   const extensionPage = await browser.newPage();
   try {
-    await extensionPage.goto(`chrome-extension://${extensionId}/popup/popup.html`);
+    await extensionPage.goto(
+      `chrome-extension://${extensionId}/popup/popup.html`,
+    );
     await extensionPage.evaluate(
       () =>
         new Promise<void>((resolve, reject) => {
@@ -223,11 +224,11 @@ async function waitForInputReady(page: Page, selector: string) {
               __testCkEditorError?: string | null;
             }
           ).__testCkEditorReady ||
-            (
-              window as typeof window & {
-                __testCkEditorError?: string | null;
-              }
-            ).__testCkEditorError,
+          (
+            window as typeof window & {
+              __testCkEditorError?: string | null;
+            }
+          ).__testCkEditorError,
         ),
       { timeout: 10000 },
     );
@@ -399,7 +400,9 @@ describe("Chrome Extension E2E Test", () => {
 
     domainTestServer = createServer((_req, res) => {
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-      res.end("<!doctype html><html><body><p>domain test page</p></body></html>");
+      res.end(
+        "<!doctype html><html><body><p>domain test page</p></body></html>",
+      );
     });
     await new Promise<void>((resolve, reject) => {
       domainTestServer.once("error", reject);
@@ -815,9 +818,9 @@ describe("Chrome Extension E2E Test", () => {
     await textarea!.click();
     await page.evaluate(
       () =>
-      ((
-        document.querySelector("#test-textarea") as HTMLTextAreaElement
-      ).value = ""),
+        ((
+          document.querySelector("#test-textarea") as HTMLTextAreaElement
+        ).value = ""),
     );
     await textarea!.type("φιλο");
     await new Promise((r) => setTimeout(r, 50));
@@ -880,9 +883,9 @@ describe("Chrome Extension E2E Test", () => {
       // Ensure textarea is focused and clear
       await page.evaluate(
         () =>
-        ((
-          document.querySelector("#test-textarea") as HTMLTextAreaElement
-        ).value = ""),
+          ((
+            document.querySelector("#test-textarea") as HTMLTextAreaElement
+          ).value = ""),
       );
       await textarea!.type(testData.input);
       // Wait for predictions to update after typing
@@ -913,9 +916,9 @@ describe("Chrome Extension E2E Test", () => {
       // Cleanup for next iteration
       await page.evaluate(
         () =>
-        ((
-          document.querySelector("#test-textarea") as HTMLTextAreaElement
-        ).value = ""),
+          ((
+            document.querySelector("#test-textarea") as HTMLTextAreaElement
+          ).value = ""),
       );
       // Wait for predictions to disappear
       await new Promise((r) => setTimeout(r, 50));
@@ -936,53 +939,53 @@ describe("Chrome Extension E2E Test", () => {
       expected: string;
       popupExpected: string;
     }[] = [
-        {
-          locale: "en_US",
-          expected: "Extension UI Language",
-          popupExpected: "Advanced Options",
-        },
-        {
-          locale: "fr_FR",
-          expected: "Langue de l'interface",
-          popupExpected: "Options avancées",
-        },
-        {
-          locale: "hr_HR",
-          expected: "Jezik su\u010Delja pro\u0161irenja",
-          popupExpected: "Napredne opcije",
-        },
-        {
-          locale: "es_ES",
-          expected: "Idioma de la interfaz",
-          popupExpected: "Opciones avanzadas",
-        },
-        {
-          locale: "el_GR",
-          expected:
-            "\u0393\u03BB\u03CE\u03C3\u03C3\u03B1 \u03B4\u03B9\u03B5\u03C0\u03B1\u03C6\u03AE\u03C2 \u03B5\u03C0\u03AD\u03BA\u03C4\u03B1\u03C3\u03B7\u03C2",
-          popupExpected: "Επιλογές για προχωρημένους",
-        },
-        {
-          locale: "sv_SE",
-          expected: "Till\u00E4ggets gr\u00E4nssnittsspr\u00E5k",
-          popupExpected: "Avancerade alternativ",
-        },
-        {
-          locale: "de_DE",
-          expected: "Sprache der Erweiterungsoberfl\u00E4che",
-          popupExpected: "Erweiterte Optionen",
-        },
-        {
-          locale: "pl_PL",
-          expected: "J\u0119zyk interfejsu rozszerzenia",
-          popupExpected: "Zaawansowane opcje",
-        },
-        {
-          locale: "pt_BR",
-          expected: "Idioma da interface da extens\u00E3o",
-          popupExpected: "Opções avançadas",
-        },
-      ];
+      {
+        locale: "en_US",
+        expected: "Extension UI Language",
+        popupExpected: "Advanced Options",
+      },
+      {
+        locale: "fr_FR",
+        expected: "Langue de l'interface",
+        popupExpected: "Options avancées",
+      },
+      {
+        locale: "hr_HR",
+        expected: "Jezik su\u010Delja pro\u0161irenja",
+        popupExpected: "Napredne opcije",
+      },
+      {
+        locale: "es_ES",
+        expected: "Idioma de la interfaz",
+        popupExpected: "Opciones avanzadas",
+      },
+      {
+        locale: "el_GR",
+        expected:
+          "\u0393\u03BB\u03CE\u03C3\u03C3\u03B1 \u03B4\u03B9\u03B5\u03C0\u03B1\u03C6\u03AE\u03C2 \u03B5\u03C0\u03AD\u03BA\u03C4\u03B1\u03C3\u03B7\u03C2",
+        popupExpected: "Επιλογές για προχωρημένους",
+      },
+      {
+        locale: "sv_SE",
+        expected: "Till\u00E4ggets gr\u00E4nssnittsspr\u00E5k",
+        popupExpected: "Avancerade alternativ",
+      },
+      {
+        locale: "de_DE",
+        expected: "Sprache der Erweiterungsoberfl\u00E4che",
+        popupExpected: "Erweiterte Optionen",
+      },
+      {
+        locale: "pl_PL",
+        expected: "J\u0119zyk interfejsu rozszerzenia",
+        popupExpected: "Zaawansowane opcje",
+      },
+      {
+        locale: "pt_BR",
+        expected: "Idioma da interface da extens\u00E3o",
+        popupExpected: "Opções avançadas",
+      },
+    ];
 
     for (const { locale, expected, popupExpected } of TEST_LANGS) {
       // 1. Set the extension language in chrome.storage.local

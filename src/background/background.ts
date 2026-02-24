@@ -300,11 +300,9 @@ function onInstalled(details: chrome.runtime.InstalledDetails) {
   } else if (details.reason === "update") {
     const thisVersion = chrome.runtime.getManifest().version;
     console.log(`Updated from ${details.previousVersion} to ${thisVersion}!`);
-    try {
-      migrateToLocalStore(details.previousVersion);
-    } catch (error) {
+    migrateToLocalStore(details.previousVersion).catch((error) => {
       logError("migrateToLocalStore", error);
-    }
+    });
   }
 }
 
