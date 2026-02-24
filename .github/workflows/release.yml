@@ -6,16 +6,16 @@ on:
 
 name: Upload Release Asset
 
+permissions:
+  contents: write
+
 jobs:
   create_release:
     name: Create release
     runs-on: ubuntu-latest
-    outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
     steps:
     - name: Create Release
-      id: create_release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
@@ -32,15 +32,15 @@ jobs:
         browser: ["edge", "chrome", "firefox"]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           lfs: true
       - name: Branch name
         id: branch_name
         run: |
-          echo ::set-output name=SOURCE_NAME::${GITHUB_REF#refs/*/}
-          echo ::set-output name=SOURCE_BRANCH::${GITHUB_REF#refs/heads/}
-          echo ::set-output name=SOURCE_TAG::${GITHUB_REF#refs/tags/v}
+          echo "SOURCE_NAME=${GITHUB_REF#refs/*/}" >> "$GITHUB_OUTPUT"
+          echo "SOURCE_BRANCH=${GITHUB_REF#refs/heads/}" >> "$GITHUB_OUTPUT"
+          echo "SOURCE_TAG=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
       - name: Set env
         run: |
           echo $SOURCE_NAME
@@ -64,17 +64,12 @@ jobs:
         env:
           SOURCE_TAG: ${{ steps.branch_name.outputs.SOURCE_TAG }}
       - name: Zip Release
-        uses: TheDoctor0/zip-release@master
-        with:
-          filename: 'FluentTyper_${{ matrix.browser }}.zip'
-          directory: '${{ matrix.browser }}'
+        run: |
+          cd ${{ matrix.browser }}
+          zip -r ../FluentTyper_${{ matrix.browser }}.zip .
       - name: Upload Release Asset
-        id: upload-release-asset
-        uses: actions/upload-release-asset@v1
+        uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ needs.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
-          asset_path: ./${{ matrix.browser }}/FluentTyper_${{ matrix.browser }}.zip
-          asset_name: FluentTyper_${{ matrix.browser }}.zip
-          asset_content_type: application/zip
+          files: ./FluentTyper_${{ matrix.browser }}.zip
