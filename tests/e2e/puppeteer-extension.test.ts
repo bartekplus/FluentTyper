@@ -20,6 +20,7 @@ const TEST_INPUT_SELECTORS = [
   "#test-contenteditable",
   CKEDITOR_SELECTOR,
 ] as const;
+const IS_CI = process.env.CI === "true" || process.env.CI === "1";
 
 async function setSetting(
   worker: WebWorker,
@@ -178,13 +179,22 @@ describe("Chrome Extension E2E Test", () => {
   let worker: WebWorker;
 
   beforeAll(async () => {
+    const launchArgs = [
+      `--disable-extensions-except=${EXTENSION_PATH}`,
+      `--load-extension=${EXTENSION_PATH}`,
+      "--allow-file-access-from-files",
+    ];
+    if (IS_CI) {
+      launchArgs.push(
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+      );
+    }
+
     browser = await puppeteer.launch({
-      headless: false, // Extension UI cannot be tested in headless mode
-      args: [
-        `--disable-extensions-except=${EXTENSION_PATH}`,
-        `--load-extension=${EXTENSION_PATH}`,
-        "--allow-file-access-from-files",
-      ],
+      headless: IS_CI,
+      args: launchArgs,
       defaultViewport: null,
     });
     const pages = await browser.pages();
@@ -891,18 +901,33 @@ describe("Chrome Extension E2E Test", () => {
       const element = await page.$(selector);
 
       // Step 1: Type "a" and confirm predictions appear
-      await element!.type("a");
+      if (selector === "#test-contenteditable") {
+        await page.click(selector);
+        await page.keyboard.type("a");
+      } else {
+        await element!.type("a");
+      }
       await page.waitForSelector(".tribute-container li", { timeout: 2000 });
       const predictionsAfterLetter = await page.$$(".tribute-container li");
       expect(predictionsAfterLetter.length).toBeGreaterThan(0);
 
       // Step 2: Type space — with MIN_WORD_LENGTH=0, predictions should reappear
       // (next-word prediction after separator char)
-      await element!.type(" ");
+      if (selector === "#test-contenteditable") {
+        await page.click(selector);
+        await page.keyboard.type(" ");
+      } else {
+        await element!.type(" ");
+      }
       await new Promise((r) => setTimeout(r, 200));
-      await page.waitForSelector(".tribute-container li", { timeout: 2000 });
-      const predictionsAfterSpace = await page.$$(".tribute-container li");
-      expect(predictionsAfterSpace.length).toBeGreaterThan(0);
+      const predictionsAfterSpaceHandle = await page.waitForFunction(
+        () => document.querySelectorAll(".tribute-container li").length,
+        { timeout: 4000 },
+      );
+      const predictionsAfterSpace =
+        (await predictionsAfterSpaceHandle.jsonValue()) as number;
+      await predictionsAfterSpaceHandle.dispose();
+      expect(predictionsAfterSpace).toBeGreaterThan(0);
 
       // Cleanup
       await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
