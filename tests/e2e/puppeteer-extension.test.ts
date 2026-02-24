@@ -255,32 +255,108 @@ async function waitForVisibleSuggestions(
   page: Page,
   timeoutMs = 8000,
 ): Promise<number> {
+  const suggestions = await waitForVisibleSuggestionTexts(page, timeoutMs);
+  return suggestions.length;
+}
+
+async function waitForVisibleSuggestionTexts(
+  page: Page,
+  timeoutMs = 8000,
+): Promise<string[]> {
   const countHandle = await page.waitForFunction(
     () => {
-      const containers = Array.from(
-        document.querySelectorAll(".tribute-container"),
-      );
+      const activeElement = document.activeElement as
+        | (HTMLElement & { tributeMenu?: Element | null })
+        | null;
+      const activeMenu = activeElement?.tributeMenu;
+      const containers = [
+        ...(activeMenu instanceof Element ? [activeMenu] : []),
+        ...Array.from(document.querySelectorAll(".tribute-container")).filter(
+          (container) => container !== activeMenu,
+        ),
+      ];
       for (const container of containers) {
         const style = window.getComputedStyle(container);
         if (
           style.display === "none" ||
           style.visibility === "hidden" ||
-          style.opacity === "0"
+          style.opacity === "0" ||
+          container.getClientRects().length === 0
         ) {
           continue;
         }
-        const count = container.querySelectorAll("li").length;
-        if (count > 0) {
-          return count;
+        const texts = Array.from(container.querySelectorAll("li"))
+          .map((li) => li.textContent ?? "")
+          .filter((text) => text.length > 0);
+        if (texts.length > 0) {
+          return texts;
         }
       }
-      return 0;
+      return null;
     },
     { timeout: timeoutMs },
   );
-  const count = (await countHandle.jsonValue()) as number;
+  const texts = (await countHandle.jsonValue()) as string[] | null;
   await countHandle.dispose();
-  return count;
+  return texts ?? [];
+}
+
+async function clickFirstVisibleSuggestion(
+  page: Page,
+  timeoutMs = 8000,
+): Promise<void> {
+  await page.waitForFunction(
+    () => {
+      const activeElement = document.activeElement as
+        | (HTMLElement & { tributeMenu?: Element | null })
+        | null;
+      const activeMenu = activeElement?.tributeMenu;
+      const containers = [
+        ...(activeMenu instanceof Element ? [activeMenu] : []),
+        ...Array.from(document.querySelectorAll(".tribute-container")).filter(
+          (container) => container !== activeMenu,
+        ),
+      ];
+      for (const container of containers) {
+        const style = window.getComputedStyle(container);
+        if (
+          style.display === "none" ||
+          style.visibility === "hidden" ||
+          style.opacity === "0" ||
+          container.getClientRects().length === 0
+        ) {
+          continue;
+        }
+        const first = container.querySelector("li:first-child");
+        if (first instanceof HTMLElement) {
+          first.dispatchEvent(
+            new MouseEvent("mousedown", {
+              bubbles: true,
+              cancelable: true,
+              view: window,
+            }),
+          );
+          first.dispatchEvent(
+            new MouseEvent("mouseup", {
+              bubbles: true,
+              cancelable: true,
+              view: window,
+            }),
+          );
+          first.dispatchEvent(
+            new MouseEvent("click", {
+              bubbles: true,
+              cancelable: true,
+              view: window,
+            }),
+          );
+          return true;
+        }
+      }
+      return false;
+    },
+    { timeout: timeoutMs },
+  );
 }
 
 describe("Chrome Extension E2E Test", () => {
@@ -394,14 +470,18 @@ describe("Chrome Extension E2E Test", () => {
       expect(liCount).toBeGreaterThan(0);
 
       // Check that first suggestion starts with typed prefix and ends with \xa0
-      const firstLiText = await page.$eval(
-        ".tribute-container li:first-child",
-        (li) => li.textContent,
-      );
+      const [firstLiText] = await waitForVisibleSuggestionTexts(page);
       expect(firstLiText?.toLowerCase()).toMatch(/^h\S*\xa0$/);
 
       // Click on the first suggestion
-      await page.click(".tribute-container li:first-child");
+      await clickFirstVisibleSuggestion(page);
+      await page.waitForFunction(
+        (sel) =>
+          ((document.querySelector(sel) as HTMLInputElement).value ??
+            document.querySelector(sel)?.textContent) !== "h",
+        {},
+        selector,
+      );
       const elementText = await page.$eval(
         selector,
         (el) => (el as HTMLInputElement).value ?? el.textContent,
@@ -437,10 +517,7 @@ describe("Chrome Extension E2E Test", () => {
       expect(liCount).toBeGreaterThan(0);
 
       // Check that first suggestion starts with typed prefix and ends with \xa0
-      const firstLiText = await page.$eval(
-        ".tribute-container li:first-child",
-        (li) => li.textContent,
-      );
+      const [firstLiText] = await waitForVisibleSuggestionTexts(page);
       expect(firstLiText?.toLowerCase()).toMatch(/^w\S*\xa0$/);
 
       await page.keyboard.press("Tab");
@@ -962,10 +1039,7 @@ describe("Chrome Extension E2E Test", () => {
       await element!.type("asap"); // Trigger text expansion
 
       await page.waitForSelector(".tribute-container li");
-      const firstLiText = await page.$eval(
-        ".tribute-container li:first-child",
-        (li) => li.textContent,
-      );
+      const [firstLiText] = await waitForVisibleSuggestionTexts(page);
       expect(firstLiText?.toLowerCase()).toBe("as soon as possible\xa0");
 
       await page.keyboard.press("Tab");
