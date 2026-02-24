@@ -301,17 +301,17 @@ window.addEventListener("DOMContentLoaded", function () {
           // Convert object to a JSON.
           const result = JSON.stringify(items);
           const blob = new Blob([result], { type: "application/json" });
+          const exportFilename = "FluentTyperSettings.json";
           const dlink = document.createElement("a");
-          dlink.download = name;
           dlink.href = window.URL.createObjectURL(blob);
-          (dlink.download = "FluentTyperSettings.json"),
-            (dlink.onclick = function () {
-              // revokeObjectURL needs a delay to work properly
-              const that = this;
-              setTimeout(function () {
-                window.URL.revokeObjectURL(that.href);
-              }, 1500);
-            });
+          dlink.download = exportFilename;
+          dlink.onclick = function () {
+            // revokeObjectURL needs a delay to work properly
+            const that = this;
+            setTimeout(function () {
+              window.URL.revokeObjectURL(that.href);
+            }, 1500);
+          };
 
           dlink.click();
           dlink.remove();
