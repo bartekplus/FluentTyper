@@ -175,7 +175,92 @@ async function waitForInputReady(page: Page, selector: string) {
 
 async function clickAndType(page: Page, selector: string, text: string) {
   await page.click(selector);
+  await page.evaluate((targetSelector) => {
+    const target = document.querySelector(targetSelector) as HTMLElement | null;
+    if (!target) {
+      return;
+    }
+    target.focus();
+    if (!target.isContentEditable) {
+      return;
+    }
+
+    const selection = window.getSelection();
+    if (!selection) {
+      return;
+    }
+
+    const range = document.createRange();
+    range.selectNodeContents(target);
+    range.collapse(false);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }, selector);
   await page.keyboard.type(text);
+}
+
+async function waitForSuggestionTexts(
+  page: Page,
+  minimumCount = 1,
+): Promise<string[]> {
+  const suggestionsHandle = await page.waitForFunction(
+    (expectedCount) => {
+      const container = document.querySelector(
+        ".tribute-container",
+      ) as HTMLElement | null;
+      if (!container) {
+        return false;
+      }
+
+      const containerStyle = window.getComputedStyle(container);
+      if (
+        containerStyle.display === "none" ||
+        containerStyle.visibility === "hidden"
+      ) {
+        return false;
+      }
+
+      const items = Array.from(container.querySelectorAll("li")).map(
+        (item) => item.textContent ?? "",
+      );
+      if (items.length < expectedCount) {
+        return null;
+      }
+
+      if (items.some((item) => item.length === 0)) {
+        return null;
+      }
+
+      return items;
+    },
+    { timeout: 5000 },
+    minimumCount,
+  );
+
+  const suggestions = (await suggestionsHandle.jsonValue()) as string[];
+  await suggestionsHandle.dispose();
+  return suggestions;
+}
+
+async function clickFirstSuggestion(page: Page): Promise<void> {
+  for (let i = 0; i < 3; i += 1) {
+    const firstSuggestion = await page.$(".tribute-container li");
+    if (!firstSuggestion) {
+      await new Promise((r) => setTimeout(r, 50));
+      continue;
+    }
+
+    try {
+      await firstSuggestion.click();
+      return;
+    } catch {
+      await new Promise((r) => setTimeout(r, 50));
+    } finally {
+      await firstSuggestion.dispose();
+    }
+  }
+
+  throw new Error("No suggestion found to click");
 }
 
 describe("Chrome Extension E2E Test", () => {
@@ -273,24 +358,18 @@ describe("Chrome Extension E2E Test", () => {
       page.bringToFront();
       await waitForInputReady(page, selector);
       await clickAndType(page, selector, "h"); // Type a few letters
-      // Wait for prediction popup
-      await page.waitForSelector(".tribute-container li");
-      // Check if there are DEFAULT_NUM_SUGGESTIONS li elements inside the predictionPopup
-      const liCount = await page.$$eval(
-        ".tribute-container li",
-        (lis) => lis.length,
+      const suggestionTexts = await waitForSuggestionTexts(
+        page,
+        DEFAULT_NUM_SUGGESTIONS,
       );
-      expect(liCount).toBe(DEFAULT_NUM_SUGGESTIONS);
+      expect(suggestionTexts.length).toBe(DEFAULT_NUM_SUGGESTIONS);
 
       // Check that first suggestion starts with typed prefix and ends with \xa0
-      const firstLiText = await page.$eval(
-        ".tribute-container li:first-child",
-        (li) => li.textContent,
-      );
+      const firstLiText = suggestionTexts[0];
       expect(firstLiText?.toLowerCase()).toMatch(/^h\S*\xa0$/);
 
       // Click on the first suggestion
-      await page.click(".tribute-container li:first-child");
+      await clickFirstSuggestion(page);
       const elementText = await page.$eval(
         selector,
         (el) => (el as HTMLInputElement).value ?? el.textContent,
@@ -310,20 +389,14 @@ describe("Chrome Extension E2E Test", () => {
       page.bringToFront();
       await waitForInputReady(page, selector);
       await clickAndType(page, selector, "w"); // Type a few letters
-      // Wait for prediction popup
-      await page.waitForSelector(".tribute-container li");
-      // Check if there are DEFAULT_NUM_SUGGESTIONS li elements inside the predictionPopup
-      const liCount = await page.$$eval(
-        ".tribute-container li",
-        (lis) => lis.length,
+      const suggestionTexts = await waitForSuggestionTexts(
+        page,
+        DEFAULT_NUM_SUGGESTIONS,
       );
-      expect(liCount).toBe(DEFAULT_NUM_SUGGESTIONS);
+      expect(suggestionTexts.length).toBe(DEFAULT_NUM_SUGGESTIONS);
 
       // Check that first suggestion starts with typed prefix and ends with \xa0
-      const firstLiText = await page.$eval(
-        ".tribute-container li:first-child",
-        (li) => li.textContent,
-      );
+      const firstLiText = suggestionTexts[0];
       expect(firstLiText?.toLowerCase()).toMatch(/^w\S*\xa0$/);
 
       await page.keyboard.press("Tab");
@@ -898,16 +971,14 @@ describe("Chrome Extension E2E Test", () => {
 
       // Step 1: Type "a" and confirm predictions appear
       await clickAndType(page, selector, "a");
-      await page.waitForSelector(".tribute-container li", { timeout: 2000 });
-      const predictionsAfterLetter = await page.$$(".tribute-container li");
+      const predictionsAfterLetter = await waitForSuggestionTexts(page);
       expect(predictionsAfterLetter.length).toBeGreaterThan(0);
 
       // Step 2: Type space — with MIN_WORD_LENGTH=0, predictions should reappear
       // (next-word prediction after separator char)
       await page.keyboard.type(" ");
       await new Promise((r) => setTimeout(r, 200));
-      await page.waitForSelector(".tribute-container li", { timeout: 2000 });
-      const predictionsAfterSpace = await page.$$(".tribute-container li");
+      const predictionsAfterSpace = await waitForSuggestionTexts(page);
       expect(predictionsAfterSpace.length).toBeGreaterThan(0);
 
       // Cleanup
