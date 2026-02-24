@@ -50,7 +50,7 @@ export const SUPPORTED_LANGUAGES_SHORT_CODE: Record<string, string> = {
   sv: "sv_SE",
   de: "de_DE",
   pl: "pl_PL",
-  pr: "pt_BR",
+  pt: "pt_BR",
 };
 
 export const DEFAULT_SEPERATOR_CHARS_REGEX: RegExp = RegExp(
