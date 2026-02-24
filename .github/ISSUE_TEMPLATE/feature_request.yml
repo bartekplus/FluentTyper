@@ -1,0 +1,77 @@
+name: Feature request
+description: Suggest an improvement or new capability for FluentTyper
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting an improvement. Please share enough detail to evaluate scope and impact.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: What pain point are you experiencing today?
+      placeholder: I often need to...
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe what you want FluentTyper to do.
+      placeholder: Add an option to...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any workaround or alternative approaches you tried.
+      placeholder: I tried...
+    validations:
+      required: false
+
+  - type: dropdown
+    id: browsers
+    attributes:
+      label: Affected browser(s)
+      description: Select the browser where this feature matters most.
+      options:
+        - Chrome
+        - Firefox
+        - Edge
+        - All browsers
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: fluenttyper_version
+    attributes:
+      label: FluentTyper version
+      description: Optional but helpful for context.
+      placeholder: e.g. 2026.2.1
+    validations:
+      required: false
+
+  - type: textarea
+    id: mockups
+    attributes:
+      label: Mockups, examples, or references
+      description: Add screenshots, links, or examples from other tools.
+      placeholder: Link or drag files here.
+    validations:
+      required: false
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional context
+      placeholder: Anything else that would help evaluate this request.
+    validations:
+      required: false

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Feature ideas and feedback
+    url: https://github.com/bartekplus/FluentTyper/issues/new?template=feature_request.yml
+    about: Share product suggestions or general feedback via the feature request form.
+  - name: Report a security vulnerability
+    url: https://github.com/bartekplus/FluentTyper/security/policy
+    about: Please do not post security vulnerabilities in public issues.
