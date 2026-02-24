@@ -1,34 +1,36 @@
+![FluentTyper logo](public/icon/LogoFluentTyperWhite.jpg)
 
-![Logo](public/icon/LogoFluentTyperWhite.jpg)
+# FluentTyper
 
+Type less, do more. FluentTyper brings smart autocomplete, spell checking, and text expansion to text inputs across the web.
 
-[![Unit test](https://github.com/bartekplus/FluentTyper/actions/workflows/test.yml/badge.svg)](https://github.com/bartekplus/FluentTyper/actions/workflows/test.yml)
-[![ESLint & Prettier check](https://github.com/bartekplus/FluentTyper/actions/workflows/lintCheck.yml/badge.svg)](https://github.com/bartekplus/FluentTyper/actions/workflows/lintCheck.yml)
+[![Unit and E2E tests](https://github.com/bartekplus/FluentTyper/actions/workflows/test.yml/badge.svg)](https://github.com/bartekplus/FluentTyper/actions/workflows/test.yml)
+[![ESLint and Prettier check](https://github.com/bartekplus/FluentTyper/actions/workflows/lintCheck.yml/badge.svg)](https://github.com/bartekplus/FluentTyper/actions/workflows/lintCheck.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Support-FFDD00?logo=buymeacoffee&logoColor=000000)](https://www.buymeacoffee.com/FluentTyper)
 
+## Quick Links
 
-# FluentTyper: Autocomplete and Spell Checker
+- Install: [Chrome](https://chrome.google.com/webstore/detail/fluenttyper-autocomplete/mbjlobpodpimgbkmlmjiblnmfgajmebm), [Firefox](https://addons.mozilla.org/en-US/firefox/addon/fluenttyper/), [Edge](https://microsoftedge.microsoft.com/addons/detail/fluenttyper-autocomplete/ljenfpihmhkddgmjoipinkhflinoofcn)
+- Report a bug: [GitHub issue form](https://github.com/bartekplus/FluentTyper/issues/new/choose)
+- Request a feature: [Feature request form](https://github.com/bartekplus/FluentTyper/issues/new?template=feature_request.yml)
+- Contributing: [CONTRIBUTING.md](CONTRIBUTING.md)
+- Security policy: [SECURITY.md](SECURITY.md)
+- Sponsor development: [Buy Me a Coffee](https://www.buymeacoffee.com/FluentTyper)
 
-FluentTyper aims to improve the ease and speed of textual input by predicting words. It autocompletes words for you as you type.
+## Why FluentTyper
 
-FluentTyper saves you time when writing, improves your writing with spelling and autocomplete suggestions, and provides text expansions.
+FluentTyper helps you write faster and with fewer mistakes:
 
-FluentTyper also enables you to create intelligent text expansions, allowing you to accomplish more and streamline your work.
+- Predictive autocomplete while typing
+- Spelling suggestions
+- Text expansion snippets for repeated phrases
+- Keyboard-first suggestion selection with arrow keys and `Tab`
 
-Do you ever get tired of typing out long email addresses or frequently used phrases, and wish you could save time when typing on your computer? FluentTyper is here to help!
+Example: type `callMe` and expand it to `Call me back once you're free`.
 
-With FluentTyper, you can type in letter combinations like 'callMe' and have 'Call me back once you're free' appear on your computer screen.
+## Supported Languages
 
-FluentTyper works on most websites, but there are some exceptions, such as Google Docs. If you encounter an incompatible website, please create an issue on [GitHub](https://github.com/bartekplus/FluentTyper), and I'll do my best to resolve it.
-
-FluentTyper values the privacy of your data. It doesn't upload any of your data to the internet, and it works offline. Predictions are generated on your own PC
-
-FluentTyper is a writing assistant with features such as a spell checker, text expander, and predictive auto-complete."
-
-As you start typing, FluentTyper will display a pop-up with a list of suggested words, similar to your phone keyboard.
-You can use the arrow keys (↑, ↓) to navigate the list of suggested words, and then press Tab to confirm your selection.
-To hide the list of suggested words, you can either press the Escape key or continue typing.
-
-Supported languages:
 - English
 - Spanish
 - French
@@ -41,24 +43,71 @@ Supported languages:
 
 ## Installation
 
- - [Chrome](https://chrome.google.com/webstore/detail/fluenttyper-autocomplete/mbjlobpodpimgbkmlmjiblnmfgajmebm)
- - [Firefox](https://addons.mozilla.org/en-US/firefox/addon/fluenttyper/)
- - [Edge](https://microsoftedge.microsoft.com/addons/detail/fluenttyper-autocomplete/ljenfpihmhkddgmjoipinkhflinoofcn)
+- [Chrome](https://chrome.google.com/webstore/detail/fluenttyper-autocomplete/mbjlobpodpimgbkmlmjiblnmfgajmebm)
+- [Firefox](https://addons.mozilla.org/en-US/firefox/addon/fluenttyper/)
+- [Edge](https://microsoftedge.microsoft.com/addons/detail/fluenttyper-autocomplete/ljenfpihmhkddgmjoipinkhflinoofcn)
 
+## Quick Start
 
-## Dependencies
+1. Install FluentTyper from your browser store.
+2. Click any regular text input field on a website.
+3. Start typing to see suggestions.
+4. Use arrow keys to choose a suggestion.
+5. Press `Tab` to accept, or `Esc` to dismiss.
 
-- [Tribute](https://github.com/bartekplus/tribute)
-- [Presage](https://github.com/bartekplus/presage)
-- [Fancier Settings](https://github.com/bartekplus/fancier-settings)
+## Compatibility
 
+FluentTyper works on most websites. Some rich text editors (for example Google Docs) can be partially or fully incompatible.
 
-## Feedback
+If you hit an unsupported site, please open a bug report so compatibility can be improved.
 
-If you have any feedback, please create an issue on [GitHub](https://github.com/bartekplus/FluentTyper).
+## Privacy
 
-## Buy Me a Coffee
+FluentTyper is privacy-first:
 
-<p align="center" width="100%">
-    <a href="https://www.buymeacoffee.com/FluentTyper"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png"></a>
-</p>
+- No upload of your typed content
+- Works offline
+- Predictions are generated locally on your computer
+
+## Bug Reporting
+
+Please report bugs through GitHub Issues using the bug template:
+
+- Issue chooser: [github.com/bartekplus/FluentTyper/issues/new/choose](https://github.com/bartekplus/FluentTyper/issues/new/choose)
+- Direct bug report form: [bug_report.yml](https://github.com/bartekplus/FluentTyper/issues/new?template=bug_report.yml)
+
+To speed up triage, include:
+
+- Steps to reproduce
+- Expected behavior
+- Actual behavior
+- Browser and FluentTyper version
+- Screenshots or recordings when possible
+
+## Feature Requests
+
+Use the feature request form to propose improvements:
+
+- Issue chooser: [github.com/bartekplus/FluentTyper/issues/new/choose](https://github.com/bartekplus/FluentTyper/issues/new/choose)
+- Direct feature form: [feature_request.yml](https://github.com/bartekplus/FluentTyper/issues/new?template=feature_request.yml)
+
+Good feature requests include:
+
+- The problem you want to solve
+- The proposed solution
+- Alternatives you considered
+- Browser context and examples or mockups
+
+## Security
+
+If you discovered a security vulnerability, follow [SECURITY.md](SECURITY.md) and avoid opening a public issue.
+
+## Contributing
+
+Development and contribution guidelines are in [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Sponsorship and Support
+
+If FluentTyper saves you time, you can support maintenance and future development:
+
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Donate-FFDD00?logo=buymeacoffee&logoColor=000000)](https://www.buymeacoffee.com/FluentTyper)

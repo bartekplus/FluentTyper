@@ -1,0 +1,84 @@
+name: Bug report
+description: Report a reproducible bug in FluentTyper
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please fill in the details below so we can reproduce and fix it.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe the bug clearly and briefly.
+      placeholder: FluentTyper suggestions disappear when...
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Provide a minimal set of steps.
+      placeholder: |
+        1. Open ...
+        2. Type ...
+        3. Press ...
+        4. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      placeholder: Suggestions should stay visible and selectable.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      placeholder: Suggestions disappear after the first keystroke.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: browser
+    attributes:
+      label: Browser
+      options:
+        - Chrome
+        - Firefox
+        - Edge
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: fluenttyper_version
+    attributes:
+      label: FluentTyper version
+      description: You can usually find this in your browser extension manager.
+      placeholder: e.g. 2026.2.1
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: e.g. macOS 15.3, Windows 11, Ubuntu 24.04
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Logs, screenshots, or recordings
+      description: Drag and drop media files here if helpful.
+      placeholder: Add any extra context that might help debugging.
