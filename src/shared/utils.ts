@@ -6,6 +6,36 @@ export const DOMAIN_LIST_MODE = {
   whiteList: "Whitelist - disabled on all websites, enabled on specific sites",
 };
 
+function normalizeDomainHost(domainOrUrl: string): string | undefined {
+  if (typeof domainOrUrl !== "string") {
+    return undefined;
+  }
+
+  const trimmed = domainOrUrl.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  const parseHostName = (value: string): string | undefined => {
+    try {
+      return new URL(value).hostname;
+    } catch {
+      return undefined;
+    }
+  };
+
+  let hostName = parseHostName(trimmed);
+  if (!hostName) {
+    hostName = parseHostName(`http://${trimmed}`);
+  }
+  if (!hostName) {
+    return undefined;
+  }
+
+  const normalized = hostName.toLowerCase().replace(/\.+$/, "");
+  return normalized || undefined;
+}
+
 /**
  * Extracts the domain from a URL.
  *
@@ -27,7 +57,8 @@ export async function isDomainOnList(
   settings: SettingsManager,
   domainURL: string,
 ): Promise<boolean> {
-  if (!domainURL) {
+  const normalizedDomain = normalizeDomainHost(domainURL);
+  if (!normalizedDomain) {
     return false;
   }
   try {
@@ -36,7 +67,8 @@ export async function isDomainOnList(
       throw new Error("The domain list is not an array.");
     }
     for (let i = 0; i < domainList.length; i++) {
-      if (domainURL.match(domainList[i] as string)) {
+      const listDomain = normalizeDomainHost(String(domainList[i]));
+      if (listDomain && normalizedDomain === listDomain) {
         return true;
       }
     }
@@ -54,12 +86,16 @@ export async function addDomainToList(
   settings: SettingsManager,
   domainURL: string,
 ): Promise<void> {
+  const normalizedDomain = normalizeDomainHost(domainURL);
+  if (!normalizedDomain) {
+    return;
+  }
   try {
     const domainList = await settings.get(SETTINGS_DOMAIN_BLACKLIST);
     if (!Array.isArray(domainList)) {
       throw new Error("The domain list is not an array.");
     }
-    domainList.push(domainURL);
+    domainList.push(normalizedDomain);
     settings.set(SETTINGS_DOMAIN_BLACKLIST, domainList);
   } catch (error: unknown) {
     console.error(`Error adding domain to list: ${getErrorMessage(error)}`);
@@ -73,13 +109,18 @@ export async function removeDomainFromList(
   settings: SettingsManager,
   domainURL: string,
 ): Promise<void> {
+  const normalizedDomain = normalizeDomainHost(domainURL);
+  if (!normalizedDomain) {
+    return;
+  }
   try {
     const domainList = await settings.get(SETTINGS_DOMAIN_BLACKLIST);
     if (!Array.isArray(domainList)) {
       throw new Error("The domain list is not an array.");
     }
     for (let i = 0; i < domainList.length; i++) {
-      if (domainURL.match(domainList[i] as string)) {
+      const listDomain = normalizeDomainHost(String(domainList[i]));
+      if (listDomain && normalizedDomain === listDomain) {
         domainList.splice(i, 1);
         settings.set(SETTINGS_DOMAIN_BLACKLIST, domainList);
         break;

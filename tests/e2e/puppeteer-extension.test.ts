@@ -1,8 +1,10 @@
 import puppeteer, { Browser, Page, WebWorker } from "puppeteer";
 import path from "path";
+import { createServer, Server } from "http";
 import {
   KEY_ENABLED_LANGUAGES,
   KEY_FALLBACK_LANGUAGE,
+  KEY_DOMAIN_LIST_MODE,
   KEY_LANGUAGE,
   KEY_INLINE_SUGGESTION,
   KEY_MIN_WORD_LENGTH_TO_PREDICT,
@@ -363,6 +365,8 @@ describe("Chrome Extension E2E Test", () => {
   let browser: Browser;
   let page: Page;
   let worker: WebWorker;
+  let domainTestServer: Server;
+  let domainTestUrl: string;
 
   beforeAll(async () => {
     const launchArgs = [
@@ -392,6 +396,23 @@ describe("Chrome Extension E2E Test", () => {
       { timeout: 30000 },
     );
     worker = (await serviceWorkerTarget.worker())!;
+
+    domainTestServer = createServer((_req, res) => {
+      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+      res.end("<!doctype html><html><body><p>domain test page</p></body></html>");
+    });
+    await new Promise<void>((resolve, reject) => {
+      domainTestServer.once("error", reject);
+      domainTestServer.listen(0, "127.0.0.1", () => {
+        domainTestServer.off("error", reject);
+        resolve();
+      });
+    });
+    const address = domainTestServer.address();
+    if (!address || typeof address === "string") {
+      throw new Error("Failed to start domain test server.");
+    }
+    domainTestUrl = `http://localhost:${address.port}/`;
   }, 20000);
 
   beforeEach(async () => {
@@ -406,6 +427,17 @@ describe("Chrome Extension E2E Test", () => {
   });
 
   afterAll(async () => {
+    if (domainTestServer?.listening) {
+      await new Promise<void>((resolve, reject) => {
+        domainTestServer.close((error) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          resolve();
+        });
+      });
+    }
     await browser.close();
   });
 
@@ -435,6 +467,53 @@ describe("Chrome Extension E2E Test", () => {
     const popupPage = popupTarget.asPage();
     expect(popupPage).toBeDefined();
   }, 5000);
+
+  test("Domain whitelist matches exact host and ignores invalid patterns", async () => {
+    await page.goto(domainTestUrl, { waitUntil: "domcontentloaded" });
+    await page.bringToFront();
+
+    await setSettingAndWait(worker!, "enable", true);
+    await setSettingAndWait(worker!, KEY_DOMAIN_LIST_MODE, "whiteList");
+    await setSettingAndWait(worker!, "domainBlackList", ["[", "localhost"]);
+
+    let popupPage: Page | null = null;
+    try {
+      const existingPopupPages = await Promise.all(
+        browser
+          .targets()
+          .filter(
+            (target) =>
+              target.type() === "page" && target.url().endsWith("popup.html"),
+          )
+          .map((target) => target.page()),
+      );
+      for (const existingPopupPage of existingPopupPages) {
+        if (existingPopupPage && !existingPopupPage.isClosed()) {
+          await existingPopupPage.close();
+        }
+      }
+
+      await worker!.evaluate("chrome.action.openPopup();");
+      const popupTarget = await browser.waitForTarget(
+        (target) =>
+          target.type() === "page" && target.url().endsWith("popup.html"),
+        { timeout: 5000 },
+      );
+      popupPage = await popupTarget.asPage();
+      await popupPage!.waitForSelector("#checkboxDomainInput");
+      const isEnabledForCurrentDomain = await popupPage!.$eval(
+        "#checkboxDomainInput",
+        (el) => (el as HTMLInputElement).checked,
+      );
+      expect(isEnabledForCurrentDomain).toBe(true);
+    } finally {
+      if (popupPage && !popupPage.isClosed()) {
+        await popupPage.close();
+      }
+      await setSettingAndWait(worker!, KEY_DOMAIN_LIST_MODE, "blackList");
+      await setSettingAndWait(worker!, "domainBlackList", []);
+    }
+  }, 10000);
 
   test("CKEditor 5 input initializes on test page", async () => {
     await gotoTestPage(page, { enableCkEditor: true });
