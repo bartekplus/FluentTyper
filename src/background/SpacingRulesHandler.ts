@@ -96,7 +96,10 @@ export class SpacingRulesHandler {
     const text = `${insertSpaceBefore ? "\xA0" : ""}${lastChar}${
       insertSpaceAfter ? "\xA0" : ""
     }`;
-    if (text === lastChar) {
+    if (
+      text === lastChar &&
+      SPACING_RULES[lastChar].spaceBefore !== Spacing.REMOVE_SPACE
+    ) {
       return null;
     }
     return {

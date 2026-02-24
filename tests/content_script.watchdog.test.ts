@@ -31,22 +31,20 @@ async function loadContentScriptModule() {
   }));
 
   jest.unstable_mockModule("../src/content-script/DomObserver", () => ({
-    DomObserver: jest
-      .fn()
-      .mockImplementation((initialNode: unknown) => {
-        const firstNode = initialNode as Node;
-        let currentNode: Node = firstNode;
-        const instance: DomObserverLike = {
-          attach: jest.fn(),
-          disconnect: jest.fn(),
-          setNode: jest.fn((nextNode: unknown) => {
-            currentNode = nextNode as Node;
-          }),
-          getNode: jest.fn(() => currentNode),
-        };
-        domObserverInstances.push(instance);
-        return instance;
-      }),
+    DomObserver: jest.fn().mockImplementation((initialNode: unknown) => {
+      const firstNode = initialNode as Node;
+      let currentNode: Node = firstNode;
+      const instance: DomObserverLike = {
+        attach: jest.fn(),
+        disconnect: jest.fn(),
+        setNode: jest.fn((nextNode: unknown) => {
+          currentNode = nextNode as Node;
+        }),
+        getNode: jest.fn(() => currentNode),
+      };
+      domObserverInstances.push(instance);
+      return instance;
+    }),
   }));
 
   await import("../src/content-script/content_script");
