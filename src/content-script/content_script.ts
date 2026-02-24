@@ -38,6 +38,7 @@ declare global {
 class FluentTyper {
   // Logging prefix for all logs in this module
   private static readonly LOG_PREFIX = "ContentScript";
+  private static readonly WATCHDOG_DEBOUNCE_MS = 250;
 
   private readonly SELECTORS: string = "textarea, input, [contentEditable]";
   public tributeManager: TributeManager | null = null;
@@ -58,6 +59,9 @@ class FluentTyper {
   };
   public domObserver: DomObserver;
   private hostName: string = window.location.hostname;
+  private watchDogTimeoutId: number | null = null;
+  private rootNodeObserver: MutationObserver | null = null;
+  private readonly scheduleWatchDogCheckBound: () => void;
 
   constructor() {
     console.info(
@@ -66,16 +70,57 @@ class FluentTyper {
       this.constructor.name,
       window.location.hostname,
     );
+    this.scheduleWatchDogCheckBound = this.scheduleWatchDogCheck.bind(this);
     this.domObserver = new DomObserver(
       document.body || document.documentElement,
       this.mutationCallback.bind(this),
     );
+    this.attachRootNodeObserver();
+    this.attachWatchDogEventListeners();
     chrome.runtime.onMessage.addListener(this.messageHandler.bind(this));
     this.getConfig();
-    setInterval(this.watchDog.bind(this), 1000);
-    window.navigation?.addEventListener("navigate", () => {
-      this.checkHostName();
+    this.scheduleWatchDogCheck();
+  }
+
+  private attachRootNodeObserver(): void {
+    if (this.rootNodeObserver) {
+      return;
+    }
+    this.rootNodeObserver = new MutationObserver(() => {
+      this.scheduleWatchDogCheck();
     });
+    this.rootNodeObserver.observe(document.documentElement, {
+      childList: true,
+    });
+  }
+
+  private attachWatchDogEventListeners(): void {
+    window.navigation?.addEventListener(
+      "navigate",
+      this.scheduleWatchDogCheckBound,
+    );
+    window.addEventListener("pageshow", this.scheduleWatchDogCheckBound);
+    window.addEventListener("popstate", this.scheduleWatchDogCheckBound);
+    window.addEventListener("hashchange", this.scheduleWatchDogCheckBound);
+    window.addEventListener("focus", this.scheduleWatchDogCheckBound, true);
+    document.addEventListener(
+      "visibilitychange",
+      this.scheduleWatchDogCheckBound,
+    );
+    document.addEventListener(
+      "readystatechange",
+      this.scheduleWatchDogCheckBound,
+    );
+  }
+
+  private scheduleWatchDogCheck(): void {
+    if (this.watchDogTimeoutId !== null) {
+      window.clearTimeout(this.watchDogTimeoutId);
+    }
+    this.watchDogTimeoutId = window.setTimeout(() => {
+      this.watchDogTimeoutId = null;
+      this.watchDog();
+    }, FluentTyper.WATCHDOG_DEBOUNCE_MS);
   }
 
   checkHostName(): boolean {
