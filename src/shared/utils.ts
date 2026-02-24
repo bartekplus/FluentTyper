@@ -269,5 +269,5 @@ export function isNumber(str: string): boolean {
  * Checks if the given element is part of the document tree.
  */
 export function isInDocument(element: Element): boolean {
-  return element.ownerDocument === document;
+  return document.contains(element);
 }

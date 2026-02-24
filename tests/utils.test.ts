@@ -2,6 +2,7 @@ import { jest } from "@jest/globals";
 import {
   SETTINGS_DOMAIN_BLACKLIST,
   addDomainToList,
+  isInDocument,
   isDomainOnList,
   removeDomainFromList,
 } from "../src/shared/utils";
@@ -87,5 +88,18 @@ describe("shared utils domain list handling", () => {
     await removeDomainFromList(settings, "localhost");
     expect(state[SETTINGS_DOMAIN_BLACKLIST]).toEqual([]);
     expect(getMock).toHaveBeenCalledWith(SETTINGS_DOMAIN_BLACKLIST);
+  });
+});
+
+describe("shared utils DOM helpers", () => {
+  test("isInDocument returns false for detached nodes and true only while attached", () => {
+    const element = document.createElement("div");
+    expect(isInDocument(element)).toBe(false);
+
+    document.body.appendChild(element);
+    expect(isInDocument(element)).toBe(true);
+
+    element.remove();
+    expect(isInDocument(element)).toBe(false);
   });
 });
