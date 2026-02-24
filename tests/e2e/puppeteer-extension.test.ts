@@ -244,6 +244,11 @@ async function waitForInputReady(page: Page, selector: string) {
   }
 
   await page.waitForSelector(selector, { timeout: 10000 });
+  await page.waitForFunction(
+    (sel) => document.querySelector(sel)?.hasAttribute("data-tribute") ?? false,
+    { timeout: 10000 },
+    selector,
+  );
 }
 
 async function waitForVisibleSuggestions(
@@ -252,13 +257,24 @@ async function waitForVisibleSuggestions(
 ): Promise<number> {
   const countHandle = await page.waitForFunction(
     () => {
-      const container = document.querySelector(".tribute-container");
-      if (!container) return 0;
-      const isHidden = container
-        .getAttribute("style")
-        ?.includes("display: none");
-      if (isHidden) return 0;
-      return container.querySelectorAll("li").length;
+      const containers = Array.from(
+        document.querySelectorAll(".tribute-container"),
+      );
+      for (const container of containers) {
+        const style = window.getComputedStyle(container);
+        if (
+          style.display === "none" ||
+          style.visibility === "hidden" ||
+          style.opacity === "0"
+        ) {
+          continue;
+        }
+        const count = container.querySelectorAll("li").length;
+        if (count > 0) {
+          return count;
+        }
+      }
+      return 0;
     },
     { timeout: timeoutMs },
   );
