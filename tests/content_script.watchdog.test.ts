@@ -33,7 +33,7 @@ async function loadContentScriptModule() {
   jest.unstable_mockModule("../src/content-script/DomObserver", () => ({
     DomObserver: jest
       .fn()
-      .mockImplementation((initialNode: unknown, _callback: unknown) => {
+      .mockImplementation((initialNode: unknown) => {
         const firstNode = initialNode as Node;
         let currentNode: Node = firstNode;
         const instance: DomObserverLike = {
