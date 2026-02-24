@@ -173,136 +173,6 @@ async function waitForInputReady(page: Page, selector: string) {
   await page.waitForSelector(selector, { timeout: 10000 });
 }
 
-async function clickAndType(page: Page, selector: string, text: string) {
-  await focusTarget(page, selector);
-  await page.keyboard.type(text);
-}
-
-async function focusTarget(page: Page, selector: string) {
-  await page.click(selector);
-  await page.evaluate((targetSelector) => {
-    const target = document.querySelector(targetSelector) as HTMLElement | null;
-    if (!target) {
-      return;
-    }
-    target.focus();
-    if (!target.isContentEditable) {
-      return;
-    }
-
-    const selection = window.getSelection();
-    if (!selection) {
-      return;
-    }
-
-    const range = document.createRange();
-    range.selectNodeContents(target);
-    range.collapse(false);
-    selection.removeAllRanges();
-    selection.addRange(range);
-  }, selector);
-}
-
-async function getElementText(page: Page, selector: string): Promise<string> {
-  return page.$eval(
-    selector,
-    (el) => ((el as HTMLInputElement).value ?? el.textContent ?? "") as string,
-  );
-}
-
-async function pressTabAndWaitForTextChange(
-  page: Page,
-  selector: string,
-  previousText: string,
-  attempts = 2,
-): Promise<void> {
-  for (let i = 0; i < attempts; i += 1) {
-    await focusTarget(page, selector);
-    await page.keyboard.press("Tab");
-
-    try {
-      await page.waitForFunction(
-        (sel, oldText) =>
-          ((document.querySelector(sel) as HTMLInputElement | null)?.value ??
-            document.querySelector(sel)?.textContent ??
-            "") !== oldText,
-        { timeout: 2500 },
-        selector,
-        previousText,
-      );
-      return;
-    } catch (error) {
-      if (i === attempts - 1) {
-        throw error;
-      }
-    }
-  }
-}
-
-async function waitForSuggestionTexts(
-  page: Page,
-  minimumCount = 1,
-): Promise<string[]> {
-  const suggestionsHandle = await page.waitForFunction(
-    (expectedCount) => {
-      const container = document.querySelector(
-        ".tribute-container",
-      ) as HTMLElement | null;
-      if (!container) {
-        return false;
-      }
-
-      const containerStyle = window.getComputedStyle(container);
-      if (
-        containerStyle.display === "none" ||
-        containerStyle.visibility === "hidden"
-      ) {
-        return false;
-      }
-
-      const items = Array.from(container.querySelectorAll("li")).map(
-        (item) => item.textContent ?? "",
-      );
-      if (items.length < expectedCount) {
-        return null;
-      }
-
-      if (items.some((item) => item.length === 0)) {
-        return null;
-      }
-
-      return items;
-    },
-    { timeout: 5000 },
-    minimumCount,
-  );
-
-  const suggestions = (await suggestionsHandle.jsonValue()) as string[];
-  await suggestionsHandle.dispose();
-  return suggestions;
-}
-
-async function clickFirstSuggestion(page: Page): Promise<void> {
-  for (let i = 0; i < 3; i += 1) {
-    const firstSuggestion = await page.$(".tribute-container li");
-    if (!firstSuggestion) {
-      await new Promise((r) => setTimeout(r, 50));
-      continue;
-    }
-
-    try {
-      await firstSuggestion.click();
-      return;
-    } catch {
-      await new Promise((r) => setTimeout(r, 50));
-    } finally {
-      await firstSuggestion.dispose();
-    }
-  }
-
-  throw new Error("No suggestion found to click");
-}
-
 describe("Chrome Extension E2E Test", () => {
   let browser: Browser;
   let page: Page;
@@ -397,17 +267,26 @@ describe("Chrome Extension E2E Test", () => {
       });
       page.bringToFront();
       await waitForInputReady(page, selector);
-      await clickAndType(page, selector, "h"); // Type a few letters
-      const suggestionTexts = await waitForSuggestionTexts(page, 1);
-      expect(suggestionTexts.length).toBeGreaterThan(0);
-      expect(suggestionTexts.length).toBeLessThanOrEqual(DEFAULT_NUM_SUGGESTIONS);
+      const element = await page.$(selector);
+      await element!.type("h"); // Type a few letters
+      // Wait for prediction popup
+      await page.waitForSelector(".tribute-container li");
+      // Check if there are DEFAULT_NUM_SUGGESTIONS li elements inside the predictionPopup
+      const liCount = await page.$$eval(
+        ".tribute-container li",
+        (lis) => lis.length,
+      );
+      expect(liCount).toBe(DEFAULT_NUM_SUGGESTIONS);
 
       // Check that first suggestion starts with typed prefix and ends with \xa0
-      const firstLiText = suggestionTexts[0];
+      const firstLiText = await page.$eval(
+        ".tribute-container li:first-child",
+        (li) => li.textContent,
+      );
       expect(firstLiText?.toLowerCase()).toMatch(/^h\S*\xa0$/);
 
       // Click on the first suggestion
-      await clickFirstSuggestion(page);
+      await page.click(".tribute-container li:first-child");
       const elementText = await page.$eval(
         selector,
         (el) => (el as HTMLInputElement).value ?? el.textContent,
@@ -426,18 +305,37 @@ describe("Chrome Extension E2E Test", () => {
       });
       page.bringToFront();
       await waitForInputReady(page, selector);
-      await clickAndType(page, selector, "w"); // Type a few letters
-      const suggestionTexts = await waitForSuggestionTexts(page, 1);
-      expect(suggestionTexts.length).toBeGreaterThan(0);
-      expect(suggestionTexts.length).toBeLessThanOrEqual(DEFAULT_NUM_SUGGESTIONS);
+      const element = await page.$(selector);
+      await element!.type("w"); // Type a few letters
+      // Wait for prediction popup
+      await page.waitForSelector(".tribute-container li");
+      // Check if there are DEFAULT_NUM_SUGGESTIONS li elements inside the predictionPopup
+      const liCount = await page.$$eval(
+        ".tribute-container li",
+        (lis) => lis.length,
+      );
+      expect(liCount).toBe(DEFAULT_NUM_SUGGESTIONS);
 
       // Check that first suggestion starts with typed prefix and ends with \xa0
-      const firstLiText = suggestionTexts[0];
+      const firstLiText = await page.$eval(
+        ".tribute-container li:first-child",
+        (li) => li.textContent,
+      );
       expect(firstLiText?.toLowerCase()).toMatch(/^w\S*\xa0$/);
 
-      const textBeforeTab = await getElementText(page, selector);
-      await pressTabAndWaitForTextChange(page, selector, textBeforeTab);
-      const elementText = await getElementText(page, selector);
+      await page.keyboard.press("Tab");
+      // Wait for the value to change from just "w"
+      await page.waitForFunction(
+        (sel) =>
+          ((document.querySelector(sel) as HTMLInputElement).value ??
+            document.querySelector(sel)?.textContent) !== "w",
+        {},
+        selector,
+      );
+      const elementText = await page.$eval(
+        selector,
+        (el) => (el as HTMLInputElement).value ?? el.textContent,
+      );
       // Inserted text should match the first suggestion
       expect(elementText).toBe(firstLiText?.toLowerCase());
     },
@@ -448,9 +346,10 @@ describe("Chrome Extension E2E Test", () => {
     await gotoTestPage(page);
     page.bringToFront();
     await page.waitForSelector("#test-textarea");
+    const textarea = await page.$("#test-textarea");
 
     // Type a partial word to trigger autocomplete
-    await clickAndType(page, "#test-textarea", "h");
+    await textarea!.type("h");
     await page.waitForSelector(".tribute-container li");
 
     // Press Tab to autocomplete (prediction depends on DB)
@@ -474,7 +373,7 @@ describe("Chrome Extension E2E Test", () => {
     await page.keyboard.press("ArrowLeft");
 
     // Type 'x'
-    await page.keyboard.type("x");
+    await textarea!.type("x");
 
     // Evaluate if 'x' was inserted WITHOUT an extra space before it.
     // If the flag wasn't cleared, it would insert \xa0 before x -> "word\xa0x\xa0"
@@ -502,13 +401,26 @@ describe("Chrome Extension E2E Test", () => {
       await new Promise((r) => setTimeout(r, 50));
 
       await waitForInputReady(page, selector);
-      await clickAndType(page, selector, "w");
+      const element = await page.$(selector);
+      await element!.type("w");
 
       // Wait for the prediction engine to fetch result
       await new Promise((r) => setTimeout(r, 50));
 
-      await pressTabAndWaitForTextChange(page, selector, "w");
-      const elementText = await getElementText(page, selector);
+      await page.keyboard.press("Tab");
+
+      // Wait for the textarea value to change
+      await page.waitForFunction(
+        (sel) =>
+          ((document.querySelector(sel) as HTMLInputElement).value ??
+            document.querySelector(sel)?.textContent) !== "w",
+        { timeout: 500 },
+        selector,
+      );
+      const elementText = await page.$eval(
+        selector,
+        (el) => (el as HTMLInputElement).value ?? el.textContent,
+      );
       // Should be a word starting with "w" followed by \xa0
       expect(elementText).toMatch(/^w\S*\xa0$/);
 
@@ -601,6 +513,7 @@ describe("Chrome Extension E2E Test", () => {
     await gotoTestPage(page);
     page.bringToFront();
     await page.waitForSelector("#test-textarea");
+    const textarea = await page.$("#test-textarea");
 
     await setSetting(worker!, KEY_ENABLED_LANGUAGES, ["en_US", "el_GR"]);
     await setSetting(worker!, KEY_LANGUAGE, "en_US");
@@ -623,16 +536,16 @@ describe("Chrome Extension E2E Test", () => {
     );
     await new Promise((r) => setTimeout(r, 50));
 
-    await page.click("#test-textarea");
+    await textarea!.click();
     await page.evaluate(
       () =>
       ((
         document.querySelector("#test-textarea") as HTMLTextAreaElement
       ).value = ""),
     );
-    await clickAndType(page, "#test-textarea", "φιλο");
+    await textarea!.type("φιλο");
     await new Promise((r) => setTimeout(r, 50));
-    await page.keyboard.type("σ");
+    await textarea!.type("σ");
 
     await page.waitForSelector(".tribute-container li", { timeout: 500 });
     // Check that at least one suggestion contains the expected Greek word
@@ -886,7 +799,9 @@ describe("Chrome Extension E2E Test", () => {
       await new Promise((r) => setTimeout(r, 100));
 
       await waitForInputReady(page, selector);
-      await clickAndType(page, selector, "h"); // Trigger popup
+      const element = await page.$(selector);
+
+      await element!.type("h"); // Trigger popup
       await page.waitForSelector(".tribute-container li", { timeout: 4000 });
 
       // Add a small delay
@@ -923,7 +838,8 @@ describe("Chrome Extension E2E Test", () => {
       await new Promise((r) => setTimeout(r, 100));
 
       await waitForInputReady(page, selector);
-      await clickAndType(page, selector, "asap"); // Trigger text expansion
+      const element = await page.$(selector);
+      await element!.type("asap"); // Trigger text expansion
 
       await page.waitForSelector(".tribute-container li");
       const firstLiText = await page.$eval(
@@ -932,8 +848,20 @@ describe("Chrome Extension E2E Test", () => {
       );
       expect(firstLiText?.toLowerCase()).toBe("as soon as possible\xa0");
 
-      await pressTabAndWaitForTextChange(page, selector, "asap");
-      const elementText = await getElementText(page, selector);
+      await page.keyboard.press("Tab");
+
+      // Wait for insertion
+      await page.waitForFunction(
+        (sel) =>
+          ((document.querySelector(sel) as HTMLInputElement).value ??
+            document.querySelector(sel)?.textContent) !== "asap",
+        {},
+        selector,
+      );
+      const elementText = await page.$eval(
+        selector,
+        (el) => (el as HTMLInputElement).value ?? el.textContent,
+      );
       expect(elementText).toBe("as soon as possible\xa0");
 
       // Cleanup
@@ -970,17 +898,20 @@ describe("Chrome Extension E2E Test", () => {
       page.bringToFront();
 
       await waitForInputReady(page, selector);
+      const element = await page.$(selector);
 
       // Step 1: Type "a" and confirm predictions appear
-      await clickAndType(page, selector, "a");
-      const predictionsAfterLetter = await waitForSuggestionTexts(page);
+      await element!.type("a");
+      await page.waitForSelector(".tribute-container li", { timeout: 2000 });
+      const predictionsAfterLetter = await page.$$(".tribute-container li");
       expect(predictionsAfterLetter.length).toBeGreaterThan(0);
 
       // Step 2: Type space — with MIN_WORD_LENGTH=0, predictions should reappear
       // (next-word prediction after separator char)
-      await page.keyboard.type(" ");
+      await element!.type(" ");
       await new Promise((r) => setTimeout(r, 200));
-      const predictionsAfterSpace = await waitForSuggestionTexts(page);
+      await page.waitForSelector(".tribute-container li", { timeout: 2000 });
+      const predictionsAfterSpace = await page.$$(".tribute-container li");
       expect(predictionsAfterSpace.length).toBeGreaterThan(0);
 
       // Cleanup
@@ -1008,9 +939,10 @@ describe("Chrome Extension E2E Test", () => {
       page.bringToFront();
 
       await waitForInputReady(page, selector);
+      const element = await page.$(selector);
 
       // Type something
-      await clickAndType(page, selector, "this is impor");
+      await element!.type("this is impor");
 
       // It should NOT show predictions
       await new Promise((r) => setTimeout(r, 500));
