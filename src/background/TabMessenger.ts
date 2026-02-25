@@ -27,11 +27,19 @@ export class TabMessenger {
       } catch {
         // Expected in Firefox during background shortcuts if no current window
       }
-      if (!tabs || tabs.length === 0) {
-        tabs = await chrome.tabs.query({
+      const firstTabUrl = tabs?.[0]?.url ?? "";
+      const isExtensionPage =
+        firstTabUrl.startsWith("chrome-extension://") ||
+        firstTabUrl.startsWith("moz-extension://");
+      // If no tabs found, or if the current window is an internal extension page, fallback to lastFocusedWindow
+      if (!tabs || tabs.length === 0 || isExtensionPage) {
+        const fallbackTabs = await chrome.tabs.query({
           active: true,
           lastFocusedWindow: true,
         });
+        if (fallbackTabs && fallbackTabs.length > 0) {
+          tabs = fallbackTabs;
+        }
       }
       if (tabs && tabs.length >= 1 && typeof tabs[0].id === "number") {
         return tabs[0].id;

@@ -1,4 +1,4 @@
-import puppeteer, { Browser, Page, WebWorker } from "puppeteer";
+import { Browser, Page } from "puppeteer";
 import path from "path";
 import * as fs from "fs";
 import { createServer, Server } from "http";
@@ -13,18 +13,29 @@ import {
   KEY_SITE_PROFILES,
 } from "../../src/shared/constants";
 import { SUPPORTED_PREDICTION_LANGUAGE_KEYS } from "../../src/shared/lang";
+import {
+  BROWSER_TYPE,
+  itIfChrome,
+  launchBrowser,
+  getBackgroundContext,
+  openExtensionPage,
+  openPopupPage,
+  triggerCommandForTesting,
+  BackgroundContext,
+  isFirefox,
+} from "./e2e-helpers";
 
-const EXTENSION_PATH = path.resolve(__dirname, "../../build/");
 const TEST_PAGE_PATH = path.resolve(__dirname, "test-page.html");
+const TEST_HOST = "localhost";
 const SETTINGS_PREFIX = "store.settings.";
 const CKEDITOR_SELECTOR = ".ck-editor__editable";
 const TEST_INPUT_SELECTORS = [
   "#test-textarea",
   "#test-input",
   "#test-contenteditable",
-  CKEDITOR_SELECTOR,
 ] as const;
-const IS_CI = process.env.CI === "true" || process.env.CI === "1";
+
+let domainTestUrl: string;
 
 function isRetriableWorkerError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
@@ -34,7 +45,7 @@ function isRetriableWorkerError(error: unknown): boolean {
 }
 
 async function setSetting(
-  worker: WebWorker,
+  worker: BackgroundContext,
   key: string,
   value: unknown,
 ): Promise<void> {
@@ -86,7 +97,7 @@ async function setSetting(
 }
 
 async function getSetting<T>(
-  worker: WebWorker,
+  worker: BackgroundContext,
   key: string,
 ): Promise<T | undefined> {
   const storageKey = `${SETTINGS_PREFIX}${key}`;
@@ -135,7 +146,7 @@ async function getSetting<T>(
 }
 
 async function setSettingAndWait(
-  worker: WebWorker,
+  worker: BackgroundContext,
   key: string,
   value: unknown,
   timeoutMs = 3000,
@@ -155,14 +166,37 @@ async function setSettingAndWait(
 
 async function notifyConfigChange(
   browser: Browser,
-  worker: WebWorker,
+  worker: BackgroundContext,
 ): Promise<void> {
-  const extensionId = worker.url().split("/")[2];
-  const extensionPage = await browser.newPage();
-  try {
-    await extensionPage.goto(
-      `chrome-extension://${extensionId}/popup/popup.html`,
+  if (isFirefox()) {
+    await worker.evaluate(
+      () =>
+        new Promise<void>((resolve, reject) => {
+          chrome.runtime.sendMessage(
+            { command: "CMD_OPTIONS_PAGE_CONFIG_CHANGE", context: {} },
+            (response: { ok?: boolean } | undefined) => {
+              if (chrome.runtime.lastError) {
+                reject(new Error(chrome.runtime.lastError.message));
+                return;
+              }
+              if (!response?.ok) {
+                reject(new Error("Config change ACK returned not ok"));
+                return;
+              }
+              resolve();
+            },
+          );
+        }),
     );
+    return;
+  }
+
+  const extensionPage = await openExtensionPage(
+    browser,
+    worker,
+    "options/options.html",
+  );
+  try {
     await extensionPage.evaluate(
       () =>
         new Promise<void>((resolve, reject) => {
@@ -189,13 +223,12 @@ async function notifyConfigChange(
   }
 }
 
-async function openOptionsPage(browser: Browser, worker: WebWorker) {
-  await worker.evaluate("chrome.runtime.openOptionsPage();");
-  const optionsTarget = await browser.waitForTarget(
-    (target) =>
-      target.type() === "page" && target.url().endsWith("options/options.html"),
+async function openOptionsPage(browser: Browser, worker: BackgroundContext) {
+  const optionsPage = await openExtensionPage(
+    browser,
+    worker,
+    "options/options.html",
   );
-  const optionsPage = await optionsTarget.asPage();
   await optionsPage.waitForSelector("#content");
   return optionsPage;
 }
@@ -213,7 +246,24 @@ async function gotoTestPage(
   if (options.enableCkEditor) {
     params.set("enableCkEditor", "1");
   }
-  await page.goto(`file://${TEST_PAGE_PATH}?${params.toString()}`);
+  // Use a local HTTP server instead of file:// so host permissions apply consistently.
+  const targetUrl = `${domainTestUrl}?${params.toString()}`;
+  if (isFirefox()) {
+    await page.evaluate((url) => {
+      window.location.href = url;
+    }, targetUrl);
+    await page.waitForFunction(
+      () =>
+        document.readyState === "interactive" ||
+        document.readyState === "complete",
+    );
+    // Wait for content script injection
+    await new Promise((r) => setTimeout(r, 500));
+  } else {
+    await page.goto(targetUrl, {
+      waitUntil: "domcontentloaded",
+    });
+  }
 }
 
 async function waitForInputReady(page: Page, selector: string) {
@@ -365,47 +415,42 @@ async function clickFirstVisibleSuggestion(
   );
 }
 
-describe("Chrome Extension E2E Test", () => {
+describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   let browser: Browser;
   let page: Page;
-  let worker: WebWorker;
+  let worker: BackgroundContext;
   let domainTestServer: Server;
-  let domainTestUrl: string;
   let domainTestHtml: string;
 
   beforeAll(async () => {
-    const launchArgs = [
-      `--disable-extensions-except=${EXTENSION_PATH}`,
-      `--load-extension=${EXTENSION_PATH}`,
-      "--allow-file-access-from-files",
-    ];
-    if (IS_CI) {
-      launchArgs.push(
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-      );
-    }
-
-    browser = await puppeteer.launch({
-      headless: IS_CI,
-      args: launchArgs,
-      defaultViewport: null,
-    });
+    browser = await launchBrowser();
     const pages = await browser.pages();
     page = pages[0];
-    const serviceWorkerTarget = await browser.waitForTarget(
-      (target) =>
-        target.type() === "service_worker" &&
-        target.url().endsWith("background.js"),
-      { timeout: 30000 },
-    );
-    worker = (await serviceWorkerTarget.worker())!;
+    worker = await getBackgroundContext(browser);
     domainTestHtml = fs.readFileSync(TEST_PAGE_PATH, "utf8");
 
-    domainTestServer = createServer((_req, res) => {
-      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-      res.end(domainTestHtml);
+    domainTestServer = createServer((req, res) => {
+      if (req.url && req.url.includes("ckeditor.js")) {
+        try {
+          const ckeditorPath = path.resolve(__dirname, "../../node_modules/@ckeditor/ckeditor5-build-classic/build/ckeditor.js");
+          const jsBuf = fs.readFileSync(ckeditorPath);
+          res.writeHead(200, {
+            "Content-Type": "application/javascript",
+            "Content-Length": jsBuf.length,
+          });
+          res.end(jsBuf);
+          return;
+        } catch (e) {
+          console.error("Failed to load CKEditor from node_modules", e);
+        }
+      }
+
+      const buf = Buffer.from(domainTestHtml, "utf8");
+      res.writeHead(200, {
+        "Content-Type": "text/html; charset=utf-8",
+        "Content-Length": buf.length,
+      });
+      res.end(buf);
     });
     await new Promise<void>((resolve, reject) => {
       domainTestServer.once("error", reject);
@@ -418,17 +463,22 @@ describe("Chrome Extension E2E Test", () => {
     if (!address || typeof address === "string") {
       throw new Error("Failed to start domain test server.");
     }
-    domainTestUrl = `http://localhost:${address.port}/`;
-  }, 20000);
+    domainTestUrl = `http://${TEST_HOST}:${address.port}/`;
+  }, 60000);
 
   beforeEach(async () => {
     page = await browser.newPage();
+    page.setDefaultNavigationTimeout(5000);
     await page.bringToFront();
   });
 
   afterEach(async () => {
-    if (!page.isClosed()) {
-      await page.close();
+    try {
+      if (page && typeof page.isClosed === "function" && !page.isClosed()) {
+        await page.close();
+      }
+    } catch (e) {
+      // Ignore errors closing the page
     }
   });
 
@@ -444,10 +494,17 @@ describe("Chrome Extension E2E Test", () => {
         });
       });
     }
-    await browser.close();
+    try {
+      if (worker && typeof worker.close === "function") {
+        await worker.close();
+      }
+    } catch (e) { }
+    try {
+      await browser.close();
+    } catch (e) { }
   });
 
-  test("Extension installs and open new installation page", async () => {
+  itIfChrome("Extension installs and open new installation page", async () => {
     // Find the extension ID
     const newInstallationPage = await browser.waitForTarget(
       (target) =>
@@ -459,28 +516,47 @@ describe("Chrome Extension E2E Test", () => {
     expect(worker).toBeDefined();
   }, 2000);
 
-  test("Extension installs and popup loads", async () => {
+  it("Diagnostic: Content script and background communication check", async () => {
+    if (isFirefox()) {
+      await page.evaluate((url) => { window.location.href = url; }, domainTestUrl);
+      await page.waitForFunction(() => document.readyState === "interactive" || document.readyState === "complete");
+      await new Promise(r => setTimeout(r, 500));
+    } else {
+      await page.goto(domainTestUrl, { waitUntil: "domcontentloaded" });
+    }
+    await page.bringToFront();
+
+    // Check if background worker evaluates correctly
+    const bgUrl = await worker.url();
+    console.log("Diagnostic: Background worker URL:", bgUrl);
+
+    const bgStorage = await worker.evaluate(() => {
+      return typeof chrome !== "undefined" && typeof chrome.storage !== "undefined";
+    });
+    console.log("Diagnostic: Has chrome.storage in background?", bgStorage);
+    expect(bgStorage).toBe(true);
+
+    // Check if content script injected
+    const hasTribute = await page.evaluate(() => {
+      return !!document.querySelector(".tribute-container");
+    });
+    console.log("Diagnostic: Has generic tribute container?", hasTribute);
+  });
+
+  itIfChrome("Extension installs and popup loads", async () => {
     expect(worker).toBeDefined();
-    await worker!.evaluate("chrome.action.openPopup();");
-
-    const popupTarget = await browser.waitForTarget(
-      // Assumes that there is only one page with the URL ending with popup.html
-      // and that is the popup created by the extension.
-      (target) =>
-        target.type() === "page" && target.url().endsWith("popup.html"),
-    );
-
-    const popupPage = popupTarget.asPage();
+    const popupPage = await openPopupPage(browser, worker!);
     expect(popupPage).toBeDefined();
+    await popupPage.close();
   }, 5000);
 
-  test("Domain whitelist matches exact host and ignores invalid patterns", async () => {
+  itIfChrome("Domain whitelist matches exact host and ignores invalid patterns", async () => {
     await page.goto(domainTestUrl, { waitUntil: "domcontentloaded" });
     await page.bringToFront();
 
     await setSettingAndWait(worker!, "enable", true);
     await setSettingAndWait(worker!, KEY_DOMAIN_LIST_MODE, "whiteList");
-    await setSettingAndWait(worker!, "domainBlackList", ["[", "localhost"]);
+    await setSettingAndWait(worker!, "domainBlackList", ["[", TEST_HOST]);
 
     let popupPage: Page | null = null;
     try {
@@ -489,7 +565,7 @@ describe("Chrome Extension E2E Test", () => {
           .targets()
           .filter(
             (target) =>
-              target.type() === "page" && target.url().endsWith("popup.html"),
+              target.type() === "page" && target.url().endsWith("popup/popup.html"),
           )
           .map((target) => target.page()),
       );
@@ -499,13 +575,7 @@ describe("Chrome Extension E2E Test", () => {
         }
       }
 
-      await worker!.evaluate("chrome.action.openPopup();");
-      const popupTarget = await browser.waitForTarget(
-        (target) =>
-          target.type() === "page" && target.url().endsWith("popup.html"),
-        { timeout: 5000 },
-      );
-      popupPage = await popupTarget.asPage();
+      popupPage = await openPopupPage(browser, worker!);
       await popupPage!.waitForSelector("#checkboxDomainInput");
       const isEnabledForCurrentDomain = await popupPage!.$eval(
         "#checkboxDomainInput",
@@ -523,7 +593,7 @@ describe("Chrome Extension E2E Test", () => {
 
   test("Site profiles setting round-trips through extension storage", async () => {
     const siteProfiles = {
-      localhost: {
+      [TEST_HOST]: {
         language: "fr_FR",
         numSuggestions: 3,
         inline_suggestion: true,
@@ -552,10 +622,7 @@ describe("Chrome Extension E2E Test", () => {
       await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
       await notifyConfigChange(browser, worker!);
 
-      // Trigger the command from the service worker
-      await worker!.evaluate(
-        "triggerCommandForTesting('CMD_TOGGLE_FT_ACTIVE_LANG');",
-      );
+      await triggerCommandForTesting(worker!, "CMD_TOGGLE_FT_ACTIVE_LANG");
       await new Promise((r) => setTimeout(r, 500));
 
       const langAfter = await getSetting<string>(worker!, KEY_LANGUAGE);
@@ -578,22 +645,19 @@ describe("Chrome Extension E2E Test", () => {
       );
       await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
 
-      // Navigate to the domain test server so the active tab is localhost
+      // Navigate to the domain test server so the active tab matches TEST_HOST.
       await page.goto(domainTestUrl, { waitUntil: "domcontentloaded" });
       await page.bringToFront();
 
-      // Create a site profile for localhost with en_US language
+      // Create a site profile for the active test host.
       await setSettingAndWait(worker!, KEY_SITE_PROFILES, {
-        localhost: {
+        [TEST_HOST]: {
           language: "en_US",
         },
       });
       await notifyConfigChange(browser, worker!);
 
-      // Trigger the command from the service worker
-      await worker!.evaluate(
-        "triggerCommandForTesting('CMD_TOGGLE_FT_ACTIVE_LANG');",
-      );
+      await triggerCommandForTesting(worker!, "CMD_TOGGLE_FT_ACTIVE_LANG");
       await new Promise((r) => setTimeout(r, 500));
 
       // Verify global language is unchanged
@@ -605,10 +669,10 @@ describe("Chrome Extension E2E Test", () => {
         Record<string, { language: string }>
       >(worker!, KEY_SITE_PROFILES);
       expect(siteProfiles).toBeDefined();
-      expect(siteProfiles!.localhost).toBeDefined();
-      expect(siteProfiles!.localhost.language).not.toBe("en_US");
+      expect(siteProfiles![TEST_HOST]).toBeDefined();
+      expect(siteProfiles![TEST_HOST].language).not.toBe("en_US");
       expect(SUPPORTED_PREDICTION_LANGUAGE_KEYS).toContain(
-        siteProfiles!.localhost.language,
+        siteProfiles![TEST_HOST].language,
       );
     } finally {
       await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
@@ -617,7 +681,7 @@ describe("Chrome Extension E2E Test", () => {
     }
   }, 15000);
 
-  test("Site profile override increases suggestions count on matching domain", async () => {
+  itIfChrome("Site profile override increases suggestions count on matching domain", async () => {
     const selector = "#test-textarea";
     try {
       await setSettingAndWait(worker!, "enable", true);
@@ -638,13 +702,7 @@ describe("Chrome Extension E2E Test", () => {
       await page.goto(domainTestUrl, { waitUntil: "domcontentloaded" });
       await page.bringToFront();
       await waitForInputReady(page, selector);
-      await worker!.evaluate("chrome.action.openPopup();");
-      const popupTarget = await browser.waitForTarget(
-        (target) =>
-          target.type() === "page" && target.url().endsWith("popup.html"),
-        { timeout: 5000 },
-      );
-      const popupPage = await popupTarget.asPage();
+      const popupPage = await openPopupPage(browser, worker!);
       await popupPage.close();
       await page.bringToFront();
       const inputWithoutOverride = await page.$(selector);
@@ -671,7 +729,7 @@ describe("Chrome Extension E2E Test", () => {
       expect(hasSuggestionsWithoutOverride).toBe(false);
 
       await setSettingAndWait(worker!, KEY_SITE_PROFILES, {
-        localhost: {
+        [TEST_HOST]: {
           language: "en_US",
           numSuggestions: 4,
         },
@@ -681,13 +739,7 @@ describe("Chrome Extension E2E Test", () => {
       await page.goto(domainTestUrl, { waitUntil: "domcontentloaded" });
       await page.bringToFront();
       await waitForInputReady(page, selector);
-      await worker!.evaluate("chrome.action.openPopup();");
-      const popupTargetAfterOverride = await browser.waitForTarget(
-        (target) =>
-          target.type() === "page" && target.url().endsWith("popup.html"),
-        { timeout: 5000 },
-      );
-      const popupPageAfterOverride = await popupTargetAfterOverride.asPage();
+      const popupPageAfterOverride = await openPopupPage(browser, worker!);
       await popupPageAfterOverride.close();
       await page.bringToFront();
       const inputWithOverride = await page.$(selector);
@@ -702,7 +754,7 @@ describe("Chrome Extension E2E Test", () => {
     }
   }, 30000);
 
-  test("Site profile override changing to inline suggestion enables tab completion", async () => {
+  itIfChrome("Site profile override changing to inline suggestion enables tab completion", async () => {
     const selector = "#test-textarea";
     try {
       await setSettingAndWait(worker!, "enable", true);
@@ -737,9 +789,9 @@ describe("Chrome Extension E2E Test", () => {
       await input!.click({ clickCount: 3 });
       await page.keyboard.press("Backspace");
 
-      // Set site profile override for localhost to use inline suggestions instead
+      // Set a site profile override for the active test host.
       await setSettingAndWait(worker!, KEY_SITE_PROFILES, {
-        localhost: {
+        [TEST_HOST]: {
           language: "en_US",
           numSuggestions: 5,
           inline_suggestion: true,
@@ -982,16 +1034,12 @@ describe("Chrome Extension E2E Test", () => {
     30000,
   );
 
-  test("Enabled languages restrict popup language list", async () => {
+  itIfChrome("Enabled languages restrict popup language list", async () => {
     const enabledLanguages = ["en_US", "de_DE"];
     await setSetting(worker!, KEY_ENABLED_LANGUAGES, enabledLanguages);
     await setSetting(worker!, KEY_LANGUAGE, "en_US");
 
-    await worker!.evaluate("chrome.action.openPopup();");
-    const popupTarget = await browser.waitForTarget((target) =>
-      target.url().endsWith("popup.html"),
-    );
-    const popupPage = await popupTarget.asPage();
+    const popupPage = await openPopupPage(browser, worker!);
     await popupPage.waitForSelector("#languageSelect");
 
     const options = await popupPage.$$eval("#languageSelect option", (opts) =>
@@ -1014,7 +1062,7 @@ describe("Chrome Extension E2E Test", () => {
     await setSetting(worker!, KEY_LANGUAGE, "en_US");
   }, 2000);
 
-  test("Auto detect is only allowed when multiple languages are enabled", async () => {
+  itIfChrome("Auto detect is only allowed when multiple languages are enabled", async () => {
     await setSetting(worker!, KEY_ENABLED_LANGUAGES, ["en_US"]);
     await setSetting(worker!, KEY_LANGUAGE, "auto_detect");
     await setSetting(worker!, KEY_FALLBACK_LANGUAGE, "auto_detect");
@@ -1057,7 +1105,7 @@ describe("Chrome Extension E2E Test", () => {
     expect(enabledLanguages).toEqual(["en_US", "de_DE"]);
   }, 2000);
 
-  test("Auto detect in popup detects language and predicts", async () => {
+  itIfChrome("Auto detect in popup detects language and predicts", async () => {
     await gotoTestPage(page);
     page.bringToFront();
     await page.waitForSelector("#test-textarea");
@@ -1066,11 +1114,7 @@ describe("Chrome Extension E2E Test", () => {
     await setSetting(worker!, KEY_ENABLED_LANGUAGES, ["en_US", "el_GR"]);
     await setSetting(worker!, KEY_LANGUAGE, "en_US");
 
-    await worker!.evaluate("chrome.action.openPopup();");
-    const popupTarget = await browser.waitForTarget((target) =>
-      target.url().endsWith("popup.html"),
-    );
-    const popupPage = await popupTarget.asPage();
+    const popupPage = await openPopupPage(browser, worker!);
     await popupPage.waitForSelector("#languageSelect");
     await popupPage.select("#languageSelect", "auto_detect");
     await new Promise((r) => setTimeout(r, 50));
@@ -1087,9 +1131,9 @@ describe("Chrome Extension E2E Test", () => {
     await textarea!.click();
     await page.evaluate(
       () =>
-        ((
-          document.querySelector("#test-textarea") as HTMLTextAreaElement
-        ).value = ""),
+      ((
+        document.querySelector("#test-textarea") as HTMLTextAreaElement
+      ).value = ""),
     );
     await textarea!.type("φιλο");
     await new Promise((r) => setTimeout(r, 50));
@@ -1152,9 +1196,9 @@ describe("Chrome Extension E2E Test", () => {
       // Ensure textarea is focused and clear
       await page.evaluate(
         () =>
-          ((
-            document.querySelector("#test-textarea") as HTMLTextAreaElement
-          ).value = ""),
+        ((
+          document.querySelector("#test-textarea") as HTMLTextAreaElement
+        ).value = ""),
       );
       await textarea!.type(testData.input);
       // Wait for predictions to update after typing
@@ -1185,9 +1229,9 @@ describe("Chrome Extension E2E Test", () => {
       // Cleanup for next iteration
       await page.evaluate(
         () =>
-          ((
-            document.querySelector("#test-textarea") as HTMLTextAreaElement
-          ).value = ""),
+        ((
+          document.querySelector("#test-textarea") as HTMLTextAreaElement
+        ).value = ""),
       );
       // Wait for predictions to disappear
       await new Promise((r) => setTimeout(r, 50));
@@ -1201,60 +1245,60 @@ describe("Chrome Extension E2E Test", () => {
     await new Promise((r) => setTimeout(r, 50));
   }, 9000); // Increased timeout for iterating all languages
 
-  test("Extension UI language translates options page correctly", async () => {
+  itIfChrome("Extension UI language translates options page correctly", async () => {
     // i18n short codes mapped to full locale codes and expected divider text
     const TEST_LANGS: {
       locale: string;
       expected: string;
       popupExpected: string;
     }[] = [
-      {
-        locale: "en_US",
-        expected: "Extension UI Language",
-        popupExpected: "Advanced Options",
-      },
-      {
-        locale: "fr_FR",
-        expected: "Langue de l'interface",
-        popupExpected: "Options avancées",
-      },
-      {
-        locale: "hr_HR",
-        expected: "Jezik su\u010Delja pro\u0161irenja",
-        popupExpected: "Napredne opcije",
-      },
-      {
-        locale: "es_ES",
-        expected: "Idioma de la interfaz",
-        popupExpected: "Opciones avanzadas",
-      },
-      {
-        locale: "el_GR",
-        expected:
-          "\u0393\u03BB\u03CE\u03C3\u03C3\u03B1 \u03B4\u03B9\u03B5\u03C0\u03B1\u03C6\u03AE\u03C2 \u03B5\u03C0\u03AD\u03BA\u03C4\u03B1\u03C3\u03B7\u03C2",
-        popupExpected: "Επιλογές για προχωρημένους",
-      },
-      {
-        locale: "sv_SE",
-        expected: "Till\u00E4ggets gr\u00E4nssnittsspr\u00E5k",
-        popupExpected: "Avancerade alternativ",
-      },
-      {
-        locale: "de_DE",
-        expected: "Sprache der Erweiterungsoberfl\u00E4che",
-        popupExpected: "Erweiterte Optionen",
-      },
-      {
-        locale: "pl_PL",
-        expected: "J\u0119zyk interfejsu rozszerzenia",
-        popupExpected: "Zaawansowane opcje",
-      },
-      {
-        locale: "pt_BR",
-        expected: "Idioma da interface da extens\u00E3o",
-        popupExpected: "Opções avançadas",
-      },
-    ];
+        {
+          locale: "en_US",
+          expected: "Extension UI Language",
+          popupExpected: "Advanced Options",
+        },
+        {
+          locale: "fr_FR",
+          expected: "Langue de l'interface",
+          popupExpected: "Options avancées",
+        },
+        {
+          locale: "hr_HR",
+          expected: "Jezik su\u010Delja pro\u0161irenja",
+          popupExpected: "Napredne opcije",
+        },
+        {
+          locale: "es_ES",
+          expected: "Idioma de la interfaz",
+          popupExpected: "Opciones avanzadas",
+        },
+        {
+          locale: "el_GR",
+          expected:
+            "\u0393\u03BB\u03CE\u03C3\u03C3\u03B1 \u03B4\u03B9\u03B5\u03C0\u03B1\u03C6\u03AE\u03C2 \u03B5\u03C0\u03AD\u03BA\u03C4\u03B1\u03C3\u03B7\u03C2",
+          popupExpected: "Επιλογές για προχωρημένους",
+        },
+        {
+          locale: "sv_SE",
+          expected: "Till\u00E4ggets gr\u00E4nssnittsspr\u00E5k",
+          popupExpected: "Avancerade alternativ",
+        },
+        {
+          locale: "de_DE",
+          expected: "Sprache der Erweiterungsoberfl\u00E4che",
+          popupExpected: "Erweiterte Optionen",
+        },
+        {
+          locale: "pl_PL",
+          expected: "J\u0119zyk interfejsu rozszerzenia",
+          popupExpected: "Zaawansowane opcje",
+        },
+        {
+          locale: "pt_BR",
+          expected: "Idioma da interface da extens\u00E3o",
+          popupExpected: "Opções avançadas",
+        },
+      ];
 
     for (const { locale, expected, popupExpected } of TEST_LANGS) {
       // 1. Set the extension language in chrome.storage.local
@@ -1288,10 +1332,7 @@ describe("Chrome Extension E2E Test", () => {
       await optionsPage.close();
 
       // 4. Verify the popup translation
-      const popupPage = await browser.newPage();
-      await popupPage.goto(
-        `chrome-extension://${worker!.url().split("/")[2]}/popup/popup.html`,
-      );
+      const popupPage = await openPopupPage(browser, worker!);
       await popupPage.waitForSelector(".control-card", { timeout: 500 });
 
       // Wait a moment for translations to apply

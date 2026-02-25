@@ -54,6 +54,9 @@ export default (env, argv) => {
           { from: ".", to: ".", context: platformDir },
         ],
       }),
+      new webpack.DefinePlugin({
+        __E2E_TESTING__: JSON.stringify(process.env.E2E_TESTING === "true"),
+      }),
       new webpack.ProvidePlugin({
         Buffer: ["buffer", "Buffer"],
       }),

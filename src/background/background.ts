@@ -59,6 +59,8 @@ import {
   ContentScriptGetConfigMessage,
 } from "../shared/messageTypes";
 
+declare const __E2E_TESTING__: boolean;
+
 interface DomainRuntimeSettings {
   language: string;
   enabledLanguages: string[];
@@ -400,9 +402,6 @@ function onInstalled(details: chrome.runtime.InstalledDetails) {
   } else if (details.reason === "update") {
     const thisVersion = chrome.runtime.getManifest().version;
     console.log(`Updated from ${details.previousVersion} to ${thisVersion}!`);
-    migrateToLocalStore(details.previousVersion).catch((error) => {
-      logError("migrateToLocalStore", error);
-    });
   }
 }
 
@@ -634,18 +633,50 @@ chrome.runtime.onInstalled.addListener(onInstalled);
 chrome.commands.onCommand.addListener(onCommand);
 chrome.runtime.onMessage.addListener(onMessage);
 
-if (typeof globalThis !== "undefined") {
+if (typeof globalThis !== "undefined" && __E2E_TESTING__) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (globalThis as any).triggerCommandForTesting = onCommand;
+  (globalThis as any).triggerCommandForTesting = async (command: string) => {
+    onCommand(command);
+  };
+
+  // Alternative hook for Firefox BiDi tests
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (
+      typeof message !== "object" ||
+      !message ||
+      (message as { type?: unknown }).type !== "TEST_TRIGGER_COMMAND"
+    ) {
+      return false;
+    }
+    const command = (message as { command?: unknown }).command;
+    if (typeof command !== "string") {
+      sendResponse({ ok: false });
+      return true;
+    }
+    onCommand(command);
+    sendResponse({ ok: true });
+    return true;
+  });
 }
 
-chrome.storage.local.get("lastVersion", async (result) => {
+async function initializeBackgroundServiceWorker(lastVersion: string | undefined) {
   try {
-    await migrateToLocalStore(result.lastVersion as string);
+    await migrateToLocalStore(lastVersion);
     const backgroundServiceWorker = new BackgroundServiceWorker();
     await backgroundServiceWorker.predictionManager.initialize();
     await backgroundServiceWorker.updatePresageConfig();
   } catch (error) {
     logError("lastVersion handler", error);
   }
-});
+}
+
+function loadLastVersionAndInitialize(): void {
+  chrome.storage.local.get("lastVersion", (result) => {
+    initializeBackgroundServiceWorker(result?.lastVersion as string | undefined)
+      .catch((error) => {
+        logError("initializeBackgroundServiceWorker", error);
+      });
+  });
+}
+
+loadLastVersionAndInitialize();
