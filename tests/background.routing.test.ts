@@ -73,6 +73,10 @@ async function loadBackgroundHarness(
   const predictionSetConfig = jest.fn();
   const tabSendToAll = jest.fn();
   const tabSendToActive = jest.fn();
+  const getActiveTabHostname = jest.fn(async () => ({
+    tabId: 1,
+    hostname: "example.com",
+  }));
   const checkLastError = jest.fn();
   const getDomain = jest.fn(() => "example.com");
   const isEnabledForDomain = jest.fn(async () => true);
@@ -146,6 +150,7 @@ async function loadBackgroundHarness(
     TabMessenger: jest.fn().mockImplementation(() => ({
       sendToAllTabs: tabSendToAll,
       sendToActiveTab: tabSendToActive,
+      getActiveTabHostname: getActiveTabHostname,
     })),
   }));
   jest.unstable_mockModule("../src/shared/utils", () => ({
