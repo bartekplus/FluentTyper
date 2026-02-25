@@ -36,7 +36,7 @@ import { getDomain, isEnabledForDomain, checkLastError } from "../shared/utils";
 import { logError } from "../shared/error";
 import { resolveEnabledLanguages } from "../shared/lang";
 import { JsonValue, SettingsManager } from "../shared/settingsManager";
-import { getSiteProfileForDomain, resolveSiteProfiles } from "../shared/siteProfiles";
+import { getSiteProfileForDomain, resolveSiteProfiles, setSiteProfileForDomain } from "../shared/siteProfiles";
 import { LanguageDetector } from "./LanguageDetector";
 import { PresageConfig } from "./PresageHandler";
 import { PredictionManager } from "./PredictionManager";
@@ -417,22 +417,49 @@ function onCommand(command: string) {
     }
     case CMD_TOGGLE_FT_ACTIVE_LANG: {
       (async () => {
+        const result = await backgroundServiceWorker.tabMessenger.getActiveTabHostname();
+        const domainURL = result?.hostname || undefined;
+
         const availableLangs = await getEnabledLanguages(
           backgroundServiceWorker.settingsManager,
         );
-        const currentLanguage = await resolveActiveLanguage(
+
+        const domainSettings = await resolveDomainRuntimeSettings(
           backgroundServiceWorker.settingsManager,
+          domainURL,
         );
+
+        const currentLanguage = domainSettings.language;
         backgroundServiceWorker.language = currentLanguage;
+
         const currentLangIndex = availableLangs.indexOf(currentLanguage);
         const nextLangIndex =
           (currentLangIndex >= 0 ? currentLangIndex + 1 : 0) %
           availableLangs.length;
         const nextLang = availableLangs[nextLangIndex];
-        await backgroundServiceWorker.settingsManager.set(
-          KEY_LANGUAGE,
-          nextLang,
-        );
+
+        const siteProfilesRaw = await backgroundServiceWorker.settingsManager.get(KEY_SITE_PROFILES);
+        const profile = domainURL
+          ? getSiteProfileForDomain(siteProfilesRaw, domainURL, availableLangs)
+          : undefined;
+
+        if (profile && domainURL) {
+          await backgroundServiceWorker.settingsManager.set(
+            KEY_SITE_PROFILES,
+            setSiteProfileForDomain(
+              siteProfilesRaw,
+              domainURL,
+              { ...profile, language: nextLang },
+              availableLangs
+            ) as unknown as JsonValue
+          );
+        } else {
+          await backgroundServiceWorker.settingsManager.set(
+            KEY_LANGUAGE,
+            nextLang,
+          );
+        }
+
         backgroundServiceWorker.language = nextLang;
         const updateLangConfigMessage: UpdateLangConfigMessage = {
           command: CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
@@ -443,7 +470,7 @@ function onCommand(command: string) {
         backgroundServiceWorker.sendCommandToActiveTabContentScript(
           updateLangConfigMessage,
         );
-      })().catch((error) => logError("onCommand", error));
+      })().catch((error) => logError("onCommand CMD_TOGGLE_FT_ACTIVE_LANG", error));
       break;
     }
     default:
@@ -590,6 +617,12 @@ function onMessage(
 chrome.runtime.onInstalled.addListener(onInstalled);
 chrome.commands.onCommand.addListener(onCommand);
 chrome.runtime.onMessage.addListener(onMessage);
+
+if (typeof globalThis !== 'undefined') {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (globalThis as any).triggerCommandForTesting = onCommand;
+}
+
 chrome.storage.local.get("lastVersion", async (result) => {
   try {
     await migrateToLocalStore(result.lastVersion as string);

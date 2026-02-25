@@ -11,6 +11,7 @@ import {
   CMD_POPUP_PAGE_ENABLE,
   CMD_POPUP_PAGE_DISABLE,
   CMD_STATUS_COMMAND,
+  CMD_GET_HOSTNAME,
 } from "../shared/constants";
 import { LANG_SEPERATOR_CHARS_REGEX } from "../shared/lang";
 import { checkLastError, isInDocument } from "../shared/utils";
@@ -447,6 +448,9 @@ class FluentTyper {
       case CMD_TRIGGER_FT_ACTIVE_TAB:
         this.tributeManager?.triggerActiveTribute();
         sendStatusMsg = true;
+        break;
+      case CMD_GET_HOSTNAME:
+        if (sendResponse) sendResponse({ hostname: window.location.hostname });
         break;
       default:
         console.trace(

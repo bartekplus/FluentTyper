@@ -99,6 +99,13 @@ async function loadBackgroundHarness(
         callback({ id: tabId } as chrome.tabs.Tab),
       ),
       sendMessage: jest.fn(),
+      query: jest.fn((_queryInfo: unknown, callback?: (tabs: chrome.tabs.Tab[]) => void) => {
+        const tabs = [{ id: 1, url: "https://example.com/path" } as chrome.tabs.Tab];
+        if (callback) {
+          callback(tabs);
+        }
+        return Promise.resolve(tabs);
+      }),
     },
     storage: {
       local: {
@@ -257,6 +264,52 @@ describe("background routing and lifecycle", () => {
     expect(harness.tabSendToActive).toHaveBeenCalledWith(
       expect.objectContaining({ command: CMD_TRIGGER_FT_ACTIVE_TAB }),
     );
+    expect(harness.settingsSet).toHaveBeenCalledWith(KEY_LANGUAGE, "fr_FR");
+    expect(harness.tabSendToActive).toHaveBeenCalledWith({
+      command: CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
+      context: { lang: "fr_FR" },
+    });
+  });
+
+  test("onCommand rotates active language for current site profile if it exists", async () => {
+    const harness = await loadBackgroundHarness({
+      [KEY_SITE_PROFILES]: {
+        "example.com": {
+          language: "en_US",
+        },
+      },
+    });
+
+    harness.onCommand(CMD_TOGGLE_FT_ACTIVE_LANG);
+    await flushPromises();
+
+    expect(harness.settingsSet).toHaveBeenCalledWith(
+      KEY_SITE_PROFILES,
+      expect.objectContaining({
+        "example.com": expect.objectContaining({
+          language: "fr_FR",
+        }),
+      }),
+    );
+    expect(harness.tabSendToActive).toHaveBeenCalledWith({
+      command: CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
+      context: { lang: "fr_FR" },
+    });
+  });
+
+  test("onCommand toggles global language if current site profile does not exist", async () => {
+    const harness = await loadBackgroundHarness({
+      [KEY_SITE_PROFILES]: {
+        "other.com": {
+          language: "en_US",
+        },
+      },
+      language: "en_US",
+    });
+
+    harness.onCommand(CMD_TOGGLE_FT_ACTIVE_LANG);
+    await flushPromises();
+
     expect(harness.settingsSet).toHaveBeenCalledWith(KEY_LANGUAGE, "fr_FR");
     expect(harness.tabSendToActive).toHaveBeenCalledWith({
       command: CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,

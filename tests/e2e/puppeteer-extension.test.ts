@@ -540,6 +540,80 @@ describe("Chrome Extension E2E Test", () => {
     await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
   }, 5000);
 
+  test("CMD_TOGGLE_FT_ACTIVE_LANG changes global language when no site profile exists", async () => {
+    try {
+      await setSettingAndWait(worker!, "enable", true);
+      await setSettingAndWait(
+        worker!,
+        KEY_ENABLED_LANGUAGES,
+        SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+      );
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
+      await notifyConfigChange(browser, worker!);
+
+      // Trigger the command from the service worker
+      await worker!.evaluate("triggerCommandForTesting('CMD_TOGGLE_FT_ACTIVE_LANG');");
+      await new Promise((r) => setTimeout(r, 500));
+
+      const langAfter = await getSetting<string>(worker!, KEY_LANGUAGE);
+      expect(langAfter).not.toBe("en_US");
+      expect(SUPPORTED_PREDICTION_LANGUAGE_KEYS).toContain(langAfter);
+    } finally {
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
+      await notifyConfigChange(browser, worker!);
+    }
+  }, 15000);
+
+  test("CMD_TOGGLE_FT_ACTIVE_LANG changes per-site language when site profile exists", async () => {
+    try {
+      await setSettingAndWait(worker!, "enable", true);
+      await setSettingAndWait(
+        worker!,
+        KEY_ENABLED_LANGUAGES,
+        SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+      );
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+
+      // Navigate to the domain test server so the active tab is localhost
+      await page.goto(domainTestUrl, { waitUntil: "domcontentloaded" });
+      await page.bringToFront();
+
+      // Create a site profile for localhost with en_US language
+      await setSettingAndWait(worker!, KEY_SITE_PROFILES, {
+        localhost: {
+          language: "en_US",
+        },
+      });
+      await notifyConfigChange(browser, worker!);
+
+      // Trigger the command from the service worker
+      await worker!.evaluate("triggerCommandForTesting('CMD_TOGGLE_FT_ACTIVE_LANG');");
+      await new Promise((r) => setTimeout(r, 500));
+
+      // Verify global language is unchanged
+      const globalLang = await getSetting<string>(worker!, KEY_LANGUAGE);
+      expect(globalLang).toBe("en_US");
+
+      // Verify site profile language was changed
+      const siteProfiles = await getSetting<Record<string, { language: string }>>(
+        worker!,
+        KEY_SITE_PROFILES,
+      );
+      expect(siteProfiles).toBeDefined();
+      expect(siteProfiles!.localhost).toBeDefined();
+      expect(siteProfiles!.localhost.language).not.toBe("en_US");
+      expect(SUPPORTED_PREDICTION_LANGUAGE_KEYS).toContain(
+        siteProfiles!.localhost.language,
+      );
+    } finally {
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
+      await notifyConfigChange(browser, worker!);
+    }
+  }, 15000);
+
   test("Site profile override increases suggestions count on matching domain", async () => {
     const selector = "#test-textarea";
     try {

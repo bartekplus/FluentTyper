@@ -73,14 +73,14 @@ export interface ContentScriptPredictRequestContext {
 
 // Context for CMD_OPTIONS_PAGE_CONFIG_CHANGE
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface OptionsPageConfigChangeContext {}
+export interface OptionsPageConfigChangeContext { }
 // Context for CMD_CONTENT_SCRIPT_GET_CONFIG
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface ContentScriptGetConfigContext {}
+export interface ContentScriptGetConfigContext { }
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface PopupPageEnableContext {}
+export interface PopupPageEnableContext { }
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface PopupPageDisableContext {}
+export interface PopupPageDisableContext { }
 export interface PopupPageStatusContext {
   enabled: boolean;
 }
@@ -89,31 +89,32 @@ export interface PopupPageStatusContext {
 export type Message =
   | { command: "CMD_BACKGROUND_PAGE_SET_CONFIG"; context: SetConfigContext }
   | {
-      command: "CMD_BACKGROUND_PAGE_PREDICT_REQ";
-      context: PredictRequestContext;
-    }
+    command: "CMD_BACKGROUND_PAGE_PREDICT_REQ";
+    context: PredictRequestContext;
+  }
   | {
-      command: "CMD_BACKGROUND_PAGE_PREDICT_RESP";
-      context: PredictResponseContext;
-    }
+    command: "CMD_BACKGROUND_PAGE_PREDICT_RESP";
+    context: PredictResponseContext;
+  }
   | { command: "CMD_TOGGLE_FT_ACTIVE_TAB" }
   | { command: "CMD_TRIGGER_FT_ACTIVE_TAB" }
+  | { command: "CMD_GET_HOSTNAME" }
   | {
-      command: "CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG";
-      context: UpdateLangConfigContext;
-    }
+    command: "CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG";
+    context: UpdateLangConfigContext;
+  }
   | {
-      command: "CMD_CONTENT_SCRIPT_PREDICT_REQ";
-      context: ContentScriptPredictRequestContext;
-    }
+    command: "CMD_CONTENT_SCRIPT_PREDICT_REQ";
+    context: ContentScriptPredictRequestContext;
+  }
   | {
-      command: "CMD_OPTIONS_PAGE_CONFIG_CHANGE";
-      context: OptionsPageConfigChangeContext;
-    }
+    command: "CMD_OPTIONS_PAGE_CONFIG_CHANGE";
+    context: OptionsPageConfigChangeContext;
+  }
   | {
-      command: "CMD_CONTENT_SCRIPT_GET_CONFIG";
-      context: ContentScriptGetConfigContext;
-    }
+    command: "CMD_CONTENT_SCRIPT_GET_CONFIG";
+    context: ContentScriptGetConfigContext;
+  }
   | { command: "CMD_POPUP_PAGE_ENABLE"; context: PopupPageEnableContext }
   | { command: "CMD_POPUP_PAGE_DISABLE"; context: PopupPageDisableContext }
   | { command: "CMD_STATUS_COMMAND"; context: PopupPageStatusContext };
