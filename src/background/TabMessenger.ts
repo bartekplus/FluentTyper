@@ -23,16 +23,29 @@ export class TabMessenger {
   async sendToAllTabs(
     message: ConfigMessage,
     settings: SettingsManager,
+    resolveDomainContextOverride?: (
+      domain: string,
+    ) => Promise<Partial<ConfigMessage["context"]>>,
   ): Promise<void> {
     chrome.tabs.query({}, async function (tabs) {
       checkLastError();
       for (const tab of tabs) {
         if (!tab.url || typeof tab.id !== "number") continue;
-        const domain = getDomain(tab.url);
-        const enabled = await isEnabledForDomain(settings, domain as string);
-        message.context.enabled = enabled;
+        const domain = getDomain(tab.url) || "";
+        const enabled = await isEnabledForDomain(settings, domain);
+        const domainOverride = resolveDomainContextOverride
+          ? await resolveDomainContextOverride(domain)
+          : {};
+        const messageForTab: ConfigMessage = {
+          command: message.command,
+          context: {
+            ...message.context,
+            ...domainOverride,
+            enabled,
+          },
+        };
         try {
-          chrome.tabs.sendMessage(tab.id, message);
+          chrome.tabs.sendMessage(tab.id, messageForTab);
         } catch (error) {
           console.warn(`sendToAllTabs failed: ${getErrorMessage(error)}`);
         }

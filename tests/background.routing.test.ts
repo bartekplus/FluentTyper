@@ -10,6 +10,7 @@ import {
   CMD_TOGGLE_FT_ACTIVE_TAB,
   CMD_TRIGGER_FT_ACTIVE_TAB,
   KEY_LANGUAGE,
+  KEY_SITE_PROFILES,
 } from "../src/shared/constants";
 
 function flushPromises() {
@@ -171,6 +172,7 @@ async function loadBackgroundHarness(
     settingsGet,
     settingsSet,
     languageDetect,
+    predictionRun,
     predictionInitialize,
     predictionSetConfig,
     tabSendToAll,
@@ -306,7 +308,84 @@ describe("background routing and lifecycle", () => {
         tabId: 321,
         frameId: 7,
       }),
+    }, undefined);
+  });
+
+  test("onMessage applies site profile language and suggestion count override", async () => {
+    const harness = await loadBackgroundHarness({
+      [KEY_SITE_PROFILES]: {
+        "example.com": {
+          language: "fr_FR",
+          numSuggestions: 2,
+          inline_suggestion: true,
+        },
+      },
     });
+
+    harness.onMessage(
+      {
+        command: CMD_CONTENT_SCRIPT_PREDICT_REQ,
+        context: {
+          text: "bonjour",
+          nextChar: "",
+          lang: "fr_FR",
+          tributeId: 4,
+          requestId: 5,
+        },
+      },
+      {
+        tab: { id: 77, url: "https://example.com/path" } as chrome.tabs.Tab,
+        frameId: 3,
+      },
+      jest.fn(),
+    );
+    await flushPromises();
+
+    expect(harness.predictionRun).toHaveBeenCalledWith(
+      "bonjour",
+      "",
+      "fr_FR",
+      { numSuggestions: 2 },
+    );
+  });
+
+  test("onMessage predict request falls back to global runtime config for unmatched domain", async () => {
+    const harness = await loadBackgroundHarness({
+      [KEY_SITE_PROFILES]: {
+        "example.com": {
+          language: "fr_FR",
+          numSuggestions: 4,
+        },
+      },
+      language: "en_US",
+    });
+    harness.getDomain.mockReturnValueOnce("other.example");
+
+    harness.onMessage(
+      {
+        command: CMD_CONTENT_SCRIPT_PREDICT_REQ,
+        context: {
+          text: "hello",
+          nextChar: "",
+          lang: "en_US",
+          tributeId: 11,
+          requestId: 12,
+        },
+      },
+      {
+        tab: { id: 90, url: "https://other.example" } as chrome.tabs.Tab,
+        frameId: 1,
+      },
+      jest.fn(),
+    );
+    await flushPromises();
+
+    expect(harness.predictionRun).toHaveBeenCalledWith(
+      "hello",
+      "",
+      "en_US",
+      undefined,
+    );
   });
 
   test("onMessage requests language update when resolved language differs", async () => {
@@ -404,6 +483,98 @@ describe("background routing and lifecycle", () => {
     );
   });
 
+  test("onMessage get config applies site profile language and inline overrides", async () => {
+    const harness = await loadBackgroundHarness({
+      [KEY_SITE_PROFILES]: {
+        "example.com": {
+          language: "fr_FR",
+          inline_suggestion: true,
+        },
+      },
+      language: "en_US",
+      inline_suggestion: false,
+    });
+    const sendResponse = jest.fn();
+
+    harness.onMessage(
+      { command: CMD_CONTENT_SCRIPT_GET_CONFIG, context: {} },
+      { tab: { url: "https://example.com" } as chrome.tabs.Tab },
+      sendResponse,
+    );
+    await flushPromises();
+
+    expect(sendResponse).toHaveBeenCalledWith(
+      expect.objectContaining({
+        context: expect.objectContaining({
+          lang: "fr_FR",
+          inline_suggestion: true,
+          enabled: true,
+        }),
+      }),
+    );
+  });
+
+  test("onMessage get config falls back to global profile for unmatched domain", async () => {
+    const harness = await loadBackgroundHarness({
+      [KEY_SITE_PROFILES]: {
+        "example.com": {
+          language: "fr_FR",
+          inline_suggestion: true,
+        },
+      },
+      language: "en_US",
+      inline_suggestion: false,
+    });
+    const sendResponse = jest.fn();
+    harness.getDomain.mockReturnValueOnce("other.example");
+
+    harness.onMessage(
+      { command: CMD_CONTENT_SCRIPT_GET_CONFIG, context: {} },
+      { tab: { url: "https://other.example" } as chrome.tabs.Tab },
+      sendResponse,
+    );
+    await flushPromises();
+
+    expect(sendResponse).toHaveBeenCalledWith(
+      expect.objectContaining({
+        context: expect.objectContaining({
+          lang: "en_US",
+          inline_suggestion: false,
+          enabled: true,
+        }),
+      }),
+    );
+  });
+
+  test("onMessage get config keeps domain enablement false even when profile exists", async () => {
+    const harness = await loadBackgroundHarness({
+      [KEY_SITE_PROFILES]: {
+        "example.com": {
+          language: "fr_FR",
+          inline_suggestion: true,
+        },
+      },
+    });
+    const sendResponse = jest.fn();
+    harness.isEnabledForDomain.mockResolvedValueOnce(false);
+
+    harness.onMessage(
+      { command: CMD_CONTENT_SCRIPT_GET_CONFIG, context: {} },
+      { tab: { url: "https://example.com" } as chrome.tabs.Tab },
+      sendResponse,
+    );
+    await flushPromises();
+
+    expect(sendResponse).toHaveBeenCalledWith(
+      expect.objectContaining({
+        context: expect.objectContaining({
+          lang: "fr_FR",
+          enabled: false,
+        }),
+      }),
+    );
+  });
+
   test("onMessage handles get config request and unsupported commands", async () => {
     const harness = await loadBackgroundHarness();
     const sendResponse = jest.fn();
@@ -427,7 +598,7 @@ describe("background routing and lifecycle", () => {
 
     expect(handled).toBe(true);
     expect(harness.getDomain).toHaveBeenCalledWith("https://example.com");
-    expect(getConfigSpy).toHaveBeenCalled();
+    expect(getConfigSpy).toHaveBeenCalledWith("example.com");
     expect(sendResponse).toHaveBeenCalledWith(
       expect.objectContaining({
         context: expect.objectContaining({ enabled: false }),

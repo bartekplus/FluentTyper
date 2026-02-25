@@ -3,6 +3,8 @@ import { Store } from "./lib/store.js";
 import { ElementWrapper } from "./js/classes/utils.js";
 import { SUPPORTED_LANGUAGES, resolveEnabledLanguages } from "../../shared/lang.ts";
 import { TextExpander } from "../../options/textExpander.js";
+import { SiteProfilesManager } from "../../options/siteProfiles.js";
+import { resolveSiteProfiles } from "../../shared/siteProfiles.ts";
 import {
   KEY_AUTOCOMPLETE,
   KEY_AUTOCOMPLETE_ON_ENTER,
@@ -26,6 +28,7 @@ import {
   KEY_DISPLAY_LANG_HEADER,
   KEY_INLINE_SUGGESTION,
   KEY_EXTENSION_LANGUAGE,
+  KEY_SITE_PROFILES,
   // theme settings
   KEY_USE_DEFAULT_THEME_BTN,
   KEY_USE_COMPACT_THEME_BTN,
@@ -84,6 +87,22 @@ function arraysEqual(a, b) {
   return true;
 }
 
+async function sanitizeSiteProfilesForEnabledLanguages(store, enabledLanguages) {
+  const resolvedEnabledLanguages =
+    enabledLanguages || resolveEnabledLanguages(await store.get(KEY_ENABLED_LANGUAGES));
+  const rawSiteProfiles = await store.get(KEY_SITE_PROFILES);
+  const sanitizedSiteProfiles = resolveSiteProfiles(
+    rawSiteProfiles,
+    resolvedEnabledLanguages,
+  );
+  const hasChanges =
+    JSON.stringify(rawSiteProfiles || {}) !== JSON.stringify(sanitizedSiteProfiles);
+  if (hasChanges) {
+    await store.set(KEY_SITE_PROFILES, sanitizedSiteProfiles);
+  }
+  return hasChanges;
+}
+
 async function validateLanguageSettings(settings, store) {
   const enabledLanguagesRaw = await store.get(KEY_ENABLED_LANGUAGES);
   const enabledLanguages = resolveEnabledLanguages(enabledLanguagesRaw);
@@ -122,6 +141,14 @@ async function validateLanguageSettings(settings, store) {
   }
   if (resolvedFallbackLanguage !== fallbackLanguage) {
     settings.manifest.fallbackLanguage.set(resolvedFallbackLanguage);
+  }
+
+  const siteProfilesChanged = await sanitizeSiteProfilesForEnabledLanguages(
+    store,
+    enabledLanguages,
+  );
+  if (siteProfilesChanged) {
+    optionsPageConfigChange();
   }
 }
 
@@ -257,6 +284,7 @@ window.addEventListener("DOMContentLoaded", function () {
 
       const store = new Store("settings");
       fallbackLanguageVisibility(settings, await store.get(KEY_LANGUAGE));
+      let siteProfilesManager = null;
 
       settings.manifest.language.addEvent("action", function (value) {
         fallbackLanguageVisibility(settings, value);
@@ -265,8 +293,13 @@ window.addEventListener("DOMContentLoaded", function () {
 
       settings.manifest[KEY_ENABLED_LANGUAGES].addEvent("action", function () {
         validateLanguageSettings(settings, store);
+        siteProfilesManager?.render();
       });
       validateLanguageSettings(settings, store);
+      siteProfilesManager = new SiteProfilesManager(
+        settings,
+        optionsPageConfigChange,
+      );
 
       settings.manifest.addDomainBtn.addEvent("action", function () {
         if (settings.manifest.domain.element.element.checkValidity()) {
@@ -349,6 +382,10 @@ window.addEventListener("DOMContentLoaded", function () {
           settings.manifest[KEY_AUTOCOMPLETE_ON_TAB].set(true);
           settings.manifest[KEY_NUM_SUGGESTIONS].set(10);
         }
+        siteProfilesManager?.render();
+      });
+      settings.manifest[KEY_NUM_SUGGESTIONS].addEvent("action", function () {
+        siteProfilesManager?.render();
       });
 
       settings.manifest[KEY_EXTENSION_LANGUAGE].addEvent("action", function () {

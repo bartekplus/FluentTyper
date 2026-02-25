@@ -1,5 +1,6 @@
 import puppeteer, { Browser, Page, WebWorker } from "puppeteer";
 import path from "path";
+import * as fs from "fs";
 import { createServer, Server } from "http";
 import {
   KEY_ENABLED_LANGUAGES,
@@ -7,7 +8,9 @@ import {
   KEY_DOMAIN_LIST_MODE,
   KEY_LANGUAGE,
   KEY_INLINE_SUGGESTION,
+  KEY_NUM_SUGGESTIONS,
   KEY_MIN_WORD_LENGTH_TO_PREDICT,
+  KEY_SITE_PROFILES,
 } from "../../src/shared/constants";
 import { SUPPORTED_PREDICTION_LANGUAGE_KEYS } from "../../src/shared/lang";
 
@@ -368,6 +371,7 @@ describe("Chrome Extension E2E Test", () => {
   let worker: WebWorker;
   let domainTestServer: Server;
   let domainTestUrl: string;
+  let domainTestHtml: string;
 
   beforeAll(async () => {
     const launchArgs = [
@@ -397,12 +401,11 @@ describe("Chrome Extension E2E Test", () => {
       { timeout: 30000 },
     );
     worker = (await serviceWorkerTarget.worker())!;
+    domainTestHtml = fs.readFileSync(TEST_PAGE_PATH, "utf8");
 
     domainTestServer = createServer((_req, res) => {
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-      res.end(
-        "<!doctype html><html><body><p>domain test page</p></body></html>",
-      );
+      res.end(domainTestHtml);
     });
     await new Promise<void>((resolve, reject) => {
       domainTestServer.once("error", reject);
@@ -517,6 +520,110 @@ describe("Chrome Extension E2E Test", () => {
       await setSettingAndWait(worker!, "domainBlackList", []);
     }
   }, 10000);
+
+  test("Site profiles setting round-trips through extension storage", async () => {
+    const siteProfiles = {
+      localhost: {
+        language: "fr_FR",
+        numSuggestions: 3,
+        inline_suggestion: true,
+      },
+    };
+    await setSettingAndWait(worker!, KEY_SITE_PROFILES, siteProfiles);
+
+    const storedSiteProfiles = await getSetting<typeof siteProfiles>(
+      worker!,
+      KEY_SITE_PROFILES,
+    );
+    expect(storedSiteProfiles).toEqual(siteProfiles);
+
+    await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
+  }, 5000);
+
+  test("Site profile override increases suggestions count on matching domain", async () => {
+    const selector = "#test-textarea";
+    try {
+      await setSettingAndWait(worker!, "enable", true);
+      await setSettingAndWait(worker!, KEY_DOMAIN_LIST_MODE, "blackList");
+      await setSettingAndWait(worker!, "domainBlackList", []);
+      await setSettingAndWait(
+        worker!,
+        KEY_ENABLED_LANGUAGES,
+        SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+      );
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
+      await setSettingAndWait(worker!, KEY_NUM_SUGGESTIONS, 0);
+      await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
+      await notifyConfigChange(browser, worker!);
+
+      await page.goto(domainTestUrl, { waitUntil: "domcontentloaded" });
+      await page.bringToFront();
+      await waitForInputReady(page, selector);
+      await worker!.evaluate("chrome.action.openPopup();");
+      const popupTarget = await browser.waitForTarget(
+        (target) =>
+          target.type() === "page" && target.url().endsWith("popup.html"),
+        { timeout: 5000 },
+      );
+      const popupPage = await popupTarget.asPage();
+      await popupPage.close();
+      await page.bringToFront();
+      const inputWithoutOverride = await page.$(selector);
+      await page.focus(selector);
+      await inputWithoutOverride!.type("impor");
+      await new Promise((r) => setTimeout(r, 600));
+      const hasSuggestionsWithoutOverride = await page.evaluate(() => {
+        const containers = Array.from(
+          document.querySelectorAll(".tribute-container"),
+        );
+        return containers.some((container) => {
+          const style = window.getComputedStyle(container);
+          if (
+            style.display === "none" ||
+            style.visibility === "hidden" ||
+            style.opacity === "0" ||
+            container.getClientRects().length === 0
+          ) {
+            return false;
+          }
+          return container.querySelectorAll("li").length > 0;
+        });
+      });
+      expect(hasSuggestionsWithoutOverride).toBe(false);
+
+      await setSettingAndWait(worker!, KEY_SITE_PROFILES, {
+        localhost: {
+          language: "en_US",
+          numSuggestions: 4,
+        },
+      });
+      await notifyConfigChange(browser, worker!);
+
+      await page.goto(domainTestUrl, { waitUntil: "domcontentloaded" });
+      await page.bringToFront();
+      await waitForInputReady(page, selector);
+      await worker!.evaluate("chrome.action.openPopup();");
+      const popupTargetAfterOverride = await browser.waitForTarget(
+        (target) =>
+          target.type() === "page" && target.url().endsWith("popup.html"),
+        { timeout: 5000 },
+      );
+      const popupPageAfterOverride = await popupTargetAfterOverride.asPage();
+      await popupPageAfterOverride.close();
+      await page.bringToFront();
+      const inputWithOverride = await page.$(selector);
+      await page.focus(selector);
+      await inputWithOverride!.type("impor");
+      const countWithOverride = await waitForVisibleSuggestions(page, 15000);
+      expect(countWithOverride).toBeGreaterThan(0);
+    } finally {
+      await setSettingAndWait(worker!, KEY_NUM_SUGGESTIONS, 5);
+      await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
+      await notifyConfigChange(browser, worker!);
+    }
+  }, 30000);
 
   test("CKEditor 5 input initializes on test page", async () => {
     await gotoTestPage(page, { enableCkEditor: true });
@@ -818,9 +925,9 @@ describe("Chrome Extension E2E Test", () => {
     await textarea!.click();
     await page.evaluate(
       () =>
-        ((
-          document.querySelector("#test-textarea") as HTMLTextAreaElement
-        ).value = ""),
+      ((
+        document.querySelector("#test-textarea") as HTMLTextAreaElement
+      ).value = ""),
     );
     await textarea!.type("φιλο");
     await new Promise((r) => setTimeout(r, 50));
@@ -883,9 +990,9 @@ describe("Chrome Extension E2E Test", () => {
       // Ensure textarea is focused and clear
       await page.evaluate(
         () =>
-          ((
-            document.querySelector("#test-textarea") as HTMLTextAreaElement
-          ).value = ""),
+        ((
+          document.querySelector("#test-textarea") as HTMLTextAreaElement
+        ).value = ""),
       );
       await textarea!.type(testData.input);
       // Wait for predictions to update after typing
@@ -916,9 +1023,9 @@ describe("Chrome Extension E2E Test", () => {
       // Cleanup for next iteration
       await page.evaluate(
         () =>
-          ((
-            document.querySelector("#test-textarea") as HTMLTextAreaElement
-          ).value = ""),
+        ((
+          document.querySelector("#test-textarea") as HTMLTextAreaElement
+        ).value = ""),
       );
       // Wait for predictions to disappear
       await new Promise((r) => setTimeout(r, 50));
@@ -939,53 +1046,53 @@ describe("Chrome Extension E2E Test", () => {
       expected: string;
       popupExpected: string;
     }[] = [
-      {
-        locale: "en_US",
-        expected: "Extension UI Language",
-        popupExpected: "Advanced Options",
-      },
-      {
-        locale: "fr_FR",
-        expected: "Langue de l'interface",
-        popupExpected: "Options avancées",
-      },
-      {
-        locale: "hr_HR",
-        expected: "Jezik su\u010Delja pro\u0161irenja",
-        popupExpected: "Napredne opcije",
-      },
-      {
-        locale: "es_ES",
-        expected: "Idioma de la interfaz",
-        popupExpected: "Opciones avanzadas",
-      },
-      {
-        locale: "el_GR",
-        expected:
-          "\u0393\u03BB\u03CE\u03C3\u03C3\u03B1 \u03B4\u03B9\u03B5\u03C0\u03B1\u03C6\u03AE\u03C2 \u03B5\u03C0\u03AD\u03BA\u03C4\u03B1\u03C3\u03B7\u03C2",
-        popupExpected: "Επιλογές για προχωρημένους",
-      },
-      {
-        locale: "sv_SE",
-        expected: "Till\u00E4ggets gr\u00E4nssnittsspr\u00E5k",
-        popupExpected: "Avancerade alternativ",
-      },
-      {
-        locale: "de_DE",
-        expected: "Sprache der Erweiterungsoberfl\u00E4che",
-        popupExpected: "Erweiterte Optionen",
-      },
-      {
-        locale: "pl_PL",
-        expected: "J\u0119zyk interfejsu rozszerzenia",
-        popupExpected: "Zaawansowane opcje",
-      },
-      {
-        locale: "pt_BR",
-        expected: "Idioma da interface da extens\u00E3o",
-        popupExpected: "Opções avançadas",
-      },
-    ];
+        {
+          locale: "en_US",
+          expected: "Extension UI Language",
+          popupExpected: "Advanced Options",
+        },
+        {
+          locale: "fr_FR",
+          expected: "Langue de l'interface",
+          popupExpected: "Options avancées",
+        },
+        {
+          locale: "hr_HR",
+          expected: "Jezik su\u010Delja pro\u0161irenja",
+          popupExpected: "Napredne opcije",
+        },
+        {
+          locale: "es_ES",
+          expected: "Idioma de la interfaz",
+          popupExpected: "Opciones avanzadas",
+        },
+        {
+          locale: "el_GR",
+          expected:
+            "\u0393\u03BB\u03CE\u03C3\u03C3\u03B1 \u03B4\u03B9\u03B5\u03C0\u03B1\u03C6\u03AE\u03C2 \u03B5\u03C0\u03AD\u03BA\u03C4\u03B1\u03C3\u03B7\u03C2",
+          popupExpected: "Επιλογές για προχωρημένους",
+        },
+        {
+          locale: "sv_SE",
+          expected: "Till\u00E4ggets gr\u00E4nssnittsspr\u00E5k",
+          popupExpected: "Avancerade alternativ",
+        },
+        {
+          locale: "de_DE",
+          expected: "Sprache der Erweiterungsoberfl\u00E4che",
+          popupExpected: "Erweiterte Optionen",
+        },
+        {
+          locale: "pl_PL",
+          expected: "J\u0119zyk interfejsu rozszerzenia",
+          popupExpected: "Zaawansowane opcje",
+        },
+        {
+          locale: "pt_BR",
+          expected: "Idioma da interface da extens\u00E3o",
+          popupExpected: "Opções avançadas",
+        },
+      ];
 
     for (const { locale, expected, popupExpected } of TEST_LANGS) {
       // 1. Set the extension language in chrome.storage.local

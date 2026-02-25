@@ -1,6 +1,7 @@
 import { mod } from "./fakeLibPresage.js";
 import { PresageHandler } from "../src/background/PresageHandler.ts";
 import { SUPPORTED_LANGUAGES } from "../src/shared/lang.ts";
+import { MAX_NUM_SUGGESTIONS } from "../src/shared/constants.ts";
 
 const testContext = {
   ph: null,
@@ -44,6 +45,44 @@ beforeEach(() => {
   testContext.userDictionaryList = [];
   testContext.ph = new PresageHandler(mod);
   setConfig();
+});
+
+describe("site profile override behavior", () => {
+  test("numSuggestions override increases returned predictions up to requested count", () => {
+    mod.PresageCallback.predictions = [
+      "alpha",
+      "beta",
+      "gamma",
+      "delta",
+      "epsilon",
+    ];
+    testContext.numSuggestions = 1;
+    setConfig();
+
+    const result = testContext.ph.runPrediction("a", "", "en_US", {
+      numSuggestions: 4,
+    });
+    expect(result.predictions.length).toBe(4);
+  });
+
+  test("numSuggestions override is clamped to engine max and supports zero", () => {
+    mod.PresageCallback.predictions = Array.from(
+      { length: MAX_NUM_SUGGESTIONS + 5 },
+      (_, idx) => `prediction_${idx}`,
+    );
+    testContext.numSuggestions = 3;
+    setConfig();
+
+    const capped = testContext.ph.runPrediction("a", "", "en_US", {
+      numSuggestions: 999,
+    });
+    expect(capped.predictions.length).toBe(MAX_NUM_SUGGESTIONS);
+
+    const disabled = testContext.ph.runPrediction("a", "", "en_US", {
+      numSuggestions: 0,
+    });
+    expect(disabled.predictions.length).toBe(0);
+  });
 });
 
 describe("bugs", () => {

@@ -25,6 +25,7 @@ export default defineConfig([
       "**/public/third_party/",
       "**/src/third_party/",
       "**/scripts/",
+      "**/coverage/",
     ],
   },
   tseslint.configs.recommended,

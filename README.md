@@ -55,6 +55,19 @@ Example: type `callMe` and expand it to `Call me back once you're free`.
 4. Use arrow keys to choose a suggestion.
 5. Press `Tab` to accept, or `Esc` to dismiss.
 
+## Site Profiles and Precedence
+
+FluentTyper applies configuration in this order:
+
+1. Global enable switch (`Enable Extension`) must be on.
+2. Domain allow/block mode decides if FluentTyper runs on the current site.
+3. If a site profile exists for the current domain, it overrides config values:
+   - `language`: always overridden by the profile value.
+   - `inline_suggestion`: overridden only when set in the profile; otherwise inherited from global.
+   - `numSuggestions`: overridden only when set in the profile; otherwise inherited from global.
+
+Site profiles never bypass domain enable/disable logic. If a domain is blocked by allow/block mode, FluentTyper remains disabled there even if a profile exists.
+
 ## Compatibility
 
 FluentTyper works on most websites. Some rich text editors (for example Google Docs) can be partially or fully incompatible.

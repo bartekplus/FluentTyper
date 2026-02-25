@@ -33,10 +33,16 @@ export class PredictionManager {
     text: string,
     nextChar: string,
     lang: string,
+    configOverride?: { numSuggestions?: number },
   ): Promise<PredictionResult> {
     await this.initialize();
     if (!this.presageHandler) throw new Error("Presage not initialized");
-    return this.presageHandler.runPrediction(text, nextChar, lang);
+    return this.presageHandler.runPrediction(
+      text,
+      nextChar,
+      lang,
+      configOverride,
+    );
   }
 
   setConfig(config: PresageConfig): void {

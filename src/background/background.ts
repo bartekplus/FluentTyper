@@ -29,11 +29,14 @@ import {
   KEY_TIME_FORMAT,
   KEY_DATE_FORMAT,
   KEY_USER_DICTIONARY_LIST,
+  KEY_SITE_PROFILES,
+  MAX_NUM_SUGGESTIONS,
 } from "../shared/constants";
 import { getDomain, isEnabledForDomain, checkLastError } from "../shared/utils";
 import { logError } from "../shared/error";
 import { resolveEnabledLanguages } from "../shared/lang";
-import { SettingsManager } from "../shared/settingsManager";
+import { JsonValue, SettingsManager } from "../shared/settingsManager";
+import { getSiteProfileForDomain, resolveSiteProfiles } from "../shared/siteProfiles";
 import { LanguageDetector } from "./LanguageDetector";
 import { PresageConfig } from "./PresageHandler";
 import { PredictionManager } from "./PredictionManager";
@@ -51,6 +54,76 @@ import {
   OptionsPageConfigChangeMessage,
   ContentScriptGetConfigMessage,
 } from "../shared/messageTypes";
+
+interface DomainRuntimeSettings {
+  language: string;
+  enabledLanguages: string[];
+  inlineSuggestion: boolean;
+  numSuggestions: number;
+  hasNumSuggestionsOverride: boolean;
+}
+
+function clampNumSuggestions(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return 0;
+  }
+  return Math.min(MAX_NUM_SUGGESTIONS, Math.max(0, Math.round(value)));
+}
+
+async function resolveDomainRuntimeSettings(
+  settingsManager: SettingsManager,
+  domainURL?: string,
+): Promise<DomainRuntimeSettings> {
+  const [globalLanguage, enabledLanguages, inlineSuggestionGlobal, numGlobal] =
+    await Promise.all([
+      resolveActiveLanguage(settingsManager),
+      getEnabledLanguages(settingsManager),
+      settingsManager.get(KEY_INLINE_SUGGESTION),
+      settingsManager.get(KEY_NUM_SUGGESTIONS),
+    ]);
+  const siteProfilesRaw = await settingsManager.get(KEY_SITE_PROFILES);
+  const profile = domainURL
+    ? getSiteProfileForDomain(siteProfilesRaw, domainURL, enabledLanguages)
+    : undefined;
+
+  const language = profile?.language ?? globalLanguage;
+  const inlineSuggestion =
+    typeof profile?.inline_suggestion === "boolean"
+      ? profile.inline_suggestion
+      : Boolean(inlineSuggestionGlobal);
+  const hasNumSuggestionsOverride = typeof profile?.numSuggestions === "number";
+  const numSuggestions = clampNumSuggestions(
+    hasNumSuggestionsOverride ? profile?.numSuggestions : numGlobal,
+  );
+
+  return {
+    language,
+    enabledLanguages,
+    inlineSuggestion,
+    numSuggestions,
+    hasNumSuggestionsOverride,
+  };
+}
+
+async function sanitizeSiteProfilesSetting(
+  settingsManager: SettingsManager,
+): Promise<void> {
+  const [siteProfilesRaw, enabledLanguagesRaw] = await Promise.all([
+    settingsManager.get(KEY_SITE_PROFILES),
+    settingsManager.get(KEY_ENABLED_LANGUAGES),
+  ]);
+  const enabledLanguages = resolveEnabledLanguages(enabledLanguagesRaw);
+  const sanitizedSiteProfiles = resolveSiteProfiles(
+    siteProfilesRaw,
+    enabledLanguages,
+  );
+  if (JSON.stringify(siteProfilesRaw || {}) !== JSON.stringify(sanitizedSiteProfiles)) {
+    await settingsManager.set(
+      KEY_SITE_PROFILES,
+      sanitizedSiteProfiles as unknown as JsonValue,
+    );
+  }
+}
 
 export class BackgroundServiceWorker {
   static instance: BackgroundServiceWorker;
@@ -72,12 +145,16 @@ export class BackgroundServiceWorker {
     BackgroundServiceWorker.instance = this;
   }
 
-  async runPrediction(message: PredictRequestMessage) {
+  async runPrediction(
+    message: PredictRequestMessage,
+    configOverride?: { numSuggestions?: number },
+  ) {
     const { predictions, forceReplace } =
       await this.predictionManager.runPrediction(
         message.context.text!,
         message.context.nextChar!,
         message.context.lang!,
+        configOverride,
       );
     if (
       (!Array.isArray(predictions) || predictions.length === 0) &&
@@ -129,8 +206,12 @@ export class BackgroundServiceWorker {
     this.tabMessenger.sendToActiveTab(message);
   }
 
-  async getBackgroundPageSetConfigMsg(): Promise<ConfigMessage> {
-    this.language = await resolveActiveLanguage(this.settingsManager);
+  async getBackgroundPageSetConfigMsg(domainURL?: string): Promise<ConfigMessage> {
+    const domainSettings = await resolveDomainRuntimeSettings(
+      this.settingsManager,
+      domainURL,
+    );
+    this.language = domainSettings.language;
     const [
       enabled,
       autocomplete,
@@ -140,7 +221,6 @@ export class BackgroundServiceWorker {
       minWordLengthToPredict,
       revertOnBackspace,
       displayLangHeader,
-      inline_suggestion,
     ] = await Promise.all([
       this.settingsManager.get(KEY_ENABLED),
       this.settingsManager.get(KEY_AUTOCOMPLETE),
@@ -150,7 +230,6 @@ export class BackgroundServiceWorker {
       this.settingsManager.get(KEY_MIN_WORD_LENGTH_TO_PREDICT),
       this.settingsManager.get(KEY_REVERT_ON_BACKSPACE),
       this.settingsManager.get(KEY_DISPLAY_LANG_HEADER),
-      this.settingsManager.get(KEY_INLINE_SUGGESTION),
     ]);
 
     // Get theme configuration
@@ -196,7 +275,7 @@ export class BackgroundServiceWorker {
         minWordLengthToPredict: minWordLengthToPredict as number,
         revertOnBackspace: revertOnBackspace as boolean,
         displayLangHeader: displayLangHeader as boolean,
-        inline_suggestion: inline_suggestion as boolean,
+        inline_suggestion: domainSettings.inlineSuggestion,
         themeConfig: {
           tributeBgLight: tributeBgLight as string,
           tributeTextLight: tributeTextLight as string,
@@ -218,6 +297,7 @@ export class BackgroundServiceWorker {
   }
 
   async updatePresageConfig() {
+    await sanitizeSiteProfilesSetting(this.settingsManager);
     await this.predictionManager.initialize();
     this.language = await resolveActiveLanguage(this.settingsManager);
     const [
@@ -245,6 +325,7 @@ export class BackgroundServiceWorker {
     ]);
     const config: PresageConfig = {
       numSuggestions: numSuggestions as number,
+      engineNumSuggestions: MAX_NUM_SUGGESTIONS,
       minWordLengthToPredict: minWordLengthToPredict as number,
       insertSpaceAfterAutocomplete: insertSpaceAfterAutocomplete as boolean,
       autoCapitalize: autoCapitalize as boolean,
@@ -259,6 +340,16 @@ export class BackgroundServiceWorker {
     this.tabMessenger.sendToAllTabs(
       await this.getBackgroundPageSetConfigMsg(),
       this.settingsManager,
+      async (domain: string) => {
+        const domainSettings = await resolveDomainRuntimeSettings(
+          this.settingsManager,
+          domain,
+        );
+        return {
+          lang: domainSettings.language,
+          inline_suggestion: domainSettings.inlineSuggestion,
+        };
+      },
     );
   }
 }
@@ -368,18 +459,18 @@ async function handleContentScriptPredictReq(
   backgroundServiceWorker: BackgroundServiceWorker,
 ) {
   try {
-    let language = await resolveActiveLanguage(
+    const domainURL = getDomain(sender.tab?.url || "");
+    const domainSettings = await resolveDomainRuntimeSettings(
       backgroundServiceWorker.settingsManager,
+      domainURL,
     );
+    let language = domainSettings.language;
     backgroundServiceWorker.language = language;
     if (language === "auto_detect") {
-      const enabledLanguages = await getEnabledLanguages(
-        backgroundServiceWorker.settingsManager,
-      );
       language = await backgroundServiceWorker.detectLanguage(
         request.context.text!,
         sender.tab!.id!,
-        enabledLanguages,
+        domainSettings.enabledLanguages,
       );
     }
     if (request.context.lang !== language) {
@@ -407,7 +498,12 @@ async function handleContentScriptPredictReq(
         },
       };
 
-      backgroundServiceWorker.runPrediction(predictRequestMessage);
+      backgroundServiceWorker.runPrediction(
+        predictRequestMessage,
+        domainSettings.hasNumSuggestionsOverride
+          ? { numSuggestions: domainSettings.numSuggestions }
+          : undefined,
+      );
     }
   } catch (error) {
     logError("handleContentScriptPredictReq", error);
@@ -436,12 +532,10 @@ async function handleContentScriptGetConfig(
   backgroundServiceWorker: BackgroundServiceWorker,
 ) {
   try {
-    const isEnabled = await isEnabledForDomain(
-      backgroundServiceWorker.settingsManager,
-      getDomain(sender.tab!.url! as string) as string,
-    );
+    const domain = getDomain(sender.tab?.url || "") || "";
+    const isEnabled = await isEnabledForDomain(backgroundServiceWorker.settingsManager, domain);
     const message =
-      await backgroundServiceWorker.getBackgroundPageSetConfigMsg();
+      await backgroundServiceWorker.getBackgroundPageSetConfigMsg(domain);
     message.context.enabled = isEnabled;
     sendResponse(message);
   } catch (error) {

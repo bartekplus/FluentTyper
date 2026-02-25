@@ -107,6 +107,85 @@
           </div>
         </div>
       </div>
+
+      <!-- Per-site profile overrides -->
+      <section id="siteProfileSection" class="setting-item is-hidden">
+        <div class="columns is-mobile is-vcentered setting-item">
+          <div class="column">
+            <div class="label-text">
+              <span data-i18n="popup_site_profile_toggle"
+                >Use site profile</span
+              >
+              <small
+                id="siteProfileStatus"
+                data-i18n="popup_site_profile_status_global"
+                >Using global settings</small
+              >
+            </div>
+          </div>
+          <div class="column is-narrow">
+            <div class="field">
+              <input
+                id="checkboxSiteProfileInput"
+                type="checkbox"
+                name="checkboxSiteProfileInput"
+                class="switch is-rounded"
+              />
+              <label for="checkboxSiteProfileInput"></label>
+            </div>
+          </div>
+        </div>
+
+        <div class="columns is-mobile is-vcentered setting-item">
+          <div class="column">
+            <div class="label-text">
+              <span data-i18n="popup_site_profile_language">Site Language</span>
+              <small data-i18n="popup_site_profile_language_desc"
+                >Required when a site profile is enabled.</small
+              >
+            </div>
+          </div>
+          <div class="column is-narrow">
+            <div class="select is-small is-rounded">
+              <select id="siteLanguageSelect"></select>
+            </div>
+          </div>
+        </div>
+
+        <div class="columns is-mobile is-vcentered setting-item">
+          <div class="column">
+            <div class="label-text">
+              <span data-i18n="popup_site_profile_num_suggestions"
+                >Suggestions Count</span
+              >
+              <small data-i18n="popup_site_profile_num_suggestions_desc"
+                >Optional. Inherit global by default.</small
+              >
+            </div>
+          </div>
+          <div class="column is-narrow">
+            <div class="select is-small is-rounded">
+              <select id="siteNumSuggestionsSelect"></select>
+            </div>
+          </div>
+        </div>
+
+        <div class="columns is-mobile is-vcentered setting-item">
+          <div class="column">
+            <div class="label-text">
+              <span data-i18n="popup_site_profile_inline">Inline Mode</span>
+              <small data-i18n="popup_site_profile_inline_desc"
+                >Optional. Inherit global by default.</small
+              >
+            </div>
+          </div>
+          <div class="column is-narrow">
+            <div class="select is-small is-rounded">
+              <select id="siteInlineModeSelect"></select>
+            </div>
+          </div>
+        </div>
+      </section>
     </main>
 
     <!-- Actions -->

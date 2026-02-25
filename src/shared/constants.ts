@@ -42,6 +42,7 @@ export const KEY_DISPLAY_LANG_HEADER = "displayLangHeader";
 export const KEY_INLINE_SUGGESTION = "inline_suggestion";
 export const KEY_EXTENSION_LANGUAGE = "extensionLanguage";
 export const KEY_ENABLED = "enabled";
+export const KEY_SITE_PROFILES = "siteProfiles";
 // Theming Config Keys
 export const KEY_USE_DEFAULT_THEME_BTN = "useDefaultThemeBtn";
 export const KEY_USE_COMPACT_THEME_BTN = "useCompactThemeBtn";
@@ -65,3 +66,4 @@ export const CMD_POPUP_PAGE_DISABLE = "CMD_POPUP_PAGE_DISABLE";
 export const CMD_STATUS_COMMAND = "CMD_STATUS_COMMAND";
 
 export const DEFAULT_NUM_SUGGESTIONS = 5;
+export const MAX_NUM_SUGGESTIONS = 10;
