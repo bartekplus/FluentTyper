@@ -625,6 +625,91 @@ describe("Chrome Extension E2E Test", () => {
     }
   }, 30000);
 
+  test("Site profile override changing to inline suggestion enables tab completion", async () => {
+    const selector = "#test-textarea";
+    try {
+      await setSettingAndWait(worker!, "enable", true);
+      await setSettingAndWait(worker!, KEY_DOMAIN_LIST_MODE, "blackList");
+      await setSettingAndWait(worker!, "domainBlackList", []);
+      await setSettingAndWait(
+        worker!,
+        KEY_ENABLED_LANGUAGES,
+        SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+      );
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+
+      // Start with popup suggestion mode
+      await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
+      await setSettingAndWait(worker!, KEY_NUM_SUGGESTIONS, 5);
+      await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
+      await notifyConfigChange(browser, worker!);
+
+      await page.goto(domainTestUrl, { waitUntil: "domcontentloaded" });
+      await page.bringToFront();
+      await waitForInputReady(page, selector);
+
+      // Verify popup suggestion mode is active
+      const input = await page.$(selector);
+      await page.focus(selector);
+      await input!.type("impor");
+      const countWithPopup = await waitForVisibleSuggestions(page, 15000);
+      expect(countWithPopup).toBeGreaterThan(0);
+
+      // Clear input
+      await input!.click({ clickCount: 3 });
+      await page.keyboard.press("Backspace");
+
+      // Set site profile override for localhost to use inline suggestions instead
+      await setSettingAndWait(worker!, KEY_SITE_PROFILES, {
+        localhost: {
+          language: "en_US",
+          numSuggestions: 5,
+          inline_suggestion: true,
+        },
+      });
+      // trigger config change WITHOUT reloading page
+      await notifyConfigChange(browser, worker!);
+
+      // Give the background script some time to dispatch and content script to restart
+      await new Promise((r) => setTimeout(r, 600));
+
+      await page.focus(selector);
+      await input!.type("impor");
+
+      // Wait for inline engine prediction
+      await new Promise((r) => setTimeout(r, 300));
+
+      // Try tab completion
+      await page.keyboard.press("Tab");
+
+      // Wait for the textarea value to change
+      await page.waitForFunction(
+        (sel) =>
+          ((document.querySelector(sel) as HTMLInputElement).value ??
+            document.querySelector(sel)?.textContent) !== "impor",
+        {},
+        selector,
+      );
+
+      const elementText = await page.$eval(
+        selector,
+        (el) => (el as HTMLInputElement).value ?? el.textContent,
+      );
+
+      // Verify that tab completion successfully completed the word 
+      // (it shouldn't be "impor" and it shouldn't just be "impor\t" if we prevent default correctly)
+      expect(elementText).not.toBe("impor");
+      expect(elementText).not.toBe("impor\t");
+      expect(elementText!.length).toBeGreaterThan(5);
+    } finally {
+      await setSettingAndWait(worker!, KEY_NUM_SUGGESTIONS, 5);
+      await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
+      await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
+      await notifyConfigChange(browser, worker!);
+    }
+  }, 30000);
+
   test("CKEditor 5 input initializes on test page", async () => {
     await gotoTestPage(page, { enableCkEditor: true });
     page.bringToFront();

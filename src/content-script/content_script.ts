@@ -295,7 +295,6 @@ class FluentTyper {
       config,
     );
     this.config = config;
-    this.tributeManager = null;
 
     // Apply theme configuration if provided
     if (config.themeConfig) {
@@ -312,6 +311,9 @@ class FluentTyper {
       this.restart();
     } else {
       this.enabled = config.enabled;
+      if (!this.enabled) {
+        this.tributeManager = null;
+      }
     }
   }
 
@@ -359,6 +361,7 @@ class FluentTyper {
       this.restart.name,
     );
     this.disable();
+    this.tributeManager = null;
     setTimeout(() => {
       if (this._enabled) this.enable();
     }, 0);
