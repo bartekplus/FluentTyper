@@ -353,6 +353,13 @@ const manifest = {
       type: "button",
       text: i18n.get("remove_selected_btn"),
     },
+    {
+      tab: i18n.get("site_mgmt_tab"),
+      group: i18n.get("site_profiles"),
+      name: "siteProfilesEditor",
+      type: "description",
+      text: "<div id='siteProfilesEditorRoot'></div>",
+    },
 
     // =========================================================================
     // TAB: Appearance

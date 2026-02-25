@@ -1,5 +1,6 @@
 import puppeteer, { Browser, Page, WebWorker } from "puppeteer";
 import path from "path";
+import * as fs from "fs";
 import { createServer, Server } from "http";
 import {
   KEY_ENABLED_LANGUAGES,
@@ -7,7 +8,9 @@ import {
   KEY_DOMAIN_LIST_MODE,
   KEY_LANGUAGE,
   KEY_INLINE_SUGGESTION,
+  KEY_NUM_SUGGESTIONS,
   KEY_MIN_WORD_LENGTH_TO_PREDICT,
+  KEY_SITE_PROFILES,
 } from "../../src/shared/constants";
 import { SUPPORTED_PREDICTION_LANGUAGE_KEYS } from "../../src/shared/lang";
 
@@ -368,6 +371,7 @@ describe("Chrome Extension E2E Test", () => {
   let worker: WebWorker;
   let domainTestServer: Server;
   let domainTestUrl: string;
+  let domainTestHtml: string;
 
   beforeAll(async () => {
     const launchArgs = [
@@ -397,12 +401,11 @@ describe("Chrome Extension E2E Test", () => {
       { timeout: 30000 },
     );
     worker = (await serviceWorkerTarget.worker())!;
+    domainTestHtml = fs.readFileSync(TEST_PAGE_PATH, "utf8");
 
     domainTestServer = createServer((_req, res) => {
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-      res.end(
-        "<!doctype html><html><body><p>domain test page</p></body></html>",
-      );
+      res.end(domainTestHtml);
     });
     await new Promise<void>((resolve, reject) => {
       domainTestServer.once("error", reject);
@@ -517,6 +520,272 @@ describe("Chrome Extension E2E Test", () => {
       await setSettingAndWait(worker!, "domainBlackList", []);
     }
   }, 10000);
+
+  test("Site profiles setting round-trips through extension storage", async () => {
+    const siteProfiles = {
+      localhost: {
+        language: "fr_FR",
+        numSuggestions: 3,
+        inline_suggestion: true,
+      },
+    };
+    await setSettingAndWait(worker!, KEY_SITE_PROFILES, siteProfiles);
+
+    const storedSiteProfiles = await getSetting<typeof siteProfiles>(
+      worker!,
+      KEY_SITE_PROFILES,
+    );
+    expect(storedSiteProfiles).toEqual(siteProfiles);
+
+    await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
+  }, 5000);
+
+  test("CMD_TOGGLE_FT_ACTIVE_LANG changes global language when no site profile exists", async () => {
+    try {
+      await setSettingAndWait(worker!, "enable", true);
+      await setSettingAndWait(
+        worker!,
+        KEY_ENABLED_LANGUAGES,
+        SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+      );
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
+      await notifyConfigChange(browser, worker!);
+
+      // Trigger the command from the service worker
+      await worker!.evaluate(
+        "triggerCommandForTesting('CMD_TOGGLE_FT_ACTIVE_LANG');",
+      );
+      await new Promise((r) => setTimeout(r, 500));
+
+      const langAfter = await getSetting<string>(worker!, KEY_LANGUAGE);
+      expect(langAfter).not.toBe("en_US");
+      expect(SUPPORTED_PREDICTION_LANGUAGE_KEYS).toContain(langAfter);
+    } finally {
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
+      await notifyConfigChange(browser, worker!);
+    }
+  }, 15000);
+
+  test("CMD_TOGGLE_FT_ACTIVE_LANG changes per-site language when site profile exists", async () => {
+    try {
+      await setSettingAndWait(worker!, "enable", true);
+      await setSettingAndWait(
+        worker!,
+        KEY_ENABLED_LANGUAGES,
+        SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+      );
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+
+      // Navigate to the domain test server so the active tab is localhost
+      await page.goto(domainTestUrl, { waitUntil: "domcontentloaded" });
+      await page.bringToFront();
+
+      // Create a site profile for localhost with en_US language
+      await setSettingAndWait(worker!, KEY_SITE_PROFILES, {
+        localhost: {
+          language: "en_US",
+        },
+      });
+      await notifyConfigChange(browser, worker!);
+
+      // Trigger the command from the service worker
+      await worker!.evaluate(
+        "triggerCommandForTesting('CMD_TOGGLE_FT_ACTIVE_LANG');",
+      );
+      await new Promise((r) => setTimeout(r, 500));
+
+      // Verify global language is unchanged
+      const globalLang = await getSetting<string>(worker!, KEY_LANGUAGE);
+      expect(globalLang).toBe("en_US");
+
+      // Verify site profile language was changed
+      const siteProfiles = await getSetting<
+        Record<string, { language: string }>
+      >(worker!, KEY_SITE_PROFILES);
+      expect(siteProfiles).toBeDefined();
+      expect(siteProfiles!.localhost).toBeDefined();
+      expect(siteProfiles!.localhost.language).not.toBe("en_US");
+      expect(SUPPORTED_PREDICTION_LANGUAGE_KEYS).toContain(
+        siteProfiles!.localhost.language,
+      );
+    } finally {
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
+      await notifyConfigChange(browser, worker!);
+    }
+  }, 15000);
+
+  test("Site profile override increases suggestions count on matching domain", async () => {
+    const selector = "#test-textarea";
+    try {
+      await setSettingAndWait(worker!, "enable", true);
+      await setSettingAndWait(worker!, KEY_DOMAIN_LIST_MODE, "blackList");
+      await setSettingAndWait(worker!, "domainBlackList", []);
+      await setSettingAndWait(
+        worker!,
+        KEY_ENABLED_LANGUAGES,
+        SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+      );
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
+      await setSettingAndWait(worker!, KEY_NUM_SUGGESTIONS, 0);
+      await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
+      await notifyConfigChange(browser, worker!);
+
+      await page.goto(domainTestUrl, { waitUntil: "domcontentloaded" });
+      await page.bringToFront();
+      await waitForInputReady(page, selector);
+      await worker!.evaluate("chrome.action.openPopup();");
+      const popupTarget = await browser.waitForTarget(
+        (target) =>
+          target.type() === "page" && target.url().endsWith("popup.html"),
+        { timeout: 5000 },
+      );
+      const popupPage = await popupTarget.asPage();
+      await popupPage.close();
+      await page.bringToFront();
+      const inputWithoutOverride = await page.$(selector);
+      await page.focus(selector);
+      await inputWithoutOverride!.type("impor");
+      await new Promise((r) => setTimeout(r, 600));
+      const hasSuggestionsWithoutOverride = await page.evaluate(() => {
+        const containers = Array.from(
+          document.querySelectorAll(".tribute-container"),
+        );
+        return containers.some((container) => {
+          const style = window.getComputedStyle(container);
+          if (
+            style.display === "none" ||
+            style.visibility === "hidden" ||
+            style.opacity === "0" ||
+            container.getClientRects().length === 0
+          ) {
+            return false;
+          }
+          return container.querySelectorAll("li").length > 0;
+        });
+      });
+      expect(hasSuggestionsWithoutOverride).toBe(false);
+
+      await setSettingAndWait(worker!, KEY_SITE_PROFILES, {
+        localhost: {
+          language: "en_US",
+          numSuggestions: 4,
+        },
+      });
+      await notifyConfigChange(browser, worker!);
+
+      await page.goto(domainTestUrl, { waitUntil: "domcontentloaded" });
+      await page.bringToFront();
+      await waitForInputReady(page, selector);
+      await worker!.evaluate("chrome.action.openPopup();");
+      const popupTargetAfterOverride = await browser.waitForTarget(
+        (target) =>
+          target.type() === "page" && target.url().endsWith("popup.html"),
+        { timeout: 5000 },
+      );
+      const popupPageAfterOverride = await popupTargetAfterOverride.asPage();
+      await popupPageAfterOverride.close();
+      await page.bringToFront();
+      const inputWithOverride = await page.$(selector);
+      await page.focus(selector);
+      await inputWithOverride!.type("impor");
+      const countWithOverride = await waitForVisibleSuggestions(page, 15000);
+      expect(countWithOverride).toBeGreaterThan(0);
+    } finally {
+      await setSettingAndWait(worker!, KEY_NUM_SUGGESTIONS, 5);
+      await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
+      await notifyConfigChange(browser, worker!);
+    }
+  }, 30000);
+
+  test("Site profile override changing to inline suggestion enables tab completion", async () => {
+    const selector = "#test-textarea";
+    try {
+      await setSettingAndWait(worker!, "enable", true);
+      await setSettingAndWait(worker!, KEY_DOMAIN_LIST_MODE, "blackList");
+      await setSettingAndWait(worker!, "domainBlackList", []);
+      await setSettingAndWait(
+        worker!,
+        KEY_ENABLED_LANGUAGES,
+        SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+      );
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+
+      // Start with popup suggestion mode
+      await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
+      await setSettingAndWait(worker!, KEY_NUM_SUGGESTIONS, 5);
+      await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
+      await notifyConfigChange(browser, worker!);
+
+      await page.goto(domainTestUrl, { waitUntil: "domcontentloaded" });
+      await page.bringToFront();
+      await waitForInputReady(page, selector);
+
+      // Verify popup suggestion mode is active
+      const input = await page.$(selector);
+      await page.focus(selector);
+      await input!.type("impor");
+      const countWithPopup = await waitForVisibleSuggestions(page, 15000);
+      expect(countWithPopup).toBeGreaterThan(0);
+
+      // Clear input
+      await input!.click({ clickCount: 3 });
+      await page.keyboard.press("Backspace");
+
+      // Set site profile override for localhost to use inline suggestions instead
+      await setSettingAndWait(worker!, KEY_SITE_PROFILES, {
+        localhost: {
+          language: "en_US",
+          numSuggestions: 5,
+          inline_suggestion: true,
+        },
+      });
+      // trigger config change WITHOUT reloading page
+      await notifyConfigChange(browser, worker!);
+
+      // Give the background script some time to dispatch and content script to restart
+      await new Promise((r) => setTimeout(r, 600));
+
+      await page.focus(selector);
+      await input!.type("impor");
+
+      // Wait for inline engine prediction
+      await new Promise((r) => setTimeout(r, 300));
+
+      // Try tab completion
+      await page.keyboard.press("Tab");
+
+      // Wait for the textarea value to change
+      await page.waitForFunction(
+        (sel) =>
+          ((document.querySelector(sel) as HTMLInputElement).value ??
+            document.querySelector(sel)?.textContent) !== "impor",
+        {},
+        selector,
+      );
+
+      const elementText = await page.$eval(
+        selector,
+        (el) => (el as HTMLInputElement).value ?? el.textContent,
+      );
+
+      // Verify that tab completion successfully completed the word
+      // (it shouldn't be "impor" and it shouldn't just be "impor\t" if we prevent default correctly)
+      expect(elementText).not.toBe("impor");
+      expect(elementText).not.toBe("impor\t");
+      expect(elementText!.length).toBeGreaterThan(5);
+    } finally {
+      await setSettingAndWait(worker!, KEY_NUM_SUGGESTIONS, 5);
+      await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
+      await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
+      await notifyConfigChange(browser, worker!);
+    }
+  }, 30000);
 
   test("CKEditor 5 input initializes on test page", async () => {
     await gotoTestPage(page, { enableCkEditor: true });
@@ -1023,7 +1292,7 @@ describe("Chrome Extension E2E Test", () => {
       await popupPage.goto(
         `chrome-extension://${worker!.url().split("/")[2]}/popup/popup.html`,
       );
-      await popupPage.waitForSelector(".settings-box", { timeout: 500 });
+      await popupPage.waitForSelector(".control-card", { timeout: 500 });
 
       // Wait a moment for translations to apply
       await new Promise((r) => setTimeout(r, 100));
@@ -1031,8 +1300,8 @@ describe("Chrome Extension E2E Test", () => {
       const { found, actualText } = await popupPage.evaluate((exp: string) => {
         const btn = document.getElementById("runOptions");
         return {
-          found: btn?.textContent?.includes(exp) ?? false,
-          actualText: btn?.textContent || "NULL",
+          found: btn?.getAttribute("title")?.includes(exp) ?? false,
+          actualText: btn?.getAttribute("title") || "NULL",
         };
       }, popupExpected);
 

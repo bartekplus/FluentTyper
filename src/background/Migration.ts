@@ -1,6 +1,8 @@
 // Handles migration/version logic for FluentTyper extension
-import { SUPPORTED_LANGUAGES } from "../shared/lang";
-import { SettingsManager } from "../shared/settingsManager";
+import { SUPPORTED_LANGUAGES, resolveEnabledLanguages } from "../shared/lang";
+import { JsonValue, SettingsManager } from "../shared/settingsManager";
+import { KEY_ENABLED_LANGUAGES, KEY_SITE_PROFILES } from "../shared/constants";
+import { resolveSiteProfiles } from "../shared/siteProfiles";
 
 /**
  * Migrates storage and language settings to the latest version.
@@ -22,6 +24,8 @@ export async function migrateToLocalStore(lastVersion?: string): Promise<void> {
       sensitivity: "base",
     }) <= 0;
 
+  let settingsManager: SettingsManager | null = null;
+
   if (migrateStore) {
     chrome.storage.sync.get(null, (result: { [key: string]: unknown }) => {
       chrome.storage.local.set(result);
@@ -30,7 +34,7 @@ export async function migrateToLocalStore(lastVersion?: string): Promise<void> {
   }
 
   if (updateLang) {
-    const settingsManager = new SettingsManager();
+    settingsManager = settingsManager || new SettingsManager();
     const langProps: Array<"language" | "fallbackLanguage"> = [
       "language",
       "fallbackLanguage",
@@ -45,5 +49,19 @@ export async function migrateToLocalStore(lastVersion?: string): Promise<void> {
       }
     }
   }
+
+  settingsManager = settingsManager || new SettingsManager();
+  const enabledLanguages = resolveEnabledLanguages(
+    await settingsManager.get(KEY_ENABLED_LANGUAGES),
+  );
+  const siteProfiles = resolveSiteProfiles(
+    await settingsManager.get(KEY_SITE_PROFILES),
+    enabledLanguages,
+  );
+  await settingsManager.set(
+    KEY_SITE_PROFILES,
+    siteProfiles as unknown as JsonValue,
+  );
+
   chrome.storage.local.set({ lastVersion: currentVersion });
 }

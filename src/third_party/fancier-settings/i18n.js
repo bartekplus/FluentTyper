@@ -884,6 +884,81 @@ i18n = Object.assign(i18n, {
     "pl": "Usuń Wybrane",
     "pr": "Remover Selecionado",
   },
+  "site_profiles": {
+    "en": "Site Profiles",
+  },
+  "site_profiles_desc": {
+    "en": "Site profiles override language and optional prediction preferences for matching domains. Domain allow/block rules still control whether FluentTyper runs.",
+  },
+  "site_profiles_domain_label": {
+    "en": "Domain",
+  },
+  "site_profiles_domain_placeholder": {
+    "en": "example.com",
+  },
+  "site_profiles_language_label": {
+    "en": "Language (required)",
+  },
+  "site_profiles_num_suggestions_label": {
+    "en": "Suggestions Count",
+  },
+  "site_profiles_inline_mode_label": {
+    "en": "Inline Mode",
+  },
+  "site_profiles_add_btn": {
+    "en": "Add Profile",
+  },
+  "site_profiles_update_btn": {
+    "en": "Update Profile",
+  },
+  "site_profiles_cancel_btn": {
+    "en": "Cancel",
+  },
+  "site_profiles_table_domain": {
+    "en": "Domain",
+  },
+  "site_profiles_table_language": {
+    "en": "Language",
+  },
+  "site_profiles_table_num_suggestions": {
+    "en": "Suggestions",
+  },
+  "site_profiles_table_inline_mode": {
+    "en": "Inline",
+  },
+  "site_profiles_table_actions": {
+    "en": "Actions",
+  },
+  "site_profiles_empty": {
+    "en": "No site profiles yet. Add one to override language or prediction behavior for a specific domain.",
+  },
+  "site_profiles_edit_btn": {
+    "en": "Edit",
+  },
+  "site_profiles_form_hint": {
+    "en": "Use \"Inherit global\" to keep optional settings synced with your global preferences.",
+  },
+  "site_profiles_editing_hint": {
+    "en": "Editing profile for:",
+  },
+  "site_profiles_invalid_domain": {
+    "en": "Enter a valid domain or URL (for example: example.com).",
+  },
+  "site_profiles_saved_status": {
+    "en": "Site profile saved.",
+  },
+  "site_profiles_removed_status": {
+    "en": "Site profile removed.",
+  },
+  "site_profile_inherit_global": {
+    "en": "Inherit global",
+  },
+  "site_profile_on": {
+    "en": "On",
+  },
+  "site_profile_off": {
+    "en": "Off",
+  },
   "my_dict_tab": {
     "en": "My Dictionary",
     "fr": "Mon Dictionnaire",
@@ -1587,6 +1662,36 @@ i18n = Object.assign(i18n, {
     de: "Legen Sie Ihre primäre Schreibsprache fest.",
     es: "Configure su idioma principal de escritura.",
     pl: "Ustaw swój główny język pisania.",
+  },
+  "popup_site_profile_toggle": {
+    en: "Use site profile",
+  },
+  "popup_site_profile_toggle_desc": {
+    en: "Override language and optional prediction settings for this domain.",
+  },
+  "popup_site_profile_status_global": {
+    en: "Using global settings",
+  },
+  "popup_site_profile_status_active": {
+    en: "Profile active on this site",
+  },
+  "popup_site_profile_language": {
+    en: "Site Language",
+  },
+  "popup_site_profile_language_desc": {
+    en: "Required when a site profile is enabled.",
+  },
+  "popup_site_profile_num_suggestions": {
+    en: "Suggestions Count",
+  },
+  "popup_site_profile_num_suggestions_desc": {
+    en: "Optional. Inherit global by default.",
+  },
+  "popup_site_profile_inline": {
+    en: "Inline Mode",
+  },
+  "popup_site_profile_inline_desc": {
+    en: "Optional. Inherit global by default.",
   },
   "popup_advanced_options": {
     en: "Advanced Options",

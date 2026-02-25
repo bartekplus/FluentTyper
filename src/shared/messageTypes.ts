@@ -98,6 +98,7 @@ export type Message =
     }
   | { command: "CMD_TOGGLE_FT_ACTIVE_TAB" }
   | { command: "CMD_TRIGGER_FT_ACTIVE_TAB" }
+  | { command: "CMD_GET_HOSTNAME" }
   | {
       command: "CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG";
       context: UpdateLangConfigContext;

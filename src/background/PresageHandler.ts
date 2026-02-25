@@ -14,6 +14,7 @@ import { UserDictionaryManager } from "./UserDictionaryManager";
 import { TextExpansionManager } from "./TextExpansionManager";
 import { PresageEngine, PresageEngineConfig } from "./PresageEngine";
 import { ForceReplaceType } from "../shared/messageTypes";
+import { MAX_NUM_SUGGESTIONS } from "../shared/constants";
 
 const SUGGESTION_COUNT = 5;
 const MIN_WORD_LENGTH_TO_PREDICT = 1;
@@ -30,6 +31,7 @@ interface LastPrediction {
 
 export type PresageConfig = {
   numSuggestions: number;
+  engineNumSuggestions?: number;
   minWordLengthToPredict: number;
   insertSpaceAfterAutocomplete: boolean;
   autoCapitalize: boolean;
@@ -57,6 +59,7 @@ export class PresageHandler {
   private variableExpansion?: boolean;
   private timeFormat?: string;
   private dateFormat?: string;
+  private engineNumSuggestions: number;
 
   constructor(Module: PresageModule) {
     const engineConfig: PresageEngineConfig = {
@@ -65,6 +68,7 @@ export class PresageHandler {
     this.presageEngines = {};
     this.lastPrediction = {};
     this.numSuggestions = SUGGESTION_COUNT;
+    this.engineNumSuggestions = MAX_NUM_SUGGESTIONS;
     this.minWordLengthToPredict = MIN_WORD_LENGTH_TO_PREDICT;
     this.predictNextWordAfterSeparatorChar = false;
     this.insertSpaceAfterAutocomplete = true;
@@ -105,6 +109,13 @@ export class PresageHandler {
 
   setConfig(config: PresageConfig): void {
     this.numSuggestions = config.numSuggestions;
+    this.engineNumSuggestions = Math.min(
+      MAX_NUM_SUGGESTIONS,
+      Math.max(
+        this.numSuggestions,
+        config.engineNumSuggestions ?? this.numSuggestions,
+      ),
+    );
     this.minWordLengthToPredict = Math.max(0, config.minWordLengthToPredict);
     this.predictNextWordAfterSeparatorChar =
       this.minWordLengthToPredict === 0 ? true : false;
@@ -126,7 +137,7 @@ export class PresageHandler {
     );
     for (const [, presageEngine] of Object.entries(this.presageEngines)) {
       presageEngine.setConfig({
-        numSuggestions: this.numSuggestions,
+        numSuggestions: this.engineNumSuggestions,
       });
     }
   }
@@ -159,6 +170,7 @@ export class PresageHandler {
   processInput(
     predictionInput: string,
     language: string,
+    numSuggestions: number = this.numSuggestions,
   ): {
     predictionInput: string;
     lastWord: string;
@@ -168,7 +180,7 @@ export class PresageHandler {
     return this.predictionInputProcessor.processInput(
       predictionInput,
       language,
-      this.numSuggestions,
+      numSuggestions,
       this.predictNextWordAfterSeparatorChar,
     );
   }
@@ -193,17 +205,30 @@ export class PresageHandler {
     text: string,
     nextChar: string,
     lang: string,
+    configOverride?: { numSuggestions?: number },
   ): PredictionResult {
+    const overrideSuggestionCount = configOverride?.numSuggestions;
+    const effectiveNumSuggestions =
+      typeof overrideSuggestionCount === "number"
+        ? Math.min(
+            MAX_NUM_SUGGESTIONS,
+            Math.max(0, Math.round(overrideSuggestionCount)),
+          )
+        : this.numSuggestions;
     let predictions: string[] = [];
     const { predictionInput, doPrediction, doCapitalize } = this.processInput(
       text,
       lang,
+      effectiveNumSuggestions,
     );
     const forceReplace = this.spacingHandler.applySpacingRules(text);
     if (!(lang in this.presageEngines)) {
       // Do nothing, reply with empty predictions
     } else if (!forceReplace && doPrediction) {
       predictions = this.doPredictionHandler(predictionInput, lang);
+    }
+    if (predictions.length > effectiveNumSuggestions) {
+      predictions = predictions.slice(0, effectiveNumSuggestions);
     }
     // Sort prediction so that the most relevant ones are at the top
     // eg. if input is "the act", then "act" will be first and "action" will be second

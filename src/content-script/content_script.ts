@@ -11,6 +11,7 @@ import {
   CMD_POPUP_PAGE_ENABLE,
   CMD_POPUP_PAGE_DISABLE,
   CMD_STATUS_COMMAND,
+  CMD_GET_HOSTNAME,
 } from "../shared/constants";
 import { LANG_SEPERATOR_CHARS_REGEX } from "../shared/lang";
 import { checkLastError, isInDocument } from "../shared/utils";
@@ -295,7 +296,6 @@ class FluentTyper {
       config,
     );
     this.config = config;
-    this.tributeManager = null;
 
     // Apply theme configuration if provided
     if (config.themeConfig) {
@@ -312,6 +312,9 @@ class FluentTyper {
       this.restart();
     } else {
       this.enabled = config.enabled;
+      if (!this.enabled) {
+        this.tributeManager = null;
+      }
     }
   }
 
@@ -359,6 +362,7 @@ class FluentTyper {
       this.restart.name,
     );
     this.disable();
+    this.tributeManager = null;
     setTimeout(() => {
       if (this._enabled) this.enable();
     }, 0);
@@ -444,6 +448,9 @@ class FluentTyper {
       case CMD_TRIGGER_FT_ACTIVE_TAB:
         this.tributeManager?.triggerActiveTribute();
         sendStatusMsg = true;
+        break;
+      case CMD_GET_HOSTNAME:
+        if (sendResponse) sendResponse({ hostname: window.location.hostname });
         break;
       default:
         console.trace(

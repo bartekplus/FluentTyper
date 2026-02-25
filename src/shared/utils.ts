@@ -1,40 +1,11 @@
 import { SettingsManager } from "./settingsManager";
 import { getErrorMessage } from "./error";
+import { normalizeDomainHost } from "./siteProfiles";
 export const SETTINGS_DOMAIN_BLACKLIST = "domainBlackList";
 export const DOMAIN_LIST_MODE = {
   blackList: "Blacklist - enabled on all websites, disabled on specific sites",
   whiteList: "Whitelist - disabled on all websites, enabled on specific sites",
 };
-
-function normalizeDomainHost(domainOrUrl: string): string | undefined {
-  if (typeof domainOrUrl !== "string") {
-    return undefined;
-  }
-
-  const trimmed = domainOrUrl.trim();
-  if (!trimmed) {
-    return undefined;
-  }
-
-  const parseHostName = (value: string): string | undefined => {
-    try {
-      return new URL(value).hostname;
-    } catch {
-      return undefined;
-    }
-  };
-
-  let hostName = parseHostName(trimmed);
-  if (!hostName) {
-    hostName = parseHostName(`http://${trimmed}`);
-  }
-  if (!hostName) {
-    return undefined;
-  }
-
-  const normalized = hostName.toLowerCase().replace(/\.+$/, "");
-  return normalized || undefined;
-}
 
 /**
  * Extracts the domain from a URL.
@@ -270,4 +241,25 @@ export function isNumber(str: string): boolean {
  */
 export function isInDocument(element: Element): boolean {
   return document.contains(element);
+}
+
+/**
+ * Promisified wrapper for chrome.tabs.sendMessage.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function promisifiedSendMessage<T = any>(
+  tabId: number,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  message: any,
+  options?: chrome.tabs.MessageSendOptions,
+): Promise<T | undefined> {
+  return new Promise<T | undefined>((resolve, reject) => {
+    chrome.tabs.sendMessage(tabId, message, options || {}, (res) => {
+      if (chrome.runtime.lastError) {
+        reject(chrome.runtime.lastError);
+      } else {
+        resolve(res);
+      }
+    });
+  });
 }

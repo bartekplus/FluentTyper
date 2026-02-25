@@ -15,6 +15,7 @@ export const CMD_CONTENT_SCRIPT_GET_CONFIG = "CMD_CONTENT_SCRIPT_GET_CONFIG";
 export const CMD_TOGGLE_FT_ACTIVE_TAB = "CMD_TOGGLE_FT_ACTIVE_TAB";
 export const CMD_TRIGGER_FT_ACTIVE_TAB = "CMD_TRIGGER_FT_ACTIVE_TAB";
 export const CMD_TOGGLE_FT_ACTIVE_LANG = "CMD_TOGGLE_FT_ACTIVE_LANG";
+export const CMD_GET_HOSTNAME = "CMD_GET_HOSTNAME";
 
 // Config Keys
 export const KEY_AUTOCOMPLETE = "autocomplete";
@@ -42,6 +43,7 @@ export const KEY_DISPLAY_LANG_HEADER = "displayLangHeader";
 export const KEY_INLINE_SUGGESTION = "inline_suggestion";
 export const KEY_EXTENSION_LANGUAGE = "extensionLanguage";
 export const KEY_ENABLED = "enabled";
+export const KEY_SITE_PROFILES = "siteProfiles";
 // Theming Config Keys
 export const KEY_USE_DEFAULT_THEME_BTN = "useDefaultThemeBtn";
 export const KEY_USE_COMPACT_THEME_BTN = "useCompactThemeBtn";
@@ -65,3 +67,4 @@ export const CMD_POPUP_PAGE_DISABLE = "CMD_POPUP_PAGE_DISABLE";
 export const CMD_STATUS_COMMAND = "CMD_STATUS_COMMAND";
 
 export const DEFAULT_NUM_SUGGESTIONS = 5;
+export const MAX_NUM_SUGGESTIONS = 10;
