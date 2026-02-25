@@ -242,3 +242,24 @@ export function isNumber(str: string): boolean {
 export function isInDocument(element: Element): boolean {
   return document.contains(element);
 }
+
+/**
+ * Promisified wrapper for chrome.tabs.sendMessage.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function promisifiedSendMessage<T = any>(
+  tabId: number,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  message: any,
+  options?: chrome.tabs.MessageSendOptions,
+): Promise<T | undefined> {
+  return new Promise<T | undefined>((resolve, reject) => {
+    chrome.tabs.sendMessage(tabId, message, options || {}, (res) => {
+      if (chrome.runtime.lastError) {
+        reject(chrome.runtime.lastError);
+      } else {
+        resolve(res);
+      }
+    });
+  });
+}

@@ -1,6 +1,10 @@
 // Handles messaging to tabs/content scripts for FluentTyper
 import { SettingsManager } from "../shared/settingsManager";
-import { isEnabledForDomain, checkLastError } from "../shared/utils";
+import {
+  isEnabledForDomain,
+  checkLastError,
+  promisifiedSendMessage,
+} from "../shared/utils";
 import { Message, ConfigMessage } from "../shared/messageTypes";
 import { getErrorMessage } from "../shared/error";
 import { CMD_GET_HOSTNAME } from "../shared/constants";
@@ -17,9 +21,17 @@ export class TabMessenger {
   private async getActiveTabId(): Promise<number | undefined> {
     checkLastError();
     try {
-      let tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      let tabs: chrome.tabs.Tab[] | undefined;
+      try {
+        tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      } catch {
+        // Expected in Firefox during background shortcuts if no current window
+      }
       if (!tabs || tabs.length === 0) {
-        tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+        tabs = await chrome.tabs.query({
+          active: true,
+          lastFocusedWindow: true,
+        });
       }
       if (tabs && tabs.length >= 1 && typeof tabs[0].id === "number") {
         return tabs[0].id;
@@ -38,19 +50,17 @@ export class TabMessenger {
     });
   }
 
-  async getActiveTabHostname(): Promise<{ tabId: number; hostname: string } | undefined> {
+  async getActiveTabHostname(): Promise<
+    { tabId: number; hostname: string } | undefined
+  > {
     const tabId = await this.getActiveTabId();
     if (tabId === undefined) return undefined;
     try {
-      const response = await new Promise<{ hostname?: string } | undefined>((resolve, reject) => {
-        chrome.tabs.sendMessage(tabId, { command: CMD_GET_HOSTNAME }, { frameId: 0 }, (res) => {
-          if (chrome.runtime.lastError) {
-            reject(chrome.runtime.lastError);
-          } else {
-            resolve(res);
-          }
-        });
-      });
+      const response = await promisifiedSendMessage<{ hostname?: string }>(
+        tabId,
+        { command: CMD_GET_HOSTNAME },
+        { frameId: 0 },
+      );
       return { tabId, hostname: response?.hostname || "" };
     } catch {
       return { tabId, hostname: "" };
@@ -64,26 +74,23 @@ export class TabMessenger {
       domain: string,
     ) => Promise<Partial<ConfigMessage["context"]>>,
   ): Promise<void> {
-    chrome.tabs.query({}, async (tabs) => {
-      checkLastError();
-      for (const tab of tabs) {
-        if (typeof tab.id !== "number") continue;
+    const tabs = await chrome.tabs.query({});
+    checkLastError();
+    await Promise.allSettled(
+      tabs.map(async (tab) => {
+        if (typeof tab.id !== "number") return;
         const tabId = tab.id;
-        let domain = "";
+        let domain: string;
         try {
-          const response = await new Promise<{ hostname?: string } | undefined>((resolve, reject) => {
-            chrome.tabs.sendMessage(tabId, { command: CMD_GET_HOSTNAME }, { frameId: 0 }, (res: { hostname?: string } | undefined) => {
-              if (chrome.runtime.lastError) {
-                reject(chrome.runtime.lastError);
-              } else {
-                resolve(res);
-              }
-            });
-          });
+          const response = await promisifiedSendMessage<{ hostname?: string }>(
+            tabId,
+            { command: CMD_GET_HOSTNAME },
+            { frameId: 0 },
+          );
           domain = response?.hostname || "";
         } catch {
           // Tab has no content script (e.g. chrome:// pages)
-          continue;
+          return;
         }
         const enabled = await isEnabledForDomain(settings, domain);
         const domainOverride = resolveDomainContextOverride
@@ -102,7 +109,7 @@ export class TabMessenger {
         } catch (error) {
           console.warn(`sendToAllTabs failed: ${getErrorMessage(error)}`);
         }
-      }
-    });
+      }),
+    );
   }
 }

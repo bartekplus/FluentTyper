@@ -46,7 +46,9 @@ function getSiteProfileElements() {
     suggestions: document.getElementById(
       "siteNumSuggestionsSelect",
     ) as HTMLSelectElement,
-    inline: document.getElementById("siteInlineModeSelect") as HTMLSelectElement,
+    inline: document.getElementById(
+      "siteInlineModeSelect",
+    ) as HTMLSelectElement,
     section: document.getElementById("siteProfileSection") as HTMLElement,
     status: document.getElementById("siteProfileStatus") as HTMLElement,
   };
@@ -128,7 +130,9 @@ async function notifyConfigChange() {
 async function loadSiteProfileEditor() {
   const { toggle, language, suggestions, inline, section, status } =
     getSiteProfileElements();
-  const domainSectionWrapper = document.getElementById("domainSectionWrapper") as HTMLElement;
+  const domainSectionWrapper = document.getElementById(
+    "domainSectionWrapper",
+  ) as HTMLElement;
   if (!currentDomainURL) {
     if (domainSectionWrapper) {
       domainSectionWrapper.classList.add("is-hidden");
@@ -247,16 +251,16 @@ async function saveSiteProfileFromEditor() {
   const siteProfilesRaw = await settings.get(KEY_SITE_PROFILES);
   const nextProfiles = toggle.checked
     ? setSiteProfileForDomain(
-      siteProfilesRaw,
-      currentDomainURL,
-      readSiteProfileFromEditor(),
-      currentEnabledLanguages,
-    )
+        siteProfilesRaw,
+        currentDomainURL,
+        readSiteProfileFromEditor(),
+        currentEnabledLanguages,
+      )
     : removeSiteProfileForDomain(
-      siteProfilesRaw,
-      currentDomainURL,
-      currentEnabledLanguages,
-    );
+        siteProfilesRaw,
+        currentDomainURL,
+        currentEnabledLanguages,
+      );
   await settings.set(KEY_SITE_PROFILES, nextProfiles as unknown as JsonValue);
   status.textContent = getProfileStatusLabel(toggle.checked);
   await notifyConfigChange();

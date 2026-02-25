@@ -1,6 +1,9 @@
 import { Store } from "../third_party/fancier-settings/lib/store.js";
 import { i18n } from "../third_party/fancier-settings/i18n.js";
-import { SUPPORTED_LANGUAGES, resolveEnabledLanguages } from "../shared/lang.ts";
+import {
+  SUPPORTED_LANGUAGES,
+  resolveEnabledLanguages,
+} from "../shared/lang.ts";
 import {
   DEFAULT_NUM_SUGGESTIONS,
   KEY_ENABLED_LANGUAGES,
@@ -216,7 +219,9 @@ export class SiteProfilesManager {
     if (typeof numSuggestions === "number") {
       profile.numSuggestions = numSuggestions;
     }
-    const inlineSuggestion = parseInlineOverride(this.elements.inlineSelect.value);
+    const inlineSuggestion = parseInlineOverride(
+      this.elements.inlineSelect.value,
+    );
     if (typeof inlineSuggestion === "boolean") {
       profile.inline_suggestion = inlineSuggestion;
     }
@@ -279,7 +284,9 @@ export class SiteProfilesManager {
       this.editingDomain = null;
     }
 
-    const profile = this.editingDomain ? siteProfiles[this.editingDomain] : null;
+    const profile = this.editingDomain
+      ? siteProfiles[this.editingDomain]
+      : null;
     this.elements.domainInput.value = this.editingDomain || "";
     this.elements.languageSelect.value = profile?.language || primaryLanguage;
     this.elements.numSuggestionsSelect.value =
@@ -295,7 +302,10 @@ export class SiteProfilesManager {
     this.elements.saveButton.textContent = this.editingDomain
       ? i18n.get("site_profiles_update_btn")
       : i18n.get("site_profiles_add_btn");
-    this.elements.cancelButton.classList.toggle("is-hidden", !this.editingDomain);
+    this.elements.cancelButton.classList.toggle(
+      "is-hidden",
+      !this.editingDomain,
+    );
 
     if (!this.editingDomain && !this.statusText) {
       this.setStatus(i18n.get("site_profiles_form_hint"));
@@ -363,8 +373,15 @@ export class SiteProfilesManager {
     this.populateSuggestionsOptions(globalNumSuggestions);
     this.populateInlineOptions(globalInlineSuggestion);
     this.applyEditorState(enabledLanguages, siteProfiles);
-    this.renderTable(siteProfiles, globalNumSuggestions, globalInlineSuggestion);
-    this.setStatus(this.statusText || i18n.get("site_profiles_form_hint"), this.statusIsError);
+    this.renderTable(
+      siteProfiles,
+      globalNumSuggestions,
+      globalInlineSuggestion,
+    );
+    this.setStatus(
+      this.statusText || i18n.get("site_profiles_form_hint"),
+      this.statusIsError,
+    );
   }
 
   startEdit(domain) {

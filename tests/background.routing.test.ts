@@ -99,13 +99,17 @@ async function loadBackgroundHarness(
         callback({ id: tabId } as chrome.tabs.Tab),
       ),
       sendMessage: jest.fn(),
-      query: jest.fn((_queryInfo: unknown, callback?: (tabs: chrome.tabs.Tab[]) => void) => {
-        const tabs = [{ id: 1, url: "https://example.com/path" } as chrome.tabs.Tab];
-        if (callback) {
-          callback(tabs);
-        }
-        return Promise.resolve(tabs);
-      }),
+      query: jest.fn(
+        (_queryInfo: unknown, callback?: (tabs: chrome.tabs.Tab[]) => void) => {
+          const tabs = [
+            { id: 1, url: "https://example.com/path" } as chrome.tabs.Tab,
+          ];
+          if (callback) {
+            callback(tabs);
+          }
+          return Promise.resolve(tabs);
+        },
+      ),
     },
     storage: {
       local: {
@@ -352,16 +356,19 @@ describe("background routing and lifecycle", () => {
     await flushPromises();
 
     expect(result).toBe(false);
-    expect(runPredictionSpy).toHaveBeenCalledWith({
-      command: CMD_BACKGROUND_PAGE_PREDICT_REQ,
-      context: expect.objectContaining({
-        text: "hello",
-        nextChar: "",
-        lang: "en_US",
-        tabId: 321,
-        frameId: 7,
-      }),
-    }, undefined);
+    expect(runPredictionSpy).toHaveBeenCalledWith(
+      {
+        command: CMD_BACKGROUND_PAGE_PREDICT_REQ,
+        context: expect.objectContaining({
+          text: "hello",
+          nextChar: "",
+          lang: "en_US",
+          tabId: 321,
+          frameId: 7,
+        }),
+      },
+      undefined,
+    );
   });
 
   test("onMessage applies site profile language and suggestion count override", async () => {
@@ -394,12 +401,9 @@ describe("background routing and lifecycle", () => {
     );
     await flushPromises();
 
-    expect(harness.predictionRun).toHaveBeenCalledWith(
-      "bonjour",
-      "",
-      "fr_FR",
-      { numSuggestions: 2 },
-    );
+    expect(harness.predictionRun).toHaveBeenCalledWith("bonjour", "", "fr_FR", {
+      numSuggestions: 2,
+    });
   });
 
   test("onMessage predict request falls back to global runtime config for unmatched domain", async () => {

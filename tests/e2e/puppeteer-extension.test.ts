@@ -553,7 +553,9 @@ describe("Chrome Extension E2E Test", () => {
       await notifyConfigChange(browser, worker!);
 
       // Trigger the command from the service worker
-      await worker!.evaluate("triggerCommandForTesting('CMD_TOGGLE_FT_ACTIVE_LANG');");
+      await worker!.evaluate(
+        "triggerCommandForTesting('CMD_TOGGLE_FT_ACTIVE_LANG');",
+      );
       await new Promise((r) => setTimeout(r, 500));
 
       const langAfter = await getSetting<string>(worker!, KEY_LANGUAGE);
@@ -589,7 +591,9 @@ describe("Chrome Extension E2E Test", () => {
       await notifyConfigChange(browser, worker!);
 
       // Trigger the command from the service worker
-      await worker!.evaluate("triggerCommandForTesting('CMD_TOGGLE_FT_ACTIVE_LANG');");
+      await worker!.evaluate(
+        "triggerCommandForTesting('CMD_TOGGLE_FT_ACTIVE_LANG');",
+      );
       await new Promise((r) => setTimeout(r, 500));
 
       // Verify global language is unchanged
@@ -597,10 +601,9 @@ describe("Chrome Extension E2E Test", () => {
       expect(globalLang).toBe("en_US");
 
       // Verify site profile language was changed
-      const siteProfiles = await getSetting<Record<string, { language: string }>>(
-        worker!,
-        KEY_SITE_PROFILES,
-      );
+      const siteProfiles = await getSetting<
+        Record<string, { language: string }>
+      >(worker!, KEY_SITE_PROFILES);
       expect(siteProfiles).toBeDefined();
       expect(siteProfiles!.localhost).toBeDefined();
       expect(siteProfiles!.localhost.language).not.toBe("en_US");
@@ -771,7 +774,7 @@ describe("Chrome Extension E2E Test", () => {
         (el) => (el as HTMLInputElement).value ?? el.textContent,
       );
 
-      // Verify that tab completion successfully completed the word 
+      // Verify that tab completion successfully completed the word
       // (it shouldn't be "impor" and it shouldn't just be "impor\t" if we prevent default correctly)
       expect(elementText).not.toBe("impor");
       expect(elementText).not.toBe("impor\t");
@@ -1084,9 +1087,9 @@ describe("Chrome Extension E2E Test", () => {
     await textarea!.click();
     await page.evaluate(
       () =>
-      ((
-        document.querySelector("#test-textarea") as HTMLTextAreaElement
-      ).value = ""),
+        ((
+          document.querySelector("#test-textarea") as HTMLTextAreaElement
+        ).value = ""),
     );
     await textarea!.type("φιλο");
     await new Promise((r) => setTimeout(r, 50));
@@ -1149,9 +1152,9 @@ describe("Chrome Extension E2E Test", () => {
       // Ensure textarea is focused and clear
       await page.evaluate(
         () =>
-        ((
-          document.querySelector("#test-textarea") as HTMLTextAreaElement
-        ).value = ""),
+          ((
+            document.querySelector("#test-textarea") as HTMLTextAreaElement
+          ).value = ""),
       );
       await textarea!.type(testData.input);
       // Wait for predictions to update after typing
@@ -1182,9 +1185,9 @@ describe("Chrome Extension E2E Test", () => {
       // Cleanup for next iteration
       await page.evaluate(
         () =>
-        ((
-          document.querySelector("#test-textarea") as HTMLTextAreaElement
-        ).value = ""),
+          ((
+            document.querySelector("#test-textarea") as HTMLTextAreaElement
+          ).value = ""),
       );
       // Wait for predictions to disappear
       await new Promise((r) => setTimeout(r, 50));
@@ -1205,53 +1208,53 @@ describe("Chrome Extension E2E Test", () => {
       expected: string;
       popupExpected: string;
     }[] = [
-        {
-          locale: "en_US",
-          expected: "Extension UI Language",
-          popupExpected: "Advanced Options",
-        },
-        {
-          locale: "fr_FR",
-          expected: "Langue de l'interface",
-          popupExpected: "Options avancées",
-        },
-        {
-          locale: "hr_HR",
-          expected: "Jezik su\u010Delja pro\u0161irenja",
-          popupExpected: "Napredne opcije",
-        },
-        {
-          locale: "es_ES",
-          expected: "Idioma de la interfaz",
-          popupExpected: "Opciones avanzadas",
-        },
-        {
-          locale: "el_GR",
-          expected:
-            "\u0393\u03BB\u03CE\u03C3\u03C3\u03B1 \u03B4\u03B9\u03B5\u03C0\u03B1\u03C6\u03AE\u03C2 \u03B5\u03C0\u03AD\u03BA\u03C4\u03B1\u03C3\u03B7\u03C2",
-          popupExpected: "Επιλογές για προχωρημένους",
-        },
-        {
-          locale: "sv_SE",
-          expected: "Till\u00E4ggets gr\u00E4nssnittsspr\u00E5k",
-          popupExpected: "Avancerade alternativ",
-        },
-        {
-          locale: "de_DE",
-          expected: "Sprache der Erweiterungsoberfl\u00E4che",
-          popupExpected: "Erweiterte Optionen",
-        },
-        {
-          locale: "pl_PL",
-          expected: "J\u0119zyk interfejsu rozszerzenia",
-          popupExpected: "Zaawansowane opcje",
-        },
-        {
-          locale: "pt_BR",
-          expected: "Idioma da interface da extens\u00E3o",
-          popupExpected: "Opções avançadas",
-        },
-      ];
+      {
+        locale: "en_US",
+        expected: "Extension UI Language",
+        popupExpected: "Advanced Options",
+      },
+      {
+        locale: "fr_FR",
+        expected: "Langue de l'interface",
+        popupExpected: "Options avancées",
+      },
+      {
+        locale: "hr_HR",
+        expected: "Jezik su\u010Delja pro\u0161irenja",
+        popupExpected: "Napredne opcije",
+      },
+      {
+        locale: "es_ES",
+        expected: "Idioma de la interfaz",
+        popupExpected: "Opciones avanzadas",
+      },
+      {
+        locale: "el_GR",
+        expected:
+          "\u0393\u03BB\u03CE\u03C3\u03C3\u03B1 \u03B4\u03B9\u03B5\u03C0\u03B1\u03C6\u03AE\u03C2 \u03B5\u03C0\u03AD\u03BA\u03C4\u03B1\u03C3\u03B7\u03C2",
+        popupExpected: "Επιλογές για προχωρημένους",
+      },
+      {
+        locale: "sv_SE",
+        expected: "Till\u00E4ggets gr\u00E4nssnittsspr\u00E5k",
+        popupExpected: "Avancerade alternativ",
+      },
+      {
+        locale: "de_DE",
+        expected: "Sprache der Erweiterungsoberfl\u00E4che",
+        popupExpected: "Erweiterte Optionen",
+      },
+      {
+        locale: "pl_PL",
+        expected: "J\u0119zyk interfejsu rozszerzenia",
+        popupExpected: "Zaawansowane opcje",
+      },
+      {
+        locale: "pt_BR",
+        expected: "Idioma da interface da extens\u00E3o",
+        popupExpected: "Opções avançadas",
+      },
+    ];
 
     for (const { locale, expected, popupExpected } of TEST_LANGS) {
       // 1. Set the extension language in chrome.storage.local
