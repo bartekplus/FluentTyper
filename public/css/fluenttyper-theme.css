@@ -19,14 +19,20 @@
   --warning-text-color: #1e293b;
 
   /* Light Mode Palette */
-  --background-color: #f8fafc; /* slate-50 */
-  --text-color: #0f172a; /* slate-900 */
-  --text-color-light: #64748b; /* slate-500 */
+  --background-color: #f8fafc;
+  /* slate-50 */
+  --text-color: #0f172a;
+  /* slate-900 */
+  --text-color-light: #64748b;
+  /* slate-500 */
   --box-background-color: #ffffff;
   --box-shadow-color: rgba(71, 85, 105, 0.1);
-  --input-bg-color: #f8fafc; /* slate-50 */
-  --input-border-color: #e2e8f0; /* slate-200 */
-  --divider-color: #f1f5f9; /* slate-100 */
+  --input-bg-color: #f8fafc;
+  /* slate-50 */
+  --input-border-color: #e2e8f0;
+  /* slate-200 */
+  --divider-color: #f1f5f9;
+  /* slate-100 */
   --feature-box-bg: #f8fafc;
   --footer-text-color: #7a7a7a;
   --link-color: #363636;
@@ -35,17 +41,26 @@
 @media (prefers-color-scheme: dark) {
   :root {
     /* Dark Mode Palette */
-    --background-color: #1e293b; /* slate-800 */
-    --text-color: #e2e8f0; /* slate-200 */
-    --text-color-light: #94a3b8; /* slate-400 */
-    --box-background-color: #334155; /* slate-700 */
+    --background-color: #1e293b;
+    /* slate-800 */
+    --text-color: #e2e8f0;
+    /* slate-200 */
+    --text-color-light: #94a3b8;
+    /* slate-400 */
+    --box-background-color: #334155;
+    /* slate-700 */
     --box-shadow-color: rgba(0, 0, 0, 0.25);
-    --input-bg-color: #475569; /* slate-600 */
-    --input-border-color: #64748b; /* slate-500 */
-    --divider-color: #475569; /* slate-600 */
+    --input-bg-color: #475569;
+    /* slate-600 */
+    --input-border-color: #64748b;
+    /* slate-500 */
+    --divider-color: #475569;
+    /* slate-600 */
     --feature-box-bg: #475569;
-    --footer-text-color: #94a3b8; /* slate-400 */
-    --link-color: #cbd5e1; /* slate-300 */
+    --footer-text-color: #94a3b8;
+    /* slate-400 */
+    --link-color: #cbd5e1;
+    /* slate-300 */
   }
 }
 
@@ -84,7 +99,7 @@
   --bulma-text-weak: var(--text-color-light);
 }
 
-/* 3. POPUP-SPECIFIC STYLES
+/* 3. MODERN CONTROL PANEL STYLES
 ----------------------------------------------------------------*/
 
 /* General Body */
@@ -92,94 +107,156 @@ body.fluenttyper-popup {
   font-family: var(--bulma-body-font-family);
   background-color: var(--background-color);
   color: var(--text-color);
-  padding: 0.75rem;
-  width: 350px;
+  padding: 0;
+  margin: 0;
+  width: 320px;
+  overflow-x: hidden;
 }
 
-/* Header */
-.popup-header {
+/* Control Panel Layout */
+.control-panel {
+  display: flex;
+  flex-direction: column;
+  padding: 0.75rem;
+}
+
+/* Header Area */
+.panel-header {
+  margin-bottom: 0.5rem;
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+}
+
+/* Cards */
+.control-card {
+  background-color: var(--box-background-color);
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px var(--box-shadow-color);
+  overflow: hidden;
+}
+
+/* Card Rows */
+.card-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  min-height: 40px;
+}
+
+.card-row.border-bottom {
+  border-bottom: 1px solid var(--divider-color);
+}
+
+.row-label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-color);
+}
+
+/* Switches overrides for compactness */
+.field.mb-0 {
+  margin-bottom: 0 !important;
+}
+
+/* Profile Details (Clean List Layout) */
+.profile-details {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--input-bg-color);
+  border-top: 1px solid var(--divider-color);
+}
+
+.profile-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.4rem 0.75rem;
+  min-height: 38px;
+  border-bottom: 1px solid var(--divider-color);
+}
+
+.profile-row:last-child {
+  border-bottom: none;
+}
+
+.profile-label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-color-light);
+}
+
+/* Select Inputs Tweaks */
+.control-card .select select {
+  font-size: 0.8rem;
+  border-color: var(--input-border-color);
+  background-color: transparent;
+  color: var(--text-color);
+  padding-right: 2rem;
+  /* Make room for arrow */
+}
+
+.control-card .select.is-borderless select {
+  border: none;
+  background-color: transparent;
+  box-shadow: none;
+}
+
+.control-card .select.is-borderless select:focus {
+  border: none;
+  box-shadow: none;
+}
+
+/* Toolbar (Bottom Bar) */
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  background-color: var(--box-background-color);
+  border-top: 1px solid var(--divider-color);
+}
+
+.toolbar-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.toolbar-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-direction: column;
-  margin-bottom: 1rem;
-}
-.popup-header img {
-  width: 48px;
-  height: 48px;
-  border-radius: 0.75rem;
-  box-shadow: 0 4px 10px var(--box-shadow-color);
-}
-.popup-header .title {
-  color: var(--text-color);
-  margin-top: 0.5rem;
-  margin-bottom: 0;
-}
-
-/* Settings Box */
-.settings-box {
-  background-color: var(--box-background-color);
-  border-radius: 0.75rem;
-  box-shadow: var(--bulma-box-shadow);
-  padding: 0.25rem 1rem; /* Adjust padding to work with columns */
-}
-
-/* Setting Item (using Bulma columns) */
-.setting-item {
-  border-bottom: 1px solid var(--divider-color);
-}
-.setting-item:last-child {
-  border-bottom: none;
-}
-.setting-item .label-text {
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: var(--text-color);
-}
-.setting-item .label-text small {
-  display: block;
-  font-weight: 400;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
   color: var(--text-color-light);
+  transition: all 0.2s ease;
 }
 
-/* Select (Dropdown in popup) */
-.settings-box .select select {
-  background-color: var(--input-bg-color);
-  color: var(--text-color);
-  font-weight: 500;
-}
-
-/* Custom Buttons */
-.button.is-primary-custom {
-  background-color: var(--accent-color);
-  color: white;
-  border: none;
-}
-.button.is-primary-custom:hover {
-  background-color: var(--accent-color-darker);
-}
-.button.is-warning-custom {
-  background-color: var(--warning-color);
-  color: var(--warning-text-color);
-  font-weight: bold;
-  border: none;
-  width: 100%;
-}
-.button.is-warning-custom:hover {
-  background-color: #fde047; /* Lighter yellow for hover */
-}
-
-/* Footer Links */
-.footer-links {
-  text-align: center;
-  margin-top: 1rem;
-}
-.footer-links a {
-  font-size: 0.8rem;
-  color: var(--text-color-light);
-  text-decoration: none;
-}
-.footer-links a:hover {
+.toolbar-btn:hover {
+  background-color: var(--divider-color);
   color: var(--accent-color);
-  text-decoration: underline;
+}
+
+.toolbar-action-btn {
+  display: flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 6px;
+  background-color: rgba(250, 204, 21, 0.15);
+  /* Light warning tint */
+  color: var(--text-color);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.toolbar-action-btn:hover {
+  background-color: rgba(250, 204, 21, 0.25);
 }

@@ -1215,7 +1215,7 @@ describe("Chrome Extension E2E Test", () => {
       await popupPage.goto(
         `chrome-extension://${worker!.url().split("/")[2]}/popup/popup.html`,
       );
-      await popupPage.waitForSelector(".settings-box", { timeout: 500 });
+      await popupPage.waitForSelector(".control-card", { timeout: 500 });
 
       // Wait a moment for translations to apply
       await new Promise((r) => setTimeout(r, 100));
@@ -1223,8 +1223,8 @@ describe("Chrome Extension E2E Test", () => {
       const { found, actualText } = await popupPage.evaluate((exp: string) => {
         const btn = document.getElementById("runOptions");
         return {
-          found: btn?.textContent?.includes(exp) ?? false,
-          actualText: btn?.textContent || "NULL",
+          found: btn?.getAttribute("title")?.includes(exp) ?? false,
+          actualText: btn?.getAttribute("title") || "NULL",
         };
       }, popupExpected);
 

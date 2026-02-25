@@ -64,6 +64,12 @@ function getDefaultSiteProfileLanguage(
 
 function setSiteProfileInputsDisabled(disabled: boolean): void {
   const { language, suggestions, inline } = getSiteProfileElements();
+  const details = document.getElementById("siteProfileDetails");
+  if (disabled) {
+    details?.classList.add("is-hidden");
+  } else {
+    details?.classList.remove("is-hidden");
+  }
   language.disabled = disabled;
   suggestions.disabled = disabled;
   inline.disabled = disabled;
@@ -122,9 +128,17 @@ async function notifyConfigChange() {
 async function loadSiteProfileEditor() {
   const { toggle, language, suggestions, inline, section, status } =
     getSiteProfileElements();
+  const domainSectionWrapper = document.getElementById("domainSectionWrapper") as HTMLElement;
   if (!currentDomainURL) {
-    section.classList.add("is-hidden");
+    if (domainSectionWrapper) {
+      domainSectionWrapper.classList.add("is-hidden");
+    } else {
+      section.classList.add("is-hidden");
+    }
     return;
+  }
+  if (domainSectionWrapper) {
+    domainSectionWrapper.classList.remove("is-hidden");
   }
   section.classList.remove("is-hidden");
   const [siteProfilesRaw, numSuggestionsRaw, inlineSuggestionRaw] =
@@ -233,16 +247,16 @@ async function saveSiteProfileFromEditor() {
   const siteProfilesRaw = await settings.get(KEY_SITE_PROFILES);
   const nextProfiles = toggle.checked
     ? setSiteProfileForDomain(
-        siteProfilesRaw,
-        currentDomainURL,
-        readSiteProfileFromEditor(),
-        currentEnabledLanguages,
-      )
+      siteProfilesRaw,
+      currentDomainURL,
+      readSiteProfileFromEditor(),
+      currentEnabledLanguages,
+    )
     : removeSiteProfileForDomain(
-        siteProfilesRaw,
-        currentDomainURL,
-        currentEnabledLanguages,
-      );
+      siteProfilesRaw,
+      currentDomainURL,
+      currentEnabledLanguages,
+    );
   await settings.set(KEY_SITE_PROFILES, nextProfiles as unknown as JsonValue);
   status.textContent = getProfileStatusLabel(toggle.checked);
   await notifyConfigChange();
@@ -256,6 +270,17 @@ function translateUI() {
       const translated = i18n.get(key);
       if (translated) {
         el.textContent = translated;
+      }
+    }
+  });
+
+  const titleElements = document.querySelectorAll("[data-i18n-title]");
+  titleElements.forEach((el) => {
+    const key = el.getAttribute("data-i18n-title");
+    if (key) {
+      const translated = i18n.get(key);
+      if (translated) {
+        el.setAttribute("title", translated);
       }
     }
   });
