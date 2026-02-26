@@ -3,6 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <title>FluentTyper Test Page</title>
+    <link
+      rel="stylesheet"
+      href="../../node_modules/ckeditor5/dist/browser/ckeditor5.css"
+    />
     <style>
       body {
         font-family:
@@ -133,19 +137,30 @@
       } else {
         const script = document.createElement("script");
         script.src =
-          "../../node_modules/@ckeditor/ckeditor5-build-classic/build/ckeditor.js";
+          "../../node_modules/ckeditor5/dist/browser/ckeditor5.umd.js";
         script.onload = () => {
-          if (!window.ClassicEditor) {
-            window.__testCkEditorError = "ClassicEditor global is unavailable";
+          const CKEDITOR = window.CKEDITOR;
+          if (!CKEDITOR?.ClassicEditor) {
+            window.__testCkEditorError =
+              "CKEDITOR.ClassicEditor is unavailable";
             return;
           }
 
-          window.ClassicEditor.create(
-            document.getElementById("test-ckeditor"),
-            {
-              licenseKey: "GPL",
-            },
-          )
+          const { ClassicEditor, Essentials, Paragraph, Bold, Italic } =
+            CKEDITOR;
+
+          class TestClassicEditor extends ClassicEditor {
+            static builtinPlugins = [Essentials, Paragraph, Bold, Italic];
+            static defaultConfig = {
+              toolbar: {
+                items: ["bold", "italic"],
+              },
+            };
+          }
+
+          TestClassicEditor.create(document.getElementById("test-ckeditor"), {
+            licenseKey: "GPL",
+          })
             .then((editor) => {
               editor.ui.view.editable.element.id = "test-ckeditor-editable";
               window.__testCkEditorReady = true;
