@@ -1,4 +1,5 @@
 import { Store } from "../third_party/fancier-settings/lib/store.js";
+import { i18n } from "../third_party/fancier-settings/i18n.js";
 import {
   ElementWrapper,
   getUniqueID,
@@ -100,12 +101,12 @@ class TextExpander {
     const fileCTA = new ElementWrapper("span", { class: "file-cta" });
     const fileLabelSpanElem = new ElementWrapper("span", {
       class: "file-label",
-      text: "Import CSV",
+      text: i18n.get("text_expander_import_csv_btn"),
     });
     const fileNameSpanElem = new ElementWrapper("span", {
       class: "file-name",
       id: "fileNameSpanElemId",
-      text: "Select CSV file to import",
+      text: i18n.get("text_expander_import_csv_placeholder"),
     });
     const dividerElem = new ElementWrapper("hr", {});
 
@@ -120,7 +121,7 @@ class TextExpander {
       const block = new ElementWrapper("div", { class: "block" });
       const notification = new ElementWrapper("div", {
         class: "notification is-primary",
-        text: "Imported records: " + this.importedElemCount,
+        text: `${i18n.get("text_expander_imported_records")}: ${this.importedElemCount}`,
       });
 
       this.importedElemCount = 0;
@@ -131,14 +132,14 @@ class TextExpander {
     const button = new ElementWrapper("a", {
       class: "button",
       href: window.URL.createObjectURL(this.getTextExpansionsAsCSVBlob()),
-      text: "Export Text Expander database as CSV",
+      text: i18n.get("text_expander_export_csv_btn"),
       download: "FluentTyperTextExpanderDataBase.csv",
     });
     button.inject(fileElem);
 
     const buttonRemoveAll = new ElementWrapper("a", {
       class: "button is-danger",
-      text: "Remove all",
+      text: i18n.get("text_expander_remove_all_btn"),
     });
     buttonRemoveAll.inject(fileElem);
     buttonRemoveAll.addEvent("click", this.delAllShortcuts.bind(this));
@@ -231,7 +232,7 @@ class TextExpander {
 
     const button = new ElementWrapper("a", {
       class: "button is-fullwidth" + (newNode ? " is-success" : " is-danger"),
-      text: newNode ? "Add" : "Remove",
+      text: newNode ? i18n.get("add") : i18n.get("remove"),
     });
     button.inject(columnsElems[2]);
     if (newNode) button.addEvent("click", this.addNewShortcut.bind(this));
@@ -267,8 +268,8 @@ class TextExpander {
         isValid = false;
         errMsgStr =
           index === 0
-            ? "Please use only letters, no numbers, white space or special characters are allowed, between 1-32 characters."
-            : "Shortcut text cannot be empty.";
+            ? i18n.get("text_expander_shortcut_validation_error")
+            : i18n.get("text_expander_shortcut_text_validation_error");
       }
       this.setInputState(element, errMsgStr, isValid);
     });
@@ -305,7 +306,11 @@ class TextExpander {
     this.clearRender();
 
     this.renderImportExport();
-    this.renderNode("Shortcut", "Shortcut text", null);
+    this.renderNode(
+      i18n.get("text_expander_shortcut_placeholder"),
+      i18n.get("text_expander_shortcut_text_placeholder"),
+      null,
+    );
     this.textExpansions.forEach((element, index) => {
       this.renderNode(element[0], element[1], index);
     });
