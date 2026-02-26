@@ -117,19 +117,27 @@ body.fluenttyper-popup {
 .control-panel {
   display: flex;
   flex-direction: column;
-  padding: 0.75rem;
+  padding: 0.55rem;
 }
 
-/* Header Area */
-.panel-header {
-  margin-bottom: 0.5rem;
-}
-
-.header-content {
+.global-enable-meta {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 0.02rem;
+  min-width: 0;
+}
+
+.global-enable-hint {
+  font-size: 0.64rem;
+  color: var(--text-color-light);
+  line-height: 1.1;
+}
+
+.global-toggle-control {
+  display: flex;
   align-items: center;
-  padding: 0.25rem 0.5rem;
+  gap: 0.2rem;
+  flex-shrink: 0;
 }
 
 /* Cards */
@@ -145,8 +153,8 @@ body.fluenttyper-popup {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.5rem 0.75rem;
-  min-height: 40px;
+  padding: 0.38rem 0.65rem;
+  min-height: 34px;
 }
 
 .card-row.border-bottom {
@@ -176,8 +184,8 @@ body.fluenttyper-popup {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.4rem 0.75rem;
-  min-height: 38px;
+  padding: 0.32rem 0.65rem;
+  min-height: 32px;
   border-bottom: 1px solid var(--divider-color);
 }
 
@@ -241,7 +249,7 @@ body.fluenttyper-popup {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.4rem;
-  padding: 0.55rem 0.75rem 0;
+  padding: 0.42rem 0.65rem 0;
 }
 
 .metric-box {
@@ -271,7 +279,7 @@ body.fluenttyper-popup {
 .dashboard-summary,
 .dashboard-language-summary {
   margin: 0;
-  padding: 0.45rem 0.75rem 0;
+  padding: 0.38rem 0.65rem 0;
   font-size: 0.72rem;
   color: var(--text-color-light);
 }
@@ -285,8 +293,8 @@ body.fluenttyper-popup {
   align-items: center;
   justify-content: space-between;
   gap: 0.35rem;
-  margin: 0.45rem 0.75rem 0;
-  padding: 0.45rem 0.5rem;
+  margin: 0.35rem 0.65rem 0;
+  padding: 0.36rem 0.46rem;
   border-radius: 0.45rem;
   background-color: rgba(250, 204, 21, 0.16);
   border: 1px solid rgba(250, 204, 21, 0.36);
@@ -311,7 +319,7 @@ body.fluenttyper-popup {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.5rem 0.75rem;
+  padding: 0.42rem 0.65rem;
   background-color: var(--box-background-color);
   border-top: 1px solid var(--divider-color);
 }
