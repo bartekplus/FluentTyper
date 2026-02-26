@@ -9,8 +9,11 @@ export type BrowserType = "chrome" | "firefox";
 export const BROWSER_TYPE: BrowserType =
   (process.env.E2E_BROWSER as BrowserType) || "chrome";
 
-const EXTENSION_NAVIGATION_TIMEOUT_MS = isFirefox() ? 1200 : 5000;
-const FIREFOX_DEBUGGING_NAVIGATION_TIMEOUT_MS = 10000;
+// Firefox extension/debug pages frequently reach the desired URL/content
+// without ever resolving puppeteer's navigation lifecycle events.
+// Keep these short so the fallback readiness checks can run quickly.
+const EXTENSION_NAVIGATION_TIMEOUT_MS = isFirefox() ? 300 : 5000;
+const FIREFOX_DEBUGGING_NAVIGATION_TIMEOUT_MS = 300;
 const FIREFOX_DEBUGGING_SELECTOR_TIMEOUT_MS = 20000;
 const FIREFOX_NAVIGATION_RECOVERY_TIMEOUT_MS = 3000;
 
@@ -56,6 +59,13 @@ let firefoxExtensionHost = "";
 
 function isNavigationTimeout(error: unknown): boolean {
   return String(error).includes("Navigation timeout");
+}
+
+function isRetriableRuntimeUrlError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /runtime\.getURL|Cannot read properties of undefined|Execution context was destroyed|Session closed|Target closed|Connection closed/i.test(
+    message,
+  );
 }
 
 async function resolveFirefoxExtensionHost(
@@ -193,10 +203,29 @@ export async function getRuntimePageUrl(
   context: BackgroundContext,
   pagePath: string,
 ): Promise<string> {
-  return context.evaluate(
-    (pagePathInner) => chrome.runtime.getURL(pagePathInner),
-    pagePath,
-  );
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    try {
+      return await context.evaluate((pagePathInner) => {
+        const runtime = (
+          globalThis as typeof globalThis & {
+            chrome?: typeof chrome;
+          }
+        ).chrome?.runtime;
+        if (!runtime?.getURL) {
+          throw new Error("chrome.runtime.getURL is unavailable");
+        }
+        return runtime.getURL(pagePathInner);
+      }, pagePath);
+    } catch (error) {
+      lastError = error;
+      if (!isRetriableRuntimeUrlError(error) || attempt === 5) {
+        throw error;
+      }
+      await new Promise((r) => setTimeout(r, 100));
+    }
+  }
+  throw lastError;
 }
 
 /**

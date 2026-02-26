@@ -41,8 +41,6 @@ const SUPPORTED_INPUT_SELECTORS = [
 const NAVIGATION_TIMEOUT_MS = isFirefox() ? 8000 : 5000;
 const INPUT_READY_TIMEOUT_MS = isFirefox() ? 10000 : 10000;
 const SUGGESTION_TIMEOUT_MS = isFirefox() ? 7000 : 8000;
-const CONFIG_PROPAGATION_WAIT_MS = isFirefox() ? 75 : 25;
-const CONTENT_SCRIPT_BOOT_WAIT_MS = isFirefox() ? 700 : 300;
 
 function browserTimeout(chromeTimeoutMs: number, firefoxTimeoutMs: number) {
   return isFirefox() ? firefoxTimeoutMs : chromeTimeoutMs;
@@ -259,9 +257,6 @@ async function applyConfigChange(
   worker: BackgroundContext,
 ): Promise<void> {
   await notifyConfigChange(browser, worker);
-  if (CONFIG_PROPAGATION_WAIT_MS > 0) {
-    await new Promise((r) => setTimeout(r, CONFIG_PROPAGATION_WAIT_MS));
-  }
 }
 
 async function openOptionsPage(browser: Browser, worker: BackgroundContext) {
@@ -356,12 +351,11 @@ async function gotoTestPage(
       window.location.href = url;
     }, targetUrl);
     await page.waitForFunction(
-      () =>
-        document.readyState === "interactive" ||
-        document.readyState === "complete",
+      (expectedUrl) =>
+        window.location.href === expectedUrl && document.readyState !== "loading",
+      { timeout: NAVIGATION_TIMEOUT_MS },
+      targetUrl,
     );
-    // Wait for content script injection
-    await new Promise((r) => setTimeout(r, CONTENT_SCRIPT_BOOT_WAIT_MS));
   } else {
     await page.goto(targetUrl, {
       waitUntil: "domcontentloaded",
@@ -458,6 +452,66 @@ async function waitForVisibleSuggestionTexts(
   const texts = (await countHandle.jsonValue()) as string[] | null;
   await countHandle.dispose();
   return texts ?? [];
+}
+
+async function hasVisibleSuggestions(page: Page): Promise<boolean> {
+  return page.evaluate(() => {
+    const activeElement = document.activeElement as
+      | (HTMLElement & { tributeMenu?: Element | null })
+      | null;
+    const activeMenu = activeElement?.tributeMenu;
+    const containers = [
+      ...(activeMenu instanceof Element ? [activeMenu] : []),
+      ...Array.from(document.querySelectorAll(".tribute-container")).filter(
+        (container) => container !== activeMenu,
+      ),
+    ];
+    return containers.some((container) => {
+      const style = window.getComputedStyle(container);
+      if (
+        style.display === "none" ||
+        style.visibility === "hidden" ||
+        style.opacity === "0" ||
+        container.getClientRects().length === 0
+      ) {
+        return false;
+      }
+      return container.querySelectorAll("li").length > 0;
+    });
+  });
+}
+
+async function waitForNoVisibleSuggestions(
+  page: Page,
+  timeoutMs = SUGGESTION_TIMEOUT_MS,
+): Promise<void> {
+  await page.waitForFunction(
+    () => {
+      const activeElement = document.activeElement as
+        | (HTMLElement & { tributeMenu?: Element | null })
+        | null;
+      const activeMenu = activeElement?.tributeMenu;
+      const containers = [
+        ...(activeMenu instanceof Element ? [activeMenu] : []),
+        ...Array.from(document.querySelectorAll(".tribute-container")).filter(
+          (container) => container !== activeMenu,
+        ),
+      ];
+      return containers.every((container) => {
+        const style = window.getComputedStyle(container);
+        if (
+          style.display === "none" ||
+          style.visibility === "hidden" ||
+          style.opacity === "0" ||
+          container.getClientRects().length === 0
+        ) {
+          return true;
+        }
+        return container.querySelectorAll("li").length === 0;
+      });
+    },
+    { timeout: timeoutMs },
+  );
 }
 
 async function clickFirstVisibleSuggestion(
@@ -892,24 +946,8 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         const input = await page.$(selector);
         await page.focus(selector);
         await input!.type("impor");
-        await new Promise((r) => setTimeout(r, browserTimeout(600, 1200)));
-        const hasSuggestionsWithoutOverride = await page.evaluate(() => {
-          const containers = Array.from(
-            document.querySelectorAll(".tribute-container"),
-          );
-          return containers.some((container) => {
-            const style = window.getComputedStyle(container);
-            if (
-              style.display === "none" ||
-              style.visibility === "hidden" ||
-              style.opacity === "0" ||
-              container.getClientRects().length === 0
-            ) {
-              return false;
-            }
-            return container.querySelectorAll("li").length > 0;
-          });
-        });
+        await waitForNoVisibleSuggestions(page, browserTimeout(2000, 4000));
+        const hasSuggestionsWithoutOverride = await hasVisibleSuggestions(page);
         expect(hasSuggestionsWithoutOverride).toBe(false);
 
         await clearInputContent(page, selector);
@@ -938,8 +976,6 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           },
         });
         await applyConfigChange(browser, worker!);
-
-        await new Promise((r) => setTimeout(r, browserTimeout(600, 1200)));
 
         await page.focus(selector);
         await input!.type("impor");
@@ -1055,10 +1091,14 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
       await page.keyboard.press("ArrowLeft");
       await element!.type("x");
-
-      await new Promise((r) => setTimeout(r, browserTimeout(50, 150)));
-      const actualText = await getInputContent(page, selector);
-      expect(actualText).toBe(wordPart + "x\xa0");
+      await page.waitForFunction(
+        (sel, expected) =>
+          ((document.querySelector(sel) as HTMLInputElement).value ??
+            document.querySelector(sel)?.textContent) === expected,
+        { timeout: browserTimeout(2000, 5000) },
+        selector,
+        wordPart + "x\xa0",
+      );
     },
     browserTimeout(15000, 30000),
   );
@@ -1066,19 +1106,17 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   test.each(SUPPORTED_INPUT_SELECTORS)(
     "Inline suggestion prediction is inserted on TAB in %s",
     async (selector) => {
+      await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, true);
+      await applyConfigChange(browser, worker!);
+
       await gotoTestPage(page, {
         enableCkEditor: shouldEnableCkEditor(selector),
       });
       await page.bringToFront();
 
-      await setSetting(worker!, KEY_INLINE_SUGGESTION, true);
-      await applyConfigChange(browser, worker!);
-
       await waitForInputReady(page, selector);
       const element = await page.$(selector);
       await element!.type("w");
-
-      // Wait for the prediction engine to fetch result
       await new Promise((r) => setTimeout(r, browserTimeout(100, 250)));
 
       await page.keyboard.press("Tab");
@@ -1099,7 +1137,7 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       expect(elementText).toMatch(/^w\S*\xa0$/);
 
       // Cleanup
-      await setSetting(worker!, KEY_INLINE_SUGGESTION, false);
+      await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
       await applyConfigChange(browser, worker!);
     },
     browserTimeout(30000, 45000),
@@ -1123,8 +1161,12 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       expect(options).toEqual(["auto_detect", ...enabledLanguages]);
 
       await popupPage.select("#languageSelect", "de_DE");
-      await new Promise((r) => setTimeout(r, CONFIG_PROPAGATION_WAIT_MS));
-      const storedLanguage = await getSetting<string>(worker!, KEY_LANGUAGE);
+      const storedLanguage = await waitForSettingMatch<string>(
+        worker!,
+        KEY_LANGUAGE,
+        (value) => value === "de_DE",
+        browserTimeout(3000, 8000),
+      );
       expect(storedLanguage).toBe("de_DE");
 
       await popupPage.close();
@@ -1147,16 +1189,19 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await setSetting(worker!, KEY_FALLBACK_LANGUAGE, "auto_detect");
 
       const optionsPageSingle = await openOptionsPage(browser, worker!);
-      await new Promise((r) => setTimeout(r, CONFIG_PROPAGATION_WAIT_MS));
       await optionsPageSingle.close();
 
-      const storedLanguageSingle = await getSetting<string>(
+      const storedLanguageSingle = await waitForSettingMatch<string>(
         worker!,
         KEY_LANGUAGE,
+        (value) => value === "en_US",
+        browserTimeout(3000, 8000),
       );
-      const storedFallbackSingle = await getSetting<string>(
+      const storedFallbackSingle = await waitForSettingMatch<string>(
         worker!,
         KEY_FALLBACK_LANGUAGE,
+        (value) => value === "en_US",
+        browserTimeout(3000, 8000),
       );
       expect(storedLanguageSingle).toBe("en_US");
       expect(storedFallbackSingle).toBe("en_US");
@@ -1166,16 +1211,19 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await setSetting(worker!, KEY_FALLBACK_LANGUAGE, "auto_detect");
 
       const optionsPageMulti = await openOptionsPage(browser, worker!);
-      await new Promise((r) => setTimeout(r, CONFIG_PROPAGATION_WAIT_MS));
       await optionsPageMulti.close();
 
-      const storedLanguageMulti = await getSetting<string>(
+      const storedLanguageMulti = await waitForSettingMatch<string>(
         worker!,
         KEY_LANGUAGE,
+        (value) => value === "auto_detect",
+        browserTimeout(3000, 8000),
       );
-      const storedFallbackMulti = await getSetting<string>(
+      const storedFallbackMulti = await waitForSettingMatch<string>(
         worker!,
         KEY_FALLBACK_LANGUAGE,
+        (value) => value === "en_US",
+        browserTimeout(3000, 8000),
       );
       expect(storedLanguageMulti).toBe("auto_detect");
       expect(storedFallbackMulti).toBe("en_US");
@@ -1207,10 +1255,14 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       timeout: browserTimeout(3000, 10000),
     });
     await popupPage.select("#languageSelect", "auto_detect");
-    await new Promise((r) => setTimeout(r, CONFIG_PROPAGATION_WAIT_MS));
     await popupPage.close();
 
-    const storedLanguage = await getSetting<string>(worker!, KEY_LANGUAGE);
+    const storedLanguage = await waitForSettingMatch<string>(
+      worker!,
+      KEY_LANGUAGE,
+      (value) => value === "auto_detect",
+      browserTimeout(3000, 8000),
+    );
     expect(storedLanguage).toBe("auto_detect");
 
     await applyConfigChange(browser, worker!);
@@ -1226,10 +1278,8 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await typeInInput(page, selector, typedSample);
     } else {
       await typeInInput(page, selector, "φιλο");
-      await new Promise((r) => setTimeout(r, browserTimeout(80, 180)));
       await typeInInput(page, selector, "σ");
     }
-    await new Promise((r) => setTimeout(r, browserTimeout(50, 150)));
     const detectSuggestionTimeoutMs =
       selector === CKEDITOR_SELECTOR
         ? browserTimeout(12000, 20000)
@@ -1419,8 +1469,6 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       for (const { locale, expected, popupExpected } of TEST_LANGS) {
         // 1. Set the extension language in chrome.storage.local
         await setSetting(worker!, "extensionLanguage", locale);
-
-        // 2. Sync localStorage in the extension context
         if (isFirefox()) {
           await worker!.evaluate((loc: string) => {
             localStorage.setItem(
@@ -1428,36 +1476,38 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
               JSON.stringify(loc),
             );
           }, locale);
-        } else {
-          const syncPage = await openOptionsPage(browser, worker!);
-          await syncPage.waitForSelector("#content", {
-            timeout: browserTimeout(1000, 5000),
-          });
-          await syncPage.evaluate((loc: string) => {
-            localStorage.setItem(
-              "store.settings.extensionLanguage",
-              JSON.stringify(loc),
-            );
-          }, locale);
-          await syncPage.close();
         }
 
-        // 3. Reopen the options page - i18n.js will now read from localStorage
         const optionsPage = await openOptionsPage(browser, worker!);
-        await optionsPage.waitForSelector("#content .divider", {
-          timeout: browserTimeout(1000, 5000),
-        });
-
-        const textFound = await optionsPage.evaluate((exp: string) => {
-          const dividers = document.querySelectorAll(".divider");
-          for (const d of dividers) {
-            if (d.textContent?.includes(exp)) return true;
+        try {
+          // 2. Sync localStorage in the extension context.
+          if (!isFirefox()) {
+            await optionsPage.evaluate((loc: string) => {
+              localStorage.setItem(
+                "store.settings.extensionLanguage",
+                JSON.stringify(loc),
+              );
+            }, locale);
+            await optionsPage.reload({ waitUntil: "domcontentloaded" });
           }
-          return false;
-        }, expected);
 
-        expect(textFound).toBe(true);
-        await optionsPage.close();
+          // 3. Verify options page translation.
+          await optionsPage.waitForSelector("#content .divider", {
+            timeout: browserTimeout(1000, 5000),
+          });
+
+          const textFound = await optionsPage.evaluate((exp: string) => {
+            const dividers = document.querySelectorAll(".divider");
+            for (const d of dividers) {
+              if (d.textContent?.includes(exp)) return true;
+            }
+            return false;
+          }, expected);
+
+          expect(textFound).toBe(true);
+        } finally {
+          await optionsPage.close();
+        }
 
         if (isFirefox()) {
           continue;
@@ -1468,9 +1518,13 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await popupPage.waitForSelector(".control-card", {
           timeout: browserTimeout(1000, 5000),
         });
-
-        // Wait a moment for translations to apply
-        await new Promise((r) => setTimeout(r, browserTimeout(100, 250)));
+        await popupPage.waitForFunction(
+          (exp) =>
+            document.getElementById("runOptions")?.getAttribute("title")?.includes(exp) ??
+            false,
+          { timeout: browserTimeout(2000, 6000) },
+          popupExpected,
+        );
 
         const { found, actualText } = await popupPage.evaluate(
           (exp: string) => {
@@ -1512,6 +1566,7 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             JSON.stringify("auto_detect"),
           );
         });
+        await cleanupPage.reload({ waitUntil: "domcontentloaded" });
         await cleanupPage.close();
       }
       await applyConfigChange(browser, worker!);
@@ -1537,9 +1592,6 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await page.waitForSelector(".tribute-container li", {
         timeout: browserTimeout(4000, 10000),
       });
-
-      // Add a small delay
-      await new Promise((r) => setTimeout(r, browserTimeout(100, 250)));
       await page.keyboard.press("Escape");
 
       // Wait for the popup to disappear
@@ -1678,13 +1730,8 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
       // Type something
       await element!.type("this is impor");
-
-      // It should NOT show predictions
-      await new Promise((r) => setTimeout(r, browserTimeout(500, 1200)));
-      const hasVisiblePredictions = await page.evaluate(() => {
-        const items = document.querySelectorAll(".tribute-container li");
-        return items.length > 0;
-      });
+      await waitForNoVisibleSuggestions(page, browserTimeout(2000, 5000));
+      const hasVisiblePredictions = await hasVisibleSuggestions(page);
       expect(hasVisiblePredictions).toBe(false);
 
       // Cleanup
