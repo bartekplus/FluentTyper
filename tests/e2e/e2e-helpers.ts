@@ -61,6 +61,13 @@ function isNavigationTimeout(error: unknown): boolean {
   return String(error).includes("Navigation timeout");
 }
 
+function isRetriableRuntimeUrlError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /runtime\.getURL|Cannot read properties of undefined|Execution context was destroyed|Session closed|Target closed|Connection closed/i.test(
+    message,
+  );
+}
+
 async function resolveFirefoxExtensionHost(
   browser: Browser,
   extensionId: string,
@@ -196,10 +203,29 @@ export async function getRuntimePageUrl(
   context: BackgroundContext,
   pagePath: string,
 ): Promise<string> {
-  return context.evaluate(
-    (pagePathInner) => chrome.runtime.getURL(pagePathInner),
-    pagePath,
-  );
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    try {
+      return await context.evaluate((pagePathInner) => {
+        const runtime = (
+          globalThis as typeof globalThis & {
+            chrome?: typeof chrome;
+          }
+        ).chrome?.runtime;
+        if (!runtime?.getURL) {
+          throw new Error("chrome.runtime.getURL is unavailable");
+        }
+        return runtime.getURL(pagePathInner);
+      }, pagePath);
+    } catch (error) {
+      lastError = error;
+      if (!isRetriableRuntimeUrlError(error) || attempt === 5) {
+        throw error;
+      }
+      await new Promise((r) => setTimeout(r, 100));
+    }
+  }
+  throw lastError;
 }
 
 /**
