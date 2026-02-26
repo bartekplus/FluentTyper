@@ -280,6 +280,18 @@ function shouldEnableCkEditor(selector: string) {
 
 async function clearInputContent(page: Page, selector: string): Promise<void> {
   await page.evaluate((sel) => {
+    if (sel === ".ck-editor__editable") {
+      const ckEditor = (
+        window as typeof window & {
+          __testCkEditor?: { setData: (data: string) => void };
+        }
+      ).__testCkEditor;
+      if (ckEditor) {
+        ckEditor.setData("");
+        return;
+      }
+    }
+
     const target = document.querySelector(sel);
     if (!target) {
       return;
@@ -1281,12 +1293,6 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
       await setSetting(worker!, KEY_LANGUAGE, lang);
       await applyConfigChange(browser, worker!);
-
-      if (selector === CKEDITOR_SELECTOR) {
-        await gotoTestPage(page, { enableCkEditor: true });
-        await page.bringToFront();
-        await waitForInputReady(page, selector);
-      }
 
       await clearInputContent(page, selector);
       await typeInInput(page, selector, testData.input);
