@@ -5,7 +5,11 @@ import {
   CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
   CMD_CONTENT_SCRIPT_GET_CONFIG,
   CMD_CONTENT_SCRIPT_PREDICT_REQ,
+  CMD_CONTENT_SCRIPT_USAGE_EVENT,
   CMD_OPTIONS_PAGE_CONFIG_CHANGE,
+  CMD_POPUP_ACK_DONATION_MILESTONE,
+  CMD_POPUP_ACK_WEEKLY_RECAP,
+  CMD_POPUP_GET_PRODUCTIVITY_STATS,
   CMD_TOGGLE_FT_ACTIVE_LANG,
   CMD_TOGGLE_FT_ACTIVE_TAB,
   CMD_TRIGGER_FT_ACTIVE_TAB,
@@ -722,5 +726,113 @@ describe("background routing and lifecycle", () => {
       "Unknown command: UNKNOWN",
     );
     expect(harness.checkLastError).toHaveBeenCalled();
+  });
+
+  test("onMessage handles productivity usage + popup stats commands", async () => {
+    const harness = await loadBackgroundHarness();
+    const statsModule = await import("../src/background/ProductivityStatsManager");
+    const recordSpy = jest
+      .spyOn(statsModule.ProductivityStatsManager.prototype, "recordSuggestionAccepted")
+      .mockResolvedValue(undefined);
+    const getSpy = jest
+      .spyOn(statsModule.ProductivityStatsManager.prototype, "getDashboardStats")
+      .mockResolvedValue({
+        today: { acceptedSuggestions: 1, charactersSaved: 4, estimatedMinutesSaved: 0.1 },
+        last7Days: {
+          acceptedSuggestions: 1,
+          charactersSaved: 4,
+          estimatedMinutesSaved: 0.1,
+        },
+        lifetime: {
+          acceptedSuggestions: 1,
+          charactersSaved: 4,
+          estimatedMinutesSaved: 0.1,
+        },
+        topSnippets: [],
+        weekOverWeekDeltaPct: null,
+        weeklyRecap: {
+          weekKey: "2026-02-02",
+          acceptedSuggestions: 1,
+          charactersSaved: 4,
+          estimatedMinutesSaved: 0.1,
+          topSnippet: null,
+        },
+        shouldShowWeeklyRecap: false,
+        donationPrompt: null,
+      });
+    const ackWeekSpy = jest
+      .spyOn(statsModule.ProductivityStatsManager.prototype, "acknowledgeWeeklyRecap")
+      .mockResolvedValue(undefined);
+    const ackMilestoneSpy = jest
+      .spyOn(
+        statsModule.ProductivityStatsManager.prototype,
+        "acknowledgeDonationMilestone",
+      )
+      .mockResolvedValue(undefined);
+
+    const usageResponse = jest.fn();
+    const usageHandled = harness.onMessage(
+      {
+        command: CMD_CONTENT_SCRIPT_USAGE_EVENT,
+        context: {
+          eventType: "suggestion_accepted",
+          triggerText: "brb",
+          typedTextLength: 3,
+          insertedTextLength: 9,
+        },
+      },
+      {} as chrome.runtime.MessageSender,
+      usageResponse,
+    );
+    await flushPromises();
+    expect(usageHandled).toBe(true);
+    expect(recordSpy).toHaveBeenCalled();
+    expect(usageResponse).toHaveBeenCalledWith({ ok: true });
+
+    const popupResponse = jest.fn();
+    const popupHandled = harness.onMessage(
+      {
+        command: CMD_POPUP_GET_PRODUCTIVITY_STATS,
+        context: {},
+      },
+      {} as chrome.runtime.MessageSender,
+      popupResponse,
+    );
+    await flushPromises();
+    expect(popupHandled).toBe(true);
+    expect(getSpy).toHaveBeenCalled();
+    expect(popupResponse).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lifetime: expect.objectContaining({
+          acceptedSuggestions: 1,
+        }),
+      }),
+    );
+
+    const ackWeekResponse = jest.fn();
+    harness.onMessage(
+      {
+        command: CMD_POPUP_ACK_WEEKLY_RECAP,
+        context: { weekKey: "2026-02-02" },
+      },
+      {} as chrome.runtime.MessageSender,
+      ackWeekResponse,
+    );
+    await flushPromises();
+    expect(ackWeekSpy).toHaveBeenCalledWith("2026-02-02");
+    expect(ackWeekResponse).toHaveBeenCalledWith({ ok: true });
+
+    const ackMilestoneResponse = jest.fn();
+    harness.onMessage(
+      {
+        command: CMD_POPUP_ACK_DONATION_MILESTONE,
+        context: { milestoneHours: 1 },
+      },
+      {} as chrome.runtime.MessageSender,
+      ackMilestoneResponse,
+    );
+    await flushPromises();
+    expect(ackMilestoneSpy).toHaveBeenCalledWith(1);
+    expect(ackMilestoneResponse).toHaveBeenCalledWith({ ok: true });
   });
 });

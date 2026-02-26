@@ -85,6 +85,59 @@ export interface PopupPageStatusContext {
   enabled: boolean;
 }
 
+export interface ContentScriptUsageEventContext {
+  eventType: "suggestion_accepted";
+  triggerText: string;
+  typedTextLength: number;
+  insertedTextLength: number;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface PopupGetProductivityStatsContext {}
+
+export interface PopupAckWeeklyRecapContext {
+  weekKey: string;
+}
+
+export interface PopupAckDonationMilestoneContext {
+  milestoneHours: number;
+}
+
+export interface ProductivityMetricSummary {
+  acceptedSuggestions: number;
+  charactersSaved: number;
+  estimatedMinutesSaved: number;
+}
+
+export interface TopSnippetUsage {
+  snippet: string;
+  count: number;
+}
+
+export interface WeeklyRecapSummary {
+  weekKey: string;
+  acceptedSuggestions: number;
+  charactersSaved: number;
+  estimatedMinutesSaved: number;
+  topSnippet: TopSnippetUsage | null;
+}
+
+export interface DonationPromptSummary {
+  milestoneHours: number;
+  message: string;
+}
+
+export interface ProductivityDashboardStats {
+  today: ProductivityMetricSummary;
+  last7Days: ProductivityMetricSummary;
+  lifetime: ProductivityMetricSummary;
+  topSnippets: TopSnippetUsage[];
+  weekOverWeekDeltaPct: number | null;
+  weeklyRecap: WeeklyRecapSummary;
+  shouldShowWeeklyRecap: boolean;
+  donationPrompt: DonationPromptSummary | null;
+}
+
 // Discriminated union for Message
 export type Message =
   | { command: "CMD_BACKGROUND_PAGE_SET_CONFIG"; context: SetConfigContext }
@@ -117,7 +170,23 @@ export type Message =
     }
   | { command: "CMD_POPUP_PAGE_ENABLE"; context: PopupPageEnableContext }
   | { command: "CMD_POPUP_PAGE_DISABLE"; context: PopupPageDisableContext }
-  | { command: "CMD_STATUS_COMMAND"; context: PopupPageStatusContext };
+  | { command: "CMD_STATUS_COMMAND"; context: PopupPageStatusContext }
+  | {
+      command: "CMD_CONTENT_SCRIPT_USAGE_EVENT";
+      context: ContentScriptUsageEventContext;
+    }
+  | {
+      command: "CMD_POPUP_GET_PRODUCTIVITY_STATS";
+      context: PopupGetProductivityStatsContext;
+    }
+  | {
+      command: "CMD_POPUP_ACK_WEEKLY_RECAP";
+      context: PopupAckWeeklyRecapContext;
+    }
+  | {
+      command: "CMD_POPUP_ACK_DONATION_MILESTONE";
+      context: PopupAckDonationMilestoneContext;
+    };
 export type ConfigMessage = Extract<
   Message,
   { command: "CMD_BACKGROUND_PAGE_SET_CONFIG" }
@@ -165,4 +234,20 @@ export type PopupPageDisableMessage = Extract<
 export type PopupPageStatusMessage = Extract<
   Message,
   { command: "CMD_STATUS_COMMAND" }
+>;
+export type ContentScriptUsageEventMessage = Extract<
+  Message,
+  { command: "CMD_CONTENT_SCRIPT_USAGE_EVENT" }
+>;
+export type PopupGetProductivityStatsMessage = Extract<
+  Message,
+  { command: "CMD_POPUP_GET_PRODUCTIVITY_STATS" }
+>;
+export type PopupAckWeeklyRecapMessage = Extract<
+  Message,
+  { command: "CMD_POPUP_ACK_WEEKLY_RECAP" }
+>;
+export type PopupAckDonationMilestoneMessage = Extract<
+  Message,
+  { command: "CMD_POPUP_ACK_DONATION_MILESTONE" }
 >;

@@ -6,9 +6,11 @@ import {
 import { isInDocument } from "../shared/utils";
 import {
   PredictResponseContext,
+  ContentScriptUsageEventMessage,
   ForceReplaceType,
 } from "../shared/messageTypes";
 import { SPACING_RULES, Spacing } from "../background/SpacingRulesHandler";
+import { CMD_CONTENT_SCRIPT_USAGE_EVENT } from "../shared/constants";
 
 interface TributeItem {
   original: { value: string };
@@ -29,6 +31,15 @@ interface TributeEntry {
   elementKeyDownHandlerRef?: EventListenerOrEventListenerObject;
   missingTrailingSpace?: boolean;
   expectedCursorPos?: number;
+}
+
+interface TributeReplaceEventContext {
+  mentionText?: string;
+}
+
+interface TributeReplaceEventDetail {
+  text?: string;
+  context?: TributeReplaceEventContext;
 }
 
 export class TributeManager {
@@ -488,8 +499,33 @@ export class TributeManager {
     }
   }
 
-  tributeReplacedEventHandler(helperArrId: number) {
+  private emitSuggestionAcceptedUsageEvent(detail: TributeReplaceEventDetail) {
+    const triggerText =
+      typeof detail.context?.mentionText === "string"
+        ? detail.context.mentionText
+        : "";
+    const insertedText =
+      typeof detail.text === "string" ? detail.text : triggerText;
+    const message: ContentScriptUsageEventMessage = {
+      command: CMD_CONTENT_SCRIPT_USAGE_EVENT,
+      context: {
+        eventType: "suggestion_accepted",
+        triggerText,
+        typedTextLength: triggerText.length,
+        insertedTextLength: insertedText.length,
+      },
+    };
+    chrome.runtime.sendMessage(message, () => {
+      void chrome.runtime.lastError;
+    });
+  }
+
+  tributeReplacedEventHandler(helperArrId: number, event?: Event) {
     this.activeHelperArrId = helperArrId;
+    const customEvent = event as CustomEvent<TributeReplaceEventDetail>;
+    if (customEvent && customEvent.detail) {
+      this.emitSuggestionAcceptedUsageEvent(customEvent.detail);
+    }
 
     // We check if the inserted text ends with a space. If not, the user might need one.
     // However, we only know if they need one AFTER they start typing.

@@ -16,6 +16,13 @@ export const CMD_TOGGLE_FT_ACTIVE_TAB = "CMD_TOGGLE_FT_ACTIVE_TAB";
 export const CMD_TRIGGER_FT_ACTIVE_TAB = "CMD_TRIGGER_FT_ACTIVE_TAB";
 export const CMD_TOGGLE_FT_ACTIVE_LANG = "CMD_TOGGLE_FT_ACTIVE_LANG";
 export const CMD_GET_HOSTNAME = "CMD_GET_HOSTNAME";
+export const CMD_CONTENT_SCRIPT_USAGE_EVENT =
+  "CMD_CONTENT_SCRIPT_USAGE_EVENT";
+export const CMD_POPUP_GET_PRODUCTIVITY_STATS =
+  "CMD_POPUP_GET_PRODUCTIVITY_STATS";
+export const CMD_POPUP_ACK_WEEKLY_RECAP = "CMD_POPUP_ACK_WEEKLY_RECAP";
+export const CMD_POPUP_ACK_DONATION_MILESTONE =
+  "CMD_POPUP_ACK_DONATION_MILESTONE";
 
 // Config Keys
 export const KEY_AUTOCOMPLETE = "autocomplete";
@@ -44,6 +51,7 @@ export const KEY_INLINE_SUGGESTION = "inline_suggestion";
 export const KEY_EXTENSION_LANGUAGE = "extensionLanguage";
 export const KEY_ENABLED = "enabled";
 export const KEY_SITE_PROFILES = "siteProfiles";
+export const KEY_PRODUCTIVITY_STATS = "productivityStats";
 // Theming Config Keys
 export const KEY_USE_DEFAULT_THEME_BTN = "useDefaultThemeBtn";
 export const KEY_USE_COMPACT_THEME_BTN = "useCompactThemeBtn";
