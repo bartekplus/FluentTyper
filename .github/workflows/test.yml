@@ -67,6 +67,9 @@ jobs:
         cache: 'npm'
         cache-dependency-path: package-lock.json
     - run: npm ci
+    - name: Install Firefox for Puppeteer
+      if: matrix.browser == 'firefox'
+      run: npx puppeteer browsers install firefox@stable
     - run: ${{ matrix.script }}
       env:
         CI: 'true'
