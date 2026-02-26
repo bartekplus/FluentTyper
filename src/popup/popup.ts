@@ -44,6 +44,7 @@ let currentProfileLanguageFallback = "en_US";
 let lastMarkedDonationPromptId: string | null = null;
 const PRODUCTIVITY_DASHBOARD_MAX_RETRIES = 5;
 const PRODUCTIVITY_DASHBOARD_RETRY_DELAY_MS = 200;
+const OPTIONS_ANCHOR_ADVANCED = "advanced_tab";
 
 function getSiteProfileElements() {
   return {
@@ -332,6 +333,24 @@ async function sendRuntimeMessage<T>(message: object): Promise<T | null> {
   });
 }
 
+function openOptionsPageAtAnchor(anchor: string): void {
+  const baseUrl = chrome.runtime.getURL("options/options.html");
+  const targetUrl = `${baseUrl}#${anchor}`;
+  chrome.tabs.query({ url: `${baseUrl}*` }, (tabs) => {
+    const existingOptionsTab = tabs.find(
+      (tab) => typeof tab.id === "number",
+    );
+    if (existingOptionsTab?.id !== undefined) {
+      chrome.tabs.update(existingOptionsTab.id, {
+        active: true,
+        url: targetUrl,
+      });
+      return;
+    }
+    chrome.tabs.create({ url: targetUrl });
+  });
+}
+
 async function acknowledgeWeeklyRecap(weekKey: string): Promise<void> {
   const message: PopupAckWeeklyRecapMessage = {
     command: CMD_POPUP_ACK_WEEKLY_RECAP,
@@ -433,7 +452,7 @@ function renderWeeklyRecapCard(stats: ProductivityDashboardStats): void {
   };
   viewButton.onclick = () => {
     void acknowledgeWeeklyRecap(stats.weeklyRecap.weekKey);
-    chrome.runtime.openOptionsPage();
+    openOptionsPageAtAnchor(OPTIONS_ANCHOR_ADVANCED);
     cardNode.classList.add("is-hidden");
   };
 }
@@ -535,7 +554,7 @@ function init() {
   document
     .getElementById("openStatsOptionsBtn")
     ?.addEventListener("click", () => {
-      chrome.runtime.openOptionsPage();
+      openOptionsPageAtAnchor(OPTIONS_ANCHOR_ADVANCED);
     });
   window.document
     .getElementById("checkboxSiteProfileInput")
