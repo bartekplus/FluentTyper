@@ -97,7 +97,9 @@ class Description extends Bundle {
 
     this.container = new ElementWrapper("div", {});
 
-    this.element = new ElementWrapper("p", {});
+    this.element = new ElementWrapper("div", {
+      class: "description-body",
+    });
   }
 
   setupDOM() {

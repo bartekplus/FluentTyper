@@ -24,7 +24,7 @@ export class SettingsManager {
     return this.settings.get(key);
   }
 
-  async set(key: string, value: JsonValue): Promise<unknown> {
+  async set(key: string, value: JsonValue): Promise<void> {
     return this.settings.set(key, value);
   }
 

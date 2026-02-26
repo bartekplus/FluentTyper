@@ -260,3 +260,273 @@ body.fluenttyper-popup {
 .toolbar-action-btn:hover {
   background-color: rgba(250, 204, 21, 0.25);
 }
+
+/* 4. OPTIONS PAGE LAYOUT
+----------------------------------------------------------------*/
+body.fluenttyper-options {
+  min-height: 100vh;
+  margin: 0;
+  color: var(--text-color);
+  background:
+    radial-gradient(circle at 10% 0%, rgba(79, 70, 229, 0.12), transparent 40%),
+    radial-gradient(
+      circle at 90% 10%,
+      rgba(56, 189, 248, 0.12),
+      transparent 45%
+    ),
+    var(--background-color);
+}
+
+.fluenttyper-options .options-layout {
+  max-width: 1140px;
+  margin: 0 auto;
+  padding: 1.25rem 1rem 2rem;
+}
+
+.fluenttyper-options .options-shell {
+  border: 1px solid var(--divider-color);
+  border-radius: 16px;
+  background: var(--box-background-color);
+  box-shadow: 0 16px 40px -24px var(--box-shadow-color);
+  overflow: hidden;
+}
+
+.fluenttyper-options .options-header {
+  padding: 1.2rem 1.4rem 1rem;
+  border-bottom: 1px solid var(--divider-color);
+  background: linear-gradient(
+    160deg,
+    rgba(79, 70, 229, 0.08),
+    rgba(56, 189, 248, 0.06)
+  );
+}
+
+.fluenttyper-options .options-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.fluenttyper-options .options-brand img {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+}
+
+.fluenttyper-options .options-brand h1 {
+  margin: 0 0 0.2rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.fluenttyper-options .options-brand p {
+  margin: 0;
+  color: var(--text-color-light);
+  font-size: 0.9rem;
+}
+
+.fluenttyper-options .options-tabs {
+  margin: 0;
+  border-bottom: 1px solid var(--divider-color);
+  background-color: color-mix(
+    in srgb,
+    var(--box-background-color) 88%,
+    transparent
+  );
+}
+
+.fluenttyper-options .options-tabs ul {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  padding: 0 0.65rem;
+}
+
+.fluenttyper-options .options-tabs li {
+  flex: 0 0 auto;
+}
+
+.fluenttyper-options .options-tabs li a {
+  border-bottom: 2px solid transparent;
+  border-radius: 8px 8px 0 0;
+  padding: 0.8rem 0.85rem;
+  color: var(--text-color-light);
+  font-weight: 600;
+  font-size: 0.88rem;
+  transition:
+    color 0.2s ease,
+    border-color 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.fluenttyper-options .options-tabs li a:hover {
+  color: var(--text-color);
+  background-color: color-mix(in srgb, var(--divider-color) 50%, transparent);
+}
+
+.fluenttyper-options .options-tabs li.is-active a {
+  color: #0f172a;
+  background-color: rgba(79, 70, 229, 0.2);
+  border-bottom-color: #3730a3;
+}
+
+@media (prefers-color-scheme: dark) {
+  .fluenttyper-options .options-tabs li.is-active a {
+    color: #f8fafc;
+    background-color: rgba(56, 189, 248, 0.28);
+    border-bottom-color: #7dd3fc;
+  }
+}
+
+.fluenttyper-options .options-content {
+  padding: 1rem;
+}
+
+.fluenttyper-options .content-tab {
+  display: grid;
+  gap: 0.95rem;
+}
+
+.fluenttyper-options .settings-group {
+  border: 1px solid var(--divider-color);
+  border-radius: 12px;
+  padding: 0.85rem 0.95rem 0.6rem;
+  background-color: color-mix(
+    in srgb,
+    var(--box-background-color) 96%,
+    var(--divider-color)
+  );
+}
+
+.fluenttyper-options .settings-group-title {
+  margin: 0 0 0.85rem;
+  color: var(--text-color);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.fluenttyper-options .settings-group .field {
+  margin-bottom: 0.85rem;
+}
+
+.fluenttyper-options .settings-group .field:last-child {
+  margin-bottom: 0.2rem;
+}
+
+.fluenttyper-options .settings-group .label {
+  color: var(--text-color);
+  font-weight: 600;
+}
+
+.fluenttyper-options .settings-group .label small {
+  color: var(--text-color-light);
+}
+
+.fluenttyper-options .settings-group p {
+  line-height: 1.55;
+}
+
+.fluenttyper-options .settings-group .description-body {
+  line-height: 1.55;
+}
+
+.fluenttyper-options .settings-group .switch + label {
+  margin-left: 0.45rem;
+}
+
+.fluenttyper-options .about-highlights {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.fluenttyper-options .about-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--accent-color);
+  border: 1px solid
+    color-mix(in srgb, var(--accent-color) 25%, var(--divider-color));
+  background: color-mix(
+    in srgb,
+    var(--accent-color) 10%,
+    var(--box-background-color)
+  );
+}
+
+@media (prefers-color-scheme: dark) {
+  .fluenttyper-options .about-pill {
+    color: #e0f2fe;
+    border-color: #0ea5e9;
+    background: rgba(14, 165, 233, 0.24);
+  }
+}
+
+.fluenttyper-options .version-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.32rem 0.68rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-color);
+  border: 1px solid var(--divider-color);
+  background-color: color-mix(in srgb, var(--divider-color) 46%, transparent);
+}
+
+.fluenttyper-options .support-links-list {
+  line-height: 1.65;
+}
+
+.fluenttyper-options .support-links-list a {
+  font-weight: 700;
+  color: #1d4ed8;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.fluenttyper-options .support-links-list a:hover {
+  color: #1e40af;
+}
+
+.fluenttyper-options .support-links-list a:visited {
+  color: #4338ca;
+}
+
+@media (prefers-color-scheme: dark) {
+  .fluenttyper-options .support-links-list a {
+    color: #7dd3fc;
+  }
+
+  .fluenttyper-options .support-links-list a:hover {
+    color: #bae6fd;
+  }
+
+  .fluenttyper-options .support-links-list a:visited {
+    color: #c4b5fd;
+  }
+}
+
+@media (max-width: 768px) {
+  .fluenttyper-options .options-layout {
+    padding: 0.75rem 0.55rem 1.15rem;
+  }
+
+  .fluenttyper-options .options-header {
+    padding: 0.9rem 0.9rem 0.8rem;
+  }
+
+  .fluenttyper-options .options-content {
+    padding: 0.65rem;
+  }
+
+  .fluenttyper-options .settings-group {
+    padding: 0.7rem 0.75rem 0.45rem;
+  }
+}

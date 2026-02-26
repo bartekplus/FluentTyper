@@ -25,9 +25,14 @@ class chromeStorageBackend {
   }
 
   async set(key, value) {
-    new Promise((resolve, reject) => {
+    return new Promise((resolve, reject) => {
       try {
         this.backend.set({ [key]: value }, function () {
+          const lastError = chrome.runtime?.lastError;
+          if (lastError) {
+            reject(lastError);
+            return;
+          }
           resolve();
         });
       } catch (ex) {
@@ -78,9 +83,10 @@ class localStorageBackend {
   }
 
   async set(key, value) {
-    new Promise((resolve, reject) => {
+    return new Promise((resolve, reject) => {
       try {
-        resolve(localStorage.setItem(key, value));
+        localStorage.setItem(key, value);
+        resolve();
       } catch (ex) {
         reject(ex);
       }
@@ -123,41 +129,25 @@ class Store {
     this.storageBackend = chrome.storage
       ? new chromeStorageBackend(useLocalBackend)
       : new localStorageBackend();
-    let key;
-
-    if (defaults !== undefined) {
-      for (key in defaults) {
-        if (
-          Object.prototype.hasOwnProperty.call(defaults, key) &&
-          this.get(key) === undefined
-        ) {
-          this.set(key, defaults[key]);
-        }
-      }
-    } else if (manifest) {
-      for (let idx = 0; idx < manifest.settings.length; idx++) {
-        const val = Object.prototype.hasOwnProperty.call(
-          manifest.settings[idx],
-          "default"
-        );
-        key = manifest.settings[idx].name;
-        const promise = this.get(key);
-        promise.then(
-          function (key, storageVal) {
-            if (val && storageVal === undefined) {
-              this.set(key, manifest.settings[idx].default);
-            }
-          }.bind(this, key)
-        );
-      }
-    }
+    this.initializationPromise = this.initializeDefaults(defaults);
   }
 
   buildKey(name) {
     return "store." + this.storageName + "." + name;
   }
 
-  async get(name) {
+  static serializeValue(value) {
+    if (typeof value === "function") {
+      return null;
+    }
+    try {
+      return JSON.stringify(value);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  async getStoredValue(name) {
     const value = await this.storageBackend.get(this.buildKey(name));
     if (value !== undefined) {
       try {
@@ -169,31 +159,65 @@ class Store {
     return undefined;
   }
 
-  set(name, value) {
-    if (value === undefined) {
-      this.remove(name);
-    } else {
-      if (typeof value === "function") {
-        value = null;
-      } else {
-        try {
-          value = JSON.stringify(value);
-        } catch (e) {
-          value = null;
-        }
-      }
-      this.storageBackend.set(this.buildKey(name), value);
-    }
-
-    return this;
+  async setStoredValue(name, value) {
+    const serializedValue = Store.serializeValue(value);
+    await this.storageBackend.set(this.buildKey(name), serializedValue);
   }
 
-  remove(name) {
-    this.storageBackend.remove(this.buildKey(name));
-    return this;
+  async initializeDefaults(defaults) {
+    const defaultEntries = [];
+    if (defaults !== undefined) {
+      defaultEntries.push(...Object.entries(defaults));
+    } else if (manifest && Array.isArray(manifest.settings)) {
+      for (const setting of manifest.settings) {
+        if (Object.prototype.hasOwnProperty.call(setting, "default")) {
+          defaultEntries.push([setting.name, setting.default]);
+        }
+      }
+    }
+
+    if (defaultEntries.length === 0) {
+      return;
+    }
+
+    const storedValues = await this.storageBackend.getAll(this.buildKey(""));
+    const writes = [];
+    for (const [key, value] of defaultEntries) {
+      const rawStoredValue = storedValues[key];
+      if (rawStoredValue === undefined) {
+        writes.push(this.setStoredValue(key, value));
+        continue;
+      }
+      try {
+        JSON.parse(rawStoredValue);
+      } catch (e) {
+        writes.push(this.setStoredValue(key, value));
+      }
+    }
+    await Promise.all(writes);
+  }
+
+  async get(name) {
+    await this.initializationPromise;
+    return this.getStoredValue(name);
+  }
+
+  async set(name, value) {
+    await this.initializationPromise;
+    if (value === undefined) {
+      await this.remove(name);
+      return;
+    }
+    await this.setStoredValue(name, value);
+  }
+
+  async remove(name) {
+    await this.initializationPromise;
+    await this.storageBackend.remove(this.buildKey(name));
   }
 
   async getAll() {
+    await this.initializationPromise;
     return this.storageBackend.getAll(this.buildKey(""));
   }
 }

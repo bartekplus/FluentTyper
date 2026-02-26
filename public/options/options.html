@@ -41,17 +41,16 @@
       type="module"
       src="/third_party/fancier-settings/settings.js"
     ></script>
-    <script src="/third_party/tribute/tribute.js"></script>
-    <script src="/content_script.js"></script>
   </head>
 
-  <body>
-    <div class="container is-two-thirds">
-      <div class="tabs">
-        <ul id="tab-container"></ul>
+  <body class="fluenttyper-options">
+    <div class="container is-two-thirds options-layout">
+      <div class="options-shell">
+        <div class="tabs options-tabs">
+          <ul id="tab-container"></ul>
+        </div>
+        <div id="content" class="options-content"></div>
       </div>
-
-      <div id="content"></div>
     </div>
   </body>
 </html>
