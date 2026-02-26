@@ -15,7 +15,9 @@ export class DomObserver {
   attach() {
     if (!this.observer) {
       this.observer = new MutationObserver((mutationsList) => {
-        setTimeout(() => this.callback(mutationsList), 0);
+        if (mutationsList.length > 0) {
+          this.callback(mutationsList);
+        }
       });
     }
     this.observer.observe(this.node, {

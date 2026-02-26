@@ -40,6 +40,9 @@ class FluentTyper {
   // Logging prefix for all logs in this module
   private static readonly LOG_PREFIX = "ContentScript";
   private static readonly WATCHDOG_DEBOUNCE_MS = 250;
+  private static readonly MUTATION_COALESCE_DELAY_MS = 16;
+  private static readonly MAX_MUTATION_BATCH_SIZE = 200;
+  private static readonly MAX_MUTATION_ROOTS = 64;
 
   private readonly SELECTORS: string = "textarea, input, [contentEditable]";
   public tributeManager: TributeManager | null = null;
@@ -61,6 +64,9 @@ class FluentTyper {
   public domObserver: DomObserver;
   private hostName: string = window.location.hostname;
   private watchDogTimeoutId: number | null = null;
+  private mutationProcessTimeoutId: number | null = null;
+  private mutationProcessingScheduled: boolean = false;
+  private pendingMutations: MutationRecord[] = [];
   private rootNodeObserver: MutationObserver | null = null;
   private readonly scheduleWatchDogCheckBound: () => void;
 
@@ -192,6 +198,73 @@ class FluentTyper {
     this.domObserver.attach();
   }
 
+  private getElementDepth(element: Element): number {
+    let depth = 0;
+    let currentNode: Node | null = element;
+    while (currentNode.parentNode) {
+      depth += 1;
+      currentNode = currentNode.parentNode;
+    }
+    return depth;
+  }
+
+  private collectMutationRoots(mutationsList: MutationRecord[]): Element[] {
+    const candidates: Element[] = [];
+    for (const mutation of mutationsList) {
+      mutation.addedNodes.forEach((node) => {
+        if (node instanceof Element && isInDocument(node)) {
+          candidates.push(node);
+        }
+      });
+      if (
+        mutation.type === "attributes" &&
+        mutation.target instanceof Element &&
+        isInDocument(mutation.target)
+      ) {
+        candidates.push(mutation.target);
+      }
+    }
+    if (candidates.length === 0) {
+      return [];
+    }
+
+    const uniqueCandidates = Array.from(new Set(candidates));
+    uniqueCandidates.sort(
+      (left, right) => this.getElementDepth(left) - this.getElementDepth(right),
+    );
+
+    const roots: Element[] = [];
+    for (const candidate of uniqueCandidates) {
+      if (roots.some((root) => root === candidate || root.contains(candidate))) {
+        continue;
+      }
+      for (let i = roots.length - 1; i >= 0; i -= 1) {
+        if (candidate.contains(roots[i])) {
+          roots.splice(i, 1);
+        }
+      }
+      roots.push(candidate);
+    }
+    return roots;
+  }
+
+  private scheduleMutationProcessing(): void {
+    if (this.mutationProcessingScheduled) {
+      return;
+    }
+    this.mutationProcessingScheduled = true;
+    this.mutationProcessTimeoutId = window.setTimeout(() => {
+      this.mutationProcessingScheduled = false;
+      this.mutationProcessTimeoutId = null;
+      const mergedMutations = this.pendingMutations;
+      this.pendingMutations = [];
+      if (!this.enabled || mergedMutations.length === 0) {
+        return;
+      }
+      this.processMutations(mergedMutations);
+    }, FluentTyper.MUTATION_COALESCE_DELAY_MS);
+  }
+
   /**
    * Callback for TributeManager to request predictions.
    */
@@ -257,31 +330,47 @@ class FluentTyper {
       mutationsList.length,
     );
     this.domObserver.disconnect();
-    this.tributeManager?.removeHelpersNotInDocument();
-    for (const mutation of mutationsList) {
-      mutation.addedNodes.forEach((element) => {
-        if (element instanceof Element && isInDocument(element)) {
-          this.tributeManager?.queryAndAttachHelper(element);
-        }
-      });
-      if (mutation.type === "attributes") {
-        if (
-          mutation.target instanceof Element &&
-          isInDocument(mutation.target)
-        ) {
-          this.tributeManager?.queryAndAttachHelper(mutation.target);
-        }
+    try {
+      if (!this.tributeManager) {
+        return;
       }
+      this.tributeManager.removeHelpersNotInDocument();
+
+      if (mutationsList.length >= FluentTyper.MAX_MUTATION_BATCH_SIZE) {
+        this.tributeManager.queryAndAttachHelper();
+        return;
+      }
+
+      const mutationRoots = this.collectMutationRoots(mutationsList);
+      if (mutationRoots.length === 0) {
+        return;
+      }
+
+      if (mutationRoots.length >= FluentTyper.MAX_MUTATION_ROOTS) {
+        this.tributeManager.queryAndAttachHelper();
+        return;
+      }
+
+      for (const mutationRoot of mutationRoots) {
+        this.tributeManager.queryAndAttachHelper(mutationRoot);
+      }
+    } finally {
+      if (this.enabled) {
+        this.attachMutationObserver();
+      }
+      console.groupEnd();
     }
-    this.attachMutationObserver();
-    console.groupEnd();
   }
 
   /**
    * A callback function for the MutationObserver that processes the mutations.
    */
   mutationCallback(mutationsList: MutationRecord[]): void {
-    setTimeout(() => this.processMutations(mutationsList), 0);
+    if (mutationsList.length === 0 || !this.enabled) {
+      return;
+    }
+    this.pendingMutations.push(...mutationsList);
+    this.scheduleMutationProcessing();
   }
 
   /**
@@ -347,6 +436,12 @@ class FluentTyper {
       this.disable.name,
     );
     this.domObserver.disconnect();
+    if (this.mutationProcessTimeoutId !== null) {
+      window.clearTimeout(this.mutationProcessTimeoutId);
+      this.mutationProcessTimeoutId = null;
+    }
+    this.mutationProcessingScheduled = false;
+    this.pendingMutations = [];
     this.tributeManager?.detachAllHelpers();
     console.groupEnd();
   }

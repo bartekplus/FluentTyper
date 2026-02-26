@@ -317,6 +317,61 @@ describe("content_script behavior", () => {
     expect(domObserver.attach).toHaveBeenCalled();
   });
 
+  test("processMutations scans only top-level mutation roots when nodes are nested", async () => {
+    const { fluentTyper, tributeInstances } = await loadContentScript();
+    fluentTyper.enable();
+    const tribute = tributeInstances[0];
+    tribute.queryAndAttachHelper.mockClear();
+
+    const parent = document.createElement("div");
+    const child = document.createElement("span");
+    parent.appendChild(child);
+    document.body.appendChild(parent);
+
+    fluentTyper.processMutations([
+      {
+        type: "childList",
+        addedNodes: [parent] as unknown as NodeList,
+        target: document.body,
+      } as unknown as MutationRecord,
+      {
+        type: "childList",
+        addedNodes: [child] as unknown as NodeList,
+        target: parent,
+      } as unknown as MutationRecord,
+      {
+        type: "attributes",
+        addedNodes: [] as unknown as NodeList,
+        target: child,
+      } as unknown as MutationRecord,
+    ]);
+
+    expect(tribute.queryAndAttachHelper).toHaveBeenCalledTimes(1);
+    expect(tribute.queryAndAttachHelper).toHaveBeenCalledWith(parent);
+  });
+
+  test("processMutations falls back to full scan for very large mutation batches", async () => {
+    const { fluentTyper, tributeInstances } = await loadContentScript();
+    fluentTyper.enable();
+    const tribute = tributeInstances[0];
+    tribute.queryAndAttachHelper.mockClear();
+
+    const largeBatch = Array.from({ length: 200 }, () => {
+      const element = document.createElement("div");
+      document.body.appendChild(element);
+      return {
+        type: "childList",
+        addedNodes: [element] as unknown as NodeList,
+        target: document.body,
+      } as unknown as MutationRecord;
+    });
+
+    fluentTyper.processMutations(largeBatch);
+
+    expect(tribute.queryAndAttachHelper).toHaveBeenCalledTimes(1);
+    expect(tribute.queryAndAttachHelper).toHaveBeenCalledWith();
+  });
+
   test("watchdog checks host/domain changes and restarts on node replacement", async () => {
     const { fluentTyper, domObserverInstances, sendMessage } =
       await loadContentScript();
