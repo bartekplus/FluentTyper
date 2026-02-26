@@ -69,7 +69,7 @@ jobs:
     - run: npm ci
     - name: Install Firefox for Puppeteer
       if: matrix.browser == 'firefox'
-      run: npx puppeteer browsers install firefox@stable
+      run: npx puppeteer browsers install firefox
     - run: ${{ matrix.script }}
       env:
         CI: 'true'
