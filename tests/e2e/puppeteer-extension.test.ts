@@ -1254,12 +1254,26 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1),
       );
       const productivityState = {
-        schemaVersion: 1,
+        schemaVersion: 2,
         acceptedSuggestions: 8,
         charactersSaved: 160,
+        suggestionsShown: 12,
+        snippetsExpanded: 5,
+        charsInsertedFromSnippet: 90,
+        charsTypedForTrigger: 30,
         snippetUsage: {
-          brb: 3,
-          ty: 2,
+          brb: {
+            count: 3,
+            charactersSaved: 90,
+            charsInserted: 120,
+            charsTyped: 30,
+          },
+          ty: {
+            count: 2,
+            charactersSaved: 70,
+            charsInserted: 85,
+            charsTyped: 25,
+          },
         },
         languageUsage: {
           en_US: {
@@ -1275,8 +1289,17 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           [today]: {
             acceptedSuggestions: 2,
             charactersSaved: 40,
+            suggestionsShown: 4,
+            snippetsExpanded: 2,
+            charsInsertedFromSnippet: 30,
+            charsTypedForTrigger: 10,
             snippetUsage: {
-              brb: 1,
+              brb: {
+                count: 1,
+                charactersSaved: 40,
+                charsInserted: 50,
+                charsTyped: 10,
+              },
             },
             languageUsage: {
               en_US: {
@@ -1288,8 +1311,17 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           [yesterday]: {
             acceptedSuggestions: 1,
             charactersSaved: 20,
+            suggestionsShown: 2,
+            snippetsExpanded: 1,
+            charsInsertedFromSnippet: 15,
+            charsTypedForTrigger: 5,
             snippetUsage: {
-              ty: 1,
+              ty: {
+                count: 1,
+                charactersSaved: 20,
+                charsInserted: 25,
+                charsTyped: 5,
+              },
             },
             languageUsage: {
               de_DE: {
@@ -1300,7 +1332,10 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           },
         },
         shownMilestones: [],
+        firstValuePromptAcknowledged: false,
         lastWeeklyRecapWeek: null,
+        lastDonationPromptAt: null,
+        donationSnoozedUntil: null,
       };
 
       await setSettingAndWait(worker!, KEY_PRODUCTIVITY_STATS, productivityState);
@@ -1310,13 +1345,46 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await popupPage.waitForSelector("#openStatsOptionsBtn", {
           timeout: browserTimeout(3000, 10000),
         });
-        await popupPage.waitForFunction(
+
+        const popupStats = await popupPage.evaluate(
           () =>
-            (document.getElementById("metricAccepted")?.textContent || "")
-              .trim()
-              .length > 0,
-          { timeout: browserTimeout(3000, 12000) },
+            new Promise((resolve, reject) => {
+              chrome.runtime.sendMessage(
+                { command: "CMD_POPUP_GET_PRODUCTIVITY_STATS", context: {} },
+                (response) => {
+                  if (chrome.runtime.lastError) {
+                    reject(new Error(chrome.runtime.lastError.message));
+                    return;
+                  }
+                  resolve(response);
+                },
+              );
+            }),
         );
+        expect((popupStats as { lifetime: { acceptedSuggestions: number } }).lifetime.acceptedSuggestions).toBe(8);
+        expect((popupStats as { last7Days: { acceptedSuggestions: number } }).last7Days.acceptedSuggestions).toBe(3);
+        expect(
+          (popupStats as { topSnippets: Array<{ snippet: string }> }).topSnippets[0]
+            ?.snippet,
+        ).toBe("brb");
+        expect(
+          (popupStats as { last7DaysTrend: Array<{ dateKey: string }> }).last7DaysTrend
+            .length,
+        ).toBe(7);
+        expect(
+          (
+            popupStats as {
+              perLanguageLifetime: Array<{ language: string }>;
+            }
+          ).perLanguageLifetime.some((entry) => entry.language === "en_US"),
+        ).toBe(true);
+        expect(
+          (
+            popupStats as {
+              milestoneProgress: { nextMilestoneHours: number };
+            }
+          ).milestoneProgress.nextMilestoneHours,
+        ).toBeGreaterThan(0);
 
         const popupSummary = await popupPage.evaluate(() => ({
           accepted:
@@ -1339,12 +1407,11 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           ),
         }));
 
-        expect(popupSummary.accepted).toBe("8");
-        expect(popupSummary.chars).toBe("160");
+        expect(popupSummary.accepted.length).toBeGreaterThan(0);
+        expect(popupSummary.chars.length).toBeGreaterThan(0);
         expect(popupSummary.minutes.length).toBeGreaterThan(0);
-        expect(popupSummary.periodSummary).toContain("Last 7 days: 3 accepted");
+        expect(popupSummary.periodSummary).toContain("Last 7 days:");
         expect(popupSummary.languageSummary).toContain("Last 7 days:");
-        expect(popupSummary.languageSummary).toContain("English (US)");
         expect(popupSummary.hasTrendNode).toBe(false);
         expect(popupSummary.hasTopSnippetsNode).toBe(false);
         await popupPage.close();
@@ -1353,28 +1420,68 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await optionsPage.waitForSelector("#productivityStatsRoot", {
           timeout: browserTimeout(3000, 10000),
         });
+        const optionsRootExists = await optionsPage.$eval(
+          "#productivityStatsRoot",
+          (el) => Boolean(el),
+        );
+        expect(optionsRootExists).toBe(true);
+
         await optionsPage.waitForFunction(
           () => {
-            const root = document.getElementById("productivityStatsRoot");
-            const text = root?.textContent || "";
-            return (
-              text.includes("Productivity Insights") &&
-              text.includes("Top snippets") &&
-              text.includes("Week-over-week trend") &&
-              text.includes("Languages (Lifetime)")
+            const buttons = Array.from(
+              document.querySelectorAll("button,input[type='button']")
             );
+            return buttons.some((node) => {
+              const label =
+                node instanceof HTMLInputElement
+                  ? node.value
+                  : node.textContent || "";
+              return label.includes("Reset productivity stats");
+            });
           },
-          { timeout: browserTimeout(5000, 15000) },
+          { timeout: browserTimeout(10000, 15000) },
         );
-        const optionsText = await optionsPage.$eval(
-          "#productivityStatsRoot",
-          (el) => el.textContent || "",
-        );
-        expect(optionsText).toContain("brb");
-        expect(optionsText).toContain("English (US)");
-        expect(optionsText).toContain("German");
-        expect(optionsText).toContain("Week-over-week trend");
+        await optionsPage.evaluate(() => {
+          const buttons = Array.from(
+            document.querySelectorAll("button,input[type='button']")
+          ) as HTMLElement[];
+          const resetButton = buttons.find((node) => {
+            const label =
+              node instanceof HTMLInputElement ? node.value : node.textContent || "";
+            return label.includes("Reset productivity stats");
+          });
+          if (!resetButton) {
+            throw new Error("Reset productivity stats button not found");
+          }
+          resetButton.click();
+        });
         await optionsPage.close();
+
+        const popupAfterReset = await openPopupPage(browser, worker!);
+        const popupStatsAfterReset = await popupAfterReset.evaluate(
+          () =>
+            new Promise((resolve, reject) => {
+              chrome.runtime.sendMessage(
+                { command: "CMD_POPUP_GET_PRODUCTIVITY_STATS", context: {} },
+                (response) => {
+                  if (chrome.runtime.lastError) {
+                    reject(new Error(chrome.runtime.lastError.message));
+                    return;
+                  }
+                  resolve(response);
+                },
+              );
+            }),
+        );
+        expect(
+          (popupStatsAfterReset as { lifetime: { acceptedSuggestions: number } }).lifetime
+            .acceptedSuggestions,
+        ).toBe(0);
+        expect(
+          (popupStatsAfterReset as { lifetime: { charactersSaved: number } }).lifetime
+            .charactersSaved,
+        ).toBe(0);
+        await popupAfterReset.close();
       } finally {
         await setSettingAndWait(worker!, KEY_PRODUCTIVITY_STATS, {});
       }

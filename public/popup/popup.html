@@ -47,8 +47,14 @@
         <div class="control-card">
           <div class="card-row border-bottom">
             <div class="global-enable-meta">
-              <span class="row-label">Enable FluentTyper</span>
-              <span class="global-enable-hint">Global autocomplete toggle</span>
+              <span class="row-label" data-i18n="popup_global_enable_label"
+                >Enable FluentTyper</span
+              >
+              <span
+                class="global-enable-hint"
+                data-i18n="popup_global_enable_hint"
+                >Global autocomplete toggle</span
+              >
             </div>
             <div class="global-toggle-control">
               <div class="field mb-0">
@@ -77,8 +83,15 @@
           class="control-card mt-2 dashboard-card"
         >
           <div class="card-row border-bottom dashboard-header-row">
-            <span class="row-label">Productivity Dashboard</span>
-            <button id="openStatsOptionsBtn" class="mini-btn" type="button">
+            <span class="row-label" data-i18n="popup_dashboard_title"
+              >Productivity Dashboard</span
+            >
+            <button
+              id="openStatsOptionsBtn"
+              class="mini-btn"
+              type="button"
+              data-i18n="popup_dashboard_advanced_stats"
+            >
               Advanced Stats
             </button>
           </div>
@@ -86,15 +99,42 @@
           <div class="dashboard-metrics">
             <div class="metric-box">
               <span id="metricAccepted" class="metric-value">0</span>
-              <span class="metric-label">Accepted</span>
+              <span
+                class="metric-label"
+                data-i18n="popup_dashboard_metric_accepted"
+                >Accepted</span
+              >
             </div>
             <div class="metric-box">
               <span id="metricCharsSaved" class="metric-value">0</span>
-              <span class="metric-label">Chars Saved</span>
+              <span
+                class="metric-label"
+                data-i18n="popup_dashboard_metric_chars_saved"
+                >Chars Saved</span
+              >
             </div>
             <div class="metric-box">
               <span id="metricMinutesSaved" class="metric-value">0</span>
-              <span class="metric-label">Minutes Saved</span>
+              <span
+                class="metric-label"
+                data-i18n="popup_dashboard_metric_minutes_saved"
+                >Minutes Saved</span
+              >
+            </div>
+          </div>
+
+          <div class="dashboard-progress">
+            <div class="dashboard-progress-header">
+              <span data-i18n="popup_dashboard_progress_title"
+                >Milestone progress</span
+              >
+              <span id="dashboardProgressLabel">0h / 1h</span>
+            </div>
+            <div class="dashboard-progress-track">
+              <div
+                id="dashboardProgressFill"
+                class="dashboard-progress-fill"
+              ></div>
             </div>
           </div>
 
@@ -104,18 +144,52 @@
           <p id="dashboardLanguageSummary" class="dashboard-language-summary">
             Languages: no data yet
           </p>
+          <div id="weeklyRecapCard" class="dashboard-recap-card is-hidden">
+            <p id="weeklyRecapTitle" class="dashboard-recap-title"></p>
+            <p id="weeklyRecapSummary" class="dashboard-recap-summary"></p>
+            <p id="weeklyRecapSnippet" class="dashboard-recap-snippet"></p>
+            <div class="dashboard-recap-actions">
+              <button
+                id="weeklyRecapDismissBtn"
+                class="mini-btn"
+                type="button"
+                data-i18n="popup_weekly_recap_dismiss"
+              >
+                Dismiss
+              </button>
+              <button
+                id="weeklyRecapViewBtn"
+                class="mini-btn"
+                type="button"
+                data-i18n="popup_weekly_recap_view"
+              >
+                View details
+              </button>
+            </div>
+          </div>
           <div
             id="dashboardMilestoneHint"
             class="dashboard-milestone is-hidden"
           >
             <span id="dashboardMilestoneText"></span>
-            <a
-              id="dashboardMilestoneLink"
-              href="https://www.buymeacoffee.com/FluentTyper"
-              target="_blank"
-              class="mini-btn donate-mini-btn"
-              >Support</a
-            >
+            <div class="dashboard-milestone-actions">
+              <button
+                id="dashboardMilestoneLaterBtn"
+                class="mini-btn"
+                type="button"
+                data-i18n="popup_donation_later"
+              >
+                Later
+              </button>
+              <a
+                id="dashboardMilestoneLink"
+                href="https://www.buymeacoffee.com/FluentTyper"
+                target="_blank"
+                class="mini-btn donate-mini-btn"
+                data-i18n="popup_donation_support"
+                >Support</a
+              >
+            </div>
           </div>
         </section>
 

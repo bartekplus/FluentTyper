@@ -16,6 +16,7 @@ import {
   CMD_POPUP_PAGE_DISABLE,
   CMD_OPTIONS_PAGE_CONFIG_CHANGE,
   CMD_POPUP_GET_PRODUCTIVITY_STATS,
+  CMD_POPUP_ACK_WEEKLY_RECAP,
   CMD_POPUP_ACK_DONATION_MILESTONE,
   KEY_ENABLED_LANGUAGES,
   KEY_INLINE_SUGGESTION,
@@ -31,6 +32,7 @@ import {
   PopupPageDisableMessage,
   ProductivityDashboardStats,
   PopupGetProductivityStatsMessage,
+  PopupAckWeeklyRecapMessage,
   PopupAckDonationMilestoneMessage,
 } from "../shared/messageTypes";
 import { i18n } from "../third_party/fancier-settings/i18n.js";
@@ -39,6 +41,9 @@ const settings = new SettingsManager();
 let currentDomainURL: string | undefined;
 let currentEnabledLanguages: string[] = [];
 let currentProfileLanguageFallback = "en_US";
+let lastMarkedDonationPromptId: string | null = null;
+const PRODUCTIVITY_DASHBOARD_MAX_RETRIES = 5;
+const PRODUCTIVITY_DASHBOARD_RETRY_DELAY_MS = 200;
 
 function getSiteProfileElements() {
   return {
@@ -301,6 +306,20 @@ function formatNumber(value: number): string {
   }).format(value);
 }
 
+function formatWeekRange(weekKey: string): string {
+  const startDate = new Date(`${weekKey}T00:00:00`);
+  if (Number.isNaN(startDate.getTime())) {
+    return weekKey;
+  }
+  const endDate = new Date(startDate);
+  endDate.setDate(endDate.getDate() + 6);
+  const formatter = new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+  return `${formatter.format(startDate)} - ${formatter.format(endDate)}`;
+}
+
 async function sendRuntimeMessage<T>(message: object): Promise<T | null> {
   return new Promise((resolve) => {
     chrome.runtime.sendMessage(message, (response: unknown) => {
@@ -313,12 +332,26 @@ async function sendRuntimeMessage<T>(message: object): Promise<T | null> {
   });
 }
 
-async function acknowledgeDonationMilestone(
-  milestoneHours: number,
+async function acknowledgeWeeklyRecap(weekKey: string): Promise<void> {
+  const message: PopupAckWeeklyRecapMessage = {
+    command: CMD_POPUP_ACK_WEEKLY_RECAP,
+    context: {
+      weekKey,
+    },
+  };
+  await sendRuntimeMessage(message);
+}
+
+async function handleDonationPromptAction(
+  promptId: string,
+  action: "shown" | "supported" | "snooze",
+  milestoneHours: number | null,
 ): Promise<void> {
   const message: PopupAckDonationMilestoneMessage = {
     command: CMD_POPUP_ACK_DONATION_MILESTONE,
     context: {
+      promptId,
+      action,
       milestoneHours,
     },
   };
@@ -330,16 +363,79 @@ function formatLanguageSummary(stats: ProductivityDashboardStats): string {
     ? stats.perLanguageLast7Days
     : stats.perLanguageLifetime;
   if (!source.length) {
-    return "Languages: no data yet";
+    return i18n.get("popup_dashboard_languages_empty");
   }
   const topLanguages = source.slice(0, 2).map((entry) => {
     const languageLabel = SUPPORTED_LANGUAGES[entry.language] || entry.language;
-    return `${languageLabel}: ${formatNumber(entry.estimatedMinutesSaved)} min`;
+    return `${languageLabel}: ${formatNumber(entry.estimatedMinutesSaved)} ${i18n.get("popup_short_minutes")}`;
   });
   const periodLabel = stats.perLanguageLast7Days.length
-    ? "Last 7 days"
-    : "Lifetime";
+    ? i18n.get("popup_short_last7")
+    : i18n.get("popup_short_lifetime");
   return `${periodLabel}: ${topLanguages.join(" • ")}`;
+}
+
+function renderMilestoneProgress(stats: ProductivityDashboardStats): void {
+  const fillNode = document.getElementById(
+    "dashboardProgressFill",
+  ) as HTMLElement | null;
+  const labelNode = document.getElementById(
+    "dashboardProgressLabel",
+  ) as HTMLElement | null;
+  if (!fillNode || !labelNode) {
+    return;
+  }
+  fillNode.style.width = `${stats.milestoneProgress.progressPct}%`;
+  labelNode.textContent = `${formatNumber(
+    stats.milestoneProgress.lifetimeHoursSaved,
+  )}h / ${stats.milestoneProgress.nextMilestoneHours}h`;
+}
+
+function renderWeeklyRecapCard(stats: ProductivityDashboardStats): void {
+  const cardNode = document.getElementById("weeklyRecapCard") as HTMLElement;
+  const titleNode = document.getElementById("weeklyRecapTitle") as HTMLElement;
+  const summaryNode = document.getElementById(
+    "weeklyRecapSummary",
+  ) as HTMLElement;
+  const snippetNode = document.getElementById(
+    "weeklyRecapSnippet",
+  ) as HTMLElement;
+  const dismissButton = document.getElementById(
+    "weeklyRecapDismissBtn",
+  ) as HTMLButtonElement;
+  const viewButton = document.getElementById(
+    "weeklyRecapViewBtn",
+  ) as HTMLButtonElement;
+
+  if (!stats.shouldShowWeeklyRecap) {
+    cardNode.classList.add("is-hidden");
+    return;
+  }
+
+  cardNode.classList.remove("is-hidden");
+  titleNode.textContent = `${i18n.get("popup_weekly_recap_title")} (${formatWeekRange(
+    stats.weeklyRecap.weekKey,
+  )})`;
+  summaryNode.textContent = `${formatNumber(
+    stats.weeklyRecap.acceptedSuggestions,
+  )} ${i18n.get("popup_short_accepted")} • ${formatNumber(
+    stats.weeklyRecap.charactersSaved,
+  )} ${i18n.get("popup_short_chars")} • ${formatNumber(
+    stats.weeklyRecap.estimatedMinutesSaved,
+  )} ${i18n.get("popup_short_minutes")}`;
+  snippetNode.textContent = stats.weeklyRecap.topSnippet
+    ? `${i18n.get("popup_weekly_recap_top_snippet")}: ${stats.weeklyRecap.topSnippet.snippet} (${stats.weeklyRecap.topSnippet.count}x)`
+    : i18n.get("popup_weekly_recap_top_snippet_empty");
+
+  dismissButton.onclick = () => {
+    void acknowledgeWeeklyRecap(stats.weeklyRecap.weekKey);
+    cardNode.classList.add("is-hidden");
+  };
+  viewButton.onclick = () => {
+    void acknowledgeWeeklyRecap(stats.weeklyRecap.weekKey);
+    chrome.runtime.openOptionsPage();
+    cardNode.classList.add("is-hidden");
+  };
 }
 
 function renderMilestoneHint(stats: ProductivityDashboardStats): void {
@@ -352,16 +448,43 @@ function renderMilestoneHint(stats: ProductivityDashboardStats): void {
   const linkNode = document.getElementById(
     "dashboardMilestoneLink",
   ) as HTMLAnchorElement;
+  const laterButton = document.getElementById(
+    "dashboardMilestoneLaterBtn",
+  ) as HTMLButtonElement;
 
   if (!stats.donationPrompt) {
     container.classList.add("is-hidden");
     linkNode.onclick = null;
+    laterButton.onclick = null;
+    lastMarkedDonationPromptId = null;
     return;
   }
+
+  if (lastMarkedDonationPromptId !== stats.donationPrompt.promptId) {
+    lastMarkedDonationPromptId = stats.donationPrompt.promptId;
+    void handleDonationPromptAction(
+      stats.donationPrompt.promptId,
+      "shown",
+      stats.donationPrompt.milestoneHours,
+    );
+  }
+
   container.classList.remove("is-hidden");
   textNode.textContent = stats.donationPrompt.message;
   linkNode.onclick = () => {
-    void acknowledgeDonationMilestone(stats.donationPrompt!.milestoneHours);
+    void handleDonationPromptAction(
+      stats.donationPrompt!.promptId,
+      "supported",
+      stats.donationPrompt!.milestoneHours,
+    );
+  };
+  laterButton.onclick = () => {
+    void handleDonationPromptAction(
+      stats.donationPrompt!.promptId,
+      "snooze",
+      stats.donationPrompt!.milestoneHours,
+    );
+    container.classList.add("is-hidden");
   };
 }
 
@@ -374,15 +497,21 @@ function renderDashboard(stats: ProductivityDashboardStats): void {
     formatNumber(stats.lifetime.estimatedMinutesSaved);
 
   (document.getElementById("dashboardPeriodSummary") as HTMLElement).textContent =
-    `Last 7 days: ${formatNumber(stats.last7Days.acceptedSuggestions)} accepted • ${formatNumber(
+    `${i18n.get("popup_short_last7")}: ${formatNumber(
+      stats.last7Days.acceptedSuggestions,
+    )} ${i18n.get("popup_short_accepted")} • ${formatNumber(
       stats.last7Days.charactersSaved,
-    )} chars • ${formatNumber(stats.last7Days.estimatedMinutesSaved)} min`;
+    )} ${i18n.get("popup_short_chars")} • ${formatNumber(
+      stats.last7Days.estimatedMinutesSaved,
+    )} ${i18n.get("popup_short_minutes")}`;
   (document.getElementById("dashboardLanguageSummary") as HTMLElement).textContent =
     formatLanguageSummary(stats);
+  renderMilestoneProgress(stats);
+  renderWeeklyRecapCard(stats);
   renderMilestoneHint(stats);
 }
 
-async function loadProductivityDashboard(): Promise<void> {
+async function loadProductivityDashboard(retryCount = 0): Promise<void> {
   const message: PopupGetProductivityStatsMessage = {
     command: CMD_POPUP_GET_PRODUCTIVITY_STATS,
     context: {},
@@ -391,6 +520,11 @@ async function loadProductivityDashboard(): Promise<void> {
     ProductivityDashboardStats | { ok: boolean }
   >(message);
   if (!response || "ok" in response) {
+    if (retryCount < PRODUCTIVITY_DASHBOARD_MAX_RETRIES) {
+      window.setTimeout(() => {
+        void loadProductivityDashboard(retryCount + 1);
+      }, PRODUCTIVITY_DASHBOARD_RETRY_DELAY_MS);
+    }
     return;
   }
   renderDashboard(response);

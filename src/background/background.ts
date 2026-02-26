@@ -13,6 +13,7 @@ import {
   CMD_POPUP_GET_PRODUCTIVITY_STATS,
   CMD_POPUP_ACK_WEEKLY_RECAP,
   CMD_POPUP_ACK_DONATION_MILESTONE,
+  CMD_OPTIONS_RESET_PRODUCTIVITY_STATS,
   KEY_DISPLAY_LANG_HEADER,
   KEY_INLINE_SUGGESTION,
   KEY_REVERT_ON_BACKSPACE,
@@ -66,6 +67,7 @@ import {
   PopupGetProductivityStatsMessage,
   PopupAckWeeklyRecapMessage,
   PopupAckDonationMilestoneMessage,
+  OptionsResetProductivityStatsMessage,
 } from "../shared/messageTypes";
 
 interface DomainRuntimeSettings {
@@ -609,7 +611,7 @@ async function handleContentScriptUsageEvent(
   backgroundServiceWorker: BackgroundServiceWorker,
 ) {
   try {
-    await backgroundServiceWorker.productivityStatsManager.recordSuggestionAccepted(
+    await backgroundServiceWorker.productivityStatsManager.recordUsageEvent(
       request.context,
     );
     sendResponse({ ok: true });
@@ -659,12 +661,29 @@ async function handlePopupAckDonationMilestone(
   backgroundServiceWorker: BackgroundServiceWorker,
 ) {
   try {
-    await backgroundServiceWorker.productivityStatsManager.acknowledgeDonationMilestone(
+    await backgroundServiceWorker.productivityStatsManager.handleDonationPromptAction(
+      request.context.promptId,
+      request.context.action,
       request.context.milestoneHours,
     );
     sendResponse({ ok: true });
   } catch (error) {
     logError("handlePopupAckDonationMilestone", error);
+    sendResponse({ ok: false });
+  }
+}
+
+async function handleOptionsResetProductivityStats(
+  request: OptionsResetProductivityStatsMessage,
+  sender: chrome.runtime.MessageSender,
+  sendResponse: (response?: unknown) => void,
+  backgroundServiceWorker: BackgroundServiceWorker,
+) {
+  try {
+    await backgroundServiceWorker.productivityStatsManager.resetStats();
+    sendResponse({ ok: true });
+  } catch (error) {
+    logError("handleOptionsResetProductivityStats", error);
     sendResponse({ ok: false });
   }
 }
@@ -734,6 +753,15 @@ function onMessage(
     }
     case CMD_POPUP_ACK_DONATION_MILESTONE: {
       handlePopupAckDonationMilestone(
+        request,
+        sender,
+        sendResponse,
+        backgroundServiceWorker,
+      );
+      return true;
+    }
+    case CMD_OPTIONS_RESET_PRODUCTIVITY_STATS: {
+      handleOptionsResetProductivityStats(
         request,
         sender,
         sendResponse,

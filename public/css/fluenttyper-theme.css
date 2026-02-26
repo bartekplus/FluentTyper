@@ -288,6 +288,70 @@ body.fluenttyper-popup {
   padding-top: 0.25rem;
 }
 
+.dashboard-progress {
+  padding: 0.35rem 0.65rem 0;
+}
+
+.dashboard-progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.67rem;
+  color: var(--text-color-light);
+}
+
+.dashboard-progress-header span:last-child {
+  color: var(--text-color);
+  font-weight: 700;
+}
+
+.dashboard-progress-track {
+  margin-top: 0.23rem;
+  width: 100%;
+  height: 0.34rem;
+  background-color: var(--input-bg-color);
+  border: 1px solid var(--divider-color);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.dashboard-progress-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #22c55e, #16a34a);
+  transition: width 0.25s ease;
+}
+
+.dashboard-recap-card {
+  margin: 0.4rem 0.65rem 0;
+  padding: 0.4rem 0.45rem;
+  border-radius: 0.45rem;
+  border: 1px solid rgba(14, 165, 233, 0.35);
+  background-color: rgba(14, 165, 233, 0.08);
+}
+
+.dashboard-recap-title {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-color);
+}
+
+.dashboard-recap-summary,
+.dashboard-recap-snippet {
+  margin: 0.2rem 0 0;
+  font-size: 0.69rem;
+  color: var(--text-color-light);
+}
+
+.dashboard-recap-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.25rem;
+  margin-top: 0.32rem;
+}
+
 .dashboard-milestone {
   display: flex;
   align-items: center;
@@ -304,6 +368,12 @@ body.fluenttyper-popup {
   font-size: 0.72rem;
   color: var(--text-color);
   line-height: 1.35;
+}
+
+.dashboard-milestone-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
 .dashboard-milestone .donate-mini-btn {
@@ -629,6 +699,62 @@ body.fluenttyper-options {
   color: var(--text-color-light);
 }
 
+.fluenttyper-options .productivity-trend-chart {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.35rem;
+  margin-top: 0.55rem;
+  height: 88px;
+}
+
+.fluenttyper-options .productivity-trend-chart .trend-bar-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.22rem;
+}
+
+.fluenttyper-options .productivity-trend-chart .trend-bar-track {
+  display: flex;
+  align-items: flex-end;
+  width: 100%;
+  height: 72px;
+  border-radius: 0.5rem;
+  padding: 0.2rem;
+  border: 1px solid var(--divider-color);
+  background-color: var(--input-bg-color);
+}
+
+.fluenttyper-options .productivity-trend-chart .trend-bar-fill {
+  width: 100%;
+  min-height: 5%;
+  border-radius: 0.38rem;
+  background: linear-gradient(180deg, #38bdf8, #0ea5e9);
+}
+
+.fluenttyper-options .productivity-trend-chart .trend-bar-label {
+  font-size: 0.66rem;
+  color: var(--text-color-light);
+}
+
+.fluenttyper-options .productivity-progress-track {
+  width: 100%;
+  height: 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--divider-color);
+  background-color: var(--input-bg-color);
+  overflow: hidden;
+  margin-top: 0.42rem;
+}
+
+.fluenttyper-options .productivity-progress-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #22c55e, #16a34a);
+}
+
 .fluenttyper-options .productivity-insights-list {
   margin: 0.55rem 0 0;
   padding: 0;
@@ -661,6 +787,10 @@ body.fluenttyper-options {
   margin-top: 0.25rem;
 }
 
+.fluenttyper-options .productivity-insights .recap-section .recap-action {
+  margin-top: 0.45rem;
+}
+
 .fluenttyper-options .productivity-insights-donation {
   display: flex;
   align-items: center;
@@ -671,6 +801,12 @@ body.fluenttyper-options {
   border-radius: 10px;
   padding: 0.55rem 0.65rem;
   font-size: 0.78rem;
+}
+
+.fluenttyper-options .productivity-insights-donation-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 
 .fluenttyper-options .productivity-insights-donation a {

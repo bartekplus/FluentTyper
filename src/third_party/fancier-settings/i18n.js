@@ -2061,6 +2061,168 @@ i18n = Object.assign(i18n, {
     es: "Opcional. Hereda la configuración global de forma predeterminada.",
     pl: "Opcjonalne. Domyślnie dziedziczy ustawienia globalne.",
   },
+  "popup_global_enable_label": {
+    en: "Enable FluentTyper",
+  },
+  "popup_global_enable_hint": {
+    en: "Global autocomplete toggle",
+  },
+  "popup_dashboard_title": {
+    en: "Productivity Dashboard",
+  },
+  "popup_dashboard_advanced_stats": {
+    en: "Advanced Stats",
+  },
+  "popup_dashboard_metric_accepted": {
+    en: "Accepted",
+  },
+  "popup_dashboard_metric_chars_saved": {
+    en: "Chars Saved",
+  },
+  "popup_dashboard_metric_minutes_saved": {
+    en: "Minutes Saved",
+  },
+  "popup_dashboard_progress_title": {
+    en: "Milestone progress",
+  },
+  "popup_dashboard_languages_empty": {
+    en: "Languages: no data yet",
+  },
+  "popup_short_last7": {
+    en: "Last 7 days",
+  },
+  "popup_short_lifetime": {
+    en: "Lifetime",
+  },
+  "popup_short_accepted": {
+    en: "accepted",
+  },
+  "popup_short_chars": {
+    en: "chars",
+  },
+  "popup_short_minutes": {
+    en: "min",
+  },
+  "popup_weekly_recap_title": {
+    en: "Weekly recap",
+  },
+  "popup_weekly_recap_dismiss": {
+    en: "Dismiss",
+  },
+  "popup_weekly_recap_view": {
+    en: "View details",
+  },
+  "popup_weekly_recap_top_snippet": {
+    en: "Top snippet",
+  },
+  "popup_weekly_recap_top_snippet_empty": {
+    en: "Top snippet: no snippet data yet.",
+  },
+  "popup_donation_later": {
+    en: "Later",
+  },
+  "popup_donation_support": {
+    en: "Support",
+  },
+  "productivity_dashboard_group": {
+    en: "Productivity Dashboard",
+  },
+  "productivity_insights_heading": {
+    en: "Productivity Insights",
+  },
+  "productivity_insights_subtitle": {
+    en: "All metrics are calculated and stored locally on your device.",
+  },
+  "productivity_insights_loading": {
+    en: "Loading productivity stats...",
+  },
+  "productivity_insights_failed": {
+    en: "Failed to load productivity stats.",
+  },
+  "productivity_refresh_btn": {
+    en: "Refresh",
+  },
+  "productivity_retry_btn": {
+    en: "Retry",
+  },
+  "productivity_metric_today": {
+    en: "Today",
+  },
+  "productivity_metric_last7": {
+    en: "Last 7 days",
+  },
+  "productivity_metric_lifetime": {
+    en: "Lifetime",
+  },
+  "productivity_week_over_week_title": {
+    en: "Week-over-week trend",
+  },
+  "productivity_week_over_week_empty": {
+    en: "Trend unavailable yet. Keep using FluentTyper this week.",
+  },
+  "productivity_week_over_week_suffix": {
+    en: "compared to last week",
+  },
+  "productivity_trend_chart_title": {
+    en: "7-day trend chart",
+  },
+  "productivity_trend_empty": {
+    en: "No trend data yet.",
+  },
+  "productivity_milestone_progress_title": {
+    en: "Milestone progress",
+  },
+  "productivity_event_summary_title": {
+    en: "Usage events (Last 7 days)",
+  },
+  "productivity_events_shown": {
+    en: "shown",
+  },
+  "productivity_events_expanded": {
+    en: "expanded",
+  },
+  "productivity_events_inserted": {
+    en: "inserted chars",
+  },
+  "productivity_events_typed": {
+    en: "typed chars",
+  },
+  "productivity_top_snippets_title": {
+    en: "Top snippets",
+  },
+  "productivity_top_snippets_empty": {
+    en: "No snippet usage yet.",
+  },
+  "productivity_languages_last7_title": {
+    en: "Languages (Last 7 days)",
+  },
+  "productivity_languages_lifetime_title": {
+    en: "Languages (Lifetime)",
+  },
+  "productivity_languages_empty": {
+    en: "No language data yet.",
+  },
+  "productivity_weekly_recap_title": {
+    en: "Weekly recap",
+  },
+  "productivity_weekly_recap_mark_seen": {
+    en: "Mark as seen",
+  },
+  "productivity_top_snippet_label": {
+    en: "Top snippet",
+  },
+  "productivity_top_snippet_empty": {
+    en: "Top snippet: n/a",
+  },
+  "productivity_unknown_language": {
+    en: "Unknown",
+  },
+  "reset_productivity_stats_btn": {
+    en: "Reset productivity stats",
+  },
+  "reset_productivity_stats_desc": {
+    en: "Clear local productivity metrics and start tracking from zero.",
+  },
   "popup_advanced_options": {
     en: "Advanced Options",
     fr: "Options avancées",

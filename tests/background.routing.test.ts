@@ -7,6 +7,7 @@ import {
   CMD_CONTENT_SCRIPT_PREDICT_REQ,
   CMD_CONTENT_SCRIPT_USAGE_EVENT,
   CMD_OPTIONS_PAGE_CONFIG_CHANGE,
+  CMD_OPTIONS_RESET_PRODUCTIVITY_STATS,
   CMD_POPUP_ACK_DONATION_MILESTONE,
   CMD_POPUP_ACK_WEEKLY_RECAP,
   CMD_POPUP_GET_PRODUCTIVITY_STATS,
@@ -732,7 +733,7 @@ describe("background routing and lifecycle", () => {
     const harness = await loadBackgroundHarness();
     const statsModule = await import("../src/background/ProductivityStatsManager");
     const recordSpy = jest
-      .spyOn(statsModule.ProductivityStatsManager.prototype, "recordSuggestionAccepted")
+      .spyOn(statsModule.ProductivityStatsManager.prototype, "recordUsageEvent")
       .mockResolvedValue(undefined);
     const getSpy = jest
       .spyOn(statsModule.ProductivityStatsManager.prototype, "getDashboardStats")
@@ -748,10 +749,42 @@ describe("background routing and lifecycle", () => {
           charactersSaved: 4,
           estimatedMinutesSaved: 0.1,
         },
+        lifetimeEvents: {
+          suggestionsShown: 1,
+          snippetsExpanded: 1,
+          charsInsertedFromSnippet: 9,
+          charsTypedForTrigger: 3,
+        },
+        last7DaysEvents: {
+          suggestionsShown: 1,
+          snippetsExpanded: 1,
+          charsInsertedFromSnippet: 9,
+          charsTypedForTrigger: 3,
+        },
+        last7DaysTrend: [
+          {
+            dateKey: "2026-02-09",
+            acceptedSuggestions: 0,
+            charactersSaved: 0,
+            estimatedMinutesSaved: 0,
+          },
+          {
+            dateKey: "2026-02-10",
+            acceptedSuggestions: 1,
+            charactersSaved: 4,
+            estimatedMinutesSaved: 0.1,
+          },
+        ],
         perLanguageLifetime: [],
         perLanguageLast7Days: [],
         topSnippets: [],
         weekOverWeekDeltaPct: null,
+        milestoneProgress: {
+          previousMilestoneHours: 0,
+          nextMilestoneHours: 1,
+          progressPct: 10,
+          lifetimeHoursSaved: 0.1,
+        },
         weeklyRecap: {
           weekKey: "2026-02-02",
           acceptedSuggestions: 1,
@@ -768,8 +801,11 @@ describe("background routing and lifecycle", () => {
     const ackMilestoneSpy = jest
       .spyOn(
         statsModule.ProductivityStatsManager.prototype,
-        "acknowledgeDonationMilestone",
+        "handleDonationPromptAction",
       )
+      .mockResolvedValue(undefined);
+    const resetSpy = jest
+      .spyOn(statsModule.ProductivityStatsManager.prototype, "resetStats")
       .mockResolvedValue(undefined);
 
     const usageResponse = jest.fn();
@@ -829,13 +865,26 @@ describe("background routing and lifecycle", () => {
     harness.onMessage(
       {
         command: CMD_POPUP_ACK_DONATION_MILESTONE,
-        context: { milestoneHours: 1 },
+        context: { promptId: "milestone_1", action: "supported", milestoneHours: 1 },
       },
       {} as chrome.runtime.MessageSender,
       ackMilestoneResponse,
     );
     await flushPromises();
-    expect(ackMilestoneSpy).toHaveBeenCalledWith(1);
+    expect(ackMilestoneSpy).toHaveBeenCalledWith("milestone_1", "supported", 1);
     expect(ackMilestoneResponse).toHaveBeenCalledWith({ ok: true });
+
+    const resetResponse = jest.fn();
+    harness.onMessage(
+      {
+        command: CMD_OPTIONS_RESET_PRODUCTIVITY_STATS,
+        context: {},
+      },
+      {} as chrome.runtime.MessageSender,
+      resetResponse,
+    );
+    await flushPromises();
+    expect(resetSpy).toHaveBeenCalled();
+    expect(resetResponse).toHaveBeenCalledWith({ ok: true });
   });
 });

@@ -46,7 +46,14 @@ import {
   KEY_TRIBUTE_PADDING_VERTICAL,
   KEY_TRIBUTE_PADDING_HORIZONTAL,
   CMD_POPUP_GET_PRODUCTIVITY_STATS,
+  CMD_POPUP_ACK_WEEKLY_RECAP,
+  CMD_POPUP_ACK_DONATION_MILESTONE,
+  CMD_OPTIONS_RESET_PRODUCTIVITY_STATS,
 } from "../../shared/constants.ts";
+import { i18n } from "./i18n.js";
+
+const PRODUCTIVITY_INSIGHTS_MAX_RETRIES = 5;
+const PRODUCTIVITY_INSIGHTS_RETRY_DELAY_MS = 200;
 
 function optionsPageConfigChange() {
   const message = {
@@ -272,6 +279,12 @@ function applyThemePreset(settings, presetName) {
   // Theme will be applied through the messaging system when settings change
 }
 
+let lastMarkedDonationPromptId = null;
+
+function t(key) {
+  return i18n.get(key);
+}
+
 function formatMetricNumber(value) {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     return "0";
@@ -300,9 +313,20 @@ function formatWeekRange(weekKey) {
 
 function formatLanguageLabel(language) {
   if (typeof language !== "string" || !language) {
-    return "Unknown";
+    return t("productivity_unknown_language");
   }
   return SUPPORTED_LANGUAGES[language] || language;
+}
+
+function formatTrendDayLabel(dateKey) {
+  if (typeof dateKey !== "string") {
+    return "";
+  }
+  const date = new Date(`${dateKey}T00:00:00`);
+  if (Number.isNaN(date.getTime())) {
+    return dateKey;
+  }
+  return new Intl.DateTimeFormat(undefined, { weekday: "short" }).format(date);
 }
 
 function sendRuntimeMessage(message) {
@@ -314,6 +338,31 @@ function sendRuntimeMessage(message) {
       }
       resolve(response || null);
     });
+  });
+}
+
+async function acknowledgeWeeklyRecap(weekKey) {
+  if (typeof weekKey !== "string" || !weekKey) {
+    return;
+  }
+  await sendRuntimeMessage({
+    command: CMD_POPUP_ACK_WEEKLY_RECAP,
+    context: { weekKey },
+  });
+}
+
+async function handleDonationPromptAction(prompt, action) {
+  if (!prompt || typeof prompt.promptId !== "string" || !prompt.promptId) {
+    return;
+  }
+  await sendRuntimeMessage({
+    command: CMD_POPUP_ACK_DONATION_MILESTONE,
+    context: {
+      promptId: prompt.promptId,
+      action,
+      milestoneHours:
+        typeof prompt.milestoneHours === "number" ? prompt.milestoneHours : null,
+    },
   });
 }
 
@@ -348,16 +397,111 @@ function appendMetricCard(container, label, metric) {
   title.textContent = label;
   const value = document.createElement("p");
   value.className = "metric-main";
-  value.textContent = `${formatMetricNumber(metric.estimatedMinutesSaved)} min`;
+  value.textContent = `${formatMetricNumber(metric.estimatedMinutesSaved)} ${t("popup_short_minutes")}`;
   const details = document.createElement("p");
   details.className = "metric-meta";
-  details.textContent = `${formatMetricNumber(metric.acceptedSuggestions)} accepted • ${formatMetricNumber(
+  details.textContent = `${formatMetricNumber(metric.acceptedSuggestions)} ${t("popup_short_accepted")} • ${formatMetricNumber(
     metric.charactersSaved,
-  )} chars`;
+  )} ${t("popup_short_chars")}`;
   card.appendChild(title);
   card.appendChild(value);
   card.appendChild(details);
   container.appendChild(card);
+}
+
+function appendTrendChart(container, trendPoints) {
+  const section = document.createElement("section");
+  section.className = "productivity-insights-section";
+  const title = document.createElement("h4");
+  title.textContent = t("productivity_trend_chart_title");
+  section.appendChild(title);
+
+  const chart = document.createElement("div");
+  chart.className = "productivity-trend-chart";
+  const points = Array.isArray(trendPoints) ? trendPoints : [];
+  const maxMinutes =
+    points.reduce(
+      (maxValue, point) =>
+        Math.max(maxValue, Number(point?.estimatedMinutesSaved) || 0),
+      0,
+    ) || 1;
+
+  if (points.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "trend-value";
+    empty.textContent = t("productivity_trend_empty");
+    section.appendChild(empty);
+    container.appendChild(section);
+    return;
+  }
+
+  points.forEach((point) => {
+    const item = document.createElement("div");
+    item.className = "trend-bar-item";
+    const barTrack = document.createElement("div");
+    barTrack.className = "trend-bar-track";
+    const barFill = document.createElement("div");
+    barFill.className = "trend-bar-fill";
+    const minutes = Number(point?.estimatedMinutesSaved) || 0;
+    barFill.style.height = `${Math.max(6, Math.round((minutes / maxMinutes) * 100))}%`;
+    barTrack.appendChild(barFill);
+    const label = document.createElement("span");
+    label.className = "trend-bar-label";
+    label.textContent = formatTrendDayLabel(point?.dateKey);
+    item.appendChild(barTrack);
+    item.appendChild(label);
+    chart.appendChild(item);
+  });
+
+  section.appendChild(chart);
+  container.appendChild(section);
+}
+
+function appendMilestoneProgress(container, milestoneProgress) {
+  const section = document.createElement("section");
+  section.className = "productivity-insights-section";
+  const title = document.createElement("h4");
+  title.textContent = t("productivity_milestone_progress_title");
+  section.appendChild(title);
+
+  const progressMeta = document.createElement("p");
+  progressMeta.className = "trend-value";
+  progressMeta.textContent = `${formatMetricNumber(milestoneProgress?.lifetimeHoursSaved)}h / ${formatMetricNumber(
+    milestoneProgress?.nextMilestoneHours,
+  )}h`;
+  section.appendChild(progressMeta);
+
+  const progressTrack = document.createElement("div");
+  progressTrack.className = "productivity-progress-track";
+  const progressFill = document.createElement("div");
+  progressFill.className = "productivity-progress-fill";
+  progressFill.style.width = `${Math.max(
+    0,
+    Math.min(100, Number(milestoneProgress?.progressPct) || 0),
+  )}%`;
+  progressTrack.appendChild(progressFill);
+  section.appendChild(progressTrack);
+  container.appendChild(section);
+}
+
+function appendEventSummary(container, eventSummary) {
+  const section = document.createElement("section");
+  section.className = "productivity-insights-section";
+  const title = document.createElement("h4");
+  title.textContent = t("productivity_event_summary_title");
+  section.appendChild(title);
+
+  const text = document.createElement("p");
+  text.className = "trend-value";
+  text.textContent = `${formatMetricNumber(eventSummary?.suggestionsShown)} ${t("productivity_events_shown")} • ${formatMetricNumber(
+    eventSummary?.snippetsExpanded,
+  )} ${t("productivity_events_expanded")} • ${formatMetricNumber(
+    eventSummary?.charsInsertedFromSnippet,
+  )} ${t("productivity_events_inserted")} • ${formatMetricNumber(
+    eventSummary?.charsTypedForTrigger,
+  )} ${t("productivity_events_typed")}`;
+  section.appendChild(text);
+  container.appendChild(section);
 }
 
 function renderProductivityInsights(root, stats) {
@@ -370,15 +514,15 @@ function renderProductivityInsights(root, stats) {
   header.className = "productivity-insights-header";
   const headingBlock = document.createElement("div");
   const heading = document.createElement("h3");
-  heading.textContent = "Productivity Insights";
+  heading.textContent = t("productivity_insights_heading");
   const subtitle = document.createElement("p");
-  subtitle.textContent = "All metrics are calculated and stored locally on your device.";
+  subtitle.textContent = t("productivity_insights_subtitle");
   headingBlock.appendChild(heading);
   headingBlock.appendChild(subtitle);
   const refreshBtn = document.createElement("button");
   refreshBtn.className = "button is-small is-light";
   refreshBtn.type = "button";
-  refreshBtn.textContent = "Refresh";
+  refreshBtn.textContent = t("productivity_refresh_btn");
   refreshBtn.setAttribute("data-action", "refresh-productivity-stats");
   header.appendChild(headingBlock);
   header.appendChild(refreshBtn);
@@ -386,27 +530,30 @@ function renderProductivityInsights(root, stats) {
 
   const metricGrid = document.createElement("div");
   metricGrid.className = "productivity-insights-grid";
-  appendMetricCard(metricGrid, "Today", stats.today);
-  appendMetricCard(metricGrid, "Last 7 days", stats.last7Days);
-  appendMetricCard(metricGrid, "Lifetime", stats.lifetime);
+  appendMetricCard(metricGrid, t("productivity_metric_today"), stats.today);
+  appendMetricCard(metricGrid, t("productivity_metric_last7"), stats.last7Days);
+  appendMetricCard(metricGrid, t("productivity_metric_lifetime"), stats.lifetime);
   shell.appendChild(metricGrid);
 
   const trendSection = document.createElement("section");
   trendSection.className = "productivity-insights-section";
   const trendTitle = document.createElement("h4");
-  trendTitle.textContent = "Week-over-week trend";
+  trendTitle.textContent = t("productivity_week_over_week_title");
   const trendValue = document.createElement("p");
   trendValue.className = "trend-value";
   if (stats.weekOverWeekDeltaPct === null) {
-    trendValue.textContent = "Trend unavailable yet. Keep using FluentTyper this week.";
+    trendValue.textContent = t("productivity_week_over_week_empty");
   } else if (stats.weekOverWeekDeltaPct >= 0) {
-    trendValue.textContent = `+${stats.weekOverWeekDeltaPct}% compared to last week`;
+    trendValue.textContent = `+${stats.weekOverWeekDeltaPct}% ${t("productivity_week_over_week_suffix")}`;
   } else {
-    trendValue.textContent = `${stats.weekOverWeekDeltaPct}% compared to last week`;
+    trendValue.textContent = `${stats.weekOverWeekDeltaPct}% ${t("productivity_week_over_week_suffix")}`;
   }
   trendSection.appendChild(trendTitle);
   trendSection.appendChild(trendValue);
   shell.appendChild(trendSection);
+  appendTrendChart(shell, stats.last7DaysTrend);
+  appendMilestoneProgress(shell, stats.milestoneProgress);
+  appendEventSummary(shell, stats.last7DaysEvents);
 
   const columns = document.createElement("div");
   columns.className = "productivity-insights-columns";
@@ -414,28 +561,31 @@ function renderProductivityInsights(root, stats) {
   const snippetSection = document.createElement("section");
   snippetSection.className = "productivity-insights-section";
   const snippetTitle = document.createElement("h4");
-  snippetTitle.textContent = "Top snippets";
+  snippetTitle.textContent = t("productivity_top_snippets_title");
   snippetSection.appendChild(snippetTitle);
   appendRankedList(
     snippetSection,
     stats.topSnippets || [],
-    "No snippet usage yet.",
-    (row) => [row.snippet, `${row.count}x`],
+    t("productivity_top_snippets_empty"),
+    (row) => [
+      row.snippet,
+      `${row.count}x • ${formatMetricNumber(row.estimatedMinutesSaved)} ${t("popup_short_minutes")}`,
+    ],
   );
   columns.appendChild(snippetSection);
 
   const languageWeekSection = document.createElement("section");
   languageWeekSection.className = "productivity-insights-section";
   const languageWeekTitle = document.createElement("h4");
-  languageWeekTitle.textContent = "Languages (Last 7 days)";
+  languageWeekTitle.textContent = t("productivity_languages_last7_title");
   languageWeekSection.appendChild(languageWeekTitle);
   appendRankedList(
     languageWeekSection,
     stats.perLanguageLast7Days || [],
-    "No language data yet.",
+    t("productivity_languages_empty"),
     (row) => [
       formatLanguageLabel(row.language),
-      `${formatMetricNumber(row.estimatedMinutesSaved)} min`,
+      `${formatMetricNumber(row.estimatedMinutesSaved)} ${t("popup_short_minutes")}`,
     ],
   );
   columns.appendChild(languageWeekSection);
@@ -443,15 +593,15 @@ function renderProductivityInsights(root, stats) {
   const languageLifetimeSection = document.createElement("section");
   languageLifetimeSection.className = "productivity-insights-section";
   const languageLifetimeTitle = document.createElement("h4");
-  languageLifetimeTitle.textContent = "Languages (Lifetime)";
+  languageLifetimeTitle.textContent = t("productivity_languages_lifetime_title");
   languageLifetimeSection.appendChild(languageLifetimeTitle);
   appendRankedList(
     languageLifetimeSection,
     stats.perLanguageLifetime || [],
-    "No language data yet.",
+    t("productivity_languages_empty"),
     (row) => [
       formatLanguageLabel(row.language),
-      `${formatMetricNumber(row.estimatedMinutesSaved)} min`,
+      `${formatMetricNumber(row.estimatedMinutesSaved)} ${t("popup_short_minutes")}`,
     ],
   );
   columns.appendChild(languageLifetimeSection);
@@ -460,55 +610,96 @@ function renderProductivityInsights(root, stats) {
   const recapSection = document.createElement("section");
   recapSection.className = "productivity-insights-section recap-section";
   const recapTitle = document.createElement("h4");
-  recapTitle.textContent = `Weekly recap (${formatWeekRange(stats.weeklyRecap?.weekKey)})`;
+  recapTitle.textContent = `${t("productivity_weekly_recap_title")} (${formatWeekRange(stats.weeklyRecap?.weekKey)})`;
   const recapSummary = document.createElement("p");
-  recapSummary.textContent = `${formatMetricNumber(stats.weeklyRecap?.acceptedSuggestions)} accepted • ${formatMetricNumber(
+  recapSummary.textContent = `${formatMetricNumber(stats.weeklyRecap?.acceptedSuggestions)} ${t("popup_short_accepted")} • ${formatMetricNumber(
     stats.weeklyRecap?.charactersSaved,
-  )} chars • ${formatMetricNumber(stats.weeklyRecap?.estimatedMinutesSaved)} min`;
+  )} ${t("popup_short_chars")} • ${formatMetricNumber(
+    stats.weeklyRecap?.estimatedMinutesSaved,
+  )} ${t("popup_short_minutes")}`;
   recapSection.appendChild(recapTitle);
   recapSection.appendChild(recapSummary);
   if (stats.weeklyRecap?.topSnippet) {
     const recapTopSnippet = document.createElement("p");
     recapTopSnippet.className = "recap-top-snippet";
-    recapTopSnippet.textContent = `Top snippet: ${stats.weeklyRecap.topSnippet.snippet} (${stats.weeklyRecap.topSnippet.count}x)`;
+    recapTopSnippet.textContent = `${t("productivity_top_snippet_label")}: ${stats.weeklyRecap.topSnippet.snippet} (${stats.weeklyRecap.topSnippet.count}x)`;
     recapSection.appendChild(recapTopSnippet);
+  } else {
+    const recapTopSnippet = document.createElement("p");
+    recapTopSnippet.className = "recap-top-snippet";
+    recapTopSnippet.textContent = t("productivity_top_snippet_empty");
+    recapSection.appendChild(recapTopSnippet);
+  }
+  if (stats.shouldShowWeeklyRecap) {
+    const recapAction = document.createElement("button");
+    recapAction.type = "button";
+    recapAction.className = "button is-small is-light recap-action";
+    recapAction.textContent = t("productivity_weekly_recap_mark_seen");
+    recapAction.onclick = async () => {
+      await acknowledgeWeeklyRecap(stats.weeklyRecap.weekKey);
+      await loadProductivityInsights(root);
+    };
+    recapSection.appendChild(recapAction);
   }
   shell.appendChild(recapSection);
 
   if (stats.donationPrompt) {
+    if (lastMarkedDonationPromptId !== stats.donationPrompt.promptId) {
+      lastMarkedDonationPromptId = stats.donationPrompt.promptId;
+      void handleDonationPromptAction(stats.donationPrompt, "shown");
+    }
     const donationSection = document.createElement("div");
     donationSection.className = "productivity-insights-donation";
     const donationText = document.createElement("span");
     donationText.textContent = stats.donationPrompt.message;
+    const donationActions = document.createElement("div");
+    donationActions.className = "productivity-insights-donation-actions";
+    const laterButton = document.createElement("button");
+    laterButton.type = "button";
+    laterButton.className = "button is-small is-light";
+    laterButton.textContent = t("popup_donation_later");
+    laterButton.onclick = async () => {
+      await handleDonationPromptAction(stats.donationPrompt, "snooze");
+      await loadProductivityInsights(root);
+    };
     const donationLink = document.createElement("a");
     donationLink.href = "https://www.buymeacoffee.com/FluentTyper";
     donationLink.target = "_blank";
     donationLink.rel = "noopener noreferrer";
-    donationLink.textContent = "Support";
+    donationLink.textContent = t("popup_donation_support");
+    donationLink.onclick = () => {
+      void handleDonationPromptAction(stats.donationPrompt, "supported");
+    };
+    donationActions.appendChild(laterButton);
+    donationActions.appendChild(donationLink);
     donationSection.appendChild(donationText);
-    donationSection.appendChild(donationLink);
+    donationSection.appendChild(donationActions);
     shell.appendChild(donationSection);
+  } else {
+    lastMarkedDonationPromptId = null;
   }
 
   root.appendChild(shell);
 }
 
-function renderProductivityInsightsStatus(root, message) {
+function renderProductivityInsightsStatus(root, messageKey) {
   root.innerHTML = "";
   const status = document.createElement("div");
   status.className = "productivity-insights-status";
-  status.textContent = message;
+  status.textContent = t(messageKey);
   const refreshBtn = document.createElement("button");
   refreshBtn.className = "button is-small is-light";
   refreshBtn.type = "button";
-  refreshBtn.textContent = "Retry";
+  refreshBtn.textContent = t("productivity_retry_btn");
   refreshBtn.setAttribute("data-action", "refresh-productivity-stats");
   status.appendChild(refreshBtn);
   root.appendChild(status);
 }
 
-async function loadProductivityInsights(root) {
-  renderProductivityInsightsStatus(root, "Loading productivity stats...");
+async function loadProductivityInsights(root, retryCount = 0) {
+  if (retryCount === 0) {
+    renderProductivityInsightsStatus(root, "productivity_insights_loading");
+  }
   const response = await sendRuntimeMessage({
     command: CMD_POPUP_GET_PRODUCTIVITY_STATS,
     context: {},
@@ -519,10 +710,13 @@ async function loadProductivityInsights(root) {
     Array.isArray(response) ||
     "ok" in response
   ) {
-    renderProductivityInsightsStatus(
-      root,
-      "Failed to load productivity stats.",
-    );
+    if (retryCount < PRODUCTIVITY_INSIGHTS_MAX_RETRIES) {
+      window.setTimeout(() => {
+        void loadProductivityInsights(root, retryCount + 1);
+      }, PRODUCTIVITY_INSIGHTS_RETRY_DELAY_MS);
+      return;
+    }
+    renderProductivityInsightsStatus(root, "productivity_insights_failed");
     return;
   }
   renderProductivityInsights(root, response);
@@ -584,6 +778,19 @@ window.addEventListener("DOMContentLoaded", function () {
         optionsPageConfigChange,
       );
       setupProductivityInsights();
+      settings.manifest.resetProductivityStatsButton.addEvent(
+        "action",
+        async function () {
+          await sendRuntimeMessage({
+            command: CMD_OPTIONS_RESET_PRODUCTIVITY_STATS,
+            context: {},
+          });
+          const root = document.getElementById("productivityStatsRoot");
+          if (root) {
+            await loadProductivityInsights(root);
+          }
+        },
+      );
 
       settings.manifest.addDomainBtn.addEvent("action", function () {
         if (settings.manifest.domain.element.element.checkValidity()) {
