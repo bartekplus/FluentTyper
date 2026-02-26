@@ -59,8 +59,6 @@ import {
   ContentScriptGetConfigMessage,
 } from "../shared/messageTypes";
 
-declare const __E2E_TESTING__: boolean;
-
 interface DomainRuntimeSettings {
   language: string;
   enabledLanguages: string[];
@@ -402,6 +400,9 @@ function onInstalled(details: chrome.runtime.InstalledDetails) {
   } else if (details.reason === "update") {
     const thisVersion = chrome.runtime.getManifest().version;
     console.log(`Updated from ${details.previousVersion} to ${thisVersion}!`);
+    migrateToLocalStore(details.previousVersion).catch((error) => {
+      logError("migrateToLocalStore", error);
+    });
   }
 }
 
@@ -633,14 +634,28 @@ chrome.runtime.onInstalled.addListener(onInstalled);
 chrome.commands.onCommand.addListener(onCommand);
 chrome.runtime.onMessage.addListener(onMessage);
 
-if (typeof globalThis !== "undefined" && __E2E_TESTING__) {
+if (typeof globalThis !== "undefined") {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (globalThis as any).triggerCommandForTesting = async (command: string) => {
+  (globalThis as any).triggerCommandForTesting = (command: string) => {
     onCommand(command);
   };
+}
 
-  // Alternative hook for Firefox BiDi tests
-  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+const testTriggerCommandAllowList = new Set<string>([
+  CMD_TOGGLE_FT_ACTIVE_TAB,
+  CMD_TRIGGER_FT_ACTIVE_TAB,
+  CMD_TOGGLE_FT_ACTIVE_LANG,
+]);
+
+function isTrustedInternalSender(sender: chrome.runtime.MessageSender): boolean {
+  return (
+    typeof sender.url === "string" &&
+    sender.url.startsWith(chrome.runtime.getURL(""))
+  );
+}
+
+// Alternative hook for Firefox BiDi tests.
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (
       typeof message !== "object" ||
       !message ||
@@ -649,7 +664,11 @@ if (typeof globalThis !== "undefined" && __E2E_TESTING__) {
       return false;
     }
     const command = (message as { command?: unknown }).command;
-    if (typeof command !== "string") {
+    if (
+      typeof command !== "string" ||
+      !testTriggerCommandAllowList.has(command) ||
+      !isTrustedInternalSender(sender)
+    ) {
       sendResponse({ ok: false });
       return true;
     }
@@ -657,7 +676,6 @@ if (typeof globalThis !== "undefined" && __E2E_TESTING__) {
     sendResponse({ ok: true });
     return true;
   });
-}
 
 async function initializeBackgroundServiceWorker(
   lastVersion: string | undefined,
@@ -673,12 +691,10 @@ async function initializeBackgroundServiceWorker(
 }
 
 function loadLastVersionAndInitialize(): void {
-  chrome.storage.local.get("lastVersion", (result) => {
-    initializeBackgroundServiceWorker(
+  chrome.storage.local.get("lastVersion", async (result) => {
+    await initializeBackgroundServiceWorker(
       result?.lastVersion as string | undefined,
-    ).catch((error) => {
-      logError("initializeBackgroundServiceWorker", error);
-    });
+    );
   });
 }
 

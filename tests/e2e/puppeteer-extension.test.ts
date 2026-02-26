@@ -1010,7 +1010,7 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await gotoTestPage(page, {
         enableCkEditor: shouldEnableCkEditor(selector),
       });
-      page.bringToFront();
+      await page.bringToFront();
       await waitForInputReady(page, selector);
       const element = await page.$(selector);
       await page.focus(selector);
@@ -1049,7 +1049,7 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await gotoTestPage(page, {
         enableCkEditor: shouldEnableCkEditor(selector),
       });
-      page.bringToFront();
+      await page.bringToFront();
 
       await setSetting(worker!, KEY_INLINE_SUGGESTION, true);
       await applyConfigChange(browser, worker!);
@@ -1173,7 +1173,7 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     await gotoTestPage(page, {
       enableCkEditor: shouldEnableCkEditor(selector),
     });
-    page.bringToFront();
+    await page.bringToFront();
     await waitForInputReady(page, selector);
 
     await setSetting(worker!, KEY_ENABLED_LANGUAGES, ["en_US", "el_GR"]);
@@ -1262,7 +1262,7 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     await gotoTestPage(page, {
       enableCkEditor: shouldEnableCkEditor(selector),
     });
-    page.bringToFront();
+    await page.bringToFront();
     await waitForInputReady(page, selector);
 
     await setSetting(
@@ -1505,7 +1505,7 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await gotoTestPage(page, {
         enableCkEditor: shouldEnableCkEditor(selector),
       });
-      page.bringToFront();
+      await page.bringToFront();
 
       await setSetting(worker!, KEY_LANGUAGE, "en_US");
       await applyConfigChange(browser, worker!);
@@ -1542,7 +1542,7 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await gotoTestPage(page, {
         enableCkEditor: shouldEnableCkEditor(selector),
       });
-      page.bringToFront();
+      await page.bringToFront();
 
       await setSetting(worker!, KEY_ENABLED_LANGUAGES, ["textExpander"]);
       await setSetting(worker!, KEY_LANGUAGE, "textExpander");
@@ -1602,7 +1602,7 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await gotoTestPage(page, {
         enableCkEditor: shouldEnableCkEditor(selector),
       });
-      page.bringToFront();
+      await page.bringToFront();
 
       await waitForInputReady(page, selector);
       const element = await page.$(selector);
@@ -1651,7 +1651,7 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await gotoTestPage(page, {
         enableCkEditor: shouldEnableCkEditor(selector),
       });
-      page.bringToFront();
+      await page.bringToFront();
 
       await waitForInputReady(page, selector);
       const element = await page.$(selector);
