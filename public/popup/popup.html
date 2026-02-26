@@ -71,11 +71,14 @@
         </div>
 
         <!-- Productivity Dashboard -->
-        <section id="productivityDashboard" class="control-card mt-3 dashboard-card">
+        <section
+          id="productivityDashboard"
+          class="control-card mt-3 dashboard-card"
+        >
           <div class="card-row border-bottom dashboard-header-row">
             <span class="row-label">Productivity Dashboard</span>
-            <button id="openWeeklyRecapBtn" class="mini-btn" type="button">
-              Weekly Recap
+            <button id="openStatsOptionsBtn" class="mini-btn" type="button">
+              Advanced Stats
             </button>
           </div>
 
@@ -95,29 +98,22 @@
           </div>
 
           <p id="dashboardPeriodSummary" class="dashboard-summary">
-            Today: 0 accepted • 0 chars • 0 min
+            Last 7 days: 0 accepted • 0 chars • 0 min
           </p>
-          <p id="dashboardTrendSummary" class="dashboard-trend">
-            Week-over-week trend unavailable yet.
+          <p id="dashboardLanguageSummary" class="dashboard-language-summary">
+            Languages: no data yet
           </p>
-
-          <div class="dashboard-snippets">
-            <div class="dashboard-subtitle">Top snippets</div>
-            <ul id="topSnippetsList" class="top-snippets-list">
-              <li>No snippet usage yet.</li>
-            </ul>
-          </div>
-
-          <div id="dashboardDonationPrompt" class="dashboard-donation is-hidden">
-            <p id="dashboardDonationText">
-              You just saved your 1st hour. Buy the dev a coffee?
-            </p>
+          <div
+            id="dashboardMilestoneHint"
+            class="dashboard-milestone is-hidden"
+          >
+            <span id="dashboardMilestoneText"></span>
             <a
-              id="dashboardDonationLink"
+              id="dashboardMilestoneLink"
               href="https://www.buymeacoffee.com/FluentTyper"
               target="_blank"
               class="mini-btn donate-mini-btn"
-              >Support Development</a
+              >Support</a
             >
           </div>
         </section>
@@ -325,41 +321,5 @@
         Donate
       </a>
     </footer>
-
-    <!-- Weekly Recap Modal -->
-    <div id="weeklyRecapModal" class="recap-modal is-hidden" role="dialog" aria-modal="true">
-      <div class="recap-backdrop"></div>
-      <div class="recap-content">
-        <h2 class="recap-title">Weekly Recap</h2>
-        <p id="recapWeekRange" class="recap-range">Week</p>
-        <div class="recap-grid">
-          <div class="recap-stat">
-            <strong id="recapAccepted">0</strong>
-            <span>Accepted</span>
-          </div>
-          <div class="recap-stat">
-            <strong id="recapChars">0</strong>
-            <span>Chars Saved</span>
-          </div>
-          <div class="recap-stat">
-            <strong id="recapMinutes">0</strong>
-            <span>Minutes Saved</span>
-          </div>
-        </div>
-        <p id="recapTopSnippet" class="recap-top-snippet">Top snippet: n/a</p>
-        <div class="recap-actions">
-          <button id="closeWeeklyRecapBtn" class="mini-btn" type="button">
-            Close
-          </button>
-          <a
-            id="recapDonateBtn"
-            href="https://www.buymeacoffee.com/FluentTyper"
-            target="_blank"
-            class="mini-btn donate-mini-btn"
-            >Support Development</a
-          >
-        </div>
-      </div>
-    </div>
   </body>
 </html>

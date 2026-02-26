@@ -269,46 +269,22 @@ body.fluenttyper-popup {
 }
 
 .dashboard-summary,
-.dashboard-trend {
+.dashboard-language-summary {
   margin: 0;
   padding: 0.45rem 0.75rem 0;
   font-size: 0.72rem;
   color: var(--text-color-light);
 }
 
-.dashboard-trend {
+.dashboard-language-summary {
   padding-top: 0.25rem;
 }
 
-.dashboard-snippets {
-  padding: 0.45rem 0.75rem 0;
-}
-
-.dashboard-subtitle {
-  font-size: 0.68rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-color-light);
-}
-
-.top-snippets-list {
-  margin: 0.3rem 0 0;
-  padding: 0;
-  list-style: none;
-  display: grid;
-  gap: 0.2rem;
-}
-
-.top-snippets-list li {
+.dashboard-milestone {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
-  font-size: 0.72rem;
-  color: var(--text-color);
-}
-
-.dashboard-donation {
+  gap: 0.35rem;
   margin: 0.45rem 0.75rem 0;
   padding: 0.45rem 0.5rem;
   border-radius: 0.45rem;
@@ -316,100 +292,18 @@ body.fluenttyper-popup {
   border: 1px solid rgba(250, 204, 21, 0.36);
 }
 
-.dashboard-donation p {
-  margin: 0 0 0.35rem;
+.dashboard-milestone span {
   font-size: 0.72rem;
   color: var(--text-color);
+  line-height: 1.35;
 }
 
-.dashboard-donation .donate-mini-btn {
+.dashboard-milestone .donate-mini-btn {
   background-color: rgba(250, 204, 21, 0.24);
   border-color: rgba(250, 204, 21, 0.56);
   color: #7c2d12;
   text-decoration: none;
-}
-
-.recap-modal {
-  position: fixed;
-  inset: 0;
-  z-index: 110;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.8rem;
-}
-
-.recap-backdrop {
-  position: absolute;
-  inset: 0;
-  background-color: rgba(15, 23, 42, 0.5);
-}
-
-.recap-content {
-  position: relative;
-  width: min(100%, 295px);
-  border-radius: 0.75rem;
-  background-color: var(--box-background-color);
-  border: 1px solid var(--divider-color);
-  box-shadow: 0 16px 40px -24px var(--box-shadow-color);
-  padding: 0.8rem;
-}
-
-.recap-title {
-  margin: 0;
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: var(--text-color);
-}
-
-.recap-range {
-  margin: 0.2rem 0 0.6rem;
-  font-size: 0.72rem;
-  color: var(--text-color-light);
-}
-
-.recap-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.35rem;
-}
-
-.recap-stat {
-  border-radius: 0.45rem;
-  border: 1px solid var(--divider-color);
-  background-color: var(--input-bg-color);
-  padding: 0.35rem 0.25rem;
-  text-align: center;
-}
-
-.recap-stat strong {
-  display: block;
-  font-size: 0.86rem;
-  color: var(--text-color);
-}
-
-.recap-stat span {
-  font-size: 0.62rem;
-  color: var(--text-color-light);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.recap-top-snippet {
-  margin: 0.55rem 0 0;
-  font-size: 0.72rem;
-  color: var(--text-color);
-}
-
-.recap-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.45rem;
-  margin-top: 0.65rem;
-}
-
-.recap-actions .donate-mini-btn {
-  text-decoration: none;
+  flex-shrink: 0;
 }
 
 /* Toolbar (Bottom Bar) */
@@ -637,6 +531,156 @@ body.fluenttyper-options {
   margin-left: 0.45rem;
 }
 
+.fluenttyper-options .productivity-insights {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.fluenttyper-options .productivity-insights-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+
+.fluenttyper-options .productivity-insights-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.fluenttyper-options .productivity-insights-header p {
+  margin: 0.2rem 0 0;
+  color: var(--text-color-light);
+  font-size: 0.82rem;
+}
+
+.fluenttyper-options .productivity-insights-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.fluenttyper-options .productivity-insights-metric {
+  border: 1px solid var(--divider-color);
+  border-radius: 10px;
+  padding: 0.6rem 0.65rem;
+  background-color: color-mix(
+    in srgb,
+    var(--box-background-color) 92%,
+    var(--divider-color)
+  );
+}
+
+.fluenttyper-options .productivity-insights-metric h4 {
+  margin: 0;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-color-light);
+}
+
+.fluenttyper-options .productivity-insights-metric .metric-main {
+  margin: 0.35rem 0 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.fluenttyper-options .productivity-insights-metric .metric-meta {
+  margin: 0.15rem 0 0;
+  font-size: 0.75rem;
+  color: var(--text-color-light);
+}
+
+.fluenttyper-options .productivity-insights-columns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.fluenttyper-options .productivity-insights-section {
+  border: 1px solid var(--divider-color);
+  border-radius: 10px;
+  padding: 0.6rem 0.65rem;
+  background-color: color-mix(
+    in srgb,
+    var(--box-background-color) 95%,
+    var(--divider-color)
+  );
+}
+
+.fluenttyper-options .productivity-insights-section h4 {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.fluenttyper-options .productivity-insights-section .trend-value {
+  margin: 0.4rem 0 0;
+  font-size: 0.82rem;
+  color: var(--text-color-light);
+}
+
+.fluenttyper-options .productivity-insights-list {
+  margin: 0.55rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.32rem;
+}
+
+.fluenttyper-options .productivity-insights-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.76rem;
+  color: var(--text-color-light);
+}
+
+.fluenttyper-options .productivity-insights-list li strong {
+  color: var(--text-color);
+  font-size: 0.75rem;
+}
+
+.fluenttyper-options .productivity-insights .recap-section p {
+  margin: 0.4rem 0 0;
+  font-size: 0.8rem;
+  color: var(--text-color-light);
+}
+
+.fluenttyper-options .productivity-insights .recap-section .recap-top-snippet {
+  margin-top: 0.25rem;
+}
+
+.fluenttyper-options .productivity-insights-donation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  border: 1px solid rgba(250, 204, 21, 0.4);
+  background-color: rgba(250, 204, 21, 0.14);
+  border-radius: 10px;
+  padding: 0.55rem 0.65rem;
+  font-size: 0.78rem;
+}
+
+.fluenttyper-options .productivity-insights-donation a {
+  color: #92400e;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  white-space: nowrap;
+}
+
+.fluenttyper-options .productivity-insights-status {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.82rem;
+  color: var(--text-color-light);
+}
+
 .fluenttyper-options .about-highlights {
   display: flex;
   flex-wrap: wrap;
@@ -728,5 +772,19 @@ body.fluenttyper-options {
 
   .fluenttyper-options .settings-group {
     padding: 0.7rem 0.75rem 0.45rem;
+  }
+
+  .fluenttyper-options .productivity-insights-grid,
+  .fluenttyper-options .productivity-insights-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .fluenttyper-options .productivity-insights-header {
+    flex-direction: column;
+  }
+
+  .fluenttyper-options .productivity-insights-donation {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }

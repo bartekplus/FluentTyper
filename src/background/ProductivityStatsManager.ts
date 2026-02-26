@@ -3,16 +3,23 @@ import { JsonValue, SettingsManager } from "../shared/settingsManager";
 import {
   ContentScriptUsageEventContext,
   DonationPromptSummary,
+  LanguageUsageSummary,
   ProductivityDashboardStats,
   ProductivityMetricSummary,
   TopSnippetUsage,
   WeeklyRecapSummary,
 } from "../shared/messageTypes";
 
+interface LanguageUsageCounters {
+  acceptedSuggestions: number;
+  charactersSaved: number;
+}
+
 interface DailyProductivityState {
   acceptedSuggestions: number;
   charactersSaved: number;
   snippetUsage: Record<string, number>;
+  languageUsage: Record<string, LanguageUsageCounters>;
 }
 
 interface ProductivityStatsState {
@@ -20,6 +27,7 @@ interface ProductivityStatsState {
   acceptedSuggestions: number;
   charactersSaved: number;
   snippetUsage: Record<string, number>;
+  languageUsage: Record<string, LanguageUsageCounters>;
   daily: Record<string, DailyProductivityState>;
   shownMilestones: number[];
   lastWeeklyRecapWeek: string | null;
@@ -29,6 +37,7 @@ interface AggregatedCounters {
   acceptedSuggestions: number;
   charactersSaved: number;
   snippetUsage: Record<string, number>;
+  languageUsage: Record<string, LanguageUsageCounters>;
 }
 
 const STATS_SCHEMA_VERSION = 1;
@@ -62,11 +71,23 @@ function normalizeSnippetKey(value: unknown): string {
   return value.trim().toLocaleLowerCase().slice(0, 80);
 }
 
+function normalizeLanguageKey(value: unknown): string {
+  if (typeof value !== "string") {
+    return "unknown";
+  }
+  const normalized = value.trim();
+  if (!normalized) {
+    return "unknown";
+  }
+  return normalized.slice(0, 32);
+}
+
 function createDailyState(): DailyProductivityState {
   return {
     acceptedSuggestions: 0,
     charactersSaved: 0,
     snippetUsage: {},
+    languageUsage: {},
   };
 }
 
@@ -76,10 +97,36 @@ function createDefaultStatsState(): ProductivityStatsState {
     acceptedSuggestions: 0,
     charactersSaved: 0,
     snippetUsage: {},
+    languageUsage: {},
     daily: {},
     shownMilestones: [],
     lastWeeklyRecapWeek: null,
   };
+}
+
+function sanitizeLanguageUsageMap(
+  value: unknown,
+): Record<string, LanguageUsageCounters> {
+  if (!isObjectRecord(value)) {
+    return {};
+  }
+  const sanitized: Record<string, LanguageUsageCounters> = {};
+  for (const [language, counters] of Object.entries(value)) {
+    const normalizedLanguage = normalizeLanguageKey(language);
+    if (!isObjectRecord(counters)) {
+      continue;
+    }
+    const acceptedSuggestions = clampCount(counters.acceptedSuggestions);
+    const charactersSaved = clampCount(counters.charactersSaved);
+    if (acceptedSuggestions === 0 && charactersSaved === 0) {
+      continue;
+    }
+    sanitized[normalizedLanguage] = {
+      acceptedSuggestions,
+      charactersSaved,
+    };
+  }
+  return sanitized;
 }
 
 function sanitizeUsageMap(value: unknown): Record<string, number> {
@@ -114,10 +161,12 @@ function sanitizeDailyMap(
     const acceptedSuggestions = clampCount(entry.acceptedSuggestions);
     const charactersSaved = clampCount(entry.charactersSaved);
     const snippetUsage = sanitizeUsageMap(entry.snippetUsage);
+    const languageUsage = sanitizeLanguageUsageMap(entry.languageUsage);
     if (
       acceptedSuggestions === 0 &&
       charactersSaved === 0 &&
-      Object.keys(snippetUsage).length === 0
+      Object.keys(snippetUsage).length === 0 &&
+      Object.keys(languageUsage).length === 0
     ) {
       continue;
     }
@@ -125,6 +174,7 @@ function sanitizeDailyMap(
       acceptedSuggestions,
       charactersSaved,
       snippetUsage,
+      languageUsage,
     };
   }
   return sanitized;
@@ -139,6 +189,7 @@ function sanitizeStatsState(value: unknown): ProductivityStatsState {
     acceptedSuggestions: clampCount(value.acceptedSuggestions),
     charactersSaved: clampCount(value.charactersSaved),
     snippetUsage: sanitizeUsageMap(value.snippetUsage),
+    languageUsage: sanitizeLanguageUsageMap(value.languageUsage),
     daily: sanitizeDailyMap(value.daily),
     shownMilestones: Array.isArray(value.shownMilestones)
       ? value.shownMilestones
@@ -183,6 +234,21 @@ function incrementUsageCounter(
   usageMap[snippet] = (usageMap[snippet] || 0) + 1;
 }
 
+function incrementLanguageUsageCounter(
+  usageMap: Record<string, LanguageUsageCounters>,
+  language: string,
+  charactersSaved: number,
+): void {
+  if (!usageMap[language]) {
+    usageMap[language] = {
+      acceptedSuggestions: 0,
+      charactersSaved: 0,
+    };
+  }
+  usageMap[language].acceptedSuggestions += 1;
+  usageMap[language].charactersSaved += charactersSaved;
+}
+
 function toLocalDateKey(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -216,6 +282,7 @@ function aggregateRange(
     acceptedSuggestions: 0,
     charactersSaved: 0,
     snippetUsage: {},
+    languageUsage: {},
   };
   const cursor = startOfLocalDay(start);
   const endKey = toLocalDateKey(end);
@@ -225,7 +292,20 @@ function aggregateRange(
       counters.acceptedSuggestions += entry.acceptedSuggestions;
       counters.charactersSaved += entry.charactersSaved;
       for (const [snippet, count] of Object.entries(entry.snippetUsage)) {
-        counters.snippetUsage[snippet] = (counters.snippetUsage[snippet] || 0) + count;
+        counters.snippetUsage[snippet] =
+          (counters.snippetUsage[snippet] || 0) + count;
+      }
+      for (const [language, values] of Object.entries(entry.languageUsage)) {
+        if (!counters.languageUsage[language]) {
+          counters.languageUsage[language] = {
+            acceptedSuggestions: 0,
+            charactersSaved: 0,
+          };
+        }
+        counters.languageUsage[language].acceptedSuggestions +=
+          values.acceptedSuggestions;
+        counters.languageUsage[language].charactersSaved +=
+          values.charactersSaved;
       }
     }
     cursor.setDate(cursor.getDate() + 1);
@@ -246,6 +326,30 @@ function getTopSnippets(
     })
     .slice(0, limit)
     .map(([snippet, count]) => ({ snippet, count }));
+}
+
+function getLanguageSummaries(
+  usageMap: Record<string, LanguageUsageCounters>,
+): LanguageUsageSummary[] {
+  return Object.entries(usageMap)
+    .map(([language, counters]) => ({
+      language,
+      acceptedSuggestions: counters.acceptedSuggestions,
+      charactersSaved: counters.charactersSaved,
+      estimatedMinutesSaved: estimateMinutesSaved(
+        counters.acceptedSuggestions,
+        counters.charactersSaved,
+      ),
+    }))
+    .sort((left, right) => {
+      if (right.estimatedMinutesSaved === left.estimatedMinutesSaved) {
+        if (right.acceptedSuggestions === left.acceptedSuggestions) {
+          return left.language.localeCompare(right.language);
+        }
+        return right.acceptedSuggestions - left.acceptedSuggestions;
+      }
+      return right.estimatedMinutesSaved - left.estimatedMinutesSaved;
+    });
 }
 
 function summarizeWeek(
@@ -351,14 +455,21 @@ export class ProductivityStatsManager {
       const typedTextLength = clampCount(event.typedTextLength);
       const insertedTextLength = clampCount(event.insertedTextLength);
       const charactersSaved = Math.max(0, insertedTextLength - typedTextLength);
+      const language = normalizeLanguageKey(event.language);
 
       state.acceptedSuggestions += 1;
       state.charactersSaved += charactersSaved;
+      incrementLanguageUsageCounter(state.languageUsage, language, charactersSaved);
 
       const todayKey = toLocalDateKey(this.now());
       const todayBucket = state.daily[todayKey] || createDailyState();
       todayBucket.acceptedSuggestions += 1;
       todayBucket.charactersSaved += charactersSaved;
+      incrementLanguageUsageCounter(
+        todayBucket.languageUsage,
+        language,
+        charactersSaved,
+      );
 
       const normalizedSnippetKey = normalizeSnippetKey(event.triggerText);
       if (
@@ -396,6 +507,8 @@ export class ProductivityStatsManager {
       state.acceptedSuggestions,
       state.charactersSaved,
     );
+    const perLanguageLifetime = getLanguageSummaries(state.languageUsage);
+    const perLanguageLast7Days = getLanguageSummaries(last7Range.languageUsage);
     const topSnippets = getTopSnippets(state.snippetUsage, 5);
 
     const currentWeekStart = getWeekStart(now);
@@ -422,6 +535,8 @@ export class ProductivityStatsManager {
       today,
       last7Days,
       lifetime,
+      perLanguageLifetime,
+      perLanguageLast7Days,
       topSnippets,
       weekOverWeekDeltaPct,
       weeklyRecap,

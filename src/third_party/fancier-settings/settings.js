@@ -45,6 +45,7 @@ import {
   KEY_TRIBUTE_FONT_SIZE,
   KEY_TRIBUTE_PADDING_VERTICAL,
   KEY_TRIBUTE_PADDING_HORIZONTAL,
+  CMD_POPUP_GET_PRODUCTIVITY_STATS,
 } from "../../shared/constants.ts";
 
 function optionsPageConfigChange() {
@@ -271,6 +272,288 @@ function applyThemePreset(settings, presetName) {
   // Theme will be applied through the messaging system when settings change
 }
 
+function formatMetricNumber(value) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return "0";
+  }
+  return new Intl.NumberFormat(undefined, {
+    maximumFractionDigits: 1,
+  }).format(value);
+}
+
+function formatWeekRange(weekKey) {
+  if (typeof weekKey !== "string") {
+    return "n/a";
+  }
+  const startDate = new Date(`${weekKey}T00:00:00`);
+  if (Number.isNaN(startDate.getTime())) {
+    return weekKey;
+  }
+  const endDate = new Date(startDate);
+  endDate.setDate(endDate.getDate() + 6);
+  const formatter = new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+  return `${formatter.format(startDate)} - ${formatter.format(endDate)}`;
+}
+
+function formatLanguageLabel(language) {
+  if (typeof language !== "string" || !language) {
+    return "Unknown";
+  }
+  return SUPPORTED_LANGUAGES[language] || language;
+}
+
+function sendRuntimeMessage(message) {
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage(message, (response) => {
+      if (chrome.runtime.lastError) {
+        resolve(null);
+        return;
+      }
+      resolve(response || null);
+    });
+  });
+}
+
+function appendRankedList(container, rows, emptyText, rowMapper) {
+  const list = document.createElement("ul");
+  list.className = "productivity-insights-list";
+  if (!Array.isArray(rows) || rows.length === 0) {
+    const item = document.createElement("li");
+    item.textContent = emptyText;
+    list.appendChild(item);
+    container.appendChild(list);
+    return;
+  }
+  rows.forEach((row) => {
+    const item = document.createElement("li");
+    const [labelText, valueText] = rowMapper(row);
+    const label = document.createElement("span");
+    label.textContent = labelText;
+    const value = document.createElement("strong");
+    value.textContent = valueText;
+    item.appendChild(label);
+    item.appendChild(value);
+    list.appendChild(item);
+  });
+  container.appendChild(list);
+}
+
+function appendMetricCard(container, label, metric) {
+  const card = document.createElement("article");
+  card.className = "productivity-insights-metric";
+  const title = document.createElement("h4");
+  title.textContent = label;
+  const value = document.createElement("p");
+  value.className = "metric-main";
+  value.textContent = `${formatMetricNumber(metric.estimatedMinutesSaved)} min`;
+  const details = document.createElement("p");
+  details.className = "metric-meta";
+  details.textContent = `${formatMetricNumber(metric.acceptedSuggestions)} accepted • ${formatMetricNumber(
+    metric.charactersSaved,
+  )} chars`;
+  card.appendChild(title);
+  card.appendChild(value);
+  card.appendChild(details);
+  container.appendChild(card);
+}
+
+function renderProductivityInsights(root, stats) {
+  root.innerHTML = "";
+
+  const shell = document.createElement("section");
+  shell.className = "productivity-insights";
+
+  const header = document.createElement("div");
+  header.className = "productivity-insights-header";
+  const headingBlock = document.createElement("div");
+  const heading = document.createElement("h3");
+  heading.textContent = "Productivity Insights";
+  const subtitle = document.createElement("p");
+  subtitle.textContent = "All metrics are calculated and stored locally on your device.";
+  headingBlock.appendChild(heading);
+  headingBlock.appendChild(subtitle);
+  const refreshBtn = document.createElement("button");
+  refreshBtn.className = "button is-small is-light";
+  refreshBtn.type = "button";
+  refreshBtn.textContent = "Refresh";
+  refreshBtn.setAttribute("data-action", "refresh-productivity-stats");
+  header.appendChild(headingBlock);
+  header.appendChild(refreshBtn);
+  shell.appendChild(header);
+
+  const metricGrid = document.createElement("div");
+  metricGrid.className = "productivity-insights-grid";
+  appendMetricCard(metricGrid, "Today", stats.today);
+  appendMetricCard(metricGrid, "Last 7 days", stats.last7Days);
+  appendMetricCard(metricGrid, "Lifetime", stats.lifetime);
+  shell.appendChild(metricGrid);
+
+  const trendSection = document.createElement("section");
+  trendSection.className = "productivity-insights-section";
+  const trendTitle = document.createElement("h4");
+  trendTitle.textContent = "Week-over-week trend";
+  const trendValue = document.createElement("p");
+  trendValue.className = "trend-value";
+  if (stats.weekOverWeekDeltaPct === null) {
+    trendValue.textContent = "Trend unavailable yet. Keep using FluentTyper this week.";
+  } else if (stats.weekOverWeekDeltaPct >= 0) {
+    trendValue.textContent = `+${stats.weekOverWeekDeltaPct}% compared to last week`;
+  } else {
+    trendValue.textContent = `${stats.weekOverWeekDeltaPct}% compared to last week`;
+  }
+  trendSection.appendChild(trendTitle);
+  trendSection.appendChild(trendValue);
+  shell.appendChild(trendSection);
+
+  const columns = document.createElement("div");
+  columns.className = "productivity-insights-columns";
+
+  const snippetSection = document.createElement("section");
+  snippetSection.className = "productivity-insights-section";
+  const snippetTitle = document.createElement("h4");
+  snippetTitle.textContent = "Top snippets";
+  snippetSection.appendChild(snippetTitle);
+  appendRankedList(
+    snippetSection,
+    stats.topSnippets || [],
+    "No snippet usage yet.",
+    (row) => [row.snippet, `${row.count}x`],
+  );
+  columns.appendChild(snippetSection);
+
+  const languageWeekSection = document.createElement("section");
+  languageWeekSection.className = "productivity-insights-section";
+  const languageWeekTitle = document.createElement("h4");
+  languageWeekTitle.textContent = "Languages (Last 7 days)";
+  languageWeekSection.appendChild(languageWeekTitle);
+  appendRankedList(
+    languageWeekSection,
+    stats.perLanguageLast7Days || [],
+    "No language data yet.",
+    (row) => [
+      formatLanguageLabel(row.language),
+      `${formatMetricNumber(row.estimatedMinutesSaved)} min`,
+    ],
+  );
+  columns.appendChild(languageWeekSection);
+
+  const languageLifetimeSection = document.createElement("section");
+  languageLifetimeSection.className = "productivity-insights-section";
+  const languageLifetimeTitle = document.createElement("h4");
+  languageLifetimeTitle.textContent = "Languages (Lifetime)";
+  languageLifetimeSection.appendChild(languageLifetimeTitle);
+  appendRankedList(
+    languageLifetimeSection,
+    stats.perLanguageLifetime || [],
+    "No language data yet.",
+    (row) => [
+      formatLanguageLabel(row.language),
+      `${formatMetricNumber(row.estimatedMinutesSaved)} min`,
+    ],
+  );
+  columns.appendChild(languageLifetimeSection);
+  shell.appendChild(columns);
+
+  const recapSection = document.createElement("section");
+  recapSection.className = "productivity-insights-section recap-section";
+  const recapTitle = document.createElement("h4");
+  recapTitle.textContent = `Weekly recap (${formatWeekRange(stats.weeklyRecap?.weekKey)})`;
+  const recapSummary = document.createElement("p");
+  recapSummary.textContent = `${formatMetricNumber(stats.weeklyRecap?.acceptedSuggestions)} accepted • ${formatMetricNumber(
+    stats.weeklyRecap?.charactersSaved,
+  )} chars • ${formatMetricNumber(stats.weeklyRecap?.estimatedMinutesSaved)} min`;
+  recapSection.appendChild(recapTitle);
+  recapSection.appendChild(recapSummary);
+  if (stats.weeklyRecap?.topSnippet) {
+    const recapTopSnippet = document.createElement("p");
+    recapTopSnippet.className = "recap-top-snippet";
+    recapTopSnippet.textContent = `Top snippet: ${stats.weeklyRecap.topSnippet.snippet} (${stats.weeklyRecap.topSnippet.count}x)`;
+    recapSection.appendChild(recapTopSnippet);
+  }
+  shell.appendChild(recapSection);
+
+  if (stats.donationPrompt) {
+    const donationSection = document.createElement("div");
+    donationSection.className = "productivity-insights-donation";
+    const donationText = document.createElement("span");
+    donationText.textContent = stats.donationPrompt.message;
+    const donationLink = document.createElement("a");
+    donationLink.href = "https://www.buymeacoffee.com/FluentTyper";
+    donationLink.target = "_blank";
+    donationLink.rel = "noopener noreferrer";
+    donationLink.textContent = "Support";
+    donationSection.appendChild(donationText);
+    donationSection.appendChild(donationLink);
+    shell.appendChild(donationSection);
+  }
+
+  root.appendChild(shell);
+}
+
+function renderProductivityInsightsStatus(root, message) {
+  root.innerHTML = "";
+  const status = document.createElement("div");
+  status.className = "productivity-insights-status";
+  status.textContent = message;
+  const refreshBtn = document.createElement("button");
+  refreshBtn.className = "button is-small is-light";
+  refreshBtn.type = "button";
+  refreshBtn.textContent = "Retry";
+  refreshBtn.setAttribute("data-action", "refresh-productivity-stats");
+  status.appendChild(refreshBtn);
+  root.appendChild(status);
+}
+
+async function loadProductivityInsights(root) {
+  renderProductivityInsightsStatus(root, "Loading productivity stats...");
+  const response = await sendRuntimeMessage({
+    command: CMD_POPUP_GET_PRODUCTIVITY_STATS,
+    context: {},
+  });
+  if (
+    !response ||
+    typeof response !== "object" ||
+    Array.isArray(response) ||
+    "ok" in response
+  ) {
+    renderProductivityInsightsStatus(
+      root,
+      "Failed to load productivity stats.",
+    );
+    return;
+  }
+  renderProductivityInsights(root, response);
+}
+
+function setupProductivityInsights() {
+  const root = document.getElementById("productivityStatsRoot");
+  if (!root || root.dataset.bound === "true") {
+    return;
+  }
+  root.dataset.bound = "true";
+  root.addEventListener("click", (event) => {
+    const target = event.target;
+    if (
+      target instanceof HTMLElement &&
+      target.getAttribute("data-action") === "refresh-productivity-stats"
+    ) {
+      void loadProductivityInsights(root);
+    }
+  });
+  window.addEventListener("focus", () => {
+    void loadProductivityInsights(root);
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) {
+      void loadProductivityInsights(root);
+    }
+  });
+  void loadProductivityInsights(root);
+}
+
 window.addEventListener("DOMContentLoaded", function () {
   //chrome.storage.local.clear();
 
@@ -300,6 +583,7 @@ window.addEventListener("DOMContentLoaded", function () {
         settings,
         optionsPageConfigChange,
       );
+      setupProductivityInsights();
 
       settings.manifest.addDomainBtn.addEvent("action", function () {
         if (settings.manifest.domain.element.element.checkValidity()) {

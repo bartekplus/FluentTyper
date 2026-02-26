@@ -28,12 +28,21 @@ describe("ProductivityStatsManager", () => {
       triggerText: "brb",
       typedTextLength: 3,
       insertedTextLength: 15,
+      language: "en_US",
     });
 
     const stats = await manager.getDashboardStats();
     expect(stats.lifetime.acceptedSuggestions).toBe(1);
     expect(stats.lifetime.charactersSaved).toBe(12);
     expect(stats.topSnippets).toEqual([{ snippet: "brb", count: 1 }]);
+    expect(stats.perLanguageLifetime).toEqual([
+      {
+        language: "en_US",
+        acceptedSuggestions: 1,
+        charactersSaved: 12,
+        estimatedMinutesSaved: 0.1,
+      },
+    ]);
   });
 
   test("exposes and acknowledges weekly recap visibility", async () => {
@@ -43,11 +52,13 @@ describe("ProductivityStatsManager", () => {
         acceptedSuggestions: 3,
         charactersSaved: 60,
         snippetUsage: {},
+        languageUsage: {},
         daily: {
           "2026-02-03": {
             acceptedSuggestions: 3,
             charactersSaved: 60,
             snippetUsage: {},
+            languageUsage: {},
           },
         },
         shownMilestones: [],
@@ -75,6 +86,7 @@ describe("ProductivityStatsManager", () => {
         acceptedSuggestions: 0,
         charactersSaved: 15000,
         snippetUsage: {},
+        languageUsage: {},
         daily: {},
         shownMilestones: [],
         lastWeeklyRecapWeek: null,

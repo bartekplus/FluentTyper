@@ -513,6 +513,7 @@ export class TributeManager {
         triggerText,
         typedTextLength: triggerText.length,
         insertedTextLength: insertedText.length,
+        language: this.lang,
       },
     };
     chrome.runtime.sendMessage(message, () => {

@@ -90,6 +90,7 @@ export interface ContentScriptUsageEventContext {
   triggerText: string;
   typedTextLength: number;
   insertedTextLength: number;
+  language: string;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
@@ -114,6 +115,13 @@ export interface TopSnippetUsage {
   count: number;
 }
 
+export interface LanguageUsageSummary {
+  language: string;
+  acceptedSuggestions: number;
+  charactersSaved: number;
+  estimatedMinutesSaved: number;
+}
+
 export interface WeeklyRecapSummary {
   weekKey: string;
   acceptedSuggestions: number;
@@ -131,6 +139,8 @@ export interface ProductivityDashboardStats {
   today: ProductivityMetricSummary;
   last7Days: ProductivityMetricSummary;
   lifetime: ProductivityMetricSummary;
+  perLanguageLifetime: LanguageUsageSummary[];
+  perLanguageLast7Days: LanguageUsageSummary[];
   topSnippets: TopSnippetUsage[];
   weekOverWeekDeltaPct: number | null;
   weeklyRecap: WeeklyRecapSummary;

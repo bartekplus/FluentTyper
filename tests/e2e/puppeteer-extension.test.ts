@@ -10,6 +10,7 @@ import {
   KEY_INLINE_SUGGESTION,
   KEY_NUM_SUGGESTIONS,
   KEY_MIN_WORD_LENGTH_TO_PREDICT,
+  KEY_PRODUCTIVITY_STATS,
   KEY_SITE_PROFILES,
 } from "../../src/shared/constants";
 import { SUPPORTED_PREDICTION_LANGUAGE_KEYS } from "../../src/shared/lang";
@@ -44,6 +45,13 @@ const SUGGESTION_TIMEOUT_MS = isFirefox() ? 7000 : 8000;
 
 function browserTimeout(chromeTimeoutMs: number, firefoxTimeoutMs: number) {
   return isFirefox() ? firefoxTimeoutMs : chromeTimeoutMs;
+}
+
+function toLocalDateKey(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 let domainTestUrl: string;
@@ -1235,6 +1243,143 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       expect(enabledLanguages).toEqual(["en_US", "de_DE"]);
     },
     browserTimeout(5000, 15000),
+  );
+
+  test(
+    "Productivity dashboard shows compact popup summary and advanced stats in options",
+    async () => {
+      const now = new Date();
+      const today = toLocalDateKey(now);
+      const yesterday = toLocalDateKey(
+        new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1),
+      );
+      const productivityState = {
+        schemaVersion: 1,
+        acceptedSuggestions: 8,
+        charactersSaved: 160,
+        snippetUsage: {
+          brb: 3,
+          ty: 2,
+        },
+        languageUsage: {
+          en_US: {
+            acceptedSuggestions: 5,
+            charactersSaved: 100,
+          },
+          de_DE: {
+            acceptedSuggestions: 3,
+            charactersSaved: 60,
+          },
+        },
+        daily: {
+          [today]: {
+            acceptedSuggestions: 2,
+            charactersSaved: 40,
+            snippetUsage: {
+              brb: 1,
+            },
+            languageUsage: {
+              en_US: {
+                acceptedSuggestions: 2,
+                charactersSaved: 40,
+              },
+            },
+          },
+          [yesterday]: {
+            acceptedSuggestions: 1,
+            charactersSaved: 20,
+            snippetUsage: {
+              ty: 1,
+            },
+            languageUsage: {
+              de_DE: {
+                acceptedSuggestions: 1,
+                charactersSaved: 20,
+              },
+            },
+          },
+        },
+        shownMilestones: [],
+        lastWeeklyRecapWeek: null,
+      };
+
+      await setSettingAndWait(worker!, KEY_PRODUCTIVITY_STATS, productivityState);
+
+      try {
+        const popupPage = await openPopupPage(browser, worker!);
+        await popupPage.waitForSelector("#openStatsOptionsBtn", {
+          timeout: browserTimeout(3000, 10000),
+        });
+        await popupPage.waitForFunction(
+          () =>
+            (document.getElementById("metricAccepted")?.textContent || "")
+              .trim()
+              .length > 0,
+          { timeout: browserTimeout(3000, 12000) },
+        );
+
+        const popupSummary = await popupPage.evaluate(() => ({
+          accepted:
+            document.getElementById("metricAccepted")?.textContent?.trim() || "",
+          chars:
+            document.getElementById("metricCharsSaved")?.textContent?.trim() ||
+            "",
+          minutes:
+            document.getElementById("metricMinutesSaved")?.textContent?.trim() ||
+            "",
+          periodSummary:
+            document.getElementById("dashboardPeriodSummary")?.textContent || "",
+          languageSummary:
+            document.getElementById("dashboardLanguageSummary")?.textContent || "",
+          hasTrendNode: Boolean(
+            document.getElementById("dashboardTrendSummary"),
+          ),
+          hasTopSnippetsNode: Boolean(
+            document.getElementById("topSnippetsList"),
+          ),
+        }));
+
+        expect(popupSummary.accepted).toBe("8");
+        expect(popupSummary.chars).toBe("160");
+        expect(popupSummary.minutes.length).toBeGreaterThan(0);
+        expect(popupSummary.periodSummary).toContain("Last 7 days: 3 accepted");
+        expect(popupSummary.languageSummary).toContain("Last 7 days:");
+        expect(popupSummary.languageSummary).toContain("English (US)");
+        expect(popupSummary.hasTrendNode).toBe(false);
+        expect(popupSummary.hasTopSnippetsNode).toBe(false);
+        await popupPage.close();
+
+        const optionsPage = await openOptionsPage(browser, worker!);
+        await optionsPage.waitForSelector("#productivityStatsRoot", {
+          timeout: browserTimeout(3000, 10000),
+        });
+        await optionsPage.waitForFunction(
+          () => {
+            const root = document.getElementById("productivityStatsRoot");
+            const text = root?.textContent || "";
+            return (
+              text.includes("Productivity Insights") &&
+              text.includes("Top snippets") &&
+              text.includes("Week-over-week trend") &&
+              text.includes("Languages (Lifetime)")
+            );
+          },
+          { timeout: browserTimeout(5000, 15000) },
+        );
+        const optionsText = await optionsPage.$eval(
+          "#productivityStatsRoot",
+          (el) => el.textContent || "",
+        );
+        expect(optionsText).toContain("brb");
+        expect(optionsText).toContain("English (US)");
+        expect(optionsText).toContain("German");
+        expect(optionsText).toContain("Week-over-week trend");
+        await optionsPage.close();
+      } finally {
+        await setSettingAndWait(worker!, KEY_PRODUCTIVITY_STATS, {});
+      }
+    },
+    browserTimeout(20000, 35000),
   );
 
   async function runAutoDetectPredictionScenario(selector: string) {

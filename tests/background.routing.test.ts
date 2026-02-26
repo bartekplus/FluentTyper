@@ -748,6 +748,8 @@ describe("background routing and lifecycle", () => {
           charactersSaved: 4,
           estimatedMinutesSaved: 0.1,
         },
+        perLanguageLifetime: [],
+        perLanguageLast7Days: [],
         topSnippets: [],
         weekOverWeekDeltaPct: null,
         weeklyRecap: {
@@ -779,6 +781,7 @@ describe("background routing and lifecycle", () => {
           triggerText: "brb",
           typedTextLength: 3,
           insertedTextLength: 9,
+          language: "en_US",
         },
       },
       {} as chrome.runtime.MessageSender,

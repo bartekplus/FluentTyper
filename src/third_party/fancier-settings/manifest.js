@@ -538,6 +538,13 @@ const manifest = {
     // =========================================================================
     {
       tab: i18n.get("advanced_tab"),
+      group: "Productivity Dashboard",
+      name: "productivityStatsPanel",
+      type: "description",
+      text: "<div id='productivityStatsRoot'>Loading productivity stats...</div>",
+    },
+    {
+      tab: i18n.get("advanced_tab"),
       group: i18n.get("config_data"),
       name: "importSettingButton",
       type: "button",
