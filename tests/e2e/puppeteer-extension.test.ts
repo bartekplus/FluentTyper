@@ -650,29 +650,6 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(10000, 25000),
   );
 
-  it("Diagnostic: Content script and background communication check", async () => {
-    await gotoTestPage(page);
-    await page.bringToFront();
-
-    // Check if background worker evaluates correctly
-    const bgUrl = await worker.url();
-    console.log("Diagnostic: Background worker URL:", bgUrl);
-
-    const bgStorage = await worker.evaluate(() => {
-      return (
-        typeof chrome !== "undefined" && typeof chrome.storage !== "undefined"
-      );
-    });
-    console.log("Diagnostic: Has chrome.storage in background?", bgStorage);
-    expect(bgStorage).toBe(true);
-
-    // Check if content script injected
-    const hasTribute = await page.evaluate(() => {
-      return !!document.querySelector(".tribute-container");
-    });
-    console.log("Diagnostic: Has generic tribute container?", hasTribute);
-  });
-
   test(
     "Extension installs and popup loads",
     async () => {
@@ -856,7 +833,7 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test.each(SUPPORTED_INPUT_SELECTORS)(
-    "Site profile override increases suggestions count on matching domain in %s",
+    "Site profile overrides suggestion count and inline mode in %s",
     async (selector) => {
       try {
         await setSettingAndWait(worker!, "enable", true);
@@ -879,13 +856,10 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         });
         await page.bringToFront();
         await waitForInputReady(page, selector);
-        const popupPage = await openPopupPage(browser, worker!);
-        await popupPage.close();
-        await page.bringToFront();
 
-        const inputWithoutOverride = await page.$(selector);
+        const input = await page.$(selector);
         await page.focus(selector);
-        await inputWithoutOverride!.type("impor");
+        await input!.type("impor");
         await new Promise((r) => setTimeout(r, browserTimeout(600, 1200)));
         const hasSuggestionsWithoutOverride = await page.evaluate(() => {
           const containers = Array.from(
@@ -906,6 +880,7 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         });
         expect(hasSuggestionsWithoutOverride).toBe(false);
 
+        await clearInputContent(page, selector);
         await setSettingAndWait(worker!, KEY_SITE_PROFILES, {
           [TEST_HOST]: {
             language: "en_US",
@@ -914,68 +889,15 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         });
         await applyConfigChange(browser, worker!);
 
-        await gotoTestPage(page, {
-          enableCkEditor: shouldEnableCkEditor(selector),
-        });
-        await page.bringToFront();
-        await waitForInputReady(page, selector);
-        const popupPageAfterOverride = await openPopupPage(browser, worker!);
-        await popupPageAfterOverride.close();
-        await page.bringToFront();
-
-        const inputWithOverride = await page.$(selector);
         await page.focus(selector);
-        await inputWithOverride!.type("impor");
+        await input!.type("impor");
         const countWithOverride = await waitForVisibleSuggestions(
           page,
           browserTimeout(15000, 25000),
         );
         expect(countWithOverride).toBeGreaterThan(0);
-      } finally {
-        await setSettingAndWait(worker!, KEY_NUM_SUGGESTIONS, 5);
-        await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
-        await applyConfigChange(browser, worker!);
-      }
-    },
-    browserTimeout(30000, 50000),
-  );
-
-  test.each(SUPPORTED_INPUT_SELECTORS)(
-    "Site profile override changing to inline suggestion enables tab completion in %s",
-    async (selector) => {
-      try {
-        await setSettingAndWait(worker!, "enable", true);
-        await setSettingAndWait(worker!, KEY_DOMAIN_LIST_MODE, "blackList");
-        await setSettingAndWait(worker!, "domainBlackList", []);
-        await setSettingAndWait(
-          worker!,
-          KEY_ENABLED_LANGUAGES,
-          SUPPORTED_PREDICTION_LANGUAGE_KEYS,
-        );
-        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-        await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
-        await setSettingAndWait(worker!, KEY_NUM_SUGGESTIONS, 5);
-        await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
-        await applyConfigChange(browser, worker!);
-
-        await gotoTestPage(page, {
-          enableCkEditor: shouldEnableCkEditor(selector),
-        });
-        await page.bringToFront();
-        await waitForInputReady(page, selector);
-
-        const input = await page.$(selector);
-        await page.focus(selector);
-        await input!.type("impor");
-        const countWithPopup = await waitForVisibleSuggestions(
-          page,
-          browserTimeout(15000, 25000),
-        );
-        expect(countWithPopup).toBeGreaterThan(0);
 
         await clearInputContent(page, selector);
-
         await setSettingAndWait(worker!, KEY_SITE_PROFILES, {
           [TEST_HOST]: {
             language: "en_US",
@@ -1014,21 +936,8 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(30000, 50000),
   );
 
-  test(
-    "CKEditor 5 input initializes on test page",
-    async () => {
-      await gotoTestPage(page, { enableCkEditor: true });
-      page.bringToFront();
-      await waitForInputReady(page, CKEDITOR_SELECTOR);
-
-      const ckEditorElement = await page.$(CKEDITOR_SELECTOR);
-      expect(ckEditorElement).toBeTruthy();
-    },
-    browserTimeout(15000, 25000),
-  );
-
   test.each(SUPPORTED_INPUT_SELECTORS)(
-    "Prediction popup appears in %s when typing and prediction is inserted on click",
+    "Prediction popup inserts selected suggestion on click and TAB in %s",
     async (selector) => {
       await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
       await setSettingAndWait(
@@ -1039,86 +948,48 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
       await applyConfigChange(browser, worker!);
 
-      await gotoTestPage(page, {
-        enableCkEditor: shouldEnableCkEditor(selector),
+      const assertInsertion = async (
+        typedPrefix: string,
+        acceptSuggestion: () => Promise<void>,
+      ): Promise<void> => {
+        await gotoTestPage(page, {
+          enableCkEditor: shouldEnableCkEditor(selector),
+        });
+        await page.bringToFront();
+        await waitForInputReady(page, selector);
+        const element = await page.$(selector);
+
+        await page.focus(selector);
+        await element!.type(typedPrefix);
+        const liCount = await waitForVisibleSuggestions(page);
+        expect(liCount).toBeGreaterThan(0);
+
+        const [firstLiText] = await waitForVisibleSuggestionTexts(page);
+        expect(firstLiText?.toLowerCase()).toMatch(
+          new RegExp(`^${typedPrefix}\\S*\\xa0$`),
+        );
+
+        await acceptSuggestion();
+        await page.waitForFunction(
+          (sel, prefix) =>
+            ((document.querySelector(sel) as HTMLInputElement).value ??
+              document.querySelector(sel)?.textContent) !== prefix,
+          {},
+          selector,
+          typedPrefix,
+        );
+        const elementText = await getInputContent(page, selector);
+        expect(elementText).toBe(firstLiText?.toLowerCase());
+      };
+
+      await assertInsertion("h", async () => {
+        await clickFirstVisibleSuggestion(page);
       });
-      page.bringToFront();
-      await waitForInputReady(page, selector);
-      const element = await page.$(selector);
-      await page.focus(selector);
-      await element!.type("h"); // Type a few letters
-      // Wait for prediction popup
-      const liCount = await waitForVisibleSuggestions(page);
-      expect(liCount).toBeGreaterThan(0);
-
-      // Check that first suggestion starts with typed prefix and ends with \xa0
-      const [firstLiText] = await waitForVisibleSuggestionTexts(page);
-      expect(firstLiText?.toLowerCase()).toMatch(/^h\S*\xa0$/);
-
-      // Click on the first suggestion
-      await clickFirstVisibleSuggestion(page);
-      await page.waitForFunction(
-        (sel) =>
-          ((document.querySelector(sel) as HTMLInputElement).value ??
-            document.querySelector(sel)?.textContent) !== "h",
-        {},
-        selector,
-      );
-      const elementText = await page.$eval(
-        selector,
-        (el) => (el as HTMLInputElement).value ?? el.textContent,
-      );
-      // Inserted text should match what was shown in the suggestion
-      expect(elementText).toBe(firstLiText?.toLowerCase());
-    },
-    browserTimeout(30000, 45000),
-  );
-
-  test.each(SUPPORTED_INPUT_SELECTORS)(
-    "Prediction popup appears in %s when typing and prediction is inserted on TAB",
-    async (selector) => {
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(
-        worker!,
-        KEY_ENABLED_LANGUAGES,
-        SUPPORTED_PREDICTION_LANGUAGE_KEYS,
-      );
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await applyConfigChange(browser, worker!);
-
-      await gotoTestPage(page, {
-        enableCkEditor: shouldEnableCkEditor(selector),
+      await assertInsertion("w", async () => {
+        await page.keyboard.press("Tab");
       });
-      page.bringToFront();
-      await waitForInputReady(page, selector);
-      const element = await page.$(selector);
-      await page.focus(selector);
-      await element!.type("w"); // Type a few letters
-      // Wait for prediction popup
-      const liCount = await waitForVisibleSuggestions(page);
-      expect(liCount).toBeGreaterThan(0);
-
-      // Check that first suggestion starts with typed prefix and ends with \xa0
-      const [firstLiText] = await waitForVisibleSuggestionTexts(page);
-      expect(firstLiText?.toLowerCase()).toMatch(/^w\S*\xa0$/);
-
-      await page.keyboard.press("Tab");
-      // Wait for the value to change from just "w"
-      await page.waitForFunction(
-        (sel) =>
-          ((document.querySelector(sel) as HTMLInputElement).value ??
-            document.querySelector(sel)?.textContent) !== "w",
-        {},
-        selector,
-      );
-      const elementText = await page.$eval(
-        selector,
-        (el) => (el as HTMLInputElement).value ?? el.textContent,
-      );
-      // Inserted text should match the first suggestion
-      expect(elementText).toBe(firstLiText?.toLowerCase());
     },
-    browserTimeout(30000, 45000),
+    browserTimeout(45000, 70000),
   );
 
   test.each(SUPPORTED_INPUT_SELECTORS)(

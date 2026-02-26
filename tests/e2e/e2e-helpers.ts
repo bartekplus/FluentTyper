@@ -1,4 +1,4 @@
-import puppeteer, { Browser } from "puppeteer";
+import puppeteer, { Browser, Page, WebWorker } from "puppeteer";
 import path from "path";
 
 const EXTENSION_PATH = path.resolve(__dirname, "../../build/");
@@ -135,14 +135,9 @@ async function launchFirefox(): Promise<Browser> {
   return browser;
 }
 
-export interface BackgroundContext {
-  evaluate<T>(
-    pageFunction: string | ((...args: unknown[]) => T | Promise<T>),
-    ...args: unknown[]
-  ): Promise<T>;
-  url(): string;
-  close?(): Promise<void>;
-}
+export type BackgroundContext = (Page | WebWorker) & {
+  close?: () => Promise<void>;
+};
 
 /**
  * Wait for the extension's background context and return it.
