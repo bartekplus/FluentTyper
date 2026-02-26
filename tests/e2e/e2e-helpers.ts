@@ -9,6 +9,10 @@ export type BrowserType = "chrome" | "firefox";
 export const BROWSER_TYPE: BrowserType =
   (process.env.E2E_BROWSER as BrowserType) || "chrome";
 
+const EXTENSION_NAVIGATION_TIMEOUT_MS = isFirefox() ? 15000 : 5000;
+const FIREFOX_DEBUGGING_NAVIGATION_TIMEOUT_MS = 10000;
+const FIREFOX_DEBUGGING_SELECTOR_TIMEOUT_MS = 20000;
+
 export function isChrome(): boolean {
   return BROWSER_TYPE === "chrome";
 }
@@ -16,11 +20,6 @@ export function isChrome(): boolean {
 export function isFirefox(): boolean {
   return BROWSER_TYPE === "firefox";
 }
-
-/**
- * Conditional test helpers — skips the test when running on the wrong browser.
- */
-export const itIfChrome = isChrome() ? it : it.skip;
 
 /**
  * Launch a browser with the extension loaded.
@@ -65,17 +64,23 @@ async function resolveFirefoxExtensionHost(
   const page = await browser.newPage();
   try {
     try {
-      await page.goto("about:debugging#/runtime/this-firefox", { timeout: 5000 });
+      await page.goto("about:debugging#/runtime/this-firefox", {
+        timeout: FIREFOX_DEBUGGING_NAVIGATION_TIMEOUT_MS,
+      });
     } catch (error) {
       if (!String(error).includes("Timeout")) {
         throw error;
       }
     }
-    await page.waitForSelector(".qa-debug-target-item", { timeout: 10000 });
+    await page.waitForSelector(".qa-debug-target-item", {
+      timeout: FIREFOX_DEBUGGING_SELECTOR_TIMEOUT_MS,
+    });
 
     const host = await page.evaluate((targetExtensionId) => {
       const extensionItems = Array.from(
-        document.querySelectorAll(".qa-debug-target-item[data-qa-target-type='extension']"),
+        document.querySelectorAll(
+          ".qa-debug-target-item[data-qa-target-type='extension']",
+        ),
       );
       for (const item of extensionItems) {
         const values = Array.from(
@@ -84,7 +89,8 @@ async function resolveFirefoxExtensionHost(
         if (!values.includes(targetExtensionId)) {
           continue;
         }
-        const manifestLink = item.querySelector<HTMLAnchorElement>("a.qa-manifest-url");
+        const manifestLink =
+          item.querySelector<HTMLAnchorElement>("a.qa-manifest-url");
         if (!manifestLink?.href) {
           continue;
         }
@@ -98,7 +104,9 @@ async function resolveFirefoxExtensionHost(
     }, extensionId);
 
     if (!host) {
-      throw new Error("Could not resolve Firefox extension host from about:debugging");
+      throw new Error(
+        "Could not resolve Firefox extension host from about:debugging",
+      );
     }
     return host;
   } finally {
@@ -119,7 +127,10 @@ async function launchFirefox(): Promise<Browser> {
   if (!extensionId) {
     throw new Error("Failed to install Firefox extension");
   }
-  firefoxExtensionHost = await resolveFirefoxExtensionHost(browser, extensionId);
+  firefoxExtensionHost = await resolveFirefoxExtensionHost(
+    browser,
+    extensionId,
+  );
   return browser;
 }
 
@@ -150,12 +161,20 @@ export async function getBackgroundContext(
   }
 
   if (!firefoxExtensionHost) {
-    throw new Error("Firefox extension host is unavailable. Did you call launchBrowser?");
+    throw new Error(
+      "Firefox extension host is unavailable. Did you call launchBrowser?",
+    );
   }
-  const optionsUrl = getExtensionPageUrl(firefoxExtensionHost, "options/options.html");
+  const optionsUrl = getExtensionPageUrl(
+    firefoxExtensionHost,
+    "options/options.html",
+  );
   const page = await browser.newPage();
   try {
-    await page.goto(optionsUrl, { waitUntil: "domcontentloaded", timeout: 5000 });
+    await page.goto(optionsUrl, {
+      waitUntil: "domcontentloaded",
+      timeout: EXTENSION_NAVIGATION_TIMEOUT_MS,
+    });
   } catch (error) {
     if (!isNavigationTimeout(error)) {
       throw error;
@@ -196,7 +215,10 @@ export async function openExtensionPage(
   const url = await getRuntimePageUrl(context, pagePath);
   const page = await browser.newPage();
   try {
-    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 5000 });
+    await page.goto(url, {
+      waitUntil: "domcontentloaded",
+      timeout: EXTENSION_NAVIGATION_TIMEOUT_MS,
+    });
   } catch (error) {
     if (!isNavigationTimeout(error)) {
       throw error;
