@@ -9,8 +9,11 @@ export type BrowserType = "chrome" | "firefox";
 export const BROWSER_TYPE: BrowserType =
   (process.env.E2E_BROWSER as BrowserType) || "chrome";
 
-const EXTENSION_NAVIGATION_TIMEOUT_MS = isFirefox() ? 1200 : 5000;
-const FIREFOX_DEBUGGING_NAVIGATION_TIMEOUT_MS = 10000;
+// Firefox extension/debug pages frequently reach the desired URL/content
+// without ever resolving puppeteer's navigation lifecycle events.
+// Keep these short so the fallback readiness checks can run quickly.
+const EXTENSION_NAVIGATION_TIMEOUT_MS = isFirefox() ? 300 : 5000;
+const FIREFOX_DEBUGGING_NAVIGATION_TIMEOUT_MS = 300;
 const FIREFOX_DEBUGGING_SELECTOR_TIMEOUT_MS = 20000;
 const FIREFOX_NAVIGATION_RECOVERY_TIMEOUT_MS = 3000;
 
