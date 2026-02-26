@@ -4,8 +4,7 @@
 
 Type less, do more. FluentTyper brings smart autocomplete, spell checking, and text expansion to text inputs across the web.
 
-[![Unit and E2E tests](https://github.com/bartekplus/FluentTyper/actions/workflows/test.yml/badge.svg)](https://github.com/bartekplus/FluentTyper/actions/workflows/test.yml)
-[![ESLint and Prettier check](https://github.com/bartekplus/FluentTyper/actions/workflows/lintCheck.yml/badge.svg)](https://github.com/bartekplus/FluentTyper/actions/workflows/lintCheck.yml)
+[![CI (lint, unit, e2e)](https://github.com/bartekplus/FluentTyper/actions/workflows/test.yml/badge.svg)](https://github.com/bartekplus/FluentTyper/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Support-FFDD00?logo=buymeacoffee&logoColor=000000)](https://www.buymeacoffee.com/FluentTyper)
 
