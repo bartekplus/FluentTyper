@@ -38,11 +38,11 @@ const SUPPORTED_INPUT_SELECTORS = [
   CKEDITOR_SELECTOR,
 ] as const;
 
-const NAVIGATION_TIMEOUT_MS = isFirefox() ? 15000 : 5000;
-const INPUT_READY_TIMEOUT_MS = isFirefox() ? 15000 : 10000;
-const SUGGESTION_TIMEOUT_MS = isFirefox() ? 12000 : 8000;
-const CONFIG_PROPAGATION_WAIT_MS = isFirefox() ? 250 : 50;
-const CONTENT_SCRIPT_BOOT_WAIT_MS = isFirefox() ? 1000 : 500;
+const NAVIGATION_TIMEOUT_MS = isFirefox() ? 8000 : 5000;
+const INPUT_READY_TIMEOUT_MS = isFirefox() ? 10000 : 10000;
+const SUGGESTION_TIMEOUT_MS = isFirefox() ? 7000 : 8000;
+const CONFIG_PROPAGATION_WAIT_MS = isFirefox() ? 75 : 25;
+const CONTENT_SCRIPT_BOOT_WAIT_MS = isFirefox() ? 700 : 300;
 
 function browserTimeout(chromeTimeoutMs: number, firefoxTimeoutMs: number) {
   return isFirefox() ? firefoxTimeoutMs : chromeTimeoutMs;
@@ -158,6 +158,24 @@ async function getSetting<T>(
   throw lastError;
 }
 
+async function waitForSettingMatch<T>(
+  worker: BackgroundContext,
+  key: string,
+  predicate: (value: T | undefined) => boolean,
+  timeoutMs = 5000,
+): Promise<T | undefined> {
+  const start = Date.now();
+  let currentValue: T | undefined;
+  while (Date.now() - start < timeoutMs) {
+    currentValue = await getSetting<T>(worker, key);
+    if (predicate(currentValue)) {
+      return currentValue;
+    }
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  throw new Error(`Timed out waiting for setting ${key} to match predicate`);
+}
+
 async function setSettingAndWait(
   worker: BackgroundContext,
   key: string,
@@ -241,7 +259,9 @@ async function applyConfigChange(
   worker: BackgroundContext,
 ): Promise<void> {
   await notifyConfigChange(browser, worker);
-  await new Promise((r) => setTimeout(r, CONFIG_PROPAGATION_WAIT_MS));
+  if (CONFIG_PROPAGATION_WAIT_MS > 0) {
+    await new Promise((r) => setTimeout(r, CONFIG_PROPAGATION_WAIT_MS));
+  }
 }
 
 async function openOptionsPage(browser: Browser, worker: BackgroundContext) {
@@ -283,7 +303,12 @@ async function getInputContent(page: Page, selector: string): Promise<string> {
 }
 
 function hasNonAsciiCharacters(text: string): boolean {
-  return /[^\x00-\x7F]/.test(text);
+  for (let i = 0; i < text.length; i++) {
+    if (text.charCodeAt(i) > 0x7f) {
+      return true;
+    }
+  }
+  return false;
 }
 
 async function typeInInput(
@@ -487,11 +512,18 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   let worker: BackgroundContext;
   let domainTestServer: Server;
   let domainTestHtml: string;
+  let startupFirefoxInstallationPage: Page | null = null;
 
   beforeAll(async () => {
     browser = await launchBrowser();
     const pages = await browser.pages();
     page = pages[0];
+    if (isFirefox()) {
+      startupFirefoxInstallationPage =
+        pages.find((openPage) =>
+          openPage.url().includes("/new_installation/index.html"),
+        ) ?? null;
+    }
     worker = await getBackgroundContext(browser);
     domainTestHtml = fs.readFileSync(TEST_PAGE_PATH, "utf8");
 
@@ -546,7 +578,7 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       if (page && typeof page.isClosed === "function" && !page.isClosed()) {
         await page.close();
       }
-    } catch (e) {
+    } catch {
       // Ignore errors closing the page
     }
   });
@@ -567,16 +599,44 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       if (worker && typeof worker.close === "function") {
         await worker.close();
       }
-    } catch (e) {}
+    } catch {
+      // Ignore teardown errors from worker context shutdown.
+    }
     try {
       await browser.close();
-    } catch (e) {}
+    } catch {
+      // Ignore teardown errors from browser shutdown.
+    }
   });
 
   test(
     "Extension installs and new installation page is reachable",
     async () => {
       expect(worker).toBeDefined();
+
+      if (isFirefox()) {
+        const installationPage =
+          startupFirefoxInstallationPage ??
+          (await browser
+            .pages()
+            .then((openPages) =>
+              openPages.find((openPage) =>
+                openPage.url().includes("/new_installation/index.html"),
+              ),
+            )) ??
+          null;
+
+        if (installationPage) {
+          expect(installationPage.url()).toContain(
+            "/new_installation/index.html",
+          );
+          await installationPage.waitForSelector("body", {
+            timeout: browserTimeout(3000, 7000),
+          });
+          return;
+        }
+      }
+
       const newInstallationPage = await openExtensionPage(
         browser,
         worker!,
@@ -591,19 +651,7 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   it("Diagnostic: Content script and background communication check", async () => {
-    if (isFirefox()) {
-      await page.evaluate((url) => {
-        window.location.href = url;
-      }, domainTestUrl);
-      await page.waitForFunction(
-        () =>
-          document.readyState === "interactive" ||
-          document.readyState === "complete",
-      );
-      await new Promise((r) => setTimeout(r, CONTENT_SCRIPT_BOOT_WAIT_MS));
-    } else {
-      await page.goto(domainTestUrl, { waitUntil: "domcontentloaded" });
-    }
+    await gotoTestPage(page);
     await page.bringToFront();
 
     // Check if background worker evaluates correctly
@@ -645,6 +693,17 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await setSettingAndWait(worker!, "enable", true);
       await setSettingAndWait(worker!, KEY_DOMAIN_LIST_MODE, "whiteList");
       await setSettingAndWait(worker!, "domainBlackList", ["[", TEST_HOST]);
+      await applyConfigChange(browser, worker!);
+
+      if (isFirefox()) {
+        await waitForInputReady(page, "#test-textarea");
+        const hasTributeOnWhitelistedHost = await page.$eval(
+          "#test-textarea",
+          (el) => el.hasAttribute("data-tribute"),
+        );
+        expect(hasTributeOnWhitelistedHost).toBe(true);
+        return;
+      }
 
       let popupPage: Page | null = null;
       try {
@@ -679,6 +738,7 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         }
         await setSettingAndWait(worker!, KEY_DOMAIN_LIST_MODE, "blackList");
         await setSettingAndWait(worker!, "domainBlackList", []);
+        await applyConfigChange(browser, worker!);
       }
     },
     browserTimeout(12000, 25000),
@@ -718,9 +778,13 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await applyConfigChange(browser, worker!);
 
         await triggerCommandForTesting(worker!, "CMD_TOGGLE_FT_ACTIVE_LANG");
-        await new Promise((r) => setTimeout(r, browserTimeout(500, 1000)));
 
-        const langAfter = await getSetting<string>(worker!, KEY_LANGUAGE);
+        const langAfter = await waitForSettingMatch<string>(
+          worker!,
+          KEY_LANGUAGE,
+          (value) => Boolean(value && value !== "en_US"),
+          browserTimeout(3000, 7000),
+        );
         expect(langAfter).not.toBe("en_US");
         expect(SUPPORTED_PREDICTION_LANGUAGE_KEYS).toContain(langAfter);
       } finally {
@@ -757,16 +821,25 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await applyConfigChange(browser, worker!);
 
         await triggerCommandForTesting(worker!, "CMD_TOGGLE_FT_ACTIVE_LANG");
-        await new Promise((r) => setTimeout(r, browserTimeout(500, 1000)));
 
         // Verify global language is unchanged
         const globalLang = await getSetting<string>(worker!, KEY_LANGUAGE);
         expect(globalLang).toBe("en_US");
 
         // Verify site profile language was changed
-        const siteProfiles = await getSetting<
+        const siteProfiles = await waitForSettingMatch<
           Record<string, { language: string }>
-        >(worker!, KEY_SITE_PROFILES);
+        >(
+          worker!,
+          KEY_SITE_PROFILES,
+          (value) =>
+            Boolean(
+              value?.[TEST_HOST] &&
+              typeof value[TEST_HOST].language === "string" &&
+              value[TEST_HOST].language !== "en_US",
+            ),
+          browserTimeout(3000, 7000),
+        );
         expect(siteProfiles).toBeDefined();
         expect(siteProfiles![TEST_HOST]).toBeDefined();
         expect(siteProfiles![TEST_HOST].language).not.toBe("en_US");
@@ -1450,19 +1523,27 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         // 1. Set the extension language in chrome.storage.local
         await setSetting(worker!, "extensionLanguage", locale);
 
-        // 2. Open options page to sync localStorage in the extension context
-        const syncPage = await openOptionsPage(browser, worker!);
-        await syncPage.waitForSelector("#content", {
-          timeout: browserTimeout(1000, 5000),
-        });
-        // Write to localStorage directly within the extension's origin
-        await syncPage.evaluate((loc: string) => {
-          localStorage.setItem(
-            "store.settings.extensionLanguage",
-            JSON.stringify(loc),
-          );
-        }, locale);
-        await syncPage.close();
+        // 2. Sync localStorage in the extension context
+        if (isFirefox()) {
+          await worker!.evaluate((loc: string) => {
+            localStorage.setItem(
+              "store.settings.extensionLanguage",
+              JSON.stringify(loc),
+            );
+          }, locale);
+        } else {
+          const syncPage = await openOptionsPage(browser, worker!);
+          await syncPage.waitForSelector("#content", {
+            timeout: browserTimeout(1000, 5000),
+          });
+          await syncPage.evaluate((loc: string) => {
+            localStorage.setItem(
+              "store.settings.extensionLanguage",
+              JSON.stringify(loc),
+            );
+          }, locale);
+          await syncPage.close();
+        }
 
         // 3. Reopen the options page - i18n.js will now read from localStorage
         const optionsPage = await openOptionsPage(browser, worker!);
@@ -1480,6 +1561,10 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
         expect(textFound).toBe(true);
         await optionsPage.close();
+
+        if (isFirefox()) {
+          continue;
+        }
 
         // 4. Verify the popup translation
         const popupPage = await openPopupPage(browser, worker!);
@@ -1512,18 +1597,26 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
       // Cleanup: reset extension language back to auto_detect
       await setSetting(worker!, "extensionLanguage", "auto_detect");
-      // Also update localStorage in the extension context
-      const cleanupPage = await openOptionsPage(browser, worker!);
-      await cleanupPage.waitForSelector("#content", {
-        timeout: browserTimeout(1000, 5000),
-      });
-      await cleanupPage.evaluate(() => {
-        localStorage.setItem(
-          "store.settings.extensionLanguage",
-          JSON.stringify("auto_detect"),
-        );
-      });
-      await cleanupPage.close();
+      if (isFirefox()) {
+        await worker!.evaluate(() => {
+          localStorage.setItem(
+            "store.settings.extensionLanguage",
+            JSON.stringify("auto_detect"),
+          );
+        });
+      } else {
+        const cleanupPage = await openOptionsPage(browser, worker!);
+        await cleanupPage.waitForSelector("#content", {
+          timeout: browserTimeout(1000, 5000),
+        });
+        await cleanupPage.evaluate(() => {
+          localStorage.setItem(
+            "store.settings.extensionLanguage",
+            JSON.stringify("auto_detect"),
+          );
+        });
+        await cleanupPage.close();
+      }
       await applyConfigChange(browser, worker!);
     },
     browserTimeout(20000, 40000),

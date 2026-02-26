@@ -659,7 +659,9 @@ if (typeof globalThis !== "undefined" && __E2E_TESTING__) {
   });
 }
 
-async function initializeBackgroundServiceWorker(lastVersion: string | undefined) {
+async function initializeBackgroundServiceWorker(
+  lastVersion: string | undefined,
+) {
   try {
     await migrateToLocalStore(lastVersion);
     const backgroundServiceWorker = new BackgroundServiceWorker();
@@ -672,10 +674,11 @@ async function initializeBackgroundServiceWorker(lastVersion: string | undefined
 
 function loadLastVersionAndInitialize(): void {
   chrome.storage.local.get("lastVersion", (result) => {
-    initializeBackgroundServiceWorker(result?.lastVersion as string | undefined)
-      .catch((error) => {
-        logError("initializeBackgroundServiceWorker", error);
-      });
+    initializeBackgroundServiceWorker(
+      result?.lastVersion as string | undefined,
+    ).catch((error) => {
+      logError("initializeBackgroundServiceWorker", error);
+    });
   });
 }
 

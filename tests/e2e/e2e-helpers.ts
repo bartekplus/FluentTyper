@@ -9,9 +9,10 @@ export type BrowserType = "chrome" | "firefox";
 export const BROWSER_TYPE: BrowserType =
   (process.env.E2E_BROWSER as BrowserType) || "chrome";
 
-const EXTENSION_NAVIGATION_TIMEOUT_MS = isFirefox() ? 15000 : 5000;
+const EXTENSION_NAVIGATION_TIMEOUT_MS = isFirefox() ? 1200 : 5000;
 const FIREFOX_DEBUGGING_NAVIGATION_TIMEOUT_MS = 10000;
 const FIREFOX_DEBUGGING_SELECTOR_TIMEOUT_MS = 20000;
+const FIREFOX_NAVIGATION_RECOVERY_TIMEOUT_MS = 3000;
 
 export function isChrome(): boolean {
   return BROWSER_TYPE === "chrome";
@@ -136,8 +137,8 @@ async function launchFirefox(): Promise<Browser> {
 
 export interface BackgroundContext {
   evaluate<T>(
-    pageFunction: string | ((...args: any[]) => T | Promise<T>),
-    ...args: any[]
+    pageFunction: string | ((...args: unknown[]) => T | Promise<T>),
+    ...args: unknown[]
   ): Promise<T>;
   url(): string;
   close?(): Promise<void>;
@@ -179,8 +180,17 @@ export async function getBackgroundContext(
     if (!isNavigationTimeout(error)) {
       throw error;
     }
+    await page.waitForFunction(
+      (expectedPath) => window.location.href.includes(expectedPath),
+      { timeout: FIREFOX_NAVIGATION_RECOVERY_TIMEOUT_MS },
+      "options/options.html",
+    );
   }
-  await new Promise((resolve) => setTimeout(resolve, 1000));
+  await page
+    .waitForFunction(() => document.readyState !== "loading", {
+      timeout: FIREFOX_NAVIGATION_RECOVERY_TIMEOUT_MS,
+    })
+    .catch(() => undefined);
   return page;
 }
 
@@ -223,9 +233,21 @@ export async function openExtensionPage(
     if (!isNavigationTimeout(error)) {
       throw error;
     }
+    if (!isFirefox()) {
+      throw error;
+    }
+    await page.waitForFunction(
+      (expectedPath) => window.location.href.includes(expectedPath),
+      { timeout: FIREFOX_NAVIGATION_RECOVERY_TIMEOUT_MS },
+      pagePath,
+    );
   }
   if (isFirefox()) {
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await page
+      .waitForFunction(() => document.readyState !== "loading", {
+        timeout: FIREFOX_NAVIGATION_RECOVERY_TIMEOUT_MS,
+      })
+      .catch(() => undefined);
   }
   return page;
 }
@@ -248,7 +270,7 @@ export async function openPopupPage(
         return popupPage;
       }
     } catch {
-      // Fall back to opening popup URL directly.
+      // Fall back to direct navigation.
     }
   }
   return openExtensionPage(browser, context, "popup/popup.html");
