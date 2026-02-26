@@ -1,15 +1,24 @@
-name: Unit and E2E tests
+name: Tests
 
 on:
   push:
     branches: [ master ]
   pull_request:
     branches: [ master ]
+  workflow_dispatch:
+
+concurrency:
+  group: tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
-  build:
-
+  unit:
+    name: Unit tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
     - uses: actions/checkout@v4
@@ -20,6 +29,29 @@ jobs:
         cache-dependency-path: package-lock.json
     - run: npm ci
     - run: npm run test
-    - run: npm run test:e2e
+
+  e2e:
+    name: E2E (${{ matrix.browser }})
+    needs: unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - browser: chrome
+            script: npm run test:e2e
+          - browser: firefox
+            script: npm run test:e2e:firefox
+
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+        cache: 'npm'
+        cache-dependency-path: package-lock.json
+    - run: npm ci
+    - run: ${{ matrix.script }}
       env:
         CI: 'true'
