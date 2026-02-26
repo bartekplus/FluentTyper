@@ -165,29 +165,33 @@ class Store {
   }
 
   async initializeDefaults(defaults) {
+    const defaultEntries = [];
     if (defaults !== undefined) {
-      const writes = [];
-      for (const [key, value] of Object.entries(defaults)) {
-        if ((await this.getStoredValue(key)) === undefined) {
-          writes.push(this.setStoredValue(key, value));
+      defaultEntries.push(...Object.entries(defaults));
+    } else if (manifest && Array.isArray(manifest.settings)) {
+      for (const setting of manifest.settings) {
+        if (Object.prototype.hasOwnProperty.call(setting, "default")) {
+          defaultEntries.push([setting.name, setting.default]);
         }
       }
-      await Promise.all(writes);
+    }
+
+    if (defaultEntries.length === 0) {
       return;
     }
 
-    if (!manifest || !Array.isArray(manifest.settings)) {
-      return;
-    }
-
+    const storedValues = await this.storageBackend.getAll(this.buildKey(""));
     const writes = [];
-    for (const setting of manifest.settings) {
-      if (!Object.prototype.hasOwnProperty.call(setting, "default")) {
+    for (const [key, value] of defaultEntries) {
+      const rawStoredValue = storedValues[key];
+      if (rawStoredValue === undefined) {
+        writes.push(this.setStoredValue(key, value));
         continue;
       }
-      const key = setting.name;
-      if ((await this.getStoredValue(key)) === undefined) {
-        writes.push(this.setStoredValue(key, setting.default));
+      try {
+        JSON.parse(rawStoredValue);
+      } catch (e) {
+        writes.push(this.setStoredValue(key, value));
       }
     }
     await Promise.all(writes);
