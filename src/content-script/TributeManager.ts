@@ -48,6 +48,7 @@ export class TributeManager {
   private revertOnBackspace: boolean;
   private displayLangHeader: boolean;
   private inline_suggestion: boolean;
+  private helperIdByElement: WeakMap<Element, number>;
   private reTriggerTributeOnReplaceEvent: boolean = false;
   private activeHelperArrId: number | null = null;
 
@@ -95,6 +96,7 @@ export class TributeManager {
     this.revertOnBackspace = revertOnBackspace;
     this.displayLangHeader = displayLangHeader;
     this.inline_suggestion = inline_suggestion;
+    this.helperIdByElement = new WeakMap<Element, number>();
     this.getPrediction = getPrediction; // callback to main class
     this.activeHelperArrId = null;
     console.info(
@@ -169,6 +171,7 @@ export class TributeManager {
       elem: elem,
       requestId: 0,
     } as TributeEntry; // Cast to allow tribute to be added next
+    this.helperIdByElement.set(elem, tributeId);
 
     const tribueKeyFn = this.keys.bind(this);
     const tribueValuesFn = (
@@ -333,6 +336,7 @@ export class TributeManager {
     if (entry.elementKeyDownHandlerRef) {
       elem.removeEventListener("keydown", entry.elementKeyDownHandlerRef);
     }
+    this.helperIdByElement.delete(elem);
     delete this.tributeArr[tributeId];
   }
 
@@ -341,15 +345,16 @@ export class TributeManager {
       this.detachHelper(Number(key));
     }
     this.tributeArr = {};
+    this.helperIdByElement = new WeakMap<Element, number>();
   }
 
   isHelperAttached(elem: Element) {
-    for (const [key] of Object.entries(this.tributeArr)) {
-      if (elem === this.tributeArr[Number(key)].elem) {
-        return true;
-      }
-    }
-    return false;
+    const helperId = this.helperIdByElement.get(elem);
+    return (
+      typeof helperId === "number" &&
+      Boolean(this.tributeArr[helperId]) &&
+      this.tributeArr[helperId].elem === elem
+    );
   }
 
   removeHelpersNotInDocument() {
@@ -442,20 +447,20 @@ export class TributeManager {
       if (propertiesCheck) filteredElems.push(currentElem);
     }
     for (let i = 0; i < filteredElems.length; i++) {
+      if (this.isHelperAttached(filteredElems[i])) continue;
       let skip = false;
       for (const [key] of Object.entries(this.tributeArr)) {
         const keyAsNumber = Number(key);
-        if (filteredElems[i] === this.tributeArr[keyAsNumber].elem) continue;
         if (filteredElems[i].contains(this.tributeArr[keyAsNumber].elem)) {
           this.detachHelper(keyAsNumber);
         } else if (
           this.tributeArr[keyAsNumber].elem.contains(filteredElems[i])
         ) {
           skip = true;
+          break;
         }
       }
       if (skip) continue;
-      if (this.isHelperAttached(filteredElems[i])) continue;
       this.attachHelperToNode(filteredElems[i]);
     }
   }

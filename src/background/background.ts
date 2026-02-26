@@ -523,28 +523,27 @@ async function handleContentScriptPredictReq(
       backgroundServiceWorker.sendCommandToActiveTabContentScript(
         updateLangConfigMessage,
       );
-    } else {
-      const predictRequestMessage: PredictRequestMessage = {
-        command: CMD_BACKGROUND_PAGE_PREDICT_REQ,
-        context: {
-          text: request.context.text,
-          nextChar: request.context.nextChar,
-          lang: language,
-          tabId: sender.tab!.id!,
-          frameId: sender.frameId!,
-          // langName: SUPPORTED_LANGUAGES[language],
-          tributeId: request.context.tributeId,
-          requestId: request.context.requestId,
-        },
-      };
-
-      backgroundServiceWorker.runPrediction(
-        predictRequestMessage,
-        domainSettings.hasNumSuggestionsOverride
-          ? { numSuggestions: domainSettings.numSuggestions }
-          : undefined,
-      );
     }
+    const predictRequestMessage: PredictRequestMessage = {
+      command: CMD_BACKGROUND_PAGE_PREDICT_REQ,
+      context: {
+        text: request.context.text,
+        nextChar: request.context.nextChar,
+        lang: language,
+        tabId: sender.tab!.id!,
+        frameId: sender.frameId!,
+        // langName: SUPPORTED_LANGUAGES[language],
+        tributeId: request.context.tributeId,
+        requestId: request.context.requestId,
+      },
+    };
+
+    backgroundServiceWorker.runPrediction(
+      predictRequestMessage,
+      domainSettings.hasNumSuggestionsOverride
+        ? { numSuggestions: domainSettings.numSuggestions }
+        : undefined,
+    );
   } catch (error) {
     logError("handleContentScriptPredictReq", error);
   }

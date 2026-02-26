@@ -450,7 +450,7 @@ describe("background routing and lifecycle", () => {
     );
   });
 
-  test("onMessage requests language update when resolved language differs", async () => {
+  test("onMessage requests language update and still predicts when resolved language differs", async () => {
     const harness = await loadBackgroundHarness();
     harness.state[KEY_LANGUAGE] = "en_US";
 
@@ -458,6 +458,9 @@ describe("background routing and lifecycle", () => {
       harness.module.BackgroundServiceWorker.prototype,
       "sendCommandToActiveTabContentScript",
     );
+    const runPredictionSpy = jest
+      .spyOn(harness.module.BackgroundServiceWorker.prototype, "runPrediction")
+      .mockResolvedValue(undefined);
 
     harness.onMessage(
       {
@@ -479,13 +482,35 @@ describe("background routing and lifecycle", () => {
       command: CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
       context: { lang: "en_US" },
     });
+    expect(runPredictionSpy).toHaveBeenCalledWith(
+      {
+        command: CMD_BACKGROUND_PAGE_PREDICT_REQ,
+        context: expect.objectContaining({
+          text: "hello",
+          nextChar: "",
+          lang: "en_US",
+          tabId: 2,
+          frameId: 0,
+          tributeId: 1,
+          requestId: 1,
+        }),
+      },
+      undefined,
+    );
   });
 
-  test("onMessage auto-detect branch calls language detector with enabled languages", async () => {
+  test("onMessage auto-detect branch updates language and predicts on first request", async () => {
     const harness = await loadBackgroundHarness({
       language: "auto_detect",
       enabled_languages: ["en_US", "fr_FR"],
     });
+    const sendToActiveSpy = jest.spyOn(
+      harness.module.BackgroundServiceWorker.prototype,
+      "sendCommandToActiveTabContentScript",
+    );
+    const runPredictionSpy = jest
+      .spyOn(harness.module.BackgroundServiceWorker.prototype, "runPrediction")
+      .mockResolvedValue(undefined);
 
     harness.onMessage(
       {
@@ -507,6 +532,25 @@ describe("background routing and lifecycle", () => {
       "en_US",
       "fr_FR",
     ]);
+    expect(sendToActiveSpy).toHaveBeenCalledWith({
+      command: CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
+      context: { lang: "fr_FR" },
+    });
+    expect(runPredictionSpy).toHaveBeenCalledWith(
+      {
+        command: CMD_BACKGROUND_PAGE_PREDICT_REQ,
+        context: expect.objectContaining({
+          text: "bonjour",
+          nextChar: "",
+          lang: "fr_FR",
+          tabId: 111,
+          frameId: 0,
+          tributeId: 1,
+          requestId: 3,
+        }),
+      },
+      undefined,
+    );
   });
 
   test("onMessage handles options page config change success and failure", async () => {
