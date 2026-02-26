@@ -28,7 +28,7 @@
   },
   "homepage": "https://github.com/bartekplus/FluentTyper#readme",
   "devDependencies": {
-    "@ckeditor/ckeditor5-build-classic": "^44.3.0",
+    "ckeditor5": "^44.3.0",
     "@eslint/js": "^10.0.1",
     "@types/chrome": "^0.1.37",
     "@types/dom-navigation": "^1.0.7",

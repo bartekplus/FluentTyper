@@ -540,11 +540,14 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     domainTestHtml = fs.readFileSync(TEST_PAGE_PATH, "utf8");
 
     domainTestServer = createServer((req, res) => {
-      if (req.url && req.url.includes("ckeditor.js")) {
+      if (
+        req.url &&
+        (req.url.includes("ckeditor5.umd.js") || req.url.includes("ckeditor.js"))
+      ) {
         try {
           const ckeditorPath = path.resolve(
             __dirname,
-            "../../node_modules/@ckeditor/ckeditor5-build-classic/build/ckeditor.js",
+            "../../node_modules/ckeditor5/dist/browser/ckeditor5.umd.js",
           );
           const jsBuf = fs.readFileSync(ckeditorPath);
           res.writeHead(200, {
@@ -555,6 +558,23 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           return;
         } catch (e) {
           console.error("Failed to load CKEditor from node_modules", e);
+        }
+      }
+      if (req.url && req.url.includes("ckeditor5.css")) {
+        try {
+          const ckeditorCssPath = path.resolve(
+            __dirname,
+            "../../node_modules/ckeditor5/dist/browser/ckeditor5.css",
+          );
+          const cssBuf = fs.readFileSync(ckeditorCssPath);
+          res.writeHead(200, {
+            "Content-Type": "text/css; charset=utf-8",
+            "Content-Length": cssBuf.length,
+          });
+          res.end(cssBuf);
+          return;
+        } catch (e) {
+          console.error("Failed to load CKEditor CSS from node_modules", e);
         }
       }
 
