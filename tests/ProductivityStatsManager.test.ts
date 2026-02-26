@@ -84,6 +84,39 @@ describe("ProductivityStatsManager", () => {
     ]);
   });
 
+  test("ignores snippet event counters when snippet shortcuts are not configured", async () => {
+    const { manager: settingsManager } = createSettingsManagerMock();
+    const manager = new ProductivityStatsManager(settingsManager, {
+      now: () => new Date("2026-02-11T10:00:00"),
+    });
+
+    await manager.recordUsageEvent({
+      eventType: "snippet_expanded",
+      triggerText: "not_a_snippet",
+      typedTextLength: 2,
+      insertedTextLength: 12,
+      language: "en_US",
+    });
+    await manager.recordUsageEvent({
+      eventType: "chars_inserted_from_snippet",
+      amount: 12,
+      triggerText: "not_a_snippet",
+      language: "en_US",
+    });
+    await manager.recordUsageEvent({
+      eventType: "chars_typed_for_trigger",
+      amount: 2,
+      triggerText: "not_a_snippet",
+      language: "en_US",
+    });
+
+    const stats = await manager.getDashboardStats();
+    expect(stats.lifetimeEvents.snippetsExpanded).toBe(0);
+    expect(stats.lifetimeEvents.charsInsertedFromSnippet).toBe(0);
+    expect(stats.lifetimeEvents.charsTypedForTrigger).toBe(0);
+    expect(stats.topSnippets).toEqual([]);
+  });
+
   test("shows weekly recap only after Monday morning trigger", async () => {
     const seededState = {
       [KEY_PRODUCTIVITY_STATS]: {
@@ -130,6 +163,60 @@ describe("ProductivityStatsManager", () => {
     });
     const afterTrigger = await onTimeManager.getDashboardStats();
     expect(afterTrigger.shouldShowWeeklyRecap).toBe(true);
+  });
+
+  test("prioritizes weekly recap donation ask with source tag and recap enrichments", async () => {
+    const { manager: settingsManager } = createSettingsManagerMock({
+      [KEY_PRODUCTIVITY_STATS]: {
+        schemaVersion: 2,
+        acceptedSuggestions: 30,
+        charactersSaved: 15500,
+        suggestionsShown: 0,
+        snippetsExpanded: 0,
+        charsInsertedFromSnippet: 0,
+        charsTypedForTrigger: 0,
+        snippetUsage: {},
+        languageUsage: {},
+        daily: {
+          "2026-02-08": {
+            acceptedSuggestions: 10,
+            charactersSaved: 11000,
+            suggestionsShown: 0,
+            snippetsExpanded: 0,
+            charsInsertedFromSnippet: 0,
+            charsTypedForTrigger: 0,
+            snippetUsage: {},
+            languageUsage: {},
+          },
+          "2026-02-10": {
+            acceptedSuggestions: 20,
+            charactersSaved: 4500,
+            suggestionsShown: 0,
+            snippetsExpanded: 0,
+            charsInsertedFromSnippet: 0,
+            charsTypedForTrigger: 0,
+            snippetUsage: {},
+            languageUsage: {},
+          },
+        },
+        shownMilestones: [],
+        firstValuePromptAcknowledged: false,
+        lastWeeklyRecapWeek: null,
+        lastDonationPromptAt: "2026-02-15T12:00:00.000Z",
+        donationSnoozedUntil: null,
+      },
+    });
+    const manager = new ProductivityStatsManager(settingsManager, {
+      now: () => new Date("2026-02-16T09:00:00"),
+    });
+
+    const stats = await manager.getDashboardStats();
+    expect(stats.shouldShowWeeklyRecap).toBe(true);
+    expect(stats.weeklyRecap.milestonesCrossedHours).toContain(1);
+    expect(stats.weeklyRecap.equivalentTasks).toBeGreaterThan(0);
+    expect(stats.donationPrompt?.kind).toBe("weekly_recap");
+    expect(stats.donationPrompt?.source).toBe("weekly_recap");
+    expect(stats.donationPrompt?.promptId).toBe("weekly_recap_2026-02-09");
   });
 
   test("enforces first-value prompt cooldown and snooze", async () => {

@@ -345,9 +345,16 @@ body.fluenttyper-popup {
   color: var(--text-color-light);
 }
 
+.dashboard-recap-detail {
+  margin: 0.2rem 0 0;
+  font-size: 0.69rem;
+  color: var(--text-color);
+}
+
 .dashboard-recap-actions {
   display: flex;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 0.25rem;
   margin-top: 0.32rem;
 }

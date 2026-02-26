@@ -73,6 +73,7 @@ const DONATION_SNOOZE_DAYS = 30;
 const WEEKLY_RECAP_REVEAL_HOUR = 8;
 const TYPING_CHARACTERS_PER_MINUTE = 240;
 const ACCEPTANCE_BONUS_SECONDS = 0.8;
+const EQUIVALENT_TASK_MINUTES = 5;
 const MAX_DAILY_BUCKETS = 400;
 
 function isObjectRecord(value: unknown): value is Record<string, unknown> {
@@ -525,16 +526,57 @@ function summarizeWeek(
 ): WeeklyRecapSummary {
   const weekEnd = addDays(weekStart, 6);
   const aggregated = aggregateRange(daily, weekStart, weekEnd);
+  const beforeWeek = aggregateThroughDate(daily, addDays(weekStart, -1));
+  const throughWeek = aggregateThroughDate(daily, weekEnd);
+  const beforeWeekHours =
+    estimateMinutesSaved(
+      beforeWeek.acceptedSuggestions,
+      beforeWeek.charactersSaved,
+    ) / 60;
+  const throughWeekHours =
+    estimateMinutesSaved(
+      throughWeek.acceptedSuggestions,
+      throughWeek.charactersSaved,
+    ) / 60;
+  const milestonesCrossedHours = DONATION_MILESTONE_HOURS.filter(
+    (milestone) => beforeWeekHours < milestone && throughWeekHours >= milestone,
+  );
+  const estimatedMinutesSaved = estimateMinutesSaved(
+    aggregated.acceptedSuggestions,
+    aggregated.charactersSaved,
+  );
   const topSnippet = getTopSnippets(aggregated.snippetUsage, 1)[0] || null;
   return {
     weekKey: toLocalDateKey(weekStart),
     acceptedSuggestions: aggregated.acceptedSuggestions,
     charactersSaved: aggregated.charactersSaved,
-    estimatedMinutesSaved: estimateMinutesSaved(
-      aggregated.acceptedSuggestions,
-      aggregated.charactersSaved,
-    ),
+    estimatedMinutesSaved,
     topSnippet,
+    milestonesCrossedHours,
+    equivalentTasks: Math.max(
+      0,
+      Math.round(estimatedMinutesSaved / EQUIVALENT_TASK_MINUTES),
+    ),
+  };
+}
+
+function aggregateThroughDate(
+  daily: Record<string, DailyProductivityState>,
+  endDate: Date,
+): Pick<AggregatedCounters, "acceptedSuggestions" | "charactersSaved"> {
+  let acceptedSuggestions = 0;
+  let charactersSaved = 0;
+  const endKey = toLocalDateKey(endDate);
+  for (const [dateKey, entry] of Object.entries(daily)) {
+    if (dateKey > endKey) {
+      continue;
+    }
+    acceptedSuggestions += entry.acceptedSuggestions;
+    charactersSaved += entry.charactersSaved;
+  }
+  return {
+    acceptedSuggestions,
+    charactersSaved,
   };
 }
 
@@ -626,10 +668,25 @@ function toDonationPrompt(
   state: ProductivityStatsState,
   lifetime: ProductivityMetricSummary,
   now: Date,
+  weeklyRecap: WeeklyRecapSummary,
+  shouldShowWeeklyRecapCard: boolean,
 ): DonationPromptSummary | null {
   const snoozedUntilDate = parseIsoDate(state.donationSnoozedUntil);
   if (snoozedUntilDate && now < snoozedUntilDate) {
     return null;
+  }
+
+  if (shouldShowWeeklyRecapCard) {
+    return {
+      promptId: `weekly_recap_${weeklyRecap.weekKey}`,
+      kind: "weekly_recap",
+      source: "weekly_recap",
+      milestoneHours:
+        weeklyRecap.milestonesCrossedHours[weeklyRecap.milestonesCrossedHours.length - 1] ||
+        null,
+      message:
+        "Your weekly recap is ready. If FluentTyper is saving you time, support development.",
+    };
   }
 
   const lastPromptDate = parseIsoDate(state.lastDonationPromptAt);
@@ -651,6 +708,7 @@ function toDonationPrompt(
     return {
       promptId: "first_value",
       kind: "first_value",
+      source: "lifetime_threshold",
       milestoneHours: null,
       message:
         "You are saving real time already. If this helps your workflow, support FluentTyper.",
@@ -670,6 +728,7 @@ function toDonationPrompt(
   return {
     promptId: `milestone_${nextMilestone}`,
     kind: "milestone",
+    source: "lifetime_threshold",
     milestoneHours: nextMilestone,
     message: `You just saved your ${ordinal} ${hoursLabel}. Buy the dev a coffee?`,
   };
@@ -776,11 +835,8 @@ export class ProductivityStatsManager {
         }
         case "snippet_expanded": {
           const normalizedSnippetKey = normalizeSnippetKey(event.triggerText);
-          if (!normalizedSnippetKey) {
-            break;
-          }
           if (
-            this.snippetShortcuts.size > 0 &&
+            !normalizedSnippetKey ||
             !this.snippetShortcuts.has(normalizedSnippetKey)
           ) {
             break;
@@ -809,11 +865,9 @@ export class ProductivityStatsManager {
         case "chars_inserted_from_snippet": {
           const normalizedSnippetKey = normalizeSnippetKey(event.triggerText);
           const insertedChars = clampCount(event.amount);
-          if (!normalizedSnippetKey || insertedChars <= 0) {
-            break;
-          }
           if (
-            this.snippetShortcuts.size > 0 &&
+            !normalizedSnippetKey ||
+            insertedChars <= 0 ||
             !this.snippetShortcuts.has(normalizedSnippetKey)
           ) {
             break;
@@ -835,11 +889,9 @@ export class ProductivityStatsManager {
         case "chars_typed_for_trigger": {
           const normalizedSnippetKey = normalizeSnippetKey(event.triggerText);
           const typedChars = clampCount(event.amount);
-          if (!normalizedSnippetKey || typedChars <= 0) {
-            break;
-          }
           if (
-            this.snippetShortcuts.size > 0 &&
+            !normalizedSnippetKey ||
+            typedChars <= 0 ||
             !this.snippetShortcuts.has(normalizedSnippetKey)
           ) {
             break;
@@ -924,6 +976,7 @@ export class ProductivityStatsManager {
               100,
           )
         : null;
+    const shouldShowWeeklyRecapCard = shouldShowWeeklyRecap(state, weeklyRecap, now);
 
     return {
       today,
@@ -938,8 +991,14 @@ export class ProductivityStatsManager {
       weekOverWeekDeltaPct,
       milestoneProgress: getMilestoneProgress(lifetime.estimatedMinutesSaved),
       weeklyRecap,
-      shouldShowWeeklyRecap: shouldShowWeeklyRecap(state, weeklyRecap, now),
-      donationPrompt: toDonationPrompt(state, lifetime, now),
+      shouldShowWeeklyRecap: shouldShowWeeklyRecapCard,
+      donationPrompt: toDonationPrompt(
+        state,
+        lifetime,
+        now,
+        weeklyRecap,
+        shouldShowWeeklyRecapCard,
+      ),
     };
   }
 

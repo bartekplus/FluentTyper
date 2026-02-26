@@ -791,6 +791,8 @@ describe("background routing and lifecycle", () => {
           charactersSaved: 4,
           estimatedMinutesSaved: 0.1,
           topSnippet: null,
+          milestonesCrossedHours: [],
+          equivalentTasks: 0,
         },
         shouldShowWeeklyRecap: false,
         donationPrompt: null,

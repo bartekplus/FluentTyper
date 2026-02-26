@@ -321,6 +321,28 @@ function formatWeekRange(weekKey: string): string {
   return `${formatter.format(startDate)} - ${formatter.format(endDate)}`;
 }
 
+async function copyTextToClipboard(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // Fall through to the legacy copy path.
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+  const copied = document.execCommand("copy");
+  textarea.remove();
+  return copied;
+}
+
 async function sendRuntimeMessage<T>(message: object): Promise<T | null> {
   return new Promise((resolve) => {
     chrome.runtime.sendMessage(message, (response: unknown) => {
@@ -419,12 +441,24 @@ function renderWeeklyRecapCard(stats: ProductivityDashboardStats): void {
   const snippetNode = document.getElementById(
     "weeklyRecapSnippet",
   ) as HTMLElement;
+  const milestoneNode = document.getElementById(
+    "weeklyRecapMilestone",
+  ) as HTMLElement;
+  const equivalentNode = document.getElementById(
+    "weeklyRecapEquivalent",
+  ) as HTMLElement;
   const dismissButton = document.getElementById(
     "weeklyRecapDismissBtn",
   ) as HTMLButtonElement;
   const viewButton = document.getElementById(
     "weeklyRecapViewBtn",
   ) as HTMLButtonElement;
+  const shareButton = document.getElementById(
+    "weeklyRecapShareBtn",
+  ) as HTMLButtonElement;
+  const supportLink = document.getElementById(
+    "weeklyRecapSupportLink",
+  ) as HTMLAnchorElement;
 
   if (!stats.shouldShowWeeklyRecap) {
     cardNode.classList.add("is-hidden");
@@ -442,11 +476,44 @@ function renderWeeklyRecapCard(stats: ProductivityDashboardStats): void {
   )} ${i18n.get("popup_short_chars")} • ${formatNumber(
     stats.weeklyRecap.estimatedMinutesSaved,
   )} ${i18n.get("popup_short_minutes")}`;
+  const milestones = stats.weeklyRecap.milestonesCrossedHours || [];
+  milestoneNode.textContent =
+    milestones.length > 0
+      ? `${i18n.get("popup_weekly_recap_milestone_label")}: ${milestones
+          .map((hours) => `${formatNumber(hours)}h`)
+          .join(", ")}`
+      : i18n.get("popup_weekly_recap_milestone_none");
+  const equivalentTaskLabel =
+    stats.weeklyRecap.equivalentTasks === 1
+      ? i18n.get("popup_weekly_recap_task_singular")
+      : i18n.get("popup_weekly_recap_task_plural");
+  equivalentNode.textContent = `${i18n.get(
+    "popup_weekly_recap_equivalent_prefix",
+  )} ${formatNumber(stats.weeklyRecap.equivalentTasks)} ${equivalentTaskLabel}.`;
   snippetNode.textContent = stats.weeklyRecap.topSnippet
     ? `${i18n.get("popup_weekly_recap_top_snippet")}: ${stats.weeklyRecap.topSnippet.snippet} (${stats.weeklyRecap.topSnippet.count}x)`
     : i18n.get("popup_weekly_recap_top_snippet_empty");
 
+  const recapShareText = `${i18n.get("popup_weekly_recap_title")} (${formatWeekRange(
+    stats.weeklyRecap.weekKey,
+  )}): ${formatNumber(stats.weeklyRecap.acceptedSuggestions)} ${i18n.get(
+    "popup_short_accepted",
+  )}, ${formatNumber(stats.weeklyRecap.charactersSaved)} ${i18n.get(
+    "popup_short_chars",
+  )}, ${formatNumber(stats.weeklyRecap.estimatedMinutesSaved)} ${i18n.get(
+    "popup_short_minutes",
+  )}.`;
+
   dismissButton.onclick = () => {
+    void acknowledgeWeeklyRecap(stats.weeklyRecap.weekKey);
+    cardNode.classList.add("is-hidden");
+  };
+  shareButton.onclick = () => {
+    void copyTextToClipboard(recapShareText);
+    void acknowledgeWeeklyRecap(stats.weeklyRecap.weekKey);
+    cardNode.classList.add("is-hidden");
+  };
+  supportLink.onclick = () => {
     void acknowledgeWeeklyRecap(stats.weeklyRecap.weekKey);
     cardNode.classList.add("is-hidden");
   };
