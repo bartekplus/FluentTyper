@@ -51,8 +51,20 @@ const donateHTML =
   '<div class="has-text-centered"> \
   <p style="margin-bottom: 1rem;">Developing and maintaining FluentTyper is a passion project. If you find it useful, please consider supporting its future development. Your contribution helps us add new features and keep the extension running smoothly.</p> \
   <a href="https://www.buymeacoffee.com/FluentTyper" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png"  alt="Buy Me A Coffee" style="height: 60px !important; width: 217px !important"/></a></div>';
-const testFluentTyperHTML =
-  '<textarea class="textarea is-full"  rows="12" placeholder="Click here and start typing to see FluentTyper in action..."></textarea>';
+const aboutHighlightsHTML =
+  '<div class="about-highlights"> \
+  <span class="about-pill">Autocomplete</span> \
+  <span class="about-pill">Text Expander</span> \
+  <span class="about-pill">Multilingual Support</span> \
+  <span class="about-pill">Site Profiles</span> \
+  </div>';
+const supportLinksHTML =
+  '<div class="support-links-list"> \
+  <a href="https://github.com/bartekplus/FluentTyper/issues/new?template=bug_report.yml" target="_blank" rel="noopener noreferrer">Report a bug</a> - Open a GitHub issue with reproducible steps.<br /> \
+  <a href="https://github.com/bartekplus/FluentTyper/issues/new?template=feature_request.yml" target="_blank" rel="noopener noreferrer">Request a feature</a> - Share ideas and vote on improvements.<br /> \
+  <a href="https://github.com/bartekplus/FluentTyper#readme" target="_blank" rel="noopener noreferrer">Read documentation</a> - Setup help, configuration details, and usage tips.<br /> \
+  <a href="https://github.com/bartekplus/FluentTyper/blob/main/SECURITY.md" target="_blank" rel="noopener noreferrer">Security policy</a> - Responsible disclosure and security contact details. \
+  </div>';
 
 // --- Manifest Definition ---
 const manifest = {
@@ -546,24 +558,31 @@ const manifest = {
     // =========================================================================
     {
       tab: i18n.get("about_support_tab"),
-      group: "Test Pad", // Added a simple group for the Test Pad
-      name: "Test FluentTyper",
+      group: i18n.get("about_fluent_typer_group"),
+      name: "FluentTyperHighlights",
       type: "description",
-      text: testFluentTyperHTML,
+      text: aboutHighlightsHTML,
     },
     {
       tab: i18n.get("about_support_tab"),
       group: i18n.get("about_fluent_typer_group"),
       name: "FluentTyperInfo",
       type: "description",
-      text: i18n.get("x-FluentTyper"), // Assuming this contains app description
+      text: i18n.get("x-FluentTyper"),
     },
     {
       tab: i18n.get("about_support_tab"),
       group: i18n.get("about_fluent_typer_group"),
       name: "Version",
       type: "description",
-      text: `Version: ${chrome.runtime.getManifest().version}`,
+      text: `<span class="version-chip">Version ${chrome.runtime.getManifest().version}</span>`,
+    },
+    {
+      tab: i18n.get("about_support_tab"),
+      group: i18n.get("support_development_group"),
+      name: "SupportLinks",
+      type: "description",
+      text: supportLinksHTML,
     },
     {
       tab: i18n.get("about_support_tab"),

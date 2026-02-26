@@ -1542,17 +1542,6 @@ i18n = Object.assign(i18n, {
     "pl": "Eksportuj aktualne ustawienia do pliku JSON jako kopię zapasową.",
     "pr": "Exportar as configurações atuais para um arquivo JSON como backup.",
   },
-  "test_pad_tab": {
-    "en": "Test Pad",
-    "fr": "Zone de Test",
-    "hr": "Probno Polje",
-    "es": "Zona de Pruebas",
-    "el": "Πεδίο Δοκιμών",
-    "sv": "Testområde",
-    "de": "Testbereich",
-    "pl": "Pole Testowe",
-    "pr": "Área de Testes",
-  },
   "about_support_tab": {
     "en": "About & Support",
     "fr": "À propos & Support",

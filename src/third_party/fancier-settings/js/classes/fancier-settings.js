@@ -13,12 +13,19 @@ import { ElementWrapper } from "./utils.js";
 
 class FancierSettings {
   constructor(name, icon) {
-    try {
-      document.getElementById("title")["text"] = name;
-      document.getElementById("favicon")["href"] = icon;
-      document.getElementById("icon")["src"] = icon;
-    } catch (err) {
-      console.log(err);
+    const titleElement = document.getElementById("title");
+    if (titleElement) {
+      titleElement.text = name;
+    }
+
+    const faviconElement = document.getElementById("favicon");
+    if (faviconElement) {
+      faviconElement.href = icon;
+    }
+
+    const iconElement = document.getElementById("icon");
+    if (iconElement) {
+      iconElement.src = icon;
     }
 
     this.tabs = [];
@@ -53,11 +60,11 @@ class FancierSettings {
     if (tab.groups[params.group] === undefined) {
       tab.groups[params.group] = {};
       group = tab.groups[params.group];
-      group.content = new ElementWrapper("div", {});
+      group.content = new ElementWrapper("div", { class: "settings-group" });
       tab.content.element.appendChild(group.content.element);
       group.content.element.appendChild(
         new ElementWrapper("div", {
-          class: "divider",
+          class: "divider settings-group-title",
           innerText: params.group || params.tab,
         }).element
       );
