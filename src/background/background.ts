@@ -636,16 +636,66 @@ chrome.runtime.onMessage.addListener(onMessage);
 
 if (typeof globalThis !== "undefined") {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (globalThis as any).triggerCommandForTesting = onCommand;
+  (globalThis as any).triggerCommandForTesting = (command: string) => {
+    onCommand(command);
+  };
 }
 
-chrome.storage.local.get("lastVersion", async (result) => {
+const testTriggerCommandAllowList = new Set<string>([
+  CMD_TOGGLE_FT_ACTIVE_TAB,
+  CMD_TRIGGER_FT_ACTIVE_TAB,
+  CMD_TOGGLE_FT_ACTIVE_LANG,
+]);
+
+function isTrustedInternalSender(sender: chrome.runtime.MessageSender): boolean {
+  return (
+    typeof sender.url === "string" &&
+    sender.url.startsWith(chrome.runtime.getURL(""))
+  );
+}
+
+// Alternative hook for Firefox BiDi tests.
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (
+      typeof message !== "object" ||
+      !message ||
+      (message as { type?: unknown }).type !== "TEST_TRIGGER_COMMAND"
+    ) {
+      return false;
+    }
+    const command = (message as { command?: unknown }).command;
+    if (
+      typeof command !== "string" ||
+      !testTriggerCommandAllowList.has(command) ||
+      !isTrustedInternalSender(sender)
+    ) {
+      sendResponse({ ok: false });
+      return true;
+    }
+    onCommand(command);
+    sendResponse({ ok: true });
+    return true;
+  });
+
+async function initializeBackgroundServiceWorker(
+  lastVersion: string | undefined,
+) {
   try {
-    await migrateToLocalStore(result.lastVersion as string);
+    await migrateToLocalStore(lastVersion);
     const backgroundServiceWorker = new BackgroundServiceWorker();
     await backgroundServiceWorker.predictionManager.initialize();
     await backgroundServiceWorker.updatePresageConfig();
   } catch (error) {
     logError("lastVersion handler", error);
   }
-});
+}
+
+function loadLastVersionAndInitialize(): void {
+  chrome.storage.local.get("lastVersion", async (result) => {
+    await initializeBackgroundServiceWorker(
+      result?.lastVersion as string | undefined,
+    );
+  });
+}
+
+loadLastVersionAndInitialize();

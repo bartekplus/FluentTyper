@@ -10,6 +10,8 @@
     "lint": "eslint --fix . && prettier '**/*.{html,css,js,ts}' --write",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --config=jest.config.ts",
     "test:e2e": "PLATFORM=chrome $npm_execpath run build && jest --config=jest-e2e.config.ts",
+    "test:e2e:firefox": "PLATFORM=firefox $npm_execpath run build && E2E_BROWSER=firefox jest --config=jest-e2e.config.ts",
+    "test:e2e:all": "$npm_execpath run test:e2e && $npm_execpath run test:e2e:firefox",
     "update": "ncu -u && npm update",
     "preversion": "npm test",
     "version": "node scripts/update-manifest-version.cjs",

@@ -1,9 +1,11 @@
 {
   "background": {
-    "page": "background.html",
-    "persistent": true
+    "scripts": [
+      "background.js"
+    ],
+    "type": "module"
   },
-  "optional_permissions": [
+  "host_permissions": [
     "<all_urls>"
   ],
   "content_scripts": [
@@ -34,38 +36,31 @@
     "256": "icon/icon256.png"
   },
   "web_accessible_resources": [
-    "icon/icon*",
-    "third_party/*",
-    "css/*"
+    {
+      "resources": [
+        "icon/icon*",
+        "third_party/*",
+        "css/*"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
   ],
   "name": "FluentTyper: Autocomplete and Spell Checker",
   "options_ui": {
     "page": "options/options.html",
     "open_in_tab": true
   },
-  "browser_action": {
-    "default_icon": {
-      "16": "icon/icon16.png",
-      "32": "icon/icon32.png",
-      "48": "icon/icon48.png",
-      "64": "icon/icon64.png",
-      "72": "icon/icon72.png",
-      "96": "icon/icon96.png",
-      "128": "icon/icon128.png",
-      "256": "icon/icon256.png"
-    },
-    "default_popup": "popup/popup.html",
-    "default_title": "FluentTyper"
-  },
   "permissions": [
     "storage",
-    "activeTab",
-    "tabs",
-    "<all_urls>"
+    "activeTab"
   ],
   "version": "2026.2.1",
-  "manifest_version": 2,
-  "content_security_policy": "script-src 'self' 'unsafe-eval'; object-src 'self'",
+  "manifest_version": 3,
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
+  },
   "commands": {
     "CMD_TOGGLE_FT_ACTIVE_TAB": {
       "suggested_key": {
@@ -92,5 +87,19 @@
     "gecko": {
       "id": "{22ce0bca-91d0-4eac-8fd3-9b2045c7a6db}"
     }
+  },
+  "action": {
+    "default_icon": {
+      "16": "icon/icon16.png",
+      "32": "icon/icon32.png",
+      "48": "icon/icon48.png",
+      "64": "icon/icon64.png",
+      "72": "icon/icon72.png",
+      "96": "icon/icon96.png",
+      "128": "icon/icon128.png",
+      "256": "icon/icon256.png"
+    },
+    "default_popup": "popup/popup.html",
+    "default_title": "FluentTyper"
   }
 }
