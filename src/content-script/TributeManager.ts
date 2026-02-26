@@ -6,9 +6,11 @@ import {
 import { isInDocument } from "../shared/utils";
 import {
   PredictResponseContext,
+  ContentScriptUsageEventMessage,
   ForceReplaceType,
 } from "../shared/messageTypes";
 import { SPACING_RULES, Spacing } from "../background/SpacingRulesHandler";
+import { CMD_CONTENT_SCRIPT_USAGE_EVENT } from "../shared/constants";
 
 interface TributeItem {
   original: { value: string };
@@ -29,6 +31,15 @@ interface TributeEntry {
   elementKeyDownHandlerRef?: EventListenerOrEventListenerObject;
   missingTrailingSpace?: boolean;
   expectedCursorPos?: number;
+}
+
+interface TributeReplaceEventContext {
+  mentionText?: string;
+}
+
+interface TributeReplaceEventDetail {
+  text?: string;
+  context?: TributeReplaceEventContext;
 }
 
 export class TributeManager {
@@ -311,6 +322,13 @@ export class TributeManager {
         },
       );
       tributeEntry.done(keyValPairs, context.forceReplace, header);
+      if (context.predictions.length > 0) {
+        this.emitUsageEvent({
+          eventType: "suggestion_shown",
+          suggestionCount: context.predictions.length,
+          language: context.lang,
+        });
+      }
     } else {
       console.warn(
         "[%s:%s:%s] fulfillPrediction: No matching tributeEntry or requestId mismatch",
@@ -488,8 +506,61 @@ export class TributeManager {
     }
   }
 
-  tributeReplacedEventHandler(helperArrId: number) {
+  private emitUsageEvent(
+    context: ContentScriptUsageEventMessage["context"],
+  ): void {
+    const message: ContentScriptUsageEventMessage = {
+      command: CMD_CONTENT_SCRIPT_USAGE_EVENT,
+      context,
+    };
+    chrome.runtime.sendMessage(message, () => {
+      void chrome.runtime.lastError;
+    });
+  }
+
+  private emitSuggestionAcceptedUsageEvents(detail: TributeReplaceEventDetail) {
+    const triggerText =
+      typeof detail.context?.mentionText === "string"
+        ? detail.context.mentionText
+        : "";
+    const insertedText =
+      typeof detail.text === "string" ? detail.text : triggerText;
+    const typedTextLength = triggerText.length;
+    const insertedTextLength = insertedText.length;
+    this.emitUsageEvent({
+      eventType: "suggestion_accepted",
+      triggerText,
+      typedTextLength,
+      insertedTextLength,
+      language: this.lang,
+    });
+    this.emitUsageEvent({
+      eventType: "snippet_expanded",
+      triggerText,
+      typedTextLength,
+      insertedTextLength,
+      language: this.lang,
+    });
+    this.emitUsageEvent({
+      eventType: "chars_inserted_from_snippet",
+      amount: insertedTextLength,
+      triggerText,
+      language: this.lang,
+    });
+    this.emitUsageEvent({
+      eventType: "chars_typed_for_trigger",
+      amount: typedTextLength,
+      triggerText,
+      language: this.lang,
+    });
+  }
+
+  tributeReplacedEventHandler(helperArrId: number, event?: Event) {
     this.activeHelperArrId = helperArrId;
+    const customEvent = event as CustomEvent<TributeReplaceEventDetail>;
+    if (customEvent && customEvent.detail) {
+      this.emitSuggestionAcceptedUsageEvents(customEvent.detail);
+    }
 
     // We check if the inserted text ends with a space. If not, the user might need one.
     // However, we only know if they need one AFTER they start typing.

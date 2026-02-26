@@ -9,6 +9,11 @@ import {
   CMD_CONTENT_SCRIPT_PREDICT_REQ,
   CMD_OPTIONS_PAGE_CONFIG_CHANGE,
   CMD_CONTENT_SCRIPT_GET_CONFIG,
+  CMD_CONTENT_SCRIPT_USAGE_EVENT,
+  CMD_POPUP_GET_PRODUCTIVITY_STATS,
+  CMD_POPUP_ACK_WEEKLY_RECAP,
+  CMD_POPUP_ACK_DONATION_MILESTONE,
+  CMD_OPTIONS_RESET_PRODUCTIVITY_STATS,
   KEY_DISPLAY_LANG_HEADER,
   KEY_INLINE_SUGGESTION,
   KEY_REVERT_ON_BACKSPACE,
@@ -46,6 +51,7 @@ import { PresageConfig } from "./PresageHandler";
 import { PredictionManager } from "./PredictionManager";
 import { TabMessenger } from "./TabMessenger";
 import { migrateToLocalStore } from "./Migration";
+import { ProductivityStatsManager } from "./ProductivityStatsManager";
 import {
   Message,
   PredictRequestMessage,
@@ -57,6 +63,11 @@ import {
   ContentScriptPredictRequestMessage,
   OptionsPageConfigChangeMessage,
   ContentScriptGetConfigMessage,
+  ContentScriptUsageEventMessage,
+  PopupGetProductivityStatsMessage,
+  PopupAckWeeklyRecapMessage,
+  PopupAckDonationMilestoneMessage,
+  OptionsResetProductivityStatsMessage,
 } from "../shared/messageTypes";
 
 interface DomainRuntimeSettings {
@@ -138,6 +149,7 @@ export class BackgroundServiceWorker {
   languageDetector!: LanguageDetector;
   predictionManager!: PredictionManager;
   tabMessenger!: TabMessenger;
+  productivityStatsManager!: ProductivityStatsManager;
   language!: string;
 
   constructor() {
@@ -148,6 +160,9 @@ export class BackgroundServiceWorker {
     this.languageDetector = new LanguageDetector(this.settingsManager);
     this.predictionManager = new PredictionManager();
     this.tabMessenger = new TabMessenger();
+    this.productivityStatsManager = new ProductivityStatsManager(
+      this.settingsManager,
+    );
     this.language = "auto_detect";
     BackgroundServiceWorker.instance = this;
   }
@@ -346,6 +361,9 @@ export class BackgroundServiceWorker {
       userDictionaryList: userDictionaryList as string[],
     };
     this.predictionManager.setConfig(config);
+    this.productivityStatsManager.setSnippetShortcuts(
+      textExpansions as Array<[string, object]>,
+    );
     this.tabMessenger.sendToAllTabs(
       await this.getBackgroundPageSetConfigMsg(),
       this.settingsManager,
@@ -586,6 +604,90 @@ async function handleContentScriptGetConfig(
   return true;
 }
 
+async function handleContentScriptUsageEvent(
+  request: ContentScriptUsageEventMessage,
+  sender: chrome.runtime.MessageSender,
+  sendResponse: (response?: unknown) => void,
+  backgroundServiceWorker: BackgroundServiceWorker,
+) {
+  try {
+    await backgroundServiceWorker.productivityStatsManager.recordUsageEvent(
+      request.context,
+    );
+    sendResponse({ ok: true });
+  } catch (error) {
+    logError("handleContentScriptUsageEvent", error);
+    sendResponse({ ok: false });
+  }
+}
+
+async function handlePopupGetProductivityStats(
+  request: PopupGetProductivityStatsMessage,
+  sender: chrome.runtime.MessageSender,
+  sendResponse: (response?: unknown) => void,
+  backgroundServiceWorker: BackgroundServiceWorker,
+) {
+  try {
+    const stats =
+      await backgroundServiceWorker.productivityStatsManager.getDashboardStats();
+    sendResponse(stats);
+  } catch (error) {
+    logError("handlePopupGetProductivityStats", error);
+    sendResponse({ ok: false });
+  }
+}
+
+async function handlePopupAckWeeklyRecap(
+  request: PopupAckWeeklyRecapMessage,
+  sender: chrome.runtime.MessageSender,
+  sendResponse: (response?: unknown) => void,
+  backgroundServiceWorker: BackgroundServiceWorker,
+) {
+  try {
+    await backgroundServiceWorker.productivityStatsManager.acknowledgeWeeklyRecap(
+      request.context.weekKey,
+    );
+    sendResponse({ ok: true });
+  } catch (error) {
+    logError("handlePopupAckWeeklyRecap", error);
+    sendResponse({ ok: false });
+  }
+}
+
+async function handlePopupAckDonationMilestone(
+  request: PopupAckDonationMilestoneMessage,
+  sender: chrome.runtime.MessageSender,
+  sendResponse: (response?: unknown) => void,
+  backgroundServiceWorker: BackgroundServiceWorker,
+) {
+  try {
+    await backgroundServiceWorker.productivityStatsManager.handleDonationPromptAction(
+      request.context.promptId,
+      request.context.action,
+      request.context.milestoneHours,
+    );
+    sendResponse({ ok: true });
+  } catch (error) {
+    logError("handlePopupAckDonationMilestone", error);
+    sendResponse({ ok: false });
+  }
+}
+
+async function handleOptionsResetProductivityStats(
+  request: OptionsResetProductivityStatsMessage,
+  sender: chrome.runtime.MessageSender,
+  sendResponse: (response?: unknown) => void,
+  backgroundServiceWorker: BackgroundServiceWorker,
+) {
+  try {
+    await backgroundServiceWorker.productivityStatsManager.resetStats();
+    sendResponse({ ok: true });
+  } catch (error) {
+    logError("handleOptionsResetProductivityStats", error);
+    sendResponse({ ok: false });
+  }
+}
+
 function onMessage(
   request: Message,
   sender: chrome.runtime.MessageSender,
@@ -615,6 +717,51 @@ function onMessage(
     }
     case CMD_CONTENT_SCRIPT_GET_CONFIG: {
       handleContentScriptGetConfig(
+        request,
+        sender,
+        sendResponse,
+        backgroundServiceWorker,
+      );
+      return true;
+    }
+    case CMD_CONTENT_SCRIPT_USAGE_EVENT: {
+      handleContentScriptUsageEvent(
+        request,
+        sender,
+        sendResponse,
+        backgroundServiceWorker,
+      );
+      return true;
+    }
+    case CMD_POPUP_GET_PRODUCTIVITY_STATS: {
+      handlePopupGetProductivityStats(
+        request,
+        sender,
+        sendResponse,
+        backgroundServiceWorker,
+      );
+      return true;
+    }
+    case CMD_POPUP_ACK_WEEKLY_RECAP: {
+      handlePopupAckWeeklyRecap(
+        request,
+        sender,
+        sendResponse,
+        backgroundServiceWorker,
+      );
+      return true;
+    }
+    case CMD_POPUP_ACK_DONATION_MILESTONE: {
+      handlePopupAckDonationMilestone(
+        request,
+        sender,
+        sendResponse,
+        backgroundServiceWorker,
+      );
+      return true;
+    }
+    case CMD_OPTIONS_RESET_PRODUCTIVITY_STATS: {
+      handleOptionsResetProductivityStats(
         request,
         sender,
         sendResponse,

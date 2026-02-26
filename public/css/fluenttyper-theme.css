@@ -117,19 +117,27 @@ body.fluenttyper-popup {
 .control-panel {
   display: flex;
   flex-direction: column;
-  padding: 0.75rem;
+  padding: 0.55rem;
 }
 
-/* Header Area */
-.panel-header {
-  margin-bottom: 0.5rem;
-}
-
-.header-content {
+.global-enable-meta {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 0.02rem;
+  min-width: 0;
+}
+
+.global-enable-hint {
+  font-size: 0.64rem;
+  color: var(--text-color-light);
+  line-height: 1.1;
+}
+
+.global-toggle-control {
+  display: flex;
   align-items: center;
-  padding: 0.25rem 0.5rem;
+  gap: 0.2rem;
+  flex-shrink: 0;
 }
 
 /* Cards */
@@ -145,8 +153,8 @@ body.fluenttyper-popup {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.5rem 0.75rem;
-  min-height: 40px;
+  padding: 0.38rem 0.65rem;
+  min-height: 34px;
 }
 
 .card-row.border-bottom {
@@ -176,8 +184,8 @@ body.fluenttyper-popup {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.4rem 0.75rem;
-  min-height: 38px;
+  padding: 0.32rem 0.65rem;
+  min-height: 32px;
   border-bottom: 1px solid var(--divider-color);
 }
 
@@ -212,12 +220,183 @@ body.fluenttyper-popup {
   box-shadow: none;
 }
 
+.dashboard-card {
+  padding-bottom: 0.45rem;
+}
+
+.dashboard-header-row {
+  align-items: center;
+}
+
+.mini-btn {
+  border: 1px solid var(--input-border-color);
+  background-color: transparent;
+  color: var(--text-color);
+  font-size: 0.72rem;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 0.16rem 0.55rem;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.mini-btn:hover {
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+}
+
+.dashboard-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.4rem;
+  padding: 0.42rem 0.65rem 0;
+}
+
+.metric-box {
+  background-color: var(--input-bg-color);
+  border: 1px solid var(--divider-color);
+  border-radius: 0.45rem;
+  padding: 0.35rem 0.25rem;
+  text-align: center;
+}
+
+.metric-value {
+  display: block;
+  font-weight: 700;
+  font-size: 0.9rem;
+  line-height: 1.2;
+  color: var(--text-color);
+}
+
+.metric-label {
+  display: block;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-color-light);
+}
+
+.dashboard-summary,
+.dashboard-language-summary {
+  margin: 0;
+  padding: 0.38rem 0.65rem 0;
+  font-size: 0.72rem;
+  color: var(--text-color-light);
+}
+
+.dashboard-language-summary {
+  padding-top: 0.25rem;
+}
+
+.dashboard-progress {
+  padding: 0.35rem 0.65rem 0;
+}
+
+.dashboard-progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.67rem;
+  color: var(--text-color-light);
+}
+
+.dashboard-progress-header span:last-child {
+  color: var(--text-color);
+  font-weight: 700;
+}
+
+.dashboard-progress-track {
+  margin-top: 0.23rem;
+  width: 100%;
+  height: 0.34rem;
+  background-color: var(--input-bg-color);
+  border: 1px solid var(--divider-color);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.dashboard-progress-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #22c55e, #16a34a);
+  transition: width 0.25s ease;
+}
+
+.dashboard-recap-card {
+  margin: 0.4rem 0.65rem 0;
+  padding: 0.4rem 0.45rem;
+  border-radius: 0.45rem;
+  border: 1px solid rgba(14, 165, 233, 0.35);
+  background-color: rgba(14, 165, 233, 0.08);
+}
+
+.dashboard-recap-title {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-color);
+}
+
+.dashboard-recap-summary,
+.dashboard-recap-snippet {
+  margin: 0.2rem 0 0;
+  font-size: 0.69rem;
+  color: var(--text-color-light);
+}
+
+.dashboard-recap-detail {
+  margin: 0.2rem 0 0;
+  font-size: 0.69rem;
+  color: var(--text-color);
+}
+
+.dashboard-recap-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.32rem;
+}
+
+.dashboard-milestone {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  margin: 0.35rem 0.65rem 0;
+  padding: 0.36rem 0.46rem;
+  border-radius: 0.45rem;
+  background-color: rgba(250, 204, 21, 0.16);
+  border: 1px solid rgba(250, 204, 21, 0.36);
+}
+
+.dashboard-milestone span {
+  font-size: 0.72rem;
+  color: var(--text-color);
+  line-height: 1.35;
+}
+
+.dashboard-milestone-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.dashboard-milestone .donate-mini-btn {
+  background-color: rgba(250, 204, 21, 0.24);
+  border-color: rgba(250, 204, 21, 0.56);
+  color: #7c2d12;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
 /* Toolbar (Bottom Bar) */
 .toolbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.5rem 0.75rem;
+  padding: 0.42rem 0.65rem;
   background-color: var(--box-background-color);
   border-top: 1px solid var(--divider-color);
 }
@@ -437,6 +616,222 @@ body.fluenttyper-options {
   margin-left: 0.45rem;
 }
 
+.fluenttyper-options .productivity-insights {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.fluenttyper-options .productivity-insights-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+
+.fluenttyper-options .productivity-insights-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.fluenttyper-options .productivity-insights-header p {
+  margin: 0.2rem 0 0;
+  color: var(--text-color-light);
+  font-size: 0.82rem;
+}
+
+.fluenttyper-options .productivity-insights-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.fluenttyper-options .productivity-insights-metric {
+  border: 1px solid var(--divider-color);
+  border-radius: 10px;
+  padding: 0.6rem 0.65rem;
+  background-color: color-mix(
+    in srgb,
+    var(--box-background-color) 92%,
+    var(--divider-color)
+  );
+}
+
+.fluenttyper-options .productivity-insights-metric h4 {
+  margin: 0;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-color-light);
+}
+
+.fluenttyper-options .productivity-insights-metric .metric-main {
+  margin: 0.35rem 0 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.fluenttyper-options .productivity-insights-metric .metric-meta {
+  margin: 0.15rem 0 0;
+  font-size: 0.75rem;
+  color: var(--text-color-light);
+}
+
+.fluenttyper-options .productivity-insights-columns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.fluenttyper-options .productivity-insights-section {
+  border: 1px solid var(--divider-color);
+  border-radius: 10px;
+  padding: 0.6rem 0.65rem;
+  background-color: color-mix(
+    in srgb,
+    var(--box-background-color) 95%,
+    var(--divider-color)
+  );
+}
+
+.fluenttyper-options .productivity-insights-section h4 {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.fluenttyper-options .productivity-insights-section .trend-value {
+  margin: 0.4rem 0 0;
+  font-size: 0.82rem;
+  color: var(--text-color-light);
+}
+
+.fluenttyper-options .productivity-trend-chart {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.35rem;
+  margin-top: 0.55rem;
+  height: 88px;
+}
+
+.fluenttyper-options .productivity-trend-chart .trend-bar-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.22rem;
+}
+
+.fluenttyper-options .productivity-trend-chart .trend-bar-track {
+  display: flex;
+  align-items: flex-end;
+  width: 100%;
+  height: 72px;
+  border-radius: 0.5rem;
+  padding: 0.2rem;
+  border: 1px solid var(--divider-color);
+  background-color: var(--input-bg-color);
+}
+
+.fluenttyper-options .productivity-trend-chart .trend-bar-fill {
+  width: 100%;
+  min-height: 5%;
+  border-radius: 0.38rem;
+  background: linear-gradient(180deg, #38bdf8, #0ea5e9);
+}
+
+.fluenttyper-options .productivity-trend-chart .trend-bar-label {
+  font-size: 0.66rem;
+  color: var(--text-color-light);
+}
+
+.fluenttyper-options .productivity-progress-track {
+  width: 100%;
+  height: 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--divider-color);
+  background-color: var(--input-bg-color);
+  overflow: hidden;
+  margin-top: 0.42rem;
+}
+
+.fluenttyper-options .productivity-progress-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #22c55e, #16a34a);
+}
+
+.fluenttyper-options .productivity-insights-list {
+  margin: 0.55rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.32rem;
+}
+
+.fluenttyper-options .productivity-insights-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.76rem;
+  color: var(--text-color-light);
+}
+
+.fluenttyper-options .productivity-insights-list li strong {
+  color: var(--text-color);
+  font-size: 0.75rem;
+}
+
+.fluenttyper-options .productivity-insights .recap-section p {
+  margin: 0.4rem 0 0;
+  font-size: 0.8rem;
+  color: var(--text-color-light);
+}
+
+.fluenttyper-options .productivity-insights .recap-section .recap-top-snippet {
+  margin-top: 0.25rem;
+}
+
+.fluenttyper-options .productivity-insights .recap-section .recap-action {
+  margin-top: 0.45rem;
+}
+
+.fluenttyper-options .productivity-insights-donation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  border: 1px solid rgba(250, 204, 21, 0.4);
+  background-color: rgba(250, 204, 21, 0.14);
+  border-radius: 10px;
+  padding: 0.55rem 0.65rem;
+  font-size: 0.78rem;
+}
+
+.fluenttyper-options .productivity-insights-donation-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.fluenttyper-options .productivity-insights-donation a {
+  color: #92400e;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  white-space: nowrap;
+}
+
+.fluenttyper-options .productivity-insights-status {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.82rem;
+  color: var(--text-color-light);
+}
+
 .fluenttyper-options .about-highlights {
   display: flex;
   flex-wrap: wrap;
@@ -528,5 +923,19 @@ body.fluenttyper-options {
 
   .fluenttyper-options .settings-group {
     padding: 0.7rem 0.75rem 0.45rem;
+  }
+
+  .fluenttyper-options .productivity-insights-grid,
+  .fluenttyper-options .productivity-insights-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .fluenttyper-options .productivity-insights-header {
+    flex-direction: column;
+  }
+
+  .fluenttyper-options .productivity-insights-donation {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }

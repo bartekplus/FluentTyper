@@ -538,6 +538,21 @@ const manifest = {
     // =========================================================================
     {
       tab: i18n.get("advanced_tab"),
+      group: i18n.get("productivity_dashboard_group"),
+      name: "productivityStatsPanel",
+      type: "description",
+      text: `<div id='productivityStatsRoot'>${i18n.get("productivity_insights_loading")}</div>`,
+    },
+    {
+      tab: i18n.get("advanced_tab"),
+      group: i18n.get("productivity_dashboard_group"),
+      name: "resetProductivityStatsButton",
+      type: "button",
+      text: i18n.get("reset_productivity_stats_btn"),
+      label: i18n.get("reset_productivity_stats_desc"),
+    },
+    {
+      tab: i18n.get("advanced_tab"),
       group: i18n.get("config_data"),
       name: "importSettingButton",
       type: "button",
