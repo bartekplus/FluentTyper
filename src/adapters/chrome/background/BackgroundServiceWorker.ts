@@ -1,41 +1,13 @@
 import {
   CMD_BACKGROUND_PAGE_PREDICT_RESP,
-  CMD_BACKGROUND_PAGE_SET_CONFIG,
-  DEFAULT_AI_MODEL_ID,
-  DEFAULT_AI_PREDICTOR_ENABLED,
-  DEFAULT_DEBUG_AI_PREDICTOR_ENABLED,
-  DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED,
-  KEY_AI_MODEL_ID,
-  KEY_AI_PREDICTION_TIMEOUT_MS,
-  KEY_AI_PREDICTOR_ENABLED,
-  KEY_APPLY_SPACING_RULES,
-  KEY_AUTO_CAPITALIZE,
-  KEY_AUTOCOMPLETE,
-  KEY_AUTOCOMPLETE_ON_ENTER,
-  KEY_AUTOCOMPLETE_ON_TAB,
-  KEY_DATE_FORMAT,
-  KEY_DEBUG_AI_PREDICTOR_ENABLED,
-  KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
-  KEY_DISPLAY_LANG_HEADER,
-  KEY_ENABLED,
   KEY_ENABLED_LANGUAGES,
-  KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
-  KEY_MIN_WORD_LENGTH_TO_PREDICT,
-  KEY_NUM_SUGGESTIONS,
-  KEY_REVERT_ON_BACKSPACE,
-  KEY_SELECT_BY_DIGIT,
-  KEY_TEXT_EXPANSIONS,
-  KEY_TIME_FORMAT,
-  KEY_USER_DICTIONARY_LIST,
-  KEY_VARIABLE_EXPANSION,
-  MAX_NUM_SUGGESTIONS,
 } from "@core/domain/constants";
 import { checkLastError } from "@core/application/utils";
 import { resolveEnabledLanguages } from "@core/domain/lang";
 import { logError } from "@core/domain/error";
 import { SettingsManager } from "@core/application/settingsManager";
 import { LanguageDetector } from "./LanguageDetector";
-import { PredictionManager, type PredictionConfig } from "./PredictionManager";
+import { PredictionManager } from "./PredictionManager";
 import { TabMessenger } from "./TabMessenger";
 import { ProductivityStatsManager } from "./ProductivityStatsManager";
 import { migrateSettingsV3 } from "@core/application/settings/SettingsMigrationV3";
@@ -45,12 +17,8 @@ import type {
   PredictRequestMessage,
   PredictResponseMessage,
 } from "@core/domain/messageTypes";
-import {
-  clampAIPredictionTimeoutMs,
-  resolveActiveLanguage,
-  resolveDomainRuntimeSettings,
-  sanitizeSiteProfilesSetting,
-} from "./config/runtimeSettings";
+import { sanitizeSiteProfilesSetting } from "./config/runtimeSettings";
+import { ConfigAssembler } from "./config/ConfigAssembler";
 
 declare const __FT_DEV_BUILD__: boolean | undefined;
 declare const __FT_E2E_BUILD__: boolean | undefined;
@@ -69,6 +37,7 @@ export class BackgroundServiceWorker {
   predictionManager!: PredictionManager;
   tabMessenger!: TabMessenger;
   productivityStatsManager!: ProductivityStatsManager;
+  configAssembler!: ConfigAssembler;
   language!: string;
 
   constructor() {
@@ -82,6 +51,10 @@ export class BackgroundServiceWorker {
     this.productivityStatsManager = new ProductivityStatsManager(
       this.settingsManager,
     );
+    this.configAssembler = new ConfigAssembler(this.settingsManager, {
+      enableAIPredictor: ENABLE_AI_PREDICTOR,
+      isDevBuild: IS_DEV_BUILD,
+    });
     this.language = "auto_detect";
     BackgroundServiceWorker.instance = this;
   }
@@ -152,181 +125,26 @@ export class BackgroundServiceWorker {
   }
 
   async getBackgroundPageSetConfigMsg(domainURL?: string): Promise<ConfigMessage> {
-    const domainSettings = await resolveDomainRuntimeSettings(
-      this.settingsManager,
-      domainURL,
-    );
-    this.language = domainSettings.language;
-    const [
-      enabled,
-      autocomplete,
-      autocompleteOnEnter,
-      autocompleteOnTab,
-      selectByDigit,
-      minWordLengthToPredict,
-      revertOnBackspace,
-      displayLangHeader,
-    ] = await Promise.all([
-      this.settingsManager.get(KEY_ENABLED),
-      this.settingsManager.get(KEY_AUTOCOMPLETE),
-      this.settingsManager.get(KEY_AUTOCOMPLETE_ON_ENTER),
-      this.settingsManager.get(KEY_AUTOCOMPLETE_ON_TAB),
-      this.settingsManager.get(KEY_SELECT_BY_DIGIT),
-      this.settingsManager.get(KEY_MIN_WORD_LENGTH_TO_PREDICT),
-      this.settingsManager.get(KEY_REVERT_ON_BACKSPACE),
-      this.settingsManager.get(KEY_DISPLAY_LANG_HEADER),
-    ]);
-
-    const [
-      tributeBgLight,
-      tributeTextLight,
-      tributeHighlightBgLight,
-      tributeHighlightTextLight,
-      tributeBorderLight,
-      tributeBgDark,
-      tributeTextDark,
-      tributeHighlightBgDark,
-      tributeHighlightTextDark,
-      tributeBorderDark,
-      tributeFontSize,
-      tributePaddingVertical,
-      tributePaddingHorizontal,
-    ] = await Promise.all([
-      this.settingsManager.get("tributeBgLight"),
-      this.settingsManager.get("tributeTextLight"),
-      this.settingsManager.get("tributeHighlightBgLight"),
-      this.settingsManager.get("tributeHighlightTextLight"),
-      this.settingsManager.get("tributeBorderLight"),
-      this.settingsManager.get("tributeBgDark"),
-      this.settingsManager.get("tributeTextDark"),
-      this.settingsManager.get("tributeHighlightBgDark"),
-      this.settingsManager.get("tributeHighlightTextDark"),
-      this.settingsManager.get("tributeBorderDark"),
-      this.settingsManager.get("tributeFontSize"),
-      this.settingsManager.get("tributePaddingVertical"),
-      this.settingsManager.get("tributePaddingHorizontal"),
-    ]);
-
-    return {
-      command: CMD_BACKGROUND_PAGE_SET_CONFIG,
-      context: {
-        enabled: enabled as boolean,
-        autocomplete: autocomplete as boolean,
-        autocompleteOnEnter: autocompleteOnEnter as boolean,
-        autocompleteOnTab: autocompleteOnTab as boolean,
-        selectByDigit: selectByDigit as boolean,
-        lang: this.language,
-        minWordLengthToPredict: minWordLengthToPredict as number,
-        revertOnBackspace: revertOnBackspace as boolean,
-        displayLangHeader: displayLangHeader as boolean,
-        inline_suggestion: domainSettings.inlineSuggestion,
-        themeConfig: {
-          tributeBgLight: tributeBgLight as string,
-          tributeTextLight: tributeTextLight as string,
-          tributeHighlightBgLight: tributeHighlightBgLight as string,
-          tributeHighlightTextLight: tributeHighlightTextLight as string,
-          tributeBorderLight: tributeBorderLight as string,
-          tributeBgDark: tributeBgDark as string,
-          tributeTextDark: tributeTextDark as string,
-          tributeHighlightBgDark: tributeHighlightBgDark as string,
-          tributeHighlightTextDark: tributeHighlightTextDark as string,
-          tributeBorderDark: tributeBorderDark as string,
-          tributeFontSize: tributeFontSize as string,
-          tributePaddingVertical: tributePaddingVertical as string,
-          tributePaddingHorizontal: tributePaddingHorizontal as string,
-        },
-      },
-    };
+    const message =
+      await this.configAssembler.assembleBackgroundPageSetConfig(domainURL);
+    this.language = message.context.lang;
+    return message;
   }
 
   async updatePresageConfig(): Promise<void> {
     await sanitizeSiteProfilesSetting(this.settingsManager);
     await this.predictionManager.initialize();
-    this.language = await resolveActiveLanguage(this.settingsManager);
-    const [
-      numSuggestions,
-      minWordLengthToPredict,
-      insertSpaceAfterAutocomplete,
-      autoCapitalize,
-      applySpacingRules,
-      textExpansions,
-      variableExpansion,
-      timeFormat,
-      dateFormat,
-      userDictionaryList,
-      aiPredictorEnabled,
-      aiModelId,
-      aiPredictionTimeoutMs,
-      debugPresagePredictorEnabled,
-      debugAIPredictorEnabled,
-    ] = await Promise.all([
-      this.settingsManager.get(KEY_NUM_SUGGESTIONS),
-      this.settingsManager.get(KEY_MIN_WORD_LENGTH_TO_PREDICT),
-      this.settingsManager.get(KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE),
-      this.settingsManager.get(KEY_AUTO_CAPITALIZE),
-      this.settingsManager.get(KEY_APPLY_SPACING_RULES),
-      this.settingsManager.get(KEY_TEXT_EXPANSIONS),
-      this.settingsManager.get(KEY_VARIABLE_EXPANSION),
-      this.settingsManager.get(KEY_TIME_FORMAT),
-      this.settingsManager.get(KEY_DATE_FORMAT),
-      this.settingsManager.get(KEY_USER_DICTIONARY_LIST),
-      this.settingsManager.get(KEY_AI_PREDICTOR_ENABLED),
-      this.settingsManager.get(KEY_AI_MODEL_ID),
-      this.settingsManager.get(KEY_AI_PREDICTION_TIMEOUT_MS),
-      this.settingsManager.get(KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED),
-      this.settingsManager.get(KEY_DEBUG_AI_PREDICTOR_ENABLED),
-    ]);
-
-    const config: PredictionConfig = {
-      numSuggestions: numSuggestions as number,
-      engineNumSuggestions: MAX_NUM_SUGGESTIONS,
-      minWordLengthToPredict: minWordLengthToPredict as number,
-      insertSpaceAfterAutocomplete: insertSpaceAfterAutocomplete as boolean,
-      autoCapitalize: autoCapitalize as boolean,
-      applySpacingRules: applySpacingRules as boolean,
-      textExpansions: textExpansions as Array<[string, object]>,
-      variableExpansion: variableExpansion as boolean,
-      timeFormat: timeFormat as string,
-      dateFormat: dateFormat as string,
-      userDictionaryList: userDictionaryList as string[],
-      aiPredictorEnabled: ENABLE_AI_PREDICTOR
-        ? typeof aiPredictorEnabled === "boolean"
-          ? aiPredictorEnabled
-          : DEFAULT_AI_PREDICTOR_ENABLED
-        : false,
-      aiModelId:
-        typeof aiModelId === "string" && aiModelId.trim().length > 0
-          ? aiModelId
-          : DEFAULT_AI_MODEL_ID,
-      aiPredictionTimeoutMs: clampAIPredictionTimeoutMs(aiPredictionTimeoutMs),
-      debugPresagePredictorEnabled: IS_DEV_BUILD
-        ? typeof debugPresagePredictorEnabled === "boolean"
-          ? debugPresagePredictorEnabled
-          : DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED
-        : DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED,
-      debugAIPredictorEnabled: IS_DEV_BUILD
-        ? typeof debugAIPredictorEnabled === "boolean"
-          ? debugAIPredictorEnabled
-          : DEFAULT_DEBUG_AI_PREDICTOR_ENABLED
-        : DEFAULT_DEBUG_AI_PREDICTOR_ENABLED,
-    };
-    this.predictionManager.setConfig(config);
+    const runtimeConfig =
+      await this.configAssembler.assemblePredictionRuntimeConfig();
+    this.language = runtimeConfig.language;
+    this.predictionManager.setConfig(runtimeConfig.predictionConfig);
     this.productivityStatsManager.setSnippetShortcuts(
-      textExpansions as Array<[string, object]>,
+      runtimeConfig.textExpansions,
     );
     this.tabMessenger.sendToAllTabs(
       await this.getBackgroundPageSetConfigMsg(),
       this.settingsManager,
-      async (domain: string) => {
-        const domainSettings = await resolveDomainRuntimeSettings(
-          this.settingsManager,
-          domain,
-        );
-        return {
-          lang: domainSettings.language,
-          inline_suggestion: domainSettings.inlineSuggestion,
-        };
-      },
+      (domain: string) => this.configAssembler.resolveDomainConfigOverrides(domain),
     );
   }
 

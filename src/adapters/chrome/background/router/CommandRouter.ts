@@ -1,74 +1,46 @@
 import {
-  CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
   CMD_TOGGLE_FT_ACTIVE_LANG,
   CMD_TOGGLE_FT_ACTIVE_TAB,
   CMD_TRIGGER_FT_ACTIVE_TAB,
 } from "@core/domain/constants";
 import { logError } from "@core/domain/error";
-import type {
-  ToggleActiveTabMessage,
-  TriggerActiveTabMessage,
-  UpdateLangConfigMessage,
-} from "@core/domain/messageTypes";
-import { rotateLanguageForDomain } from "../config/runtimeSettings";
 import { BackgroundServiceWorker } from "../BackgroundServiceWorker";
+import {
+  RuntimeCommandHandler,
+  ToggleActiveLangCommandHandler,
+  ToggleActiveTabCommandHandler,
+  TriggerActiveTabCommandHandler,
+} from "./commands/RuntimeCommandHandlers";
 
 export class CommandRouter {
   private readonly getWorker: () => BackgroundServiceWorker;
+  private readonly handlers: Partial<Record<string, RuntimeCommandHandler>>;
 
   constructor(getWorker: () => BackgroundServiceWorker) {
     this.getWorker = getWorker;
+    this.handlers = {
+      [CMD_TOGGLE_FT_ACTIVE_TAB]: new ToggleActiveTabCommandHandler(
+        this.getWorker,
+      ),
+      [CMD_TRIGGER_FT_ACTIVE_TAB]: new TriggerActiveTabCommandHandler(
+        this.getWorker,
+      ),
+      [CMD_TOGGLE_FT_ACTIVE_LANG]: new ToggleActiveLangCommandHandler(
+        this.getWorker,
+      ),
+    };
   }
 
   async handle(command: string): Promise<void> {
-    const worker = this.getWorker();
-
-    switch (command) {
-      case CMD_TOGGLE_FT_ACTIVE_TAB: {
-        const message: ToggleActiveTabMessage = {
-          command: CMD_TOGGLE_FT_ACTIVE_TAB,
-        };
-        worker.sendCommandToActiveTabContentScript(message);
-        break;
-      }
-      case CMD_TRIGGER_FT_ACTIVE_TAB: {
-        const message: TriggerActiveTabMessage = {
-          command: CMD_TRIGGER_FT_ACTIVE_TAB,
-        };
-        worker.sendCommandToActiveTabContentScript(message);
-        break;
-      }
-      case CMD_TOGGLE_FT_ACTIVE_LANG: {
-        await this.handleToggleActiveLang(worker);
-        break;
-      }
-      default:
-        logError("onCommand", `Unknown command: ${command}`);
-        break;
+    const handler = this.handlers[command];
+    if (!handler) {
+      logError("onCommand", `Unknown command: ${command}`);
+      return;
     }
-  }
-
-  private async handleToggleActiveLang(
-    worker: BackgroundServiceWorker,
-  ): Promise<void> {
     try {
-      const result = await worker.tabMessenger.getActiveTabHostname();
-      const domainURL = result?.hostname || undefined;
-      const nextLang = await rotateLanguageForDomain(
-        worker.settingsManager,
-        domainURL,
-      );
-      worker.language = nextLang;
-
-      const updateLangConfigMessage: UpdateLangConfigMessage = {
-        command: CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
-        context: {
-          lang: nextLang,
-        },
-      };
-      worker.sendCommandToActiveTabContentScript(updateLangConfigMessage);
+      await handler.handle();
     } catch (error) {
-      logError("CommandRouter.handleToggleActiveLang", error);
+      logError("CommandRouter.handle", error);
     }
   }
 }
