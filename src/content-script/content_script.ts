@@ -1,5 +1,6 @@
 import { TributeManager } from "./TributeManager";
 import { DomObserver } from "./DomObserver";
+import { ThemeApplicator } from "./ThemeApplicator";
 import {
   CMD_BACKGROUND_PAGE_PREDICT_RESP,
   CMD_CONTENT_SCRIPT_GET_CONFIG,
@@ -13,7 +14,7 @@ import {
   CMD_STATUS_COMMAND,
   CMD_GET_HOSTNAME,
 } from "../shared/constants";
-import { LANG_SEPERATOR_CHARS_REGEX } from "../shared/lang";
+import { LANG_SEPARATOR_CHARS_REGEX } from "../shared/lang";
 import { checkLastError, isInDocument } from "../shared/utils";
 import type {
   Message,
@@ -69,6 +70,7 @@ class FluentTyper {
   private pendingMutations: MutationRecord[] = [];
   private rootNodeObserver: MutationObserver | null = null;
   private readonly scheduleWatchDogCheckBound: () => void;
+  private readonly themeApplicator: ThemeApplicator;
 
   constructor() {
     console.info(
@@ -78,6 +80,7 @@ class FluentTyper {
       window.location.hostname,
     );
     this.scheduleWatchDogCheckBound = this.scheduleWatchDogCheck.bind(this);
+    this.themeApplicator = new ThemeApplicator();
     this.domObserver = new DomObserver(
       document.body || document.documentElement,
       this.mutationCallback.bind(this),
@@ -314,7 +317,7 @@ class FluentTyper {
     // Set autocompleteSeparator property after construction
     if (this.tributeManager) {
       this.tributeManager.autocompleteSeparator =
-        LANG_SEPERATOR_CHARS_REGEX[this.config.lang] || /\s+/;
+        LANG_SEPARATOR_CHARS_REGEX[this.config.lang] || /\s+/;
     }
   }
 
@@ -588,44 +591,7 @@ class FluentTyper {
   private applyTheme(
     themeSettings: NonNullable<SetConfigContext["themeConfig"]>,
   ): void {
-    console.log(
-      "FluentTyper: Applying theme settings to content script:",
-      themeSettings,
-    );
-
-    // Remove existing theme style if it exists
-    const existingStyle = document.getElementById(
-      "fluent-typer-theme-overrides",
-    );
-    if (existingStyle) {
-      existingStyle.remove();
-    }
-
-    // Create new style element with theme overrides
-    const styleElement = document.createElement("style");
-    styleElement.id = "fluent-typer-theme-overrides";
-
-    const cssOverrides = `
-      :root {
-        --tribute-bg-light: ${themeSettings.tributeBgLight} !important;
-        --tribute-text-light: ${themeSettings.tributeTextLight} !important;
-        --tribute-highlight-bg-light: ${themeSettings.tributeHighlightBgLight} !important;
-        --tribute-highlight-text-light: ${themeSettings.tributeHighlightTextLight} !important;
-        --tribute-border-color-light: ${themeSettings.tributeBorderLight} !important;
-        --tribute-bg-dark: ${themeSettings.tributeBgDark} !important;
-        --tribute-text-dark: ${themeSettings.tributeTextDark} !important;
-        --tribute-highlight-bg-dark: ${themeSettings.tributeHighlightBgDark} !important;
-        --tribute-highlight-text-dark: ${themeSettings.tributeHighlightTextDark} !important;
-        --tribute-border-color-dark: ${themeSettings.tributeBorderDark} !important;
-        --tribute-font-size: ${themeSettings.tributeFontSize} !important;
-        --tribute-padding-vertical: ${themeSettings.tributePaddingVertical} !important;
-        --tribute-padding-horizontal: ${themeSettings.tributePaddingHorizontal} !important;
-      }
-    `;
-
-    console.log("FluentTyper: Applying CSS overrides:", cssOverrides);
-    styleElement.textContent = cssOverrides;
-    document.head.appendChild(styleElement);
+    this.themeApplicator.apply(themeSettings);
   }
 }
 

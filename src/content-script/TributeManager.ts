@@ -1,6 +1,6 @@
 import Tribute from "../third_party/tribute/tribute.esm.js";
 import {
-  LANG_SEPERATOR_CHARS_REGEX,
+  LANG_SEPARATOR_CHARS_REGEX,
   SUPPORTED_LANGUAGES,
 } from "../shared/lang";
 import { isInDocument } from "../shared/utils";
@@ -9,7 +9,7 @@ import type {
   ContentScriptUsageEventMessage,
   ForceReplaceType,
 } from "../shared/messageTypes";
-import { SPACING_RULES, Spacing } from "../background/SpacingRulesHandler";
+import { SPACING_RULES, Spacing } from "../shared/spacingRules";
 import { CMD_CONTENT_SCRIPT_USAGE_EVENT } from "../shared/constants";
 
 interface TributeItem {
@@ -102,7 +102,7 @@ export class TributeManager {
     this.autocompleteOnEnter = autocompleteOnEnter;
     this.autocompleteOnTab = autocompleteOnTab;
     this.lang = lang;
-    this._autocompleteSeparator = LANG_SEPERATOR_CHARS_REGEX[lang];
+    this._autocompleteSeparator = LANG_SEPARATOR_CHARS_REGEX[lang];
     this.selectByDigit = selectByDigit;
     this.revertOnBackspace = revertOnBackspace;
     this.displayLangHeader = displayLangHeader;
@@ -667,7 +667,7 @@ export class TributeManager {
   }
 
   updateLangConfig(lang: string) {
-    this.autocompleteSeparator = LANG_SEPERATOR_CHARS_REGEX[lang];
+    this.autocompleteSeparator = LANG_SEPARATOR_CHARS_REGEX[lang];
     this.lang = lang;
     this.triggerActiveTribute();
   }

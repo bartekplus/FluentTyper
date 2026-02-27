@@ -3,70 +3,82 @@ import { i18n } from "../third_party/fancier-settings/i18n.js";
 import {
   SUPPORTED_LANGUAGES,
   resolveEnabledLanguages,
-} from "../shared/lang.ts";
+} from "../shared/lang";
 import {
-  DEFAULT_NUM_SUGGESTIONS,
   KEY_ENABLED_LANGUAGES,
   KEY_INLINE_SUGGESTION,
   KEY_NUM_SUGGESTIONS,
   KEY_SITE_PROFILES,
   MAX_NUM_SUGGESTIONS,
-} from "../shared/constants.ts";
+} from "../shared/constants";
+import {
+  parseInlineOverride,
+  parseSuggestionsOverride,
+  resolveGlobalNumSuggestions,
+} from "../shared/siteProfileService";
 import {
   normalizeDomainHost,
   removeSiteProfileForDomain,
   resolveSiteProfiles,
   setSiteProfileForDomain,
-} from "../shared/siteProfiles.ts";
+  type SiteProfile,
+  type SiteProfiles,
+} from "../shared/siteProfiles";
 
-function resolveGlobalNumSuggestions(value) {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return DEFAULT_NUM_SUGGESTIONS;
-  }
-  return Math.min(MAX_NUM_SUGGESTIONS, Math.max(0, Math.round(value)));
+interface FancierBundle {
+  element: HTMLElement;
 }
 
-function parseSuggestionsOverride(value) {
-  if (value === "global") {
-    return undefined;
-  }
-  const parsedValue = Number.parseInt(value, 10);
-  if (Number.isNaN(parsedValue)) {
-    return undefined;
-  }
-  return Math.min(MAX_NUM_SUGGESTIONS, Math.max(0, parsedValue));
+interface FancierSettingsLike {
+  manifest: {
+    siteProfilesEditor: {
+      bundle: FancierBundle;
+    };
+  };
 }
 
-function parseInlineOverride(value) {
-  if (value === "on") {
-    return true;
-  }
-  if (value === "off") {
-    return false;
-  }
-  return undefined;
+interface SiteProfilesElements {
+  domainInput: HTMLInputElement;
+  languageSelect: HTMLSelectElement;
+  numSuggestionsSelect: HTMLSelectElement;
+  inlineSelect: HTMLSelectElement;
+  saveButton: HTMLButtonElement;
+  cancelButton: HTMLButtonElement;
+  status: HTMLElement;
+  tableBody: HTMLElement;
+  emptyState: HTMLElement;
+  tableContainer: HTMLElement;
 }
 
-function getOnOffLabel(value) {
+function getOnOffLabel(value: boolean): string {
   return value ? i18n.get("site_profile_on") : i18n.get("site_profile_off");
 }
 
-function getInheritLabel(globalValueLabel) {
+function getInheritLabel(globalValueLabel: string): string {
   return `${i18n.get("site_profile_inherit_global")} (${globalValueLabel})`;
 }
 
-function getPrimaryLanguage(enabledLanguages) {
+function getPrimaryLanguage(enabledLanguages: string[]): string {
   return enabledLanguages[0] || "en_US";
 }
 
 export class SiteProfilesManager {
-  constructor(settings, onConfigChange) {
+  private readonly settings: FancierSettingsLike;
+  private readonly onConfigChange: (() => Promise<void> | void) | undefined;
+  private readonly store: Store;
+  private editingDomain: string | null = null;
+  private statusText = "";
+  private statusIsError = false;
+  private readonly root: HTMLElement;
+  private elements!: SiteProfilesElements;
+
+  constructor(
+    settings: FancierSettingsLike,
+    onConfigChange?: () => Promise<void> | void,
+  ) {
     this.settings = settings;
     this.onConfigChange = onConfigChange;
     this.store = new Store("settings");
-    this.editingDomain = null;
-    this.statusText = "";
-    this.statusIsError = false;
     this.root =
       this.settings.manifest.siteProfilesEditor.bundle.element.querySelector(
         "#siteProfilesEditorRoot",
@@ -75,52 +87,33 @@ export class SiteProfilesManager {
     this.cacheElements();
     this.bindEvents();
     this.setStatus(i18n.get("site_profiles_form_hint"));
-    this.render();
+    void this.render();
   }
 
-  buildUI() {
+  private buildUI(): void {
     this.root.innerHTML = `
       <p class="help mb-3">${i18n.get("site_profiles_desc")}</p>
       <div class="columns is-multiline">
         <div class="column is-4">
           <label class="label" for="siteProfileDomainInput">${i18n.get("site_profiles_domain_label")}</label>
-          <input
-            id="siteProfileDomainInput"
-            class="input"
-            type="text"
-            placeholder="${i18n.get("site_profiles_domain_placeholder")}"
-          />
+          <input id="siteProfileDomainInput" class="input" type="text" placeholder="${i18n.get("site_profiles_domain_placeholder")}" />
         </div>
         <div class="column is-3">
           <label class="label" for="siteProfileLanguageSelect">${i18n.get("site_profiles_language_label")}</label>
-          <div class="select is-fullwidth">
-            <select id="siteProfileLanguageSelect"></select>
-          </div>
+          <div class="select is-fullwidth"><select id="siteProfileLanguageSelect"></select></div>
         </div>
         <div class="column is-3">
           <label class="label" for="siteProfileNumSuggestionsSelect">${i18n.get("site_profiles_num_suggestions_label")}</label>
-          <div class="select is-fullwidth">
-            <select id="siteProfileNumSuggestionsSelect"></select>
-          </div>
+          <div class="select is-fullwidth"><select id="siteProfileNumSuggestionsSelect"></select></div>
         </div>
         <div class="column is-2">
           <label class="label" for="siteProfileInlineSelect">${i18n.get("site_profiles_inline_mode_label")}</label>
-          <div class="select is-fullwidth">
-            <select id="siteProfileInlineSelect"></select>
-          </div>
+          <div class="select is-fullwidth"><select id="siteProfileInlineSelect"></select></div>
         </div>
       </div>
       <div class="field is-grouped mb-2">
-        <p class="control">
-          <button id="siteProfileSaveButton" class="button is-primary" type="button">
-            ${i18n.get("site_profiles_add_btn")}
-          </button>
-        </p>
-        <p class="control">
-          <button id="siteProfileCancelButton" class="button" type="button">
-            ${i18n.get("site_profiles_cancel_btn")}
-          </button>
-        </p>
+        <p class="control"><button id="siteProfileSaveButton" class="button is-primary" type="button">${i18n.get("site_profiles_add_btn")}</button></p>
+        <p class="control"><button id="siteProfileCancelButton" class="button" type="button">${i18n.get("site_profiles_cancel_btn")}</button></p>
       </div>
       <p id="siteProfilesFormStatus" class="help mb-4"></p>
       <p id="siteProfilesEmptyState" class="help is-hidden">${i18n.get("site_profiles_empty")}</p>
@@ -141,36 +134,32 @@ export class SiteProfilesManager {
     `;
   }
 
-  cacheElements() {
+  private cacheElements(): void {
     this.elements = {
-      domainInput: this.root.querySelector("#siteProfileDomainInput"),
-      languageSelect: this.root.querySelector("#siteProfileLanguageSelect"),
-      numSuggestionsSelect: this.root.querySelector(
-        "#siteProfileNumSuggestionsSelect",
-      ),
-      inlineSelect: this.root.querySelector("#siteProfileInlineSelect"),
-      saveButton: this.root.querySelector("#siteProfileSaveButton"),
-      cancelButton: this.root.querySelector("#siteProfileCancelButton"),
-      status: this.root.querySelector("#siteProfilesFormStatus"),
-      tableBody: this.root.querySelector("#siteProfilesTableBody"),
-      emptyState: this.root.querySelector("#siteProfilesEmptyState"),
-      tableContainer: this.root.querySelector("#siteProfilesTableContainer"),
+      domainInput: this.root.querySelector("#siteProfileDomainInput") as HTMLInputElement,
+      languageSelect: this.root.querySelector("#siteProfileLanguageSelect") as HTMLSelectElement,
+      numSuggestionsSelect: this.root.querySelector("#siteProfileNumSuggestionsSelect") as HTMLSelectElement,
+      inlineSelect: this.root.querySelector("#siteProfileInlineSelect") as HTMLSelectElement,
+      saveButton: this.root.querySelector("#siteProfileSaveButton") as HTMLButtonElement,
+      cancelButton: this.root.querySelector("#siteProfileCancelButton") as HTMLButtonElement,
+      status: this.root.querySelector("#siteProfilesFormStatus") as HTMLElement,
+      tableBody: this.root.querySelector("#siteProfilesTableBody") as HTMLElement,
+      emptyState: this.root.querySelector("#siteProfilesEmptyState") as HTMLElement,
+      tableContainer: this.root.querySelector("#siteProfilesTableContainer") as HTMLElement,
     };
   }
 
-  bindEvents() {
-    this.elements.saveButton.addEventListener(
-      "click",
-      this.saveProfile.bind(this),
-    );
-    this.elements.cancelButton.addEventListener(
-      "click",
-      this.cancelEdit.bind(this),
-    );
+  private bindEvents(): void {
+    this.elements.saveButton.addEventListener("click", () => {
+      void this.saveProfile();
+    });
+    this.elements.cancelButton.addEventListener("click", () => {
+      this.cancelEdit();
+    });
     this.elements.domainInput.addEventListener("keydown", (event) => {
       if (event.key === "Enter") {
         event.preventDefault();
-        this.saveProfile();
+        void this.saveProfile();
       }
     });
     this.elements.tableBody.addEventListener("click", (event) => {
@@ -191,50 +180,45 @@ export class SiteProfilesManager {
         return;
       }
       if (actionButton.dataset.action === "remove") {
-        this.removeProfile(domain);
+        void this.removeProfile(domain);
       }
     });
   }
 
-  setStatus(text, isError = false) {
+  private setStatus(text: string, isError = false): void {
     this.statusText = text;
     this.statusIsError = isError;
     this.elements.status.textContent = text;
     this.elements.status.classList.toggle("has-text-danger", isError);
   }
 
-  getEditorProfile(enabledLanguages) {
+  private getEditorProfile(enabledLanguages: string[]): SiteProfile {
     const primaryLanguage = getPrimaryLanguage(enabledLanguages);
-    const selectedLanguage = enabledLanguages.includes(
-      this.elements.languageSelect.value,
-    )
+    const selectedLanguage = enabledLanguages.includes(this.elements.languageSelect.value)
       ? this.elements.languageSelect.value
       : primaryLanguage;
-    const profile = {
-      language: selectedLanguage,
-    };
-    const numSuggestions = parseSuggestionsOverride(
-      this.elements.numSuggestionsSelect.value,
-    );
+    const profile: SiteProfile = { language: selectedLanguage };
+
+    const numSuggestions = parseSuggestionsOverride(this.elements.numSuggestionsSelect.value);
     if (typeof numSuggestions === "number") {
       profile.numSuggestions = numSuggestions;
     }
-    const inlineSuggestion = parseInlineOverride(
-      this.elements.inlineSelect.value,
-    );
+
+    const inlineSuggestion = parseInlineOverride(this.elements.inlineSelect.value);
     if (typeof inlineSuggestion === "boolean") {
       profile.inline_suggestion = inlineSuggestion;
     }
+
     return profile;
   }
 
-  async notifyConfigChange() {
+  private async notifyConfigChange(): Promise<void> {
     if (typeof this.onConfigChange === "function") {
       await this.onConfigChange();
     }
   }
 
-  populateLanguageOptions(enabledLanguages) {
+  private populateLanguageOptions(enabledLanguages: string[]): void {
     this.elements.languageSelect.innerHTML = "";
     enabledLanguages.forEach((langCode) => {
       const option = document.createElement("option");
@@ -244,7 +228,7 @@ export class SiteProfilesManager {
     });
   }
 
-  populateSuggestionsOptions(globalNumSuggestions) {
+  private populateSuggestionsOptions(globalNumSuggestions: number): void {
     this.elements.numSuggestionsSelect.innerHTML = "";
     const inheritOption = document.createElement("option");
     inheritOption.value = "global";
@@ -258,13 +242,10 @@ export class SiteProfilesManager {
     }
   }
 
-  populateInlineOptions(globalInlineSuggestion) {
+  private populateInlineOptions(globalInlineSuggestion: boolean): void {
     this.elements.inlineSelect.innerHTML = "";
     [
-      {
-        value: "global",
-        label: getInheritLabel(getOnOffLabel(globalInlineSuggestion)),
-      },
+      { value: "global", label: getInheritLabel(getOnOffLabel(globalInlineSuggestion)) },
       { value: "on", label: getOnOffLabel(true) },
       { value: "off", label: getOnOffLabel(false) },
     ].forEach((entry) => {
@@ -275,47 +256,35 @@ export class SiteProfilesManager {
     });
   }
 
-  applyEditorState(enabledLanguages, siteProfiles) {
+  private applyEditorState(enabledLanguages: string[], siteProfiles: SiteProfiles): void {
     const primaryLanguage = getPrimaryLanguage(enabledLanguages);
-    const editingProfile = this.editingDomain
-      ? siteProfiles[this.editingDomain]
-      : undefined;
-    if (this.editingDomain && !editingProfile) {
-      this.editingDomain = null;
-    }
-
-    const profile = this.editingDomain
-      ? siteProfiles[this.editingDomain]
-      : null;
+    const profile = this.editingDomain ? siteProfiles[this.editingDomain] : undefined;
     this.elements.domainInput.value = this.editingDomain || "";
     this.elements.languageSelect.value = profile?.language || primaryLanguage;
     this.elements.numSuggestionsSelect.value =
-      typeof profile?.numSuggestions === "number"
-        ? String(profile.numSuggestions)
-        : "global";
+      typeof profile?.numSuggestions === "number" ? String(profile.numSuggestions) : "global";
     this.elements.inlineSelect.value =
       typeof profile?.inline_suggestion === "boolean"
         ? profile.inline_suggestion
           ? "on"
           : "off"
         : "global";
+
     this.elements.saveButton.textContent = this.editingDomain
       ? i18n.get("site_profiles_update_btn")
       : i18n.get("site_profiles_add_btn");
-    this.elements.cancelButton.classList.toggle(
-      "is-hidden",
-      !this.editingDomain,
-    );
-
-    if (!this.editingDomain && !this.statusText) {
-      this.setStatus(i18n.get("site_profiles_form_hint"));
-    }
+    this.elements.cancelButton.classList.toggle("is-hidden", !this.editingDomain);
   }
 
-  renderTable(siteProfiles, globalNumSuggestions, globalInlineSuggestion) {
+  private renderTable(
+    siteProfiles: SiteProfiles,
+    globalNumSuggestions: number,
+    globalInlineSuggestion: boolean,
+  ): void {
     const profileEntries = Object.entries(siteProfiles).sort(([a], [b]) =>
       a.localeCompare(b),
     );
+
     this.elements.tableBody.innerHTML = "";
     const hasProfiles = profileEntries.length > 0;
     this.elements.emptyState.classList.toggle("is-hidden", hasProfiles);
@@ -334,21 +303,16 @@ export class SiteProfilesManager {
         typeof profile.inline_suggestion === "boolean"
           ? getOnOffLabel(profile.inline_suggestion)
           : getInheritLabel(getOnOffLabel(globalInlineSuggestion));
-      const isSuggestionsInherited = typeof profile.numSuggestions !== "number";
-      const isInlineInherited = typeof profile.inline_suggestion !== "boolean";
+
       row.innerHTML = `
         <td>${domain}</td>
         <td>${SUPPORTED_LANGUAGES[profile.language] || profile.language}</td>
-        <td class="${isSuggestionsInherited ? "has-text-grey" : ""}">${numSuggestionsLabel}</td>
-        <td class="${isInlineInherited ? "has-text-grey" : ""}">${inlineLabel}</td>
+        <td>${numSuggestionsLabel}</td>
+        <td>${inlineLabel}</td>
         <td>
           <div class="buttons are-small">
-            <button class="button is-link is-light" type="button" data-action="edit" data-domain="${domain}">
-              ${i18n.get("site_profiles_edit_btn")}
-            </button>
-            <button class="button is-danger is-light" type="button" data-action="remove" data-domain="${domain}">
-              ${i18n.get("remove")}
-            </button>
+            <button class="button is-link is-light" type="button" data-action="edit" data-domain="${domain}">${i18n.get("site_profiles_edit_btn")}</button>
+            <button class="button is-danger is-light" type="button" data-action="remove" data-domain="${domain}">${i18n.get("remove")}</button>
           </div>
         </td>
       `;
@@ -356,7 +320,7 @@ export class SiteProfilesManager {
     });
   }
 
-  async render() {
+  async render(): Promise<void> {
     const [enabledLanguagesRaw, rawProfiles, rawNumSuggestions, rawInline] =
       await Promise.all([
         this.store.get(KEY_ENABLED_LANGUAGES),
@@ -364,6 +328,7 @@ export class SiteProfilesManager {
         this.store.get(KEY_NUM_SUGGESTIONS),
         this.store.get(KEY_INLINE_SUGGESTION),
       ]);
+
     const enabledLanguages = resolveEnabledLanguages(enabledLanguagesRaw);
     const siteProfiles = resolveSiteProfiles(rawProfiles, enabledLanguages);
     const globalNumSuggestions = resolveGlobalNumSuggestions(rawNumSuggestions);
@@ -373,32 +338,25 @@ export class SiteProfilesManager {
     this.populateSuggestionsOptions(globalNumSuggestions);
     this.populateInlineOptions(globalInlineSuggestion);
     this.applyEditorState(enabledLanguages, siteProfiles);
-    this.renderTable(
-      siteProfiles,
-      globalNumSuggestions,
-      globalInlineSuggestion,
-    );
-    this.setStatus(
-      this.statusText || i18n.get("site_profiles_form_hint"),
-      this.statusIsError,
-    );
+    this.renderTable(siteProfiles, globalNumSuggestions, globalInlineSuggestion);
+    this.setStatus(this.statusText || i18n.get("site_profiles_form_hint"), this.statusIsError);
   }
 
-  startEdit(domain) {
+  startEdit(domain: string): void {
     this.editingDomain = domain;
     this.statusText = `${i18n.get("site_profiles_editing_hint")} ${domain}`;
     this.statusIsError = false;
-    this.render();
+    void this.render();
   }
 
-  cancelEdit() {
+  cancelEdit(): void {
     this.editingDomain = null;
     this.statusText = i18n.get("site_profiles_form_hint");
     this.statusIsError = false;
-    this.render();
+    void this.render();
   }
 
-  async saveProfile() {
+  async saveProfile(): Promise<void> {
     const domainInput = this.elements.domainInput.value.trim();
     const normalizedDomain = normalizeDomainHost(domainInput);
     if (!normalizedDomain) {
@@ -417,6 +375,7 @@ export class SiteProfilesManager {
       profile,
       enabledLanguages,
     );
+
     if (this.editingDomain && this.editingDomain !== normalizedDomain) {
       updatedProfiles = removeSiteProfileForDomain(
         updatedProfiles,
@@ -424,6 +383,7 @@ export class SiteProfilesManager {
         enabledLanguages,
       );
     }
+
     await this.store.set(KEY_SITE_PROFILES, updatedProfiles);
     this.editingDomain = normalizedDomain;
     this.setStatus(i18n.get("site_profiles_saved_status"));
@@ -431,7 +391,7 @@ export class SiteProfilesManager {
     await this.render();
   }
 
-  async removeProfile(domain) {
+  async removeProfile(domain: string): Promise<void> {
     const enabledLanguages = resolveEnabledLanguages(
       await this.store.get(KEY_ENABLED_LANGUAGES),
     );
@@ -441,6 +401,7 @@ export class SiteProfilesManager {
       domain,
       enabledLanguages,
     );
+
     await this.store.set(KEY_SITE_PROFILES, updatedProfiles);
     if (this.editingDomain === domain) {
       this.editingDomain = null;

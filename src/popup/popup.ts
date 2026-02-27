@@ -12,6 +12,11 @@ import {
   setSiteProfileForDomain,
 } from "../shared/siteProfiles";
 import {
+  parseInlineOverride,
+  parseSuggestionsOverride,
+  resolveGlobalNumSuggestions,
+} from "../shared/siteProfileService";
+import {
   CMD_POPUP_PAGE_ENABLE,
   CMD_POPUP_PAGE_DISABLE,
   CMD_OPTIONS_PAGE_CONFIG_CHANGE,
@@ -19,11 +24,11 @@ import {
   CMD_POPUP_ACK_WEEKLY_RECAP,
   CMD_POPUP_ACK_DONATION_MILESTONE,
   KEY_ENABLED_LANGUAGES,
+  KEY_ENABLED,
   KEY_INLINE_SUGGESTION,
   KEY_LANGUAGE,
   KEY_NUM_SUGGESTIONS,
   KEY_SITE_PROFILES,
-  DEFAULT_NUM_SUGGESTIONS,
   MAX_NUM_SUGGESTIONS,
 } from "../shared/constants";
 import type {
@@ -88,40 +93,12 @@ function setSiteProfileInputsDisabled(disabled: boolean): void {
   inline.disabled = disabled;
 }
 
-function parseSuggestionsOverride(value: string): number | undefined {
-  if (value === "global") {
-    return undefined;
-  }
-  const parsed = Number.parseInt(value, 10);
-  if (Number.isNaN(parsed)) {
-    return undefined;
-  }
-  return Math.min(MAX_NUM_SUGGESTIONS, Math.max(0, parsed));
-}
-
-function parseInlineOverride(value: string): boolean | undefined {
-  if (value === "on") {
-    return true;
-  }
-  if (value === "off") {
-    return false;
-  }
-  return undefined;
-}
-
 function getOnOffLabel(value: boolean): string {
   return value ? i18n.get("site_profile_on") : i18n.get("site_profile_off");
 }
 
 function getInheritLabel(globalValueLabel: string): string {
   return `${i18n.get("site_profile_inherit_global")} (${globalValueLabel})`;
-}
-
-function resolveGlobalNumSuggestions(value: unknown): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return DEFAULT_NUM_SUGGESTIONS;
-  }
-  return Math.min(MAX_NUM_SUGGESTIONS, Math.max(0, Math.round(value)));
 }
 
 function getProfileStatusLabel(profileEnabled: boolean): string {
@@ -674,7 +651,7 @@ function init() {
               );
           }
         }
-        checkboxEnableNode.checked = Boolean(await settings.get("enable"));
+        checkboxEnableNode.checked = Boolean(await settings.get(KEY_ENABLED));
       }
       let language = (await settings.get(KEY_LANGUAGE)) as string;
       currentEnabledLanguages = resolveEnabledLanguages(
@@ -773,8 +750,8 @@ async function languageChangeEvent() {
 }
 
 async function toggleOnOff() {
-  const newMode = !(await settings.get("enable"));
-  await settings.set("enable", newMode);
+  const newMode = !(await settings.get(KEY_ENABLED));
+  await settings.set(KEY_ENABLED, newMode);
   chrome.tabs.query({}, function (tabs) {
     for (let i = 0; i < tabs.length; i++) {
       let message: PopupPageEnableMessage | PopupPageDisableMessage;

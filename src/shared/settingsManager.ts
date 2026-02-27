@@ -1,5 +1,9 @@
 // Handles all settings-related logic for FluentTyper
 import { Store } from "../third_party/fancier-settings/lib/store.js";
+import {
+  getAliasesForCanonicalSettingKey,
+  resolveCanonicalSettingKey,
+} from "./contracts/settings";
 
 export type JsonValue =
   | string
@@ -21,11 +25,26 @@ export class SettingsManager {
   }
 
   async get(key: string): Promise<JsonValue> {
-    return this.settings.get(key);
+    const canonicalKey = resolveCanonicalSettingKey(key);
+    const canonicalValue = await this.settings.get(canonicalKey);
+    if (typeof canonicalValue !== "undefined") {
+      return canonicalValue as JsonValue;
+    }
+
+    const aliases = getAliasesForCanonicalSettingKey(canonicalKey);
+    for (const alias of aliases) {
+      const aliasValue = await this.settings.get(alias);
+      if (typeof aliasValue !== "undefined") {
+        return aliasValue as JsonValue;
+      }
+    }
+
+    return canonicalValue as unknown as JsonValue;
   }
 
   async set(key: string, value: JsonValue): Promise<void> {
-    return this.settings.set(key, value);
+    const canonicalKey = resolveCanonicalSettingKey(key);
+    return this.settings.set(canonicalKey, value);
   }
 
   async getAll(keys: string[]): Promise<Record<string, JsonValue>> {

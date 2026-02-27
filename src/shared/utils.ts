@@ -1,6 +1,7 @@
 import { SettingsManager } from "./settingsManager";
 import { getErrorMessage } from "./error";
 import { normalizeDomainHost } from "./siteProfiles";
+import { KEY_DOMAIN_LIST_MODE, KEY_ENABLED } from "./constants";
 export const SETTINGS_DOMAIN_BLACKLIST = "domainBlackList";
 export const DOMAIN_LIST_MODE = {
   blackList: "Blacklist - enabled on all websites, disabled on specific sites",
@@ -67,7 +68,7 @@ export async function addDomainToList(
       throw new Error("The domain list is not an array.");
     }
     domainList.push(normalizedDomain);
-    settings.set(SETTINGS_DOMAIN_BLACKLIST, domainList);
+    await settings.set(SETTINGS_DOMAIN_BLACKLIST, domainList);
   } catch (error: unknown) {
     console.error(`Error adding domain to list: ${getErrorMessage(error)}`);
   }
@@ -93,7 +94,7 @@ export async function removeDomainFromList(
       const listDomain = normalizeDomainHost(String(domainList[i]));
       if (listDomain && normalizedDomain === listDomain) {
         domainList.splice(i, 1);
-        settings.set(SETTINGS_DOMAIN_BLACKLIST, domainList);
+        await settings.set(SETTINGS_DOMAIN_BLACKLIST, domainList);
         break;
       }
     }
@@ -110,8 +111,8 @@ export async function isEnabledForDomain(
   domainURL: string,
 ): Promise<boolean> {
   const [enable, domainListMode, isDomainOnBWList] = await Promise.all([
-    settings.get("enable"),
-    settings.get("domainListMode"),
+    settings.get(KEY_ENABLED),
+    settings.get(KEY_DOMAIN_LIST_MODE),
     isDomainOnList(settings, domainURL),
   ]);
   let enabledForDomain = Boolean(enable);
@@ -146,7 +147,7 @@ export async function blockUnBlockDomain(
   domainURL: string,
   block = false,
 ): Promise<void> {
-  const domainListMode = await settings.get("domainListMode");
+  const domainListMode = await settings.get(KEY_DOMAIN_LIST_MODE);
   if (
     (block && domainListMode === "blackList") ||
     (!block && domainListMode === "whiteList")

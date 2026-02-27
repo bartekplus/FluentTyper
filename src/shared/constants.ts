@@ -61,7 +61,7 @@ export const KEY_DEBUG_AI_PREDICTOR_ENABLED = "debugAiPredictorEnabled";
 export const KEY_DISPLAY_LANG_HEADER = "displayLangHeader";
 export const KEY_INLINE_SUGGESTION = "inline_suggestion";
 export const KEY_EXTENSION_LANGUAGE = "extensionLanguage";
-export const KEY_ENABLED = "enabled";
+export const KEY_ENABLED = "enable";
 export const KEY_SITE_PROFILES = "siteProfiles";
 export const KEY_PRODUCTIVITY_STATS = "productivityStats";
 // Theming Config Keys

@@ -1,5 +1,5 @@
 // Utility for processing prediction input for PresageHandler
-import { LANG_ADDITIONAL_SEPERATOR_REGEX } from "../shared/lang";
+import { LANG_ADDITIONAL_SEPARATOR_REGEX } from "../shared/lang";
 import { checkAutoCapitalize, Capitalization } from "./CapitalizationHelper";
 import { isNumber } from "../shared/utils";
 
@@ -88,7 +88,7 @@ export class PredictionInputProcessor {
       };
     }
     const endsWithSpace = predictionInput !== predictionInput.trimEnd();
-    const additionalSeparatorRegex = LANG_ADDITIONAL_SEPERATOR_REGEX[language];
+    const additionalSeparatorRegex = LANG_ADDITIONAL_SEPARATOR_REGEX[language];
     if (additionalSeparatorRegex) {
       predictionInput = predictionInput.replaceAll(
         RegExp(additionalSeparatorRegex, "g"),

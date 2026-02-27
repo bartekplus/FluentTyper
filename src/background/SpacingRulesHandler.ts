@@ -2,44 +2,14 @@
 // Handles spacing rules logic for FluentTyper
 
 import type { ForceReplaceType } from "../shared/messageTypes";
-export enum Spacing {
-  INSERT_SPACE = "INSERT_SPACE",
-  REMOVE_SPACE = "REMOVE_SPACE",
-  NO_CHANGE = "NO_CHANGE",
-}
+import {
+  SPACING_RULES,
+  SPACE_CHARS,
+  Spacing,
+  type SpacingRule,
+} from "../shared/spacingRules";
 
-export interface SpacingRule {
-  spaceBefore: Spacing;
-  spaceAfter: Spacing;
-}
-
-export const SPACING_RULES: Record<string, SpacingRule> = {
-  ".": { spaceBefore: Spacing.REMOVE_SPACE, spaceAfter: Spacing.INSERT_SPACE },
-  ",": { spaceBefore: Spacing.REMOVE_SPACE, spaceAfter: Spacing.INSERT_SPACE },
-  "]": { spaceBefore: Spacing.REMOVE_SPACE, spaceAfter: Spacing.INSERT_SPACE },
-  ")": { spaceBefore: Spacing.REMOVE_SPACE, spaceAfter: Spacing.INSERT_SPACE },
-  "}": { spaceBefore: Spacing.REMOVE_SPACE, spaceAfter: Spacing.INSERT_SPACE },
-  ">": { spaceBefore: Spacing.REMOVE_SPACE, spaceAfter: Spacing.INSERT_SPACE },
-  "!": { spaceBefore: Spacing.REMOVE_SPACE, spaceAfter: Spacing.INSERT_SPACE },
-  ":": { spaceBefore: Spacing.REMOVE_SPACE, spaceAfter: Spacing.INSERT_SPACE },
-  ";": { spaceBefore: Spacing.REMOVE_SPACE, spaceAfter: Spacing.INSERT_SPACE },
-  "?": { spaceBefore: Spacing.REMOVE_SPACE, spaceAfter: Spacing.INSERT_SPACE },
-  "[": { spaceBefore: Spacing.INSERT_SPACE, spaceAfter: Spacing.REMOVE_SPACE },
-  "(": { spaceBefore: Spacing.INSERT_SPACE, spaceAfter: Spacing.REMOVE_SPACE },
-  "{": { spaceBefore: Spacing.INSERT_SPACE, spaceAfter: Spacing.REMOVE_SPACE },
-  "<": { spaceBefore: Spacing.INSERT_SPACE, spaceAfter: Spacing.REMOVE_SPACE },
-  "/": { spaceBefore: Spacing.INSERT_SPACE, spaceAfter: Spacing.INSERT_SPACE },
-  // TODO: Validate spacing rules for below symbols
-  "—": { spaceBefore: Spacing.NO_CHANGE, spaceAfter: Spacing.NO_CHANGE },
-  "–": { spaceBefore: Spacing.NO_CHANGE, spaceAfter: Spacing.NO_CHANGE },
-  "-": { spaceBefore: Spacing.NO_CHANGE, spaceAfter: Spacing.NO_CHANGE },
-  "’": { spaceBefore: Spacing.NO_CHANGE, spaceAfter: Spacing.NO_CHANGE },
-  "*": { spaceBefore: Spacing.NO_CHANGE, spaceAfter: Spacing.NO_CHANGE },
-  "+": { spaceBefore: Spacing.NO_CHANGE, spaceAfter: Spacing.NO_CHANGE },
-  "=": { spaceBefore: Spacing.NO_CHANGE, spaceAfter: Spacing.NO_CHANGE },
-};
-
-export const SPACE_CHARS: string[] = ["\xA0", " "];
+export { SPACING_RULES, SPACE_CHARS, Spacing, type SpacingRule };
 
 export class SpacingRulesHandler {
   insertSpaceAfterAutocomplete: boolean;

@@ -2,8 +2,8 @@ import { FancierSettingsWithManifest } from "./js/classes/fancier-settings.js";
 import { Store } from "./lib/store.js";
 import { ElementWrapper } from "./js/classes/utils.js";
 import { SUPPORTED_LANGUAGES, resolveEnabledLanguages } from "../../shared/lang.ts";
-import { TextExpander } from "../../options/textExpander.js";
-import { SiteProfilesManager } from "../../options/siteProfiles.js";
+import { TextExpander } from "../../options/textExpander.ts";
+import { SiteProfilesManager } from "../../options/siteProfiles.ts";
 import { resolveSiteProfiles } from "../../shared/siteProfiles.ts";
 import {
   KEY_AUTOCOMPLETE,

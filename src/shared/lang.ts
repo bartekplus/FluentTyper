@@ -53,25 +53,25 @@ export const SUPPORTED_LANGUAGES_SHORT_CODE: Record<string, string> = {
   pt: "pt_BR",
 };
 
-export const DEFAULT_SEPERATOR_CHARS_REGEX: RegExp = RegExp(
+export const DEFAULT_SEPARATOR_CHARS_REGEX: RegExp = RegExp(
   /\s+|!|"|#|\$|%|&|\(|\)|\*|\+|,|-|\.|\/|:|;|<|=|>|\?|@|\[|\\|\]|\^|_|`|{|\||}|~/,
 );
-export const LANG_SEPERATOR_CHARS_REGEX: Record<string, RegExp> = {
-  auto_detect: DEFAULT_SEPERATOR_CHARS_REGEX,
-  en_US: DEFAULT_SEPERATOR_CHARS_REGEX,
+export const LANG_SEPARATOR_CHARS_REGEX: Record<string, RegExp> = {
+  auto_detect: DEFAULT_SEPARATOR_CHARS_REGEX,
+  en_US: DEFAULT_SEPARATOR_CHARS_REGEX,
   fr_FR: RegExp(
     /\s+|!|"|#|\$|%|&|\(|\)|\*|\+|,|-|\.|\/|:|;|<|=|>|\?|@|\[|\\|\]|\^|_|`|{|\||}|~|'/,
   ),
-  hr_HR: DEFAULT_SEPERATOR_CHARS_REGEX,
-  es_ES: DEFAULT_SEPERATOR_CHARS_REGEX,
-  el_GR: DEFAULT_SEPERATOR_CHARS_REGEX,
-  sv_SE: DEFAULT_SEPERATOR_CHARS_REGEX,
-  de_DE: DEFAULT_SEPERATOR_CHARS_REGEX,
-  pl_PL: DEFAULT_SEPERATOR_CHARS_REGEX,
-  pt_BR: DEFAULT_SEPERATOR_CHARS_REGEX,
-  textExpander: DEFAULT_SEPERATOR_CHARS_REGEX,
+  hr_HR: DEFAULT_SEPARATOR_CHARS_REGEX,
+  es_ES: DEFAULT_SEPARATOR_CHARS_REGEX,
+  el_GR: DEFAULT_SEPARATOR_CHARS_REGEX,
+  sv_SE: DEFAULT_SEPARATOR_CHARS_REGEX,
+  de_DE: DEFAULT_SEPARATOR_CHARS_REGEX,
+  pl_PL: DEFAULT_SEPARATOR_CHARS_REGEX,
+  pt_BR: DEFAULT_SEPARATOR_CHARS_REGEX,
+  textExpander: DEFAULT_SEPARATOR_CHARS_REGEX,
 };
-export const LANG_ADDITIONAL_SEPERATOR_REGEX: Record<string, RegExp | null> = {
+export const LANG_ADDITIONAL_SEPARATOR_REGEX: Record<string, RegExp | null> = {
   auto_detect: null,
   en_US: null,
   fr_FR: RegExp(/'/g),
@@ -84,3 +84,9 @@ export const LANG_ADDITIONAL_SEPERATOR_REGEX: Record<string, RegExp | null> = {
   pt_BR: null,
   textExpander: null,
 };
+
+// Backward-compatible aliases (remove after full migration).
+export const DEFAULT_SEPERATOR_CHARS_REGEX = DEFAULT_SEPARATOR_CHARS_REGEX;
+export const LANG_SEPERATOR_CHARS_REGEX = LANG_SEPARATOR_CHARS_REGEX;
+export const LANG_ADDITIONAL_SEPERATOR_REGEX =
+  LANG_ADDITIONAL_SEPARATOR_REGEX;
