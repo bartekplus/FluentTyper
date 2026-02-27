@@ -308,9 +308,9 @@ describe("WebLLMPredictor", () => {
     const chatCreateMock = engine.chat.completions.create as jest.Mock;
     chatCreateMock
       .mockImplementationOnce(() => firstPromise)
-      .mockResolvedValueOnce({
+      .mockImplementationOnce(async () => ({
         choices: [{ message: { content: "newword" } }],
-      });
+      }));
     createMLCEngineMock.mockResolvedValue(engine);
 
     const { WebLLMPredictor } = await import(
