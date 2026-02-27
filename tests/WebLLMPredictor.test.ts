@@ -292,7 +292,7 @@ describe("WebLLMPredictor", () => {
     expect(result).toEqual(["banana", "orange", "kiwi"]);
   });
 
-  test("interrupts stale generation and prioritizes the newest request", async () => {
+  test("cancels stale generation and returns only newest request output", async () => {
     let resolveFirst:
       | ((value: { choices: Array<{ message: { content: string } }> }) => void)
       | undefined;
@@ -336,9 +336,19 @@ describe("WebLLMPredictor", () => {
       firstRequest,
       secondRequest,
     ]);
+    const firstCallArgs = chatCreateMock.mock.calls[0]?.[0] as
+      | { messages?: Array<{ content?: string }> }
+      | undefined;
+    const secondCallArgs = chatCreateMock.mock.calls[1]?.[0] as
+      | { messages?: Array<{ content?: string }> }
+      | undefined;
 
+    expect(chatCreateMock).toHaveBeenCalledTimes(2);
+    expect(firstCallArgs?.messages?.[1]?.content).toContain("Context: abc");
+    expect(secondCallArgs?.messages?.[1]?.content).toContain("Context: abcd");
     expect(engine.interruptGenerate).toHaveBeenCalledTimes(1);
     expect(firstResult).toEqual([]);
     expect(secondResult).toEqual(["newword"]);
+    expect(secondResult).not.toContain("oldword");
   });
 });
