@@ -85,9 +85,13 @@ import {
 } from "../shared/messageTypes";
 
 declare const __FT_DEV_BUILD__: boolean | undefined;
+declare const __FT_E2E_BUILD__: boolean | undefined;
 
 const IS_DEV_BUILD =
   typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
+const IS_E2E_BUILD =
+  typeof __FT_E2E_BUILD__ !== "undefined" && Boolean(__FT_E2E_BUILD__);
+const ENABLE_TEST_RUNTIME_HOOKS = IS_DEV_BUILD || IS_E2E_BUILD;
 
 interface DomainRuntimeSettings {
   language: string;
@@ -947,30 +951,33 @@ function getWebLLMTestPredictionCalls(): WebLLMTestPredictionCall[] {
   }));
 }
 
-if (typeof globalThis !== "undefined") {
-  getWebLLMTestGlobals().triggerCommandForTesting = (command: string) => {
-    onCommand(command);
-  };
-}
-
-const testTriggerCommandAllowList = new Set<string>([
-  CMD_TOGGLE_FT_ACTIVE_TAB,
-  CMD_TRIGGER_FT_ACTIVE_TAB,
-  CMD_TOGGLE_FT_ACTIVE_LANG,
-]);
-
-function isTrustedInternalSender(sender: chrome.runtime.MessageSender): boolean {
-  if (
-    typeof sender.url === "string" &&
-    sender.url.startsWith(chrome.runtime.getURL(""))
-  ) {
-    return true;
+if (ENABLE_TEST_RUNTIME_HOOKS) {
+  if (typeof globalThis !== "undefined") {
+    getWebLLMTestGlobals().triggerCommandForTesting = (command: string) => {
+      onCommand(command);
+    };
   }
-  return sender.id === chrome.runtime.id && typeof sender.tab === "undefined";
-}
 
-// Alternative hook for Firefox BiDi tests.
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  const testTriggerCommandAllowList = new Set<string>([
+    CMD_TOGGLE_FT_ACTIVE_TAB,
+    CMD_TRIGGER_FT_ACTIVE_TAB,
+    CMD_TOGGLE_FT_ACTIVE_LANG,
+  ]);
+
+  const isTrustedInternalSender = (
+    sender: chrome.runtime.MessageSender,
+  ): boolean => {
+    if (
+      typeof sender.url === "string" &&
+      sender.url.startsWith(chrome.runtime.getURL(""))
+    ) {
+      return true;
+    }
+    return sender.id === chrome.runtime.id && typeof sender.tab === "undefined";
+  };
+
+  // Alternative hook for Firefox BiDi tests.
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (typeof message !== "object" || !message) {
       return false;
     }
@@ -1034,6 +1041,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return false;
     }
   });
+}
 
 async function initializeBackgroundServiceWorker(
   lastVersion: string | undefined,

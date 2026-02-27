@@ -14,6 +14,9 @@ const buildDir = path.join(rootDir, "build");
 const platformDir = path.join(rootDir, "platform", platform);
 
 export default (env, argv) => {
+  const isDevBuild = argv.mode === "development";
+  const isE2EBuild =
+    process.env.FT_E2E_BUILD === "1" || process.env.FT_E2E_BUILD === "true";
   const config = {
     entry: {
       "popup/popup": path.join(srcDir, "popup", "popup.ts"),
@@ -57,7 +60,8 @@ export default (env, argv) => {
         ],
       }),
       new webpack.DefinePlugin({
-        __FT_DEV_BUILD__: JSON.stringify(argv.mode === "development"),
+        __FT_DEV_BUILD__: JSON.stringify(isDevBuild),
+        __FT_E2E_BUILD__: JSON.stringify(isE2EBuild),
       }),
       new webpack.ProvidePlugin({
         Buffer: ["buffer", "Buffer"],
@@ -84,7 +88,7 @@ export default (env, argv) => {
     },
   };
 
-  if (argv.mode === "development") {
+  if (isDevBuild) {
     config.devtool = "source-map";
   }
 

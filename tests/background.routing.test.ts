@@ -212,6 +212,7 @@ async function loadBackgroundHarness(
     onInstalled,
     onCommand,
     onMessage,
+    onMessageAddListener,
     startupHandler,
     chromeMock: { tabs: chromeMock.tabs },
   };
@@ -245,6 +246,12 @@ describe("background routing and lifecycle", () => {
       "lastVersion handler",
       expect.any(Error),
     );
+  });
+
+  test("registers no test-only runtime message hook in non-dev builds", async () => {
+    const harness = await loadBackgroundHarness();
+
+    expect(harness.onMessageAddListener).toHaveBeenCalledTimes(1);
   });
 
   test("startup ignores debug predictor routing toggles outside dev builds", async () => {
