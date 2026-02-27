@@ -438,8 +438,12 @@ export class WebLLMPredictor {
         "- single word only",
         "- no punctuation, numbering, or explanations",
         "- do not predict the next word after the current fragment",
+        "- if the fragment has a typo, return corrected words",
         `Context: ${safeText}`,
         `Current fragment: ${modeContext.fragment || "<empty>"}`,
+        "Examples:",
+        '- Context: "This is sup" -> super',
+        '- Context: "This is amazgi" -> amazing',
         "Candidates:",
       ].join("\n");
     }
@@ -450,6 +454,7 @@ export class WebLLMPredictor {
       "- return each candidate on a new line",
       "- do not number items",
       "- no punctuation, no explanations",
+      "- return only the next word (context already ends with a space)",
       `Context: ${safeText}`,
       "Completions:",
     ].join("\n");
@@ -473,6 +478,7 @@ export class WebLLMPredictor {
             "Complete or correct only the current last word fragment.",
             "Return only candidate full words.",
             "No explanations, no numbering, no punctuation.",
+            "If the fragment is misspelled, return corrected words.",
           ].join(" "),
         },
         {
@@ -482,6 +488,8 @@ export class WebLLMPredictor {
             `Current fragment: ${modeContext.fragment || "<empty>"}`,
             `Return ${count} likely completed or corrected full words for this fragment.`,
             "Do not predict the next word.",
+            'Example: "This is sup" -> "super"',
+            'Example: "This is amazgi" -> "amazing"',
             "One candidate per line.",
           ].join("\n"),
         },
@@ -492,8 +500,9 @@ export class WebLLMPredictor {
         role: "system",
         content: [
           `You are a typing autocomplete assistant for language ${languageLabel}.`,
-          "Return only completion candidates.",
+          "Return only next-word candidates.",
           "No explanations, no numbering, no punctuation.",
+          "Context ends with a space, so predict the next word only.",
         ].join(" "),
       },
       {
@@ -521,7 +530,9 @@ export class WebLLMPredictor {
           content: [
             `Text context: "${safeText}"`,
             `Current fragment: "${modeContext.fragment || "<empty>"}"`,
-            `Return ${count} candidate full-word completions/corrections for the current fragment only.`,
+            `Return ${count} full-word completions/corrections for the current fragment only.`,
+            'Example: "This is sup" -> "super"',
+            'Example: "This is amazgi" -> "amazing"',
             "Output only comma-separated single words.",
           ].join("\n"),
         },
@@ -784,10 +795,20 @@ export class WebLLMPredictor {
     modeContext: PredictionModeContext,
     limit: number,
   ): string[] {
-    const normalized = predictions
+    const normalizedRaw = predictions
       .filter((item): item is string => typeof item === "string")
       .map((item) => item.trim())
       .filter((item) => item.length > 0);
+    const normalized: string[] = [];
+    const seen = new Set<string>();
+    for (const token of normalizedRaw) {
+      const normalizedToken = token.toLowerCase();
+      if (seen.has(normalizedToken)) {
+        continue;
+      }
+      seen.add(normalizedToken);
+      normalized.push(token);
+    }
     if (modeContext.mode !== "complete_or_correct" || !modeContext.fragment) {
       return normalized.slice(0, limit);
     }
@@ -811,7 +832,7 @@ export class WebLLMPredictor {
         bestByToken.set(tokenLower, { token, score, index });
       }
     }
-    return Array.from(bestByToken.values())
+    const ranked = Array.from(bestByToken.values())
       .sort((a, b) => {
         if (a.score !== b.score) {
           return a.score - b.score;
@@ -820,6 +841,11 @@ export class WebLLMPredictor {
       })
       .map((entry) => entry.token)
       .slice(0, limit);
+    if (ranked.length > 0) {
+      return ranked;
+    }
+    // Avoid empty output if model returns unusual tokens that fail strict filtering.
+    return normalized.slice(0, limit);
   }
 
   private scoreCompletionCandidate(

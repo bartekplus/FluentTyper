@@ -265,6 +265,33 @@ describe("WebLLMPredictor", () => {
     expect(result).not.toContain("again");
   });
 
+  test("falls back to raw completion candidates when strict completion filter rejects all", async () => {
+    const engine = createMockEngine({
+      chatCompletionImpl: async () => ({
+        choices: [
+          {
+            message: {
+              content: "banana\norange\nkiwi",
+            },
+          },
+        ],
+      }),
+    });
+    createMLCEngineMock.mockResolvedValue(engine);
+    const { WebLLMPredictor } = await import(
+      "../src/background/WebLLMPredictor"
+    );
+    const predictor = new WebLLMPredictor();
+
+    const result = await predictor.predict({
+      lang: "en_US",
+      predictionInput: "this is amazgi",
+      numSuggestions: 3,
+    });
+
+    expect(result).toEqual(["banana", "orange", "kiwi"]);
+  });
+
   test("skips overlapping generation when a newer request arrives", async () => {
     let resolveFirst:
       | ((value: { choices: Array<{ text: string }> }) => void)
