@@ -14,8 +14,14 @@ import {
   CMD_TOGGLE_FT_ACTIVE_LANG,
   CMD_TOGGLE_FT_ACTIVE_TAB,
   CMD_TRIGGER_FT_ACTIVE_TAB,
+  DEFAULT_AI_PREDICTION_TIMEOUT_MS,
+  DEFAULT_AI_MODEL_ID,
+  DEFAULT_DEBUG_AI_PREDICTOR_ENABLED,
+  DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED,
   KEY_LANGUAGE,
   KEY_SITE_PROFILES,
+  KEY_DEBUG_AI_PREDICTOR_ENABLED,
+  KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
 } from "../src/shared/constants";
 
 function flushPromises() {
@@ -206,6 +212,7 @@ async function loadBackgroundHarness(
     onInstalled,
     onCommand,
     onMessage,
+    onMessageAddListener,
     startupHandler,
     chromeMock: { tabs: chromeMock.tabs },
   };
@@ -219,7 +226,13 @@ describe("background routing and lifecycle", () => {
 
     expect(harness.migrateToLocalStore).toHaveBeenCalledWith("2025.12.0");
     expect(harness.predictionInitialize).toHaveBeenCalled();
-    expect(harness.predictionSetConfig).toHaveBeenCalled();
+    expect(harness.predictionSetConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        aiPredictorEnabled: false,
+        aiModelId: DEFAULT_AI_MODEL_ID,
+        aiPredictionTimeoutMs: DEFAULT_AI_PREDICTION_TIMEOUT_MS,
+      }),
+    );
     expect(harness.tabSendToAll).toHaveBeenCalled();
   });
 
@@ -232,6 +245,29 @@ describe("background routing and lifecycle", () => {
     expect(harness.logError).toHaveBeenCalledWith(
       "lastVersion handler",
       expect.any(Error),
+    );
+  });
+
+  test("registers no test-only runtime message hook in non-dev builds", async () => {
+    const harness = await loadBackgroundHarness();
+
+    expect(harness.onMessageAddListener).toHaveBeenCalledTimes(1);
+  });
+
+  test("startup ignores debug predictor routing toggles outside dev builds", async () => {
+    const harness = await loadBackgroundHarness({
+      [KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED]: false,
+      [KEY_DEBUG_AI_PREDICTOR_ENABLED]: false,
+    });
+
+    await harness.startupHandler({ lastVersion: "2025.12.0" });
+
+    expect(harness.predictionSetConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        aiPredictorEnabled: false,
+        debugPresagePredictorEnabled: DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED,
+        debugAIPredictorEnabled: DEFAULT_DEBUG_AI_PREDICTOR_ENABLED,
+      }),
     );
   });
 
@@ -413,6 +449,11 @@ describe("background routing and lifecycle", () => {
 
     expect(harness.predictionRun).toHaveBeenCalledWith("bonjour", "", "fr_FR", {
       numSuggestions: 2,
+    }, {
+      requestId: 5,
+      tabId: 77,
+      frameId: 3,
+      tributeId: 4,
     });
   });
 
@@ -452,6 +493,12 @@ describe("background routing and lifecycle", () => {
       "",
       "en_US",
       undefined,
+      {
+        requestId: 12,
+        tabId: 90,
+        frameId: 1,
+        tributeId: 11,
+      },
     );
   });
 

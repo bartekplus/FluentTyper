@@ -22,6 +22,7 @@ Type less, do more. FluentTyper brings smart autocomplete, spell checking, and t
 FluentTyper helps you write faster and with fewer mistakes:
 
 - Predictive autocomplete while typing
+- Local prediction with libPresage (WebLLM path is currently dev/debug-only)
 - Spelling suggestions
 - Text expansion snippets for repeated phrases
 - Keyboard-first suggestion selection with arrow keys and `Tab`
@@ -73,6 +74,15 @@ FluentTyper works on most websites. Some rich text editors (for example Google D
 
 If you hit an unsupported site, please open a bug report so compatibility can be improved.
 
+## AI Predictor (WebLLM, Dev/Debug Only)
+
+WebLLM is currently available only in development/debug builds.
+
+- Production store builds (Chrome, Firefox, Edge) currently run libPresage-only.
+- The AI predictor toggle is not exposed to end users in production builds.
+- In dev/debug builds, WebLLM can run in parallel with Presage and falls back automatically when unavailable.
+- In dev/debug builds, first AI use downloads model artifacts once; subsequent runs use browser cache.
+
 ## Privacy
 
 FluentTyper is privacy-first:
@@ -80,6 +90,7 @@ FluentTyper is privacy-first:
 - No upload of your typed content
 - Works offline
 - Predictions are generated locally on your computer
+- In dev/debug builds, when AI predictor is enabled, only model artifacts are downloaded; typed content stays local
 
 ## Bug Reporting
 

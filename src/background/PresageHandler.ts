@@ -9,27 +9,23 @@ import { getErrorMessage } from "../shared/error";
 import { Capitalization } from "./CapitalizationHelper";
 import { PredictionInputProcessor } from "./PredictionInputProcessor";
 import { TemplateExpander, TemplateVariables } from "./TemplateExpander";
-import { PresageModule } from "./PresageTypes";
+import type { PresageModule } from "./PresageTypes";
 import { UserDictionaryManager } from "./UserDictionaryManager";
 import { TextExpansionManager } from "./TextExpansionManager";
 import { PresageEngine, PresageEngineConfig } from "./PresageEngine";
-import { ForceReplaceType } from "../shared/messageTypes";
+import type { ForceReplaceType } from "../shared/messageTypes";
 import { MAX_NUM_SUGGESTIONS } from "../shared/constants";
+import type { PredictionResult } from "./PredictionTypes";
 
 const SUGGESTION_COUNT = 5;
 const MIN_WORD_LENGTH_TO_PREDICT = 1;
-
-export interface PredictionResult {
-  predictions: string[];
-  forceReplace: ForceReplaceType | null;
-}
 
 interface LastPrediction {
   pastStream: string;
   predictions: string[];
 }
 
-export type PresageConfig = {
+export interface PresageConfig {
   numSuggestions: number;
   engineNumSuggestions?: number;
   minWordLengthToPredict: number;
@@ -41,7 +37,18 @@ export type PresageConfig = {
   timeFormat?: string;
   dateFormat?: string;
   userDictionaryList?: string[];
-};
+}
+
+export interface PresagePredictionContext {
+  text: string;
+  nextChar: string;
+  lang: string;
+  predictionInput: string;
+  doPrediction: boolean;
+  doCapitalize: Capitalization;
+  forceReplace: ForceReplaceType | null;
+  effectiveNumSuggestions: number;
+}
 
 export class PresageHandler {
   private presageEngines: Record<string, PresageEngine>;
@@ -117,14 +124,14 @@ export class PresageHandler {
       ),
     );
     this.minWordLengthToPredict = Math.max(0, config.minWordLengthToPredict);
-    this.predictNextWordAfterSeparatorChar =
-      this.minWordLengthToPredict === 0 ? true : false;
+    this.predictNextWordAfterSeparatorChar = this.minWordLengthToPredict === 0;
     this.insertSpaceAfterAutocomplete = config.insertSpaceAfterAutocomplete;
     this.autoCapitalize = config.autoCapitalize;
     this.variableExpansion = config.variableExpansion;
     this.timeFormat = config.timeFormat;
     this.dateFormat = config.dateFormat;
     this.userDictionaryList = config.userDictionaryList || [];
+
     this.textExpansionManager.setTextExpansions(config.textExpansions);
     this.userDictionaryManager.setUserDictionaryList(this.userDictionaryList);
     this.spacingHandler = new SpacingRulesHandler(
@@ -140,6 +147,18 @@ export class PresageHandler {
         numSuggestions: this.engineNumSuggestions,
       });
     }
+  }
+
+  getDebugState(): {
+    languageEngineCount: number;
+  } {
+    return {
+      languageEngineCount: Object.keys(this.presageEngines).length,
+    };
+  }
+
+  hasLanguageEngine(lang: string): boolean {
+    return lang in this.presageEngines;
   }
 
   parseStringTemplate(str: string, obj: TemplateVariables): string {
@@ -186,6 +205,9 @@ export class PresageHandler {
   }
 
   doPredictionHandler(predictionInput: string, lang: string): string[] {
+    if (!this.hasLanguageEngine(lang)) {
+      return [];
+    }
     if (predictionInput === this.lastPrediction[lang]?.pastStream) {
       return this.lastPrediction[lang].predictions.slice();
     }
@@ -201,32 +223,90 @@ export class PresageHandler {
     return expandedPredictions;
   }
 
-  runPrediction(
+  preparePredictionContext(
     text: string,
     nextChar: string,
     lang: string,
-    configOverride?: { numSuggestions?: number },
-  ): PredictionResult {
-    const overrideSuggestionCount = configOverride?.numSuggestions;
+    numSuggestionsOverride?: number,
+  ): PresagePredictionContext {
     const effectiveNumSuggestions =
-      typeof overrideSuggestionCount === "number"
+      typeof numSuggestionsOverride === "number"
         ? Math.min(
             MAX_NUM_SUGGESTIONS,
-            Math.max(0, Math.round(overrideSuggestionCount)),
+            Math.max(0, Math.round(numSuggestionsOverride)),
           )
         : this.numSuggestions;
-    let predictions: string[] = [];
     const { predictionInput, doPrediction, doCapitalize } = this.processInput(
       text,
       lang,
       effectiveNumSuggestions,
     );
     const forceReplace = this.spacingHandler.applySpacingRules(text);
-    if (!(lang in this.presageEngines)) {
-      // Do nothing, reply with empty predictions
-    } else if (!forceReplace && doPrediction) {
-      predictions = this.doPredictionHandler(predictionInput, lang);
+
+    return {
+      text,
+      nextChar,
+      lang,
+      predictionInput,
+      doPrediction,
+      doCapitalize,
+      forceReplace,
+      effectiveNumSuggestions,
+    };
+  }
+
+  predictPresage(context: PresagePredictionContext): string[] {
+    if (context.forceReplace || !context.doPrediction) {
+      return [];
     }
+    if (context.effectiveNumSuggestions <= 0) {
+      return [];
+    }
+    if (!this.hasLanguageEngine(context.lang)) {
+      return [];
+    }
+    return this.doPredictionHandler(context.predictionInput, context.lang);
+  }
+
+  finalizePrediction(
+    predictionCandidates: string[],
+    context: PresagePredictionContext,
+  ): PredictionResult {
+    return this.applyPredictionOutputRules(
+      predictionCandidates,
+      context.predictionInput,
+      context.nextChar,
+      context.doCapitalize,
+      context.effectiveNumSuggestions,
+      context.forceReplace,
+    );
+  }
+
+  runPrediction(
+    text: string,
+    nextChar: string,
+    lang: string,
+    configOverride?: { numSuggestions?: number },
+  ): PredictionResult {
+    const context = this.preparePredictionContext(
+      text,
+      nextChar,
+      lang,
+      configOverride?.numSuggestions,
+    );
+    const predictions = this.predictPresage(context);
+    return this.finalizePrediction(predictions, context);
+  }
+
+  private applyPredictionOutputRules(
+    predictionCandidates: string[],
+    predictionInput: string,
+    nextChar: string,
+    doCapitalize: Capitalization,
+    effectiveNumSuggestions: number,
+    forceReplace: ForceReplaceType | null,
+  ): PredictionResult {
+    let predictions = predictionCandidates.slice();
     if (predictions.length > effectiveNumSuggestions) {
       predictions = predictions.slice(0, effectiveNumSuggestions);
     }

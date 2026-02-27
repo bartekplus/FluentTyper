@@ -9,8 +9,8 @@
     "check": "eslint . && prettier '**/*.{html,css}' --check",
     "lint": "eslint --fix . && prettier '**/*.{html,css,js,ts}' --write",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --config=jest.config.ts",
-    "test:e2e": "PLATFORM=chrome $npm_execpath run build && jest --config=jest-e2e.config.ts",
-    "test:e2e:firefox": "PLATFORM=firefox $npm_execpath run build && E2E_BROWSER=firefox jest --config=jest-e2e.config.ts",
+    "test:e2e": "FT_E2E_BUILD=1 PLATFORM=chrome $npm_execpath run build && jest --config=jest-e2e.config.ts",
+    "test:e2e:firefox": "FT_E2E_BUILD=1 PLATFORM=firefox $npm_execpath run build && E2E_BROWSER=firefox jest --config=jest-e2e.config.ts",
     "test:e2e:all": "$npm_execpath run test:e2e && $npm_execpath run test:e2e:firefox",
     "update": "ncu -u && npm update",
     "preversion": "npm test",
@@ -55,6 +55,7 @@
     "webpack-merge": "^6.0.1"
   },
   "dependencies": {
+    "@mlc-ai/web-llm": "^0.2.81",
     "buffer": "^6.0.3",
     "csv-parse": "^6.1.0",
     "csv-stringify": "^6.6.0",

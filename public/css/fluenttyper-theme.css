@@ -832,6 +832,185 @@ body.fluenttyper-options {
   color: var(--text-color-light);
 }
 
+.fluenttyper-options .predictor-debug {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.fluenttyper-options .predictor-debug-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.fluenttyper-options .predictor-debug-header h3 {
+  margin: 0;
+  font-size: 0.96rem;
+  font-weight: 700;
+  color: var(--text-color);
+}
+
+.fluenttyper-options .predictor-debug-header p {
+  margin: 0.16rem 0 0;
+  font-size: 0.75rem;
+  color: var(--text-color-light);
+}
+
+.fluenttyper-options .predictor-debug-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.fluenttyper-options .predictor-debug-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.fluenttyper-options .predictor-debug-info-card {
+  border: 1px solid var(--divider-color);
+  border-radius: 10px;
+  background-color: var(--box-background-color);
+  padding: 0.55rem 0.62rem;
+}
+
+.fluenttyper-options .predictor-debug-info-card h4 {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-color);
+}
+
+.fluenttyper-options .predictor-debug-info-row {
+  margin-top: 0.28rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem;
+  font-size: 0.74rem;
+  color: var(--text-color-light);
+}
+
+.fluenttyper-options .predictor-debug-info-row strong {
+  color: var(--text-color);
+}
+
+.fluenttyper-options .predictor-debug-toggle-row {
+  margin-top: 0.42rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.74rem;
+  color: var(--text-color-light);
+}
+
+.fluenttyper-options .predictor-debug-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.fluenttyper-options .predictor-debug-metric {
+  border: 1px solid var(--divider-color);
+  border-radius: 10px;
+  background-color: var(--box-background-color);
+  padding: 0.52rem 0.58rem;
+}
+
+.fluenttyper-options .predictor-debug-metric h4 {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-color-light);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.fluenttyper-options .predictor-debug-metric-main {
+  margin: 0.2rem 0 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-color);
+}
+
+.fluenttyper-options .predictor-debug-metric-sub {
+  margin: 0.16rem 0 0;
+  font-size: 0.7rem;
+  color: var(--text-color-light);
+}
+
+.fluenttyper-options .predictor-debug-traces h4 {
+  margin: 0 0 0.45rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-color);
+}
+
+.fluenttyper-options .predictor-debug-trace-list {
+  display: grid;
+  gap: 0.4rem;
+  max-height: 22rem;
+  overflow-y: auto;
+  padding-right: 0.2rem;
+}
+
+.fluenttyper-options .predictor-debug-trace {
+  border: 1px solid var(--divider-color);
+  border-radius: 9px;
+  background-color: var(--box-background-color);
+  padding: 0.5rem 0.58rem;
+}
+
+.fluenttyper-options .predictor-debug-trace-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem;
+  font-size: 0.73rem;
+}
+
+.fluenttyper-options .predictor-debug-trace-top strong {
+  color: var(--text-color);
+}
+
+.fluenttyper-options .predictor-debug-trace-top span {
+  color: var(--text-color-light);
+}
+
+.fluenttyper-options .predictor-debug-stage,
+.fluenttyper-options .predictor-debug-input,
+.fluenttyper-options .predictor-debug-output {
+  margin: 0.28rem 0 0;
+  font-size: 0.73rem;
+  line-height: 1.35;
+  color: var(--text-color-light);
+}
+
+.fluenttyper-options .predictor-debug-output {
+  color: var(--text-color);
+}
+
+.fluenttyper-options .predictor-debug-empty {
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--text-color-light);
+}
+
+.fluenttyper-options .predictor-debug-status {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.8rem;
+  color: var(--text-color-light);
+}
+
+.fluenttyper-options .predictor-debug-status.is-error {
+  color: #b91c1c;
+}
+
 .fluenttyper-options .about-highlights {
   display: flex;
   flex-wrap: wrap;
@@ -935,6 +1114,16 @@ body.fluenttyper-options {
   }
 
   .fluenttyper-options .productivity-insights-donation {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .fluenttyper-options .predictor-debug-info-grid,
+  .fluenttyper-options .predictor-debug-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .fluenttyper-options .predictor-debug-header {
     flex-direction: column;
     align-items: flex-start;
   }

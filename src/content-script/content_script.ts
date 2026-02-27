@@ -15,7 +15,7 @@ import {
 } from "../shared/constants";
 import { LANG_SEPERATOR_CHARS_REGEX } from "../shared/lang";
 import { checkLastError, isInDocument } from "../shared/utils";
-import {
+import type {
   Message,
   ContentScriptPredictRequestContext,
   ContentScriptPredictRequestMessage,

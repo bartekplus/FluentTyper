@@ -19,6 +19,11 @@ import {
   KEY_FALLBACK_LANGUAGE,
   KEY_MIN_WORD_LENGTH_TO_PREDICT,
   KEY_NUM_SUGGESTIONS,
+  KEY_AI_PREDICTOR_ENABLED,
+  KEY_AI_MODEL_ID,
+  KEY_AI_PREDICTION_TIMEOUT_MS,
+  KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
+  KEY_DEBUG_AI_PREDICTOR_ENABLED,
   KEY_VARIABLE_EXPANSION,
   KEY_TIME_FORMAT,
   KEY_DATE_FORMAT,
@@ -44,6 +49,8 @@ import {
   KEY_TRIBUTE_PADDING_HORIZONTAL,
   KEY_INLINE_SUGGESTION,
   DEFAULT_NUM_SUGGESTIONS,
+  DEFAULT_AI_MODEL_ID,
+  DEFAULT_AI_PREDICTION_TIMEOUT_MS,
 } from "../../shared/constants.ts";
 
 // --- UI Content ---
@@ -65,6 +72,20 @@ const supportLinksHTML =
   <a href="https://github.com/bartekplus/FluentTyper#readme" target="_blank" rel="noopener noreferrer">Read documentation</a> - Setup help, configuration details, and usage tips.<br /> \
   <a href="https://github.com/bartekplus/FluentTyper/blob/main/SECURITY.md" target="_blank" rel="noopener noreferrer">Security policy</a> - Responsible disclosure and security contact details. \
   </div>';
+const IS_DEV_BUILD =
+  typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
+
+const WEBLLM_DEV_MODEL_OPTIONS = [
+  ["SmolLM2-360M-Instruct-q4f16_1-MLC", "SmolLM2 360M q4f16 (fastest)"],
+  ["Qwen2.5-0.5B-Instruct-q4f16_1-MLC", "Qwen2.5 0.5B q4f16 (default)"],
+  ["Qwen3-0.6B-q4f16_1-MLC", "Qwen3 0.6B q4f16"],
+  ["Llama-3.2-1B-Instruct-q4f16_1-MLC", "Llama 3.2 1B q4f16"],
+  ["SmolLM2-1.7B-Instruct-q4f16_1-MLC", "SmolLM2 1.7B q4f16"],
+  ["Qwen2.5-1.5B-Instruct-q4f16_1-MLC", "Qwen2.5 1.5B q4f16"],
+  ["Qwen2.5-3B-Instruct-q4f16_1-MLC", "Qwen2.5 3B q4f16"],
+  ["Qwen2.5-7B-Instruct-q4f16_1-MLC", "Qwen2.5 7B q4f16"],
+  ["Mistral-7B-Instruct-v0.3-q4f16_1-MLC", "Mistral 7B Instruct v0.3 q4f16"],
+];
 
 // --- Manifest Definition ---
 const manifest = {
@@ -104,6 +125,22 @@ const manifest = {
       label: i18n.get("min_chars_label") + ":&nbsp;<small>" + i18n.get("min_chars_desc") + "</small>",
       default: 1,
     },
+    ...(IS_DEV_BUILD
+      ? [
+          {
+            tab: i18n.get("core_settings"),
+            group: i18n.get("prediction_engine"),
+            name: KEY_AI_PREDICTOR_ENABLED,
+            type: "checkbox",
+            label:
+              i18n.get("enable_ai_predictor_label") +
+              ":&nbsp;<small>" +
+              i18n.get("enable_ai_predictor_desc") +
+              "</small>",
+            default: true,
+          },
+        ]
+      : []),
     {
       tab: i18n.get("core_settings"),
       group: i18n.get("accept_predictions"),
@@ -567,6 +604,77 @@ const manifest = {
       text: i18n.get("export_settings_btn"),
       label: i18n.get("export_settings_desc"),
     },
+    ...(IS_DEV_BUILD
+      ? [
+          {
+            tab: i18n.get("advanced_tab"),
+            group: i18n.get("predictor_debug_group"),
+            name: "predictorDebugHint",
+            type: "description",
+            text: `<p>${i18n.get("predictor_debug_desc")}</p>`,
+          },
+          {
+            tab: i18n.get("advanced_tab"),
+            group: i18n.get("predictor_debug_group"),
+            name: KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
+            type: "checkbox",
+            label:
+              i18n.get("predictor_debug_presage_label") +
+              ":&nbsp;<small>" +
+              i18n.get("predictor_debug_presage_desc") +
+              "</small>",
+            default: true,
+          },
+          {
+            tab: i18n.get("advanced_tab"),
+            group: i18n.get("predictor_debug_group"),
+            name: KEY_DEBUG_AI_PREDICTOR_ENABLED,
+            type: "checkbox",
+            label:
+              i18n.get("predictor_debug_webllm_label") +
+              ":&nbsp;<small>" +
+              i18n.get("predictor_debug_webllm_desc") +
+              "</small>",
+            default: true,
+          },
+          {
+            tab: i18n.get("advanced_tab"),
+            group: i18n.get("predictor_debug_group"),
+            name: KEY_AI_MODEL_ID,
+            type: "popupButton",
+            options: WEBLLM_DEV_MODEL_OPTIONS,
+            label:
+              i18n.get("predictor_debug_model_label") +
+              ":&nbsp;<small>" +
+              i18n.get("predictor_debug_model_desc") +
+              "</small>",
+            default: DEFAULT_AI_MODEL_ID,
+          },
+          {
+            tab: i18n.get("advanced_tab"),
+            group: i18n.get("predictor_debug_group"),
+            name: KEY_AI_PREDICTION_TIMEOUT_MS,
+            type: "slider",
+            min: 20,
+            max: 2000,
+            step: 10,
+            display: true,
+            label:
+              i18n.get("predictor_debug_timeout_label") +
+              ":&nbsp;<small>" +
+              i18n.get("predictor_debug_timeout_desc") +
+              "</small>",
+            default: DEFAULT_AI_PREDICTION_TIMEOUT_MS,
+          },
+          {
+            tab: i18n.get("advanced_tab"),
+            group: i18n.get("predictor_debug_group"),
+            name: "predictorDebugPanel",
+            type: "description",
+            text: `<div id='predictorDebugRoot'>${i18n.get("predictor_debug_loading")}</div>`,
+          },
+        ]
+      : []),
 
     // =========================================================================
     // TAB: About & Support

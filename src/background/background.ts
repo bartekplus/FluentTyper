@@ -14,6 +14,8 @@ import {
   CMD_POPUP_ACK_WEEKLY_RECAP,
   CMD_POPUP_ACK_DONATION_MILESTONE,
   CMD_OPTIONS_RESET_PRODUCTIVITY_STATS,
+  CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT,
+  CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE,
   KEY_DISPLAY_LANG_HEADER,
   KEY_INLINE_SUGGESTION,
   KEY_REVERT_ON_BACKSPACE,
@@ -35,6 +37,16 @@ import {
   KEY_DATE_FORMAT,
   KEY_USER_DICTIONARY_LIST,
   KEY_SITE_PROFILES,
+  KEY_AI_PREDICTOR_ENABLED,
+  KEY_AI_MODEL_ID,
+  KEY_AI_PREDICTION_TIMEOUT_MS,
+  KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
+  KEY_DEBUG_AI_PREDICTOR_ENABLED,
+  DEFAULT_AI_PREDICTOR_ENABLED,
+  DEFAULT_AI_MODEL_ID,
+  DEFAULT_AI_PREDICTION_TIMEOUT_MS,
+  DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED,
+  DEFAULT_DEBUG_AI_PREDICTOR_ENABLED,
   MAX_NUM_SUGGESTIONS,
 } from "../shared/constants";
 import { getDomain, isEnabledForDomain, checkLastError } from "../shared/utils";
@@ -47,12 +59,11 @@ import {
   setSiteProfileForDomain,
 } from "../shared/siteProfiles";
 import { LanguageDetector } from "./LanguageDetector";
-import { PresageConfig } from "./PresageHandler";
-import { PredictionManager } from "./PredictionManager";
+import { PredictionManager, PredictionConfig } from "./PredictionManager";
 import { TabMessenger } from "./TabMessenger";
 import { migrateToLocalStore } from "./Migration";
 import { ProductivityStatsManager } from "./ProductivityStatsManager";
-import {
+import type {
   Message,
   PredictRequestMessage,
   PredictResponseMessage,
@@ -68,7 +79,19 @@ import {
   PopupAckWeeklyRecapMessage,
   PopupAckDonationMilestoneMessage,
   OptionsResetProductivityStatsMessage,
+  OptionsGetPredictorDebugSnapshotMessage,
+  OptionsClearPredictorDebugTraceMessage,
 } from "../shared/messageTypes";
+
+declare const __FT_DEV_BUILD__: boolean | undefined;
+declare const __FT_E2E_BUILD__: boolean | undefined;
+
+const IS_DEV_BUILD =
+  typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
+const IS_E2E_BUILD =
+  typeof __FT_E2E_BUILD__ !== "undefined" && Boolean(__FT_E2E_BUILD__);
+const ENABLE_TEST_RUNTIME_HOOKS = IS_DEV_BUILD || IS_E2E_BUILD;
+const ENABLE_AI_PREDICTOR = IS_DEV_BUILD || IS_E2E_BUILD;
 
 interface DomainRuntimeSettings {
   language: string;
@@ -83,6 +106,13 @@ function clampNumSuggestions(value: unknown): number {
     return 0;
   }
   return Math.min(MAX_NUM_SUGGESTIONS, Math.max(0, Math.round(value)));
+}
+
+function clampAIPredictionTimeoutMs(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return DEFAULT_AI_PREDICTION_TIMEOUT_MS;
+  }
+  return Math.min(2000, Math.max(20, Math.round(value)));
 }
 
 async function resolveDomainRuntimeSettings(
@@ -177,6 +207,12 @@ export class BackgroundServiceWorker {
         message.context.nextChar!,
         message.context.lang!,
         configOverride,
+        {
+          requestId: message.context.requestId,
+          tabId: message.context.tabId,
+          frameId: message.context.frameId,
+          tributeId: message.context.tributeId,
+        },
       );
     if (
       (!Array.isArray(predictions) || predictions.length === 0) &&
@@ -335,6 +371,11 @@ export class BackgroundServiceWorker {
       timeFormat,
       dateFormat,
       userDictionaryList,
+      aiPredictorEnabled,
+      aiModelId,
+      aiPredictionTimeoutMs,
+      debugPresagePredictorEnabled,
+      debugAIPredictorEnabled,
     ] = await Promise.all([
       this.settingsManager.get(KEY_NUM_SUGGESTIONS),
       this.settingsManager.get(KEY_MIN_WORD_LENGTH_TO_PREDICT),
@@ -346,8 +387,13 @@ export class BackgroundServiceWorker {
       this.settingsManager.get(KEY_TIME_FORMAT),
       this.settingsManager.get(KEY_DATE_FORMAT),
       this.settingsManager.get(KEY_USER_DICTIONARY_LIST),
+      this.settingsManager.get(KEY_AI_PREDICTOR_ENABLED),
+      this.settingsManager.get(KEY_AI_MODEL_ID),
+      this.settingsManager.get(KEY_AI_PREDICTION_TIMEOUT_MS),
+      this.settingsManager.get(KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED),
+      this.settingsManager.get(KEY_DEBUG_AI_PREDICTOR_ENABLED),
     ]);
-    const config: PresageConfig = {
+    const config: PredictionConfig = {
       numSuggestions: numSuggestions as number,
       engineNumSuggestions: MAX_NUM_SUGGESTIONS,
       minWordLengthToPredict: minWordLengthToPredict as number,
@@ -359,6 +405,26 @@ export class BackgroundServiceWorker {
       timeFormat: timeFormat as string,
       dateFormat: dateFormat as string,
       userDictionaryList: userDictionaryList as string[],
+      aiPredictorEnabled: ENABLE_AI_PREDICTOR
+        ? typeof aiPredictorEnabled === "boolean"
+          ? aiPredictorEnabled
+          : DEFAULT_AI_PREDICTOR_ENABLED
+        : false,
+      aiModelId:
+        typeof aiModelId === "string" && aiModelId.trim().length > 0
+          ? aiModelId
+          : DEFAULT_AI_MODEL_ID,
+      aiPredictionTimeoutMs: clampAIPredictionTimeoutMs(aiPredictionTimeoutMs),
+      debugPresagePredictorEnabled: IS_DEV_BUILD
+        ? typeof debugPresagePredictorEnabled === "boolean"
+          ? debugPresagePredictorEnabled
+          : DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED
+        : DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED,
+      debugAIPredictorEnabled: IS_DEV_BUILD
+        ? typeof debugAIPredictorEnabled === "boolean"
+          ? debugAIPredictorEnabled
+          : DEFAULT_DEBUG_AI_PREDICTOR_ENABLED
+        : DEFAULT_DEBUG_AI_PREDICTOR_ENABLED,
     };
     this.predictionManager.setConfig(config);
     this.productivityStatsManager.setSnippetShortcuts(
@@ -688,6 +754,38 @@ async function handleOptionsResetProductivityStats(
   }
 }
 
+async function handleOptionsGetPredictorDebugSnapshot(
+  request: OptionsGetPredictorDebugSnapshotMessage,
+  sender: chrome.runtime.MessageSender,
+  sendResponse: (response?: unknown) => void,
+  backgroundServiceWorker: BackgroundServiceWorker,
+) {
+  try {
+    await backgroundServiceWorker.predictionManager.initialize();
+    sendResponse(
+      backgroundServiceWorker.predictionManager.getPredictorDebugSnapshot(),
+    );
+  } catch (error) {
+    logError("handleOptionsGetPredictorDebugSnapshot", error);
+    sendResponse({ ok: false });
+  }
+}
+
+async function handleOptionsClearPredictorDebugTrace(
+  request: OptionsClearPredictorDebugTraceMessage,
+  sender: chrome.runtime.MessageSender,
+  sendResponse: (response?: unknown) => void,
+  backgroundServiceWorker: BackgroundServiceWorker,
+) {
+  try {
+    backgroundServiceWorker.predictionManager.clearPredictorDebugTrace();
+    sendResponse({ ok: true });
+  } catch (error) {
+    logError("handleOptionsClearPredictorDebugTrace", error);
+    sendResponse({ ok: false });
+  }
+}
+
 function onMessage(
   request: Message,
   sender: chrome.runtime.MessageSender,
@@ -769,6 +867,24 @@ function onMessage(
       );
       return true;
     }
+    case CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT: {
+      handleOptionsGetPredictorDebugSnapshot(
+        request,
+        sender,
+        sendResponse,
+        backgroundServiceWorker,
+      );
+      return true;
+    }
+    case CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE: {
+      handleOptionsClearPredictorDebugTrace(
+        request,
+        sender,
+        sendResponse,
+        backgroundServiceWorker,
+      );
+      return true;
+    }
     default: {
       logError("onMessage", `Unknown command: ${request.command}`);
       return false;
@@ -780,48 +896,151 @@ chrome.runtime.onInstalled.addListener(onInstalled);
 chrome.commands.onCommand.addListener(onCommand);
 chrome.runtime.onMessage.addListener(onMessage);
 
-if (typeof globalThis !== "undefined") {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (globalThis as any).triggerCommandForTesting = (command: string) => {
-    onCommand(command);
+interface WebLLMTestPredictionCall {
+  lang: string;
+  predictionInput: string;
+  numSuggestions: number;
+}
+
+interface WebLLMTestOverrideState {
+  predictions: string[];
+  delayMs: number;
+  calls: WebLLMTestPredictionCall[];
+}
+
+type WebLLMTestGlobals = typeof globalThis & {
+  __fluentTyperWebLLMTestOverride__?: WebLLMTestOverrideState;
+  triggerCommandForTesting?: (command: string) => Promise<void> | void;
+};
+
+const WEB_LLM_TEST_OVERRIDE_KEY = "__fluentTyperWebLLMTestOverride__";
+const TEST_MSG_TRIGGER_COMMAND = "TEST_TRIGGER_COMMAND";
+const TEST_MSG_SET_WEBLLM_PREDICTIONS = "TEST_SET_WEBLLM_PREDICTIONS";
+const TEST_MSG_CLEAR_WEBLLM_PREDICTIONS = "TEST_CLEAR_WEBLLM_PREDICTIONS";
+const TEST_MSG_GET_WEBLLM_PREDICTION_CALLS = "TEST_GET_WEBLLM_PREDICTION_CALLS";
+
+function getWebLLMTestGlobals(): WebLLMTestGlobals {
+  return globalThis as WebLLMTestGlobals;
+}
+
+function setWebLLMTestOverride(predictions: string[], delayMs: number): void {
+  const normalizedPredictions = predictions
+    .map((prediction) => prediction.trim())
+    .filter((prediction) => prediction.length > 0);
+  getWebLLMTestGlobals()[WEB_LLM_TEST_OVERRIDE_KEY] = {
+    predictions: normalizedPredictions,
+    delayMs,
+    calls: [],
   };
 }
 
-const testTriggerCommandAllowList = new Set<string>([
-  CMD_TOGGLE_FT_ACTIVE_TAB,
-  CMD_TRIGGER_FT_ACTIVE_TAB,
-  CMD_TOGGLE_FT_ACTIVE_LANG,
-]);
-
-function isTrustedInternalSender(sender: chrome.runtime.MessageSender): boolean {
-  return (
-    typeof sender.url === "string" &&
-    sender.url.startsWith(chrome.runtime.getURL(""))
-  );
+function clearWebLLMTestOverride(): void {
+  delete getWebLLMTestGlobals()[WEB_LLM_TEST_OVERRIDE_KEY];
 }
 
-// Alternative hook for Firefox BiDi tests.
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+function getWebLLMTestPredictionCalls(): WebLLMTestPredictionCall[] {
+  const override = getWebLLMTestGlobals()[WEB_LLM_TEST_OVERRIDE_KEY];
+  if (!override || !Array.isArray(override.calls)) {
+    return [];
+  }
+  return override.calls.map((call) => ({
+    lang: call.lang,
+    predictionInput: call.predictionInput,
+    numSuggestions: call.numSuggestions,
+  }));
+}
+
+if (ENABLE_TEST_RUNTIME_HOOKS) {
+  if (typeof globalThis !== "undefined") {
+    getWebLLMTestGlobals().triggerCommandForTesting = (command: string) => {
+      onCommand(command);
+    };
+  }
+
+  const testTriggerCommandAllowList = new Set<string>([
+    CMD_TOGGLE_FT_ACTIVE_TAB,
+    CMD_TRIGGER_FT_ACTIVE_TAB,
+    CMD_TOGGLE_FT_ACTIVE_LANG,
+  ]);
+
+  const isTrustedInternalSender = (
+    sender: chrome.runtime.MessageSender,
+  ): boolean => {
     if (
-      typeof message !== "object" ||
-      !message ||
-      (message as { type?: unknown }).type !== "TEST_TRIGGER_COMMAND"
+      typeof sender.url === "string" &&
+      sender.url.startsWith(chrome.runtime.getURL(""))
+    ) {
+      return true;
+    }
+    return sender.id === chrome.runtime.id && typeof sender.tab === "undefined";
+  };
+
+  // Alternative hook for Firefox BiDi tests.
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (typeof message !== "object" || !message) {
+      return false;
+    }
+    const type = (message as { type?: unknown }).type;
+    if (
+      type !== TEST_MSG_TRIGGER_COMMAND &&
+      type !== TEST_MSG_SET_WEBLLM_PREDICTIONS &&
+      type !== TEST_MSG_CLEAR_WEBLLM_PREDICTIONS &&
+      type !== TEST_MSG_GET_WEBLLM_PREDICTION_CALLS
     ) {
       return false;
     }
-    const command = (message as { command?: unknown }).command;
-    if (
-      typeof command !== "string" ||
-      !testTriggerCommandAllowList.has(command) ||
-      !isTrustedInternalSender(sender)
-    ) {
+    if (!isTrustedInternalSender(sender)) {
       sendResponse({ ok: false });
       return true;
     }
-    onCommand(command);
-    sendResponse({ ok: true });
-    return true;
+
+    switch (type) {
+      case TEST_MSG_TRIGGER_COMMAND: {
+        const command = (message as { command?: unknown }).command;
+        if (
+          typeof command !== "string" ||
+          !testTriggerCommandAllowList.has(command)
+        ) {
+          sendResponse({ ok: false });
+          return true;
+        }
+        onCommand(command);
+        sendResponse({ ok: true });
+        return true;
+      }
+      case TEST_MSG_SET_WEBLLM_PREDICTIONS: {
+        const predictionsRaw = (message as { predictions?: unknown })
+          .predictions;
+        const delayMsRaw = (message as { delayMs?: unknown }).delayMs;
+        if (!Array.isArray(predictionsRaw)) {
+          sendResponse({ ok: false });
+          return true;
+        }
+        const predictions = predictionsRaw.filter(
+          (prediction): prediction is string => typeof prediction === "string",
+        );
+        const delayMs =
+          typeof delayMsRaw === "number" && Number.isFinite(delayMsRaw)
+            ? Math.max(0, Math.round(delayMsRaw))
+            : 0;
+        setWebLLMTestOverride(predictions, delayMs);
+        sendResponse({ ok: true });
+        return true;
+      }
+      case TEST_MSG_CLEAR_WEBLLM_PREDICTIONS: {
+        clearWebLLMTestOverride();
+        sendResponse({ ok: true });
+        return true;
+      }
+      case TEST_MSG_GET_WEBLLM_PREDICTION_CALLS: {
+        sendResponse({ ok: true, calls: getWebLLMTestPredictionCalls() });
+        return true;
+      }
+      default:
+        return false;
+    }
   });
+}
 
 async function initializeBackgroundServiceWorker(
   lastVersion: string | undefined,

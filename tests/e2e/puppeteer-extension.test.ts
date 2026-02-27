@@ -3,6 +3,7 @@ import path from "path";
 import * as fs from "fs";
 import { createServer, Server } from "http";
 import {
+  KEY_AI_PREDICTOR_ENABLED,
   KEY_ENABLED_LANGUAGES,
   KEY_FALLBACK_LANGUAGE,
   KEY_DOMAIN_LIST_MODE,
@@ -21,6 +22,9 @@ import {
   openExtensionPage,
   openPopupPage,
   triggerCommandForTesting,
+  setWebLLMPredictionsForTesting,
+  clearWebLLMPredictionsForTesting,
+  getWebLLMPredictionCallsForTesting,
   BackgroundContext,
   isFirefox,
 } from "./e2e-helpers";
@@ -324,6 +328,10 @@ function hasNonAsciiCharacters(text: string): boolean {
     }
   }
   return false;
+}
+
+function normalizeSuggestionText(suggestion: string): string {
+  return suggestion.replace(/\xA0/g, " ").trim().toLowerCase();
 }
 
 async function typeInInput(
@@ -669,6 +677,13 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
   afterEach(async () => {
     try {
+      if (worker) {
+        await clearWebLLMPredictionsForTesting(worker);
+      }
+    } catch {
+      // Ignore cleanup failures if the background context is restarting.
+    }
+    try {
       if (page && typeof page.isClosed === "function" && !page.isClosed()) {
         await page.close();
       }
@@ -924,6 +939,121 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       }
     },
     browserTimeout(15000, 25000),
+  );
+
+  test(
+    "AI predictor merges WebLLM suggestions with Presage in one suggestion list",
+    async () => {
+      const selector = "#test-input";
+      const aiSuggestions = [
+        "webllmtestalpha",
+        "webllmtestbeta",
+        "webllmtestgamma",
+      ];
+      try {
+        await setSettingAndWait(worker!, "enable", true);
+        await setSettingAndWait(worker!, KEY_DOMAIN_LIST_MODE, "blackList");
+        await setSettingAndWait(worker!, "domainBlackList", []);
+        await setSettingAndWait(
+          worker!,
+          KEY_ENABLED_LANGUAGES,
+          SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+        );
+        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+        await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
+        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
+        await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+        await setSettingAndWait(worker!, KEY_NUM_SUGGESTIONS, 6);
+        await setSettingAndWait(worker!, KEY_AI_PREDICTOR_ENABLED, true);
+        await setWebLLMPredictionsForTesting(worker!, aiSuggestions, 0);
+        await applyConfigChange(browser, worker!);
+
+        await gotoTestPage(page);
+        await page.bringToFront();
+        await waitForInputReady(page, selector);
+        await clearInputContent(page, selector);
+        await typeInInput(page, selector, "th");
+
+        const suggestionTexts = await waitForVisibleSuggestionTexts(
+          page,
+          browserTimeout(15000, 25000),
+        );
+        const normalizedSuggestions = suggestionTexts.map(
+          normalizeSuggestionText,
+        );
+        expect(normalizedSuggestions.length).toBeGreaterThanOrEqual(3);
+        expect(normalizedSuggestions.slice(0, 2)).not.toContain(
+          aiSuggestions[0],
+        );
+        expect(normalizedSuggestions.slice(0, 3)).toContain(aiSuggestions[0]);
+
+        const calls = await getWebLLMPredictionCallsForTesting(worker!);
+        expect(
+          calls.some((call) =>
+            call.predictionInput.toLowerCase().endsWith("th"),
+          ),
+        ).toBe(true);
+      } finally {
+        await clearWebLLMPredictionsForTesting(worker!);
+        await setSettingAndWait(worker!, KEY_NUM_SUGGESTIONS, 5);
+        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
+        await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
+        await applyConfigChange(browser, worker!);
+      }
+    },
+    browserTimeout(30000, 50000),
+  );
+
+  test(
+    "AI predictor respects latency budget and falls back to Presage when AI is slow",
+    async () => {
+      const selector = "#test-input";
+      const slowAiSuggestions = ["webllmtimeouttoken"];
+      try {
+        await setSettingAndWait(worker!, "enable", true);
+        await setSettingAndWait(worker!, KEY_DOMAIN_LIST_MODE, "blackList");
+        await setSettingAndWait(worker!, "domainBlackList", []);
+        await setSettingAndWait(
+          worker!,
+          KEY_ENABLED_LANGUAGES,
+          SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+        );
+        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+        await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
+        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
+        await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+        await setSettingAndWait(worker!, KEY_NUM_SUGGESTIONS, 6);
+        await setSettingAndWait(worker!, KEY_AI_PREDICTOR_ENABLED, true);
+        await setWebLLMPredictionsForTesting(worker!, slowAiSuggestions, 500);
+        await applyConfigChange(browser, worker!);
+
+        await gotoTestPage(page);
+        await page.bringToFront();
+        await waitForInputReady(page, selector);
+        await clearInputContent(page, selector);
+        await typeInInput(page, selector, "th");
+
+        const suggestionTexts = await waitForVisibleSuggestionTexts(
+          page,
+          browserTimeout(15000, 25000),
+        );
+        const normalizedSuggestions = suggestionTexts.map(
+          normalizeSuggestionText,
+        );
+        expect(normalizedSuggestions.length).toBeGreaterThan(0);
+        expect(normalizedSuggestions).not.toContain(slowAiSuggestions[0]);
+
+        const calls = await getWebLLMPredictionCallsForTesting(worker!);
+        expect(calls.length).toBeGreaterThan(0);
+      } finally {
+        await clearWebLLMPredictionsForTesting(worker!);
+        await setSettingAndWait(worker!, KEY_NUM_SUGGESTIONS, 5);
+        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
+        await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
+        await applyConfigChange(browser, worker!);
+      }
+    },
+    browserTimeout(30000, 50000),
   );
 
   test.each(SUPPORTED_INPUT_SELECTORS)(

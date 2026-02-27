@@ -1,5 +1,5 @@
 // filepath: src/background/PresageEngine.ts
-import { Presage, PresageModule, PresageCallback } from "./PresageTypes";
+import type { Presage, PresageModule, PresageCallback } from "./PresageTypes";
 
 export interface PresagePrediction {
   prediction: string;

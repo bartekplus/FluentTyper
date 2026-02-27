@@ -9,6 +9,9 @@ import {
   KEY_AUTOCOMPLETE,
   KEY_AUTOCOMPLETE_ON_ENTER,
   KEY_AUTOCOMPLETE_ON_TAB,
+  KEY_AI_PREDICTOR_ENABLED,
+  KEY_AI_MODEL_ID,
+  KEY_AI_PREDICTION_TIMEOUT_MS,
   KEY_LANGUAGE,
   KEY_FALLBACK_LANGUAGE,
   KEY_ENABLED_LANGUAGES,
@@ -45,15 +48,24 @@ import {
   KEY_TRIBUTE_FONT_SIZE,
   KEY_TRIBUTE_PADDING_VERTICAL,
   KEY_TRIBUTE_PADDING_HORIZONTAL,
+  KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
+  KEY_DEBUG_AI_PREDICTOR_ENABLED,
   CMD_POPUP_GET_PRODUCTIVITY_STATS,
   CMD_POPUP_ACK_WEEKLY_RECAP,
   CMD_POPUP_ACK_DONATION_MILESTONE,
   CMD_OPTIONS_RESET_PRODUCTIVITY_STATS,
+  CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT,
+  CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE,
 } from "../../shared/constants.ts";
 import { i18n } from "./i18n.js";
 
 const PRODUCTIVITY_INSIGHTS_MAX_RETRIES = 5;
 const PRODUCTIVITY_INSIGHTS_RETRY_DELAY_MS = 200;
+const PREDICTOR_DEBUG_MAX_RETRIES = 4;
+const PREDICTOR_DEBUG_RETRY_DELAY_MS = 250;
+const PREDICTOR_DEBUG_POLL_INTERVAL_MS = 1500;
+let predictorDebugLastSignature = "";
+let predictorDebugBindingsInitialized = false;
 
 function optionsPageConfigChange() {
   const message = {
@@ -748,6 +760,676 @@ function setupProductivityInsights() {
   void loadProductivityInsights(root);
 }
 
+function isPredictorDebugSnapshot(snapshot) {
+  return (
+    snapshot &&
+    typeof snapshot === "object" &&
+    !Array.isArray(snapshot) &&
+    typeof snapshot.generatedAtMs === "number" &&
+    snapshot.runtime &&
+    typeof snapshot.runtime === "object" &&
+    Array.isArray(snapshot.traces)
+  );
+}
+
+function formatDurationMs(value) {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) {
+    return "0 ms";
+  }
+  const rounded = Math.max(0, Math.round(numericValue * 10) / 10);
+  return `${rounded} ms`;
+}
+
+function formatProgressPercent(value) {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) {
+    return "n/a";
+  }
+  const clamped = Math.max(0, Math.min(1, numericValue));
+  return `${Math.round(clamped * 100)}%`;
+}
+
+function formatClockTime(timestampMs) {
+  const date = new Date(timestampMs);
+  if (Number.isNaN(date.getTime())) {
+    return "n/a";
+  }
+  return new Intl.DateTimeFormat(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(date);
+}
+
+function previewValue(value, maxLen = 180) {
+  if (typeof value !== "string") {
+    return "";
+  }
+  const trimmed = value.replace(/\s+/g, " ").trim();
+  if (trimmed.length <= maxLen) {
+    return trimmed;
+  }
+  return `${trimmed.slice(0, maxLen)}...`;
+}
+
+function formatPredictionList(predictions) {
+  if (!Array.isArray(predictions) || predictions.length === 0) {
+    return "[]";
+  }
+  return predictions.join(" | ");
+}
+
+function buildPredictorDebugSnapshotSignature(snapshot) {
+  try {
+    return JSON.stringify({
+      config: snapshot?.config || null,
+      runtime: snapshot?.runtime || null,
+      traces: Array.isArray(snapshot?.traces) ? snapshot.traces : [],
+    });
+  } catch {
+    return "";
+  }
+}
+
+function getPredictorDebugRootElement() {
+  return document.getElementById("predictorDebugRoot");
+}
+
+function summarizePredictorTraces(traces) {
+  const items = Array.isArray(traces) ? traces : [];
+  let totalDuration = 0;
+  let presageAttempts = 0;
+  let presageDuration = 0;
+  let aiAttempts = 0;
+  let aiDuration = 0;
+  let aiTimeouts = 0;
+
+  items.forEach((trace) => {
+    totalDuration += Number(trace?.totalDurationMs) || 0;
+    if (trace?.presage?.attempted) {
+      presageAttempts += 1;
+      presageDuration += Number(trace.presage.durationMs) || 0;
+    }
+    if (trace?.webllm?.attempted) {
+      aiAttempts += 1;
+      aiDuration += Number(trace.webllm.durationMs) || 0;
+      if (trace.webllm.timedOut) {
+        aiTimeouts += 1;
+      }
+    }
+  });
+
+  return {
+    requestCount: items.length,
+    avgTotalDurationMs: items.length > 0 ? totalDuration / items.length : 0,
+    presageAttempts,
+    avgPresageDurationMs:
+      presageAttempts > 0 ? presageDuration / presageAttempts : 0,
+    aiAttempts,
+    avgAIDurationMs: aiAttempts > 0 ? aiDuration / aiAttempts : 0,
+    aiTimeouts,
+  };
+}
+
+function createPredictorDebugMetric(label, value, subValue) {
+  const card = document.createElement("article");
+  card.className = "predictor-debug-metric";
+
+  const title = document.createElement("h4");
+  title.textContent = label;
+  card.appendChild(title);
+
+  const main = document.createElement("p");
+  main.className = "predictor-debug-metric-main";
+  main.textContent = value;
+  card.appendChild(main);
+
+  if (subValue) {
+    const sub = document.createElement("p");
+    sub.className = "predictor-debug-metric-sub";
+    sub.textContent = subValue;
+    card.appendChild(sub);
+  }
+
+  return card;
+}
+
+function appendPredictorInfoItem(container, label, value) {
+  const row = document.createElement("div");
+  row.className = "predictor-debug-info-row";
+
+  const key = document.createElement("span");
+  key.textContent = label;
+  row.appendChild(key);
+
+  const val = document.createElement("strong");
+  val.textContent = value;
+  row.appendChild(val);
+
+  container.appendChild(row);
+}
+
+function createPredictorToggleAction(label, key, enabled) {
+  const row = document.createElement("div");
+  row.className = "predictor-debug-toggle-row";
+
+  const title = document.createElement("span");
+  title.textContent = label;
+  row.appendChild(title);
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = enabled
+    ? "button is-small is-danger is-light"
+    : "button is-small is-link is-light";
+  button.textContent = enabled ? "Disable" : "Enable";
+  button.setAttribute("data-action", "set-predictor-toggle");
+  button.setAttribute("data-key", key);
+  button.setAttribute("data-enabled", enabled ? "false" : "true");
+  row.appendChild(button);
+
+  return row;
+}
+
+function renderPredictorDebugStatus(root, text, isError = false) {
+  root.innerHTML = "";
+  const shell = document.createElement("div");
+  shell.className = "predictor-debug-status";
+  if (isError) {
+    shell.classList.add("is-error");
+  }
+
+  const message = document.createElement("p");
+  message.textContent = text;
+  shell.appendChild(message);
+
+  const refreshButton = document.createElement("button");
+  refreshButton.type = "button";
+  refreshButton.className = "button is-small is-light";
+  refreshButton.textContent = "Refresh";
+  refreshButton.setAttribute("data-action", "refresh-predictor-debug");
+  shell.appendChild(refreshButton);
+
+  root.appendChild(shell);
+}
+
+function renderPredictorDebugSnapshot(root, snapshot) {
+  const pageScrollX = window.scrollX;
+  const pageScrollY = window.scrollY;
+  const currentTraceList = root.querySelector(".predictor-debug-trace-list");
+  const traceScrollTop =
+    currentTraceList instanceof HTMLElement ? currentTraceList.scrollTop : 0;
+
+  const traces = Array.isArray(snapshot.traces) ? snapshot.traces : [];
+  const stats = summarizePredictorTraces(traces);
+
+  root.innerHTML = "";
+  const shell = document.createElement("section");
+  shell.className = "predictor-debug";
+
+  const header = document.createElement("div");
+  header.className = "predictor-debug-header";
+  const headingBlock = document.createElement("div");
+  const heading = document.createElement("h3");
+  heading.textContent = "Predictor Debug Dashboard";
+  const subtitle = document.createElement("p");
+  subtitle.textContent = `Updated ${formatClockTime(snapshot.generatedAtMs)}`;
+  headingBlock.appendChild(heading);
+  headingBlock.appendChild(subtitle);
+  header.appendChild(headingBlock);
+
+  const actions = document.createElement("div");
+  actions.className = "predictor-debug-actions";
+  const refreshButton = document.createElement("button");
+  refreshButton.type = "button";
+  refreshButton.className = "button is-small is-light";
+  refreshButton.textContent = "Refresh";
+  refreshButton.setAttribute("data-action", "refresh-predictor-debug");
+  const clearButton = document.createElement("button");
+  clearButton.type = "button";
+  clearButton.className = "button is-small is-light";
+  clearButton.textContent = "Clear Trace";
+  clearButton.setAttribute("data-action", "clear-predictor-debug");
+  actions.appendChild(refreshButton);
+  actions.appendChild(clearButton);
+  header.appendChild(actions);
+  shell.appendChild(header);
+
+  const infoGrid = document.createElement("div");
+  infoGrid.className = "predictor-debug-info-grid";
+
+  const configCard = document.createElement("article");
+  configCard.className = "predictor-debug-info-card";
+  const configTitle = document.createElement("h4");
+  configTitle.textContent = "Configuration";
+  configCard.appendChild(configTitle);
+  appendPredictorInfoItem(
+    configCard,
+    "AI predictor",
+    snapshot.config?.aiPredictorEnabled ? "enabled" : "disabled",
+  );
+  appendPredictorInfoItem(configCard, "AI model", snapshot.config?.aiModelId || "n/a");
+  appendPredictorInfoItem(
+    configCard,
+    "Presage route",
+    snapshot.config?.debugPresagePredictorEnabled ? "enabled" : "disabled",
+  );
+  appendPredictorInfoItem(
+    configCard,
+    "WebLLM route",
+    snapshot.config?.debugAIPredictorEnabled ? "enabled" : "disabled",
+  );
+  appendPredictorInfoItem(
+    configCard,
+    "WebLLM timeout budget",
+    `${Math.max(20, Number(snapshot.config?.aiPredictionTimeoutMs) || 0)} ms`,
+  );
+  configCard.appendChild(
+    createPredictorToggleAction(
+      "Presage route toggle",
+      KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
+      Boolean(snapshot.config?.debugPresagePredictorEnabled),
+    ),
+  );
+  configCard.appendChild(
+    createPredictorToggleAction(
+      "WebLLM route toggle",
+      KEY_DEBUG_AI_PREDICTOR_ENABLED,
+      Boolean(snapshot.config?.debugAIPredictorEnabled),
+    ),
+  );
+  infoGrid.appendChild(configCard);
+
+  const runtimeCard = document.createElement("article");
+  runtimeCard.className = "predictor-debug-info-card";
+  const runtimeTitle = document.createElement("h4");
+  runtimeTitle.textContent = "Runtime";
+  runtimeCard.appendChild(runtimeTitle);
+  appendPredictorInfoItem(
+    runtimeCard,
+    "Presage engines",
+    String(snapshot.runtime?.presage?.languageEngineCount ?? 0),
+  );
+  appendPredictorInfoItem(
+    runtimeCard,
+    "WebGPU",
+    snapshot.runtime?.webllm?.hasWebGPU ? "available" : "missing",
+  );
+  appendPredictorInfoItem(
+    runtimeCard,
+    "WebLLM status",
+    snapshot.runtime?.webllm?.status || "n/a",
+  );
+  appendPredictorInfoItem(
+    runtimeCard,
+    "WebLLM init attempts",
+    String(snapshot.runtime?.webllm?.initAttemptCount ?? 0),
+  );
+  const initStartedAt = snapshot.runtime?.webllm?.lastInitStartedAt;
+  appendPredictorInfoItem(
+    runtimeCard,
+    "Last WebLLM init start",
+    typeof initStartedAt === "number" ? formatClockTime(initStartedAt) : "n/a",
+  );
+  appendPredictorInfoItem(
+    runtimeCard,
+    "Last WebLLM init duration",
+    snapshot.runtime?.webllm?.lastInitDurationMs != null
+      ? formatDurationMs(snapshot.runtime.webllm.lastInitDurationMs)
+      : "n/a",
+  );
+  appendPredictorInfoItem(
+    runtimeCard,
+    "Last WebLLM init progress",
+    snapshot.runtime?.webllm?.lastInitProgress != null
+      ? formatProgressPercent(snapshot.runtime.webllm.lastInitProgress)
+      : "n/a",
+  );
+  appendPredictorInfoItem(
+    runtimeCard,
+    "Last WebLLM init stage",
+    snapshot.runtime?.webllm?.lastInitProgressText
+      ? previewValue(snapshot.runtime.webllm.lastInitProgressText, 80)
+      : "none",
+  );
+  appendPredictorInfoItem(
+    runtimeCard,
+    "Last WebLLM init error",
+    snapshot.runtime?.webllm?.lastInitError
+      ? previewValue(snapshot.runtime.webllm.lastInitError, 80)
+      : "none",
+  );
+  appendPredictorInfoItem(
+    runtimeCard,
+    "WebLLM generating",
+    snapshot.runtime?.webllm?.isGenerating ? "yes" : "no",
+  );
+  appendPredictorInfoItem(
+    runtimeCard,
+    "WebLLM cache entries",
+    String(snapshot.runtime?.webllm?.cacheSize ?? 0),
+  );
+  const lastFailureAt = snapshot.runtime?.webllm?.lastFailureAt;
+  appendPredictorInfoItem(
+    runtimeCard,
+    "Last WebLLM failure",
+    typeof lastFailureAt === "number"
+      ? formatClockTime(lastFailureAt)
+      : "none",
+  );
+  appendPredictorInfoItem(
+    runtimeCard,
+    "Last WebLLM source",
+    snapshot.runtime?.webllm?.lastPredictSource || "n/a",
+  );
+  appendPredictorInfoItem(
+    runtimeCard,
+    "Last WebLLM duration",
+    snapshot.runtime?.webllm?.lastPredictDurationMs != null
+      ? formatDurationMs(snapshot.runtime.webllm.lastPredictDurationMs)
+      : "n/a",
+  );
+  appendPredictorInfoItem(
+    runtimeCard,
+    "Last WebLLM output count",
+    String(snapshot.runtime?.webllm?.lastPredictOutputCount ?? 0),
+  );
+  appendPredictorInfoItem(
+    runtimeCard,
+    "Last WebLLM error",
+    snapshot.runtime?.webllm?.lastPredictError
+      ? previewValue(snapshot.runtime.webllm.lastPredictError, 80)
+      : "none",
+  );
+  const rawPreview = document.createElement("p");
+  rawPreview.className = "predictor-debug-stage";
+  rawPreview.textContent = `Last raw output: ${previewValue(
+    snapshot.runtime?.webllm?.lastRawOutputPreview || "",
+    220,
+  ) || "<empty>"}`;
+  runtimeCard.appendChild(rawPreview);
+  const initProgressLog = Array.isArray(snapshot.runtime?.webllm?.lastInitProgressLog)
+    ? snapshot.runtime.webllm.lastInitProgressLog
+    : [];
+  const initProgressPreview = document.createElement("p");
+  initProgressPreview.className = "predictor-debug-stage";
+  initProgressPreview.textContent =
+    initProgressLog.length > 0
+      ? `Init progress: ${initProgressLog
+          .map((entry) => {
+            const label =
+              typeof entry?.text === "string" && entry.text.trim().length > 0
+                ? entry.text.trim()
+                : "stage";
+            const progress = formatProgressPercent(entry?.progress);
+            const at = formatClockTime(entry?.atMs);
+            return `${at} ${progress} ${label}`;
+          })
+          .join(" | ")}`
+      : "Init progress: <none>";
+  runtimeCard.appendChild(initProgressPreview);
+  infoGrid.appendChild(runtimeCard);
+
+  shell.appendChild(infoGrid);
+
+  const metrics = document.createElement("div");
+  metrics.className = "predictor-debug-metrics";
+  metrics.appendChild(
+    createPredictorDebugMetric(
+      "Requests",
+      String(stats.requestCount),
+      "recent traces",
+    ),
+  );
+  metrics.appendChild(
+    createPredictorDebugMetric(
+      "Avg Total",
+      formatDurationMs(stats.avgTotalDurationMs),
+      "end-to-end",
+    ),
+  );
+  metrics.appendChild(
+    createPredictorDebugMetric(
+      "Presage",
+      formatDurationMs(stats.avgPresageDurationMs),
+      `${stats.presageAttempts} attempts`,
+    ),
+  );
+  metrics.appendChild(
+    createPredictorDebugMetric(
+      "WebLLM",
+      formatDurationMs(stats.avgAIDurationMs),
+      `${stats.aiAttempts} attempts / ${stats.aiTimeouts} timeouts`,
+    ),
+  );
+  shell.appendChild(metrics);
+
+  const traceSection = document.createElement("section");
+  traceSection.className = "predictor-debug-traces";
+  const traceTitle = document.createElement("h4");
+  traceTitle.textContent = "Recent Requests";
+  traceSection.appendChild(traceTitle);
+
+  if (traces.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "predictor-debug-empty";
+    empty.textContent = "No prediction trace captured yet.";
+    traceSection.appendChild(empty);
+  } else {
+    const traceList = document.createElement("div");
+    traceList.className = "predictor-debug-trace-list";
+    traces.slice(0, 40).forEach((trace) => {
+      const card = document.createElement("article");
+      card.className = "predictor-debug-trace";
+
+      const topRow = document.createElement("div");
+      topRow.className = "predictor-debug-trace-top";
+      const mainLabel = document.createElement("strong");
+      const requestLabel =
+        typeof trace.requestId === "number" ? `#${trace.requestId}` : "#n/a";
+      mainLabel.textContent = `${requestLabel} • ${trace.lang || "n/a"} • ${formatClockTime(trace.timestampMs)}`;
+      const total = document.createElement("span");
+      total.textContent = formatDurationMs(trace.totalDurationMs);
+      topRow.appendChild(mainLabel);
+      topRow.appendChild(total);
+      card.appendChild(topRow);
+
+      const stageRow = document.createElement("p");
+      stageRow.className = "predictor-debug-stage";
+      const presageStage = trace.presage?.attempted
+        ? `${formatDurationMs(trace.presage.durationMs)} (${(trace.presage?.predictions || []).length})`
+        : `skipped (${trace.presage?.skipReason || "unknown"})`;
+      const webllmStage = trace.webllm?.attempted
+        ? `${formatDurationMs(trace.webllm.durationMs)} (${(trace.webllm?.predictions || []).length}${trace.webllm?.timedOut ? ", timeout" : ""})`
+        : `skipped (${trace.webllm?.skipReason || "unknown"})`;
+      stageRow.textContent =
+        `Presage: ${presageStage} | WebLLM: ${webllmStage}`;
+      card.appendChild(stageRow);
+
+      const input = document.createElement("p");
+      input.className = "predictor-debug-input";
+      input.textContent = `Input: ${previewValue(trace.predictionInput || trace.text || "")}`;
+      card.appendChild(input);
+
+      const output = document.createElement("p");
+      output.className = "predictor-debug-output";
+      output.textContent = `Final: ${formatPredictionList(trace.finalPredictions)}`;
+      card.appendChild(output);
+
+      const presageOutput = document.createElement("p");
+      presageOutput.className = "predictor-debug-stage";
+      presageOutput.textContent = `Presage output: ${formatPredictionList(trace.presage?.predictions)}`;
+      card.appendChild(presageOutput);
+
+      const webllmOutput = document.createElement("p");
+      webllmOutput.className = "predictor-debug-stage";
+      webllmOutput.textContent = `WebLLM output: ${formatPredictionList(trace.webllm?.predictions)}`;
+      card.appendChild(webllmOutput);
+
+      traceList.appendChild(card);
+    });
+    traceSection.appendChild(traceList);
+  }
+
+  shell.appendChild(traceSection);
+  root.appendChild(shell);
+
+  window.requestAnimationFrame(() => {
+    window.scrollTo(pageScrollX, pageScrollY);
+    const nextTraceList = root.querySelector(".predictor-debug-trace-list");
+    if (nextTraceList instanceof HTMLElement) {
+      nextTraceList.scrollTop = traceScrollTop;
+    }
+  });
+}
+
+async function loadPredictorDebugSnapshot(root, retryCount = 0) {
+  const hasRenderedDashboard = Boolean(root.querySelector(".predictor-debug"));
+  if (retryCount === 0 && !hasRenderedDashboard) {
+    renderPredictorDebugStatus(root, "Loading predictor telemetry...");
+  }
+  const response = await sendRuntimeMessage({
+    command: CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT,
+    context: {},
+  });
+  if (!isPredictorDebugSnapshot(response)) {
+    if (retryCount < PREDICTOR_DEBUG_MAX_RETRIES) {
+      window.setTimeout(() => {
+        void loadPredictorDebugSnapshot(root, retryCount + 1);
+      }, PREDICTOR_DEBUG_RETRY_DELAY_MS);
+      return;
+    }
+    if (!hasRenderedDashboard) {
+      renderPredictorDebugStatus(
+        root,
+        "Predictor telemetry unavailable. Background worker may still be starting.",
+        true,
+      );
+    }
+    return;
+  }
+  const snapshotSignature = buildPredictorDebugSnapshotSignature(response);
+  const hasMountedDashboard = Boolean(
+    root.querySelector(".predictor-debug, .predictor-debug-status"),
+  );
+  if (
+    snapshotSignature &&
+    snapshotSignature === predictorDebugLastSignature &&
+    hasMountedDashboard
+  ) {
+    return;
+  }
+  predictorDebugLastSignature = snapshotSignature;
+  renderPredictorDebugSnapshot(root, response);
+}
+
+function setPredictorDebugToggle(settings, key, enabled) {
+  const setting = settings?.manifest?.[key];
+  if (!setting || typeof setting.set !== "function") {
+    return;
+  }
+  setting.set(Boolean(enabled));
+  optionsPageConfigChange();
+}
+
+function setupPredictorDebugDashboard(settings) {
+  const mountIfNeeded = () => {
+    const root = getPredictorDebugRootElement();
+    if (!root) {
+      return null;
+    }
+    if (root.dataset.bound !== "true") {
+      root.dataset.bound = "true";
+      predictorDebugLastSignature = "";
+      void loadPredictorDebugSnapshot(root);
+    }
+    return root;
+  };
+
+  const initialRoot = mountIfNeeded();
+  if (!initialRoot) {
+    return;
+  }
+
+  if (predictorDebugBindingsInitialized) {
+    return;
+  }
+  predictorDebugBindingsInitialized = true;
+
+  document.addEventListener("click", async (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+    const actionTarget = target.closest("#predictorDebugRoot [data-action]");
+    if (!(actionTarget instanceof HTMLElement)) {
+      return;
+    }
+    const root = mountIfNeeded();
+    if (!root) {
+      return;
+    }
+    const action = actionTarget.getAttribute("data-action");
+    if (action === "refresh-predictor-debug") {
+      predictorDebugLastSignature = "";
+      void loadPredictorDebugSnapshot(root);
+      return;
+    }
+    if (action === "clear-predictor-debug") {
+      await sendRuntimeMessage({
+        command: CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE,
+        context: {},
+      });
+      predictorDebugLastSignature = "";
+      void loadPredictorDebugSnapshot(root);
+      return;
+    }
+    if (action === "set-predictor-toggle") {
+      const key = actionTarget.getAttribute("data-key");
+      const nextEnabled = actionTarget.getAttribute("data-enabled") === "true";
+      if (
+        key === KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED ||
+        key === KEY_DEBUG_AI_PREDICTOR_ENABLED
+      ) {
+        setPredictorDebugToggle(settings, key, nextEnabled);
+        predictorDebugLastSignature = "";
+        window.setTimeout(() => {
+          const latestRoot = mountIfNeeded();
+          if (latestRoot) {
+            void loadPredictorDebugSnapshot(latestRoot);
+          }
+        }, 80);
+      }
+    }
+  });
+
+  window.addEventListener("focus", () => {
+    const root = mountIfNeeded();
+    if (root) {
+      void loadPredictorDebugSnapshot(root);
+    }
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      return;
+    }
+    const root = mountIfNeeded();
+    if (root) {
+      void loadPredictorDebugSnapshot(root);
+    }
+  });
+  window.setInterval(() => {
+    if (document.hidden) {
+      return;
+    }
+    const root = mountIfNeeded();
+    if (root) {
+      void loadPredictorDebugSnapshot(root);
+    }
+  }, PREDICTOR_DEBUG_POLL_INTERVAL_MS);
+}
+
 window.addEventListener("DOMContentLoaded", function () {
   //chrome.storage.local.clear();
 
@@ -778,6 +1460,7 @@ window.addEventListener("DOMContentLoaded", function () {
         optionsPageConfigChange,
       );
       setupProductivityInsights();
+      setupPredictorDebugDashboard(settings);
       settings.manifest.resetProductivityStatsButton.addEvent(
         "action",
         async function () {
@@ -924,6 +1607,11 @@ window.addEventListener("DOMContentLoaded", function () {
         KEY_DISPLAY_LANG_HEADER,
         KEY_INLINE_SUGGESTION,
         KEY_EXTENSION_LANGUAGE,
+        KEY_AI_PREDICTOR_ENABLED,
+        KEY_AI_MODEL_ID,
+        KEY_AI_PREDICTION_TIMEOUT_MS,
+        KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
+        KEY_DEBUG_AI_PREDICTOR_ENABLED,
         // Theme settings
         KEY_TRIBUTE_BG_LIGHT,
         KEY_TRIBUTE_TEXT_LIGHT,
@@ -939,8 +1627,25 @@ window.addEventListener("DOMContentLoaded", function () {
         KEY_TRIBUTE_PADDING_VERTICAL,
         KEY_TRIBUTE_PADDING_HORIZONTAL
       ].forEach((element) => {
-        settings.manifest[element].addEvent("action", function () {
+        const setting = settings.manifest[element];
+        if (!setting || typeof setting.addEvent !== "function") {
+          return;
+        }
+        setting.addEvent("action", function () {
           optionsPageConfigChange();
+          if (
+            element === KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED ||
+            element === KEY_DEBUG_AI_PREDICTOR_ENABLED ||
+            element === KEY_AI_PREDICTOR_ENABLED ||
+            element === KEY_AI_MODEL_ID ||
+            element === KEY_AI_PREDICTION_TIMEOUT_MS
+          ) {
+            const root = document.getElementById("predictorDebugRoot");
+            if (root) {
+              predictorDebugLastSignature = "";
+              void loadPredictorDebugSnapshot(root);
+            }
+          }
         });
       });
     }))();

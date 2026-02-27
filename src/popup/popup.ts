@@ -26,7 +26,7 @@ import {
   DEFAULT_NUM_SUGGESTIONS,
   MAX_NUM_SUGGESTIONS,
 } from "../shared/constants";
-import {
+import type {
   OptionsPageConfigChangeMessage,
   PopupPageEnableMessage,
   PopupPageDisableMessage,
