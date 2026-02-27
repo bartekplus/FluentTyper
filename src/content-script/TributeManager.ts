@@ -4,7 +4,7 @@ import {
   SUPPORTED_LANGUAGES,
 } from "../shared/lang";
 import { isInDocument } from "../shared/utils";
-import {
+import type {
   PredictResponseContext,
   ContentScriptUsageEventMessage,
   ForceReplaceType,

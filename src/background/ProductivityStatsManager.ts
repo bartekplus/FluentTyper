@@ -1,6 +1,6 @@
 import { KEY_PRODUCTIVITY_STATS } from "../shared/constants";
 import { JsonValue, SettingsManager } from "../shared/settingsManager";
-import {
+import type {
   ContentScriptUsageEventContext,
   DonationPromptAction,
   DonationPromptSummary,

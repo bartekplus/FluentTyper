@@ -1,7 +1,7 @@
 // spacingRulesHandler.ts
 // Handles spacing rules logic for FluentTyper
 
-import { ForceReplaceType } from "../shared/messageTypes";
+import type { ForceReplaceType } from "../shared/messageTypes";
 export enum Spacing {
   INSERT_SPACE = "INSERT_SPACE",
   REMOVE_SPACE = "REMOVE_SPACE",

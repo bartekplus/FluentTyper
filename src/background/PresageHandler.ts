@@ -9,67 +9,23 @@ import { getErrorMessage } from "../shared/error";
 import { Capitalization } from "./CapitalizationHelper";
 import { PredictionInputProcessor } from "./PredictionInputProcessor";
 import { TemplateExpander, TemplateVariables } from "./TemplateExpander";
-import { PresageModule } from "./PresageTypes";
+import type { PresageModule } from "./PresageTypes";
 import { UserDictionaryManager } from "./UserDictionaryManager";
 import { TextExpansionManager } from "./TextExpansionManager";
 import { PresageEngine, PresageEngineConfig } from "./PresageEngine";
-import { ForceReplaceType } from "../shared/messageTypes";
-import {
-  DEFAULT_AI_MODEL_ID,
-  DEFAULT_AI_PREDICTION_TIMEOUT_MS,
-  DEFAULT_DEBUG_AI_PREDICTOR_ENABLED,
-  DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED,
-  MAX_NUM_SUGGESTIONS,
-} from "../shared/constants";
-import { WebLLMPredictor } from "./WebLLMPredictor";
+import type { ForceReplaceType } from "../shared/messageTypes";
+import { MAX_NUM_SUGGESTIONS } from "../shared/constants";
+import type { PredictionResult } from "./PredictionTypes";
 
 const SUGGESTION_COUNT = 5;
 const MIN_WORD_LENGTH_TO_PREDICT = 1;
-const PRESAGE_INTERLEAVE_COUNT = 2;
-
-export interface PredictionResult {
-  predictions: string[];
-  forceReplace: ForceReplaceType | null;
-}
-
-export interface PredictorStageDebugInfo {
-  enabled: boolean;
-  attempted: boolean;
-  durationMs: number;
-  timedOut: boolean;
-  predictions: string[];
-  skipReason?: string;
-}
-
-export interface PredictionDebugEvent {
-  timestampMs: number;
-  text: string;
-  nextChar: string;
-  lang: string;
-  predictionInput: string;
-  numSuggestions: number;
-  doPrediction: boolean;
-  forceReplace: boolean;
-  totalDurationMs: number;
-  presage: PredictorStageDebugInfo;
-  webllm: PredictorStageDebugInfo & {
-    modelId: string;
-  };
-  mergedPredictions: string[];
-  finalPredictions: string[];
-}
-
-export type PredictionRunConfig = {
-  numSuggestions?: number;
-  debugListener?: (debugEvent: PredictionDebugEvent) => void;
-};
 
 interface LastPrediction {
   pastStream: string;
   predictions: string[];
 }
 
-export type PresageConfig = {
+export interface PresageConfig {
   numSuggestions: number;
   engineNumSuggestions?: number;
   minWordLengthToPredict: number;
@@ -81,18 +37,17 @@ export type PresageConfig = {
   timeFormat?: string;
   dateFormat?: string;
   userDictionaryList?: string[];
-  aiPredictorEnabled?: boolean;
-  aiModelId?: string;
-  aiPredictionTimeoutMs?: number;
-  debugPresagePredictorEnabled?: boolean;
-  debugAIPredictorEnabled?: boolean;
-};
+}
 
-function clampAIPredictionTimeoutMs(value: unknown): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return DEFAULT_AI_PREDICTION_TIMEOUT_MS;
-  }
-  return Math.min(2000, Math.max(20, Math.round(value)));
+export interface PresagePredictionContext {
+  text: string;
+  nextChar: string;
+  lang: string;
+  predictionInput: string;
+  doPrediction: boolean;
+  doCapitalize: Capitalization;
+  forceReplace: ForceReplaceType | null;
+  effectiveNumSuggestions: number;
 }
 
 export class PresageHandler {
@@ -112,14 +67,8 @@ export class PresageHandler {
   private timeFormat?: string;
   private dateFormat?: string;
   private engineNumSuggestions: number;
-  private aiPredictor: WebLLMPredictor | null;
-  private aiPredictorEnabled: boolean;
-  private aiModelId: string;
-  private aiPredictionTimeoutMs: number;
-  private debugPresagePredictorEnabled: boolean;
-  private debugAIPredictorEnabled: boolean;
 
-  constructor(Module: PresageModule, aiPredictor?: WebLLMPredictor) {
+  constructor(Module: PresageModule) {
     const engineConfig: PresageEngineConfig = {
       numSuggestions: SUGGESTION_COUNT,
     };
@@ -132,12 +81,6 @@ export class PresageHandler {
     this.insertSpaceAfterAutocomplete = true;
     this.autoCapitalize = true;
     this.userDictionaryList = [];
-    this.aiPredictor = aiPredictor || null;
-    this.aiPredictorEnabled = false;
-    this.aiModelId = DEFAULT_AI_MODEL_ID;
-    this.aiPredictionTimeoutMs = DEFAULT_AI_PREDICTION_TIMEOUT_MS;
-    this.debugPresagePredictorEnabled = DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED;
-    this.debugAIPredictorEnabled = DEFAULT_DEBUG_AI_PREDICTOR_ENABLED;
     this.spacingHandler = new SpacingRulesHandler(
       this.insertSpaceAfterAutocomplete,
       false,
@@ -181,30 +124,14 @@ export class PresageHandler {
       ),
     );
     this.minWordLengthToPredict = Math.max(0, config.minWordLengthToPredict);
-    this.predictNextWordAfterSeparatorChar =
-      this.minWordLengthToPredict === 0 ? true : false;
+    this.predictNextWordAfterSeparatorChar = this.minWordLengthToPredict === 0;
     this.insertSpaceAfterAutocomplete = config.insertSpaceAfterAutocomplete;
     this.autoCapitalize = config.autoCapitalize;
     this.variableExpansion = config.variableExpansion;
     this.timeFormat = config.timeFormat;
     this.dateFormat = config.dateFormat;
     this.userDictionaryList = config.userDictionaryList || [];
-    this.aiPredictorEnabled = config.aiPredictorEnabled ?? false;
-    this.aiModelId =
-      typeof config.aiModelId === "string" && config.aiModelId.trim().length > 0
-        ? config.aiModelId
-        : DEFAULT_AI_MODEL_ID;
-    this.aiPredictionTimeoutMs = clampAIPredictionTimeoutMs(
-      config.aiPredictionTimeoutMs,
-    );
-    this.debugPresagePredictorEnabled =
-      typeof config.debugPresagePredictorEnabled === "boolean"
-        ? config.debugPresagePredictorEnabled
-        : DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED;
-    this.debugAIPredictorEnabled =
-      typeof config.debugAIPredictorEnabled === "boolean"
-        ? config.debugAIPredictorEnabled
-        : DEFAULT_DEBUG_AI_PREDICTOR_ENABLED;
+
     this.textExpansionManager.setTextExpansions(config.textExpansions);
     this.userDictionaryManager.setUserDictionaryList(this.userDictionaryList);
     this.spacingHandler = new SpacingRulesHandler(
@@ -220,39 +147,18 @@ export class PresageHandler {
         numSuggestions: this.engineNumSuggestions,
       });
     }
-    this.aiPredictor?.setConfig({
-      enabled: this.aiPredictorEnabled,
-      modelId: this.aiModelId,
-    });
-    if (
-      this.aiPredictorEnabled &&
-      this.aiPredictor &&
-      typeof (this.aiPredictor as { preload?: unknown }).preload === "function"
-    ) {
-      void this.aiPredictor.preload();
-    }
   }
 
   getDebugState(): {
-    predictorConfig: {
-      aiPredictorEnabled: boolean;
-      aiModelId: string;
-      aiPredictionTimeoutMs: number;
-      debugPresagePredictorEnabled: boolean;
-      debugAIPredictorEnabled: boolean;
-    };
     languageEngineCount: number;
   } {
     return {
-      predictorConfig: {
-        aiPredictorEnabled: this.aiPredictorEnabled,
-        aiModelId: this.aiModelId,
-        aiPredictionTimeoutMs: this.aiPredictionTimeoutMs,
-        debugPresagePredictorEnabled: this.debugPresagePredictorEnabled,
-        debugAIPredictorEnabled: this.debugAIPredictorEnabled,
-      },
       languageEngineCount: Object.keys(this.presageEngines).length,
     };
+  }
+
+  hasLanguageEngine(lang: string): boolean {
+    return lang in this.presageEngines;
   }
 
   parseStringTemplate(str: string, obj: TemplateVariables): string {
@@ -299,6 +205,9 @@ export class PresageHandler {
   }
 
   doPredictionHandler(predictionInput: string, lang: string): string[] {
+    if (!this.hasLanguageEngine(lang)) {
+      return [];
+    }
     if (predictionInput === this.lastPrediction[lang]?.pastStream) {
       return this.lastPrediction[lang].predictions.slice();
     }
@@ -314,436 +223,79 @@ export class PresageHandler {
     return expandedPredictions;
   }
 
-  runPrediction(
+  preparePredictionContext(
     text: string,
     nextChar: string,
     lang: string,
-    configOverride?: PredictionRunConfig,
-  ): PredictionResult | Promise<PredictionResult> {
-    const startedAt = Date.now();
-    const overrideSuggestionCount = configOverride?.numSuggestions;
-    const debugListener = configOverride?.debugListener;
+    numSuggestionsOverride?: number,
+  ): PresagePredictionContext {
     const effectiveNumSuggestions =
-      typeof overrideSuggestionCount === "number"
+      typeof numSuggestionsOverride === "number"
         ? Math.min(
             MAX_NUM_SUGGESTIONS,
-            Math.max(0, Math.round(overrideSuggestionCount)),
+            Math.max(0, Math.round(numSuggestionsOverride)),
           )
         : this.numSuggestions;
-    let predictions: string[] = [];
     const { predictionInput, doPrediction, doCapitalize } = this.processInput(
       text,
       lang,
       effectiveNumSuggestions,
     );
     const forceReplace = this.spacingHandler.applySpacingRules(text);
-    const presageDebug: PredictorStageDebugInfo = {
-      enabled: this.debugPresagePredictorEnabled,
-      attempted: false,
-      durationMs: 0,
-      timedOut: false,
-      predictions: [],
-      skipReason: undefined,
-    };
-    const aiDebug: PredictorStageDebugInfo & { modelId: string } = {
-      enabled: this.aiPredictorEnabled && this.debugAIPredictorEnabled,
-      attempted: false,
-      durationMs: 0,
-      timedOut: false,
-      predictions: [],
-      skipReason: undefined,
-      modelId: this.aiModelId,
-    };
-    const canRunBasePrediction =
-      !forceReplace && doPrediction && effectiveNumSuggestions > 0;
-    const canRunPresage =
-      canRunBasePrediction &&
-      this.debugPresagePredictorEnabled &&
-      lang in this.presageEngines;
-    const shouldRunAIPredictor =
-      canRunBasePrediction &&
-      this.debugAIPredictorEnabled &&
-      this.aiPredictorEnabled &&
-      this.aiPredictor !== null &&
-      effectiveNumSuggestions > 0;
-    let aiPromise: Promise<{
-      predictions: string[];
-      durationMs: number;
-      timedOut: boolean;
-    }> | null = null;
-    if (shouldRunAIPredictor) {
-      aiDebug.attempted = true;
-      // Start AI work first so it overlaps with synchronous Presage computation.
-      aiPromise = this.runAIPredictionWithTimeout(
-        lang,
-        predictionInput,
-        effectiveNumSuggestions,
-      );
-    }
 
-    if (canRunPresage) {
-      presageDebug.attempted = true;
-      const presageStartedAt = Date.now();
-      predictions = this.doPredictionHandler(predictionInput, lang);
-      presageDebug.durationMs = Date.now() - presageStartedAt;
-      presageDebug.predictions = predictions.slice();
-    } else {
-      presageDebug.skipReason = this.resolvePresageSkipReason(
-        lang,
-        doPrediction,
-        forceReplace,
-        effectiveNumSuggestions,
-      );
-    }
-
-    if (!shouldRunAIPredictor) {
-      aiDebug.skipReason = this.resolveAISkipReason(
-        doPrediction,
-        forceReplace,
-        effectiveNumSuggestions,
-      );
-    }
-
-    if (!shouldRunAIPredictor) {
-      const result = this.applyPredictionOutputRules(
-        predictions,
-        predictionInput,
-        nextChar,
-        doCapitalize,
-        effectiveNumSuggestions,
-        forceReplace,
-      );
-      this.emitDebugEvent(debugListener, {
-        timestampMs: Date.now(),
-        text,
-        nextChar,
-        lang,
-        predictionInput,
-        numSuggestions: effectiveNumSuggestions,
-        doPrediction,
-        forceReplace: Boolean(forceReplace),
-        totalDurationMs: Date.now() - startedAt,
-        presage: presageDebug,
-        webllm: aiDebug,
-        mergedPredictions: predictions.slice(),
-        finalPredictions: result.predictions.slice(),
-      });
-      return result;
-    }
-
-    if (!aiPromise) {
-      const result = this.applyPredictionOutputRules(
-        predictions,
-        predictionInput,
-        nextChar,
-        doCapitalize,
-        effectiveNumSuggestions,
-        forceReplace,
-      );
-      this.emitDebugEvent(debugListener, {
-        timestampMs: Date.now(),
-        text,
-        nextChar,
-        lang,
-        predictionInput,
-        numSuggestions: effectiveNumSuggestions,
-        doPrediction,
-        forceReplace: Boolean(forceReplace),
-        totalDurationMs: Date.now() - startedAt,
-        presage: presageDebug,
-        webllm: aiDebug,
-        mergedPredictions: predictions.slice(),
-        finalPredictions: result.predictions.slice(),
-      });
-      return result;
-    }
-
-    return aiPromise
-      .then((aiResult) => {
-        aiDebug.durationMs = aiResult.durationMs;
-        aiDebug.timedOut = aiResult.timedOut;
-        aiDebug.predictions = aiResult.predictions.slice();
-        const mergedPredictions = this.mergePredictions(
-          predictions,
-          aiResult.predictions,
-          effectiveNumSuggestions,
-        );
-        const result = this.applyPredictionOutputRules(
-          mergedPredictions,
-          predictionInput,
-          nextChar,
-          doCapitalize,
-          effectiveNumSuggestions,
-          forceReplace,
-        );
-        this.emitDebugEvent(debugListener, {
-          timestampMs: Date.now(),
-          text,
-          nextChar,
-          lang,
-          predictionInput,
-          numSuggestions: effectiveNumSuggestions,
-          doPrediction,
-          forceReplace: Boolean(forceReplace),
-          totalDurationMs: Date.now() - startedAt,
-          presage: presageDebug,
-          webllm: aiDebug,
-          mergedPredictions: mergedPredictions.slice(),
-          finalPredictions: result.predictions.slice(),
-        });
-        return result;
-      })
-      .catch(() => {
-        const result = this.applyPredictionOutputRules(
-          predictions,
-          predictionInput,
-          nextChar,
-          doCapitalize,
-          effectiveNumSuggestions,
-          forceReplace,
-        );
-        this.emitDebugEvent(debugListener, {
-          timestampMs: Date.now(),
-          text,
-          nextChar,
-          lang,
-          predictionInput,
-          numSuggestions: effectiveNumSuggestions,
-          doPrediction,
-          forceReplace: Boolean(forceReplace),
-          totalDurationMs: Date.now() - startedAt,
-          presage: presageDebug,
-          webllm: aiDebug,
-          mergedPredictions: predictions.slice(),
-          finalPredictions: result.predictions.slice(),
-        });
-        return result;
-      });
-  }
-
-  private async runAIPredictionWithTimeout(
-    lang: string,
-    predictionInput: string,
-    numSuggestions: number,
-  ): Promise<{
-    predictions: string[];
-    durationMs: number;
-    timedOut: boolean;
-  }> {
-    if (!this.aiPredictor) {
-      return {
-        predictions: [],
-        durationMs: 0,
-        timedOut: false,
-      };
-    }
-    const startedAt = Date.now();
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
-    const timeoutPromise = new Promise<{
-      predictions: string[];
-      timedOut: boolean;
-    }>((resolve) => {
-      timeoutId = setTimeout(() => {
-        this.interruptAIPrediction("timeout", {
-          lang,
-          predictionInput,
-        });
-        resolve({
-          predictions: [],
-          timedOut: true,
-        });
-      }, this.aiPredictionTimeoutMs);
-    });
-    const predictionPromise = this.aiPredictor
-      .predict({
-        lang,
-        predictionInput,
-        numSuggestions,
-      })
-      .then((predictions) => ({
-        predictions,
-        timedOut: false,
-      }))
-      .catch(() => ({
-        predictions: [],
-        timedOut: false,
-      }));
-    const result = await Promise.race([predictionPromise, timeoutPromise]);
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-    }
     return {
-      predictions: result.predictions,
-      durationMs: Date.now() - startedAt,
-      timedOut: result.timedOut,
+      text,
+      nextChar,
+      lang,
+      predictionInput,
+      doPrediction,
+      doCapitalize,
+      forceReplace,
+      effectiveNumSuggestions,
     };
   }
 
-  private interruptAIPrediction(
-    reason: string,
-    expectedRequest?: {
-      lang: string;
-      predictionInput: string;
-    },
-  ): void {
-    if (!this.aiPredictor) {
-      return;
-    }
-    const predictor = this.aiPredictor as unknown as {
-      interruptActiveGeneration?: (
-        reason?: string,
-        expectedRequest?: {
-          lang: string;
-          predictionInput: string;
-        },
-      ) => void;
-    };
-    if (typeof predictor.interruptActiveGeneration !== "function") {
-      return;
-    }
-    try {
-      predictor.interruptActiveGeneration(reason, expectedRequest);
-    } catch (error) {
-      console.warn(
-        "Failed to interrupt WebLLM generation:",
-        getErrorMessage(error),
-      );
-    }
-  }
-
-  private emitDebugEvent(
-    debugListener: ((debugEvent: PredictionDebugEvent) => void) | undefined,
-    debugEvent: PredictionDebugEvent,
-  ): void {
-    if (!debugListener) {
-      return;
-    }
-    try {
-      debugListener(debugEvent);
-    } catch (error) {
-      console.warn(
-        "Prediction debug listener failed:",
-        getErrorMessage(error),
-      );
-    }
-  }
-
-  private resolvePresageSkipReason(
-    lang: string,
-    doPrediction: boolean,
-    forceReplace: ForceReplaceType | null,
-    effectiveNumSuggestions: number,
-  ): string {
-    if (!this.debugPresagePredictorEnabled) {
-      return "disabled_by_debug_toggle";
-    }
-    if (!(lang in this.presageEngines)) {
-      return "language_engine_missing";
-    }
-    if (forceReplace) {
-      return "blocked_by_spacing_rule";
-    }
-    if (!doPrediction) {
-      return "input_not_predictable";
-    }
-    if (effectiveNumSuggestions <= 0) {
-      return "num_suggestions_zero";
-    }
-    return "unknown";
-  }
-
-  private resolveAISkipReason(
-    doPrediction: boolean,
-    forceReplace: ForceReplaceType | null,
-    effectiveNumSuggestions: number,
-  ): string {
-    if (!this.aiPredictorEnabled) {
-      return "disabled_in_settings";
-    }
-    if (!this.debugAIPredictorEnabled) {
-      return "disabled_by_debug_toggle";
-    }
-    if (!this.aiPredictor) {
-      return "predictor_unavailable";
-    }
-    if (forceReplace) {
-      return "blocked_by_spacing_rule";
-    }
-    if (!doPrediction) {
-      return "input_not_predictable";
-    }
-    if (effectiveNumSuggestions <= 0) {
-      return "num_suggestions_zero";
-    }
-    return "unknown";
-  }
-
-  private withTimeout<T>(
-    promise: Promise<T>,
-    timeoutMs: number,
-    fallback: T,
-  ): Promise<T> {
-    return new Promise((resolve) => {
-      const timeoutId = setTimeout(() => resolve(fallback), timeoutMs);
-      promise
-        .then((value) => {
-          clearTimeout(timeoutId);
-          resolve(value);
-        })
-        .catch(() => {
-          clearTimeout(timeoutId);
-          resolve(fallback);
-        });
-    });
-  }
-
-  private mergePredictions(
-    presagePredictions: string[],
-    aiPredictions: string[],
-    limit: number,
-  ): string[] {
-    if (limit <= 0) {
+  predictPresage(context: PresagePredictionContext): string[] {
+    if (context.forceReplace || !context.doPrediction) {
       return [];
     }
-
-    const merged: string[] = [];
-    const seen = new Set<string>();
-    const addPrediction = (prediction: string | undefined) => {
-      if (!prediction || merged.length >= limit) {
-        return;
-      }
-      const normalized = prediction.replace(/\xA0/g, " ").trim().toLowerCase();
-      if (!normalized || seen.has(normalized)) {
-        return;
-      }
-      seen.add(normalized);
-      merged.push(prediction);
-    };
-
-    let presageIdx = 0;
-    let aiIdx = 0;
-    while (
-      merged.length < limit &&
-      (presageIdx < presagePredictions.length || aiIdx < aiPredictions.length)
-    ) {
-      for (let i = 0; i < PRESAGE_INTERLEAVE_COUNT; i += 1) {
-        addPrediction(presagePredictions[presageIdx]);
-        presageIdx += 1;
-      }
-      addPrediction(aiPredictions[aiIdx]);
-      aiIdx += 1;
+    if (context.effectiveNumSuggestions <= 0) {
+      return [];
     }
-
-    while (merged.length < limit && presageIdx < presagePredictions.length) {
-      addPrediction(presagePredictions[presageIdx]);
-      presageIdx += 1;
+    if (!this.hasLanguageEngine(context.lang)) {
+      return [];
     }
-    while (merged.length < limit && aiIdx < aiPredictions.length) {
-      addPrediction(aiPredictions[aiIdx]);
-      aiIdx += 1;
-    }
+    return this.doPredictionHandler(context.predictionInput, context.lang);
+  }
 
-    return merged;
+  finalizePrediction(
+    predictionCandidates: string[],
+    context: PresagePredictionContext,
+  ): PredictionResult {
+    return this.applyPredictionOutputRules(
+      predictionCandidates,
+      context.predictionInput,
+      context.nextChar,
+      context.doCapitalize,
+      context.effectiveNumSuggestions,
+      context.forceReplace,
+    );
+  }
+
+  runPrediction(
+    text: string,
+    nextChar: string,
+    lang: string,
+    configOverride?: { numSuggestions?: number },
+  ): PredictionResult {
+    const context = this.preparePredictionContext(
+      text,
+      nextChar,
+      lang,
+      configOverride?.numSuggestions,
+    );
+    const predictions = this.predictPresage(context);
+    return this.finalizePrediction(predictions, context);
   }
 
   private applyPredictionOutputRules(

@@ -1,12 +1,15 @@
-// Handles Presage prediction logic for FluentTyper
-import { PresageModule } from "./PresageTypes";
+// Handles prediction routing logic for FluentTyper
+import type { PresageModule } from "./PresageTypes";
+import { PresageHandler } from "./PresageHandler";
 import {
-  PresageHandler,
-  PredictionResult,
-  PresageConfig,
+  PredictionOrchestrator,
+  PredictionConfig,
+} from "./PredictionOrchestrator";
+import type {
   PredictionDebugEvent,
+  PredictionResult,
   PredictionRunConfig,
-} from "./PresageHandler";
+} from "./PredictionTypes";
 import libPresageMod from "../third_party/libpresage/libpresage.js";
 import { WebLLMPredictor } from "./WebLLMPredictor";
 import { DEFAULT_AI_PREDICTION_TIMEOUT_MS } from "../shared/constants";
@@ -75,10 +78,11 @@ const MAX_DEBUG_TRACES = 80;
 export class PredictionManager {
   private libPresageMod: () => Promise<PresageModule>;
   private presageHandler: PresageHandler | undefined;
+  private predictionOrchestrator: PredictionOrchestrator | undefined;
   private webLLMPredictor: WebLLMPredictor | null = null;
   private initializationPromise: Promise<void> | null = null;
   private debugTraces: PredictorDebugTrace[] = [];
-  private currentConfig: PresageConfig | null = null;
+  private currentConfig: PredictionConfig | null = null;
 
   constructor() {
     this.libPresageMod = libPresageMod as () => Promise<PresageModule>;
@@ -94,7 +98,14 @@ export class PredictionManager {
 
   private async _doInitializePresage(): Promise<void> {
     const Module = await this.libPresageMod();
-    this.presageHandler = new PresageHandler(Module, this.getWebLLMPredictor());
+    this.presageHandler = new PresageHandler(Module);
+    this.predictionOrchestrator = new PredictionOrchestrator(
+      this.presageHandler,
+      this.getWebLLMPredictor(),
+    );
+    if (this.currentConfig) {
+      this.predictionOrchestrator.setConfig(this.currentConfig);
+    }
   }
 
   async runPrediction(
@@ -105,14 +116,18 @@ export class PredictionManager {
     debugMeta?: PredictionDebugRequestMeta,
   ): Promise<PredictionResult> {
     await this.initialize();
-    if (!this.presageHandler) throw new Error("Presage not initialized");
+    if (!this.predictionOrchestrator) {
+      throw new Error("Prediction orchestrator not initialized");
+    }
+
     const runConfig: PredictionRunConfig = {
       numSuggestions: configOverride?.numSuggestions,
       debugListener: (debugEvent) => {
         this.recordDebugTrace(debugEvent, debugMeta);
       },
     };
-    return await this.presageHandler.runPrediction(
+
+    return await this.predictionOrchestrator.runPrediction(
       text,
       nextChar,
       lang,
@@ -120,12 +135,14 @@ export class PredictionManager {
     );
   }
 
-  setConfig(config: PresageConfig): void {
-    if (!this.presageHandler) throw new Error("Presage not initialized");
+  setConfig(config: PredictionConfig): void {
     this.currentConfig = {
       ...config,
     };
-    this.presageHandler.setConfig(config);
+    if (!this.predictionOrchestrator) {
+      throw new Error("Prediction orchestrator not initialized");
+    }
+    this.predictionOrchestrator.setConfig(config);
   }
 
   clearPredictorDebugTrace(): void {
@@ -136,18 +153,32 @@ export class PredictionManager {
   getPredictorDebugSnapshot(): PredictorDebugSnapshot {
     const webllmDebugState = this.getWebLLMPredictor().getDebugState();
     const presageDebugState = this.presageHandler?.getDebugState();
+    const orchestratorDebugState =
+      this.predictionOrchestrator?.getDebugState().predictorConfig;
+
     return {
       generatedAtMs: Date.now(),
       config: {
-        aiPredictorEnabled: this.currentConfig?.aiPredictorEnabled ?? false,
-        aiModelId: this.currentConfig?.aiModelId ?? "",
+        aiPredictorEnabled:
+          orchestratorDebugState?.aiPredictorEnabled ??
+          this.currentConfig?.aiPredictorEnabled ??
+          false,
+        aiModelId:
+          orchestratorDebugState?.aiModelId ??
+          this.currentConfig?.aiModelId ??
+          "",
         aiPredictionTimeoutMs:
+          orchestratorDebugState?.aiPredictionTimeoutMs ??
           this.currentConfig?.aiPredictionTimeoutMs ??
           DEFAULT_AI_PREDICTION_TIMEOUT_MS,
         debugPresagePredictorEnabled:
-          this.currentConfig?.debugPresagePredictorEnabled ?? true,
+          orchestratorDebugState?.debugPresagePredictorEnabled ??
+          this.currentConfig?.debugPresagePredictorEnabled ??
+          true,
         debugAIPredictorEnabled:
-          this.currentConfig?.debugAIPredictorEnabled ?? true,
+          orchestratorDebugState?.debugAIPredictorEnabled ??
+          this.currentConfig?.debugAIPredictorEnabled ??
+          true,
       },
       runtime: {
         presage: {
@@ -191,7 +222,8 @@ export class PredictionManager {
       requestId:
         typeof debugMeta?.requestId === "number" ? debugMeta.requestId : null,
       tabId: typeof debugMeta?.tabId === "number" ? debugMeta.tabId : null,
-      frameId: typeof debugMeta?.frameId === "number" ? debugMeta.frameId : null,
+      frameId:
+        typeof debugMeta?.frameId === "number" ? debugMeta.frameId : null,
       tributeId:
         typeof debugMeta?.tributeId === "number" ? debugMeta.tributeId : null,
     };
@@ -208,3 +240,5 @@ export class PredictionManager {
     return this.webLLMPredictor;
   }
 }
+
+export type { PredictionConfig };

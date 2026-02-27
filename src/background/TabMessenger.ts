@@ -5,7 +5,7 @@ import {
   checkLastError,
   promisifiedSendMessage,
 } from "../shared/utils";
-import { Message, ConfigMessage } from "../shared/messageTypes";
+import type { Message, ConfigMessage } from "../shared/messageTypes";
 import { getErrorMessage } from "../shared/error";
 import { CMD_GET_HOSTNAME } from "../shared/constants";
 

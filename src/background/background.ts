@@ -59,12 +59,11 @@ import {
   setSiteProfileForDomain,
 } from "../shared/siteProfiles";
 import { LanguageDetector } from "./LanguageDetector";
-import { PresageConfig } from "./PresageHandler";
-import { PredictionManager } from "./PredictionManager";
+import { PredictionManager, PredictionConfig } from "./PredictionManager";
 import { TabMessenger } from "./TabMessenger";
 import { migrateToLocalStore } from "./Migration";
 import { ProductivityStatsManager } from "./ProductivityStatsManager";
-import {
+import type {
   Message,
   PredictRequestMessage,
   PredictResponseMessage,
@@ -394,7 +393,7 @@ export class BackgroundServiceWorker {
       this.settingsManager.get(KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED),
       this.settingsManager.get(KEY_DEBUG_AI_PREDICTOR_ENABLED),
     ]);
-    const config: PresageConfig = {
+    const config: PredictionConfig = {
       numSuggestions: numSuggestions as number,
       engineNumSuggestions: MAX_NUM_SUGGESTIONS,
       minWordLengthToPredict: minWordLengthToPredict as number,
@@ -406,29 +405,26 @@ export class BackgroundServiceWorker {
       timeFormat: timeFormat as string,
       dateFormat: dateFormat as string,
       userDictionaryList: userDictionaryList as string[],
-      aiPredictorEnabled:
-        ENABLE_AI_PREDICTOR
-          ? typeof aiPredictorEnabled === "boolean"
-            ? aiPredictorEnabled
-            : DEFAULT_AI_PREDICTOR_ENABLED
-          : false,
+      aiPredictorEnabled: ENABLE_AI_PREDICTOR
+        ? typeof aiPredictorEnabled === "boolean"
+          ? aiPredictorEnabled
+          : DEFAULT_AI_PREDICTOR_ENABLED
+        : false,
       aiModelId:
         typeof aiModelId === "string" && aiModelId.trim().length > 0
           ? aiModelId
           : DEFAULT_AI_MODEL_ID,
       aiPredictionTimeoutMs: clampAIPredictionTimeoutMs(aiPredictionTimeoutMs),
-      debugPresagePredictorEnabled:
-        IS_DEV_BUILD
-          ? typeof debugPresagePredictorEnabled === "boolean"
-            ? debugPresagePredictorEnabled
-            : DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED
-          : DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED,
-      debugAIPredictorEnabled:
-        IS_DEV_BUILD
-          ? typeof debugAIPredictorEnabled === "boolean"
-            ? debugAIPredictorEnabled
-            : DEFAULT_DEBUG_AI_PREDICTOR_ENABLED
-          : DEFAULT_DEBUG_AI_PREDICTOR_ENABLED,
+      debugPresagePredictorEnabled: IS_DEV_BUILD
+        ? typeof debugPresagePredictorEnabled === "boolean"
+          ? debugPresagePredictorEnabled
+          : DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED
+        : DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED,
+      debugAIPredictorEnabled: IS_DEV_BUILD
+        ? typeof debugAIPredictorEnabled === "boolean"
+          ? debugAIPredictorEnabled
+          : DEFAULT_DEBUG_AI_PREDICTOR_ENABLED
+        : DEFAULT_DEBUG_AI_PREDICTOR_ENABLED,
     };
     this.predictionManager.setConfig(config);
     this.productivityStatsManager.setSnippetShortcuts(
