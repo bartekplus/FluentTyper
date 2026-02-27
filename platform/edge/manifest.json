@@ -57,7 +57,7 @@
   "version": "2026.3.0",
   "manifest_version": 3,
   "content_security_policy": {
-    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; connect-src 'self' data:;"
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
   },
   "commands": {
     "CMD_TOGGLE_FT_ACTIVE_TAB": {

@@ -20,29 +20,32 @@ const WEBLLM_CONNECT_SRC_HOSTS = [
   "https://cas-bridge.xethub.hf.co",
   "https://raw.githubusercontent.com",
 ];
+const WEBLLM_CONNECT_SRC_BASE_SOURCES = ["'self'", "data:"];
 
-function getConnectSrcDirective(includeWebLLMRuntime) {
-  const sources = ["'self'", "data:"];
-  if (includeWebLLMRuntime) {
-    sources.push(...WEBLLM_CONNECT_SRC_HOSTS);
-  }
-  return `connect-src ${sources.join(" ")};`;
-}
+function appendConnectSrcDirective(csp) {
+  const sources = [
+    ...WEBLLM_CONNECT_SRC_BASE_SOURCES,
+    ...WEBLLM_CONNECT_SRC_HOSTS,
+  ];
+  const withoutConnectSrc = csp.replace(/\bconnect-src\b[^;]*;?/gi, "").trim();
+  const cspPrefix = withoutConnectSrc.endsWith(";")
+    ? withoutConnectSrc
+    : `${withoutConnectSrc};`;
 
-function getExtensionPagesCsp(includeWebLLMRuntime) {
-  return [
-    "script-src 'self' 'wasm-unsafe-eval';",
-    "object-src 'self';",
-    getConnectSrcDirective(includeWebLLMRuntime),
-  ].join(" ");
+  return `${cspPrefix} connect-src ${sources.join(" ")};`;
 }
 
 function transformManifestContent(content, includeWebLLMRuntime) {
-  const manifest = JSON.parse(content.toString());
+  if (!includeWebLLMRuntime) {
+    return content;
+  }
 
-  if (manifest?.content_security_policy?.extension_pages) {
+  const manifest = JSON.parse(content.toString());
+  const extensionPagesCsp = manifest?.content_security_policy?.extension_pages;
+
+  if (typeof extensionPagesCsp === "string" && extensionPagesCsp.length > 0) {
     manifest.content_security_policy.extension_pages =
-      getExtensionPagesCsp(includeWebLLMRuntime);
+      appendConnectSrcDirective(extensionPagesCsp);
   }
 
   return `${JSON.stringify(manifest, null, 2)}\n`;
