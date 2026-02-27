@@ -43,9 +43,21 @@ export interface PredictorDebugSnapshot {
       modelId: string;
       status: string;
       hasWebGPU: boolean;
+      initAttemptCount: number;
       isGenerating: boolean;
       cacheSize: number;
       lastFailureAt: number | null;
+      lastInitStartedAt: number | null;
+      lastInitDurationMs: number | null;
+      lastInitProgress: number | null;
+      lastInitProgressAt: number | null;
+      lastInitProgressText: string | null;
+      lastInitError: string | null;
+      lastInitProgressLog: Array<{
+        atMs: number;
+        progress: number;
+        text: string;
+      }>;
       lastPredictAt: number | null;
       lastPredictDurationMs: number | null;
       lastPredictSource: string;
@@ -147,9 +159,17 @@ export class PredictionManager {
           modelId: webllmDebugState.modelId,
           status: webllmDebugState.status,
           hasWebGPU: webllmDebugState.hasWebGPU,
+          initAttemptCount: webllmDebugState.initAttemptCount,
           isGenerating: webllmDebugState.isGenerating,
           cacheSize: webllmDebugState.cacheSize,
           lastFailureAt: webllmDebugState.lastFailureAt,
+          lastInitStartedAt: webllmDebugState.lastInitStartedAt,
+          lastInitDurationMs: webllmDebugState.lastInitDurationMs,
+          lastInitProgress: webllmDebugState.lastInitProgress,
+          lastInitProgressAt: webllmDebugState.lastInitProgressAt,
+          lastInitProgressText: webllmDebugState.lastInitProgressText,
+          lastInitError: webllmDebugState.lastInitError,
+          lastInitProgressLog: webllmDebugState.lastInitProgressLog.slice(),
           lastPredictAt: webllmDebugState.lastPredictAt,
           lastPredictDurationMs: webllmDebugState.lastPredictDurationMs,
           lastPredictSource: webllmDebugState.lastPredictSource,

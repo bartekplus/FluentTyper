@@ -10,6 +10,7 @@ import {
   KEY_AUTOCOMPLETE_ON_ENTER,
   KEY_AUTOCOMPLETE_ON_TAB,
   KEY_AI_PREDICTOR_ENABLED,
+  KEY_AI_MODEL_ID,
   KEY_AI_PREDICTION_TIMEOUT_MS,
   KEY_LANGUAGE,
   KEY_FALLBACK_LANGUAGE,
@@ -780,6 +781,15 @@ function formatDurationMs(value) {
   return `${rounded} ms`;
 }
 
+function formatProgressPercent(value) {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) {
+    return "n/a";
+  }
+  const clamped = Math.max(0, Math.min(1, numericValue));
+  return `${Math.round(clamped * 100)}%`;
+}
+
 function formatClockTime(timestampMs) {
   const date = new Date(timestampMs);
   if (Number.isNaN(date.getTime())) {
@@ -1053,6 +1063,45 @@ function renderPredictorDebugSnapshot(root, snapshot) {
   );
   appendPredictorInfoItem(
     runtimeCard,
+    "WebLLM init attempts",
+    String(snapshot.runtime?.webllm?.initAttemptCount ?? 0),
+  );
+  const initStartedAt = snapshot.runtime?.webllm?.lastInitStartedAt;
+  appendPredictorInfoItem(
+    runtimeCard,
+    "Last WebLLM init start",
+    typeof initStartedAt === "number" ? formatClockTime(initStartedAt) : "n/a",
+  );
+  appendPredictorInfoItem(
+    runtimeCard,
+    "Last WebLLM init duration",
+    snapshot.runtime?.webllm?.lastInitDurationMs != null
+      ? formatDurationMs(snapshot.runtime.webllm.lastInitDurationMs)
+      : "n/a",
+  );
+  appendPredictorInfoItem(
+    runtimeCard,
+    "Last WebLLM init progress",
+    snapshot.runtime?.webllm?.lastInitProgress != null
+      ? formatProgressPercent(snapshot.runtime.webllm.lastInitProgress)
+      : "n/a",
+  );
+  appendPredictorInfoItem(
+    runtimeCard,
+    "Last WebLLM init stage",
+    snapshot.runtime?.webllm?.lastInitProgressText
+      ? previewValue(snapshot.runtime.webllm.lastInitProgressText, 80)
+      : "none",
+  );
+  appendPredictorInfoItem(
+    runtimeCard,
+    "Last WebLLM init error",
+    snapshot.runtime?.webllm?.lastInitError
+      ? previewValue(snapshot.runtime.webllm.lastInitError, 80)
+      : "none",
+  );
+  appendPredictorInfoItem(
+    runtimeCard,
     "WebLLM generating",
     snapshot.runtime?.webllm?.isGenerating ? "yes" : "no",
   );
@@ -1100,6 +1149,26 @@ function renderPredictorDebugSnapshot(root, snapshot) {
     220,
   ) || "<empty>"}`;
   runtimeCard.appendChild(rawPreview);
+  const initProgressLog = Array.isArray(snapshot.runtime?.webllm?.lastInitProgressLog)
+    ? snapshot.runtime.webllm.lastInitProgressLog
+    : [];
+  const initProgressPreview = document.createElement("p");
+  initProgressPreview.className = "predictor-debug-stage";
+  initProgressPreview.textContent =
+    initProgressLog.length > 0
+      ? `Init progress: ${initProgressLog
+          .map((entry) => {
+            const label =
+              typeof entry?.text === "string" && entry.text.trim().length > 0
+                ? entry.text.trim()
+                : "stage";
+            const progress = formatProgressPercent(entry?.progress);
+            const at = formatClockTime(entry?.atMs);
+            return `${at} ${progress} ${label}`;
+          })
+          .join(" | ")}`
+      : "Init progress: <none>";
+  runtimeCard.appendChild(initProgressPreview);
   infoGrid.appendChild(runtimeCard);
 
   shell.appendChild(infoGrid);
@@ -1539,6 +1608,7 @@ window.addEventListener("DOMContentLoaded", function () {
         KEY_INLINE_SUGGESTION,
         KEY_EXTENSION_LANGUAGE,
         KEY_AI_PREDICTOR_ENABLED,
+        KEY_AI_MODEL_ID,
         KEY_AI_PREDICTION_TIMEOUT_MS,
         KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
         KEY_DEBUG_AI_PREDICTOR_ENABLED,
@@ -1567,6 +1637,7 @@ window.addEventListener("DOMContentLoaded", function () {
             element === KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED ||
             element === KEY_DEBUG_AI_PREDICTOR_ENABLED ||
             element === KEY_AI_PREDICTOR_ENABLED ||
+            element === KEY_AI_MODEL_ID ||
             element === KEY_AI_PREDICTION_TIMEOUT_MS
           ) {
             const root = document.getElementById("predictorDebugRoot");

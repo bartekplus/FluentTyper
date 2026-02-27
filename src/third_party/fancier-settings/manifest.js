@@ -20,6 +20,7 @@ import {
   KEY_MIN_WORD_LENGTH_TO_PREDICT,
   KEY_NUM_SUGGESTIONS,
   KEY_AI_PREDICTOR_ENABLED,
+  KEY_AI_MODEL_ID,
   KEY_AI_PREDICTION_TIMEOUT_MS,
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
   KEY_DEBUG_AI_PREDICTOR_ENABLED,
@@ -48,6 +49,7 @@ import {
   KEY_TRIBUTE_PADDING_HORIZONTAL,
   KEY_INLINE_SUGGESTION,
   DEFAULT_NUM_SUGGESTIONS,
+  DEFAULT_AI_MODEL_ID,
   DEFAULT_AI_PREDICTION_TIMEOUT_MS,
 } from "../../shared/constants.ts";
 
@@ -72,6 +74,18 @@ const supportLinksHTML =
   </div>';
 const IS_DEV_BUILD =
   typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
+
+const WEBLLM_DEV_MODEL_OPTIONS = [
+  ["SmolLM2-360M-Instruct-q4f16_1-MLC", "SmolLM2 360M q4f16 (fastest)"],
+  ["Qwen2.5-0.5B-Instruct-q4f16_1-MLC", "Qwen2.5 0.5B q4f16 (default)"],
+  ["Qwen3-0.6B-q4f16_1-MLC", "Qwen3 0.6B q4f16"],
+  ["Llama-3.2-1B-Instruct-q4f16_1-MLC", "Llama 3.2 1B q4f16"],
+  ["SmolLM2-1.7B-Instruct-q4f16_1-MLC", "SmolLM2 1.7B q4f16"],
+  ["Qwen2.5-1.5B-Instruct-q4f16_1-MLC", "Qwen2.5 1.5B q4f16"],
+  ["Qwen2.5-3B-Instruct-q4f16_1-MLC", "Qwen2.5 3B q4f16"],
+  ["Qwen2.5-7B-Instruct-q4f16_1-MLC", "Qwen2.5 7B q4f16"],
+  ["Mistral-7B-Instruct-v0.3-q4f16_1-MLC", "Mistral 7B Instruct v0.3 q4f16"],
+];
 
 // --- Manifest Definition ---
 const manifest = {
@@ -614,6 +628,19 @@ const manifest = {
               i18n.get("predictor_debug_webllm_desc") +
               "</small>",
             default: true,
+          },
+          {
+            tab: i18n.get("advanced_tab"),
+            group: i18n.get("predictor_debug_group"),
+            name: KEY_AI_MODEL_ID,
+            type: "popupButton",
+            options: WEBLLM_DEV_MODEL_OPTIONS,
+            label:
+              i18n.get("predictor_debug_model_label") +
+              ":&nbsp;<small>" +
+              i18n.get("predictor_debug_model_desc") +
+              "</small>",
+            default: DEFAULT_AI_MODEL_ID,
           },
           {
             tab: i18n.get("advanced_tab"),

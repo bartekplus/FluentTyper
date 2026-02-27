@@ -2436,6 +2436,12 @@ i18n = Object.assign(i18n, {
   "predictor_debug_webllm_desc": {
     en: "Disable to compare against Presage-only latency and output.",
   },
+  "predictor_debug_model_label": {
+    en: "WebLLM model",
+  },
+  "predictor_debug_model_desc": {
+    en: "Switch model for debugging latency and quality. Changing model triggers a fresh load.",
+  },
   "predictor_debug_timeout_label": {
     en: "WebLLM timeout budget (ms)",
   },

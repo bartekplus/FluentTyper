@@ -1,4 +1,5 @@
-import { CreateMLCEngine, MLCEngineInterface } from "@mlc-ai/web-llm";
+import { CreateMLCEngine } from "@mlc-ai/web-llm";
+import type { InitProgressReport, MLCEngineInterface } from "@mlc-ai/web-llm";
 import {
   DEFAULT_AI_MODEL_ID,
   DEFAULT_AI_PREDICTOR_ENABLED,
@@ -9,6 +10,7 @@ const CACHE_TTL_MS = 5000;
 const FAILURE_RETRY_MS = 30000;
 const MAX_GENERATION_CHOICES = 5;
 const WEB_LLM_TEST_OVERRIDE_KEY = "__fluentTyperWebLLMTestOverride__";
+const INIT_PROGRESS_LOG_LIMIT = 12;
 
 enum PredictorStatus {
   Idle = "idle",
@@ -93,6 +95,12 @@ interface WebLLMTestOverrideState {
   calls: WebLLMTestPredictionCall[];
 }
 
+interface InitProgressEntry {
+  atMs: number;
+  progress: number;
+  text: string;
+}
+
 type WebLLMTestGlobals = typeof globalThis & {
   __fluentTyperWebLLMTestOverride__?: WebLLMTestOverrideState;
 };
@@ -113,9 +121,17 @@ export interface WebLLMPredictorDebugState {
   modelId: string;
   status: string;
   hasWebGPU: boolean;
+  initAttemptCount: number;
   isGenerating: boolean;
   cacheSize: number;
   lastFailureAt: number | null;
+  lastInitStartedAt: number | null;
+  lastInitDurationMs: number | null;
+  lastInitProgress: number | null;
+  lastInitProgressAt: number | null;
+  lastInitProgressText: string | null;
+  lastInitError: string | null;
+  lastInitProgressLog: InitProgressEntry[];
   lastPredictAt: number | null;
   lastPredictDurationMs: number | null;
   lastPredictSource: string;
@@ -142,6 +158,14 @@ export class WebLLMPredictor {
   private lastRawOutputPreview: string | null = null;
   private lastPredictOutputCount = 0;
   private lastPredictError: string | null = null;
+  private initAttemptCount = 0;
+  private lastInitStartedAt = 0;
+  private lastInitDurationMs = -1;
+  private lastInitProgress = -1;
+  private lastInitProgressAt = 0;
+  private lastInitProgressText: string | null = null;
+  private lastInitError: string | null = null;
+  private lastInitProgressLog: InitProgressEntry[] = [];
 
   setConfig(config: WebLLMPredictorConfig): void {
     const nextEnabled =
@@ -172,9 +196,20 @@ export class WebLLMPredictor {
       modelId: this.modelId,
       status: this.status,
       hasWebGPU: this.hasWebGPU(),
+      initAttemptCount: this.initAttemptCount,
       isGenerating: this.isGenerating,
       cacheSize: this.cache.size,
       lastFailureAt: this.lastFailureAt > 0 ? this.lastFailureAt : null,
+      lastInitStartedAt: this.lastInitStartedAt > 0 ? this.lastInitStartedAt : null,
+      lastInitDurationMs:
+        this.lastInitDurationMs >= 0 ? this.lastInitDurationMs : null,
+      lastInitProgress:
+        this.lastInitProgress >= 0 ? this.lastInitProgress : null,
+      lastInitProgressAt:
+        this.lastInitProgressAt > 0 ? this.lastInitProgressAt : null,
+      lastInitProgressText: this.lastInitProgressText,
+      lastInitError: this.lastInitError,
+      lastInitProgressLog: this.lastInitProgressLog.slice(),
       lastPredictAt: this.lastPredictAt > 0 ? this.lastPredictAt : null,
       lastPredictDurationMs:
         this.lastPredictDurationMs >= 0 ? this.lastPredictDurationMs : null,
@@ -382,16 +417,55 @@ export class WebLLMPredictor {
     }
 
     this.status = PredictorStatus.Loading;
+    this.initAttemptCount += 1;
+    const initStartedAt = Date.now();
+    this.lastInitStartedAt = initStartedAt;
+    this.lastInitDurationMs = 0;
+    this.lastInitProgress = 0;
+    this.lastInitProgressAt = initStartedAt;
+    this.lastInitProgressText = "initializing";
+    this.lastInitError = null;
+    this.lastInitProgressLog = [];
+    this.recordInitProgress({
+      progress: 0,
+      timeElapsed: 0,
+      text: "initializing",
+    });
     this.initPromise = (async () => {
       try {
-        this.engine = await CreateMLCEngine(this.modelId);
+        this.engine = await CreateMLCEngine(this.modelId, {
+          initProgressCallback: (report: InitProgressReport) => {
+            this.recordInitProgress(report);
+          },
+        });
         this.status = PredictorStatus.Ready;
         this.lastFailureAt = 0;
+        this.lastInitDurationMs = Date.now() - initStartedAt;
+        this.lastInitProgress = 1;
+        this.lastInitProgressAt = Date.now();
+        this.lastInitProgressText = "ready";
+        this.recordInitProgress({
+          progress: 1,
+          timeElapsed: this.lastInitDurationMs,
+          text: "ready",
+        });
         return true;
       } catch (error) {
         this.engine = null;
         this.status = PredictorStatus.Failed;
         this.lastFailureAt = Date.now();
+        this.lastInitDurationMs = Date.now() - initStartedAt;
+        this.lastInitError = getErrorMessage(error);
+        this.lastInitProgressAt = Date.now();
+        this.lastInitProgressText = "failed";
+        this.recordInitProgress({
+          progress:
+            this.lastInitProgress >= 0 && Number.isFinite(this.lastInitProgress)
+              ? this.lastInitProgress
+              : 0,
+          timeElapsed: this.lastInitDurationMs,
+          text: `failed: ${this.lastInitError}`,
+        });
         console.warn(
           "WebLLM init failed, fallback to Presage:",
           getErrorMessage(error),
@@ -403,6 +477,41 @@ export class WebLLMPredictor {
     })();
 
     return this.initPromise;
+  }
+
+  private recordInitProgress(report: InitProgressReport): void {
+    const now = Date.now();
+    const progress =
+      typeof report.progress === "number" && Number.isFinite(report.progress)
+        ? Math.max(0, Math.min(1, report.progress))
+        : this.lastInitProgress >= 0
+          ? this.lastInitProgress
+          : 0;
+    const text =
+      typeof report.text === "string" && report.text.trim().length > 0
+        ? report.text.trim()
+        : this.lastInitProgressText || "working";
+    this.lastInitProgress = progress;
+    this.lastInitProgressAt = now;
+    this.lastInitProgressText = text;
+    const lastEntry = this.lastInitProgressLog[this.lastInitProgressLog.length - 1];
+    const shouldRecord =
+      !lastEntry ||
+      lastEntry.text !== text ||
+      Math.abs(lastEntry.progress - progress) >= 0.01;
+    if (!shouldRecord) {
+      return;
+    }
+    this.lastInitProgressLog.push({
+      atMs: now,
+      progress,
+      text,
+    });
+    if (this.lastInitProgressLog.length > INIT_PROGRESS_LOG_LIMIT) {
+      this.lastInitProgressLog = this.lastInitProgressLog.slice(
+        this.lastInitProgressLog.length - INIT_PROGRESS_LOG_LIMIT,
+      );
+    }
   }
 
   private resetEngine(): void {
