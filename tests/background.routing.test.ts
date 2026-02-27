@@ -16,8 +16,12 @@ import {
   CMD_TRIGGER_FT_ACTIVE_TAB,
   DEFAULT_AI_PREDICTION_TIMEOUT_MS,
   DEFAULT_AI_MODEL_ID,
+  DEFAULT_DEBUG_AI_PREDICTOR_ENABLED,
+  DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED,
   KEY_LANGUAGE,
   KEY_SITE_PROFILES,
+  KEY_DEBUG_AI_PREDICTOR_ENABLED,
+  KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
 } from "../src/shared/constants";
 
 function flushPromises() {
@@ -240,6 +244,22 @@ describe("background routing and lifecycle", () => {
     expect(harness.logError).toHaveBeenCalledWith(
       "lastVersion handler",
       expect.any(Error),
+    );
+  });
+
+  test("startup ignores debug predictor routing toggles outside dev builds", async () => {
+    const harness = await loadBackgroundHarness({
+      [KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED]: false,
+      [KEY_DEBUG_AI_PREDICTOR_ENABLED]: false,
+    });
+
+    await harness.startupHandler({ lastVersion: "2025.12.0" });
+
+    expect(harness.predictionSetConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        debugPresagePredictorEnabled: DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED,
+        debugAIPredictorEnabled: DEFAULT_DEBUG_AI_PREDICTOR_ENABLED,
+      }),
     );
   });
 

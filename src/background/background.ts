@@ -84,6 +84,11 @@ import {
   OptionsClearPredictorDebugTraceMessage,
 } from "../shared/messageTypes";
 
+declare const __FT_DEV_BUILD__: boolean | undefined;
+
+const IS_DEV_BUILD =
+  typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
+
 interface DomainRuntimeSettings {
   language: string;
   enabledLanguages: string[];
@@ -406,12 +411,16 @@ export class BackgroundServiceWorker {
           : DEFAULT_AI_MODEL_ID,
       aiPredictionTimeoutMs: clampAIPredictionTimeoutMs(aiPredictionTimeoutMs),
       debugPresagePredictorEnabled:
-        typeof debugPresagePredictorEnabled === "boolean"
-          ? debugPresagePredictorEnabled
+        IS_DEV_BUILD
+          ? typeof debugPresagePredictorEnabled === "boolean"
+            ? debugPresagePredictorEnabled
+            : DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED
           : DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED,
       debugAIPredictorEnabled:
-        typeof debugAIPredictorEnabled === "boolean"
-          ? debugAIPredictorEnabled
+        IS_DEV_BUILD
+          ? typeof debugAIPredictorEnabled === "boolean"
+            ? debugAIPredictorEnabled
+            : DEFAULT_DEBUG_AI_PREDICTOR_ENABLED
           : DEFAULT_DEBUG_AI_PREDICTOR_ENABLED,
     };
     this.predictionManager.setConfig(config);
