@@ -19,6 +19,10 @@ import {
   KEY_FALLBACK_LANGUAGE,
   KEY_MIN_WORD_LENGTH_TO_PREDICT,
   KEY_NUM_SUGGESTIONS,
+  KEY_AI_PREDICTOR_ENABLED,
+  KEY_AI_PREDICTION_TIMEOUT_MS,
+  KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
+  KEY_DEBUG_AI_PREDICTOR_ENABLED,
   KEY_VARIABLE_EXPANSION,
   KEY_TIME_FORMAT,
   KEY_DATE_FORMAT,
@@ -44,6 +48,7 @@ import {
   KEY_TRIBUTE_PADDING_HORIZONTAL,
   KEY_INLINE_SUGGESTION,
   DEFAULT_NUM_SUGGESTIONS,
+  DEFAULT_AI_PREDICTION_TIMEOUT_MS,
 } from "../../shared/constants.ts";
 
 // --- UI Content ---
@@ -65,6 +70,8 @@ const supportLinksHTML =
   <a href="https://github.com/bartekplus/FluentTyper#readme" target="_blank" rel="noopener noreferrer">Read documentation</a> - Setup help, configuration details, and usage tips.<br /> \
   <a href="https://github.com/bartekplus/FluentTyper/blob/main/SECURITY.md" target="_blank" rel="noopener noreferrer">Security policy</a> - Responsible disclosure and security contact details. \
   </div>';
+const IS_DEV_BUILD =
+  typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
 
 // --- Manifest Definition ---
 const manifest = {
@@ -103,6 +110,14 @@ const manifest = {
       display: true,
       label: i18n.get("min_chars_label") + ":&nbsp;<small>" + i18n.get("min_chars_desc") + "</small>",
       default: 1,
+    },
+    {
+      tab: i18n.get("core_settings"),
+      group: i18n.get("prediction_engine"),
+      name: KEY_AI_PREDICTOR_ENABLED,
+      type: "checkbox",
+      label: i18n.get("enable_ai_predictor_label") + ":&nbsp;<small>" + i18n.get("enable_ai_predictor_desc") + "</small>",
+      default: true,
     },
     {
       tab: i18n.get("core_settings"),
@@ -567,6 +582,64 @@ const manifest = {
       text: i18n.get("export_settings_btn"),
       label: i18n.get("export_settings_desc"),
     },
+    ...(IS_DEV_BUILD
+      ? [
+          {
+            tab: i18n.get("advanced_tab"),
+            group: i18n.get("predictor_debug_group"),
+            name: "predictorDebugHint",
+            type: "description",
+            text: `<p>${i18n.get("predictor_debug_desc")}</p>`,
+          },
+          {
+            tab: i18n.get("advanced_tab"),
+            group: i18n.get("predictor_debug_group"),
+            name: KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
+            type: "checkbox",
+            label:
+              i18n.get("predictor_debug_presage_label") +
+              ":&nbsp;<small>" +
+              i18n.get("predictor_debug_presage_desc") +
+              "</small>",
+            default: true,
+          },
+          {
+            tab: i18n.get("advanced_tab"),
+            group: i18n.get("predictor_debug_group"),
+            name: KEY_DEBUG_AI_PREDICTOR_ENABLED,
+            type: "checkbox",
+            label:
+              i18n.get("predictor_debug_webllm_label") +
+              ":&nbsp;<small>" +
+              i18n.get("predictor_debug_webllm_desc") +
+              "</small>",
+            default: true,
+          },
+          {
+            tab: i18n.get("advanced_tab"),
+            group: i18n.get("predictor_debug_group"),
+            name: KEY_AI_PREDICTION_TIMEOUT_MS,
+            type: "slider",
+            min: 20,
+            max: 2000,
+            step: 10,
+            display: true,
+            label:
+              i18n.get("predictor_debug_timeout_label") +
+              ":&nbsp;<small>" +
+              i18n.get("predictor_debug_timeout_desc") +
+              "</small>",
+            default: DEFAULT_AI_PREDICTION_TIMEOUT_MS,
+          },
+          {
+            tab: i18n.get("advanced_tab"),
+            group: i18n.get("predictor_debug_group"),
+            name: "predictorDebugPanel",
+            type: "description",
+            text: `<div id='predictorDebugRoot'>${i18n.get("predictor_debug_loading")}</div>`,
+          },
+        ]
+      : []),
 
     // =========================================================================
     // TAB: About & Support

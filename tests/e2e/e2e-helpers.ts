@@ -332,3 +332,148 @@ export async function triggerCommandForTesting(
     });
   }, command);
 }
+
+export interface WebLLMTestPredictionCall {
+  lang: string;
+  predictionInput: string;
+  numSuggestions: number;
+}
+
+async function sendTestRuntimeMessage(
+  context: BackgroundContext,
+  message: Record<string, unknown>,
+  failureMessage: string,
+): Promise<Record<string, unknown> | undefined> {
+  return await context.evaluate((messageInner, failureMessageInner) => {
+    return new Promise<Record<string, unknown> | undefined>(
+      (resolve, reject) => {
+        const testGlobals = globalThis as typeof globalThis & {
+          triggerCommandForTesting?: (command: string) => Promise<void> | void;
+          __fluentTyperWebLLMTestOverride__?: {
+            predictions: string[];
+            delayMs: number;
+            calls: Array<{
+              lang: string;
+              predictionInput: string;
+              numSuggestions: number;
+            }>;
+          };
+        };
+        const messageType = messageInner.type;
+        if (
+          typeof messageType === "string" &&
+          typeof testGlobals.triggerCommandForTesting === "function"
+        ) {
+          if (messageType === "TEST_SET_WEBLLM_PREDICTIONS") {
+            const predictions = Array.isArray(messageInner.predictions)
+              ? messageInner.predictions
+                  .filter((item): item is string => typeof item === "string")
+                  .map((item) => item.trim())
+                  .filter((item) => item.length > 0)
+              : [];
+            const delayMs =
+              typeof messageInner.delayMs === "number" &&
+              Number.isFinite(messageInner.delayMs)
+                ? Math.max(0, Math.round(messageInner.delayMs))
+                : 0;
+            testGlobals.__fluentTyperWebLLMTestOverride__ = {
+              predictions,
+              delayMs,
+              calls: [],
+            };
+            resolve({ ok: true });
+            return;
+          }
+          if (messageType === "TEST_CLEAR_WEBLLM_PREDICTIONS") {
+            delete testGlobals.__fluentTyperWebLLMTestOverride__;
+            resolve({ ok: true });
+            return;
+          }
+          if (messageType === "TEST_GET_WEBLLM_PREDICTION_CALLS") {
+            resolve({
+              ok: true,
+              calls:
+                testGlobals.__fluentTyperWebLLMTestOverride__?.calls?.slice() ??
+                [],
+            });
+            return;
+          }
+        }
+
+        chrome.runtime.sendMessage(
+          messageInner,
+          (response: Record<string, unknown> | undefined) => {
+            if (chrome.runtime.lastError) {
+              reject(new Error(chrome.runtime.lastError.message));
+              return;
+            }
+            if (!response || response.ok !== true) {
+              reject(new Error(failureMessageInner));
+              return;
+            }
+            resolve(response);
+          },
+        );
+      },
+    );
+  }, message, failureMessage);
+}
+
+export async function setWebLLMPredictionsForTesting(
+  context: BackgroundContext,
+  predictions: string[],
+  delayMs = 0,
+): Promise<void> {
+  await sendTestRuntimeMessage(
+    context,
+    {
+      type: "TEST_SET_WEBLLM_PREDICTIONS",
+      predictions,
+      delayMs,
+    },
+    "Failed to set test WebLLM predictions",
+  );
+}
+
+export async function clearWebLLMPredictionsForTesting(
+  context: BackgroundContext,
+): Promise<void> {
+  await sendTestRuntimeMessage(
+    context,
+    { type: "TEST_CLEAR_WEBLLM_PREDICTIONS" },
+    "Failed to clear test WebLLM predictions",
+  );
+}
+
+export async function getWebLLMPredictionCallsForTesting(
+  context: BackgroundContext,
+): Promise<WebLLMTestPredictionCall[]> {
+  const response = await sendTestRuntimeMessage(
+    context,
+    { type: "TEST_GET_WEBLLM_PREDICTION_CALLS" },
+    "Failed to read test WebLLM prediction calls",
+  );
+  if (!response || !Array.isArray(response.calls)) {
+    return [];
+  }
+  return response.calls
+    .map((call) => {
+      if (
+        typeof call !== "object" ||
+        !call ||
+        typeof (call as Record<string, unknown>).lang !== "string" ||
+        typeof (call as Record<string, unknown>).predictionInput !== "string" ||
+        typeof (call as Record<string, unknown>).numSuggestions !== "number"
+      ) {
+        return null;
+      }
+      return {
+        lang: (call as Record<string, unknown>).lang as string,
+        predictionInput: (call as Record<string, unknown>)
+          .predictionInput as string,
+        numSuggestions: (call as Record<string, unknown>)
+          .numSuggestions as number,
+      };
+    })
+    .filter((call): call is WebLLMTestPredictionCall => call !== null);
+}

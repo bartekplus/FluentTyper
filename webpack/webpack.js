@@ -45,6 +45,8 @@ export default (env, argv) => {
       extensions: [".ts", ".tsx", ".js"],
       fallback: {
         fs: false,
+        process: false,
+        url: false,
       },
     },
     plugins: [
@@ -53,6 +55,9 @@ export default (env, argv) => {
           { from: ".", to: ".", context: path.join(rootDir, "public") },
           { from: ".", to: ".", context: platformDir },
         ],
+      }),
+      new webpack.DefinePlugin({
+        __FT_DEV_BUILD__: JSON.stringify(argv.mode === "development"),
       }),
       new webpack.ProvidePlugin({
         Buffer: ["buffer", "Buffer"],

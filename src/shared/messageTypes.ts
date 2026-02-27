@@ -145,6 +145,10 @@ export interface PopupAckDonationMilestoneContext {
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface OptionsResetProductivityStatsContext {}
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface OptionsGetPredictorDebugSnapshotContext {}
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface OptionsClearPredictorDebugTraceContext {}
 
 export interface ProductivityEventSummary {
   suggestionsShown: number;
@@ -274,6 +278,14 @@ export type Message =
   | {
       command: "CMD_OPTIONS_RESET_PRODUCTIVITY_STATS";
       context: OptionsResetProductivityStatsContext;
+    }
+  | {
+      command: "CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT";
+      context: OptionsGetPredictorDebugSnapshotContext;
+    }
+  | {
+      command: "CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE";
+      context: OptionsClearPredictorDebugTraceContext;
     };
 export type ConfigMessage = Extract<
   Message,
@@ -342,4 +354,12 @@ export type PopupAckDonationMilestoneMessage = Extract<
 export type OptionsResetProductivityStatsMessage = Extract<
   Message,
   { command: "CMD_OPTIONS_RESET_PRODUCTIVITY_STATS" }
+>;
+export type OptionsGetPredictorDebugSnapshotMessage = Extract<
+  Message,
+  { command: "CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT" }
+>;
+export type OptionsClearPredictorDebugTraceMessage = Extract<
+  Message,
+  { command: "CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE" }
 >;

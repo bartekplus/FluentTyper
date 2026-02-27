@@ -25,6 +25,10 @@ export const CMD_POPUP_ACK_DONATION_MILESTONE =
   "CMD_POPUP_ACK_DONATION_MILESTONE";
 export const CMD_OPTIONS_RESET_PRODUCTIVITY_STATS =
   "CMD_OPTIONS_RESET_PRODUCTIVITY_STATS";
+export const CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT =
+  "CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT";
+export const CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE =
+  "CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE";
 
 // Config Keys
 export const KEY_AUTOCOMPLETE = "autocomplete";
@@ -48,6 +52,12 @@ export const KEY_LANGUAGE = "language";
 export const KEY_FALLBACK_LANGUAGE = "fallbackLanguage";
 export const KEY_ENABLED_LANGUAGES = "enabled_languages";
 export const KEY_DOMAIN_LIST_MODE = "domainListMode";
+export const KEY_AI_PREDICTOR_ENABLED = "aiPredictorEnabled";
+export const KEY_AI_MODEL_ID = "aiModelId";
+export const KEY_AI_PREDICTION_TIMEOUT_MS = "aiPredictionTimeoutMs";
+export const KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED =
+  "debugPresagePredictorEnabled";
+export const KEY_DEBUG_AI_PREDICTOR_ENABLED = "debugAiPredictorEnabled";
 export const KEY_DISPLAY_LANG_HEADER = "displayLangHeader";
 export const KEY_INLINE_SUGGESTION = "inline_suggestion";
 export const KEY_EXTENSION_LANGUAGE = "extensionLanguage";
@@ -78,3 +88,8 @@ export const CMD_STATUS_COMMAND = "CMD_STATUS_COMMAND";
 
 export const DEFAULT_NUM_SUGGESTIONS = 5;
 export const MAX_NUM_SUGGESTIONS = 10;
+export const DEFAULT_AI_PREDICTOR_ENABLED = true;
+export const DEFAULT_AI_MODEL_ID = "Qwen2.5-0.5B-Instruct-q4f16_1-MLC";
+export const DEFAULT_AI_PREDICTION_TIMEOUT_MS = 120;
+export const DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED = true;
+export const DEFAULT_DEBUG_AI_PREDICTOR_ENABLED = true;

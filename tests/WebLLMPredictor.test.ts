@@ -1,0 +1,314 @@
+import { jest } from "@jest/globals";
+
+const createMLCEngineMock = jest.fn<() => Promise<any>>();
+
+jest.unstable_mockModule("@mlc-ai/web-llm", () => ({
+  CreateMLCEngine: createMLCEngineMock,
+}));
+
+function setWebGPUAvailability(enabled: boolean) {
+  Object.defineProperty(globalThis.navigator, "gpu", {
+    value: enabled ? {} : undefined,
+    configurable: true,
+  });
+}
+
+function createAsyncStream<T>(chunks: T[]): AsyncIterable<T> {
+  return {
+    async *[Symbol.asyncIterator]() {
+      for (const chunk of chunks) {
+        yield chunk;
+      }
+    },
+  };
+}
+
+function createMockEngine(options?: {
+  completionImpl?: () => Promise<unknown>;
+  chatCompletionImpl?: () => Promise<unknown>;
+}) {
+  const completionCreate = jest.fn(
+    options?.completionImpl ??
+      (async () => ({
+        choices: [{ text: "alpha\nbeta\ngamma" }],
+      })),
+  );
+  const chatCreate = jest.fn(
+    options?.chatCompletionImpl ??
+      (async () => ({
+        choices: [{ message: { content: "alpha\nbeta\ngamma" } }],
+      })),
+  );
+  return {
+    chat: { completions: { create: chatCreate } },
+    completions: { create: completionCreate },
+    interruptGenerate: jest.fn(),
+    getMessage: jest.fn(async () => ""),
+    unload: jest.fn(async () => undefined),
+  };
+}
+
+describe("WebLLMPredictor", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    setWebGPUAvailability(true);
+  });
+
+  test("returns empty predictions when WebGPU is unavailable", async () => {
+    setWebGPUAvailability(false);
+    const { WebLLMPredictor } = await import(
+      "../src/background/WebLLMPredictor"
+    );
+    const predictor = new WebLLMPredictor();
+    predictor.setConfig({ enabled: true });
+
+    const result = await predictor.predict({
+      lang: "en_US",
+      predictionInput: "hello",
+      numSuggestions: 3,
+    });
+
+    expect(result).toEqual([]);
+    expect(createMLCEngineMock).not.toHaveBeenCalled();
+  });
+
+  test("initializes engine once and keeps concurrent requests safe", async () => {
+    const engine = createMockEngine();
+    let initResolve: ((value: unknown) => void) | undefined;
+    createMLCEngineMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          initResolve = resolve;
+        }),
+    );
+
+    const { WebLLMPredictor } = await import(
+      "../src/background/WebLLMPredictor"
+    );
+    const predictor = new WebLLMPredictor();
+
+    const first = predictor.predict({
+      lang: "en_US",
+      predictionInput: "hel",
+      numSuggestions: 2,
+    });
+    const second = predictor.predict({
+      lang: "en_US",
+      predictionInput: "wor",
+      numSuggestions: 2,
+    });
+
+    if (initResolve) {
+      initResolve(engine);
+    }
+    const [, secondResult] = await Promise.all([first, second]);
+
+    expect(createMLCEngineMock).toHaveBeenCalledTimes(1);
+    expect(Array.isArray(secondResult)).toBe(true);
+  });
+
+  test("falls back to empty predictions on generation error", async () => {
+    const engine = createMockEngine({
+      chatCompletionImpl: async () => {
+        throw new Error("chat generation failed");
+      },
+      completionImpl: async () => {
+        throw new Error("generation failed");
+      },
+    });
+    createMLCEngineMock.mockResolvedValue(engine);
+    const { WebLLMPredictor } = await import(
+      "../src/background/WebLLMPredictor"
+    );
+    const predictor = new WebLLMPredictor();
+
+    const result = await predictor.predict({
+      lang: "en_US",
+      predictionInput: "abc",
+      numSuggestions: 3,
+    });
+
+    expect(result).toEqual([]);
+    expect(engine.chat.completions.create).toHaveBeenCalledTimes(2);
+    expect(engine.completions.create).toHaveBeenCalledTimes(1);
+  });
+
+  test("uses cache for identical requests", async () => {
+    const engine = createMockEngine();
+    createMLCEngineMock.mockResolvedValue(engine);
+    const { WebLLMPredictor } = await import(
+      "../src/background/WebLLMPredictor"
+    );
+    const predictor = new WebLLMPredictor();
+
+    const request = {
+      lang: "en_US",
+      predictionInput: "hello ",
+      numSuggestions: 3,
+    };
+
+    const first = await predictor.predict(request);
+    const second = await predictor.predict(request);
+
+    expect(first).toEqual(second);
+    expect(engine.chat.completions.create).toHaveBeenCalledTimes(1);
+    expect(engine.completions.create).toHaveBeenCalledTimes(0);
+  });
+
+  test("parses streamed chat chunks from async iterable responses", async () => {
+    const engine = createMockEngine({
+      chatCompletionImpl: async () =>
+        createAsyncStream([
+          { choices: [{ delta: { content: "alpha\n" } }] },
+          { choices: [{ delta: { content: "beta\n" } }] },
+          { choices: [{ delta: { content: "gamma" } }] },
+        ]),
+    });
+    createMLCEngineMock.mockResolvedValue(engine);
+    const { WebLLMPredictor } = await import(
+      "../src/background/WebLLMPredictor"
+    );
+    const predictor = new WebLLMPredictor();
+
+    const result = await predictor.predict({
+      lang: "en_US",
+      predictionInput: "hello ",
+      numSuggestions: 3,
+    });
+
+    expect(result).toEqual(["alpha", "beta", "gamma"]);
+    expect(engine.chat.completions.create).toHaveBeenCalledTimes(1);
+    expect(engine.completions.create).toHaveBeenCalledTimes(0);
+  });
+
+  test("parses streamed completion chunks when chat returns no tokens", async () => {
+    const engine = createMockEngine({
+      chatCompletionImpl: async () => ({ choices: [] }),
+      completionImpl: async () =>
+        createAsyncStream([
+          { choices: [{ text: "delta\n" }] },
+          { choices: [{ text: "epsilon\n" }] },
+          { choices: [{ text: "zeta" }] },
+        ]),
+    });
+    createMLCEngineMock.mockResolvedValue(engine);
+    const { WebLLMPredictor } = await import(
+      "../src/background/WebLLMPredictor"
+    );
+    const predictor = new WebLLMPredictor();
+
+    const result = await predictor.predict({
+      lang: "en_US",
+      predictionInput: "hello ",
+      numSuggestions: 3,
+    });
+
+    expect(result).toEqual(["delta", "epsilon", "zeta"]);
+    expect(engine.chat.completions.create).toHaveBeenCalledTimes(2);
+    expect(engine.completions.create).toHaveBeenCalledTimes(1);
+  });
+
+  test("uses completion mode mid-word and filters unrelated next-word outputs", async () => {
+    const engine = createMockEngine({
+      chatCompletionImpl: async () => ({
+        choices: [
+          {
+            message: {
+              content: "great\nsuper\nsupport",
+            },
+          },
+        ],
+      }),
+    });
+    createMLCEngineMock.mockResolvedValue(engine);
+    const { WebLLMPredictor } = await import(
+      "../src/background/WebLLMPredictor"
+    );
+    const predictor = new WebLLMPredictor();
+
+    const result = await predictor.predict({
+      lang: "en_US",
+      predictionInput: "this is sup",
+      numSuggestions: 3,
+    });
+
+    expect(result).toEqual(["super", "support"]);
+    expect(engine.chat.completions.create).toHaveBeenCalledTimes(1);
+    expect(engine.completions.create).toHaveBeenCalledTimes(0);
+  });
+
+  test("corrects typo fragments in completion mode", async () => {
+    const engine = createMockEngine({
+      chatCompletionImpl: async () => ({
+        choices: [
+          {
+            message: {
+              content: "amazing\namazon\nagain",
+            },
+          },
+        ],
+      }),
+    });
+    createMLCEngineMock.mockResolvedValue(engine);
+    const { WebLLMPredictor } = await import(
+      "../src/background/WebLLMPredictor"
+    );
+    const predictor = new WebLLMPredictor();
+
+    const result = await predictor.predict({
+      lang: "en_US",
+      predictionInput: "this is amazgi",
+      numSuggestions: 3,
+    });
+
+    expect(result[0]).toBe("amazing");
+    expect(result).not.toContain("again");
+  });
+
+  test("skips overlapping generation when a newer request arrives", async () => {
+    let resolveFirst:
+      | ((value: { choices: Array<{ text: string }> }) => void)
+      | undefined;
+    const firstPromise = new Promise<{ choices: Array<{ text: string }> }>(
+      (resolve) => {
+        resolveFirst = resolve;
+      },
+    );
+    const engine = createMockEngine();
+    const chatCreateMock = engine.chat.completions.create as jest.Mock<any>;
+    chatCreateMock
+      .mockImplementationOnce(() => firstPromise)
+      .mockResolvedValueOnce({
+        choices: [{ message: { content: "newword" } }],
+      });
+    createMLCEngineMock.mockResolvedValue(engine);
+
+    const { WebLLMPredictor } = await import(
+      "../src/background/WebLLMPredictor"
+    );
+    const predictor = new WebLLMPredictor();
+
+    const firstRequest = predictor.predict({
+      lang: "en_US",
+      predictionInput: "abc ",
+      numSuggestions: 2,
+    });
+    const secondRequest = predictor.predict({
+      lang: "en_US",
+      predictionInput: "abcd ",
+      numSuggestions: 2,
+    });
+
+    if (resolveFirst) {
+      resolveFirst({ choices: [{ text: "oldword" }] });
+    }
+    const [firstResult, secondResult] = await Promise.all([
+      firstRequest,
+      secondRequest,
+    ]);
+
+    expect(engine.interruptGenerate).toHaveBeenCalledTimes(0);
+    expect(firstResult).toEqual(["newword"]);
+    expect(secondResult).toEqual([]);
+  });
+});

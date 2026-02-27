@@ -14,6 +14,8 @@ import {
   CMD_TOGGLE_FT_ACTIVE_LANG,
   CMD_TOGGLE_FT_ACTIVE_TAB,
   CMD_TRIGGER_FT_ACTIVE_TAB,
+  DEFAULT_AI_PREDICTION_TIMEOUT_MS,
+  DEFAULT_AI_MODEL_ID,
   KEY_LANGUAGE,
   KEY_SITE_PROFILES,
 } from "../src/shared/constants";
@@ -219,7 +221,13 @@ describe("background routing and lifecycle", () => {
 
     expect(harness.migrateToLocalStore).toHaveBeenCalledWith("2025.12.0");
     expect(harness.predictionInitialize).toHaveBeenCalled();
-    expect(harness.predictionSetConfig).toHaveBeenCalled();
+    expect(harness.predictionSetConfig).toHaveBeenCalledWith(
+      expect.objectContaining({
+        aiPredictorEnabled: true,
+        aiModelId: DEFAULT_AI_MODEL_ID,
+        aiPredictionTimeoutMs: DEFAULT_AI_PREDICTION_TIMEOUT_MS,
+      }),
+    );
     expect(harness.tabSendToAll).toHaveBeenCalled();
   });
 
@@ -413,6 +421,11 @@ describe("background routing and lifecycle", () => {
 
     expect(harness.predictionRun).toHaveBeenCalledWith("bonjour", "", "fr_FR", {
       numSuggestions: 2,
+    }, {
+      requestId: 5,
+      tabId: 77,
+      frameId: 3,
+      tributeId: 4,
     });
   });
 
@@ -452,6 +465,12 @@ describe("background routing and lifecycle", () => {
       "",
       "en_US",
       undefined,
+      {
+        requestId: 12,
+        tabId: 90,
+        frameId: 1,
+        tributeId: 11,
+      },
     );
   });
 

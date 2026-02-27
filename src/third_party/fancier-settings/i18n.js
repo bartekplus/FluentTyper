@@ -400,6 +400,28 @@ i18n = Object.assign(i18n, {
     "pl": "Liczba znaków potrzebnych do aktywowania podpowiedzi. <br>• Wpisz '0', aby podpowiedzi pojawiały się po spacji. <br>• Wpisz '-1', aby aktywować podpowiedzi wyłącznie ręcznie (Domyślny skrót: Ctrl+Kropka).",
     "pr": "O número de caracteres necessários para ativar as previsões. <br>• Defina '0' para ativá-las logo após um espaço. <br>• Defina '-1' para ativá-las apenas manualmente (atalho padrão: Ctrl+Ponto).",
   },
+  "enable_ai_predictor_label": {
+    "en": "Enable AI predictor (WebLLM)",
+    "fr": "Activer le prédicteur IA (WebLLM)",
+    "hr": "Omogući AI prediktor (WebLLM)",
+    "es": "Habilitar predictor de IA (WebLLM)",
+    "el": "Ενεργοποίηση AI predictor (WebLLM)",
+    "sv": "Aktivera AI-prediktor (WebLLM)",
+    "de": "KI-Prädiktor (WebLLM) aktivieren",
+    "pl": "Włącz predyktor AI (WebLLM)",
+    "pr": "Ativar preditor de IA (WebLLM)",
+  },
+  "enable_ai_predictor_desc": {
+    "en": "Uses on-device WebLLM suggestions in parallel with Presage. First run downloads model files and requires WebGPU support.",
+    "fr": "Utilise des suggestions WebLLM locales en parallèle de Presage. Le premier lancement télécharge les fichiers du modèle et nécessite WebGPU.",
+    "hr": "Koristi lokalne WebLLM prijedloge paralelno s Presageom. Prvo pokretanje preuzima model i zahtijeva WebGPU.",
+    "es": "Usa sugerencias WebLLM locales en paralelo con Presage. El primer uso descarga archivos del modelo y requiere WebGPU.",
+    "el": "Χρησιμοποιεί τοπικές προτάσεις WebLLM παράλληλα με το Presage. Η πρώτη χρήση κατεβάζει αρχεία μοντέλου και απαιτεί WebGPU.",
+    "sv": "Använder lokala WebLLM-förslag parallellt med Presage. Första körningen laddar ner modellfiler och kräver WebGPU.",
+    "de": "Verwendet lokale WebLLM-Vorschläge parallel zu Presage. Beim ersten Start werden Modelldateien geladen, WebGPU ist erforderlich.",
+    "pl": "Używa lokalnych podpowiedzi WebLLM równolegle z Presage. Pierwsze uruchomienie pobiera pliki modelu i wymaga WebGPU.",
+    "pr": "Usa sugestões locais do WebLLM em paralelo com o Presage. A primeira execução baixa arquivos do modelo e requer suporte a WebGPU.",
+  },
   "autocomplete_tab": {
     "en": "Autocomplete",
     "fr": "Saisie Semi-automatique",
@@ -2379,6 +2401,49 @@ i18n = Object.assign(i18n, {
     de: "Produktivitäts-Dashboard",
     pl: "Panel produktywności",
     pr: "Painel de produtividade",
+  },
+  "predictor_debug_group": {
+    en: "Predictor Debug (Dev)",
+    fr: "Débogage du prédicteur (Dev)",
+    hr: "Debug prediktora (Dev)",
+    es: "Depuración de predictores (Dev)",
+    el: "Debug predictor (Dev)",
+    sv: "Prediktor-debugg (Dev)",
+    de: "Prädiktor-Debug (Dev)",
+    pl: "Debug predyktorów (Dev)",
+    pr: "Debug do preditor (Dev)",
+  },
+  "predictor_debug_desc": {
+    en: "Developer dashboard for predictor routing and latency telemetry. Available only in development builds.",
+    fr: "Tableau de bord développeur pour le routage des prédicteurs et la télémétrie de latence. Disponible uniquement en build de développement.",
+    hr: "Razvojna nadzorna ploča za usmjeravanje prediktora i telemetriju latencije. Dostupno samo u razvojnom buildu.",
+    es: "Panel de desarrollador para enrutamiento de predictores y telemetría de latencia. Disponible solo en compilaciones de desarrollo.",
+    el: "Πίνακας προγραμματιστή για routing predictor και τηλεμετρία καθυστέρησης. Διαθέσιμο μόνο σε development builds.",
+    sv: "Utvecklarpanel för prediktor-routing och latens-telemetri. Endast tillgänglig i utvecklingsbyggen.",
+    de: "Entwickler-Dashboard für Prädiktor-Routing und Latenz-Telemetrie. Nur in Entwicklungs-Builds verfügbar.",
+    pl: "Panel deweloperski do routingu predyktorów i telemetrii opóźnień. Dostępny tylko w buildach deweloperskich.",
+    pr: "Painel de desenvolvedor para roteamento de preditores e telemetria de latência. Disponível apenas em builds de desenvolvimento.",
+  },
+  "predictor_debug_presage_label": {
+    en: "Enable Presage predictor",
+  },
+  "predictor_debug_presage_desc": {
+    en: "Disable to test AI-only suggestions and fallback behavior.",
+  },
+  "predictor_debug_webllm_label": {
+    en: "Enable WebLLM predictor",
+  },
+  "predictor_debug_webllm_desc": {
+    en: "Disable to compare against Presage-only latency and output.",
+  },
+  "predictor_debug_timeout_label": {
+    en: "WebLLM timeout budget (ms)",
+  },
+  "predictor_debug_timeout_desc": {
+    en: "Maximum time allowed per keystroke for WebLLM before returning Presage-only output.",
+  },
+  "predictor_debug_loading": {
+    en: "Loading predictor telemetry...",
   },
   "productivity_insights_heading": {
     en: "Productivity Insights",
