@@ -92,6 +92,7 @@ const IS_DEV_BUILD =
 const IS_E2E_BUILD =
   typeof __FT_E2E_BUILD__ !== "undefined" && Boolean(__FT_E2E_BUILD__);
 const ENABLE_TEST_RUNTIME_HOOKS = IS_DEV_BUILD || IS_E2E_BUILD;
+const ENABLE_AI_PREDICTOR = IS_DEV_BUILD || IS_E2E_BUILD;
 
 interface DomainRuntimeSettings {
   language: string;
@@ -406,9 +407,11 @@ export class BackgroundServiceWorker {
       dateFormat: dateFormat as string,
       userDictionaryList: userDictionaryList as string[],
       aiPredictorEnabled:
-        typeof aiPredictorEnabled === "boolean"
-          ? aiPredictorEnabled
-          : DEFAULT_AI_PREDICTOR_ENABLED,
+        ENABLE_AI_PREDICTOR
+          ? typeof aiPredictorEnabled === "boolean"
+            ? aiPredictorEnabled
+            : DEFAULT_AI_PREDICTOR_ENABLED
+          : false,
       aiModelId:
         typeof aiModelId === "string" && aiModelId.trim().length > 0
           ? aiModelId

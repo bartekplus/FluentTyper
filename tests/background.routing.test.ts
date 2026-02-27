@@ -228,7 +228,7 @@ describe("background routing and lifecycle", () => {
     expect(harness.predictionInitialize).toHaveBeenCalled();
     expect(harness.predictionSetConfig).toHaveBeenCalledWith(
       expect.objectContaining({
-        aiPredictorEnabled: true,
+        aiPredictorEnabled: false,
         aiModelId: DEFAULT_AI_MODEL_ID,
         aiPredictionTimeoutMs: DEFAULT_AI_PREDICTION_TIMEOUT_MS,
       }),
@@ -264,6 +264,7 @@ describe("background routing and lifecycle", () => {
 
     expect(harness.predictionSetConfig).toHaveBeenCalledWith(
       expect.objectContaining({
+        aiPredictorEnabled: false,
         debugPresagePredictorEnabled: DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED,
         debugAIPredictorEnabled: DEFAULT_DEBUG_AI_PREDICTOR_ENABLED,
       }),

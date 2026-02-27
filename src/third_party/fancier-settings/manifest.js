@@ -125,14 +125,22 @@ const manifest = {
       label: i18n.get("min_chars_label") + ":&nbsp;<small>" + i18n.get("min_chars_desc") + "</small>",
       default: 1,
     },
-    {
-      tab: i18n.get("core_settings"),
-      group: i18n.get("prediction_engine"),
-      name: KEY_AI_PREDICTOR_ENABLED,
-      type: "checkbox",
-      label: i18n.get("enable_ai_predictor_label") + ":&nbsp;<small>" + i18n.get("enable_ai_predictor_desc") + "</small>",
-      default: true,
-    },
+    ...(IS_DEV_BUILD
+      ? [
+          {
+            tab: i18n.get("core_settings"),
+            group: i18n.get("prediction_engine"),
+            name: KEY_AI_PREDICTOR_ENABLED,
+            type: "checkbox",
+            label:
+              i18n.get("enable_ai_predictor_label") +
+              ":&nbsp;<small>" +
+              i18n.get("enable_ai_predictor_desc") +
+              "</small>",
+            default: true,
+          },
+        ]
+      : []),
     {
       tab: i18n.get("core_settings"),
       group: i18n.get("accept_predictions"),

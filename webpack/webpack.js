@@ -17,6 +17,16 @@ export default (env, argv) => {
   const isDevBuild = argv.mode === "development";
   const isE2EBuild =
     process.env.FT_E2E_BUILD === "1" || process.env.FT_E2E_BUILD === "true";
+  const includeWebLLMRuntime = isDevBuild || isE2EBuild;
+  const alias = includeWebLLMRuntime
+    ? {}
+    : {
+        "@mlc-ai/web-llm$": path.join(
+          srcDir,
+          "background",
+          "webllm-disabled-runtime.ts",
+        ),
+      };
   const config = {
     entry: {
       "popup/popup": path.join(srcDir, "popup", "popup.ts"),
@@ -46,6 +56,7 @@ export default (env, argv) => {
     },
     resolve: {
       extensions: [".ts", ".tsx", ".js"],
+      alias,
       fallback: {
         fs: false,
         process: false,
