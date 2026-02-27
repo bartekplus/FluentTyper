@@ -1,7 +1,7 @@
 import { jest } from "@jest/globals";
-import { ProductivityStatsManager } from "../src/background/ProductivityStatsManager";
-import { SettingsManager } from "../src/shared/settingsManager";
-import { KEY_PRODUCTIVITY_STATS } from "../src/shared/constants";
+import { ProductivityStatsManager } from "../src/adapters/chrome/background/ProductivityStatsManager";
+import { SettingsManager } from "../src/core/application/settingsManager";
+import { KEY_PRODUCTIVITY_STATS } from "../src/core/domain/constants";
 
 function createSettingsManagerMock(seed: Record<string, unknown> = {}): {
   manager: SettingsManager;

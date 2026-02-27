@@ -56,20 +56,40 @@ export default (env, argv) => {
   const isE2EBuild =
     process.env.FT_E2E_BUILD === "1" || process.env.FT_E2E_BUILD === "true";
   const includeWebLLMRuntime = isDevBuild || isE2EBuild;
-  const alias = includeWebLLMRuntime
-    ? {}
-    : {
-        "@mlc-ai/web-llm$": path.join(
-          srcDir,
-          "background",
-          "webllm-disabled-runtime.ts",
-        ),
-      };
+  const alias = {
+    "@core": path.join(srcDir, "core"),
+    "@adapters": path.join(srcDir, "adapters"),
+    "@ui": path.join(srcDir, "ui"),
+    "@third-party": path.join(srcDir, "third_party"),
+    ...(includeWebLLMRuntime
+      ? {}
+      : {
+          "@mlc-ai/web-llm$": path.join(
+            srcDir,
+            "adapters",
+            "chrome",
+            "background",
+            "webllm-disabled-runtime.ts",
+          ),
+        }),
+  };
   const config = {
     entry: {
-      "popup/popup": path.join(srcDir, "popup", "popup.ts"),
-      background: path.join(srcDir, "background", "background.ts"),
-      content_script: path.join(srcDir, "content-script", "content_script.ts"),
+      "popup/popup": path.join(srcDir, "ui", "popup", "popup.ts"),
+      background: path.join(
+        srcDir,
+        "adapters",
+        "chrome",
+        "background",
+        "background.ts",
+      ),
+      content_script: path.join(
+        srcDir,
+        "adapters",
+        "chrome",
+        "content-script",
+        "content_script.ts",
+      ),
       "third_party/fancier-settings/settings": path.join(
         srcDir,
         "third_party",

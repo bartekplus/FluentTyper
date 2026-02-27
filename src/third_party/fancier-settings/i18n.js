@@ -1,5 +1,5 @@
 import { I18n } from "./js/i18n.js";
-import { KEY_EXTENSION_LANGUAGE } from "../../shared/constants.ts";
+import { KEY_EXTENSION_LANGUAGE } from "@core/domain/constants";
 
 let i18n = new I18n();
 // Override language from localStorage if extension language is set.

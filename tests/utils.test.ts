@@ -5,8 +5,8 @@ import {
   isInDocument,
   isDomainOnList,
   removeDomainFromList,
-} from "../src/shared/utils";
-import type { SettingsManager } from "../src/shared/settingsManager";
+} from "../src/core/application/utils";
+import type { SettingsManager } from "../src/core/application/settingsManager";
 
 function createSettingsManager(initialDomainList: unknown[]) {
   const state: Record<string, unknown> = {

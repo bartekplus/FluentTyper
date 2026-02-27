@@ -13,8 +13,8 @@ import {
   KEY_MIN_WORD_LENGTH_TO_PREDICT,
   KEY_PRODUCTIVITY_STATS,
   KEY_SITE_PROFILES,
-} from "../../src/shared/constants";
-import { SUPPORTED_PREDICTION_LANGUAGE_KEYS } from "../../src/shared/lang";
+} from "../../src/core/domain/constants";
+import { SUPPORTED_PREDICTION_LANGUAGE_KEYS } from "../../src/core/domain/lang";
 import {
   BROWSER_TYPE,
   launchBrowser,

@@ -1,8 +1,8 @@
 import {
   PredictionInputProcessor,
   MIN_WORD_LENGTH_TO_PREDICT,
-} from "../src/background/PredictionInputProcessor";
-import { Capitalization } from "../src/background/CapitalizationHelper";
+} from "../src/adapters/chrome/background/PredictionInputProcessor";
+import { Capitalization } from "../src/adapters/chrome/background/CapitalizationHelper";
 
 describe("PredictionInputProcessor", () => {
   let processor: PredictionInputProcessor;

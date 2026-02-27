@@ -19,7 +19,7 @@ const domObserverInstances: DomObserverLike[] = [];
 async function loadContentScriptModule() {
   domObserverInstances.length = 0;
 
-  jest.unstable_mockModule("../src/content-script/TributeManager", () => ({
+  jest.unstable_mockModule("../src/adapters/chrome/content-script/TributeManager", () => ({
     TributeManager: jest.fn().mockImplementation(() => ({
       queryAndAttachHelper: jest.fn(),
       detachAllHelpers: jest.fn(),
@@ -30,7 +30,7 @@ async function loadContentScriptModule() {
     })),
   }));
 
-  jest.unstable_mockModule("../src/content-script/DomObserver", () => ({
+  jest.unstable_mockModule("../src/adapters/chrome/content-script/DomObserver", () => ({
     DomObserver: jest.fn().mockImplementation((initialNode: unknown) => {
       const firstNode = initialNode as Node;
       let currentNode: Node = firstNode;
@@ -47,7 +47,7 @@ async function loadContentScriptModule() {
     }),
   }));
 
-  await import("../src/content-script/content_script");
+  await import("../src/adapters/chrome/content-script/content_script");
 }
 
 describe("content_script watchdog scheduling", () => {

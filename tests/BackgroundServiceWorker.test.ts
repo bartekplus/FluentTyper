@@ -40,23 +40,23 @@ const mockChrome = {
 (global as unknown as { chrome: unknown }).chrome = mockChrome;
 
 // Define mocks using unstable_mockModule BEFORE importing the module under test
-jest.unstable_mockModule("../src/shared/settingsManager", () => ({
+jest.unstable_mockModule("../src/core/application/settingsManager", () => ({
   SettingsManager: jest.fn().mockImplementation(() => ({
     get: jest.fn(),
     set: jest.fn(),
   })),
 }));
-jest.unstable_mockModule("../src/background/LanguageDetector", () => ({
+jest.unstable_mockModule("../src/adapters/chrome/background/LanguageDetector", () => ({
   LanguageDetector: jest.fn(),
 }));
-jest.unstable_mockModule("../src/background/PredictionManager", () => ({
+jest.unstable_mockModule("../src/adapters/chrome/background/PredictionManager", () => ({
   PredictionManager: jest.fn().mockImplementation(() => ({
     initialize: jest.fn(),
     setConfig: jest.fn(),
     runPrediction: jest.fn(),
   })),
 }));
-jest.unstable_mockModule("../src/background/TabMessenger", () => ({
+jest.unstable_mockModule("../src/adapters/chrome/background/TabMessenger", () => ({
   TabMessenger: jest.fn().mockImplementation(() => ({
     sendToAllTabs: jest.fn(),
     sendToActiveTab: jest.fn(),
@@ -64,14 +64,14 @@ jest.unstable_mockModule("../src/background/TabMessenger", () => ({
 }));
 
 // Import types for type safety (does not trigger module load)
-import type { BackgroundServiceWorker as BackgroundServiceWorkerType } from "../src/background/background";
+import type { BackgroundServiceWorker as BackgroundServiceWorkerType } from "../src/adapters/chrome/background/background";
 
 describe("BackgroundServiceWorker", () => {
   let BackgroundServiceWorkerClass: { new (): BackgroundServiceWorkerType };
   let worker: BackgroundServiceWorkerType;
 
   beforeAll(async () => {
-    const module = await import("../src/background/background");
+    const module = await import("../src/adapters/chrome/background/background");
     BackgroundServiceWorkerClass = module.BackgroundServiceWorker;
   });
 

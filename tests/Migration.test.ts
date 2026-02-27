@@ -1,5 +1,5 @@
 import { jest } from "@jest/globals";
-import { KEY_SITE_PROFILES } from "../src/shared/constants";
+import { KEY_SITE_PROFILES } from "../src/core/domain/constants";
 
 const settingsGet = jest.fn<(key: string) => Promise<unknown>>();
 const settingsSet =
@@ -9,7 +9,7 @@ const settingsManagerCtor = jest.fn().mockImplementation(() => ({
   set: settingsSet,
 }));
 
-jest.unstable_mockModule("../src/shared/settingsManager", () => ({
+jest.unstable_mockModule("../src/core/application/settingsManager", () => ({
   SettingsManager: settingsManagerCtor,
 }));
 
@@ -17,7 +17,7 @@ describe("migrateToLocalStore", () => {
   let migrateToLocalStore: (lastVersion?: string) => Promise<void>;
 
   beforeAll(async () => {
-    ({ migrateToLocalStore } = await import("../src/background/Migration"));
+    ({ migrateToLocalStore } = await import("../src/adapters/chrome/background/Migration"));
   });
 
   beforeEach(() => {

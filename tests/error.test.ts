@@ -1,5 +1,5 @@
 import { jest } from "@jest/globals";
-import { getErrorMessage, logError } from "../src/shared/error";
+import { getErrorMessage, logError } from "../src/core/domain/error";
 
 describe("shared error helpers", () => {
   afterEach(() => {

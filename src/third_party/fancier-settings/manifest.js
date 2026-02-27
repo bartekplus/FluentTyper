@@ -2,9 +2,9 @@ import { i18n } from "./i18n.js";
 import {
   SUPPORTED_LANGUAGES,
   SUPPORTED_PREDICTION_LANGUAGE_KEYS,
-} from "../../shared/lang.ts";
-import { DOMAIN_LIST_MODE } from "../../shared/utils.ts";
-import { DATE_TIME_VARIABLES } from "../../shared/variables.ts";
+} from "@core/domain/lang";
+import { DOMAIN_LIST_MODE } from "@core/application/utils";
+import { DATE_TIME_VARIABLES } from "@core/domain/variables";
 import {
   KEY_AUTOCOMPLETE,
   KEY_AUTOCOMPLETE_ON_ENTER,
@@ -51,7 +51,7 @@ import {
   DEFAULT_NUM_SUGGESTIONS,
   DEFAULT_AI_MODEL_ID,
   DEFAULT_AI_PREDICTION_TIMEOUT_MS,
-} from "../../shared/constants.ts";
+} from "@core/domain/constants";
 
 // --- UI Content ---
 const donateHTML =

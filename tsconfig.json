@@ -4,6 +4,13 @@
     "module": "ES2022",
     "outDir": "./build",
     "rootDir": "./src",
+    "baseUrl": "./src",
+    "paths": {
+      "@core/*": ["core/*"],
+      "@adapters/*": ["adapters/*"],
+      "@ui/*": ["ui/*"],
+      "@third-party/*": ["third_party/*"]
+    },
     "strict": true,
     "esModuleInterop": true,
     "allowJs": true, // Allow JavaScript files to be compiled

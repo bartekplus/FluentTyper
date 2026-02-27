@@ -4,7 +4,7 @@ import {
   getSiteProfileForDomain,
   removeSiteProfileForDomain,
   setSiteProfileForDomain,
-} from "../src/shared/siteProfiles";
+} from "../src/core/domain/siteProfiles";
 
 describe("site profiles helpers", () => {
   const enabledLanguages = ["en_US", "fr_FR", "de_DE"];

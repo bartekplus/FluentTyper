@@ -22,7 +22,7 @@ import {
   KEY_SITE_PROFILES,
   KEY_DEBUG_AI_PREDICTOR_ENABLED,
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
-} from "../src/shared/constants";
+} from "../src/core/domain/constants";
 
 function flushPromises() {
   return new Promise((resolve) => setTimeout(resolve, 0));
@@ -139,44 +139,44 @@ async function loadBackgroundHarness(
   };
   (globalThis as unknown as { chrome: unknown }).chrome = chromeMock;
 
-  jest.unstable_mockModule("../src/shared/settingsManager", () => ({
+  jest.unstable_mockModule("../src/core/application/settingsManager", () => ({
     SettingsManager: jest.fn().mockImplementation(() => ({
       get: settingsGet,
       set: settingsSet,
     })),
   }));
-  jest.unstable_mockModule("../src/background/LanguageDetector", () => ({
+  jest.unstable_mockModule("../src/adapters/chrome/background/LanguageDetector", () => ({
     LanguageDetector: jest.fn().mockImplementation(() => ({
       detectLanguage: languageDetect,
     })),
   }));
-  jest.unstable_mockModule("../src/background/PredictionManager", () => ({
+  jest.unstable_mockModule("../src/adapters/chrome/background/PredictionManager", () => ({
     PredictionManager: jest.fn().mockImplementation(() => ({
       runPrediction: predictionRun,
       initialize: predictionInitialize,
       setConfig: predictionSetConfig,
     })),
   }));
-  jest.unstable_mockModule("../src/background/TabMessenger", () => ({
+  jest.unstable_mockModule("../src/adapters/chrome/background/TabMessenger", () => ({
     TabMessenger: jest.fn().mockImplementation(() => ({
       sendToAllTabs: tabSendToAll,
       sendToActiveTab: tabSendToActive,
       getActiveTabHostname: getActiveTabHostname,
     })),
   }));
-  jest.unstable_mockModule("../src/shared/utils", () => ({
+  jest.unstable_mockModule("../src/core/application/utils", () => ({
     checkLastError,
     getDomain,
     isEnabledForDomain,
   }));
-  jest.unstable_mockModule("../src/shared/error", () => ({
+  jest.unstable_mockModule("../src/core/domain/error", () => ({
     logError,
   }));
-  jest.unstable_mockModule("../src/background/Migration", () => ({
+  jest.unstable_mockModule("../src/adapters/chrome/background/Migration", () => ({
     migrateToLocalStore,
   }));
 
-  const module = await import("../src/background/background");
+  const module = await import("../src/adapters/chrome/background/background");
 
   const onInstalled = onInstalledAddListener.mock.calls[0][0] as (
     details: chrome.runtime.InstalledDetails,
@@ -778,7 +778,7 @@ describe("background routing and lifecycle", () => {
 
   test("onMessage handles productivity usage + popup stats commands", async () => {
     const harness = await loadBackgroundHarness();
-    const statsModule = await import("../src/background/ProductivityStatsManager");
+    const statsModule = await import("../src/adapters/chrome/background/ProductivityStatsManager");
     const recordSpy = jest
       .spyOn(statsModule.ProductivityStatsManager.prototype, "recordUsageEvent")
       .mockResolvedValue(undefined);

@@ -10,8 +10,8 @@ import {
   isLetter,
   isNumber,
   isWhiteSpace,
-} from "../src/shared/utils";
-import type { SettingsManager } from "../src/shared/settingsManager";
+} from "../src/core/application/utils";
+import type { SettingsManager } from "../src/core/application/settingsManager";
 
 function createSettings(state: Record<string, unknown>) {
   const settings = {

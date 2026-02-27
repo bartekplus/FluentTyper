@@ -9,7 +9,7 @@ import {
   CMD_STATUS_COMMAND,
   CMD_TOGGLE_FT_ACTIVE_TAB,
   CMD_TRIGGER_FT_ACTIVE_TAB,
-} from "../src/shared/constants";
+} from "../src/core/domain/constants";
 
 type TributeLike = {
   queryAndAttachHelper: jest.Mock;
@@ -89,11 +89,11 @@ async function loadContentScript(): Promise<LoadedContentScript> {
   };
   (window as Window & { FluentTyper?: unknown }).FluentTyper = undefined;
 
-  jest.unstable_mockModule("../src/shared/utils", () => ({
+  jest.unstable_mockModule("../src/core/application/utils", () => ({
     checkLastError,
     isInDocument: (element: Element) => document.contains(element),
   }));
-  jest.unstable_mockModule("../src/content-script/TributeManager", () => ({
+  jest.unstable_mockModule("../src/adapters/chrome/content-script/TributeManager", () => ({
     TributeManager: jest.fn().mockImplementation(() => {
       const instance: TributeLike = {
         queryAndAttachHelper: jest.fn(),
@@ -107,7 +107,7 @@ async function loadContentScript(): Promise<LoadedContentScript> {
       return instance;
     }),
   }));
-  jest.unstable_mockModule("../src/content-script/DomObserver", () => ({
+  jest.unstable_mockModule("../src/adapters/chrome/content-script/DomObserver", () => ({
     DomObserver: jest.fn().mockImplementation((initialNode: unknown) => {
       let currentNode = initialNode as Node;
       const instance: DomObserverLike = {
@@ -123,7 +123,7 @@ async function loadContentScript(): Promise<LoadedContentScript> {
     }),
   }));
 
-  await import("../src/content-script/content_script");
+  await import("../src/adapters/chrome/content-script/content_script");
   const fluentTyper = (
     window as Window & { FluentTyper?: LoadedContentScript["fluentTyper"] }
   ).FluentTyper!;

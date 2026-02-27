@@ -1,10 +1,10 @@
 import { FancierSettingsWithManifest } from "./js/classes/fancier-settings.js";
 import { Store } from "./lib/store.js";
 import { ElementWrapper } from "./js/classes/utils.js";
-import { SUPPORTED_LANGUAGES, resolveEnabledLanguages } from "../../shared/lang.ts";
-import { TextExpander } from "../../options/textExpander.ts";
-import { SiteProfilesManager } from "../../options/siteProfiles.ts";
-import { resolveSiteProfiles } from "../../shared/siteProfiles.ts";
+import { SUPPORTED_LANGUAGES, resolveEnabledLanguages } from "@core/domain/lang";
+import { TextExpander } from "@ui/options/textExpander";
+import { SiteProfilesManager } from "@ui/options/siteProfiles";
+import { resolveSiteProfiles } from "@core/domain/siteProfiles";
 import {
   KEY_AUTOCOMPLETE,
   KEY_AUTOCOMPLETE_ON_ENTER,
@@ -56,7 +56,7 @@ import {
   CMD_OPTIONS_RESET_PRODUCTIVITY_STATS,
   CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT,
   CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE,
-} from "../../shared/constants.ts";
+} from "@core/domain/constants";
 import { i18n } from "./i18n.js";
 
 const PRODUCTIVITY_INSIGHTS_MAX_RETRIES = 5;
