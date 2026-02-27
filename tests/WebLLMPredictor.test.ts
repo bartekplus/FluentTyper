@@ -98,6 +98,9 @@ describe("WebLLMPredictor", () => {
       numSuggestions: 2,
     });
 
+    while (!initResolve) {
+      await Promise.resolve();
+    }
     if (initResolve) {
       initResolve(engine);
     }

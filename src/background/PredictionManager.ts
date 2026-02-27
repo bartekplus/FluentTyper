@@ -75,14 +75,13 @@ const MAX_DEBUG_TRACES = 80;
 export class PredictionManager {
   private libPresageMod: () => Promise<PresageModule>;
   private presageHandler: PresageHandler | undefined;
-  private webLLMPredictor: WebLLMPredictor;
+  private webLLMPredictor: WebLLMPredictor | null = null;
   private initializationPromise: Promise<void> | null = null;
   private debugTraces: PredictorDebugTrace[] = [];
   private currentConfig: PresageConfig | null = null;
 
   constructor() {
     this.libPresageMod = libPresageMod as () => Promise<PresageModule>;
-    this.webLLMPredictor = new WebLLMPredictor();
     this.initialize();
   }
 
@@ -95,7 +94,7 @@ export class PredictionManager {
 
   private async _doInitializePresage(): Promise<void> {
     const Module = await this.libPresageMod();
-    this.presageHandler = new PresageHandler(Module, this.webLLMPredictor);
+    this.presageHandler = new PresageHandler(Module, this.getWebLLMPredictor());
   }
 
   async runPrediction(
@@ -131,11 +130,11 @@ export class PredictionManager {
 
   clearPredictorDebugTrace(): void {
     this.debugTraces = [];
-    this.webLLMPredictor.clearCache();
+    this.getWebLLMPredictor().clearCache();
   }
 
   getPredictorDebugSnapshot(): PredictorDebugSnapshot {
-    const webllmDebugState = this.webLLMPredictor.getDebugState();
+    const webllmDebugState = this.getWebLLMPredictor().getDebugState();
     const presageDebugState = this.presageHandler?.getDebugState();
     return {
       generatedAtMs: Date.now(),
@@ -200,5 +199,12 @@ export class PredictionManager {
     if (this.debugTraces.length > MAX_DEBUG_TRACES) {
       this.debugTraces = this.debugTraces.slice(0, MAX_DEBUG_TRACES);
     }
+  }
+
+  private getWebLLMPredictor(): WebLLMPredictor {
+    if (!this.webLLMPredictor) {
+      this.webLLMPredictor = new WebLLMPredictor();
+    }
+    return this.webLLMPredictor;
   }
 }
