@@ -360,6 +360,27 @@ export class PresageHandler {
       canRunBasePrediction &&
       this.debugPresagePredictorEnabled &&
       lang in this.presageEngines;
+    const shouldRunAIPredictor =
+      canRunBasePrediction &&
+      this.debugAIPredictorEnabled &&
+      this.aiPredictorEnabled &&
+      this.aiPredictor !== null &&
+      effectiveNumSuggestions > 0;
+    let aiPromise: Promise<{
+      predictions: string[];
+      durationMs: number;
+      timedOut: boolean;
+    }> | null = null;
+    if (shouldRunAIPredictor) {
+      aiDebug.attempted = true;
+      // Start AI work first so it overlaps with synchronous Presage computation.
+      aiPromise = this.runAIPredictionWithTimeout(
+        lang,
+        predictionInput,
+        effectiveNumSuggestions,
+      );
+    }
+
     if (canRunPresage) {
       presageDebug.attempted = true;
       const presageStartedAt = Date.now();
@@ -375,12 +396,6 @@ export class PresageHandler {
       );
     }
 
-    const shouldRunAIPredictor =
-      canRunBasePrediction &&
-      this.debugAIPredictorEnabled &&
-      this.aiPredictorEnabled &&
-      this.aiPredictor !== null &&
-      effectiveNumSuggestions > 0;
     if (!shouldRunAIPredictor) {
       aiDebug.skipReason = this.resolveAISkipReason(
         doPrediction,
@@ -416,12 +431,33 @@ export class PresageHandler {
       return result;
     }
 
-    aiDebug.attempted = true;
-    const aiPromise = this.runAIPredictionWithTimeout(
-      lang,
-      predictionInput,
-      effectiveNumSuggestions,
-    );
+    if (!aiPromise) {
+      const result = this.applyPredictionOutputRules(
+        predictions,
+        predictionInput,
+        nextChar,
+        doCapitalize,
+        effectiveNumSuggestions,
+        forceReplace,
+      );
+      this.emitDebugEvent(debugListener, {
+        timestampMs: Date.now(),
+        text,
+        nextChar,
+        lang,
+        predictionInput,
+        numSuggestions: effectiveNumSuggestions,
+        doPrediction,
+        forceReplace: Boolean(forceReplace),
+        totalDurationMs: Date.now() - startedAt,
+        presage: presageDebug,
+        webllm: aiDebug,
+        mergedPredictions: predictions.slice(),
+        finalPredictions: result.predictions.slice(),
+      });
+      return result;
+    }
+
     return aiPromise
       .then((aiResult) => {
         aiDebug.durationMs = aiResult.durationMs;

@@ -101,6 +101,40 @@ describe("PresageHandler parallel merge", () => {
     ]);
   });
 
+  test("starts WebLLM before running Presage so both execute in parallel", async () => {
+    const predictionsRef = {
+      current: ["alpha", "beta", "charlie"],
+    };
+    const module = createFakeModule(predictionsRef);
+    const aiPredictor = {
+      setConfig: jest.fn(),
+      predict: jest.fn(async () => ["from-ai"]),
+    };
+    const handler = new PresageHandler(module, aiPredictor as any);
+    handler.setConfig(createConfig({ aiPredictorEnabled: true, numSuggestions: 3 }));
+
+    const doPredictionSpy = jest
+      .spyOn(handler, "doPredictionHandler")
+      .mockImplementation(() => {
+        const startedAt = Date.now();
+        while (Date.now() - startedAt < 10) {
+          // Intentional sync work to make invocation order observable.
+        }
+        return ["alpha", "beta", "charlie"];
+      });
+
+    const result = await Promise.resolve(
+      handler.runPrediction("a", "", "en_US"),
+    );
+
+    expect(result.predictions).toEqual(["alpha", "beta", "from-ai"]);
+    expect(aiPredictor.predict).toHaveBeenCalledTimes(1);
+    expect(doPredictionSpy).toHaveBeenCalledTimes(1);
+    expect(aiPredictor.predict.mock.invocationCallOrder[0]).toBeLessThan(
+      doPredictionSpy.mock.invocationCallOrder[0],
+    );
+  });
+
   test("deduplicates merged output and fills remaining slots", async () => {
     const predictionsRef = { current: ["alpha", "beta", "epsilon"] };
     const module = createFakeModule(predictionsRef);
