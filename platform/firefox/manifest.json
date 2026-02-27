@@ -59,7 +59,7 @@
   "version": "2026.3.0",
   "manifest_version": 3,
   "content_security_policy": {
-    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; connect-src 'self' data: https://huggingface.co https://cdn-lfs.huggingface.co https://cdn-lfs-us-1.huggingface.co https://cdn-lfs-us-1.hf.co https://cas-bridge.xethub.hf.co https://raw.githubusercontent.com;"
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; connect-src 'self' data:;"
   },
   "commands": {
     "CMD_TOGGLE_FT_ACTIVE_TAB": {
