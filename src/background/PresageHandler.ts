@@ -544,6 +544,10 @@ export class PresageHandler {
       timedOut: boolean;
     }>((resolve) => {
       timeoutId = setTimeout(() => {
+        this.interruptAIPrediction("timeout", {
+          lang,
+          predictionInput,
+        });
         resolve({
           predictions: [],
           timedOut: true,
@@ -573,6 +577,38 @@ export class PresageHandler {
       durationMs: Date.now() - startedAt,
       timedOut: result.timedOut,
     };
+  }
+
+  private interruptAIPrediction(
+    reason: string,
+    expectedRequest?: {
+      lang: string;
+      predictionInput: string;
+    },
+  ): void {
+    if (!this.aiPredictor) {
+      return;
+    }
+    const predictor = this.aiPredictor as unknown as {
+      interruptActiveGeneration?: (
+        reason?: string,
+        expectedRequest?: {
+          lang: string;
+          predictionInput: string;
+        },
+      ) => void;
+    };
+    if (typeof predictor.interruptActiveGeneration !== "function") {
+      return;
+    }
+    try {
+      predictor.interruptActiveGeneration(reason, expectedRequest);
+    } catch (error) {
+      console.warn(
+        "Failed to interrupt WebLLM generation:",
+        getErrorMessage(error),
+      );
+    }
   }
 
   private emitDebugEvent(

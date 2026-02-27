@@ -182,6 +182,7 @@ describe("PresageHandler parallel merge", () => {
     const module = createFakeModule(predictionsRef);
     const aiPredictor = {
       setConfig: jest.fn(),
+      interruptActiveGeneration: jest.fn(),
       predict: jest.fn(
         () =>
           new Promise<string[]>((resolve) => {
@@ -209,6 +210,13 @@ describe("PresageHandler parallel merge", () => {
 
     expect(result.predictions).toEqual(["alpha", "beta", "charlie"]);
     expect(aiPredictor.predict).toHaveBeenCalledTimes(1);
+    expect(aiPredictor.interruptActiveGeneration).toHaveBeenCalledWith(
+      "timeout",
+      {
+        lang: "en_US",
+        predictionInput: "a",
+      },
+    );
     expect(debugEvent?.webllm?.timedOut).toBe(true);
   });
 });

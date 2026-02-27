@@ -147,6 +147,14 @@ export class WebLLMPredictor {
   private initPromise: Promise<boolean> | null = null;
   private cache = new Map<string, CacheEntry>();
   private activeGenerationSeq = 0;
+  private inFlightGenerationSeq: number | null = null;
+  private inFlightRequest: Pick<
+    WebLLMPredictRequest,
+    "lang" | "predictionInput"
+  > | null = null;
+  private cancelledGenerationSeqs = new Set<number>();
+  private generationDonePromises = new Map<number, Promise<void>>();
+  private generationDoneResolvers = new Map<number, () => void>();
   private isGenerating = false;
   private enabled = DEFAULT_AI_PREDICTOR_ENABLED;
   private modelId = DEFAULT_AI_MODEL_ID;
@@ -229,13 +237,44 @@ export class WebLLMPredictor {
     void this.ensureReady();
   }
 
+  interruptActiveGeneration(
+    reason = "generation_interrupted",
+    expectedRequest?: Pick<WebLLMPredictRequest, "lang" | "predictionInput">,
+  ): boolean {
+    if (this.inFlightGenerationSeq === null || !this.engine) {
+      return false;
+    }
+    if (
+      expectedRequest &&
+      (!this.inFlightRequest ||
+        this.inFlightRequest.lang !== expectedRequest.lang ||
+        this.inFlightRequest.predictionInput !==
+          expectedRequest.predictionInput)
+    ) {
+      return false;
+    }
+    this.cancelledGenerationSeqs.add(this.inFlightGenerationSeq);
+    try {
+      this.engine.interruptGenerate();
+      this.lastPredictError = reason;
+    } catch (error) {
+      this.lastPredictError = getErrorMessage(error);
+    }
+    return true;
+  }
+
   async predict(request: WebLLMPredictRequest): Promise<string[]> {
     if (!this.enabled || request.numSuggestions <= 0) {
       return [];
     }
+    const requestSeq = ++this.activeGenerationSeq;
     const testOverride = this.getTestOverrideState();
     if (testOverride) {
-      return this.predictFromTestOverride(testOverride, request);
+      const predictions = await this.predictFromTestOverride(testOverride, request);
+      if (requestSeq !== this.activeGenerationSeq) {
+        return [];
+      }
+      return predictions;
     }
     const cacheKey = this.getCacheKey(request);
     const cachedPredictions = this.getCachedPredictions(cacheKey);
@@ -243,23 +282,20 @@ export class WebLLMPredictor {
       return cachedPredictions;
     }
     const ready = await this.ensureReady();
-    if (!ready || !this.engine) {
+    if (!ready || !this.engine || requestSeq !== this.activeGenerationSeq) {
       return [];
     }
     const modeContext = this.resolvePredictionMode(request.predictionInput);
 
-    if (this.isGenerating) {
-      this.lastPredictAt = Date.now();
-      this.lastPredictInput = request.predictionInput;
-      this.lastPredictDurationMs = 0;
-      this.lastPredictSource = "skipped";
-      this.lastRawOutputPreview = "";
-      this.lastPredictOutputCount = 0;
-      this.lastPredictError = "generation_in_progress";
-      return [];
+    const previousGenerationSeq = this.inFlightGenerationSeq;
+    if (typeof previousGenerationSeq === "number") {
+      this.interruptActiveGeneration("newer_request");
+      await this.waitForGenerationToSettle(previousGenerationSeq, 75);
+      if (!this.engine || requestSeq !== this.activeGenerationSeq) {
+        return [];
+      }
     }
-    const generationSeq = ++this.activeGenerationSeq;
-    this.isGenerating = true;
+    this.registerGeneration(requestSeq, request);
     const predictStartedAt = Date.now();
     this.lastPredictAt = predictStartedAt;
     this.lastPredictInput = request.predictionInput;
@@ -319,7 +355,10 @@ export class WebLLMPredictor {
         source = "completion";
       }
 
-      if (generationSeq !== this.activeGenerationSeq) {
+      if (
+        requestSeq !== this.activeGenerationSeq ||
+        this.cancelledGenerationSeqs.has(requestSeq)
+      ) {
         return [];
       }
       predictions = this.postProcessPredictions(
@@ -340,6 +379,12 @@ export class WebLLMPredictor {
       }
       return predictions;
     } catch (error) {
+      if (
+        requestSeq !== this.activeGenerationSeq ||
+        this.cancelledGenerationSeqs.has(requestSeq)
+      ) {
+        return [];
+      }
       console.warn(
         "WebLLM generation failed, fallback to Presage:",
         getErrorMessage(error),
@@ -350,9 +395,7 @@ export class WebLLMPredictor {
       this.lastPredictOutputCount = 0;
       return [];
     } finally {
-      if (generationSeq === this.activeGenerationSeq) {
-        this.isGenerating = false;
-      }
+      this.completeGeneration(requestSeq);
     }
   }
 
@@ -514,12 +557,75 @@ export class WebLLMPredictor {
     }
   }
 
+  private registerGeneration(seq: number, request: WebLLMPredictRequest): void {
+    let resolveDone = () => {};
+    const donePromise = new Promise<void>((resolve) => {
+      resolveDone = resolve;
+    });
+    this.generationDonePromises.set(seq, donePromise);
+    this.generationDoneResolvers.set(seq, resolveDone);
+    this.inFlightGenerationSeq = seq;
+    this.inFlightRequest = {
+      lang: request.lang,
+      predictionInput: request.predictionInput,
+    };
+    this.isGenerating = true;
+  }
+
+  private completeGeneration(seq: number): void {
+    const resolveDone = this.generationDoneResolvers.get(seq);
+    if (resolveDone) {
+      this.generationDoneResolvers.delete(seq);
+      this.generationDonePromises.delete(seq);
+      resolveDone();
+    }
+    if (this.inFlightGenerationSeq === seq) {
+      this.inFlightGenerationSeq = null;
+      this.inFlightRequest = null;
+      this.isGenerating = false;
+    }
+    this.cancelledGenerationSeqs.delete(seq);
+  }
+
+  private async waitForGenerationToSettle(
+    seq: number,
+    timeoutMs: number,
+  ): Promise<void> {
+    const donePromise = this.generationDonePromises.get(seq);
+    if (!donePromise || timeoutMs <= 0) {
+      return;
+    }
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    await Promise.race([
+      donePromise,
+      new Promise<void>((resolve) => {
+        timeoutId = setTimeout(resolve, timeoutMs);
+      }),
+    ]);
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  private clearGenerationTracking(): void {
+    for (const resolveDone of this.generationDoneResolvers.values()) {
+      resolveDone();
+    }
+    this.generationDoneResolvers.clear();
+    this.generationDonePromises.clear();
+    this.inFlightGenerationSeq = null;
+    this.inFlightRequest = null;
+    this.cancelledGenerationSeqs.clear();
+    this.isGenerating = false;
+  }
+
   private resetEngine(): void {
     this.cache.clear();
     this.status = PredictorStatus.Idle;
     this.initPromise = null;
     this.activeGenerationSeq += 1;
-    this.isGenerating = false;
+    this.interruptActiveGeneration("reset");
+    this.clearGenerationTracking();
     if (this.engine) {
       const engine = this.engine;
       this.engine = null;

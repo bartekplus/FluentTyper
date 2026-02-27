@@ -292,15 +292,15 @@ describe("WebLLMPredictor", () => {
     expect(result).toEqual(["banana", "orange", "kiwi"]);
   });
 
-  test("skips overlapping generation when a newer request arrives", async () => {
+  test("interrupts stale generation and prioritizes the newest request", async () => {
     let resolveFirst:
-      | ((value: { choices: Array<{ text: string }> }) => void)
+      | ((value: { choices: Array<{ message: { content: string } }> }) => void)
       | undefined;
-    const firstPromise = new Promise<{ choices: Array<{ text: string }> }>(
-      (resolve) => {
-        resolveFirst = resolve;
-      },
-    );
+    const firstPromise = new Promise<{
+      choices: Array<{ message: { content: string } }>;
+    }>((resolve) => {
+      resolveFirst = resolve;
+    });
     const engine = createMockEngine();
     const chatCreateMock = engine.chat.completions.create as jest.Mock<any>;
     chatCreateMock
@@ -320,6 +320,9 @@ describe("WebLLMPredictor", () => {
       predictionInput: "abc ",
       numSuggestions: 2,
     });
+    while (chatCreateMock.mock.calls.length === 0) {
+      await Promise.resolve();
+    }
     const secondRequest = predictor.predict({
       lang: "en_US",
       predictionInput: "abcd ",
@@ -327,15 +330,15 @@ describe("WebLLMPredictor", () => {
     });
 
     if (resolveFirst) {
-      resolveFirst({ choices: [{ text: "oldword" }] });
+      resolveFirst({ choices: [{ message: { content: "oldword" } }] });
     }
     const [firstResult, secondResult] = await Promise.all([
       firstRequest,
       secondRequest,
     ]);
 
-    expect(engine.interruptGenerate).toHaveBeenCalledTimes(0);
-    expect(firstResult).toEqual(["newword"]);
-    expect(secondResult).toEqual([]);
+    expect(engine.interruptGenerate).toHaveBeenCalledTimes(1);
+    expect(firstResult).toEqual([]);
+    expect(secondResult).toEqual(["newword"]);
   });
 });
