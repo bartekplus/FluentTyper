@@ -12,6 +12,41 @@ const rootDir = path.resolve(__dirname, "..");
 const srcDir = path.join(rootDir, "src");
 const buildDir = path.join(rootDir, "build");
 const platformDir = path.join(rootDir, "platform", platform);
+const WEBLLM_CONNECT_SRC_HOSTS = [
+  "https://huggingface.co",
+  "https://cdn-lfs.huggingface.co",
+  "https://cdn-lfs-us-1.huggingface.co",
+  "https://cdn-lfs-us-1.hf.co",
+  "https://cas-bridge.xethub.hf.co",
+  "https://raw.githubusercontent.com",
+];
+
+function getConnectSrcDirective(includeWebLLMRuntime) {
+  const sources = ["'self'", "data:"];
+  if (includeWebLLMRuntime) {
+    sources.push(...WEBLLM_CONNECT_SRC_HOSTS);
+  }
+  return `connect-src ${sources.join(" ")};`;
+}
+
+function getExtensionPagesCsp(includeWebLLMRuntime) {
+  return [
+    "script-src 'self' 'wasm-unsafe-eval';",
+    "object-src 'self';",
+    getConnectSrcDirective(includeWebLLMRuntime),
+  ].join(" ");
+}
+
+function transformManifestContent(content, includeWebLLMRuntime) {
+  const manifest = JSON.parse(content.toString());
+
+  if (manifest?.content_security_policy?.extension_pages) {
+    manifest.content_security_policy.extension_pages =
+      getExtensionPagesCsp(includeWebLLMRuntime);
+  }
+
+  return `${JSON.stringify(manifest, null, 2)}\n`;
+}
 
 export default (env, argv) => {
   const isDevBuild = argv.mode === "development";
@@ -67,7 +102,20 @@ export default (env, argv) => {
       new CopyPlugin({
         patterns: [
           { from: ".", to: ".", context: path.join(rootDir, "public") },
-          { from: ".", to: ".", context: platformDir },
+          {
+            from: ".",
+            to: ".",
+            context: platformDir,
+            globOptions: { ignore: ["**/manifest.json"] },
+          },
+          {
+            from: "manifest.json",
+            to: "manifest.json",
+            context: platformDir,
+            transform(content) {
+              return transformManifestContent(content, includeWebLLMRuntime);
+            },
+          },
         ],
       }),
       new webpack.DefinePlugin({
