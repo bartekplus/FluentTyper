@@ -1,6 +1,6 @@
 import { jest } from "@jest/globals";
 
-const createMLCEngineMock = jest.fn<() => Promise<any>>();
+const createMLCEngineMock = jest.fn<() => Promise<unknown>>();
 
 jest.unstable_mockModule("@mlc-ai/web-llm", () => ({
   CreateMLCEngine: createMLCEngineMock,
@@ -305,7 +305,7 @@ describe("WebLLMPredictor", () => {
       resolveFirst = resolve;
     });
     const engine = createMockEngine();
-    const chatCreateMock = engine.chat.completions.create as jest.Mock<any>;
+    const chatCreateMock = engine.chat.completions.create as jest.Mock;
     chatCreateMock
       .mockImplementationOnce(() => firstPromise)
       .mockResolvedValueOnce({

@@ -5,11 +5,24 @@ import {
   PredictionConfig,
   PredictionOrchestrator,
 } from "../src/background/PredictionOrchestrator";
+import { Capitalization } from "../src/background/CapitalizationHelper";
+import type { SecondaryPredictor } from "../src/background/PredictionTypes";
+import type { PresagePredictionContext } from "../src/background/PresageHandler";
 import {
   DEFAULT_AI_MODEL_ID,
   DEFAULT_DEBUG_AI_PREDICTOR_ENABLED,
   DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED,
 } from "../src/shared/constants";
+
+interface OrchestratorPrivateProbe {
+  resolvePresageSkipReason: (context: PresagePredictionContext) => string;
+  resolveAISkipReason: (context: PresagePredictionContext) => string;
+  runAIPredictionWithTimeout: (
+    lang: string,
+    predictionInput: string,
+    numSuggestions: number,
+  ) => Promise<{ predictions: string[]; durationMs: number; timedOut: boolean }>;
+}
 
 function createConfig(overrides: Partial<PredictionConfig> = {}): PredictionConfig {
   return {
@@ -72,7 +85,7 @@ describe("PredictionOrchestrator coverage", () => {
     };
     const orchestrator = new PredictionOrchestrator(
       presageHandler,
-      aiPredictor as any,
+      aiPredictor as unknown as SecondaryPredictor,
     );
 
     orchestrator.setConfig(
@@ -111,7 +124,7 @@ describe("PredictionOrchestrator coverage", () => {
     };
     const orchestrator = new PredictionOrchestrator(
       presageHandler,
-      aiPredictor as any,
+      aiPredictor as unknown as SecondaryPredictor,
     );
 
     orchestrator.setConfig(
@@ -195,7 +208,7 @@ describe("PredictionOrchestrator coverage", () => {
     };
     const orchestrator = new PredictionOrchestrator(
       presageHandler,
-      aiPredictor as any,
+      aiPredictor as unknown as SecondaryPredictor,
     );
 
     orchestrator.setConfig(
@@ -242,7 +255,7 @@ describe("PredictionOrchestrator coverage", () => {
     };
     const orchestrator = new PredictionOrchestrator(
       presageHandler,
-      aiPredictor as any,
+      aiPredictor as unknown as SecondaryPredictor,
     );
     orchestrator.setConfig(
       createConfig({
@@ -273,7 +286,7 @@ describe("PredictionOrchestrator coverage", () => {
     };
     const orchestrator = new PredictionOrchestrator(
       presageHandler,
-      aiPredictor as any,
+      aiPredictor as unknown as SecondaryPredictor,
     );
     orchestrator.setConfig(createConfig({ aiPredictorEnabled: true }));
 
@@ -303,7 +316,7 @@ describe("PredictionOrchestrator coverage", () => {
     };
     const orchestrator = new PredictionOrchestrator(
       presageHandler,
-      aiPredictor as any,
+      aiPredictor as unknown as SecondaryPredictor,
     );
     orchestrator.setConfig(
       createConfig({
@@ -332,14 +345,7 @@ describe("PredictionOrchestrator coverage", () => {
     };
     const orchestrator = new PredictionOrchestrator(
       presageHandler,
-      aiPredictor as unknown as {
-        setConfig: (cfg: { enabled?: boolean; modelId?: string }) => void;
-        predict: (req: {
-          lang: string;
-          predictionInput: string;
-          numSuggestions: number;
-        }) => Promise<string[]>;
-      },
+      aiPredictor as unknown as SecondaryPredictor,
     );
     orchestrator.setConfig(createConfig({ aiPredictorEnabled: true }));
 
@@ -358,39 +364,40 @@ describe("PredictionOrchestrator coverage", () => {
     };
     const orchestrator = new PredictionOrchestrator(
       presageHandler,
-      aiPredictor as any,
+      aiPredictor as unknown as SecondaryPredictor,
     );
     orchestrator.setConfig(createConfig({ aiPredictorEnabled: true }));
+    const probe = orchestrator as unknown as OrchestratorPrivateProbe;
 
-    const context = {
+    const context: PresagePredictionContext = {
       text: "a",
       nextChar: "",
       lang: "en_US",
       predictionInput: "a",
       doPrediction: true,
-      doCapitalize: 0,
+      doCapitalize: Capitalization.None,
       forceReplace: null,
       effectiveNumSuggestions: 1,
     };
 
-    expect((orchestrator as any).resolvePresageSkipReason(context)).toBe(
-      "unknown",
-    );
-    expect((orchestrator as any).resolveAISkipReason(context)).toBe("unknown");
+    expect(probe.resolvePresageSkipReason(context)).toBe("unknown");
+    expect(probe.resolveAISkipReason(context)).toBe("unknown");
 
     const zeroSuggestionContext = {
       ...context,
       effectiveNumSuggestions: 0,
     };
-    expect((orchestrator as any).resolvePresageSkipReason(zeroSuggestionContext)).toBe(
+    expect(probe.resolvePresageSkipReason(zeroSuggestionContext)).toBe(
       "num_suggestions_zero",
     );
-    expect((orchestrator as any).resolveAISkipReason(zeroSuggestionContext)).toBe(
+    expect(probe.resolveAISkipReason(zeroSuggestionContext)).toBe(
       "num_suggestions_zero",
     );
 
     const noPredictorOrchestrator = new PredictionOrchestrator(presageHandler);
-    const aiResult = await (noPredictorOrchestrator as any).runAIPredictionWithTimeout(
+    const noPredictorProbe =
+      noPredictorOrchestrator as unknown as OrchestratorPrivateProbe;
+    const aiResult = await noPredictorProbe.runAIPredictionWithTimeout(
       "en_US",
       "a",
       2,
