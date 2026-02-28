@@ -34,7 +34,7 @@ function createConfig(overrides: Partial<PredictionConfig> = {}): PredictionConf
     autoCapitalize: false,
     applySpacingRules: false,
     textExpansions: [],
-    variableExpansion: false,
+
     timeFormat: "",
     dateFormat: "",
     userDictionaryList: [],

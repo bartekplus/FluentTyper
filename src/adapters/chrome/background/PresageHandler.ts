@@ -33,7 +33,7 @@ export interface PresageConfig {
   autoCapitalize: boolean;
   applySpacingRules: boolean;
   textExpansions: Array<[string, object]>;
-  variableExpansion?: boolean;
+
   timeFormat?: string;
   dateFormat?: string;
   userDictionaryList?: string[];
@@ -64,7 +64,7 @@ export class PresageHandler {
   private predictionInputProcessor: PredictionInputProcessor;
   private textExpansionManager: TextExpansionManager;
   private userDictionaryManager: UserDictionaryManager;
-  private variableExpansion?: boolean;
+
   private timeFormat?: string;
   private dateFormat?: string;
   private engineNumSuggestions: number;
@@ -115,7 +115,7 @@ export class PresageHandler {
     this.predictNextWordAfterSeparatorChar = this.minWordLengthToPredict === 0;
     this.insertSpaceAfterAutocomplete = config.insertSpaceAfterAutocomplete;
     this.autoCapitalize = config.autoCapitalize;
-    this.variableExpansion = config.variableExpansion;
+
     this.timeFormat = config.timeFormat;
     this.dateFormat = config.dateFormat;
     this.userDictionaryList = config.userDictionaryList || [];
@@ -156,7 +156,7 @@ export class PresageHandler {
   getExpandedVariables(lang: string): TemplateVariables {
     return TemplateExpander.getExpandedVariables(
       lang,
-      this.variableExpansion ?? false,
+
       this.timeFormat ?? "",
       this.dateFormat ?? "",
     );
@@ -202,7 +202,7 @@ export class PresageHandler {
 
     const resolver = TemplateExpander.createResolver(
       lang,
-      this.variableExpansion ?? false,
+
       this.timeFormat ?? "",
       this.dateFormat ?? "",
       tabId

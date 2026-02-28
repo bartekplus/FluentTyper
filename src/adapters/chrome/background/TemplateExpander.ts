@@ -47,13 +47,12 @@ export class TemplateExpander {
    */
   static createResolver(
     lang: string,
-    variableExpansion: boolean,
     timeFormat: string,
     dateFormat: string,
     tabId?: number
   ): (fullVarName: string) => Promise<string | undefined> {
     return async (fullVarName: string) => {
-      if (!variableExpansion) return undefined;
+
 
       // split varName from arg
       const colonIdx = fullVarName.indexOf(':');
@@ -102,14 +101,11 @@ export class TemplateExpander {
    */
   static getExpandedVariables(
     lang: string,
-    variableExpansion: boolean,
     timeFormat: string,
     dateFormat: string,
   ): TemplateVariables {
     const expandedTemplateVariables: TemplateVariables = {};
-    if (!variableExpansion) {
-      return expandedTemplateVariables;
-    }
+
     const timeVal = resolveDynamicVariable("time", undefined, lang, timeFormat, dateFormat);
     const dateVal = resolveDynamicVariable("date", undefined, lang, timeFormat, dateFormat);
     if (timeVal) expandedTemplateVariables["time"] = timeVal;

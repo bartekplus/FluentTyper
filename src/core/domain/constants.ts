@@ -34,7 +34,7 @@ export const KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE = "insertSpaceAfterAutocomplete
 export const KEY_AUTO_CAPITALIZE = "autoCapitalize";
 export const KEY_APPLY_SPACING_RULES = "applySpacingRules";
 export const KEY_TEXT_EXPANSIONS = "textExpansions";
-export const KEY_VARIABLE_EXPANSION = "variableExpansion";
+
 export const KEY_TIME_FORMAT = "timeFormat";
 export const KEY_DATE_FORMAT = "dateFormat";
 export const KEY_USER_DICTIONARY_LIST = "userDictionaryList";

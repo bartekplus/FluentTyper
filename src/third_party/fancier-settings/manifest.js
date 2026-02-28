@@ -24,7 +24,7 @@ import {
   KEY_AI_PREDICTION_TIMEOUT_MS,
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
   KEY_DEBUG_AI_PREDICTOR_ENABLED,
-  KEY_VARIABLE_EXPANSION,
+
   KEY_TIME_FORMAT,
   KEY_DATE_FORMAT,
   KEY_TEXT_EXPANSIONS,
@@ -321,14 +321,7 @@ const manifest = {
       type: "description",
       text: variablesDocumentationHTML,
     },
-    {
-      tab: i18n.get("shortcuts_expansions_tab"),
-      group: i18n.get("dynamic_variables"),
-      name: KEY_VARIABLE_EXPANSION,
-      type: "checkbox",
-      label: i18n.get("enable_dynamic_vars_label") + ":&nbsp;<small>" + i18n.get("enable_dynamic_vars_desc") + Object.keys(DATE_TIME_VARIABLES) + "</small>",
-      default: true,
-    },
+
     {
       tab: i18n.get("shortcuts_expansions_tab"),
       group: i18n.get("dynamic_variables"),

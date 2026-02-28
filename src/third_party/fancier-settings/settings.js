@@ -21,7 +21,7 @@ import {
   KEY_AUTO_CAPITALIZE,
   KEY_APPLY_SPACING_RULES,
   KEY_SELECT_BY_DIGIT,
-  KEY_VARIABLE_EXPANSION,
+
   KEY_TIME_FORMAT,
   KEY_DATE_FORMAT,
   KEY_REVERT_ON_BACKSPACE,
@@ -1179,16 +1179,16 @@ function renderPredictorDebugSnapshot(root, snapshot) {
   initProgressPreview.textContent =
     initProgressLog.length > 0
       ? `Init progress: ${initProgressLog
-          .map((entry) => {
-            const label =
-              typeof entry?.text === "string" && entry.text.trim().length > 0
-                ? entry.text.trim()
-                : "stage";
-            const progress = formatProgressPercent(entry?.progress);
-            const at = formatClockTime(entry?.atMs);
-            return `${at} ${progress} ${label}`;
-          })
-          .join(" | ")}`
+        .map((entry) => {
+          const label =
+            typeof entry?.text === "string" && entry.text.trim().length > 0
+              ? entry.text.trim()
+              : "stage";
+          const progress = formatProgressPercent(entry?.progress);
+          const at = formatClockTime(entry?.atMs);
+          return `${at} ${progress} ${label}`;
+        })
+        .join(" | ")}`
       : "Init progress: <none>";
   runtimeCard.appendChild(initProgressPreview);
   infoGrid.appendChild(runtimeCard);
@@ -1637,7 +1637,7 @@ window.addEventListener("DOMContentLoaded", function () {
         KEY_AUTO_CAPITALIZE,
         KEY_APPLY_SPACING_RULES,
         KEY_SELECT_BY_DIGIT,
-        KEY_VARIABLE_EXPANSION,
+
         KEY_TIME_FORMAT,
         KEY_DATE_FORMAT,
         KEY_REVERT_ON_BACKSPACE,

@@ -12,7 +12,7 @@ function createConfig(overrides: Partial<PredictionConfig> = {}): PredictionConf
     autoCapitalize: false,
     applySpacingRules: false,
     textExpansions: [],
-    variableExpansion: false,
+
     timeFormat: "",
     dateFormat: "",
     userDictionaryList: [],
@@ -38,8 +38,8 @@ function createFakeModule(predictionsRef: { current: string[] }): PresageModule 
       implement: () => callback,
     },
     Presage: class {
-      constructor() {}
-      config() {}
+      constructor() { }
+      config() { }
       predictWithProbability() {
         return {
           size: () => predictionsRef.current.length,
