@@ -1,5 +1,4 @@
 import { LANG_SEPARATOR_CHARS_REGEX } from "@core/domain/lang";
-import { isInDocument } from "@core/application/utils";
 import { createLogger } from "@core/application/logging/Logger";
 import type {
   ContentScriptPredictRequestContext,
@@ -7,6 +6,7 @@ import type {
   SetConfigContext,
 } from "@core/domain/messageTypes";
 import { DomObserver } from "./DomObserver";
+import { MutationPipeline, type MutationPlan } from "./MutationPipeline";
 import { MutationScheduler } from "./MutationScheduler";
 import { ThemeApplicator } from "./ThemeApplicator";
 import { TributeManager } from "./TributeManager";
@@ -39,6 +39,7 @@ export class ContentRuntimeController {
   private onPredictionRequest: ((context: ContentScriptPredictRequestContext) => void) | null =
     null;
   private onRestartRequest: () => void;
+  private readonly mutationPipeline: MutationPipeline;
   private readonly mutationScheduler: MutationScheduler;
 
   constructor(private readonly themeApplicator: ThemeApplicator = new ThemeApplicator()) {
@@ -54,6 +55,10 @@ export class ContentRuntimeController {
         }
         this.processMutations(mutations);
       },
+    );
+    this.mutationPipeline = new MutationPipeline(
+      ContentRuntimeController.MAX_MUTATION_BATCH_SIZE,
+      ContentRuntimeController.MAX_MUTATION_ROOTS,
     );
     this.onRestartRequest = this.restart.bind(this);
   }
@@ -143,24 +148,8 @@ export class ContentRuntimeController {
       }
       this.tributeManager.removeHelpersNotInDocument();
 
-      if (mutationsList.length >= ContentRuntimeController.MAX_MUTATION_BATCH_SIZE) {
-        this.tributeManager.queryAndAttachHelper();
-        return;
-      }
-
-      const mutationRoots = this.collectMutationRoots(mutationsList);
-      if (mutationRoots.length === 0) {
-        return;
-      }
-
-      if (mutationRoots.length >= ContentRuntimeController.MAX_MUTATION_ROOTS) {
-        this.tributeManager.queryAndAttachHelper();
-        return;
-      }
-
-      for (const mutationRoot of mutationRoots) {
-        this.tributeManager.queryAndAttachHelper(mutationRoot);
-      }
+      const mutationPlan = this.mutationPipeline.buildPlan(mutationsList);
+      this.executeMutationPlan(mutationPlan);
     } finally {
       if (this.enabled) {
         this.attachMutationObserver();
@@ -229,53 +218,20 @@ export class ContentRuntimeController {
     }
   }
 
-  private getElementDepth(element: Element): number {
-    let depth = 0;
-    let currentNode: Node | null = element;
-    while (currentNode.parentNode) {
-      depth += 1;
-      currentNode = currentNode.parentNode;
-    }
-    return depth;
-  }
-
-  private collectMutationRoots(mutationsList: MutationRecord[]): Element[] {
-    const candidates: Element[] = [];
-    for (const mutation of mutationsList) {
-      mutation.addedNodes.forEach((node) => {
-        if (node instanceof Element && isInDocument(node)) {
-          candidates.push(node);
-        }
-      });
-      if (
-        mutation.type === "attributes" &&
-        mutation.target instanceof Element &&
-        isInDocument(mutation.target)
-      ) {
-        candidates.push(mutation.target);
-      }
-    }
-    if (candidates.length === 0) {
-      return [];
+  private executeMutationPlan(mutationPlan: MutationPlan): void {
+    if (!this.tributeManager) {
+      return;
     }
 
-    const uniqueCandidates = Array.from(new Set(candidates));
-    uniqueCandidates.sort(
-      (left, right) => this.getElementDepth(left) - this.getElementDepth(right),
-    );
-
-    const roots: Element[] = [];
-    for (const candidate of uniqueCandidates) {
-      if (roots.some((root) => root === candidate || root.contains(candidate))) {
-        continue;
-      }
-      for (let i = roots.length - 1; i >= 0; i -= 1) {
-        if (candidate.contains(roots[i])) {
-          roots.splice(i, 1);
-        }
-      }
-      roots.push(candidate);
+    if (mutationPlan.type === "full-scan") {
+      this.tributeManager.queryAndAttachHelper();
+      return;
     }
-    return roots;
+
+    if (mutationPlan.type === "targeted-scan") {
+      for (const mutationRoot of mutationPlan.roots) {
+        this.tributeManager.queryAndAttachHelper(mutationRoot);
+      }
+    }
   }
 }

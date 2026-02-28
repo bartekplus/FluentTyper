@@ -1,4 +1,5 @@
 import { createLogger } from "@core/application/logging/Logger";
+import { HostChangeStateMachine } from "./HostChangeStateMachine";
 
 export type HostChangeWatcherDependencies = {
   watchDogRunner: () => void;
@@ -12,15 +13,16 @@ export type HostChangeWatcherDependencies = {
 const logger = createLogger("HostChangeWatcher");
 
 export class HostChangeWatcher {
-  private hostName = window.location.hostname;
   private watchDogTimeoutId: number | null = null;
   private rootNodeObserver: MutationObserver | null = null;
+  private readonly stateMachine: HostChangeStateMachine;
   private readonly scheduleWatchDogCheckBound: () => void;
 
   constructor(
     private readonly dependencies: HostChangeWatcherDependencies,
     private readonly debounceMs = 250,
   ) {
+    this.stateMachine = new HostChangeStateMachine(window.location.hostname);
     this.scheduleWatchDogCheckBound = this.scheduleWatchDogCheck.bind(this);
   }
 
@@ -31,20 +33,20 @@ export class HostChangeWatcher {
   }
 
   getHostName(): string {
-    return this.hostName;
+    return this.stateMachine.getHostName();
   }
 
   setHostName(hostName: string): void {
-    this.hostName = hostName;
+    this.stateMachine.setHostName(hostName);
   }
 
   checkHostName(): boolean {
-    if (this.hostName !== window.location.hostname) {
+    const decision = this.stateMachine.evaluateHost(window.location.hostname);
+    if (decision.type === "host-changed") {
       logger.info("Host changed; refetching config", {
-        previousHost: this.hostName,
-        nextHost: window.location.hostname,
+        previousHost: decision.previousHostName,
+        nextHost: decision.nextHostName,
       });
-      this.hostName = window.location.hostname;
       this.dependencies.requestConfig();
       return true;
     }
@@ -53,19 +55,31 @@ export class HostChangeWatcher {
 
   watchDog(): void {
     const currentNode = document.body || document.documentElement;
-    if (this.checkHostName()) {
+    const decision = this.stateMachine.evaluateWatchDog({
+      currentHostName: window.location.hostname,
+      observedNode: this.dependencies.getObservedNode(),
+      currentNode,
+      runtimeEnabled: this.dependencies.isRuntimeEnabled(),
+    });
+
+    if (decision.type === "host-changed") {
+      logger.info("Host changed; refetching config", {
+        previousHost: decision.previousHostName,
+        nextHost: decision.nextHostName,
+      });
+      this.dependencies.requestConfig();
       logger.debug("Host changed during watchdog cycle; skipping DOM restart");
       return;
     }
-    if (this.dependencies.getObservedNode() !== currentNode) {
-      const runtimeEnabled = this.dependencies.isRuntimeEnabled();
+
+    if (decision.type === "node-changed") {
       logger.warn("Observed root node changed; restarting runtime", {
-        runtimeEnabled,
+        runtimeEnabled: decision.runtimeEnabled,
       });
-      if (runtimeEnabled) {
+      if (decision.runtimeEnabled) {
         this.dependencies.restartRuntime();
       }
-      this.dependencies.setObservedNode(currentNode);
+      this.dependencies.setObservedNode(decision.nextObservedNode);
     }
   }
 
