@@ -151,6 +151,7 @@ export class PredictionManager {
 
     const runConfig: PredictionRunConfig = {
       numSuggestions: configOverride?.numSuggestions,
+      tabId: resolvedDebugMeta.tabId !== null ? resolvedDebugMeta.tabId : undefined,
       debugListener: (debugEvent) => {
         this.recordDebugTrace(debugEvent, resolvedDebugMeta);
       },

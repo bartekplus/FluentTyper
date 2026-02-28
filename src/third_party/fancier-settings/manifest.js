@@ -76,7 +76,7 @@ const IS_DEV_BUILD =
   typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
 const EXTENSION_VERSION =
   typeof chrome !== "undefined" &&
-  typeof chrome.runtime?.getManifest === "function"
+    typeof chrome.runtime?.getManifest === "function"
     ? chrome.runtime.getManifest().version
     : "dev";
 
@@ -132,19 +132,19 @@ const manifest = {
     },
     ...(IS_DEV_BUILD
       ? [
-          {
-            tab: i18n.get("core_settings"),
-            group: i18n.get("prediction_engine"),
-            name: KEY_AI_PREDICTOR_ENABLED,
-            type: "checkbox",
-            label:
-              i18n.get("enable_ai_predictor_label") +
-              ":&nbsp;<small>" +
-              i18n.get("enable_ai_predictor_desc") +
-              "</small>",
-            default: true,
-          },
-        ]
+        {
+          tab: i18n.get("core_settings"),
+          group: i18n.get("prediction_engine"),
+          name: KEY_AI_PREDICTOR_ENABLED,
+          type: "checkbox",
+          label:
+            i18n.get("enable_ai_predictor_label") +
+            ":&nbsp;<small>" +
+            i18n.get("enable_ai_predictor_desc") +
+            "</small>",
+          default: true,
+        },
+      ]
       : []),
     {
       tab: i18n.get("core_settings"),
@@ -288,6 +288,13 @@ const manifest = {
         ["asap", "as soon as possible"],
         ["afaik", "as far as I know"],
         ["eur", "€"],
+        ["ddate", "Today is ${date}"],
+        ["ttime", "The current time is ${time}"],
+        ["ddatetime", "It is exactly ${datetime}"],
+        ["dnextwk", "Let's touch base next week on ${date:+1w}"],
+        ["rsales", "${random:Hi|Hello|Hey there} ${random:friend|mate|colleague}!"],
+        ["purl", "Here is the link we discussed: ${page_url}"],
+        ["rruuid", "Reference ID: ${uuid}"],
       ],
     },
     {
@@ -296,7 +303,7 @@ const manifest = {
       name: KEY_VARIABLE_EXPANSION,
       type: "checkbox",
       label: i18n.get("enable_dynamic_vars_label") + ":&nbsp;<small>" + i18n.get("enable_dynamic_vars_desc") + Object.keys(DATE_TIME_VARIABLES) + "</small>",
-      default: false,
+      default: true,
     },
     {
       tab: i18n.get("shortcuts_expansions_tab"),
@@ -611,74 +618,74 @@ const manifest = {
     },
     ...(IS_DEV_BUILD
       ? [
-          {
-            tab: i18n.get("advanced_tab"),
-            group: i18n.get("predictor_debug_group"),
-            name: "predictorDebugHint",
-            type: "description",
-            text: `<p>${i18n.get("predictor_debug_desc")}</p>`,
-          },
-          {
-            tab: i18n.get("advanced_tab"),
-            group: i18n.get("predictor_debug_group"),
-            name: KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
-            type: "checkbox",
-            label:
-              i18n.get("predictor_debug_presage_label") +
-              ":&nbsp;<small>" +
-              i18n.get("predictor_debug_presage_desc") +
-              "</small>",
-            default: true,
-          },
-          {
-            tab: i18n.get("advanced_tab"),
-            group: i18n.get("predictor_debug_group"),
-            name: KEY_DEBUG_AI_PREDICTOR_ENABLED,
-            type: "checkbox",
-            label:
-              i18n.get("predictor_debug_webllm_label") +
-              ":&nbsp;<small>" +
-              i18n.get("predictor_debug_webllm_desc") +
-              "</small>",
-            default: true,
-          },
-          {
-            tab: i18n.get("advanced_tab"),
-            group: i18n.get("predictor_debug_group"),
-            name: KEY_AI_MODEL_ID,
-            type: "popupButton",
-            options: WEBLLM_DEV_MODEL_OPTIONS,
-            label:
-              i18n.get("predictor_debug_model_label") +
-              ":&nbsp;<small>" +
-              i18n.get("predictor_debug_model_desc") +
-              "</small>",
-            default: DEFAULT_AI_MODEL_ID,
-          },
-          {
-            tab: i18n.get("advanced_tab"),
-            group: i18n.get("predictor_debug_group"),
-            name: KEY_AI_PREDICTION_TIMEOUT_MS,
-            type: "slider",
-            min: 20,
-            max: 2000,
-            step: 10,
-            display: true,
-            label:
-              i18n.get("predictor_debug_timeout_label") +
-              ":&nbsp;<small>" +
-              i18n.get("predictor_debug_timeout_desc") +
-              "</small>",
-            default: DEFAULT_AI_PREDICTION_TIMEOUT_MS,
-          },
-          {
-            tab: i18n.get("advanced_tab"),
-            group: i18n.get("predictor_debug_group"),
-            name: "predictorDebugPanel",
-            type: "description",
-            text: `<div id='predictorDebugRoot'>${i18n.get("predictor_debug_loading")}</div>`,
-          },
-        ]
+        {
+          tab: i18n.get("advanced_tab"),
+          group: i18n.get("predictor_debug_group"),
+          name: "predictorDebugHint",
+          type: "description",
+          text: `<p>${i18n.get("predictor_debug_desc")}</p>`,
+        },
+        {
+          tab: i18n.get("advanced_tab"),
+          group: i18n.get("predictor_debug_group"),
+          name: KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
+          type: "checkbox",
+          label:
+            i18n.get("predictor_debug_presage_label") +
+            ":&nbsp;<small>" +
+            i18n.get("predictor_debug_presage_desc") +
+            "</small>",
+          default: true,
+        },
+        {
+          tab: i18n.get("advanced_tab"),
+          group: i18n.get("predictor_debug_group"),
+          name: KEY_DEBUG_AI_PREDICTOR_ENABLED,
+          type: "checkbox",
+          label:
+            i18n.get("predictor_debug_webllm_label") +
+            ":&nbsp;<small>" +
+            i18n.get("predictor_debug_webllm_desc") +
+            "</small>",
+          default: true,
+        },
+        {
+          tab: i18n.get("advanced_tab"),
+          group: i18n.get("predictor_debug_group"),
+          name: KEY_AI_MODEL_ID,
+          type: "popupButton",
+          options: WEBLLM_DEV_MODEL_OPTIONS,
+          label:
+            i18n.get("predictor_debug_model_label") +
+            ":&nbsp;<small>" +
+            i18n.get("predictor_debug_model_desc") +
+            "</small>",
+          default: DEFAULT_AI_MODEL_ID,
+        },
+        {
+          tab: i18n.get("advanced_tab"),
+          group: i18n.get("predictor_debug_group"),
+          name: KEY_AI_PREDICTION_TIMEOUT_MS,
+          type: "slider",
+          min: 20,
+          max: 2000,
+          step: 10,
+          display: true,
+          label:
+            i18n.get("predictor_debug_timeout_label") +
+            ":&nbsp;<small>" +
+            i18n.get("predictor_debug_timeout_desc") +
+            "</small>",
+          default: DEFAULT_AI_PREDICTION_TIMEOUT_MS,
+        },
+        {
+          tab: i18n.get("advanced_tab"),
+          group: i18n.get("predictor_debug_group"),
+          name: "predictorDebugPanel",
+          type: "description",
+          text: `<div id='predictorDebugRoot'>${i18n.get("predictor_debug_loading")}</div>`,
+        },
+      ]
       : []),
 
     // =========================================================================

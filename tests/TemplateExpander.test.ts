@@ -35,7 +35,7 @@ describe("TemplateExpander", () => {
     const result = TemplateExpander.getExpandedVariables("fr_FR", true, "HH:mm", "yyyy-MM-dd");
 
     expect(timeSpy).toHaveBeenCalledWith("fr_FR", "HH:mm");
-    expect(dateSpy).toHaveBeenCalledWith("fr_FR", "yyyy-MM-dd");
+    expect(dateSpy).toHaveBeenCalledWith("fr_FR", "yyyy-MM-dd", undefined);
     expect(result).toEqual({
       time: "10:30",
       date: "2026-01-02",

@@ -18,9 +18,28 @@ function getCurrentDateTime(lang: string): DateTime {
   return now;
 }
 
-interface DateTimeVariables {
+export interface DateTimeVariables {
   time: (lang: string, format?: string) => string;
-  date: (lang: string, format?: string) => string;
+  date: (lang: string, format?: string, dateMath?: string) => string;
+  datetime: (lang: string, format?: string, dateMath?: string) => string;
+}
+
+function applyDateMath(now: DateTime, mathArg?: string): DateTime {
+  if (!mathArg) return now;
+  const match = mathArg.match(/^([+-])(\d+)([dwmy])$/);
+  if (!match) return now;
+
+  const sign = match[1] === "+" ? 1 : -1;
+  const amount = parseInt(match[2], 10) * sign;
+  const unitChar = match[3];
+
+  let unit: any = "days";
+  if (unitChar === "d") unit = "days";
+  else if (unitChar === "w") unit = "weeks";
+  else if (unitChar === "m") unit = "months";
+  else if (unitChar === "y") unit = "years";
+
+  return now.plus({ [unit]: amount });
 }
 
 export const DATE_TIME_VARIABLES: DateTimeVariables = {
@@ -32,12 +51,55 @@ export const DATE_TIME_VARIABLES: DateTimeVariables = {
     }
     return now.toLocaleString(DateTime.TIME_SIMPLE);
   },
-  date: (lang: string, format?: string): string => {
-    const now = getCurrentDateTime(lang);
+  date: (lang: string, format?: string, dateMath?: string): string => {
+    let now = getCurrentDateTime(lang);
+    now = applyDateMath(now, dateMath);
 
     if (format) {
       return now.toFormat(format);
     }
     return now.toLocaleString(DateTime.DATE_SHORT);
   },
+  datetime: (lang: string, format?: string, dateMath?: string): string => {
+    let now = getCurrentDateTime(lang);
+    now = applyDateMath(now, dateMath);
+
+    if (format) {
+      return now.toFormat(format);
+    }
+    return now.toLocaleString(DateTime.DATETIME_SHORT);
+  },
 };
+
+export function resolveDynamicVariable(
+  varName: string,
+  arg: string | undefined,
+  lang: string,
+  timeFormat?: string,
+  dateFormat?: string,
+): string | undefined {
+  if (varName === "time") {
+    return DATE_TIME_VARIABLES.time(lang, timeFormat);
+  }
+  if (varName === "date") {
+    // If arg exists, it might be +1d or something else. We assume date math.
+    return DATE_TIME_VARIABLES.date(lang, dateFormat, arg);
+  }
+  if (varName === "datetime") {
+    return DATE_TIME_VARIABLES.datetime(lang, dateFormat ? `${dateFormat} '${timeFormat || ""}'` : undefined, arg);
+  }
+  if (varName === "uuid") {
+    return typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : "00000000-0000-0000-0000-000000000000"; // fallback if crypto unavailable
+  }
+  if (varName === "random" && arg) {
+    const options = arg.split("|");
+    if (options.length > 0) {
+      const randomIndex = Math.floor(Math.random() * options.length);
+      return options[randomIndex];
+    }
+  }
+
+  return undefined;
+}
