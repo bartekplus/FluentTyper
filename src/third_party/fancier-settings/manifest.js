@@ -76,15 +76,15 @@ const variablesDocumentationHTML =
   '<div class="text-expander-help" style="font-size: 0.9em; opacity: 0.9;"> \
     <p style="margin-bottom: 0.5rem;"><strong>' + i18n.get("text_expander_vars_supported") + '</strong></p> \
     <ul style="list-style-type: disc; margin-left: 1.5rem; margin-bottom: 0;"> \
-      <li><code>\\${time}</code> - ' + i18n.get("text_expander_var_time") + '</li> \
-      <li><code>\\${date}</code> - ' + i18n.get("text_expander_var_date") + '</li> \
-      <li><code>\\${date:+1d}</code> - ' + i18n.get("text_expander_var_date_math") + '</li> \
-      <li><code>\\${datetime}</code> - ' + i18n.get("text_expander_var_datetime") + '</li> \
-      <li><code>\\${uuid}</code> - ' + i18n.get("text_expander_var_uuid") + '</li> \
-      <li><code>\\${random:A|B|C}</code> - ' + i18n.get("text_expander_var_random") + '</li> \
-      <li><code>\\${page_url}</code> - ' + i18n.get("text_expander_var_page_url") + '</li> \
-      <li><code>\\${page_title}</code> - ' + i18n.get("text_expander_var_page_title") + '</li> \
-      <li><code>\\${page_domain}</code> - ' + i18n.get("text_expander_var_page_domain") + '</li> \
+      <li><code>\${time}</code> - ' + i18n.get("text_expander_var_time") + '</li> \
+      <li><code>\${date}</code> - ' + i18n.get("text_expander_var_date") + '</li> \
+      <li><code>\${date:+1d}</code> - ' + i18n.get("text_expander_var_date_math") + '</li> \
+      <li><code>\${datetime}</code> - ' + i18n.get("text_expander_var_datetime") + '</li> \
+      <li><code>\${uuid}</code> - ' + i18n.get("text_expander_var_uuid") + '</li> \
+      <li><code>\${random:A|B|C}</code> - ' + i18n.get("text_expander_var_random") + '</li> \
+      <li><code>\${page_url}</code> - ' + i18n.get("text_expander_var_page_url") + '</li> \
+      <li><code>\${page_title}</code> - ' + i18n.get("text_expander_var_page_title") + '</li> \
+      <li><code>\${page_domain}</code> - ' + i18n.get("text_expander_var_page_domain") + '</li> \
     </ul> \
   </div>';
 const IS_DEV_BUILD =
