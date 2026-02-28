@@ -33,7 +33,7 @@ export interface PresageConfig {
   autoCapitalize: boolean;
   applySpacingRules: boolean;
   textExpansions: Array<[string, object]>;
-  variableExpansion?: boolean;
+
   timeFormat?: string;
   dateFormat?: string;
   userDictionaryList?: string[];
@@ -48,6 +48,7 @@ export interface PresagePredictionContext {
   doCapitalize: Capitalization;
   forceReplace: ForceReplaceType | null;
   effectiveNumSuggestions: number;
+  tabId?: number;
 }
 
 export class PresageHandler {
@@ -63,7 +64,7 @@ export class PresageHandler {
   private predictionInputProcessor: PredictionInputProcessor;
   private textExpansionManager: TextExpansionManager;
   private userDictionaryManager: UserDictionaryManager;
-  private variableExpansion?: boolean;
+
   private timeFormat?: string;
   private dateFormat?: string;
   private engineNumSuggestions: number;
@@ -114,7 +115,7 @@ export class PresageHandler {
     this.predictNextWordAfterSeparatorChar = this.minWordLengthToPredict === 0;
     this.insertSpaceAfterAutocomplete = config.insertSpaceAfterAutocomplete;
     this.autoCapitalize = config.autoCapitalize;
-    this.variableExpansion = config.variableExpansion;
+
     this.timeFormat = config.timeFormat;
     this.dateFormat = config.dateFormat;
     this.userDictionaryList = config.userDictionaryList || [];
@@ -155,7 +156,7 @@ export class PresageHandler {
   getExpandedVariables(lang: string): TemplateVariables {
     return TemplateExpander.getExpandedVariables(
       lang,
-      this.variableExpansion ?? false,
+
       this.timeFormat ?? "",
       this.dateFormat ?? "",
     );
@@ -190,7 +191,11 @@ export class PresageHandler {
     );
   }
 
-  doPredictionHandler(predictionInput: string, lang: string): string[] {
+  async doPredictionHandler(
+    predictionInput: string,
+    lang: string,
+    tabId?: number,
+  ): Promise<string[]> {
     if (!this.hasLanguageEngine(lang)) {
       return [];
     }
@@ -198,10 +203,19 @@ export class PresageHandler {
       return this.lastPrediction[lang].predictions.slice();
     }
     const predictions = this.presageEngines[lang].predict(predictionInput);
-    const expandedTemplateVariables = this.getExpandedVariables(lang);
-    const expandedPredictions = predictions.map((text) =>
-      this.parseStringTemplate(text, expandedTemplateVariables),
+
+    const resolver = TemplateExpander.createResolver(
+      lang,
+
+      this.timeFormat ?? "",
+      this.dateFormat ?? "",
+      tabId,
     );
+
+    const expandedPredictions = await Promise.all(
+      predictions.map((text) => TemplateExpander.parseStringTemplateAsync(text, resolver)),
+    );
+
     this.lastPrediction[lang] = {
       pastStream: predictionInput,
       predictions: expandedPredictions.slice(),
@@ -214,6 +228,7 @@ export class PresageHandler {
     nextChar: string,
     lang: string,
     numSuggestionsOverride?: number,
+    tabId?: number,
   ): PresagePredictionContext {
     const effectiveNumSuggestions =
       typeof numSuggestionsOverride === "number"
@@ -235,10 +250,11 @@ export class PresageHandler {
       doCapitalize,
       forceReplace,
       effectiveNumSuggestions,
+      tabId,
     };
   }
 
-  predictPresage(context: PresagePredictionContext): string[] {
+  async predictPresage(context: PresagePredictionContext): Promise<string[]> {
     if (context.forceReplace || !context.doPrediction) {
       return [];
     }
@@ -248,7 +264,7 @@ export class PresageHandler {
     if (!this.hasLanguageEngine(context.lang)) {
       return [];
     }
-    return this.doPredictionHandler(context.predictionInput, context.lang);
+    return this.doPredictionHandler(context.predictionInput, context.lang, context.tabId);
   }
 
   finalizePrediction(
@@ -265,19 +281,20 @@ export class PresageHandler {
     );
   }
 
-  runPrediction(
+  async runPrediction(
     text: string,
     nextChar: string,
     lang: string,
-    configOverride?: { numSuggestions?: number },
-  ): PredictionResult {
+    configOverride?: { numSuggestions?: number; tabId?: number },
+  ): Promise<PredictionResult> {
     const context = this.preparePredictionContext(
       text,
       nextChar,
       lang,
       configOverride?.numSuggestions,
+      configOverride?.tabId,
     );
-    const predictions = this.predictPresage(context);
+    const predictions = await this.predictPresage(context);
     return this.finalizePrediction(predictions, context);
   }
 

@@ -199,7 +199,7 @@ async function loadBackgroundHarness(stateOverrides: Record<string, unknown> = {
     autoCapitalize: true,
     applySpacingRules: true,
     textExpansions: [],
-    variableExpansion: false,
+
     timeFormat: "HH:mm",
     dateFormat: "yyyy-MM-dd",
     userDictionaryList: [],

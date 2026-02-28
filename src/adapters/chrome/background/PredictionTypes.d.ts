@@ -36,6 +36,7 @@ export interface PredictionDebugEvent {
 
 export interface PredictionRunConfig {
   numSuggestions?: number;
+  tabId?: number;
   debugListener?: (debugEvent: PredictionDebugEvent) => void;
 }
 

@@ -86,7 +86,7 @@ export class ConfigAssembler {
       autoCapitalize,
       applySpacingRules,
       textExpansions,
-      variableExpansion,
+
       timeFormat,
       dateFormat,
       userDictionaryList,
@@ -98,7 +98,7 @@ export class ConfigAssembler {
       this.coreSettingsRepository.getAutoCapitalize(),
       this.coreSettingsRepository.getApplySpacingRules(),
       this.coreSettingsRepository.getTextExpansions(),
-      this.coreSettingsRepository.getVariableExpansion(),
+
       this.coreSettingsRepository.getTimeFormat(),
       this.coreSettingsRepository.getDateFormat(),
       this.coreSettingsRepository.getUserDictionaryList(),
@@ -116,7 +116,7 @@ export class ConfigAssembler {
         autoCapitalize,
         applySpacingRules,
         textExpansions,
-        variableExpansion,
+
         timeFormat,
         dateFormat,
         userDictionaryList,

@@ -169,10 +169,6 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
     return normalized;
   }
 
-  async getVariableExpansion(): Promise<boolean> {
-    return this.getBooleanField("variableExpansion");
-  }
-
   async getTimeFormat(): Promise<string> {
     return this.getStringField("timeFormat");
   }

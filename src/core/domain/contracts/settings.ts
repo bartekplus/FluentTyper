@@ -40,7 +40,6 @@ import {
   KEY_TRIBUTE_TEXT_DARK,
   KEY_TRIBUTE_TEXT_LIGHT,
   KEY_USER_DICTIONARY_LIST,
-  KEY_VARIABLE_EXPANSION,
 } from "../constants";
 import type { SiteProfiles } from "../siteProfiles";
 
@@ -64,7 +63,7 @@ export const SETTINGS_KEYS = {
   applySpacingRules: KEY_APPLY_SPACING_RULES,
   insertSpaceAfterAutocomplete: KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
   textExpansions: KEY_TEXT_EXPANSIONS,
-  variableExpansion: KEY_VARIABLE_EXPANSION,
+
   timeFormat: KEY_TIME_FORMAT,
   dateFormat: KEY_DATE_FORMAT,
   userDictionaryList: KEY_USER_DICTIONARY_LIST,
@@ -114,7 +113,7 @@ export interface SettingsSchema {
   applySpacingRules: boolean;
   insertSpaceAfterAutocomplete: boolean;
   textExpansions: Array<[string, object]>;
-  variableExpansion: boolean;
+
   timeFormat: string;
   dateFormat: string;
   userDictionaryList: string[];

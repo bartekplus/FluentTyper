@@ -124,6 +124,7 @@ export class PredictionOrchestrator {
       nextChar,
       lang,
       configOverride?.numSuggestions,
+      configOverride?.tabId,
     );
 
     const presageDebug: PredictorStageDebugInfo = {
@@ -174,7 +175,7 @@ export class PredictionOrchestrator {
     if (canRunPresage) {
       presageDebug.attempted = true;
       const presageStartedAt = Date.now();
-      presagePredictions = this.presageHandler.predictPresage(context);
+      presagePredictions = await this.presageHandler.predictPresage(context);
       presageDebug.durationMs = Date.now() - presageStartedAt;
       presageDebug.predictions = presagePredictions.slice();
     } else {

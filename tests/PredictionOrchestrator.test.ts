@@ -34,7 +34,7 @@ function createConfig(overrides: Partial<PredictionConfig> = {}): PredictionConf
     autoCapitalize: false,
     applySpacingRules: false,
     textExpansions: [],
-    variableExpansion: false,
+
     timeFormat: "",
     dateFormat: "",
     userDictionaryList: [],
@@ -77,7 +77,7 @@ function createFakeModule(predictionsRef: { current: string[] }): PresageModule 
 }
 
 describe("PredictionOrchestrator coverage", () => {
-  test("setConfig clamps timeout, applies defaults and preloads when enabled", () => {
+  test("setConfig clamps timeout, applies defaults and preloads when enabled", async () => {
     const module = createFakeModule({ current: ["alpha"] });
     const presageHandler = new PresageHandler(module);
     const aiPredictor = {
@@ -112,7 +112,7 @@ describe("PredictionOrchestrator coverage", () => {
     expect(debugState.debugAIPredictorEnabled).toBe(DEFAULT_DEBUG_AI_PREDICTOR_ENABLED);
   });
 
-  test("does not preload when AI is disabled", () => {
+  test("does not preload when AI is disabled", async () => {
     const module = createFakeModule({ current: ["alpha"] });
     const presageHandler = new PresageHandler(module);
     const aiPredictor = {
