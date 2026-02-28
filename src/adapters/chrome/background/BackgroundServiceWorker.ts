@@ -2,7 +2,7 @@ import {
   CMD_BACKGROUND_PAGE_PREDICT_RESP,
 } from "@core/domain/constants";
 import { checkLastError } from "@core/application/utils";
-import { logError } from "@core/domain/error";
+import { getErrorMessage, logError } from "@core/domain/error";
 import { SettingsManager } from "@core/application/settingsManager";
 import { CoreSettingsRepository } from "@core/application/repositories/CoreSettingsRepository";
 import { LanguageDetector } from "./LanguageDetector";
@@ -64,23 +64,52 @@ export class BackgroundServiceWorker {
     message: PredictRequestMessage,
     configOverride?: { numSuggestions?: number },
   ): Promise<void> {
-    const { predictions, forceReplace } =
-      await this.predictionManager.runPrediction(
-        message.context.text,
-        message.context.nextChar,
-        message.context.lang,
-        configOverride,
-        {
-          requestId: message.context.requestId,
-          tabId: message.context.tabId,
-          frameId: message.context.frameId,
-          tributeId: message.context.tributeId,
-        },
+    const traceId = this.predictionManager.ensureTraceId(message.context.traceId);
+    const traceMeta = {
+      traceId,
+      requestId: message.context.requestId,
+      tabId: message.context.tabId,
+      frameId: message.context.frameId,
+      tributeId: message.context.tributeId,
+    };
+    if (
+      typeof message.context.traceStartedAtMs === "number" &&
+      Number.isFinite(message.context.traceStartedAtMs)
+    ) {
+      this.predictionManager.recordTraceTimelineEvent(
+        traceMeta,
+        "content.request.created",
+        undefined,
+        message.context.traceStartedAtMs,
       );
+    }
+    this.predictionManager.recordTraceTimelineEvent(
+      traceMeta,
+      "background.request.received",
+      `lang=${message.context.lang}`,
+    );
+
+    const { predictions, forceReplace } = await this.predictionManager.runPrediction(
+      message.context.text,
+      message.context.nextChar,
+      message.context.lang,
+      configOverride,
+      traceMeta,
+    );
+    this.predictionManager.recordTraceTimelineEvent(
+      traceMeta,
+      "background.prediction.completed",
+      `${predictions.length} predictions${forceReplace ? " + forceReplace" : ""}`,
+    );
     if (
       (!Array.isArray(predictions) || predictions.length === 0) &&
       !forceReplace
     ) {
+      this.predictionManager.recordTraceTimelineEvent(
+        traceMeta,
+        "background.response.skipped",
+        "no predictions and no forceReplace",
+      );
       return;
     }
     const predictResponseMessage: PredictResponseMessage = {
@@ -92,20 +121,47 @@ export class BackgroundServiceWorker {
         tabId: message.context.tabId,
         tributeId: message.context.tributeId,
         requestId: message.context.requestId,
+        traceId,
         frameId: message.context.frameId,
         predictions,
         forceReplace,
       },
     };
-    chrome.tabs.get(message.context.tabId, async function (tab) {
+    this.predictionManager.recordTraceTimelineEvent(
+      traceMeta,
+      "background.response.dispatching",
+      `frame=${message.context.frameId}`,
+    );
+
+    chrome.tabs.get(message.context.tabId, async (tab) => {
       checkLastError();
       if (tab) {
-        await chrome.tabs.sendMessage(
-          message.context.tabId,
-          predictResponseMessage,
-          {
-            frameId: message.context.frameId,
-          },
+        try {
+          await chrome.tabs.sendMessage(
+            message.context.tabId,
+            predictResponseMessage,
+            {
+              frameId: message.context.frameId,
+            },
+          );
+          this.predictionManager.recordTraceTimelineEvent(
+            traceMeta,
+            "background.response.sent",
+            `${predictions.length} predictions`,
+          );
+        } catch (error) {
+          this.predictionManager.recordTraceTimelineEvent(
+            traceMeta,
+            "background.response.error",
+            getErrorMessage(error),
+          );
+          logError("BackgroundServiceWorker.runPrediction.sendMessage", error);
+        }
+      } else {
+        this.predictionManager.recordTraceTimelineEvent(
+          traceMeta,
+          "background.response.tab_missing",
+          `tabId=${message.context.tabId}`,
         );
       }
     });

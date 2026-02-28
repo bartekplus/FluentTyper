@@ -174,6 +174,8 @@ describe("content_script behavior", () => {
           tributeId: 3,
           requestId: 10,
           lang: "en_US",
+          traceId: expect.any(String),
+          traceStartedAtMs: expect.any(Number),
         }),
       }),
     );

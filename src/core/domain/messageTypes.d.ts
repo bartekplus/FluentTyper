@@ -37,6 +37,8 @@ export interface PredictRequestContext {
   frameId: number;
   tributeId: number;
   requestId: number;
+  traceId?: string;
+  traceStartedAtMs?: number;
 }
 
 export interface ForceReplaceType {
@@ -53,6 +55,7 @@ export interface PredictResponseContext {
   frameId: number;
   tributeId: number;
   requestId: number;
+  traceId?: string;
   predictions: string[];
   forceReplace: ForceReplaceType | null;
 }
@@ -69,6 +72,8 @@ export interface ContentScriptPredictRequestContext {
   tributeId: number;
   requestId: number;
   lang: string;
+  traceId?: string;
+  traceStartedAtMs?: number;
 }
 
 // Context for CMD_OPTIONS_PAGE_CONFIG_CHANGE

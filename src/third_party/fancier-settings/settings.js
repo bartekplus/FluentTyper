@@ -820,6 +820,28 @@ function formatPredictionList(predictions) {
   return predictions.join(" | ");
 }
 
+function formatTraceTimeline(events) {
+  const items = Array.isArray(events) ? events : [];
+  if (items.length === 0) {
+    return "<none>";
+  }
+  return items
+    .slice(-8)
+    .map((event) => {
+      const stage =
+        typeof event?.stage === "string" && event.stage.trim().length > 0
+          ? event.stage.trim()
+          : "event";
+      const at = formatClockTime(event?.timestampMs);
+      const detail =
+        typeof event?.detail === "string" && event.detail.trim().length > 0
+          ? ` (${previewValue(event.detail, 60)})`
+          : "";
+      return `${at} ${stage}${detail}`;
+    })
+    .join(" -> ");
+}
+
 function buildPredictorDebugSnapshotSignature(snapshot) {
   try {
     return JSON.stringify({
@@ -1228,12 +1250,22 @@ function renderPredictorDebugSnapshot(root, snapshot) {
       const mainLabel = document.createElement("strong");
       const requestLabel =
         typeof trace.requestId === "number" ? `#${trace.requestId}` : "#n/a";
-      mainLabel.textContent = `${requestLabel} • ${trace.lang || "n/a"} • ${formatClockTime(trace.timestampMs)}`;
+      const traceLabel =
+        typeof trace.traceId === "string" && trace.traceId.trim().length > 0
+          ? trace.traceId
+          : "n/a";
+      mainLabel.textContent = `${traceLabel} • ${requestLabel} • ${trace.lang || "n/a"} • ${formatClockTime(trace.timestampMs)}`;
       const total = document.createElement("span");
       total.textContent = formatDurationMs(trace.totalDurationMs);
       topRow.appendChild(mainLabel);
       topRow.appendChild(total);
       card.appendChild(topRow);
+
+      const routeRow = document.createElement("p");
+      routeRow.className = "predictor-debug-stage";
+      routeRow.textContent =
+        `Route: tab=${trace.tabId ?? "n/a"} frame=${trace.frameId ?? "n/a"} tribute=${trace.tributeId ?? "n/a"}`;
+      card.appendChild(routeRow);
 
       const stageRow = document.createElement("p");
       stageRow.className = "predictor-debug-stage";
@@ -1266,6 +1298,11 @@ function renderPredictorDebugSnapshot(root, snapshot) {
       webllmOutput.className = "predictor-debug-stage";
       webllmOutput.textContent = `WebLLM output: ${formatPredictionList(trace.webllm?.predictions)}`;
       card.appendChild(webllmOutput);
+
+      const timeline = document.createElement("p");
+      timeline.className = "predictor-debug-stage";
+      timeline.textContent = `Timeline: ${formatTraceTimeline(trace.timeline)}`;
+      card.appendChild(timeline);
 
       traceList.appendChild(card);
     });

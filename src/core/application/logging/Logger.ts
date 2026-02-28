@@ -8,6 +8,7 @@ const LOG_LEVEL_PRIORITY: Record<LogLevel, number> = {
 };
 
 export interface LogContext {
+  traceId?: string;
   command?: string;
   requestId?: number;
   tabId?: number;

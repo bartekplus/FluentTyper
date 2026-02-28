@@ -30,6 +30,18 @@ type RuntimeInboundMessage =
 
 const logger = createLogger("ContentMessageHandler");
 
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function generatePredictionTraceId(): string {
+  const randomPart =
+    typeof globalThis.crypto?.randomUUID === "function"
+      ? globalThis.crypto.randomUUID()
+      : `${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`;
+  return `pred-${randomPart}`;
+}
+
 export type ContentMessageHandlerDependencies = {
   getEnabled: () => boolean;
   setEnabled: (value: boolean) => void;
@@ -49,7 +61,17 @@ export class ContentMessageHandler {
   ) {}
 
   handleGetPrediction(context: ContentScriptPredictRequestContext): void {
+    const traceId = isNonEmptyString(context.traceId)
+      ? context.traceId.trim()
+      : generatePredictionTraceId();
+    const traceStartedAtMs =
+      typeof context.traceStartedAtMs === "number" &&
+      Number.isFinite(context.traceStartedAtMs)
+        ? context.traceStartedAtMs
+        : Date.now();
+
     logger.debug("Preparing prediction request", {
+      traceId,
       requestId: context.requestId,
       tributeId: context.tributeId,
       nextChar: context.nextChar,
@@ -63,6 +85,8 @@ export class ContentMessageHandler {
         tributeId: context.tributeId,
         requestId: context.requestId,
         lang: this.dependencies.getLanguage(),
+        traceId,
+        traceStartedAtMs,
       },
     };
     this.pendingReq = message;
@@ -89,12 +113,18 @@ export class ContentMessageHandler {
     switch (message.command) {
       case CMD_BACKGROUND_PAGE_PREDICT_RESP: {
         const context = (message as { context: PredictResponseContext }).context;
+        const traceIdMatches =
+          !isNonEmptyString(this.pendingReq?.context.traceId) ||
+          !isNonEmptyString(context.traceId) ||
+          this.pendingReq?.context.traceId === context.traceId;
         if (
           this.pendingReq &&
           this.pendingReq.context.tributeId === context.tributeId &&
-          this.pendingReq.context.requestId === context.requestId
+          this.pendingReq.context.requestId === context.requestId &&
+          traceIdMatches
         ) {
           logger.debug("Fulfilling prediction response", {
+            traceId: context.traceId,
             requestId: context.requestId,
             tributeId: context.tributeId,
             predictionCount: context.predictions.length,
@@ -103,9 +133,11 @@ export class ContentMessageHandler {
           this.pendingReq = null;
         } else {
           logger.warn("Ignored prediction response due to mismatch", {
+            traceId: context.traceId,
             requestId: context.requestId,
             tributeId: context.tributeId,
             hasPendingRequest: Boolean(this.pendingReq),
+            pendingTraceId: this.pendingReq?.context.traceId,
             pendingRequestId: this.pendingReq?.context.requestId,
             pendingTributeId: this.pendingReq?.context.tributeId,
           });

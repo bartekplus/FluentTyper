@@ -346,6 +346,8 @@ export class MessageRouter {
         frameId,
         tributeId: request.context.tributeId,
         requestId: request.context.requestId,
+        traceId: request.context.traceId,
+        traceStartedAtMs: request.context.traceStartedAtMs,
       },
     };
 

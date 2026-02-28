@@ -82,6 +82,12 @@ async function loadBackgroundHarness(
   }));
   const predictionInitialize = jest.fn(async () => undefined);
   const predictionSetConfig = jest.fn();
+  const predictionEnsureTraceId = jest.fn(
+    (traceId?: string) => traceId || "generated-trace-id",
+  );
+  const predictionRecordTraceTimelineEvent = jest.fn(
+    (meta?: { traceId?: string }) => meta?.traceId || "generated-trace-id",
+  );
   const tabSendToAll = jest.fn();
   const tabSendToActive = jest.fn();
   const getActiveTabHostname = jest.fn(async () => ({
@@ -155,6 +161,8 @@ async function loadBackgroundHarness(
       runPrediction: predictionRun,
       initialize: predictionInitialize,
       setConfig: predictionSetConfig,
+      ensureTraceId: predictionEnsureTraceId,
+      recordTraceTimelineEvent: predictionRecordTraceTimelineEvent,
     })),
   }));
   jest.unstable_mockModule("../src/adapters/chrome/background/TabMessenger", () => ({
@@ -171,6 +179,8 @@ async function loadBackgroundHarness(
   }));
   jest.unstable_mockModule("../src/core/domain/error", () => ({
     logError,
+    getErrorMessage: (error: unknown) =>
+      error instanceof Error ? error.message : String(error),
   }));
   jest.unstable_mockModule("../src/adapters/chrome/background/Migration", () => ({
     migrateToLocalStore,
@@ -202,6 +212,8 @@ async function loadBackgroundHarness(
     predictionRun,
     predictionInitialize,
     predictionSetConfig,
+    predictionEnsureTraceId,
+    predictionRecordTraceTimelineEvent,
     tabSendToAll,
     tabSendToActive,
     checkLastError,
@@ -437,6 +449,7 @@ describe("background routing and lifecycle", () => {
           lang: "fr_FR",
           tributeId: 4,
           requestId: 5,
+          traceId: "trace-fr-5",
         },
       },
       {
@@ -447,14 +460,21 @@ describe("background routing and lifecycle", () => {
     );
     await flushPromises();
 
-    expect(harness.predictionRun).toHaveBeenCalledWith("bonjour", "", "fr_FR", {
-      numSuggestions: 2,
-    }, {
-      requestId: 5,
-      tabId: 77,
-      frameId: 3,
-      tributeId: 4,
-    });
+    expect(harness.predictionRun).toHaveBeenCalledWith(
+      "bonjour",
+      "",
+      "fr_FR",
+      {
+        numSuggestions: 2,
+      },
+      {
+        requestId: 5,
+        tabId: 77,
+        frameId: 3,
+        tributeId: 4,
+        traceId: "trace-fr-5",
+      },
+    );
   });
 
   test("onMessage predict request falls back to global runtime config for unmatched domain", async () => {
@@ -478,6 +498,7 @@ describe("background routing and lifecycle", () => {
           lang: "en_US",
           tributeId: 11,
           requestId: 12,
+          traceId: "trace-en-12",
         },
       },
       {
@@ -498,6 +519,7 @@ describe("background routing and lifecycle", () => {
         tabId: 90,
         frameId: 1,
         tributeId: 11,
+        traceId: "trace-en-12",
       },
     );
   });

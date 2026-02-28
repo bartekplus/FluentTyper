@@ -54,6 +54,10 @@ jest.unstable_mockModule("../src/adapters/chrome/background/PredictionManager", 
     initialize: jest.fn(),
     setConfig: jest.fn(),
     runPrediction: jest.fn(),
+    ensureTraceId: jest.fn((traceId?: string) => traceId || "generated-trace-id"),
+    recordTraceTimelineEvent: jest.fn(
+      (meta?: { traceId?: string }) => meta?.traceId || "generated-trace-id",
+    ),
   })),
 }));
 jest.unstable_mockModule("../src/adapters/chrome/background/TabMessenger", () => ({
