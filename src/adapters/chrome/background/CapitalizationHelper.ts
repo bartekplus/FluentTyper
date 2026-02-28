@@ -1,4 +1,4 @@
-import { isLetter } from "@core/application/utils";
+import { isLetter } from "@core/application/domain-utils";
 
 export enum Capitalization {
   FirstLetter = "letter",

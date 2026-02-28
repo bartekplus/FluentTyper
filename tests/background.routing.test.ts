@@ -202,8 +202,10 @@ async function loadBackgroundHarness(
       getActiveTabHostname: getActiveTabHostname,
     })),
   }));
-  jest.unstable_mockModule("../src/core/application/utils", () => ({
+  jest.unstable_mockModule("../src/core/application/transport-utils", () => ({
     checkLastError,
+  }));
+  jest.unstable_mockModule("../src/core/application/domain-utils", () => ({
     getDomain,
     isEnabledForDomain,
   }));

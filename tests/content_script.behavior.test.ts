@@ -89,8 +89,10 @@ async function loadContentScript(): Promise<LoadedContentScript> {
   };
   (window as Window & { FluentTyper?: unknown }).FluentTyper = undefined;
 
-  jest.unstable_mockModule("../src/core/application/utils", () => ({
+  jest.unstable_mockModule("../src/core/application/transport-utils", () => ({
     checkLastError,
+  }));
+  jest.unstable_mockModule("../src/core/application/dom-utils", () => ({
     isInDocument: (element: Element) => document.contains(element),
   }));
   jest.unstable_mockModule("../src/adapters/chrome/content-script/TributeManager", () => ({

@@ -1,4 +1,4 @@
-import { checkLastError } from "@core/application/utils";
+import { checkLastError } from "@core/application/transport-utils";
 import { createLogger } from "@core/application/logging/Logger";
 import {
   CMD_BACKGROUND_PAGE_PREDICT_RESP,

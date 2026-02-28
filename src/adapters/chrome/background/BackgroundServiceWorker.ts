@@ -1,7 +1,7 @@
 import {
   CMD_BACKGROUND_PAGE_PREDICT_RESP,
 } from "@core/domain/constants";
-import { checkLastError } from "@core/application/utils";
+import { checkLastError } from "@core/application/transport-utils";
 import { getErrorMessage, logError } from "@core/domain/error";
 import { SettingsManager } from "@core/application/settingsManager";
 import { CoreSettingsRepository } from "@core/application/repositories/CoreSettingsRepository";

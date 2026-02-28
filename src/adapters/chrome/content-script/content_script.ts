@@ -1,4 +1,4 @@
-import { checkLastError } from "@core/application/utils";
+import { checkLastError } from "@core/application/transport-utils";
 import { createLogger } from "@core/application/logging/Logger";
 import { CMD_CONTENT_SCRIPT_GET_CONFIG } from "@core/domain/constants";
 import type {

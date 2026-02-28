@@ -2,15 +2,13 @@ import { jest } from "@jest/globals";
 import {
   SETTINGS_DOMAIN_BLACKLIST,
   blockUnBlockDomain,
-  checkLastError,
-  countDigits,
-  debounce,
   getDomain,
   isEnabledForDomain,
   isLetter,
   isNumber,
   isWhiteSpace,
-} from "../src/core/application/utils";
+} from "../src/core/application/domain-utils";
+import { checkLastError } from "../src/core/application/transport-utils";
 import type { SettingsManager } from "../src/core/application/settingsManager";
 
 function createSettings(state: Record<string, unknown>) {
@@ -107,43 +105,11 @@ describe("shared utils additional coverage", () => {
     expect(errorSpy).toHaveBeenCalled();
   });
 
-  test("debounce supports leading+trailing and trailing-only modes", () => {
-    jest.useFakeTimers();
-    const calls: string[] = [];
-
-    const leadingAndTrailing = debounce(
-      (value: string) => calls.push(`lt:${value}`),
-      10,
-      { leading: true, trailing: true },
-    );
-    leadingAndTrailing("a");
-    leadingAndTrailing("b");
-    expect(calls).toEqual(["lt:a"]);
-    jest.advanceTimersByTime(10);
-    expect(calls).toEqual(["lt:a", "lt:b"]);
-
-    const trailingOnly = debounce(
-      (value: string) => calls.push(`t:${value}`),
-      10,
-      {
-        leading: false,
-        trailing: true,
-      },
-    );
-    trailingOnly("c");
-    expect(calls).toEqual(["lt:a", "lt:b"]);
-    jest.advanceTimersByTime(10);
-    expect(calls).toEqual(["lt:a", "lt:b", "t:c"]);
-
-    jest.useRealTimers();
-  });
-
   test("character helpers correctly classify input", () => {
     expect(isWhiteSpace("\n")).toBe(true);
     expect(isWhiteSpace("\n", false)).toBe(false);
     expect(isLetter("Ż")).toBe(true);
     expect(isLetter("1")).toBe(false);
-    expect(countDigits("ab12c3")).toBe(3);
     expect(isNumber("4.2")).toBe(true);
     expect(isNumber("a1b2")).toBe(true);
     expect(isNumber("abc")).toBe(false);

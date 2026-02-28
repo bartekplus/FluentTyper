@@ -1,5 +1,5 @@
 import { SUPPORTED_LANGUAGES } from "@core/domain/lang";
-import { isWhiteSpace } from "@core/application/utils";
+import { isWhiteSpace } from "@core/application/domain-utils";
 import {
   SpacingRulesHandler,
   Spacing,

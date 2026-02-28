@@ -3,7 +3,7 @@ import {
   LANG_SEPARATOR_CHARS_REGEX,
   SUPPORTED_LANGUAGES,
 } from "@core/domain/lang";
-import { isInDocument } from "@core/application/utils";
+import { isInDocument } from "@core/application/dom-utils";
 import { createLogger } from "@core/application/logging/Logger";
 import type {
   PredictResponseContext,

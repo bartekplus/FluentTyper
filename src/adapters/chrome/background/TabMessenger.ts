@@ -2,9 +2,11 @@
 import { SettingsManager } from "@core/application/settingsManager";
 import {
   isEnabledForDomain,
+} from "@core/application/domain-utils";
+import {
   checkLastError,
   promisifiedSendMessage,
-} from "@core/application/utils";
+} from "@core/application/transport-utils";
 import type { Message, ConfigMessage } from "@core/domain/messageTypes";
 import { getErrorMessage } from "@core/domain/error";
 import { CMD_GET_HOSTNAME } from "@core/domain/constants";

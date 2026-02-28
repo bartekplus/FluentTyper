@@ -3,7 +3,7 @@ import {
   SUPPORTED_LANGUAGES,
   SUPPORTED_PREDICTION_LANGUAGE_KEYS,
 } from "@core/domain/lang";
-import { DOMAIN_LIST_MODE } from "@core/application/utils";
+import { DOMAIN_LIST_MODE } from "@core/application/domain-utils";
 import { DATE_TIME_VARIABLES } from "@core/domain/variables";
 import {
   KEY_AUTOCOMPLETE,

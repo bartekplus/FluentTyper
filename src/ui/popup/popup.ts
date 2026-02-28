@@ -2,7 +2,7 @@ import {
   getDomain,
   isEnabledForDomain,
   blockUnBlockDomain,
-} from "@core/application/utils";
+} from "@core/application/domain-utils";
 import { SettingsManager } from "@core/application/settingsManager";
 import { CoreSettingsRepository } from "@core/application/repositories/CoreSettingsRepository";
 import { SiteProfileRepository } from "@core/application/repositories/SiteProfileRepository";

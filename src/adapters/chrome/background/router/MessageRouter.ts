@@ -36,8 +36,8 @@ import { err, ok, type Result } from "@core/domain/result";
 import {
   getDomain,
   isEnabledForDomain,
-  checkLastError,
-} from "@core/application/utils";
+} from "@core/application/domain-utils";
+import { checkLastError } from "@core/application/transport-utils";
 import {
   ConfigError,
   PredictorError,

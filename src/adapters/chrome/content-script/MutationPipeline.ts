@@ -1,4 +1,4 @@
-import { isInDocument } from "@core/application/utils";
+import { isInDocument } from "@core/application/dom-utils";
 
 export type MutationPlan =
   | {

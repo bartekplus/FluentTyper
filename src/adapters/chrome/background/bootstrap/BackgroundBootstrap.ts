@@ -1,5 +1,5 @@
 import { logError } from "@core/domain/error";
-import { checkLastError } from "@core/application/utils";
+import { checkLastError } from "@core/application/transport-utils";
 import { BackgroundServiceWorker } from "../BackgroundServiceWorker";
 import { migrateToLocalStore } from "../Migration";
 import { CommandRouter } from "../router/CommandRouter";
