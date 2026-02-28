@@ -17,10 +17,7 @@ function installChromeStorageMock(setDelayMs = 0): {
 } {
   const storageState: StorageSnapshot = {};
   const localSet = jest.fn(
-    (
-      values: Record<string, string>,
-      callback?: (() => void) | undefined,
-    ): void => {
+    (values: Record<string, string>, callback?: (() => void) | undefined): void => {
       setTimeout(() => {
         Object.assign(storageState, values);
         callback?.();
@@ -29,10 +26,7 @@ function installChromeStorageMock(setDelayMs = 0): {
   );
 
   const localGet = jest.fn(
-    (
-      key: string | string[] | null,
-      callback: (result: Record<string, string>) => void,
-    ): void => {
+    (key: string | string[] | null, callback: (result: Record<string, string>) => void): void => {
       setTimeout(() => {
         if (typeof key === "string") {
           callback({ [key]: storageState[key] });
@@ -53,14 +47,12 @@ function installChromeStorageMock(setDelayMs = 0): {
     },
   );
 
-  const localRemove = jest.fn(
-    (key: string, callback?: (() => void) | undefined): void => {
-      setTimeout(() => {
-        delete storageState[key];
-        callback?.();
-      }, 0);
-    },
-  );
+  const localRemove = jest.fn((key: string, callback?: (() => void) | undefined): void => {
+    setTimeout(() => {
+      delete storageState[key];
+      callback?.();
+    }, 0);
+  });
 
   (globalThis as unknown as { chrome: unknown }).chrome = {
     runtime: {

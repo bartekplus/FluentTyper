@@ -3,10 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <title>FluentTyper Test Page</title>
-    <link
-      rel="stylesheet"
-      href="../../node_modules/ckeditor5/dist/browser/ckeditor5.css"
-    />
+    <link rel="stylesheet" href="../../node_modules/ckeditor5/dist/browser/ckeditor5.css" />
     <style>
       body {
         font-family:
@@ -136,18 +133,15 @@
         ckEditorGroup.style.display = "none";
       } else {
         const script = document.createElement("script");
-        script.src =
-          "../../node_modules/ckeditor5/dist/browser/ckeditor5.umd.js";
+        script.src = "../../node_modules/ckeditor5/dist/browser/ckeditor5.umd.js";
         script.onload = () => {
           const CKEDITOR = window.CKEDITOR;
           if (!CKEDITOR?.ClassicEditor) {
-            window.__testCkEditorError =
-              "CKEDITOR.ClassicEditor is unavailable";
+            window.__testCkEditorError = "CKEDITOR.ClassicEditor is unavailable";
             return;
           }
 
-          const { ClassicEditor, Essentials, Paragraph, Bold, Italic } =
-            CKEDITOR;
+          const { ClassicEditor, Essentials, Paragraph, Bold, Italic } = CKEDITOR;
 
           class TestClassicEditor extends ClassicEditor {
             static builtinPlugins = [Essentials, Paragraph, Bold, Italic];
@@ -168,10 +162,7 @@
             })
             .catch((error) => {
               window.__testCkEditorError = error?.message || String(error);
-              console.error(
-                "CKEditor initialization failed in e2e test page.",
-                error,
-              );
+              console.error("CKEditor initialization failed in e2e test page.", error);
             });
         };
         script.onerror = () => {

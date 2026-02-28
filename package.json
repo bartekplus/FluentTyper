@@ -7,15 +7,19 @@
   "scripts": {
     "watch": "bun run build --mode=development --watch",
     "build": "bun build.ts --mode=production",
-    "check": "eslint . && prettier '**/*.{html,css}' --check",
-    "lint": "eslint --fix . && prettier '**/*.{html,css,js,ts}' --write",
+    "check": "bun run lint && bun run format:check",
+    "lint": "eslint . --cache --cache-location .cache/eslint --max-warnings=0",
     "test": "bun test tests/*.test.ts tests/*.test.js",
     "test:e2e": "bun scripts/run-e2e.ts",
     "test:e2e:dev": "bun scripts/run-e2e.ts --mode=development",
     "update": "bun update --latest --recursive",
     "preversion": "bun run test",
     "version": "bun scripts/update-manifest-version.cjs",
-    "postversion": "git push && git push --tags"
+    "postversion": "git push && git push --tags",
+    "lint:fix": "bun run lint -- --fix",
+    "fix": "bun run lint:fix && bun run format",
+    "format": "prettier . --cache --write",
+    "format:check": "prettier . --cache --check"
   },
   "repository": {
     "type": "git",

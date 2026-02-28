@@ -1,4 +1,5 @@
-import puppeteer, { Browser, Page, WebWorker } from "puppeteer";
+import type { Browser, Page, WebWorker } from "puppeteer";
+import puppeteer from "puppeteer";
 import path from "path";
 
 const EXTENSION_PATH = path.resolve(__dirname, "../../build/");
@@ -6,8 +7,7 @@ const IS_CI = process.env.CI === "true" || process.env.CI === "1";
 
 export type BrowserType = "chrome" | "firefox";
 
-export const BROWSER_TYPE: BrowserType =
-  (process.env.E2E_BROWSER as BrowserType) || "chrome";
+export const BROWSER_TYPE: BrowserType = (process.env.E2E_BROWSER as BrowserType) || "chrome";
 
 // Firefox extension/debug pages frequently reach the desired URL/content
 // without ever resolving puppeteer's navigation lifecycle events.
@@ -42,11 +42,7 @@ async function launchChrome(): Promise<Browser> {
     "--allow-file-access-from-files",
   ];
   if (IS_CI) {
-    args.push(
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage",
-    );
+    args.push("--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage");
   }
   return puppeteer.launch({
     headless: IS_CI,
@@ -68,10 +64,7 @@ function isRetriableRuntimeUrlError(error: unknown): boolean {
   );
 }
 
-async function resolveFirefoxExtensionHost(
-  browser: Browser,
-  extensionId: string,
-): Promise<string> {
+async function resolveFirefoxExtensionHost(browser: Browser, extensionId: string): Promise<string> {
   const page = await browser.newPage();
   try {
     try {
@@ -89,19 +82,16 @@ async function resolveFirefoxExtensionHost(
 
     const host = await page.evaluate((targetExtensionId) => {
       const extensionItems = Array.from(
-        document.querySelectorAll(
-          ".qa-debug-target-item[data-qa-target-type='extension']",
-        ),
+        document.querySelectorAll(".qa-debug-target-item[data-qa-target-type='extension']"),
       );
       for (const item of extensionItems) {
-        const values = Array.from(
-          item.querySelectorAll(".fieldpair__description"),
-        ).map((el) => el.textContent?.trim() || "");
+        const values = Array.from(item.querySelectorAll(".fieldpair__description")).map(
+          (el) => el.textContent?.trim() || "",
+        );
         if (!values.includes(targetExtensionId)) {
           continue;
         }
-        const manifestLink =
-          item.querySelector<HTMLAnchorElement>("a.qa-manifest-url");
+        const manifestLink = item.querySelector<HTMLAnchorElement>("a.qa-manifest-url");
         if (!manifestLink?.href) {
           continue;
         }
@@ -115,9 +105,7 @@ async function resolveFirefoxExtensionHost(
     }, extensionId);
 
     if (!host) {
-      throw new Error(
-        "Could not resolve Firefox extension host from about:debugging",
-      );
+      throw new Error("Could not resolve Firefox extension host from about:debugging");
     }
     return host;
   } finally {
@@ -138,10 +126,7 @@ async function launchFirefox(): Promise<Browser> {
   if (!extensionId) {
     throw new Error("Failed to install Firefox extension");
   }
-  firefoxExtensionHost = await resolveFirefoxExtensionHost(
-    browser,
-    extensionId,
-  );
+  firefoxExtensionHost = await resolveFirefoxExtensionHost(browser, extensionId);
   return browser;
 }
 
@@ -153,28 +138,19 @@ export type BackgroundContext = (Page | WebWorker) & {
  * Wait for the extension's background context and return it.
  * Chrome uses a service worker, Firefox uses a background page or hidden page.
  */
-export async function getBackgroundContext(
-  browser: Browser,
-): Promise<BackgroundContext> {
+export async function getBackgroundContext(browser: Browser): Promise<BackgroundContext> {
   if (isChrome()) {
     const serviceWorkerTarget = await browser.waitForTarget(
-      (target) =>
-        target.type() === "service_worker" &&
-        target.url().endsWith("background.js"),
+      (target) => target.type() === "service_worker" && target.url().endsWith("background.js"),
       { timeout: 30000 },
     );
     return (await serviceWorkerTarget.worker())!;
   }
 
   if (!firefoxExtensionHost) {
-    throw new Error(
-      "Firefox extension host is unavailable. Did you call launchBrowser?",
-    );
+    throw new Error("Firefox extension host is unavailable. Did you call launchBrowser?");
   }
-  const optionsUrl = getExtensionPageUrl(
-    firefoxExtensionHost,
-    "options/options.html",
-  );
+  const optionsUrl = getExtensionPageUrl(firefoxExtensionHost, "options/options.html");
   const page = await browser.newPage();
   try {
     await page.goto(optionsUrl, {
@@ -233,10 +209,7 @@ export async function getRuntimePageUrl(
  * Chrome: chrome-extension://<id>/<path>
  * Firefox: moz-extension://<id>/<path>
  */
-export function getExtensionPageUrl(
-  extensionId: string,
-  pagePath: string,
-): string {
+export function getExtensionPageUrl(extensionId: string, pagePath: string): string {
   const protocol = isFirefox() ? "moz-extension" : "chrome-extension";
   return `${protocol}://${extensionId}/${pagePath}`;
 }
@@ -283,8 +256,7 @@ export async function openPopupPage(
   if (isChrome()) {
     try {
       const popupTargetPromise = browser.waitForTarget(
-        (target) =>
-          target.type() === "page" && target.url().endsWith("popup/popup.html"),
+        (target) => target.type() === "page" && target.url().endsWith("popup/popup.html"),
         { timeout: 2000 },
       );
       await context.evaluate("chrome.action.openPopup();");
@@ -344,9 +316,9 @@ async function sendTestRuntimeMessage(
   message: Record<string, unknown>,
   failureMessage: string,
 ): Promise<Record<string, unknown> | undefined> {
-  return await context.evaluate((messageInner, failureMessageInner) => {
-    return new Promise<Record<string, unknown> | undefined>(
-      (resolve, reject) => {
+  return await context.evaluate(
+    (messageInner, failureMessageInner) => {
+      return new Promise<Record<string, unknown> | undefined>((resolve, reject) => {
         const testGlobals = globalThis as typeof globalThis & {
           triggerCommandForTesting?: (command: string) => Promise<void> | void;
           __fluentTyperWebLLMTestOverride__?: {
@@ -372,8 +344,7 @@ async function sendTestRuntimeMessage(
                   .filter((item) => item.length > 0)
               : [];
             const delayMs =
-              typeof messageInner.delayMs === "number" &&
-              Number.isFinite(messageInner.delayMs)
+              typeof messageInner.delayMs === "number" && Number.isFinite(messageInner.delayMs)
                 ? Math.max(0, Math.round(messageInner.delayMs))
                 : 0;
             testGlobals.__fluentTyperWebLLMTestOverride__ = {
@@ -392,9 +363,7 @@ async function sendTestRuntimeMessage(
           if (messageType === "TEST_GET_WEBLLM_PREDICTION_CALLS") {
             resolve({
               ok: true,
-              calls:
-                testGlobals.__fluentTyperWebLLMTestOverride__?.calls?.slice() ??
-                [],
+              calls: testGlobals.__fluentTyperWebLLMTestOverride__?.calls?.slice() ?? [],
             });
             return;
           }
@@ -414,9 +383,11 @@ async function sendTestRuntimeMessage(
             resolve(response);
           },
         );
-      },
-    );
-  }, message, failureMessage);
+      });
+    },
+    message,
+    failureMessage,
+  );
 }
 
 export async function setWebLLMPredictionsForTesting(
@@ -435,9 +406,7 @@ export async function setWebLLMPredictionsForTesting(
   );
 }
 
-export async function clearWebLLMPredictionsForTesting(
-  context: BackgroundContext,
-): Promise<void> {
+export async function clearWebLLMPredictionsForTesting(context: BackgroundContext): Promise<void> {
   await sendTestRuntimeMessage(
     context,
     { type: "TEST_CLEAR_WEBLLM_PREDICTIONS" },
@@ -469,10 +438,8 @@ export async function getWebLLMPredictionCallsForTesting(
       }
       return {
         lang: (call as Record<string, unknown>).lang as string,
-        predictionInput: (call as Record<string, unknown>)
-          .predictionInput as string,
-        numSuggestions: (call as Record<string, unknown>)
-          .numSuggestions as number,
+        predictionInput: (call as Record<string, unknown>).predictionInput as string,
+        numSuggestions: (call as Record<string, unknown>).numSuggestions as number,
       };
     })
     .filter((call): call is WebLLMTestPredictionCall => call !== null);

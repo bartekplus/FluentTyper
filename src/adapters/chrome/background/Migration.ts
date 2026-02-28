@@ -37,10 +37,7 @@ export async function migrateToLocalStore(lastVersion?: string): Promise<void> {
 
   if (updateLang) {
     settingsManager = settingsManager || new SettingsManager();
-    const langProps: Array<"language" | "fallbackLanguage"> = [
-      "language",
-      "fallbackLanguage",
-    ];
+    const langProps: Array<"language" | "fallbackLanguage"> = ["language", "fallbackLanguage"];
     for (const langProp of langProps) {
       const storageKey = getSettingStorageKey(langProp);
       const language = await settingsManager.get(storageKey);
@@ -58,10 +55,7 @@ export async function migrateToLocalStore(lastVersion?: string): Promise<void> {
   const siteProfileRepository = new SiteProfileRepository(settingsManager);
   const enabledLanguages = await coreSettings.getEnabledLanguages();
   const rawSiteProfiles = await siteProfileRepository.getRawSiteProfiles();
-  const siteProfiles = resolveSiteProfiles(
-    rawSiteProfiles,
-    enabledLanguages,
-  );
+  const siteProfiles = resolveSiteProfiles(rawSiteProfiles, enabledLanguages);
   await siteProfileRepository.setSiteProfiles(siteProfiles);
 
   chrome.storage.local.set({ lastVersion: currentVersion });

@@ -1,9 +1,10 @@
 // Handles prediction routing logic for FluentTyper
 import type { PresageModule } from "./PresageTypes";
 import { PresageHandler } from "./PresageHandler";
+import type {
+  PredictionConfig} from "./PredictionOrchestrator";
 import {
-  PredictionOrchestrator,
-  PredictionConfig,
+  PredictionOrchestrator
 } from "./PredictionOrchestrator";
 import type {
   AIPredictorStageDebugInfo,
@@ -389,7 +390,9 @@ export class PredictionManager {
     };
   }
 
-  private upsertTrace(debugMeta?: PredictionDebugRequestMeta): PredictorDebugTrace {
+  private upsertTrace(
+    debugMeta?: PredictionDebugRequestMeta,
+  ): PredictorDebugTrace {
     const resolvedDebugMeta = this.resolveDebugMeta(debugMeta);
     const traceId = resolvedDebugMeta.traceId as string;
 
@@ -422,7 +425,9 @@ export class PredictionManager {
     value: unknown,
     fallback: number | null,
   ): number | null {
-    return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+    return typeof value === "number" && Number.isFinite(value)
+      ? value
+      : fallback;
   }
 
   private createEmptyTrace(

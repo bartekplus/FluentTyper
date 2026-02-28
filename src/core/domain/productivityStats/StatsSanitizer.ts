@@ -126,9 +126,7 @@ export class StatsSanitizer {
     };
   }
 
-  sanitizeLanguageUsageMap(
-    value: unknown,
-  ): Record<string, LanguageUsageCounters> {
+  sanitizeLanguageUsageMap(value: unknown): Record<string, LanguageUsageCounters> {
     if (!this.isObjectRecord(value)) {
       return {};
     }
@@ -153,9 +151,7 @@ export class StatsSanitizer {
     return sanitized;
   }
 
-  sanitizeSnippetUsageMap(
-    value: unknown,
-  ): Record<string, SnippetUsageCounters> {
+  sanitizeSnippetUsageMap(value: unknown): Record<string, SnippetUsageCounters> {
     if (!this.isObjectRecord(value)) {
       return {};
     }
@@ -183,12 +179,7 @@ export class StatsSanitizer {
         const charactersSaved = this.clampCount(rawValue.charactersSaved);
         const charsInserted = this.clampCount(rawValue.charsInserted);
         const charsTyped = this.clampCount(rawValue.charsTyped);
-        if (
-          count > 0 ||
-          charactersSaved > 0 ||
-          charsInserted > 0 ||
-          charsTyped > 0
-        ) {
+        if (count > 0 || charactersSaved > 0 || charsInserted > 0 || charsTyped > 0) {
           counters = {
             count,
             charactersSaved,
@@ -221,9 +212,7 @@ export class StatsSanitizer {
       const charactersSaved = this.clampCount(entry.charactersSaved);
       const suggestionsShown = this.clampCount(entry.suggestionsShown);
       const snippetsExpanded = this.clampCount(entry.snippetsExpanded);
-      const charsInsertedFromSnippet = this.clampCount(
-        entry.charsInsertedFromSnippet,
-      );
+      const charsInsertedFromSnippet = this.clampCount(entry.charsInsertedFromSnippet);
       const charsTypedForTrigger = this.clampCount(entry.charsTypedForTrigger);
       const snippetUsage = this.sanitizeSnippetUsageMap(entry.snippetUsage);
       const languageUsage = this.sanitizeLanguageUsageMap(entry.languageUsage);
@@ -279,9 +268,7 @@ export class StatsSanitizer {
         : [],
       firstValuePromptAcknowledged: value.firstValuePromptAcknowledged === true,
       lastWeeklyRecapWeek:
-        typeof value.lastWeeklyRecapWeek === "string"
-          ? value.lastWeeklyRecapWeek
-          : null,
+        typeof value.lastWeeklyRecapWeek === "string" ? value.lastWeeklyRecapWeek : null,
       lastDonationPromptAt: this.parseIsoDate(value.lastDonationPromptAt)
         ? (value.lastDonationPromptAt as string)
         : null,

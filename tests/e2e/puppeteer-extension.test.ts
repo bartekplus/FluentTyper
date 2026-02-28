@@ -1,7 +1,8 @@
-import { Browser, Page } from "puppeteer";
+import type { Browser, Page } from "puppeteer";
 import path from "path";
 import * as fs from "fs";
-import { createServer, Server } from "http";
+import type { Server } from "http";
+import { createServer } from "http";
 import {
   KEY_AI_PREDICTOR_ENABLED,
   KEY_ENABLED_LANGUAGES,
@@ -16,6 +17,7 @@ import {
   KEY_TEXT_EXPANSIONS,
 } from "../../src/core/domain/constants";
 import { SUPPORTED_PREDICTION_LANGUAGE_KEYS } from "../../src/core/domain/lang";
+import type { BackgroundContext } from "./e2e-helpers";
 import {
   BROWSER_TYPE,
   launchBrowser,
@@ -26,7 +28,6 @@ import {
   setWebLLMPredictionsForTesting,
   clearWebLLMPredictionsForTesting,
   getWebLLMPredictionCallsForTesting,
-  BackgroundContext,
   isFirefox,
 } from "./e2e-helpers";
 
@@ -34,24 +35,15 @@ const TEST_PAGE_PATH = path.resolve(__dirname, "test-page.html");
 const TEST_HOST = "localhost";
 const SETTINGS_PREFIX = "store.settings.";
 const CKEDITOR_SELECTOR = ".ck-editor__editable";
-const BASE_INPUT_SELECTORS = [
-  "#test-textarea",
-  "#test-input",
-  "#test-contenteditable",
-] as const;
-const SUPPORTED_INPUT_SELECTORS = [
-  ...BASE_INPUT_SELECTORS,
-  CKEDITOR_SELECTOR,
-] as const;
+const BASE_INPUT_SELECTORS = ["#test-textarea", "#test-input", "#test-contenteditable"] as const;
+const SUPPORTED_INPUT_SELECTORS = [...BASE_INPUT_SELECTORS, CKEDITOR_SELECTOR] as const;
 
 const NAVIGATION_TIMEOUT_MS = isFirefox() ? 8000 : 5000;
 const INPUT_READY_TIMEOUT_MS = isFirefox() ? 10000 : 10000;
 const SUGGESTION_TIMEOUT_MS = isFirefox() ? 7000 : 8000;
 const RUN_DEV_RUNTIME_E2E =
-  process.env.FT_E2E_DEV_RUNTIME === "1" ||
-  process.env.FT_E2E_DEV_RUNTIME === "true";
-const RUN_E2E =
-  process.env.RUN_E2E === "1" || process.env.RUN_E2E === "true";
+  process.env.FT_E2E_DEV_RUNTIME === "1" || process.env.FT_E2E_DEV_RUNTIME === "true";
+const RUN_E2E = process.env.RUN_E2E === "1" || process.env.RUN_E2E === "true";
 const describeE2E = RUN_E2E ? describe : describe.skip;
 const devRuntimeTest = RUN_DEV_RUNTIME_E2E ? test : test.skip;
 
@@ -75,11 +67,7 @@ function isRetriableWorkerError(error: unknown): boolean {
   );
 }
 
-async function setSetting(
-  worker: BackgroundContext,
-  key: string,
-  value: unknown,
-): Promise<void> {
+async function setSetting(worker: BackgroundContext, key: string, value: unknown): Promise<void> {
   const storageKey = `${SETTINGS_PREFIX}${key}`;
   let lastError: unknown;
   for (let attempt = 1; attempt <= 10; attempt++) {
@@ -96,21 +84,18 @@ async function setSetting(
               reject(new Error("chrome.storage.local is unavailable"));
               return;
             }
-            storage.set(
-              { [storageKeyInner]: JSON.stringify(valueInner) },
-              () => {
-                const runtime = (
-                  globalThis as typeof globalThis & {
-                    chrome?: typeof chrome;
-                  }
-                ).chrome?.runtime;
-                if (runtime?.lastError) {
-                  reject(new Error(runtime.lastError.message));
-                  return;
+            storage.set({ [storageKeyInner]: JSON.stringify(valueInner) }, () => {
+              const runtime = (
+                globalThis as typeof globalThis & {
+                  chrome?: typeof chrome;
                 }
-                resolve();
-              },
-            );
+              ).chrome?.runtime;
+              if (runtime?.lastError) {
+                reject(new Error(runtime.lastError.message));
+                return;
+              }
+              resolve();
+            });
           }),
         storageKey,
         value,
@@ -127,10 +112,7 @@ async function setSetting(
   throw lastError;
 }
 
-async function getSetting<T>(
-  worker: BackgroundContext,
-  key: string,
-): Promise<T | undefined> {
+async function getSetting<T>(worker: BackgroundContext, key: string): Promise<T | undefined> {
   const storageKey = `${SETTINGS_PREFIX}${key}`;
   let lastError: unknown;
   for (let attempt = 1; attempt <= 10; attempt++) {
@@ -157,9 +139,7 @@ async function getSetting<T>(
                 reject(new Error(runtime.lastError.message));
                 return;
               }
-              const rawValue = (result as Record<string, string | undefined>)[
-                storageKeyInner
-              ];
+              const rawValue = (result as Record<string, string | undefined>)[storageKeyInner];
               resolve(rawValue ? JSON.parse(rawValue) : undefined);
             });
           }),
@@ -213,10 +193,7 @@ async function setSettingAndWait(
   throw new Error(`Timed out waiting for setting ${key} to become ${expected}`);
 }
 
-async function notifyConfigChange(
-  browser: Browser,
-  worker: BackgroundContext,
-): Promise<void> {
+async function notifyConfigChange(browser: Browser, worker: BackgroundContext): Promise<void> {
   if (isFirefox()) {
     await worker.evaluate(
       () =>
@@ -240,11 +217,7 @@ async function notifyConfigChange(
     return;
   }
 
-  const extensionPage = await openExtensionPage(
-    browser,
-    worker,
-    "options/options.html",
-  );
+  const extensionPage = await openExtensionPage(browser, worker, "options/options.html");
   try {
     await extensionPage.evaluate(
       () =>
@@ -272,19 +245,12 @@ async function notifyConfigChange(
   }
 }
 
-async function applyConfigChange(
-  browser: Browser,
-  worker: BackgroundContext,
-): Promise<void> {
+async function applyConfigChange(browser: Browser, worker: BackgroundContext): Promise<void> {
   await notifyConfigChange(browser, worker);
 }
 
 async function openOptionsPage(browser: Browser, worker: BackgroundContext) {
-  const optionsPage = await openExtensionPage(
-    browser,
-    worker,
-    "options/options.html",
-  );
+  const optionsPage = await openExtensionPage(browser, worker, "options/options.html");
   await optionsPage.waitForSelector("#content");
   return optionsPage;
 }
@@ -311,10 +277,7 @@ async function clearInputContent(page: Page, selector: string): Promise<void> {
     if (!target) {
       return;
     }
-    if (
-      target instanceof HTMLInputElement ||
-      target instanceof HTMLTextAreaElement
-    ) {
+    if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
       target.value = "";
       return;
     }
@@ -323,10 +286,7 @@ async function clearInputContent(page: Page, selector: string): Promise<void> {
 }
 
 async function getInputContent(page: Page, selector: string): Promise<string> {
-  return page.$eval(
-    selector,
-    (el) => (el as HTMLInputElement).value ?? el.textContent ?? "",
-  );
+  return page.$eval(selector, (el) => (el as HTMLInputElement).value ?? el.textContent ?? "");
 }
 
 function hasNonAsciiCharacters(text: string): boolean {
@@ -342,11 +302,7 @@ function normalizeSuggestionText(suggestion: string): string {
   return suggestion.replace(/\xA0/g, " ").trim().toLowerCase();
 }
 
-async function typeInInput(
-  page: Page,
-  selector: string,
-  text: string,
-): Promise<void> {
+async function typeInInput(page: Page, selector: string, text: string): Promise<void> {
   await page.focus(selector);
   if (selector === CKEDITOR_SELECTOR && hasNonAsciiCharacters(text)) {
     await page.keyboard.type(text, { delay: 20 });
@@ -359,10 +315,7 @@ async function typeInInput(
   await element.type(text);
 }
 
-async function gotoTestPage(
-  page: Page,
-  options: { enableCkEditor?: boolean } = {},
-) {
+async function gotoTestPage(page: Page, options: { enableCkEditor?: boolean } = {}) {
   const testName =
     typeof expect.getState === "function"
       ? expect.getState().currentTestName || "Unknown Test"
@@ -378,8 +331,7 @@ async function gotoTestPage(
       window.location.href = url;
     }, targetUrl);
     await page.waitForFunction(
-      (expectedUrl) =>
-        window.location.href === expectedUrl && document.readyState !== "loading",
+      (expectedUrl) => window.location.href === expectedUrl && document.readyState !== "loading",
       { timeout: NAVIGATION_TIMEOUT_MS },
       targetUrl,
     );
@@ -613,18 +565,13 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     page = pages[0];
     if (isFirefox()) {
       startupFirefoxInstallationPage =
-        pages.find((openPage) =>
-          openPage.url().includes("/new_installation/index.html"),
-        ) ?? null;
+        pages.find((openPage) => openPage.url().includes("/new_installation/index.html")) ?? null;
     }
     worker = await getBackgroundContext(browser);
     domainTestHtml = fs.readFileSync(TEST_PAGE_PATH, "utf8");
 
     domainTestServer = createServer((req, res) => {
-      if (
-        req.url &&
-        (req.url.includes("ckeditor5.umd.js") || req.url.includes("ckeditor.js"))
-      ) {
+      if (req.url && (req.url.includes("ckeditor5.umd.js") || req.url.includes("ckeditor.js"))) {
         try {
           const ckeditorPath = path.resolve(
             __dirname,
@@ -740,16 +687,12 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           (await browser
             .pages()
             .then((openPages) =>
-              openPages.find((openPage) =>
-                openPage.url().includes("/new_installation/index.html"),
-              ),
+              openPages.find((openPage) => openPage.url().includes("/new_installation/index.html")),
             )) ??
           null;
 
         if (installationPage) {
-          expect(installationPage.url()).toContain(
-            "/new_installation/index.html",
-          );
+          expect(installationPage.url()).toContain("/new_installation/index.html");
           await installationPage.waitForSelector("body", {
             timeout: browserTimeout(3000, 7000),
           });
@@ -794,9 +737,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
       if (isFirefox()) {
         await waitForInputReady(page, "#test-textarea");
-        const hasTributeOnWhitelistedHost = await page.$eval(
-          "#test-textarea",
-          (el) => el.hasAttribute("data-tribute"),
+        const hasTributeOnWhitelistedHost = await page.$eval("#test-textarea", (el) =>
+          el.hasAttribute("data-tribute"),
         );
         expect(hasTributeOnWhitelistedHost).toBe(true);
         return;
@@ -808,9 +750,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           browser
             .targets()
             .filter(
-              (target) =>
-                target.type() === "page" &&
-                target.url().endsWith("popup/popup.html"),
+              (target) => target.type() === "page" && target.url().endsWith("popup/popup.html"),
             )
             .map((target) => target.page()),
         );
@@ -851,10 +791,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     };
     await setSettingAndWait(worker!, KEY_SITE_PROFILES, siteProfiles);
 
-    const storedSiteProfiles = await getSetting<typeof siteProfiles>(
-      worker!,
-      KEY_SITE_PROFILES,
-    );
+    const storedSiteProfiles = await getSetting<typeof siteProfiles>(worker!, KEY_SITE_PROFILES);
     expect(storedSiteProfiles).toEqual(siteProfiles);
 
     await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
@@ -865,11 +802,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       try {
         await setSettingAndWait(worker!, "enable", true);
-        await setSettingAndWait(
-          worker!,
-          KEY_ENABLED_LANGUAGES,
-          SUPPORTED_PREDICTION_LANGUAGE_KEYS,
-        );
+        await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
         await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
         await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
         await applyConfigChange(browser, worker!);
@@ -898,11 +831,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       try {
         await setSettingAndWait(worker!, "enable", true);
-        await setSettingAndWait(
-          worker!,
-          KEY_ENABLED_LANGUAGES,
-          SUPPORTED_PREDICTION_LANGUAGE_KEYS,
-        );
+        await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
         await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
 
         // Navigate to the domain test server so the active tab matches TEST_HOST.
@@ -924,9 +853,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         expect(globalLang).toBe("en_US");
 
         // Verify site profile language was changed
-        const siteProfiles = await waitForSettingMatch<
-          Record<string, { language: string }>
-        >(
+        const siteProfiles = await waitForSettingMatch<Record<string, { language: string }>>(
           worker!,
           KEY_SITE_PROFILES,
           (value) =>
@@ -940,9 +867,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         expect(siteProfiles).toBeDefined();
         expect(siteProfiles![TEST_HOST]).toBeDefined();
         expect(siteProfiles![TEST_HOST].language).not.toBe("en_US");
-        expect(SUPPORTED_PREDICTION_LANGUAGE_KEYS).toContain(
-          siteProfiles![TEST_HOST].language,
-        );
+        expect(SUPPORTED_PREDICTION_LANGUAGE_KEYS).toContain(siteProfiles![TEST_HOST].language);
       } finally {
         await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
         await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
@@ -956,20 +881,12 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     "AI predictor merges WebLLM suggestions with Presage in one suggestion list",
     async () => {
       const selector = "#test-input";
-      const aiSuggestions = [
-        "webllmtestalpha",
-        "webllmtestbeta",
-        "webllmtestgamma",
-      ];
+      const aiSuggestions = ["webllmtestalpha", "webllmtestbeta", "webllmtestgamma"];
       try {
         await setSettingAndWait(worker!, "enable", true);
         await setSettingAndWait(worker!, KEY_DOMAIN_LIST_MODE, "blackList");
         await setSettingAndWait(worker!, "domainBlackList", []);
-        await setSettingAndWait(
-          worker!,
-          KEY_ENABLED_LANGUAGES,
-          SUPPORTED_PREDICTION_LANGUAGE_KEYS,
-        );
+        await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
         await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
         await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
         await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
@@ -989,21 +906,13 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           page,
           browserTimeout(15000, 25000),
         );
-        const normalizedSuggestions = suggestionTexts.map(
-          normalizeSuggestionText,
-        );
+        const normalizedSuggestions = suggestionTexts.map(normalizeSuggestionText);
         expect(normalizedSuggestions.length).toBeGreaterThanOrEqual(3);
-        expect(normalizedSuggestions.slice(0, 2)).not.toContain(
-          aiSuggestions[0],
-        );
+        expect(normalizedSuggestions.slice(0, 2)).not.toContain(aiSuggestions[0]);
         expect(normalizedSuggestions.slice(0, 3)).toContain(aiSuggestions[0]);
 
         const calls = await getWebLLMPredictionCallsForTesting(worker!);
-        expect(
-          calls.some((call) =>
-            call.predictionInput.toLowerCase().endsWith("th"),
-          ),
-        ).toBe(true);
+        expect(calls.some((call) => call.predictionInput.toLowerCase().endsWith("th"))).toBe(true);
       } finally {
         await clearWebLLMPredictionsForTesting(worker!);
         await setSettingAndWait(worker!, KEY_NUM_SUGGESTIONS, 5);
@@ -1024,11 +933,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await setSettingAndWait(worker!, "enable", true);
         await setSettingAndWait(worker!, KEY_DOMAIN_LIST_MODE, "blackList");
         await setSettingAndWait(worker!, "domainBlackList", []);
-        await setSettingAndWait(
-          worker!,
-          KEY_ENABLED_LANGUAGES,
-          SUPPORTED_PREDICTION_LANGUAGE_KEYS,
-        );
+        await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
         await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
         await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
         await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
@@ -1048,9 +953,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           page,
           browserTimeout(15000, 25000),
         );
-        const normalizedSuggestions = suggestionTexts.map(
-          normalizeSuggestionText,
-        );
+        const normalizedSuggestions = suggestionTexts.map(normalizeSuggestionText);
         expect(normalizedSuggestions.length).toBeGreaterThan(0);
         expect(normalizedSuggestions).not.toContain(slowAiSuggestions[0]);
 
@@ -1074,11 +977,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await setSettingAndWait(worker!, "enable", true);
         await setSettingAndWait(worker!, KEY_DOMAIN_LIST_MODE, "blackList");
         await setSettingAndWait(worker!, "domainBlackList", []);
-        await setSettingAndWait(
-          worker!,
-          KEY_ENABLED_LANGUAGES,
-          SUPPORTED_PREDICTION_LANGUAGE_KEYS,
-        );
+        await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
         await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
         await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
         await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
@@ -1157,11 +1056,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     "Prediction popup inserts selected suggestion on click and TAB in %s",
     async (selector) => {
       await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(
-        worker!,
-        KEY_ENABLED_LANGUAGES,
-        SUPPORTED_PREDICTION_LANGUAGE_KEYS,
-      );
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
       await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
       await applyConfigChange(browser, worker!);
 
@@ -1182,9 +1077,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         expect(liCount).toBeGreaterThan(0);
 
         const [firstLiText] = await waitForVisibleSuggestionTexts(page);
-        expect(firstLiText?.toLowerCase()).toMatch(
-          new RegExp(`^${typedPrefix}\\S*\\xa0$`),
-        );
+        expect(firstLiText?.toLowerCase()).toMatch(new RegExp(`^${typedPrefix}\\S*\\xa0$`));
 
         await acceptSuggestion();
         await page.waitForFunction(
@@ -1246,7 +1139,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             document.querySelector(sel)?.textContent) === expected,
         { timeout: browserTimeout(2000, 5000) },
         selector,
-        wordPart + "x\xa0",
+        `${wordPart}x\xa0`,
       );
     },
     browserTimeout(15000, 30000),
@@ -1320,11 +1213,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
       await popupPage.close();
 
-      await setSetting(
-        worker!,
-        KEY_ENABLED_LANGUAGES,
-        SUPPORTED_PREDICTION_LANGUAGE_KEYS,
-      );
+      await setSetting(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
       await setSetting(worker!, KEY_LANGUAGE, "en_US");
     },
     browserTimeout(5000, 15000),
@@ -1377,10 +1266,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       expect(storedLanguageMulti).toBe("auto_detect");
       expect(storedFallbackMulti).toBe("en_US");
 
-      const enabledLanguages = await getSetting<string[]>(
-        worker!,
-        KEY_ENABLED_LANGUAGES,
-      );
+      const enabledLanguages = await getSetting<string[]>(worker!, KEY_ENABLED_LANGUAGES);
       expect(enabledLanguages).toEqual(["en_US", "de_DE"]);
     },
     browserTimeout(5000, 15000),
@@ -1502,15 +1388,19 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
               );
             }),
         );
-        expect((popupStats as { lifetime: { acceptedSuggestions: number } }).lifetime.acceptedSuggestions).toBe(8);
-        expect((popupStats as { last7Days: { acceptedSuggestions: number } }).last7Days.acceptedSuggestions).toBe(3);
         expect(
-          (popupStats as { topSnippets: Array<{ snippet: string }> }).topSnippets[0]
-            ?.snippet,
+          (popupStats as { lifetime: { acceptedSuggestions: number } }).lifetime
+            .acceptedSuggestions,
+        ).toBe(8);
+        expect(
+          (popupStats as { last7Days: { acceptedSuggestions: number } }).last7Days
+            .acceptedSuggestions,
+        ).toBe(3);
+        expect(
+          (popupStats as { topSnippets: Array<{ snippet: string }> }).topSnippets[0]?.snippet,
         ).toBe("brb");
         expect(
-          (popupStats as { last7DaysTrend: Array<{ dateKey: string }> }).last7DaysTrend
-            .length,
+          (popupStats as { last7DaysTrend: Array<{ dateKey: string }> }).last7DaysTrend.length,
         ).toBe(7);
         expect(
           (
@@ -1528,24 +1418,13 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         ).toBeGreaterThan(0);
 
         const popupSummary = await popupPage.evaluate(() => ({
-          accepted:
-            document.getElementById("metricAccepted")?.textContent?.trim() || "",
-          chars:
-            document.getElementById("metricCharsSaved")?.textContent?.trim() ||
-            "",
-          minutes:
-            document.getElementById("metricMinutesSaved")?.textContent?.trim() ||
-            "",
-          periodSummary:
-            document.getElementById("dashboardPeriodSummary")?.textContent || "",
-          languageSummary:
-            document.getElementById("dashboardLanguageSummary")?.textContent || "",
-          hasTrendNode: Boolean(
-            document.getElementById("dashboardTrendSummary"),
-          ),
-          hasTopSnippetsNode: Boolean(
-            document.getElementById("topSnippetsList"),
-          ),
+          accepted: document.getElementById("metricAccepted")?.textContent?.trim() || "",
+          chars: document.getElementById("metricCharsSaved")?.textContent?.trim() || "",
+          minutes: document.getElementById("metricMinutesSaved")?.textContent?.trim() || "",
+          periodSummary: document.getElementById("dashboardPeriodSummary")?.textContent || "",
+          languageSummary: document.getElementById("dashboardLanguageSummary")?.textContent || "",
+          hasTrendNode: Boolean(document.getElementById("dashboardTrendSummary")),
+          hasTopSnippetsNode: Boolean(document.getElementById("topSnippetsList")),
         }));
 
         expect(popupSummary.accepted.length).toBeGreaterThan(0);
@@ -1561,22 +1440,16 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await optionsPage.waitForSelector("#productivityStatsRoot", {
           timeout: browserTimeout(3000, 10000),
         });
-        const optionsRootExists = await optionsPage.$eval(
-          "#productivityStatsRoot",
-          (el) => Boolean(el),
+        const optionsRootExists = await optionsPage.$eval("#productivityStatsRoot", (el) =>
+          Boolean(el),
         );
         expect(optionsRootExists).toBe(true);
 
         await optionsPage.waitForFunction(
           () => {
-            const buttons = Array.from(
-              document.querySelectorAll("button,input[type='button']")
-            );
+            const buttons = Array.from(document.querySelectorAll("button,input[type='button']"));
             return buttons.some((node) => {
-              const label =
-                node instanceof HTMLInputElement
-                  ? node.value
-                  : node.textContent || "";
+              const label = node instanceof HTMLInputElement ? node.value : node.textContent || "";
               return label.includes("Reset productivity stats");
             });
           },
@@ -1584,11 +1457,10 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         );
         await optionsPage.evaluate(() => {
           const buttons = Array.from(
-            document.querySelectorAll("button,input[type='button']")
+            document.querySelectorAll("button,input[type='button']"),
           ) as HTMLElement[];
           const resetButton = buttons.find((node) => {
-            const label =
-              node instanceof HTMLInputElement ? node.value : node.textContent || "";
+            const label = node instanceof HTMLInputElement ? node.value : node.textContent || "";
             return label.includes("Reset productivity stats");
           });
           if (!resetButton) {
@@ -1615,8 +1487,11 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             }),
         );
         expect(
-          (popupStatsAfterReset as { lifetime: { acceptedSuggestions: number } }).lifetime
-            .acceptedSuggestions,
+          (
+            popupStatsAfterReset as {
+              lifetime: { acceptedSuggestions: number };
+            }
+          ).lifetime.acceptedSuggestions,
         ).toBe(0);
         expect(
           (popupStatsAfterReset as { lifetime: { charactersSaved: number } }).lifetime
@@ -1660,12 +1535,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
     await applyConfigChange(browser, worker!);
 
-    const useLatinAutoDetectCase =
-      selector === CKEDITOR_SELECTOR || selector === "#test-textarea";
+    const useLatinAutoDetectCase = selector === CKEDITOR_SELECTOR || selector === "#test-textarea";
     const typedSample = useLatinAutoDetectCase ? "impor" : "φιλοσ";
-    const expectedSuggestion = useLatinAutoDetectCase
-      ? "important"
-      : "φιλοσοφία";
+    const expectedSuggestion = useLatinAutoDetectCase ? "important" : "φιλοσοφία";
     await clearInputContent(page, selector);
     if (useLatinAutoDetectCase) {
       await typeInInput(page, selector, typedSample);
@@ -1674,22 +1546,15 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await typeInInput(page, selector, "σ");
     }
     const detectSuggestionTimeoutMs =
-      selector === CKEDITOR_SELECTOR
-        ? browserTimeout(12000, 20000)
-        : browserTimeout(12000, 15000);
+      selector === CKEDITOR_SELECTOR ? browserTimeout(12000, 20000) : browserTimeout(12000, 15000);
 
     const allSuggestionTexts = (
-      await waitForVisibleSuggestionTexts(
-        page,
-        detectSuggestionTimeoutMs,
-      ).catch(() => [])
+      await waitForVisibleSuggestionTexts(page, detectSuggestionTimeoutMs).catch(() => [])
     ).map((text) => text.toLowerCase());
 
     if (allSuggestionTexts.length > 0) {
       expect(
-        allSuggestionTexts.some((text) =>
-          text.includes(expectedSuggestion.toLowerCase()),
-        ),
+        allSuggestionTexts.some((text) => text.includes(expectedSuggestion.toLowerCase())),
       ).toBe(true);
     } else {
       const currentInput = await getInputContent(page, selector);
@@ -1705,10 +1570,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(30000, 50000),
   );
 
-  const LANGUAGE_TEST_DATA: Record<
-    string,
-    { input: string; expected: string }
-  > = {
+  const LANGUAGE_TEST_DATA: Record<string, { input: string; expected: string }> = {
     en_US: { input: "impor", expected: "important" },
     fr_FR: { input: "champig", expected: "champignon" },
     hr_HR: { input: "prijat", expected: "prijatelj" },
@@ -1722,18 +1584,12 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   };
 
   async function runPredictionForAllLanguagesScenario(selector: string) {
-    await setSettingAndWait(
-      worker!,
-      KEY_ENABLED_LANGUAGES,
-      SUPPORTED_PREDICTION_LANGUAGE_KEYS,
-    );
+    await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
     await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
     await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
     await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
     await setSettingAndWait(worker!, KEY_NUM_SUGGESTIONS, 5);
-    await setSettingAndWait(worker!, KEY_TEXT_EXPANSIONS, [
-      ["asap", "as soon as possible"],
-    ]);
+    await setSettingAndWait(worker!, KEY_TEXT_EXPANSIONS, [["asap", "as soon as possible"]]);
     await applyConfigChange(browser, worker!);
 
     for (const lang of SUPPORTED_PREDICTION_LANGUAGE_KEYS) {
@@ -1742,9 +1598,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         throw new Error(`Missing language test data for ${lang}`);
       }
       const typingSettleMs =
-        selector === CKEDITOR_SELECTOR
-          ? browserTimeout(150, 350)
-          : browserTimeout(50, 150);
+        selector === CKEDITOR_SELECTOR ? browserTimeout(150, 350) : browserTimeout(50, 150);
       const suggestionTimeoutMs =
         selector === CKEDITOR_SELECTOR
           ? browserTimeout(5000, 12000)
@@ -1762,16 +1616,12 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitForInputReady(page, selector);
 
       await clearInputContent(page, selector);
-      await waitForNoVisibleSuggestions(page, browserTimeout(2000, 5000)).catch(
-        () => undefined,
-      );
+      await waitForNoVisibleSuggestions(page, browserTimeout(2000, 5000)).catch(() => undefined);
       await typeInInput(page, selector, testData.input);
       await new Promise((r) => setTimeout(r, typingSettleMs));
 
       const allSuggestionTexts = (
-        await waitForVisibleSuggestionTexts(page, suggestionTimeoutMs).catch(
-          () => [],
-        )
+        await waitForVisibleSuggestionTexts(page, suggestionTimeoutMs).catch(() => [])
       ).map((text) => text.toLowerCase());
       if (allSuggestionTexts.length > 0) {
         const found = allSuggestionTexts.some((text) =>
@@ -1779,19 +1629,14 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         );
         if (found) {
           expect(found).toBe(true);
-        } else if (
-          selector === "#test-textarea" ||
-          selector === CKEDITOR_SELECTOR
-        ) {
+        } else if (selector === "#test-textarea" || selector === CKEDITOR_SELECTOR) {
           expect(allSuggestionTexts.length).toBeGreaterThan(0);
         } else {
           expect(found).toBe(true);
         }
       } else {
         const currentInput = await getInputContent(page, selector);
-        expect(currentInput.toLowerCase()).toContain(
-          testData.input.toLowerCase(),
-        );
+        expect(currentInput.toLowerCase()).toContain(testData.input.toLowerCase());
       }
 
       await clearInputContent(page, selector);
@@ -1872,10 +1717,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await setSetting(worker!, "extensionLanguage", locale);
         if (isFirefox()) {
           await worker!.evaluate((loc: string) => {
-            localStorage.setItem(
-              "store.settings.extensionLanguage",
-              JSON.stringify(loc),
-            );
+            localStorage.setItem("store.settings.extensionLanguage", JSON.stringify(loc));
           }, locale);
         }
 
@@ -1884,10 +1726,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           // 2. Sync localStorage in the extension context.
           if (!isFirefox()) {
             await optionsPage.evaluate((loc: string) => {
-              localStorage.setItem(
-                "store.settings.extensionLanguage",
-                JSON.stringify(loc),
-              );
+              localStorage.setItem("store.settings.extensionLanguage", JSON.stringify(loc));
             }, locale);
             await optionsPage.reload({ waitUntil: "domcontentloaded" });
           }
@@ -1900,7 +1739,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           const textFound = await optionsPage.evaluate((exp: string) => {
             const dividers = document.querySelectorAll(".divider");
             for (const d of dividers) {
-              if (d.textContent?.includes(exp)) return true;
+              if (d.textContent?.includes(exp)) {
+                return true;
+              }
             }
             return false;
           }, expected);
@@ -1921,22 +1762,18 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         });
         await popupPage.waitForFunction(
           (exp) =>
-            document.getElementById("runOptions")?.getAttribute("title")?.includes(exp) ??
-            false,
+            document.getElementById("runOptions")?.getAttribute("title")?.includes(exp) ?? false,
           { timeout: browserTimeout(2000, 6000) },
           popupExpected,
         );
 
-        const { found, actualText } = await popupPage.evaluate(
-          (exp: string) => {
-            const btn = document.getElementById("runOptions");
-            return {
-              found: btn?.getAttribute("title")?.includes(exp) ?? false,
-              actualText: btn?.getAttribute("title") || "NULL",
-            };
-          },
-          popupExpected,
-        );
+        const { found, actualText } = await popupPage.evaluate((exp: string) => {
+          const btn = document.getElementById("runOptions");
+          return {
+            found: btn?.getAttribute("title")?.includes(exp) ?? false,
+            actualText: btn?.getAttribute("title") || "NULL",
+          };
+        }, popupExpected);
 
         if (!found) {
           console.error(
@@ -1951,10 +1788,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await setSetting(worker!, "extensionLanguage", "auto_detect");
       if (isFirefox()) {
         await worker!.evaluate(() => {
-          localStorage.setItem(
-            "store.settings.extensionLanguage",
-            JSON.stringify("auto_detect"),
-          );
+          localStorage.setItem("store.settings.extensionLanguage", JSON.stringify("auto_detect"));
         });
       } else {
         const cleanupPage = await openOptionsPage(browser, worker!);
@@ -1962,10 +1796,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           timeout: browserTimeout(1000, 5000),
         });
         await cleanupPage.evaluate(() => {
-          localStorage.setItem(
-            "store.settings.extensionLanguage",
-            JSON.stringify("auto_detect"),
-          );
+          localStorage.setItem("store.settings.extensionLanguage", JSON.stringify("auto_detect"));
         });
         await cleanupPage.reload({ waitUntil: "domcontentloaded" });
         await cleanupPage.close();
@@ -2021,9 +1852,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
       await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, ["textExpander"]);
       await setSettingAndWait(worker!, KEY_LANGUAGE, "textExpander");
-      await setSettingAndWait(worker!, KEY_TEXT_EXPANSIONS, [
-        ["asap", "as soon as possible"],
-      ]);
+      await setSettingAndWait(worker!, KEY_TEXT_EXPANSIONS, [["asap", "as soon as possible"]]);
       await applyConfigChange(browser, worker!);
 
       const element = await page.$(selector);
@@ -2052,11 +1881,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       expect(elementText).toBe("as soon as possible\xa0");
 
       // Cleanup
-      await setSettingAndWait(
-        worker!,
-        KEY_ENABLED_LANGUAGES,
-        SUPPORTED_PREDICTION_LANGUAGE_KEYS,
-      );
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
       await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
       await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
       await applyConfigChange(browser, worker!);
@@ -2070,11 +1895,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       // Set settings BEFORE creating the page so content script initializes correctly
       await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 0);
       await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(
-        worker!,
-        KEY_ENABLED_LANGUAGES,
-        SUPPORTED_PREDICTION_LANGUAGE_KEYS,
-      );
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
       await applyConfigChange(browser, worker!);
 
       await gotoTestPage(page, {
@@ -2096,9 +1917,10 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await page.waitForFunction(
         (sel) => {
           const target = document.querySelector(sel);
-          if (!target) return false;
-          const value =
-            (target as HTMLInputElement).value ?? target.textContent ?? "";
+          if (!target) {
+            return false;
+          }
+          const value = (target as HTMLInputElement).value ?? target.textContent ?? "";
           return value.endsWith(" ") || value.endsWith("\xa0");
         },
         { timeout: browserTimeout(2000, 6000) },
@@ -2120,11 +1942,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       // Reset and set settings BEFORE creating the page
       await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, -1);
       await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(
-        worker!,
-        KEY_ENABLED_LANGUAGES,
-        SUPPORTED_PREDICTION_LANGUAGE_KEYS,
-      );
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
       await applyConfigChange(browser, worker!);
       await gotoTestPage(page, {
         enableCkEditor: shouldEnableCkEditor(selector),

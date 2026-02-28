@@ -1,4 +1,4 @@
-import { SettingsManager } from "@core/application/settingsManager";
+import type { SettingsManager } from "@core/application/settingsManager";
 import type {
   ContentScriptUsageEventContext,
   DonationPromptAction,
@@ -9,10 +9,7 @@ import { ProductivityStatsService } from "@core/application/productivityStats/Pr
 export class ProductivityStatsManager {
   private readonly service: ProductivityStatsService;
 
-  constructor(
-    settingsManager: SettingsManager,
-    options: { now?: () => Date } = {},
-  ) {
+  constructor(settingsManager: SettingsManager, options: { now?: () => Date } = {}) {
     this.service = new ProductivityStatsService(settingsManager, options);
   }
 
@@ -20,9 +17,7 @@ export class ProductivityStatsManager {
     this.service.setSnippetShortcuts(textExpansions);
   }
 
-  async recordSuggestionAccepted(
-    event: ContentScriptUsageEventContext,
-  ): Promise<void> {
+  async recordSuggestionAccepted(event: ContentScriptUsageEventContext): Promise<void> {
     await this.service.recordSuggestionAccepted(event);
   }
 

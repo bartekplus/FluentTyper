@@ -27,9 +27,7 @@ function freshModulePath(path: string): string {
 async function loadContentScriptModule() {
   watchdogHarness.domObserverInstances.length = 0;
 
-  await import(
-    freshModulePath("../src/adapters/chrome/content-script/content_script")
-  );
+  await import(freshModulePath("../src/adapters/chrome/content-script/content_script"));
 }
 
 jest.unstable_mockModule("../src/adapters/chrome/content-script/TributeManager", () => ({
@@ -87,9 +85,7 @@ describe("content_script watchdog scheduling", () => {
 
   test("debounces watchdog checks when multiple lifecycle events fire", async () => {
     await loadContentScriptModule();
-    const instance = (
-      window as Window & { FluentTyper?: { watchDog: () => void } }
-    ).FluentTyper;
+    const instance = (window as Window & { FluentTyper?: { watchDog: () => void } }).FluentTyper;
     expect(instance).toBeDefined();
 
     const watchDogSpy = jest.spyOn(instance!, "watchDog");
@@ -113,9 +109,7 @@ describe("content_script watchdog scheduling", () => {
 
   test("runs watchdog after document visibility change", async () => {
     await loadContentScriptModule();
-    const instance = (
-      window as Window & { FluentTyper?: { watchDog: () => void } }
-    ).FluentTyper;
+    const instance = (window as Window & { FluentTyper?: { watchDog: () => void } }).FluentTyper;
     expect(instance).toBeDefined();
 
     const watchDogSpy = jest.spyOn(instance!, "watchDog");

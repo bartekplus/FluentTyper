@@ -1,8 +1,5 @@
 import Tribute from "@third-party/tribute/tribute.esm.js";
-import {
-  LANG_SEPARATOR_CHARS_REGEX,
-  SUPPORTED_LANGUAGES,
-} from "@core/domain/lang";
+import { LANG_SEPARATOR_CHARS_REGEX, SUPPORTED_LANGUAGES } from "@core/domain/lang";
 import { isInDocument } from "@core/application/dom-utils";
 import { createLogger } from "@core/application/logging/Logger";
 import type {
@@ -23,11 +20,7 @@ interface TributeItem {
 interface TributeEntry {
   tribute: Tribute;
   elem: Element;
-  done?: (
-    results: unknown[],
-    forceReplace: ForceReplaceType | null,
-    menuHeader?: string,
-  ) => void;
+  done?: (results: unknown[], forceReplace: ForceReplaceType | null, menuHeader?: string) => void;
   requestId: number;
   // Store handler references for proper removal
   tributeReplacedHandlerRef?: EventListenerOrEventListenerObject;
@@ -137,9 +130,15 @@ export class TributeManager {
 
   private keys(): string[] {
     const keyArr = ["Escape", "ArrowUp", "ArrowDown", "Space"];
-    if (this.autocompleteOnEnter) keyArr.push("Enter");
-    if (this.autocompleteOnTab) keyArr.push("Tab");
-    if (this.revertOnBackspace) keyArr.push("Backspace");
+    if (this.autocompleteOnEnter) {
+      keyArr.push("Enter");
+    }
+    if (this.autocompleteOnTab) {
+      keyArr.push("Tab");
+    }
+    if (this.revertOnBackspace) {
+      keyArr.push("Backspace");
+    }
     return keyArr;
   }
 
@@ -151,9 +150,7 @@ export class TributeManager {
   ): boolean {
     const attributeValue = elem.getAttribute(propertyName);
     const elemValue =
-      typeof attributeValue === "string"
-        ? attributeValue.toLowerCase().trim()
-        : defaultValue;
+      typeof attributeValue === "string" ? attributeValue.toLowerCase().trim() : defaultValue;
     if (typeof expectedValue === "string") {
       return elemValue === expectedValue;
     }
@@ -166,7 +163,7 @@ export class TributeManager {
     });
     const tributeId = this.newTributeId++;
     this.tributeArr[tributeId] = {
-      elem: elem,
+      elem,
       requestId: 0,
     } as TributeEntry; // Cast to allow tribute to be added next
     this.helperIdByElement.set(elem, tributeId);
@@ -183,7 +180,9 @@ export class TributeManager {
       nextChar: string,
     ) => {
       const currentEntry = this.tributeArr[tributeId];
-      if (!currentEntry) return;
+      if (!currentEntry) {
+        return;
+      }
 
       currentEntry.done = done;
       currentEntry.requestId += 1;
@@ -198,8 +197,8 @@ export class TributeManager {
       });
       this.getPrediction({
         text: fullText,
-        nextChar: nextChar,
-        tributeId: tributeId,
+        nextChar,
+        tributeId,
         requestId: currentEntry.requestId,
         lang: this.lang,
       });
@@ -237,9 +236,7 @@ export class TributeManager {
         skip: true,
       },
       menuShowMinLength:
-        this.minWordLengthToPredict === -1
-          ? Number.MAX_VALUE
-          : this.minWordLengthToPredict,
+        this.minWordLengthToPredict === -1 ? Number.MAX_VALUE : this.minWordLengthToPredict,
       // @ts-expect-error ignore Tribute errors
       keys: tributeKeyFn,
       supportRevert: true, // Assuming this is related to revertOnBackspace
@@ -249,20 +246,12 @@ export class TributeManager {
     this.tributeArr[tributeId].tribute = tribute;
     tribute.attach(elem);
 
-    const boundTributeReplacedHandler = this.tributeReplacedEventHandler.bind(
-      this,
-      tributeId,
-    );
+    const boundTributeReplacedHandler = this.tributeReplacedEventHandler.bind(this, tributeId);
     // MUST be synchronous so event.preventDefault() works reliably without letter duplication.
-    const boundElementKeyDownHandler = this.elementKeyDownEventHandler.bind(
-      this,
-      tributeId,
-    );
+    const boundElementKeyDownHandler = this.elementKeyDownEventHandler.bind(this, tributeId);
 
-    this.tributeArr[tributeId].tributeReplacedHandlerRef =
-      boundTributeReplacedHandler;
-    this.tributeArr[tributeId].elementKeyDownHandlerRef =
-      boundElementKeyDownHandler;
+    this.tributeArr[tributeId].tributeReplacedHandlerRef = boundTributeReplacedHandler;
+    this.tributeArr[tributeId].elementKeyDownHandlerRef = boundElementKeyDownHandler;
 
     elem.addEventListener("tribute-replaced", boundTributeReplacedHandler);
     elem.addEventListener("keydown", boundElementKeyDownHandler);
@@ -276,11 +265,7 @@ export class TributeManager {
       lang: context.lang,
     });
     const tributeEntry = this.tributeArr[context.tributeId];
-    if (
-      tributeEntry &&
-      tributeEntry.requestId === context.requestId &&
-      tributeEntry.done
-    ) {
+    if (tributeEntry && tributeEntry.requestId === context.requestId && tributeEntry.done) {
       const predictionItems = context.predictions.map((prediction) => ({
         key: prediction,
         value: prediction,
@@ -315,14 +300,13 @@ export class TributeManager {
 
   detachHelper(tributeId: number) {
     const entry = this.tributeArr[tributeId];
-    if (!entry) return;
+    if (!entry) {
+      return;
+    }
     const elem = entry.elem;
     entry.tribute.detach(elem);
     if (entry.tributeReplacedHandlerRef) {
-      elem.removeEventListener(
-        "tribute-replaced",
-        entry.tributeReplacedHandlerRef,
-      );
+      elem.removeEventListener("tribute-replaced", entry.tributeReplacedHandlerRef);
     }
     if (entry.elementKeyDownHandlerRef) {
       elem.removeEventListener("keydown", entry.elementKeyDownHandlerRef);
@@ -427,7 +411,9 @@ export class TributeManager {
             check.expectedValue,
             check.defaultValue,
           );
-          if (check.reverseCheck) checkVal = !checkVal;
+          if (check.reverseCheck) {
+            checkVal = !checkVal;
+          }
           if (!checkVal) {
             propertiesCheck = false;
             break;
@@ -435,23 +421,27 @@ export class TributeManager {
         }
       }
 
-      if (propertiesCheck) filteredElems.push(currentElem);
+      if (propertiesCheck) {
+        filteredElems.push(currentElem);
+      }
     }
     for (let i = 0; i < filteredElems.length; i++) {
-      if (this.isHelperAttached(filteredElems[i])) continue;
+      if (this.isHelperAttached(filteredElems[i])) {
+        continue;
+      }
       let skip = false;
       for (const [key] of Object.entries(this.tributeArr)) {
         const keyAsNumber = Number(key);
         if (filteredElems[i].contains(this.tributeArr[keyAsNumber].elem)) {
           this.detachHelper(keyAsNumber);
-        } else if (
-          this.tributeArr[keyAsNumber].elem.contains(filteredElems[i])
-        ) {
+        } else if (this.tributeArr[keyAsNumber].elem.contains(filteredElems[i])) {
           skip = true;
           break;
         }
       }
-      if (skip) continue;
+      if (skip) {
+        continue;
+      }
       this.attachHelperToNode(filteredElems[i]);
     }
   }
@@ -460,7 +450,9 @@ export class TributeManager {
     logger.debug("Triggering active tribute", {
       activeHelperArrId: this.activeHelperArrId,
     });
-    if (this.activeHelperArrId === null) return;
+    if (this.activeHelperArrId === null) {
+      return;
+    }
     if (this.tributeArr[this.activeHelperArrId]) {
       this.tributeArr[this.activeHelperArrId].tribute.showMenuForCollection(
         this.tributeArr[this.activeHelperArrId].elem,
@@ -471,9 +463,7 @@ export class TributeManager {
     }
   }
 
-  private emitUsageEvent(
-    context: ContentScriptUsageEventMessage["context"],
-  ): void {
+  private emitUsageEvent(context: ContentScriptUsageEventMessage["context"]): void {
     const message: ContentScriptUsageEventMessage = {
       command: CMD_CONTENT_SCRIPT_USAGE_EVENT,
       context,
@@ -485,11 +475,8 @@ export class TributeManager {
 
   private emitSuggestionAcceptedUsageEvents(detail: TributeReplaceEventDetail) {
     const triggerText =
-      typeof detail.context?.mentionText === "string"
-        ? detail.context.mentionText
-        : "";
-    const insertedText =
-      typeof detail.text === "string" ? detail.text : triggerText;
+      typeof detail.context?.mentionText === "string" ? detail.context.mentionText : "";
+    const insertedText = typeof detail.text === "string" ? detail.text : triggerText;
     const typedTextLength = triggerText.length;
     const insertedTextLength = insertedText.length;
     this.emitUsageEvent({
@@ -535,10 +522,7 @@ export class TributeManager {
       entry.missingTrailingSpace = true;
       const elem = entry.elem;
       let cursorPos = 0;
-      if (
-        elem instanceof HTMLTextAreaElement ||
-        elem instanceof HTMLInputElement
-      ) {
+      if (elem instanceof HTMLTextAreaElement || elem instanceof HTMLInputElement) {
         cursorPos = elem.selectionStart ?? 0;
       } else {
         const sel = window.getSelection();
@@ -564,18 +548,13 @@ export class TributeManager {
       const key = keyboardEvent.key;
 
       // Ignore modifier keys that don't change cursor or insert text
-      if (
-        ["Shift", "Control", "Alt", "Meta", "CapsLock", "Escape"].includes(key)
-      ) {
+      if (["Shift", "Control", "Alt", "Meta", "CapsLock", "Escape"].includes(key)) {
         return;
       }
 
       const elem = entry.elem;
       let currentPos = 0;
-      if (
-        elem instanceof HTMLTextAreaElement ||
-        elem instanceof HTMLInputElement
-      ) {
+      if (elem instanceof HTMLTextAreaElement || elem instanceof HTMLInputElement) {
         currentPos = elem.selectionStart ?? 0;
       } else {
         const sel = window.getSelection();
@@ -597,18 +576,14 @@ export class TributeManager {
         const elem = entry.elem;
         let charBeforeCursor = "";
 
-        if (
-          elem instanceof HTMLTextAreaElement ||
-          elem instanceof HTMLInputElement
-        ) {
+        if (elem instanceof HTMLTextAreaElement || elem instanceof HTMLInputElement) {
           const cursorPos = elem.selectionStart ?? 0;
           charBeforeCursor = cursorPos > 0 ? elem.value[cursorPos - 1] : "";
         } else {
           const sel = window.getSelection();
           if (sel && sel.anchorNode && sel.anchorNode.textContent) {
             const offset = sel.anchorOffset;
-            charBeforeCursor =
-              offset > 0 ? sel.anchorNode.textContent[offset - 1] : "";
+            charBeforeCursor = offset > 0 ? sel.anchorNode.textContent[offset - 1] : "";
           }
         }
 
@@ -625,7 +600,7 @@ export class TributeManager {
             spacingRule.spaceBefore !== Spacing.NO_CHANGE)
         ) {
           event.preventDefault();
-          document.execCommand("insertText", false, "\xA0" + key);
+          document.execCommand("insertText", false, `\xA0${key}`);
         }
       }
     }

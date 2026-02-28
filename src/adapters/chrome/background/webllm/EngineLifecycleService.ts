@@ -52,8 +52,7 @@ export class EngineLifecycleService {
   }
 
   hasWebGPU(): boolean {
-    const maybeNavigator = (globalThis as { navigator?: { gpu?: unknown } })
-      .navigator;
+    const maybeNavigator = (globalThis as { navigator?: { gpu?: unknown } }).navigator;
     return Boolean(maybeNavigator?.gpu);
   }
 
@@ -188,9 +187,7 @@ export class EngineLifecycleService {
     this.lastInitProgressText = text;
     const lastEntry = this.lastInitProgressLog[this.lastInitProgressLog.length - 1];
     const shouldRecord =
-      !lastEntry ||
-      lastEntry.text !== text ||
-      Math.abs(lastEntry.progress - progress) >= 0.01;
+      !lastEntry || lastEntry.text !== text || Math.abs(lastEntry.progress - progress) >= 0.01;
     if (!shouldRecord) {
       return;
     }

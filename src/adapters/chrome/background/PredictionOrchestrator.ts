@@ -14,9 +14,7 @@ import type {
   PredictorStageDebugInfo,
   SecondaryPredictor,
 } from "./PredictionTypes";
-import {
-  PresageHandler,
-} from "./PresageHandler";
+import type { PresageHandler } from "./PresageHandler";
 import type { PresageConfig, PresagePredictionContext } from "./PresageHandler";
 import { mergePredictions } from "./PredictionMerger";
 

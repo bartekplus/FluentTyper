@@ -4,7 +4,7 @@ import {
   SUPPORTED_LANGUAGES_SHORT_CODE,
   resolveEnabledPredictionLanguages,
 } from "@core/domain/lang";
-import { SettingsManager } from "@core/application/settingsManager";
+import type { SettingsManager } from "@core/application/settingsManager";
 import { CoreSettingsRepository } from "@core/application/repositories/CoreSettingsRepository";
 
 export class LanguageDetector {

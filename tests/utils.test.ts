@@ -32,9 +32,7 @@ describe("shared utils domain list handling", () => {
   test("isDomainOnList matches exact normalized host and not regex-like false positives", async () => {
     const { settings } = createSettingsManager(["example.com"]);
 
-    await expect(
-      isDomainOnList(settings, "https://EXAMPLE.com/path"),
-    ).resolves.toBe(true);
+    await expect(isDomainOnList(settings, "https://EXAMPLE.com/path")).resolves.toBe(true);
     await expect(isDomainOnList(settings, "exampleXcom")).resolves.toBe(false);
   });
 
@@ -81,9 +79,7 @@ describe("shared utils domain list handling", () => {
   });
 
   test("removeDomainFromList matches entries stored as URL by host", async () => {
-    const { settings, state, getMock } = createSettingsManager([
-      "https://LOCALHOST/path",
-    ]);
+    const { settings, state, getMock } = createSettingsManager(["https://LOCALHOST/path"]);
 
     await removeDomainFromList(settings, "localhost");
     expect(state[SETTINGS_DOMAIN_BLACKLIST]).toEqual([]);

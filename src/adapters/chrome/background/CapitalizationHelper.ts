@@ -35,7 +35,7 @@ export function checkAutoCapitalize({
     lastWord.length > 1 &&
     lastWord === lastWord.toUpperCase()
   )
-    return Capitalization.WholeWord;
+    {return Capitalization.WholeWord;}
 
   // First letter capitalization: " Xyz"
   if (
@@ -43,7 +43,7 @@ export function checkAutoCapitalize({
     isLetter(firstCharacterOfLastWord) &&
     firstCharacterOfLastWord === firstCharacterOfLastWord.toUpperCase()
   )
-    return Capitalization.FirstLetter;
+    {return Capitalization.FirstLetter;}
 
   // Auto capitalization after sentence-ending punctuation
   if (
@@ -51,7 +51,7 @@ export function checkAutoCapitalize({
     newSentence &&
     ((!endsWithSpace && wordCount === 1) || (endsWithSpace && wordCount === 0))
   )
-    return Capitalization.FirstLetter;
+    {return Capitalization.FirstLetter;}
 
   return Capitalization.None;
 }

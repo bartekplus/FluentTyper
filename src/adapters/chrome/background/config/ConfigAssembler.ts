@@ -9,10 +9,7 @@ import type { ConfigMessage } from "@core/domain/messageTypes";
 import type { PredictionConfig } from "../PredictionManager";
 import { CoreSettingsRepository } from "@core/application/repositories/CoreSettingsRepository";
 import { PredictorSettingsRepository } from "@core/application/repositories/PredictorSettingsRepository";
-import {
-  resolveActiveLanguage,
-  resolveDomainRuntimeSettings,
-} from "./runtimeSettings";
+import { resolveActiveLanguage, resolveDomainRuntimeSettings } from "./runtimeSettings";
 
 interface ConfigAssemblerOptions {
   enableAIPredictor: boolean;
@@ -38,13 +35,8 @@ export class ConfigAssembler {
     this.options = options;
   }
 
-  async assembleBackgroundPageSetConfig(
-    domainURL?: string,
-  ): Promise<ConfigMessage> {
-    const domainSettings = await resolveDomainRuntimeSettings(
-      this.settingsManager,
-      domainURL,
-    );
+  async assembleBackgroundPageSetConfig(domainURL?: string): Promise<ConfigMessage> {
+    const domainSettings = await resolveDomainRuntimeSettings(this.settingsManager, domainURL);
     const [
       enabled,
       autocomplete,
@@ -146,10 +138,7 @@ export class ConfigAssembler {
   async resolveDomainConfigOverrides(
     domainURL: string,
   ): Promise<{ lang: string; inline_suggestion: boolean }> {
-    const domainSettings = await resolveDomainRuntimeSettings(
-      this.settingsManager,
-      domainURL,
-    );
+    const domainSettings = await resolveDomainRuntimeSettings(this.settingsManager, domainURL);
     return {
       lang: domainSettings.language,
       inline_suggestion: domainSettings.inlineSuggestion,

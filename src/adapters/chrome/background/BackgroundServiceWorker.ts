@@ -1,6 +1,4 @@
-import {
-  CMD_BACKGROUND_PAGE_PREDICT_RESP,
-} from "@core/domain/constants";
+import { CMD_BACKGROUND_PAGE_PREDICT_RESP } from "@core/domain/constants";
 import { checkLastError } from "@core/application/transport-utils";
 import { getErrorMessage, logError } from "@core/domain/error";
 import { SettingsManager } from "@core/application/settingsManager";
@@ -21,8 +19,7 @@ import { ConfigAssembler } from "./config/ConfigAssembler";
 
 declare const __FT_DEV_BUILD__: boolean | undefined;
 
-export const IS_DEV_BUILD =
-  typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
+export const IS_DEV_BUILD = typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
 export const ENABLE_AI_PREDICTOR = IS_DEV_BUILD;
 
 export class BackgroundServiceWorker {
@@ -45,9 +42,7 @@ export class BackgroundServiceWorker {
     this.languageDetector = new LanguageDetector(this.settingsManager);
     this.predictionManager = new PredictionManager();
     this.tabMessenger = new TabMessenger();
-    this.productivityStatsManager = new ProductivityStatsManager(
-      this.settingsManager,
-    );
+    this.productivityStatsManager = new ProductivityStatsManager(this.settingsManager);
     this.configAssembler = new ConfigAssembler(this.settingsManager, {
       enableAIPredictor: ENABLE_AI_PREDICTOR,
       isDevBuild: IS_DEV_BUILD,
@@ -97,10 +92,7 @@ export class BackgroundServiceWorker {
       "background.prediction.completed",
       `${predictions.length} predictions${forceReplace ? " + forceReplace" : ""}`,
     );
-    if (
-      (!Array.isArray(predictions) || predictions.length === 0) &&
-      !forceReplace
-    ) {
+    if ((!Array.isArray(predictions) || predictions.length === 0) && !forceReplace) {
       this.predictionManager.recordTraceTimelineEvent(
         traceMeta,
         "background.response.skipped",
@@ -133,13 +125,9 @@ export class BackgroundServiceWorker {
       checkLastError();
       if (tab) {
         try {
-          await chrome.tabs.sendMessage(
-            message.context.tabId,
-            predictResponseMessage,
-            {
-              frameId: message.context.frameId,
-            },
-          );
+          await chrome.tabs.sendMessage(message.context.tabId, predictResponseMessage, {
+            frameId: message.context.frameId,
+          });
           this.predictionManager.recordTraceTimelineEvent(
             traceMeta,
             "background.response.sent",
@@ -163,23 +151,16 @@ export class BackgroundServiceWorker {
     });
   }
 
-  async detectLanguage(
-    text: string,
-    tabId: number,
-    enabledLanguages?: string[],
-  ): Promise<string> {
+  async detectLanguage(text: string, tabId: number, enabledLanguages?: string[]): Promise<string> {
     return this.languageDetector.detectLanguage(text, tabId, enabledLanguages);
   }
 
-  sendCommandToActiveTabContentScript(
-    message: import("@core/domain/messageTypes").Message,
-  ): void {
+  sendCommandToActiveTabContentScript(message: import("@core/domain/messageTypes").Message): void {
     this.tabMessenger.sendToActiveTab(message);
   }
 
   async getBackgroundPageSetConfigMsg(domainURL?: string): Promise<ConfigMessage> {
-    const message =
-      await this.configAssembler.assembleBackgroundPageSetConfig(domainURL);
+    const message = await this.configAssembler.assembleBackgroundPageSetConfig(domainURL);
     this.language = message.context.lang;
     return message;
   }
@@ -187,13 +168,10 @@ export class BackgroundServiceWorker {
   async updatePresageConfig(): Promise<void> {
     await sanitizeSiteProfilesSetting(this.settingsManager);
     await this.predictionManager.initialize();
-    const runtimeConfig =
-      await this.configAssembler.assemblePredictionRuntimeConfig();
+    const runtimeConfig = await this.configAssembler.assemblePredictionRuntimeConfig();
     this.language = runtimeConfig.language;
     this.predictionManager.setConfig(runtimeConfig.predictionConfig);
-    this.productivityStatsManager.setSnippetShortcuts(
-      runtimeConfig.textExpansions,
-    );
+    this.productivityStatsManager.setSnippetShortcuts(runtimeConfig.textExpansions);
     this.tabMessenger.sendToAllTabs(
       await this.getBackgroundPageSetConfigMsg(),
       this.settingsManager,

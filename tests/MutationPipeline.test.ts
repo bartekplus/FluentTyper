@@ -1,9 +1,6 @@
 import { MutationPipeline } from "../src/adapters/chrome/content-script/MutationPipeline";
 
-function childListMutation(
-  addedNodes: Node[],
-  target: Node = document.body,
-): MutationRecord {
+function childListMutation(addedNodes: Node[], target: Node = document.body): MutationRecord {
   return {
     type: "childList",
     addedNodes: addedNodes as unknown as NodeList,
@@ -69,10 +66,7 @@ describe("MutationPipeline", () => {
     document.body.appendChild(first);
     document.body.appendChild(second);
 
-    const plan = pipeline.buildPlan([
-      childListMutation([first]),
-      childListMutation([second]),
-    ]);
+    const plan = pipeline.buildPlan([childListMutation([first]), childListMutation([second])]);
 
     expect(plan).toEqual({
       type: "full-scan",

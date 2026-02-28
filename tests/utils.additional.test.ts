@@ -25,12 +25,8 @@ function createSettings(state: Record<string, unknown>) {
 
 describe("shared utils additional coverage", () => {
   beforeEach(async () => {
-    domainUtils = await import(
-      freshModulePath("../src/core/application/domain-utils")
-    );
-    transportUtils = await import(
-      freshModulePath("../src/core/application/transport-utils")
-    );
+    domainUtils = await import(freshModulePath("../src/core/application/domain-utils"));
+    transportUtils = await import(freshModulePath("../src/core/application/transport-utils"));
   });
 
   afterEach(() => {
@@ -56,28 +52,16 @@ describe("shared utils additional coverage", () => {
     };
 
     await expect(
-      domainUtils.isEnabledForDomain(
-        createSettings(blackListState),
-        "https://blocked.example",
-      ),
+      domainUtils.isEnabledForDomain(createSettings(blackListState), "https://blocked.example"),
     ).resolves.toBe(false);
     await expect(
-      domainUtils.isEnabledForDomain(
-        createSettings(blackListState),
-        "https://other.example",
-      ),
+      domainUtils.isEnabledForDomain(createSettings(blackListState), "https://other.example"),
     ).resolves.toBe(true);
     await expect(
-      domainUtils.isEnabledForDomain(
-        createSettings(whiteListState),
-        "https://allowed.example",
-      ),
+      domainUtils.isEnabledForDomain(createSettings(whiteListState), "https://allowed.example"),
     ).resolves.toBe(true);
     await expect(
-      domainUtils.isEnabledForDomain(
-        createSettings(whiteListState),
-        "https://other.example",
-      ),
+      domainUtils.isEnabledForDomain(createSettings(whiteListState), "https://other.example"),
     ).resolves.toBe(false);
   });
 

@@ -1,6 +1,6 @@
 import { jest } from "bun:test";
 import { ProductivityStatsManager } from "../src/adapters/chrome/background/ProductivityStatsManager";
-import { SettingsManager } from "../src/core/application/settingsManager";
+import type { SettingsManager } from "../src/core/application/settingsManager";
 import { KEY_PRODUCTIVITY_STATS } from "../src/core/domain/constants";
 
 function createSettingsManagerMock(seed: Record<string, unknown> = {}): {

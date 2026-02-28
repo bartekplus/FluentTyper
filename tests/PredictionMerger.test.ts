@@ -12,14 +12,7 @@ describe("mergePredictions", () => {
       6,
     );
 
-    expect(result).toEqual([
-      "alpha",
-      "beta",
-      "xray",
-      "charlie",
-      "delta",
-      "yankee",
-    ]);
+    expect(result).toEqual(["alpha", "beta", "xray", "charlie", "delta", "yankee"]);
   });
 
   test("deduplicates case-insensitive and NBSP variants", () => {

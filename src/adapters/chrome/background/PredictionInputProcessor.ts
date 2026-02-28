@@ -54,17 +54,17 @@ export class PredictionInputProcessor {
     numSuggestions: number,
     predictNextWordAfterSeparatorChar: boolean,
   ): boolean {
-    if (numSuggestions <= 0) return false;
-    if (!endsWithSpace && isNumber(lastWord)) return false;
-    if (endsWithSpace && !predictNextWordAfterSeparatorChar) return false;
+    if (numSuggestions <= 0) {return false;}
+    if (!endsWithSpace && isNumber(lastWord)) {return false;}
+    if (endsWithSpace && !predictNextWordAfterSeparatorChar) {return false;}
     if (!endsWithSpace && lastWord.length < this.minWordLengthToPredict)
-      return false;
+      {return false;}
     if (
       !endsWithSpace &&
       (lastWord.match(this.separatorCharRegex) || []).length !==
         (lastWord.match(this.keepPredCharRegex) || []).length
     )
-      return false;
+      {return false;}
     return true;
   }
 

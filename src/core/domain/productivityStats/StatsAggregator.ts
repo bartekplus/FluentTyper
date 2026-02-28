@@ -11,7 +11,7 @@ import {
   MAX_DAILY_BUCKETS,
   TYPING_CHARACTERS_PER_MINUTE,
 } from "./constants";
-import { StatsSanitizer } from "./StatsSanitizer";
+import type { StatsSanitizer } from "./StatsSanitizer";
 import type {
   AggregatedCounters,
   DailyProductivityState,
@@ -22,13 +22,9 @@ import type {
 export class StatsAggregator {
   constructor(private readonly sanitizer: StatsSanitizer) {}
 
-  estimateMinutesSaved(
-    acceptedSuggestions: number,
-    charactersSaved: number,
-  ): number {
+  estimateMinutesSaved(acceptedSuggestions: number, charactersSaved: number): number {
     const typingMinutes = charactersSaved / TYPING_CHARACTERS_PER_MINUTE;
-    const acceptanceMinutes =
-      (acceptedSuggestions * ACCEPTANCE_BONUS_SECONDS) / 60;
+    const acceptanceMinutes = (acceptedSuggestions * ACCEPTANCE_BONUS_SECONDS) / 60;
     return this.sanitizer.roundMetric(typingMinutes + acceptanceMinutes);
   }
 
@@ -39,10 +35,7 @@ export class StatsAggregator {
     return {
       acceptedSuggestions,
       charactersSaved,
-      estimatedMinutesSaved: this.estimateMinutesSaved(
-        acceptedSuggestions,
-        charactersSaved,
-      ),
+      estimatedMinutesSaved: this.estimateMinutesSaved(acceptedSuggestions, charactersSaved),
     };
   }
 
@@ -141,8 +134,7 @@ export class StatsAggregator {
               charactersSaved: 0,
             };
           }
-          counters.languageUsage[language].acceptedSuggestions +=
-            values.acceptedSuggestions;
+          counters.languageUsage[language].acceptedSuggestions += values.acceptedSuggestions;
           counters.languageUsage[language].charactersSaved += values.charactersSaved;
         }
       }
@@ -175,19 +167,13 @@ export class StatsAggregator {
     };
   }
 
-  getTopSnippets(
-    usageMap: Record<string, SnippetUsageCounters>,
-    limit: number,
-  ): TopSnippetUsage[] {
+  getTopSnippets(usageMap: Record<string, SnippetUsageCounters>, limit: number): TopSnippetUsage[] {
     return Object.entries(usageMap)
       .map(([snippet, counters]) => ({
         snippet,
         count: counters.count,
         charactersSaved: counters.charactersSaved,
-        estimatedMinutesSaved: this.estimateMinutesSaved(
-          counters.count,
-          counters.charactersSaved,
-        ),
+        estimatedMinutesSaved: this.estimateMinutesSaved(counters.count, counters.charactersSaved),
       }))
       .sort((left, right) => {
         if (right.estimatedMinutesSaved === left.estimatedMinutesSaved) {
@@ -201,9 +187,7 @@ export class StatsAggregator {
       .slice(0, limit);
   }
 
-  getLanguageSummaries(
-    usageMap: Record<string, LanguageUsageCounters>,
-  ): LanguageUsageSummary[] {
+  getLanguageSummaries(usageMap: Record<string, LanguageUsageCounters>): LanguageUsageSummary[] {
     return Object.entries(usageMap)
       .map(([language, counters]) => ({
         language,
@@ -266,8 +250,9 @@ export class StatsAggregator {
   ): ProductivityDashboardStats["milestoneProgress"] {
     const lifetimeHoursSaved = this.sanitizer.roundMetric(lifetimeMinutesSaved / 60);
     const previousMilestoneHours =
-      DONATION_MILESTONE_HOURS.filter((milestone) => lifetimeHoursSaved >= milestone)
-        .sort((left, right) => right - left)[0] || 0;
+      DONATION_MILESTONE_HOURS.filter((milestone) => lifetimeHoursSaved >= milestone).sort(
+        (left, right) => right - left,
+      )[0] || 0;
 
     let nextMilestoneHours =
       DONATION_MILESTONE_HOURS.find((milestone) => lifetimeHoursSaved < milestone) ||
@@ -282,9 +267,7 @@ export class StatsAggregator {
 
     const denominator = nextMilestoneHours - previousMilestoneHours;
     const progressRaw =
-      denominator > 0
-        ? ((lifetimeHoursSaved - previousMilestoneHours) / denominator) * 100
-        : 100;
+      denominator > 0 ? ((lifetimeHoursSaved - previousMilestoneHours) / denominator) * 100 : 100;
     const progressPct = Math.max(0, Math.min(100, Math.round(progressRaw)));
 
     return {

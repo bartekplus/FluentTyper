@@ -3,37 +3,84 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 import { defineConfig } from "eslint/config";
 
+const ALL_CODE_FILES = ["**/*.{js,mjs,cjs,ts,mts,cts}"];
+const SOURCE_FILES = ["src/**/*.{js,mjs,cjs,ts,mts,cts,d.ts}"];
+const TEST_FILES = ["tests/**/*.{js,mjs,cjs,ts,mts,cts}"];
+const TOOLING_FILES = ["build.ts", "eslint.config.js", "scripts/**/*.{js,mjs,cjs,ts,mts,cts}"];
 const MODULE_FILES = ["src/**/*.{ts,mts,cts,d.ts}"];
 
 export default defineConfig([
   {
-    files: ["**/*.{js,mjs,cjs,ts,mts,cts}"],
+    ignores: [
+      ".tmp/**",
+      "build/**",
+      "coverage/**",
+      "node_modules/**",
+      "public/third_party/**",
+      "src/third_party/**",
+    ],
+  },
+  {
+    linterOptions: {
+      reportUnusedDisableDirectives: "error",
+    },
+  },
+  {
+    files: ALL_CODE_FILES,
     plugins: { js },
     extends: ["js/recommended"],
   },
+  ...tseslint.configs.recommended,
   {
-    files: ["**/*.{js,mjs,cjs,ts,mts,cts}"],
+    files: SOURCE_FILES,
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.webextensions,
+      },
+    },
+  },
+  {
+    files: TEST_FILES,
     languageOptions: {
       globals: {
         ...globals.browser,
         ...globals.webextensions,
         ...globals.jest,
+        ...globals.node,
+        ...globals.bunBuiltin,
       },
     },
   },
   {
-    ignores: [
-      "**/build/",
-      "**/public/third_party/",
-      "**/src/third_party/",
-      "**/scripts/",
-      "**/coverage/",
-    ],
+    files: TOOLING_FILES,
+    languageOptions: {
+      globals: {
+        ...globals.node,
+        ...globals.bunBuiltin,
+      },
+    },
   },
-  tseslint.configs.recommended,
+  {
+    files: ["scripts/**/*.cjs"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+      "prefer-template": "off",
+    },
+  },
   {
     rules: {
-      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/consistent-type-imports": [
+        "error",
+        {
+          prefer: "type-imports",
+          disallowTypeAnnotations: false,
+        },
+      ],
+      "@typescript-eslint/no-explicit-any": "error",
+      curly: ["error", "all"],
+      "object-shorthand": ["error", "always"],
+      "prefer-template": "error",
     },
   },
   {
@@ -51,8 +98,7 @@ export default defineConfig([
           patterns: [
             {
               group: ["src/background/*", "src/content-script/*", "src/shared/*"],
-              message:
-                "Legacy module roots are deprecated. Import from @core, @adapters, or @ui.",
+              message: "Legacy module roots are deprecated. Import from @core, @adapters, or @ui.",
             },
           ],
         },
@@ -116,8 +162,7 @@ export default defineConfig([
           patterns: [
             {
               group: ["@adapters/chrome/content-script/*"],
-              message:
-                "Background adapter must not import content-script modules directly.",
+              message: "Background adapter must not import content-script modules directly.",
             },
           ],
         },
@@ -133,8 +178,7 @@ export default defineConfig([
           patterns: [
             {
               group: ["@adapters/chrome/background/*"],
-              message:
-                "Content-script adapter must not import background modules directly.",
+              message: "Content-script adapter must not import background modules directly.",
             },
           ],
         },

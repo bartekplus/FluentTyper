@@ -448,11 +448,7 @@ body.fluenttyper-options {
   color: var(--text-color);
   background:
     radial-gradient(circle at 10% 0%, rgba(79, 70, 229, 0.12), transparent 40%),
-    radial-gradient(
-      circle at 90% 10%,
-      rgba(56, 189, 248, 0.12),
-      transparent 45%
-    ),
+    radial-gradient(circle at 90% 10%, rgba(56, 189, 248, 0.12), transparent 45%),
     var(--background-color);
 }
 
@@ -473,11 +469,7 @@ body.fluenttyper-options {
 .fluenttyper-options .options-header {
   padding: 1.2rem 1.4rem 1rem;
   border-bottom: 1px solid var(--divider-color);
-  background: linear-gradient(
-    160deg,
-    rgba(79, 70, 229, 0.08),
-    rgba(56, 189, 248, 0.06)
-  );
+  background: linear-gradient(160deg, rgba(79, 70, 229, 0.08), rgba(56, 189, 248, 0.06));
 }
 
 .fluenttyper-options .options-brand {
@@ -508,11 +500,7 @@ body.fluenttyper-options {
 .fluenttyper-options .options-tabs {
   margin: 0;
   border-bottom: 1px solid var(--divider-color);
-  background-color: color-mix(
-    in srgb,
-    var(--box-background-color) 88%,
-    transparent
-  );
+  background-color: color-mix(in srgb, var(--box-background-color) 88%, transparent);
 }
 
 .fluenttyper-options .options-tabs ul {
@@ -571,11 +559,7 @@ body.fluenttyper-options {
   border: 1px solid var(--divider-color);
   border-radius: 12px;
   padding: 0.85rem 0.95rem 0.6rem;
-  background-color: color-mix(
-    in srgb,
-    var(--box-background-color) 96%,
-    var(--divider-color)
-  );
+  background-color: color-mix(in srgb, var(--box-background-color) 96%, var(--divider-color));
 }
 
 .fluenttyper-options .settings-group-title {
@@ -650,11 +634,7 @@ body.fluenttyper-options {
   border: 1px solid var(--divider-color);
   border-radius: 10px;
   padding: 0.6rem 0.65rem;
-  background-color: color-mix(
-    in srgb,
-    var(--box-background-color) 92%,
-    var(--divider-color)
-  );
+  background-color: color-mix(in srgb, var(--box-background-color) 92%, var(--divider-color));
 }
 
 .fluenttyper-options .productivity-insights-metric h4 {
@@ -687,11 +667,7 @@ body.fluenttyper-options {
   border: 1px solid var(--divider-color);
   border-radius: 10px;
   padding: 0.6rem 0.65rem;
-  background-color: color-mix(
-    in srgb,
-    var(--box-background-color) 95%,
-    var(--divider-color)
-  );
+  background-color: color-mix(in srgb, var(--box-background-color) 95%, var(--divider-color));
 }
 
 .fluenttyper-options .productivity-insights-section h4 {
@@ -1025,13 +1001,8 @@ body.fluenttyper-options {
   font-size: 0.78rem;
   font-weight: 600;
   color: var(--accent-color);
-  border: 1px solid
-    color-mix(in srgb, var(--accent-color) 25%, var(--divider-color));
-  background: color-mix(
-    in srgb,
-    var(--accent-color) 10%,
-    var(--box-background-color)
-  );
+  border: 1px solid color-mix(in srgb, var(--accent-color) 25%, var(--divider-color));
+  background: color-mix(in srgb, var(--accent-color) 10%, var(--box-background-color));
 }
 
 @media (prefers-color-scheme: dark) {

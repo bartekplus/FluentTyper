@@ -40,9 +40,7 @@ export class PredictorSettingsRepository extends SettingsRepositoryBase {
 
     return {
       aiPredictorEnabled:
-        typeof aiPredictorEnabled === "boolean"
-          ? aiPredictorEnabled
-          : DEFAULT_AI_PREDICTOR_ENABLED,
+        typeof aiPredictorEnabled === "boolean" ? aiPredictorEnabled : DEFAULT_AI_PREDICTOR_ENABLED,
       aiModelId:
         typeof aiModelId === "string" && aiModelId.trim().length > 0
           ? aiModelId

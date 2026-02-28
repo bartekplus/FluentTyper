@@ -18,8 +18,7 @@ export class TemplateExpander {
     const args = str.match(/[^{}]+(?=})/g) || [];
     const parameters = args.map(
       (argument) =>
-        obj[argument] ||
-        (obj[argument] === undefined ? "${" + argument + "}" : obj[argument]),
+        obj[argument] || (obj[argument] === undefined ? `\${${argument}}` : obj[argument]),
     );
     return String.raw({ raw: parts }, ...parameters);
   }
@@ -39,15 +38,11 @@ export class TemplateExpander {
     dateFormat: string,
   ): TemplateVariables {
     const expandedTemplateVariables: TemplateVariables = {};
-    if (!variableExpansion) return expandedTemplateVariables;
-    expandedTemplateVariables["time"] = DATE_TIME_VARIABLES.time(
-      lang,
-      timeFormat,
-    );
-    expandedTemplateVariables["date"] = DATE_TIME_VARIABLES.date(
-      lang,
-      dateFormat,
-    );
+    if (!variableExpansion) {
+      return expandedTemplateVariables;
+    }
+    expandedTemplateVariables["time"] = DATE_TIME_VARIABLES.time(lang, timeFormat);
+    expandedTemplateVariables["date"] = DATE_TIME_VARIABLES.date(lang, dateFormat);
     return expandedTemplateVariables;
   }
 }

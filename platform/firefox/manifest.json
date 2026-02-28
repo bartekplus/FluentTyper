@@ -1,24 +1,14 @@
 {
   "background": {
-    "scripts": [
-      "background.js"
-    ],
+    "scripts": ["background.js"],
     "type": "module"
   },
-  "host_permissions": [
-    "<all_urls>"
-  ],
+  "host_permissions": ["<all_urls>"],
   "content_scripts": [
     {
-      "css": [
-        "third_party/tribute/tribute.css"
-      ],
-      "js": [
-        "content_script.js"
-      ],
-      "matches": [
-        "<all_urls>"
-      ],
+      "css": ["third_party/tribute/tribute.css"],
+      "js": ["content_script.js"],
+      "matches": ["<all_urls>"],
       "run_at": "document_idle",
       "all_frames": true,
       "match_about_blank": true
@@ -37,14 +27,8 @@
   },
   "web_accessible_resources": [
     {
-      "resources": [
-        "icon/icon*",
-        "third_party/*",
-        "css/*"
-      ],
-      "matches": [
-        "<all_urls>"
-      ]
+      "resources": ["icon/icon*", "third_party/*", "css/*"],
+      "matches": ["<all_urls>"]
     }
   ],
   "name": "FluentTyper: Autocomplete and Spell Checker",
@@ -52,10 +36,7 @@
     "page": "options/options.html",
     "open_in_tab": true
   },
-  "permissions": [
-    "storage",
-    "activeTab"
-  ],
+  "permissions": ["storage", "activeTab"],
   "version": "2026.3.0",
   "manifest_version": 3,
   "content_security_policy": {

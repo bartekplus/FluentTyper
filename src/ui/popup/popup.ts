@@ -1,14 +1,10 @@
-import {
-  getDomain,
-  isEnabledForDomain,
-  blockUnBlockDomain,
-} from "@core/application/domain-utils";
+import { getDomain, isEnabledForDomain, blockUnBlockDomain } from "@core/application/domain-utils";
 import { SettingsManager } from "@core/application/settingsManager";
 import { CoreSettingsRepository } from "@core/application/repositories/CoreSettingsRepository";
 import { SiteProfileRepository } from "@core/application/repositories/SiteProfileRepository";
 import { SUPPORTED_LANGUAGES } from "@core/domain/lang";
+import type { SiteProfile } from "@core/domain/siteProfiles";
 import {
-  SiteProfile,
   getSiteProfileForDomain,
   removeSiteProfileForDomain,
   setSiteProfileForDomain,
@@ -51,27 +47,16 @@ const OPTIONS_ANCHOR_ADVANCED = "advanced_tab";
 
 function getSiteProfileElements() {
   return {
-    toggle: document.getElementById(
-      "checkboxSiteProfileInput",
-    ) as HTMLInputElement,
-    language: document.getElementById(
-      "siteLanguageSelect",
-    ) as HTMLSelectElement,
-    suggestions: document.getElementById(
-      "siteNumSuggestionsSelect",
-    ) as HTMLSelectElement,
-    inline: document.getElementById(
-      "siteInlineModeSelect",
-    ) as HTMLSelectElement,
+    toggle: document.getElementById("checkboxSiteProfileInput") as HTMLInputElement,
+    language: document.getElementById("siteLanguageSelect") as HTMLSelectElement,
+    suggestions: document.getElementById("siteNumSuggestionsSelect") as HTMLSelectElement,
+    inline: document.getElementById("siteInlineModeSelect") as HTMLSelectElement,
     section: document.getElementById("siteProfileSection") as HTMLElement,
     status: document.getElementById("siteProfileStatus") as HTMLElement,
   };
 }
 
-function getDefaultSiteProfileLanguage(
-  language: string,
-  enabledLanguages: string[],
-): string {
+function getDefaultSiteProfileLanguage(language: string, enabledLanguages: string[]): string {
   if (enabledLanguages.includes(language)) {
     return language;
   }
@@ -114,11 +99,8 @@ async function notifyConfigChange() {
 }
 
 async function loadSiteProfileEditor() {
-  const { toggle, language, suggestions, inline, section, status } =
-    getSiteProfileElements();
-  const domainSectionWrapper = document.getElementById(
-    "domainSectionWrapper",
-  ) as HTMLElement;
+  const { toggle, language, suggestions, inline, section, status } = getSiteProfileElements();
+  const domainSectionWrapper = document.getElementById("domainSectionWrapper") as HTMLElement;
   if (!currentDomainURL) {
     if (domainSectionWrapper) {
       domainSectionWrapper.classList.add("is-hidden");
@@ -131,12 +113,11 @@ async function loadSiteProfileEditor() {
     domainSectionWrapper.classList.remove("is-hidden");
   }
   section.classList.remove("is-hidden");
-  const [siteProfilesRaw, numSuggestionsRaw, inlineSuggestionRaw] =
-    await Promise.all([
-      siteProfileRepository.getRawSiteProfiles(),
-      coreSettingsRepository.getNumSuggestions(),
-      coreSettingsRepository.getInlineSuggestion(),
-    ]);
+  const [siteProfilesRaw, numSuggestionsRaw, inlineSuggestionRaw] = await Promise.all([
+    siteProfileRepository.getRawSiteProfiles(),
+    coreSettingsRepository.getNumSuggestions(),
+    coreSettingsRepository.getInlineSuggestion(),
+  ]);
   const profile = getSiteProfileForDomain(
     siteProfilesRaw,
     currentDomainURL,
@@ -156,9 +137,7 @@ async function loadSiteProfileEditor() {
   suggestions.innerHTML = "";
   const globalSuggestionOption = document.createElement("option");
   globalSuggestionOption.value = "global";
-  globalSuggestionOption.textContent = getInheritLabel(
-    String(globalNumSuggestions),
-  );
+  globalSuggestionOption.textContent = getInheritLabel(String(globalNumSuggestions));
   suggestions.appendChild(globalSuggestionOption);
   for (let idx = 0; idx <= MAX_NUM_SUGGESTIONS; idx++) {
     const option = document.createElement("option");
@@ -190,9 +169,7 @@ async function loadSiteProfileEditor() {
     toggle.checked = true;
     language.value = profile.language;
     suggestions.value =
-      typeof profile.numSuggestions === "number"
-        ? String(profile.numSuggestions)
-        : "global";
+      typeof profile.numSuggestions === "number" ? String(profile.numSuggestions) : "global";
     inline.value =
       typeof profile.inline_suggestion === "boolean"
         ? profile.inline_suggestion
@@ -242,11 +219,7 @@ async function saveSiteProfileFromEditor() {
         readSiteProfileFromEditor(),
         currentEnabledLanguages,
       )
-    : removeSiteProfileForDomain(
-        siteProfilesRaw,
-        currentDomainURL,
-        currentEnabledLanguages,
-      );
+    : removeSiteProfileForDomain(siteProfilesRaw, currentDomainURL, currentEnabledLanguages);
   await siteProfileRepository.setSiteProfiles(nextProfiles);
   status.textContent = getProfileStatusLabel(toggle.checked);
   await notifyConfigChange();
@@ -334,9 +307,7 @@ function openOptionsPageAtAnchor(anchor: string): void {
   const baseUrl = chrome.runtime.getURL("options/options.html");
   const targetUrl = `${baseUrl}#${anchor}`;
   chrome.tabs.query({ url: `${baseUrl}*` }, (tabs) => {
-    const existingOptionsTab = tabs.find(
-      (tab) => typeof tab.id === "number",
-    );
+    const existingOptionsTab = tabs.find((tab) => typeof tab.id === "number");
     if (existingOptionsTab?.id !== undefined) {
       chrome.tabs.update(existingOptionsTab.id, {
         active: true,
@@ -392,12 +363,8 @@ function formatLanguageSummary(stats: ProductivityDashboardStats): string {
 }
 
 function renderMilestoneProgress(stats: ProductivityDashboardStats): void {
-  const fillNode = document.getElementById(
-    "dashboardProgressFill",
-  ) as HTMLElement | null;
-  const labelNode = document.getElementById(
-    "dashboardProgressLabel",
-  ) as HTMLElement | null;
+  const fillNode = document.getElementById("dashboardProgressFill") as HTMLElement | null;
+  const labelNode = document.getElementById("dashboardProgressLabel") as HTMLElement | null;
   if (!fillNode || !labelNode) {
     return;
   }
@@ -410,30 +377,14 @@ function renderMilestoneProgress(stats: ProductivityDashboardStats): void {
 function renderWeeklyRecapCard(stats: ProductivityDashboardStats): void {
   const cardNode = document.getElementById("weeklyRecapCard") as HTMLElement;
   const titleNode = document.getElementById("weeklyRecapTitle") as HTMLElement;
-  const summaryNode = document.getElementById(
-    "weeklyRecapSummary",
-  ) as HTMLElement;
-  const snippetNode = document.getElementById(
-    "weeklyRecapSnippet",
-  ) as HTMLElement;
-  const milestoneNode = document.getElementById(
-    "weeklyRecapMilestone",
-  ) as HTMLElement;
-  const equivalentNode = document.getElementById(
-    "weeklyRecapEquivalent",
-  ) as HTMLElement;
-  const dismissButton = document.getElementById(
-    "weeklyRecapDismissBtn",
-  ) as HTMLButtonElement;
-  const viewButton = document.getElementById(
-    "weeklyRecapViewBtn",
-  ) as HTMLButtonElement;
-  const shareButton = document.getElementById(
-    "weeklyRecapShareBtn",
-  ) as HTMLButtonElement;
-  const supportLink = document.getElementById(
-    "weeklyRecapSupportLink",
-  ) as HTMLAnchorElement;
+  const summaryNode = document.getElementById("weeklyRecapSummary") as HTMLElement;
+  const snippetNode = document.getElementById("weeklyRecapSnippet") as HTMLElement;
+  const milestoneNode = document.getElementById("weeklyRecapMilestone") as HTMLElement;
+  const equivalentNode = document.getElementById("weeklyRecapEquivalent") as HTMLElement;
+  const dismissButton = document.getElementById("weeklyRecapDismissBtn") as HTMLButtonElement;
+  const viewButton = document.getElementById("weeklyRecapViewBtn") as HTMLButtonElement;
+  const shareButton = document.getElementById("weeklyRecapShareBtn") as HTMLButtonElement;
+  const supportLink = document.getElementById("weeklyRecapSupportLink") as HTMLAnchorElement;
 
   if (!stats.shouldShowWeeklyRecap) {
     cardNode.classList.add("is-hidden");
@@ -475,9 +426,7 @@ function renderWeeklyRecapCard(stats: ProductivityDashboardStats): void {
     "popup_short_accepted",
   )}, ${formatNumber(stats.weeklyRecap.charactersSaved)} ${i18n.get(
     "popup_short_chars",
-  )}, ${formatNumber(stats.weeklyRecap.estimatedMinutesSaved)} ${i18n.get(
-    "popup_short_minutes",
-  )}.`;
+  )}, ${formatNumber(stats.weeklyRecap.estimatedMinutesSaved)} ${i18n.get("popup_short_minutes")}.`;
 
   dismissButton.onclick = () => {
     void acknowledgeWeeklyRecap(stats.weeklyRecap.weekKey);
@@ -500,18 +449,10 @@ function renderWeeklyRecapCard(stats: ProductivityDashboardStats): void {
 }
 
 function renderMilestoneHint(stats: ProductivityDashboardStats): void {
-  const container = document.getElementById(
-    "dashboardMilestoneHint",
-  ) as HTMLElement;
-  const textNode = document.getElementById(
-    "dashboardMilestoneText",
-  ) as HTMLElement;
-  const linkNode = document.getElementById(
-    "dashboardMilestoneLink",
-  ) as HTMLAnchorElement;
-  const laterButton = document.getElementById(
-    "dashboardMilestoneLaterBtn",
-  ) as HTMLButtonElement;
+  const container = document.getElementById("dashboardMilestoneHint") as HTMLElement;
+  const textNode = document.getElementById("dashboardMilestoneText") as HTMLElement;
+  const linkNode = document.getElementById("dashboardMilestoneLink") as HTMLAnchorElement;
+  const laterButton = document.getElementById("dashboardMilestoneLaterBtn") as HTMLButtonElement;
 
   if (!stats.donationPrompt) {
     container.classList.add("is-hidden");
@@ -551,12 +492,15 @@ function renderMilestoneHint(stats: ProductivityDashboardStats): void {
 }
 
 function renderDashboard(stats: ProductivityDashboardStats): void {
-  (document.getElementById("metricAccepted") as HTMLElement).textContent =
-    formatNumber(stats.lifetime.acceptedSuggestions);
-  (document.getElementById("metricCharsSaved") as HTMLElement).textContent =
-    formatNumber(stats.lifetime.charactersSaved);
-  (document.getElementById("metricMinutesSaved") as HTMLElement).textContent =
-    formatNumber(stats.lifetime.estimatedMinutesSaved);
+  (document.getElementById("metricAccepted") as HTMLElement).textContent = formatNumber(
+    stats.lifetime.acceptedSuggestions,
+  );
+  (document.getElementById("metricCharsSaved") as HTMLElement).textContent = formatNumber(
+    stats.lifetime.charactersSaved,
+  );
+  (document.getElementById("metricMinutesSaved") as HTMLElement).textContent = formatNumber(
+    stats.lifetime.estimatedMinutesSaved,
+  );
 
   (document.getElementById("dashboardPeriodSummary") as HTMLElement).textContent =
     `${i18n.get("popup_short_last7")}: ${formatNumber(
@@ -578,9 +522,7 @@ async function loadProductivityDashboard(retryCount = 0): Promise<void> {
     command: CMD_POPUP_GET_PRODUCTIVITY_STATS,
     context: {},
   };
-  const response = await sendRuntimeMessage<
-    ProductivityDashboardStats | { ok: boolean }
-  >(message);
+  const response = await sendRuntimeMessage<ProductivityDashboardStats | { ok: boolean }>(message);
   if (!response || "ok" in response) {
     if (retryCount < PRODUCTIVITY_DASHBOARD_MAX_RETRIES) {
       window.setTimeout(() => {
@@ -594,11 +536,9 @@ async function loadProductivityDashboard(retryCount = 0): Promise<void> {
 
 function init() {
   translateUI();
-  document
-    .getElementById("openStatsOptionsBtn")
-    ?.addEventListener("click", () => {
-      openOptionsPageAtAnchor(OPTIONS_ANCHOR_ADVANCED);
-    });
+  document.getElementById("openStatsOptionsBtn")?.addEventListener("click", () => {
+    openOptionsPageAtAnchor(OPTIONS_ANCHOR_ADVANCED);
+  });
   window.document
     .getElementById("checkboxSiteProfileInput")
     ?.addEventListener("click", async () => {
@@ -618,90 +558,72 @@ function init() {
       });
     });
 
-  chrome.tabs.query(
-    { active: true, currentWindow: true },
-    async function (tabs) {
-      if (tabs.length === 1) {
-        const currentTab = tabs[0];
-        const urlNode = document.getElementById(
-          "checkboxDomainLabel",
-        ) as HTMLElement;
-        const checkboxNode = document.getElementById(
-          "checkboxDomainInput",
-        ) as HTMLInputElement;
-        const checkboxEnableNode = document.getElementById(
-          "checkboxEnableInput",
-        ) as HTMLInputElement;
-        const domainURL = getDomain(currentTab.url || "");
-        currentDomainURL = domainURL;
-        if (domainURL && domainURL !== "null") {
-          const enabled = await isEnabledForDomain(settings, domainURL);
-          checkboxNode.checked = enabled;
-          urlNode.innerHTML = `<span>${i18n.get("popup_enable_autocomplete_on")}</span>`;
-          const labelSpan = urlNode.querySelector("span");
-          if (labelSpan) {
-            labelSpan.appendChild(document.createTextNode(domainURL));
-          }
-          if (typeof currentTab.id === "number") {
-            window.document
-              .getElementById("checkboxDomainInput")
-              ?.addEventListener(
-                "click",
-                addRemoveDomain.bind(null, currentTab.id, domainURL),
-              );
-          }
+  chrome.tabs.query({ active: true, currentWindow: true }, async function (tabs) {
+    if (tabs.length === 1) {
+      const currentTab = tabs[0];
+      const urlNode = document.getElementById("checkboxDomainLabel") as HTMLElement;
+      const checkboxNode = document.getElementById("checkboxDomainInput") as HTMLInputElement;
+      const checkboxEnableNode = document.getElementById("checkboxEnableInput") as HTMLInputElement;
+      const domainURL = getDomain(currentTab.url || "");
+      currentDomainURL = domainURL;
+      if (domainURL && domainURL !== "null") {
+        const enabled = await isEnabledForDomain(settings, domainURL);
+        checkboxNode.checked = enabled;
+        urlNode.innerHTML = `<span>${i18n.get("popup_enable_autocomplete_on")}</span>`;
+        const labelSpan = urlNode.querySelector("span");
+        if (labelSpan) {
+          labelSpan.appendChild(document.createTextNode(domainURL));
         }
-        checkboxEnableNode.checked = await coreSettingsRepository.isEnabled();
+        if (typeof currentTab.id === "number") {
+          window.document
+            .getElementById("checkboxDomainInput")
+            ?.addEventListener("click", addRemoveDomain.bind(null, currentTab.id, domainURL));
+        }
       }
-      let language = await coreSettingsRepository.getLanguage();
-      currentEnabledLanguages = await coreSettingsRepository.getEnabledLanguages();
-      const select = window.document.getElementById(
-        "languageSelect",
-      ) as HTMLSelectElement;
-      const allowAutoDetect = currentEnabledLanguages.length > 1;
-      const isAutoDetect = language === "auto_detect";
-      const isValidLanguage = currentEnabledLanguages.includes(language);
-      const displayLanguage =
-        isAutoDetect && allowAutoDetect
-          ? "auto_detect"
-          : isValidLanguage
-            ? language
-            : currentEnabledLanguages[0];
+      checkboxEnableNode.checked = await coreSettingsRepository.isEnabled();
+    }
+    let language = await coreSettingsRepository.getLanguage();
+    currentEnabledLanguages = await coreSettingsRepository.getEnabledLanguages();
+    const select = window.document.getElementById("languageSelect") as HTMLSelectElement;
+    const allowAutoDetect = currentEnabledLanguages.length > 1;
+    const isAutoDetect = language === "auto_detect";
+    const isValidLanguage = currentEnabledLanguages.includes(language);
+    const displayLanguage =
+      isAutoDetect && allowAutoDetect
+        ? "auto_detect"
+        : isValidLanguage
+          ? language
+          : currentEnabledLanguages[0];
 
-      if (!isValidLanguage && !(isAutoDetect && allowAutoDetect)) {
-        language = displayLanguage;
-        await coreSettingsRepository.setLanguage(language);
-        chrome.runtime.sendMessage({
-          command: CMD_OPTIONS_PAGE_CONFIG_CHANGE,
-          context: {},
-        });
-      }
-      if (allowAutoDetect) {
-        const opt = window.document.createElement("option");
-        opt.value = "auto_detect";
-        opt.textContent = SUPPORTED_LANGUAGES.auto_detect;
-        select.appendChild(opt);
-      }
-      for (const langCode of currentEnabledLanguages) {
-        const opt = window.document.createElement("option");
-        opt.value = langCode;
-        opt.textContent = SUPPORTED_LANGUAGES[langCode];
-        select.appendChild(opt);
-      }
-      select.value = displayLanguage;
-      currentProfileLanguageFallback = getDefaultSiteProfileLanguage(
-        displayLanguage,
-        currentEnabledLanguages,
-      );
-      await loadSiteProfileEditor();
-    },
-  );
-  window.document
-    .getElementById("checkboxEnableInput")
-    ?.addEventListener("click", toggleOnOff);
-  window.document
-    .getElementById("languageSelect")
-    ?.addEventListener("change", languageChangeEvent);
+    if (!isValidLanguage && !(isAutoDetect && allowAutoDetect)) {
+      language = displayLanguage;
+      await coreSettingsRepository.setLanguage(language);
+      chrome.runtime.sendMessage({
+        command: CMD_OPTIONS_PAGE_CONFIG_CHANGE,
+        context: {},
+      });
+    }
+    if (allowAutoDetect) {
+      const opt = window.document.createElement("option");
+      opt.value = "auto_detect";
+      opt.textContent = SUPPORTED_LANGUAGES.auto_detect;
+      select.appendChild(opt);
+    }
+    for (const langCode of currentEnabledLanguages) {
+      const opt = window.document.createElement("option");
+      opt.value = langCode;
+      opt.textContent = SUPPORTED_LANGUAGES[langCode];
+      select.appendChild(opt);
+    }
+    select.value = displayLanguage;
+    currentProfileLanguageFallback = getDefaultSiteProfileLanguage(
+      displayLanguage,
+      currentEnabledLanguages,
+    );
+    await loadSiteProfileEditor();
+  });
+  window.document.getElementById("checkboxEnableInput")?.addEventListener("click", toggleOnOff);
+  window.document.getElementById("languageSelect")?.addEventListener("change", languageChangeEvent);
   document.getElementById("runOptions")?.addEventListener("click", () => {
     chrome.runtime.openOptionsPage();
   });
@@ -710,9 +632,7 @@ function init() {
 
 async function addRemoveDomain(tabId: number, domainURL: string) {
   const urlNode = document.getElementById("checkboxDomainLabel") as HTMLElement;
-  const checkboxNode = document.getElementById(
-    "checkboxDomainInput",
-  ) as HTMLInputElement;
+  const checkboxNode = document.getElementById("checkboxDomainInput") as HTMLInputElement;
   let message: PopupPageEnableMessage | PopupPageDisableMessage;
   if (checkboxNode.checked) {
     message = {
@@ -735,9 +655,7 @@ async function addRemoveDomain(tabId: number, domainURL: string) {
 }
 
 async function languageChangeEvent() {
-  const select = window.document.getElementById(
-    "languageSelect",
-  ) as HTMLSelectElement;
+  const select = window.document.getElementById("languageSelect") as HTMLSelectElement;
 
   await coreSettingsRepository.setLanguage(select.value);
   await notifyConfigChange();

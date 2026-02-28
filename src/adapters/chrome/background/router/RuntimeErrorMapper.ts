@@ -1,8 +1,4 @@
-import {
-  type FluentTyperErrorKind,
-  getErrorMessage,
-  isFluentTyperError,
-} from "@core/domain/error";
+import { type FluentTyperErrorKind, getErrorMessage, isFluentTyperError } from "@core/domain/error";
 
 export interface RuntimeErrorResponse {
   ok: false;

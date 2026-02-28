@@ -128,21 +128,13 @@ describe("site profiles helpers", () => {
         numSuggestions: 3,
       },
     };
-    const profile = getSiteProfileForDomain(
-      profiles,
-      "http://example.com/path",
-      enabledLanguages,
-    );
+    const profile = getSiteProfileForDomain(profiles, "http://example.com/path", enabledLanguages);
     expect(profile).toEqual({
       language: "en_US",
       numSuggestions: 3,
     });
 
-    const removed = removeSiteProfileForDomain(
-      profiles,
-      "https://example.com",
-      enabledLanguages,
-    );
+    const removed = removeSiteProfileForDomain(profiles, "https://example.com", enabledLanguages);
     expect(removed).toEqual({});
   });
 

@@ -1,10 +1,8 @@
 import { jest } from "bun:test";
 import type { PresageModule } from "../src/adapters/chrome/background/PresageTypes";
 import { PresageHandler } from "../src/adapters/chrome/background/PresageHandler";
-import {
-  PredictionConfig,
-  PredictionOrchestrator,
-} from "../src/adapters/chrome/background/PredictionOrchestrator";
+import type { PredictionConfig } from "../src/adapters/chrome/background/PredictionOrchestrator";
+import { PredictionOrchestrator } from "../src/adapters/chrome/background/PredictionOrchestrator";
 import { Capitalization } from "../src/adapters/chrome/background/CapitalizationHelper";
 import type { SecondaryPredictor } from "../src/adapters/chrome/background/PredictionTypes";
 import type { PresagePredictionContext } from "../src/adapters/chrome/background/PresageHandler";
@@ -21,7 +19,11 @@ interface OrchestratorPrivateProbe {
     lang: string,
     predictionInput: string,
     numSuggestions: number,
-  ) => Promise<{ predictions: string[]; durationMs: number; timedOut: boolean }>;
+  ) => Promise<{
+    predictions: string[];
+    durationMs: number;
+    timedOut: boolean;
+  }>;
 }
 
 function createConfig(overrides: Partial<PredictionConfig> = {}): PredictionConfig {
@@ -106,12 +108,8 @@ describe("PredictionOrchestrator coverage", () => {
 
     const debugState = orchestrator.getDebugState().predictorConfig;
     expect(debugState.aiPredictionTimeoutMs).toBe(2000);
-    expect(debugState.debugPresagePredictorEnabled).toBe(
-      DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED,
-    );
-    expect(debugState.debugAIPredictorEnabled).toBe(
-      DEFAULT_DEBUG_AI_PREDICTOR_ENABLED,
-    );
+    expect(debugState.debugPresagePredictorEnabled).toBe(DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED);
+    expect(debugState.debugAIPredictorEnabled).toBe(DEFAULT_DEBUG_AI_PREDICTOR_ENABLED);
   });
 
   test("does not preload when AI is disabled", () => {
@@ -135,9 +133,7 @@ describe("PredictionOrchestrator coverage", () => {
     );
 
     expect(aiPredictor.preload).not.toHaveBeenCalled();
-    expect(orchestrator.getDebugState().predictorConfig.aiPredictionTimeoutMs).toBe(
-      20,
-    );
+    expect(orchestrator.getDebugState().predictorConfig.aiPredictionTimeoutMs).toBe(20);
   });
 
   test("returns predictor_unavailable skip reason when AI is enabled but missing", async () => {
@@ -218,7 +214,9 @@ describe("PredictionOrchestrator coverage", () => {
       }),
     );
 
-    let spacingEvent: { presage?: { skipReason?: string }; webllm?: { skipReason?: string } } | undefined;
+    let spacingEvent:
+      | { presage?: { skipReason?: string }; webllm?: { skipReason?: string } }
+      | undefined;
     await orchestrator.runPrediction("a .", "", "en_US", {
       debugListener: (event) => {
         spacingEvent = event;
@@ -235,7 +233,9 @@ describe("PredictionOrchestrator coverage", () => {
       }),
     );
 
-    let inputEvent: { presage?: { skipReason?: string }; webllm?: { skipReason?: string } } | undefined;
+    let inputEvent:
+      | { presage?: { skipReason?: string }; webllm?: { skipReason?: string } }
+      | undefined;
     await orchestrator.runPrediction("ab", "", "en_US", {
       debugListener: (event) => {
         inputEvent = event;
@@ -390,21 +390,12 @@ describe("PredictionOrchestrator coverage", () => {
       ...context,
       effectiveNumSuggestions: 0,
     };
-    expect(probe.resolvePresageSkipReason(zeroSuggestionContext)).toBe(
-      "num_suggestions_zero",
-    );
-    expect(probe.resolveAISkipReason(zeroSuggestionContext)).toBe(
-      "num_suggestions_zero",
-    );
+    expect(probe.resolvePresageSkipReason(zeroSuggestionContext)).toBe("num_suggestions_zero");
+    expect(probe.resolveAISkipReason(zeroSuggestionContext)).toBe("num_suggestions_zero");
 
     const noPredictorOrchestrator = new PredictionOrchestrator(presageHandler);
-    const noPredictorProbe =
-      noPredictorOrchestrator as unknown as OrchestratorPrivateProbe;
-    const aiResult = await noPredictorProbe.runAIPredictionWithTimeout(
-      "en_US",
-      "a",
-      2,
-    );
+    const noPredictorProbe = noPredictorOrchestrator as unknown as OrchestratorPrivateProbe;
+    const aiResult = await noPredictorProbe.runAIPredictionWithTimeout("en_US", "a", 2);
     expect(aiResult).toEqual({
       predictions: [],
       durationMs: 0,

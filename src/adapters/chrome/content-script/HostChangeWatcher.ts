@@ -106,21 +106,12 @@ export class HostChangeWatcher {
   }
 
   private attachWatchDogEventListeners(): void {
-    window.navigation?.addEventListener(
-      "navigate",
-      this.scheduleWatchDogCheckBound,
-    );
+    window.navigation?.addEventListener("navigate", this.scheduleWatchDogCheckBound);
     window.addEventListener("pageshow", this.scheduleWatchDogCheckBound);
     window.addEventListener("popstate", this.scheduleWatchDogCheckBound);
     window.addEventListener("hashchange", this.scheduleWatchDogCheckBound);
     window.addEventListener("focus", this.scheduleWatchDogCheckBound, true);
-    document.addEventListener(
-      "visibilitychange",
-      this.scheduleWatchDogCheckBound,
-    );
-    document.addEventListener(
-      "readystatechange",
-      this.scheduleWatchDogCheckBound,
-    );
+    document.addEventListener("visibilitychange", this.scheduleWatchDogCheckBound);
+    document.addEventListener("readystatechange", this.scheduleWatchDogCheckBound);
   }
 }

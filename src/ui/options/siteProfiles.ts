@@ -1,9 +1,6 @@
 import { Store } from "@third-party/fancier-settings/lib/store.js";
 import { i18n } from "@third-party/fancier-settings/i18n.js";
-import {
-  SUPPORTED_LANGUAGES,
-  resolveEnabledLanguages,
-} from "@core/domain/lang";
+import { SUPPORTED_LANGUAGES, resolveEnabledLanguages } from "@core/domain/lang";
 import {
   KEY_ENABLED_LANGUAGES,
   KEY_INLINE_SUGGESTION,
@@ -72,10 +69,7 @@ export class SiteProfilesManager {
   private readonly root: HTMLElement;
   private elements!: SiteProfilesElements;
 
-  constructor(
-    settings: FancierSettingsLike,
-    onConfigChange?: () => Promise<void> | void,
-  ) {
+  constructor(settings: FancierSettingsLike, onConfigChange?: () => Promise<void> | void) {
     this.settings = settings;
     this.onConfigChange = onConfigChange;
     this.store = new Store("settings");
@@ -138,7 +132,9 @@ export class SiteProfilesManager {
     this.elements = {
       domainInput: this.root.querySelector("#siteProfileDomainInput") as HTMLInputElement,
       languageSelect: this.root.querySelector("#siteProfileLanguageSelect") as HTMLSelectElement,
-      numSuggestionsSelect: this.root.querySelector("#siteProfileNumSuggestionsSelect") as HTMLSelectElement,
+      numSuggestionsSelect: this.root.querySelector(
+        "#siteProfileNumSuggestionsSelect",
+      ) as HTMLSelectElement,
       inlineSelect: this.root.querySelector("#siteProfileInlineSelect") as HTMLSelectElement,
       saveButton: this.root.querySelector("#siteProfileSaveButton") as HTMLButtonElement,
       cancelButton: this.root.querySelector("#siteProfileCancelButton") as HTMLButtonElement,
@@ -245,7 +241,10 @@ export class SiteProfilesManager {
   private populateInlineOptions(globalInlineSuggestion: boolean): void {
     this.elements.inlineSelect.innerHTML = "";
     [
-      { value: "global", label: getInheritLabel(getOnOffLabel(globalInlineSuggestion)) },
+      {
+        value: "global",
+        label: getInheritLabel(getOnOffLabel(globalInlineSuggestion)),
+      },
       { value: "on", label: getOnOffLabel(true) },
       { value: "off", label: getOnOffLabel(false) },
     ].forEach((entry) => {
@@ -281,9 +280,7 @@ export class SiteProfilesManager {
     globalNumSuggestions: number,
     globalInlineSuggestion: boolean,
   ): void {
-    const profileEntries = Object.entries(siteProfiles).sort(([a], [b]) =>
-      a.localeCompare(b),
-    );
+    const profileEntries = Object.entries(siteProfiles).sort(([a], [b]) => a.localeCompare(b));
 
     this.elements.tableBody.innerHTML = "";
     const hasProfiles = profileEntries.length > 0;
@@ -321,13 +318,12 @@ export class SiteProfilesManager {
   }
 
   async render(): Promise<void> {
-    const [enabledLanguagesRaw, rawProfiles, rawNumSuggestions, rawInline] =
-      await Promise.all([
-        this.store.get(KEY_ENABLED_LANGUAGES),
-        this.store.get(KEY_SITE_PROFILES),
-        this.store.get(KEY_NUM_SUGGESTIONS),
-        this.store.get(KEY_INLINE_SUGGESTION),
-      ]);
+    const [enabledLanguagesRaw, rawProfiles, rawNumSuggestions, rawInline] = await Promise.all([
+      this.store.get(KEY_ENABLED_LANGUAGES),
+      this.store.get(KEY_SITE_PROFILES),
+      this.store.get(KEY_NUM_SUGGESTIONS),
+      this.store.get(KEY_INLINE_SUGGESTION),
+    ]);
 
     const enabledLanguages = resolveEnabledLanguages(enabledLanguagesRaw);
     const siteProfiles = resolveSiteProfiles(rawProfiles, enabledLanguages);
@@ -364,9 +360,7 @@ export class SiteProfilesManager {
       return;
     }
 
-    const enabledLanguages = resolveEnabledLanguages(
-      await this.store.get(KEY_ENABLED_LANGUAGES),
-    );
+    const enabledLanguages = resolveEnabledLanguages(await this.store.get(KEY_ENABLED_LANGUAGES));
     const profile = this.getEditorProfile(enabledLanguages);
     const siteProfilesRaw = await this.store.get(KEY_SITE_PROFILES);
     let updatedProfiles = setSiteProfileForDomain(
@@ -392,15 +386,9 @@ export class SiteProfilesManager {
   }
 
   async removeProfile(domain: string): Promise<void> {
-    const enabledLanguages = resolveEnabledLanguages(
-      await this.store.get(KEY_ENABLED_LANGUAGES),
-    );
+    const enabledLanguages = resolveEnabledLanguages(await this.store.get(KEY_ENABLED_LANGUAGES));
     const currentProfiles = await this.store.get(KEY_SITE_PROFILES);
-    const updatedProfiles = removeSiteProfileForDomain(
-      currentProfiles,
-      domain,
-      enabledLanguages,
-    );
+    const updatedProfiles = removeSiteProfileForDomain(currentProfiles, domain, enabledLanguages);
 
     await this.store.set(KEY_SITE_PROFILES, updatedProfiles);
     if (this.editingDomain === domain) {

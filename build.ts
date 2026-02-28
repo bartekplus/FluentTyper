@@ -39,8 +39,7 @@ interface BuildContext {
 function parseCliOptions(argv: string[]): CliOptions {
   const platformEqualsArg = argv.find((arg) => arg.startsWith("--platform="));
   const platformIndex = argv.indexOf("--platform");
-  const platformValueFromNext =
-    platformIndex >= 0 ? argv[platformIndex + 1] : undefined;
+  const platformValueFromNext = platformIndex >= 0 ? argv[platformIndex + 1] : undefined;
   const platformRaw = platformEqualsArg
     ? platformEqualsArg.slice("--platform=".length)
     : platformValueFromNext;
@@ -48,13 +47,9 @@ function parseCliOptions(argv: string[]): CliOptions {
   const modeEqualsArg = argv.find((arg) => arg.startsWith("--mode="));
   const modeIndex = argv.indexOf("--mode");
   const modeValueFromNext = modeIndex >= 0 ? argv[modeIndex + 1] : undefined;
-  const modeRaw = modeEqualsArg
-    ? modeEqualsArg.slice("--mode=".length)
-    : modeValueFromNext;
+  const modeRaw = modeEqualsArg ? modeEqualsArg.slice("--mode=".length) : modeValueFromNext;
   const mode: BuildMode =
-    modeRaw === "development" || modeRaw === "production"
-      ? modeRaw
-      : "production";
+    modeRaw === "development" || modeRaw === "production" ? modeRaw : "production";
 
   return {
     mode,
@@ -64,29 +59,20 @@ function parseCliOptions(argv: string[]): CliOptions {
 }
 
 function appendConnectSrcDirective(csp: string): string {
-  const sources = [
-    ...WEBLLM_CONNECT_SRC_BASE_SOURCES,
-    ...WEBLLM_CONNECT_SRC_HOSTS,
-  ];
+  const sources = [...WEBLLM_CONNECT_SRC_BASE_SOURCES, ...WEBLLM_CONNECT_SRC_HOSTS];
   const withoutConnectSrc = csp.replace(/\bconnect-src\b[^;]*;?/gi, "").trim();
-  const cspPrefix = withoutConnectSrc.endsWith(";")
-    ? withoutConnectSrc
-    : `${withoutConnectSrc};`;
+  const cspPrefix = withoutConnectSrc.endsWith(";") ? withoutConnectSrc : `${withoutConnectSrc};`;
   return `${cspPrefix} connect-src ${sources.join(" ")};`;
 }
 
-function transformManifestContent(
-  manifestContent: string,
-  includeWebLLMRuntime: boolean,
-): string {
+function transformManifestContent(manifestContent: string, includeWebLLMRuntime: boolean): string {
   if (!includeWebLLMRuntime) {
     return manifestContent;
   }
   const manifest = JSON.parse(manifestContent) as {
     content_security_policy?: { extension_pages?: unknown };
   };
-  const extensionPagesCsp =
-    manifest.content_security_policy?.extension_pages;
+  const extensionPagesCsp = manifest.content_security_policy?.extension_pages;
 
   if (typeof extensionPagesCsp === "string" && extensionPagesCsp.length > 0) {
     manifest.content_security_policy = {
@@ -103,14 +89,12 @@ function createBuildPlugin(context: BuildContext) {
     name: "fluenttyper-build-aliases",
     setup(build: Bun.PluginBuilder) {
       if (!context.includeWebLLMRuntime) {
-        build.onResolve(
-          { filter: /^@mlc-ai\/web-llm$/ },
-          () => ({ path: context.webllmDisabledRuntimePath }),
-        );
+        build.onResolve({ filter: /^@mlc-ai\/web-llm$/ }, () => ({
+          path: context.webllmDisabledRuntimePath,
+        }));
         build.onResolve(
           {
-            filter:
-              /^@adapters\/chrome\/background\/testing\/RuntimeTestHooks$/,
+            filter: /^@adapters\/chrome\/background\/testing\/RuntimeTestHooks$/,
           },
           () => ({ path: context.runtimeHooksNoopPath }),
         );
@@ -129,10 +113,7 @@ function logBuildError(logs: BuildMessage[], label: string): void {
   }
 }
 
-async function writeBuildOutputs(
-  buildResult: BuildOutput,
-  entryOutfile: string,
-): Promise<void> {
+async function writeBuildOutputs(buildResult: BuildOutput, entryOutfile: string): Promise<void> {
   const entryOutputDirectory = path.dirname(entryOutfile);
   for (const output of buildResult.outputs) {
     const outputRelativePath = output.path.replace(/^[./\\]+/, "");
@@ -165,12 +146,7 @@ async function copyStaticAssets(context: BuildContext): Promise<void> {
 
   // libpresage.js loads this wasm by a relative URL at runtime.
   await cp(
-    path.join(
-      context.srcDir,
-      "third_party",
-      "libpresage",
-      "libpresage.wasm",
-    ),
+    path.join(context.srcDir, "third_party", "libpresage", "libpresage.wasm"),
     path.join(context.buildDir, "libpresage.wasm"),
     { force: true },
   );
@@ -204,12 +180,7 @@ async function bundleExtension(context: BuildContext): Promise<void> {
     },
     {
       entrypoint: path.join(context.srcDir, "entries", "settings.ts"),
-      outfile: path.join(
-        context.buildDir,
-        "third_party",
-        "fancier-settings",
-        "settings.js",
-      ),
+      outfile: path.join(context.buildDir, "third_party", "fancier-settings", "settings.js"),
       label: "options/settings",
     },
   ];
@@ -310,9 +281,7 @@ async function waitForAnyFileChange(paths: string[]): Promise<void> {
 }
 
 async function runWatchMode(context: BuildContext): Promise<void> {
-  console.log(
-    `[watch] mode=${context.mode} platform=${context.platform} waiting for changes...`,
-  );
+  console.log(`[watch] mode=${context.mode} platform=${context.platform} waiting for changes...`);
   const watchRoots = [context.srcDir, context.publicDir, context.platformDir];
   while (true) {
     await waitForAnyFileChange(watchRoots);

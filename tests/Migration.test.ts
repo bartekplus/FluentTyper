@@ -2,8 +2,7 @@ import { jest, mock } from "bun:test";
 import { KEY_SITE_PROFILES } from "../src/core/domain/constants";
 
 const settingsGet = jest.fn<(key: string) => Promise<unknown>>();
-const settingsSet =
-  jest.fn<(key: string, value: unknown) => Promise<unknown>>();
+const settingsSet = jest.fn<(key: string, value: unknown) => Promise<unknown>>();
 const settingsManagerCtor = jest.fn().mockImplementation(() => ({
   get: settingsGet,
   set: settingsSet,
@@ -59,10 +58,7 @@ describe("migrateToLocalStore", () => {
 
     await migrateToLocalStore("2023.01.01");
 
-    expect(global.chrome.storage.sync.get).toHaveBeenCalledWith(
-      null,
-      expect.any(Function),
-    );
+    expect(global.chrome.storage.sync.get).toHaveBeenCalledWith(null, expect.any(Function));
     expect(global.chrome.storage.local.set).toHaveBeenCalledWith({
       key: "value",
     });
@@ -97,14 +93,12 @@ describe("migrateToLocalStore", () => {
   });
 
   test("skips sync migration for new versions and still normalizes site profiles", async () => {
-    settingsGet
-      .mockResolvedValueOnce(["en_US", "de_DE"])
-      .mockResolvedValueOnce({
-        "example.com": {
-          language: "fr_FR",
-          numSuggestions: 8,
-        },
-      });
+    settingsGet.mockResolvedValueOnce(["en_US", "de_DE"]).mockResolvedValueOnce({
+      "example.com": {
+        language: "fr_FR",
+        numSuggestions: 8,
+      },
+    });
 
     await migrateToLocalStore("2026.03.01");
 

@@ -1,9 +1,5 @@
 import { DEFAULT_NUM_SUGGESTIONS } from "@core/domain/constants";
-import type {
-  DomainListMode,
-  SettingField,
-  SettingsSchema,
-} from "@core/domain/contracts/settings";
+import type { DomainListMode, SettingField, SettingsSchema } from "@core/domain/contracts/settings";
 import { resolveEnabledLanguages } from "@core/domain/lang";
 import { SettingsRepositoryBase } from "./SettingsRepositoryBase";
 
@@ -37,17 +33,11 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
     return typeof value === "string" ? value : fallback;
   }
 
-  private async getBooleanField(
-    field: SettingField,
-    fallback = false,
-  ): Promise<boolean> {
+  private async getBooleanField(field: SettingField, fallback = false): Promise<boolean> {
     return CoreSettingsRepository.toBoolean(await this.getField(field), fallback);
   }
 
-  private async getStringField(
-    field: SettingField,
-    fallback = "",
-  ): Promise<string> {
+  private async getStringField(field: SettingField, fallback = ""): Promise<string> {
     return CoreSettingsRepository.toString(await this.getField(field), fallback);
   }
 
@@ -229,29 +219,17 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
     return {
       tributeBgLight: CoreSettingsRepository.toString(tributeBgLight),
       tributeTextLight: CoreSettingsRepository.toString(tributeTextLight),
-      tributeHighlightBgLight: CoreSettingsRepository.toString(
-        tributeHighlightBgLight,
-      ),
-      tributeHighlightTextLight: CoreSettingsRepository.toString(
-        tributeHighlightTextLight,
-      ),
+      tributeHighlightBgLight: CoreSettingsRepository.toString(tributeHighlightBgLight),
+      tributeHighlightTextLight: CoreSettingsRepository.toString(tributeHighlightTextLight),
       tributeBorderLight: CoreSettingsRepository.toString(tributeBorderLight),
       tributeBgDark: CoreSettingsRepository.toString(tributeBgDark),
       tributeTextDark: CoreSettingsRepository.toString(tributeTextDark),
-      tributeHighlightBgDark: CoreSettingsRepository.toString(
-        tributeHighlightBgDark,
-      ),
-      tributeHighlightTextDark: CoreSettingsRepository.toString(
-        tributeHighlightTextDark,
-      ),
+      tributeHighlightBgDark: CoreSettingsRepository.toString(tributeHighlightBgDark),
+      tributeHighlightTextDark: CoreSettingsRepository.toString(tributeHighlightTextDark),
       tributeBorderDark: CoreSettingsRepository.toString(tributeBorderDark),
       tributeFontSize: CoreSettingsRepository.toString(tributeFontSize),
-      tributePaddingVertical: CoreSettingsRepository.toString(
-        tributePaddingVertical,
-      ),
-      tributePaddingHorizontal: CoreSettingsRepository.toString(
-        tributePaddingHorizontal,
-      ),
+      tributePaddingVertical: CoreSettingsRepository.toString(tributePaddingVertical),
+      tributePaddingHorizontal: CoreSettingsRepository.toString(tributePaddingHorizontal),
     };
   }
 }

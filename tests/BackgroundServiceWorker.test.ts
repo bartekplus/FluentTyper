@@ -82,9 +82,7 @@ describe("BackgroundServiceWorker", () => {
   beforeEach(() => {
     // Clear instance
     if (BackgroundServiceWorkerClass) {
-      (
-        BackgroundServiceWorkerClass as unknown as { instance: unknown }
-      ).instance = undefined;
+      (BackgroundServiceWorkerClass as unknown as { instance: unknown }).instance = undefined;
       worker = new BackgroundServiceWorkerClass();
     }
   });
@@ -104,9 +102,7 @@ describe("BackgroundServiceWorker", () => {
     it("should not send message if no predictions and no forceReplace", async () => {
       // Setup mock return
       (
-        worker.predictionManager.runPrediction as jest.Mock<
-          () => Promise<unknown>
-        >
+        worker.predictionManager.runPrediction as jest.Mock<() => Promise<unknown>>
       ).mockResolvedValue({
         predictions: [],
         forceReplace: null,
@@ -130,21 +126,17 @@ describe("BackgroundServiceWorker", () => {
 
     it("should send message if predictions exist", async () => {
       (
-        worker.predictionManager.runPrediction as jest.Mock<
-          () => Promise<unknown>
-        >
+        worker.predictionManager.runPrediction as jest.Mock<() => Promise<unknown>>
       ).mockResolvedValue({
         predictions: ["tested"],
         forceReplace: null,
       });
       const tabId = 123;
       // Mock chrome.tabs.get callback
-      (global.chrome.tabs.get as jest.Mock).mockImplementation(
-        (id: unknown, cb: unknown) => {
-          const callback = cb as (tab: chrome.tabs.Tab) => void;
-          callback({ id: id as number } as chrome.tabs.Tab);
-        },
-      );
+      (global.chrome.tabs.get as jest.Mock).mockImplementation((id: unknown, cb: unknown) => {
+        const callback = cb as (tab: chrome.tabs.Tab) => void;
+        callback({ id: id as number } as chrome.tabs.Tab);
+      });
 
       await worker.runPrediction({
         command: "CMD_BACKGROUND_PAGE_PREDICT_REQ",
@@ -152,7 +144,7 @@ describe("BackgroundServiceWorker", () => {
           text: "test",
           nextChar: "",
           lang: "en_US",
-          tabId: tabId,
+          tabId,
           frameId: 0,
           tributeId: 1,
           requestId: 1,

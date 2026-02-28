@@ -46,8 +46,7 @@ class FluentTyper {
       setConfig: (config) => this.setConfig(config),
       updateLanguage: (lang) => this.runtimeController.updateLanguage(lang),
       triggerActiveTribute: () => this.runtimeController.triggerActiveTribute(),
-      fulfillPrediction: (context) =>
-        this.runtimeController.fulfillPrediction(context),
+      fulfillPrediction: (context) => this.runtimeController.fulfillPrediction(context),
       getLanguage: () => this.config.lang,
     });
 

@@ -3,7 +3,7 @@ import {
   CMD_TOGGLE_FT_ACTIVE_TAB,
   CMD_TRIGGER_FT_ACTIVE_TAB,
 } from "@core/domain/constants";
-import { CommandRouter } from "../router/CommandRouter";
+import type { CommandRouter } from "../router/CommandRouter";
 
 declare const __FT_DEV_BUILD__: boolean | undefined;
 
@@ -115,13 +115,8 @@ export function registerRuntimeTestHooks(commandRouter: CommandRouter): void {
     CMD_TOGGLE_FT_ACTIVE_LANG,
   ]);
 
-  const isTrustedInternalSender = (
-    sender: chrome.runtime.MessageSender,
-  ): boolean => {
-    if (
-      typeof sender.url === "string" &&
-      sender.url.startsWith(chrome.runtime.getURL(""))
-    ) {
+  const isTrustedInternalSender = (sender: chrome.runtime.MessageSender): boolean => {
+    if (typeof sender.url === "string" && sender.url.startsWith(chrome.runtime.getURL(""))) {
       return true;
     }
     return sender.id === chrome.runtime.id && typeof sender.tab === "undefined";
@@ -148,10 +143,7 @@ export function registerRuntimeTestHooks(commandRouter: CommandRouter): void {
     switch (type) {
       case TEST_MSG_TRIGGER_COMMAND: {
         const command = (message as { command?: unknown }).command;
-        if (
-          typeof command !== "string" ||
-          !testTriggerCommandAllowList.has(command)
-        ) {
+        if (typeof command !== "string" || !testTriggerCommandAllowList.has(command)) {
           sendResponse({ ok: false });
           return true;
         }
