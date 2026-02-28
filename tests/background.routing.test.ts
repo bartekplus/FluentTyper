@@ -68,9 +68,7 @@ const backgroundHarnessMocks = {
   predictionRun: jest.fn(async () => ({ predictions: [], forceReplace: null })),
   predictionInitialize: jest.fn(async () => undefined),
   predictionSetConfig: jest.fn(),
-  predictionEnsureTraceId: jest.fn(
-    (traceId?: string) => traceId || "generated-trace-id",
-  ),
+  predictionEnsureTraceId: jest.fn((traceId?: string) => traceId || "generated-trace-id"),
   predictionRecordTraceTimelineEvent: jest.fn(
     (meta?: { traceId?: string }) => meta?.traceId || "generated-trace-id",
   ),
@@ -107,8 +105,7 @@ jest.unstable_mockModule("../src/adapters/chrome/background/PredictionManager", 
       backgroundHarnessMocks.predictionRun(...args),
     initialize: () => backgroundHarnessMocks.predictionInitialize(),
     setConfig: (...args: [unknown]) => backgroundHarnessMocks.predictionSetConfig(...args),
-    ensureTraceId: (...args: [string?]) =>
-      backgroundHarnessMocks.predictionEnsureTraceId(...args),
+    ensureTraceId: (...args: [string?]) => backgroundHarnessMocks.predictionEnsureTraceId(...args),
     recordTraceTimelineEvent: (...args: [unknown?]) =>
       backgroundHarnessMocks.predictionRecordTraceTimelineEvent(...args),
   })),
@@ -118,10 +115,8 @@ jest.unstable_mockModule("../src/adapters/chrome/background/TabMessenger", () =>
   TabMessenger: jest.fn().mockImplementation(() => ({
     sendToAllTabs: (...args: [unknown, unknown?, unknown?]) =>
       backgroundHarnessMocks.tabSendToAll(...args),
-    sendToActiveTab: (...args: [unknown]) =>
-      backgroundHarnessMocks.tabSendToActive(...args),
-    getActiveTabHostname: (...args: []) =>
-      backgroundHarnessMocks.getActiveTabHostname(...args),
+    sendToActiveTab: (...args: [unknown]) => backgroundHarnessMocks.tabSendToActive(...args),
+    getActiveTabHostname: (...args: []) => backgroundHarnessMocks.getActiveTabHostname(...args),
   })),
 }));
 
@@ -137,8 +132,7 @@ jest.unstable_mockModule("../src/core/application/domain-utils", () => ({
 
 jest.unstable_mockModule("../src/core/domain/error", () => ({
   logError: (...args: [string, unknown]) => backgroundHarnessMocks.logError(...args),
-  getErrorMessage: (error: unknown) =>
-    error instanceof Error ? error.message : String(error),
+  getErrorMessage: (error: unknown) => (error instanceof Error ? error.message : String(error)),
   ConfigError: MockConfigError,
   TransportError: MockTransportError,
   PredictorError: MockPredictorError,
@@ -172,9 +166,7 @@ function freshModulePath(path: string): string {
   return `${path}?bun_test_nonce_background_routing=${importNonce}`;
 }
 
-async function loadBackgroundHarness(
-  stateOverrides: Record<string, unknown> = {},
-) {
+async function loadBackgroundHarness(stateOverrides: Record<string, unknown> = {}) {
   jest.clearAllMocks();
 
   const state: Record<string, unknown> = {
@@ -225,9 +217,7 @@ async function loadBackgroundHarness(
   }));
   const predictionInitialize = jest.fn(async () => undefined);
   const predictionSetConfig = jest.fn();
-  const predictionEnsureTraceId = jest.fn(
-    (traceId?: string) => traceId || "generated-trace-id",
-  );
+  const predictionEnsureTraceId = jest.fn((traceId?: string) => traceId || "generated-trace-id");
   const predictionRecordTraceTimelineEvent = jest.fn(
     (meta?: { traceId?: string }) => meta?.traceId || "generated-trace-id",
   );
@@ -263,17 +253,13 @@ async function loadBackgroundHarness(
         callback({ id: tabId } as chrome.tabs.Tab),
       ),
       sendMessage: jest.fn(),
-      query: jest.fn(
-        (_queryInfo: unknown, callback?: (tabs: chrome.tabs.Tab[]) => void) => {
-          const tabs = [
-            { id: 1, url: "https://example.com/path" } as chrome.tabs.Tab,
-          ];
-          if (callback) {
-            callback(tabs);
-          }
-          return Promise.resolve(tabs);
-        },
-      ),
+      query: jest.fn((_queryInfo: unknown, callback?: (tabs: chrome.tabs.Tab[]) => void) => {
+        const tabs = [{ id: 1, url: "https://example.com/path" } as chrome.tabs.Tab];
+        if (callback) {
+          callback(tabs);
+        }
+        return Promise.resolve(tabs);
+      }),
     },
     storage: {
       local: {
@@ -295,8 +281,7 @@ async function loadBackgroundHarness(
   backgroundHarnessMocks.predictionInitialize = predictionInitialize;
   backgroundHarnessMocks.predictionSetConfig = predictionSetConfig;
   backgroundHarnessMocks.predictionEnsureTraceId = predictionEnsureTraceId;
-  backgroundHarnessMocks.predictionRecordTraceTimelineEvent =
-    predictionRecordTraceTimelineEvent;
+  backgroundHarnessMocks.predictionRecordTraceTimelineEvent = predictionRecordTraceTimelineEvent;
   backgroundHarnessMocks.tabSendToAll = tabSendToAll;
   backgroundHarnessMocks.tabSendToActive = tabSendToActive;
   backgroundHarnessMocks.getActiveTabHostname = getActiveTabHostname;
@@ -306,23 +291,16 @@ async function loadBackgroundHarness(
   backgroundHarnessMocks.logError = logError;
   backgroundHarnessMocks.migrateToLocalStore = migrateToLocalStore;
 
-  const { BackgroundServiceWorker } = await import(
-    "../src/adapters/chrome/background/BackgroundServiceWorker"
-  );
-  (
-    BackgroundServiceWorker as unknown as { instance?: unknown }
-  ).instance = undefined;
+  const { BackgroundServiceWorker } =
+    await import("../src/adapters/chrome/background/BackgroundServiceWorker");
+  (BackgroundServiceWorker as unknown as { instance?: unknown }).instance = undefined;
 
-  const module = await import(
-    freshModulePath("../src/adapters/chrome/background/background")
-  );
+  const module = await import(freshModulePath("../src/adapters/chrome/background/background"));
 
   const onInstalled = onInstalledAddListener.mock.calls[0][0] as (
     details: chrome.runtime.InstalledDetails,
   ) => void;
-  const onCommand = onCommandAddListener.mock.calls[0][0] as (
-    command: string,
-  ) => void;
+  const onCommand = onCommandAddListener.mock.calls[0][0] as (command: string) => void;
   const onMessage = onMessageAddListener.mock.calls[0][0] as (
     request: { command: string; context?: Record<string, unknown> },
     sender: chrome.runtime.MessageSender,
@@ -383,10 +361,7 @@ describe("background routing and lifecycle", () => {
 
     await harness.startupHandler({ lastVersion: "2025.12.0" });
 
-    expect(harness.logError).toHaveBeenCalledWith(
-      "lastVersion handler",
-      expect.any(Error),
-    );
+    expect(harness.logError).toHaveBeenCalledWith("lastVersion handler", expect.any(Error));
   });
 
   test("registers no test-only runtime message hook in non-dev builds", async () => {
@@ -435,10 +410,7 @@ describe("background routing and lifecycle", () => {
       previousVersion: "2025.1.1",
     } as chrome.runtime.InstalledDetails);
     await flushPromises();
-    expect(harness.logError).toHaveBeenCalledWith(
-      "migrateToLocalStore",
-      expect.any(Error),
-    );
+    expect(harness.logError).toHaveBeenCalledWith("migrateToLocalStore", expect.any(Error));
   });
 
   test("onCommand toggles active tab, triggers active tab and rotates language", async () => {
@@ -513,10 +485,7 @@ describe("background routing and lifecycle", () => {
 
     harness.onCommand("CMD_UNKNOWN");
 
-    expect(harness.logError).toHaveBeenCalledWith(
-      "onCommand",
-      "Unknown command: CMD_UNKNOWN",
-    );
+    expect(harness.logError).toHaveBeenCalledWith("onCommand", "Unknown command: CMD_UNKNOWN");
   });
 
   test("onMessage handles content-script predict request with same language", async () => {
@@ -763,10 +732,7 @@ describe("background routing and lifecycle", () => {
     );
     await flushPromises();
 
-    expect(harness.languageDetect).toHaveBeenCalledWith("bonjour", 111, [
-      "en_US",
-      "fr_FR",
-    ]);
+    expect(harness.languageDetect).toHaveBeenCalledWith("bonjour", 111, ["en_US", "fr_FR"]);
     expect(sendToActiveSpy).toHaveBeenCalledWith({
       command: CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
       context: { lang: "fr_FR" },
@@ -802,10 +768,7 @@ describe("background routing and lifecycle", () => {
     expect(sendResponse).toHaveBeenCalledWith({ ok: true });
 
     const updateSpy = jest
-      .spyOn(
-        harness.module.BackgroundServiceWorker.prototype,
-        "updatePresageConfig",
-      )
+      .spyOn(harness.module.BackgroundServiceWorker.prototype, "updatePresageConfig")
       .mockRejectedValueOnce(new Error("failed update"));
     sendResponse.mockClear();
 
@@ -920,10 +883,7 @@ describe("background routing and lifecycle", () => {
     const harness = await loadBackgroundHarness();
     const sendResponse = jest.fn();
     const getConfigSpy = jest
-      .spyOn(
-        harness.module.BackgroundServiceWorker.prototype,
-        "getBackgroundPageSetConfigMsg",
-      )
+      .spyOn(harness.module.BackgroundServiceWorker.prototype, "getBackgroundPageSetConfigMsg")
       .mockResolvedValue({
         command: CMD_BACKGROUND_PAGE_SET_CONFIG,
         context: { enabled: true, lang: "en_US" },
@@ -952,10 +912,7 @@ describe("background routing and lifecycle", () => {
       jest.fn(),
     );
     expect(unknown).toBe(false);
-    expect(harness.logError).toHaveBeenCalledWith(
-      "onMessage",
-      "Unknown command: UNKNOWN",
-    );
+    expect(harness.logError).toHaveBeenCalledWith("onMessage", "Unknown command: UNKNOWN");
     expect(harness.checkLastError).toHaveBeenCalled();
   });
 
@@ -968,7 +925,11 @@ describe("background routing and lifecycle", () => {
     const getSpy = jest
       .spyOn(statsModule.ProductivityStatsManager.prototype, "getDashboardStats")
       .mockResolvedValue({
-        today: { acceptedSuggestions: 1, charactersSaved: 4, estimatedMinutesSaved: 0.1 },
+        today: {
+          acceptedSuggestions: 1,
+          charactersSaved: 4,
+          estimatedMinutesSaved: 0.1,
+        },
         last7Days: {
           acceptedSuggestions: 1,
           charactersSaved: 4,
@@ -1031,10 +992,7 @@ describe("background routing and lifecycle", () => {
       .spyOn(statsModule.ProductivityStatsManager.prototype, "acknowledgeWeeklyRecap")
       .mockResolvedValue(undefined);
     const ackMilestoneSpy = jest
-      .spyOn(
-        statsModule.ProductivityStatsManager.prototype,
-        "handleDonationPromptAction",
-      )
+      .spyOn(statsModule.ProductivityStatsManager.prototype, "handleDonationPromptAction")
       .mockResolvedValue(undefined);
     const resetSpy = jest
       .spyOn(statsModule.ProductivityStatsManager.prototype, "resetStats")
@@ -1097,7 +1055,11 @@ describe("background routing and lifecycle", () => {
     harness.onMessage(
       {
         command: CMD_POPUP_ACK_DONATION_MILESTONE,
-        context: { promptId: "milestone_1", action: "supported", milestoneHours: 1 },
+        context: {
+          promptId: "milestone_1",
+          action: "supported",
+          milestoneHours: 1,
+        },
       },
       {} as chrome.runtime.MessageSender,
       ackMilestoneResponse,

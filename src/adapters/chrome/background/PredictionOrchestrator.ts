@@ -14,9 +14,7 @@ import type {
   PredictorStageDebugInfo,
   SecondaryPredictor,
 } from "./PredictionTypes";
-import {
-  PresageHandler,
-} from "./PresageHandler";
+import type { PresageHandler } from "./PresageHandler";
 import type { PresageConfig, PresagePredictionContext } from "./PresageHandler";
 import { mergePredictions } from "./PredictionMerger";
 
@@ -59,14 +57,10 @@ export class PredictionOrchestrator {
   private aiPredictorEnabled = false;
   private aiModelId = DEFAULT_AI_MODEL_ID;
   private aiPredictionTimeoutMs = DEFAULT_AI_PREDICTION_TIMEOUT_MS;
-  private debugPresagePredictorEnabled =
-    DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED;
+  private debugPresagePredictorEnabled = DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED;
   private debugAIPredictorEnabled = DEFAULT_DEBUG_AI_PREDICTOR_ENABLED;
 
-  constructor(
-    presageHandler: PresageHandler,
-    aiPredictor?: SecondaryPredictor,
-  ) {
+  constructor(presageHandler: PresageHandler, aiPredictor?: SecondaryPredictor) {
     this.presageHandler = presageHandler;
     this.aiPredictor = aiPredictor || null;
   }
@@ -87,9 +81,7 @@ export class PredictionOrchestrator {
       typeof aiModelId === "string" && aiModelId.trim().length > 0
         ? aiModelId
         : DEFAULT_AI_MODEL_ID;
-    this.aiPredictionTimeoutMs = clampAIPredictionTimeoutMs(
-      aiPredictionTimeoutMs,
-    );
+    this.aiPredictionTimeoutMs = clampAIPredictionTimeoutMs(aiPredictionTimeoutMs);
     this.debugPresagePredictorEnabled =
       typeof debugPresagePredictorEnabled === "boolean"
         ? debugPresagePredictorEnabled
@@ -153,9 +145,7 @@ export class PredictionOrchestrator {
     };
 
     const canRunPredictionBase =
-      !context.forceReplace &&
-      context.doPrediction &&
-      context.effectiveNumSuggestions > 0;
+      !context.forceReplace && context.doPrediction && context.effectiveNumSuggestions > 0;
 
     const canRunPresage =
       canRunPredictionBase &&
@@ -192,10 +182,7 @@ export class PredictionOrchestrator {
     }
 
     if (!aiPromise) {
-      const result = this.presageHandler.finalizePrediction(
-        presagePredictions,
-        context,
-      );
+      const result = this.presageHandler.finalizePrediction(presagePredictions, context);
       this.emitDebugEvent(configOverride?.debugListener, {
         timestampMs: Date.now(),
         text,
@@ -235,10 +222,7 @@ export class PredictionOrchestrator {
       context.effectiveNumSuggestions,
     );
 
-    const result = this.presageHandler.finalizePrediction(
-      mergedPredictions,
-      context,
-    );
+    const result = this.presageHandler.finalizePrediction(mergedPredictions, context);
 
     this.emitDebugEvent(configOverride?.debugListener, {
       timestampMs: Date.now(),

@@ -14,16 +14,8 @@
     />
 
     <!-- Core Stylesheets -->
-    <link
-      rel="stylesheet"
-      type="text/css"
-      href="/third_party/bulma/bulma.min.css"
-    />
-    <link
-      rel="stylesheet"
-      type="text/css"
-      href="/third_party/bulma/bulma-switch.min.css"
-    />
+    <link rel="stylesheet" type="text/css" href="/third_party/bulma/bulma.min.css" />
+    <link rel="stylesheet" type="text/css" href="/third_party/bulma/bulma-switch.min.css" />
 
     <!-- CUSTOM THEME - Must be placed AFTER Bulma to override styles -->
     <link rel="stylesheet" type="text/css" href="/css/fluenttyper-theme.css" />
@@ -50,9 +42,7 @@
               <span class="row-label" data-i18n="popup_global_enable_label"
                 >Enable FluentTyper</span
               >
-              <span
-                class="global-enable-hint"
-                data-i18n="popup_global_enable_hint"
+              <span class="global-enable-hint" data-i18n="popup_global_enable_hint"
                 >Global autocomplete toggle</span
               >
             </div>
@@ -78,14 +68,9 @@
         </div>
 
         <!-- Productivity Dashboard -->
-        <section
-          id="productivityDashboard"
-          class="control-card mt-2 dashboard-card"
-        >
+        <section id="productivityDashboard" class="control-card mt-2 dashboard-card">
           <div class="card-row border-bottom dashboard-header-row">
-            <span class="row-label" data-i18n="popup_dashboard_title"
-              >Productivity Dashboard</span
-            >
+            <span class="row-label" data-i18n="popup_dashboard_title">Productivity Dashboard</span>
             <button
               id="openStatsOptionsBtn"
               class="mini-btn"
@@ -99,25 +84,17 @@
           <div class="dashboard-metrics">
             <div class="metric-box">
               <span id="metricAccepted" class="metric-value">0</span>
-              <span
-                class="metric-label"
-                data-i18n="popup_dashboard_metric_accepted"
-                >Accepted</span
-              >
+              <span class="metric-label" data-i18n="popup_dashboard_metric_accepted">Accepted</span>
             </div>
             <div class="metric-box">
               <span id="metricCharsSaved" class="metric-value">0</span>
-              <span
-                class="metric-label"
-                data-i18n="popup_dashboard_metric_chars_saved"
+              <span class="metric-label" data-i18n="popup_dashboard_metric_chars_saved"
                 >Chars Saved</span
               >
             </div>
             <div class="metric-box">
               <span id="metricMinutesSaved" class="metric-value">0</span>
-              <span
-                class="metric-label"
-                data-i18n="popup_dashboard_metric_minutes_saved"
+              <span class="metric-label" data-i18n="popup_dashboard_metric_minutes_saved"
                 >Minutes Saved</span
               >
             </div>
@@ -125,16 +102,11 @@
 
           <div class="dashboard-progress">
             <div class="dashboard-progress-header">
-              <span data-i18n="popup_dashboard_progress_title"
-                >Milestone progress</span
-              >
+              <span data-i18n="popup_dashboard_progress_title">Milestone progress</span>
               <span id="dashboardProgressLabel">0h / 1h</span>
             </div>
             <div class="dashboard-progress-track">
-              <div
-                id="dashboardProgressFill"
-                class="dashboard-progress-fill"
-              ></div>
+              <div id="dashboardProgressFill" class="dashboard-progress-fill"></div>
             </div>
           </div>
 
@@ -185,10 +157,7 @@
               </button>
             </div>
           </div>
-          <div
-            id="dashboardMilestoneHint"
-            class="dashboard-milestone is-hidden"
-          >
+          <div id="dashboardMilestoneHint" class="dashboard-milestone is-hidden">
             <span id="dashboardMilestoneText"></span>
             <div class="dashboard-milestone-actions">
               <button
@@ -216,10 +185,7 @@
           <div class="control-card">
             <!-- Domain Enable -->
             <div class="card-row border-bottom">
-              <span
-                id="checkboxDomainLabel"
-                class="row-label"
-                data-i18n="popup_enable_on_site"
+              <span id="checkboxDomainLabel" class="row-label" data-i18n="popup_enable_on_site"
                 >Enable on this site</span
               >
               <div class="field mb-0">
@@ -238,26 +204,16 @@
             <section id="siteProfileSection">
               <div
                 class="card-row"
-                style="
-                  align-items: flex-start;
-                  padding-top: 0.75rem;
-                  padding-bottom: 0.75rem;
-                "
+                style="align-items: flex-start; padding-top: 0.75rem; padding-bottom: 0.75rem"
               >
-                <div
-                  style="display: flex; flex-direction: column; gap: 0.25rem"
-                >
+                <div style="display: flex; flex-direction: column; gap: 0.25rem">
                   <span class="row-label" data-i18n="popup_site_profile_toggle"
                     >Use site profile</span
                   >
                   <small
                     id="siteProfileStatus"
                     data-i18n="popup_site_profile_status_global"
-                    style="
-                      font-size: 0.75rem;
-                      color: var(--text-color-light);
-                      line-height: 1.2;
-                    "
+                    style="font-size: 0.75rem; color: var(--text-color-light); line-height: 1.2"
                     >Using global settings</small
                   >
                 </div>
@@ -275,9 +231,7 @@
               <!-- Site Profile Details (List Layout) -->
               <div id="siteProfileDetails" class="profile-details is-hidden">
                 <div class="profile-row">
-                  <span
-                    class="profile-label"
-                    data-i18n="popup_site_profile_language"
+                  <span class="profile-label" data-i18n="popup_site_profile_language"
                     >Language</span
                   >
                   <div class="select is-small is-rounded is-borderless">
@@ -285,9 +239,7 @@
                   </div>
                 </div>
                 <div class="profile-row">
-                  <span
-                    class="profile-label"
-                    data-i18n="popup_site_profile_num_suggestions"
+                  <span class="profile-label" data-i18n="popup_site_profile_num_suggestions"
                     >Suggestions Count</span
                   >
                   <div class="select is-small is-rounded is-borderless">
@@ -295,9 +247,7 @@
                   </div>
                 </div>
                 <div class="profile-row">
-                  <span
-                    class="profile-label"
-                    data-i18n="popup_site_profile_inline"
+                  <span class="profile-label" data-i18n="popup_site_profile_inline"
                     >Inline Mode</span
                   >
                   <div class="select is-small is-rounded is-borderless">

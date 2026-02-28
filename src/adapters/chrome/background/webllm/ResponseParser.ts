@@ -92,9 +92,7 @@ export class ResponseParser {
       if (result.length >= limit) {
         break;
       }
-      const cleaned = rawLine
-        .replace(/^\s*[-*•]?\s*\d*[).:-]?\s*/u, "")
-        .trim();
+      const cleaned = rawLine.replace(/^\s*[-*•]?\s*\d*[).:-]?\s*/u, "").trim();
       if (!cleaned) {
         continue;
       }
@@ -130,9 +128,7 @@ export class ResponseParser {
     completion: CompletionResponse,
     limit: number,
   ): PredictionResponsePayload {
-    const rawOutput = (completion.choices ?? [])
-      .map((choice) => choice.text ?? "")
-      .join("\n");
+    const rawOutput = (completion.choices ?? []).map((choice) => choice.text ?? "").join("\n");
     return {
       predictions: this.parsePredictionLines(rawOutput, limit),
       rawOutput,
@@ -146,9 +142,7 @@ export class ResponseParser {
     if (!Array.isArray(content)) {
       return "";
     }
-    return content
-      .map((part) => (typeof part?.text === "string" ? part.text : ""))
-      .join("\n");
+    return content.map((part) => (typeof part?.text === "string" ? part.text : "")).join("\n");
   }
 
   private isAsyncIterable<T>(value: unknown): value is AsyncIterable<T> {

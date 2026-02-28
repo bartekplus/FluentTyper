@@ -13,15 +13,13 @@ interface FluentTyperErrorDetails {
 }
 
 function isErrorWithMessage(error: unknown): error is ErrorWithMessage {
-  return (
-    isObjectRecord(error) &&
-    "message" in error &&
-    hasStringProperty(error, "message")
-  );
+  return isObjectRecord(error) && "message" in error && hasStringProperty(error, "message");
 }
 
 function toErrorWithMessage(maybeError: unknown): ErrorWithMessage {
-  if (isErrorWithMessage(maybeError)) return maybeError;
+  if (isErrorWithMessage(maybeError)) {
+    return maybeError;
+  }
 
   try {
     return new Error(JSON.stringify(maybeError));
@@ -37,17 +35,8 @@ export abstract class FluentTyperError extends Error {
   readonly code: string;
   readonly cause?: unknown;
 
-  protected constructor(
-    name: string,
-    message: string,
-    details: FluentTyperErrorDetails,
-  ) {
-    super(
-      message,
-      typeof details.cause === "undefined"
-        ? undefined
-        : { cause: details.cause },
-    );
+  protected constructor(name: string, message: string, details: FluentTyperErrorDetails) {
+    super(message, typeof details.cause === "undefined" ? undefined : { cause: details.cause });
     this.name = name;
     this.kind = details.kind;
     this.code = details.code;

@@ -37,17 +37,12 @@ describe("shared error helpers", () => {
   });
 
   test("logError writes context and forwards original error", () => {
-    const consoleErrorSpy = jest
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
     const error = new Error("network");
 
     errorModule.logError("SyncJob", error);
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      "[SyncJob] Error: network",
-      error,
-    );
+    expect(consoleErrorSpy).toHaveBeenCalledWith("[SyncJob] Error: network", error);
   });
 
   test("identifies fluent typer config error shape", () => {

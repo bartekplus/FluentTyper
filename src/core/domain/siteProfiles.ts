@@ -46,10 +46,7 @@ function normalizeNumSuggestions(value: unknown): number | undefined {
   return Math.min(MAX_NUM_SUGGESTIONS, Math.max(0, integerValue));
 }
 
-function normalizeLanguage(
-  value: unknown,
-  enabledLanguages: string[],
-): string | undefined {
+function normalizeLanguage(value: unknown, enabledLanguages: string[]): string | undefined {
   if (typeof value !== "string") {
     return undefined;
   }
@@ -64,11 +61,7 @@ export function sanitizeSiteProfile(
   profileRaw: unknown,
   enabledLanguages: string[],
 ): SiteProfile | undefined {
-  if (
-    !profileRaw ||
-    typeof profileRaw !== "object" ||
-    Array.isArray(profileRaw)
-  ) {
+  if (!profileRaw || typeof profileRaw !== "object" || Array.isArray(profileRaw)) {
     return undefined;
   }
   const profile = profileRaw as Record<string, unknown>;
@@ -91,11 +84,7 @@ export function resolveSiteProfiles(
   profilesRaw: unknown,
   enabledLanguages: string[],
 ): SiteProfiles {
-  if (
-    !profilesRaw ||
-    typeof profilesRaw !== "object" ||
-    Array.isArray(profilesRaw)
-  ) {
+  if (!profilesRaw || typeof profilesRaw !== "object" || Array.isArray(profilesRaw)) {
     return {};
   }
   const profiles = profilesRaw as Record<string, unknown>;

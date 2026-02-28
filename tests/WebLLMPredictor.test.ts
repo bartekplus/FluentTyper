@@ -60,9 +60,7 @@ describe("WebLLMPredictor", () => {
 
   test("returns empty predictions when WebGPU is unavailable", async () => {
     setWebGPUAvailability(false);
-    const { WebLLMPredictor } = await import(
-      "../src/adapters/chrome/background/WebLLMPredictor"
-    );
+    const { WebLLMPredictor } = await import("../src/adapters/chrome/background/WebLLMPredictor");
     const predictor = new WebLLMPredictor();
     predictor.setConfig({ enabled: true });
 
@@ -86,9 +84,7 @@ describe("WebLLMPredictor", () => {
         }),
     );
 
-    const { WebLLMPredictor } = await import(
-      "../src/adapters/chrome/background/WebLLMPredictor"
-    );
+    const { WebLLMPredictor } = await import("../src/adapters/chrome/background/WebLLMPredictor");
     const predictor = new WebLLMPredictor();
 
     const first = predictor.predict({
@@ -124,9 +120,7 @@ describe("WebLLMPredictor", () => {
       },
     });
     createMLCEngineMock.mockResolvedValue(engine);
-    const { WebLLMPredictor } = await import(
-      "../src/adapters/chrome/background/WebLLMPredictor"
-    );
+    const { WebLLMPredictor } = await import("../src/adapters/chrome/background/WebLLMPredictor");
     const predictor = new WebLLMPredictor();
 
     const result = await predictor.predict({
@@ -143,9 +137,7 @@ describe("WebLLMPredictor", () => {
   test("uses cache for identical requests", async () => {
     const engine = createMockEngine();
     createMLCEngineMock.mockResolvedValue(engine);
-    const { WebLLMPredictor } = await import(
-      "../src/adapters/chrome/background/WebLLMPredictor"
-    );
+    const { WebLLMPredictor } = await import("../src/adapters/chrome/background/WebLLMPredictor");
     const predictor = new WebLLMPredictor();
 
     const request = {
@@ -172,9 +164,7 @@ describe("WebLLMPredictor", () => {
         ]),
     });
     createMLCEngineMock.mockResolvedValue(engine);
-    const { WebLLMPredictor } = await import(
-      "../src/adapters/chrome/background/WebLLMPredictor"
-    );
+    const { WebLLMPredictor } = await import("../src/adapters/chrome/background/WebLLMPredictor");
     const predictor = new WebLLMPredictor();
 
     const result = await predictor.predict({
@@ -199,9 +189,7 @@ describe("WebLLMPredictor", () => {
         ]),
     });
     createMLCEngineMock.mockResolvedValue(engine);
-    const { WebLLMPredictor } = await import(
-      "../src/adapters/chrome/background/WebLLMPredictor"
-    );
+    const { WebLLMPredictor } = await import("../src/adapters/chrome/background/WebLLMPredictor");
     const predictor = new WebLLMPredictor();
 
     const result = await predictor.predict({
@@ -228,9 +216,7 @@ describe("WebLLMPredictor", () => {
       }),
     });
     createMLCEngineMock.mockResolvedValue(engine);
-    const { WebLLMPredictor } = await import(
-      "../src/adapters/chrome/background/WebLLMPredictor"
-    );
+    const { WebLLMPredictor } = await import("../src/adapters/chrome/background/WebLLMPredictor");
     const predictor = new WebLLMPredictor();
 
     const result = await predictor.predict({
@@ -257,9 +243,7 @@ describe("WebLLMPredictor", () => {
       }),
     });
     createMLCEngineMock.mockResolvedValue(engine);
-    const { WebLLMPredictor } = await import(
-      "../src/adapters/chrome/background/WebLLMPredictor"
-    );
+    const { WebLLMPredictor } = await import("../src/adapters/chrome/background/WebLLMPredictor");
     const predictor = new WebLLMPredictor();
 
     const result = await predictor.predict({
@@ -285,9 +269,7 @@ describe("WebLLMPredictor", () => {
       }),
     });
     createMLCEngineMock.mockResolvedValue(engine);
-    const { WebLLMPredictor } = await import(
-      "../src/adapters/chrome/background/WebLLMPredictor"
-    );
+    const { WebLLMPredictor } = await import("../src/adapters/chrome/background/WebLLMPredictor");
     const predictor = new WebLLMPredictor();
 
     const result = await predictor.predict({
@@ -317,9 +299,7 @@ describe("WebLLMPredictor", () => {
       }));
     createMLCEngineMock.mockResolvedValue(engine);
 
-    const { WebLLMPredictor } = await import(
-      "../src/adapters/chrome/background/WebLLMPredictor"
-    );
+    const { WebLLMPredictor } = await import("../src/adapters/chrome/background/WebLLMPredictor");
     const predictor = new WebLLMPredictor();
 
     const firstRequest = predictor.predict({
@@ -339,10 +319,7 @@ describe("WebLLMPredictor", () => {
     if (resolveFirst) {
       resolveFirst({ choices: [{ message: { content: "oldword" } }] });
     }
-    const [firstResult, secondResult] = await Promise.all([
-      firstRequest,
-      secondRequest,
-    ]);
+    const [firstResult, secondResult] = await Promise.all([firstRequest, secondRequest]);
     const firstCallArgs = chatCreateMock.mock.calls[0]?.[0] as
       | { messages?: Array<{ content?: string }> }
       | undefined;

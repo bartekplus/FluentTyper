@@ -1,14 +1,10 @@
 import { jest } from "bun:test";
 import type { PresageModule } from "../src/adapters/chrome/background/PresageTypes";
 import { PresageHandler } from "../src/adapters/chrome/background/PresageHandler";
-import {
-  PredictionConfig,
-  PredictionOrchestrator,
-} from "../src/adapters/chrome/background/PredictionOrchestrator";
+import type { PredictionConfig } from "../src/adapters/chrome/background/PredictionOrchestrator";
+import { PredictionOrchestrator } from "../src/adapters/chrome/background/PredictionOrchestrator";
 
-function createConfig(
-  overrides: Partial<PredictionConfig> = {},
-): PredictionConfig {
+function createConfig(overrides: Partial<PredictionConfig> = {}): PredictionConfig {
   return {
     numSuggestions: 6,
     minWordLengthToPredict: 0,
@@ -26,9 +22,7 @@ function createConfig(
   };
 }
 
-function createFakeModule(predictionsRef: {
-  current: string[];
-}): PresageModule {
+function createFakeModule(predictionsRef: { current: string[] }): PresageModule {
   const callback = {
     pastStream: "",
     get_past_stream() {
@@ -69,10 +63,7 @@ describe("PredictionOrchestrator parallel merge", () => {
       predict: jest.fn(async () => ["from-ai"]),
     };
     const presageHandler = new PresageHandler(module);
-    const orchestrator = new PredictionOrchestrator(
-      presageHandler,
-      aiPredictor,
-    );
+    const orchestrator = new PredictionOrchestrator(presageHandler, aiPredictor);
     orchestrator.setConfig(createConfig({ aiPredictorEnabled: false }));
 
     const result = await orchestrator.runPrediction("a", "", "en_US");
@@ -91,24 +82,12 @@ describe("PredictionOrchestrator parallel merge", () => {
       predict: jest.fn(async () => ["xray", "yankee", "zulu"]),
     };
     const presageHandler = new PresageHandler(module);
-    const orchestrator = new PredictionOrchestrator(
-      presageHandler,
-      aiPredictor,
-    );
-    orchestrator.setConfig(
-      createConfig({ aiPredictorEnabled: true, numSuggestions: 6 }),
-    );
+    const orchestrator = new PredictionOrchestrator(presageHandler, aiPredictor);
+    orchestrator.setConfig(createConfig({ aiPredictorEnabled: true, numSuggestions: 6 }));
 
     const result = await orchestrator.runPrediction("a", "", "en_US");
 
-    expect(result.predictions).toEqual([
-      "alpha",
-      "beta",
-      "xray",
-      "charlie",
-      "delta",
-      "yankee",
-    ]);
+    expect(result.predictions).toEqual(["alpha", "beta", "xray", "charlie", "delta", "yankee"]);
   });
 
   test("starts WebLLM before running Presage so both execute in parallel", async () => {
@@ -121,13 +100,8 @@ describe("PredictionOrchestrator parallel merge", () => {
       predict: jest.fn(async () => ["from-ai"]),
     };
     const presageHandler = new PresageHandler(module);
-    const orchestrator = new PredictionOrchestrator(
-      presageHandler,
-      aiPredictor,
-    );
-    orchestrator.setConfig(
-      createConfig({ aiPredictorEnabled: true, numSuggestions: 3 }),
-    );
+    const orchestrator = new PredictionOrchestrator(presageHandler, aiPredictor);
+    orchestrator.setConfig(createConfig({ aiPredictorEnabled: true, numSuggestions: 3 }));
 
     const doPredictionSpy = jest
       .spyOn(presageHandler, "doPredictionHandler")
@@ -157,13 +131,8 @@ describe("PredictionOrchestrator parallel merge", () => {
       predict: jest.fn(async () => ["beta", "gamma", "delta"]),
     };
     const presageHandler = new PresageHandler(module);
-    const orchestrator = new PredictionOrchestrator(
-      presageHandler,
-      aiPredictor,
-    );
-    orchestrator.setConfig(
-      createConfig({ aiPredictorEnabled: true, numSuggestions: 4 }),
-    );
+    const orchestrator = new PredictionOrchestrator(presageHandler, aiPredictor);
+    orchestrator.setConfig(createConfig({ aiPredictorEnabled: true, numSuggestions: 4 }));
 
     const result = await orchestrator.runPrediction("a", "", "en_US");
 
@@ -178,10 +147,7 @@ describe("PredictionOrchestrator parallel merge", () => {
       predict: jest.fn(async () => ["fromai", "nextai"]),
     };
     const presageHandler = new PresageHandler(module);
-    const orchestrator = new PredictionOrchestrator(
-      presageHandler,
-      aiPredictor,
-    );
+    const orchestrator = new PredictionOrchestrator(presageHandler, aiPredictor);
     orchestrator.setConfig(
       createConfig({
         aiPredictorEnabled: true,
@@ -211,10 +177,7 @@ describe("PredictionOrchestrator parallel merge", () => {
       ),
     };
     const presageHandler = new PresageHandler(module);
-    const orchestrator = new PredictionOrchestrator(
-      presageHandler,
-      aiPredictor,
-    );
+    const orchestrator = new PredictionOrchestrator(presageHandler, aiPredictor);
     orchestrator.setConfig(
       createConfig({
         aiPredictorEnabled: true,
@@ -232,13 +195,10 @@ describe("PredictionOrchestrator parallel merge", () => {
 
     expect(result.predictions).toEqual(["alpha", "beta", "charlie"]);
     expect(aiPredictor.predict).toHaveBeenCalledTimes(1);
-    expect(aiPredictor.interruptActiveGeneration).toHaveBeenCalledWith(
-      "timeout",
-      {
-        lang: "en_US",
-        predictionInput: "a",
-      },
-    );
+    expect(aiPredictor.interruptActiveGeneration).toHaveBeenCalledWith("timeout", {
+      lang: "en_US",
+      predictionInput: "a",
+    });
     expect(debugEvent?.webllm?.timedOut).toBe(true);
   });
 });

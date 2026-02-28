@@ -15,10 +15,7 @@ export class PredictionInputProcessor {
   minWordLengthToPredict: number;
   autoCapitalize: boolean;
 
-  constructor(
-    minWordLengthToPredict = MIN_WORD_LENGTH_TO_PREDICT,
-    autoCapitalize = true,
-  ) {
+  constructor(minWordLengthToPredict = MIN_WORD_LENGTH_TO_PREDICT, autoCapitalize = true) {
     this.separatorCharRegex =
       /\s+|!|"|#|\$|%|&|\(|\)|\*|\+|,|-|\.|\/|:|;|<|=|>|\?|@|\[|\\|\]|\^|_|`|{|\||}|~/;
     this.keepPredCharRegex = /\[|\(|{|<|\/|-|\*|\+|=|"/;
@@ -36,10 +33,7 @@ export class PredictionInputProcessor {
     let wordArray = wordArrayOrig.slice();
     for (let index = wordArray.length - 1; index >= 0; index--) {
       const element = wordArray[index];
-      if (
-        NEW_SENTENCE_CHARS.includes(element) ||
-        NEW_SENTENCE_CHARS.includes(element.slice(-1))
-      ) {
+      if (NEW_SENTENCE_CHARS.includes(element) || NEW_SENTENCE_CHARS.includes(element.slice(-1))) {
         wordArray = wordArray.splice(index + 1);
         newSentence = true;
         break;
@@ -54,17 +48,25 @@ export class PredictionInputProcessor {
     numSuggestions: number,
     predictNextWordAfterSeparatorChar: boolean,
   ): boolean {
-    if (numSuggestions <= 0) return false;
-    if (!endsWithSpace && isNumber(lastWord)) return false;
-    if (endsWithSpace && !predictNextWordAfterSeparatorChar) return false;
-    if (!endsWithSpace && lastWord.length < this.minWordLengthToPredict)
+    if (numSuggestions <= 0) {
       return false;
+    }
+    if (!endsWithSpace && isNumber(lastWord)) {
+      return false;
+    }
+    if (endsWithSpace && !predictNextWordAfterSeparatorChar) {
+      return false;
+    }
+    if (!endsWithSpace && lastWord.length < this.minWordLengthToPredict) {
+      return false;
+    }
     if (
       !endsWithSpace &&
       (lastWord.match(this.separatorCharRegex) || []).length !==
         (lastWord.match(this.keepPredCharRegex) || []).length
-    )
+    ) {
       return false;
+    }
     return true;
   }
 
@@ -90,10 +92,7 @@ export class PredictionInputProcessor {
     const endsWithSpace = predictionInput !== predictionInput.trimEnd();
     const additionalSeparatorRegex = LANG_ADDITIONAL_SEPARATOR_REGEX[language];
     if (additionalSeparatorRegex) {
-      predictionInput = predictionInput.replaceAll(
-        RegExp(additionalSeparatorRegex, "g"),
-        " ",
-      );
+      predictionInput = predictionInput.replaceAll(RegExp(additionalSeparatorRegex, "g"), " ");
     }
     const lastWordsArray = predictionInput
       .split(this.whiteSpaceRegex)
@@ -101,9 +100,7 @@ export class PredictionInputProcessor {
       .splice(-PAST_WORDS_COUNT);
     const { wordArray, newSentence } = this.removePrevSentence(lastWordsArray);
     predictionInput = wordArray.join(" ") + (endsWithSpace ? " " : "");
-    let lastWord = lastWordsArray.length
-      ? lastWordsArray[lastWordsArray.length - 1]
-      : "";
+    let lastWord = lastWordsArray.length ? lastWordsArray[lastWordsArray.length - 1] : "";
     lastWord =
       lastWord
         .split(this.keepPredCharRegex)

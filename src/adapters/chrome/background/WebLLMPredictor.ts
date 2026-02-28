@@ -1,7 +1,4 @@
-import {
-  DEFAULT_AI_MODEL_ID,
-  DEFAULT_AI_PREDICTOR_ENABLED,
-} from "@core/domain/constants";
+import { DEFAULT_AI_MODEL_ID, DEFAULT_AI_PREDICTOR_ENABLED } from "@core/domain/constants";
 import { createLogger } from "@core/application/logging/Logger";
 import { getErrorMessage } from "@core/domain/error";
 import type {
@@ -77,9 +74,7 @@ export class WebLLMPredictor implements SecondaryPredictor {
 
   setConfig(config: WebLLMPredictorConfig): void {
     const nextEnabled =
-      typeof config.enabled === "boolean"
-        ? config.enabled
-        : DEFAULT_AI_PREDICTOR_ENABLED;
+      typeof config.enabled === "boolean" ? config.enabled : DEFAULT_AI_PREDICTOR_ENABLED;
     const nextModelId =
       typeof config.modelId === "string" && config.modelId.trim().length > 0
         ? config.modelId
@@ -108,30 +103,20 @@ export class WebLLMPredictor implements SecondaryPredictor {
       initAttemptCount: lifecycleState.initAttemptCount,
       isGenerating: this.generationCoordinator.getIsGenerating(),
       cacheSize: this.predictionCache.size(),
-      lastFailureAt:
-        lifecycleState.lastFailureAt > 0 ? lifecycleState.lastFailureAt : null,
+      lastFailureAt: lifecycleState.lastFailureAt > 0 ? lifecycleState.lastFailureAt : null,
       lastInitStartedAt:
-        lifecycleState.lastInitStartedAt > 0
-          ? lifecycleState.lastInitStartedAt
-          : null,
+        lifecycleState.lastInitStartedAt > 0 ? lifecycleState.lastInitStartedAt : null,
       lastInitDurationMs:
-        lifecycleState.lastInitDurationMs >= 0
-          ? lifecycleState.lastInitDurationMs
-          : null,
+        lifecycleState.lastInitDurationMs >= 0 ? lifecycleState.lastInitDurationMs : null,
       lastInitProgress:
-        lifecycleState.lastInitProgress >= 0
-          ? lifecycleState.lastInitProgress
-          : null,
+        lifecycleState.lastInitProgress >= 0 ? lifecycleState.lastInitProgress : null,
       lastInitProgressAt:
-        lifecycleState.lastInitProgressAt > 0
-          ? lifecycleState.lastInitProgressAt
-          : null,
+        lifecycleState.lastInitProgressAt > 0 ? lifecycleState.lastInitProgressAt : null,
       lastInitProgressText: lifecycleState.lastInitProgressText,
       lastInitError: lifecycleState.lastInitError,
       lastInitProgressLog: lifecycleState.lastInitProgressLog.slice(),
       lastPredictAt: this.lastPredictAt > 0 ? this.lastPredictAt : null,
-      lastPredictDurationMs:
-        this.lastPredictDurationMs >= 0 ? this.lastPredictDurationMs : null,
+      lastPredictDurationMs: this.lastPredictDurationMs >= 0 ? this.lastPredictDurationMs : null,
       lastPredictSource: this.lastPredictSource,
       lastPredictInput: this.lastPredictInput,
       lastRawOutputPreview: this.lastRawOutputPreview,
@@ -195,25 +180,15 @@ export class WebLLMPredictor implements SecondaryPredictor {
       return cachedPredictions;
     }
     const ready = await this.ensureReady();
-    if (
-      !ready ||
-      !this.engineLifecycleService.getEngine() ||
-      this.isRequestStale(requestSeq)
-    ) {
+    if (!ready || !this.engineLifecycleService.getEngine() || this.isRequestStale(requestSeq)) {
       return [];
     }
-    const modeContext = this.promptBuilder.resolvePredictionMode(
-      request.predictionInput,
-    );
+    const modeContext = this.promptBuilder.resolvePredictionMode(request.predictionInput);
 
-    const previousGenerationSeq =
-      this.generationCoordinator.getInFlightGenerationSeq();
+    const previousGenerationSeq = this.generationCoordinator.getInFlightGenerationSeq();
     if (typeof previousGenerationSeq === "number") {
       this.interruptActiveGeneration("newer_request");
-      await this.generationCoordinator.waitForGenerationToSettle(
-        previousGenerationSeq,
-        75,
-      );
+      await this.generationCoordinator.waitForGenerationToSettle(previousGenerationSeq, 75);
       if (!this.engineLifecycleService.getEngine() || this.isRequestStale(requestSeq)) {
         return [];
       }
@@ -248,10 +223,7 @@ export class WebLLMPredictor implements SecondaryPredictor {
       }
       if (predictions.length === 0) {
         try {
-          const simpleChatResult = await this.predictWithSimpleChatCompletion(
-            request,
-            modeContext,
-          );
+          const simpleChatResult = await this.predictWithSimpleChatCompletion(request, modeContext);
           if (simpleChatResult.rawOutput.trim().length > 0 || !rawOutput) {
             rawOutput = simpleChatResult.rawOutput;
           }
@@ -266,10 +238,7 @@ export class WebLLMPredictor implements SecondaryPredictor {
         }
       }
       if (predictions.length === 0) {
-        const completionResult = await this.predictWithCompletion(
-          request,
-          modeContext,
-        );
+        const completionResult = await this.predictWithCompletion(request, modeContext);
         predictions = completionResult.predictions;
         if (completionResult.rawOutput.trim().length > 0 || !rawOutput) {
           rawOutput = completionResult.rawOutput;
@@ -322,10 +291,7 @@ export class WebLLMPredictor implements SecondaryPredictor {
     if (!inFlightRequest) {
       return false;
     }
-    return (
-      inFlightRequest.lang === lang &&
-      inFlightRequest.predictionInput === predictionInput
-    );
+    return inFlightRequest.lang === lang && inFlightRequest.predictionInput === predictionInput;
   }
 
   private isRequestStale(seq: number): boolean {
@@ -372,11 +338,7 @@ export class WebLLMPredictor implements SecondaryPredictor {
       chatCompletion,
       request.numSuggestions,
     );
-    return this.responseParser.enrichFromEngineMessage(
-      engine,
-      parsed,
-      request.numSuggestions,
-    );
+    return this.responseParser.enrichFromEngineMessage(engine, parsed, request.numSuggestions);
   }
 
   private async predictWithSimpleChatCompletion(
@@ -403,11 +365,7 @@ export class WebLLMPredictor implements SecondaryPredictor {
       chatCompletion,
       request.numSuggestions,
     );
-    return this.responseParser.enrichFromEngineMessage(
-      engine,
-      parsed,
-      request.numSuggestions,
-    );
+    return this.responseParser.enrichFromEngineMessage(engine, parsed, request.numSuggestions);
   }
 
   private async predictWithCompletion(
@@ -435,10 +393,6 @@ export class WebLLMPredictor implements SecondaryPredictor {
       completion,
       request.numSuggestions,
     );
-    return this.responseParser.enrichFromEngineMessage(
-      engine,
-      parsed,
-      request.numSuggestions,
-    );
+    return this.responseParser.enrichFromEngineMessage(engine, parsed, request.numSuggestions);
   }
 }

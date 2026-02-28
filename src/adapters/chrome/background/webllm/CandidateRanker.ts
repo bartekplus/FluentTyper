@@ -23,10 +23,7 @@ export class CandidateRanker {
     if (modeContext.mode !== "complete_or_correct" || !modeContext.fragment) {
       return normalized.slice(0, limit);
     }
-    const bestByToken = new Map<
-      string,
-      { token: string; score: number; index: number }
-    >();
+    const bestByToken = new Map<string, { token: string; score: number; index: number }>();
     for (let index = 0; index < normalized.length; index += 1) {
       const token = normalized[index];
       const tokenLower = token.toLowerCase();
@@ -70,11 +67,7 @@ export class CandidateRanker {
       return 1 + Math.max(0, candidate.length - fragment.length) / 100;
     }
     const maxDistance = this.getMaxCorrectionDistance(fragment.length);
-    const distance = this.damerauLevenshteinDistance(
-      fragment,
-      candidate,
-      maxDistance + 1,
-    );
+    const distance = this.damerauLevenshteinDistance(fragment, candidate, maxDistance + 1);
     const overlapRatio = this.getCharacterOverlapRatio(fragment, candidate);
     if (
       distance <= maxDistance &&
@@ -120,11 +113,7 @@ export class CandidateRanker {
     return overlapCount / Math.max(source.length, target.length);
   }
 
-  private damerauLevenshteinDistance(
-    source: string,
-    target: string,
-    maxDistance: number,
-  ): number {
+  private damerauLevenshteinDistance(source: string, target: string, maxDistance: number): number {
     const sourceLength = source.length;
     const targetLength = target.length;
     if (sourceLength === 0) {
@@ -151,12 +140,7 @@ export class CandidateRanker {
           matrix[i][j - 1] + 1,
           matrix[i - 1][j - 1] + substitutionCost,
         );
-        if (
-          i > 1 &&
-          j > 1 &&
-          source[i - 1] === target[j - 2] &&
-          source[i - 2] === target[j - 1]
-        ) {
+        if (i > 1 && j > 1 && source[i - 1] === target[j - 2] && source[i - 2] === target[j - 1]) {
           value = Math.min(value, matrix[i - 2][j - 2] + 1);
         }
         matrix[i][j] = value;

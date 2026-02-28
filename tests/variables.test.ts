@@ -7,9 +7,7 @@ describe("shared date/time variables", () => {
   const defaultLocale = Settings.defaultLocale;
 
   beforeEach(() => {
-    jest
-      .spyOn(DateTime, "now")
-      .mockImplementation(() => fixedNow as DateTime<true>);
+    jest.spyOn(DateTime, "now").mockImplementation(() => fixedNow as DateTime<true>);
     Settings.defaultLocale = defaultLocale;
   });
 

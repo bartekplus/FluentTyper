@@ -6,12 +6,8 @@ import {
 
 describe("language settings helpers", () => {
   test("resolveEnabledLanguages falls back to all languages for empty input", () => {
-    expect(resolveEnabledLanguages(undefined)).toEqual(
-      SUPPORTED_PREDICTION_LANGUAGE_KEYS,
-    );
-    expect(resolveEnabledLanguages([])).toEqual(
-      SUPPORTED_PREDICTION_LANGUAGE_KEYS,
-    );
+    expect(resolveEnabledLanguages(undefined)).toEqual(SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+    expect(resolveEnabledLanguages([])).toEqual(SUPPORTED_PREDICTION_LANGUAGE_KEYS);
   });
 
   test("resolveEnabledLanguages filters and preserves supported order", () => {

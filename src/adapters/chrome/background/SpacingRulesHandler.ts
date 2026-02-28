@@ -2,12 +2,7 @@
 // Handles spacing rules logic for FluentTyper
 
 import type { ForceReplaceType } from "@core/domain/messageTypes";
-import {
-  SPACING_RULES,
-  SPACE_CHARS,
-  Spacing,
-  type SpacingRule,
-} from "@core/domain/spacingRules";
+import { SPACING_RULES, SPACE_CHARS, Spacing, type SpacingRule } from "@core/domain/spacingRules";
 
 export { SPACING_RULES, SPACE_CHARS, Spacing, type SpacingRule };
 
@@ -58,18 +53,12 @@ export class SpacingRulesHandler {
     ) {
       return null;
     }
-    const insertSpaceBefore =
-      SPACING_RULES[lastChar].spaceBefore === Spacing.INSERT_SPACE;
+    const insertSpaceBefore = SPACING_RULES[lastChar].spaceBefore === Spacing.INSERT_SPACE;
     const insertSpaceAfter =
       this.insertSpaceAfterAutocomplete &&
       SPACING_RULES[lastChar].spaceAfter === Spacing.INSERT_SPACE;
-    const text = `${insertSpaceBefore ? "\xA0" : ""}${lastChar}${
-      insertSpaceAfter ? "\xA0" : ""
-    }`;
-    if (
-      text === lastChar &&
-      SPACING_RULES[lastChar].spaceBefore !== Spacing.REMOVE_SPACE
-    ) {
+    const text = `${insertSpaceBefore ? "\xA0" : ""}${lastChar}${insertSpaceAfter ? "\xA0" : ""}`;
+    if (text === lastChar && SPACING_RULES[lastChar].spaceBefore !== Spacing.REMOVE_SPACE) {
       return null;
     }
     return {

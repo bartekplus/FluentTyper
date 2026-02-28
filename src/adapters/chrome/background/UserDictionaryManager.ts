@@ -1,16 +1,13 @@
 // Manages user dictionary logic for Presage
 import type { PresageModule } from "./PresageTypes";
-import { PresageEngine } from "./PresageEngine";
+import type { PresageEngine } from "./PresageEngine";
 
 export class UserDictionaryManager {
   private userDictionaryList: string[] = [];
   private module: PresageModule;
   private presageEngineRecord: Record<string, PresageEngine>;
 
-  constructor(
-    module: PresageModule,
-    presageEngineRecord: Record<string, PresageEngine>,
-  ) {
+  constructor(module: PresageModule, presageEngineRecord: Record<string, PresageEngine>) {
     this.module = module;
     this.presageEngineRecord = presageEngineRecord;
   }

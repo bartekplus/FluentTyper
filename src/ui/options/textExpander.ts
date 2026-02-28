@@ -1,10 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Store } from "@third-party/fancier-settings/lib/store.js";
 import { i18n } from "@third-party/fancier-settings/i18n.js";
-import {
-  ElementWrapper,
-  getUniqueID,
-} from "@third-party/fancier-settings/js/classes/utils.js";
+import { ElementWrapper, getUniqueID } from "@third-party/fancier-settings/js/classes/utils.js";
 import { parse } from "csv-parse/sync";
 import { stringify } from "csv-stringify/sync";
 
@@ -43,11 +40,12 @@ export class TextExpander {
       const value = await this.store.get(this.textExpansionsStoreKey);
       this.textExpansions = Array.isArray(value)
         ? value
-            .filter((entry): entry is [string, string] =>
-              Array.isArray(entry) &&
-              entry.length === 2 &&
-              typeof entry[0] === "string" &&
-              typeof entry[1] === "string",
+            .filter(
+              (entry): entry is [string, string] =>
+                Array.isArray(entry) &&
+                entry.length === 2 &&
+                typeof entry[0] === "string" &&
+                typeof entry[1] === "string",
             )
             .map(([shortcut, text]) => [shortcut, text])
         : [];
@@ -89,8 +87,12 @@ export class TextExpander {
           skip_empty_lines: true,
         }) as unknown[][];
 
-        const shortcutElem = document.getElementById(this.addNewShortcutIDs[0]) as HTMLInputElement | null;
-        const shortcutTextElem = document.getElementById(this.addNewShortcutIDs[1]) as HTMLTextAreaElement | null;
+        const shortcutElem = document.getElementById(
+          this.addNewShortcutIDs[0],
+        ) as HTMLInputElement | null;
+        const shortcutTextElem = document.getElementById(
+          this.addNewShortcutIDs[1],
+        ) as HTMLTextAreaElement | null;
         if (!shortcutElem || !shortcutTextElem) {
           return;
         }
@@ -120,8 +122,12 @@ export class TextExpander {
   }
 
   private renderImportExport(): void {
-    const fileElem = new ElementWrapper("div", { class: "file block buttons" }) as any;
-    const fileLabelElem = new ElementWrapper("label", { class: "file-label" }) as any;
+    const fileElem = new ElementWrapper("div", {
+      class: "file block buttons",
+    }) as any;
+    const fileLabelElem = new ElementWrapper("label", {
+      class: "file-label",
+    }) as any;
     const inputElem = new ElementWrapper("input", {
       class: "file-input",
       type: "file",
@@ -179,15 +185,25 @@ export class TextExpander {
 
   private renderNode(key: string, val: string, shortcutIndex: number | null): void {
     const dividerElem = new ElementWrapper("hr", {}) as any;
-    const columnElem = new ElementWrapper("div", { class: "columns is-expanded" }) as any;
+    const columnElem = new ElementWrapper("div", {
+      class: "columns is-expanded",
+    }) as any;
     const columnsElems: any[] = [];
 
     for (let index = 0; index < 3; index += 1) {
       let columnClass = "column";
-      if (index === 0) columnClass += " is-5";
-      if (index === 1) columnClass += " is-6";
-      if (index === 2) columnClass += " has-text-centered ";
-      columnsElems[index] = new ElementWrapper("div", { class: columnClass }) as any;
+      if (index === 0) {
+        columnClass += " is-5";
+      }
+      if (index === 1) {
+        columnClass += " is-6";
+      }
+      if (index === 2) {
+        columnClass += " has-text-centered ";
+      }
+      columnsElems[index] = new ElementWrapper("div", {
+        class: columnClass,
+      }) as any;
       columnsElems[index].inject(columnElem);
     }
 
@@ -214,7 +230,9 @@ export class TextExpander {
     ].forEach((input, idx) => {
       const idErrMsg = `${input.id}ErrMsg`;
       const fieldElem = new ElementWrapper("div", { class: "field" }) as any;
-      const controlElem = new ElementWrapper("p", { class: "control is-expanded" }) as any;
+      const controlElem = new ElementWrapper("p", {
+        class: "control is-expanded",
+      }) as any;
       const inputElem = new ElementWrapper(input.type, {
         id: input.id,
         idErrMsg,
@@ -316,8 +334,12 @@ export class TextExpander {
   }
 
   private addNewShortcut(renderAndSave = true): boolean {
-    const shortcutElem = document.getElementById(this.addNewShortcutIDs[0]) as HTMLInputElement | null;
-    const shortcutTextElem = document.getElementById(this.addNewShortcutIDs[1]) as HTMLTextAreaElement | null;
+    const shortcutElem = document.getElementById(
+      this.addNewShortcutIDs[0],
+    ) as HTMLInputElement | null;
+    const shortcutTextElem = document.getElementById(
+      this.addNewShortcutIDs[1],
+    ) as HTMLTextAreaElement | null;
 
     if (!shortcutElem || !shortcutTextElem) {
       return false;

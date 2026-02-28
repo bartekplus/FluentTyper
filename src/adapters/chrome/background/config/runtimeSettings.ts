@@ -23,9 +23,7 @@ export function clampNumSuggestions(value: unknown): number {
   return Math.min(MAX_NUM_SUGGESTIONS, Math.max(0, Math.round(value)));
 }
 
-export async function resolveActiveLanguage(
-  settingsManager: SettingsManager,
-): Promise<string> {
+export async function resolveActiveLanguage(settingsManager: SettingsManager): Promise<string> {
   const settingsRepository = new CoreSettingsRepository(settingsManager);
   const [currentLanguage, enabledLanguages] = await Promise.all([
     settingsRepository.getLanguage(),
@@ -49,19 +47,14 @@ export async function resolveDomainRuntimeSettings(
 ): Promise<DomainRuntimeSettings> {
   const settingsRepository = new CoreSettingsRepository(settingsManager);
   const siteProfileRepository = new SiteProfileRepository(settingsManager);
-  const [
-    globalLanguage,
-    enabledLanguages,
-    inlineSuggestionGlobal,
-    numGlobal,
-    siteProfilesRaw,
-  ] = await Promise.all([
-    resolveActiveLanguage(settingsManager),
-    settingsRepository.getEnabledLanguages(),
-    settingsRepository.getInlineSuggestion(),
-    settingsRepository.getNumSuggestions(),
-    siteProfileRepository.getSiteProfiles(),
-  ]);
+  const [globalLanguage, enabledLanguages, inlineSuggestionGlobal, numGlobal, siteProfilesRaw] =
+    await Promise.all([
+      resolveActiveLanguage(settingsManager),
+      settingsRepository.getEnabledLanguages(),
+      settingsRepository.getInlineSuggestion(),
+      settingsRepository.getNumSuggestions(),
+      siteProfileRepository.getSiteProfiles(),
+    ]);
   const profile = domainURL
     ? getSiteProfileForDomain(siteProfilesRaw, domainURL, enabledLanguages)
     : undefined;
@@ -85,22 +78,15 @@ export async function resolveDomainRuntimeSettings(
   };
 }
 
-export async function sanitizeSiteProfilesSetting(
-  settingsManager: SettingsManager,
-): Promise<void> {
+export async function sanitizeSiteProfilesSetting(settingsManager: SettingsManager): Promise<void> {
   const settingsRepository = new CoreSettingsRepository(settingsManager);
   const siteProfileRepository = new SiteProfileRepository(settingsManager);
   const [siteProfilesRaw, enabledLanguages] = await Promise.all([
     siteProfileRepository.getRawSiteProfiles(),
     settingsRepository.getEnabledLanguages(),
   ]);
-  const sanitizedSiteProfiles = resolveSiteProfiles(
-    siteProfilesRaw,
-    enabledLanguages,
-  );
-  if (
-    JSON.stringify(siteProfilesRaw || {}) !== JSON.stringify(sanitizedSiteProfiles)
-  ) {
+  const sanitizedSiteProfiles = resolveSiteProfiles(siteProfilesRaw, enabledLanguages);
+  if (JSON.stringify(siteProfilesRaw || {}) !== JSON.stringify(sanitizedSiteProfiles)) {
     await siteProfileRepository.setSiteProfiles(sanitizedSiteProfiles);
   }
 }
@@ -112,15 +98,11 @@ export async function rotateLanguageForDomain(
   const settingsRepository = new CoreSettingsRepository(settingsManager);
   const siteProfileRepository = new SiteProfileRepository(settingsManager);
   const availableLangs = await settingsRepository.getEnabledLanguages();
-  const domainSettings = await resolveDomainRuntimeSettings(
-    settingsManager,
-    domainURL,
-  );
+  const domainSettings = await resolveDomainRuntimeSettings(settingsManager, domainURL);
 
   const currentLanguage = domainSettings.language;
   const currentLangIndex = availableLangs.indexOf(currentLanguage);
-  const nextLangIndex =
-    (currentLangIndex >= 0 ? currentLangIndex + 1 : 0) % availableLangs.length;
+  const nextLangIndex = (currentLangIndex >= 0 ? currentLangIndex + 1 : 0) % availableLangs.length;
   const nextLang = availableLangs[nextLangIndex];
 
   const siteProfilesRaw = await siteProfileRepository.getRawSiteProfiles();

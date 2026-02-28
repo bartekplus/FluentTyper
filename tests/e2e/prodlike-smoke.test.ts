@@ -1,15 +1,14 @@
-import { Browser, Page } from "puppeteer";
+import type { Browser, Page } from "puppeteer";
+import type { BackgroundContext } from "./e2e-helpers";
 import {
   BROWSER_TYPE,
-  BackgroundContext,
   getBackgroundContext,
   launchBrowser,
   openExtensionPage,
 } from "./e2e-helpers";
 import { CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT } from "../../src/core/domain/constants";
 
-const RUN_E2E =
-  process.env.RUN_E2E === "1" || process.env.RUN_E2E === "true";
+const RUN_E2E = process.env.RUN_E2E === "1" || process.env.RUN_E2E === "true";
 const describeE2E = RUN_E2E ? describe : describe.skip;
 
 interface PredictorDebugSnapshot {
@@ -27,11 +26,7 @@ async function getPredictorDebugSnapshot(
   browser: Browser,
   context: BackgroundContext,
 ): Promise<PredictorDebugSnapshot> {
-  const optionsPage = await openExtensionPage(
-    browser,
-    context,
-    "options/options.html",
-  );
+  const optionsPage = await openExtensionPage(browser, context, "options/options.html");
   try {
     return await optionsPage.evaluate((command) => {
       return new Promise<PredictorDebugSnapshot>((resolve, reject) => {
@@ -71,18 +66,16 @@ describeE2E(`Production Build Smoke E2E [${BROWSER_TYPE}]`, () => {
 
   test("does not expose runtime command test hooks", async () => {
     const hasRuntimeHook = await worker.evaluate(() => {
-      return typeof (globalThis as { triggerCommandForTesting?: unknown })
-        .triggerCommandForTesting === "function";
+      return (
+        typeof (globalThis as { triggerCommandForTesting?: unknown }).triggerCommandForTesting ===
+        "function"
+      );
     });
     expect(hasRuntimeHook).toBe(false);
   }, 10000);
 
   test("keeps predictor debug panel hidden in options page", async () => {
-    const optionsPage: Page = await openExtensionPage(
-      browser,
-      worker,
-      "options/options.html",
-    );
+    const optionsPage: Page = await openExtensionPage(browser, worker, "options/options.html");
     try {
       await optionsPage.waitForSelector("#content");
       const hasPredictorDebugRoot = await optionsPage.$("#predictorDebugRoot");

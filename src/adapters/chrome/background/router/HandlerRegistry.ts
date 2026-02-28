@@ -1,8 +1,6 @@
 import type { Logger } from "@core/application/logging/Logger";
 
-export type Handler<TPayload, TResult> = (
-  payload: TPayload,
-) => Promise<TResult> | TResult;
+export type Handler<TPayload, TResult> = (payload: TPayload) => Promise<TResult> | TResult;
 
 export interface DispatchContext<TPayload, TResult> {
   command: string;
@@ -85,11 +83,7 @@ export class HandlerRegistry<TCommand extends string, TPayload, TResult = void> 
   }
 }
 
-export function createValidationMiddleware<
-  TPayload,
-  TResult,
-  TCommand extends string,
->(
+export function createValidationMiddleware<TPayload, TResult, TCommand extends string>(
   isSupportedCommand: (command: string) => command is TCommand,
 ): HandlerMiddleware<TPayload, TResult> {
   return async (context, next) => {

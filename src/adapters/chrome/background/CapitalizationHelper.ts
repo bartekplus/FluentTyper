@@ -29,29 +29,27 @@ export function checkAutoCapitalize({
   const firstCharacterOfLastWord = lastWord.slice(0, 1);
 
   // Whole word capitalization: " XYZ"
-  if (
-    !endsWithSpace &&
-    lastWord &&
-    lastWord.length > 1 &&
-    lastWord === lastWord.toUpperCase()
-  )
+  if (!endsWithSpace && lastWord && lastWord.length > 1 && lastWord === lastWord.toUpperCase()) {
     return Capitalization.WholeWord;
+  }
 
   // First letter capitalization: " Xyz"
   if (
     !endsWithSpace &&
     isLetter(firstCharacterOfLastWord) &&
     firstCharacterOfLastWord === firstCharacterOfLastWord.toUpperCase()
-  )
+  ) {
     return Capitalization.FirstLetter;
+  }
 
   // Auto capitalization after sentence-ending punctuation
   if (
     autoCapitalize &&
     newSentence &&
     ((!endsWithSpace && wordCount === 1) || (endsWithSpace && wordCount === 0))
-  )
+  ) {
     return Capitalization.FirstLetter;
+  }
 
   return Capitalization.None;
 }

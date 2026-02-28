@@ -1,12 +1,7 @@
 // Handles messaging to tabs/content scripts for FluentTyper
-import { SettingsManager } from "@core/application/settingsManager";
-import {
-  isEnabledForDomain,
-} from "@core/application/domain-utils";
-import {
-  checkLastError,
-  promisifiedSendMessage,
-} from "@core/application/transport-utils";
+import type { SettingsManager } from "@core/application/settingsManager";
+import { isEnabledForDomain } from "@core/application/domain-utils";
+import { checkLastError, promisifiedSendMessage } from "@core/application/transport-utils";
 import type { Message, ConfigMessage } from "@core/domain/messageTypes";
 import { getErrorMessage } from "@core/domain/error";
 import { CMD_GET_HOSTNAME } from "@core/domain/constants";
@@ -31,8 +26,7 @@ export class TabMessenger {
       }
       const firstTabUrl = tabs?.[0]?.url ?? "";
       const isExtensionPage =
-        firstTabUrl.startsWith("chrome-extension://") ||
-        firstTabUrl.startsWith("moz-extension://");
+        firstTabUrl.startsWith("chrome-extension://") || firstTabUrl.startsWith("moz-extension://");
       // If no tabs found, or if the current window is an internal extension page, fallback to lastFocusedWindow
       if (!tabs || tabs.length === 0 || isExtensionPage) {
         const fallbackTabs = await chrome.tabs.query({
@@ -60,11 +54,11 @@ export class TabMessenger {
     });
   }
 
-  async getActiveTabHostname(): Promise<
-    { tabId: number; hostname: string } | undefined
-  > {
+  async getActiveTabHostname(): Promise<{ tabId: number; hostname: string } | undefined> {
     const tabId = await this.getActiveTabId();
-    if (tabId === undefined) return undefined;
+    if (tabId === undefined) {
+      return undefined;
+    }
     try {
       const response = await promisifiedSendMessage<{ hostname?: string }>(
         tabId,
@@ -80,15 +74,15 @@ export class TabMessenger {
   async sendToAllTabs(
     message: ConfigMessage,
     settings: SettingsManager,
-    resolveDomainContextOverride?: (
-      domain: string,
-    ) => Promise<Partial<ConfigMessage["context"]>>,
+    resolveDomainContextOverride?: (domain: string) => Promise<Partial<ConfigMessage["context"]>>,
   ): Promise<void> {
     const tabs = await chrome.tabs.query({});
     checkLastError();
     await Promise.allSettled(
       tabs.map(async (tab) => {
-        if (typeof tab.id !== "number") return;
+        if (typeof tab.id !== "number") {
+          return;
+        }
         const tabId = tab.id;
         let domain: string;
         try {

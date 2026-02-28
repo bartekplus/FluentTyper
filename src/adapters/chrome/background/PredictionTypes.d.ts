@@ -56,9 +56,6 @@ export interface SecondaryPredictor {
   preload?(): void | Promise<void>;
   interruptActiveGeneration?(
     reason?: string,
-    expectedRequest?: Pick<
-      SecondaryPredictorRequest,
-      "lang" | "predictionInput"
-    >,
+    expectedRequest?: Pick<SecondaryPredictorRequest, "lang" | "predictionInput">,
   ): boolean;
 }

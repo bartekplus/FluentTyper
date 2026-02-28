@@ -11,7 +11,7 @@ import type {
   TriggerActiveTabMessage,
   UpdateLangConfigMessage,
 } from "@core/domain/messageTypes";
-import { BackgroundServiceWorker } from "../BackgroundServiceWorker";
+import type { BackgroundServiceWorker } from "../BackgroundServiceWorker";
 import { rotateLanguageForDomain } from "../config/runtimeSettings";
 import {
   createErrorMappingMiddleware,
@@ -58,10 +58,7 @@ export class CommandRouter {
         const worker = getWorker();
         const result = await worker.tabMessenger.getActiveTabHostname();
         const domainURL = result?.hostname || undefined;
-        const nextLang = await rotateLanguageForDomain(
-          worker.settingsManager,
-          domainURL,
-        );
+        const nextLang = await rotateLanguageForDomain(worker.settingsManager, domainURL);
         worker.language = nextLang;
 
         const updateLangConfigMessage: UpdateLangConfigMessage = {

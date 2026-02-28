@@ -11,7 +11,7 @@ import {
   DONATION_PROMPT_COOLDOWN_DAYS,
   DONATION_SNOOZE_DAYS,
 } from "./constants";
-import { StatsSanitizer } from "./StatsSanitizer";
+import type { StatsSanitizer } from "./StatsSanitizer";
 import type { ProductivityStatsState } from "./types";
 
 export class DonationPromptPolicy {
@@ -35,9 +35,7 @@ export class DonationPromptPolicy {
         kind: "weekly_recap",
         source: "weekly_recap",
         milestoneHours:
-          weeklyRecap.milestonesCrossedHours[
-            weeklyRecap.milestonesCrossedHours.length - 1
-          ] || null,
+          weeklyRecap.milestonesCrossedHours[weeklyRecap.milestonesCrossedHours.length - 1] || null,
         message:
           "Your weekly recap is ready. If FluentTyper is saving you time, support development.",
       };
@@ -71,8 +69,7 @@ export class DonationPromptPolicy {
 
     const savedHours = lifetime.estimatedMinutesSaved / 60;
     const nextMilestone = DONATION_MILESTONE_HOURS.find(
-      (milestone) =>
-        savedHours >= milestone && !state.shownMilestones.includes(milestone),
+      (milestone) => savedHours >= milestone && !state.shownMilestones.includes(milestone),
     );
     if (!nextMilestone) {
       return null;

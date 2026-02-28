@@ -1,11 +1,9 @@
-import { getSettingStorageAliases, SettingField } from "@core/domain/contracts/settings";
+import type { SettingField } from "@core/domain/contracts/settings";
+import { getSettingStorageAliases } from "@core/domain/contracts/settings";
 import type { JsonValue } from "../settingsManager";
-import { SettingsManager } from "../settingsManager";
+import type { SettingsManager } from "../settingsManager";
 
-async function readFirstDefined(
-  settings: SettingsManager,
-  keys: string[],
-): Promise<unknown> {
+async function readFirstDefined(settings: SettingsManager, keys: string[]): Promise<unknown> {
   for (const key of keys) {
     const value = await settings.get(key);
     if (typeof value !== "undefined") {
@@ -22,9 +20,7 @@ export async function readSettingWithAliases(
   return readFirstDefined(settings, getSettingStorageAliases(field));
 }
 
-export async function migrateSettingsV3(
-  settings: SettingsManager,
-): Promise<void> {
+export async function migrateSettingsV3(settings: SettingsManager): Promise<void> {
   try {
     const fieldsToNormalize: SettingField[] = ["enabled"];
     for (const field of fieldsToNormalize) {

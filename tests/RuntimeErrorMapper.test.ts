@@ -1,8 +1,4 @@
-import {
-  ConfigError,
-  PredictorError,
-  TransportError,
-} from "../src/core/domain/error";
+import { ConfigError, PredictorError, TransportError } from "../src/core/domain/error";
 import { mapRuntimeError } from "../src/adapters/chrome/background/router/RuntimeErrorMapper";
 
 describe("RuntimeErrorMapper", () => {

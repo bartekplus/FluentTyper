@@ -292,10 +292,7 @@ export type Message =
       command: "CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE";
       context: OptionsClearPredictorDebugTraceContext;
     };
-export type ConfigMessage = Extract<
-  Message,
-  { command: "CMD_BACKGROUND_PAGE_SET_CONFIG" }
->;
+export type ConfigMessage = Extract<Message, { command: "CMD_BACKGROUND_PAGE_SET_CONFIG" }>;
 export type PredictRequestMessage = Extract<
   Message,
   { command: "CMD_BACKGROUND_PAGE_PREDICT_REQ" }
@@ -304,14 +301,8 @@ export type PredictResponseMessage = Extract<
   Message,
   { command: "CMD_BACKGROUND_PAGE_PREDICT_RESP" }
 >;
-export type ToggleActiveTabMessage = Extract<
-  Message,
-  { command: "CMD_TOGGLE_FT_ACTIVE_TAB" }
->;
-export type TriggerActiveTabMessage = Extract<
-  Message,
-  { command: "CMD_TRIGGER_FT_ACTIVE_TAB" }
->;
+export type ToggleActiveTabMessage = Extract<Message, { command: "CMD_TOGGLE_FT_ACTIVE_TAB" }>;
+export type TriggerActiveTabMessage = Extract<Message, { command: "CMD_TRIGGER_FT_ACTIVE_TAB" }>;
 export type UpdateLangConfigMessage = Extract<
   Message,
   { command: "CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG" }
@@ -328,18 +319,9 @@ export type ContentScriptGetConfigMessage = Extract<
   Message,
   { command: "CMD_CONTENT_SCRIPT_GET_CONFIG" }
 >;
-export type PopupPageEnableMessage = Extract<
-  Message,
-  { command: "CMD_POPUP_PAGE_ENABLE" }
->;
-export type PopupPageDisableMessage = Extract<
-  Message,
-  { command: "CMD_POPUP_PAGE_DISABLE" }
->;
-export type PopupPageStatusMessage = Extract<
-  Message,
-  { command: "CMD_STATUS_COMMAND" }
->;
+export type PopupPageEnableMessage = Extract<Message, { command: "CMD_POPUP_PAGE_ENABLE" }>;
+export type PopupPageDisableMessage = Extract<Message, { command: "CMD_POPUP_PAGE_DISABLE" }>;
+export type PopupPageStatusMessage = Extract<Message, { command: "CMD_STATUS_COMMAND" }>;
 export type ContentScriptUsageEventMessage = Extract<
   Message,
   { command: "CMD_CONTENT_SCRIPT_USAGE_EVENT" }

@@ -7,8 +7,7 @@ import { MessageRouter } from "../router/MessageRouter";
 import { registerRuntimeTestHooks } from "@adapters/chrome/background/testing/RuntimeTestHooks";
 
 export class BackgroundBootstrap {
-  private readonly getWorker = (): BackgroundServiceWorker =>
-    new BackgroundServiceWorker();
+  private readonly getWorker = (): BackgroundServiceWorker => new BackgroundServiceWorker();
   private readonly commandRouter = new CommandRouter(this.getWorker);
   private readonly messageRouter = new MessageRouter(this.getWorker);
 

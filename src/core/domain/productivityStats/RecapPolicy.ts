@@ -4,8 +4,8 @@ import {
   EQUIVALENT_TASK_MINUTES,
   WEEKLY_RECAP_REVEAL_HOUR,
 } from "./constants";
-import { StatsAggregator } from "./StatsAggregator";
-import { StatsSanitizer } from "./StatsSanitizer";
+import type { StatsAggregator } from "./StatsAggregator";
+import type { StatsSanitizer } from "./StatsSanitizer";
 import type { DailyProductivityState, ProductivityStatsState } from "./types";
 
 export class RecapPolicy {
@@ -54,10 +54,7 @@ export class RecapPolicy {
       estimatedMinutesSaved,
       topSnippet,
       milestonesCrossedHours,
-      equivalentTasks: Math.max(
-        0,
-        Math.round(estimatedMinutesSaved / EQUIVALENT_TASK_MINUTES),
-      ),
+      equivalentTasks: Math.max(0, Math.round(estimatedMinutesSaved / EQUIVALENT_TASK_MINUTES)),
     };
   }
 
@@ -66,10 +63,7 @@ export class RecapPolicy {
     weeklyRecap: WeeklyRecapSummary,
     now: Date,
   ): boolean {
-    if (
-      weeklyRecap.acceptedSuggestions <= 0 ||
-      state.lastWeeklyRecapWeek === weeklyRecap.weekKey
-    ) {
+    if (weeklyRecap.acceptedSuggestions <= 0 || state.lastWeeklyRecapWeek === weeklyRecap.weekKey) {
       return false;
     }
 

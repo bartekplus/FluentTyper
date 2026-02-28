@@ -56,17 +56,14 @@ export type ContentMessageHandlerDependencies = {
 export class ContentMessageHandler {
   private pendingReq: ContentScriptPredictRequestMessage | null = null;
 
-  constructor(
-    private readonly dependencies: ContentMessageHandlerDependencies,
-  ) {}
+  constructor(private readonly dependencies: ContentMessageHandlerDependencies) {}
 
   handleGetPrediction(context: ContentScriptPredictRequestContext): void {
     const traceId = isNonEmptyString(context.traceId)
       ? context.traceId.trim()
       : generatePredictionTraceId();
     const traceStartedAtMs =
-      typeof context.traceStartedAtMs === "number" &&
-      Number.isFinite(context.traceStartedAtMs)
+      typeof context.traceStartedAtMs === "number" && Number.isFinite(context.traceStartedAtMs)
         ? context.traceStartedAtMs
         : Date.now();
 
@@ -145,15 +142,11 @@ export class ContentMessageHandler {
         break;
       }
       case CMD_BACKGROUND_PAGE_SET_CONFIG:
-        this.dependencies.setConfig(
-          (message as { context: SetConfigContext }).context,
-        );
+        this.dependencies.setConfig((message as { context: SetConfigContext }).context);
         sendStatusMsg = true;
         break;
       case CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG:
-        this.dependencies.updateLanguage(
-          (message as { context: { lang: string } }).context.lang,
-        );
+        this.dependencies.updateLanguage((message as { context: { lang: string } }).context.lang);
         sendStatusMsg = true;
         break;
       case CMD_POPUP_PAGE_DISABLE:

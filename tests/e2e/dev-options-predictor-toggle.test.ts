@@ -1,7 +1,7 @@
-import { Browser, Page } from "puppeteer";
+import type { Browser, Page } from "puppeteer";
+import type { BackgroundContext } from "./e2e-helpers";
 import {
   BROWSER_TYPE,
-  BackgroundContext,
   getBackgroundContext,
   launchBrowser,
   openExtensionPage,
@@ -13,8 +13,7 @@ import {
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
 } from "../../src/core/domain/constants";
 
-const RUN_E2E =
-  process.env.RUN_E2E === "1" || process.env.RUN_E2E === "true";
+const RUN_E2E = process.env.RUN_E2E === "1" || process.env.RUN_E2E === "true";
 const describeE2E = RUN_E2E ? describe : describe.skip;
 
 const SETTINGS_PREFIX = "store.settings.";
@@ -26,34 +25,24 @@ interface PredictorDebugSnapshot {
   };
 }
 
-async function setSetting(
-  context: BackgroundContext,
-  key: string,
-  value: unknown,
-): Promise<void> {
+async function setSetting(context: BackgroundContext, key: string, value: unknown): Promise<void> {
   await context.evaluate(
     (storageKey, nextValue) =>
       new Promise<void>((resolve, reject) => {
-        chrome.storage.local.set(
-          { [storageKey]: JSON.stringify(nextValue) },
-          () => {
-            if (chrome.runtime.lastError) {
-              reject(new Error(chrome.runtime.lastError.message));
-              return;
-            }
-            resolve();
-          },
-        );
+        chrome.storage.local.set({ [storageKey]: JSON.stringify(nextValue) }, () => {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+            return;
+          }
+          resolve();
+        });
       }),
     `${SETTINGS_PREFIX}${key}`,
     value,
   );
 }
 
-async function getSetting<T>(
-  context: BackgroundContext,
-  key: string,
-): Promise<T | undefined> {
+async function getSetting<T>(context: BackgroundContext, key: string): Promise<T | undefined> {
   return (await context.evaluate((storageKey) => {
     return new Promise<T | undefined>((resolve, reject) => {
       chrome.storage.local.get(storageKey, (result) => {
@@ -89,9 +78,7 @@ async function sendOptionsPageConfigChange(optionsPage: Page): Promise<void> {
   }, CMD_OPTIONS_PAGE_CONFIG_CHANGE);
 }
 
-async function getPredictorDebugSnapshot(
-  optionsPage: Page,
-): Promise<PredictorDebugSnapshot> {
+async function getPredictorDebugSnapshot(optionsPage: Page): Promise<PredictorDebugSnapshot> {
   return await optionsPage.evaluate((command) => {
     return new Promise<PredictorDebugSnapshot>((resolve, reject) => {
       chrome.runtime.sendMessage(
@@ -143,15 +130,10 @@ async function waitForSnapshotValue(
     }
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
-  throw new Error(
-    `Timed out waiting for predictor snapshot ${key}=${String(expectedValue)}`,
-  );
+  throw new Error(`Timed out waiting for predictor snapshot ${key}=${String(expectedValue)}`);
 }
 
-async function togglePredictorDebugButton(
-  optionsPage: Page,
-  key: string,
-): Promise<void> {
+async function togglePredictorDebugButton(optionsPage: Page, key: string): Promise<void> {
   const selector = `[data-action="set-predictor-toggle"][data-key="${key}"]`;
   await optionsPage.waitForSelector(selector, { timeout: 10000 });
   await optionsPage.evaluate((selectorValue) => {
@@ -184,36 +166,33 @@ describeE2E(`Options Predictor Toggle E2E [${BROWSER_TYPE}]`, () => {
     }
   }, 20000);
 
-  test.each([
-    KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
-    KEY_DEBUG_AI_PREDICTOR_ENABLED,
-  ])("applies %s from predictor debug dashboard", async (key) => {
-    const optionsPage = await openExtensionPage(
-      browser,
-      worker,
-      "options/options.html",
-    );
+  test.each([KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED, KEY_DEBUG_AI_PREDICTOR_ENABLED])(
+    "applies %s from predictor debug dashboard",
+    async (key) => {
+      const optionsPage = await openExtensionPage(browser, worker, "options/options.html");
 
-    try {
-      await setSetting(worker, key, true);
-      await sendOptionsPageConfigChange(optionsPage);
-      await waitForSnapshotValue(optionsPage, key, true);
-
-      await optionsPage.waitForSelector("#predictorDebugRoot", {
-        timeout: 10000,
-      });
-      await togglePredictorDebugButton(optionsPage, key);
-
-      await waitForSettingValue(worker, key, false);
-      await waitForSnapshotValue(optionsPage, key, false);
-    } finally {
-      await setSetting(worker, key, true);
-      if (!optionsPage.isClosed()) {
+      try {
+        await setSetting(worker, key, true);
         await sendOptionsPageConfigChange(optionsPage);
+        await waitForSnapshotValue(optionsPage, key, true);
+
+        await optionsPage.waitForSelector("#predictorDebugRoot", {
+          timeout: 10000,
+        });
+        await togglePredictorDebugButton(optionsPage, key);
+
+        await waitForSettingValue(worker, key, false);
+        await waitForSnapshotValue(optionsPage, key, false);
+      } finally {
+        await setSetting(worker, key, true);
+        if (!optionsPage.isClosed()) {
+          await sendOptionsPageConfigChange(optionsPage);
+        }
+        if (!optionsPage.isClosed()) {
+          await optionsPage.close();
+        }
       }
-      if (!optionsPage.isClosed()) {
-        await optionsPage.close();
-      }
-    }
-  }, 25000);
+    },
+    25000,
+  );
 });

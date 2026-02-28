@@ -1,19 +1,17 @@
 import { SUPPORTED_LANGUAGES } from "@core/domain/lang";
 import { isWhiteSpace } from "@core/application/domain-utils";
-import {
-  SpacingRulesHandler,
-  Spacing,
-  SPACING_RULES,
-} from "./SpacingRulesHandler";
+import { SpacingRulesHandler, Spacing, SPACING_RULES } from "./SpacingRulesHandler";
 import { createLogger } from "@core/application/logging/Logger";
 import { getErrorMessage } from "@core/domain/error";
 import { Capitalization } from "./CapitalizationHelper";
 import { PredictionInputProcessor } from "./PredictionInputProcessor";
-import { TemplateExpander, TemplateVariables } from "./TemplateExpander";
+import type { TemplateVariables } from "./TemplateExpander";
+import { TemplateExpander } from "./TemplateExpander";
 import type { PresageModule } from "./PresageTypes";
 import { UserDictionaryManager } from "./UserDictionaryManager";
 import { TextExpansionManager } from "./TextExpansionManager";
-import { PresageEngine, PresageEngineConfig } from "./PresageEngine";
+import type { PresageEngineConfig } from "./PresageEngine";
+import { PresageEngine } from "./PresageEngine";
 import type { ForceReplaceType } from "@core/domain/messageTypes";
 import { MAX_NUM_SUGGESTIONS } from "@core/domain/constants";
 import type { PredictionResult } from "./PredictionTypes";
@@ -83,23 +81,18 @@ export class PresageHandler {
     this.insertSpaceAfterAutocomplete = true;
     this.autoCapitalize = true;
     this.userDictionaryList = [];
-    this.spacingHandler = new SpacingRulesHandler(
-      this.insertSpaceAfterAutocomplete,
-      false,
-    );
+    this.spacingHandler = new SpacingRulesHandler(this.insertSpaceAfterAutocomplete, false);
     this.predictionInputProcessor = new PredictionInputProcessor(
       this.minWordLengthToPredict,
       this.autoCapitalize,
     );
     for (const [lang] of Object.entries(SUPPORTED_LANGUAGES)) {
-      if (lang === "auto_detect") continue;
+      if (lang === "auto_detect") {
+        continue;
+      }
       try {
         this.lastPrediction[lang] = { pastStream: "", predictions: [] };
-        this.presageEngines[lang] = new PresageEngine(
-          Module,
-          engineConfig,
-          lang,
-        );
+        this.presageEngines[lang] = new PresageEngine(Module, engineConfig, lang);
       } catch (error) {
         logger.warn("Failed to create Presage engine instance", {
           lang,
@@ -107,24 +100,15 @@ export class PresageHandler {
         });
       }
     }
-    this.textExpansionManager = new TextExpansionManager(
-      Module,
-      this.presageEngines,
-    );
-    this.userDictionaryManager = new UserDictionaryManager(
-      Module,
-      this.presageEngines,
-    );
+    this.textExpansionManager = new TextExpansionManager(Module, this.presageEngines);
+    this.userDictionaryManager = new UserDictionaryManager(Module, this.presageEngines);
   }
 
   setConfig(config: PresageConfig): void {
     this.numSuggestions = config.numSuggestions;
     this.engineNumSuggestions = Math.min(
       MAX_NUM_SUGGESTIONS,
-      Math.max(
-        this.numSuggestions,
-        config.engineNumSuggestions ?? this.numSuggestions,
-      ),
+      Math.max(this.numSuggestions, config.engineNumSuggestions ?? this.numSuggestions),
     );
     this.minWordLengthToPredict = Math.max(0, config.minWordLengthToPredict);
     this.predictNextWordAfterSeparatorChar = this.minWordLengthToPredict === 0;
@@ -181,8 +165,7 @@ export class PresageHandler {
     wordArray: string[];
     foundNewSentence: boolean;
   } {
-    const result =
-      this.predictionInputProcessor.removePrevSentence(wordArrayOrig);
+    const result = this.predictionInputProcessor.removePrevSentence(wordArrayOrig);
     return {
       wordArray: result.wordArray,
       foundNewSentence: result.newSentence,
@@ -234,10 +217,7 @@ export class PresageHandler {
   ): PresagePredictionContext {
     const effectiveNumSuggestions =
       typeof numSuggestionsOverride === "number"
-        ? Math.min(
-            MAX_NUM_SUGGESTIONS,
-            Math.max(0, Math.round(numSuggestionsOverride)),
-          )
+        ? Math.min(MAX_NUM_SUGGESTIONS, Math.max(0, Math.round(numSuggestionsOverride)))
         : this.numSuggestions;
     const { predictionInput, doPrediction, doCapitalize } = this.processInput(
       text,
@@ -321,18 +301,27 @@ export class PresageHandler {
         const aLower = a.toLowerCase();
         const bLower = b.toLowerCase();
         // Exact match first
-        if (aLower === inputLower && bLower !== inputLower) return -1;
-        if (bLower === inputLower && aLower !== inputLower) return 1;
+        if (aLower === inputLower && bLower !== inputLower) {
+          return -1;
+        }
+        if (bLower === inputLower && aLower !== inputLower) {
+          return 1;
+        }
         // Keep original order for now, follow presage order
         return 0;
         // Prefix match next
         const aStarts = aLower.startsWith(inputLower);
         const bStarts = bLower.startsWith(inputLower);
-        if (aStarts && !bStarts) return -1;
-        if (bStarts && !aStarts) return 1;
+        if (aStarts && !bStarts) {
+          return -1;
+        }
+        if (bStarts && !aStarts) {
+          return 1;
+        }
         // Shorter words first (e.g. "act" before "action")
-        if (aLower.length !== bLower.length)
+        if (aLower.length !== bLower.length) {
           return aLower.length - bLower.length;
+        }
         // Otherwise, keep original order
         return 0;
       });
@@ -348,9 +337,7 @@ export class PresageHandler {
     }
     switch (doCapitalize) {
       case Capitalization.FirstLetter:
-        predictions = predictions.map(
-          (pred) => pred.charAt(0).toUpperCase() + pred.slice(1),
-        );
+        predictions = predictions.map((pred) => pred.charAt(0).toUpperCase() + pred.slice(1));
         break;
       case Capitalization.WholeWord:
         predictions = predictions.map((pred) => pred.toUpperCase());

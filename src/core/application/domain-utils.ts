@@ -14,14 +14,10 @@ export const DOMAIN_LIST_MODE = {
 
 async function getDomainList(settings: SettingsManager): Promise<string[]> {
   const domainList = await settings.get(SETTINGS_DOMAIN_BLACKLIST);
-  return Array.isArray(domainList)
-    ? domainList.map((entry) => String(entry))
-    : [];
+  return Array.isArray(domainList) ? domainList.map((entry) => String(entry)) : [];
 }
 
-async function getDomainListMode(
-  settings: SettingsManager,
-): Promise<"blackList" | "whiteList"> {
+async function getDomainListMode(settings: SettingsManager): Promise<"blackList" | "whiteList"> {
   const mode = await settings.get(SETTINGS_DOMAIN_LIST_MODE);
   return mode === "whiteList" ? "whiteList" : "blackList";
 }
@@ -61,10 +57,7 @@ export async function isDomainOnList(
   }
 }
 
-export async function addDomainToList(
-  settings: SettingsManager,
-  domainURL: string,
-): Promise<void> {
+export async function addDomainToList(settings: SettingsManager, domainURL: string): Promise<void> {
   const normalizedDomain = normalizeDomainHost(domainURL);
   if (!normalizedDomain) {
     return;
@@ -125,20 +118,14 @@ export async function blockUnBlockDomain(
   block = false,
 ): Promise<void> {
   const domainListMode = await getDomainListMode(settings);
-  if (
-    (block && domainListMode === "blackList") ||
-    (!block && domainListMode === "whiteList")
-  ) {
+  if ((block && domainListMode === "blackList") || (!block && domainListMode === "whiteList")) {
     await addDomainToList(settings, domainURL);
   } else {
     await removeDomainFromList(settings, domainURL);
   }
 }
 
-export function isWhiteSpace(
-  character: string,
-  matchNewLine: boolean = true,
-): boolean {
+export function isWhiteSpace(character: string, matchNewLine: boolean = true): boolean {
   const whiteSpaceRegex = /\s+/;
   const whiteSpaceRegexExcludeNewLine = /[^\S\r\n]+/;
   if (matchNewLine) {
@@ -158,7 +145,5 @@ function countDigits(str: string): number {
 }
 
 export function isNumber(str: string): boolean {
-  return (
-    (!isNaN(Number(str)) && !isNaN(parseFloat(str))) || countDigits(str) > 1
-  );
+  return (!isNaN(Number(str)) && !isNaN(parseFloat(str))) || countDigits(str) > 1;
 }

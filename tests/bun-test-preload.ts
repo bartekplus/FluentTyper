@@ -47,10 +47,8 @@ const jestCompat = jest as typeof jest & {
 };
 
 if (!jestCompat.unstable_mockModule) {
-  jestCompat.unstable_mockModule = (
-    moduleId: string,
-    factory: () => unknown,
-  ) => mock.module(moduleId, factory);
+  jestCompat.unstable_mockModule = (moduleId: string, factory: () => unknown) =>
+    mock.module(moduleId, factory);
 }
 
 if (!jestCompat.resetModules) {

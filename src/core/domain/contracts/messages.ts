@@ -59,9 +59,7 @@ export function isMessageCommand(value: unknown): value is MessageCommand {
 
 export function isRuntimeMessage(value: unknown): value is Message {
   return (
-    isObjectRecord(value) &&
-    hasStringProperty(value, "command") &&
-    isMessageCommand(value.command)
+    isObjectRecord(value) && hasStringProperty(value, "command") && isMessageCommand(value.command)
   );
 }
 
@@ -70,9 +68,7 @@ export type RuntimeMessageParseError =
   | { kind: "invalid_command" }
   | { kind: "unsupported_command"; command: string };
 
-export function parseRuntimeMessage(
-  value: unknown,
-): Result<Message, RuntimeMessageParseError> {
+export function parseRuntimeMessage(value: unknown): Result<Message, RuntimeMessageParseError> {
   if (isRuntimeMessage(value)) {
     return ok(value);
   }

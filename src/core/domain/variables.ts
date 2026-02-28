@@ -12,9 +12,7 @@ function getCurrentDateTime(lang: string): DateTime {
     const normalizedLang = lang.replace(/_/g, "-");
     now = DateTime.now().setLocale(normalizedLang);
   } catch (error) {
-    console.warn(
-      `Failed to set locale to ${lang} language: ${getErrorMessage(error)}`,
-    );
+    console.warn(`Failed to set locale to ${lang} language: ${getErrorMessage(error)}`);
   }
 
   return now;

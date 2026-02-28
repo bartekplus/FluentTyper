@@ -140,12 +140,9 @@ async function loadContentScript(): Promise<LoadedContentScript> {
   };
   (window as Window & { FluentTyper?: unknown }).FluentTyper = undefined;
 
-  await import(
-    freshModulePath("../src/adapters/chrome/content-script/content_script")
-  );
-  const fluentTyper = (
-    window as Window & { FluentTyper?: LoadedContentScript["fluentTyper"] }
-  ).FluentTyper!;
+  await import(freshModulePath("../src/adapters/chrome/content-script/content_script"));
+  const fluentTyper = (window as Window & { FluentTyper?: LoadedContentScript["fluentTyper"] })
+    .FluentTyper!;
 
   return {
     fluentTyper,
@@ -162,8 +159,7 @@ describe("content_script behavior", () => {
   });
 
   test("enables and disables managers through state transitions", async () => {
-    const { fluentTyper, tributeInstances, domObserverInstances } =
-      await loadContentScript();
+    const { fluentTyper, tributeInstances, domObserverInstances } = await loadContentScript();
     const domObserver = domObserverInstances[0];
 
     fluentTyper.enabled = true;
@@ -177,8 +173,7 @@ describe("content_script behavior", () => {
   });
 
   test("handleGetPrediction sends request and matching response fulfills prediction", async () => {
-    const { fluentTyper, tributeInstances, sendMessage } =
-      await loadContentScript();
+    const { fluentTyper, tributeInstances, sendMessage } = await loadContentScript();
 
     fluentTyper.enable();
     const tribute = tributeInstances[0];
@@ -304,15 +299,13 @@ describe("content_script behavior", () => {
     expect(tribute.triggerActiveTribute).toHaveBeenCalled();
     expect(
       statusResponses.every(
-        (response) =>
-          (response as { command?: string }).command === CMD_STATUS_COMMAND,
+        (response) => (response as { command?: string }).command === CMD_STATUS_COMMAND,
       ),
     ).toBe(true);
   });
 
   test("processMutations reattaches helpers for added and attribute-target elements", async () => {
-    const { fluentTyper, tributeInstances, domObserverInstances } =
-      await loadContentScript();
+    const { fluentTyper, tributeInstances, domObserverInstances } = await loadContentScript();
     fluentTyper.enable();
     const domObserver = domObserverInstances[0];
 
@@ -405,8 +398,7 @@ describe("content_script behavior", () => {
   });
 
   test("watchdog checks host/domain changes and restarts on node replacement", async () => {
-    const { fluentTyper, domObserverInstances, sendMessage } =
-      await loadContentScript();
+    const { fluentTyper, domObserverInstances, sendMessage } = await loadContentScript();
     const domObserver = domObserverInstances[0];
     const restartSpy = jest.spyOn(fluentTyper, "restart");
     const getConfigSpy = jest.spyOn(fluentTyper, "getConfig");
@@ -415,22 +407,18 @@ describe("content_script behavior", () => {
     expect(fluentTyper.checkHostName()).toBe(true);
     expect(getConfigSpy).toHaveBeenCalled();
 
-    (fluentTyper as unknown as { hostName: string }).hostName =
-      window.location.hostname;
+    (fluentTyper as unknown as { hostName: string }).hostName = window.location.hostname;
     domObserver.getNode.mockReturnValue(document.createElement("div"));
     fluentTyper.enabled = true;
     fluentTyper.watchDog();
 
     expect(restartSpy).toHaveBeenCalled();
-    expect(domObserver.setNode).toHaveBeenCalledWith(
-      document.body || document.documentElement,
-    );
+    expect(domObserver.setNode).toHaveBeenCalledWith(document.body || document.documentElement);
     expect(sendMessage).toHaveBeenCalled();
   });
 
   test("getConfig requests config and passes callback response to messageHandler", async () => {
-    const { fluentTyper, sendMessage, checkLastError } =
-      await loadContentScript();
+    const { fluentTyper, sendMessage, checkLastError } = await loadContentScript();
     const messageHandlerSpy = jest.spyOn(fluentTyper, "messageHandler");
 
     sendMessage.mockImplementation((_message: unknown, callback?: unknown) => {

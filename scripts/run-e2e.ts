@@ -57,10 +57,7 @@ function parseCliOptions(argv: string[]): CliOptions {
   return { mode, platform, passthroughArgs };
 }
 
-async function runCommand(
-  cmd: string[],
-  extraEnv: Record<string, string> = {},
-): Promise<void> {
+async function runCommand(cmd: string[], extraEnv: Record<string, string> = {}): Promise<void> {
   const child = Bun.spawn({
     cmd,
     cwd: process.cwd(),

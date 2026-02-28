@@ -57,9 +57,7 @@ export type ChatCreateResponse =
   | ChatCompletionResponse
   | AsyncIterable<ChatCompletionChunkResponse>;
 
-export type CompletionCreateResponse =
-  | CompletionResponse
-  | AsyncIterable<CompletionChunkResponse>;
+export type CompletionCreateResponse = CompletionResponse | AsyncIterable<CompletionChunkResponse>;
 
 export type PredictionMode = "next_word" | "complete_or_correct";
 

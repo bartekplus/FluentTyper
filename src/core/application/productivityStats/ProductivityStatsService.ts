@@ -1,4 +1,4 @@
-import { SettingsManager } from "@core/application/settingsManager";
+import type { SettingsManager } from "@core/application/settingsManager";
 import type {
   ContentScriptUsageEventContext,
   DonationPromptAction,
@@ -22,10 +22,7 @@ export class ProductivityStatsService {
   private readonly donationPromptPolicy: DonationPromptPolicy;
   private readonly repository: StatsRepository;
 
-  constructor(
-    settingsManager: SettingsManager,
-    options: { now?: () => Date } = {},
-  ) {
+  constructor(settingsManager: SettingsManager, options: { now?: () => Date } = {}) {
     this.sanitizer = new StatsSanitizer();
     this.aggregator = new StatsAggregator(this.sanitizer);
     this.recapPolicy = new RecapPolicy(this.sanitizer, this.aggregator);
@@ -41,16 +38,12 @@ export class ProductivityStatsService {
     }
 
     const shortcuts = textExpansions
-      .map((entry) =>
-        Array.isArray(entry) ? this.sanitizer.normalizeSnippetKey(entry[0]) : "",
-      )
+      .map((entry) => (Array.isArray(entry) ? this.sanitizer.normalizeSnippetKey(entry[0]) : ""))
       .filter((shortcut) => shortcut.length > 0);
     this.snippetShortcuts = new Set(shortcuts);
   }
 
-  async recordSuggestionAccepted(
-    event: ContentScriptUsageEventContext,
-  ): Promise<void> {
+  async recordSuggestionAccepted(event: ContentScriptUsageEventContext): Promise<void> {
     await this.recordUsageEvent(event);
   }
 
@@ -95,13 +88,8 @@ export class ProductivityStatsService {
         }
 
         case "snippet_expanded": {
-          const normalizedSnippetKey = this.sanitizer.normalizeSnippetKey(
-            event.triggerText,
-          );
-          if (
-            !normalizedSnippetKey ||
-            !this.snippetShortcuts.has(normalizedSnippetKey)
-          ) {
+          const normalizedSnippetKey = this.sanitizer.normalizeSnippetKey(event.triggerText);
+          if (!normalizedSnippetKey || !this.snippetShortcuts.has(normalizedSnippetKey)) {
             break;
           }
 
@@ -111,14 +99,10 @@ export class ProductivityStatsService {
 
           state.snippetsExpanded += 1;
           todayBucket.snippetsExpanded += 1;
-          this.aggregator.incrementSnippetUsageCounter(
-            state.snippetUsage,
-            normalizedSnippetKey,
-            {
-              countDelta: 1,
-              charsSavedDelta: charactersSaved,
-            },
-          );
+          this.aggregator.incrementSnippetUsageCounter(state.snippetUsage, normalizedSnippetKey, {
+            countDelta: 1,
+            charsSavedDelta: charactersSaved,
+          });
           this.aggregator.incrementSnippetUsageCounter(
             todayBucket.snippetUsage,
             normalizedSnippetKey,
@@ -131,9 +115,7 @@ export class ProductivityStatsService {
         }
 
         case "chars_inserted_from_snippet": {
-          const normalizedSnippetKey = this.sanitizer.normalizeSnippetKey(
-            event.triggerText,
-          );
+          const normalizedSnippetKey = this.sanitizer.normalizeSnippetKey(event.triggerText);
           const insertedChars = this.sanitizer.clampCount(event.amount);
           if (
             !normalizedSnippetKey ||
@@ -145,13 +127,9 @@ export class ProductivityStatsService {
 
           state.charsInsertedFromSnippet += insertedChars;
           todayBucket.charsInsertedFromSnippet += insertedChars;
-          this.aggregator.incrementSnippetUsageCounter(
-            state.snippetUsage,
-            normalizedSnippetKey,
-            {
-              charsInsertedDelta: insertedChars,
-            },
-          );
+          this.aggregator.incrementSnippetUsageCounter(state.snippetUsage, normalizedSnippetKey, {
+            charsInsertedDelta: insertedChars,
+          });
           this.aggregator.incrementSnippetUsageCounter(
             todayBucket.snippetUsage,
             normalizedSnippetKey,
@@ -163,9 +141,7 @@ export class ProductivityStatsService {
         }
 
         case "chars_typed_for_trigger": {
-          const normalizedSnippetKey = this.sanitizer.normalizeSnippetKey(
-            event.triggerText,
-          );
+          const normalizedSnippetKey = this.sanitizer.normalizeSnippetKey(event.triggerText);
           const typedChars = this.sanitizer.clampCount(event.amount);
           if (
             !normalizedSnippetKey ||
@@ -177,13 +153,9 @@ export class ProductivityStatsService {
 
           state.charsTypedForTrigger += typedChars;
           todayBucket.charsTypedForTrigger += typedChars;
-          this.aggregator.incrementSnippetUsageCounter(
-            state.snippetUsage,
-            normalizedSnippetKey,
-            {
-              charsTypedDelta: typedChars,
-            },
-          );
+          this.aggregator.incrementSnippetUsageCounter(state.snippetUsage, normalizedSnippetKey, {
+            charsTypedDelta: typedChars,
+          });
           this.aggregator.incrementSnippetUsageCounter(
             todayBucket.snippetUsage,
             normalizedSnippetKey,
@@ -244,12 +216,8 @@ export class ProductivityStatsService {
       last7Range.charsTypedForTrigger,
     );
 
-    const perLanguageLifetime = this.aggregator.getLanguageSummaries(
-      state.languageUsage,
-    );
-    const perLanguageLast7Days = this.aggregator.getLanguageSummaries(
-      last7Range.languageUsage,
-    );
+    const perLanguageLifetime = this.aggregator.getLanguageSummaries(state.languageUsage);
+    const perLanguageLast7Days = this.aggregator.getLanguageSummaries(last7Range.languageUsage);
     const topSnippets = this.aggregator.getTopSnippets(state.snippetUsage, 5);
     const last7DaysTrend = this.aggregator.getLast7DayTrend(state.daily, now);
 
@@ -285,9 +253,7 @@ export class ProductivityStatsService {
       perLanguageLast7Days,
       topSnippets,
       weekOverWeekDeltaPct,
-      milestoneProgress: this.aggregator.getMilestoneProgress(
-        lifetime.estimatedMinutesSaved,
-      ),
+      milestoneProgress: this.aggregator.getMilestoneProgress(lifetime.estimatedMinutesSaved),
       weeklyRecap,
       shouldShowWeeklyRecap: shouldShowWeeklyRecapCard,
       donationPrompt: this.donationPromptPolicy.toDonationPrompt(

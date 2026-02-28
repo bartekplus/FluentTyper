@@ -6,9 +6,7 @@ export function checkLastError(): void {
       console.log("Runtime error:", chrome.runtime.lastError.message);
     }
   } catch (error: unknown) {
-    console.error(
-      `Error while checking runtime error: ${getErrorMessage(error)}`,
-    );
+    console.error(`Error while checking runtime error: ${getErrorMessage(error)}`);
   }
 }
 

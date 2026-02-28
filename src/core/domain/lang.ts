@@ -13,8 +13,9 @@ export const SUPPORTED_LANGUAGES: Record<string, string> = {
 };
 
 export const SUPPORTED_LANGUAGE_KEYS = Object.keys(SUPPORTED_LANGUAGES);
-export const SUPPORTED_PREDICTION_LANGUAGE_KEYS =
-  SUPPORTED_LANGUAGE_KEYS.filter((lang) => lang !== "auto_detect");
+export const SUPPORTED_PREDICTION_LANGUAGE_KEYS = SUPPORTED_LANGUAGE_KEYS.filter(
+  (lang) => lang !== "auto_detect",
+);
 
 export function resolveEnabledLanguages(enabledLanguages: unknown): string[] {
   if (!Array.isArray(enabledLanguages)) {
@@ -23,22 +24,14 @@ export function resolveEnabledLanguages(enabledLanguages: unknown): string[] {
   const enabledSet = new Set(
     enabledLanguages.filter(
       (lang): lang is string =>
-        typeof lang === "string" &&
-        lang in SUPPORTED_LANGUAGES &&
-        lang !== "auto_detect",
+        typeof lang === "string" && lang in SUPPORTED_LANGUAGES && lang !== "auto_detect",
     ),
   );
-  const filtered = SUPPORTED_PREDICTION_LANGUAGE_KEYS.filter((lang) =>
-    enabledSet.has(lang),
-  );
-  return filtered.length > 0
-    ? filtered
-    : SUPPORTED_PREDICTION_LANGUAGE_KEYS.slice();
+  const filtered = SUPPORTED_PREDICTION_LANGUAGE_KEYS.filter((lang) => enabledSet.has(lang));
+  return filtered.length > 0 ? filtered : SUPPORTED_PREDICTION_LANGUAGE_KEYS.slice();
 }
 
-export function resolveEnabledPredictionLanguages(
-  enabledLanguages: unknown,
-): string[] {
+export function resolveEnabledPredictionLanguages(enabledLanguages: unknown): string[] {
   return resolveEnabledLanguages(enabledLanguages);
 }
 export const SUPPORTED_LANGUAGES_SHORT_CODE: Record<string, string> = {
@@ -59,9 +52,7 @@ export const DEFAULT_SEPARATOR_CHARS_REGEX: RegExp = RegExp(
 export const LANG_SEPARATOR_CHARS_REGEX: Record<string, RegExp> = {
   auto_detect: DEFAULT_SEPARATOR_CHARS_REGEX,
   en_US: DEFAULT_SEPARATOR_CHARS_REGEX,
-  fr_FR: RegExp(
-    /\s+|!|"|#|\$|%|&|\(|\)|\*|\+|,|-|\.|\/|:|;|<|=|>|\?|@|\[|\\|\]|\^|_|`|{|\||}|~|'/,
-  ),
+  fr_FR: RegExp(/\s+|!|"|#|\$|%|&|\(|\)|\*|\+|,|-|\.|\/|:|;|<|=|>|\?|@|\[|\\|\]|\^|_|`|{|\||}|~|'/),
   hr_HR: DEFAULT_SEPARATOR_CHARS_REGEX,
   es_ES: DEFAULT_SEPARATOR_CHARS_REGEX,
   el_GR: DEFAULT_SEPARATOR_CHARS_REGEX,

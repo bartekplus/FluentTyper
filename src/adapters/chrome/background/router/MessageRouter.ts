@@ -18,14 +18,8 @@ import type {
   PredictRequestMessage,
   UpdateLangConfigMessage,
 } from "@core/domain/messageTypes";
-import {
-  isMessageCommand,
-  parseRuntimeMessage,
-} from "@core/domain/contracts/messages";
-import {
-  getDomain,
-  isEnabledForDomain,
-} from "@core/application/domain-utils";
+import { isMessageCommand, parseRuntimeMessage } from "@core/domain/contracts/messages";
+import { getDomain, isEnabledForDomain } from "@core/application/domain-utils";
 import { checkLastError } from "@core/application/transport-utils";
 import {
   ConfigError,
@@ -35,7 +29,7 @@ import {
   logError,
 } from "@core/domain/error";
 import { resolveDomainRuntimeSettings } from "../config/runtimeSettings";
-import { BackgroundServiceWorker } from "../BackgroundServiceWorker";
+import type { BackgroundServiceWorker } from "../BackgroundServiceWorker";
 import {
   createErrorMappingMiddleware,
   createLoggingMiddleware,
@@ -82,10 +76,12 @@ interface MessageDispatchPayload {
   worker: BackgroundServiceWorker;
 }
 
-type CommandPayload<TCommand extends RoutedMessageCommand = RoutedMessageCommand> =
-  Omit<MessageDispatchPayload, "request"> & {
-    request: RoutedMessageByCommand[TCommand];
-  };
+type CommandPayload<TCommand extends RoutedMessageCommand = RoutedMessageCommand> = Omit<
+  MessageDispatchPayload,
+  "request"
+> & {
+  request: RoutedMessageByCommand[TCommand];
+};
 
 interface SenderRoutingContext {
   tabId: number;
@@ -112,31 +108,20 @@ const MESSAGE_ERROR_LABELS: Record<RoutedMessageCommand, string> = {
   [CMD_CONTENT_SCRIPT_USAGE_EVENT]: "MessageRouter.handleContentScriptUsageEvent",
   [CMD_POPUP_GET_PRODUCTIVITY_STATS]: "MessageRouter.handlePopupGetProductivityStats",
   [CMD_POPUP_ACK_WEEKLY_RECAP]: "MessageRouter.handlePopupAckWeeklyRecap",
-  [CMD_POPUP_ACK_DONATION_MILESTONE]:
-    "MessageRouter.handlePopupAckDonationMilestone",
-  [CMD_OPTIONS_RESET_PRODUCTIVITY_STATS]:
-    "MessageRouter.handleOptionsResetProductivityStats",
+  [CMD_POPUP_ACK_DONATION_MILESTONE]: "MessageRouter.handlePopupAckDonationMilestone",
+  [CMD_OPTIONS_RESET_PRODUCTIVITY_STATS]: "MessageRouter.handleOptionsResetProductivityStats",
   [CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT]:
     "MessageRouter.handleOptionsGetPredictorDebugSnapshot",
-  [CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE]:
-    "MessageRouter.handleOptionsClearPredictorDebugTrace",
+  [CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE]: "MessageRouter.handleOptionsClearPredictorDebugTrace",
 };
 
 export class MessageRouter {
   private readonly getWorker: () => BackgroundServiceWorker;
-  private readonly registry: HandlerRegistry<
-    RoutedMessageCommand,
-    MessageDispatchPayload,
-    void
-  >;
+  private readonly registry: HandlerRegistry<RoutedMessageCommand, MessageDispatchPayload, void>;
 
   constructor(getWorker: () => BackgroundServiceWorker) {
     this.getWorker = getWorker;
-    this.registry = new HandlerRegistry<
-      RoutedMessageCommand,
-      MessageDispatchPayload,
-      void
-    >([
+    this.registry = new HandlerRegistry<RoutedMessageCommand, MessageDispatchPayload, void>([
       createErrorMappingMiddleware<MessageDispatchPayload, void>({
         mapUnknownCommand: (command) => {
           logError("onMessage", `Unknown command: ${command}`);
@@ -146,19 +131,14 @@ export class MessageRouter {
             ? MESSAGE_ERROR_LABELS[context.command]
             : "MessageRouter.handle";
           const mappedError = mapRuntimeError(error);
-          logError(
-            `${label}.${mappedError.category}.${mappedError.code}`,
-            error,
-          );
+          logError(`${label}.${mappedError.category}.${mappedError.code}`, error);
           context.payload.sendResponse(mappedError.response);
         },
       }),
       createLoggingMiddleware(logger),
-      createValidationMiddleware<
-        MessageDispatchPayload,
-        void,
-        RoutedMessageCommand
-      >(isRoutedMessageCommand),
+      createValidationMiddleware<MessageDispatchPayload, void, RoutedMessageCommand>(
+        isRoutedMessageCommand,
+      ),
     ]);
 
     const register = <TCommand extends RoutedMessageCommand>(
@@ -168,34 +148,13 @@ export class MessageRouter {
       this.registry.register(command, this.createCommandHandler(command, handler));
     };
 
-    register(
-      CMD_CONTENT_SCRIPT_PREDICT_REQ,
-      this.handleContentScriptPredictReq.bind(this),
-    );
-    register(
-      CMD_OPTIONS_PAGE_CONFIG_CHANGE,
-      this.handleOptionsPageConfigChange.bind(this),
-    );
-    register(
-      CMD_CONTENT_SCRIPT_GET_CONFIG,
-      this.handleContentScriptGetConfig.bind(this),
-    );
-    register(
-      CMD_CONTENT_SCRIPT_USAGE_EVENT,
-      this.handleContentScriptUsageEvent.bind(this),
-    );
-    register(
-      CMD_POPUP_GET_PRODUCTIVITY_STATS,
-      this.handlePopupGetProductivityStats.bind(this),
-    );
-    register(
-      CMD_POPUP_ACK_WEEKLY_RECAP,
-      this.handlePopupAckWeeklyRecap.bind(this),
-    );
-    register(
-      CMD_POPUP_ACK_DONATION_MILESTONE,
-      this.handlePopupAckDonationMilestone.bind(this),
-    );
+    register(CMD_CONTENT_SCRIPT_PREDICT_REQ, this.handleContentScriptPredictReq.bind(this));
+    register(CMD_OPTIONS_PAGE_CONFIG_CHANGE, this.handleOptionsPageConfigChange.bind(this));
+    register(CMD_CONTENT_SCRIPT_GET_CONFIG, this.handleContentScriptGetConfig.bind(this));
+    register(CMD_CONTENT_SCRIPT_USAGE_EVENT, this.handleContentScriptUsageEvent.bind(this));
+    register(CMD_POPUP_GET_PRODUCTIVITY_STATS, this.handlePopupGetProductivityStats.bind(this));
+    register(CMD_POPUP_ACK_WEEKLY_RECAP, this.handlePopupAckWeeklyRecap.bind(this));
+    register(CMD_POPUP_ACK_DONATION_MILESTONE, this.handlePopupAckDonationMilestone.bind(this));
     register(
       CMD_OPTIONS_RESET_PRODUCTIVITY_STATS,
       this.handleOptionsResetProductivityStats.bind(this),
@@ -286,10 +245,7 @@ export class MessageRouter {
 
     let domainSettings: Awaited<ReturnType<typeof resolveDomainRuntimeSettings>>;
     try {
-      domainSettings = await resolveDomainRuntimeSettings(
-        worker.settingsManager,
-        domainURL,
-      );
+      domainSettings = await resolveDomainRuntimeSettings(worker.settingsManager, domainURL);
     } catch (error) {
       if (isFluentTyperError(error)) {
         throw error;
@@ -391,9 +347,7 @@ export class MessageRouter {
     const domain = getDomain(sender.tab?.url || "") || "";
 
     let isEnabled: boolean;
-    let message: Awaited<
-      ReturnType<BackgroundServiceWorker["getBackgroundPageSetConfigMsg"]>
-    >;
+    let message: Awaited<ReturnType<BackgroundServiceWorker["getBackgroundPageSetConfigMsg"]>>;
     try {
       [isEnabled, message] = await Promise.all([
         isEnabledForDomain(worker.settingsManager, domain),
@@ -432,9 +386,7 @@ export class MessageRouter {
     payload: CommandPayload<typeof CMD_POPUP_ACK_WEEKLY_RECAP>,
   ): Promise<void> {
     const { request, sendResponse, worker } = payload;
-    await worker.productivityStatsManager.acknowledgeWeeklyRecap(
-      request.context.weekKey,
-    );
+    await worker.productivityStatsManager.acknowledgeWeeklyRecap(request.context.weekKey);
     this.respondOk(sendResponse);
   }
 
