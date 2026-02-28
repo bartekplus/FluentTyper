@@ -20,13 +20,10 @@ import { sanitizeSiteProfilesSetting } from "./config/runtimeSettings";
 import { ConfigAssembler } from "./config/ConfigAssembler";
 
 declare const __FT_DEV_BUILD__: boolean | undefined;
-declare const __FT_E2E_BUILD__: boolean | undefined;
 
 export const IS_DEV_BUILD =
   typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
-export const IS_E2E_BUILD =
-  typeof __FT_E2E_BUILD__ !== "undefined" && Boolean(__FT_E2E_BUILD__);
-export const ENABLE_AI_PREDICTOR = IS_DEV_BUILD || IS_E2E_BUILD;
+export const ENABLE_AI_PREDICTOR = IS_DEV_BUILD;
 
 export class BackgroundServiceWorker {
   static instance: BackgroundServiceWorker;

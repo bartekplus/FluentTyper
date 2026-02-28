@@ -6,7 +6,6 @@ import {
 import { CommandRouter } from "../router/CommandRouter";
 
 declare const __FT_DEV_BUILD__: boolean | undefined;
-declare const __FT_E2E_BUILD__: boolean | undefined;
 
 interface RuntimeTestPredictionRequest {
   lang: string;
@@ -31,8 +30,7 @@ const TEST_MSG_SET_WEBLLM_PREDICTIONS = "TEST_SET_WEBLLM_PREDICTIONS";
 const TEST_MSG_CLEAR_WEBLLM_PREDICTIONS = "TEST_CLEAR_WEBLLM_PREDICTIONS";
 const TEST_MSG_GET_WEBLLM_PREDICTION_CALLS = "TEST_GET_WEBLLM_PREDICTION_CALLS";
 const ENABLE_RUNTIME_TEST_HOOKS =
-  (typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__)) ||
-  (typeof __FT_E2E_BUILD__ !== "undefined" && Boolean(__FT_E2E_BUILD__));
+  typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
 
 function getWebLLMTestGlobals(): WebLLMTestGlobals {
   return globalThis as WebLLMTestGlobals;

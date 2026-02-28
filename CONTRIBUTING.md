@@ -93,7 +93,14 @@ Optional end-to-end tests:
 
 ```bash
 npm run test:e2e
+npm run test:e2e:dev
 ```
+
+Notes:
+
+- `npm run test:e2e` builds with `--mode=production` and runs the production e2e suite.
+- `npm run test:e2e:dev` builds with `--mode=development` and runs dev/runtime-hook-specific e2e coverage.
+- `npm run test:e2e:matrix` runs both production and development e2e suites.
 
 ## Branch and PR Workflow
 

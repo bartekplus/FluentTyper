@@ -47,6 +47,10 @@ const SUPPORTED_INPUT_SELECTORS = [
 const NAVIGATION_TIMEOUT_MS = isFirefox() ? 8000 : 5000;
 const INPUT_READY_TIMEOUT_MS = isFirefox() ? 10000 : 10000;
 const SUGGESTION_TIMEOUT_MS = isFirefox() ? 7000 : 8000;
+const RUN_DEV_RUNTIME_E2E =
+  process.env.FT_E2E_DEV_RUNTIME === "1" ||
+  process.env.FT_E2E_DEV_RUNTIME === "true";
+const devRuntimeTest = RUN_DEV_RUNTIME_E2E ? test : test.skip;
 
 function browserTimeout(chromeTimeoutMs: number, firefoxTimeoutMs: number) {
   return isFirefox() ? firefoxTimeoutMs : chromeTimeoutMs;
@@ -850,7 +854,7 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
   }, 5000);
 
-  test(
+  devRuntimeTest(
     "CMD_TOGGLE_FT_ACTIVE_LANG changes global language when no site profile exists",
     async () => {
       try {
@@ -883,7 +887,7 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(15000, 25000),
   );
 
-  test(
+  devRuntimeTest(
     "CMD_TOGGLE_FT_ACTIVE_LANG changes per-site language when site profile exists",
     async () => {
       try {
@@ -942,7 +946,7 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(15000, 25000),
   );
 
-  test(
+  devRuntimeTest(
     "AI predictor merges WebLLM suggestions with Presage in one suggestion list",
     async () => {
       const selector = "#test-input";
@@ -1005,7 +1009,7 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(30000, 50000),
   );
 
-  test(
+  devRuntimeTest(
     "AI predictor respects latency budget and falls back to Presage when AI is slow",
     async () => {
       const selector = "#test-input";

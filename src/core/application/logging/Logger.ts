@@ -23,7 +23,6 @@ export interface LoggerOptions {
 
 interface LoggerRuntimeGlobals {
   __FT_DEV_BUILD__?: boolean;
-  __FT_E2E_BUILD__?: boolean;
   __FT_LOG_LEVEL__?: string;
 }
 
@@ -50,8 +49,7 @@ function resolveDefaultMinLevel(): LogLevel {
     return explicitLogLevel;
   }
   const isDev = Boolean(maybeGlobal.__FT_DEV_BUILD__);
-  const isE2E = Boolean(maybeGlobal.__FT_E2E_BUILD__);
-  return isDev || isE2E ? "debug" : "warn";
+  return isDev ? "debug" : "warn";
 }
 
 export class Logger {

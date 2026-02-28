@@ -3,13 +3,12 @@ import { createLogger } from "../src/core/application/logging/Logger";
 
 type LoggingGlobals = typeof globalThis & {
   __FT_DEV_BUILD__?: boolean;
-  __FT_E2E_BUILD__?: boolean;
   __FT_LOG_LEVEL__?: string;
 };
 
 function setOptionalBoolean(
   globals: LoggingGlobals,
-  key: "__FT_DEV_BUILD__" | "__FT_E2E_BUILD__",
+  key: "__FT_DEV_BUILD__",
   value: boolean | undefined,
 ): void {
   if (typeof value === "boolean") {
@@ -34,7 +33,6 @@ function setOptionalString(
 describe("Logger", () => {
   const loggingGlobals = globalThis as LoggingGlobals;
   const originalDevBuild = loggingGlobals.__FT_DEV_BUILD__;
-  const originalE2EBuild = loggingGlobals.__FT_E2E_BUILD__;
   const originalLogLevel = loggingGlobals.__FT_LOG_LEVEL__;
 
   beforeEach(() => {
@@ -44,14 +42,12 @@ describe("Logger", () => {
     jest.spyOn(console, "error").mockImplementation(() => undefined);
 
     delete loggingGlobals.__FT_DEV_BUILD__;
-    delete loggingGlobals.__FT_E2E_BUILD__;
     delete loggingGlobals.__FT_LOG_LEVEL__;
   });
 
   afterEach(() => {
     jest.restoreAllMocks();
     setOptionalBoolean(loggingGlobals, "__FT_DEV_BUILD__", originalDevBuild);
-    setOptionalBoolean(loggingGlobals, "__FT_E2E_BUILD__", originalE2EBuild);
     setOptionalString(loggingGlobals, "__FT_LOG_LEVEL__", originalLogLevel);
   });
 
