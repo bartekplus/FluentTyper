@@ -26,6 +26,11 @@ class FluentTyper {
   private readonly runtimeController: ContentRuntimeController;
   private readonly contentMessageHandler: ContentMessageHandler;
   private readonly hostChangeWatcher: HostChangeWatcher;
+  private readonly boundMessageHandler = (
+    message: Message | null,
+    sender?: chrome.runtime.MessageSender,
+    sendResponse?: (response: unknown) => void,
+  ) => this.messageHandler(message, sender, sendResponse);
 
   constructor() {
     logger.info("Initializing content script", {
@@ -63,7 +68,7 @@ class FluentTyper {
       requestConfig: () => this.getConfig(),
     });
 
-    chrome.runtime.onMessage.addListener(this.messageHandler.bind(this));
+    chrome.runtime.onMessage.addListener(this.boundMessageHandler);
     this.hostChangeWatcher.start();
     this.getConfig();
   }
@@ -134,6 +139,13 @@ class FluentTyper {
 
   restart(): void {
     this.runtimeController.restart();
+  }
+
+  destroy(): void {
+    logger.info("Destroying content script instance");
+    this.hostChangeWatcher.stop();
+    this.disable();
+    chrome.runtime.onMessage.removeListener(this.boundMessageHandler);
   }
 
   messageHandler(

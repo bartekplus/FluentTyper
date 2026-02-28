@@ -48,6 +48,7 @@ type LoadedContentScript = {
     enable: () => void;
     disable: () => void;
     restart: () => void;
+    destroy: () => void;
   };
   tributeInstances: TributeLike[];
   domObserverInstances: DomObserverLike[];
@@ -80,6 +81,7 @@ function defaultConfig(overrides: Record<string, unknown> = {}) {
 }
 
 const behaviorHarness = {
+  fluentTyperInstances: [] as LoadedContentScript["fluentTyper"][],
   tributeInstances: [] as TributeLike[],
   domObserverInstances: [] as DomObserverLike[],
   checkLastError: jest.fn(),
@@ -134,7 +136,10 @@ async function loadContentScript(): Promise<LoadedContentScript> {
 
   (globalThis as unknown as { chrome: unknown }).chrome = {
     runtime: {
-      onMessage: { addListener: jest.fn() },
+      onMessage: {
+        addListener: jest.fn(),
+        removeListener: jest.fn(),
+      },
       sendMessage: behaviorHarness.sendMessage,
     },
   };
@@ -143,6 +148,8 @@ async function loadContentScript(): Promise<LoadedContentScript> {
   await import(freshModulePath("../src/adapters/chrome/content-script/content_script"));
   const fluentTyper = (window as Window & { FluentTyper?: LoadedContentScript["fluentTyper"] })
     .FluentTyper!;
+
+  behaviorHarness.fluentTyperInstances.push(fluentTyper);
 
   return {
     fluentTyper,
@@ -154,6 +161,14 @@ async function loadContentScript(): Promise<LoadedContentScript> {
 }
 
 describe("content_script behavior", () => {
+  afterEach(() => {
+    for (const fluentTyper of behaviorHarness.fluentTyperInstances) {
+      fluentTyper.destroy();
+    }
+    behaviorHarness.fluentTyperInstances.length = 0;
+    document.body.innerHTML = "";
+  });
+
   afterAll(() => {
     mock.restore();
   });
