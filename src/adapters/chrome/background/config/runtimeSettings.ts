@@ -1,7 +1,4 @@
-import {
-  DEFAULT_AI_PREDICTION_TIMEOUT_MS,
-  MAX_NUM_SUGGESTIONS,
-} from "@core/domain/constants";
+import { MAX_NUM_SUGGESTIONS } from "@core/domain/constants";
 import type { SettingsManager } from "@core/application/settingsManager";
 import {
   getSiteProfileForDomain,
@@ -24,13 +21,6 @@ export function clampNumSuggestions(value: unknown): number {
     return 0;
   }
   return Math.min(MAX_NUM_SUGGESTIONS, Math.max(0, Math.round(value)));
-}
-
-export function clampAIPredictionTimeoutMs(value: unknown): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return DEFAULT_AI_PREDICTION_TIMEOUT_MS;
-  }
-  return Math.min(2000, Math.max(20, Math.round(value)));
 }
 
 export async function resolveActiveLanguage(

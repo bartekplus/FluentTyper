@@ -27,8 +27,4 @@ export class SettingsRepositoryBase {
   ): Promise<void> {
     await this.settings.set(getSettingStorageKey(field), value as unknown as JsonValue);
   }
-
-  getRawSettingsManager(): SettingsManager {
-    return this.settings;
-  }
 }
