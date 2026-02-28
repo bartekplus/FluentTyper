@@ -1,4 +1,4 @@
-import { jest } from "@jest/globals";
+import { jest } from "bun:test";
 import { DateTime, Settings } from "luxon";
 import { DATE_TIME_VARIABLES } from "../src/core/domain/variables";
 

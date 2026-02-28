@@ -12,19 +12,19 @@ Thanks for your interest in improving FluentTyper. This document is for develope
 
 ### Requirements
 
-- Node.js 24 (matches CI)
-- npm
+- Bun 1.3.10 (pinned in `packageManager`)
 
 ### Local Setup
 
 1. Fork the repository and clone your fork.
-2. Install dependencies:
+2. Use Bun lockfile-based install for reproducibility (`bun.lock` is canonical).
+3. Install dependencies:
    ```bash
-   npm ci
+   bun install
    ```
-3. Build the extension:
+4. Build the extension:
    ```bash
-   npm run build
+   bun run build
    ```
 
 ## Run Locally in a Browser
@@ -32,19 +32,19 @@ Thanks for your interest in improving FluentTyper. This document is for develope
 Build once:
 
 ```bash
-npm run build
+bun run build
 ```
 
 Or run watch mode for iterative development:
 
 ```bash
-npm run watch
+bun run watch
 ```
 
-To test a Chrome/Edge build specifically:
+To build Firefox instead of the default Chrome target:
 
 ```bash
-PLATFORM=chrome npm run watch
+bun run build --platform=firefox
 ```
 
 Load the unpacked extension from the `build/` directory:
@@ -79,28 +79,28 @@ Import and placement conventions:
 Run these before opening a pull request:
 
 ```bash
-npm run check
-npm run test
+bun run check
+bun run test
 ```
 
 Optional local autofix formatting and linting:
 
 ```bash
-npm run lint
+bun run lint
 ```
 
 Optional end-to-end tests:
 
 ```bash
-npm run test:e2e
-npm run test:e2e:dev
+bun run test:e2e
+bun run test:e2e --platform=firefox
+bun run test:e2e:dev
 ```
 
 Notes:
 
-- `npm run test:e2e` builds with `--mode=production` and runs the production e2e suite.
-- `npm run test:e2e:dev` builds with `--mode=development` and runs dev/runtime-hook-specific e2e coverage.
-- `npm run test:e2e:matrix` runs both production and development e2e suites.
+- `bun run test:e2e` defaults to `--platform=chrome`; set `--platform=firefox` when needed.
+- `bun run test:e2e:dev` builds with `--mode=development` and runs dev/runtime-hook-specific e2e coverage.
 
 ## Branch and PR Workflow
 

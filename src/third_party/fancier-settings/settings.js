@@ -1481,16 +1481,19 @@ window.addEventListener("DOMContentLoaded", function () {
       fallbackLanguageVisibility(settings, await store.get(KEY_LANGUAGE));
       let siteProfilesManager = null;
 
-      settings.manifest.language.addEvent("action", function (value) {
+      settings.manifest.language.addEvent("action", async function (value) {
         fallbackLanguageVisibility(settings, value);
-        validateLanguageSettings(settings, store);
+        await validateLanguageSettings(settings, store);
       });
 
-      settings.manifest[KEY_ENABLED_LANGUAGES].addEvent("action", function () {
-        validateLanguageSettings(settings, store);
-        siteProfilesManager?.render();
-      });
-      validateLanguageSettings(settings, store);
+      settings.manifest[KEY_ENABLED_LANGUAGES].addEvent(
+        "action",
+        async function () {
+          await validateLanguageSettings(settings, store);
+          siteProfilesManager?.render();
+        },
+      );
+      await validateLanguageSettings(settings, store);
       siteProfilesManager = new SiteProfilesManager(
         settings,
         optionsPageConfigChange,

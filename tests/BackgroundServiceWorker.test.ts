@@ -1,4 +1,4 @@
-import { jest } from "@jest/globals";
+import { jest, mock } from "bun:test";
 
 // Mock chrome global
 const mockChrome = {
@@ -91,6 +91,10 @@ describe("BackgroundServiceWorker", () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+  });
+
+  afterAll(() => {
+    mock.restore();
   });
 
   // We can't check constructor calls easily with unstable_mockModule unless we imported the mocks too

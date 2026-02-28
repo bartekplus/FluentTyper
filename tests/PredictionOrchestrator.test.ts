@@ -1,4 +1,4 @@
-import { jest } from "@jest/globals";
+import { jest } from "bun:test";
 import type { PresageModule } from "../src/adapters/chrome/background/PresageTypes";
 import { PresageHandler } from "../src/adapters/chrome/background/PresageHandler";
 import {

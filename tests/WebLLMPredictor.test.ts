@@ -1,4 +1,4 @@
-import { jest } from "@jest/globals";
+import { jest, mock } from "bun:test";
 
 const createMLCEngineMock = jest.fn<() => Promise<unknown>>();
 
@@ -52,6 +52,10 @@ describe("WebLLMPredictor", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     setWebGPUAvailability(true);
+  });
+
+  afterAll(() => {
+    mock.restore();
   });
 
   test("returns empty predictions when WebGPU is unavailable", async () => {

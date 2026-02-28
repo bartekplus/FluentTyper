@@ -1,4 +1,4 @@
-import { jest } from "@jest/globals";
+import { jest, mock } from "bun:test";
 import { KEY_SITE_PROFILES } from "../src/core/domain/constants";
 
 const settingsGet = jest.fn<(key: string) => Promise<unknown>>();
@@ -8,6 +8,12 @@ const settingsManagerCtor = jest.fn().mockImplementation(() => ({
   get: settingsGet,
   set: settingsSet,
 }));
+let importNonce = 0;
+
+function freshModulePath(path: string): string {
+  importNonce += 1;
+  return `${path}?bun_test_nonce_migration=${importNonce}`;
+}
 
 jest.unstable_mockModule("../src/core/application/settingsManager", () => ({
   SettingsManager: settingsManagerCtor,
@@ -16,11 +22,7 @@ jest.unstable_mockModule("../src/core/application/settingsManager", () => ({
 describe("migrateToLocalStore", () => {
   let migrateToLocalStore: (lastVersion?: string) => Promise<void>;
 
-  beforeAll(async () => {
-    ({ migrateToLocalStore } = await import("../src/adapters/chrome/background/Migration"));
-  });
-
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks();
     settingsGet.mockResolvedValue(undefined);
     (globalThis as { chrome: unknown }).chrome = {
@@ -38,6 +40,14 @@ describe("migrateToLocalStore", () => {
         },
       },
     };
+
+    ({ migrateToLocalStore } = await import(
+      freshModulePath("../src/adapters/chrome/background/Migration")
+    ));
+  });
+
+  afterAll(() => {
+    mock.restore();
   });
 
   test("migrates sync storage to local storage for older versions", async () => {

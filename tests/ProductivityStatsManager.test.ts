@@ -1,4 +1,4 @@
-import { jest } from "@jest/globals";
+import { jest } from "bun:test";
 import { ProductivityStatsManager } from "../src/adapters/chrome/background/ProductivityStatsManager";
 import { SettingsManager } from "../src/core/application/settingsManager";
 import { KEY_PRODUCTIVITY_STATS } from "../src/core/domain/constants";

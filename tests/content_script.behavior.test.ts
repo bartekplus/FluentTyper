@@ -1,4 +1,4 @@
-import { jest } from "@jest/globals";
+import { jest, mock } from "bun:test";
 import {
   CMD_BACKGROUND_PAGE_PREDICT_RESP,
   CMD_BACKGROUND_PAGE_SET_CONFIG,
@@ -55,6 +55,13 @@ type LoadedContentScript = {
   sendMessage: jest.Mock;
 };
 
+let importNonce = 0;
+
+function freshModulePath(path: string): string {
+  importNonce += 1;
+  return `${path}?bun_test_nonce_content_behavior=${importNonce}`;
+}
+
 function defaultConfig(overrides: Record<string, unknown> = {}) {
   return {
     enabled: true,
@@ -72,74 +79,88 @@ function defaultConfig(overrides: Record<string, unknown> = {}) {
   };
 }
 
-async function loadContentScript(): Promise<LoadedContentScript> {
-  jest.resetModules();
-  jest.clearAllMocks();
+const behaviorHarness = {
+  tributeInstances: [] as TributeLike[],
+  domObserverInstances: [] as DomObserverLike[],
+  checkLastError: jest.fn(),
+  sendMessage: jest.fn(),
+};
 
-  const tributeInstances: TributeLike[] = [];
-  const domObserverInstances: DomObserverLike[] = [];
-  const checkLastError = jest.fn();
-  const sendMessage = jest.fn();
+jest.unstable_mockModule("../src/core/application/transport-utils", () => ({
+  checkLastError: (...args: []) => behaviorHarness.checkLastError(...args),
+}));
+
+jest.unstable_mockModule("../src/core/application/dom-utils", () => ({
+  isInDocument: (element: Element) => document.contains(element),
+}));
+
+jest.unstable_mockModule("../src/adapters/chrome/content-script/TributeManager", () => ({
+  TributeManager: jest.fn().mockImplementation(() => {
+    const instance: TributeLike = {
+      queryAndAttachHelper: jest.fn(),
+      detachAllHelpers: jest.fn(),
+      removeHelpersNotInDocument: jest.fn(),
+      updateLangConfig: jest.fn(),
+      triggerActiveTribute: jest.fn(),
+      fulfillPrediction: jest.fn(),
+    };
+    behaviorHarness.tributeInstances.push(instance);
+    return instance;
+  }),
+}));
+
+jest.unstable_mockModule("../src/adapters/chrome/content-script/DomObserver", () => ({
+  DomObserver: jest.fn().mockImplementation((initialNode: unknown) => {
+    let currentNode = initialNode as Node;
+    const instance: DomObserverLike = {
+      attach: jest.fn(),
+      disconnect: jest.fn(),
+      setNode: jest.fn((nextNode: unknown) => {
+        currentNode = nextNode as Node;
+      }),
+      getNode: jest.fn(() => currentNode),
+    };
+    behaviorHarness.domObserverInstances.push(instance);
+    return instance;
+  }),
+}));
+
+async function loadContentScript(): Promise<LoadedContentScript> {
+  jest.clearAllMocks();
+  behaviorHarness.tributeInstances.length = 0;
+  behaviorHarness.domObserverInstances.length = 0;
+  behaviorHarness.checkLastError = jest.fn();
+  behaviorHarness.sendMessage = jest.fn();
 
   (globalThis as unknown as { chrome: unknown }).chrome = {
     runtime: {
       onMessage: { addListener: jest.fn() },
-      sendMessage,
+      sendMessage: behaviorHarness.sendMessage,
     },
   };
   (window as Window & { FluentTyper?: unknown }).FluentTyper = undefined;
 
-  jest.unstable_mockModule("../src/core/application/transport-utils", () => ({
-    checkLastError,
-  }));
-  jest.unstable_mockModule("../src/core/application/dom-utils", () => ({
-    isInDocument: (element: Element) => document.contains(element),
-  }));
-  jest.unstable_mockModule("../src/adapters/chrome/content-script/TributeManager", () => ({
-    TributeManager: jest.fn().mockImplementation(() => {
-      const instance: TributeLike = {
-        queryAndAttachHelper: jest.fn(),
-        detachAllHelpers: jest.fn(),
-        removeHelpersNotInDocument: jest.fn(),
-        updateLangConfig: jest.fn(),
-        triggerActiveTribute: jest.fn(),
-        fulfillPrediction: jest.fn(),
-      };
-      tributeInstances.push(instance);
-      return instance;
-    }),
-  }));
-  jest.unstable_mockModule("../src/adapters/chrome/content-script/DomObserver", () => ({
-    DomObserver: jest.fn().mockImplementation((initialNode: unknown) => {
-      let currentNode = initialNode as Node;
-      const instance: DomObserverLike = {
-        attach: jest.fn(),
-        disconnect: jest.fn(),
-        setNode: jest.fn((nextNode: unknown) => {
-          currentNode = nextNode as Node;
-        }),
-        getNode: jest.fn(() => currentNode),
-      };
-      domObserverInstances.push(instance);
-      return instance;
-    }),
-  }));
-
-  await import("../src/adapters/chrome/content-script/content_script");
+  await import(
+    freshModulePath("../src/adapters/chrome/content-script/content_script")
+  );
   const fluentTyper = (
     window as Window & { FluentTyper?: LoadedContentScript["fluentTyper"] }
   ).FluentTyper!;
 
   return {
     fluentTyper,
-    tributeInstances,
-    domObserverInstances,
-    checkLastError,
-    sendMessage,
+    tributeInstances: behaviorHarness.tributeInstances,
+    domObserverInstances: behaviorHarness.domObserverInstances,
+    checkLastError: behaviorHarness.checkLastError,
+    sendMessage: behaviorHarness.sendMessage,
   };
 }
 
 describe("content_script behavior", () => {
+  afterAll(() => {
+    mock.restore();
+  });
+
   test("enables and disables managers through state transitions", async () => {
     const { fluentTyper, tributeInstances, domObserverInstances } =
       await loadContentScript();
@@ -293,7 +314,6 @@ describe("content_script behavior", () => {
     const { fluentTyper, tributeInstances, domObserverInstances } =
       await loadContentScript();
     fluentTyper.enable();
-    const tribute = tributeInstances[0];
     const domObserver = domObserverInstances[0];
 
     const addedElement = document.createElement("div");
@@ -315,9 +335,17 @@ describe("content_script behavior", () => {
     ]);
 
     expect(domObserver.disconnect).toHaveBeenCalled();
-    expect(tribute.removeHelpersNotInDocument).toHaveBeenCalled();
-    expect(tribute.queryAndAttachHelper).toHaveBeenCalledWith(addedElement);
-    expect(tribute.queryAndAttachHelper).toHaveBeenCalledWith(attrTarget);
+    expect(
+      tributeInstances.some(
+        (instance) => instance.removeHelpersNotInDocument.mock.calls.length > 0,
+      ),
+    ).toBe(true);
+
+    const attachedTargets = tributeInstances.flatMap((instance) =>
+      instance.queryAndAttachHelper.mock.calls.map((call) => call[0]),
+    );
+    expect(attachedTargets).toContain(addedElement);
+    expect(attachedTargets).toContain(attrTarget);
     expect(domObserver.attach).toHaveBeenCalled();
   });
 

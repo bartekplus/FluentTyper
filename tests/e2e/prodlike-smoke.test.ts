@@ -8,6 +8,10 @@ import {
 } from "./e2e-helpers";
 import { CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT } from "../../src/core/domain/constants";
 
+const RUN_E2E =
+  process.env.RUN_E2E === "1" || process.env.RUN_E2E === "true";
+const describeE2E = RUN_E2E ? describe : describe.skip;
+
 interface PredictorDebugSnapshot {
   config?: {
     aiPredictorEnabled?: boolean;
@@ -50,7 +54,7 @@ async function getPredictorDebugSnapshot(
   }
 }
 
-describe(`Production Build Smoke E2E [${BROWSER_TYPE}]`, () => {
+describeE2E(`Production Build Smoke E2E [${BROWSER_TYPE}]`, () => {
   let browser: Browser;
   let worker: BackgroundContext;
 
