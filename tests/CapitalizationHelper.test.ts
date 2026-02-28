@@ -1,7 +1,7 @@
 import {
   checkAutoCapitalize,
   Capitalization,
-} from "../src/background/CapitalizationHelper";
+} from "../src/adapters/chrome/background/CapitalizationHelper";
 
 describe("checkAutoCapitalize", () => {
   it("should return WholeWord when lastWord is all uppercase and not ending with space", () => {

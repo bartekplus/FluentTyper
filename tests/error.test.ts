@@ -1,5 +1,10 @@
 import { jest } from "@jest/globals";
-import { getErrorMessage, logError } from "../src/shared/error";
+import {
+  ConfigError,
+  getErrorMessage,
+  isFluentTyperError,
+  logError,
+} from "../src/core/domain/error";
 
 describe("shared error helpers", () => {
   afterEach(() => {
@@ -35,5 +40,15 @@ describe("shared error helpers", () => {
       "[SyncJob] Error: network",
       error,
     );
+  });
+
+  test("identifies fluent typer config error shape", () => {
+    const error = new ConfigError("Invalid runtime config", {
+      code: "invalid_runtime_config",
+    });
+
+    expect(isFluentTyperError(error)).toBe(true);
+    expect(error.kind).toBe("config");
+    expect(error.code).toBe("invalid_runtime_config");
   });
 });

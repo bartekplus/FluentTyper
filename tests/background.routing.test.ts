@@ -22,7 +22,7 @@ import {
   KEY_SITE_PROFILES,
   KEY_DEBUG_AI_PREDICTOR_ENABLED,
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
-} from "../src/shared/constants";
+} from "../src/core/domain/constants";
 
 function flushPromises() {
   return new Promise((resolve) => setTimeout(resolve, 0));
@@ -82,6 +82,12 @@ async function loadBackgroundHarness(
   }));
   const predictionInitialize = jest.fn(async () => undefined);
   const predictionSetConfig = jest.fn();
+  const predictionEnsureTraceId = jest.fn(
+    (traceId?: string) => traceId || "generated-trace-id",
+  );
+  const predictionRecordTraceTimelineEvent = jest.fn(
+    (meta?: { traceId?: string }) => meta?.traceId || "generated-trace-id",
+  );
   const tabSendToAll = jest.fn();
   const tabSendToActive = jest.fn();
   const getActiveTabHostname = jest.fn(async () => ({
@@ -93,6 +99,36 @@ async function loadBackgroundHarness(
   const isEnabledForDomain = jest.fn(async () => true);
   const logError = jest.fn();
   const migrateToLocalStore = jest.fn(async () => undefined);
+  class MockConfigError extends Error {
+    readonly kind = "config";
+    readonly code: string;
+
+    constructor(message: string, details: { code: string; cause?: unknown }) {
+      super(message);
+      this.name = "ConfigError";
+      this.code = details.code;
+    }
+  }
+  class MockTransportError extends Error {
+    readonly kind = "transport";
+    readonly code: string;
+
+    constructor(message: string, details: { code: string; cause?: unknown }) {
+      super(message);
+      this.name = "TransportError";
+      this.code = details.code;
+    }
+  }
+  class MockPredictorError extends Error {
+    readonly kind = "predictor";
+    readonly code: string;
+
+    constructor(message: string, details: { code: string; cause?: unknown }) {
+      super(message);
+      this.name = "PredictorError";
+      this.code = details.code;
+    }
+  }
 
   const onInstalledAddListener = jest.fn();
   const onCommandAddListener = jest.fn();
@@ -139,44 +175,65 @@ async function loadBackgroundHarness(
   };
   (globalThis as unknown as { chrome: unknown }).chrome = chromeMock;
 
-  jest.unstable_mockModule("../src/shared/settingsManager", () => ({
+  jest.unstable_mockModule("../src/core/application/settingsManager", () => ({
     SettingsManager: jest.fn().mockImplementation(() => ({
       get: settingsGet,
       set: settingsSet,
     })),
   }));
-  jest.unstable_mockModule("../src/background/LanguageDetector", () => ({
+  jest.unstable_mockModule("../src/adapters/chrome/background/LanguageDetector", () => ({
     LanguageDetector: jest.fn().mockImplementation(() => ({
       detectLanguage: languageDetect,
     })),
   }));
-  jest.unstable_mockModule("../src/background/PredictionManager", () => ({
+  jest.unstable_mockModule("../src/adapters/chrome/background/PredictionManager", () => ({
     PredictionManager: jest.fn().mockImplementation(() => ({
       runPrediction: predictionRun,
       initialize: predictionInitialize,
       setConfig: predictionSetConfig,
+      ensureTraceId: predictionEnsureTraceId,
+      recordTraceTimelineEvent: predictionRecordTraceTimelineEvent,
     })),
   }));
-  jest.unstable_mockModule("../src/background/TabMessenger", () => ({
+  jest.unstable_mockModule("../src/adapters/chrome/background/TabMessenger", () => ({
     TabMessenger: jest.fn().mockImplementation(() => ({
       sendToAllTabs: tabSendToAll,
       sendToActiveTab: tabSendToActive,
       getActiveTabHostname: getActiveTabHostname,
     })),
   }));
-  jest.unstable_mockModule("../src/shared/utils", () => ({
+  jest.unstable_mockModule("../src/core/application/transport-utils", () => ({
     checkLastError,
+  }));
+  jest.unstable_mockModule("../src/core/application/domain-utils", () => ({
     getDomain,
     isEnabledForDomain,
   }));
-  jest.unstable_mockModule("../src/shared/error", () => ({
+  jest.unstable_mockModule("../src/core/domain/error", () => ({
     logError,
+    getErrorMessage: (error: unknown) =>
+      error instanceof Error ? error.message : String(error),
+    ConfigError: MockConfigError,
+    TransportError: MockTransportError,
+    PredictorError: MockPredictorError,
+    isFluentTyperError: (error: unknown) => {
+      if (!error || typeof error !== "object") {
+        return false;
+      }
+      const candidate = error as { kind?: unknown; code?: unknown };
+      return (
+        (candidate.kind === "config" ||
+          candidate.kind === "transport" ||
+          candidate.kind === "predictor") &&
+        typeof candidate.code === "string"
+      );
+    },
   }));
-  jest.unstable_mockModule("../src/background/Migration", () => ({
+  jest.unstable_mockModule("../src/adapters/chrome/background/Migration", () => ({
     migrateToLocalStore,
   }));
 
-  const module = await import("../src/background/background");
+  const module = await import("../src/adapters/chrome/background/background");
 
   const onInstalled = onInstalledAddListener.mock.calls[0][0] as (
     details: chrome.runtime.InstalledDetails,
@@ -202,6 +259,8 @@ async function loadBackgroundHarness(
     predictionRun,
     predictionInitialize,
     predictionSetConfig,
+    predictionEnsureTraceId,
+    predictionRecordTraceTimelineEvent,
     tabSendToAll,
     tabSendToActive,
     checkLastError,
@@ -437,6 +496,7 @@ describe("background routing and lifecycle", () => {
           lang: "fr_FR",
           tributeId: 4,
           requestId: 5,
+          traceId: "trace-fr-5",
         },
       },
       {
@@ -447,14 +507,21 @@ describe("background routing and lifecycle", () => {
     );
     await flushPromises();
 
-    expect(harness.predictionRun).toHaveBeenCalledWith("bonjour", "", "fr_FR", {
-      numSuggestions: 2,
-    }, {
-      requestId: 5,
-      tabId: 77,
-      frameId: 3,
-      tributeId: 4,
-    });
+    expect(harness.predictionRun).toHaveBeenCalledWith(
+      "bonjour",
+      "",
+      "fr_FR",
+      {
+        numSuggestions: 2,
+      },
+      {
+        requestId: 5,
+        tabId: 77,
+        frameId: 3,
+        tributeId: 4,
+        traceId: "trace-fr-5",
+      },
+    );
   });
 
   test("onMessage predict request falls back to global runtime config for unmatched domain", async () => {
@@ -478,6 +545,7 @@ describe("background routing and lifecycle", () => {
           lang: "en_US",
           tributeId: 11,
           requestId: 12,
+          traceId: "trace-en-12",
         },
       },
       {
@@ -498,6 +566,7 @@ describe("background routing and lifecycle", () => {
         tabId: 90,
         frameId: 1,
         tributeId: 11,
+        traceId: "trace-en-12",
       },
     );
   });
@@ -636,7 +705,7 @@ describe("background routing and lifecycle", () => {
     expect(updateSpy).toHaveBeenCalled();
     expect(sendResponse).toHaveBeenCalledWith({ ok: false });
     expect(harness.logError).toHaveBeenCalledWith(
-      "handleOptionsPageConfigChange",
+      "handleOptionsPageConfigChange.config.message_update_runtime_config_failed",
       expect.any(Error),
     );
   });
@@ -778,7 +847,7 @@ describe("background routing and lifecycle", () => {
 
   test("onMessage handles productivity usage + popup stats commands", async () => {
     const harness = await loadBackgroundHarness();
-    const statsModule = await import("../src/background/ProductivityStatsManager");
+    const statsModule = await import("../src/adapters/chrome/background/ProductivityStatsManager");
     const recordSpy = jest
       .spyOn(statsModule.ProductivityStatsManager.prototype, "recordUsageEvent")
       .mockResolvedValue(undefined);

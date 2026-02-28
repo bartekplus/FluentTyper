@@ -1,6 +1,6 @@
 import { jest } from "@jest/globals";
-import { DATE_TIME_VARIABLES } from "../src/shared/variables";
-import { TemplateExpander } from "../src/background/TemplateExpander";
+import { DATE_TIME_VARIABLES } from "../src/core/domain/variables";
+import { TemplateExpander } from "../src/adapters/chrome/background/TemplateExpander";
 
 describe("TemplateExpander", () => {
   afterEach(() => {

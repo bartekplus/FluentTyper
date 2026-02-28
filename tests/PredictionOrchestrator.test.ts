@@ -1,18 +1,18 @@
 import { jest } from "@jest/globals";
-import type { PresageModule } from "../src/background/PresageTypes";
-import { PresageHandler } from "../src/background/PresageHandler";
+import type { PresageModule } from "../src/adapters/chrome/background/PresageTypes";
+import { PresageHandler } from "../src/adapters/chrome/background/PresageHandler";
 import {
   PredictionConfig,
   PredictionOrchestrator,
-} from "../src/background/PredictionOrchestrator";
-import { Capitalization } from "../src/background/CapitalizationHelper";
-import type { SecondaryPredictor } from "../src/background/PredictionTypes";
-import type { PresagePredictionContext } from "../src/background/PresageHandler";
+} from "../src/adapters/chrome/background/PredictionOrchestrator";
+import { Capitalization } from "../src/adapters/chrome/background/CapitalizationHelper";
+import type { SecondaryPredictor } from "../src/adapters/chrome/background/PredictionTypes";
+import type { PresagePredictionContext } from "../src/adapters/chrome/background/PresageHandler";
 import {
   DEFAULT_AI_MODEL_ID,
   DEFAULT_DEBUG_AI_PREDICTOR_ENABLED,
   DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED,
-} from "../src/shared/constants";
+} from "../src/core/domain/constants";
 
 interface OrchestratorPrivateProbe {
   resolvePresageSkipReason: (context: PresagePredictionContext) => string;
@@ -176,8 +176,8 @@ describe("PredictionOrchestrator coverage", () => {
     });
 
     expect(warnSpy).toHaveBeenCalledWith(
-      "Prediction debug listener failed:",
-      "listener-failed",
+      "[PredictionOrchestrator] Prediction debug listener failed",
+      { error: "listener-failed" },
     );
     warnSpy.mockRestore();
   });
@@ -329,8 +329,11 @@ describe("PredictionOrchestrator coverage", () => {
 
     expect(result.predictions).toEqual(["alpha"]);
     expect(warnSpy).toHaveBeenCalledWith(
-      "Failed to interrupt WebLLM generation:",
-      "interrupt_failed",
+      "[PredictionOrchestrator] Failed to interrupt WebLLM generation",
+      expect.objectContaining({
+        reason: "timeout",
+        error: "interrupt_failed",
+      }),
     );
     warnSpy.mockRestore();
   });

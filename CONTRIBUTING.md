@@ -52,6 +52,28 @@ Load the unpacked extension from the `build/` directory:
 - Chrome/Edge: open extensions page, enable developer mode, choose "Load unpacked", select `build/`
 - Firefox: open `about:debugging`, choose "This Firefox", click "Load Temporary Add-on", select `build/manifest.json`
 
+## Architecture Contribution Rules
+
+This repository uses a layered architecture. New code should follow these boundaries:
+
+- `src/core/domain`: domain models, contracts, guards, and pure logic. Do not import from `@core/application`, `@adapters`, or `@ui`.
+- `src/core/application`: use-case orchestration, repositories, logging, and settings access. Do not import from `@adapters` or `@ui`.
+- `src/adapters/chrome`: browser/runtime integration (background and content-script). Do not import from `@ui`.
+- `src/ui`: popup/options UI. Do not import from adapter internals.
+
+Adapter-specific separation:
+
+- `src/adapters/chrome/background` must not import from `@adapters/chrome/content-script/*`.
+- `src/adapters/chrome/content-script` must not import from `@adapters/chrome/background/*`.
+
+Import and placement conventions:
+
+- Prefer path aliases: `@core/*`, `@adapters/*`, `@ui/*`, `@third-party/*`.
+- Do not add new imports from legacy roots like `src/background/*`, `src/content-script/*`, or `src/shared/*`.
+- Keep modules focused and composable. Avoid re-introducing large monolithic runtime files.
+- Put cross-layer contracts in `src/core/domain/contracts` and keep message schemas/types in `src/core/domain/messageTypes.d.ts`.
+- Update tests with architectural changes (for example routing changes in `tests/background.routing.test.ts`, content runtime changes in `tests/content_script.behavior.test.ts` and `tests/content_script.watchdog.test.ts`).
+
 ## Quality Checks
 
 Run these before opening a pull request:
@@ -71,7 +93,14 @@ Optional end-to-end tests:
 
 ```bash
 npm run test:e2e
+npm run test:e2e:dev
 ```
+
+Notes:
+
+- `npm run test:e2e` builds with `--mode=production` and runs the production e2e suite.
+- `npm run test:e2e:dev` builds with `--mode=development` and runs dev/runtime-hook-specific e2e coverage.
+- `npm run test:e2e:matrix` runs both production and development e2e suites.
 
 ## Branch and PR Workflow
 

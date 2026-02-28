@@ -1,6 +1,6 @@
 import { jest } from "@jest/globals";
 import { DateTime, Settings } from "luxon";
-import { DATE_TIME_VARIABLES } from "../src/shared/variables";
+import { DATE_TIME_VARIABLES } from "../src/core/domain/variables";
 
 describe("shared date/time variables", () => {
   const fixedNow = DateTime.utc(2026, 1, 2, 3, 4, 5);

@@ -1,4 +1,4 @@
-import { mergePredictions } from "../src/background/PredictionMerger";
+import { mergePredictions } from "../src/adapters/chrome/background/PredictionMerger";
 
 describe("mergePredictions", () => {
   test("returns empty for non-positive limit", () => {

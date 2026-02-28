@@ -1,0 +1,89 @@
+import {
+  CMD_BACKGROUND_PAGE_PREDICT_REQ,
+  CMD_BACKGROUND_PAGE_PREDICT_RESP,
+  CMD_BACKGROUND_PAGE_SET_CONFIG,
+  CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
+  CMD_CONTENT_SCRIPT_GET_CONFIG,
+  CMD_CONTENT_SCRIPT_PREDICT_REQ,
+  CMD_CONTENT_SCRIPT_USAGE_EVENT,
+  CMD_GET_HOSTNAME,
+  CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE,
+  CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT,
+  CMD_OPTIONS_PAGE_CONFIG_CHANGE,
+  CMD_OPTIONS_RESET_PRODUCTIVITY_STATS,
+  CMD_POPUP_ACK_DONATION_MILESTONE,
+  CMD_POPUP_ACK_WEEKLY_RECAP,
+  CMD_POPUP_GET_PRODUCTIVITY_STATS,
+  CMD_POPUP_PAGE_DISABLE,
+  CMD_POPUP_PAGE_ENABLE,
+  CMD_STATUS_COMMAND,
+  CMD_TOGGLE_FT_ACTIVE_LANG,
+  CMD_TOGGLE_FT_ACTIVE_TAB,
+  CMD_TRIGGER_FT_ACTIVE_TAB,
+} from "../constants";
+import { hasStringProperty, isObjectRecord } from "../guards";
+import type { Message } from "../messageTypes";
+import { err, ok, type Result } from "../result";
+
+export const MESSAGE_COMMANDS = [
+  CMD_BACKGROUND_PAGE_SET_CONFIG,
+  CMD_BACKGROUND_PAGE_PREDICT_REQ,
+  CMD_BACKGROUND_PAGE_PREDICT_RESP,
+  CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
+  CMD_CONTENT_SCRIPT_PREDICT_REQ,
+  CMD_CONTENT_SCRIPT_GET_CONFIG,
+  CMD_CONTENT_SCRIPT_USAGE_EVENT,
+  CMD_OPTIONS_PAGE_CONFIG_CHANGE,
+  CMD_OPTIONS_RESET_PRODUCTIVITY_STATS,
+  CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT,
+  CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE,
+  CMD_POPUP_PAGE_ENABLE,
+  CMD_POPUP_PAGE_DISABLE,
+  CMD_STATUS_COMMAND,
+  CMD_POPUP_GET_PRODUCTIVITY_STATS,
+  CMD_POPUP_ACK_WEEKLY_RECAP,
+  CMD_POPUP_ACK_DONATION_MILESTONE,
+  CMD_GET_HOSTNAME,
+  CMD_TOGGLE_FT_ACTIVE_TAB,
+  CMD_TRIGGER_FT_ACTIVE_TAB,
+  CMD_TOGGLE_FT_ACTIVE_LANG,
+] as const;
+
+export type MessageCommand = (typeof MESSAGE_COMMANDS)[number];
+
+const COMMAND_SET = new Set<string>(MESSAGE_COMMANDS);
+
+export function isMessageCommand(value: unknown): value is MessageCommand {
+  return typeof value === "string" && COMMAND_SET.has(value);
+}
+
+export function isRuntimeMessage(value: unknown): value is Message {
+  return (
+    isObjectRecord(value) &&
+    hasStringProperty(value, "command") &&
+    isMessageCommand(value.command)
+  );
+}
+
+export type RuntimeMessageParseError =
+  | { kind: "invalid_payload" }
+  | { kind: "invalid_command" }
+  | { kind: "unsupported_command"; command: string };
+
+export function parseRuntimeMessage(
+  value: unknown,
+): Result<Message, RuntimeMessageParseError> {
+  if (isRuntimeMessage(value)) {
+    return ok(value);
+  }
+  if (!isObjectRecord(value)) {
+    return err({ kind: "invalid_payload" });
+  }
+  if (!hasStringProperty(value, "command")) {
+    return err({ kind: "invalid_command" });
+  }
+  return err({
+    kind: "unsupported_command",
+    command: value.command,
+  });
+}

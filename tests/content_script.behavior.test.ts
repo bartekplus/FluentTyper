@@ -9,7 +9,7 @@ import {
   CMD_STATUS_COMMAND,
   CMD_TOGGLE_FT_ACTIVE_TAB,
   CMD_TRIGGER_FT_ACTIVE_TAB,
-} from "../src/shared/constants";
+} from "../src/core/domain/constants";
 
 type TributeLike = {
   queryAndAttachHelper: jest.Mock;
@@ -89,11 +89,13 @@ async function loadContentScript(): Promise<LoadedContentScript> {
   };
   (window as Window & { FluentTyper?: unknown }).FluentTyper = undefined;
 
-  jest.unstable_mockModule("../src/shared/utils", () => ({
+  jest.unstable_mockModule("../src/core/application/transport-utils", () => ({
     checkLastError,
+  }));
+  jest.unstable_mockModule("../src/core/application/dom-utils", () => ({
     isInDocument: (element: Element) => document.contains(element),
   }));
-  jest.unstable_mockModule("../src/content-script/TributeManager", () => ({
+  jest.unstable_mockModule("../src/adapters/chrome/content-script/TributeManager", () => ({
     TributeManager: jest.fn().mockImplementation(() => {
       const instance: TributeLike = {
         queryAndAttachHelper: jest.fn(),
@@ -107,7 +109,7 @@ async function loadContentScript(): Promise<LoadedContentScript> {
       return instance;
     }),
   }));
-  jest.unstable_mockModule("../src/content-script/DomObserver", () => ({
+  jest.unstable_mockModule("../src/adapters/chrome/content-script/DomObserver", () => ({
     DomObserver: jest.fn().mockImplementation((initialNode: unknown) => {
       let currentNode = initialNode as Node;
       const instance: DomObserverLike = {
@@ -123,7 +125,7 @@ async function loadContentScript(): Promise<LoadedContentScript> {
     }),
   }));
 
-  await import("../src/content-script/content_script");
+  await import("../src/adapters/chrome/content-script/content_script");
   const fluentTyper = (
     window as Window & { FluentTyper?: LoadedContentScript["fluentTyper"] }
   ).FluentTyper!;
@@ -174,6 +176,8 @@ describe("content_script behavior", () => {
           tributeId: 3,
           requestId: 10,
           lang: "en_US",
+          traceId: expect.any(String),
+          traceStartedAtMs: expect.any(Number),
         }),
       }),
     );
@@ -425,12 +429,10 @@ describe("content_script behavior", () => {
   test("messageHandler handles empty and unknown messages safely", async () => {
     const { fluentTyper } = await loadContentScript();
     const errorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
-    const traceSpy = jest.spyOn(console, "trace").mockImplementation(() => {});
 
     fluentTyper.messageHandler(null);
     fluentTyper.messageHandler({ command: "UNKNOWN_COMMAND", context: {} });
 
     expect(errorSpy).toHaveBeenCalled();
-    expect(traceSpy).toHaveBeenCalled();
   });
 });

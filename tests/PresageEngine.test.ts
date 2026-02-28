@@ -1,6 +1,6 @@
 import { jest } from "@jest/globals";
-import type { PresageModule } from "../src/background/PresageTypes";
-import { PresageEngine } from "../src/background/PresageEngine";
+import type { PresageModule } from "../src/adapters/chrome/background/PresageTypes";
+import { PresageEngine } from "../src/adapters/chrome/background/PresageEngine";
 
 describe("PresageEngine", () => {
   test("initializes native Presage with callback/path and suggestion config", () => {

@@ -2,9 +2,9 @@ import { i18n } from "./i18n.js";
 import {
   SUPPORTED_LANGUAGES,
   SUPPORTED_PREDICTION_LANGUAGE_KEYS,
-} from "../../shared/lang.ts";
-import { DOMAIN_LIST_MODE } from "../../shared/utils.ts";
-import { DATE_TIME_VARIABLES } from "../../shared/variables.ts";
+} from "@core/domain/lang";
+import { DOMAIN_LIST_MODE } from "@core/application/domain-utils";
+import { DATE_TIME_VARIABLES } from "@core/domain/variables";
 import {
   KEY_AUTOCOMPLETE,
   KEY_AUTOCOMPLETE_ON_ENTER,
@@ -51,7 +51,7 @@ import {
   DEFAULT_NUM_SUGGESTIONS,
   DEFAULT_AI_MODEL_ID,
   DEFAULT_AI_PREDICTION_TIMEOUT_MS,
-} from "../../shared/constants.ts";
+} from "@core/domain/constants";
 
 // --- UI Content ---
 const donateHTML =
@@ -74,6 +74,11 @@ const supportLinksHTML =
   </div>';
 const IS_DEV_BUILD =
   typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
+const EXTENSION_VERSION =
+  typeof chrome !== "undefined" &&
+  typeof chrome.runtime?.getManifest === "function"
+    ? chrome.runtime.getManifest().version
+    : "dev";
 
 const WEBLLM_DEV_MODEL_OPTIONS = [
   ["SmolLM2-360M-Instruct-q4f16_1-MLC", "SmolLM2 360M q4f16 (fastest)"],
@@ -698,7 +703,7 @@ const manifest = {
       group: i18n.get("about_fluent_typer_group"),
       name: "Version",
       type: "description",
-      text: `<span class="version-chip">Version ${chrome.runtime.getManifest().version}</span>`,
+      text: `<span class="version-chip">Version ${EXTENSION_VERSION}</span>`,
     },
     {
       tab: i18n.get("about_support_tab"),

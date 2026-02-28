@@ -1,6 +1,6 @@
 import { jest } from "@jest/globals";
-import type { PresageModule } from "../src/background/PresageTypes";
-import { TextExpansionManager } from "../src/background/TextExpansionManager";
+import type { PresageModule } from "../src/adapters/chrome/background/PresageTypes";
+import { TextExpansionManager } from "../src/adapters/chrome/background/TextExpansionManager";
 
 describe("TextExpansionManager", () => {
   test("writes lowercase expansions to file and updates all presage engines", () => {

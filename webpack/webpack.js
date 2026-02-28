@@ -53,23 +53,54 @@ function transformManifestContent(content, includeWebLLMRuntime) {
 
 export default (env, argv) => {
   const isDevBuild = argv.mode === "development";
-  const isE2EBuild =
-    process.env.FT_E2E_BUILD === "1" || process.env.FT_E2E_BUILD === "true";
-  const includeWebLLMRuntime = isDevBuild || isE2EBuild;
-  const alias = includeWebLLMRuntime
-    ? {}
-    : {
-        "@mlc-ai/web-llm$": path.join(
-          srcDir,
-          "background",
-          "webllm-disabled-runtime.ts",
-        ),
-      };
+  const configuredLogLevel = process.env.FT_LOG_LEVEL || "";
+  const includeWebLLMRuntime = isDevBuild;
+  const alias = {
+    ...(includeWebLLMRuntime
+      ? {}
+      : {
+          "@adapters/chrome/background/testing/RuntimeTestHooks$": path.join(
+            srcDir,
+            "adapters",
+            "chrome",
+            "background",
+            "testing",
+            "RuntimeTestHooks.noop.ts",
+          ),
+        }),
+    "@core": path.join(srcDir, "core"),
+    "@adapters": path.join(srcDir, "adapters"),
+    "@ui": path.join(srcDir, "ui"),
+    "@third-party": path.join(srcDir, "third_party"),
+    ...(includeWebLLMRuntime
+      ? {}
+      : {
+          "@mlc-ai/web-llm$": path.join(
+            srcDir,
+            "adapters",
+            "chrome",
+            "background",
+            "webllm-disabled-runtime.ts",
+          ),
+        }),
+  };
   const config = {
     entry: {
-      "popup/popup": path.join(srcDir, "popup", "popup.ts"),
-      background: path.join(srcDir, "background", "background.ts"),
-      content_script: path.join(srcDir, "content-script", "content_script.ts"),
+      "popup/popup": path.join(srcDir, "ui", "popup", "popup.ts"),
+      background: path.join(
+        srcDir,
+        "adapters",
+        "chrome",
+        "background",
+        "background.ts",
+      ),
+      content_script: path.join(
+        srcDir,
+        "adapters",
+        "chrome",
+        "content-script",
+        "content_script.ts",
+      ),
       "third_party/fancier-settings/settings": path.join(
         srcDir,
         "third_party",
@@ -123,7 +154,7 @@ export default (env, argv) => {
       }),
       new webpack.DefinePlugin({
         __FT_DEV_BUILD__: JSON.stringify(isDevBuild),
-        __FT_E2E_BUILD__: JSON.stringify(isE2EBuild),
+        __FT_LOG_LEVEL__: JSON.stringify(configuredLogLevel),
       }),
       new webpack.ProvidePlugin({
         Buffer: ["buffer", "Buffer"],
@@ -142,7 +173,18 @@ export default (env, argv) => {
               beautify: argv.mode !== "production",
             },
             compress: {
-              drop_console: argv.mode === "production",
+              drop_console: false,
+              pure_funcs:
+                argv.mode === "production"
+                  ? [
+                      "console.debug",
+                      "console.info",
+                      "console.log",
+                      "console.trace",
+                      "console.groupCollapsed",
+                      "console.groupEnd",
+                    ]
+                  : [],
             },
           },
         }),

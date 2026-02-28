@@ -2,11 +2,11 @@ import { jest } from "@jest/globals";
 import {
   SETTINGS_DOMAIN_BLACKLIST,
   addDomainToList,
-  isInDocument,
   isDomainOnList,
   removeDomainFromList,
-} from "../src/shared/utils";
-import type { SettingsManager } from "../src/shared/settingsManager";
+} from "../src/core/application/domain-utils";
+import { isInDocument } from "../src/core/application/dom-utils";
+import type { SettingsManager } from "../src/core/application/settingsManager";
 
 function createSettingsManager(initialDomainList: unknown[]) {
   const state: Record<string, unknown> = {

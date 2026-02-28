@@ -1,10 +1,10 @@
 import { jest } from "@jest/globals";
-import type { PresageModule } from "../src/background/PresageTypes";
-import { PresageHandler } from "../src/background/PresageHandler";
+import type { PresageModule } from "../src/adapters/chrome/background/PresageTypes";
+import { PresageHandler } from "../src/adapters/chrome/background/PresageHandler";
 import {
   PredictionConfig,
   PredictionOrchestrator,
-} from "../src/background/PredictionOrchestrator";
+} from "../src/adapters/chrome/background/PredictionOrchestrator";
 
 function createConfig(
   overrides: Partial<PredictionConfig> = {},

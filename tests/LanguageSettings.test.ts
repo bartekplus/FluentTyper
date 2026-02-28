@@ -2,7 +2,7 @@ import {
   SUPPORTED_PREDICTION_LANGUAGE_KEYS,
   resolveEnabledLanguages,
   resolveEnabledPredictionLanguages,
-} from "../src/shared/lang";
+} from "../src/core/domain/lang";
 
 describe("language settings helpers", () => {
   test("resolveEnabledLanguages falls back to all languages for empty input", () => {

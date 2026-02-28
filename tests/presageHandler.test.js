@@ -1,7 +1,7 @@
 import { mod } from "./fakeLibPresage.js";
-import { PresageHandler } from "../src/background/PresageHandler.ts";
-import { SUPPORTED_LANGUAGES } from "../src/shared/lang.ts";
-import { MAX_NUM_SUGGESTIONS } from "../src/shared/constants.ts";
+import { PresageHandler } from "../src/adapters/chrome/background/PresageHandler.ts";
+import { SUPPORTED_LANGUAGES } from "../src/core/domain/lang.ts";
+import { MAX_NUM_SUGGESTIONS } from "../src/core/domain/constants.ts";
 
 const testContext = {
   ph: null,
@@ -239,7 +239,7 @@ describe("features", () => {
       "+abc",
       "=abc",
       '"abc',
-    ])("#11 - Check keepPredCharRegEx functionality intput '%s'", (input) => {
+    ])("#11 - Check keepPredCharRegex functionality input '%s'", (input) => {
       mod.PresageCallback.predictions = ["ble"];
       setConfig();
 

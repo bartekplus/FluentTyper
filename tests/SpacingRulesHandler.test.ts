@@ -3,7 +3,7 @@ import {
   SPACING_RULES,
   Spacing,
   SpacingRulesHandler,
-} from "../src/background/SpacingRulesHandler";
+} from "../src/adapters/chrome/background/SpacingRulesHandler";
 
 describe("SpacingRulesHandler", () => {
   test("exposes spacing constants through static getters", () => {
