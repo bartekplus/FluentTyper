@@ -50,7 +50,7 @@ i18n = Object.assign(i18n, {
   },
   "extension_language_label": {
     "en": "Extension Language:",
-    "fr": "Langues de l'extension :",
+    "fr": "Langue de l'extension :",
     "hr": "Jezik proširenja:",
     "es": "Idioma de la extensión:",
     "el": "Γλώσσα επέκτασης:",
@@ -76,7 +76,7 @@ i18n = Object.assign(i18n, {
     "hr": "Automatsko otkrivanje (jezik preglednika)",
     "es": "Detección automática (idioma del navegador)",
     "el": "Αυτόματη ανίχνευση (γλώσσα προγράμματος περιήγησης)",
-    "sv": "Känn av automatiskt (webbläsarens språk)",
+    "sv": "Automatisk (webbläsarens språk)",
     "de": "Automatische Erkennung (Browsersprache)",
     "pl": "Wykryj automatycznie (język przeglądarki)",
     "pr": "Detecção automática (idioma do navegador)",
@@ -435,7 +435,7 @@ i18n = Object.assign(i18n, {
   },
   "accept_predictions": {
     "en": "Accepting Predictions",
-    "fr": "Accepter les Prédictions",
+    "fr": "Acceptation des prédictions",
     "hr": "Prihvaćanje Predviđanja",
     "es": "Aceptación de Predicciones",
     "el": "Αποδοχή Προβλέψεων",
@@ -583,7 +583,7 @@ i18n = Object.assign(i18n, {
     "es": "Al activarse, la tecla de Retroceso (Backspace) deshace el último autocompletado como palabra completa. Si se desactiva, borra carácter por carácter.",
     "el": "Όταν είναι ενεργοποιημένο, το Backspace αναιρεί την τελευταία αυτόματη συμπλήρωση ως ολόκληρη λέξη. Όταν είναι απενεργοποιημένο, διαγράφει ένα χαρακτήρα τη φορά.",
     "sv": "Backsteg raderar ett helt förslag om det är aktiverat, annars ett tecken i taget.",
-    "de": "Wenn aktiviert, macht die Rücktaste das letzte autovervollständigte Wort komplett rückgängig. Ohne dies wird nur ein Buchstabe gelöscht.",
+    "de": "Wenn aktiviert, macht die Rücktaste das letzte autovervollständigte Wort komplett rückgängig. Ist sie deaktiviert, wird nur ein Zeichen gelöscht.",
     "pl": "Gdy włączone, naciśnięcie klawisza Backspace cofnie ostatnie autouzupełnienie jako całe słowo. Gdy wyłączone, usuwa po jednym znaku.",
     "pr": "Quando ativado, a tecla Backspace desfaz o último autocompletar como uma palavra inteira. Quando desativado, apaga um caractere de cada vez.",
   },
@@ -650,7 +650,7 @@ i18n = Object.assign(i18n, {
     "el": "Χρησιμοποιείται μόνο όταν η αυτόματη ανίχνευση αποτυγχάνει.",
     "sv": "Används om automatisk igenkänning misslyckas.",
     "de": "Wird nur verwendet, wenn die automatische Erkennung fehlschlägt.",
-    "pl": "Używany tylko, w przypadku niepowiedzenia autodetekcji, pozwala wybrać jakiego języka należy użyć następnie.",
+    "pl": "Używany tylko w przypadku niepowodzenia autodetekcji, aby wybrać następny język.",
     "pr": "Usado apenas quando a detecção automática falha, para decidir qual idioma tentar a seguir.",
   },
   "language_display": {
@@ -683,7 +683,7 @@ i18n = Object.assign(i18n, {
     "el": "Εμφανίζει έναν μικρό δείκτη γλώσσας (π.χ. EL, EN) δίπλα στις προβλέψεις.",
     "sv": "Visa en liten indikator (t.ex. SV, EN) bredvid förslaget.",
     "de": "Zeigt eine kleine Sprach-Anzeige (z.B. DE, EN) neben den Vorhersagen an.",
-    "pl": "Wyświetla językowy wskaźnik (np. EN, PL) obok podpowiadanych wyrazów. Szczególnie przydatne jeśli korzysta się z dwóch języków.",
+    "pl": "Wyświetl mały wskaźnik języka (np. EN, DE) obok podpowiedzi. Przydatne podczas korzystania z wielu języków.",
     "pr": "Exibe um pequeno indicador de idioma (ex., PT, EN) ao lado das previsões. Útil ao usar um idioma secundário.",
   },
   "formatting_rules": {
@@ -694,7 +694,7 @@ i18n = Object.assign(i18n, {
     "el": "Κανόνες Μορφοποίησης",
     "sv": "Formateringsregler",
     "de": "Formatierungsregeln",
-    "pl": "Zasady Formatowania",
+    "pl": "Zasady formatowania",
     "pr": "Regras de Formatação",
   },
   "auto_capitalize_label": {
@@ -727,7 +727,7 @@ i18n = Object.assign(i18n, {
     "el": "Επέκταση Κειμένου (Text Expander)",
     "sv": "Textexpansion",
     "de": "Text Expander",
-    "pl": "Rozszerzanie Tekstu",
+    "pl": "Skróty tekstowe",
     "pr": "Expansor de Texto",
   },
   "text_expander_desc": {
@@ -782,7 +782,7 @@ i18n = Object.assign(i18n, {
     "el": "Εξαγωγή βάσης Text Expander ως CSV",
     "sv": "Exportera Textexpansion-databasen som CSV",
     "de": "Text-Expander-Datenbank als CSV exportieren",
-    "pl": "Eksportuj bazę Rozszerzania Tekstu jako CSV",
+    "pl": "Eksportuj skróty tekstowe jako CSV",
     "pr": "Exportar banco de dados do Expansor de Texto como CSV",
   },
   "text_expander_remove_all_btn": {
@@ -848,7 +848,7 @@ i18n = Object.assign(i18n, {
     "el": "Δυναμικές Μεταβλητές",
     "sv": "Dynamiska Variabler",
     "de": "Dynamische Variablen",
-    "pl": "Dynamiczne Zmienne",
+    "pl": "Zmienne dynamiczne",
     "pr": "Variáveis Dinâmicas",
   },
   "enable_dynamic_vars_label": {
@@ -892,7 +892,7 @@ i18n = Object.assign(i18n, {
     "el": "π.χ. 'fff'. Δείτε όλες τις μορφές <a href='https://moment.github.io/luxon/#/formatting?id=table-of-tokens' target='_blank'>εδώ</a>.",
     "sv": "t.ex. 'fff'. Se format <a href='https://moment.github.io/luxon/#/formatting?id=table-of-tokens' target='_blank'>här</a>.",
     "de": "z.B. 'fff'. Alle Formate <a href='https://moment.github.io/luxon/#/formatting?id=table-of-tokens' target='_blank'>hier</a> ansehen.",
-    "pl": "np. 'fff' -> 'Sierpień 6, 2014, 1:07 PM EDT'. Zobacz powiązane tokeny <a href='https://moment.github.io/luxon/#/formatting?id=table-of-tokens' target='_blank'>tutaj</a>.",
+    "pl": "np. 'fff' -> '6 sierpnia 2014, 1:07 PM EDT'. Zobacz wszystkie tokeny <a href='https://moment.github.io/luxon/#/formatting?id=table-of-tokens' target='_blank'>tutaj</a>.",
     "pr": "ex., 'fff' -> 'Agosto 6, 2014, 1:07 PM EDT'. Veja todos os tokens suportados <a href='https://moment.github.io/luxon/#/formatting?id=table-of-tokens' target='_blank'>aqui</a>.",
   },
   "custom_time_format_label": {
@@ -914,7 +914,7 @@ i18n = Object.assign(i18n, {
     "el": "π.χ. 'ttt'. Δείτε όλες τις μορφές <a href='https://moment.github.io/luxon/#/formatting?id=table-of-tokens' target='_blank'>εδώ</a>.",
     "sv": "t.ex. 'ttt'. Se format <a href='https://moment.github.io/luxon/#/formatting?id=table-of-tokens' target='_blank'>här</a>.",
     "de": "z.B. 'ttt'. Alle Formate <a href='https://moment.github.io/luxon/#/formatting?id=table-of-tokens' target='_blank'>hier</a> ansehen.",
-    "pl": "np. 'ttt' -> '1:07:04 PM EDT'.",
+    "pl": "np. 'ttt' -> '1:07:04 PM EDT'. Zobacz wszystkie tokeny <a href='https://moment.github.io/luxon/#/formatting?id=table-of-tokens' target='_blank'>tutaj</a>.",
     "pr": "ex., 'ttt' -> '1:07:04 PM EDT'. Veja todos os tokens suportados <a href='https://moment.github.io/luxon/#/formatting?id=table-of-tokens' target='_blank'>aqui</a>.",
   },
   "site_mgmt_tab": {
@@ -925,7 +925,7 @@ i18n = Object.assign(i18n, {
     "el": "Διαχείριση Ιστότοπων",
     "sv": "Platshantering",
     "de": "Website-Verwaltung",
-    "pl": "Zarządzanie Stronami",
+    "pl": "Zarządzanie stronami",
     "pr": "Gestão de Sites",
   },
   "domain_list_mode": {
@@ -936,7 +936,7 @@ i18n = Object.assign(i18n, {
     "el": "Λειτουργία Λίστας Τομέων",
     "sv": "Läge för Domänlista",
     "de": "Domainlisten-Modus",
-    "pl": "Tryb Listy Domen",
+    "pl": "Tryb listy domen",
     "pr": "Modo de Lista de Domínios",
   },
   "choose_list_mode_label": {
@@ -1002,7 +1002,7 @@ i18n = Object.assign(i18n, {
     "el": "Αφαίρεση Επιλεγμένων",
     "sv": "Ta Bort Markerade",
     "de": "Ausgewählte entfernen",
-    "pl": "Usuń Wybrane",
+    "pl": "Usuń wybrane",
     "pr": "Remover Selecionado",
   },
   "site_profiles": {
@@ -1288,7 +1288,7 @@ i18n = Object.assign(i18n, {
     "el": "Το Λεξικό μου",
     "sv": "Min Ordbok",
     "de": "Mein Wörterbuch",
-    "pl": "Mój Słownik",
+    "pl": "Mój słownik",
     "pr": "Meu Dicionário",
   },
   "custom_words": {
@@ -1299,7 +1299,7 @@ i18n = Object.assign(i18n, {
     "el": "Προσαρμοσμένες Λέξεις",
     "sv": "Egna Ord",
     "de": "Benutzerdefinierte Wörter",
-    "pl": "Niestandardowe Słowa",
+    "pl": "Własne słowa",
     "pr": "Palavras Personalizadas",
   },
   "personal_dict_label": {
@@ -1354,7 +1354,7 @@ i18n = Object.assign(i18n, {
     "el": "Προσθήκη Λέξης",
     "sv": "Lägg Till Ord",
     "de": "Wort hinzufügen",
-    "pl": "Dodaj Słowo",
+    "pl": "Dodaj słowo",
     "pr": "Adicionar Palavra",
   },
   "remove_word_btn": {
@@ -1365,7 +1365,7 @@ i18n = Object.assign(i18n, {
     "el": "Αφαίρεση Λέξης",
     "sv": "Ta Bort Valt Ord",
     "de": "Ausgewähltes entfernen",
-    "pl": "Usuń Zaznaczone Słowo",
+    "pl": "Usuń zaznaczone słowo",
     "pr": "Remover Palavra Selecionada",
   },
   "dict_mgmt": {
@@ -1376,7 +1376,7 @@ i18n = Object.assign(i18n, {
     "el": "Διαχείριση Λεξικού",
     "sv": "Ordbokshantering",
     "de": "Wörterbuch-Verwaltung",
-    "pl": "Zarządzanie Słownikiem",
+    "pl": "Zarządzanie słownikiem",
     "pr": "Gestão do Dicionário",
   },
   "import_dict_btn": {
@@ -1409,7 +1409,7 @@ i18n = Object.assign(i18n, {
     "el": "Καθαρισμός Όλου του Λεξικού",
     "sv": "Töm Hela Ordboken",
     "de": "Ganzes Wörterbuch löschen",
-    "pl": "Wyczyść Cały Słownik",
+    "pl": "Wyczyść cały słownik",
     "pr": "Limpar Dicionário Inteiro",
   },
   "theming_tab": {
@@ -1431,7 +1431,7 @@ i18n = Object.assign(i18n, {
     "el": "Προεπιλογές Εμφάνισης",
     "sv": "Förinställda Teman",
     "de": "Design-Vorgaben",
-    "pl": "Predefiniowane Motywy",
+    "pl": "Gotowe motywy",
     "pr": "Predefinições de Tema",
   },
   "use_default_theme_btn": {
@@ -1442,7 +1442,7 @@ i18n = Object.assign(i18n, {
     "el": "Προεπιλεγμένο θέμα",
     "sv": "Använd standardtema",
     "de": "Standarddesign verwenden",
-    "pl": "Użyj Domyślnego Motywu",
+    "pl": "Użyj domyślnego motywu",
     "pr": "Usar tema padrão",
   },
   "use_default_theme_desc": {
@@ -1464,7 +1464,7 @@ i18n = Object.assign(i18n, {
     "el": "Συμπαγές θέμα",
     "sv": "Använd kompakt tema",
     "de": "Kompaktes Design verwenden",
-    "pl": "Użyj Kompaktowego Motywu",
+    "pl": "Użyj kompaktowego motywu",
     "pr": "Usar tema compacto e leve",
   },
   "use_compact_theme_desc": {
@@ -1486,7 +1486,7 @@ i18n = Object.assign(i18n, {
     "el": "Ανοιχτόχρωμο Θέμα",
     "sv": "Färger: Ljust Tema",
     "de": "Farben: Helles Design",
-    "pl": "Kolory Jasnego Motywu",
+    "pl": "Kolory jasnego motywu",
     "pr": "Cores do Tema Claro",
   },
   "bg_color_label": {
@@ -1497,7 +1497,7 @@ i18n = Object.assign(i18n, {
     "el": "Χρώμα Φόντου",
     "sv": "Bakgrundsfärg",
     "de": "Hintergrundfarbe",
-    "pl": "Kolor Tła",
+    "pl": "Kolor tła",
     "pr": "Cor de Fundo",
   },
   "light_bg_color_desc": {
@@ -1519,7 +1519,7 @@ i18n = Object.assign(i18n, {
     "el": "Χρώμα Κειμένου",
     "sv": "Textfärg",
     "de": "Textfarbe",
-    "pl": "Kolor Tekstu",
+    "pl": "Kolor tekstu",
     "pr": "Cor do Texto",
   },
   "light_text_color_desc": {
@@ -1541,7 +1541,7 @@ i18n = Object.assign(i18n, {
     "el": "Φόντο Επισήμανσης",
     "sv": "Markeringsbakgrund",
     "de": "Hervorhebungs-Hintergrund",
-    "pl": "Tło Wyróżnienia",
+    "pl": "Tło wyróżnienia",
     "pr": "Fundo de Destaque",
   },
   "light_highlight_bg_desc": {
@@ -1563,7 +1563,7 @@ i18n = Object.assign(i18n, {
     "el": "Κείμενο Επισήμανσης",
     "sv": "Markerad Textfärg",
     "de": "Hervorhebungs-Text",
-    "pl": "Kolor Wyróżnionego Tekstu",
+    "pl": "Kolor wyróżnionego tekstu",
     "pr": "Cor do Texto Destacado",
   },
   "light_highlight_text_desc": {
@@ -1585,7 +1585,7 @@ i18n = Object.assign(i18n, {
     "el": "Χρώμα Περιγράμματος",
     "sv": "Ramfärg",
     "de": "Rahmenfarbe",
-    "pl": "Kolor Obramowania",
+    "pl": "Kolor obramowania",
     "pr": "Cor da Borda",
   },
   "light_border_color_desc": {
@@ -1607,7 +1607,7 @@ i18n = Object.assign(i18n, {
     "el": "Σκουρόχρωμο Θέμα",
     "sv": "Färger: Mörkt Tema",
     "de": "Farben: Dunkles Design",
-    "pl": "Kolory Ciemnego Motywu",
+    "pl": "Kolory ciemnego motywu",
     "pr": "Cores do Tema Escuro",
   },
   "dark_bg_color_desc": {
@@ -1673,7 +1673,7 @@ i18n = Object.assign(i18n, {
     "el": "Τυπογραφία & Αποστάσεις",
     "sv": "Typografi & Avstånd",
     "de": "Typografie & Abstände",
-    "pl": "Typografia i Odstępy",
+    "pl": "Typografia i odstępy",
     "pr": "Tipografia e Espaçamento",
   },
   "font_size_label": {
@@ -1684,7 +1684,7 @@ i18n = Object.assign(i18n, {
     "el": "Μέγεθος Γραμματοσειράς",
     "sv": "Textstorlek",
     "de": "Schriftgröße",
-    "pl": "Rozmiar Czcionki",
+    "pl": "Rozmiar czcionki",
     "pr": "Tamanho da Fonte",
   },
   "font_size_desc": {
@@ -1706,7 +1706,7 @@ i18n = Object.assign(i18n, {
     "el": "Κατακόρυφη Απόσταση",
     "sv": "Vertikalt Avstånd",
     "de": "Vertikaler Abstand",
-    "pl": "Odstęp Pionowy",
+    "pl": "Odstęp pionowy",
     "pr": "Espaçamento Vertical",
   },
   "vertical_padding_desc": {
@@ -1728,7 +1728,7 @@ i18n = Object.assign(i18n, {
     "el": "Οριζόντια Απόσταση",
     "sv": "Horisontellt Avstånd",
     "de": "Horizontaler Abstand",
-    "pl": "Odstęp Poziomy",
+    "pl": "Odstęp poziomy",
     "pr": "Espaçamento Horizontal",
   },
   "horizontal_padding_desc": {
@@ -1750,7 +1750,7 @@ i18n = Object.assign(i18n, {
     "el": "Δεδομένα & Αντίγραφα ασφαλείας",
     "sv": "Data & Säkerhetskopiering",
     "de": "Daten & Backup",
-    "pl": "Dane i Kopia zapasowa",
+    "pl": "Dane i kopia zapasowa",
     "pr": "Dados e Backup",
   },
   "experimental_features": {
@@ -1761,7 +1761,7 @@ i18n = Object.assign(i18n, {
     "el": "Πειραματικές Δυνατότητες",
     "sv": "Experimentella Funktioner",
     "de": "Experimentelle Funktionen",
-    "pl": "Funkcje Eksperymentalne",
+    "pl": "Funkcje eksperymentalne",
     "pr": "Funcionalidades Experimentais",
   },
   "apply_spacing_rules_label": {
@@ -1816,7 +1816,7 @@ i18n = Object.assign(i18n, {
     "el": "Δεδομένα Ρυθμίσεων",
     "sv": "Konfigurationsdata",
     "de": "Konfigurationsdaten",
-    "pl": "Dane Konfiguracji",
+    "pl": "Dane konfiguracji",
     "pr": "Dados de Configuração",
   },
   "import_settings_btn": {
@@ -1827,7 +1827,7 @@ i18n = Object.assign(i18n, {
     "el": "Εισαγωγή Ρυθμίσεων",
     "sv": "Importera Inställningar",
     "de": "Einstellungen importieren",
-    "pl": "Importuj Ustawienia",
+    "pl": "Importuj ustawienia",
     "pr": "Importar Configurações",
   },
   "import_settings_desc": {
@@ -1849,7 +1849,7 @@ i18n = Object.assign(i18n, {
     "el": "Εξαγωγή Ρυθμίσεων",
     "sv": "Exportera Inställningar",
     "de": "Einstellungen exportieren",
-    "pl": "Eksportuj Ustawienia",
+    "pl": "Eksportuj ustawienia",
     "pr": "Exportar Configurações",
   },
   "export_settings_desc": {
@@ -1871,7 +1871,7 @@ i18n = Object.assign(i18n, {
     "el": "Σχετικά & Υποστήριξη",
     "sv": "Om & Support",
     "de": "Über & Support",
-    "pl": "Informacje i Wsparcie",
+    "pl": "Informacje i wsparcie",
     "pr": "Sobre e Suporte",
   },
   "about_fluent_typer_group": {
@@ -1947,7 +1947,7 @@ i18n = Object.assign(i18n, {
     hr: "Omogući automatsko dovršavanje na:<br> ",
     el: "Ενεργοποίηση αυτόματης συμπλήρωσης σε:<br> ",
     sv: "Aktivera Komplettera automatiskt på:<br> ",
-    de: "Aktivieren Sie die automatische Vervollständigung für:<br> ",
+    de: "Automatische Vervollständigung aktivieren für:<br> ",
     es: "Habilitar el autocompletado en:<br> ",
     pl: "Włącz autouzupełnianie w obszarze:<br> ",
   },
