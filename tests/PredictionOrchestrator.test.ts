@@ -60,8 +60,8 @@ function createFakeModule(predictionsRef: { current: string[] }): PresageModule 
       implement: () => callback,
     },
     Presage: class {
-      constructor() { }
-      config() { }
+      constructor() {}
+      config() {}
       predictWithProbability() {
         return {
           size: () => predictionsRef.current.length,
@@ -154,7 +154,7 @@ describe("PredictionOrchestrator coverage", () => {
   });
 
   test("emits warning when debug listener throws", async () => {
-    const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => { });
+    const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
     const module = createFakeModule({ current: ["alpha"] });
     const presageHandler = new PresageHandler(module);
     const orchestrator = new PredictionOrchestrator(presageHandler);
@@ -296,7 +296,7 @@ describe("PredictionOrchestrator coverage", () => {
   });
 
   test("falls back when AI timeout interrupt throws", async () => {
-    const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => { });
+    const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
     const module = createFakeModule({ current: ["alpha"] });
     const presageHandler = new PresageHandler(module);
     const aiPredictor = {

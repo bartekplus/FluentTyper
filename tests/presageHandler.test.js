@@ -161,7 +161,7 @@ describe("features", () => {
           const result = await testContext.ph.runPrediction(input, "", lang);
           const expectedPredictionsCount =
             input.length >= minWordLengthToPredict ||
-              (inputEndWithSpace && minWordLengthToPredict === 0)
+            (inputEndWithSpace && minWordLengthToPredict === 0)
               ? 1
               : 0;
 

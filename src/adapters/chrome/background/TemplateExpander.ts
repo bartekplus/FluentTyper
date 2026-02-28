@@ -12,7 +12,7 @@ export class TemplateExpander {
    */
   static async parseStringTemplateAsync(
     str: string,
-    resolver: (fullVarName: string) => Promise<string | undefined>
+    resolver: (fullVarName: string) => Promise<string | undefined>,
   ): Promise<string> {
     const regex = /\$\{(?!\d)[a-zA-Z0-9_æøåÆØÅ]+(?::[^}]+)?\}/g;
     const parts = str.split(regex);
@@ -23,7 +23,7 @@ export class TemplateExpander {
         const argument = match.slice(2, -1);
         const resolved = await resolver(argument);
         return resolved !== undefined ? resolved : match;
-      })
+      }),
     );
 
     return String.raw({ raw: parts }, ...parameters);
@@ -49,13 +49,11 @@ export class TemplateExpander {
     lang: string,
     timeFormat: string,
     dateFormat: string,
-    tabId?: number
+    tabId?: number,
   ): (fullVarName: string) => Promise<string | undefined> {
     return async (fullVarName: string) => {
-
-
       // split varName from arg
-      const colonIdx = fullVarName.indexOf(':');
+      const colonIdx = fullVarName.indexOf(":");
       let varName = fullVarName;
       let arg: string | undefined = undefined;
 
@@ -71,20 +69,31 @@ export class TemplateExpander {
       } catch (e) {
         console.warn(`Failed to resolve variable ${varName}`, e);
       }
-      if (stdVar !== undefined) return stdVar;
+      if (stdVar !== undefined) {
+        return stdVar;
+      }
 
       // Check browser context variables
-      if (['page_url', 'page_title', 'page_domain'].includes(varName) && typeof chrome !== 'undefined' && chrome.tabs && tabId) {
+      if (
+        ["page_url", "page_title", "page_domain"].includes(varName) &&
+        typeof chrome !== "undefined" &&
+        chrome.tabs &&
+        tabId
+      ) {
         try {
           const tab = await chrome.tabs.get(tabId);
-          if (varName === 'page_url') return tab.url || '';
-          if (varName === 'page_title') return tab.title || '';
-          if (varName === 'page_domain' && tab.url) {
+          if (varName === "page_url") {
+            return tab.url || "";
+          }
+          if (varName === "page_title") {
+            return tab.title || "";
+          }
+          if (varName === "page_domain" && tab.url) {
             try {
               const urlObj = new URL(tab.url);
               return urlObj.hostname;
             } catch {
-              return '';
+              return "";
             }
           }
         } catch (error) {
@@ -108,8 +117,12 @@ export class TemplateExpander {
 
     const timeVal = resolveDynamicVariable("time", undefined, lang, timeFormat, dateFormat);
     const dateVal = resolveDynamicVariable("date", undefined, lang, timeFormat, dateFormat);
-    if (timeVal) expandedTemplateVariables["time"] = timeVal;
-    if (dateVal) expandedTemplateVariables["date"] = dateVal;
+    if (timeVal) {
+      expandedTemplateVariables["time"] = timeVal;
+    }
+    if (dateVal) {
+      expandedTemplateVariables["date"] = dateVal;
+    }
     return expandedTemplateVariables;
   }
 }

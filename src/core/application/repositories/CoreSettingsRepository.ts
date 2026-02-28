@@ -169,7 +169,6 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
     return normalized;
   }
 
-
   async getTimeFormat(): Promise<string> {
     return this.getStringField("timeFormat");
   }

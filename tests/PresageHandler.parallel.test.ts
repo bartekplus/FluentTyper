@@ -38,8 +38,8 @@ function createFakeModule(predictionsRef: { current: string[] }): PresageModule 
       implement: () => callback,
     },
     Presage: class {
-      constructor() { }
-      config() { }
+      constructor() {}
+      config() {}
       predictWithProbability() {
         return {
           size: () => predictionsRef.current.length,

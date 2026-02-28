@@ -40,7 +40,6 @@ import {
   KEY_TRIBUTE_TEXT_DARK,
   KEY_TRIBUTE_TEXT_LIGHT,
   KEY_USER_DICTIONARY_LIST,
-
 } from "../constants";
 import type { SiteProfiles } from "../siteProfiles";
 

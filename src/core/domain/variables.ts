@@ -25,19 +25,28 @@ export interface DateTimeVariables {
 }
 
 function applyDateMath(now: DateTime, mathArg?: string): DateTime {
-  if (!mathArg) return now;
+  if (!mathArg) {
+    return now;
+  }
   const match = mathArg.match(/^([+-])(\d+)([dwmy])$/);
-  if (!match) return now;
+  if (!match) {
+    return now;
+  }
 
   const sign = match[1] === "+" ? 1 : -1;
   const amount = parseInt(match[2], 10) * sign;
   const unitChar = match[3];
 
-  let unit: any = "days";
-  if (unitChar === "d") unit = "days";
-  else if (unitChar === "w") unit = "weeks";
-  else if (unitChar === "m") unit = "months";
-  else if (unitChar === "y") unit = "years";
+  let unit: string = "days";
+  if (unitChar === "d") {
+    unit = "days";
+  } else if (unitChar === "w") {
+    unit = "weeks";
+  } else if (unitChar === "m") {
+    unit = "months";
+  } else if (unitChar === "y") {
+    unit = "years";
+  }
 
   return now.plus({ [unit]: amount });
 }
@@ -86,7 +95,11 @@ export function resolveDynamicVariable(
     return DATE_TIME_VARIABLES.date(lang, dateFormat, arg);
   }
   if (varName === "datetime") {
-    return DATE_TIME_VARIABLES.datetime(lang, dateFormat ? `${dateFormat} '${timeFormat || ""}'` : undefined, arg);
+    return DATE_TIME_VARIABLES.datetime(
+      lang,
+      dateFormat ? `${dateFormat} '${timeFormat || ""}'` : undefined,
+      arg,
+    );
   }
   if (varName === "uuid") {
     return typeof crypto !== "undefined" && crypto.randomUUID

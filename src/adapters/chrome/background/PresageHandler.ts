@@ -191,7 +191,11 @@ export class PresageHandler {
     );
   }
 
-  async doPredictionHandler(predictionInput: string, lang: string, tabId?: number): Promise<string[]> {
+  async doPredictionHandler(
+    predictionInput: string,
+    lang: string,
+    tabId?: number,
+  ): Promise<string[]> {
     if (!this.hasLanguageEngine(lang)) {
       return [];
     }
@@ -205,13 +209,11 @@ export class PresageHandler {
 
       this.timeFormat ?? "",
       this.dateFormat ?? "",
-      tabId
+      tabId,
     );
 
     const expandedPredictions = await Promise.all(
-      predictions.map((text) =>
-        TemplateExpander.parseStringTemplateAsync(text, resolver)
-      )
+      predictions.map((text) => TemplateExpander.parseStringTemplateAsync(text, resolver)),
     );
 
     this.lastPrediction[lang] = {
