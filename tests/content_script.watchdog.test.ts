@@ -1,4 +1,4 @@
-import { jest } from "@jest/globals";
+import { jest } from "bun:test";
 
 type DomObserverLike = {
   attach: (...args: unknown[]) => void;
@@ -15,6 +15,12 @@ const mockChrome = {
 };
 
 const domObserverInstances: DomObserverLike[] = [];
+let importNonce = 0;
+
+function freshModulePath(path: string): string {
+  importNonce += 1;
+  return `${path}?bun_test_nonce=${importNonce}`;
+}
 
 async function loadContentScriptModule() {
   domObserverInstances.length = 0;
@@ -47,12 +53,13 @@ async function loadContentScriptModule() {
     }),
   }));
 
-  await import("../src/adapters/chrome/content-script/content_script");
+  await import(
+    freshModulePath("../src/adapters/chrome/content-script/content_script")
+  );
 }
 
 describe("content_script watchdog scheduling", () => {
   beforeEach(() => {
-    jest.resetModules();
     jest.clearAllMocks();
     jest.useFakeTimers();
     (global as unknown as { chrome: unknown }).chrome = mockChrome;

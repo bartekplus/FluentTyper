@@ -1,6 +1,13 @@
-import { jest } from "@jest/globals";
+import { jest } from "bun:test";
 
 type StorageSnapshot = Record<string, string>;
+
+let importNonce = 0;
+
+function freshModulePath(path: string): string {
+  importNonce += 1;
+  return `${path}?bun_test_nonce=${importNonce}`;
+}
 
 function installChromeStorageMock(setDelayMs = 0): {
   storageState: StorageSnapshot;
@@ -81,10 +88,9 @@ function installChromeStorageMock(setDelayMs = 0): {
 
 describe("Store async semantics", () => {
   test("set resolves only after backend callback completes", async () => {
-    jest.resetModules();
     const { localSet } = installChromeStorageMock(25);
     const { Store } = await import(
-      "../src/third_party/fancier-settings/lib/store.js"
+      freshModulePath("../src/third_party/fancier-settings/lib/store.js")
     );
     const store = new Store("unit", {});
 
@@ -102,10 +108,9 @@ describe("Store async semantics", () => {
   });
 
   test("get waits for async default seeding to finish", async () => {
-    jest.resetModules();
     const { storageState } = installChromeStorageMock(20);
     const { Store } = await import(
-      "../src/third_party/fancier-settings/lib/store.js"
+      freshModulePath("../src/third_party/fancier-settings/lib/store.js")
     );
     const store = new Store("startup", { enabled: true });
 

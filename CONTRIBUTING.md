@@ -12,7 +12,6 @@ Thanks for your interest in improving FluentTyper. This document is for develope
 
 ### Requirements
 
-- Node.js 24 (matches CI)
 - Bun 1.3.10 (pinned in `packageManager`)
 
 ### Local Setup

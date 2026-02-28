@@ -1,4 +1,4 @@
-import { jest } from "@jest/globals";
+import { jest } from "bun:test";
 import {
   CMD_BACKGROUND_PAGE_PREDICT_RESP,
   CMD_BACKGROUND_PAGE_SET_CONFIG,
@@ -55,6 +55,13 @@ type LoadedContentScript = {
   sendMessage: jest.Mock;
 };
 
+let importNonce = 0;
+
+function freshModulePath(path: string): string {
+  importNonce += 1;
+  return `${path}?bun_test_nonce=${importNonce}`;
+}
+
 function defaultConfig(overrides: Record<string, unknown> = {}) {
   return {
     enabled: true,
@@ -73,7 +80,6 @@ function defaultConfig(overrides: Record<string, unknown> = {}) {
 }
 
 async function loadContentScript(): Promise<LoadedContentScript> {
-  jest.resetModules();
   jest.clearAllMocks();
 
   const tributeInstances: TributeLike[] = [];
@@ -125,7 +131,9 @@ async function loadContentScript(): Promise<LoadedContentScript> {
     }),
   }));
 
-  await import("../src/adapters/chrome/content-script/content_script");
+  await import(
+    freshModulePath("../src/adapters/chrome/content-script/content_script")
+  );
   const fluentTyper = (
     window as Window & { FluentTyper?: LoadedContentScript["fluentTyper"] }
   ).FluentTyper!;

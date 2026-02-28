@@ -1,4 +1,4 @@
-import { jest } from "@jest/globals";
+import { jest } from "bun:test";
 import { KEY_SITE_PROFILES } from "../src/core/domain/constants";
 
 const settingsGet = jest.fn<(key: string) => Promise<unknown>>();

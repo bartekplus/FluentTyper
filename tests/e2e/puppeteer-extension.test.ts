@@ -360,7 +360,10 @@ async function gotoTestPage(
   page: Page,
   options: { enableCkEditor?: boolean } = {},
 ) {
-  const testName = expect.getState().currentTestName || "Unknown Test";
+  const testName =
+    typeof expect.getState === "function"
+      ? expect.getState().currentTestName || "Unknown Test"
+      : "Unknown Test";
   const params = new URLSearchParams({ testName });
   if (options.enableCkEditor) {
     params.set("enableCkEditor", "1");

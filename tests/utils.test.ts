@@ -1,4 +1,4 @@
-import { jest } from "@jest/globals";
+import { jest } from "bun:test";
 import {
   SETTINGS_DOMAIN_BLACKLIST,
   addDomainToList,

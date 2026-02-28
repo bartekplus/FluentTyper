@@ -136,7 +136,6 @@ FluentTyper uses [Bun](https://bun.sh/) as the primary package manager and scrip
 Prerequisites:
 
 - Bun `1.3.10` (pinned in `packageManager`)
-- Node.js `24` (runtime compatibility target used in CI)
 
 Install and run common tasks:
 

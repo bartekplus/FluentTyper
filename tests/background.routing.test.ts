@@ -1,4 +1,4 @@
-import { jest } from "@jest/globals";
+import { jest } from "bun:test";
 import {
   CMD_BACKGROUND_PAGE_PREDICT_REQ,
   CMD_BACKGROUND_PAGE_SET_CONFIG,
@@ -25,13 +25,152 @@ import {
 } from "../src/core/domain/constants";
 
 function flushPromises() {
-  return new Promise((resolve) => setTimeout(resolve, 0));
+  return new Promise((resolve) => setTimeout(resolve, 5));
+}
+
+class MockConfigError extends Error {
+  readonly kind = "config";
+  readonly code: string;
+
+  constructor(message: string, details: { code: string; cause?: unknown }) {
+    super(message);
+    this.name = "ConfigError";
+    this.code = details.code;
+  }
+}
+
+class MockTransportError extends Error {
+  readonly kind = "transport";
+  readonly code: string;
+
+  constructor(message: string, details: { code: string; cause?: unknown }) {
+    super(message);
+    this.name = "TransportError";
+    this.code = details.code;
+  }
+}
+
+class MockPredictorError extends Error {
+  readonly kind = "predictor";
+  readonly code: string;
+
+  constructor(message: string, details: { code: string; cause?: unknown }) {
+    super(message);
+    this.name = "PredictorError";
+    this.code = details.code;
+  }
+}
+
+const backgroundHarnessMocks = {
+  settingsGet: jest.fn(async () => undefined),
+  settingsSet: jest.fn(async () => undefined),
+  languageDetect: jest.fn(async () => "en_US"),
+  predictionRun: jest.fn(async () => ({ predictions: [], forceReplace: null })),
+  predictionInitialize: jest.fn(async () => undefined),
+  predictionSetConfig: jest.fn(),
+  predictionEnsureTraceId: jest.fn(
+    (traceId?: string) => traceId || "generated-trace-id",
+  ),
+  predictionRecordTraceTimelineEvent: jest.fn(
+    (meta?: { traceId?: string }) => meta?.traceId || "generated-trace-id",
+  ),
+  tabSendToAll: jest.fn(),
+  tabSendToActive: jest.fn(),
+  getActiveTabHostname: jest.fn(async () => ({
+    tabId: 1,
+    hostname: "example.com",
+  })),
+  checkLastError: jest.fn(),
+  getDomain: jest.fn(() => "example.com"),
+  isEnabledForDomain: jest.fn(async () => true),
+  logError: jest.fn(),
+  migrateToLocalStore: jest.fn(async () => undefined),
+};
+
+jest.unstable_mockModule("../src/core/application/settingsManager", () => ({
+  SettingsManager: jest.fn().mockImplementation(() => ({
+    get: (...args: [string]) => backgroundHarnessMocks.settingsGet(...args),
+    set: (...args: [string, unknown]) => backgroundHarnessMocks.settingsSet(...args),
+  })),
+}));
+
+jest.unstable_mockModule("../src/adapters/chrome/background/LanguageDetector", () => ({
+  LanguageDetector: jest.fn().mockImplementation(() => ({
+    detectLanguage: (...args: [string, number, string[]?]) =>
+      backgroundHarnessMocks.languageDetect(...args),
+  })),
+}));
+
+jest.unstable_mockModule("../src/adapters/chrome/background/PredictionManager", () => ({
+  PredictionManager: jest.fn().mockImplementation(() => ({
+    runPrediction: (...args: [string, string, string, unknown?, unknown?]) =>
+      backgroundHarnessMocks.predictionRun(...args),
+    initialize: () => backgroundHarnessMocks.predictionInitialize(),
+    setConfig: (...args: [unknown]) => backgroundHarnessMocks.predictionSetConfig(...args),
+    ensureTraceId: (...args: [string?]) =>
+      backgroundHarnessMocks.predictionEnsureTraceId(...args),
+    recordTraceTimelineEvent: (...args: [unknown?]) =>
+      backgroundHarnessMocks.predictionRecordTraceTimelineEvent(...args),
+  })),
+}));
+
+jest.unstable_mockModule("../src/adapters/chrome/background/TabMessenger", () => ({
+  TabMessenger: jest.fn().mockImplementation(() => ({
+    sendToAllTabs: (...args: [unknown, unknown?, unknown?]) =>
+      backgroundHarnessMocks.tabSendToAll(...args),
+    sendToActiveTab: (...args: [unknown]) =>
+      backgroundHarnessMocks.tabSendToActive(...args),
+    getActiveTabHostname: (...args: []) =>
+      backgroundHarnessMocks.getActiveTabHostname(...args),
+  })),
+}));
+
+jest.unstable_mockModule("../src/core/application/transport-utils", () => ({
+  checkLastError: (...args: []) => backgroundHarnessMocks.checkLastError(...args),
+}));
+
+jest.unstable_mockModule("../src/core/application/domain-utils", () => ({
+  getDomain: (...args: [string]) => backgroundHarnessMocks.getDomain(...args),
+  isEnabledForDomain: (...args: [unknown, string]) =>
+    backgroundHarnessMocks.isEnabledForDomain(...args),
+}));
+
+jest.unstable_mockModule("../src/core/domain/error", () => ({
+  logError: (...args: [string, unknown]) => backgroundHarnessMocks.logError(...args),
+  getErrorMessage: (error: unknown) =>
+    error instanceof Error ? error.message : String(error),
+  ConfigError: MockConfigError,
+  TransportError: MockTransportError,
+  PredictorError: MockPredictorError,
+  isFluentTyperError: (error: unknown) => {
+    if (!error || typeof error !== "object") {
+      return false;
+    }
+    const candidate = error as { kind?: unknown; code?: unknown };
+    return (
+      (candidate.kind === "config" ||
+        candidate.kind === "transport" ||
+        candidate.kind === "predictor") &&
+      typeof candidate.code === "string"
+    );
+  },
+}));
+
+jest.unstable_mockModule("../src/adapters/chrome/background/Migration", () => ({
+  migrateToLocalStore: (...args: [string | undefined]) =>
+    backgroundHarnessMocks.migrateToLocalStore(...args),
+}));
+
+let importNonce = 0;
+
+function freshModulePath(path: string): string {
+  importNonce += 1;
+  return `${path}?bun_test_nonce=${importNonce}`;
 }
 
 async function loadBackgroundHarness(
   stateOverrides: Record<string, unknown> = {},
 ) {
-  jest.resetModules();
   jest.clearAllMocks();
 
   const state: Record<string, unknown> = {
@@ -99,36 +238,6 @@ async function loadBackgroundHarness(
   const isEnabledForDomain = jest.fn(async () => true);
   const logError = jest.fn();
   const migrateToLocalStore = jest.fn(async () => undefined);
-  class MockConfigError extends Error {
-    readonly kind = "config";
-    readonly code: string;
-
-    constructor(message: string, details: { code: string; cause?: unknown }) {
-      super(message);
-      this.name = "ConfigError";
-      this.code = details.code;
-    }
-  }
-  class MockTransportError extends Error {
-    readonly kind = "transport";
-    readonly code: string;
-
-    constructor(message: string, details: { code: string; cause?: unknown }) {
-      super(message);
-      this.name = "TransportError";
-      this.code = details.code;
-    }
-  }
-  class MockPredictorError extends Error {
-    readonly kind = "predictor";
-    readonly code: string;
-
-    constructor(message: string, details: { code: string; cause?: unknown }) {
-      super(message);
-      this.name = "PredictorError";
-      this.code = details.code;
-    }
-  }
 
   const onInstalledAddListener = jest.fn();
   const onCommandAddListener = jest.fn();
@@ -175,65 +284,34 @@ async function loadBackgroundHarness(
   };
   (globalThis as unknown as { chrome: unknown }).chrome = chromeMock;
 
-  jest.unstable_mockModule("../src/core/application/settingsManager", () => ({
-    SettingsManager: jest.fn().mockImplementation(() => ({
-      get: settingsGet,
-      set: settingsSet,
-    })),
-  }));
-  jest.unstable_mockModule("../src/adapters/chrome/background/LanguageDetector", () => ({
-    LanguageDetector: jest.fn().mockImplementation(() => ({
-      detectLanguage: languageDetect,
-    })),
-  }));
-  jest.unstable_mockModule("../src/adapters/chrome/background/PredictionManager", () => ({
-    PredictionManager: jest.fn().mockImplementation(() => ({
-      runPrediction: predictionRun,
-      initialize: predictionInitialize,
-      setConfig: predictionSetConfig,
-      ensureTraceId: predictionEnsureTraceId,
-      recordTraceTimelineEvent: predictionRecordTraceTimelineEvent,
-    })),
-  }));
-  jest.unstable_mockModule("../src/adapters/chrome/background/TabMessenger", () => ({
-    TabMessenger: jest.fn().mockImplementation(() => ({
-      sendToAllTabs: tabSendToAll,
-      sendToActiveTab: tabSendToActive,
-      getActiveTabHostname: getActiveTabHostname,
-    })),
-  }));
-  jest.unstable_mockModule("../src/core/application/transport-utils", () => ({
-    checkLastError,
-  }));
-  jest.unstable_mockModule("../src/core/application/domain-utils", () => ({
-    getDomain,
-    isEnabledForDomain,
-  }));
-  jest.unstable_mockModule("../src/core/domain/error", () => ({
-    logError,
-    getErrorMessage: (error: unknown) =>
-      error instanceof Error ? error.message : String(error),
-    ConfigError: MockConfigError,
-    TransportError: MockTransportError,
-    PredictorError: MockPredictorError,
-    isFluentTyperError: (error: unknown) => {
-      if (!error || typeof error !== "object") {
-        return false;
-      }
-      const candidate = error as { kind?: unknown; code?: unknown };
-      return (
-        (candidate.kind === "config" ||
-          candidate.kind === "transport" ||
-          candidate.kind === "predictor") &&
-        typeof candidate.code === "string"
-      );
-    },
-  }));
-  jest.unstable_mockModule("../src/adapters/chrome/background/Migration", () => ({
-    migrateToLocalStore,
-  }));
+  backgroundHarnessMocks.settingsGet = settingsGet;
+  backgroundHarnessMocks.settingsSet = settingsSet;
+  backgroundHarnessMocks.languageDetect = languageDetect;
+  backgroundHarnessMocks.predictionRun = predictionRun;
+  backgroundHarnessMocks.predictionInitialize = predictionInitialize;
+  backgroundHarnessMocks.predictionSetConfig = predictionSetConfig;
+  backgroundHarnessMocks.predictionEnsureTraceId = predictionEnsureTraceId;
+  backgroundHarnessMocks.predictionRecordTraceTimelineEvent =
+    predictionRecordTraceTimelineEvent;
+  backgroundHarnessMocks.tabSendToAll = tabSendToAll;
+  backgroundHarnessMocks.tabSendToActive = tabSendToActive;
+  backgroundHarnessMocks.getActiveTabHostname = getActiveTabHostname;
+  backgroundHarnessMocks.checkLastError = checkLastError;
+  backgroundHarnessMocks.getDomain = getDomain;
+  backgroundHarnessMocks.isEnabledForDomain = isEnabledForDomain;
+  backgroundHarnessMocks.logError = logError;
+  backgroundHarnessMocks.migrateToLocalStore = migrateToLocalStore;
 
-  const module = await import("../src/adapters/chrome/background/background");
+  const { BackgroundServiceWorker } = await import(
+    "../src/adapters/chrome/background/BackgroundServiceWorker"
+  );
+  (
+    BackgroundServiceWorker as unknown as { instance?: unknown }
+  ).instance = undefined;
+
+  const module = await import(
+    freshModulePath("../src/adapters/chrome/background/background")
+  );
 
   const onInstalled = onInstalledAddListener.mock.calls[0][0] as (
     details: chrome.runtime.InstalledDetails,
@@ -486,6 +564,19 @@ describe("background routing and lifecycle", () => {
         },
       },
     });
+    const runPredictionSpy = jest.spyOn(
+      (
+        harness.module.BackgroundServiceWorker as {
+          prototype: {
+            runPrediction: (
+              message: unknown,
+              configOverride?: { numSuggestions?: number },
+            ) => Promise<void>;
+          };
+        }
+      ).prototype,
+      "runPrediction",
+    );
 
     harness.onMessage(
       {
@@ -507,19 +598,22 @@ describe("background routing and lifecycle", () => {
     );
     await flushPromises();
 
-    expect(harness.predictionRun).toHaveBeenCalledWith(
-      "bonjour",
-      "",
-      "fr_FR",
+    expect(runPredictionSpy).toHaveBeenCalledWith(
       {
-        numSuggestions: 2,
+        command: CMD_BACKGROUND_PAGE_PREDICT_REQ,
+        context: expect.objectContaining({
+          text: "bonjour",
+          nextChar: "",
+          lang: "fr_FR",
+          tabId: 77,
+          frameId: 3,
+          tributeId: 4,
+          requestId: 5,
+          traceId: "trace-fr-5",
+        }),
       },
       {
-        requestId: 5,
-        tabId: 77,
-        frameId: 3,
-        tributeId: 4,
-        traceId: "trace-fr-5",
+        numSuggestions: 2,
       },
     );
   });
@@ -535,6 +629,19 @@ describe("background routing and lifecycle", () => {
       language: "en_US",
     });
     harness.getDomain.mockReturnValueOnce("other.example");
+    const runPredictionSpy = jest.spyOn(
+      (
+        harness.module.BackgroundServiceWorker as {
+          prototype: {
+            runPrediction: (
+              message: unknown,
+              configOverride?: { numSuggestions?: number },
+            ) => Promise<void>;
+          };
+        }
+      ).prototype,
+      "runPrediction",
+    );
 
     harness.onMessage(
       {
@@ -556,18 +663,21 @@ describe("background routing and lifecycle", () => {
     );
     await flushPromises();
 
-    expect(harness.predictionRun).toHaveBeenCalledWith(
-      "hello",
-      "",
-      "en_US",
-      undefined,
+    expect(runPredictionSpy).toHaveBeenCalledWith(
       {
-        requestId: 12,
-        tabId: 90,
-        frameId: 1,
-        tributeId: 11,
-        traceId: "trace-en-12",
+        command: CMD_BACKGROUND_PAGE_PREDICT_REQ,
+        context: expect.objectContaining({
+          text: "hello",
+          nextChar: "",
+          lang: "en_US",
+          tabId: 90,
+          frameId: 1,
+          tributeId: 11,
+          requestId: 12,
+          traceId: "trace-en-12",
+        }),
       },
+      undefined,
     );
   });
 

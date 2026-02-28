@@ -1,4 +1,4 @@
-import { jest } from "@jest/globals";
+import { jest } from "bun:test";
 
 const createMLCEngineMock = jest.fn<() => Promise<unknown>>();
 

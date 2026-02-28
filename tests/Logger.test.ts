@@ -1,4 +1,4 @@
-import { jest } from "@jest/globals";
+import { jest } from "bun:test";
 import { createLogger } from "../src/core/application/logging/Logger";
 
 type LoggingGlobals = typeof globalThis & {
