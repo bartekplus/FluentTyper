@@ -41,10 +41,10 @@ Or run watch mode for iterative development:
 bun run watch
 ```
 
-To test a Chrome/Edge build specifically:
+To build Firefox instead of the default Chrome target:
 
 ```bash
-bunx cross-env PLATFORM=chrome bun run watch
+bun run build --platform=firefox
 ```
 
 Load the unpacked extension from the `build/` directory:
@@ -93,14 +93,14 @@ Optional end-to-end tests:
 
 ```bash
 bun run test:e2e
+bun run test:e2e --platform=firefox
 bun run test:e2e:dev
 ```
 
 Notes:
 
-- `bun run test:e2e` builds with `--mode=production` and runs the production e2e suite.
+- `bun run test:e2e` defaults to `--platform=chrome`; set `--platform=firefox` when needed.
 - `bun run test:e2e:dev` builds with `--mode=development` and runs dev/runtime-hook-specific e2e coverage.
-- `bun run test:e2e:matrix` runs both production and development e2e suites.
 
 ## Branch and PR Workflow
 

@@ -50,6 +50,9 @@ const SUGGESTION_TIMEOUT_MS = isFirefox() ? 7000 : 8000;
 const RUN_DEV_RUNTIME_E2E =
   process.env.FT_E2E_DEV_RUNTIME === "1" ||
   process.env.FT_E2E_DEV_RUNTIME === "true";
+const RUN_E2E =
+  process.env.RUN_E2E === "1" || process.env.RUN_E2E === "true";
+const describeE2E = RUN_E2E ? describe : describe.skip;
 const devRuntimeTest = RUN_DEV_RUNTIME_E2E ? test : test.skip;
 
 function browserTimeout(chromeTimeoutMs: number, firefoxTimeoutMs: number) {
@@ -596,7 +599,7 @@ async function clickFirstVisibleSuggestion(
   );
 }
 
-describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
+describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   let browser: Browser;
   let page: Page;
   let worker: BackgroundContext;

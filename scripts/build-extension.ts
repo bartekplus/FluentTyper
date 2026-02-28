@@ -19,6 +19,7 @@ const WEBLLM_CONNECT_SRC_BASE_SOURCES = ["'self'", "data:"];
 interface CliOptions {
   mode: BuildMode;
   watch: boolean;
+  platform: string;
 }
 
 interface BuildContext {
@@ -36,6 +37,14 @@ interface BuildContext {
 }
 
 function parseCliOptions(argv: string[]): CliOptions {
+  const platformEqualsArg = argv.find((arg) => arg.startsWith("--platform="));
+  const platformIndex = argv.indexOf("--platform");
+  const platformValueFromNext =
+    platformIndex >= 0 ? argv[platformIndex + 1] : undefined;
+  const platformRaw = platformEqualsArg
+    ? platformEqualsArg.slice("--platform=".length)
+    : platformValueFromNext;
+
   const modeEqualsArg = argv.find((arg) => arg.startsWith("--mode="));
   const modeIndex = argv.indexOf("--mode");
   const modeValueFromNext = modeIndex >= 0 ? argv[modeIndex + 1] : undefined;
@@ -50,6 +59,7 @@ function parseCliOptions(argv: string[]): CliOptions {
   return {
     mode,
     watch: argv.includes("--watch"),
+    platform: platformRaw && platformRaw.length > 0 ? platformRaw : "chrome",
   };
 }
 
@@ -321,7 +331,7 @@ async function runWatchMode(context: BuildContext): Promise<void> {
 
 async function main(): Promise<void> {
   const cliOptions = parseCliOptions(process.argv.slice(2));
-  const platform = process.env.PLATFORM || "firefox";
+  const platform = cliOptions.platform;
   const configuredLogLevel = process.env.FT_LOG_LEVEL || "";
 
   const __filename = fileURLToPath(import.meta.url);

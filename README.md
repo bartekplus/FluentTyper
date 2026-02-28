@@ -142,8 +142,9 @@ Install and run common tasks:
 ```bash
 bun install
 bun run build
+bun run build --platform=firefox
 bun run check
-bun run test
+bun test
 ```
 
 Migration note: `bun.lock` is the source of truth for reproducible installs. npm/pnpm are no longer required for normal development workflows.

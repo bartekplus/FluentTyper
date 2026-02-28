@@ -13,6 +13,10 @@ import {
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
 } from "../../src/core/domain/constants";
 
+const RUN_E2E =
+  process.env.RUN_E2E === "1" || process.env.RUN_E2E === "true";
+const describeE2E = RUN_E2E ? describe : describe.skip;
+
 const SETTINGS_PREFIX = "store.settings.";
 
 interface PredictorDebugSnapshot {
@@ -165,7 +169,7 @@ async function togglePredictorDebugButton(
   }, selector);
 }
 
-describe(`Options Predictor Toggle E2E [${BROWSER_TYPE}]`, () => {
+describeE2E(`Options Predictor Toggle E2E [${BROWSER_TYPE}]`, () => {
   let browser: Browser;
   let worker: BackgroundContext;
 
