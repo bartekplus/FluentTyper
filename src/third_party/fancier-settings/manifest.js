@@ -74,6 +74,11 @@ const supportLinksHTML =
   </div>';
 const IS_DEV_BUILD =
   typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
+const EXTENSION_VERSION =
+  typeof chrome !== "undefined" &&
+  typeof chrome.runtime?.getManifest === "function"
+    ? chrome.runtime.getManifest().version
+    : "dev";
 
 const WEBLLM_DEV_MODEL_OPTIONS = [
   ["SmolLM2-360M-Instruct-q4f16_1-MLC", "SmolLM2 360M q4f16 (fastest)"],
@@ -698,7 +703,7 @@ const manifest = {
       group: i18n.get("about_fluent_typer_group"),
       name: "Version",
       type: "description",
-      text: `<span class="version-chip">Version ${chrome.runtime.getManifest().version}</span>`,
+      text: `<span class="version-chip">Version ${EXTENSION_VERSION}</span>`,
     },
     {
       tab: i18n.get("about_support_tab"),
