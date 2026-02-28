@@ -54,12 +54,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '24'
-          cache: 'npm'
-          cache-dependency-path: package-lock.json
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.10'
       - name: Prepare files
         run: |
-          npm ci
-          PLATFORM=${{ matrix.browser }} npm run build
+          bun install --frozen-lockfile
+          bunx cross-env PLATFORM=${{ matrix.browser }} bun run build
           mv build ${{ matrix.browser }}
         env:
           SOURCE_TAG: ${{ steps.branch_name.outputs.SOURCE_TAG }}

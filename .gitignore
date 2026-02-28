@@ -5,4 +5,5 @@ promotional_materials/font/berlin.zip
 scripts/.deps
 scripts/.cache
 scripts/community-oscar
+.tmp
 .DS_Store

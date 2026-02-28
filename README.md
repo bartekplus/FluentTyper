@@ -129,6 +129,26 @@ If you discovered a security vulnerability, follow [SECURITY.md](SECURITY.md) an
 
 Development and contribution guidelines are in [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## Development Setup (Bun)
+
+FluentTyper uses [Bun](https://bun.sh/) as the primary package manager and script runner.
+
+Prerequisites:
+
+- Bun `1.3.10` (pinned in `packageManager`)
+- Node.js `24` (runtime compatibility target used in CI)
+
+Install and run common tasks:
+
+```bash
+bun install
+bun run build
+bun run check
+bun run test
+```
+
+Migration note: `bun.lock` is the source of truth for reproducible installs. npm/pnpm are no longer required for normal development workflows.
+
 ## Sponsorship and Support
 
 If FluentTyper saves you time, you can support maintenance and future development:

@@ -25,10 +25,11 @@ jobs:
     - uses: actions/setup-node@v4
       with:
         node-version: '24'
-        cache: 'npm'
-        cache-dependency-path: package-lock.json
-    - run: npm ci
-    - run: npm run check
+    - uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: '1.3.10'
+    - run: bun install --frozen-lockfile
+    - run: bun run check
 
   unit:
     name: Unit tests
@@ -40,10 +41,11 @@ jobs:
     - uses: actions/setup-node@v4
       with:
         node-version: '24'
-        cache: 'npm'
-        cache-dependency-path: package-lock.json
-    - run: npm ci
-    - run: npm run test
+    - uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: '1.3.10'
+    - run: bun install --frozen-lockfile
+    - run: bun run test
 
   e2e:
     name: E2E (${{ matrix.browser }})
@@ -55,21 +57,22 @@ jobs:
       matrix:
         include:
           - browser: chrome
-            script: npm run test:e2e
+            script: bun run test:e2e
           - browser: firefox
-            script: npm run test:e2e:firefox
+            script: bun run test:e2e:firefox
 
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-node@v4
       with:
         node-version: '24'
-        cache: 'npm'
-        cache-dependency-path: package-lock.json
-    - run: npm ci
+    - uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: '1.3.10'
+    - run: bun install --frozen-lockfile
     - name: Install Firefox for Puppeteer
       if: matrix.browser == 'firefox'
-      run: npx puppeteer browsers install firefox
+      run: bunx puppeteer browsers install firefox
     - run: ${{ matrix.script }}
       env:
         CI: 'true'
