@@ -1,4 +1,5 @@
 import { checkLastError } from "@core/application/utils";
+import { createLogger } from "@core/application/logging/Logger";
 import { CMD_CONTENT_SCRIPT_GET_CONFIG } from "@core/domain/constants";
 import type {
   ContentScriptGetConfigMessage,
@@ -19,20 +20,17 @@ declare global {
   }
 }
 
-class FluentTyper {
-  private static readonly LOG_PREFIX = "ContentScript";
+const logger = createLogger("FluentTyperContentScript");
 
+class FluentTyper {
   private readonly runtimeController: ContentRuntimeController;
   private readonly contentMessageHandler: ContentMessageHandler;
   private readonly hostChangeWatcher: HostChangeWatcher;
 
   constructor() {
-    console.info(
-      "[%s:%s] Initializing on %s",
-      FluentTyper.LOG_PREFIX,
-      this.constructor.name,
-      window.location.hostname,
-    );
+    logger.info("Initializing content script", {
+      host: window.location.hostname,
+    });
 
     this.runtimeController = new ContentRuntimeController(new ThemeApplicator());
     this.runtimeController.setRestartRequestHandler(() => this.restart());

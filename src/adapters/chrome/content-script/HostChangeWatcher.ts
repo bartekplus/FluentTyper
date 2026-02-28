@@ -1,3 +1,5 @@
+import { createLogger } from "@core/application/logging/Logger";
+
 export type HostChangeWatcherDependencies = {
   watchDogRunner: () => void;
   getObservedNode: () => Node;
@@ -7,9 +9,9 @@ export type HostChangeWatcherDependencies = {
   requestConfig: () => void;
 };
 
-export class HostChangeWatcher {
-  private static readonly LOG_PREFIX = "ContentScript";
+const logger = createLogger("HostChangeWatcher");
 
+export class HostChangeWatcher {
   private hostName = window.location.hostname;
   private watchDogTimeoutId: number | null = null;
   private rootNodeObserver: MutationObserver | null = null;
@@ -38,12 +40,10 @@ export class HostChangeWatcher {
 
   checkHostName(): boolean {
     if (this.hostName !== window.location.hostname) {
-      console.info(
-        "[%s:%s:%s] Host name changed, re-fetching config",
-        HostChangeWatcher.LOG_PREFIX,
-        this.constructor.name,
-        this.checkHostName.name,
-      );
+      logger.info("Host changed; refetching config", {
+        previousHost: this.hostName,
+        nextHost: window.location.hostname,
+      });
       this.hostName = window.location.hostname;
       this.dependencies.requestConfig();
       return true;
@@ -54,22 +54,15 @@ export class HostChangeWatcher {
   watchDog(): void {
     const currentNode = document.body || document.documentElement;
     if (this.checkHostName()) {
-      console.debug(
-        "[%s:%s:%s] Host name changed in watchDog, returning",
-        HostChangeWatcher.LOG_PREFIX,
-        this.constructor.name,
-        this.watchDog.name,
-      );
+      logger.debug("Host changed during watchdog cycle; skipping DOM restart");
       return;
     }
     if (this.dependencies.getObservedNode() !== currentNode) {
-      console.warn(
-        "[%s:%s:%s] DOM node changed, restarting",
-        HostChangeWatcher.LOG_PREFIX,
-        this.constructor.name,
-        this.watchDog.name,
-      );
-      if (this.dependencies.isRuntimeEnabled()) {
+      const runtimeEnabled = this.dependencies.isRuntimeEnabled();
+      logger.warn("Observed root node changed; restarting runtime", {
+        runtimeEnabled,
+      });
+      if (runtimeEnabled) {
         this.dependencies.restartRuntime();
       }
       this.dependencies.setObservedNode(currentNode);

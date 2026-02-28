@@ -1,5 +1,6 @@
 import { LANG_SEPARATOR_CHARS_REGEX } from "@core/domain/lang";
 import { isInDocument } from "@core/application/utils";
+import { createLogger } from "@core/application/logging/Logger";
 import type {
   ContentScriptPredictRequestContext,
   PredictResponseContext,
@@ -10,8 +11,9 @@ import { MutationScheduler } from "./MutationScheduler";
 import { ThemeApplicator } from "./ThemeApplicator";
 import { TributeManager } from "./TributeManager";
 
+const logger = createLogger("ContentRuntimeController");
+
 export class ContentRuntimeController {
-  private static readonly LOG_PREFIX = "ContentScript";
   private static readonly SELECTORS = "textarea, input, [contentEditable]";
   private static readonly MUTATION_COALESCE_DELAY_MS = 16;
   private static readonly MAX_MUTATION_BATCH_SIZE = 200;
@@ -68,13 +70,7 @@ export class ContentRuntimeController {
 
   set enabled(newValue: boolean) {
     if (this._enabled !== newValue) {
-      console.info(
-        "[%s:%s:%s] enabled set to %s",
-        ContentRuntimeController.LOG_PREFIX,
-        this.constructor.name,
-        "set enabled",
-        newValue,
-      );
+      logger.info("Runtime enabled state changed", { enabled: newValue });
       this._enabled = newValue;
       if (newValue) {
         this.enable();
@@ -89,13 +85,11 @@ export class ContentRuntimeController {
   }
 
   setConfig(config: SetConfigContext): void {
-    console.info(
-      "[%s:%s:%s] setConfig called with config:",
-      ContentRuntimeController.LOG_PREFIX,
-      this.constructor.name,
-      this.setConfig.name,
-      config,
-    );
+    logger.debug("Applying runtime config update", {
+      enabled: config.enabled,
+      lang: config.lang,
+      autocomplete: config.autocomplete,
+    });
     this.config = config;
 
     if (config.themeConfig) {
@@ -103,12 +97,7 @@ export class ContentRuntimeController {
     }
 
     if (this.enabled && config.enabled) {
-      console.warn(
-        "[%s:%s:%s] Restarting due to config change",
-        ContentRuntimeController.LOG_PREFIX,
-        this.constructor.name,
-        this.setConfig.name,
-      );
+      logger.info("Restarting runtime due to config change");
       this.onRestartRequest();
       return;
     }
@@ -144,13 +133,9 @@ export class ContentRuntimeController {
   }
 
   processMutations(mutationsList: MutationRecord[]): void {
-    console.groupCollapsed(
-      "[%s:%s:%s] Starting processMutations with %d mutations",
-      ContentRuntimeController.LOG_PREFIX,
-      this.constructor.name,
-      this.processMutations.name,
-      mutationsList.length,
-    );
+    logger.debug("Processing DOM mutations", {
+      mutationCount: mutationsList.length,
+    });
     this.domObserver.disconnect();
     try {
       if (!this.tributeManager) {
@@ -180,45 +165,27 @@ export class ContentRuntimeController {
       if (this.enabled) {
         this.attachMutationObserver();
       }
-      console.groupEnd();
     }
   }
 
   enable(): void {
-    console.groupCollapsed(
-      "[%s:%s:%s] Enabling FluentTyper",
-      ContentRuntimeController.LOG_PREFIX,
-      this.constructor.name,
-      this.enable.name,
-    );
+    logger.info("Enabling content runtime");
     if (!this.tributeManager) {
       this.initializeTributeManager();
     }
     this.tributeManager?.queryAndAttachHelper();
     this.attachMutationObserver();
-    console.groupEnd();
   }
 
   disable(): void {
-    console.groupCollapsed(
-      "[%s:%s:%s] Disabling FluentTyper",
-      ContentRuntimeController.LOG_PREFIX,
-      this.constructor.name,
-      this.disable.name,
-    );
+    logger.info("Disabling content runtime");
     this.domObserver.disconnect();
     this.mutationScheduler.clear();
     this.tributeManager?.detachAllHelpers();
-    console.groupEnd();
   }
 
   restart(): void {
-    console.warn(
-      "[%s:%s:%s] Restarting FluentTyper",
-      ContentRuntimeController.LOG_PREFIX,
-      this.constructor.name,
-      this.restart.name,
-    );
+    logger.warn("Restarting content runtime");
     this.disable();
     this.tributeManager = null;
     setTimeout(() => {
@@ -237,13 +204,11 @@ export class ContentRuntimeController {
   }
 
   private initializeTributeManager(): void {
-    console.info(
-      "[%s:%s:%s] Initializing TributeManager with config:",
-      ContentRuntimeController.LOG_PREFIX,
-      this.constructor.name,
-      this.initializeTributeManager.name,
-      this.config,
-    );
+    logger.debug("Initializing tribute manager", {
+      lang: this.config.lang,
+      autocomplete: this.config.autocomplete,
+      minWordLengthToPredict: this.config.minWordLengthToPredict,
+    });
     this.tributeManager = new TributeManager({
       selectors: ContentRuntimeController.SELECTORS,
       minWordLengthToPredict: this.config.minWordLengthToPredict,

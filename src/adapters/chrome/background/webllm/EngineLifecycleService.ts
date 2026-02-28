@@ -1,10 +1,12 @@
 import { CreateMLCEngine } from "@mlc-ai/web-llm";
 import type { InitProgressReport, MLCEngineInterface } from "@mlc-ai/web-llm";
+import { createLogger } from "@core/application/logging/Logger";
 import { getErrorMessage } from "@core/domain/error";
 import type { InitProgressEntry } from "./types";
 
 const FAILURE_RETRY_MS = 30000;
 const INIT_PROGRESS_LOG_LIMIT = 12;
+const logger = createLogger("EngineLifecycleService");
 
 export enum PredictorStatus {
   Idle = "idle",
@@ -127,11 +129,12 @@ export class EngineLifecycleService {
         });
         return true;
       } catch (error) {
+        const errorMessage = getErrorMessage(error);
         this.engine = null;
         this.status = PredictorStatus.Failed;
         this.lastFailureAt = Date.now();
         this.lastInitDurationMs = Date.now() - initStartedAt;
-        this.lastInitError = getErrorMessage(error);
+        this.lastInitError = errorMessage;
         this.lastInitProgressAt = Date.now();
         this.lastInitProgressText = "failed";
         this.recordInitProgress({
@@ -142,10 +145,11 @@ export class EngineLifecycleService {
           timeElapsed: this.lastInitDurationMs,
           text: `failed: ${this.lastInitError}`,
         });
-        console.warn(
-          "WebLLM init failed, fallback to Presage:",
-          getErrorMessage(error),
-        );
+        logger.warn("WebLLM init failed; fallback to Presage", {
+          modelId,
+          initAttemptCount: this.initAttemptCount,
+          error: errorMessage,
+        });
         return false;
       } finally {
         this.initPromise = null;

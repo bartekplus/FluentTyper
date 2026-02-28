@@ -176,8 +176,8 @@ describe("PredictionOrchestrator coverage", () => {
     });
 
     expect(warnSpy).toHaveBeenCalledWith(
-      "Prediction debug listener failed:",
-      "listener-failed",
+      "[PredictionOrchestrator] Prediction debug listener failed",
+      { error: "listener-failed" },
     );
     warnSpy.mockRestore();
   });
@@ -329,8 +329,11 @@ describe("PredictionOrchestrator coverage", () => {
 
     expect(result.predictions).toEqual(["alpha"]);
     expect(warnSpy).toHaveBeenCalledWith(
-      "Failed to interrupt WebLLM generation:",
-      "interrupt_failed",
+      "[PredictionOrchestrator] Failed to interrupt WebLLM generation",
+      expect.objectContaining({
+        reason: "timeout",
+        error: "interrupt_failed",
+      }),
     );
     warnSpy.mockRestore();
   });

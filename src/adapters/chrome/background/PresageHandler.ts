@@ -5,6 +5,7 @@ import {
   Spacing,
   SPACING_RULES,
 } from "./SpacingRulesHandler";
+import { createLogger } from "@core/application/logging/Logger";
 import { getErrorMessage } from "@core/domain/error";
 import { Capitalization } from "./CapitalizationHelper";
 import { PredictionInputProcessor } from "./PredictionInputProcessor";
@@ -19,6 +20,7 @@ import type { PredictionResult } from "./PredictionTypes";
 
 const SUGGESTION_COUNT = 5;
 const MIN_WORD_LENGTH_TO_PREDICT = 1;
+const logger = createLogger("PresageHandler");
 
 interface LastPrediction {
   pastStream: string;
@@ -99,9 +101,10 @@ export class PresageHandler {
           lang,
         );
       } catch (error) {
-        console.warn(
-          `Failed to create Presage instance for ${lang} language: ${getErrorMessage(error)}`,
-        );
+        logger.warn("Failed to create Presage engine instance", {
+          lang,
+          error: getErrorMessage(error),
+        });
       }
     }
     this.textExpansionManager = new TextExpansionManager(

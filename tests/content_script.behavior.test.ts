@@ -425,12 +425,10 @@ describe("content_script behavior", () => {
   test("messageHandler handles empty and unknown messages safely", async () => {
     const { fluentTyper } = await loadContentScript();
     const errorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
-    const traceSpy = jest.spyOn(console, "trace").mockImplementation(() => {});
 
     fluentTyper.messageHandler(null);
     fluentTyper.messageHandler({ command: "UNKNOWN_COMMAND", context: {} });
 
     expect(errorSpy).toHaveBeenCalled();
-    expect(traceSpy).toHaveBeenCalled();
   });
 });

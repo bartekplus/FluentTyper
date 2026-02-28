@@ -20,11 +20,34 @@ export interface LoggerOptions {
   minLevel?: LogLevel;
 }
 
+interface LoggerRuntimeGlobals {
+  __FT_DEV_BUILD__?: boolean;
+  __FT_E2E_BUILD__?: boolean;
+  __FT_LOG_LEVEL__?: string;
+}
+
+function parseLogLevel(level: unknown): LogLevel | null {
+  if (typeof level !== "string") {
+    return null;
+  }
+  const normalized = level.trim().toLowerCase();
+  if (
+    normalized === "debug" ||
+    normalized === "info" ||
+    normalized === "warn" ||
+    normalized === "error"
+  ) {
+    return normalized;
+  }
+  return null;
+}
+
 function resolveDefaultMinLevel(): LogLevel {
-  const maybeGlobal = globalThis as {
-    __FT_DEV_BUILD__?: boolean;
-    __FT_E2E_BUILD__?: boolean;
-  };
+  const maybeGlobal = globalThis as LoggerRuntimeGlobals;
+  const explicitLogLevel = parseLogLevel(maybeGlobal.__FT_LOG_LEVEL__);
+  if (explicitLogLevel) {
+    return explicitLogLevel;
+  }
   const isDev = Boolean(maybeGlobal.__FT_DEV_BUILD__);
   const isE2E = Boolean(maybeGlobal.__FT_E2E_BUILD__);
   return isDev || isE2E ? "debug" : "warn";

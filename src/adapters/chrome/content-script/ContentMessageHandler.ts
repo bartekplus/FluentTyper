@@ -1,4 +1,5 @@
 import { checkLastError } from "@core/application/utils";
+import { createLogger } from "@core/application/logging/Logger";
 import {
   CMD_BACKGROUND_PAGE_PREDICT_RESP,
   CMD_BACKGROUND_PAGE_SET_CONFIG,
@@ -27,6 +28,8 @@ type RuntimeInboundMessage =
       context?: unknown;
     };
 
+const logger = createLogger("ContentMessageHandler");
+
 export type ContentMessageHandlerDependencies = {
   getEnabled: () => boolean;
   setEnabled: (value: boolean) => void;
@@ -39,8 +42,6 @@ export type ContentMessageHandlerDependencies = {
 };
 
 export class ContentMessageHandler {
-  private static readonly LOG_PREFIX = "ContentScript";
-
   private pendingReq: ContentScriptPredictRequestMessage | null = null;
 
   constructor(
@@ -48,13 +49,12 @@ export class ContentMessageHandler {
   ) {}
 
   handleGetPrediction(context: ContentScriptPredictRequestContext): void {
-    console.debug(
-      "[%s:%s:%s] called with context:",
-      ContentMessageHandler.LOG_PREFIX,
-      this.constructor.name,
-      this.handleGetPrediction.name,
-      context,
-    );
+    logger.debug("Preparing prediction request", {
+      requestId: context.requestId,
+      tributeId: context.tributeId,
+      nextChar: context.nextChar,
+      lang: this.dependencies.getLanguage(),
+    });
     const message: ContentScriptPredictRequestMessage = {
       command: CMD_CONTENT_SCRIPT_PREDICT_REQ,
       context: {
@@ -78,22 +78,13 @@ export class ContentMessageHandler {
     checkLastError();
     let sendStatusMsg = false;
     if (!message) {
-      console.error(
-        "[%s:%s:%s] Received empty message in messageHandler",
-        ContentMessageHandler.LOG_PREFIX,
-        this.constructor.name,
-        this.handleMessage.name,
-      );
+      logger.error("Received empty runtime message");
       return;
     }
-    console.groupCollapsed(
-      "[%s:%s:%s] Handling message %s:",
-      ContentMessageHandler.LOG_PREFIX,
-      this.constructor.name,
-      this.handleMessage.name,
-      message.command,
-      message,
-    );
+
+    logger.debug("Handling runtime message", {
+      command: message.command,
+    });
 
     switch (message.command) {
       case CMD_BACKGROUND_PAGE_PREDICT_RESP: {
@@ -103,23 +94,21 @@ export class ContentMessageHandler {
           this.pendingReq.context.tributeId === context.tributeId &&
           this.pendingReq.context.requestId === context.requestId
         ) {
-          console.info(
-            "[%s:%s:%s] Fulfilling prediction with context:",
-            ContentMessageHandler.LOG_PREFIX,
-            this.constructor.name,
-            this.handleMessage.name,
-            context,
-          );
+          logger.debug("Fulfilling prediction response", {
+            requestId: context.requestId,
+            tributeId: context.tributeId,
+            predictionCount: context.predictions.length,
+          });
           this.dependencies.fulfillPrediction(context);
           this.pendingReq = null;
         } else {
-          console.warn(
-            "[%s:%s:%s] Prediction response ignored (mismatch or no pending request):",
-            ContentMessageHandler.LOG_PREFIX,
-            this.constructor.name,
-            this.handleMessage.name,
-            context,
-          );
+          logger.warn("Ignored prediction response due to mismatch", {
+            requestId: context.requestId,
+            tributeId: context.tributeId,
+            hasPendingRequest: Boolean(this.pendingReq),
+            pendingRequestId: this.pendingReq?.context.requestId,
+            pendingTributeId: this.pendingReq?.context.tributeId,
+          });
         }
         break;
       }
@@ -157,14 +146,7 @@ export class ContentMessageHandler {
         }
         break;
       default:
-        console.trace(
-          "[%s:%s:%s] Unknown message command: %s",
-          ContentMessageHandler.LOG_PREFIX,
-          this.constructor.name,
-          this.handleMessage.name,
-          message.command,
-          message,
-        );
+        logger.debug("Unknown message command", { command: message.command });
         break;
     }
 
@@ -177,6 +159,5 @@ export class ContentMessageHandler {
         sendResponse(statusMsg);
       }
     }
-    console.groupEnd();
   }
 }

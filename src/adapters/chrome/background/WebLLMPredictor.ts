@@ -2,6 +2,7 @@ import {
   DEFAULT_AI_MODEL_ID,
   DEFAULT_AI_PREDICTOR_ENABLED,
 } from "@core/domain/constants";
+import { createLogger } from "@core/application/logging/Logger";
 import { getErrorMessage } from "@core/domain/error";
 import type {
   SecondaryPredictor,
@@ -25,6 +26,7 @@ import type {
 const CACHE_TTL_MS = 5000;
 const MAX_GENERATION_CHOICES = 5;
 const WEB_LLM_TEST_OVERRIDE_KEY = "__fluentTyperWebLLMTestOverride__";
+const logger = createLogger("WebLLMPredictor");
 
 interface WebLLMTestPredictionCall {
   lang: string;
@@ -249,11 +251,13 @@ export class WebLLMPredictor implements SecondaryPredictor {
         rawOutput = chatResult.rawOutput;
         source = "chat";
       } catch (error) {
-        console.warn(
-          "WebLLM chat completion failed, trying completion fallback:",
-          getErrorMessage(error),
-        );
-        this.lastPredictError = getErrorMessage(error);
+        const errorMessage = getErrorMessage(error);
+        logger.warn("WebLLM chat completion failed; trying fallback", {
+          modelId: this.modelId,
+          lang: request.lang,
+          error: errorMessage,
+        });
+        this.lastPredictError = errorMessage;
       }
       if (predictions.length === 0) {
         try {
@@ -310,13 +314,15 @@ export class WebLLMPredictor implements SecondaryPredictor {
       if (this.isRequestStale(requestSeq)) {
         return [];
       }
-      console.warn(
-        "WebLLM generation failed, fallback to Presage:",
-        getErrorMessage(error),
-      );
+      const errorMessage = getErrorMessage(error);
+      logger.warn("WebLLM generation failed; fallback to Presage", {
+        modelId: this.modelId,
+        lang: request.lang,
+        error: errorMessage,
+      });
       this.lastPredictDurationMs = Date.now() - predictStartedAt;
       this.lastPredictSource = "error";
-      this.lastPredictError = getErrorMessage(error);
+      this.lastPredictError = errorMessage;
       this.lastPredictOutputCount = 0;
       return [];
     } finally {

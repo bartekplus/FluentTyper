@@ -4,6 +4,7 @@ import {
   DEFAULT_DEBUG_AI_PREDICTOR_ENABLED,
   DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED,
 } from "@core/domain/constants";
+import { createLogger } from "@core/application/logging/Logger";
 import { getErrorMessage } from "@core/domain/error";
 import type {
   AIPredictorStageDebugInfo,
@@ -18,6 +19,8 @@ import {
 } from "./PresageHandler";
 import type { PresageConfig, PresagePredictionContext } from "./PresageHandler";
 import { mergePredictions } from "./PredictionMerger";
+
+const logger = createLogger("PredictionOrchestrator");
 
 function clampAIPredictionTimeoutMs(value: unknown): number {
   if (typeof value !== "number" || !Number.isFinite(value)) {
@@ -330,10 +333,11 @@ export class PredictionOrchestrator {
     try {
       this.aiPredictor.interruptActiveGeneration(reason, expectedRequest);
     } catch (error) {
-      console.warn(
-        "Failed to interrupt WebLLM generation:",
-        getErrorMessage(error),
-      );
+      logger.warn("Failed to interrupt WebLLM generation", {
+        reason,
+        expectedRequest,
+        error: getErrorMessage(error),
+      });
     }
   }
 
@@ -347,7 +351,9 @@ export class PredictionOrchestrator {
     try {
       debugListener(debugEvent);
     } catch (error) {
-      console.warn("Prediction debug listener failed:", getErrorMessage(error));
+      logger.warn("Prediction debug listener failed", {
+        error: getErrorMessage(error),
+      });
     }
   }
 
