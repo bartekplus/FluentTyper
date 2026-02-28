@@ -1,22 +1,30 @@
 import { jest } from "bun:test";
-import {
-  ConfigError,
-  getErrorMessage,
-  isFluentTyperError,
-  logError,
-} from "../src/core/domain/error";
+
+type ErrorModule = typeof import("../src/core/domain/error");
+
+let importNonce = 0;
+let errorModule: ErrorModule;
+
+function freshModulePath(path: string): string {
+  importNonce += 1;
+  return `${path}?bun_test_nonce_error=${importNonce}`;
+}
 
 describe("shared error helpers", () => {
+  beforeEach(async () => {
+    errorModule = await import(freshModulePath("../src/core/domain/error"));
+  });
+
   afterEach(() => {
     jest.restoreAllMocks();
   });
 
   test("returns message from Error instances", () => {
-    expect(getErrorMessage(new Error("boom"))).toBe("boom");
+    expect(errorModule.getErrorMessage(new Error("boom"))).toBe("boom");
   });
 
   test("stringifies plain objects", () => {
-    expect(getErrorMessage({ code: 42, reason: "invalid" })).toBe(
+    expect(errorModule.getErrorMessage({ code: 42, reason: "invalid" })).toBe(
       '{"code":42,"reason":"invalid"}',
     );
   });
@@ -25,7 +33,7 @@ describe("shared error helpers", () => {
     const circular: { self?: unknown } = {};
     circular.self = circular;
 
-    expect(getErrorMessage(circular)).toBe("[object Object]");
+    expect(errorModule.getErrorMessage(circular)).toBe("[object Object]");
   });
 
   test("logError writes context and forwards original error", () => {
@@ -34,7 +42,7 @@ describe("shared error helpers", () => {
       .mockImplementation(() => {});
     const error = new Error("network");
 
-    logError("SyncJob", error);
+    errorModule.logError("SyncJob", error);
 
     expect(consoleErrorSpy).toHaveBeenCalledWith(
       "[SyncJob] Error: network",
@@ -43,11 +51,11 @@ describe("shared error helpers", () => {
   });
 
   test("identifies fluent typer config error shape", () => {
-    const error = new ConfigError("Invalid runtime config", {
+    const error = new errorModule.ConfigError("Invalid runtime config", {
       code: "invalid_runtime_config",
     });
 
-    expect(isFluentTyperError(error)).toBe(true);
+    expect(errorModule.isFluentTyperError(error)).toBe(true);
     expect(error.kind).toBe("config");
     expect(error.code).toBe("invalid_runtime_config");
   });

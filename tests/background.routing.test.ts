@@ -1,4 +1,4 @@
-import { jest } from "bun:test";
+import { jest, mock } from "bun:test";
 import {
   CMD_BACKGROUND_PAGE_PREDICT_REQ,
   CMD_BACKGROUND_PAGE_SET_CONFIG,
@@ -161,11 +161,15 @@ jest.unstable_mockModule("../src/adapters/chrome/background/Migration", () => ({
     backgroundHarnessMocks.migrateToLocalStore(...args),
 }));
 
+afterAll(() => {
+  mock.restore();
+});
+
 let importNonce = 0;
 
 function freshModulePath(path: string): string {
   importNonce += 1;
-  return `${path}?bun_test_nonce=${importNonce}`;
+  return `${path}?bun_test_nonce_background_routing=${importNonce}`;
 }
 
 async function loadBackgroundHarness(

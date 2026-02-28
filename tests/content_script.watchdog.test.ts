@@ -1,4 +1,4 @@
-import { jest } from "bun:test";
+import { jest, mock } from "bun:test";
 
 type DomObserverLike = {
   attach: (...args: unknown[]) => void;
@@ -14,49 +14,51 @@ const mockChrome = {
   },
 };
 
-const domObserverInstances: DomObserverLike[] = [];
+const watchdogHarness = {
+  domObserverInstances: [] as DomObserverLike[],
+};
 let importNonce = 0;
 
 function freshModulePath(path: string): string {
   importNonce += 1;
-  return `${path}?bun_test_nonce=${importNonce}`;
+  return `${path}?bun_test_nonce_content_watchdog=${importNonce}`;
 }
 
 async function loadContentScriptModule() {
-  domObserverInstances.length = 0;
-
-  jest.unstable_mockModule("../src/adapters/chrome/content-script/TributeManager", () => ({
-    TributeManager: jest.fn().mockImplementation(() => ({
-      queryAndAttachHelper: jest.fn(),
-      detachAllHelpers: jest.fn(),
-      removeHelpersNotInDocument: jest.fn(),
-      updateLangConfig: jest.fn(),
-      triggerActiveTribute: jest.fn(),
-      fulfillPrediction: jest.fn(),
-    })),
-  }));
-
-  jest.unstable_mockModule("../src/adapters/chrome/content-script/DomObserver", () => ({
-    DomObserver: jest.fn().mockImplementation((initialNode: unknown) => {
-      const firstNode = initialNode as Node;
-      let currentNode: Node = firstNode;
-      const instance: DomObserverLike = {
-        attach: jest.fn(),
-        disconnect: jest.fn(),
-        setNode: jest.fn((nextNode: unknown) => {
-          currentNode = nextNode as Node;
-        }),
-        getNode: jest.fn(() => currentNode),
-      };
-      domObserverInstances.push(instance);
-      return instance;
-    }),
-  }));
+  watchdogHarness.domObserverInstances.length = 0;
 
   await import(
     freshModulePath("../src/adapters/chrome/content-script/content_script")
   );
 }
+
+jest.unstable_mockModule("../src/adapters/chrome/content-script/TributeManager", () => ({
+  TributeManager: jest.fn().mockImplementation(() => ({
+    queryAndAttachHelper: jest.fn(),
+    detachAllHelpers: jest.fn(),
+    removeHelpersNotInDocument: jest.fn(),
+    updateLangConfig: jest.fn(),
+    triggerActiveTribute: jest.fn(),
+    fulfillPrediction: jest.fn(),
+  })),
+}));
+
+jest.unstable_mockModule("../src/adapters/chrome/content-script/DomObserver", () => ({
+  DomObserver: jest.fn().mockImplementation((initialNode: unknown) => {
+    const firstNode = initialNode as Node;
+    let currentNode: Node = firstNode;
+    const instance: DomObserverLike = {
+      attach: jest.fn(),
+      disconnect: jest.fn(),
+      setNode: jest.fn((nextNode: unknown) => {
+        currentNode = nextNode as Node;
+      }),
+      getNode: jest.fn(() => currentNode),
+    };
+    watchdogHarness.domObserverInstances.push(instance);
+    return instance;
+  }),
+}));
 
 describe("content_script watchdog scheduling", () => {
   beforeEach(() => {
@@ -69,6 +71,10 @@ describe("content_script watchdog scheduling", () => {
   afterEach(() => {
     jest.clearAllTimers();
     jest.useRealTimers();
+  });
+
+  afterAll(() => {
+    mock.restore();
   });
 
   test("does not start a 1-second polling interval", async () => {

@@ -10,7 +10,7 @@
     "build:dev": "webpack --mode=development --config webpack/webpack.js",
     "check": "eslint . && prettier '**/*.{html,css}' --check",
     "lint": "eslint --fix . && prettier '**/*.{html,css,js,ts}' --write",
-    "test": "bun scripts/run-unit-tests.cjs",
+    "test": "bun test --preload ./tests/bun-test-preload.ts --timeout 60000 --max-concurrency 1 tests/*.test.ts tests/*.test.js",
     "prepare:e2e:storage": "bun scripts/ensure-e2e-storage-dir.cjs",
     "build:e2e:production": "cross-env PLATFORM=chrome webpack --mode=production --config webpack/webpack.js",
     "build:e2e:dev": "cross-env PLATFORM=chrome webpack --mode=development --config webpack/webpack.js",

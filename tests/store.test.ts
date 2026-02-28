@@ -6,7 +6,7 @@ let importNonce = 0;
 
 function freshModulePath(path: string): string {
   importNonce += 1;
-  return `${path}?bun_test_nonce=${importNonce}`;
+  return `${path}?bun_test_nonce_store=${importNonce}`;
 }
 
 function installChromeStorageMock(setDelayMs = 0): {
