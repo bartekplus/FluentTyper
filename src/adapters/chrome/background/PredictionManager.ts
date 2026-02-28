@@ -1,11 +1,8 @@
 // Handles prediction routing logic for FluentTyper
 import type { PresageModule } from "./PresageTypes";
 import { PresageHandler } from "./PresageHandler";
-import type {
-  PredictionConfig} from "./PredictionOrchestrator";
-import {
-  PredictionOrchestrator
-} from "./PredictionOrchestrator";
+import type { PredictionConfig } from "./PredictionOrchestrator";
+import { PredictionOrchestrator } from "./PredictionOrchestrator";
 import type {
   AIPredictorStageDebugInfo,
   PredictionDebugEvent,
@@ -203,21 +200,15 @@ export class PredictionManager {
   getPredictorDebugSnapshot(): PredictorDebugSnapshot {
     const webllmDebugState = this.getWebLLMPredictor().getDebugState();
     const presageDebugState = this.presageHandler?.getDebugState();
-    const orchestratorDebugState =
-      this.predictionOrchestrator?.getDebugState().predictorConfig;
+    const orchestratorDebugState = this.predictionOrchestrator?.getDebugState().predictorConfig;
     const aiPredictorEnabled =
-      orchestratorDebugState?.aiPredictorEnabled ??
-      this.currentConfig?.aiPredictorEnabled ??
-      false;
+      orchestratorDebugState?.aiPredictorEnabled ?? this.currentConfig?.aiPredictorEnabled ?? false;
 
     return {
       generatedAtMs: Date.now(),
       config: {
         aiPredictorEnabled,
-        aiModelId:
-          orchestratorDebugState?.aiModelId ??
-          this.currentConfig?.aiModelId ??
-          "",
+        aiModelId: orchestratorDebugState?.aiModelId ?? this.currentConfig?.aiModelId ?? "",
         aiPredictionTimeoutMs:
           orchestratorDebugState?.aiPredictionTimeoutMs ??
           this.currentConfig?.aiPredictionTimeoutMs ??
@@ -293,14 +284,10 @@ export class PredictionManager {
   ): string {
     const trace = this.upsertTrace(debugMeta);
     const normalizedStage =
-      typeof stage === "string" && stage.trim().length > 0
-        ? stage.trim()
-        : "event";
+      typeof stage === "string" && stage.trim().length > 0 ? stage.trim() : "event";
     const normalizedDetail = this.normalizeTimelineDetail(detail);
     const normalizedTimestamp =
-      typeof timestampMs === "number" && Number.isFinite(timestampMs)
-        ? timestampMs
-        : Date.now();
+      typeof timestampMs === "number" && Number.isFinite(timestampMs) ? timestampMs : Date.now();
 
     trace.timeline.push({
       timestampMs: normalizedTimestamp,
@@ -308,9 +295,7 @@ export class PredictionManager {
       detail: normalizedDetail,
     });
     if (trace.timeline.length > MAX_TRACE_TIMELINE_EVENTS) {
-      trace.timeline = trace.timeline.slice(
-        trace.timeline.length - MAX_TRACE_TIMELINE_EVENTS,
-      );
+      trace.timeline = trace.timeline.slice(trace.timeline.length - MAX_TRACE_TIMELINE_EVENTS);
     }
     this.promoteTrace(trace);
     return trace.traceId;
@@ -350,9 +335,7 @@ export class PredictionManager {
       ),
     });
     if (trace.timeline.length > MAX_TRACE_TIMELINE_EVENTS) {
-      trace.timeline = trace.timeline.slice(
-        trace.timeline.length - MAX_TRACE_TIMELINE_EVENTS,
-      );
+      trace.timeline = trace.timeline.slice(trace.timeline.length - MAX_TRACE_TIMELINE_EVENTS);
     }
     this.promoteTrace(trace);
   }
@@ -380,9 +363,7 @@ export class PredictionManager {
     return `pred-${randomPart}`;
   }
 
-  private resolveDebugMeta(
-    debugMeta?: PredictionDebugRequestMeta,
-  ): PredictionDebugRequestMeta {
+  private resolveDebugMeta(debugMeta?: PredictionDebugRequestMeta): PredictionDebugRequestMeta {
     const traceId = this.ensureTraceId(debugMeta?.traceId);
     return {
       ...debugMeta,
@@ -390,9 +371,7 @@ export class PredictionManager {
     };
   }
 
-  private upsertTrace(
-    debugMeta?: PredictionDebugRequestMeta,
-  ): PredictorDebugTrace {
+  private upsertTrace(debugMeta?: PredictionDebugRequestMeta): PredictorDebugTrace {
     const resolvedDebugMeta = this.resolveDebugMeta(debugMeta);
     const traceId = resolvedDebugMeta.traceId as string;
 
@@ -405,29 +384,15 @@ export class PredictionManager {
       return trace;
     }
 
-    trace.requestId = this.resolveNumericMeta(
-      resolvedDebugMeta.requestId,
-      trace.requestId,
-    );
+    trace.requestId = this.resolveNumericMeta(resolvedDebugMeta.requestId, trace.requestId);
     trace.tabId = this.resolveNumericMeta(resolvedDebugMeta.tabId, trace.tabId);
-    trace.frameId = this.resolveNumericMeta(
-      resolvedDebugMeta.frameId,
-      trace.frameId,
-    );
-    trace.tributeId = this.resolveNumericMeta(
-      resolvedDebugMeta.tributeId,
-      trace.tributeId,
-    );
+    trace.frameId = this.resolveNumericMeta(resolvedDebugMeta.frameId, trace.frameId);
+    trace.tributeId = this.resolveNumericMeta(resolvedDebugMeta.tributeId, trace.tributeId);
     return trace;
   }
 
-  private resolveNumericMeta(
-    value: unknown,
-    fallback: number | null,
-  ): number | null {
-    return typeof value === "number" && Number.isFinite(value)
-      ? value
-      : fallback;
+  private resolveNumericMeta(value: unknown, fallback: number | null): number | null {
+    return typeof value === "number" && Number.isFinite(value) ? value : fallback;
   }
 
   private createEmptyTrace(
@@ -466,20 +431,16 @@ export class PredictionManager {
       webllm: emptyAIPredictorStage,
       mergedPredictions: [],
       finalPredictions: [],
-      requestId:
-        typeof debugMeta.requestId === "number" ? debugMeta.requestId : null,
+      requestId: typeof debugMeta.requestId === "number" ? debugMeta.requestId : null,
       tabId: typeof debugMeta.tabId === "number" ? debugMeta.tabId : null,
       frameId: typeof debugMeta.frameId === "number" ? debugMeta.frameId : null,
-      tributeId:
-        typeof debugMeta.tributeId === "number" ? debugMeta.tributeId : null,
+      tributeId: typeof debugMeta.tributeId === "number" ? debugMeta.tributeId : null,
       timeline: [],
     };
   }
 
   private promoteTrace(trace: PredictorDebugTrace): void {
-    const currentIndex = this.debugTraces.findIndex(
-      (item) => item.traceId === trace.traceId,
-    );
+    const currentIndex = this.debugTraces.findIndex((item) => item.traceId === trace.traceId);
     if (currentIndex === 0) {
       return;
     }

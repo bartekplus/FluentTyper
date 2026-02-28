@@ -28,15 +28,13 @@ const manifests = findManifestFiles(platformDir);
 manifests.forEach((manifestPath) => {
   const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
   manifest.version = version;
-  fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)  }\n`);
+  fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
   execSync(`git add "${manifestPath}"`);
 });
 
 if (manifests.length > 0) {
   execSync(`git commit -m "chore: update manifest version to ${version}"`);
-  console.log(
-    `Updated manifest versions and committed: ${manifests.join(", ")}`,
-  );
+  console.log(`Updated manifest versions and committed: ${manifests.join(", ")}`);
 } else {
   console.log("No manifest.json files found in platform directory.");
 }

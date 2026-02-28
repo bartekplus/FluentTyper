@@ -14,23 +14,16 @@ export class LanguageDetector {
     this.settingsRepository = new CoreSettingsRepository(settings);
   }
 
-  async detectLanguage(
-    text: string,
-    tabId: number,
-    enabledLanguages?: string[],
-  ): Promise<string> {
-    const fallbackLanguageRaw =
-      await this.settingsRepository.getFallbackLanguage();
-    const allowedLanguages =
-      resolveEnabledPredictionLanguages(enabledLanguages);
+  async detectLanguage(text: string, tabId: number, enabledLanguages?: string[]): Promise<string> {
+    const fallbackLanguageRaw = await this.settingsRepository.getFallbackLanguage();
+    const allowedLanguages = resolveEnabledPredictionLanguages(enabledLanguages);
     const fallbackLanguage =
       fallbackLanguageRaw && fallbackLanguageRaw !== "auto_detect"
         ? fallbackLanguageRaw
         : allowedLanguages[0];
     const allowedSet = new Set(allowedLanguages);
     const globalAny = globalThis as { browser?: typeof chrome };
-    const api =
-      typeof globalAny.browser === "undefined" ? chrome : globalAny.browser;
+    const api = typeof globalAny.browser === "undefined" ? chrome : globalAny.browser;
     const result = await api.i18n.detectLanguage(text);
     let detectedLanguage: string | null = null;
     let maxPercentage = -1;
