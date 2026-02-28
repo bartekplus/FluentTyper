@@ -32,6 +32,18 @@ export class HostChangeWatcher {
     this.scheduleWatchDogCheck();
   }
 
+  stop(): void {
+    if (this.watchDogTimeoutId !== null) {
+      window.clearTimeout(this.watchDogTimeoutId);
+      this.watchDogTimeoutId = null;
+    }
+    if (this.rootNodeObserver) {
+      this.rootNodeObserver.disconnect();
+      this.rootNodeObserver = null;
+    }
+    this.detachWatchDogEventListeners();
+  }
+
   getHostName(): string {
     return this.stateMachine.getHostName();
   }
@@ -113,5 +125,15 @@ export class HostChangeWatcher {
     window.addEventListener("focus", this.scheduleWatchDogCheckBound, true);
     document.addEventListener("visibilitychange", this.scheduleWatchDogCheckBound);
     document.addEventListener("readystatechange", this.scheduleWatchDogCheckBound);
+  }
+
+  private detachWatchDogEventListeners(): void {
+    window.navigation?.removeEventListener("navigate", this.scheduleWatchDogCheckBound);
+    window.removeEventListener("pageshow", this.scheduleWatchDogCheckBound);
+    window.removeEventListener("popstate", this.scheduleWatchDogCheckBound);
+    window.removeEventListener("hashchange", this.scheduleWatchDogCheckBound);
+    window.removeEventListener("focus", this.scheduleWatchDogCheckBound, true);
+    document.removeEventListener("visibilitychange", this.scheduleWatchDogCheckBound);
+    document.removeEventListener("readystatechange", this.scheduleWatchDogCheckBound);
   }
 }
