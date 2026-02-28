@@ -1367,7 +1367,6 @@ function setPredictorDebugToggle(settings, key, enabled) {
     return;
   }
   setting.set(Boolean(enabled));
-  optionsPageConfigChange();
 }
 
 function setupPredictorDebugDashboard(settings) {
@@ -1669,20 +1668,25 @@ window.addEventListener("DOMContentLoaded", function () {
           return;
         }
         setting.addEvent("action", function () {
-          optionsPageConfigChange();
-          if (
-            element === KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED ||
-            element === KEY_DEBUG_AI_PREDICTOR_ENABLED ||
-            element === KEY_AI_PREDICTOR_ENABLED ||
-            element === KEY_AI_MODEL_ID ||
-            element === KEY_AI_PREDICTION_TIMEOUT_MS
-          ) {
-            const root = document.getElementById("predictorDebugRoot");
-            if (root) {
-              predictorDebugLastSignature = "";
-              void loadPredictorDebugSnapshot(root);
-            }
-          }
+          void store
+            .set(element, setting.get())
+            .catch(() => undefined)
+            .finally(() => {
+              optionsPageConfigChange();
+              if (
+                element === KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED ||
+                element === KEY_DEBUG_AI_PREDICTOR_ENABLED ||
+                element === KEY_AI_PREDICTOR_ENABLED ||
+                element === KEY_AI_MODEL_ID ||
+                element === KEY_AI_PREDICTION_TIMEOUT_MS
+              ) {
+                const root = document.getElementById("predictorDebugRoot");
+                if (root) {
+                  predictorDebugLastSignature = "";
+                  void loadPredictorDebugSnapshot(root);
+                }
+              }
+            });
         });
       });
     }))();
