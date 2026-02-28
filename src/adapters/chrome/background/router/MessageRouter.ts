@@ -34,11 +34,17 @@ import {
 } from "@core/domain/contracts/messages";
 import { err, ok, type Result } from "@core/domain/result";
 import {
-  checkLastError,
   getDomain,
   isEnabledForDomain,
+  checkLastError,
 } from "@core/application/utils";
-import { logError } from "@core/domain/error";
+import {
+  ConfigError,
+  PredictorError,
+  TransportError,
+  isFluentTyperError,
+  logError,
+} from "@core/domain/error";
 import { resolveDomainRuntimeSettings } from "../config/runtimeSettings";
 import { BackgroundServiceWorker } from "../BackgroundServiceWorker";
 import {
@@ -47,6 +53,7 @@ import {
   createValidationMiddleware,
   HandlerRegistry,
 } from "./HandlerRegistry";
+import { mapRuntimeError } from "./RuntimeErrorMapper";
 
 const logger = createLogger("MessageRouter");
 
@@ -146,8 +153,12 @@ export class MessageRouter {
           const label = isRoutedMessageCommand(context.command)
             ? MESSAGE_ERROR_LABELS[context.command]
             : "MessageRouter.handle";
-          logError(label, error);
-          context.payload.sendResponse({ ok: false });
+          const mappedError = mapRuntimeError(error);
+          logError(
+            `${label}.${mappedError.category}.${mappedError.code}`,
+            error,
+          );
+          context.payload.sendResponse(mappedError.response);
         },
       }),
       createLoggingMiddleware(logger),
@@ -279,8 +290,11 @@ export class MessageRouter {
   ): (payload: MessageDispatchPayload) => Promise<void> {
     return async (payload) => {
       if (payload.request.command !== command) {
-        throw new Error(
+        throw new TransportError(
           `Command/payload mismatch: expected ${command}, received ${payload.request.command}`,
+          {
+            code: "message_command_payload_mismatch",
+          },
         );
       }
       const typedRequest = payload.request as RoutedMessageByCommand[TCommand];
@@ -301,29 +315,47 @@ export class MessageRouter {
   ): Promise<void> {
     const senderContext = resolveSenderRoutingContext(sender);
     if (!senderContext.ok) {
-      logError(
-        "MessageRouter.handleContentScriptPredictReq",
-        "Missing sender tab id for prediction request",
-      );
-      sendResponse({ ok: false });
-      return;
+      throw new TransportError("Missing sender tab id for prediction request", {
+        code: "message_missing_sender_tab_id",
+      });
     }
 
     const { tabId, frameId } = senderContext.value;
     const domainURL = getDomain(sender.tab?.url || "");
-    const domainSettings = await resolveDomainRuntimeSettings(
-      worker.settingsManager,
-      domainURL,
-    );
+    let domainSettings: Awaited<ReturnType<typeof resolveDomainRuntimeSettings>>;
+    try {
+      domainSettings = await resolveDomainRuntimeSettings(
+        worker.settingsManager,
+        domainURL,
+      );
+    } catch (error) {
+      if (isFluentTyperError(error)) {
+        throw error;
+      }
+      throw new ConfigError("Failed to resolve domain runtime settings", {
+        code: "message_resolve_domain_runtime_settings_failed",
+        cause: error,
+      });
+    }
     let language = domainSettings.language;
     worker.language = language;
 
     if (language === "auto_detect") {
-      language = await worker.detectLanguage(
-        request.context.text,
-        tabId,
-        domainSettings.enabledLanguages,
-      );
+      try {
+        language = await worker.detectLanguage(
+          request.context.text,
+          tabId,
+          domainSettings.enabledLanguages,
+        );
+      } catch (error) {
+        if (isFluentTyperError(error)) {
+          throw error;
+        }
+        throw new PredictorError("Failed to auto-detect language", {
+          code: "message_detect_language_failed",
+          cause: error,
+        });
+      }
     }
 
     if (request.context.lang !== language) {
@@ -351,12 +383,22 @@ export class MessageRouter {
       },
     };
 
-    await worker.runPrediction(
-      predictRequestMessage,
-      domainSettings.hasNumSuggestionsOverride
-        ? { numSuggestions: domainSettings.numSuggestions }
-        : undefined,
-    );
+    try {
+      await worker.runPrediction(
+        predictRequestMessage,
+        domainSettings.hasNumSuggestionsOverride
+          ? { numSuggestions: domainSettings.numSuggestions }
+          : undefined,
+      );
+    } catch (error) {
+      if (isFluentTyperError(error)) {
+        throw error;
+      }
+      throw new PredictorError("Failed to run prediction", {
+        code: "message_run_prediction_failed",
+        cause: error,
+      });
+    }
     sendResponse({ ok: true });
   }
 
@@ -366,7 +408,17 @@ export class MessageRouter {
     sendResponse: (response?: unknown) => void,
     worker: BackgroundServiceWorker,
   ): Promise<void> {
-    await worker.updatePresageConfig();
+    try {
+      await worker.updatePresageConfig();
+    } catch (error) {
+      if (isFluentTyperError(error)) {
+        throw error;
+      }
+      throw new ConfigError("Failed to update prediction runtime config", {
+        code: "message_update_runtime_config_failed",
+        cause: error,
+      });
+    }
     sendResponse({ ok: true });
   }
 
@@ -377,8 +429,24 @@ export class MessageRouter {
     worker: BackgroundServiceWorker,
   ): Promise<void> {
     const domain = getDomain(sender.tab?.url || "") || "";
-    const isEnabled = await isEnabledForDomain(worker.settingsManager, domain);
-    const message = await worker.getBackgroundPageSetConfigMsg(domain);
+    let isEnabled: boolean;
+    let message: Awaited<
+      ReturnType<BackgroundServiceWorker["getBackgroundPageSetConfigMsg"]>
+    >;
+    try {
+      [isEnabled, message] = await Promise.all([
+        isEnabledForDomain(worker.settingsManager, domain),
+        worker.getBackgroundPageSetConfigMsg(domain),
+      ]);
+    } catch (error) {
+      if (isFluentTyperError(error)) {
+        throw error;
+      }
+      throw new ConfigError("Failed to resolve content script config", {
+        code: "message_get_content_script_config_failed",
+        cause: error,
+      });
+    }
     message.context.enabled = isEnabled;
     sendResponse(message);
   }

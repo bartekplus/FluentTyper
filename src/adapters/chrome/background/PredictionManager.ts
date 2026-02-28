@@ -15,7 +15,7 @@ import type {
 import libPresageMod from "@third-party/libpresage/libpresage.js";
 import { WebLLMPredictor } from "./WebLLMPredictor";
 import { DEFAULT_AI_PREDICTION_TIMEOUT_MS } from "@core/domain/constants";
-import { getErrorMessage } from "@core/domain/error";
+import { PredictorError, getErrorMessage } from "@core/domain/error";
 
 export interface PredictionDebugRequestMeta {
   traceId?: string;
@@ -112,14 +112,21 @@ export class PredictionManager {
   }
 
   private async _doInitializePresage(): Promise<void> {
-    const Module = await this.libPresageMod();
-    this.presageHandler = new PresageHandler(Module);
-    this.predictionOrchestrator = new PredictionOrchestrator(
-      this.presageHandler,
-      this.getWebLLMPredictor(),
-    );
-    if (this.currentConfig) {
-      this.predictionOrchestrator.setConfig(this.currentConfig);
+    try {
+      const Module = await this.libPresageMod();
+      this.presageHandler = new PresageHandler(Module);
+      this.predictionOrchestrator = new PredictionOrchestrator(
+        this.presageHandler,
+        this.getWebLLMPredictor(),
+      );
+      if (this.currentConfig) {
+        this.predictionOrchestrator.setConfig(this.currentConfig);
+      }
+    } catch (error) {
+      throw new PredictorError("Failed to initialize prediction engines", {
+        code: "predictor_initialize_failed",
+        cause: error,
+      });
     }
   }
 
@@ -132,7 +139,9 @@ export class PredictionManager {
   ): Promise<PredictionResult> {
     await this.initialize();
     if (!this.predictionOrchestrator) {
-      throw new Error("Prediction orchestrator not initialized");
+      throw new PredictorError("Prediction orchestrator not initialized", {
+        code: "predictor_orchestrator_missing",
+      });
     }
 
     const resolvedDebugMeta = this.resolveDebugMeta(debugMeta);
@@ -177,7 +186,9 @@ export class PredictionManager {
       ...config,
     };
     if (!this.predictionOrchestrator) {
-      throw new Error("Prediction orchestrator not initialized");
+      throw new PredictorError("Prediction orchestrator not initialized", {
+        code: "predictor_orchestrator_missing",
+      });
     }
     this.predictionOrchestrator.setConfig(config);
   }

@@ -99,6 +99,36 @@ async function loadBackgroundHarness(
   const isEnabledForDomain = jest.fn(async () => true);
   const logError = jest.fn();
   const migrateToLocalStore = jest.fn(async () => undefined);
+  class MockConfigError extends Error {
+    readonly kind = "config";
+    readonly code: string;
+
+    constructor(message: string, details: { code: string; cause?: unknown }) {
+      super(message);
+      this.name = "ConfigError";
+      this.code = details.code;
+    }
+  }
+  class MockTransportError extends Error {
+    readonly kind = "transport";
+    readonly code: string;
+
+    constructor(message: string, details: { code: string; cause?: unknown }) {
+      super(message);
+      this.name = "TransportError";
+      this.code = details.code;
+    }
+  }
+  class MockPredictorError extends Error {
+    readonly kind = "predictor";
+    readonly code: string;
+
+    constructor(message: string, details: { code: string; cause?: unknown }) {
+      super(message);
+      this.name = "PredictorError";
+      this.code = details.code;
+    }
+  }
 
   const onInstalledAddListener = jest.fn();
   const onCommandAddListener = jest.fn();
@@ -181,6 +211,21 @@ async function loadBackgroundHarness(
     logError,
     getErrorMessage: (error: unknown) =>
       error instanceof Error ? error.message : String(error),
+    ConfigError: MockConfigError,
+    TransportError: MockTransportError,
+    PredictorError: MockPredictorError,
+    isFluentTyperError: (error: unknown) => {
+      if (!error || typeof error !== "object") {
+        return false;
+      }
+      const candidate = error as { kind?: unknown; code?: unknown };
+      return (
+        (candidate.kind === "config" ||
+          candidate.kind === "transport" ||
+          candidate.kind === "predictor") &&
+        typeof candidate.code === "string"
+      );
+    },
   }));
   jest.unstable_mockModule("../src/adapters/chrome/background/Migration", () => ({
     migrateToLocalStore,
@@ -658,7 +703,7 @@ describe("background routing and lifecycle", () => {
     expect(updateSpy).toHaveBeenCalled();
     expect(sendResponse).toHaveBeenCalledWith({ ok: false });
     expect(harness.logError).toHaveBeenCalledWith(
-      "handleOptionsPageConfigChange",
+      "handleOptionsPageConfigChange.config.message_update_runtime_config_failed",
       expect.any(Error),
     );
   });
