@@ -28,113 +28,183 @@ import type {
   PredictRequestMessage,
   UpdateLangConfigMessage,
 } from "@core/domain/messageTypes";
-import { checkLastError, getDomain, isEnabledForDomain } from "@core/application/utils";
+import { isMessageCommand } from "@core/domain/contracts/messages";
+import {
+  checkLastError,
+  getDomain,
+  isEnabledForDomain,
+} from "@core/application/utils";
 import { logError } from "@core/domain/error";
 import { resolveDomainRuntimeSettings } from "../config/runtimeSettings";
 import { BackgroundServiceWorker } from "../BackgroundServiceWorker";
+import {
+  createErrorMappingMiddleware,
+  createLoggingMiddleware,
+  createValidationMiddleware,
+  HandlerRegistry,
+} from "./HandlerRegistry";
 
 const logger = createLogger("MessageRouter");
 
-type MessageHandler = (
-  request: Message,
-  sender: chrome.runtime.MessageSender,
-  sendResponse: (response?: unknown) => void,
-  worker: BackgroundServiceWorker,
-) => Promise<void>;
+const ROUTED_MESSAGE_COMMANDS = [
+  CMD_CONTENT_SCRIPT_PREDICT_REQ,
+  CMD_OPTIONS_PAGE_CONFIG_CHANGE,
+  CMD_CONTENT_SCRIPT_GET_CONFIG,
+  CMD_CONTENT_SCRIPT_USAGE_EVENT,
+  CMD_POPUP_GET_PRODUCTIVITY_STATS,
+  CMD_POPUP_ACK_WEEKLY_RECAP,
+  CMD_POPUP_ACK_DONATION_MILESTONE,
+  CMD_OPTIONS_RESET_PRODUCTIVITY_STATS,
+  CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT,
+  CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE,
+] as const;
+
+type RoutedMessageCommand = (typeof ROUTED_MESSAGE_COMMANDS)[number];
+
+const ROUTED_MESSAGE_COMMAND_SET = new Set<string>(ROUTED_MESSAGE_COMMANDS);
+
+function isRoutedMessageCommand(command: string): command is RoutedMessageCommand {
+  return isMessageCommand(command) && ROUTED_MESSAGE_COMMAND_SET.has(command);
+}
+
+interface MessageDispatchPayload {
+  request: unknown;
+  sender: chrome.runtime.MessageSender;
+  sendResponse: (response?: unknown) => void;
+  worker: BackgroundServiceWorker;
+}
+
+const MESSAGE_ERROR_LABELS: Record<RoutedMessageCommand, string> = {
+  [CMD_CONTENT_SCRIPT_PREDICT_REQ]: "MessageRouter.handleContentScriptPredictReq",
+  [CMD_OPTIONS_PAGE_CONFIG_CHANGE]: "handleOptionsPageConfigChange",
+  [CMD_CONTENT_SCRIPT_GET_CONFIG]: "MessageRouter.handleContentScriptGetConfig",
+  [CMD_CONTENT_SCRIPT_USAGE_EVENT]: "MessageRouter.handleContentScriptUsageEvent",
+  [CMD_POPUP_GET_PRODUCTIVITY_STATS]: "MessageRouter.handlePopupGetProductivityStats",
+  [CMD_POPUP_ACK_WEEKLY_RECAP]: "MessageRouter.handlePopupAckWeeklyRecap",
+  [CMD_POPUP_ACK_DONATION_MILESTONE]:
+    "MessageRouter.handlePopupAckDonationMilestone",
+  [CMD_OPTIONS_RESET_PRODUCTIVITY_STATS]:
+    "MessageRouter.handleOptionsResetProductivityStats",
+  [CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT]:
+    "MessageRouter.handleOptionsGetPredictorDebugSnapshot",
+  [CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE]:
+    "MessageRouter.handleOptionsClearPredictorDebugTrace",
+};
 
 export class MessageRouter {
   private readonly getWorker: () => BackgroundServiceWorker;
-  private readonly handlers: Partial<Record<Message["command"], MessageHandler>>;
+  private readonly registry: HandlerRegistry<
+    RoutedMessageCommand,
+    MessageDispatchPayload,
+    void
+  >;
 
   constructor(getWorker: () => BackgroundServiceWorker) {
     this.getWorker = getWorker;
-    this.handlers = {
-      [CMD_CONTENT_SCRIPT_PREDICT_REQ]: (request, sender, sendResponse, worker) =>
+    this.registry = new HandlerRegistry<
+      RoutedMessageCommand,
+      MessageDispatchPayload,
+      void
+    >([
+      createErrorMappingMiddleware<MessageDispatchPayload, void>({
+        mapUnknownCommand: (command) => {
+          logError("onMessage", `Unknown command: ${command}`);
+        },
+        mapError: (error, context) => {
+          const label = MESSAGE_ERROR_LABELS[context.command as RoutedMessageCommand];
+          logError(label, error);
+          context.payload.sendResponse({ ok: false });
+        },
+      }),
+      createLoggingMiddleware(logger),
+      createValidationMiddleware<
+        MessageDispatchPayload,
+        void,
+        RoutedMessageCommand
+      >(isRoutedMessageCommand),
+    ]);
+
+    this.registry
+      .register(CMD_CONTENT_SCRIPT_PREDICT_REQ, (payload) =>
         this.handleContentScriptPredictReq(
-          request as ContentScriptPredictRequestMessage,
-          sender,
-          sendResponse,
-          worker,
+          payload.request as ContentScriptPredictRequestMessage,
+          payload.sender,
+          payload.sendResponse,
+          payload.worker,
         ),
-      [CMD_OPTIONS_PAGE_CONFIG_CHANGE]: (request, sender, sendResponse, worker) =>
+      )
+      .register(CMD_OPTIONS_PAGE_CONFIG_CHANGE, (payload) =>
         this.handleOptionsPageConfigChange(
-          request as OptionsPageConfigChangeMessage,
-          sender,
-          sendResponse,
-          worker,
+          payload.request as OptionsPageConfigChangeMessage,
+          payload.sender,
+          payload.sendResponse,
+          payload.worker,
         ),
-      [CMD_CONTENT_SCRIPT_GET_CONFIG]: (request, sender, sendResponse, worker) =>
+      )
+      .register(CMD_CONTENT_SCRIPT_GET_CONFIG, (payload) =>
         this.handleContentScriptGetConfig(
-          request as ContentScriptGetConfigMessage,
-          sender,
-          sendResponse,
-          worker,
+          payload.request as ContentScriptGetConfigMessage,
+          payload.sender,
+          payload.sendResponse,
+          payload.worker,
         ),
-      [CMD_CONTENT_SCRIPT_USAGE_EVENT]: (request, sender, sendResponse, worker) =>
+      )
+      .register(CMD_CONTENT_SCRIPT_USAGE_EVENT, (payload) =>
         this.handleContentScriptUsageEvent(
-          request as ContentScriptUsageEventMessage,
-          sender,
-          sendResponse,
-          worker,
+          payload.request as ContentScriptUsageEventMessage,
+          payload.sender,
+          payload.sendResponse,
+          payload.worker,
         ),
-      [CMD_POPUP_GET_PRODUCTIVITY_STATS]: (request, sender, sendResponse, worker) =>
+      )
+      .register(CMD_POPUP_GET_PRODUCTIVITY_STATS, (payload) =>
         this.handlePopupGetProductivityStats(
-          request as PopupGetProductivityStatsMessage,
-          sender,
-          sendResponse,
-          worker,
+          payload.request as PopupGetProductivityStatsMessage,
+          payload.sender,
+          payload.sendResponse,
+          payload.worker,
         ),
-      [CMD_POPUP_ACK_WEEKLY_RECAP]: (request, sender, sendResponse, worker) =>
+      )
+      .register(CMD_POPUP_ACK_WEEKLY_RECAP, (payload) =>
         this.handlePopupAckWeeklyRecap(
-          request as PopupAckWeeklyRecapMessage,
-          sender,
-          sendResponse,
-          worker,
+          payload.request as PopupAckWeeklyRecapMessage,
+          payload.sender,
+          payload.sendResponse,
+          payload.worker,
         ),
-      [CMD_POPUP_ACK_DONATION_MILESTONE]: (request, sender, sendResponse, worker) =>
+      )
+      .register(CMD_POPUP_ACK_DONATION_MILESTONE, (payload) =>
         this.handlePopupAckDonationMilestone(
-          request as PopupAckDonationMilestoneMessage,
-          sender,
-          sendResponse,
-          worker,
+          payload.request as PopupAckDonationMilestoneMessage,
+          payload.sender,
+          payload.sendResponse,
+          payload.worker,
         ),
-      [CMD_OPTIONS_RESET_PRODUCTIVITY_STATS]: (
-        request,
-        sender,
-        sendResponse,
-        worker,
-      ) =>
+      )
+      .register(CMD_OPTIONS_RESET_PRODUCTIVITY_STATS, (payload) =>
         this.handleOptionsResetProductivityStats(
-          request as OptionsResetProductivityStatsMessage,
-          sender,
-          sendResponse,
-          worker,
+          payload.request as OptionsResetProductivityStatsMessage,
+          payload.sender,
+          payload.sendResponse,
+          payload.worker,
         ),
-      [CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT]: (
-        request,
-        sender,
-        sendResponse,
-        worker,
-      ) =>
+      )
+      .register(CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT, (payload) =>
         this.handleOptionsGetPredictorDebugSnapshot(
-          request as OptionsGetPredictorDebugSnapshotMessage,
-          sender,
-          sendResponse,
-          worker,
+          payload.request as OptionsGetPredictorDebugSnapshotMessage,
+          payload.sender,
+          payload.sendResponse,
+          payload.worker,
         ),
-      [CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE]: (
-        request,
-        sender,
-        sendResponse,
-        worker,
-      ) =>
+      )
+      .register(CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE, (payload) =>
         this.handleOptionsClearPredictorDebugTrace(
-          request as OptionsClearPredictorDebugTraceMessage,
-          sender,
-          sendResponse,
-          worker,
+          payload.request as OptionsClearPredictorDebugTraceMessage,
+          payload.sender,
+          payload.sendResponse,
+          payload.worker,
         ),
-    };
+      );
   }
 
   handle(
@@ -152,23 +222,23 @@ export class MessageRouter {
       logger.warn("Ignored message without command");
       return false;
     }
-    const runtimeMessage = request as Message;
 
     const worker = this.getWorker();
-    const handler = this.handlers[runtimeMessage.command];
-    if (!handler) {
-      logError("onMessage", `Unknown command: ${runtimeMessage.command}`);
+    const isHandledCommand = this.registry.has(maybeRequest.command);
+
+    if (!isHandledCommand) {
+      logError("onMessage", `Unknown command: ${maybeRequest.command}`);
       return false;
     }
 
-    void handler
-      .call(this, runtimeMessage, sender, sendResponse, worker)
-      .catch((error) => {
-        logError("MessageRouter.handle", error);
-        sendResponse({ ok: false });
-      });
+    void this.registry.dispatch(maybeRequest.command, {
+      request: request as Message,
+      sender,
+      sendResponse,
+      worker,
+    });
 
-    return runtimeMessage.command !== CMD_CONTENT_SCRIPT_PREDICT_REQ;
+    return maybeRequest.command !== CMD_CONTENT_SCRIPT_PREDICT_REQ;
   }
 
   private async handleContentScriptPredictReq(
@@ -177,57 +247,52 @@ export class MessageRouter {
     sendResponse: (response?: unknown) => void,
     worker: BackgroundServiceWorker,
   ): Promise<void> {
-    try {
-      const domainURL = getDomain(sender.tab?.url || "");
-      const domainSettings = await resolveDomainRuntimeSettings(
-        worker.settingsManager,
-        domainURL,
+    const domainURL = getDomain(sender.tab?.url || "");
+    const domainSettings = await resolveDomainRuntimeSettings(
+      worker.settingsManager,
+      domainURL,
+    );
+    let language = domainSettings.language;
+    worker.language = language;
+
+    if (language === "auto_detect" && sender.tab?.id) {
+      language = await worker.detectLanguage(
+        request.context.text,
+        sender.tab.id,
+        domainSettings.enabledLanguages,
       );
-      let language = domainSettings.language;
-      worker.language = language;
+    }
 
-      if (language === "auto_detect" && sender.tab?.id) {
-        language = await worker.detectLanguage(
-          request.context.text,
-          sender.tab.id,
-          domainSettings.enabledLanguages,
-        );
-      }
-
-      if (request.context.lang !== language) {
-        const updateLangConfigMessage: UpdateLangConfigMessage = {
-          command: CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
-          context: {
-            lang: language,
-          },
-        };
-        worker.sendCommandToActiveTabContentScript(updateLangConfigMessage);
-      }
-
-      const predictRequestMessage: PredictRequestMessage = {
-        command: CMD_BACKGROUND_PAGE_PREDICT_REQ,
+    if (request.context.lang !== language) {
+      const updateLangConfigMessage: UpdateLangConfigMessage = {
+        command: CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
         context: {
-          text: request.context.text,
-          nextChar: request.context.nextChar,
           lang: language,
-          tabId: sender.tab!.id!,
-          frameId: sender.frameId!,
-          tributeId: request.context.tributeId,
-          requestId: request.context.requestId,
         },
       };
-
-      await worker.runPrediction(
-        predictRequestMessage,
-        domainSettings.hasNumSuggestionsOverride
-          ? { numSuggestions: domainSettings.numSuggestions }
-          : undefined,
-      );
-      sendResponse({ ok: true });
-    } catch (error) {
-      logError("MessageRouter.handleContentScriptPredictReq", error);
-      sendResponse({ ok: false });
+      worker.sendCommandToActiveTabContentScript(updateLangConfigMessage);
     }
+
+    const predictRequestMessage: PredictRequestMessage = {
+      command: CMD_BACKGROUND_PAGE_PREDICT_REQ,
+      context: {
+        text: request.context.text,
+        nextChar: request.context.nextChar,
+        lang: language,
+        tabId: sender.tab!.id!,
+        frameId: sender.frameId!,
+        tributeId: request.context.tributeId,
+        requestId: request.context.requestId,
+      },
+    };
+
+    await worker.runPrediction(
+      predictRequestMessage,
+      domainSettings.hasNumSuggestionsOverride
+        ? { numSuggestions: domainSettings.numSuggestions }
+        : undefined,
+    );
+    sendResponse({ ok: true });
   }
 
   private async handleOptionsPageConfigChange(
@@ -236,13 +301,8 @@ export class MessageRouter {
     sendResponse: (response?: unknown) => void,
     worker: BackgroundServiceWorker,
   ): Promise<void> {
-    try {
-      await worker.updatePresageConfig();
-      sendResponse({ ok: true });
-    } catch (error) {
-      logError("handleOptionsPageConfigChange", error);
-      sendResponse({ ok: false });
-    }
+    await worker.updatePresageConfig();
+    sendResponse({ ok: true });
   }
 
   private async handleContentScriptGetConfig(
@@ -251,16 +311,11 @@ export class MessageRouter {
     sendResponse: (response?: unknown) => void,
     worker: BackgroundServiceWorker,
   ): Promise<void> {
-    try {
-      const domain = getDomain(sender.tab?.url || "") || "";
-      const isEnabled = await isEnabledForDomain(worker.settingsManager, domain);
-      const message = await worker.getBackgroundPageSetConfigMsg(domain);
-      message.context.enabled = isEnabled;
-      sendResponse(message);
-    } catch (error) {
-      logError("MessageRouter.handleContentScriptGetConfig", error);
-      sendResponse({ ok: false });
-    }
+    const domain = getDomain(sender.tab?.url || "") || "";
+    const isEnabled = await isEnabledForDomain(worker.settingsManager, domain);
+    const message = await worker.getBackgroundPageSetConfigMsg(domain);
+    message.context.enabled = isEnabled;
+    sendResponse(message);
   }
 
   private async handleContentScriptUsageEvent(
@@ -269,13 +324,8 @@ export class MessageRouter {
     sendResponse: (response?: unknown) => void,
     worker: BackgroundServiceWorker,
   ): Promise<void> {
-    try {
-      await worker.productivityStatsManager.recordUsageEvent(request.context);
-      sendResponse({ ok: true });
-    } catch (error) {
-      logError("MessageRouter.handleContentScriptUsageEvent", error);
-      sendResponse({ ok: false });
-    }
+    await worker.productivityStatsManager.recordUsageEvent(request.context);
+    sendResponse({ ok: true });
   }
 
   private async handlePopupGetProductivityStats(
@@ -284,13 +334,8 @@ export class MessageRouter {
     sendResponse: (response?: unknown) => void,
     worker: BackgroundServiceWorker,
   ): Promise<void> {
-    try {
-      const stats = await worker.productivityStatsManager.getDashboardStats();
-      sendResponse(stats);
-    } catch (error) {
-      logError("MessageRouter.handlePopupGetProductivityStats", error);
-      sendResponse({ ok: false });
-    }
+    const stats = await worker.productivityStatsManager.getDashboardStats();
+    sendResponse(stats);
   }
 
   private async handlePopupAckWeeklyRecap(
@@ -299,15 +344,10 @@ export class MessageRouter {
     sendResponse: (response?: unknown) => void,
     worker: BackgroundServiceWorker,
   ): Promise<void> {
-    try {
-      await worker.productivityStatsManager.acknowledgeWeeklyRecap(
-        request.context.weekKey,
-      );
-      sendResponse({ ok: true });
-    } catch (error) {
-      logError("MessageRouter.handlePopupAckWeeklyRecap", error);
-      sendResponse({ ok: false });
-    }
+    await worker.productivityStatsManager.acknowledgeWeeklyRecap(
+      request.context.weekKey,
+    );
+    sendResponse({ ok: true });
   }
 
   private async handlePopupAckDonationMilestone(
@@ -316,17 +356,12 @@ export class MessageRouter {
     sendResponse: (response?: unknown) => void,
     worker: BackgroundServiceWorker,
   ): Promise<void> {
-    try {
-      await worker.productivityStatsManager.handleDonationPromptAction(
-        request.context.promptId,
-        request.context.action,
-        request.context.milestoneHours,
-      );
-      sendResponse({ ok: true });
-    } catch (error) {
-      logError("MessageRouter.handlePopupAckDonationMilestone", error);
-      sendResponse({ ok: false });
-    }
+    await worker.productivityStatsManager.handleDonationPromptAction(
+      request.context.promptId,
+      request.context.action,
+      request.context.milestoneHours,
+    );
+    sendResponse({ ok: true });
   }
 
   private async handleOptionsResetProductivityStats(
@@ -335,13 +370,8 @@ export class MessageRouter {
     sendResponse: (response?: unknown) => void,
     worker: BackgroundServiceWorker,
   ): Promise<void> {
-    try {
-      await worker.productivityStatsManager.resetStats();
-      sendResponse({ ok: true });
-    } catch (error) {
-      logError("MessageRouter.handleOptionsResetProductivityStats", error);
-      sendResponse({ ok: false });
-    }
+    await worker.productivityStatsManager.resetStats();
+    sendResponse({ ok: true });
   }
 
   private async handleOptionsGetPredictorDebugSnapshot(
@@ -350,13 +380,8 @@ export class MessageRouter {
     sendResponse: (response?: unknown) => void,
     worker: BackgroundServiceWorker,
   ): Promise<void> {
-    try {
-      await worker.predictionManager.initialize();
-      sendResponse(worker.predictionManager.getPredictorDebugSnapshot());
-    } catch (error) {
-      logError("MessageRouter.handleOptionsGetPredictorDebugSnapshot", error);
-      sendResponse({ ok: false });
-    }
+    await worker.predictionManager.initialize();
+    sendResponse(worker.predictionManager.getPredictorDebugSnapshot());
   }
 
   private async handleOptionsClearPredictorDebugTrace(
@@ -365,12 +390,7 @@ export class MessageRouter {
     sendResponse: (response?: unknown) => void,
     worker: BackgroundServiceWorker,
   ): Promise<void> {
-    try {
-      worker.predictionManager.clearPredictorDebugTrace();
-      sendResponse({ ok: true });
-    } catch (error) {
-      logError("MessageRouter.handleOptionsClearPredictorDebugTrace", error);
-      sendResponse({ ok: false });
-    }
+    worker.predictionManager.clearPredictorDebugTrace();
+    sendResponse({ ok: true });
   }
 }
