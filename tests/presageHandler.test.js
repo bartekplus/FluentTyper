@@ -239,7 +239,7 @@ describe("features", () => {
       "+abc",
       "=abc",
       '"abc',
-    ])("#11 - Check keepPredCharRegEx functionality intput '%s'", (input) => {
+    ])("#11 - Check keepPredCharRegex functionality input '%s'", (input) => {
       mod.PresageCallback.predictions = ["ble"];
       setConfig();
 

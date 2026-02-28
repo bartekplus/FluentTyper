@@ -43,7 +43,7 @@ interface TributeReplaceEventDetail {
 }
 
 export class TributeManager {
-  private SELECTORS: string;
+  private selectors: string;
   private newTributeId: number;
   private tributeArr: Record<number, TributeEntry>;
   // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
@@ -93,7 +93,7 @@ export class TributeManager {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
     getPrediction: Function;
   }) {
-    this.SELECTORS = selectors;
+    this.selectors = selectors;
     this.newTributeId = 0;
     this.tributeArr = {};
     // Configurable properties
@@ -186,8 +186,8 @@ export class TributeManager {
     } as TributeEntry; // Cast to allow tribute to be added next
     this.helperIdByElement.set(elem, tributeId);
 
-    const tribueKeyFn = this.keys.bind(this);
-    const tribueValuesFn = (
+    const tributeKeyFn = this.keys.bind(this);
+    const tributeValuesFn = (
       _trigger: string, // text typed so far - not used directly here, context.text is used
       done: (
         results: unknown[],
@@ -242,7 +242,7 @@ export class TributeManager {
       lookup: "key",
       fillAttr: "value",
       // @ts-expect-error ignore Tribute errors
-      values: tribueValuesFn,
+      values: tributeValuesFn,
       requireLeadingSpace: false,
       allowSpaces: false,
       // @ts-expect-error ignore Tribute errors
@@ -262,7 +262,7 @@ export class TributeManager {
           ? Number.MAX_VALUE
           : this.minWordLengthToPredict,
       // @ts-expect-error ignore Tribute errors
-      keys: tribueKeyFn,
+      keys: tributeKeyFn,
       supportRevert: true, // Assuming this is related to revertOnBackspace
       selectByDigit: this.selectByDigit,
     });
@@ -303,7 +303,7 @@ export class TributeManager {
       tributeEntry.requestId === context.requestId &&
       tributeEntry.done
     ) {
-      const keyValPairs = context.predictions.map((prediction) => ({
+      const predictionItems = context.predictions.map((prediction) => ({
         key: prediction,
         value: prediction,
       }));
@@ -319,11 +319,11 @@ export class TributeManager {
         this.constructor.name,
         this.fulfillPrediction.name,
         {
-          keyValPairs,
+          predictionItems,
           header,
         },
       );
-      tributeEntry.done(keyValPairs, context.forceReplace, header);
+      tributeEntry.done(predictionItems, context.forceReplace, header);
       if (context.predictions.length > 0) {
         this.emitUsageEvent({
           eventType: "suggestion_shown",
@@ -389,13 +389,13 @@ export class TributeManager {
   queryAndAttachHelper(elem?: Element) {
     let elems: Element[] = [];
     if (elem) {
-      if (elem.matches && elem.matches(this.SELECTORS)) {
+      if (elem.matches && elem.matches(this.selectors)) {
         elems = [elem];
       } else if (elem.querySelectorAll) {
-        elems = Array.from(elem.querySelectorAll(this.SELECTORS));
+        elems = Array.from(elem.querySelectorAll(this.selectors));
       }
     } else {
-      elems = Array.from(document.querySelectorAll(this.SELECTORS));
+      elems = Array.from(document.querySelectorAll(this.selectors));
     }
 
     const propertiesToFilter = [

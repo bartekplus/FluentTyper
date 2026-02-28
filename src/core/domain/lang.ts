@@ -84,9 +84,3 @@ export const LANG_ADDITIONAL_SEPARATOR_REGEX: Record<string, RegExp | null> = {
   pt_BR: null,
   textExpander: null,
 };
-
-// Backward-compatible aliases (remove after full migration).
-export const DEFAULT_SEPERATOR_CHARS_REGEX = DEFAULT_SEPARATOR_CHARS_REGEX;
-export const LANG_SEPERATOR_CHARS_REGEX = LANG_SEPARATOR_CHARS_REGEX;
-export const LANG_ADDITIONAL_SEPERATOR_REGEX =
-  LANG_ADDITIONAL_SEPARATOR_REGEX;

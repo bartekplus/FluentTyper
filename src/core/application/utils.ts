@@ -212,12 +212,12 @@ export function isWhiteSpace(
   character: string,
   matchNewLine: boolean = true,
 ): boolean {
-  const whiteSpaceRegEx = /\s+/;
-  const whiteSpaceRegExExcludeNewLine = /[^\S\r\n]+/;
+  const whiteSpaceRegex = /\s+/;
+  const whiteSpaceRegexExcludeNewLine = /[^\S\r\n]+/;
   if (matchNewLine) {
-    return whiteSpaceRegEx.test(character);
+    return whiteSpaceRegex.test(character);
   } else {
-    return whiteSpaceRegExExcludeNewLine.test(character);
+    return whiteSpaceRegexExcludeNewLine.test(character);
   }
 }
 
@@ -227,8 +227,8 @@ export function isWhiteSpace(
  * @returns {boolean} True if the character is a letter, false otherwise.
  */
 export function isLetter(character: string): boolean {
-  const letterRegEx = /^\p{L}/u;
-  return letterRegEx.test(character);
+  const letterRegex = /^\p{L}/u;
+  return letterRegex.test(character);
 }
 
 /**

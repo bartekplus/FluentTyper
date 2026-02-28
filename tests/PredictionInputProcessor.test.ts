@@ -15,10 +15,10 @@ describe("PredictionInputProcessor", () => {
     it("should initialize with default values", () => {
       expect(processor.minWordLengthToPredict).toBe(MIN_WORD_LENGTH_TO_PREDICT);
       expect(processor.autoCapitalize).toBe(true);
-      expect(processor.separatorCharRegEx).toBeInstanceOf(RegExp);
-      expect(processor.keepPredCharRegEx).toBeInstanceOf(RegExp);
-      expect(processor.whiteSpaceRegEx).toBeInstanceOf(RegExp);
-      expect(processor.letterRegEx).toBeInstanceOf(RegExp);
+      expect(processor.separatorCharRegex).toBeInstanceOf(RegExp);
+      expect(processor.keepPredCharRegex).toBeInstanceOf(RegExp);
+      expect(processor.whiteSpaceRegex).toBeInstanceOf(RegExp);
+      expect(processor.letterRegex).toBeInstanceOf(RegExp);
     });
   });
 

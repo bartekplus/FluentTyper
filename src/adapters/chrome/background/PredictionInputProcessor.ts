@@ -8,10 +8,10 @@ export const PAST_WORDS_COUNT = 5;
 export const MIN_WORD_LENGTH_TO_PREDICT = 1;
 
 export class PredictionInputProcessor {
-  separatorCharRegEx: RegExp;
-  keepPredCharRegEx: RegExp;
-  whiteSpaceRegEx: RegExp;
-  letterRegEx: RegExp;
+  separatorCharRegex: RegExp;
+  keepPredCharRegex: RegExp;
+  whiteSpaceRegex: RegExp;
+  letterRegex: RegExp;
   minWordLengthToPredict: number;
   autoCapitalize: boolean;
 
@@ -19,11 +19,11 @@ export class PredictionInputProcessor {
     minWordLengthToPredict = MIN_WORD_LENGTH_TO_PREDICT,
     autoCapitalize = true,
   ) {
-    this.separatorCharRegEx =
+    this.separatorCharRegex =
       /\s+|!|"|#|\$|%|&|\(|\)|\*|\+|,|-|\.|\/|:|;|<|=|>|\?|@|\[|\\|\]|\^|_|`|{|\||}|~/;
-    this.keepPredCharRegEx = /\[|\(|{|<|\/|-|\*|\+|=|"/;
-    this.whiteSpaceRegEx = /\s+/;
-    this.letterRegEx = /^\p{L}/u;
+    this.keepPredCharRegex = /\[|\(|{|<|\/|-|\*|\+|=|"/;
+    this.whiteSpaceRegex = /\s+/;
+    this.letterRegex = /^\p{L}/u;
     this.minWordLengthToPredict = minWordLengthToPredict;
     this.autoCapitalize = autoCapitalize;
   }
@@ -61,8 +61,8 @@ export class PredictionInputProcessor {
       return false;
     if (
       !endsWithSpace &&
-      (lastWord.match(this.separatorCharRegEx) || []).length !==
-        (lastWord.match(this.keepPredCharRegEx) || []).length
+      (lastWord.match(this.separatorCharRegex) || []).length !==
+        (lastWord.match(this.keepPredCharRegex) || []).length
     )
       return false;
     return true;
@@ -96,7 +96,7 @@ export class PredictionInputProcessor {
       );
     }
     const lastWordsArray = predictionInput
-      .split(this.whiteSpaceRegEx)
+      .split(this.whiteSpaceRegex)
       .filter((e) => e.trim())
       .splice(-PAST_WORDS_COUNT);
     const { wordArray, newSentence } = this.removePrevSentence(lastWordsArray);
@@ -106,7 +106,7 @@ export class PredictionInputProcessor {
       : "";
     lastWord =
       lastWord
-        .split(this.keepPredCharRegEx)
+        .split(this.keepPredCharRegex)
         .filter((e) => e.trim())
         .pop() || "";
     const doCapitalize = checkAutoCapitalize({
