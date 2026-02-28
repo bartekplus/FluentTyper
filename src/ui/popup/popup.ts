@@ -3,8 +3,10 @@ import {
   isEnabledForDomain,
   blockUnBlockDomain,
 } from "@core/application/utils";
-import { JsonValue, SettingsManager } from "@core/application/settingsManager";
-import { SUPPORTED_LANGUAGES, resolveEnabledLanguages } from "@core/domain/lang";
+import { SettingsManager } from "@core/application/settingsManager";
+import { CoreSettingsRepository } from "@core/application/repositories/CoreSettingsRepository";
+import { SiteProfileRepository } from "@core/application/repositories/SiteProfileRepository";
+import { SUPPORTED_LANGUAGES } from "@core/domain/lang";
 import {
   SiteProfile,
   getSiteProfileForDomain,
@@ -23,12 +25,6 @@ import {
   CMD_POPUP_GET_PRODUCTIVITY_STATS,
   CMD_POPUP_ACK_WEEKLY_RECAP,
   CMD_POPUP_ACK_DONATION_MILESTONE,
-  KEY_ENABLED_LANGUAGES,
-  KEY_ENABLED,
-  KEY_INLINE_SUGGESTION,
-  KEY_LANGUAGE,
-  KEY_NUM_SUGGESTIONS,
-  KEY_SITE_PROFILES,
   MAX_NUM_SUGGESTIONS,
 } from "@core/domain/constants";
 import type {
@@ -43,6 +39,8 @@ import type {
 import { i18n } from "@third-party/fancier-settings/i18n.js";
 
 const settings = new SettingsManager();
+const coreSettingsRepository = new CoreSettingsRepository(settings);
+const siteProfileRepository = new SiteProfileRepository(settings);
 let currentDomainURL: string | undefined;
 let currentEnabledLanguages: string[] = [];
 let currentProfileLanguageFallback = "en_US";
@@ -135,9 +133,9 @@ async function loadSiteProfileEditor() {
   section.classList.remove("is-hidden");
   const [siteProfilesRaw, numSuggestionsRaw, inlineSuggestionRaw] =
     await Promise.all([
-      settings.get(KEY_SITE_PROFILES),
-      settings.get(KEY_NUM_SUGGESTIONS),
-      settings.get(KEY_INLINE_SUGGESTION),
+      siteProfileRepository.getRawSiteProfiles(),
+      coreSettingsRepository.getNumSuggestions(),
+      coreSettingsRepository.getInlineSuggestion(),
     ]);
   const profile = getSiteProfileForDomain(
     siteProfilesRaw,
@@ -236,7 +234,7 @@ async function saveSiteProfileFromEditor() {
     return;
   }
   const { toggle, status } = getSiteProfileElements();
-  const siteProfilesRaw = await settings.get(KEY_SITE_PROFILES);
+  const siteProfilesRaw = await siteProfileRepository.getRawSiteProfiles();
   const nextProfiles = toggle.checked
     ? setSiteProfileForDomain(
         siteProfilesRaw,
@@ -249,7 +247,7 @@ async function saveSiteProfileFromEditor() {
         currentDomainURL,
         currentEnabledLanguages,
       );
-  await settings.set(KEY_SITE_PROFILES, nextProfiles as unknown as JsonValue);
+  await siteProfileRepository.setSiteProfiles(nextProfiles);
   status.textContent = getProfileStatusLabel(toggle.checked);
   await notifyConfigChange();
 }
@@ -651,12 +649,10 @@ function init() {
               );
           }
         }
-        checkboxEnableNode.checked = Boolean(await settings.get(KEY_ENABLED));
+        checkboxEnableNode.checked = await coreSettingsRepository.isEnabled();
       }
-      let language = (await settings.get(KEY_LANGUAGE)) as string;
-      currentEnabledLanguages = resolveEnabledLanguages(
-        await settings.get(KEY_ENABLED_LANGUAGES),
-      );
+      let language = await coreSettingsRepository.getLanguage();
+      currentEnabledLanguages = await coreSettingsRepository.getEnabledLanguages();
       const select = window.document.getElementById(
         "languageSelect",
       ) as HTMLSelectElement;
@@ -672,7 +668,7 @@ function init() {
 
       if (!isValidLanguage && !(isAutoDetect && allowAutoDetect)) {
         language = displayLanguage;
-        await settings.set(KEY_LANGUAGE, language);
+        await coreSettingsRepository.setLanguage(language);
         chrome.runtime.sendMessage({
           command: CMD_OPTIONS_PAGE_CONFIG_CHANGE,
           context: {},
@@ -740,7 +736,7 @@ async function languageChangeEvent() {
     "languageSelect",
   ) as HTMLSelectElement;
 
-  await settings.set(KEY_LANGUAGE, select.value);
+  await coreSettingsRepository.setLanguage(select.value);
   await notifyConfigChange();
   currentProfileLanguageFallback = getDefaultSiteProfileLanguage(
     select.value,
@@ -750,8 +746,8 @@ async function languageChangeEvent() {
 }
 
 async function toggleOnOff() {
-  const newMode = !(await settings.get(KEY_ENABLED));
-  await settings.set(KEY_ENABLED, newMode);
+  const newMode = !(await coreSettingsRepository.isEnabled());
+  await coreSettingsRepository.setEnabled(newMode);
   chrome.tabs.query({}, function (tabs) {
     for (let i = 0; i < tabs.length; i++) {
       let message: PopupPageEnableMessage | PopupPageDisableMessage;

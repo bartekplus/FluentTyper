@@ -1,5 +1,6 @@
 import {
   DEFAULT_AI_MODEL_ID,
+  DEFAULT_AI_PREDICTOR_ENABLED,
   DEFAULT_AI_PREDICTION_TIMEOUT_MS,
   DEFAULT_DEBUG_AI_PREDICTOR_ENABLED,
   DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED,
@@ -38,7 +39,10 @@ export class PredictorSettingsRepository extends SettingsRepositoryBase {
     ]);
 
     return {
-      aiPredictorEnabled: Boolean(aiPredictorEnabled),
+      aiPredictorEnabled:
+        typeof aiPredictorEnabled === "boolean"
+          ? aiPredictorEnabled
+          : DEFAULT_AI_PREDICTOR_ENABLED,
       aiModelId:
         typeof aiModelId === "string" && aiModelId.trim().length > 0
           ? aiModelId

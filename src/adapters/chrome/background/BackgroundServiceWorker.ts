@@ -1,11 +1,10 @@
 import {
   CMD_BACKGROUND_PAGE_PREDICT_RESP,
-  KEY_ENABLED_LANGUAGES,
 } from "@core/domain/constants";
 import { checkLastError } from "@core/application/utils";
-import { resolveEnabledLanguages } from "@core/domain/lang";
 import { logError } from "@core/domain/error";
 import { SettingsManager } from "@core/application/settingsManager";
+import { CoreSettingsRepository } from "@core/application/repositories/CoreSettingsRepository";
 import { LanguageDetector } from "./LanguageDetector";
 import { PredictionManager } from "./PredictionManager";
 import { TabMessenger } from "./TabMessenger";
@@ -33,6 +32,7 @@ export const ENABLE_AI_PREDICTOR = IS_DEV_BUILD || IS_E2E_BUILD;
 export class BackgroundServiceWorker {
   static instance: BackgroundServiceWorker;
   settingsManager!: SettingsManager;
+  coreSettingsRepository!: CoreSettingsRepository;
   languageDetector!: LanguageDetector;
   predictionManager!: PredictionManager;
   tabMessenger!: TabMessenger;
@@ -45,6 +45,7 @@ export class BackgroundServiceWorker {
       return BackgroundServiceWorker.instance;
     }
     this.settingsManager = new SettingsManager();
+    this.coreSettingsRepository = new CoreSettingsRepository(this.settingsManager);
     this.languageDetector = new LanguageDetector(this.settingsManager);
     this.predictionManager = new PredictionManager();
     this.tabMessenger = new TabMessenger();
@@ -160,8 +161,6 @@ export class BackgroundServiceWorker {
   }
 
   async resolveEnabledLanguages(): Promise<string[]> {
-    return resolveEnabledLanguages(
-      await this.settingsManager.get(KEY_ENABLED_LANGUAGES),
-    );
+    return this.coreSettingsRepository.getEnabledLanguages();
   }
 }

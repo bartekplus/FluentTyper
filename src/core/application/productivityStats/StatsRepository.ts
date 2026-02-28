@@ -1,23 +1,24 @@
-import { KEY_PRODUCTIVITY_STATS } from "@core/domain/constants";
-import { JsonValue, SettingsManager } from "@core/application/settingsManager";
+import { SettingsManager } from "@core/application/settingsManager";
 import { StatsSanitizer } from "@core/domain/productivityStats/StatsSanitizer";
 import type { ProductivityStatsState } from "@core/domain/productivityStats/types";
+import { ProductivityStatsRepository } from "../repositories/ProductivityStatsRepository";
 
 export class StatsRepository {
+  private readonly statsRepository: ProductivityStatsRepository;
+
   constructor(
-    private readonly settingsManager: SettingsManager,
+    settingsManager: SettingsManager,
     private readonly sanitizer: StatsSanitizer,
-  ) {}
+  ) {
+    this.statsRepository = new ProductivityStatsRepository(settingsManager);
+  }
 
   async loadState(): Promise<ProductivityStatsState> {
-    const rawState = await this.settingsManager.get(KEY_PRODUCTIVITY_STATS);
+    const rawState = await this.statsRepository.getRawStats();
     return this.sanitizer.sanitizeStatsState(rawState);
   }
 
   async saveState(state: ProductivityStatsState): Promise<void> {
-    await this.settingsManager.set(
-      KEY_PRODUCTIVITY_STATS,
-      state as unknown as JsonValue,
-    );
+    await this.statsRepository.setRawStats(state);
   }
 }

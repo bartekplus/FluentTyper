@@ -5,11 +5,13 @@ import {
   resolveEnabledPredictionLanguages,
 } from "@core/domain/lang";
 import { SettingsManager } from "@core/application/settingsManager";
+import { CoreSettingsRepository } from "@core/application/repositories/CoreSettingsRepository";
 
 export class LanguageDetector {
-  private settings: SettingsManager;
+  private readonly settingsRepository: CoreSettingsRepository;
+
   constructor(settings: SettingsManager) {
-    this.settings = settings;
+    this.settingsRepository = new CoreSettingsRepository(settings);
   }
 
   async detectLanguage(
@@ -17,9 +19,8 @@ export class LanguageDetector {
     tabId: number,
     enabledLanguages?: string[],
   ): Promise<string> {
-    const fallbackLanguageRaw = (await this.settings.get(
-      "fallbackLanguage",
-    )) as string;
+    const fallbackLanguageRaw =
+      await this.settingsRepository.getFallbackLanguage();
     const allowedLanguages =
       resolveEnabledPredictionLanguages(enabledLanguages);
     const fallbackLanguage =

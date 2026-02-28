@@ -1,8 +1,10 @@
 // Handles migration/version logic for FluentTyper extension
-import { SUPPORTED_LANGUAGES, resolveEnabledLanguages } from "@core/domain/lang";
-import { JsonValue, SettingsManager } from "@core/application/settingsManager";
-import { KEY_ENABLED_LANGUAGES, KEY_SITE_PROFILES } from "@core/domain/constants";
+import { SUPPORTED_LANGUAGES } from "@core/domain/lang";
+import { SettingsManager } from "@core/application/settingsManager";
+import { getSettingStorageKey } from "@core/domain/contracts/settings";
 import { resolveSiteProfiles } from "@core/domain/siteProfiles";
+import { CoreSettingsRepository } from "@core/application/repositories/CoreSettingsRepository";
+import { SiteProfileRepository } from "@core/application/repositories/SiteProfileRepository";
 
 /**
  * Migrates storage and language settings to the latest version.
@@ -40,10 +42,11 @@ export async function migrateToLocalStore(lastVersion?: string): Promise<void> {
       "fallbackLanguage",
     ];
     for (const langProp of langProps) {
-      const language = await settingsManager.get(langProp);
+      const storageKey = getSettingStorageKey(langProp);
+      const language = await settingsManager.get(storageKey);
       for (const key of Object.keys(SUPPORTED_LANGUAGES)) {
-        if (key.startsWith(language as string)) {
-          await settingsManager.set(langProp, key);
+        if (typeof language === "string" && key.startsWith(language)) {
+          await settingsManager.set(storageKey, key);
           break;
         }
       }
@@ -51,17 +54,15 @@ export async function migrateToLocalStore(lastVersion?: string): Promise<void> {
   }
 
   settingsManager = settingsManager || new SettingsManager();
-  const enabledLanguages = resolveEnabledLanguages(
-    await settingsManager.get(KEY_ENABLED_LANGUAGES),
-  );
+  const coreSettings = new CoreSettingsRepository(settingsManager);
+  const siteProfileRepository = new SiteProfileRepository(settingsManager);
+  const enabledLanguages = await coreSettings.getEnabledLanguages();
+  const rawSiteProfiles = await siteProfileRepository.getRawSiteProfiles();
   const siteProfiles = resolveSiteProfiles(
-    await settingsManager.get(KEY_SITE_PROFILES),
+    rawSiteProfiles,
     enabledLanguages,
   );
-  await settingsManager.set(
-    KEY_SITE_PROFILES,
-    siteProfiles as unknown as JsonValue,
-  );
+  await siteProfileRepository.setSiteProfiles(siteProfiles);
 
   chrome.storage.local.set({ lastVersion: currentVersion });
 }

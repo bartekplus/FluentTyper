@@ -1,19 +1,15 @@
 import {
   DEFAULT_AI_PREDICTION_TIMEOUT_MS,
-  KEY_ENABLED_LANGUAGES,
-  KEY_INLINE_SUGGESTION,
-  KEY_LANGUAGE,
-  KEY_NUM_SUGGESTIONS,
-  KEY_SITE_PROFILES,
   MAX_NUM_SUGGESTIONS,
 } from "@core/domain/constants";
-import { resolveEnabledLanguages } from "@core/domain/lang";
-import type { JsonValue, SettingsManager } from "@core/application/settingsManager";
+import type { SettingsManager } from "@core/application/settingsManager";
 import {
   getSiteProfileForDomain,
   resolveSiteProfiles,
   setSiteProfileForDomain,
 } from "@core/domain/siteProfiles";
+import { CoreSettingsRepository } from "@core/application/repositories/CoreSettingsRepository";
+import { SiteProfileRepository } from "@core/application/repositories/SiteProfileRepository";
 
 export interface DomainRuntimeSettings {
   language: string;
@@ -40,19 +36,17 @@ export function clampAIPredictionTimeoutMs(value: unknown): number {
 export async function getEnabledLanguages(
   settingsManager: SettingsManager,
 ): Promise<string[]> {
-  const enabledLanguages = await settingsManager.get(KEY_ENABLED_LANGUAGES);
-  return resolveEnabledLanguages(enabledLanguages);
+  return new CoreSettingsRepository(settingsManager).getEnabledLanguages();
 }
 
 export async function resolveActiveLanguage(
   settingsManager: SettingsManager,
 ): Promise<string> {
-  const [language, enabledLanguagesRaw] = await Promise.all([
-    settingsManager.get(KEY_LANGUAGE),
-    settingsManager.get(KEY_ENABLED_LANGUAGES),
+  const settingsRepository = new CoreSettingsRepository(settingsManager);
+  const [currentLanguage, enabledLanguages] = await Promise.all([
+    settingsRepository.getLanguage(),
+    settingsRepository.getEnabledLanguages(),
   ]);
-  const enabledLanguages = resolveEnabledLanguages(enabledLanguagesRaw);
-  const currentLanguage = typeof language === "string" ? language : "";
   const allowAutoDetect = enabledLanguages.length > 1;
   if (currentLanguage === "auto_detect" && allowAutoDetect) {
     return currentLanguage;
@@ -61,7 +55,7 @@ export async function resolveActiveLanguage(
     return currentLanguage;
   }
   const fallbackLanguage = enabledLanguages[0];
-  await settingsManager.set(KEY_LANGUAGE, fallbackLanguage);
+  await settingsRepository.setLanguage(fallbackLanguage);
   return fallbackLanguage;
 }
 
@@ -69,14 +63,21 @@ export async function resolveDomainRuntimeSettings(
   settingsManager: SettingsManager,
   domainURL?: string,
 ): Promise<DomainRuntimeSettings> {
-  const [globalLanguage, enabledLanguages, inlineSuggestionGlobal, numGlobal] =
-    await Promise.all([
-      resolveActiveLanguage(settingsManager),
-      getEnabledLanguages(settingsManager),
-      settingsManager.get(KEY_INLINE_SUGGESTION),
-      settingsManager.get(KEY_NUM_SUGGESTIONS),
-    ]);
-  const siteProfilesRaw = await settingsManager.get(KEY_SITE_PROFILES);
+  const settingsRepository = new CoreSettingsRepository(settingsManager);
+  const siteProfileRepository = new SiteProfileRepository(settingsManager);
+  const [
+    globalLanguage,
+    enabledLanguages,
+    inlineSuggestionGlobal,
+    numGlobal,
+    siteProfilesRaw,
+  ] = await Promise.all([
+    resolveActiveLanguage(settingsManager),
+    settingsRepository.getEnabledLanguages(),
+    settingsRepository.getInlineSuggestion(),
+    settingsRepository.getNumSuggestions(),
+    siteProfileRepository.getSiteProfiles(),
+  ]);
   const profile = domainURL
     ? getSiteProfileForDomain(siteProfilesRaw, domainURL, enabledLanguages)
     : undefined;
@@ -85,7 +86,7 @@ export async function resolveDomainRuntimeSettings(
   const inlineSuggestion =
     typeof profile?.inline_suggestion === "boolean"
       ? profile.inline_suggestion
-      : Boolean(inlineSuggestionGlobal);
+      : inlineSuggestionGlobal;
   const hasNumSuggestionsOverride = typeof profile?.numSuggestions === "number";
   const numSuggestions = clampNumSuggestions(
     hasNumSuggestionsOverride ? profile?.numSuggestions : numGlobal,
@@ -103,11 +104,12 @@ export async function resolveDomainRuntimeSettings(
 export async function sanitizeSiteProfilesSetting(
   settingsManager: SettingsManager,
 ): Promise<void> {
-  const [siteProfilesRaw, enabledLanguagesRaw] = await Promise.all([
-    settingsManager.get(KEY_SITE_PROFILES),
-    settingsManager.get(KEY_ENABLED_LANGUAGES),
+  const settingsRepository = new CoreSettingsRepository(settingsManager);
+  const siteProfileRepository = new SiteProfileRepository(settingsManager);
+  const [siteProfilesRaw, enabledLanguages] = await Promise.all([
+    siteProfileRepository.getRawSiteProfiles(),
+    settingsRepository.getEnabledLanguages(),
   ]);
-  const enabledLanguages = resolveEnabledLanguages(enabledLanguagesRaw);
   const sanitizedSiteProfiles = resolveSiteProfiles(
     siteProfilesRaw,
     enabledLanguages,
@@ -115,10 +117,7 @@ export async function sanitizeSiteProfilesSetting(
   if (
     JSON.stringify(siteProfilesRaw || {}) !== JSON.stringify(sanitizedSiteProfiles)
   ) {
-    await settingsManager.set(
-      KEY_SITE_PROFILES,
-      sanitizedSiteProfiles as unknown as JsonValue,
-    );
+    await siteProfileRepository.setSiteProfiles(sanitizedSiteProfiles);
   }
 }
 
@@ -126,7 +125,9 @@ export async function rotateLanguageForDomain(
   settingsManager: SettingsManager,
   domainURL: string | undefined,
 ): Promise<string> {
-  const availableLangs = await getEnabledLanguages(settingsManager);
+  const settingsRepository = new CoreSettingsRepository(settingsManager);
+  const siteProfileRepository = new SiteProfileRepository(settingsManager);
+  const availableLangs = await settingsRepository.getEnabledLanguages();
   const domainSettings = await resolveDomainRuntimeSettings(
     settingsManager,
     domainURL,
@@ -138,23 +139,22 @@ export async function rotateLanguageForDomain(
     (currentLangIndex >= 0 ? currentLangIndex + 1 : 0) % availableLangs.length;
   const nextLang = availableLangs[nextLangIndex];
 
-  const siteProfilesRaw = await settingsManager.get(KEY_SITE_PROFILES);
+  const siteProfilesRaw = await siteProfileRepository.getRawSiteProfiles();
   const profile = domainURL
     ? getSiteProfileForDomain(siteProfilesRaw, domainURL, availableLangs)
     : undefined;
 
   if (profile && domainURL) {
-    await settingsManager.set(
-      KEY_SITE_PROFILES,
+    await siteProfileRepository.setSiteProfiles(
       setSiteProfileForDomain(
         siteProfilesRaw,
         domainURL,
         { ...profile, language: nextLang },
         availableLangs,
-      ) as unknown as JsonValue,
+      ),
     );
   } else {
-    await settingsManager.set(KEY_LANGUAGE, nextLang);
+    await settingsRepository.setLanguage(nextLang);
   }
 
   return nextLang;

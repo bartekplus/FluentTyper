@@ -1,9 +1,43 @@
 import { DEFAULT_NUM_SUGGESTIONS } from "@core/domain/constants";
+import type {
+  DomainListMode,
+  SettingsSchema,
+} from "@core/domain/contracts/settings";
+import { resolveEnabledLanguages } from "@core/domain/lang";
 import { SettingsRepositoryBase } from "./SettingsRepositoryBase";
 
+const DEFAULT_DOMAIN_LIST_MODE: DomainListMode = "blackList";
+const DEFAULT_LANGUAGE = "en_US";
+const DEFAULT_MIN_WORD_LENGTH_TO_PREDICT = 1;
+
+type ThemeSettings = Pick<
+  SettingsSchema,
+  | "tributeBgLight"
+  | "tributeTextLight"
+  | "tributeHighlightBgLight"
+  | "tributeHighlightTextLight"
+  | "tributeBorderLight"
+  | "tributeBgDark"
+  | "tributeTextDark"
+  | "tributeHighlightBgDark"
+  | "tributeHighlightTextDark"
+  | "tributeBorderDark"
+  | "tributeFontSize"
+  | "tributePaddingVertical"
+  | "tributePaddingHorizontal"
+>;
+
 export class CoreSettingsRepository extends SettingsRepositoryBase {
+  private static toBoolean(value: unknown, fallback = false): boolean {
+    return typeof value === "boolean" ? value : fallback;
+  }
+
+  private static toString(value: unknown, fallback = ""): string {
+    return typeof value === "string" ? value : fallback;
+  }
+
   async isEnabled(): Promise<boolean> {
-    return Boolean(await this.getField("enabled"));
+    return CoreSettingsRepository.toBoolean(await this.getField("enabled"));
   }
 
   async setEnabled(enabled: boolean): Promise<void> {
@@ -11,18 +45,29 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
   }
 
   async getLanguage(): Promise<string> {
-    return (await this.getField("language")) || "en_US";
+    return CoreSettingsRepository.toString(
+      await this.getField("language"),
+      DEFAULT_LANGUAGE,
+    );
   }
 
   async setLanguage(language: string): Promise<void> {
     await this.setField("language", language);
   }
 
+  async getFallbackLanguage(): Promise<string> {
+    return CoreSettingsRepository.toString(
+      await this.getField("fallbackLanguage"),
+      DEFAULT_LANGUAGE,
+    );
+  }
+
+  async setFallbackLanguage(language: string): Promise<void> {
+    await this.setField("fallbackLanguage", language);
+  }
+
   async getEnabledLanguages(): Promise<string[]> {
-    const enabledLanguages = await this.getField("enabledLanguages");
-    return Array.isArray(enabledLanguages)
-      ? enabledLanguages.filter((lang): lang is string => typeof lang === "string")
-      : [];
+    return resolveEnabledLanguages(await this.getField("enabledLanguages"));
   }
 
   async getNumSuggestions(): Promise<number> {
@@ -33,11 +78,12 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
   }
 
   async getInlineSuggestion(): Promise<boolean> {
-    return Boolean(await this.getField("inlineSuggestion"));
+    return CoreSettingsRepository.toBoolean(await this.getField("inlineSuggestion"));
   }
 
-  async getDomainListMode(): Promise<string> {
-    return (await this.getField("domainListMode")) || "blackList";
+  async getDomainListMode(): Promise<DomainListMode> {
+    const mode = await this.getField("domainListMode");
+    return mode === "whiteList" ? "whiteList" : DEFAULT_DOMAIN_LIST_MODE;
   }
 
   async getDomainList(): Promise<string[]> {
@@ -49,5 +95,153 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
 
   async setDomainList(list: string[]): Promise<void> {
     await this.setField("domainList", list);
+  }
+
+  async getAutocomplete(): Promise<boolean> {
+    return CoreSettingsRepository.toBoolean(await this.getField("autocomplete"));
+  }
+
+  async getAutocompleteOnEnter(): Promise<boolean> {
+    return CoreSettingsRepository.toBoolean(
+      await this.getField("autocompleteOnEnter"),
+    );
+  }
+
+  async getAutocompleteOnTab(): Promise<boolean> {
+    return CoreSettingsRepository.toBoolean(await this.getField("autocompleteOnTab"));
+  }
+
+  async getSelectByDigit(): Promise<boolean> {
+    return CoreSettingsRepository.toBoolean(await this.getField("selectByDigit"));
+  }
+
+  async getMinWordLengthToPredict(): Promise<number> {
+    const value = await this.getField("minWordLengthToPredict");
+    if (typeof value !== "number" || !Number.isFinite(value)) {
+      return DEFAULT_MIN_WORD_LENGTH_TO_PREDICT;
+    }
+    return Math.min(12, Math.max(-1, Math.round(value)));
+  }
+
+  async getRevertOnBackspace(): Promise<boolean> {
+    return CoreSettingsRepository.toBoolean(await this.getField("revertOnBackspace"));
+  }
+
+  async getDisplayLangHeader(): Promise<boolean> {
+    return CoreSettingsRepository.toBoolean(await this.getField("displayLangHeader"));
+  }
+
+  async getInsertSpaceAfterAutocomplete(): Promise<boolean> {
+    return CoreSettingsRepository.toBoolean(
+      await this.getField("insertSpaceAfterAutocomplete"),
+    );
+  }
+
+  async getAutoCapitalize(): Promise<boolean> {
+    return CoreSettingsRepository.toBoolean(await this.getField("autoCapitalize"));
+  }
+
+  async getApplySpacingRules(): Promise<boolean> {
+    return CoreSettingsRepository.toBoolean(await this.getField("applySpacingRules"));
+  }
+
+  async getTextExpansions(): Promise<Array<[string, object]>> {
+    const value = await this.getField("textExpansions");
+    if (!Array.isArray(value)) {
+      return [];
+    }
+    const normalized: Array<[string, object]> = [];
+    for (const entry of value) {
+      if (!Array.isArray(entry) || entry.length < 2) {
+        continue;
+      }
+      const shortcut = entry[0];
+      const expansion = entry[1];
+      if (typeof shortcut !== "string") {
+        continue;
+      }
+      if (!expansion || typeof expansion !== "object") {
+        continue;
+      }
+      normalized.push([shortcut, expansion]);
+    }
+    return normalized;
+  }
+
+  async getVariableExpansion(): Promise<boolean> {
+    return CoreSettingsRepository.toBoolean(await this.getField("variableExpansion"));
+  }
+
+  async getTimeFormat(): Promise<string> {
+    return CoreSettingsRepository.toString(await this.getField("timeFormat"));
+  }
+
+  async getDateFormat(): Promise<string> {
+    return CoreSettingsRepository.toString(await this.getField("dateFormat"));
+  }
+
+  async getUserDictionaryList(): Promise<string[]> {
+    const list = await this.getField("userDictionaryList");
+    return Array.isArray(list) ? list.map((item) => String(item)) : [];
+  }
+
+  async getThemeSettings(): Promise<ThemeSettings> {
+    const [
+      tributeBgLight,
+      tributeTextLight,
+      tributeHighlightBgLight,
+      tributeHighlightTextLight,
+      tributeBorderLight,
+      tributeBgDark,
+      tributeTextDark,
+      tributeHighlightBgDark,
+      tributeHighlightTextDark,
+      tributeBorderDark,
+      tributeFontSize,
+      tributePaddingVertical,
+      tributePaddingHorizontal,
+    ] = await Promise.all([
+      this.getField("tributeBgLight"),
+      this.getField("tributeTextLight"),
+      this.getField("tributeHighlightBgLight"),
+      this.getField("tributeHighlightTextLight"),
+      this.getField("tributeBorderLight"),
+      this.getField("tributeBgDark"),
+      this.getField("tributeTextDark"),
+      this.getField("tributeHighlightBgDark"),
+      this.getField("tributeHighlightTextDark"),
+      this.getField("tributeBorderDark"),
+      this.getField("tributeFontSize"),
+      this.getField("tributePaddingVertical"),
+      this.getField("tributePaddingHorizontal"),
+    ]);
+
+    return {
+      tributeBgLight: CoreSettingsRepository.toString(tributeBgLight),
+      tributeTextLight: CoreSettingsRepository.toString(tributeTextLight),
+      tributeHighlightBgLight: CoreSettingsRepository.toString(
+        tributeHighlightBgLight,
+      ),
+      tributeHighlightTextLight: CoreSettingsRepository.toString(
+        tributeHighlightTextLight,
+      ),
+      tributeBorderLight: CoreSettingsRepository.toString(tributeBorderLight),
+      tributeBgDark: CoreSettingsRepository.toString(tributeBgDark),
+      tributeTextDark: CoreSettingsRepository.toString(tributeTextDark),
+      tributeHighlightBgDark: CoreSettingsRepository.toString(
+        tributeHighlightBgDark,
+      ),
+      tributeHighlightTextDark: CoreSettingsRepository.toString(
+        tributeHighlightTextDark,
+      ),
+      tributeBorderDark: CoreSettingsRepository.toString(tributeBorderDark),
+      tributeFontSize: CoreSettingsRepository.toString(tributeFontSize),
+      tributePaddingVertical: CoreSettingsRepository.toString(
+        tributePaddingVertical,
+      ),
+      tributePaddingHorizontal: CoreSettingsRepository.toString(
+        tributePaddingHorizontal,
+      ),
+    };
   }
 }
