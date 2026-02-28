@@ -14,12 +14,13 @@
     "test:e2e:dev": "bun scripts/run-e2e.ts --mode=development",
     "update": "bun update --latest --recursive",
     "preversion": "bun run test",
-    "version": "bun scripts/update-manifest-version.cjs",
-    "postversion": "git push && git push --tags",
+    "version": "echo 'version updated'",
+    "postversion": "bun scripts/update-manifest-version.cjs && git push && git push --tags",
     "lint:fix": "bun run lint -- --fix",
     "fix": "bun run lint:fix && bun run format",
     "format": "prettier . --cache --write",
-    "format:check": "prettier . --cache --check"
+    "format:check": "prettier . --cache --check",
+    "bump": "bun pm version"
   },
   "repository": {
     "type": "git",

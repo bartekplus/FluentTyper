@@ -29,6 +29,7 @@ manifests.forEach((manifestPath) => {
   const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
   manifest.version = version;
   fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+  execSync(`bun run prettier --write "${manifestPath}"`, { stdio: "inherit" });
   execSync(`git add "${manifestPath}"`);
 });
 
