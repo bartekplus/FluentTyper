@@ -72,6 +72,21 @@ const supportLinksHTML =
   <a href="https://github.com/bartekplus/FluentTyper#readme" target="_blank" rel="noopener noreferrer">Read documentation</a> - Setup help, configuration details, and usage tips.<br /> \
   <a href="https://github.com/bartekplus/FluentTyper/blob/main/SECURITY.md" target="_blank" rel="noopener noreferrer">Security policy</a> - Responsible disclosure and security contact details. \
   </div>';
+const variablesDocumentationHTML =
+  '<div class="text-expander-help" style="font-size: 0.9em; opacity: 0.9;"> \
+    <p style="margin-bottom: 0.5rem;"><strong>Supported Variables:</strong></p> \
+    <ul style="list-style-type: disc; margin-left: 1.5rem; margin-bottom: 0;"> \
+      <li><code>\\${time}</code> - Current time (e.g., 10:30 AM)</li> \
+      <li><code>\\${date}</code> - Current date (e.g., 2026-02-28)</li> \
+      <li><code>\\${date:+1d}</code> - Date math (use + or -, then number, then d/w/m/y)</li> \
+      <li><code>\\${datetime}</code> - Current date and time</li> \
+      <li><code>\\${uuid}</code> - Generates a random unique identifier (UUID)</li> \
+      <li><code>\\${random:A|B|C}</code> - Picks a random option from the provided list</li> \
+      <li><code>\\${page_url}</code> - URL of the current page</li> \
+      <li><code>\\${page_title}</code> - Title of the current page</li> \
+      <li><code>\\${page_domain}</code> - Domain of the current page</li> \
+    </ul> \
+  </div>';
 const IS_DEV_BUILD =
   typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
 const EXTENSION_VERSION =
@@ -294,8 +309,17 @@ const manifest = {
         ["dnextwk", "Let's touch base next week on ${date:+1w}"],
         ["rsales", "${random:Hi|Hello|Hey there} ${random:friend|mate|colleague}!"],
         ["purl", "Here is the link we discussed: ${page_url}"],
+        ["ptitle", "Page Title: ${page_title}"],
+        ["pdomain", "Domain: ${page_domain}"],
         ["rruuid", "Reference ID: ${uuid}"],
       ],
+    },
+    {
+      tab: i18n.get("shortcuts_expansions_tab"),
+      group: i18n.get("text_expander"),
+      name: "textExpanderHelp",
+      type: "description",
+      text: variablesDocumentationHTML,
     },
     {
       tab: i18n.get("shortcuts_expansions_tab"),
