@@ -33,12 +33,6 @@ export function clampAIPredictionTimeoutMs(value: unknown): number {
   return Math.min(2000, Math.max(20, Math.round(value)));
 }
 
-export async function getEnabledLanguages(
-  settingsManager: SettingsManager,
-): Promise<string[]> {
-  return new CoreSettingsRepository(settingsManager).getEnabledLanguages();
-}
-
 export async function resolveActiveLanguage(
   settingsManager: SettingsManager,
 ): Promise<string> {

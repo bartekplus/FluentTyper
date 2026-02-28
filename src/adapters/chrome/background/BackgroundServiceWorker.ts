@@ -214,8 +214,4 @@ export class BackgroundServiceWorker {
       logError("lastVersion handler", error);
     }
   }
-
-  async resolveEnabledLanguages(): Promise<string[]> {
-    return this.coreSettingsRepository.getEnabledLanguages();
-  }
 }

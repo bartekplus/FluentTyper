@@ -266,6 +266,10 @@ export class MessageRouter {
     };
   }
 
+  private respondOk(sendResponse: (response?: unknown) => void): void {
+    sendResponse({ ok: true });
+  }
+
   private async handleContentScriptPredictReq(
     payload: CommandPayload<typeof CMD_CONTENT_SCRIPT_PREDICT_REQ>,
   ): Promise<void> {
@@ -359,7 +363,7 @@ export class MessageRouter {
       });
     }
 
-    sendResponse({ ok: true });
+    this.respondOk(sendResponse);
   }
 
   private async handleOptionsPageConfigChange(
@@ -377,7 +381,7 @@ export class MessageRouter {
         cause: error,
       });
     }
-    sendResponse({ ok: true });
+    this.respondOk(sendResponse);
   }
 
   private async handleContentScriptGetConfig(
@@ -414,7 +418,7 @@ export class MessageRouter {
   ): Promise<void> {
     const { request, sendResponse, worker } = payload;
     await worker.productivityStatsManager.recordUsageEvent(request.context);
-    sendResponse({ ok: true });
+    this.respondOk(sendResponse);
   }
 
   private async handlePopupGetProductivityStats(
@@ -431,7 +435,7 @@ export class MessageRouter {
     await worker.productivityStatsManager.acknowledgeWeeklyRecap(
       request.context.weekKey,
     );
-    sendResponse({ ok: true });
+    this.respondOk(sendResponse);
   }
 
   private async handlePopupAckDonationMilestone(
@@ -443,7 +447,7 @@ export class MessageRouter {
       request.context.action,
       request.context.milestoneHours,
     );
-    sendResponse({ ok: true });
+    this.respondOk(sendResponse);
   }
 
   private async handleOptionsResetProductivityStats(
@@ -451,7 +455,7 @@ export class MessageRouter {
   ): Promise<void> {
     const { sendResponse, worker } = payload;
     await worker.productivityStatsManager.resetStats();
-    sendResponse({ ok: true });
+    this.respondOk(sendResponse);
   }
 
   private async handleOptionsGetPredictorDebugSnapshot(
@@ -467,6 +471,6 @@ export class MessageRouter {
   ): Promise<void> {
     const { sendResponse, worker } = payload;
     worker.predictionManager.clearPredictorDebugTrace();
-    sendResponse({ ok: true });
+    this.respondOk(sendResponse);
   }
 }
