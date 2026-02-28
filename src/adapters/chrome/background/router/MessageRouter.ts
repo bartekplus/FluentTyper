@@ -14,17 +14,7 @@ import {
 } from "@core/domain/constants";
 import { createLogger } from "@core/application/logging/Logger";
 import type {
-  ContentScriptGetConfigMessage,
-  ContentScriptPredictRequestMessage,
-  ContentScriptUsageEventMessage,
   Message,
-  OptionsClearPredictorDebugTraceMessage,
-  OptionsGetPredictorDebugSnapshotMessage,
-  OptionsPageConfigChangeMessage,
-  OptionsResetProductivityStatsMessage,
-  PopupAckDonationMilestoneMessage,
-  PopupAckWeeklyRecapMessage,
-  PopupGetProductivityStatsMessage,
   PredictRequestMessage,
   UpdateLangConfigMessage,
 } from "@core/domain/messageTypes";
@@ -32,7 +22,6 @@ import {
   isMessageCommand,
   parseRuntimeMessage,
 } from "@core/domain/contracts/messages";
-import { err, ok, type Result } from "@core/domain/result";
 import {
   getDomain,
   isEnabledForDomain,
@@ -93,24 +82,27 @@ interface MessageDispatchPayload {
   worker: BackgroundServiceWorker;
 }
 
+type CommandPayload<TCommand extends RoutedMessageCommand = RoutedMessageCommand> =
+  Omit<MessageDispatchPayload, "request"> & {
+    request: RoutedMessageByCommand[TCommand];
+  };
+
 interface SenderRoutingContext {
   tabId: number;
   frameId: number;
 }
 
-type SenderRoutingContextError = { kind: "missing_tab_id" };
-
 function resolveSenderRoutingContext(
   sender: chrome.runtime.MessageSender,
-): Result<SenderRoutingContext, SenderRoutingContextError> {
+): SenderRoutingContext | null {
   const tabId = sender.tab?.id;
   if (typeof tabId !== "number") {
-    return err({ kind: "missing_tab_id" });
+    return null;
   }
-  return ok({
+  return {
     tabId,
     frameId: typeof sender.frameId === "number" ? sender.frameId : 0,
-  });
+  };
 }
 
 const MESSAGE_ERROR_LABELS: Record<RoutedMessageCommand, string> = {
@@ -169,77 +161,53 @@ export class MessageRouter {
       >(isRoutedMessageCommand),
     ]);
 
-    this.registry
-      .register(
-        CMD_CONTENT_SCRIPT_PREDICT_REQ,
-        this.createCommandHandler(
-          CMD_CONTENT_SCRIPT_PREDICT_REQ,
-          this.handleContentScriptPredictReq.bind(this),
-        ),
-      )
-      .register(
-        CMD_OPTIONS_PAGE_CONFIG_CHANGE,
-        this.createCommandHandler(
-          CMD_OPTIONS_PAGE_CONFIG_CHANGE,
-          this.handleOptionsPageConfigChange.bind(this),
-        ),
-      )
-      .register(
-        CMD_CONTENT_SCRIPT_GET_CONFIG,
-        this.createCommandHandler(
-          CMD_CONTENT_SCRIPT_GET_CONFIG,
-          this.handleContentScriptGetConfig.bind(this),
-        ),
-      )
-      .register(
-        CMD_CONTENT_SCRIPT_USAGE_EVENT,
-        this.createCommandHandler(
-          CMD_CONTENT_SCRIPT_USAGE_EVENT,
-          this.handleContentScriptUsageEvent.bind(this),
-        ),
-      )
-      .register(
-        CMD_POPUP_GET_PRODUCTIVITY_STATS,
-        this.createCommandHandler(
-          CMD_POPUP_GET_PRODUCTIVITY_STATS,
-          this.handlePopupGetProductivityStats.bind(this),
-        ),
-      )
-      .register(
-        CMD_POPUP_ACK_WEEKLY_RECAP,
-        this.createCommandHandler(
-          CMD_POPUP_ACK_WEEKLY_RECAP,
-          this.handlePopupAckWeeklyRecap.bind(this),
-        ),
-      )
-      .register(
-        CMD_POPUP_ACK_DONATION_MILESTONE,
-        this.createCommandHandler(
-          CMD_POPUP_ACK_DONATION_MILESTONE,
-          this.handlePopupAckDonationMilestone.bind(this),
-        ),
-      )
-      .register(
-        CMD_OPTIONS_RESET_PRODUCTIVITY_STATS,
-        this.createCommandHandler(
-          CMD_OPTIONS_RESET_PRODUCTIVITY_STATS,
-          this.handleOptionsResetProductivityStats.bind(this),
-        ),
-      )
-      .register(
-        CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT,
-        this.createCommandHandler(
-          CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT,
-          this.handleOptionsGetPredictorDebugSnapshot.bind(this),
-        ),
-      )
-      .register(
-        CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE,
-        this.createCommandHandler(
-          CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE,
-          this.handleOptionsClearPredictorDebugTrace.bind(this),
-        ),
-      );
+    const register = <TCommand extends RoutedMessageCommand>(
+      command: TCommand,
+      handler: (payload: CommandPayload<TCommand>) => Promise<void>,
+    ): void => {
+      this.registry.register(command, this.createCommandHandler(command, handler));
+    };
+
+    register(
+      CMD_CONTENT_SCRIPT_PREDICT_REQ,
+      this.handleContentScriptPredictReq.bind(this),
+    );
+    register(
+      CMD_OPTIONS_PAGE_CONFIG_CHANGE,
+      this.handleOptionsPageConfigChange.bind(this),
+    );
+    register(
+      CMD_CONTENT_SCRIPT_GET_CONFIG,
+      this.handleContentScriptGetConfig.bind(this),
+    );
+    register(
+      CMD_CONTENT_SCRIPT_USAGE_EVENT,
+      this.handleContentScriptUsageEvent.bind(this),
+    );
+    register(
+      CMD_POPUP_GET_PRODUCTIVITY_STATS,
+      this.handlePopupGetProductivityStats.bind(this),
+    );
+    register(
+      CMD_POPUP_ACK_WEEKLY_RECAP,
+      this.handlePopupAckWeeklyRecap.bind(this),
+    );
+    register(
+      CMD_POPUP_ACK_DONATION_MILESTONE,
+      this.handlePopupAckDonationMilestone.bind(this),
+    );
+    register(
+      CMD_OPTIONS_RESET_PRODUCTIVITY_STATS,
+      this.handleOptionsResetProductivityStats.bind(this),
+    );
+    register(
+      CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT,
+      this.handleOptionsGetPredictorDebugSnapshot.bind(this),
+    );
+    register(
+      CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE,
+      this.handleOptionsClearPredictorDebugTrace.bind(this),
+    );
   }
 
   handle(
@@ -267,13 +235,12 @@ export class MessageRouter {
       logError("onMessage", `Unknown command: ${runtimeMessage.command}`);
       return false;
     }
-    const worker = this.getWorker();
 
     void this.registry.dispatch(runtimeMessage.command, {
       request: runtimeMessage,
       sender,
       sendResponse,
-      worker,
+      worker: this.getWorker(),
     });
 
     return runtimeMessage.command !== CMD_CONTENT_SCRIPT_PREDICT_REQ;
@@ -281,12 +248,7 @@ export class MessageRouter {
 
   private createCommandHandler<TCommand extends RoutedMessageCommand>(
     command: TCommand,
-    handler: (
-      request: RoutedMessageByCommand[TCommand],
-      sender: chrome.runtime.MessageSender,
-      sendResponse: (response?: unknown) => void,
-      worker: BackgroundServiceWorker,
-    ) => Promise<void>,
+    handler: (payload: CommandPayload<TCommand>) => Promise<void>,
   ): (payload: MessageDispatchPayload) => Promise<void> {
     return async (payload) => {
       if (payload.request.command !== command) {
@@ -297,31 +259,27 @@ export class MessageRouter {
           },
         );
       }
-      const typedRequest = payload.request as RoutedMessageByCommand[TCommand];
-      await handler(
-        typedRequest,
-        payload.sender,
-        payload.sendResponse,
-        payload.worker,
-      );
+      await handler({
+        ...payload,
+        request: payload.request as RoutedMessageByCommand[TCommand],
+      });
     };
   }
 
   private async handleContentScriptPredictReq(
-    request: ContentScriptPredictRequestMessage,
-    sender: chrome.runtime.MessageSender,
-    sendResponse: (response?: unknown) => void,
-    worker: BackgroundServiceWorker,
+    payload: CommandPayload<typeof CMD_CONTENT_SCRIPT_PREDICT_REQ>,
   ): Promise<void> {
+    const { request, sender, sendResponse, worker } = payload;
     const senderContext = resolveSenderRoutingContext(sender);
-    if (!senderContext.ok) {
+    if (!senderContext) {
       throw new TransportError("Missing sender tab id for prediction request", {
         code: "message_missing_sender_tab_id",
       });
     }
 
-    const { tabId, frameId } = senderContext.value;
+    const { tabId, frameId } = senderContext;
     const domainURL = getDomain(sender.tab?.url || "");
+
     let domainSettings: Awaited<ReturnType<typeof resolveDomainRuntimeSettings>>;
     try {
       domainSettings = await resolveDomainRuntimeSettings(
@@ -337,6 +295,7 @@ export class MessageRouter {
         cause: error,
       });
     }
+
     let language = domainSettings.language;
     worker.language = language;
 
@@ -399,15 +358,14 @@ export class MessageRouter {
         cause: error,
       });
     }
+
     sendResponse({ ok: true });
   }
 
   private async handleOptionsPageConfigChange(
-    request: OptionsPageConfigChangeMessage,
-    sender: chrome.runtime.MessageSender,
-    sendResponse: (response?: unknown) => void,
-    worker: BackgroundServiceWorker,
+    payload: CommandPayload<typeof CMD_OPTIONS_PAGE_CONFIG_CHANGE>,
   ): Promise<void> {
+    const { sendResponse, worker } = payload;
     try {
       await worker.updatePresageConfig();
     } catch (error) {
@@ -423,12 +381,11 @@ export class MessageRouter {
   }
 
   private async handleContentScriptGetConfig(
-    request: ContentScriptGetConfigMessage,
-    sender: chrome.runtime.MessageSender,
-    sendResponse: (response?: unknown) => void,
-    worker: BackgroundServiceWorker,
+    payload: CommandPayload<typeof CMD_CONTENT_SCRIPT_GET_CONFIG>,
   ): Promise<void> {
+    const { sender, sendResponse, worker } = payload;
     const domain = getDomain(sender.tab?.url || "") || "";
+
     let isEnabled: boolean;
     let message: Awaited<
       ReturnType<BackgroundServiceWorker["getBackgroundPageSetConfigMsg"]>
@@ -447,36 +404,30 @@ export class MessageRouter {
         cause: error,
       });
     }
+
     message.context.enabled = isEnabled;
     sendResponse(message);
   }
 
   private async handleContentScriptUsageEvent(
-    request: ContentScriptUsageEventMessage,
-    sender: chrome.runtime.MessageSender,
-    sendResponse: (response?: unknown) => void,
-    worker: BackgroundServiceWorker,
+    payload: CommandPayload<typeof CMD_CONTENT_SCRIPT_USAGE_EVENT>,
   ): Promise<void> {
+    const { request, sendResponse, worker } = payload;
     await worker.productivityStatsManager.recordUsageEvent(request.context);
     sendResponse({ ok: true });
   }
 
   private async handlePopupGetProductivityStats(
-    request: PopupGetProductivityStatsMessage,
-    sender: chrome.runtime.MessageSender,
-    sendResponse: (response?: unknown) => void,
-    worker: BackgroundServiceWorker,
+    payload: CommandPayload<typeof CMD_POPUP_GET_PRODUCTIVITY_STATS>,
   ): Promise<void> {
-    const stats = await worker.productivityStatsManager.getDashboardStats();
-    sendResponse(stats);
+    const { sendResponse, worker } = payload;
+    sendResponse(await worker.productivityStatsManager.getDashboardStats());
   }
 
   private async handlePopupAckWeeklyRecap(
-    request: PopupAckWeeklyRecapMessage,
-    sender: chrome.runtime.MessageSender,
-    sendResponse: (response?: unknown) => void,
-    worker: BackgroundServiceWorker,
+    payload: CommandPayload<typeof CMD_POPUP_ACK_WEEKLY_RECAP>,
   ): Promise<void> {
+    const { request, sendResponse, worker } = payload;
     await worker.productivityStatsManager.acknowledgeWeeklyRecap(
       request.context.weekKey,
     );
@@ -484,11 +435,9 @@ export class MessageRouter {
   }
 
   private async handlePopupAckDonationMilestone(
-    request: PopupAckDonationMilestoneMessage,
-    sender: chrome.runtime.MessageSender,
-    sendResponse: (response?: unknown) => void,
-    worker: BackgroundServiceWorker,
+    payload: CommandPayload<typeof CMD_POPUP_ACK_DONATION_MILESTONE>,
   ): Promise<void> {
+    const { request, sendResponse, worker } = payload;
     await worker.productivityStatsManager.handleDonationPromptAction(
       request.context.promptId,
       request.context.action,
@@ -498,31 +447,25 @@ export class MessageRouter {
   }
 
   private async handleOptionsResetProductivityStats(
-    request: OptionsResetProductivityStatsMessage,
-    sender: chrome.runtime.MessageSender,
-    sendResponse: (response?: unknown) => void,
-    worker: BackgroundServiceWorker,
+    payload: CommandPayload<typeof CMD_OPTIONS_RESET_PRODUCTIVITY_STATS>,
   ): Promise<void> {
+    const { sendResponse, worker } = payload;
     await worker.productivityStatsManager.resetStats();
     sendResponse({ ok: true });
   }
 
   private async handleOptionsGetPredictorDebugSnapshot(
-    request: OptionsGetPredictorDebugSnapshotMessage,
-    sender: chrome.runtime.MessageSender,
-    sendResponse: (response?: unknown) => void,
-    worker: BackgroundServiceWorker,
+    payload: CommandPayload<typeof CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT>,
   ): Promise<void> {
+    const { sendResponse, worker } = payload;
     await worker.predictionManager.initialize();
     sendResponse(worker.predictionManager.getPredictorDebugSnapshot());
   }
 
   private async handleOptionsClearPredictorDebugTrace(
-    request: OptionsClearPredictorDebugTraceMessage,
-    sender: chrome.runtime.MessageSender,
-    sendResponse: (response?: unknown) => void,
-    worker: BackgroundServiceWorker,
+    payload: CommandPayload<typeof CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE>,
   ): Promise<void> {
+    const { sendResponse, worker } = payload;
     worker.predictionManager.clearPredictorDebugTrace();
     sendResponse({ ok: true });
   }

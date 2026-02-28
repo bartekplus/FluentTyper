@@ -1,6 +1,7 @@
 import { DEFAULT_NUM_SUGGESTIONS } from "@core/domain/constants";
 import type {
   DomainListMode,
+  SettingField,
   SettingsSchema,
 } from "@core/domain/contracts/settings";
 import { resolveEnabledLanguages } from "@core/domain/lang";
@@ -36,8 +37,27 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
     return typeof value === "string" ? value : fallback;
   }
 
+  private async getBooleanField(
+    field: SettingField,
+    fallback = false,
+  ): Promise<boolean> {
+    return CoreSettingsRepository.toBoolean(await this.getField(field), fallback);
+  }
+
+  private async getStringField(
+    field: SettingField,
+    fallback = "",
+  ): Promise<string> {
+    return CoreSettingsRepository.toString(await this.getField(field), fallback);
+  }
+
+  private async getStringArrayField(field: SettingField): Promise<string[]> {
+    const value = await this.getField(field);
+    return Array.isArray(value) ? value.map((item) => String(item)) : [];
+  }
+
   async isEnabled(): Promise<boolean> {
-    return CoreSettingsRepository.toBoolean(await this.getField("enabled"));
+    return this.getBooleanField("enabled");
   }
 
   async setEnabled(enabled: boolean): Promise<void> {
@@ -45,10 +65,7 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
   }
 
   async getLanguage(): Promise<string> {
-    return CoreSettingsRepository.toString(
-      await this.getField("language"),
-      DEFAULT_LANGUAGE,
-    );
+    return this.getStringField("language", DEFAULT_LANGUAGE);
   }
 
   async setLanguage(language: string): Promise<void> {
@@ -56,10 +73,7 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
   }
 
   async getFallbackLanguage(): Promise<string> {
-    return CoreSettingsRepository.toString(
-      await this.getField("fallbackLanguage"),
-      DEFAULT_LANGUAGE,
-    );
+    return this.getStringField("fallbackLanguage", DEFAULT_LANGUAGE);
   }
 
   async setFallbackLanguage(language: string): Promise<void> {
@@ -78,7 +92,7 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
   }
 
   async getInlineSuggestion(): Promise<boolean> {
-    return CoreSettingsRepository.toBoolean(await this.getField("inlineSuggestion"));
+    return this.getBooleanField("inlineSuggestion");
   }
 
   async getDomainListMode(): Promise<DomainListMode> {
@@ -87,10 +101,7 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
   }
 
   async getDomainList(): Promise<string[]> {
-    const list = await this.getField("domainList");
-    return Array.isArray(list)
-      ? list.map((item) => String(item))
-      : [];
+    return this.getStringArrayField("domainList");
   }
 
   async setDomainList(list: string[]): Promise<void> {
@@ -98,21 +109,19 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
   }
 
   async getAutocomplete(): Promise<boolean> {
-    return CoreSettingsRepository.toBoolean(await this.getField("autocomplete"));
+    return this.getBooleanField("autocomplete");
   }
 
   async getAutocompleteOnEnter(): Promise<boolean> {
-    return CoreSettingsRepository.toBoolean(
-      await this.getField("autocompleteOnEnter"),
-    );
+    return this.getBooleanField("autocompleteOnEnter");
   }
 
   async getAutocompleteOnTab(): Promise<boolean> {
-    return CoreSettingsRepository.toBoolean(await this.getField("autocompleteOnTab"));
+    return this.getBooleanField("autocompleteOnTab");
   }
 
   async getSelectByDigit(): Promise<boolean> {
-    return CoreSettingsRepository.toBoolean(await this.getField("selectByDigit"));
+    return this.getBooleanField("selectByDigit");
   }
 
   async getMinWordLengthToPredict(): Promise<number> {
@@ -124,25 +133,23 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
   }
 
   async getRevertOnBackspace(): Promise<boolean> {
-    return CoreSettingsRepository.toBoolean(await this.getField("revertOnBackspace"));
+    return this.getBooleanField("revertOnBackspace");
   }
 
   async getDisplayLangHeader(): Promise<boolean> {
-    return CoreSettingsRepository.toBoolean(await this.getField("displayLangHeader"));
+    return this.getBooleanField("displayLangHeader");
   }
 
   async getInsertSpaceAfterAutocomplete(): Promise<boolean> {
-    return CoreSettingsRepository.toBoolean(
-      await this.getField("insertSpaceAfterAutocomplete"),
-    );
+    return this.getBooleanField("insertSpaceAfterAutocomplete");
   }
 
   async getAutoCapitalize(): Promise<boolean> {
-    return CoreSettingsRepository.toBoolean(await this.getField("autoCapitalize"));
+    return this.getBooleanField("autoCapitalize");
   }
 
   async getApplySpacingRules(): Promise<boolean> {
-    return CoreSettingsRepository.toBoolean(await this.getField("applySpacingRules"));
+    return this.getBooleanField("applySpacingRules");
   }
 
   async getTextExpansions(): Promise<Array<[string, object]>> {
@@ -164,11 +171,7 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
         normalized.push([shortcut, expansion as unknown as object]);
         continue;
       }
-      if (
-        !expansion ||
-        typeof expansion !== "object" ||
-        Array.isArray(expansion)
-      ) {
+      if (!expansion || typeof expansion !== "object" || Array.isArray(expansion)) {
         continue;
       }
       normalized.push([shortcut, expansion]);
@@ -177,20 +180,19 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
   }
 
   async getVariableExpansion(): Promise<boolean> {
-    return CoreSettingsRepository.toBoolean(await this.getField("variableExpansion"));
+    return this.getBooleanField("variableExpansion");
   }
 
   async getTimeFormat(): Promise<string> {
-    return CoreSettingsRepository.toString(await this.getField("timeFormat"));
+    return this.getStringField("timeFormat");
   }
 
   async getDateFormat(): Promise<string> {
-    return CoreSettingsRepository.toString(await this.getField("dateFormat"));
+    return this.getStringField("dateFormat");
   }
 
   async getUserDictionaryList(): Promise<string[]> {
-    const list = await this.getField("userDictionaryList");
-    return Array.isArray(list) ? list.map((item) => String(item)) : [];
+    return this.getStringArrayField("userDictionaryList");
   }
 
   async getThemeSettings(): Promise<ThemeSettings> {
