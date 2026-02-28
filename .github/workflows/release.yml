@@ -61,9 +61,10 @@ jobs:
       - name: Prepare files
         run: |
           bun install --frozen-lockfile
-          bunx cross-env PLATFORM=${{ matrix.browser }} bun run build
+          bun run build
           mv build ${{ matrix.browser }}
         env:
+          PLATFORM: ${{ matrix.browser }}
           SOURCE_TAG: ${{ steps.branch_name.outputs.SOURCE_TAG }}
       - name: Zip Release
         run: |
