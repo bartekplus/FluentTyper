@@ -336,7 +336,7 @@ async function main(): Promise<void> {
 
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = path.dirname(__filename);
-  const rootDir = path.resolve(__dirname, "..");
+  const rootDir = __dirname;
   const srcDir = path.join(rootDir, "src");
   const buildDir = path.join(rootDir, "build");
   const publicDir = path.join(rootDir, "public");

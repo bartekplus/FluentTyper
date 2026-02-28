@@ -86,7 +86,7 @@ async function main(): Promise<void> {
   await mkdir(".tmp", { recursive: true });
   await runCommand([
     bunExecutable,
-    "scripts/build-extension.ts",
+    "build.ts",
     `--mode=${options.mode}`,
     `--platform=${options.platform}`,
   ]);
