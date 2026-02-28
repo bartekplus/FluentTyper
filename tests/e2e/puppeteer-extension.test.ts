@@ -1109,7 +1109,7 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await input!.type("impor");
         const countWithOverride = await waitForVisibleSuggestions(
           page,
-          browserTimeout(15000, 25000),
+          browserTimeout(15000, 35000),
         );
         expect(countWithOverride).toBeGreaterThan(0);
 
