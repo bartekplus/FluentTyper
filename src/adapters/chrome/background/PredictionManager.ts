@@ -204,14 +204,15 @@ export class PredictionManager {
     const presageDebugState = this.presageHandler?.getDebugState();
     const orchestratorDebugState =
       this.predictionOrchestrator?.getDebugState().predictorConfig;
+    const aiPredictorEnabled =
+      orchestratorDebugState?.aiPredictorEnabled ??
+      this.currentConfig?.aiPredictorEnabled ??
+      false;
 
     return {
       generatedAtMs: Date.now(),
       config: {
-        aiPredictorEnabled:
-          orchestratorDebugState?.aiPredictorEnabled ??
-          this.currentConfig?.aiPredictorEnabled ??
-          false,
+        aiPredictorEnabled,
         aiModelId:
           orchestratorDebugState?.aiModelId ??
           this.currentConfig?.aiModelId ??
@@ -234,7 +235,7 @@ export class PredictionManager {
           languageEngineCount: presageDebugState?.languageEngineCount ?? 0,
         },
         webllm: {
-          enabled: webllmDebugState.enabled,
+          enabled: aiPredictorEnabled && webllmDebugState.enabled,
           modelId: webllmDebugState.modelId,
           status: webllmDebugState.status,
           hasWebGPU: webllmDebugState.hasWebGPU,
