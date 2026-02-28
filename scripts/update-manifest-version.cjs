@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // scripts/update-manifest-version.js
 // Updates the version in all manifest.json files under the platform directory to match package.json
 
