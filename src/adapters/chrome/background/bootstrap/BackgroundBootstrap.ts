@@ -4,7 +4,7 @@ import { BackgroundServiceWorker } from "../BackgroundServiceWorker";
 import { migrateToLocalStore } from "../Migration";
 import { CommandRouter } from "../router/CommandRouter";
 import { MessageRouter } from "../router/MessageRouter";
-import { registerRuntimeTestHooks } from "../testing/RuntimeTestHooks";
+import { registerRuntimeTestHooks } from "@adapters/chrome/background/testing/RuntimeTestHooks";
 
 export class BackgroundBootstrap {
   private readonly getWorker = (): BackgroundServiceWorker =>

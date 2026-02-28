@@ -3,10 +3,12 @@ import {
   CMD_TOGGLE_FT_ACTIVE_TAB,
   CMD_TRIGGER_FT_ACTIVE_TAB,
 } from "@core/domain/constants";
-import { ENABLE_TEST_RUNTIME_HOOKS } from "../BackgroundServiceWorker";
 import { CommandRouter } from "../router/CommandRouter";
 
-interface WebLLMTestPredictionCall {
+declare const __FT_DEV_BUILD__: boolean | undefined;
+declare const __FT_E2E_BUILD__: boolean | undefined;
+
+interface RuntimeTestPredictionRequest {
   lang: string;
   predictionInput: string;
   numSuggestions: number;
@@ -15,7 +17,7 @@ interface WebLLMTestPredictionCall {
 interface WebLLMTestOverrideState {
   predictions: string[];
   delayMs: number;
-  calls: WebLLMTestPredictionCall[];
+  calls: RuntimeTestPredictionRequest[];
 }
 
 type WebLLMTestGlobals = typeof globalThis & {
@@ -28,6 +30,9 @@ const TEST_MSG_TRIGGER_COMMAND = "TEST_TRIGGER_COMMAND";
 const TEST_MSG_SET_WEBLLM_PREDICTIONS = "TEST_SET_WEBLLM_PREDICTIONS";
 const TEST_MSG_CLEAR_WEBLLM_PREDICTIONS = "TEST_CLEAR_WEBLLM_PREDICTIONS";
 const TEST_MSG_GET_WEBLLM_PREDICTION_CALLS = "TEST_GET_WEBLLM_PREDICTION_CALLS";
+const ENABLE_RUNTIME_TEST_HOOKS =
+  (typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__)) ||
+  (typeof __FT_E2E_BUILD__ !== "undefined" && Boolean(__FT_E2E_BUILD__));
 
 function getWebLLMTestGlobals(): WebLLMTestGlobals {
   return globalThis as WebLLMTestGlobals;
@@ -48,7 +53,7 @@ function clearWebLLMTestOverride(): void {
   delete getWebLLMTestGlobals()[WEB_LLM_TEST_OVERRIDE_KEY];
 }
 
-function getWebLLMTestPredictionCalls(): WebLLMTestPredictionCall[] {
+function getWebLLMTestPredictionCalls(): RuntimeTestPredictionRequest[] {
   const override = getWebLLMTestGlobals()[WEB_LLM_TEST_OVERRIDE_KEY];
   if (!override || !Array.isArray(override.calls)) {
     return [];
@@ -60,11 +65,46 @@ function getWebLLMTestPredictionCalls(): WebLLMTestPredictionCall[] {
   }));
 }
 
-export function registerRuntimeTestHooks(commandRouter: CommandRouter): void {
-  if (!ENABLE_TEST_RUNTIME_HOOKS) {
-    return;
+export async function maybePredictFromRuntimeTestOverride(
+  request: RuntimeTestPredictionRequest,
+): Promise<string[] | null> {
+  if (!ENABLE_RUNTIME_TEST_HOOKS) {
+    return null;
+  }
+  const override = getWebLLMTestGlobals()[WEB_LLM_TEST_OVERRIDE_KEY];
+  if (!override) {
+    return null;
   }
 
+  if (Array.isArray(override.calls)) {
+    override.calls.push({
+      lang: request.lang,
+      predictionInput: request.predictionInput,
+      numSuggestions: request.numSuggestions,
+    });
+  }
+  const delayMs =
+    typeof override.delayMs === "number" && Number.isFinite(override.delayMs)
+      ? Math.max(0, Math.round(override.delayMs))
+      : 0;
+  if (delayMs > 0) {
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+  }
+  if (!Array.isArray(override.predictions)) {
+    return [];
+  }
+
+  return override.predictions
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0)
+    .slice(0, request.numSuggestions);
+}
+
+export function registerRuntimeTestHooks(commandRouter: CommandRouter): void {
+  if (!ENABLE_RUNTIME_TEST_HOOKS) {
+    return;
+  }
   if (typeof globalThis !== "undefined") {
     getWebLLMTestGlobals().triggerCommandForTesting = async (command: string) => {
       await commandRouter.handle(command);

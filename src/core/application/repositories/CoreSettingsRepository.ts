@@ -160,7 +160,15 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
       if (typeof shortcut !== "string") {
         continue;
       }
-      if (!expansion || typeof expansion !== "object") {
+      if (typeof expansion === "string") {
+        normalized.push([shortcut, expansion as unknown as object]);
+        continue;
+      }
+      if (
+        !expansion ||
+        typeof expansion !== "object" ||
+        Array.isArray(expansion)
+      ) {
         continue;
       }
       normalized.push([shortcut, expansion]);

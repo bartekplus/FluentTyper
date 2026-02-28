@@ -58,6 +58,18 @@ export default (env, argv) => {
   const configuredLogLevel = process.env.FT_LOG_LEVEL || "";
   const includeWebLLMRuntime = isDevBuild || isE2EBuild;
   const alias = {
+    ...(includeWebLLMRuntime
+      ? {}
+      : {
+          "@adapters/chrome/background/testing/RuntimeTestHooks$": path.join(
+            srcDir,
+            "adapters",
+            "chrome",
+            "background",
+            "testing",
+            "RuntimeTestHooks.noop.ts",
+          ),
+        }),
     "@core": path.join(srcDir, "core"),
     "@adapters": path.join(srcDir, "adapters"),
     "@ui": path.join(srcDir, "ui"),

@@ -15,6 +15,7 @@ import { GenerationCoordinator } from "./webllm/GenerationCoordinator";
 import { PredictionCache } from "./webllm/PredictionCache";
 import { PromptBuilder } from "./webllm/PromptBuilder";
 import { ResponseParser } from "./webllm/ResponseParser";
+import { maybePredictFromRuntimeTestOverride } from "@adapters/chrome/background/testing/RuntimeTestHooks";
 import type {
   ChatCreateResponse,
   CompletionCreateResponse,
@@ -25,24 +26,7 @@ import type {
 
 const CACHE_TTL_MS = 5000;
 const MAX_GENERATION_CHOICES = 5;
-const WEB_LLM_TEST_OVERRIDE_KEY = "__fluentTyperWebLLMTestOverride__";
 const logger = createLogger("WebLLMPredictor");
-
-interface WebLLMTestPredictionCall {
-  lang: string;
-  predictionInput: string;
-  numSuggestions: number;
-}
-
-interface WebLLMTestOverrideState {
-  predictions: string[];
-  delayMs: number;
-  calls: WebLLMTestPredictionCall[];
-}
-
-type WebLLMTestGlobals = typeof globalThis & {
-  __fluentTyperWebLLMTestOverride__?: WebLLMTestOverrideState;
-};
 
 export type WebLLMPredictorConfig = SecondaryPredictorConfig;
 
@@ -194,13 +178,16 @@ export class WebLLMPredictor implements SecondaryPredictor {
       return [];
     }
     const requestSeq = this.generationCoordinator.nextGenerationSeq();
-    const testOverride = this.getTestOverrideState();
-    if (testOverride) {
-      const predictions = await this.predictFromTestOverride(testOverride, request);
+    const testOverridePredictions = await maybePredictFromRuntimeTestOverride({
+      lang: request.lang,
+      predictionInput: request.predictionInput,
+      numSuggestions: request.numSuggestions,
+    });
+    if (testOverridePredictions) {
       if (this.isRequestStale(requestSeq)) {
         return [];
       }
-      return predictions;
+      return testOverridePredictions;
     }
     const cacheKey = this.predictionCache.getCacheKey(this.modelId, request);
     const cachedPredictions = this.predictionCache.get(cacheKey);
@@ -346,40 +333,6 @@ export class WebLLMPredictor implements SecondaryPredictor {
       seq !== this.generationCoordinator.getActiveGenerationSeq() ||
       this.generationCoordinator.isCancelled(seq)
     );
-  }
-
-  private getTestOverrideState(): WebLLMTestOverrideState | null {
-    const testGlobals = globalThis as WebLLMTestGlobals;
-    const override = testGlobals[WEB_LLM_TEST_OVERRIDE_KEY];
-    return override ?? null;
-  }
-
-  private async predictFromTestOverride(
-    override: WebLLMTestOverrideState,
-    request: WebLLMPredictRequest,
-  ): Promise<string[]> {
-    if (Array.isArray(override.calls)) {
-      override.calls.push({
-        lang: request.lang,
-        predictionInput: request.predictionInput,
-        numSuggestions: request.numSuggestions,
-      });
-    }
-    const delayMs =
-      typeof override.delayMs === "number" && Number.isFinite(override.delayMs)
-        ? Math.max(0, Math.round(override.delayMs))
-        : 0;
-    if (delayMs > 0) {
-      await new Promise((resolve) => setTimeout(resolve, delayMs));
-    }
-    if (!Array.isArray(override.predictions)) {
-      return [];
-    }
-    return override.predictions
-      .filter((item): item is string => typeof item === "string")
-      .map((item) => item.trim())
-      .filter((item) => item.length > 0)
-      .slice(0, request.numSuggestions);
   }
 
   private async ensureReady(): Promise<boolean> {

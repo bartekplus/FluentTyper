@@ -13,6 +13,7 @@ import {
   KEY_MIN_WORD_LENGTH_TO_PREDICT,
   KEY_PRODUCTIVITY_STATS,
   KEY_SITE_PROFILES,
+  KEY_TEXT_EXPANSIONS,
 } from "../../src/core/domain/constants";
 import { SUPPORTED_PREDICTION_LANGUAGE_KEYS } from "../../src/core/domain/lang";
 import {
@@ -1711,20 +1712,18 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   };
 
   async function runPredictionForAllLanguagesScenario(selector: string) {
-    await gotoTestPage(page, {
-      enableCkEditor: shouldEnableCkEditor(selector),
-    });
-    await page.bringToFront();
-    await waitForInputReady(page, selector);
-
-    await setSetting(
+    await setSettingAndWait(
       worker!,
       KEY_ENABLED_LANGUAGES,
       SUPPORTED_PREDICTION_LANGUAGE_KEYS,
     );
-    await setSetting(worker!, KEY_INLINE_SUGGESTION, false);
-    await setSetting(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-    await setSetting(worker!, KEY_NUM_SUGGESTIONS, 5);
+    await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
+    await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
+    await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+    await setSettingAndWait(worker!, KEY_NUM_SUGGESTIONS, 5);
+    await setSettingAndWait(worker!, KEY_TEXT_EXPANSIONS, [
+      ["asap", "as soon as possible"],
+    ]);
     await applyConfigChange(browser, worker!);
 
     for (const lang of SUPPORTED_PREDICTION_LANGUAGE_KEYS) {
@@ -1743,10 +1742,19 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             ? browserTimeout(2000, 4000)
             : browserTimeout(3000, 10000);
 
-      await setSetting(worker!, KEY_LANGUAGE, lang);
+      await setSettingAndWait(worker!, KEY_LANGUAGE, lang);
       await applyConfigChange(browser, worker!);
 
+      await gotoTestPage(page, {
+        enableCkEditor: shouldEnableCkEditor(selector),
+      });
+      await page.bringToFront();
+      await waitForInputReady(page, selector);
+
       await clearInputContent(page, selector);
+      await waitForNoVisibleSuggestions(page, browserTimeout(2000, 5000)).catch(
+        () => undefined,
+      );
       await typeInInput(page, selector, testData.input);
       await new Promise((r) => setTimeout(r, typingSettleMs));
 
@@ -1779,7 +1787,8 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await clearInputContent(page, selector);
     }
 
-    await setSetting(worker!, KEY_LANGUAGE, "en_US");
+    await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+    await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
     await applyConfigChange(browser, worker!);
   }
 
@@ -1997,12 +2006,16 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         enableCkEditor: shouldEnableCkEditor(selector),
       });
       await page.bringToFront();
+      await waitForInputReady(page, selector);
 
-      await setSetting(worker!, KEY_ENABLED_LANGUAGES, ["textExpander"]);
-      await setSetting(worker!, KEY_LANGUAGE, "textExpander");
+      await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, ["textExpander"]);
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "textExpander");
+      await setSettingAndWait(worker!, KEY_TEXT_EXPANSIONS, [
+        ["asap", "as soon as possible"],
+      ]);
       await applyConfigChange(browser, worker!);
 
-      await waitForInputReady(page, selector);
       const element = await page.$(selector);
       await element!.type("asap"); // Trigger text expansion
 
@@ -2029,12 +2042,13 @@ describe(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       expect(elementText).toBe("as soon as possible\xa0");
 
       // Cleanup
-      await setSetting(
+      await setSettingAndWait(
         worker!,
         KEY_ENABLED_LANGUAGES,
         SUPPORTED_PREDICTION_LANGUAGE_KEYS,
       );
-      await setSetting(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
       await applyConfigChange(browser, worker!);
     },
     browserTimeout(30000, 45000),
