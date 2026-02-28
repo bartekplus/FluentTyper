@@ -5,7 +5,7 @@ let i18n = new I18n();
 // Override language from localStorage if extension language is set.
 // Uses synchronous localStorage (available in page contexts like options page)
 // instead of async chrome.storage.local to avoid top-level await which breaks
-// webpack bundling for service workers.
+// service-worker entry bundling.
 try {
   if (typeof localStorage !== "undefined") {
     const storageKey = `store.settings.${KEY_EXTENSION_LANGUAGE}`;
