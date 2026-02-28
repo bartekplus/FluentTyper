@@ -160,9 +160,11 @@ export class TributeManager {
     expectedValue: string | RegExp,
     defaultValue: string,
   ): boolean {
-    const elemValue = elem.hasAttribute(propertyName)
-      ? elem.getAttribute(propertyName)!.toLowerCase().trim()
-      : defaultValue;
+    const attributeValue = elem.getAttribute(propertyName);
+    const elemValue =
+      typeof attributeValue === "string"
+        ? attributeValue.toLowerCase().trim()
+        : defaultValue;
     if (typeof expectedValue === "string") {
       return elemValue === expectedValue;
     }

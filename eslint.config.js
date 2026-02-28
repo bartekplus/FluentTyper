@@ -37,6 +37,12 @@ export default defineConfig([
     },
   },
   {
+    files: ["src/**/*.{ts,mts,cts,d.ts}"],
+    rules: {
+      "@typescript-eslint/no-non-null-assertion": "error",
+    },
+  },
+  {
     files: MODULE_FILES,
     rules: {
       "no-restricted-imports": [

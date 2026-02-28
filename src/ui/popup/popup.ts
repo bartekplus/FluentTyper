@@ -520,30 +520,31 @@ function renderMilestoneHint(stats: ProductivityDashboardStats): void {
     lastMarkedDonationPromptId = null;
     return;
   }
+  const donationPrompt = stats.donationPrompt;
 
-  if (lastMarkedDonationPromptId !== stats.donationPrompt.promptId) {
-    lastMarkedDonationPromptId = stats.donationPrompt.promptId;
+  if (lastMarkedDonationPromptId !== donationPrompt.promptId) {
+    lastMarkedDonationPromptId = donationPrompt.promptId;
     void handleDonationPromptAction(
-      stats.donationPrompt.promptId,
+      donationPrompt.promptId,
       "shown",
-      stats.donationPrompt.milestoneHours,
+      donationPrompt.milestoneHours,
     );
   }
 
   container.classList.remove("is-hidden");
-  textNode.textContent = stats.donationPrompt.message;
+  textNode.textContent = donationPrompt.message;
   linkNode.onclick = () => {
     void handleDonationPromptAction(
-      stats.donationPrompt!.promptId,
+      donationPrompt.promptId,
       "supported",
-      stats.donationPrompt!.milestoneHours,
+      donationPrompt.milestoneHours,
     );
   };
   laterButton.onclick = () => {
     void handleDonationPromptAction(
-      stats.donationPrompt!.promptId,
+      donationPrompt.promptId,
       "snooze",
-      stats.donationPrompt!.milestoneHours,
+      donationPrompt.milestoneHours,
     );
     container.classList.add("is-hidden");
   };
@@ -637,9 +638,10 @@ function init() {
           const enabled = await isEnabledForDomain(settings, domainURL);
           checkboxNode.checked = enabled;
           urlNode.innerHTML = `<span>${i18n.get("popup_enable_autocomplete_on")}</span>`;
-          urlNode
-            .querySelector("span")!
-            .appendChild(document.createTextNode(domainURL));
+          const labelSpan = urlNode.querySelector("span");
+          if (labelSpan) {
+            labelSpan.appendChild(document.createTextNode(domainURL));
+          }
           if (typeof currentTab.id === "number") {
             window.document
               .getElementById("checkboxDomainInput")
@@ -700,9 +702,9 @@ function init() {
   window.document
     .getElementById("languageSelect")
     ?.addEventListener("change", languageChangeEvent);
-  document.getElementById("runOptions")!.onclick = function () {
+  document.getElementById("runOptions")?.addEventListener("click", () => {
     chrome.runtime.openOptionsPage();
-  };
+  });
   void loadProductivityDashboard();
 }
 
@@ -724,9 +726,10 @@ async function addRemoveDomain(tabId: number, domainURL: string) {
     };
   }
   urlNode.innerHTML = `<span>${i18n.get("popup_enable_autocomplete_on")}</span>`;
-  urlNode
-    .querySelector("span")!
-    .appendChild(document.createTextNode(domainURL));
+  const labelSpan = urlNode.querySelector("span");
+  if (labelSpan) {
+    labelSpan.appendChild(document.createTextNode(domainURL));
+  }
   await blockUnBlockDomain(settings, domainURL, !checkboxNode.checked);
   chrome.tabs.sendMessage(tabId, message);
 }
@@ -762,7 +765,10 @@ async function toggleOnOff() {
           context: {},
         };
       }
-      chrome.tabs.sendMessage(tabs[i].id!, message);
+      const tabId = tabs[i].id;
+      if (typeof tabId === "number") {
+        chrome.tabs.sendMessage(tabId, message);
+      }
     }
   });
 }

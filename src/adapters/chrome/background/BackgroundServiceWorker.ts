@@ -66,9 +66,9 @@ export class BackgroundServiceWorker {
   ): Promise<void> {
     const { predictions, forceReplace } =
       await this.predictionManager.runPrediction(
-        message.context.text!,
-        message.context.nextChar!,
-        message.context.lang!,
+        message.context.text,
+        message.context.nextChar,
+        message.context.lang,
         configOverride,
         {
           requestId: message.context.requestId,
@@ -97,11 +97,11 @@ export class BackgroundServiceWorker {
         forceReplace,
       },
     };
-    chrome.tabs.get(message.context.tabId!, async function (tab) {
+    chrome.tabs.get(message.context.tabId, async function (tab) {
       checkLastError();
       if (tab) {
         await chrome.tabs.sendMessage(
-          message.context.tabId!,
+          message.context.tabId,
           predictResponseMessage,
           {
             frameId: message.context.frameId,

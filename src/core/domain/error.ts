@@ -1,13 +1,14 @@
+import { hasStringProperty, isObjectRecord } from "./guards";
+
 type ErrorWithMessage = {
   message: string;
 };
 
 function isErrorWithMessage(error: unknown): error is ErrorWithMessage {
   return (
-    typeof error === "object" &&
-    error !== null &&
+    isObjectRecord(error) &&
     "message" in error &&
-    typeof (error as Record<string, unknown>).message === "string"
+    hasStringProperty(error, "message")
   );
 }
 

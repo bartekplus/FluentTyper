@@ -28,7 +28,11 @@ import type {
   PredictRequestMessage,
   UpdateLangConfigMessage,
 } from "@core/domain/messageTypes";
-import { isMessageCommand } from "@core/domain/contracts/messages";
+import {
+  isMessageCommand,
+  parseRuntimeMessage,
+} from "@core/domain/contracts/messages";
+import { err, ok, type Result } from "@core/domain/result";
 import {
   checkLastError,
   getDomain,
@@ -60,6 +64,10 @@ const ROUTED_MESSAGE_COMMANDS = [
 ] as const;
 
 type RoutedMessageCommand = (typeof ROUTED_MESSAGE_COMMANDS)[number];
+type RoutedMessage = Extract<Message, { command: RoutedMessageCommand }>;
+type RoutedMessageByCommand = {
+  [TCommand in RoutedMessageCommand]: Extract<RoutedMessage, { command: TCommand }>;
+};
 
 const ROUTED_MESSAGE_COMMAND_SET = new Set<string>(ROUTED_MESSAGE_COMMANDS);
 
@@ -67,11 +75,35 @@ function isRoutedMessageCommand(command: string): command is RoutedMessageComman
   return isMessageCommand(command) && ROUTED_MESSAGE_COMMAND_SET.has(command);
 }
 
+function isRoutedMessage(message: Message): message is RoutedMessage {
+  return isRoutedMessageCommand(message.command);
+}
+
 interface MessageDispatchPayload {
-  request: unknown;
+  request: RoutedMessage;
   sender: chrome.runtime.MessageSender;
   sendResponse: (response?: unknown) => void;
   worker: BackgroundServiceWorker;
+}
+
+interface SenderRoutingContext {
+  tabId: number;
+  frameId: number;
+}
+
+type SenderRoutingContextError = { kind: "missing_tab_id" };
+
+function resolveSenderRoutingContext(
+  sender: chrome.runtime.MessageSender,
+): Result<SenderRoutingContext, SenderRoutingContextError> {
+  const tabId = sender.tab?.id;
+  if (typeof tabId !== "number") {
+    return err({ kind: "missing_tab_id" });
+  }
+  return ok({
+    tabId,
+    frameId: typeof sender.frameId === "number" ? sender.frameId : 0,
+  });
 }
 
 const MESSAGE_ERROR_LABELS: Record<RoutedMessageCommand, string> = {
@@ -111,7 +143,9 @@ export class MessageRouter {
           logError("onMessage", `Unknown command: ${command}`);
         },
         mapError: (error, context) => {
-          const label = MESSAGE_ERROR_LABELS[context.command as RoutedMessageCommand];
+          const label = isRoutedMessageCommand(context.command)
+            ? MESSAGE_ERROR_LABELS[context.command]
+            : "MessageRouter.handle";
           logError(label, error);
           context.payload.sendResponse({ ok: false });
         },
@@ -125,84 +159,74 @@ export class MessageRouter {
     ]);
 
     this.registry
-      .register(CMD_CONTENT_SCRIPT_PREDICT_REQ, (payload) =>
-        this.handleContentScriptPredictReq(
-          payload.request as ContentScriptPredictRequestMessage,
-          payload.sender,
-          payload.sendResponse,
-          payload.worker,
+      .register(
+        CMD_CONTENT_SCRIPT_PREDICT_REQ,
+        this.createCommandHandler(
+          CMD_CONTENT_SCRIPT_PREDICT_REQ,
+          this.handleContentScriptPredictReq.bind(this),
         ),
       )
-      .register(CMD_OPTIONS_PAGE_CONFIG_CHANGE, (payload) =>
-        this.handleOptionsPageConfigChange(
-          payload.request as OptionsPageConfigChangeMessage,
-          payload.sender,
-          payload.sendResponse,
-          payload.worker,
+      .register(
+        CMD_OPTIONS_PAGE_CONFIG_CHANGE,
+        this.createCommandHandler(
+          CMD_OPTIONS_PAGE_CONFIG_CHANGE,
+          this.handleOptionsPageConfigChange.bind(this),
         ),
       )
-      .register(CMD_CONTENT_SCRIPT_GET_CONFIG, (payload) =>
-        this.handleContentScriptGetConfig(
-          payload.request as ContentScriptGetConfigMessage,
-          payload.sender,
-          payload.sendResponse,
-          payload.worker,
+      .register(
+        CMD_CONTENT_SCRIPT_GET_CONFIG,
+        this.createCommandHandler(
+          CMD_CONTENT_SCRIPT_GET_CONFIG,
+          this.handleContentScriptGetConfig.bind(this),
         ),
       )
-      .register(CMD_CONTENT_SCRIPT_USAGE_EVENT, (payload) =>
-        this.handleContentScriptUsageEvent(
-          payload.request as ContentScriptUsageEventMessage,
-          payload.sender,
-          payload.sendResponse,
-          payload.worker,
+      .register(
+        CMD_CONTENT_SCRIPT_USAGE_EVENT,
+        this.createCommandHandler(
+          CMD_CONTENT_SCRIPT_USAGE_EVENT,
+          this.handleContentScriptUsageEvent.bind(this),
         ),
       )
-      .register(CMD_POPUP_GET_PRODUCTIVITY_STATS, (payload) =>
-        this.handlePopupGetProductivityStats(
-          payload.request as PopupGetProductivityStatsMessage,
-          payload.sender,
-          payload.sendResponse,
-          payload.worker,
+      .register(
+        CMD_POPUP_GET_PRODUCTIVITY_STATS,
+        this.createCommandHandler(
+          CMD_POPUP_GET_PRODUCTIVITY_STATS,
+          this.handlePopupGetProductivityStats.bind(this),
         ),
       )
-      .register(CMD_POPUP_ACK_WEEKLY_RECAP, (payload) =>
-        this.handlePopupAckWeeklyRecap(
-          payload.request as PopupAckWeeklyRecapMessage,
-          payload.sender,
-          payload.sendResponse,
-          payload.worker,
+      .register(
+        CMD_POPUP_ACK_WEEKLY_RECAP,
+        this.createCommandHandler(
+          CMD_POPUP_ACK_WEEKLY_RECAP,
+          this.handlePopupAckWeeklyRecap.bind(this),
         ),
       )
-      .register(CMD_POPUP_ACK_DONATION_MILESTONE, (payload) =>
-        this.handlePopupAckDonationMilestone(
-          payload.request as PopupAckDonationMilestoneMessage,
-          payload.sender,
-          payload.sendResponse,
-          payload.worker,
+      .register(
+        CMD_POPUP_ACK_DONATION_MILESTONE,
+        this.createCommandHandler(
+          CMD_POPUP_ACK_DONATION_MILESTONE,
+          this.handlePopupAckDonationMilestone.bind(this),
         ),
       )
-      .register(CMD_OPTIONS_RESET_PRODUCTIVITY_STATS, (payload) =>
-        this.handleOptionsResetProductivityStats(
-          payload.request as OptionsResetProductivityStatsMessage,
-          payload.sender,
-          payload.sendResponse,
-          payload.worker,
+      .register(
+        CMD_OPTIONS_RESET_PRODUCTIVITY_STATS,
+        this.createCommandHandler(
+          CMD_OPTIONS_RESET_PRODUCTIVITY_STATS,
+          this.handleOptionsResetProductivityStats.bind(this),
         ),
       )
-      .register(CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT, (payload) =>
-        this.handleOptionsGetPredictorDebugSnapshot(
-          payload.request as OptionsGetPredictorDebugSnapshotMessage,
-          payload.sender,
-          payload.sendResponse,
-          payload.worker,
+      .register(
+        CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT,
+        this.createCommandHandler(
+          CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT,
+          this.handleOptionsGetPredictorDebugSnapshot.bind(this),
         ),
       )
-      .register(CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE, (payload) =>
-        this.handleOptionsClearPredictorDebugTrace(
-          payload.request as OptionsClearPredictorDebugTraceMessage,
-          payload.sender,
-          payload.sendResponse,
-          payload.worker,
+      .register(
+        CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE,
+        this.createCommandHandler(
+          CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE,
+          this.handleOptionsClearPredictorDebugTrace.bind(this),
         ),
       );
   }
@@ -213,32 +237,60 @@ export class MessageRouter {
     sendResponse: (response?: unknown) => void,
   ): boolean {
     checkLastError();
-    if (!request || typeof request !== "object") {
-      logger.warn("Ignored non-runtime message payload");
+    const parsedRequest = parseRuntimeMessage(request);
+    if (!parsedRequest.ok) {
+      if (parsedRequest.error.kind === "invalid_payload") {
+        logger.warn("Ignored non-runtime message payload");
+        return false;
+      }
+      if (parsedRequest.error.kind === "invalid_command") {
+        logger.warn("Ignored message without command");
+        return false;
+      }
+      logError("onMessage", `Unknown command: ${parsedRequest.error.command}`);
       return false;
     }
-    const maybeRequest = request as { command?: unknown };
-    if (typeof maybeRequest.command !== "string") {
-      logger.warn("Ignored message without command");
-      return false;
-    }
+    const runtimeMessage = parsedRequest.value;
 
+    if (!isRoutedMessage(runtimeMessage)) {
+      logError("onMessage", `Unknown command: ${runtimeMessage.command}`);
+      return false;
+    }
     const worker = this.getWorker();
-    const isHandledCommand = this.registry.has(maybeRequest.command);
 
-    if (!isHandledCommand) {
-      logError("onMessage", `Unknown command: ${maybeRequest.command}`);
-      return false;
-    }
-
-    void this.registry.dispatch(maybeRequest.command, {
-      request: request as Message,
+    void this.registry.dispatch(runtimeMessage.command, {
+      request: runtimeMessage,
       sender,
       sendResponse,
       worker,
     });
 
-    return maybeRequest.command !== CMD_CONTENT_SCRIPT_PREDICT_REQ;
+    return runtimeMessage.command !== CMD_CONTENT_SCRIPT_PREDICT_REQ;
+  }
+
+  private createCommandHandler<TCommand extends RoutedMessageCommand>(
+    command: TCommand,
+    handler: (
+      request: RoutedMessageByCommand[TCommand],
+      sender: chrome.runtime.MessageSender,
+      sendResponse: (response?: unknown) => void,
+      worker: BackgroundServiceWorker,
+    ) => Promise<void>,
+  ): (payload: MessageDispatchPayload) => Promise<void> {
+    return async (payload) => {
+      if (payload.request.command !== command) {
+        throw new Error(
+          `Command/payload mismatch: expected ${command}, received ${payload.request.command}`,
+        );
+      }
+      const typedRequest = payload.request as RoutedMessageByCommand[TCommand];
+      await handler(
+        typedRequest,
+        payload.sender,
+        payload.sendResponse,
+        payload.worker,
+      );
+    };
   }
 
   private async handleContentScriptPredictReq(
@@ -247,6 +299,17 @@ export class MessageRouter {
     sendResponse: (response?: unknown) => void,
     worker: BackgroundServiceWorker,
   ): Promise<void> {
+    const senderContext = resolveSenderRoutingContext(sender);
+    if (!senderContext.ok) {
+      logError(
+        "MessageRouter.handleContentScriptPredictReq",
+        "Missing sender tab id for prediction request",
+      );
+      sendResponse({ ok: false });
+      return;
+    }
+
+    const { tabId, frameId } = senderContext.value;
     const domainURL = getDomain(sender.tab?.url || "");
     const domainSettings = await resolveDomainRuntimeSettings(
       worker.settingsManager,
@@ -255,10 +318,10 @@ export class MessageRouter {
     let language = domainSettings.language;
     worker.language = language;
 
-    if (language === "auto_detect" && sender.tab?.id) {
+    if (language === "auto_detect") {
       language = await worker.detectLanguage(
         request.context.text,
-        sender.tab.id,
+        tabId,
         domainSettings.enabledLanguages,
       );
     }
@@ -279,8 +342,8 @@ export class MessageRouter {
         text: request.context.text,
         nextChar: request.context.nextChar,
         lang: language,
-        tabId: sender.tab!.id!,
-        frameId: sender.frameId!,
+        tabId,
+        frameId,
         tributeId: request.context.tributeId,
         requestId: request.context.requestId,
       },
