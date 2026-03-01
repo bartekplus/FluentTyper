@@ -24,6 +24,7 @@ import {
   KEY_AI_PREDICTION_TIMEOUT_MS,
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
   KEY_DEBUG_AI_PREDICTOR_ENABLED,
+  KEY_ENABLED_GRAMMAR_RULES,
 
   KEY_TIME_FORMAT,
   KEY_DATE_FORMAT,
@@ -224,6 +225,18 @@ const manifest = {
       type: "checkbox",
       label: i18n.get("apply_spacing_rules_label") + ":&nbsp;<small>" + i18n.get("apply_spacing_rules_desc") + "</small>",
       default: false,
+    },
+    {
+      tab: i18n.get("core_settings"),
+      group: i18n.get("grammar_rules"),
+      name: KEY_ENABLED_GRAMMAR_RULES,
+      type: "listBoxMultiselect",
+      label: i18n.get("grammar_rules_label"),
+      options: [
+        ["spacingRule", i18n.get("grammar_rule_spacing")],
+        ["capitalizeFirstLetter", i18n.get("grammar_rule_capitalize")],
+      ],
+      default: [],
     },
     {
       tab: i18n.get("core_settings"),

@@ -41,6 +41,7 @@ export const KEY_USER_DICTIONARY_LIST = "userDictionaryList";
 export const KEY_LANGUAGE = "language";
 export const KEY_FALLBACK_LANGUAGE = "fallbackLanguage";
 export const KEY_ENABLED_LANGUAGES = "enabled_languages";
+export const KEY_ENABLED_GRAMMAR_RULES = "enabledGrammarRules";
 export const KEY_DOMAIN_LIST_MODE = "domainListMode";
 export const KEY_AI_PREDICTOR_ENABLED = "aiPredictorEnabled";
 export const KEY_AI_MODEL_ID = "aiModelId";

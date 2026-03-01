@@ -10,6 +10,7 @@ export interface SetConfigContext {
   inline_suggestion: boolean;
   enabled: boolean;
   displayLangHeader: boolean;
+  enabledGrammarRules: string[];
   // Theme configuration
   themeConfig?: {
     tributeBgLight: string;

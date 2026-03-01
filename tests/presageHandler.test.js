@@ -9,7 +9,7 @@ const testContext = {
   minWordLengthToPredict: 0,
   insertSpaceAfterAutocomplete: false,
   autoCapitalize: true,
-  applySpacingRules: true,
+  enabledGrammarRules: ["spacingRule"],
   textExpansions: null,
 
   timeFormat: "",
@@ -23,7 +23,7 @@ function setConfig() {
     minWordLengthToPredict: testContext.minWordLengthToPredict,
     insertSpaceAfterAutocomplete: testContext.insertSpaceAfterAutocomplete,
     autoCapitalize: testContext.autoCapitalize,
-    applySpacingRules: testContext.applySpacingRules,
+    enabledGrammarRules: testContext.enabledGrammarRules,
     textExpansions: testContext.textExpansions,
 
     timeFormat: testContext.timeFormat,
@@ -37,7 +37,7 @@ beforeEach(() => {
   testContext.minWordLengthToPredict = 0;
   testContext.insertSpaceAfterAutocomplete = false;
   testContext.autoCapitalize = true;
-  testContext.applySpacingRules = true;
+  testContext.enabledGrammarRules = ["spacingRule"];
   testContext.textExpansions = null;
 
   testContext.timeFormat = "";

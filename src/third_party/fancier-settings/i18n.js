@@ -609,6 +609,50 @@ i18n = Object.assign(i18n, {
     "pl": "Gdy włączone, naciśnięcie klawisza Backspace cofnie ostatnie autouzupełnienie jako całe słowo. Gdy wyłączone, usuwa po jednym znaku.",
     "pr": "Quando ativado, a tecla Backspace desfaz o último autocompletar como uma palavra inteira. Quando desativado, apaga um caractere de cada vez.",
   },
+  "grammar_rules": {
+    "en": "Grammar Rules",
+    "fr": "Règles de Grammaire",
+    "hr": "Gramatička Pravila",
+    "es": "Reglas de Gramática",
+    "el": "Γραμματικοί Κανόνες",
+    "sv": "Grammatikregler",
+    "de": "Grammatikregeln",
+    "pl": "Zasady Gramatyki",
+    "pr": "Regras Gramaticais"
+  },
+  "grammar_rules_label": {
+    "en": "Enabled Grammar Rules",
+    "fr": "Règles de Grammaire Activées",
+    "hr": "Omogućena Gramatička Pravila",
+    "es": "Reglas de Gramática Habilitadas",
+    "el": "Ενεργοποιημένοι Γραμματικοί Κανόνες",
+    "sv": "Aktiverade Grammatikregler",
+    "de": "Aktivierte Grammatikregeln",
+    "pl": "Włączone Zasady Gramatyki",
+    "pr": "Regras Gramaticais Habilitadas"
+  },
+  "grammar_rule_spacing": {
+    "en": "Auto-Spacing around punctuation",
+    "fr": "Espacement automatique autour de la ponctuation",
+    "hr": "Automatsko razmicanje oko interpunkcije",
+    "es": "Auto-espaciado alrededor de puntuación",
+    "el": "Αυτόματο κενό γύρω από σημεία στίξης",
+    "sv": "Automatiskt mellanrum runt skiljetecken",
+    "de": "Automatischer Abstand um Satzzeichen",
+    "pl": "Automatyczne odstępy wokół znaków interpunkcyjnych",
+    "pr": "Espaçamento automático ao redor de pontuação"
+  },
+  "grammar_rule_capitalize": {
+    "en": "Auto-Capitalize first letter",
+    "fr": "Mettre automatiquement en majuscule la première lettre",
+    "hr": "Automatski veliko prvo slovo",
+    "es": "Capitalizar automáticamente la primera letra",
+    "el": "Αυτόματη κεφαλαιοποίηση του πρώτου γράμματος",
+    "sv": "Börja automatiskt med stor bokstav",
+    "de": "Ersten Buchstaben automatisch großschreiben",
+    "pl": "Automatycznie wstawiaj dużą literę",
+    "pr": "Capitalizar automaticamente a primeira letra"
+  },
   "language_tab": {
     "en": "Language",
     "fr": "Langue",

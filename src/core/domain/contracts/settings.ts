@@ -12,6 +12,7 @@ import {
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
   KEY_DISPLAY_LANG_HEADER,
   KEY_DOMAIN_LIST_MODE,
+  KEY_ENABLED_GRAMMAR_RULES,
   KEY_ENABLED_LANGUAGES,
   KEY_EXTENSION_LANGUAGE,
   KEY_FALLBACK_LANGUAGE,
@@ -75,6 +76,7 @@ export const SETTINGS_KEYS = {
   debugPresagePredictorEnabled: KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
   debugAiPredictorEnabled: KEY_DEBUG_AI_PREDICTOR_ENABLED,
   productivityStats: KEY_PRODUCTIVITY_STATS,
+  enabledGrammarRules: KEY_ENABLED_GRAMMAR_RULES,
   tributeBgLight: KEY_TRIBUTE_BG_LIGHT,
   tributeTextLight: KEY_TRIBUTE_TEXT_LIGHT,
   tributeHighlightBgLight: KEY_TRIBUTE_HIGHLIGHT_BG_LIGHT,
@@ -125,6 +127,7 @@ export interface SettingsSchema {
   debugPresagePredictorEnabled: boolean;
   debugAiPredictorEnabled: boolean;
   productivityStats: Record<string, unknown>;
+  enabledGrammarRules: string[];
   tributeBgLight: string;
   tributeTextLight: string;
   tributeHighlightBgLight: string;

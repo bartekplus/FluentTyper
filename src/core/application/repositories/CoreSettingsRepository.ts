@@ -142,6 +142,10 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
     return this.getBooleanField("applySpacingRules");
   }
 
+  async getEnabledGrammarRules(): Promise<string[]> {
+    return this.getStringArrayField("enabledGrammarRules");
+  }
+
   async getTextExpansions(): Promise<Array<[string, object]>> {
     const value = await this.getField("textExpansions");
     if (!Array.isArray(value)) {

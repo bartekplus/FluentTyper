@@ -72,6 +72,7 @@ export class ConfigAssembler {
         revertOnBackspace,
         displayLangHeader,
         inline_suggestion: domainSettings.inlineSuggestion,
+        enabledGrammarRules: await this.coreSettingsRepository.getEnabledGrammarRules(),
         themeConfig,
       },
     };
@@ -120,6 +121,7 @@ export class ConfigAssembler {
         timeFormat,
         dateFormat,
         userDictionaryList,
+        enabledGrammarRules: await this.coreSettingsRepository.getEnabledGrammarRules(),
         aiPredictorEnabled: this.options.enableAIPredictor
           ? predictorSettings.aiPredictorEnabled
           : false,

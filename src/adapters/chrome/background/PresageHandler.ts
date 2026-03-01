@@ -1,6 +1,5 @@
 import { SUPPORTED_LANGUAGES } from "@core/domain/lang";
 import { isWhiteSpace } from "@core/application/domain-utils";
-import { SpacingRulesHandler, Spacing, SPACING_RULES } from "./SpacingRulesHandler";
 import { createLogger } from "@core/application/logging/Logger";
 import { getErrorMessage } from "@core/domain/error";
 import { Capitalization } from "./CapitalizationHelper";
@@ -15,7 +14,10 @@ import { PresageEngine } from "./PresageEngine";
 import type { ForceReplaceType } from "@core/domain/messageTypes";
 import { MAX_NUM_SUGGESTIONS } from "@core/domain/constants";
 import type { PredictionResult } from "./PredictionTypes";
-
+import { GrammarRuleEngine } from "@core/domain/grammar/GrammarRuleEngine";
+import { SpacingRule } from "@core/domain/grammar/implementations/SpacingRule";
+import { CapitalizeFirstLetterRule } from "@core/domain/grammar/implementations/CapitalizeFirstLetterRule";
+import { SPACE_CHARS } from "@core/domain/spacingRules";
 const SUGGESTION_COUNT = 5;
 const MIN_WORD_LENGTH_TO_PREDICT = 1;
 const logger = createLogger("PresageHandler");
@@ -37,6 +39,7 @@ export interface PresageConfig {
   timeFormat?: string;
   dateFormat?: string;
   userDictionaryList?: string[];
+  enabledGrammarRules?: string[];
 }
 
 export interface PresagePredictionContext {
@@ -60,7 +63,8 @@ export class PresageHandler {
   private insertSpaceAfterAutocomplete: boolean;
   private autoCapitalize: boolean;
   private userDictionaryList: string[];
-  private spacingHandler: SpacingRulesHandler;
+  private grammarEngine: GrammarRuleEngine;
+  private enabledGrammarRules: string[] = [];
   private predictionInputProcessor: PredictionInputProcessor;
   private textExpansionManager: TextExpansionManager;
   private userDictionaryManager: UserDictionaryManager;
@@ -82,7 +86,11 @@ export class PresageHandler {
     this.insertSpaceAfterAutocomplete = true;
     this.autoCapitalize = true;
     this.userDictionaryList = [];
-    this.spacingHandler = new SpacingRulesHandler(this.insertSpaceAfterAutocomplete, false);
+
+    this.grammarEngine = new GrammarRuleEngine();
+    this.grammarEngine.registerRule(new SpacingRule(this.insertSpaceAfterAutocomplete));
+    this.grammarEngine.registerRule(new CapitalizeFirstLetterRule());
+
     this.predictionInputProcessor = new PredictionInputProcessor(
       this.minWordLengthToPredict,
       this.autoCapitalize,
@@ -122,10 +130,14 @@ export class PresageHandler {
 
     this.textExpansionManager.setTextExpansions(config.textExpansions);
     this.userDictionaryManager.setUserDictionaryList(this.userDictionaryList);
-    this.spacingHandler = new SpacingRulesHandler(
-      config.insertSpaceAfterAutocomplete,
-      config.applySpacingRules,
-    );
+    this.enabledGrammarRules = config.enabledGrammarRules || [];
+
+    // We recreate rules since constructor params like insertSpaceAfterAutocomplete can change.
+    // In a cleaner refactor, rules themselves could just listen to config changes, but this matches SpacingRule's original pattern.
+    this.grammarEngine = new GrammarRuleEngine();
+    this.grammarEngine.registerRule(new SpacingRule(config.insertSpaceAfterAutocomplete));
+    this.grammarEngine.registerRule(new CapitalizeFirstLetterRule());
+
     this.predictionInputProcessor = new PredictionInputProcessor(
       this.minWordLengthToPredict,
       this.autoCapitalize,
@@ -239,7 +251,29 @@ export class PresageHandler {
       lang,
       effectiveNumSuggestions,
     );
-    const forceReplace = this.spacingHandler.applySpacingRules(text);
+
+    let forceReplace: ForceReplaceType | null = null;
+    if (this.enabledGrammarRules.length > 0) {
+      // Determine event type
+      const isWordBoundary = text.length > 0 && SPACE_CHARS.includes(text[text.length - 1]);
+      const eventType = isWordBoundary ? "wordBoundary" : "insertChar";
+
+      const edits = this.grammarEngine.process(
+        eventType,
+        { beforeCursor: text, afterCursor: "", charTyped: nextChar },
+        this.enabledGrammarRules,
+      );
+
+      if (edits.length > 0) {
+        // Find how many characters we are "replacing" backwards and map to ForceReplaceType
+        // Assume merged edit from grammar engine
+        const edit = edits[0];
+        forceReplace = {
+          length: edit.deleteBackwards,
+          text: edit.replacement,
+        };
+      }
+    }
 
     return {
       text,
@@ -345,9 +379,13 @@ export class PresageHandler {
     }
     if (this.insertSpaceAfterAutocomplete) {
       if (
-        !isWhiteSpace(nextChar, false) &&
-        (!(nextChar in SPACING_RULES) ||
-          SPACING_RULES[nextChar].spaceBefore === Spacing.INSERT_SPACE)
+        nextChar !== undefined &&
+        nextChar !== null &&
+        (nextChar === "" ||
+          nextChar === "\n" ||
+          (!isWhiteSpace(nextChar, true) &&
+            (!(nextChar in SPACING_RULES) ||
+              SPACING_RULES[nextChar].spaceBefore === Spacing.INSERT_SPACE)))
       ) {
         predictions = predictions.map((pred) => `${pred}\xA0`);
       }
