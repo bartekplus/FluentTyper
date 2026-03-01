@@ -735,7 +735,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await newInstallationPage.waitForSelector("#permissions-success", { visible: true });
 
       // Validate that the request was called with right arguments
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const reqArgs = await newInstallationPage.evaluate(
         () => (window as any).__lastPermissionRequest,
       );
