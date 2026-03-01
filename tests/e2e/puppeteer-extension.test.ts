@@ -737,6 +737,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       // Validate that the request was called with right arguments
 
       const reqArgs = await newInstallationPage.evaluate(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         () => (window as any).__lastPermissionRequest,
       );
       expect(reqArgs).toEqual({ origins: ["<all_urls>"] });
