@@ -35,6 +35,39 @@
     <main class="control-panel">
       <!-- Content Area -->
       <div class="panel-body">
+        <!-- Permission Banner -->
+        <div
+          id="permissionBanner"
+          class="control-card is-hidden mb-2"
+          style="background-color: #fee2e2; border-color: #f87171"
+        >
+          <div
+            class="card-row"
+            style="
+              flex-direction: column;
+              align-items: center;
+              text-align: center;
+              gap: 0.5rem;
+              padding: 1rem;
+            "
+          >
+            <span class="row-label is-size-6" style="color: #991b1b; white-space: normal"
+              ><strong style="color: inherit">Action Required:</strong>
+              <span data-i18n="popup_permission_required"
+                >FluentTyper needs website access to function.</span
+              ></span
+            >
+            <button
+              id="grantPermissionBtn"
+              class="button is-danger is-small is-rounded"
+              data-i18n="popup_permission_grant"
+              style="font-weight: 600"
+            >
+              Grant Permissions
+            </button>
+          </div>
+        </div>
+
         <!-- Global Controls -->
         <div class="control-card">
           <div class="card-row border-bottom">

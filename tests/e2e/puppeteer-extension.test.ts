@@ -708,6 +708,40 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await newInstallationPage.waitForSelector("body", {
         timeout: browserTimeout(3000, 10000),
       });
+
+      // ---- Permission flow test ----
+      // Wait for the button to be ready and visible
+      await newInstallationPage.waitForSelector("#grant-permissions-btn", { visible: true });
+
+      // Mock the permissions.request API so we can intercept the call
+      await newInstallationPage.evaluate(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const globalTarget = (window as any).browser || (window as any).chrome;
+        if (globalTarget) {
+          globalTarget.permissions = globalTarget.permissions || {};
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          globalTarget.permissions.request = async (options: any) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (window as any).__lastPermissionRequest = options;
+            return true; // Simulate user clicking 'Allow'
+          };
+        }
+      });
+
+      // Click the grant button
+      await newInstallationPage.click("#grant-permissions-btn");
+
+      // Check if success container is shown
+      await newInstallationPage.waitForSelector("#permissions-success", { visible: true });
+
+      // Validate that the request was called with right arguments
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const reqArgs = await newInstallationPage.evaluate(
+        () => (window as any).__lastPermissionRequest,
+      );
+      expect(reqArgs).toEqual({ origins: ["<all_urls>"] });
+      // -------------------------------
+
       await newInstallationPage.close();
     },
     browserTimeout(10000, 25000),

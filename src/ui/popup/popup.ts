@@ -627,6 +627,39 @@ function init() {
   document.getElementById("runOptions")?.addEventListener("click", () => {
     chrome.runtime.openOptionsPage();
   });
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const browserAPI = (window as any).browser || chrome;
+  if (browserAPI && browserAPI.permissions) {
+    const permissionBanner = document.getElementById("permissionBanner");
+    const grantBtn = document.getElementById("grantPermissionBtn");
+    if (permissionBanner && grantBtn) {
+      const checkPerms = async () => {
+        try {
+          const contains = await browserAPI.permissions.contains({ origins: ["<all_urls>"] });
+          if (!contains) {
+            permissionBanner.classList.remove("is-hidden");
+          } else {
+            permissionBanner.classList.add("is-hidden");
+          }
+        } catch (e) {
+          console.error("Error checking permissions in popup:", e);
+        }
+      };
+      void checkPerms();
+      grantBtn.addEventListener("click", async () => {
+        try {
+          const granted = await browserAPI.permissions.request({ origins: ["<all_urls>"] });
+          if (granted) {
+            permissionBanner.classList.add("is-hidden");
+          }
+        } catch (e) {
+          console.error("Error requesting permissions in popup:", e);
+        }
+      });
+    }
+  }
+
   void loadProductivityDashboard();
 }
 
