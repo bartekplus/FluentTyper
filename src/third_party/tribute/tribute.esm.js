@@ -243,7 +243,7 @@ class TributeEvents {
         return trigger.charCodeAt(0) === keyCode;
       });
 
-      if (instance.tribute.isActive) ; else if (trigger) {
+      if (instance.tribute.isActive); else if (trigger) {
         // not active, but we found a trigger
         instance.tribute.current.collection = instance.tribute.collection.find((item) => {
           return item.trigger === trigger;
@@ -694,6 +694,9 @@ class TributeRange {
       if (!this.tribute.autocompleteMode && context.mentionTriggerChar.length) {
         endPos += context.mentionTriggerChar.length - 1;
       }
+
+
+
       myField.value =
         myField.value.substring(0, startPos) +
         text +
@@ -705,7 +708,7 @@ class TributeRange {
         sel,
         range
       } = this.getContentEditableSelectionStart(true);
-      const staticRange = new StaticRange({startContainer: sel.anchorNode, startOffset: sel.anchorOffset - context.mentionText.length, endContainer: sel.anchorNode, endOffset: sel.anchorOffset });
+      const staticRange = new StaticRange({ startContainer: sel.anchorNode, startOffset: sel.anchorOffset - context.mentionText.length, endContainer: sel.anchorNode, endOffset: sel.anchorOffset });
       const textSuffix =
         typeof this.tribute.replaceTextSuffix === "string"
           ? this.tribute.replaceTextSuffix
@@ -1861,18 +1864,20 @@ class Tribute {
 
     const processValues = (values, forceReplace, header = null) => {
       // Tribute may not be active any more by the time the value callback returns
-      if (!this.activationPending) {
+      // However, forceReplace (grammar corrections) should always apply regardless
+      // of menu activation state, since they don't show a menu.
+      if (!forceReplace && !this.activationPending) {
         return;
       }
       this.activationPending = false;
-      // Element is no longer in focus - don't show menu
+      // Element is no longer in focus - don't show menu or apply edits
       if (this.range.getDocument().activeElement !== this.current.element) {
         return;
       }
 
       if (forceReplace) {
         // Do force replace - don't show menu
-        this.current.mentionPosition -= forceReplace.length;
+        this.current.mentionPosition = this.current.fullText.length - forceReplace.length;
         this.current.mentionText = this.current.fullText.slice(-forceReplace.length);
         this.replaceText(forceReplace.text, null, null);
         return;

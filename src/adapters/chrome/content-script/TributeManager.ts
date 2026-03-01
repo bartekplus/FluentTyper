@@ -188,6 +188,8 @@ export class TributeManager {
       currentEntry.requestId += 1;
       this.activeHelperArrId = tributeId;
 
+
+
       logger.debug("Requesting prediction for tribute helper", {
         fullText,
         nextChar,
@@ -283,6 +285,7 @@ export class TributeManager {
         hasHeader: Boolean(header),
       });
       tributeEntry.done(predictionItems, context.forceReplace, header);
+
       if (context.predictions.length > 0) {
         this.emitUsageEvent({
           eventType: "suggestion_shown",
@@ -517,8 +520,12 @@ export class TributeManager {
     // We check if the inserted text ends with a space. If not, the user might need one.
     // However, we only know if they need one AFTER they start typing.
     // So we mark that a replacement just happened.
+    // Skip for grammar corrections (forceReplace) which have null event/item in detail.
     const entry = this.tributeArr[helperArrId];
-    if (entry) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const detail = customEvent?.detail as any;
+    const isForceReplace = detail && !detail.event && !detail.item;
+    if (entry && !isForceReplace) {
       entry.missingTrailingSpace = true;
       const elem = entry.elem;
       let cursorPos = 0;

@@ -25,28 +25,37 @@ export class SpacingRule implements GrammarRule {
     if (!SPACING_RULES[lastChar]) return null;
     if (SPACE_CHARS.includes(lastCharMin2)) return null;
 
-    if (
-      (SPACING_RULES[lastChar].spaceBefore === Spacing.INSERT_SPACE) ===
-      SPACE_CHARS.includes(lastCharMin1)
-    ) {
-      return null;
-    }
+    const requiresSpaceBefore = SPACING_RULES[lastChar].spaceBefore === Spacing.INSERT_SPACE;
+    const requiresNoSpaceBefore = SPACING_RULES[lastChar].spaceBefore === Spacing.REMOVE_SPACE;
+    const hasSpaceBefore = SPACE_CHARS.includes(lastCharMin1);
 
-    const insertSpaceBefore = SPACING_RULES[lastChar].spaceBefore === Spacing.INSERT_SPACE;
     const insertSpaceAfter =
       this.insertSpaceAfterAutocomplete &&
       SPACING_RULES[lastChar].spaceAfter === Spacing.INSERT_SPACE;
 
-    const text = `${insertSpaceBefore ? "\xA0" : ""}${lastChar}${insertSpaceAfter ? "\xA0" : ""}`;
+    const spaceBeforeViolated =
+      (requiresSpaceBefore && !hasSpaceBefore) ||
+      (requiresNoSpaceBefore && hasSpaceBefore);
 
-    if (text === lastChar && SPACING_RULES[lastChar].spaceBefore !== Spacing.REMOVE_SPACE) {
+    if (!spaceBeforeViolated && !insertSpaceAfter) {
       return null;
     }
 
-    const deleteBackwards = 2 - Number(insertSpaceBefore);
+    let deleteBackwards: number;
+    let replacement: string;
+
+    if (spaceBeforeViolated) {
+      deleteBackwards = hasSpaceBefore ? 2 : 1;
+      const idealPrefix = requiresSpaceBefore ? "\xA0" : "";
+      const idealSuffix = insertSpaceAfter ? "\xA0" : "";
+      replacement = `${idealPrefix}${lastChar}${idealSuffix}`;
+    } else {
+      deleteBackwards = 1;
+      replacement = `${lastChar}\xA0`;
+    }
 
     return {
-      replacement: text,
+      replacement,
       deleteBackwards,
       deleteForwards: 0,
       confidence: "high",
@@ -54,3 +63,4 @@ export class SpacingRule implements GrammarRule {
     };
   }
 }
+

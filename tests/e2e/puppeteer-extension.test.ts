@@ -15,6 +15,8 @@ import {
   KEY_PRODUCTIVITY_STATS,
   KEY_SITE_PROFILES,
   KEY_TEXT_EXPANSIONS,
+  KEY_ENABLED_GRAMMAR_RULES,
+  KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
 } from "../../src/core/domain/constants";
 import { SUPPORTED_PREDICTION_LANGUAGE_KEYS } from "../../src/core/domain/lang";
 import type { BackgroundContext } from "./e2e-helpers";
@@ -1701,53 +1703,53 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         expected: string;
         popupExpected: string;
       }[] = [
-        {
-          locale: "en_US",
-          expected: "Extension UI Language",
-          popupExpected: "Advanced Options",
-        },
-        {
-          locale: "fr_FR",
-          expected: "Langue de l'interface",
-          popupExpected: "Options avancées",
-        },
-        {
-          locale: "hr_HR",
-          expected: "Jezik su\u010Delja pro\u0161irenja",
-          popupExpected: "Napredne opcije",
-        },
-        {
-          locale: "es_ES",
-          expected: "Idioma de la interfaz",
-          popupExpected: "Opciones avanzadas",
-        },
-        {
-          locale: "el_GR",
-          expected:
-            "\u0393\u03BB\u03CE\u03C3\u03C3\u03B1 \u03B4\u03B9\u03B5\u03C0\u03B1\u03C6\u03AE\u03C2 \u03B5\u03C0\u03AD\u03BA\u03C4\u03B1\u03C3\u03B7\u03C2",
-          popupExpected: "Επιλογές για προχωρημένους",
-        },
-        {
-          locale: "sv_SE",
-          expected: "Till\u00E4ggets gr\u00E4nssnittsspr\u00E5k",
-          popupExpected: "Avancerade alternativ",
-        },
-        {
-          locale: "de_DE",
-          expected: "Sprache der Erweiterungsoberfl\u00E4che",
-          popupExpected: "Erweiterte Optionen",
-        },
-        {
-          locale: "pl_PL",
-          expected: "J\u0119zyk interfejsu rozszerzenia",
-          popupExpected: "Zaawansowane opcje",
-        },
-        {
-          locale: "pt_BR",
-          expected: "Idioma da interface da extens\u00E3o",
-          popupExpected: "Opções avançadas",
-        },
-      ];
+          {
+            locale: "en_US",
+            expected: "Extension UI Language",
+            popupExpected: "Advanced Options",
+          },
+          {
+            locale: "fr_FR",
+            expected: "Langue de l'interface",
+            popupExpected: "Options avancées",
+          },
+          {
+            locale: "hr_HR",
+            expected: "Jezik su\u010Delja pro\u0161irenja",
+            popupExpected: "Napredne opcije",
+          },
+          {
+            locale: "es_ES",
+            expected: "Idioma de la interfaz",
+            popupExpected: "Opciones avanzadas",
+          },
+          {
+            locale: "el_GR",
+            expected:
+              "\u0393\u03BB\u03CE\u03C3\u03C3\u03B1 \u03B4\u03B9\u03B5\u03C0\u03B1\u03C6\u03AE\u03C2 \u03B5\u03C0\u03AD\u03BA\u03C4\u03B1\u03C3\u03B7\u03C2",
+            popupExpected: "Επιλογές για προχωρημένους",
+          },
+          {
+            locale: "sv_SE",
+            expected: "Till\u00E4ggets gr\u00E4nssnittsspr\u00E5k",
+            popupExpected: "Avancerade alternativ",
+          },
+          {
+            locale: "de_DE",
+            expected: "Sprache der Erweiterungsoberfl\u00E4che",
+            popupExpected: "Erweiterte Optionen",
+          },
+          {
+            locale: "pl_PL",
+            expected: "J\u0119zyk interfejsu rozszerzenia",
+            popupExpected: "Zaawansowane opcje",
+          },
+          {
+            locale: "pt_BR",
+            expected: "Idioma da interface da extens\u00E3o",
+            popupExpected: "Opções avançadas",
+          },
+        ];
 
       for (const { locale, expected, popupExpected } of TEST_LANGS) {
         // 1. Set the extension language in chrome.storage.local
@@ -1997,6 +1999,63 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
       // Cleanup
       await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await applyConfigChange(browser, worker!);
+    },
+    browserTimeout(30000, 45000),
+  );
+
+  test.each(SUPPORTED_INPUT_SELECTORS)(
+    "Grammar Rule Engine auto-capitalizes and applies spacing in %s",
+    async (selector) => {
+      // Enable required grammar rules internally for predictive evaluations
+      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, ["capitalizeFirstLetter", "spacingRule"]);
+      await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, true);
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 0);
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+      await applyConfigChange(browser, worker!);
+
+      page.on("console", (msg) => {
+        console.log(`[BROWSER_CONSOLE] ${msg.text()}`);
+      });
+
+      await gotoTestPage(page, {
+        enableCkEditor: shouldEnableCkEditor(selector),
+      });
+      await page.bringToFront();
+
+      await waitForInputReady(page, selector);
+      const element = await page.$(selector);
+
+      // Type "testing ." and verify spacingRule applies (and first letter capitalized)
+      await element!.type("testing .");
+
+      let debugVal1 = "";
+      for (let i = 0; i < 10; i++) {
+        await new Promise((r) => setTimeout(r, 200));
+        debugVal1 = await page.$eval(selector, (el) => ((el as HTMLInputElement).value ?? el.textContent) as string);
+        if (debugVal1.replace(/\xA0/g, " ").includes("esting. ")) break;
+      }
+      console.log(`[DEBUG] After testing .: ${JSON.stringify(debugVal1)}`);
+
+      // Type "w" and verify capitalizeFirstLetterRule applies
+      await element!.type("w");
+      let debugVal2 = "";
+      for (let i = 0; i < 15; i++) {
+        await new Promise((r) => setTimeout(r, 200));
+        debugVal2 = await page.$eval(selector, (el) => ((el as HTMLInputElement).value ?? el.textContent) as string);
+        console.log(`[DEBUG_POLL_2] val=${JSON.stringify(debugVal2)}`);
+        if (debugVal2.replace(/\xA0/g, " ").includes("esting. W")) break;
+      }
+
+      console.log(`[DEBUG] After w: ${JSON.stringify(debugVal2)}`);
+
+      const elementText = debugVal2.replace(/\xA0/g, " ");
+      // CapitalizeFirstLetterRule capitalizes T at start AND W after ". "
+      expect(elementText).toContain("esting. W");
+
+      // Cleanup
+      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
       await applyConfigChange(browser, worker!);
     },
     browserTimeout(30000, 45000),
