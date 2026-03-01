@@ -1,6 +1,6 @@
 {
   "name": "fluenttyper",
-  "version": "2026.3.0",
+  "version": "2026.4.0",
   "description": "Type less, do more. Get smart autocomplete, spell check, and text expansion to boost your productivity on any website.",
   "type": "module",
   "packageManager": "bun@1.3.10",
@@ -14,8 +14,8 @@
     "test:e2e:dev": "bun scripts/run-e2e.ts --mode=development",
     "update": "bun update --latest --recursive",
     "preversion": "bun run test",
-    "version": "echo 'version updated'",
-    "postversion": "bun scripts/update-manifest-version.cjs && git push && git push --tags",
+    "version": "bun scripts/update-manifest-version.cjs",
+    "postversion": "git push && git push --tags",
     "lint:fix": "bun run lint -- --fix",
     "fix": "bun run lint:fix && bun run format",
     "format": "prettier . --cache --write",

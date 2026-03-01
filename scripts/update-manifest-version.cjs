@@ -34,8 +34,7 @@ manifests.forEach((manifestPath) => {
 });
 
 if (manifests.length > 0) {
-  execSync(`git commit -m "chore: update manifest version to ${version}"`);
-  console.log(`Updated manifest versions and committed: ${manifests.join(", ")}`);
+  console.log(`Updated manifest versions and staged: ${manifests.join(", ")}`);
 } else {
   console.log("No manifest.json files found in platform directory.");
 }
