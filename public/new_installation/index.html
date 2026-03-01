@@ -16,6 +16,7 @@
     <link rel="stylesheet" type="text/css" href="/css/fluenttyper-theme.css" />
 
     <script src="/content_script.js"></script>
+    <script src="/new_installation/onboarding.js"></script>
     <style>
       /* General Styles */
       body {
@@ -432,6 +433,53 @@
                   <span class="has-text-grey-dark">to navigate suggestions and</span>
                   <strong class="has-text-weight-bold">Tab</strong>
                   <span class="has-text-grey-dark">to accept them.</span>
+                </div>
+              </div>
+
+              <!-- Permission Request -->
+              <div
+                id="permissions-container"
+                class="step-card"
+                style="margin-top: 1.5rem; background-color: #fffbeb; border-color: #fde68a"
+              >
+                <div class="step-number" style="background-color: #d97706">!</div>
+                <div class="is-size-5" style="display: flex; flex-direction: column; gap: 0.5rem">
+                  <strong class="has-text-weight-bold" style="color: #92400e"
+                    >Grant Permissions</strong
+                  >
+                  <span class="has-text-grey-dark is-size-6" style="color: #b45309 !important"
+                    >FluentTyper requires access to webpages to provide suggestions where you
+                    type.</span
+                  >
+                  <button
+                    id="grant-permissions-btn"
+                    class="button is-warning is-rounded mt-2"
+                    style="font-weight: 600; width: fit-content"
+                  >
+                    Grant Access
+                  </button>
+                </div>
+              </div>
+              <div
+                id="permissions-success"
+                class="step-card"
+                style="
+                  margin-top: 1.5rem;
+                  background-color: #ecfdf5;
+                  border-color: #a7f3d0;
+                  display: none;
+                "
+              >
+                <div class="step-number" style="background-color: #10b981">✓</div>
+                <div class="is-size-5">
+                  <strong class="has-text-weight-bold" style="color: #065f46"
+                    >Permissions Granted!</strong
+                  >
+                  <span
+                    class="has-text-grey-dark is-size-6"
+                    style="color: #047857 !important; display: block"
+                    >You are all set to use FluentTyper everywhere.</span
+                  >
                 </div>
               </div>
 

@@ -3,7 +3,7 @@
     "scripts": ["background.js"],
     "type": "module"
   },
-  "host_permissions": ["<all_urls>"],
+  "optional_host_permissions": ["<all_urls>"],
   "content_scripts": [
     {
       "css": ["third_party/tribute/tribute.css"],
