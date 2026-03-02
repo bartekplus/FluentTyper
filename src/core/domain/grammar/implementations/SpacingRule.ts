@@ -34,8 +34,7 @@ export class SpacingRule implements GrammarRule {
       SPACING_RULES[lastChar].spaceAfter === Spacing.INSERT_SPACE;
 
     const spaceBeforeViolated =
-      (requiresSpaceBefore && !hasSpaceBefore) ||
-      (requiresNoSpaceBefore && hasSpaceBefore);
+      (requiresSpaceBefore && !hasSpaceBefore) || (requiresNoSpaceBefore && hasSpaceBefore);
 
     if (!spaceBeforeViolated && !insertSpaceAfter) {
       return null;
@@ -63,4 +62,3 @@ export class SpacingRule implements GrammarRule {
     };
   }
 }
-

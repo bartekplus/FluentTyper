@@ -85,7 +85,6 @@ export class ConfigAssembler {
       minWordLengthToPredict,
       insertSpaceAfterAutocomplete,
       autoCapitalize,
-      applySpacingRules,
       textExpansions,
 
       timeFormat,
@@ -97,7 +96,6 @@ export class ConfigAssembler {
       this.coreSettingsRepository.getMinWordLengthToPredict(),
       this.coreSettingsRepository.getInsertSpaceAfterAutocomplete(),
       this.coreSettingsRepository.getAutoCapitalize(),
-      this.coreSettingsRepository.getApplySpacingRules(),
       this.coreSettingsRepository.getTextExpansions(),
 
       this.coreSettingsRepository.getTimeFormat(),
@@ -115,7 +113,6 @@ export class ConfigAssembler {
         minWordLengthToPredict,
         insertSpaceAfterAutocomplete,
         autoCapitalize,
-        applySpacingRules,
         textExpansions,
 
         timeFormat,

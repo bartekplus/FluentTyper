@@ -32,7 +32,6 @@ export const KEY_REVERT_ON_BACKSPACE = "revertOnBackspace";
 export const KEY_NUM_SUGGESTIONS = "numSuggestions";
 export const KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE = "insertSpaceAfterAutocomplete";
 export const KEY_AUTO_CAPITALIZE = "autoCapitalize";
-export const KEY_APPLY_SPACING_RULES = "applySpacingRules";
 export const KEY_TEXT_EXPANSIONS = "textExpansions";
 
 export const KEY_TIME_FORMAT = "timeFormat";

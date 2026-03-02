@@ -197,7 +197,6 @@ async function loadBackgroundHarness(stateOverrides: Record<string, unknown> = {
     numSuggestions: 5,
     insertSpaceAfterAutocomplete: true,
     autoCapitalize: true,
-    applySpacingRules: true,
     textExpansions: [],
 
     timeFormat: "HH:mm",

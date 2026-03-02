@@ -138,10 +138,6 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
     return this.getBooleanField("autoCapitalize");
   }
 
-  async getApplySpacingRules(): Promise<boolean> {
-    return this.getBooleanField("applySpacingRules");
-  }
-
   async getEnabledGrammarRules(): Promise<string[]> {
     return this.getStringArrayField("enabledGrammarRules");
   }

@@ -188,8 +188,6 @@ export class TributeManager {
       currentEntry.requestId += 1;
       this.activeHelperArrId = tributeId;
 
-
-
       logger.debug("Requesting prediction for tribute helper", {
         fullText,
         nextChar,

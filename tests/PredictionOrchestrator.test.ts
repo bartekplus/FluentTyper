@@ -32,7 +32,6 @@ function createConfig(overrides: Partial<PredictionConfig> = {}): PredictionConf
     minWordLengthToPredict: 0,
     insertSpaceAfterAutocomplete: false,
     autoCapitalize: false,
-    applySpacingRules: false,
     textExpansions: [],
 
     timeFormat: "",
