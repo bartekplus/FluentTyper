@@ -6,35 +6,20 @@
     "rootDir": "./src",
     "baseUrl": "./src",
     "paths": {
-      "@core/*": [
-        "core/*"
-      ],
-      "@adapters/*": [
-        "adapters/*"
-      ],
-      "@ui/*": [
-        "ui/*"
-      ],
-      "@third-party/*": [
-        "third_party/*"
-      ]
+      "@core/*": ["core/*"],
+      "@adapters/*": ["adapters/*"],
+      "@ui/*": ["ui/*"],
+      "@third-party/*": ["third_party/*"]
     },
     "strict": true,
     "esModuleInterop": true,
     "allowJs": true, // Allow JavaScript files to be compiled
     "checkJs": false,
-    "lib": [
-      "ES2022",
-      "DOM"
-    ],
+    "lib": ["ES2022", "DOM"],
     "skipLibCheck": true,
     "moduleResolution": "bundler",
     "sourceMap": false,
-    "typeRoots": [
-      "node_modules/@types"
-    ]
+    "typeRoots": ["node_modules/@types"]
   },
-  "include": [
-    "src/**/*"
-  ]
+  "include": ["src/**/*"]
 }

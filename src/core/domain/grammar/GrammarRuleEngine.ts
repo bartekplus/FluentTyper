@@ -47,7 +47,9 @@ export class GrammarRuleEngine {
         }
 
         const rule = this.rules.get(ruleId);
-        if (!rule) { continue; }
+        if (!rule) {
+          continue;
+        }
 
         try {
           const result = rule.apply(currentContext);
@@ -56,9 +58,9 @@ export class GrammarRuleEngine {
           }
 
           const edits = Array.isArray(result) ? result : [result];
-          if (edits.length === 0) { continue; }
-
-
+          if (edits.length === 0) {
+            continue;
+          }
 
           for (const edit of edits) {
             appliedEdits.push(edit);
@@ -104,7 +106,9 @@ export class GrammarRuleEngine {
     // we need to squash them into one edit relative to the ORIGINAL cursor.
     // Actually, returning all edits or squashing them is fine, but to map to `forceReplace`
     // easily, we squash them into a single GrammarEdit.
-    if (edits.length === 0) { return []; }
+    if (edits.length === 0) {
+      return [];
+    }
 
     let totalDeleteForwards = 0;
 
