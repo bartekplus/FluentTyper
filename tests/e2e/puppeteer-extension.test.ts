@@ -2018,10 +2018,6 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
       await applyConfigChange(browser, worker!);
 
-      page.on("console", (msg) => {
-        console.log(`[BROWSER_CONSOLE] ${msg.text()}`);
-      });
-
       await gotoTestPage(page, {
         enableCkEditor: shouldEnableCkEditor(selector),
       });
@@ -2033,37 +2029,40 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       // Type "testing ." and verify spacingRule applies (and first letter capitalized)
       await element!.type("testing .");
 
-      let debugVal1 = "";
-      for (let i = 0; i < 10; i++) {
-        await new Promise((r) => setTimeout(r, 200));
-        debugVal1 = await page.$eval(
-          selector,
-          (el) => ((el as HTMLInputElement).value ?? el.textContent) as string,
-        );
-        if (debugVal1.replace(/\xA0/g, " ").includes("esting. ")) {
-          break;
-        }
-      }
-      console.log(`[DEBUG] After testing .: ${JSON.stringify(debugVal1)}`);
+      await page.waitForFunction(
+        (sel) => {
+          const el = document.querySelector(sel);
+          if (!el) {
+            return false;
+          }
+          const val = ((el as HTMLInputElement).value ?? el.textContent) as string;
+          return val.replace(/\xA0/g, " ").includes("esting. ");
+        },
+        { timeout: browserTimeout(2000, 3000) },
+        selector,
+      );
 
       // Type "w" and verify capitalizeFirstLetterRule applies
       await element!.type("w");
-      let debugVal2 = "";
-      for (let i = 0; i < 15; i++) {
-        await new Promise((r) => setTimeout(r, 200));
-        debugVal2 = await page.$eval(
-          selector,
-          (el) => ((el as HTMLInputElement).value ?? el.textContent) as string,
-        );
-        console.log(`[DEBUG_POLL_2] val=${JSON.stringify(debugVal2)}`);
-        if (debugVal2.replace(/\xA0/g, " ").includes("esting. W")) {
-          break;
-        }
-      }
 
-      console.log(`[DEBUG] After w: ${JSON.stringify(debugVal2)}`);
+      await page.waitForFunction(
+        (sel) => {
+          const el = document.querySelector(sel);
+          if (!el) {
+            return false;
+          }
+          const val = ((el as HTMLInputElement).value ?? el.textContent) as string;
+          return val.replace(/\xA0/g, " ").includes("esting. W");
+        },
+        { timeout: browserTimeout(3000, 5000) },
+        selector,
+      );
 
-      const elementText = debugVal2.replace(/\xA0/g, " ");
+      const finalVal = await page.$eval(
+        selector,
+        (el) => ((el as HTMLInputElement).value ?? el.textContent) as string,
+      );
+      const elementText = finalVal.replace(/\xA0/g, " ");
       // CapitalizeFirstLetterRule capitalizes T at start AND W after ". "
       expect(elementText).toContain("esting. W");
 
