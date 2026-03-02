@@ -32,6 +32,7 @@ export class ContentRuntimeController {
     displayLangHeader: true,
     inline_suggestion: false,
     themeConfig: undefined,
+    enabledGrammarRules: [],
   };
   public readonly domObserver: DomObserver;
 

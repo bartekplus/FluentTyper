@@ -130,7 +130,11 @@ export class PresageHandler {
     this.textExpansionManager.setTextExpansions(config.textExpansions);
     this.userDictionaryManager.setUserDictionaryList(this.userDictionaryList);
     this.enabledGrammarRules = config.enabledGrammarRules || [];
-    if ((config as any).applySpacingRules === true) {
+    if (
+      "applySpacingRules" in config &&
+      typeof (config as Record<string, unknown>).applySpacingRules === "boolean" &&
+      (config as Record<string, unknown>).applySpacingRules === true
+    ) {
       if (!this.enabledGrammarRules.includes("spacingRule")) {
         this.enabledGrammarRules.push("spacingRule");
       }

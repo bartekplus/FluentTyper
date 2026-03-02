@@ -8,7 +8,7 @@ export class CapitalizeFirstLetterRule implements GrammarRule {
 
   apply(context: GrammarContext): GrammarEdit | null {
     const text = context.beforeCursor;
-    if (text.length === 0) return null;
+    if (text.length === 0) {return null;}
 
     const lastChar = text[text.length - 1];
 

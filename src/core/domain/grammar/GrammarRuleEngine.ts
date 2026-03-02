@@ -1,8 +1,4 @@
-import { createLogger } from "@core/application/logging/Logger";
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "./types";
-
-const logger = createLogger("GrammarRuleEngine");
-
 export class GrammarRuleEngine {
   private rules: Map<string, GrammarRule> = new Map();
   private pipelines: Map<GrammarEventType, string[]> = new Map();
@@ -20,7 +16,10 @@ export class GrammarRuleEngine {
       if (!this.pipelines.has(trigger)) {
         this.pipelines.set(trigger, []);
       }
-      this.pipelines.get(trigger)!.push(rule.id);
+      const pipeline = this.pipelines.get(trigger);
+      if (pipeline) {
+        pipeline.push(rule.id);
+      }
     }
   }
 
@@ -48,33 +47,32 @@ export class GrammarRuleEngine {
         }
 
         const rule = this.rules.get(ruleId);
-        if (!rule) continue;
+        if (!rule) { continue; }
 
         try {
           const result = rule.apply(currentContext);
           if (!result) {
-            logger.debug(`Rule ${rule.name} did not match context`);
             continue;
           }
 
           const edits = Array.isArray(result) ? result : [result];
-          if (edits.length === 0) continue;
+          if (edits.length === 0) { continue; }
 
-          logger.debug(`Rule ${rule.name} applied ${edits.length} edits`);
+
 
           for (const edit of edits) {
             appliedEdits.push(edit);
             currentContext = this.applyEditToContext(currentContext, edit);
             madeChanges = true;
           }
-        } catch (error) {
-          logger.warn(`Rule evaluation failed for ${rule.name}`, { error });
+        } catch {
+          // Rule evaluation failed, silently ignore to prevent breaking prediction flow
         }
       }
     }
 
     if (iteration === MAX_ITERATIONS) {
-      logger.warn("Grammar Rule Engine reached max iterations, possible infinite loop detected.");
+      // Reached max iterations, possible infinite loop detected. Silently return what we have.
     }
 
     return this.mergeEdits(appliedEdits);
@@ -106,11 +104,9 @@ export class GrammarRuleEngine {
     // we need to squash them into one edit relative to the ORIGINAL cursor.
     // Actually, returning all edits or squashing them is fine, but to map to `forceReplace`
     // easily, we squash them into a single GrammarEdit.
-    if (edits.length === 0) return [];
+    if (edits.length === 0) { return []; }
 
-    let totalDeleteBackwards = 0;
     let totalDeleteForwards = 0;
-    let replacementTokens: string[] = [];
 
     // Let's do a simplified squashing assuming sequential application at the cursor:
     let accumulatedString = "";

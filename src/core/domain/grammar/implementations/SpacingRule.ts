@@ -14,16 +14,16 @@ export class SpacingRule implements GrammarRule {
 
   apply(context: GrammarContext): GrammarEdit | null {
     const inputStr = context.beforeCursor;
-    if (!inputStr || inputStr.length === 0) return null;
+    if (!inputStr || inputStr.length === 0) {return null;}
 
     const length = inputStr.length;
     const lastChar = inputStr[length - 1];
     const lastCharMin1 = inputStr[length - 2];
     const lastCharMin2 = inputStr[length - 3];
 
-    if (!lastCharMin1) return null;
-    if (!SPACING_RULES[lastChar]) return null;
-    if (SPACE_CHARS.includes(lastCharMin2)) return null;
+    if (!lastCharMin1) {return null;}
+    if (!SPACING_RULES[lastChar]) {return null;}
+    if (SPACE_CHARS.includes(lastCharMin2)) {return null;}
 
     const requiresSpaceBefore = SPACING_RULES[lastChar].spaceBefore === Spacing.INSERT_SPACE;
     const requiresNoSpaceBefore = SPACING_RULES[lastChar].spaceBefore === Spacing.REMOVE_SPACE;
