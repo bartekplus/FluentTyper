@@ -17,7 +17,7 @@ import type { PredictionResult } from "./PredictionTypes";
 import { GrammarRuleEngine } from "@core/domain/grammar/GrammarRuleEngine";
 import { SpacingRule } from "@core/domain/grammar/implementations/SpacingRule";
 import { CapitalizeFirstLetterRule } from "@core/domain/grammar/implementations/CapitalizeFirstLetterRule";
-import { SPACE_CHARS } from "@core/domain/spacingRules";
+import { SPACE_CHARS, SPACING_RULES, Spacing } from "@core/domain/spacingRules";
 const SUGGESTION_COUNT = 5;
 const MIN_WORD_LENGTH_TO_PREDICT = 1;
 const logger = createLogger("PresageHandler");
@@ -359,21 +359,6 @@ export class PresageHandler {
           return 1;
         }
         // Keep original order for now, follow presage order
-        return 0;
-        // Prefix match next
-        const aStarts = aLower.startsWith(inputLower);
-        const bStarts = bLower.startsWith(inputLower);
-        if (aStarts && !bStarts) {
-          return -1;
-        }
-        if (bStarts && !aStarts) {
-          return 1;
-        }
-        // Shorter words first (e.g. "act" before "action")
-        if (aLower.length !== bLower.length) {
-          return aLower.length - bLower.length;
-        }
-        // Otherwise, keep original order
         return 0;
       });
     }
