@@ -25,9 +25,10 @@ describe("migrateSettingsV3 – applySpacingRules migration", () => {
     await migrateSettingsV3(settings);
 
     expect(settings.store["enabledGrammarRules"]).toEqual(["spacingRule"]);
+    expect(settings.store["applySpacingRules"]).toBe(false);
   });
 
-  test("merges spacingRule into existing enabledGrammarRules", async () => {
+  test("does not migrate spacingRule if enabledGrammarRules is already initialized", async () => {
     const settings = createMockSettingsManager({
       applySpacingRules: true,
       enabledGrammarRules: ["capitalizeFirstLetter"],
@@ -35,18 +36,8 @@ describe("migrateSettingsV3 – applySpacingRules migration", () => {
 
     await migrateSettingsV3(settings);
 
-    expect(settings.store["enabledGrammarRules"]).toEqual(["capitalizeFirstLetter", "spacingRule"]);
-  });
-
-  test("does not duplicate spacingRule if already present", async () => {
-    const settings = createMockSettingsManager({
-      applySpacingRules: true,
-      enabledGrammarRules: ["spacingRule"],
-    });
-
-    await migrateSettingsV3(settings);
-
-    expect(settings.store["enabledGrammarRules"]).toEqual(["spacingRule"]);
+    expect(settings.store["enabledGrammarRules"]).toEqual(["capitalizeFirstLetter"]);
+    expect(settings.store["applySpacingRules"]).toBe(false);
   });
 
   test("does not migrate when applySpacingRules=false", async () => {
@@ -55,6 +46,7 @@ describe("migrateSettingsV3 – applySpacingRules migration", () => {
     await migrateSettingsV3(settings);
 
     expect(settings.store["enabledGrammarRules"]).toBeUndefined();
+    expect(settings.store["applySpacingRules"]).toBe(false);
   });
 
   test("does not migrate when applySpacingRules is absent", async () => {
@@ -63,6 +55,26 @@ describe("migrateSettingsV3 – applySpacingRules migration", () => {
     await migrateSettingsV3(settings);
 
     expect(settings.store["enabledGrammarRules"]).toBeUndefined();
+    expect(settings.store["applySpacingRules"]).toBeUndefined();
+  });
+
+  test("migrate once -> user sets enabledGrammarRules=[] -> rerun migration -> value must stay []", async () => {
+    const settings = createMockSettingsManager({ applySpacingRules: true });
+
+    // First migration
+    await migrateSettingsV3(settings);
+    expect(settings.store["enabledGrammarRules"]).toEqual(["spacingRule"]);
+    expect(settings.store["applySpacingRules"]).toBe(false);
+
+    // User explicitly disables the rule
+    await settings.set("enabledGrammarRules", []);
+
+    // Rerun migration
+    await migrateSettingsV3(settings);
+
+    // Value must stay []
+    expect(settings.store["enabledGrammarRules"]).toEqual([]);
+    expect(settings.store["applySpacingRules"]).toBe(false);
   });
 });
 

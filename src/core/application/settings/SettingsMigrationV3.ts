@@ -36,14 +36,15 @@ export async function migrateSettingsV3(settings: SettingsManager): Promise<void
 
     // Migrate legacy applySpacingRules boolean → enabledGrammarRules array
     const legacyValue = await settings.get(KEY_LEGACY_APPLY_SPACING_RULES);
-    if (legacyValue === true) {
-      const grammarKey = getSettingStorageKey("enabledGrammarRules");
-      const existing = await settings.get(grammarKey);
-      const rules: string[] = Array.isArray(existing) ? (existing as string[]) : [];
-      if (!rules.includes("spacingRule")) {
-        rules.push("spacingRule");
-        await settings.set(grammarKey, rules as JsonValue);
+    if (typeof legacyValue !== "undefined") {
+      if (legacyValue === true) {
+        const grammarKey = getSettingStorageKey("enabledGrammarRules");
+        const existing = await settings.get(grammarKey);
+        if (typeof existing === "undefined") {
+          await settings.set(grammarKey, ["spacingRule"] as JsonValue);
+        }
       }
+      await settings.set(KEY_LEGACY_APPLY_SPACING_RULES, false);
     }
   } catch (error) {
     console.warn("[SettingsMigrationV3] Failed to migrate settings:", error);
