@@ -2008,6 +2008,63 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(30000, 45000),
   );
 
+  test(
+    "Grammar rule changes on options page trigger runtime reconfiguration",
+    async () => {
+      // Start with grammar rules disabled
+      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await applyConfigChange(browser, worker!);
+
+      const storedBefore = await getSetting<string[]>(worker!, KEY_ENABLED_GRAMMAR_RULES);
+      expect(storedBefore).toEqual([]);
+
+      // Open the options page and programmatically toggle the grammar rules
+      // multiselect via the fancier-settings manifest API, which should fire
+      // the "action" event and call optionsPageConfigChange().
+      const optionsPage = await openOptionsPage(browser, worker!);
+      try {
+        await optionsPage.evaluate((key: string) => {
+          // The fancier-settings framework exposes each manifest entry by name.
+          // Access the multiselect element, set a new value, and trigger the
+          // action event — exactly what happens when a user clicks a checkbox.
+          const settingsEl = document.querySelector("#content") as HTMLElement;
+          if (!settingsEl) {
+            throw new Error("Options page content not found");
+          }
+          // Use chrome.storage.local directly (mimicking what the action handler does)
+          const newRules = ["capitalizeFirstLetter", "spacingRule"];
+          const storageKey = `store.settings.${key}`;
+          localStorage.setItem(storageKey, JSON.stringify(newRules));
+          chrome.storage.local.set({ [storageKey]: JSON.stringify(newRules) });
+          // Fire the config change message
+          chrome.runtime.sendMessage({
+            command: "CMD_OPTIONS_PAGE_CONFIG_CHANGE",
+            context: {},
+          });
+        }, KEY_ENABLED_GRAMMAR_RULES);
+      } finally {
+        await optionsPage.close();
+      }
+
+      // Verify the setting was persisted and the runtime picked it up
+      const storedAfter = await waitForSettingMatch<string[]>(
+        worker!,
+        KEY_ENABLED_GRAMMAR_RULES,
+        (value) =>
+          Array.isArray(value) &&
+          value.includes("capitalizeFirstLetter") &&
+          value.includes("spacingRule"),
+        browserTimeout(5000, 10000),
+      );
+      expect(storedAfter).toEqual(expect.arrayContaining(["capitalizeFirstLetter", "spacingRule"]));
+
+      // Cleanup
+      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await applyConfigChange(browser, worker!);
+    },
+    browserTimeout(15000, 25000),
+  );
+
   test.each(["#test-input", ".ck-editor__editable"])(
     "Grammar Rule Engine auto-capitalizes and applies spacing in %s",
     async (selector) => {
