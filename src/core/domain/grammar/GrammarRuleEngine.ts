@@ -2,6 +2,8 @@ import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from 
 export class GrammarRuleEngine {
   private rules: Map<string, GrammarRule> = new Map();
   private pipelines: Map<GrammarEventType, string[]> = new Map();
+  private errorCounters: Map<string, number> = new Map();
+  private lastErrorTime: Map<string, number> = new Map();
 
   constructor() {
     this.pipelines.set("insertChar", []);
@@ -67,8 +69,23 @@ export class GrammarRuleEngine {
             currentContext = this.applyEditToContext(currentContext, edit);
             madeChanges = true;
           }
-        } catch {
-          // Rule evaluation failed, silently ignore to prevent breaking prediction flow
+        } catch (error) {
+          // Rule evaluation failed, emit throttled warning to maintain observability
+          // without spamming the console and breaking prediction flow.
+          const errorCount = (this.errorCounters.get(ruleId) || 0) + 1;
+          this.errorCounters.set(ruleId, errorCount);
+
+          const now = Date.now();
+          const lastError = this.lastErrorTime.get(ruleId) || 0;
+          const THROTTLE_MS = 60000; // 1 minute per rule
+
+          if (now - lastError > THROTTLE_MS) {
+            console.warn(
+              `[GrammarRuleEngine] Rule '${ruleId}' failed (occurrences: ${errorCount}):`,
+              error,
+            );
+            this.lastErrorTime.set(ruleId, now);
+          }
         }
       }
     }
@@ -78,6 +95,12 @@ export class GrammarRuleEngine {
     }
 
     return this.mergeEdits(appliedEdits);
+  }
+
+  getDebugSnapshot(): { errorCounters: Record<string, number> } {
+    return {
+      errorCounters: Object.fromEntries(this.errorCounters),
+    };
   }
 
   private applyEditToContext(context: GrammarContext, edit: GrammarEdit): GrammarContext {
