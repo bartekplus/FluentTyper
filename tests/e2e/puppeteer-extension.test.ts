@@ -1259,6 +1259,102 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(45000, 70000),
   );
 
+  test(
+    "CKEditor preserves paragraph break when accepting suggestion at line end",
+    async () => {
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await applyConfigChange(browser, worker!);
+
+      await gotoTestPage(page, { enableCkEditor: true });
+      await page.bringToFront();
+      await waitForInputReady(page, CKEDITOR_SELECTOR);
+
+      await page.evaluate(() => {
+        const ckEditor = (
+          window as typeof window & {
+            __testCkEditor?: { setData: (data: string) => void };
+          }
+        ).__testCkEditor;
+        if (!ckEditor) {
+          throw new Error("CKEditor test instance not found");
+        }
+        ckEditor.setData("<p></p><p>next</p>");
+      });
+
+      await page.focus(CKEDITOR_SELECTOR);
+      await page.evaluate(() => {
+        const editable = document.querySelector(".ck-editor__editable");
+        const firstParagraph = editable?.querySelector("p");
+        if (!editable || !firstParagraph) {
+          throw new Error("CKEditor editable or first paragraph missing");
+        }
+        const textNode =
+          firstParagraph.firstChild && firstParagraph.firstChild.nodeType === Node.TEXT_NODE
+            ? firstParagraph.firstChild
+            : firstParagraph.appendChild(document.createTextNode(""));
+
+        const selection = window.getSelection();
+        if (!selection) {
+          throw new Error("Selection unavailable");
+        }
+
+        const range = document.createRange();
+        range.setStart(textNode, textNode.textContent?.length ?? 0);
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      });
+
+      await page.keyboard.type("h");
+      const liCount = await waitForVisibleSuggestions(page);
+      expect(liCount).toBeGreaterThan(0);
+      await page.keyboard.press("Tab");
+
+      try {
+        await page.waitForFunction(
+          () => {
+            const editable = document.querySelector(".ck-editor__editable");
+            if (!editable) {
+              return false;
+            }
+            const paragraphs = editable.querySelectorAll("p");
+            return paragraphs.length >= 2 && (paragraphs[1].textContent ?? "").trim() === "next";
+          },
+          { timeout: browserTimeout(4000, 10000) },
+        );
+      } catch {
+        const debugState = await page.evaluate(() => {
+          const editable = document.querySelector(".ck-editor__editable");
+          const paragraphs = editable ? Array.from(editable.querySelectorAll("p")) : [];
+          return {
+            html: editable?.innerHTML ?? "",
+            texts: paragraphs.map((p) => p.textContent ?? ""),
+            textContent: editable?.textContent ?? "",
+          };
+        });
+        throw new Error(`CKEditor paragraph state mismatch: ${JSON.stringify(debugState)}`);
+      }
+
+      const paragraphState = await page.evaluate(() => {
+        const editable = document.querySelector(".ck-editor__editable");
+        const paragraphs = editable ? Array.from(editable.querySelectorAll("p")) : [];
+        const normalize = (value: string): string => value.replace(/\u00a0/g, " ").trim();
+        return {
+          count: paragraphs.length,
+          first: normalize(paragraphs[0]?.textContent ?? ""),
+          second: normalize(paragraphs[1]?.textContent ?? ""),
+        };
+      });
+
+      expect(paragraphState.count).toBeGreaterThanOrEqual(2);
+      expect(paragraphState.second).toBe("next");
+      expect(paragraphState.first).toMatch(/^h\S*$/i);
+    },
+    browserTimeout(45000, 70000),
+  );
+
   test.each(SUPPORTED_INPUT_SELECTORS)(
     "Cursor movement cancels missing space auto-insertion in %s",
     async (selector) => {

@@ -73,6 +73,7 @@ interface Entry {
   selectedIndex: number;
   menuHeader: string | null;
   latestMentionText: string;
+  latestMentionStart: number;
   inlineSuggestion: string | null;
   pendingInlineAccept: boolean;
   missingTrailingSpace: boolean;
@@ -305,6 +306,7 @@ export class SuggestionManager {
       selectedIndex: 0,
       menuHeader: null,
       latestMentionText: "",
+      latestMentionStart: 0,
       inlineSuggestion: null,
       pendingInlineAccept: false,
       missingTrailingSpace: false,
@@ -435,7 +437,9 @@ export class SuggestionManager {
       return;
     }
     const snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
-    entry.latestMentionText = this.findMentionToken(snapshot.beforeCursor).token;
+    const tokenInfo = this.findMentionToken(snapshot.beforeCursor);
+    entry.latestMentionText = tokenInfo.token;
+    entry.latestMentionStart = tokenInfo.start;
     if (this.inlineSuggestionEnabled) {
       this.renderInlineSuggestion(entry);
     }
@@ -475,6 +479,7 @@ export class SuggestionManager {
 
     const tokenInfo = this.findMentionToken(beforeCursor);
     entry.latestMentionText = tokenInfo.token;
+    entry.latestMentionStart = tokenInfo.start;
     entry.requestId += 1;
 
     this.getPrediction({
@@ -1082,7 +1087,11 @@ export class SuggestionManager {
 
   private acceptSuggestion(entry: Entry, suggestion: string): void {
     let snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
-    const tokenInfo = this.findMentionToken(snapshot.beforeCursor);
+    const blockContext = this.isTextValueElement(entry.elem)
+      ? null
+      : this.getContentEditableBlockContext(entry.elem);
+    const tokenSource = blockContext?.beforeCursor ?? snapshot.beforeCursor;
+    const tokenInfo = this.findMentionToken(tokenSource);
     const triggerText = tokenInfo.token || entry.latestMentionText;
 
     if (!this.isTextValueElement(entry.elem) && triggerText && snapshot.beforeCursor.length === 0) {
@@ -1096,11 +1105,38 @@ export class SuggestionManager {
       }
     }
 
-    const trailingTokenText = this.findTrailingToken(snapshot.afterCursor);
-    const replacedTokenText = `${triggerText}${trailingTokenText}`;
     const currentFullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
-    const replaceEnd = snapshot.beforeCursor.length;
-    const replaceStart = Math.max(0, replaceEnd - triggerText.length);
+    let replaceEnd = snapshot.beforeCursor.length;
+    const globalTokenInfo = this.findMentionToken(snapshot.beforeCursor);
+    if (!this.isTextValueElement(entry.elem) && globalTokenInfo.token.length === 0) {
+      while (replaceEnd > 0 && this.isSeparator(snapshot.beforeCursor.charAt(replaceEnd - 1))) {
+        replaceEnd -= 1;
+      }
+    }
+    let replaceStart = Math.max(0, replaceEnd - triggerText.length);
+
+    if (
+      !this.isTextValueElement(entry.elem) &&
+      tokenInfo.token.length === 0 &&
+      triggerText.length > 0 &&
+      entry.latestMentionStart >= 0
+    ) {
+      const storedStart = entry.latestMentionStart;
+      const storedEnd = storedStart + triggerText.length;
+      if (
+        storedEnd <= currentFullText.length &&
+        storedStart <= replaceEnd &&
+        currentFullText.slice(storedStart, storedEnd).toLowerCase() === triggerText.toLowerCase()
+      ) {
+        replaceStart = storedStart;
+        replaceEnd = storedEnd;
+      }
+    }
+
+    const trailingTokenText = this.findTrailingToken(
+      blockContext?.afterCursor ?? currentFullText.slice(replaceEnd),
+    );
+    const replacedTokenText = `${triggerText}${trailingTokenText}`;
     const baseReplaceEnd = Math.min(currentFullText.length, replaceEnd + trailingTokenText.length);
     const extraWhitespaceToConsume = this.shouldConsumeFollowingSpace(
       suggestion,
@@ -1420,6 +1456,68 @@ export class SuggestionManager {
     this.setContentEditableCaret(elem, cursorAfter);
   }
 
+  private getContentEditableBlockContext(
+    elem: HTMLElement,
+  ): { beforeCursor: string; afterCursor: string } | null {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      return null;
+    }
+
+    const range = selection.getRangeAt(0);
+    const targetNode = elem as Node;
+    const startInside =
+      range.startContainer === targetNode || targetNode.contains(range.startContainer);
+    const endInside = range.endContainer === targetNode || targetNode.contains(range.endContainer);
+    if (!startInside || !endInside) {
+      return null;
+    }
+
+    const block = this.resolveContentEditableBlock(range.startContainer, elem);
+    const beforeRange = range.cloneRange();
+    beforeRange.selectNodeContents(block);
+    beforeRange.setEnd(range.startContainer, range.startOffset);
+
+    const afterRange = range.cloneRange();
+    afterRange.selectNodeContents(block);
+    afterRange.setStart(range.endContainer, range.endOffset);
+
+    return {
+      beforeCursor: beforeRange.toString(),
+      afterCursor: afterRange.toString(),
+    };
+  }
+
+  private resolveContentEditableBlock(node: Node, root: HTMLElement): HTMLElement {
+    const blockTags = new Set([
+      "P",
+      "DIV",
+      "LI",
+      "BLOCKQUOTE",
+      "PRE",
+      "TD",
+      "TH",
+      "H1",
+      "H2",
+      "H3",
+      "H4",
+      "H5",
+      "H6",
+    ]);
+
+    let current: HTMLElement | null =
+      node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as HTMLElement | null);
+
+    while (current && current !== root) {
+      if (blockTags.has(current.tagName)) {
+        return current;
+      }
+      current = current.parentElement;
+    }
+
+    return root;
+  }
+
   private dispatchContentEditableInputSequence(
     elem: HTMLElement,
     range: Range,
@@ -1517,22 +1615,34 @@ export class SuggestionManager {
       return { node: textNode, offset: 0 };
     }
 
-    let remaining = Math.max(0, targetOffset);
+    const clampedTarget = Math.max(0, targetOffset);
+    const probeRange = document.createRange();
+    probeRange.selectNodeContents(elem);
+
     let lastNode = current;
+    let lastNodeLength = current.textContent?.length ?? 0;
 
     while (current) {
       lastNode = current;
-      const length = current.textContent?.length ?? 0;
-      if (remaining <= length) {
-        return { node: current, offset: remaining };
+      lastNodeLength = current.textContent?.length ?? 0;
+
+      probeRange.setEnd(current, 0);
+      const nodeStartOffset = probeRange.toString().length;
+
+      probeRange.setEnd(current, lastNodeLength);
+      const nodeEndOffset = probeRange.toString().length;
+
+      if (clampedTarget <= nodeEndOffset) {
+        const offsetInNode = Math.max(0, Math.min(lastNodeLength, clampedTarget - nodeStartOffset));
+        return { node: current, offset: offsetInNode };
       }
-      remaining -= length;
+
       current = walker.nextNode() as Text | null;
     }
 
     return {
       node: lastNode,
-      offset: lastNode.textContent?.length ?? 0,
+      offset: lastNodeLength,
     };
   }
 

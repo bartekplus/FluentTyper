@@ -487,4 +487,61 @@ describe("SuggestionManager", () => {
     expect(editable.querySelector("b")?.textContent).toBe("rich");
     expect(editable.querySelector("i")?.textContent).toBe("next");
   });
+
+  test("preserves paragraph break when replacing token at end of first paragraph", async () => {
+    const { manager, getPrediction } = await createManager();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML = "<p>h</p><p>next</p>";
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    const firstParagraph = editable.querySelector("p");
+    const firstTextNode =
+      firstParagraph?.firstChild && firstParagraph.firstChild.nodeType === Node.TEXT_NODE
+        ? (firstParagraph.firstChild as Text)
+        : (firstParagraph?.appendChild(document.createTextNode("")) as Text);
+    if (!firstTextNode) {
+      throw new Error("Expected first paragraph text node");
+    }
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Expected selection");
+    }
+    const range = document.createRange();
+    range.setStart(firstTextNode, firstTextNode.textContent?.length ?? 0);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+    await wait(220);
+
+    const request = getPrediction.mock.calls.at(-1)?.[0];
+    if (!request) {
+      throw new Error("Expected prediction request");
+    }
+
+    manager.fulfillPrediction(
+      buildResponse(request, {
+        predictions: ["he\xA0"],
+      }),
+    );
+
+    dispatchKeydown(editable, "Tab");
+
+    const paragraphs = Array.from(editable.querySelectorAll("p"));
+    expect(paragraphs.length).toBeGreaterThanOrEqual(2);
+    const normalizedParagraphs = paragraphs
+      .map((paragraph) => (paragraph.textContent ?? "").replace(/\u00a0/g, " ").trim())
+      .filter(Boolean);
+    if (normalizedParagraphs.length === 0) {
+      throw new Error(`Unexpected editable state: ${editable.innerHTML}`);
+    }
+    expect(normalizedParagraphs).toContain("next");
+    expect(normalizedParagraphs).toContain("he");
+  });
 });
