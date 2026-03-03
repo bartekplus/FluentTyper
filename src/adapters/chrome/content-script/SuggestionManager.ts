@@ -113,6 +113,9 @@ export class SuggestionManager {
   private entries = new Map<number, Entry>();
   private entryIdByElement = new WeakMap<Element, number>();
   private activeEntryId: number | null = null;
+  private documentPointerDownListenerAttached = false;
+  private readonly onDocumentPointerDownBound: EventListener =
+    this.onDocumentPointerDown.bind(this);
 
   constructor(options: SuggestionManagerOptions) {
     this.selectors = options.selectors;
@@ -137,6 +140,7 @@ export class SuggestionManager {
       return;
     }
 
+    const isEntryFocused = this.isEntryFocused(entry);
     const isCurrentRequest = entry.requestId === context.requestId;
     const hasTextEdit = context.textEdit != null;
 
@@ -144,11 +148,16 @@ export class SuggestionManager {
       return;
     }
 
-    if (context.textEdit) {
+    if (context.textEdit && isEntryFocused) {
       this.applyTextEdit(entry, context.textEdit);
     }
 
     if (!isCurrentRequest) {
+      return;
+    }
+
+    if (!isEntryFocused) {
+      this.clearSuggestions(entry);
       return;
     }
 
@@ -329,7 +338,7 @@ export class SuggestionManager {
     entry.handlers.keydown = this.onElementKeyDown.bind(this, id);
     entry.handlers.focus = this.onElementFocus.bind(this, id);
     entry.handlers.blur = this.onElementBlur.bind(this, id);
-    entry.handlers.click = this.onElementFocus.bind(this, id);
+    entry.handlers.click = this.onElementClick.bind(this, id);
     entry.handlers.menuMouseDown = (event) => {
       event.preventDefault();
     };
@@ -351,6 +360,7 @@ export class SuggestionManager {
 
     this.entries.set(id, entry);
     this.entryIdByElement.set(elem, id);
+    this.ensureDocumentPointerDownListener();
   }
 
   private detachHelper(id: number): void {
@@ -384,8 +394,64 @@ export class SuggestionManager {
     if (this.activeEntryId === id) {
       this.activeEntryId = null;
     }
+    if (this.entries.size === 0) {
+      this.removeDocumentPointerDownListener();
+    }
 
     InlineSuggestionView.removeAll(document);
+  }
+
+  private ensureDocumentPointerDownListener(): void {
+    if (this.documentPointerDownListenerAttached) {
+      return;
+    }
+    document.addEventListener("mousedown", this.onDocumentPointerDownBound, true);
+    this.documentPointerDownListenerAttached = true;
+  }
+
+  private removeDocumentPointerDownListener(): void {
+    if (!this.documentPointerDownListenerAttached) {
+      return;
+    }
+    document.removeEventListener("mousedown", this.onDocumentPointerDownBound, true);
+    this.documentPointerDownListenerAttached = false;
+  }
+
+  private onDocumentPointerDown(event: Event): void {
+    const target = event.target;
+    if (!(target instanceof Node)) {
+      return;
+    }
+
+    for (const entry of this.entries.values()) {
+      if (entry.elem.contains(target) || entry.menu.contains(target)) {
+        continue;
+      }
+      this.dismissEntry(entry);
+    }
+  }
+
+  private dismissEntry(entry: Entry, keepActive = false): void {
+    this.clearSuggestions(entry);
+    if (entry.pendingRequestTimer !== null) {
+      clearTimeout(entry.pendingRequestTimer);
+      entry.pendingRequestTimer = null;
+    }
+    entry.requestId += 1;
+    if (!keepActive && this.activeEntryId === entry.id) {
+      this.activeEntryId = null;
+    }
+  }
+
+  private isEntryFocused(entry: Entry): boolean {
+    if (this.activeEntryId === entry.id) {
+      return true;
+    }
+    const active = document.activeElement;
+    if (!active) {
+      return false;
+    }
+    return active === entry.elem || entry.elem.contains(active);
   }
 
   private getActiveEntry(): Entry | null {
@@ -420,6 +486,16 @@ export class SuggestionManager {
     this.renderInlineSuggestion(entry);
   }
 
+  private onElementClick(id: number): void {
+    this.activeEntryId = id;
+    const entry = this.entries.get(id);
+    if (!entry) {
+      return;
+    }
+    // Clicking in target often changes caret context; hide stale UI and invalidate pending responses.
+    this.dismissEntry(entry, true);
+  }
+
   private onElementBlur(id: number): void {
     if (this.activeEntryId === id) {
       this.activeEntryId = null;
@@ -428,7 +504,7 @@ export class SuggestionManager {
     if (!entry) {
       return;
     }
-    this.clearSuggestions(entry);
+    this.dismissEntry(entry);
   }
 
   private onElementInput(id: number): void {

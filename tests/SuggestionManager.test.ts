@@ -518,6 +518,86 @@ describe("SuggestionManager", () => {
     expect(editable.querySelector("i")?.textContent).toBe("next");
   });
 
+  test("hides contenteditable popup on outside click even without blur", async () => {
+    const { manager, getPrediction } = await createManager();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.textContent = "h";
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    const outside = document.createElement("div");
+    document.body.appendChild(editable);
+    document.body.appendChild(outside);
+    manager.queryAndAttachHelper();
+
+    setContentEditableCursor(editable, 1);
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+    await wait(220);
+
+    const request = getPrediction.mock.calls.at(-1)?.[0];
+    if (!request) {
+      throw new Error("Expected prediction request");
+    }
+
+    manager.fulfillPrediction(
+      buildResponse(request, {
+        predictions: ["hello\xA0"],
+      }),
+    );
+
+    const menu = (editable as HTMLElement & { suggestionMenu?: HTMLElement }).suggestionMenu;
+    expect(menu?.style.display).toBe("block");
+    expect(menu?.querySelectorAll("li").length).toBeGreaterThan(0);
+
+    outside.dispatchEvent(new Event("mousedown", { bubbles: true, cancelable: true }));
+
+    expect(menu?.style.display).toBe("none");
+    expect(menu?.querySelectorAll("li").length).toBe(0);
+
+    manager.fulfillPrediction(
+      buildResponse(request, {
+        predictions: ["hello\xA0"],
+      }),
+    );
+    expect(menu?.style.display).toBe("none");
+    expect(menu?.querySelectorAll("li").length).toBe(0);
+  });
+
+  test("hides contenteditable popup when clicking inside target to move caret", async () => {
+    const { manager, getPrediction } = await createManager();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.textContent = "hello world";
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    setContentEditableCursor(editable, 1);
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+    await wait(220);
+
+    const request = getPrediction.mock.calls.at(-1)?.[0];
+    if (!request) {
+      throw new Error("Expected prediction request");
+    }
+
+    manager.fulfillPrediction(
+      buildResponse(request, {
+        predictions: ["hello\xA0"],
+      }),
+    );
+
+    const menu = (editable as HTMLElement & { suggestionMenu?: HTMLElement }).suggestionMenu;
+    expect(menu?.style.display).toBe("block");
+    expect(menu?.querySelectorAll("li").length).toBeGreaterThan(0);
+
+    editable.dispatchEvent(new Event("click", { bubbles: true, cancelable: true }));
+
+    expect(menu?.style.display).toBe("none");
+    expect(menu?.querySelectorAll("li").length).toBe(0);
+  });
+
   test("preserves paragraph break when replacing token at end of first paragraph", async () => {
     const { manager, getPrediction } = await createManager();
     const editable = document.createElement("div");
