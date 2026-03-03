@@ -6,6 +6,7 @@ export class SpacingRule implements GrammarRule {
   readonly name = "Spacing Rule";
   readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
   private static readonly CODE_CUE_CHARS = new Set("=([{:+-*/%&|!<>?,".split(""));
+  private static readonly MATH_OPERATORS = new Set(["=", "+", "*"]);
   private static readonly OPENING_BRACKETS = new Set(["(", "[", "{"]);
   private static readonly CLOSING_BRACKETS = new Set([")", "]", "}"]);
   private static readonly CONTROL_KEYWORDS = new Set(["if", "for", "while", "switch", "catch"]);
@@ -25,6 +26,11 @@ export class SpacingRule implements GrammarRule {
     const technicalCompaction = this.applyTechnicalCompaction(inputStr);
     if (technicalCompaction) {
       return technicalCompaction;
+    }
+
+    const mathOperatorNormalization = this.applyMathOperatorNormalization(inputStr);
+    if (mathOperatorNormalization) {
+      return mathOperatorNormalization;
     }
 
     const length = inputStr.length;
@@ -129,6 +135,134 @@ export class SpacingRule implements GrammarRule {
       confidence: "high",
       description: `Compacted technical punctuation spacing for ${contextName}`,
     };
+  }
+
+  private applyMathOperatorNormalization(inputStr: string): GrammarEdit | null {
+    const rightIndex = inputStr.length - 1;
+    if (rightIndex < 2) {
+      return null;
+    }
+
+    const rightChar = inputStr[rightIndex];
+    const operatorIndex = rightIndex - 1;
+    const operatorChar = inputStr[operatorIndex];
+    if (!SpacingRule.MATH_OPERATORS.has(operatorChar)) {
+      return null;
+    }
+
+    const leftOperand = this.readLeftOperand(inputStr, operatorIndex);
+    if (!leftOperand) {
+      return null;
+    }
+
+    if (operatorChar === "=") {
+      if (!this.isEqualsRightOperandLike(rightChar)) {
+        return null;
+      }
+    } else if (!this.isArithmeticOperatorContext(operatorChar, leftOperand, rightChar)) {
+      return null;
+    }
+
+    const replacement = `${leftOperand.text}\xA0${operatorChar}\xA0${rightChar}`;
+    return {
+      replacement,
+      deleteBackwards: inputStr.length - leftOperand.start,
+      deleteForwards: 0,
+      confidence: "high",
+      description: "Applied context-aware math operator spacing",
+    };
+  }
+
+  private readLeftOperand(
+    inputStr: string,
+    operatorIndex: number,
+  ): { start: number; text: string; kind: "identifier" | "number" | "closingBracket" } | null {
+    const leftIndex = this.findPreviousSignificantIndex(inputStr, operatorIndex - 1);
+    if (leftIndex === null) {
+      return null;
+    }
+
+    const leftChar = inputStr[leftIndex];
+    if (SpacingRule.CLOSING_BRACKETS.has(leftChar)) {
+      return { start: leftIndex, text: leftChar, kind: "closingBracket" };
+    }
+
+    if (this.isDigit(leftChar)) {
+      const numericBounds = this.readNumericTokenBoundsAt(inputStr, leftIndex);
+      if (!numericBounds) {
+        return null;
+      }
+      return {
+        start: numericBounds.start,
+        text: inputStr.slice(numericBounds.start, numericBounds.end + 1),
+        kind: "number",
+      };
+    }
+
+    const tokenBounds = this.readIdentifierTokenBoundsAt(inputStr, leftIndex);
+    if (!tokenBounds) {
+      return null;
+    }
+
+    return {
+      start: tokenBounds.start,
+      text: inputStr.slice(tokenBounds.start, tokenBounds.end + 1),
+      kind: "identifier",
+    };
+  }
+
+  private isEqualsRightOperandLike(ch: string | undefined): boolean {
+    if (!ch) {
+      return false;
+    }
+    if (this.isIdentifierStartChar(ch) || this.isDigit(ch)) {
+      return true;
+    }
+    if (["'", '"', "`"].includes(ch)) {
+      return true;
+    }
+    return SpacingRule.OPENING_BRACKETS.has(ch);
+  }
+
+  private isArithmeticOperatorContext(
+    operatorChar: string,
+    leftOperand: { text: string; kind: "identifier" | "number" | "closingBracket" },
+    rightChar: string,
+  ): boolean {
+    if (!["+", "*"].includes(operatorChar)) {
+      return false;
+    }
+
+    const leftNumeric = leftOperand.kind === "number";
+    const rightNumeric = this.isDigit(rightChar);
+    if (leftNumeric || rightNumeric) {
+      return true;
+    }
+
+    const leftSingleIdentifier = leftOperand.kind === "identifier" && leftOperand.text.length === 1;
+    const rightSingleIdentifier = this.isIdentifierStartChar(rightChar);
+    return leftSingleIdentifier && rightSingleIdentifier;
+  }
+
+  private readNumericTokenBoundsAt(
+    inputStr: string,
+    index: number,
+  ): { start: number; end: number } | null {
+    if (!this.isDigit(inputStr[index])) {
+      return null;
+    }
+
+    let start = index;
+    while (start > 0 && /[0-9.]/.test(inputStr[start - 1])) {
+      start -= 1;
+    }
+
+    let end = index;
+    while (end + 1 < inputStr.length && /[0-9.]/.test(inputStr[end + 1])) {
+      end += 1;
+    }
+
+    return { start, end };
   }
 
   private shouldCompactAccessor(inputStr: string, punctIndex: number): boolean {

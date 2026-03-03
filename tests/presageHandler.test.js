@@ -304,6 +304,27 @@ describe("features", () => {
       expect(operatorResult.forceReplace.expectedSubstring).toBe("/");
     });
 
+    test("emits forceReplace for compact equals and arithmetic expressions", async () => {
+      testContext.enabledGrammarRules = ["spacingRule"];
+      setConfig();
+
+      const equalsResult = await testContext.ph.runPrediction("x=y", "", "en_US");
+      expect(equalsResult.forceReplace).not.toBeNull();
+      expect(equalsResult.forceReplace.text).toBe("x\xA0=\xA0y");
+      expect(equalsResult.forceReplace.length).toBe(3);
+      expect(equalsResult.forceReplace.originalTextLength).toBe("x=y".length);
+      expect(equalsResult.forceReplace.expectedSubstring).toBe("x=y");
+      expect(equalsResult.forceReplace.cursorToken).toBe("");
+
+      const plusResult = await testContext.ph.runPrediction("y+1", "", "en_US");
+      expect(plusResult.forceReplace).not.toBeNull();
+      expect(plusResult.forceReplace.text).toBe("y\xA0+\xA01");
+      expect(plusResult.forceReplace.length).toBe(3);
+      expect(plusResult.forceReplace.originalTextLength).toBe("y+1".length);
+      expect(plusResult.forceReplace.expectedSubstring).toBe("y+1");
+      expect(plusResult.forceReplace.cursorToken).toBe("");
+    });
+
     test("does not emit forceReplace for prose continuation without accessor code cues", async () => {
       testContext.enabledGrammarRules = ["spacingRule"];
       setConfig();

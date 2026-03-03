@@ -2309,6 +2309,90 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "Grammar Rule Engine applies context-aware math operator spacing without breaking prose-like compact forms",
+    async () => {
+      const selector = "#test-input";
+
+      await setSettingAndWaitStable(
+        worker!,
+        KEY_ENABLED_GRAMMAR_RULES,
+        ["spacingRule"],
+        3,
+        browserTimeout(5000, 7000),
+      );
+      await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, true);
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+      await applyConfigChange(browser, worker!);
+
+      await gotoTestPage(page, {
+        enableCkEditor: false,
+      });
+      await page.bringToFront();
+      await waitForInputReady(page, selector);
+
+      const waitForNormalizedValue = async (expected: string): Promise<void> => {
+        await page.waitForFunction(
+          (sel, expectedText) => {
+            const el = document.querySelector(sel);
+            if (!el) {
+              return false;
+            }
+            const val = ((el as HTMLInputElement).value ?? el.textContent ?? "").replace(/\xA0/g, " ");
+            return val === expectedText;
+          },
+          { timeout: browserTimeout(3000, 5000) },
+          selector,
+          expected,
+        );
+      };
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "x=y");
+      await waitForNormalizedValue("x = y");
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "y+1");
+      await waitForNormalizedValue("y + 1");
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "x*y");
+      await waitForNormalizedValue("x * y");
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "x==y");
+      await waitForNormalizedValue("x==y");
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "foo+bar");
+      await waitForNormalizedValue("foo+bar");
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "name+tag");
+      await waitForNormalizedValue("name+tag");
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "word*word");
+      await waitForNormalizedValue("word*word");
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "C++");
+      await waitForNormalizedValue("C++");
+
+      await setSettingAndWaitStable(
+        worker!,
+        KEY_ENABLED_GRAMMAR_RULES,
+        [],
+        2,
+        browserTimeout(3000, 5000),
+      );
+      await applyConfigChange(browser, worker!);
+    },
+    browserTimeout(30000, 45000),
+  );
+
+  test(
     "Grammar Rule Engine compacts technical punctuation spacing and preserves prose continuation",
     async () => {
       const selector = "#test-input";

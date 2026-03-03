@@ -155,6 +155,34 @@ describe("SpacingRule", () => {
     });
   });
 
+  test.each([
+    ["x=y", "x\xA0=\xA0y"],
+    ["y+1", "y\xA0+\xA01"],
+    ["x*y", "x\xA0*\xA0y"],
+  ])("normalizes compact math operator spacing for '%s'", (input, replacement) => {
+    expect(ruleA.apply(getContext(input))).toEqual({
+      replacement,
+      deleteBackwards: input.length,
+      deleteForwards: 0,
+      confidence: "high",
+      description: "Applied context-aware math operator spacing",
+    });
+  });
+
+  test.each(["x==y", "a<=b", "a>=b", "a!=b"])(
+    "keeps comparator chains unchanged for '%s'",
+    (input) => {
+      expect(ruleA.apply(getContext(input))).toBeNull();
+    },
+  );
+
+  test.each(["foo+bar", "name+tag", "word*word", "C++"])(
+    "keeps prose-like compact operators unchanged for '%s'",
+    (input) => {
+      expect(ruleA.apply(getContext(input))).toBeNull();
+    },
+  );
+
   test("handles unicode characters natively", () => {
     expect(ruleA.apply(getContext("Zażółć gęślą jaźń."))).toEqual({
       replacement: ".\xA0",
