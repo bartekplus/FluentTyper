@@ -2269,4 +2269,77 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     },
     browserTimeout(35000, 55000),
   );
+
+  test(
+    "Grammar Rule Engine compacts technical punctuation spacing and preserves prose continuation",
+    async () => {
+      const selector = "#test-input";
+
+      await setSettingAndWaitStable(
+        worker!,
+        KEY_ENABLED_GRAMMAR_RULES,
+        ["spacingRule"],
+        3,
+        browserTimeout(5000, 7000),
+      );
+      await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, true);
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+      await applyConfigChange(browser, worker!);
+
+      await gotoTestPage(page, {
+        enableCkEditor: false,
+      });
+      await page.bringToFront();
+      await waitForInputReady(page, selector);
+
+      const waitForNormalizedValue = async (expected: string): Promise<void> => {
+        await page.waitForFunction(
+          (sel, expectedText) => {
+            const el = document.querySelector(sel);
+            if (!el) {
+              return false;
+            }
+            const val = ((el as HTMLInputElement).value ?? el.textContent ?? "").replace(
+              /\xA0/g,
+              " ",
+            );
+            return val === expectedText;
+          },
+          { timeout: browserTimeout(3000, 5000) },
+          selector,
+          expected,
+        );
+      };
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "3.14");
+      await waitForNormalizedValue("3.14");
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "12:30");
+      await waitForNormalizedValue("12:30");
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "cfg_1.x");
+      await waitForNormalizedValue("cfg_1.x");
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "Hello.");
+      await waitForNormalizedValue("Hello. ");
+      await typeInInput(page, selector, "w");
+      await waitForNormalizedValue("Hello. w");
+
+      await setSettingAndWaitStable(
+        worker!,
+        KEY_ENABLED_GRAMMAR_RULES,
+        [],
+        2,
+        browserTimeout(3000, 5000),
+      );
+      await applyConfigChange(browser, worker!);
+    },
+    browserTimeout(25000, 40000),
+  );
 });
