@@ -74,16 +74,60 @@ describe("SpacingRule", () => {
     });
   });
 
-  test("handles spacing for brackets (requires space before, no space after)", () => {
-    expect(ruleA.apply(getContext("Hello["))).toEqual({
-      replacement: "\xA0[",
+  test("inserts space before control-structure opening parenthesis", () => {
+    expect(ruleA.apply(getContext("if("))).toEqual({
+      replacement: "\xA0(",
       deleteBackwards: 1,
       deleteForwards: 0,
       confidence: "high",
       description: "Applied standard spacing rules for punctuation",
     });
+  });
 
-    expect(ruleA.apply(getContext("Hello ["))).toBeNull();
+  test("does not insert space before code-like opening brackets", () => {
+    expect(ruleA.apply(getContext("console.log("))).toBeNull();
+    expect(ruleA.apply(getContext("myArray["))).toBeNull();
+  });
+
+  test("inserts space before '{' after closing parenthesis", () => {
+    expect(ruleA.apply(getContext("if (x){"))).toEqual({
+      replacement: "\xA0{",
+      deleteBackwards: 1,
+      deleteForwards: 0,
+      confidence: "high",
+      description: "Applied standard spacing rules for punctuation",
+    });
+  });
+
+  test("does not insert trailing space after code-like closing brackets", () => {
+    expect(ruleA.apply(getContext("foo(bar())"))).toBeNull();
+    expect(ruleA.apply(getContext("foo(bar() )"))).toEqual({
+      replacement: ")",
+      deleteBackwards: 2,
+      deleteForwards: 0,
+      confidence: "high",
+      description: "Applied standard spacing rules for punctuation",
+    });
+  });
+
+  test("inserts trailing space after prose parenthetical close", () => {
+    expect(ruleA.apply(getContext("Hello (world)"))).toEqual({
+      replacement: ")\xA0",
+      deleteBackwards: 1,
+      deleteForwards: 0,
+      confidence: "high",
+      description: "Applied standard spacing rules for punctuation",
+    });
+  });
+
+  test("respects insertSpaceAfterAutocomplete=false for prose parenthetical close", () => {
+    expect(ruleB.apply(getContext("Hello (world)"))).toBeNull();
+  });
+
+  test("treats angle brackets as no-op spacing tokens", () => {
+    expect(ruleA.apply(getContext("a<"))).toBeNull();
+    expect(ruleA.apply(getContext("a >"))).toBeNull();
+    expect(ruleA.apply(getContext("a =>"))).toBeNull();
   });
 
   test("handles unicode characters natively", () => {

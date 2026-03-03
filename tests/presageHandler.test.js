@@ -289,5 +289,38 @@ describe("features", () => {
       const result = await testContext.ph.runPrediction("Hello.\xA0w", "", "en_US");
       expect(result.forceReplace).toBeNull();
     });
+
+    test("does not emit forceReplace for code-like bracket contexts", async () => {
+      testContext.enabledGrammarRules = ["spacingRule"];
+      testContext.insertSpaceAfterAutocomplete = true;
+      setConfig();
+
+      const functionCall = await testContext.ph.runPrediction("console.log(", "", "en_US");
+      expect(functionCall.forceReplace).toBeNull();
+
+      const arrayAccess = await testContext.ph.runPrediction("myArray[", "", "en_US");
+      expect(arrayAccess.forceReplace).toBeNull();
+
+      const nestedCallClose = await testContext.ph.runPrediction("foo(bar())", "", "en_US");
+      expect(nestedCallClose.forceReplace).toBeNull();
+    });
+
+    test("emits forceReplace for control opener and prose closer contexts", async () => {
+      testContext.enabledGrammarRules = ["spacingRule"];
+      testContext.insertSpaceAfterAutocomplete = true;
+      setConfig();
+
+      const controlOpen = await testContext.ph.runPrediction("if(", "", "en_US");
+      expect(controlOpen.forceReplace).not.toBeNull();
+      expect(controlOpen.forceReplace.text).toBe("\xA0(");
+      expect(controlOpen.forceReplace.length).toBe(1);
+      expect(controlOpen.forceReplace.expectedSubstring).toBe("(");
+
+      const proseClose = await testContext.ph.runPrediction("Hello (world)", "", "en_US");
+      expect(proseClose.forceReplace).not.toBeNull();
+      expect(proseClose.forceReplace.text).toBe(")\xA0");
+      expect(proseClose.forceReplace.length).toBe(1);
+      expect(proseClose.forceReplace.expectedSubstring).toBe(")");
+    });
   });
 });
