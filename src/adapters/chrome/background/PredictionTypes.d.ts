@@ -1,8 +1,8 @@
-import type { ForceReplaceType } from "@core/domain/messageTypes";
+import type { TextEditOperation } from "@core/domain/messageTypes";
 
 export interface PredictionResult {
   predictions: string[];
-  forceReplace: ForceReplaceType | null;
+  textEdit: TextEditOperation | null;
 }
 
 export interface PredictorStageDebugInfo {
@@ -26,7 +26,7 @@ export interface PredictionDebugEvent {
   predictionInput: string;
   numSuggestions: number;
   doPrediction: boolean;
-  forceReplace: boolean;
+  textEdit: boolean;
   totalDurationMs: number;
   presage: PredictorStageDebugInfo;
   webllm: AIPredictorStageDebugInfo;

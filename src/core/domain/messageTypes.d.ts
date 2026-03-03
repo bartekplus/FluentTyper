@@ -13,19 +13,19 @@ export interface SetConfigContext {
   enabledGrammarRules: string[];
   // Theme configuration
   themeConfig?: {
-    tributeBgLight: string;
-    tributeTextLight: string;
-    tributeHighlightBgLight: string;
-    tributeHighlightTextLight: string;
-    tributeBorderLight: string;
-    tributeBgDark: string;
-    tributeTextDark: string;
-    tributeHighlightBgDark: string;
-    tributeHighlightTextDark: string;
-    tributeBorderDark: string;
-    tributeFontSize: string;
-    tributePaddingVertical: string;
-    tributePaddingHorizontal: string;
+    suggestionBgLight: string;
+    suggestionTextLight: string;
+    suggestionHighlightBgLight: string;
+    suggestionHighlightTextLight: string;
+    suggestionBorderLight: string;
+    suggestionBgDark: string;
+    suggestionTextDark: string;
+    suggestionHighlightBgDark: string;
+    suggestionHighlightTextDark: string;
+    suggestionBorderDark: string;
+    suggestionFontSize: string;
+    suggestionPaddingVertical: string;
+    suggestionPaddingHorizontal: string;
   };
 }
 
@@ -36,21 +36,22 @@ export interface PredictRequestContext {
   lang: string;
   tabId: number;
   frameId: number;
-  tributeId: number;
+  suggestionId: number;
   requestId: number;
+  runtimeGeneration?: number;
   traceId?: string;
   traceStartedAtMs?: number;
 }
 
-export interface ForceReplaceType {
-  text: string;
-  length: number;
+export interface TextEditOperation {
+  replacementText: string;
+  replaceBackwardCount: number;
   /** The length of the full text at the time the grammar rule was evaluated */
-  originalTextLength: number;
+  evaluatedTextLength: number;
   /** The exact substring that was matched for replacement */
-  expectedSubstring?: string;
+  expectedReplacedText?: string;
   /** The preceding characters to anchor the replacement context */
-  cursorToken?: string;
+  expectedPrefixToken?: string;
 }
 
 // Context for CMD_BACKGROUND_PAGE_PREDICT_RESP
@@ -60,11 +61,12 @@ export interface PredictResponseContext {
   lang: string;
   tabId: number;
   frameId: number;
-  tributeId: number;
+  suggestionId: number;
   requestId: number;
+  runtimeGeneration?: number;
   traceId?: string;
   predictions: string[];
-  forceReplace: ForceReplaceType | null;
+  textEdit: TextEditOperation | null;
 }
 
 // Context for CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG
@@ -76,9 +78,10 @@ export interface UpdateLangConfigContext {
 export interface ContentScriptPredictRequestContext {
   text: string;
   nextChar: string;
-  tributeId: number;
+  suggestionId: number;
   requestId: number;
   lang: string;
+  runtimeGeneration?: number;
   traceId?: string;
   traceStartedAtMs?: number;
 }

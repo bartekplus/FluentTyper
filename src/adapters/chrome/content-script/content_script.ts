@@ -12,7 +12,7 @@ import { ContentRuntimeController } from "./ContentRuntimeController";
 import { HostChangeWatcher } from "./HostChangeWatcher";
 import { ThemeApplicator } from "./ThemeApplicator";
 import type { DomObserver } from "./DomObserver";
-import type { TributeManager } from "./TributeManager";
+import type { SuggestionManager } from "./SuggestionManager";
 
 declare global {
   interface Window {
@@ -50,9 +50,10 @@ class FluentTyper {
       },
       setConfig: (config) => this.setConfig(config),
       updateLanguage: (lang) => this.runtimeController.updateLanguage(lang),
-      triggerActiveTribute: () => this.runtimeController.triggerActiveTribute(),
+      triggerActiveSuggestion: () => this.runtimeController.triggerActiveSuggestion(),
       fulfillPrediction: (context) => this.runtimeController.fulfillPrediction(context),
       getLanguage: () => this.config.lang,
+      getPredictionGeneration: () => this.runtimeController.getPredictionGeneration(),
     });
 
     this.runtimeController.setPredictionRequestHandler((context) =>
@@ -73,8 +74,8 @@ class FluentTyper {
     this.getConfig();
   }
 
-  get tributeManager(): TributeManager | null {
-    return this.runtimeController.tributeManager;
+  get suggestionManager(): SuggestionManager | null {
+    return this.runtimeController.suggestionManager;
   }
 
   get config(): SetConfigContext {

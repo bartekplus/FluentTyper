@@ -11,12 +11,12 @@ import {
   CMD_TRIGGER_FT_ACTIVE_TAB,
 } from "../src/core/domain/constants";
 
-type TributeLike = {
+type SuggestionLike = {
   queryAndAttachHelper: jest.Mock;
   detachAllHelpers: jest.Mock;
   removeHelpersNotInDocument: jest.Mock;
   updateLangConfig: jest.Mock;
-  triggerActiveTribute: jest.Mock;
+  triggerActiveSuggestion: jest.Mock;
   fulfillPrediction: jest.Mock;
   autocompleteSeparator?: RegExp;
 };
@@ -32,7 +32,7 @@ type LoadedContentScript = {
   fluentTyper: {
     enabled: boolean;
     config: Record<string, unknown>;
-    tributeManager: TributeLike | null;
+    suggestionManager: SuggestionLike | null;
     domObserver: DomObserverLike;
     handleGetPrediction: (context: Record<string, unknown>) => void;
     messageHandler: (
@@ -50,7 +50,7 @@ type LoadedContentScript = {
     restart: () => void;
     destroy: () => void;
   };
-  tributeInstances: TributeLike[];
+  suggestionInstances: SuggestionLike[];
   domObserverInstances: DomObserverLike[];
   checkLastError: jest.Mock;
   sendMessage: jest.Mock;
@@ -82,7 +82,7 @@ function defaultConfig(overrides: Record<string, unknown> = {}) {
 
 const behaviorHarness = {
   fluentTyperInstances: [] as LoadedContentScript["fluentTyper"][],
-  tributeInstances: [] as TributeLike[],
+  suggestionInstances: [] as SuggestionLike[],
   domObserverInstances: [] as DomObserverLike[],
   checkLastError: jest.fn(),
   sendMessage: jest.fn(),
@@ -96,17 +96,17 @@ jest.unstable_mockModule("../src/core/application/dom-utils", () => ({
   isInDocument: (element: Element) => document.contains(element),
 }));
 
-jest.unstable_mockModule("../src/adapters/chrome/content-script/TributeManager", () => ({
-  TributeManager: jest.fn().mockImplementation(() => {
-    const instance: TributeLike = {
+jest.unstable_mockModule("../src/adapters/chrome/content-script/SuggestionManager", () => ({
+  SuggestionManager: jest.fn().mockImplementation(() => {
+    const instance: SuggestionLike = {
       queryAndAttachHelper: jest.fn(),
       detachAllHelpers: jest.fn(),
       removeHelpersNotInDocument: jest.fn(),
       updateLangConfig: jest.fn(),
-      triggerActiveTribute: jest.fn(),
+      triggerActiveSuggestion: jest.fn(),
       fulfillPrediction: jest.fn(),
     };
-    behaviorHarness.tributeInstances.push(instance);
+    behaviorHarness.suggestionInstances.push(instance);
     return instance;
   }),
 }));
@@ -129,7 +129,7 @@ jest.unstable_mockModule("../src/adapters/chrome/content-script/DomObserver", ()
 
 async function loadContentScript(): Promise<LoadedContentScript> {
   jest.clearAllMocks();
-  behaviorHarness.tributeInstances.length = 0;
+  behaviorHarness.suggestionInstances.length = 0;
   behaviorHarness.domObserverInstances.length = 0;
   behaviorHarness.checkLastError = jest.fn();
   behaviorHarness.sendMessage = jest.fn();
@@ -153,7 +153,7 @@ async function loadContentScript(): Promise<LoadedContentScript> {
 
   return {
     fluentTyper,
-    tributeInstances: behaviorHarness.tributeInstances,
+    suggestionInstances: behaviorHarness.suggestionInstances,
     domObserverInstances: behaviorHarness.domObserverInstances,
     checkLastError: behaviorHarness.checkLastError,
     sendMessage: behaviorHarness.sendMessage,
@@ -174,29 +174,29 @@ describe("content_script behavior", () => {
   });
 
   test("enables and disables managers through state transitions", async () => {
-    const { fluentTyper, tributeInstances, domObserverInstances } = await loadContentScript();
+    const { fluentTyper, suggestionInstances, domObserverInstances } = await loadContentScript();
     const domObserver = domObserverInstances[0];
 
     fluentTyper.enabled = true;
-    expect(tributeInstances).toHaveLength(1);
-    expect(tributeInstances[0].queryAndAttachHelper).toHaveBeenCalled();
+    expect(suggestionInstances).toHaveLength(1);
+    expect(suggestionInstances[0].queryAndAttachHelper).toHaveBeenCalled();
     expect(domObserver.attach).toHaveBeenCalled();
 
     fluentTyper.enabled = false;
     expect(domObserver.disconnect).toHaveBeenCalled();
-    expect(tributeInstances[0].detachAllHelpers).toHaveBeenCalled();
+    expect(suggestionInstances[0].detachAllHelpers).toHaveBeenCalled();
   });
 
   test("handleGetPrediction sends request and matching response fulfills prediction", async () => {
-    const { fluentTyper, tributeInstances, sendMessage } = await loadContentScript();
+    const { fluentTyper, suggestionInstances, sendMessage } = await loadContentScript();
 
     fluentTyper.enable();
-    const tribute = tributeInstances[0];
+    const suggestionManager = suggestionInstances[0];
 
     fluentTyper.handleGetPrediction({
       text: "hel",
       nextChar: "",
-      tributeId: 3,
+      suggestionId: 3,
       requestId: 10,
     });
 
@@ -204,7 +204,7 @@ describe("content_script behavior", () => {
       expect.objectContaining({
         command: "CMD_CONTENT_SCRIPT_PREDICT_REQ",
         context: expect.objectContaining({
-          tributeId: 3,
+          suggestionId: 3,
           requestId: 10,
           lang: "en_US",
           traceId: expect.any(String),
@@ -212,21 +212,178 @@ describe("content_script behavior", () => {
         }),
       }),
     );
+    const firstRequest = sendMessage.mock.calls.at(-1)?.[0] as
+      | { context?: { runtimeGeneration?: number } }
+      | undefined;
+    const runtimeGeneration = firstRequest?.context?.runtimeGeneration;
+    expect(typeof runtimeGeneration).toBe("number");
 
     fluentTyper.messageHandler({
       command: CMD_BACKGROUND_PAGE_PREDICT_RESP,
-      context: { tributeId: 3, requestId: 10, predictions: ["hello"] },
+      context: { suggestionId: 3, requestId: 10, runtimeGeneration, predictions: ["hello"] },
     });
-    expect(tribute.fulfillPrediction).toHaveBeenCalledWith(
+    expect(suggestionManager.fulfillPrediction).toHaveBeenCalledWith(
       expect.objectContaining({ predictions: ["hello"] }),
     );
 
-    tribute.fulfillPrediction.mockClear();
+    suggestionManager.fulfillPrediction.mockClear();
     fluentTyper.messageHandler({
       command: CMD_BACKGROUND_PAGE_PREDICT_RESP,
-      context: { tributeId: 3, requestId: 11, predictions: ["ignored"] },
+      context: { suggestionId: 3, requestId: 11, runtimeGeneration, predictions: ["ignored"] },
     });
-    expect(tribute.fulfillPrediction).not.toHaveBeenCalled();
+    expect(suggestionManager.fulfillPrediction).toHaveBeenCalledWith(
+      expect.objectContaining({ suggestionId: 3, requestId: 11, predictions: ["ignored"] }),
+    );
+
+    fluentTyper.messageHandler({
+      command: CMD_BACKGROUND_PAGE_PREDICT_RESP,
+      context: {
+        suggestionId: 3,
+        requestId: 11,
+        runtimeGeneration,
+        predictions: [],
+        textEdit: {
+          replacementText: "He",
+          replaceBackwardCount: 2,
+          evaluatedTextLength: 2,
+        },
+      },
+    });
+    expect(suggestionManager.fulfillPrediction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        suggestionId: 3,
+        requestId: 11,
+        textEdit: expect.objectContaining({ replacementText: "He" }),
+      }),
+    );
+  });
+
+  test("matching response preserves reentrant prediction request created during fulfillPrediction", async () => {
+    const { fluentTyper, suggestionInstances, sendMessage } = await loadContentScript();
+
+    fluentTyper.enable();
+    const suggestionManager = suggestionInstances[0];
+
+    fluentTyper.handleGetPrediction({
+      text: "h",
+      nextChar: "",
+      suggestionId: 3,
+      requestId: 1,
+    });
+    const firstRequest = sendMessage.mock.calls.at(-1)?.[0] as
+      | { context?: { runtimeGeneration?: number } }
+      | undefined;
+    const runtimeGeneration = firstRequest?.context?.runtimeGeneration;
+    expect(typeof runtimeGeneration).toBe("number");
+
+    sendMessage.mockClear();
+    suggestionManager.fulfillPrediction.mockImplementationOnce(() => {
+      fluentTyper.handleGetPrediction({
+        text: "H",
+        nextChar: "",
+        suggestionId: 3,
+        requestId: 2,
+      });
+    });
+
+    fluentTyper.messageHandler({
+      command: CMD_BACKGROUND_PAGE_PREDICT_RESP,
+      context: {
+        suggestionId: 3,
+        requestId: 1,
+        runtimeGeneration,
+        predictions: [],
+        textEdit: { replacementText: "H" },
+      },
+    });
+
+    expect(sendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        command: "CMD_CONTENT_SCRIPT_PREDICT_REQ",
+        context: expect.objectContaining({
+          suggestionId: 3,
+          requestId: 2,
+        }),
+      }),
+    );
+
+    fluentTyper.messageHandler({
+      command: CMD_BACKGROUND_PAGE_PREDICT_RESP,
+      context: { suggestionId: 3, requestId: 2, runtimeGeneration, predictions: ["hello"] },
+    });
+
+    expect(suggestionManager.fulfillPrediction).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ suggestionId: 3, requestId: 2, predictions: ["hello"] }),
+    );
+  });
+
+  test("drops stale prediction responses after runtime restart when generation changes", async () => {
+    const { fluentTyper, suggestionInstances, sendMessage } = await loadContentScript();
+    fluentTyper.enabled = true;
+
+    const firstManager = suggestionInstances[0];
+    fluentTyper.handleGetPrediction({
+      text: "old",
+      nextChar: "",
+      suggestionId: 1,
+      requestId: 1,
+    });
+    const firstGeneration = (
+      sendMessage.mock.calls.at(-1)?.[0] as { context?: { runtimeGeneration?: number } } | undefined
+    )?.context?.runtimeGeneration;
+    expect(typeof firstGeneration).toBe("number");
+
+    fluentTyper.restart();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(suggestionInstances.length).toBeGreaterThanOrEqual(2);
+    const restartedManager = suggestionInstances[suggestionInstances.length - 1];
+    expect(restartedManager).not.toBe(firstManager);
+
+    sendMessage.mockClear();
+    fluentTyper.handleGetPrediction({
+      text: "new",
+      nextChar: "",
+      suggestionId: 1,
+      requestId: 1,
+    });
+    const currentGeneration = (
+      sendMessage.mock.calls.at(-1)?.[0] as { context?: { runtimeGeneration?: number } } | undefined
+    )?.context?.runtimeGeneration;
+    expect(typeof currentGeneration).toBe("number");
+    expect(currentGeneration).not.toBe(firstGeneration);
+
+    restartedManager.fulfillPrediction.mockClear();
+    fluentTyper.messageHandler({
+      command: CMD_BACKGROUND_PAGE_PREDICT_RESP,
+      context: {
+        suggestionId: 1,
+        requestId: 1,
+        runtimeGeneration: firstGeneration,
+        predictions: [],
+        textEdit: { replacementText: "wrong" },
+      },
+    });
+    expect(restartedManager.fulfillPrediction).not.toHaveBeenCalled();
+
+    fluentTyper.messageHandler({
+      command: CMD_BACKGROUND_PAGE_PREDICT_RESP,
+      context: {
+        suggestionId: 1,
+        requestId: 1,
+        runtimeGeneration: currentGeneration,
+        predictions: ["correct"],
+      },
+    });
+    expect(restartedManager.fulfillPrediction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        suggestionId: 1,
+        requestId: 1,
+        runtimeGeneration: currentGeneration,
+        predictions: ["correct"],
+      }),
+    );
   });
 
   test("setConfig applies theme and restarts when already enabled", async () => {
@@ -238,26 +395,26 @@ describe("content_script behavior", () => {
       defaultConfig({
         enabled: true,
         themeConfig: {
-          tributeBgLight: "#ffffff",
-          tributeTextLight: "#000000",
-          tributeHighlightBgLight: "#dddddd",
-          tributeHighlightTextLight: "#111111",
-          tributeBorderLight: "#cccccc",
-          tributeBgDark: "#121212",
-          tributeTextDark: "#f4f4f4",
-          tributeHighlightBgDark: "#333333",
-          tributeHighlightTextDark: "#fafafa",
-          tributeBorderDark: "#555555",
-          tributeFontSize: "13px",
-          tributePaddingVertical: "6px",
-          tributePaddingHorizontal: "9px",
+          suggestionBgLight: "#ffffff",
+          suggestionTextLight: "#000000",
+          suggestionHighlightBgLight: "#dddddd",
+          suggestionHighlightTextLight: "#111111",
+          suggestionBorderLight: "#cccccc",
+          suggestionBgDark: "#121212",
+          suggestionTextDark: "#f4f4f4",
+          suggestionHighlightBgDark: "#333333",
+          suggestionHighlightTextDark: "#fafafa",
+          suggestionBorderDark: "#555555",
+          suggestionFontSize: "13px",
+          suggestionPaddingVertical: "6px",
+          suggestionPaddingHorizontal: "9px",
         },
       }),
     );
 
     const style = document.getElementById("fluent-typer-theme-overrides");
     expect(style).not.toBeNull();
-    expect(style!.textContent).toContain("--tribute-bg-light: #ffffff");
+    expect(style!.textContent).toContain("--suggestion-bg-light: #ffffff");
     expect(restartSpy).toHaveBeenCalled();
   });
 
@@ -278,7 +435,7 @@ describe("content_script behavior", () => {
       command: CMD_STATUS_COMMAND,
       context: { enabled: true },
     });
-    const tribute = fluentTyper.tributeManager as TributeLike;
+    const suggestionManager = fluentTyper.suggestionManager as SuggestionLike;
 
     fluentTyper.messageHandler(
       {
@@ -288,7 +445,7 @@ describe("content_script behavior", () => {
       undefined,
       (response) => statusResponses.push(response),
     );
-    expect(tribute.updateLangConfig).toHaveBeenCalledWith("fr_FR");
+    expect(suggestionManager.updateLangConfig).toHaveBeenCalledWith("fr_FR");
 
     fluentTyper.messageHandler(
       { command: CMD_POPUP_PAGE_DISABLE, context: {} },
@@ -311,7 +468,7 @@ describe("content_script behavior", () => {
       (response) => statusResponses.push(response),
     );
 
-    expect(tribute.triggerActiveTribute).toHaveBeenCalled();
+    expect(suggestionManager.triggerActiveSuggestion).toHaveBeenCalled();
     expect(
       statusResponses.every(
         (response) => (response as { command?: string }).command === CMD_STATUS_COMMAND,
@@ -320,7 +477,7 @@ describe("content_script behavior", () => {
   });
 
   test("processMutations reattaches helpers for added and attribute-target elements", async () => {
-    const { fluentTyper, tributeInstances, domObserverInstances } = await loadContentScript();
+    const { fluentTyper, suggestionInstances, domObserverInstances } = await loadContentScript();
     fluentTyper.enable();
     const domObserver = domObserverInstances[0];
 
@@ -344,12 +501,12 @@ describe("content_script behavior", () => {
 
     expect(domObserver.disconnect).toHaveBeenCalled();
     expect(
-      tributeInstances.some(
+      suggestionInstances.some(
         (instance) => instance.removeHelpersNotInDocument.mock.calls.length > 0,
       ),
     ).toBe(true);
 
-    const attachedTargets = tributeInstances.flatMap((instance) =>
+    const attachedTargets = suggestionInstances.flatMap((instance) =>
       instance.queryAndAttachHelper.mock.calls.map((call) => call[0]),
     );
     expect(attachedTargets).toContain(addedElement);
@@ -358,10 +515,10 @@ describe("content_script behavior", () => {
   });
 
   test("processMutations scans only top-level mutation roots when nodes are nested", async () => {
-    const { fluentTyper, tributeInstances } = await loadContentScript();
+    const { fluentTyper, suggestionInstances } = await loadContentScript();
     fluentTyper.enable();
-    const tribute = tributeInstances[0];
-    tribute.queryAndAttachHelper.mockClear();
+    const suggestionManager = suggestionInstances[0];
+    suggestionManager.queryAndAttachHelper.mockClear();
 
     const parent = document.createElement("div");
     const child = document.createElement("span");
@@ -386,15 +543,15 @@ describe("content_script behavior", () => {
       } as unknown as MutationRecord,
     ]);
 
-    expect(tribute.queryAndAttachHelper).toHaveBeenCalledTimes(1);
-    expect(tribute.queryAndAttachHelper).toHaveBeenCalledWith(parent);
+    expect(suggestionManager.queryAndAttachHelper).toHaveBeenCalledTimes(1);
+    expect(suggestionManager.queryAndAttachHelper).toHaveBeenCalledWith(parent);
   });
 
   test("processMutations falls back to full scan for very large mutation batches", async () => {
-    const { fluentTyper, tributeInstances } = await loadContentScript();
+    const { fluentTyper, suggestionInstances } = await loadContentScript();
     fluentTyper.enable();
-    const tribute = tributeInstances[0];
-    tribute.queryAndAttachHelper.mockClear();
+    const suggestionManager = suggestionInstances[0];
+    suggestionManager.queryAndAttachHelper.mockClear();
 
     const largeBatch = Array.from({ length: 200 }, () => {
       const element = document.createElement("div");
@@ -408,8 +565,8 @@ describe("content_script behavior", () => {
 
     fluentTyper.processMutations(largeBatch);
 
-    expect(tribute.queryAndAttachHelper).toHaveBeenCalledTimes(1);
-    expect(tribute.queryAndAttachHelper).toHaveBeenCalledWith();
+    expect(suggestionManager.queryAndAttachHelper).toHaveBeenCalledTimes(1);
+    expect(suggestionManager.queryAndAttachHelper).toHaveBeenCalledWith();
   });
 
   test("watchdog checks host/domain changes and restarts on node replacement", async () => {

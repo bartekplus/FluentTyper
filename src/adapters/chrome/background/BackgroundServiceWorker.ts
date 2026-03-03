@@ -61,7 +61,7 @@ export class BackgroundServiceWorker {
       requestId: message.context.requestId,
       tabId: message.context.tabId,
       frameId: message.context.frameId,
-      tributeId: message.context.tributeId,
+      suggestionId: message.context.suggestionId,
     };
     if (
       typeof message.context.traceStartedAtMs === "number" &&
@@ -80,7 +80,7 @@ export class BackgroundServiceWorker {
       `lang=${message.context.lang}`,
     );
 
-    const { predictions, forceReplace } = await this.predictionManager.runPrediction(
+    const { predictions, textEdit } = await this.predictionManager.runPrediction(
       message.context.text,
       message.context.nextChar,
       message.context.lang,
@@ -90,13 +90,13 @@ export class BackgroundServiceWorker {
     this.predictionManager.recordTraceTimelineEvent(
       traceMeta,
       "background.prediction.completed",
-      `${predictions.length} predictions${forceReplace ? " + forceReplace" : ""}`,
+      `${predictions.length} predictions${textEdit ? " + textEdit" : ""}`,
     );
-    if ((!Array.isArray(predictions) || predictions.length === 0) && !forceReplace) {
+    if ((!Array.isArray(predictions) || predictions.length === 0) && !textEdit) {
       this.predictionManager.recordTraceTimelineEvent(
         traceMeta,
         "background.response.skipped",
-        "no predictions and no forceReplace",
+        "no predictions and no textEdit",
       );
       return;
     }
@@ -107,12 +107,13 @@ export class BackgroundServiceWorker {
         nextChar: message.context.nextChar,
         lang: message.context.lang,
         tabId: message.context.tabId,
-        tributeId: message.context.tributeId,
+        suggestionId: message.context.suggestionId,
         requestId: message.context.requestId,
+        runtimeGeneration: message.context.runtimeGeneration,
         traceId,
         frameId: message.context.frameId,
         predictions,
-        forceReplace,
+        textEdit,
       },
     };
     this.predictionManager.recordTraceTimelineEvent(
@@ -172,7 +173,7 @@ export class BackgroundServiceWorker {
     this.language = runtimeConfig.language;
     this.predictionManager.setConfig(runtimeConfig.predictionConfig);
     this.productivityStatsManager.setSnippetShortcuts(runtimeConfig.textExpansions);
-    this.tabMessenger.sendToAllTabs(
+    await this.tabMessenger.sendToAllTabs(
       await this.getBackgroundPageSetConfigMsg(),
       this.settingsManager,
       (domain: string) => this.configAssembler.resolveDomainConfigOverrides(domain),

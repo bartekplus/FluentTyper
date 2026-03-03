@@ -24,18 +24,23 @@ export class SettingsManager {
     this.settings = new Store("settings");
   }
 
+  async getRaw(key: string): Promise<JsonValue | undefined> {
+    const value = await this.settings.get(key);
+    return value as JsonValue | undefined;
+  }
+
   async get(key: string): Promise<JsonValue> {
     const canonicalKey = resolveCanonicalSettingKey(key);
-    const canonicalValue = await this.settings.get(canonicalKey);
+    const canonicalValue = await this.getRaw(canonicalKey);
     if (typeof canonicalValue !== "undefined") {
-      return canonicalValue as JsonValue;
+      return canonicalValue;
     }
 
     const aliases = getAliasesForCanonicalSettingKey(canonicalKey);
     for (const alias of aliases) {
-      const aliasValue = await this.settings.get(alias);
+      const aliasValue = await this.getRaw(alias);
       if (typeof aliasValue !== "undefined") {
-        return aliasValue as JsonValue;
+        return aliasValue;
       }
     }
 
@@ -45,6 +50,14 @@ export class SettingsManager {
   async set(key: string, value: JsonValue): Promise<void> {
     const canonicalKey = resolveCanonicalSettingKey(key);
     return this.settings.set(canonicalKey, value);
+  }
+
+  async setRaw(key: string, value: JsonValue): Promise<void> {
+    return this.settings.set(key, value);
+  }
+
+  async removeRaw(key: string): Promise<void> {
+    return this.settings.remove(key);
   }
 
   async getAll(keys: string[]): Promise<Record<string, JsonValue>> {

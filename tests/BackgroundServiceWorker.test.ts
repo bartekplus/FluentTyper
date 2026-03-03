@@ -99,13 +99,13 @@ describe("BackgroundServiceWorker", () => {
   // But we can check behavior
 
   describe("runPrediction", () => {
-    it("should not send message if no predictions and no forceReplace", async () => {
+    it("should not send message if no predictions and no textEdit", async () => {
       // Setup mock return
       (
         worker.predictionManager.runPrediction as jest.Mock<() => Promise<unknown>>
       ).mockResolvedValue({
         predictions: [],
-        forceReplace: null,
+        textEdit: null,
       });
 
       await worker.runPrediction({
@@ -116,8 +116,9 @@ describe("BackgroundServiceWorker", () => {
           lang: "en_US",
           tabId: 1,
           frameId: 0,
-          tributeId: 1,
+          suggestionId: 1,
           requestId: 1,
+          runtimeGeneration: 1,
         },
       });
 
@@ -129,7 +130,7 @@ describe("BackgroundServiceWorker", () => {
         worker.predictionManager.runPrediction as jest.Mock<() => Promise<unknown>>
       ).mockResolvedValue({
         predictions: ["tested"],
-        forceReplace: null,
+        textEdit: null,
       });
       const tabId = 123;
       // Mock chrome.tabs.get callback
@@ -146,8 +147,9 @@ describe("BackgroundServiceWorker", () => {
           lang: "en_US",
           tabId,
           frameId: 0,
-          tributeId: 1,
+          suggestionId: 1,
           requestId: 1,
+          runtimeGeneration: 7,
         },
       });
 
@@ -157,6 +159,7 @@ describe("BackgroundServiceWorker", () => {
           command: "CMD_BACKGROUND_PAGE_PREDICT_RESP",
           context: expect.objectContaining({
             predictions: ["tested"],
+            runtimeGeneration: 7,
           }),
         }),
         expect.objectContaining({ frameId: 0 }),

@@ -1,0 +1,146 @@
+/*
+  Improved CSS for FluentTyper Suggestion Popup
+  ---------------------------------------------------------
+  Improvements:
+  - Uses CSS variables for easy theming (light/dark).
+  - Softer, more modern box-shadow and rounded corners.
+  - Improved typography and spacing for better readability.
+  - Smoother transitions for a better user experience.
+  - Retained `!important` as it can be necessary for browser extensions
+    to override host website styles, but organized them for clarity.
+*/
+
+:root {
+  /* --- Light Theme Variables --- */
+  --suggestion-bg-light: #ffffff;
+  --suggestion-text-light: #2d3748; /* A softer black */
+  --suggestion-header-bg-light: #f7fafc;
+  --suggestion-header-text-light: #718096; /* Gray for less emphasis */
+  --suggestion-highlight-bg-light: #edf2f7;
+  --suggestion-highlight-text-light: #2d3748;
+  --suggestion-border-color-light: #e2e8f0;
+  --suggestion-shadow-color-light: rgba(0, 0, 0, 0.1);
+
+  /* --- Dark Theme Variables --- */
+  --suggestion-bg-dark: #2d3748;
+  --suggestion-text-dark: #e2e8f0;
+  --suggestion-header-bg-dark: #1a202c;
+  --suggestion-header-text-dark: #a0aec0;
+  --suggestion-highlight-bg-dark: #4a5568;
+  --suggestion-highlight-text-dark: #ffffff;
+  --suggestion-border-color-dark: #4a5568;
+  --suggestion-shadow-color-dark: rgba(0, 0, 0, 0.4);
+
+  /* --- Typography Variables --- */
+  --suggestion-font-size: 0.9rem;
+  --suggestion-padding-vertical: 0.6rem;
+  --suggestion-padding-horizontal: 0.8rem;
+}
+
+.ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"] {
+  /* --- Layout & Positioning --- */
+  top: 0;
+  left: 0;
+  height: auto !important;
+  overflow: hidden !important;
+  z-index: 2147483647 !important;
+  display: block;
+
+  /* --- Aesthetics & Theming --- */
+  background-color: var(--suggestion-bg-light) !important;
+  color: var(--suggestion-text-light) !important;
+  border: 1px solid var(--suggestion-border-color-light) !important;
+  border-radius: 8px !important; /* Rounded corners */
+  box-shadow: 0 4px 12px var(--suggestion-shadow-color-light) !important; /* Softer shadow */
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+}
+
+/* --- List Reset --- */
+.ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"] ul {
+  margin: 0 !important;
+  padding: 0 !important;
+  list-style: none !important;
+}
+
+/* --- General List Item Styling --- */
+.ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"] li {
+  padding: var(--suggestion-padding-vertical) var(--suggestion-padding-horizontal) !important;
+  font-size: var(--suggestion-font-size) !important;
+  cursor: pointer !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  transition:
+    background-color 0.15s ease-in-out,
+    color 0.15s ease-in-out !important; /* Smooth transition */
+}
+
+/* --- List Header --- */
+.ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"] lh {
+  display: block !important;
+  padding: var(--suggestion-padding-vertical) var(--suggestion-padding-horizontal) !important;
+  background-color: var(--suggestion-header-bg-light) !important;
+  color: var(--suggestion-header-text-light) !important;
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--suggestion-border-color-light) !important;
+  cursor: default !important;
+}
+
+/* --- Highlighted/Active Item --- */
+.ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"]
+  li.highlight {
+  background-color: var(--suggestion-highlight-bg-light) !important;
+  color: var(--suggestion-highlight-text-light) !important;
+}
+
+/* Matched text inside a suggestion */
+.ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"] li span {
+  font-weight: 700 !important;
+}
+
+/* --- "No Match" Item --- */
+.ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"]
+  li.no-match {
+  color: var(
+    --suggestion-header-text-light
+  ) !important; /* Use header text color for less emphasis */
+  cursor: default !important;
+}
+
+/* ======================================================= */
+/* --- Dark Mode using CSS Media Query --- */
+/* ======================================================= */
+@media (prefers-color-scheme: dark) {
+  .ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"] {
+    background-color: var(--suggestion-bg-dark) !important;
+    color: var(--suggestion-text-dark) !important;
+    border-color: var(--suggestion-border-color-dark) !important;
+    box-shadow: 0 4px 12px var(--suggestion-shadow-color-dark) !important;
+  }
+
+  .ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"] lh {
+    background-color: var(--suggestion-header-bg-dark) !important;
+    color: var(--suggestion-header-text-dark) !important;
+    border-bottom-color: var(--suggestion-border-color-dark) !important;
+  }
+
+  .ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"]
+    li.highlight {
+    background-color: var(--suggestion-highlight-bg-dark) !important;
+    color: var(--suggestion-highlight-text-dark) !important;
+  }
+
+  .ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"]
+    li.no-match {
+    color: var(--suggestion-header-text-dark) !important;
+  }
+}
+
+.ft-suggestion-inline[data-ft-suggestion-owned="true"][data-ft-suggestion-role="inline"] {
+  pointer-events: none;
+  white-space: pre-wrap;
+}

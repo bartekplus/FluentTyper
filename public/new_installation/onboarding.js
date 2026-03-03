@@ -8,7 +8,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   const permissionsBtn = document.getElementById("grant-permissions-btn");
   const permissionsContainer = document.getElementById("permissions-container");
   const permissionsSuccess = document.getElementById("permissions-success");
-
   if (!permissionsBtn || !permissionsContainer || !permissionsSuccess) {
     return;
   }
@@ -34,9 +33,15 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   permissionsBtn.addEventListener("click", async () => {
     try {
-      const granted = await browserAPI.permissions.request({
-        origins: ["<all_urls>"],
-      });
+      const requestOptions = { origins: ["<all_urls>"] };
+      // Resolve hook at click-time so tests can set it after DOMContentLoaded.
+      const testPermissionRequest =
+        typeof window.__FT_TEST_PERMISSION_REQUEST__ === "function"
+          ? window.__FT_TEST_PERMISSION_REQUEST__
+          : null;
+      const granted = testPermissionRequest
+        ? await testPermissionRequest(requestOptions)
+        : await browserAPI.permissions.request(requestOptions);
       if (granted) {
         permissionsContainer.style.display = "none";
         permissionsSuccess.style.display = "block";

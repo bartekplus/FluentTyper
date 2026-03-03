@@ -6,6 +6,7 @@
 //
 
 import { manifest } from "../manifest.js";
+import { getAliasesForCanonicalSettingKey } from "@core/domain/contracts/settings";
 
 class chromeStorageBackend {
   constructor(useLocalBackend) {
@@ -185,6 +186,24 @@ class Store {
     for (const [key, value] of defaultEntries) {
       const rawStoredValue = storedValues[key];
       if (rawStoredValue === undefined) {
+        const aliases = getAliasesForCanonicalSettingKey(key);
+        let hasValidAliasValue = false;
+        for (const aliasKey of aliases) {
+          const rawAliasValue = storedValues[aliasKey];
+          if (rawAliasValue === undefined) {
+            continue;
+          }
+          try {
+            JSON.parse(rawAliasValue);
+            hasValidAliasValue = true;
+            break;
+          } catch (e) {
+            // Ignore invalid alias payload and continue fallback checks.
+          }
+        }
+        if (hasValidAliasValue) {
+          continue;
+        }
         writes.push(this.setStoredValue(key, value));
         continue;
       }

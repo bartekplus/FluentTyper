@@ -58,19 +58,19 @@ export const KEY_PRODUCTIVITY_STATS = "productivityStats";
 // Theming Config Keys
 export const KEY_USE_DEFAULT_THEME_BTN = "useDefaultThemeBtn";
 export const KEY_USE_COMPACT_THEME_BTN = "useCompactThemeBtn";
-export const KEY_TRIBUTE_BG_LIGHT = "tributeBgLight";
-export const KEY_TRIBUTE_TEXT_LIGHT = "tributeTextLight";
-export const KEY_TRIBUTE_HIGHLIGHT_BG_LIGHT = "tributeHighlightBgLight";
-export const KEY_TRIBUTE_HIGHLIGHT_TEXT_LIGHT = "tributeHighlightTextLight";
-export const KEY_TRIBUTE_BORDER_LIGHT = "tributeBorderLight";
-export const KEY_TRIBUTE_BG_DARK = "tributeBgDark";
-export const KEY_TRIBUTE_TEXT_DARK = "tributeTextDark";
-export const KEY_TRIBUTE_HIGHLIGHT_BG_DARK = "tributeHighlightBgDark";
-export const KEY_TRIBUTE_HIGHLIGHT_TEXT_DARK = "tributeHighlightTextDark";
-export const KEY_TRIBUTE_BORDER_DARK = "tributeBorderDark";
-export const KEY_TRIBUTE_FONT_SIZE = "tributeFontSize";
-export const KEY_TRIBUTE_PADDING_VERTICAL = "tributePaddingVertical";
-export const KEY_TRIBUTE_PADDING_HORIZONTAL = "tributePaddingHorizontal";
+export const KEY_SUGGESTION_BG_LIGHT = "suggestionBgLight";
+export const KEY_SUGGESTION_TEXT_LIGHT = "suggestionTextLight";
+export const KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT = "suggestionHighlightBgLight";
+export const KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT = "suggestionHighlightTextLight";
+export const KEY_SUGGESTION_BORDER_LIGHT = "suggestionBorderLight";
+export const KEY_SUGGESTION_BG_DARK = "suggestionBgDark";
+export const KEY_SUGGESTION_TEXT_DARK = "suggestionTextDark";
+export const KEY_SUGGESTION_HIGHLIGHT_BG_DARK = "suggestionHighlightBgDark";
+export const KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK = "suggestionHighlightTextDark";
+export const KEY_SUGGESTION_BORDER_DARK = "suggestionBorderDark";
+export const KEY_SUGGESTION_FONT_SIZE = "suggestionFontSize";
+export const KEY_SUGGESTION_PADDING_VERTICAL = "suggestionPaddingVertical";
+export const KEY_SUGGESTION_PADDING_HORIZONTAL = "suggestionPaddingHorizontal";
 
 // Popup Commands
 export const CMD_POPUP_PAGE_ENABLE = "CMD_POPUP_PAGE_ENABLE";

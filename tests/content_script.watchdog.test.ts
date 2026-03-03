@@ -30,13 +30,13 @@ async function loadContentScriptModule() {
   await import(freshModulePath("../src/adapters/chrome/content-script/content_script"));
 }
 
-jest.unstable_mockModule("../src/adapters/chrome/content-script/TributeManager", () => ({
-  TributeManager: jest.fn().mockImplementation(() => ({
+jest.unstable_mockModule("../src/adapters/chrome/content-script/SuggestionManager", () => ({
+  SuggestionManager: jest.fn().mockImplementation(() => ({
     queryAndAttachHelper: jest.fn(),
     detachAllHelpers: jest.fn(),
     removeHelpersNotInDocument: jest.fn(),
     updateLangConfig: jest.fn(),
-    triggerActiveTribute: jest.fn(),
+    triggerActiveSuggestion: jest.fn(),
     fulfillPrediction: jest.fn(),
   })),
 }));

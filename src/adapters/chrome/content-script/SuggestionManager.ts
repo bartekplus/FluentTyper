@@ -1,0 +1,34 @@
+import { SuggestionManagerRuntime } from "./suggestions/SuggestionManagerRuntime";
+import type { PredictionResponse, SuggestionManagerOptions } from "./suggestions/types";
+
+export class SuggestionManager {
+  private readonly runtime: SuggestionManagerRuntime;
+
+  constructor(options: SuggestionManagerOptions) {
+    this.runtime = new SuggestionManagerRuntime(options);
+  }
+
+  public queryAndAttachHelper(root?: Element): void {
+    this.runtime.queryAndAttachHelper(root);
+  }
+
+  public removeHelpersNotInDocument(): void {
+    this.runtime.removeHelpersNotInDocument();
+  }
+
+  public triggerActiveSuggestion(): void {
+    this.runtime.triggerActiveSuggestion();
+  }
+
+  public updateLangConfig(lang: string): void {
+    this.runtime.updateLangConfig(lang);
+  }
+
+  public fulfillPrediction(context: PredictionResponse): void {
+    this.runtime.fulfillPrediction(context);
+  }
+
+  public detachAllHelpers(): void {
+    this.runtime.detachAllHelpers();
+  }
+}

@@ -48,9 +48,10 @@ export type ContentMessageHandlerDependencies = {
   toggleEnabled: () => void;
   setConfig: (config: SetConfigContext) => void;
   updateLanguage: (lang: string) => void;
-  triggerActiveTribute: () => void;
+  triggerActiveSuggestion: () => void;
   fulfillPrediction: (context: PredictResponseContext) => void;
   getLanguage: () => string;
+  getPredictionGeneration: () => number;
 };
 
 export class ContentMessageHandler {
@@ -59,6 +60,10 @@ export class ContentMessageHandler {
   constructor(private readonly dependencies: ContentMessageHandlerDependencies) {}
 
   handleGetPrediction(context: ContentScriptPredictRequestContext): void {
+    const runtimeGeneration =
+      typeof context.runtimeGeneration === "number" && Number.isFinite(context.runtimeGeneration)
+        ? context.runtimeGeneration
+        : this.dependencies.getPredictionGeneration();
     const traceId = isNonEmptyString(context.traceId)
       ? context.traceId.trim()
       : generatePredictionTraceId();
@@ -70,7 +75,8 @@ export class ContentMessageHandler {
     logger.debug("Preparing prediction request", {
       traceId,
       requestId: context.requestId,
-      tributeId: context.tributeId,
+      suggestionId: context.suggestionId,
+      runtimeGeneration,
       nextChar: context.nextChar,
       lang: this.dependencies.getLanguage(),
     });
@@ -79,8 +85,9 @@ export class ContentMessageHandler {
       context: {
         text: context.text,
         nextChar: context.nextChar,
-        tributeId: context.tributeId,
+        suggestionId: context.suggestionId,
         requestId: context.requestId,
+        runtimeGeneration,
         lang: this.dependencies.getLanguage(),
         traceId,
         traceStartedAtMs,
@@ -114,31 +121,39 @@ export class ContentMessageHandler {
           !isNonEmptyString(this.pendingReq?.context.traceId) ||
           !isNonEmptyString(context.traceId) ||
           this.pendingReq?.context.traceId === context.traceId;
-        if (
+        const isMatchingPending =
           this.pendingReq &&
-          this.pendingReq.context.tributeId === context.tributeId &&
+          this.pendingReq.context.suggestionId === context.suggestionId &&
           this.pendingReq.context.requestId === context.requestId &&
-          traceIdMatches
-        ) {
+          this.pendingReq.context.runtimeGeneration === context.runtimeGeneration &&
+          traceIdMatches;
+
+        if (isMatchingPending) {
+          // Clear before fulfillment so synchronous follow-up requests created
+          // by text edits are not wiped out after the callback returns.
+          this.pendingReq = null;
           logger.debug("Fulfilling prediction response", {
             traceId: context.traceId,
             requestId: context.requestId,
-            tributeId: context.tributeId,
+            suggestionId: context.suggestionId,
+            runtimeGeneration: context.runtimeGeneration,
             predictionCount: context.predictions.length,
           });
-          this.dependencies.fulfillPrediction(context);
-          this.pendingReq = null;
         } else {
-          logger.warn("Ignored prediction response due to mismatch", {
-            traceId: context.traceId,
-            requestId: context.requestId,
-            tributeId: context.tributeId,
-            hasPendingRequest: Boolean(this.pendingReq),
-            pendingTraceId: this.pendingReq?.context.traceId,
-            pendingRequestId: this.pendingReq?.context.requestId,
-            pendingTributeId: this.pendingReq?.context.tributeId,
-          });
+          logger.debug(
+            "Forwarding non-matching prediction response for manager-level stale filtering",
+            {
+              traceId: context.traceId,
+              requestId: context.requestId,
+              suggestionId: context.suggestionId,
+              runtimeGeneration: context.runtimeGeneration,
+              pendingRequestId: this.pendingReq?.context.requestId,
+              pendingSuggestionId: this.pendingReq?.context.suggestionId,
+              pendingGeneration: this.pendingReq?.context.runtimeGeneration,
+            },
+          );
         }
+        this.dependencies.fulfillPrediction(context);
         break;
       }
       case CMD_BACKGROUND_PAGE_SET_CONFIG:
@@ -162,7 +177,7 @@ export class ContentMessageHandler {
         sendStatusMsg = true;
         break;
       case CMD_TRIGGER_FT_ACTIVE_TAB:
-        this.dependencies.triggerActiveTribute();
+        this.dependencies.triggerActiveSuggestion();
         sendStatusMsg = true;
         break;
       case CMD_GET_HOSTNAME:

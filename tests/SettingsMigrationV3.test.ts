@@ -12,8 +12,15 @@ function createMockSettingsManager(
   return {
     store,
     get: async (key: string) => store[key] as never,
+    getRaw: async (key: string) => store[key] as never,
     set: async (key: string, value: unknown) => {
       store[key] = value;
+    },
+    setRaw: async (key: string, value: unknown) => {
+      store[key] = value;
+    },
+    removeRaw: async (key: string) => {
+      delete store[key];
     },
   } as unknown as SettingsManager & { store: Record<string, unknown> };
 }
@@ -111,6 +118,20 @@ describe("migrateSettingsV3 – applySpacingRules migration", () => {
 
     expect(settings.store["enabledGrammarRules"]).toEqual([]);
     expect(settings.store["autoCapitalize"]).toBe(false);
+  });
+
+  test("normalizes tribute alias keys to suggestion canonical keys", async () => {
+    const settings = createMockSettingsManager({
+      tributeBgLight: "#abc123",
+      tributeTextLight: "#111111",
+    });
+
+    await migrateSettingsV3(settings);
+
+    expect(settings.store["suggestionBgLight"]).toBe("#abc123");
+    expect(settings.store["suggestionTextLight"]).toBe("#111111");
+    expect(settings.store["tributeBgLight"]).toBeUndefined();
+    expect(settings.store["tributeTextLight"]).toBeUndefined();
   });
 });
 

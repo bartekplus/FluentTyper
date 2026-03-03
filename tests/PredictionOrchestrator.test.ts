@@ -167,7 +167,7 @@ describe("PredictionOrchestrator coverage", () => {
       }),
     ).resolves.toEqual({
       predictions: ["alpha"],
-      forceReplace: null,
+      textEdit: null,
     });
 
     expect(warnSpy).toHaveBeenCalledWith(
@@ -378,7 +378,7 @@ describe("PredictionOrchestrator coverage", () => {
       predictionInput: "a",
       doPrediction: true,
       doCapitalize: Capitalization.None,
-      forceReplace: null,
+      textEdit: null,
       effectiveNumSuggestions: 1,
     };
 

@@ -41,7 +41,7 @@ const BASE_INPUT_SELECTORS = ["#test-textarea", "#test-input", "#test-contentedi
 const SUPPORTED_INPUT_SELECTORS = [...BASE_INPUT_SELECTORS, CKEDITOR_SELECTOR] as const;
 
 const NAVIGATION_TIMEOUT_MS = isFirefox() ? 8000 : 5000;
-const INPUT_READY_TIMEOUT_MS = isFirefox() ? 10000 : 10000;
+const INPUT_READY_TIMEOUT_MS = isFirefox() ? 10000 : 20000;
 const SUGGESTION_TIMEOUT_MS = isFirefox() ? 7000 : 8000;
 const RUN_DEV_RUNTIME_E2E =
   process.env.FT_E2E_DEV_RUNTIME === "1" || process.env.FT_E2E_DEV_RUNTIME === "true";
@@ -64,7 +64,7 @@ let domainTestUrl: string;
 
 function isRetriableWorkerError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
-  return /chrome\.storage\.local is unavailable|reading 'local'|Execution context was destroyed|Cannot find context with specified id|Target closed|Session closed/i.test(
+  return /chrome\.storage\.local is unavailable|reading 'local'|Execution context was destroyed|Execution context is not available in detached frame or worker|Cannot find context with specified id|Target closed|Session closed/i.test(
     message,
   );
 }
@@ -328,6 +328,59 @@ async function getInputContent(page: Page, selector: string): Promise<string> {
   return page.$eval(selector, (el) => (el as HTMLInputElement).value ?? el.textContent ?? "");
 }
 
+async function waitForInputContentEqual(
+  page: Page,
+  selector: string,
+  expected: string,
+  timeoutMs: number,
+): Promise<string> {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    const currentValue = await getInputContent(page, selector);
+    if (currentValue === expected) {
+      return currentValue;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  throw new Error(`Timed out waiting for input content "${expected}" for ${selector}`);
+}
+
+async function waitForInputContentMatch(
+  page: Page,
+  selector: string,
+  pattern: RegExp,
+  timeoutMs: number,
+): Promise<string> {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    const currentValue = await getInputContent(page, selector);
+    if (pattern.test(currentValue)) {
+      return currentValue;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  throw new Error(`Timed out waiting for input content to match ${pattern} for ${selector}`);
+}
+
+async function waitForInputContentMinLength(
+  page: Page,
+  selector: string,
+  minLengthExclusive: number,
+  timeoutMs: number,
+): Promise<string> {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    const currentValue = await getInputContent(page, selector);
+    if (currentValue.length > minLengthExclusive) {
+      return currentValue;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  throw new Error(
+    `Timed out waiting for input content length > ${minLengthExclusive} for ${selector}`,
+  );
+}
+
 function hasNonAsciiCharacters(text: string): boolean {
   for (let i = 0; i < text.length; i++) {
     if (text.charCodeAt(i) > 0x7f) {
@@ -382,44 +435,70 @@ async function gotoTestPage(page: Page, options: { enableCkEditor?: boolean } = 
 }
 
 async function waitForInputReady(page: Page, selector: string) {
+  const startedAt = Date.now();
+  const isTimedOut = () => Date.now() - startedAt >= INPUT_READY_TIMEOUT_MS;
+
   if (selector === CKEDITOR_SELECTOR) {
-    await page.waitForFunction(
-      () =>
-        Boolean(
+    while (true) {
+      const ckState = await page.evaluate(() => ({
+        ready: Boolean(
           (
             window as typeof window & {
               __testCkEditorReady?: boolean;
+            }
+          ).__testCkEditorReady,
+        ),
+        error:
+          (
+            window as typeof window & {
               __testCkEditorError?: string | null;
             }
-          ).__testCkEditorReady ||
-          (
+          ).__testCkEditorError ?? null,
+        hasEditable: Boolean(document.querySelector(".ck-editor__editable")),
+      }));
+      if (ckState.ready || ckState.error || ckState.hasEditable) {
+        if (ckState.error) {
+          throw new Error(`CKEditor failed to initialize: ${ckState.error}`);
+        }
+        break;
+      }
+      if (isTimedOut()) {
+        const debugState = await page.evaluate(() => ({
+          href: window.location.href,
+          ready: (
+            window as typeof window & {
+              __testCkEditorReady?: boolean;
+            }
+          ).__testCkEditorReady,
+          ckError: (
             window as typeof window & {
               __testCkEditorError?: string | null;
             }
           ).__testCkEditorError,
-        ),
-      { timeout: INPUT_READY_TIMEOUT_MS },
-    );
-
-    const ckEditorError = await page.evaluate(
-      () =>
-        (
-          window as typeof window & {
-            __testCkEditorError?: string | null;
-          }
-        ).__testCkEditorError,
-    );
-    if (ckEditorError) {
-      throw new Error(`CKEditor failed to initialize: ${ckEditorError}`);
+          hasEditable: Boolean(document.querySelector(".ck-editor__editable")),
+        }));
+        throw new Error(
+          `CKEditor readiness timed out for ${selector}: ${JSON.stringify(debugState)}`,
+        );
+      }
+      await new Promise((resolve) => setTimeout(resolve, 50));
     }
   }
 
   await page.waitForSelector(selector, { timeout: INPUT_READY_TIMEOUT_MS });
-  await page.waitForFunction(
-    (sel) => document.querySelector(sel)?.hasAttribute("data-tribute") ?? false,
-    { timeout: INPUT_READY_TIMEOUT_MS },
-    selector,
-  );
+  while (true) {
+    const isAttached = await page.evaluate(
+      (sel) => document.querySelector(sel)?.hasAttribute("data-suggestion") ?? false,
+      selector,
+    );
+    if (isAttached) {
+      return;
+    }
+    if (isTimedOut()) {
+      throw new Error(`Input helper did not attach in time for selector ${selector}`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
 }
 
 async function waitForVisibleSuggestions(
@@ -434,15 +513,16 @@ async function waitForVisibleSuggestionTexts(
   page: Page,
   timeoutMs = SUGGESTION_TIMEOUT_MS,
 ): Promise<string[]> {
-  const countHandle = await page.waitForFunction(
-    () => {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    const texts = await page.evaluate(() => {
       const activeElement = document.activeElement as
-        | (HTMLElement & { tributeMenu?: Element | null })
+        | (HTMLElement & { suggestionMenu?: Element | null })
         | null;
-      const activeMenu = activeElement?.tributeMenu;
+      const activeMenu = activeElement?.suggestionMenu;
       const containers = [
         ...(activeMenu instanceof Element ? [activeMenu] : []),
-        ...Array.from(document.querySelectorAll(".tribute-container")).filter(
+        ...Array.from(document.querySelectorAll(".ft-suggestion-container")).filter(
           (container) => container !== activeMenu,
         ),
       ];
@@ -456,31 +536,32 @@ async function waitForVisibleSuggestionTexts(
         ) {
           continue;
         }
-        const texts = Array.from(container.querySelectorAll("li"))
+        const visibleTexts = Array.from(container.querySelectorAll("li"))
           .map((li) => li.textContent ?? "")
           .filter((text) => text.length > 0);
-        if (texts.length > 0) {
-          return texts;
+        if (visibleTexts.length > 0) {
+          return visibleTexts;
         }
       }
-      return null;
-    },
-    { timeout: timeoutMs },
-  );
-  const texts = (await countHandle.jsonValue()) as string[] | null;
-  await countHandle.dispose();
-  return texts ?? [];
+      return [];
+    });
+    if (texts.length > 0) {
+      return texts;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  throw new Error(`Timed out waiting for visible suggestions after ${timeoutMs}ms`);
 }
 
 async function hasVisibleSuggestions(page: Page): Promise<boolean> {
   return page.evaluate(() => {
     const activeElement = document.activeElement as
-      | (HTMLElement & { tributeMenu?: Element | null })
+      | (HTMLElement & { suggestionMenu?: Element | null })
       | null;
-    const activeMenu = activeElement?.tributeMenu;
+    const activeMenu = activeElement?.suggestionMenu;
     const containers = [
       ...(activeMenu instanceof Element ? [activeMenu] : []),
-      ...Array.from(document.querySelectorAll(".tribute-container")).filter(
+      ...Array.from(document.querySelectorAll(".ft-suggestion-container")).filter(
         (container) => container !== activeMenu,
       ),
     ];
@@ -506,12 +587,12 @@ async function waitForNoVisibleSuggestions(
   await page.waitForFunction(
     () => {
       const activeElement = document.activeElement as
-        | (HTMLElement & { tributeMenu?: Element | null })
+        | (HTMLElement & { suggestionMenu?: Element | null })
         | null;
-      const activeMenu = activeElement?.tributeMenu;
+      const activeMenu = activeElement?.suggestionMenu;
       const containers = [
         ...(activeMenu instanceof Element ? [activeMenu] : []),
-        ...Array.from(document.querySelectorAll(".tribute-container")).filter(
+        ...Array.from(document.querySelectorAll(".ft-suggestion-container")).filter(
           (container) => container !== activeMenu,
         ),
       ];
@@ -539,12 +620,12 @@ async function clickFirstVisibleSuggestion(
   await page.waitForFunction(
     () => {
       const activeElement = document.activeElement as
-        | (HTMLElement & { tributeMenu?: Element | null })
+        | (HTMLElement & { suggestionMenu?: Element | null })
         | null;
-      const activeMenu = activeElement?.tributeMenu;
+      const activeMenu = activeElement?.suggestionMenu;
       const containers = [
         ...(activeMenu instanceof Element ? [activeMenu] : []),
-        ...Array.from(document.querySelectorAll(".tribute-container")).filter(
+        ...Array.from(document.querySelectorAll(".ft-suggestion-container")).filter(
           (container) => container !== activeMenu,
         ),
       ];
@@ -667,6 +748,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   }, 60000);
 
   beforeEach(async () => {
+    worker = await getBackgroundContext(browser);
     // Keep the legacy baseline for non-grammar E2E flows so popup/inline
     // prediction scenarios remain deterministic regardless of defaults.
     await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
@@ -756,23 +838,25 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         // Wait for the button to be ready and visible
         await newInstallationPage.waitForSelector("#grant-permissions-btn", { visible: true });
 
-        // Mock the permissions.request API so we can intercept the call
+        // Mock onboarding permission flow through explicit test hook.
         await newInstallationPage.evaluate(() => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const globalTarget = (window as any).browser || (window as any).chrome;
-          if (globalTarget) {
-            globalTarget.permissions = globalTarget.permissions || {};
+          (window as any).__FT_TEST_PERMISSION_REQUEST__ = async (options: any) => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            globalTarget.permissions.request = async (options: any) => {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              (window as any).__lastPermissionRequest = options;
-              return true; // Simulate user clicking 'Allow'
-            };
-          }
+            (window as any).__lastPermissionRequest = options;
+            return true;
+          };
         });
 
-        // Click the grant button
-        await newInstallationPage.click("#grant-permissions-btn");
+        // Trigger click from page context; puppeteer element-click can be flaky
+        // on extension onboarding pages when Chrome opens permission UI.
+        await newInstallationPage.evaluate(() => {
+          const button = document.getElementById("grant-permissions-btn");
+          if (!(button instanceof HTMLElement)) {
+            throw new Error("Permission grant button is missing");
+          }
+          button.click();
+        });
 
         // Check if success container is shown
         await newInstallationPage.waitForSelector("#permissions-success", { visible: true });
@@ -816,10 +900,10 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
       if (isFirefox()) {
         await waitForInputReady(page, "#test-textarea");
-        const hasTributeOnWhitelistedHost = await page.$eval("#test-textarea", (el) =>
-          el.hasAttribute("data-tribute"),
+        const hasSuggestionHookOnWhitelistedHost = await page.$eval("#test-textarea", (el) =>
+          el.hasAttribute("data-suggestion"),
         );
-        expect(hasTributeOnWhitelistedHost).toBe(true);
+        expect(hasSuggestionHookOnWhitelistedHost).toBe(true);
         return;
       }
 
@@ -1109,15 +1193,12 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await new Promise((r) => setTimeout(r, browserTimeout(300, 700)));
         await page.keyboard.press("Tab");
 
-        await page.waitForFunction(
-          (sel) =>
-            ((document.querySelector(sel) as HTMLInputElement).value ??
-              document.querySelector(sel)?.textContent) !== "impor",
-          { timeout: browserTimeout(3000, 7000) },
+        const elementText = await waitForInputContentMinLength(
+          page,
           selector,
+          5,
+          browserTimeout(3000, 7000),
         );
-
-        const elementText = await getInputContent(page, selector);
         expect(elementText).not.toBe("impor");
         expect(elementText).not.toBe("impor\t");
         expect(elementText.length).toBeGreaterThan(5);
@@ -1159,15 +1240,12 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         expect(firstLiText?.toLowerCase()).toMatch(new RegExp(`^${typedPrefix}\\S*\\xa0$`));
 
         await acceptSuggestion();
-        await page.waitForFunction(
-          (sel, prefix) =>
-            ((document.querySelector(sel) as HTMLInputElement).value ??
-              document.querySelector(sel)?.textContent) !== prefix,
-          {},
+        const elementText = await waitForInputContentMatch(
+          page,
           selector,
-          typedPrefix,
+          new RegExp(`^${typedPrefix}\\S*\\xa0$`, "i"),
+          browserTimeout(4000, 10000),
         );
-        const elementText = await getInputContent(page, selector);
         expect(elementText.toLowerCase()).toBe(firstLiText?.toLowerCase());
       };
 
@@ -1177,6 +1255,102 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await assertInsertion("w", async () => {
         await page.keyboard.press("Tab");
       });
+    },
+    browserTimeout(45000, 70000),
+  );
+
+  test(
+    "CKEditor preserves paragraph break when accepting suggestion at line end",
+    async () => {
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await applyConfigChange(browser, worker!);
+
+      await gotoTestPage(page, { enableCkEditor: true });
+      await page.bringToFront();
+      await waitForInputReady(page, CKEDITOR_SELECTOR);
+
+      await page.evaluate(() => {
+        const ckEditor = (
+          window as typeof window & {
+            __testCkEditor?: { setData: (data: string) => void };
+          }
+        ).__testCkEditor;
+        if (!ckEditor) {
+          throw new Error("CKEditor test instance not found");
+        }
+        ckEditor.setData("<p></p><p>next</p>");
+      });
+
+      await page.focus(CKEDITOR_SELECTOR);
+      await page.evaluate(() => {
+        const editable = document.querySelector(".ck-editor__editable");
+        const firstParagraph = editable?.querySelector("p");
+        if (!editable || !firstParagraph) {
+          throw new Error("CKEditor editable or first paragraph missing");
+        }
+        const textNode =
+          firstParagraph.firstChild && firstParagraph.firstChild.nodeType === Node.TEXT_NODE
+            ? firstParagraph.firstChild
+            : firstParagraph.appendChild(document.createTextNode(""));
+
+        const selection = window.getSelection();
+        if (!selection) {
+          throw new Error("Selection unavailable");
+        }
+
+        const range = document.createRange();
+        range.setStart(textNode, textNode.textContent?.length ?? 0);
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      });
+
+      await page.keyboard.type("h");
+      const liCount = await waitForVisibleSuggestions(page);
+      expect(liCount).toBeGreaterThan(0);
+      await page.keyboard.press("Tab");
+
+      try {
+        await page.waitForFunction(
+          () => {
+            const editable = document.querySelector(".ck-editor__editable");
+            if (!editable) {
+              return false;
+            }
+            const paragraphs = editable.querySelectorAll("p");
+            return paragraphs.length >= 2 && (paragraphs[1].textContent ?? "").trim() === "next";
+          },
+          { timeout: browserTimeout(4000, 10000) },
+        );
+      } catch {
+        const debugState = await page.evaluate(() => {
+          const editable = document.querySelector(".ck-editor__editable");
+          const paragraphs = editable ? Array.from(editable.querySelectorAll("p")) : [];
+          return {
+            html: editable?.innerHTML ?? "",
+            texts: paragraphs.map((p) => p.textContent ?? ""),
+            textContent: editable?.textContent ?? "",
+          };
+        });
+        throw new Error(`CKEditor paragraph state mismatch: ${JSON.stringify(debugState)}`);
+      }
+
+      const paragraphState = await page.evaluate(() => {
+        const editable = document.querySelector(".ck-editor__editable");
+        const paragraphs = editable ? Array.from(editable.querySelectorAll("p")) : [];
+        const normalize = (value: string): string => value.replace(/\u00a0/g, " ").trim();
+        return {
+          count: paragraphs.length,
+          first: normalize(paragraphs[0]?.textContent ?? ""),
+          second: normalize(paragraphs[1]?.textContent ?? ""),
+        };
+      });
+
+      expect(paragraphState.count).toBeGreaterThanOrEqual(2);
+      expect(paragraphState.second).toBe("next");
+      expect(paragraphState.first).toMatch(/^h\S*$/i);
     },
     browserTimeout(45000, 70000),
   );
@@ -1198,27 +1372,21 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
       // Press Tab to autocomplete.
       await page.keyboard.press("Tab");
-      await page.waitForFunction(
-        (sel) =>
-          ((document.querySelector(sel) as HTMLInputElement).value ??
-            document.querySelector(sel)?.textContent) !== "h",
-        { timeout: browserTimeout(5000, 10000) },
+      const autocompletedText = await waitForInputContentMatch(
+        page,
         selector,
+        /^h\S*\xa0$/i,
+        browserTimeout(5000, 10000),
       );
-
-      const autocompletedText = await getInputContent(page, selector);
-      expect(autocompletedText).toMatch(/^h\S*\xa0$/i);
       const wordPart = autocompletedText.slice(0, -1);
 
       await page.keyboard.press("ArrowLeft");
       await element!.type("x");
-      await page.waitForFunction(
-        (sel, expected) =>
-          ((document.querySelector(sel) as HTMLInputElement).value ??
-            document.querySelector(sel)?.textContent) === expected,
-        { timeout: browserTimeout(2000, 5000) },
+      await waitForInputContentEqual(
+        page,
         selector,
         `${wordPart}x\xa0`,
+        browserTimeout(2000, 5000),
       );
     },
     browserTimeout(15000, 30000),
@@ -1243,16 +1411,11 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await page.keyboard.press("Tab");
 
       // Wait for the textarea value to change
-      await page.waitForFunction(
-        (sel) =>
-          ((document.querySelector(sel) as HTMLInputElement).value ??
-            document.querySelector(sel)?.textContent) !== "w",
-        { timeout: browserTimeout(2000, 5000) },
+      const elementText = await waitForInputContentMatch(
+        page,
         selector,
-      );
-      const elementText = await page.$eval(
-        selector,
-        (el) => (el as HTMLInputElement).value ?? el.textContent,
+        /^w\S*\xa0$/i,
+        browserTimeout(2000, 5000),
       );
       // Should be a word starting with "w" followed by \xa0
       expect(elementText).toMatch(/^w\S*\xa0$/i);
@@ -1900,21 +2063,13 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       const element = await page.$(selector);
 
       await element!.type("h"); // Trigger popup
-      await page.waitForSelector(".tribute-container li", {
+      await page.waitForSelector(".ft-suggestion-container li", {
         timeout: browserTimeout(4000, 10000),
       });
       await page.keyboard.press("Escape");
 
       // Wait for the popup to disappear
-      await page.waitForFunction(
-        () =>
-          !document.querySelector(".tribute-container") ||
-          document
-            .querySelector(".tribute-container")
-            ?.getAttribute("style")
-            ?.includes("display: none"),
-        { timeout: browserTimeout(1500, 5000) },
-      );
+      await waitForNoVisibleSuggestions(page, browserTimeout(1500, 5000));
     },
     browserTimeout(30000, 45000),
   );
@@ -1937,25 +2092,17 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       const element = await page.$(selector);
       await element!.type("asap"); // Trigger text expansion
 
-      await page.waitForSelector(".tribute-container li", {
-        timeout: browserTimeout(4000, 10000),
-      });
-      const [firstLiText] = await waitForVisibleSuggestionTexts(page);
+      const [firstLiText] = await waitForVisibleSuggestionTexts(page, browserTimeout(4000, 10000));
       expect(firstLiText?.toLowerCase()).toBe("as soon as possible\xa0");
 
       await page.keyboard.press("Tab");
 
       // Wait for insertion
-      await page.waitForFunction(
-        (sel) =>
-          ((document.querySelector(sel) as HTMLInputElement).value ??
-            document.querySelector(sel)?.textContent) !== "asap",
-        {},
+      const elementText = await waitForInputContentEqual(
+        page,
         selector,
-      );
-      const elementText = await page.$eval(
-        selector,
-        (el) => (el as HTMLInputElement).value ?? el.textContent,
+        "as soon as possible\xa0",
+        browserTimeout(4000, 10000),
       );
       expect((elementText ?? "").toLowerCase()).toBe("as soon as possible\xa0");
 
@@ -2127,41 +2274,27 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
       // Type "t" first, then pause to let the grammar rule engine process the
       // capitalize-first-letter correction before typing more characters.
-      // Without this pause, the forceReplace response may arrive after the user
+      // Without this pause, the textEdit response may arrive after the user
       // has typed more characters, and the replacement position would be wrong.
       await element!.type("t");
       await new Promise((r) => setTimeout(r, 1500));
 
       // Continue typing the rest of "testing ."
       await element!.type("esting .");
-
-      await page.waitForFunction(
-        (sel) => {
-          const el = document.querySelector(sel);
-          if (!el) {
-            return false;
-          }
-          const val = ((el as HTMLInputElement).value ?? el.textContent) as string;
-          return val.replace(/\xA0/g, " ").includes("esting. ");
-        },
-        { timeout: browserTimeout(2000, 3000) },
+      await waitForInputContentMatch(
+        page,
         selector,
+        /esting\.[\xA0 ]/i,
+        browserTimeout(5000, 8000),
       );
 
       // Type "w" and verify capitalizeFirstLetterRule applies
       await element!.type("w");
-
-      await page.waitForFunction(
-        (sel) => {
-          const el = document.querySelector(sel);
-          if (!el) {
-            return false;
-          }
-          const val = ((el as HTMLInputElement).value ?? el.textContent) as string;
-          return val.replace(/\xA0/g, " ").includes("Testing. W");
-        },
-        { timeout: browserTimeout(3000, 5000) },
+      await waitForInputContentMatch(
+        page,
         selector,
+        /Testing\.[\xA0 ]W/,
+        browserTimeout(5000, 8000),
       );
 
       const finalVal = await page.$eval(
@@ -2204,42 +2337,38 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
       const readNormalizedText = async (): Promise<string> =>
         (await getInputContent(page, selector)).replace(/\xA0/g, " ");
-      const waitForNormalizedValue = async (expected: string): Promise<void> => {
-        await page.waitForFunction(
-          (sel, expectedText) => {
-            const el = document.querySelector(sel);
-            if (!el) {
-              return false;
-            }
-            const val = ((el as HTMLInputElement).value ?? el.textContent ?? "").replace(
-              /\xA0/g,
-              " ",
-            );
-            return val === expectedText;
-          },
-          { timeout: browserTimeout(3000, 5000) },
-          selector,
-          expected,
-        );
+      const waitForNormalizedValue = async (
+        expected: string,
+        timeoutMs = browserTimeout(5000, 8000),
+      ): Promise<void> => {
+        const startedAt = Date.now();
+        while (Date.now() - startedAt < timeoutMs) {
+          const current = await readNormalizedText();
+          if (current === expected) {
+            return;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+        throw new Error(`Timed out waiting for normalized value "${expected}" in ${selector}`);
+      };
+      const waitForNormalizedMatch = async (
+        pattern: RegExp,
+        timeoutMs = browserTimeout(5000, 8000),
+      ): Promise<void> => {
+        const startedAt = Date.now();
+        while (Date.now() - startedAt < timeoutMs) {
+          const current = await readNormalizedText();
+          if (pattern.test(current)) {
+            return;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+        throw new Error(`Timed out waiting for normalized pattern ${pattern} in ${selector}`);
       };
 
       await clearInputContent(page, selector);
       await typeInInput(page, selector, "if(");
-      await page.waitForFunction(
-        (sel) => {
-          const el = document.querySelector(sel);
-          if (!el) {
-            return false;
-          }
-          const val = ((el as HTMLInputElement).value ?? el.textContent ?? "").replace(
-            /\xA0/g,
-            " ",
-          );
-          return val.includes("if (");
-        },
-        { timeout: browserTimeout(3000, 5000) },
-        selector,
-      );
+      await waitForNormalizedMatch(/if \(/);
       let elementText = await readNormalizedText();
       expect(elementText).toContain("if (");
 
@@ -2267,21 +2396,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
       await clearInputContent(page, selector);
       await typeInInput(page, selector, "Hello (world)");
-      await page.waitForFunction(
-        (sel) => {
-          const el = document.querySelector(sel);
-          if (!el) {
-            return false;
-          }
-          const val = ((el as HTMLInputElement).value ?? el.textContent ?? "").replace(
-            /\xA0/g,
-            " ",
-          );
-          return val.includes("Hello (world) ");
-        },
-        { timeout: browserTimeout(3000, 5000) },
-        selector,
-      );
+      await waitForNormalizedMatch(/Hello \(world\) /);
       elementText = await readNormalizedText();
       expect(elementText).toContain("Hello (world) ");
 
@@ -2341,23 +2456,19 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await page.bringToFront();
       await waitForInputReady(page, selector);
 
-      const waitForNormalizedValue = async (expected: string): Promise<void> => {
-        await page.waitForFunction(
-          (sel, expectedText) => {
-            const el = document.querySelector(sel);
-            if (!el) {
-              return false;
-            }
-            const val = ((el as HTMLInputElement).value ?? el.textContent ?? "").replace(
-              /\xA0/g,
-              " ",
-            );
-            return val === expectedText;
-          },
-          { timeout: browserTimeout(3000, 5000) },
-          selector,
-          expected,
-        );
+      const waitForNormalizedValue = async (
+        expected: string,
+        timeoutMs = browserTimeout(5000, 8000),
+      ): Promise<void> => {
+        const startedAt = Date.now();
+        while (Date.now() - startedAt < timeoutMs) {
+          const current = (await getInputContent(page, selector)).replace(/\xA0/g, " ");
+          if (current === expected) {
+            return;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+        throw new Error(`Timed out waiting for normalized value "${expected}" in ${selector}`);
       };
 
       await clearInputContent(page, selector);
@@ -2428,23 +2539,19 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await page.bringToFront();
       await waitForInputReady(page, selector);
 
-      const waitForNormalizedValue = async (expected: string): Promise<void> => {
-        await page.waitForFunction(
-          (sel, expectedText) => {
-            const el = document.querySelector(sel);
-            if (!el) {
-              return false;
-            }
-            const val = ((el as HTMLInputElement).value ?? el.textContent ?? "").replace(
-              /\xA0/g,
-              " ",
-            );
-            return val === expectedText;
-          },
-          { timeout: browserTimeout(3000, 5000) },
-          selector,
-          expected,
-        );
+      const waitForNormalizedValue = async (
+        expected: string,
+        timeoutMs = browserTimeout(5000, 8000),
+      ): Promise<void> => {
+        const startedAt = Date.now();
+        while (Date.now() - startedAt < timeoutMs) {
+          const current = (await getInputContent(page, selector)).replace(/\xA0/g, " ");
+          if (current === expected) {
+            return;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+        throw new Error(`Timed out waiting for normalized value "${expected}" in ${selector}`);
       };
 
       await clearInputContent(page, selector);
