@@ -1114,26 +1114,6 @@ export class SuggestionManager {
     );
     const consumedTrailingWhitespace = currentFullText.slice(baseReplaceEnd, finalReplaceEnd);
 
-    if (
-      !this.isTextValueElement(entry.elem) &&
-      this.tryApplyCkEditorBackwardReplacement(
-        entry.elem,
-        triggerText.length,
-        suggestion,
-        snapshot.beforeCursor.length,
-        trailingTokenText.length + extraWhitespaceToConsume,
-      )
-    ) {
-      this.dispatchInputEvent(entry.elem);
-      const updatedSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
-      entry.lastReplacement = {
-        triggerText: `${replacedTokenText}${consumedTrailingWhitespace}`,
-        insertedText: suggestion,
-        cursorAfter: updatedSnapshot.cursorOffset,
-      };
-      this.finishAcceptedSuggestion(entry, triggerText, suggestion);
-      return;
-    }
     const cursorAfter = replaceStart + suggestion.length;
 
     this.replaceTextByOffsets(
@@ -1292,22 +1272,6 @@ export class SuggestionManager {
       }
     }
 
-    if (
-      !this.isTextValueElement(entry.elem) &&
-      entry.elem.classList.contains("ck-editor__editable")
-    ) {
-      const applied = this.tryApplyCkEditorBackwardReplacement(
-        entry.elem,
-        replaceBackwardCount,
-        textEdit.replacementText,
-        replaceEnd,
-      );
-      if (applied) {
-        this.dispatchInputEvent(entry.elem);
-        return;
-      }
-    }
-
     const cursorAfter = replaceStart + textEdit.replacementText.length;
     this.replaceTextByOffsets(
       entry.elem,
@@ -1409,8 +1373,120 @@ export class SuggestionManager {
       return;
     }
 
-    elem.textContent = updatedText;
+    this.replaceContentEditableTextByOffsets(
+      elem,
+      boundedStart,
+      boundedEnd,
+      replacementText,
+      cursorAfter,
+    );
+  }
+
+  private replaceContentEditableTextByOffsets(
+    elem: HTMLElement,
+    replaceStart: number,
+    replaceEnd: number,
+    replacementText: string,
+    cursorAfter: number,
+  ): void {
+    const startPosition = this.resolveContentEditablePosition(elem, replaceStart);
+    const endPosition = this.resolveContentEditablePosition(elem, replaceEnd);
+
+    elem.focus();
+
+    const range = document.createRange();
+    range.setStart(startPosition.node, startPosition.offset);
+    range.setEnd(endPosition.node, endPosition.offset);
+
+    const selection = window.getSelection();
+    if (!selection) {
+      return;
+    }
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    const beforeText = elem.textContent ?? "";
+    this.dispatchContentEditableInputSequence(elem, range, replacementText);
+
+    if ((elem.textContent ?? "") === beforeText) {
+      range.deleteContents();
+      if (replacementText.length > 0) {
+        const replacementNode = document.createTextNode(replacementText);
+        range.insertNode(replacementNode);
+        replacementNode.parentNode?.normalize();
+      }
+    }
+
     this.setContentEditableCaret(elem, cursorAfter);
+  }
+
+  private dispatchContentEditableInputSequence(
+    elem: HTMLElement,
+    range: Range,
+    replacementText: string,
+  ): void {
+    const beforeInputEvent = this.createContentEditableInputEvent("beforeinput", {
+      inputType: "insertReplacementText",
+      data: replacementText,
+      cancelable: true,
+      targetRange: range,
+    });
+    elem.dispatchEvent(beforeInputEvent);
+
+    const inputEvent = this.createContentEditableInputEvent("input", {
+      inputType: "insertReplacementText",
+      data: replacementText,
+      cancelable: false,
+      targetRange: range,
+    });
+    elem.dispatchEvent(inputEvent);
+  }
+
+  private createContentEditableInputEvent(
+    type: "beforeinput" | "input",
+    {
+      inputType,
+      data,
+      cancelable,
+      targetRange,
+    }: {
+      inputType: string;
+      data: string;
+      cancelable: boolean;
+      targetRange: Range;
+    },
+  ): Event {
+    const staticRangeCtor = (globalThis as { StaticRange?: typeof StaticRange }).StaticRange;
+    const targetRanges =
+      typeof staticRangeCtor === "function"
+        ? [
+            new staticRangeCtor({
+              startContainer: targetRange.startContainer,
+              startOffset: targetRange.startOffset,
+              endContainer: targetRange.endContainer,
+              endOffset: targetRange.endOffset,
+            }),
+          ]
+        : undefined;
+
+    if (typeof InputEvent === "function") {
+      const init = {
+        bubbles: true,
+        cancelable,
+        inputType,
+        data: data || undefined,
+        targetRanges,
+      } as unknown as InputEventInit;
+      return new InputEvent(type, init);
+    }
+
+    const event = new Event(type, {
+      bubbles: true,
+      cancelable,
+    }) as Event & { inputType?: string; data?: string };
+    event.inputType = inputType;
+    event.data = data;
+    return event;
   }
 
   private setContentEditableCaret(elem: HTMLElement, cursorOffset: number): void {
@@ -1458,52 +1534,6 @@ export class SuggestionManager {
       node: lastNode,
       offset: lastNode.textContent?.length ?? 0,
     };
-  }
-
-  private tryApplyCkEditorBackwardReplacement(
-    elem: HTMLElement,
-    deleteCount: number,
-    insertText: string,
-    cursorOffset?: number,
-    deleteForwardCount: number = 0,
-  ): boolean {
-    if (!elem.classList.contains("ck-editor__editable")) {
-      return false;
-    }
-
-    const beforeText = elem.textContent ?? "";
-
-    elem.focus();
-    this.setContentEditableCaret(elem, cursorOffset ?? beforeText.length);
-
-    const dispatchInputSequence = (inputType: string, data: string | null): void => {
-      const beforeEvent = new InputEvent("beforeinput", {
-        inputType,
-        data: data ?? undefined,
-        bubbles: true,
-        cancelable: true,
-      });
-      elem.dispatchEvent(beforeEvent);
-
-      const inputEvent = new InputEvent("input", {
-        inputType,
-        data: data ?? undefined,
-        bubbles: true,
-      });
-      elem.dispatchEvent(inputEvent);
-    };
-
-    for (let i = 0; i < deleteCount; i += 1) {
-      dispatchInputSequence("deleteContentBackward", null);
-    }
-    for (let i = 0; i < deleteForwardCount; i += 1) {
-      dispatchInputSequence("deleteContentForward", null);
-    }
-    dispatchInputSequence("insertText", insertText);
-
-    const cursorStart = Math.max(0, (cursorOffset ?? beforeText.length) - deleteCount);
-    this.setContentEditableCaret(elem, cursorStart + insertText.length);
-    return (elem.textContent ?? "") !== beforeText;
   }
 
   private dispatchInputEvent(elem: SuggestionElement): void {
