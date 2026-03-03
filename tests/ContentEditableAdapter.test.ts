@@ -54,4 +54,39 @@ describe("ContentEditableAdapter", () => {
     const context = adapter.getBlockContext(editable);
     expect(context).toBeNull();
   });
+
+  test("dispatches only one semantic replacement event to avoid duplicate inserts", () => {
+    const adapter = new ContentEditableAdapter();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.textContent = "fun";
+    document.body.appendChild(editable);
+
+    const applyFromSelection = (event: Event) => {
+      const inputEvent = event as Event & { inputType?: string; data?: string };
+      if (inputEvent.inputType !== "insertReplacementText") {
+        return;
+      }
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0) {
+        return;
+      }
+      const range = selection.getRangeAt(0);
+      range.deleteContents();
+      const textNode = document.createTextNode(inputEvent.data ?? "");
+      range.insertNode(textNode);
+      const caret = document.createRange();
+      caret.setStart(textNode, textNode.textContent?.length ?? 0);
+      caret.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(caret);
+    };
+
+    editable.addEventListener("beforeinput", applyFromSelection);
+    editable.addEventListener("input", applyFromSelection);
+
+    adapter.replaceTextByOffsets(editable, 0, 3, "function", 8);
+
+    expect(editable.textContent).toBe("function");
+  });
 });

@@ -28,7 +28,7 @@ export class ContentEditableAdapter {
     selection.addRange(range);
 
     const beforeText = elem.textContent ?? "";
-    this.dispatchInputSequence(elem, range, replacementText);
+    this.dispatchReplacementBeforeInput(elem, range, replacementText);
 
     if ((elem.textContent ?? "") === beforeText) {
       range.deleteContents();
@@ -102,7 +102,11 @@ export class ContentEditableAdapter {
     return root;
   }
 
-  private dispatchInputSequence(elem: HTMLElement, range: Range, replacementText: string): void {
+  private dispatchReplacementBeforeInput(
+    elem: HTMLElement,
+    range: Range,
+    replacementText: string,
+  ): void {
     const beforeInputEvent = this.createInputEvent("beforeinput", {
       inputType: "insertReplacementText",
       data: replacementText,
@@ -110,14 +114,6 @@ export class ContentEditableAdapter {
       targetRange: range,
     });
     elem.dispatchEvent(beforeInputEvent);
-
-    const inputEvent = this.createInputEvent("input", {
-      inputType: "insertReplacementText",
-      data: replacementText,
-      cancelable: false,
-      targetRange: range,
-    });
-    elem.dispatchEvent(inputEvent);
   }
 
   private createInputEvent(
