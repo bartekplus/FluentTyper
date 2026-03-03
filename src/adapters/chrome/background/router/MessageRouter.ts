@@ -297,6 +297,7 @@ export class MessageRouter {
         frameId,
         suggestionId: request.context.suggestionId,
         requestId: request.context.requestId,
+        runtimeGeneration: request.context.runtimeGeneration,
         traceId: request.context.traceId,
         traceStartedAtMs: request.context.traceStartedAtMs,
       },

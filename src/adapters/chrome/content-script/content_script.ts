@@ -53,6 +53,7 @@ class FluentTyper {
       triggerActiveSuggestion: () => this.runtimeController.triggerActiveSuggestion(),
       fulfillPrediction: (context) => this.runtimeController.fulfillPrediction(context),
       getLanguage: () => this.config.lang,
+      getPredictionGeneration: () => this.runtimeController.getPredictionGeneration(),
     });
 
     this.runtimeController.setPredictionRequestHandler((context) =>

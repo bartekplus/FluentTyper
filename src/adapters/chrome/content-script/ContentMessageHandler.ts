@@ -51,6 +51,7 @@ export type ContentMessageHandlerDependencies = {
   triggerActiveSuggestion: () => void;
   fulfillPrediction: (context: PredictResponseContext) => void;
   getLanguage: () => string;
+  getPredictionGeneration: () => number;
 };
 
 export class ContentMessageHandler {
@@ -59,6 +60,10 @@ export class ContentMessageHandler {
   constructor(private readonly dependencies: ContentMessageHandlerDependencies) {}
 
   handleGetPrediction(context: ContentScriptPredictRequestContext): void {
+    const runtimeGeneration =
+      typeof context.runtimeGeneration === "number" && Number.isFinite(context.runtimeGeneration)
+        ? context.runtimeGeneration
+        : this.dependencies.getPredictionGeneration();
     const traceId = isNonEmptyString(context.traceId)
       ? context.traceId.trim()
       : generatePredictionTraceId();
@@ -71,6 +76,7 @@ export class ContentMessageHandler {
       traceId,
       requestId: context.requestId,
       suggestionId: context.suggestionId,
+      runtimeGeneration,
       nextChar: context.nextChar,
       lang: this.dependencies.getLanguage(),
     });
@@ -81,6 +87,7 @@ export class ContentMessageHandler {
         nextChar: context.nextChar,
         suggestionId: context.suggestionId,
         requestId: context.requestId,
+        runtimeGeneration,
         lang: this.dependencies.getLanguage(),
         traceId,
         traceStartedAtMs,
@@ -118,6 +125,7 @@ export class ContentMessageHandler {
           this.pendingReq &&
           this.pendingReq.context.suggestionId === context.suggestionId &&
           this.pendingReq.context.requestId === context.requestId &&
+          this.pendingReq.context.runtimeGeneration === context.runtimeGeneration &&
           traceIdMatches;
 
         if (isMatchingPending) {
@@ -128,6 +136,7 @@ export class ContentMessageHandler {
             traceId: context.traceId,
             requestId: context.requestId,
             suggestionId: context.suggestionId,
+            runtimeGeneration: context.runtimeGeneration,
             predictionCount: context.predictions.length,
           });
         } else {
@@ -137,8 +146,10 @@ export class ContentMessageHandler {
               traceId: context.traceId,
               requestId: context.requestId,
               suggestionId: context.suggestionId,
+              runtimeGeneration: context.runtimeGeneration,
               pendingRequestId: this.pendingReq?.context.requestId,
               pendingSuggestionId: this.pendingReq?.context.suggestionId,
+              pendingGeneration: this.pendingReq?.context.runtimeGeneration,
             },
           );
         }

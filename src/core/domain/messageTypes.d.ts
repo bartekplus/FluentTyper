@@ -38,6 +38,7 @@ export interface PredictRequestContext {
   frameId: number;
   suggestionId: number;
   requestId: number;
+  runtimeGeneration?: number;
   traceId?: string;
   traceStartedAtMs?: number;
 }
@@ -62,6 +63,7 @@ export interface PredictResponseContext {
   frameId: number;
   suggestionId: number;
   requestId: number;
+  runtimeGeneration?: number;
   traceId?: string;
   predictions: string[];
   textEdit: TextEditOperation | null;
@@ -79,6 +81,7 @@ export interface ContentScriptPredictRequestContext {
   suggestionId: number;
   requestId: number;
   lang: string;
+  runtimeGeneration?: number;
   traceId?: string;
   traceStartedAtMs?: number;
 }

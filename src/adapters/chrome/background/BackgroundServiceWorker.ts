@@ -109,6 +109,7 @@ export class BackgroundServiceWorker {
         tabId: message.context.tabId,
         suggestionId: message.context.suggestionId,
         requestId: message.context.requestId,
+        runtimeGeneration: message.context.runtimeGeneration,
         traceId,
         frameId: message.context.frameId,
         predictions,

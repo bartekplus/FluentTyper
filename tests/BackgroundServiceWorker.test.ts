@@ -118,6 +118,7 @@ describe("BackgroundServiceWorker", () => {
           frameId: 0,
           suggestionId: 1,
           requestId: 1,
+          runtimeGeneration: 1,
         },
       });
 
@@ -148,6 +149,7 @@ describe("BackgroundServiceWorker", () => {
           frameId: 0,
           suggestionId: 1,
           requestId: 1,
+          runtimeGeneration: 7,
         },
       });
 
@@ -157,6 +159,7 @@ describe("BackgroundServiceWorker", () => {
           command: "CMD_BACKGROUND_PAGE_PREDICT_RESP",
           context: expect.objectContaining({
             predictions: ["tested"],
+            runtimeGeneration: 7,
           }),
         }),
         expect.objectContaining({ frameId: 0 }),

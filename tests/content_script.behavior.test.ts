@@ -212,10 +212,15 @@ describe("content_script behavior", () => {
         }),
       }),
     );
+    const firstRequest = sendMessage.mock.calls.at(-1)?.[0] as
+      | { context?: { runtimeGeneration?: number } }
+      | undefined;
+    const runtimeGeneration = firstRequest?.context?.runtimeGeneration;
+    expect(typeof runtimeGeneration).toBe("number");
 
     fluentTyper.messageHandler({
       command: CMD_BACKGROUND_PAGE_PREDICT_RESP,
-      context: { suggestionId: 3, requestId: 10, predictions: ["hello"] },
+      context: { suggestionId: 3, requestId: 10, runtimeGeneration, predictions: ["hello"] },
     });
     expect(suggestionManager.fulfillPrediction).toHaveBeenCalledWith(
       expect.objectContaining({ predictions: ["hello"] }),
@@ -224,7 +229,7 @@ describe("content_script behavior", () => {
     suggestionManager.fulfillPrediction.mockClear();
     fluentTyper.messageHandler({
       command: CMD_BACKGROUND_PAGE_PREDICT_RESP,
-      context: { suggestionId: 3, requestId: 11, predictions: ["ignored"] },
+      context: { suggestionId: 3, requestId: 11, runtimeGeneration, predictions: ["ignored"] },
     });
     expect(suggestionManager.fulfillPrediction).toHaveBeenCalledWith(
       expect.objectContaining({ suggestionId: 3, requestId: 11, predictions: ["ignored"] }),
@@ -235,6 +240,7 @@ describe("content_script behavior", () => {
       context: {
         suggestionId: 3,
         requestId: 11,
+        runtimeGeneration,
         predictions: [],
         textEdit: {
           replacementText: "He",
@@ -264,6 +270,11 @@ describe("content_script behavior", () => {
       suggestionId: 3,
       requestId: 1,
     });
+    const firstRequest = sendMessage.mock.calls.at(-1)?.[0] as
+      | { context?: { runtimeGeneration?: number } }
+      | undefined;
+    const runtimeGeneration = firstRequest?.context?.runtimeGeneration;
+    expect(typeof runtimeGeneration).toBe("number");
 
     sendMessage.mockClear();
     suggestionManager.fulfillPrediction.mockImplementationOnce(() => {
@@ -280,6 +291,7 @@ describe("content_script behavior", () => {
       context: {
         suggestionId: 3,
         requestId: 1,
+        runtimeGeneration,
         predictions: [],
         textEdit: { replacementText: "H" },
       },
@@ -297,12 +309,80 @@ describe("content_script behavior", () => {
 
     fluentTyper.messageHandler({
       command: CMD_BACKGROUND_PAGE_PREDICT_RESP,
-      context: { suggestionId: 3, requestId: 2, predictions: ["hello"] },
+      context: { suggestionId: 3, requestId: 2, runtimeGeneration, predictions: ["hello"] },
     });
 
     expect(suggestionManager.fulfillPrediction).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({ suggestionId: 3, requestId: 2, predictions: ["hello"] }),
+    );
+  });
+
+  test("drops stale prediction responses after runtime restart when generation changes", async () => {
+    const { fluentTyper, suggestionInstances, sendMessage } = await loadContentScript();
+    fluentTyper.enabled = true;
+
+    const firstManager = suggestionInstances[0];
+    fluentTyper.handleGetPrediction({
+      text: "old",
+      nextChar: "",
+      suggestionId: 1,
+      requestId: 1,
+    });
+    const firstGeneration = (
+      sendMessage.mock.calls.at(-1)?.[0] as { context?: { runtimeGeneration?: number } } | undefined
+    )?.context?.runtimeGeneration;
+    expect(typeof firstGeneration).toBe("number");
+
+    fluentTyper.restart();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(suggestionInstances.length).toBeGreaterThanOrEqual(2);
+    const restartedManager = suggestionInstances[suggestionInstances.length - 1];
+    expect(restartedManager).not.toBe(firstManager);
+
+    sendMessage.mockClear();
+    fluentTyper.handleGetPrediction({
+      text: "new",
+      nextChar: "",
+      suggestionId: 1,
+      requestId: 1,
+    });
+    const currentGeneration = (
+      sendMessage.mock.calls.at(-1)?.[0] as { context?: { runtimeGeneration?: number } } | undefined
+    )?.context?.runtimeGeneration;
+    expect(typeof currentGeneration).toBe("number");
+    expect(currentGeneration).not.toBe(firstGeneration);
+
+    restartedManager.fulfillPrediction.mockClear();
+    fluentTyper.messageHandler({
+      command: CMD_BACKGROUND_PAGE_PREDICT_RESP,
+      context: {
+        suggestionId: 1,
+        requestId: 1,
+        runtimeGeneration: firstGeneration,
+        predictions: [],
+        textEdit: { replacementText: "wrong" },
+      },
+    });
+    expect(restartedManager.fulfillPrediction).not.toHaveBeenCalled();
+
+    fluentTyper.messageHandler({
+      command: CMD_BACKGROUND_PAGE_PREDICT_RESP,
+      context: {
+        suggestionId: 1,
+        requestId: 1,
+        runtimeGeneration: currentGeneration,
+        predictions: ["correct"],
+      },
+    });
+    expect(restartedManager.fulfillPrediction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        suggestionId: 1,
+        requestId: 1,
+        runtimeGeneration: currentGeneration,
+        predictions: ["correct"],
+      }),
     );
   });
 

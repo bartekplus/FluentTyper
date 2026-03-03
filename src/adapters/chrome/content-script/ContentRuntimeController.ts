@@ -41,6 +41,7 @@ export class ContentRuntimeController {
   private onRestartRequest: () => void;
   private readonly mutationPipeline: MutationPipeline;
   private readonly mutationScheduler: MutationScheduler;
+  private predictionGeneration = 0;
 
   constructor(private readonly themeApplicator: ThemeApplicator = new ThemeApplicator()) {
     this.domObserver = new DomObserver(
@@ -122,7 +123,24 @@ export class ContentRuntimeController {
     this.suggestionManager?.triggerActiveSuggestion();
   }
 
+  getPredictionGeneration(): number {
+    return this.predictionGeneration;
+  }
+
   fulfillPrediction(context: PredictResponseContext): void {
+    if (
+      typeof context.runtimeGeneration === "number" &&
+      Number.isFinite(context.runtimeGeneration) &&
+      context.runtimeGeneration !== this.predictionGeneration
+    ) {
+      logger.debug("Ignoring stale prediction response generation", {
+        responseGeneration: context.runtimeGeneration,
+        activeGeneration: this.predictionGeneration,
+        suggestionId: context.suggestionId,
+        requestId: context.requestId,
+      });
+      return;
+    }
     this.suggestionManager?.fulfillPrediction(context);
   }
 
@@ -194,10 +212,13 @@ export class ContentRuntimeController {
   }
 
   private initializeSuggestionManager(): void {
+    this.predictionGeneration += 1;
+    const generation = this.predictionGeneration;
     logger.debug("Initializing suggestion manager", {
       lang: this.config.lang,
       autocomplete: this.config.autocomplete,
       minWordLengthToPredict: this.config.minWordLengthToPredict,
+      generation,
     });
     this.suggestionManager = new SuggestionManager({
       selectors: ContentRuntimeController.SELECTORS,
@@ -211,7 +232,10 @@ export class ContentRuntimeController {
       displayLangHeader: this.config.displayLangHeader,
       inline_suggestion: this.config.inline_suggestion,
       getPrediction: (context: ContentScriptPredictRequestContext) =>
-        this.onPredictionRequest?.(context),
+        this.onPredictionRequest?.({
+          ...context,
+          runtimeGeneration: generation,
+        }),
     });
   }
 
