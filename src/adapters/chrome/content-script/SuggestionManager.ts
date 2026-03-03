@@ -991,7 +991,7 @@ export class SuggestionManager {
   private acceptSuggestion(entry: Entry, suggestion: string, event: Event): void {
     let snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
     const tokenInfo = this.findMentionToken(snapshot.beforeCursor);
-    let triggerText = tokenInfo.token || entry.latestMentionText;
+    const triggerText = tokenInfo.token || entry.latestMentionText;
 
     if (!this.isTextValueElement(entry.elem) && triggerText && snapshot.beforeCursor.length === 0) {
       const fullText = entry.elem.textContent ?? "";
@@ -1004,36 +1004,81 @@ export class SuggestionManager {
       }
     }
 
+    const trailingTokenText = this.findTrailingToken(snapshot.afterCursor);
+    const replacedTokenText = `${triggerText}${trailingTokenText}`;
+    const currentFullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
+    const replaceEnd = snapshot.beforeCursor.length;
+    const replaceStart = Math.max(0, replaceEnd - triggerText.length);
+    const baseReplaceEnd = Math.min(currentFullText.length, replaceEnd + trailingTokenText.length);
+    const extraWhitespaceToConsume = this.shouldConsumeFollowingSpace(
+      suggestion,
+      currentFullText.charAt(baseReplaceEnd),
+    )
+      ? 1
+      : 0;
+    const finalReplaceEnd = Math.min(currentFullText.length, baseReplaceEnd + extraWhitespaceToConsume);
+    const consumedTrailingWhitespace = currentFullText.slice(baseReplaceEnd, finalReplaceEnd);
+
     if (
       !this.isTextValueElement(entry.elem) &&
-      this.tryApplyCkEditorBackwardReplacement(entry.elem, triggerText.length, suggestion)
+      this.tryApplyCkEditorBackwardReplacement(
+        entry.elem,
+        triggerText.length,
+        suggestion,
+        snapshot.beforeCursor.length,
+        trailingTokenText.length + extraWhitespaceToConsume,
+      )
     ) {
       this.dispatchInputEvent(entry.elem);
       const updatedSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
       entry.lastReplacement = {
-        triggerText,
+        triggerText: `${replacedTokenText}${consumedTrailingWhitespace}`,
         insertedText: suggestion,
         cursorAfter: updatedSnapshot.cursorOffset,
       };
       this.finishAcceptedSuggestion(entry, triggerText, suggestion, event);
       return;
     }
-
-    const currentFullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
-    const replaceEnd = snapshot.beforeCursor.length;
-    const replaceStart = Math.max(0, replaceEnd - triggerText.length);
     const cursorAfter = replaceStart + suggestion.length;
 
-    this.replaceTextByOffsets(entry.elem, currentFullText, replaceStart, replaceEnd, suggestion, cursorAfter);
+    this.replaceTextByOffsets(
+      entry.elem,
+      currentFullText,
+      replaceStart,
+      finalReplaceEnd,
+      suggestion,
+      cursorAfter,
+    );
     this.dispatchInputEvent(entry.elem);
 
     entry.lastReplacement = {
-      triggerText,
+      triggerText: `${replacedTokenText}${consumedTrailingWhitespace}`,
       insertedText: suggestion,
       cursorAfter,
     };
 
     this.finishAcceptedSuggestion(entry, triggerText, suggestion, event);
+  }
+
+  private findTrailingToken(afterCursor: string): string {
+    let end = 0;
+    while (end < afterCursor.length) {
+      const current = afterCursor.charAt(end);
+      if (this.isSeparator(current)) {
+        break;
+      }
+      end += 1;
+    }
+    return afterCursor.slice(0, end);
+  }
+
+  private shouldConsumeFollowingSpace(insertedSuggestion: string, nextChar: string): boolean {
+    if (!insertedSuggestion || !nextChar) {
+      return false;
+    }
+    const endsWithSpace = /[ \xA0]$/.test(insertedSuggestion);
+    const nextIsSpace = /[ \xA0]/.test(nextChar);
+    return endsWithSpace && nextIsSpace;
   }
 
   private finishAcceptedSuggestion(
@@ -1306,6 +1351,7 @@ export class SuggestionManager {
     deleteCount: number,
     insertText: string,
     cursorOffset?: number,
+    deleteForwardCount: number = 0,
   ): boolean {
     if (!elem.classList.contains("ck-editor__editable")) {
       return false;
@@ -1336,9 +1382,13 @@ export class SuggestionManager {
     for (let i = 0; i < deleteCount; i += 1) {
       dispatchInputSequence("deleteContentBackward", null);
     }
+    for (let i = 0; i < deleteForwardCount; i += 1) {
+      dispatchInputSequence("deleteContentForward", null);
+    }
     dispatchInputSequence("insertText", insertText);
 
-    this.setContentEditableCaret(elem, (elem.textContent ?? "").length);
+    const cursorStart = Math.max(0, (cursorOffset ?? beforeText.length) - deleteCount);
+    this.setContentEditableCaret(elem, cursorStart + insertText.length);
     return (elem.textContent ?? "") !== beforeText;
   }
 

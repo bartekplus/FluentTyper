@@ -11,6 +11,122 @@ function dispatchKeydown(target: HTMLElement, key: string): void {
   target.dispatchEvent(event);
 }
 
+function setContentEditableCursor(target: HTMLElement, offset: number): void {
+  const textNode =
+    target.firstChild && target.firstChild.nodeType === Node.TEXT_NODE
+      ? (target.firstChild as Text)
+      : target.appendChild(document.createTextNode(""));
+  const boundedOffset = Math.max(0, Math.min(textNode.textContent?.length ?? 0, offset));
+  const range = document.createRange();
+  range.setStart(textNode, boundedOffset);
+  range.collapse(true);
+
+  const selection = window.getSelection();
+  if (!selection) {
+    return;
+  }
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
+function getContentEditableCursor(target: HTMLElement): number {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) {
+    return (target.textContent ?? "").length;
+  }
+
+  const range = selection.getRangeAt(0).cloneRange();
+  const preRange = range.cloneRange();
+  preRange.selectNodeContents(target);
+  preRange.setEnd(range.startContainer, range.startOffset);
+  return preRange.toString().length;
+}
+
+function installMockCkEditorInputBehavior(target: HTMLElement): void {
+  target.addEventListener("beforeinput", (event) => {
+    const inputEvent = event as InputEvent;
+    const text = target.textContent ?? "";
+    const cursor = getContentEditableCursor(target);
+    let updatedText = text;
+    let updatedCursor = cursor;
+
+    if (inputEvent.inputType === "deleteContentBackward") {
+      if (cursor > 0) {
+        updatedText = `${text.slice(0, cursor - 1)}${text.slice(cursor)}`;
+        updatedCursor = cursor - 1;
+      }
+    } else if (inputEvent.inputType === "deleteContentForward") {
+      updatedText = `${text.slice(0, cursor)}${text.slice(cursor + 1)}`;
+    } else if (inputEvent.inputType === "insertText") {
+      const inserted = inputEvent.data ?? "";
+      updatedText = `${text.slice(0, cursor)}${inserted}${text.slice(cursor)}`;
+      updatedCursor = cursor + inserted.length;
+    } else {
+      return;
+    }
+
+    target.textContent = updatedText;
+    setContentEditableCursor(target, updatedCursor);
+    event.preventDefault();
+  });
+}
+
+function ensureRangeRectApi(): void {
+  if (typeof Range === "undefined") {
+    return;
+  }
+  const proto = Range.prototype as unknown as {
+    getBoundingClientRect?: () => DOMRect;
+  };
+  if (typeof proto.getBoundingClientRect === "function") {
+    return;
+  }
+
+  Object.defineProperty(proto, "getBoundingClientRect", {
+    configurable: true,
+    value: () =>
+      ({
+        x: 0,
+        y: 0,
+        left: 0,
+        top: 0,
+        right: 0,
+        bottom: 16,
+        width: 0,
+        height: 16,
+        toJSON: () => ({}),
+      }) as DOMRect,
+  });
+}
+
+function ensureNodeFilterApi(): void {
+  if (typeof (globalThis as { NodeFilter?: unknown }).NodeFilter !== "undefined") {
+    return;
+  }
+  (globalThis as { NodeFilter: { SHOW_TEXT: number } }).NodeFilter = {
+    SHOW_TEXT: 4,
+  };
+}
+
+function ensureInputEventApi(): void {
+  if (typeof (globalThis as { InputEvent?: unknown }).InputEvent !== "undefined") {
+    return;
+  }
+
+  class InputEventPolyfill extends Event {
+    inputType: string;
+    data: string | null;
+
+    constructor(type: string, init?: InputEventInit) {
+      super(type, init);
+      this.inputType = init?.inputType ?? "";
+      this.data = init?.data ?? null;
+    }
+  }
+
+  (globalThis as { InputEvent: typeof InputEventPolyfill }).InputEvent = InputEventPolyfill;
+}
+
 let importNonce = 0;
 
 async function loadSuggestionManagerClass() {
@@ -100,6 +216,9 @@ describe("SuggestionManager", () => {
       },
     };
     document.body.innerHTML = "";
+    ensureRangeRectApi();
+    ensureNodeFilterApi();
+    ensureInputEventApi();
   });
 
   afterEach(() => {
@@ -290,5 +409,65 @@ describe("SuggestionManager", () => {
 
     dispatchKeydown(input, "Backspace");
     expect(input.value).toBe("h");
+  });
+
+  test("avoids double space when accepted suggestion already ends with space", async () => {
+    const { manager, getPrediction } = await createManager();
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = "funconality next";
+    input.selectionStart = 4;
+    input.selectionEnd = 4;
+    document.body.appendChild(input);
+    manager.queryAndAttachHelper();
+
+    input.dispatchEvent(new Event("focus", { bubbles: true }));
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    await wait(220);
+
+    const request = getPrediction.mock.calls.at(-1)?.[0];
+    if (!request) {
+      throw new Error("Expected prediction request");
+    }
+
+    manager.fulfillPrediction(
+      buildResponse(request, {
+        predictions: ["functionality "],
+      }),
+    );
+
+    dispatchKeydown(input, "Tab");
+    expect(input.value).toBe("functionality next");
+  });
+
+  test("replaces full token for ckeditor when cursor is in the middle of a word", async () => {
+    const { manager, getPrediction } = await createManager({ inline_suggestion: true });
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.className = "ck-editor__editable";
+    editable.textContent = "funconality next";
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+    installMockCkEditorInputBehavior(editable);
+
+    setContentEditableCursor(editable, 4);
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+    await wait(220);
+
+    const request = getPrediction.mock.calls.at(-1)?.[0];
+    if (!request) {
+      throw new Error("Expected prediction request");
+    }
+
+    manager.fulfillPrediction(
+      buildResponse(request, {
+        predictions: ["functionality "],
+      }),
+    );
+
+    dispatchKeydown(editable, "Tab");
+    expect(editable.textContent).toBe("functionality next");
   });
 });
