@@ -194,7 +194,9 @@ async function setSettingAndWait(
     }
     await new Promise((r) => setTimeout(r, 50));
   }
-  throw new Error(`Timed out waiting for setting ${key} to become ${expected}. Last value: ${JSON.stringify(lastCurrent)}`);
+  throw new Error(
+    `Timed out waiting for setting ${key} to become ${expected}. Last value: ${JSON.stringify(lastCurrent)}`,
+  );
 }
 
 async function notifyConfigChange(browser: Browser, worker: BackgroundContext): Promise<void> {
@@ -1705,53 +1707,53 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         expected: string;
         popupExpected: string;
       }[] = [
-          {
-            locale: "en_US",
-            expected: "Extension UI Language",
-            popupExpected: "Advanced Options",
-          },
-          {
-            locale: "fr_FR",
-            expected: "Langue de l'interface",
-            popupExpected: "Options avancées",
-          },
-          {
-            locale: "hr_HR",
-            expected: "Jezik su\u010Delja pro\u0161irenja",
-            popupExpected: "Napredne opcije",
-          },
-          {
-            locale: "es_ES",
-            expected: "Idioma de la interfaz",
-            popupExpected: "Opciones avanzadas",
-          },
-          {
-            locale: "el_GR",
-            expected:
-              "\u0393\u03BB\u03CE\u03C3\u03C3\u03B1 \u03B4\u03B9\u03B5\u03C0\u03B1\u03C6\u03AE\u03C2 \u03B5\u03C0\u03AD\u03BA\u03C4\u03B1\u03C3\u03B7\u03C2",
-            popupExpected: "Επιλογές για προχωρημένους",
-          },
-          {
-            locale: "sv_SE",
-            expected: "Till\u00E4ggets gr\u00E4nssnittsspr\u00E5k",
-            popupExpected: "Avancerade alternativ",
-          },
-          {
-            locale: "de_DE",
-            expected: "Sprache der Erweiterungsoberfl\u00E4che",
-            popupExpected: "Erweiterte Optionen",
-          },
-          {
-            locale: "pl_PL",
-            expected: "J\u0119zyk interfejsu rozszerzenia",
-            popupExpected: "Zaawansowane opcje",
-          },
-          {
-            locale: "pt_BR",
-            expected: "Idioma da interface da extens\u00E3o",
-            popupExpected: "Opções avançadas",
-          },
-        ];
+        {
+          locale: "en_US",
+          expected: "Extension UI Language",
+          popupExpected: "Advanced Options",
+        },
+        {
+          locale: "fr_FR",
+          expected: "Langue de l'interface",
+          popupExpected: "Options avancées",
+        },
+        {
+          locale: "hr_HR",
+          expected: "Jezik su\u010Delja pro\u0161irenja",
+          popupExpected: "Napredne opcije",
+        },
+        {
+          locale: "es_ES",
+          expected: "Idioma de la interfaz",
+          popupExpected: "Opciones avanzadas",
+        },
+        {
+          locale: "el_GR",
+          expected:
+            "\u0393\u03BB\u03CE\u03C3\u03C3\u03B1 \u03B4\u03B9\u03B5\u03C0\u03B1\u03C6\u03AE\u03C2 \u03B5\u03C0\u03AD\u03BA\u03C4\u03B1\u03C3\u03B7\u03C2",
+          popupExpected: "Επιλογές για προχωρημένους",
+        },
+        {
+          locale: "sv_SE",
+          expected: "Till\u00E4ggets gr\u00E4nssnittsspr\u00E5k",
+          popupExpected: "Avancerade alternativ",
+        },
+        {
+          locale: "de_DE",
+          expected: "Sprache der Erweiterungsoberfl\u00E4che",
+          popupExpected: "Erweiterte Optionen",
+        },
+        {
+          locale: "pl_PL",
+          expected: "J\u0119zyk interfejsu rozszerzenia",
+          popupExpected: "Zaawansowane opcje",
+        },
+        {
+          locale: "pt_BR",
+          expected: "Idioma da interface da extens\u00E3o",
+          popupExpected: "Opções avançadas",
+        },
+      ];
 
       for (const { locale, expected, popupExpected } of TEST_LANGS) {
         // 1. Set the extension language in chrome.storage.local
@@ -2009,7 +2011,6 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   test.each(["#test-input", ".ck-editor__editable"])(
     "Grammar Rule Engine auto-capitalizes and applies spacing in %s",
     async (selector) => {
-
       // Enable required grammar rules internally for predictive evaluations
       await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, [
         "capitalizeFirstLetter",
@@ -2025,8 +2026,6 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         enableCkEditor: shouldEnableCkEditor(selector),
       });
       await page.bringToFront();
-
-
 
       await waitForInputReady(page, selector);
       const element = await page.$(selector);

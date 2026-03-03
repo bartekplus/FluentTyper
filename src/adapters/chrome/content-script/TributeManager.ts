@@ -283,9 +283,9 @@ export class TributeManager {
 
       const predictionItems = isCurrentRequest
         ? context.predictions.map((prediction) => ({
-          key: prediction,
-          value: prediction,
-        }))
+            key: prediction,
+            value: prediction,
+          }))
         : [];
 
       const header: string | undefined =
@@ -299,11 +299,7 @@ export class TributeManager {
         predictionCount: predictionItems.length,
         hasHeader: Boolean(header),
       });
-      tributeEntry.done(
-        predictionItems,
-        context.forceReplace,
-        header,
-      );
+      tributeEntry.done(predictionItems, context.forceReplace, header);
 
       if (isCurrentRequest && context.predictions.length > 0) {
         this.emitUsageEvent({
