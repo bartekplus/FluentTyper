@@ -1,5 +1,5 @@
 import { TextTargetAdapter, type TextTarget } from "./TextTargetAdapter";
-import type { PredictionRequest, SuggestionEntry } from "./types";
+import type { PredictionRequest, PredictionResponse, SuggestionEntry } from "./types";
 
 interface SuggestionPredictionCoordinatorOptions {
   debounceMs: number;
@@ -63,6 +63,42 @@ export class SuggestionPredictionCoordinator {
     }
     clearTimeout(entry.pendingRequestTimer);
     entry.pendingRequestTimer = null;
+  }
+
+  public shouldProcessResponse(
+    entry: SuggestionEntry,
+    response: PredictionResponse,
+    {
+      isEntryFocused,
+      applyTextEdit,
+      clearSuggestions,
+    }: {
+      isEntryFocused: boolean;
+      applyTextEdit: () => void;
+      clearSuggestions: () => void;
+    },
+  ): boolean {
+    const isCurrentRequest = entry.requestId === response.requestId;
+    const hasTextEdit = response.textEdit != null;
+
+    if (!isCurrentRequest && !hasTextEdit) {
+      return false;
+    }
+
+    if (response.textEdit && isEntryFocused) {
+      applyTextEdit();
+    }
+
+    if (!isCurrentRequest) {
+      return false;
+    }
+
+    if (!isEntryFocused) {
+      clearSuggestions();
+      return false;
+    }
+
+    return true;
   }
 
   private requestPrediction(

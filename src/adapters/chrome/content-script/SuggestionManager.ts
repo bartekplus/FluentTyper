@@ -97,24 +97,17 @@ export class SuggestionManager {
       return;
     }
 
-    const isEntryFocused = this.isEntryFocused(entry);
-    const isCurrentRequest = entry.requestId === context.requestId;
-    const hasTextEdit = context.textEdit != null;
-
-    if (!isCurrentRequest && !hasTextEdit) {
-      return;
-    }
-
-    if (context.textEdit && isEntryFocused) {
-      this.applyTextEdit(entry, context.textEdit);
-    }
-
-    if (!isCurrentRequest) {
-      return;
-    }
-
-    if (!isEntryFocused) {
-      this.clearSuggestions(entry);
+    if (
+      !this.predictionCoordinator.shouldProcessResponse(entry, context, {
+        isEntryFocused: this.isEntryFocused(entry),
+        applyTextEdit: () => {
+          if (context.textEdit) {
+            this.applyTextEdit(entry, context.textEdit);
+          }
+        },
+        clearSuggestions: () => this.clearSuggestions(entry),
+      })
+    ) {
       return;
     }
 
