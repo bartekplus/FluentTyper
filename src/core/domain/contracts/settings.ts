@@ -178,3 +178,10 @@ export function resolveCanonicalSettingKey(key: string): string {
 export function getAliasesForCanonicalSettingKey(canonicalKey: string): string[] {
   return ALIASES_BY_CANONICAL[canonicalKey] || [];
 }
+
+export function getAliasedSettingFields(): SettingField[] {
+  return (Object.keys(SETTINGS_KEYS) as SettingField[]).filter((field) => {
+    const canonical = SETTINGS_KEYS[field];
+    return (ALIASES_BY_CANONICAL[canonical] || []).length > 0;
+  });
+}
