@@ -70,7 +70,7 @@ export class ContentMessageHandler {
     logger.debug("Preparing prediction request", {
       traceId,
       requestId: context.requestId,
-      tributeId: context.tributeId,
+      suggestionId: context.suggestionId,
       nextChar: context.nextChar,
       lang: this.dependencies.getLanguage(),
     });
@@ -79,7 +79,7 @@ export class ContentMessageHandler {
       context: {
         text: context.text,
         nextChar: context.nextChar,
-        tributeId: context.tributeId,
+        suggestionId: context.suggestionId,
         requestId: context.requestId,
         lang: this.dependencies.getLanguage(),
         traceId,
@@ -116,14 +116,14 @@ export class ContentMessageHandler {
           this.pendingReq?.context.traceId === context.traceId;
         if (
           this.pendingReq &&
-          this.pendingReq.context.tributeId === context.tributeId &&
+          this.pendingReq.context.suggestionId === context.suggestionId &&
           this.pendingReq.context.requestId === context.requestId &&
           traceIdMatches
         ) {
           logger.debug("Fulfilling prediction response", {
             traceId: context.traceId,
             requestId: context.requestId,
-            tributeId: context.tributeId,
+            suggestionId: context.suggestionId,
             predictionCount: context.predictions.length,
           });
           this.dependencies.fulfillPrediction(context);
@@ -132,11 +132,11 @@ export class ContentMessageHandler {
           logger.warn("Ignored prediction response due to mismatch", {
             traceId: context.traceId,
             requestId: context.requestId,
-            tributeId: context.tributeId,
+            suggestionId: context.suggestionId,
             hasPendingRequest: Boolean(this.pendingReq),
             pendingTraceId: this.pendingReq?.context.traceId,
             pendingRequestId: this.pendingReq?.context.requestId,
-            pendingTributeId: this.pendingReq?.context.tributeId,
+            pendingSuggestionId: this.pendingReq?.context.suggestionId,
           });
         }
         break;

@@ -33,19 +33,19 @@ import {
   KEY_EXTENSION_LANGUAGE,
   KEY_USE_DEFAULT_THEME_BTN,
   KEY_USE_COMPACT_THEME_BTN,
-  KEY_TRIBUTE_BG_LIGHT,
-  KEY_TRIBUTE_TEXT_LIGHT,
-  KEY_TRIBUTE_HIGHLIGHT_BG_LIGHT,
-  KEY_TRIBUTE_HIGHLIGHT_TEXT_LIGHT,
-  KEY_TRIBUTE_BORDER_LIGHT,
-  KEY_TRIBUTE_BG_DARK,
-  KEY_TRIBUTE_TEXT_DARK,
-  KEY_TRIBUTE_HIGHLIGHT_BG_DARK,
-  KEY_TRIBUTE_HIGHLIGHT_TEXT_DARK,
-  KEY_TRIBUTE_BORDER_DARK,
-  KEY_TRIBUTE_FONT_SIZE,
-  KEY_TRIBUTE_PADDING_VERTICAL,
-  KEY_TRIBUTE_PADDING_HORIZONTAL,
+  KEY_SUGGESTION_BG_LIGHT,
+  KEY_SUGGESTION_TEXT_LIGHT,
+  KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT,
+  KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT,
+  KEY_SUGGESTION_BORDER_LIGHT,
+  KEY_SUGGESTION_BG_DARK,
+  KEY_SUGGESTION_TEXT_DARK,
+  KEY_SUGGESTION_HIGHLIGHT_BG_DARK,
+  KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK,
+  KEY_SUGGESTION_BORDER_DARK,
+  KEY_SUGGESTION_FONT_SIZE,
+  KEY_SUGGESTION_PADDING_VERTICAL,
+  KEY_SUGGESTION_PADDING_HORIZONTAL,
   KEY_INLINE_SUGGESTION,
   DEFAULT_NUM_SUGGESTIONS,
   DEFAULT_AI_MODEL_ID,
@@ -485,7 +485,7 @@ const manifest = {
     {
       tab: i18n.get("theming_tab"),
       group: i18n.get("light_theme_colors"),
-      name: KEY_TRIBUTE_BG_LIGHT,
+      name: KEY_SUGGESTION_BG_LIGHT,
       type: "text",
       subtype: "color",
       required: true,
@@ -495,7 +495,7 @@ const manifest = {
     {
       tab: i18n.get("theming_tab"),
       group: i18n.get("light_theme_colors"),
-      name: KEY_TRIBUTE_TEXT_LIGHT,
+      name: KEY_SUGGESTION_TEXT_LIGHT,
       type: "text",
       subtype: "color",
       required: true,
@@ -505,7 +505,7 @@ const manifest = {
     {
       tab: i18n.get("theming_tab"),
       group: i18n.get("light_theme_colors"),
-      name: KEY_TRIBUTE_HIGHLIGHT_BG_LIGHT,
+      name: KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT,
       type: "text",
       subtype: "color",
       required: true,
@@ -515,7 +515,7 @@ const manifest = {
     {
       tab: i18n.get("theming_tab"),
       group: i18n.get("light_theme_colors"),
-      name: KEY_TRIBUTE_HIGHLIGHT_TEXT_LIGHT,
+      name: KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT,
       type: "text",
       subtype: "color",
       required: true,
@@ -525,7 +525,7 @@ const manifest = {
     {
       tab: i18n.get("theming_tab"),
       group: i18n.get("light_theme_colors"),
-      name: KEY_TRIBUTE_BORDER_LIGHT,
+      name: KEY_SUGGESTION_BORDER_LIGHT,
       type: "text",
       subtype: "color",
       required: true,
@@ -535,7 +535,7 @@ const manifest = {
     {
       tab: i18n.get("theming_tab"),
       group: i18n.get("dark_theme_colors"),
-      name: KEY_TRIBUTE_BG_DARK,
+      name: KEY_SUGGESTION_BG_DARK,
       type: "text",
       subtype: "color",
       required: true,
@@ -545,7 +545,7 @@ const manifest = {
     {
       tab: i18n.get("theming_tab"),
       group: i18n.get("dark_theme_colors"),
-      name: KEY_TRIBUTE_TEXT_DARK,
+      name: KEY_SUGGESTION_TEXT_DARK,
       type: "text",
       subtype: "color",
       required: true,
@@ -555,7 +555,7 @@ const manifest = {
     {
       tab: i18n.get("theming_tab"),
       group: i18n.get("dark_theme_colors"),
-      name: KEY_TRIBUTE_HIGHLIGHT_BG_DARK,
+      name: KEY_SUGGESTION_HIGHLIGHT_BG_DARK,
       type: "text",
       subtype: "color",
       required: true,
@@ -565,7 +565,7 @@ const manifest = {
     {
       tab: i18n.get("theming_tab"),
       group: i18n.get("dark_theme_colors"),
-      name: KEY_TRIBUTE_HIGHLIGHT_TEXT_DARK,
+      name: KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK,
       type: "text",
       subtype: "color",
       required: true,
@@ -575,7 +575,7 @@ const manifest = {
     {
       tab: i18n.get("theming_tab"),
       group: i18n.get("dark_theme_colors"),
-      name: KEY_TRIBUTE_BORDER_DARK,
+      name: KEY_SUGGESTION_BORDER_DARK,
       type: "text",
       subtype: "color",
       required: true,
@@ -585,7 +585,7 @@ const manifest = {
     {
       tab: i18n.get("theming_tab"),
       group: i18n.get("typography_spacing"),
-      name: KEY_TRIBUTE_FONT_SIZE,
+      name: KEY_SUGGESTION_FONT_SIZE,
       type: "popupButton",
       options: [
         ["0.8rem", "Smaller (0.8rem)"],
@@ -599,7 +599,7 @@ const manifest = {
     {
       tab: i18n.get("theming_tab"),
       group: i18n.get("typography_spacing"),
-      name: KEY_TRIBUTE_PADDING_VERTICAL,
+      name: KEY_SUGGESTION_PADDING_VERTICAL,
       type: "popupButton",
       options: [
         ["0.4rem", "Compact (0.4rem)"],
@@ -612,7 +612,7 @@ const manifest = {
     {
       tab: i18n.get("theming_tab"),
       group: i18n.get("typography_spacing"),
-      name: KEY_TRIBUTE_PADDING_HORIZONTAL,
+      name: KEY_SUGGESTION_PADDING_HORIZONTAL,
       type: "popupButton",
       options: [
         ["0.6rem", "Compact (0.6rem)"],

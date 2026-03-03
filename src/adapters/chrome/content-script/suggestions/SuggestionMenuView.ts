@@ -1,5 +1,5 @@
 export class SuggestionMenuView {
-  static readonly CONTAINER_CLASS = "tribute-container";
+  static readonly CONTAINER_CLASS = "suggestion-container";
 
   static ensureMenu(container: HTMLElement = document.body): HTMLDivElement {
     const menu = document.createElement("div");

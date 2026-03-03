@@ -1,5 +1,5 @@
 /*eslint no-unused-vars: ["error", { "argsIgnorePattern": "^_" }]*/
-class TributeEvents {
+class SuggestionEvents {
   constructor(tribute) {
     this.tribute = tribute;
     this.tribute.events = this;
@@ -32,7 +32,7 @@ class TributeEvents {
   }
 
   static isTextInputKey(event) {
-    return TributeEvents.isSpaceKey(event) || (event.key && event.key.length === 1);
+    return SuggestionEvents.isSpaceKey(event) || (event.key && event.key.length === 1);
   }
 
   static grammarBoundaryChars() {
@@ -79,7 +79,7 @@ class TributeEvents {
       instance.tribute.current.inlineSuggestion ||
       instance.tribute.range
         .getDocument()
-        .querySelector(".tribute-inline");
+        .querySelector(".suggestion-inline");
     if (isTab && inlineElement) {
       event.preventDefault();
       event.stopImmediatePropagation();
@@ -107,7 +107,7 @@ class TributeEvents {
     }
 
     if (event instanceof KeyboardEvent) {
-      TributeEvents.modifiers().forEach((o) => {
+      SuggestionEvents.modifiers().forEach((o) => {
         if (event.getModifierState(o)) {
           controlKeyPressed = true;
           return;
@@ -116,7 +116,7 @@ class TributeEvents {
     }
 
     if (!controlKeyPressed) {
-      TributeEvents.keys().forEach((key) => {
+      SuggestionEvents.keys().forEach((key) => {
         if (
           key === event.code &&
           // Special handling of Backspace
@@ -128,7 +128,7 @@ class TributeEvents {
       });
 
       if (instance.tribute.selectByDigit) {
-        TributeEvents.digits().forEach((key, index) => {
+        SuggestionEvents.digits().forEach((key, index) => {
           if (key === event.key && instance.tribute.isActive) {
             const count = instance.tribute.current.filteredItems.length;
             if (index < count) {
@@ -193,7 +193,7 @@ class TributeEvents {
     // Check for modifiers keys
     if (event instanceof KeyboardEvent) {
       let controlKeyPressed = false;
-      TributeEvents.modifiers().forEach((o) => {
+      SuggestionEvents.modifiers().forEach((o) => {
         if (event.getModifierState(o)) {
           controlKeyPressed = true;
           return;
@@ -212,14 +212,14 @@ class TributeEvents {
         keydownHandled &&
         lastKeydownEvent.defaultPrevented;
 
-      TributeEvents.keys().forEach((key) => {
+      SuggestionEvents.keys().forEach((key) => {
         if (key === event.code || key === event.key) {
           if (!instance.tribute.autocompleteMode) {
             controlKeyPressed = true;
             return;
           }
 
-          if (keydownPrevented || !TributeEvents.isTextInputKey(event)) {
+          if (keydownPrevented || !SuggestionEvents.isTextInputKey(event)) {
             controlKeyPressed = true;
           }
           return;
@@ -267,7 +267,7 @@ class TributeEvents {
       const lastChar = fullText.length ? fullText[fullText.length - 1] : "";
       const shouldBypassMinLengthForGrammar =
         instance.tribute.autocompleteMode &&
-        TributeEvents.grammarBoundaryChars().includes(lastChar);
+        SuggestionEvents.grammarBoundaryChars().includes(lastChar);
 
       if (shouldBypassMinLengthForGrammar) {
         instance.tribute.showMenuFor(this, true);
@@ -435,7 +435,7 @@ class TributeEvents {
 
 /*eslint no-unused-vars: ["error", { "argsIgnorePattern": "^_" }]*/
 
-class TributeMenuEvents {
+class SuggestionMenuEvents {
   constructor(tribute) {
     this.tribute = tribute;
     this.tribute.menuEvents = this;
@@ -496,7 +496,7 @@ class TributeMenuEvents {
 
 // Thanks to https://github.com/jeff-collins/ment.io
 
-class TributeRange {
+class SuggestionRange {
   constructor(tribute) {
     this.tribute = tribute;
     this.tribute.range = this;
@@ -571,7 +571,7 @@ class TributeRange {
     }
 
     let div = this.getDocument().createElement("div");
-    div.className = "tribute-inline";
+    div.className = "suggestion-inline";
     div.innerText = text;
 
     // Calculate dynamic color and font styles
@@ -678,7 +678,7 @@ class TributeRange {
       inlineSuggestion.parentNode.removeChild(inlineSuggestion);
     }
     this.tribute.current.inlineSuggestion = null;
-    const leftovers = this.getDocument().querySelectorAll(".tribute-inline");
+    const leftovers = this.getDocument().querySelectorAll(".suggestion-inline");
     leftovers.forEach((node) => {
       if (node.parentNode) node.parentNode.removeChild(node);
     });
@@ -693,7 +693,7 @@ class TributeRange {
       event: originalEvent,
       text: text,
     };
-    const replaceEvent = new CustomEvent("tribute-replaced", { detail: detail });
+    const replaceEvent = new CustomEvent("suggestion-replaced", { detail: detail });
 
     if (!this.isContentEditable(context.element)) {
       const myField = this.tribute.current.element;
@@ -1392,7 +1392,7 @@ class TributeRange {
 /*eslint no-unused-vars: ["error", { "argsIgnorePattern": "^_" }]*/
 
 // Thanks to https://github.com/mattyork/fuzzy
-class TributeSearch {
+class SuggestionSearch {
   constructor(tribute) {
     this.tribute = tribute;
     this.tribute.search = this;
@@ -1546,13 +1546,13 @@ class TributeSearch {
   }
 }
 
-class Tribute {
+class SuggestionEngine {
   constructor({
     values = null,
     loadingItemTemplate = null,
     iframe = null,
     selectClass = "highlight",
-    containerClass = "tribute-container",
+    containerClass = "suggestion-container",
     itemClass = "",
     trigger = "@",
     autocompleteMode = false,
@@ -1595,7 +1595,7 @@ class Tribute {
     this.selectByDigit = selectByDigit;
     this.inline = inline;
     if (keys) {
-      TributeEvents.keys = keys;
+      SuggestionEvents.keys = keys;
     }
 
     if (this.autocompleteMode) {
@@ -1623,12 +1623,12 @@ class Tribute {
 
           // function called on select that retuns the content to insert
           selectTemplate: (
-            selectTemplate || Tribute.defaultSelectTemplate
+            selectTemplate || SuggestionEngine.defaultSelectTemplate
           ).bind(this),
 
           // function called that returns content for an item
           menuItemTemplate: (
-            menuItemTemplate || Tribute.defaultMenuItemTemplate
+            menuItemTemplate || SuggestionEngine.defaultMenuItemTemplate
           ).bind(this),
 
           // function called when menu is empty, disables hiding of menu.
@@ -1674,7 +1674,7 @@ class Tribute {
     } else if (collection) {
       if (this.autocompleteMode)
         console.warn(
-          "Tribute in autocomplete mode does not work for collections"
+          "SuggestionEngine in autocomplete mode does not work for collections"
         );
       this.collection = collection.map((item) => {
         return {
@@ -1684,10 +1684,10 @@ class Tribute {
           containerClass: item.containerClass || containerClass,
           itemClass: item.itemClass || itemClass,
           selectTemplate: (
-            item.selectTemplate || Tribute.defaultSelectTemplate
+            item.selectTemplate || SuggestionEngine.defaultSelectTemplate
           ).bind(this),
           menuItemTemplate: (
-            item.menuItemTemplate || Tribute.defaultMenuItemTemplate
+            item.menuItemTemplate || SuggestionEngine.defaultMenuItemTemplate
           ).bind(this),
           // function called when menu is empty, disables hiding of menu.
           noMatchTemplate: ((t) => {
@@ -1718,13 +1718,13 @@ class Tribute {
         };
       });
     } else {
-      throw new Error("[Tribute] No collection specified.");
+      throw new Error("[SuggestionEngine] No collection specified.");
     }
 
-    new TributeRange(this);
-    new TributeEvents(this);
-    new TributeMenuEvents(this);
-    new TributeSearch(this);
+    new SuggestionRange(this);
+    new SuggestionEvents(this);
+    new SuggestionMenuEvents(this);
+    new SuggestionSearch(this);
   }
 
   get isActive() {
@@ -1735,7 +1735,7 @@ class Tribute {
     if (this._isActive !== val) {
       this._isActive = val;
       if (this.current && this.current.element) {
-        const activeEvent = new CustomEvent(`tribute-active-${val}`);
+        const activeEvent = new CustomEvent(`suggestion-active-${val}`);
         this.current.element.dispatchEvent(activeEvent);
       }
     }
@@ -1746,7 +1746,7 @@ class Tribute {
       return `${this.current.collection.trigger}${this.current.mentionText}`;
     if (this.range.isContentEditable(this.current.element)) {
       return (
-        '<span class="tribute-mention">' +
+        '<span class="suggestion-mention">' +
         (this.current.collection.trigger +
           item.original[this.current.collection.fillAttr]) +
         "</span>"
@@ -1775,7 +1775,7 @@ class Tribute {
 
   attach(el) {
     if (!el) {
-      throw new Error("[Tribute] Must pass in a DOM node or NodeList.");
+      throw new Error("[SuggestionEngine] Must pass in a DOM node or NodeList.");
     }
 
     /* global jQuery */
@@ -1800,21 +1800,21 @@ class Tribute {
   }
 
   _attach(el) {
-    if (el.hasAttribute("data-tribute")) {
-      console.warn("Tribute was already bound to " + el.nodeName);
+    if (el.hasAttribute("data-suggestion")) {
+      console.warn("SuggestionEngine was already bound to " + el.nodeName);
     }
 
     this.ensureEditable(el);
     this.events.bind(el);
-    el.setAttribute("data-tribute", true);
+    el.setAttribute("data-suggestion", true);
   }
 
   ensureEditable(element) {
-    if (Tribute.inputTypes().indexOf(element.nodeName) === -1) {
+    if (SuggestionEngine.inputTypes().indexOf(element.nodeName) === -1) {
       if (element.contentEditable) {
         element.contentEditable = true;
       } else {
-        throw new Error("[Tribute] Cannot bind to " + element.nodeName);
+        throw new Error("[SuggestionEngine] Cannot bind to " + element.nodeName);
       }
     }
   }
@@ -1868,7 +1868,7 @@ class Tribute {
         this.current.collection.containerClass,
         element
       );
-      element.tributeMenu = this.menu;
+      element.suggestionMenu = this.menu;
       this.menuEvents.bind(this.menu);
     }
 
@@ -1880,7 +1880,7 @@ class Tribute {
     }
 
     const processValues = (values, textEdit, header = null) => {
-      // Tribute may not be active any more by the time the value callback returns
+      // SuggestionEngine may not be active any more by the time the value callback returns
       // However, textEdit (grammar corrections) should always apply regardless
       // of menu activation state, since they don't show a menu.
       if (!textEdit && !this.activationPending) {
@@ -1967,7 +1967,7 @@ class Tribute {
         this.range.hideInlineSuggestion();
         this.current.inlineSuggestionItem = null;
         this.current.inlineSuggestionText = null;
-        const noMatchEvent = new CustomEvent("tribute-no-match", {
+        const noMatchEvent = new CustomEvent("suggestion-no-match", {
           detail: this.menu,
         });
         this.current.element.dispatchEvent(noMatchEvent);
@@ -2293,7 +2293,7 @@ class Tribute {
 
   detach(el) {
     if (!el) {
-      throw new Error("[Tribute] Must pass in a DOM node or NodeList.");
+      throw new Error("[SuggestionEngine] Must pass in a DOM node or NodeList.");
     }
 
     // Check if it is a jQuery collection
@@ -2318,15 +2318,15 @@ class Tribute {
 
   _detach(el) {
     this.events.unbind(el);
-    if (el.tributeMenu) {
-      this.menuEvents.unbind(el.tributeMenu);
+    if (el.suggestionMenu) {
+      this.menuEvents.unbind(el.suggestionMenu);
     }
 
     setTimeout(() => {
-      el.removeAttribute("data-tribute");
+      el.removeAttribute("data-suggestion");
       this.isActive = false;
-      if (el.tributeMenu) {
-        el.tributeMenu.remove();
+      if (el.suggestionMenu) {
+        el.suggestionMenu.remove();
       }
     });
   }
@@ -2348,8 +2348,8 @@ class Tribute {
 }
 
 /**
- * Tribute.js
+ * SuggestionEngine.js
  * Native ES6 JavaScript @mention Plugin
  **/
 
-export { Tribute as default };
+export { SuggestionEngine as default };

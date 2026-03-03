@@ -116,7 +116,7 @@ describe("BackgroundServiceWorker", () => {
           lang: "en_US",
           tabId: 1,
           frameId: 0,
-          tributeId: 1,
+          suggestionId: 1,
           requestId: 1,
         },
       });
@@ -146,7 +146,7 @@ describe("BackgroundServiceWorker", () => {
           lang: "en_US",
           tabId,
           frameId: 0,
-          tributeId: 1,
+          suggestionId: 1,
           requestId: 1,
         },
       });

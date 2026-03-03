@@ -416,7 +416,7 @@ async function waitForInputReady(page: Page, selector: string) {
 
   await page.waitForSelector(selector, { timeout: INPUT_READY_TIMEOUT_MS });
   await page.waitForFunction(
-    (sel) => document.querySelector(sel)?.hasAttribute("data-tribute") ?? false,
+    (sel) => document.querySelector(sel)?.hasAttribute("data-suggestion") ?? false,
     { timeout: INPUT_READY_TIMEOUT_MS },
     selector,
   );
@@ -437,12 +437,12 @@ async function waitForVisibleSuggestionTexts(
   const countHandle = await page.waitForFunction(
     () => {
       const activeElement = document.activeElement as
-        | (HTMLElement & { tributeMenu?: Element | null })
+        | (HTMLElement & { suggestionMenu?: Element | null })
         | null;
-      const activeMenu = activeElement?.tributeMenu;
+      const activeMenu = activeElement?.suggestionMenu;
       const containers = [
         ...(activeMenu instanceof Element ? [activeMenu] : []),
-        ...Array.from(document.querySelectorAll(".tribute-container")).filter(
+        ...Array.from(document.querySelectorAll(".suggestion-container")).filter(
           (container) => container !== activeMenu,
         ),
       ];
@@ -475,12 +475,12 @@ async function waitForVisibleSuggestionTexts(
 async function hasVisibleSuggestions(page: Page): Promise<boolean> {
   return page.evaluate(() => {
     const activeElement = document.activeElement as
-      | (HTMLElement & { tributeMenu?: Element | null })
+      | (HTMLElement & { suggestionMenu?: Element | null })
       | null;
-    const activeMenu = activeElement?.tributeMenu;
+    const activeMenu = activeElement?.suggestionMenu;
     const containers = [
       ...(activeMenu instanceof Element ? [activeMenu] : []),
-      ...Array.from(document.querySelectorAll(".tribute-container")).filter(
+      ...Array.from(document.querySelectorAll(".suggestion-container")).filter(
         (container) => container !== activeMenu,
       ),
     ];
@@ -506,12 +506,12 @@ async function waitForNoVisibleSuggestions(
   await page.waitForFunction(
     () => {
       const activeElement = document.activeElement as
-        | (HTMLElement & { tributeMenu?: Element | null })
+        | (HTMLElement & { suggestionMenu?: Element | null })
         | null;
-      const activeMenu = activeElement?.tributeMenu;
+      const activeMenu = activeElement?.suggestionMenu;
       const containers = [
         ...(activeMenu instanceof Element ? [activeMenu] : []),
-        ...Array.from(document.querySelectorAll(".tribute-container")).filter(
+        ...Array.from(document.querySelectorAll(".suggestion-container")).filter(
           (container) => container !== activeMenu,
         ),
       ];
@@ -539,12 +539,12 @@ async function clickFirstVisibleSuggestion(
   await page.waitForFunction(
     () => {
       const activeElement = document.activeElement as
-        | (HTMLElement & { tributeMenu?: Element | null })
+        | (HTMLElement & { suggestionMenu?: Element | null })
         | null;
-      const activeMenu = activeElement?.tributeMenu;
+      const activeMenu = activeElement?.suggestionMenu;
       const containers = [
         ...(activeMenu instanceof Element ? [activeMenu] : []),
-        ...Array.from(document.querySelectorAll(".tribute-container")).filter(
+        ...Array.from(document.querySelectorAll(".suggestion-container")).filter(
           (container) => container !== activeMenu,
         ),
       ];
@@ -667,6 +667,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   }, 60000);
 
   beforeEach(async () => {
+    worker = await getBackgroundContext(browser);
     // Keep the legacy baseline for non-grammar E2E flows so popup/inline
     // prediction scenarios remain deterministic regardless of defaults.
     await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
@@ -818,10 +819,10 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
       if (isFirefox()) {
         await waitForInputReady(page, "#test-textarea");
-        const hasTributeOnWhitelistedHost = await page.$eval("#test-textarea", (el) =>
-          el.hasAttribute("data-tribute"),
+        const hasSuggestionHookOnWhitelistedHost = await page.$eval("#test-textarea", (el) =>
+          el.hasAttribute("data-suggestion"),
         );
-        expect(hasTributeOnWhitelistedHost).toBe(true);
+        expect(hasSuggestionHookOnWhitelistedHost).toBe(true);
         return;
       }
 
@@ -1902,7 +1903,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       const element = await page.$(selector);
 
       await element!.type("h"); // Trigger popup
-      await page.waitForSelector(".tribute-container li", {
+      await page.waitForSelector(".suggestion-container li", {
         timeout: browserTimeout(4000, 10000),
       });
       await page.keyboard.press("Escape");
@@ -1910,9 +1911,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       // Wait for the popup to disappear
       await page.waitForFunction(
         () =>
-          !document.querySelector(".tribute-container") ||
+          !document.querySelector(".suggestion-container") ||
           document
-            .querySelector(".tribute-container")
+            .querySelector(".suggestion-container")
             ?.getAttribute("style")
             ?.includes("display: none"),
         { timeout: browserTimeout(1500, 5000) },
@@ -1939,7 +1940,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       const element = await page.$(selector);
       await element!.type("asap"); // Trigger text expansion
 
-      await page.waitForSelector(".tribute-container li", {
+      await page.waitForSelector(".suggestion-container li", {
         timeout: browserTimeout(4000, 10000),
       });
       const [firstLiText] = await waitForVisibleSuggestionTexts(page);

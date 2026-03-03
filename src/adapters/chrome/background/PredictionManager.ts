@@ -20,7 +20,7 @@ export interface PredictionDebugRequestMeta {
   requestId?: number;
   tabId?: number;
   frameId?: number;
-  tributeId?: number;
+  suggestionId?: number;
 }
 
 export interface PredictorTraceTimelineEvent {
@@ -34,7 +34,7 @@ export interface PredictorDebugTrace extends PredictionDebugEvent {
   requestId: number | null;
   tabId: number | null;
   frameId: number | null;
-  tributeId: number | null;
+  suggestionId: number | null;
   timeline: PredictorTraceTimelineEvent[];
 }
 
@@ -388,7 +388,7 @@ export class PredictionManager {
     trace.requestId = this.resolveNumericMeta(resolvedDebugMeta.requestId, trace.requestId);
     trace.tabId = this.resolveNumericMeta(resolvedDebugMeta.tabId, trace.tabId);
     trace.frameId = this.resolveNumericMeta(resolvedDebugMeta.frameId, trace.frameId);
-    trace.tributeId = this.resolveNumericMeta(resolvedDebugMeta.tributeId, trace.tributeId);
+    trace.suggestionId = this.resolveNumericMeta(resolvedDebugMeta.suggestionId, trace.suggestionId);
     return trace;
   }
 
@@ -435,7 +435,7 @@ export class PredictionManager {
       requestId: typeof debugMeta.requestId === "number" ? debugMeta.requestId : null,
       tabId: typeof debugMeta.tabId === "number" ? debugMeta.tabId : null,
       frameId: typeof debugMeta.frameId === "number" ? debugMeta.frameId : null,
-      tributeId: typeof debugMeta.tributeId === "number" ? debugMeta.tributeId : null,
+      suggestionId: typeof debugMeta.suggestionId === "number" ? debugMeta.suggestionId : null,
       timeline: [],
     };
   }

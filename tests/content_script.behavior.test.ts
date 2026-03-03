@@ -191,12 +191,12 @@ describe("content_script behavior", () => {
     const { fluentTyper, suggestionInstances, sendMessage } = await loadContentScript();
 
     fluentTyper.enable();
-    const tribute = suggestionInstances[0];
+    const suggestionManager = suggestionInstances[0];
 
     fluentTyper.handleGetPrediction({
       text: "hel",
       nextChar: "",
-      tributeId: 3,
+      suggestionId: 3,
       requestId: 10,
     });
 
@@ -204,7 +204,7 @@ describe("content_script behavior", () => {
       expect.objectContaining({
         command: "CMD_CONTENT_SCRIPT_PREDICT_REQ",
         context: expect.objectContaining({
-          tributeId: 3,
+          suggestionId: 3,
           requestId: 10,
           lang: "en_US",
           traceId: expect.any(String),
@@ -215,18 +215,18 @@ describe("content_script behavior", () => {
 
     fluentTyper.messageHandler({
       command: CMD_BACKGROUND_PAGE_PREDICT_RESP,
-      context: { tributeId: 3, requestId: 10, predictions: ["hello"] },
+      context: { suggestionId: 3, requestId: 10, predictions: ["hello"] },
     });
-    expect(tribute.fulfillPrediction).toHaveBeenCalledWith(
+    expect(suggestionManager.fulfillPrediction).toHaveBeenCalledWith(
       expect.objectContaining({ predictions: ["hello"] }),
     );
 
-    tribute.fulfillPrediction.mockClear();
+    suggestionManager.fulfillPrediction.mockClear();
     fluentTyper.messageHandler({
       command: CMD_BACKGROUND_PAGE_PREDICT_RESP,
-      context: { tributeId: 3, requestId: 11, predictions: ["ignored"] },
+      context: { suggestionId: 3, requestId: 11, predictions: ["ignored"] },
     });
-    expect(tribute.fulfillPrediction).not.toHaveBeenCalled();
+    expect(suggestionManager.fulfillPrediction).not.toHaveBeenCalled();
   });
 
   test("setConfig applies theme and restarts when already enabled", async () => {
@@ -238,26 +238,26 @@ describe("content_script behavior", () => {
       defaultConfig({
         enabled: true,
         themeConfig: {
-          tributeBgLight: "#ffffff",
-          tributeTextLight: "#000000",
-          tributeHighlightBgLight: "#dddddd",
-          tributeHighlightTextLight: "#111111",
-          tributeBorderLight: "#cccccc",
-          tributeBgDark: "#121212",
-          tributeTextDark: "#f4f4f4",
-          tributeHighlightBgDark: "#333333",
-          tributeHighlightTextDark: "#fafafa",
-          tributeBorderDark: "#555555",
-          tributeFontSize: "13px",
-          tributePaddingVertical: "6px",
-          tributePaddingHorizontal: "9px",
+          suggestionBgLight: "#ffffff",
+          suggestionTextLight: "#000000",
+          suggestionHighlightBgLight: "#dddddd",
+          suggestionHighlightTextLight: "#111111",
+          suggestionBorderLight: "#cccccc",
+          suggestionBgDark: "#121212",
+          suggestionTextDark: "#f4f4f4",
+          suggestionHighlightBgDark: "#333333",
+          suggestionHighlightTextDark: "#fafafa",
+          suggestionBorderDark: "#555555",
+          suggestionFontSize: "13px",
+          suggestionPaddingVertical: "6px",
+          suggestionPaddingHorizontal: "9px",
         },
       }),
     );
 
     const style = document.getElementById("fluent-typer-theme-overrides");
     expect(style).not.toBeNull();
-    expect(style!.textContent).toContain("--tribute-bg-light: #ffffff");
+    expect(style!.textContent).toContain("--suggestion-bg-light: #ffffff");
     expect(restartSpy).toHaveBeenCalled();
   });
 
@@ -278,7 +278,7 @@ describe("content_script behavior", () => {
       command: CMD_STATUS_COMMAND,
       context: { enabled: true },
     });
-    const tribute = fluentTyper.suggestionManager as SuggestionLike;
+    const suggestionManager = fluentTyper.suggestionManager as SuggestionLike;
 
     fluentTyper.messageHandler(
       {
@@ -288,7 +288,7 @@ describe("content_script behavior", () => {
       undefined,
       (response) => statusResponses.push(response),
     );
-    expect(tribute.updateLangConfig).toHaveBeenCalledWith("fr_FR");
+    expect(suggestionManager.updateLangConfig).toHaveBeenCalledWith("fr_FR");
 
     fluentTyper.messageHandler(
       { command: CMD_POPUP_PAGE_DISABLE, context: {} },
@@ -311,7 +311,7 @@ describe("content_script behavior", () => {
       (response) => statusResponses.push(response),
     );
 
-    expect(tribute.triggerActiveSuggestion).toHaveBeenCalled();
+    expect(suggestionManager.triggerActiveSuggestion).toHaveBeenCalled();
     expect(
       statusResponses.every(
         (response) => (response as { command?: string }).command === CMD_STATUS_COMMAND,
@@ -360,8 +360,8 @@ describe("content_script behavior", () => {
   test("processMutations scans only top-level mutation roots when nodes are nested", async () => {
     const { fluentTyper, suggestionInstances } = await loadContentScript();
     fluentTyper.enable();
-    const tribute = suggestionInstances[0];
-    tribute.queryAndAttachHelper.mockClear();
+    const suggestionManager = suggestionInstances[0];
+    suggestionManager.queryAndAttachHelper.mockClear();
 
     const parent = document.createElement("div");
     const child = document.createElement("span");
@@ -386,15 +386,15 @@ describe("content_script behavior", () => {
       } as unknown as MutationRecord,
     ]);
 
-    expect(tribute.queryAndAttachHelper).toHaveBeenCalledTimes(1);
-    expect(tribute.queryAndAttachHelper).toHaveBeenCalledWith(parent);
+    expect(suggestionManager.queryAndAttachHelper).toHaveBeenCalledTimes(1);
+    expect(suggestionManager.queryAndAttachHelper).toHaveBeenCalledWith(parent);
   });
 
   test("processMutations falls back to full scan for very large mutation batches", async () => {
     const { fluentTyper, suggestionInstances } = await loadContentScript();
     fluentTyper.enable();
-    const tribute = suggestionInstances[0];
-    tribute.queryAndAttachHelper.mockClear();
+    const suggestionManager = suggestionInstances[0];
+    suggestionManager.queryAndAttachHelper.mockClear();
 
     const largeBatch = Array.from({ length: 200 }, () => {
       const element = document.createElement("div");
@@ -408,8 +408,8 @@ describe("content_script behavior", () => {
 
     fluentTyper.processMutations(largeBatch);
 
-    expect(tribute.queryAndAttachHelper).toHaveBeenCalledTimes(1);
-    expect(tribute.queryAndAttachHelper).toHaveBeenCalledWith();
+    expect(suggestionManager.queryAndAttachHelper).toHaveBeenCalledTimes(1);
+    expect(suggestionManager.queryAndAttachHelper).toHaveBeenCalledWith();
   });
 
   test("watchdog checks host/domain changes and restarts on node replacement", async () => {

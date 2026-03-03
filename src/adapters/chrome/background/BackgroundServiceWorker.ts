@@ -61,7 +61,7 @@ export class BackgroundServiceWorker {
       requestId: message.context.requestId,
       tabId: message.context.tabId,
       frameId: message.context.frameId,
-      tributeId: message.context.tributeId,
+      suggestionId: message.context.suggestionId,
     };
     if (
       typeof message.context.traceStartedAtMs === "number" &&
@@ -107,7 +107,7 @@ export class BackgroundServiceWorker {
         nextChar: message.context.nextChar,
         lang: message.context.lang,
         tabId: message.context.tabId,
-        tributeId: message.context.tributeId,
+        suggestionId: message.context.suggestionId,
         requestId: message.context.requestId,
         traceId,
         frameId: message.context.frameId,

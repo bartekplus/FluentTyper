@@ -13,19 +13,19 @@ export interface SetConfigContext {
   enabledGrammarRules: string[];
   // Theme configuration
   themeConfig?: {
-    tributeBgLight: string;
-    tributeTextLight: string;
-    tributeHighlightBgLight: string;
-    tributeHighlightTextLight: string;
-    tributeBorderLight: string;
-    tributeBgDark: string;
-    tributeTextDark: string;
-    tributeHighlightBgDark: string;
-    tributeHighlightTextDark: string;
-    tributeBorderDark: string;
-    tributeFontSize: string;
-    tributePaddingVertical: string;
-    tributePaddingHorizontal: string;
+    suggestionBgLight: string;
+    suggestionTextLight: string;
+    suggestionHighlightBgLight: string;
+    suggestionHighlightTextLight: string;
+    suggestionBorderLight: string;
+    suggestionBgDark: string;
+    suggestionTextDark: string;
+    suggestionHighlightBgDark: string;
+    suggestionHighlightTextDark: string;
+    suggestionBorderDark: string;
+    suggestionFontSize: string;
+    suggestionPaddingVertical: string;
+    suggestionPaddingHorizontal: string;
   };
 }
 
@@ -36,7 +36,7 @@ export interface PredictRequestContext {
   lang: string;
   tabId: number;
   frameId: number;
-  tributeId: number;
+  suggestionId: number;
   requestId: number;
   traceId?: string;
   traceStartedAtMs?: number;
@@ -60,7 +60,7 @@ export interface PredictResponseContext {
   lang: string;
   tabId: number;
   frameId: number;
-  tributeId: number;
+  suggestionId: number;
   requestId: number;
   traceId?: string;
   predictions: string[];
@@ -76,7 +76,7 @@ export interface UpdateLangConfigContext {
 export interface ContentScriptPredictRequestContext {
   text: string;
   nextChar: string;
-  tributeId: number;
+  suggestionId: number;
   requestId: number;
   lang: string;
   traceId?: string;

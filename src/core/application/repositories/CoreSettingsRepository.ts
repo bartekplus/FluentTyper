@@ -9,19 +9,19 @@ const DEFAULT_MIN_WORD_LENGTH_TO_PREDICT = 1;
 
 type ThemeSettings = Pick<
   SettingsSchema,
-  | "tributeBgLight"
-  | "tributeTextLight"
-  | "tributeHighlightBgLight"
-  | "tributeHighlightTextLight"
-  | "tributeBorderLight"
-  | "tributeBgDark"
-  | "tributeTextDark"
-  | "tributeHighlightBgDark"
-  | "tributeHighlightTextDark"
-  | "tributeBorderDark"
-  | "tributeFontSize"
-  | "tributePaddingVertical"
-  | "tributePaddingHorizontal"
+  | "suggestionBgLight"
+  | "suggestionTextLight"
+  | "suggestionHighlightBgLight"
+  | "suggestionHighlightTextLight"
+  | "suggestionBorderLight"
+  | "suggestionBgDark"
+  | "suggestionTextDark"
+  | "suggestionHighlightBgDark"
+  | "suggestionHighlightTextDark"
+  | "suggestionBorderDark"
+  | "suggestionFontSize"
+  | "suggestionPaddingVertical"
+  | "suggestionPaddingHorizontal"
 >;
 
 export class CoreSettingsRepository extends SettingsRepositoryBase {
@@ -183,49 +183,49 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
 
   async getThemeSettings(): Promise<ThemeSettings> {
     const [
-      tributeBgLight,
-      tributeTextLight,
-      tributeHighlightBgLight,
-      tributeHighlightTextLight,
-      tributeBorderLight,
-      tributeBgDark,
-      tributeTextDark,
-      tributeHighlightBgDark,
-      tributeHighlightTextDark,
-      tributeBorderDark,
-      tributeFontSize,
-      tributePaddingVertical,
-      tributePaddingHorizontal,
+      suggestionBgLight,
+      suggestionTextLight,
+      suggestionHighlightBgLight,
+      suggestionHighlightTextLight,
+      suggestionBorderLight,
+      suggestionBgDark,
+      suggestionTextDark,
+      suggestionHighlightBgDark,
+      suggestionHighlightTextDark,
+      suggestionBorderDark,
+      suggestionFontSize,
+      suggestionPaddingVertical,
+      suggestionPaddingHorizontal,
     ] = await Promise.all([
-      this.getField("tributeBgLight"),
-      this.getField("tributeTextLight"),
-      this.getField("tributeHighlightBgLight"),
-      this.getField("tributeHighlightTextLight"),
-      this.getField("tributeBorderLight"),
-      this.getField("tributeBgDark"),
-      this.getField("tributeTextDark"),
-      this.getField("tributeHighlightBgDark"),
-      this.getField("tributeHighlightTextDark"),
-      this.getField("tributeBorderDark"),
-      this.getField("tributeFontSize"),
-      this.getField("tributePaddingVertical"),
-      this.getField("tributePaddingHorizontal"),
+      this.getField("suggestionBgLight"),
+      this.getField("suggestionTextLight"),
+      this.getField("suggestionHighlightBgLight"),
+      this.getField("suggestionHighlightTextLight"),
+      this.getField("suggestionBorderLight"),
+      this.getField("suggestionBgDark"),
+      this.getField("suggestionTextDark"),
+      this.getField("suggestionHighlightBgDark"),
+      this.getField("suggestionHighlightTextDark"),
+      this.getField("suggestionBorderDark"),
+      this.getField("suggestionFontSize"),
+      this.getField("suggestionPaddingVertical"),
+      this.getField("suggestionPaddingHorizontal"),
     ]);
 
     return {
-      tributeBgLight: CoreSettingsRepository.toString(tributeBgLight),
-      tributeTextLight: CoreSettingsRepository.toString(tributeTextLight),
-      tributeHighlightBgLight: CoreSettingsRepository.toString(tributeHighlightBgLight),
-      tributeHighlightTextLight: CoreSettingsRepository.toString(tributeHighlightTextLight),
-      tributeBorderLight: CoreSettingsRepository.toString(tributeBorderLight),
-      tributeBgDark: CoreSettingsRepository.toString(tributeBgDark),
-      tributeTextDark: CoreSettingsRepository.toString(tributeTextDark),
-      tributeHighlightBgDark: CoreSettingsRepository.toString(tributeHighlightBgDark),
-      tributeHighlightTextDark: CoreSettingsRepository.toString(tributeHighlightTextDark),
-      tributeBorderDark: CoreSettingsRepository.toString(tributeBorderDark),
-      tributeFontSize: CoreSettingsRepository.toString(tributeFontSize),
-      tributePaddingVertical: CoreSettingsRepository.toString(tributePaddingVertical),
-      tributePaddingHorizontal: CoreSettingsRepository.toString(tributePaddingHorizontal),
+      suggestionBgLight: CoreSettingsRepository.toString(suggestionBgLight),
+      suggestionTextLight: CoreSettingsRepository.toString(suggestionTextLight),
+      suggestionHighlightBgLight: CoreSettingsRepository.toString(suggestionHighlightBgLight),
+      suggestionHighlightTextLight: CoreSettingsRepository.toString(suggestionHighlightTextLight),
+      suggestionBorderLight: CoreSettingsRepository.toString(suggestionBorderLight),
+      suggestionBgDark: CoreSettingsRepository.toString(suggestionBgDark),
+      suggestionTextDark: CoreSettingsRepository.toString(suggestionTextDark),
+      suggestionHighlightBgDark: CoreSettingsRepository.toString(suggestionHighlightBgDark),
+      suggestionHighlightTextDark: CoreSettingsRepository.toString(suggestionHighlightTextDark),
+      suggestionBorderDark: CoreSettingsRepository.toString(suggestionBorderDark),
+      suggestionFontSize: CoreSettingsRepository.toString(suggestionFontSize),
+      suggestionPaddingVertical: CoreSettingsRepository.toString(suggestionPaddingVertical),
+      suggestionPaddingHorizontal: CoreSettingsRepository.toString(suggestionPaddingHorizontal),
     };
   }
 }

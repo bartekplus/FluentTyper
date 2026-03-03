@@ -1,4 +1,4 @@
-import Tribute from "./suggestions/SuggestionEngineCore.js";
+import SuggestionEngine from "./suggestions/SuggestionEngineCore.js";
 import { LANG_SEPARATOR_CHARS_REGEX, SUPPORTED_LANGUAGES } from "@core/domain/lang";
 import { isInDocument } from "@core/application/dom-utils";
 import { createLogger } from "@core/application/logging/Logger";
@@ -13,36 +13,36 @@ import { SuggestionKeyboardController } from "./suggestions/SuggestionKeyboardCo
 
 const logger = createLogger("SuggestionManager");
 
-interface TributeItem {
+interface SuggestionItem {
   original: { value: string };
   string: string;
 }
 
-interface TributeEntry {
-  tribute: Tribute;
+interface SuggestionEntry {
+  suggestionEngine: SuggestionEngine;
   elem: Element;
   done?: (results: unknown[], textEdit: TextEditOperation | null, menuHeader?: string) => void;
   requestId: number;
   // Store handler references for proper removal
-  tributeReplacedHandlerRef?: EventListenerOrEventListenerObject;
+  suggestionReplacedHandlerRef?: EventListenerOrEventListenerObject;
   elementKeyDownHandlerRef?: EventListenerOrEventListenerObject;
   missingTrailingSpace?: boolean;
   expectedCursorPos?: number;
 }
 
-interface TributeReplaceEventContext {
+interface SuggestionReplaceEventContext {
   mentionText?: string;
 }
 
-interface TributeReplaceEventDetail {
+interface SuggestionReplaceEventDetail {
   text?: string;
-  context?: TributeReplaceEventContext;
+  context?: SuggestionReplaceEventContext;
 }
 
 export class SuggestionManager {
   private selectors: string;
-  private newTributeId: number;
-  private tributeArr: Record<number, TributeEntry>;
+  private nextSuggestionId: number;
+  private suggestionEntries: Record<number, SuggestionEntry>;
   // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
   private getPrediction: Function;
 
@@ -57,7 +57,7 @@ export class SuggestionManager {
   private displayLangHeader: boolean;
   private inline_suggestion: boolean;
   private helperIdByElement: WeakMap<Element, number>;
-  private reTriggerTributeOnReplaceEvent: boolean = false;
+  private reTriggerSuggestionOnReplaceEvent: boolean = false;
   private activeHelperArrId: number | null = null;
 
   constructor({
@@ -88,8 +88,8 @@ export class SuggestionManager {
     getPrediction: Function;
   }) {
     this.selectors = selectors;
-    this.newTributeId = 0;
-    this.tributeArr = {};
+    this.nextSuggestionId = 0;
+    this.suggestionEntries = {};
     // Configurable properties
     this.minWordLengthToPredict = minWordLengthToPredict;
     this.autocomplete = autocomplete;
@@ -104,7 +104,7 @@ export class SuggestionManager {
     this.helperIdByElement = new WeakMap<Element, number>();
     this.getPrediction = getPrediction; // callback to main class
     this.activeHelperArrId = null;
-    logger.debug("Initialized tribute manager", {
+    logger.debug("Initialized suggestion manager", {
       selectors,
       minWordLengthToPredict,
       autocomplete,
@@ -121,8 +121,8 @@ export class SuggestionManager {
   set autocompleteSeparator(val) {
     logger.debug("Updated autocomplete separator", { separator: val });
     this._autocompleteSeparator = val;
-    for (const [key] of Object.entries(this.tributeArr)) {
-      this.tributeArr[Number(key)].tribute.autocompleteSeparator = val;
+    for (const [key] of Object.entries(this.suggestionEntries)) {
+      this.suggestionEntries[Number(key)].suggestionEngine.autocompleteSeparator = val;
     }
   }
   get autocompleteSeparator() {
@@ -153,18 +153,18 @@ export class SuggestionManager {
   }
 
   private attachHelperToNode(elem: Element) {
-    logger.debug("Attaching tribute helper to element", {
+    logger.debug("Attaching suggestion helper to element", {
       tagName: elem.tagName,
     });
-    const tributeId = this.newTributeId++;
-    this.tributeArr[tributeId] = {
+    const suggestionId = this.nextSuggestionId++;
+    this.suggestionEntries[suggestionId] = {
       elem,
       requestId: 0,
-    } as TributeEntry; // Cast to allow tribute to be added next
-    this.helperIdByElement.set(elem, tributeId);
+    } as SuggestionEntry; // Cast to allow suggestionEngine to be added next
+    this.helperIdByElement.set(elem, suggestionId);
 
-    const tributeKeyFn = this.keys.bind(this);
-    const tributeValuesFn = (
+    const suggestionKeyFn = this.keys.bind(this);
+    const suggestionValuesFn = (
       _trigger: string, // text typed so far - not used directly here, context.text is used
       done: (
         results: unknown[],
@@ -174,44 +174,44 @@ export class SuggestionManager {
       fullText: string,
       nextChar: string,
     ) => {
-      const currentEntry = this.tributeArr[tributeId];
+      const currentEntry = this.suggestionEntries[suggestionId];
       if (!currentEntry) {
         return;
       }
 
       currentEntry.done = done;
       currentEntry.requestId += 1;
-      this.activeHelperArrId = tributeId;
+      this.activeHelperArrId = suggestionId;
 
-      logger.debug("Requesting prediction for tribute helper", {
+      logger.debug("Requesting prediction for suggestion helper", {
         fullText,
         nextChar,
-        tributeId,
+        suggestionId,
         requestId: currentEntry.requestId,
         lang: this.lang,
       });
       this.getPrediction({
         text: fullText,
         nextChar,
-        tributeId,
+        suggestionId,
         requestId: currentEntry.requestId,
         lang: this.lang,
       });
     };
 
-    const tribute = new Tribute({
+    const suggestionEngine = new SuggestionEngine({
       trigger: "",
       iframe: null,
       selectClass: "highlight",
-      containerClass: "tribute-container",
+      containerClass: "suggestion-container",
       itemClass: "",
-      selectTemplate: (item: TributeItem) => item.original.value,
-      menuItemTemplate: (item: TributeItem) => item.string,
+      selectTemplate: (item: SuggestionItem) => item.original.value,
+      menuItemTemplate: (item: SuggestionItem) => item.string,
       noMatchTemplate: undefined,
       menuContainer: document.body,
       lookup: "key",
       fillAttr: "value",
-      values: tributeValuesFn,
+      values: suggestionValuesFn,
       requireLeadingSpace: false,
       allowSpaces: false,
       replaceTextSuffix: "",
@@ -227,46 +227,50 @@ export class SuggestionManager {
       },
       menuShowMinLength:
         this.minWordLengthToPredict === -1 ? Number.MAX_VALUE : this.minWordLengthToPredict,
-      keys: tributeKeyFn,
+      keys: suggestionKeyFn,
       supportRevert: true, // Assuming this is related to revertOnBackspace
       selectByDigit: this.selectByDigit,
     });
 
-    this.tributeArr[tributeId].tribute = tribute;
-    tribute.attach(elem);
+    this.suggestionEntries[suggestionId].suggestionEngine = suggestionEngine;
+    suggestionEngine.attach(elem);
 
-    const boundTributeReplacedHandler = this.tributeReplacedEventHandler.bind(this, tributeId);
+    const boundSuggestionReplacedHandler = this.suggestionReplacedEventHandler.bind(
+      this,
+      suggestionId,
+    );
     // MUST be synchronous so event.preventDefault() works reliably without letter duplication.
-    const boundElementKeyDownHandler = this.elementKeyDownEventHandler.bind(this, tributeId);
+    const boundElementKeyDownHandler = this.elementKeyDownEventHandler.bind(this, suggestionId);
 
-    this.tributeArr[tributeId].tributeReplacedHandlerRef = boundTributeReplacedHandler;
-    this.tributeArr[tributeId].elementKeyDownHandlerRef = boundElementKeyDownHandler;
+    this.suggestionEntries[suggestionId].suggestionReplacedHandlerRef =
+      boundSuggestionReplacedHandler;
+    this.suggestionEntries[suggestionId].elementKeyDownHandlerRef = boundElementKeyDownHandler;
 
-    elem.addEventListener("tribute-replaced", boundTributeReplacedHandler);
+    elem.addEventListener("suggestion-replaced", boundSuggestionReplacedHandler);
     elem.addEventListener("keydown", boundElementKeyDownHandler);
   }
 
   public fulfillPrediction(context: PredictResponseContext) {
     logger.debug("Received prediction response", {
-      tributeId: context.tributeId,
+      suggestionId: context.suggestionId,
       requestId: context.requestId,
       predictionCount: context.predictions.length,
       lang: context.lang,
     });
-    const tributeEntry = this.tributeArr[context.tributeId];
-    const isCurrentRequest = tributeEntry && tributeEntry.requestId === context.requestId;
+    const suggestionEntry = this.suggestionEntries[context.suggestionId];
+    const isCurrentRequest = suggestionEntry && suggestionEntry.requestId === context.requestId;
     const hasTextEdit = context.textEdit != null;
 
-    if (tributeEntry && (isCurrentRequest || hasTextEdit) && tributeEntry.done) {
+    if (suggestionEntry && (isCurrentRequest || hasTextEdit) && suggestionEntry.done) {
       // For grammar corrections (textEdit), we allow stale responses through
       // because the correction (e.g. capitalize first letter) is still valid even
       // after the user has typed more characters. The position is computed from the
       // original text length, not the current fullText.
       if (!isCurrentRequest && hasTextEdit) {
         logger.debug("Applying stale textEdit grammar correction", {
-          tributeId: context.tributeId,
+          suggestionId: context.suggestionId,
           requestId: context.requestId,
-          currentRequestId: tributeEntry.requestId,
+          currentRequestId: suggestionEntry.requestId,
         });
       }
 
@@ -282,13 +286,13 @@ export class SuggestionManager {
           ? `Lang: ${SUPPORTED_LANGUAGES[context.lang]}`
           : undefined;
 
-      logger.debug("Fulfilling prediction into tribute", {
-        tributeId: context.tributeId,
+      logger.debug("Fulfilling prediction into suggestion manager", {
+        suggestionId: context.suggestionId,
         requestId: context.requestId,
         predictionCount: predictionItems.length,
         hasHeader: Boolean(header),
       });
-      tributeEntry.done(predictionItems, context.textEdit, header);
+      suggestionEntry.done(predictionItems, context.textEdit, header);
 
       if (isCurrentRequest && context.predictions.length > 0) {
         this.emitUsageEvent({
@@ -299,34 +303,34 @@ export class SuggestionManager {
       }
     } else {
       logger.warn("Ignoring prediction response due to stale request", {
-        tributeId: context.tributeId,
+        suggestionId: context.suggestionId,
         requestId: context.requestId,
       });
     }
   }
 
-  detachHelper(tributeId: number) {
-    const entry = this.tributeArr[tributeId];
+  detachHelper(suggestionId: number) {
+    const entry = this.suggestionEntries[suggestionId];
     if (!entry) {
       return;
     }
     const elem = entry.elem;
-    entry.tribute.detach(elem);
-    if (entry.tributeReplacedHandlerRef) {
-      elem.removeEventListener("tribute-replaced", entry.tributeReplacedHandlerRef);
+    entry.suggestionEngine.detach(elem);
+    if (entry.suggestionReplacedHandlerRef) {
+      elem.removeEventListener("suggestion-replaced", entry.suggestionReplacedHandlerRef);
     }
     if (entry.elementKeyDownHandlerRef) {
       elem.removeEventListener("keydown", entry.elementKeyDownHandlerRef);
     }
     this.helperIdByElement.delete(elem);
-    delete this.tributeArr[tributeId];
+    delete this.suggestionEntries[suggestionId];
   }
 
   detachAllHelpers() {
-    for (const [key] of Object.entries(this.tributeArr)) {
+    for (const [key] of Object.entries(this.suggestionEntries)) {
       this.detachHelper(Number(key));
     }
-    this.tributeArr = {};
+    this.suggestionEntries = {};
     this.helperIdByElement = new WeakMap<Element, number>();
   }
 
@@ -334,14 +338,14 @@ export class SuggestionManager {
     const helperId = this.helperIdByElement.get(elem);
     return (
       typeof helperId === "number" &&
-      Boolean(this.tributeArr[helperId]) &&
-      this.tributeArr[helperId].elem === elem
+      Boolean(this.suggestionEntries[helperId]) &&
+      this.suggestionEntries[helperId].elem === elem
     );
   }
 
   removeHelpersNotInDocument() {
     // This method is used to clean up any helpers that are no longer in the document.
-    for (const [key, entry] of Object.entries(this.tributeArr)) {
+    for (const [key, entry] of Object.entries(this.suggestionEntries)) {
       if (!isInDocument(entry.elem)) {
         this.detachHelper(Number(key));
       }
@@ -437,11 +441,11 @@ export class SuggestionManager {
         continue;
       }
       let skip = false;
-      for (const [key] of Object.entries(this.tributeArr)) {
+      for (const [key] of Object.entries(this.suggestionEntries)) {
         const keyAsNumber = Number(key);
-        if (filteredElems[i].contains(this.tributeArr[keyAsNumber].elem)) {
+        if (filteredElems[i].contains(this.suggestionEntries[keyAsNumber].elem)) {
           this.detachHelper(keyAsNumber);
-        } else if (this.tributeArr[keyAsNumber].elem.contains(filteredElems[i])) {
+        } else if (this.suggestionEntries[keyAsNumber].elem.contains(filteredElems[i])) {
           skip = true;
           break;
         }
@@ -454,17 +458,17 @@ export class SuggestionManager {
   }
 
   triggerActiveSuggestion() {
-    logger.debug("Triggering active tribute", {
+    logger.debug("Triggering active suggestion", {
       activeHelperArrId: this.activeHelperArrId,
     });
     if (this.activeHelperArrId === null) {
       return;
     }
-    if (this.tributeArr[this.activeHelperArrId]) {
-      this.tributeArr[this.activeHelperArrId].tribute.showMenuForCollection(
-        this.tributeArr[this.activeHelperArrId].elem,
+    if (this.suggestionEntries[this.activeHelperArrId]) {
+      this.suggestionEntries[this.activeHelperArrId].suggestionEngine.showMenuForCollection(
+        this.suggestionEntries[this.activeHelperArrId].elem,
       );
-      logger.debug("Active tribute menu shown", {
+      logger.debug("Active suggestion menu shown", {
         activeHelperArrId: this.activeHelperArrId,
       });
     }
@@ -480,7 +484,7 @@ export class SuggestionManager {
     });
   }
 
-  private emitSuggestionAcceptedUsageEvents(detail: TributeReplaceEventDetail) {
+  private emitSuggestionAcceptedUsageEvents(detail: SuggestionReplaceEventDetail) {
     const triggerText =
       typeof detail.context?.mentionText === "string" ? detail.context.mentionText : "";
     const insertedText = typeof detail.text === "string" ? detail.text : triggerText;
@@ -514,9 +518,9 @@ export class SuggestionManager {
     });
   }
 
-  tributeReplacedEventHandler(helperArrId: number, event?: Event) {
+  suggestionReplacedEventHandler(helperArrId: number, event?: Event) {
     this.activeHelperArrId = helperArrId;
-    const customEvent = event as CustomEvent<TributeReplaceEventDetail>;
+    const customEvent = event as CustomEvent<SuggestionReplaceEventDetail>;
     if (customEvent && customEvent.detail) {
       this.emitSuggestionAcceptedUsageEvents(customEvent.detail);
     }
@@ -525,7 +529,7 @@ export class SuggestionManager {
     // However, we only know if they need one AFTER they start typing.
     // So we mark that a replacement just happened.
     // Skip for grammar corrections (textEdit) which have null event/item in detail.
-    const entry = this.tributeArr[helperArrId];
+    const entry = this.suggestionEntries[helperArrId];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const detail = customEvent?.detail as any;
     const isForceReplace = detail && !detail.event && !detail.item;
@@ -544,14 +548,14 @@ export class SuggestionManager {
       entry.expectedCursorPos = cursorPos;
     }
 
-    if (this.tributeArr[helperArrId] && this.reTriggerTributeOnReplaceEvent) {
+    if (this.suggestionEntries[helperArrId] && this.reTriggerSuggestionOnReplaceEvent) {
       this.triggerActiveSuggestion();
     }
   }
 
   elementKeyDownEventHandler(helperArrId: number, event: Event) {
     this.activeHelperArrId = helperArrId;
-    const entry = this.tributeArr[helperArrId];
+    const entry = this.suggestionEntries[helperArrId];
 
     // Only perform logic if we just had a replacement
     if (entry && entry.missingTrailingSpace) {

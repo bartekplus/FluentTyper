@@ -35,19 +35,19 @@ import {
   // theme settings
   KEY_USE_DEFAULT_THEME_BTN,
   KEY_USE_COMPACT_THEME_BTN,
-  KEY_TRIBUTE_BG_LIGHT,
-  KEY_TRIBUTE_TEXT_LIGHT,
-  KEY_TRIBUTE_HIGHLIGHT_BG_LIGHT,
-  KEY_TRIBUTE_HIGHLIGHT_TEXT_LIGHT,
-  KEY_TRIBUTE_BORDER_LIGHT,
-  KEY_TRIBUTE_BG_DARK,
-  KEY_TRIBUTE_TEXT_DARK,
-  KEY_TRIBUTE_HIGHLIGHT_BG_DARK,
-  KEY_TRIBUTE_HIGHLIGHT_TEXT_DARK,
-  KEY_TRIBUTE_BORDER_DARK,
-  KEY_TRIBUTE_FONT_SIZE,
-  KEY_TRIBUTE_PADDING_VERTICAL,
-  KEY_TRIBUTE_PADDING_HORIZONTAL,
+  KEY_SUGGESTION_BG_LIGHT,
+  KEY_SUGGESTION_TEXT_LIGHT,
+  KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT,
+  KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT,
+  KEY_SUGGESTION_BORDER_LIGHT,
+  KEY_SUGGESTION_BG_DARK,
+  KEY_SUGGESTION_TEXT_DARK,
+  KEY_SUGGESTION_HIGHLIGHT_BG_DARK,
+  KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK,
+  KEY_SUGGESTION_BORDER_DARK,
+  KEY_SUGGESTION_FONT_SIZE,
+  KEY_SUGGESTION_PADDING_VERTICAL,
+  KEY_SUGGESTION_PADDING_HORIZONTAL,
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
   KEY_DEBUG_AI_PREDICTOR_ENABLED,
   CMD_POPUP_GET_PRODUCTIVITY_STATS,
@@ -246,34 +246,34 @@ function importUserDictFileSelected(settings) {
 
 const themePresets = {
   default: {
-    tributeBgLight: "#ffffff",
-    tributeTextLight: "#2d3748",
-    tributeHighlightBgLight: "#edf2f7",
-    tributeHighlightTextLight: "#2d3748",
-    tributeBorderLight: "#e2e8f0",
-    tributeBgDark: "#2d3748",
-    tributeTextDark: "#e2e8f0",
-    tributeHighlightBgDark: "#4a5568",
-    tributeHighlightTextDark: "#ffffff",
-    tributeBorderDark: "#4a5568",
-    tributeFontSize: "0.9rem",
-    tributePaddingVertical: "0.6rem",
-    tributePaddingHorizontal: "0.8rem"
+    suggestionBgLight: "#ffffff",
+    suggestionTextLight: "#2d3748",
+    suggestionHighlightBgLight: "#edf2f7",
+    suggestionHighlightTextLight: "#2d3748",
+    suggestionBorderLight: "#e2e8f0",
+    suggestionBgDark: "#2d3748",
+    suggestionTextDark: "#e2e8f0",
+    suggestionHighlightBgDark: "#4a5568",
+    suggestionHighlightTextDark: "#ffffff",
+    suggestionBorderDark: "#4a5568",
+    suggestionFontSize: "0.9rem",
+    suggestionPaddingVertical: "0.6rem",
+    suggestionPaddingHorizontal: "0.8rem"
   },
   compact: {
-    tributeBgLight: "rgba(255, 255, 255, 0.85)",
-    tributeTextLight: "#1a202c",
-    tributeHighlightBgLight: "rgba(226, 232, 240, 0.9)",
-    tributeHighlightTextLight: "#1a202c",
-    tributeBorderLight: "rgba(226, 232, 240, 0.7)",
-    tributeBgDark: "rgba(45, 55, 72, 0.85)",
-    tributeTextDark: "#f7fafc",
-    tributeHighlightBgDark: "rgba(113, 128, 150, 0.9)",
-    tributeHighlightTextDark: "#f7fafc",
-    tributeBorderDark: "rgba(74, 85, 104, 0.7)",
-    tributeFontSize: "0.85rem",
-    tributePaddingVertical: "0.4rem",
-    tributePaddingHorizontal: "0.6rem"
+    suggestionBgLight: "rgba(255, 255, 255, 0.85)",
+    suggestionTextLight: "#1a202c",
+    suggestionHighlightBgLight: "rgba(226, 232, 240, 0.9)",
+    suggestionHighlightTextLight: "#1a202c",
+    suggestionBorderLight: "rgba(226, 232, 240, 0.7)",
+    suggestionBgDark: "rgba(45, 55, 72, 0.85)",
+    suggestionTextDark: "#f7fafc",
+    suggestionHighlightBgDark: "rgba(113, 128, 150, 0.9)",
+    suggestionHighlightTextDark: "#f7fafc",
+    suggestionBorderDark: "rgba(74, 85, 104, 0.7)",
+    suggestionFontSize: "0.85rem",
+    suggestionPaddingVertical: "0.4rem",
+    suggestionPaddingHorizontal: "0.6rem"
   }
 };
 
@@ -1264,7 +1264,7 @@ function renderPredictorDebugSnapshot(root, snapshot) {
       const routeRow = document.createElement("p");
       routeRow.className = "predictor-debug-stage";
       routeRow.textContent =
-        `Route: tab=${trace.tabId ?? "n/a"} frame=${trace.frameId ?? "n/a"} tribute=${trace.tributeId ?? "n/a"}`;
+        `Route: tab=${trace.tabId ?? "n/a"} frame=${trace.frameId ?? "n/a"} suggestion=${trace.suggestionId ?? "n/a"}`;
       card.appendChild(routeRow);
 
       const stageRow = document.createElement("p");
@@ -1612,11 +1612,11 @@ window.addEventListener("DOMContentLoaded", function () {
 
       // Theme settings event listeners
       const themeSettings = [
-        KEY_TRIBUTE_BG_LIGHT, KEY_TRIBUTE_TEXT_LIGHT, KEY_TRIBUTE_HIGHLIGHT_BG_LIGHT,
-        KEY_TRIBUTE_HIGHLIGHT_TEXT_LIGHT, KEY_TRIBUTE_BORDER_LIGHT,
-        KEY_TRIBUTE_BG_DARK, KEY_TRIBUTE_TEXT_DARK, KEY_TRIBUTE_HIGHLIGHT_BG_DARK,
-        KEY_TRIBUTE_HIGHLIGHT_TEXT_DARK, KEY_TRIBUTE_BORDER_DARK,
-        KEY_TRIBUTE_FONT_SIZE, KEY_TRIBUTE_PADDING_VERTICAL, KEY_TRIBUTE_PADDING_HORIZONTAL
+        KEY_SUGGESTION_BG_LIGHT, KEY_SUGGESTION_TEXT_LIGHT, KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT,
+        KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT, KEY_SUGGESTION_BORDER_LIGHT,
+        KEY_SUGGESTION_BG_DARK, KEY_SUGGESTION_TEXT_DARK, KEY_SUGGESTION_HIGHLIGHT_BG_DARK,
+        KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK, KEY_SUGGESTION_BORDER_DARK,
+        KEY_SUGGESTION_FONT_SIZE, KEY_SUGGESTION_PADDING_VERTICAL, KEY_SUGGESTION_PADDING_HORIZONTAL
       ];
 
       // Theme settings are now handled through the messaging system
@@ -1652,19 +1652,19 @@ window.addEventListener("DOMContentLoaded", function () {
         KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
         KEY_DEBUG_AI_PREDICTOR_ENABLED,
         // Theme settings
-        KEY_TRIBUTE_BG_LIGHT,
-        KEY_TRIBUTE_TEXT_LIGHT,
-        KEY_TRIBUTE_HIGHLIGHT_BG_LIGHT,
-        KEY_TRIBUTE_HIGHLIGHT_TEXT_LIGHT,
-        KEY_TRIBUTE_BORDER_LIGHT,
-        KEY_TRIBUTE_BG_DARK,
-        KEY_TRIBUTE_TEXT_DARK,
-        KEY_TRIBUTE_HIGHLIGHT_BG_DARK,
-        KEY_TRIBUTE_HIGHLIGHT_TEXT_DARK,
-        KEY_TRIBUTE_BORDER_DARK,
-        KEY_TRIBUTE_FONT_SIZE,
-        KEY_TRIBUTE_PADDING_VERTICAL,
-        KEY_TRIBUTE_PADDING_HORIZONTAL
+        KEY_SUGGESTION_BG_LIGHT,
+        KEY_SUGGESTION_TEXT_LIGHT,
+        KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT,
+        KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT,
+        KEY_SUGGESTION_BORDER_LIGHT,
+        KEY_SUGGESTION_BG_DARK,
+        KEY_SUGGESTION_TEXT_DARK,
+        KEY_SUGGESTION_HIGHLIGHT_BG_DARK,
+        KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK,
+        KEY_SUGGESTION_BORDER_DARK,
+        KEY_SUGGESTION_FONT_SIZE,
+        KEY_SUGGESTION_PADDING_VERTICAL,
+        KEY_SUGGESTION_PADDING_HORIZONTAL
       ].forEach((element) => {
         const setting = settings.manifest[element];
         if (!setting || typeof setting.addEvent !== "function") {

@@ -26,19 +26,19 @@ import {
   KEY_SITE_PROFILES,
   KEY_TEXT_EXPANSIONS,
   KEY_TIME_FORMAT,
-  KEY_TRIBUTE_BG_DARK,
-  KEY_TRIBUTE_BG_LIGHT,
-  KEY_TRIBUTE_BORDER_DARK,
-  KEY_TRIBUTE_BORDER_LIGHT,
-  KEY_TRIBUTE_FONT_SIZE,
-  KEY_TRIBUTE_HIGHLIGHT_BG_DARK,
-  KEY_TRIBUTE_HIGHLIGHT_BG_LIGHT,
-  KEY_TRIBUTE_HIGHLIGHT_TEXT_DARK,
-  KEY_TRIBUTE_HIGHLIGHT_TEXT_LIGHT,
-  KEY_TRIBUTE_PADDING_HORIZONTAL,
-  KEY_TRIBUTE_PADDING_VERTICAL,
-  KEY_TRIBUTE_TEXT_DARK,
-  KEY_TRIBUTE_TEXT_LIGHT,
+  KEY_SUGGESTION_BG_DARK,
+  KEY_SUGGESTION_BG_LIGHT,
+  KEY_SUGGESTION_BORDER_DARK,
+  KEY_SUGGESTION_BORDER_LIGHT,
+  KEY_SUGGESTION_FONT_SIZE,
+  KEY_SUGGESTION_HIGHLIGHT_BG_DARK,
+  KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT,
+  KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK,
+  KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT,
+  KEY_SUGGESTION_PADDING_HORIZONTAL,
+  KEY_SUGGESTION_PADDING_VERTICAL,
+  KEY_SUGGESTION_TEXT_DARK,
+  KEY_SUGGESTION_TEXT_LIGHT,
   KEY_USER_DICTIONARY_LIST,
 } from "../constants";
 import type { SiteProfiles } from "../siteProfiles";
@@ -75,19 +75,19 @@ export const SETTINGS_KEYS = {
   debugAiPredictorEnabled: KEY_DEBUG_AI_PREDICTOR_ENABLED,
   productivityStats: KEY_PRODUCTIVITY_STATS,
   enabledGrammarRules: KEY_ENABLED_GRAMMAR_RULES,
-  tributeBgLight: KEY_TRIBUTE_BG_LIGHT,
-  tributeTextLight: KEY_TRIBUTE_TEXT_LIGHT,
-  tributeHighlightBgLight: KEY_TRIBUTE_HIGHLIGHT_BG_LIGHT,
-  tributeHighlightTextLight: KEY_TRIBUTE_HIGHLIGHT_TEXT_LIGHT,
-  tributeBorderLight: KEY_TRIBUTE_BORDER_LIGHT,
-  tributeBgDark: KEY_TRIBUTE_BG_DARK,
-  tributeTextDark: KEY_TRIBUTE_TEXT_DARK,
-  tributeHighlightBgDark: KEY_TRIBUTE_HIGHLIGHT_BG_DARK,
-  tributeHighlightTextDark: KEY_TRIBUTE_HIGHLIGHT_TEXT_DARK,
-  tributeBorderDark: KEY_TRIBUTE_BORDER_DARK,
-  tributeFontSize: KEY_TRIBUTE_FONT_SIZE,
-  tributePaddingVertical: KEY_TRIBUTE_PADDING_VERTICAL,
-  tributePaddingHorizontal: KEY_TRIBUTE_PADDING_HORIZONTAL,
+  suggestionBgLight: KEY_SUGGESTION_BG_LIGHT,
+  suggestionTextLight: KEY_SUGGESTION_TEXT_LIGHT,
+  suggestionHighlightBgLight: KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT,
+  suggestionHighlightTextLight: KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT,
+  suggestionBorderLight: KEY_SUGGESTION_BORDER_LIGHT,
+  suggestionBgDark: KEY_SUGGESTION_BG_DARK,
+  suggestionTextDark: KEY_SUGGESTION_TEXT_DARK,
+  suggestionHighlightBgDark: KEY_SUGGESTION_HIGHLIGHT_BG_DARK,
+  suggestionHighlightTextDark: KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK,
+  suggestionBorderDark: KEY_SUGGESTION_BORDER_DARK,
+  suggestionFontSize: KEY_SUGGESTION_FONT_SIZE,
+  suggestionPaddingVertical: KEY_SUGGESTION_PADDING_VERTICAL,
+  suggestionPaddingHorizontal: KEY_SUGGESTION_PADDING_HORIZONTAL,
 } as const;
 
 export type SettingField = keyof typeof SETTINGS_KEYS;
@@ -125,23 +125,36 @@ export interface SettingsSchema {
   debugAiPredictorEnabled: boolean;
   productivityStats: Record<string, unknown>;
   enabledGrammarRules: string[];
-  tributeBgLight: string;
-  tributeTextLight: string;
-  tributeHighlightBgLight: string;
-  tributeHighlightTextLight: string;
-  tributeBorderLight: string;
-  tributeBgDark: string;
-  tributeTextDark: string;
-  tributeHighlightBgDark: string;
-  tributeHighlightTextDark: string;
-  tributeBorderDark: string;
-  tributeFontSize: string;
-  tributePaddingVertical: string;
-  tributePaddingHorizontal: string;
+  suggestionBgLight: string;
+  suggestionTextLight: string;
+  suggestionHighlightBgLight: string;
+  suggestionHighlightTextLight: string;
+  suggestionBorderLight: string;
+  suggestionBgDark: string;
+  suggestionTextDark: string;
+  suggestionHighlightBgDark: string;
+  suggestionHighlightTextDark: string;
+  suggestionBorderDark: string;
+  suggestionFontSize: string;
+  suggestionPaddingVertical: string;
+  suggestionPaddingHorizontal: string;
 }
 
 const ALIASES_BY_CANONICAL: Record<string, string[]> = {
   [SETTINGS_KEYS.enabled]: ["enabled"],
+  [SETTINGS_KEYS.suggestionBgLight]: ["tributeBgLight"],
+  [SETTINGS_KEYS.suggestionTextLight]: ["tributeTextLight"],
+  [SETTINGS_KEYS.suggestionHighlightBgLight]: ["tributeHighlightBgLight"],
+  [SETTINGS_KEYS.suggestionHighlightTextLight]: ["tributeHighlightTextLight"],
+  [SETTINGS_KEYS.suggestionBorderLight]: ["tributeBorderLight"],
+  [SETTINGS_KEYS.suggestionBgDark]: ["tributeBgDark"],
+  [SETTINGS_KEYS.suggestionTextDark]: ["tributeTextDark"],
+  [SETTINGS_KEYS.suggestionHighlightBgDark]: ["tributeHighlightBgDark"],
+  [SETTINGS_KEYS.suggestionHighlightTextDark]: ["tributeHighlightTextDark"],
+  [SETTINGS_KEYS.suggestionBorderDark]: ["tributeBorderDark"],
+  [SETTINGS_KEYS.suggestionFontSize]: ["tributeFontSize"],
+  [SETTINGS_KEYS.suggestionPaddingVertical]: ["tributePaddingVertical"],
+  [SETTINGS_KEYS.suggestionPaddingHorizontal]: ["tributePaddingHorizontal"],
 };
 
 export function getSettingStorageKey(field: SettingField): string {

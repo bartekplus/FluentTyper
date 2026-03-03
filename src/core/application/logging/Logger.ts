@@ -13,7 +13,7 @@ export interface LogContext {
   requestId?: number;
   tabId?: number;
   frameId?: number;
-  tributeId?: number;
+  suggestionId?: number;
   [key: string]: unknown;
 }
 
