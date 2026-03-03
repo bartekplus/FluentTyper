@@ -7,9 +7,7 @@ export interface SuggestionElementDiscoveryOptions {
 
 export class SuggestionElementDiscovery {
   private readonly selectors: string;
-  private readonly isStructurallyEligibleElement: (
-    elem: HTMLElement,
-  ) => elem is SuggestionElement;
+  private readonly isStructurallyEligibleElement: (elem: HTMLElement) => elem is SuggestionElement;
 
   constructor(options: SuggestionElementDiscoveryOptions) {
     this.selectors = options.selectors;

@@ -30,10 +30,6 @@ export class SuggestionPredictionCoordinator {
     this.separatorRegex = separatorRegex;
   }
 
-  public updateMinWordLengthToPredict(minWordLengthToPredict: number): void {
-    this.minWordLengthToPredict = minWordLengthToPredict;
-  }
-
   public schedule(
     entry: SuggestionEntry,
     {

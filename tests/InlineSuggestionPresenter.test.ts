@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, jest, test } from "bun:test";
 import { InlineSuggestionPresenter } from "../src/adapters/chrome/content-script/suggestions/InlineSuggestionPresenter";
 import { InlineSuggestionView } from "../src/adapters/chrome/content-script/suggestions/InlineSuggestionView";
-import { SuggestionPositioningService } from "../src/adapters/chrome/content-script/suggestions/SuggestionPositioningService";
+import type { SuggestionPositioningService } from "../src/adapters/chrome/content-script/suggestions/SuggestionPositioningService";
 import { createRect, createSuggestionEntry } from "./suggestionTestUtils";
 
 describe("InlineSuggestionPresenter", () => {
@@ -11,7 +11,9 @@ describe("InlineSuggestionPresenter", () => {
   });
 
   test("renders inline suffix for matching suggestion", () => {
-    const renderSpy = jest.spyOn(InlineSuggestionView, "render").mockImplementation(() => undefined);
+    const renderSpy = jest
+      .spyOn(InlineSuggestionView, "render")
+      .mockImplementation(() => undefined);
     const removeAllSpy = jest
       .spyOn(InlineSuggestionView, "removeAll")
       .mockImplementation(() => undefined);
@@ -42,7 +44,9 @@ describe("InlineSuggestionPresenter", () => {
   });
 
   test("clears inline UI when suggestion does not match mention prefix", () => {
-    const renderSpy = jest.spyOn(InlineSuggestionView, "render").mockImplementation(() => undefined);
+    const renderSpy = jest
+      .spyOn(InlineSuggestionView, "render")
+      .mockImplementation(() => undefined);
     const removeAllSpy = jest
       .spyOn(InlineSuggestionView, "removeAll")
       .mockImplementation(() => undefined);

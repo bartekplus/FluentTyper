@@ -1,6 +1,6 @@
 import { describe, expect, jest, test } from "bun:test";
 import { SuggestionMenuPresenter } from "../src/adapters/chrome/content-script/suggestions/SuggestionMenuPresenter";
-import { SuggestionPositioningService } from "../src/adapters/chrome/content-script/suggestions/SuggestionPositioningService";
+import type { SuggestionPositioningService } from "../src/adapters/chrome/content-script/suggestions/SuggestionPositioningService";
 
 describe("SuggestionMenuPresenter", () => {
   test("renders suggestions with header and highlight", () => {

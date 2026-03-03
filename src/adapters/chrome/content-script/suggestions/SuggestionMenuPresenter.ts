@@ -14,7 +14,9 @@ export interface SuggestionMenuRenderModel {
 export class SuggestionMenuPresenter {
   private readonly positioningService: SuggestionPositioningService;
 
-  constructor(positioningService: SuggestionPositioningService = new SuggestionPositioningService()) {
+  constructor(
+    positioningService: SuggestionPositioningService = new SuggestionPositioningService(),
+  ) {
     this.positioningService = positioningService;
   }
 

@@ -13,7 +13,6 @@ import { SuggestionTelemetryService } from "./SuggestionTelemetryService";
 import { SuggestionTextEditService } from "./SuggestionTextEditService";
 import { TextTargetAdapter, type TextTarget } from "./TextTargetAdapter";
 import type {
-  PredictionRequest,
   PredictionResponse,
   SuggestionElement,
   SuggestionEntry,
@@ -23,8 +22,6 @@ import type {
 } from "./types";
 
 export class SuggestionManagerRuntime {
-  private readonly selectors: string;
-  private readonly getPrediction: (context: PredictionRequest) => void;
   private readonly discovery: SuggestionElementDiscovery;
   private readonly entryRegistry = new SuggestionEntryRegistry();
   private readonly lifecycleController: SuggestionLifecycleController;
@@ -38,14 +35,8 @@ export class SuggestionManagerRuntime {
   private readonly keyboardHandler: SuggestionKeyboardHandler;
   private readonly telemetry: SuggestionTelemetry;
 
-  private minWordLengthToPredict: number;
-  private autocompleteOnSpace: boolean;
-  private autocompleteOnEnter: boolean;
-  private autocompleteOnTab: boolean;
-  private selectByDigit: boolean;
-  private revertOnBackspace: boolean;
-  private displayLangHeader: boolean;
-  private inlineSuggestionEnabled: boolean;
+  private readonly displayLangHeader: boolean;
+  private readonly inlineSuggestionEnabled: boolean;
 
   private lang: string;
   private separatorRegex: RegExp;
@@ -53,10 +44,8 @@ export class SuggestionManagerRuntime {
   private activeEntryId: number | null = null;
 
   constructor(options: SuggestionManagerOptions) {
-    this.selectors = options.selectors;
-    this.getPrediction = options.getPrediction;
     this.discovery = new SuggestionElementDiscovery({
-      selectors: this.selectors,
+      selectors: options.selectors,
       isStructurallyEligibleElement: this.isStructurallyEligibleElement.bind(this),
     });
     this.lifecycleController = new SuggestionLifecycleController({
@@ -64,12 +53,6 @@ export class SuggestionManagerRuntime {
       dismissEntry: (entry) => this.dismissEntry(entry),
     });
 
-    this.minWordLengthToPredict = options.minWordLengthToPredict;
-    this.autocompleteOnSpace = options.autocomplete;
-    this.autocompleteOnEnter = options.autocompleteOnEnter;
-    this.autocompleteOnTab = options.autocompleteOnTab;
-    this.selectByDigit = options.selectByDigit;
-    this.revertOnBackspace = options.revertOnBackspace;
     this.displayLangHeader = options.displayLangHeader;
     this.inlineSuggestionEnabled = options.inline_suggestion;
 
@@ -77,9 +60,9 @@ export class SuggestionManagerRuntime {
     this.separatorRegex = LANG_SEPARATOR_CHARS_REGEX[this.lang] || /\s+/;
     this.predictionCoordinator = new SuggestionPredictionCoordinator({
       debounceMs: 120,
-      getPrediction: this.getPrediction,
+      getPrediction: options.getPrediction,
       lang: this.lang,
-      minWordLengthToPredict: this.minWordLengthToPredict,
+      minWordLengthToPredict: options.minWordLengthToPredict,
       separatorRegex: this.separatorRegex,
     });
     this.telemetry = options.telemetry ?? new SuggestionTelemetryService();
@@ -88,11 +71,11 @@ export class SuggestionManagerRuntime {
       isSeparator: this.isSeparator.bind(this),
     });
     this.keyboardHandler = new SuggestionKeyboardHandler({
-      autocompleteOnSpace: this.autocompleteOnSpace,
-      autocompleteOnEnter: this.autocompleteOnEnter,
-      autocompleteOnTab: this.autocompleteOnTab,
-      selectByDigit: this.selectByDigit,
-      revertOnBackspace: this.revertOnBackspace,
+      autocompleteOnSpace: options.autocomplete,
+      autocompleteOnEnter: options.autocompleteOnEnter,
+      autocompleteOnTab: options.autocompleteOnTab,
+      selectByDigit: options.selectByDigit,
+      revertOnBackspace: options.revertOnBackspace,
       inlineSuggestionEnabled: this.inlineSuggestionEnabled,
       handleMissingSpaceAfterAccept: (entry, event) =>
         this.textEditService.handleMissingSpaceAfterAccept(
@@ -517,7 +500,11 @@ export class SuggestionManagerRuntime {
     this.finishAcceptedSuggestion(entry, accepted.triggerText, accepted.insertedText);
   }
 
-  private finishAcceptedSuggestion(entry: SuggestionEntry, triggerText: string, insertedText: string): void {
+  private finishAcceptedSuggestion(
+    entry: SuggestionEntry,
+    triggerText: string,
+    insertedText: string,
+  ): void {
     this.clearSuggestions(entry);
 
     entry.missingTrailingSpace = true;

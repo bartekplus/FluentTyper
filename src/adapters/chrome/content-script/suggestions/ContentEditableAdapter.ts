@@ -42,9 +42,7 @@ export class ContentEditableAdapter {
     this.setCaret(elem, cursorAfter);
   }
 
-  public getBlockContext(
-    elem: HTMLElement,
-  ): { beforeCursor: string; afterCursor: string } | null {
+  public getBlockContext(elem: HTMLElement): { beforeCursor: string; afterCursor: string } | null {
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0) {
       return null;

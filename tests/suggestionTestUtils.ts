@@ -1,4 +1,7 @@
-import type { SuggestionEntry, SuggestionElement } from "../src/adapters/chrome/content-script/suggestions/types";
+import type {
+  SuggestionEntry,
+  SuggestionElement,
+} from "../src/adapters/chrome/content-script/suggestions/types";
 
 export function createSuggestionEntry(
   overrides: Partial<SuggestionEntry> & { elem?: SuggestionElement } = {},
