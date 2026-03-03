@@ -628,8 +628,7 @@ function init() {
     chrome.runtime.openOptionsPage();
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const browserAPI = (window as any).browser || chrome;
+  const browserAPI = (window as Window & { browser?: typeof chrome }).browser || chrome;
   if (browserAPI && browserAPI.permissions) {
     const permissionBanner = document.getElementById("permissionBanner");
     const grantBtn = document.getElementById("grantPermissionBtn");

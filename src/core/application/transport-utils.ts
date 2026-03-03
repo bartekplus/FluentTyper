@@ -10,11 +10,9 @@ export function checkLastError(): void {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function promisifiedSendMessage<T = any>(
+export function promisifiedSendMessage<T = unknown, M = unknown>(
   tabId: number,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  message: any,
+  message: M,
   options?: chrome.tabs.MessageSendOptions,
 ): Promise<T | undefined> {
   return new Promise<T | undefined>((resolve, reject) => {
