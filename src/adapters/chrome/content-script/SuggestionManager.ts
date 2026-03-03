@@ -11,6 +11,7 @@ import { InlineSuggestionView } from "./suggestions/InlineSuggestionView";
 import { SuggestionElementDiscovery } from "./suggestions/SuggestionElementDiscovery";
 import { SuggestionEntryRegistry } from "./suggestions/SuggestionEntryRegistry";
 import { SuggestionLifecycleController } from "./suggestions/SuggestionLifecycleController";
+import { SuggestionMenuPresenter } from "./suggestions/SuggestionMenuPresenter";
 import { SuggestionMenuView } from "./suggestions/SuggestionMenuView";
 import { TextTargetAdapter, type TextTarget } from "./suggestions/TextTargetAdapter";
 import type {
@@ -52,6 +53,7 @@ export class SuggestionManager {
   private readonly discovery: SuggestionElementDiscovery;
   private readonly entryRegistry = new SuggestionEntryRegistry();
   private readonly lifecycleController: SuggestionLifecycleController;
+  private readonly menuPresenter = new SuggestionMenuPresenter();
 
   private minWordLengthToPredict: number;
   private autocompleteOnSpace: boolean;
@@ -126,12 +128,26 @@ export class SuggestionManager {
 
     if (this.inlineSuggestionEnabled) {
       entry.inlineSuggestion = entry.suggestions[0] ?? null;
-      this.hideMenu(entry);
+      this.menuPresenter.hide(entry.menu, entry.list);
       this.renderInlineSuggestion(entry);
     } else {
       entry.inlineSuggestion = null;
       InlineSuggestionView.removeAll(document);
-      this.renderMenu(entry);
+      if (
+        this.menuPresenter.render({
+          list: entry.list,
+          suggestions: entry.suggestions,
+          selectedIndex: entry.selectedIndex,
+          menuHeader: entry.menuHeader,
+          mentionText: entry.latestMentionText,
+        })
+      ) {
+        this.syncMenuTypography(entry.menu, entry.elem);
+        this.positionMenu(entry);
+        entry.menu.style.display = "block";
+      } else {
+        this.menuPresenter.hide(entry.menu, entry.list);
+      }
     }
 
     if (entry.pendingInlineAccept) {
@@ -482,39 +498,10 @@ export class SuggestionManager {
     return { token: beforeCursor.slice(start), start };
   }
 
-  private renderMenu(entry: SuggestionEntry): void {
-    entry.list.innerHTML = "";
-
-    if (entry.menuHeader) {
-      const header = document.createElement("lh");
-      header.textContent = entry.menuHeader;
-      entry.list.appendChild(header);
-    }
-
-    entry.suggestions.forEach((suggestion, index) => {
-      const li = document.createElement("li");
-      li.innerHTML = this.buildSuggestionMenuItemHtml(entry.latestMentionText, suggestion);
-      li.setAttribute("data-index", String(index));
-      if (index === entry.selectedIndex) {
-        li.classList.add("highlight");
-      }
-      entry.list.appendChild(li);
-    });
-
-    if (entry.suggestions.length === 0) {
-      this.hideMenu(entry);
-      return;
-    }
-
-    this.syncMenuTypography(entry.menu, entry.elem);
-    this.positionMenu(entry);
-    entry.menu.style.display = "block";
-  }
-
   private positionMenu(entry: SuggestionEntry): void {
     const rect = this.getCaretRect(entry);
     if (!rect) {
-      this.hideMenu(entry);
+      this.menuPresenter.hide(entry.menu, entry.list);
       return;
     }
 
@@ -794,11 +781,6 @@ export class SuggestionManager {
     } as DOMRect;
   }
 
-  private hideMenu(entry: SuggestionEntry): void {
-    entry.menu.style.display = "none";
-    entry.list.innerHTML = "";
-  }
-
   private renderInlineSuggestion(entry: SuggestionEntry): void {
     if (!this.inlineSuggestionEnabled) {
       InlineSuggestionView.removeAll(document);
@@ -851,7 +833,7 @@ export class SuggestionManager {
     entry.selectedIndex = 0;
     entry.inlineSuggestion = null;
     entry.pendingInlineAccept = false;
-    this.hideMenu(entry);
+    this.menuPresenter.hide(entry.menu, entry.list);
     InlineSuggestionView.removeAll(document);
   }
 
@@ -924,7 +906,7 @@ export class SuggestionManager {
       return;
     }
 
-    if (!this.isMenuVisible(entry)) {
+    if (!this.menuPresenter.isVisible(entry.menu, entry.suggestions.length)) {
       return;
     }
 
@@ -967,10 +949,6 @@ export class SuggestionManager {
     }
   }
 
-  private isMenuVisible(entry: SuggestionEntry): boolean {
-    return entry.menu.style.display !== "none" && entry.suggestions.length > 0;
-  }
-
   private moveSelection(entry: SuggestionEntry, direction: number): void {
     if (entry.suggestions.length === 0) {
       return;
@@ -979,15 +957,7 @@ export class SuggestionManager {
     const next =
       (entry.selectedIndex + direction + entry.suggestions.length) % entry.suggestions.length;
     entry.selectedIndex = next;
-
-    const items = Array.from(entry.list.querySelectorAll("li"));
-    items.forEach((item, index) => {
-      if (index === entry.selectedIndex) {
-        item.classList.add("highlight");
-      } else {
-        item.classList.remove("highlight");
-      }
-    });
+    this.menuPresenter.updateHighlight(entry.list, entry.selectedIndex);
   }
 
   private mapDigitToIndex(key: string): number | null {
@@ -995,35 +965,6 @@ export class SuggestionManager {
       return null;
     }
     return key === "0" ? 9 : Number(key) - 1;
-  }
-
-  private buildSuggestionMenuItemHtml(mentionText: string, suggestion: string): string {
-    const safeSuggestion = this.escapeHtml(suggestion);
-    const mention = (mentionText || "").trim();
-    if (!mention) {
-      return safeSuggestion;
-    }
-
-    const lowerSuggestion = suggestion.toLowerCase();
-    const lowerMention = mention.toLowerCase();
-    const matchIndex = lowerSuggestion.indexOf(lowerMention);
-    if (matchIndex < 0) {
-      return safeSuggestion;
-    }
-
-    const before = this.escapeHtml(suggestion.slice(0, matchIndex));
-    const match = this.escapeHtml(suggestion.slice(matchIndex, matchIndex + mention.length));
-    const after = this.escapeHtml(suggestion.slice(matchIndex + mention.length));
-    return `${before}<span>${match}</span>${after}`;
-  }
-
-  private escapeHtml(value: string): string {
-    return value
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#39;");
   }
 
   private acceptSuggestionAtIndex(entry: SuggestionEntry, index: number): void {
