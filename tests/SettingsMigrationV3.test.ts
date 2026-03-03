@@ -76,6 +76,45 @@ describe("migrateSettingsV3 – applySpacingRules migration", () => {
     expect(settings.store["enabledGrammarRules"]).toEqual([]);
     expect(settings.store["applySpacingRules"]).toBe(false);
   });
+
+  test("migrates autoCapitalize=true to enabledGrammarRules including capitalizeFirstLetter", async () => {
+    const settings = createMockSettingsManager({ autoCapitalize: true });
+
+    await migrateSettingsV3(settings);
+
+    expect(settings.store["enabledGrammarRules"]).toEqual(["capitalizeFirstLetter"]);
+    expect(settings.store["autoCapitalize"]).toBe(false);
+  });
+
+  test("migrates applySpacingRules and autoCapitalize together", async () => {
+    const settings = createMockSettingsManager({
+      applySpacingRules: true,
+      autoCapitalize: true,
+    });
+
+    await migrateSettingsV3(settings);
+
+    expect(settings.store["enabledGrammarRules"]).toEqual([
+      "spacingRule",
+      "capitalizeFirstLetter",
+    ]);
+    expect(settings.store["applySpacingRules"]).toBe(false);
+    expect(settings.store["autoCapitalize"]).toBe(false);
+  });
+
+  test("does not re-apply capitalizeFirstLetter after migration marker", async () => {
+    const settings = createMockSettingsManager({ autoCapitalize: true });
+
+    await migrateSettingsV3(settings);
+    expect(settings.store["enabledGrammarRules"]).toEqual(["capitalizeFirstLetter"]);
+    expect(settings.store["autoCapitalize"]).toBe(false);
+
+    await settings.set("enabledGrammarRules", []);
+    await migrateSettingsV3(settings);
+
+    expect(settings.store["enabledGrammarRules"]).toEqual([]);
+    expect(settings.store["autoCapitalize"]).toBe(false);
+  });
 });
 
 describe("readSettingWithAliases", () => {

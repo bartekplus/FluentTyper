@@ -10,7 +10,6 @@ import {
   KEY_AUTOCOMPLETE_ON_ENTER,
   KEY_AUTOCOMPLETE_ON_TAB,
   KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
-  KEY_AUTO_CAPITALIZE,
   KEY_SELECT_BY_DIGIT,
   KEY_REVERT_ON_BACKSPACE,
   KEY_LANGUAGE,
@@ -196,14 +195,6 @@ const manifest = {
     {
       tab: i18n.get("core_settings"),
       group: i18n.get("behavior_after_completion"),
-      name: KEY_AUTO_CAPITALIZE,
-      type: "checkbox",
-      label: i18n.get("auto_capitalize_label"),
-      default: true,
-    },
-    {
-      tab: i18n.get("core_settings"),
-      group: i18n.get("behavior_after_completion"),
       name: KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
       type: "checkbox",
       label: i18n.get("add_space_label") + ":&nbsp;<small>" + i18n.get("add_space_desc") + "</small>",
@@ -229,7 +220,7 @@ const manifest = {
       actions: [
         {
           text: i18n.get("grammar_rules_recommended"),
-          values: ["spacingRule"],
+          values: ["spacingRule", "capitalizeFirstLetter"],
         },
         {
           text: i18n.get("grammar_rules_enable_all"),
@@ -256,7 +247,7 @@ const manifest = {
           example: i18n.get("grammar_rule_capitalize_example"),
         },
       ],
-      default: [],
+      default: ["capitalizeFirstLetter"],
     },
     {
       tab: i18n.get("core_settings"),

@@ -84,7 +84,7 @@ export class ConfigAssembler {
       numSuggestions,
       minWordLengthToPredict,
       insertSpaceAfterAutocomplete,
-      autoCapitalize,
+      enabledGrammarRules,
       textExpansions,
 
       timeFormat,
@@ -95,7 +95,7 @@ export class ConfigAssembler {
       this.coreSettingsRepository.getNumSuggestions(),
       this.coreSettingsRepository.getMinWordLengthToPredict(),
       this.coreSettingsRepository.getInsertSpaceAfterAutocomplete(),
-      this.coreSettingsRepository.getAutoCapitalize(),
+      this.coreSettingsRepository.getEnabledGrammarRules(),
       this.coreSettingsRepository.getTextExpansions(),
 
       this.coreSettingsRepository.getTimeFormat(),
@@ -103,6 +103,7 @@ export class ConfigAssembler {
       this.coreSettingsRepository.getUserDictionaryList(),
       this.predictorSettingsRepository.getSnapshot(),
     ]);
+    const autoCapitalize = enabledGrammarRules.includes("capitalizeFirstLetter");
 
     return {
       language,
@@ -118,7 +119,7 @@ export class ConfigAssembler {
         timeFormat,
         dateFormat,
         userDictionaryList,
-        enabledGrammarRules: await this.coreSettingsRepository.getEnabledGrammarRules(),
+        enabledGrammarRules,
         aiPredictorEnabled: this.options.enableAIPredictor
           ? predictorSettings.aiPredictorEnabled
           : false,
