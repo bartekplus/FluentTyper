@@ -199,6 +199,39 @@ async function setSettingAndWait(
   );
 }
 
+async function setSettingAndWaitStable(
+  worker: BackgroundContext,
+  key: string,
+  value: unknown,
+  attempts = 3,
+  timeoutMs = 5000,
+): Promise<void> {
+  const expected = JSON.stringify(value);
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      await setSetting(worker, key, value);
+      await waitForSettingMatch(
+        worker,
+        key,
+        (currentValue) => JSON.stringify(currentValue) === expected,
+        timeoutMs,
+      );
+      return;
+    } catch (error) {
+      lastError = error;
+      if (attempt < attempts) {
+        await new Promise((r) => setTimeout(r, 150));
+      }
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error(`Timed out waiting for setting ${key} to stabilize as ${expected}`);
+}
+
 async function notifyConfigChange(browser: Browser, worker: BackgroundContext): Promise<void> {
   if (isFirefox()) {
     await worker.evaluate(
@@ -2141,5 +2174,99 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await applyConfigChange(browser, worker!);
     },
     browserTimeout(30000, 45000),
+  );
+
+  test.each(["#test-input", CKEDITOR_SELECTOR])(
+    "Grammar Rule Engine preserves code-style brackets while keeping prose spacing in %s",
+    async (selector) => {
+      await setSettingAndWaitStable(
+        worker!,
+        KEY_ENABLED_GRAMMAR_RULES,
+        ["spacingRule"],
+        4,
+        browserTimeout(5000, 7000),
+      );
+      await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, true);
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+      await applyConfigChange(browser, worker!);
+
+      await gotoTestPage(page, {
+        enableCkEditor: shouldEnableCkEditor(selector),
+      });
+      await page.bringToFront();
+
+      await waitForInputReady(page, selector);
+
+      const readNormalizedText = async (): Promise<string> =>
+        (await getInputContent(page, selector)).replace(/\xA0/g, " ");
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "if(");
+      await page.waitForFunction(
+        (sel) => {
+          const el = document.querySelector(sel);
+          if (!el) {
+            return false;
+          }
+          const val = ((el as HTMLInputElement).value ?? el.textContent ?? "").replace(/\xA0/g, " ");
+          return val.includes("if (");
+        },
+        { timeout: browserTimeout(3000, 5000) },
+        selector,
+      );
+      let elementText = await readNormalizedText();
+      expect(elementText).toContain("if (");
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "console.log(");
+      await new Promise((r) => setTimeout(r, 1500));
+      elementText = await readNormalizedText();
+      expect(elementText).toContain("console.log(");
+      expect(elementText).not.toContain("console.log (");
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "myArray[");
+      await new Promise((r) => setTimeout(r, 1500));
+      elementText = await readNormalizedText();
+      expect(elementText).toContain("myArray[");
+      expect(elementText).not.toContain("myArray [");
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "foo(bar())");
+      await new Promise((r) => setTimeout(r, 1500));
+      elementText = await readNormalizedText();
+      expect(elementText).toContain("foo(bar())");
+      expect(elementText).not.toContain("foo(bar() )");
+      expect(elementText).not.toContain("foo(bar()) ");
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "Hello (world)");
+      await page.waitForFunction(
+        (sel) => {
+          const el = document.querySelector(sel);
+          if (!el) {
+            return false;
+          }
+          const val = ((el as HTMLInputElement).value ?? el.textContent ?? "").replace(/\xA0/g, " ");
+          return val.includes("Hello (world) ");
+        },
+        { timeout: browserTimeout(3000, 5000) },
+        selector,
+      );
+      elementText = await readNormalizedText();
+      expect(elementText).toContain("Hello (world) ");
+
+      await setSettingAndWaitStable(
+        worker!,
+        KEY_ENABLED_GRAMMAR_RULES,
+        [],
+        2,
+        browserTimeout(3000, 5000),
+      );
+      await applyConfigChange(browser, worker!);
+    },
+    browserTimeout(35000, 55000),
   );
 });
