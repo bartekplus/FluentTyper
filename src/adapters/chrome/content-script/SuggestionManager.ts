@@ -10,6 +10,7 @@ import { SPACING_RULES, Spacing } from "@core/domain/spacingRules";
 import { InlineSuggestionView } from "./suggestions/InlineSuggestionView";
 import { SuggestionElementDiscovery } from "./suggestions/SuggestionElementDiscovery";
 import { SuggestionEntryRegistry } from "./suggestions/SuggestionEntryRegistry";
+import { SuggestionLifecycleController } from "./suggestions/SuggestionLifecycleController";
 import { SuggestionMenuView } from "./suggestions/SuggestionMenuView";
 import { TextTargetAdapter, type TextTarget } from "./suggestions/TextTargetAdapter";
 import type {
@@ -50,6 +51,7 @@ export class SuggestionManager {
   private readonly getPrediction: (context: PredictionRequest) => void;
   private readonly discovery: SuggestionElementDiscovery;
   private readonly entryRegistry = new SuggestionEntryRegistry();
+  private readonly lifecycleController: SuggestionLifecycleController;
 
   private minWordLengthToPredict: number;
   private autocompleteOnSpace: boolean;
@@ -64,9 +66,6 @@ export class SuggestionManager {
   private separatorRegex: RegExp;
 
   private activeEntryId: number | null = null;
-  private documentPointerDownListenerAttached = false;
-  private readonly onDocumentPointerDownBound: EventListener =
-    this.onDocumentPointerDown.bind(this);
 
   constructor(options: SuggestionManagerOptions) {
     this.selectors = options.selectors;
@@ -74,6 +73,10 @@ export class SuggestionManager {
     this.discovery = new SuggestionElementDiscovery({
       selectors: this.selectors,
       isStructurallyEligibleElement: this.isStructurallyEligibleElement.bind(this),
+    });
+    this.lifecycleController = new SuggestionLifecycleController({
+      getEntries: () => this.entryRegistry.values(),
+      dismissEntry: (entry) => this.dismissEntry(entry),
     });
 
     this.minWordLengthToPredict = options.minWordLengthToPredict;
@@ -267,13 +270,6 @@ export class SuggestionManager {
     };
     entry.handlers.menuClick = this.onMenuClick.bind(this, id);
 
-    elem.addEventListener("input", entry.handlers.input, true);
-    elem.addEventListener("keydown", entry.handlers.keydown, true);
-    elem.addEventListener("focus", entry.handlers.focus, true);
-    elem.addEventListener("blur", entry.handlers.blur, true);
-    elem.addEventListener("click", entry.handlers.click, true);
-    menu.addEventListener("mousedown", entry.handlers.menuMouseDown);
-    menu.addEventListener("click", entry.handlers.menuClick);
     this.syncMenuTypography(menu, elem);
 
     elem.setAttribute("data-tribute", "true");
@@ -282,7 +278,7 @@ export class SuggestionManager {
     elem.suggestionMenu = menu;
 
     this.entryRegistry.register(entry);
-    this.ensureDocumentPointerDownListener();
+    this.lifecycleController.attachEntryListeners(entry);
   }
 
   private detachHelper(id: number): void {
@@ -291,14 +287,7 @@ export class SuggestionManager {
       return;
     }
 
-    entry.elem.removeEventListener("input", entry.handlers.input, true);
-    entry.elem.removeEventListener("keydown", entry.handlers.keydown, true);
-    entry.elem.removeEventListener("focus", entry.handlers.focus, true);
-    entry.elem.removeEventListener("blur", entry.handlers.blur, true);
-    entry.elem.removeEventListener("click", entry.handlers.click, true);
-
-    entry.menu.removeEventListener("mousedown", entry.handlers.menuMouseDown);
-    entry.menu.removeEventListener("click", entry.handlers.menuClick);
+    this.lifecycleController.detachEntryListeners(entry);
     entry.menu.remove();
     if (entry.pendingRequestTimer !== null) {
       clearTimeout(entry.pendingRequestTimer);
@@ -315,41 +304,8 @@ export class SuggestionManager {
     if (this.activeEntryId === id) {
       this.activeEntryId = null;
     }
-    if (this.entryRegistry.size === 0) {
-      this.removeDocumentPointerDownListener();
-    }
 
     InlineSuggestionView.removeAll(document);
-  }
-
-  private ensureDocumentPointerDownListener(): void {
-    if (this.documentPointerDownListenerAttached) {
-      return;
-    }
-    document.addEventListener("mousedown", this.onDocumentPointerDownBound, true);
-    this.documentPointerDownListenerAttached = true;
-  }
-
-  private removeDocumentPointerDownListener(): void {
-    if (!this.documentPointerDownListenerAttached) {
-      return;
-    }
-    document.removeEventListener("mousedown", this.onDocumentPointerDownBound, true);
-    this.documentPointerDownListenerAttached = false;
-  }
-
-  private onDocumentPointerDown(event: Event): void {
-    const target = event.target;
-    if (!(target instanceof Node)) {
-      return;
-    }
-
-    for (const entry of this.entryRegistry.values()) {
-      if (entry.elem.contains(target) || entry.menu.contains(target)) {
-        continue;
-      }
-      this.dismissEntry(entry);
-    }
   }
 
   private dismissEntry(entry: SuggestionEntry, keepActive = false): void {
