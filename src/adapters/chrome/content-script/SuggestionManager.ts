@@ -1,7 +1,5 @@
 import { isInDocument } from "@core/application/dom-utils";
-import { CMD_CONTENT_SCRIPT_USAGE_EVENT } from "@core/domain/constants";
 import { LANG_SEPARATOR_CHARS_REGEX, SUPPORTED_LANGUAGES } from "@core/domain/lang";
-import type { ContentScriptUsageEventMessage } from "@core/domain/messageTypes";
 import { InlineSuggestionPresenter } from "./suggestions/InlineSuggestionPresenter";
 import { SuggestionElementDiscovery } from "./suggestions/SuggestionElementDiscovery";
 import { SuggestionEntryRegistry } from "./suggestions/SuggestionEntryRegistry";
@@ -11,6 +9,7 @@ import { SuggestionMenuPresenter } from "./suggestions/SuggestionMenuPresenter";
 import { SuggestionPositioningService } from "./suggestions/SuggestionPositioningService";
 import { SuggestionPredictionCoordinator } from "./suggestions/SuggestionPredictionCoordinator";
 import { SuggestionMenuView } from "./suggestions/SuggestionMenuView";
+import { SuggestionTelemetryService } from "./suggestions/SuggestionTelemetryService";
 import { SuggestionTextEditService } from "./suggestions/SuggestionTextEditService";
 import { TextTargetAdapter, type TextTarget } from "./suggestions/TextTargetAdapter";
 import type {
@@ -20,6 +19,7 @@ import type {
   SuggestionEntry,
   SuggestionManagerOptions,
   SuggestionSnapshot,
+  SuggestionTelemetry,
 } from "./suggestions/types";
 
 export class SuggestionManager {
@@ -36,6 +36,7 @@ export class SuggestionManager {
   private readonly predictionCoordinator: SuggestionPredictionCoordinator;
   private readonly textEditService: SuggestionTextEditService;
   private readonly keyboardHandler: SuggestionKeyboardHandler;
+  private readonly telemetry: SuggestionTelemetry;
 
   private minWordLengthToPredict: number;
   private autocompleteOnSpace: boolean;
@@ -81,6 +82,7 @@ export class SuggestionManager {
       minWordLengthToPredict: this.minWordLengthToPredict,
       separatorRegex: this.separatorRegex,
     });
+    this.telemetry = options.telemetry ?? new SuggestionTelemetryService();
     this.textEditService = new SuggestionTextEditService({
       findMentionToken: this.findMentionToken.bind(this),
       isSeparator: this.isSeparator.bind(this),
@@ -176,8 +178,7 @@ export class SuggestionManager {
     }
 
     if (entry.suggestions.length > 0) {
-      this.emitUsageEvent({
-        eventType: "suggestion_shown",
+      this.telemetry.recordSuggestionShown({
         suggestionCount: entry.suggestions.length,
         language: context.lang,
       });
@@ -522,33 +523,9 @@ export class SuggestionManager {
     entry.missingTrailingSpace = true;
     entry.expectedCursorPos = TextTargetAdapter.snapshot(entry.elem as TextTarget).cursorOffset;
 
-    const typedTextLength = triggerText.length;
-    const insertedTextLength = insertedText.length;
-
-    this.emitUsageEvent({
-      eventType: "suggestion_accepted",
+    this.telemetry.recordSuggestionAccepted({
       triggerText,
-      typedTextLength,
-      insertedTextLength,
-      language: this.lang,
-    });
-    this.emitUsageEvent({
-      eventType: "snippet_expanded",
-      triggerText,
-      typedTextLength,
-      insertedTextLength,
-      language: this.lang,
-    });
-    this.emitUsageEvent({
-      eventType: "chars_inserted_from_snippet",
-      amount: insertedTextLength,
-      triggerText,
-      language: this.lang,
-    });
-    this.emitUsageEvent({
-      eventType: "chars_typed_for_trigger",
-      amount: typedTextLength,
-      triggerText,
+      insertedText,
       language: this.lang,
     });
   }
@@ -567,15 +544,5 @@ export class SuggestionManager {
 
   private isTextAreaElement(elem: Element): elem is HTMLTextAreaElement {
     return elem.tagName === "TEXTAREA";
-  }
-
-  private emitUsageEvent(context: ContentScriptUsageEventMessage["context"]): void {
-    const message: ContentScriptUsageEventMessage = {
-      command: CMD_CONTENT_SCRIPT_USAGE_EVENT,
-      context,
-    };
-    chrome.runtime.sendMessage(message, () => {
-      void chrome.runtime.lastError;
-    });
   }
 }

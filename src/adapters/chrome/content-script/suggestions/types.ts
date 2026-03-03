@@ -32,6 +32,16 @@ export interface SuggestionManagerOptions {
   displayLangHeader: boolean;
   inline_suggestion: boolean;
   getPrediction: (context: PredictionRequest) => void;
+  telemetry?: SuggestionTelemetry;
+}
+
+export interface SuggestionTelemetry {
+  recordSuggestionShown(args: { suggestionCount: number; language: string }): void;
+  recordSuggestionAccepted(args: {
+    triggerText: string;
+    insertedText: string;
+    language: string;
+  }): void;
 }
 
 export interface ReplacementSnapshot {
