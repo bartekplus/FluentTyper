@@ -238,6 +238,23 @@ describe("SuggestionManager", () => {
     ).toBeUndefined();
   });
 
+  test("attaches helper after hidden input becomes visible and is rescanned", async () => {
+    const { manager } = await createManager();
+    const input = document.createElement("input");
+    input.type = "text";
+    input.style.display = "none";
+    document.body.appendChild(input);
+
+    manager.queryAndAttachHelper();
+    expect(input.hasAttribute("data-suggestion")).toBe(false);
+
+    input.style.display = "";
+    manager.queryAndAttachHelper(input);
+
+    expect(input.hasAttribute("data-suggestion")).toBe(true);
+    expect((input as HTMLInputElement & { suggestionMenu?: Element }).suggestionMenu).toBeDefined();
+  });
+
   test("detaches helper when attached input becomes password field", async () => {
     const { manager } = await createManager();
     const input = document.createElement("input");
