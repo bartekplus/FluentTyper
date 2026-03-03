@@ -600,6 +600,141 @@ body.fluenttyper-options {
   margin-left: 0.45rem;
 }
 
+.fluenttyper-options .grammar-rule-selector {
+  border: 1px solid var(--divider-color);
+  border-radius: 10px;
+  padding: 0.62rem;
+  background-color: color-mix(in srgb, var(--box-background-color) 94%, var(--divider-color));
+}
+
+.fluenttyper-options .grammar-rule-selector-help {
+  margin: -0.4rem 0 0.6rem;
+  font-size: 0.77rem;
+  color: var(--text-color-light);
+  line-height: 1.45;
+}
+
+.fluenttyper-options .grammar-rule-selector-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+  margin-bottom: 0.55rem;
+}
+
+.fluenttyper-options .grammar-rule-selector-summary {
+  margin: 0;
+  font-size: 0.74rem;
+  color: var(--text-color);
+  font-weight: 600;
+}
+
+.fluenttyper-options .grammar-rule-selector-summary.is-empty {
+  color: #b45309;
+}
+
+.fluenttyper-options .grammar-rule-selector-actions {
+  margin: 0;
+}
+
+.fluenttyper-options .grammar-rule-selector-actions .button {
+  border-color: var(--divider-color);
+  background-color: var(--box-background-color);
+  color: var(--text-color-light);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.fluenttyper-options .grammar-rule-selector-actions .button:hover {
+  color: var(--text-color);
+}
+
+.fluenttyper-options .grammar-rule-selector-list {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.fluenttyper-options .grammar-rule-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.62rem;
+  border: 1px solid var(--divider-color);
+  border-radius: 9px;
+  background-color: var(--box-background-color);
+  padding: 0.52rem 0.58rem;
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    background-color 0.18s ease,
+    transform 0.12s ease;
+}
+
+.fluenttyper-options .grammar-rule-card:hover {
+  border-color: color-mix(in srgb, var(--accent-color) 45%, var(--divider-color));
+  transform: translateY(-1px);
+}
+
+.fluenttyper-options .grammar-rule-card.is-active {
+  border-color: color-mix(in srgb, var(--accent-color) 70%, var(--divider-color));
+  background-color: color-mix(in srgb, var(--accent-color) 11%, var(--box-background-color));
+}
+
+.fluenttyper-options .grammar-rule-card-toggle {
+  margin: 0;
+  width: 1.02rem;
+  height: 1.02rem;
+  accent-color: var(--accent-color);
+  order: 2;
+}
+
+.fluenttyper-options .grammar-rule-card-body {
+  min-width: 0;
+  order: 1;
+}
+
+.fluenttyper-options .grammar-rule-card-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.fluenttyper-options .grammar-rule-card-title {
+  font-size: 0.79rem;
+  font-weight: 700;
+  color: var(--text-color);
+}
+
+.fluenttyper-options .grammar-rule-card-badge {
+  font-size: 0.64rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-radius: 999px;
+  padding: 0.15rem 0.42rem;
+  border: 1px solid color-mix(in srgb, var(--accent-color) 40%, var(--divider-color));
+  color: var(--accent-color);
+  background-color: color-mix(in srgb, var(--accent-color) 12%, var(--box-background-color));
+}
+
+.fluenttyper-options .grammar-rule-card-description {
+  margin: 0.22rem 0 0;
+  font-size: 0.73rem;
+  color: var(--text-color-light);
+  line-height: 1.42;
+}
+
+.fluenttyper-options .grammar-rule-card-example {
+  margin: 0.24rem 0 0;
+  font-size: 0.7rem;
+  color: color-mix(in srgb, var(--text-color-light) 85%, var(--text-color));
+  line-height: 1.4;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+    monospace;
+}
+
 .fluenttyper-options .productivity-insights {
   display: grid;
   gap: 0.9rem;
@@ -1073,6 +1208,19 @@ body.fluenttyper-options {
 
   .fluenttyper-options .settings-group {
     padding: 0.7rem 0.75rem 0.45rem;
+  }
+
+  .fluenttyper-options .grammar-rule-selector-toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .fluenttyper-options .grammar-rule-selector-actions {
+    width: 100%;
+  }
+
+  .fluenttyper-options .grammar-rule-selector-actions .button {
+    flex: 1 1 auto;
   }
 
   .fluenttyper-options .productivity-insights-grid,

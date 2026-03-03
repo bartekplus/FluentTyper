@@ -221,11 +221,40 @@ const manifest = {
       tab: i18n.get("core_settings"),
       group: i18n.get("grammar_rules"),
       name: KEY_ENABLED_GRAMMAR_RULES,
-      type: "listBoxMultiselect",
+      type: "ruleToggleCards",
       label: i18n.get("grammar_rules_label"),
+      helpText: i18n.get("grammar_rules_help"),
+      summaryLabel: i18n.get("grammar_rules_summary_label"),
+      emptyStateText: i18n.get("grammar_rules_empty_state"),
+      actions: [
+        {
+          text: i18n.get("grammar_rules_recommended"),
+          values: ["spacingRule"],
+        },
+        {
+          text: i18n.get("grammar_rules_enable_all"),
+          values: ["spacingRule", "capitalizeFirstLetter"],
+        },
+        {
+          text: i18n.get("grammar_rules_disable_all"),
+          values: [],
+        },
+      ],
       options: [
-        ["spacingRule", i18n.get("grammar_rule_spacing")],
-        ["capitalizeFirstLetter", i18n.get("grammar_rule_capitalize")],
+        {
+          value: "spacingRule",
+          text: i18n.get("grammar_rule_spacing"),
+          description: i18n.get("grammar_rule_spacing_desc"),
+          example: i18n.get("grammar_rule_spacing_example"),
+          badge: i18n.get("grammar_rule_recommended_badge"),
+          recommended: true,
+        },
+        {
+          value: "capitalizeFirstLetter",
+          text: i18n.get("grammar_rule_capitalize"),
+          description: i18n.get("grammar_rule_capitalize_desc"),
+          example: i18n.get("grammar_rule_capitalize_example"),
+        },
       ],
       default: [],
     },
