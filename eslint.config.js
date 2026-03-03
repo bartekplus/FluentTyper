@@ -2,16 +2,19 @@ import js from "@eslint/js";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 import { defineConfig } from "eslint/config";
+import { fileURLToPath } from "url";
 
 const ALL_CODE_FILES = ["**/*.{js,mjs,cjs,ts,mts,cts}"];
 const SOURCE_FILES = ["src/**/*.{js,mjs,cjs,ts,mts,cts,d.ts}"];
 const TEST_FILES = ["tests/**/*.{js,mjs,cjs,ts,mts,cts}"];
 const TOOLING_FILES = ["build.ts", "eslint.config.js", "scripts/**/*.{js,mjs,cjs,ts,mts,cts}"];
 const MODULE_FILES = ["src/**/*.{ts,mts,cts,d.ts}"];
+const ESLINT_CONFIG_DIR = fileURLToPath(new URL(".", import.meta.url));
 
 export default defineConfig([
   {
     ignores: [
+      ".cache/**",
       ".tmp/**",
       "build/**",
       "coverage/**",
@@ -31,6 +34,15 @@ export default defineConfig([
     extends: ["js/recommended"],
   },
   ...tseslint.configs.recommended,
+  {
+    files: MODULE_FILES,
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: ESLINT_CONFIG_DIR,
+      },
+    },
+  },
   {
     files: SOURCE_FILES,
     languageOptions: {
