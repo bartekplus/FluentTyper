@@ -271,7 +271,7 @@ describe("SuggestionManager", () => {
       }),
     );
 
-    const menuItems = Array.from(document.querySelectorAll(".suggestion-container li"));
+    const menuItems = Array.from(document.querySelectorAll(".ft-suggestion-container li"));
     expect(menuItems.length).toBe(2);
     expect(menuItems[0]?.textContent).toBe("hello\xA0");
 
@@ -286,7 +286,7 @@ describe("SuggestionManager", () => {
     );
 
     const second = document.querySelector(
-      ".suggestion-container li[data-index='1']",
+      ".ft-suggestion-container li[data-index='1']",
     ) as HTMLElement;
     second.dispatchEvent(new Event("mousedown", { bubbles: true, cancelable: true }));
     second.dispatchEvent(new Event("click", { bubbles: true, cancelable: true }));
@@ -308,14 +308,14 @@ describe("SuggestionManager", () => {
       }),
     );
 
-    expect(document.querySelectorAll(".suggestion-container li").length).toBe(0);
-    const ghost = document.querySelector(".suggestion-inline") as HTMLElement | null;
+    expect(document.querySelectorAll(".ft-suggestion-container li").length).toBe(0);
+    const ghost = document.querySelector(".ft-suggestion-inline") as HTMLElement | null;
     expect(ghost).toBeDefined();
     expect(ghost?.textContent).toBe("ord\xA0");
 
     dispatchKeydown(input, "Tab");
     expect(input.value).toBe("word\xA0");
-    expect(document.querySelector(".suggestion-inline")).toBeNull();
+    expect(document.querySelector(".ft-suggestion-inline")).toBeNull();
   });
 
   test("clears inline suggestion on blur", async () => {
@@ -332,10 +332,41 @@ describe("SuggestionManager", () => {
       }),
     );
 
-    expect(document.querySelector(".suggestion-inline")).not.toBeNull();
+    expect(document.querySelector(".ft-suggestion-inline")).not.toBeNull();
 
     input.dispatchEvent(new Event("blur", { bubbles: true }));
-    expect(document.querySelector(".suggestion-inline")).toBeNull();
+    expect(document.querySelector(".ft-suggestion-inline")).toBeNull();
+  });
+
+  test("inline cleanup removes only extension-owned nodes", async () => {
+    const { manager, getPrediction } = await createManager({ inline_suggestion: true });
+    const input = document.createElement("input");
+    input.type = "text";
+    const hostInline = document.createElement("div");
+    hostInline.className = "ft-suggestion-inline";
+    hostInline.textContent = "host-owned";
+    document.body.appendChild(input);
+    document.body.appendChild(hostInline);
+    manager.queryAndAttachHelper();
+
+    const request = await typeAndCollectRequest(input, "w", getPrediction);
+    manager.fulfillPrediction(
+      buildResponse(request, {
+        predictions: ["word\xA0"],
+      }),
+    );
+
+    expect(
+      document.querySelector(".ft-suggestion-inline[data-ft-suggestion-owned='true']"),
+    ).not.toBeNull();
+
+    input.dispatchEvent(new Event("blur", { bubbles: true }));
+
+    expect(
+      document.querySelector(".ft-suggestion-inline[data-ft-suggestion-owned='true']"),
+    ).toBeNull();
+    expect(document.body.contains(hostInline)).toBe(true);
+    expect(hostInline.textContent).toBe("host-owned");
   });
 
   test("rejects stale predictions but allows guarded stale textEdit", async () => {
@@ -353,7 +384,7 @@ describe("SuggestionManager", () => {
         predictions: ["hello\xA0"],
       }),
     );
-    expect(document.querySelectorAll(".suggestion-container li").length).toBe(0);
+    expect(document.querySelectorAll(".ft-suggestion-container li").length).toBe(0);
 
     manager.fulfillPrediction(
       buildResponse(req1, {

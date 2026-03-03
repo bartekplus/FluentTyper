@@ -1,5 +1,8 @@
 export class InlineSuggestionView {
-  static readonly CLASS_NAME = "suggestion-inline";
+  static readonly CLASS_NAME = "ft-suggestion-inline";
+  static readonly OWNED_ATTR = "data-ft-suggestion-owned";
+  static readonly ROLE_ATTR = "data-ft-suggestion-role";
+  static readonly INLINE_ROLE = "inline";
 
   static render({
     target,
@@ -21,6 +24,8 @@ export class InlineSuggestionView {
 
     const ghost = doc.createElement("div");
     ghost.className = InlineSuggestionView.CLASS_NAME;
+    ghost.setAttribute(InlineSuggestionView.OWNED_ATTR, "true");
+    ghost.setAttribute(InlineSuggestionView.ROLE_ATTR, InlineSuggestionView.INLINE_ROLE);
     ghost.textContent = text;
 
     const computedStyle = window.getComputedStyle(target);
@@ -59,7 +64,9 @@ export class InlineSuggestionView {
   }
 
   static removeAll(doc: Document = document): void {
-    const nodes = doc.querySelectorAll(`.${InlineSuggestionView.CLASS_NAME}`);
+    const nodes = doc.querySelectorAll(
+      `[${InlineSuggestionView.OWNED_ATTR}="true"][${InlineSuggestionView.ROLE_ATTR}="${InlineSuggestionView.INLINE_ROLE}"]`,
+    );
     nodes.forEach((node) => node.remove());
   }
 }

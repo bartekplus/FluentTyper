@@ -37,7 +37,7 @@
   --suggestion-padding-horizontal: 0.8rem;
 }
 
-.suggestion-container {
+.ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"] {
   /* --- Layout & Positioning --- */
   top: 0;
   left: 0;
@@ -57,14 +57,14 @@
 }
 
 /* --- List Reset --- */
-.suggestion-container ul {
+.ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"] ul {
   margin: 0 !important;
   padding: 0 !important;
   list-style: none !important;
 }
 
 /* --- General List Item Styling --- */
-.suggestion-container li {
+.ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"] li {
   padding: var(--suggestion-padding-vertical) var(--suggestion-padding-horizontal) !important;
   font-size: var(--suggestion-font-size) !important;
   cursor: pointer !important;
@@ -77,7 +77,7 @@
 }
 
 /* --- List Header --- */
-.suggestion-container lh {
+.ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"] lh {
   display: block !important;
   padding: var(--suggestion-padding-vertical) var(--suggestion-padding-horizontal) !important;
   background-color: var(--suggestion-header-bg-light) !important;
@@ -91,18 +91,20 @@
 }
 
 /* --- Highlighted/Active Item --- */
-.suggestion-container li.highlight {
+.ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"]
+  li.highlight {
   background-color: var(--suggestion-highlight-bg-light) !important;
   color: var(--suggestion-highlight-text-light) !important;
 }
 
 /* Matched text inside a suggestion */
-.suggestion-container li span {
+.ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"] li span {
   font-weight: 700 !important;
 }
 
 /* --- "No Match" Item --- */
-.suggestion-container li.no-match {
+.ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"]
+  li.no-match {
   color: var(
     --suggestion-header-text-light
   ) !important; /* Use header text color for less emphasis */
@@ -113,30 +115,32 @@
 /* --- Dark Mode using CSS Media Query --- */
 /* ======================================================= */
 @media (prefers-color-scheme: dark) {
-  .suggestion-container {
+  .ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"] {
     background-color: var(--suggestion-bg-dark) !important;
     color: var(--suggestion-text-dark) !important;
     border-color: var(--suggestion-border-color-dark) !important;
     box-shadow: 0 4px 12px var(--suggestion-shadow-color-dark) !important;
   }
 
-  .suggestion-container lh {
+  .ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"] lh {
     background-color: var(--suggestion-header-bg-dark) !important;
     color: var(--suggestion-header-text-dark) !important;
     border-bottom-color: var(--suggestion-border-color-dark) !important;
   }
 
-  .suggestion-container li.highlight {
+  .ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"]
+    li.highlight {
     background-color: var(--suggestion-highlight-bg-dark) !important;
     color: var(--suggestion-highlight-text-dark) !important;
   }
 
-  .suggestion-container li.no-match {
+  .ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"]
+    li.no-match {
     color: var(--suggestion-header-text-dark) !important;
   }
 }
 
-.suggestion-inline {
+.ft-suggestion-inline[data-ft-suggestion-owned="true"][data-ft-suggestion-role="inline"] {
   pointer-events: none;
   white-space: pre-wrap;
 }

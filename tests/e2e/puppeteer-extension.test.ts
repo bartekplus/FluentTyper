@@ -522,7 +522,7 @@ async function waitForVisibleSuggestionTexts(
       const activeMenu = activeElement?.suggestionMenu;
       const containers = [
         ...(activeMenu instanceof Element ? [activeMenu] : []),
-        ...Array.from(document.querySelectorAll(".suggestion-container")).filter(
+        ...Array.from(document.querySelectorAll(".ft-suggestion-container")).filter(
           (container) => container !== activeMenu,
         ),
       ];
@@ -561,7 +561,7 @@ async function hasVisibleSuggestions(page: Page): Promise<boolean> {
     const activeMenu = activeElement?.suggestionMenu;
     const containers = [
       ...(activeMenu instanceof Element ? [activeMenu] : []),
-      ...Array.from(document.querySelectorAll(".suggestion-container")).filter(
+      ...Array.from(document.querySelectorAll(".ft-suggestion-container")).filter(
         (container) => container !== activeMenu,
       ),
     ];
@@ -592,7 +592,7 @@ async function waitForNoVisibleSuggestions(
       const activeMenu = activeElement?.suggestionMenu;
       const containers = [
         ...(activeMenu instanceof Element ? [activeMenu] : []),
-        ...Array.from(document.querySelectorAll(".suggestion-container")).filter(
+        ...Array.from(document.querySelectorAll(".ft-suggestion-container")).filter(
           (container) => container !== activeMenu,
         ),
       ];
@@ -625,7 +625,7 @@ async function clickFirstVisibleSuggestion(
       const activeMenu = activeElement?.suggestionMenu;
       const containers = [
         ...(activeMenu instanceof Element ? [activeMenu] : []),
-        ...Array.from(document.querySelectorAll(".suggestion-container")).filter(
+        ...Array.from(document.querySelectorAll(".ft-suggestion-container")).filter(
           (container) => container !== activeMenu,
         ),
       ];
@@ -2063,7 +2063,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       const element = await page.$(selector);
 
       await element!.type("h"); // Trigger popup
-      await page.waitForSelector(".suggestion-container li", {
+      await page.waitForSelector(".ft-suggestion-container li", {
         timeout: browserTimeout(4000, 10000),
       });
       await page.keyboard.press("Escape");
