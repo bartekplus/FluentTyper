@@ -1,5 +1,10 @@
+import { SuggestionPositioningService } from "./SuggestionPositioningService";
+import type { SuggestionElement } from "./types";
+
 export interface SuggestionMenuRenderModel {
+  menu: HTMLDivElement;
   list: HTMLUListElement;
+  target: SuggestionElement;
   suggestions: string[];
   selectedIndex: number;
   menuHeader: string | null;
@@ -7,6 +12,12 @@ export interface SuggestionMenuRenderModel {
 }
 
 export class SuggestionMenuPresenter {
+  private readonly positioningService: SuggestionPositioningService;
+
+  constructor(positioningService: SuggestionPositioningService = new SuggestionPositioningService()) {
+    this.positioningService = positioningService;
+  }
+
   public render(model: SuggestionMenuRenderModel): boolean {
     model.list.innerHTML = "";
 
@@ -26,7 +37,19 @@ export class SuggestionMenuPresenter {
       model.list.appendChild(li);
     });
 
-    return model.suggestions.length > 0;
+    if (model.suggestions.length === 0) {
+      this.hide(model.menu, model.list);
+      return false;
+    }
+
+    this.positioningService.syncMenuTypography(model.menu, model.target);
+    if (!this.positioningService.positionMenu(model.menu, model.target)) {
+      this.hide(model.menu, model.list);
+      return false;
+    }
+
+    model.menu.style.display = "block";
+    return true;
   }
 
   public hide(menu: HTMLDivElement, list: HTMLUListElement): void {
