@@ -91,4 +91,20 @@ describe("SuggestionTelemetryService", () => {
       },
     ]);
   });
+
+  test("swallows runtime send failures", () => {
+    const service = new SuggestionTelemetryService({
+      sendMessage: () => {
+        throw new Error("runtime unavailable");
+      },
+      readLastError: () => undefined,
+    });
+
+    expect(() =>
+      service.recordSuggestionShown({
+        suggestionCount: 1,
+        language: "en_US",
+      }),
+    ).not.toThrow();
+  });
 });
