@@ -1,9 +1,6 @@
 import type { SettingField } from "@core/domain/contracts/settings";
 import { getSettingStorageAliases, getSettingStorageKey } from "@core/domain/contracts/settings";
-import {
-  KEY_AUTO_CAPITALIZE,
-  KEY_LEGACY_APPLY_SPACING_RULES,
-} from "@core/domain/constants";
+import { KEY_AUTO_CAPITALIZE, KEY_LEGACY_APPLY_SPACING_RULES } from "@core/domain/constants";
 import type { JsonValue } from "../settingsManager";
 import type { SettingsManager } from "../settingsManager";
 
@@ -57,9 +54,7 @@ export async function migrateSettingsV3(settings: SettingsManager): Promise<void
     if (legacyAutoCapitalize === true) {
       const grammarKey = getSettingStorageKey("enabledGrammarRules");
       const existing = await settings.get(grammarKey);
-      const currentRules = Array.isArray(existing)
-        ? existing.map((rule) => String(rule))
-        : [];
+      const currentRules = Array.isArray(existing) ? existing.map((rule) => String(rule)) : [];
 
       if (!currentRules.includes("capitalizeFirstLetter")) {
         await settings.set(grammarKey, [...currentRules, "capitalizeFirstLetter"] as JsonValue);

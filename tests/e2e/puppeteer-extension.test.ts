@@ -2228,7 +2228,10 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           if (!el) {
             return false;
           }
-          const val = ((el as HTMLInputElement).value ?? el.textContent ?? "").replace(/\xA0/g, " ");
+          const val = ((el as HTMLInputElement).value ?? el.textContent ?? "").replace(
+            /\xA0/g,
+            " ",
+          );
           return val.includes("if (");
         },
         { timeout: browserTimeout(3000, 5000) },
@@ -2267,7 +2270,10 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           if (!el) {
             return false;
           }
-          const val = ((el as HTMLInputElement).value ?? el.textContent ?? "").replace(/\xA0/g, " ");
+          const val = ((el as HTMLInputElement).value ?? el.textContent ?? "").replace(
+            /\xA0/g,
+            " ",
+          );
           return val.includes("Hello (world) ");
         },
         { timeout: browserTimeout(3000, 5000) },
@@ -2339,7 +2345,10 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             if (!el) {
               return false;
             }
-            const val = ((el as HTMLInputElement).value ?? el.textContent ?? "").replace(/\xA0/g, " ");
+            const val = ((el as HTMLInputElement).value ?? el.textContent ?? "").replace(
+              /\xA0/g,
+              " ",
+            );
             return val === expectedText;
           },
           { timeout: browserTimeout(3000, 5000) },

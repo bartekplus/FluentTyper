@@ -1,5 +1,10 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
-import { SPACE_CHARS, SPACING_RULES, Spacing, type SpacingRule as SpacingPolicy } from "../../spacingRules";
+import {
+  SPACE_CHARS,
+  SPACING_RULES,
+  Spacing,
+  type SpacingRule as SpacingPolicy,
+} from "../../spacingRules";
 
 export class SpacingRule implements GrammarRule {
   readonly id = "spacingRule";
@@ -57,8 +62,7 @@ export class SpacingRule implements GrammarRule {
     const hasSpaceBefore = SPACE_CHARS.includes(lastCharMin1);
 
     const insertSpaceAfter =
-      this.insertSpaceAfterAutocomplete &&
-      effectivePolicy.spaceAfter === Spacing.INSERT_SPACE;
+      this.insertSpaceAfterAutocomplete && effectivePolicy.spaceAfter === Spacing.INSERT_SPACE;
 
     const spaceBeforeViolated =
       (requiresSpaceBefore && !hasSpaceBefore) || (requiresNoSpaceBefore && hasSpaceBefore);
@@ -288,9 +292,7 @@ export class SpacingRule implements GrammarRule {
       return false;
     }
 
-    return (
-      previousSignificant === "." || SpacingRule.CODE_CUE_CHARS.has(previousSignificant)
-    );
+    return previousSignificant === "." || SpacingRule.CODE_CUE_CHARS.has(previousSignificant);
   }
 
   private findPreviousSignificantChar(inputStr: string, startIndex: number): string | null {
@@ -343,7 +345,10 @@ export class SpacingRule implements GrammarRule {
       return baseRule;
     }
 
-    if (openingBracket === "{" && this.findPreviousSignificantChar(inputStr, openingIndex - 1) === ")") {
+    if (
+      openingBracket === "{" &&
+      this.findPreviousSignificantChar(inputStr, openingIndex - 1) === ")"
+    ) {
       return baseRule;
     }
 
@@ -359,7 +364,11 @@ export class SpacingRule implements GrammarRule {
     closingBracket: string,
     closingIndex: number,
   ): SpacingPolicy {
-    const shouldInsertAfter = this.isProseLikeClosingContext(inputStr, closingBracket, closingIndex);
+    const shouldInsertAfter = this.isProseLikeClosingContext(
+      inputStr,
+      closingBracket,
+      closingIndex,
+    );
     return {
       spaceBefore: Spacing.REMOVE_SPACE,
       spaceAfter: shouldInsertAfter ? Spacing.INSERT_SPACE : Spacing.NO_CHANGE,

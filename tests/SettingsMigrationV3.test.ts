@@ -94,10 +94,7 @@ describe("migrateSettingsV3 – applySpacingRules migration", () => {
 
     await migrateSettingsV3(settings);
 
-    expect(settings.store["enabledGrammarRules"]).toEqual([
-      "spacingRule",
-      "capitalizeFirstLetter",
-    ]);
+    expect(settings.store["enabledGrammarRules"]).toEqual(["spacingRule", "capitalizeFirstLetter"]);
     expect(settings.store["applySpacingRules"]).toBe(false);
     expect(settings.store["autoCapitalize"]).toBe(false);
   });
