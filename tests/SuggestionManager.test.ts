@@ -303,9 +303,33 @@ describe("SuggestionManager", () => {
     );
 
     expect(document.querySelectorAll(".suggestion-container li").length).toBe(0);
+    const ghost = document.querySelector(".suggestion-inline") as HTMLElement | null;
+    expect(ghost).toBeDefined();
+    expect(ghost?.textContent).toBe("ord\xA0");
 
     dispatchKeydown(input, "Tab");
     expect(input.value).toBe("word\xA0");
+    expect(document.querySelector(".suggestion-inline")).toBeNull();
+  });
+
+  test("clears inline suggestion on blur", async () => {
+    const { manager, getPrediction } = await createManager({ inline_suggestion: true });
+    const input = document.createElement("input");
+    input.type = "text";
+    document.body.appendChild(input);
+    manager.queryAndAttachHelper();
+
+    const request = await typeAndCollectRequest(input, "w", getPrediction);
+    manager.fulfillPrediction(
+      buildResponse(request, {
+        predictions: ["word\xA0"],
+      }),
+    );
+
+    expect(document.querySelector(".suggestion-inline")).not.toBeNull();
+
+    input.dispatchEvent(new Event("blur", { bubbles: true }));
+    expect(document.querySelector(".suggestion-inline")).toBeNull();
   });
 
   test("rejects stale predictions but allows guarded stale textEdit", async () => {

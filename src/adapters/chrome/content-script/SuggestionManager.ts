@@ -83,6 +83,7 @@ interface Entry {
     input: EventListener;
     keydown: EventListener;
     focus: EventListener;
+    blur: EventListener;
     click: EventListener;
     menuMouseDown: EventListener;
     menuClick: EventListener;
@@ -158,8 +159,10 @@ export class SuggestionManager {
     if (this.inlineSuggestionEnabled) {
       entry.inlineSuggestion = entry.suggestions[0] ?? null;
       this.hideMenu(entry);
+      this.renderInlineSuggestion(entry);
     } else {
       entry.inlineSuggestion = null;
+      InlineSuggestionView.removeAll(document);
       this.renderMenu(entry);
     }
 
@@ -312,6 +315,7 @@ export class SuggestionManager {
         input: () => undefined,
         keydown: () => undefined,
         focus: () => undefined,
+        blur: () => undefined,
         click: () => undefined,
         menuMouseDown: () => undefined,
         menuClick: () => undefined,
@@ -321,6 +325,7 @@ export class SuggestionManager {
     entry.handlers.input = this.onElementInput.bind(this, id);
     entry.handlers.keydown = this.onElementKeyDown.bind(this, id);
     entry.handlers.focus = this.onElementFocus.bind(this, id);
+    entry.handlers.blur = this.onElementBlur.bind(this, id);
     entry.handlers.click = this.onElementFocus.bind(this, id);
     entry.handlers.menuMouseDown = (event) => {
       event.preventDefault();
@@ -330,6 +335,7 @@ export class SuggestionManager {
     elem.addEventListener("input", entry.handlers.input, true);
     elem.addEventListener("keydown", entry.handlers.keydown, true);
     elem.addEventListener("focus", entry.handlers.focus, true);
+    elem.addEventListener("blur", entry.handlers.blur, true);
     elem.addEventListener("click", entry.handlers.click, true);
     menu.addEventListener("mousedown", entry.handlers.menuMouseDown);
     menu.addEventListener("click", entry.handlers.menuClick);
@@ -353,6 +359,7 @@ export class SuggestionManager {
     entry.elem.removeEventListener("input", entry.handlers.input, true);
     entry.elem.removeEventListener("keydown", entry.handlers.keydown, true);
     entry.elem.removeEventListener("focus", entry.handlers.focus, true);
+    entry.elem.removeEventListener("blur", entry.handlers.blur, true);
     entry.elem.removeEventListener("click", entry.handlers.click, true);
 
     entry.menu.removeEventListener("mousedown", entry.handlers.menuMouseDown);
@@ -403,6 +410,22 @@ export class SuggestionManager {
 
   private onElementFocus(id: number): void {
     this.activeEntryId = id;
+    const entry = this.entries.get(id);
+    if (!entry || !this.inlineSuggestionEnabled) {
+      return;
+    }
+    this.renderInlineSuggestion(entry);
+  }
+
+  private onElementBlur(id: number): void {
+    if (this.activeEntryId === id) {
+      this.activeEntryId = null;
+    }
+    const entry = this.entries.get(id);
+    if (!entry) {
+      return;
+    }
+    this.clearSuggestions(entry);
   }
 
   private onElementInput(id: number): void {
@@ -413,6 +436,9 @@ export class SuggestionManager {
     }
     const snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
     entry.latestMentionText = this.findMentionToken(snapshot.beforeCursor).token;
+    if (this.inlineSuggestionEnabled) {
+      this.renderInlineSuggestion(entry);
+    }
     this.schedulePrediction(entry, false);
   }
 
@@ -690,10 +716,17 @@ export class SuggestionManager {
     }
 
     const range = selection.getRangeAt(0).cloneRange();
-    let rect = range.getBoundingClientRect();
+    const getRangeRect = (value: Range): DOMRect | null => {
+      if (typeof value.getBoundingClientRect !== "function") {
+        return null;
+      }
+      return value.getBoundingClientRect();
+    };
+    let rect = getRangeRect(range);
 
     if ((!rect || rect.height === 0) && selection.anchorNode) {
-      const marker = document.createTextNode("\u200b");
+      const marker = document.createElement("span");
+      marker.textContent = "\u200b";
       range.insertNode(marker);
       rect = marker.getBoundingClientRect();
       marker.parentNode?.removeChild(marker);
@@ -809,6 +842,53 @@ export class SuggestionManager {
   private hideMenu(entry: Entry): void {
     entry.menu.style.display = "none";
     entry.list.innerHTML = "";
+  }
+
+  private renderInlineSuggestion(entry: Entry): void {
+    if (!this.inlineSuggestionEnabled) {
+      InlineSuggestionView.removeAll(document);
+      return;
+    }
+
+    const suggestion = entry.inlineSuggestion;
+    if (!suggestion) {
+      InlineSuggestionView.removeAll(document);
+      return;
+    }
+
+    const snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+    const mentionText =
+      this.findMentionToken(snapshot.beforeCursor).token || entry.latestMentionText;
+    if (!mentionText) {
+      InlineSuggestionView.removeAll(document);
+      return;
+    }
+
+    const lowerSuggestion = suggestion.toLowerCase();
+    const lowerMention = mentionText.toLowerCase();
+    if (!lowerSuggestion.startsWith(lowerMention)) {
+      InlineSuggestionView.removeAll(document);
+      return;
+    }
+
+    const suffix = suggestion.slice(mentionText.length);
+    if (!suffix) {
+      InlineSuggestionView.removeAll(document);
+      return;
+    }
+
+    const caretRect = this.getCaretRect(entry);
+    if (!caretRect) {
+      InlineSuggestionView.removeAll(document);
+      return;
+    }
+
+    InlineSuggestionView.render({
+      target: entry.elem,
+      text: suffix,
+      caretRect,
+      doc: document,
+    });
   }
 
   private clearSuggestions(entry: Entry): void {
