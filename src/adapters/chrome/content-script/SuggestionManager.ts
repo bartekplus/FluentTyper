@@ -204,8 +204,9 @@ export class SuggestionManager {
 
   public removeHelpersNotInDocument(): void {
     for (const [id, entry] of this.entries) {
-      // Keep helpers attached for temporarily hidden elements; they should resume when visible.
-      if (!isInDocument(entry.elem)) {
+      // Keep helpers attached for temporarily hidden elements, but detach when element
+      // becomes structurally/security-ineligible (e.g. password fields).
+      if (!isInDocument(entry.elem) || !this.isStructurallyEligibleElement(entry.elem)) {
         this.detachHelper(id);
       }
     }
@@ -265,10 +266,16 @@ export class SuggestionManager {
     if (!(elem instanceof HTMLElement)) {
       return false;
     }
+    if (!this.isStructurallyEligibleElement(elem)) {
+      return false;
+    }
     if (!this.isVisiblyInteractive(elem)) {
       return false;
     }
+    return true;
+  }
 
+  private isStructurallyEligibleElement(elem: HTMLElement): elem is SuggestionElement {
     if (this.isTextAreaElement(elem)) {
       return true;
     }

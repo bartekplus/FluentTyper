@@ -238,6 +238,25 @@ describe("SuggestionManager", () => {
     ).toBeUndefined();
   });
 
+  test("detaches helper when attached input becomes password field", async () => {
+    const { manager } = await createManager();
+    const input = document.createElement("input");
+    input.type = "text";
+    document.body.appendChild(input);
+
+    manager.queryAndAttachHelper();
+    expect(input.hasAttribute("data-suggestion")).toBe(true);
+    expect((input as HTMLInputElement & { suggestionMenu?: Element }).suggestionMenu).toBeDefined();
+
+    input.type = "password";
+    manager.removeHelpersNotInDocument();
+
+    expect(input.hasAttribute("data-suggestion")).toBe(false);
+    expect(
+      (input as HTMLInputElement & { suggestionMenu?: Element }).suggestionMenu,
+    ).toBeUndefined();
+  });
+
   test("renders popup suggestions and accepts via Tab and click", async () => {
     const { manager, getPrediction } = await createManager();
     const input = document.createElement("input");
