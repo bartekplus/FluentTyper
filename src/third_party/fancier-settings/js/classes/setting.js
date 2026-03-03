@@ -970,6 +970,250 @@ class ListBoxMultiselect extends ListBox {
   }
 }
 
+class RuleToggleCards extends Bundle {
+  normalizeOption(option) {
+    if (Array.isArray(option)) {
+      return {
+        value: option[0]?.toString?.() || "",
+        text: option[1] !== undefined ? option[1].toString() : option[0]?.toString?.() || "",
+      };
+    }
+    if (option && typeof option === "object") {
+      const value = option.value !== undefined ? option.value.toString() : "";
+      return {
+        value,
+        text: option.text !== undefined ? option.text.toString() : value,
+        description:
+          option.description !== undefined
+            ? option.description.toString()
+            : undefined,
+        example: option.example !== undefined ? option.example.toString() : undefined,
+        badge: option.badge !== undefined ? option.badge.toString() : undefined,
+        recommended: option.recommended === true,
+      };
+    }
+    const value = option !== undefined ? option.toString() : "";
+    return {
+      value,
+      text: value,
+    };
+  }
+
+  createDOM() {
+    this.bundle = new ElementWrapper("div", {
+      class: "field grammar-rule-selector-field",
+    });
+
+    this.container = new ElementWrapper("div", {
+      class: "control grammar-rule-selector",
+    });
+
+    this.label = new ElementWrapper("label", { class: "label" });
+    this.help = new ElementWrapper("p", { class: "grammar-rule-selector-help" });
+    this.toolbar = new ElementWrapper("div", {
+      class: "grammar-rule-selector-toolbar",
+    });
+    this.summary = new ElementWrapper("p", {
+      class: "grammar-rule-selector-summary",
+    });
+    this.actions = new ElementWrapper("div", {
+      class: "buttons has-addons grammar-rule-selector-actions",
+    });
+    this.ruleList = new ElementWrapper("div", {
+      class: "grammar-rule-selector-list",
+    });
+
+    const sourceOptions = Array.isArray(this.params.options)
+      ? this.params.options
+      : Array.isArray(this.params.options?.values)
+        ? this.params.options.values
+        : [];
+    this.ruleOptions = sourceOptions
+      .map((option) => this.normalizeOption(option))
+      .filter((option) => option.value.length > 0);
+    this.ruleControls = [];
+
+    this.ruleOptions.forEach((rule) => {
+      const card = new ElementWrapper("label", {
+        class: "grammar-rule-card",
+      });
+      const input = new ElementWrapper("input", {
+        type: "checkbox",
+        value: rule.value,
+        class: "grammar-rule-card-toggle",
+      });
+      const body = new ElementWrapper("div", {
+        class: "grammar-rule-card-body",
+      });
+      const titleRow = new ElementWrapper("div", {
+        class: "grammar-rule-card-title-row",
+      });
+      const title = new ElementWrapper("span", {
+        class: "grammar-rule-card-title",
+        innerText: rule.text,
+      });
+
+      title.inject(titleRow);
+      if (rule.badge) {
+        new ElementWrapper("span", {
+          class: "grammar-rule-card-badge",
+          innerText: rule.badge,
+        }).inject(titleRow);
+      }
+
+      titleRow.inject(body);
+      if (rule.description) {
+        new ElementWrapper("p", {
+          class: "grammar-rule-card-description",
+          innerText: rule.description,
+        }).inject(body);
+      }
+      if (rule.example) {
+        new ElementWrapper("p", {
+          class: "grammar-rule-card-example",
+          innerText: rule.example,
+        }).inject(body);
+      }
+
+      input.inject(card);
+      body.inject(card);
+      card.inject(this.ruleList);
+
+      this.ruleControls.push({
+        value: rule.value,
+        input,
+        card,
+      });
+    });
+
+    this.actionButtons = [];
+    const sourceActions = Array.isArray(this.params.actions) ? this.params.actions : [];
+    sourceActions.forEach((action) => {
+      if (
+        !action ||
+        typeof action !== "object" ||
+        action.text === undefined ||
+        !Array.isArray(action.values)
+      ) {
+        return;
+      }
+
+      const button = new ElementWrapper("button", {
+        type: "button",
+        class: "button is-small is-light",
+        innerText: action.text.toString(),
+      });
+      button.inject(this.actions);
+      this.actionButtons.push({
+        values: action.values.map((value) => value.toString()),
+        button,
+      });
+    });
+  }
+
+  setupDOM() {
+    if (this.params.label !== undefined) {
+      this.label.set("innerHTML", this.params.label);
+      this.label.inject(this.bundle);
+    }
+
+    if (this.params.helpText) {
+      this.help.set("innerText", this.params.helpText.toString());
+      this.help.inject(this.bundle);
+    }
+
+    if (this.actionButtons.length > 0) {
+      this.summary.inject(this.toolbar);
+      this.actions.inject(this.toolbar);
+      this.toolbar.inject(this.container);
+    } else {
+      this.summary.inject(this.container);
+    }
+
+    this.ruleList.inject(this.container);
+    this.container.inject(this.bundle);
+    this.updateStateUI();
+  }
+
+  addEvents() {
+    this.ruleControls.forEach((control) => {
+      control.input.addEvent(
+        "change",
+        function () {
+          this.updateStateUI();
+          if (this.params.name !== undefined) {
+            settings.set(this.params.name, this.get());
+          }
+          this.fireEvent("action", this.get());
+        }.bind(this),
+      );
+    });
+
+    this.actionButtons.forEach((actionButton) => {
+      actionButton.button.addEvent(
+        "click",
+        function (event) {
+          event.preventDefault();
+          this.set(actionButton.values);
+        }.bind(this),
+      );
+    });
+  }
+
+  get() {
+    return this.ruleControls
+      .filter((control) => control.input.get("checked") === true)
+      .map((control) => control.value);
+  }
+
+  set(values, noChangeEvent) {
+    const normalizedValues = Array.isArray(values)
+      ? values.map((value) => value.toString())
+      : [];
+    const selectedSet = new Set(normalizedValues);
+
+    this.ruleControls.forEach((control) => {
+      control.input.set("checked", selectedSet.has(control.value));
+    });
+
+    this.updateStateUI();
+    if (noChangeEvent !== true) {
+      if (this.params.name !== undefined) {
+        settings.set(this.params.name, this.get());
+      }
+      this.fireEvent("action", this.get());
+    }
+    return this;
+  }
+
+  updateStateUI() {
+    let activeCount = 0;
+    this.ruleControls.forEach((control) => {
+      const isChecked = control.input.get("checked") === true;
+      control.card.element.classList.toggle("is-active", isChecked);
+      if (isChecked) {
+        activeCount += 1;
+      }
+    });
+
+    if (activeCount === 0) {
+      this.summary.set(
+        "innerText",
+        (this.params.emptyStateText || "No grammar rules enabled.").toString(),
+      );
+      this.summary.element.classList.add("is-empty");
+      return;
+    }
+
+    const summaryLabel = (this.params.summaryLabel || "Active rules").toString();
+    this.summary.set(
+      "innerText",
+      `${summaryLabel}: ${activeCount}/${this.ruleControls.length}`,
+    );
+    this.summary.element.classList.remove("is-empty");
+  }
+}
+
 
 class Setting {
   constructor(container) {
@@ -988,6 +1232,7 @@ class Setting {
       popupButton: PopupButton,
       listBox: ListBox,
       listBoxMultiselect: ListBoxMultiselect,
+      ruleToggleCards: RuleToggleCards,
       radioButtons: RadioButtons,
       valueOnly: Bundle,
       modalButton: ModalButton,

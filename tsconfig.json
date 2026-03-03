@@ -15,7 +15,8 @@
     "esModuleInterop": true,
     "allowJs": true, // Allow JavaScript files to be compiled
     "checkJs": false,
-    "lib": ["DOM", "ES2022"],
+    "lib": ["ES2022", "DOM"],
+    "skipLibCheck": true,
     "moduleResolution": "bundler",
     "sourceMap": false,
     "typeRoots": ["node_modules/@types"]

@@ -35,6 +35,10 @@ class TributeEvents {
     return TributeEvents.isSpaceKey(event) || (event.key && event.key.length === 1);
   }
 
+  static grammarBoundaryChars() {
+    return [".", ",", "]", ")", "}", ">", "!", ":", ";", "?", "[", "(", "{", "<", "/", "—", "–", "-", "’", "*", "+", "="];
+  }
+
   bind(element) {
     const KEY_EVENT_TIMEOUT_MS = 32;
     element.boundKeyDown = this.keydown.bind(element, this);
@@ -185,6 +189,7 @@ class TributeEvents {
   }
 
   keyup(instance, event) {
+
     // Check for modifiers keys
     if (event instanceof KeyboardEvent) {
       let controlKeyPressed = false;
@@ -228,6 +233,7 @@ class TributeEvents {
       }
     }
 
+
     if (!instance.updateSelection(this)) {
       return;
     }
@@ -243,7 +249,7 @@ class TributeEvents {
         return trigger.charCodeAt(0) === keyCode;
       });
 
-      if (instance.tribute.isActive) ; else if (trigger) {
+      if (instance.tribute.isActive); else if (trigger) {
         // not active, but we found a trigger
         instance.tribute.current.collection = instance.tribute.collection.find((item) => {
           return item.trigger === trigger;
@@ -257,6 +263,17 @@ class TributeEvents {
     }
     const minLength = instance.tribute.current.collection.menuShowMinLength;
     if (instance.tribute.current.mentionText.length < minLength) {
+      const fullText = instance.tribute.current.fullText || "";
+      const lastChar = fullText.length ? fullText[fullText.length - 1] : "";
+      const shouldBypassMinLengthForGrammar =
+        instance.tribute.autocompleteMode &&
+        TributeEvents.grammarBoundaryChars().includes(lastChar);
+
+      if (shouldBypassMinLengthForGrammar) {
+        instance.tribute.showMenuFor(this, true);
+        return;
+      }
+
       instance.tribute.hideMenu();
       return;
     }
@@ -694,6 +711,9 @@ class TributeRange {
       if (!this.tribute.autocompleteMode && context.mentionTriggerChar.length) {
         endPos += context.mentionTriggerChar.length - 1;
       }
+
+
+
       myField.value =
         myField.value.substring(0, startPos) +
         text +
@@ -705,7 +725,7 @@ class TributeRange {
         sel,
         range
       } = this.getContentEditableSelectionStart(true);
-      const staticRange = new StaticRange({startContainer: sel.anchorNode, startOffset: sel.anchorOffset - context.mentionText.length, endContainer: sel.anchorNode, endOffset: sel.anchorOffset });
+      const staticRange = new StaticRange({ startContainer: sel.anchorNode, startOffset: sel.anchorOffset - context.mentionText.length, endContainer: sel.anchorNode, endOffset: sel.anchorOffset });
       const textSuffix =
         typeof this.tribute.replaceTextSuffix === "string"
           ? this.tribute.replaceTextSuffix
@@ -1861,19 +1881,48 @@ class Tribute {
 
     const processValues = (values, forceReplace, header = null) => {
       // Tribute may not be active any more by the time the value callback returns
-      if (!this.activationPending) {
+      // However, forceReplace (grammar corrections) should always apply regardless
+      // of menu activation state, since they don't show a menu.
+      if (!forceReplace && !this.activationPending) {
         return;
       }
-      this.activationPending = false;
-      // Element is no longer in focus - don't show menu
+      // Only clear activationPending for actual menu responses, not grammar corrections
+      if (!forceReplace) {
+        this.activationPending = false;
+      }
+      // Element is no longer in focus - don't show menu or apply edits
       if (this.range.getDocument().activeElement !== this.current.element) {
         return;
       }
 
       if (forceReplace) {
         // Do force replace - don't show menu
-        this.current.mentionPosition -= forceReplace.length;
-        this.current.mentionText = this.current.fullText.slice(-forceReplace.length);
+        // Use originalTextLength to compute the correct position in the current text,
+        // since the user may have typed more characters since the grammar rule was evaluated.
+        const textLen = forceReplace.originalTextLength || this.current.fullText.length;
+        const mentionPos = textLen - forceReplace.length;
+        // Verify the replacement position is still valid in the current text
+        if (mentionPos < 0 || mentionPos > this.current.fullText.length) {
+          return;
+        }
+
+        // Stale response validation
+        if (forceReplace.expectedSubstring !== undefined) {
+          const currentSubstring = this.current.fullText.substring(mentionPos, mentionPos + forceReplace.length);
+          if (currentSubstring !== forceReplace.expectedSubstring) {
+            return; // Drop stale correction
+          }
+        }
+        if (forceReplace.cursorToken !== undefined) {
+          const tokenStart = Math.max(0, mentionPos - forceReplace.cursorToken.length);
+          const actualToken = this.current.fullText.substring(tokenStart, mentionPos);
+          if (actualToken !== forceReplace.cursorToken) {
+            return; // Drop stale correction
+          }
+        }
+
+        this.current.mentionPosition = mentionPos;
+        this.current.mentionText = this.current.fullText.substring(mentionPos, mentionPos + forceReplace.length);
         this.replaceText(forceReplace.text, null, null);
         return;
       }

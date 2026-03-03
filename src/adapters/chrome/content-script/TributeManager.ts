@@ -265,11 +265,28 @@ export class TributeManager {
       lang: context.lang,
     });
     const tributeEntry = this.tributeArr[context.tributeId];
-    if (tributeEntry && tributeEntry.requestId === context.requestId && tributeEntry.done) {
-      const predictionItems = context.predictions.map((prediction) => ({
-        key: prediction,
-        value: prediction,
-      }));
+    const isCurrentRequest = tributeEntry && tributeEntry.requestId === context.requestId;
+    const hasForceReplace = context.forceReplace != null;
+
+    if (tributeEntry && (isCurrentRequest || hasForceReplace) && tributeEntry.done) {
+      // For grammar corrections (forceReplace), we allow stale responses through
+      // because the correction (e.g. capitalize first letter) is still valid even
+      // after the user has typed more characters. The position is computed from the
+      // original text length, not the current fullText.
+      if (!isCurrentRequest && hasForceReplace) {
+        logger.debug("Applying stale forceReplace grammar correction", {
+          tributeId: context.tributeId,
+          requestId: context.requestId,
+          currentRequestId: tributeEntry.requestId,
+        });
+      }
+
+      const predictionItems = isCurrentRequest
+        ? context.predictions.map((prediction) => ({
+            key: prediction,
+            value: prediction,
+          }))
+        : [];
 
       const header: string | undefined =
         this.displayLangHeader && context.lang
@@ -283,7 +300,8 @@ export class TributeManager {
         hasHeader: Boolean(header),
       });
       tributeEntry.done(predictionItems, context.forceReplace, header);
-      if (context.predictions.length > 0) {
+
+      if (isCurrentRequest && context.predictions.length > 0) {
         this.emitUsageEvent({
           eventType: "suggestion_shown",
           suggestionCount: context.predictions.length,
@@ -517,8 +535,12 @@ export class TributeManager {
     // We check if the inserted text ends with a space. If not, the user might need one.
     // However, we only know if they need one AFTER they start typing.
     // So we mark that a replacement just happened.
+    // Skip for grammar corrections (forceReplace) which have null event/item in detail.
     const entry = this.tributeArr[helperArrId];
-    if (entry) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const detail = customEvent?.detail as any;
+    const isForceReplace = detail && !detail.event && !detail.item;
+    if (entry && !isForceReplace) {
       entry.missingTrailingSpace = true;
       const elem = entry.elem;
       let cursorPos = 0;

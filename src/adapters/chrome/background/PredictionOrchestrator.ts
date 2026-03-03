@@ -350,7 +350,7 @@ export class PredictionOrchestrator {
       return "language_engine_missing";
     }
     if (context.forceReplace) {
-      return "blocked_by_spacing_rule";
+      return "blocked_by_grammar_rule";
     }
     if (!context.doPrediction) {
       return "input_not_predictable";
@@ -372,7 +372,7 @@ export class PredictionOrchestrator {
       return "predictor_unavailable";
     }
     if (context.forceReplace) {
-      return "blocked_by_spacing_rule";
+      return "blocked_by_grammar_rule";
     }
     if (!context.doPrediction) {
       return "input_not_predictable";

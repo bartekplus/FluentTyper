@@ -609,6 +609,83 @@ i18n = Object.assign(i18n, {
     "pl": "Gdy włączone, naciśnięcie klawisza Backspace cofnie ostatnie autouzupełnienie jako całe słowo. Gdy wyłączone, usuwa po jednym znaku.",
     "pr": "Quando ativado, a tecla Backspace desfaz o último autocompletar como uma palavra inteira. Quando desativado, apaga um caractere de cada vez.",
   },
+  "grammar_rules": {
+    "en": "Grammar Rules",
+    "fr": "Règles de Grammaire",
+    "hr": "Gramatička Pravila",
+    "es": "Reglas de Gramática",
+    "el": "Γραμματικοί Κανόνες",
+    "sv": "Grammatikregler",
+    "de": "Grammatikregeln",
+    "pl": "Zasady Gramatyki",
+    "pr": "Regras Gramaticais"
+  },
+  "grammar_rules_label": {
+    "en": "Enabled Grammar Rules",
+    "fr": "Règles de Grammaire Activées",
+    "hr": "Omogućena Gramatička Pravila",
+    "es": "Reglas de Gramática Habilitadas",
+    "el": "Ενεργοποιημένοι Γραμματικοί Κανόνες",
+    "sv": "Aktiverade Grammatikregler",
+    "de": "Aktivierte Grammatikregeln",
+    "pl": "Włączone Zasady Gramatyki",
+    "pr": "Regras Gramaticais Habilitadas"
+  },
+  "grammar_rules_help": {
+    "en": "Choose which writing corrections FluentTyper should apply automatically while you type.",
+  },
+  "grammar_rules_summary_label": {
+    "en": "Active rules",
+  },
+  "grammar_rules_empty_state": {
+    "en": "No grammar rules enabled.",
+  },
+  "grammar_rules_recommended": {
+    "en": "Use recommended",
+  },
+  "grammar_rules_enable_all": {
+    "en": "Enable all",
+  },
+  "grammar_rules_disable_all": {
+    "en": "Disable all",
+  },
+  "grammar_rule_recommended_badge": {
+    "en": "Recommended",
+  },
+  "grammar_rule_spacing": {
+    "en": "Auto-Spacing around punctuation",
+    "fr": "Espacement automatique autour de la ponctuation",
+    "hr": "Automatsko razmicanje oko interpunkcije",
+    "es": "Auto-espaciado alrededor de puntuación",
+    "el": "Αυτόματο κενό γύρω από σημεία στίξης",
+    "sv": "Automatiskt mellanrum runt skiljetecken",
+    "de": "Automatischer Abstand um Satzzeichen",
+    "pl": "Automatyczne odstępy wokół znaków interpunkcyjnych",
+    "pr": "Espaçamento automático ao redor de pontuação"
+  },
+  "grammar_rule_spacing_desc": {
+    "en": "Fixes missing or extra spaces around commas, periods, and other punctuation marks.",
+  },
+  "grammar_rule_spacing_example": {
+    "en": "Example: \"Hello ,world\" -> \"Hello, world\"",
+  },
+  "grammar_rule_capitalize": {
+    "en": "Auto-Capitalize first letter",
+    "fr": "Mettre automatiquement en majuscule la première lettre",
+    "hr": "Automatski veliko prvo slovo",
+    "es": "Capitalizar automáticamente la primera letra",
+    "el": "Αυτόματη κεφαλαιοποίηση του πρώτου γράμματος",
+    "sv": "Börja automatiskt med stor bokstav",
+    "de": "Ersten Buchstaben automatisch großschreiben",
+    "pl": "Automatycznie wstawiaj dużą literę",
+    "pr": "Capitalizar automaticamente a primeira letra"
+  },
+  "grammar_rule_capitalize_desc": {
+    "en": "Automatically capitalizes the first letter after sentence-ending punctuation.",
+  },
+  "grammar_rule_capitalize_example": {
+    "en": "Example: \"hello. world\" -> \"Hello. World\"",
+  },
   "language_tab": {
     "en": "Language",
     "fr": "Langue",

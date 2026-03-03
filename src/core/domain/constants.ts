@@ -32,7 +32,6 @@ export const KEY_REVERT_ON_BACKSPACE = "revertOnBackspace";
 export const KEY_NUM_SUGGESTIONS = "numSuggestions";
 export const KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE = "insertSpaceAfterAutocomplete";
 export const KEY_AUTO_CAPITALIZE = "autoCapitalize";
-export const KEY_APPLY_SPACING_RULES = "applySpacingRules";
 export const KEY_TEXT_EXPANSIONS = "textExpansions";
 
 export const KEY_TIME_FORMAT = "timeFormat";
@@ -41,6 +40,9 @@ export const KEY_USER_DICTIONARY_LIST = "userDictionaryList";
 export const KEY_LANGUAGE = "language";
 export const KEY_FALLBACK_LANGUAGE = "fallbackLanguage";
 export const KEY_ENABLED_LANGUAGES = "enabled_languages";
+export const KEY_ENABLED_GRAMMAR_RULES = "enabledGrammarRules";
+/** @deprecated Legacy key – kept only for one-time migration in SettingsMigrationV3. */
+export const KEY_LEGACY_APPLY_SPACING_RULES = "applySpacingRules";
 export const KEY_DOMAIN_LIST_MODE = "domainListMode";
 export const KEY_AI_PREDICTOR_ENABLED = "aiPredictorEnabled";
 export const KEY_AI_MODEL_ID = "aiModelId";

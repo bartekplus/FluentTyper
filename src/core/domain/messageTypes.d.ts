@@ -10,6 +10,7 @@ export interface SetConfigContext {
   inline_suggestion: boolean;
   enabled: boolean;
   displayLangHeader: boolean;
+  enabledGrammarRules: string[];
   // Theme configuration
   themeConfig?: {
     tributeBgLight: string;
@@ -44,6 +45,12 @@ export interface PredictRequestContext {
 export interface ForceReplaceType {
   text: string;
   length: number;
+  /** The length of the full text at the time the grammar rule was evaluated */
+  originalTextLength: number;
+  /** The exact substring that was matched for replacement */
+  expectedSubstring?: string;
+  /** The preceding characters to anchor the replacement context */
+  cursorToken?: string;
 }
 
 // Context for CMD_BACKGROUND_PAGE_PREDICT_RESP

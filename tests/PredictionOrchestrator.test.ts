@@ -32,7 +32,6 @@ function createConfig(overrides: Partial<PredictionConfig> = {}): PredictionConf
     minWordLengthToPredict: 0,
     insertSpaceAfterAutocomplete: false,
     autoCapitalize: false,
-    applySpacingRules: false,
     textExpansions: [],
 
     timeFormat: "",
@@ -210,7 +209,7 @@ describe("PredictionOrchestrator coverage", () => {
     orchestrator.setConfig(
       createConfig({
         aiPredictorEnabled: true,
-        applySpacingRules: true,
+        enabledGrammarRules: ["spacingRule", "capitalizeFirstLetter"],
       }),
     );
 
@@ -223,8 +222,8 @@ describe("PredictionOrchestrator coverage", () => {
       },
     });
 
-    expect(spacingEvent?.presage?.skipReason).toBe("blocked_by_spacing_rule");
-    expect(spacingEvent?.webllm?.skipReason).toBe("blocked_by_spacing_rule");
+    expect(spacingEvent?.presage?.skipReason).toBe("blocked_by_grammar_rule");
+    expect(spacingEvent?.webllm?.skipReason).toBe("blocked_by_grammar_rule");
 
     orchestrator.setConfig(
       createConfig({

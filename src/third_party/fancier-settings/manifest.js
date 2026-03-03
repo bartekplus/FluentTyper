@@ -10,8 +10,6 @@ import {
   KEY_AUTOCOMPLETE_ON_ENTER,
   KEY_AUTOCOMPLETE_ON_TAB,
   KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
-  KEY_APPLY_SPACING_RULES,
-  KEY_AUTO_CAPITALIZE,
   KEY_SELECT_BY_DIGIT,
   KEY_REVERT_ON_BACKSPACE,
   KEY_LANGUAGE,
@@ -24,6 +22,7 @@ import {
   KEY_AI_PREDICTION_TIMEOUT_MS,
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
   KEY_DEBUG_AI_PREDICTOR_ENABLED,
+  KEY_ENABLED_GRAMMAR_RULES,
 
   KEY_TIME_FORMAT,
   KEY_DATE_FORMAT,
@@ -196,14 +195,6 @@ const manifest = {
     {
       tab: i18n.get("core_settings"),
       group: i18n.get("behavior_after_completion"),
-      name: KEY_AUTO_CAPITALIZE,
-      type: "checkbox",
-      label: i18n.get("auto_capitalize_label"),
-      default: true,
-    },
-    {
-      tab: i18n.get("core_settings"),
-      group: i18n.get("behavior_after_completion"),
       name: KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
       type: "checkbox",
       label: i18n.get("add_space_label") + ":&nbsp;<small>" + i18n.get("add_space_desc") + "</small>",
@@ -219,11 +210,44 @@ const manifest = {
     },
     {
       tab: i18n.get("core_settings"),
-      group: i18n.get("behavior_after_completion"),
-      name: KEY_APPLY_SPACING_RULES,
-      type: "checkbox",
-      label: i18n.get("apply_spacing_rules_label") + ":&nbsp;<small>" + i18n.get("apply_spacing_rules_desc") + "</small>",
-      default: false,
+      group: i18n.get("grammar_rules"),
+      name: KEY_ENABLED_GRAMMAR_RULES,
+      type: "ruleToggleCards",
+      label: i18n.get("grammar_rules_label"),
+      helpText: i18n.get("grammar_rules_help"),
+      summaryLabel: i18n.get("grammar_rules_summary_label"),
+      emptyStateText: i18n.get("grammar_rules_empty_state"),
+      actions: [
+        {
+          text: i18n.get("grammar_rules_recommended"),
+          values: ["spacingRule", "capitalizeFirstLetter"],
+        },
+        {
+          text: i18n.get("grammar_rules_enable_all"),
+          values: ["spacingRule", "capitalizeFirstLetter"],
+        },
+        {
+          text: i18n.get("grammar_rules_disable_all"),
+          values: [],
+        },
+      ],
+      options: [
+        {
+          value: "spacingRule",
+          text: i18n.get("grammar_rule_spacing"),
+          description: i18n.get("grammar_rule_spacing_desc"),
+          example: i18n.get("grammar_rule_spacing_example"),
+          badge: i18n.get("grammar_rule_recommended_badge"),
+          recommended: true,
+        },
+        {
+          value: "capitalizeFirstLetter",
+          text: i18n.get("grammar_rule_capitalize"),
+          description: i18n.get("grammar_rule_capitalize_desc"),
+          example: i18n.get("grammar_rule_capitalize_example"),
+        },
+      ],
+      default: ["capitalizeFirstLetter"],
     },
     {
       tab: i18n.get("core_settings"),

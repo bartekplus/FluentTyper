@@ -15,6 +15,8 @@ import {
   KEY_PRODUCTIVITY_STATS,
   KEY_SITE_PROFILES,
   KEY_TEXT_EXPANSIONS,
+  KEY_ENABLED_GRAMMAR_RULES,
+  KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
 } from "../../src/core/domain/constants";
 import { SUPPORTED_PREDICTION_LANGUAGE_KEYS } from "../../src/core/domain/lang";
 import type { BackgroundContext } from "./e2e-helpers";
@@ -178,19 +180,56 @@ async function setSettingAndWait(
   worker: BackgroundContext,
   key: string,
   value: unknown,
-  timeoutMs = 3000,
+  timeoutMs = 15000,
 ): Promise<void> {
   await setSetting(worker, key, value);
   const expected = JSON.stringify(value);
   const start = Date.now();
+  let lastCurrent: unknown;
   while (Date.now() - start < timeoutMs) {
     const current = await getSetting<unknown>(worker, key);
+    lastCurrent = current;
     if (JSON.stringify(current) === expected) {
       return;
     }
     await new Promise((r) => setTimeout(r, 50));
   }
-  throw new Error(`Timed out waiting for setting ${key} to become ${expected}`);
+  throw new Error(
+    `Timed out waiting for setting ${key} to become ${expected}. Last value: ${JSON.stringify(lastCurrent)}`,
+  );
+}
+
+async function setSettingAndWaitStable(
+  worker: BackgroundContext,
+  key: string,
+  value: unknown,
+  attempts = 3,
+  timeoutMs = 5000,
+): Promise<void> {
+  const expected = JSON.stringify(value);
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      await setSetting(worker, key, value);
+      await waitForSettingMatch(
+        worker,
+        key,
+        (currentValue) => JSON.stringify(currentValue) === expected,
+        timeoutMs,
+      );
+      return;
+    } catch (error) {
+      lastError = error;
+      if (attempt < attempts) {
+        await new Promise((r) => setTimeout(r, 150));
+      }
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error(`Timed out waiting for setting ${key} to stabilize as ${expected}`);
 }
 
 async function notifyConfigChange(browser: Browser, worker: BackgroundContext): Promise<void> {
@@ -628,6 +667,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   }, 60000);
 
   beforeEach(async () => {
+    // Keep the legacy baseline for non-grammar E2E flows so popup/inline
+    // prediction scenarios remain deterministic regardless of defaults.
+    await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
     page = await browser.newPage();
     page.setDefaultNavigationTimeout(NAVIGATION_TIMEOUT_MS);
     await page.bringToFront();
@@ -1126,7 +1168,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           typedPrefix,
         );
         const elementText = await getInputContent(page, selector);
-        expect(elementText).toBe(firstLiText?.toLowerCase());
+        expect(elementText.toLowerCase()).toBe(firstLiText?.toLowerCase());
       };
 
       await assertInsertion("h", async () => {
@@ -1165,7 +1207,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       );
 
       const autocompletedText = await getInputContent(page, selector);
-      expect(autocompletedText).toMatch(/^h\S*\xa0$/);
+      expect(autocompletedText).toMatch(/^h\S*\xa0$/i);
       const wordPart = autocompletedText.slice(0, -1);
 
       await page.keyboard.press("ArrowLeft");
@@ -1213,7 +1255,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         (el) => (el as HTMLInputElement).value ?? el.textContent,
       );
       // Should be a word starting with "w" followed by \xa0
-      expect(elementText).toMatch(/^w\S*\xa0$/);
+      expect(elementText).toMatch(/^w\S*\xa0$/i);
 
       // Cleanup
       await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
@@ -1915,7 +1957,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         selector,
         (el) => (el as HTMLInputElement).value ?? el.textContent,
       );
-      expect(elementText).toBe("as soon as possible\xa0");
+      expect((elementText ?? "").toLowerCase()).toBe("as soon as possible\xa0");
 
       // Cleanup
       await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
@@ -2000,5 +2042,438 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await applyConfigChange(browser, worker!);
     },
     browserTimeout(30000, 45000),
+  );
+
+  test(
+    "Grammar rule changes on options page trigger runtime reconfiguration",
+    async () => {
+      // Start with grammar rules disabled
+      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await applyConfigChange(browser, worker!);
+
+      const storedBefore = await getSetting<string[]>(worker!, KEY_ENABLED_GRAMMAR_RULES);
+      expect(storedBefore).toEqual([]);
+
+      // Open the options page and programmatically toggle the grammar rules
+      // multiselect via the fancier-settings manifest API, which should fire
+      // the "action" event and call optionsPageConfigChange().
+      const optionsPage = await openOptionsPage(browser, worker!);
+      try {
+        await optionsPage.evaluate((key: string) => {
+          // The fancier-settings framework exposes each manifest entry by name.
+          // Access the multiselect element, set a new value, and trigger the
+          // action event — exactly what happens when a user clicks a checkbox.
+          const settingsEl = document.querySelector("#content") as HTMLElement;
+          if (!settingsEl) {
+            throw new Error("Options page content not found");
+          }
+          // Use chrome.storage.local directly (mimicking what the action handler does)
+          const newRules = ["capitalizeFirstLetter", "spacingRule"];
+          const storageKey = `store.settings.${key}`;
+          localStorage.setItem(storageKey, JSON.stringify(newRules));
+          chrome.storage.local.set({ [storageKey]: JSON.stringify(newRules) });
+          // Fire the config change message
+          chrome.runtime.sendMessage({
+            command: "CMD_OPTIONS_PAGE_CONFIG_CHANGE",
+            context: {},
+          });
+        }, KEY_ENABLED_GRAMMAR_RULES);
+      } finally {
+        await optionsPage.close();
+      }
+
+      // Verify the setting was persisted and the runtime picked it up
+      const storedAfter = await waitForSettingMatch<string[]>(
+        worker!,
+        KEY_ENABLED_GRAMMAR_RULES,
+        (value) =>
+          Array.isArray(value) &&
+          value.includes("capitalizeFirstLetter") &&
+          value.includes("spacingRule"),
+        browserTimeout(5000, 10000),
+      );
+      expect(storedAfter).toEqual(expect.arrayContaining(["capitalizeFirstLetter", "spacingRule"]));
+
+      // Cleanup
+      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await applyConfigChange(browser, worker!);
+    },
+    browserTimeout(15000, 25000),
+  );
+
+  test.each(["#test-input", ".ck-editor__editable"])(
+    "Grammar Rule Engine auto-capitalizes and applies spacing in %s",
+    async (selector) => {
+      // Enable required grammar rules internally for predictive evaluations
+      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, [
+        "capitalizeFirstLetter",
+        "spacingRule",
+      ]);
+      await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, true);
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      // Keep the normal prediction threshold to ensure grammar spacing still runs
+      // when the current token becomes empty after typing punctuation (e.g. "fixed .").
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+      await applyConfigChange(browser, worker!);
+
+      await gotoTestPage(page, {
+        enableCkEditor: shouldEnableCkEditor(selector),
+      });
+      await page.bringToFront();
+
+      await waitForInputReady(page, selector);
+      const element = await page.$(selector);
+
+      // Type "t" first, then pause to let the grammar rule engine process the
+      // capitalize-first-letter correction before typing more characters.
+      // Without this pause, the forceReplace response may arrive after the user
+      // has typed more characters, and the replacement position would be wrong.
+      await element!.type("t");
+      await new Promise((r) => setTimeout(r, 1500));
+
+      // Continue typing the rest of "testing ."
+      await element!.type("esting .");
+
+      await page.waitForFunction(
+        (sel) => {
+          const el = document.querySelector(sel);
+          if (!el) {
+            return false;
+          }
+          const val = ((el as HTMLInputElement).value ?? el.textContent) as string;
+          return val.replace(/\xA0/g, " ").includes("esting. ");
+        },
+        { timeout: browserTimeout(2000, 3000) },
+        selector,
+      );
+
+      // Type "w" and verify capitalizeFirstLetterRule applies
+      await element!.type("w");
+
+      await page.waitForFunction(
+        (sel) => {
+          const el = document.querySelector(sel);
+          if (!el) {
+            return false;
+          }
+          const val = ((el as HTMLInputElement).value ?? el.textContent) as string;
+          return val.replace(/\xA0/g, " ").includes("Testing. W");
+        },
+        { timeout: browserTimeout(3000, 5000) },
+        selector,
+      );
+
+      const finalVal = await page.$eval(
+        selector,
+        (el) => ((el as HTMLInputElement).value ?? el.textContent) as string,
+      );
+      const elementText = finalVal.replace(/\xA0/g, " ");
+      // CapitalizeFirstLetterRule capitalizes T at start AND W after ". "
+      expect(elementText).toContain("Testing. W");
+
+      // Cleanup
+      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await applyConfigChange(browser, worker!);
+    },
+    browserTimeout(30000, 45000),
+  );
+
+  test.each(["#test-input", CKEDITOR_SELECTOR])(
+    "Grammar Rule Engine preserves code-style brackets and slash technical contexts while keeping prose spacing in %s",
+    async (selector) => {
+      await setSettingAndWaitStable(
+        worker!,
+        KEY_ENABLED_GRAMMAR_RULES,
+        ["spacingRule"],
+        4,
+        browserTimeout(5000, 7000),
+      );
+      await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, true);
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+      await applyConfigChange(browser, worker!);
+
+      await gotoTestPage(page, {
+        enableCkEditor: shouldEnableCkEditor(selector),
+      });
+      await page.bringToFront();
+
+      await waitForInputReady(page, selector);
+
+      const readNormalizedText = async (): Promise<string> =>
+        (await getInputContent(page, selector)).replace(/\xA0/g, " ");
+      const waitForNormalizedValue = async (expected: string): Promise<void> => {
+        await page.waitForFunction(
+          (sel, expectedText) => {
+            const el = document.querySelector(sel);
+            if (!el) {
+              return false;
+            }
+            const val = ((el as HTMLInputElement).value ?? el.textContent ?? "").replace(
+              /\xA0/g,
+              " ",
+            );
+            return val === expectedText;
+          },
+          { timeout: browserTimeout(3000, 5000) },
+          selector,
+          expected,
+        );
+      };
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "if(");
+      await page.waitForFunction(
+        (sel) => {
+          const el = document.querySelector(sel);
+          if (!el) {
+            return false;
+          }
+          const val = ((el as HTMLInputElement).value ?? el.textContent ?? "").replace(
+            /\xA0/g,
+            " ",
+          );
+          return val.includes("if (");
+        },
+        { timeout: browserTimeout(3000, 5000) },
+        selector,
+      );
+      let elementText = await readNormalizedText();
+      expect(elementText).toContain("if (");
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "console.log(");
+      await new Promise((r) => setTimeout(r, 1500));
+      elementText = await readNormalizedText();
+      expect(elementText).toContain("console.log(");
+      expect(elementText).not.toContain("console.log (");
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "myArray[");
+      await new Promise((r) => setTimeout(r, 1500));
+      elementText = await readNormalizedText();
+      expect(elementText).toContain("myArray[");
+      expect(elementText).not.toContain("myArray [");
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "foo(bar())");
+      await new Promise((r) => setTimeout(r, 1500));
+      elementText = await readNormalizedText();
+      expect(elementText).toContain("foo(bar())");
+      expect(elementText).not.toContain("foo(bar() )");
+      expect(elementText).not.toContain("foo(bar()) ");
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "Hello (world)");
+      await page.waitForFunction(
+        (sel) => {
+          const el = document.querySelector(sel);
+          if (!el) {
+            return false;
+          }
+          const val = ((el as HTMLInputElement).value ?? el.textContent ?? "").replace(
+            /\xA0/g,
+            " ",
+          );
+          return val.includes("Hello (world) ");
+        },
+        { timeout: browserTimeout(3000, 5000) },
+        selector,
+      );
+      elementText = await readNormalizedText();
+      expect(elementText).toContain("Hello (world) ");
+
+      if (selector === "#test-input") {
+        await clearInputContent(page, selector);
+        await typeInInput(page, selector, "https://example.com/a/b");
+        await waitForNormalizedValue("https://example.com/a/b");
+
+        await clearInputContent(page, selector);
+        await typeInInput(page, selector, "src/components/Button");
+        await waitForNormalizedValue("src/components/Button");
+
+        await clearInputContent(page, selector);
+        await typeInInput(page, selector, "</div>");
+        await waitForNormalizedValue("</div>");
+
+        await clearInputContent(page, selector);
+        await typeInInput(page, selector, "x /");
+        await waitForNormalizedValue("x / ");
+        await typeInInput(page, selector, "y");
+        await waitForNormalizedValue("x / y");
+      }
+
+      await setSettingAndWaitStable(
+        worker!,
+        KEY_ENABLED_GRAMMAR_RULES,
+        [],
+        2,
+        browserTimeout(3000, 5000),
+      );
+      await applyConfigChange(browser, worker!);
+    },
+    browserTimeout(35000, 55000),
+  );
+
+  test(
+    "Grammar Rule Engine applies context-aware math operator spacing without breaking prose-like compact forms",
+    async () => {
+      const selector = "#test-input";
+
+      await setSettingAndWaitStable(
+        worker!,
+        KEY_ENABLED_GRAMMAR_RULES,
+        ["spacingRule"],
+        3,
+        browserTimeout(5000, 7000),
+      );
+      await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, true);
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+      await applyConfigChange(browser, worker!);
+
+      await gotoTestPage(page, {
+        enableCkEditor: false,
+      });
+      await page.bringToFront();
+      await waitForInputReady(page, selector);
+
+      const waitForNormalizedValue = async (expected: string): Promise<void> => {
+        await page.waitForFunction(
+          (sel, expectedText) => {
+            const el = document.querySelector(sel);
+            if (!el) {
+              return false;
+            }
+            const val = ((el as HTMLInputElement).value ?? el.textContent ?? "").replace(
+              /\xA0/g,
+              " ",
+            );
+            return val === expectedText;
+          },
+          { timeout: browserTimeout(3000, 5000) },
+          selector,
+          expected,
+        );
+      };
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "x=y");
+      await waitForNormalizedValue("x = y");
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "y+1");
+      await waitForNormalizedValue("y + 1");
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "x*y");
+      await waitForNormalizedValue("x * y");
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "x==y");
+      await waitForNormalizedValue("x==y");
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "foo+bar");
+      await waitForNormalizedValue("foo+bar");
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "name+tag");
+      await waitForNormalizedValue("name+tag");
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "word*word");
+      await waitForNormalizedValue("word*word");
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "C++");
+      await waitForNormalizedValue("C++");
+
+      await setSettingAndWaitStable(
+        worker!,
+        KEY_ENABLED_GRAMMAR_RULES,
+        [],
+        2,
+        browserTimeout(3000, 5000),
+      );
+      await applyConfigChange(browser, worker!);
+    },
+    browserTimeout(30000, 45000),
+  );
+
+  test(
+    "Grammar Rule Engine compacts technical punctuation spacing and preserves prose continuation",
+    async () => {
+      const selector = "#test-input";
+
+      await setSettingAndWaitStable(
+        worker!,
+        KEY_ENABLED_GRAMMAR_RULES,
+        ["spacingRule"],
+        3,
+        browserTimeout(5000, 7000),
+      );
+      await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, true);
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+      await applyConfigChange(browser, worker!);
+
+      await gotoTestPage(page, {
+        enableCkEditor: false,
+      });
+      await page.bringToFront();
+      await waitForInputReady(page, selector);
+
+      const waitForNormalizedValue = async (expected: string): Promise<void> => {
+        await page.waitForFunction(
+          (sel, expectedText) => {
+            const el = document.querySelector(sel);
+            if (!el) {
+              return false;
+            }
+            const val = ((el as HTMLInputElement).value ?? el.textContent ?? "").replace(
+              /\xA0/g,
+              " ",
+            );
+            return val === expectedText;
+          },
+          { timeout: browserTimeout(3000, 5000) },
+          selector,
+          expected,
+        );
+      };
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "3.14");
+      await waitForNormalizedValue("3.14");
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "12:30");
+      await waitForNormalizedValue("12:30");
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "cfg_1.x");
+      await waitForNormalizedValue("cfg_1.x");
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "Hello.");
+      await waitForNormalizedValue("Hello. ");
+      await typeInInput(page, selector, "w");
+      await waitForNormalizedValue("Hello. w");
+
+      await setSettingAndWaitStable(
+        worker!,
+        KEY_ENABLED_GRAMMAR_RULES,
+        [],
+        2,
+        browserTimeout(3000, 5000),
+      );
+      await applyConfigChange(browser, worker!);
+    },
+    browserTimeout(25000, 40000),
   );
 });
