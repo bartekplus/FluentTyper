@@ -8,6 +8,7 @@ import type {
 } from "@core/domain/messageTypes";
 import { SPACING_RULES, Spacing } from "@core/domain/spacingRules";
 import { InlineSuggestionView } from "./suggestions/InlineSuggestionView";
+import { SuggestionElementDiscovery } from "./suggestions/SuggestionElementDiscovery";
 import { SuggestionMenuView } from "./suggestions/SuggestionMenuView";
 import { TextTargetAdapter, type TextTarget } from "./suggestions/TextTargetAdapter";
 import type {
@@ -46,6 +47,7 @@ export class SuggestionManager {
 
   private readonly selectors: string;
   private readonly getPrediction: (context: PredictionRequest) => void;
+  private readonly discovery: SuggestionElementDiscovery;
 
   private minWordLengthToPredict: number;
   private autocompleteOnSpace: boolean;
@@ -70,6 +72,10 @@ export class SuggestionManager {
   constructor(options: SuggestionManagerOptions) {
     this.selectors = options.selectors;
     this.getPrediction = options.getPrediction;
+    this.discovery = new SuggestionElementDiscovery({
+      selectors: this.selectors,
+      isStructurallyEligibleElement: this.isStructurallyEligibleElement.bind(this),
+    });
 
     this.minWordLengthToPredict = options.minWordLengthToPredict;
     this.autocompleteOnSpace = options.autocomplete;
@@ -163,7 +169,7 @@ export class SuggestionManager {
   }
 
   public queryAndAttachHelper(root?: Element): void {
-    const candidates = this.queryCandidates(root);
+    const candidates = this.discovery.queryCandidates(root);
 
     for (const candidate of candidates) {
       if (this.isHelperAttached(candidate)) {
@@ -202,29 +208,6 @@ export class SuggestionManager {
     this.triggerActiveSuggestion();
   }
 
-  private queryCandidates(root?: Element): SuggestionElement[] {
-    const elements = root
-      ? root.matches(this.selectors)
-        ? [root]
-        : Array.from(root.querySelectorAll(this.selectors))
-      : Array.from(document.querySelectorAll(this.selectors));
-
-    return elements.filter((elem): elem is SuggestionElement => this.isEligibleElement(elem));
-  }
-
-  private isEligibleElement(elem: Element): elem is SuggestionElement {
-    if (!(elem instanceof HTMLElement)) {
-      return false;
-    }
-    if (!this.isStructurallyEligibleElement(elem)) {
-      return false;
-    }
-    if (!this.isVisiblyInteractive(elem)) {
-      return false;
-    }
-    return true;
-  }
-
   private isStructurallyEligibleElement(elem: HTMLElement): elem is SuggestionElement {
     if (this.isTextAreaElement(elem)) {
       return true;
@@ -240,11 +223,6 @@ export class SuggestionManager {
     }
 
     return elem.isContentEditable;
-  }
-
-  private isVisiblyInteractive(elem: HTMLElement): boolean {
-    const style = window.getComputedStyle(elem);
-    return style.display !== "none" && style.visibility !== "hidden";
   }
 
   private isHelperAttached(elem: Element): boolean {
