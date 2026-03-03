@@ -13,6 +13,7 @@ import { SuggestionEntryRegistry } from "./suggestions/SuggestionEntryRegistry";
 import { SuggestionLifecycleController } from "./suggestions/SuggestionLifecycleController";
 import { SuggestionMenuPresenter } from "./suggestions/SuggestionMenuPresenter";
 import { SuggestionPositioningService } from "./suggestions/SuggestionPositioningService";
+import { SuggestionPredictionCoordinator } from "./suggestions/SuggestionPredictionCoordinator";
 import { SuggestionMenuView } from "./suggestions/SuggestionMenuView";
 import { TextTargetAdapter, type TextTarget } from "./suggestions/TextTargetAdapter";
 import type {
@@ -32,8 +33,6 @@ interface ContentEditableTextPosition {
 }
 
 export class SuggestionManager {
-  private static readonly REQUEST_DEBOUNCE_MS = 120;
-
   private readonly selectors: string;
   private readonly getPrediction: (context: PredictionRequest) => void;
   private readonly discovery: SuggestionElementDiscovery;
@@ -44,6 +43,7 @@ export class SuggestionManager {
   private readonly inlinePresenter = new InlineSuggestionPresenter({
     positioningService: this.positioningService,
   });
+  private readonly predictionCoordinator: SuggestionPredictionCoordinator;
 
   private minWordLengthToPredict: number;
   private autocompleteOnSpace: boolean;
@@ -82,6 +82,13 @@ export class SuggestionManager {
 
     this.lang = options.lang;
     this.separatorRegex = LANG_SEPARATOR_CHARS_REGEX[this.lang] || /\s+/;
+    this.predictionCoordinator = new SuggestionPredictionCoordinator({
+      debounceMs: 120,
+      getPrediction: this.getPrediction,
+      lang: this.lang,
+      minWordLengthToPredict: this.minWordLengthToPredict,
+      separatorRegex: this.separatorRegex,
+    });
   }
 
   public fulfillPrediction(context: PredictionResponse): void {
@@ -204,12 +211,16 @@ export class SuggestionManager {
     if (!entry) {
       return;
     }
-    this.schedulePrediction(entry, true);
+    this.predictionCoordinator.schedule(entry, {
+      force: true,
+      clearSuggestions: () => this.clearSuggestions(entry),
+    });
   }
 
   public updateLangConfig(lang: string): void {
     this.lang = lang;
     this.separatorRegex = LANG_SEPARATOR_CHARS_REGEX[lang] || /\s+/;
+    this.predictionCoordinator.updateLang(this.lang, this.separatorRegex);
     this.triggerActiveSuggestion();
   }
 
@@ -291,10 +302,7 @@ export class SuggestionManager {
 
     this.lifecycleController.detachEntryListeners(entry);
     entry.menu.remove();
-    if (entry.pendingRequestTimer !== null) {
-      clearTimeout(entry.pendingRequestTimer);
-      entry.pendingRequestTimer = null;
-    }
+    this.predictionCoordinator.cancelPending(entry);
 
     delete entry.elem.tributeMenu;
     delete entry.elem.suggestionMenu;
@@ -312,10 +320,7 @@ export class SuggestionManager {
 
   private dismissEntry(entry: SuggestionEntry, keepActive = false): void {
     this.clearSuggestions(entry);
-    if (entry.pendingRequestTimer !== null) {
-      clearTimeout(entry.pendingRequestTimer);
-      entry.pendingRequestTimer = null;
-    }
+    this.predictionCoordinator.cancelPending(entry);
     entry.requestId += 1;
     if (!keepActive && this.activeEntryId === entry.id) {
       this.activeEntryId = null;
@@ -403,74 +408,10 @@ export class SuggestionManager {
         resolveMentionToken: this.findMentionToken.bind(this),
       });
     }
-    this.schedulePrediction(entry, false);
-  }
-
-  private schedulePrediction(entry: SuggestionEntry, force: boolean): void {
-    if (entry.pendingRequestTimer !== null) {
-      clearTimeout(entry.pendingRequestTimer);
-      entry.pendingRequestTimer = null;
-    }
-
-    if (force) {
-      this.requestPrediction(entry, true);
-      return;
-    }
-
-    entry.pendingRequestTimer = setTimeout(() => {
-      entry.pendingRequestTimer = null;
-      this.requestPrediction(entry, false);
-    }, SuggestionManager.REQUEST_DEBOUNCE_MS);
-  }
-
-  private requestPrediction(entry: SuggestionEntry, force: boolean): void {
-    const snapshot: SuggestionSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
-    const beforeCursor = snapshot.beforeCursor;
-
-    const shouldPredict = this.shouldPredict(beforeCursor);
-    const shouldRequestForGrammar = this.shouldRequestGrammarEdit(beforeCursor);
-    if (!force && !shouldPredict && !shouldRequestForGrammar) {
-      this.clearSuggestions(entry);
-      return;
-    }
-    if (!shouldPredict) {
-      this.clearSuggestions(entry);
-    }
-
-    const tokenInfo = this.findMentionToken(beforeCursor);
-    entry.latestMentionText = tokenInfo.token;
-    entry.latestMentionStart = tokenInfo.start;
-    entry.requestId += 1;
-
-    this.getPrediction({
-      text: beforeCursor,
-      nextChar: snapshot.afterCursor.charAt(0) || "",
-      suggestionId: entry.id,
-      requestId: entry.requestId,
-      lang: this.lang,
+    this.predictionCoordinator.schedule(entry, {
+      force: false,
+      clearSuggestions: () => this.clearSuggestions(entry),
     });
-  }
-
-  private shouldRequestGrammarEdit(beforeCursor: string): boolean {
-    if (beforeCursor.length === 0) {
-      return false;
-    }
-    const lastChar = beforeCursor.charAt(beforeCursor.length - 1);
-    return this.isSeparator(lastChar);
-  }
-
-  private shouldPredict(beforeCursor: string): boolean {
-    if (this.minWordLengthToPredict === -1) {
-      return false;
-    }
-
-    const lastChar = beforeCursor.charAt(beforeCursor.length - 1) || "";
-    if (lastChar && this.isSeparator(lastChar)) {
-      return this.minWordLengthToPredict === 0;
-    }
-
-    const token = this.findMentionToken(beforeCursor).token;
-    return token.length >= this.minWordLengthToPredict;
   }
 
   private isSeparator(value: string): boolean {
@@ -560,7 +501,10 @@ export class SuggestionManager {
       if (entry.latestMentionText.length > 0) {
         this.consumeKeyboardEvent(keyboardEvent);
         entry.pendingInlineAccept = true;
-        this.schedulePrediction(entry, true);
+        this.predictionCoordinator.schedule(entry, {
+          force: true,
+          clearSuggestions: () => this.clearSuggestions(entry),
+        });
         return;
       }
     }
