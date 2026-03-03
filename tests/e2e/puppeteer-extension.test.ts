@@ -2075,7 +2075,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       ]);
       await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, true);
       await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 0);
+      // Keep the normal prediction threshold to ensure grammar spacing still runs
+      // when the current token becomes empty after typing punctuation (e.g. "fixed .").
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
       await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
       await applyConfigChange(browser, worker!);
 

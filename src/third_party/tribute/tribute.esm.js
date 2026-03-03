@@ -35,6 +35,10 @@ class TributeEvents {
     return TributeEvents.isSpaceKey(event) || (event.key && event.key.length === 1);
   }
 
+  static grammarBoundaryChars() {
+    return [".", ",", "]", ")", "}", ">", "!", ":", ";", "?", "[", "(", "{", "<", "/", "—", "–", "-", "’", "*", "+", "="];
+  }
+
   bind(element) {
     const KEY_EVENT_TIMEOUT_MS = 32;
     element.boundKeyDown = this.keydown.bind(element, this);
@@ -259,6 +263,17 @@ class TributeEvents {
     }
     const minLength = instance.tribute.current.collection.menuShowMinLength;
     if (instance.tribute.current.mentionText.length < minLength) {
+      const fullText = instance.tribute.current.fullText || "";
+      const lastChar = fullText.length ? fullText[fullText.length - 1] : "";
+      const shouldBypassMinLengthForGrammar =
+        instance.tribute.autocompleteMode &&
+        TributeEvents.grammarBoundaryChars().includes(lastChar);
+
+      if (shouldBypassMinLengthForGrammar) {
+        instance.tribute.showMenuFor(this, true);
+        return;
+      }
+
       instance.tribute.hideMenu();
       return;
     }
