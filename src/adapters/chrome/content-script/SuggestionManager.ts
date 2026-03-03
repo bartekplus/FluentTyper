@@ -195,7 +195,8 @@ export class SuggestionManager {
 
   public removeHelpersNotInDocument(): void {
     for (const [id, entry] of this.entries) {
-      if (!isInDocument(entry.elem) || !this.isEligibleElement(entry.elem)) {
+      // Keep helpers attached for temporarily hidden elements; they should resume when visible.
+      if (!isInDocument(entry.elem)) {
         this.detachHelper(id);
       }
     }

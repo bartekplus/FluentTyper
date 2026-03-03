@@ -208,6 +208,36 @@ describe("SuggestionManager", () => {
     ).toBeUndefined();
   });
 
+  test("keeps helpers attached while hidden and detaches only after element removal", async () => {
+    const { manager, getPrediction } = await createManager();
+    const input = document.createElement("input");
+    input.type = "text";
+    document.body.appendChild(input);
+
+    manager.queryAndAttachHelper();
+    expect(input.hasAttribute("data-suggestion")).toBe(true);
+
+    input.style.display = "none";
+    manager.removeHelpersNotInDocument();
+    expect(input.hasAttribute("data-suggestion")).toBe(true);
+    expect((input as HTMLInputElement & { suggestionMenu?: Element }).suggestionMenu).toBeDefined();
+
+    input.style.display = "";
+    input.value = "h";
+    input.selectionStart = 1;
+    input.selectionEnd = 1;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    await wait(220);
+    expect(getPrediction).toHaveBeenCalled();
+
+    input.remove();
+    manager.removeHelpersNotInDocument();
+    expect(input.hasAttribute("data-suggestion")).toBe(false);
+    expect(
+      (input as HTMLInputElement & { suggestionMenu?: Element }).suggestionMenu,
+    ).toBeUndefined();
+  });
+
   test("renders popup suggestions and accepts via Tab and click", async () => {
     const { manager, getPrediction } = await createManager();
     const input = document.createElement("input");
