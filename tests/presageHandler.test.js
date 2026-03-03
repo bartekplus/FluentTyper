@@ -260,5 +260,34 @@ describe("features", () => {
       expect(result.forceReplace.expectedSubstring).toBe("a");
       expect(result.forceReplace.cursorToken).toBe("Hello. ");
     });
+
+    test("emits forceReplace for decimal and time technical spacing compaction", async () => {
+      testContext.enabledGrammarRules = ["spacingRule"];
+      setConfig();
+
+      const decimalResult = await testContext.ph.runPrediction("3.\xA01", "", "en_US");
+      expect(decimalResult.forceReplace).not.toBeNull();
+      expect(decimalResult.forceReplace.text).toBe(".1");
+      expect(decimalResult.forceReplace.length).toBe(3);
+      expect(decimalResult.forceReplace.originalTextLength).toBe("3.\xA01".length);
+      expect(decimalResult.forceReplace.expectedSubstring).toBe(".\xA01");
+      expect(decimalResult.forceReplace.cursorToken).toBe("3");
+
+      const timeResult = await testContext.ph.runPrediction("12:\xA03", "", "en_US");
+      expect(timeResult.forceReplace).not.toBeNull();
+      expect(timeResult.forceReplace.text).toBe(":3");
+      expect(timeResult.forceReplace.length).toBe(3);
+      expect(timeResult.forceReplace.originalTextLength).toBe("12:\xA03".length);
+      expect(timeResult.forceReplace.expectedSubstring).toBe(":\xA03");
+      expect(timeResult.forceReplace.cursorToken).toBe("12");
+    });
+
+    test("does not emit forceReplace for prose continuation without accessor code cues", async () => {
+      testContext.enabledGrammarRules = ["spacingRule"];
+      setConfig();
+
+      const result = await testContext.ph.runPrediction("Hello.\xA0w", "", "en_US");
+      expect(result.forceReplace).toBeNull();
+    });
   });
 });
