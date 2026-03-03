@@ -282,6 +282,28 @@ describe("features", () => {
       expect(timeResult.forceReplace.cursorToken).toBe("12");
     });
 
+    test("handles slash forceReplace for protocol compaction and math operator contexts", async () => {
+      testContext.enabledGrammarRules = ["spacingRule"];
+      testContext.insertSpaceAfterAutocomplete = true;
+      setConfig();
+
+      const protocolResult = await testContext.ph.runPrediction("https:\xA0/", "", "en_US");
+      expect(protocolResult.forceReplace).not.toBeNull();
+      expect(protocolResult.forceReplace.text).toBe("/");
+      expect(protocolResult.forceReplace.length).toBe(2);
+      expect(protocolResult.forceReplace.expectedSubstring).toBe("\xA0/");
+      expect(protocolResult.forceReplace.cursorToken).toBe("https:");
+
+      const pathResult = await testContext.ph.runPrediction("src/components/", "", "en_US");
+      expect(pathResult.forceReplace).toBeNull();
+
+      const operatorResult = await testContext.ph.runPrediction("x /", "", "en_US");
+      expect(operatorResult.forceReplace).not.toBeNull();
+      expect(operatorResult.forceReplace.text).toBe("/\xA0");
+      expect(operatorResult.forceReplace.length).toBe(1);
+      expect(operatorResult.forceReplace.expectedSubstring).toBe("/");
+    });
+
     test("does not emit forceReplace for prose continuation without accessor code cues", async () => {
       testContext.enabledGrammarRules = ["spacingRule"];
       setConfig();

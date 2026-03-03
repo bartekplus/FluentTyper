@@ -2177,7 +2177,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test.each(["#test-input", CKEDITOR_SELECTOR])(
-    "Grammar Rule Engine preserves code-style brackets while keeping prose spacing in %s",
+    "Grammar Rule Engine preserves code-style brackets and slash technical contexts while keeping prose spacing in %s",
     async (selector) => {
       await setSettingAndWaitStable(
         worker!,
@@ -2201,6 +2201,24 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
       const readNormalizedText = async (): Promise<string> =>
         (await getInputContent(page, selector)).replace(/\xA0/g, " ");
+      const waitForNormalizedValue = async (expected: string): Promise<void> => {
+        await page.waitForFunction(
+          (sel, expectedText) => {
+            const el = document.querySelector(sel);
+            if (!el) {
+              return false;
+            }
+            const val = ((el as HTMLInputElement).value ?? el.textContent ?? "").replace(
+              /\xA0/g,
+              " ",
+            );
+            return val === expectedText;
+          },
+          { timeout: browserTimeout(3000, 5000) },
+          selector,
+          expected,
+        );
+      };
 
       await clearInputContent(page, selector);
       await typeInInput(page, selector, "if(");
@@ -2257,6 +2275,26 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       );
       elementText = await readNormalizedText();
       expect(elementText).toContain("Hello (world) ");
+
+      if (selector === "#test-input") {
+        await clearInputContent(page, selector);
+        await typeInInput(page, selector, "https://example.com/a/b");
+        await waitForNormalizedValue("https://example.com/a/b");
+
+        await clearInputContent(page, selector);
+        await typeInInput(page, selector, "src/components/Button");
+        await waitForNormalizedValue("src/components/Button");
+
+        await clearInputContent(page, selector);
+        await typeInInput(page, selector, "</div>");
+        await waitForNormalizedValue("</div>");
+
+        await clearInputContent(page, selector);
+        await typeInInput(page, selector, "x /");
+        await waitForNormalizedValue("x / ");
+        await typeInInput(page, selector, "y");
+        await waitForNormalizedValue("x / y");
+      }
 
       await setSettingAndWaitStable(
         worker!,

@@ -192,6 +192,10 @@ export class SpacingRule implements GrammarRule {
       return this.resolveClosingBracketRule(inputStr, lastChar, lastIndex);
     }
 
+    if (lastChar === "/") {
+      return this.resolveSlashRule(inputStr, lastIndex, baseRule);
+    }
+
     return baseRule;
   }
 
@@ -226,6 +230,73 @@ export class SpacingRule implements GrammarRule {
       spaceBefore: Spacing.REMOVE_SPACE,
       spaceAfter: shouldInsertAfter ? Spacing.INSERT_SPACE : Spacing.NO_CHANGE,
     };
+  }
+
+  private resolveSlashRule(
+    inputStr: string,
+    slashIndex: number,
+    baseRule: SpacingPolicy,
+  ): SpacingPolicy {
+    if (this.shouldCompactProtocolSlash(inputStr, slashIndex)) {
+      return {
+        spaceBefore: Spacing.REMOVE_SPACE,
+        spaceAfter: Spacing.NO_CHANGE,
+      };
+    }
+
+    if (this.isSlashOperatorContext(inputStr, slashIndex)) {
+      return {
+        spaceBefore: Spacing.INSERT_SPACE,
+        spaceAfter: Spacing.INSERT_SPACE,
+      };
+    }
+
+    return baseRule;
+  }
+
+  private shouldCompactProtocolSlash(inputStr: string, slashIndex: number): boolean {
+    const charBeforeSlash = inputStr[slashIndex - 1];
+    if (!SPACE_CHARS.includes(charBeforeSlash)) {
+      return false;
+    }
+
+    const colonIndex = slashIndex - 2;
+    if (colonIndex < 1 || inputStr[colonIndex] !== ":") {
+      return false;
+    }
+
+    let schemeStart = colonIndex - 1;
+    while (schemeStart >= 0 && /[A-Za-z0-9+.-]/.test(inputStr[schemeStart])) {
+      schemeStart -= 1;
+    }
+
+    schemeStart += 1;
+    if (schemeStart >= colonIndex) {
+      return false;
+    }
+
+    const scheme = inputStr.slice(schemeStart, colonIndex);
+    return /^[A-Za-z][A-Za-z0-9+.-]*$/.test(scheme);
+  }
+
+  private isSlashOperatorContext(inputStr: string, slashIndex: number): boolean {
+    const charBeforeSlash = inputStr[slashIndex - 1];
+    if (!SPACE_CHARS.includes(charBeforeSlash)) {
+      return false;
+    }
+
+    const previousSignificant = this.findPreviousSignificantChar(inputStr, slashIndex - 1);
+    return this.isSlashOperandLike(previousSignificant);
+  }
+
+  private isSlashOperandLike(ch: string | null): boolean {
+    if (!ch) {
+      return false;
+    }
+    if ([")", "]", "}"].includes(ch)) {
+      return true;
+    }
+    return /[\p{L}\p{N}]/u.test(ch);
   }
 
   private isTightlyAttached(inputStr: string, index: number): boolean {

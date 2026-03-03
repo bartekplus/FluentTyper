@@ -130,6 +130,31 @@ describe("SpacingRule", () => {
     expect(ruleA.apply(getContext("a =>"))).toBeNull();
   });
 
+  test("keeps slash spacing unchanged in path and HTML closing tag contexts", () => {
+    expect(ruleA.apply(getContext("src/"))).toBeNull();
+    expect(ruleA.apply(getContext("src/components/"))).toBeNull();
+    expect(ruleA.apply(getContext("</"))).toBeNull();
+    expect(ruleA.apply(getContext("x/"))).toBeNull();
+  });
+
+  test("compacts protocol spacing and keeps prose operator spacing for slash", () => {
+    expect(ruleA.apply(getContext("https:\xA0/"))).toEqual({
+      replacement: "/",
+      deleteBackwards: 2,
+      deleteForwards: 0,
+      confidence: "high",
+      description: "Applied standard spacing rules for punctuation",
+    });
+
+    expect(ruleA.apply(getContext("x /"))).toEqual({
+      replacement: "/\xA0",
+      deleteBackwards: 1,
+      deleteForwards: 0,
+      confidence: "high",
+      description: "Applied standard spacing rules for punctuation",
+    });
+  });
+
   test("handles unicode characters natively", () => {
     expect(ruleA.apply(getContext("Zażółć gęślą jaźń."))).toEqual({
       replacement: ".\xA0",
