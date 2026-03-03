@@ -34,7 +34,8 @@ export class TextTargetAdapter {
     const targetNode = target as Node;
     const startInsideTarget =
       range.startContainer === targetNode || targetNode.contains(range.startContainer);
-    const endInsideTarget = range.endContainer === targetNode || targetNode.contains(range.endContainer);
+    const endInsideTarget =
+      range.endContainer === targetNode || targetNode.contains(range.endContainer);
 
     if (!startInsideTarget || !endInsideTarget) {
       const text = target.textContent ?? "";

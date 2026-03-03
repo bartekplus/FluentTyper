@@ -388,7 +388,10 @@ export class PredictionManager {
     trace.requestId = this.resolveNumericMeta(resolvedDebugMeta.requestId, trace.requestId);
     trace.tabId = this.resolveNumericMeta(resolvedDebugMeta.tabId, trace.tabId);
     trace.frameId = this.resolveNumericMeta(resolvedDebugMeta.frameId, trace.frameId);
-    trace.suggestionId = this.resolveNumericMeta(resolvedDebugMeta.suggestionId, trace.suggestionId);
+    trace.suggestionId = this.resolveNumericMeta(
+      resolvedDebugMeta.suggestionId,
+      trace.suggestionId,
+    );
     return trace;
   }
 

@@ -52,7 +52,8 @@
   border: 1px solid var(--suggestion-border-color-light) !important;
   border-radius: 8px !important; /* Rounded corners */
   box-shadow: 0 4px 12px var(--suggestion-shadow-color-light) !important; /* Softer shadow */
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
 }
 
 /* --- List Reset --- */
@@ -70,7 +71,9 @@
   overflow: hidden !important;
   text-overflow: ellipsis !important;
   white-space: nowrap !important;
-  transition: background-color 0.15s ease-in-out, color 0.15s ease-in-out !important; /* Smooth transition */
+  transition:
+    background-color 0.15s ease-in-out,
+    color 0.15s ease-in-out !important; /* Smooth transition */
 }
 
 /* --- List Header --- */
@@ -100,7 +103,9 @@
 
 /* --- "No Match" Item --- */
 .suggestion-container li.no-match {
-  color: var(--suggestion-header-text-light) !important; /* Use header text color for less emphasis */
+  color: var(
+    --suggestion-header-text-light
+  ) !important; /* Use header text color for less emphasis */
   cursor: default !important;
 }
 
@@ -120,7 +125,7 @@
     color: var(--suggestion-header-text-dark) !important;
     border-bottom-color: var(--suggestion-border-color-dark) !important;
   }
-  
+
   .suggestion-container li.highlight {
     background-color: var(--suggestion-highlight-bg-dark) !important;
     color: var(--suggestion-highlight-text-dark) !important;

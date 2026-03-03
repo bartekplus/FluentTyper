@@ -131,13 +131,16 @@ export class ContentMessageHandler {
             predictionCount: context.predictions.length,
           });
         } else {
-          logger.debug("Forwarding non-matching prediction response for manager-level stale filtering", {
-            traceId: context.traceId,
-            requestId: context.requestId,
-            suggestionId: context.suggestionId,
-            pendingRequestId: this.pendingReq?.context.requestId,
-            pendingSuggestionId: this.pendingReq?.context.suggestionId,
-          });
+          logger.debug(
+            "Forwarding non-matching prediction response for manager-level stale filtering",
+            {
+              traceId: context.traceId,
+              requestId: context.requestId,
+              suggestionId: context.suggestionId,
+              pendingRequestId: this.pendingReq?.context.requestId,
+              pendingSuggestionId: this.pendingReq?.context.suggestionId,
+            },
+          );
         }
         this.dependencies.fulfillPrediction(context);
         break;

@@ -277,7 +277,12 @@ describe("content_script behavior", () => {
 
     fluentTyper.messageHandler({
       command: CMD_BACKGROUND_PAGE_PREDICT_RESP,
-      context: { suggestionId: 3, requestId: 1, predictions: [], textEdit: { replacementText: "H" } },
+      context: {
+        suggestionId: 3,
+        requestId: 1,
+        predictions: [],
+        textEdit: { replacementText: "H" },
+      },
     });
 
     expect(sendMessage).toHaveBeenCalledWith(

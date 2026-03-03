@@ -153,9 +153,7 @@ export class SuggestionManager {
     entry.suggestions = Array.isArray(context.predictions) ? context.predictions.slice() : [];
     entry.selectedIndex = 0;
     entry.menuHeader =
-      this.displayLangHeader && context.lang
-        ? `Lang: ${SUPPORTED_LANGUAGES[context.lang]}`
-        : null;
+      this.displayLangHeader && context.lang ? `Lang: ${SUPPORTED_LANGUAGES[context.lang]}` : null;
 
     if (this.inlineSuggestionEnabled) {
       entry.inlineSuggestion = entry.suggestions[0] ?? null;
@@ -169,7 +167,7 @@ export class SuggestionManager {
       entry.pendingInlineAccept = false;
       const suggested = entry.inlineSuggestion ?? entry.suggestions[0] ?? null;
       if (suggested) {
-        this.acceptSuggestion(entry, suggested, new KeyboardEvent("keydown", { key: "Tab" }));
+        this.acceptSuggestion(entry, suggested);
       }
     }
 
@@ -674,7 +672,8 @@ export class SuggestionManager {
 
     document.body.removeChild(mirror);
 
-    const clamp = (value: number, min: number, max: number): number => Math.max(min, Math.min(value, max));
+    const clamp = (value: number, min: number, max: number): number =>
+      Math.max(min, Math.min(value, max));
 
     return this.createRect(
       clamp(caretRect.left, mirrorRect.left, mirrorRect.left + mirrorRect.width),
@@ -706,15 +705,17 @@ export class SuggestionManager {
       return elem.getBoundingClientRect();
     }
 
-    const parent = selection.anchorNode?.nodeType === Node.TEXT_NODE
-      ? selection.anchorNode.parentElement
-      : (selection.anchorNode as Element | null);
+    const parent =
+      selection.anchorNode?.nodeType === Node.TEXT_NODE
+        ? selection.anchorNode.parentElement
+        : (selection.anchorNode as Element | null);
     if (!parent) {
       return rect;
     }
 
     const parentRect = parent.getBoundingClientRect();
-    const clamp = (value: number, min: number, max: number): number => Math.max(min, Math.min(value, max));
+    const clamp = (value: number, min: number, max: number): number =>
+      Math.max(min, Math.min(value, max));
 
     return this.createRect(
       clamp(rect.left, parentRect.left, parentRect.left + parentRect.width),
@@ -736,7 +737,10 @@ export class SuggestionManager {
     const availableSpaceOnBottom = window.innerHeight - (rect.top + rect.height);
 
     if (availableSpaceOnBottom < menuDimensions.height) {
-      if (availableSpaceOnTop >= menuDimensions.height || availableSpaceOnTop > availableSpaceOnBottom) {
+      if (
+        availableSpaceOnTop >= menuDimensions.height ||
+        availableSpaceOnTop > availableSpaceOnBottom
+      ) {
         coordinates.top = "auto";
         coordinates.bottom = window.innerHeight - rect.top;
         if (availableSpaceOnBottom < menuDimensions.height) {
@@ -751,7 +755,10 @@ export class SuggestionManager {
     const availableSpaceOnRight = window.innerWidth - rect.left;
 
     if (availableSpaceOnRight < menuDimensions.width) {
-      if (availableSpaceOnLeft >= menuDimensions.width || availableSpaceOnLeft > availableSpaceOnRight) {
+      if (
+        availableSpaceOnLeft >= menuDimensions.width ||
+        availableSpaceOnLeft > availableSpaceOnRight
+      ) {
         coordinates.left = "auto";
         coordinates.right = window.innerWidth - rect.left;
         if (availableSpaceOnRight < menuDimensions.width) {
@@ -835,7 +842,7 @@ export class SuggestionManager {
       return;
     }
 
-    this.acceptSuggestionAtIndex(entry, index, event);
+    this.acceptSuggestionAtIndex(entry, index);
   }
 
   private onElementKeyDown(id: number, event: Event): void {
@@ -854,14 +861,18 @@ export class SuggestionManager {
 
     const key = keyboardEvent.key;
 
-    if (key === "Backspace" && this.revertOnBackspace && this.tryRevertLastReplacement(entry, keyboardEvent)) {
+    if (
+      key === "Backspace" &&
+      this.revertOnBackspace &&
+      this.tryRevertLastReplacement(entry, keyboardEvent)
+    ) {
       return;
     }
 
     if (this.inlineSuggestionEnabled && key === "Tab") {
       if (entry.inlineSuggestion) {
         this.consumeKeyboardEvent(keyboardEvent);
-        this.acceptSuggestion(entry, entry.inlineSuggestion, keyboardEvent);
+        this.acceptSuggestion(entry, entry.inlineSuggestion);
         return;
       }
 
@@ -898,26 +909,26 @@ export class SuggestionManager {
       const digitIndex = this.mapDigitToIndex(key);
       if (digitIndex !== null && digitIndex < entry.suggestions.length) {
         this.consumeKeyboardEvent(keyboardEvent);
-        this.acceptSuggestionAtIndex(entry, digitIndex, keyboardEvent);
+        this.acceptSuggestionAtIndex(entry, digitIndex);
         return;
       }
     }
 
     if (key === "Tab" && this.autocompleteOnTab) {
       this.consumeKeyboardEvent(keyboardEvent);
-      this.acceptSuggestionAtIndex(entry, entry.selectedIndex, keyboardEvent);
+      this.acceptSuggestionAtIndex(entry, entry.selectedIndex);
       return;
     }
 
     if (key === "Enter" && this.autocompleteOnEnter) {
       this.consumeKeyboardEvent(keyboardEvent);
-      this.acceptSuggestionAtIndex(entry, entry.selectedIndex, keyboardEvent);
+      this.acceptSuggestionAtIndex(entry, entry.selectedIndex);
       return;
     }
 
     if (key === " " && this.autocompleteOnSpace) {
       this.consumeKeyboardEvent(keyboardEvent);
-      this.acceptSuggestionAtIndex(entry, entry.selectedIndex, keyboardEvent);
+      this.acceptSuggestionAtIndex(entry, entry.selectedIndex);
     }
   }
 
@@ -930,7 +941,8 @@ export class SuggestionManager {
       return;
     }
 
-    const next = (entry.selectedIndex + direction + entry.suggestions.length) % entry.suggestions.length;
+    const next =
+      (entry.selectedIndex + direction + entry.suggestions.length) % entry.suggestions.length;
     entry.selectedIndex = next;
 
     const items = Array.from(entry.list.querySelectorAll("li"));
@@ -979,16 +991,16 @@ export class SuggestionManager {
       .replaceAll("'", "&#39;");
   }
 
-  private acceptSuggestionAtIndex(entry: Entry, index: number, event: Event): void {
+  private acceptSuggestionAtIndex(entry: Entry, index: number): void {
     const suggestion = entry.suggestions[index];
     if (!suggestion) {
       return;
     }
 
-    this.acceptSuggestion(entry, suggestion, event);
+    this.acceptSuggestion(entry, suggestion);
   }
 
-  private acceptSuggestion(entry: Entry, suggestion: string, event: Event): void {
+  private acceptSuggestion(entry: Entry, suggestion: string): void {
     let snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
     const tokenInfo = this.findMentionToken(snapshot.beforeCursor);
     const triggerText = tokenInfo.token || entry.latestMentionText;
@@ -1016,7 +1028,10 @@ export class SuggestionManager {
     )
       ? 1
       : 0;
-    const finalReplaceEnd = Math.min(currentFullText.length, baseReplaceEnd + extraWhitespaceToConsume);
+    const finalReplaceEnd = Math.min(
+      currentFullText.length,
+      baseReplaceEnd + extraWhitespaceToConsume,
+    );
     const consumedTrailingWhitespace = currentFullText.slice(baseReplaceEnd, finalReplaceEnd);
 
     if (
@@ -1036,7 +1051,7 @@ export class SuggestionManager {
         insertedText: suggestion,
         cursorAfter: updatedSnapshot.cursorOffset,
       };
-      this.finishAcceptedSuggestion(entry, triggerText, suggestion, event);
+      this.finishAcceptedSuggestion(entry, triggerText, suggestion);
       return;
     }
     const cursorAfter = replaceStart + suggestion.length;
@@ -1057,7 +1072,7 @@ export class SuggestionManager {
       cursorAfter,
     };
 
-    this.finishAcceptedSuggestion(entry, triggerText, suggestion, event);
+    this.finishAcceptedSuggestion(entry, triggerText, suggestion);
   }
 
   private findTrailingToken(afterCursor: string): string {
@@ -1081,12 +1096,7 @@ export class SuggestionManager {
     return endsWithSpace && nextIsSpace;
   }
 
-  private finishAcceptedSuggestion(
-    entry: Entry,
-    triggerText: string,
-    insertedText: string,
-    _event: Event,
-  ): void {
+  private finishAcceptedSuggestion(entry: Entry, triggerText: string, insertedText: string): void {
     this.clearSuggestions(entry);
 
     entry.missingTrailingSpace = true;
@@ -1142,7 +1152,14 @@ export class SuggestionManager {
     const replaceStart = Math.max(0, replaceEnd - insertedText.length);
     const nextCursor = replaceStart + triggerText.length;
 
-    this.replaceTextByOffsets(entry.elem, fullText, replaceStart, replaceEnd, triggerText, nextCursor);
+    this.replaceTextByOffsets(
+      entry.elem,
+      fullText,
+      replaceStart,
+      replaceEnd,
+      triggerText,
+      nextCursor,
+    );
     this.dispatchInputEvent(entry.elem);
 
     entry.lastReplacement = null;
@@ -1159,8 +1176,14 @@ export class SuggestionManager {
       : fullText.length;
     const replaceBackwardCount = Math.max(0, textEdit.replaceBackwardCount);
 
-    const replaceStart = Math.max(0, Math.min(fullText.length, evaluatedLength - replaceBackwardCount));
-    const replaceEnd = Math.max(replaceStart, Math.min(fullText.length, replaceStart + replaceBackwardCount));
+    const replaceStart = Math.max(
+      0,
+      Math.min(fullText.length, evaluatedLength - replaceBackwardCount),
+    );
+    const replaceEnd = Math.max(
+      replaceStart,
+      Math.min(fullText.length, replaceStart + replaceBackwardCount),
+    );
 
     if (fullText.length > evaluatedLength && this.isTrailingSpaceEdit(textEdit)) {
       return;
@@ -1189,7 +1212,10 @@ export class SuggestionManager {
       }
     }
 
-    if (!this.isTextValueElement(entry.elem) && entry.elem.classList.contains("ck-editor__editable")) {
+    if (
+      !this.isTextValueElement(entry.elem) &&
+      entry.elem.classList.contains("ck-editor__editable")
+    ) {
       const applied = this.tryApplyCkEditorBackwardReplacement(
         entry.elem,
         replaceBackwardCount,
@@ -1251,7 +1277,8 @@ export class SuggestionManager {
     const spacingRule = SPACING_RULES[key];
     if (
       spacingRule &&
-      (spacingRule.spaceBefore === Spacing.REMOVE_SPACE || spacingRule.spaceBefore === Spacing.NO_CHANGE)
+      (spacingRule.spaceBefore === Spacing.REMOVE_SPACE ||
+        spacingRule.spaceBefore === Spacing.NO_CHANGE)
     ) {
       return;
     }
@@ -1264,7 +1291,14 @@ export class SuggestionManager {
     const replacementText = `\xA0${key}`;
     const cursorAfter = replaceStart + replacementText.length;
 
-    this.replaceTextByOffsets(entry.elem, fullText, replaceStart, replaceEnd, replacementText, cursorAfter);
+    this.replaceTextByOffsets(
+      entry.elem,
+      fullText,
+      replaceStart,
+      replaceEnd,
+      replacementText,
+      cursorAfter,
+    );
     this.dispatchInputEvent(entry.elem);
   }
 

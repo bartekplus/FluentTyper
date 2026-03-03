@@ -1,5 +1,8 @@
 import { beforeEach, afterEach, describe, expect, jest, test } from "bun:test";
-import type { ContentScriptPredictRequestContext, PredictResponseContext } from "../src/core/domain/messageTypes";
+import type {
+  ContentScriptPredictRequestContext,
+  PredictResponseContext,
+} from "../src/core/domain/messageTypes";
 
 function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -243,7 +246,9 @@ describe("SuggestionManager", () => {
     manager.detachAllHelpers();
 
     expect(input.hasAttribute("data-suggestion")).toBe(false);
-    expect((input as HTMLInputElement & { suggestionMenu?: Element }).suggestionMenu).toBeUndefined();
+    expect(
+      (input as HTMLInputElement & { suggestionMenu?: Element }).suggestionMenu,
+    ).toBeUndefined();
   });
 
   test("renders popup suggestions and accepts via Tab and click", async () => {
@@ -274,7 +279,9 @@ describe("SuggestionManager", () => {
       }),
     );
 
-    const second = document.querySelector(".suggestion-container li[data-index='1']") as HTMLElement;
+    const second = document.querySelector(
+      ".suggestion-container li[data-index='1']",
+    ) as HTMLElement;
     second.dispatchEvent(new Event("mousedown", { bubbles: true, cancelable: true }));
     second.dispatchEvent(new Event("click", { bubbles: true, cancelable: true }));
 

@@ -328,23 +328,6 @@ async function getInputContent(page: Page, selector: string): Promise<string> {
   return page.$eval(selector, (el) => (el as HTMLInputElement).value ?? el.textContent ?? "");
 }
 
-async function waitForInputContentNotEqual(
-  page: Page,
-  selector: string,
-  value: string,
-  timeoutMs: number,
-): Promise<void> {
-  const startedAt = Date.now();
-  while (Date.now() - startedAt < timeoutMs) {
-    const currentValue = await getInputContent(page, selector);
-    if (currentValue !== value) {
-      return;
-    }
-    await new Promise((resolve) => setTimeout(resolve, 50));
-  }
-  throw new Error(`Timed out waiting for input content to differ from \"${value}\" for ${selector}`);
-}
-
 async function waitForInputContentEqual(
   page: Page,
   selector: string,
@@ -359,7 +342,7 @@ async function waitForInputContentEqual(
     }
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
-  throw new Error(`Timed out waiting for input content \"${expected}\" for ${selector}`);
+  throw new Error(`Timed out waiting for input content "${expected}" for ${selector}`);
 }
 
 async function waitForInputContentMatch(
@@ -494,7 +477,9 @@ async function waitForInputReady(page: Page, selector: string) {
           ).__testCkEditorError,
           hasEditable: Boolean(document.querySelector(".ck-editor__editable")),
         }));
-        throw new Error(`CKEditor readiness timed out for ${selector}: ${JSON.stringify(debugState)}`);
+        throw new Error(
+          `CKEditor readiness timed out for ${selector}: ${JSON.stringify(debugState)}`,
+        );
       }
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
@@ -1301,7 +1286,12 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
       await page.keyboard.press("ArrowLeft");
       await element!.type("x");
-      await waitForInputContentEqual(page, selector, `${wordPart}x\xa0`, browserTimeout(2000, 5000));
+      await waitForInputContentEqual(
+        page,
+        selector,
+        `${wordPart}x\xa0`,
+        browserTimeout(2000, 5000),
+      );
     },
     browserTimeout(15000, 30000),
   );
@@ -2263,7 +2253,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           }
           await new Promise((resolve) => setTimeout(resolve, 50));
         }
-        throw new Error(`Timed out waiting for normalized value \"${expected}\" in ${selector}`);
+        throw new Error(`Timed out waiting for normalized value "${expected}" in ${selector}`);
       };
       const waitForNormalizedMatch = async (
         pattern: RegExp,
@@ -2382,7 +2372,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           }
           await new Promise((resolve) => setTimeout(resolve, 50));
         }
-        throw new Error(`Timed out waiting for normalized value \"${expected}\" in ${selector}`);
+        throw new Error(`Timed out waiting for normalized value "${expected}" in ${selector}`);
       };
 
       await clearInputContent(page, selector);
@@ -2465,7 +2455,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           }
           await new Promise((resolve) => setTimeout(resolve, 50));
         }
-        throw new Error(`Timed out waiting for normalized value \"${expected}\" in ${selector}`);
+        throw new Error(`Timed out waiting for normalized value "${expected}" in ${selector}`);
       };
 
       await clearInputContent(page, selector);
