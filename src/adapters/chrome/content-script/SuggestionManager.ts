@@ -9,6 +9,7 @@ import type {
 import { SPACING_RULES, Spacing } from "@core/domain/spacingRules";
 import { InlineSuggestionView } from "./suggestions/InlineSuggestionView";
 import { SuggestionElementDiscovery } from "./suggestions/SuggestionElementDiscovery";
+import { SuggestionEntryRegistry } from "./suggestions/SuggestionEntryRegistry";
 import { SuggestionMenuView } from "./suggestions/SuggestionMenuView";
 import { TextTargetAdapter, type TextTarget } from "./suggestions/TextTargetAdapter";
 import type {
@@ -48,6 +49,7 @@ export class SuggestionManager {
   private readonly selectors: string;
   private readonly getPrediction: (context: PredictionRequest) => void;
   private readonly discovery: SuggestionElementDiscovery;
+  private readonly entryRegistry = new SuggestionEntryRegistry();
 
   private minWordLengthToPredict: number;
   private autocompleteOnSpace: boolean;
@@ -61,9 +63,6 @@ export class SuggestionManager {
   private lang: string;
   private separatorRegex: RegExp;
 
-  private nextEntryId = 1;
-  private entries = new Map<number, SuggestionEntry>();
-  private entryIdByElement = new WeakMap<Element, number>();
   private activeEntryId: number | null = null;
   private documentPointerDownListenerAttached = false;
   private readonly onDocumentPointerDownBound: EventListener =
@@ -91,7 +90,7 @@ export class SuggestionManager {
   }
 
   public fulfillPrediction(context: PredictionResponse): void {
-    const entry = this.entries.get(context.suggestionId);
+    const entry = this.entryRegistry.getById(context.suggestionId);
     if (!entry) {
       return;
     }
@@ -150,16 +149,15 @@ export class SuggestionManager {
   }
 
   public detachAllHelpers(): void {
-    for (const id of [...this.entries.keys()]) {
+    for (const id of [...this.entryRegistry.ids()]) {
       this.detachHelper(id);
     }
-    this.entries.clear();
-    this.entryIdByElement = new WeakMap<Element, number>();
+    this.entryRegistry.clear();
     this.activeEntryId = null;
   }
 
   public removeHelpersNotInDocument(): void {
-    for (const [id, entry] of this.entries) {
+    for (const [id, entry] of this.entryRegistry.entriesById()) {
       // Keep helpers attached for temporarily hidden elements, but detach when element
       // becomes structurally/security-ineligible (e.g. password fields).
       if (!isInDocument(entry.elem) || !this.isStructurallyEligibleElement(entry.elem)) {
@@ -172,12 +170,12 @@ export class SuggestionManager {
     const candidates = this.discovery.queryCandidates(root);
 
     for (const candidate of candidates) {
-      if (this.isHelperAttached(candidate)) {
+      if (this.entryRegistry.isAttached(candidate)) {
         continue;
       }
 
       let shouldSkip = false;
-      for (const [existingId, existing] of this.entries) {
+      for (const [existingId, existing] of this.entryRegistry.entriesById()) {
         if (candidate.contains(existing.elem)) {
           this.detachHelper(existingId);
           continue;
@@ -225,18 +223,8 @@ export class SuggestionManager {
     return elem.isContentEditable;
   }
 
-  private isHelperAttached(elem: Element): boolean {
-    const id = this.entryIdByElement.get(elem);
-    if (typeof id !== "number") {
-      return false;
-    }
-    const entry = this.entries.get(id);
-    return Boolean(entry && entry.elem === elem);
-  }
-
   private attachHelper(elem: SuggestionElement): void {
-    const id = this.nextEntryId;
-    this.nextEntryId += 1;
+    const id = this.entryRegistry.allocateId();
 
     const menu = SuggestionMenuView.ensureMenu(document.body);
     const list = menu.querySelector("ul") as HTMLUListElement;
@@ -293,13 +281,12 @@ export class SuggestionManager {
     elem.tributeMenu = menu;
     elem.suggestionMenu = menu;
 
-    this.entries.set(id, entry);
-    this.entryIdByElement.set(elem, id);
+    this.entryRegistry.register(entry);
     this.ensureDocumentPointerDownListener();
   }
 
   private detachHelper(id: number): void {
-    const entry = this.entries.get(id);
+    const entry = this.entryRegistry.getById(id);
     if (!entry) {
       return;
     }
@@ -323,13 +310,12 @@ export class SuggestionManager {
     entry.elem.removeAttribute("data-tribute");
     entry.elem.removeAttribute("data-suggestion");
 
-    this.entries.delete(id);
-    this.entryIdByElement.delete(entry.elem);
+    this.entryRegistry.unregister(id);
 
     if (this.activeEntryId === id) {
       this.activeEntryId = null;
     }
-    if (this.entries.size === 0) {
+    if (this.entryRegistry.size === 0) {
       this.removeDocumentPointerDownListener();
     }
 
@@ -358,7 +344,7 @@ export class SuggestionManager {
       return;
     }
 
-    for (const entry of this.entries.values()) {
+    for (const entry of this.entryRegistry.values()) {
       if (entry.elem.contains(target) || entry.menu.contains(target)) {
         continue;
       }
@@ -391,7 +377,7 @@ export class SuggestionManager {
 
   private getActiveEntry(): SuggestionEntry | null {
     if (this.activeEntryId !== null) {
-      const known = this.entries.get(this.activeEntryId);
+      const known = this.entryRegistry.getById(this.activeEntryId);
       if (known && document.activeElement === known.elem) {
         return known;
       }
@@ -401,20 +387,16 @@ export class SuggestionManager {
     if (!active) {
       return null;
     }
-    const id = this.entryIdByElement.get(active);
-    if (typeof id !== "number") {
-      return null;
-    }
-    const entry = this.entries.get(id) ?? null;
+    const entry = this.entryRegistry.getByElement(active) ?? null;
     if (entry) {
-      this.activeEntryId = id;
+      this.activeEntryId = entry.id;
     }
     return entry;
   }
 
   private onElementFocus(id: number): void {
     this.activeEntryId = id;
-    const entry = this.entries.get(id);
+    const entry = this.entryRegistry.getById(id);
     if (!entry || !this.inlineSuggestionEnabled) {
       return;
     }
@@ -423,7 +405,7 @@ export class SuggestionManager {
 
   private onElementClick(id: number): void {
     this.activeEntryId = id;
-    const entry = this.entries.get(id);
+    const entry = this.entryRegistry.getById(id);
     if (!entry) {
       return;
     }
@@ -435,7 +417,7 @@ export class SuggestionManager {
     if (this.activeEntryId === id) {
       this.activeEntryId = null;
     }
-    const entry = this.entries.get(id);
+    const entry = this.entryRegistry.getById(id);
     if (!entry) {
       return;
     }
@@ -444,7 +426,7 @@ export class SuggestionManager {
 
   private onElementInput(id: number): void {
     this.activeEntryId = id;
-    const entry = this.entries.get(id);
+    const entry = this.entryRegistry.getById(id);
     if (!entry) {
       return;
     }
@@ -934,7 +916,7 @@ export class SuggestionManager {
       return;
     }
 
-    const entry = this.entries.get(id);
+    const entry = this.entryRegistry.getById(id);
     if (!entry) {
       return;
     }
@@ -944,7 +926,7 @@ export class SuggestionManager {
 
   private onElementKeyDown(id: number, event: Event): void {
     this.activeEntryId = id;
-    const entry = this.entries.get(id);
+    const entry = this.entryRegistry.getById(id);
     if (!entry) {
       return;
     }
