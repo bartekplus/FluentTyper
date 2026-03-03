@@ -1,4 +1,3 @@
-import { LANG_SEPARATOR_CHARS_REGEX } from "@core/domain/lang";
 import { createLogger } from "@core/application/logging/Logger";
 import type {
   ContentScriptPredictRequestContext,
@@ -164,6 +163,7 @@ export class ContentRuntimeController {
       this.initializeSuggestionManager();
     }
     this.suggestionManager?.queryAndAttachHelper();
+    this.suggestionManager?.triggerActiveSuggestion();
     this.attachMutationObserver();
   }
 
@@ -213,10 +213,6 @@ export class ContentRuntimeController {
       getPrediction: (context: ContentScriptPredictRequestContext) =>
         this.onPredictionRequest?.(context),
     });
-    if (this.suggestionManager) {
-      this.suggestionManager.autocompleteSeparator =
-        LANG_SEPARATOR_CHARS_REGEX[this.config.lang] || /\s+/;
-    }
   }
 
   private executeMutationPlan(mutationPlan: MutationPlan): void {

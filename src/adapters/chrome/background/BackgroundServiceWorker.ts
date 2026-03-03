@@ -172,7 +172,7 @@ export class BackgroundServiceWorker {
     this.language = runtimeConfig.language;
     this.predictionManager.setConfig(runtimeConfig.predictionConfig);
     this.productivityStatsManager.setSnippetShortcuts(runtimeConfig.textExpansions);
-    this.tabMessenger.sendToAllTabs(
+    await this.tabMessenger.sendToAllTabs(
       await this.getBackgroundPageSetConfigMsg(),
       this.settingsManager,
       (domain: string) => this.configAssembler.resolveDomainConfigOverrides(domain),

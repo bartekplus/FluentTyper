@@ -30,21 +30,45 @@ export class TextTargetAdapter {
       };
     }
 
-    const range = selection.getRangeAt(0).cloneRange();
-    const preRange = range.cloneRange();
-    preRange.selectNodeContents(target);
-    preRange.setEnd(range.startContainer, range.startOffset);
-    const beforeCursor = preRange.toString();
+    const range = selection.getRangeAt(0);
+    const targetNode = target as Node;
+    const startInsideTarget =
+      range.startContainer === targetNode || targetNode.contains(range.startContainer);
+    const endInsideTarget = range.endContainer === targetNode || targetNode.contains(range.endContainer);
 
-    const postRange = range.cloneRange();
-    postRange.selectNodeContents(target);
-    postRange.setStart(range.endContainer, range.endOffset);
-    const afterCursor = postRange.toString();
+    if (!startInsideTarget || !endInsideTarget) {
+      const text = target.textContent ?? "";
+      return {
+        beforeCursor: text,
+        afterCursor: "",
+        cursorOffset: text.length,
+      };
+    }
 
-    return {
-      beforeCursor,
-      afterCursor,
-      cursorOffset: beforeCursor.length,
-    };
+    try {
+      const clonedRange = range.cloneRange();
+      const preRange = clonedRange.cloneRange();
+      preRange.selectNodeContents(target);
+      preRange.setEnd(clonedRange.startContainer, clonedRange.startOffset);
+      const beforeCursor = preRange.toString();
+
+      const postRange = clonedRange.cloneRange();
+      postRange.selectNodeContents(target);
+      postRange.setStart(clonedRange.endContainer, clonedRange.endOffset);
+      const afterCursor = postRange.toString();
+
+      return {
+        beforeCursor,
+        afterCursor,
+        cursorOffset: beforeCursor.length,
+      };
+    } catch {
+      const text = target.textContent ?? "";
+      return {
+        beforeCursor: text,
+        afterCursor: "",
+        cursorOffset: text.length,
+      };
+    }
   }
 }

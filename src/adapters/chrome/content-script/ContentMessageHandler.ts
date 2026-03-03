@@ -114,31 +114,32 @@ export class ContentMessageHandler {
           !isNonEmptyString(this.pendingReq?.context.traceId) ||
           !isNonEmptyString(context.traceId) ||
           this.pendingReq?.context.traceId === context.traceId;
-        if (
+        const isMatchingPending =
           this.pendingReq &&
           this.pendingReq.context.suggestionId === context.suggestionId &&
           this.pendingReq.context.requestId === context.requestId &&
-          traceIdMatches
-        ) {
+          traceIdMatches;
+
+        if (isMatchingPending) {
+          // Clear before fulfillment so synchronous follow-up requests created
+          // by text edits are not wiped out after the callback returns.
+          this.pendingReq = null;
           logger.debug("Fulfilling prediction response", {
             traceId: context.traceId,
             requestId: context.requestId,
             suggestionId: context.suggestionId,
             predictionCount: context.predictions.length,
           });
-          this.dependencies.fulfillPrediction(context);
-          this.pendingReq = null;
         } else {
-          logger.warn("Ignored prediction response due to mismatch", {
+          logger.debug("Forwarding non-matching prediction response for manager-level stale filtering", {
             traceId: context.traceId,
             requestId: context.requestId,
             suggestionId: context.suggestionId,
-            hasPendingRequest: Boolean(this.pendingReq),
-            pendingTraceId: this.pendingReq?.context.traceId,
             pendingRequestId: this.pendingReq?.context.requestId,
             pendingSuggestionId: this.pendingReq?.context.suggestionId,
           });
         }
+        this.dependencies.fulfillPrediction(context);
         break;
       }
       case CMD_BACKGROUND_PAGE_SET_CONFIG:

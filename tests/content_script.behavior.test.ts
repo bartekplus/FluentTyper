@@ -226,7 +226,79 @@ describe("content_script behavior", () => {
       command: CMD_BACKGROUND_PAGE_PREDICT_RESP,
       context: { suggestionId: 3, requestId: 11, predictions: ["ignored"] },
     });
-    expect(suggestionManager.fulfillPrediction).not.toHaveBeenCalled();
+    expect(suggestionManager.fulfillPrediction).toHaveBeenCalledWith(
+      expect.objectContaining({ suggestionId: 3, requestId: 11, predictions: ["ignored"] }),
+    );
+
+    fluentTyper.messageHandler({
+      command: CMD_BACKGROUND_PAGE_PREDICT_RESP,
+      context: {
+        suggestionId: 3,
+        requestId: 11,
+        predictions: [],
+        textEdit: {
+          replacementText: "He",
+          replaceBackwardCount: 2,
+          evaluatedTextLength: 2,
+        },
+      },
+    });
+    expect(suggestionManager.fulfillPrediction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        suggestionId: 3,
+        requestId: 11,
+        textEdit: expect.objectContaining({ replacementText: "He" }),
+      }),
+    );
+  });
+
+  test("matching response preserves reentrant prediction request created during fulfillPrediction", async () => {
+    const { fluentTyper, suggestionInstances, sendMessage } = await loadContentScript();
+
+    fluentTyper.enable();
+    const suggestionManager = suggestionInstances[0];
+
+    fluentTyper.handleGetPrediction({
+      text: "h",
+      nextChar: "",
+      suggestionId: 3,
+      requestId: 1,
+    });
+
+    sendMessage.mockClear();
+    suggestionManager.fulfillPrediction.mockImplementationOnce(() => {
+      fluentTyper.handleGetPrediction({
+        text: "H",
+        nextChar: "",
+        suggestionId: 3,
+        requestId: 2,
+      });
+    });
+
+    fluentTyper.messageHandler({
+      command: CMD_BACKGROUND_PAGE_PREDICT_RESP,
+      context: { suggestionId: 3, requestId: 1, predictions: [], textEdit: { replacementText: "H" } },
+    });
+
+    expect(sendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        command: "CMD_CONTENT_SCRIPT_PREDICT_REQ",
+        context: expect.objectContaining({
+          suggestionId: 3,
+          requestId: 2,
+        }),
+      }),
+    );
+
+    fluentTyper.messageHandler({
+      command: CMD_BACKGROUND_PAGE_PREDICT_RESP,
+      context: { suggestionId: 3, requestId: 2, predictions: ["hello"] },
+    });
+
+    expect(suggestionManager.fulfillPrediction).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ suggestionId: 3, requestId: 2, predictions: ["hello"] }),
+    );
   });
 
   test("setConfig applies theme and restarts when already enabled", async () => {
