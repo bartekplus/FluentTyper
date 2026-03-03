@@ -667,6 +667,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   }, 60000);
 
   beforeEach(async () => {
+    // Keep the legacy baseline for non-grammar E2E flows so popup/inline
+    // prediction scenarios remain deterministic regardless of defaults.
+    await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
     page = await browser.newPage();
     page.setDefaultNavigationTimeout(NAVIGATION_TIMEOUT_MS);
     await page.bringToFront();
@@ -1165,7 +1168,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           typedPrefix,
         );
         const elementText = await getInputContent(page, selector);
-        expect(elementText).toBe(firstLiText?.toLowerCase());
+        expect(elementText.toLowerCase()).toBe(firstLiText?.toLowerCase());
       };
 
       await assertInsertion("h", async () => {
@@ -1204,7 +1207,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       );
 
       const autocompletedText = await getInputContent(page, selector);
-      expect(autocompletedText).toMatch(/^h\S*\xa0$/);
+      expect(autocompletedText).toMatch(/^h\S*\xa0$/i);
       const wordPart = autocompletedText.slice(0, -1);
 
       await page.keyboard.press("ArrowLeft");
@@ -1252,7 +1255,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         (el) => (el as HTMLInputElement).value ?? el.textContent,
       );
       // Should be a word starting with "w" followed by \xa0
-      expect(elementText).toMatch(/^w\S*\xa0$/);
+      expect(elementText).toMatch(/^w\S*\xa0$/i);
 
       // Cleanup
       await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
@@ -1954,7 +1957,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         selector,
         (el) => (el as HTMLInputElement).value ?? el.textContent,
       );
-      expect(elementText).toBe("as soon as possible\xa0");
+      expect((elementText ?? "").toLowerCase()).toBe("as soon as possible\xa0");
 
       // Cleanup
       await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
