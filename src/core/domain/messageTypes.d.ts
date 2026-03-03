@@ -45,6 +45,8 @@ export interface PredictRequestContext {
 export interface ForceReplaceType {
   text: string;
   length: number;
+  /** The length of the full text at the time the grammar rule was evaluated */
+  originalTextLength: number;
 }
 
 // Context for CMD_BACKGROUND_PAGE_PREDICT_RESP
@@ -79,14 +81,14 @@ export interface ContentScriptPredictRequestContext {
 
 // Context for CMD_OPTIONS_PAGE_CONFIG_CHANGE
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface OptionsPageConfigChangeContext {}
+export interface OptionsPageConfigChangeContext { }
 // Context for CMD_CONTENT_SCRIPT_GET_CONFIG
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface ContentScriptGetConfigContext {}
+export interface ContentScriptGetConfigContext { }
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface PopupPageEnableContext {}
+export interface PopupPageEnableContext { }
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface PopupPageDisableContext {}
+export interface PopupPageDisableContext { }
 export interface PopupPageStatusContext {
   enabled: boolean;
 }
@@ -135,7 +137,7 @@ export type ContentScriptUsageEventContext =
   | CharsTypedForTriggerUsageEventContext;
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface PopupGetProductivityStatsContext {}
+export interface PopupGetProductivityStatsContext { }
 
 export interface PopupAckWeeklyRecapContext {
   weekKey: string;
@@ -150,11 +152,11 @@ export interface PopupAckDonationMilestoneContext {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface OptionsResetProductivityStatsContext {}
+export interface OptionsResetProductivityStatsContext { }
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface OptionsGetPredictorDebugSnapshotContext {}
+export interface OptionsGetPredictorDebugSnapshotContext { }
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface OptionsClearPredictorDebugTraceContext {}
+export interface OptionsClearPredictorDebugTraceContext { }
 
 export interface ProductivityEventSummary {
   suggestionsShown: number;
@@ -236,63 +238,63 @@ export interface ProductivityDashboardStats {
 export type Message =
   | { command: "CMD_BACKGROUND_PAGE_SET_CONFIG"; context: SetConfigContext }
   | {
-      command: "CMD_BACKGROUND_PAGE_PREDICT_REQ";
-      context: PredictRequestContext;
-    }
+    command: "CMD_BACKGROUND_PAGE_PREDICT_REQ";
+    context: PredictRequestContext;
+  }
   | {
-      command: "CMD_BACKGROUND_PAGE_PREDICT_RESP";
-      context: PredictResponseContext;
-    }
+    command: "CMD_BACKGROUND_PAGE_PREDICT_RESP";
+    context: PredictResponseContext;
+  }
   | { command: "CMD_TOGGLE_FT_ACTIVE_TAB" }
   | { command: "CMD_TRIGGER_FT_ACTIVE_TAB" }
   | { command: "CMD_GET_HOSTNAME" }
   | {
-      command: "CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG";
-      context: UpdateLangConfigContext;
-    }
+    command: "CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG";
+    context: UpdateLangConfigContext;
+  }
   | {
-      command: "CMD_CONTENT_SCRIPT_PREDICT_REQ";
-      context: ContentScriptPredictRequestContext;
-    }
+    command: "CMD_CONTENT_SCRIPT_PREDICT_REQ";
+    context: ContentScriptPredictRequestContext;
+  }
   | {
-      command: "CMD_OPTIONS_PAGE_CONFIG_CHANGE";
-      context: OptionsPageConfigChangeContext;
-    }
+    command: "CMD_OPTIONS_PAGE_CONFIG_CHANGE";
+    context: OptionsPageConfigChangeContext;
+  }
   | {
-      command: "CMD_CONTENT_SCRIPT_GET_CONFIG";
-      context: ContentScriptGetConfigContext;
-    }
+    command: "CMD_CONTENT_SCRIPT_GET_CONFIG";
+    context: ContentScriptGetConfigContext;
+  }
   | { command: "CMD_POPUP_PAGE_ENABLE"; context: PopupPageEnableContext }
   | { command: "CMD_POPUP_PAGE_DISABLE"; context: PopupPageDisableContext }
   | { command: "CMD_STATUS_COMMAND"; context: PopupPageStatusContext }
   | {
-      command: "CMD_CONTENT_SCRIPT_USAGE_EVENT";
-      context: ContentScriptUsageEventContext;
-    }
+    command: "CMD_CONTENT_SCRIPT_USAGE_EVENT";
+    context: ContentScriptUsageEventContext;
+  }
   | {
-      command: "CMD_POPUP_GET_PRODUCTIVITY_STATS";
-      context: PopupGetProductivityStatsContext;
-    }
+    command: "CMD_POPUP_GET_PRODUCTIVITY_STATS";
+    context: PopupGetProductivityStatsContext;
+  }
   | {
-      command: "CMD_POPUP_ACK_WEEKLY_RECAP";
-      context: PopupAckWeeklyRecapContext;
-    }
+    command: "CMD_POPUP_ACK_WEEKLY_RECAP";
+    context: PopupAckWeeklyRecapContext;
+  }
   | {
-      command: "CMD_POPUP_ACK_DONATION_MILESTONE";
-      context: PopupAckDonationMilestoneContext;
-    }
+    command: "CMD_POPUP_ACK_DONATION_MILESTONE";
+    context: PopupAckDonationMilestoneContext;
+  }
   | {
-      command: "CMD_OPTIONS_RESET_PRODUCTIVITY_STATS";
-      context: OptionsResetProductivityStatsContext;
-    }
+    command: "CMD_OPTIONS_RESET_PRODUCTIVITY_STATS";
+    context: OptionsResetProductivityStatsContext;
+  }
   | {
-      command: "CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT";
-      context: OptionsGetPredictorDebugSnapshotContext;
-    }
+    command: "CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT";
+    context: OptionsGetPredictorDebugSnapshotContext;
+  }
   | {
-      command: "CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE";
-      context: OptionsClearPredictorDebugTraceContext;
-    };
+    command: "CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE";
+    context: OptionsClearPredictorDebugTraceContext;
+  };
 export type ConfigMessage = Extract<Message, { command: "CMD_BACKGROUND_PAGE_SET_CONFIG" }>;
 export type PredictRequestMessage = Extract<
   Message,

@@ -185,6 +185,7 @@ class TributeEvents {
   }
 
   keyup(instance, event) {
+
     // Check for modifiers keys
     if (event instanceof KeyboardEvent) {
       let controlKeyPressed = false;
@@ -227,6 +228,7 @@ class TributeEvents {
         return;
       }
     }
+
 
     if (!instance.updateSelection(this)) {
       return;
@@ -1869,7 +1871,10 @@ class Tribute {
       if (!forceReplace && !this.activationPending) {
         return;
       }
-      this.activationPending = false;
+      // Only clear activationPending for actual menu responses, not grammar corrections
+      if (!forceReplace) {
+        this.activationPending = false;
+      }
       // Element is no longer in focus - don't show menu or apply edits
       if (this.range.getDocument().activeElement !== this.current.element) {
         return;
@@ -1877,8 +1882,16 @@ class Tribute {
 
       if (forceReplace) {
         // Do force replace - don't show menu
-        this.current.mentionPosition = this.current.fullText.length - forceReplace.length;
-        this.current.mentionText = this.current.fullText.slice(-forceReplace.length);
+        // Use originalTextLength to compute the correct position in the current text,
+        // since the user may have typed more characters since the grammar rule was evaluated.
+        const textLen = forceReplace.originalTextLength || this.current.fullText.length;
+        const mentionPos = textLen - forceReplace.length;
+        // Verify the replacement position is still valid in the current text
+        if (mentionPos < 0 || mentionPos > this.current.fullText.length) {
+          return;
+        }
+        this.current.mentionPosition = mentionPos;
+        this.current.mentionText = this.current.fullText.substring(mentionPos, mentionPos + forceReplace.length);
         this.replaceText(forceReplace.text, null, null);
         return;
       }

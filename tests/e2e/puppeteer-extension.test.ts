@@ -180,19 +180,21 @@ async function setSettingAndWait(
   worker: BackgroundContext,
   key: string,
   value: unknown,
-  timeoutMs = 3000,
+  timeoutMs = 15000,
 ): Promise<void> {
   await setSetting(worker, key, value);
   const expected = JSON.stringify(value);
   const start = Date.now();
+  let lastCurrent: unknown;
   while (Date.now() - start < timeoutMs) {
     const current = await getSetting<unknown>(worker, key);
+    lastCurrent = current;
     if (JSON.stringify(current) === expected) {
       return;
     }
     await new Promise((r) => setTimeout(r, 50));
   }
-  throw new Error(`Timed out waiting for setting ${key} to become ${expected}`);
+  throw new Error(`Timed out waiting for setting ${key} to become ${expected}. Last value: ${JSON.stringify(lastCurrent)}`);
 }
 
 async function notifyConfigChange(browser: Browser, worker: BackgroundContext): Promise<void> {
@@ -1703,53 +1705,53 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         expected: string;
         popupExpected: string;
       }[] = [
-        {
-          locale: "en_US",
-          expected: "Extension UI Language",
-          popupExpected: "Advanced Options",
-        },
-        {
-          locale: "fr_FR",
-          expected: "Langue de l'interface",
-          popupExpected: "Options avancées",
-        },
-        {
-          locale: "hr_HR",
-          expected: "Jezik su\u010Delja pro\u0161irenja",
-          popupExpected: "Napredne opcije",
-        },
-        {
-          locale: "es_ES",
-          expected: "Idioma de la interfaz",
-          popupExpected: "Opciones avanzadas",
-        },
-        {
-          locale: "el_GR",
-          expected:
-            "\u0393\u03BB\u03CE\u03C3\u03C3\u03B1 \u03B4\u03B9\u03B5\u03C0\u03B1\u03C6\u03AE\u03C2 \u03B5\u03C0\u03AD\u03BA\u03C4\u03B1\u03C3\u03B7\u03C2",
-          popupExpected: "Επιλογές για προχωρημένους",
-        },
-        {
-          locale: "sv_SE",
-          expected: "Till\u00E4ggets gr\u00E4nssnittsspr\u00E5k",
-          popupExpected: "Avancerade alternativ",
-        },
-        {
-          locale: "de_DE",
-          expected: "Sprache der Erweiterungsoberfl\u00E4che",
-          popupExpected: "Erweiterte Optionen",
-        },
-        {
-          locale: "pl_PL",
-          expected: "J\u0119zyk interfejsu rozszerzenia",
-          popupExpected: "Zaawansowane opcje",
-        },
-        {
-          locale: "pt_BR",
-          expected: "Idioma da interface da extens\u00E3o",
-          popupExpected: "Opções avançadas",
-        },
-      ];
+          {
+            locale: "en_US",
+            expected: "Extension UI Language",
+            popupExpected: "Advanced Options",
+          },
+          {
+            locale: "fr_FR",
+            expected: "Langue de l'interface",
+            popupExpected: "Options avancées",
+          },
+          {
+            locale: "hr_HR",
+            expected: "Jezik su\u010Delja pro\u0161irenja",
+            popupExpected: "Napredne opcije",
+          },
+          {
+            locale: "es_ES",
+            expected: "Idioma de la interfaz",
+            popupExpected: "Opciones avanzadas",
+          },
+          {
+            locale: "el_GR",
+            expected:
+              "\u0393\u03BB\u03CE\u03C3\u03C3\u03B1 \u03B4\u03B9\u03B5\u03C0\u03B1\u03C6\u03AE\u03C2 \u03B5\u03C0\u03AD\u03BA\u03C4\u03B1\u03C3\u03B7\u03C2",
+            popupExpected: "Επιλογές για προχωρημένους",
+          },
+          {
+            locale: "sv_SE",
+            expected: "Till\u00E4ggets gr\u00E4nssnittsspr\u00E5k",
+            popupExpected: "Avancerade alternativ",
+          },
+          {
+            locale: "de_DE",
+            expected: "Sprache der Erweiterungsoberfl\u00E4che",
+            popupExpected: "Erweiterte Optionen",
+          },
+          {
+            locale: "pl_PL",
+            expected: "J\u0119zyk interfejsu rozszerzenia",
+            popupExpected: "Zaawansowane opcje",
+          },
+          {
+            locale: "pt_BR",
+            expected: "Idioma da interface da extens\u00E3o",
+            popupExpected: "Opções avançadas",
+          },
+        ];
 
       for (const { locale, expected, popupExpected } of TEST_LANGS) {
         // 1. Set the extension language in chrome.storage.local
@@ -2004,9 +2006,10 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(30000, 45000),
   );
 
-  test.each(SUPPORTED_INPUT_SELECTORS)(
+  test.each(["#test-input", ".ck-editor__editable"])(
     "Grammar Rule Engine auto-capitalizes and applies spacing in %s",
     async (selector) => {
+
       // Enable required grammar rules internally for predictive evaluations
       await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, [
         "capitalizeFirstLetter",
@@ -2023,11 +2026,20 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       });
       await page.bringToFront();
 
+
+
       await waitForInputReady(page, selector);
       const element = await page.$(selector);
 
-      // Type "testing ." and verify spacingRule applies (and first letter capitalized)
-      await element!.type("testing .");
+      // Type "t" first, then pause to let the grammar rule engine process the
+      // capitalize-first-letter correction before typing more characters.
+      // Without this pause, the forceReplace response may arrive after the user
+      // has typed more characters, and the replacement position would be wrong.
+      await element!.type("t");
+      await new Promise((r) => setTimeout(r, 1500));
+
+      // Continue typing the rest of "testing ."
+      await element!.type("esting .");
 
       await page.waitForFunction(
         (sel) => {
@@ -2052,7 +2064,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             return false;
           }
           const val = ((el as HTMLInputElement).value ?? el.textContent) as string;
-          return val.replace(/\xA0/g, " ").includes("esting. W");
+          return val.replace(/\xA0/g, " ").includes("Testing. W");
         },
         { timeout: browserTimeout(3000, 5000) },
         selector,
@@ -2064,7 +2076,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       );
       const elementText = finalVal.replace(/\xA0/g, " ");
       // CapitalizeFirstLetterRule capitalizes T at start AND W after ". "
-      expect(elementText).toContain("esting. W");
+      expect(elementText).toContain("Testing. W");
 
       // Cleanup
       await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);

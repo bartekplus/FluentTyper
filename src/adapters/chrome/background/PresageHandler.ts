@@ -279,6 +279,7 @@ export class PresageHandler {
         forceReplace = {
           length: edit.deleteBackwards,
           text: edit.replacement,
+          originalTextLength: text.length,
         };
       }
     }
