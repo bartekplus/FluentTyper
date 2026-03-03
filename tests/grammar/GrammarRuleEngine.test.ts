@@ -1,4 +1,4 @@
-import { expect, test, describe, beforeEach } from "bun:test";
+import { expect, test, describe, beforeEach, spyOn } from "bun:test";
 import { GrammarRuleEngine } from "../../src/core/domain/grammar/GrammarRuleEngine";
 import type { GrammarRule } from "../../src/core/domain/grammar/types";
 
@@ -116,7 +116,7 @@ describe("GrammarRuleEngine", () => {
     expect(result[0]).toEqual({
       replacement: "A",
       deleteBackwards: 1,
-      deleteForwards: 1,
+      deleteForwards: 0,
       description: "Merged edits",
     });
   });
@@ -154,5 +154,42 @@ describe("GrammarRuleEngine", () => {
     expect(result[0].replacement).toBe("3");
     expect(result[0].deleteBackwards).toBe(1);
     expect(result[0].deleteForwards).toBe(0);
+  });
+
+  test("mergeEdits clamps deleteForwards to 0 with a warning", () => {
+    let invoked = false;
+    const rule: GrammarRule = {
+      id: "forwardDeleteRule",
+      name: "Forward Delete Rule",
+      triggers: ["insertChar"],
+      apply: () => {
+        if (invoked) {
+          return null;
+        }
+        invoked = true;
+        return {
+          replacement: "X",
+          deleteBackwards: 0,
+          deleteForwards: 3,
+        };
+      },
+    };
+
+    engine.registerRule(rule);
+
+    const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+
+    const result = engine.process("insertChar", {
+      beforeCursor: "hello",
+      afterCursor: "world",
+    });
+
+    expect(result.length).toBe(1);
+    expect(result[0].deleteForwards).toBe(0);
+    expect(result[0].deleteBackwards).toBe(0);
+    expect(result[0].replacement).toBe("X");
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("deleteForwards=3"));
+
+    warnSpy.mockRestore();
   });
 });

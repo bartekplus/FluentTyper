@@ -100,19 +100,22 @@ export class GrammarRuleEngine {
     };
   }
 
+  /**
+   * Squashes multiple sequential edits into a single GrammarEdit.
+   *
+   * NOTE: The downstream transport (ForceReplaceType / Tribute) does not support
+   * forward deletion. If any rule produces deleteForwards > 0, this method
+   * clamps it to 0 and logs a warning. To support forward deletion, extend
+   * ForceReplaceType and the Tribute replaceText path first.
+   */
   private mergeEdits(edits: GrammarEdit[]): GrammarEdit[] {
-    // For now, if there are multiple edits, they are logically applied in sequence.
-    // If the consumer (e.g. PredictionOrchestrator) only supports a single forceReplace,
-    // we need to squash them into one edit relative to the ORIGINAL cursor.
-    // Actually, returning all edits or squashing them is fine, but to map to `forceReplace`
-    // easily, we squash them into a single GrammarEdit.
     if (edits.length === 0) {
       return [];
     }
 
     let totalDeleteForwards = 0;
 
-    // Let's do a simplified squashing assuming sequential application at the cursor:
+    // Simplified squashing assuming sequential application at the cursor:
     let accumulatedString = "";
     let baseDeleteBackwards = 0;
 
@@ -124,6 +127,17 @@ export class GrammarRuleEngine {
       accumulatedString = accumulatedString.slice(0, keepAccumulated) + edit.replacement;
 
       totalDeleteForwards += edit.deleteForwards;
+    }
+
+    // Guard: ForceReplaceType / Tribute apply path only supports backward deletion.
+    // Clamp deleteForwards to 0 so this limitation is explicit rather than a silent data loss.
+    if (totalDeleteForwards > 0) {
+      console.warn(
+        `[GrammarRuleEngine] mergeEdits produced deleteForwards=${totalDeleteForwards}, ` +
+          `but the downstream transport (ForceReplaceType) does not support forward deletion. ` +
+          `Clamping to 0. Extend ForceReplaceType and Tribute to support this.`,
+      );
+      totalDeleteForwards = 0;
     }
 
     return [

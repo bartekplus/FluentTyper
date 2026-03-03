@@ -264,14 +264,26 @@ export class PresageHandler {
       );
 
       if (edits.length > 0) {
-        // Find how many characters we are "replacing" backwards and map to ForceReplaceType
-        // Assume merged edit from grammar engine
+        // Map merged GrammarEdit → ForceReplaceType (backward deletion only)
         const edit = edits[0];
-        forceReplace = {
-          length: edit.deleteBackwards,
-          text: edit.replacement,
-          originalTextLength: text.length,
-        };
+
+        // Guard: ForceReplaceType does not support forward deletion.
+        // The engine should already clamp this, but reject here as a safety net.
+        if (edit.deleteForwards > 0) {
+          logger.warn(
+            "Grammar edit with deleteForwards > 0 cannot be mapped to ForceReplaceType, skipping",
+            {
+              deleteForwards: edit.deleteForwards,
+              replacement: edit.replacement,
+            },
+          );
+        } else {
+          forceReplace = {
+            length: edit.deleteBackwards,
+            text: edit.replacement,
+            originalTextLength: text.length,
+          };
+        }
       }
     }
 
