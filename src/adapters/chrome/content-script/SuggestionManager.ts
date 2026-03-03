@@ -10,6 +10,7 @@ import { SPACING_RULES, Spacing } from "@core/domain/spacingRules";
 import { InlineSuggestionPresenter } from "./suggestions/InlineSuggestionPresenter";
 import { SuggestionElementDiscovery } from "./suggestions/SuggestionElementDiscovery";
 import { SuggestionEntryRegistry } from "./suggestions/SuggestionEntryRegistry";
+import { SuggestionKeyboardHandler } from "./suggestions/SuggestionKeyboardHandler";
 import { SuggestionLifecycleController } from "./suggestions/SuggestionLifecycleController";
 import { SuggestionMenuPresenter } from "./suggestions/SuggestionMenuPresenter";
 import { SuggestionPositioningService } from "./suggestions/SuggestionPositioningService";
@@ -44,6 +45,7 @@ export class SuggestionManager {
     positioningService: this.positioningService,
   });
   private readonly predictionCoordinator: SuggestionPredictionCoordinator;
+  private readonly keyboardHandler: SuggestionKeyboardHandler;
 
   private minWordLengthToPredict: number;
   private autocompleteOnSpace: boolean;
@@ -88,6 +90,30 @@ export class SuggestionManager {
       lang: this.lang,
       minWordLengthToPredict: this.minWordLengthToPredict,
       separatorRegex: this.separatorRegex,
+    });
+    this.keyboardHandler = new SuggestionKeyboardHandler({
+      autocompleteOnSpace: this.autocompleteOnSpace,
+      autocompleteOnEnter: this.autocompleteOnEnter,
+      autocompleteOnTab: this.autocompleteOnTab,
+      selectByDigit: this.selectByDigit,
+      revertOnBackspace: this.revertOnBackspace,
+      inlineSuggestionEnabled: this.inlineSuggestionEnabled,
+      handleMissingSpaceAfterAccept: this.handleMissingSpaceAfterAccept.bind(this),
+      tryRevertLastReplacement: this.tryRevertLastReplacement.bind(this),
+      consumeKeyboardEvent: this.consumeKeyboardEvent.bind(this),
+      clearSuggestions: this.clearSuggestions.bind(this),
+      isMenuVisible: (entry) => this.menuPresenter.isVisible(entry.menu, entry.suggestions.length),
+      updateSelectionHighlight: (entry) =>
+        this.menuPresenter.updateHighlight(entry.list, entry.selectedIndex),
+      acceptSuggestion: this.acceptSuggestion.bind(this),
+      acceptSuggestionAtIndex: this.acceptSuggestionAtIndex.bind(this),
+      requestInlineSuggestion: (entry) => {
+        entry.pendingInlineAccept = true;
+        this.predictionCoordinator.schedule(entry, {
+          force: true,
+          clearSuggestions: () => this.clearSuggestions(entry),
+        });
+      },
     });
   }
 
@@ -467,105 +493,7 @@ export class SuggestionManager {
       return;
     }
 
-    const keyboardEvent = event as KeyboardEvent;
-    this.handleMissingSpaceAfterAccept(entry, keyboardEvent);
-
-    if (keyboardEvent.defaultPrevented) {
-      return;
-    }
-
-    const key = keyboardEvent.key;
-
-    if (
-      key === "Backspace" &&
-      this.revertOnBackspace &&
-      this.tryRevertLastReplacement(entry, keyboardEvent)
-    ) {
-      return;
-    }
-
-    if (this.inlineSuggestionEnabled && key === "Tab") {
-      if (entry.inlineSuggestion) {
-        this.consumeKeyboardEvent(keyboardEvent);
-        this.acceptSuggestion(entry, entry.inlineSuggestion);
-        return;
-      }
-
-      if (entry.latestMentionText.length > 0) {
-        this.consumeKeyboardEvent(keyboardEvent);
-        entry.pendingInlineAccept = true;
-        this.predictionCoordinator.schedule(entry, {
-          force: true,
-          clearSuggestions: () => this.clearSuggestions(entry),
-        });
-        return;
-      }
-    }
-
-    if (key === "Escape") {
-      this.clearSuggestions(entry);
-      return;
-    }
-
-    if (!this.menuPresenter.isVisible(entry.menu, entry.suggestions.length)) {
-      return;
-    }
-
-    if (key === "ArrowDown") {
-      this.consumeKeyboardEvent(keyboardEvent);
-      this.moveSelection(entry, 1);
-      return;
-    }
-
-    if (key === "ArrowUp") {
-      this.consumeKeyboardEvent(keyboardEvent);
-      this.moveSelection(entry, -1);
-      return;
-    }
-
-    if (this.selectByDigit) {
-      const digitIndex = this.mapDigitToIndex(key);
-      if (digitIndex !== null && digitIndex < entry.suggestions.length) {
-        this.consumeKeyboardEvent(keyboardEvent);
-        this.acceptSuggestionAtIndex(entry, digitIndex);
-        return;
-      }
-    }
-
-    if (key === "Tab" && this.autocompleteOnTab) {
-      this.consumeKeyboardEvent(keyboardEvent);
-      this.acceptSuggestionAtIndex(entry, entry.selectedIndex);
-      return;
-    }
-
-    if (key === "Enter" && this.autocompleteOnEnter) {
-      this.consumeKeyboardEvent(keyboardEvent);
-      this.acceptSuggestionAtIndex(entry, entry.selectedIndex);
-      return;
-    }
-
-    if (key === " " && this.autocompleteOnSpace) {
-      this.consumeKeyboardEvent(keyboardEvent);
-      this.acceptSuggestionAtIndex(entry, entry.selectedIndex);
-    }
-  }
-
-  private moveSelection(entry: SuggestionEntry, direction: number): void {
-    if (entry.suggestions.length === 0) {
-      return;
-    }
-
-    const next =
-      (entry.selectedIndex + direction + entry.suggestions.length) % entry.suggestions.length;
-    entry.selectedIndex = next;
-    this.menuPresenter.updateHighlight(entry.list, entry.selectedIndex);
-  }
-
-  private mapDigitToIndex(key: string): number | null {
-    if (!/^\d$/.test(key)) {
-      return null;
-    }
-    return key === "0" ? 9 : Number(key) - 1;
+    this.keyboardHandler.handle(entry, event as KeyboardEvent);
   }
 
   private acceptSuggestionAtIndex(entry: SuggestionEntry, index: number): void {

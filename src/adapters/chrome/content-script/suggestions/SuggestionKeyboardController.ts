@@ -18,4 +18,12 @@ export class SuggestionKeyboardController {
     }
     return keys;
   }
+
+  static normalizeKey(key: string): string {
+    return key === " " ? "Space" : key;
+  }
+
+  static isActiveKey(activeKeys: readonly string[], key: string): boolean {
+    return activeKeys.includes(SuggestionKeyboardController.normalizeKey(key));
+  }
 }
