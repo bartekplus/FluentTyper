@@ -7,7 +7,7 @@ import type {
   TextEditOperation,
 } from "@core/domain/messageTypes";
 import { SPACING_RULES, Spacing } from "@core/domain/spacingRules";
-import { InlineSuggestionView } from "./suggestions/InlineSuggestionView";
+import { InlineSuggestionPresenter } from "./suggestions/InlineSuggestionPresenter";
 import { SuggestionElementDiscovery } from "./suggestions/SuggestionElementDiscovery";
 import { SuggestionEntryRegistry } from "./suggestions/SuggestionEntryRegistry";
 import { SuggestionLifecycleController } from "./suggestions/SuggestionLifecycleController";
@@ -41,6 +41,9 @@ export class SuggestionManager {
   private readonly lifecycleController: SuggestionLifecycleController;
   private readonly positioningService = new SuggestionPositioningService();
   private readonly menuPresenter = new SuggestionMenuPresenter(this.positioningService);
+  private readonly inlinePresenter = new InlineSuggestionPresenter({
+    positioningService: this.positioningService,
+  });
 
   private minWordLengthToPredict: number;
   private autocompleteOnSpace: boolean;
@@ -116,10 +119,14 @@ export class SuggestionManager {
     if (this.inlineSuggestionEnabled) {
       entry.inlineSuggestion = entry.suggestions[0] ?? null;
       this.menuPresenter.hide(entry.menu, entry.list);
-      this.renderInlineSuggestion(entry);
+      this.inlinePresenter.renderForEntry({
+        enabled: this.inlineSuggestionEnabled,
+        entry,
+        resolveMentionToken: this.findMentionToken.bind(this),
+      });
     } else {
       entry.inlineSuggestion = null;
-      InlineSuggestionView.removeAll(document);
+      this.inlinePresenter.clearAll();
       this.menuPresenter.render({
         menu: entry.menu,
         list: entry.list,
@@ -300,7 +307,7 @@ export class SuggestionManager {
       this.activeEntryId = null;
     }
 
-    InlineSuggestionView.removeAll(document);
+    this.inlinePresenter.clearAll();
   }
 
   private dismissEntry(entry: SuggestionEntry, keepActive = false): void {
@@ -351,7 +358,11 @@ export class SuggestionManager {
     if (!entry || !this.inlineSuggestionEnabled) {
       return;
     }
-    this.renderInlineSuggestion(entry);
+    this.inlinePresenter.renderForEntry({
+      enabled: this.inlineSuggestionEnabled,
+      entry,
+      resolveMentionToken: this.findMentionToken.bind(this),
+    });
   }
 
   private onElementClick(id: number): void {
@@ -386,7 +397,11 @@ export class SuggestionManager {
     entry.latestMentionText = tokenInfo.token;
     entry.latestMentionStart = tokenInfo.start;
     if (this.inlineSuggestionEnabled) {
-      this.renderInlineSuggestion(entry);
+      this.inlinePresenter.renderForEntry({
+        enabled: this.inlineSuggestionEnabled,
+        entry,
+        resolveMentionToken: this.findMentionToken.bind(this),
+      });
     }
     this.schedulePrediction(entry, false);
   }
@@ -477,60 +492,13 @@ export class SuggestionManager {
     return { token: beforeCursor.slice(start), start };
   }
 
-  private renderInlineSuggestion(entry: SuggestionEntry): void {
-    if (!this.inlineSuggestionEnabled) {
-      InlineSuggestionView.removeAll(document);
-      return;
-    }
-
-    const suggestion = entry.inlineSuggestion;
-    if (!suggestion) {
-      InlineSuggestionView.removeAll(document);
-      return;
-    }
-
-    const snapshot: SuggestionSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
-    const mentionText =
-      this.findMentionToken(snapshot.beforeCursor).token || entry.latestMentionText;
-    if (!mentionText) {
-      InlineSuggestionView.removeAll(document);
-      return;
-    }
-
-    const lowerSuggestion = suggestion.toLowerCase();
-    const lowerMention = mentionText.toLowerCase();
-    if (!lowerSuggestion.startsWith(lowerMention)) {
-      InlineSuggestionView.removeAll(document);
-      return;
-    }
-
-    const suffix = suggestion.slice(mentionText.length);
-    if (!suffix) {
-      InlineSuggestionView.removeAll(document);
-      return;
-    }
-
-    const caretRect = this.positioningService.getCaretRect(entry.elem);
-    if (!caretRect) {
-      InlineSuggestionView.removeAll(document);
-      return;
-    }
-
-    InlineSuggestionView.render({
-      target: entry.elem,
-      text: suffix,
-      caretRect,
-      doc: document,
-    });
-  }
-
   private clearSuggestions(entry: SuggestionEntry): void {
     entry.suggestions = [];
     entry.selectedIndex = 0;
     entry.inlineSuggestion = null;
     entry.pendingInlineAccept = false;
     this.menuPresenter.hide(entry.menu, entry.list);
-    InlineSuggestionView.removeAll(document);
+    this.inlinePresenter.clearAll();
   }
 
   private onMenuClick(id: number, event: Event): void {

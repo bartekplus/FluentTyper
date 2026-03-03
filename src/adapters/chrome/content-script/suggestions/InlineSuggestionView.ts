@@ -15,11 +15,6 @@ export class InlineSuggestionView {
     caretRect: DOMRect;
     doc?: Document;
   }): HTMLDivElement | null {
-    if (!text) {
-      InlineSuggestionView.removeAll(doc);
-      return null;
-    }
-
     InlineSuggestionView.removeAll(doc);
 
     const ghost = doc.createElement("div");
