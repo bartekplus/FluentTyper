@@ -282,6 +282,11 @@ export class PresageHandler {
             length: edit.deleteBackwards,
             text: edit.replacement,
             originalTextLength: text.length,
+            expectedSubstring: text.slice(text.length - edit.deleteBackwards),
+            cursorToken: text.slice(
+              Math.max(0, text.length - edit.deleteBackwards - 10),
+              text.length - edit.deleteBackwards,
+            ),
           };
         }
       }

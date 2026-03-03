@@ -246,4 +246,19 @@ describe("features", () => {
       },
     );
   });
+  describe("grammar rule forceReplace", () => {
+    test("returns expectedSubstring and cursorToken", async () => {
+      testContext.enabledGrammarRules = ["capitalizeFirstLetter"];
+      setConfig();
+
+      // capitalizeFirstLetterRule should trigger on ". a"
+      const result = await testContext.ph.runPrediction("Hello. a", "", "en_US");
+      expect(result.forceReplace).not.toBeNull();
+      expect(result.forceReplace.text).toBe("A");
+      expect(result.forceReplace.length).toBe(1);
+      expect(result.forceReplace.originalTextLength).toBe("Hello. a".length);
+      expect(result.forceReplace.expectedSubstring).toBe("a");
+      expect(result.forceReplace.cursorToken).toBe("Hello. ");
+    });
+  });
 });

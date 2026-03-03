@@ -1890,6 +1890,22 @@ class Tribute {
         if (mentionPos < 0 || mentionPos > this.current.fullText.length) {
           return;
         }
+
+        // Stale response validation
+        if (forceReplace.expectedSubstring !== undefined) {
+          const currentSubstring = this.current.fullText.substring(mentionPos, mentionPos + forceReplace.length);
+          if (currentSubstring !== forceReplace.expectedSubstring) {
+            return; // Drop stale correction
+          }
+        }
+        if (forceReplace.cursorToken !== undefined) {
+          const tokenStart = Math.max(0, mentionPos - forceReplace.cursorToken.length);
+          const actualToken = this.current.fullText.substring(tokenStart, mentionPos);
+          if (actualToken !== forceReplace.cursorToken) {
+            return; // Drop stale correction
+          }
+        }
+
         this.current.mentionPosition = mentionPos;
         this.current.mentionText = this.current.fullText.substring(mentionPos, mentionPos + forceReplace.length);
         this.replaceText(forceReplace.text, null, null);
