@@ -6,7 +6,7 @@ export class SuggestionKeyboardController {
     autocompleteOnTab: boolean;
     revertOnBackspace: boolean;
   }): string[] {
-    const keys = [...SuggestionKeyboardController.DEFAULT_KEYS];
+    const keys: string[] = [...SuggestionKeyboardController.DEFAULT_KEYS];
     if (config.autocompleteOnEnter) {
       keys.push("Enter");
     }

@@ -2,8 +2,6 @@
   "compilerOptions": {
     "target": "ES2022",
     "module": "ES2022",
-    "outDir": "./build",
-    "rootDir": "./src",
     "baseUrl": "./src",
     "paths": {
       "@core/*": ["core/*"],
@@ -13,13 +11,16 @@
     },
     "strict": true,
     "esModuleInterop": true,
-    "allowJs": true, // Allow JavaScript files to be compiled
+    "allowJs": true,
     "checkJs": false,
     "lib": ["ES2022", "DOM"],
     "skipLibCheck": true,
     "moduleResolution": "bundler",
-    "sourceMap": false,
-    "typeRoots": ["node_modules/@types"]
+    "typeRoots": ["node_modules/@types"],
+    "noEmit": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "forceConsistentCasingInFileNames": true
   },
   "include": ["src/**/*"]
 }

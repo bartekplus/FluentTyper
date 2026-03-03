@@ -8,43 +8,16 @@ import { KEY_AUTO_CAPITALIZE, KEY_LEGACY_APPLY_SPACING_RULES } from "@core/domai
 import type { JsonValue } from "../settingsManager";
 import type { SettingsManager } from "../settingsManager";
 
-function hasRawRead(settings: SettingsManager): settings is SettingsManager & {
-  getRaw: (key: string) => Promise<unknown>;
-} {
-  return typeof (settings as { getRaw?: unknown }).getRaw === "function";
-}
-
-function hasRawWrite(settings: SettingsManager): settings is SettingsManager & {
-  setRaw: (key: string, value: JsonValue) => Promise<void>;
-  removeRaw: (key: string) => Promise<void>;
-} {
-  return (
-    typeof (settings as { setRaw?: unknown }).setRaw === "function" &&
-    typeof (settings as { removeRaw?: unknown }).removeRaw === "function"
-  );
-}
-
 async function readRaw(settings: SettingsManager, key: string): Promise<unknown> {
-  if (hasRawRead(settings)) {
-    return settings.getRaw(key);
-  }
-  return settings.get(key);
+  return settings.getRaw(key);
 }
 
 async function writeRaw(settings: SettingsManager, key: string, value: JsonValue): Promise<void> {
-  if (hasRawWrite(settings)) {
-    await settings.setRaw(key, value);
-    return;
-  }
-  await settings.set(key, value);
+  await settings.setRaw(key, value);
 }
 
 async function removeRaw(settings: SettingsManager, key: string): Promise<void> {
-  if (hasRawWrite(settings)) {
-    await settings.removeRaw(key);
-    return;
-  }
-  await settings.set(key, undefined as unknown as JsonValue);
+  await settings.removeRaw(key);
 }
 
 async function readFirstDefined(settings: SettingsManager, keys: string[]): Promise<unknown> {
