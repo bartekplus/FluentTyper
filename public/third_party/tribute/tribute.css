@@ -1,0 +1,137 @@
+/*
+  Improved CSS for FluentTyper/Tribute.js Suggestion Popup
+  ---------------------------------------------------------
+  Improvements:
+  - Uses CSS variables for easy theming (light/dark).
+  - Softer, more modern box-shadow and rounded corners.
+  - Improved typography and spacing for better readability.
+  - Smoother transitions for a better user experience.
+  - Retained `!important` as it can be necessary for browser extensions
+    to override host website styles, but organized them for clarity.
+*/
+
+:root {
+  /* --- Light Theme Variables --- */
+  --tribute-bg-light: #ffffff;
+  --tribute-text-light: #2d3748; /* A softer black */
+  --tribute-header-bg-light: #f7fafc;
+  --tribute-header-text-light: #718096; /* Gray for less emphasis */
+  --tribute-highlight-bg-light: #edf2f7;
+  --tribute-highlight-text-light: #2d3748;
+  --tribute-border-color-light: #e2e8f0;
+  --tribute-shadow-color-light: rgba(0, 0, 0, 0.1);
+
+  /* --- Dark Theme Variables --- */
+  --tribute-bg-dark: #2d3748;
+  --tribute-text-dark: #e2e8f0;
+  --tribute-header-bg-dark: #1a202c;
+  --tribute-header-text-dark: #a0aec0;
+  --tribute-highlight-bg-dark: #4a5568;
+  --tribute-highlight-text-dark: #ffffff;
+  --tribute-border-color-dark: #4a5568;
+  --tribute-shadow-color-dark: rgba(0, 0, 0, 0.4);
+
+  /* --- Typography Variables --- */
+  --tribute-font-size: 0.9rem;
+  --tribute-padding-vertical: 0.6rem;
+  --tribute-padding-horizontal: 0.8rem;
+}
+
+.tribute-container {
+  /* --- Layout & Positioning --- */
+  top: 0;
+  left: 0;
+  height: auto !important;
+  overflow: hidden !important;
+  z-index: 2147483647 !important;
+  display: block;
+
+  /* --- Aesthetics & Theming --- */
+  background-color: var(--tribute-bg-light) !important;
+  color: var(--tribute-text-light) !important;
+  border: 1px solid var(--tribute-border-color-light) !important;
+  border-radius: 8px !important; /* Rounded corners */
+  box-shadow: 0 4px 12px var(--tribute-shadow-color-light) !important; /* Softer shadow */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+}
+
+/* --- List Reset --- */
+.tribute-container ul {
+  margin: 0 !important;
+  padding: 0 !important;
+  list-style: none !important;
+}
+
+/* --- General List Item Styling --- */
+.tribute-container li {
+  padding: var(--tribute-padding-vertical) var(--tribute-padding-horizontal) !important;
+  font-size: var(--tribute-font-size) !important;
+  cursor: pointer !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  transition: background-color 0.15s ease-in-out, color 0.15s ease-in-out !important; /* Smooth transition */
+}
+
+/* --- List Header --- */
+.tribute-container lh {
+  display: block !important;
+  padding: var(--tribute-padding-vertical) var(--tribute-padding-horizontal) !important;
+  background-color: var(--tribute-header-bg-light) !important;
+  color: var(--tribute-header-text-light) !important;
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--tribute-border-color-light) !important;
+  cursor: default !important;
+}
+
+/* --- Highlighted/Active Item --- */
+.tribute-container li.highlight {
+  background-color: var(--tribute-highlight-bg-light) !important;
+  color: var(--tribute-highlight-text-light) !important;
+}
+
+/* Matched text inside a suggestion */
+.tribute-container li span {
+  font-weight: 700 !important;
+}
+
+/* --- "No Match" Item --- */
+.tribute-container li.no-match {
+  color: var(--tribute-header-text-light) !important; /* Use header text color for less emphasis */
+  cursor: default !important;
+}
+
+/* ======================================================= */
+/* --- Dark Mode using CSS Media Query --- */
+/* ======================================================= */
+@media (prefers-color-scheme: dark) {
+  .tribute-container {
+    background-color: var(--tribute-bg-dark) !important;
+    color: var(--tribute-text-dark) !important;
+    border-color: var(--tribute-border-color-dark) !important;
+    box-shadow: 0 4px 12px var(--tribute-shadow-color-dark) !important;
+  }
+
+  .tribute-container lh {
+    background-color: var(--tribute-header-bg-dark) !important;
+    color: var(--tribute-header-text-dark) !important;
+    border-bottom-color: var(--tribute-border-color-dark) !important;
+  }
+  
+  .tribute-container li.highlight {
+    background-color: var(--tribute-highlight-bg-dark) !important;
+    color: var(--tribute-highlight-text-dark) !important;
+  }
+
+  .tribute-container li.no-match {
+    color: var(--tribute-header-text-dark) !important;
+  }
+}
+
+.tribute-inline {
+  pointer-events: none;
+  white-space: pre-wrap;
+}

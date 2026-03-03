@@ -1,9 +1,9 @@
 export class SuggestionMenuView {
-  static readonly CONTAINER_CLASS = "suggestion-container";
+  static readonly CONTAINER_CLASS = "tribute-container";
 
   static ensureMenu(container: HTMLElement = document.body): HTMLDivElement {
     const menu = document.createElement("div");
-    menu.className = SuggestionMenuView.CONTAINER_CLASS;
+    menu.className = `${SuggestionMenuView.CONTAINER_CLASS} suggestion-container`;
     menu.setAttribute("tabindex", "0");
     menu.style.display = "none";
     menu.appendChild(document.createElement("ul"));

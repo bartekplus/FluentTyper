@@ -15,6 +15,19 @@ export class ThemeApplicator {
 
     styleElement.textContent = `
       :root {
+        --tribute-bg-light: ${themeSettings.suggestionBgLight} !important;
+        --tribute-text-light: ${themeSettings.suggestionTextLight} !important;
+        --tribute-highlight-bg-light: ${themeSettings.suggestionHighlightBgLight} !important;
+        --tribute-highlight-text-light: ${themeSettings.suggestionHighlightTextLight} !important;
+        --tribute-border-color-light: ${themeSettings.suggestionBorderLight} !important;
+        --tribute-bg-dark: ${themeSettings.suggestionBgDark} !important;
+        --tribute-text-dark: ${themeSettings.suggestionTextDark} !important;
+        --tribute-highlight-bg-dark: ${themeSettings.suggestionHighlightBgDark} !important;
+        --tribute-highlight-text-dark: ${themeSettings.suggestionHighlightTextDark} !important;
+        --tribute-border-color-dark: ${themeSettings.suggestionBorderDark} !important;
+        --tribute-font-size: ${themeSettings.suggestionFontSize} !important;
+        --tribute-padding-vertical: ${themeSettings.suggestionPaddingVertical} !important;
+        --tribute-padding-horizontal: ${themeSettings.suggestionPaddingHorizontal} !important;
         --suggestion-bg-light: ${themeSettings.suggestionBgLight} !important;
         --suggestion-text-light: ${themeSettings.suggestionTextLight} !important;
         --suggestion-highlight-bg-light: ${themeSettings.suggestionHighlightBgLight} !important;

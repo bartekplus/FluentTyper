@@ -18,7 +18,10 @@ const logger = createLogger("SuggestionManager");
 type SuggestionElement =
   | HTMLInputElement
   | HTMLTextAreaElement
-  | (HTMLElement & { suggestionMenu?: HTMLElement | null });
+  | (HTMLElement & {
+      tributeMenu?: HTMLElement | null;
+      suggestionMenu?: HTMLElement | null;
+    });
 
 interface SuggestionManagerOptions {
   selectors: string;
@@ -43,6 +46,21 @@ interface ReplacementSnapshot {
 interface ContentEditableTextPosition {
   node: Text;
   offset: number;
+}
+
+interface MenuDimensions {
+  width: number;
+  height: number;
+}
+
+interface MenuCoordinates {
+  position: "fixed";
+  left: number | "auto";
+  top: number | "auto";
+  right?: number;
+  bottom?: number;
+  maxHeight?: number;
+  maxWidth?: number;
 }
 
 interface Entry {
@@ -317,8 +335,11 @@ export class SuggestionManager {
     elem.addEventListener("click", entry.handlers.click, true);
     menu.addEventListener("mousedown", entry.handlers.menuMouseDown);
     menu.addEventListener("click", entry.handlers.menuClick);
+    this.syncMenuTypography(menu, elem);
 
+    elem.setAttribute("data-tribute", "true");
     elem.setAttribute("data-suggestion", "true");
+    elem.tributeMenu = menu;
     elem.suggestionMenu = menu;
 
     this.entries.set(id, entry);
@@ -344,7 +365,9 @@ export class SuggestionManager {
       entry.pendingRequestTimer = null;
     }
 
+    delete entry.elem.tributeMenu;
     delete entry.elem.suggestionMenu;
+    entry.elem.removeAttribute("data-tribute");
     entry.elem.removeAttribute("data-suggestion");
 
     this.entries.delete(id);
@@ -491,7 +514,7 @@ export class SuggestionManager {
 
     entry.suggestions.forEach((suggestion, index) => {
       const li = document.createElement("li");
-      li.textContent = suggestion;
+      li.innerHTML = this.buildSuggestionMenuItemHtml(entry.latestMentionText, suggestion);
       li.setAttribute("data-index", String(index));
       if (index === entry.selectedIndex) {
         li.classList.add("highlight");
@@ -504,23 +527,276 @@ export class SuggestionManager {
       return;
     }
 
+    this.syncMenuTypography(entry.menu, entry.elem);
     this.positionMenu(entry);
     entry.menu.style.display = "block";
   }
 
   private positionMenu(entry: Entry): void {
-    const rect = entry.elem.getBoundingClientRect();
-    const top = window.scrollY + rect.bottom + 4;
-    const left = window.scrollX + rect.left;
+    const rect = this.getCaretRect(entry);
+    if (!rect) {
+      this.hideMenu(entry);
+      return;
+    }
 
-    entry.menu.style.position = "absolute";
-    entry.menu.style.top = `${Math.max(0, top)}px`;
-    entry.menu.style.left = `${Math.max(0, left)}px`;
-    entry.menu.style.minWidth = `${Math.max(180, rect.width)}px`;
-    entry.menu.style.maxWidth = "420px";
-    entry.menu.style.maxHeight = "280px";
-    entry.menu.style.overflowY = "auto";
+    const coordinates = this.getMenuCoordinatesForRect(entry.menu, rect);
+
+    entry.menu.style.position = coordinates.position;
+    entry.menu.style.top =
+      coordinates.top === "auto" ? "auto" : `${Math.max(0, coordinates.top)}px`;
+    entry.menu.style.left =
+      coordinates.left === "auto" ? "auto" : `${Math.max(0, coordinates.left)}px`;
+    entry.menu.style.right =
+      typeof coordinates.right === "number" ? `${Math.max(0, coordinates.right)}px` : "auto";
+    entry.menu.style.bottom =
+      typeof coordinates.bottom === "number" ? `${Math.max(0, coordinates.bottom)}px` : "auto";
+    entry.menu.style.maxHeight = `${Math.max(0, coordinates.maxHeight ?? 500)}px`;
+    entry.menu.style.maxWidth = `${Math.max(0, coordinates.maxWidth ?? 300)}px`;
     entry.menu.style.zIndex = "2147483647";
+  }
+
+  private syncMenuTypography(menu: HTMLDivElement, elem: SuggestionElement): void {
+    const properties: Array<keyof CSSStyleDeclaration> = [
+      "fontStyle",
+      "fontVariant",
+      "fontWeight",
+      "fontStretch",
+      "fontSizeAdjust",
+      "fontFamily",
+    ];
+    const computed = window.getComputedStyle(elem);
+
+    menu.style.fontSize = `${Math.round((Number.parseInt(computed.fontSize, 10) || 16) * 0.9)}px`;
+    for (const property of properties) {
+      const value = computed[property];
+      if (typeof value === "string") {
+        menu.style[property] = value;
+      }
+    }
+  }
+
+  private getCaretRect(entry: Entry): DOMRect | null {
+    if (this.isTextValueElement(entry.elem)) {
+      return this.getTextValueCaretRect(entry.elem);
+    }
+    return this.getContentEditableCaretRect(entry.elem);
+  }
+
+  private getTextValueCaretRect(elem: HTMLInputElement | HTMLTextAreaElement): DOMRect | null {
+    const position = elem.selectionStart ?? elem.value.length;
+    const properties = [
+      "direction",
+      "boxSizing",
+      "width",
+      "height",
+      "overflowX",
+      "overflowY",
+      "borderTopWidth",
+      "borderRightWidth",
+      "borderBottomWidth",
+      "borderLeftWidth",
+      "borderStyle",
+      "paddingTop",
+      "paddingRight",
+      "paddingBottom",
+      "paddingLeft",
+      "fontStyle",
+      "fontVariant",
+      "fontWeight",
+      "fontStretch",
+      "fontSize",
+      "fontSizeAdjust",
+      "lineHeight",
+      "fontFamily",
+      "textAlign",
+      "textTransform",
+      "textIndent",
+      "textDecoration",
+      "letterSpacing",
+      "wordSpacing",
+    ] as const;
+
+    const mirror = document.createElement("div");
+    mirror.style.whiteSpace = "pre-wrap";
+    if (elem.nodeName !== "INPUT") {
+      mirror.style.wordWrap = "break-word";
+    }
+    mirror.style.position = "absolute";
+    mirror.style.visibility = "hidden";
+    mirror.id = "input-textarea-caret-position-mirror-div";
+    document.body.appendChild(mirror);
+
+    const computed = window.getComputedStyle(elem);
+    for (const property of properties) {
+      mirror.style[property] = computed[property];
+    }
+
+    const beforeSpan = document.createElement("span");
+    beforeSpan.textContent = elem.value.substring(0, position);
+    mirror.appendChild(beforeSpan);
+
+    if (elem.nodeName === "INPUT") {
+      mirror.textContent = mirror.textContent.replace(/\s/g, "\xA0");
+    }
+
+    const caretSpan = document.createElement("span");
+    mirror.appendChild(caretSpan);
+
+    const nextCharSpan = document.createElement("span");
+    nextCharSpan.textContent = elem.value.substring(position, position + 1);
+    mirror.appendChild(nextCharSpan);
+
+    const elementRect = elem.getBoundingClientRect();
+    mirror.style.position = "fixed";
+    mirror.style.left = `${elementRect.left}px`;
+    mirror.style.top = `${elementRect.top}px`;
+    mirror.style.width = `${elementRect.width}px`;
+    mirror.style.height = `${elementRect.height}px`;
+    mirror.scrollTop = elem.scrollTop;
+
+    const caretRect = caretSpan.getBoundingClientRect();
+    const nextCharRect = nextCharSpan.getBoundingClientRect();
+    const mirrorRect = mirror.getBoundingClientRect();
+
+    const fontSize = Number.parseFloat(computed.fontSize) || 0;
+    let lineHeight = Number.parseFloat(computed.lineHeight);
+    if (!lineHeight || Number.isNaN(lineHeight)) {
+      lineHeight = fontSize ? fontSize * 1.2 : 0;
+    }
+
+    const fallbackHeight = lineHeight || fontSize || mirrorRect.height;
+    const glyphRect =
+      nextCharSpan.textContent && nextCharRect.height > 0 ? nextCharRect : caretRect;
+    const glyphHeight = glyphRect.height || fallbackHeight;
+    const lineBoxHeight = Math.max(glyphHeight, fallbackHeight);
+    const extraLeading = Math.max(0, lineBoxHeight - glyphHeight);
+    const lineBoxTop = glyphRect.top - extraLeading / 2;
+
+    document.body.removeChild(mirror);
+
+    const clamp = (value: number, min: number, max: number): number => Math.max(min, Math.min(value, max));
+
+    return this.createRect(
+      clamp(caretRect.left, mirrorRect.left, mirrorRect.left + mirrorRect.width),
+      clamp(lineBoxTop, mirrorRect.top, mirrorRect.top + mirrorRect.height),
+      0,
+      Math.min(mirrorRect.height, lineBoxHeight),
+    );
+  }
+
+  private getContentEditableCaretRect(elem: HTMLElement): DOMRect | null {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      return elem.getBoundingClientRect();
+    }
+
+    const range = selection.getRangeAt(0).cloneRange();
+    let rect = range.getBoundingClientRect();
+
+    if ((!rect || rect.height === 0) && selection.anchorNode) {
+      const marker = document.createTextNode("\u200b");
+      range.insertNode(marker);
+      rect = marker.getBoundingClientRect();
+      marker.parentNode?.removeChild(marker);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+
+    if (!rect) {
+      return elem.getBoundingClientRect();
+    }
+
+    const parent = selection.anchorNode?.nodeType === Node.TEXT_NODE
+      ? selection.anchorNode.parentElement
+      : (selection.anchorNode as Element | null);
+    if (!parent) {
+      return rect;
+    }
+
+    const parentRect = parent.getBoundingClientRect();
+    const clamp = (value: number, min: number, max: number): number => Math.max(min, Math.min(value, max));
+
+    return this.createRect(
+      clamp(rect.left, parentRect.left, parentRect.left + parentRect.width),
+      clamp(rect.top, parentRect.top, parentRect.top + parentRect.height),
+      0,
+      Math.min(parentRect.height, rect.height),
+    );
+  }
+
+  private getMenuCoordinatesForRect(menu: HTMLDivElement, rect: DOMRect): MenuCoordinates {
+    const menuDimensions = this.getMenuDimensions(menu);
+    const coordinates: MenuCoordinates = {
+      position: "fixed",
+      left: rect.left,
+      top: rect.top + rect.height,
+    };
+
+    const availableSpaceOnTop = rect.top;
+    const availableSpaceOnBottom = window.innerHeight - (rect.top + rect.height);
+
+    if (availableSpaceOnBottom < menuDimensions.height) {
+      if (availableSpaceOnTop >= menuDimensions.height || availableSpaceOnTop > availableSpaceOnBottom) {
+        coordinates.top = "auto";
+        coordinates.bottom = window.innerHeight - rect.top;
+        if (availableSpaceOnBottom < menuDimensions.height) {
+          coordinates.maxHeight = availableSpaceOnTop;
+        }
+      } else if (availableSpaceOnTop < menuDimensions.height) {
+        coordinates.maxHeight = availableSpaceOnBottom;
+      }
+    }
+
+    const availableSpaceOnLeft = rect.left;
+    const availableSpaceOnRight = window.innerWidth - rect.left;
+
+    if (availableSpaceOnRight < menuDimensions.width) {
+      if (availableSpaceOnLeft >= menuDimensions.width || availableSpaceOnLeft > availableSpaceOnRight) {
+        coordinates.left = "auto";
+        coordinates.right = window.innerWidth - rect.left;
+        if (availableSpaceOnRight < menuDimensions.width) {
+          coordinates.maxWidth = availableSpaceOnLeft;
+        }
+      } else if (availableSpaceOnLeft < menuDimensions.width) {
+        coordinates.maxWidth = availableSpaceOnRight;
+      }
+    }
+
+    return coordinates;
+  }
+
+  private getMenuDimensions(menu: HTMLDivElement): MenuDimensions {
+    menu.style.top = "0px";
+    menu.style.left = "0px";
+    menu.style.right = "auto";
+    menu.style.bottom = "auto";
+    menu.style.position = "fixed";
+    menu.style.visibility = "hidden";
+    menu.style.display = "block";
+
+    const dimensions: MenuDimensions = {
+      width: menu.offsetWidth,
+      height: menu.offsetHeight,
+    };
+
+    menu.style.display = "none";
+    menu.style.visibility = "visible";
+
+    return dimensions;
+  }
+
+  private createRect(left: number, top: number, width: number, height: number): DOMRect {
+    return {
+      x: left,
+      y: top,
+      left,
+      top,
+      width,
+      height,
+      right: left + width,
+      bottom: top + height,
+      toJSON: () => ({ left, top, width, height }),
+    } as DOMRect;
   }
 
   private hideMenu(entry: Entry): void {
@@ -672,6 +948,35 @@ export class SuggestionManager {
       return null;
     }
     return key === "0" ? 9 : Number(key) - 1;
+  }
+
+  private buildSuggestionMenuItemHtml(mentionText: string, suggestion: string): string {
+    const safeSuggestion = this.escapeHtml(suggestion);
+    const mention = (mentionText || "").trim();
+    if (!mention) {
+      return safeSuggestion;
+    }
+
+    const lowerSuggestion = suggestion.toLowerCase();
+    const lowerMention = mention.toLowerCase();
+    const matchIndex = lowerSuggestion.indexOf(lowerMention);
+    if (matchIndex < 0) {
+      return safeSuggestion;
+    }
+
+    const before = this.escapeHtml(suggestion.slice(0, matchIndex));
+    const match = this.escapeHtml(suggestion.slice(matchIndex, matchIndex + mention.length));
+    const after = this.escapeHtml(suggestion.slice(matchIndex + mention.length));
+    return `${before}<span>${match}</span>${after}`;
+  }
+
+  private escapeHtml(value: string): string {
+    return value
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;");
   }
 
   private acceptSuggestionAtIndex(entry: Entry, index: number, event: Event): void {

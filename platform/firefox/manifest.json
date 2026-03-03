@@ -6,7 +6,7 @@
   "optional_host_permissions": ["<all_urls>"],
   "content_scripts": [
     {
-      "css": ["suggestions/suggestions.css"],
+      "css": ["third_party/tribute/tribute.css"],
       "js": ["content_script.js"],
       "matches": ["<all_urls>"],
       "run_at": "document_idle",
