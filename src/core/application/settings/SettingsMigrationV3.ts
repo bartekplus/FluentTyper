@@ -1,5 +1,6 @@
 import type { SettingField } from "@core/domain/contracts/settings";
-import { getSettingStorageAliases } from "@core/domain/contracts/settings";
+import { getSettingStorageAliases, getSettingStorageKey } from "@core/domain/contracts/settings";
+import { KEY_LEGACY_APPLY_SPACING_RULES } from "@core/domain/constants";
 import type { JsonValue } from "../settingsManager";
 import type { SettingsManager } from "../settingsManager";
 
@@ -31,6 +32,18 @@ export async function migrateSettingsV3(settings: SettingsManager): Promise<void
         continue;
       }
       await settings.set(canonical, value as JsonValue);
+    }
+
+    // Migrate legacy applySpacingRules boolean → enabledGrammarRules array
+    const legacyValue = await settings.get(KEY_LEGACY_APPLY_SPACING_RULES);
+    if (legacyValue === true) {
+      const grammarKey = getSettingStorageKey("enabledGrammarRules");
+      const existing = await settings.get(grammarKey);
+      const rules: string[] = Array.isArray(existing) ? (existing as string[]) : [];
+      if (!rules.includes("spacingRule")) {
+        rules.push("spacingRule");
+        await settings.set(grammarKey, rules as JsonValue);
+      }
     }
   } catch (error) {
     console.warn("[SettingsMigrationV3] Failed to migrate settings:", error);

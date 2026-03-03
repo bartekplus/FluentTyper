@@ -41,6 +41,8 @@ export const KEY_LANGUAGE = "language";
 export const KEY_FALLBACK_LANGUAGE = "fallbackLanguage";
 export const KEY_ENABLED_LANGUAGES = "enabled_languages";
 export const KEY_ENABLED_GRAMMAR_RULES = "enabledGrammarRules";
+/** @deprecated Legacy key – kept only for one-time migration in SettingsMigrationV3. */
+export const KEY_LEGACY_APPLY_SPACING_RULES = "applySpacingRules";
 export const KEY_DOMAIN_LIST_MODE = "domainListMode";
 export const KEY_AI_PREDICTOR_ENABLED = "aiPredictorEnabled";
 export const KEY_AI_MODEL_ID = "aiModelId";

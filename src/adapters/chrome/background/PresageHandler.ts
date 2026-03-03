@@ -130,15 +130,6 @@ export class PresageHandler {
     this.textExpansionManager.setTextExpansions(config.textExpansions);
     this.userDictionaryManager.setUserDictionaryList(this.userDictionaryList);
     this.enabledGrammarRules = config.enabledGrammarRules || [];
-    if (
-      "applySpacingRules" in config &&
-      typeof (config as Record<string, unknown>).applySpacingRules === "boolean" &&
-      (config as Record<string, unknown>).applySpacingRules === true
-    ) {
-      if (!this.enabledGrammarRules.includes("spacingRule")) {
-        this.enabledGrammarRules.push("spacingRule");
-      }
-    }
 
     // We recreate rules since constructor params like insertSpaceAfterAutocomplete can change.
     // In a cleaner refactor, rules themselves could just listen to config changes, but this matches SpacingRule's original pattern.
