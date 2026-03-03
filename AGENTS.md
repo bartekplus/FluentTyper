@@ -49,8 +49,8 @@ bun run watch
 ```bash
 bun run check
 bun run test
-# Optional:
 bun run test:e2e
+# Optional:
 bun run test:e2e --platform=firefox
 bun run test:e2e:dev
 ```
@@ -64,7 +64,9 @@ bun run fix
 
 ## Load the extension locally
 
-1. Build once: `bun run build`
+1. Build for your target browser:
+   - **Chrome/Edge**: `bun run build`
+   - **Firefox**: `bun run build --platform=firefox`
 2. Load `build/` as an unpacked extension:
    - **Chrome/Edge**: Extensions → Developer mode → “Load unpacked” → select `build/`
    - **Firefox**: `about:debugging` → “This Firefox” → “Load Temporary Add-on” → select `build/manifest.json`
@@ -197,7 +199,7 @@ Do not hand-edit versions in multiple places without running the script.
 ## What to include in PRs
 
 - A short description of the user-visible impact.
-- Tests run (at least `bun run check` + `bun run test`).
+- Tests run (at least `bun run check` + `bun run test` + `bun run test:e2e`).
 - If changing runtime behavior: add/adjust tests (unit and/or e2e).
 - If changing UI: screenshots are helpful.
 
@@ -211,4 +213,3 @@ Prefer:
 - Keeping behavior consistent with README/Contributing docs
 
 When in doubt, do not widen permissions, do not add network dependencies, and do not cross architecture boundaries.
-
