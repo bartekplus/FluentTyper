@@ -146,7 +146,7 @@ export class PredictionOrchestrator {
     };
 
     const canRunPredictionBase =
-      !context.forceReplace && context.doPrediction && context.effectiveNumSuggestions > 0;
+      !context.textEdit && context.doPrediction && context.effectiveNumSuggestions > 0;
 
     const canRunPresage =
       canRunPredictionBase &&
@@ -192,7 +192,7 @@ export class PredictionOrchestrator {
         predictionInput: context.predictionInput,
         numSuggestions: context.effectiveNumSuggestions,
         doPrediction: context.doPrediction,
-        forceReplace: Boolean(context.forceReplace),
+        textEdit: Boolean(context.textEdit),
         totalDurationMs: Date.now() - startedAt,
         presage: presageDebug,
         webllm: aiDebug,
@@ -233,7 +233,7 @@ export class PredictionOrchestrator {
       predictionInput: context.predictionInput,
       numSuggestions: context.effectiveNumSuggestions,
       doPrediction: context.doPrediction,
-      forceReplace: Boolean(context.forceReplace),
+      textEdit: Boolean(context.textEdit),
       totalDurationMs: Date.now() - startedAt,
       presage: presageDebug,
       webllm: aiDebug,
@@ -349,7 +349,7 @@ export class PredictionOrchestrator {
     if (!this.presageHandler.hasLanguageEngine(context.lang)) {
       return "language_engine_missing";
     }
-    if (context.forceReplace) {
+    if (context.textEdit) {
       return "blocked_by_grammar_rule";
     }
     if (!context.doPrediction) {
@@ -371,7 +371,7 @@ export class PredictionOrchestrator {
     if (!this.aiPredictor) {
       return "predictor_unavailable";
     }
-    if (context.forceReplace) {
+    if (context.textEdit) {
       return "blocked_by_grammar_rule";
     }
     if (!context.doPrediction) {

@@ -126,10 +126,10 @@ export class GrammarRuleEngine {
   /**
    * Squashes multiple sequential edits into a single GrammarEdit.
    *
-   * NOTE: The downstream transport (ForceReplaceType / Tribute) does not support
+   * NOTE: The downstream transport (TextEditOperation / suggestion engine) does not support
    * forward deletion. If any rule produces deleteForwards > 0, this method
    * clamps it to 0 and logs a warning. To support forward deletion, extend
-   * ForceReplaceType and the Tribute replaceText path first.
+   * TextEditOperation and the suggestion insertion path first.
    */
   private mergeEdits(edits: GrammarEdit[]): GrammarEdit[] {
     if (edits.length === 0) {
@@ -152,13 +152,13 @@ export class GrammarRuleEngine {
       totalDeleteForwards += edit.deleteForwards;
     }
 
-    // Guard: ForceReplaceType / Tribute apply path only supports backward deletion.
+    // Guard: TextEditOperation apply path only supports backward deletion.
     // Clamp deleteForwards to 0 so this limitation is explicit rather than a silent data loss.
     if (totalDeleteForwards > 0) {
       console.warn(
         `[GrammarRuleEngine] mergeEdits produced deleteForwards=${totalDeleteForwards}, ` +
-          `but the downstream transport (ForceReplaceType) does not support forward deletion. ` +
-          `Clamping to 0. Extend ForceReplaceType and Tribute to support this.`,
+          `but the downstream transport (TextEditOperation) does not support forward deletion. ` +
+          `Clamping to 0. Extend TextEditOperation and suggestion apply path to support this.`,
       );
       totalDeleteForwards = 0;
     }

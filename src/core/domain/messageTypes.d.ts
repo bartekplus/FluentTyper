@@ -42,15 +42,15 @@ export interface PredictRequestContext {
   traceStartedAtMs?: number;
 }
 
-export interface ForceReplaceType {
-  text: string;
-  length: number;
+export interface TextEditOperation {
+  replacementText: string;
+  replaceBackwardCount: number;
   /** The length of the full text at the time the grammar rule was evaluated */
-  originalTextLength: number;
+  evaluatedTextLength: number;
   /** The exact substring that was matched for replacement */
-  expectedSubstring?: string;
+  expectedReplacedText?: string;
   /** The preceding characters to anchor the replacement context */
-  cursorToken?: string;
+  expectedPrefixToken?: string;
 }
 
 // Context for CMD_BACKGROUND_PAGE_PREDICT_RESP
@@ -64,7 +64,7 @@ export interface PredictResponseContext {
   requestId: number;
   traceId?: string;
   predictions: string[];
-  forceReplace: ForceReplaceType | null;
+  textEdit: TextEditOperation | null;
 }
 
 // Context for CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG

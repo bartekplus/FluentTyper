@@ -99,13 +99,13 @@ describe("BackgroundServiceWorker", () => {
   // But we can check behavior
 
   describe("runPrediction", () => {
-    it("should not send message if no predictions and no forceReplace", async () => {
+    it("should not send message if no predictions and no textEdit", async () => {
       // Setup mock return
       (
         worker.predictionManager.runPrediction as jest.Mock<() => Promise<unknown>>
       ).mockResolvedValue({
         predictions: [],
-        forceReplace: null,
+        textEdit: null,
       });
 
       await worker.runPrediction({
@@ -129,7 +129,7 @@ describe("BackgroundServiceWorker", () => {
         worker.predictionManager.runPrediction as jest.Mock<() => Promise<unknown>>
       ).mockResolvedValue({
         predictions: ["tested"],
-        forceReplace: null,
+        textEdit: null,
       });
       const tabId = 123;
       // Mock chrome.tabs.get callback

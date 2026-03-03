@@ -65,7 +65,7 @@ const backgroundHarnessMocks = {
   settingsGet: jest.fn(async () => undefined),
   settingsSet: jest.fn(async () => undefined),
   languageDetect: jest.fn(async () => "en_US"),
-  predictionRun: jest.fn(async () => ({ predictions: [], forceReplace: null })),
+  predictionRun: jest.fn(async () => ({ predictions: [], textEdit: null })),
   predictionInitialize: jest.fn(async () => undefined),
   predictionSetConfig: jest.fn(),
   predictionEnsureTraceId: jest.fn((traceId?: string) => traceId || "generated-trace-id"),
@@ -212,7 +212,7 @@ async function loadBackgroundHarness(stateOverrides: Record<string, unknown> = {
   const languageDetect = jest.fn(async () => "fr_FR");
   const predictionRun = jest.fn(async () => ({
     predictions: ["hello"],
-    forceReplace: null,
+    textEdit: null,
   }));
   const predictionInitialize = jest.fn(async () => undefined);
   const predictionSetConfig = jest.fn();

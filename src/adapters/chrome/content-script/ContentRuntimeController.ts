@@ -9,7 +9,7 @@ import { DomObserver } from "./DomObserver";
 import { MutationPipeline, type MutationPlan } from "./MutationPipeline";
 import { MutationScheduler } from "./MutationScheduler";
 import { ThemeApplicator } from "./ThemeApplicator";
-import { TributeManager } from "./TributeManager";
+import { SuggestionManager } from "./SuggestionManager";
 
 const logger = createLogger("ContentRuntimeController");
 
@@ -19,7 +19,7 @@ export class ContentRuntimeController {
   private static readonly MAX_MUTATION_BATCH_SIZE = 200;
   private static readonly MAX_MUTATION_ROOTS = 64;
 
-  public tributeManager: TributeManager | null = null;
+  public suggestionManager: SuggestionManager | null = null;
   public config: SetConfigContext = {
     enabled: false,
     autocomplete: false,
@@ -110,21 +110,21 @@ export class ContentRuntimeController {
 
     this.enabled = config.enabled;
     if (!this.enabled) {
-      this.tributeManager = null;
+      this.suggestionManager = null;
     }
   }
 
   updateLanguage(lang: string): void {
     this.config.lang = lang;
-    this.tributeManager?.updateLangConfig(this.config.lang);
+    this.suggestionManager?.updateLangConfig(this.config.lang);
   }
 
-  triggerActiveTribute(): void {
-    this.tributeManager?.triggerActiveTribute();
+  triggerActiveSuggestion(): void {
+    this.suggestionManager?.triggerActiveSuggestion();
   }
 
   fulfillPrediction(context: PredictResponseContext): void {
-    this.tributeManager?.fulfillPrediction(context);
+    this.suggestionManager?.fulfillPrediction(context);
   }
 
   attachMutationObserver(): void {
@@ -144,10 +144,10 @@ export class ContentRuntimeController {
     });
     this.domObserver.disconnect();
     try {
-      if (!this.tributeManager) {
+      if (!this.suggestionManager) {
         return;
       }
-      this.tributeManager.removeHelpersNotInDocument();
+      this.suggestionManager.removeHelpersNotInDocument();
 
       const mutationPlan = this.mutationPipeline.buildPlan(mutationsList);
       this.executeMutationPlan(mutationPlan);
@@ -160,10 +160,10 @@ export class ContentRuntimeController {
 
   enable(): void {
     logger.info("Enabling content runtime");
-    if (!this.tributeManager) {
-      this.initializeTributeManager();
+    if (!this.suggestionManager) {
+      this.initializeSuggestionManager();
     }
-    this.tributeManager?.queryAndAttachHelper();
+    this.suggestionManager?.queryAndAttachHelper();
     this.attachMutationObserver();
   }
 
@@ -171,13 +171,13 @@ export class ContentRuntimeController {
     logger.info("Disabling content runtime");
     this.domObserver.disconnect();
     this.mutationScheduler.clear();
-    this.tributeManager?.detachAllHelpers();
+    this.suggestionManager?.detachAllHelpers();
   }
 
   restart(): void {
     logger.warn("Restarting content runtime");
     this.disable();
-    this.tributeManager = null;
+    this.suggestionManager = null;
     setTimeout(() => {
       if (this._enabled) {
         this.enable();
@@ -193,13 +193,13 @@ export class ContentRuntimeController {
     this.domObserver.setNode(node);
   }
 
-  private initializeTributeManager(): void {
-    logger.debug("Initializing tribute manager", {
+  private initializeSuggestionManager(): void {
+    logger.debug("Initializing suggestion manager", {
       lang: this.config.lang,
       autocomplete: this.config.autocomplete,
       minWordLengthToPredict: this.config.minWordLengthToPredict,
     });
-    this.tributeManager = new TributeManager({
+    this.suggestionManager = new SuggestionManager({
       selectors: ContentRuntimeController.SELECTORS,
       minWordLengthToPredict: this.config.minWordLengthToPredict,
       autocomplete: this.config.autocomplete,
@@ -213,25 +213,25 @@ export class ContentRuntimeController {
       getPrediction: (context: ContentScriptPredictRequestContext) =>
         this.onPredictionRequest?.(context),
     });
-    if (this.tributeManager) {
-      this.tributeManager.autocompleteSeparator =
+    if (this.suggestionManager) {
+      this.suggestionManager.autocompleteSeparator =
         LANG_SEPARATOR_CHARS_REGEX[this.config.lang] || /\s+/;
     }
   }
 
   private executeMutationPlan(mutationPlan: MutationPlan): void {
-    if (!this.tributeManager) {
+    if (!this.suggestionManager) {
       return;
     }
 
     if (mutationPlan.type === "full-scan") {
-      this.tributeManager.queryAndAttachHelper();
+      this.suggestionManager.queryAndAttachHelper();
       return;
     }
 
     if (mutationPlan.type === "targeted-scan") {
       for (const mutationRoot of mutationPlan.roots) {
-        this.tributeManager.queryAndAttachHelper(mutationRoot);
+        this.suggestionManager.queryAndAttachHelper(mutationRoot);
       }
     }
   }

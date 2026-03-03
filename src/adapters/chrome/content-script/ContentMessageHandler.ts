@@ -48,7 +48,7 @@ export type ContentMessageHandlerDependencies = {
   toggleEnabled: () => void;
   setConfig: (config: SetConfigContext) => void;
   updateLanguage: (lang: string) => void;
-  triggerActiveTribute: () => void;
+  triggerActiveSuggestion: () => void;
   fulfillPrediction: (context: PredictResponseContext) => void;
   getLanguage: () => string;
 };
@@ -162,7 +162,7 @@ export class ContentMessageHandler {
         sendStatusMsg = true;
         break;
       case CMD_TRIGGER_FT_ACTIVE_TAB:
-        this.dependencies.triggerActiveTribute();
+        this.dependencies.triggerActiveSuggestion();
         sendStatusMsg = true;
         break;
       case CMD_GET_HOSTNAME:

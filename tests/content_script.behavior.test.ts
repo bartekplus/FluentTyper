@@ -11,12 +11,12 @@ import {
   CMD_TRIGGER_FT_ACTIVE_TAB,
 } from "../src/core/domain/constants";
 
-type TributeLike = {
+type SuggestionLike = {
   queryAndAttachHelper: jest.Mock;
   detachAllHelpers: jest.Mock;
   removeHelpersNotInDocument: jest.Mock;
   updateLangConfig: jest.Mock;
-  triggerActiveTribute: jest.Mock;
+  triggerActiveSuggestion: jest.Mock;
   fulfillPrediction: jest.Mock;
   autocompleteSeparator?: RegExp;
 };
@@ -32,7 +32,7 @@ type LoadedContentScript = {
   fluentTyper: {
     enabled: boolean;
     config: Record<string, unknown>;
-    tributeManager: TributeLike | null;
+    suggestionManager: SuggestionLike | null;
     domObserver: DomObserverLike;
     handleGetPrediction: (context: Record<string, unknown>) => void;
     messageHandler: (
@@ -50,7 +50,7 @@ type LoadedContentScript = {
     restart: () => void;
     destroy: () => void;
   };
-  tributeInstances: TributeLike[];
+  suggestionInstances: SuggestionLike[];
   domObserverInstances: DomObserverLike[];
   checkLastError: jest.Mock;
   sendMessage: jest.Mock;
@@ -82,7 +82,7 @@ function defaultConfig(overrides: Record<string, unknown> = {}) {
 
 const behaviorHarness = {
   fluentTyperInstances: [] as LoadedContentScript["fluentTyper"][],
-  tributeInstances: [] as TributeLike[],
+  suggestionInstances: [] as SuggestionLike[],
   domObserverInstances: [] as DomObserverLike[],
   checkLastError: jest.fn(),
   sendMessage: jest.fn(),
@@ -96,17 +96,17 @@ jest.unstable_mockModule("../src/core/application/dom-utils", () => ({
   isInDocument: (element: Element) => document.contains(element),
 }));
 
-jest.unstable_mockModule("../src/adapters/chrome/content-script/TributeManager", () => ({
-  TributeManager: jest.fn().mockImplementation(() => {
-    const instance: TributeLike = {
+jest.unstable_mockModule("../src/adapters/chrome/content-script/SuggestionManager", () => ({
+  SuggestionManager: jest.fn().mockImplementation(() => {
+    const instance: SuggestionLike = {
       queryAndAttachHelper: jest.fn(),
       detachAllHelpers: jest.fn(),
       removeHelpersNotInDocument: jest.fn(),
       updateLangConfig: jest.fn(),
-      triggerActiveTribute: jest.fn(),
+      triggerActiveSuggestion: jest.fn(),
       fulfillPrediction: jest.fn(),
     };
-    behaviorHarness.tributeInstances.push(instance);
+    behaviorHarness.suggestionInstances.push(instance);
     return instance;
   }),
 }));
@@ -129,7 +129,7 @@ jest.unstable_mockModule("../src/adapters/chrome/content-script/DomObserver", ()
 
 async function loadContentScript(): Promise<LoadedContentScript> {
   jest.clearAllMocks();
-  behaviorHarness.tributeInstances.length = 0;
+  behaviorHarness.suggestionInstances.length = 0;
   behaviorHarness.domObserverInstances.length = 0;
   behaviorHarness.checkLastError = jest.fn();
   behaviorHarness.sendMessage = jest.fn();
@@ -153,7 +153,7 @@ async function loadContentScript(): Promise<LoadedContentScript> {
 
   return {
     fluentTyper,
-    tributeInstances: behaviorHarness.tributeInstances,
+    suggestionInstances: behaviorHarness.suggestionInstances,
     domObserverInstances: behaviorHarness.domObserverInstances,
     checkLastError: behaviorHarness.checkLastError,
     sendMessage: behaviorHarness.sendMessage,
@@ -174,24 +174,24 @@ describe("content_script behavior", () => {
   });
 
   test("enables and disables managers through state transitions", async () => {
-    const { fluentTyper, tributeInstances, domObserverInstances } = await loadContentScript();
+    const { fluentTyper, suggestionInstances, domObserverInstances } = await loadContentScript();
     const domObserver = domObserverInstances[0];
 
     fluentTyper.enabled = true;
-    expect(tributeInstances).toHaveLength(1);
-    expect(tributeInstances[0].queryAndAttachHelper).toHaveBeenCalled();
+    expect(suggestionInstances).toHaveLength(1);
+    expect(suggestionInstances[0].queryAndAttachHelper).toHaveBeenCalled();
     expect(domObserver.attach).toHaveBeenCalled();
 
     fluentTyper.enabled = false;
     expect(domObserver.disconnect).toHaveBeenCalled();
-    expect(tributeInstances[0].detachAllHelpers).toHaveBeenCalled();
+    expect(suggestionInstances[0].detachAllHelpers).toHaveBeenCalled();
   });
 
   test("handleGetPrediction sends request and matching response fulfills prediction", async () => {
-    const { fluentTyper, tributeInstances, sendMessage } = await loadContentScript();
+    const { fluentTyper, suggestionInstances, sendMessage } = await loadContentScript();
 
     fluentTyper.enable();
-    const tribute = tributeInstances[0];
+    const tribute = suggestionInstances[0];
 
     fluentTyper.handleGetPrediction({
       text: "hel",
@@ -278,7 +278,7 @@ describe("content_script behavior", () => {
       command: CMD_STATUS_COMMAND,
       context: { enabled: true },
     });
-    const tribute = fluentTyper.tributeManager as TributeLike;
+    const tribute = fluentTyper.suggestionManager as SuggestionLike;
 
     fluentTyper.messageHandler(
       {
@@ -311,7 +311,7 @@ describe("content_script behavior", () => {
       (response) => statusResponses.push(response),
     );
 
-    expect(tribute.triggerActiveTribute).toHaveBeenCalled();
+    expect(tribute.triggerActiveSuggestion).toHaveBeenCalled();
     expect(
       statusResponses.every(
         (response) => (response as { command?: string }).command === CMD_STATUS_COMMAND,
@@ -320,7 +320,7 @@ describe("content_script behavior", () => {
   });
 
   test("processMutations reattaches helpers for added and attribute-target elements", async () => {
-    const { fluentTyper, tributeInstances, domObserverInstances } = await loadContentScript();
+    const { fluentTyper, suggestionInstances, domObserverInstances } = await loadContentScript();
     fluentTyper.enable();
     const domObserver = domObserverInstances[0];
 
@@ -344,12 +344,12 @@ describe("content_script behavior", () => {
 
     expect(domObserver.disconnect).toHaveBeenCalled();
     expect(
-      tributeInstances.some(
+      suggestionInstances.some(
         (instance) => instance.removeHelpersNotInDocument.mock.calls.length > 0,
       ),
     ).toBe(true);
 
-    const attachedTargets = tributeInstances.flatMap((instance) =>
+    const attachedTargets = suggestionInstances.flatMap((instance) =>
       instance.queryAndAttachHelper.mock.calls.map((call) => call[0]),
     );
     expect(attachedTargets).toContain(addedElement);
@@ -358,9 +358,9 @@ describe("content_script behavior", () => {
   });
 
   test("processMutations scans only top-level mutation roots when nodes are nested", async () => {
-    const { fluentTyper, tributeInstances } = await loadContentScript();
+    const { fluentTyper, suggestionInstances } = await loadContentScript();
     fluentTyper.enable();
-    const tribute = tributeInstances[0];
+    const tribute = suggestionInstances[0];
     tribute.queryAndAttachHelper.mockClear();
 
     const parent = document.createElement("div");
@@ -391,9 +391,9 @@ describe("content_script behavior", () => {
   });
 
   test("processMutations falls back to full scan for very large mutation batches", async () => {
-    const { fluentTyper, tributeInstances } = await loadContentScript();
+    const { fluentTyper, suggestionInstances } = await loadContentScript();
     fluentTyper.enable();
-    const tribute = tributeInstances[0];
+    const tribute = suggestionInstances[0];
     tribute.queryAndAttachHelper.mockClear();
 
     const largeBatch = Array.from({ length: 200 }, () => {

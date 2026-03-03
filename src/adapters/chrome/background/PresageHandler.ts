@@ -11,7 +11,7 @@ import { UserDictionaryManager } from "./UserDictionaryManager";
 import { TextExpansionManager } from "./TextExpansionManager";
 import type { PresageEngineConfig } from "./PresageEngine";
 import { PresageEngine } from "./PresageEngine";
-import type { ForceReplaceType } from "@core/domain/messageTypes";
+import type { TextEditOperation } from "@core/domain/messageTypes";
 import { MAX_NUM_SUGGESTIONS } from "@core/domain/constants";
 import type { PredictionResult } from "./PredictionTypes";
 import { GrammarRuleEngine } from "@core/domain/grammar/GrammarRuleEngine";
@@ -48,7 +48,7 @@ export interface PresagePredictionContext {
   predictionInput: string;
   doPrediction: boolean;
   doCapitalize: Capitalization;
-  forceReplace: ForceReplaceType | null;
+  textEdit: TextEditOperation | null;
   effectiveNumSuggestions: number;
   tabId?: number;
 }
@@ -251,7 +251,7 @@ export class PresageHandler {
       effectiveNumSuggestions,
     );
 
-    let forceReplace: ForceReplaceType | null = null;
+    let textEdit: TextEditOperation | null = null;
     if (this.enabledGrammarRules.length > 0) {
       // Determine event type
       const isWordBoundary = text.length > 0 && SPACE_CHARS.includes(text[text.length - 1]);
@@ -264,26 +264,26 @@ export class PresageHandler {
       );
 
       if (edits.length > 0) {
-        // Map merged GrammarEdit → ForceReplaceType (backward deletion only)
+        // Map merged GrammarEdit -> TextEditOperation (backward deletion only)
         const edit = edits[0];
 
-        // Guard: ForceReplaceType does not support forward deletion.
+        // Guard: TextEditOperation does not support forward deletion.
         // The engine should already clamp this, but reject here as a safety net.
         if (edit.deleteForwards > 0) {
           logger.warn(
-            "Grammar edit with deleteForwards > 0 cannot be mapped to ForceReplaceType, skipping",
+            "Grammar edit with deleteForwards > 0 cannot be mapped to TextEditOperation, skipping",
             {
               deleteForwards: edit.deleteForwards,
               replacement: edit.replacement,
             },
           );
         } else {
-          forceReplace = {
-            length: edit.deleteBackwards,
-            text: edit.replacement,
-            originalTextLength: text.length,
-            expectedSubstring: text.slice(text.length - edit.deleteBackwards),
-            cursorToken: text.slice(
+          textEdit = {
+            replaceBackwardCount: edit.deleteBackwards,
+            replacementText: edit.replacement,
+            evaluatedTextLength: text.length,
+            expectedReplacedText: text.slice(text.length - edit.deleteBackwards),
+            expectedPrefixToken: text.slice(
               Math.max(0, text.length - edit.deleteBackwards - 10),
               text.length - edit.deleteBackwards,
             ),
@@ -299,14 +299,14 @@ export class PresageHandler {
       predictionInput,
       doPrediction,
       doCapitalize,
-      forceReplace,
+      textEdit,
       effectiveNumSuggestions,
       tabId,
     };
   }
 
   async predictPresage(context: PresagePredictionContext): Promise<string[]> {
-    if (context.forceReplace || !context.doPrediction) {
+    if (context.textEdit || !context.doPrediction) {
       return [];
     }
     if (context.effectiveNumSuggestions <= 0) {
@@ -328,7 +328,7 @@ export class PresageHandler {
       context.nextChar,
       context.doCapitalize,
       context.effectiveNumSuggestions,
-      context.forceReplace,
+      context.textEdit,
     );
   }
 
@@ -355,7 +355,7 @@ export class PresageHandler {
     nextChar: string,
     doCapitalize: Capitalization,
     effectiveNumSuggestions: number,
-    forceReplace: ForceReplaceType | null,
+    textEdit: TextEditOperation | null,
   ): PredictionResult {
     let predictions = predictionCandidates.slice();
     if (predictions.length > effectiveNumSuggestions) {
@@ -402,7 +402,7 @@ export class PresageHandler {
       case Capitalization.None:
       default:
     }
-    return { predictions, forceReplace };
+    return { predictions, textEdit };
   }
 
   getLastPredictionInput(lang: string): string {

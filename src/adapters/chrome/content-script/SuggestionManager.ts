@@ -1,16 +1,17 @@
-import Tribute from "@third-party/tribute/tribute.esm.js";
+import Tribute from "./suggestions/SuggestionEngineCore.js";
 import { LANG_SEPARATOR_CHARS_REGEX, SUPPORTED_LANGUAGES } from "@core/domain/lang";
 import { isInDocument } from "@core/application/dom-utils";
 import { createLogger } from "@core/application/logging/Logger";
 import type {
   PredictResponseContext,
   ContentScriptUsageEventMessage,
-  ForceReplaceType,
+  TextEditOperation,
 } from "@core/domain/messageTypes";
 import { SPACING_RULES, Spacing } from "@core/domain/spacingRules";
 import { CMD_CONTENT_SCRIPT_USAGE_EVENT } from "@core/domain/constants";
+import { SuggestionKeyboardController } from "./suggestions/SuggestionKeyboardController";
 
-const logger = createLogger("TributeManager");
+const logger = createLogger("SuggestionManager");
 
 interface TributeItem {
   original: { value: string };
@@ -20,7 +21,7 @@ interface TributeItem {
 interface TributeEntry {
   tribute: Tribute;
   elem: Element;
-  done?: (results: unknown[], forceReplace: ForceReplaceType | null, menuHeader?: string) => void;
+  done?: (results: unknown[], textEdit: TextEditOperation | null, menuHeader?: string) => void;
   requestId: number;
   // Store handler references for proper removal
   tributeReplacedHandlerRef?: EventListenerOrEventListenerObject;
@@ -38,7 +39,7 @@ interface TributeReplaceEventDetail {
   context?: TributeReplaceEventContext;
 }
 
-export class TributeManager {
+export class SuggestionManager {
   private selectors: string;
   private newTributeId: number;
   private tributeArr: Record<number, TributeEntry>;
@@ -129,17 +130,11 @@ export class TributeManager {
   }
 
   private keys(): string[] {
-    const keyArr = ["Escape", "ArrowUp", "ArrowDown", "Space"];
-    if (this.autocompleteOnEnter) {
-      keyArr.push("Enter");
-    }
-    if (this.autocompleteOnTab) {
-      keyArr.push("Tab");
-    }
-    if (this.revertOnBackspace) {
-      keyArr.push("Backspace");
-    }
-    return keyArr;
+    return SuggestionKeyboardController.buildActiveKeys({
+      autocompleteOnEnter: this.autocompleteOnEnter,
+      autocompleteOnTab: this.autocompleteOnTab,
+      revertOnBackspace: this.revertOnBackspace,
+    });
   }
 
   private checkElemProperty(
@@ -173,7 +168,7 @@ export class TributeManager {
       _trigger: string, // text typed so far - not used directly here, context.text is used
       done: (
         results: unknown[],
-        forceReplace: ForceReplaceType | null,
+        textEdit: TextEditOperation | null,
         menuHeader?: string,
       ) => void,
       fullText: string,
@@ -210,20 +205,15 @@ export class TributeManager {
       selectClass: "highlight",
       containerClass: "tribute-container",
       itemClass: "",
-      // @ts-expect-error ignore Tribute errors
       selectTemplate: (item: TributeItem) => item.original.value,
-      // @ts-expect-error ignore Tribute errors
       menuItemTemplate: (item: TributeItem) => item.string,
       noMatchTemplate: undefined,
-      // @ts-expect-error ignore Tribute errors
       menuContainer: document.body,
       lookup: "key",
       fillAttr: "value",
-      // @ts-expect-error ignore Tribute errors
       values: tributeValuesFn,
       requireLeadingSpace: false,
       allowSpaces: false,
-      // @ts-expect-error ignore Tribute errors
       replaceTextSuffix: "",
       positionMenu: true,
       spaceSelectsMatch: this.autocomplete,
@@ -237,7 +227,6 @@ export class TributeManager {
       },
       menuShowMinLength:
         this.minWordLengthToPredict === -1 ? Number.MAX_VALUE : this.minWordLengthToPredict,
-      // @ts-expect-error ignore Tribute errors
       keys: tributeKeyFn,
       supportRevert: true, // Assuming this is related to revertOnBackspace
       selectByDigit: this.selectByDigit,
@@ -266,15 +255,15 @@ export class TributeManager {
     });
     const tributeEntry = this.tributeArr[context.tributeId];
     const isCurrentRequest = tributeEntry && tributeEntry.requestId === context.requestId;
-    const hasForceReplace = context.forceReplace != null;
+    const hasTextEdit = context.textEdit != null;
 
-    if (tributeEntry && (isCurrentRequest || hasForceReplace) && tributeEntry.done) {
-      // For grammar corrections (forceReplace), we allow stale responses through
+    if (tributeEntry && (isCurrentRequest || hasTextEdit) && tributeEntry.done) {
+      // For grammar corrections (textEdit), we allow stale responses through
       // because the correction (e.g. capitalize first letter) is still valid even
       // after the user has typed more characters. The position is computed from the
       // original text length, not the current fullText.
-      if (!isCurrentRequest && hasForceReplace) {
-        logger.debug("Applying stale forceReplace grammar correction", {
+      if (!isCurrentRequest && hasTextEdit) {
+        logger.debug("Applying stale textEdit grammar correction", {
           tributeId: context.tributeId,
           requestId: context.requestId,
           currentRequestId: tributeEntry.requestId,
@@ -299,7 +288,7 @@ export class TributeManager {
         predictionCount: predictionItems.length,
         hasHeader: Boolean(header),
       });
-      tributeEntry.done(predictionItems, context.forceReplace, header);
+      tributeEntry.done(predictionItems, context.textEdit, header);
 
       if (isCurrentRequest && context.predictions.length > 0) {
         this.emitUsageEvent({
@@ -464,7 +453,7 @@ export class TributeManager {
     }
   }
 
-  triggerActiveTribute() {
+  triggerActiveSuggestion() {
     logger.debug("Triggering active tribute", {
       activeHelperArrId: this.activeHelperArrId,
     });
@@ -535,7 +524,7 @@ export class TributeManager {
     // We check if the inserted text ends with a space. If not, the user might need one.
     // However, we only know if they need one AFTER they start typing.
     // So we mark that a replacement just happened.
-    // Skip for grammar corrections (forceReplace) which have null event/item in detail.
+    // Skip for grammar corrections (textEdit) which have null event/item in detail.
     const entry = this.tributeArr[helperArrId];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const detail = customEvent?.detail as any;
@@ -556,7 +545,7 @@ export class TributeManager {
     }
 
     if (this.tributeArr[helperArrId] && this.reTriggerTributeOnReplaceEvent) {
-      this.triggerActiveTribute();
+      this.triggerActiveSuggestion();
     }
   }
 
@@ -631,6 +620,6 @@ export class TributeManager {
   updateLangConfig(lang: string) {
     this.autocompleteSeparator = LANG_SEPARATOR_CHARS_REGEX[lang];
     this.lang = lang;
-    this.triggerActiveTribute();
+    this.triggerActiveSuggestion();
   }
 }

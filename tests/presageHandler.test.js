@@ -246,124 +246,124 @@ describe("features", () => {
       },
     );
   });
-  describe("grammar rule forceReplace", () => {
-    test("returns expectedSubstring and cursorToken", async () => {
+  describe("grammar rule textEdit", () => {
+    test("returns expectedReplacedText and expectedPrefixToken", async () => {
       testContext.enabledGrammarRules = ["capitalizeFirstLetter"];
       setConfig();
 
       // capitalizeFirstLetterRule should trigger on ". a"
       const result = await testContext.ph.runPrediction("Hello. a", "", "en_US");
-      expect(result.forceReplace).not.toBeNull();
-      expect(result.forceReplace.text).toBe("A");
-      expect(result.forceReplace.length).toBe(1);
-      expect(result.forceReplace.originalTextLength).toBe("Hello. a".length);
-      expect(result.forceReplace.expectedSubstring).toBe("a");
-      expect(result.forceReplace.cursorToken).toBe("Hello. ");
+      expect(result.textEdit).not.toBeNull();
+      expect(result.textEdit.replacementText).toBe("A");
+      expect(result.textEdit.replaceBackwardCount).toBe(1);
+      expect(result.textEdit.evaluatedTextLength).toBe("Hello. a".length);
+      expect(result.textEdit.expectedReplacedText).toBe("a");
+      expect(result.textEdit.expectedPrefixToken).toBe("Hello. ");
     });
 
-    test("emits forceReplace for decimal and time technical spacing compaction", async () => {
+    test("emits textEdit for decimal and time technical spacing compaction", async () => {
       testContext.enabledGrammarRules = ["spacingRule"];
       setConfig();
 
       const decimalResult = await testContext.ph.runPrediction("3.\xA01", "", "en_US");
-      expect(decimalResult.forceReplace).not.toBeNull();
-      expect(decimalResult.forceReplace.text).toBe(".1");
-      expect(decimalResult.forceReplace.length).toBe(3);
-      expect(decimalResult.forceReplace.originalTextLength).toBe("3.\xA01".length);
-      expect(decimalResult.forceReplace.expectedSubstring).toBe(".\xA01");
-      expect(decimalResult.forceReplace.cursorToken).toBe("3");
+      expect(decimalResult.textEdit).not.toBeNull();
+      expect(decimalResult.textEdit.replacementText).toBe(".1");
+      expect(decimalResult.textEdit.replaceBackwardCount).toBe(3);
+      expect(decimalResult.textEdit.evaluatedTextLength).toBe("3.\xA01".length);
+      expect(decimalResult.textEdit.expectedReplacedText).toBe(".\xA01");
+      expect(decimalResult.textEdit.expectedPrefixToken).toBe("3");
 
       const timeResult = await testContext.ph.runPrediction("12:\xA03", "", "en_US");
-      expect(timeResult.forceReplace).not.toBeNull();
-      expect(timeResult.forceReplace.text).toBe(":3");
-      expect(timeResult.forceReplace.length).toBe(3);
-      expect(timeResult.forceReplace.originalTextLength).toBe("12:\xA03".length);
-      expect(timeResult.forceReplace.expectedSubstring).toBe(":\xA03");
-      expect(timeResult.forceReplace.cursorToken).toBe("12");
+      expect(timeResult.textEdit).not.toBeNull();
+      expect(timeResult.textEdit.replacementText).toBe(":3");
+      expect(timeResult.textEdit.replaceBackwardCount).toBe(3);
+      expect(timeResult.textEdit.evaluatedTextLength).toBe("12:\xA03".length);
+      expect(timeResult.textEdit.expectedReplacedText).toBe(":\xA03");
+      expect(timeResult.textEdit.expectedPrefixToken).toBe("12");
     });
 
-    test("handles slash forceReplace for protocol compaction and math operator contexts", async () => {
+    test("handles slash textEdit for protocol compaction and math operator contexts", async () => {
       testContext.enabledGrammarRules = ["spacingRule"];
       testContext.insertSpaceAfterAutocomplete = true;
       setConfig();
 
       const protocolResult = await testContext.ph.runPrediction("https:\xA0/", "", "en_US");
-      expect(protocolResult.forceReplace).not.toBeNull();
-      expect(protocolResult.forceReplace.text).toBe("/");
-      expect(protocolResult.forceReplace.length).toBe(2);
-      expect(protocolResult.forceReplace.expectedSubstring).toBe("\xA0/");
-      expect(protocolResult.forceReplace.cursorToken).toBe("https:");
+      expect(protocolResult.textEdit).not.toBeNull();
+      expect(protocolResult.textEdit.replacementText).toBe("/");
+      expect(protocolResult.textEdit.replaceBackwardCount).toBe(2);
+      expect(protocolResult.textEdit.expectedReplacedText).toBe("\xA0/");
+      expect(protocolResult.textEdit.expectedPrefixToken).toBe("https:");
 
       const pathResult = await testContext.ph.runPrediction("src/components/", "", "en_US");
-      expect(pathResult.forceReplace).toBeNull();
+      expect(pathResult.textEdit).toBeNull();
 
       const operatorResult = await testContext.ph.runPrediction("x /", "", "en_US");
-      expect(operatorResult.forceReplace).not.toBeNull();
-      expect(operatorResult.forceReplace.text).toBe("/\xA0");
-      expect(operatorResult.forceReplace.length).toBe(1);
-      expect(operatorResult.forceReplace.expectedSubstring).toBe("/");
+      expect(operatorResult.textEdit).not.toBeNull();
+      expect(operatorResult.textEdit.replacementText).toBe("/\xA0");
+      expect(operatorResult.textEdit.replaceBackwardCount).toBe(1);
+      expect(operatorResult.textEdit.expectedReplacedText).toBe("/");
     });
 
-    test("emits forceReplace for compact equals and arithmetic expressions", async () => {
+    test("emits textEdit for compact equals and arithmetic expressions", async () => {
       testContext.enabledGrammarRules = ["spacingRule"];
       setConfig();
 
       const equalsResult = await testContext.ph.runPrediction("x=y", "", "en_US");
-      expect(equalsResult.forceReplace).not.toBeNull();
-      expect(equalsResult.forceReplace.text).toBe("x\xA0=\xA0y");
-      expect(equalsResult.forceReplace.length).toBe(3);
-      expect(equalsResult.forceReplace.originalTextLength).toBe("x=y".length);
-      expect(equalsResult.forceReplace.expectedSubstring).toBe("x=y");
-      expect(equalsResult.forceReplace.cursorToken).toBe("");
+      expect(equalsResult.textEdit).not.toBeNull();
+      expect(equalsResult.textEdit.replacementText).toBe("x\xA0=\xA0y");
+      expect(equalsResult.textEdit.replaceBackwardCount).toBe(3);
+      expect(equalsResult.textEdit.evaluatedTextLength).toBe("x=y".length);
+      expect(equalsResult.textEdit.expectedReplacedText).toBe("x=y");
+      expect(equalsResult.textEdit.expectedPrefixToken).toBe("");
 
       const plusResult = await testContext.ph.runPrediction("y+1", "", "en_US");
-      expect(plusResult.forceReplace).not.toBeNull();
-      expect(plusResult.forceReplace.text).toBe("y\xA0+\xA01");
-      expect(plusResult.forceReplace.length).toBe(3);
-      expect(plusResult.forceReplace.originalTextLength).toBe("y+1".length);
-      expect(plusResult.forceReplace.expectedSubstring).toBe("y+1");
-      expect(plusResult.forceReplace.cursorToken).toBe("");
+      expect(plusResult.textEdit).not.toBeNull();
+      expect(plusResult.textEdit.replacementText).toBe("y\xA0+\xA01");
+      expect(plusResult.textEdit.replaceBackwardCount).toBe(3);
+      expect(plusResult.textEdit.evaluatedTextLength).toBe("y+1".length);
+      expect(plusResult.textEdit.expectedReplacedText).toBe("y+1");
+      expect(plusResult.textEdit.expectedPrefixToken).toBe("");
     });
 
-    test("does not emit forceReplace for prose continuation without accessor code cues", async () => {
+    test("does not emit textEdit for prose continuation without accessor code cues", async () => {
       testContext.enabledGrammarRules = ["spacingRule"];
       setConfig();
 
       const result = await testContext.ph.runPrediction("Hello.\xA0w", "", "en_US");
-      expect(result.forceReplace).toBeNull();
+      expect(result.textEdit).toBeNull();
     });
 
-    test("does not emit forceReplace for code-like bracket contexts", async () => {
+    test("does not emit textEdit for code-like bracket contexts", async () => {
       testContext.enabledGrammarRules = ["spacingRule"];
       testContext.insertSpaceAfterAutocomplete = true;
       setConfig();
 
       const functionCall = await testContext.ph.runPrediction("console.log(", "", "en_US");
-      expect(functionCall.forceReplace).toBeNull();
+      expect(functionCall.textEdit).toBeNull();
 
       const arrayAccess = await testContext.ph.runPrediction("myArray[", "", "en_US");
-      expect(arrayAccess.forceReplace).toBeNull();
+      expect(arrayAccess.textEdit).toBeNull();
 
       const nestedCallClose = await testContext.ph.runPrediction("foo(bar())", "", "en_US");
-      expect(nestedCallClose.forceReplace).toBeNull();
+      expect(nestedCallClose.textEdit).toBeNull();
     });
 
-    test("emits forceReplace for control opener and prose closer contexts", async () => {
+    test("emits textEdit for control opener and prose closer contexts", async () => {
       testContext.enabledGrammarRules = ["spacingRule"];
       testContext.insertSpaceAfterAutocomplete = true;
       setConfig();
 
       const controlOpen = await testContext.ph.runPrediction("if(", "", "en_US");
-      expect(controlOpen.forceReplace).not.toBeNull();
-      expect(controlOpen.forceReplace.text).toBe("\xA0(");
-      expect(controlOpen.forceReplace.length).toBe(1);
-      expect(controlOpen.forceReplace.expectedSubstring).toBe("(");
+      expect(controlOpen.textEdit).not.toBeNull();
+      expect(controlOpen.textEdit.replacementText).toBe("\xA0(");
+      expect(controlOpen.textEdit.replaceBackwardCount).toBe(1);
+      expect(controlOpen.textEdit.expectedReplacedText).toBe("(");
 
       const proseClose = await testContext.ph.runPrediction("Hello (world)", "", "en_US");
-      expect(proseClose.forceReplace).not.toBeNull();
-      expect(proseClose.forceReplace.text).toBe(")\xA0");
-      expect(proseClose.forceReplace.length).toBe(1);
-      expect(proseClose.forceReplace.expectedSubstring).toBe(")");
+      expect(proseClose.textEdit).not.toBeNull();
+      expect(proseClose.textEdit.replacementText).toBe(")\xA0");
+      expect(proseClose.textEdit.replaceBackwardCount).toBe(1);
+      expect(proseClose.textEdit.expectedReplacedText).toBe(")");
     });
   });
 });

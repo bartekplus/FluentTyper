@@ -80,7 +80,7 @@ export class BackgroundServiceWorker {
       `lang=${message.context.lang}`,
     );
 
-    const { predictions, forceReplace } = await this.predictionManager.runPrediction(
+    const { predictions, textEdit } = await this.predictionManager.runPrediction(
       message.context.text,
       message.context.nextChar,
       message.context.lang,
@@ -90,13 +90,13 @@ export class BackgroundServiceWorker {
     this.predictionManager.recordTraceTimelineEvent(
       traceMeta,
       "background.prediction.completed",
-      `${predictions.length} predictions${forceReplace ? " + forceReplace" : ""}`,
+      `${predictions.length} predictions${textEdit ? " + textEdit" : ""}`,
     );
-    if ((!Array.isArray(predictions) || predictions.length === 0) && !forceReplace) {
+    if ((!Array.isArray(predictions) || predictions.length === 0) && !textEdit) {
       this.predictionManager.recordTraceTimelineEvent(
         traceMeta,
         "background.response.skipped",
-        "no predictions and no forceReplace",
+        "no predictions and no textEdit",
       );
       return;
     }
@@ -112,7 +112,7 @@ export class BackgroundServiceWorker {
         traceId,
         frameId: message.context.frameId,
         predictions,
-        forceReplace,
+        textEdit,
       },
     };
     this.predictionManager.recordTraceTimelineEvent(

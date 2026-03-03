@@ -1879,15 +1879,15 @@ class Tribute {
       this.current.mentionText = "";
     }
 
-    const processValues = (values, forceReplace, header = null) => {
+    const processValues = (values, textEdit, header = null) => {
       // Tribute may not be active any more by the time the value callback returns
-      // However, forceReplace (grammar corrections) should always apply regardless
+      // However, textEdit (grammar corrections) should always apply regardless
       // of menu activation state, since they don't show a menu.
-      if (!forceReplace && !this.activationPending) {
+      if (!textEdit && !this.activationPending) {
         return;
       }
-      // Only clear activationPending for actual menu responses, not grammar corrections
-      if (!forceReplace) {
+      // Only clear activationPending for actual menu responses, not grammar corrections.
+      if (!textEdit) {
         this.activationPending = false;
       }
       // Element is no longer in focus - don't show menu or apply edits
@@ -1895,35 +1895,41 @@ class Tribute {
         return;
       }
 
-      if (forceReplace) {
-        // Do force replace - don't show menu
-        // Use originalTextLength to compute the correct position in the current text,
+      if (textEdit) {
+        // Do text edit - don't show menu.
+        // Use evaluatedTextLength to compute the correct position in the current text,
         // since the user may have typed more characters since the grammar rule was evaluated.
-        const textLen = forceReplace.originalTextLength || this.current.fullText.length;
-        const mentionPos = textLen - forceReplace.length;
+        const textLen = textEdit.evaluatedTextLength || this.current.fullText.length;
+        const mentionPos = textLen - textEdit.replaceBackwardCount;
         // Verify the replacement position is still valid in the current text
         if (mentionPos < 0 || mentionPos > this.current.fullText.length) {
           return;
         }
 
         // Stale response validation
-        if (forceReplace.expectedSubstring !== undefined) {
-          const currentSubstring = this.current.fullText.substring(mentionPos, mentionPos + forceReplace.length);
-          if (currentSubstring !== forceReplace.expectedSubstring) {
+        if (textEdit.expectedReplacedText !== undefined) {
+          const currentSubstring = this.current.fullText.substring(
+            mentionPos,
+            mentionPos + textEdit.replaceBackwardCount,
+          );
+          if (currentSubstring !== textEdit.expectedReplacedText) {
             return; // Drop stale correction
           }
         }
-        if (forceReplace.cursorToken !== undefined) {
-          const tokenStart = Math.max(0, mentionPos - forceReplace.cursorToken.length);
+        if (textEdit.expectedPrefixToken !== undefined) {
+          const tokenStart = Math.max(0, mentionPos - textEdit.expectedPrefixToken.length);
           const actualToken = this.current.fullText.substring(tokenStart, mentionPos);
-          if (actualToken !== forceReplace.cursorToken) {
+          if (actualToken !== textEdit.expectedPrefixToken) {
             return; // Drop stale correction
           }
         }
 
         this.current.mentionPosition = mentionPos;
-        this.current.mentionText = this.current.fullText.substring(mentionPos, mentionPos + forceReplace.length);
-        this.replaceText(forceReplace.text, null, null);
+        this.current.mentionText = this.current.fullText.substring(
+          mentionPos,
+          mentionPos + textEdit.replaceBackwardCount,
+        );
+        this.replaceText(textEdit.replacementText, null, null);
         return;
       }
 

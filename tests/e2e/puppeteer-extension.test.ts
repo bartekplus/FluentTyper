@@ -756,23 +756,25 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         // Wait for the button to be ready and visible
         await newInstallationPage.waitForSelector("#grant-permissions-btn", { visible: true });
 
-        // Mock the permissions.request API so we can intercept the call
+        // Mock onboarding permission flow through explicit test hook.
         await newInstallationPage.evaluate(() => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const globalTarget = (window as any).browser || (window as any).chrome;
-          if (globalTarget) {
-            globalTarget.permissions = globalTarget.permissions || {};
+          (window as any).__FT_TEST_PERMISSION_REQUEST__ = async (options: any) => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            globalTarget.permissions.request = async (options: any) => {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              (window as any).__lastPermissionRequest = options;
-              return true; // Simulate user clicking 'Allow'
-            };
-          }
+            (window as any).__lastPermissionRequest = options;
+            return true;
+          };
         });
 
-        // Click the grant button
-        await newInstallationPage.click("#grant-permissions-btn");
+        // Trigger click from page context; puppeteer element-click can be flaky
+        // on extension onboarding pages when Chrome opens permission UI.
+        await newInstallationPage.evaluate(() => {
+          const button = document.getElementById("grant-permissions-btn");
+          if (!(button instanceof HTMLElement)) {
+            throw new Error("Permission grant button is missing");
+          }
+          button.click();
+        });
 
         // Check if success container is shown
         await newInstallationPage.waitForSelector("#permissions-success", { visible: true });
@@ -2127,7 +2129,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
       // Type "t" first, then pause to let the grammar rule engine process the
       // capitalize-first-letter correction before typing more characters.
-      // Without this pause, the forceReplace response may arrive after the user
+      // Without this pause, the textEdit response may arrive after the user
       // has typed more characters, and the replacement position would be wrong.
       await element!.type("t");
       await new Promise((r) => setTimeout(r, 1500));

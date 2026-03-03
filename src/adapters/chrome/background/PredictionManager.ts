@@ -315,7 +315,7 @@ export class PredictionManager {
     trace.predictionInput = debugEvent.predictionInput;
     trace.numSuggestions = debugEvent.numSuggestions;
     trace.doPrediction = debugEvent.doPrediction;
-    trace.forceReplace = debugEvent.forceReplace;
+    trace.textEdit = debugEvent.textEdit;
     trace.totalDurationMs = debugEvent.totalDurationMs;
     trace.presage = {
       ...debugEvent.presage,
@@ -426,7 +426,7 @@ export class PredictionManager {
       predictionInput: "",
       numSuggestions: 0,
       doPrediction: false,
-      forceReplace: false,
+      textEdit: false,
       totalDurationMs: 0,
       presage: emptyPresageStage,
       webllm: emptyAIPredictorStage,
