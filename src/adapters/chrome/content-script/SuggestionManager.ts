@@ -3,45 +3,23 @@ import { createLogger } from "@core/application/logging/Logger";
 import { CMD_CONTENT_SCRIPT_USAGE_EVENT } from "@core/domain/constants";
 import { LANG_SEPARATOR_CHARS_REGEX, SUPPORTED_LANGUAGES } from "@core/domain/lang";
 import type {
-  ContentScriptPredictRequestContext,
   ContentScriptUsageEventMessage,
-  PredictResponseContext,
   TextEditOperation,
 } from "@core/domain/messageTypes";
 import { SPACING_RULES, Spacing } from "@core/domain/spacingRules";
 import { InlineSuggestionView } from "./suggestions/InlineSuggestionView";
 import { SuggestionMenuView } from "./suggestions/SuggestionMenuView";
 import { TextTargetAdapter, type TextTarget } from "./suggestions/TextTargetAdapter";
+import type {
+  PredictionRequest,
+  PredictionResponse,
+  SuggestionElement,
+  SuggestionEntry,
+  SuggestionManagerOptions,
+  SuggestionSnapshot,
+} from "./suggestions/types";
 
 const logger = createLogger("SuggestionManager");
-
-type SuggestionElement =
-  | HTMLInputElement
-  | HTMLTextAreaElement
-  | (HTMLElement & {
-      tributeMenu?: HTMLElement | null;
-      suggestionMenu?: HTMLElement | null;
-    });
-
-interface SuggestionManagerOptions {
-  selectors: string;
-  minWordLengthToPredict: number;
-  autocomplete: boolean;
-  autocompleteOnEnter: boolean;
-  autocompleteOnTab: boolean;
-  lang: string;
-  selectByDigit: boolean;
-  revertOnBackspace: boolean;
-  displayLangHeader: boolean;
-  inline_suggestion: boolean;
-  getPrediction: (context: ContentScriptPredictRequestContext) => void;
-}
-
-interface ReplacementSnapshot {
-  triggerText: string;
-  insertedText: string;
-  cursorAfter: number;
-}
 
 interface ContentEditableTextPosition {
   node: Text;
@@ -63,39 +41,11 @@ interface MenuCoordinates {
   maxWidth?: number;
 }
 
-interface Entry {
-  id: number;
-  elem: SuggestionElement;
-  menu: HTMLDivElement;
-  list: HTMLUListElement;
-  requestId: number;
-  suggestions: string[];
-  selectedIndex: number;
-  menuHeader: string | null;
-  latestMentionText: string;
-  latestMentionStart: number;
-  inlineSuggestion: string | null;
-  pendingInlineAccept: boolean;
-  missingTrailingSpace: boolean;
-  expectedCursorPos: number;
-  lastReplacement: ReplacementSnapshot | null;
-  pendingRequestTimer: ReturnType<typeof setTimeout> | null;
-  handlers: {
-    input: EventListener;
-    keydown: EventListener;
-    focus: EventListener;
-    blur: EventListener;
-    click: EventListener;
-    menuMouseDown: EventListener;
-    menuClick: EventListener;
-  };
-}
-
 export class SuggestionManager {
   private static readonly REQUEST_DEBOUNCE_MS = 120;
 
   private readonly selectors: string;
-  private readonly getPrediction: (context: ContentScriptPredictRequestContext) => void;
+  private readonly getPrediction: (context: PredictionRequest) => void;
 
   private minWordLengthToPredict: number;
   private autocompleteOnSpace: boolean;
@@ -110,7 +60,7 @@ export class SuggestionManager {
   private separatorRegex: RegExp;
 
   private nextEntryId = 1;
-  private entries = new Map<number, Entry>();
+  private entries = new Map<number, SuggestionEntry>();
   private entryIdByElement = new WeakMap<Element, number>();
   private activeEntryId: number | null = null;
   private documentPointerDownListenerAttached = false;
@@ -134,7 +84,7 @@ export class SuggestionManager {
     this.separatorRegex = LANG_SEPARATOR_CHARS_REGEX[this.lang] || /\s+/;
   }
 
-  public fulfillPrediction(context: PredictResponseContext): void {
+  public fulfillPrediction(context: PredictionResponse): void {
     const entry = this.entries.get(context.suggestionId);
     if (!entry) {
       return;
@@ -313,7 +263,7 @@ export class SuggestionManager {
     const menu = SuggestionMenuView.ensureMenu(document.body);
     const list = menu.querySelector("ul") as HTMLUListElement;
 
-    const entry: Entry = {
+    const entry: SuggestionEntry = {
       id,
       elem,
       menu,
@@ -438,7 +388,7 @@ export class SuggestionManager {
     }
   }
 
-  private dismissEntry(entry: Entry, keepActive = false): void {
+  private dismissEntry(entry: SuggestionEntry, keepActive = false): void {
     this.clearSuggestions(entry);
     if (entry.pendingRequestTimer !== null) {
       clearTimeout(entry.pendingRequestTimer);
@@ -450,7 +400,7 @@ export class SuggestionManager {
     }
   }
 
-  private isEntryFocused(entry: Entry): boolean {
+  private isEntryFocused(entry: SuggestionEntry): boolean {
     if (this.activeEntryId === entry.id) {
       return true;
     }
@@ -461,7 +411,7 @@ export class SuggestionManager {
     return active === entry.elem || entry.elem.contains(active);
   }
 
-  private getActiveEntry(): Entry | null {
+  private getActiveEntry(): SuggestionEntry | null {
     if (this.activeEntryId !== null) {
       const known = this.entries.get(this.activeEntryId);
       if (known && document.activeElement === known.elem) {
@@ -520,7 +470,7 @@ export class SuggestionManager {
     if (!entry) {
       return;
     }
-    const snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+    const snapshot: SuggestionSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
     const tokenInfo = this.findMentionToken(snapshot.beforeCursor);
     entry.latestMentionText = tokenInfo.token;
     entry.latestMentionStart = tokenInfo.start;
@@ -530,7 +480,7 @@ export class SuggestionManager {
     this.schedulePrediction(entry, false);
   }
 
-  private schedulePrediction(entry: Entry, force: boolean): void {
+  private schedulePrediction(entry: SuggestionEntry, force: boolean): void {
     if (entry.pendingRequestTimer !== null) {
       clearTimeout(entry.pendingRequestTimer);
       entry.pendingRequestTimer = null;
@@ -547,8 +497,8 @@ export class SuggestionManager {
     }, SuggestionManager.REQUEST_DEBOUNCE_MS);
   }
 
-  private requestPrediction(entry: Entry, force: boolean): void {
-    const snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+  private requestPrediction(entry: SuggestionEntry, force: boolean): void {
+    const snapshot: SuggestionSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
     const beforeCursor = snapshot.beforeCursor;
 
     const shouldPredict = this.shouldPredict(beforeCursor);
@@ -616,7 +566,7 @@ export class SuggestionManager {
     return { token: beforeCursor.slice(start), start };
   }
 
-  private renderMenu(entry: Entry): void {
+  private renderMenu(entry: SuggestionEntry): void {
     entry.list.innerHTML = "";
 
     if (entry.menuHeader) {
@@ -645,7 +595,7 @@ export class SuggestionManager {
     entry.menu.style.display = "block";
   }
 
-  private positionMenu(entry: Entry): void {
+  private positionMenu(entry: SuggestionEntry): void {
     const rect = this.getCaretRect(entry);
     if (!rect) {
       this.hideMenu(entry);
@@ -688,7 +638,7 @@ export class SuggestionManager {
     }
   }
 
-  private getCaretRect(entry: Entry): DOMRect | null {
+  private getCaretRect(entry: SuggestionEntry): DOMRect | null {
     if (this.isTextValueElement(entry.elem)) {
       return this.getTextValueCaretRect(entry.elem);
     }
@@ -928,12 +878,12 @@ export class SuggestionManager {
     } as DOMRect;
   }
 
-  private hideMenu(entry: Entry): void {
+  private hideMenu(entry: SuggestionEntry): void {
     entry.menu.style.display = "none";
     entry.list.innerHTML = "";
   }
 
-  private renderInlineSuggestion(entry: Entry): void {
+  private renderInlineSuggestion(entry: SuggestionEntry): void {
     if (!this.inlineSuggestionEnabled) {
       InlineSuggestionView.removeAll(document);
       return;
@@ -945,7 +895,7 @@ export class SuggestionManager {
       return;
     }
 
-    const snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+    const snapshot: SuggestionSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
     const mentionText =
       this.findMentionToken(snapshot.beforeCursor).token || entry.latestMentionText;
     if (!mentionText) {
@@ -980,7 +930,7 @@ export class SuggestionManager {
     });
   }
 
-  private clearSuggestions(entry: Entry): void {
+  private clearSuggestions(entry: SuggestionEntry): void {
     entry.suggestions = [];
     entry.selectedIndex = 0;
     entry.inlineSuggestion = null;
@@ -1101,11 +1051,11 @@ export class SuggestionManager {
     }
   }
 
-  private isMenuVisible(entry: Entry): boolean {
+  private isMenuVisible(entry: SuggestionEntry): boolean {
     return entry.menu.style.display !== "none" && entry.suggestions.length > 0;
   }
 
-  private moveSelection(entry: Entry, direction: number): void {
+  private moveSelection(entry: SuggestionEntry, direction: number): void {
     if (entry.suggestions.length === 0) {
       return;
     }
@@ -1160,7 +1110,7 @@ export class SuggestionManager {
       .replaceAll("'", "&#39;");
   }
 
-  private acceptSuggestionAtIndex(entry: Entry, index: number): void {
+  private acceptSuggestionAtIndex(entry: SuggestionEntry, index: number): void {
     const suggestion = entry.suggestions[index];
     if (!suggestion) {
       return;
@@ -1169,7 +1119,7 @@ export class SuggestionManager {
     this.acceptSuggestion(entry, suggestion);
   }
 
-  private acceptSuggestion(entry: Entry, suggestion: string): void {
+  private acceptSuggestion(entry: SuggestionEntry, suggestion: string): void {
     let snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
     const blockContext = this.isTextValueElement(entry.elem)
       ? null
@@ -1276,7 +1226,7 @@ export class SuggestionManager {
     return endsWithSpace && nextIsSpace;
   }
 
-  private finishAcceptedSuggestion(entry: Entry, triggerText: string, insertedText: string): void {
+  private finishAcceptedSuggestion(entry: SuggestionEntry, triggerText: string, insertedText: string): void {
     this.clearSuggestions(entry);
 
     entry.missingTrailingSpace = true;
@@ -1313,12 +1263,12 @@ export class SuggestionManager {
     });
   }
 
-  private tryRevertLastReplacement(entry: Entry, event: KeyboardEvent): boolean {
+  private tryRevertLastReplacement(entry: SuggestionEntry, event: KeyboardEvent): boolean {
     if (!entry.lastReplacement) {
       return false;
     }
 
-    const snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+    const snapshot: SuggestionSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
     const { triggerText, insertedText, cursorAfter } = entry.lastReplacement;
 
     if (snapshot.cursorOffset !== cursorAfter || !snapshot.beforeCursor.endsWith(insertedText)) {
@@ -1347,8 +1297,8 @@ export class SuggestionManager {
     return true;
   }
 
-  private applyTextEdit(entry: Entry, textEdit: TextEditOperation): void {
-    const snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+  private applyTextEdit(entry: SuggestionEntry, textEdit: TextEditOperation): void {
+    const snapshot: SuggestionSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
     const fullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
 
     const evaluatedLength = Number.isFinite(textEdit.evaluatedTextLength)
@@ -1411,7 +1361,7 @@ export class SuggestionManager {
     return textEdit.replacementText.endsWith("\xA0");
   }
 
-  private handleMissingSpaceAfterAccept(entry: Entry, event: KeyboardEvent): void {
+  private handleMissingSpaceAfterAccept(entry: SuggestionEntry, event: KeyboardEvent): void {
     if (!entry.missingTrailingSpace) {
       return;
     }
@@ -1421,7 +1371,7 @@ export class SuggestionManager {
       return;
     }
 
-    const snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+    const snapshot: SuggestionSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
     if (snapshot.cursorOffset !== entry.expectedCursorPos || key.length > 1) {
       entry.missingTrailingSpace = false;
       return;
