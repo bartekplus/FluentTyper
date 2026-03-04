@@ -708,7 +708,13 @@ export class SuggestionManagerRuntime {
   }
 
   private shouldScheduleInsertFallback(event: KeyboardEvent, elem: SuggestionElement): boolean {
-    if (event.defaultPrevented || event.isComposing || event.metaKey || event.ctrlKey || event.altKey) {
+    if (
+      event.defaultPrevented ||
+      event.isComposing ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.altKey
+    ) {
       return false;
     }
     if (event.key === "Dead" || event.key === "Process" || event.key === "Unidentified") {
