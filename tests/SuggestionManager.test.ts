@@ -780,7 +780,7 @@ describe("SuggestionManager", () => {
     expect(menu?.querySelectorAll("li").length).toBe(0);
   });
 
-  test("hides contenteditable popup on Backspace keydown when input event does not fire", async () => {
+  test("hides contenteditable popup when delete lowers token below threshold without input event", async () => {
     const { manager, getPrediction } = await createManager({
       minWordLengthToPredict: 1,
       enabledGrammarRules: [],
@@ -813,7 +813,9 @@ describe("SuggestionManager", () => {
     expect(menu?.querySelectorAll("li").length).toBeGreaterThan(0);
 
     dispatchKeydown(editable, "Backspace");
-    await wait(10);
+    editable.textContent = "";
+    setContentEditableCursor(editable, 0);
+    await wait(120);
 
     expect(menu?.style.display).toBe("none");
     expect(menu?.querySelectorAll("li").length).toBe(0);
@@ -860,6 +862,52 @@ describe("SuggestionManager", () => {
     });
     editable.dispatchEvent(deleteInputEvent);
     await wait(20);
+
+    expect(menu?.style.display).toBe("block");
+    expect(menu?.querySelectorAll("li").length).toBeGreaterThan(0);
+  });
+
+  test("keeps contenteditable popup visible when delete input event arrives asynchronously", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+      enabledGrammarRules: [],
+    });
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.textContent = "What";
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    setContentEditableCursor(editable, 4);
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+    await wait(220);
+
+    const firstRequest = getPrediction.mock.calls.at(-1)?.[0];
+    if (!firstRequest) {
+      throw new Error("Expected first prediction request");
+    }
+
+    manager.fulfillPrediction(
+      buildResponse(firstRequest, {
+        predictions: ["Whatever "],
+      }),
+    );
+
+    const menu = (editable as HTMLElement & { suggestionMenu?: HTMLElement }).suggestionMenu;
+    expect(menu?.style.display).toBe("block");
+
+    dispatchKeydown(editable, "Backspace");
+    await wait(25);
+    editable.textContent = "Wha";
+    setContentEditableCursor(editable, 3);
+    const deleteInputEvent = new Event("input", { bubbles: true });
+    Object.defineProperty(deleteInputEvent, "inputType", {
+      value: "deleteContentBackward",
+    });
+    editable.dispatchEvent(deleteInputEvent);
+    await wait(90);
 
     expect(menu?.style.display).toBe("block");
     expect(menu?.querySelectorAll("li").length).toBeGreaterThan(0);

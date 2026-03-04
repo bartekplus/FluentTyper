@@ -63,6 +63,20 @@ export class SuggestionPredictionCoordinator {
     }, this.debounceMs);
   }
 
+  public reconcile(
+    entry: SuggestionEntry,
+    {
+      clearSuggestions,
+      inputAction,
+    }: {
+      clearSuggestions: () => void;
+      inputAction?: PredictionInputAction;
+    },
+  ): void {
+    this.cancelPending(entry);
+    this.requestPrediction(entry, false, clearSuggestions, inputAction);
+  }
+
   public cancelPending(entry: SuggestionEntry): void {
     if (entry.pendingRequestTimer === null) {
       return;

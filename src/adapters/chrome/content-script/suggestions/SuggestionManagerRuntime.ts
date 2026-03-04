@@ -22,6 +22,8 @@ import type {
   SuggestionTelemetry,
 } from "./types";
 
+const DELETE_INPUT_FALLBACK_DELAY_MS = 80;
+
 export class SuggestionManagerRuntime {
   private readonly discovery: SuggestionElementDiscovery;
   private readonly entryRegistry = new SuggestionEntryRegistry();
@@ -539,7 +541,7 @@ export class SuggestionManagerRuntime {
 
     if (keyboardEvent.key === "Backspace" || keyboardEvent.key === "Delete") {
       // Some rich editors defer/suppress input on delete keys. Delay stale-UI
-      // cleanup until the next tick and cancel it when input arrives.
+      // reconciliation briefly and cancel it when input arrives.
       this.cancelPendingDeleteFallback(id);
       const timer = setTimeout(() => {
         this.pendingDeleteFallbackTimers.delete(id);
@@ -547,8 +549,15 @@ export class SuggestionManagerRuntime {
         if (!current) {
           return;
         }
-        this.dismissEntry(current, true);
-      }, 0);
+        if (!this.isEntryFocused(current)) {
+          this.dismissEntry(current, true);
+          return;
+        }
+        this.predictionCoordinator.reconcile(current, {
+          clearSuggestions: () => this.clearSuggestions(current),
+          inputAction: "delete",
+        });
+      }, DELETE_INPUT_FALLBACK_DELAY_MS);
       this.pendingDeleteFallbackTimers.set(id, timer);
     }
   }
