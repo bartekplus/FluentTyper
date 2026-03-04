@@ -296,11 +296,6 @@ export class SpacingRule implements GrammarRule {
       return false;
     }
 
-    const tokenBeforeDot = inputStr.slice(tokenStart, punctIndex);
-    if (/[_$\d]/.test(tokenBeforeDot)) {
-      return true;
-    }
-
     const previousSignificant = this.findPreviousSignificantChar(inputStr, tokenStart - 1);
     if (!previousSignificant) {
       return false;

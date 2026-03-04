@@ -290,7 +290,7 @@ describe("SpacingRule", () => {
   });
 
   test("compacts conservative accessor contexts with code cues", () => {
-    expect(ruleA.apply(getContext("cfg_1.\xA0x"))).toEqual({
+    expect(ruleA.apply(getContext("obj.cfg_1.\xA0x"))).toEqual({
       replacement: ".x",
       deleteBackwards: 3,
       deleteForwards: 0,
@@ -309,5 +309,6 @@ describe("SpacingRule", () => {
 
   test("does not compact prose continuation without code cues", () => {
     expect(ruleA.apply(getContext("Hello.\xA0w"))).toBeNull();
+    expect(ruleA.apply(getContext("old_word.\xA0X"))).toBeNull();
   });
 });
