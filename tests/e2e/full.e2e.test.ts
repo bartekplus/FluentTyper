@@ -74,6 +74,7 @@ function toLocalDateKey(date: Date): string {
 
 let domainTestUrl: string;
 let activeBrowserForWorkerRecovery: Browser | null = null;
+let latestWorkerContext: BackgroundContext | null = null;
 
 function isRetriableWorkerError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
@@ -82,12 +83,51 @@ function isRetriableWorkerError(error: unknown): boolean {
   );
 }
 
+async function reacquireWorkerContext(
+  browser: Browser,
+  label = "background worker context",
+): Promise<BackgroundContext> {
+  const recovered = await waitUntil(
+    label,
+    async () => {
+      try {
+        return await getBackgroundContext(browser);
+      } catch (error) {
+        if (!isRetriableWorkerError(error)) {
+          throw error;
+        }
+        return false;
+      }
+    },
+    {
+      timeoutMs: browserTimeout(7000, 15000),
+      intervalMs: 100,
+    },
+  );
+  latestWorkerContext = recovered;
+  return recovered;
+}
+
+async function recoverWorkerForRetry(
+  existingWorker: BackgroundContext,
+): Promise<BackgroundContext> {
+  if (activeBrowserForWorkerRecovery) {
+    return await reacquireWorkerContext(activeBrowserForWorkerRecovery, "worker recovery");
+  }
+  if (latestWorkerContext) {
+    return latestWorkerContext;
+  }
+  return existingWorker;
+}
+
 async function setSetting(worker: BackgroundContext, key: string, value: unknown): Promise<void> {
   const storageKey = `${SETTINGS_PREFIX}${key}`;
+  let workerContext = worker;
+  latestWorkerContext = workerContext;
   let lastError: unknown;
   for (let attempt = 1; attempt <= 10; attempt++) {
     try {
-      await worker.evaluate(
+      await workerContext.evaluate(
         (storageKeyInner, valueInner) =>
           new Promise<void>((resolve, reject) => {
             const storage = (
@@ -115,15 +155,14 @@ async function setSetting(worker: BackgroundContext, key: string, value: unknown
         storageKey,
         value,
       );
+      latestWorkerContext = workerContext;
       return;
     } catch (error) {
       lastError = error;
       if (!isRetriableWorkerError(error) || attempt === 10) {
         throw error;
       }
-      if (activeBrowserForWorkerRecovery) {
-        worker = await getBackgroundContext(activeBrowserForWorkerRecovery);
-      }
+      workerContext = await recoverWorkerForRetry(workerContext);
       await sleep(100);
     }
   }
@@ -132,10 +171,12 @@ async function setSetting(worker: BackgroundContext, key: string, value: unknown
 
 async function getSetting<T>(worker: BackgroundContext, key: string): Promise<T | undefined> {
   const storageKey = `${SETTINGS_PREFIX}${key}`;
+  let workerContext = worker;
+  latestWorkerContext = workerContext;
   let lastError: unknown;
   for (let attempt = 1; attempt <= 10; attempt++) {
     try {
-      return (await worker.evaluate(
+      const value = (await workerContext.evaluate(
         (storageKeyInner) =>
           new Promise((resolve, reject) => {
             const storage = (
@@ -163,14 +204,14 @@ async function getSetting<T>(worker: BackgroundContext, key: string): Promise<T 
           }),
         storageKey,
       )) as T | undefined;
+      latestWorkerContext = workerContext;
+      return value;
     } catch (error) {
       lastError = error;
       if (!isRetriableWorkerError(error) || attempt === 10) {
         throw error;
       }
-      if (activeBrowserForWorkerRecovery) {
-        worker = await getBackgroundContext(activeBrowserForWorkerRecovery);
-      }
+      workerContext = await recoverWorkerForRetry(workerContext);
       await sleep(100);
     }
   }
@@ -245,57 +286,79 @@ async function setSettingAndWaitStable(
 }
 
 async function notifyConfigChange(browser: Browser, worker: BackgroundContext): Promise<void> {
-  if (isFirefox()) {
-    await worker.evaluate(
-      (command) =>
-        new Promise<void>((resolve, reject) => {
-          chrome.runtime.sendMessage(
-            { command, context: {} },
-            (response: { ok?: boolean } | undefined) => {
-              if (chrome.runtime.lastError) {
-                reject(new Error(chrome.runtime.lastError.message));
-                return;
-              }
-              if (!response?.ok) {
-                reject(new Error("Config change ACK returned not ok"));
-                return;
-              }
-              resolve();
-            },
-          );
-        }),
-      CMD_OPTIONS_PAGE_CONFIG_CHANGE,
-    );
-    return;
-  }
+  let workerContext = worker;
+  latestWorkerContext = workerContext;
+  let lastError: unknown;
 
-  const extensionPage = await openExtensionPage(browser, worker, "options/options.html");
-  try {
-    await extensionPage.evaluate(
-      (command) =>
-        new Promise<void>((resolve, reject) => {
-          chrome.runtime.sendMessage(
-            { command, context: {} },
-            (response: { ok?: boolean } | undefined) => {
-              if (chrome.runtime.lastError) {
-                reject(new Error(chrome.runtime.lastError.message));
-                return;
-              }
-              if (!response?.ok) {
-                reject(new Error("Config change ACK returned not ok"));
-                return;
-              }
-              resolve();
-            },
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    try {
+      if (isFirefox()) {
+        await workerContext.evaluate(
+          (command) =>
+            new Promise<void>((resolve, reject) => {
+              chrome.runtime.sendMessage(
+                { command, context: {} },
+                (response: { ok?: boolean } | undefined) => {
+                  if (chrome.runtime.lastError) {
+                    reject(new Error(chrome.runtime.lastError.message));
+                    return;
+                  }
+                  if (!response?.ok) {
+                    reject(new Error("Config change ACK returned not ok"));
+                    return;
+                  }
+                  resolve();
+                },
+              );
+            }),
+          CMD_OPTIONS_PAGE_CONFIG_CHANGE,
+        );
+      } else {
+        const extensionPage = await openExtensionPage(
+          browser,
+          workerContext,
+          "options/options.html",
+        );
+        try {
+          await extensionPage.evaluate(
+            (command) =>
+              new Promise<void>((resolve, reject) => {
+                chrome.runtime.sendMessage(
+                  { command, context: {} },
+                  (response: { ok?: boolean } | undefined) => {
+                    if (chrome.runtime.lastError) {
+                      reject(new Error(chrome.runtime.lastError.message));
+                      return;
+                    }
+                    if (!response?.ok) {
+                      reject(new Error("Config change ACK returned not ok"));
+                      return;
+                    }
+                    resolve();
+                  },
+                );
+              }),
+            CMD_OPTIONS_PAGE_CONFIG_CHANGE,
           );
-        }),
-      CMD_OPTIONS_PAGE_CONFIG_CHANGE,
-    );
-  } finally {
-    if (!extensionPage.isClosed()) {
-      await extensionPage.close();
+        } finally {
+          if (!extensionPage.isClosed()) {
+            await extensionPage.close();
+          }
+        }
+      }
+      latestWorkerContext = workerContext;
+      return;
+    } catch (error) {
+      lastError = error;
+      if (!isRetriableWorkerError(error) || attempt === 5) {
+        throw error;
+      }
+      workerContext = await recoverWorkerForRetry(workerContext);
+      await sleep(100);
     }
   }
+
+  throw lastError;
 }
 
 async function applyConfigChange(browser: Browser, worker: BackgroundContext): Promise<void> {
@@ -303,9 +366,27 @@ async function applyConfigChange(browser: Browser, worker: BackgroundContext): P
 }
 
 async function openOptionsPage(browser: Browser, worker: BackgroundContext) {
-  const optionsPage = await openExtensionPage(browser, worker, "options/options.html");
-  await optionsPage.waitForSelector("#content");
-  return optionsPage;
+  let workerContext = worker;
+  latestWorkerContext = workerContext;
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    try {
+      const optionsPage = await openExtensionPage(browser, workerContext, "options/options.html");
+      await optionsPage.waitForSelector("#content");
+      latestWorkerContext = workerContext;
+      return optionsPage;
+    } catch (error) {
+      lastError = error;
+      if (!isRetriableWorkerError(error) || attempt === 5) {
+        throw error;
+      }
+      workerContext = await recoverWorkerForRetry(workerContext);
+      await sleep(100);
+    }
+  }
+
+  throw lastError;
 }
 
 async function sendOptionsPageConfigChange(optionsPage: Page): Promise<void> {
@@ -791,7 +872,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       startupFirefoxInstallationPage =
         pages.find((openPage) => openPage.url().includes("/new_installation/index.html")) ?? null;
     }
-    worker = await getBackgroundContext(browser);
+    worker = await reacquireWorkerContext(browser, "initial background worker context");
     domainTestHtml = fs.readFileSync(TEST_PAGE_PATH, "utf8");
 
     domainTestServer = createServer((req, res) => {
@@ -852,7 +933,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   }, 60000);
 
   beforeEach(async () => {
-    worker = await getBackgroundContext(browser);
+    worker = await reacquireWorkerContext(browser, "beforeEach background worker context");
     // Keep the legacy baseline for non-grammar E2E flows so popup/inline
     // prediction scenarios remain deterministic regardless of defaults.
     await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
@@ -864,7 +945,21 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   afterEach(async () => {
     try {
       if (worker) {
-        await clearWebLLMPredictionsForTesting(worker);
+        let workerContext = worker;
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          try {
+            await clearWebLLMPredictionsForTesting(workerContext);
+            worker = workerContext;
+            latestWorkerContext = workerContext;
+            break;
+          } catch (error) {
+            if (!isRetriableWorkerError(error) || attempt === 3) {
+              throw error;
+            }
+            workerContext = await recoverWorkerForRetry(workerContext);
+            await sleep(100);
+          }
+        }
       }
     } catch {
       // Ignore cleanup failures if the background context is restarting.
@@ -902,6 +997,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     } catch {
       // Ignore teardown errors from browser shutdown.
     }
+    latestWorkerContext = null;
     activeBrowserForWorkerRecovery = null;
   });
 
