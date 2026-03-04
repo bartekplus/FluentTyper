@@ -5,7 +5,7 @@
   "type": "module",
   "packageManager": "bun@1.3.10",
   "scripts": {
-    "watch": "bun run build --mode=development --watch",
+    "watch": "bun build.ts --mode=development --watch",
     "build": "bun build.ts --mode=production",
     "check": "bun run lint && bun run format:check",
     "lint": "eslint . --cache --cache-location .cache/eslint --max-warnings=0",
