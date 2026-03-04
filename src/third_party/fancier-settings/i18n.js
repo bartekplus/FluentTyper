@@ -2952,6 +2952,17 @@ i18n = Object.assign(i18n, {
     pl: "Języki: brak danych",
     pr: "Idiomas: ainda sem dados",
   },
+  "popup_dashboard_stats_unavailable": {
+    en: "Stats unavailable",
+    fr: "Statistiques indisponibles",
+    hr: "Statistika nije dostupna",
+    es: "Estadísticas no disponibles",
+    el: "Τα στατιστικά δεν είναι διαθέσιμα",
+    sv: "Statistik ej tillgänglig",
+    de: "Statistiken nicht verfügbar",
+    pl: "Statystyki niedostępne",
+    pr: "Estatísticas indisponíveis",
+  },
   "popup_short_last7": {
     en: "Last 7 days",
     fr: "7 derniers jours",
