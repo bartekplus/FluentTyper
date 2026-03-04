@@ -8,9 +8,25 @@ function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function dispatchKeydown(target: HTMLElement, key: string): void {
+function dispatchKeydown(
+  target: HTMLElement,
+  key: string,
+  options: { altKey?: boolean; ctrlKey?: boolean; metaKey?: boolean; isComposing?: boolean } = {},
+): void {
   const event = new Event("keydown", { bubbles: true, cancelable: true }) as KeyboardEvent;
   Object.defineProperty(event, "key", { value: key });
+  if (typeof options.altKey === "boolean") {
+    Object.defineProperty(event, "altKey", { value: options.altKey });
+  }
+  if (typeof options.ctrlKey === "boolean") {
+    Object.defineProperty(event, "ctrlKey", { value: options.ctrlKey });
+  }
+  if (typeof options.metaKey === "boolean") {
+    Object.defineProperty(event, "metaKey", { value: options.metaKey });
+  }
+  if (typeof options.isComposing === "boolean") {
+    Object.defineProperty(event, "isComposing", { value: options.isComposing });
+  }
   target.dispatchEvent(event);
 }
 
@@ -903,6 +919,46 @@ describe("SuggestionManager", () => {
     await wait(220);
 
     expect(getPrediction.mock.calls.length).toBe(baselineCalls);
+  });
+
+  test("does not request prediction on Alt+key in contenteditable without text change", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+      enabledGrammarRules: [],
+    });
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.textContent = "hello";
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    setContentEditableCursor(editable, editable.textContent.length);
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+    dispatchKeydown(editable, "f", { altKey: true });
+    await wait(260);
+
+    expect(getPrediction.mock.calls.length).toBe(0);
+  });
+
+  test("does not request prediction on Alt+key in input without text change", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+      enabledGrammarRules: [],
+    });
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = "hello";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    document.body.appendChild(input);
+    manager.queryAndAttachHelper();
+
+    input.dispatchEvent(new Event("focus", { bubbles: true }));
+    dispatchKeydown(input, "f", { altKey: true });
+    await wait(260);
+
+    expect(getPrediction.mock.calls.length).toBe(0);
   });
 
   test("keeps contenteditable popup visible on Backspace when follow-up input event updates text", async () => {
