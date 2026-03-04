@@ -1,6 +1,6 @@
 import type { GrammarContext } from "../../types";
 
-const TRAILING_DELIMITER_REGEX = /[\s.,!?;:)\]"'}\]]/;
+const TRAILING_DELIMITER_REGEX = /[\s.,!?;:)\]"}]/;
 const LETTER_REGEX = /[A-Za-z]/;
 const CODE_CONTEXT_CHARS = new Set(["=", "(", "[", "{", ":", "+", "-", "*", "/", "%", "&", "|"]);
 
@@ -25,6 +25,10 @@ export function splitTrailingDelimiters(input: string): { core: string; trailing
     core: input.slice(0, coreEnd),
     trailing: input.slice(coreEnd),
   };
+}
+
+export function hasTrailingTokenBoundary(input: string): boolean {
+  return splitTrailingDelimiters(input).trailing.length > 0;
 }
 
 export function findTrailingLetterToken(input: string): TrailingTokenInfo | null {

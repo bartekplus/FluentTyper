@@ -1,6 +1,7 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
 import {
   findTrailingLetterToken,
+  hasTrailingTokenBoundary,
   isEnglishLanguageContext,
   isLikelyCodeLikeContext,
   splitTrailingDelimiters,
@@ -19,6 +20,9 @@ export class EnglishPronounICapitalizationRule implements GrammarRule {
     }
     const inputStr = context.beforeCursor;
     if (inputStr.length === 0) {
+      return null;
+    }
+    if (!hasTrailingTokenBoundary(inputStr)) {
       return null;
     }
 
@@ -47,7 +51,7 @@ export class EnglishPronounICapitalizationRule implements GrammarRule {
 
   private applyApostrophePronoun(inputStr: string): GrammarEdit | null {
     const { core, trailing } = splitTrailingDelimiters(inputStr);
-    if (core.length === 0) {
+    if (core.length === 0 || trailing.length === 0) {
       return null;
     }
     const match = core.match(ENGLISH_APOSTROPHE_PRONOUN_REGEX);

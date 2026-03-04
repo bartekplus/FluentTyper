@@ -2,6 +2,7 @@ import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from 
 import {
   applyCasePattern,
   findTrailingLetterToken,
+  hasTrailingTokenBoundary,
   isEnglishLanguageContext,
   isLikelyCodeLikeContext,
   resolveInputAction,
@@ -39,6 +40,9 @@ export class EnglishTypoWhitelistCorrectionRule implements GrammarRule {
       return null;
     }
     if (resolveInputAction(context) === "delete") {
+      return null;
+    }
+    if (!hasTrailingTokenBoundary(context.beforeCursor)) {
       return null;
     }
 
