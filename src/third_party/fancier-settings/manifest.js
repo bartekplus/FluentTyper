@@ -51,6 +51,12 @@ import {
   DEFAULT_AI_MODEL_ID,
   DEFAULT_AI_PREDICTION_TIMEOUT_MS,
 } from "@core/domain/constants";
+import {
+  DEFAULT_V1_GRAMMAR_RULES,
+  GRAMMAR_RULE_CATALOG,
+  GRAMMAR_RULE_IDS,
+  RECOMMENDED_V1_GRAMMAR_RULES,
+} from "@core/domain/grammar/ruleCatalog";
 
 // --- UI Content ---
 const donateHTML =
@@ -105,6 +111,19 @@ const WEBLLM_DEV_MODEL_OPTIONS = [
   ["Qwen2.5-7B-Instruct-q4f16_1-MLC", "Qwen2.5 7B q4f16"],
   ["Mistral-7B-Instruct-v0.3-q4f16_1-MLC", "Mistral 7B Instruct v0.3 q4f16"],
 ];
+
+const GRAMMAR_RULE_OPTIONS = GRAMMAR_RULE_CATALOG.map((rule) => ({
+  value: rule.id,
+  text: i18n.get(rule.titleI18nKey) || rule.name,
+  description: i18n.get(rule.descriptionI18nKey),
+  example: i18n.get(rule.exampleI18nKey),
+  ...(rule.recommended
+    ? {
+        badge: i18n.get("grammar_rule_recommended_badge"),
+        recommended: true,
+      }
+    : {}),
+}));
 
 // --- Manifest Definition ---
 const manifest = {
@@ -220,34 +239,19 @@ const manifest = {
       actions: [
         {
           text: i18n.get("grammar_rules_recommended"),
-          values: ["spacingRule", "capitalizeFirstLetter"],
+          values: RECOMMENDED_V1_GRAMMAR_RULES,
         },
         {
           text: i18n.get("grammar_rules_enable_all"),
-          values: ["spacingRule", "capitalizeFirstLetter"],
+          values: GRAMMAR_RULE_IDS,
         },
         {
           text: i18n.get("grammar_rules_disable_all"),
           values: [],
         },
       ],
-      options: [
-        {
-          value: "spacingRule",
-          text: i18n.get("grammar_rule_spacing"),
-          description: i18n.get("grammar_rule_spacing_desc"),
-          example: i18n.get("grammar_rule_spacing_example"),
-          badge: i18n.get("grammar_rule_recommended_badge"),
-          recommended: true,
-        },
-        {
-          value: "capitalizeFirstLetter",
-          text: i18n.get("grammar_rule_capitalize"),
-          description: i18n.get("grammar_rule_capitalize_desc"),
-          example: i18n.get("grammar_rule_capitalize_example"),
-        },
-      ],
-      default: ["capitalizeFirstLetter"],
+      options: GRAMMAR_RULE_OPTIONS,
+      default: DEFAULT_V1_GRAMMAR_RULES,
     },
     {
       tab: i18n.get("core_settings"),

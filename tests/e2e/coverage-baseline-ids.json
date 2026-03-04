@@ -34,6 +34,11 @@
     "grammar_manual_space_deletion",
     "grammar_technical_spacing",
     "grammar_math_spacing",
-    "grammar_punctuation_spacing"
+    "grammar_punctuation_spacing",
+    "grammar_linebreak_capitalization",
+    "grammar_whitespace_cleanup",
+    "grammar_neutral_punctuation_policy",
+    "grammar_prediction_threshold_decoupling",
+    "grammar_v4_forced_migration"
   ]
 }

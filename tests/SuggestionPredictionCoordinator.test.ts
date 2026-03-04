@@ -15,6 +15,7 @@ describe("SuggestionPredictionCoordinator", () => {
       lang: "en_US",
       minWordLengthToPredict: 2,
       separatorRegex: /\s+/,
+      grammarRulesEnabled: false,
     });
 
     const input = document.createElement("input");
@@ -45,6 +46,7 @@ describe("SuggestionPredictionCoordinator", () => {
       lang: "en_US",
       minWordLengthToPredict: 3,
       separatorRegex: /\s+/,
+      grammarRulesEnabled: false,
     });
 
     const input = document.createElement("input");
@@ -68,6 +70,7 @@ describe("SuggestionPredictionCoordinator", () => {
       lang: "en_US",
       minWordLengthToPredict: 1,
       separatorRegex: /\s+/,
+      grammarRulesEnabled: true,
     });
 
     const input = document.createElement("input");
@@ -91,5 +94,62 @@ describe("SuggestionPredictionCoordinator", () => {
       lang: "en_US",
       inputAction: "delete",
     });
+  });
+
+  test("requests grammar evaluation when predictions are disabled by threshold", async () => {
+    const getPrediction = jest.fn();
+    const clearSuggestions = jest.fn();
+    const coordinator = new SuggestionPredictionCoordinator({
+      debounceMs: 0,
+      getPrediction,
+      lang: "en_US",
+      minWordLengthToPredict: -1,
+      separatorRegex: /\s+/,
+      grammarRulesEnabled: true,
+    });
+
+    const input = document.createElement("input");
+    input.value = "Hello.";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    const entry = createSuggestionEntry({ id: 3, elem: input });
+
+    coordinator.schedule(entry, { force: false, clearSuggestions });
+    await wait(5);
+
+    expect(clearSuggestions).toHaveBeenCalledTimes(1);
+    expect(getPrediction).toHaveBeenCalledTimes(1);
+    expect(getPrediction).toHaveBeenCalledWith({
+      text: "Hello.",
+      nextChar: "",
+      suggestionId: 3,
+      requestId: 1,
+      lang: "en_US",
+    });
+  });
+
+  test("does not request grammar evaluation when grammar rules are disabled", async () => {
+    const getPrediction = jest.fn();
+    const clearSuggestions = jest.fn();
+    const coordinator = new SuggestionPredictionCoordinator({
+      debounceMs: 0,
+      getPrediction,
+      lang: "en_US",
+      minWordLengthToPredict: -1,
+      separatorRegex: /\s+/,
+      grammarRulesEnabled: false,
+    });
+
+    const input = document.createElement("input");
+    input.value = "Hello.";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    const entry = createSuggestionEntry({ id: 4, elem: input });
+
+    coordinator.schedule(entry, { force: false, clearSuggestions });
+    await wait(5);
+
+    expect(clearSuggestions).toHaveBeenCalledTimes(1);
+    expect(getPrediction).not.toHaveBeenCalled();
   });
 });

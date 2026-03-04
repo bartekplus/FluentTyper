@@ -231,6 +231,7 @@ export class ContentRuntimeController {
       revertOnBackspace: this.config.revertOnBackspace,
       displayLangHeader: this.config.displayLangHeader,
       inline_suggestion: this.config.inline_suggestion,
+      enabledGrammarRules: this.config.enabledGrammarRules,
       getPrediction: (context: ContentScriptPredictRequestContext) =>
         this.onPredictionRequest?.({
           ...context,

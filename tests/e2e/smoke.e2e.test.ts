@@ -602,10 +602,10 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       await element!.type("h");
 
       const [firstSuggestion] = await waitForSuggestionTexts(page);
-      expect(firstSuggestion?.toLowerCase()).toMatch(/^h\S*\xa0$/);
+      expect(firstSuggestion?.toLowerCase()).toMatch(/^h\S*[ \xa0]$/);
 
       await page.keyboard.press("Tab");
-      const value = await waitForInputContentMatch(page, "#test-input", /^h\S*\xa0$/i);
+      const value = await waitForInputContentMatch(page, "#test-input", /^h\S*[ \xa0]$/i);
       expect(value.toLowerCase()).toBe(firstSuggestion?.toLowerCase());
     },
     suiteTimeout(10000, 15000),
@@ -627,15 +627,15 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       await element!.type("asap");
 
       const [firstSuggestion] = await waitForSuggestionTexts(page);
-      expect(firstSuggestion?.toLowerCase()).toBe("as soon as possible\xa0");
+      expect(firstSuggestion?.toLowerCase()).toMatch(/^as soon as possible[ \xa0]$/);
 
       await page.keyboard.press("Tab");
       const value = await waitForInputContentMatch(
         page,
         "#test-input",
-        /^as soon as possible\xa0$/i,
+        /^as soon as possible[ \xa0]$/i,
       );
-      expect(value.toLowerCase()).toBe("as soon as possible\xa0");
+      expect(value.toLowerCase()).toMatch(/^as soon as possible[ \xa0]$/);
     },
     suiteTimeout(10000, 15000),
   );

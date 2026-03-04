@@ -686,6 +686,105 @@ i18n = Object.assign(i18n, {
   "grammar_rule_capitalize_example": {
     "en": "Example: \"hello. world\" -> \"Hello. World\"",
   },
+  "grammar_rule_capitalize_sentence_start": {
+    "en": "Capitalize sentence starts",
+  },
+  "grammar_rule_capitalize_sentence_start_desc": {
+    "en": "Capitalizes the first letter after sentence endings, including cases with closing quotes or brackets.",
+  },
+  "grammar_rule_capitalize_sentence_start_example": {
+    "en": "Example: \"hello.” world\" -> \"hello.” World\"",
+  },
+  "grammar_rule_capitalize_line_break": {
+    "en": "Capitalize after line breaks",
+  },
+  "grammar_rule_capitalize_line_break_desc": {
+    "en": "Capitalizes the first letter typed after a line break.",
+  },
+  "grammar_rule_capitalize_line_break_example": {
+    "en": "Example: \"hello\\nworld\" -> \"hello\\nWorld\"",
+  },
+  "grammar_rule_comma_period_spacing": {
+    "en": "Comma and period spacing",
+  },
+  "grammar_rule_comma_period_spacing_desc": {
+    "en": "Fixes spaces before commas and periods, and inserts one trailing space when appropriate.",
+  },
+  "grammar_rule_comma_period_spacing_example": {
+    "en": "Example: \"Hello ,world\" -> \"Hello, world\"",
+  },
+  "grammar_rule_opening_bracket_spacing": {
+    "en": "Opening bracket spacing",
+  },
+  "grammar_rule_opening_bracket_spacing_desc": {
+    "en": "Applies context-aware spacing before opening brackets in prose and control structures.",
+  },
+  "grammar_rule_opening_bracket_spacing_example": {
+    "en": "Example: \"if(\" -> \"if (\"",
+  },
+  "grammar_rule_closing_bracket_spacing": {
+    "en": "Closing bracket spacing",
+  },
+  "grammar_rule_closing_bracket_spacing_desc": {
+    "en": "Removes extra space before closing brackets and adds trailing space only in prose contexts.",
+  },
+  "grammar_rule_closing_bracket_spacing_example": {
+    "en": "Example: \"Hello (world )\" -> \"Hello (world) \"",
+  },
+  "grammar_rule_slash_context_spacing": {
+    "en": "Slash context spacing",
+  },
+  "grammar_rule_slash_context_spacing_desc": {
+    "en": "Preserves slash behavior in URLs and paths while applying spacing in operator-like contexts.",
+  },
+  "grammar_rule_slash_context_spacing_example": {
+    "en": "Example: \"https: /\" -> \"https:/\" and \"x /\" -> \"x / \"",
+  },
+  "grammar_rule_math_operator_spacing": {
+    "en": "Math operator spacing",
+  },
+  "grammar_rule_math_operator_spacing_desc": {
+    "en": "Normalizes compact math/operator forms like x=y, y+1, and x*y in safe contexts.",
+  },
+  "grammar_rule_math_operator_spacing_example": {
+    "en": "Example: \"x=y\" -> \"x = y\"",
+  },
+  "grammar_rule_technical_compaction": {
+    "en": "Technical token compaction",
+  },
+  "grammar_rule_technical_compaction_desc": {
+    "en": "Compacts spaces inside technical tokens such as decimals, times, and code accessors.",
+  },
+  "grammar_rule_technical_compaction_example": {
+    "en": "Example: \"3. 14\" -> \"3.14\"",
+  },
+  "grammar_rule_collapse_repeated_spaces": {
+    "en": "Collapse repeated spaces",
+  },
+  "grammar_rule_collapse_repeated_spaces_desc": {
+    "en": "Collapses repeated spaces into one while preserving indentation-like leading spaces.",
+  },
+  "grammar_rule_collapse_repeated_spaces_example": {
+    "en": "Example: \"hello  world\" -> \"hello world\"",
+  },
+  "grammar_rule_trim_space_before_line_break": {
+    "en": "Trim spaces before line breaks",
+  },
+  "grammar_rule_trim_space_before_line_break_desc": {
+    "en": "Removes trailing spaces before a new line.",
+  },
+  "grammar_rule_trim_space_before_line_break_example": {
+    "en": "Example: \"hello  \\n\" -> \"hello\\n\"",
+  },
+  "grammar_rule_neutral_punctuation": {
+    "en": "Neutral spacing for : ; ! ?",
+  },
+  "grammar_rule_neutral_punctuation_desc": {
+    "en": "Keeps spacing around : ; ! ? unchanged for cross-language safety.",
+  },
+  "grammar_rule_neutral_punctuation_example": {
+    "en": "Example: \"Bonjour :\" stays unchanged",
+  },
   "language_tab": {
     "en": "Language",
     "fr": "Langue",

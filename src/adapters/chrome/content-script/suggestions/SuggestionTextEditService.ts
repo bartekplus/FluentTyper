@@ -316,7 +316,7 @@ export class SuggestionTextEditService {
     const fullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
     const replaceStart = snapshot.beforeCursor.length;
     const replaceEnd = replaceStart;
-    const replacementText = `\xA0${key}`;
+    const replacementText = ` ${key}`;
     const cursorAfter = replaceStart + replacementText.length;
 
     this.replaceTextByOffsets(
@@ -355,7 +355,7 @@ export class SuggestionTextEditService {
     if (typeof textEdit.replacementText !== "string") {
       return false;
     }
-    return textEdit.replacementText.endsWith("\xA0");
+    return /[ \xA0]$/.test(textEdit.replacementText);
   }
 
   private replaceTextByOffsets(
