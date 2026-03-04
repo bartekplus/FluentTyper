@@ -289,7 +289,7 @@ describe("V1 grammar rules", () => {
         description: "Compacted technical time or ratio notation",
       });
 
-      expect(rule.apply(context("cfg_1. x"))).toEqual({
+      expect(rule.apply(context("obj.cfg_1. x"))).toEqual({
         replacement: ".x",
         deleteBackwards: 3,
         deleteForwards: 0,
@@ -301,6 +301,8 @@ describe("V1 grammar rules", () => {
     test("does not compact prose continuation", () => {
       const rule = new TechnicalTokenCompactionRule(true);
       expect(rule.apply(context("Hello. w"))).toBeNull();
+      expect(rule.apply(context("old_word. X"))).toBeNull();
+      expect(rule.apply(context("Read on. Duplicate. W"))).toBeNull();
     });
   });
 

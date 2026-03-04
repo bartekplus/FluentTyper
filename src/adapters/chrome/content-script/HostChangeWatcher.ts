@@ -11,6 +11,8 @@ export type HostChangeWatcherDependencies = {
 };
 
 const logger = createLogger("HostChangeWatcher");
+// Keep watchdog responsive while coalescing bursts of SPA/navigation lifecycle events.
+const HOST_CHANGE_WATCHDOG_DEBOUNCE_MS = 250;
 
 export class HostChangeWatcher {
   private watchDogTimeoutId: number | null = null;
@@ -20,7 +22,7 @@ export class HostChangeWatcher {
 
   constructor(
     private readonly dependencies: HostChangeWatcherDependencies,
-    private readonly debounceMs = 250,
+    private readonly debounceMs = HOST_CHANGE_WATCHDOG_DEBOUNCE_MS,
   ) {
     this.stateMachine = new HostChangeStateMachine(window.location.hostname);
     this.scheduleWatchDogCheckBound = this.scheduleWatchDogCheck.bind(this);

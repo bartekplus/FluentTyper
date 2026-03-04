@@ -41,8 +41,10 @@ let currentDomainURL: string | undefined;
 let currentEnabledLanguages: string[] = [];
 let currentProfileLanguageFallback = "en_US";
 let lastMarkedDonationPromptId: string | null = null;
-const PRODUCTIVITY_DASHBOARD_MAX_RETRIES = 5;
-const PRODUCTIVITY_DASHBOARD_RETRY_DELAY_MS = 200;
+const PRODUCTIVITY_DASHBOARD_RETRY_DELAYS_MS = [150, 300, 600, 1200, 2400] as const;
+let productivityDashboardRetryTimerId: number | null = null;
+let productivityDashboardLoadCancelled = false;
+let productivityDashboardLoadCompleted = false;
 const OPTIONS_ANCHOR_ADVANCED = "advanced_tab";
 
 function getSiteProfileElements() {
@@ -517,21 +519,67 @@ function renderDashboard(stats: ProductivityDashboardStats): void {
   renderMilestoneHint(stats);
 }
 
-async function loadProductivityDashboard(retryCount = 0): Promise<void> {
+function clearProductivityDashboardRetryTimer(): void {
+  if (productivityDashboardRetryTimerId !== null) {
+    window.clearTimeout(productivityDashboardRetryTimerId);
+    productivityDashboardRetryTimerId = null;
+  }
+}
+
+function renderDashboardUnavailable(): void {
+  (document.getElementById("metricAccepted") as HTMLElement).textContent = "--";
+  (document.getElementById("metricCharsSaved") as HTMLElement).textContent = "--";
+  (document.getElementById("metricMinutesSaved") as HTMLElement).textContent = "--";
+  (document.getElementById("dashboardProgressFill") as HTMLElement).style.width = "0%";
+  (document.getElementById("dashboardProgressLabel") as HTMLElement).textContent = "--";
+  (document.getElementById("dashboardPeriodSummary") as HTMLElement).textContent = i18n.get(
+    "popup_dashboard_stats_unavailable",
+  );
+  (document.getElementById("dashboardLanguageSummary") as HTMLElement).textContent = i18n.get(
+    "popup_dashboard_stats_unavailable",
+  );
+  document.getElementById("weeklyRecapCard")?.classList.add("is-hidden");
+  document.getElementById("dashboardMilestoneHint")?.classList.add("is-hidden");
+}
+
+function cleanupProductivityDashboardLoader(): void {
+  productivityDashboardLoadCancelled = true;
+  clearProductivityDashboardRetryTimer();
+}
+
+async function loadProductivityDashboard(retryAttempt = 0): Promise<void> {
+  if (productivityDashboardLoadCancelled || productivityDashboardLoadCompleted) {
+    return;
+  }
   const message: PopupGetProductivityStatsMessage = {
     command: CMD_POPUP_GET_PRODUCTIVITY_STATS,
     context: {},
   };
   const response = await sendRuntimeMessage<ProductivityDashboardStats | { ok: boolean }>(message);
-  if (!response || "ok" in response) {
-    if (retryCount < PRODUCTIVITY_DASHBOARD_MAX_RETRIES) {
-      window.setTimeout(() => {
-        void loadProductivityDashboard(retryCount + 1);
-      }, PRODUCTIVITY_DASHBOARD_RETRY_DELAY_MS);
-    }
+  if (productivityDashboardLoadCancelled || productivityDashboardLoadCompleted) {
     return;
   }
-  renderDashboard(response);
+
+  if (response && !("ok" in response)) {
+    productivityDashboardLoadCompleted = true;
+    clearProductivityDashboardRetryTimer();
+    renderDashboard(response);
+    return;
+  }
+
+  const retryDelayMs = PRODUCTIVITY_DASHBOARD_RETRY_DELAYS_MS[retryAttempt];
+  if (typeof retryDelayMs === "number") {
+    clearProductivityDashboardRetryTimer();
+    productivityDashboardRetryTimerId = window.setTimeout(() => {
+      productivityDashboardRetryTimerId = null;
+      void loadProductivityDashboard(retryAttempt + 1);
+    }, retryDelayMs);
+    return;
+  }
+
+  productivityDashboardLoadCompleted = true;
+  clearProductivityDashboardRetryTimer();
+  renderDashboardUnavailable();
 }
 
 function init() {
@@ -659,6 +707,9 @@ function init() {
     }
   }
 
+  productivityDashboardLoadCancelled = false;
+  productivityDashboardLoadCompleted = false;
+  window.addEventListener("unload", cleanupProductivityDashboardLoader, { once: true });
   void loadProductivityDashboard();
 }
 

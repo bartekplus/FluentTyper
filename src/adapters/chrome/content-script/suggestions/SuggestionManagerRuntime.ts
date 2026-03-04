@@ -23,6 +23,11 @@ import type {
 } from "./types";
 
 const DELETE_INPUT_FALLBACK_TIMEOUT_MS = 220;
+const SUGGESTION_DEBOUNCE_BY_ACTION = {
+  insert: 120,
+  delete: 60,
+  other: 120,
+};
 
 interface PendingDeleteFallback {
   timer: ReturnType<typeof setTimeout>;
@@ -69,7 +74,7 @@ export class SuggestionManagerRuntime {
     this.lang = options.lang;
     this.separatorRegex = LANG_SEPARATOR_CHARS_REGEX[this.lang] || /\s+/;
     this.predictionCoordinator = new SuggestionPredictionCoordinator({
-      debounceMs: 120,
+      debounceByAction: SUGGESTION_DEBOUNCE_BY_ACTION,
       getPrediction: options.getPrediction,
       lang: this.lang,
       minWordLengthToPredict: options.minWordLengthToPredict,

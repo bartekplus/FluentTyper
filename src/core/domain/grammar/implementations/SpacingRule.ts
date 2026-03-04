@@ -296,16 +296,18 @@ export class SpacingRule implements GrammarRule {
       return false;
     }
 
-    const tokenBeforeDot = inputStr.slice(tokenStart, punctIndex);
-    if (/[_$\d]/.test(tokenBeforeDot)) {
-      return true;
-    }
-
-    const previousSignificant = this.findPreviousSignificantChar(inputStr, tokenStart - 1);
-    if (!previousSignificant) {
+    const previousSignificantIndex = this.findPreviousSignificantIndex(inputStr, tokenStart - 1);
+    if (previousSignificantIndex === null) {
       return false;
     }
 
+    // Treat cue chars as code context only when tightly attached to the token
+    // before the dot (e.g. "obj.user. x"), not across sentence whitespace.
+    if (previousSignificantIndex !== tokenStart - 1) {
+      return false;
+    }
+
+    const previousSignificant = inputStr[previousSignificantIndex];
     return previousSignificant === "." || SpacingRule.CODE_CUE_CHARS.has(previousSignificant);
   }
 

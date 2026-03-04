@@ -42,6 +42,8 @@ export class ContentRuntimeController {
   private readonly mutationPipeline: MutationPipeline;
   private readonly mutationScheduler: MutationScheduler;
   private predictionGeneration = 0;
+  private pendingRestartToken: symbol | null = null;
+  private pendingRestartTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(private readonly themeApplicator: ThemeApplicator = new ThemeApplicator()) {
     this.domObserver = new DomObserver(
@@ -193,10 +195,22 @@ export class ContentRuntimeController {
   }
 
   restart(): void {
+    if (this.pendingRestartTimer !== null) {
+      logger.debug("Skipping content runtime restart; restart already scheduled");
+      return;
+    }
+
     logger.warn("Restarting content runtime");
     this.disable();
     this.suggestionManager = null;
-    setTimeout(() => {
+    const restartToken = Symbol("content-runtime-restart");
+    this.pendingRestartToken = restartToken;
+    this.pendingRestartTimer = setTimeout(() => {
+      if (this.pendingRestartToken !== restartToken) {
+        return;
+      }
+      this.pendingRestartToken = null;
+      this.pendingRestartTimer = null;
       if (this._enabled) {
         this.enable();
       }

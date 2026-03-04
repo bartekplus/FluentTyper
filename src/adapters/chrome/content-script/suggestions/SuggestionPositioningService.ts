@@ -196,11 +196,18 @@ export class SuggestionPositioningService {
     if ((!rect || rect.height === 0) && selection.anchorNode) {
       const marker = document.createElement("span");
       marker.textContent = "\u200b";
-      range.insertNode(marker);
-      rect = marker.getBoundingClientRect();
-      marker.parentNode?.removeChild(marker);
-      selection.removeAllRanges();
-      selection.addRange(range);
+      let markerInserted = false;
+      try {
+        range.insertNode(marker);
+        markerInserted = true;
+        rect = marker.getBoundingClientRect();
+      } finally {
+        if (markerInserted) {
+          marker.parentNode?.removeChild(marker);
+        }
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
     }
 
     if (!rect) {
