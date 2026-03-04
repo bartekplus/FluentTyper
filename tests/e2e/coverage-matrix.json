@@ -475,6 +475,11 @@
       "description": "Grammar capitalizes the first letter after line breaks.",
       "coverage": [
         {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Grammar Rule Engine capitalizes first letter after line break with granular rule IDs"
+        },
+        {
           "layer": "unit",
           "file": "tests/grammar/V1GrammarRules.test.ts",
           "test": "capitalizes after one or more line breaks"
@@ -485,6 +490,16 @@
       "id": "grammar_whitespace_cleanup",
       "description": "Grammar collapses repeated spaces and trims spaces before line breaks.",
       "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Grammar Rule Engine collapses repeated spaces with granular rule IDs"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Grammar Rule Engine trims spaces before newline with granular rule IDs"
+        },
         {
           "layer": "unit",
           "file": "tests/grammar/V1GrammarRules.test.ts",
@@ -502,6 +517,11 @@
       "description": "Grammar v1 keeps : ; ! ? spacing behavior neutral.",
       "coverage": [
         {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Grammar Rule Engine keeps : ; ! ? spacing neutral with granular rule IDs"
+        },
+        {
           "layer": "unit",
           "file": "tests/grammar/V1GrammarRules.test.ts",
           "test": "is a no-op for neutral punctuation policy"
@@ -512,6 +532,11 @@
       "id": "grammar_prediction_threshold_decoupling",
       "description": "Grammar evaluation remains active when prediction thresholds disable autocomplete.",
       "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Grammar Rule Engine still applies grammar when minWordLengthToPredict is -1 with granular rule IDs"
+        },
         {
           "layer": "unit",
           "file": "tests/SuggestionPredictionCoordinator.test.ts",

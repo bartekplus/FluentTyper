@@ -2993,4 +2993,189 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     },
     browserTimeout(25000, 40000),
   );
+
+  test(
+    "Grammar Rule Engine capitalizes first letter after line break with granular rule IDs",
+    async () => {
+      const selector = "#test-textarea";
+
+      await setSettingAndWaitStable(
+        worker!,
+        KEY_ENABLED_GRAMMAR_RULES,
+        ["capitalizeAfterLineBreak"],
+        3,
+        browserTimeout(5000, 7000),
+      );
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+      await applyConfigChange(browser, worker!);
+
+      await gotoTestPage(page, {
+        enableCkEditor: false,
+      });
+      await page.bringToFront();
+      await waitForInputReady(page, selector);
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "hello\nw");
+      await waitForInputContentEqual(page, selector, "hello\nW", browserTimeout(5000, 9000));
+
+      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await applyConfigChange(browser, worker!);
+    },
+    browserTimeout(25000, 40000),
+  );
+
+  test(
+    "Grammar Rule Engine collapses repeated spaces with granular rule IDs",
+    async () => {
+      const selector = "#test-input";
+
+      await setSettingAndWaitStable(
+        worker!,
+        KEY_ENABLED_GRAMMAR_RULES,
+        ["collapseRepeatedSpaces"],
+        3,
+        browserTimeout(5000, 7000),
+      );
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+      await applyConfigChange(browser, worker!);
+
+      await gotoTestPage(page, {
+        enableCkEditor: false,
+      });
+      await page.bringToFront();
+      await waitForInputReady(page, selector);
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "Hello   ");
+      await waitForInputContentEqual(page, selector, "Hello ", browserTimeout(5000, 9000));
+
+      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await applyConfigChange(browser, worker!);
+    },
+    browserTimeout(25000, 40000),
+  );
+
+  test(
+    "Grammar Rule Engine trims spaces before newline with granular rule IDs",
+    async () => {
+      const selector = "#test-textarea";
+
+      await setSettingAndWaitStable(
+        worker!,
+        KEY_ENABLED_GRAMMAR_RULES,
+        ["trimSpaceBeforeLineBreak"],
+        3,
+        browserTimeout(5000, 7000),
+      );
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+      await applyConfigChange(browser, worker!);
+
+      await gotoTestPage(page, {
+        enableCkEditor: false,
+      });
+      await page.bringToFront();
+      await waitForInputReady(page, selector);
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "Hello   \n");
+      await waitForInputContentEqual(page, selector, "Hello\n", browserTimeout(5000, 9000));
+
+      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await applyConfigChange(browser, worker!);
+    },
+    browserTimeout(25000, 40000),
+  );
+
+  test(
+    "Grammar Rule Engine keeps : ; ! ? spacing neutral with granular rule IDs",
+    async () => {
+      const selector = "#test-input";
+
+      await setSettingAndWaitStable(
+        worker!,
+        KEY_ENABLED_GRAMMAR_RULES,
+        ["neutralPunctuationPolicy"],
+        3,
+        browserTimeout(5000, 7000),
+      );
+      await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, true);
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+      await applyConfigChange(browser, worker!);
+
+      await gotoTestPage(page, {
+        enableCkEditor: false,
+      });
+      await page.bringToFront();
+      await waitForInputReady(page, selector);
+
+      const neutralCases: Array<{ typed: string; expected: string }> = [
+        { typed: "Hello :", expected: "Hello :" },
+        { typed: "Hello ;", expected: "Hello ;" },
+        { typed: "Hello !", expected: "Hello !" },
+        { typed: "Hello ?", expected: "Hello ?" },
+      ];
+
+      for (const testCase of neutralCases) {
+        await clearInputContent(page, selector);
+        await typeInInput(page, selector, testCase.typed);
+        await waitForInputContentEqual(
+          page,
+          selector,
+          testCase.expected,
+          browserTimeout(5000, 9000),
+        );
+      }
+
+      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await applyConfigChange(browser, worker!);
+    },
+    browserTimeout(25000, 40000),
+  );
+
+  test(
+    "Grammar Rule Engine still applies grammar when minWordLengthToPredict is -1 with granular rule IDs",
+    async () => {
+      const selector = "#test-input";
+
+      await setSettingAndWaitStable(
+        worker!,
+        KEY_ENABLED_GRAMMAR_RULES,
+        ["commaPeriodSpacing"],
+        3,
+        browserTimeout(5000, 7000),
+      );
+      await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, true);
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, -1);
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+      await applyConfigChange(browser, worker!);
+
+      await gotoTestPage(page, {
+        enableCkEditor: false,
+      });
+      await page.bringToFront();
+      await waitForInputReady(page, selector);
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "Hello .");
+      await waitForInputContentEqual(page, selector, "Hello. ", browserTimeout(5000, 9000));
+      await waitForNoVisibleSuggestions(page, browserTimeout(2000, 5000));
+      const hasPredictions = await hasVisibleSuggestions(page);
+      expect(hasPredictions).toBe(false);
+
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await applyConfigChange(browser, worker!);
+    },
+    browserTimeout(25000, 40000),
+  );
 });
