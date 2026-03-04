@@ -24,6 +24,8 @@ import type {
 
 const DELETE_INPUT_FALLBACK_TIMEOUT_MS = 220;
 const INSERT_INPUT_FALLBACK_TIMEOUT_MS = 140;
+const INSERT_INPUT_FALLBACK_RETRY_INTERVAL_MS = 120;
+const INSERT_INPUT_FALLBACK_MAX_WAIT_MS = 1000;
 const SUGGESTION_DEBOUNCE_BY_ACTION = {
   insert: 120,
   delete: 60,
@@ -35,6 +37,8 @@ interface PendingKeyFallback {
   observer: MutationObserver | null;
   reconcileScheduled: boolean;
   inputAction: PredictionInputAction;
+  expectedBeforeCursor: string | null;
+  waitForTextChangeUntilMs: number | null;
 }
 
 export class SuggestionManagerRuntime {
@@ -586,6 +590,7 @@ export class SuggestionManagerRuntime {
     observeMutations: boolean,
   ): void {
     this.cancelPendingKeyFallback(id);
+    const shouldWaitForTextChange = inputAction === "insert" && observeMutations;
     const fallback: PendingKeyFallback = {
       timer: setTimeout(() => {
         this.runKeyFallbackReconcile(id);
@@ -593,6 +598,12 @@ export class SuggestionManagerRuntime {
       observer: null,
       reconcileScheduled: false,
       inputAction,
+      expectedBeforeCursor: shouldWaitForTextChange
+        ? TextTargetAdapter.snapshot(entry.elem as TextTarget).beforeCursor
+        : null,
+      waitForTextChangeUntilMs: shouldWaitForTextChange
+        ? Date.now() + INSERT_INPUT_FALLBACK_MAX_WAIT_MS
+        : null,
     };
 
     if (observeMutations) {
@@ -629,18 +640,20 @@ export class SuggestionManagerRuntime {
       return;
     }
 
-    clearTimeout(pending.timer);
-    pending.observer?.disconnect();
-    this.pendingKeyFallbacks.delete(id);
-
     const current = this.entryRegistry.getById(id);
     if (!current) {
+      this.clearPendingKeyFallback(id);
       return;
     }
     if (!this.isEntryFocused(current)) {
+      this.clearPendingKeyFallback(id);
       this.dismissEntry(current, true);
       return;
     }
+    if (this.shouldWaitForInsertTextChange(id, current, pending)) {
+      return;
+    }
+    this.clearPendingKeyFallback(id);
     this.predictionCoordinator.reconcile(current, {
       clearSuggestions: () => this.clearSuggestions(current),
       inputAction: pending.inputAction,
@@ -648,6 +661,10 @@ export class SuggestionManagerRuntime {
   }
 
   private cancelPendingKeyFallback(id: number): void {
+    this.clearPendingKeyFallback(id);
+  }
+
+  private clearPendingKeyFallback(id: number): void {
     const pending = this.pendingKeyFallbacks.get(id);
     if (!pending) {
       return;
@@ -655,6 +672,39 @@ export class SuggestionManagerRuntime {
     clearTimeout(pending.timer);
     pending.observer?.disconnect();
     this.pendingKeyFallbacks.delete(id);
+  }
+
+  private shouldWaitForInsertTextChange(
+    id: number,
+    entry: SuggestionEntry,
+    pending: PendingKeyFallback,
+  ): boolean {
+    if (
+      pending.inputAction !== "insert" ||
+      pending.expectedBeforeCursor === null ||
+      pending.waitForTextChangeUntilMs === null
+    ) {
+      return false;
+    }
+
+    const currentBeforeCursor = TextTargetAdapter.snapshot(entry.elem as TextTarget).beforeCursor;
+    if (currentBeforeCursor !== pending.expectedBeforeCursor) {
+      return false;
+    }
+
+    const remainingMs = pending.waitForTextChangeUntilMs - Date.now();
+    if (remainingMs <= 0) {
+      this.clearPendingKeyFallback(id);
+      return true;
+    }
+
+    pending.reconcileScheduled = false;
+    clearTimeout(pending.timer);
+    pending.timer = setTimeout(
+      () => this.runKeyFallbackReconcile(id),
+      Math.max(1, Math.min(INSERT_INPUT_FALLBACK_RETRY_INTERVAL_MS, remainingMs)),
+    );
+    return true;
   }
 
   private shouldScheduleInsertFallback(event: KeyboardEvent, elem: SuggestionElement): boolean {

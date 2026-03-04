@@ -849,6 +849,38 @@ describe("SuggestionManager", () => {
     expect(request.inputAction).toBe("insert");
   });
 
+  test("requests prediction when delayed contenteditable mutation arrives after insert fallback timeout", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+      enabledGrammarRules: [],
+    });
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.textContent = "";
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    setContentEditableCursor(editable, 0);
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+
+    dispatchKeydown(editable, "h");
+    await wait(180);
+    expect(getPrediction.mock.calls.length).toBe(0);
+
+    editable.textContent = "h";
+    setContentEditableCursor(editable, 1);
+    await wait(120);
+
+    expect(getPrediction.mock.calls.length).toBe(1);
+    const request = getPrediction.mock.calls.at(-1)?.[0];
+    if (!request) {
+      throw new Error("Expected prediction request");
+    }
+    expect(request.text).toBe("h");
+    expect(request.inputAction).toBe("insert");
+  });
+
   test("does not request prediction on Enter in input when input event is missing", async () => {
     const { manager, getPrediction } = await createManager({
       minWordLengthToPredict: 1,
