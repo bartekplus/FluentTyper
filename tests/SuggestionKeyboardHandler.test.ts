@@ -23,6 +23,7 @@ describe("SuggestionKeyboardHandler", () => {
       inlineSuggestionEnabled: true,
       handleMissingSpaceAfterAccept: jest.fn(),
       tryRevertLastReplacement: jest.fn(() => false),
+      tryRevertLastAutoFix: jest.fn(() => false),
       tryDeleteTrailingPunctuationSpace: jest.fn(() => false),
       consumeKeyboardEvent,
       clearSuggestions: jest.fn(),
@@ -58,6 +59,7 @@ describe("SuggestionKeyboardHandler", () => {
       inlineSuggestionEnabled: true,
       handleMissingSpaceAfterAccept: jest.fn(),
       tryRevertLastReplacement: jest.fn(() => false),
+      tryRevertLastAutoFix: jest.fn(() => false),
       tryDeleteTrailingPunctuationSpace: jest.fn(() => false),
       consumeKeyboardEvent,
       clearSuggestions: jest.fn(),
@@ -76,5 +78,33 @@ describe("SuggestionKeyboardHandler", () => {
 
     expect(consumeKeyboardEvent).toHaveBeenCalledTimes(1);
     expect(requestInlineSuggestion).toHaveBeenCalledWith(entry);
+  });
+
+  test("tries grammar auto-fix revert on Backspace when suggestion revert does not apply", () => {
+    const tryRevertLastAutoFix = jest.fn(() => true);
+    const handler = new SuggestionKeyboardHandler({
+      autocompleteOnSpace: true,
+      autocompleteOnEnter: true,
+      autocompleteOnTab: true,
+      selectByDigit: true,
+      revertOnBackspace: true,
+      inlineSuggestionEnabled: true,
+      handleMissingSpaceAfterAccept: jest.fn(),
+      tryRevertLastReplacement: jest.fn(() => false),
+      tryRevertLastAutoFix,
+      tryDeleteTrailingPunctuationSpace: jest.fn(() => false),
+      consumeKeyboardEvent: jest.fn(),
+      clearSuggestions: jest.fn(),
+      isMenuVisible: jest.fn(() => false),
+      updateSelectionHighlight: jest.fn(),
+      acceptSuggestion: jest.fn(),
+      acceptSuggestionAtIndex: jest.fn(),
+      requestInlineSuggestion: jest.fn(),
+    });
+    const entry = createSuggestionEntry();
+
+    handler.handle(entry, createEvent("Backspace"));
+
+    expect(tryRevertLastAutoFix).toHaveBeenCalledTimes(1);
   });
 });

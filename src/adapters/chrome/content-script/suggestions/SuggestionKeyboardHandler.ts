@@ -10,6 +10,7 @@ interface SuggestionKeyboardHandlerOptions {
   inlineSuggestionEnabled: boolean;
   handleMissingSpaceAfterAccept: (entry: SuggestionEntry, event: KeyboardEvent) => void;
   tryRevertLastReplacement: (entry: SuggestionEntry, event: KeyboardEvent) => boolean;
+  tryRevertLastAutoFix: (entry: SuggestionEntry, event: KeyboardEvent) => boolean;
   tryDeleteTrailingPunctuationSpace: (entry: SuggestionEntry, event: KeyboardEvent) => boolean;
   consumeKeyboardEvent: (event: KeyboardEvent) => void;
   clearSuggestions: (entry: SuggestionEntry) => void;
@@ -36,6 +37,7 @@ export class SuggestionKeyboardHandler {
     entry: SuggestionEntry,
     event: KeyboardEvent,
   ) => boolean;
+  private readonly tryRevertLastAutoFix: (entry: SuggestionEntry, event: KeyboardEvent) => boolean;
   private readonly tryDeleteTrailingPunctuationSpace: (
     entry: SuggestionEntry,
     event: KeyboardEvent,
@@ -62,6 +64,7 @@ export class SuggestionKeyboardHandler {
     });
     this.handleMissingSpaceAfterAccept = options.handleMissingSpaceAfterAccept;
     this.tryRevertLastReplacement = options.tryRevertLastReplacement;
+    this.tryRevertLastAutoFix = options.tryRevertLastAutoFix;
     this.tryDeleteTrailingPunctuationSpace = options.tryDeleteTrailingPunctuationSpace;
     this.consumeKeyboardEvent = options.consumeKeyboardEvent;
     this.clearSuggestions = options.clearSuggestions;
@@ -82,6 +85,9 @@ export class SuggestionKeyboardHandler {
     const key = keyboardEvent.key;
     if (key === "Backspace") {
       if (this.revertOnBackspace && this.tryRevertLastReplacement(entry, keyboardEvent)) {
+        return;
+      }
+      if (this.revertOnBackspace && this.tryRevertLastAutoFix(entry, keyboardEvent)) {
         return;
       }
       if (this.tryDeleteTrailingPunctuationSpace(entry, keyboardEvent)) {

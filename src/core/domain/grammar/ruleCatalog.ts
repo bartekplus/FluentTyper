@@ -7,6 +7,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     titleI18nKey: "grammar_rule_capitalize_sentence_start",
     descriptionI18nKey: "grammar_rule_capitalize_sentence_start_desc",
     exampleI18nKey: "grammar_rule_capitalize_sentence_start_example",
+    languageScope: "all",
     recommended: true,
     defaultEnabled: true,
     priority: 10,
@@ -17,9 +18,43 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     titleI18nKey: "grammar_rule_capitalize_line_break",
     descriptionI18nKey: "grammar_rule_capitalize_line_break_desc",
     exampleI18nKey: "grammar_rule_capitalize_line_break_example",
+    languageScope: "all",
     recommended: true,
     defaultEnabled: true,
     priority: 20,
+  },
+  {
+    id: "englishPronounICapitalization",
+    name: "Capitalize English pronoun I",
+    titleI18nKey: "grammar_rule_english_pronoun_i",
+    descriptionI18nKey: "grammar_rule_english_pronoun_i_desc",
+    exampleI18nKey: "grammar_rule_english_pronoun_i_example",
+    languageScope: "en_US",
+    recommended: true,
+    defaultEnabled: true,
+    priority: 25,
+  },
+  {
+    id: "englishContractionNormalization",
+    name: "Normalize English contractions",
+    titleI18nKey: "grammar_rule_english_contractions",
+    descriptionI18nKey: "grammar_rule_english_contractions_desc",
+    exampleI18nKey: "grammar_rule_english_contractions_example",
+    languageScope: "en_US",
+    recommended: true,
+    defaultEnabled: true,
+    priority: 26,
+  },
+  {
+    id: "englishTypoWhitelistCorrection",
+    name: "Correct common English typos",
+    titleI18nKey: "grammar_rule_english_typos",
+    descriptionI18nKey: "grammar_rule_english_typos_desc",
+    exampleI18nKey: "grammar_rule_english_typos_example",
+    languageScope: "en_US",
+    recommended: true,
+    defaultEnabled: true,
+    priority: 27,
   },
   {
     id: "technicalTokenCompaction",
@@ -27,6 +62,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     titleI18nKey: "grammar_rule_technical_compaction",
     descriptionI18nKey: "grammar_rule_technical_compaction_desc",
     exampleI18nKey: "grammar_rule_technical_compaction_example",
+    languageScope: "all",
     recommended: true,
     defaultEnabled: true,
     priority: 30,
@@ -37,6 +73,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     titleI18nKey: "grammar_rule_math_operator_spacing",
     descriptionI18nKey: "grammar_rule_math_operator_spacing_desc",
     exampleI18nKey: "grammar_rule_math_operator_spacing_example",
+    languageScope: "all",
     recommended: true,
     defaultEnabled: true,
     priority: 40,
@@ -47,6 +84,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     titleI18nKey: "grammar_rule_slash_context_spacing",
     descriptionI18nKey: "grammar_rule_slash_context_spacing_desc",
     exampleI18nKey: "grammar_rule_slash_context_spacing_example",
+    languageScope: "all",
     recommended: true,
     defaultEnabled: true,
     priority: 50,
@@ -57,6 +95,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     titleI18nKey: "grammar_rule_opening_bracket_spacing",
     descriptionI18nKey: "grammar_rule_opening_bracket_spacing_desc",
     exampleI18nKey: "grammar_rule_opening_bracket_spacing_example",
+    languageScope: "all",
     recommended: true,
     defaultEnabled: true,
     priority: 60,
@@ -67,6 +106,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     titleI18nKey: "grammar_rule_closing_bracket_spacing",
     descriptionI18nKey: "grammar_rule_closing_bracket_spacing_desc",
     exampleI18nKey: "grammar_rule_closing_bracket_spacing_example",
+    languageScope: "all",
     recommended: true,
     defaultEnabled: true,
     priority: 70,
@@ -77,6 +117,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     titleI18nKey: "grammar_rule_comma_period_spacing",
     descriptionI18nKey: "grammar_rule_comma_period_spacing_desc",
     exampleI18nKey: "grammar_rule_comma_period_spacing_example",
+    languageScope: "all",
     recommended: true,
     defaultEnabled: true,
     priority: 80,
@@ -87,6 +128,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     titleI18nKey: "grammar_rule_collapse_repeated_spaces",
     descriptionI18nKey: "grammar_rule_collapse_repeated_spaces_desc",
     exampleI18nKey: "grammar_rule_collapse_repeated_spaces_example",
+    languageScope: "all",
     recommended: true,
     defaultEnabled: true,
     priority: 90,
@@ -97,6 +139,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     titleI18nKey: "grammar_rule_trim_space_before_line_break",
     descriptionI18nKey: "grammar_rule_trim_space_before_line_break_desc",
     exampleI18nKey: "grammar_rule_trim_space_before_line_break_example",
+    languageScope: "all",
     recommended: true,
     defaultEnabled: true,
     priority: 100,
@@ -107,6 +150,7 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     titleI18nKey: "grammar_rule_neutral_punctuation",
     descriptionI18nKey: "grammar_rule_neutral_punctuation_desc",
     exampleI18nKey: "grammar_rule_neutral_punctuation_example",
+    languageScope: "all",
     recommended: true,
     defaultEnabled: true,
     priority: 110,
@@ -117,11 +161,29 @@ export type CatalogRuleId = (typeof GRAMMAR_RULE_CATALOG)[number]["id"];
 
 export const GRAMMAR_RULE_IDS: CatalogRuleId[] = GRAMMAR_RULE_CATALOG.map((entry) => entry.id);
 
-export const DEFAULT_V1_GRAMMAR_RULES: CatalogRuleId[] = GRAMMAR_RULE_CATALOG.filter(
+const V1_RECOMMENDED_RULES: CatalogRuleId[] = [
+  "capitalizeSentenceStart",
+  "capitalizeAfterLineBreak",
+  "technicalTokenCompaction",
+  "mathOperatorSpacing",
+  "slashContextSpacing",
+  "openingBracketSpacing",
+  "closingBracketSpacing",
+  "commaPeriodSpacing",
+  "collapseRepeatedSpaces",
+  "trimSpaceBeforeLineBreak",
+  "neutralPunctuationPolicy",
+];
+
+export const DEFAULT_V1_GRAMMAR_RULES: CatalogRuleId[] = V1_RECOMMENDED_RULES.slice();
+
+export const RECOMMENDED_V1_GRAMMAR_RULES: CatalogRuleId[] = V1_RECOMMENDED_RULES.slice();
+
+export const DEFAULT_V2_GRAMMAR_RULES: CatalogRuleId[] = GRAMMAR_RULE_CATALOG.filter(
   (entry) => entry.defaultEnabled,
 ).map((entry) => entry.id);
 
-export const RECOMMENDED_V1_GRAMMAR_RULES: CatalogRuleId[] = GRAMMAR_RULE_CATALOG.filter(
+export const RECOMMENDED_V2_GRAMMAR_RULES: CatalogRuleId[] = GRAMMAR_RULE_CATALOG.filter(
   (entry) => entry.recommended,
 ).map((entry) => entry.id);
 

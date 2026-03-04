@@ -52,10 +52,10 @@ import {
   DEFAULT_AI_PREDICTION_TIMEOUT_MS,
 } from "@core/domain/constants";
 import {
-  DEFAULT_V1_GRAMMAR_RULES,
+  DEFAULT_V2_GRAMMAR_RULES,
   GRAMMAR_RULE_CATALOG,
   GRAMMAR_RULE_IDS,
-  RECOMMENDED_V1_GRAMMAR_RULES,
+  RECOMMENDED_V2_GRAMMAR_RULES,
 } from "@core/domain/grammar/ruleCatalog";
 
 // --- UI Content ---
@@ -112,18 +112,24 @@ const WEBLLM_DEV_MODEL_OPTIONS = [
   ["Mistral-7B-Instruct-v0.3-q4f16_1-MLC", "Mistral 7B Instruct v0.3 q4f16"],
 ];
 
-const GRAMMAR_RULE_OPTIONS = GRAMMAR_RULE_CATALOG.map((rule) => ({
-  value: rule.id,
-  text: i18n.get(rule.titleI18nKey) || rule.name,
-  description: i18n.get(rule.descriptionI18nKey),
-  example: i18n.get(rule.exampleI18nKey),
-  ...(rule.recommended
-    ? {
-        badge: i18n.get("grammar_rule_recommended_badge"),
-        recommended: true,
-      }
-    : {}),
-}));
+const GRAMMAR_RULE_OPTIONS = GRAMMAR_RULE_CATALOG.map((rule) => {
+  const recommendedBadge = rule.recommended ? i18n.get("grammar_rule_recommended_badge") : "";
+  const scopeBadge =
+    rule.languageScope === "en_US" ? i18n.get("grammar_rule_scope_en_us_badge") : "";
+  const badge = [recommendedBadge, scopeBadge].filter(Boolean).join(" · ");
+  return {
+    value: rule.id,
+    text: i18n.get(rule.titleI18nKey) || rule.name,
+    description: i18n.get(rule.descriptionI18nKey),
+    example: i18n.get(rule.exampleI18nKey),
+    ...(badge
+      ? {
+          badge,
+        }
+      : {}),
+    ...(rule.recommended ? { recommended: true } : {}),
+  };
+});
 
 // --- Manifest Definition ---
 const manifest = {
@@ -239,7 +245,7 @@ const manifest = {
       actions: [
         {
           text: i18n.get("grammar_rules_recommended"),
-          values: RECOMMENDED_V1_GRAMMAR_RULES,
+          values: RECOMMENDED_V2_GRAMMAR_RULES,
         },
         {
           text: i18n.get("grammar_rules_enable_all"),
@@ -251,7 +257,7 @@ const manifest = {
         },
       ],
       options: GRAMMAR_RULE_OPTIONS,
-      default: DEFAULT_V1_GRAMMAR_RULES,
+      default: DEFAULT_V2_GRAMMAR_RULES,
     },
     {
       tab: i18n.get("core_settings"),

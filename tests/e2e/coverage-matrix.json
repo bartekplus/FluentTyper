@@ -554,6 +554,107 @@
           "test": "force-sets recommended v1 grammar rules and stores exact backup once"
         }
       ]
+    },
+    {
+      "id": "grammar_english_pronoun_i",
+      "description": "English-only grammar rule capitalizes standalone pronoun i and apostrophe forms.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Grammar Rule Engine applies English micro-grammar bundle in #test-input"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/V2EnglishRules.test.ts",
+          "test": "capitalizes standalone i and apostrophe contractions in English context"
+        }
+      ]
+    },
+    {
+      "id": "grammar_english_contractions",
+      "description": "English-only grammar rule normalizes common contractions with case preservation.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Grammar Rule Engine applies English micro-grammar bundle in #test-input"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/V2EnglishRules.test.ts",
+          "test": "normalizes contraction forms and preserves case"
+        }
+      ]
+    },
+    {
+      "id": "grammar_english_typo_whitelist",
+      "description": "English-only typo whitelist correction applies conservative typo fixes and dictionary bypass.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Grammar Rule Engine applies English micro-grammar bundle in #test-input"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/V2EnglishRules.test.ts",
+          "test": "corrects known typos and preserves case"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/V2EnglishRules.test.ts",
+          "test": "skips words in user dictionary and code-like contexts"
+        }
+      ]
+    },
+    {
+      "id": "grammar_english_language_guard",
+      "description": "English-only grammar rules remain inactive when active runtime language is non-English.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Grammar Rule Engine keeps English-only grammar rules inactive for non-English language"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/V2EnglishRules.test.ts",
+          "test": "skips non-English and code-like contexts"
+        }
+      ]
+    },
+    {
+      "id": "grammar_autofix_backspace_revert",
+      "description": "Grammar auto-fixes can be immediately reverted with Backspace when cursor context is unchanged.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Grammar Rule Engine reverts latest auto-fix via Backspace in #test-input"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionTextEditService.test.ts",
+          "test": "reverts latest grammar auto-fix on Backspace when caret is unchanged"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionKeyboardHandler.test.ts",
+          "test": "tries grammar auto-fix revert on Backspace when suggestion revert does not apply"
+        }
+      ]
+    },
+    {
+      "id": "grammar_v5_forced_migration",
+      "description": "Settings migration V5 force-applies recommended grammar defaults with backup and marker.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/SettingsMigrationV5.test.ts",
+          "test": "force-sets recommended v2 grammar rules and stores exact backup once"
+        }
+      ]
     }
   ]
 }

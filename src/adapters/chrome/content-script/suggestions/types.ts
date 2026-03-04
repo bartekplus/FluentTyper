@@ -49,6 +49,14 @@ export interface ReplacementSnapshot {
   cursorAfter: number;
 }
 
+export interface AutoFixReplacementSnapshot {
+  replaceStart: number;
+  originalText: string;
+  replacementText: string;
+  cursorBefore: number;
+  cursorAfter: number;
+}
+
 export interface SuggestionEntry {
   id: number;
   elem: SuggestionElement;
@@ -65,6 +73,7 @@ export interface SuggestionEntry {
   missingTrailingSpace: boolean;
   expectedCursorPos: number;
   lastReplacement: ReplacementSnapshot | null;
+  lastAutoFixReplacement: AutoFixReplacementSnapshot | null;
   lastKeydownKey: string | null;
   lastInputAction: PredictionInputAction | null;
   lastBeforeCursorText: string | null;

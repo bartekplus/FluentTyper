@@ -92,6 +92,11 @@ export class SuggestionManagerRuntime {
           consumeKeyboardEvent: this.consumeKeyboardEvent.bind(this),
           clearSuggestions: () => this.clearSuggestions(entry),
         }),
+      tryRevertLastAutoFix: (entry, event) =>
+        this.textEditService.tryRevertLastAutoFix(entry, event, {
+          consumeKeyboardEvent: this.consumeKeyboardEvent.bind(this),
+          clearSuggestions: () => this.clearSuggestions(entry),
+        }),
       tryDeleteTrailingPunctuationSpace: (entry, event) =>
         this.textEditService.tryDeleteTrailingPunctuationSpace(
           entry,
@@ -279,6 +284,7 @@ export class SuggestionManagerRuntime {
       missingTrailingSpace: false,
       expectedCursorPos: 0,
       lastReplacement: null,
+      lastAutoFixReplacement: null,
       lastKeydownKey: null,
       lastInputAction: null,
       lastBeforeCursorText: null,
@@ -417,6 +423,12 @@ export class SuggestionManagerRuntime {
       return;
     }
     const snapshot: SuggestionSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+    if (
+      entry.lastAutoFixReplacement &&
+      !this.shouldPreserveAutoFixSnapshot(entry.lastAutoFixReplacement, snapshot)
+    ) {
+      entry.lastAutoFixReplacement = null;
+    }
     const inputAction = this.resolveInputAction(entry, event, snapshot.beforeCursor);
     entry.lastInputAction = inputAction;
     entry.lastKeydownKey = null;
@@ -436,6 +448,21 @@ export class SuggestionManagerRuntime {
       clearSuggestions: () => this.clearSuggestions(entry),
       inputAction,
     });
+  }
+
+  private shouldPreserveAutoFixSnapshot(
+    autoFix: NonNullable<SuggestionEntry["lastAutoFixReplacement"]>,
+    snapshot: SuggestionSnapshot,
+  ): boolean {
+    const fullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
+    const replaceEnd = autoFix.replaceStart + autoFix.replacementText.length;
+    if (snapshot.cursorOffset !== autoFix.cursorAfter) {
+      return false;
+    }
+    if (autoFix.replaceStart < 0 || replaceEnd > fullText.length) {
+      return false;
+    }
+    return fullText.slice(autoFix.replaceStart, replaceEnd) === autoFix.replacementText;
   }
 
   private isSeparator(value: string): boolean {
