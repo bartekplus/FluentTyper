@@ -60,6 +60,7 @@ describe("SuggestionPredictionCoordinator", () => {
 
     expect(getPrediction).not.toHaveBeenCalled();
     expect(clearSuggestions).toHaveBeenCalledTimes(1);
+    expect(entry.requestId).toBe(1);
   });
 
   test("passes inputAction in prediction request when provided", async () => {

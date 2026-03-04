@@ -119,6 +119,9 @@ export class SuggestionPredictionCoordinator {
     const shouldPredict = this.shouldPredict(beforeCursor);
     const shouldRequestForGrammar = this.shouldRequestGrammarEdit(beforeCursor);
     if (!force && !shouldPredict && !shouldRequestForGrammar) {
+      // No new request will be sent, so bump the request id to invalidate
+      // any in-flight responses from previous input states.
+      entry.requestId += 1;
       clearSuggestions();
       return;
     }

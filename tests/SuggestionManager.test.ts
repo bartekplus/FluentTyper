@@ -726,6 +726,145 @@ describe("SuggestionManager", () => {
     expect(menu?.querySelectorAll("li").length).toBe(0);
   });
 
+  test("ignores stale contenteditable response after backspace clears below threshold", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+      enabledGrammarRules: [],
+    });
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.textContent = "Y";
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    setContentEditableCursor(editable, 1);
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+    await wait(220);
+
+    const firstRequest = getPrediction.mock.calls.at(-1)?.[0];
+    if (!firstRequest) {
+      throw new Error("Expected first prediction request");
+    }
+
+    manager.fulfillPrediction(
+      buildResponse(firstRequest, {
+        predictions: ["You "],
+      }),
+    );
+
+    const menu = (editable as HTMLElement & { suggestionMenu?: HTMLElement }).suggestionMenu;
+    expect(menu?.style.display).toBe("block");
+    expect(menu?.querySelectorAll("li").length).toBeGreaterThan(0);
+
+    editable.textContent = "";
+    setContentEditableCursor(editable, 0);
+    const deleteInputEvent = new Event("input", { bubbles: true });
+    Object.defineProperty(deleteInputEvent, "inputType", {
+      value: "deleteContentBackward",
+    });
+    editable.dispatchEvent(deleteInputEvent);
+    await wait(220);
+
+    expect(menu?.style.display).toBe("none");
+    expect(menu?.querySelectorAll("li").length).toBe(0);
+
+    manager.fulfillPrediction(
+      buildResponse(firstRequest, {
+        predictions: ["You "],
+      }),
+    );
+
+    expect(menu?.style.display).toBe("none");
+    expect(menu?.querySelectorAll("li").length).toBe(0);
+  });
+
+  test("hides contenteditable popup on Backspace keydown when input event does not fire", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+      enabledGrammarRules: [],
+    });
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.textContent = "Y";
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    setContentEditableCursor(editable, 1);
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+    await wait(220);
+
+    const firstRequest = getPrediction.mock.calls.at(-1)?.[0];
+    if (!firstRequest) {
+      throw new Error("Expected first prediction request");
+    }
+
+    manager.fulfillPrediction(
+      buildResponse(firstRequest, {
+        predictions: ["You "],
+      }),
+    );
+
+    const menu = (editable as HTMLElement & { suggestionMenu?: HTMLElement }).suggestionMenu;
+    expect(menu?.style.display).toBe("block");
+    expect(menu?.querySelectorAll("li").length).toBeGreaterThan(0);
+
+    dispatchKeydown(editable, "Backspace");
+    await wait(10);
+
+    expect(menu?.style.display).toBe("none");
+    expect(menu?.querySelectorAll("li").length).toBe(0);
+  });
+
+  test("keeps contenteditable popup visible on Backspace when follow-up input event updates text", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+      enabledGrammarRules: [],
+    });
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.textContent = "What";
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    setContentEditableCursor(editable, 4);
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+    await wait(220);
+
+    const firstRequest = getPrediction.mock.calls.at(-1)?.[0];
+    if (!firstRequest) {
+      throw new Error("Expected first prediction request");
+    }
+
+    manager.fulfillPrediction(
+      buildResponse(firstRequest, {
+        predictions: ["Whatever "],
+      }),
+    );
+
+    const menu = (editable as HTMLElement & { suggestionMenu?: HTMLElement }).suggestionMenu;
+    expect(menu?.style.display).toBe("block");
+    expect(menu?.querySelectorAll("li").length).toBeGreaterThan(0);
+
+    dispatchKeydown(editable, "Backspace");
+    editable.textContent = "Wha";
+    setContentEditableCursor(editable, 3);
+    const deleteInputEvent = new Event("input", { bubbles: true });
+    Object.defineProperty(deleteInputEvent, "inputType", {
+      value: "deleteContentBackward",
+    });
+    editable.dispatchEvent(deleteInputEvent);
+    await wait(20);
+
+    expect(menu?.style.display).toBe("block");
+    expect(menu?.querySelectorAll("li").length).toBeGreaterThan(0);
+  });
+
   test("preserves paragraph break when replacing token at end of first paragraph", async () => {
     const { manager, getPrediction } = await createManager();
     const editable = document.createElement("div");

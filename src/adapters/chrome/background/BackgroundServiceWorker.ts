@@ -98,10 +98,9 @@ export class BackgroundServiceWorker {
     if ((!Array.isArray(predictions) || predictions.length === 0) && !textEdit) {
       this.predictionManager.recordTraceTimelineEvent(
         traceMeta,
-        "background.response.skipped",
+        "background.response.empty",
         "no predictions and no textEdit",
       );
-      return;
     }
     const predictResponseMessage: PredictResponseMessage = {
       command: CMD_BACKGROUND_PAGE_PREDICT_RESP,

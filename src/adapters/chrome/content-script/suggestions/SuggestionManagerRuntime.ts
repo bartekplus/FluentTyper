@@ -35,6 +35,7 @@ export class SuggestionManagerRuntime {
   private readonly textEditService: SuggestionTextEditService;
   private readonly keyboardHandler: SuggestionKeyboardHandler;
   private readonly telemetry: SuggestionTelemetry;
+  private readonly pendingDeleteFallbackTimers = new Map<number, ReturnType<typeof setTimeout>>();
 
   private readonly displayLangHeader: boolean;
   private readonly inlineSuggestionEnabled: boolean;
@@ -325,6 +326,7 @@ export class SuggestionManagerRuntime {
       return;
     }
 
+    this.cancelPendingDeleteFallback(id);
     this.lifecycleController.detachEntryListeners(entry);
     entry.menu.remove();
     this.predictionCoordinator.cancelPending(entry);
@@ -344,6 +346,7 @@ export class SuggestionManagerRuntime {
   }
 
   private dismissEntry(entry: SuggestionEntry, keepActive = false): void {
+    this.cancelPendingDeleteFallback(entry.id);
     this.clearSuggestions(entry);
     this.predictionCoordinator.cancelPending(entry);
     entry.requestId += 1;
@@ -417,6 +420,7 @@ export class SuggestionManagerRuntime {
   }
 
   private onElementInput(id: number, event: Event): void {
+    this.cancelPendingDeleteFallback(id);
     this.activeEntryId = id;
     const entry = this.entryRegistry.getById(id);
     if (!entry) {
@@ -528,6 +532,34 @@ export class SuggestionManagerRuntime {
     entry.lastKeydownKey = keyboardEvent.key;
 
     this.keyboardHandler.handle(entry, keyboardEvent);
+
+    if (keyboardEvent.defaultPrevented) {
+      return;
+    }
+
+    if (keyboardEvent.key === "Backspace" || keyboardEvent.key === "Delete") {
+      // Some rich editors defer/suppress input on delete keys. Delay stale-UI
+      // cleanup until the next tick and cancel it when input arrives.
+      this.cancelPendingDeleteFallback(id);
+      const timer = setTimeout(() => {
+        this.pendingDeleteFallbackTimers.delete(id);
+        const current = this.entryRegistry.getById(id);
+        if (!current) {
+          return;
+        }
+        this.dismissEntry(current, true);
+      }, 0);
+      this.pendingDeleteFallbackTimers.set(id, timer);
+    }
+  }
+
+  private cancelPendingDeleteFallback(id: number): void {
+    const timer = this.pendingDeleteFallbackTimers.get(id);
+    if (!timer) {
+      return;
+    }
+    clearTimeout(timer);
+    this.pendingDeleteFallbackTimers.delete(id);
   }
 
   private resolveInputAction(
