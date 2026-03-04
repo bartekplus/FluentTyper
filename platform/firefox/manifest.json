@@ -37,7 +37,7 @@
     "open_in_tab": true
   },
   "permissions": ["storage", "activeTab"],
-  "version": "2026.4.2",
+  "version": "2026.5.0",
   "manifest_version": 3,
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
