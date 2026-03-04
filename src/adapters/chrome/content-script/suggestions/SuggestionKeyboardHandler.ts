@@ -10,6 +10,7 @@ interface SuggestionKeyboardHandlerOptions {
   inlineSuggestionEnabled: boolean;
   handleMissingSpaceAfterAccept: (entry: SuggestionEntry, event: KeyboardEvent) => void;
   tryRevertLastReplacement: (entry: SuggestionEntry, event: KeyboardEvent) => boolean;
+  tryDeleteTrailingPunctuationSpace: (entry: SuggestionEntry, event: KeyboardEvent) => boolean;
   consumeKeyboardEvent: (event: KeyboardEvent) => void;
   clearSuggestions: (entry: SuggestionEntry) => void;
   isMenuVisible: (entry: SuggestionEntry) => boolean;
@@ -35,6 +36,10 @@ export class SuggestionKeyboardHandler {
     entry: SuggestionEntry,
     event: KeyboardEvent,
   ) => boolean;
+  private readonly tryDeleteTrailingPunctuationSpace: (
+    entry: SuggestionEntry,
+    event: KeyboardEvent,
+  ) => boolean;
   private readonly consumeKeyboardEvent: (event: KeyboardEvent) => void;
   private readonly clearSuggestions: (entry: SuggestionEntry) => void;
   private readonly isMenuVisible: (entry: SuggestionEntry) => boolean;
@@ -57,6 +62,7 @@ export class SuggestionKeyboardHandler {
     });
     this.handleMissingSpaceAfterAccept = options.handleMissingSpaceAfterAccept;
     this.tryRevertLastReplacement = options.tryRevertLastReplacement;
+    this.tryDeleteTrailingPunctuationSpace = options.tryDeleteTrailingPunctuationSpace;
     this.consumeKeyboardEvent = options.consumeKeyboardEvent;
     this.clearSuggestions = options.clearSuggestions;
     this.isMenuVisible = options.isMenuVisible;
@@ -74,6 +80,15 @@ export class SuggestionKeyboardHandler {
     }
 
     const key = keyboardEvent.key;
+    if (key === "Backspace") {
+      if (this.revertOnBackspace && this.tryRevertLastReplacement(entry, keyboardEvent)) {
+        return;
+      }
+      if (this.tryDeleteTrailingPunctuationSpace(entry, keyboardEvent)) {
+        return;
+      }
+    }
+
     const digitIndex = this.selectByDigit ? this.mapDigitToIndex(key) : null;
     const isInlineTab = this.inlineSuggestionEnabled && key === "Tab";
 
@@ -81,14 +96,6 @@ export class SuggestionKeyboardHandler {
       !SuggestionKeyboardController.isActiveKey(this.activeKeys, key) &&
       !isInlineTab &&
       digitIndex === null
-    ) {
-      return;
-    }
-
-    if (
-      key === "Backspace" &&
-      this.revertOnBackspace &&
-      this.tryRevertLastReplacement(entry, keyboardEvent)
     ) {
       return;
     }

@@ -86,6 +86,7 @@ export class BackgroundServiceWorker {
       message.context.lang,
       configOverride,
       traceMeta,
+      message.context.inputAction,
     );
     this.predictionManager.recordTraceTimelineEvent(
       traceMeta,

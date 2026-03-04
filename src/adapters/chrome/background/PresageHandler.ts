@@ -11,7 +11,7 @@ import { UserDictionaryManager } from "./UserDictionaryManager";
 import { TextExpansionManager } from "./TextExpansionManager";
 import type { PresageEngineConfig } from "./PresageEngine";
 import { PresageEngine } from "./PresageEngine";
-import type { TextEditOperation } from "@core/domain/messageTypes";
+import type { PredictionInputAction, TextEditOperation } from "@core/domain/messageTypes";
 import { MAX_NUM_SUGGESTIONS } from "@core/domain/constants";
 import type { PredictionResult } from "./PredictionTypes";
 import { GrammarRuleEngine } from "@core/domain/grammar/GrammarRuleEngine";
@@ -240,6 +240,7 @@ export class PresageHandler {
     lang: string,
     numSuggestionsOverride?: number,
     tabId?: number,
+    inputAction?: PredictionInputAction,
   ): PresagePredictionContext {
     const effectiveNumSuggestions =
       typeof numSuggestionsOverride === "number"
@@ -259,7 +260,12 @@ export class PresageHandler {
 
       const edits = this.grammarEngine.process(
         eventType,
-        { beforeCursor: text, afterCursor: "", charTyped: nextChar },
+        {
+          beforeCursor: text,
+          afterCursor: "",
+          charTyped: nextChar,
+          hints: { inputAction },
+        },
         this.enabledGrammarRules,
       );
 
@@ -337,6 +343,7 @@ export class PresageHandler {
     nextChar: string,
     lang: string,
     configOverride?: { numSuggestions?: number; tabId?: number },
+    inputAction?: PredictionInputAction,
   ): Promise<PredictionResult> {
     const context = this.preparePredictionContext(
       text,
@@ -344,6 +351,7 @@ export class PresageHandler {
       lang,
       configOverride?.numSuggestions,
       configOverride?.tabId,
+      inputAction,
     );
     const predictions = await this.predictPresage(context);
     return this.finalizePrediction(predictions, context);

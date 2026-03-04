@@ -12,6 +12,7 @@ import { SuggestionMenuView } from "./SuggestionMenuView";
 import { SuggestionTelemetryService } from "./SuggestionTelemetryService";
 import { SuggestionTextEditService } from "./SuggestionTextEditService";
 import { TextTargetAdapter, type TextTarget } from "./TextTargetAdapter";
+import type { PredictionInputAction } from "@core/domain/messageTypes";
 import type {
   PredictionResponse,
   SuggestionElement,
@@ -88,6 +89,12 @@ export class SuggestionManagerRuntime {
           consumeKeyboardEvent: this.consumeKeyboardEvent.bind(this),
           clearSuggestions: () => this.clearSuggestions(entry),
         }),
+      tryDeleteTrailingPunctuationSpace: (entry, event) =>
+        this.textEditService.tryDeleteTrailingPunctuationSpace(
+          entry,
+          event,
+          this.consumeKeyboardEvent.bind(this),
+        ),
       consumeKeyboardEvent: this.consumeKeyboardEvent.bind(this),
       clearSuggestions: this.clearSuggestions.bind(this),
       isMenuVisible: (entry) => this.menuPresenter.isVisible(entry.menu, entry.suggestions.length),
@@ -269,6 +276,9 @@ export class SuggestionManagerRuntime {
       missingTrailingSpace: false,
       expectedCursorPos: 0,
       lastReplacement: null,
+      lastKeydownKey: null,
+      lastInputAction: null,
+      lastBeforeCursorText: null,
       pendingRequestTimer: null,
       handlers: {
         input: () => undefined,
@@ -397,13 +407,17 @@ export class SuggestionManagerRuntime {
     this.dismissEntry(entry);
   }
 
-  private onElementInput(id: number): void {
+  private onElementInput(id: number, event: Event): void {
     this.activeEntryId = id;
     const entry = this.entryRegistry.getById(id);
     if (!entry) {
       return;
     }
     const snapshot: SuggestionSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+    const inputAction = this.resolveInputAction(entry, event, snapshot.beforeCursor);
+    entry.lastInputAction = inputAction;
+    entry.lastKeydownKey = null;
+    entry.lastBeforeCursorText = snapshot.beforeCursor;
     const tokenInfo = this.findMentionToken(snapshot.beforeCursor);
     entry.latestMentionText = tokenInfo.token;
     entry.latestMentionStart = tokenInfo.start;
@@ -417,6 +431,7 @@ export class SuggestionManagerRuntime {
     this.predictionCoordinator.schedule(entry, {
       force: false,
       clearSuggestions: () => this.clearSuggestions(entry),
+      inputAction,
     });
   }
 
@@ -479,8 +494,41 @@ export class SuggestionManagerRuntime {
     if (!entry) {
       return;
     }
+    const keyboardEvent = event as KeyboardEvent;
+    entry.lastKeydownKey = keyboardEvent.key;
 
-    this.keyboardHandler.handle(entry, event as KeyboardEvent);
+    this.keyboardHandler.handle(entry, keyboardEvent);
+  }
+
+  private resolveInputAction(
+    entry: SuggestionEntry,
+    event: Event,
+    currentBeforeCursor: string,
+  ): PredictionInputAction {
+    const inputEvent = event as Event & { inputType?: unknown };
+    const inputType = typeof inputEvent.inputType === "string" ? inputEvent.inputType : "";
+    if (inputType.startsWith("delete")) {
+      return "delete";
+    }
+    if (inputType.startsWith("insert")) {
+      return "insert";
+    }
+
+    if (entry.lastKeydownKey === "Backspace" || entry.lastKeydownKey === "Delete") {
+      return "delete";
+    }
+
+    const previousBeforeCursor = entry.lastBeforeCursorText;
+    if (typeof previousBeforeCursor === "string") {
+      if (currentBeforeCursor.length < previousBeforeCursor.length) {
+        return "delete";
+      }
+      if (currentBeforeCursor.length > previousBeforeCursor.length) {
+        return "insert";
+      }
+    }
+
+    return "other";
   }
 
   private acceptSuggestionAtIndex(entry: SuggestionEntry, index: number): void {

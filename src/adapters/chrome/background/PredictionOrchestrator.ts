@@ -6,6 +6,7 @@ import {
 } from "@core/domain/constants";
 import { createLogger } from "@core/application/logging/Logger";
 import { getErrorMessage } from "@core/domain/error";
+import type { PredictionInputAction } from "@core/domain/messageTypes";
 import type {
   AIPredictorStageDebugInfo,
   PredictionDebugEvent,
@@ -117,6 +118,7 @@ export class PredictionOrchestrator {
     nextChar: string,
     lang: string,
     configOverride?: PredictionRunConfig,
+    inputAction?: PredictionInputAction,
   ): Promise<PredictionResult> {
     const startedAt = Date.now();
     const context = this.presageHandler.preparePredictionContext(
@@ -125,6 +127,7 @@ export class PredictionOrchestrator {
       lang,
       configOverride?.numSuggestions,
       configOverride?.tabId,
+      inputAction,
     );
 
     const presageDebug: PredictorStageDebugInfo = {

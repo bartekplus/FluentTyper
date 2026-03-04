@@ -1,6 +1,7 @@
 import type {
   ContentScriptPredictRequestContext,
   PredictResponseContext,
+  PredictionInputAction,
 } from "@core/domain/messageTypes";
 
 export type PredictionRequest = ContentScriptPredictRequestContext;
@@ -12,11 +13,10 @@ export interface SuggestionSnapshot {
   cursorOffset: number;
 }
 
-export type SuggestionElement =
-  (HTMLInputElement | HTMLTextAreaElement | HTMLElement) & {
-    tributeMenu?: HTMLElement | null;
-    suggestionMenu?: HTMLElement | null;
-  };
+export type SuggestionElement = (HTMLInputElement | HTMLTextAreaElement | HTMLElement) & {
+  tributeMenu?: HTMLElement | null;
+  suggestionMenu?: HTMLElement | null;
+};
 
 export interface SuggestionManagerOptions {
   selectors: string;
@@ -64,6 +64,9 @@ export interface SuggestionEntry {
   missingTrailingSpace: boolean;
   expectedCursorPos: number;
   lastReplacement: ReplacementSnapshot | null;
+  lastKeydownKey: string | null;
+  lastInputAction: PredictionInputAction | null;
+  lastBeforeCursorText: string | null;
   pendingRequestTimer: ReturnType<typeof setTimeout> | null;
   handlers: {
     input: EventListener;

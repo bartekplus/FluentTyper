@@ -333,6 +333,32 @@ describe("features", () => {
       expect(result.textEdit).toBeNull();
     });
 
+    test("suppresses trailing punctuation-space reinsertion on delete inputAction", async () => {
+      testContext.enabledGrammarRules = ["spacingRule"];
+      testContext.insertSpaceAfterAutocomplete = true;
+      setConfig();
+
+      const deleteResult = await testContext.ph.runPrediction(
+        "Hello.",
+        "",
+        "en_US",
+        undefined,
+        "delete",
+      );
+      expect(deleteResult.textEdit).toBeNull();
+
+      const insertResult = await testContext.ph.runPrediction(
+        "Hello.",
+        "",
+        "en_US",
+        undefined,
+        "insert",
+      );
+      expect(insertResult.textEdit).not.toBeNull();
+      expect(insertResult.textEdit.replacementText).toBe(".\xA0");
+      expect(insertResult.textEdit.replaceBackwardCount).toBe(1);
+    });
+
     test("does not emit textEdit for code-like bracket contexts", async () => {
       testContext.enabledGrammarRules = ["spacingRule"];
       testContext.insertSpaceAfterAutocomplete = true;

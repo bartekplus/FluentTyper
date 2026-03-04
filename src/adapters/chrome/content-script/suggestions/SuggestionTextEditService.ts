@@ -180,7 +180,7 @@ export class SuggestionTextEditService {
       Math.min(fullText.length, replaceStart + replaceBackwardCount),
     );
 
-    if (fullText.length > evaluatedLength && this.isTrailingSpaceEdit(textEdit)) {
+    if (snapshot.beforeCursor.length > evaluatedLength && this.isTrailingSpaceEdit(textEdit)) {
       return;
     }
 
@@ -217,6 +217,58 @@ export class SuggestionTextEditService {
       cursorAfter,
     );
     this.dispatchInputEvent(entry.elem);
+  }
+
+  public tryDeleteTrailingPunctuationSpace(
+    entry: SuggestionEntry,
+    event: KeyboardEvent,
+    consumeKeyboardEvent: (event: KeyboardEvent) => void,
+  ): boolean {
+    if (event.key !== "Backspace") {
+      return false;
+    }
+
+    const snapshot: SuggestionSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+    if (!this.isAtVisualEnd(snapshot.afterCursor)) {
+      return false;
+    }
+    const normalizedBeforeCursor = this.trimTrailingFillers(snapshot.beforeCursor);
+    if (normalizedBeforeCursor.length < 2) {
+      return false;
+    }
+
+    const trailingChar = normalizedBeforeCursor.charAt(normalizedBeforeCursor.length - 1);
+    if (!/[ \xA0]/.test(trailingChar)) {
+      return false;
+    }
+
+    const punctuationChar = normalizedBeforeCursor.charAt(normalizedBeforeCursor.length - 2);
+    const spacingRule = SPACING_RULES[punctuationChar];
+    if (!spacingRule || spacingRule.spaceAfter !== Spacing.INSERT_SPACE) {
+      return false;
+    }
+
+    consumeKeyboardEvent(event);
+
+    const fullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
+    const replaceEnd = normalizedBeforeCursor.length;
+    const replaceStart = replaceEnd - 1;
+
+    this.replaceTextByOffsets(entry.elem, fullText, replaceStart, replaceEnd, "", replaceStart);
+    this.dispatchInputEvent(entry.elem);
+    return true;
+  }
+
+  private isAtVisualEnd(afterCursor: string): boolean {
+    if (afterCursor.length === 0) {
+      return true;
+    }
+    // Some editors keep caret fillers (zero-width chars) after the logical text end.
+    return /^(?:\u200B|\u200C|\u200D|\uFEFF)*$/.test(afterCursor);
+  }
+
+  private trimTrailingFillers(text: string): string {
+    return text.replace(/(?:\u200B|\u200C|\u200D|\uFEFF)+$/g, "");
   }
 
   public handleMissingSpaceAfterAccept(

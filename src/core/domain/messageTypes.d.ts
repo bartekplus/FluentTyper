@@ -29,10 +29,13 @@ export interface SetConfigContext {
   };
 }
 
+export type PredictionInputAction = "insert" | "delete" | "other";
+
 // Context for CMD_BACKGROUND_PAGE_PREDICT_REQ
 export interface PredictRequestContext {
   text: string;
   nextChar: string;
+  inputAction?: PredictionInputAction;
   lang: string;
   tabId: number;
   frameId: number;
@@ -78,6 +81,7 @@ export interface UpdateLangConfigContext {
 export interface ContentScriptPredictRequestContext {
   text: string;
   nextChar: string;
+  inputAction?: PredictionInputAction;
   suggestionId: number;
   requestId: number;
   lang: string;

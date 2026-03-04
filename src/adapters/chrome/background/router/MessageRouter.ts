@@ -292,6 +292,7 @@ export class MessageRouter {
       context: {
         text: request.context.text,
         nextChar: request.context.nextChar,
+        inputAction: request.context.inputAction,
         lang: language,
         tabId,
         frameId,

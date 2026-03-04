@@ -499,6 +499,7 @@ describe("background routing and lifecycle", () => {
         context: {
           text: "hello",
           nextChar: "",
+          inputAction: "delete",
           lang: "en_US",
           suggestionId: 1,
           requestId: 9,
@@ -518,6 +519,7 @@ describe("background routing and lifecycle", () => {
         context: expect.objectContaining({
           text: "hello",
           nextChar: "",
+          inputAction: "delete",
           lang: "en_US",
           tabId: 321,
           frameId: 7,

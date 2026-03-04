@@ -29,6 +29,9 @@ export function createSuggestionEntry(
     missingTrailingSpace: overrides.missingTrailingSpace ?? false,
     expectedCursorPos: overrides.expectedCursorPos ?? 0,
     lastReplacement: overrides.lastReplacement ?? null,
+    lastKeydownKey: overrides.lastKeydownKey ?? null,
+    lastInputAction: overrides.lastInputAction ?? null,
+    lastBeforeCursorText: overrides.lastBeforeCursorText ?? null,
     pendingRequestTimer: overrides.pendingRequestTimer ?? null,
     handlers: overrides.handlers ?? {
       input: () => undefined,

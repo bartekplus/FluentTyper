@@ -11,9 +11,13 @@ describe("SpacingRule", () => {
     ruleB = new SpacingRule(false);
   });
 
-  const getContext = (before: string): GrammarContext => ({
+  const getContext = (
+    before: string,
+    inputAction?: "insert" | "delete" | "other",
+  ): GrammarContext => ({
     beforeCursor: before,
     afterCursor: "",
+    ...(inputAction ? { hints: { inputAction } } : {}),
   });
 
   test("returns null for empty input", () => {
@@ -55,6 +59,50 @@ describe("SpacingRule", () => {
     });
 
     expect(ruleA.apply(getContext("Hello ."))).toEqual({
+      replacement: ".\xA0",
+      deleteBackwards: 2,
+      deleteForwards: 0,
+      confidence: "high",
+      description: "Applied standard spacing rules for punctuation",
+    });
+  });
+
+  test("respects delete intent when only trailing punctuation space would be inserted", () => {
+    expect(ruleA.apply(getContext("Hello.", "delete"))).toBeNull();
+    expect(ruleA.apply(getContext("Hello.", "insert"))).toEqual({
+      replacement: ".\xA0",
+      deleteBackwards: 1,
+      deleteForwards: 0,
+      confidence: "high",
+      description: "Applied standard spacing rules for punctuation",
+    });
+  });
+
+  test("suppresses immediate trailing-space reinsertion when recent auto-space was manually removed", () => {
+    expect(ruleA.apply(getContext("Hello."))).toEqual({
+      replacement: ".\xA0",
+      deleteBackwards: 1,
+      deleteForwards: 0,
+      confidence: "high",
+      description: "Applied standard spacing rules for punctuation",
+    });
+
+    expect(ruleA.apply(getContext("Hello.", "delete"))).toBeNull();
+  });
+
+  test("does not suppress when context explicitly indicates a fresh insert", () => {
+    expect(ruleA.apply(getContext("Hello."))).not.toBeNull();
+    expect(ruleA.apply(getContext("Hello.", "insert"))).toEqual({
+      replacement: ".\xA0",
+      deleteBackwards: 1,
+      deleteForwards: 0,
+      confidence: "high",
+      description: "Applied standard spacing rules for punctuation",
+    });
+  });
+
+  test("still normalizes pre-punctuation spacing on delete intent", () => {
+    expect(ruleA.apply(getContext("Hello .", "delete"))).toEqual({
       replacement: ".\xA0",
       deleteBackwards: 2,
       deleteForwards: 0,
