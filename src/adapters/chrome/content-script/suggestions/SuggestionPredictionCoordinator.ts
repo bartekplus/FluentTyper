@@ -1,5 +1,6 @@
 import { TextTargetAdapter, type TextTarget } from "./TextTargetAdapter";
 import type { PredictionRequest, PredictionResponse, SuggestionEntry } from "./types";
+import type { PredictionInputAction } from "@core/domain/messageTypes";
 
 interface SuggestionPredictionCoordinatorOptions {
   debounceMs: number;
@@ -35,21 +36,23 @@ export class SuggestionPredictionCoordinator {
     {
       force,
       clearSuggestions,
+      inputAction,
     }: {
       force: boolean;
       clearSuggestions: () => void;
+      inputAction?: PredictionInputAction;
     },
   ): void {
     this.cancelPending(entry);
 
     if (force) {
-      this.requestPrediction(entry, true, clearSuggestions);
+      this.requestPrediction(entry, true, clearSuggestions, inputAction);
       return;
     }
 
     entry.pendingRequestTimer = setTimeout(() => {
       entry.pendingRequestTimer = null;
-      this.requestPrediction(entry, false, clearSuggestions);
+      this.requestPrediction(entry, false, clearSuggestions, inputAction);
     }, this.debounceMs);
   }
 
@@ -101,6 +104,7 @@ export class SuggestionPredictionCoordinator {
     entry: SuggestionEntry,
     force: boolean,
     clearSuggestions: () => void,
+    inputAction?: PredictionInputAction,
   ): void {
     const snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
     const beforeCursor = snapshot.beforeCursor;
@@ -126,6 +130,7 @@ export class SuggestionPredictionCoordinator {
         afterCursor: snapshot.afterCursor,
         suggestionId: entry.id,
         requestId: entry.requestId,
+        inputAction,
       }),
     );
   }
@@ -135,11 +140,13 @@ export class SuggestionPredictionCoordinator {
     afterCursor,
     suggestionId,
     requestId,
+    inputAction,
   }: {
     beforeCursor: string;
     afterCursor: string;
     suggestionId: number;
     requestId: number;
+    inputAction?: PredictionInputAction;
   }): PredictionRequest {
     return {
       text: beforeCursor,
@@ -147,6 +154,7 @@ export class SuggestionPredictionCoordinator {
       suggestionId,
       requestId,
       lang: this.lang,
+      ...(inputAction ? { inputAction } : {}),
     };
   }
 

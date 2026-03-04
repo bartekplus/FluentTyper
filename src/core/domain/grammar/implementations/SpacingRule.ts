@@ -66,6 +66,12 @@ export class SpacingRule implements GrammarRule {
 
     const spaceBeforeViolated =
       (requiresSpaceBefore && !hasSpaceBefore) || (requiresNoSpaceBefore && hasSpaceBefore);
+    const inputAction = this.resolveInputAction(context);
+
+    // Respect explicit user deletion of the auto-inserted trailing space.
+    if (inputAction === "delete" && !spaceBeforeViolated && insertSpaceAfter) {
+      return null;
+    }
 
     if (!spaceBeforeViolated && !insertSpaceAfter) {
       return null;
@@ -91,6 +97,14 @@ export class SpacingRule implements GrammarRule {
       confidence: "high",
       description: "Applied standard spacing rules for punctuation",
     };
+  }
+
+  private resolveInputAction(context: GrammarContext): "insert" | "delete" | "other" | null {
+    const candidate = context.hints?.inputAction;
+    if (candidate === "insert" || candidate === "delete" || candidate === "other") {
+      return candidate;
+    }
+    return null;
   }
 
   private applyTechnicalCompaction(inputStr: string): GrammarEdit | null {

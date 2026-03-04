@@ -258,6 +258,31 @@ describe("content_script behavior", () => {
     );
   });
 
+  test("handleGetPrediction forwards inputAction metadata", async () => {
+    const { fluentTyper, sendMessage } = await loadContentScript();
+    fluentTyper.enable();
+
+    fluentTyper.handleGetPrediction({
+      text: "Hello.",
+      nextChar: "",
+      inputAction: "delete",
+      suggestionId: 3,
+      requestId: 10,
+    });
+
+    expect(sendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        command: "CMD_CONTENT_SCRIPT_PREDICT_REQ",
+        context: expect.objectContaining({
+          text: "Hello.",
+          inputAction: "delete",
+          suggestionId: 3,
+          requestId: 10,
+        }),
+      }),
+    );
+  });
+
   test("matching response preserves reentrant prediction request created during fulfillPrediction", async () => {
     const { fluentTyper, suggestionInstances, sendMessage } = await loadContentScript();
 

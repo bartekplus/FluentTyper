@@ -2319,6 +2319,49 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(30000, 45000),
   );
 
+  test.each(["#test-input", ".ck-editor__editable"])(
+    "Grammar Rule Engine respects manual deletion of auto-inserted sentence space in %s",
+    async (selector) => {
+      await setSettingAndWaitStable(
+        worker!,
+        KEY_ENABLED_GRAMMAR_RULES,
+        ["spacingRule"],
+        4,
+        browserTimeout(5000, 7000),
+      );
+      await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, true);
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+      await applyConfigChange(browser, worker!);
+
+      await gotoTestPage(page, {
+        enableCkEditor: shouldEnableCkEditor(selector),
+      });
+      await page.bringToFront();
+      await waitForInputReady(page, selector);
+      const element = await page.$(selector);
+
+      await element!.type("This is awsome.");
+      await waitForInputContentMatch(
+        page,
+        selector,
+        /This is awsome\.[\xA0 ]/,
+        browserTimeout(5000, 8000),
+      );
+
+      await page.keyboard.press("Backspace");
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+
+      const afterDelete = (await getInputContent(page, selector)).replace(/\xA0/g, " ");
+      expect(afterDelete).toBe("This is awsome.");
+
+      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await applyConfigChange(browser, worker!);
+    },
+    browserTimeout(30000, 45000),
+  );
+
   test.each(["#test-input", CKEDITOR_SELECTOR])(
     "Grammar Rule Engine preserves code-style brackets and slash technical contexts while keeping prose spacing in %s",
     async (selector) => {

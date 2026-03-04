@@ -496,6 +496,65 @@ describe("SuggestionManager", () => {
     expect(input.value).toBe("h");
   });
 
+  test("marks delete inputAction when backspace removes post-punctuation space", async () => {
+    const { manager, getPrediction } = await createManager();
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = "Hello.\xA0";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    document.body.appendChild(input);
+    manager.queryAndAttachHelper();
+
+    dispatchKeydown(input, "Backspace");
+    input.value = "Hello.";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    const deleteInputEvent = new Event("input", { bubbles: true });
+    Object.defineProperty(deleteInputEvent, "inputType", {
+      value: "deleteContentBackward",
+      configurable: true,
+    });
+    input.dispatchEvent(deleteInputEvent);
+    await wait(220);
+
+    const request = getPrediction.mock.calls.at(-1)?.[0];
+    if (!request) {
+      throw new Error("Expected prediction request");
+    }
+    expect(request.text).toBe("Hello.");
+    expect(request.inputAction).toBe("delete");
+  });
+
+  test("infers delete inputAction from text shrink when key/inputType metadata is unavailable", async () => {
+    const { manager, getPrediction } = await createManager();
+    const input = document.createElement("input");
+    input.type = "text";
+    document.body.appendChild(input);
+    manager.queryAndAttachHelper();
+
+    input.value = "Hello.\xA0";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    await wait(220);
+
+    getPrediction.mockClear();
+
+    input.value = "Hello.";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    await wait(220);
+
+    const request = getPrediction.mock.calls.at(-1)?.[0];
+    if (!request) {
+      throw new Error("Expected prediction request");
+    }
+    expect(request.text).toBe("Hello.");
+    expect(request.inputAction).toBe("delete");
+  });
+
   test("avoids double space when accepted suggestion already ends with space", async () => {
     const { manager, getPrediction } = await createManager();
     const input = document.createElement("input");

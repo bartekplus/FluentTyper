@@ -85,6 +85,7 @@ export class ContentMessageHandler {
       context: {
         text: context.text,
         nextChar: context.nextChar,
+        inputAction: context.inputAction,
         suggestionId: context.suggestionId,
         requestId: context.requestId,
         runtimeGeneration,

@@ -59,4 +59,37 @@ describe("SuggestionPredictionCoordinator", () => {
     expect(getPrediction).not.toHaveBeenCalled();
     expect(clearSuggestions).toHaveBeenCalledTimes(1);
   });
+
+  test("passes inputAction in prediction request when provided", async () => {
+    const getPrediction = jest.fn();
+    const coordinator = new SuggestionPredictionCoordinator({
+      debounceMs: 0,
+      getPrediction,
+      lang: "en_US",
+      minWordLengthToPredict: 1,
+      separatorRegex: /\s+/,
+    });
+
+    const input = document.createElement("input");
+    input.value = "Hello.";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    const entry = createSuggestionEntry({ id: 2, elem: input });
+
+    coordinator.schedule(entry, {
+      force: false,
+      clearSuggestions: jest.fn(),
+      inputAction: "delete",
+    });
+    await wait(5);
+
+    expect(getPrediction).toHaveBeenCalledWith({
+      text: "Hello.",
+      nextChar: "",
+      suggestionId: 2,
+      requestId: 1,
+      lang: "en_US",
+      inputAction: "delete",
+    });
+  });
 });
