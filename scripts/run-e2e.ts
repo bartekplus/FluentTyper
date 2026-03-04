@@ -3,16 +3,19 @@ import process from "node:process";
 
 type E2EMode = "production" | "development";
 type BrowserPlatform = "chrome" | "firefox";
+type E2ESuite = "smoke" | "full";
 
 interface CliOptions {
   mode: E2EMode;
   platform: BrowserPlatform;
+  suite: E2ESuite;
   passthroughArgs: string[];
 }
 
 function parseCliOptions(argv: string[]): CliOptions {
   let mode: E2EMode = "production";
   let platform: BrowserPlatform = "chrome";
+  let suite: E2ESuite = "smoke";
   const passthroughArgs: string[] = [];
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -51,10 +54,27 @@ function parseCliOptions(argv: string[]): CliOptions {
       }
       throw new Error(`Unsupported platform: ${String(value)}`);
     }
+    if (arg.startsWith("--suite=")) {
+      const value = arg.slice("--suite=".length);
+      if (value === "smoke" || value === "full") {
+        suite = value;
+        continue;
+      }
+      throw new Error(`Unsupported suite: ${value}`);
+    }
+    if (arg === "--suite") {
+      const value = argv[index + 1];
+      if (value === "smoke" || value === "full") {
+        suite = value;
+        index += 1;
+        continue;
+      }
+      throw new Error(`Unsupported suite: ${String(value)}`);
+    }
     passthroughArgs.push(arg);
   }
 
-  return { mode, platform, passthroughArgs };
+  return { mode, platform, suite, passthroughArgs };
 }
 
 async function runCommand(cmd: string[], extraEnv: Record<string, string> = {}): Promise<void> {
@@ -90,6 +110,7 @@ async function main(): Promise<void> {
 
   const sharedE2EEnv = {
     E2E_BROWSER: options.platform,
+    E2E_SUITE: options.suite,
     RUN_E2E: "1",
   };
 
@@ -98,35 +119,23 @@ async function main(): Promise<void> {
       [
         bunExecutable,
         "test",
-        "--test-name-pattern=CMD_TOGGLE_FT_ACTIVE_LANG|AI predictor",
-        "tests/e2e/puppeteer-extension.test.ts",
+        "--test-name-pattern=CMD_TOGGLE_FT_ACTIVE_LANG|AI predictor|predictor debug dashboard",
+        "tests/e2e/full.e2e.test.ts",
         ...options.passthroughArgs,
       ],
       {
         ...sharedE2EEnv,
+        E2E_SUITE: "full",
         FT_E2E_DEV_RUNTIME: "1",
       },
-    );
-    await runCommand(
-      [
-        bunExecutable,
-        "test",
-        "tests/e2e/dev-options-predictor-toggle.test.ts",
-        ...options.passthroughArgs,
-      ],
-      sharedE2EEnv,
     );
     return;
   }
 
+  const productionTestFile =
+    options.suite === "smoke" ? "tests/e2e/smoke.e2e.test.ts" : "tests/e2e/full.e2e.test.ts";
   await runCommand(
-    [
-      bunExecutable,
-      "test",
-      "tests/e2e/puppeteer-extension.test.ts",
-      "tests/e2e/prodlike-smoke.test.ts",
-      ...options.passthroughArgs,
-    ],
+    [bunExecutable, "test", productionTestFile, ...options.passthroughArgs],
     sharedE2EEnv,
   );
 }

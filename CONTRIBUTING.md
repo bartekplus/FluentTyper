@@ -94,13 +94,25 @@ Optional end-to-end tests:
 ```bash
 bun run test:e2e
 bun run test:e2e --platform=firefox
+bun run test:e2e:full
+bun run test:e2e:full --platform=firefox
 bun run test:e2e:dev
+bun run test:e2e:dev --platform=firefox
+bun run check:e2e:coverage
 ```
 
 Notes:
 
-- `bun run test:e2e` defaults to `--platform=chrome`; set `--platform=firefox` when needed.
+- `bun run test:e2e` is the fast smoke suite and defaults to `--platform=chrome`.
+- `bun run test:e2e:full` runs deeper regression e2e coverage.
 - `bun run test:e2e:dev` builds with `--mode=development` and runs dev/runtime-hook-specific e2e coverage.
+- `bun run check:e2e:coverage` validates behavior-level coverage mapping in `tests/e2e/coverage-matrix.json`.
+
+### E2E Coverage Policy
+
+- Coverage parity is tracked by behavior coverage, not by preserving identical e2e test counts.
+- When adding, removing, or moving behavior coverage between e2e/unit/integration tests, update `tests/e2e/coverage-matrix.json`.
+- Keep selector-heavy permutations in unit/integration tests when behavior is selector-agnostic, and reserve e2e selector fan-out for truly editor-specific behavior.
 
 ## Branch and PR Workflow
 

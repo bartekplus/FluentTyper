@@ -22,7 +22,12 @@ If you’re an agent: follow the guardrails below, prefer small focused changes,
 - **Runtime/build**: Bun (repo is pinned to a specific Bun version via `packageManager`).
 - **Bundling**: `bun run build` produces `build/` and copies assets/manifests.
 - **Lint/format**: ESLint + Prettier.
-- **Tests**: `bun run test` (unit) + Puppeteer-based e2e via `bun run test:e2e`.
+- **Tests**:
+  - Unit: `bun run test`
+  - Fast e2e smoke: `bun run test:e2e`
+  - Full e2e regression: `bun run test:e2e:full`
+  - Dev-runtime e2e: `bun run test:e2e:dev`
+  - Coverage matrix validation: `bun run check:e2e:coverage`
 
 ---
 
@@ -54,9 +59,12 @@ bun run watch
 bun run check
 bun run test
 bun run test:e2e
-# Optional:
-bun run test:e2e --platform=firefox
+bun run check:e2e:coverage
+# Optional deeper checks:
+bun run test:e2e:full
+bun run test:e2e:full --platform=firefox
 bun run test:e2e:dev
+bun run test:e2e:dev --platform=firefox
 ```
 
 ### Autofix
@@ -216,9 +224,14 @@ Do not hand-edit versions in multiple places without running the script.
 ## What to include in PRs
 
 - A short description of the user-visible impact.
-- Tests run (at least `bun run check` + `bun run test` + `bun run test:e2e`).
+- Tests run (at least `bun run check` + `bun run test` + `bun run test:e2e` + `bun run check:e2e:coverage`).
 - If changing runtime behavior: add/adjust tests (unit and/or e2e).
 - If changing UI: screenshots are helpful.
+
+E2E coverage policy:
+
+- Coverage parity is enforced by behavior mapping, not by preserving identical e2e case counts.
+- If behavior moves between e2e/unit/integration tests, update `tests/e2e/coverage-matrix.json`.
 
 ---
 

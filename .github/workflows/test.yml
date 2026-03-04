@@ -43,12 +43,13 @@ jobs:
           bun-version: "1.3.10"
       - run: bun install --frozen-lockfile
       - run: bun test
+      - run: bun run check:e2e:coverage
 
-  e2e:
-    name: E2E (${{ matrix.browser }})
+  e2e-smoke:
+    name: E2E Smoke (${{ matrix.browser }})
     needs: [lint, unit]
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -63,6 +64,48 @@ jobs:
       - name: Install Firefox for Puppeteer
         if: matrix.browser == 'firefox'
         run: bunx puppeteer browsers install firefox
-      - run: bun run test:e2e --platform=${{ matrix.browser }}
+      - name: Run smoke e2e (10s budget)
+        env:
+          BROWSER: ${{ matrix.browser }}
+          CI: "true"
+        run: |
+          python - <<'PY'
+          import os
+          import subprocess
+          import sys
+          import time
+
+          browser = os.environ["BROWSER"]
+          start = time.time()
+          result = subprocess.run(["bun", "run", "test:e2e", f"--platform={browser}"], check=False)
+          elapsed = time.time() - start
+          print(f"smoke_elapsed_seconds={elapsed:.2f}")
+          if result.returncode != 0:
+            sys.exit(result.returncode)
+          if elapsed > 10:
+            print(f"::error::Smoke e2e exceeded 10s budget on {browser}: {elapsed:.2f}s")
+            sys.exit(1)
+          PY
+
+  e2e-full:
+    name: E2E Full (${{ matrix.browser }})
+    needs: [e2e-smoke]
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chrome, firefox]
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.10"
+      - run: bun install --frozen-lockfile
+      - name: Install Firefox for Puppeteer
+        if: matrix.browser == 'firefox'
+        run: bunx puppeteer browsers install firefox
+      - run: bun run test:e2e:full --platform=${{ matrix.browser }}
         env:
           CI: "true"
