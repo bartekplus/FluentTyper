@@ -34,3 +34,9 @@ This override applies to `tests/**`.
 
 - Keep smoke runtime suitable for quick feedback (`~10s` target per platform command).
 - Put slower or broad permutation checks into full regression.
+
+## PR Expectations
+
+- For all PRs, run `bun run test:e2e` and `bun run check:e2e:coverage`.
+- If runtime/e2e behavior changed, run `bun run test:e2e:full` on Chrome and Firefox.
+- If development-runtime hooks/toggles changed, run `bun run test:e2e:dev` on Chrome and Firefox.

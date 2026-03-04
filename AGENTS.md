@@ -60,11 +60,14 @@ bun run check
 bun run test
 bun run test:e2e
 bun run check:e2e:coverage
-# Optional deeper checks:
+# Required when runtime/e2e behavior changes:
 bun run test:e2e:full
 bun run test:e2e:full --platform=firefox
+# Required when changing dev-runtime hooks/toggles:
 bun run test:e2e:dev
 bun run test:e2e:dev --platform=firefox
+# Recommended smoke cross-browser check:
+bun run test:e2e --platform=firefox
 ```
 
 ### Autofix

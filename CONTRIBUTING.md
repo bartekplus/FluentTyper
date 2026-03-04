@@ -89,16 +89,23 @@ Optional local autofix formatting and linting:
 bun run lint
 ```
 
-Optional end-to-end tests:
+PR end-to-end expectations:
 
 ```bash
+# Required for every PR:
 bun run test:e2e
-bun run test:e2e --platform=firefox
+bun run check:e2e:coverage
+
+# Required when changing runtime/e2e behavior:
 bun run test:e2e:full
 bun run test:e2e:full --platform=firefox
+
+# Required when changing development-mode runtime hooks/toggles:
 bun run test:e2e:dev
 bun run test:e2e:dev --platform=firefox
-bun run check:e2e:coverage
+
+# Recommended for cross-browser smoke validation before PR:
+bun run test:e2e --platform=firefox
 ```
 
 Notes:
@@ -106,7 +113,9 @@ Notes:
 - `bun run test:e2e` is the fast smoke suite and defaults to `--platform=chrome`.
 - `bun run test:e2e:full` runs deeper regression e2e coverage.
 - `bun run test:e2e:dev` builds with `--mode=development` and runs dev/runtime-hook-specific e2e coverage.
-- `bun run check:e2e:coverage` validates behavior-level coverage mapping in `tests/e2e/coverage-matrix.json`.
+- `bun run check:e2e:coverage` validates behavior IDs and coverage mappings in:
+  - `tests/e2e/coverage-matrix.json`
+  - `tests/e2e/coverage-baseline-ids.json`
 
 ### E2E Coverage Policy
 
