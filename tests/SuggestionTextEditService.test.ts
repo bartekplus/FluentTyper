@@ -65,7 +65,10 @@ describe("SuggestionTextEditService", () => {
     input.selectionEnd = input.value.length;
     const entry = createSuggestionEntry({ elem: input });
 
-    const keyboardEvent = new Event("keydown", { bubbles: true, cancelable: true }) as KeyboardEvent;
+    const keyboardEvent = new Event("keydown", {
+      bubbles: true,
+      cancelable: true,
+    }) as KeyboardEvent;
     Object.defineProperty(keyboardEvent, "key", { value: "Backspace" });
     const consumeKeyboardEvent = (event: KeyboardEvent) => {
       event.preventDefault();
@@ -94,7 +97,10 @@ describe("SuggestionTextEditService", () => {
     input.selectionEnd = input.value.length;
     const entry = createSuggestionEntry({ elem: input });
 
-    const keyboardEvent = new Event("keydown", { bubbles: true, cancelable: true }) as KeyboardEvent;
+    const keyboardEvent = new Event("keydown", {
+      bubbles: true,
+      cancelable: true,
+    }) as KeyboardEvent;
     Object.defineProperty(keyboardEvent, "key", { value: "Backspace" });
 
     const handled = service.tryDeleteTrailingPunctuationSpace(
@@ -119,7 +125,10 @@ describe("SuggestionTextEditService", () => {
     input.selectionEnd = "Hello. ".length;
     const entry = createSuggestionEntry({ elem: input });
 
-    const keyboardEvent = new Event("keydown", { bubbles: true, cancelable: true }) as KeyboardEvent;
+    const keyboardEvent = new Event("keydown", {
+      bubbles: true,
+      cancelable: true,
+    }) as KeyboardEvent;
     Object.defineProperty(keyboardEvent, "key", { value: "Backspace" });
 
     const handled = service.tryDeleteTrailingPunctuationSpace(
@@ -144,7 +153,10 @@ describe("SuggestionTextEditService", () => {
     input.selectionEnd = input.value.length;
     const entry = createSuggestionEntry({ elem: input });
 
-    const keyboardEvent = new Event("keydown", { bubbles: true, cancelable: true }) as KeyboardEvent;
+    const keyboardEvent = new Event("keydown", {
+      bubbles: true,
+      cancelable: true,
+    }) as KeyboardEvent;
     Object.defineProperty(keyboardEvent, "key", { value: "Backspace" });
 
     const handled = service.tryDeleteTrailingPunctuationSpace(

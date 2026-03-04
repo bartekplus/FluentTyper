@@ -264,11 +264,11 @@ export class SuggestionTextEditService {
       return true;
     }
     // Some editors keep caret fillers (zero-width chars) after the logical text end.
-    return /^[\u200B\u200C\u200D\uFEFF]*$/.test(afterCursor);
+    return /^(?:\u200B|\u200C|\u200D|\uFEFF)*$/.test(afterCursor);
   }
 
   private trimTrailingFillers(text: string): string {
-    return text.replace(/[\u200B\u200C\u200D\uFEFF]+$/g, "");
+    return text.replace(/(?:\u200B|\u200C|\u200D|\uFEFF)+$/g, "");
   }
 
   public handleMissingSpaceAfterAccept(

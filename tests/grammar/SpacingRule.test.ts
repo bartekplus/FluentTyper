@@ -11,7 +11,10 @@ describe("SpacingRule", () => {
     ruleB = new SpacingRule(false);
   });
 
-  const getContext = (before: string, inputAction?: "insert" | "delete" | "other"): GrammarContext => ({
+  const getContext = (
+    before: string,
+    inputAction?: "insert" | "delete" | "other",
+  ): GrammarContext => ({
     beforeCursor: before,
     afterCursor: "",
     ...(inputAction ? { hints: { inputAction } } : {}),
@@ -84,7 +87,7 @@ describe("SpacingRule", () => {
       description: "Applied standard spacing rules for punctuation",
     });
 
-    expect(ruleA.apply(getContext("Hello."))).toBeNull();
+    expect(ruleA.apply(getContext("Hello.", "delete"))).toBeNull();
   });
 
   test("does not suppress when context explicitly indicates a fresh insert", () => {

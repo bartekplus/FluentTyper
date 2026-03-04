@@ -338,10 +338,22 @@ describe("features", () => {
       testContext.insertSpaceAfterAutocomplete = true;
       setConfig();
 
-      const deleteResult = await testContext.ph.runPrediction("Hello.", "", "en_US", undefined, "delete");
+      const deleteResult = await testContext.ph.runPrediction(
+        "Hello.",
+        "",
+        "en_US",
+        undefined,
+        "delete",
+      );
       expect(deleteResult.textEdit).toBeNull();
 
-      const insertResult = await testContext.ph.runPrediction("Hello.", "", "en_US", undefined, "insert");
+      const insertResult = await testContext.ph.runPrediction(
+        "Hello.",
+        "",
+        "en_US",
+        undefined,
+        "insert",
+      );
       expect(insertResult.textEdit).not.toBeNull();
       expect(insertResult.textEdit.replacementText).toBe(".\xA0");
       expect(insertResult.textEdit.replaceBackwardCount).toBe(1);

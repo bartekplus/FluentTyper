@@ -81,10 +81,7 @@ export class SuggestionKeyboardHandler {
 
     const key = keyboardEvent.key;
     if (key === "Backspace") {
-      if (
-        this.revertOnBackspace &&
-        this.tryRevertLastReplacement(entry, keyboardEvent)
-      ) {
+      if (this.revertOnBackspace && this.tryRevertLastReplacement(entry, keyboardEvent)) {
         return;
       }
       if (this.tryDeleteTrailingPunctuationSpace(entry, keyboardEvent)) {
