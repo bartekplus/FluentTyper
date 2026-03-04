@@ -526,7 +526,7 @@
         {
           "layer": "unit",
           "file": "tests/SettingsMigrationV4.test.ts",
-          "test": "force-sets recommended v1 grammar rules and stores normalized backup once"
+          "test": "force-sets recommended v1 grammar rules and stores exact backup once"
         }
       ]
     }

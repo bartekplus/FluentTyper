@@ -6,10 +6,7 @@ import {
   KEY_GRAMMAR_RULES_V1_BACKUP,
   KEY_GRAMMAR_RULES_V1_MIGRATED,
 } from "../src/core/domain/constants";
-import {
-  RECOMMENDED_V1_GRAMMAR_RULES,
-  normalizeGrammarRuleSelection,
-} from "../src/core/domain/grammar/ruleCatalog";
+import { RECOMMENDED_V1_GRAMMAR_RULES } from "../src/core/domain/grammar/ruleCatalog";
 
 function createMockSettingsManager(
   seed: Record<string, unknown>,
@@ -32,17 +29,19 @@ function createMockSettingsManager(
 }
 
 describe("migrateSettingsV4", () => {
-  test("force-sets recommended v1 grammar rules and stores normalized backup once", async () => {
+  test("force-sets recommended v1 grammar rules and stores exact backup once", async () => {
     const settings = createMockSettingsManager({
-      [KEY_ENABLED_GRAMMAR_RULES]: ["spacingRule", "capitalizeFirstLetter"],
+      [KEY_ENABLED_GRAMMAR_RULES]: ["legacyX", "spacingRule", "spacingRule"],
     });
 
     await migrateSettingsV4(settings);
 
     expect(settings.store[KEY_ENABLED_GRAMMAR_RULES]).toEqual(RECOMMENDED_V1_GRAMMAR_RULES);
-    expect(settings.store[KEY_GRAMMAR_RULES_V1_BACKUP]).toEqual(
-      normalizeGrammarRuleSelection(["spacingRule", "capitalizeFirstLetter"]),
-    );
+    expect(settings.store[KEY_GRAMMAR_RULES_V1_BACKUP]).toEqual([
+      "legacyX",
+      "spacingRule",
+      "spacingRule",
+    ]);
     expect(settings.store[KEY_GRAMMAR_RULES_V1_MIGRATED]).toBe(true);
   });
 
@@ -87,9 +86,19 @@ describe("migrateSettingsV4", () => {
     await migrateSettingsV4(settings);
 
     expect(store[KEY_ENABLED_GRAMMAR_RULES]).toEqual(RECOMMENDED_V1_GRAMMAR_RULES);
-    expect(store[KEY_GRAMMAR_RULES_V1_BACKUP]).toEqual(
-      normalizeGrammarRuleSelection(["spacingRule"]),
-    );
+    expect(store[KEY_GRAMMAR_RULES_V1_BACKUP]).toEqual(["spacingRule"]);
     expect(store[KEY_GRAMMAR_RULES_V1_MIGRATED]).toBe(true);
+  });
+
+  test("stores empty backup when existing value is not a string array", async () => {
+    const settings = createMockSettingsManager({
+      [KEY_ENABLED_GRAMMAR_RULES]: "spacingRule",
+    });
+
+    await migrateSettingsV4(settings);
+
+    expect(settings.store[KEY_ENABLED_GRAMMAR_RULES]).toEqual(RECOMMENDED_V1_GRAMMAR_RULES);
+    expect(settings.store[KEY_GRAMMAR_RULES_V1_BACKUP]).toEqual([]);
+    expect(settings.store[KEY_GRAMMAR_RULES_V1_MIGRATED]).toBe(true);
   });
 });

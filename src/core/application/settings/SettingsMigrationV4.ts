@@ -3,10 +3,7 @@ import {
   KEY_GRAMMAR_RULES_V1_BACKUP,
   KEY_GRAMMAR_RULES_V1_MIGRATED,
 } from "@core/domain/constants";
-import {
-  RECOMMENDED_V1_GRAMMAR_RULES,
-  normalizeGrammarRuleSelection,
-} from "@core/domain/grammar/ruleCatalog";
+import { RECOMMENDED_V1_GRAMMAR_RULES } from "@core/domain/grammar/ruleCatalog";
 import type { JsonValue } from "../settingsManager";
 import type { SettingsManager } from "../settingsManager";
 
@@ -32,6 +29,14 @@ async function writeRaw(settings: SettingsManager, key: string, value: JsonValue
   await settings.set(key, value);
 }
 
+function getRawGrammarRulesSnapshot(existing: unknown): string[] {
+  if (!Array.isArray(existing) || !existing.every((item) => typeof item === "string")) {
+    return [];
+  }
+  // Preserve exact pre-migration order and duplicates.
+  return existing.slice();
+}
+
 export async function migrateSettingsV4(settings: SettingsManager): Promise<void> {
   try {
     const migrated = await readRaw(settings, KEY_GRAMMAR_RULES_V1_MIGRATED);
@@ -40,11 +45,11 @@ export async function migrateSettingsV4(settings: SettingsManager): Promise<void
     }
 
     const existing = await readRaw(settings, KEY_ENABLED_GRAMMAR_RULES);
-    const normalizedExisting = normalizeGrammarRuleSelection(existing);
+    const rawSnapshot = getRawGrammarRulesSnapshot(existing);
 
     const backup = await readRaw(settings, KEY_GRAMMAR_RULES_V1_BACKUP);
     if (!Array.isArray(backup)) {
-      await writeRaw(settings, KEY_GRAMMAR_RULES_V1_BACKUP, normalizedExisting as JsonValue);
+      await writeRaw(settings, KEY_GRAMMAR_RULES_V1_BACKUP, rawSnapshot as JsonValue);
     }
 
     await writeRaw(settings, KEY_ENABLED_GRAMMAR_RULES, RECOMMENDED_V1_GRAMMAR_RULES as JsonValue);
