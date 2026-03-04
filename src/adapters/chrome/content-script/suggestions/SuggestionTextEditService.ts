@@ -186,12 +186,15 @@ export class SuggestionTextEditService {
     const replaceEnd = replaceStart + replacementText.length;
 
     if (snapshot.cursorOffset !== cursorAfter) {
+      entry.lastAutoFixReplacement = null;
       return false;
     }
     if (replaceEnd > fullText.length) {
+      entry.lastAutoFixReplacement = null;
       return false;
     }
     if (fullText.slice(replaceStart, replaceEnd) !== replacementText) {
+      entry.lastAutoFixReplacement = null;
       return false;
     }
 

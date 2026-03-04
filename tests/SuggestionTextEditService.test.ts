@@ -239,12 +239,29 @@ describe("SuggestionTextEditService", () => {
     }) as KeyboardEvent;
     Object.defineProperty(keyboardEvent, "key", { value: "Backspace" });
 
-    const handled = service.tryRevertLastAutoFix(entry, keyboardEvent, {
+    const firstHandled = service.tryRevertLastAutoFix(entry, keyboardEvent, {
       consumeKeyboardEvent: () => undefined,
       clearSuggestions: () => undefined,
     });
 
-    expect(handled).toBe(false);
+    expect(firstHandled).toBe(false);
     expect(input.value).toBe("the x");
+    expect(entry.lastAutoFixReplacement).toBeNull();
+
+    // After the normal delete, a second Backspace must not resurrect the original typo.
+    input.value = "the ";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    const secondBackspace = new Event("keydown", {
+      bubbles: true,
+      cancelable: true,
+    }) as KeyboardEvent;
+    Object.defineProperty(secondBackspace, "key", { value: "Backspace" });
+    const secondHandled = service.tryRevertLastAutoFix(entry, secondBackspace, {
+      consumeKeyboardEvent: () => undefined,
+      clearSuggestions: () => undefined,
+    });
+    expect(secondHandled).toBe(false);
+    expect(input.value).toBe("the ");
   });
 });
