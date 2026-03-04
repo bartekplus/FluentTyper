@@ -264,4 +264,83 @@ describe("SuggestionTextEditService", () => {
     expect(secondHandled).toBe(false);
     expect(input.value).toBe("the ");
   });
+
+  test("clears auto-fix snapshot when caret no longer matches post-fix cursor", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+    });
+
+    const input = document.createElement("input");
+    input.value = "teh ";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    const entry = createSuggestionEntry({ elem: input });
+
+    service.applyTextEdit(entry, {
+      replacementText: "the ",
+      replaceBackwardCount: 4,
+      evaluatedTextLength: 4,
+      expectedReplacedText: "teh ",
+    });
+
+    // User moved caret before pressing Backspace; snapshot must be invalidated.
+    input.selectionStart = input.value.length - 1;
+    input.selectionEnd = input.value.length - 1;
+
+    const keyboardEvent = new Event("keydown", {
+      bubbles: true,
+      cancelable: true,
+    }) as KeyboardEvent;
+    Object.defineProperty(keyboardEvent, "key", { value: "Backspace" });
+
+    const handled = service.tryRevertLastAutoFix(entry, keyboardEvent, {
+      consumeKeyboardEvent: () => undefined,
+      clearSuggestions: () => undefined,
+    });
+
+    expect(handled).toBe(false);
+    expect(entry.lastAutoFixReplacement).toBeNull();
+    expect(input.value).toBe("the ");
+  });
+
+  test("clears auto-fix snapshot when edited text can no longer contain replacement span", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+    });
+
+    const input = document.createElement("input");
+    input.value = "teh ";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    const entry = createSuggestionEntry({ elem: input });
+
+    service.applyTextEdit(entry, {
+      replacementText: "the ",
+      replaceBackwardCount: 4,
+      evaluatedTextLength: 4,
+      expectedReplacedText: "teh ",
+    });
+
+    // User deleted content; stored replacement span is no longer valid.
+    input.value = "t";
+    input.selectionStart = 1;
+    input.selectionEnd = 1;
+
+    const keyboardEvent = new Event("keydown", {
+      bubbles: true,
+      cancelable: true,
+    }) as KeyboardEvent;
+    Object.defineProperty(keyboardEvent, "key", { value: "Backspace" });
+
+    const handled = service.tryRevertLastAutoFix(entry, keyboardEvent, {
+      consumeKeyboardEvent: () => undefined,
+      clearSuggestions: () => undefined,
+    });
+
+    expect(handled).toBe(false);
+    expect(entry.lastAutoFixReplacement).toBeNull();
+    expect(input.value).toBe("t");
+  });
 });

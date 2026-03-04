@@ -62,6 +62,7 @@ describe("V2 english grammar rules", () => {
       const rule = new EnglishPronounICapitalizationRule();
 
       expect(rule.apply(context("i ", { lang: "pl_PL" }))).toBeNull();
+      expect(rule.apply(context("i ", { lang: "fr_FR" }))).toBeNull();
       expect(rule.apply(context("foo@i ", { lang: "en_US" }))).toBeNull();
       expect(rule.apply(context("i's ", { lang: "en_US" }))).toBeNull();
       expect(rule.apply(context("i're ", { lang: "en_US" }))).toBeNull();
@@ -104,6 +105,7 @@ describe("V2 english grammar rules", () => {
     test("does not normalize on delete action or non-English context", () => {
       const rule = new EnglishContractionNormalizationRule();
       expect(rule.apply(context("im ", { lang: "en_US", inputAction: "delete" }))).toBeNull();
+      expect(rule.apply(context("im ", { lang: "pl_PL" }))).toBeNull();
       expect(rule.apply(context("im ", { lang: "fr_FR" }))).toBeNull();
     });
 
@@ -146,6 +148,7 @@ describe("V2 english grammar rules", () => {
       expect(rule.apply(context("teh ", { lang: "en_US", userDictionary: ["teh"] }))).toBeNull();
       expect(rule.apply(context("obj.teh ", { lang: "en_US" }))).toBeNull();
       expect(rule.apply(context("teh ", { lang: "pl_PL" }))).toBeNull();
+      expect(rule.apply(context("teh ", { lang: "fr_FR" }))).toBeNull();
     });
 
     test("applies only after a token boundary delimiter", () => {
