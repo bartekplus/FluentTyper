@@ -2,6 +2,7 @@ import { createLogger } from "@core/application/logging/Logger";
 import { SPACING_RULES, Spacing } from "@core/domain/spacingRules";
 import type { TextEditOperation } from "@core/domain/messageTypes";
 import { ContentEditableAdapter } from "./ContentEditableAdapter";
+import { isOnlyFillers, trimTrailingFillers } from "./editorFillers";
 import { TextTargetAdapter, type TextTarget } from "./TextTargetAdapter";
 import type { SuggestionEntry, SuggestionElement, SuggestionSnapshot } from "./types";
 
@@ -290,10 +291,10 @@ export class SuggestionTextEditService {
     }
 
     const snapshot: SuggestionSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
-    if (!this.isAtVisualEnd(snapshot.afterCursor)) {
+    if (!isOnlyFillers(snapshot.afterCursor)) {
       return false;
     }
-    const normalizedBeforeCursor = this.trimTrailingFillers(snapshot.beforeCursor);
+    const normalizedBeforeCursor = trimTrailingFillers(snapshot.beforeCursor);
     if (normalizedBeforeCursor.length < 2) {
       return false;
     }
@@ -319,18 +320,6 @@ export class SuggestionTextEditService {
     this.dispatchInputEvent(entry.elem);
     entry.lastAutoFixReplacement = null;
     return true;
-  }
-
-  private isAtVisualEnd(afterCursor: string): boolean {
-    if (afterCursor.length === 0) {
-      return true;
-    }
-    // Some editors keep caret fillers (zero-width chars) after the logical text end.
-    return /^(?:\u200B|\u200C|\u200D|\uFEFF)*$/.test(afterCursor);
-  }
-
-  private trimTrailingFillers(text: string): string {
-    return text.replace(/(?:\u200B|\u200C|\u200D|\uFEFF)+$/g, "");
   }
 
   public handleMissingSpaceAfterAccept(

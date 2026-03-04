@@ -169,6 +169,62 @@ describe("SuggestionTextEditService", () => {
     expect(input.value).toBe("Hello.\u200B");
   });
 
+  test("deletes punctuation space when after-cursor contains only word-joiner filler", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+    });
+
+    const input = document.createElement("input");
+    input.value = "Hello. \u2060";
+    input.selectionStart = "Hello. ".length;
+    input.selectionEnd = "Hello. ".length;
+    const entry = createSuggestionEntry({ elem: input });
+
+    const keyboardEvent = new Event("keydown", {
+      bubbles: true,
+      cancelable: true,
+    }) as KeyboardEvent;
+    Object.defineProperty(keyboardEvent, "key", { value: "Backspace" });
+
+    const handled = service.tryDeleteTrailingPunctuationSpace(
+      entry,
+      keyboardEvent,
+      () => undefined,
+    );
+
+    expect(handled).toBe(true);
+    expect(input.value).toBe("Hello.\u2060");
+  });
+
+  test("deletes punctuation space when word-joiner filler is before the caret", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+    });
+
+    const input = document.createElement("input");
+    input.value = "Hello. \u2060";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    const entry = createSuggestionEntry({ elem: input });
+
+    const keyboardEvent = new Event("keydown", {
+      bubbles: true,
+      cancelable: true,
+    }) as KeyboardEvent;
+    Object.defineProperty(keyboardEvent, "key", { value: "Backspace" });
+
+    const handled = service.tryDeleteTrailingPunctuationSpace(
+      entry,
+      keyboardEvent,
+      () => undefined,
+    );
+
+    expect(handled).toBe(true);
+    expect(input.value).toBe("Hello.\u2060");
+  });
+
   test("reverts latest grammar auto-fix on Backspace when caret is unchanged", () => {
     const service = new SuggestionTextEditService({
       findMentionToken,
