@@ -44,7 +44,7 @@
     "ckeditor5": "^47.5.0",
     "eslint": "^10.0.2",
     "glob": "^13.0.6",
-    "globals": "^17.3.0",
+    "globals": "^17.4.0",
     "jsdom": "^28.1.0",
     "prettier": "^3.8.1",
     "puppeteer": "^24.37.5",
