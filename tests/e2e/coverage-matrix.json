@@ -224,7 +224,7 @@
         {
           "layer": "unit",
           "file": "tests/SuggestionManager.test.ts",
-          "test": "inserts NBSP before first typed char after acceptance and cancels on cursor move"
+          "test": "inserts a regular space before first typed char after acceptance and cancels on cursor move"
         }
       ]
     },
@@ -396,13 +396,13 @@
         },
         {
           "layer": "unit",
-          "file": "tests/grammar/CapitalizeFirstLetterRule.test.ts",
-          "test": "capitalizes after sentence-ending characters"
+          "file": "tests/grammar/V1GrammarRules.test.ts",
+          "test": "capitalizes sequence start and sentence start after punctuation"
         },
         {
           "layer": "unit",
-          "file": "tests/grammar/SpacingRule.test.ts",
-          "test": "handles spacing around sentence-ending punctuation"
+          "file": "tests/grammar/V1GrammarRules.test.ts",
+          "test": "normalizes comma/period spacing with regular spaces"
         }
       ]
     },
@@ -417,8 +417,8 @@
         },
         {
           "layer": "unit",
-          "file": "tests/grammar/SpacingRule.test.ts",
-          "test": "suppresses immediate trailing-space reinsertion"
+          "file": "tests/grammar/V1GrammarRules.test.ts",
+          "test": "respects delete-intent suppression and insertSpaceAfterAutocomplete=false"
         }
       ]
     },
@@ -433,8 +433,8 @@
         },
         {
           "layer": "unit",
-          "file": "tests/grammar/SpacingRule.test.ts",
-          "test": "keeps slash spacing unchanged in path and HTML closing tag contexts"
+          "file": "tests/grammar/V1GrammarRules.test.ts",
+          "test": "compacts protocol spacing and applies operator spacing only in operator context"
         }
       ]
     },
@@ -449,8 +449,8 @@
         },
         {
           "layer": "unit",
-          "file": "tests/grammar/SpacingRule.test.ts",
-          "test": "normalizes compact math operator spacing"
+          "file": "tests/grammar/V1GrammarRules.test.ts",
+          "test": "normalizes compact math/operator forms in safe contexts"
         }
       ]
     },
@@ -465,8 +465,93 @@
         },
         {
           "layer": "unit",
-          "file": "tests/grammar/SpacingRule.test.ts",
-          "test": "keeps decimal punctuation behavior and compacts technical decimal spacing"
+          "file": "tests/grammar/V1GrammarRules.test.ts",
+          "test": "compacts decimal, time/ratio, and accessor spacing conservatively"
+        }
+      ]
+    },
+    {
+      "id": "grammar_linebreak_capitalization",
+      "description": "Grammar capitalizes the first letter after line breaks.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Grammar Rule Engine capitalizes first letter after line break with granular rule IDs"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/V1GrammarRules.test.ts",
+          "test": "capitalizes after one or more line breaks"
+        }
+      ]
+    },
+    {
+      "id": "grammar_whitespace_cleanup",
+      "description": "Grammar collapses repeated spaces and trims spaces before line breaks.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Grammar Rule Engine collapses repeated spaces with granular rule IDs"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Grammar Rule Engine trims spaces before newline with granular rule IDs"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/V1GrammarRules.test.ts",
+          "test": "collapses repeated trailing spaces outside indentation context"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/V1GrammarRules.test.ts",
+          "test": "trims spaces before newline"
+        }
+      ]
+    },
+    {
+      "id": "grammar_neutral_punctuation_policy",
+      "description": "Grammar v1 keeps : ; ! ? spacing behavior neutral.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Grammar Rule Engine keeps : ; ! ? spacing neutral with granular rule IDs"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/V1GrammarRules.test.ts",
+          "test": "is a no-op for neutral punctuation policy"
+        }
+      ]
+    },
+    {
+      "id": "grammar_prediction_threshold_decoupling",
+      "description": "Grammar evaluation remains active when prediction thresholds disable autocomplete.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Grammar Rule Engine still applies grammar when minWordLengthToPredict is -1 with granular rule IDs"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionPredictionCoordinator.test.ts",
+          "test": "requests grammar evaluation when predictions are disabled by threshold"
+        }
+      ]
+    },
+    {
+      "id": "grammar_v4_forced_migration",
+      "description": "Settings migration V4 force-applies recommended grammar defaults with backup and marker.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/SettingsMigrationV4.test.ts",
+          "test": "force-sets recommended v1 grammar rules and stores exact backup once"
         }
       ]
     }

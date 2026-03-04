@@ -65,6 +65,9 @@ export class SuggestionManagerRuntime {
       lang: this.lang,
       minWordLengthToPredict: options.minWordLengthToPredict,
       separatorRegex: this.separatorRegex,
+      grammarRulesEnabled: Array.isArray(options.enabledGrammarRules)
+        ? options.enabledGrammarRules.length > 0
+        : false,
     });
     this.telemetry = options.telemetry ?? new SuggestionTelemetryService();
     this.textEditService = new SuggestionTextEditService({

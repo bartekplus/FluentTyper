@@ -15,9 +15,9 @@ import type { PredictionInputAction, TextEditOperation } from "@core/domain/mess
 import { MAX_NUM_SUGGESTIONS } from "@core/domain/constants";
 import type { PredictionResult } from "./PredictionTypes";
 import { GrammarRuleEngine } from "@core/domain/grammar/GrammarRuleEngine";
-import { SpacingRule } from "@core/domain/grammar/implementations/SpacingRule";
-import { CapitalizeFirstLetterRule } from "@core/domain/grammar/implementations/CapitalizeFirstLetterRule";
 import { SPACE_CHARS, SPACING_RULES, Spacing } from "@core/domain/spacingRules";
+import { createGrammarRuleCatalogRuntime } from "@core/domain/grammar/ruleFactory";
+import { normalizeGrammarRuleSelection } from "@core/domain/grammar/ruleCatalog";
 const SUGGESTION_COUNT = 5;
 const MIN_WORD_LENGTH_TO_PREDICT = 1;
 const logger = createLogger("PresageHandler");
@@ -86,9 +86,7 @@ export class PresageHandler {
     this.autoCapitalize = true;
     this.userDictionaryList = [];
 
-    this.grammarEngine = new GrammarRuleEngine();
-    this.grammarEngine.registerRule(new SpacingRule(this.insertSpaceAfterAutocomplete));
-    this.grammarEngine.registerRule(new CapitalizeFirstLetterRule());
+    this.grammarEngine = this.buildGrammarEngine(this.insertSpaceAfterAutocomplete);
 
     this.predictionInputProcessor = new PredictionInputProcessor(
       this.minWordLengthToPredict,
@@ -129,13 +127,8 @@ export class PresageHandler {
 
     this.textExpansionManager.setTextExpansions(config.textExpansions);
     this.userDictionaryManager.setUserDictionaryList(this.userDictionaryList);
-    this.enabledGrammarRules = config.enabledGrammarRules || [];
-
-    // We recreate rules since constructor params like insertSpaceAfterAutocomplete can change.
-    // In a cleaner refactor, rules themselves could just listen to config changes, but this matches SpacingRule's original pattern.
-    this.grammarEngine = new GrammarRuleEngine();
-    this.grammarEngine.registerRule(new SpacingRule(config.insertSpaceAfterAutocomplete));
-    this.grammarEngine.registerRule(new CapitalizeFirstLetterRule());
+    this.enabledGrammarRules = normalizeGrammarRuleSelection(config.enabledGrammarRules);
+    this.grammarEngine = this.buildGrammarEngine(config.insertSpaceAfterAutocomplete);
 
     this.predictionInputProcessor = new PredictionInputProcessor(
       this.minWordLengthToPredict,
@@ -154,6 +147,17 @@ export class PresageHandler {
     return {
       languageEngineCount: Object.keys(this.presageEngines).length,
     };
+  }
+
+  private buildGrammarEngine(insertSpaceAfterAutocomplete: boolean): GrammarRuleEngine {
+    const engine = new GrammarRuleEngine();
+    const rules = createGrammarRuleCatalogRuntime({
+      insertSpaceAfterAutocomplete,
+    });
+    for (const rule of rules) {
+      engine.registerRule(rule);
+    }
+    return engine;
   }
 
   hasLanguageEngine(lang: string): boolean {
@@ -397,7 +401,7 @@ export class PresageHandler {
             (!(nextChar in SPACING_RULES) ||
               SPACING_RULES[nextChar].spaceBefore === Spacing.INSERT_SPACE)))
       ) {
-        predictions = predictions.map((pred) => `${pred}\xA0`);
+        predictions = predictions.map((pred) => `${pred} `);
       }
     }
     switch (doCapitalize) {

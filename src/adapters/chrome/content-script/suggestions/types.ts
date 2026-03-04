@@ -29,6 +29,7 @@ export interface SuggestionManagerOptions {
   revertOnBackspace: boolean;
   displayLangHeader: boolean;
   inline_suggestion: boolean;
+  enabledGrammarRules: string[];
   getPrediction: (context: PredictionRequest) => void;
   telemetry?: SuggestionTelemetry;
 }

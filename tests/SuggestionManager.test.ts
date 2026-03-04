@@ -109,6 +109,7 @@ type ConstructorArgs = {
   revertOnBackspace: boolean;
   displayLangHeader: boolean;
   inline_suggestion: boolean;
+  enabledGrammarRules: string[];
   getPrediction: (context: ContentScriptPredictRequestContext) => void;
 };
 
@@ -126,6 +127,7 @@ async function createManager(overrides: Partial<ConstructorArgs> = {}) {
     revertOnBackspace: true,
     displayLangHeader: true,
     inline_suggestion: false,
+    enabledGrammarRules: ["commaPeriodSpacing"],
     getPrediction,
     ...overrides,
   });
@@ -436,7 +438,7 @@ describe("SuggestionManager", () => {
     expect(input.value).toBe("world");
   });
 
-  test("inserts NBSP before first typed char after acceptance and cancels on cursor move", async () => {
+  test("inserts a regular space before first typed char after acceptance and cancels on cursor move", async () => {
     const { manager, getPrediction } = await createManager();
     const input = document.createElement("input");
     input.type = "text";
@@ -454,7 +456,7 @@ describe("SuggestionManager", () => {
     expect(input.value).toBe("hello");
 
     dispatchKeydown(input, "x");
-    expect(input.value).toBe("hello\xA0x");
+    expect(input.value).toBe("hello x");
 
     const req2 = await typeAndCollectRequest(input, "h", getPrediction);
     manager.fulfillPrediction(

@@ -602,10 +602,10 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       await element!.type("h");
 
       const [firstSuggestion] = await waitForSuggestionTexts(page);
-      expect(firstSuggestion?.toLowerCase()).toMatch(/^h\S*\xa0$/);
+      expect(firstSuggestion?.toLowerCase()).toMatch(/^h\S*[ \xa0]$/);
 
       await page.keyboard.press("Tab");
-      const value = await waitForInputContentMatch(page, "#test-input", /^h\S*\xa0$/i);
+      const value = await waitForInputContentMatch(page, "#test-input", /^h\S*[ \xa0]$/i);
       expect(value.toLowerCase()).toBe(firstSuggestion?.toLowerCase());
     },
     suiteTimeout(10000, 15000),
@@ -627,15 +627,15 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       await element!.type("asap");
 
       const [firstSuggestion] = await waitForSuggestionTexts(page);
-      expect(firstSuggestion?.toLowerCase()).toBe("as soon as possible\xa0");
+      expect(firstSuggestion?.toLowerCase()).toMatch(/^as soon as possible[ \xa0]$/);
 
       await page.keyboard.press("Tab");
       const value = await waitForInputContentMatch(
         page,
         "#test-input",
-        /^as soon as possible\xa0$/i,
+        /^as soon as possible[ \xa0]$/i,
       );
-      expect(value.toLowerCase()).toBe("as soon as possible\xa0");
+      expect(value.toLowerCase()).toMatch(/^as soon as possible[ \xa0]$/);
     },
     suiteTimeout(10000, 15000),
   );
@@ -650,7 +650,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       try {
         await optionsPage.evaluate(
           (key, command) => {
-            const rules = ["capitalizeFirstLetter", "spacingRule"];
+            const rules = ["capitalizeSentenceStart", "commaPeriodSpacing"];
             const storageKey = `store.settings.${key}`;
             localStorage.setItem(storageKey, JSON.stringify(rules));
             chrome.storage.local.set({ [storageKey]: JSON.stringify(rules) });
@@ -671,8 +671,8 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
           const current = await getSetting<string[]>(worker, KEY_ENABLED_GRAMMAR_RULES);
           if (
             Array.isArray(current) &&
-            current.includes("capitalizeFirstLetter") &&
-            current.includes("spacingRule")
+            current.includes("capitalizeSentenceStart") &&
+            current.includes("commaPeriodSpacing")
           ) {
             return current;
           }
@@ -681,7 +681,9 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
         { timeoutMs: suiteTimeout(5000, 10000), intervalMs: 50 },
       );
 
-      expect(storedRules).toEqual(expect.arrayContaining(["capitalizeFirstLetter", "spacingRule"]));
+      expect(storedRules).toEqual(
+        expect.arrayContaining(["capitalizeSentenceStart", "commaPeriodSpacing"]),
+      );
     },
     suiteTimeout(10000, 15000),
   );

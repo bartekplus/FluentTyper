@@ -10,6 +10,7 @@ import type { PredictionConfig } from "../PredictionManager";
 import { CoreSettingsRepository } from "@core/application/repositories/CoreSettingsRepository";
 import { PredictorSettingsRepository } from "@core/application/repositories/PredictorSettingsRepository";
 import { resolveActiveLanguage, resolveDomainRuntimeSettings } from "./runtimeSettings";
+import { normalizeGrammarRuleSelection } from "@core/domain/grammar/ruleCatalog";
 
 interface ConfigAssemblerOptions {
   enableAIPredictor: boolean;
@@ -72,7 +73,9 @@ export class ConfigAssembler {
         revertOnBackspace,
         displayLangHeader,
         inline_suggestion: domainSettings.inlineSuggestion,
-        enabledGrammarRules: await this.coreSettingsRepository.getEnabledGrammarRules(),
+        enabledGrammarRules: normalizeGrammarRuleSelection(
+          await this.coreSettingsRepository.getEnabledGrammarRules(),
+        ),
         themeConfig,
       },
     };
@@ -103,7 +106,8 @@ export class ConfigAssembler {
       this.coreSettingsRepository.getUserDictionaryList(),
       this.predictorSettingsRepository.getSnapshot(),
     ]);
-    const autoCapitalize = enabledGrammarRules.includes("capitalizeFirstLetter");
+    const normalizedGrammarRules = normalizeGrammarRuleSelection(enabledGrammarRules);
+    const autoCapitalize = normalizedGrammarRules.includes("capitalizeSentenceStart");
 
     return {
       language,
@@ -119,7 +123,7 @@ export class ConfigAssembler {
         timeFormat,
         dateFormat,
         userDictionaryList,
-        enabledGrammarRules,
+        enabledGrammarRules: normalizedGrammarRules,
         aiPredictorEnabled: this.options.enableAIPredictor
           ? predictorSettings.aiPredictorEnabled
           : false,

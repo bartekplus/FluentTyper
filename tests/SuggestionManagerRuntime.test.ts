@@ -24,6 +24,7 @@ describe("SuggestionManagerRuntime", () => {
       revertOnBackspace: true,
       displayLangHeader: true,
       inline_suggestion: false,
+      enabledGrammarRules: [],
       getPrediction: jest.fn(),
     });
     const input = document.createElement("input");
@@ -49,6 +50,7 @@ describe("SuggestionManagerRuntime", () => {
       revertOnBackspace: true,
       displayLangHeader: true,
       inline_suggestion: false,
+      enabledGrammarRules: [],
       getPrediction: jest.fn(),
     });
     const input = document.createElement("input");

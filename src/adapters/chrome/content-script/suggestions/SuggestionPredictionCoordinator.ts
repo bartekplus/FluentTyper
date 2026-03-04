@@ -8,6 +8,7 @@ interface SuggestionPredictionCoordinatorOptions {
   lang: string;
   minWordLengthToPredict: number;
   separatorRegex: RegExp;
+  grammarRulesEnabled: boolean;
 }
 
 export class SuggestionPredictionCoordinator {
@@ -17,6 +18,7 @@ export class SuggestionPredictionCoordinator {
   private lang: string;
   private minWordLengthToPredict: number;
   private separatorRegex: RegExp;
+  private grammarRulesEnabled: boolean;
 
   constructor(options: SuggestionPredictionCoordinatorOptions) {
     this.debounceMs = options.debounceMs;
@@ -24,11 +26,16 @@ export class SuggestionPredictionCoordinator {
     this.lang = options.lang;
     this.minWordLengthToPredict = options.minWordLengthToPredict;
     this.separatorRegex = options.separatorRegex;
+    this.grammarRulesEnabled = options.grammarRulesEnabled;
   }
 
   public updateLang(lang: string, separatorRegex: RegExp): void {
     this.lang = lang;
     this.separatorRegex = separatorRegex;
+  }
+
+  public updateGrammarRulesEnabled(enabled: boolean): void {
+    this.grammarRulesEnabled = enabled;
   }
 
   public schedule(
@@ -159,11 +166,10 @@ export class SuggestionPredictionCoordinator {
   }
 
   private shouldRequestGrammarEdit(beforeCursor: string): boolean {
-    if (beforeCursor.length === 0) {
+    if (!this.grammarRulesEnabled || beforeCursor.length === 0) {
       return false;
     }
-    const lastChar = beforeCursor.charAt(beforeCursor.length - 1);
-    return this.isSeparator(lastChar);
+    return true;
   }
 
   private shouldPredict(beforeCursor: string): boolean {
