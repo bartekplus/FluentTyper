@@ -7,7 +7,7 @@ import {
   splitTrailingDelimiters,
 } from "./helpers/EnglishRuleShared";
 
-const ENGLISH_APOSTROPHE_PRONOUN_REGEX = /(^|[^A-Za-z0-9_])(i)(['’](?:m|ve|ll|d|re|s))$/;
+const ENGLISH_APOSTROPHE_PRONOUN_REGEX = /(^|[^A-Za-z0-9_])(i)(['’](?:m|ve|ll|d))$/;
 
 export class EnglishPronounICapitalizationRule implements GrammarRule {
   readonly id = "englishPronounICapitalization" as const;

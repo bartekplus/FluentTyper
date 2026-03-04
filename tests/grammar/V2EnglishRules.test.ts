@@ -32,6 +32,30 @@ describe("V2 english grammar rules", () => {
         confidence: "high",
         description: "Capitalized English pronoun in contraction",
       });
+
+      expect(rule.apply(context("i've ", { lang: "en_US" }))).toEqual({
+        replacement: "I've ",
+        deleteBackwards: 5,
+        deleteForwards: 0,
+        confidence: "high",
+        description: "Capitalized English pronoun in contraction",
+      });
+
+      expect(rule.apply(context("i'll ", { lang: "en_US" }))).toEqual({
+        replacement: "I'll ",
+        deleteBackwards: 5,
+        deleteForwards: 0,
+        confidence: "high",
+        description: "Capitalized English pronoun in contraction",
+      });
+
+      expect(rule.apply(context("i'd ", { lang: "en_US" }))).toEqual({
+        replacement: "I'd ",
+        deleteBackwards: 4,
+        deleteForwards: 0,
+        confidence: "high",
+        description: "Capitalized English pronoun in contraction",
+      });
     });
 
     test("skips non-English and code-like contexts", () => {
@@ -39,6 +63,8 @@ describe("V2 english grammar rules", () => {
 
       expect(rule.apply(context("i ", { lang: "pl_PL" }))).toBeNull();
       expect(rule.apply(context("foo@i ", { lang: "en_US" }))).toBeNull();
+      expect(rule.apply(context("i's ", { lang: "en_US" }))).toBeNull();
+      expect(rule.apply(context("i're ", { lang: "en_US" }))).toBeNull();
     });
 
     test("applies only after a token boundary delimiter", () => {
