@@ -310,5 +310,6 @@ describe("SpacingRule", () => {
   test("does not compact prose continuation without code cues", () => {
     expect(ruleA.apply(getContext("Hello.\xA0w"))).toBeNull();
     expect(ruleA.apply(getContext("old_word.\xA0X"))).toBeNull();
+    expect(ruleA.apply(getContext("Read on.\xA0Duplicate.\xA0W"))).toBeNull();
   });
 });

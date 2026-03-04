@@ -302,6 +302,7 @@ describe("V1 grammar rules", () => {
       const rule = new TechnicalTokenCompactionRule(true);
       expect(rule.apply(context("Hello. w"))).toBeNull();
       expect(rule.apply(context("old_word. X"))).toBeNull();
+      expect(rule.apply(context("Read on. Duplicate. W"))).toBeNull();
     });
   });
 
