@@ -3,7 +3,11 @@ import type { PredictionRequest, PredictionResponse, SuggestionEntry } from "./t
 import type { PredictionInputAction } from "@core/domain/messageTypes";
 
 interface SuggestionPredictionCoordinatorOptions {
-  debounceMs: number;
+  debounceByAction: {
+    insert: number;
+    delete: number;
+    other: number;
+  };
   getPrediction: (context: PredictionRequest) => void;
   lang: string;
   minWordLengthToPredict: number;
@@ -12,7 +16,11 @@ interface SuggestionPredictionCoordinatorOptions {
 }
 
 export class SuggestionPredictionCoordinator {
-  private readonly debounceMs: number;
+  private readonly debounceByAction: {
+    insert: number;
+    delete: number;
+    other: number;
+  };
   private readonly getPrediction: (context: PredictionRequest) => void;
 
   private lang: string;
@@ -21,7 +29,7 @@ export class SuggestionPredictionCoordinator {
   private grammarRulesEnabled: boolean;
 
   constructor(options: SuggestionPredictionCoordinatorOptions) {
-    this.debounceMs = options.debounceMs;
+    this.debounceByAction = options.debounceByAction;
     this.getPrediction = options.getPrediction;
     this.lang = options.lang;
     this.minWordLengthToPredict = options.minWordLengthToPredict;
@@ -60,7 +68,7 @@ export class SuggestionPredictionCoordinator {
     entry.pendingRequestTimer = setTimeout(() => {
       entry.pendingRequestTimer = null;
       this.requestPrediction(entry, false, clearSuggestions, inputAction);
-    }, this.debounceMs);
+    }, this.resolveDebounceMs(inputAction));
   }
 
   public reconcile(
@@ -187,6 +195,16 @@ export class SuggestionPredictionCoordinator {
       return false;
     }
     return true;
+  }
+
+  private resolveDebounceMs(inputAction?: PredictionInputAction): number {
+    if (inputAction === "insert") {
+      return this.debounceByAction.insert;
+    }
+    if (inputAction === "delete") {
+      return this.debounceByAction.delete;
+    }
+    return this.debounceByAction.other;
   }
 
   private shouldPredict(beforeCursor: string): boolean {
