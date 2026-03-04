@@ -48,7 +48,27 @@ type PredictorDebugSnapshot = {
   };
 };
 
+type SettingEntry = readonly [key: string, value: unknown];
+
 let domainTestUrl = "";
+let activeBrowserForWorkerRecovery: Browser | null = null;
+
+const STATIC_DEFAULT_SETTINGS: readonly SettingEntry[] = [
+  [KEY_MIN_WORD_LENGTH_TO_PREDICT, 1],
+  [KEY_NUM_SUGGESTIONS, 5],
+  [KEY_INLINE_SUGGESTION, false],
+  [KEY_SITE_PROFILES, {}],
+  ["enable", true],
+];
+
+const PER_TEST_RESET_SETTINGS: readonly SettingEntry[] = [
+  [KEY_ENABLED_LANGUAGES, ["en_US", "de_DE", "textExpander"]],
+  [KEY_LANGUAGE, "en_US"],
+  [KEY_TEXT_EXPANSIONS, []],
+  [KEY_ENABLED_GRAMMAR_RULES, []],
+  [KEY_DOMAIN_LIST_MODE, "blackList"],
+  ["domainBlackList", []],
+];
 
 function isRetriableWorkerError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
@@ -57,13 +77,31 @@ function isRetriableWorkerError(error: unknown): boolean {
   );
 }
 
+async function reacquireWorker(browser: Browser): Promise<BackgroundContext> {
+  return await waitUntil(
+    "background worker context",
+    async () => {
+      try {
+        return await getBackgroundContext(browser);
+      } catch (error) {
+        if (!isRetriableWorkerError(error)) {
+          throw error;
+        }
+        return false;
+      }
+    },
+    { timeoutMs: suiteTimeout(5000, 10000), intervalMs: 100 },
+  );
+}
+
 async function setSetting(worker: BackgroundContext, key: string, value: unknown): Promise<void> {
   const storageKey = `${SETTINGS_PREFIX}${key}`;
+  let workerContext = worker;
   await waitUntil(
     `setting ${key} write`,
     async () => {
       try {
-        await worker.evaluate(
+        await workerContext.evaluate(
           (storageKeyInner, nextValue) =>
             new Promise<void>((resolve, reject) => {
               const storage = (
@@ -96,6 +134,9 @@ async function setSetting(worker: BackgroundContext, key: string, value: unknown
         if (!isRetriableWorkerError(error)) {
           throw error;
         }
+        if (activeBrowserForWorkerRecovery) {
+          workerContext = await reacquireWorker(activeBrowserForWorkerRecovery);
+        }
         return false;
       }
     },
@@ -105,11 +146,12 @@ async function setSetting(worker: BackgroundContext, key: string, value: unknown
 
 async function getSetting<T>(worker: BackgroundContext, key: string): Promise<T | undefined> {
   const storageKey = `${SETTINGS_PREFIX}${key}`;
+  let workerContext = worker;
   const result = await waitUntil<{ value: T | undefined }>(
     `setting ${key} read`,
     async () => {
       try {
-        const value = (await worker.evaluate(
+        const value = (await workerContext.evaluate(
           (storageKeyInner) =>
             new Promise((resolve, reject) => {
               const storage = (
@@ -143,6 +185,9 @@ async function getSetting<T>(worker: BackgroundContext, key: string): Promise<T 
       } catch (error) {
         if (!isRetriableWorkerError(error)) {
           throw error;
+        }
+        if (activeBrowserForWorkerRecovery) {
+          workerContext = await reacquireWorker(activeBrowserForWorkerRecovery);
         }
         return false;
       }
@@ -292,17 +337,37 @@ async function waitForInputContentMatch(
   );
 }
 
+async function applySettings(
+  worker: BackgroundContext,
+  settings: readonly SettingEntry[],
+): Promise<void> {
+  for (const [key, value] of settings) {
+    await setSettingAndWait(worker, key, value);
+  }
+}
+
+async function closePageSafely(pageToClose: Page | null | undefined): Promise<void> {
+  if (!pageToClose || pageToClose.isClosed()) {
+    return;
+  }
+  try {
+    await pageToClose.close();
+  } catch {
+    // Ignore teardown races (target/session already closing).
+  }
+}
+
 describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
   let browser: Browser;
   let worker: BackgroundContext;
-  let page: Page;
+  let page: Page | null = null;
   let domainTestServer: Server;
   let domainTestHtml: string;
 
   beforeAll(async () => {
     browser = await launchBrowser();
-    worker = await getBackgroundContext(browser);
-    page = await browser.newPage();
+    activeBrowserForWorkerRecovery = browser;
+    worker = await reacquireWorker(browser);
     domainTestHtml = fs.readFileSync(TEST_PAGE_PATH, "utf8");
 
     domainTestServer = createServer((req, res) => {
@@ -363,32 +428,28 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       throw new Error("Failed to start domain test server");
     }
     domainTestUrl = `http://${TEST_HOST}:${address.port}/`;
+
+    await applySettings(worker, STATIC_DEFAULT_SETTINGS);
+    await sendConfigChange(browser, worker);
   }, 60000);
 
   beforeEach(async () => {
-    await setSettingAndWait(worker, KEY_ENABLED_LANGUAGES, ["en_US", "de_DE", "textExpander"]);
-    await setSettingAndWait(worker, KEY_LANGUAGE, "en_US");
-    await setSettingAndWait(worker, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-    await setSettingAndWait(worker, KEY_NUM_SUGGESTIONS, 5);
-    await setSettingAndWait(worker, KEY_INLINE_SUGGESTION, false);
-    await setSettingAndWait(worker, KEY_TEXT_EXPANSIONS, []);
-    await setSettingAndWait(worker, KEY_SITE_PROFILES, {});
-    await setSettingAndWait(worker, KEY_ENABLED_GRAMMAR_RULES, []);
-    await setSettingAndWait(worker, KEY_DOMAIN_LIST_MODE, "blackList");
-    await setSettingAndWait(worker, "domainBlackList", []);
-    await setSettingAndWait(worker, "enable", true);
+    worker = await reacquireWorker(browser);
+    await applySettings(worker, PER_TEST_RESET_SETTINGS);
     await sendConfigChange(browser, worker);
-
-    if (page.isClosed()) {
-      page = await browser.newPage();
-    }
+    page = await browser.newPage();
+    page.setDefaultNavigationTimeout(timeoutProfile.navigationMs);
+    await page.bringToFront();
   });
 
   afterEach(async () => {
-    if (page && !page.isClosed()) {
-      await page.close();
+    await closePageSafely(page);
+    page = null;
+    try {
+      worker = await reacquireWorker(browser);
+    } catch {
+      // Ignore worker recovery errors here; beforeEach re-acquires for the next test.
     }
-    page = await browser.newPage();
   });
 
   afterAll(async () => {
@@ -403,7 +464,13 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
         });
       });
     }
-    await browser.close();
+    await closePageSafely(page);
+    try {
+      await browser.close();
+    } catch {
+      // Ignore teardown races during browser shutdown.
+    }
+    activeBrowserForWorkerRecovery = null;
   }, 30000);
 
   test(
