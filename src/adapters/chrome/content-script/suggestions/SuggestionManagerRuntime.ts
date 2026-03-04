@@ -22,7 +22,13 @@ import type {
   SuggestionTelemetry,
 } from "./types";
 
-const DELETE_INPUT_FALLBACK_DELAY_MS = 80;
+const DELETE_INPUT_FALLBACK_TIMEOUT_MS = 220;
+
+interface PendingDeleteFallback {
+  timer: ReturnType<typeof setTimeout>;
+  observer: MutationObserver | null;
+  reconcileScheduled: boolean;
+}
 
 export class SuggestionManagerRuntime {
   private readonly discovery: SuggestionElementDiscovery;
@@ -37,7 +43,7 @@ export class SuggestionManagerRuntime {
   private readonly textEditService: SuggestionTextEditService;
   private readonly keyboardHandler: SuggestionKeyboardHandler;
   private readonly telemetry: SuggestionTelemetry;
-  private readonly pendingDeleteFallbackTimers = new Map<number, ReturnType<typeof setTimeout>>();
+  private readonly pendingDeleteFallbacks = new Map<number, PendingDeleteFallback>();
 
   private readonly displayLangHeader: boolean;
   private readonly inlineSuggestionEnabled: boolean;
@@ -540,35 +546,76 @@ export class SuggestionManagerRuntime {
     }
 
     if (keyboardEvent.key === "Backspace" || keyboardEvent.key === "Delete") {
-      // Some rich editors defer/suppress input on delete keys. Delay stale-UI
-      // reconciliation briefly and cancel it when input arrives.
+      // Some rich editors defer/suppress input on delete keys. Reconcile when
+      // DOM mutation arrives first; keep a timeout as a safety net.
       this.cancelPendingDeleteFallback(id);
-      const timer = setTimeout(() => {
-        this.pendingDeleteFallbackTimers.delete(id);
-        const current = this.entryRegistry.getById(id);
-        if (!current) {
-          return;
+      const fallback: PendingDeleteFallback = {
+        timer: setTimeout(() => {
+          this.runDeleteFallbackReconcile(id);
+        }, DELETE_INPUT_FALLBACK_TIMEOUT_MS),
+        observer: null,
+        reconcileScheduled: false,
+      };
+
+      const mutationObserverCtor = (
+        globalThis as typeof globalThis & {
+          MutationObserver?: typeof MutationObserver;
         }
-        if (!this.isEntryFocused(current)) {
-          this.dismissEntry(current, true);
-          return;
-        }
-        this.predictionCoordinator.reconcile(current, {
-          clearSuggestions: () => this.clearSuggestions(current),
-          inputAction: "delete",
+      ).MutationObserver;
+      if (typeof mutationObserverCtor === "function") {
+        fallback.observer = new mutationObserverCtor(() => {
+          const pending = this.pendingDeleteFallbacks.get(id);
+          if (!pending || pending.reconcileScheduled) {
+            return;
+          }
+          pending.reconcileScheduled = true;
+          Promise.resolve().then(() => {
+            this.runDeleteFallbackReconcile(id);
+          });
         });
-      }, DELETE_INPUT_FALLBACK_DELAY_MS);
-      this.pendingDeleteFallbackTimers.set(id, timer);
+        fallback.observer.observe(entry.elem, {
+          childList: true,
+          characterData: true,
+          subtree: true,
+        });
+      }
+
+      this.pendingDeleteFallbacks.set(id, fallback);
     }
   }
 
-  private cancelPendingDeleteFallback(id: number): void {
-    const timer = this.pendingDeleteFallbackTimers.get(id);
-    if (!timer) {
+  private runDeleteFallbackReconcile(id: number): void {
+    const pending = this.pendingDeleteFallbacks.get(id);
+    if (!pending) {
       return;
     }
-    clearTimeout(timer);
-    this.pendingDeleteFallbackTimers.delete(id);
+
+    clearTimeout(pending.timer);
+    pending.observer?.disconnect();
+    this.pendingDeleteFallbacks.delete(id);
+
+    const current = this.entryRegistry.getById(id);
+    if (!current) {
+      return;
+    }
+    if (!this.isEntryFocused(current)) {
+      this.dismissEntry(current, true);
+      return;
+    }
+    this.predictionCoordinator.reconcile(current, {
+      clearSuggestions: () => this.clearSuggestions(current),
+      inputAction: "delete",
+    });
+  }
+
+  private cancelPendingDeleteFallback(id: number): void {
+    const pending = this.pendingDeleteFallbacks.get(id);
+    if (!pending) {
+      return;
+    }
+    clearTimeout(pending.timer);
+    pending.observer?.disconnect();
+    this.pendingDeleteFallbacks.delete(id);
   }
 
   private resolveInputAction(
