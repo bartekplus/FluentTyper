@@ -63,6 +63,20 @@ export class SuggestionPredictionCoordinator {
     }, this.debounceMs);
   }
 
+  public reconcile(
+    entry: SuggestionEntry,
+    {
+      clearSuggestions,
+      inputAction,
+    }: {
+      clearSuggestions: () => void;
+      inputAction?: PredictionInputAction;
+    },
+  ): void {
+    this.cancelPending(entry);
+    this.requestPrediction(entry, false, clearSuggestions, inputAction);
+  }
+
   public cancelPending(entry: SuggestionEntry): void {
     if (entry.pendingRequestTimer === null) {
       return;
@@ -119,6 +133,9 @@ export class SuggestionPredictionCoordinator {
     const shouldPredict = this.shouldPredict(beforeCursor);
     const shouldRequestForGrammar = this.shouldRequestGrammarEdit(beforeCursor);
     if (!force && !shouldPredict && !shouldRequestForGrammar) {
+      // No new request will be sent, so bump the request id to invalidate
+      // any in-flight responses from previous input states.
+      entry.requestId += 1;
       clearSuggestions();
       return;
     }
