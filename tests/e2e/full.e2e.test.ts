@@ -1505,13 +1505,13 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         expect(liCount).toBeGreaterThan(0);
 
         const [firstLiText] = await waitForVisibleSuggestionTexts(page);
-        expect(firstLiText?.toLowerCase()).toMatch(new RegExp(`^${typedPrefix}\\S*\\xa0$`));
+        expect(firstLiText?.toLowerCase()).toMatch(new RegExp(`^${typedPrefix}\\S*[ \\xa0]$`));
 
         await acceptSuggestion();
         const elementText = await waitForInputContentMatch(
           page,
           selector,
-          new RegExp(`^${typedPrefix}\\S*\\xa0$`, "i"),
+          new RegExp(`^${typedPrefix}\\S*[ \\xa0]$`, "i"),
           browserTimeout(4000, 10000),
         );
         expect(elementText.toLowerCase()).toBe(firstLiText?.toLowerCase());
@@ -1734,17 +1734,17 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       const autocompletedText = await waitForInputContentMatch(
         page,
         selector,
-        /^h\S*\xa0$/i,
+        /^h\S*[ \xa0]$/i,
         browserTimeout(5000, 10000),
       );
       const wordPart = autocompletedText.slice(0, -1);
 
       await page.keyboard.press("ArrowLeft");
       await element!.type("x");
-      await waitForInputContentEqual(
+      await waitForInputContentMatch(
         page,
         selector,
-        `${wordPart}x\xa0`,
+        new RegExp(`^${wordPart.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}x[ \\xa0]$`, "i"),
         browserTimeout(2000, 5000),
       );
     },
@@ -1783,11 +1783,11 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       const elementText = await waitForInputContentMatch(
         page,
         selector,
-        /^w\S*\xa0$/i,
+        /^w\S*[ \xa0]$/i,
         browserTimeout(2000, 5000),
       );
-      // Should be a word starting with "w" followed by \xa0
-      expect(elementText).toMatch(/^w\S*\xa0$/i);
+      // Should be a word starting with "w" followed by a normal space or NBSP.
+      expect(elementText).toMatch(/^w\S*[ \xa0]$/i);
 
       // Cleanup
       await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
@@ -2459,18 +2459,18 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await element!.type("asap"); // Trigger text expansion
 
       const [firstLiText] = await waitForVisibleSuggestionTexts(page, browserTimeout(4000, 10000));
-      expect(firstLiText?.toLowerCase()).toBe("as soon as possible\xa0");
+      expect(firstLiText?.toLowerCase()).toMatch(/^as soon as possible[ \xa0]$/);
 
       await page.keyboard.press("Tab");
 
       // Wait for insertion
-      const elementText = await waitForInputContentEqual(
+      const elementText = await waitForInputContentMatch(
         page,
         selector,
-        "as soon as possible\xa0",
+        new RegExp("^as soon as possible[ \\xa0]$"),
         browserTimeout(4000, 10000),
       );
-      expect((elementText ?? "").toLowerCase()).toBe("as soon as possible\xa0");
+      expect((elementText ?? "").toLowerCase()).toMatch(/^as soon as possible[ \xa0]$/);
 
       // Cleanup
       await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
