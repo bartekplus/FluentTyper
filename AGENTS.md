@@ -70,6 +70,10 @@ bun run test:e2e:dev --platform=firefox
 bun run test:e2e --platform=firefox
 ```
 
+Smoke budget policy:
+
+- `bun run test:e2e --platform=chrome` and `bun run test:e2e --platform=firefox` are both held to a strict `<=10s` wall-time budget in CI.
+
 ### Autofix
 
 ```bash

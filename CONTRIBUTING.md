@@ -113,6 +113,7 @@ Notes:
 - `bun run test:e2e` is the fast smoke suite and defaults to `--platform=chrome`.
 - `bun run test:e2e:full` runs deeper regression e2e coverage.
 - `bun run test:e2e:dev` builds with `--mode=development` and runs dev/runtime-hook-specific e2e coverage.
+- Smoke budget policy is strict: CI enforces `<=10s` wall-time for `bun run test:e2e --platform=chrome` and `bun run test:e2e --platform=firefox`.
 - `bun run check:e2e:coverage` validates behavior IDs and coverage mappings in:
   - `tests/e2e/coverage-matrix.json`
   - `tests/e2e/coverage-baseline-ids.json`
