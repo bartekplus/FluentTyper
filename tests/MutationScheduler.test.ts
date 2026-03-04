@@ -78,7 +78,7 @@ describe("MutationScheduler", () => {
       });
     const cancelSpy = jest
       .spyOn(window, "cancelAnimationFrame")
-      .mockImplementation((_id: number) => undefined);
+      .mockImplementation(() => undefined);
 
     const scheduler = new MutationScheduler(16, onReady);
     const firstMutation = createMutation(document.createElement("div"));
