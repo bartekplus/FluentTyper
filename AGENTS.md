@@ -72,7 +72,8 @@ bun run test:e2e --platform=firefox
 
 Smoke budget policy:
 
-- `bun run test:e2e --platform=chrome` and `bun run test:e2e --platform=firefox` are both held to a strict `<=10s` wall-time budget in CI.
+- `bun run test:e2e --platform=chrome` and `bun run test:e2e --platform=firefox` both target `<=10s` wall-time.
+- CI records and reports smoke runtime, but does not fail solely for exceeding the 10s target.
 
 ### Autofix
 

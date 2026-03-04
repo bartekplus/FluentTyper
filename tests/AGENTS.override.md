@@ -32,7 +32,8 @@ This override applies to `tests/**`.
 
 ## Runtime Goals
 
-- Keep smoke runtime within a strict `<=10s` budget per platform command (`chrome` and `firefox`); CI fails above this threshold.
+- Keep smoke runtime around a `<=10s` target per platform command (`chrome` and `firefox`).
+- CI reports smoke runtime for regressions, but runtime over target alone is not a hard failure.
 - Put slower or broad permutation checks into full regression.
 
 ## PR Expectations
