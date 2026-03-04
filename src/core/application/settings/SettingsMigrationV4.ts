@@ -30,11 +30,11 @@ async function writeRaw(settings: SettingsManager, key: string, value: JsonValue
 }
 
 function getRawGrammarRulesSnapshot(existing: unknown): string[] {
-  if (!Array.isArray(existing) || !existing.every((item) => typeof item === "string")) {
+  if (!Array.isArray(existing)) {
     return [];
   }
-  // Preserve exact pre-migration order and duplicates.
-  return existing.slice();
+  // Preserve exact pre-migration order and duplicates for string entries.
+  return existing.filter((item): item is string => typeof item === "string");
 }
 
 export async function migrateSettingsV4(settings: SettingsManager): Promise<void> {

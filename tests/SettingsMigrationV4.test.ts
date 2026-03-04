@@ -90,7 +90,19 @@ describe("migrateSettingsV4", () => {
     expect(store[KEY_GRAMMAR_RULES_V1_MIGRATED]).toBe(true);
   });
 
-  test("stores empty backup when existing value is not a string array", async () => {
+  test("stores only string entries when existing value is a mixed array", async () => {
+    const settings = createMockSettingsManager({
+      [KEY_ENABLED_GRAMMAR_RULES]: ["spacingRule", 42, "spacingRule"],
+    });
+
+    await migrateSettingsV4(settings);
+
+    expect(settings.store[KEY_ENABLED_GRAMMAR_RULES]).toEqual(RECOMMENDED_V1_GRAMMAR_RULES);
+    expect(settings.store[KEY_GRAMMAR_RULES_V1_BACKUP]).toEqual(["spacingRule", "spacingRule"]);
+    expect(settings.store[KEY_GRAMMAR_RULES_V1_MIGRATED]).toBe(true);
+  });
+
+  test("stores empty backup when existing value is not an array", async () => {
     const settings = createMockSettingsManager({
       [KEY_ENABLED_GRAMMAR_RULES]: "spacingRule",
     });
