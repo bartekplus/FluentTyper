@@ -411,6 +411,32 @@ describe("content_script behavior", () => {
     );
   });
 
+  test("deduplicates rapid restart calls into a single disable-enable cycle", async () => {
+    const { fluentTyper, suggestionInstances, domObserverInstances } = await loadContentScript();
+    fluentTyper.enabled = true;
+
+    const initialManager = suggestionInstances[0];
+    const domObserver = domObserverInstances[0];
+    initialManager.detachAllHelpers.mockClear();
+    domObserver.disconnect.mockClear();
+    domObserver.attach.mockClear();
+
+    fluentTyper.restart();
+    fluentTyper.restart();
+    fluentTyper.restart();
+
+    expect(initialManager.detachAllHelpers).toHaveBeenCalledTimes(1);
+    expect(domObserver.disconnect).toHaveBeenCalledTimes(1);
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(suggestionInstances).toHaveLength(2);
+    const restartedManager = suggestionInstances[1];
+    expect(restartedManager.queryAndAttachHelper).toHaveBeenCalledTimes(1);
+    expect(restartedManager.triggerActiveSuggestion).toHaveBeenCalledTimes(1);
+    expect(domObserver.attach).toHaveBeenCalledTimes(1);
+  });
+
   test("setConfig applies theme and restarts when already enabled", async () => {
     const { fluentTyper } = await loadContentScript();
     const restartSpy = jest.spyOn(fluentTyper, "restart");
