@@ -849,6 +849,30 @@ describe("SuggestionManager", () => {
     expect(request.inputAction).toBe("insert");
   });
 
+  test("does not request prediction on Enter in input when input event is missing", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+      enabledGrammarRules: [],
+    });
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = "hello";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    document.body.appendChild(input);
+    manager.queryAndAttachHelper();
+
+    input.dispatchEvent(new Event("focus", { bubbles: true }));
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    await wait(220);
+    const baselineCalls = getPrediction.mock.calls.length;
+
+    dispatchKeydown(input, "Enter");
+    await wait(220);
+
+    expect(getPrediction.mock.calls.length).toBe(baselineCalls);
+  });
+
   test("keeps contenteditable popup visible on Backspace when follow-up input event updates text", async () => {
     const { manager, getPrediction } = await createManager({
       minWordLengthToPredict: 1,

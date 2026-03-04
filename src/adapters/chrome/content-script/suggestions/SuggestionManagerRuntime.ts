@@ -565,7 +565,7 @@ export class SuggestionManagerRuntime {
       return;
     }
 
-    if (this.shouldScheduleInsertFallback(keyboardEvent)) {
+    if (this.shouldScheduleInsertFallback(keyboardEvent, entry.elem)) {
       // Some editors update content on keydown/beforeinput but do not emit input
       // at the editable root for normal insertions.
       this.scheduleKeyFallbackReconcile(
@@ -657,7 +657,7 @@ export class SuggestionManagerRuntime {
     this.pendingKeyFallbacks.delete(id);
   }
 
-  private shouldScheduleInsertFallback(event: KeyboardEvent): boolean {
+  private shouldScheduleInsertFallback(event: KeyboardEvent, elem: SuggestionElement): boolean {
     if (event.defaultPrevented || event.isComposing || event.metaKey || event.ctrlKey) {
       return false;
     }
@@ -665,7 +665,7 @@ export class SuggestionManagerRuntime {
       return false;
     }
     if (event.key === "Enter") {
-      return true;
+      return this.isContentEditableElement(elem) || this.isTextAreaElement(elem);
     }
     return event.key.length === 1;
   }
