@@ -650,7 +650,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       try {
         await optionsPage.evaluate(
           (key, command) => {
-            const rules = ["capitalizeFirstLetter", "spacingRule"];
+            const rules = ["capitalizeSentenceStart", "commaPeriodSpacing"];
             const storageKey = `store.settings.${key}`;
             localStorage.setItem(storageKey, JSON.stringify(rules));
             chrome.storage.local.set({ [storageKey]: JSON.stringify(rules) });
@@ -671,8 +671,8 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
           const current = await getSetting<string[]>(worker, KEY_ENABLED_GRAMMAR_RULES);
           if (
             Array.isArray(current) &&
-            current.includes("capitalizeFirstLetter") &&
-            current.includes("spacingRule")
+            current.includes("capitalizeSentenceStart") &&
+            current.includes("commaPeriodSpacing")
           ) {
             return current;
           }
@@ -681,7 +681,9 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
         { timeoutMs: suiteTimeout(5000, 10000), intervalMs: 50 },
       );
 
-      expect(storedRules).toEqual(expect.arrayContaining(["capitalizeFirstLetter", "spacingRule"]));
+      expect(storedRules).toEqual(
+        expect.arrayContaining(["capitalizeSentenceStart", "commaPeriodSpacing"]),
+      );
     },
     suiteTimeout(10000, 15000),
   );

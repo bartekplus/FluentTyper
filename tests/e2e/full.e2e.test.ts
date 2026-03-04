@@ -2582,7 +2582,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
               throw new Error("Options page content not found");
             }
             // Use chrome.storage.local directly (mimicking what the action handler does)
-            const newRules = ["capitalizeFirstLetter", "spacingRule"];
+            const newRules = ["capitalizeSentenceStart", "commaPeriodSpacing"];
             const storageKey = `store.settings.${key}`;
             localStorage.setItem(storageKey, JSON.stringify(newRules));
             chrome.storage.local.set({ [storageKey]: JSON.stringify(newRules) });
@@ -2605,11 +2605,13 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         KEY_ENABLED_GRAMMAR_RULES,
         (value) =>
           Array.isArray(value) &&
-          value.includes("capitalizeFirstLetter") &&
-          value.includes("spacingRule"),
+          value.includes("capitalizeSentenceStart") &&
+          value.includes("commaPeriodSpacing"),
         browserTimeout(5000, 10000),
       );
-      expect(storedAfter).toEqual(expect.arrayContaining(["capitalizeFirstLetter", "spacingRule"]));
+      expect(storedAfter).toEqual(
+        expect.arrayContaining(["capitalizeSentenceStart", "commaPeriodSpacing"]),
+      );
 
       // Cleanup
       await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
@@ -2623,8 +2625,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async (selector) => {
       // Enable required grammar rules internally for predictive evaluations
       await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, [
-        "capitalizeFirstLetter",
-        "spacingRule",
+        "capitalizeSentenceStart",
+        "commaPeriodSpacing",
       ]);
       await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, true);
       await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
@@ -2656,7 +2658,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         browserTimeout(5000, 8000),
       );
 
-      // Type "w" and verify capitalizeFirstLetterRule applies
+      // Type "w" and verify sentence-start capitalization applies
       await element!.type("w");
       await waitForInputContentMatch(
         page,
@@ -2670,7 +2672,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         (el) => ((el as HTMLInputElement).value ?? el.textContent) as string,
       );
       const elementText = finalVal.replace(/\xA0/g, " ");
-      // CapitalizeFirstLetterRule capitalizes T at start AND W after ". "
+      // Capitalize sentence-start rule capitalizes T at start AND W after ". "
       expect(elementText).toContain("Testing. W");
 
       // Cleanup
@@ -2686,7 +2688,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await setSettingAndWaitStable(
         worker!,
         KEY_ENABLED_GRAMMAR_RULES,
-        ["spacingRule"],
+        ["commaPeriodSpacing"],
         4,
         browserTimeout(5000, 7000),
       );
@@ -2734,7 +2736,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await setSettingAndWaitStable(
         worker!,
         KEY_ENABLED_GRAMMAR_RULES,
-        ["spacingRule"],
+        ["openingBracketSpacing", "closingBracketSpacing", "slashContextSpacing"],
         4,
         browserTimeout(5000, 7000),
       );
@@ -2852,7 +2854,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await setSettingAndWaitStable(
         worker!,
         KEY_ENABLED_GRAMMAR_RULES,
-        ["spacingRule"],
+        ["mathOperatorSpacing"],
         3,
         browserTimeout(5000, 7000),
       );
@@ -2934,7 +2936,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await setSettingAndWaitStable(
         worker!,
         KEY_ENABLED_GRAMMAR_RULES,
-        ["spacingRule"],
+        ["technicalTokenCompaction", "commaPeriodSpacing"],
         3,
         browserTimeout(5000, 7000),
       );
@@ -2989,6 +2991,44 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         2,
         browserTimeout(3000, 5000),
       );
+      await applyConfigChange(browser, worker!);
+    },
+    browserTimeout(25000, 40000),
+  );
+
+  test(
+    "Grammar Rule Engine keeps legacy grammar rule IDs compatible in runtime",
+    async () => {
+      const selector = "#test-input";
+
+      await setSettingAndWaitStable(
+        worker!,
+        KEY_ENABLED_GRAMMAR_RULES,
+        ["capitalizeFirstLetter", "spacingRule"],
+        3,
+        browserTimeout(5000, 7000),
+      );
+      await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, true);
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+      await applyConfigChange(browser, worker!);
+
+      await gotoTestPage(page, {
+        enableCkEditor: false,
+      });
+      await page.bringToFront();
+      await waitForInputReady(page, selector);
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "t");
+      await waitForInputContentEqual(page, selector, "T", browserTimeout(5000, 9000));
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "Hello .");
+      await waitForInputContentEqual(page, selector, "Hello. ", browserTimeout(5000, 9000));
+
+      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
       await applyConfigChange(browser, worker!);
     },
     browserTimeout(25000, 40000),
