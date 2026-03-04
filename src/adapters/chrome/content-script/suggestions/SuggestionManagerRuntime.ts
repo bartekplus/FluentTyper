@@ -23,16 +23,22 @@ import type {
 } from "./types";
 
 const DELETE_INPUT_FALLBACK_TIMEOUT_MS = 220;
+const INSERT_INPUT_FALLBACK_TIMEOUT_MS = 140;
+const INSERT_INPUT_FALLBACK_RETRY_INTERVAL_MS = 120;
+const INSERT_INPUT_FALLBACK_MAX_WAIT_MS = 1000;
 const SUGGESTION_DEBOUNCE_BY_ACTION = {
   insert: 120,
   delete: 60,
   other: 120,
 };
 
-interface PendingDeleteFallback {
+interface PendingKeyFallback {
   timer: ReturnType<typeof setTimeout>;
   observer: MutationObserver | null;
   reconcileScheduled: boolean;
+  inputAction: PredictionInputAction;
+  expectedBeforeCursor: string | null;
+  waitForTextChangeUntilMs: number | null;
 }
 
 export class SuggestionManagerRuntime {
@@ -48,7 +54,7 @@ export class SuggestionManagerRuntime {
   private readonly textEditService: SuggestionTextEditService;
   private readonly keyboardHandler: SuggestionKeyboardHandler;
   private readonly telemetry: SuggestionTelemetry;
-  private readonly pendingDeleteFallbacks = new Map<number, PendingDeleteFallback>();
+  private readonly pendingKeyFallbacks = new Map<number, PendingKeyFallback>();
 
   private readonly displayLangHeader: boolean;
   private readonly inlineSuggestionEnabled: boolean;
@@ -339,7 +345,7 @@ export class SuggestionManagerRuntime {
       return;
     }
 
-    this.cancelPendingDeleteFallback(id);
+    this.cancelPendingKeyFallback(id);
     this.lifecycleController.detachEntryListeners(entry);
     entry.menu.remove();
     this.predictionCoordinator.cancelPending(entry);
@@ -359,7 +365,7 @@ export class SuggestionManagerRuntime {
   }
 
   private dismissEntry(entry: SuggestionEntry, keepActive = false): void {
-    this.cancelPendingDeleteFallback(entry.id);
+    this.cancelPendingKeyFallback(entry.id);
     this.clearSuggestions(entry);
     this.predictionCoordinator.cancelPending(entry);
     entry.requestId += 1;
@@ -433,7 +439,7 @@ export class SuggestionManagerRuntime {
   }
 
   private onElementInput(id: number, event: Event): void {
-    this.cancelPendingDeleteFallback(id);
+    this.cancelPendingKeyFallback(id);
     this.activeEntryId = id;
     const entry = this.entryRegistry.getById(id);
     if (!entry) {
@@ -553,15 +559,54 @@ export class SuggestionManagerRuntime {
     if (keyboardEvent.key === "Backspace" || keyboardEvent.key === "Delete") {
       // Some rich editors defer/suppress input on delete keys. Reconcile when
       // DOM mutation arrives first; keep a timeout as a safety net.
-      this.cancelPendingDeleteFallback(id);
-      const fallback: PendingDeleteFallback = {
-        timer: setTimeout(() => {
-          this.runDeleteFallbackReconcile(id);
-        }, DELETE_INPUT_FALLBACK_TIMEOUT_MS),
-        observer: null,
-        reconcileScheduled: false,
-      };
+      this.scheduleKeyFallbackReconcile(
+        id,
+        entry,
+        "delete",
+        DELETE_INPUT_FALLBACK_TIMEOUT_MS,
+        true,
+      );
+      return;
+    }
 
+    if (this.shouldScheduleInsertFallback(keyboardEvent, entry.elem)) {
+      // Some editors update content on keydown/beforeinput but do not emit input
+      // at the editable root for normal insertions.
+      this.scheduleKeyFallbackReconcile(
+        id,
+        entry,
+        "insert",
+        INSERT_INPUT_FALLBACK_TIMEOUT_MS,
+        this.isContentEditableElement(entry.elem),
+      );
+    }
+  }
+
+  private scheduleKeyFallbackReconcile(
+    id: number,
+    entry: SuggestionEntry,
+    inputAction: PredictionInputAction,
+    timeoutMs: number,
+    observeMutations: boolean,
+  ): void {
+    this.cancelPendingKeyFallback(id);
+    const shouldWaitForTextChange = inputAction === "insert" && observeMutations;
+    const fallback: PendingKeyFallback = {
+      timer: setTimeout(() => {
+        this.runKeyFallbackReconcile(id);
+      }, timeoutMs),
+      observer: null,
+      reconcileScheduled: false,
+      inputAction,
+      expectedBeforeCursor: shouldWaitForTextChange
+        ? TextTargetAdapter.snapshot(entry.elem as TextTarget).beforeCursor
+        : null,
+      waitForTextChangeUntilMs: shouldWaitForTextChange
+        ? Date.now() + INSERT_INPUT_FALLBACK_MAX_WAIT_MS
+        : null,
+    };
+
+    if (observeMutations) {
       const mutationObserverCtor = (
         globalThis as typeof globalThis & {
           MutationObserver?: typeof MutationObserver;
@@ -569,13 +614,13 @@ export class SuggestionManagerRuntime {
       ).MutationObserver;
       if (typeof mutationObserverCtor === "function") {
         fallback.observer = new mutationObserverCtor(() => {
-          const pending = this.pendingDeleteFallbacks.get(id);
+          const pending = this.pendingKeyFallbacks.get(id);
           if (!pending || pending.reconcileScheduled) {
             return;
           }
           pending.reconcileScheduled = true;
           Promise.resolve().then(() => {
-            this.runDeleteFallbackReconcile(id);
+            this.runKeyFallbackReconcile(id);
           });
         });
         fallback.observer.observe(entry.elem, {
@@ -584,43 +629,101 @@ export class SuggestionManagerRuntime {
           subtree: true,
         });
       }
-
-      this.pendingDeleteFallbacks.set(id, fallback);
     }
+
+    this.pendingKeyFallbacks.set(id, fallback);
   }
 
-  private runDeleteFallbackReconcile(id: number): void {
-    const pending = this.pendingDeleteFallbacks.get(id);
+  private runKeyFallbackReconcile(id: number): void {
+    const pending = this.pendingKeyFallbacks.get(id);
     if (!pending) {
       return;
     }
-
-    clearTimeout(pending.timer);
-    pending.observer?.disconnect();
-    this.pendingDeleteFallbacks.delete(id);
 
     const current = this.entryRegistry.getById(id);
     if (!current) {
+      this.clearPendingKeyFallback(id);
       return;
     }
     if (!this.isEntryFocused(current)) {
+      this.clearPendingKeyFallback(id);
       this.dismissEntry(current, true);
       return;
     }
+    if (this.shouldWaitForInsertTextChange(id, current, pending)) {
+      return;
+    }
+    this.clearPendingKeyFallback(id);
     this.predictionCoordinator.reconcile(current, {
       clearSuggestions: () => this.clearSuggestions(current),
-      inputAction: "delete",
+      inputAction: pending.inputAction,
     });
   }
 
-  private cancelPendingDeleteFallback(id: number): void {
-    const pending = this.pendingDeleteFallbacks.get(id);
+  private cancelPendingKeyFallback(id: number): void {
+    this.clearPendingKeyFallback(id);
+  }
+
+  private clearPendingKeyFallback(id: number): void {
+    const pending = this.pendingKeyFallbacks.get(id);
     if (!pending) {
       return;
     }
     clearTimeout(pending.timer);
     pending.observer?.disconnect();
-    this.pendingDeleteFallbacks.delete(id);
+    this.pendingKeyFallbacks.delete(id);
+  }
+
+  private shouldWaitForInsertTextChange(
+    id: number,
+    entry: SuggestionEntry,
+    pending: PendingKeyFallback,
+  ): boolean {
+    if (
+      pending.inputAction !== "insert" ||
+      pending.expectedBeforeCursor === null ||
+      pending.waitForTextChangeUntilMs === null
+    ) {
+      return false;
+    }
+
+    const currentBeforeCursor = TextTargetAdapter.snapshot(entry.elem as TextTarget).beforeCursor;
+    if (currentBeforeCursor !== pending.expectedBeforeCursor) {
+      return false;
+    }
+
+    const remainingMs = pending.waitForTextChangeUntilMs - Date.now();
+    if (remainingMs <= 0) {
+      this.clearPendingKeyFallback(id);
+      return true;
+    }
+
+    pending.reconcileScheduled = false;
+    clearTimeout(pending.timer);
+    pending.timer = setTimeout(
+      () => this.runKeyFallbackReconcile(id),
+      Math.max(1, Math.min(INSERT_INPUT_FALLBACK_RETRY_INTERVAL_MS, remainingMs)),
+    );
+    return true;
+  }
+
+  private shouldScheduleInsertFallback(event: KeyboardEvent, elem: SuggestionElement): boolean {
+    if (
+      event.defaultPrevented ||
+      event.isComposing ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.altKey
+    ) {
+      return false;
+    }
+    if (event.key === "Dead" || event.key === "Process" || event.key === "Unidentified") {
+      return false;
+    }
+    if (event.key === "Enter") {
+      return this.isContentEditableElement(elem) || this.isTextAreaElement(elem);
+    }
+    return event.key.length === 1;
   }
 
   private resolveInputAction(
@@ -702,5 +805,9 @@ export class SuggestionManagerRuntime {
 
   private isTextAreaElement(elem: Element): elem is HTMLTextAreaElement {
     return elem.tagName === "TEXTAREA";
+  }
+
+  private isContentEditableElement(elem: Element): boolean {
+    return !this.isInputElement(elem) && !this.isTextAreaElement(elem);
   }
 }
