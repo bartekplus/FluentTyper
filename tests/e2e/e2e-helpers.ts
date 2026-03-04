@@ -6,8 +6,65 @@ const EXTENSION_PATH = path.resolve(__dirname, "../../build/");
 const IS_CI = process.env.CI === "true" || process.env.CI === "1";
 
 export type BrowserType = "chrome" | "firefox";
+export type E2ESuite = "smoke" | "full";
 
 export const BROWSER_TYPE: BrowserType = (process.env.E2E_BROWSER as BrowserType) || "chrome";
+export const E2E_SUITE: E2ESuite = (process.env.E2E_SUITE as E2ESuite) || "full";
+
+export interface E2ETimeoutProfile {
+  navigationMs: number;
+  inputReadyMs: number;
+  suggestionMs: number;
+}
+
+export interface WaitUntilOptions {
+  timeoutMs?: number;
+  intervalMs?: number;
+}
+
+const SMOKE_TIMEOUT_PROFILE: E2ETimeoutProfile = {
+  navigationMs: isFirefox() ? 5000 : 3500,
+  inputReadyMs: isFirefox() ? 7000 : 6000,
+  suggestionMs: isFirefox() ? 5000 : 4500,
+};
+
+const FULL_TIMEOUT_PROFILE: E2ETimeoutProfile = {
+  navigationMs: isFirefox() ? 8000 : 5000,
+  inputReadyMs: isFirefox() ? 10000 : 20000,
+  suggestionMs: isFirefox() ? 7000 : 8000,
+};
+
+export function getTimeoutProfile(): E2ETimeoutProfile {
+  return E2E_SUITE === "smoke" ? SMOKE_TIMEOUT_PROFILE : FULL_TIMEOUT_PROFILE;
+}
+
+export function suiteTimeout(chromeTimeoutMs: number, firefoxTimeoutMs: number): number {
+  return isFirefox() ? firefoxTimeoutMs : chromeTimeoutMs;
+}
+
+export async function sleep(delayMs: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, delayMs));
+}
+
+export async function waitUntil<T>(
+  label: string,
+  predicate: () => Promise<T | false> | T | false,
+  options: WaitUntilOptions = {},
+): Promise<T> {
+  const timeoutMs = options.timeoutMs ?? 5000;
+  const intervalMs = options.intervalMs ?? 50;
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < timeoutMs) {
+    const result = await predicate();
+    if (result !== false) {
+      return result;
+    }
+    await sleep(intervalMs);
+  }
+
+  throw new Error(`Timed out waiting for ${label} after ${timeoutMs}ms`);
+}
 
 // Firefox extension/debug pages frequently reach the desired URL/content
 // without ever resolving puppeteer's navigation lifecycle events.
@@ -198,7 +255,7 @@ export async function getRuntimePageUrl(
       if (!isRetriableRuntimeUrlError(error) || attempt === 5) {
         throw error;
       }
-      await new Promise((r) => setTimeout(r, 100));
+      await sleep(100);
     }
   }
   throw lastError;

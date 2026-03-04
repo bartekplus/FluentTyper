@@ -1,0 +1,474 @@
+{
+  "version": 1,
+  "capturedAt": "2026-03-04",
+  "behaviors": [
+    {
+      "id": "install_page_reachable",
+      "description": "Extension installation page is reachable after startup.",
+      "coverage": [
+        {
+          "layer": "e2e-smoke",
+          "file": "tests/e2e/smoke.e2e.test.ts",
+          "test": "extension installation page is reachable"
+        }
+      ]
+    },
+    {
+      "id": "popup_page_loads",
+      "description": "Popup page can be opened and rendered.",
+      "coverage": [
+        {
+          "layer": "e2e-smoke",
+          "file": "tests/e2e/smoke.e2e.test.ts",
+          "test": "popup page loads"
+        }
+      ]
+    },
+    {
+      "id": "prod_runtime_hook_hidden",
+      "description": "Production runtime does not expose command test hooks.",
+      "coverage": [
+        {
+          "layer": "e2e-smoke",
+          "file": "tests/e2e/smoke.e2e.test.ts",
+          "test": "does not expose runtime command test hooks"
+        }
+      ]
+    },
+    {
+      "id": "prod_predictor_debug_hidden",
+      "description": "Production options page keeps predictor debug controls hidden.",
+      "coverage": [
+        {
+          "layer": "e2e-smoke",
+          "file": "tests/e2e/smoke.e2e.test.ts",
+          "test": "keeps predictor debug panel hidden in options page"
+        }
+      ]
+    },
+    {
+      "id": "prod_ai_predictor_disabled",
+      "description": "Production predictor debug snapshot reports AI runtime disabled.",
+      "coverage": [
+        {
+          "layer": "e2e-smoke",
+          "file": "tests/e2e/smoke.e2e.test.ts",
+          "test": "reports AI predictor runtime disabled"
+        }
+      ]
+    },
+    {
+      "id": "domain_whitelist_exact_host",
+      "description": "Domain whitelist enables helper attachment for the exact host.",
+      "coverage": [
+        {
+          "layer": "e2e-smoke",
+          "file": "tests/e2e/smoke.e2e.test.ts",
+          "test": "domain whitelist enables predictions for exact host"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Domain whitelist matches exact host and ignores invalid patterns"
+        }
+      ]
+    },
+    {
+      "id": "site_profiles_storage_roundtrip",
+      "description": "Site profiles persist and round-trip through storage.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Site profiles setting round-trips through extension storage"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/siteProfiles.test.ts",
+          "test": "setSiteProfileForDomain creates and updates a profile with clamped values"
+        }
+      ]
+    },
+    {
+      "id": "dev_toggle_active_lang_global",
+      "description": "Dev command toggles global active language when no site profile exists.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "CMD_TOGGLE_FT_ACTIVE_LANG changes global language when no site profile exists"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/background.routing.test.ts",
+          "test": "onCommand toggles global language"
+        }
+      ]
+    },
+    {
+      "id": "dev_toggle_active_lang_site",
+      "description": "Dev command toggles site profile language when profile exists.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "CMD_TOGGLE_FT_ACTIVE_LANG changes per-site language when site profile exists"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/background.routing.test.ts",
+          "test": "onCommand rotates active language for current site profile"
+        }
+      ]
+    },
+    {
+      "id": "dev_ai_predictor_merge",
+      "description": "Dev runtime merges WebLLM and Presage suggestions.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "AI predictor merges WebLLM suggestions with Presage in one suggestion list"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/PredictionOrchestrator.test.ts",
+          "test": "handles rejected AI predictions without failing request"
+        }
+      ]
+    },
+    {
+      "id": "dev_ai_predictor_latency_fallback",
+      "description": "Dev runtime falls back when AI predictor exceeds latency budget.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "AI predictor respects latency budget and falls back to Presage when AI is slow"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/PredictionOrchestrator.test.ts",
+          "test": "falls back when AI timeout interrupt throws"
+        }
+      ]
+    },
+    {
+      "id": "dev_predictor_debug_toggle",
+      "description": "Dev predictor debug dashboard toggles runtime predictor flags.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "applies %s from predictor debug dashboard"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/background.routing.test.ts",
+          "test": "onMessage handles options page config change success and failure"
+        }
+      ]
+    },
+    {
+      "id": "prediction_accept_tab_and_click",
+      "description": "Prediction menu acceptance works for click and Tab.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Prediction popup inserts selected suggestion on click and TAB"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionManager.test.ts",
+          "test": "renders popup suggestions and accepts via Tab and click"
+        }
+      ]
+    },
+    {
+      "id": "ckeditor_paragraph_preservation",
+      "description": "CKEditor suggestion acceptance preserves paragraph structure.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "CKEditor preserves paragraph break when accepting suggestion at line end"
+        }
+      ]
+    },
+    {
+      "id": "contenteditable_rich_format_preservation",
+      "description": "Contenteditable acceptance keeps surrounding rich formatting nodes.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Contenteditable keeps surrounding rich formatting when accepting a suggestion"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionManager.test.ts",
+          "test": "preserves surrounding rich formatting during contenteditable replacement"
+        }
+      ]
+    },
+    {
+      "id": "missing_space_cancellation",
+      "description": "Cursor movement cancels automatic missing-space insertion.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Cursor movement cancels missing space auto-insertion"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionManager.test.ts",
+          "test": "inserts NBSP before first typed char after acceptance and cancels on cursor move"
+        }
+      ]
+    },
+    {
+      "id": "inline_suggestion_tab_insert",
+      "description": "Inline suggestion is inserted via Tab.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Inline suggestion prediction is inserted on TAB"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionManager.test.ts",
+          "test": "accepts inline suggestion on Tab"
+        }
+      ]
+    },
+    {
+      "id": "enabled_languages_popup_restriction",
+      "description": "Enabled languages list constrains popup language options.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Enabled languages restrict popup language list"
+        }
+      ]
+    },
+    {
+      "id": "auto_detect_language_guards",
+      "description": "auto_detect availability depends on number of enabled languages.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Auto detect is only allowed when multiple languages are enabled"
+        }
+      ]
+    },
+    {
+      "id": "productivity_dashboard_render_reset",
+      "description": "Popup and options productivity dashboard stats render and reset correctly.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Productivity dashboard shows compact popup summary and advanced stats in options"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ProductivityStatsManager.test.ts",
+          "test": "resetStats clears local counters and survives restart"
+        }
+      ]
+    },
+    {
+      "id": "auto_detect_prediction_flow",
+      "description": "auto_detect chooses a language and still returns predictions.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Auto detect in popup detects language and predicts"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/background.routing.test.ts",
+          "test": "auto-detect branch updates language and predicts"
+        }
+      ]
+    },
+    {
+      "id": "multi_language_prediction",
+      "description": "Predictions work across supported language models.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Prediction works for all supported languages"
+        }
+      ]
+    },
+    {
+      "id": "extension_ui_translation",
+      "description": "Options and popup labels follow selected extension UI language.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Extension UI language translates options page correctly"
+        }
+      ]
+    },
+    {
+      "id": "popup_escape_close",
+      "description": "Escape key closes visible suggestion popup.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Prediction popup can be closed via Escape key"
+        }
+      ]
+    },
+    {
+      "id": "text_expansion_acceptance",
+      "description": "Text expansion suggestion can be accepted via Tab.",
+      "coverage": [
+        {
+          "layer": "e2e-smoke",
+          "file": "tests/e2e/smoke.e2e.test.ts",
+          "test": "text expansion accepts first suggestion in #test-input"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/TextExpansionManager.test.ts",
+          "test": "writes lowercase expansions to file and updates all presage engines"
+        }
+      ]
+    },
+    {
+      "id": "min_word_length_zero",
+      "description": "minWordLength=0 predicts immediately after separators.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "KEY_MIN_WORD_LENGTH_TO_PREDICT set to 0 predicts immediately after space"
+        }
+      ]
+    },
+    {
+      "id": "min_word_length_negative",
+      "description": "minWordLength=-1 disables automatic predictions.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "KEY_MIN_WORD_LENGTH_TO_PREDICT set to -1 does not predict automatically"
+        }
+      ]
+    },
+    {
+      "id": "options_config_runtime_reconfigure",
+      "description": "Options page config change updates runtime behavior.",
+      "coverage": [
+        {
+          "layer": "e2e-smoke",
+          "file": "tests/e2e/smoke.e2e.test.ts",
+          "test": "options config change command updates grammar rules in runtime storage"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/background.routing.test.ts",
+          "test": "onMessage handles options page config change success and failure"
+        }
+      ]
+    },
+    {
+      "id": "grammar_autocap_spacing",
+      "description": "Grammar pipeline auto-capitalizes and applies sentence spacing.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Grammar Rule Engine auto-capitalizes and applies spacing"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/CapitalizeFirstLetterRule.test.ts",
+          "test": "capitalizes after sentence-ending characters"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/SpacingRule.test.ts",
+          "test": "handles spacing around sentence-ending punctuation"
+        }
+      ]
+    },
+    {
+      "id": "grammar_manual_space_deletion",
+      "description": "Manual deletion of inserted sentence space is respected.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Grammar Rule Engine respects manual deletion of auto-inserted sentence space"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/SpacingRule.test.ts",
+          "test": "suppresses immediate trailing-space reinsertion"
+        }
+      ]
+    },
+    {
+      "id": "grammar_technical_spacing",
+      "description": "Grammar spacing keeps code-style punctuation and path/url contexts stable.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Grammar Rule Engine preserves code-style brackets and slash technical contexts"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/SpacingRule.test.ts",
+          "test": "keeps slash spacing unchanged in path and HTML closing tag contexts"
+        }
+      ]
+    },
+    {
+      "id": "grammar_math_spacing",
+      "description": "Grammar spacing normalizes compact mathematical operators contextually.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Grammar Rule Engine applies context-aware math operator spacing"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/SpacingRule.test.ts",
+          "test": "normalizes compact math operator spacing"
+        }
+      ]
+    },
+    {
+      "id": "grammar_punctuation_spacing",
+      "description": "Grammar spacing compacts technical punctuation while preserving prose continuation.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Grammar Rule Engine compacts technical punctuation spacing and preserves prose continuation"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/SpacingRule.test.ts",
+          "test": "keeps decimal punctuation behavior and compacts technical decimal spacing"
+        }
+      ]
+    }
+  ]
+}

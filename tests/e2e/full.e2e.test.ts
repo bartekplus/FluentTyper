@@ -4,7 +4,11 @@ import * as fs from "fs";
 import type { Server } from "http";
 import { createServer } from "http";
 import {
+  CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT,
+  CMD_OPTIONS_PAGE_CONFIG_CHANGE,
   KEY_AI_PREDICTOR_ENABLED,
+  KEY_DEBUG_AI_PREDICTOR_ENABLED,
+  KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
   KEY_ENABLED_LANGUAGES,
   KEY_FALLBACK_LANGUAGE,
   KEY_DOMAIN_LIST_MODE,
@@ -22,14 +26,18 @@ import { SUPPORTED_PREDICTION_LANGUAGE_KEYS } from "../../src/core/domain/lang";
 import type { BackgroundContext } from "./e2e-helpers";
 import {
   BROWSER_TYPE,
+  getTimeoutProfile,
   launchBrowser,
   getBackgroundContext,
   openExtensionPage,
   openPopupPage,
+  sleep,
   triggerCommandForTesting,
   setWebLLMPredictionsForTesting,
   clearWebLLMPredictionsForTesting,
   getWebLLMPredictionCallsForTesting,
+  suiteTimeout,
+  waitUntil,
   isFirefox,
 } from "./e2e-helpers";
 
@@ -37,20 +45,24 @@ const TEST_PAGE_PATH = path.resolve(__dirname, "test-page.html");
 const TEST_HOST = "localhost";
 const SETTINGS_PREFIX = "store.settings.";
 const CKEDITOR_SELECTOR = ".ck-editor__editable";
-const BASE_INPUT_SELECTORS = ["#test-textarea", "#test-input", "#test-contenteditable"] as const;
-const SUPPORTED_INPUT_SELECTORS = [...BASE_INPUT_SELECTORS, CKEDITOR_SELECTOR] as const;
+const GENERIC_INPUT_SELECTORS = ["#test-input"] as const;
+const timeoutProfile = getTimeoutProfile();
 
-const NAVIGATION_TIMEOUT_MS = isFirefox() ? 8000 : 5000;
-const INPUT_READY_TIMEOUT_MS = isFirefox() ? 10000 : 20000;
-const SUGGESTION_TIMEOUT_MS = isFirefox() ? 7000 : 8000;
+const NAVIGATION_TIMEOUT_MS = timeoutProfile.navigationMs;
+const INPUT_READY_TIMEOUT_MS = timeoutProfile.inputReadyMs;
+const SUGGESTION_TIMEOUT_MS = timeoutProfile.suggestionMs;
 const RUN_DEV_RUNTIME_E2E =
   process.env.FT_E2E_DEV_RUNTIME === "1" || process.env.FT_E2E_DEV_RUNTIME === "true";
 const RUN_E2E = process.env.RUN_E2E === "1" || process.env.RUN_E2E === "true";
 const describeE2E = RUN_E2E ? describe : describe.skip;
 const devRuntimeTest = RUN_DEV_RUNTIME_E2E ? test : test.skip;
 
+function devRuntimeEach<T>(cases: readonly T[]) {
+  return RUN_DEV_RUNTIME_E2E ? test.each(cases) : test.skip.each(cases);
+}
+
 function browserTimeout(chromeTimeoutMs: number, firefoxTimeoutMs: number) {
-  return isFirefox() ? firefoxTimeoutMs : chromeTimeoutMs;
+  return suiteTimeout(chromeTimeoutMs, firefoxTimeoutMs);
 }
 
 function toLocalDateKey(date: Date): string {
@@ -61,20 +73,61 @@ function toLocalDateKey(date: Date): string {
 }
 
 let domainTestUrl: string;
+let activeBrowserForWorkerRecovery: Browser | null = null;
+let latestWorkerContext: BackgroundContext | null = null;
 
 function isRetriableWorkerError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
-  return /chrome\.storage\.local is unavailable|reading 'local'|Execution context was destroyed|Execution context is not available in detached frame or worker|Cannot find context with specified id|Target closed|Session closed/i.test(
+  return /chrome\.storage\.local is unavailable|reading 'local'|chrome\.runtime\.getURL is unavailable|runtime\.getURL|Execution context was destroyed|Execution context is not available in detached frame or worker|Cannot find context with specified id|Target closed|Session closed/i.test(
     message,
   );
 }
 
+async function reacquireWorkerContext(
+  browser: Browser,
+  label = "background worker context",
+): Promise<BackgroundContext> {
+  const recovered = await waitUntil(
+    label,
+    async () => {
+      try {
+        return await getBackgroundContext(browser);
+      } catch (error) {
+        if (!isRetriableWorkerError(error)) {
+          throw error;
+        }
+        return false;
+      }
+    },
+    {
+      timeoutMs: browserTimeout(7000, 15000),
+      intervalMs: 100,
+    },
+  );
+  latestWorkerContext = recovered;
+  return recovered;
+}
+
+async function recoverWorkerForRetry(
+  existingWorker: BackgroundContext,
+): Promise<BackgroundContext> {
+  if (activeBrowserForWorkerRecovery) {
+    return await reacquireWorkerContext(activeBrowserForWorkerRecovery, "worker recovery");
+  }
+  if (latestWorkerContext) {
+    return latestWorkerContext;
+  }
+  return existingWorker;
+}
+
 async function setSetting(worker: BackgroundContext, key: string, value: unknown): Promise<void> {
   const storageKey = `${SETTINGS_PREFIX}${key}`;
+  let workerContext = worker;
+  latestWorkerContext = workerContext;
   let lastError: unknown;
   for (let attempt = 1; attempt <= 10; attempt++) {
     try {
-      await worker.evaluate(
+      await workerContext.evaluate(
         (storageKeyInner, valueInner) =>
           new Promise<void>((resolve, reject) => {
             const storage = (
@@ -102,13 +155,15 @@ async function setSetting(worker: BackgroundContext, key: string, value: unknown
         storageKey,
         value,
       );
+      latestWorkerContext = workerContext;
       return;
     } catch (error) {
       lastError = error;
       if (!isRetriableWorkerError(error) || attempt === 10) {
         throw error;
       }
-      await new Promise((r) => setTimeout(r, 100));
+      workerContext = await recoverWorkerForRetry(workerContext);
+      await sleep(100);
     }
   }
   throw lastError;
@@ -116,10 +171,12 @@ async function setSetting(worker: BackgroundContext, key: string, value: unknown
 
 async function getSetting<T>(worker: BackgroundContext, key: string): Promise<T | undefined> {
   const storageKey = `${SETTINGS_PREFIX}${key}`;
+  let workerContext = worker;
+  latestWorkerContext = workerContext;
   let lastError: unknown;
   for (let attempt = 1; attempt <= 10; attempt++) {
     try {
-      return (await worker.evaluate(
+      const value = (await workerContext.evaluate(
         (storageKeyInner) =>
           new Promise((resolve, reject) => {
             const storage = (
@@ -147,12 +204,15 @@ async function getSetting<T>(worker: BackgroundContext, key: string): Promise<T 
           }),
         storageKey,
       )) as T | undefined;
+      latestWorkerContext = workerContext;
+      return value;
     } catch (error) {
       lastError = error;
       if (!isRetriableWorkerError(error) || attempt === 10) {
         throw error;
       }
-      await new Promise((r) => setTimeout(r, 100));
+      workerContext = await recoverWorkerForRetry(workerContext);
+      await sleep(100);
     }
   }
   throw lastError;
@@ -164,16 +224,14 @@ async function waitForSettingMatch<T>(
   predicate: (value: T | undefined) => boolean,
   timeoutMs = 5000,
 ): Promise<T | undefined> {
-  const start = Date.now();
-  let currentValue: T | undefined;
-  while (Date.now() - start < timeoutMs) {
-    currentValue = await getSetting<T>(worker, key);
-    if (predicate(currentValue)) {
-      return currentValue;
-    }
-    await new Promise((r) => setTimeout(r, 50));
-  }
-  throw new Error(`Timed out waiting for setting ${key} to match predicate`);
+  return await waitUntil(
+    `setting ${key} to match predicate`,
+    async () => {
+      const currentValue = await getSetting<T>(worker, key);
+      return predicate(currentValue) ? currentValue : false;
+    },
+    { timeoutMs, intervalMs: 50 },
+  );
 }
 
 async function setSettingAndWait(
@@ -184,18 +242,13 @@ async function setSettingAndWait(
 ): Promise<void> {
   await setSetting(worker, key, value);
   const expected = JSON.stringify(value);
-  const start = Date.now();
-  let lastCurrent: unknown;
-  while (Date.now() - start < timeoutMs) {
-    const current = await getSetting<unknown>(worker, key);
-    lastCurrent = current;
-    if (JSON.stringify(current) === expected) {
-      return;
-    }
-    await new Promise((r) => setTimeout(r, 50));
-  }
-  throw new Error(
-    `Timed out waiting for setting ${key} to become ${expected}. Last value: ${JSON.stringify(lastCurrent)}`,
+  await waitUntil(
+    `setting ${key} to become ${expected}`,
+    async () => {
+      const current = await getSetting<unknown>(worker, key);
+      return JSON.stringify(current) === expected ? true : false;
+    },
+    { timeoutMs, intervalMs: 50 },
   );
 }
 
@@ -222,7 +275,7 @@ async function setSettingAndWaitStable(
     } catch (error) {
       lastError = error;
       if (attempt < attempts) {
-        await new Promise((r) => setTimeout(r, 150));
+        await sleep(150);
       }
     }
   }
@@ -233,55 +286,79 @@ async function setSettingAndWaitStable(
 }
 
 async function notifyConfigChange(browser: Browser, worker: BackgroundContext): Promise<void> {
-  if (isFirefox()) {
-    await worker.evaluate(
-      () =>
-        new Promise<void>((resolve, reject) => {
-          chrome.runtime.sendMessage(
-            { command: "CMD_OPTIONS_PAGE_CONFIG_CHANGE", context: {} },
-            (response: { ok?: boolean } | undefined) => {
-              if (chrome.runtime.lastError) {
-                reject(new Error(chrome.runtime.lastError.message));
-                return;
-              }
-              if (!response?.ok) {
-                reject(new Error("Config change ACK returned not ok"));
-                return;
-              }
-              resolve();
-            },
-          );
-        }),
-    );
-    return;
-  }
+  let workerContext = worker;
+  latestWorkerContext = workerContext;
+  let lastError: unknown;
 
-  const extensionPage = await openExtensionPage(browser, worker, "options/options.html");
-  try {
-    await extensionPage.evaluate(
-      () =>
-        new Promise<void>((resolve, reject) => {
-          chrome.runtime.sendMessage(
-            { command: "CMD_OPTIONS_PAGE_CONFIG_CHANGE", context: {} },
-            (response: { ok?: boolean } | undefined) => {
-              if (chrome.runtime.lastError) {
-                reject(new Error(chrome.runtime.lastError.message));
-                return;
-              }
-              if (!response?.ok) {
-                reject(new Error("Config change ACK returned not ok"));
-                return;
-              }
-              resolve();
-            },
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    try {
+      if (isFirefox()) {
+        await workerContext.evaluate(
+          (command) =>
+            new Promise<void>((resolve, reject) => {
+              chrome.runtime.sendMessage(
+                { command, context: {} },
+                (response: { ok?: boolean } | undefined) => {
+                  if (chrome.runtime.lastError) {
+                    reject(new Error(chrome.runtime.lastError.message));
+                    return;
+                  }
+                  if (!response?.ok) {
+                    reject(new Error("Config change ACK returned not ok"));
+                    return;
+                  }
+                  resolve();
+                },
+              );
+            }),
+          CMD_OPTIONS_PAGE_CONFIG_CHANGE,
+        );
+      } else {
+        const extensionPage = await openExtensionPage(
+          browser,
+          workerContext,
+          "options/options.html",
+        );
+        try {
+          await extensionPage.evaluate(
+            (command) =>
+              new Promise<void>((resolve, reject) => {
+                chrome.runtime.sendMessage(
+                  { command, context: {} },
+                  (response: { ok?: boolean } | undefined) => {
+                    if (chrome.runtime.lastError) {
+                      reject(new Error(chrome.runtime.lastError.message));
+                      return;
+                    }
+                    if (!response?.ok) {
+                      reject(new Error("Config change ACK returned not ok"));
+                      return;
+                    }
+                    resolve();
+                  },
+                );
+              }),
+            CMD_OPTIONS_PAGE_CONFIG_CHANGE,
           );
-        }),
-    );
-  } finally {
-    if (!extensionPage.isClosed()) {
-      await extensionPage.close();
+        } finally {
+          if (!extensionPage.isClosed()) {
+            await extensionPage.close();
+          }
+        }
+      }
+      latestWorkerContext = workerContext;
+      return;
+    } catch (error) {
+      lastError = error;
+      if (!isRetriableWorkerError(error) || attempt === 5) {
+        throw error;
+      }
+      workerContext = await recoverWorkerForRetry(workerContext);
+      await sleep(100);
     }
   }
+
+  throw lastError;
 }
 
 async function applyConfigChange(browser: Browser, worker: BackgroundContext): Promise<void> {
@@ -289,9 +366,126 @@ async function applyConfigChange(browser: Browser, worker: BackgroundContext): P
 }
 
 async function openOptionsPage(browser: Browser, worker: BackgroundContext) {
-  const optionsPage = await openExtensionPage(browser, worker, "options/options.html");
-  await optionsPage.waitForSelector("#content");
-  return optionsPage;
+  let workerContext = worker;
+  latestWorkerContext = workerContext;
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    try {
+      const optionsPage = await openExtensionPage(browser, workerContext, "options/options.html");
+      await optionsPage.waitForSelector("#content");
+      latestWorkerContext = workerContext;
+      return optionsPage;
+    } catch (error) {
+      lastError = error;
+      if (!isRetriableWorkerError(error) || attempt === 5) {
+        throw error;
+      }
+      workerContext = await recoverWorkerForRetry(workerContext);
+      await sleep(100);
+    }
+  }
+
+  throw lastError;
+}
+
+async function sendOptionsPageConfigChange(optionsPage: Page): Promise<void> {
+  await optionsPage.evaluate((command) => {
+    return new Promise<void>((resolve, reject) => {
+      chrome.runtime.sendMessage(
+        { command, context: {} },
+        (response: { ok?: boolean } | undefined) => {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+            return;
+          }
+          if (!response?.ok) {
+            reject(new Error("Config change ACK returned not ok"));
+            return;
+          }
+          resolve();
+        },
+      );
+    });
+  }, CMD_OPTIONS_PAGE_CONFIG_CHANGE);
+}
+
+interface PredictorDebugSnapshot {
+  config?: {
+    debugPresagePredictorEnabled?: boolean;
+    debugAIPredictorEnabled?: boolean;
+  };
+}
+
+async function getPredictorDebugSnapshot(optionsPage: Page): Promise<PredictorDebugSnapshot> {
+  return await optionsPage.evaluate((command) => {
+    return new Promise<PredictorDebugSnapshot>((resolve, reject) => {
+      chrome.runtime.sendMessage(
+        { command, context: {} },
+        (response: PredictorDebugSnapshot | undefined) => {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+            return;
+          }
+          resolve(response || {});
+        },
+      );
+    });
+  }, CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT);
+}
+
+async function waitForSettingValue(
+  worker: BackgroundContext,
+  key: string,
+  expectedValue: boolean,
+  timeoutMs = 5000,
+): Promise<void> {
+  await waitUntil(
+    `setting ${key} to equal ${String(expectedValue)}`,
+    async () => {
+      const currentValue = await getSetting<boolean>(worker, key);
+      return currentValue === expectedValue ? true : false;
+    },
+    { timeoutMs, intervalMs: 50 },
+  );
+}
+
+async function waitForSnapshotValue(
+  optionsPage: Page,
+  key: string,
+  expectedValue: boolean,
+  timeoutMs = 7000,
+): Promise<void> {
+  await waitUntil(
+    `predictor snapshot ${key}=${String(expectedValue)}`,
+    async () => {
+      const snapshot = await getPredictorDebugSnapshot(optionsPage);
+      const currentValue =
+        key === KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED
+          ? snapshot.config?.debugPresagePredictorEnabled
+          : snapshot.config?.debugAIPredictorEnabled;
+      return currentValue === expectedValue ? true : false;
+    },
+    { timeoutMs, intervalMs: 100 },
+  );
+}
+
+async function togglePredictorDebugButton(optionsPage: Page, key: string): Promise<void> {
+  const selector = `[data-action="set-predictor-toggle"][data-key="${key}"]`;
+  await optionsPage.waitForSelector(selector, { timeout: 10000 });
+  await optionsPage.evaluate((selectorValue) => {
+    const element = document.querySelector(selectorValue);
+    if (!(element instanceof HTMLElement)) {
+      throw new Error(`Missing predictor toggle: ${selectorValue}`);
+    }
+    element.dispatchEvent(
+      new MouseEvent("click", {
+        bubbles: true,
+        cancelable: true,
+        view: window,
+      }),
+    );
+  }, selector);
 }
 
 function shouldEnableCkEditor(selector: string) {
@@ -334,15 +528,14 @@ async function waitForInputContentEqual(
   expected: string,
   timeoutMs: number,
 ): Promise<string> {
-  const startedAt = Date.now();
-  while (Date.now() - startedAt < timeoutMs) {
-    const currentValue = await getInputContent(page, selector);
-    if (currentValue === expected) {
-      return currentValue;
-    }
-    await new Promise((resolve) => setTimeout(resolve, 50));
-  }
-  throw new Error(`Timed out waiting for input content "${expected}" for ${selector}`);
+  return await waitUntil(
+    `input content ${selector} to equal "${expected}"`,
+    async () => {
+      const currentValue = await getInputContent(page, selector);
+      return currentValue === expected ? currentValue : false;
+    },
+    { timeoutMs, intervalMs: 50 },
+  );
 }
 
 async function waitForInputContentMatch(
@@ -351,15 +544,14 @@ async function waitForInputContentMatch(
   pattern: RegExp,
   timeoutMs: number,
 ): Promise<string> {
-  const startedAt = Date.now();
-  while (Date.now() - startedAt < timeoutMs) {
-    const currentValue = await getInputContent(page, selector);
-    if (pattern.test(currentValue)) {
-      return currentValue;
-    }
-    await new Promise((resolve) => setTimeout(resolve, 50));
-  }
-  throw new Error(`Timed out waiting for input content to match ${pattern} for ${selector}`);
+  return await waitUntil(
+    `input content ${selector} to match ${String(pattern)}`,
+    async () => {
+      const currentValue = await getInputContent(page, selector);
+      return pattern.test(currentValue) ? currentValue : false;
+    },
+    { timeoutMs, intervalMs: 50 },
+  );
 }
 
 async function waitForInputContentMinLength(
@@ -368,16 +560,13 @@ async function waitForInputContentMinLength(
   minLengthExclusive: number,
   timeoutMs: number,
 ): Promise<string> {
-  const startedAt = Date.now();
-  while (Date.now() - startedAt < timeoutMs) {
-    const currentValue = await getInputContent(page, selector);
-    if (currentValue.length > minLengthExclusive) {
-      return currentValue;
-    }
-    await new Promise((resolve) => setTimeout(resolve, 50));
-  }
-  throw new Error(
-    `Timed out waiting for input content length > ${minLengthExclusive} for ${selector}`,
+  return await waitUntil(
+    `input content ${selector} length > ${minLengthExclusive}`,
+    async () => {
+      const currentValue = await getInputContent(page, selector);
+      return currentValue.length > minLengthExclusive ? currentValue : false;
+    },
+    { timeoutMs, intervalMs: 50 },
   );
 }
 
@@ -435,70 +624,66 @@ async function gotoTestPage(page: Page, options: { enableCkEditor?: boolean } = 
 }
 
 async function waitForInputReady(page: Page, selector: string) {
-  const startedAt = Date.now();
-  const isTimedOut = () => Date.now() - startedAt >= INPUT_READY_TIMEOUT_MS;
-
   if (selector === CKEDITOR_SELECTOR) {
-    while (true) {
-      const ckState = await page.evaluate(() => ({
-        ready: Boolean(
-          (
-            window as typeof window & {
-              __testCkEditorReady?: boolean;
-            }
-          ).__testCkEditorReady,
-        ),
-        error:
-          (
-            window as typeof window & {
-              __testCkEditorError?: string | null;
-            }
-          ).__testCkEditorError ?? null,
-        hasEditable: Boolean(document.querySelector(".ck-editor__editable")),
-      }));
-      if (ckState.ready || ckState.error || ckState.hasEditable) {
+    await waitUntil(
+      `CKEditor readiness for ${selector}`,
+      async () => {
+        const ckState = await page.evaluate(() => ({
+          ready: Boolean(
+            (
+              window as typeof window & {
+                __testCkEditorReady?: boolean;
+              }
+            ).__testCkEditorReady,
+          ),
+          error:
+            (
+              window as typeof window & {
+                __testCkEditorError?: string | null;
+              }
+            ).__testCkEditorError ?? null,
+          hasEditable: Boolean(document.querySelector(".ck-editor__editable")),
+        }));
+
         if (ckState.error) {
           throw new Error(`CKEditor failed to initialize: ${ckState.error}`);
         }
-        break;
-      }
-      if (isTimedOut()) {
-        const debugState = await page.evaluate(() => ({
-          href: window.location.href,
-          ready: (
-            window as typeof window & {
-              __testCkEditorReady?: boolean;
-            }
-          ).__testCkEditorReady,
-          ckError: (
-            window as typeof window & {
-              __testCkEditorError?: string | null;
-            }
-          ).__testCkEditorError,
-          hasEditable: Boolean(document.querySelector(".ck-editor__editable")),
-        }));
-        throw new Error(
-          `CKEditor readiness timed out for ${selector}: ${JSON.stringify(debugState)}`,
-        );
-      }
-      await new Promise((resolve) => setTimeout(resolve, 50));
-    }
+        return ckState.ready || ckState.hasEditable ? true : false;
+      },
+      { timeoutMs: INPUT_READY_TIMEOUT_MS, intervalMs: 50 },
+    ).catch(async (error) => {
+      const debugState = await page.evaluate(() => ({
+        href: window.location.href,
+        ready: (
+          window as typeof window & {
+            __testCkEditorReady?: boolean;
+          }
+        ).__testCkEditorReady,
+        ckError: (
+          window as typeof window & {
+            __testCkEditorError?: string | null;
+          }
+        ).__testCkEditorError,
+        hasEditable: Boolean(document.querySelector(".ck-editor__editable")),
+      }));
+      throw new Error(
+        `CKEditor readiness timed out for ${selector}: ${JSON.stringify(debugState)} (${String(error)})`,
+      );
+    });
   }
 
   await page.waitForSelector(selector, { timeout: INPUT_READY_TIMEOUT_MS });
-  while (true) {
-    const isAttached = await page.evaluate(
-      (sel) => document.querySelector(sel)?.hasAttribute("data-suggestion") ?? false,
-      selector,
-    );
-    if (isAttached) {
-      return;
-    }
-    if (isTimedOut()) {
-      throw new Error(`Input helper did not attach in time for selector ${selector}`);
-    }
-    await new Promise((resolve) => setTimeout(resolve, 50));
-  }
+  await waitUntil(
+    `input helper attach for ${selector}`,
+    async () => {
+      const isAttached = await page.evaluate(
+        (sel) => document.querySelector(sel)?.hasAttribute("data-suggestion") ?? false,
+        selector,
+      );
+      return isAttached ? true : false;
+    },
+    { timeoutMs: INPUT_READY_TIMEOUT_MS, intervalMs: 50 },
+  );
 }
 
 async function waitForVisibleSuggestions(
@@ -513,44 +698,43 @@ async function waitForVisibleSuggestionTexts(
   page: Page,
   timeoutMs = SUGGESTION_TIMEOUT_MS,
 ): Promise<string[]> {
-  const startedAt = Date.now();
-  while (Date.now() - startedAt < timeoutMs) {
-    const texts = await page.evaluate(() => {
-      const activeElement = document.activeElement as
-        | (HTMLElement & { suggestionMenu?: Element | null })
-        | null;
-      const activeMenu = activeElement?.suggestionMenu;
-      const containers = [
-        ...(activeMenu instanceof Element ? [activeMenu] : []),
-        ...Array.from(document.querySelectorAll(".ft-suggestion-container")).filter(
-          (container) => container !== activeMenu,
-        ),
-      ];
-      for (const container of containers) {
-        const style = window.getComputedStyle(container);
-        if (
-          style.display === "none" ||
-          style.visibility === "hidden" ||
-          style.opacity === "0" ||
-          container.getClientRects().length === 0
-        ) {
-          continue;
+  return await waitUntil(
+    "visible suggestions",
+    async () => {
+      const texts = await page.evaluate(() => {
+        const activeElement = document.activeElement as
+          | (HTMLElement & { suggestionMenu?: Element | null })
+          | null;
+        const activeMenu = activeElement?.suggestionMenu;
+        const containers = [
+          ...(activeMenu instanceof Element ? [activeMenu] : []),
+          ...Array.from(document.querySelectorAll(".ft-suggestion-container")).filter(
+            (container) => container !== activeMenu,
+          ),
+        ];
+        for (const container of containers) {
+          const style = window.getComputedStyle(container);
+          if (
+            style.display === "none" ||
+            style.visibility === "hidden" ||
+            style.opacity === "0" ||
+            container.getClientRects().length === 0
+          ) {
+            continue;
+          }
+          const visibleTexts = Array.from(container.querySelectorAll("li"))
+            .map((li) => li.textContent ?? "")
+            .filter((text) => text.length > 0);
+          if (visibleTexts.length > 0) {
+            return visibleTexts;
+          }
         }
-        const visibleTexts = Array.from(container.querySelectorAll("li"))
-          .map((li) => li.textContent ?? "")
-          .filter((text) => text.length > 0);
-        if (visibleTexts.length > 0) {
-          return visibleTexts;
-        }
-      }
-      return [];
-    });
-    if (texts.length > 0) {
-      return texts;
-    }
-    await new Promise((resolve) => setTimeout(resolve, 50));
-  }
-  throw new Error(`Timed out waiting for visible suggestions after ${timeoutMs}ms`);
+        return [];
+      });
+      return texts.length > 0 ? texts : false;
+    },
+    { timeoutMs, intervalMs: 50 },
+  );
 }
 
 async function hasVisibleSuggestions(page: Page): Promise<boolean> {
@@ -681,13 +865,14 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
   beforeAll(async () => {
     browser = await launchBrowser();
+    activeBrowserForWorkerRecovery = browser;
     const pages = await browser.pages();
     page = pages[0];
     if (isFirefox()) {
       startupFirefoxInstallationPage =
         pages.find((openPage) => openPage.url().includes("/new_installation/index.html")) ?? null;
     }
-    worker = await getBackgroundContext(browser);
+    worker = await reacquireWorkerContext(browser, "initial background worker context");
     domainTestHtml = fs.readFileSync(TEST_PAGE_PATH, "utf8");
 
     domainTestServer = createServer((req, res) => {
@@ -748,7 +933,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   }, 60000);
 
   beforeEach(async () => {
-    worker = await getBackgroundContext(browser);
+    worker = await reacquireWorkerContext(browser, "beforeEach background worker context");
     // Keep the legacy baseline for non-grammar E2E flows so popup/inline
     // prediction scenarios remain deterministic regardless of defaults.
     await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
@@ -760,7 +945,21 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   afterEach(async () => {
     try {
       if (worker) {
-        await clearWebLLMPredictionsForTesting(worker);
+        let workerContext = worker;
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          try {
+            await clearWebLLMPredictionsForTesting(workerContext);
+            worker = workerContext;
+            latestWorkerContext = workerContext;
+            break;
+          } catch (error) {
+            if (!isRetriableWorkerError(error) || attempt === 3) {
+              throw error;
+            }
+            workerContext = await recoverWorkerForRetry(workerContext);
+            await sleep(100);
+          }
+        }
       }
     } catch {
       // Ignore cleanup failures if the background context is restarting.
@@ -798,6 +997,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     } catch {
       // Ignore teardown errors from browser shutdown.
     }
+    latestWorkerContext = null;
+    activeBrowserForWorkerRecovery = null;
   });
 
   test(
@@ -1142,7 +1343,37 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(30000, 50000),
   );
 
-  test.each(SUPPORTED_INPUT_SELECTORS)(
+  devRuntimeEach([KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED, KEY_DEBUG_AI_PREDICTOR_ENABLED])(
+    "applies %s from predictor debug dashboard",
+    async (key) => {
+      const optionsPage = await openExtensionPage(browser, worker!, "options/options.html");
+
+      try {
+        await setSetting(worker!, key, true);
+        await sendOptionsPageConfigChange(optionsPage);
+        await waitForSnapshotValue(optionsPage, key, true);
+
+        await optionsPage.waitForSelector("#predictorDebugRoot", {
+          timeout: 10000,
+        });
+        await togglePredictorDebugButton(optionsPage, key);
+
+        await waitForSettingValue(worker!, key, false);
+        await waitForSnapshotValue(optionsPage, key, false);
+      } finally {
+        await setSetting(worker!, key, true);
+        if (!optionsPage.isClosed()) {
+          await sendOptionsPageConfigChange(optionsPage);
+        }
+        if (!optionsPage.isClosed()) {
+          await optionsPage.close();
+        }
+      }
+    },
+    25000,
+  );
+
+  test.each(GENERIC_INPUT_SELECTORS)(
     "Site profile overrides suggestion count and inline mode in %s",
     async (selector) => {
       try {
@@ -1199,7 +1430,35 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
         await page.focus(selector);
         await input!.type("impor");
-        await new Promise((r) => setTimeout(r, browserTimeout(300, 700)));
+        await waitUntil(
+          "site profile override suggestion visibility",
+          async () => {
+            const state = await page.evaluate(() => {
+              const hasInlineSuggestion = Boolean(
+                document.querySelector(".ft-suggestion-inline")?.textContent,
+              );
+              const containers = Array.from(document.querySelectorAll(".ft-suggestion-container"));
+              const hasVisiblePopup = containers.some((container) => {
+                const style = window.getComputedStyle(container);
+                if (
+                  style.display === "none" ||
+                  style.visibility === "hidden" ||
+                  style.opacity === "0" ||
+                  container.getClientRects().length === 0
+                ) {
+                  return false;
+                }
+                return container.querySelectorAll("li").length > 0;
+              });
+              return {
+                hasInlineSuggestion,
+                hasVisiblePopup,
+              };
+            });
+            return state.hasInlineSuggestion || state.hasVisiblePopup ? true : false;
+          },
+          { timeoutMs: browserTimeout(3000, 7000), intervalMs: 50 },
+        );
         await page.keyboard.press("Tab");
 
         const elementText = await waitForInputContentMinLength(
@@ -1221,7 +1480,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(30000, 50000),
   );
 
-  test.each(SUPPORTED_INPUT_SELECTORS)(
+  test.each(GENERIC_INPUT_SELECTORS)(
     "Prediction popup inserts selected suggestion on click and TAB in %s",
     async (selector) => {
       await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
@@ -1364,7 +1623,98 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(45000, 70000),
   );
 
-  test.each(SUPPORTED_INPUT_SELECTORS)(
+  test(
+    "Contenteditable keeps surrounding rich formatting when accepting a suggestion",
+    async () => {
+      const selector = "#test-contenteditable";
+      const readRichState = async () =>
+        page.evaluate((sel) => {
+          const target = document.querySelector(sel) as HTMLElement | null;
+          if (!target) {
+            return { html: "", text: "", boldText: "", hasFormattedRichToken: false };
+          }
+          const boldText = target.querySelector("b, strong")?.textContent ?? "";
+          const hasFormattedRichToken =
+            boldText
+              .replace(/\u00a0/g, " ")
+              .trim()
+              .toLowerCase() === "rich";
+          return {
+            html: target.innerHTML,
+            text: target.textContent ?? "",
+            boldText,
+            hasFormattedRichToken,
+          };
+        }, selector);
+
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await applyConfigChange(browser, worker!);
+
+      await gotoTestPage(page);
+      await page.bringToFront();
+      await waitForInputReady(page, selector);
+
+      await page.evaluate((sel) => {
+        const target = document.querySelector(sel);
+        if (!(target instanceof HTMLElement)) {
+          throw new Error("Contenteditable target not found");
+        }
+        target.innerHTML = "<b>rich</b> <i> next</i>";
+        const italic = target.querySelector("i");
+        if (!(italic instanceof HTMLElement)) {
+          throw new Error("Italic node missing");
+        }
+        const selection = window.getSelection();
+        if (!selection) {
+          throw new Error("Selection unavailable");
+        }
+        const range = document.createRange();
+        range.setStartBefore(italic);
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }, selector);
+
+      await page.focus(selector);
+      await page.keyboard.type("h");
+      const liCount = await waitForVisibleSuggestions(page);
+      expect(liCount).toBeGreaterThan(0);
+      await page.keyboard.press("Tab");
+
+      let lastRichState = await readRichState();
+      try {
+        await waitUntil(
+          "contenteditable rich formatting retained after accepting suggestion",
+          async () => {
+            lastRichState = await readRichState();
+            return (
+              lastRichState.hasFormattedRichToken &&
+              lastRichState.text
+                .replace(/\u00a0/g, " ")
+                .toLowerCase()
+                .includes("rich")
+            );
+          },
+          {
+            timeoutMs: browserTimeout(3000, 7000),
+            intervalMs: 50,
+          },
+        );
+      } catch {
+        throw new Error(`Rich formatting was not preserved: ${JSON.stringify(lastRichState)}`);
+      }
+
+      const richState = await readRichState();
+      expect(richState.hasFormattedRichToken).toBeTrue();
+      expect(richState.html.toLowerCase()).toContain("rich");
+      expect(richState.text.replace(/\u00a0/g, " ").toLowerCase()).toContain("rich");
+    },
+    browserTimeout(20000, 35000),
+  );
+
+  test.each(GENERIC_INPUT_SELECTORS)(
     "Cursor movement cancels missing space auto-insertion in %s",
     async (selector) => {
       await gotoTestPage(page, {
@@ -1401,7 +1751,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(15000, 30000),
   );
 
-  test.each(SUPPORTED_INPUT_SELECTORS)(
+  test.each(GENERIC_INPUT_SELECTORS)(
     "Inline suggestion prediction is inserted on TAB in %s",
     async (selector) => {
       await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, true);
@@ -1415,7 +1765,17 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitForInputReady(page, selector);
       const element = await page.$(selector);
       await element!.type("w");
-      await new Promise((r) => setTimeout(r, browserTimeout(100, 250)));
+      await waitUntil(
+        "inline suggestion preview",
+        async () => {
+          const hasInlineSuggestion = await page.evaluate(() => {
+            const preview = document.querySelector(".ft-suggestion-inline");
+            return Boolean(preview && (preview.textContent ?? "").length > 0);
+          });
+          return hasInlineSuggestion ? true : false;
+        },
+        { timeoutMs: browserTimeout(2000, 5000), intervalMs: 50 },
+      );
 
       await page.keyboard.press("Tab");
 
@@ -1813,7 +2173,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     }
   }
 
-  test.each(SUPPORTED_INPUT_SELECTORS)(
+  test.each(GENERIC_INPUT_SELECTORS)(
     "Auto detect in popup detects language and predicts in %s",
     async (selector) => {
       await runAutoDetectPredictionScenario(selector);
@@ -1848,8 +2208,6 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       if (!testData) {
         throw new Error(`Missing language test data for ${lang}`);
       }
-      const typingSettleMs =
-        selector === CKEDITOR_SELECTOR ? browserTimeout(150, 350) : browserTimeout(50, 150);
       const suggestionTimeoutMs =
         selector === CKEDITOR_SELECTOR
           ? browserTimeout(5000, 12000)
@@ -1869,7 +2227,6 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await clearInputContent(page, selector);
       await waitForNoVisibleSuggestions(page, browserTimeout(2000, 5000)).catch(() => undefined);
       await typeInInput(page, selector, testData.input);
-      await new Promise((r) => setTimeout(r, typingSettleMs));
 
       const allSuggestionTexts = (
         await waitForVisibleSuggestionTexts(page, suggestionTimeoutMs).catch(() => [])
@@ -1898,7 +2255,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     await applyConfigChange(browser, worker!);
   }
 
-  test.each(SUPPORTED_INPUT_SELECTORS)(
+  test.each(GENERIC_INPUT_SELECTORS)(
     "Prediction works for all supported languages in %s",
     async (selector) => {
       await runPredictionForAllLanguagesScenario(selector);
@@ -2057,7 +2414,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(20000, 40000),
   );
 
-  test.each(SUPPORTED_INPUT_SELECTORS)(
+  test.each(GENERIC_INPUT_SELECTORS)(
     "Prediction popup can be closed via Escape key in %s",
     async (selector) => {
       await gotoTestPage(page, {
@@ -2083,7 +2440,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(30000, 45000),
   );
 
-  test.each(SUPPORTED_INPUT_SELECTORS)(
+  test.each(GENERIC_INPUT_SELECTORS)(
     "Text expansion works correctly in %s",
     async (selector) => {
       await gotoTestPage(page, {
@@ -2124,7 +2481,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(30000, 45000),
   );
 
-  test.each(SUPPORTED_INPUT_SELECTORS)(
+  test.each(GENERIC_INPUT_SELECTORS)(
     "KEY_MIN_WORD_LENGTH_TO_PREDICT set to 0 predicts immediately after space in %s",
     async (selector) => {
       // Set settings BEFORE creating the page so content script initializes correctly
@@ -2171,7 +2528,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(30000, 45000),
   );
 
-  test.each(SUPPORTED_INPUT_SELECTORS)(
+  test.each(GENERIC_INPUT_SELECTORS)(
     "KEY_MIN_WORD_LENGTH_TO_PREDICT set to -1 does not predict automatically in %s",
     async (selector) => {
       // Reset and set settings BEFORE creating the page
@@ -2215,25 +2572,29 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       // the "action" event and call optionsPageConfigChange().
       const optionsPage = await openOptionsPage(browser, worker!);
       try {
-        await optionsPage.evaluate((key: string) => {
-          // The fancier-settings framework exposes each manifest entry by name.
-          // Access the multiselect element, set a new value, and trigger the
-          // action event — exactly what happens when a user clicks a checkbox.
-          const settingsEl = document.querySelector("#content") as HTMLElement;
-          if (!settingsEl) {
-            throw new Error("Options page content not found");
-          }
-          // Use chrome.storage.local directly (mimicking what the action handler does)
-          const newRules = ["capitalizeFirstLetter", "spacingRule"];
-          const storageKey = `store.settings.${key}`;
-          localStorage.setItem(storageKey, JSON.stringify(newRules));
-          chrome.storage.local.set({ [storageKey]: JSON.stringify(newRules) });
-          // Fire the config change message
-          chrome.runtime.sendMessage({
-            command: "CMD_OPTIONS_PAGE_CONFIG_CHANGE",
-            context: {},
-          });
-        }, KEY_ENABLED_GRAMMAR_RULES);
+        await optionsPage.evaluate(
+          (key: string, command: string) => {
+            // The fancier-settings framework exposes each manifest entry by name.
+            // Access the multiselect element, set a new value, and trigger the
+            // action event — exactly what happens when a user clicks a checkbox.
+            const settingsEl = document.querySelector("#content") as HTMLElement;
+            if (!settingsEl) {
+              throw new Error("Options page content not found");
+            }
+            // Use chrome.storage.local directly (mimicking what the action handler does)
+            const newRules = ["capitalizeFirstLetter", "spacingRule"];
+            const storageKey = `store.settings.${key}`;
+            localStorage.setItem(storageKey, JSON.stringify(newRules));
+            chrome.storage.local.set({ [storageKey]: JSON.stringify(newRules) });
+            // Fire the config change message
+            chrome.runtime.sendMessage({
+              command,
+              context: {},
+            });
+          },
+          KEY_ENABLED_GRAMMAR_RULES,
+          CMD_OPTIONS_PAGE_CONFIG_CHANGE,
+        );
       } finally {
         await optionsPage.close();
       }
@@ -2257,7 +2618,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(15000, 25000),
   );
 
-  test.each(["#test-input", ".ck-editor__editable"])(
+  test.each(GENERIC_INPUT_SELECTORS)(
     "Grammar Rule Engine auto-capitalizes and applies spacing in %s",
     async (selector) => {
       // Enable required grammar rules internally for predictive evaluations
@@ -2283,10 +2644,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
       // Type "t" first, then pause to let the grammar rule engine process the
       // capitalize-first-letter correction before typing more characters.
-      // Without this pause, the textEdit response may arrive after the user
-      // has typed more characters, and the replacement position would be wrong.
       await element!.type("t");
-      await new Promise((r) => setTimeout(r, 1500));
+      await waitForInputContentMatch(page, selector, /^T$/, browserTimeout(5000, 8000));
 
       // Continue typing the rest of "testing ."
       await element!.type("esting .");
@@ -2321,7 +2680,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(30000, 45000),
   );
 
-  test.each(["#test-input", ".ck-editor__editable"])(
+  test.each(GENERIC_INPUT_SELECTORS)(
     "Grammar Rule Engine respects manual deletion of auto-inserted sentence space in %s",
     async (selector) => {
       await setSettingAndWaitStable(
@@ -2353,9 +2712,14 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       );
 
       await page.keyboard.press("Backspace");
-      await new Promise((resolve) => setTimeout(resolve, 1200));
-
-      const afterDelete = (await getInputContent(page, selector)).replace(/\xA0/g, " ");
+      const afterDelete = (
+        await waitForInputContentEqual(
+          page,
+          selector,
+          "This is awsome.",
+          browserTimeout(5000, 8000),
+        )
+      ).replace(/\xA0/g, " ");
       expect(afterDelete).toBe("This is awsome.");
 
       await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
@@ -2364,7 +2728,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(30000, 45000),
   );
 
-  test.each(["#test-input", CKEDITOR_SELECTOR])(
+  test.each(GENERIC_INPUT_SELECTORS)(
     "Grammar Rule Engine preserves code-style brackets and slash technical contexts while keeping prose spacing in %s",
     async (selector) => {
       await setSettingAndWaitStable(
@@ -2393,29 +2757,27 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         expected: string,
         timeoutMs = browserTimeout(5000, 8000),
       ): Promise<void> => {
-        const startedAt = Date.now();
-        while (Date.now() - startedAt < timeoutMs) {
-          const current = await readNormalizedText();
-          if (current === expected) {
-            return;
-          }
-          await new Promise((resolve) => setTimeout(resolve, 50));
-        }
-        throw new Error(`Timed out waiting for normalized value "${expected}" in ${selector}`);
+        await waitUntil(
+          `normalized value "${expected}" in ${selector}`,
+          async () => {
+            const current = await readNormalizedText();
+            return current === expected ? true : false;
+          },
+          { timeoutMs, intervalMs: 50 },
+        );
       };
       const waitForNormalizedMatch = async (
         pattern: RegExp,
         timeoutMs = browserTimeout(5000, 8000),
       ): Promise<void> => {
-        const startedAt = Date.now();
-        while (Date.now() - startedAt < timeoutMs) {
-          const current = await readNormalizedText();
-          if (pattern.test(current)) {
-            return;
-          }
-          await new Promise((resolve) => setTimeout(resolve, 50));
-        }
-        throw new Error(`Timed out waiting for normalized pattern ${pattern} in ${selector}`);
+        await waitUntil(
+          `normalized pattern ${String(pattern)} in ${selector}`,
+          async () => {
+            const current = await readNormalizedText();
+            return pattern.test(current) ? true : false;
+          },
+          { timeoutMs, intervalMs: 50 },
+        );
       };
 
       await clearInputContent(page, selector);
@@ -2426,21 +2788,21 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
       await clearInputContent(page, selector);
       await typeInInput(page, selector, "console.log(");
-      await new Promise((r) => setTimeout(r, 1500));
+      await waitForNormalizedValue("console.log(");
       elementText = await readNormalizedText();
       expect(elementText).toContain("console.log(");
       expect(elementText).not.toContain("console.log (");
 
       await clearInputContent(page, selector);
       await typeInInput(page, selector, "myArray[");
-      await new Promise((r) => setTimeout(r, 1500));
+      await waitForNormalizedValue("myArray[");
       elementText = await readNormalizedText();
       expect(elementText).toContain("myArray[");
       expect(elementText).not.toContain("myArray [");
 
       await clearInputContent(page, selector);
       await typeInInput(page, selector, "foo(bar())");
-      await new Promise((r) => setTimeout(r, 1500));
+      await waitForNormalizedValue("foo(bar())");
       elementText = await readNormalizedText();
       expect(elementText).toContain("foo(bar())");
       expect(elementText).not.toContain("foo(bar() )");
@@ -2452,25 +2814,23 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       elementText = await readNormalizedText();
       expect(elementText).toContain("Hello (world) ");
 
-      if (selector === "#test-input") {
-        await clearInputContent(page, selector);
-        await typeInInput(page, selector, "https://example.com/a/b");
-        await waitForNormalizedValue("https://example.com/a/b");
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "https://example.com/a/b");
+      await waitForNormalizedValue("https://example.com/a/b");
 
-        await clearInputContent(page, selector);
-        await typeInInput(page, selector, "src/components/Button");
-        await waitForNormalizedValue("src/components/Button");
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "src/components/Button");
+      await waitForNormalizedValue("src/components/Button");
 
-        await clearInputContent(page, selector);
-        await typeInInput(page, selector, "</div>");
-        await waitForNormalizedValue("</div>");
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "</div>");
+      await waitForNormalizedValue("</div>");
 
-        await clearInputContent(page, selector);
-        await typeInInput(page, selector, "x /");
-        await waitForNormalizedValue("x / ");
-        await typeInInput(page, selector, "y");
-        await waitForNormalizedValue("x / y");
-      }
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "x /");
+      await waitForNormalizedValue("x / ");
+      await typeInInput(page, selector, "y");
+      await waitForNormalizedValue("x / y");
 
       await setSettingAndWaitStable(
         worker!,
@@ -2512,15 +2872,14 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         expected: string,
         timeoutMs = browserTimeout(5000, 8000),
       ): Promise<void> => {
-        const startedAt = Date.now();
-        while (Date.now() - startedAt < timeoutMs) {
-          const current = (await getInputContent(page, selector)).replace(/\xA0/g, " ");
-          if (current === expected) {
-            return;
-          }
-          await new Promise((resolve) => setTimeout(resolve, 50));
-        }
-        throw new Error(`Timed out waiting for normalized value "${expected}" in ${selector}`);
+        await waitUntil(
+          `normalized value "${expected}" in ${selector}`,
+          async () => {
+            const current = (await getInputContent(page, selector)).replace(/\xA0/g, " ");
+            return current === expected ? true : false;
+          },
+          { timeoutMs, intervalMs: 50 },
+        );
       };
 
       await clearInputContent(page, selector);
@@ -2595,15 +2954,14 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         expected: string,
         timeoutMs = browserTimeout(5000, 8000),
       ): Promise<void> => {
-        const startedAt = Date.now();
-        while (Date.now() - startedAt < timeoutMs) {
-          const current = (await getInputContent(page, selector)).replace(/\xA0/g, " ");
-          if (current === expected) {
-            return;
-          }
-          await new Promise((resolve) => setTimeout(resolve, 50));
-        }
-        throw new Error(`Timed out waiting for normalized value "${expected}" in ${selector}`);
+        await waitUntil(
+          `normalized value "${expected}" in ${selector}`,
+          async () => {
+            const current = (await getInputContent(page, selector)).replace(/\xA0/g, " ");
+            return current === expected ? true : false;
+          },
+          { timeoutMs, intervalMs: 50 },
+        );
       };
 
       await clearInputContent(page, selector);
