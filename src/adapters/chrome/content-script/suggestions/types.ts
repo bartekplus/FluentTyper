@@ -13,11 +13,10 @@ export interface SuggestionSnapshot {
   cursorOffset: number;
 }
 
-export type SuggestionElement =
-  (HTMLInputElement | HTMLTextAreaElement | HTMLElement) & {
-    tributeMenu?: HTMLElement | null;
-    suggestionMenu?: HTMLElement | null;
-  };
+export type SuggestionElement = (HTMLInputElement | HTMLTextAreaElement | HTMLElement) & {
+  tributeMenu?: HTMLElement | null;
+  suggestionMenu?: HTMLElement | null;
+};
 
 export interface SuggestionManagerOptions {
   selectors: string;

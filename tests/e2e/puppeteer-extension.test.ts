@@ -841,7 +841,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         // Mock onboarding permission flow through explicit test hook.
         await newInstallationPage.evaluate(() => {
           const testWindow = window as Window & {
-            __FT_TEST_PERMISSION_REQUEST__?: (options: chrome.permissions.Permissions) => Promise<boolean>;
+            __FT_TEST_PERMISSION_REQUEST__?: (
+              options: chrome.permissions.Permissions,
+            ) => Promise<boolean>;
             __lastPermissionRequest?: chrome.permissions.Permissions;
           };
 
