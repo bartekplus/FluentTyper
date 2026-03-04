@@ -85,7 +85,7 @@
         {
           "layer": "unit",
           "file": "tests/siteProfiles.test.ts",
-          "test": "site profile behavior"
+          "test": "setSiteProfileForDomain creates and updates a profile with clamped values"
         }
       ]
     },
@@ -133,7 +133,7 @@
         {
           "layer": "unit",
           "file": "tests/PredictionOrchestrator.test.ts",
-          "test": "prediction merge behavior"
+          "test": "handles rejected AI predictions without failing request"
         }
       ]
     },
@@ -149,7 +149,7 @@
         {
           "layer": "unit",
           "file": "tests/PredictionOrchestrator.test.ts",
-          "test": "latency fallback behavior"
+          "test": "falls back when AI timeout interrupt throws"
         }
       ]
     },
@@ -165,7 +165,7 @@
         {
           "layer": "unit",
           "file": "tests/background.routing.test.ts",
-          "test": "CMD_OPTIONS_PAGE_CONFIG_CHANGE routing"
+          "test": "onMessage handles options page config change success and failure"
         }
       ]
     },
@@ -278,7 +278,7 @@
         {
           "layer": "unit",
           "file": "tests/ProductivityStatsManager.test.ts",
-          "test": "productivity stats aggregation"
+          "test": "resetStats clears local counters and survives restart"
         }
       ]
     },

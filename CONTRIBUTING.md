@@ -111,7 +111,7 @@ Notes:
 ### E2E Coverage Policy
 
 - Coverage parity is tracked by behavior coverage, not by preserving identical e2e test counts.
-- When adding, removing, or moving behavior coverage between e2e/unit/integration tests, update `tests/e2e/coverage-matrix.json`.
+- When adding, removing, or moving behavior coverage between e2e/unit/integration tests, update `tests/e2e/coverage-matrix.json` and `tests/e2e/coverage-baseline-ids.json`.
 - Keep selector-heavy permutations in unit/integration tests when behavior is selector-agnostic, and reserve e2e selector fan-out for truly editor-specific behavior.
 
 ## Branch and PR Workflow

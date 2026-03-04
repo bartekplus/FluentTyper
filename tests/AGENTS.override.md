@@ -14,6 +14,7 @@ This override applies to `tests/**`.
 
 - Any e2e behavior added, removed, or moved across layers must update:
   - `tests/e2e/coverage-matrix.json`
+  - `tests/e2e/coverage-baseline-ids.json`
 - Validate mapping integrity with:
   - `bun run check:e2e:coverage`
 - Coverage parity is behavior-based, not e2e test-count-based.

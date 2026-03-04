@@ -22,6 +22,12 @@ interface CoverageMatrix {
   behaviors: BehaviorCoverage[];
 }
 
+interface CoverageBaseline {
+  version: number;
+  capturedAt: string;
+  baselineBehaviorIds: string[];
+}
+
 const ALLOWED_LAYERS: readonly CoverageLayer[] = ["e2e-smoke", "e2e-full", "unit", "integration"];
 
 function fail(message: string): never {
@@ -60,9 +66,36 @@ function parseCoverageMatrix(filePath: string): CoverageMatrix {
   return matrix as CoverageMatrix;
 }
 
+function parseCoverageBaseline(filePath: string): CoverageBaseline {
+  if (!existsSync(filePath)) {
+    fail(`Missing baseline IDs file: ${filePath}`);
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(readFileSync(filePath, "utf8"));
+  } catch (error) {
+    fail(`Failed to parse JSON from ${filePath}: ${String(error)}`);
+  }
+
+  assert(typeof parsed === "object" && parsed !== null, "Baseline root must be an object");
+  const baseline = parsed as Partial<CoverageBaseline>;
+
+  assert(baseline.version === 1, "Baseline version must be 1");
+  assert(
+    typeof baseline.capturedAt === "string" && baseline.capturedAt.length > 0,
+    "baseline capturedAt must be a non-empty string",
+  );
+  assert(Array.isArray(baseline.baselineBehaviorIds), "baselineBehaviorIds must be an array");
+  assert(baseline.baselineBehaviorIds.length > 0, "baselineBehaviorIds must not be empty");
+
+  return baseline as CoverageBaseline;
+}
+
 function validateCoverageMatrix(matrix: CoverageMatrix, repoRoot: string): void {
   const ids = new Set<string>();
   const errors: string[] = [];
+  const fileCache = new Map<string, string>();
 
   for (const [index, behavior] of matrix.behaviors.entries()) {
     if (typeof behavior.id !== "string" || behavior.id.length === 0) {
@@ -96,12 +129,55 @@ function validateCoverageMatrix(matrix: CoverageMatrix, repoRoot: string): void 
         const resolvedFile = path.resolve(repoRoot, coverage.file);
         if (!existsSync(resolvedFile)) {
           errors.push(`behavior '${behavior.id}' references missing file: ${coverage.file}`);
+        } else {
+          let content = fileCache.get(resolvedFile);
+          if (content === undefined) {
+            content = readFileSync(resolvedFile, "utf8");
+            fileCache.set(resolvedFile, content);
+          }
+          if (!content.includes(coverage.test)) {
+            errors.push(
+              `behavior '${behavior.id}' coverage[${coverageIndex}] test label not found in ${coverage.file}: ${coverage.test}`,
+            );
+          }
         }
       }
 
       if (typeof coverage.test !== "string" || coverage.test.length === 0) {
         errors.push(`behavior '${behavior.id}' coverage[${coverageIndex}] has invalid test label`);
       }
+    }
+  }
+
+  if (errors.length > 0) {
+    throw new Error(errors.join("\n"));
+  }
+}
+
+function validateBaselineParity(matrix: CoverageMatrix, baseline: CoverageBaseline): void {
+  const errors: string[] = [];
+  const baselineIds = new Set<string>();
+  for (const id of baseline.baselineBehaviorIds) {
+    if (typeof id !== "string" || id.length === 0) {
+      errors.push("baselineBehaviorIds contains an invalid id");
+      continue;
+    }
+    if (baselineIds.has(id)) {
+      errors.push(`duplicate baseline behavior id: ${id}`);
+    }
+    baselineIds.add(id);
+  }
+
+  const matrixIds = new Set(matrix.behaviors.map((behavior) => behavior.id));
+
+  for (const baselineId of baselineIds) {
+    if (!matrixIds.has(baselineId)) {
+      errors.push(`missing baseline behavior id in matrix: ${baselineId}`);
+    }
+  }
+  for (const matrixId of matrixIds) {
+    if (!baselineIds.has(matrixId)) {
+      errors.push(`matrix contains behavior id not present in baseline: ${matrixId}`);
     }
   }
 
@@ -131,10 +207,30 @@ function summarizeByLayer(matrix: CoverageMatrix): string {
   return ALLOWED_LAYERS.map((layer) => `${layer}=${counts[layer]}`).join(" ");
 }
 
+function resolveInputPath(
+  repoRoot: string,
+  envValue: string | undefined,
+  fallback: string,
+): string {
+  const selected = envValue && envValue.length > 0 ? envValue : fallback;
+  return path.isAbsolute(selected) ? selected : path.resolve(repoRoot, selected);
+}
+
 function main(): void {
   const repoRoot = process.cwd();
-  const matrixPath = path.resolve(repoRoot, "tests/e2e/coverage-matrix.json");
+  const matrixPath = resolveInputPath(
+    repoRoot,
+    process.env.COVERAGE_MATRIX_PATH,
+    "tests/e2e/coverage-matrix.json",
+  );
+  const baselinePath = resolveInputPath(
+    repoRoot,
+    process.env.COVERAGE_BASELINE_PATH,
+    "tests/e2e/coverage-baseline-ids.json",
+  );
   const matrix = parseCoverageMatrix(matrixPath);
+  const baseline = parseCoverageBaseline(baselinePath);
+  validateBaselineParity(matrix, baseline);
   validateCoverageMatrix(matrix, repoRoot);
 
   console.log(

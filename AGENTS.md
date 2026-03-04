@@ -231,7 +231,7 @@ Do not hand-edit versions in multiple places without running the script.
 E2E coverage policy:
 
 - Coverage parity is enforced by behavior mapping, not by preserving identical e2e case counts.
-- If behavior moves between e2e/unit/integration tests, update `tests/e2e/coverage-matrix.json`.
+- If behavior moves between e2e/unit/integration tests, update `tests/e2e/coverage-matrix.json` and `tests/e2e/coverage-baseline-ids.json`.
 
 ---
 
