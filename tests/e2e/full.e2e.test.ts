@@ -2618,7 +2618,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(15000, 25000),
   );
 
-  test.each(["#test-input", ".ck-editor__editable"])(
+  test.each(GENERIC_INPUT_SELECTORS)(
     "Grammar Rule Engine auto-capitalizes and applies spacing in %s",
     async (selector) => {
       // Enable required grammar rules internally for predictive evaluations
@@ -2680,7 +2680,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(30000, 45000),
   );
 
-  test.each(["#test-input", ".ck-editor__editable"])(
+  test.each(GENERIC_INPUT_SELECTORS)(
     "Grammar Rule Engine respects manual deletion of auto-inserted sentence space in %s",
     async (selector) => {
       await setSettingAndWaitStable(
@@ -2728,7 +2728,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(30000, 45000),
   );
 
-  test.each(["#test-input", CKEDITOR_SELECTOR])(
+  test.each(GENERIC_INPUT_SELECTORS)(
     "Grammar Rule Engine preserves code-style brackets and slash technical contexts while keeping prose spacing in %s",
     async (selector) => {
       await setSettingAndWaitStable(
@@ -2814,25 +2814,23 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       elementText = await readNormalizedText();
       expect(elementText).toContain("Hello (world) ");
 
-      if (selector === "#test-input") {
-        await clearInputContent(page, selector);
-        await typeInInput(page, selector, "https://example.com/a/b");
-        await waitForNormalizedValue("https://example.com/a/b");
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "https://example.com/a/b");
+      await waitForNormalizedValue("https://example.com/a/b");
 
-        await clearInputContent(page, selector);
-        await typeInInput(page, selector, "src/components/Button");
-        await waitForNormalizedValue("src/components/Button");
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "src/components/Button");
+      await waitForNormalizedValue("src/components/Button");
 
-        await clearInputContent(page, selector);
-        await typeInInput(page, selector, "</div>");
-        await waitForNormalizedValue("</div>");
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "</div>");
+      await waitForNormalizedValue("</div>");
 
-        await clearInputContent(page, selector);
-        await typeInInput(page, selector, "x /");
-        await waitForNormalizedValue("x / ");
-        await typeInInput(page, selector, "y");
-        await waitForNormalizedValue("x / y");
-      }
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "x /");
+      await waitForNormalizedValue("x / ");
+      await typeInInput(page, selector, "y");
+      await waitForNormalizedValue("x / y");
 
       await setSettingAndWaitStable(
         worker!,
