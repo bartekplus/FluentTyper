@@ -153,6 +153,7 @@ export class PresageHandler {
     const engine = new GrammarRuleEngine();
     const rules = createGrammarRuleCatalogRuntime({
       insertSpaceAfterAutocomplete,
+      userDictionaryList: this.userDictionaryList,
     });
     for (const rule of rules) {
       engine.registerRule(rule);
@@ -268,7 +269,11 @@ export class PresageHandler {
           beforeCursor: text,
           afterCursor: "",
           charTyped: nextChar,
-          hints: { inputAction },
+          hints: {
+            inputAction,
+            lang,
+            userDictionary: this.userDictionaryList.slice(),
+          },
         },
         this.enabledGrammarRules,
       );

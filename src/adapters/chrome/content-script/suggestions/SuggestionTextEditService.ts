@@ -30,6 +30,7 @@ export class SuggestionTextEditService {
     entry: SuggestionEntry,
     suggestion: string,
   ): { triggerText: string; insertedText: string } | null {
+    entry.lastAutoFixReplacement = null;
     let snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
     const blockContext = this.isTextValueElement(entry.elem)
       ? null
@@ -158,6 +159,55 @@ export class SuggestionTextEditService {
     this.dispatchInputEvent(entry.elem);
 
     entry.lastReplacement = null;
+    entry.lastAutoFixReplacement = null;
+    clearSuggestions();
+    return true;
+  }
+
+  public tryRevertLastAutoFix(
+    entry: SuggestionEntry,
+    event: KeyboardEvent,
+    {
+      consumeKeyboardEvent,
+      clearSuggestions,
+    }: {
+      consumeKeyboardEvent: (event: KeyboardEvent) => void;
+      clearSuggestions: () => void;
+    },
+  ): boolean {
+    if (!entry.lastAutoFixReplacement) {
+      return false;
+    }
+
+    const snapshot: SuggestionSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+    const { replaceStart, originalText, replacementText, cursorBefore, cursorAfter } =
+      entry.lastAutoFixReplacement;
+    const fullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
+    const replaceEnd = replaceStart + replacementText.length;
+
+    if (snapshot.cursorOffset !== cursorAfter) {
+      return false;
+    }
+    if (replaceEnd > fullText.length) {
+      return false;
+    }
+    if (fullText.slice(replaceStart, replaceEnd) !== replacementText) {
+      return false;
+    }
+
+    consumeKeyboardEvent(event);
+
+    this.replaceTextByOffsets(
+      entry.elem,
+      fullText,
+      replaceStart,
+      replaceEnd,
+      originalText,
+      cursorBefore,
+    );
+    this.dispatchInputEvent(entry.elem);
+
+    entry.lastAutoFixReplacement = null;
     clearSuggestions();
     return true;
   }
@@ -208,6 +258,7 @@ export class SuggestionTextEditService {
     }
 
     const cursorAfter = replaceStart + textEdit.replacementText.length;
+    const originalText = fullText.slice(replaceStart, replaceEnd);
     this.replaceTextByOffsets(
       entry.elem,
       fullText,
@@ -217,6 +268,13 @@ export class SuggestionTextEditService {
       cursorAfter,
     );
     this.dispatchInputEvent(entry.elem);
+    entry.lastAutoFixReplacement = {
+      replaceStart,
+      originalText,
+      replacementText: textEdit.replacementText,
+      cursorBefore: snapshot.cursorOffset,
+      cursorAfter,
+    };
   }
 
   public tryDeleteTrailingPunctuationSpace(
@@ -256,6 +314,7 @@ export class SuggestionTextEditService {
 
     this.replaceTextByOffsets(entry.elem, fullText, replaceStart, replaceEnd, "", replaceStart);
     this.dispatchInputEvent(entry.elem);
+    entry.lastAutoFixReplacement = null;
     return true;
   }
 

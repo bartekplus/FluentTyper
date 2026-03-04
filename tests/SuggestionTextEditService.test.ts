@@ -168,4 +168,83 @@ describe("SuggestionTextEditService", () => {
     expect(handled).toBe(true);
     expect(input.value).toBe("Hello.\u200B");
   });
+
+  test("reverts latest grammar auto-fix on Backspace when caret is unchanged", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+    });
+
+    const input = document.createElement("input");
+    input.value = "teh ";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    const entry = createSuggestionEntry({ elem: input });
+
+    service.applyTextEdit(entry, {
+      replacementText: "the ",
+      replaceBackwardCount: 4,
+      evaluatedTextLength: 4,
+      expectedReplacedText: "teh ",
+    });
+    expect(input.value).toBe("the ");
+
+    const keyboardEvent = new Event("keydown", {
+      bubbles: true,
+      cancelable: true,
+    }) as KeyboardEvent;
+    Object.defineProperty(keyboardEvent, "key", { value: "Backspace" });
+    const consumeKeyboardEvent = (event: KeyboardEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+    };
+
+    const handled = service.tryRevertLastAutoFix(entry, keyboardEvent, {
+      consumeKeyboardEvent,
+      clearSuggestions: () => undefined,
+    });
+
+    expect(handled).toBe(true);
+    expect(input.value).toBe("teh ");
+    expect(input.selectionStart).toBe(4);
+    expect(entry.lastAutoFixReplacement).toBeNull();
+  });
+
+  test("does not revert grammar auto-fix after user modifies text", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+    });
+
+    const input = document.createElement("input");
+    input.value = "teh ";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    const entry = createSuggestionEntry({ elem: input });
+
+    service.applyTextEdit(entry, {
+      replacementText: "the ",
+      replaceBackwardCount: 4,
+      evaluatedTextLength: 4,
+      expectedReplacedText: "teh ",
+    });
+
+    input.value = "the x";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+
+    const keyboardEvent = new Event("keydown", {
+      bubbles: true,
+      cancelable: true,
+    }) as KeyboardEvent;
+    Object.defineProperty(keyboardEvent, "key", { value: "Backspace" });
+
+    const handled = service.tryRevertLastAutoFix(entry, keyboardEvent, {
+      consumeKeyboardEvent: () => undefined,
+      clearSuggestions: () => undefined,
+    });
+
+    expect(handled).toBe(false);
+    expect(input.value).toBe("the x");
+  });
 });

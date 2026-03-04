@@ -39,6 +39,12 @@
     "grammar_whitespace_cleanup",
     "grammar_neutral_punctuation_policy",
     "grammar_prediction_threshold_decoupling",
-    "grammar_v4_forced_migration"
+    "grammar_v4_forced_migration",
+    "grammar_english_pronoun_i",
+    "grammar_english_contractions",
+    "grammar_english_typo_whitelist",
+    "grammar_english_language_guard",
+    "grammar_autofix_backspace_revert",
+    "grammar_v5_forced_migration"
   ]
 }

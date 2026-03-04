@@ -3,6 +3,9 @@ export type GrammarEventType = "insertChar" | "wordBoundary" | "idle" | "paste";
 export type GrammarRuleId =
   | "capitalizeSentenceStart"
   | "capitalizeAfterLineBreak"
+  | "englishPronounICapitalization"
+  | "englishContractionNormalization"
+  | "englishTypoWhitelistCorrection"
   | "commaPeriodSpacing"
   | "openingBracketSpacing"
   | "closingBracketSpacing"
@@ -16,11 +19,17 @@ export type GrammarRuleId =
   | "spacingRule"
   | "capitalizeFirstLetter";
 
+export interface GrammarHints {
+  inputAction?: "insert" | "delete" | "other";
+  lang?: string;
+  userDictionary?: string[];
+}
+
 export interface GrammarContext {
   beforeCursor: string;
   afterCursor: string;
   charTyped?: string;
-  hints?: Record<string, unknown>;
+  hints?: GrammarHints;
 }
 
 export interface GrammarEdit {
@@ -49,6 +58,7 @@ export interface GrammarRuleCatalogEntry {
   titleI18nKey: string;
   descriptionI18nKey: string;
   exampleI18nKey: string;
+  languageScope: "all" | "en_US";
   recommended: boolean;
   defaultEnabled: boolean;
   priority: number;

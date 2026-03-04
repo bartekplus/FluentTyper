@@ -11,9 +11,13 @@ import { TechnicalTokenCompactionRule } from "./implementations/TechnicalTokenCo
 import { CollapseRepeatedSpacesRule } from "./implementations/CollapseRepeatedSpacesRule";
 import { TrimSpaceBeforeLineBreakRule } from "./implementations/TrimSpaceBeforeLineBreakRule";
 import { NeutralPunctuationPolicyRule } from "./implementations/NeutralPunctuationPolicyRule";
+import { EnglishPronounICapitalizationRule } from "./implementations/EnglishPronounICapitalizationRule";
+import { EnglishContractionNormalizationRule } from "./implementations/EnglishContractionNormalizationRule";
+import { EnglishTypoWhitelistCorrectionRule } from "./implementations/EnglishTypoWhitelistCorrectionRule";
 
 export function createGrammarRuleCatalogRuntime(options: {
   insertSpaceAfterAutocomplete: boolean;
+  userDictionaryList: string[];
 }): GrammarRule[] {
   const spacingOptions = {
     insertSpaceAfterAutocomplete: options.insertSpaceAfterAutocomplete,
@@ -22,6 +26,11 @@ export function createGrammarRuleCatalogRuntime(options: {
   const ruleById: Record<CatalogRuleId, GrammarRule> = {
     capitalizeSentenceStart: new CapitalizeSentenceStartRule(),
     capitalizeAfterLineBreak: new CapitalizeAfterLineBreakRule(),
+    englishPronounICapitalization: new EnglishPronounICapitalizationRule(),
+    englishContractionNormalization: new EnglishContractionNormalizationRule(),
+    englishTypoWhitelistCorrection: new EnglishTypoWhitelistCorrectionRule(
+      options.userDictionaryList,
+    ),
     commaPeriodSpacing: new CommaPeriodSpacingRule(spacingOptions.insertSpaceAfterAutocomplete),
     openingBracketSpacing: new OpeningBracketSpacingRule(
       spacingOptions.insertSpaceAfterAutocomplete,

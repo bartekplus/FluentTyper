@@ -16,6 +16,7 @@ import {
   KEY_INLINE_SUGGESTION,
   KEY_NUM_SUGGESTIONS,
   KEY_MIN_WORD_LENGTH_TO_PREDICT,
+  KEY_REVERT_ON_BACKSPACE,
   KEY_PRODUCTIVITY_STATS,
   KEY_SITE_PROFILES,
   KEY_TEXT_EXPANSIONS,
@@ -3217,5 +3218,132 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await applyConfigChange(browser, worker!);
     },
     browserTimeout(25000, 40000),
+  );
+
+  test(
+    "Grammar Rule Engine applies English micro-grammar bundle in #test-input",
+    async () => {
+      const selector = "#test-input";
+
+      await setSettingAndWaitStable(
+        worker!,
+        KEY_ENABLED_GRAMMAR_RULES,
+        [
+          "englishPronounICapitalization",
+          "englishContractionNormalization",
+          "englishTypoWhitelistCorrection",
+        ],
+        3,
+        browserTimeout(5000, 7000),
+      );
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+      await applyConfigChange(browser, worker!);
+
+      await gotoTestPage(page, {
+        enableCkEditor: false,
+      });
+      await page.bringToFront();
+      await waitForInputReady(page, selector);
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "i ");
+      await waitForInputContentEqual(page, selector, "I ", browserTimeout(5000, 9000));
+      await typeInInput(page, selector, "am here");
+      await waitForInputContentEqual(page, selector, "I am here", browserTimeout(5000, 9000));
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "im ");
+      await waitForInputContentEqual(page, selector, "I'm ", browserTimeout(5000, 9000));
+      await typeInInput(page, selector, "ready");
+      await waitForInputContentEqual(page, selector, "I'm ready", browserTimeout(5000, 9000));
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "teh ");
+      await waitForInputContentEqual(page, selector, "the ", browserTimeout(5000, 9000));
+      await typeInInput(page, selector, "cat");
+      await waitForInputContentEqual(page, selector, "the cat", browserTimeout(5000, 9000));
+
+      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await applyConfigChange(browser, worker!);
+    },
+    browserTimeout(25000, 45000),
+  );
+
+  test(
+    "Grammar Rule Engine keeps English-only grammar rules inactive for non-English language",
+    async () => {
+      const selector = "#test-input";
+
+      await setSettingAndWaitStable(
+        worker!,
+        KEY_ENABLED_GRAMMAR_RULES,
+        [
+          "englishPronounICapitalization",
+          "englishContractionNormalization",
+          "englishTypoWhitelistCorrection",
+        ],
+        3,
+        browserTimeout(5000, 7000),
+      );
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "pl_PL");
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+      await applyConfigChange(browser, worker!);
+
+      await gotoTestPage(page, {
+        enableCkEditor: false,
+      });
+      await page.bringToFront();
+      await waitForInputReady(page, selector);
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "i am teh");
+      await waitForInputContentEqual(page, selector, "i am teh", browserTimeout(5000, 9000));
+
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await applyConfigChange(browser, worker!);
+    },
+    browserTimeout(25000, 45000),
+  );
+
+  test(
+    "Grammar Rule Engine reverts latest auto-fix via Backspace in #test-input",
+    async () => {
+      const selector = "#test-input";
+
+      await setSettingAndWaitStable(
+        worker!,
+        KEY_ENABLED_GRAMMAR_RULES,
+        ["englishTypoWhitelistCorrection"],
+        3,
+        browserTimeout(5000, 7000),
+      );
+      await setSettingAndWait(worker!, KEY_REVERT_ON_BACKSPACE, true);
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+      await applyConfigChange(browser, worker!);
+
+      await gotoTestPage(page, {
+        enableCkEditor: false,
+      });
+      await page.bringToFront();
+      await waitForInputReady(page, selector);
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "teh ");
+      await waitForInputContentEqual(page, selector, "the ", browserTimeout(5000, 9000));
+
+      await page.keyboard.press("Backspace");
+      await waitForInputContentEqual(page, selector, "teh ", browserTimeout(5000, 9000));
+
+      await setSettingAndWait(worker!, KEY_REVERT_ON_BACKSPACE, false);
+      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await applyConfigChange(browser, worker!);
+    },
+    browserTimeout(25000, 45000),
   );
 });

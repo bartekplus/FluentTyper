@@ -92,6 +92,11 @@ export class SuggestionManagerRuntime {
           consumeKeyboardEvent: this.consumeKeyboardEvent.bind(this),
           clearSuggestions: () => this.clearSuggestions(entry),
         }),
+      tryRevertLastAutoFix: (entry, event) =>
+        this.textEditService.tryRevertLastAutoFix(entry, event, {
+          consumeKeyboardEvent: this.consumeKeyboardEvent.bind(this),
+          clearSuggestions: () => this.clearSuggestions(entry),
+        }),
       tryDeleteTrailingPunctuationSpace: (entry, event) =>
         this.textEditService.tryDeleteTrailingPunctuationSpace(
           entry,
@@ -279,6 +284,7 @@ export class SuggestionManagerRuntime {
       missingTrailingSpace: false,
       expectedCursorPos: 0,
       lastReplacement: null,
+      lastAutoFixReplacement: null,
       lastKeydownKey: null,
       lastInputAction: null,
       lastBeforeCursorText: null,
