@@ -8,40 +8,33 @@ import { KEY_AUTO_CAPITALIZE, KEY_LEGACY_APPLY_SPACING_RULES } from "@core/domai
 import type { JsonValue } from "../settingsManager";
 import type { SettingsManager } from "../settingsManager";
 
-function hasRawRead(settings: SettingsManager): settings is SettingsManager & {
-  getRaw: (key: string) => Promise<unknown>;
-} {
-  return typeof (settings as { getRaw?: unknown }).getRaw === "function";
-}
-
-function hasRawWrite(settings: SettingsManager): settings is SettingsManager & {
-  setRaw: (key: string, value: JsonValue) => Promise<void>;
-  removeRaw: (key: string) => Promise<void>;
-} {
-  return (
-    typeof (settings as { setRaw?: unknown }).setRaw === "function" &&
-    typeof (settings as { removeRaw?: unknown }).removeRaw === "function"
-  );
-}
+type RawSettingsAccess = {
+  getRaw?: (key: string) => Promise<unknown>;
+  setRaw?: (key: string, value: JsonValue) => Promise<void>;
+  removeRaw?: (key: string) => Promise<void>;
+};
 
 async function readRaw(settings: SettingsManager, key: string): Promise<unknown> {
-  if (hasRawRead(settings)) {
-    return settings.getRaw(key);
+  const maybeRawSettings = settings as unknown as RawSettingsAccess;
+  if (typeof maybeRawSettings.getRaw === "function") {
+    return maybeRawSettings.getRaw(key);
   }
   return settings.get(key);
 }
 
 async function writeRaw(settings: SettingsManager, key: string, value: JsonValue): Promise<void> {
-  if (hasRawWrite(settings)) {
-    await settings.setRaw(key, value);
+  const maybeRawSettings = settings as unknown as RawSettingsAccess;
+  if (typeof maybeRawSettings.setRaw === "function") {
+    await maybeRawSettings.setRaw(key, value);
     return;
   }
   await settings.set(key, value);
 }
 
 async function removeRaw(settings: SettingsManager, key: string): Promise<void> {
-  if (hasRawWrite(settings)) {
-    await settings.removeRaw(key);
+  const maybeRawSettings = settings as unknown as RawSettingsAccess;
+  if (typeof maybeRawSettings.removeRaw === "function") {
+    await maybeRawSettings.removeRaw(key);
     return;
   }
   await settings.set(key, undefined as unknown as JsonValue);

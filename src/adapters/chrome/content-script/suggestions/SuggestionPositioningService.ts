@@ -15,9 +15,17 @@ interface MenuCoordinates {
   maxWidth?: number;
 }
 
+type TypographyProperty =
+  | "fontStyle"
+  | "fontVariant"
+  | "fontWeight"
+  | "fontStretch"
+  | "fontSizeAdjust"
+  | "fontFamily";
+
 export class SuggestionPositioningService {
   public syncMenuTypography(menu: HTMLDivElement, elem: SuggestionElement): void {
-    const properties: Array<keyof CSSStyleDeclaration> = [
+    const properties: TypographyProperty[] = [
       "fontStyle",
       "fontVariant",
       "fontWeight",
@@ -26,12 +34,13 @@ export class SuggestionPositioningService {
       "fontFamily",
     ];
     const computed = window.getComputedStyle(elem);
+    const menuStyle = menu.style as unknown as Record<TypographyProperty, string>;
 
     menu.style.fontSize = `${Math.round((Number.parseInt(computed.fontSize, 10) || 16) * 0.9)}px`;
     for (const property of properties) {
       const value = computed[property];
       if (typeof value === "string") {
-        menu.style[property] = value;
+        menuStyle[property] = value;
       }
     }
   }
@@ -97,6 +106,7 @@ export class SuggestionPositioningService {
       "letterSpacing",
       "wordSpacing",
     ] as const;
+    type MirrorProperty = (typeof properties)[number];
 
     const mirror = document.createElement("div");
     mirror.style.whiteSpace = "pre-wrap";
@@ -109,8 +119,9 @@ export class SuggestionPositioningService {
     document.body.appendChild(mirror);
 
     const computed = window.getComputedStyle(elem);
+    const mirrorStyle = mirror.style as unknown as Record<MirrorProperty, string>;
     for (const property of properties) {
-      mirror.style[property] = computed[property];
+      mirrorStyle[property] = computed[property];
     }
 
     const beforeSpan = document.createElement("span");

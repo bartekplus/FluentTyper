@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Store } from "@third-party/fancier-settings/lib/store.js";
 import { i18n } from "@third-party/fancier-settings/i18n.js";
 import { ElementWrapper, getUniqueID } from "@third-party/fancier-settings/js/classes/utils.js";
@@ -17,6 +16,17 @@ interface FancierSettingsLike {
       bundle: FancierBundleLike;
     };
   };
+}
+
+interface ElementWrapperLike {
+  element: HTMLElement;
+  inject(parent: ElementWrapperLike | HTMLElement): ElementWrapperLike;
+  addEvent(type: string, fn: (...args: unknown[]) => unknown): void;
+  set(key: string, value: string | number | boolean): void;
+}
+
+function createElementWrapper(tag: string, props: Record<string, unknown>): ElementWrapperLike {
+  return new ElementWrapper(tag, props) as unknown as ElementWrapperLike;
 }
 
 export class TextExpander {
@@ -122,29 +132,29 @@ export class TextExpander {
   }
 
   private renderImportExport(): void {
-    const fileElem = new ElementWrapper("div", {
+    const fileElem = createElementWrapper("div", {
       class: "file block buttons",
-    }) as any;
-    const fileLabelElem = new ElementWrapper("label", {
+    });
+    const fileLabelElem = createElementWrapper("label", {
       class: "file-label",
-    }) as any;
-    const inputElem = new ElementWrapper("input", {
+    });
+    const inputElem = createElementWrapper("input", {
       class: "file-input",
       type: "file",
       id: "csvFileInput",
       accept: ".csv",
-    }) as any;
-    const fileCTA = new ElementWrapper("span", { class: "file-cta" }) as any;
-    const fileLabelSpanElem = new ElementWrapper("span", {
+    });
+    const fileCTA = createElementWrapper("span", { class: "file-cta" });
+    const fileLabelSpanElem = createElementWrapper("span", {
       class: "file-label",
       text: i18n.get("text_expander_import_csv_btn"),
-    }) as any;
-    const fileNameSpanElem = new ElementWrapper("span", {
+    });
+    const fileNameSpanElem = createElementWrapper("span", {
       class: "file-name",
       id: "fileNameSpanElemId",
       text: i18n.get("text_expander_import_csv_placeholder"),
-    }) as any;
-    const dividerElem = new ElementWrapper("hr", {}) as any;
+    });
+    const dividerElem = createElementWrapper("hr", {});
 
     inputElem.addEvent("input", this.fileInputChange.bind(this));
     fileLabelSpanElem.inject(fileCTA);
@@ -152,43 +162,43 @@ export class TextExpander {
     fileCTA.inject(fileLabelElem);
     fileNameSpanElem.inject(fileLabelElem);
     fileLabelElem.inject(fileElem);
-    fileElem.inject(this.settingsWithManifest.manifest.textExpansions.bundle as any);
+    fileElem.inject(this.settingsWithManifest.manifest.textExpansions.bundle.element);
 
     if (this.importedElemCount) {
-      const block = new ElementWrapper("div", { class: "block" }) as any;
-      const notification = new ElementWrapper("div", {
+      const block = createElementWrapper("div", { class: "block" });
+      const notification = createElementWrapper("div", {
         class: "notification is-primary",
         text: `${i18n.get("text_expander_imported_records")}: ${this.importedElemCount}`,
-      }) as any;
+      });
       this.importedElemCount = 0;
       notification.inject(block);
-      block.inject(this.settingsWithManifest.manifest.textExpansions.bundle as any);
+      block.inject(this.settingsWithManifest.manifest.textExpansions.bundle.element);
     }
 
-    const button = new ElementWrapper("a", {
+    const button = createElementWrapper("a", {
       class: "button",
       href: window.URL.createObjectURL(this.getTextExpansionsAsCSVBlob()),
       text: i18n.get("text_expander_export_csv_btn"),
       download: "FluentTyperTextExpanderDataBase.csv",
-    }) as any;
+    });
     button.inject(fileElem);
 
-    const buttonRemoveAll = new ElementWrapper("a", {
+    const buttonRemoveAll = createElementWrapper("a", {
       class: "button is-danger",
       text: i18n.get("text_expander_remove_all_btn"),
-    }) as any;
+    });
     buttonRemoveAll.inject(fileElem);
     buttonRemoveAll.addEvent("click", this.delAllShortcuts.bind(this));
 
-    dividerElem.inject(this.settingsWithManifest.manifest.textExpansions.bundle as any);
+    dividerElem.inject(this.settingsWithManifest.manifest.textExpansions.bundle.element);
   }
 
   private renderNode(key: string, val: string, shortcutIndex: number | null): void {
-    const dividerElem = new ElementWrapper("hr", {}) as any;
-    const columnElem = new ElementWrapper("div", {
+    const dividerElem = createElementWrapper("hr", {});
+    const columnElem = createElementWrapper("div", {
       class: "columns is-expanded",
-    }) as any;
-    const columnsElems: any[] = [];
+    });
+    const columnsElems: ElementWrapperLike[] = [];
 
     for (let index = 0; index < 3; index += 1) {
       let columnClass = "column";
@@ -201,9 +211,9 @@ export class TextExpander {
       if (index === 2) {
         columnClass += " has-text-centered ";
       }
-      columnsElems[index] = new ElementWrapper("div", {
+      columnsElems[index] = createElementWrapper("div", {
         class: columnClass,
-      }) as any;
+      });
       columnsElems[index].inject(columnElem);
     }
 
@@ -229,11 +239,11 @@ export class TextExpander {
       },
     ].forEach((input, idx) => {
       const idErrMsg = `${input.id}ErrMsg`;
-      const fieldElem = new ElementWrapper("div", { class: "field" }) as any;
-      const controlElem = new ElementWrapper("p", {
+      const fieldElem = createElementWrapper("div", { class: "field" });
+      const controlElem = createElementWrapper("p", {
         class: "control is-expanded",
-      }) as any;
-      const inputElem = new ElementWrapper(input.type, {
+      });
+      const inputElem = createElementWrapper(input.type, {
         id: input.id,
         idErrMsg,
         class: input.class,
@@ -242,11 +252,11 @@ export class TextExpander {
         pattern: input.pattern,
         maxlength: input.maxLength,
         rows: input.rows,
-      }) as any;
-      const errMsgNode = new ElementWrapper("p", {
+      });
+      const errMsgNode = createElementWrapper("p", {
         id: idErrMsg,
         class: "help is-danger is-hidden",
-      }) as any;
+      });
 
       if (newNode) {
         inputElem.set("placeholder", input.value);
@@ -263,19 +273,23 @@ export class TextExpander {
       errMsgNode.inject(fieldElem);
     });
 
-    const button = new ElementWrapper("a", {
+    const button = createElementWrapper("a", {
       class: `button is-fullwidth${newNode ? " is-success" : " is-danger"}`,
       text: newNode ? i18n.get("add") : i18n.get("remove"),
-    }) as any;
+    });
     button.inject(columnsElems[2]);
     if (newNode) {
-      button.addEvent("click", this.addNewShortcut.bind(this));
+      button.addEvent("click", () => {
+        this.addNewShortcut();
+      });
     } else {
-      button.addEvent("click", this.delShortcut.bind(this, shortcutIndex));
+      button.addEvent("click", () => {
+        this.delShortcut(shortcutIndex as number);
+      });
     }
 
-    columnElem.inject(this.settingsWithManifest.manifest.textExpansions.bundle as any);
-    dividerElem.inject(this.settingsWithManifest.manifest.textExpansions.bundle as any);
+    columnElem.inject(this.settingsWithManifest.manifest.textExpansions.bundle.element);
+    dividerElem.inject(this.settingsWithManifest.manifest.textExpansions.bundle.element);
   }
 
   private setInputState(

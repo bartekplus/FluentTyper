@@ -840,10 +840,15 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
         // Mock onboarding permission flow through explicit test hook.
         await newInstallationPage.evaluate(() => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (window as any).__FT_TEST_PERMISSION_REQUEST__ = async (options: any) => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (window as any).__lastPermissionRequest = options;
+          const testWindow = window as Window & {
+            __FT_TEST_PERMISSION_REQUEST__?: (options: chrome.permissions.Permissions) => Promise<boolean>;
+            __lastPermissionRequest?: chrome.permissions.Permissions;
+          };
+
+          testWindow.__FT_TEST_PERMISSION_REQUEST__ = async (
+            options: chrome.permissions.Permissions,
+          ) => {
+            testWindow.__lastPermissionRequest = options;
             return true;
           };
         });
@@ -863,10 +868,12 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
         // Validate that the request was called with right arguments
 
-        const reqArgs = await newInstallationPage.evaluate(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          () => (window as any).__lastPermissionRequest,
-        );
+        const reqArgs = await newInstallationPage.evaluate(() => {
+          const testWindow = window as Window & {
+            __lastPermissionRequest?: chrome.permissions.Permissions;
+          };
+          return testWindow.__lastPermissionRequest;
+        });
         expect(reqArgs).toEqual({ origins: ["<all_urls>"] });
         // -------------------------------
       }

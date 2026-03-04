@@ -87,15 +87,11 @@ export interface ContentScriptPredictRequestContext {
 }
 
 // Context for CMD_OPTIONS_PAGE_CONFIG_CHANGE
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface OptionsPageConfigChangeContext {}
+export type OptionsPageConfigChangeContext = Record<string, never>;
 // Context for CMD_CONTENT_SCRIPT_GET_CONFIG
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface ContentScriptGetConfigContext {}
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface PopupPageEnableContext {}
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface PopupPageDisableContext {}
+export type ContentScriptGetConfigContext = Record<string, never>;
+export type PopupPageEnableContext = Record<string, never>;
+export type PopupPageDisableContext = Record<string, never>;
 export interface PopupPageStatusContext {
   enabled: boolean;
 }
@@ -143,8 +139,7 @@ export type ContentScriptUsageEventContext =
   | CharsInsertedFromSnippetUsageEventContext
   | CharsTypedForTriggerUsageEventContext;
 
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface PopupGetProductivityStatsContext {}
+export type PopupGetProductivityStatsContext = Record<string, never>;
 
 export interface PopupAckWeeklyRecapContext {
   weekKey: string;
@@ -158,12 +153,9 @@ export interface PopupAckDonationMilestoneContext {
   milestoneHours: number | null;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface OptionsResetProductivityStatsContext {}
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface OptionsGetPredictorDebugSnapshotContext {}
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface OptionsClearPredictorDebugTraceContext {}
+export type OptionsResetProductivityStatsContext = Record<string, never>;
+export type OptionsGetPredictorDebugSnapshotContext = Record<string, never>;
+export type OptionsClearPredictorDebugTraceContext = Record<string, never>;
 
 export interface ProductivityEventSummary {
   suggestionsShown: number;

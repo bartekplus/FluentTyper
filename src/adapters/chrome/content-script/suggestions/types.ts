@@ -13,12 +13,10 @@ export interface SuggestionSnapshot {
 }
 
 export type SuggestionElement =
-  | HTMLInputElement
-  | HTMLTextAreaElement
-  | (HTMLElement & {
-      tributeMenu?: HTMLElement | null;
-      suggestionMenu?: HTMLElement | null;
-    });
+  (HTMLInputElement | HTMLTextAreaElement | HTMLElement) & {
+    tributeMenu?: HTMLElement | null;
+    suggestionMenu?: HTMLElement | null;
+  };
 
 export interface SuggestionManagerOptions {
   selectors: string;
