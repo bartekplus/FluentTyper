@@ -15,19 +15,19 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
 
     const length = inputStr.length;
     const lastChar = inputStr[length - 1];
-    const lastCharMin1 = inputStr[length - 2];
-    const lastCharMin2 = inputStr[length - 3];
 
     if (lastChar !== "." && lastChar !== ",") {
       return null;
     }
 
-    if (SPACE_CHARS.includes(lastCharMin2)) {
-      return null;
+    let spaceRunLength = 0;
+    let i = length - 2;
+    while (i >= 0 && SPACE_CHARS.includes(inputStr[i])) {
+      spaceRunLength += 1;
+      i -= 1;
     }
 
-    const hasSpaceBefore = SPACE_CHARS.includes(lastCharMin1);
-    const spaceBeforeViolated = hasSpaceBefore;
+    const spaceBeforeViolated = spaceRunLength > 0;
     const insertSpaceAfter = this.insertSpaceAfterAutocomplete;
     const inputAction = this.resolveInputAction(context);
 
@@ -43,7 +43,7 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
     if (spaceBeforeViolated) {
       return this.createEdit(
         `${lastChar}${insertSpaceAfter ? " " : ""}`,
-        2,
+        spaceRunLength + 1,
         "Applied comma/period spacing",
       );
     }

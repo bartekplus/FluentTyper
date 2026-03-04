@@ -105,6 +105,20 @@ describe("V1 grammar rules", () => {
         confidence: "high",
         description: "Applied comma/period spacing",
       });
+      expect(rule.apply(context("Hello  ."))).toEqual({
+        replacement: ". ",
+        deleteBackwards: 3,
+        deleteForwards: 0,
+        confidence: "high",
+        description: "Applied comma/period spacing",
+      });
+      expect(rule.apply(context("Hello   ,"))).toEqual({
+        replacement: ", ",
+        deleteBackwards: 4,
+        deleteForwards: 0,
+        confidence: "high",
+        description: "Applied comma/period spacing",
+      });
     });
 
     test("respects delete-intent suppression and insertSpaceAfterAutocomplete=false", () => {
@@ -116,6 +130,20 @@ describe("V1 grammar rules", () => {
       expect(noInsertRule.apply(context("Hello ."))).toEqual({
         replacement: ".",
         deleteBackwards: 2,
+        deleteForwards: 0,
+        confidence: "high",
+        description: "Applied comma/period spacing",
+      });
+      expect(noInsertRule.apply(context("Hello  ."))).toEqual({
+        replacement: ".",
+        deleteBackwards: 3,
+        deleteForwards: 0,
+        confidence: "high",
+        description: "Applied comma/period spacing",
+      });
+      expect(noInsertRule.apply(context("Hello   ,"))).toEqual({
+        replacement: ",",
+        deleteBackwards: 4,
         deleteForwards: 0,
         confidence: "high",
         description: "Applied comma/period spacing",
