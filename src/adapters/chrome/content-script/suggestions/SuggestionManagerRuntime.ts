@@ -612,7 +612,10 @@ export class SuggestionManagerRuntime {
     this.clearSuggestions(entry);
   }
 
-  private shouldSkipPredictionForUnstableInputState(entry: SuggestionEntry, event?: Event): boolean {
+  private shouldSkipPredictionForUnstableInputState(
+    entry: SuggestionEntry,
+    event?: Event,
+  ): boolean {
     if (entry.isComposing) {
       return true;
     }
