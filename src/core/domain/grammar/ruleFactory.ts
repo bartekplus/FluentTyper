@@ -14,6 +14,16 @@ import { NeutralPunctuationPolicyRule } from "./implementations/NeutralPunctuati
 import { EnglishPronounICapitalizationRule } from "./implementations/EnglishPronounICapitalizationRule";
 import { EnglishContractionNormalizationRule } from "./implementations/EnglishContractionNormalizationRule";
 import { EnglishTypoWhitelistCorrectionRule } from "./implementations/EnglishTypoWhitelistCorrectionRule";
+import { DoubleSpaceToPeriodRule } from "./implementations/DoubleSpaceToPeriodRule";
+import { EllipsisShortcutRule } from "./implementations/EllipsisShortcutRule";
+import { EmdashShortcutRule } from "./implementations/EmdashShortcutRule";
+import { SmartQuoteNormalizationRule } from "./implementations/SmartQuoteNormalizationRule";
+import { DuplicatePunctuationCollapseRule } from "./implementations/DuplicatePunctuationCollapseRule";
+import { EnglishModalOfCorrectionRule } from "./implementations/EnglishModalOfCorrectionRule";
+import { EnglishYourWelcomeCorrectionRule } from "./implementations/EnglishYourWelcomeCorrectionRule";
+import { EnglishTheirThereBeVerbRule } from "./implementations/EnglishTheirThereBeVerbRule";
+import { EnglishAlotCorrectionRule } from "./implementations/EnglishAlotCorrectionRule";
+import { EnglishPronounVerbWhitelistAgreementRule } from "./implementations/EnglishPronounVerbWhitelistAgreementRule";
 
 export function createGrammarRuleCatalogRuntime(options: {
   insertSpaceAfterAutocomplete: boolean;
@@ -31,6 +41,12 @@ export function createGrammarRuleCatalogRuntime(options: {
     englishTypoWhitelistCorrection: new EnglishTypoWhitelistCorrectionRule(
       options.userDictionaryList,
     ),
+    doubleSpaceToPeriod: new DoubleSpaceToPeriodRule(),
+    englishModalOfCorrection: new EnglishModalOfCorrectionRule(),
+    englishYourWelcomeCorrection: new EnglishYourWelcomeCorrectionRule(),
+    englishTheirThereBeVerb: new EnglishTheirThereBeVerbRule(),
+    englishAlotCorrection: new EnglishAlotCorrectionRule(options.userDictionaryList),
+    englishPronounVerbWhitelistAgreement: new EnglishPronounVerbWhitelistAgreementRule(),
     commaPeriodSpacing: new CommaPeriodSpacingRule(spacingOptions.insertSpaceAfterAutocomplete),
     openingBracketSpacing: new OpeningBracketSpacingRule(
       spacingOptions.insertSpaceAfterAutocomplete,
@@ -46,6 +62,10 @@ export function createGrammarRuleCatalogRuntime(options: {
     collapseRepeatedSpaces: new CollapseRepeatedSpacesRule(),
     trimSpaceBeforeLineBreak: new TrimSpaceBeforeLineBreakRule(),
     neutralPunctuationPolicy: new NeutralPunctuationPolicyRule(),
+    ellipsisShortcut: new EllipsisShortcutRule(),
+    emdashShortcut: new EmdashShortcutRule(),
+    smartQuoteNormalization: new SmartQuoteNormalizationRule(),
+    duplicatePunctuationCollapse: new DuplicatePunctuationCollapseRule(),
   };
 
   return GRAMMAR_RULE_CATALOG.slice()

@@ -128,6 +128,11 @@ export class SuggestionManagerRuntime {
           event,
           this.consumeKeyboardEvent.bind(this),
         ),
+      tryRevertLastAutoFixOnUndo: (entry, event) =>
+        this.textEditService.tryRevertLastAutoFix(entry, event, {
+          consumeKeyboardEvent: this.consumeKeyboardEvent.bind(this),
+          clearSuggestions: () => this.clearSuggestions(entry),
+        }),
       consumeKeyboardEvent: this.consumeKeyboardEvent.bind(this),
       clearSuggestions: this.clearSuggestions.bind(this),
       isMenuVisible: (entry) => this.menuPresenter.isVisible(entry.menu, entry.suggestions.length),
@@ -159,11 +164,12 @@ export class SuggestionManagerRuntime {
       !this.predictionCoordinator.shouldProcessResponse(entry, context, {
         isEntryFocused: this.isEntryFocused(entry),
         applyTextEdit: () => {
-          if (context.textEdit) {
+          if (context.textEdit && this.canApplyGrammarTextEdit(entry)) {
             textEditApplyResult = this.textEditService.applyTextEdit(entry, context.textEdit);
           }
         },
-        allowStaleTextEdit: this.isTextValueElement(entry.elem),
+        allowStaleTextEdit:
+          this.isTextValueElement(entry.elem) && this.canApplyGrammarTextEdit(entry),
         clearSuggestions: () => this.clearSuggestions(entry),
       })
     ) {
@@ -334,6 +340,8 @@ export class SuggestionManagerRuntime {
       expectedCursorPos: 0,
       lastReplacement: null,
       lastAutoFixReplacement: null,
+      manualAutoFixSuppression: null,
+      isComposing: false,
       lastKeydownKey: null,
       lastInputAction: null,
       lastBeforeCursorText: null,
@@ -344,6 +352,8 @@ export class SuggestionManagerRuntime {
         focus: () => undefined,
         blur: () => undefined,
         click: () => undefined,
+        compositionStart: () => undefined,
+        compositionEnd: () => undefined,
         menuMouseDown: () => undefined,
         menuClick: () => undefined,
       },
@@ -354,6 +364,8 @@ export class SuggestionManagerRuntime {
     entry.handlers.focus = this.onElementFocus.bind(this, id);
     entry.handlers.blur = this.onElementBlur.bind(this, id);
     entry.handlers.click = this.onElementClick.bind(this, id);
+    entry.handlers.compositionStart = this.onElementCompositionStart.bind(this, id);
+    entry.handlers.compositionEnd = this.onElementCompositionEnd.bind(this, id);
     entry.handlers.menuMouseDown = (event) => {
       event.preventDefault();
     };
@@ -464,6 +476,7 @@ export class SuggestionManagerRuntime {
     if (!entry) {
       return;
     }
+    entry.isComposing = false;
     this.dismissEntry(entry);
   }
 
@@ -474,7 +487,12 @@ export class SuggestionManagerRuntime {
     if (!entry) {
       return;
     }
+    if (this.shouldSkipPredictionForUnstableInputState(entry, event)) {
+      this.resetEntryPredictionStateAfterSuppressedInput(entry);
+      return;
+    }
     const snapshot: SuggestionSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+    this.textEditService.syncManualAutoFixSuppression(entry, snapshot);
     const provisionalBeforeCursor = this.resolveBeforeCursorForPrediction(
       entry,
       snapshot.beforeCursor,
@@ -513,6 +531,26 @@ export class SuggestionManagerRuntime {
       inputAction,
       beforeCursorOverride: predictionBeforeCursor,
     });
+  }
+
+  private onElementCompositionStart(id: number): void {
+    this.activeEntryId = id;
+    const entry = this.entryRegistry.getById(id);
+    if (!entry) {
+      return;
+    }
+    entry.isComposing = true;
+    this.predictionCoordinator.cancelPending(entry);
+    this.clearSuggestions(entry);
+  }
+
+  private onElementCompositionEnd(id: number): void {
+    this.activeEntryId = id;
+    const entry = this.entryRegistry.getById(id);
+    if (!entry) {
+      return;
+    }
+    entry.isComposing = false;
   }
 
   private resolveBeforeCursorForPrediction(
@@ -564,6 +602,35 @@ export class SuggestionManagerRuntime {
       return false;
     }
     return fullText.slice(autoFix.replaceStart, replaceEnd) === autoFix.replacementText;
+  }
+
+  private resetEntryPredictionStateAfterSuppressedInput(entry: SuggestionEntry): void {
+    entry.requestId += 1;
+    entry.lastInputAction = null;
+    entry.lastKeydownKey = null;
+    entry.lastBeforeCursorText = null;
+    this.clearSuggestions(entry);
+  }
+
+  private shouldSkipPredictionForUnstableInputState(
+    entry: SuggestionEntry,
+    event?: Event,
+  ): boolean {
+    if (entry.isComposing) {
+      return true;
+    }
+    const eventIsComposing = (event as InputEvent | undefined)?.isComposing;
+    if (eventIsComposing === true) {
+      return true;
+    }
+    return !TextTargetAdapter.hasCollapsedSelection(entry.elem as TextTarget);
+  }
+
+  private canApplyGrammarTextEdit(entry: SuggestionEntry): boolean {
+    if (entry.isComposing) {
+      return false;
+    }
+    return TextTargetAdapter.hasCollapsedSelection(entry.elem as TextTarget);
   }
 
   private isSeparator(value: string): boolean {
@@ -741,6 +808,10 @@ export class SuggestionManagerRuntime {
       return;
     }
     this.clearPendingKeyFallback(id);
+    if (this.shouldSkipPredictionForUnstableInputState(current)) {
+      this.resetEntryPredictionStateAfterSuppressedInput(current);
+      return;
+    }
     const snapshot = TextTargetAdapter.snapshot(current.elem as TextTarget);
     const beforeCursor = this.resolveBeforeCursorForPrediction(current, snapshot.beforeCursor, {
       inputAction: pending.inputAction,

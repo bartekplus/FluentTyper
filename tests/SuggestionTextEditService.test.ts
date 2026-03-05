@@ -606,6 +606,107 @@ describe("SuggestionTextEditService", () => {
     expect(input.value).toBe("teh ");
     expect(input.selectionStart).toBe(4);
     expect(entry.lastAutoFixReplacement).toBeNull();
+    expect(entry.manualAutoFixSuppression).toEqual({
+      ruleKey: "fallback:teh ->the ",
+      replaceStart: 0,
+      tokenStart: 0,
+      tokenText: "teh",
+    });
+  });
+
+  test("suppresses immediate auto-reapply after manual grammar revert", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+    });
+
+    const input = document.createElement("input");
+    input.value = "alot";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    const entry = createSuggestionEntry({ elem: input });
+
+    service.applyTextEdit(entry, {
+      replacementText: "a lot",
+      replaceBackwardCount: 4,
+      evaluatedTextLength: 4,
+      expectedReplacedText: "alot",
+      sourceRuleId: "englishAlotCorrection",
+    });
+    expect(input.value).toBe("a lot");
+
+    const keyboardEvent = new Event("keydown", {
+      bubbles: true,
+      cancelable: true,
+    }) as KeyboardEvent;
+    Object.defineProperty(keyboardEvent, "key", { value: "Backspace" });
+    const reverted = service.tryRevertLastAutoFix(entry, keyboardEvent, {
+      consumeKeyboardEvent: () => undefined,
+      clearSuggestions: () => undefined,
+    });
+    expect(reverted).toBe(true);
+    expect(input.value).toBe("alot");
+
+    const reapplyResult = service.applyTextEdit(entry, {
+      replacementText: "a lot",
+      replaceBackwardCount: 4,
+      evaluatedTextLength: 4,
+      expectedReplacedText: "alot",
+      sourceRuleId: "englishAlotCorrection",
+    });
+
+    expect(reapplyResult).toEqual({ applied: false, didDispatchInput: false });
+    expect(input.value).toBe("alot");
+  });
+
+  test("clears manual-revert suppression after token context changes", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+    });
+
+    const input = document.createElement("input");
+    input.value = "alot";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    const entry = createSuggestionEntry({ elem: input });
+
+    service.applyTextEdit(entry, {
+      replacementText: "a lot",
+      replaceBackwardCount: 4,
+      evaluatedTextLength: 4,
+      expectedReplacedText: "alot",
+      sourceRuleId: "englishAlotCorrection",
+    });
+
+    const keyboardEvent = new Event("keydown", {
+      bubbles: true,
+      cancelable: true,
+    }) as KeyboardEvent;
+    Object.defineProperty(keyboardEvent, "key", { value: "Backspace" });
+    service.tryRevertLastAutoFix(entry, keyboardEvent, {
+      consumeKeyboardEvent: () => undefined,
+      clearSuggestions: () => undefined,
+    });
+    expect(entry.manualAutoFixSuppression).not.toBeNull();
+
+    input.value = "alot x";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    service.syncManualAutoFixSuppression(entry);
+    expect(entry.manualAutoFixSuppression).toBeNull();
+
+    input.selectionStart = 4;
+    input.selectionEnd = 4;
+    const applyResult = service.applyTextEdit(entry, {
+      replacementText: "a lot",
+      replaceBackwardCount: 4,
+      evaluatedTextLength: 4,
+      expectedReplacedText: "alot",
+      sourceRuleId: "englishAlotCorrection",
+    });
+    expect(applyResult.applied).toBe(true);
+    expect(input.value).toBe("a lot x");
   });
 
   test("does not revert grammar auto-fix after user modifies text", () => {

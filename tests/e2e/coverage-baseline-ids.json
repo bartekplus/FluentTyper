@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "capturedAt": "2026-03-04",
+  "capturedAt": "2026-03-05",
   "baselineBehaviorIds": [
     "install_page_reachable",
     "popup_page_loads",
@@ -46,6 +46,12 @@
     "grammar_english_typo_whitelist",
     "grammar_english_language_guard",
     "grammar_autofix_backspace_revert",
+    "grammar_autofix_undo_chord_revert",
+    "grammar_autofix_manual_revert_cooldown",
+    "grammar_v3_safe_rules",
+    "grammar_v3_advanced_shortcuts",
+    "grammar_v3_advanced_context_guard",
+    "grammar_v3_english_language_guard",
     "grammar_v5_forced_migration"
   ]
 }

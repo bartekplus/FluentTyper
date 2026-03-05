@@ -52,10 +52,10 @@ import {
   DEFAULT_AI_PREDICTION_TIMEOUT_MS,
 } from "@core/domain/constants";
 import {
-  DEFAULT_V2_GRAMMAR_RULES,
+  DEFAULT_V3_GRAMMAR_RULES,
   GRAMMAR_RULE_CATALOG,
   GRAMMAR_RULE_IDS,
-  RECOMMENDED_V2_GRAMMAR_RULES,
+  RECOMMENDED_V3_GRAMMAR_RULES,
 } from "@core/domain/grammar/ruleCatalog";
 
 // --- UI Content ---
@@ -113,10 +113,14 @@ const WEBLLM_DEV_MODEL_OPTIONS = [
 ];
 
 const GRAMMAR_RULE_OPTIONS = GRAMMAR_RULE_CATALOG.map((rule) => {
+  const rolloutBadge =
+    rule.defaultRollout === "on"
+      ? i18n.get("grammar_rule_rollout_safe_badge")
+      : i18n.get("grammar_rule_rollout_advanced_badge");
   const recommendedBadge = rule.recommended ? i18n.get("grammar_rule_recommended_badge") : "";
   const scopeBadge =
     rule.languageScope === "en_US" ? i18n.get("grammar_rule_scope_en_us_badge") : "";
-  const badge = [recommendedBadge, scopeBadge].filter(Boolean).join(" · ");
+  const badge = [rolloutBadge, recommendedBadge, scopeBadge].filter(Boolean).join(" · ");
   return {
     value: rule.id,
     text: i18n.get(rule.titleI18nKey) || rule.name,
@@ -244,8 +248,12 @@ const manifest = {
       emptyStateText: i18n.get("grammar_rules_empty_state"),
       actions: [
         {
-          text: i18n.get("grammar_rules_recommended"),
-          values: RECOMMENDED_V2_GRAMMAR_RULES,
+          text: i18n.get("grammar_rules_safe_defaults"),
+          values: DEFAULT_V3_GRAMMAR_RULES,
+        },
+        {
+          text: i18n.get("grammar_rules_enable_recommended"),
+          values: RECOMMENDED_V3_GRAMMAR_RULES,
         },
         {
           text: i18n.get("grammar_rules_enable_all"),
@@ -257,7 +265,7 @@ const manifest = {
         },
       ],
       options: GRAMMAR_RULE_OPTIONS,
-      default: DEFAULT_V2_GRAMMAR_RULES,
+      default: DEFAULT_V3_GRAMMAR_RULES,
     },
     {
       tab: i18n.get("core_settings"),

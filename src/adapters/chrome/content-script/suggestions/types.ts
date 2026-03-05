@@ -55,6 +55,14 @@ export interface AutoFixReplacementSnapshot {
   replacementText: string;
   cursorBefore: number;
   cursorAfter: number;
+  sourceRuleId?: string;
+}
+
+export interface ManualAutoFixSuppressionSnapshot {
+  ruleKey: string;
+  replaceStart: number;
+  tokenStart: number;
+  tokenText: string;
 }
 
 export interface SuggestionEntry {
@@ -74,6 +82,8 @@ export interface SuggestionEntry {
   expectedCursorPos: number;
   lastReplacement: ReplacementSnapshot | null;
   lastAutoFixReplacement: AutoFixReplacementSnapshot | null;
+  manualAutoFixSuppression: ManualAutoFixSuppressionSnapshot | null;
+  isComposing: boolean;
   lastKeydownKey: string | null;
   lastInputAction: PredictionInputAction | null;
   lastBeforeCursorText: string | null;
@@ -84,6 +94,8 @@ export interface SuggestionEntry {
     focus: EventListener;
     blur: EventListener;
     click: EventListener;
+    compositionStart: EventListener;
+    compositionEnd: EventListener;
     menuMouseDown: EventListener;
     menuClick: EventListener;
   };

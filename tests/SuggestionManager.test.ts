@@ -30,6 +30,20 @@ function dispatchKeydown(
   target.dispatchEvent(event);
 }
 
+function dispatchInput(
+  target: HTMLElement,
+  options: { isComposing?: boolean; inputType?: string } = {},
+): void {
+  const event = new Event("input", { bubbles: true, cancelable: true }) as InputEvent;
+  if (typeof options.isComposing === "boolean") {
+    Object.defineProperty(event, "isComposing", { value: options.isComposing });
+  }
+  if (typeof options.inputType === "string") {
+    Object.defineProperty(event, "inputType", { value: options.inputType });
+  }
+  target.dispatchEvent(event);
+}
+
 function setContentEditableCursor(target: HTMLElement, offset: number): void {
   const walker = document.createTreeWalker(target, NodeFilter.SHOW_TEXT);
   let current = walker.nextNode() as Text | null;
@@ -1257,6 +1271,134 @@ describe("SuggestionManager", () => {
     await wait(260);
 
     expect(getPrediction.mock.calls.length).toBe(0);
+  });
+
+  test("does not request prediction during IME composition input", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+      enabledGrammarRules: ["commaPeriodSpacing"],
+    });
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = "h";
+    input.selectionStart = 1;
+    input.selectionEnd = 1;
+    document.body.appendChild(input);
+    manager.queryAndAttachHelper();
+
+    dispatchInput(input, { isComposing: true });
+    await wait(240);
+
+    expect(getPrediction.mock.calls.length).toBe(0);
+  });
+
+  test("does not request prediction from fallback reconcile while IME composition is active", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+      enabledGrammarRules: ["commaPeriodSpacing"],
+    });
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = "hello";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    document.body.appendChild(input);
+    manager.queryAndAttachHelper();
+
+    input.dispatchEvent(new Event("focus", { bubbles: true }));
+    input.dispatchEvent(new Event("compositionstart", { bubbles: true }));
+    dispatchKeydown(input, "x");
+    await wait(260);
+
+    expect(getPrediction.mock.calls.length).toBe(0);
+  });
+
+  test("does not request prediction when input selection is not collapsed", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+      enabledGrammarRules: ["commaPeriodSpacing"],
+    });
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = "hello";
+    input.selectionStart = 1;
+    input.selectionEnd = 4;
+    document.body.appendChild(input);
+    manager.queryAndAttachHelper();
+
+    dispatchInput(input);
+    await wait(240);
+
+    expect(getPrediction.mock.calls.length).toBe(0);
+  });
+
+  test("does not request prediction from fallback reconcile when selection is active", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+      enabledGrammarRules: ["commaPeriodSpacing"],
+    });
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = "hello";
+    input.selectionStart = 1;
+    input.selectionEnd = 4;
+    document.body.appendChild(input);
+    manager.queryAndAttachHelper();
+
+    input.dispatchEvent(new Event("focus", { bubbles: true }));
+    dispatchKeydown(input, "x");
+    await wait(260);
+
+    expect(getPrediction.mock.calls.length).toBe(0);
+  });
+
+  test("does not apply grammar textEdit while IME composition is active", async () => {
+    const { manager, getPrediction } = await createManager();
+    const input = document.createElement("input");
+    input.type = "text";
+    document.body.appendChild(input);
+    manager.queryAndAttachHelper();
+
+    const request = await typeAndCollectRequest(input, "teh ", getPrediction);
+    input.dispatchEvent(new Event("compositionstart", { bubbles: true }));
+
+    manager.fulfillPrediction(
+      buildResponse(request, {
+        textEdit: {
+          replacementText: "the ",
+          replaceBackwardCount: 4,
+          evaluatedTextLength: 4,
+          expectedReplacedText: "teh ",
+        },
+      }),
+    );
+
+    expect(input.value).toBe("teh ");
+  });
+
+  test("does not apply grammar textEdit when selection is active", async () => {
+    const { manager, getPrediction } = await createManager();
+    const input = document.createElement("input");
+    input.type = "text";
+    document.body.appendChild(input);
+    manager.queryAndAttachHelper();
+
+    const request = await typeAndCollectRequest(input, "teh ", getPrediction);
+    input.selectionStart = 0;
+    input.selectionEnd = 2;
+
+    manager.fulfillPrediction(
+      buildResponse(request, {
+        textEdit: {
+          replacementText: "the ",
+          replaceBackwardCount: 4,
+          evaluatedTextLength: 4,
+          expectedReplacedText: "teh ",
+        },
+      }),
+    );
+
+    expect(input.value).toBe("teh ");
   });
 
   test("keeps contenteditable popup visible on Backspace when follow-up input event updates text", async () => {

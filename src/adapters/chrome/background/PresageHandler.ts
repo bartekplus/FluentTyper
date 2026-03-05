@@ -17,10 +17,16 @@ import type { PredictionResult } from "./PredictionTypes";
 import { GrammarRuleEngine } from "@core/domain/grammar/GrammarRuleEngine";
 import { SPACE_CHARS, SPACING_RULES, Spacing } from "@core/domain/spacingRules";
 import { createGrammarRuleCatalogRuntime } from "@core/domain/grammar/ruleFactory";
-import { normalizeGrammarRuleSelection } from "@core/domain/grammar/ruleCatalog";
+import {
+  GRAMMAR_RULE_CATALOG,
+  normalizeGrammarRuleSelection,
+} from "@core/domain/grammar/ruleCatalog";
 const SUGGESTION_COUNT = 5;
 const MIN_WORD_LENGTH_TO_PREDICT = 1;
 const logger = createLogger("PresageHandler");
+const SAFETY_TIER_BY_RULE_ID = new Map(
+  GRAMMAR_RULE_CATALOG.map((entry) => [entry.id, entry.safetyTier] as const),
+);
 
 interface LastPrediction {
   pastStream: string;
@@ -302,6 +308,16 @@ export class PresageHandler {
               Math.max(0, text.length - edit.deleteBackwards - 10),
               text.length - edit.deleteBackwards,
             ),
+            ...(edit.sourceRuleId ? { sourceRuleId: edit.sourceRuleId } : {}),
+            ...(edit.confidence ? { confidence: edit.confidence } : {}),
+            ...((edit.sourceRuleId && SAFETY_TIER_BY_RULE_ID.get(edit.sourceRuleId)) ||
+            edit.safetyTier
+              ? {
+                  safetyTier:
+                    (edit.sourceRuleId && SAFETY_TIER_BY_RULE_ID.get(edit.sourceRuleId)) ||
+                    edit.safetyTier,
+                }
+              : {}),
           };
         }
       }

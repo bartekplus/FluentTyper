@@ -6,6 +6,12 @@ export type GrammarRuleId =
   | "englishPronounICapitalization"
   | "englishContractionNormalization"
   | "englishTypoWhitelistCorrection"
+  | "doubleSpaceToPeriod"
+  | "englishModalOfCorrection"
+  | "englishYourWelcomeCorrection"
+  | "englishTheirThereBeVerb"
+  | "englishAlotCorrection"
+  | "englishPronounVerbWhitelistAgreement"
   | "commaPeriodSpacing"
   | "openingBracketSpacing"
   | "closingBracketSpacing"
@@ -15,6 +21,10 @@ export type GrammarRuleId =
   | "collapseRepeatedSpaces"
   | "trimSpaceBeforeLineBreak"
   | "neutralPunctuationPolicy"
+  | "ellipsisShortcut"
+  | "emdashShortcut"
+  | "smartQuoteNormalization"
+  | "duplicatePunctuationCollapse"
   // Legacy ids kept for compatibility and migration handling.
   | "spacingRule"
   | "capitalizeFirstLetter";
@@ -37,6 +47,8 @@ export interface GrammarEdit {
   deleteBackwards: number; // Number of characters to delete before the cursor
   deleteForwards: number; // Number of characters to delete after the cursor
   confidence?: "high" | "medium";
+  sourceRuleId?: Exclude<GrammarRuleId, "spacingRule" | "capitalizeFirstLetter">;
+  safetyTier?: "safe" | "advanced";
   description?: string;
 }
 
@@ -59,6 +71,8 @@ export interface GrammarRuleCatalogEntry {
   descriptionI18nKey: string;
   exampleI18nKey: string;
   languageScope: "all" | "en_US";
+  safetyTier: "safe" | "advanced";
+  defaultRollout: "on" | "off";
   recommended: boolean;
   defaultEnabled: boolean;
   priority: number;

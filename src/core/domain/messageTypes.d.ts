@@ -55,6 +55,12 @@ export interface TextEditOperation {
   expectedReplacedText?: string;
   /** The preceding characters to anchor the replacement context */
   expectedPrefixToken?: string;
+  /** Grammar rule ID that produced this text edit. */
+  sourceRuleId?: string;
+  /** Rule-level confidence for UI-safe metadata propagation. */
+  confidence?: "high" | "medium";
+  /** Rollout safety tier associated with the source rule. */
+  safetyTier?: "safe" | "advanced";
 }
 
 // Context for CMD_BACKGROUND_PAGE_PREDICT_RESP

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "capturedAt": "2026-03-04",
+  "capturedAt": "2026-03-05",
   "behaviors": [
     {
       "id": "install_page_reachable",
@@ -668,6 +668,117 @@
           "layer": "unit",
           "file": "tests/SuggestionKeyboardHandler.test.ts",
           "test": "tries grammar auto-fix revert on Backspace when suggestion revert does not apply"
+        }
+      ]
+    },
+    {
+      "id": "grammar_autofix_undo_chord_revert",
+      "description": "Grammar auto-fixes can be reverted via Cmd/Ctrl+Z before native undo.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Grammar Rule Engine reverts latest auto-fix via Cmd/Ctrl+Z in #test-input"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionKeyboardHandler.test.ts",
+          "test": "tries grammar auto-fix revert on Cmd/Ctrl+Z before native undo"
+        }
+      ]
+    },
+    {
+      "id": "grammar_autofix_manual_revert_cooldown",
+      "description": "Manual auto-fix reverts suppress immediate reapply until token context changes.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Grammar Rule Engine blocks immediate reapply after manual revert until token context changes in #test-input"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionTextEditService.test.ts",
+          "test": "suppresses immediate auto-reapply after manual grammar revert"
+        }
+      ]
+    },
+    {
+      "id": "grammar_v3_safe_rules",
+      "description": "V3 safe grammar rules apply high-confidence at-cursor corrections.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Grammar Rule Engine applies V3 safe rules (double-space + alot) in #test-input"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/V3RuleExpansion.test.ts",
+          "test": "DoubleSpaceToPeriodRule applies conservatively"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/V3RuleExpansion.test.ts",
+          "test": "EnglishAlotCorrectionRule corrects typo and respects user dictionary"
+        }
+      ]
+    },
+    {
+      "id": "grammar_v3_advanced_shortcuts",
+      "description": "V3 advanced typography shortcuts normalize prose punctuation and quotes.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Grammar Rule Engine applies V3 advanced typography shortcuts in #test-input"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/V3RuleExpansion.test.ts",
+          "test": "EllipsisShortcutRule replaces triple dot and skips URL-like text"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/V3RuleExpansion.test.ts",
+          "test": "EmdashShortcutRule replaces trailing double hyphen with guardrails"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/V3RuleExpansion.test.ts",
+          "test": "SmartQuoteNormalizationRule converts straight quotes in prose contexts"
+        }
+      ]
+    },
+    {
+      "id": "grammar_v3_advanced_context_guard",
+      "description": "V3 advanced rules skip URL/code-like contexts and ambiguous quote states.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Grammar Rule Engine keeps V3 advanced shortcuts inactive for URL/code-like contexts in #test-input"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/V3RuleExpansion.test.ts",
+          "test": "SmartQuoteNormalizationRule converts straight quotes in prose contexts"
+        }
+      ]
+    },
+    {
+      "id": "grammar_v3_english_language_guard",
+      "description": "V3 English safe rules remain inactive when the runtime language is non-English.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Grammar Rule Engine keeps V3 English safe rules inactive for non-English language in #test-input"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/V3RuleExpansion.test.ts",
+          "test": "EnglishTheirThereBeVerbRule normalizes there/their mismatch"
         }
       ]
     },
