@@ -175,4 +175,68 @@ describe("ContentEditableAdapter", () => {
       didDispatchInput: false,
     });
   });
+
+  test("uses native insertText fallback before raw DOM mutation", () => {
+    const adapter = new ContentEditableAdapter();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.textContent = "fun";
+    document.body.appendChild(editable);
+
+    const originalExecCommand = document.execCommand;
+    document.execCommand = ((commandId: string, _showUi?: boolean, value?: string) => {
+      if (commandId !== "insertText") {
+        return false;
+      }
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0) {
+        return false;
+      }
+      const range = selection.getRangeAt(0);
+      range.deleteContents();
+      const replacementNode = document.createTextNode(value ?? "");
+      range.insertNode(replacementNode);
+      const caretRange = document.createRange();
+      caretRange.setStart(replacementNode, replacementNode.textContent?.length ?? 0);
+      caretRange.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(caretRange);
+      return true;
+    }) as typeof document.execCommand;
+
+    try {
+      let inputEventCount = 0;
+      editable.addEventListener("input", () => {
+        inputEventCount += 1;
+      });
+
+      const result = adapter.replaceTextByOffsets(editable, 0, 3, "function", 8);
+
+      expect(editable.textContent).toBe("function");
+      expect(inputEventCount).toBe(0);
+      expect(result).toEqual({
+        appliedBy: "fallback-dom",
+        didMutateDom: true,
+        didDispatchInput: false,
+      });
+    } finally {
+      document.execCommand = originalExecCommand;
+    }
+  });
+
+  test("maps offset zero to structural boundary before leading empty block text", () => {
+    const adapter = new ContentEditableAdapter();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML = "<p><br></p><p>next</p>";
+    document.body.appendChild(editable);
+
+    const result = adapter.replaceTextByOffsets(editable, 0, 0, "hello", 5);
+
+    const paragraphs = editable.querySelectorAll("p");
+    expect(paragraphs.length).toBe(2);
+    expect(paragraphs[0]?.textContent ?? "").toContain("hello");
+    expect(paragraphs[1]?.textContent ?? "").toBe("next");
+    expect(result.didMutateDom).toBe(true);
+  });
 });

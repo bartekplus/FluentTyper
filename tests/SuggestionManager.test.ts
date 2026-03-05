@@ -454,6 +454,44 @@ describe("SuggestionManager", () => {
     expect(input.value).toBe("world");
   });
 
+  test("does not apply stale textEdit to contenteditable targets", async () => {
+    const { manager, getPrediction } = await createManager();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.textContent = "he";
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    setContentEditableCursor(editable, 2);
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+    await wait(220);
+    const req1 = getPrediction.mock.calls.at(-1)?.[0];
+    if (!req1) {
+      throw new Error("Expected first prediction request");
+    }
+
+    editable.textContent = "world";
+    setContentEditableCursor(editable, 5);
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+    await wait(220);
+
+    manager.fulfillPrediction(
+      buildResponse(req1, {
+        textEdit: {
+          replacementText: "He",
+          replaceBackwardCount: 2,
+          evaluatedTextLength: 2,
+          expectedReplacedText: "he",
+          expectedPrefixToken: "",
+        },
+      }),
+    );
+
+    expect(editable.textContent).toBe("world");
+  });
+
   test("inserts a regular space before first typed char after acceptance and cancels on cursor move", async () => {
     const { manager, getPrediction } = await createManager();
     const input = document.createElement("input");

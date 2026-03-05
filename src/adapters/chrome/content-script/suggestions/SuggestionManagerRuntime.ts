@@ -154,6 +154,7 @@ export class SuggestionManagerRuntime {
             this.textEditService.applyTextEdit(entry, context.textEdit);
           }
         },
+        allowStaleTextEdit: this.isTextValueElement(entry.elem),
         clearSuggestions: () => this.clearSuggestions(entry),
       })
     ) {
@@ -805,6 +806,10 @@ export class SuggestionManagerRuntime {
 
   private isTextAreaElement(elem: Element): elem is HTMLTextAreaElement {
     return elem.tagName === "TEXTAREA";
+  }
+
+  private isTextValueElement(elem: Element): elem is HTMLInputElement | HTMLTextAreaElement {
+    return this.isInputElement(elem) || this.isTextAreaElement(elem);
   }
 
   private isContentEditableElement(elem: Element): boolean {

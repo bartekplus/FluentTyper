@@ -99,10 +99,12 @@ export class SuggestionPredictionCoordinator {
     {
       isEntryFocused,
       applyTextEdit,
+      allowStaleTextEdit,
       clearSuggestions,
     }: {
       isEntryFocused: boolean;
       applyTextEdit: () => void;
+      allowStaleTextEdit: boolean;
       clearSuggestions: () => void;
     },
   ): boolean {
@@ -113,7 +115,7 @@ export class SuggestionPredictionCoordinator {
       return false;
     }
 
-    if (response.textEdit && isEntryFocused) {
+    if (response.textEdit && isEntryFocused && (isCurrentRequest || allowStaleTextEdit)) {
       applyTextEdit();
     }
 

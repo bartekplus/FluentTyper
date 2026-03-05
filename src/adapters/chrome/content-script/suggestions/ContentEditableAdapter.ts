@@ -47,8 +47,18 @@ export class ContentEditableAdapter {
       };
     }
 
+    const nativeReplacementResult = this.tryNativeReplacement(elem, replacementText);
+    if (nativeReplacementResult.didMutateDom) {
+      return {
+        appliedBy: "fallback-dom",
+        didMutateDom: true,
+        didDispatchInput: nativeReplacementResult.didDispatchInput,
+      };
+    }
+
     const hadSelectedContent = !range.collapsed;
     range.deleteContents();
+    this.normalizeCollapsedInsertionRange(range, elem);
 
     let insertedReplacement = false;
     if (replacementText.length > 0) {
@@ -153,6 +163,150 @@ export class ContentEditableAdapter {
     elem.dispatchEvent(inputEvent);
   }
 
+  private normalizeCollapsedInsertionRange(range: Range, root: HTMLElement): void {
+    if (!range.collapsed) {
+      return;
+    }
+
+    const startContainer = range.startContainer;
+    if (startContainer.nodeType === Node.TEXT_NODE) {
+      return;
+    }
+
+    const container =
+      startContainer.nodeType === Node.ELEMENT_NODE ? (startContainer as Element) : null;
+    if (!container) {
+      return;
+    }
+
+    const startOffset = range.startOffset;
+    const normalized = this.resolveBoundaryInsertionPoint(container, startOffset);
+    if (!normalized) {
+      return;
+    }
+    if (normalized.container !== root && !root.contains(normalized.container)) {
+      return;
+    }
+
+    try {
+      range.setStart(normalized.container, normalized.offset);
+      range.collapse(true);
+    } catch {
+      // Keep original range when normalization is not valid for this DOM shape.
+    }
+  }
+
+  private resolveBoundaryInsertionPoint(
+    container: Element,
+    offset: number,
+  ): ContentEditableDomPosition | null {
+    if (offset < container.childNodes.length) {
+      const next = container.childNodes[offset];
+      return this.resolveNodeStartPosition(next);
+    }
+
+    if (offset > 0) {
+      const previous = container.childNodes[offset - 1];
+      return this.resolveNodeEndPosition(previous);
+    }
+
+    return null;
+  }
+
+  private resolveNodeStartPosition(node: Node): ContentEditableDomPosition {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return { container: node, offset: 0 };
+    }
+    const element = node as Element;
+    const firstText = this.findFirstTextNode(element);
+    if (firstText) {
+      return { container: firstText, offset: 0 };
+    }
+    return { container: element, offset: 0 };
+  }
+
+  private resolveNodeEndPosition(node: Node): ContentEditableDomPosition {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return { container: node, offset: node.textContent?.length ?? 0 };
+    }
+    const element = node as Element;
+    const lastText = this.findLastTextNode(element);
+    if (lastText) {
+      return { container: lastText, offset: lastText.textContent?.length ?? 0 };
+    }
+    return { container: element, offset: element.childNodes.length };
+  }
+
+  private findFirstTextNode(root: Node): Text | null {
+    const showText =
+      (globalThis as { NodeFilter?: { SHOW_TEXT?: number } }).NodeFilter?.SHOW_TEXT ?? 4;
+    const walker = document.createTreeWalker(root, showText);
+    return (walker.nextNode() as Text | null) ?? null;
+  }
+
+  private findLastTextNode(root: Node): Text | null {
+    const showText =
+      (globalThis as { NodeFilter?: { SHOW_TEXT?: number } }).NodeFilter?.SHOW_TEXT ?? 4;
+    const walker = document.createTreeWalker(root, showText);
+    let current = walker.nextNode() as Text | null;
+    let last: Text | null = null;
+    while (current) {
+      last = current;
+      current = walker.nextNode() as Text | null;
+    }
+    return last;
+  }
+
+  private tryNativeReplacement(
+    elem: HTMLElement,
+    replacementText: string,
+  ): { didMutateDom: boolean; didDispatchInput: boolean } {
+    const beforeText = elem.textContent ?? "";
+    const commandResult = this.runExecInsertText(replacementText);
+    const afterText = elem.textContent ?? "";
+    if (afterText !== beforeText) {
+      return {
+        didMutateDom: true,
+        didDispatchInput: false,
+      };
+    }
+    if (!commandResult && replacementText.length === 0 && this.runExecDelete()) {
+      const afterDeleteText = elem.textContent ?? "";
+      if (afterDeleteText !== beforeText) {
+        return {
+          didMutateDom: true,
+          didDispatchInput: false,
+        };
+      }
+    }
+    return {
+      didMutateDom: false,
+      didDispatchInput: false,
+    };
+  }
+
+  private runExecInsertText(replacementText: string): boolean {
+    if (typeof document.execCommand !== "function") {
+      return false;
+    }
+    try {
+      return document.execCommand("insertText", false, replacementText);
+    } catch {
+      return false;
+    }
+  }
+
+  private runExecDelete(): boolean {
+    if (typeof document.execCommand !== "function") {
+      return false;
+    }
+    try {
+      return document.execCommand("delete", false);
+    } catch {
+      return false;
+    }
+  }
+
   private createInputEvent(
     type: "beforeinput" | "input",
     {
@@ -251,8 +405,19 @@ export class ContentEditableAdapter {
       probeRange.setEnd(current, nodeLength);
       const nodeEndOffset = probeRange.toString().length;
 
-      if (clampedTarget <= nodeEndOffset) {
+      if (clampedTarget >= nodeStartOffset && clampedTarget <= nodeEndOffset) {
         const offsetInNode = Math.max(0, Math.min(nodeLength, clampedTarget - nodeStartOffset));
+        // When the target is at absolute offset zero, rich editors can have
+        // leading empty structural nodes that share the same text offset.
+        // In that case, using the first text node would skip those blocks.
+        if (
+          clampedTarget === 0 &&
+          offsetInNode === 0 &&
+          this.hasPreviousDomSiblingInAncestry(elem, current)
+        ) {
+          current = walker.nextNode() as Text | null;
+          continue;
+        }
         return { container: current, offset: offsetInNode };
       }
 
@@ -260,6 +425,17 @@ export class ContentEditableAdapter {
     }
 
     return null;
+  }
+
+  private hasPreviousDomSiblingInAncestry(root: HTMLElement, node: Node): boolean {
+    let current: Node | null = node;
+    while (current && current !== root) {
+      if (current.previousSibling) {
+        return true;
+      }
+      current = current.parentNode;
+    }
+    return false;
   }
 
   private resolveBoundaryPosition(
@@ -271,10 +447,11 @@ export class ContentEditableAdapter {
       container: Node;
       offset: number;
       textOffset: number;
-      depth: number;
+      order: number;
     };
 
     const candidates: BoundaryCandidate[] = [];
+    let order = 0;
     const addBoundaryCandidates = (container: Element): void => {
       for (let offset = 0; offset <= container.childNodes.length; offset += 1) {
         const textOffset = this.measureBoundaryTextOffset(elem, container, offset, probeRange);
@@ -285,7 +462,7 @@ export class ContentEditableAdapter {
           container,
           offset,
           textOffset,
-          depth: this.getNodeDepthWithinRoot(elem, container),
+          order: order++,
         });
       }
     };
@@ -333,7 +510,7 @@ export class ContentEditableAdapter {
         best = candidate;
         continue;
       }
-      if (candidate.depth > best.depth) {
+      if (candidate.order < best.order) {
         best = candidate;
       }
     }
@@ -354,15 +531,5 @@ export class ContentEditableAdapter {
     } catch {
       return null;
     }
-  }
-
-  private getNodeDepthWithinRoot(root: HTMLElement, node: Node): number {
-    let depth = 0;
-    let current: Node | null = node;
-    while (current && current !== root) {
-      current = current.parentNode;
-      depth += 1;
-    }
-    return depth;
   }
 }
