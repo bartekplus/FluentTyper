@@ -488,11 +488,7 @@ export class SuggestionManagerRuntime {
       return;
     }
     if (this.shouldSkipPredictionForUnstableInputState(entry, event)) {
-      entry.requestId += 1;
-      entry.lastInputAction = null;
-      entry.lastKeydownKey = null;
-      entry.lastBeforeCursorText = null;
-      this.clearSuggestions(entry);
+      this.resetEntryPredictionStateAfterSuppressedInput(entry);
       return;
     }
     const snapshot: SuggestionSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
@@ -608,11 +604,19 @@ export class SuggestionManagerRuntime {
     return fullText.slice(autoFix.replaceStart, replaceEnd) === autoFix.replacementText;
   }
 
-  private shouldSkipPredictionForUnstableInputState(entry: SuggestionEntry, event: Event): boolean {
+  private resetEntryPredictionStateAfterSuppressedInput(entry: SuggestionEntry): void {
+    entry.requestId += 1;
+    entry.lastInputAction = null;
+    entry.lastKeydownKey = null;
+    entry.lastBeforeCursorText = null;
+    this.clearSuggestions(entry);
+  }
+
+  private shouldSkipPredictionForUnstableInputState(entry: SuggestionEntry, event?: Event): boolean {
     if (entry.isComposing) {
       return true;
     }
-    const eventIsComposing = (event as InputEvent).isComposing;
+    const eventIsComposing = (event as InputEvent | undefined)?.isComposing;
     if (eventIsComposing === true) {
       return true;
     }
@@ -801,6 +805,10 @@ export class SuggestionManagerRuntime {
       return;
     }
     this.clearPendingKeyFallback(id);
+    if (this.shouldSkipPredictionForUnstableInputState(current)) {
+      this.resetEntryPredictionStateAfterSuppressedInput(current);
+      return;
+    }
     const snapshot = TextTargetAdapter.snapshot(current.elem as TextTarget);
     const beforeCursor = this.resolveBeforeCursorForPrediction(current, snapshot.beforeCursor, {
       inputAction: pending.inputAction,

@@ -1292,6 +1292,27 @@ describe("SuggestionManager", () => {
     expect(getPrediction.mock.calls.length).toBe(0);
   });
 
+  test("does not request prediction from fallback reconcile while IME composition is active", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+      enabledGrammarRules: ["commaPeriodSpacing"],
+    });
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = "hello";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    document.body.appendChild(input);
+    manager.queryAndAttachHelper();
+
+    input.dispatchEvent(new Event("focus", { bubbles: true }));
+    input.dispatchEvent(new Event("compositionstart", { bubbles: true }));
+    dispatchKeydown(input, "x");
+    await wait(260);
+
+    expect(getPrediction.mock.calls.length).toBe(0);
+  });
+
   test("does not request prediction when input selection is not collapsed", async () => {
     const { manager, getPrediction } = await createManager({
       minWordLengthToPredict: 1,
@@ -1307,6 +1328,26 @@ describe("SuggestionManager", () => {
 
     dispatchInput(input);
     await wait(240);
+
+    expect(getPrediction.mock.calls.length).toBe(0);
+  });
+
+  test("does not request prediction from fallback reconcile when selection is active", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+      enabledGrammarRules: ["commaPeriodSpacing"],
+    });
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = "hello";
+    input.selectionStart = 1;
+    input.selectionEnd = 4;
+    document.body.appendChild(input);
+    manager.queryAndAttachHelper();
+
+    input.dispatchEvent(new Event("focus", { bubbles: true }));
+    dispatchKeydown(input, "x");
+    await wait(260);
 
     expect(getPrediction.mock.calls.length).toBe(0);
   });
