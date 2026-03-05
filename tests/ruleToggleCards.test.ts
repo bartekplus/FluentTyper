@@ -16,7 +16,7 @@ function buildRuleToggleCardsHost() {
     emptyStateText: "No grammar rules enabled.",
     noMatchesText: "No grammar rules match your search.",
     searchPlaceholder: "Search grammar rules...",
-    sectionSafeLabel: "Safe defaults",
+    sectionSafeLabel: "Safe rules",
     sectionAdvancedLabel: "Advanced (optional)",
     filterAllLabel: "All",
     filterSafeLabel: "Safe",

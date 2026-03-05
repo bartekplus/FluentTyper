@@ -643,7 +643,7 @@ i18n = Object.assign(i18n, {
     "pr": "Regras Gramaticais Habilitadas"
   },
   "grammar_rules_help": {
-    "en": "Choose which writing corrections FluentTyper should apply automatically while you type. Safe defaults are enabled by default; advanced rules stay off until you opt in.",
+    "en": "Choose which writing corrections FluentTyper should apply automatically while you type. Safe rules are enabled by default; advanced rules stay off until you opt in.",
     "fr": "Choisissez quelles corrections d'écriture FluentTyper doit appliquer automatiquement pendant la saisie.",
     "hr": "Odaberite koje korekcije pisanja FluentTyper treba automatski primjenjivati tijekom tipkanja.",
     "es": "Elige qué correcciones de escritura debe aplicar FluentTyper automáticamente mientras escribes.",
@@ -797,15 +797,15 @@ i18n = Object.assign(i18n, {
     "pr": "Somente ativas",
   },
   "grammar_rules_section_safe": {
-    "en": "Safe defaults",
-    "fr": "Valeurs sûres",
-    "hr": "Sigurne zadane vrijednosti",
-    "es": "Valores seguros",
-    "el": "Ασφαλείς προεπιλογές",
-    "sv": "Säkra standardregler",
-    "de": "Sichere Standardregeln",
-    "pl": "Bezpieczne domyślne",
-    "pr": "Padrões seguros",
+    "en": "Safe rules",
+    "fr": "Règles sûres",
+    "hr": "Sigurna pravila",
+    "es": "Reglas seguras",
+    "el": "Ασφαλείς κανόνες",
+    "sv": "Säkra regler",
+    "de": "Sichere Regeln",
+    "pl": "Bezpieczne reguły",
+    "pr": "Regras seguras",
   },
   "grammar_rules_section_advanced": {
     "en": "Advanced (optional)",

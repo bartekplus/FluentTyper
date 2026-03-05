@@ -1104,7 +1104,7 @@ class RuleToggleCards extends Bundle {
     });
 
     this.safeSection = this.createSection(
-      (this.params.sectionSafeLabel || "Safe defaults").toString(),
+      (this.params.sectionSafeLabel || "Safe rules").toString(),
       "safe",
     );
     this.advancedSection = this.createSection(
