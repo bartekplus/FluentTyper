@@ -65,8 +65,16 @@ export class GrammarRuleEngine {
           }
 
           for (const edit of edits) {
-            appliedEdits.push(edit);
-            currentContext = this.applyEditToContext(currentContext, edit);
+            const enrichedEdit: GrammarEdit = {
+              ...edit,
+              sourceRuleId:
+                edit.sourceRuleId ??
+                (rule.id === "spacingRule" || rule.id === "capitalizeFirstLetter"
+                  ? undefined
+                  : rule.id),
+            };
+            appliedEdits.push(enrichedEdit);
+            currentContext = this.applyEditToContext(currentContext, enrichedEdit);
             madeChanges = true;
           }
         } catch (error) {
@@ -137,6 +145,9 @@ export class GrammarRuleEngine {
     }
 
     let totalDeleteForwards = 0;
+    let mergedConfidence: GrammarEdit["confidence"] | undefined;
+    let mergedSourceRuleId: GrammarEdit["sourceRuleId"] | undefined;
+    let mergedSafetyTier: GrammarEdit["safetyTier"] | undefined;
 
     // Simplified squashing assuming sequential application at the cursor:
     let accumulatedString = "";
@@ -150,6 +161,17 @@ export class GrammarRuleEngine {
       accumulatedString = accumulatedString.slice(0, keepAccumulated) + edit.replacement;
 
       totalDeleteForwards += edit.deleteForwards;
+      if (edit.confidence === "medium") {
+        mergedConfidence = "medium";
+      } else if (edit.confidence === "high" && mergedConfidence !== "medium") {
+        mergedConfidence = "high";
+      }
+      if (edit.sourceRuleId) {
+        mergedSourceRuleId = edit.sourceRuleId;
+      }
+      if (edit.safetyTier) {
+        mergedSafetyTier = edit.safetyTier;
+      }
     }
 
     // Guard: TextEditOperation apply path only supports backward deletion.
@@ -168,6 +190,9 @@ export class GrammarRuleEngine {
         replacement: accumulatedString,
         deleteBackwards: baseDeleteBackwards,
         deleteForwards: totalDeleteForwards,
+        ...(mergedConfidence ? { confidence: mergedConfidence } : {}),
+        ...(mergedSourceRuleId ? { sourceRuleId: mergedSourceRuleId } : {}),
+        ...(mergedSafetyTier ? { safetyTier: mergedSafetyTier } : {}),
         description: "Merged edits",
       },
     ];

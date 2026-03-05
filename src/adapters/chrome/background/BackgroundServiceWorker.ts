@@ -10,6 +10,7 @@ import { ProductivityStatsManager } from "./ProductivityStatsManager";
 import { migrateSettingsV3 } from "@core/application/settings/SettingsMigrationV3";
 import { migrateSettingsV4 } from "@core/application/settings/SettingsMigrationV4";
 import { migrateSettingsV5 } from "@core/application/settings/SettingsMigrationV5";
+import { migrateSettingsV6 } from "@core/application/settings/SettingsMigrationV6";
 import { migrateToLocalStore } from "./Migration";
 import type {
   ConfigMessage,
@@ -188,6 +189,7 @@ export class BackgroundServiceWorker {
       await migrateSettingsV3(this.settingsManager);
       await migrateSettingsV4(this.settingsManager);
       await migrateSettingsV5(this.settingsManager);
+      await migrateSettingsV6(this.settingsManager);
       await this.predictionManager.initialize();
       await this.updatePresageConfig();
     } catch (error) {

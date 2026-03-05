@@ -632,7 +632,7 @@ i18n = Object.assign(i18n, {
     "pr": "Regras Gramaticais Habilitadas"
   },
   "grammar_rules_help": {
-    "en": "Choose which writing corrections FluentTyper should apply automatically while you type.",
+    "en": "Choose which writing corrections FluentTyper should apply automatically while you type. Safe defaults are enabled by default; advanced rules stay off until you opt in.",
     "fr": "Choisissez quelles corrections d'écriture FluentTyper doit appliquer automatiquement pendant la saisie.",
     "hr": "Odaberite koje korekcije pisanja FluentTyper treba automatski primjenjivati tijekom tipkanja.",
     "es": "Elige qué correcciones de escritura debe aplicar FluentTyper automáticamente mientras escribes.",
@@ -674,6 +674,28 @@ i18n = Object.assign(i18n, {
     "de": "Empfohlene verwenden",
     "pl": "Użyj zalecanych",
     "pr": "Usar recomendadas",
+  },
+  "grammar_rules_safe_defaults": {
+    "en": "Safe defaults",
+    "fr": "Safe defaults",
+    "hr": "Safe defaults",
+    "es": "Safe defaults",
+    "el": "Safe defaults",
+    "sv": "Safe defaults",
+    "de": "Safe defaults",
+    "pl": "Safe defaults",
+    "pr": "Safe defaults",
+  },
+  "grammar_rules_enable_recommended": {
+    "en": "Enable recommended",
+    "fr": "Enable recommended",
+    "hr": "Enable recommended",
+    "es": "Enable recommended",
+    "el": "Enable recommended",
+    "sv": "Enable recommended",
+    "de": "Enable recommended",
+    "pl": "Enable recommended",
+    "pr": "Enable recommended",
   },
   "grammar_rules_enable_all": {
     "en": "Enable all",
@@ -718,6 +740,28 @@ i18n = Object.assign(i18n, {
     "de": "English only",
     "pl": "English only",
     "pr": "English only",
+  },
+  "grammar_rule_rollout_safe_badge": {
+    "en": "Safe default",
+    "fr": "Safe default",
+    "hr": "Safe default",
+    "es": "Safe default",
+    "el": "Safe default",
+    "sv": "Safe default",
+    "de": "Safe default",
+    "pl": "Safe default",
+    "pr": "Safe default",
+  },
+  "grammar_rule_rollout_advanced_badge": {
+    "en": "Advanced (off)",
+    "fr": "Advanced (off)",
+    "hr": "Advanced (off)",
+    "es": "Advanced (off)",
+    "el": "Advanced (off)",
+    "sv": "Advanced (off)",
+    "de": "Advanced (off)",
+    "pl": "Advanced (off)",
+    "pr": "Advanced (off)",
   },
   "grammar_rule_english_pronoun_i": {
     "en": "Capitalize standalone English \"i\"",
@@ -817,6 +861,96 @@ i18n = Object.assign(i18n, {
     "de": "Example: \"teh cat\" -> \"the cat\", \"recieve\" -> \"receive\"",
     "pl": "Example: \"teh cat\" -> \"the cat\", \"recieve\" -> \"receive\"",
     "pr": "Example: \"teh cat\" -> \"the cat\", \"recieve\" -> \"receive\"",
+  },
+  "grammar_rule_double_space_to_period": {
+    "en": "Double-space to period",
+  },
+  "grammar_rule_double_space_to_period_desc": {
+    "en": "Replaces a quick double-space after a word with a period and trailing space.",
+  },
+  "grammar_rule_double_space_to_period_example": {
+    "en": "Example: \"Hello  \" -> \"Hello. \"",
+  },
+  "grammar_rule_english_modal_of": {
+    "en": "Fix \"could of\"-style phrases",
+  },
+  "grammar_rule_english_modal_of_desc": {
+    "en": "Corrects modal phrase typos: could/would/should/must of -> have.",
+  },
+  "grammar_rule_english_modal_of_example": {
+    "en": "Example: \"could of\" -> \"could have\"",
+  },
+  "grammar_rule_english_your_welcome": {
+    "en": "Fix \"your welcome\"",
+  },
+  "grammar_rule_english_your_welcome_desc": {
+    "en": "Corrects the phrase \"your welcome\" to \"you're welcome\".",
+  },
+  "grammar_rule_english_your_welcome_example": {
+    "en": "Example: \"your welcome\" -> \"you're welcome\"",
+  },
+  "grammar_rule_english_their_there_be": {
+    "en": "Fix \"their is/are/was/were\"",
+  },
+  "grammar_rule_english_their_there_be_desc": {
+    "en": "Corrects common there/their be-verb phrase mistakes.",
+  },
+  "grammar_rule_english_their_there_be_example": {
+    "en": "Example: \"their is\" -> \"there is\"",
+  },
+  "grammar_rule_english_alot": {
+    "en": "Correct \"alot\"",
+  },
+  "grammar_rule_english_alot_desc": {
+    "en": "Corrects the common typo \"alot\" to \"a lot\".",
+  },
+  "grammar_rule_english_alot_example": {
+    "en": "Example: \"alot\" -> \"a lot\"",
+  },
+  "grammar_rule_english_pronoun_verb_agreement": {
+    "en": "Fix common pronoun-verb mismatches",
+  },
+  "grammar_rule_english_pronoun_verb_agreement_desc": {
+    "en": "Applies a strict whitelist (e.g., \"I is\" -> \"I am\") in clear English contexts.",
+  },
+  "grammar_rule_english_pronoun_verb_agreement_example": {
+    "en": "Example: \"you was\" -> \"you were\"",
+  },
+  "grammar_rule_ellipsis_shortcut": {
+    "en": "Ellipsis shortcut",
+  },
+  "grammar_rule_ellipsis_shortcut_desc": {
+    "en": "Replaces three consecutive dots with an ellipsis character.",
+  },
+  "grammar_rule_ellipsis_shortcut_example": {
+    "en": "Example: \"...\" -> \"…\"",
+  },
+  "grammar_rule_emdash_shortcut": {
+    "en": "Em dash shortcut",
+  },
+  "grammar_rule_emdash_shortcut_desc": {
+    "en": "Replaces a double hyphen with an em dash in prose contexts.",
+  },
+  "grammar_rule_emdash_shortcut_example": {
+    "en": "Example: \"word--\" -> \"word—\"",
+  },
+  "grammar_rule_smart_quote_normalization": {
+    "en": "Smart quote normalization",
+  },
+  "grammar_rule_smart_quote_normalization_desc": {
+    "en": "Converts straight quotes to typographic quotes using simple open/close heuristics.",
+  },
+  "grammar_rule_smart_quote_normalization_example": {
+    "en": "Example: \"\\\"hello\\\"\" -> \"“hello”\"",
+  },
+  "grammar_rule_duplicate_punctuation_collapse": {
+    "en": "Collapse duplicate punctuation",
+  },
+  "grammar_rule_duplicate_punctuation_collapse_desc": {
+    "en": "Collapses accidental duplicate punctuation while preserving common intentional forms.",
+  },
+  "grammar_rule_duplicate_punctuation_collapse_example": {
+    "en": "Example: \",,\" -> \",\"",
   },
   "grammar_rule_spacing": {
     "en": "Auto-Spacing around punctuation",

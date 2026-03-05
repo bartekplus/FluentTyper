@@ -25,6 +25,7 @@ describe("SuggestionKeyboardHandler", () => {
       tryRevertLastReplacement: jest.fn(() => false),
       tryRevertLastAutoFix: jest.fn(() => false),
       tryDeleteTrailingPunctuationSpace: jest.fn(() => false),
+      tryRevertLastAutoFixOnUndo: jest.fn(() => false),
       consumeKeyboardEvent,
       clearSuggestions: jest.fn(),
       isMenuVisible: jest.fn(() => true),
@@ -61,6 +62,7 @@ describe("SuggestionKeyboardHandler", () => {
       tryRevertLastReplacement: jest.fn(() => false),
       tryRevertLastAutoFix: jest.fn(() => false),
       tryDeleteTrailingPunctuationSpace: jest.fn(() => false),
+      tryRevertLastAutoFixOnUndo: jest.fn(() => false),
       consumeKeyboardEvent,
       clearSuggestions: jest.fn(),
       isMenuVisible: jest.fn(() => false),
@@ -93,6 +95,7 @@ describe("SuggestionKeyboardHandler", () => {
       tryRevertLastReplacement: jest.fn(() => false),
       tryRevertLastAutoFix,
       tryDeleteTrailingPunctuationSpace: jest.fn(() => false),
+      tryRevertLastAutoFixOnUndo: jest.fn(() => false),
       consumeKeyboardEvent: jest.fn(),
       clearSuggestions: jest.fn(),
       isMenuVisible: jest.fn(() => false),
@@ -106,5 +109,36 @@ describe("SuggestionKeyboardHandler", () => {
     handler.handle(entry, createEvent("Backspace"));
 
     expect(tryRevertLastAutoFix).toHaveBeenCalledTimes(1);
+  });
+
+  test("tries grammar auto-fix revert on Cmd/Ctrl+Z before native undo", () => {
+    const tryRevertLastAutoFixOnUndo = jest.fn(() => true);
+    const handler = new SuggestionKeyboardHandler({
+      autocompleteOnSpace: true,
+      autocompleteOnEnter: true,
+      autocompleteOnTab: true,
+      selectByDigit: true,
+      revertOnBackspace: true,
+      inlineSuggestionEnabled: true,
+      handleMissingSpaceAfterAccept: jest.fn(),
+      tryRevertLastReplacement: jest.fn(() => false),
+      tryRevertLastAutoFix: jest.fn(() => false),
+      tryDeleteTrailingPunctuationSpace: jest.fn(() => false),
+      tryRevertLastAutoFixOnUndo,
+      consumeKeyboardEvent: jest.fn(),
+      clearSuggestions: jest.fn(),
+      isMenuVisible: jest.fn(() => false),
+      updateSelectionHighlight: jest.fn(),
+      acceptSuggestion: jest.fn(),
+      acceptSuggestionAtIndex: jest.fn(),
+      requestInlineSuggestion: jest.fn(),
+    });
+    const entry = createSuggestionEntry();
+    const event = createEvent("z");
+    Object.defineProperty(event, "ctrlKey", { value: true });
+
+    handler.handle(entry, event);
+
+    expect(tryRevertLastAutoFixOnUndo).toHaveBeenCalledTimes(1);
   });
 });

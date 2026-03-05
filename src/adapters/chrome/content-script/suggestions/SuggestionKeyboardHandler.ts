@@ -12,6 +12,7 @@ interface SuggestionKeyboardHandlerOptions {
   tryRevertLastReplacement: (entry: SuggestionEntry, event: KeyboardEvent) => boolean;
   tryRevertLastAutoFix: (entry: SuggestionEntry, event: KeyboardEvent) => boolean;
   tryDeleteTrailingPunctuationSpace: (entry: SuggestionEntry, event: KeyboardEvent) => boolean;
+  tryRevertLastAutoFixOnUndo: (entry: SuggestionEntry, event: KeyboardEvent) => boolean;
   consumeKeyboardEvent: (event: KeyboardEvent) => void;
   clearSuggestions: (entry: SuggestionEntry) => void;
   isMenuVisible: (entry: SuggestionEntry) => boolean;
@@ -42,6 +43,10 @@ export class SuggestionKeyboardHandler {
     entry: SuggestionEntry,
     event: KeyboardEvent,
   ) => boolean;
+  private readonly tryRevertLastAutoFixOnUndo: (
+    entry: SuggestionEntry,
+    event: KeyboardEvent,
+  ) => boolean;
   private readonly consumeKeyboardEvent: (event: KeyboardEvent) => void;
   private readonly clearSuggestions: (entry: SuggestionEntry) => void;
   private readonly isMenuVisible: (entry: SuggestionEntry) => boolean;
@@ -66,6 +71,7 @@ export class SuggestionKeyboardHandler {
     this.tryRevertLastReplacement = options.tryRevertLastReplacement;
     this.tryRevertLastAutoFix = options.tryRevertLastAutoFix;
     this.tryDeleteTrailingPunctuationSpace = options.tryDeleteTrailingPunctuationSpace;
+    this.tryRevertLastAutoFixOnUndo = options.tryRevertLastAutoFixOnUndo;
     this.consumeKeyboardEvent = options.consumeKeyboardEvent;
     this.clearSuggestions = options.clearSuggestions;
     this.isMenuVisible = options.isMenuVisible;
@@ -83,6 +89,9 @@ export class SuggestionKeyboardHandler {
     }
 
     const key = keyboardEvent.key;
+    if (this.isUndoChord(keyboardEvent) && this.tryRevertLastAutoFixOnUndo(entry, keyboardEvent)) {
+      return;
+    }
     if (key === "Backspace") {
       if (this.revertOnBackspace && this.tryRevertLastReplacement(entry, keyboardEvent)) {
         return;
@@ -181,5 +190,15 @@ export class SuggestionKeyboardHandler {
       return null;
     }
     return key === "0" ? 9 : Number(key) - 1;
+  }
+
+  private isUndoChord(event: KeyboardEvent): boolean {
+    if (event.defaultPrevented || event.altKey || event.shiftKey) {
+      return false;
+    }
+    if (!(event.metaKey || event.ctrlKey)) {
+      return false;
+    }
+    return event.key.toLowerCase() === "z";
   }
 }

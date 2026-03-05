@@ -117,6 +117,7 @@ describe("GrammarRuleEngine", () => {
       replacement: "A",
       deleteBackwards: 1,
       deleteForwards: 0,
+      sourceRuleId: "rule2",
       description: "Merged edits",
     });
   });

@@ -128,6 +128,11 @@ export class SuggestionManagerRuntime {
           event,
           this.consumeKeyboardEvent.bind(this),
         ),
+      tryRevertLastAutoFixOnUndo: (entry, event) =>
+        this.textEditService.tryRevertLastAutoFix(entry, event, {
+          consumeKeyboardEvent: this.consumeKeyboardEvent.bind(this),
+          clearSuggestions: () => this.clearSuggestions(entry),
+        }),
       consumeKeyboardEvent: this.consumeKeyboardEvent.bind(this),
       clearSuggestions: this.clearSuggestions.bind(this),
       isMenuVisible: (entry) => this.menuPresenter.isVisible(entry.menu, entry.suggestions.length),
