@@ -21,17 +21,20 @@ function buildRuleToggleCardsHost() {
     filterAllLabel: "All",
     filterSafeLabel: "Safe",
     filterAdvancedLabel: "Advanced",
-    filterRecommendedLabel: "Recommended",
     filterEnglishOnlyLabel: "English only",
     filterEnabledOnlyLabel: "Enabled only",
     actions: [
       {
-        text: "Safe defaults",
+        text: "Recommended",
         values: ["safePunctuation", "englishPronounI"],
       },
       {
         text: "Enable all",
         values: ["safePunctuation", "advancedEllipsis", "englishPronounI"],
+      },
+      {
+        text: "Disable all",
+        values: [],
       },
     ],
     options: [
@@ -98,7 +101,6 @@ describe("ruleToggleCards setting", () => {
       "grammar_rules_filter_all",
       "grammar_rules_filter_safe",
       "grammar_rules_filter_advanced",
-      "grammar_rules_filter_recommended",
       "grammar_rules_filter_english_only",
       "grammar_rules_filter_enabled_only",
       "grammar_rules_section_safe",
@@ -117,6 +119,7 @@ describe("ruleToggleCards setting", () => {
 
     expect(grammarSetting).toBeDefined();
     expect(grammarSetting?.tab).toBe(i18n.get("grammar_tab"));
+    expect(grammarSetting?.filterRecommendedLabel).toBeUndefined();
 
     const options = (grammarSetting?.options || []) as Array<Record<string, unknown>>;
     expect(options.length).toBeGreaterThan(0);
@@ -127,6 +130,15 @@ describe("ruleToggleCards setting", () => {
       expect(["safe", "advanced"]).toContain(option.safetyTier);
       expect(["all", "en_US"]).toContain(option.languageScope);
     }
+
+    const actions = (grammarSetting?.actions || []) as Array<Record<string, unknown>>;
+    const actionLabels = actions.map((action) => action.text);
+    expect(actionLabels).toEqual([
+      i18n.get("grammar_rules_recommended"),
+      i18n.get("grammar_rules_enable_all"),
+      i18n.get("grammar_rules_disable_all"),
+    ]);
+    expect(actionLabels).not.toContain(i18n.get("grammar_rules_safe_defaults"));
   });
 
   test("search and tier/language filters narrow visible grammar cards", () => {
@@ -147,8 +159,10 @@ describe("ruleToggleCards setting", () => {
     clickFilter(host, "english");
     expect(visibleRuleValues(host)).toEqual(["englishPronounI"]);
 
-    clickFilter(host, "recommended");
-    expect(visibleRuleValues(host)).toEqual(["safePunctuation"]);
+    const recommendedFilterButton = host.querySelector(
+      '.grammar-rule-filter-button[data-filter="recommended"]',
+    );
+    expect(recommendedFilterButton).toBeNull();
 
     clickFilter(host, "all");
     const searchInput = host.querySelector(".grammar-rule-search-input");
@@ -175,9 +189,9 @@ describe("ruleToggleCards setting", () => {
   test("bulk actions and enabled-only filter stay in sync with selected rule values", () => {
     const { host, bundle } = buildRuleToggleCardsHost();
 
-    const safeDefaultsButton = host.querySelector(".grammar-rule-selector-actions .button");
-    expect(safeDefaultsButton).toBeInstanceOf(HTMLElement);
-    (safeDefaultsButton as HTMLElement).dispatchEvent(new Event("click", { bubbles: true }));
+    const recommendedButton = host.querySelector(".grammar-rule-selector-actions .button");
+    expect(recommendedButton).toBeInstanceOf(HTMLElement);
+    (recommendedButton as HTMLElement).dispatchEvent(new Event("click", { bubbles: true }));
 
     expect(bundle.get()).toEqual(["safePunctuation", "englishPronounI"]);
 

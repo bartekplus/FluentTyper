@@ -28,6 +28,7 @@ import {
   KEY_SITE_PROFILES,
   KEY_TEXT_EXPANSIONS,
 } from "../../src/core/domain/constants";
+import { RECOMMENDED_V3_GRAMMAR_RULES } from "../../src/core/domain/grammar/ruleCatalog";
 
 const RUN_E2E = process.env.RUN_E2E === "1" || process.env.RUN_E2E === "true";
 const describeE2E = RUN_E2E ? describe : describe.skip;
@@ -620,6 +621,9 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
           const filterRecommendedButton = grammarRoot.querySelector(
             '.grammar-rule-filter-button[data-filter="recommended"]',
           ) as HTMLButtonElement | null;
+          const recommendedActionButton = grammarRoot.querySelector(
+            ".grammar-rule-selector-actions .button",
+          ) as HTMLButtonElement | null;
 
           if (!searchInput) {
             return { ok: false, error: "Search input is missing" };
@@ -627,11 +631,25 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
           if (!filterSafeButton) {
             return { ok: false, error: "Safe filter button is missing" };
           }
-          if (!filterRecommendedButton) {
-            return { ok: false, error: "Recommended filter button is missing" };
+          if (filterRecommendedButton) {
+            return { ok: false, error: "Recommended filter button should not be present" };
+          }
+          if (!recommendedActionButton) {
+            return { ok: false, error: "Recommended action button is missing" };
           }
 
           const initialVisibleCount = countVisibleCards();
+          recommendedActionButton.click();
+          const recommendedSelection = Array.from(
+            grammarRoot.querySelectorAll(".grammar-rule-card-toggle"),
+          )
+            .filter((toggle): toggle is HTMLInputElement => toggle instanceof HTMLInputElement)
+            .filter((toggle) => toggle.checked)
+            .map((toggle) => toggle.value);
+          if (recommendedSelection.length === 0) {
+            return { ok: false, error: "Recommended action did not enable any rules" };
+          }
+          const selectedId = recommendedSelection[0];
 
           searchInput.value = "ellipsis";
           searchInput.dispatchEvent(new Event("input", { bubbles: true }));
@@ -646,23 +664,10 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
             return { ok: false, error: "Search did not return any rule cards" };
           }
 
-          searchVisibleCards[0].click();
-          const selectedId = searchVisibleCards[0].value;
-
           searchInput.value = "";
           searchInput.dispatchEvent(new Event("input", { bubbles: true }));
           filterSafeButton.click();
           const safeVisibleCount = countVisibleCards();
-          filterRecommendedButton.click();
-          const recommendedVisibleCards = Array.from(
-            grammarRoot.querySelectorAll(".grammar-rule-card"),
-          )
-            .filter((card) => !card.classList.contains("is-hidden"))
-            .map(
-              (card) => card.querySelector(".grammar-rule-card-toggle") as HTMLInputElement | null,
-            )
-            .filter((toggle): toggle is HTMLInputElement => Boolean(toggle))
-            .map((toggle) => toggle.value);
           searchInput.value = "definitely-no-such-rule";
           searchInput.dispatchEvent(new Event("input", { bubbles: true }));
           const noMatchVisibleCount = countVisibleCards();
@@ -678,8 +683,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
             initialVisibleCount,
             searchVisibleCount: searchVisibleCards.length,
             safeVisibleCount,
-            recommendedVisibleCount: recommendedVisibleCards.length,
-            recommendedIncludesSelected: recommendedVisibleCards.includes(selectedId),
+            recommendedSelectionCount: recommendedSelection.length,
             noMatchVisibleCount,
             noResultsVisible,
             selectedId,
@@ -696,8 +700,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
         expect(probe.searchVisibleCount).toBeLessThan(probe.initialVisibleCount);
         expect(probe.safeVisibleCount).toBeGreaterThan(0);
         expect(probe.safeVisibleCount).toBeLessThan(probe.initialVisibleCount);
-        expect(probe.recommendedVisibleCount).toBeGreaterThan(0);
-        expect(probe.recommendedIncludesSelected).toBe(false);
+        expect(probe.recommendedSelectionCount).toBeGreaterThan(0);
         expect(probe.noMatchVisibleCount).toBe(0);
         expect(probe.noResultsVisible).toBe(true);
         expect(probe.selectedId.length).toBeGreaterThan(0);
@@ -709,10 +712,15 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       }
 
       const storedRules = await waitUntil<string[]>(
-        "grammar tab rule selection persistence",
+        "grammar tab recommended action persistence",
         async () => {
           const current = await getSetting<string[]>(worker, KEY_ENABLED_GRAMMAR_RULES);
-          if (Array.isArray(current) && current.includes(selectedRuleId)) {
+          const expectedRules = [...RECOMMENDED_V3_GRAMMAR_RULES].sort();
+          if (
+            Array.isArray(current) &&
+            current.includes(selectedRuleId) &&
+            [...current].sort().join(",") === expectedRules.join(",")
+          ) {
             return current;
           }
           return false;
@@ -721,6 +729,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       );
 
       expect(storedRules).toContain(selectedRuleId);
+      expect([...storedRules].sort()).toEqual([...RECOMMENDED_V3_GRAMMAR_RULES].sort());
     },
     suiteTimeout(10000, 15000),
   );
