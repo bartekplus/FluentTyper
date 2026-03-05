@@ -976,7 +976,6 @@ class RuleToggleCards extends Bundle {
       return {
         value: option[0]?.toString?.() || "",
         text: option[1] !== undefined ? option[1].toString() : option[0]?.toString?.() || "",
-        recommended: false,
         safetyTier: "safe",
         languageScope: "all",
       };
@@ -992,7 +991,6 @@ class RuleToggleCards extends Bundle {
             : undefined,
         example: option.example !== undefined ? option.example.toString() : undefined,
         badge: option.badge !== undefined ? option.badge.toString() : undefined,
-        recommended: option.recommended === true,
         safetyTier: option.safetyTier === "advanced" ? "advanced" : "safe",
         languageScope: option.languageScope === "en_US" ? "en_US" : "all",
       };
@@ -1001,7 +999,6 @@ class RuleToggleCards extends Bundle {
     return {
       value,
       text: value,
-      recommended: false,
       safetyTier: "safe",
       languageScope: "all",
     };
