@@ -3,6 +3,13 @@ interface ContentEditableDomPosition {
   offset: number;
 }
 
+interface SelectionOffsetAnchors {
+  startOffset: number;
+  endOffset: number;
+  startPosition: ContentEditableDomPosition;
+  endPosition: ContentEditableDomPosition;
+}
+
 export type ContentEditableApplySource = "host-beforeinput" | "fallback-dom";
 
 export interface ContentEditableEditResult {
@@ -19,8 +26,19 @@ export class ContentEditableAdapter {
     replacementText: string,
     cursorAfter: number,
   ): ContentEditableEditResult {
-    const startPosition = this.resolveContentEditablePosition(elem, replaceStart);
-    const endPosition = this.resolveContentEditablePosition(elem, replaceEnd);
+    const selectionAnchors = this.captureSelectionOffsetAnchors(elem);
+    const startPosition = this.resolveContentEditablePosition(
+      elem,
+      replaceStart,
+      selectionAnchors,
+      "start",
+    );
+    const endPosition = this.resolveContentEditablePosition(
+      elem,
+      replaceEnd,
+      selectionAnchors,
+      "end",
+    );
 
     elem.focus();
 
@@ -372,11 +390,22 @@ export class ContentEditableAdapter {
   private resolveContentEditablePosition(
     elem: HTMLElement,
     targetOffset: number,
+    selectionAnchors?: SelectionOffsetAnchors | null,
+    endpoint?: "start" | "end",
   ): ContentEditableDomPosition {
     const probeRange = document.createRange();
     probeRange.selectNodeContents(elem);
     const totalTextLength = probeRange.toString().length;
     const clampedTarget = Math.max(0, Math.min(totalTextLength, targetOffset));
+
+    const anchoredPosition = this.resolveAnchoredSelectionPosition(
+      clampedTarget,
+      selectionAnchors,
+      endpoint,
+    );
+    if (anchoredPosition) {
+      return anchoredPosition;
+    }
 
     const textPosition = this.resolveWithinTextNodes(elem, clampedTarget, probeRange);
     if (textPosition) {
@@ -384,6 +413,66 @@ export class ContentEditableAdapter {
     }
 
     return this.resolveBoundaryPosition(elem, clampedTarget, probeRange);
+  }
+
+  private captureSelectionOffsetAnchors(root: HTMLElement): SelectionOffsetAnchors | null {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      return null;
+    }
+
+    const range = selection.getRangeAt(0);
+    const rootNode = root as Node;
+    const startInside =
+      range.startContainer === rootNode || rootNode.contains(range.startContainer);
+    const endInside = range.endContainer === rootNode || rootNode.contains(range.endContainer);
+    if (!startInside || !endInside) {
+      return null;
+    }
+
+    const probeRange = document.createRange();
+    probeRange.selectNodeContents(root);
+
+    try {
+      probeRange.setEnd(range.startContainer, range.startOffset);
+      const startOffset = probeRange.toString().length;
+
+      probeRange.selectNodeContents(root);
+      probeRange.setEnd(range.endContainer, range.endOffset);
+      const endOffset = probeRange.toString().length;
+
+      return {
+        startOffset,
+        endOffset,
+        startPosition: {
+          container: range.startContainer,
+          offset: range.startOffset,
+        },
+        endPosition: {
+          container: range.endContainer,
+          offset: range.endOffset,
+        },
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  private resolveAnchoredSelectionPosition(
+    clampedTarget: number,
+    selectionAnchors?: SelectionOffsetAnchors | null,
+    endpoint?: "start" | "end",
+  ): ContentEditableDomPosition | null {
+    if (!selectionAnchors || !endpoint) {
+      return null;
+    }
+    if (endpoint === "start" && clampedTarget === selectionAnchors.startOffset) {
+      return selectionAnchors.startPosition;
+    }
+    if (endpoint === "end" && clampedTarget === selectionAnchors.endOffset) {
+      return selectionAnchors.endPosition;
+    }
+    return null;
   }
 
   private resolveWithinTextNodes(

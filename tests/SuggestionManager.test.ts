@@ -669,6 +669,44 @@ describe("SuggestionManager", () => {
     expect(editable.textContent).toBe("functionality next");
   });
 
+  test("uses active block context for contenteditable prediction at paragraph boundary", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 0,
+    });
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML = "<p>hello</p><p>next</p>";
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    const paragraphs = editable.querySelectorAll("p");
+    const secondParagraph = paragraphs[1];
+    if (!secondParagraph) {
+      throw new Error("Expected second paragraph");
+    }
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Expected selection");
+    }
+    const range = document.createRange();
+    range.setStart(secondParagraph, 0);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+    await wait(220);
+
+    const request = getPrediction.mock.calls.at(-1)?.[0];
+    if (!request) {
+      throw new Error("Expected prediction request");
+    }
+    expect(request.text).toBe("");
+  });
+
   test("preserves surrounding rich formatting during contenteditable replacement", async () => {
     const { manager, getPrediction } = await createManager();
     const editable = document.createElement("div");

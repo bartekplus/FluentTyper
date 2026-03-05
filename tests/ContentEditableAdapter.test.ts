@@ -239,4 +239,34 @@ describe("ContentEditableAdapter", () => {
     expect(paragraphs[1]?.textContent ?? "").toBe("next");
     expect(result.didMutateDom).toBe(true);
   });
+
+  test("keeps insertion anchored at active caret when offset equals paragraph boundary", () => {
+    const adapter = new ContentEditableAdapter();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML = "<p>hello</p><p>next</p>";
+    document.body.appendChild(editable);
+
+    const secondParagraph = editable.querySelectorAll("p")[1];
+    if (!secondParagraph) {
+      throw new Error("Expected second paragraph");
+    }
+
+    const range = document.createRange();
+    range.setStart(secondParagraph, 0);
+    range.collapse(true);
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Selection API unavailable");
+    }
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    const result = adapter.replaceTextByOffsets(editable, 5, 5, "X", 6);
+
+    const paragraphs = editable.querySelectorAll("p");
+    expect(paragraphs[0]?.textContent).toBe("hello");
+    expect(paragraphs[1]?.textContent ?? "").toContain("X");
+    expect(result.didMutateDom).toBe(true);
+  });
 });

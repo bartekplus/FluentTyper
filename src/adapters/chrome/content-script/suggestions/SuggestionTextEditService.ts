@@ -40,7 +40,9 @@ export class SuggestionTextEditService {
     const tokenSource = blockContext?.beforeCursor ?? snapshot.beforeCursor;
     const tokenInfo = this.findMentionToken(tokenSource);
     const cursorTokenInfo = this.findMentionToken(snapshot.beforeCursor);
-    const triggerText = tokenInfo.token || cursorTokenInfo.token || entry.latestMentionText;
+    const triggerText = isTextValueTarget
+      ? tokenInfo.token || cursorTokenInfo.token || entry.latestMentionText
+      : tokenInfo.token || entry.latestMentionText;
 
     if (!isTextValueTarget && triggerText && snapshot.beforeCursor.length === 0) {
       const fullText = entry.elem.textContent ?? "";
@@ -55,7 +57,7 @@ export class SuggestionTextEditService {
 
     const currentFullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
     let replaceEnd = snapshot.beforeCursor.length;
-    if (!isTextValueTarget && tokenInfo.token.length === 0 && cursorTokenInfo.token.length === 0) {
+    if (!isTextValueTarget && tokenInfo.token.length === 0) {
       while (replaceEnd > 0 && this.isSeparator(snapshot.beforeCursor.charAt(replaceEnd - 1))) {
         replaceEnd -= 1;
       }
@@ -65,7 +67,6 @@ export class SuggestionTextEditService {
     if (
       !isTextValueTarget &&
       tokenInfo.token.length === 0 &&
-      cursorTokenInfo.token.length === 0 &&
       triggerText.length > 0 &&
       entry.latestMentionStart >= 0
     ) {

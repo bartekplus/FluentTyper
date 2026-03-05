@@ -11,6 +11,7 @@ import { SuggestionPredictionCoordinator } from "./SuggestionPredictionCoordinat
 import { SuggestionMenuView } from "./SuggestionMenuView";
 import { SuggestionTelemetryService } from "./SuggestionTelemetryService";
 import { SuggestionTextEditService } from "./SuggestionTextEditService";
+import { ContentEditableAdapter } from "./ContentEditableAdapter";
 import { TextTargetAdapter, type TextTarget } from "./TextTargetAdapter";
 import type { PredictionInputAction } from "@core/domain/messageTypes";
 import type {
@@ -50,6 +51,7 @@ export class SuggestionManagerRuntime {
   private readonly inlinePresenter = new InlineSuggestionPresenter({
     positioningService: this.positioningService,
   });
+  private readonly contentEditableAdapter = new ContentEditableAdapter();
   private readonly predictionCoordinator: SuggestionPredictionCoordinator;
   private readonly textEditService: SuggestionTextEditService;
   private readonly keyboardHandler: SuggestionKeyboardHandler;
@@ -93,6 +95,7 @@ export class SuggestionManagerRuntime {
     this.textEditService = new SuggestionTextEditService({
       findMentionToken: this.findMentionToken.bind(this),
       isSeparator: this.isSeparator.bind(this),
+      contentEditableAdapter: this.contentEditableAdapter,
     });
     this.keyboardHandler = new SuggestionKeyboardHandler({
       autocompleteOnSpace: options.autocomplete,
@@ -132,9 +135,12 @@ export class SuggestionManagerRuntime {
       acceptSuggestionAtIndex: this.acceptSuggestionAtIndex.bind(this),
       requestInlineSuggestion: (entry) => {
         entry.pendingInlineAccept = true;
+        const snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+        const beforeCursor = this.resolveBeforeCursorForPrediction(entry, snapshot.beforeCursor);
         this.predictionCoordinator.schedule(entry, {
           force: true,
           clearSuggestions: () => this.clearSuggestions(entry),
+          beforeCursorOverride: beforeCursor,
         });
       },
     });
@@ -253,9 +259,12 @@ export class SuggestionManagerRuntime {
     if (!entry) {
       return;
     }
+    const snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+    const beforeCursor = this.resolveBeforeCursorForPrediction(entry, snapshot.beforeCursor);
     this.predictionCoordinator.schedule(entry, {
       force: true,
       clearSuggestions: () => this.clearSuggestions(entry),
+      beforeCursorOverride: beforeCursor,
     });
   }
 
@@ -447,19 +456,23 @@ export class SuggestionManagerRuntime {
       return;
     }
     const snapshot: SuggestionSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+    const predictionBeforeCursor = this.resolveBeforeCursorForPrediction(
+      entry,
+      snapshot.beforeCursor,
+    );
     if (
       entry.lastAutoFixReplacement &&
       !this.shouldPreserveAutoFixSnapshot(entry.lastAutoFixReplacement, snapshot)
     ) {
       entry.lastAutoFixReplacement = null;
     }
-    const inputAction = this.resolveInputAction(entry, event, snapshot.beforeCursor);
+    const inputAction = this.resolveInputAction(entry, event, predictionBeforeCursor);
     entry.lastInputAction = inputAction;
     entry.lastKeydownKey = null;
-    entry.lastBeforeCursorText = snapshot.beforeCursor;
-    const tokenInfo = this.findMentionToken(snapshot.beforeCursor);
+    entry.lastBeforeCursorText = predictionBeforeCursor;
+    const tokenInfo = this.findMentionToken(predictionBeforeCursor);
     entry.latestMentionText = tokenInfo.token;
-    entry.latestMentionStart = tokenInfo.start;
+    entry.latestMentionStart = this.isTextValueElement(entry.elem) ? tokenInfo.start : -1;
     if (this.inlineSuggestionEnabled) {
       this.inlinePresenter.renderForEntry({
         enabled: this.inlineSuggestionEnabled,
@@ -471,7 +484,19 @@ export class SuggestionManagerRuntime {
       force: false,
       clearSuggestions: () => this.clearSuggestions(entry),
       inputAction,
+      beforeCursorOverride: predictionBeforeCursor,
     });
+  }
+
+  private resolveBeforeCursorForPrediction(
+    entry: SuggestionEntry,
+    snapshotBeforeCursor: string,
+  ): string {
+    if (this.isTextValueElement(entry.elem)) {
+      return snapshotBeforeCursor;
+    }
+    const blockContext = this.contentEditableAdapter.getBlockContext(entry.elem);
+    return blockContext?.beforeCursor ?? snapshotBeforeCursor;
   }
 
   private shouldPreserveAutoFixSnapshot(
@@ -592,6 +617,11 @@ export class SuggestionManagerRuntime {
   ): void {
     this.cancelPendingKeyFallback(id);
     const shouldWaitForTextChange = inputAction === "insert" && observeMutations;
+    const currentSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+    const currentBeforeCursor = this.resolveBeforeCursorForPrediction(
+      entry,
+      currentSnapshot.beforeCursor,
+    );
     const fallback: PendingKeyFallback = {
       timer: setTimeout(() => {
         this.runKeyFallbackReconcile(id);
@@ -599,9 +629,7 @@ export class SuggestionManagerRuntime {
       observer: null,
       reconcileScheduled: false,
       inputAction,
-      expectedBeforeCursor: shouldWaitForTextChange
-        ? TextTargetAdapter.snapshot(entry.elem as TextTarget).beforeCursor
-        : null,
+      expectedBeforeCursor: shouldWaitForTextChange ? currentBeforeCursor : null,
       waitForTextChangeUntilMs: shouldWaitForTextChange
         ? Date.now() + INSERT_INPUT_FALLBACK_MAX_WAIT_MS
         : null,
@@ -655,9 +683,12 @@ export class SuggestionManagerRuntime {
       return;
     }
     this.clearPendingKeyFallback(id);
+    const snapshot = TextTargetAdapter.snapshot(current.elem as TextTarget);
+    const beforeCursor = this.resolveBeforeCursorForPrediction(current, snapshot.beforeCursor);
     this.predictionCoordinator.reconcile(current, {
       clearSuggestions: () => this.clearSuggestions(current),
       inputAction: pending.inputAction,
+      beforeCursorOverride: beforeCursor,
     });
   }
 
@@ -688,7 +719,8 @@ export class SuggestionManagerRuntime {
       return false;
     }
 
-    const currentBeforeCursor = TextTargetAdapter.snapshot(entry.elem as TextTarget).beforeCursor;
+    const snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+    const currentBeforeCursor = this.resolveBeforeCursorForPrediction(entry, snapshot.beforeCursor);
     if (currentBeforeCursor !== pending.expectedBeforeCursor) {
       return false;
     }

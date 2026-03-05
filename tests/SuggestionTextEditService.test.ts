@@ -208,7 +208,7 @@ describe("SuggestionTextEditService", () => {
     expect(input.value).toBe("function next");
   });
 
-  test("prefers cursor token over stale mention metadata for contenteditable acceptance", () => {
+  test("uses fresh mention metadata for contenteditable acceptance when block context is empty", () => {
     const service = new SuggestionTextEditService({
       findMentionToken,
       isSeparator: (value) => /\s/.test(value),
@@ -223,8 +223,8 @@ describe("SuggestionTextEditService", () => {
 
     const entry = createSuggestionEntry({
       elem: editable,
-      latestMentionText: "first",
-      latestMentionStart: 0,
+      latestMentionText: "second",
+      latestMentionStart: 6,
     });
 
     const accepted = service.acceptSuggestion(entry, "SECOND");
