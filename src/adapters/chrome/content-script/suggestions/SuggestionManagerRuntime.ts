@@ -339,6 +339,7 @@ export class SuggestionManagerRuntime {
       expectedCursorPos: 0,
       lastReplacement: null,
       lastAutoFixReplacement: null,
+      manualAutoFixSuppression: null,
       lastKeydownKey: null,
       lastInputAction: null,
       lastBeforeCursorText: null,
@@ -480,6 +481,7 @@ export class SuggestionManagerRuntime {
       return;
     }
     const snapshot: SuggestionSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+    this.textEditService.syncManualAutoFixSuppression(entry, snapshot);
     const provisionalBeforeCursor = this.resolveBeforeCursorForPrediction(
       entry,
       snapshot.beforeCursor,

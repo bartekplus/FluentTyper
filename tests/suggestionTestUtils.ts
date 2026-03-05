@@ -30,6 +30,7 @@ export function createSuggestionEntry(
     expectedCursorPos: overrides.expectedCursorPos ?? 0,
     lastReplacement: overrides.lastReplacement ?? null,
     lastAutoFixReplacement: overrides.lastAutoFixReplacement ?? null,
+    manualAutoFixSuppression: overrides.manualAutoFixSuppression ?? null,
     lastKeydownKey: overrides.lastKeydownKey ?? null,
     lastInputAction: overrides.lastInputAction ?? null,
     lastBeforeCursorText: overrides.lastBeforeCursorText ?? null,

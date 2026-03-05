@@ -4,7 +4,12 @@ import type { TextEditOperation } from "@core/domain/messageTypes";
 import { ContentEditableAdapter, type ContentEditableEditResult } from "./ContentEditableAdapter";
 import { isOnlyFillers, trimTrailingFillers } from "./editorFillers";
 import { TextTargetAdapter, type TextTarget } from "./TextTargetAdapter";
-import type { SuggestionEntry, SuggestionElement, SuggestionSnapshot } from "./types";
+import type {
+  ManualAutoFixSuppressionSnapshot,
+  SuggestionEntry,
+  SuggestionElement,
+  SuggestionSnapshot,
+} from "./types";
 
 const logger = createLogger("SuggestionTextEditService");
 
@@ -37,6 +42,7 @@ export class SuggestionTextEditService {
     suggestion: string,
   ): { triggerText: string; insertedText: string } | null {
     entry.lastAutoFixReplacement = null;
+    entry.manualAutoFixSuppression = null;
     const isTextValueTarget = this.isTextValueElement(entry.elem);
     let snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
     const blockContext = isTextValueTarget
@@ -176,6 +182,7 @@ export class SuggestionTextEditService {
 
     entry.lastReplacement = null;
     entry.lastAutoFixReplacement = null;
+    entry.manualAutoFixSuppression = null;
     clearSuggestions();
     return true;
   }
@@ -196,7 +203,7 @@ export class SuggestionTextEditService {
     }
 
     const snapshot: SuggestionSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
-    const { replaceStart, originalText, replacementText, cursorBefore, cursorAfter } =
+    const { replaceStart, originalText, replacementText, cursorBefore, cursorAfter, sourceRuleId } =
       entry.lastAutoFixReplacement;
     const fullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
     const replaceEnd = replaceStart + replacementText.length;
@@ -225,13 +232,39 @@ export class SuggestionTextEditService {
       cursorBefore,
     );
 
+    const revertedFullText = `${fullText.slice(0, replaceStart)}${originalText}${fullText.slice(replaceEnd)}`;
+    entry.manualAutoFixSuppression = this.createManualAutoFixSuppression({
+      ruleKey: this.resolveAutoFixRuleKey(sourceRuleId, originalText, replacementText),
+      replaceStart,
+      fullText: revertedFullText,
+      cursorOffset: cursorBefore,
+    });
     entry.lastAutoFixReplacement = null;
     clearSuggestions();
     return true;
   }
 
+  public syncManualAutoFixSuppression(
+    entry: SuggestionEntry,
+    snapshotOverride?: SuggestionSnapshot,
+  ): void {
+    if (!entry.manualAutoFixSuppression) {
+      return;
+    }
+    const snapshot = snapshotOverride ?? TextTargetAdapter.snapshot(entry.elem as TextTarget);
+    const fullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
+    const tokenContext = this.resolveTokenContext(fullText, snapshot.cursorOffset);
+    if (
+      tokenContext.tokenStart !== entry.manualAutoFixSuppression.tokenStart ||
+      tokenContext.tokenText !== entry.manualAutoFixSuppression.tokenText
+    ) {
+      entry.manualAutoFixSuppression = null;
+    }
+  }
+
   public applyTextEdit(entry: SuggestionEntry, textEdit: TextEditOperation): TextEditApplyResult {
     const snapshot: SuggestionSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+    this.syncManualAutoFixSuppression(entry, snapshot);
     const fullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
 
     const replaceBackwardCount = Math.max(0, textEdit.replaceBackwardCount);
@@ -289,8 +322,25 @@ export class SuggestionTextEditService {
       }
     }
 
-    const cursorAfter = replaceStart + textEdit.replacementText.length;
     const originalText = fullText.slice(replaceStart, replaceEnd);
+    const sourceRuleKey = this.resolveAutoFixRuleKey(
+      textEdit.sourceRuleId,
+      originalText,
+      textEdit.replacementText,
+    );
+    if (
+      entry.manualAutoFixSuppression &&
+      entry.manualAutoFixSuppression.ruleKey === sourceRuleKey &&
+      entry.manualAutoFixSuppression.replaceStart === replaceStart
+    ) {
+      logger.debug("Skipping textEdit due to manual revert suppression lock", {
+        sourceRuleKey,
+        replaceStart,
+      });
+      return { applied: false, didDispatchInput: false };
+    }
+
+    const cursorAfter = replaceStart + textEdit.replacementText.length;
     const applyResult = this.replaceTextByOffsets(
       entry.elem,
       fullText,
@@ -312,6 +362,7 @@ export class SuggestionTextEditService {
       replacementText: textEdit.replacementText,
       cursorBefore: snapshot.cursorOffset,
       cursorAfter,
+      sourceRuleId: textEdit.sourceRuleId,
     };
     return {
       applied: true,
@@ -494,6 +545,60 @@ export class SuggestionTextEditService {
       return false;
     }
     return /[ \xA0]$/.test(textEdit.replacementText);
+  }
+
+  private createManualAutoFixSuppression({
+    ruleKey,
+    replaceStart,
+    fullText,
+    cursorOffset,
+  }: {
+    ruleKey: string;
+    replaceStart: number;
+    fullText: string;
+    cursorOffset: number;
+  }): ManualAutoFixSuppressionSnapshot {
+    const tokenContext = this.resolveTokenContext(fullText, cursorOffset);
+    return {
+      ruleKey,
+      replaceStart,
+      tokenStart: tokenContext.tokenStart,
+      tokenText: tokenContext.tokenText,
+    };
+  }
+
+  private resolveTokenContext(
+    fullText: string,
+    cursorOffset: number,
+  ): { tokenStart: number; tokenText: string } {
+    const boundedCursor = Math.max(0, Math.min(fullText.length, cursorOffset));
+    let anchor = boundedCursor;
+    while (anchor > 0 && this.isSeparator(fullText.charAt(anchor - 1))) {
+      anchor -= 1;
+    }
+    let tokenStart = anchor;
+    while (tokenStart > 0 && !this.isSeparator(fullText.charAt(tokenStart - 1))) {
+      tokenStart -= 1;
+    }
+    let tokenEnd = anchor;
+    while (tokenEnd < fullText.length && !this.isSeparator(fullText.charAt(tokenEnd))) {
+      tokenEnd += 1;
+    }
+    return {
+      tokenStart,
+      tokenText: fullText.slice(tokenStart, tokenEnd),
+    };
+  }
+
+  private resolveAutoFixRuleKey(
+    sourceRuleId: string | undefined,
+    originalText: string,
+    replacementText: string,
+  ): string {
+    if (typeof sourceRuleId === "string" && sourceRuleId.trim().length > 0) {
+      return sourceRuleId;
+    }
+    return `fallback:${originalText}->${replacementText}`;
   }
 
   private replaceTextByOffsets(
