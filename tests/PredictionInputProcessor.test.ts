@@ -76,8 +76,17 @@ describe("PredictionInputProcessor", () => {
     });
     it("should handle additional separator regex for language", () => {
       const proc = new PredictionInputProcessor();
-      const result = proc.processInput("foo'bar", "fr_FR", 1, true);
-      expect(result.predictionInput).toContain(" ");
+      const straightResult = proc.processInput("foo'bar", "fr_FR", 1, true);
+      expect(straightResult.predictionInput).toContain(" ");
+
+      const typographicResult = proc.processInput("l\u2019amour", "fr_FR", 1, true);
+      expect(typographicResult.predictionInput).toContain(" ");
+    });
+
+    it("should treat typographic punctuation as separators via shared defaults", () => {
+      const proc = new PredictionInputProcessor();
+      const result = proc.processInput("alpha\u2014beta", "en_US", 1, true);
+      expect(result.doPrediction).toBe(false);
     });
   });
 });

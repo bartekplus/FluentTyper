@@ -747,6 +747,64 @@ describe("SuggestionManager", () => {
     expect(input.value).toBe("functionality next");
   });
 
+  test("preserves opening smart quote prefix when accepting suggestion", async () => {
+    const { manager, getPrediction } = await createManager();
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = "This is \u201Cawesom";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    document.body.appendChild(input);
+    manager.queryAndAttachHelper();
+
+    input.dispatchEvent(new Event("focus", { bubbles: true }));
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    await wait(220);
+
+    const request = getPrediction.mock.calls.at(-1)?.[0];
+    if (!request) {
+      throw new Error("Expected prediction request");
+    }
+
+    manager.fulfillPrediction(
+      buildResponse(request, {
+        predictions: ["awesome"],
+      }),
+    );
+
+    dispatchKeydown(input, "Tab");
+    expect(input.value).toBe("This is \u201Cawesome");
+  });
+
+  test("preserves em dash prefix when accepting suggestion", async () => {
+    const { manager, getPrediction } = await createManager();
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = "alpha\u2014awesom";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    document.body.appendChild(input);
+    manager.queryAndAttachHelper();
+
+    input.dispatchEvent(new Event("focus", { bubbles: true }));
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    await wait(220);
+
+    const request = getPrediction.mock.calls.at(-1)?.[0];
+    if (!request) {
+      throw new Error("Expected prediction request");
+    }
+
+    manager.fulfillPrediction(
+      buildResponse(request, {
+        predictions: ["awesome"],
+      }),
+    );
+
+    dispatchKeydown(input, "Tab");
+    expect(input.value).toBe("alpha\u2014awesome");
+  });
+
   test("replaces full token for contenteditable when cursor is in the middle of a word", async () => {
     const { manager, getPrediction } = await createManager({ inline_suggestion: true });
     const editable = document.createElement("div");
