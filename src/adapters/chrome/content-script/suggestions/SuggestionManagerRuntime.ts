@@ -10,7 +10,7 @@ import { SuggestionPositioningService } from "./SuggestionPositioningService";
 import { SuggestionPredictionCoordinator } from "./SuggestionPredictionCoordinator";
 import { SuggestionMenuView } from "./SuggestionMenuView";
 import { SuggestionTelemetryService } from "./SuggestionTelemetryService";
-import { SuggestionTextEditService } from "./SuggestionTextEditService";
+import { SuggestionTextEditService, type TextEditApplyResult } from "./SuggestionTextEditService";
 import { ContentEditableAdapter } from "./ContentEditableAdapter";
 import { TextTargetAdapter, type TextTarget } from "./TextTargetAdapter";
 import type { PredictionInputAction } from "@core/domain/messageTypes";
@@ -151,19 +151,36 @@ export class SuggestionManagerRuntime {
     if (!entry) {
       return;
     }
+    let textEditApplyResult: TextEditApplyResult | null = null;
 
     if (
       !this.predictionCoordinator.shouldProcessResponse(entry, context, {
         isEntryFocused: this.isEntryFocused(entry),
         applyTextEdit: () => {
           if (context.textEdit) {
-            this.textEditService.applyTextEdit(entry, context.textEdit);
+            textEditApplyResult = this.textEditService.applyTextEdit(entry, context.textEdit);
           }
         },
         allowStaleTextEdit: this.isTextValueElement(entry.elem),
         clearSuggestions: () => this.clearSuggestions(entry),
       })
     ) {
+      return;
+    }
+
+    if (textEditApplyResult?.applied) {
+      // Predictions were computed from the pre-edit text. Request a fresh
+      // prediction pass for the post-edit text and avoid showing stale entries.
+      this.clearSuggestions(entry);
+      if (!textEditApplyResult.didDispatchInput && this.isEntryFocused(entry)) {
+        const snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+        const beforeCursor = this.resolveBeforeCursorForPrediction(entry, snapshot.beforeCursor);
+        this.predictionCoordinator.schedule(entry, {
+          force: true,
+          clearSuggestions: () => this.clearSuggestions(entry),
+          beforeCursorOverride: beforeCursor,
+        });
+      }
       return;
     }
 

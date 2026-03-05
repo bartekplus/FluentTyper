@@ -8,6 +8,11 @@ import type { SuggestionEntry, SuggestionElement, SuggestionSnapshot } from "./t
 
 const logger = createLogger("SuggestionTextEditService");
 
+export interface TextEditApplyResult {
+  applied: boolean;
+  didDispatchInput: boolean;
+}
+
 export class SuggestionTextEditService {
   private readonly findMentionToken: (beforeCursor: string) => { token: string; start: number };
   private readonly isSeparator: (value: string) => boolean;
@@ -225,7 +230,7 @@ export class SuggestionTextEditService {
     return true;
   }
 
-  public applyTextEdit(entry: SuggestionEntry, textEdit: TextEditOperation): void {
+  public applyTextEdit(entry: SuggestionEntry, textEdit: TextEditOperation): TextEditApplyResult {
     const snapshot: SuggestionSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
     const fullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
 
@@ -258,7 +263,7 @@ export class SuggestionTextEditService {
     }
 
     if (beforeCursorLength > evaluatedLength && this.isTrailingSpaceEdit(textEdit)) {
-      return;
+      return { applied: false, didDispatchInput: false };
     }
 
     if (textEdit.expectedReplacedText !== undefined) {
@@ -268,7 +273,7 @@ export class SuggestionTextEditService {
           expected: textEdit.expectedReplacedText,
           actual: currentSubstring,
         });
-        return;
+        return { applied: false, didDispatchInput: false };
       }
     }
 
@@ -280,13 +285,13 @@ export class SuggestionTextEditService {
           expected: textEdit.expectedPrefixToken,
           actual: actualToken,
         });
-        return;
+        return { applied: false, didDispatchInput: false };
       }
     }
 
     const cursorAfter = replaceStart + textEdit.replacementText.length;
     const originalText = fullText.slice(replaceStart, replaceEnd);
-    this.replaceTextByOffsets(
+    const applyResult = this.replaceTextByOffsets(
       entry.elem,
       fullText,
       replaceStart,
@@ -300,6 +305,10 @@ export class SuggestionTextEditService {
       replacementText: textEdit.replacementText,
       cursorBefore: snapshot.cursorOffset,
       cursorAfter,
+    };
+    return {
+      applied: true,
+      didDispatchInput: applyResult.didDispatchInput,
     };
   }
 
