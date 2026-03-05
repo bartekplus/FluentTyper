@@ -407,6 +407,16 @@ describe("features", () => {
       expect(fillerTailResult.textEdit.replacementText).toBe(",\u200B ");
       expect(fillerTailResult.textEdit.replaceBackwardCount).toBe(5);
       expect(fillerTailResult.textEdit.expectedReplacedText).toBe(",,,\u200B ");
+
+      const rapidBurstResult = await testContext.ph.runPrediction(
+        "What the fewer ,,,,,,,,,, ",
+        "",
+        "en_US",
+      );
+      expect(rapidBurstResult.textEdit).not.toBeNull();
+      expect(rapidBurstResult.textEdit.replacementText).toBe(", ");
+      expect(rapidBurstResult.textEdit.replaceBackwardCount).toBe(12);
+      expect(rapidBurstResult.textEdit.expectedReplacedText).toBe(" ,,,,,,,,,, ");
     });
 
     test("emits textEdit for control opener and prose closer contexts", async () => {

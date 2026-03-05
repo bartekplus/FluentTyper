@@ -1,21 +1,16 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
-import {
-  isDeleteInputAction,
-  shouldSkipGenericReplacement,
-} from "./helpers/GenericRuleShared";
+import { shouldSkipGenericReplacement } from "./helpers/GenericRuleShared";
 
 export class DuplicatePunctuationCollapseRule implements GrammarRule {
   readonly id = "duplicatePunctuationCollapse" as const;
   readonly name = "Duplicate Punctuation Collapse";
   readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
   private static readonly COLLAPSIBLE_PUNCTUATION = new Set([",", ";", ":"]);
-  private static readonly SPACING_OR_FILLER_REGEX = /[ \xA0\u200B\u200C\u200D\u2060\uFEFF]/;
+  private static readonly SPACING_OR_FILLER_REGEX =
+    /(?:[ \xA0]|\u200B|\u200C|\u200D|\u2060|\uFEFF)/;
+  private static readonly SPACE_ONLY_REGEX = /[ \xA0]/;
 
   apply(context: GrammarContext): GrammarEdit | null {
-    if (isDeleteInputAction(context)) {
-      return null;
-    }
-
     const input = context.beforeCursor;
     if (input.length < 2) {
       return null;
@@ -50,14 +45,16 @@ export class DuplicatePunctuationCollapseRule implements GrammarRule {
       return null;
     }
 
-    const prefix = input.slice(0, -runLength);
+    const runStart = input.length - runLength;
+    const leadingSpaceCount = this.measureLeadingSpaceBefore(input, runStart);
+    const prefix = input.slice(0, runStart - leadingSpaceCount);
     if (shouldSkipGenericReplacement(prefix)) {
       return null;
     }
 
     return {
       replacement: last,
-      deleteBackwards: runLength,
+      deleteBackwards: leadingSpaceCount + runLength,
       deleteForwards: 0,
       confidence: "medium",
       safetyTier: "advanced",
@@ -94,7 +91,9 @@ export class DuplicatePunctuationCollapseRule implements GrammarRule {
       return null;
     }
 
-    const prefix = input.slice(0, runStart + 1);
+    const duplicateRunStart = runStart + 1;
+    const leadingSpaceCount = this.measureLeadingSpaceBefore(input, duplicateRunStart);
+    const prefix = input.slice(0, duplicateRunStart - leadingSpaceCount);
     if (shouldSkipGenericReplacement(prefix)) {
       return null;
     }
@@ -103,7 +102,7 @@ export class DuplicatePunctuationCollapseRule implements GrammarRule {
     const collapsedSpacing = this.collapseSeparatedSpacing(separatedSpaces);
     return {
       replacement: `${last}${collapsedSpacing}`,
-      deleteBackwards: duplicateRunLength + spaceRunLength + 1,
+      deleteBackwards: leadingSpaceCount + duplicateRunLength + spaceRunLength + 1,
       deleteForwards: 0,
       confidence: "medium",
       safetyTier: "advanced",
@@ -127,14 +126,16 @@ export class DuplicatePunctuationCollapseRule implements GrammarRule {
       return null;
     }
 
-    const prefix = core.slice(0, -runLength);
+    const runStart = core.length - runLength;
+    const leadingSpaceCount = this.measureLeadingSpaceBefore(core, runStart);
+    const prefix = core.slice(0, runStart - leadingSpaceCount);
     if (shouldSkipGenericReplacement(prefix)) {
       return null;
     }
 
     return {
       replacement: `${last}${trailingSpacing}`,
-      deleteBackwards: runLength + trailingSpacing.length,
+      deleteBackwards: leadingSpaceCount + runLength + trailingSpacing.length,
       deleteForwards: 0,
       confidence: "medium",
       safetyTier: "advanced",
@@ -172,6 +173,16 @@ export class DuplicatePunctuationCollapseRule implements GrammarRule {
       return "\xA0";
     }
     return spacingRun.charAt(0) || "";
+  }
+
+  private measureLeadingSpaceBefore(input: string, index: number): number {
+    let i = index - 1;
+    let count = 0;
+    while (i >= 0 && DuplicatePunctuationCollapseRule.SPACE_ONLY_REGEX.test(input.charAt(i))) {
+      count += 1;
+      i -= 1;
+    }
+    return count;
   }
 
   private resolveTrailingDoublePeriod(input: string): GrammarEdit | null {

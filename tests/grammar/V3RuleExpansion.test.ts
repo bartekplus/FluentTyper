@@ -222,6 +222,24 @@ describe("V3 rule expansion", () => {
       description: "Collapsed duplicate punctuation",
     });
 
+    expect(rule.apply(context("What the fewer ,,,,,,,,,, ", { inputAction: "insert" }))).toEqual({
+      replacement: ", ",
+      deleteBackwards: 12,
+      deleteForwards: 0,
+      confidence: "medium",
+      safetyTier: "advanced",
+      description: "Collapsed duplicate punctuation",
+    });
+
+    expect(rule.apply(context("What the fewer , ,", { inputAction: "insert" }))).toEqual({
+      replacement: ", ",
+      deleteBackwards: 4,
+      deleteForwards: 0,
+      confidence: "medium",
+      safetyTier: "advanced",
+      description: "Collapsed duplicate punctuation",
+    });
+
     expect(rule.apply(context("Wait... ", { inputAction: "insert" }))).toBeNull();
     expect(rule.apply(context("Nice!!", { inputAction: "insert" }))).toBeNull();
   });

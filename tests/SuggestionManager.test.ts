@@ -418,7 +418,7 @@ describe("SuggestionManager", () => {
     expect(hostInline.textContent).toBe("host-owned");
   });
 
-  test("rejects stale predictions but allows guarded stale textEdit", async () => {
+  test("rejects stale predictions and stale non-duplicate textEdit", async () => {
     const { manager, getPrediction } = await createManager();
     const input = document.createElement("input");
     input.type = "text";
@@ -443,10 +443,11 @@ describe("SuggestionManager", () => {
           evaluatedTextLength: 2,
           expectedReplacedText: "he",
           expectedPrefixToken: "",
+          sourceRuleId: "commaPeriodSpacing",
         },
       }),
     );
-    expect(input.value).toBe("He");
+    expect(input.value).toBe("he");
 
     input.value = "world";
     input.selectionStart = 5;
@@ -462,10 +463,111 @@ describe("SuggestionManager", () => {
           evaluatedTextLength: 2,
           expectedReplacedText: "he",
           expectedPrefixToken: "",
+          sourceRuleId: "commaPeriodSpacing",
         },
       }),
     );
     expect(input.value).toBe("world");
+  });
+
+  test("does not apply stale duplicate punctuation textEdit to text inputs", async () => {
+    const { manager, getPrediction } = await createManager({
+      enabledGrammarRules: ["duplicatePunctuationCollapse"],
+    });
+    const input = document.createElement("input");
+    input.type = "text";
+    document.body.appendChild(input);
+    manager.queryAndAttachHelper();
+
+    const req1 = await typeAndCollectRequest(input, "This is awseome,, ", getPrediction);
+    const req2 = await typeAndCollectRequest(input, "This is awseome,, ,", getPrediction);
+    expect(req2.requestId).toBeGreaterThan(req1.requestId);
+
+    manager.fulfillPrediction(
+      buildResponse(req1, {
+        textEdit: {
+          replacementText: ", ",
+          replaceBackwardCount: 3,
+          evaluatedTextLength: "This is awseome,, ".length,
+          expectedReplacedText: ",, ",
+          expectedPrefixToken: "awseome",
+          sourceRuleId: "duplicatePunctuationCollapse",
+        },
+      }),
+    );
+
+    expect(input.value).toBe("This is awseome,, ,");
+  });
+
+  test("applies stale duplicate punctuation textEdit to text inputs when only trailing space was appended", async () => {
+    const { manager, getPrediction } = await createManager({
+      enabledGrammarRules: ["duplicatePunctuationCollapse"],
+    });
+    const input = document.createElement("input");
+    input.type = "text";
+    document.body.appendChild(input);
+    manager.queryAndAttachHelper();
+
+    const req1 = await typeAndCollectRequest(input, "This is awseome,,", getPrediction);
+    const req2 = await typeAndCollectRequest(input, "This is awseome,, ", getPrediction);
+    expect(req2.requestId).toBeGreaterThan(req1.requestId);
+
+    manager.fulfillPrediction(
+      buildResponse(req1, {
+        textEdit: {
+          replacementText: ",",
+          replaceBackwardCount: 2,
+          evaluatedTextLength: "This is awseome,,".length,
+          expectedReplacedText: ",,",
+          expectedPrefixToken: "awseome",
+          sourceRuleId: "duplicatePunctuationCollapse",
+        },
+      }),
+    );
+
+    expect(input.value).toBe("This is awseome, ");
+  });
+
+  test("ignores stale comma spacing edits during rapid comma typing", async () => {
+    const { manager, getPrediction } = await createManager({
+      enabledGrammarRules: ["commaPeriodSpacing"],
+    });
+    const input = document.createElement("input");
+    input.type = "text";
+    document.body.appendChild(input);
+    manager.queryAndAttachHelper();
+
+    const req1 = await typeAndCollectRequest(input, ",", getPrediction);
+    const req2 = await typeAndCollectRequest(input, ",,", getPrediction);
+    const req3 = await typeAndCollectRequest(input, ",,,", getPrediction);
+    expect(req3.requestId).toBeGreaterThan(req2.requestId);
+
+    manager.fulfillPrediction(
+      buildResponse(req1, {
+        textEdit: {
+          replacementText: ", ",
+          replaceBackwardCount: 1,
+          evaluatedTextLength: 1,
+          expectedReplacedText: ",",
+          expectedPrefixToken: "",
+          sourceRuleId: "commaPeriodSpacing",
+        },
+      }),
+    );
+    manager.fulfillPrediction(
+      buildResponse(req2, {
+        textEdit: {
+          replacementText: ", ",
+          replaceBackwardCount: 1,
+          evaluatedTextLength: 2,
+          expectedReplacedText: ",",
+          expectedPrefixToken: ",",
+          sourceRuleId: "commaPeriodSpacing",
+        },
+      }),
+    );
+
+    expect(input.value).toBe(",,,");
   });
 
   test("does not apply stale textEdit to contenteditable targets", async () => {
@@ -548,6 +650,52 @@ describe("SuggestionManager", () => {
     );
 
     expect((editable.textContent ?? "").replace(/\u00a0/g, " ")).toBe("This is awseome, ");
+  });
+
+  test("does not apply stale duplicate punctuation textEdit to contenteditable when current block text is shorter", async () => {
+    const { manager, getPrediction } = await createManager({
+      enabledGrammarRules: ["duplicatePunctuationCollapse"],
+    });
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.textContent = "This is,,,";
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    setContentEditableCursor(editable, (editable.textContent ?? "").length);
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+    await wait(220);
+    const req1 = getPrediction.mock.calls.at(-1)?.[0];
+    if (!req1) {
+      throw new Error("Expected first prediction request");
+    }
+
+    editable.textContent = "This is, ";
+    setContentEditableCursor(editable, (editable.textContent ?? "").length);
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+    await wait(220);
+    const req2 = getPrediction.mock.calls.at(-1)?.[0];
+    if (!req2) {
+      throw new Error("Expected second prediction request");
+    }
+    expect(req2.requestId).toBeGreaterThan(req1.requestId);
+
+    manager.fulfillPrediction(
+      buildResponse(req1, {
+        textEdit: {
+          replacementText: ",",
+          replaceBackwardCount: 3,
+          evaluatedTextLength: "This is,,,".length,
+          expectedReplacedText: ",,,",
+          expectedPrefixToken: "This is",
+          sourceRuleId: "duplicatePunctuationCollapse",
+        },
+      }),
+    );
+
+    expect((editable.textContent ?? "").replace(/\u00a0/g, " ")).toBe("This is, ");
   });
 
   test("requests a fresh prediction after host-owned contenteditable textEdit", async () => {

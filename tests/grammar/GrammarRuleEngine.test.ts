@@ -218,4 +218,39 @@ describe("GrammarRuleEngine", () => {
       },
     ]);
   });
+
+  test("collapses rapid comma burst and removes preceding space before comma", () => {
+    engine.registerRule(new CommaPeriodSpacingRule(true));
+    engine.registerRule(new DuplicatePunctuationCollapseRule());
+
+    const result = engine.process("wordBoundary", {
+      beforeCursor: "What the fewer ,,,,,,,,,, ",
+      afterCursor: "",
+      hints: { inputAction: "insert" },
+    });
+
+    expect(result).toEqual([
+      {
+        replacement: ", ",
+        deleteBackwards: 12,
+        deleteForwards: 0,
+        confidence: "medium",
+        sourceRuleId: "duplicatePunctuationCollapse",
+        safetyTier: "advanced",
+        description: "Merged edits",
+      },
+    ]);
+  });
+
+  test("does not emit comma spacing edit for repeated comma bursts", () => {
+    engine.registerRule(new CommaPeriodSpacingRule(true));
+
+    const result = engine.process("insertChar", {
+      beforeCursor: "What the fewer ,,,,,,,,,,",
+      afterCursor: "",
+      hints: { inputAction: "insert" },
+    });
+
+    expect(result).toEqual([]);
+  });
 });

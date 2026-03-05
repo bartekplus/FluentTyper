@@ -35,6 +35,9 @@ export class BackgroundServiceWorker {
   productivityStatsManager!: ProductivityStatsManager;
   configAssembler!: ConfigAssembler;
   language!: string;
+  private runtimeConfigReady = false;
+  private runtimeConfigLoadPromise: Promise<void> | null = null;
+  private initializationPromise: Promise<void> | null = null;
 
   constructor() {
     if (BackgroundServiceWorker.instance) {
@@ -82,6 +85,7 @@ export class BackgroundServiceWorker {
       "background.request.received",
       `lang=${message.context.lang}`,
     );
+    await this.ensureRuntimeConfigReady();
 
     const { predictions, textEdit } = await this.predictionManager.runPrediction(
       message.context.text,
@@ -176,6 +180,7 @@ export class BackgroundServiceWorker {
     this.language = runtimeConfig.language;
     this.predictionManager.setConfig(runtimeConfig.predictionConfig);
     this.productivityStatsManager.setSnippetShortcuts(runtimeConfig.textExpansions);
+    this.runtimeConfigReady = true;
     await this.tabMessenger.sendToAllTabs(
       await this.getBackgroundPageSetConfigMsg(),
       this.settingsManager,
@@ -184,16 +189,35 @@ export class BackgroundServiceWorker {
   }
 
   async initialize(lastVersion: string | undefined): Promise<void> {
-    try {
-      await migrateToLocalStore(lastVersion);
-      await migrateSettingsV3(this.settingsManager);
-      await migrateSettingsV4(this.settingsManager);
-      await migrateSettingsV5(this.settingsManager);
-      await migrateSettingsV6(this.settingsManager);
-      await this.predictionManager.initialize();
-      await this.updatePresageConfig();
-    } catch (error) {
-      logError("lastVersion handler", error);
+    if (this.initializationPromise) {
+      await this.initializationPromise;
+      return;
     }
+    this.initializationPromise = (async () => {
+      try {
+        await migrateToLocalStore(lastVersion);
+        await migrateSettingsV3(this.settingsManager);
+        await migrateSettingsV4(this.settingsManager);
+        await migrateSettingsV5(this.settingsManager);
+        await migrateSettingsV6(this.settingsManager);
+        await this.predictionManager.initialize();
+        await this.updatePresageConfig();
+      } catch (error) {
+        logError("lastVersion handler", error);
+      }
+    })();
+    await this.initializationPromise;
+  }
+
+  private async ensureRuntimeConfigReady(): Promise<void> {
+    if (this.runtimeConfigReady) {
+      return;
+    }
+    if (!this.runtimeConfigLoadPromise) {
+      this.runtimeConfigLoadPromise = this.updatePresageConfig().finally(() => {
+        this.runtimeConfigLoadPromise = null;
+      });
+    }
+    await this.runtimeConfigLoadPromise;
   }
 }

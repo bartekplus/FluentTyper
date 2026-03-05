@@ -334,6 +334,14 @@ export class SuggestionTextEditService {
       }
     }
 
+    if (textEdit.sourceRuleId === "duplicatePunctuationCollapse") {
+      replaceEnd = this.expandDuplicatePunctuationReplaceEnd(
+        fullText,
+        replaceEnd,
+        textEdit.replacementText,
+      );
+    }
+
     const originalText = fullText.slice(replaceStart, replaceEnd);
     const sourceRuleKey = this.resolveAutoFixRuleKey(
       textEdit.sourceRuleId,
@@ -383,7 +391,39 @@ export class SuggestionTextEditService {
   }
 
   private normalizeDuplicatePunctuationComparable(value: string): string {
-    return value.replace(/[\u200B\u200C\u200D\u2060\uFEFF]/g, "").replace(/\xA0/g, " ");
+    return value.replace(/(?:\u200B|\u200C|\u200D|\u2060|\uFEFF)/g, "").replace(/\xA0/g, " ");
+  }
+
+  private expandDuplicatePunctuationReplaceEnd(
+    fullText: string,
+    replaceEnd: number,
+    replacementText: string,
+  ): number {
+    if (!/[ \xA0]$/.test(replacementText)) {
+      return replaceEnd;
+    }
+    if (replaceEnd >= fullText.length) {
+      return replaceEnd;
+    }
+    const followingChar = fullText.charAt(replaceEnd);
+    if (!this.isSpacingOrFillerChar(followingChar)) {
+      return replaceEnd;
+    }
+    // Consume one trailing spacing/filler character to avoid creating
+    // duplicate spacing artifacts in contenteditable hosts.
+    return replaceEnd + 1;
+  }
+
+  private isSpacingOrFillerChar(value: string): boolean {
+    return (
+      value === " " ||
+      value === "\xA0" ||
+      value === "\u200B" ||
+      value === "\u200C" ||
+      value === "\u200D" ||
+      value === "\u2060" ||
+      value === "\uFEFF"
+    );
   }
 
   private resolveContentEditableBlockTextEditRange(

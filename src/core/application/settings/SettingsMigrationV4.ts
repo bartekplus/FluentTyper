@@ -37,6 +37,27 @@ function getRawGrammarRulesSnapshot(existing: unknown): string[] {
   return existing.filter((item): item is string => typeof item === "string");
 }
 
+function arraysEqual(left: string[], right: string[]): boolean {
+  if (left.length !== right.length) {
+    return false;
+  }
+  for (let i = 0; i < left.length; i += 1) {
+    if (left[i] !== right[i]) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function shouldForceV1Defaults(rawSnapshot: string[]): boolean {
+  if (rawSnapshot.length === 0) {
+    return true;
+  }
+  return rawSnapshot.some(
+    (ruleId) => ruleId === "spacingRule" || ruleId === "capitalizeFirstLetter",
+  );
+}
+
 export async function migrateSettingsV4(settings: SettingsManager): Promise<void> {
   try {
     const migrated = await readRaw(settings, KEY_GRAMMAR_RULES_V1_MIGRATED);
@@ -52,7 +73,15 @@ export async function migrateSettingsV4(settings: SettingsManager): Promise<void
       await writeRaw(settings, KEY_GRAMMAR_RULES_V1_BACKUP, rawSnapshot as JsonValue);
     }
 
-    await writeRaw(settings, KEY_ENABLED_GRAMMAR_RULES, RECOMMENDED_V1_GRAMMAR_RULES as JsonValue);
+    const current = await readRaw(settings, KEY_ENABLED_GRAMMAR_RULES);
+    const currentSnapshot = getRawGrammarRulesSnapshot(current);
+    if (arraysEqual(currentSnapshot, rawSnapshot) && shouldForceV1Defaults(rawSnapshot)) {
+      await writeRaw(
+        settings,
+        KEY_ENABLED_GRAMMAR_RULES,
+        RECOMMENDED_V1_GRAMMAR_RULES as JsonValue,
+      );
+    }
     await writeRaw(settings, KEY_GRAMMAR_RULES_V1_MIGRATED, true as JsonValue);
   } catch (error) {
     console.warn("[SettingsMigrationV4] Failed to migrate settings:", error);

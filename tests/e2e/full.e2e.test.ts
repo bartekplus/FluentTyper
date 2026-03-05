@@ -443,6 +443,13 @@ interface PredictorDebugSnapshot {
     debugPresagePredictorEnabled?: boolean;
     debugAIPredictorEnabled?: boolean;
   };
+  traces?: Array<{
+    text?: string;
+    predictionInput?: string;
+    doPrediction?: boolean;
+    textEdit?: boolean;
+    requestId?: number | null;
+  }>;
 }
 
 async function getPredictorDebugSnapshot(optionsPage: Page): Promise<PredictorDebugSnapshot> {
@@ -3245,6 +3252,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
       await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
       await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+      await setSettingAndWait(worker!, KEY_SITE_PROFILES, []);
       await applyConfigChange(browser, worker!);
 
       await gotoTestPage(page, {
@@ -4157,10 +4165,59 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
       await clearInputContent(page, selector);
       await typeInInput(page, selector, "This is,,,,,,,,,,,, ");
-      await waitForInputContentMatch(page, selector, /^This is,[ \xa0]$/, browserTimeout(5000, 9000));
+      await waitForInputContentMatch(
+        page,
+        selector,
+        /^This is,[ \xa0]$/,
+        browserTimeout(5000, 9000),
+      );
 
       await typeInInput(page, selector, ",");
-      await waitForInputContentMatch(page, selector, /^This is,[ \xa0]$/, browserTimeout(5000, 9000));
+      await waitForInputContentMatch(
+        page,
+        selector,
+        /^This is,[ \xa0]$/,
+        browserTimeout(5000, 9000),
+      );
+
+      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await applyConfigChange(browser, worker!);
+    },
+    browserTimeout(30000, 50000),
+  );
+
+  test(
+    "Grammar Rule Engine avoids repeated comma-space bursts on rapid comma typing in #test-input",
+    async () => {
+      const selector = "#test-input";
+
+      await setSettingAndWaitStable(
+        worker!,
+        KEY_ENABLED_GRAMMAR_RULES,
+        ["commaPeriodSpacing", "duplicatePunctuationCollapse"],
+        3,
+        browserTimeout(5000, 7000),
+      );
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+      await applyConfigChange(browser, worker!);
+
+      await gotoTestPage(page, {
+        enableCkEditor: false,
+      });
+      await page.bringToFront();
+      await waitForInputReady(page, selector);
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "What the fewer ");
+      await typeInInput(page, selector, ",,,,,,,,,,");
+      await waitForInputContentEqual(
+        page,
+        selector,
+        "What the fewer, ",
+        browserTimeout(5000, 9000),
+      );
 
       await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
       await applyConfigChange(browser, worker!);

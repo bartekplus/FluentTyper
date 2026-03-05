@@ -26,10 +26,18 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
       spaceRunLength += 1;
       i -= 1;
     }
+    const previousSignificantChar = i >= 0 ? inputStr[i] : "";
 
     const spaceBeforeViolated = spaceRunLength > 0;
     const insertSpaceAfter = this.insertSpaceAfterAutocomplete;
     const inputAction = this.resolveInputAction(context);
+
+    // Repeated punctuation bursts (",,,,", ", , ,") should be handled by
+    // duplicate-collapse logic; avoid emitting spacing edits that can create
+    // comma-space ladders under rapid input.
+    if (previousSignificantChar === lastChar) {
+      return null;
+    }
 
     // Respect explicit user deletion of an auto-inserted trailing space.
     if (inputAction === "delete" && !spaceBeforeViolated && insertSpaceAfter) {
