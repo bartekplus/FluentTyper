@@ -407,7 +407,7 @@ export class ContentEditableAdapter {
       return anchoredPosition;
     }
 
-    const textPosition = this.resolveWithinTextNodes(elem, clampedTarget, probeRange);
+    const textPosition = this.resolveWithinTextNodes(elem, clampedTarget, probeRange, endpoint);
     if (textPosition) {
       return textPosition;
     }
@@ -479,38 +479,68 @@ export class ContentEditableAdapter {
     elem: HTMLElement,
     clampedTarget: number,
     probeRange: Range,
+    endpoint?: "start" | "end",
   ): ContentEditableDomPosition | null {
     const showText =
       (globalThis as { NodeFilter?: { SHOW_TEXT?: number } }).NodeFilter?.SHOW_TEXT ?? 4;
     const walker = document.createTreeWalker(elem, showText);
+    const entries: Array<{ node: Text; start: number; end: number; length: number }> = [];
     let current = walker.nextNode() as Text | null;
-
     while (current) {
-      const nodeLength = current.textContent?.length ?? 0;
-
+      const length = current.textContent?.length ?? 0;
       probeRange.setEnd(current, 0);
-      const nodeStartOffset = probeRange.toString().length;
+      const start = probeRange.toString().length;
+      probeRange.setEnd(current, length);
+      const end = probeRange.toString().length;
+      entries.push({ node: current, start, end, length });
+      current = walker.nextNode() as Text | null;
+    }
 
-      probeRange.setEnd(current, nodeLength);
-      const nodeEndOffset = probeRange.toString().length;
-
-      if (clampedTarget >= nodeStartOffset && clampedTarget <= nodeEndOffset) {
-        const offsetInNode = Math.max(0, Math.min(nodeLength, clampedTarget - nodeStartOffset));
-        // When the target is at absolute offset zero, rich editors can have
-        // leading empty structural nodes that share the same text offset.
-        // In that case, using the first text node would skip those blocks.
-        if (
-          clampedTarget === 0 &&
-          offsetInNode === 0 &&
-          this.hasPreviousDomSiblingInAncestry(elem, current)
-        ) {
-          current = walker.nextNode() as Text | null;
-          continue;
-        }
-        return { container: current, offset: offsetInNode };
+    for (let index = 0; index < entries.length; index += 1) {
+      const entry = entries[index];
+      if (clampedTarget < entry.start || clampedTarget > entry.end) {
+        continue;
       }
 
-      current = walker.nextNode() as Text | null;
+      const offsetInNode = Math.max(0, Math.min(entry.length, clampedTarget - entry.start));
+      // When the target is at absolute offset zero, rich editors can have
+      // leading empty structural nodes that share the same text offset.
+      // In that case, using the first text node would skip those blocks.
+      if (
+        clampedTarget === 0 &&
+        offsetInNode === 0 &&
+        this.hasPreviousDomSiblingInAncestry(elem, entry.node)
+      ) {
+        continue;
+      }
+
+      if (
+        endpoint === "start" &&
+        clampedTarget === entry.end &&
+        offsetInNode === entry.length &&
+        index + 1 < entries.length &&
+        entries[index + 1].start === clampedTarget
+      ) {
+        return {
+          container: entries[index + 1].node,
+          offset: 0,
+        };
+      }
+
+      if (
+        endpoint === "end" &&
+        clampedTarget === entry.start &&
+        offsetInNode === 0 &&
+        index > 0 &&
+        entries[index - 1].end === clampedTarget
+      ) {
+        return {
+          container: entries[index - 1].node,
+          offset: entries[index - 1].length,
+        };
+      }
+
+      return { container: entry.node, offset: offsetInNode };
     }
 
     return null;
