@@ -32,15 +32,17 @@ export class SuggestionTextEditService {
     suggestion: string,
   ): { triggerText: string; insertedText: string } | null {
     entry.lastAutoFixReplacement = null;
+    const isTextValueTarget = this.isTextValueElement(entry.elem);
     let snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
-    const blockContext = this.isTextValueElement(entry.elem)
+    const blockContext = isTextValueTarget
       ? null
       : this.contentEditableAdapter.getBlockContext(entry.elem);
     const tokenSource = blockContext?.beforeCursor ?? snapshot.beforeCursor;
     const tokenInfo = this.findMentionToken(tokenSource);
-    const triggerText = tokenInfo.token || entry.latestMentionText;
+    const cursorTokenInfo = this.findMentionToken(snapshot.beforeCursor);
+    const triggerText = tokenInfo.token || cursorTokenInfo.token || entry.latestMentionText;
 
-    if (!this.isTextValueElement(entry.elem) && triggerText && snapshot.beforeCursor.length === 0) {
+    if (!isTextValueTarget && triggerText && snapshot.beforeCursor.length === 0) {
       const fullText = entry.elem.textContent ?? "";
       if (fullText.endsWith(triggerText)) {
         snapshot = {
@@ -53,8 +55,7 @@ export class SuggestionTextEditService {
 
     const currentFullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
     let replaceEnd = snapshot.beforeCursor.length;
-    const globalTokenInfo = this.findMentionToken(snapshot.beforeCursor);
-    if (!this.isTextValueElement(entry.elem) && globalTokenInfo.token.length === 0) {
+    if (!isTextValueTarget && tokenInfo.token.length === 0 && cursorTokenInfo.token.length === 0) {
       while (replaceEnd > 0 && this.isSeparator(snapshot.beforeCursor.charAt(replaceEnd - 1))) {
         replaceEnd -= 1;
       }
@@ -62,20 +63,30 @@ export class SuggestionTextEditService {
     let replaceStart = Math.max(0, replaceEnd - triggerText.length);
 
     if (
-      !this.isTextValueElement(entry.elem) &&
+      !isTextValueTarget &&
       tokenInfo.token.length === 0 &&
+      cursorTokenInfo.token.length === 0 &&
       triggerText.length > 0 &&
       entry.latestMentionStart >= 0
     ) {
       const storedStart = entry.latestMentionStart;
       const storedEnd = storedStart + triggerText.length;
+      const storedRangeNearCaret = Math.abs(storedEnd - replaceEnd) <= 2;
       if (
+        storedRangeNearCaret &&
         storedEnd <= currentFullText.length &&
         storedStart <= replaceEnd &&
         currentFullText.slice(storedStart, storedEnd).toLowerCase() === triggerText.toLowerCase()
       ) {
         replaceStart = storedStart;
         replaceEnd = storedEnd;
+      }
+    }
+
+    if (!isTextValueTarget && triggerText.length > 0) {
+      const selectedTrigger = currentFullText.slice(replaceStart, replaceEnd);
+      if (selectedTrigger.toLowerCase() !== triggerText.toLowerCase()) {
+        return null;
       }
     }
 

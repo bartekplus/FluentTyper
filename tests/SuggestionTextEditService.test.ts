@@ -10,6 +10,44 @@ function findMentionToken(beforeCursor: string): { token: string; start: number 
   return { token, start: Math.max(0, start) };
 }
 
+function setContentEditableCursor(target: HTMLElement, offset: number): void {
+  const showText =
+    (globalThis as { NodeFilter?: { SHOW_TEXT?: number } }).NodeFilter?.SHOW_TEXT ?? 4;
+  const walker = document.createTreeWalker(target, showText);
+  let current = walker.nextNode() as Text | null;
+  if (!current) {
+    current = target.appendChild(document.createTextNode(""));
+  }
+
+  let remaining = Math.max(0, offset);
+  let node: Text = current;
+  let nodeOffset = 0;
+
+  while (current) {
+    const length = current.textContent?.length ?? 0;
+    if (remaining <= length) {
+      node = current;
+      nodeOffset = remaining;
+      break;
+    }
+    remaining -= length;
+    node = current;
+    nodeOffset = length;
+    current = walker.nextNode() as Text | null;
+  }
+
+  const range = document.createRange();
+  range.setStart(node, nodeOffset);
+  range.collapse(true);
+
+  const selection = window.getSelection();
+  if (!selection) {
+    return;
+  }
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
 class HostHandledContentEditableAdapter extends ContentEditableAdapter {
   public override getBlockContext(
     elem: HTMLElement,
@@ -37,6 +75,35 @@ class HostHandledContentEditableAdapter extends ContentEditableAdapter {
       appliedBy: "host-beforeinput" as const,
       didMutateDom: true,
       didDispatchInput: false,
+    };
+  }
+}
+
+class EmptyBlockContextContentEditableAdapter extends ContentEditableAdapter {
+  public override getBlockContext(
+    elem: HTMLElement,
+  ): { beforeCursor: string; afterCursor: string } | null {
+    void elem;
+    return {
+      beforeCursor: "",
+      afterCursor: "",
+    };
+  }
+
+  public override replaceTextByOffsets(
+    elem: HTMLElement,
+    replaceStart: number,
+    replaceEnd: number,
+    replacementText: string,
+    cursorAfter: number,
+  ) {
+    const text = elem.textContent ?? "";
+    elem.textContent = `${text.slice(0, replaceStart)}${replacementText}${text.slice(replaceEnd)}`;
+    setContentEditableCursor(elem, cursorAfter);
+    return {
+      appliedBy: "fallback-dom" as const,
+      didMutateDom: true,
+      didDispatchInput: true,
     };
   }
 }
@@ -139,6 +206,59 @@ describe("SuggestionTextEditService", () => {
     service.acceptSuggestion(entry, "function ");
 
     expect(input.value).toBe("function next");
+  });
+
+  test("prefers cursor token over stale mention metadata for contenteditable acceptance", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+      contentEditableAdapter: new EmptyBlockContextContentEditableAdapter(),
+    });
+
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.textContent = "first second";
+    document.body.appendChild(editable);
+    setContentEditableCursor(editable, "first second".length);
+
+    const entry = createSuggestionEntry({
+      elem: editable,
+      latestMentionText: "first",
+      latestMentionStart: 0,
+    });
+
+    const accepted = service.acceptSuggestion(entry, "SECOND");
+
+    expect(accepted).toEqual({
+      triggerText: "second",
+      insertedText: "SECOND",
+    });
+    expect(editable.textContent).toBe("first SECOND");
+  });
+
+  test("skips ambiguous contenteditable acceptance instead of applying stale off-caret range", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+      contentEditableAdapter: new EmptyBlockContextContentEditableAdapter(),
+    });
+
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.textContent = "first second third";
+    document.body.appendChild(editable);
+    setContentEditableCursor(editable, "first second ".length);
+
+    const entry = createSuggestionEntry({
+      elem: editable,
+      latestMentionText: "first",
+      latestMentionStart: 0,
+    });
+
+    const accepted = service.acceptSuggestion(entry, "FIRST");
+
+    expect(accepted).toBeNull();
+    expect(editable.textContent).toBe("first second third");
   });
 
   test("deletes trailing punctuation space on Backspace when caret is at end", () => {
