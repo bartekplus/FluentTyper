@@ -213,6 +213,32 @@
       ]
     },
     {
+      "id": "model_driven_editor_transaction_safety",
+      "description": "Model-driven rich editors accept replacements without duplicate DOM writes or structure corruption.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Quill preserves block structure and caret-correct insertion on Tab acceptance"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Quill grammar/text-edit replacement applies once without model corruption"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ContentEditableAdapter.test.ts",
+          "test": "respects canceled beforeinput and skips fallback DOM mutation"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionTextEditService.test.ts",
+          "test": "does not dispatch duplicate input event when contenteditable edit is host-owned"
+        }
+      ]
+    },
+    {
       "id": "missing_space_cancellation",
       "description": "Cursor movement cancels automatic missing-space insertion.",
       "coverage": [

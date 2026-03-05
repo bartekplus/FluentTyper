@@ -1,7 +1,7 @@
 import { createLogger } from "@core/application/logging/Logger";
 import { SPACING_RULES, Spacing } from "@core/domain/spacingRules";
 import type { TextEditOperation } from "@core/domain/messageTypes";
-import { ContentEditableAdapter } from "./ContentEditableAdapter";
+import { ContentEditableAdapter, type ContentEditableEditResult } from "./ContentEditableAdapter";
 import { isOnlyFillers, trimTrailingFillers } from "./editorFillers";
 import { TextTargetAdapter, type TextTarget } from "./TextTargetAdapter";
 import type { SuggestionEntry, SuggestionElement, SuggestionSnapshot } from "./types";
@@ -106,7 +106,6 @@ export class SuggestionTextEditService {
       suggestion,
       cursorAfter,
     );
-    this.dispatchInputEvent(entry.elem);
 
     entry.lastReplacement = {
       triggerText: `${replacedTokenText}${consumedTrailingWhitespace}`,
@@ -157,7 +156,6 @@ export class SuggestionTextEditService {
       triggerText,
       nextCursor,
     );
-    this.dispatchInputEvent(entry.elem);
 
     entry.lastReplacement = null;
     entry.lastAutoFixReplacement = null;
@@ -209,7 +207,6 @@ export class SuggestionTextEditService {
       originalText,
       cursorBefore,
     );
-    this.dispatchInputEvent(entry.elem);
 
     entry.lastAutoFixReplacement = null;
     clearSuggestions();
@@ -271,7 +268,6 @@ export class SuggestionTextEditService {
       textEdit.replacementText,
       cursorAfter,
     );
-    this.dispatchInputEvent(entry.elem);
     entry.lastAutoFixReplacement = {
       replaceStart,
       originalText,
@@ -317,7 +313,6 @@ export class SuggestionTextEditService {
     const replaceStart = replaceEnd - 1;
 
     this.replaceTextByOffsets(entry.elem, fullText, replaceStart, replaceEnd, "", replaceStart);
-    this.dispatchInputEvent(entry.elem);
     entry.lastAutoFixReplacement = null;
     return true;
   }
@@ -378,7 +373,6 @@ export class SuggestionTextEditService {
       replacementText,
       cursorAfter,
     );
-    this.dispatchInputEvent(entry.elem);
   }
 
   private findTrailingToken(afterCursor: string): string {
@@ -416,7 +410,7 @@ export class SuggestionTextEditService {
     replaceEnd: number,
     replacementText: string,
     cursorAfter: number,
-  ): void {
+  ): ContentEditableEditResult | { didDispatchInput: true } {
     const boundedStart = Math.max(0, Math.min(fullText.length, replaceStart));
     const boundedEnd = Math.max(boundedStart, Math.min(fullText.length, replaceEnd));
     const updatedText = `${fullText.slice(0, boundedStart)}${replacementText}${fullText.slice(boundedEnd)}`;
@@ -425,10 +419,11 @@ export class SuggestionTextEditService {
       elem.value = updatedText;
       elem.selectionStart = cursorAfter;
       elem.selectionEnd = cursorAfter;
-      return;
+      this.dispatchInputEvent(elem);
+      return { didDispatchInput: true };
     }
 
-    this.contentEditableAdapter.replaceTextByOffsets(
+    return this.contentEditableAdapter.replaceTextByOffsets(
       elem,
       boundedStart,
       boundedEnd,

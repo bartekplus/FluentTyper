@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { ContentEditableAdapter } from "../src/adapters/chrome/content-script/suggestions/ContentEditableAdapter";
 import { SuggestionTextEditService } from "../src/adapters/chrome/content-script/suggestions/SuggestionTextEditService";
 import { createSuggestionEntry } from "./suggestionTestUtils";
 
@@ -7,6 +8,37 @@ function findMentionToken(beforeCursor: string): { token: string; start: number 
   const token = parts.at(-1) ?? "";
   const start = beforeCursor.length - token.length;
   return { token, start: Math.max(0, start) };
+}
+
+class HostHandledContentEditableAdapter extends ContentEditableAdapter {
+  public override getBlockContext(
+    elem: HTMLElement,
+  ): { beforeCursor: string; afterCursor: string } | null {
+    const fullText = elem.textContent ?? "";
+    return {
+      beforeCursor: fullText,
+      afterCursor: "",
+    };
+  }
+
+  public override replaceTextByOffsets(
+    elem: HTMLElement,
+    replaceStart: number,
+    replaceEnd: number,
+    replacementText: string,
+    cursorAfter: number,
+  ) {
+    void elem;
+    void replaceStart;
+    void replaceEnd;
+    void replacementText;
+    void cursorAfter;
+    return {
+      appliedBy: "host-beforeinput" as const,
+      didMutateDom: true,
+      didDispatchInput: false,
+    };
+  }
 }
 
 describe("SuggestionTextEditService", () => {
@@ -30,6 +62,62 @@ describe("SuggestionTextEditService", () => {
 
     expect(accepted).toEqual({ triggerText: "fun", insertedText: "function" });
     expect(input.value).toBe("function");
+  });
+
+  test("dispatches one input event for input/textarea replacement paths", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+    });
+
+    const input = document.createElement("input");
+    input.value = "teh ";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    const entry = createSuggestionEntry({ elem: input });
+
+    let inputEventCount = 0;
+    input.addEventListener("input", () => {
+      inputEventCount += 1;
+    });
+
+    service.applyTextEdit(entry, {
+      replacementText: "the ",
+      replaceBackwardCount: 4,
+      evaluatedTextLength: 4,
+      expectedReplacedText: "teh ",
+    });
+
+    expect(input.value).toBe("the ");
+    expect(inputEventCount).toBe(1);
+  });
+
+  test("does not dispatch duplicate input event when contenteditable edit is host-owned", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+      contentEditableAdapter: new HostHandledContentEditableAdapter(),
+    });
+
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.textContent = "teh ";
+    document.body.appendChild(editable);
+    const entry = createSuggestionEntry({ elem: editable });
+
+    let inputEventCount = 0;
+    editable.addEventListener("input", () => {
+      inputEventCount += 1;
+    });
+
+    service.applyTextEdit(entry, {
+      replacementText: "the ",
+      replaceBackwardCount: 4,
+      evaluatedTextLength: 4,
+      expectedReplacedText: "teh ",
+    });
+
+    expect(inputEventCount).toBe(0);
   });
 
   test("avoids introducing double space when accepted suggestion ends with space", () => {

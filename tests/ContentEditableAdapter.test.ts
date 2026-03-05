@@ -22,12 +22,22 @@ describe("ContentEditableAdapter", () => {
     editable.setAttribute("contenteditable", "true");
     editable.innerHTML = "<b>rich</b> wrld";
     document.body.appendChild(editable);
+    let inputEventCount = 0;
+    editable.addEventListener("input", () => {
+      inputEventCount += 1;
+    });
 
     // "rich wrld" => replace "wrld" (offsets 5..9) with "world"
-    adapter.replaceTextByOffsets(editable, 5, 9, "world", 10);
+    const result = adapter.replaceTextByOffsets(editable, 5, 9, "world", 10);
 
     expect(editable.textContent).toBe("rich world");
     expect(editable.querySelector("b")?.textContent).toBe("rich");
+    expect(inputEventCount).toBe(1);
+    expect(result).toEqual({
+      appliedBy: "fallback-dom",
+      didMutateDom: true,
+      didDispatchInput: true,
+    });
   });
 
   test("returns null block context when selection is outside the editable", () => {
@@ -85,8 +95,84 @@ describe("ContentEditableAdapter", () => {
     editable.addEventListener("beforeinput", applyFromSelection);
     editable.addEventListener("input", applyFromSelection);
 
-    adapter.replaceTextByOffsets(editable, 0, 3, "function", 8);
+    const result = adapter.replaceTextByOffsets(editable, 0, 3, "function", 8);
 
     expect(editable.textContent).toBe("function");
+    expect(result.appliedBy).toBe("host-beforeinput");
+    expect(result.didDispatchInput).toBe(false);
+  });
+
+  test("respects canceled beforeinput and skips fallback DOM mutation", () => {
+    const adapter = new ContentEditableAdapter();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.textContent = "fun";
+    document.body.appendChild(editable);
+
+    editable.addEventListener("beforeinput", (event) => {
+      const inputEvent = event as Event & { inputType?: string };
+      if (inputEvent.inputType === "insertReplacementText") {
+        event.preventDefault();
+      }
+    });
+
+    let inputEventCount = 0;
+    editable.addEventListener("input", () => {
+      inputEventCount += 1;
+    });
+
+    const result = adapter.replaceTextByOffsets(editable, 0, 3, "function", 8);
+
+    expect(editable.textContent).toBe("fun");
+    expect(inputEventCount).toBe(0);
+    expect(result).toEqual({
+      appliedBy: "host-beforeinput",
+      didMutateDom: false,
+      didDispatchInput: false,
+    });
+  });
+
+  test("uses host-handled synchronous beforeinput mutation without fallback", () => {
+    const adapter = new ContentEditableAdapter();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.textContent = "fun";
+    document.body.appendChild(editable);
+
+    editable.addEventListener("beforeinput", (event) => {
+      const inputEvent = event as Event & { inputType?: string; data?: string };
+      if (inputEvent.inputType !== "insertReplacementText") {
+        return;
+      }
+
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0) {
+        return;
+      }
+      const range = selection.getRangeAt(0);
+      range.deleteContents();
+      const replacementNode = document.createTextNode(inputEvent.data ?? "");
+      range.insertNode(replacementNode);
+      const caretRange = document.createRange();
+      caretRange.setStart(replacementNode, replacementNode.textContent?.length ?? 0);
+      caretRange.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(caretRange);
+    });
+
+    let inputEventCount = 0;
+    editable.addEventListener("input", () => {
+      inputEventCount += 1;
+    });
+
+    const result = adapter.replaceTextByOffsets(editable, 0, 3, "function", 8);
+
+    expect(editable.textContent).toBe("function");
+    expect(inputEventCount).toBe(0);
+    expect(result).toEqual({
+      appliedBy: "host-beforeinput",
+      didMutateDom: true,
+      didDispatchInput: false,
+    });
   });
 });

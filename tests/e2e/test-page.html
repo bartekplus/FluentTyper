@@ -94,6 +94,14 @@
       .ck-editor__editable {
         min-height: 80px;
       }
+
+      #test-quill {
+        min-height: 80px;
+      }
+
+      #test-quill .ql-editor {
+        min-height: 80px;
+      }
     </style>
   </head>
 
@@ -117,11 +125,16 @@
         <label for="test-ckeditor">CKEditor 5</label>
         <textarea id="test-ckeditor" rows="4"></textarea>
       </div>
+      <div class="input-group" id="test-quill-group">
+        <label for="test-quill">Quill</label>
+        <div id="test-quill"></div>
+      </div>
     </div>
     <script>
       const params = new URLSearchParams(window.location.search);
       const testName = params.get("testName");
       const enableCkEditor = params.get("enableCkEditor") === "1";
+      const enableQuill = params.get("enableQuill") === "1";
       if (testName) {
         document.getElementById("test-name").textContent = testName;
       }
@@ -167,6 +180,43 @@
         };
         script.onerror = () => {
           window.__testCkEditorError = "Failed to load CKEditor script";
+        };
+        document.head.appendChild(script);
+      }
+
+      window.__testQuillReady = false;
+      window.__testQuillError = null;
+      const quillGroup = document.getElementById("test-quill-group");
+      if (!enableQuill) {
+        quillGroup.style.display = "none";
+      } else {
+        const cssLink = document.createElement("link");
+        cssLink.rel = "stylesheet";
+        cssLink.href = "../../node_modules/quill/dist/quill.snow.css";
+        document.head.appendChild(cssLink);
+
+        const script = document.createElement("script");
+        script.src = "../../node_modules/quill/dist/quill.js";
+        script.onload = () => {
+          if (typeof window.Quill !== "function") {
+            window.__testQuillError = "window.Quill is unavailable";
+            return;
+          }
+          try {
+            const quill = new window.Quill("#test-quill", {
+              theme: "snow",
+              modules: { toolbar: false },
+            });
+            quill.root.id = "test-quill-editor";
+            window.__testQuill = quill;
+            window.__testQuillReady = true;
+          } catch (error) {
+            window.__testQuillError = error?.message || String(error);
+            console.error("Quill initialization failed in e2e test page.", error);
+          }
+        };
+        script.onerror = () => {
+          window.__testQuillError = "Failed to load Quill script";
         };
         document.head.appendChild(script);
       }

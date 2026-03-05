@@ -46,6 +46,7 @@ const TEST_PAGE_PATH = path.resolve(__dirname, "test-page.html");
 const TEST_HOST = "localhost";
 const SETTINGS_PREFIX = "store.settings.";
 const CKEDITOR_SELECTOR = ".ck-editor__editable";
+const QUILL_SELECTOR = ".ql-editor";
 const GENERIC_INPUT_SELECTORS = ["#test-input"] as const;
 const timeoutProfile = getTimeoutProfile();
 
@@ -493,6 +494,10 @@ function shouldEnableCkEditor(selector: string) {
   return selector === CKEDITOR_SELECTOR;
 }
 
+function shouldEnableQuill(selector: string) {
+  return selector === QUILL_SELECTOR;
+}
+
 async function clearInputContent(page: Page, selector: string): Promise<void> {
   await page.evaluate((sel) => {
     if (sel === ".ck-editor__editable") {
@@ -503,6 +508,17 @@ async function clearInputContent(page: Page, selector: string): Promise<void> {
       ).__testCkEditor;
       if (ckEditor) {
         ckEditor.setData("");
+        return;
+      }
+    }
+    if (sel === ".ql-editor") {
+      const quill = (
+        window as typeof window & {
+          __testQuill?: { setText: (data: string, source?: string) => void };
+        }
+      ).__testQuill;
+      if (quill) {
+        quill.setText("", "silent");
         return;
       }
     }
@@ -597,7 +613,10 @@ async function typeInInput(page: Page, selector: string, text: string): Promise<
   await element.type(text);
 }
 
-async function gotoTestPage(page: Page, options: { enableCkEditor?: boolean } = {}) {
+async function gotoTestPage(
+  page: Page,
+  options: { enableCkEditor?: boolean; enableQuill?: boolean } = {},
+) {
   const testName =
     typeof expect.getState === "function"
       ? expect.getState().currentTestName || "Unknown Test"
@@ -605,6 +624,9 @@ async function gotoTestPage(page: Page, options: { enableCkEditor?: boolean } = 
   const params = new URLSearchParams({ testName });
   if (options.enableCkEditor) {
     params.set("enableCkEditor", "1");
+  }
+  if (options.enableQuill) {
+    params.set("enableQuill", "1");
   }
   // Use a local HTTP server instead of file:// so host permissions apply consistently.
   const targetUrl = `${domainTestUrl}?${params.toString()}`;
@@ -671,6 +693,36 @@ async function waitForInputReady(page: Page, selector: string) {
         `CKEditor readiness timed out for ${selector}: ${JSON.stringify(debugState)} (${String(error)})`,
       );
     });
+  }
+
+  if (selector === QUILL_SELECTOR) {
+    await waitUntil(
+      `Quill readiness for ${selector}`,
+      async () => {
+        const quillState = await page.evaluate(() => ({
+          ready: Boolean(
+            (
+              window as typeof window & {
+                __testQuillReady?: boolean;
+              }
+            ).__testQuillReady,
+          ),
+          error:
+            (
+              window as typeof window & {
+                __testQuillError?: string | null;
+              }
+            ).__testQuillError ?? null,
+          hasEditor: Boolean(document.querySelector(".ql-editor")),
+        }));
+
+        if (quillState.error) {
+          throw new Error(`Quill failed to initialize: ${quillState.error}`);
+        }
+        return quillState.ready || quillState.hasEditor ? true : false;
+      },
+      { timeoutMs: INPUT_READY_TIMEOUT_MS, intervalMs: 50 },
+    );
   }
 
   await page.waitForSelector(selector, { timeout: INPUT_READY_TIMEOUT_MS });
@@ -909,6 +961,37 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           return;
         } catch (e) {
           console.error("Failed to load CKEditor CSS from node_modules", e);
+        }
+      }
+      if (req.url && req.url.includes("quill.js")) {
+        try {
+          const quillPath = path.resolve(__dirname, "../../node_modules/quill/dist/quill.js");
+          const jsBuf = fs.readFileSync(quillPath);
+          res.writeHead(200, {
+            "Content-Type": "application/javascript",
+            "Content-Length": jsBuf.length,
+          });
+          res.end(jsBuf);
+          return;
+        } catch (e) {
+          console.error("Failed to load Quill from node_modules", e);
+        }
+      }
+      if (req.url && req.url.includes("quill.snow.css")) {
+        try {
+          const quillCssPath = path.resolve(
+            __dirname,
+            "../../node_modules/quill/dist/quill.snow.css",
+          );
+          const cssBuf = fs.readFileSync(quillCssPath);
+          res.writeHead(200, {
+            "Content-Type": "text/css; charset=utf-8",
+            "Content-Length": cssBuf.length,
+          });
+          res.end(cssBuf);
+          return;
+        } catch (e) {
+          console.error("Failed to load Quill CSS from node_modules", e);
         }
       }
 
@@ -1391,6 +1474,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
         await gotoTestPage(page, {
           enableCkEditor: shouldEnableCkEditor(selector),
+          enableQuill: shouldEnableQuill(selector),
         });
         await page.bringToFront();
         await waitForInputReady(page, selector);
@@ -1495,6 +1579,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       ): Promise<void> => {
         await gotoTestPage(page, {
           enableCkEditor: shouldEnableCkEditor(selector),
+          enableQuill: shouldEnableQuill(selector),
         });
         await page.bringToFront();
         await waitForInputReady(page, selector);
@@ -1625,6 +1710,169 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "Quill preserves block structure and caret-correct insertion on Tab acceptance",
+    async () => {
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await applyConfigChange(browser, worker!);
+
+      await gotoTestPage(page, { enableQuill: true });
+      await page.bringToFront();
+      await waitForInputReady(page, QUILL_SELECTOR);
+
+      await page.evaluate(() => {
+        const quill = (
+          window as typeof window & {
+            __testQuill?: {
+              setText: (text: string, source?: string) => void;
+              setSelection: (index: number, length: number, source?: string) => void;
+            };
+          }
+        ).__testQuill;
+        if (!quill) {
+          throw new Error("Quill test instance not found");
+        }
+        quill.setText("\nnext\n", "silent");
+        quill.setSelection(0, 0, "silent");
+      });
+
+      await page.focus(QUILL_SELECTOR);
+      await page.keyboard.type("h");
+      const liCount = await waitForVisibleSuggestions(page);
+      expect(liCount).toBeGreaterThan(0);
+      await page.keyboard.press("Tab");
+
+      const acceptedState = await waitUntil(
+        "quill acceptance preserves next line and keeps caret in first line",
+        async () => {
+          const state = await page.evaluate(() => {
+            const quill = (
+              window as typeof window & {
+                __testQuill?: {
+                  getText: () => string;
+                  getSelection: () => { index: number; length: number } | null;
+                };
+              }
+            ).__testQuill;
+            if (!quill) {
+              return false;
+            }
+            const normalizedText = quill.getText().replace(/\u00a0/g, " ");
+            const lines = normalizedText.split("\n");
+            const firstLine = lines[0] ?? "";
+            const secondLine = lines[1] ?? "";
+            const selection = quill.getSelection();
+            const compactFirstLine = firstLine.trimEnd();
+            const hasExpandedFirstLine = /^h\S+$/i.test(compactFirstLine);
+            const nextLinePreserved = secondLine.trim() === "next";
+            const caretAfterAcceptedText =
+              selection !== null && selection.index >= compactFirstLine.length;
+            if (!hasExpandedFirstLine || !nextLinePreserved || !caretAfterAcceptedText) {
+              return false;
+            }
+            return {
+              firstLine: compactFirstLine,
+              secondLine: secondLine.trim(),
+              selectionIndex: selection?.index ?? -1,
+              normalizedText,
+            };
+          });
+          return state || false;
+        },
+        { timeoutMs: browserTimeout(5000, 10000), intervalMs: 50 },
+      );
+
+      expect(acceptedState.secondLine).toBe("next");
+      expect(acceptedState.firstLine).toMatch(/^h\S+$/i);
+      expect(acceptedState.selectionIndex).toBeGreaterThanOrEqual(acceptedState.firstLine.length);
+    },
+    browserTimeout(30000, 50000),
+  );
+
+  test(
+    "Quill grammar/text-edit replacement applies once without model corruption",
+    async () => {
+      try {
+        await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, ["commaPeriodSpacing"]);
+        await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, true);
+        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+        await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+        await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+        await applyConfigChange(browser, worker!);
+
+        await gotoTestPage(page, { enableQuill: true });
+        await page.bringToFront();
+        await waitForInputReady(page, QUILL_SELECTOR);
+        await page.focus(QUILL_SELECTOR);
+
+        await page.keyboard.type("fixed .");
+        await waitUntil(
+          "quill grammar spacing after punctuation",
+          async () => {
+            const normalizedText = await page.evaluate(() => {
+              const quill = (
+                window as typeof window & {
+                  __testQuill?: {
+                    getText: () => string;
+                  };
+                }
+              ).__testQuill;
+              if (!quill) {
+                return "";
+              }
+              return quill.getText().replace(/\u00a0/g, " ");
+            });
+            return /fixed\.[ ]\n$/i.test(normalizedText) ? true : false;
+          },
+          { timeoutMs: browserTimeout(5000, 9000), intervalMs: 50 },
+        );
+
+        await page.keyboard.type("x");
+        const finalState = await waitUntil(
+          "quill grammar replacement remains stable after follow-up typing",
+          async () => {
+            const state = await page.evaluate(() => {
+              const quill = (
+                window as typeof window & {
+                  __testQuill?: {
+                    getText: () => string;
+                    root: HTMLElement;
+                  };
+                }
+              ).__testQuill;
+              if (!quill) {
+                return false;
+              }
+              const normalizedText = quill.getText().replace(/\u00a0/g, " ");
+              const paragraphCount = quill.root.querySelectorAll("p").length;
+              const hasDoubleSpace = normalizedText.includes("fixed.  x");
+              const hasExpectedText = /fixed\.[ ]x\n$/i.test(normalizedText);
+              const spacingAppliedOnce = normalizedText.split("fixed. ").length - 1 === 1;
+              if (!hasExpectedText || hasDoubleSpace || !spacingAppliedOnce) {
+                return false;
+              }
+              return {
+                normalizedText,
+                paragraphCount,
+              };
+            });
+            return state || false;
+          },
+          { timeoutMs: browserTimeout(5000, 9000), intervalMs: 50 },
+        );
+
+        expect(finalState.normalizedText).toMatch(/fixed\. x\n$/i);
+        expect(finalState.paragraphCount).toBeGreaterThanOrEqual(1);
+      } finally {
+        await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+        await applyConfigChange(browser, worker!);
+      }
+    },
+    browserTimeout(35000, 55000),
+  );
+
+  test(
     "Contenteditable keeps surrounding rich formatting when accepting a suggestion",
     async () => {
       const selector = "#test-contenteditable";
@@ -1720,6 +1968,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async (selector) => {
       await gotoTestPage(page, {
         enableCkEditor: shouldEnableCkEditor(selector),
+        enableQuill: shouldEnableQuill(selector),
       });
       await page.bringToFront();
       await waitForInputReady(page, selector);
@@ -1760,6 +2009,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
       await gotoTestPage(page, {
         enableCkEditor: shouldEnableCkEditor(selector),
+        enableQuill: shouldEnableQuill(selector),
       });
       await page.bringToFront();
 
@@ -2120,6 +2370,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   async function runAutoDetectPredictionScenario(selector: string) {
     await gotoTestPage(page, {
       enableCkEditor: shouldEnableCkEditor(selector),
+      enableQuill: shouldEnableQuill(selector),
     });
     await page.bringToFront();
     await waitForInputReady(page, selector);
@@ -2221,6 +2472,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
       await gotoTestPage(page, {
         enableCkEditor: shouldEnableCkEditor(selector),
+        enableQuill: shouldEnableQuill(selector),
       });
       await page.bringToFront();
       await waitForInputReady(page, selector);
@@ -2420,6 +2672,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async (selector) => {
       await gotoTestPage(page, {
         enableCkEditor: shouldEnableCkEditor(selector),
+        enableQuill: shouldEnableQuill(selector),
       });
       await page.bringToFront();
 
@@ -2446,6 +2699,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async (selector) => {
       await gotoTestPage(page, {
         enableCkEditor: shouldEnableCkEditor(selector),
+        enableQuill: shouldEnableQuill(selector),
       });
       await page.bringToFront();
       await waitForInputReady(page, selector);
@@ -2493,6 +2747,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
       await gotoTestPage(page, {
         enableCkEditor: shouldEnableCkEditor(selector),
+        enableQuill: shouldEnableQuill(selector),
       });
       await page.bringToFront();
 
@@ -2539,6 +2794,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await applyConfigChange(browser, worker!);
       await gotoTestPage(page, {
         enableCkEditor: shouldEnableCkEditor(selector),
+        enableQuill: shouldEnableQuill(selector),
       });
       await page.bringToFront();
 
@@ -2639,6 +2895,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
       await gotoTestPage(page, {
         enableCkEditor: shouldEnableCkEditor(selector),
+        enableQuill: shouldEnableQuill(selector),
       });
       await page.bringToFront();
 
@@ -2701,6 +2958,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
       await gotoTestPage(page, {
         enableCkEditor: shouldEnableCkEditor(selector),
+        enableQuill: shouldEnableQuill(selector),
       });
       await page.bringToFront();
       await waitForInputReady(page, selector);
@@ -2749,6 +3007,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
       await gotoTestPage(page, {
         enableCkEditor: shouldEnableCkEditor(selector),
+        enableQuill: shouldEnableQuill(selector),
       });
       await page.bringToFront();
 

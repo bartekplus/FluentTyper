@@ -17,6 +17,7 @@
     "prediction_accept_tab_and_click",
     "ckeditor_paragraph_preservation",
     "contenteditable_rich_format_preservation",
+    "model_driven_editor_transaction_safety",
     "missing_space_cancellation",
     "inline_suggestion_tab_insert",
     "enabled_languages_popup_restriction",
