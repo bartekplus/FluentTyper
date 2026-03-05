@@ -17,6 +17,16 @@
   --accent-color-darker: #4338ca;
   --warning-color: #facc15;
   --warning-text-color: #1e293b;
+  --options-bg-blob-1: rgba(79, 70, 229, 0.12);
+  --options-bg-blob-2: rgba(56, 189, 248, 0.12);
+  --options-header-gradient-start: rgba(79, 70, 229, 0.08);
+  --options-header-gradient-end: rgba(56, 189, 248, 0.06);
+  --options-tab-active-text: #0f172a;
+  --options-tab-active-bg: rgba(79, 70, 229, 0.2);
+  --options-tab-active-border: #3730a3;
+  --link-color-strong: #1d4ed8;
+  --link-color-strong-hover: #1e40af;
+  --link-color-strong-visited: #4338ca;
 
   /* Light Mode Palette */
   --background-color: #f8fafc;
@@ -41,25 +51,37 @@
 @media (prefers-color-scheme: dark) {
   :root {
     /* Dark Mode Palette */
-    --background-color: #1e293b;
+    --accent-color: #38bdf8;
+    --accent-color-darker: #0ea5e9;
+    --options-bg-blob-1: rgba(14, 165, 233, 0.2);
+    --options-bg-blob-2: rgba(56, 189, 248, 0.13);
+    --options-header-gradient-start: rgba(14, 165, 233, 0.22);
+    --options-header-gradient-end: rgba(125, 211, 252, 0.08);
+    --options-tab-active-text: #e0f2fe;
+    --options-tab-active-bg: rgba(14, 165, 233, 0.26);
+    --options-tab-active-border: #38bdf8;
+    --link-color-strong: #7dd3fc;
+    --link-color-strong-hover: #bae6fd;
+    --link-color-strong-visited: #93c5fd;
+    --background-color: #0f172a;
     /* slate-800 */
     --text-color: #e2e8f0;
     /* slate-200 */
-    --text-color-light: #94a3b8;
+    --text-color-light: #b3c2d5;
     /* slate-400 */
-    --box-background-color: #334155;
+    --box-background-color: #1e293b;
     /* slate-700 */
     --box-shadow-color: rgba(0, 0, 0, 0.25);
-    --input-bg-color: #475569;
+    --input-bg-color: #243247;
     /* slate-600 */
-    --input-border-color: #64748b;
+    --input-border-color: #3d516d;
     /* slate-500 */
-    --divider-color: #475569;
+    --divider-color: #32445f;
     /* slate-600 */
-    --feature-box-bg: #475569;
+    --feature-box-bg: #243247;
     --footer-text-color: #94a3b8;
     /* slate-400 */
-    --link-color: #cbd5e1;
+    --link-color: #cfe3fb;
     /* slate-300 */
   }
 }
@@ -447,8 +469,8 @@ body.fluenttyper-options {
   margin: 0;
   color: var(--text-color);
   background:
-    radial-gradient(circle at 10% 0%, rgba(79, 70, 229, 0.12), transparent 40%),
-    radial-gradient(circle at 90% 10%, rgba(56, 189, 248, 0.12), transparent 45%),
+    radial-gradient(circle at 10% 0%, var(--options-bg-blob-1), transparent 40%),
+    radial-gradient(circle at 90% 10%, var(--options-bg-blob-2), transparent 45%),
     var(--background-color);
 }
 
@@ -469,7 +491,11 @@ body.fluenttyper-options {
 .fluenttyper-options .options-header {
   padding: 1.2rem 1.4rem 1rem;
   border-bottom: 1px solid var(--divider-color);
-  background: linear-gradient(160deg, rgba(79, 70, 229, 0.08), rgba(56, 189, 248, 0.06));
+  background: linear-gradient(
+    160deg,
+    var(--options-header-gradient-start),
+    var(--options-header-gradient-end)
+  );
 }
 
 .fluenttyper-options .options-brand {
@@ -533,17 +559,9 @@ body.fluenttyper-options {
 }
 
 .fluenttyper-options .options-tabs li.is-active a {
-  color: #0f172a;
-  background-color: rgba(79, 70, 229, 0.2);
-  border-bottom-color: #3730a3;
-}
-
-@media (prefers-color-scheme: dark) {
-  .fluenttyper-options .options-tabs li.is-active a {
-    color: #f8fafc;
-    background-color: rgba(56, 189, 248, 0.28);
-    border-bottom-color: #7dd3fc;
-  }
+  color: var(--options-tab-active-text);
+  background-color: var(--options-tab-active-bg);
+  border-bottom-color: var(--options-tab-active-border);
 }
 
 .fluenttyper-options .options-content {
@@ -603,23 +621,65 @@ body.fluenttyper-options {
 .fluenttyper-options .grammar-rule-selector {
   border: 1px solid var(--divider-color);
   border-radius: 10px;
-  padding: 0.62rem;
+  padding: 0.72rem;
   background-color: color-mix(in srgb, var(--box-background-color) 94%, var(--divider-color));
+  display: grid;
+  gap: 0.62rem;
 }
 
 .fluenttyper-options .grammar-rule-selector-help {
-  margin: -0.4rem 0 0.6rem;
+  margin: -0.25rem 0 0.2rem;
   font-size: 0.77rem;
   color: var(--text-color-light);
   line-height: 1.45;
 }
 
+.fluenttyper-options .grammar-rule-selector-search-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.fluenttyper-options .grammar-rule-selector-search {
+  flex: 1 1 250px;
+  min-width: 180px;
+}
+
+.fluenttyper-options .grammar-rule-search-input {
+  border-color: var(--input-border-color);
+  color: var(--text-color);
+  background-color: color-mix(in srgb, var(--input-bg-color) 90%, var(--box-background-color));
+}
+
+.fluenttyper-options .grammar-rule-search-input::placeholder {
+  color: var(--text-color-light);
+}
+
+.fluenttyper-options .grammar-rule-selector-filters {
+  margin: 0;
+  flex-wrap: wrap;
+}
+
+.fluenttyper-options .grammar-rule-selector-filters .button {
+  border-color: var(--divider-color);
+  background-color: var(--box-background-color);
+  color: var(--text-color-light);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.fluenttyper-options .grammar-rule-selector-filters .button.is-selected {
+  color: var(--text-color);
+  border-color: color-mix(in srgb, var(--accent-color) 65%, var(--divider-color));
+  background-color: color-mix(in srgb, var(--accent-color) 19%, var(--box-background-color));
+}
+
 .fluenttyper-options .grammar-rule-selector-toolbar {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 0.55rem;
-  margin-bottom: 0.55rem;
 }
 
 .fluenttyper-options .grammar-rule-selector-summary {
@@ -649,6 +709,35 @@ body.fluenttyper-options {
   color: var(--text-color);
 }
 
+.fluenttyper-options .grammar-rule-selector-no-results {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-color-light);
+  border: 1px dashed var(--divider-color);
+  border-radius: 8px;
+  padding: 0.55rem 0.6rem;
+  background-color: color-mix(in srgb, var(--box-background-color) 90%, transparent);
+}
+
+.fluenttyper-options .grammar-rule-sections {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.fluenttyper-options .grammar-rule-section {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.fluenttyper-options .grammar-rule-section-title {
+  margin: 0;
+  font-size: 0.68rem;
+  color: var(--text-color-light);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 800;
+}
+
 .fluenttyper-options .grammar-rule-selector-list {
   display: grid;
   gap: 0.45rem;
@@ -668,6 +757,10 @@ body.fluenttyper-options {
     border-color 0.18s ease,
     background-color 0.18s ease,
     transform 0.12s ease;
+}
+
+.fluenttyper-options .grammar-rule-card.is-hidden {
+  display: none;
 }
 
 .fluenttyper-options .grammar-rule-card:hover {
@@ -708,27 +801,27 @@ body.fluenttyper-options {
 
 .fluenttyper-options .grammar-rule-card-badge {
   font-size: 0.64rem;
-  font-weight: 700;
+  font-weight: 650;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   border-radius: 999px;
   padding: 0.15rem 0.42rem;
-  border: 1px solid color-mix(in srgb, var(--accent-color) 40%, var(--divider-color));
-  color: var(--accent-color);
-  background-color: color-mix(in srgb, var(--accent-color) 12%, var(--box-background-color));
+  border: 1px solid color-mix(in srgb, var(--accent-color) 30%, var(--divider-color));
+  color: color-mix(in srgb, var(--accent-color) 82%, var(--text-color));
+  background-color: color-mix(in srgb, var(--accent-color) 8%, var(--box-background-color));
 }
 
 .fluenttyper-options .grammar-rule-card-description {
   margin: 0.22rem 0 0;
-  font-size: 0.73rem;
+  font-size: 0.74rem;
   color: var(--text-color-light);
-  line-height: 1.42;
+  line-height: 1.44;
 }
 
 .fluenttyper-options .grammar-rule-card-example {
   margin: 0.24rem 0 0;
-  font-size: 0.7rem;
-  color: color-mix(in srgb, var(--text-color-light) 85%, var(--text-color));
+  font-size: 0.71rem;
+  color: color-mix(in srgb, var(--text-color-light) 70%, var(--text-color));
   line-height: 1.4;
   font-family:
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
@@ -1166,31 +1259,17 @@ body.fluenttyper-options {
 
 .fluenttyper-options .support-links-list a {
   font-weight: 700;
-  color: #1d4ed8;
+  color: var(--link-color-strong);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
 .fluenttyper-options .support-links-list a:hover {
-  color: #1e40af;
+  color: var(--link-color-strong-hover);
 }
 
 .fluenttyper-options .support-links-list a:visited {
-  color: #4338ca;
-}
-
-@media (prefers-color-scheme: dark) {
-  .fluenttyper-options .support-links-list a {
-    color: #7dd3fc;
-  }
-
-  .fluenttyper-options .support-links-list a:hover {
-    color: #bae6fd;
-  }
-
-  .fluenttyper-options .support-links-list a:visited {
-    color: #c4b5fd;
-  }
+  color: var(--link-color-strong-visited);
 }
 
 @media (max-width: 768px) {
@@ -1213,6 +1292,19 @@ body.fluenttyper-options {
   .fluenttyper-options .grammar-rule-selector-toolbar {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .fluenttyper-options .grammar-rule-selector-search-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .fluenttyper-options .grammar-rule-selector-filters {
+    width: 100%;
+  }
+
+  .fluenttyper-options .grammar-rule-selector-filters .button {
+    flex: 1 1 calc(50% - 0.3rem);
   }
 
   .fluenttyper-options .grammar-rule-selector-actions {

@@ -574,6 +574,126 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "grammar tab supports grouped rules, search/filter, and setting persistence",
+    async () => {
+      await setSettingAndWait(worker, KEY_ENABLED_GRAMMAR_RULES, []);
+      await sendConfigChange(browser, worker);
+
+      const optionsPage = await openOptionsPage(browser, worker);
+      let selectedRuleId = "";
+      try {
+        const probe = await optionsPage.evaluate(() => {
+          const tabAnchors = Array.from(document.querySelectorAll("#tab-container li a"));
+          let grammarRoot: Element | null = null;
+
+          for (const tabAnchor of tabAnchors) {
+            if (!(tabAnchor instanceof HTMLElement)) {
+              continue;
+            }
+            tabAnchor.click();
+            const visibleTab = Array.from(document.querySelectorAll(".content-tab")).find(
+              (tab) => !tab.classList.contains("is-hidden"),
+            );
+            const candidate = visibleTab?.querySelector(".grammar-rule-selector");
+            if (candidate) {
+              grammarRoot = candidate;
+              break;
+            }
+          }
+
+          if (!grammarRoot) {
+            return { ok: false, error: "Grammar tab was not found" };
+          }
+
+          const countVisibleCards = () =>
+            Array.from(grammarRoot.querySelectorAll(".grammar-rule-card")).filter(
+              (card) => !card.classList.contains("is-hidden"),
+            ).length;
+
+          const sectionTitles = grammarRoot.querySelectorAll(".grammar-rule-section-title").length;
+          const searchInput = grammarRoot.querySelector(
+            ".grammar-rule-search-input",
+          ) as HTMLInputElement | null;
+          const filterSafeButton = grammarRoot.querySelector(
+            '.grammar-rule-filter-button[data-filter="safe"]',
+          ) as HTMLButtonElement | null;
+
+          if (!searchInput) {
+            return { ok: false, error: "Search input is missing" };
+          }
+          if (!filterSafeButton) {
+            return { ok: false, error: "Safe filter button is missing" };
+          }
+
+          const initialVisibleCount = countVisibleCards();
+
+          searchInput.value = "ellipsis";
+          searchInput.dispatchEvent(new Event("input", { bubbles: true }));
+          const searchVisibleCards = Array.from(grammarRoot.querySelectorAll(".grammar-rule-card"))
+            .filter((card) => !card.classList.contains("is-hidden"))
+            .map(
+              (card) => card.querySelector(".grammar-rule-card-toggle") as HTMLInputElement | null,
+            )
+            .filter((toggle): toggle is HTMLInputElement => Boolean(toggle));
+
+          if (searchVisibleCards.length === 0) {
+            return { ok: false, error: "Search did not return any rule cards" };
+          }
+
+          searchVisibleCards[0].click();
+          const selectedId = searchVisibleCards[0].value;
+
+          searchInput.value = "";
+          searchInput.dispatchEvent(new Event("input", { bubbles: true }));
+          filterSafeButton.click();
+          const safeVisibleCount = countVisibleCards();
+
+          return {
+            ok: true,
+            sectionTitles,
+            initialVisibleCount,
+            searchVisibleCount: searchVisibleCards.length,
+            safeVisibleCount,
+            selectedId,
+          };
+        });
+
+        expect(probe.ok).toBe(true);
+        if (!probe.ok) {
+          throw new Error(probe.error);
+        }
+        expect(probe.sectionTitles).toBeGreaterThanOrEqual(2);
+        expect(probe.initialVisibleCount).toBeGreaterThan(0);
+        expect(probe.searchVisibleCount).toBeGreaterThan(0);
+        expect(probe.searchVisibleCount).toBeLessThan(probe.initialVisibleCount);
+        expect(probe.safeVisibleCount).toBeGreaterThan(0);
+        expect(probe.safeVisibleCount).toBeLessThan(probe.initialVisibleCount);
+        expect(probe.selectedId.length).toBeGreaterThan(0);
+        selectedRuleId = probe.selectedId;
+      } finally {
+        if (!optionsPage.isClosed()) {
+          await optionsPage.close();
+        }
+      }
+
+      const storedRules = await waitUntil<string[]>(
+        "grammar tab rule selection persistence",
+        async () => {
+          const current = await getSetting<string[]>(worker, KEY_ENABLED_GRAMMAR_RULES);
+          if (Array.isArray(current) && current.includes(selectedRuleId)) {
+            return current;
+          }
+          return false;
+        },
+        { timeoutMs: suiteTimeout(5000, 10000), intervalMs: 50 },
+      );
+
+      expect(storedRules).toContain(selectedRuleId);
+    },
+    suiteTimeout(10000, 15000),
+  );
+
+  test(
     "domain whitelist enables predictions for exact host",
     async () => {
       await setSettingAndWait(worker, KEY_DOMAIN_LIST_MODE, "whiteList");
