@@ -11,6 +11,7 @@ import { TechnicalTokenCompactionRule } from "../../src/core/domain/grammar/impl
 import { CollapseRepeatedSpacesRule } from "../../src/core/domain/grammar/implementations/CollapseRepeatedSpacesRule";
 import { TrimSpaceBeforeLineBreakRule } from "../../src/core/domain/grammar/implementations/TrimSpaceBeforeLineBreakRule";
 import { NeutralPunctuationPolicyRule } from "../../src/core/domain/grammar/implementations/NeutralPunctuationPolicyRule";
+import { ZERO_WIDTH_FILLER_CHARS } from "../../src/core/domain/spacingRules";
 
 function context(beforeCursor: string, hints?: GrammarContext["hints"]): GrammarContext {
   return {
@@ -148,6 +149,15 @@ describe("V1 grammar rules", () => {
         confidence: "high",
         description: "Applied comma/period spacing",
       });
+    });
+
+    test("treats zero-width fillers as ignorable separators for duplicate commas", () => {
+      const rule = new CommaPeriodSpacingRule(true);
+
+      for (const filler of ZERO_WIDTH_FILLER_CHARS) {
+        expect(rule.apply(context(`Hello,${filler},`))).toBeNull();
+        expect(rule.apply(context(`Hello,\u00A0${filler},`))).toBeNull();
+      }
     });
   });
 

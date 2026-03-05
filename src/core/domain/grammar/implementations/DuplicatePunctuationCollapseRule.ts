@@ -1,4 +1,5 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
+import { SPACE_CHARS, SPACING_OR_FILLER_CHARS } from "../../spacingRules";
 import { shouldSkipGenericReplacement } from "./helpers/GenericRuleShared";
 
 export class DuplicatePunctuationCollapseRule implements GrammarRule {
@@ -6,10 +7,6 @@ export class DuplicatePunctuationCollapseRule implements GrammarRule {
   readonly name = "Duplicate Punctuation Collapse";
   readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
   private static readonly COLLAPSIBLE_PUNCTUATION = new Set([",", ";", ":"]);
-  private static readonly SPACING_OR_FILLER_REGEX =
-    /(?:[ \xA0]|\u200B|\u200C|\u200D|\u2060|\uFEFF)/;
-  private static readonly SPACE_ONLY_REGEX = /[ \xA0]/;
-
   apply(context: GrammarContext): GrammarEdit | null {
     const input = context.beforeCursor;
     if (input.length < 2) {
@@ -70,10 +67,7 @@ export class DuplicatePunctuationCollapseRule implements GrammarRule {
     }
 
     let spaceRunStart = lastIndex - 1;
-    while (
-      spaceRunStart >= 0 &&
-      DuplicatePunctuationCollapseRule.SPACING_OR_FILLER_REGEX.test(input.charAt(spaceRunStart))
-    ) {
+    while (spaceRunStart >= 0 && SPACING_OR_FILLER_CHARS.includes(input.charAt(spaceRunStart))) {
       spaceRunStart -= 1;
     }
 
@@ -145,10 +139,7 @@ export class DuplicatePunctuationCollapseRule implements GrammarRule {
 
   private splitTrailingSpacing(input: string): { core: string; trailingSpacing: string } {
     let idx = input.length;
-    while (
-      idx > 0 &&
-      DuplicatePunctuationCollapseRule.SPACING_OR_FILLER_REGEX.test(input.charAt(idx - 1))
-    ) {
+    while (idx > 0 && SPACING_OR_FILLER_CHARS.includes(input.charAt(idx - 1))) {
       idx -= 1;
     }
     return {
@@ -178,7 +169,7 @@ export class DuplicatePunctuationCollapseRule implements GrammarRule {
   private measureLeadingSpaceBefore(input: string, index: number): number {
     let i = index - 1;
     let count = 0;
-    while (i >= 0 && DuplicatePunctuationCollapseRule.SPACE_ONLY_REGEX.test(input.charAt(i))) {
+    while (i >= 0 && SPACE_CHARS.includes(input.charAt(i))) {
       count += 1;
       i -= 1;
     }

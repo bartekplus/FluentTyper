@@ -3,6 +3,7 @@ import { GrammarRuleEngine } from "../../src/core/domain/grammar/GrammarRuleEngi
 import type { GrammarRule } from "../../src/core/domain/grammar/types";
 import { CommaPeriodSpacingRule } from "../../src/core/domain/grammar/implementations/CommaPeriodSpacingRule";
 import { DuplicatePunctuationCollapseRule } from "../../src/core/domain/grammar/implementations/DuplicatePunctuationCollapseRule";
+import { ZERO_WIDTH_FILLER_CHARS } from "../../src/core/domain/spacingRules";
 
 describe("GrammarRuleEngine", () => {
   let engine: GrammarRuleEngine;
@@ -252,5 +253,30 @@ describe("GrammarRuleEngine", () => {
     });
 
     expect(result).toEqual([]);
+  });
+
+  test("zero-width filler-separated comma bursts are owned by duplicate collapse", () => {
+    engine.registerRule(new CommaPeriodSpacingRule(true));
+    engine.registerRule(new DuplicatePunctuationCollapseRule());
+
+    for (const filler of ZERO_WIDTH_FILLER_CHARS) {
+      const result = engine.process("insertChar", {
+        beforeCursor: `Hello,,${filler},`,
+        afterCursor: "",
+        hints: { inputAction: "insert" },
+      });
+
+      expect(result).toEqual([
+        {
+          replacement: `,${filler}`,
+          deleteBackwards: 4,
+          deleteForwards: 0,
+          confidence: "medium",
+          sourceRuleId: "duplicatePunctuationCollapse",
+          safetyTier: "advanced",
+          description: "Merged edits",
+        },
+      ]);
+    }
   });
 });
