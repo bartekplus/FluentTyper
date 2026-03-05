@@ -299,6 +299,13 @@ export class SuggestionTextEditService {
       textEdit.replacementText,
       cursorAfter,
     );
+    if (!applyResult.didMutateDom) {
+      return {
+        applied: false,
+        didDispatchInput: false,
+      };
+    }
+
     entry.lastAutoFixReplacement = {
       replaceStart,
       originalText,
@@ -496,17 +503,27 @@ export class SuggestionTextEditService {
     replaceEnd: number,
     replacementText: string,
     cursorAfter: number,
-  ): ContentEditableEditResult | { didDispatchInput: true } {
+  ): ContentEditableEditResult | { didMutateDom: boolean; didDispatchInput: boolean } {
     const boundedStart = Math.max(0, Math.min(fullText.length, replaceStart));
     const boundedEnd = Math.max(boundedStart, Math.min(fullText.length, replaceEnd));
     const updatedText = `${fullText.slice(0, boundedStart)}${replacementText}${fullText.slice(boundedEnd)}`;
 
     if (this.isTextValueElement(elem)) {
+      const beforeValue = elem.value ?? "";
+      if (updatedText === beforeValue) {
+        return {
+          didMutateDom: false,
+          didDispatchInput: false,
+        };
+      }
       elem.value = updatedText;
       elem.selectionStart = cursorAfter;
       elem.selectionEnd = cursorAfter;
       this.dispatchInputEvent(elem);
-      return { didDispatchInput: true };
+      return {
+        didMutateDom: true,
+        didDispatchInput: true,
+      };
     }
 
     return this.contentEditableAdapter.replaceTextByOffsets(

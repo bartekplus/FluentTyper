@@ -91,6 +91,37 @@ class HostHandledContentEditableAdapter extends ContentEditableAdapter {
   }
 }
 
+class HostCanceledNoMutationContentEditableAdapter extends ContentEditableAdapter {
+  public override getBlockContext(
+    elem: HTMLElement,
+  ): { beforeCursor: string; afterCursor: string } | null {
+    const fullText = elem.textContent ?? "";
+    return {
+      beforeCursor: fullText,
+      afterCursor: "",
+    };
+  }
+
+  public override replaceTextByOffsets(
+    elem: HTMLElement,
+    replaceStart: number,
+    replaceEnd: number,
+    replacementText: string,
+    cursorAfter: number,
+  ) {
+    void elem;
+    void replaceStart;
+    void replaceEnd;
+    void replacementText;
+    void cursorAfter;
+    return {
+      appliedBy: "host-beforeinput" as const,
+      didMutateDom: false,
+      didDispatchInput: false,
+    };
+  }
+}
+
 class EmptyBlockContextContentEditableAdapter extends ContentEditableAdapter {
   public override getBlockContext(
     elem: HTMLElement,
@@ -171,6 +202,36 @@ describe("SuggestionTextEditService", () => {
     expect(inputEventCount).toBe(1);
   });
 
+  test("treats no-op input textEdit as not applied and does not dispatch input", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+    });
+
+    const input = document.createElement("input");
+    input.value = "the ";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    const entry = createSuggestionEntry({ elem: input });
+
+    let inputEventCount = 0;
+    input.addEventListener("input", () => {
+      inputEventCount += 1;
+    });
+
+    const result = service.applyTextEdit(entry, {
+      replacementText: "the ",
+      replaceBackwardCount: 4,
+      evaluatedTextLength: 4,
+      expectedReplacedText: "the ",
+    });
+
+    expect(result).toEqual({ applied: false, didDispatchInput: false });
+    expect(entry.lastAutoFixReplacement).toBeNull();
+    expect(input.value).toBe("the ");
+    expect(inputEventCount).toBe(0);
+  });
+
   test("does not dispatch duplicate input event when contenteditable edit is host-owned", () => {
     const service = new SuggestionTextEditService({
       findMentionToken,
@@ -197,6 +258,31 @@ describe("SuggestionTextEditService", () => {
     });
 
     expect(inputEventCount).toBe(0);
+  });
+
+  test("treats host-canceled no-mutation contenteditable textEdit as no-op", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+      contentEditableAdapter: new HostCanceledNoMutationContentEditableAdapter(),
+    });
+
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.textContent = "teh ";
+    document.body.appendChild(editable);
+    const entry = createSuggestionEntry({ elem: editable });
+
+    const result = service.applyTextEdit(entry, {
+      replacementText: "the ",
+      replaceBackwardCount: 4,
+      evaluatedTextLength: 4,
+      expectedReplacedText: "teh ",
+    });
+
+    expect(result).toEqual({ applied: false, didDispatchInput: false });
+    expect(entry.lastAutoFixReplacement).toBeNull();
+    expect(editable.textContent).toBe("teh ");
   });
 
   test("applies contenteditable textEdit against active block offsets in multi-line content", () => {

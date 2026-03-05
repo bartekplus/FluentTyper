@@ -542,6 +542,49 @@ describe("SuggestionManager", () => {
     expect(refreshedRequest?.text).toBe("W");
   });
 
+  test("does not force refresh when host-canceled contenteditable textEdit makes no mutation", async () => {
+    const { manager, getPrediction } = await createManager();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.textContent = "w";
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    editable.addEventListener("beforeinput", (event) => {
+      const inputEvent = event as InputEvent;
+      if (inputEvent.inputType === "insertReplacementText") {
+        event.preventDefault();
+      }
+    });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    setContentEditableCursor(editable, 1);
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+    await wait(220);
+
+    const initialRequest = getPrediction.mock.calls.at(-1)?.[0];
+    if (!initialRequest) {
+      throw new Error("Expected initial prediction request");
+    }
+
+    manager.fulfillPrediction(
+      buildResponse(initialRequest, {
+        predictions: ["world\xA0"],
+        textEdit: {
+          replacementText: "W",
+          replaceBackwardCount: 1,
+          evaluatedTextLength: 1,
+          expectedReplacedText: "w",
+          expectedPrefixToken: "",
+        },
+      }),
+    );
+
+    expect(editable.textContent).toBe("w");
+    expect(getPrediction.mock.calls.length).toBe(1);
+    expect(document.querySelectorAll(".ft-suggestion-container li").length).toBeGreaterThan(0);
+  });
+
   test("inserts a regular space before first typed char after acceptance and cancels on cursor move", async () => {
     const { manager, getPrediction } = await createManager();
     const input = document.createElement("input");
