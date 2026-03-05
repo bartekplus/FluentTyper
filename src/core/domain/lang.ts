@@ -46,13 +46,17 @@ export const SUPPORTED_LANGUAGES_SHORT_CODE: Record<string, string> = {
   pt: "pt_BR",
 };
 
-export const DEFAULT_SEPARATOR_CHARS_REGEX: RegExp = RegExp(
-  /\s+|!|"|#|\$|%|&|\(|\)|\*|\+|,|-|\.|\/|:|;|<|=|>|\?|@|\[|\\|\]|\^|_|`|{|\||}|~/,
-);
+const BASE_SEPARATOR_CHARS_REGEX_SOURCE =
+  '\\s+|!|"|#|\\$|%|&|\\(|\\)|\\*|\\+|,|-|\\.|\\/|:|;|<|=|>|\\?|@|\\[|\\\\|\\]|\\^|_|`|{|\\||}|~';
+const TYPOGRAPHIC_SEPARATOR_CHARS_REGEX_SOURCE =
+  "\\u201C|\\u201D|\\u2018|\\u2014|\\u2013|\\u2026|\\u201E|\\u00AB|\\u00BB|\\u2039|\\u203A";
+const DEFAULT_SEPARATOR_CHARS_REGEX_SOURCE = `${BASE_SEPARATOR_CHARS_REGEX_SOURCE}|${TYPOGRAPHIC_SEPARATOR_CHARS_REGEX_SOURCE}`;
+
+export const DEFAULT_SEPARATOR_CHARS_REGEX: RegExp = RegExp(DEFAULT_SEPARATOR_CHARS_REGEX_SOURCE);
 export const LANG_SEPARATOR_CHARS_REGEX: Record<string, RegExp> = {
   auto_detect: DEFAULT_SEPARATOR_CHARS_REGEX,
   en_US: DEFAULT_SEPARATOR_CHARS_REGEX,
-  fr_FR: RegExp(/\s+|!|"|#|\$|%|&|\(|\)|\*|\+|,|-|\.|\/|:|;|<|=|>|\?|@|\[|\\|\]|\^|_|`|{|\||}|~|'/),
+  fr_FR: RegExp(`${DEFAULT_SEPARATOR_CHARS_REGEX_SOURCE}|'`),
   hr_HR: DEFAULT_SEPARATOR_CHARS_REGEX,
   es_ES: DEFAULT_SEPARATOR_CHARS_REGEX,
   el_GR: DEFAULT_SEPARATOR_CHARS_REGEX,
