@@ -976,6 +976,7 @@ class RuleToggleCards extends Bundle {
       return {
         value: option[0]?.toString?.() || "",
         text: option[1] !== undefined ? option[1].toString() : option[0]?.toString?.() || "",
+        recommended: false,
         safetyTier: "safe",
         languageScope: "all",
       };
@@ -1000,6 +1001,7 @@ class RuleToggleCards extends Bundle {
     return {
       value,
       text: value,
+      recommended: false,
       safetyTier: "safe",
       languageScope: "all",
     };
@@ -1052,6 +1054,8 @@ class RuleToggleCards extends Bundle {
         return control.rule.safetyTier === "safe";
       case "advanced":
         return control.rule.safetyTier === "advanced";
+      case "recommended":
+        return control.rule.recommended === true;
       case "english":
         return control.rule.languageScope === "en_US";
       case "enabled":
@@ -1130,6 +1134,10 @@ class RuleToggleCards extends Bundle {
       {
         key: "advanced",
         label: (this.params.filterAdvancedLabel || "Advanced").toString(),
+      },
+      {
+        key: "recommended",
+        label: (this.params.filterRecommendedLabel || "Recommended").toString(),
       },
       {
         key: "english",

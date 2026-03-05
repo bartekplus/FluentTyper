@@ -267,6 +267,7 @@ const manifest = {
       filterAllLabel: i18n.get("grammar_rules_filter_all"),
       filterSafeLabel: i18n.get("grammar_rules_filter_safe"),
       filterAdvancedLabel: i18n.get("grammar_rules_filter_advanced"),
+      filterRecommendedLabel: i18n.get("grammar_rules_filter_recommended"),
       filterEnglishOnlyLabel: i18n.get("grammar_rules_filter_english_only"),
       filterEnabledOnlyLabel: i18n.get("grammar_rules_filter_enabled_only"),
       actions: [

@@ -785,6 +785,17 @@ i18n = Object.assign(i18n, {
     "pl": "Zaawansowane",
     "pr": "Avançadas",
   },
+  "grammar_rules_filter_recommended": {
+    "en": "Recommended",
+    "fr": "Recommandées",
+    "hr": "Preporučene",
+    "es": "Recomendadas",
+    "el": "Προτεινόμενα",
+    "sv": "Rekommenderade",
+    "de": "Empfohlen",
+    "pl": "Zalecane",
+    "pr": "Recomendadas",
+  },
   "grammar_rules_filter_english_only": {
     "en": "English only",
     "fr": "Anglais uniquement",

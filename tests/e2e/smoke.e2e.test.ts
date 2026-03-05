@@ -617,12 +617,18 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
           const filterSafeButton = grammarRoot.querySelector(
             '.grammar-rule-filter-button[data-filter="safe"]',
           ) as HTMLButtonElement | null;
+          const filterRecommendedButton = grammarRoot.querySelector(
+            '.grammar-rule-filter-button[data-filter="recommended"]',
+          ) as HTMLButtonElement | null;
 
           if (!searchInput) {
             return { ok: false, error: "Search input is missing" };
           }
           if (!filterSafeButton) {
             return { ok: false, error: "Safe filter button is missing" };
+          }
+          if (!filterRecommendedButton) {
+            return { ok: false, error: "Recommended filter button is missing" };
           }
 
           const initialVisibleCount = countVisibleCards();
@@ -647,6 +653,16 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
           searchInput.dispatchEvent(new Event("input", { bubbles: true }));
           filterSafeButton.click();
           const safeVisibleCount = countVisibleCards();
+          filterRecommendedButton.click();
+          const recommendedVisibleCards = Array.from(
+            grammarRoot.querySelectorAll(".grammar-rule-card"),
+          )
+            .filter((card) => !card.classList.contains("is-hidden"))
+            .map(
+              (card) => card.querySelector(".grammar-rule-card-toggle") as HTMLInputElement | null,
+            )
+            .filter((toggle): toggle is HTMLInputElement => Boolean(toggle))
+            .map((toggle) => toggle.value);
 
           return {
             ok: true,
@@ -654,6 +670,8 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
             initialVisibleCount,
             searchVisibleCount: searchVisibleCards.length,
             safeVisibleCount,
+            recommendedVisibleCount: recommendedVisibleCards.length,
+            recommendedIncludesSelected: recommendedVisibleCards.includes(selectedId),
             selectedId,
           };
         });
@@ -668,6 +686,8 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
         expect(probe.searchVisibleCount).toBeLessThan(probe.initialVisibleCount);
         expect(probe.safeVisibleCount).toBeGreaterThan(0);
         expect(probe.safeVisibleCount).toBeLessThan(probe.initialVisibleCount);
+        expect(probe.recommendedVisibleCount).toBeGreaterThan(0);
+        expect(probe.recommendedIncludesSelected).toBe(false);
         expect(probe.selectedId.length).toBeGreaterThan(0);
         selectedRuleId = probe.selectedId;
       } finally {

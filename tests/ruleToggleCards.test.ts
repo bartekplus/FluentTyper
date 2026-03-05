@@ -21,6 +21,7 @@ function buildRuleToggleCardsHost() {
     filterAllLabel: "All",
     filterSafeLabel: "Safe",
     filterAdvancedLabel: "Advanced",
+    filterRecommendedLabel: "Recommended",
     filterEnglishOnlyLabel: "English only",
     filterEnabledOnlyLabel: "Enabled only",
     actions: [
@@ -39,6 +40,7 @@ function buildRuleToggleCardsHost() {
         text: "Safe punctuation spacing",
         description: "Fixes punctuation spacing in common prose.",
         example: 'Example: "Hello ,world" -> "Hello, world"',
+        recommended: true,
         safetyTier: "safe",
         languageScope: "all",
       },
@@ -47,6 +49,7 @@ function buildRuleToggleCardsHost() {
         text: "Ellipsis shortcut",
         description: "Converts three dots into an ellipsis.",
         example: 'Example: "..." -> "…"',
+        recommended: false,
         safetyTier: "advanced",
         languageScope: "all",
       },
@@ -55,6 +58,7 @@ function buildRuleToggleCardsHost() {
         text: "English pronoun I",
         description: 'Capitalizes standalone English "i".',
         example: 'Example: "i am" -> "I am"',
+        recommended: false,
         safetyTier: "safe",
         languageScope: "en_US",
       },
@@ -116,6 +120,9 @@ describe("ruleToggleCards setting", () => {
 
     clickFilter(host, "english");
     expect(visibleRuleValues(host)).toEqual(["englishPronounI"]);
+
+    clickFilter(host, "recommended");
+    expect(visibleRuleValues(host)).toEqual(["safePunctuation"]);
 
     clickFilter(host, "all");
     const searchInput = host.querySelector(".grammar-rule-search-input");
