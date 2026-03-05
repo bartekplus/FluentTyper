@@ -1164,6 +1164,37 @@ describe("SuggestionManager", () => {
     expect(request.inputAction).toBe("insert");
   });
 
+  test("does not request prediction when contenteditable insert is swallowed without text mutation", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+      enabledGrammarRules: [],
+    });
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.textContent = "hello";
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    setContentEditableCursor(editable, editable.textContent.length);
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+
+    const originalDateNow = Date.now;
+    let fakeNow = originalDateNow();
+    Date.now = () => fakeNow;
+
+    try {
+      dispatchKeydown(editable, "x");
+      fakeNow += 2000;
+      await wait(220);
+
+      expect(getPrediction.mock.calls.length).toBe(0);
+      expect(editable.textContent).toBe("hello");
+    } finally {
+      Date.now = originalDateNow;
+    }
+  });
+
   test("does not request prediction on Enter in input when input event is missing", async () => {
     const { manager, getPrediction } = await createManager({
       minWordLengthToPredict: 1,

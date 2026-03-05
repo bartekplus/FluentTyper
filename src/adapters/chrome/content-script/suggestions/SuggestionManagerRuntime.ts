@@ -781,15 +781,6 @@ export class SuggestionManagerRuntime {
     }
 
     const snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
-    const currentBeforeCursor = this.resolveBeforeCursorForPrediction(
-      entry,
-      snapshot.beforeCursor,
-      {
-        inputAction: pending.inputAction,
-        typedKey: pending.typedKey,
-      },
-    );
-    const hasSeededInsertCandidate = currentBeforeCursor.length > 0;
     const currentFullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
     const textChanged =
       pending.expectedFullText !== null && currentFullText !== pending.expectedFullText;
@@ -799,9 +790,8 @@ export class SuggestionManagerRuntime {
 
     const remainingMs = pending.waitForTextChangeUntilMs - Date.now();
     if (remainingMs <= 0) {
-      if (hasSeededInsertCandidate) {
-        return false;
-      }
+      // No observable text mutation happened during the wait window.
+      // Drop fallback to avoid churn from synthetic seeded before-cursor values.
       this.clearPendingKeyFallback(id);
       return true;
     }
