@@ -4,8 +4,8 @@ import {
   KEY_GRAMMAR_RULES_V3_MIGRATED,
 } from "@core/domain/constants";
 import {
+  DEFAULT_V3_GRAMMAR_RULES,
   PRE_V3_RECOMMENDED_GRAMMAR_RULES,
-  RECOMMENDED_V3_GRAMMAR_RULES,
   normalizeGrammarRuleSelection,
 } from "@core/domain/grammar/ruleCatalog";
 import type { JsonValue } from "../settingsManager";
@@ -69,11 +69,7 @@ export async function migrateSettingsV6(settings: SettingsManager): Promise<void
 
     const normalizedExisting = normalizeGrammarRuleSelection(rawSnapshot);
     if (arraysEqual(normalizedExisting, PRE_V3_RECOMMENDED_GRAMMAR_RULES)) {
-      await writeRaw(
-        settings,
-        KEY_ENABLED_GRAMMAR_RULES,
-        RECOMMENDED_V3_GRAMMAR_RULES as JsonValue,
-      );
+      await writeRaw(settings, KEY_ENABLED_GRAMMAR_RULES, DEFAULT_V3_GRAMMAR_RULES as JsonValue);
     }
 
     await writeRaw(settings, KEY_GRAMMAR_RULES_V3_MIGRATED, true as JsonValue);

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  DEFAULT_V3_GRAMMAR_RULES,
   DEFAULT_V1_GRAMMAR_RULES,
   DEFAULT_V2_GRAMMAR_RULES,
   GRAMMAR_RULE_CATALOG,
@@ -62,8 +63,27 @@ describe("ruleCatalog", () => {
     );
     expect(DEFAULT_V1_GRAMMAR_RULES.every((id) => isCatalogRuleId(id))).toBe(true);
     expect(DEFAULT_V2_GRAMMAR_RULES.every((id) => isCatalogRuleId(id))).toBe(true);
+    expect(DEFAULT_V3_GRAMMAR_RULES.every((id) => isCatalogRuleId(id))).toBe(true);
     expect(RECOMMENDED_V1_GRAMMAR_RULES.every((id) => isCatalogRuleId(id))).toBe(true);
     expect(RECOMMENDED_V2_GRAMMAR_RULES.every((id) => isCatalogRuleId(id))).toBe(true);
+  });
+
+  test("v3 defaults keep Safe-ON + Advanced-OFF contract", () => {
+    const defaultRolloutOnIds = GRAMMAR_RULE_CATALOG.filter(
+      (entry) => entry.defaultRollout === "on",
+    ).map((entry) => entry.id);
+    const advancedRuleIds = GRAMMAR_RULE_CATALOG.filter(
+      (entry) => entry.safetyTier === "advanced",
+    ).map((entry) => entry.id);
+
+    expect(DEFAULT_V3_GRAMMAR_RULES).toEqual(defaultRolloutOnIds);
+    expect(
+      GRAMMAR_RULE_CATALOG.filter((entry) => DEFAULT_V3_GRAMMAR_RULES.includes(entry.id)).every(
+        (entry) => entry.safetyTier === "safe",
+      ),
+    ).toBe(true);
+    expect(advancedRuleIds.length).toBeGreaterThan(0);
+    expect(advancedRuleIds.some((id) => DEFAULT_V3_GRAMMAR_RULES.includes(id))).toBe(false);
   });
 
   test("validates catalog ids", () => {
