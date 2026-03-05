@@ -1239,6 +1239,9 @@ class RuleToggleCards extends Bundle {
         class: "button is-small is-light",
         innerText: action.text.toString(),
       });
+      if (typeof action.actionKey === "string" && action.actionKey.trim().length > 0) {
+        button.set("data-action", action.actionKey.trim());
+      }
       button.inject(this.actions);
       this.actionButtons.push({
         values: action.values.map((value) => value.toString()),

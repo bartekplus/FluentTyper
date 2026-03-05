@@ -25,14 +25,17 @@ function buildRuleToggleCardsHost() {
     filterEnabledOnlyLabel: "Enabled only",
     actions: [
       {
+        actionKey: "recommended",
         text: "Recommended",
         values: ["safePunctuation", "englishPronounI"],
       },
       {
+        actionKey: "enable_all",
         text: "Enable all",
         values: ["safePunctuation", "advancedEllipsis", "englishPronounI"],
       },
       {
+        actionKey: "disable_all",
         text: "Disable all",
         values: [],
       },
@@ -189,7 +192,9 @@ describe("ruleToggleCards setting", () => {
   test("bulk actions and enabled-only filter stay in sync with selected rule values", () => {
     const { host, bundle } = buildRuleToggleCardsHost();
 
-    const recommendedButton = host.querySelector(".grammar-rule-selector-actions .button");
+    const recommendedButton = host.querySelector(
+      '.grammar-rule-selector-actions .button[data-action="recommended"]',
+    );
     expect(recommendedButton).toBeInstanceOf(HTMLElement);
     (recommendedButton as HTMLElement).dispatchEvent(new Event("click", { bubbles: true }));
 

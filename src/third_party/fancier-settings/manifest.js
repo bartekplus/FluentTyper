@@ -282,14 +282,17 @@ const manifest = {
       filterEnabledOnlyLabel: i18n.get("grammar_rules_filter_enabled_only"),
       actions: [
         {
+          actionKey: "recommended",
           text: i18n.get("grammar_rules_recommended"),
           values: RECOMMENDED_V3_GRAMMAR_RULES,
         },
         {
+          actionKey: "enable_all",
           text: i18n.get("grammar_rules_enable_all"),
           values: GRAMMAR_RULE_IDS,
         },
         {
+          actionKey: "disable_all",
           text: i18n.get("grammar_rules_disable_all"),
           values: [],
         },

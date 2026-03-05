@@ -622,7 +622,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
             '.grammar-rule-filter-button[data-filter="recommended"]',
           ) as HTMLButtonElement | null;
           const recommendedActionButton = grammarRoot.querySelector(
-            ".grammar-rule-selector-actions .button",
+            '.grammar-rule-selector-actions .button[data-action="recommended"]',
           ) as HTMLButtonElement | null;
 
           if (!searchInput) {
