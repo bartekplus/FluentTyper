@@ -148,8 +148,7 @@ export class PredictionOrchestrator {
       modelId: this.aiModelId,
     };
 
-    const canRunPredictionBase =
-      !context.textEdit && context.doPrediction && context.effectiveNumSuggestions > 0;
+    const canRunPredictionBase = context.doPrediction && context.effectiveNumSuggestions > 0;
 
     const canRunPresage =
       canRunPredictionBase &&
@@ -352,9 +351,6 @@ export class PredictionOrchestrator {
     if (!this.presageHandler.hasLanguageEngine(context.lang)) {
       return "language_engine_missing";
     }
-    if (context.textEdit) {
-      return "blocked_by_grammar_rule";
-    }
     if (!context.doPrediction) {
       return "input_not_predictable";
     }
@@ -373,9 +369,6 @@ export class PredictionOrchestrator {
     }
     if (!this.aiPredictor) {
       return "predictor_unavailable";
-    }
-    if (context.textEdit) {
-      return "blocked_by_grammar_rule";
     }
     if (!context.doPrediction) {
       return "input_not_predictable";

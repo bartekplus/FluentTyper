@@ -1791,6 +1791,98 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "Quill lowercase first-letter prediction works after newline without line jump",
+    async () => {
+      try {
+        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+        await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+        await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+        await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, ["capitalizeFirstLetter"]);
+        await applyConfigChange(browser, worker!);
+
+        await gotoTestPage(page, { enableQuill: true });
+        await page.bringToFront();
+        await waitForInputReady(page, QUILL_SELECTOR);
+
+        await page.evaluate(() => {
+          const quill = (
+            window as typeof window & {
+              __testQuill?: {
+                setText: (text: string, source?: string) => void;
+                setSelection: (index: number, length: number, source?: string) => void;
+              };
+            }
+          ).__testQuill;
+          if (!quill) {
+            throw new Error("Quill test instance not found");
+          }
+          quill.setText("Quill Rich Text Editor\n", "silent");
+          quill.setSelection("Quill Rich Text Editor".length, 0, "silent");
+        });
+
+        await page.focus(QUILL_SELECTOR);
+        await page.keyboard.press("Enter");
+        await page.keyboard.type("w");
+
+        const liCount = await waitForVisibleSuggestions(page, browserTimeout(5000, 9000));
+        expect(liCount).toBeGreaterThan(0);
+        await page.keyboard.press("Tab");
+
+        const acceptedState = await waitUntil(
+          "quill lowercase acceptance keeps insertion on active line",
+          async () => {
+            const state = await page.evaluate(() => {
+              const quill = (
+                window as typeof window & {
+                  __testQuill?: {
+                    getText: () => string;
+                    getSelection: () => { index: number; length: number } | null;
+                  };
+                }
+              ).__testQuill;
+              if (!quill) {
+                return false;
+              }
+              const normalizedText = quill.getText().replace(/\u00a0/g, " ");
+              const lines = normalizedText.split("\n");
+              const firstLine = (lines[0] ?? "").trim();
+              const secondLine = (lines[1] ?? "").trimEnd();
+              const selection = quill.getSelection();
+              if (firstLine !== "Quill Rich Text Editor") {
+                return false;
+              }
+              if (!/^w\S*$/i.test(secondLine)) {
+                return false;
+              }
+              if (!selection || selection.index <= firstLine.length) {
+                return false;
+              }
+              return {
+                firstLine,
+                secondLine,
+                selectionIndex: selection.index,
+                normalizedText,
+              };
+            });
+            return state || false;
+          },
+          { timeoutMs: browserTimeout(5000, 9000), intervalMs: 50 },
+        );
+
+        expect(acceptedState.firstLine).toBe("Quill Rich Text Editor");
+        expect(acceptedState.secondLine).toMatch(/^w\S*$/i);
+        expect(acceptedState.selectionIndex).toBeGreaterThan(
+          acceptedState.firstLine.length + acceptedState.secondLine.length,
+        );
+      } finally {
+        await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+        await applyConfigChange(browser, worker!);
+      }
+    },
+    browserTimeout(40000, 60000),
+  );
+
+  test(
     "Quill grammar/text-edit replacement applies once without model corruption",
     async () => {
       try {

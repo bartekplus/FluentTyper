@@ -222,8 +222,8 @@ describe("PredictionOrchestrator coverage", () => {
       },
     });
 
-    expect(spacingEvent?.presage?.skipReason).toBe("blocked_by_grammar_rule");
-    expect(spacingEvent?.webllm?.skipReason).toBe("blocked_by_grammar_rule");
+    expect(spacingEvent?.presage?.skipReason).toBe("input_not_predictable");
+    expect(spacingEvent?.webllm?.skipReason).toBe("input_not_predictable");
 
     orchestrator.setConfig(
       createConfig({
@@ -243,6 +243,26 @@ describe("PredictionOrchestrator coverage", () => {
 
     expect(inputEvent?.presage?.skipReason).toBe("input_not_predictable");
     expect(inputEvent?.webllm?.skipReason).toBe("input_not_predictable");
+  });
+
+  test("does not block predictors when grammar textEdit is emitted", async () => {
+    const module = createFakeModule({ current: ["world", "word"] });
+    const presageHandler = new PresageHandler(module);
+    const orchestrator = new PredictionOrchestrator(presageHandler);
+
+    orchestrator.setConfig(
+      createConfig({
+        aiPredictorEnabled: false,
+        minWordLengthToPredict: 1,
+        autoCapitalize: true,
+        enabledGrammarRules: ["capitalizeFirstLetter"],
+      }),
+    );
+
+    const result = await orchestrator.runPrediction("w", "", "en_US");
+
+    expect(result.textEdit).not.toBeNull();
+    expect(result.predictions.length).toBeGreaterThan(0);
   });
 
   test("reports AI disabled-by-debug-toggle skip reason", async () => {
