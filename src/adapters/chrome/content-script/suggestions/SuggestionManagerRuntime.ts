@@ -456,7 +456,7 @@ export class SuggestionManagerRuntime {
       return;
     }
     const snapshot: SuggestionSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
-    const predictionBeforeCursor = this.resolveBeforeCursorForPrediction(
+    const provisionalBeforeCursor = this.resolveBeforeCursorForPrediction(
       entry,
       snapshot.beforeCursor,
     );
@@ -466,7 +466,15 @@ export class SuggestionManagerRuntime {
     ) {
       entry.lastAutoFixReplacement = null;
     }
-    const inputAction = this.resolveInputAction(entry, event, predictionBeforeCursor);
+    const inputAction = this.resolveInputAction(entry, event, provisionalBeforeCursor);
+    const predictionBeforeCursor = this.resolveBeforeCursorForPrediction(
+      entry,
+      snapshot.beforeCursor,
+      {
+        inputAction,
+        typedKey: entry.lastKeydownKey,
+      },
+    );
     entry.lastInputAction = inputAction;
     entry.lastKeydownKey = null;
     entry.lastBeforeCursorText = predictionBeforeCursor;
@@ -491,12 +499,37 @@ export class SuggestionManagerRuntime {
   private resolveBeforeCursorForPrediction(
     entry: SuggestionEntry,
     snapshotBeforeCursor: string,
+    {
+      inputAction,
+      typedKey,
+    }: {
+      inputAction?: PredictionInputAction;
+      typedKey?: string | null;
+    } = {},
   ): string {
     if (this.isTextValueElement(entry.elem)) {
       return snapshotBeforeCursor;
     }
     const blockContext = this.contentEditableAdapter.getBlockContext(entry.elem);
-    return blockContext?.beforeCursor ?? snapshotBeforeCursor;
+    const blockBeforeCursor = blockContext?.beforeCursor;
+    if (typeof blockBeforeCursor !== "string") {
+      return snapshotBeforeCursor;
+    }
+
+    // Some rich editors update text before caret state; for the first inserted
+    // character we may temporarily see an empty block context. Seed with the
+    // typed key so min-length prediction stays responsive without using full-root text.
+    if (
+      inputAction !== "delete" &&
+      blockBeforeCursor.length === 0 &&
+      typeof typedKey === "string" &&
+      typedKey.length === 1 &&
+      typedKey.trim().length > 0
+    ) {
+      return typedKey;
+    }
+
+    return blockBeforeCursor;
   }
 
   private shouldPreserveAutoFixSnapshot(

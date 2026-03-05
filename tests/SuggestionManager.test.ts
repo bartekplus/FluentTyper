@@ -707,6 +707,55 @@ describe("SuggestionManager", () => {
     expect(request.text).toBe("");
   });
 
+  test("predicts on first character for contenteditable when caret lags after insert", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+    });
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML = "<p><br></p><p></p>";
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    const secondParagraph = editable.querySelectorAll("p")[1];
+    if (!secondParagraph) {
+      throw new Error("Expected second paragraph");
+    }
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Expected selection");
+    }
+
+    // Simulate editor timing where text is updated but caret offset still points
+    // to paragraph start during the immediate input event.
+    const preInsertRange = document.createRange();
+    preInsertRange.setStart(secondParagraph, 0);
+    preInsertRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(preInsertRange);
+
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+    dispatchKeydown(editable, "h");
+
+    secondParagraph.textContent = "h";
+    const staleCaretRange = document.createRange();
+    staleCaretRange.setStart(secondParagraph, 0);
+    staleCaretRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(staleCaretRange);
+
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+    await wait(220);
+
+    const request = getPrediction.mock.calls.at(-1)?.[0];
+    if (!request) {
+      throw new Error("Expected prediction request");
+    }
+    expect(request.text).toBe("h");
+  });
+
   test("preserves surrounding rich formatting during contenteditable replacement", async () => {
     const { manager, getPrediction } = await createManager();
     const editable = document.createElement("div");
