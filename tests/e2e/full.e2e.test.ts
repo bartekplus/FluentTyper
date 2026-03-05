@@ -1914,6 +1914,11 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
         const liCount = await waitForVisibleSuggestions(page, browserTimeout(5000, 9000));
         expect(liCount).toBeGreaterThan(0);
+        const [firstSuggestion] = await waitForVisibleSuggestionTexts(
+          page,
+          browserTimeout(5000, 9000),
+        );
+        expect(firstSuggestion).toMatch(/^W/);
         await page.keyboard.press("Tab");
 
         const acceptedState = await waitUntil(
@@ -1939,7 +1944,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
               if (firstLine !== "Quill Rich Text Editor") {
                 return false;
               }
-              if (!/^w\S*$/i.test(secondLine)) {
+              if (!/^W\S*$/.test(secondLine)) {
                 return false;
               }
               if (!selection || selection.index <= firstLine.length) {
@@ -1958,7 +1963,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         );
 
         expect(acceptedState.firstLine).toBe("Quill Rich Text Editor");
-        expect(acceptedState.secondLine).toMatch(/^w\S*$/i);
+        expect(acceptedState.secondLine).toMatch(/^W\S*$/);
         expect(acceptedState.selectionIndex).toBeGreaterThan(
           acceptedState.firstLine.length + acceptedState.secondLine.length,
         );
