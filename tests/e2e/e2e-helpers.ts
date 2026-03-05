@@ -73,6 +73,7 @@ const EXTENSION_NAVIGATION_TIMEOUT_MS = isFirefox() ? 300 : 5000;
 const FIREFOX_DEBUGGING_NAVIGATION_TIMEOUT_MS = 300;
 const FIREFOX_DEBUGGING_SELECTOR_TIMEOUT_MS = 20000;
 const FIREFOX_NAVIGATION_RECOVERY_TIMEOUT_MS = 3000;
+const EXTENSION_NAVIGATION_RECOVERY_TIMEOUT_MS = 3000;
 
 export function isChrome(): boolean {
   return BROWSER_TYPE === "chrome";
@@ -109,6 +110,14 @@ async function launchChrome(): Promise<Browser> {
 }
 
 let firefoxExtensionHost = "";
+let chromeExtensionHost = "";
+
+function cacheChromeExtensionHost(candidate: string | null | undefined): void {
+  if (!candidate) {
+    return;
+  }
+  chromeExtensionHost = candidate;
+}
 
 function isNavigationTimeout(error: unknown): boolean {
   return String(error).includes("Navigation timeout");
@@ -140,7 +149,9 @@ function getChromeExtensionIdFromTargets(browser: Browser): string | null {
     return null;
   }
   try {
-    return new URL(extensionTarget.url()).host || null;
+    const host = new URL(extensionTarget.url()).host || null;
+    cacheChromeExtensionHost(host);
+    return host;
   } catch {
     return null;
   }
@@ -184,7 +195,11 @@ function getExtensionIdFromContextUrl(context: BackgroundContext): string | null
     return null;
   }
   try {
-    return new URL(url).host || null;
+    const host = new URL(url).host || null;
+    if (url.startsWith("chrome-extension://")) {
+      cacheChromeExtensionHost(host);
+    }
+    return host;
   } catch {
     return null;
   }
@@ -275,6 +290,7 @@ export async function getBackgroundContext(browser: Browser): Promise<Background
       if (!worker) {
         throw new Error("Chrome background worker is unavailable");
       }
+      cacheChromeExtensionHost(new URL(serviceWorkerTarget.url()).host || null);
       await worker.evaluate(() => {
         const storage = (
           globalThis as typeof globalThis & {
@@ -290,7 +306,7 @@ export async function getBackgroundContext(browser: Browser): Promise<Background
       if (!isRetriableBackgroundContextError(error)) {
         throw error;
       }
-      const extensionId = getChromeExtensionIdFromTargets(browser);
+      const extensionId = getChromeExtensionIdFromTargets(browser) || chromeExtensionHost || null;
       if (extensionId) {
         await wakeChromeBackgroundWorker(browser, extensionId);
       }
@@ -389,22 +405,17 @@ export async function openExtensionPage(
     if (!isNavigationTimeout(error)) {
       throw error;
     }
-    if (!isFirefox()) {
-      throw error;
-    }
     await page.waitForFunction(
       (expectedPath) => window.location.href.includes(expectedPath),
-      { timeout: FIREFOX_NAVIGATION_RECOVERY_TIMEOUT_MS },
+      { timeout: EXTENSION_NAVIGATION_RECOVERY_TIMEOUT_MS },
       pagePath,
     );
   }
-  if (isFirefox()) {
-    await page
-      .waitForFunction(() => document.readyState !== "loading", {
-        timeout: FIREFOX_NAVIGATION_RECOVERY_TIMEOUT_MS,
-      })
-      .catch(() => undefined);
-  }
+  await page
+    .waitForFunction(() => document.readyState !== "loading", {
+      timeout: EXTENSION_NAVIGATION_RECOVERY_TIMEOUT_MS,
+    })
+    .catch(() => undefined);
   return page;
 }
 
