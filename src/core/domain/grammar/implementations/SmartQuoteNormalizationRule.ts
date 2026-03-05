@@ -30,6 +30,9 @@ export class SmartQuoteNormalizationRule implements GrammarRule {
     if (shouldSkipGenericReplacement(beforeQuote)) {
       return null;
     }
+    if (this.hasAmbiguousOrMismatchedQuoteState(beforeQuote, typed)) {
+      return null;
+    }
 
     const replacement =
       typed === '"'
@@ -54,5 +57,91 @@ export class SmartQuoteNormalizationRule implements GrammarRule {
       safetyTier: "advanced",
       description: "Normalized straight quote",
     };
+  }
+
+  private hasAmbiguousOrMismatchedQuoteState(inputBeforeQuote: string, typed: '"' | "'"): boolean {
+    if (typed === '"') {
+      return this.hasMismatchedDoubleQuoteState(inputBeforeQuote);
+    }
+    return this.hasMismatchedSingleQuoteState(inputBeforeQuote);
+  }
+
+  private hasMismatchedDoubleQuoteState(input: string): boolean {
+    let balance = 0;
+
+    for (let i = 0; i < input.length; i += 1) {
+      const char = input.charAt(i);
+      if (char === "“") {
+        balance += 1;
+        continue;
+      }
+      if (char === "”") {
+        if (balance === 0) {
+          return true;
+        }
+        balance -= 1;
+        continue;
+      }
+      if (char !== '"') {
+        continue;
+      }
+
+      const before = input.slice(0, i);
+      if (shouldOpenQuote(before)) {
+        balance += 1;
+        continue;
+      }
+      if (balance === 0) {
+        return true;
+      }
+      balance -= 1;
+    }
+
+    return false;
+  }
+
+  private hasMismatchedSingleQuoteState(input: string): boolean {
+    let balance = 0;
+
+    for (let i = 0; i < input.length; i += 1) {
+      const char = input.charAt(i);
+      const prev = i > 0 ? input.charAt(i - 1) : "";
+      const next = i + 1 < input.length ? input.charAt(i + 1) : "";
+      const inWordApostrophe = this.isWordChar(prev) && this.isWordChar(next);
+
+      if (char === "‘") {
+        balance += 1;
+        continue;
+      }
+      if (char === "’") {
+        if (inWordApostrophe) {
+          continue;
+        }
+        if (balance === 0) {
+          return true;
+        }
+        balance -= 1;
+        continue;
+      }
+      if (char !== "'" || inWordApostrophe) {
+        continue;
+      }
+
+      const before = input.slice(0, i);
+      if (shouldOpenQuote(before)) {
+        balance += 1;
+        continue;
+      }
+      if (balance === 0) {
+        return true;
+      }
+      balance -= 1;
+    }
+
+    return false;
+  }
+
+  private isWordChar(value: string): boolean {
+    return /[\p{L}\p{N}]/u.test(value);
   }
 }

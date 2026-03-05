@@ -87,6 +87,9 @@ describe("V3 rule expansion", () => {
       description: "Normalized straight quote",
     });
 
+    expect(rule.apply(context('”"', { inputAction: "insert" }))).toBeNull();
+    expect(rule.apply(context("’'", { inputAction: "insert" }))).toBeNull();
+
     expect(rule.apply(context("it's", { inputAction: "insert" }))).toBeNull();
   });
 
