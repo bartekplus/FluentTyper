@@ -2,6 +2,7 @@ import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from 
 import {
   isDeleteInputAction,
   isLikelyApostropheContext,
+  splitTrailingSpaces,
   shouldOpenQuote,
   shouldSkipGenericReplacement,
 } from "./helpers/GenericRuleShared";
@@ -34,16 +35,30 @@ export class SmartQuoteNormalizationRule implements GrammarRule {
       return null;
     }
 
-    const replacement =
-      typed === '"'
-        ? shouldOpenQuote(beforeQuote)
-          ? "“"
-          : "”"
-        : isLikelyApostropheContext(beforeQuote)
-          ? "’"
-          : shouldOpenQuote(beforeQuote)
-            ? "‘"
-            : "’";
+    let replacement: string;
+    let deleteBackwards = 1;
+
+    if (typed === '"') {
+      const { core, trailingSpaces } = splitTrailingSpaces(beforeQuote);
+      const hasPendingOpenDoubleQuote = this.countPendingOpenDoubleQuotes(core) > 0;
+      const forceClosingQuoteWithSpaceTrim =
+        trailingSpaces.length > 0 &&
+        hasPendingOpenDoubleQuote &&
+        this.endsWithLikelyQuoteContent(core);
+
+      if (forceClosingQuoteWithSpaceTrim) {
+        replacement = "”";
+        deleteBackwards = 1 + trailingSpaces.length;
+      } else {
+        replacement = shouldOpenQuote(beforeQuote) ? "“" : "”";
+      }
+    } else {
+      replacement = isLikelyApostropheContext(beforeQuote)
+        ? "’"
+        : shouldOpenQuote(beforeQuote)
+          ? "‘"
+          : "’";
+    }
 
     if (replacement === typed) {
       return null;
@@ -51,7 +66,7 @@ export class SmartQuoteNormalizationRule implements GrammarRule {
 
     return {
       replacement,
-      deleteBackwards: 1,
+      deleteBackwards,
       deleteForwards: 0,
       confidence: "medium",
       safetyTier: "advanced",
@@ -98,6 +113,43 @@ export class SmartQuoteNormalizationRule implements GrammarRule {
     }
 
     return false;
+  }
+
+  private countPendingOpenDoubleQuotes(input: string): number {
+    let balance = 0;
+
+    for (let i = 0; i < input.length; i += 1) {
+      const char = input.charAt(i);
+      if (char === "“") {
+        balance += 1;
+        continue;
+      }
+      if (char === "”") {
+        if (balance > 0) {
+          balance -= 1;
+        }
+        continue;
+      }
+      if (char !== '"') {
+        continue;
+      }
+      const before = input.slice(0, i);
+      if (shouldOpenQuote(before)) {
+        balance += 1;
+      } else if (balance > 0) {
+        balance -= 1;
+      }
+    }
+
+    return balance;
+  }
+
+  private endsWithLikelyQuoteContent(input: string): boolean {
+    if (!input) {
+      return false;
+    }
+    const last = input.charAt(input.length - 1);
+    return /[\p{L}\p{N}\])}»›”’!?.,:;]/u.test(last);
   }
 
   private hasMismatchedSingleQuoteState(input: string): boolean {
