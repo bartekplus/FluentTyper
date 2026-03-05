@@ -112,12 +112,23 @@ const WEBLLM_DEV_MODEL_OPTIONS = [
   ["Mistral-7B-Instruct-v0.3-q4f16_1-MLC", "Mistral 7B Instruct v0.3 q4f16"],
 ];
 
+const SAFE_GRAMMAR_RULE_IDS = new Set(
+  GRAMMAR_RULE_CATALOG.filter((rule) => rule.safetyTier === "safe").map((rule) => rule.id),
+);
+const RECOMMENDED_GRAMMAR_RULE_IDS = new Set(
+  GRAMMAR_RULE_CATALOG.filter((rule) => rule.recommended).map((rule) => rule.id),
+);
+const HAS_DISTINCT_RECOMMENDED_BADGE =
+  SAFE_GRAMMAR_RULE_IDS.size !== RECOMMENDED_GRAMMAR_RULE_IDS.size ||
+  [...RECOMMENDED_GRAMMAR_RULE_IDS].some((ruleId) => !SAFE_GRAMMAR_RULE_IDS.has(ruleId));
+
 const GRAMMAR_RULE_OPTIONS = GRAMMAR_RULE_CATALOG.map((rule) => {
   const rolloutBadge =
     rule.defaultRollout === "on"
       ? i18n.get("grammar_rule_rollout_safe_badge")
       : i18n.get("grammar_rule_rollout_advanced_badge");
-  const recommendedBadge = rule.recommended ? i18n.get("grammar_rule_recommended_badge") : "";
+  const recommendedBadge =
+    HAS_DISTINCT_RECOMMENDED_BADGE && rule.recommended ? i18n.get("grammar_rule_recommended_badge") : "";
   const scopeBadge =
     rule.languageScope === "en_US" ? i18n.get("grammar_rule_scope_en_us_badge") : "";
   const badge = [rolloutBadge, recommendedBadge, scopeBadge].filter(Boolean).join(" · ");
@@ -126,6 +137,8 @@ const GRAMMAR_RULE_OPTIONS = GRAMMAR_RULE_CATALOG.map((rule) => {
     text: i18n.get(rule.titleI18nKey) || rule.name,
     description: i18n.get(rule.descriptionI18nKey),
     example: i18n.get(rule.exampleI18nKey),
+    safetyTier: rule.safetyTier,
+    languageScope: rule.languageScope,
     ...(badge
       ? {
           badge,
@@ -239,6 +252,18 @@ const manifest = {
     },
     {
       tab: i18n.get("core_settings"),
+      group: i18n.get("behavior_after_completion"),
+      name: KEY_INLINE_SUGGESTION,
+      type: "checkbox",
+      label: i18n.get("enable_inline_suggestion_label") + ":&nbsp;<small>" + i18n.get("enable_inline_suggestion_desc") + "</small>",
+      default: false,
+    },
+
+    // =========================================================================
+    // TAB: Grammar Rules
+    // =========================================================================
+    {
+      tab: i18n.get("grammar_tab"),
       group: i18n.get("grammar_rules"),
       name: KEY_ENABLED_GRAMMAR_RULES,
       type: "ruleToggleCards",
@@ -246,34 +271,34 @@ const manifest = {
       helpText: i18n.get("grammar_rules_help"),
       summaryLabel: i18n.get("grammar_rules_summary_label"),
       emptyStateText: i18n.get("grammar_rules_empty_state"),
+      noMatchesText: i18n.get("grammar_rules_no_matches"),
+      searchPlaceholder: i18n.get("grammar_rules_search_placeholder"),
+      sectionSafeLabel: i18n.get("grammar_rules_section_safe"),
+      sectionAdvancedLabel: i18n.get("grammar_rules_section_advanced"),
+      filterAllLabel: i18n.get("grammar_rules_filter_all"),
+      filterSafeLabel: i18n.get("grammar_rules_filter_safe"),
+      filterAdvancedLabel: i18n.get("grammar_rules_filter_advanced"),
+      filterEnglishOnlyLabel: i18n.get("grammar_rules_filter_english_only"),
+      filterEnabledOnlyLabel: i18n.get("grammar_rules_filter_enabled_only"),
       actions: [
         {
-          text: i18n.get("grammar_rules_safe_defaults"),
-          values: DEFAULT_V3_GRAMMAR_RULES,
-        },
-        {
-          text: i18n.get("grammar_rules_enable_recommended"),
+          actionKey: "recommended",
+          text: i18n.get("grammar_rules_recommended"),
           values: RECOMMENDED_V3_GRAMMAR_RULES,
         },
         {
+          actionKey: "enable_all",
           text: i18n.get("grammar_rules_enable_all"),
           values: GRAMMAR_RULE_IDS,
         },
         {
+          actionKey: "disable_all",
           text: i18n.get("grammar_rules_disable_all"),
           values: [],
         },
       ],
       options: GRAMMAR_RULE_OPTIONS,
       default: DEFAULT_V3_GRAMMAR_RULES,
-    },
-    {
-      tab: i18n.get("core_settings"),
-      group: i18n.get("behavior_after_completion"),
-      name: KEY_INLINE_SUGGESTION,
-      type: "checkbox",
-      label: i18n.get("enable_inline_suggestion_label") + ":&nbsp;<small>" + i18n.get("enable_inline_suggestion_desc") + "</small>",
-      default: false,
     },
 
     // =========================================================================
@@ -558,7 +583,7 @@ const manifest = {
       subtype: "color",
       required: true,
       label: i18n.get("bg_color_label") + ":&nbsp;<small>" + i18n.get("dark_bg_color_desc") + "</small>",
-      default: "#2d3748",
+      default: "#0f172a",
     },
     {
       tab: i18n.get("theming_tab"),
@@ -578,7 +603,7 @@ const manifest = {
       subtype: "color",
       required: true,
       label: i18n.get("highlight_bg_label") + ":&nbsp;<small>" + i18n.get("dark_highlight_bg_desc") + "</small>",
-      default: "#4a5568",
+      default: "#1e293b",
     },
     {
       tab: i18n.get("theming_tab"),
@@ -588,7 +613,7 @@ const manifest = {
       subtype: "color",
       required: true,
       label: i18n.get("highlight_text_label") + ":&nbsp;<small>" + i18n.get("dark_highlight_text_desc") + "</small>",
-      default: "#ffffff",
+      default: "#f8fafc",
     },
     {
       tab: i18n.get("theming_tab"),
@@ -598,7 +623,7 @@ const manifest = {
       subtype: "color",
       required: true,
       label: i18n.get("border_color_label") + ":&nbsp;<small>" + i18n.get("dark_border_color_desc") + "</small>",
-      default: "#4a5568",
+      default: "#334155",
     },
     {
       tab: i18n.get("theming_tab"),

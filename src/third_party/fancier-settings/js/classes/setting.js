@@ -976,6 +976,8 @@ class RuleToggleCards extends Bundle {
       return {
         value: option[0]?.toString?.() || "",
         text: option[1] !== undefined ? option[1].toString() : option[0]?.toString?.() || "",
+        safetyTier: "safe",
+        languageScope: "all",
       };
     }
     if (option && typeof option === "object") {
@@ -989,14 +991,74 @@ class RuleToggleCards extends Bundle {
             : undefined,
         example: option.example !== undefined ? option.example.toString() : undefined,
         badge: option.badge !== undefined ? option.badge.toString() : undefined,
-        recommended: option.recommended === true,
+        safetyTier: option.safetyTier === "advanced" ? "advanced" : "safe",
+        languageScope: option.languageScope === "en_US" ? "en_US" : "all",
       };
     }
     const value = option !== undefined ? option.toString() : "";
     return {
       value,
       text: value,
+      safetyTier: "safe",
+      languageScope: "all",
     };
+  }
+
+  createSection(title, sectionType) {
+    const section = new ElementWrapper("section", {
+      class: `grammar-rule-section grammar-rule-section-${sectionType}`,
+    });
+    const heading = new ElementWrapper("h4", {
+      class: "grammar-rule-section-title",
+      innerText: title,
+    });
+    const list = new ElementWrapper("div", {
+      class: "grammar-rule-selector-list",
+    });
+    heading.inject(section);
+    list.inject(section);
+    return {
+      section,
+      list,
+    };
+  }
+
+  updateFilterButtons() {
+    if (!Array.isArray(this.filterButtons)) {
+      return;
+    }
+
+    this.filterButtons.forEach((filterButton) => {
+      const isActive = filterButton.key === this.activeFilter;
+      filterButton.button.element.classList.toggle("is-selected", isActive);
+    });
+  }
+
+  matchesSearch(rule) {
+    if (!this.searchQuery) {
+      return true;
+    }
+    const haystack = [rule.text, rule.description, rule.example]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+    return haystack.includes(this.searchQuery);
+  }
+
+  matchesFilter(control, isChecked) {
+    switch (this.activeFilter) {
+      case "safe":
+        return control.rule.safetyTier === "safe";
+      case "advanced":
+        return control.rule.safetyTier === "advanced";
+      case "english":
+        return control.rule.languageScope === "en_US";
+      case "enabled":
+        return isChecked;
+      case "all":
+      default:
+        return true;
+    }
   }
 
   createDOM() {
@@ -1013,14 +1075,82 @@ class RuleToggleCards extends Bundle {
     this.toolbar = new ElementWrapper("div", {
       class: "grammar-rule-selector-toolbar",
     });
+    this.searchRow = new ElementWrapper("div", {
+      class: "grammar-rule-selector-search-row",
+    });
+    this.searchField = new ElementWrapper("div", {
+      class: "grammar-rule-selector-search",
+    });
+    this.searchInput = new ElementWrapper("input", {
+      class: "input is-small grammar-rule-search-input",
+      type: "search",
+      placeholder: (this.params.searchPlaceholder || "Search grammar rules...").toString(),
+    });
+    this.filters = new ElementWrapper("div", {
+      class: "buttons has-addons grammar-rule-selector-filters",
+    });
     this.summary = new ElementWrapper("p", {
       class: "grammar-rule-selector-summary",
     });
     this.actions = new ElementWrapper("div", {
       class: "buttons has-addons grammar-rule-selector-actions",
     });
+    this.noResults = new ElementWrapper("p", {
+      class: "grammar-rule-selector-no-results is-hidden",
+      innerText: (this.params.noMatchesText || "No grammar rules match your search.").toString(),
+    });
     this.ruleList = new ElementWrapper("div", {
-      class: "grammar-rule-selector-list",
+      class: "grammar-rule-sections",
+    });
+
+    this.safeSection = this.createSection(
+      (this.params.sectionSafeLabel || "Safe rules").toString(),
+      "safe",
+    );
+    this.advancedSection = this.createSection(
+      (this.params.sectionAdvancedLabel || "Advanced (optional)").toString(),
+      "advanced",
+    );
+    this.safeSection.section.inject(this.ruleList);
+    this.advancedSection.section.inject(this.ruleList);
+
+    this.activeFilter = "all";
+    this.searchQuery = "";
+    this.filterButtons = [];
+    const filters = [
+      {
+        key: "all",
+        label: (this.params.filterAllLabel || "All").toString(),
+      },
+      {
+        key: "safe",
+        label: (this.params.filterSafeLabel || "Safe").toString(),
+      },
+      {
+        key: "advanced",
+        label: (this.params.filterAdvancedLabel || "Advanced").toString(),
+      },
+      {
+        key: "english",
+        label: (this.params.filterEnglishOnlyLabel || "English only").toString(),
+      },
+      {
+        key: "enabled",
+        label: (this.params.filterEnabledOnlyLabel || "Enabled only").toString(),
+      },
+    ];
+    filters.forEach((filter) => {
+      const button = new ElementWrapper("button", {
+        type: "button",
+        class: "button is-small is-light grammar-rule-filter-button",
+        innerText: filter.label,
+      });
+      button.set("data-filter", filter.key);
+      button.inject(this.filters);
+      this.filterButtons.push({
+        key: filter.key,
+        button,
+      });
     });
 
     const sourceOptions = Array.isArray(this.params.options)
@@ -1034,6 +1164,7 @@ class RuleToggleCards extends Bundle {
     this.ruleControls = [];
 
     this.ruleOptions.forEach((rule) => {
+      const section = rule.safetyTier === "advanced" ? this.advancedSection : this.safeSection;
       const card = new ElementWrapper("label", {
         class: "grammar-rule-card",
       });
@@ -1077,12 +1208,14 @@ class RuleToggleCards extends Bundle {
 
       input.inject(card);
       body.inject(card);
-      card.inject(this.ruleList);
+      card.inject(section.list);
 
       this.ruleControls.push({
         value: rule.value,
         input,
         card,
+        rule,
+        sectionType: rule.safetyTier,
       });
     });
 
@@ -1103,6 +1236,9 @@ class RuleToggleCards extends Bundle {
         class: "button is-small is-light",
         innerText: action.text.toString(),
       });
+      if (typeof action.actionKey === "string" && action.actionKey.trim().length > 0) {
+        button.set("data-action", action.actionKey.trim());
+      }
       button.inject(this.actions);
       this.actionButtons.push({
         values: action.values.map((value) => value.toString()),
@@ -1122,16 +1258,21 @@ class RuleToggleCards extends Bundle {
       this.help.inject(this.bundle);
     }
 
-    if (this.actionButtons.length > 0) {
-      this.summary.inject(this.toolbar);
-      this.actions.inject(this.toolbar);
-      this.toolbar.inject(this.container);
-    } else {
-      this.summary.inject(this.container);
-    }
+    this.searchInput.inject(this.searchField);
+    this.searchField.inject(this.searchRow);
+    this.filters.inject(this.searchRow);
+    this.searchRow.inject(this.container);
 
+    this.summary.inject(this.toolbar);
+    if (this.actionButtons.length > 0) {
+      this.actions.inject(this.toolbar);
+    }
+    this.toolbar.inject(this.container);
+
+    this.noResults.inject(this.container);
     this.ruleList.inject(this.container);
     this.container.inject(this.bundle);
+    this.updateFilterButtons();
     this.updateStateUI();
   }
 
@@ -1155,6 +1296,26 @@ class RuleToggleCards extends Bundle {
         function (event) {
           event.preventDefault();
           this.set(actionButton.values);
+        }.bind(this),
+      );
+    });
+
+    this.searchInput.addEvent(
+      "input",
+      function () {
+        this.searchQuery = (this.searchInput.get("value") || "").toString().trim().toLowerCase();
+        this.updateStateUI();
+      }.bind(this),
+    );
+
+    this.filterButtons.forEach((filterButton) => {
+      filterButton.button.addEvent(
+        "click",
+        function (event) {
+          event.preventDefault();
+          this.activeFilter = filterButton.key;
+          this.updateFilterButtons();
+          this.updateStateUI();
         }.bind(this),
       );
     });
@@ -1188,13 +1349,32 @@ class RuleToggleCards extends Bundle {
 
   updateStateUI() {
     let activeCount = 0;
+    let visibleCount = 0;
+    let safeVisibleCount = 0;
+    let advancedVisibleCount = 0;
+
     this.ruleControls.forEach((control) => {
       const isChecked = control.input.get("checked") === true;
       control.card.element.classList.toggle("is-active", isChecked);
       if (isChecked) {
         activeCount += 1;
       }
+
+      const shouldBeVisible = this.matchesSearch(control.rule) && this.matchesFilter(control, isChecked);
+      control.card.element.classList.toggle("is-hidden", !shouldBeVisible);
+      if (shouldBeVisible) {
+        visibleCount += 1;
+        if (control.sectionType === "advanced") {
+          advancedVisibleCount += 1;
+        } else {
+          safeVisibleCount += 1;
+        }
+      }
     });
+
+    this.safeSection.section.element.classList.toggle("is-hidden", safeVisibleCount === 0);
+    this.advancedSection.section.element.classList.toggle("is-hidden", advancedVisibleCount === 0);
+    this.noResults.element.classList.toggle("is-hidden", visibleCount > 0);
 
     if (activeCount === 0) {
       this.summary.set(

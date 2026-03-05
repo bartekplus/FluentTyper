@@ -22,13 +22,13 @@
   --suggestion-shadow-color-light: rgba(0, 0, 0, 0.1);
 
   /* --- Dark Theme Variables --- */
-  --suggestion-bg-dark: #2d3748;
+  --suggestion-bg-dark: #0f172a;
   --suggestion-text-dark: #e2e8f0;
   --suggestion-header-bg-dark: #1a202c;
   --suggestion-header-text-dark: #a0aec0;
-  --suggestion-highlight-bg-dark: #4a5568;
-  --suggestion-highlight-text-dark: #ffffff;
-  --suggestion-border-color-dark: #4a5568;
+  --suggestion-highlight-bg-dark: #1e293b;
+  --suggestion-highlight-text-dark: #f8fafc;
+  --suggestion-border-color-dark: #334155;
   --suggestion-shadow-color-dark: rgba(0, 0, 0, 0.4);
 
   /* --- Typography Variables --- */
