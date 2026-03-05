@@ -1,5 +1,5 @@
 // Utility for processing prediction input for PresageHandler
-import { LANG_ADDITIONAL_SEPARATOR_REGEX } from "@core/domain/lang";
+import { DEFAULT_SEPARATOR_CHARS_REGEX, LANG_ADDITIONAL_SEPARATOR_REGEX } from "@core/domain/lang";
 import { checkAutoCapitalize, Capitalization } from "./CapitalizationHelper";
 import { isNumber } from "@core/application/domain-utils";
 
@@ -16,8 +16,7 @@ export class PredictionInputProcessor {
   autoCapitalize: boolean;
 
   constructor(minWordLengthToPredict = MIN_WORD_LENGTH_TO_PREDICT, autoCapitalize = true) {
-    this.separatorCharRegex =
-      /\s+|!|"|#|\$|%|&|\(|\)|\*|\+|,|-|\.|\/|:|;|<|=|>|\?|@|\[|\\|\]|\^|_|`|{|\||}|~/;
+    this.separatorCharRegex = RegExp(DEFAULT_SEPARATOR_CHARS_REGEX);
     this.keepPredCharRegex = /\[|\(|{|<|\/|-|\*|\+|=|"/;
     this.whiteSpaceRegex = /\s+/;
     this.letterRegex = /^\p{L}/u;
