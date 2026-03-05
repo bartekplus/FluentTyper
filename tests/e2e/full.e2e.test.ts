@@ -639,6 +639,24 @@ async function typeInInput(page: Page, selector: string, text: string): Promise<
   await element.type(text);
 }
 
+async function dispatchUndoChord(page: Page, selector: string): Promise<void> {
+  await page.focus(selector);
+  await page.evaluate((sel) => {
+    const target = document.querySelector(sel);
+    if (!(target instanceof HTMLElement)) {
+      throw new Error(`Input element not found for selector: ${sel}`);
+    }
+    const event = new KeyboardEvent("keydown", {
+      key: "z",
+      bubbles: true,
+      cancelable: true,
+      ctrlKey: true,
+      metaKey: true,
+    });
+    target.dispatchEvent(event);
+  }, selector);
+}
+
 async function gotoTestPage(
   page: Page,
   options: { enableCkEditor?: boolean; enableQuill?: boolean } = {},
@@ -3865,5 +3883,265 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await applyConfigChange(browser, worker!);
     },
     browserTimeout(25000, 45000),
+  );
+
+  test(
+    "Grammar Rule Engine reverts latest auto-fix via Cmd/Ctrl+Z in #test-input",
+    async () => {
+      const selector = "#test-input";
+
+      await setSettingAndWaitStable(
+        worker!,
+        KEY_ENABLED_GRAMMAR_RULES,
+        ["englishAlotCorrection"],
+        3,
+        browserTimeout(5000, 7000),
+      );
+      await setSettingAndWait(worker!, KEY_REVERT_ON_BACKSPACE, true);
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+      await applyConfigChange(browser, worker!);
+
+      await gotoTestPage(page, {
+        enableCkEditor: false,
+      });
+      await page.bringToFront();
+      await waitForInputReady(page, selector);
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "alot ");
+      await waitForInputContentEqual(page, selector, "a lot ", browserTimeout(5000, 9000));
+
+      await dispatchUndoChord(page, selector);
+      await waitForInputContentEqual(page, selector, "alot ", browserTimeout(5000, 9000));
+
+      await setSettingAndWait(worker!, KEY_REVERT_ON_BACKSPACE, false);
+      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await applyConfigChange(browser, worker!);
+    },
+    browserTimeout(25000, 45000),
+  );
+
+  test(
+    "Grammar Rule Engine blocks immediate reapply after manual revert until token context changes in #test-input",
+    async () => {
+      const selector = "#test-input";
+
+      await setSettingAndWaitStable(
+        worker!,
+        KEY_ENABLED_GRAMMAR_RULES,
+        ["englishAlotCorrection"],
+        3,
+        browserTimeout(5000, 7000),
+      );
+      await setSettingAndWait(worker!, KEY_REVERT_ON_BACKSPACE, true);
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+      await applyConfigChange(browser, worker!);
+
+      await gotoTestPage(page, {
+        enableCkEditor: false,
+      });
+      await page.bringToFront();
+      await waitForInputReady(page, selector);
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "alot ");
+      await waitForInputContentEqual(page, selector, "a lot ", browserTimeout(5000, 9000));
+
+      await page.keyboard.press("Backspace");
+      await waitForInputContentEqual(page, selector, "alot ", browserTimeout(5000, 9000));
+
+      await sleep(400);
+      await waitForInputContentEqual(page, selector, "alot ", browserTimeout(5000, 9000));
+
+      await typeInInput(page, selector, "x alot ");
+      await waitForInputContentEqual(page, selector, "alot x a lot ", browserTimeout(5000, 9000));
+
+      await setSettingAndWait(worker!, KEY_REVERT_ON_BACKSPACE, false);
+      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await applyConfigChange(browser, worker!);
+    },
+    browserTimeout(30000, 50000),
+  );
+
+  test(
+    "Grammar Rule Engine applies V3 safe rules (double-space + alot) in #test-input",
+    async () => {
+      const selector = "#test-input";
+
+      await setSettingAndWaitStable(
+        worker!,
+        KEY_ENABLED_GRAMMAR_RULES,
+        ["doubleSpaceToPeriod", "englishAlotCorrection"],
+        3,
+        browserTimeout(5000, 7000),
+      );
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+      await applyConfigChange(browser, worker!);
+
+      await gotoTestPage(page, {
+        enableCkEditor: false,
+      });
+      await page.bringToFront();
+      await waitForInputReady(page, selector);
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "alot ");
+      await waitForInputContentEqual(page, selector, "a lot ", browserTimeout(5000, 9000));
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "Hello  ");
+      await waitForInputContentEqual(page, selector, "Hello. ", browserTimeout(5000, 9000));
+
+      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await applyConfigChange(browser, worker!);
+    },
+    browserTimeout(25000, 45000),
+  );
+
+  test(
+    "Grammar Rule Engine applies V3 advanced typography shortcuts in #test-input",
+    async () => {
+      const selector = "#test-input";
+
+      await setSettingAndWaitStable(
+        worker!,
+        KEY_ENABLED_GRAMMAR_RULES,
+        ["ellipsisShortcut", "emdashShortcut", "smartQuoteNormalization"],
+        3,
+        browserTimeout(5000, 7000),
+      );
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+      await applyConfigChange(browser, worker!);
+
+      await gotoTestPage(page, {
+        enableCkEditor: false,
+      });
+      await page.bringToFront();
+      await waitForInputReady(page, selector);
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "...");
+      await waitForInputContentEqual(page, selector, "…", browserTimeout(5000, 9000));
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "word--");
+      await waitForInputContentEqual(page, selector, "word—", browserTimeout(5000, 9000));
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, '"');
+      await waitForInputContentEqual(page, selector, "“", browserTimeout(5000, 9000));
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, 'hello"');
+      await waitForInputContentEqual(page, selector, "hello”", browserTimeout(5000, 9000));
+
+      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await applyConfigChange(browser, worker!);
+    },
+    browserTimeout(30000, 50000),
+  );
+
+  test(
+    "Grammar Rule Engine keeps V3 advanced shortcuts inactive for URL/code-like contexts in #test-input",
+    async () => {
+      const selector = "#test-input";
+
+      await setSettingAndWaitStable(
+        worker!,
+        KEY_ENABLED_GRAMMAR_RULES,
+        ["ellipsisShortcut", "emdashShortcut", "smartQuoteNormalization"],
+        3,
+        browserTimeout(5000, 7000),
+      );
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+      await applyConfigChange(browser, worker!);
+
+      await gotoTestPage(page, {
+        enableCkEditor: false,
+      });
+      await page.bringToFront();
+      await waitForInputReady(page, selector);
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "https://example.com...");
+      await waitForInputContentEqual(
+        page,
+        selector,
+        "https://example.com...",
+        browserTimeout(5000, 9000),
+      );
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "https://example.com--");
+      await waitForInputContentEqual(
+        page,
+        selector,
+        "https://example.com--",
+        browserTimeout(5000, 9000),
+      );
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, 'const s = "');
+      await waitForInputContentEqual(page, selector, 'const s = "', browserTimeout(5000, 9000));
+
+      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await applyConfigChange(browser, worker!);
+    },
+    browserTimeout(30000, 50000),
+  );
+
+  test(
+    "Grammar Rule Engine keeps V3 English safe rules inactive for non-English language in #test-input",
+    async () => {
+      const selector = "#test-input";
+
+      await setSettingAndWaitStable(
+        worker!,
+        KEY_ENABLED_GRAMMAR_RULES,
+        [
+          "englishModalOfCorrection",
+          "englishYourWelcomeCorrection",
+          "englishTheirThereBeVerb",
+          "englishAlotCorrection",
+          "englishPronounVerbWhitelistAgreement",
+        ],
+        3,
+        browserTimeout(5000, 7000),
+      );
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "pl_PL");
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+      await applyConfigChange(browser, worker!);
+
+      await gotoTestPage(page, {
+        enableCkEditor: false,
+      });
+      await page.bringToFront();
+      await waitForInputReady(page, selector);
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "alot could of your welcome their is I is ");
+      await waitForInputContentEqual(
+        page,
+        selector,
+        "alot could of your welcome their is I is ",
+        browserTimeout(5000, 9000),
+      );
+
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await applyConfigChange(browser, worker!);
+    },
+    browserTimeout(30000, 50000),
   );
 });
