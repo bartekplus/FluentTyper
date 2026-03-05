@@ -56,7 +56,7 @@ export const DEFAULT_SEPARATOR_CHARS_REGEX: RegExp = RegExp(DEFAULT_SEPARATOR_CH
 export const LANG_SEPARATOR_CHARS_REGEX: Record<string, RegExp> = {
   auto_detect: DEFAULT_SEPARATOR_CHARS_REGEX,
   en_US: DEFAULT_SEPARATOR_CHARS_REGEX,
-  fr_FR: RegExp(`${DEFAULT_SEPARATOR_CHARS_REGEX_SOURCE}|'`),
+  fr_FR: RegExp(`${DEFAULT_SEPARATOR_CHARS_REGEX_SOURCE}|'|\\u2019`),
   hr_HR: DEFAULT_SEPARATOR_CHARS_REGEX,
   es_ES: DEFAULT_SEPARATOR_CHARS_REGEX,
   el_GR: DEFAULT_SEPARATOR_CHARS_REGEX,
@@ -69,7 +69,7 @@ export const LANG_SEPARATOR_CHARS_REGEX: Record<string, RegExp> = {
 export const LANG_ADDITIONAL_SEPARATOR_REGEX: Record<string, RegExp | null> = {
   auto_detect: null,
   en_US: null,
-  fr_FR: RegExp(/'/g),
+  fr_FR: RegExp(/['\u2019]/g),
   hr_HR: null,
   es_ES: null,
   el_GR: null,

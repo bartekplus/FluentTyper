@@ -45,5 +45,7 @@ describe("lang separators", () => {
 
   test("french separator profile still treats apostrophe as separator", () => {
     expect(LANG_SEPARATOR_CHARS_REGEX.fr_FR.test("'")).toBe(true);
+    expect(LANG_SEPARATOR_CHARS_REGEX.fr_FR.test("\u2019")).toBe(true);
+    expect(findMentionToken("l\u2019amour", LANG_SEPARATOR_CHARS_REGEX.fr_FR)).toBe("amour");
   });
 });
