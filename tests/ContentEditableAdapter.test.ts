@@ -240,6 +240,46 @@ describe("ContentEditableAdapter", () => {
     expect(result.didMutateDom).toBe(true);
   });
 
+  test("uses zero-offset boundary fast path without full boundary scan", () => {
+    const adapter = new ContentEditableAdapter();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML = "<p><br></p><p><br></p>";
+    document.body.appendChild(editable);
+
+    const adapterInternals = adapter as unknown as {
+      measureBoundaryTextOffset: (
+        root: HTMLElement,
+        container: Node,
+        offset: number,
+        probeRange: Range,
+      ) => number | null;
+    };
+    const originalMeasureBoundaryTextOffset =
+      adapterInternals.measureBoundaryTextOffset.bind(adapter);
+    let boundaryMeasureCallCount = 0;
+    adapterInternals.measureBoundaryTextOffset = (
+      root: HTMLElement,
+      container: Node,
+      offset: number,
+      probeRange: Range,
+    ) => {
+      boundaryMeasureCallCount += 1;
+      return originalMeasureBoundaryTextOffset(root, container, offset, probeRange);
+    };
+
+    try {
+      const result = adapter.replaceTextByOffsets(editable, 0, 0, "hello", 5);
+      const paragraphs = editable.querySelectorAll("p");
+
+      expect(boundaryMeasureCallCount).toBe(0);
+      expect(paragraphs[0]?.textContent ?? "").toContain("hello");
+      expect(result.didMutateDom).toBe(true);
+    } finally {
+      adapterInternals.measureBoundaryTextOffset = originalMeasureBoundaryTextOffset;
+    }
+  });
+
   test("keeps insertion anchored at active caret when offset equals paragraph boundary", () => {
     const adapter = new ContentEditableAdapter();
     const editable = document.createElement("div");

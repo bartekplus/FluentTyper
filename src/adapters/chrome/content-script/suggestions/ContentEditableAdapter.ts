@@ -10,6 +10,13 @@ interface SelectionOffsetAnchors {
   endPosition: ContentEditableDomPosition;
 }
 
+interface BoundaryCandidate {
+  container: Node;
+  offset: number;
+  textOffset: number;
+  order: number;
+}
+
 export type ContentEditableApplySource = "host-beforeinput" | "fallback-dom";
 
 export interface ContentEditableEditResult {
@@ -489,7 +496,14 @@ export class ContentEditableAdapter {
       return textPosition;
     }
 
-    return this.resolveBoundaryPosition(elem, clampedTarget, probeRange);
+    return this.resolveBoundaryPosition(
+      elem,
+      clampedTarget,
+      totalTextLength,
+      probeRange,
+      selectionAnchors,
+      endpoint,
+    );
   }
 
   private captureSelectionOffsetAnchors(root: HTMLElement): SelectionOffsetAnchors | null {
@@ -637,14 +651,28 @@ export class ContentEditableAdapter {
   private resolveBoundaryPosition(
     elem: HTMLElement,
     clampedTarget: number,
+    totalTextLength: number,
     probeRange: Range,
+    selectionAnchors?: SelectionOffsetAnchors | null,
+    endpoint?: "start" | "end",
   ): ContentEditableDomPosition {
-    type BoundaryCandidate = {
-      container: Node;
-      offset: number;
-      textOffset: number;
-      order: number;
-    };
+    if (clampedTarget === 0) {
+      return { container: elem, offset: 0 };
+    }
+    if (clampedTarget === totalTextLength) {
+      return { container: elem, offset: elem.childNodes.length };
+    }
+
+    const localCandidate = this.resolveBoundaryPositionNearSelection(
+      elem,
+      clampedTarget,
+      probeRange,
+      selectionAnchors,
+      endpoint,
+    );
+    if (localCandidate) {
+      return localCandidate;
+    }
 
     const candidates: BoundaryCandidate[] = [];
     let order = 0;
@@ -673,45 +701,127 @@ export class ContentEditableAdapter {
       currentElement = elementWalker.nextNode() as Element | null;
     }
 
-    if (candidates.length === 0) {
+    const best = this.findBestBoundaryCandidate(candidates, clampedTarget);
+    if (!best) {
       return { container: elem, offset: 0 };
     }
 
-    let best = candidates[0];
-    for (const candidate of candidates.slice(1)) {
-      const bestDistance = Math.abs(best.textOffset - clampedTarget);
-      const candidateDistance = Math.abs(candidate.textOffset - clampedTarget);
-      if (candidateDistance < bestDistance) {
-        best = candidate;
-        continue;
-      }
-      if (candidateDistance > bestDistance) {
-        continue;
-      }
+    return { container: best.container, offset: best.offset };
+  }
 
-      const bestOnOrAfter = best.textOffset >= clampedTarget;
-      const candidateOnOrAfter = candidate.textOffset >= clampedTarget;
-      if (candidateOnOrAfter !== bestOnOrAfter) {
-        if (candidateOnOrAfter) {
-          best = candidate;
+  private resolveBoundaryPositionNearSelection(
+    root: HTMLElement,
+    clampedTarget: number,
+    probeRange: Range,
+    selectionAnchors?: SelectionOffsetAnchors | null,
+    endpoint?: "start" | "end",
+  ): ContentEditableDomPosition | null {
+    if (!selectionAnchors || !endpoint) {
+      return null;
+    }
+
+    const anchorPosition =
+      endpoint === "end" ? selectionAnchors.endPosition : selectionAnchors.startPosition;
+    const candidates: BoundaryCandidate[] = [];
+    let order = 0;
+    const addCandidateOffsets = (container: Element, offsets: number[]): void => {
+      for (const candidateOffset of offsets) {
+        if (candidateOffset < 0 || candidateOffset > container.childNodes.length) {
+          continue;
         }
-        continue;
+        const textOffset = this.measureBoundaryTextOffset(
+          root,
+          container,
+          candidateOffset,
+          probeRange,
+        );
+        if (textOffset === null) {
+          continue;
+        }
+        candidates.push({
+          container,
+          offset: candidateOffset,
+          textOffset,
+          order: order++,
+        });
       }
+    };
 
-      if (candidateOnOrAfter && candidate.textOffset < best.textOffset) {
-        best = candidate;
-        continue;
+    if (anchorPosition.container instanceof Element) {
+      addCandidateOffsets(anchorPosition.container, [
+        anchorPosition.offset - 1,
+        anchorPosition.offset,
+        anchorPosition.offset + 1,
+      ]);
+    }
+
+    let current: Node | null = anchorPosition.container;
+    while (current && current !== root) {
+      const parent = current.parentNode;
+      if (!(parent instanceof Element) || !(parent === root || root.contains(parent))) {
+        break;
       }
-      if (!candidateOnOrAfter && candidate.textOffset > best.textOffset) {
-        best = candidate;
-        continue;
+      const childIndex = Array.prototype.indexOf.call(parent.childNodes, current);
+      if (childIndex >= 0) {
+        addCandidateOffsets(parent, [childIndex, childIndex + 1]);
       }
-      if (candidate.order < best.order) {
+      current = parent;
+    }
+
+    const best = this.findBestBoundaryCandidate(candidates, clampedTarget);
+    if (!best || best.textOffset !== clampedTarget) {
+      return null;
+    }
+
+    return { container: best.container, offset: best.offset };
+  }
+
+  private findBestBoundaryCandidate(
+    candidates: BoundaryCandidate[],
+    clampedTarget: number,
+  ): BoundaryCandidate | null {
+    if (candidates.length === 0) {
+      return null;
+    }
+
+    let best = candidates[0];
+    for (let index = 1; index < candidates.length; index += 1) {
+      const candidate = candidates[index];
+      if (this.isPreferredBoundaryCandidate(candidate, best, clampedTarget)) {
         best = candidate;
       }
     }
 
-    return { container: best.container, offset: best.offset };
+    return best;
+  }
+
+  private isPreferredBoundaryCandidate(
+    candidate: BoundaryCandidate,
+    best: BoundaryCandidate,
+    clampedTarget: number,
+  ): boolean {
+    const bestDistance = Math.abs(best.textOffset - clampedTarget);
+    const candidateDistance = Math.abs(candidate.textOffset - clampedTarget);
+    if (candidateDistance < bestDistance) {
+      return true;
+    }
+    if (candidateDistance > bestDistance) {
+      return false;
+    }
+
+    const bestOnOrAfter = best.textOffset >= clampedTarget;
+    const candidateOnOrAfter = candidate.textOffset >= clampedTarget;
+    if (candidateOnOrAfter !== bestOnOrAfter) {
+      return candidateOnOrAfter;
+    }
+
+    if (candidateOnOrAfter && candidate.textOffset < best.textOffset) {
+      return true;
+    }
+    if (!candidateOnOrAfter && candidate.textOffset > best.textOffset) {
+      return true;
+    }
+    return candidate.order < best.order;
   }
 
   private measureBoundaryTextOffset(
