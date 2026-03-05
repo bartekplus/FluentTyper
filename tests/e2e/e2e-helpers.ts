@@ -121,6 +121,75 @@ function isRetriableRuntimeUrlError(error: unknown): boolean {
   );
 }
 
+function isRetriableBackgroundContextError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /Execution context was destroyed|Execution context is not available in detached frame or worker|Cannot find context with specified id|Session closed|Target closed|Connection closed|background worker is unavailable|Waiting failed/i.test(
+    message,
+  );
+}
+
+function getChromeExtensionIdFromTargets(browser: Browser): string | null {
+  const extensionTarget = browser
+    .targets()
+    .find(
+      (target) =>
+        target.url().startsWith("chrome-extension://") &&
+        (target.type() === "service_worker" || target.type() === "page"),
+    );
+  if (!extensionTarget) {
+    return null;
+  }
+  try {
+    return new URL(extensionTarget.url()).host || null;
+  } catch {
+    return null;
+  }
+}
+
+async function wakeChromeBackgroundWorker(browser: Browser, extensionId: string): Promise<void> {
+  if (!browser.isConnected()) {
+    return;
+  }
+  let wakePage: Page | null = null;
+  try {
+    wakePage = await browser.newPage();
+    await wakePage.goto(getExtensionPageUrl(extensionId, "options/options.html"), {
+      waitUntil: "domcontentloaded",
+      timeout: 1000,
+    });
+    await wakePage.evaluate(() => {
+      return new Promise<void>((resolve) => {
+        chrome.runtime.sendMessage({ type: "__FT_E2E_WAKE_BACKGROUND__" }, () => {
+          // Ignore runtime errors; sending any message is enough to wake MV3 worker.
+          void chrome.runtime.lastError;
+          resolve();
+        });
+      });
+    });
+  } catch {
+    // Best-effort wake-up path.
+  } finally {
+    if (wakePage && !wakePage.isClosed()) {
+      await wakePage.close();
+    }
+  }
+}
+
+function getExtensionIdFromContextUrl(context: BackgroundContext): string | null {
+  if (typeof context.url !== "function") {
+    return null;
+  }
+  const url = context.url();
+  if (!url.startsWith("chrome-extension://") && !url.startsWith("moz-extension://")) {
+    return null;
+  }
+  try {
+    return new URL(url).host || null;
+  } catch {
+    return null;
+  }
+}
+
 async function resolveFirefoxExtensionHost(browser: Browser, extensionId: string): Promise<string> {
   const page = await browser.newPage();
   try {
@@ -197,11 +266,38 @@ export type BackgroundContext = (Page | WebWorker) & {
  */
 export async function getBackgroundContext(browser: Browser): Promise<BackgroundContext> {
   if (isChrome()) {
-    const serviceWorkerTarget = await browser.waitForTarget(
-      (target) => target.type() === "service_worker" && target.url().endsWith("background.js"),
-      { timeout: 30000 },
-    );
-    return (await serviceWorkerTarget.worker())!;
+    try {
+      const serviceWorkerTarget = await browser.waitForTarget(
+        (target) => target.type() === "service_worker" && target.url().endsWith("background.js"),
+        { timeout: 1000 },
+      );
+      const worker = await serviceWorkerTarget.worker();
+      if (!worker) {
+        throw new Error("Chrome background worker is unavailable");
+      }
+      await worker.evaluate(() => {
+        const storage = (
+          globalThis as typeof globalThis & {
+            chrome?: typeof chrome;
+          }
+        ).chrome?.storage?.local;
+        if (!storage) {
+          throw new Error("chrome.storage.local is unavailable");
+        }
+      });
+      return worker;
+    } catch (error) {
+      if (!isRetriableBackgroundContextError(error)) {
+        throw error;
+      }
+      const extensionId = getChromeExtensionIdFromTargets(browser);
+      if (extensionId) {
+        await wakeChromeBackgroundWorker(browser, extensionId);
+      }
+      throw new Error("chrome.storage.local is unavailable", {
+        cause: error,
+      });
+    }
   }
 
   if (!firefoxExtensionHost) {
@@ -252,6 +348,12 @@ export async function getRuntimePageUrl(
       }, pagePath);
     } catch (error) {
       lastError = error;
+      if (isChrome() && isRetriableRuntimeUrlError(error)) {
+        const extensionId = getExtensionIdFromContextUrl(context);
+        if (extensionId) {
+          return getExtensionPageUrl(extensionId, pagePath);
+        }
+      }
       if (!isRetriableRuntimeUrlError(error) || attempt === 5) {
         throw error;
       }
