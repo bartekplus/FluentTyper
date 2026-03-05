@@ -419,43 +419,7 @@ export class PresageHandler {
       case Capitalization.None:
       default:
     }
-    if (this.shouldCapitalizePredictionsForTextEdit(textEdit)) {
-      predictions = predictions.map((pred) => pred.charAt(0).toUpperCase() + pred.slice(1));
-    }
     return { predictions, textEdit };
-  }
-
-  private shouldCapitalizePredictionsForTextEdit(textEdit: TextEditOperation | null): boolean {
-    if (!textEdit || textEdit.replaceBackwardCount <= 0) {
-      return false;
-    }
-    if (
-      typeof textEdit.replacementText !== "string" ||
-      typeof textEdit.expectedReplacedText !== "string"
-    ) {
-      return false;
-    }
-    if (textEdit.replacementText.length === 0 || textEdit.expectedReplacedText.length === 0) {
-      return false;
-    }
-
-    const replacementFirst = textEdit.replacementText.charAt(0);
-    const expectedFirst = textEdit.expectedReplacedText.charAt(0);
-    if (replacementFirst === expectedFirst) {
-      return false;
-    }
-
-    const expectedLooksLowercase =
-      expectedFirst === expectedFirst.toLocaleLowerCase() &&
-      expectedFirst !== expectedFirst.toLocaleUpperCase();
-    const replacementLooksUppercase =
-      replacementFirst === replacementFirst.toLocaleUpperCase() &&
-      replacementFirst !== replacementFirst.toLocaleLowerCase();
-    if (!expectedLooksLowercase || !replacementLooksUppercase) {
-      return false;
-    }
-
-    return replacementFirst === expectedFirst.toLocaleUpperCase();
   }
 
   getLastPredictionInput(lang: string): string {

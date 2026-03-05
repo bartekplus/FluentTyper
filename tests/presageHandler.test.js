@@ -247,19 +247,6 @@ describe("features", () => {
     );
   });
   describe("grammar rule textEdit", () => {
-    test("capitalizing textEdit keeps predictions capitalized", async () => {
-      testContext.enabledGrammarRules = ["capitalizeFirstLetter"];
-      testContext.autoCapitalize = false;
-      mod.PresageCallback.predictions = ["world"];
-      setConfig();
-
-      const result = await testContext.ph.runPrediction("w", "", "en_US");
-      expect(result.textEdit).not.toBeNull();
-      expect(result.textEdit.replacementText).toBe("W");
-      expect(result.textEdit.expectedReplacedText).toBe("w");
-      expect(result.predictions[0]).toBe("World");
-    });
-
     test("returns expectedReplacedText and expectedPrefixToken", async () => {
       testContext.enabledGrammarRules = ["capitalizeFirstLetter"];
       setConfig();
