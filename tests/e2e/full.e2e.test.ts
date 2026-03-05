@@ -78,6 +78,13 @@ let domainTestUrl: string;
 let activeBrowserForWorkerRecovery: Browser | null = null;
 let latestWorkerContext: BackgroundContext | null = null;
 
+function isClosedPageContext(context: BackgroundContext | null): boolean {
+  if (!context || typeof (context as Page).isClosed !== "function") {
+    return false;
+  }
+  return (context as Page).isClosed();
+}
+
 function isRetriableWorkerError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
   return /chrome\.storage\.local is unavailable|reading 'local'|chrome\.runtime\.getURL is unavailable|runtime\.getURL|Execution context was destroyed|Execution context is not available in detached frame or worker|Cannot find context with specified id|Target closed|Session closed/i.test(
@@ -114,9 +121,28 @@ async function recoverWorkerForRetry(
   existingWorker: BackgroundContext,
 ): Promise<BackgroundContext> {
   if (activeBrowserForWorkerRecovery) {
-    return await reacquireWorkerContext(activeBrowserForWorkerRecovery, "worker recovery");
+    try {
+      return await reacquireWorkerContext(activeBrowserForWorkerRecovery, "worker recovery");
+    } catch (error) {
+      if (!isRetriableWorkerError(error) || isFirefox()) {
+        throw error;
+      }
+      try {
+        const controlPage = await openExtensionPage(
+          activeBrowserForWorkerRecovery,
+          existingWorker,
+          "options/options.html",
+        );
+        latestWorkerContext = controlPage;
+        return controlPage;
+      } catch (fallbackError) {
+        if (!isRetriableWorkerError(fallbackError)) {
+          throw fallbackError;
+        }
+      }
+    }
   }
-  if (latestWorkerContext) {
+  if (latestWorkerContext && !isClosedPageContext(latestWorkerContext)) {
     return latestWorkerContext;
   }
   return existingWorker;
@@ -1017,7 +1043,14 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   }, 60000);
 
   beforeEach(async () => {
-    worker = await reacquireWorkerContext(browser, "beforeEach background worker context");
+    try {
+      worker = await reacquireWorkerContext(browser, "beforeEach background worker context");
+    } catch (error) {
+      if (!isRetriableWorkerError(error)) {
+        throw error;
+      }
+      worker = await recoverWorkerForRetry(worker);
+    }
     // Keep the legacy baseline for non-grammar E2E flows so popup/inline
     // prediction scenarios remain deterministic regardless of defaults.
     await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
