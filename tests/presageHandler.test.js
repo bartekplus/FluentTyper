@@ -374,6 +374,41 @@ describe("features", () => {
       expect(nestedCallClose.textEdit).toBeNull();
     });
 
+    test("emits textEdit for duplicate punctuation runs and spaced duplicate tails", async () => {
+      testContext.enabledGrammarRules = ["duplicatePunctuationCollapse"];
+      setConfig();
+
+      const trailingRunResult = await testContext.ph.runPrediction(
+        "It do not work as expected,,, ",
+        "",
+        "en_US",
+      );
+      expect(trailingRunResult.textEdit).not.toBeNull();
+      expect(trailingRunResult.textEdit.replacementText).toBe(", ");
+      expect(trailingRunResult.textEdit.replaceBackwardCount).toBe(4);
+      expect(trailingRunResult.textEdit.expectedReplacedText).toBe(",,, ");
+
+      const spacedTailResult = await testContext.ph.runPrediction(
+        "This is,,,,,,,,,,,, ,",
+        "",
+        "en_US",
+      );
+      expect(spacedTailResult.textEdit).not.toBeNull();
+      expect(spacedTailResult.textEdit.replacementText).toBe(", ");
+      expect(spacedTailResult.textEdit.replaceBackwardCount).toBe(14);
+      expect(spacedTailResult.textEdit.expectedReplacedText).toBe(",,,,,,,,,,,, ,");
+
+      const fillerTailResult = await testContext.ph.runPrediction(
+        "It do not work as expected,,,\u200B ",
+        "",
+        "en_US",
+      );
+      expect(fillerTailResult.textEdit).not.toBeNull();
+      expect(fillerTailResult.textEdit.replacementText).toBe(",\u200B ");
+      expect(fillerTailResult.textEdit.replaceBackwardCount).toBe(5);
+      expect(fillerTailResult.textEdit.expectedReplacedText).toBe(",,,\u200B ");
+    });
+
     test("emits textEdit for control opener and prose closer contexts", async () => {
       testContext.enabledGrammarRules = ["spacingRule"];
       testContext.insertSpaceAfterAutocomplete = true;

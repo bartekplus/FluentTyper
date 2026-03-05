@@ -506,6 +506,50 @@ describe("SuggestionManager", () => {
     expect(editable.textContent).toBe("world");
   });
 
+  test("applies stale duplicate punctuation textEdit to contenteditable targets when guards match", async () => {
+    const { manager, getPrediction } = await createManager({
+      enabledGrammarRules: ["duplicatePunctuationCollapse"],
+    });
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.textContent = "This is awseome,,\u00A0";
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    setContentEditableCursor(editable, (editable.textContent ?? "").length);
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+    await wait(220);
+    const req1 = getPrediction.mock.calls.at(-1)?.[0];
+    if (!req1) {
+      throw new Error("Expected first prediction request");
+    }
+
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+    await wait(220);
+    const req2 = getPrediction.mock.calls.at(-1)?.[0];
+    if (!req2) {
+      throw new Error("Expected second prediction request");
+    }
+    expect(req2.requestId).toBeGreaterThan(req1.requestId);
+
+    manager.fulfillPrediction(
+      buildResponse(req1, {
+        textEdit: {
+          replacementText: ", ",
+          replaceBackwardCount: 3,
+          evaluatedTextLength: "This is awseome,, ".length,
+          expectedReplacedText: ",, ",
+          expectedPrefixToken: "awseome",
+          sourceRuleId: "duplicatePunctuationCollapse",
+        },
+      }),
+    );
+
+    expect((editable.textContent ?? "").replace(/\u00a0/g, " ")).toBe("This is awseome, ");
+  });
+
   test("requests a fresh prediction after host-owned contenteditable textEdit", async () => {
     const { manager, getPrediction } = await createManager();
     const editable = document.createElement("div");
@@ -1265,6 +1309,41 @@ describe("SuggestionManager", () => {
     } finally {
       Date.now = originalDateNow;
     }
+  });
+
+  test("requests prediction when contenteditable text is already mutated before keydown fallback snapshot", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+      enabledGrammarRules: ["duplicatePunctuationCollapse"],
+    });
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.textContent = "hello,";
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    setContentEditableCursor(editable, editable.textContent.length);
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+
+    const originalDateNow = Date.now;
+    let fakeNow = originalDateNow();
+    Date.now = () => fakeNow;
+
+    try {
+      dispatchKeydown(editable, ",");
+      fakeNow += 2000;
+      await wait(220);
+    } finally {
+      Date.now = originalDateNow;
+    }
+
+    const request = getPrediction.mock.calls.at(-1)?.[0];
+    if (!request) {
+      throw new Error("Expected prediction request");
+    }
+    expect(request.text).toBe("hello,");
+    expect(request.inputAction).toBe("insert");
   });
 
   test("does not request prediction on Enter in input when input event is missing", async () => {

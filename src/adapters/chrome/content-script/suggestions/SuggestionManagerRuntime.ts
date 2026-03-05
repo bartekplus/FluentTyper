@@ -168,8 +168,7 @@ export class SuggestionManagerRuntime {
             textEditApplyResult = this.textEditService.applyTextEdit(entry, context.textEdit);
           }
         },
-        allowStaleTextEdit:
-          this.isTextValueElement(entry.elem) && this.canApplyGrammarTextEdit(entry),
+        allowStaleTextEdit: this.shouldAllowStaleTextEdit(entry, context.textEdit),
         clearSuggestions: () => this.clearSuggestions(entry),
       })
     ) {
@@ -633,6 +632,19 @@ export class SuggestionManagerRuntime {
     return TextTargetAdapter.hasCollapsedSelection(entry.elem as TextTarget);
   }
 
+  private shouldAllowStaleTextEdit(
+    entry: SuggestionEntry,
+    textEdit: PredictionResponse["textEdit"],
+  ): boolean {
+    if (!textEdit || !this.canApplyGrammarTextEdit(entry)) {
+      return false;
+    }
+    if (this.isTextValueElement(entry.elem)) {
+      return true;
+    }
+    return textEdit.sourceRuleId === "duplicatePunctuationCollapse";
+  }
+
   private isSeparator(value: string): boolean {
     if (this.separatorRegex.global || this.separatorRegex.sticky) {
       this.separatorRegex.lastIndex = 0;
@@ -862,9 +874,34 @@ export class SuggestionManagerRuntime {
     const remainingMs = pending.waitForTextChangeUntilMs - Date.now();
     if (remainingMs <= 0) {
       // No observable text mutation happened during the wait window.
-      // Drop fallback to avoid churn from synthetic seeded before-cursor values.
-      this.clearPendingKeyFallback(id);
-      return true;
+      // Drop fallback for synthetic seeded before-cursor values (first-char
+      // contenteditable bootstrap path) and for swallowed inserts.
+      // Reconcile when the typed key already appears at the cursor snapshot,
+      // which covers editors that mutate before observers start.
+      const isSeededBeforeCursor =
+        typeof pending.typedKey === "string" &&
+        pending.typedKey.length === 1 &&
+        pending.expectedBeforeCursor === pending.typedKey;
+      if (isSeededBeforeCursor) {
+        this.clearPendingKeyFallback(id);
+        return true;
+      }
+
+      const typedKey = pending.typedKey;
+      const expectedBefore = pending.expectedBeforeCursor;
+      const lastChar = expectedBefore.charAt(expectedBefore.length - 1);
+      const isWhitespaceInsert =
+        typedKey === " " && (lastChar === " " || lastChar === "\xA0");
+      const isLikelyAlreadyInserted =
+        (typeof typedKey === "string" &&
+          typedKey.length === 1 &&
+          expectedBefore.endsWith(typedKey)) ||
+        isWhitespaceInsert;
+      if (!isLikelyAlreadyInserted) {
+        this.clearPendingKeyFallback(id);
+        return true;
+      }
+      return false;
     }
 
     pending.reconcileScheduled = false;

@@ -232,6 +232,54 @@ describe("SuggestionTextEditService", () => {
     expect(inputEventCount).toBe(0);
   });
 
+  test("keeps stale trailing-space guard for non-duplicate rules", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+    });
+
+    const input = document.createElement("input");
+    input.value = "Hello.,";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    const entry = createSuggestionEntry({ elem: input });
+
+    const result = service.applyTextEdit(entry, {
+      replacementText: ". ",
+      replaceBackwardCount: 1,
+      evaluatedTextLength: "Hello.".length,
+      expectedReplacedText: ".",
+      sourceRuleId: "commaPeriodSpacing",
+    });
+
+    expect(result).toEqual({ applied: false, didDispatchInput: false });
+    expect(input.value).toBe("Hello.,");
+  });
+
+  test("allows stale trailing-space edits for duplicate punctuation collapse", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+    });
+
+    const input = document.createElement("input");
+    input.value = "Hello,, x";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    const entry = createSuggestionEntry({ elem: input });
+
+    const result = service.applyTextEdit(entry, {
+      replacementText: ", ",
+      replaceBackwardCount: 3,
+      evaluatedTextLength: "Hello,, ".length,
+      expectedReplacedText: ",, ",
+      sourceRuleId: "duplicatePunctuationCollapse",
+    });
+
+    expect(result).toEqual({ applied: true, didDispatchInput: true });
+    expect(input.value).toBe("Hello, x");
+  });
+
   test("does not dispatch duplicate input event when contenteditable edit is host-owned", () => {
     const service = new SuggestionTextEditService({
       findMentionToken,
@@ -319,6 +367,32 @@ describe("SuggestionTextEditService", () => {
     const paragraphs = editable.querySelectorAll("p");
     expect(paragraphs[0]?.textContent).toBe("Title");
     expect((paragraphs[1]?.textContent ?? "").replace(/\u00a0/g, " ")).toBe("fixed. ");
+  });
+
+  test("treats NBSP and regular space as equivalent for duplicate punctuation replaced text", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+    });
+
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.textContent = "This is awseome,,\u00A0";
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    setContentEditableCursor(editable, (editable.textContent ?? "").length);
+
+    const entry = createSuggestionEntry({ elem: editable });
+    const result = service.applyTextEdit(entry, {
+      replacementText: ", ",
+      replaceBackwardCount: 3,
+      evaluatedTextLength: "This is awseome,, ".length,
+      expectedReplacedText: ",, ",
+      sourceRuleId: "duplicatePunctuationCollapse",
+    });
+
+    expect(result).toEqual({ applied: true, didDispatchInput: true });
+    expect((editable.textContent ?? "").replace(/\u00a0/g, " ")).toBe("This is awseome, ");
   });
 
   test("avoids introducing double space when accepted suggestion ends with space", () => {

@@ -1,6 +1,8 @@
 import { expect, test, describe, beforeEach, spyOn } from "bun:test";
 import { GrammarRuleEngine } from "../../src/core/domain/grammar/GrammarRuleEngine";
 import type { GrammarRule } from "../../src/core/domain/grammar/types";
+import { CommaPeriodSpacingRule } from "../../src/core/domain/grammar/implementations/CommaPeriodSpacingRule";
+import { DuplicatePunctuationCollapseRule } from "../../src/core/domain/grammar/implementations/DuplicatePunctuationCollapseRule";
 
 describe("GrammarRuleEngine", () => {
   let engine: GrammarRuleEngine;
@@ -192,5 +194,28 @@ describe("GrammarRuleEngine", () => {
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("deleteForwards=3"));
 
     warnSpy.mockRestore();
+  });
+
+  test("collapses long comma run after typing comma at trailing-space boundary", () => {
+    engine.registerRule(new CommaPeriodSpacingRule(true));
+    engine.registerRule(new DuplicatePunctuationCollapseRule());
+
+    const result = engine.process("insertChar", {
+      beforeCursor: "This is,,,,,,,,,,,, ,",
+      afterCursor: "",
+      hints: { inputAction: "insert" },
+    });
+
+    expect(result).toEqual([
+      {
+        replacement: ", ",
+        deleteBackwards: 14,
+        deleteForwards: 0,
+        confidence: "medium",
+        sourceRuleId: "duplicatePunctuationCollapse",
+        safetyTier: "advanced",
+        description: "Merged edits",
+      },
+    ]);
   });
 });
