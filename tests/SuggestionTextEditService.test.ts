@@ -48,6 +48,18 @@ function setContentEditableCursor(target: HTMLElement, offset: number): void {
   selection.addRange(range);
 }
 
+function setTextNodeCursor(node: Text, offset: number): void {
+  const range = document.createRange();
+  range.setStart(node, Math.max(0, Math.min(node.textContent?.length ?? 0, offset)));
+  range.collapse(true);
+  const selection = window.getSelection();
+  if (!selection) {
+    return;
+  }
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
 class HostHandledContentEditableAdapter extends ContentEditableAdapter {
   public override getBlockContext(
     elem: HTMLElement,
@@ -185,6 +197,42 @@ describe("SuggestionTextEditService", () => {
     });
 
     expect(inputEventCount).toBe(0);
+  });
+
+  test("applies contenteditable textEdit against active block offsets in multi-line content", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+    });
+
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML = "<p>Title</p><p>fixed .</p>";
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+
+    const secondParagraph = editable.querySelectorAll("p")[1];
+    if (!secondParagraph) {
+      throw new Error("Expected second paragraph");
+    }
+    const secondTextNode = secondParagraph.firstChild as Text | null;
+    if (!secondTextNode) {
+      throw new Error("Expected second paragraph text node");
+    }
+    setTextNodeCursor(secondTextNode, secondTextNode.textContent?.length ?? 0);
+
+    const entry = createSuggestionEntry({ elem: editable });
+    service.applyTextEdit(entry, {
+      replacementText: ". ",
+      replaceBackwardCount: 2,
+      evaluatedTextLength: 7,
+      expectedReplacedText: " .",
+      expectedPrefixToken: "fixed",
+    });
+
+    const paragraphs = editable.querySelectorAll("p");
+    expect(paragraphs[0]?.textContent).toBe("Title");
+    expect((paragraphs[1]?.textContent ?? "").replace(/\u00a0/g, " ")).toBe("fixed. ");
   });
 
   test("avoids introducing double space when accepted suggestion ends with space", () => {

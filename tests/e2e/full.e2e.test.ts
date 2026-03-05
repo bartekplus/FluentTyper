@@ -1710,6 +1710,94 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "CKEditor grammar/text-edit replacement applies in active second paragraph",
+    async () => {
+      try {
+        await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, ["commaPeriodSpacing"]);
+        await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, true);
+        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+        await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+        await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+        await applyConfigChange(browser, worker!);
+
+        await gotoTestPage(page, { enableCkEditor: true });
+        await page.bringToFront();
+        await waitForInputReady(page, CKEDITOR_SELECTOR);
+
+        await page.evaluate(() => {
+          const ckEditor = (
+            window as typeof window & {
+              __testCkEditor?: { setData: (data: string) => void };
+            }
+          ).__testCkEditor;
+          if (!ckEditor) {
+            throw new Error("CKEditor test instance not found");
+          }
+          ckEditor.setData("<p>Quill Rich Text Editor</p><p>fixed </p>");
+        });
+
+        await page.focus(CKEDITOR_SELECTOR);
+        await page.evaluate(() => {
+          const editable = document.querySelector(".ck-editor__editable");
+          const secondParagraph = editable?.querySelectorAll("p")[1];
+          if (!editable || !secondParagraph) {
+            throw new Error("CKEditor editable or second paragraph missing");
+          }
+          const textNode =
+            secondParagraph.firstChild && secondParagraph.firstChild.nodeType === Node.TEXT_NODE
+              ? secondParagraph.firstChild
+              : secondParagraph.appendChild(document.createTextNode(""));
+          const selection = window.getSelection();
+          if (!selection) {
+            throw new Error("Selection unavailable");
+          }
+          const range = document.createRange();
+          range.setStart(textNode, textNode.textContent?.length ?? 0);
+          range.collapse(true);
+          selection.removeAllRanges();
+          selection.addRange(range);
+        });
+
+        await page.keyboard.type(".");
+        const state = await waitUntil(
+          "ckeditor grammar replacement on second paragraph",
+          async () => {
+            const value = await page.evaluate(() => {
+              const editable = document.querySelector(".ck-editor__editable");
+              if (!editable) {
+                return false;
+              }
+              const paragraphs = Array.from(editable.querySelectorAll("p"));
+              if (paragraphs.length < 2) {
+                return false;
+              }
+              const normalize = (text: string): string => text.replace(/\u00a0/g, " ");
+              const firstLine = normalize(paragraphs[0]?.textContent ?? "").trim();
+              const secondLine = normalize(paragraphs[1]?.textContent ?? "");
+              if (firstLine !== "Quill Rich Text Editor") {
+                return false;
+              }
+              if (!/^fixed\.[ ]$/i.test(secondLine)) {
+                return false;
+              }
+              return { firstLine, secondLine };
+            });
+            return value || false;
+          },
+          { timeoutMs: browserTimeout(5000, 9000), intervalMs: 50 },
+        );
+
+        expect(state.firstLine).toBe("Quill Rich Text Editor");
+        expect(state.secondLine).toMatch(/^fixed\.[ ]$/i);
+      } finally {
+        await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+        await applyConfigChange(browser, worker!);
+      }
+    },
+    browserTimeout(35000, 55000),
+  );
+
+  test(
     "Quill preserves block structure and caret-correct insertion on Tab acceptance",
     async () => {
       await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
@@ -1898,11 +1986,27 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await waitForInputReady(page, QUILL_SELECTOR);
         await page.focus(QUILL_SELECTOR);
 
-        await page.keyboard.type("fixed .");
+        await page.evaluate(() => {
+          const quill = (
+            window as typeof window & {
+              __testQuill?: {
+                setText: (text: string, source?: string) => void;
+                setSelection: (index: number, length: number, source?: string) => void;
+              };
+            }
+          ).__testQuill;
+          if (!quill) {
+            throw new Error("Quill test instance not found");
+          }
+          quill.setText("Quill Rich Text Editor\nfixed \n", "silent");
+          quill.setSelection("Quill Rich Text Editor\nfixed ".length, 0, "silent");
+        });
+
+        await page.keyboard.type(".");
         await waitUntil(
           "quill grammar spacing after punctuation",
           async () => {
-            const normalizedText = await page.evaluate(() => {
+            const state = await page.evaluate(() => {
               const quill = (
                 window as typeof window & {
                   __testQuill?: {
@@ -1911,11 +2015,21 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
                 }
               ).__testQuill;
               if (!quill) {
-                return "";
+                return false;
               }
-              return quill.getText().replace(/\u00a0/g, " ");
+              const normalizedText = quill.getText().replace(/\u00a0/g, " ");
+              const lines = normalizedText.split("\n");
+              const firstLine = (lines[0] ?? "").trim();
+              const secondLine = lines[1] ?? "";
+              if (firstLine !== "Quill Rich Text Editor") {
+                return false;
+              }
+              if (!/^fixed\.[ ]$/i.test(secondLine)) {
+                return false;
+              }
+              return true;
             });
-            return /fixed\.[ ]\n$/i.test(normalizedText) ? true : false;
+            return state ? true : false;
           },
           { timeoutMs: browserTimeout(5000, 9000), intervalMs: 50 },
         );
@@ -1937,16 +2051,25 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
                 return false;
               }
               const normalizedText = quill.getText().replace(/\u00a0/g, " ");
+              const lines = normalizedText.split("\n");
+              const firstLine = (lines[0] ?? "").trim();
+              const secondLine = lines[1] ?? "";
               const paragraphCount = quill.root.querySelectorAll("p").length;
-              const hasDoubleSpace = normalizedText.includes("fixed.  x");
-              const hasExpectedText = /fixed\.[ ]x\n$/i.test(normalizedText);
-              const spacingAppliedOnce = normalizedText.split("fixed. ").length - 1 === 1;
+              const hasDoubleSpace = secondLine.includes("fixed.  x");
+              const hasExpectedText = /^fixed\.[ ]x$/i.test(secondLine);
+              const spacingAppliedOnce = secondLine.split("fixed. ").length - 1 === 1;
+              const firstLinePreserved = firstLine === "Quill Rich Text Editor";
               if (!hasExpectedText || hasDoubleSpace || !spacingAppliedOnce) {
+                return false;
+              }
+              if (!firstLinePreserved) {
                 return false;
               }
               return {
                 normalizedText,
                 paragraphCount,
+                firstLine,
+                secondLine,
               };
             });
             return state || false;
@@ -1954,7 +2077,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           { timeoutMs: browserTimeout(5000, 9000), intervalMs: 50 },
         );
 
-        expect(finalState.normalizedText).toMatch(/fixed\. x\n$/i);
+        expect(finalState.firstLine).toBe("Quill Rich Text Editor");
+        expect(finalState.secondLine).toMatch(/^fixed\. x$/i);
         expect(finalState.paragraphCount).toBeGreaterThanOrEqual(1);
       } finally {
         await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);

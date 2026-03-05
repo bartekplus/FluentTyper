@@ -229,21 +229,35 @@ export class SuggestionTextEditService {
     const snapshot: SuggestionSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
     const fullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
 
-    const evaluatedLength = Number.isFinite(textEdit.evaluatedTextLength)
+    const replaceBackwardCount = Math.max(0, textEdit.replaceBackwardCount);
+    let evaluatedLength = Number.isFinite(textEdit.evaluatedTextLength)
       ? Math.max(0, textEdit.evaluatedTextLength)
       : fullText.length;
-    const replaceBackwardCount = Math.max(0, textEdit.replaceBackwardCount);
-
-    const replaceStart = Math.max(
+    let beforeCursorLength = snapshot.beforeCursor.length;
+    let replaceStart = Math.max(
       0,
       Math.min(fullText.length, evaluatedLength - replaceBackwardCount),
     );
-    const replaceEnd = Math.max(
+    let replaceEnd = Math.max(
       replaceStart,
       Math.min(fullText.length, replaceStart + replaceBackwardCount),
     );
 
-    if (snapshot.beforeCursor.length > evaluatedLength && this.isTrailingSpaceEdit(textEdit)) {
+    const blockMappedRange = this.resolveContentEditableBlockTextEditRange(
+      entry.elem,
+      snapshot,
+      fullText,
+      textEdit,
+      replaceBackwardCount,
+    );
+    if (blockMappedRange) {
+      evaluatedLength = blockMappedRange.evaluatedLength;
+      beforeCursorLength = blockMappedRange.beforeCursorLength;
+      replaceStart = blockMappedRange.replaceStart;
+      replaceEnd = blockMappedRange.replaceEnd;
+    }
+
+    if (beforeCursorLength > evaluatedLength && this.isTrailingSpaceEdit(textEdit)) {
       return;
     }
 
@@ -286,6 +300,57 @@ export class SuggestionTextEditService {
       replacementText: textEdit.replacementText,
       cursorBefore: snapshot.cursorOffset,
       cursorAfter,
+    };
+  }
+
+  private resolveContentEditableBlockTextEditRange(
+    elem: SuggestionElement,
+    snapshot: SuggestionSnapshot,
+    fullText: string,
+    textEdit: TextEditOperation,
+    replaceBackwardCount: number,
+  ): {
+    evaluatedLength: number;
+    beforeCursorLength: number;
+    replaceStart: number;
+    replaceEnd: number;
+  } | null {
+    if (this.isTextValueElement(elem)) {
+      return null;
+    }
+
+    const blockContext = this.contentEditableAdapter.getBlockContext(elem);
+    if (!blockContext) {
+      return null;
+    }
+
+    const blockBeforeCursor = blockContext.beforeCursor;
+    const blockAfterCursor = blockContext.afterCursor;
+    const blockText = `${blockBeforeCursor}${blockAfterCursor}`;
+    const blockStart = snapshot.beforeCursor.length - blockBeforeCursor.length;
+    const blockEnd = blockStart + blockText.length;
+
+    if (blockStart < 0 || blockEnd > fullText.length) {
+      return null;
+    }
+
+    const evaluatedLength = Number.isFinite(textEdit.evaluatedTextLength)
+      ? Math.max(0, Math.min(blockText.length, textEdit.evaluatedTextLength))
+      : blockBeforeCursor.length;
+    const localReplaceStart = Math.max(
+      0,
+      Math.min(blockText.length, evaluatedLength - replaceBackwardCount),
+    );
+    const localReplaceEnd = Math.max(
+      localReplaceStart,
+      Math.min(blockText.length, localReplaceStart + replaceBackwardCount),
+    );
+
+    return {
+      evaluatedLength,
+      beforeCursorLength: blockBeforeCursor.length,
+      replaceStart: blockStart + localReplaceStart,
+      replaceEnd: blockStart + localReplaceEnd,
     };
   }
 
