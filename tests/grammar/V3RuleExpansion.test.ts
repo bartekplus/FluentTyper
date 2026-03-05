@@ -132,6 +132,15 @@ describe("V3 rule expansion", () => {
       description: "Collapsed duplicate punctuation",
     });
 
+    expect(rule.apply(context("Hello,,,,", { inputAction: "insert" }))).toEqual({
+      replacement: ",",
+      deleteBackwards: 4,
+      deleteForwards: 0,
+      confidence: "medium",
+      safetyTier: "advanced",
+      description: "Collapsed duplicate punctuation",
+    });
+
     expect(rule.apply(context("Oops.. ", { inputAction: "insert" }))).toEqual({
       replacement: ". ",
       deleteBackwards: 3,
@@ -139,6 +148,96 @@ describe("V3 rule expansion", () => {
       confidence: "medium",
       safetyTier: "advanced",
       description: "Collapsed accidental double period",
+    });
+
+    expect(rule.apply(context("Hello,, ", { inputAction: "insert" }))).toEqual({
+      replacement: ", ",
+      deleteBackwards: 3,
+      deleteForwards: 0,
+      confidence: "medium",
+      safetyTier: "advanced",
+      description: "Collapsed duplicate punctuation",
+    });
+
+    expect(rule.apply(context("Hello,,\u00A0", { inputAction: "insert" }))).toEqual({
+      replacement: ",\u00A0",
+      deleteBackwards: 3,
+      deleteForwards: 0,
+      confidence: "medium",
+      safetyTier: "advanced",
+      description: "Collapsed duplicate punctuation",
+    });
+
+    expect(rule.apply(context("Hello,, ,", { inputAction: "insert" }))).toEqual({
+      replacement: ", ",
+      deleteBackwards: 4,
+      deleteForwards: 0,
+      confidence: "medium",
+      safetyTier: "advanced",
+      description: "Collapsed duplicate punctuation",
+    });
+
+    expect(rule.apply(context("Hello,,\u00A0,", { inputAction: "insert" }))).toEqual({
+      replacement: ",\u00A0",
+      deleteBackwards: 4,
+      deleteForwards: 0,
+      confidence: "medium",
+      safetyTier: "advanced",
+      description: "Collapsed duplicate punctuation",
+    });
+
+    expect(rule.apply(context("Hello,,\u00A0\u00A0,", { inputAction: "insert" }))).toEqual({
+      replacement: ",\u00A0",
+      deleteBackwards: 5,
+      deleteForwards: 0,
+      confidence: "medium",
+      safetyTier: "advanced",
+      description: "Collapsed duplicate punctuation",
+    });
+
+    expect(rule.apply(context("Hello,,\u200B ", { inputAction: "insert" }))).toEqual({
+      replacement: ",\u200B ",
+      deleteBackwards: 4,
+      deleteForwards: 0,
+      confidence: "medium",
+      safetyTier: "advanced",
+      description: "Collapsed duplicate punctuation",
+    });
+
+    expect(rule.apply(context("Hello,,\u200B,", { inputAction: "insert" }))).toEqual({
+      replacement: ",\u200B",
+      deleteBackwards: 4,
+      deleteForwards: 0,
+      confidence: "medium",
+      safetyTier: "advanced",
+      description: "Collapsed duplicate punctuation",
+    });
+
+    expect(rule.apply(context("This is,,,,,,,,,,,, ", { inputAction: "insert" }))).toEqual({
+      replacement: ", ",
+      deleteBackwards: 13,
+      deleteForwards: 0,
+      confidence: "medium",
+      safetyTier: "advanced",
+      description: "Collapsed duplicate punctuation",
+    });
+
+    expect(rule.apply(context("What the fewer ,,,,,,,,,, ", { inputAction: "insert" }))).toEqual({
+      replacement: ", ",
+      deleteBackwards: 12,
+      deleteForwards: 0,
+      confidence: "medium",
+      safetyTier: "advanced",
+      description: "Collapsed duplicate punctuation",
+    });
+
+    expect(rule.apply(context("What the fewer , ,", { inputAction: "insert" }))).toEqual({
+      replacement: ", ",
+      deleteBackwards: 4,
+      deleteForwards: 0,
+      confidence: "medium",
+      safetyTier: "advanced",
+      description: "Collapsed duplicate punctuation",
     });
 
     expect(rule.apply(context("Wait... ", { inputAction: "insert" }))).toBeNull();

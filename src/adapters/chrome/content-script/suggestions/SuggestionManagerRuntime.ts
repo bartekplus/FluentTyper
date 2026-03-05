@@ -27,6 +27,11 @@ const DELETE_INPUT_FALLBACK_TIMEOUT_MS = 220;
 const INSERT_INPUT_FALLBACK_TIMEOUT_MS = 140;
 const INSERT_INPUT_FALLBACK_RETRY_INTERVAL_MS = 120;
 const INSERT_INPUT_FALLBACK_MAX_WAIT_MS = 1000;
+const SPACING_OR_FILLER_PATTERN = "(?:[ \\xA0]|\\u200B|\\u200C|\\u200D|\\u2060|\\uFEFF)";
+const TRAILING_FILLERS_ONLY_REGEX = new RegExp(`^(?:${SPACING_OR_FILLER_PATTERN})*$`);
+const DUPLICATE_PUNCTUATION_TAIL_REGEX = new RegExp(
+  `[,;:](?:${SPACING_OR_FILLER_PATTERN})*[,;:](?:${SPACING_OR_FILLER_PATTERN})*$`,
+);
 const SUGGESTION_DEBOUNCE_BY_ACTION = {
   insert: 120,
   delete: 60,
@@ -168,8 +173,7 @@ export class SuggestionManagerRuntime {
             textEditApplyResult = this.textEditService.applyTextEdit(entry, context.textEdit);
           }
         },
-        allowStaleTextEdit:
-          this.isTextValueElement(entry.elem) && this.canApplyGrammarTextEdit(entry),
+        allowStaleTextEdit: this.shouldAllowStaleTextEdit(entry, context.textEdit),
         clearSuggestions: () => this.clearSuggestions(entry),
       })
     ) {
@@ -525,8 +529,12 @@ export class SuggestionManagerRuntime {
         resolveMentionToken: this.findMentionToken.bind(this),
       });
     }
+    const forceImmediateRequest = this.shouldForceImmediatePunctuationRequest(
+      predictionBeforeCursor,
+      inputAction,
+    );
     this.predictionCoordinator.schedule(entry, {
-      force: false,
+      force: forceImmediateRequest,
       clearSuggestions: () => this.clearSuggestions(entry),
       inputAction,
       beforeCursorOverride: predictionBeforeCursor,
@@ -626,11 +634,57 @@ export class SuggestionManagerRuntime {
     return !TextTargetAdapter.hasCollapsedSelection(entry.elem as TextTarget);
   }
 
+  private shouldForceImmediatePunctuationRequest(
+    beforeCursor: string,
+    inputAction: PredictionInputAction,
+  ): boolean {
+    if (inputAction !== "insert") {
+      return false;
+    }
+    return DUPLICATE_PUNCTUATION_TAIL_REGEX.test(beforeCursor);
+  }
+
   private canApplyGrammarTextEdit(entry: SuggestionEntry): boolean {
     if (entry.isComposing) {
       return false;
     }
     return TextTargetAdapter.hasCollapsedSelection(entry.elem as TextTarget);
+  }
+
+  private shouldAllowStaleTextEdit(
+    entry: SuggestionEntry,
+    textEdit: PredictionResponse["textEdit"],
+  ): boolean {
+    if (!textEdit || !this.canApplyGrammarTextEdit(entry)) {
+      return false;
+    }
+    if (textEdit.sourceRuleId !== "duplicatePunctuationCollapse") {
+      return false;
+    }
+    const evaluatedLength = Number.isFinite(textEdit.evaluatedTextLength)
+      ? Math.max(0, textEdit.evaluatedTextLength)
+      : null;
+    if (evaluatedLength === null) {
+      return false;
+    }
+
+    // Allow stale duplicate-punctuation collapse only when the user has
+    // appended trailing spaces/fillers after evaluation.
+    let currentBeforeCursor: string;
+    if (this.isTextValueElement(entry.elem)) {
+      currentBeforeCursor = TextTargetAdapter.snapshot(entry.elem as TextTarget).beforeCursor;
+    } else {
+      const blockContext = this.contentEditableAdapter.getBlockContext(entry.elem);
+      if (!blockContext) {
+        return false;
+      }
+      currentBeforeCursor = blockContext.beforeCursor;
+    }
+    if (currentBeforeCursor.length < evaluatedLength) {
+      return false;
+    }
+    const appendedText = currentBeforeCursor.slice(evaluatedLength);
+    return TRAILING_FILLERS_ONLY_REGEX.test(appendedText);
   }
 
   private isSeparator(value: string): boolean {
@@ -862,9 +916,33 @@ export class SuggestionManagerRuntime {
     const remainingMs = pending.waitForTextChangeUntilMs - Date.now();
     if (remainingMs <= 0) {
       // No observable text mutation happened during the wait window.
-      // Drop fallback to avoid churn from synthetic seeded before-cursor values.
-      this.clearPendingKeyFallback(id);
-      return true;
+      // Drop fallback for synthetic seeded before-cursor values (first-char
+      // contenteditable bootstrap path) and for swallowed inserts.
+      // Reconcile when the typed key already appears at the cursor snapshot,
+      // which covers editors that mutate before observers start.
+      const isSeededBeforeCursor =
+        typeof pending.typedKey === "string" &&
+        pending.typedKey.length === 1 &&
+        pending.expectedBeforeCursor === pending.typedKey;
+      if (isSeededBeforeCursor) {
+        this.clearPendingKeyFallback(id);
+        return true;
+      }
+
+      const typedKey = pending.typedKey;
+      const expectedBefore = pending.expectedBeforeCursor;
+      const lastChar = expectedBefore.charAt(expectedBefore.length - 1);
+      const isWhitespaceInsert = typedKey === " " && (lastChar === " " || lastChar === "\xA0");
+      const isLikelyAlreadyInserted =
+        (typeof typedKey === "string" &&
+          typedKey.length === 1 &&
+          expectedBefore.endsWith(typedKey)) ||
+        isWhitespaceInsert;
+      if (!isLikelyAlreadyInserted) {
+        this.clearPendingKeyFallback(id);
+        return true;
+      }
+      return false;
     }
 
     pending.reconcileScheduled = false;

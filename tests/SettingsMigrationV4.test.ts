@@ -113,4 +113,17 @@ describe("migrateSettingsV4", () => {
     expect(settings.store[KEY_GRAMMAR_RULES_V1_BACKUP]).toEqual([]);
     expect(settings.store[KEY_GRAMMAR_RULES_V1_MIGRATED]).toBe(true);
   });
+
+  test("preserves custom grammar selection when it no longer uses legacy rule ids", async () => {
+    const customSelection = ["commaPeriodSpacing", "duplicatePunctuationCollapse"];
+    const settings = createMockSettingsManager({
+      [KEY_ENABLED_GRAMMAR_RULES]: customSelection,
+    });
+
+    await migrateSettingsV4(settings);
+
+    expect(settings.store[KEY_ENABLED_GRAMMAR_RULES]).toEqual(customSelection);
+    expect(settings.store[KEY_GRAMMAR_RULES_V1_BACKUP]).toEqual(customSelection);
+    expect(settings.store[KEY_GRAMMAR_RULES_V1_MIGRATED]).toBe(true);
+  });
 });

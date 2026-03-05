@@ -35,3 +35,5 @@ export const SPACING_RULES: Record<string, SpacingRule> = {
 };
 
 export const SPACE_CHARS: string[] = ["\xA0", " "];
+export const ZERO_WIDTH_FILLER_CHARS: string[] = ["\u200B", "\u200C", "\u200D", "\u2060", "\uFEFF"];
+export const SPACING_OR_FILLER_CHARS: string[] = [...SPACE_CHARS, ...ZERO_WIDTH_FILLER_CHARS];

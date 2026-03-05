@@ -295,13 +295,22 @@ export class SuggestionTextEditService {
       replaceEnd = blockMappedRange.replaceEnd;
     }
 
-    if (beforeCursorLength > evaluatedLength && this.isTrailingSpaceEdit(textEdit)) {
+    if (
+      beforeCursorLength > evaluatedLength &&
+      this.isTrailingSpaceEdit(textEdit) &&
+      textEdit.sourceRuleId !== "duplicatePunctuationCollapse"
+    ) {
       return { applied: false, didDispatchInput: false };
     }
 
     if (textEdit.expectedReplacedText !== undefined) {
       const currentSubstring = fullText.slice(replaceStart, replaceEnd);
-      if (currentSubstring !== textEdit.expectedReplacedText) {
+      const expectedReplacedTextMatches =
+        currentSubstring === textEdit.expectedReplacedText ||
+        (textEdit.sourceRuleId === "duplicatePunctuationCollapse" &&
+          this.normalizeDuplicatePunctuationComparable(currentSubstring) ===
+            this.normalizeDuplicatePunctuationComparable(textEdit.expectedReplacedText));
+      if (!expectedReplacedTextMatches) {
         logger.debug("Skipping textEdit due to replaced text mismatch", {
           expected: textEdit.expectedReplacedText,
           actual: currentSubstring,
@@ -310,7 +319,10 @@ export class SuggestionTextEditService {
       }
     }
 
-    if (textEdit.expectedPrefixToken !== undefined) {
+    if (
+      textEdit.expectedPrefixToken !== undefined &&
+      textEdit.sourceRuleId !== "duplicatePunctuationCollapse"
+    ) {
       const tokenStart = Math.max(0, replaceStart - textEdit.expectedPrefixToken.length);
       const actualToken = fullText.slice(tokenStart, replaceStart);
       if (actualToken !== textEdit.expectedPrefixToken) {
@@ -320,6 +332,14 @@ export class SuggestionTextEditService {
         });
         return { applied: false, didDispatchInput: false };
       }
+    }
+
+    if (textEdit.sourceRuleId === "duplicatePunctuationCollapse") {
+      replaceEnd = this.expandDuplicatePunctuationReplaceEnd(
+        fullText,
+        replaceEnd,
+        textEdit.replacementText,
+      );
     }
 
     const originalText = fullText.slice(replaceStart, replaceEnd);
@@ -368,6 +388,42 @@ export class SuggestionTextEditService {
       applied: true,
       didDispatchInput: applyResult.didDispatchInput,
     };
+  }
+
+  private normalizeDuplicatePunctuationComparable(value: string): string {
+    return value.replace(/(?:\u200B|\u200C|\u200D|\u2060|\uFEFF)/g, "").replace(/\xA0/g, " ");
+  }
+
+  private expandDuplicatePunctuationReplaceEnd(
+    fullText: string,
+    replaceEnd: number,
+    replacementText: string,
+  ): number {
+    if (!/[ \xA0]$/.test(replacementText)) {
+      return replaceEnd;
+    }
+    if (replaceEnd >= fullText.length) {
+      return replaceEnd;
+    }
+    const followingChar = fullText.charAt(replaceEnd);
+    if (!this.isSpacingOrFillerChar(followingChar)) {
+      return replaceEnd;
+    }
+    // Consume one trailing spacing/filler character to avoid creating
+    // duplicate spacing artifacts in contenteditable hosts.
+    return replaceEnd + 1;
+  }
+
+  private isSpacingOrFillerChar(value: string): boolean {
+    return (
+      value === " " ||
+      value === "\xA0" ||
+      value === "\u200B" ||
+      value === "\u200C" ||
+      value === "\u200D" ||
+      value === "\u2060" ||
+      value === "\uFEFF"
+    );
   }
 
   private resolveContentEditableBlockTextEditRange(

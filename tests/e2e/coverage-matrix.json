@@ -789,7 +789,7 @@
         {
           "layer": "unit",
           "file": "tests/SettingsMigrationV5.test.ts",
-          "test": "force-sets recommended v2 grammar rules and stores exact backup once"
+          "test": "force-sets recommended v2 grammar rules when selection still equals v1 recommended set"
         }
       ]
     }

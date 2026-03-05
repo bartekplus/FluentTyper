@@ -67,8 +67,15 @@ export async function migrateSettingsV6(settings: SettingsManager): Promise<void
       await writeRaw(settings, KEY_GRAMMAR_RULES_V3_BACKUP, rawSnapshot as JsonValue);
     }
 
+    const current = await readRaw(settings, KEY_ENABLED_GRAMMAR_RULES);
+    const currentSnapshot = getRawGrammarRulesSnapshot(current);
+    const rulesChangedSinceSnapshot = !arraysEqual(currentSnapshot, rawSnapshot);
+
     const normalizedExisting = normalizeGrammarRuleSelection(rawSnapshot);
-    if (arraysEqual(normalizedExisting, PRE_V3_RECOMMENDED_GRAMMAR_RULES)) {
+    if (
+      !rulesChangedSinceSnapshot &&
+      arraysEqual(normalizedExisting, PRE_V3_RECOMMENDED_GRAMMAR_RULES)
+    ) {
       await writeRaw(settings, KEY_ENABLED_GRAMMAR_RULES, DEFAULT_V3_GRAMMAR_RULES as JsonValue);
     }
 

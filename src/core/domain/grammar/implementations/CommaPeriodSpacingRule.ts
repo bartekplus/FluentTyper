@@ -1,5 +1,5 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
-import { SPACE_CHARS } from "../../spacingRules";
+import { SPACE_CHARS, SPACING_OR_FILLER_CHARS } from "../../spacingRules";
 import { SpacingRuleShared } from "./helpers/SpacingRuleShared";
 
 export class CommaPeriodSpacingRule extends SpacingRuleShared implements GrammarRule {
@@ -22,14 +22,24 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
 
     let spaceRunLength = 0;
     let i = length - 2;
-    while (i >= 0 && SPACE_CHARS.includes(inputStr[i])) {
-      spaceRunLength += 1;
+    while (i >= 0 && SPACING_OR_FILLER_CHARS.includes(inputStr[i])) {
+      if (SPACE_CHARS.includes(inputStr[i])) {
+        spaceRunLength += 1;
+      }
       i -= 1;
     }
+    const previousSignificantChar = i >= 0 ? inputStr[i] : "";
 
     const spaceBeforeViolated = spaceRunLength > 0;
     const insertSpaceAfter = this.insertSpaceAfterAutocomplete;
     const inputAction = this.resolveInputAction(context);
+
+    // Repeated punctuation bursts (",,,,", ", , ,") should be handled by
+    // duplicate-collapse logic; avoid emitting spacing edits that can create
+    // comma-space ladders under rapid input.
+    if (previousSignificantChar === lastChar) {
+      return null;
+    }
 
     // Respect explicit user deletion of an auto-inserted trailing space.
     if (inputAction === "delete" && !spaceBeforeViolated && insertSpaceAfter) {

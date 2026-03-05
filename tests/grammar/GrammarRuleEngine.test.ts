@@ -1,6 +1,9 @@
 import { expect, test, describe, beforeEach, spyOn } from "bun:test";
 import { GrammarRuleEngine } from "../../src/core/domain/grammar/GrammarRuleEngine";
 import type { GrammarRule } from "../../src/core/domain/grammar/types";
+import { CommaPeriodSpacingRule } from "../../src/core/domain/grammar/implementations/CommaPeriodSpacingRule";
+import { DuplicatePunctuationCollapseRule } from "../../src/core/domain/grammar/implementations/DuplicatePunctuationCollapseRule";
+import { ZERO_WIDTH_FILLER_CHARS } from "../../src/core/domain/spacingRules";
 
 describe("GrammarRuleEngine", () => {
   let engine: GrammarRuleEngine;
@@ -192,5 +195,88 @@ describe("GrammarRuleEngine", () => {
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("deleteForwards=3"));
 
     warnSpy.mockRestore();
+  });
+
+  test("collapses long comma run after typing comma at trailing-space boundary", () => {
+    engine.registerRule(new CommaPeriodSpacingRule(true));
+    engine.registerRule(new DuplicatePunctuationCollapseRule());
+
+    const result = engine.process("insertChar", {
+      beforeCursor: "This is,,,,,,,,,,,, ,",
+      afterCursor: "",
+      hints: { inputAction: "insert" },
+    });
+
+    expect(result).toEqual([
+      {
+        replacement: ", ",
+        deleteBackwards: 14,
+        deleteForwards: 0,
+        confidence: "medium",
+        sourceRuleId: "duplicatePunctuationCollapse",
+        safetyTier: "advanced",
+        description: "Merged edits",
+      },
+    ]);
+  });
+
+  test("collapses rapid comma burst and removes preceding space before comma", () => {
+    engine.registerRule(new CommaPeriodSpacingRule(true));
+    engine.registerRule(new DuplicatePunctuationCollapseRule());
+
+    const result = engine.process("wordBoundary", {
+      beforeCursor: "What the fewer ,,,,,,,,,, ",
+      afterCursor: "",
+      hints: { inputAction: "insert" },
+    });
+
+    expect(result).toEqual([
+      {
+        replacement: ", ",
+        deleteBackwards: 12,
+        deleteForwards: 0,
+        confidence: "medium",
+        sourceRuleId: "duplicatePunctuationCollapse",
+        safetyTier: "advanced",
+        description: "Merged edits",
+      },
+    ]);
+  });
+
+  test("does not emit comma spacing edit for repeated comma bursts", () => {
+    engine.registerRule(new CommaPeriodSpacingRule(true));
+
+    const result = engine.process("insertChar", {
+      beforeCursor: "What the fewer ,,,,,,,,,,",
+      afterCursor: "",
+      hints: { inputAction: "insert" },
+    });
+
+    expect(result).toEqual([]);
+  });
+
+  test("zero-width filler-separated comma bursts are owned by duplicate collapse", () => {
+    engine.registerRule(new CommaPeriodSpacingRule(true));
+    engine.registerRule(new DuplicatePunctuationCollapseRule());
+
+    for (const filler of ZERO_WIDTH_FILLER_CHARS) {
+      const result = engine.process("insertChar", {
+        beforeCursor: `Hello,,${filler},`,
+        afterCursor: "",
+        hints: { inputAction: "insert" },
+      });
+
+      expect(result).toEqual([
+        {
+          replacement: `,${filler}`,
+          deleteBackwards: 4,
+          deleteForwards: 0,
+          confidence: "medium",
+          sourceRuleId: "duplicatePunctuationCollapse",
+          safetyTier: "advanced",
+          description: "Merged edits",
+        },
+      ]);
+    }
   });
 });

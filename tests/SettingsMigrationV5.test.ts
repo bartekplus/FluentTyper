@@ -6,7 +6,10 @@ import {
   KEY_GRAMMAR_RULES_V2_BACKUP,
   KEY_GRAMMAR_RULES_V2_MIGRATED,
 } from "../src/core/domain/constants";
-import { RECOMMENDED_V2_GRAMMAR_RULES } from "../src/core/domain/grammar/ruleCatalog";
+import {
+  RECOMMENDED_V1_GRAMMAR_RULES,
+  RECOMMENDED_V2_GRAMMAR_RULES,
+} from "../src/core/domain/grammar/ruleCatalog";
 
 function createMockSettingsManager(
   seed: Record<string, unknown>,
@@ -29,19 +32,28 @@ function createMockSettingsManager(
 }
 
 describe("migrateSettingsV5", () => {
-  test("force-sets recommended v2 grammar rules and stores exact backup once", async () => {
+  test("force-sets recommended v2 grammar rules when selection still equals v1 recommended set", async () => {
     const settings = createMockSettingsManager({
-      [KEY_ENABLED_GRAMMAR_RULES]: ["legacyX", "commaPeriodSpacing", "commaPeriodSpacing"],
+      [KEY_ENABLED_GRAMMAR_RULES]: RECOMMENDED_V1_GRAMMAR_RULES.slice(),
     });
 
     await migrateSettingsV5(settings);
 
     expect(settings.store[KEY_ENABLED_GRAMMAR_RULES]).toEqual(RECOMMENDED_V2_GRAMMAR_RULES);
-    expect(settings.store[KEY_GRAMMAR_RULES_V2_BACKUP]).toEqual([
-      "legacyX",
-      "commaPeriodSpacing",
-      "commaPeriodSpacing",
-    ]);
+    expect(settings.store[KEY_GRAMMAR_RULES_V2_BACKUP]).toEqual(RECOMMENDED_V1_GRAMMAR_RULES);
+    expect(settings.store[KEY_GRAMMAR_RULES_V2_MIGRATED]).toBe(true);
+  });
+
+  test("preserves custom grammar selection when already user-modified", async () => {
+    const customSelection = ["commaPeriodSpacing", "duplicatePunctuationCollapse"];
+    const settings = createMockSettingsManager({
+      [KEY_ENABLED_GRAMMAR_RULES]: customSelection,
+    });
+
+    await migrateSettingsV5(settings);
+
+    expect(settings.store[KEY_ENABLED_GRAMMAR_RULES]).toEqual(customSelection);
+    expect(settings.store[KEY_GRAMMAR_RULES_V2_BACKUP]).toEqual(customSelection);
     expect(settings.store[KEY_GRAMMAR_RULES_V2_MIGRATED]).toBe(true);
   });
 
