@@ -91,19 +91,42 @@ describe("ruleToggleCards setting", () => {
   });
 
   test("manifest maps grammar rules to the dedicated grammar tab with metadata", () => {
+    const grammarUiI18nKeys = [
+      "grammar_tab",
+      "grammar_rules_search_placeholder",
+      "grammar_rules_no_matches",
+      "grammar_rules_filter_all",
+      "grammar_rules_filter_safe",
+      "grammar_rules_filter_advanced",
+      "grammar_rules_filter_recommended",
+      "grammar_rules_filter_english_only",
+      "grammar_rules_filter_enabled_only",
+      "grammar_rules_section_safe",
+      "grammar_rules_section_advanced",
+    ] as const;
+    for (const key of grammarUiI18nKeys) {
+      const translated = i18n.get(key);
+      expect(typeof translated).toBe("string");
+      expect((translated as string).trim().length).toBeGreaterThan(0);
+      expect(translated).not.toBe(key);
+    }
+
     const grammarSetting = manifest.settings.find(
       (entry) => entry.name === KEY_ENABLED_GRAMMAR_RULES,
     ) as Record<string, unknown> | undefined;
 
     expect(grammarSetting).toBeDefined();
     expect(grammarSetting?.tab).toBe(i18n.get("grammar_tab"));
-    expect(i18n.get("grammar_tab")).not.toBe("grammar_tab");
 
     const options = (grammarSetting?.options || []) as Array<Record<string, unknown>>;
     expect(options.length).toBeGreaterThan(0);
-    const sample = options[0];
-    expect(["safe", "advanced"]).toContain(sample.safetyTier);
-    expect(["all", "en_US"]).toContain(sample.languageScope);
+
+    for (const option of options) {
+      expect(option).toHaveProperty("safetyTier");
+      expect(option).toHaveProperty("languageScope");
+      expect(["safe", "advanced"]).toContain(option.safetyTier);
+      expect(["all", "en_US"]).toContain(option.languageScope);
+    }
   });
 
   test("search and tier/language filters narrow visible grammar cards", () => {
