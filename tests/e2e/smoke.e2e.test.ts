@@ -663,6 +663,14 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
             )
             .filter((toggle): toggle is HTMLInputElement => Boolean(toggle))
             .map((toggle) => toggle.value);
+          searchInput.value = "definitely-no-such-rule";
+          searchInput.dispatchEvent(new Event("input", { bubbles: true }));
+          const noMatchVisibleCount = countVisibleCards();
+          const noResultsVisible = !grammarRoot
+            .querySelector(".grammar-rule-selector-no-results")
+            ?.classList.contains("is-hidden");
+          searchInput.value = "";
+          searchInput.dispatchEvent(new Event("input", { bubbles: true }));
 
           return {
             ok: true,
@@ -672,6 +680,8 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
             safeVisibleCount,
             recommendedVisibleCount: recommendedVisibleCards.length,
             recommendedIncludesSelected: recommendedVisibleCards.includes(selectedId),
+            noMatchVisibleCount,
+            noResultsVisible,
             selectedId,
           };
         });
@@ -688,6 +698,8 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
         expect(probe.safeVisibleCount).toBeLessThan(probe.initialVisibleCount);
         expect(probe.recommendedVisibleCount).toBeGreaterThan(0);
         expect(probe.recommendedIncludesSelected).toBe(false);
+        expect(probe.noMatchVisibleCount).toBe(0);
+        expect(probe.noResultsVisible).toBe(true);
         expect(probe.selectedId.length).toBeGreaterThan(0);
         selectedRuleId = probe.selectedId;
       } finally {

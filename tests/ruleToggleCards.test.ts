@@ -131,6 +131,9 @@ describe("ruleToggleCards setting", () => {
 
   test("search and tier/language filters narrow visible grammar cards", () => {
     const { host } = buildRuleToggleCardsHost();
+    const noMatches = host.querySelector(".grammar-rule-selector-no-results");
+    expect(noMatches).toBeInstanceOf(HTMLElement);
+    expect((noMatches as HTMLElement).classList.contains("is-hidden")).toBe(true);
 
     expect(visibleRuleValues(host)).toEqual([
       "safePunctuation",
@@ -155,6 +158,18 @@ describe("ruleToggleCards setting", () => {
     input.dispatchEvent(new Event("input", { bubbles: true }));
 
     expect(visibleRuleValues(host)).toEqual(["advancedEllipsis"]);
+    expect((noMatches as HTMLElement).classList.contains("is-hidden")).toBe(true);
+
+    input.value = "definitely-no-such-rule";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+
+    expect(visibleRuleValues(host)).toEqual([]);
+    expect((noMatches as HTMLElement).classList.contains("is-hidden")).toBe(false);
+
+    input.value = "";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(visibleRuleValues(host).length).toBeGreaterThan(0);
+    expect((noMatches as HTMLElement).classList.contains("is-hidden")).toBe(true);
   });
 
   test("bulk actions and enabled-only filter stay in sync with selected rule values", () => {
