@@ -83,6 +83,7 @@ export interface SuggestionEntry {
   lastReplacement: ReplacementSnapshot | null;
   lastAutoFixReplacement: AutoFixReplacementSnapshot | null;
   manualAutoFixSuppression: ManualAutoFixSuppressionSnapshot | null;
+  isComposing: boolean;
   lastKeydownKey: string | null;
   lastInputAction: PredictionInputAction | null;
   lastBeforeCursorText: string | null;
@@ -93,6 +94,8 @@ export interface SuggestionEntry {
     focus: EventListener;
     blur: EventListener;
     click: EventListener;
+    compositionStart: EventListener;
+    compositionEnd: EventListener;
     menuMouseDown: EventListener;
     menuClick: EventListener;
   };

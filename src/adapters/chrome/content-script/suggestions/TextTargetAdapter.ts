@@ -7,6 +7,34 @@ export interface TextCursorSnapshot {
 }
 
 export class TextTargetAdapter {
+  static hasCollapsedSelection(target: TextTarget): boolean {
+    const tagName = (target as Element).tagName?.toUpperCase();
+    if (tagName === "INPUT" || tagName === "TEXTAREA") {
+      const textTarget = target as HTMLInputElement | HTMLTextAreaElement;
+      if (textTarget.selectionStart === null || textTarget.selectionEnd === null) {
+        return true;
+      }
+      return textTarget.selectionStart === textTarget.selectionEnd;
+    }
+
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      return true;
+    }
+
+    const targetNode = target as Node;
+    const range = selection.getRangeAt(0);
+    const startInsideTarget =
+      range.startContainer === targetNode || targetNode.contains(range.startContainer);
+    const endInsideTarget =
+      range.endContainer === targetNode || targetNode.contains(range.endContainer);
+    if (!startInsideTarget || !endInsideTarget) {
+      return true;
+    }
+
+    return selection.isCollapsed;
+  }
+
   static snapshot(target: TextTarget): TextCursorSnapshot {
     const tagName = (target as Element).tagName?.toUpperCase();
     if (tagName === "INPUT" || tagName === "TEXTAREA") {

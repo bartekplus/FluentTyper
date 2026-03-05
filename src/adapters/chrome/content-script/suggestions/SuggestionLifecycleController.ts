@@ -27,6 +27,8 @@ export class SuggestionLifecycleController {
     entry.elem.addEventListener("focus", entry.handlers.focus, true);
     entry.elem.addEventListener("blur", entry.handlers.blur, true);
     entry.elem.addEventListener("click", entry.handlers.click, true);
+    entry.elem.addEventListener("compositionstart", entry.handlers.compositionStart, true);
+    entry.elem.addEventListener("compositionend", entry.handlers.compositionEnd, true);
     entry.menu.addEventListener("mousedown", entry.handlers.menuMouseDown);
     entry.menu.addEventListener("click", entry.handlers.menuClick);
 
@@ -40,6 +42,8 @@ export class SuggestionLifecycleController {
     entry.elem.removeEventListener("focus", entry.handlers.focus, true);
     entry.elem.removeEventListener("blur", entry.handlers.blur, true);
     entry.elem.removeEventListener("click", entry.handlers.click, true);
+    entry.elem.removeEventListener("compositionstart", entry.handlers.compositionStart, true);
+    entry.elem.removeEventListener("compositionend", entry.handlers.compositionEnd, true);
     entry.menu.removeEventListener("mousedown", entry.handlers.menuMouseDown);
     entry.menu.removeEventListener("click", entry.handlers.menuClick);
 

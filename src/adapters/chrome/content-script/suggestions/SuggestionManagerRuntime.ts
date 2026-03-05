@@ -164,11 +164,12 @@ export class SuggestionManagerRuntime {
       !this.predictionCoordinator.shouldProcessResponse(entry, context, {
         isEntryFocused: this.isEntryFocused(entry),
         applyTextEdit: () => {
-          if (context.textEdit) {
+          if (context.textEdit && this.canApplyGrammarTextEdit(entry)) {
             textEditApplyResult = this.textEditService.applyTextEdit(entry, context.textEdit);
           }
         },
-        allowStaleTextEdit: this.isTextValueElement(entry.elem),
+        allowStaleTextEdit:
+          this.isTextValueElement(entry.elem) && this.canApplyGrammarTextEdit(entry),
         clearSuggestions: () => this.clearSuggestions(entry),
       })
     ) {
@@ -340,6 +341,7 @@ export class SuggestionManagerRuntime {
       lastReplacement: null,
       lastAutoFixReplacement: null,
       manualAutoFixSuppression: null,
+      isComposing: false,
       lastKeydownKey: null,
       lastInputAction: null,
       lastBeforeCursorText: null,
@@ -350,6 +352,8 @@ export class SuggestionManagerRuntime {
         focus: () => undefined,
         blur: () => undefined,
         click: () => undefined,
+        compositionStart: () => undefined,
+        compositionEnd: () => undefined,
         menuMouseDown: () => undefined,
         menuClick: () => undefined,
       },
@@ -360,6 +364,8 @@ export class SuggestionManagerRuntime {
     entry.handlers.focus = this.onElementFocus.bind(this, id);
     entry.handlers.blur = this.onElementBlur.bind(this, id);
     entry.handlers.click = this.onElementClick.bind(this, id);
+    entry.handlers.compositionStart = this.onElementCompositionStart.bind(this, id);
+    entry.handlers.compositionEnd = this.onElementCompositionEnd.bind(this, id);
     entry.handlers.menuMouseDown = (event) => {
       event.preventDefault();
     };
@@ -470,6 +476,7 @@ export class SuggestionManagerRuntime {
     if (!entry) {
       return;
     }
+    entry.isComposing = false;
     this.dismissEntry(entry);
   }
 
@@ -478,6 +485,14 @@ export class SuggestionManagerRuntime {
     this.activeEntryId = id;
     const entry = this.entryRegistry.getById(id);
     if (!entry) {
+      return;
+    }
+    if (this.shouldSkipPredictionForUnstableInputState(entry, event)) {
+      entry.requestId += 1;
+      entry.lastInputAction = null;
+      entry.lastKeydownKey = null;
+      entry.lastBeforeCursorText = null;
+      this.clearSuggestions(entry);
       return;
     }
     const snapshot: SuggestionSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
@@ -520,6 +535,26 @@ export class SuggestionManagerRuntime {
       inputAction,
       beforeCursorOverride: predictionBeforeCursor,
     });
+  }
+
+  private onElementCompositionStart(id: number): void {
+    this.activeEntryId = id;
+    const entry = this.entryRegistry.getById(id);
+    if (!entry) {
+      return;
+    }
+    entry.isComposing = true;
+    this.predictionCoordinator.cancelPending(entry);
+    this.clearSuggestions(entry);
+  }
+
+  private onElementCompositionEnd(id: number): void {
+    this.activeEntryId = id;
+    const entry = this.entryRegistry.getById(id);
+    if (!entry) {
+      return;
+    }
+    entry.isComposing = false;
   }
 
   private resolveBeforeCursorForPrediction(
@@ -571,6 +606,24 @@ export class SuggestionManagerRuntime {
       return false;
     }
     return fullText.slice(autoFix.replaceStart, replaceEnd) === autoFix.replacementText;
+  }
+
+  private shouldSkipPredictionForUnstableInputState(entry: SuggestionEntry, event: Event): boolean {
+    if (entry.isComposing) {
+      return true;
+    }
+    const eventIsComposing = (event as InputEvent).isComposing;
+    if (eventIsComposing === true) {
+      return true;
+    }
+    return !TextTargetAdapter.hasCollapsedSelection(entry.elem as TextTarget);
+  }
+
+  private canApplyGrammarTextEdit(entry: SuggestionEntry): boolean {
+    if (entry.isComposing) {
+      return false;
+    }
+    return TextTargetAdapter.hasCollapsedSelection(entry.elem as TextTarget);
   }
 
   private isSeparator(value: string): boolean {
