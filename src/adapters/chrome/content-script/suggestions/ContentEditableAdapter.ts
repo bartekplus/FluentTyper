@@ -111,14 +111,24 @@ export class ContentEditableAdapter {
       return null;
     }
 
-    const block = this.resolveBlock(range.startContainer, elem);
+    const block = this.resolveBlockFromPoint(range.startContainer, range.startOffset, elem, true);
+    const startPoint = this.resolvePointWithinBlock(
+      range.startContainer,
+      range.startOffset,
+      block,
+      elem,
+    );
+    const endPoint = this.resolvePointWithinBlock(range.endContainer, range.endOffset, block, elem);
+    if (!startPoint || !endPoint) {
+      return null;
+    }
     const beforeRange = range.cloneRange();
     beforeRange.selectNodeContents(block);
-    beforeRange.setEnd(range.startContainer, range.startOffset);
+    beforeRange.setEnd(startPoint.container, startPoint.offset);
 
     const afterRange = range.cloneRange();
     afterRange.selectNodeContents(block);
-    afterRange.setStart(range.endContainer, range.endOffset);
+    afterRange.setStart(endPoint.container, endPoint.offset);
 
     return {
       beforeCursor: beforeRange.toString(),
@@ -154,6 +164,73 @@ export class ContentEditableAdapter {
     }
 
     return root;
+  }
+
+  private resolveBlockFromPoint(
+    node: Node,
+    offset: number,
+    root: HTMLElement,
+    preferForward: boolean,
+  ): HTMLElement {
+    const rootNode = root as Node;
+    if (node === rootNode) {
+      const adjacent = this.pickAdjacentChildAtOffset(root, offset, preferForward);
+      if (adjacent) {
+        const block = this.resolveBlock(adjacent, root);
+        if (block !== root) {
+          return block;
+        }
+      }
+    }
+
+    return this.resolveBlock(node, root);
+  }
+
+  private pickAdjacentChildAtOffset(
+    container: Element,
+    offset: number,
+    preferForward: boolean,
+  ): Node | null {
+    const childCount = container.childNodes.length;
+    if (childCount === 0) {
+      return null;
+    }
+
+    if (preferForward && offset >= 0 && offset < childCount) {
+      return container.childNodes[offset];
+    }
+    if (offset > 0 && offset <= childCount) {
+      return container.childNodes[offset - 1];
+    }
+    if (offset >= 0 && offset < childCount) {
+      return container.childNodes[offset];
+    }
+    return null;
+  }
+
+  private resolvePointWithinBlock(
+    container: Node,
+    offset: number,
+    block: HTMLElement,
+    root: HTMLElement,
+  ): ContentEditableDomPosition | null {
+    if (container === block || block.contains(container)) {
+      return { container, offset };
+    }
+
+    const rootNode = root as Node;
+    if (container === rootNode && block.parentNode === rootNode) {
+      const blockIndex = Array.prototype.indexOf.call(root.childNodes, block);
+      if (blockIndex < 0) {
+        return null;
+      }
+      if (offset <= blockIndex) {
+        return { container: block, offset: 0 };
+      }
+      return { container: block, offset: block.childNodes.length };
+    }
+
+    return null;
   }
 
   private dispatchReplacementBeforeInput(

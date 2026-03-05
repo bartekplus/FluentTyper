@@ -269,4 +269,27 @@ describe("ContentEditableAdapter", () => {
     expect(paragraphs[1]?.textContent ?? "").toContain("X");
     expect(result.didMutateDom).toBe(true);
   });
+
+  test("resolves block context to active line when caret is at root boundary", () => {
+    const adapter = new ContentEditableAdapter();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML = "<h1>Quill Rich Text Editor</h1><p>word</p>";
+    document.body.appendChild(editable);
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Selection API unavailable");
+    }
+    const range = document.createRange();
+    range.setStart(editable, 1);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    const context = adapter.getBlockContext(editable);
+    expect(context).not.toBeNull();
+    expect(context?.beforeCursor).toBe("");
+    expect(context?.afterCursor).toBe("word");
+  });
 });
