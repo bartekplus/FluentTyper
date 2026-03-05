@@ -105,7 +105,7 @@ describe("V3 rule expansion", () => {
       description: "Normalized straight quote",
     });
 
-    expect(rule.apply(context("This is “awesome\u00A0\"", { inputAction: "insert" }))).toEqual({
+    expect(rule.apply(context('This is “awesome\u00A0"', { inputAction: "insert" }))).toEqual({
       replacement: "”",
       deleteBackwards: 2,
       deleteForwards: 0,
