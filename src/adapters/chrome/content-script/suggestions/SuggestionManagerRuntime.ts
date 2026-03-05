@@ -39,6 +39,8 @@ interface PendingKeyFallback {
   reconcileScheduled: boolean;
   inputAction: PredictionInputAction;
   expectedBeforeCursor: string | null;
+  expectedFullText: string | null;
+  typedKey: string | null;
   waitForTextChangeUntilMs: number | null;
 }
 
@@ -654,6 +656,7 @@ export class SuggestionManagerRuntime {
         "insert",
         INSERT_INPUT_FALLBACK_TIMEOUT_MS,
         this.isContentEditableElement(entry.elem),
+        keyboardEvent.key,
       );
     }
   }
@@ -664,6 +667,7 @@ export class SuggestionManagerRuntime {
     inputAction: PredictionInputAction,
     timeoutMs: number,
     observeMutations: boolean,
+    typedKey: string | null = null,
   ): void {
     this.cancelPendingKeyFallback(id);
     const shouldWaitForTextChange = inputAction === "insert" && observeMutations;
@@ -680,6 +684,10 @@ export class SuggestionManagerRuntime {
       reconcileScheduled: false,
       inputAction,
       expectedBeforeCursor: shouldWaitForTextChange ? currentBeforeCursor : null,
+      expectedFullText: shouldWaitForTextChange
+        ? `${currentSnapshot.beforeCursor}${currentSnapshot.afterCursor}`
+        : null,
+      typedKey,
       waitForTextChangeUntilMs: shouldWaitForTextChange
         ? Date.now() + INSERT_INPUT_FALLBACK_MAX_WAIT_MS
         : null,
@@ -734,7 +742,10 @@ export class SuggestionManagerRuntime {
     }
     this.clearPendingKeyFallback(id);
     const snapshot = TextTargetAdapter.snapshot(current.elem as TextTarget);
-    const beforeCursor = this.resolveBeforeCursorForPrediction(current, snapshot.beforeCursor);
+    const beforeCursor = this.resolveBeforeCursorForPrediction(current, snapshot.beforeCursor, {
+      inputAction: pending.inputAction,
+      typedKey: pending.typedKey,
+    });
     this.predictionCoordinator.reconcile(current, {
       clearSuggestions: () => this.clearSuggestions(current),
       inputAction: pending.inputAction,
@@ -770,13 +781,27 @@ export class SuggestionManagerRuntime {
     }
 
     const snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
-    const currentBeforeCursor = this.resolveBeforeCursorForPrediction(entry, snapshot.beforeCursor);
-    if (currentBeforeCursor !== pending.expectedBeforeCursor) {
+    const currentBeforeCursor = this.resolveBeforeCursorForPrediction(
+      entry,
+      snapshot.beforeCursor,
+      {
+        inputAction: pending.inputAction,
+        typedKey: pending.typedKey,
+      },
+    );
+    const hasSeededInsertCandidate = currentBeforeCursor.length > 0;
+    const currentFullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
+    const textChanged =
+      pending.expectedFullText !== null && currentFullText !== pending.expectedFullText;
+    if (textChanged) {
       return false;
     }
 
     const remainingMs = pending.waitForTextChangeUntilMs - Date.now();
     if (remainingMs <= 0) {
+      if (hasSeededInsertCandidate) {
+        return false;
+      }
       this.clearPendingKeyFallback(id);
       return true;
     }

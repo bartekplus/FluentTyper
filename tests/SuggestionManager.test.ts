@@ -1083,6 +1083,55 @@ describe("SuggestionManager", () => {
     expect(request.inputAction).toBe("insert");
   });
 
+  test("requests prediction for first character when contenteditable input is missing and caret stays stale", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+      enabledGrammarRules: [],
+    });
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML = "<p><br></p><p></p>";
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    const secondParagraph = editable.querySelectorAll("p")[1];
+    if (!secondParagraph) {
+      throw new Error("Expected second paragraph");
+    }
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Expected selection");
+    }
+
+    const initialRange = document.createRange();
+    initialRange.setStart(secondParagraph, 0);
+    initialRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(initialRange);
+
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+    dispatchKeydown(editable, "w");
+
+    secondParagraph.textContent = "w";
+    const staleCaretRange = document.createRange();
+    staleCaretRange.setStart(secondParagraph, 0);
+    staleCaretRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(staleCaretRange);
+
+    await wait(260);
+
+    expect(getPrediction.mock.calls.length).toBeGreaterThan(0);
+    const request = getPrediction.mock.calls.at(-1)?.[0];
+    if (!request) {
+      throw new Error("Expected prediction request");
+    }
+    expect(request.text).toBe("w");
+    expect(request.inputAction).toBe("insert");
+  });
+
   test("requests prediction when delayed contenteditable mutation arrives after insert fallback timeout", async () => {
     const { manager, getPrediction } = await createManager({
       minWordLengthToPredict: 1,
