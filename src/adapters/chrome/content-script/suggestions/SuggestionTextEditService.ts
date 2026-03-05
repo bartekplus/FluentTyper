@@ -1,12 +1,17 @@
 import { createLogger } from "@core/application/logging/Logger";
 import { SPACING_RULES, Spacing } from "@core/domain/spacingRules";
 import type { TextEditOperation } from "@core/domain/messageTypes";
-import { ContentEditableAdapter } from "./ContentEditableAdapter";
+import { ContentEditableAdapter, type ContentEditableEditResult } from "./ContentEditableAdapter";
 import { isOnlyFillers, trimTrailingFillers } from "./editorFillers";
 import { TextTargetAdapter, type TextTarget } from "./TextTargetAdapter";
 import type { SuggestionEntry, SuggestionElement, SuggestionSnapshot } from "./types";
 
 const logger = createLogger("SuggestionTextEditService");
+
+export interface TextEditApplyResult {
+  applied: boolean;
+  didDispatchInput: boolean;
+}
 
 export class SuggestionTextEditService {
   private readonly findMentionToken: (beforeCursor: string) => { token: string; start: number };
@@ -32,15 +37,19 @@ export class SuggestionTextEditService {
     suggestion: string,
   ): { triggerText: string; insertedText: string } | null {
     entry.lastAutoFixReplacement = null;
+    const isTextValueTarget = this.isTextValueElement(entry.elem);
     let snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
-    const blockContext = this.isTextValueElement(entry.elem)
+    const blockContext = isTextValueTarget
       ? null
       : this.contentEditableAdapter.getBlockContext(entry.elem);
     const tokenSource = blockContext?.beforeCursor ?? snapshot.beforeCursor;
     const tokenInfo = this.findMentionToken(tokenSource);
-    const triggerText = tokenInfo.token || entry.latestMentionText;
+    const cursorTokenInfo = this.findMentionToken(snapshot.beforeCursor);
+    const triggerText = isTextValueTarget
+      ? tokenInfo.token || cursorTokenInfo.token || entry.latestMentionText
+      : tokenInfo.token || entry.latestMentionText;
 
-    if (!this.isTextValueElement(entry.elem) && triggerText && snapshot.beforeCursor.length === 0) {
+    if (!isTextValueTarget && triggerText && snapshot.beforeCursor.length === 0) {
       const fullText = entry.elem.textContent ?? "";
       if (fullText.endsWith(triggerText)) {
         snapshot = {
@@ -53,8 +62,7 @@ export class SuggestionTextEditService {
 
     const currentFullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
     let replaceEnd = snapshot.beforeCursor.length;
-    const globalTokenInfo = this.findMentionToken(snapshot.beforeCursor);
-    if (!this.isTextValueElement(entry.elem) && globalTokenInfo.token.length === 0) {
+    if (!isTextValueTarget && tokenInfo.token.length === 0) {
       while (replaceEnd > 0 && this.isSeparator(snapshot.beforeCursor.charAt(replaceEnd - 1))) {
         replaceEnd -= 1;
       }
@@ -62,20 +70,29 @@ export class SuggestionTextEditService {
     let replaceStart = Math.max(0, replaceEnd - triggerText.length);
 
     if (
-      !this.isTextValueElement(entry.elem) &&
+      !isTextValueTarget &&
       tokenInfo.token.length === 0 &&
       triggerText.length > 0 &&
       entry.latestMentionStart >= 0
     ) {
       const storedStart = entry.latestMentionStart;
       const storedEnd = storedStart + triggerText.length;
+      const storedRangeNearCaret = Math.abs(storedEnd - replaceEnd) <= 2;
       if (
+        storedRangeNearCaret &&
         storedEnd <= currentFullText.length &&
         storedStart <= replaceEnd &&
         currentFullText.slice(storedStart, storedEnd).toLowerCase() === triggerText.toLowerCase()
       ) {
         replaceStart = storedStart;
         replaceEnd = storedEnd;
+      }
+    }
+
+    if (!isTextValueTarget && triggerText.length > 0) {
+      const selectedTrigger = currentFullText.slice(replaceStart, replaceEnd);
+      if (selectedTrigger.toLowerCase() !== triggerText.toLowerCase()) {
+        return null;
       }
     }
 
@@ -106,7 +123,6 @@ export class SuggestionTextEditService {
       suggestion,
       cursorAfter,
     );
-    this.dispatchInputEvent(entry.elem);
 
     entry.lastReplacement = {
       triggerText: `${replacedTokenText}${consumedTrailingWhitespace}`,
@@ -157,7 +173,6 @@ export class SuggestionTextEditService {
       triggerText,
       nextCursor,
     );
-    this.dispatchInputEvent(entry.elem);
 
     entry.lastReplacement = null;
     entry.lastAutoFixReplacement = null;
@@ -209,33 +224,46 @@ export class SuggestionTextEditService {
       originalText,
       cursorBefore,
     );
-    this.dispatchInputEvent(entry.elem);
 
     entry.lastAutoFixReplacement = null;
     clearSuggestions();
     return true;
   }
 
-  public applyTextEdit(entry: SuggestionEntry, textEdit: TextEditOperation): void {
+  public applyTextEdit(entry: SuggestionEntry, textEdit: TextEditOperation): TextEditApplyResult {
     const snapshot: SuggestionSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
     const fullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
 
-    const evaluatedLength = Number.isFinite(textEdit.evaluatedTextLength)
+    const replaceBackwardCount = Math.max(0, textEdit.replaceBackwardCount);
+    let evaluatedLength = Number.isFinite(textEdit.evaluatedTextLength)
       ? Math.max(0, textEdit.evaluatedTextLength)
       : fullText.length;
-    const replaceBackwardCount = Math.max(0, textEdit.replaceBackwardCount);
-
-    const replaceStart = Math.max(
+    let beforeCursorLength = snapshot.beforeCursor.length;
+    let replaceStart = Math.max(
       0,
       Math.min(fullText.length, evaluatedLength - replaceBackwardCount),
     );
-    const replaceEnd = Math.max(
+    let replaceEnd = Math.max(
       replaceStart,
       Math.min(fullText.length, replaceStart + replaceBackwardCount),
     );
 
-    if (snapshot.beforeCursor.length > evaluatedLength && this.isTrailingSpaceEdit(textEdit)) {
-      return;
+    const blockMappedRange = this.resolveContentEditableBlockTextEditRange(
+      entry.elem,
+      snapshot,
+      fullText,
+      textEdit,
+      replaceBackwardCount,
+    );
+    if (blockMappedRange) {
+      evaluatedLength = blockMappedRange.evaluatedLength;
+      beforeCursorLength = blockMappedRange.beforeCursorLength;
+      replaceStart = blockMappedRange.replaceStart;
+      replaceEnd = blockMappedRange.replaceEnd;
+    }
+
+    if (beforeCursorLength > evaluatedLength && this.isTrailingSpaceEdit(textEdit)) {
+      return { applied: false, didDispatchInput: false };
     }
 
     if (textEdit.expectedReplacedText !== undefined) {
@@ -245,7 +273,7 @@ export class SuggestionTextEditService {
           expected: textEdit.expectedReplacedText,
           actual: currentSubstring,
         });
-        return;
+        return { applied: false, didDispatchInput: false };
       }
     }
 
@@ -257,13 +285,13 @@ export class SuggestionTextEditService {
           expected: textEdit.expectedPrefixToken,
           actual: actualToken,
         });
-        return;
+        return { applied: false, didDispatchInput: false };
       }
     }
 
     const cursorAfter = replaceStart + textEdit.replacementText.length;
     const originalText = fullText.slice(replaceStart, replaceEnd);
-    this.replaceTextByOffsets(
+    const applyResult = this.replaceTextByOffsets(
       entry.elem,
       fullText,
       replaceStart,
@@ -271,13 +299,74 @@ export class SuggestionTextEditService {
       textEdit.replacementText,
       cursorAfter,
     );
-    this.dispatchInputEvent(entry.elem);
+    if (!applyResult.didMutateDom) {
+      return {
+        applied: false,
+        didDispatchInput: false,
+      };
+    }
+
     entry.lastAutoFixReplacement = {
       replaceStart,
       originalText,
       replacementText: textEdit.replacementText,
       cursorBefore: snapshot.cursorOffset,
       cursorAfter,
+    };
+    return {
+      applied: true,
+      didDispatchInput: applyResult.didDispatchInput,
+    };
+  }
+
+  private resolveContentEditableBlockTextEditRange(
+    elem: SuggestionElement,
+    snapshot: SuggestionSnapshot,
+    fullText: string,
+    textEdit: TextEditOperation,
+    replaceBackwardCount: number,
+  ): {
+    evaluatedLength: number;
+    beforeCursorLength: number;
+    replaceStart: number;
+    replaceEnd: number;
+  } | null {
+    if (this.isTextValueElement(elem)) {
+      return null;
+    }
+
+    const blockContext = this.contentEditableAdapter.getBlockContext(elem);
+    if (!blockContext) {
+      return null;
+    }
+
+    const blockBeforeCursor = blockContext.beforeCursor;
+    const blockAfterCursor = blockContext.afterCursor;
+    const blockText = `${blockBeforeCursor}${blockAfterCursor}`;
+    const blockStart = snapshot.beforeCursor.length - blockBeforeCursor.length;
+    const blockEnd = blockStart + blockText.length;
+
+    if (blockStart < 0 || blockEnd > fullText.length) {
+      return null;
+    }
+
+    const evaluatedLength = Number.isFinite(textEdit.evaluatedTextLength)
+      ? Math.max(0, Math.min(blockText.length, textEdit.evaluatedTextLength))
+      : blockBeforeCursor.length;
+    const localReplaceStart = Math.max(
+      0,
+      Math.min(blockText.length, evaluatedLength - replaceBackwardCount),
+    );
+    const localReplaceEnd = Math.max(
+      localReplaceStart,
+      Math.min(blockText.length, localReplaceStart + replaceBackwardCount),
+    );
+
+    return {
+      evaluatedLength,
+      beforeCursorLength: blockBeforeCursor.length,
+      replaceStart: blockStart + localReplaceStart,
+      replaceEnd: blockStart + localReplaceEnd,
     };
   }
 
@@ -317,7 +406,6 @@ export class SuggestionTextEditService {
     const replaceStart = replaceEnd - 1;
 
     this.replaceTextByOffsets(entry.elem, fullText, replaceStart, replaceEnd, "", replaceStart);
-    this.dispatchInputEvent(entry.elem);
     entry.lastAutoFixReplacement = null;
     return true;
   }
@@ -378,7 +466,6 @@ export class SuggestionTextEditService {
       replacementText,
       cursorAfter,
     );
-    this.dispatchInputEvent(entry.elem);
   }
 
   private findTrailingToken(afterCursor: string): string {
@@ -416,19 +503,30 @@ export class SuggestionTextEditService {
     replaceEnd: number,
     replacementText: string,
     cursorAfter: number,
-  ): void {
+  ): ContentEditableEditResult | { didMutateDom: boolean; didDispatchInput: boolean } {
     const boundedStart = Math.max(0, Math.min(fullText.length, replaceStart));
     const boundedEnd = Math.max(boundedStart, Math.min(fullText.length, replaceEnd));
     const updatedText = `${fullText.slice(0, boundedStart)}${replacementText}${fullText.slice(boundedEnd)}`;
 
     if (this.isTextValueElement(elem)) {
+      const beforeValue = elem.value ?? "";
+      if (updatedText === beforeValue) {
+        return {
+          didMutateDom: false,
+          didDispatchInput: false,
+        };
+      }
       elem.value = updatedText;
       elem.selectionStart = cursorAfter;
       elem.selectionEnd = cursorAfter;
-      return;
+      this.dispatchInputEvent(elem);
+      return {
+        didMutateDom: true,
+        didDispatchInput: true,
+      };
     }
 
-    this.contentEditableAdapter.replaceTextByOffsets(
+    return this.contentEditableAdapter.replaceTextByOffsets(
       elem,
       boundedStart,
       boundedEnd,

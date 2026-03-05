@@ -1,6 +1,28 @@
-interface ContentEditableTextPosition {
-  node: Text;
+interface ContentEditableDomPosition {
+  container: Node;
   offset: number;
+}
+
+interface SelectionOffsetAnchors {
+  startOffset: number;
+  endOffset: number;
+  startPosition: ContentEditableDomPosition;
+  endPosition: ContentEditableDomPosition;
+}
+
+interface BoundaryCandidate {
+  container: Node;
+  offset: number;
+  textOffset: number;
+  order: number;
+}
+
+export type ContentEditableApplySource = "host-beforeinput" | "fallback-dom";
+
+export interface ContentEditableEditResult {
+  appliedBy: ContentEditableApplySource;
+  didMutateDom: boolean;
+  didDispatchInput: boolean;
 }
 
 export class ContentEditableAdapter {
@@ -10,36 +32,75 @@ export class ContentEditableAdapter {
     replaceEnd: number,
     replacementText: string,
     cursorAfter: number,
-  ): void {
-    const startPosition = this.resolveContentEditablePosition(elem, replaceStart);
-    const endPosition = this.resolveContentEditablePosition(elem, replaceEnd);
+  ): ContentEditableEditResult {
+    const selectionAnchors = this.captureSelectionOffsetAnchors(elem);
+    const startPosition = this.resolveContentEditablePosition(
+      elem,
+      replaceStart,
+      selectionAnchors,
+      "start",
+    );
+    const endPosition = this.resolveContentEditablePosition(
+      elem,
+      replaceEnd,
+      selectionAnchors,
+      "end",
+    );
 
     elem.focus();
 
     const range = document.createRange();
-    range.setStart(startPosition.node, startPosition.offset);
-    range.setEnd(endPosition.node, endPosition.offset);
+    range.setStart(startPosition.container, startPosition.offset);
+    range.setEnd(endPosition.container, endPosition.offset);
 
     const selection = window.getSelection();
-    if (!selection) {
-      return;
+    if (selection) {
+      selection.removeAllRanges();
+      selection.addRange(range);
     }
-    selection.removeAllRanges();
-    selection.addRange(range);
 
     const beforeText = elem.textContent ?? "";
-    this.dispatchReplacementBeforeInput(elem, range, replacementText);
+    const beforeInputEvent = this.dispatchReplacementBeforeInput(elem, range, replacementText);
+    const textAfterBeforeInput = elem.textContent ?? "";
+    const hostHandled = beforeInputEvent.defaultPrevented || textAfterBeforeInput !== beforeText;
 
-    if ((elem.textContent ?? "") === beforeText) {
-      range.deleteContents();
-      if (replacementText.length > 0) {
-        const replacementNode = document.createTextNode(replacementText);
-        range.insertNode(replacementNode);
-        replacementNode.parentNode?.normalize();
-      }
+    if (hostHandled) {
+      return {
+        appliedBy: "host-beforeinput",
+        didMutateDom: textAfterBeforeInput !== beforeText,
+        didDispatchInput: false,
+      };
+    }
+
+    const nativeReplacementResult = this.tryNativeReplacement(elem, replacementText);
+    if (nativeReplacementResult.didMutateDom) {
+      return {
+        appliedBy: "fallback-dom",
+        didMutateDom: true,
+        didDispatchInput: nativeReplacementResult.didDispatchInput,
+      };
+    }
+
+    const hadSelectedContent = !range.collapsed;
+    range.deleteContents();
+    this.normalizeCollapsedInsertionRange(range, elem);
+
+    let insertedReplacement = false;
+    if (replacementText.length > 0) {
+      const replacementNode = document.createTextNode(replacementText);
+      range.insertNode(replacementNode);
+      replacementNode.parentNode?.normalize();
+      insertedReplacement = true;
     }
 
     this.setCaret(elem, cursorAfter);
+    this.dispatchReplacementInput(elem, range, replacementText);
+
+    return {
+      appliedBy: "fallback-dom",
+      didMutateDom: hadSelectedContent || insertedReplacement,
+      didDispatchInput: true,
+    };
   }
 
   public getBlockContext(elem: HTMLElement): { beforeCursor: string; afterCursor: string } | null {
@@ -57,14 +118,24 @@ export class ContentEditableAdapter {
       return null;
     }
 
-    const block = this.resolveBlock(range.startContainer, elem);
+    const block = this.resolveBlockFromPoint(range.startContainer, range.startOffset, elem, true);
+    const startPoint = this.resolvePointWithinBlock(
+      range.startContainer,
+      range.startOffset,
+      block,
+      elem,
+    );
+    const endPoint = this.resolvePointWithinBlock(range.endContainer, range.endOffset, block, elem);
+    if (!startPoint || !endPoint) {
+      return null;
+    }
     const beforeRange = range.cloneRange();
     beforeRange.selectNodeContents(block);
-    beforeRange.setEnd(range.startContainer, range.startOffset);
+    beforeRange.setEnd(startPoint.container, startPoint.offset);
 
     const afterRange = range.cloneRange();
     afterRange.selectNodeContents(block);
-    afterRange.setStart(range.endContainer, range.endOffset);
+    afterRange.setStart(endPoint.container, endPoint.offset);
 
     return {
       beforeCursor: beforeRange.toString(),
@@ -102,11 +173,78 @@ export class ContentEditableAdapter {
     return root;
   }
 
+  private resolveBlockFromPoint(
+    node: Node,
+    offset: number,
+    root: HTMLElement,
+    preferForward: boolean,
+  ): HTMLElement {
+    const rootNode = root as Node;
+    if (node === rootNode) {
+      const adjacent = this.pickAdjacentChildAtOffset(root, offset, preferForward);
+      if (adjacent) {
+        const block = this.resolveBlock(adjacent, root);
+        if (block !== root) {
+          return block;
+        }
+      }
+    }
+
+    return this.resolveBlock(node, root);
+  }
+
+  private pickAdjacentChildAtOffset(
+    container: Element,
+    offset: number,
+    preferForward: boolean,
+  ): Node | null {
+    const childCount = container.childNodes.length;
+    if (childCount === 0) {
+      return null;
+    }
+
+    if (preferForward && offset >= 0 && offset < childCount) {
+      return container.childNodes[offset];
+    }
+    if (offset > 0 && offset <= childCount) {
+      return container.childNodes[offset - 1];
+    }
+    if (offset >= 0 && offset < childCount) {
+      return container.childNodes[offset];
+    }
+    return null;
+  }
+
+  private resolvePointWithinBlock(
+    container: Node,
+    offset: number,
+    block: HTMLElement,
+    root: HTMLElement,
+  ): ContentEditableDomPosition | null {
+    if (container === block || block.contains(container)) {
+      return { container, offset };
+    }
+
+    const rootNode = root as Node;
+    if (container === rootNode && block.parentNode === rootNode) {
+      const blockIndex = Array.prototype.indexOf.call(root.childNodes, block);
+      if (blockIndex < 0) {
+        return null;
+      }
+      if (offset <= blockIndex) {
+        return { container: block, offset: 0 };
+      }
+      return { container: block, offset: block.childNodes.length };
+    }
+
+    return null;
+  }
+
   private dispatchReplacementBeforeInput(
     elem: HTMLElement,
     range: Range,
     replacementText: string,
-  ): void {
+  ): Event {
     const beforeInputEvent = this.createInputEvent("beforeinput", {
       inputType: "insertReplacementText",
       data: replacementText,
@@ -114,6 +252,161 @@ export class ContentEditableAdapter {
       targetRange: range,
     });
     elem.dispatchEvent(beforeInputEvent);
+    return beforeInputEvent;
+  }
+
+  private dispatchReplacementInput(elem: HTMLElement, range: Range, replacementText: string): void {
+    const inputEvent = this.createInputEvent("input", {
+      inputType: "insertReplacementText",
+      data: replacementText,
+      cancelable: false,
+      targetRange: range,
+    });
+    elem.dispatchEvent(inputEvent);
+  }
+
+  private normalizeCollapsedInsertionRange(range: Range, root: HTMLElement): void {
+    if (!range.collapsed) {
+      return;
+    }
+
+    const startContainer = range.startContainer;
+    if (startContainer.nodeType === Node.TEXT_NODE) {
+      return;
+    }
+
+    const container =
+      startContainer.nodeType === Node.ELEMENT_NODE ? (startContainer as Element) : null;
+    if (!container) {
+      return;
+    }
+
+    const startOffset = range.startOffset;
+    const normalized = this.resolveBoundaryInsertionPoint(container, startOffset);
+    if (!normalized) {
+      return;
+    }
+    if (normalized.container !== root && !root.contains(normalized.container)) {
+      return;
+    }
+
+    try {
+      range.setStart(normalized.container, normalized.offset);
+      range.collapse(true);
+    } catch {
+      // Keep original range when normalization is not valid for this DOM shape.
+    }
+  }
+
+  private resolveBoundaryInsertionPoint(
+    container: Element,
+    offset: number,
+  ): ContentEditableDomPosition | null {
+    if (offset < container.childNodes.length) {
+      const next = container.childNodes[offset];
+      return this.resolveNodeStartPosition(next);
+    }
+
+    if (offset > 0) {
+      const previous = container.childNodes[offset - 1];
+      return this.resolveNodeEndPosition(previous);
+    }
+
+    return null;
+  }
+
+  private resolveNodeStartPosition(node: Node): ContentEditableDomPosition {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return { container: node, offset: 0 };
+    }
+    const element = node as Element;
+    const firstText = this.findFirstTextNode(element);
+    if (firstText) {
+      return { container: firstText, offset: 0 };
+    }
+    return { container: element, offset: 0 };
+  }
+
+  private resolveNodeEndPosition(node: Node): ContentEditableDomPosition {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return { container: node, offset: node.textContent?.length ?? 0 };
+    }
+    const element = node as Element;
+    const lastText = this.findLastTextNode(element);
+    if (lastText) {
+      return { container: lastText, offset: lastText.textContent?.length ?? 0 };
+    }
+    return { container: element, offset: element.childNodes.length };
+  }
+
+  private findFirstTextNode(root: Node): Text | null {
+    const showText =
+      (globalThis as { NodeFilter?: { SHOW_TEXT?: number } }).NodeFilter?.SHOW_TEXT ?? 4;
+    const walker = document.createTreeWalker(root, showText);
+    return (walker.nextNode() as Text | null) ?? null;
+  }
+
+  private findLastTextNode(root: Node): Text | null {
+    const showText =
+      (globalThis as { NodeFilter?: { SHOW_TEXT?: number } }).NodeFilter?.SHOW_TEXT ?? 4;
+    const walker = document.createTreeWalker(root, showText);
+    let current = walker.nextNode() as Text | null;
+    let last: Text | null = null;
+    while (current) {
+      last = current;
+      current = walker.nextNode() as Text | null;
+    }
+    return last;
+  }
+
+  private tryNativeReplacement(
+    elem: HTMLElement,
+    replacementText: string,
+  ): { didMutateDom: boolean; didDispatchInput: boolean } {
+    const beforeText = elem.textContent ?? "";
+    const commandResult = this.runExecInsertText(replacementText);
+    const afterText = elem.textContent ?? "";
+    if (afterText !== beforeText) {
+      return {
+        didMutateDom: true,
+        didDispatchInput: false,
+      };
+    }
+    if (!commandResult && replacementText.length === 0 && this.runExecDelete()) {
+      const afterDeleteText = elem.textContent ?? "";
+      if (afterDeleteText !== beforeText) {
+        return {
+          didMutateDom: true,
+          didDispatchInput: false,
+        };
+      }
+    }
+    return {
+      didMutateDom: false,
+      didDispatchInput: false,
+    };
+  }
+
+  private runExecInsertText(replacementText: string): boolean {
+    if (typeof document.execCommand !== "function") {
+      return false;
+    }
+    try {
+      return document.execCommand("insertText", false, replacementText);
+    } catch {
+      return false;
+    }
+  }
+
+  private runExecDelete(): boolean {
+    if (typeof document.execCommand !== "function") {
+      return false;
+    }
+    try {
+      return document.execCommand("delete", false);
+    } catch {
+      return false;
+    }
   }
 
   private createInputEvent(
@@ -171,7 +464,7 @@ export class ContentEditableAdapter {
 
     const position = this.resolveContentEditablePosition(elem, cursorOffset);
     const range = document.createRange();
-    range.setStart(position.node, position.offset);
+    range.setStart(position.container, position.offset);
     range.collapse(true);
 
     selection.removeAllRanges();
@@ -181,44 +474,368 @@ export class ContentEditableAdapter {
   private resolveContentEditablePosition(
     elem: HTMLElement,
     targetOffset: number,
-  ): ContentEditableTextPosition {
-    const walker = document.createTreeWalker(elem, NodeFilter.SHOW_TEXT);
-    let current = walker.nextNode() as Text | null;
-
-    if (!current) {
-      const textNode = document.createTextNode("");
-      elem.appendChild(textNode);
-      return { node: textNode, offset: 0 };
-    }
-
-    const clampedTarget = Math.max(0, targetOffset);
+    selectionAnchors?: SelectionOffsetAnchors | null,
+    endpoint?: "start" | "end",
+  ): ContentEditableDomPosition {
     const probeRange = document.createRange();
     probeRange.selectNodeContents(elem);
+    const totalTextLength = probeRange.toString().length;
+    const clampedTarget = Math.max(0, Math.min(totalTextLength, targetOffset));
 
-    let lastNode = current;
-    let lastNodeLength = current.textContent?.length ?? 0;
+    const anchoredPosition = this.resolveAnchoredSelectionPosition(
+      clampedTarget,
+      selectionAnchors,
+      endpoint,
+    );
+    if (anchoredPosition) {
+      return anchoredPosition;
+    }
 
+    const textPosition = this.resolveWithinTextNodes(elem, clampedTarget, probeRange, endpoint);
+    if (textPosition) {
+      return textPosition;
+    }
+
+    return this.resolveBoundaryPosition(
+      elem,
+      clampedTarget,
+      totalTextLength,
+      probeRange,
+      selectionAnchors,
+      endpoint,
+    );
+  }
+
+  private captureSelectionOffsetAnchors(root: HTMLElement): SelectionOffsetAnchors | null {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      return null;
+    }
+
+    const range = selection.getRangeAt(0);
+    const rootNode = root as Node;
+    const startInside =
+      range.startContainer === rootNode || rootNode.contains(range.startContainer);
+    const endInside = range.endContainer === rootNode || rootNode.contains(range.endContainer);
+    if (!startInside || !endInside) {
+      return null;
+    }
+
+    const probeRange = document.createRange();
+    probeRange.selectNodeContents(root);
+
+    try {
+      probeRange.setEnd(range.startContainer, range.startOffset);
+      const startOffset = probeRange.toString().length;
+
+      probeRange.selectNodeContents(root);
+      probeRange.setEnd(range.endContainer, range.endOffset);
+      const endOffset = probeRange.toString().length;
+
+      return {
+        startOffset,
+        endOffset,
+        startPosition: {
+          container: range.startContainer,
+          offset: range.startOffset,
+        },
+        endPosition: {
+          container: range.endContainer,
+          offset: range.endOffset,
+        },
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  private resolveAnchoredSelectionPosition(
+    clampedTarget: number,
+    selectionAnchors?: SelectionOffsetAnchors | null,
+    endpoint?: "start" | "end",
+  ): ContentEditableDomPosition | null {
+    if (!selectionAnchors || !endpoint) {
+      return null;
+    }
+    if (endpoint === "start" && clampedTarget === selectionAnchors.startOffset) {
+      return selectionAnchors.startPosition;
+    }
+    if (endpoint === "end" && clampedTarget === selectionAnchors.endOffset) {
+      return selectionAnchors.endPosition;
+    }
+    return null;
+  }
+
+  private resolveWithinTextNodes(
+    elem: HTMLElement,
+    clampedTarget: number,
+    probeRange: Range,
+    endpoint?: "start" | "end",
+  ): ContentEditableDomPosition | null {
+    const showText =
+      (globalThis as { NodeFilter?: { SHOW_TEXT?: number } }).NodeFilter?.SHOW_TEXT ?? 4;
+    const walker = document.createTreeWalker(elem, showText);
+    const entries: Array<{ node: Text; start: number; end: number; length: number }> = [];
+    let current = walker.nextNode() as Text | null;
     while (current) {
-      lastNode = current;
-      lastNodeLength = current.textContent?.length ?? 0;
-
+      const length = current.textContent?.length ?? 0;
       probeRange.setEnd(current, 0);
-      const nodeStartOffset = probeRange.toString().length;
-
-      probeRange.setEnd(current, lastNodeLength);
-      const nodeEndOffset = probeRange.toString().length;
-
-      if (clampedTarget <= nodeEndOffset) {
-        const offsetInNode = Math.max(0, Math.min(lastNodeLength, clampedTarget - nodeStartOffset));
-        return { node: current, offset: offsetInNode };
-      }
-
+      const start = probeRange.toString().length;
+      probeRange.setEnd(current, length);
+      const end = probeRange.toString().length;
+      entries.push({ node: current, start, end, length });
       current = walker.nextNode() as Text | null;
     }
 
-    return {
-      node: lastNode,
-      offset: lastNodeLength,
+    for (let index = 0; index < entries.length; index += 1) {
+      const entry = entries[index];
+      if (clampedTarget < entry.start || clampedTarget > entry.end) {
+        continue;
+      }
+
+      const offsetInNode = Math.max(0, Math.min(entry.length, clampedTarget - entry.start));
+      // When the target is at absolute offset zero, rich editors can have
+      // leading empty structural nodes that share the same text offset.
+      // In that case, using the first text node would skip those blocks.
+      if (
+        clampedTarget === 0 &&
+        offsetInNode === 0 &&
+        this.hasPreviousDomSiblingInAncestry(elem, entry.node)
+      ) {
+        continue;
+      }
+
+      if (
+        endpoint === "start" &&
+        clampedTarget === entry.end &&
+        offsetInNode === entry.length &&
+        index + 1 < entries.length &&
+        entries[index + 1].start === clampedTarget
+      ) {
+        return {
+          container: entries[index + 1].node,
+          offset: 0,
+        };
+      }
+
+      if (
+        endpoint === "end" &&
+        clampedTarget === entry.start &&
+        offsetInNode === 0 &&
+        index > 0 &&
+        entries[index - 1].end === clampedTarget
+      ) {
+        return {
+          container: entries[index - 1].node,
+          offset: entries[index - 1].length,
+        };
+      }
+
+      return { container: entry.node, offset: offsetInNode };
+    }
+
+    return null;
+  }
+
+  private hasPreviousDomSiblingInAncestry(root: HTMLElement, node: Node): boolean {
+    let current: Node | null = node;
+    while (current && current !== root) {
+      if (current.previousSibling) {
+        return true;
+      }
+      current = current.parentNode;
+    }
+    return false;
+  }
+
+  private resolveBoundaryPosition(
+    elem: HTMLElement,
+    clampedTarget: number,
+    totalTextLength: number,
+    probeRange: Range,
+    selectionAnchors?: SelectionOffsetAnchors | null,
+    endpoint?: "start" | "end",
+  ): ContentEditableDomPosition {
+    if (clampedTarget === 0) {
+      return { container: elem, offset: 0 };
+    }
+    if (clampedTarget === totalTextLength) {
+      return { container: elem, offset: elem.childNodes.length };
+    }
+
+    const localCandidate = this.resolveBoundaryPositionNearSelection(
+      elem,
+      clampedTarget,
+      probeRange,
+      selectionAnchors,
+      endpoint,
+    );
+    if (localCandidate) {
+      return localCandidate;
+    }
+
+    const candidates: BoundaryCandidate[] = [];
+    let order = 0;
+    const addBoundaryCandidates = (container: Element): void => {
+      for (let offset = 0; offset <= container.childNodes.length; offset += 1) {
+        const textOffset = this.measureBoundaryTextOffset(elem, container, offset, probeRange);
+        if (textOffset === null) {
+          continue;
+        }
+        candidates.push({
+          container,
+          offset,
+          textOffset,
+          order: order++,
+        });
+      }
     };
+
+    addBoundaryCandidates(elem);
+    const showElement =
+      (globalThis as { NodeFilter?: { SHOW_ELEMENT?: number } }).NodeFilter?.SHOW_ELEMENT ?? 1;
+    const elementWalker = document.createTreeWalker(elem, showElement);
+    let currentElement = elementWalker.nextNode() as Element | null;
+    while (currentElement) {
+      addBoundaryCandidates(currentElement);
+      currentElement = elementWalker.nextNode() as Element | null;
+    }
+
+    const best = this.findBestBoundaryCandidate(candidates, clampedTarget);
+    if (!best) {
+      return { container: elem, offset: 0 };
+    }
+
+    return { container: best.container, offset: best.offset };
+  }
+
+  private resolveBoundaryPositionNearSelection(
+    root: HTMLElement,
+    clampedTarget: number,
+    probeRange: Range,
+    selectionAnchors?: SelectionOffsetAnchors | null,
+    endpoint?: "start" | "end",
+  ): ContentEditableDomPosition | null {
+    if (!selectionAnchors || !endpoint) {
+      return null;
+    }
+
+    const anchorPosition =
+      endpoint === "end" ? selectionAnchors.endPosition : selectionAnchors.startPosition;
+    const candidates: BoundaryCandidate[] = [];
+    let order = 0;
+    const addCandidateOffsets = (container: Element, offsets: number[]): void => {
+      for (const candidateOffset of offsets) {
+        if (candidateOffset < 0 || candidateOffset > container.childNodes.length) {
+          continue;
+        }
+        const textOffset = this.measureBoundaryTextOffset(
+          root,
+          container,
+          candidateOffset,
+          probeRange,
+        );
+        if (textOffset === null) {
+          continue;
+        }
+        candidates.push({
+          container,
+          offset: candidateOffset,
+          textOffset,
+          order: order++,
+        });
+      }
+    };
+
+    if (anchorPosition.container instanceof Element) {
+      addCandidateOffsets(anchorPosition.container, [
+        anchorPosition.offset - 1,
+        anchorPosition.offset,
+        anchorPosition.offset + 1,
+      ]);
+    }
+
+    let current: Node | null = anchorPosition.container;
+    while (current && current !== root) {
+      const parent = current.parentNode;
+      if (!(parent instanceof Element) || !(parent === root || root.contains(parent))) {
+        break;
+      }
+      const childIndex = Array.prototype.indexOf.call(parent.childNodes, current);
+      if (childIndex >= 0) {
+        addCandidateOffsets(parent, [childIndex, childIndex + 1]);
+      }
+      current = parent;
+    }
+
+    const best = this.findBestBoundaryCandidate(candidates, clampedTarget);
+    if (!best || best.textOffset !== clampedTarget) {
+      return null;
+    }
+
+    return { container: best.container, offset: best.offset };
+  }
+
+  private findBestBoundaryCandidate(
+    candidates: BoundaryCandidate[],
+    clampedTarget: number,
+  ): BoundaryCandidate | null {
+    if (candidates.length === 0) {
+      return null;
+    }
+
+    let best = candidates[0];
+    for (let index = 1; index < candidates.length; index += 1) {
+      const candidate = candidates[index];
+      if (this.isPreferredBoundaryCandidate(candidate, best, clampedTarget)) {
+        best = candidate;
+      }
+    }
+
+    return best;
+  }
+
+  private isPreferredBoundaryCandidate(
+    candidate: BoundaryCandidate,
+    best: BoundaryCandidate,
+    clampedTarget: number,
+  ): boolean {
+    const bestDistance = Math.abs(best.textOffset - clampedTarget);
+    const candidateDistance = Math.abs(candidate.textOffset - clampedTarget);
+    if (candidateDistance < bestDistance) {
+      return true;
+    }
+    if (candidateDistance > bestDistance) {
+      return false;
+    }
+
+    const bestOnOrAfter = best.textOffset >= clampedTarget;
+    const candidateOnOrAfter = candidate.textOffset >= clampedTarget;
+    if (candidateOnOrAfter !== bestOnOrAfter) {
+      return candidateOnOrAfter;
+    }
+
+    if (candidateOnOrAfter && candidate.textOffset < best.textOffset) {
+      return true;
+    }
+    if (!candidateOnOrAfter && candidate.textOffset > best.textOffset) {
+      return true;
+    }
+    return candidate.order < best.order;
+  }
+
+  private measureBoundaryTextOffset(
+    root: HTMLElement,
+    container: Node,
+    offset: number,
+    probeRange: Range,
+  ): number | null {
+    try {
+      probeRange.selectNodeContents(root);
+      probeRange.setEnd(container, offset);
+      return probeRange.toString().length;
+    } catch {
+      return null;
+    }
   }
 }

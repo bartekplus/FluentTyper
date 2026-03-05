@@ -10,7 +10,8 @@ import { SuggestionPositioningService } from "./SuggestionPositioningService";
 import { SuggestionPredictionCoordinator } from "./SuggestionPredictionCoordinator";
 import { SuggestionMenuView } from "./SuggestionMenuView";
 import { SuggestionTelemetryService } from "./SuggestionTelemetryService";
-import { SuggestionTextEditService } from "./SuggestionTextEditService";
+import { SuggestionTextEditService, type TextEditApplyResult } from "./SuggestionTextEditService";
+import { ContentEditableAdapter } from "./ContentEditableAdapter";
 import { TextTargetAdapter, type TextTarget } from "./TextTargetAdapter";
 import type { PredictionInputAction } from "@core/domain/messageTypes";
 import type {
@@ -38,6 +39,8 @@ interface PendingKeyFallback {
   reconcileScheduled: boolean;
   inputAction: PredictionInputAction;
   expectedBeforeCursor: string | null;
+  expectedFullText: string | null;
+  typedKey: string | null;
   waitForTextChangeUntilMs: number | null;
 }
 
@@ -50,6 +53,7 @@ export class SuggestionManagerRuntime {
   private readonly inlinePresenter = new InlineSuggestionPresenter({
     positioningService: this.positioningService,
   });
+  private readonly contentEditableAdapter = new ContentEditableAdapter();
   private readonly predictionCoordinator: SuggestionPredictionCoordinator;
   private readonly textEditService: SuggestionTextEditService;
   private readonly keyboardHandler: SuggestionKeyboardHandler;
@@ -93,6 +97,7 @@ export class SuggestionManagerRuntime {
     this.textEditService = new SuggestionTextEditService({
       findMentionToken: this.findMentionToken.bind(this),
       isSeparator: this.isSeparator.bind(this),
+      contentEditableAdapter: this.contentEditableAdapter,
     });
     this.keyboardHandler = new SuggestionKeyboardHandler({
       autocompleteOnSpace: options.autocomplete,
@@ -132,9 +137,12 @@ export class SuggestionManagerRuntime {
       acceptSuggestionAtIndex: this.acceptSuggestionAtIndex.bind(this),
       requestInlineSuggestion: (entry) => {
         entry.pendingInlineAccept = true;
+        const snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+        const beforeCursor = this.resolveBeforeCursorForPrediction(entry, snapshot.beforeCursor);
         this.predictionCoordinator.schedule(entry, {
           force: true,
           clearSuggestions: () => this.clearSuggestions(entry),
+          beforeCursorOverride: beforeCursor,
         });
       },
     });
@@ -145,18 +153,36 @@ export class SuggestionManagerRuntime {
     if (!entry) {
       return;
     }
+    let textEditApplyResult: TextEditApplyResult | null = null;
 
     if (
       !this.predictionCoordinator.shouldProcessResponse(entry, context, {
         isEntryFocused: this.isEntryFocused(entry),
         applyTextEdit: () => {
           if (context.textEdit) {
-            this.textEditService.applyTextEdit(entry, context.textEdit);
+            textEditApplyResult = this.textEditService.applyTextEdit(entry, context.textEdit);
           }
         },
+        allowStaleTextEdit: this.isTextValueElement(entry.elem),
         clearSuggestions: () => this.clearSuggestions(entry),
       })
     ) {
+      return;
+    }
+
+    if (textEditApplyResult?.applied) {
+      // Predictions were computed from the pre-edit text. Request a fresh
+      // prediction pass for the post-edit text and avoid showing stale entries.
+      this.clearSuggestions(entry);
+      if (!textEditApplyResult.didDispatchInput && this.isEntryFocused(entry)) {
+        const snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+        const beforeCursor = this.resolveBeforeCursorForPrediction(entry, snapshot.beforeCursor);
+        this.predictionCoordinator.schedule(entry, {
+          force: true,
+          clearSuggestions: () => this.clearSuggestions(entry),
+          beforeCursorOverride: beforeCursor,
+        });
+      }
       return;
     }
 
@@ -252,9 +278,12 @@ export class SuggestionManagerRuntime {
     if (!entry) {
       return;
     }
+    const snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+    const beforeCursor = this.resolveBeforeCursorForPrediction(entry, snapshot.beforeCursor);
     this.predictionCoordinator.schedule(entry, {
       force: true,
       clearSuggestions: () => this.clearSuggestions(entry),
+      beforeCursorOverride: beforeCursor,
     });
   }
 
@@ -446,19 +475,31 @@ export class SuggestionManagerRuntime {
       return;
     }
     const snapshot: SuggestionSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+    const provisionalBeforeCursor = this.resolveBeforeCursorForPrediction(
+      entry,
+      snapshot.beforeCursor,
+    );
     if (
       entry.lastAutoFixReplacement &&
       !this.shouldPreserveAutoFixSnapshot(entry.lastAutoFixReplacement, snapshot)
     ) {
       entry.lastAutoFixReplacement = null;
     }
-    const inputAction = this.resolveInputAction(entry, event, snapshot.beforeCursor);
+    const inputAction = this.resolveInputAction(entry, event, provisionalBeforeCursor);
+    const predictionBeforeCursor = this.resolveBeforeCursorForPrediction(
+      entry,
+      snapshot.beforeCursor,
+      {
+        inputAction,
+        typedKey: entry.lastKeydownKey,
+      },
+    );
     entry.lastInputAction = inputAction;
     entry.lastKeydownKey = null;
-    entry.lastBeforeCursorText = snapshot.beforeCursor;
-    const tokenInfo = this.findMentionToken(snapshot.beforeCursor);
+    entry.lastBeforeCursorText = predictionBeforeCursor;
+    const tokenInfo = this.findMentionToken(predictionBeforeCursor);
     entry.latestMentionText = tokenInfo.token;
-    entry.latestMentionStart = tokenInfo.start;
+    entry.latestMentionStart = this.isTextValueElement(entry.elem) ? tokenInfo.start : -1;
     if (this.inlineSuggestionEnabled) {
       this.inlinePresenter.renderForEntry({
         enabled: this.inlineSuggestionEnabled,
@@ -470,7 +511,44 @@ export class SuggestionManagerRuntime {
       force: false,
       clearSuggestions: () => this.clearSuggestions(entry),
       inputAction,
+      beforeCursorOverride: predictionBeforeCursor,
     });
+  }
+
+  private resolveBeforeCursorForPrediction(
+    entry: SuggestionEntry,
+    snapshotBeforeCursor: string,
+    {
+      inputAction,
+      typedKey,
+    }: {
+      inputAction?: PredictionInputAction;
+      typedKey?: string | null;
+    } = {},
+  ): string {
+    if (this.isTextValueElement(entry.elem)) {
+      return snapshotBeforeCursor;
+    }
+    const blockContext = this.contentEditableAdapter.getBlockContext(entry.elem);
+    const blockBeforeCursor = blockContext?.beforeCursor;
+    if (typeof blockBeforeCursor !== "string") {
+      return snapshotBeforeCursor;
+    }
+
+    // Some rich editors update text before caret state; for the first inserted
+    // character we may temporarily see an empty block context. Seed with the
+    // typed key so min-length prediction stays responsive without using full-root text.
+    if (
+      inputAction !== "delete" &&
+      blockBeforeCursor.length === 0 &&
+      typeof typedKey === "string" &&
+      typedKey.length === 1 &&
+      typedKey.trim().length > 0
+    ) {
+      return typedKey;
+    }
+
+    return blockBeforeCursor;
   }
 
   private shouldPreserveAutoFixSnapshot(
@@ -578,6 +656,7 @@ export class SuggestionManagerRuntime {
         "insert",
         INSERT_INPUT_FALLBACK_TIMEOUT_MS,
         this.isContentEditableElement(entry.elem),
+        keyboardEvent.key,
       );
     }
   }
@@ -588,9 +667,15 @@ export class SuggestionManagerRuntime {
     inputAction: PredictionInputAction,
     timeoutMs: number,
     observeMutations: boolean,
+    typedKey: string | null = null,
   ): void {
     this.cancelPendingKeyFallback(id);
     const shouldWaitForTextChange = inputAction === "insert" && observeMutations;
+    const currentSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+    const currentBeforeCursor = this.resolveBeforeCursorForPrediction(
+      entry,
+      currentSnapshot.beforeCursor,
+    );
     const fallback: PendingKeyFallback = {
       timer: setTimeout(() => {
         this.runKeyFallbackReconcile(id);
@@ -598,9 +683,11 @@ export class SuggestionManagerRuntime {
       observer: null,
       reconcileScheduled: false,
       inputAction,
-      expectedBeforeCursor: shouldWaitForTextChange
-        ? TextTargetAdapter.snapshot(entry.elem as TextTarget).beforeCursor
+      expectedBeforeCursor: shouldWaitForTextChange ? currentBeforeCursor : null,
+      expectedFullText: shouldWaitForTextChange
+        ? `${currentSnapshot.beforeCursor}${currentSnapshot.afterCursor}`
         : null,
+      typedKey,
       waitForTextChangeUntilMs: shouldWaitForTextChange
         ? Date.now() + INSERT_INPUT_FALLBACK_MAX_WAIT_MS
         : null,
@@ -654,9 +741,15 @@ export class SuggestionManagerRuntime {
       return;
     }
     this.clearPendingKeyFallback(id);
+    const snapshot = TextTargetAdapter.snapshot(current.elem as TextTarget);
+    const beforeCursor = this.resolveBeforeCursorForPrediction(current, snapshot.beforeCursor, {
+      inputAction: pending.inputAction,
+      typedKey: pending.typedKey,
+    });
     this.predictionCoordinator.reconcile(current, {
       clearSuggestions: () => this.clearSuggestions(current),
       inputAction: pending.inputAction,
+      beforeCursorOverride: beforeCursor,
     });
   }
 
@@ -687,13 +780,18 @@ export class SuggestionManagerRuntime {
       return false;
     }
 
-    const currentBeforeCursor = TextTargetAdapter.snapshot(entry.elem as TextTarget).beforeCursor;
-    if (currentBeforeCursor !== pending.expectedBeforeCursor) {
+    const snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+    const currentFullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
+    const textChanged =
+      pending.expectedFullText !== null && currentFullText !== pending.expectedFullText;
+    if (textChanged) {
       return false;
     }
 
     const remainingMs = pending.waitForTextChangeUntilMs - Date.now();
     if (remainingMs <= 0) {
+      // No observable text mutation happened during the wait window.
+      // Drop fallback to avoid churn from synthetic seeded before-cursor values.
       this.clearPendingKeyFallback(id);
       return true;
     }
@@ -805,6 +903,10 @@ export class SuggestionManagerRuntime {
 
   private isTextAreaElement(elem: Element): elem is HTMLTextAreaElement {
     return elem.tagName === "TEXTAREA";
+  }
+
+  private isTextValueElement(elem: Element): elem is HTMLInputElement | HTMLTextAreaElement {
+    return this.isInputElement(elem) || this.isTextAreaElement(elem);
   }
 
   private isContentEditableElement(elem: Element): boolean {

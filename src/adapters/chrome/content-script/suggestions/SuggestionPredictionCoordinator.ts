@@ -52,22 +52,24 @@ export class SuggestionPredictionCoordinator {
       force,
       clearSuggestions,
       inputAction,
+      beforeCursorOverride,
     }: {
       force: boolean;
       clearSuggestions: () => void;
       inputAction?: PredictionInputAction;
+      beforeCursorOverride?: string;
     },
   ): void {
     this.cancelPending(entry);
 
     if (force) {
-      this.requestPrediction(entry, true, clearSuggestions, inputAction);
+      this.requestPrediction(entry, true, clearSuggestions, inputAction, beforeCursorOverride);
       return;
     }
 
     entry.pendingRequestTimer = setTimeout(() => {
       entry.pendingRequestTimer = null;
-      this.requestPrediction(entry, false, clearSuggestions, inputAction);
+      this.requestPrediction(entry, false, clearSuggestions, inputAction, beforeCursorOverride);
     }, this.resolveDebounceMs(inputAction));
   }
 
@@ -76,13 +78,15 @@ export class SuggestionPredictionCoordinator {
     {
       clearSuggestions,
       inputAction,
+      beforeCursorOverride,
     }: {
       clearSuggestions: () => void;
       inputAction?: PredictionInputAction;
+      beforeCursorOverride?: string;
     },
   ): void {
     this.cancelPending(entry);
-    this.requestPrediction(entry, false, clearSuggestions, inputAction);
+    this.requestPrediction(entry, false, clearSuggestions, inputAction, beforeCursorOverride);
   }
 
   public cancelPending(entry: SuggestionEntry): void {
@@ -99,10 +103,12 @@ export class SuggestionPredictionCoordinator {
     {
       isEntryFocused,
       applyTextEdit,
+      allowStaleTextEdit,
       clearSuggestions,
     }: {
       isEntryFocused: boolean;
       applyTextEdit: () => void;
+      allowStaleTextEdit: boolean;
       clearSuggestions: () => void;
     },
   ): boolean {
@@ -113,7 +119,7 @@ export class SuggestionPredictionCoordinator {
       return false;
     }
 
-    if (response.textEdit && isEntryFocused) {
+    if (response.textEdit && isEntryFocused && (isCurrentRequest || allowStaleTextEdit)) {
       applyTextEdit();
     }
 
@@ -134,9 +140,10 @@ export class SuggestionPredictionCoordinator {
     force: boolean,
     clearSuggestions: () => void,
     inputAction?: PredictionInputAction,
+    beforeCursorOverride?: string,
   ): void {
     const snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
-    const beforeCursor = snapshot.beforeCursor;
+    const beforeCursor = beforeCursorOverride ?? snapshot.beforeCursor;
 
     const shouldPredict = this.shouldPredict(beforeCursor);
     const shouldRequestForGrammar = this.shouldRequestGrammarEdit(beforeCursor);

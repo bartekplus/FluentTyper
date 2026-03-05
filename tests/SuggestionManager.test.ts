@@ -454,6 +454,137 @@ describe("SuggestionManager", () => {
     expect(input.value).toBe("world");
   });
 
+  test("does not apply stale textEdit to contenteditable targets", async () => {
+    const { manager, getPrediction } = await createManager();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.textContent = "he";
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    setContentEditableCursor(editable, 2);
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+    await wait(220);
+    const req1 = getPrediction.mock.calls.at(-1)?.[0];
+    if (!req1) {
+      throw new Error("Expected first prediction request");
+    }
+
+    editable.textContent = "world";
+    setContentEditableCursor(editable, 5);
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+    await wait(220);
+
+    manager.fulfillPrediction(
+      buildResponse(req1, {
+        textEdit: {
+          replacementText: "He",
+          replaceBackwardCount: 2,
+          evaluatedTextLength: 2,
+          expectedReplacedText: "he",
+          expectedPrefixToken: "",
+        },
+      }),
+    );
+
+    expect(editable.textContent).toBe("world");
+  });
+
+  test("requests a fresh prediction after host-owned contenteditable textEdit", async () => {
+    const { manager, getPrediction } = await createManager();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.textContent = "w";
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    editable.addEventListener("beforeinput", (event) => {
+      const inputEvent = event as InputEvent;
+      if (inputEvent.inputType !== "insertReplacementText") {
+        return;
+      }
+      event.preventDefault();
+      editable.textContent = `${(editable.textContent ?? "").slice(0, -1)}${inputEvent.data ?? ""}`;
+      setContentEditableCursor(editable, editable.textContent.length);
+    });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    setContentEditableCursor(editable, 1);
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+    await wait(220);
+
+    const initialRequest = getPrediction.mock.calls.at(-1)?.[0];
+    if (!initialRequest) {
+      throw new Error("Expected initial prediction request");
+    }
+
+    manager.fulfillPrediction(
+      buildResponse(initialRequest, {
+        predictions: ["world\xA0"],
+        textEdit: {
+          replacementText: "W",
+          replaceBackwardCount: 1,
+          evaluatedTextLength: 1,
+          expectedReplacedText: "w",
+          expectedPrefixToken: "",
+        },
+      }),
+    );
+
+    expect(editable.textContent).toBe("W");
+    expect(document.querySelectorAll(".ft-suggestion-container li").length).toBe(0);
+
+    const refreshedRequest = getPrediction.mock.calls.at(-1)?.[0];
+    expect(getPrediction.mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(refreshedRequest?.requestId).toBeGreaterThan(initialRequest.requestId);
+    expect(refreshedRequest?.text).toBe("W");
+  });
+
+  test("does not force refresh when host-canceled contenteditable textEdit makes no mutation", async () => {
+    const { manager, getPrediction } = await createManager();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.textContent = "w";
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    editable.addEventListener("beforeinput", (event) => {
+      const inputEvent = event as InputEvent;
+      if (inputEvent.inputType === "insertReplacementText") {
+        event.preventDefault();
+      }
+    });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    setContentEditableCursor(editable, 1);
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+    await wait(220);
+
+    const initialRequest = getPrediction.mock.calls.at(-1)?.[0];
+    if (!initialRequest) {
+      throw new Error("Expected initial prediction request");
+    }
+
+    manager.fulfillPrediction(
+      buildResponse(initialRequest, {
+        predictions: ["world\xA0"],
+        textEdit: {
+          replacementText: "W",
+          replaceBackwardCount: 1,
+          evaluatedTextLength: 1,
+          expectedReplacedText: "w",
+          expectedPrefixToken: "",
+        },
+      }),
+    );
+
+    expect(editable.textContent).toBe("w");
+    expect(getPrediction.mock.calls.length).toBe(1);
+    expect(document.querySelectorAll(".ft-suggestion-container li").length).toBeGreaterThan(0);
+  });
+
   test("inserts a regular space before first typed char after acceptance and cancels on cursor move", async () => {
     const { manager, getPrediction } = await createManager();
     const input = document.createElement("input");
@@ -629,6 +760,93 @@ describe("SuggestionManager", () => {
 
     dispatchKeydown(editable, "Tab");
     expect(editable.textContent).toBe("functionality next");
+  });
+
+  test("uses active block context for contenteditable prediction at paragraph boundary", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 0,
+    });
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML = "<p>hello</p><p>next</p>";
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    const paragraphs = editable.querySelectorAll("p");
+    const secondParagraph = paragraphs[1];
+    if (!secondParagraph) {
+      throw new Error("Expected second paragraph");
+    }
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Expected selection");
+    }
+    const range = document.createRange();
+    range.setStart(secondParagraph, 0);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+    await wait(220);
+
+    const request = getPrediction.mock.calls.at(-1)?.[0];
+    if (!request) {
+      throw new Error("Expected prediction request");
+    }
+    expect(request.text).toBe("");
+  });
+
+  test("predicts on first character for contenteditable when caret lags after insert", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+    });
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML = "<p><br></p><p></p>";
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    const secondParagraph = editable.querySelectorAll("p")[1];
+    if (!secondParagraph) {
+      throw new Error("Expected second paragraph");
+    }
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Expected selection");
+    }
+
+    // Simulate editor timing where text is updated but caret offset still points
+    // to paragraph start during the immediate input event.
+    const preInsertRange = document.createRange();
+    preInsertRange.setStart(secondParagraph, 0);
+    preInsertRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(preInsertRange);
+
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+    dispatchKeydown(editable, "h");
+
+    secondParagraph.textContent = "h";
+    const staleCaretRange = document.createRange();
+    staleCaretRange.setStart(secondParagraph, 0);
+    staleCaretRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(staleCaretRange);
+
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+    await wait(220);
+
+    const request = getPrediction.mock.calls.at(-1)?.[0];
+    if (!request) {
+      throw new Error("Expected prediction request");
+    }
+    expect(request.text).toBe("h");
   });
 
   test("preserves surrounding rich formatting during contenteditable replacement", async () => {
@@ -865,6 +1083,55 @@ describe("SuggestionManager", () => {
     expect(request.inputAction).toBe("insert");
   });
 
+  test("requests prediction for first character when contenteditable input is missing and caret stays stale", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+      enabledGrammarRules: [],
+    });
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML = "<p><br></p><p></p>";
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    const secondParagraph = editable.querySelectorAll("p")[1];
+    if (!secondParagraph) {
+      throw new Error("Expected second paragraph");
+    }
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Expected selection");
+    }
+
+    const initialRange = document.createRange();
+    initialRange.setStart(secondParagraph, 0);
+    initialRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(initialRange);
+
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+    dispatchKeydown(editable, "w");
+
+    secondParagraph.textContent = "w";
+    const staleCaretRange = document.createRange();
+    staleCaretRange.setStart(secondParagraph, 0);
+    staleCaretRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(staleCaretRange);
+
+    await wait(260);
+
+    expect(getPrediction.mock.calls.length).toBeGreaterThan(0);
+    const request = getPrediction.mock.calls.at(-1)?.[0];
+    if (!request) {
+      throw new Error("Expected prediction request");
+    }
+    expect(request.text).toBe("w");
+    expect(request.inputAction).toBe("insert");
+  });
+
   test("requests prediction when delayed contenteditable mutation arrives after insert fallback timeout", async () => {
     const { manager, getPrediction } = await createManager({
       minWordLengthToPredict: 1,
@@ -895,6 +1162,37 @@ describe("SuggestionManager", () => {
     }
     expect(request.text).toBe("h");
     expect(request.inputAction).toBe("insert");
+  });
+
+  test("does not request prediction when contenteditable insert is swallowed without text mutation", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+      enabledGrammarRules: [],
+    });
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.textContent = "hello";
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    setContentEditableCursor(editable, editable.textContent.length);
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+
+    const originalDateNow = Date.now;
+    let fakeNow = originalDateNow();
+    Date.now = () => fakeNow;
+
+    try {
+      dispatchKeydown(editable, "x");
+      fakeNow += 2000;
+      await wait(220);
+
+      expect(getPrediction.mock.calls.length).toBe(0);
+      expect(editable.textContent).toBe("hello");
+    } finally {
+      Date.now = originalDateNow;
+    }
   });
 
   test("does not request prediction on Enter in input when input event is missing", async () => {

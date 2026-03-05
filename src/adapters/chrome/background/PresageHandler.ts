@@ -321,7 +321,7 @@ export class PresageHandler {
   }
 
   async predictPresage(context: PresagePredictionContext): Promise<string[]> {
-    if (context.textEdit || !context.doPrediction) {
+    if (!context.doPrediction) {
       return [];
     }
     if (context.effectiveNumSuggestions <= 0) {
