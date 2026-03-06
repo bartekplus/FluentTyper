@@ -3218,6 +3218,98 @@ i18n = Object.assign(i18n, {
     pl: "Globalnie",
     pr: "Global",
   },
+  "popup_page_state_no_page_badge": {
+    en: "No active page",
+    pl: "Brak aktywnej strony",
+  },
+  "popup_page_state_no_page_title": {
+    en: "Open a website",
+    pl: "Otwórz witrynę",
+  },
+  "popup_page_state_no_page_body": {
+    en: "Open a website to manage site controls here.",
+    pl: "Otwórz witrynę, aby zarządzać ustawieniami tej strony.",
+  },
+  "popup_page_state_restricted_badge": {
+    en: "Restricted page",
+    pl: "Strona ograniczona",
+  },
+  "popup_page_state_restricted_title": {
+    en: "Browser internal page",
+    pl: "Wewnętrzna strona przeglądarki",
+  },
+  "popup_page_state_restricted_body": {
+    en: "FluentTyper cannot run on browser internal pages.",
+    pl: "FluentTyper nie działa na wewnętrznych stronach przeglądarki.",
+  },
+  "popup_page_state_extension_badge": {
+    en: "Extension page",
+    pl: "Strona rozszerzenia",
+  },
+  "popup_page_state_extension_title": {
+    en: "Extension surface",
+    pl: "Widok rozszerzenia",
+  },
+  "popup_page_state_extension_body": {
+    en: "Extension pages do not use site controls.",
+    pl: "Strony rozszerzeń nie używają ustawień dla witryn.",
+  },
+  "popup_page_state_file_badge": {
+    en: "Local file",
+    pl: "Plik lokalny",
+  },
+  "popup_page_state_file_title": {
+    en: "File page",
+    pl: "Strona pliku",
+  },
+  "popup_page_state_file_body": {
+    en: "Local files do not use site controls.",
+    pl: "Pliki lokalne nie używają ustawień dla witryn.",
+  },
+  "popup_page_state_other_badge": {
+    en: "Page unavailable",
+    pl: "Strona niedostępna",
+  },
+  "popup_page_state_other_title": {
+    en: "No site controls here",
+    pl: "Brak ustawień dla tej strony",
+  },
+  "popup_page_state_other_body": {
+    en: "Site controls are not available on this page.",
+    pl: "Ustawienia dla witryny nie są dostępne na tej stronie.",
+  },
+  "popup_page_state_active_badge": {
+    en: "Active here",
+    pl: "Aktywne tutaj",
+  },
+  "popup_page_state_site_disabled_badge": {
+    en: "Off on this site",
+    pl: "Wyłączone na tej stronie",
+  },
+  "popup_page_state_global_disabled_badge": {
+    en: "Paused globally",
+    pl: "Wstrzymane globalnie",
+  },
+  "popup_page_state_active_body": {
+    en: "Ready on this site.",
+    pl: "Gotowe na tej stronie.",
+  },
+  "popup_page_state_site_disabled_body": {
+    en: "Disabled on this site.",
+    pl: "Wyłączone na tej stronie.",
+  },
+  "popup_page_state_global_disabled_body": {
+    en: "Paused everywhere.",
+    pl: "Wstrzymane wszędzie.",
+  },
+  "popup_page_state_profile_active": {
+    en: "Site profile",
+    pl: "Profil witryny",
+  },
+  "popup_page_state_profile_global": {
+    en: "Global defaults",
+    pl: "Ustawienia globalne",
+  },
   "popup_dashboard_details": {
     en: "Details",
     fr: "Détails",

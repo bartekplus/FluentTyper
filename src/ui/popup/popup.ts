@@ -56,6 +56,7 @@ let productivityDashboardRetryTimerId: number | null = null;
 let productivityDashboardLoadCancelled = false;
 let productivityDashboardLoadCompleted = false;
 const OPTIONS_ANCHOR_ADVANCED = "advanced_tab";
+const POPUP_THEME_MEDIA_QUERY = "(prefers-color-scheme: dark)";
 
 type PopupPageState =
   | { kind: "actionable"; url: string }
@@ -96,7 +97,7 @@ function getCurrentPageState(url?: string): PopupPageState {
       title: translateLabel("popup_page_state_no_page_title", "Open a website"),
       body: translateLabel(
         "popup_page_state_no_page_body",
-        "Open a normal website tab to manage per-site behavior and see the current page status.",
+        "Open a website to manage site controls here.",
       ),
     };
   }
@@ -119,7 +120,7 @@ function getCurrentPageState(url?: string): PopupPageState {
       title: translateLabel("popup_page_state_restricted_title", "Browser internal page"),
       body: translateLabel(
         "popup_page_state_restricted_body",
-        "FluentTyper cannot run on browser internal pages, so site controls are unavailable here.",
+        "FluentTyper cannot run on browser internal pages.",
       ),
       url,
     };
@@ -135,7 +136,7 @@ function getCurrentPageState(url?: string): PopupPageState {
       title: translateLabel("popup_page_state_extension_title", "Extension surface"),
       body: translateLabel(
         "popup_page_state_extension_body",
-        "This page belongs to a browser extension, so FluentTyper does not apply site-specific controls here.",
+        "Extension pages do not use site controls.",
       ),
       url,
     };
@@ -146,10 +147,7 @@ function getCurrentPageState(url?: string): PopupPageState {
       kind: "non_actionable",
       badge: translateLabel("popup_page_state_file_badge", "Local file"),
       title: translateLabel("popup_page_state_file_title", "File page"),
-      body: translateLabel(
-        "popup_page_state_file_body",
-        "Local files do not have a website profile. Open a regular website to manage per-site behavior.",
-      ),
+      body: translateLabel("popup_page_state_file_body", "Local files do not use site controls."),
       url,
     };
   }
@@ -167,7 +165,7 @@ function getCurrentPageState(url?: string): PopupPageState {
     title: translateLabel("popup_page_state_other_title", "No site controls here"),
     body: translateLabel(
       "popup_page_state_other_body",
-      "This page does not expose a site that FluentTyper can manage from the popup.",
+      "Site controls are not available on this page.",
     ),
     url,
   };
@@ -192,6 +190,7 @@ function renderStaticPageState(
   }
   badge.textContent = state.badge;
   title.textContent = state.title;
+  title.title = state.title;
   body.textContent = state.body;
   meta?.classList.add("is-hidden");
   if (language) {
@@ -205,6 +204,26 @@ function renderStaticPageState(
   if (hint) {
     hint.textContent = "";
   }
+}
+
+function applyPopupThemeMode(theme: "light" | "dark"): void {
+  document.documentElement.setAttribute("data-theme", theme);
+  document.body?.setAttribute("data-theme", theme);
+}
+
+function syncPopupThemeWithSystem(): void {
+  if (typeof window.matchMedia !== "function") {
+    applyPopupThemeMode("light");
+    return;
+  }
+
+  const colorSchemeQuery = window.matchMedia(POPUP_THEME_MEDIA_QUERY);
+  const applyCurrentTheme = () => {
+    applyPopupThemeMode(colorSchemeQuery.matches ? "dark" : "light");
+  };
+
+  applyCurrentTheme();
+  colorSchemeQuery.addEventListener("change", applyCurrentTheme);
 }
 
 async function renderActionablePageState(): Promise<void> {
@@ -254,6 +273,7 @@ async function renderActionablePageState(): Promise<void> {
   }
   badge.textContent = badgeLabel;
   title.textContent = currentDomainURL;
+  title.title = currentDomainURL;
   body.textContent = activityCopy;
   language.textContent = languageLabel;
   profileNode.textContent = profileCopy;
@@ -815,6 +835,7 @@ async function loadProductivityDashboard(retryAttempt = 0): Promise<void> {
 }
 
 function init() {
+  syncPopupThemeWithSystem();
   translateUI();
   document.getElementById("openStatsOptionsBtn")?.addEventListener("click", (event) => {
     event.preventDefault();

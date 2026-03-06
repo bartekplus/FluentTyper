@@ -20,6 +20,7 @@ const baseGlobals = {
   CustomEvent: globalThis.CustomEvent,
   MutationObserver: globalThis.MutationObserver,
   getComputedStyle: globalThis.getComputedStyle,
+  matchMedia: globalThis.matchMedia,
   chrome: (globalThis as unknown as { chrome: unknown }).chrome,
 };
 
@@ -96,7 +97,7 @@ function popupMarkup(initialAccepted = "0"): string {
 </html>`;
 }
 
-function installPopupDom(initialAccepted = "0"): JSDOM {
+function installPopupDom(initialAccepted = "0", prefersDark = false): JSDOM {
   const dom = new JSDOM(popupMarkup(initialAccepted), {
     pretendToBeVisual: true,
     url: "https://example.test/popup/popup.html",
@@ -121,6 +122,18 @@ function installPopupDom(initialAccepted = "0"): JSDOM {
     windowRef.MutationObserver as unknown as typeof MutationObserver;
   (globalThis as unknown as { getComputedStyle: typeof getComputedStyle }).getComputedStyle =
     windowRef.getComputedStyle.bind(windowRef) as unknown as typeof getComputedStyle;
+  const matchMediaMock = ((query: string) => ({
+    matches: query === "(prefers-color-scheme: dark)" ? prefersDark : false,
+    media: query,
+    onchange: null,
+    addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
+    addListener: jest.fn(),
+    removeListener: jest.fn(),
+    dispatchEvent: jest.fn(() => true),
+  })) as typeof window.matchMedia;
+  (globalThis as unknown as { matchMedia: typeof window.matchMedia }).matchMedia = matchMediaMock;
+  (windowRef as unknown as { matchMedia: typeof window.matchMedia }).matchMedia = matchMediaMock;
 
   windowRef.setTimeout = setTimeout as unknown as typeof windowRef.setTimeout;
   windowRef.clearTimeout = clearTimeout as unknown as typeof windowRef.clearTimeout;
@@ -327,8 +340,9 @@ async function loadPopupWithOutcomes(
     request?: (options: chrome.permissions.Permissions) => Promise<boolean> | boolean;
   },
   activeTab?: chrome.tabs.Tab,
+  prefersDark = false,
 ): Promise<ReturnType<typeof createChromeMock>> {
-  activeDom = installPopupDom(initialAccepted);
+  activeDom = installPopupDom(initialAccepted, prefersDark);
   const chromeMock = createChromeMock(outcomes, permissionApi, activeTab);
   (globalThis as unknown as { chrome: unknown }).chrome = chromeMock;
   (window as unknown as { chrome: unknown }).chrome = chromeMock;
@@ -370,6 +384,8 @@ describe("popup productivity dashboard retry/failure paths", () => {
       baseGlobals.MutationObserver;
     (globalThis as unknown as { getComputedStyle: typeof getComputedStyle }).getComputedStyle =
       baseGlobals.getComputedStyle;
+    (globalThis as unknown as { matchMedia: typeof window.matchMedia }).matchMedia =
+      baseGlobals.matchMedia;
     (globalThis as unknown as { chrome: unknown }).chrome = baseGlobals.chrome;
   });
 
@@ -551,5 +567,18 @@ describe("popup productivity dashboard retry/failure paths", () => {
     expect(chromeMock.tabs.create).toHaveBeenCalledWith({
       url: expect.stringContaining("options/options.html#advanced_tab"),
     });
+  });
+
+  test("popup applies explicit dark theme mode from matchMedia", async () => {
+    await loadPopupWithOutcomes(
+      [{ type: "stats", value: createPopupStats(1) }],
+      "0",
+      undefined,
+      undefined,
+      true,
+    );
+
+    expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
+    expect(document.body.getAttribute("data-theme")).toBe("dark");
   });
 });
