@@ -8,6 +8,34 @@ function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function waitForNextCall(
+  mock: jest.Mock<(context: ContentScriptPredictRequestContext) => void>,
+  { timeout = 2000 }: { timeout?: number } = {},
+): Promise<ContentScriptPredictRequestContext> {
+  const baseline = mock.mock.calls.length;
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    if (mock.mock.calls.length > baseline) {
+      const last = mock.mock.calls.at(-1)?.[0];
+      if (last) return last;
+    }
+    await new Promise<void>((r) => setTimeout(r, 5));
+  }
+  throw new Error(`Expected getPrediction to be called within ${timeout}ms`);
+}
+
+async function waitFor(
+  condition: () => boolean,
+  { timeout = 2000 }: { timeout?: number } = {},
+): Promise<void> {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    if (condition()) return;
+    await new Promise<void>((r) => setTimeout(r, 5));
+  }
+  throw new Error(`Condition was not met within ${timeout}ms`);
+}
+
 function dispatchKeydown(
   target: HTMLElement,
   key: string,
@@ -194,12 +222,7 @@ async function typeAndCollectRequest(
   input.selectionStart = text.length;
   input.selectionEnd = text.length;
   input.dispatchEvent(new Event("input", { bubbles: true }));
-  await wait(220);
-  const request = getPrediction.mock.calls.at(-1)?.[0];
-  if (!request) {
-    throw new Error("Expected prediction request");
-  }
-  return request;
+  return waitForNextCall(getPrediction);
 }
 
 describe("SuggestionManager", () => {
@@ -261,7 +284,7 @@ describe("SuggestionManager", () => {
     input.selectionStart = 1;
     input.selectionEnd = 1;
     input.dispatchEvent(new Event("input", { bubbles: true }));
-    await wait(220);
+    await waitForNextCall(getPrediction);
     expect(getPrediction).toHaveBeenCalled();
 
     input.remove();
@@ -460,7 +483,7 @@ describe("SuggestionManager", () => {
     input.dispatchEvent(new Event("input", { bubbles: true }));
 
     expect(input.value).toBe("A");
-    await wait(220);
+    await waitForNextCall(getPrediction);
     expect(getPrediction.mock.calls.at(-1)?.[0]?.text).toBe("A");
   });
 
@@ -508,7 +531,7 @@ describe("SuggestionManager", () => {
     editable.dispatchEvent(new Event("input", { bubbles: true }));
 
     expect(editable.textContent).toBe("W");
-    await wait(220);
+    await waitForNextCall(getPrediction);
     expect(getPrediction.mock.calls.at(-1)?.[0]?.text).toBe("W");
   });
 
@@ -738,12 +761,8 @@ describe("SuggestionManager", () => {
       configurable: true,
     });
     input.dispatchEvent(deleteInputEvent);
-    await wait(220);
 
-    const request = getPrediction.mock.calls.at(-1)?.[0];
-    if (!request) {
-      throw new Error("Expected prediction request");
-    }
+    const request = await waitForNextCall(getPrediction);
     expect(request.text).toBe("Hello.");
     expect(request.inputAction).toBe("delete");
   });
@@ -761,7 +780,7 @@ describe("SuggestionManager", () => {
     input.selectionStart = input.value.length;
     input.selectionEnd = input.value.length;
     input.dispatchEvent(new Event("input", { bubbles: true }));
-    await wait(220);
+    await waitForNextCall(getPrediction);
 
     getPrediction.mockClear();
 
@@ -769,12 +788,8 @@ describe("SuggestionManager", () => {
     input.selectionStart = input.value.length;
     input.selectionEnd = input.value.length;
     input.dispatchEvent(new Event("input", { bubbles: true }));
-    await wait(220);
 
-    const request = getPrediction.mock.calls.at(-1)?.[0];
-    if (!request) {
-      throw new Error("Expected prediction request");
-    }
+    const request = await waitForNextCall(getPrediction);
     expect(request.text).toBe("Hello.");
     expect(request.inputAction).toBe("delete");
   });
@@ -791,12 +806,8 @@ describe("SuggestionManager", () => {
 
     input.dispatchEvent(new Event("focus", { bubbles: true }));
     input.dispatchEvent(new Event("input", { bubbles: true }));
-    await wait(220);
 
-    const request = getPrediction.mock.calls.at(-1)?.[0];
-    if (!request) {
-      throw new Error("Expected prediction request");
-    }
+    const request = await waitForNextCall(getPrediction);
 
     manager.fulfillPrediction(
       buildResponse(request, {
@@ -822,12 +833,8 @@ describe("SuggestionManager", () => {
 
     input.dispatchEvent(new Event("focus", { bubbles: true }));
     input.dispatchEvent(new Event("input", { bubbles: true }));
-    await wait(220);
 
-    const request = getPrediction.mock.calls.at(-1)?.[0];
-    if (!request) {
-      throw new Error("Expected prediction request");
-    }
+    const request = await waitForNextCall(getPrediction);
 
     manager.fulfillPrediction(
       buildResponse(request, {
@@ -863,12 +870,8 @@ describe("SuggestionManager", () => {
 
     input.dispatchEvent(new Event("focus", { bubbles: true }));
     input.dispatchEvent(new Event("input", { bubbles: true }));
-    await wait(220);
 
-    const request = getPrediction.mock.calls.at(-1)?.[0];
-    if (!request) {
-      throw new Error("Expected prediction request");
-    }
+    const request = await waitForNextCall(getPrediction);
 
     manager.fulfillPrediction(
       buildResponse(request, {
@@ -896,12 +899,8 @@ describe("SuggestionManager", () => {
 
     input.dispatchEvent(new Event("focus", { bubbles: true }));
     input.dispatchEvent(new Event("input", { bubbles: true }));
-    await wait(220);
 
-    const request = getPrediction.mock.calls.at(-1)?.[0];
-    if (!request) {
-      throw new Error("Expected prediction request");
-    }
+    const request = await waitForNextCall(getPrediction);
 
     manager.fulfillPrediction(
       buildResponse(request, {
@@ -925,12 +924,8 @@ describe("SuggestionManager", () => {
 
     input.dispatchEvent(new Event("focus", { bubbles: true }));
     input.dispatchEvent(new Event("input", { bubbles: true }));
-    await wait(220);
 
-    const request = getPrediction.mock.calls.at(-1)?.[0];
-    if (!request) {
-      throw new Error("Expected prediction request");
-    }
+    const request = await waitForNextCall(getPrediction);
 
     manager.fulfillPrediction(
       buildResponse(request, {
@@ -954,12 +949,8 @@ describe("SuggestionManager", () => {
     setContentEditableCursor(editable, 4);
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     editable.dispatchEvent(new Event("input", { bubbles: true }));
-    await wait(220);
 
-    const request = getPrediction.mock.calls.at(-1)?.[0];
-    if (!request) {
-      throw new Error("Expected prediction request");
-    }
+    const request = await waitForNextCall(getPrediction);
 
     manager.fulfillPrediction(
       buildResponse(request, {
@@ -1000,12 +991,8 @@ describe("SuggestionManager", () => {
 
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     editable.dispatchEvent(new Event("input", { bubbles: true }));
-    await wait(220);
 
-    const request = getPrediction.mock.calls.at(-1)?.[0];
-    if (!request) {
-      throw new Error("Expected prediction request");
-    }
+    const request = await waitForNextCall(getPrediction);
     expect(request.text).toBe("");
     expect(request.nextChar).toBe("n");
   });
@@ -1038,12 +1025,8 @@ describe("SuggestionManager", () => {
 
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     editable.dispatchEvent(new Event("input", { bubbles: true }));
-    await wait(220);
 
-    const request = getPrediction.mock.calls.at(-1)?.[0];
-    if (!request) {
-      throw new Error("Expected prediction request");
-    }
+    const request = await waitForNextCall(getPrediction);
     expect(request.text).toBe("asap");
     expect(request.nextChar).toBe("");
   });
@@ -1088,12 +1071,8 @@ describe("SuggestionManager", () => {
     selection.addRange(staleCaretRange);
 
     editable.dispatchEvent(new Event("input", { bubbles: true }));
-    await wait(220);
 
-    const request = getPrediction.mock.calls.at(-1)?.[0];
-    if (!request) {
-      throw new Error("Expected prediction request");
-    }
+    const request = await waitForNextCall(getPrediction);
     expect(request.text).toBe("h");
   });
 
@@ -1109,12 +1088,8 @@ describe("SuggestionManager", () => {
     setContentEditableCursor(editable, "rich wrld".length);
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     editable.dispatchEvent(new Event("input", { bubbles: true }));
-    await wait(220);
 
-    const request = getPrediction.mock.calls.at(-1)?.[0];
-    if (!request) {
-      throw new Error("Expected prediction request");
-    }
+    const request = await waitForNextCall(getPrediction);
 
     manager.fulfillPrediction(
       buildResponse(request, {
@@ -1142,12 +1117,8 @@ describe("SuggestionManager", () => {
     setContentEditableCursor(editable, 1);
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     editable.dispatchEvent(new Event("input", { bubbles: true }));
-    await wait(220);
 
-    const request = getPrediction.mock.calls.at(-1)?.[0];
-    if (!request) {
-      throw new Error("Expected prediction request");
-    }
+    const request = await waitForNextCall(getPrediction);
 
     manager.fulfillPrediction(
       buildResponse(request, {
@@ -1185,12 +1156,8 @@ describe("SuggestionManager", () => {
     setContentEditableCursor(editable, 1);
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     editable.dispatchEvent(new Event("input", { bubbles: true }));
-    await wait(220);
 
-    const request = getPrediction.mock.calls.at(-1)?.[0];
-    if (!request) {
-      throw new Error("Expected prediction request");
-    }
+    const request = await waitForNextCall(getPrediction);
 
     manager.fulfillPrediction(
       buildResponse(request, {
@@ -1223,12 +1190,8 @@ describe("SuggestionManager", () => {
     setContentEditableCursor(editable, 1);
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     editable.dispatchEvent(new Event("input", { bubbles: true }));
-    await wait(220);
 
-    const firstRequest = getPrediction.mock.calls.at(-1)?.[0];
-    if (!firstRequest) {
-      throw new Error("Expected first prediction request");
-    }
+    const firstRequest = await waitForNextCall(getPrediction);
 
     manager.fulfillPrediction(
       buildResponse(firstRequest, {
@@ -1247,7 +1210,7 @@ describe("SuggestionManager", () => {
       value: "deleteContentBackward",
     });
     editable.dispatchEvent(deleteInputEvent);
-    await wait(220);
+    await waitFor(() => menu?.style.display === "none");
 
     expect(menu?.style.display).toBe("none");
     expect(menu?.querySelectorAll("li").length).toBe(0);
@@ -1277,12 +1240,8 @@ describe("SuggestionManager", () => {
     setContentEditableCursor(editable, 1);
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     editable.dispatchEvent(new Event("input", { bubbles: true }));
-    await wait(220);
 
-    const firstRequest = getPrediction.mock.calls.at(-1)?.[0];
-    if (!firstRequest) {
-      throw new Error("Expected first prediction request");
-    }
+    const firstRequest = await waitForNextCall(getPrediction);
 
     manager.fulfillPrediction(
       buildResponse(firstRequest, {
@@ -1297,7 +1256,7 @@ describe("SuggestionManager", () => {
     dispatchKeydown(editable, "Backspace");
     editable.textContent = "";
     setContentEditableCursor(editable, 0);
-    await wait(120);
+    await waitFor(() => menu?.style.display === "none");
 
     expect(menu?.style.display).toBe("none");
     expect(menu?.querySelectorAll("li").length).toBe(0);
@@ -1321,12 +1280,8 @@ describe("SuggestionManager", () => {
     dispatchKeydown(editable, "h");
     editable.textContent = "h";
     setContentEditableCursor(editable, 1);
-    await wait(220);
 
-    const request = getPrediction.mock.calls.at(-1)?.[0];
-    if (!request) {
-      throw new Error("Expected prediction request");
-    }
+    const request = await waitForNextCall(getPrediction);
     expect(request.text).toBe("h");
     expect(request.inputAction).toBe("insert");
   });
@@ -1369,13 +1324,7 @@ describe("SuggestionManager", () => {
     selection.removeAllRanges();
     selection.addRange(staleCaretRange);
 
-    await wait(260);
-
-    expect(getPrediction.mock.calls.length).toBeGreaterThan(0);
-    const request = getPrediction.mock.calls.at(-1)?.[0];
-    if (!request) {
-      throw new Error("Expected prediction request");
-    }
+    const request = await waitForNextCall(getPrediction);
     expect(request.text).toBe("w");
     expect(request.inputAction).toBe("insert");
   });
@@ -1418,14 +1367,8 @@ describe("SuggestionManager", () => {
     selection.removeAllRanges();
     selection.addRange(staleCaretRange);
 
-    await wait(260);
-
+    const request = await waitForNextCall(getPrediction);
     expect(editable.textContent).toBe("W");
-    expect(getPrediction.mock.calls.length).toBeGreaterThan(0);
-    const request = getPrediction.mock.calls.at(-1)?.[0];
-    if (!request) {
-      throw new Error("Expected prediction request");
-    }
     expect(request.text).toBe("W");
     expect(request.inputAction).toBe("insert");
   });
@@ -1482,12 +1425,8 @@ describe("SuggestionManager", () => {
     selection.addRange(initialRange);
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     dispatchInput(editable, { inputType: "insertText" });
-    await wait(220);
 
-    const request = getPrediction.mock.calls.at(-1)?.[0];
-    if (!request) {
-      throw new Error("Expected prediction request");
-    }
+    const request = await waitForNextCall(getPrediction);
     expect(request.text).toBe("W");
 
     manager.fulfillPrediction(
@@ -1547,12 +1486,7 @@ describe("SuggestionManager", () => {
     // 3. Host fires input event (this is what Reddit/Lexical does)
     editable.dispatchEvent(new Event("input", { bubbles: true }));
 
-    await wait(260);
-
-    const request = getPrediction.mock.calls.at(-1)?.[0];
-    if (!request) {
-      throw new Error("Expected prediction request after Reddit-like keydown+capitalize+input");
-    }
+    const request = await waitForNextCall(getPrediction);
     expect(request.text).toBe("P");
 
     // 4. Verify popup actually shows when prediction is fulfilled
@@ -1613,12 +1547,7 @@ describe("SuggestionManager", () => {
     selection.removeAllRanges();
     selection.addRange(staleRange);
 
-    await wait(260);
-
-    const request = getPrediction.mock.calls.at(-1)?.[0];
-    if (!request) {
-      throw new Error("Expected prediction request after async DOM update");
-    }
+    const request = await waitForNextCall(getPrediction);
     expect(request.text).toBe("P");
     expect(request.inputAction).toBe("insert");
   });
@@ -1699,12 +1628,7 @@ describe("SuggestionManager", () => {
     // dispatch insertReplacementText, Lexical intercepts it (beforeinput
     // handler above), changes "p" to "P", fires input, re-enters our handler.
 
-    await wait(300);
-
-    const request = getPrediction.mock.calls.at(-1)?.[0];
-    if (!request) {
-      throw new Error("Expected prediction request after grammar capitalize on Lexical");
-    }
+    const request = await waitForNextCall(getPrediction);
     expect(request.text).toBe("P");
 
     // Verify popup shows
@@ -1774,15 +1698,10 @@ describe("SuggestionManager", () => {
     // 3. Host fires input
     editable.dispatchEvent(new Event("input", { bubbles: true }));
 
-    await wait(300);
-
     // Even though the grammar edit was prevented, we should still get a
     // prediction for the lowercase "p" (grammar couldn't apply, but
     // prediction should still fire).
-    const request = getPrediction.mock.calls.at(-1)?.[0];
-    if (!request) {
-      throw new Error("Expected prediction request even when grammar edit is blocked");
-    }
+    const request = await waitForNextCall(getPrediction);
     expect(request.text).toBe("P");
   });
 
@@ -1826,12 +1745,7 @@ describe("SuggestionManager", () => {
     selection.removeAllRanges();
     selection.addRange(staleRange);
 
-    await wait(260);
-
-    const request = getPrediction.mock.calls.at(-1)?.[0];
-    if (!request) {
-      throw new Error("Expected prediction request");
-    }
+    const request = await waitForNextCall(getPrediction);
     expect(request.text).toBe("P");
     expect(request.inputAction).toBe("insert");
   });
@@ -1888,12 +1802,8 @@ describe("SuggestionManager", () => {
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     dispatchInput(editable, { inputType: "insertText" });
     editable.dispatchEvent(new Event("input", { bubbles: true }));
-    await wait(220);
 
-    const request = getPrediction.mock.calls.at(-1)?.[0];
-    if (!request) {
-      throw new Error("Expected prediction request");
-    }
+    const request = await waitForNextCall(getPrediction);
     expect(request.text).toBe("W");
   });
 
@@ -1918,13 +1828,9 @@ describe("SuggestionManager", () => {
 
     editable.textContent = "h";
     setContentEditableCursor(editable, 1);
-    await wait(180);
 
+    const request = await waitForNextCall(getPrediction);
     expect(getPrediction.mock.calls.length).toBe(1);
-    const request = getPrediction.mock.calls.at(-1)?.[0];
-    if (!request) {
-      throw new Error("Expected prediction request");
-    }
     expect(request.text).toBe("h");
     expect(request.inputAction).toBe("insert");
   });
@@ -1984,15 +1890,11 @@ describe("SuggestionManager", () => {
       setContentEditableCursor(editable, editable.textContent.length);
       dispatchKeydown(editable, "x");
       fakeNow += 2000;
-      await wait(220);
     } finally {
       Date.now = originalDateNow;
     }
 
-    const request = getPrediction.mock.calls.at(-1)?.[0];
-    if (!request) {
-      throw new Error("Expected prediction request");
-    }
+    const request = await waitForNextCall(getPrediction);
     expect(request.text).toBe("hellox");
     expect(request.inputAction).toBe("insert");
   });
@@ -2012,7 +1914,7 @@ describe("SuggestionManager", () => {
 
     input.dispatchEvent(new Event("focus", { bubbles: true }));
     input.dispatchEvent(new Event("input", { bubbles: true }));
-    await wait(220);
+    await waitForNextCall(getPrediction);
     const baselineCalls = getPrediction.mock.calls.length;
 
     dispatchKeydown(input, "Enter");
@@ -2190,12 +2092,8 @@ describe("SuggestionManager", () => {
     setContentEditableCursor(editable, 4);
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     editable.dispatchEvent(new Event("input", { bubbles: true }));
-    await wait(220);
 
-    const firstRequest = getPrediction.mock.calls.at(-1)?.[0];
-    if (!firstRequest) {
-      throw new Error("Expected first prediction request");
-    }
+    const firstRequest = await waitForNextCall(getPrediction);
 
     manager.fulfillPrediction(
       buildResponse(firstRequest, {
@@ -2215,7 +2113,7 @@ describe("SuggestionManager", () => {
       value: "deleteContentBackward",
     });
     editable.dispatchEvent(deleteInputEvent);
-    await wait(20);
+    await waitFor(() => menu?.style.display === "block");
 
     expect(menu?.style.display).toBe("block");
     expect(menu?.querySelectorAll("li").length).toBeGreaterThan(0);
@@ -2236,12 +2134,8 @@ describe("SuggestionManager", () => {
     setContentEditableCursor(editable, 4);
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     editable.dispatchEvent(new Event("input", { bubbles: true }));
-    await wait(220);
 
-    const firstRequest = getPrediction.mock.calls.at(-1)?.[0];
-    if (!firstRequest) {
-      throw new Error("Expected first prediction request");
-    }
+    const firstRequest = await waitForNextCall(getPrediction);
 
     manager.fulfillPrediction(
       buildResponse(firstRequest, {
@@ -2261,7 +2155,7 @@ describe("SuggestionManager", () => {
       value: "deleteContentBackward",
     });
     editable.dispatchEvent(deleteInputEvent);
-    await wait(90);
+    await waitForNextCall(getPrediction);
 
     expect(menu?.style.display).toBe("block");
     expect(menu?.querySelectorAll("li").length).toBeGreaterThan(0);
@@ -2297,12 +2191,8 @@ describe("SuggestionManager", () => {
 
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     editable.dispatchEvent(new Event("input", { bubbles: true }));
-    await wait(220);
 
-    const request = getPrediction.mock.calls.at(-1)?.[0];
-    if (!request) {
-      throw new Error("Expected prediction request");
-    }
+    const request = await waitForNextCall(getPrediction);
 
     manager.fulfillPrediction(
       buildResponse(request, {
