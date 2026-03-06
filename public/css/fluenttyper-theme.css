@@ -197,15 +197,16 @@ body.fluenttyper-popup {
   overflow: hidden;
 }
 
-.popup-primary-card {
-  padding: 0.7rem;
+.popup-primary-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
 }
 
 .popup-control-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.5rem;
-  margin-top: 0.55rem;
 }
 
 .row-label {
@@ -447,10 +448,6 @@ body.fluenttyper-popup {
   font-size: 0.8rem;
 }
 
-.popup-primary-card .permission-status {
-  margin-top: 0.55rem;
-}
-
 /* Switches overrides for compactness */
 .field.mb-0 {
   margin-bottom: 0 !important;
@@ -501,6 +498,9 @@ body.fluenttyper-popup {
 
 .dashboard-card {
   padding: 0.7rem;
+  border-color: var(--popup-surface-border);
+  background: var(--popup-surface-background), var(--box-background-color);
+  box-shadow: var(--popup-surface-shadow);
 }
 
 .dashboard-card-header {
