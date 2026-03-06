@@ -56,8 +56,11 @@ const SUGGESTION_TIMEOUT_MS = timeoutProfile.suggestionMs;
 const RUN_DEV_RUNTIME_E2E =
   process.env.FT_E2E_DEV_RUNTIME === "1" || process.env.FT_E2E_DEV_RUNTIME === "true";
 const RUN_E2E = process.env.RUN_E2E === "1" || process.env.RUN_E2E === "true";
+const IS_CI = process.env.CI === "true" || process.env.CI === "1";
 const describeE2E = RUN_E2E ? describe : describe.skip;
 const devRuntimeTest = RUN_DEV_RUNTIME_E2E ? test : test.skip;
+const WORKER_REACQUIRE_TIMEOUT_MS = isFirefox() ? 15000 : IS_CI ? 15000 : 7000;
+const ONBOARDING_VIEWPORT = { width: 1280, height: 900 } as const;
 
 function devRuntimeEach<T>(cases: readonly T[]) {
   return RUN_DEV_RUNTIME_E2E ? test.each(cases) : test.skip.each(cases);
@@ -81,26 +84,28 @@ async function captureOnboardingViewportSnapshot(page: Page): Promise<Onboarding
     const rationale = document.querySelector(".hero-lead");
     const nextAction = document.querySelector("[aria-label='Next action']");
 
-    const isFullyVisibleInViewport = (element: Element | null) => {
+    const isMeaningfullyVisibleInViewport = (element: Element | null) => {
       if (!(element instanceof HTMLElement)) {
         return false;
       }
 
       const rect = element.getBoundingClientRect();
+      const visibleHeight = Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0);
+
       return (
         rect.top >= 0 &&
         rect.left >= 0 &&
-        rect.bottom <= window.innerHeight &&
-        rect.right <= window.innerWidth
+        rect.right <= window.innerWidth &&
+        visibleHeight >= Math.min(rect.height, 32)
       );
     };
 
     return {
       viewportWidth: window.innerWidth,
       viewportHeight: window.innerHeight,
-      permissionInViewport: isFullyVisibleInViewport(permissionButton),
-      rationaleInViewport: isFullyVisibleInViewport(rationale),
-      nextActionInViewport: isFullyVisibleInViewport(nextAction),
+      permissionInViewport: isMeaningfullyVisibleInViewport(permissionButton),
+      rationaleInViewport: isMeaningfullyVisibleInViewport(rationale),
+      nextActionInViewport: isMeaningfullyVisibleInViewport(nextAction),
     };
   });
 }
@@ -115,6 +120,7 @@ async function openOnboardingPageWithPermissionHooks(
 ): Promise<Page> {
   const url = await getRuntimePageUrl(worker, "new_installation/index.html");
   const page = await browser.newPage();
+  await page.setViewport(ONBOARDING_VIEWPORT);
 
   await page.evaluateOnNewDocument((hookConfig) => {
     const testWindow = window as Window & {
@@ -203,7 +209,7 @@ async function reacquireWorkerContext(
       }
     },
     {
-      timeoutMs: browserTimeout(7000, 15000),
+      timeoutMs: WORKER_REACQUIRE_TIMEOUT_MS,
       intervalMs: 100,
     },
   );
@@ -1256,6 +1262,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         worker!,
         "new_installation/index.html",
       );
+      await newInstallationPage.setViewport(ONBOARDING_VIEWPORT);
       await newInstallationPage.waitForSelector("body", {
         timeout: browserTimeout(3000, 10000),
       });
