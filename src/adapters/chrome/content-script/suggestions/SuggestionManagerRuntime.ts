@@ -1106,9 +1106,11 @@ export class SuggestionManagerRuntime {
     if (!this.isEntryFocused(entry)) {
       return;
     }
-    if (!TextTargetAdapter.hasCollapsedSelection(entry.elem as TextTarget)) {
-      this.dismissEntry(entry, true);
-      return;
+    if (this.isTextValueElement(entry.elem)) {
+      if (!TextTargetAdapter.hasCollapsedSelection(entry.elem as TextTarget)) {
+        this.dismissEntry(entry, true);
+        return;
+      }
     }
     if (!this.shouldCheckCaretContextOnSelectionChange(entry)) {
       return;
