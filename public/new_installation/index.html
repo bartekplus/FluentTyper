@@ -139,6 +139,12 @@
           linear-gradient(135deg, rgba(236, 253, 245, 0.98), rgba(209, 250, 229, 0.92)), white;
       }
 
+      .permission-panel.is-unavailable {
+        border-color: rgba(148, 163, 184, 0.48);
+        background:
+          linear-gradient(135deg, rgba(248, 250, 252, 0.98), rgba(226, 232, 240, 0.94)), white;
+      }
+
       .step-label {
         font-size: 0.82rem;
         font-weight: 800;
@@ -149,6 +155,10 @@
 
       .permission-panel.is-success .step-label {
         color: #047857;
+      }
+
+      .permission-panel.is-unavailable .step-label {
+        color: #475569;
       }
 
       .panel-title,
@@ -456,25 +466,21 @@
                   <span class="hero-pill">No account or uploads</span>
                 </div>
 
-                <div id="permissions-container" class="permission-panel">
-                  <span class="step-label">Step 1</span>
-                  <h2 class="panel-title">Allow page access</h2>
-                  <p class="panel-copy">
-                    This gives FluentTyper permission to attach to text boxes on the sites you use.
-                    It does not send your typing anywhere.
+                <div
+                  id="permissions-container"
+                  class="permission-panel"
+                  data-permission-state="missing"
+                  aria-live="polite"
+                >
+                  <span id="permissions-badge" class="step-label">Website access required</span>
+                  <h2 id="permissions-title" class="panel-title">Allow page access</h2>
+                  <p id="permissions-copy" class="panel-copy">
+                    FluentTyper needs website access to show suggestions in text fields, and
+                    everything stays local in your browser.
                   </p>
                   <button id="grant-permissions-btn" class="button is-activation" type="button">
-                    Grant access
+                    Allow page access
                   </button>
-                </div>
-
-                <div id="permissions-success" class="permission-panel is-success" hidden>
-                  <span class="step-label">Step 1 complete</span>
-                  <h2 class="panel-title">Access granted</h2>
-                  <p class="panel-copy">
-                    FluentTyper can now run on websites. Step 2 is below: type in the practice box
-                    and accept the suggestion with <kbd>Tab</kbd>.
-                  </p>
                 </div>
 
                 <div class="activation-next" aria-label="Next action">

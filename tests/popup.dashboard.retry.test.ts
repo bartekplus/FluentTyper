@@ -14,6 +14,7 @@ const baseGlobals = {
   navigator: globalThis.navigator,
   Node: globalThis.Node,
   HTMLElement: globalThis.HTMLElement,
+  HTMLButtonElement: globalThis.HTMLButtonElement,
   Element: globalThis.Element,
   Event: globalThis.Event,
   CustomEvent: globalThis.CustomEvent,
@@ -74,8 +75,12 @@ function popupMarkup(initialAccepted = "0"): string {
     <a id="dashboardMilestoneLink"></a>
     <button id="dashboardMilestoneLaterBtn" type="button"></button>
 
-    <div id="permissionBanner" class="is-hidden"></div>
-    <button id="grantPermissionBtn" type="button"></button>
+    <div id="permissionBanner" class="is-hidden" data-permission-state="missing">
+      <span id="permissionBadge"></span>
+      <h2 id="permissionTitle"></h2>
+      <p id="permissionBody"></p>
+      <button id="grantPermissionBtn" type="button"></button>
+    </div>
   </body>
 </html>`;
 }
@@ -93,6 +98,8 @@ function installPopupDom(initialAccepted = "0"): JSDOM {
   (globalThis as unknown as { Node: typeof Node }).Node = windowRef.Node as unknown as typeof Node;
   (globalThis as unknown as { HTMLElement: typeof HTMLElement }).HTMLElement =
     windowRef.HTMLElement as unknown as typeof HTMLElement;
+  (globalThis as unknown as { HTMLButtonElement: typeof HTMLButtonElement }).HTMLButtonElement =
+    windowRef.HTMLButtonElement as unknown as typeof HTMLButtonElement;
   (globalThis as unknown as { Element: typeof Element }).Element =
     windowRef.Element as unknown as typeof Element;
   (globalThis as unknown as { Event: typeof Event }).Event =
@@ -177,7 +184,13 @@ function createPopupStats(acceptedSuggestions: number): ProductivityDashboardSta
   };
 }
 
-function createChromeMock(outcomes: RuntimeOutcome[]) {
+function createChromeMock(
+  outcomes: RuntimeOutcome[],
+  permissionApi?: {
+    contains?: (options: chrome.permissions.Permissions) => Promise<boolean> | boolean;
+    request?: (options: chrome.permissions.Permissions) => Promise<boolean> | boolean;
+  },
+) {
   const pending = [...outcomes];
   const storage = new Map<string, unknown>();
 
@@ -257,6 +270,13 @@ function createChromeMock(outcomes: RuntimeOutcome[]) {
     permissions: undefined,
   };
 
+  if (permissionApi) {
+    chromeMock.permissions = {
+      contains: jest.fn(permissionApi.contains),
+      request: jest.fn(permissionApi.request),
+    };
+  }
+
   return chromeMock;
 }
 
@@ -284,9 +304,13 @@ function dashboardStatsCallCount(chromeMock: ReturnType<typeof createChromeMock>
 async function loadPopupWithOutcomes(
   outcomes: RuntimeOutcome[],
   initialAccepted = "0",
+  permissionApi?: {
+    contains?: (options: chrome.permissions.Permissions) => Promise<boolean> | boolean;
+    request?: (options: chrome.permissions.Permissions) => Promise<boolean> | boolean;
+  },
 ): Promise<ReturnType<typeof createChromeMock>> {
   activeDom = installPopupDom(initialAccepted);
-  const chromeMock = createChromeMock(outcomes);
+  const chromeMock = createChromeMock(outcomes, permissionApi);
   (globalThis as unknown as { chrome: unknown }).chrome = chromeMock;
   (window as unknown as { chrome: unknown }).chrome = chromeMock;
 
@@ -317,6 +341,8 @@ describe("popup productivity dashboard retry/failure paths", () => {
     (globalThis as unknown as { Node: typeof Node }).Node = baseGlobals.Node;
     (globalThis as unknown as { HTMLElement: typeof HTMLElement }).HTMLElement =
       baseGlobals.HTMLElement;
+    (globalThis as unknown as { HTMLButtonElement: typeof HTMLButtonElement }).HTMLButtonElement =
+      baseGlobals.HTMLButtonElement;
     (globalThis as unknown as { Element: typeof Element }).Element = baseGlobals.Element;
     (globalThis as unknown as { Event: typeof Event }).Event = baseGlobals.Event;
     (globalThis as unknown as { CustomEvent: typeof CustomEvent }).CustomEvent =
@@ -413,5 +439,58 @@ describe("popup productivity dashboard retry/failure paths", () => {
     expect(dashboardStatsCallCount(chromeMock)).toBe(1);
     expect(textContent("metricAccepted")).toBe("init-accepted");
     expect(textContent("dashboardPeriodSummary")).toBe("init-period");
+  });
+
+  test("uses shared missing and granted permission states in the popup", async () => {
+    const chromeMock = await loadPopupWithOutcomes(
+      [{ type: "stats", value: createPopupStats(1) }],
+      "0",
+      {
+        contains: async () => false,
+        request: async () => true,
+      },
+    );
+
+    const banner = document.getElementById("permissionBanner") as HTMLElement;
+    const button = document.getElementById("grantPermissionBtn") as HTMLButtonElement;
+
+    expect(banner.classList.contains("is-hidden")).toBe(false);
+    expect(banner.dataset.permissionState).toBe("missing");
+    expect(textContent("permissionTitle")).toBe("Allow page access");
+    expect(textContent("permissionBody")).toBe(
+      "FluentTyper needs website access to show suggestions in text fields, and everything stays local in your browser.",
+    );
+    expect(button.textContent).toBe("Allow page access");
+    expect(textContent("permissionTitle")).not.toContain("permission_status_");
+    expect(textContent("permissionBody")).not.toContain("permission_status_");
+
+    button.click();
+    await flushAsyncWork();
+
+    expect(banner.dataset.permissionState).toBe("granted");
+    expect(textContent("permissionTitle")).toBe("Access granted");
+    expect(textContent("permissionBody")).toBe(
+      "FluentTyper can now show suggestions in text fields, and everything still stays local in your browser.",
+    );
+    expect(button.hidden).toBe(true);
+    expect(chromeMock.permissions?.contains).toHaveBeenCalledWith({ origins: ["<all_urls>"] });
+    expect(chromeMock.permissions?.request).toHaveBeenCalledWith({ origins: ["<all_urls>"] });
+  });
+
+  test("shows recovery copy in the popup when permission checks are unavailable", async () => {
+    await loadPopupWithOutcomes([{ type: "stats", value: createPopupStats(1) }]);
+
+    const banner = document.getElementById("permissionBanner") as HTMLElement;
+    const button = document.getElementById("grantPermissionBtn") as HTMLButtonElement;
+
+    expect(banner.classList.contains("is-hidden")).toBe(false);
+    expect(banner.dataset.permissionState).toBe("unavailable");
+    expect(textContent("permissionTitle")).toBe("Check browser access");
+    expect(textContent("permissionBody")).toBe(
+      "FluentTyper could not verify website access right now. Reopen FluentTyper or reload this page, then try again. Your typing still stays local in your browser.",
+    );
+    expect(textContent("permissionTitle")).not.toContain("permission_status_");
+    expect(textContent("permissionBody")).not.toContain("permission_status_");
+    expect(button.hidden).toBe(true);
   });
 });

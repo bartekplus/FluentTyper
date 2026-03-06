@@ -183,6 +183,11 @@ async function bundleExtension(context: BuildContext): Promise<void> {
       outfile: path.join(context.buildDir, "third_party", "fancier-settings", "settings.js"),
       label: "options/settings",
     },
+    {
+      entrypoint: path.join(context.srcDir, "entries", "onboarding.ts"),
+      outfile: path.join(context.buildDir, "new_installation", "onboarding.js"),
+      label: "onboarding",
+    },
   ];
 
   const buildResults = await Promise.all(

@@ -22,6 +22,59 @@
 
     <!-- JavaScript -->
     <script src="/popup/popup.js"></script>
+    <style>
+      .permission-status {
+        display: grid;
+        gap: 0.45rem;
+        padding: 1rem;
+        border: 1px solid #f59e0b;
+        background: linear-gradient(135deg, #fff7ed, #ffedd5);
+      }
+
+      .permission-status[data-permission-state="granted"] {
+        border-color: #34d399;
+        background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+      }
+
+      .permission-status[data-permission-state="unavailable"] {
+        border-color: #94a3b8;
+        background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+      }
+
+      .permission-status__badge {
+        color: #9a3412;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .permission-status[data-permission-state="granted"] .permission-status__badge {
+        color: #047857;
+      }
+
+      .permission-status[data-permission-state="unavailable"] .permission-status__badge {
+        color: #475569;
+      }
+
+      .permission-status__title {
+        color: #0f172a;
+        font-size: 1rem;
+        font-weight: 700;
+        margin: 0;
+      }
+
+      .permission-status__body {
+        color: #334155;
+        font-size: 0.86rem;
+        line-height: 1.45;
+        margin: 0;
+      }
+
+      .permission-status__action {
+        align-self: center;
+      }
+    </style>
   </head>
 
   <body class="fluenttyper-popup">
@@ -38,34 +91,25 @@
         <!-- Permission Banner -->
         <div
           id="permissionBanner"
-          class="control-card is-hidden mb-2"
-          style="background-color: #fee2e2; border-color: #f87171"
+          class="control-card permission-status is-hidden mb-2"
+          data-permission-state="missing"
+          aria-live="polite"
         >
-          <div
-            class="card-row"
-            style="
-              flex-direction: column;
-              align-items: center;
-              text-align: center;
-              gap: 0.5rem;
-              padding: 1rem;
-            "
+          <span id="permissionBadge" class="permission-status__badge">
+            Website access required
+          </span>
+          <h2 id="permissionTitle" class="permission-status__title">Allow page access</h2>
+          <p id="permissionBody" class="permission-status__body">
+            FluentTyper needs website access to show suggestions in text fields, and everything
+            stays local in your browser.
+          </p>
+          <button
+            id="grantPermissionBtn"
+            class="button is-warning is-small is-rounded permission-status__action"
+            style="font-weight: 600"
           >
-            <span class="row-label is-size-6" style="color: #991b1b; white-space: normal"
-              ><strong style="color: inherit">Action Required:</strong>
-              <span data-i18n="popup_permission_required"
-                >FluentTyper needs website access to function.</span
-              ></span
-            >
-            <button
-              id="grantPermissionBtn"
-              class="button is-danger is-small is-rounded"
-              data-i18n="popup_permission_grant"
-              style="font-weight: 600"
-            >
-              Grant Permissions
-            </button>
-          </div>
+            Allow page access
+          </button>
         </div>
 
         <!-- Global Controls -->
