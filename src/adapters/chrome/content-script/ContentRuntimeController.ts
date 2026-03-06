@@ -32,6 +32,7 @@ export class ContentRuntimeController {
     inline_suggestion: false,
     themeConfig: undefined,
     enabledGrammarRules: [],
+    userDictionaryList: [],
   };
   public readonly domObserver: DomObserver;
 
@@ -246,6 +247,7 @@ export class ContentRuntimeController {
       displayLangHeader: this.config.displayLangHeader,
       inline_suggestion: this.config.inline_suggestion,
       enabledGrammarRules: this.config.enabledGrammarRules,
+      userDictionaryList: this.config.userDictionaryList,
       getPrediction: (context: ContentScriptPredictRequestContext) =>
         this.onPredictionRequest?.({
           ...context,

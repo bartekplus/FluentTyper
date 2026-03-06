@@ -77,12 +77,14 @@ class HostHandledContentEditableAdapter extends ContentEditableAdapter {
     replaceEnd: number,
     replacementText: string,
     cursorAfter: number,
+    options?: { preferDomMutation?: boolean },
   ) {
     void elem;
     void replaceStart;
     void replaceEnd;
     void replacementText;
     void cursorAfter;
+    void options;
     return {
       appliedBy: "host-beforeinput" as const,
       didMutateDom: true,
@@ -108,12 +110,14 @@ class HostCanceledNoMutationContentEditableAdapter extends ContentEditableAdapte
     replaceEnd: number,
     replacementText: string,
     cursorAfter: number,
+    options?: { preferDomMutation?: boolean },
   ) {
     void elem;
     void replaceStart;
     void replaceEnd;
     void replacementText;
     void cursorAfter;
+    void options;
     return {
       appliedBy: "host-beforeinput" as const,
       didMutateDom: false,
@@ -139,8 +143,55 @@ class EmptyBlockContextContentEditableAdapter extends ContentEditableAdapter {
     replaceEnd: number,
     replacementText: string,
     cursorAfter: number,
+    options?: { preferDomMutation?: boolean },
   ) {
     const text = elem.textContent ?? "";
+    void options;
+    elem.textContent = `${text.slice(0, replaceStart)}${replacementText}${text.slice(replaceEnd)}`;
+    setContentEditableCursor(elem, cursorAfter);
+    return {
+      appliedBy: "fallback-dom" as const,
+      didMutateDom: true,
+      didDispatchInput: true,
+    };
+  }
+}
+
+class LearningMismatchContentEditableAdapter extends ContentEditableAdapter {
+  public readonly preferDomMutationCalls: boolean[] = [];
+
+  public override getBlockContext(
+    elem: HTMLElement,
+  ): { beforeCursor: string; afterCursor: string } | null {
+    const fullText = elem.textContent ?? "";
+    return {
+      beforeCursor: fullText,
+      afterCursor: "",
+    };
+  }
+
+  public override replaceTextByOffsets(
+    elem: HTMLElement,
+    replaceStart: number,
+    replaceEnd: number,
+    replacementText: string,
+    cursorAfter: number,
+    options?: { preferDomMutation?: boolean },
+  ) {
+    const preferDomMutation = options?.preferDomMutation === true;
+    this.preferDomMutationCalls.push(preferDomMutation);
+    const text = elem.textContent ?? "";
+
+    if (!preferDomMutation) {
+      const insertionPoint = Math.min(text.length, replaceStart + 1);
+      elem.textContent = `${text.slice(0, insertionPoint)}${replacementText}${text.slice(insertionPoint)}`;
+      return {
+        appliedBy: "host-beforeinput" as const,
+        didMutateDom: true,
+        didDispatchInput: false,
+      };
+    }
+
     elem.textContent = `${text.slice(0, replaceStart)}${replacementText}${text.slice(replaceEnd)}`;
     setContentEditableCursor(elem, cursorAfter);
     return {
@@ -191,7 +242,7 @@ describe("SuggestionTextEditService", () => {
       inputEventCount += 1;
     });
 
-    service.applyTextEdit(entry, {
+    service.applyGrammarEdit(entry, {
       replacementText: "the ",
       replaceBackwardCount: 4,
       evaluatedTextLength: 4,
@@ -200,6 +251,31 @@ describe("SuggestionTextEditService", () => {
 
     expect(input.value).toBe("the ");
     expect(inputEventCount).toBe(1);
+  });
+
+  test("supports forward-delete grammar edits from the live caret", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+    });
+
+    const input = document.createElement("input");
+    input.value = "asap";
+    input.selectionStart = 0;
+    input.selectionEnd = 0;
+    const entry = createSuggestionEntry({ elem: input });
+
+    const result = service.applyGrammarEdit(entry, {
+      replacement: "A",
+      deleteBackwards: 0,
+      deleteForwards: 1,
+      sourceRuleId: "capitalizeSentenceStart",
+    });
+
+    expect(result).toEqual({ applied: true, didDispatchInput: true });
+    expect(input.value).toBe("Asap");
+    expect(input.selectionStart).toBe(1);
+    expect(input.selectionEnd).toBe(1);
   });
 
   test("treats no-op input textEdit as not applied and does not dispatch input", () => {
@@ -219,7 +295,7 @@ describe("SuggestionTextEditService", () => {
       inputEventCount += 1;
     });
 
-    const result = service.applyTextEdit(entry, {
+    const result = service.applyGrammarEdit(entry, {
       replacementText: "the ",
       replaceBackwardCount: 4,
       evaluatedTextLength: 4,
@@ -232,52 +308,50 @@ describe("SuggestionTextEditService", () => {
     expect(inputEventCount).toBe(0);
   });
 
-  test("keeps stale trailing-space guard for non-duplicate rules", () => {
+  test("applies live punctuation spacing edits at the caret", () => {
     const service = new SuggestionTextEditService({
       findMentionToken,
       isSeparator: (value) => /\s/.test(value),
     });
 
     const input = document.createElement("input");
-    input.value = "Hello.,";
+    input.value = "Hello .";
     input.selectionStart = input.value.length;
     input.selectionEnd = input.value.length;
     const entry = createSuggestionEntry({ elem: input });
 
-    const result = service.applyTextEdit(entry, {
-      replacementText: ". ",
-      replaceBackwardCount: 1,
-      evaluatedTextLength: "Hello.".length,
-      expectedReplacedText: ".",
+    const result = service.applyGrammarEdit(entry, {
+      replacement: ". ",
+      deleteBackwards: 2,
+      deleteForwards: 0,
       sourceRuleId: "commaPeriodSpacing",
     });
 
-    expect(result).toEqual({ applied: false, didDispatchInput: false });
-    expect(input.value).toBe("Hello.,");
+    expect(result).toEqual({ applied: true, didDispatchInput: true });
+    expect(input.value).toBe("Hello. ");
   });
 
-  test("allows stale trailing-space edits for duplicate punctuation collapse", () => {
+  test("applies duplicate punctuation cleanup at the live caret", () => {
     const service = new SuggestionTextEditService({
       findMentionToken,
       isSeparator: (value) => /\s/.test(value),
     });
 
     const input = document.createElement("input");
-    input.value = "Hello,, x";
+    input.value = "Hello,, ";
     input.selectionStart = input.value.length;
     input.selectionEnd = input.value.length;
     const entry = createSuggestionEntry({ elem: input });
 
-    const result = service.applyTextEdit(entry, {
-      replacementText: ", ",
-      replaceBackwardCount: 3,
-      evaluatedTextLength: "Hello,, ".length,
-      expectedReplacedText: ",, ",
+    const result = service.applyGrammarEdit(entry, {
+      replacement: ", ",
+      deleteBackwards: 3,
+      deleteForwards: 0,
       sourceRuleId: "duplicatePunctuationCollapse",
     });
 
     expect(result).toEqual({ applied: true, didDispatchInput: true });
-    expect(input.value).toBe("Hello, x");
+    expect(input.value).toBe("Hello, ");
   });
 
   test("does not dispatch duplicate input event when contenteditable edit is host-owned", () => {
@@ -298,7 +372,7 @@ describe("SuggestionTextEditService", () => {
       inputEventCount += 1;
     });
 
-    service.applyTextEdit(entry, {
+    service.applyGrammarEdit(entry, {
       replacementText: "the ",
       replaceBackwardCount: 4,
       evaluatedTextLength: 4,
@@ -321,7 +395,7 @@ describe("SuggestionTextEditService", () => {
     document.body.appendChild(editable);
     const entry = createSuggestionEntry({ elem: editable });
 
-    const result = service.applyTextEdit(entry, {
+    const result = service.applyGrammarEdit(entry, {
       replacementText: "the ",
       replaceBackwardCount: 4,
       evaluatedTextLength: 4,
@@ -356,7 +430,7 @@ describe("SuggestionTextEditService", () => {
     setTextNodeCursor(secondTextNode, secondTextNode.textContent?.length ?? 0);
 
     const entry = createSuggestionEntry({ elem: editable });
-    service.applyTextEdit(entry, {
+    service.applyGrammarEdit(entry, {
       replacementText: ". ",
       replaceBackwardCount: 2,
       evaluatedTextLength: 7,
@@ -369,7 +443,130 @@ describe("SuggestionTextEditService", () => {
     expect((paragraphs[1]?.textContent ?? "").replace(/\u00a0/g, " ")).toBe("fixed. ");
   });
 
-  test("treats NBSP and regular space as equivalent for duplicate punctuation replaced text", () => {
+  test("applies contenteditable textEdit from provided block context when live selection drifts", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+    });
+
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML = "<p>Title</p><p>fixed .</p>";
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+
+    const secondParagraph = editable.querySelectorAll("p")[1];
+    if (!secondParagraph) {
+      throw new Error("Expected second paragraph");
+    }
+    const secondTextNode = secondParagraph.firstChild as Text | null;
+    if (!secondTextNode) {
+      throw new Error("Expected second paragraph text node");
+    }
+
+    // Simulate a rich editor where the live selection has already drifted back
+    // before the punctuation by the time the grammar edit is applied.
+    setTextNodeCursor(secondTextNode, (secondTextNode.textContent?.length ?? 1) - 1);
+
+    const entry = createSuggestionEntry({ elem: editable });
+    const fullText = editable.textContent ?? "";
+    const result = service.applyGrammarEdit(
+      entry,
+      {
+        replacement: ". ",
+        deleteBackwards: 2,
+        deleteForwards: 0,
+        sourceRuleId: "commaPeriodSpacing",
+      },
+      {
+        snapshot: {
+          beforeCursor: fullText,
+          afterCursor: "",
+          cursorOffset: fullText.length,
+        },
+        contentEditableContext: {
+          beforeCursor: "fixed .",
+          afterCursor: "",
+          useFullTextOffsets: false,
+        },
+      },
+    );
+
+    expect(result).toEqual({ applied: true, didDispatchInput: true });
+    const paragraphs = editable.querySelectorAll("p");
+    expect(paragraphs[0]?.textContent).toBe("Title");
+    expect((paragraphs[1]?.textContent ?? "").replace(/\u00a0/g, " ")).toBe("fixed. ");
+  });
+
+  test("learns DOM grammar fallback after host replacement mismatch without editor-specific checks", () => {
+    const adapter = new LearningMismatchContentEditableAdapter();
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+      contentEditableAdapter: adapter,
+    });
+
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    document.body.appendChild(editable);
+    const entry = createSuggestionEntry({ elem: editable });
+
+    editable.textContent = "fixed .";
+    const firstResult = service.applyGrammarEdit(
+      entry,
+      {
+        replacement: ". ",
+        deleteBackwards: 2,
+        deleteForwards: 0,
+        sourceRuleId: "commaPeriodSpacing",
+      },
+      {
+        snapshot: {
+          beforeCursor: "fixed .",
+          afterCursor: "",
+          cursorOffset: "fixed .".length,
+        },
+        contentEditableContext: {
+          beforeCursor: "fixed .",
+          afterCursor: "",
+          useFullTextOffsets: false,
+        },
+      },
+    );
+
+    expect(firstResult).toEqual({ applied: true, didDispatchInput: true });
+    expect(editable.textContent).toBe("fixed. ");
+    expect(adapter.preferDomMutationCalls).toEqual([false, true]);
+
+    editable.textContent = "Hello .";
+    const secondResult = service.applyGrammarEdit(
+      entry,
+      {
+        replacement: ". ",
+        deleteBackwards: 2,
+        deleteForwards: 0,
+        sourceRuleId: "commaPeriodSpacing",
+      },
+      {
+        snapshot: {
+          beforeCursor: "Hello .",
+          afterCursor: "",
+          cursorOffset: "Hello .".length,
+        },
+        contentEditableContext: {
+          beforeCursor: "Hello .",
+          afterCursor: "",
+          useFullTextOffsets: false,
+        },
+      },
+    );
+
+    expect(secondResult).toEqual({ applied: true, didDispatchInput: true });
+    expect(editable.textContent).toBe("Hello. ");
+    expect(adapter.preferDomMutationCalls).toEqual([false, true, true]);
+  });
+
+  test("normalizes duplicate punctuation before NBSP in contenteditable", () => {
     const service = new SuggestionTextEditService({
       findMentionToken,
       isSeparator: (value) => /\s/.test(value),
@@ -383,11 +580,10 @@ describe("SuggestionTextEditService", () => {
     setContentEditableCursor(editable, (editable.textContent ?? "").length);
 
     const entry = createSuggestionEntry({ elem: editable });
-    const result = service.applyTextEdit(entry, {
-      replacementText: ", ",
-      replaceBackwardCount: 3,
-      evaluatedTextLength: "This is awseome,, ".length,
-      expectedReplacedText: ",, ",
+    const result = service.applyGrammarEdit(entry, {
+      replacement: ", ",
+      deleteBackwards: 3,
+      deleteForwards: 0,
       sourceRuleId: "duplicatePunctuationCollapse",
     });
 
@@ -562,7 +758,7 @@ describe("SuggestionTextEditService", () => {
     input.selectionEnd = input.value.length;
     const entry = createSuggestionEntry({ elem: input });
 
-    service.applyTextEdit(entry, {
+    service.applyGrammarEdit(entry, {
       replacementText: "the ",
       replaceBackwardCount: 4,
       evaluatedTextLength: 4,
@@ -606,7 +802,7 @@ describe("SuggestionTextEditService", () => {
     input.selectionEnd = input.value.length;
     const entry = createSuggestionEntry({ elem: input });
 
-    service.applyTextEdit(entry, {
+    service.applyGrammarEdit(entry, {
       replacementText: "a lot",
       replaceBackwardCount: 4,
       evaluatedTextLength: 4,
@@ -628,7 +824,7 @@ describe("SuggestionTextEditService", () => {
     expect(reverted).toBe(true);
     expect(input.value).toBe("alot");
 
-    const reapplyResult = service.applyTextEdit(entry, {
+    const reapplyResult = service.applyGrammarEdit(entry, {
       replacementText: "a lot",
       replaceBackwardCount: 4,
       evaluatedTextLength: 4,
@@ -652,7 +848,7 @@ describe("SuggestionTextEditService", () => {
     input.selectionEnd = input.value.length;
     const entry = createSuggestionEntry({ elem: input });
 
-    service.applyTextEdit(entry, {
+    service.applyGrammarEdit(entry, {
       replacementText: "a lot",
       replaceBackwardCount: 4,
       evaluatedTextLength: 4,
@@ -680,7 +876,7 @@ describe("SuggestionTextEditService", () => {
 
     input.selectionStart = 4;
     input.selectionEnd = 4;
-    const applyResult = service.applyTextEdit(entry, {
+    const applyResult = service.applyGrammarEdit(entry, {
       replacementText: "a lot",
       replaceBackwardCount: 4,
       evaluatedTextLength: 4,
@@ -703,7 +899,7 @@ describe("SuggestionTextEditService", () => {
     input.selectionEnd = input.value.length;
     const entry = createSuggestionEntry({ elem: input });
 
-    service.applyTextEdit(entry, {
+    service.applyGrammarEdit(entry, {
       replacementText: "the ",
       replaceBackwardCount: 4,
       evaluatedTextLength: 4,
@@ -760,7 +956,7 @@ describe("SuggestionTextEditService", () => {
     input.selectionEnd = input.value.length;
     const entry = createSuggestionEntry({ elem: input });
 
-    service.applyTextEdit(entry, {
+    service.applyGrammarEdit(entry, {
       replacementText: "the ",
       replaceBackwardCount: 4,
       evaluatedTextLength: input.value.length,
@@ -801,7 +997,7 @@ describe("SuggestionTextEditService", () => {
     input.selectionEnd = input.value.length;
     const entry = createSuggestionEntry({ elem: input });
 
-    service.applyTextEdit(entry, {
+    service.applyGrammarEdit(entry, {
       replacementText: "the ",
       replaceBackwardCount: 4,
       evaluatedTextLength: 4,
@@ -841,7 +1037,7 @@ describe("SuggestionTextEditService", () => {
     input.selectionEnd = input.value.length;
     const entry = createSuggestionEntry({ elem: input });
 
-    service.applyTextEdit(entry, {
+    service.applyGrammarEdit(entry, {
       replacementText: "the ",
       replaceBackwardCount: 4,
       evaluatedTextLength: 4,

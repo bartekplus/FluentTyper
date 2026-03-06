@@ -201,7 +201,7 @@ describe("PredictionOrchestrator parallel merge", () => {
     expect(debugEvent?.webllm?.timedOut).toBe(true);
   });
 
-  test("keeps predictions when grammar textEdit is present", async () => {
+  test("keeps predictions when grammar settings are enabled", async () => {
     const predictionsRef = { current: ["world", "word"] };
     const module = createFakeModule(predictionsRef);
     const presageHandler = new PresageHandler(module);
@@ -216,7 +216,6 @@ describe("PredictionOrchestrator parallel merge", () => {
 
     const result = await presageHandler.runPrediction("w", "", "en_US");
 
-    expect(result.textEdit).not.toBeNull();
     expect(result.predictions.length).toBeGreaterThan(0);
   });
 });

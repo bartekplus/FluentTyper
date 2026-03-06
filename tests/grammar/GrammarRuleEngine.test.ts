@@ -1,4 +1,4 @@
-import { expect, test, describe, beforeEach, spyOn } from "bun:test";
+import { expect, test, describe, beforeEach } from "bun:test";
 import { GrammarRuleEngine } from "../../src/core/domain/grammar/GrammarRuleEngine";
 import type { GrammarRule } from "../../src/core/domain/grammar/types";
 import { CommaPeriodSpacingRule } from "../../src/core/domain/grammar/implementations/CommaPeriodSpacingRule";
@@ -119,7 +119,7 @@ describe("GrammarRuleEngine", () => {
     expect(result[0]).toEqual({
       replacement: "A",
       deleteBackwards: 1,
-      deleteForwards: 0,
+      deleteForwards: 1,
       sourceRuleId: "rule2",
       description: "Merged edits",
     });
@@ -160,7 +160,61 @@ describe("GrammarRuleEngine", () => {
     expect(result[0].deleteForwards).toBe(0);
   });
 
-  test("mergeEdits clamps deleteForwards to 0 with a warning", () => {
+  test("processSequence applies trigger outputs in order using shared merge semantics", () => {
+    const insertRule: GrammarRule = {
+      id: "rule1",
+      name: "Insert Rule",
+      triggers: ["insertChar"],
+      apply: (ctx) => {
+        if (ctx.beforeCursor.endsWith("a")) {
+          return {
+            replacement: "A",
+            deleteBackwards: 1,
+            deleteForwards: 0,
+          };
+        }
+        return null;
+      },
+    };
+
+    const boundaryRule: GrammarRule = {
+      id: "rule2",
+      name: "Boundary Rule",
+      triggers: ["wordBoundary"],
+      apply: (ctx) => {
+        if (ctx.afterCursor.startsWith("b")) {
+          return {
+            replacement: "",
+            deleteBackwards: 0,
+            deleteForwards: 1,
+          };
+        }
+        return null;
+      },
+    };
+
+    engine.registerRule(insertRule);
+    engine.registerRule(boundaryRule);
+
+    const result = engine.processSequence(
+      ["insertChar", "wordBoundary"],
+      {
+        beforeCursor: "hello_a",
+        afterCursor: "b_world",
+      },
+      ["rule1", "rule2"],
+    );
+
+    expect(result).toEqual({
+      replacement: "A",
+      deleteBackwards: 1,
+      deleteForwards: 1,
+      sourceRuleId: "rule2",
+      description: "Merged edits",
+    });
+  });
+
+  test("mergeEdits preserves deleteForwards for local apply paths", () => {
     let invoked = false;
     const rule: GrammarRule = {
       id: "forwardDeleteRule",
@@ -181,20 +235,15 @@ describe("GrammarRuleEngine", () => {
 
     engine.registerRule(rule);
 
-    const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
-
     const result = engine.process("insertChar", {
       beforeCursor: "hello",
       afterCursor: "world",
     });
 
     expect(result.length).toBe(1);
-    expect(result[0].deleteForwards).toBe(0);
+    expect(result[0].deleteForwards).toBe(3);
     expect(result[0].deleteBackwards).toBe(0);
     expect(result[0].replacement).toBe("X");
-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("deleteForwards=3"));
-
-    warnSpy.mockRestore();
   });
 
   test("collapses long comma run after typing comma at trailing-space boundary", () => {

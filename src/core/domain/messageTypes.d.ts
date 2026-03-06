@@ -11,6 +11,7 @@ export interface SetConfigContext {
   enabled: boolean;
   displayLangHeader: boolean;
   enabledGrammarRules: string[];
+  userDictionaryList: string[];
   // Theme configuration
   themeConfig?: {
     suggestionBgLight: string;
@@ -46,23 +47,6 @@ export interface PredictRequestContext {
   traceStartedAtMs?: number;
 }
 
-export interface TextEditOperation {
-  replacementText: string;
-  replaceBackwardCount: number;
-  /** The length of the full text at the time the grammar rule was evaluated */
-  evaluatedTextLength: number;
-  /** The exact substring that was matched for replacement */
-  expectedReplacedText?: string;
-  /** The preceding characters to anchor the replacement context */
-  expectedPrefixToken?: string;
-  /** Grammar rule ID that produced this text edit. */
-  sourceRuleId?: string;
-  /** Rule-level confidence for UI-safe metadata propagation. */
-  confidence?: "high" | "medium";
-  /** Rollout safety tier associated with the source rule. */
-  safetyTier?: "safe" | "advanced";
-}
-
 // Context for CMD_BACKGROUND_PAGE_PREDICT_RESP
 export interface PredictResponseContext {
   text: string;
@@ -75,7 +59,6 @@ export interface PredictResponseContext {
   runtimeGeneration?: number;
   traceId?: string;
   predictions: string[];
-  textEdit: TextEditOperation | null;
 }
 
 // Context for CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG

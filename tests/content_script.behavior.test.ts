@@ -234,28 +234,6 @@ describe("content_script behavior", () => {
     expect(suggestionManager.fulfillPrediction).toHaveBeenCalledWith(
       expect.objectContaining({ suggestionId: 3, requestId: 11, predictions: ["ignored"] }),
     );
-
-    fluentTyper.messageHandler({
-      command: CMD_BACKGROUND_PAGE_PREDICT_RESP,
-      context: {
-        suggestionId: 3,
-        requestId: 11,
-        runtimeGeneration,
-        predictions: [],
-        textEdit: {
-          replacementText: "He",
-          replaceBackwardCount: 2,
-          evaluatedTextLength: 2,
-        },
-      },
-    });
-    expect(suggestionManager.fulfillPrediction).toHaveBeenCalledWith(
-      expect.objectContaining({
-        suggestionId: 3,
-        requestId: 11,
-        textEdit: expect.objectContaining({ replacementText: "He" }),
-      }),
-    );
   });
 
   test("handleGetPrediction forwards inputAction metadata", async () => {
@@ -318,7 +296,6 @@ describe("content_script behavior", () => {
         requestId: 1,
         runtimeGeneration,
         predictions: [],
-        textEdit: { replacementText: "H" },
       },
     });
 
@@ -387,7 +364,6 @@ describe("content_script behavior", () => {
         requestId: 1,
         runtimeGeneration: firstGeneration,
         predictions: [],
-        textEdit: { replacementText: "wrong" },
       },
     });
     expect(restartedManager.fulfillPrediction).not.toHaveBeenCalled();

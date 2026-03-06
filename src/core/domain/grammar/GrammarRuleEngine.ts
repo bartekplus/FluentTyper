@@ -1,4 +1,10 @@
+import {
+  applyGrammarEditToContext,
+  mergeSequentialGrammarEdit,
+  mergeSequentialGrammarEdits,
+} from "./GrammarEditSequencing";
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "./types";
+
 export class GrammarRuleEngine {
   private rules: Map<string, GrammarRule> = new Map();
   private pipelines: Map<GrammarEventType, string[]> = new Map();
@@ -74,7 +80,7 @@ export class GrammarRuleEngine {
                   : rule.id),
             };
             appliedEdits.push(enrichedEdit);
-            currentContext = this.applyEditToContext(currentContext, enrichedEdit);
+            currentContext = applyGrammarEditToContext(currentContext, enrichedEdit);
             madeChanges = true;
           }
         } catch (error) {
@@ -102,99 +108,35 @@ export class GrammarRuleEngine {
       // Reached max iterations, possible infinite loop detected. Silently return what we have.
     }
 
-    return this.mergeEdits(appliedEdits);
+    return mergeSequentialGrammarEdits(appliedEdits);
+  }
+
+  processSequence(
+    events: GrammarEventType[],
+    context: GrammarContext,
+    enabledRules?: string[],
+  ): GrammarEdit | null {
+    let currentContext = { ...context };
+    const accumulatedEdits: GrammarEdit[] = [];
+
+    for (const event of events) {
+      const edits = this.process(event, currentContext, enabledRules);
+      if (edits.length === 0) {
+        continue;
+      }
+
+      for (const edit of edits) {
+        accumulatedEdits.push(edit);
+        currentContext = applyGrammarEditToContext(currentContext, edit);
+      }
+    }
+
+    return mergeSequentialGrammarEdit(accumulatedEdits);
   }
 
   getDebugSnapshot(): { errorCounters: Record<string, number> } {
     return {
       errorCounters: Object.fromEntries(this.errorCounters),
     };
-  }
-
-  private applyEditToContext(context: GrammarContext, edit: GrammarEdit): GrammarContext {
-    let before = context.beforeCursor;
-    let after = context.afterCursor;
-
-    if (edit.deleteBackwards > 0) {
-      before = before.slice(0, -edit.deleteBackwards);
-    }
-    if (edit.deleteForwards > 0) {
-      after = after.slice(edit.deleteForwards);
-    }
-
-    before += edit.replacement;
-
-    return {
-      ...context,
-      beforeCursor: before,
-      afterCursor: after,
-    };
-  }
-
-  /**
-   * Squashes multiple sequential edits into a single GrammarEdit.
-   *
-   * NOTE: The downstream transport (TextEditOperation / suggestion engine) does not support
-   * forward deletion. If any rule produces deleteForwards > 0, this method
-   * clamps it to 0 and logs a warning. To support forward deletion, extend
-   * TextEditOperation and the suggestion insertion path first.
-   */
-  private mergeEdits(edits: GrammarEdit[]): GrammarEdit[] {
-    if (edits.length === 0) {
-      return [];
-    }
-
-    let totalDeleteForwards = 0;
-    let mergedConfidence: GrammarEdit["confidence"] | undefined;
-    let mergedSourceRuleId: GrammarEdit["sourceRuleId"] | undefined;
-    let mergedSafetyTier: GrammarEdit["safetyTier"] | undefined;
-
-    // Simplified squashing assuming sequential application at the cursor:
-    let accumulatedString = "";
-    let baseDeleteBackwards = 0;
-
-    for (const edit of edits) {
-      // If an edit deletes backwards more than we have in accumulated string
-      const deleteIntoBase = Math.max(0, edit.deleteBackwards - accumulatedString.length);
-      baseDeleteBackwards += deleteIntoBase;
-      const keepAccumulated = accumulatedString.length - edit.deleteBackwards + deleteIntoBase;
-      accumulatedString = accumulatedString.slice(0, keepAccumulated) + edit.replacement;
-
-      totalDeleteForwards += edit.deleteForwards;
-      if (edit.confidence === "medium") {
-        mergedConfidence = "medium";
-      } else if (edit.confidence === "high" && mergedConfidence !== "medium") {
-        mergedConfidence = "high";
-      }
-      if (edit.sourceRuleId) {
-        mergedSourceRuleId = edit.sourceRuleId;
-      }
-      if (edit.safetyTier) {
-        mergedSafetyTier = edit.safetyTier;
-      }
-    }
-
-    // Guard: TextEditOperation apply path only supports backward deletion.
-    // Clamp deleteForwards to 0 so this limitation is explicit rather than a silent data loss.
-    if (totalDeleteForwards > 0) {
-      console.warn(
-        `[GrammarRuleEngine] mergeEdits produced deleteForwards=${totalDeleteForwards}, ` +
-          `but the downstream transport (TextEditOperation) does not support forward deletion. ` +
-          `Clamping to 0. Extend TextEditOperation and suggestion apply path to support this.`,
-      );
-      totalDeleteForwards = 0;
-    }
-
-    return [
-      {
-        replacement: accumulatedString,
-        deleteBackwards: baseDeleteBackwards,
-        deleteForwards: totalDeleteForwards,
-        ...(mergedConfidence ? { confidence: mergedConfidence } : {}),
-        ...(mergedSourceRuleId ? { sourceRuleId: mergedSourceRuleId } : {}),
-        ...(mergedSafetyTier ? { safetyTier: mergedSafetyTier } : {}),
-        description: "Merged edits",
-      },
-    ];
   }
 }

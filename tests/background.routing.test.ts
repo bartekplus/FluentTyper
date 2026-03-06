@@ -65,7 +65,7 @@ const backgroundHarnessMocks = {
   settingsGet: jest.fn(async () => undefined),
   settingsSet: jest.fn(async () => undefined),
   languageDetect: jest.fn(async () => "en_US"),
-  predictionRun: jest.fn(async () => ({ predictions: [], textEdit: null })),
+  predictionRun: jest.fn(async () => ({ predictions: [] })),
   predictionInitialize: jest.fn(async () => undefined),
   predictionSetConfig: jest.fn(),
   predictionEnsureTraceId: jest.fn((traceId?: string) => traceId || "generated-trace-id"),
@@ -128,6 +128,12 @@ jest.unstable_mockModule("../src/core/application/domain-utils", () => ({
   getDomain: (...args: [string]) => backgroundHarnessMocks.getDomain(...args),
   isEnabledForDomain: (...args: [unknown, string]) =>
     backgroundHarnessMocks.isEnabledForDomain(...args),
+  isLetter: (character: string) => /^\p{L}/u.test(character),
+  isWhiteSpace: (character: string, matchNewLine = true) =>
+    (matchNewLine ? /\s+/ : /[^\S\r\n]+/).test(character),
+  isNumber: (value: string) =>
+    (!Number.isNaN(Number(value)) && !Number.isNaN(Number.parseFloat(value))) ||
+    value.replace(/[^0-9]/g, "").length > 1,
 }));
 
 jest.unstable_mockModule("../src/core/domain/error", () => ({
@@ -211,7 +217,6 @@ async function loadBackgroundHarness(stateOverrides: Record<string, unknown> = {
   const languageDetect = jest.fn(async () => "fr_FR");
   const predictionRun = jest.fn(async () => ({
     predictions: ["hello"],
-    textEdit: null,
   }));
   const predictionInitialize = jest.fn(async () => undefined);
   const predictionSetConfig = jest.fn();

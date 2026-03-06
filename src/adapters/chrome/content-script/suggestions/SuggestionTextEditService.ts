@@ -1,6 +1,6 @@
 import { createLogger } from "@core/application/logging/Logger";
+import type { GrammarEdit } from "@core/domain/grammar/types";
 import { SPACING_RULES, Spacing } from "@core/domain/spacingRules";
-import type { TextEditOperation } from "@core/domain/messageTypes";
 import { ContentEditableAdapter, type ContentEditableEditResult } from "./ContentEditableAdapter";
 import { TextTargetAdapter, type TextTarget } from "./TextTargetAdapter";
 import type {
@@ -17,10 +17,20 @@ export interface TextEditApplyResult {
   didDispatchInput: boolean;
 }
 
+export interface GrammarEditApplyContext {
+  snapshot?: SuggestionSnapshot;
+  contentEditableContext?: {
+    beforeCursor: string;
+    afterCursor: string;
+    useFullTextOffsets: boolean;
+  } | null;
+}
+
 export class SuggestionTextEditService {
   private readonly findMentionToken: (beforeCursor: string) => { token: string; start: number };
   private readonly isSeparator: (value: string) => boolean;
   private readonly contentEditableAdapter: ContentEditableAdapter;
+  private readonly domPreferredGrammarTargets = new WeakSet<HTMLElement>();
 
   constructor({
     findMentionToken,
@@ -249,92 +259,88 @@ export class SuggestionTextEditService {
     }
   }
 
-  public applyTextEdit(entry: SuggestionEntry, textEdit: TextEditOperation): TextEditApplyResult {
-    const snapshot: SuggestionSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+  public applyGrammarEdit(
+    entry: SuggestionEntry,
+    edit: GrammarEdit & Record<string, unknown>,
+    context: GrammarEditApplyContext = {},
+  ): TextEditApplyResult {
+    const replacement =
+      typeof edit.replacement === "string"
+        ? edit.replacement
+        : typeof edit.replacementText === "string"
+          ? edit.replacementText
+          : "";
+    const deleteBackwards = Number.isFinite(edit.deleteBackwards)
+      ? Math.max(0, edit.deleteBackwards)
+      : Number.isFinite(edit.replaceBackwardCount)
+        ? Math.max(0, edit.replaceBackwardCount)
+        : 0;
+    const deleteForwards = Number.isFinite(edit.deleteForwards)
+      ? Math.max(0, edit.deleteForwards)
+      : 0;
+    const snapshot: SuggestionSnapshot =
+      context.snapshot ?? TextTargetAdapter.snapshot(entry.elem as TextTarget);
     this.syncManualAutoFixSuppression(entry, snapshot);
     const fullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
 
-    const replaceBackwardCount = Math.max(0, textEdit.replaceBackwardCount);
-    let evaluatedLength = Number.isFinite(textEdit.evaluatedTextLength)
-      ? Math.max(0, textEdit.evaluatedTextLength)
-      : fullText.length;
-    let beforeCursorLength = snapshot.beforeCursor.length;
-    let replaceStart = Math.max(
-      0,
-      Math.min(fullText.length, evaluatedLength - replaceBackwardCount),
-    );
+    let replaceStart = Math.max(0, snapshot.beforeCursor.length - deleteBackwards);
     let replaceEnd = Math.max(
       replaceStart,
-      Math.min(fullText.length, replaceStart + replaceBackwardCount),
+      Math.min(fullText.length, snapshot.beforeCursor.length + deleteForwards),
     );
+    let expectedBlockText: string | null = null;
+    let expectedBlockCursorAfter: number | null = null;
 
-    const blockMappedRange = this.resolveContentEditableBlockTextEditRange(
-      entry.elem,
-      snapshot,
-      fullText,
-      textEdit,
-      replaceBackwardCount,
-    );
-    if (blockMappedRange) {
-      evaluatedLength = blockMappedRange.evaluatedLength;
-      beforeCursorLength = blockMappedRange.beforeCursorLength;
-      replaceStart = blockMappedRange.replaceStart;
-      replaceEnd = blockMappedRange.replaceEnd;
-    }
-
-    if (
-      beforeCursorLength > evaluatedLength &&
-      this.isTrailingSpaceEdit(textEdit) &&
-      textEdit.sourceRuleId !== "duplicatePunctuationCollapse"
-    ) {
-      return { applied: false, didDispatchInput: false };
-    }
-
-    if (textEdit.expectedReplacedText !== undefined) {
-      const currentSubstring = fullText.slice(replaceStart, replaceEnd);
-      const expectedReplacedTextMatches =
-        currentSubstring === textEdit.expectedReplacedText ||
-        (textEdit.sourceRuleId === "duplicatePunctuationCollapse" &&
-          this.normalizeDuplicatePunctuationComparable(currentSubstring) ===
-            this.normalizeDuplicatePunctuationComparable(textEdit.expectedReplacedText));
-      if (!expectedReplacedTextMatches) {
-        logger.debug("Skipping textEdit due to replaced text mismatch", {
-          expected: textEdit.expectedReplacedText,
-          actual: currentSubstring,
-        });
+    if (!this.isTextValueElement(entry.elem)) {
+      const providedContentEditableContext = context.contentEditableContext;
+      const blockContext =
+        providedContentEditableContext ?? this.contentEditableAdapter.getBlockContext(entry.elem);
+      const useFullTextOffsets =
+        providedContentEditableContext?.useFullTextOffsets ??
+        (blockContext !== null &&
+          blockContext.beforeCursor.length === 0 &&
+          blockContext.afterCursor.length === 0 &&
+          this.contentEditableAdapter.isCollapsedSelectionBeforeBlockBoundary(entry.elem));
+      if (!blockContext) {
         return { applied: false, didDispatchInput: false };
       }
-    }
+      if (!useFullTextOffsets) {
+        const blockStart = snapshot.beforeCursor.length - blockContext.beforeCursor.length;
+        const blockCursor = blockContext.beforeCursor.length;
+        const blockEnd =
+          blockStart + blockContext.beforeCursor.length + blockContext.afterCursor.length;
+        if (blockStart < 0 || blockEnd > fullText.length) {
+          return { applied: false, didDispatchInput: false };
+        }
 
-    if (
-      textEdit.expectedPrefixToken !== undefined &&
-      textEdit.sourceRuleId !== "duplicatePunctuationCollapse"
-    ) {
-      const tokenStart = Math.max(0, replaceStart - textEdit.expectedPrefixToken.length);
-      const actualToken = fullText.slice(tokenStart, replaceStart);
-      if (actualToken !== textEdit.expectedPrefixToken) {
-        logger.debug("Skipping textEdit due to prefix token mismatch", {
-          expected: textEdit.expectedPrefixToken,
-          actual: actualToken,
-        });
-        return { applied: false, didDispatchInput: false };
+        const blockReplaceStart = Math.max(0, blockCursor - deleteBackwards);
+        const blockReplaceEnd = Math.max(
+          blockReplaceStart,
+          Math.min(
+            blockContext.beforeCursor.length + blockContext.afterCursor.length,
+            blockCursor + deleteForwards,
+          ),
+        );
+        expectedBlockText = `${blockContext.beforeCursor}${blockContext.afterCursor}`;
+        expectedBlockText = `${expectedBlockText.slice(0, blockReplaceStart)}${replacement}${expectedBlockText.slice(blockReplaceEnd)}`;
+        expectedBlockCursorAfter = this.resolveCursorAfterTextEdit(
+          blockCursor,
+          blockReplaceStart,
+          blockReplaceEnd,
+          replacement,
+        );
+
+        replaceStart = Math.max(0, blockStart + blockCursor - deleteBackwards);
+        replaceEnd = Math.max(
+          replaceStart,
+          Math.min(fullText.length, blockStart + blockCursor + deleteForwards),
+        );
       }
     }
-
-    if (textEdit.sourceRuleId === "duplicatePunctuationCollapse") {
-      replaceEnd = this.expandDuplicatePunctuationReplaceEnd(
-        fullText,
-        replaceEnd,
-        textEdit.replacementText,
-      );
-    }
+    const expectedFullText = `${fullText.slice(0, replaceStart)}${replacement}${fullText.slice(replaceEnd)}`;
 
     const originalText = fullText.slice(replaceStart, replaceEnd);
-    const sourceRuleKey = this.resolveAutoFixRuleKey(
-      textEdit.sourceRuleId,
-      originalText,
-      textEdit.replacementText,
-    );
+    const sourceRuleKey = this.resolveAutoFixRuleKey(edit.sourceRuleId, originalText, replacement);
     if (
       entry.manualAutoFixSuppression &&
       entry.manualAutoFixSuppression.ruleKey === sourceRuleKey &&
@@ -347,14 +353,20 @@ export class SuggestionTextEditService {
       return { applied: false, didDispatchInput: false };
     }
 
-    const cursorAfter = replaceStart + textEdit.replacementText.length;
+    const cursorAfter = this.resolveCursorAfterTextEdit(
+      snapshot.cursorOffset,
+      replaceStart,
+      replaceEnd,
+      replacement,
+    );
     const applyResult = this.replaceTextByOffsets(
       entry.elem,
       fullText,
       replaceStart,
       replaceEnd,
-      textEdit.replacementText,
+      replacement,
       cursorAfter,
+      { preferDomMutation: this.shouldPreferDomMutationForGrammar(entry.elem) },
     );
     if (!applyResult.didMutateDom) {
       return {
@@ -362,12 +374,31 @@ export class SuggestionTextEditService {
         didDispatchInput: false,
       };
     }
-    const postEditSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+    let postEditSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+    let finalApplyResult = applyResult;
+
+    if (
+      !this.isTextValueElement(entry.elem) &&
+      !this.shouldPreferDomMutationForGrammar(entry.elem) &&
+      !this.matchesExpectedGrammarResult(postEditSnapshot, expectedFullText, cursorAfter)
+    ) {
+      const corrected = this.correctContentEditableGrammarMismatch(entry, {
+        expectedFullText,
+        expectedCursorAfter: cursorAfter,
+        expectedBlockText,
+        expectedBlockCursorAfter,
+      });
+      if (corrected) {
+        this.domPreferredGrammarTargets.add(entry.elem as HTMLElement);
+        finalApplyResult = corrected.applyResult;
+        postEditSnapshot = corrected.postEditSnapshot;
+      }
+    }
 
     entry.pendingExtensionEdit = {
       replaceStart,
       originalText,
-      replacementText: textEdit.replacementText,
+      replacementText: replacement,
       cursorBefore: snapshot.cursorOffset,
       cursorAfter: postEditSnapshot.cursorOffset,
       postEditFingerprint: TextTargetAdapter.createPostEditFingerprint(
@@ -375,98 +406,11 @@ export class SuggestionTextEditService {
         postEditSnapshot,
       ),
       source: "grammar",
-      sourceRuleId: textEdit.sourceRuleId,
+      sourceRuleId: edit.sourceRuleId,
     };
     return {
       applied: true,
-      didDispatchInput: applyResult.didDispatchInput,
-    };
-  }
-
-  private normalizeDuplicatePunctuationComparable(value: string): string {
-    return value.replace(/(?:\u200B|\u200C|\u200D|\u2060|\uFEFF)/g, "").replace(/\xA0/g, " ");
-  }
-
-  private expandDuplicatePunctuationReplaceEnd(
-    fullText: string,
-    replaceEnd: number,
-    replacementText: string,
-  ): number {
-    if (!/[ \xA0]$/.test(replacementText)) {
-      return replaceEnd;
-    }
-    if (replaceEnd >= fullText.length) {
-      return replaceEnd;
-    }
-    const followingChar = fullText.charAt(replaceEnd);
-    if (!this.isSpacingOrFillerChar(followingChar)) {
-      return replaceEnd;
-    }
-    // Consume one trailing spacing/filler character to avoid creating
-    // duplicate spacing artifacts in contenteditable hosts.
-    return replaceEnd + 1;
-  }
-
-  private isSpacingOrFillerChar(value: string): boolean {
-    return (
-      value === " " ||
-      value === "\xA0" ||
-      value === "\u200B" ||
-      value === "\u200C" ||
-      value === "\u200D" ||
-      value === "\u2060" ||
-      value === "\uFEFF"
-    );
-  }
-
-  private resolveContentEditableBlockTextEditRange(
-    elem: SuggestionElement,
-    snapshot: SuggestionSnapshot,
-    fullText: string,
-    textEdit: TextEditOperation,
-    replaceBackwardCount: number,
-  ): {
-    evaluatedLength: number;
-    beforeCursorLength: number;
-    replaceStart: number;
-    replaceEnd: number;
-  } | null {
-    if (this.isTextValueElement(elem)) {
-      return null;
-    }
-
-    const blockContext = this.contentEditableAdapter.getBlockContext(elem);
-    if (!blockContext) {
-      return null;
-    }
-
-    const blockBeforeCursor = blockContext.beforeCursor;
-    const blockAfterCursor = blockContext.afterCursor;
-    const blockText = `${blockBeforeCursor}${blockAfterCursor}`;
-    const blockStart = snapshot.beforeCursor.length - blockBeforeCursor.length;
-    const blockEnd = blockStart + blockText.length;
-
-    if (blockStart < 0 || blockEnd > fullText.length) {
-      return null;
-    }
-
-    const evaluatedLength = Number.isFinite(textEdit.evaluatedTextLength)
-      ? Math.max(0, Math.min(blockText.length, textEdit.evaluatedTextLength))
-      : blockBeforeCursor.length;
-    const localReplaceStart = Math.max(
-      0,
-      Math.min(blockText.length, evaluatedLength - replaceBackwardCount),
-    );
-    const localReplaceEnd = Math.max(
-      localReplaceStart,
-      Math.min(blockText.length, localReplaceStart + replaceBackwardCount),
-    );
-
-    return {
-      evaluatedLength,
-      beforeCursorLength: blockBeforeCursor.length,
-      replaceStart: blockStart + localReplaceStart,
-      replaceEnd: blockStart + localReplaceEnd,
+      didDispatchInput: finalApplyResult.didDispatchInput,
     };
   }
 
@@ -549,13 +493,6 @@ export class SuggestionTextEditService {
     return endsWithSpace && nextIsSpace;
   }
 
-  private isTrailingSpaceEdit(textEdit: TextEditOperation): boolean {
-    if (typeof textEdit.replacementText !== "string") {
-      return false;
-    }
-    return /[ \xA0]$/.test(textEdit.replacementText);
-  }
-
   private createManualAutoFixSuppression({
     ruleKey,
     replaceStart,
@@ -610,6 +547,21 @@ export class SuggestionTextEditService {
     return `fallback:${originalText}->${replacementText}`;
   }
 
+  private resolveCursorAfterTextEdit(
+    currentCursorOffset: number,
+    replaceStart: number,
+    replaceEnd: number,
+    replacementText: string,
+  ): number {
+    if (currentCursorOffset <= replaceEnd) {
+      return replaceStart + replacementText.length;
+    }
+
+    const replacedLength = Math.max(0, replaceEnd - replaceStart);
+    const delta = replacementText.length - replacedLength;
+    return Math.max(replaceStart + replacementText.length, currentCursorOffset + delta);
+  }
+
   private replaceTextByOffsets(
     elem: SuggestionElement,
     fullText: string,
@@ -617,6 +569,7 @@ export class SuggestionTextEditService {
     replaceEnd: number,
     replacementText: string,
     cursorAfter: number,
+    options: { preferDomMutation?: boolean } = {},
   ): ContentEditableEditResult | { didMutateDom: boolean; didDispatchInput: boolean } {
     const boundedStart = Math.max(0, Math.min(fullText.length, replaceStart));
     const boundedEnd = Math.max(boundedStart, Math.min(fullText.length, replaceEnd));
@@ -651,6 +604,7 @@ export class SuggestionTextEditService {
       boundedEnd,
       replacementText,
       cursorAfter,
+      options,
     );
   }
 
@@ -666,6 +620,152 @@ export class SuggestionTextEditService {
     // Rich editors can drop a plain trailing space when an insertion lands
     // immediately before a nested block. NBSP preserves the visible gap.
     return `${replacementText.slice(0, -1)}\xA0`;
+  }
+
+  private shouldPreferDomMutationForGrammar(elem: SuggestionElement): boolean {
+    if (this.isTextValueElement(elem)) {
+      return false;
+    }
+    return this.domPreferredGrammarTargets.has(elem as HTMLElement);
+  }
+
+  private matchesExpectedGrammarResult(
+    snapshot: SuggestionSnapshot,
+    expectedFullText: string,
+    expectedCursorAfter: number,
+  ): boolean {
+    return (
+      `${snapshot.beforeCursor}${snapshot.afterCursor}` === expectedFullText &&
+      snapshot.cursorOffset === expectedCursorAfter
+    );
+  }
+
+  private correctContentEditableGrammarMismatch(
+    entry: SuggestionEntry,
+    {
+      expectedFullText,
+      expectedCursorAfter,
+      expectedBlockText,
+      expectedBlockCursorAfter,
+    }: {
+      expectedFullText: string;
+      expectedCursorAfter: number;
+      expectedBlockText: string | null;
+      expectedBlockCursorAfter: number | null;
+    },
+  ): {
+    applyResult: ContentEditableEditResult | { didMutateDom: boolean; didDispatchInput: boolean };
+    postEditSnapshot: SuggestionSnapshot;
+  } | null {
+    const currentSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+    const currentFullText = `${currentSnapshot.beforeCursor}${currentSnapshot.afterCursor}`;
+    if (
+      currentFullText === expectedFullText &&
+      currentSnapshot.cursorOffset === expectedCursorAfter
+    ) {
+      return {
+        applyResult: {
+          didMutateDom: true,
+          didDispatchInput: false,
+        },
+        postEditSnapshot: currentSnapshot,
+      };
+    }
+
+    if (expectedBlockText !== null && expectedBlockCursorAfter !== null) {
+      const liveBlockContext = this.contentEditableAdapter.getBlockContext(
+        entry.elem as HTMLElement,
+      );
+      if (liveBlockContext) {
+        const liveBlockText = `${liveBlockContext.beforeCursor}${liveBlockContext.afterCursor}`;
+        const blockStart =
+          currentSnapshot.beforeCursor.length - liveBlockContext.beforeCursor.length;
+        const blockCorrection = this.replaceCurrentTextWithExpected(
+          entry.elem,
+          currentFullText,
+          blockStart,
+          liveBlockText,
+          expectedBlockText,
+          blockStart + expectedBlockCursorAfter,
+        );
+        if (blockCorrection) {
+          return blockCorrection;
+        }
+      }
+    }
+
+    return this.replaceCurrentTextWithExpected(
+      entry.elem,
+      currentFullText,
+      0,
+      currentFullText,
+      expectedFullText,
+      expectedCursorAfter,
+    );
+  }
+
+  private replaceCurrentTextWithExpected(
+    elem: SuggestionElement,
+    currentFullText: string,
+    segmentStart: number,
+    currentSegmentText: string,
+    expectedSegmentText: string,
+    cursorAfter: number,
+  ): {
+    applyResult: ContentEditableEditResult | { didMutateDom: boolean; didDispatchInput: boolean };
+    postEditSnapshot: SuggestionSnapshot;
+  } | null {
+    if (currentSegmentText === expectedSegmentText) {
+      const postEditSnapshot = TextTargetAdapter.snapshot(elem as TextTarget);
+      return {
+        applyResult: {
+          didMutateDom: true,
+          didDispatchInput: false,
+        },
+        postEditSnapshot,
+      };
+    }
+
+    let prefixLength = 0;
+    const maxPrefix = Math.min(currentSegmentText.length, expectedSegmentText.length);
+    while (
+      prefixLength < maxPrefix &&
+      currentSegmentText.charAt(prefixLength) === expectedSegmentText.charAt(prefixLength)
+    ) {
+      prefixLength += 1;
+    }
+
+    let currentSuffixLength = currentSegmentText.length;
+    let expectedSuffixLength = expectedSegmentText.length;
+    while (
+      currentSuffixLength > prefixLength &&
+      expectedSuffixLength > prefixLength &&
+      currentSegmentText.charAt(currentSuffixLength - 1) ===
+        expectedSegmentText.charAt(expectedSuffixLength - 1)
+    ) {
+      currentSuffixLength -= 1;
+      expectedSuffixLength -= 1;
+    }
+
+    const replaceStart = segmentStart + prefixLength;
+    const replaceEnd = segmentStart + currentSuffixLength;
+    const replacementText = expectedSegmentText.slice(prefixLength, expectedSuffixLength);
+    const applyResult = this.replaceTextByOffsets(
+      elem,
+      currentFullText,
+      replaceStart,
+      replaceEnd,
+      replacementText,
+      cursorAfter,
+      { preferDomMutation: true },
+    );
+    if (!applyResult.didMutateDom) {
+      return null;
+    }
+    return {
+      applyResult,
+      postEditSnapshot: TextTargetAdapter.snapshot(elem as TextTarget),
+    };
   }
 
   private dispatchInputEvent(elem: SuggestionElement): void {

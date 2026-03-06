@@ -18,6 +18,8 @@
     "ckeditor_paragraph_preservation",
     "contenteditable_rich_format_preservation",
     "model_driven_editor_transaction_safety",
+    "rich_editor_local_grammar_stale_caret",
+    "contenteditable_block_boundary_grammar_safety",
     "missing_space_cancellation",
     "inline_suggestion_tab_insert",
     "enabled_languages_popup_restriction",

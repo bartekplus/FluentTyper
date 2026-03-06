@@ -547,7 +547,6 @@ interface PredictorDebugSnapshot {
     text?: string;
     predictionInput?: string;
     doPrediction?: boolean;
-    textEdit?: boolean;
     requestId?: number | null;
   }>;
 }
@@ -2206,6 +2205,44 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await page.focus(QUILL_SELECTOR);
         await page.keyboard.press("Enter");
         await page.keyboard.type("w");
+
+        const immediateGrammarState = await waitUntil(
+          "quill immediate local capitalization after newline",
+          async () => {
+            const state = await page.evaluate(() => {
+              const quill = (
+                window as typeof window & {
+                  __testQuill?: {
+                    getText: () => string;
+                  };
+                }
+              ).__testQuill;
+              if (!quill) {
+                return false;
+              }
+              const normalizedText = quill.getText().replace(/\u00a0/g, " ");
+              const lines = normalizedText.split("\n");
+              const firstLine = (lines[0] ?? "").trim();
+              const secondLine = lines[1] ?? "";
+              if (firstLine !== "Quill Rich Text Editor") {
+                return false;
+              }
+              if (secondLine !== "W") {
+                return false;
+              }
+              return {
+                firstLine,
+                secondLine,
+                normalizedText,
+              };
+            });
+            return state || false;
+          },
+          { timeoutMs: browserTimeout(1000, 2500), intervalMs: 25 },
+        );
+
+        expect(immediateGrammarState.firstLine).toBe("Quill Rich Text Editor");
+        expect(immediateGrammarState.secondLine).toBe("W");
 
         const liCount = await waitForVisibleSuggestions(page, browserTimeout(5000, 9000));
         expect(liCount).toBeGreaterThan(0);

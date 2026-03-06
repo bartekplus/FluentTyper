@@ -12,7 +12,6 @@ interface SuggestionPredictionCoordinatorOptions {
   lang: string;
   minWordLengthToPredict: number;
   separatorRegex: RegExp;
-  grammarRulesEnabled: boolean;
 }
 
 export class SuggestionPredictionCoordinator {
@@ -26,7 +25,6 @@ export class SuggestionPredictionCoordinator {
   private lang: string;
   private minWordLengthToPredict: number;
   private separatorRegex: RegExp;
-  private grammarRulesEnabled: boolean;
 
   constructor(options: SuggestionPredictionCoordinatorOptions) {
     this.debounceByAction = options.debounceByAction;
@@ -34,16 +32,11 @@ export class SuggestionPredictionCoordinator {
     this.lang = options.lang;
     this.minWordLengthToPredict = options.minWordLengthToPredict;
     this.separatorRegex = options.separatorRegex;
-    this.grammarRulesEnabled = options.grammarRulesEnabled;
   }
 
   public updateLang(lang: string, separatorRegex: RegExp): void {
     this.lang = lang;
     this.separatorRegex = separatorRegex;
-  }
-
-  public updateGrammarRulesEnabled(enabled: boolean): void {
-    this.grammarRulesEnabled = enabled;
   }
 
   public schedule(
@@ -127,27 +120,13 @@ export class SuggestionPredictionCoordinator {
     response: PredictionResponse,
     {
       isEntryFocused,
-      applyTextEdit,
-      allowStaleTextEdit,
       clearSuggestions,
     }: {
       isEntryFocused: boolean;
-      applyTextEdit: () => void;
-      allowStaleTextEdit: boolean;
       clearSuggestions: () => void;
     },
   ): boolean {
     const isCurrentRequest = entry.requestId === response.requestId;
-    const hasTextEdit = response.textEdit != null;
-
-    if (!isCurrentRequest && !hasTextEdit) {
-      return false;
-    }
-
-    if (response.textEdit && isEntryFocused && (isCurrentRequest || allowStaleTextEdit)) {
-      applyTextEdit();
-    }
-
     if (!isCurrentRequest) {
       return false;
     }
@@ -173,8 +152,7 @@ export class SuggestionPredictionCoordinator {
     const afterCursor = afterCursorOverride ?? snapshot.afterCursor;
 
     const shouldPredict = this.shouldPredict(beforeCursor);
-    const shouldRequestForGrammar = this.shouldRequestGrammarEdit(beforeCursor);
-    if (!force && !shouldPredict && !shouldRequestForGrammar) {
+    if (!force && !shouldPredict) {
       // No new request will be sent, so bump the request id to invalidate
       // any in-flight responses from previous input states.
       entry.requestId += 1;
@@ -222,13 +200,6 @@ export class SuggestionPredictionCoordinator {
       lang: this.lang,
       ...(inputAction ? { inputAction } : {}),
     };
-  }
-
-  private shouldRequestGrammarEdit(beforeCursor: string): boolean {
-    if (!this.grammarRulesEnabled || beforeCursor.length === 0) {
-      return false;
-    }
-    return true;
   }
 
   private resolveDebounceMs(inputAction?: PredictionInputAction): number {

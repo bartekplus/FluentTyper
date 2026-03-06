@@ -47,6 +47,7 @@ export class ConfigAssembler {
       selectByDigit,
       minWordLengthToPredict,
       displayLangHeader,
+      userDictionaryList,
       themeConfig,
     ] = await Promise.all([
       this.coreSettingsRepository.isEnabled(),
@@ -57,6 +58,7 @@ export class ConfigAssembler {
       this.coreSettingsRepository.getSelectByDigit(),
       this.coreSettingsRepository.getMinWordLengthToPredict(),
       this.coreSettingsRepository.getDisplayLangHeader(),
+      this.coreSettingsRepository.getUserDictionaryList(),
       this.coreSettingsRepository.getThemeSettings(),
     ]);
 
@@ -76,6 +78,7 @@ export class ConfigAssembler {
         enabledGrammarRules: normalizeGrammarRuleSelection(
           await this.coreSettingsRepository.getEnabledGrammarRules(),
         ),
+        userDictionaryList,
         themeConfig,
       },
     };
@@ -123,7 +126,6 @@ export class ConfigAssembler {
         timeFormat,
         dateFormat,
         userDictionaryList,
-        enabledGrammarRules: normalizedGrammarRules,
         aiPredictorEnabled: this.options.enableAIPredictor
           ? predictorSettings.aiPredictorEnabled
           : false,
