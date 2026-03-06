@@ -33,6 +33,10 @@ import type {
   PopupAckDonationMilestoneMessage,
 } from "@core/domain/messageTypes";
 import { i18n } from "@third-party/fancier-settings/i18n.js";
+import {
+  WebsiteAccessPermissionController,
+  WebsiteAccessPermissionService,
+} from "@ui/shared/websiteAccessPermission";
 
 const settings = new SettingsManager();
 const coreSettingsRepository = new CoreSettingsRepository(settings);
@@ -677,34 +681,29 @@ function init() {
   });
 
   const browserAPI = (window as Window & { browser?: typeof chrome }).browser || chrome;
-  if (browserAPI && browserAPI.permissions) {
-    const permissionBanner = document.getElementById("permissionBanner");
-    const grantBtn = document.getElementById("grantPermissionBtn");
-    if (permissionBanner && grantBtn) {
-      const checkPerms = async () => {
-        try {
-          const contains = await browserAPI.permissions.contains({ origins: ["<all_urls>"] });
-          if (!contains) {
-            permissionBanner.classList.remove("is-hidden");
-          } else {
-            permissionBanner.classList.add("is-hidden");
-          }
-        } catch (e) {
-          console.error("Error checking permissions in popup:", e);
-        }
-      };
-      void checkPerms();
-      grantBtn.addEventListener("click", async () => {
-        try {
-          const granted = await browserAPI.permissions.request({ origins: ["<all_urls>"] });
-          if (granted) {
-            permissionBanner.classList.add("is-hidden");
-          }
-        } catch (e) {
-          console.error("Error requesting permissions in popup:", e);
-        }
-      });
-    }
+  const permissionBanner = document.getElementById("permissionBanner");
+  const permissionBadge = document.getElementById("permissionBadge");
+  const permissionTitle = document.getElementById("permissionTitle");
+  const permissionBody = document.getElementById("permissionBody");
+  const grantBtn = document.getElementById("grantPermissionBtn");
+  if (
+    permissionBanner instanceof HTMLElement &&
+    permissionBadge instanceof HTMLElement &&
+    permissionTitle instanceof HTMLElement &&
+    permissionBody instanceof HTMLElement &&
+    grantBtn instanceof HTMLButtonElement
+  ) {
+    const permissionController = new WebsiteAccessPermissionController({
+      elements: {
+        root: permissionBanner,
+        badge: permissionBadge,
+        title: permissionTitle,
+        body: permissionBody,
+        action: grantBtn,
+      },
+      service: new WebsiteAccessPermissionService(browserAPI),
+    });
+    void permissionController.initialize();
   }
 
   productivityDashboardLoadCancelled = false;

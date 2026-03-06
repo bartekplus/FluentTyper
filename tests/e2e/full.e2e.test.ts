@@ -1313,8 +1313,10 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           button.click();
         });
 
-        // Check if success container is shown
-        await newInstallationPage.waitForSelector("#permissions-success", { visible: true });
+        await newInstallationPage.waitForFunction(() => {
+          const permissionContainer = document.getElementById("permissions-container");
+          return permissionContainer?.getAttribute("data-permission-state") === "granted";
+        });
 
         const activeElementId = await newInstallationPage.evaluate(
           () => document.activeElement?.id ?? null,
@@ -1351,29 +1353,31 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         contains: true,
       });
 
-      await onboardingPage.waitForSelector("#permissions-success", { visible: true });
+      await onboardingPage.waitForFunction(() => {
+        const permissionContainer = document.getElementById("permissions-container");
+        return permissionContainer?.getAttribute("data-permission-state") === "granted";
+      });
 
       const onboardingState = await onboardingPage.evaluate(() => {
         const testWindow = window as Window & {
           __lastPermissionContainsRequest?: chrome.permissions.Permissions;
         };
         const permissionsContainer = document.getElementById("permissions-container");
-        const permissionsSuccess = document.getElementById("permissions-success");
-
         return {
           activeElementId: document.activeElement?.id ?? null,
-          permissionsContainerHidden:
-            permissionsContainer instanceof HTMLElement ? permissionsContainer.hidden : null,
-          permissionsSuccessHidden:
-            permissionsSuccess instanceof HTMLElement ? permissionsSuccess.hidden : null,
+          permissionState: permissionsContainer?.getAttribute("data-permission-state") ?? null,
+          permissionButtonHidden:
+            document.getElementById("grant-permissions-btn") instanceof HTMLButtonElement
+              ? (document.getElementById("grant-permissions-btn") as HTMLButtonElement).hidden
+              : null,
           containsRequest: testWindow.__lastPermissionContainsRequest,
         };
       });
 
       expect(onboardingState).toEqual({
         activeElementId: "try-me-textarea",
-        permissionsContainerHidden: true,
-        permissionsSuccessHidden: false,
+        permissionState: "granted",
+        permissionButtonHidden: true,
         containsRequest: { origins: ["<all_urls>"] },
       });
 
@@ -1419,21 +1423,20 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           __lastPermissionRequest?: chrome.permissions.Permissions;
         };
         const permissionsContainer = document.getElementById("permissions-container");
-        const permissionsSuccess = document.getElementById("permissions-success");
-
         return {
-          permissionsContainerHidden:
-            permissionsContainer instanceof HTMLElement ? permissionsContainer.hidden : null,
-          permissionsSuccessHidden:
-            permissionsSuccess instanceof HTMLElement ? permissionsSuccess.hidden : null,
+          permissionState: permissionsContainer?.getAttribute("data-permission-state") ?? null,
+          permissionButtonHidden:
+            document.getElementById("grant-permissions-btn") instanceof HTMLButtonElement
+              ? (document.getElementById("grant-permissions-btn") as HTMLButtonElement).hidden
+              : null,
           containsRequest: testWindow.__lastPermissionContainsRequest,
           permissionRequest: testWindow.__lastPermissionRequest,
         };
       });
 
       expect(onboardingState).toEqual({
-        permissionsContainerHidden: false,
-        permissionsSuccessHidden: true,
+        permissionState: "missing",
+        permissionButtonHidden: false,
         containsRequest: { origins: ["<all_urls>"] },
         permissionRequest: { origins: ["<all_urls>"] },
       });
