@@ -239,6 +239,33 @@
       ]
     },
     {
+      "id": "rich_editor_local_grammar_stale_caret",
+      "description": "Rich-editor local grammar applies immediately from stale-caret block context before prediction UI relies on the text.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Quill lowercase first-letter prediction works after newline without line jump"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionManager.test.ts",
+          "test": "capitalizes first character locally for contenteditable when caret stays stale"
+        }
+      ]
+    },
+    {
+      "id": "contenteditable_block_boundary_grammar_safety",
+      "description": "Local grammar never mutates outside the active contenteditable block when selection is at a root/container boundary.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionManager.test.ts",
+          "test": "skips contenteditable grammar when root-boundary selection would require full-root fallback"
+        }
+      ]
+    },
+    {
       "id": "missing_space_cancellation",
       "description": "Cursor movement cancels automatic missing-space insertion.",
       "coverage": [
