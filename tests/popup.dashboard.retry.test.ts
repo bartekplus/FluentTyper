@@ -609,9 +609,22 @@ describe("popup productivity dashboard retry/failure paths", () => {
     const { CoreSettingsRepository } = await import(
       "../src/core/application/repositories/CoreSettingsRepository"
     );
-    const s = new SettingsManager();
+
+    console.log("DEBUG: globalThis.chrome:", !!(globalThis as any).chrome);
+    console.log("DEBUG: globalThis.chrome.storage:", !!(globalThis as any).chrome?.storage);
+
+    let s: any;
+    try {
+      s = new SettingsManager();
+    } catch (e) {
+      console.log("DEBUG ERROR:", e);
+    }
     const c = new CoreSettingsRepository(s);
     console.log("DEBUG: isEnabled:", await c.isEnabled());
+    console.log("DEBUG: s.get('enable'):", await s.get("enable"));
+
+    const internalStore = (s as any).settings;
+    console.log("DEBUG: store backend type:", internalStore?.storageBackend?.constructor?.name);
 
     // Also check what mock has:
     chromeMock.storage.local.get("store.settings.enable", (val) => {
