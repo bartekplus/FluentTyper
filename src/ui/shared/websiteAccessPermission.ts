@@ -23,7 +23,9 @@ export interface WebsiteAccessPermissionElements {
   title: HTMLElement;
 }
 
-type PermissionFunction = (options: chrome.permissions.Permissions) => Promise<boolean> | boolean;
+type PermissionFunction = (
+  options: chrome.permissions.Permissions,
+) => Promise<boolean | undefined> | boolean | undefined;
 
 export interface WebsiteAccessPermissionApi {
   permissions?: {
@@ -86,12 +88,15 @@ export class WebsiteAccessPermissionService {
   ) {}
 
   async getState(): Promise<WebsiteAccessPermissionState> {
-    if (!this.isAvailable()) {
+    if (!this.hasCheckHandler() || !this.hasRequestHandler()) {
       return "unavailable";
     }
 
     try {
       const granted = await this.runCheck();
+      if (typeof granted !== "boolean") {
+        return "unavailable";
+      }
       return granted ? "granted" : "missing";
     } catch {
       return "unavailable";
@@ -99,38 +104,59 @@ export class WebsiteAccessPermissionService {
   }
 
   async requestAccess(): Promise<WebsiteAccessPermissionState> {
-    if (!this.isAvailable()) {
+    if (!this.hasCheckHandler() || !this.hasRequestHandler()) {
       return "unavailable";
     }
 
     try {
       const granted = await this.runRequest();
+      if (typeof granted !== "boolean") {
+        return "unavailable";
+      }
       return granted ? "granted" : "missing";
     } catch {
       return "unavailable";
     }
   }
 
-  private isAvailable(): boolean {
-    return typeof this.hooks.contains === "function" ||
+  private hasCheckHandler(): boolean {
+    return (
+      typeof this.hooks.contains === "function" ||
       typeof this.api?.permissions?.contains === "function"
-      ? typeof this.hooks.request === "function" ||
-          typeof this.api?.permissions?.request === "function"
-      : false;
+    );
   }
 
-  private async runCheck(): Promise<boolean> {
+  private hasRequestHandler(): boolean {
+    return (
+      typeof this.hooks.request === "function" ||
+      typeof this.api?.permissions?.request === "function"
+    );
+  }
+
+  private async runCheck(): Promise<boolean | undefined> {
     if (typeof this.hooks.contains === "function") {
-      return Boolean(await this.hooks.contains(this.requestOptions));
+      const hookedResult = await this.hooks.contains(this.requestOptions);
+      if (typeof hookedResult === "boolean") {
+        return hookedResult;
+      }
     }
-    return Boolean(await this.api?.permissions?.contains?.(this.requestOptions));
+    if (typeof this.api?.permissions?.contains === "function") {
+      return Boolean(await this.api.permissions.contains(this.requestOptions));
+    }
+    return undefined;
   }
 
-  private async runRequest(): Promise<boolean> {
+  private async runRequest(): Promise<boolean | undefined> {
     if (typeof this.hooks.request === "function") {
-      return Boolean(await this.hooks.request(this.requestOptions));
+      const hookedResult = await this.hooks.request(this.requestOptions);
+      if (typeof hookedResult === "boolean") {
+        return hookedResult;
+      }
     }
-    return Boolean(await this.api?.permissions?.request?.(this.requestOptions));
+    if (typeof this.api?.permissions?.request === "function") {
+      return Boolean(await this.api.permissions.request(this.requestOptions));
+    }
+    return undefined;
   }
 }
 

@@ -39,8 +39,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       action,
     },
     service: new WebsiteAccessPermissionService(browserAPI, {
-      contains: testWindow.__FT_TEST_PERMISSION_CONTAINS__,
-      request: testWindow.__FT_TEST_PERMISSION_REQUEST__,
+      contains: (options) => testWindow.__FT_TEST_PERMISSION_CONTAINS__?.(options),
+      request: (options) => testWindow.__FT_TEST_PERMISSION_REQUEST__?.(options),
     }),
     onGranted: () => {
       if (practiceTextarea instanceof HTMLTextAreaElement) {
