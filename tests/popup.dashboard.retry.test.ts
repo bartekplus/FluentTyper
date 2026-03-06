@@ -487,7 +487,7 @@ describe("popup productivity dashboard retry/failure paths", () => {
     expect(banner.dataset.permissionState).toBe("unavailable");
     expect(textContent("permissionTitle")).toBe("Check browser access");
     expect(textContent("permissionBody")).toBe(
-      "FluentTyper could not verify website access right now. Reopen this panel or reload the page, then try again. Your typing still stays local in your browser.",
+      "FluentTyper could not verify website access right now. Reopen FluentTyper or reload this page, then try again. Your typing still stays local in your browser.",
     );
     expect(textContent("permissionTitle")).not.toContain("permission_status_");
     expect(textContent("permissionBody")).not.toContain("permission_status_");

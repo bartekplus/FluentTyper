@@ -76,7 +76,7 @@ export function getWebsiteAccessPermissionCopy(): WebsiteAccessPermissionCopy {
       title: translate("permission_status_unavailable_title", "Check browser access"),
       body: translate(
         "permission_status_unavailable_body",
-        "FluentTyper could not verify website access right now. Reopen this panel or reload the page, then try again. Your typing still stays local in your browser.",
+        "FluentTyper could not verify website access right now. Reopen FluentTyper or reload this page, then try again. Your typing still stays local in your browser.",
       ),
     },
   };

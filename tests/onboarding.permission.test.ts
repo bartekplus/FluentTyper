@@ -137,7 +137,7 @@ describe("onboarding permission status", () => {
     expect(container.dataset.permissionState).toBe("unavailable");
     expect(document.getElementById("permissions-title")?.textContent).toBe("Check browser access");
     expect(document.getElementById("permissions-copy")?.textContent).toBe(
-      "FluentTyper could not verify website access right now. Reopen this panel or reload the page, then try again. Your typing still stays local in your browser.",
+      "FluentTyper could not verify website access right now. Reopen FluentTyper or reload this page, then try again. Your typing still stays local in your browser.",
     );
     expect(document.getElementById("permissions-title")?.textContent).not.toContain(
       "permission_status_",
