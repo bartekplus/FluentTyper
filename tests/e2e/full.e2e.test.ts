@@ -1985,6 +1985,34 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "CKEditor popup dismisses immediately when Enter is pressed",
+    async () => {
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await applyConfigChange(browser, worker!);
+
+      await gotoTestPage(page, { enableCkEditor: true });
+      await page.bringToFront();
+      await waitForInputReady(page, CKEDITOR_SELECTOR);
+
+      await page.focus(CKEDITOR_SELECTOR);
+      await page.keyboard.type("h");
+
+      // Wait for the suggestion popup to appear
+      const liCount = await waitForVisibleSuggestions(page);
+      expect(liCount).toBeGreaterThan(0);
+
+      // Pressing Enter should move the caret to a new block and dismiss the popup
+      await page.keyboard.press("Enter");
+
+      // The popup must disappear promptly — predictions for the old line are invalid
+      await waitForNoVisibleSuggestions(page, browserTimeout(2000, 4000));
+    },
+    browserTimeout(30000, 50000),
+  );
+
+  test(
     "CKEditor grammar/text-edit replacement applies in active second paragraph",
     async () => {
       try {
@@ -3078,53 +3106,53 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         expected: string;
         popupExpected: string;
       }[] = [
-        {
-          locale: "en_US",
-          expected: "Extension UI Language",
-          popupExpected: "Advanced Options",
-        },
-        {
-          locale: "fr_FR",
-          expected: "Langue de l'interface",
-          popupExpected: "Options avancées",
-        },
-        {
-          locale: "hr_HR",
-          expected: "Jezik su\u010Delja pro\u0161irenja",
-          popupExpected: "Napredne opcije",
-        },
-        {
-          locale: "es_ES",
-          expected: "Idioma de la interfaz",
-          popupExpected: "Opciones avanzadas",
-        },
-        {
-          locale: "el_GR",
-          expected:
-            "\u0393\u03BB\u03CE\u03C3\u03C3\u03B1 \u03B4\u03B9\u03B5\u03C0\u03B1\u03C6\u03AE\u03C2 \u03B5\u03C0\u03AD\u03BA\u03C4\u03B1\u03C3\u03B7\u03C2",
-          popupExpected: "Επιλογές για προχωρημένους",
-        },
-        {
-          locale: "sv_SE",
-          expected: "Till\u00E4ggets gr\u00E4nssnittsspr\u00E5k",
-          popupExpected: "Avancerade alternativ",
-        },
-        {
-          locale: "de_DE",
-          expected: "Sprache der Erweiterungsoberfl\u00E4che",
-          popupExpected: "Erweiterte Optionen",
-        },
-        {
-          locale: "pl_PL",
-          expected: "J\u0119zyk interfejsu rozszerzenia",
-          popupExpected: "Zaawansowane opcje",
-        },
-        {
-          locale: "pt_BR",
-          expected: "Idioma da interface da extens\u00E3o",
-          popupExpected: "Opções avançadas",
-        },
-      ];
+          {
+            locale: "en_US",
+            expected: "Extension UI Language",
+            popupExpected: "Advanced Options",
+          },
+          {
+            locale: "fr_FR",
+            expected: "Langue de l'interface",
+            popupExpected: "Options avancées",
+          },
+          {
+            locale: "hr_HR",
+            expected: "Jezik su\u010Delja pro\u0161irenja",
+            popupExpected: "Napredne opcije",
+          },
+          {
+            locale: "es_ES",
+            expected: "Idioma de la interfaz",
+            popupExpected: "Opciones avanzadas",
+          },
+          {
+            locale: "el_GR",
+            expected:
+              "\u0393\u03BB\u03CE\u03C3\u03C3\u03B1 \u03B4\u03B9\u03B5\u03C0\u03B1\u03C6\u03AE\u03C2 \u03B5\u03C0\u03AD\u03BA\u03C4\u03B1\u03C3\u03B7\u03C2",
+            popupExpected: "Επιλογές για προχωρημένους",
+          },
+          {
+            locale: "sv_SE",
+            expected: "Till\u00E4ggets gr\u00E4nssnittsspr\u00E5k",
+            popupExpected: "Avancerade alternativ",
+          },
+          {
+            locale: "de_DE",
+            expected: "Sprache der Erweiterungsoberfl\u00E4che",
+            popupExpected: "Erweiterte Optionen",
+          },
+          {
+            locale: "pl_PL",
+            expected: "J\u0119zyk interfejsu rozszerzenia",
+            popupExpected: "Zaawansowane opcje",
+          },
+          {
+            locale: "pt_BR",
+            expected: "Idioma da interface da extens\u00E3o",
+            popupExpected: "Opções avançadas",
+          },
+        ];
 
       for (const { locale, expected, popupExpected } of TEST_LANGS) {
         // 1. Set the extension language in chrome.storage.local

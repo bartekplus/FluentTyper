@@ -16,6 +16,7 @@
     "dev_predictor_debug_toggle",
     "prediction_accept_tab_and_click",
     "ckeditor_paragraph_preservation",
+    "contenteditable_enter_dismisses_popup",
     "contenteditable_rich_format_preservation",
     "model_driven_editor_transaction_safety",
     "rich_editor_local_grammar_stale_caret",

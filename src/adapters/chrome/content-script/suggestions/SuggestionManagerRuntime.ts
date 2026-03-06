@@ -1106,9 +1106,6 @@ export class SuggestionManagerRuntime {
     if (!this.isEntryFocused(entry)) {
       return;
     }
-    if (!this.isTextValueElement(entry.elem)) {
-      return;
-    }
     if (!TextTargetAdapter.hasCollapsedSelection(entry.elem as TextTarget)) {
       this.dismissEntry(entry, true);
       return;
@@ -1119,6 +1116,27 @@ export class SuggestionManagerRuntime {
     if (entry.visibleSuggestionBeforeCursorText === null) {
       return;
     }
+
+    if (!this.isTextValueElement(entry.elem)) {
+      // For contenteditable, compare block-local beforeCursor.  When the
+      // caret moves to a different line (e.g. Enter), the block-local
+      // context changes entirely and the popup must be dismissed.
+      // Normal edits (typing, backspace) within the same line also change
+      // beforeCursor, but the visible suggestion text will still be a
+      // prefix — so only dismiss when neither is a prefix of the other.
+      const blockContext = this.contentEditableAdapter.getBlockContext(entry.elem);
+      const currentBeforeCursor = blockContext?.beforeCursor ?? "";
+      const visibleBefore = entry.visibleSuggestionBeforeCursorText;
+      const stillRelated =
+        currentBeforeCursor === visibleBefore ||
+        currentBeforeCursor.startsWith(visibleBefore) ||
+        visibleBefore.startsWith(currentBeforeCursor);
+      if (!stillRelated) {
+        this.dismissEntry(entry, true);
+      }
+      return;
+    }
+
     if (entry.visibleSuggestionFullText === null) {
       return;
     }
@@ -1201,6 +1219,14 @@ export class SuggestionManagerRuntime {
     if (this.shouldDismissSuggestionsOnKeydown(keyboardEvent)) {
       this.dismissEntry(entry, true);
       return;
+    }
+
+    // Enter on a contenteditable always moves the caret to a new block, making
+    // the current predictions invalid. Dismiss the popup immediately so it does
+    // not linger until the fallback reconcile timer fires. The insert-fallback
+    // below still runs so that predictions for the new line are scheduled.
+    if (keyboardEvent.key === "Enter" && this.isContentEditableElement(entry.elem)) {
+      this.dismissEntry(entry, true);
     }
 
     if (keyboardEvent.key === "Backspace" || keyboardEvent.key === "Delete") {

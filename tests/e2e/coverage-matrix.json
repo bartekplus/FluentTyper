@@ -197,6 +197,17 @@
       ]
     },
     {
+      "id": "contenteditable_enter_dismisses_popup",
+      "description": "Pressing Enter on a contenteditable element dismisses the suggestion popup immediately, since the caret moves to a new block and predictions are no longer valid.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "CKEditor popup dismisses immediately when Enter is pressed"
+        }
+      ]
+    },
+    {
       "id": "contenteditable_rich_format_preservation",
       "description": "Contenteditable acceptance keeps surrounding rich formatting nodes.",
       "coverage": [
