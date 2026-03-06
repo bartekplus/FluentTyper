@@ -15,7 +15,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     permissionsContainer.hidden = granted;
     permissionsSuccess.hidden = !granted;
 
-    if (granted && practiceTextarea instanceof HTMLTextAreaElement) {
+    if (granted && practiceTextarea && practiceTextarea.tagName === "TEXTAREA") {
       practiceTextarea.focus();
     }
   };
