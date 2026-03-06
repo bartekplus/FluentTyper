@@ -512,6 +512,35 @@ describe("SuggestionManager", () => {
     expect(getPrediction.mock.calls.at(-1)?.[0]?.text).toBe("W");
   });
 
+  test("skips contenteditable grammar when root-boundary selection would require full-root fallback", async () => {
+    const { manager } = await createManager({
+      enabledGrammarRules: ["englishTypoWhitelistCorrection"],
+    });
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML = "<p>teh</p><p><br></p>";
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Expected selection");
+    }
+    const range = document.createRange();
+    range.setStart(editable, 1);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+
+    const paragraphs = editable.querySelectorAll("p");
+    expect(paragraphs[0]?.textContent).toBe("teh");
+    expect(paragraphs[1]?.textContent ?? "").toBe("");
+  });
+
   test("clears stale suggestions after local grammar mutation", async () => {
     const { manager, getPrediction } = await createManager({
       enabledGrammarRules: ["capitalizeSentenceStart"],

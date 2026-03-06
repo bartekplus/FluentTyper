@@ -669,12 +669,14 @@ export class SuggestionManagerRuntime {
       inputAction,
       typedKey,
     });
-    const grammarEdit = this.grammarCoordinator.run({
-      beforeCursor: cursorContext.beforeCursor,
-      afterCursor: cursorContext.afterCursor,
-      inputAction,
-      triggers: this.resolveLocalGrammarTriggers(entry, event, cursorContext.beforeCursor),
-    });
+    const grammarEdit = cursorContext.safeForGrammar
+      ? this.grammarCoordinator.run({
+          beforeCursor: cursorContext.beforeCursor,
+          afterCursor: cursorContext.afterCursor,
+          inputAction,
+          triggers: this.resolveLocalGrammarTriggers(entry, event, cursorContext.beforeCursor),
+        })
+      : null;
 
     if (grammarEdit) {
       const applyResult = this.textEditService.applyGrammarEdit(entry, grammarEdit, {
@@ -771,6 +773,7 @@ export class SuggestionManagerRuntime {
     afterCursor: string;
     snapshot: SuggestionSnapshot;
     applyContext: GrammarEditApplyContext["contentEditableContext"];
+    safeForGrammar: boolean;
   } {
     if (this.isTextValueElement(entry.elem)) {
       return {
@@ -778,6 +781,7 @@ export class SuggestionManagerRuntime {
         afterCursor: snapshot.afterCursor,
         snapshot,
         applyContext: null,
+        safeForGrammar: true,
       };
     }
     const blockContext = this.contentEditableAdapter.getBlockContext(entry.elem);
@@ -791,6 +795,7 @@ export class SuggestionManagerRuntime {
           afterCursor: snapshot.afterCursor,
           useFullTextOffsets: true,
         },
+        safeForGrammar: false,
       };
     }
     const beforeBlockBoundary = this.contentEditableAdapter.isCollapsedSelectionBeforeBlockBoundary(
@@ -810,6 +815,7 @@ export class SuggestionManagerRuntime {
           afterCursor: snapshot.afterCursor,
           useFullTextOffsets: true,
         },
+        safeForGrammar: false,
       };
     }
     const resolvedAfterCursor = beforeBlockBoundary ? "" : blockContext.afterCursor;
@@ -836,6 +842,7 @@ export class SuggestionManagerRuntime {
           afterCursor: resolvedAfterCursor.slice(typedKey.length),
           useFullTextOffsets: false,
         },
+        safeForGrammar: true,
       };
     }
 
@@ -848,6 +855,7 @@ export class SuggestionManagerRuntime {
         afterCursor: resolvedAfterCursor,
         useFullTextOffsets: false,
       },
+      safeForGrammar: true,
     };
   }
 
@@ -907,12 +915,14 @@ export class SuggestionManagerRuntime {
 
     const snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
     const grammarContext = this.resolveEditableCursorContext(entry, snapshot);
-    const grammarEdit = this.grammarCoordinator.run({
-      beforeCursor: grammarContext.beforeCursor,
-      afterCursor: grammarContext.afterCursor,
-      inputAction: entry.lastInputAction ?? "other",
-      triggers: ["idle"],
-    });
+    const grammarEdit = grammarContext.safeForGrammar
+      ? this.grammarCoordinator.run({
+          beforeCursor: grammarContext.beforeCursor,
+          afterCursor: grammarContext.afterCursor,
+          inputAction: entry.lastInputAction ?? "other",
+          triggers: ["idle"],
+        })
+      : null;
     if (!grammarEdit) {
       return;
     }
