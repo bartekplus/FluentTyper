@@ -651,29 +651,24 @@
       ]
     },
     {
-      "id": "grammar_autofix_backspace_revert",
-      "description": "Grammar auto-fixes can be immediately reverted with Backspace when cursor context is unchanged.",
+      "id": "extension_prediction_undo_chord",
+      "description": "Accepted predictions can be reverted via Cmd/Ctrl+Z while the accepted text still matches.",
       "coverage": [
         {
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
-          "test": "Grammar Rule Engine reverts latest auto-fix via Backspace in #test-input"
+          "test": "Prediction acceptance reverts latest extension change via Cmd/Ctrl+Z in #test-input"
         },
         {
           "layer": "unit",
           "file": "tests/SuggestionTextEditService.test.ts",
-          "test": "reverts latest grammar auto-fix on Backspace when caret is unchanged"
-        },
-        {
-          "layer": "unit",
-          "file": "tests/SuggestionKeyboardHandler.test.ts",
-          "test": "tries grammar auto-fix revert on Backspace when suggestion revert does not apply"
+          "test": "undoes latest accepted suggestion when caret and text are unchanged"
         }
       ]
     },
     {
       "id": "grammar_autofix_undo_chord_revert",
-      "description": "Grammar auto-fixes can be reverted via Cmd/Ctrl+Z before native undo.",
+      "description": "Grammar auto-fixes can be reverted via Cmd/Ctrl+Z while the post-edit text and caret still match.",
       "coverage": [
         {
           "layer": "e2e-full",
@@ -682,8 +677,55 @@
         },
         {
           "layer": "unit",
+          "file": "tests/SuggestionTextEditService.test.ts",
+          "test": "undoes latest grammar auto-fix on Cmd/Ctrl+Z when caret is unchanged"
+        },
+        {
+          "layer": "unit",
           "file": "tests/SuggestionKeyboardHandler.test.ts",
-          "test": "tries grammar auto-fix revert on Cmd/Ctrl+Z before native undo"
+          "test": "tries unified extension undo on Cmd/Ctrl+Z before native undo"
+        }
+      ]
+    },
+    {
+      "id": "extension_undo_intervening_edit_guard",
+      "description": "Invalid extension undo snapshots are not consumed after intervening edits or caret drift.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Extension undo does not trigger after an intervening user edit in #test-input"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionTextEditService.test.ts",
+          "test": "does not undo grammar auto-fix after user modifies text"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionTextEditService.test.ts",
+          "test": "clears pending undo when caret no longer matches post-edit cursor"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionTextEditService.test.ts",
+          "test": "clears pending undo when edited text can no longer contain replacement span"
+        }
+      ]
+    },
+    {
+      "id": "extension_backspace_native_after_extension_edit",
+      "description": "Backspace remains a native delete key after extension-applied edits instead of triggering extension-owned revert behavior.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Backspace remains native after accepting a prediction in #test-input"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Backspace remains native after grammar auto-fix in #test-input"
         }
       ]
     },

@@ -8,31 +8,38 @@ function createEvent(key: string): KeyboardEvent {
   return event;
 }
 
+function createHandler(
+  overrides: Partial<ConstructorParameters<typeof SuggestionKeyboardHandler>[0]> = {},
+) {
+  return new SuggestionKeyboardHandler({
+    autocompleteOnSpace: true,
+    autocompleteOnEnter: true,
+    autocompleteOnTab: true,
+    selectByDigit: true,
+    inlineSuggestionEnabled: true,
+    handleMissingSpaceAfterAccept: jest.fn(),
+    tryUndoLastExtensionEdit: jest.fn(() => false),
+    consumeKeyboardEvent: jest.fn(),
+    clearSuggestions: jest.fn(),
+    isMenuVisible: jest.fn(() => false),
+    updateSelectionHighlight: jest.fn(),
+    acceptSuggestion: jest.fn(),
+    acceptSuggestionAtIndex: jest.fn(),
+    requestInlineSuggestion: jest.fn(),
+    ...overrides,
+  });
+}
+
 describe("SuggestionKeyboardHandler", () => {
   test("moves selection on ArrowDown when menu is visible", () => {
     const consumeKeyboardEvent = jest.fn((event: KeyboardEvent) => {
       event.preventDefault();
     });
     const updateSelectionHighlight = jest.fn();
-    const handler = new SuggestionKeyboardHandler({
-      autocompleteOnSpace: true,
-      autocompleteOnEnter: true,
-      autocompleteOnTab: true,
-      selectByDigit: true,
-      revertOnBackspace: true,
-      inlineSuggestionEnabled: true,
-      handleMissingSpaceAfterAccept: jest.fn(),
-      tryRevertLastReplacement: jest.fn(() => false),
-      tryRevertLastAutoFix: jest.fn(() => false),
-      tryDeleteTrailingPunctuationSpace: jest.fn(() => false),
-      tryRevertLastAutoFixOnUndo: jest.fn(() => false),
+    const handler = createHandler({
       consumeKeyboardEvent,
-      clearSuggestions: jest.fn(),
       isMenuVisible: jest.fn(() => true),
       updateSelectionHighlight,
-      acceptSuggestion: jest.fn(),
-      acceptSuggestionAtIndex: jest.fn(),
-      requestInlineSuggestion: jest.fn(),
     });
     const entry = createSuggestionEntry({
       suggestions: ["one", "two"],
@@ -51,24 +58,8 @@ describe("SuggestionKeyboardHandler", () => {
     const consumeKeyboardEvent = jest.fn((event: KeyboardEvent) => {
       event.preventDefault();
     });
-    const handler = new SuggestionKeyboardHandler({
-      autocompleteOnSpace: true,
-      autocompleteOnEnter: true,
-      autocompleteOnTab: true,
-      selectByDigit: true,
-      revertOnBackspace: true,
-      inlineSuggestionEnabled: true,
-      handleMissingSpaceAfterAccept: jest.fn(),
-      tryRevertLastReplacement: jest.fn(() => false),
-      tryRevertLastAutoFix: jest.fn(() => false),
-      tryDeleteTrailingPunctuationSpace: jest.fn(() => false),
-      tryRevertLastAutoFixOnUndo: jest.fn(() => false),
+    const handler = createHandler({
       consumeKeyboardEvent,
-      clearSuggestions: jest.fn(),
-      isMenuVisible: jest.fn(() => false),
-      updateSelectionHighlight: jest.fn(),
-      acceptSuggestion: jest.fn(),
-      acceptSuggestionAtIndex: jest.fn(),
       requestInlineSuggestion,
     });
     const entry = createSuggestionEntry({
@@ -82,56 +73,10 @@ describe("SuggestionKeyboardHandler", () => {
     expect(requestInlineSuggestion).toHaveBeenCalledWith(entry);
   });
 
-  test("tries grammar auto-fix revert on Backspace when suggestion revert does not apply", () => {
-    const tryRevertLastAutoFix = jest.fn(() => true);
-    const handler = new SuggestionKeyboardHandler({
-      autocompleteOnSpace: true,
-      autocompleteOnEnter: true,
-      autocompleteOnTab: true,
-      selectByDigit: true,
-      revertOnBackspace: true,
-      inlineSuggestionEnabled: true,
-      handleMissingSpaceAfterAccept: jest.fn(),
-      tryRevertLastReplacement: jest.fn(() => false),
-      tryRevertLastAutoFix,
-      tryDeleteTrailingPunctuationSpace: jest.fn(() => false),
-      tryRevertLastAutoFixOnUndo: jest.fn(() => false),
-      consumeKeyboardEvent: jest.fn(),
-      clearSuggestions: jest.fn(),
-      isMenuVisible: jest.fn(() => false),
-      updateSelectionHighlight: jest.fn(),
-      acceptSuggestion: jest.fn(),
-      acceptSuggestionAtIndex: jest.fn(),
-      requestInlineSuggestion: jest.fn(),
-    });
-    const entry = createSuggestionEntry();
-
-    handler.handle(entry, createEvent("Backspace"));
-
-    expect(tryRevertLastAutoFix).toHaveBeenCalledTimes(1);
-  });
-
-  test("tries grammar auto-fix revert on Cmd/Ctrl+Z before native undo", () => {
-    const tryRevertLastAutoFixOnUndo = jest.fn(() => true);
-    const handler = new SuggestionKeyboardHandler({
-      autocompleteOnSpace: true,
-      autocompleteOnEnter: true,
-      autocompleteOnTab: true,
-      selectByDigit: true,
-      revertOnBackspace: true,
-      inlineSuggestionEnabled: true,
-      handleMissingSpaceAfterAccept: jest.fn(),
-      tryRevertLastReplacement: jest.fn(() => false),
-      tryRevertLastAutoFix: jest.fn(() => false),
-      tryDeleteTrailingPunctuationSpace: jest.fn(() => false),
-      tryRevertLastAutoFixOnUndo,
-      consumeKeyboardEvent: jest.fn(),
-      clearSuggestions: jest.fn(),
-      isMenuVisible: jest.fn(() => false),
-      updateSelectionHighlight: jest.fn(),
-      acceptSuggestion: jest.fn(),
-      acceptSuggestionAtIndex: jest.fn(),
-      requestInlineSuggestion: jest.fn(),
+  test("tries unified extension undo on Cmd/Ctrl+Z before native undo", () => {
+    const tryUndoLastExtensionEdit = jest.fn(() => true);
+    const handler = createHandler({
+      tryUndoLastExtensionEdit,
     });
     const entry = createSuggestionEntry();
     const event = createEvent("z");
@@ -139,6 +84,17 @@ describe("SuggestionKeyboardHandler", () => {
 
     handler.handle(entry, event);
 
-    expect(tryRevertLastAutoFixOnUndo).toHaveBeenCalledTimes(1);
+    expect(tryUndoLastExtensionEdit).toHaveBeenCalledTimes(1);
+  });
+
+  test("ignores Backspace when there is no menu action to handle", () => {
+    const tryUndoLastExtensionEdit = jest.fn(() => false);
+    const handler = createHandler({
+      tryUndoLastExtensionEdit,
+    });
+
+    handler.handle(createSuggestionEntry(), createEvent("Backspace"));
+
+    expect(tryUndoLastExtensionEdit).not.toHaveBeenCalled();
   });
 });

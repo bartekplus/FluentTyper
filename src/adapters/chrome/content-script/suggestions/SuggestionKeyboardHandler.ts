@@ -1,4 +1,5 @@
 import { SuggestionKeyboardController } from "./SuggestionKeyboardController";
+import { isNativeUndoChord } from "./keyboardShortcuts";
 import type { SuggestionEntry } from "./types";
 
 interface SuggestionKeyboardHandlerOptions {
@@ -6,13 +7,9 @@ interface SuggestionKeyboardHandlerOptions {
   autocompleteOnEnter: boolean;
   autocompleteOnTab: boolean;
   selectByDigit: boolean;
-  revertOnBackspace: boolean;
   inlineSuggestionEnabled: boolean;
   handleMissingSpaceAfterAccept: (entry: SuggestionEntry, event: KeyboardEvent) => void;
-  tryRevertLastReplacement: (entry: SuggestionEntry, event: KeyboardEvent) => boolean;
-  tryRevertLastAutoFix: (entry: SuggestionEntry, event: KeyboardEvent) => boolean;
-  tryDeleteTrailingPunctuationSpace: (entry: SuggestionEntry, event: KeyboardEvent) => boolean;
-  tryRevertLastAutoFixOnUndo: (entry: SuggestionEntry, event: KeyboardEvent) => boolean;
+  tryUndoLastExtensionEdit: (entry: SuggestionEntry, event: KeyboardEvent) => boolean;
   consumeKeyboardEvent: (event: KeyboardEvent) => void;
   clearSuggestions: (entry: SuggestionEntry) => void;
   isMenuVisible: (entry: SuggestionEntry) => boolean;
@@ -27,23 +24,13 @@ export class SuggestionKeyboardHandler {
   private readonly autocompleteOnEnter: boolean;
   private readonly autocompleteOnTab: boolean;
   private readonly selectByDigit: boolean;
-  private readonly revertOnBackspace: boolean;
   private readonly inlineSuggestionEnabled: boolean;
   private readonly activeKeys: string[];
   private readonly handleMissingSpaceAfterAccept: (
     entry: SuggestionEntry,
     event: KeyboardEvent,
   ) => void;
-  private readonly tryRevertLastReplacement: (
-    entry: SuggestionEntry,
-    event: KeyboardEvent,
-  ) => boolean;
-  private readonly tryRevertLastAutoFix: (entry: SuggestionEntry, event: KeyboardEvent) => boolean;
-  private readonly tryDeleteTrailingPunctuationSpace: (
-    entry: SuggestionEntry,
-    event: KeyboardEvent,
-  ) => boolean;
-  private readonly tryRevertLastAutoFixOnUndo: (
+  private readonly tryUndoLastExtensionEdit: (
     entry: SuggestionEntry,
     event: KeyboardEvent,
   ) => boolean;
@@ -60,18 +47,13 @@ export class SuggestionKeyboardHandler {
     this.autocompleteOnEnter = options.autocompleteOnEnter;
     this.autocompleteOnTab = options.autocompleteOnTab;
     this.selectByDigit = options.selectByDigit;
-    this.revertOnBackspace = options.revertOnBackspace;
     this.inlineSuggestionEnabled = options.inlineSuggestionEnabled;
     this.activeKeys = SuggestionKeyboardController.buildActiveKeys({
       autocompleteOnEnter: this.autocompleteOnEnter,
       autocompleteOnTab: this.autocompleteOnTab,
-      revertOnBackspace: this.revertOnBackspace,
     });
     this.handleMissingSpaceAfterAccept = options.handleMissingSpaceAfterAccept;
-    this.tryRevertLastReplacement = options.tryRevertLastReplacement;
-    this.tryRevertLastAutoFix = options.tryRevertLastAutoFix;
-    this.tryDeleteTrailingPunctuationSpace = options.tryDeleteTrailingPunctuationSpace;
-    this.tryRevertLastAutoFixOnUndo = options.tryRevertLastAutoFixOnUndo;
+    this.tryUndoLastExtensionEdit = options.tryUndoLastExtensionEdit;
     this.consumeKeyboardEvent = options.consumeKeyboardEvent;
     this.clearSuggestions = options.clearSuggestions;
     this.isMenuVisible = options.isMenuVisible;
@@ -89,19 +71,8 @@ export class SuggestionKeyboardHandler {
     }
 
     const key = keyboardEvent.key;
-    if (this.isUndoChord(keyboardEvent) && this.tryRevertLastAutoFixOnUndo(entry, keyboardEvent)) {
+    if (isNativeUndoChord(keyboardEvent) && this.tryUndoLastExtensionEdit(entry, keyboardEvent)) {
       return;
-    }
-    if (key === "Backspace") {
-      if (this.revertOnBackspace && this.tryRevertLastReplacement(entry, keyboardEvent)) {
-        return;
-      }
-      if (this.revertOnBackspace && this.tryRevertLastAutoFix(entry, keyboardEvent)) {
-        return;
-      }
-      if (this.tryDeleteTrailingPunctuationSpace(entry, keyboardEvent)) {
-        return;
-      }
     }
 
     const digitIndex = this.selectByDigit ? this.mapDigitToIndex(key) : null;
@@ -190,15 +161,5 @@ export class SuggestionKeyboardHandler {
       return null;
     }
     return key === "0" ? 9 : Number(key) - 1;
-  }
-
-  private isUndoChord(event: KeyboardEvent): boolean {
-    if (event.defaultPrevented || event.altKey || event.shiftKey) {
-      return false;
-    }
-    if (!(event.metaKey || event.ctrlKey)) {
-      return false;
-    }
-    return event.key.toLowerCase() === "z";
   }
 }

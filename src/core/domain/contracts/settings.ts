@@ -21,7 +21,6 @@ import {
   KEY_MIN_WORD_LENGTH_TO_PREDICT,
   KEY_NUM_SUGGESTIONS,
   KEY_PRODUCTIVITY_STATS,
-  KEY_REVERT_ON_BACKSPACE,
   KEY_SELECT_BY_DIGIT,
   KEY_SITE_PROFILES,
   KEY_TEXT_EXPANSIONS,
@@ -57,7 +56,6 @@ export const SETTINGS_KEYS = {
   autocompleteOnEnter: KEY_AUTOCOMPLETE_ON_ENTER,
   autocompleteOnTab: KEY_AUTOCOMPLETE_ON_TAB,
   selectByDigit: KEY_SELECT_BY_DIGIT,
-  revertOnBackspace: KEY_REVERT_ON_BACKSPACE,
   displayLangHeader: KEY_DISPLAY_LANG_HEADER,
   autoCapitalize: KEY_AUTO_CAPITALIZE,
   insertSpaceAfterAutocomplete: KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
@@ -107,7 +105,6 @@ export interface SettingsSchema {
   autocompleteOnEnter: boolean;
   autocompleteOnTab: boolean;
   selectByDigit: boolean;
-  revertOnBackspace: boolean;
   displayLangHeader: boolean;
   autoCapitalize: boolean;
   insertSpaceAfterAutocomplete: boolean;

@@ -23,7 +23,6 @@ import {
 
   KEY_TIME_FORMAT,
   KEY_DATE_FORMAT,
-  KEY_REVERT_ON_BACKSPACE,
   KEY_TEXT_EXPANSIONS,
   KEY_USER_DICTIONARY_LIST,
   KEY_DOMAIN_LIST_MODE,
@@ -178,6 +177,7 @@ function importSettingButtonFileSelected(settings) {
   fr.addEventListener("load", () => {
     try {
       const jsonSettings = JSON.parse(fr.result);
+      delete jsonSettings["store.settings.revertOnBackspace"];
       console.log(jsonSettings);
       chrome.storage.local.set(jsonSettings);
       optionsPageConfigChange();
@@ -1640,7 +1640,6 @@ window.addEventListener("DOMContentLoaded", function () {
 
         KEY_TIME_FORMAT,
         KEY_DATE_FORMAT,
-        KEY_REVERT_ON_BACKSPACE,
         KEY_TEXT_EXPANSIONS,
         KEY_USER_DICTIONARY_LIST,
         KEY_DISPLAY_LANG_HEADER,

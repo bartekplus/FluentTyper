@@ -13,6 +13,12 @@ export interface SuggestionSnapshot {
   cursorOffset: number;
 }
 
+export interface PostEditFingerprint {
+  fullText: string;
+  cursorOffset: number;
+  selectionCollapsed: boolean;
+}
+
 export type SuggestionElement = (HTMLInputElement | HTMLTextAreaElement | HTMLElement) & {
   tributeMenu?: HTMLElement | null;
   suggestionMenu?: HTMLElement | null;
@@ -27,7 +33,6 @@ export interface SuggestionManagerOptions {
   insertSpaceAfterAutocomplete: boolean;
   lang: string;
   selectByDigit: boolean;
-  revertOnBackspace: boolean;
   displayLangHeader: boolean;
   inline_suggestion: boolean;
   enabledGrammarRules: string[];
@@ -44,18 +49,14 @@ export interface SuggestionTelemetry {
   }): void;
 }
 
-export interface ReplacementSnapshot {
-  triggerText: string;
-  insertedText: string;
-  cursorAfter: number;
-}
-
-export interface AutoFixReplacementSnapshot {
+export interface ExtensionEditSnapshot {
   replaceStart: number;
   originalText: string;
   replacementText: string;
   cursorBefore: number;
   cursorAfter: number;
+  postEditFingerprint: PostEditFingerprint;
+  source: "suggestion" | "grammar";
   sourceRuleId?: string;
 }
 
@@ -81,8 +82,7 @@ export interface SuggestionEntry {
   pendingInlineAccept: boolean;
   missingTrailingSpace: boolean;
   expectedCursorPos: number;
-  lastReplacement: ReplacementSnapshot | null;
-  lastAutoFixReplacement: AutoFixReplacementSnapshot | null;
+  pendingExtensionEdit: ExtensionEditSnapshot | null;
   manualAutoFixSuppression: ManualAutoFixSuppressionSnapshot | null;
   isComposing: boolean;
   lastKeydownKey: string | null;

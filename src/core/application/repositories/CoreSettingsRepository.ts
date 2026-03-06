@@ -122,10 +122,6 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
     return Math.min(12, Math.max(-1, Math.round(value)));
   }
 
-  async getRevertOnBackspace(): Promise<boolean> {
-    return this.getBooleanField("revertOnBackspace");
-  }
-
   async getDisplayLangHeader(): Promise<boolean> {
     return this.getBooleanField("displayLangHeader");
   }

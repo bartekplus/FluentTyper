@@ -46,7 +46,6 @@ export class ConfigAssembler {
       insertSpaceAfterAutocomplete,
       selectByDigit,
       minWordLengthToPredict,
-      revertOnBackspace,
       displayLangHeader,
       themeConfig,
     ] = await Promise.all([
@@ -57,7 +56,6 @@ export class ConfigAssembler {
       this.coreSettingsRepository.getInsertSpaceAfterAutocomplete(),
       this.coreSettingsRepository.getSelectByDigit(),
       this.coreSettingsRepository.getMinWordLengthToPredict(),
-      this.coreSettingsRepository.getRevertOnBackspace(),
       this.coreSettingsRepository.getDisplayLangHeader(),
       this.coreSettingsRepository.getThemeSettings(),
     ]);
@@ -73,7 +71,6 @@ export class ConfigAssembler {
         selectByDigit,
         lang: domainSettings.language,
         minWordLengthToPredict,
-        revertOnBackspace,
         displayLangHeader,
         inline_suggestion: domainSettings.inlineSuggestion,
         enabledGrammarRules: normalizeGrammarRuleSelection(

@@ -227,7 +227,7 @@ describe("SuggestionTextEditService", () => {
     });
 
     expect(result).toEqual({ applied: false, didDispatchInput: false });
-    expect(entry.lastAutoFixReplacement).toBeNull();
+    expect(entry.pendingExtensionEdit).toBeNull();
     expect(input.value).toBe("the ");
     expect(inputEventCount).toBe(0);
   });
@@ -329,7 +329,7 @@ describe("SuggestionTextEditService", () => {
     });
 
     expect(result).toEqual({ applied: false, didDispatchInput: false });
-    expect(entry.lastAutoFixReplacement).toBeNull();
+    expect(entry.pendingExtensionEdit).toBeNull();
     expect(editable.textContent).toBe("teh ");
   });
 
@@ -469,179 +469,49 @@ describe("SuggestionTextEditService", () => {
     expect(editable.textContent).toBe("first second third");
   });
 
-  test("deletes trailing punctuation space on Backspace when caret is at end", () => {
+  test("undoes latest accepted suggestion when caret and text are unchanged", () => {
     const service = new SuggestionTextEditService({
       findMentionToken,
       isSeparator: (value) => /\s/.test(value),
     });
 
     const input = document.createElement("input");
-    input.value = "Hello. ";
+    input.value = "h";
     input.selectionStart = input.value.length;
     input.selectionEnd = input.value.length;
-    const entry = createSuggestionEntry({ elem: input });
+    const entry = createSuggestionEntry({
+      elem: input,
+      latestMentionText: "h",
+      latestMentionStart: 0,
+    });
+
+    service.acceptSuggestion(entry, "hi ");
+    expect(input.value).toBe("hi ");
 
     const keyboardEvent = new Event("keydown", {
       bubbles: true,
       cancelable: true,
     }) as KeyboardEvent;
-    Object.defineProperty(keyboardEvent, "key", { value: "Backspace" });
+    Object.defineProperty(keyboardEvent, "key", { value: "z" });
+    Object.defineProperty(keyboardEvent, "ctrlKey", { value: true });
     const consumeKeyboardEvent = (event: KeyboardEvent) => {
       event.preventDefault();
       event.stopPropagation();
     };
 
-    const handled = service.tryDeleteTrailingPunctuationSpace(
-      entry,
-      keyboardEvent,
+    const handled = service.tryUndoLastExtensionEdit(entry, keyboardEvent, {
       consumeKeyboardEvent,
-    );
-
-    expect(handled).toBe(true);
-    expect(input.value).toBe("Hello.");
-  });
-
-  test("does not delete trailing space when preceding character is not punctuation", () => {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
+      clearSuggestions: () => undefined,
     });
 
-    const input = document.createElement("input");
-    input.value = "Hello ";
-    input.selectionStart = input.value.length;
-    input.selectionEnd = input.value.length;
-    const entry = createSuggestionEntry({ elem: input });
-
-    const keyboardEvent = new Event("keydown", {
-      bubbles: true,
-      cancelable: true,
-    }) as KeyboardEvent;
-    Object.defineProperty(keyboardEvent, "key", { value: "Backspace" });
-
-    const handled = service.tryDeleteTrailingPunctuationSpace(
-      entry,
-      keyboardEvent,
-      () => undefined,
-    );
-
-    expect(handled).toBe(false);
-    expect(input.value).toBe("Hello ");
-  });
-
-  test("deletes punctuation space when after-cursor contains only zero-width filler", () => {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
-    });
-
-    const input = document.createElement("input");
-    input.value = "Hello. \u200B";
-    input.selectionStart = "Hello. ".length;
-    input.selectionEnd = "Hello. ".length;
-    const entry = createSuggestionEntry({ elem: input });
-
-    const keyboardEvent = new Event("keydown", {
-      bubbles: true,
-      cancelable: true,
-    }) as KeyboardEvent;
-    Object.defineProperty(keyboardEvent, "key", { value: "Backspace" });
-
-    const handled = service.tryDeleteTrailingPunctuationSpace(
-      entry,
-      keyboardEvent,
-      () => undefined,
-    );
-
     expect(handled).toBe(true);
-    expect(input.value).toBe("Hello.\u200B");
+    expect(input.value).toBe("h");
+    expect(input.selectionStart).toBe(1);
+    expect(entry.pendingExtensionEdit).toBeNull();
+    expect(entry.manualAutoFixSuppression).toBeNull();
   });
 
-  test("deletes punctuation space when zero-width filler is before the caret", () => {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
-    });
-
-    const input = document.createElement("input");
-    input.value = "Hello. \u200B";
-    input.selectionStart = input.value.length;
-    input.selectionEnd = input.value.length;
-    const entry = createSuggestionEntry({ elem: input });
-
-    const keyboardEvent = new Event("keydown", {
-      bubbles: true,
-      cancelable: true,
-    }) as KeyboardEvent;
-    Object.defineProperty(keyboardEvent, "key", { value: "Backspace" });
-
-    const handled = service.tryDeleteTrailingPunctuationSpace(
-      entry,
-      keyboardEvent,
-      () => undefined,
-    );
-
-    expect(handled).toBe(true);
-    expect(input.value).toBe("Hello.\u200B");
-  });
-
-  test("deletes punctuation space when after-cursor contains only word-joiner filler", () => {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
-    });
-
-    const input = document.createElement("input");
-    input.value = "Hello. \u2060";
-    input.selectionStart = "Hello. ".length;
-    input.selectionEnd = "Hello. ".length;
-    const entry = createSuggestionEntry({ elem: input });
-
-    const keyboardEvent = new Event("keydown", {
-      bubbles: true,
-      cancelable: true,
-    }) as KeyboardEvent;
-    Object.defineProperty(keyboardEvent, "key", { value: "Backspace" });
-
-    const handled = service.tryDeleteTrailingPunctuationSpace(
-      entry,
-      keyboardEvent,
-      () => undefined,
-    );
-
-    expect(handled).toBe(true);
-    expect(input.value).toBe("Hello.\u2060");
-  });
-
-  test("deletes punctuation space when word-joiner filler is before the caret", () => {
-    const service = new SuggestionTextEditService({
-      findMentionToken,
-      isSeparator: (value) => /\s/.test(value),
-    });
-
-    const input = document.createElement("input");
-    input.value = "Hello. \u2060";
-    input.selectionStart = input.value.length;
-    input.selectionEnd = input.value.length;
-    const entry = createSuggestionEntry({ elem: input });
-
-    const keyboardEvent = new Event("keydown", {
-      bubbles: true,
-      cancelable: true,
-    }) as KeyboardEvent;
-    Object.defineProperty(keyboardEvent, "key", { value: "Backspace" });
-
-    const handled = service.tryDeleteTrailingPunctuationSpace(
-      entry,
-      keyboardEvent,
-      () => undefined,
-    );
-
-    expect(handled).toBe(true);
-    expect(input.value).toBe("Hello.\u2060");
-  });
-
-  test("reverts latest grammar auto-fix on Backspace when caret is unchanged", () => {
+  test("undoes latest grammar auto-fix on Cmd/Ctrl+Z when caret is unchanged", () => {
     const service = new SuggestionTextEditService({
       findMentionToken,
       isSeparator: (value) => /\s/.test(value),
@@ -665,21 +535,18 @@ describe("SuggestionTextEditService", () => {
       bubbles: true,
       cancelable: true,
     }) as KeyboardEvent;
-    Object.defineProperty(keyboardEvent, "key", { value: "Backspace" });
-    const consumeKeyboardEvent = (event: KeyboardEvent) => {
-      event.preventDefault();
-      event.stopPropagation();
-    };
+    Object.defineProperty(keyboardEvent, "key", { value: "z" });
+    Object.defineProperty(keyboardEvent, "ctrlKey", { value: true });
 
-    const handled = service.tryRevertLastAutoFix(entry, keyboardEvent, {
-      consumeKeyboardEvent,
+    const handled = service.tryUndoLastExtensionEdit(entry, keyboardEvent, {
+      consumeKeyboardEvent: () => undefined,
       clearSuggestions: () => undefined,
     });
 
     expect(handled).toBe(true);
     expect(input.value).toBe("teh ");
     expect(input.selectionStart).toBe(4);
-    expect(entry.lastAutoFixReplacement).toBeNull();
+    expect(entry.pendingExtensionEdit).toBeNull();
     expect(entry.manualAutoFixSuppression).toEqual({
       ruleKey: "fallback:teh ->the ",
       replaceStart: 0,
@@ -713,8 +580,9 @@ describe("SuggestionTextEditService", () => {
       bubbles: true,
       cancelable: true,
     }) as KeyboardEvent;
-    Object.defineProperty(keyboardEvent, "key", { value: "Backspace" });
-    const reverted = service.tryRevertLastAutoFix(entry, keyboardEvent, {
+    Object.defineProperty(keyboardEvent, "key", { value: "z" });
+    Object.defineProperty(keyboardEvent, "ctrlKey", { value: true });
+    const reverted = service.tryUndoLastExtensionEdit(entry, keyboardEvent, {
       consumeKeyboardEvent: () => undefined,
       clearSuggestions: () => undefined,
     });
@@ -757,8 +625,9 @@ describe("SuggestionTextEditService", () => {
       bubbles: true,
       cancelable: true,
     }) as KeyboardEvent;
-    Object.defineProperty(keyboardEvent, "key", { value: "Backspace" });
-    service.tryRevertLastAutoFix(entry, keyboardEvent, {
+    Object.defineProperty(keyboardEvent, "key", { value: "z" });
+    Object.defineProperty(keyboardEvent, "ctrlKey", { value: true });
+    service.tryUndoLastExtensionEdit(entry, keyboardEvent, {
       consumeKeyboardEvent: () => undefined,
       clearSuggestions: () => undefined,
     });
@@ -783,7 +652,7 @@ describe("SuggestionTextEditService", () => {
     expect(input.value).toBe("a lot x");
   });
 
-  test("does not revert grammar auto-fix after user modifies text", () => {
+  test("does not undo grammar auto-fix after user modifies text", () => {
     const service = new SuggestionTextEditService({
       findMentionToken,
       isSeparator: (value) => /\s/.test(value),
@@ -810,27 +679,29 @@ describe("SuggestionTextEditService", () => {
       bubbles: true,
       cancelable: true,
     }) as KeyboardEvent;
-    Object.defineProperty(keyboardEvent, "key", { value: "Backspace" });
+    Object.defineProperty(keyboardEvent, "key", { value: "z" });
+    Object.defineProperty(keyboardEvent, "ctrlKey", { value: true });
 
-    const firstHandled = service.tryRevertLastAutoFix(entry, keyboardEvent, {
+    const firstHandled = service.tryUndoLastExtensionEdit(entry, keyboardEvent, {
       consumeKeyboardEvent: () => undefined,
       clearSuggestions: () => undefined,
     });
 
     expect(firstHandled).toBe(false);
     expect(input.value).toBe("the x");
-    expect(entry.lastAutoFixReplacement).toBeNull();
+    expect(entry.pendingExtensionEdit).toBeNull();
 
-    // After the normal delete, a second Backspace must not resurrect the original typo.
+    // A later undo attempt must not resurrect the original typo once the snapshot is invalidated.
     input.value = "the ";
     input.selectionStart = input.value.length;
     input.selectionEnd = input.value.length;
-    const secondBackspace = new Event("keydown", {
+    const secondUndo = new Event("keydown", {
       bubbles: true,
       cancelable: true,
     }) as KeyboardEvent;
-    Object.defineProperty(secondBackspace, "key", { value: "Backspace" });
-    const secondHandled = service.tryRevertLastAutoFix(entry, secondBackspace, {
+    Object.defineProperty(secondUndo, "key", { value: "z" });
+    Object.defineProperty(secondUndo, "ctrlKey", { value: true });
+    const secondHandled = service.tryUndoLastExtensionEdit(entry, secondUndo, {
       consumeKeyboardEvent: () => undefined,
       clearSuggestions: () => undefined,
     });
@@ -838,7 +709,48 @@ describe("SuggestionTextEditService", () => {
     expect(input.value).toBe("the ");
   });
 
-  test("clears auto-fix snapshot when caret no longer matches post-fix cursor", () => {
+  test("does not undo after same-length edit outside the replaced span", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+    });
+
+    const input = document.createElement("input");
+    input.value = "abc teh ";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    const entry = createSuggestionEntry({ elem: input });
+
+    service.applyTextEdit(entry, {
+      replacementText: "the ",
+      replaceBackwardCount: 4,
+      evaluatedTextLength: input.value.length,
+      expectedReplacedText: "teh ",
+    });
+    expect(input.value).toBe("abc the ");
+
+    input.value = "Abc the ";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+
+    const keyboardEvent = new Event("keydown", {
+      bubbles: true,
+      cancelable: true,
+    }) as KeyboardEvent;
+    Object.defineProperty(keyboardEvent, "key", { value: "z" });
+    Object.defineProperty(keyboardEvent, "ctrlKey", { value: true });
+
+    const handled = service.tryUndoLastExtensionEdit(entry, keyboardEvent, {
+      consumeKeyboardEvent: () => undefined,
+      clearSuggestions: () => undefined,
+    });
+
+    expect(handled).toBe(false);
+    expect(input.value).toBe("Abc the ");
+    expect(entry.pendingExtensionEdit).toBeNull();
+  });
+
+  test("clears pending undo when caret no longer matches post-edit cursor", () => {
     const service = new SuggestionTextEditService({
       findMentionToken,
       isSeparator: (value) => /\s/.test(value),
@@ -857,7 +769,7 @@ describe("SuggestionTextEditService", () => {
       expectedReplacedText: "teh ",
     });
 
-    // User moved caret before pressing Backspace; snapshot must be invalidated.
+    // User moved caret before pressing undo; snapshot must be invalidated.
     input.selectionStart = input.value.length - 1;
     input.selectionEnd = input.value.length - 1;
 
@@ -865,19 +777,20 @@ describe("SuggestionTextEditService", () => {
       bubbles: true,
       cancelable: true,
     }) as KeyboardEvent;
-    Object.defineProperty(keyboardEvent, "key", { value: "Backspace" });
+    Object.defineProperty(keyboardEvent, "key", { value: "z" });
+    Object.defineProperty(keyboardEvent, "ctrlKey", { value: true });
 
-    const handled = service.tryRevertLastAutoFix(entry, keyboardEvent, {
+    const handled = service.tryUndoLastExtensionEdit(entry, keyboardEvent, {
       consumeKeyboardEvent: () => undefined,
       clearSuggestions: () => undefined,
     });
 
     expect(handled).toBe(false);
-    expect(entry.lastAutoFixReplacement).toBeNull();
+    expect(entry.pendingExtensionEdit).toBeNull();
     expect(input.value).toBe("the ");
   });
 
-  test("clears auto-fix snapshot when edited text can no longer contain replacement span", () => {
+  test("clears pending undo when edited text can no longer contain replacement span", () => {
     const service = new SuggestionTextEditService({
       findMentionToken,
       isSeparator: (value) => /\s/.test(value),
@@ -905,15 +818,16 @@ describe("SuggestionTextEditService", () => {
       bubbles: true,
       cancelable: true,
     }) as KeyboardEvent;
-    Object.defineProperty(keyboardEvent, "key", { value: "Backspace" });
+    Object.defineProperty(keyboardEvent, "key", { value: "z" });
+    Object.defineProperty(keyboardEvent, "ctrlKey", { value: true });
 
-    const handled = service.tryRevertLastAutoFix(entry, keyboardEvent, {
+    const handled = service.tryUndoLastExtensionEdit(entry, keyboardEvent, {
       consumeKeyboardEvent: () => undefined,
       clearSuggestions: () => undefined,
     });
 
     expect(handled).toBe(false);
-    expect(entry.lastAutoFixReplacement).toBeNull();
+    expect(entry.pendingExtensionEdit).toBeNull();
     expect(input.value).toBe("t");
   });
 });

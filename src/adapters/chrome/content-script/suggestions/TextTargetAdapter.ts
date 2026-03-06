@@ -1,3 +1,5 @@
+import type { PostEditFingerprint } from "./types";
+
 export type TextTarget = HTMLInputElement | HTMLTextAreaElement | HTMLElement;
 
 export interface TextCursorSnapshot {
@@ -99,5 +101,30 @@ export class TextTargetAdapter {
         cursorOffset: text.length,
       };
     }
+  }
+
+  static createPostEditFingerprint(
+    target: TextTarget,
+    snapshotOverride?: TextCursorSnapshot,
+  ): PostEditFingerprint {
+    const snapshot = snapshotOverride ?? TextTargetAdapter.snapshot(target);
+    return {
+      fullText: `${snapshot.beforeCursor}${snapshot.afterCursor}`,
+      cursorOffset: snapshot.cursorOffset,
+      selectionCollapsed: TextTargetAdapter.hasCollapsedSelection(target),
+    };
+  }
+
+  static matchesPostEditFingerprint(
+    target: TextTarget,
+    expected: PostEditFingerprint,
+    snapshotOverride?: TextCursorSnapshot,
+  ): boolean {
+    const actual = TextTargetAdapter.createPostEditFingerprint(target, snapshotOverride);
+    return (
+      actual.fullText === expected.fullText &&
+      actual.cursorOffset === expected.cursorOffset &&
+      actual.selectionCollapsed === expected.selectionCollapsed
+    );
   }
 }

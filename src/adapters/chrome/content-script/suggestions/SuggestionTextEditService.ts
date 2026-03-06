@@ -2,7 +2,6 @@ import { createLogger } from "@core/application/logging/Logger";
 import { SPACING_RULES, Spacing } from "@core/domain/spacingRules";
 import type { TextEditOperation } from "@core/domain/messageTypes";
 import { ContentEditableAdapter, type ContentEditableEditResult } from "./ContentEditableAdapter";
-import { isOnlyFillers, trimTrailingFillers } from "./editorFillers";
 import { TextTargetAdapter, type TextTarget } from "./TextTargetAdapter";
 import type {
   ManualAutoFixSuppressionSnapshot,
@@ -41,7 +40,7 @@ export class SuggestionTextEditService {
     entry: SuggestionEntry,
     suggestion: string,
   ): { triggerText: string; insertedText: string } | null {
-    entry.lastAutoFixReplacement = null;
+    entry.pendingExtensionEdit = null;
     entry.manualAutoFixSuppression = null;
     const isTextValueTarget = this.isTextValueElement(entry.elem);
     let snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
@@ -120,6 +119,7 @@ export class SuggestionTextEditService {
     const consumedTrailingWhitespace = currentFullText.slice(baseReplaceEnd, finalReplaceEnd);
 
     const cursorAfter = replaceStart + suggestion.length;
+    const originalText = `${replacedTokenText}${consumedTrailingWhitespace}`;
 
     this.replaceTextByOffsets(
       entry.elem,
@@ -129,11 +129,19 @@ export class SuggestionTextEditService {
       suggestion,
       cursorAfter,
     );
+    const postEditSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
 
-    entry.lastReplacement = {
-      triggerText: `${replacedTokenText}${consumedTrailingWhitespace}`,
-      insertedText: suggestion,
-      cursorAfter,
+    entry.pendingExtensionEdit = {
+      replaceStart,
+      originalText,
+      replacementText: suggestion,
+      cursorBefore: snapshot.cursorOffset,
+      cursorAfter: postEditSnapshot.cursorOffset,
+      postEditFingerprint: TextTargetAdapter.createPostEditFingerprint(
+        entry.elem as TextTarget,
+        postEditSnapshot,
+      ),
+      source: "suggestion",
     };
 
     return {
@@ -142,7 +150,7 @@ export class SuggestionTextEditService {
     };
   }
 
-  public tryRevertLastReplacement(
+  public tryUndoLastExtensionEdit(
     entry: SuggestionEntry,
     event: KeyboardEvent,
     {
@@ -153,71 +161,38 @@ export class SuggestionTextEditService {
       clearSuggestions: () => void;
     },
   ): boolean {
-    if (!entry.lastReplacement) {
+    if (!entry.pendingExtensionEdit) {
       return false;
     }
 
     const snapshot: SuggestionSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
-    const { triggerText, insertedText, cursorAfter } = entry.lastReplacement;
-
-    if (snapshot.cursorOffset !== cursorAfter || !snapshot.beforeCursor.endsWith(insertedText)) {
-      return false;
-    }
-
-    consumeKeyboardEvent(event);
-
-    const fullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
-    const replaceEnd = snapshot.beforeCursor.length;
-    const replaceStart = Math.max(0, replaceEnd - insertedText.length);
-    const nextCursor = replaceStart + triggerText.length;
-
-    this.replaceTextByOffsets(
-      entry.elem,
-      fullText,
+    const {
       replaceStart,
-      replaceEnd,
-      triggerText,
-      nextCursor,
-    );
-
-    entry.lastReplacement = null;
-    entry.lastAutoFixReplacement = null;
-    entry.manualAutoFixSuppression = null;
-    clearSuggestions();
-    return true;
-  }
-
-  public tryRevertLastAutoFix(
-    entry: SuggestionEntry,
-    event: KeyboardEvent,
-    {
-      consumeKeyboardEvent,
-      clearSuggestions,
-    }: {
-      consumeKeyboardEvent: (event: KeyboardEvent) => void;
-      clearSuggestions: () => void;
-    },
-  ): boolean {
-    if (!entry.lastAutoFixReplacement) {
-      return false;
-    }
-
-    const snapshot: SuggestionSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
-    const { replaceStart, originalText, replacementText, cursorBefore, cursorAfter, sourceRuleId } =
-      entry.lastAutoFixReplacement;
+      originalText,
+      replacementText,
+      cursorBefore,
+      postEditFingerprint,
+      source,
+      sourceRuleId,
+    } = entry.pendingExtensionEdit;
     const fullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
     const replaceEnd = replaceStart + replacementText.length;
 
-    if (snapshot.cursorOffset !== cursorAfter) {
-      entry.lastAutoFixReplacement = null;
+    if (
+      !TextTargetAdapter.matchesPostEditFingerprint(
+        entry.elem as TextTarget,
+        postEditFingerprint,
+        snapshot,
+      )
+    ) {
+      entry.pendingExtensionEdit = null;
       return false;
     }
-    if (replaceEnd > fullText.length) {
-      entry.lastAutoFixReplacement = null;
-      return false;
-    }
-    if (fullText.slice(replaceStart, replaceEnd) !== replacementText) {
-      entry.lastAutoFixReplacement = null;
+    if (
+      replaceEnd > fullText.length ||
+      fullText.slice(replaceStart, replaceEnd) !== replacementText
+    ) {
+      entry.pendingExtensionEdit = null;
       return false;
     }
 
@@ -232,14 +207,18 @@ export class SuggestionTextEditService {
       cursorBefore,
     );
 
-    const revertedFullText = `${fullText.slice(0, replaceStart)}${originalText}${fullText.slice(replaceEnd)}`;
-    entry.manualAutoFixSuppression = this.createManualAutoFixSuppression({
-      ruleKey: this.resolveAutoFixRuleKey(sourceRuleId, originalText, replacementText),
-      replaceStart,
-      fullText: revertedFullText,
-      cursorOffset: cursorBefore,
-    });
-    entry.lastAutoFixReplacement = null;
+    if (source === "grammar") {
+      const revertedFullText = `${fullText.slice(0, replaceStart)}${originalText}${fullText.slice(replaceEnd)}`;
+      entry.manualAutoFixSuppression = this.createManualAutoFixSuppression({
+        ruleKey: this.resolveAutoFixRuleKey(sourceRuleId, originalText, replacementText),
+        replaceStart,
+        fullText: revertedFullText,
+        cursorOffset: cursorBefore,
+      });
+    } else {
+      entry.manualAutoFixSuppression = null;
+    }
+    entry.pendingExtensionEdit = null;
     clearSuggestions();
     return true;
   }
@@ -375,13 +354,19 @@ export class SuggestionTextEditService {
         didDispatchInput: false,
       };
     }
+    const postEditSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
 
-    entry.lastAutoFixReplacement = {
+    entry.pendingExtensionEdit = {
       replaceStart,
       originalText,
       replacementText: textEdit.replacementText,
       cursorBefore: snapshot.cursorOffset,
-      cursorAfter,
+      cursorAfter: postEditSnapshot.cursorOffset,
+      postEditFingerprint: TextTargetAdapter.createPostEditFingerprint(
+        entry.elem as TextTarget,
+        postEditSnapshot,
+      ),
+      source: "grammar",
       sourceRuleId: textEdit.sourceRuleId,
     };
     return {
@@ -475,46 +460,6 @@ export class SuggestionTextEditService {
       replaceStart: blockStart + localReplaceStart,
       replaceEnd: blockStart + localReplaceEnd,
     };
-  }
-
-  public tryDeleteTrailingPunctuationSpace(
-    entry: SuggestionEntry,
-    event: KeyboardEvent,
-    consumeKeyboardEvent: (event: KeyboardEvent) => void,
-  ): boolean {
-    if (event.key !== "Backspace") {
-      return false;
-    }
-
-    const snapshot: SuggestionSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
-    if (!isOnlyFillers(snapshot.afterCursor)) {
-      return false;
-    }
-    const normalizedBeforeCursor = trimTrailingFillers(snapshot.beforeCursor);
-    if (normalizedBeforeCursor.length < 2) {
-      return false;
-    }
-
-    const trailingChar = normalizedBeforeCursor.charAt(normalizedBeforeCursor.length - 1);
-    if (!/[ \xA0]/.test(trailingChar)) {
-      return false;
-    }
-
-    const punctuationChar = normalizedBeforeCursor.charAt(normalizedBeforeCursor.length - 2);
-    const spacingRule = SPACING_RULES[punctuationChar];
-    if (!spacingRule || spacingRule.spaceAfter !== Spacing.INSERT_SPACE) {
-      return false;
-    }
-
-    consumeKeyboardEvent(event);
-
-    const fullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
-    const replaceEnd = normalizedBeforeCursor.length;
-    const replaceStart = replaceEnd - 1;
-
-    this.replaceTextByOffsets(entry.elem, fullText, replaceStart, replaceEnd, "", replaceStart);
-    entry.lastAutoFixReplacement = null;
-    return true;
   }
 
   public handleMissingSpaceAfterAccept(
@@ -677,9 +622,14 @@ export class SuggestionTextEditService {
           didDispatchInput: false,
         };
       }
-      elem.value = updatedText;
-      elem.selectionStart = cursorAfter;
-      elem.selectionEnd = cursorAfter;
+      try {
+        elem.setRangeText(replacementText, boundedStart, boundedEnd, "end");
+        elem.setSelectionRange(cursorAfter, cursorAfter);
+      } catch {
+        elem.value = updatedText;
+        elem.selectionStart = cursorAfter;
+        elem.selectionEnd = cursorAfter;
+      }
       this.dispatchInputEvent(elem);
       return {
         didMutateDom: true,

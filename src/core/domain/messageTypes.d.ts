@@ -7,7 +7,6 @@ export interface SetConfigContext {
   selectByDigit: boolean;
   lang: string;
   minWordLengthToPredict: number;
-  revertOnBackspace: boolean;
   inline_suggestion: boolean;
   enabled: boolean;
   displayLangHeader: boolean;
