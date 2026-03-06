@@ -1,4 +1,5 @@
 import { SuggestionKeyboardController } from "./SuggestionKeyboardController";
+import { isNativeUndoChord } from "./keyboardShortcuts";
 import type { SuggestionEntry } from "./types";
 
 interface SuggestionKeyboardHandlerOptions {
@@ -70,7 +71,7 @@ export class SuggestionKeyboardHandler {
     }
 
     const key = keyboardEvent.key;
-    if (this.isUndoChord(keyboardEvent) && this.tryUndoLastExtensionEdit(entry, keyboardEvent)) {
+    if (isNativeUndoChord(keyboardEvent) && this.tryUndoLastExtensionEdit(entry, keyboardEvent)) {
       return;
     }
 
@@ -160,15 +161,5 @@ export class SuggestionKeyboardHandler {
       return null;
     }
     return key === "0" ? 9 : Number(key) - 1;
-  }
-
-  private isUndoChord(event: KeyboardEvent): boolean {
-    if (event.defaultPrevented || event.altKey || event.shiftKey) {
-      return false;
-    }
-    if (!(event.metaKey || event.ctrlKey)) {
-      return false;
-    }
-    return event.key.toLowerCase() === "z";
   }
 }

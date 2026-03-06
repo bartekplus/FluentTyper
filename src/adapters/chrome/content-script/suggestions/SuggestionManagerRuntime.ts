@@ -11,6 +11,7 @@ import { SuggestionPredictionCoordinator } from "./SuggestionPredictionCoordinat
 import { SuggestionMenuView } from "./SuggestionMenuView";
 import { SuggestionTelemetryService } from "./SuggestionTelemetryService";
 import { SuggestionTextEditService, type TextEditApplyResult } from "./SuggestionTextEditService";
+import { isNativeUndoChord } from "./keyboardShortcuts";
 import { ContentEditableAdapter } from "./ContentEditableAdapter";
 import { TextTargetAdapter, type TextTarget } from "./TextTargetAdapter";
 import type { PredictionInputAction } from "@core/domain/messageTypes";
@@ -770,7 +771,7 @@ export class SuggestionManagerRuntime {
   }
 
   private shouldInvalidatePendingExtensionEditOnKeydown(event: KeyboardEvent): boolean {
-    if (this.isUndoChord(event)) {
+    if (isNativeUndoChord(event)) {
       return false;
     }
     if (
@@ -788,16 +789,6 @@ export class SuggestionManagerRuntime {
       return true;
     }
     return (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "a";
-  }
-
-  private isUndoChord(event: KeyboardEvent): boolean {
-    if (event.defaultPrevented || event.altKey || event.shiftKey) {
-      return false;
-    }
-    if (!(event.metaKey || event.ctrlKey)) {
-      return false;
-    }
-    return event.key.toLowerCase() === "z";
   }
 
   private scheduleKeyFallbackReconcile(
