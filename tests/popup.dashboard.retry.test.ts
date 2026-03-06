@@ -624,7 +624,10 @@ describe("popup productivity dashboard retry/failure paths", () => {
     console.log("DEBUG: s.get('enable'):", await s.get("enable"));
 
     const internalStore = (s as any).settings;
+    console.log("DEBUG: internalStore keys:", Object.keys(internalStore || {}));
+    console.log("DEBUG: internalStore constructor:", internalStore?.constructor?.name);
     console.log("DEBUG: store backend type:", internalStore?.storageBackend?.constructor?.name);
+    console.log("DEBUG: store backend value:", !!internalStore?.storageBackend);
 
     // Also check what mock has:
     chromeMock.storage.local.get("store.settings.enable", (val) => {
