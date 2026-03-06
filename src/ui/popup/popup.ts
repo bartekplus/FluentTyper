@@ -244,10 +244,10 @@ function renderStaticPageState(
   }
   panel?.setAttribute("data-page-state", state.kind);
   setSiteSpecificControlsEnabled(false);
-  if (domainToggle) {
-    domainToggle.checked = false;
-  }
   if (state.kind === "restricted") {
+    if (domainToggle) {
+      domainToggle.checked = false;
+    }
     section?.classList.remove("is-hidden");
   } else {
     section?.classList.add("is-hidden");
