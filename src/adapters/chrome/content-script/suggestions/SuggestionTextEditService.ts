@@ -17,6 +17,15 @@ export interface TextEditApplyResult {
   didDispatchInput: boolean;
 }
 
+export interface GrammarEditApplyContext {
+  snapshot?: SuggestionSnapshot;
+  contentEditableContext?: {
+    beforeCursor: string;
+    afterCursor: string;
+    useFullTextOffsets: boolean;
+  } | null;
+}
+
 export class SuggestionTextEditService {
   private readonly findMentionToken: (beforeCursor: string) => { token: string; start: number };
   private readonly isSeparator: (value: string) => boolean;
@@ -252,6 +261,7 @@ export class SuggestionTextEditService {
   public applyGrammarEdit(
     entry: SuggestionEntry,
     edit: GrammarEdit & Record<string, unknown>,
+    context: GrammarEditApplyContext = {},
   ): TextEditApplyResult {
     const replacement =
       typeof edit.replacement === "string"
@@ -267,7 +277,8 @@ export class SuggestionTextEditService {
     const deleteForwards = Number.isFinite(edit.deleteForwards)
       ? Math.max(0, edit.deleteForwards)
       : 0;
-    const snapshot: SuggestionSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+    const snapshot: SuggestionSnapshot =
+      context.snapshot ?? TextTargetAdapter.snapshot(entry.elem as TextTarget);
     this.syncManualAutoFixSuppression(entry, snapshot);
     const fullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
 
@@ -278,14 +289,18 @@ export class SuggestionTextEditService {
     );
 
     if (!this.isTextValueElement(entry.elem)) {
-      const blockContext = this.contentEditableAdapter.getBlockContext(entry.elem);
+      const providedContentEditableContext = context.contentEditableContext;
+      const blockContext =
+        providedContentEditableContext ?? this.contentEditableAdapter.getBlockContext(entry.elem);
+      const useFullTextOffsets =
+        providedContentEditableContext?.useFullTextOffsets ??
+        (blockContext !== null &&
+          blockContext.beforeCursor.length === 0 &&
+          blockContext.afterCursor.length === 0 &&
+          this.contentEditableAdapter.isCollapsedSelectionBeforeBlockBoundary(entry.elem));
       if (!blockContext) {
         return { applied: false, didDispatchInput: false };
       }
-      const useFullTextOffsets =
-        blockContext.beforeCursor.length === 0 &&
-        blockContext.afterCursor.length === 0 &&
-        this.contentEditableAdapter.isCollapsedSelectionBeforeBlockBoundary(entry.elem);
       if (!useFullTextOffsets) {
         const blockStart = snapshot.beforeCursor.length - blockContext.beforeCursor.length;
         const blockCursor = blockContext.beforeCursor.length;
@@ -333,6 +348,7 @@ export class SuggestionTextEditService {
       replaceEnd,
       replacement,
       cursorAfter,
+      { preferDomMutation: this.shouldPreferDomMutationForGrammar(entry.elem) },
     );
     if (!applyResult.didMutateDom) {
       return {
@@ -516,6 +532,7 @@ export class SuggestionTextEditService {
     replaceEnd: number,
     replacementText: string,
     cursorAfter: number,
+    options: { preferDomMutation?: boolean } = {},
   ): ContentEditableEditResult | { didMutateDom: boolean; didDispatchInput: boolean } {
     const boundedStart = Math.max(0, Math.min(fullText.length, replaceStart));
     const boundedEnd = Math.max(boundedStart, Math.min(fullText.length, replaceEnd));
@@ -550,6 +567,7 @@ export class SuggestionTextEditService {
       boundedEnd,
       replacementText,
       cursorAfter,
+      options,
     );
   }
 
@@ -565,6 +583,13 @@ export class SuggestionTextEditService {
     // Rich editors can drop a plain trailing space when an insertion lands
     // immediately before a nested block. NBSP preserves the visible gap.
     return `${replacementText.slice(0, -1)}\xA0`;
+  }
+
+  private shouldPreferDomMutationForGrammar(elem: SuggestionElement): boolean {
+    if (this.isTextValueElement(elem)) {
+      return false;
+    }
+    return elem.classList.contains("ql-editor") || elem.closest(".ql-editor") !== null;
   }
 
   private dispatchInputEvent(elem: SuggestionElement): void {

@@ -2302,12 +2302,10 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         });
 
         await page.keyboard.type(".");
-        let lastQuillState: unknown = null;
-        try {
-          await waitUntil(
-            "quill grammar spacing after punctuation",
-            async () => {
-              const state = await page.evaluate(() => {
+        await waitUntil(
+          "quill grammar spacing after punctuation",
+          async () => {
+            const state = await page.evaluate(() => {
               const quill = (
                 window as typeof window & {
                   __testQuill?: {
@@ -2315,40 +2313,25 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
                   };
                 }
               ).__testQuill;
-                if (!quill) {
-                  return { ok: false, text: null };
-                }
-                const normalizedText = quill.getText().replace(/\u00a0/g, " ");
-                const lines = normalizedText.split("\n");
-                const firstLine = (lines[0] ?? "").trim();
-                const secondLine = lines[1] ?? "";
-                const selection = window.getSelection();
-                const anchorNode = selection?.anchorNode ?? null;
-                return {
-                  ok: firstLine === "Quill Rich Text Editor" && /^fixed\.[ ]$/i.test(secondLine),
-                  text: normalizedText,
-                  lines,
-                  anchorText:
-                    anchorNode?.nodeType === Node.TEXT_NODE
-                      ? anchorNode.textContent
-                      : anchorNode?.nodeName ?? null,
-                  anchorOffset: selection?.anchorOffset ?? null,
-                  focusOffset: selection?.focusOffset ?? null,
-                  rootHtml:
-                    (
-                      document.querySelector(".ql-editor") as HTMLElement | null
-                    )?.innerHTML ?? null,
-                };
-              });
-              lastQuillState = state;
-              return state.ok ? true : false;
-            },
-            { timeoutMs: browserTimeout(5000, 9000), intervalMs: 50 },
-          );
-        } catch (error) {
-          console.error("Quill grammar debug state", lastQuillState);
-          throw error;
-        }
+              if (!quill) {
+                return false;
+              }
+              const normalizedText = quill.getText().replace(/\u00a0/g, " ");
+              const lines = normalizedText.split("\n");
+              const firstLine = (lines[0] ?? "").trim();
+              const secondLine = lines[1] ?? "";
+              if (firstLine !== "Quill Rich Text Editor") {
+                return false;
+              }
+              if (!/^fixed\.[ ]$/i.test(secondLine)) {
+                return false;
+              }
+              return true;
+            });
+            return state ? true : false;
+          },
+          { timeoutMs: browserTimeout(5000, 9000), intervalMs: 50 },
+        );
 
         await page.keyboard.type("x");
         const finalState = await waitUntil(

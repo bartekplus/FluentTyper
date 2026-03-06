@@ -32,6 +32,7 @@ export class ContentEditableAdapter {
     replaceEnd: number,
     replacementText: string,
     cursorAfter: number,
+    { preferDomMutation = false }: { preferDomMutation?: boolean } = {},
   ): ContentEditableEditResult {
     const selectionAnchors = this.captureSelectionOffsetAnchors(elem);
     const startPosition = this.resolveContentEditablePosition(
@@ -59,26 +60,28 @@ export class ContentEditableAdapter {
       selection.addRange(range);
     }
 
-    const beforeText = elem.textContent ?? "";
-    const beforeInputEvent = this.dispatchReplacementBeforeInput(elem, range, replacementText);
-    const textAfterBeforeInput = elem.textContent ?? "";
-    const hostHandled = beforeInputEvent.defaultPrevented || textAfterBeforeInput !== beforeText;
+    if (!preferDomMutation) {
+      const beforeText = elem.textContent ?? "";
+      const beforeInputEvent = this.dispatchReplacementBeforeInput(elem, range, replacementText);
+      const textAfterBeforeInput = elem.textContent ?? "";
+      const hostHandled = beforeInputEvent.defaultPrevented || textAfterBeforeInput !== beforeText;
 
-    if (hostHandled) {
-      return {
-        appliedBy: "host-beforeinput",
-        didMutateDom: textAfterBeforeInput !== beforeText,
-        didDispatchInput: false,
-      };
-    }
+      if (hostHandled) {
+        return {
+          appliedBy: "host-beforeinput",
+          didMutateDom: textAfterBeforeInput !== beforeText,
+          didDispatchInput: false,
+        };
+      }
 
-    const nativeReplacementResult = this.tryNativeReplacement(elem, replacementText);
-    if (nativeReplacementResult.didMutateDom) {
-      return {
-        appliedBy: "fallback-dom",
-        didMutateDom: true,
-        didDispatchInput: nativeReplacementResult.didDispatchInput,
-      };
+      const nativeReplacementResult = this.tryNativeReplacement(elem, replacementText);
+      if (nativeReplacementResult.didMutateDom) {
+        return {
+          appliedBy: "fallback-dom",
+          didMutateDom: true,
+          didDispatchInput: nativeReplacementResult.didDispatchInput,
+        };
+      }
     }
 
     const hadSelectedContent = !range.collapsed;

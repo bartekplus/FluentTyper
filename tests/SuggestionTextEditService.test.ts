@@ -77,12 +77,14 @@ class HostHandledContentEditableAdapter extends ContentEditableAdapter {
     replaceEnd: number,
     replacementText: string,
     cursorAfter: number,
+    options?: { preferDomMutation?: boolean },
   ) {
     void elem;
     void replaceStart;
     void replaceEnd;
     void replacementText;
     void cursorAfter;
+    void options;
     return {
       appliedBy: "host-beforeinput" as const,
       didMutateDom: true,
@@ -108,12 +110,14 @@ class HostCanceledNoMutationContentEditableAdapter extends ContentEditableAdapte
     replaceEnd: number,
     replacementText: string,
     cursorAfter: number,
+    options?: { preferDomMutation?: boolean },
   ) {
     void elem;
     void replaceStart;
     void replaceEnd;
     void replacementText;
     void cursorAfter;
+    void options;
     return {
       appliedBy: "host-beforeinput" as const,
       didMutateDom: false,
@@ -139,8 +143,10 @@ class EmptyBlockContextContentEditableAdapter extends ContentEditableAdapter {
     replaceEnd: number,
     replacementText: string,
     cursorAfter: number,
+    options?: { preferDomMutation?: boolean },
   ) {
     const text = elem.textContent ?? "";
+    void options;
     elem.textContent = `${text.slice(0, replaceStart)}${replacementText}${text.slice(replaceEnd)}`;
     setContentEditableCursor(elem, cursorAfter);
     return {
@@ -387,6 +393,61 @@ describe("SuggestionTextEditService", () => {
       expectedPrefixToken: "fixed",
     });
 
+    const paragraphs = editable.querySelectorAll("p");
+    expect(paragraphs[0]?.textContent).toBe("Title");
+    expect((paragraphs[1]?.textContent ?? "").replace(/\u00a0/g, " ")).toBe("fixed. ");
+  });
+
+  test("applies contenteditable textEdit from provided block context when live selection drifts", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+    });
+
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML = "<p>Title</p><p>fixed .</p>";
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+
+    const secondParagraph = editable.querySelectorAll("p")[1];
+    if (!secondParagraph) {
+      throw new Error("Expected second paragraph");
+    }
+    const secondTextNode = secondParagraph.firstChild as Text | null;
+    if (!secondTextNode) {
+      throw new Error("Expected second paragraph text node");
+    }
+
+    // Simulate a rich editor where the live selection has already drifted back
+    // before the punctuation by the time the grammar edit is applied.
+    setTextNodeCursor(secondTextNode, (secondTextNode.textContent?.length ?? 1) - 1);
+
+    const entry = createSuggestionEntry({ elem: editable });
+    const fullText = editable.textContent ?? "";
+    const result = service.applyGrammarEdit(
+      entry,
+      {
+        replacement: ". ",
+        deleteBackwards: 2,
+        deleteForwards: 0,
+        sourceRuleId: "commaPeriodSpacing",
+      },
+      {
+        snapshot: {
+          beforeCursor: fullText,
+          afterCursor: "",
+          cursorOffset: fullText.length,
+        },
+        contentEditableContext: {
+          beforeCursor: "fixed .",
+          afterCursor: "",
+          useFullTextOffsets: false,
+        },
+      },
+    );
+
+    expect(result).toEqual({ applied: true, didDispatchInput: true });
     const paragraphs = editable.querySelectorAll("p");
     expect(paragraphs[0]?.textContent).toBe("Title");
     expect((paragraphs[1]?.textContent ?? "").replace(/\u00a0/g, " ")).toBe("fixed. ");

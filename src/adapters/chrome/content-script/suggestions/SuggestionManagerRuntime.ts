@@ -11,7 +11,10 @@ import { SuggestionPositioningService } from "./SuggestionPositioningService";
 import { SuggestionPredictionCoordinator } from "./SuggestionPredictionCoordinator";
 import { SuggestionMenuView } from "./SuggestionMenuView";
 import { SuggestionTelemetryService } from "./SuggestionTelemetryService";
-import { SuggestionTextEditService } from "./SuggestionTextEditService";
+import {
+  SuggestionTextEditService,
+  type GrammarEditApplyContext,
+} from "./SuggestionTextEditService";
 import { isNativeUndoChord } from "./keyboardShortcuts";
 import { ContentEditableAdapter } from "./ContentEditableAdapter";
 import { TextTargetAdapter, type TextTarget } from "./TextTargetAdapter";
@@ -692,7 +695,10 @@ export class SuggestionManagerRuntime {
     });
 
     if (grammarEdit) {
-      const applyResult = this.textEditService.applyGrammarEdit(entry, grammarEdit);
+      const applyResult = this.textEditService.applyGrammarEdit(entry, grammarEdit, {
+        snapshot,
+        contentEditableContext: grammarContext.applyContext,
+      });
       if (applyResult.applied) {
         this.clearSuggestions(entry);
         if (applyResult.didDispatchInput) {
@@ -770,25 +776,54 @@ export class SuggestionManagerRuntime {
   private resolveGrammarContext(
     entry: SuggestionEntry,
     snapshot: SuggestionSnapshot,
-  ): { beforeCursor: string; afterCursor: string } {
+  ): {
+    beforeCursor: string;
+    afterCursor: string;
+    applyContext: GrammarEditApplyContext["contentEditableContext"];
+  } {
     if (this.isTextValueElement(entry.elem)) {
       return {
         beforeCursor: snapshot.beforeCursor,
         afterCursor: snapshot.afterCursor,
+        applyContext: null,
       };
     }
     const blockContext = this.contentEditableAdapter.getBlockContext(entry.elem);
     if (!blockContext) {
-      return { beforeCursor: snapshot.beforeCursor, afterCursor: snapshot.afterCursor };
+      return {
+        beforeCursor: snapshot.beforeCursor,
+        afterCursor: snapshot.afterCursor,
+        applyContext: {
+          beforeCursor: snapshot.beforeCursor,
+          afterCursor: snapshot.afterCursor,
+          useFullTextOffsets: true,
+        },
+      };
     }
-    if (
+    const useFullTextOffsets =
       blockContext.beforeCursor.length === 0 &&
       blockContext.afterCursor.length === 0 &&
-      this.contentEditableAdapter.isCollapsedSelectionBeforeBlockBoundary(entry.elem)
-    ) {
-      return { beforeCursor: snapshot.beforeCursor, afterCursor: snapshot.afterCursor };
+      this.contentEditableAdapter.isCollapsedSelectionBeforeBlockBoundary(entry.elem);
+    if (useFullTextOffsets) {
+      return {
+        beforeCursor: snapshot.beforeCursor,
+        afterCursor: snapshot.afterCursor,
+        applyContext: {
+          beforeCursor: snapshot.beforeCursor,
+          afterCursor: snapshot.afterCursor,
+          useFullTextOffsets: true,
+        },
+      };
     }
-    return blockContext;
+    return {
+      beforeCursor: blockContext.beforeCursor,
+      afterCursor: blockContext.afterCursor,
+      applyContext: {
+        beforeCursor: blockContext.beforeCursor,
+        afterCursor: blockContext.afterCursor,
+        useFullTextOffsets: false,
+      },
+    };
   }
 
   private resolveLocalGrammarTriggers(
@@ -850,7 +885,10 @@ export class SuggestionManagerRuntime {
       return;
     }
 
-    const applyResult = this.textEditService.applyGrammarEdit(entry, grammarEdit);
+    const applyResult = this.textEditService.applyGrammarEdit(entry, grammarEdit, {
+      snapshot,
+      contentEditableContext: grammarContext.applyContext,
+    });
     if (!applyResult.applied) {
       return;
     }
