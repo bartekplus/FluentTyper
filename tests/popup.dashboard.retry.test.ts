@@ -733,6 +733,15 @@ describe("popup productivity dashboard retry/failure paths", () => {
     expect(textContent("pageStateBody")).toContain("cannot run on browser internal pages");
     expect(document.getElementById("pageStateMeta")?.classList.contains("is-hidden")).toBe(true);
     expect(document.getElementById("domainSectionWrapper")?.classList.contains("is-hidden")).toBe(
+      false,
+    );
+    expect((document.getElementById("checkboxDomainInput") as HTMLInputElement).disabled).toBe(
+      true,
+    );
+    expect((document.getElementById("checkboxDomainInput") as HTMLInputElement).checked).toBe(
+      false,
+    );
+    expect(document.getElementById("siteProfileSection")?.classList.contains("is-hidden")).toBe(
       true,
     );
   });
