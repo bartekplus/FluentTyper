@@ -3,21 +3,27 @@ import type { SuggestionEntry } from "./types";
 export interface SuggestionLifecycleControllerOptions {
   getEntries: () => Iterable<SuggestionEntry>;
   dismissEntry: (entry: SuggestionEntry) => void;
+  reconcileEntrySelection: (entry: SuggestionEntry) => void;
   doc?: Document;
 }
 
 export class SuggestionLifecycleController {
   private readonly getEntries: () => Iterable<SuggestionEntry>;
   private readonly dismissEntry: (entry: SuggestionEntry) => void;
+  private readonly reconcileEntrySelection: (entry: SuggestionEntry) => void;
   private readonly doc: Document;
   private attachedEntryCount = 0;
   private documentPointerDownListenerAttached = false;
+  private documentSelectionChangeListenerAttached = false;
   private readonly onDocumentPointerDownBound: EventListener =
     this.onDocumentPointerDown.bind(this);
+  private readonly onDocumentSelectionChangeBound: EventListener =
+    this.onDocumentSelectionChange.bind(this);
 
   constructor(options: SuggestionLifecycleControllerOptions) {
     this.getEntries = options.getEntries;
     this.dismissEntry = options.dismissEntry;
+    this.reconcileEntrySelection = options.reconcileEntrySelection;
     this.doc = options.doc ?? document;
   }
 
@@ -34,6 +40,7 @@ export class SuggestionLifecycleController {
 
     this.attachedEntryCount += 1;
     this.ensureDocumentPointerDownListener();
+    this.ensureDocumentSelectionChangeListener();
   }
 
   public detachEntryListeners(entry: SuggestionEntry): void {
@@ -50,6 +57,7 @@ export class SuggestionLifecycleController {
     this.attachedEntryCount = Math.max(0, this.attachedEntryCount - 1);
     if (this.attachedEntryCount === 0) {
       this.removeDocumentPointerDownListener();
+      this.removeDocumentSelectionChangeListener();
     }
   }
 
@@ -69,6 +77,22 @@ export class SuggestionLifecycleController {
     this.documentPointerDownListenerAttached = false;
   }
 
+  private ensureDocumentSelectionChangeListener(): void {
+    if (this.documentSelectionChangeListenerAttached) {
+      return;
+    }
+    this.doc.addEventListener("selectionchange", this.onDocumentSelectionChangeBound, true);
+    this.documentSelectionChangeListenerAttached = true;
+  }
+
+  private removeDocumentSelectionChangeListener(): void {
+    if (!this.documentSelectionChangeListenerAttached) {
+      return;
+    }
+    this.doc.removeEventListener("selectionchange", this.onDocumentSelectionChangeBound, true);
+    this.documentSelectionChangeListenerAttached = false;
+  }
+
   private onDocumentPointerDown(event: Event): void {
     const target = event.target;
     if (!(target instanceof Node)) {
@@ -80,6 +104,12 @@ export class SuggestionLifecycleController {
         continue;
       }
       this.dismissEntry(entry);
+    }
+  }
+
+  private onDocumentSelectionChange(): void {
+    for (const entry of this.getEntries()) {
+      this.reconcileEntrySelection(entry);
     }
   }
 }

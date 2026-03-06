@@ -83,6 +83,7 @@ export class SuggestionManagerRuntime {
     this.lifecycleController = new SuggestionLifecycleController({
       getEntries: () => this.entryRegistry.values(),
       dismissEntry: (entry) => this.dismissEntry(entry),
+      reconcileEntrySelection: (entry) => this.reconcileEntrySelection(entry),
     });
 
     this.displayLangHeader = options.displayLangHeader;
@@ -186,6 +187,9 @@ export class SuggestionManagerRuntime {
     entry.selectedIndex = 0;
     entry.menuHeader =
       this.displayLangHeader && context.lang ? `Lang: ${SUPPORTED_LANGUAGES[context.lang]}` : null;
+    const currentPredictionContext = this.resolveCurrentPredictionContext(entry);
+    entry.visibleSuggestionBeforeCursorText = currentPredictionContext.beforeCursor;
+    entry.visibleSuggestionFullText = currentPredictionContext.fullText;
 
     if (this.inlineSuggestionEnabled) {
       entry.inlineSuggestion = entry.suggestions[0] ?? null;
@@ -324,6 +328,8 @@ export class SuggestionManagerRuntime {
       menuHeader: null,
       latestMentionText: "",
       latestMentionStart: 0,
+      visibleSuggestionBeforeCursorText: null,
+      visibleSuggestionFullText: null,
       inlineSuggestion: null,
       pendingInlineAccept: false,
       missingTrailingSpace: false,
@@ -601,6 +607,8 @@ export class SuggestionManagerRuntime {
     entry.lastInputAction = null;
     entry.lastKeydownKey = null;
     entry.lastBeforeCursorText = null;
+    entry.visibleSuggestionBeforeCursorText = null;
+    entry.visibleSuggestionFullText = null;
     this.clearSuggestions(entry);
   }
 
@@ -693,10 +701,65 @@ export class SuggestionManagerRuntime {
   private clearSuggestions(entry: SuggestionEntry): void {
     entry.suggestions = [];
     entry.selectedIndex = 0;
+    entry.visibleSuggestionBeforeCursorText = null;
+    entry.visibleSuggestionFullText = null;
     entry.inlineSuggestion = null;
     entry.pendingInlineAccept = false;
     this.menuPresenter.hide(entry.menu, entry.list);
     this.inlinePresenter.clearAll();
+  }
+
+  private reconcileEntrySelection(entry: SuggestionEntry): void {
+    if (!this.hasVisibleSuggestionState(entry)) {
+      return;
+    }
+    if (!this.isEntryFocused(entry)) {
+      return;
+    }
+    if (!this.isTextValueElement(entry.elem)) {
+      return;
+    }
+    if (!TextTargetAdapter.hasCollapsedSelection(entry.elem as TextTarget)) {
+      this.dismissEntry(entry, true);
+      return;
+    }
+    if (!this.shouldCheckCaretContextOnSelectionChange(entry)) {
+      return;
+    }
+    if (entry.visibleSuggestionBeforeCursorText === null) {
+      return;
+    }
+    if (entry.visibleSuggestionFullText === null) {
+      return;
+    }
+    const currentPredictionContext = this.resolveCurrentPredictionContext(entry);
+    if (currentPredictionContext.fullText !== entry.visibleSuggestionFullText) {
+      return;
+    }
+    if (currentPredictionContext.beforeCursor === entry.visibleSuggestionBeforeCursorText) {
+      return;
+    }
+    this.dismissEntry(entry, true);
+  }
+
+  private resolveCurrentPredictionContext(
+    entry: SuggestionEntry,
+  ): { beforeCursor: string; fullText: string } {
+    const snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+    return {
+      beforeCursor: this.resolveBeforeCursorForPrediction(entry, snapshot.beforeCursor),
+      fullText: `${snapshot.beforeCursor}${snapshot.afterCursor}`,
+    };
+  }
+
+  private shouldCheckCaretContextOnSelectionChange(entry: SuggestionEntry): boolean {
+    return entry.lastKeydownKey === null;
+  }
+
+  private hasVisibleSuggestionState(entry: SuggestionEntry): boolean {
+    return (
+      this.menuPresenter.isVisible(entry.menu, entry.suggestions.length) || entry.inlineSuggestion !== null
+    );
   }
 
   private onMenuClick(id: number, event: Event): void {
@@ -741,6 +804,11 @@ export class SuggestionManagerRuntime {
 
     if (this.shouldInvalidatePendingExtensionEditOnKeydown(keyboardEvent)) {
       entry.pendingExtensionEdit = null;
+    }
+
+    if (this.shouldDismissSuggestionsOnKeydown(keyboardEvent)) {
+      this.dismissEntry(entry, true);
+      return;
     }
 
     if (keyboardEvent.key === "Backspace" || keyboardEvent.key === "Delete") {
@@ -789,6 +857,13 @@ export class SuggestionManagerRuntime {
       return true;
     }
     return (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "a";
+  }
+
+  private shouldDismissSuggestionsOnKeydown(event: KeyboardEvent): boolean {
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "a") {
+      return true;
+    }
+    return ["ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"].includes(event.key);
   }
 
   private scheduleKeyFallbackReconcile(

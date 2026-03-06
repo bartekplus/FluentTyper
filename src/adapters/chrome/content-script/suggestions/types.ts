@@ -78,6 +78,8 @@ export interface SuggestionEntry {
   menuHeader: string | null;
   latestMentionText: string;
   latestMentionStart: number;
+  visibleSuggestionBeforeCursorText: string | null;
+  visibleSuggestionFullText: string | null;
   inlineSuggestion: string | null;
   pendingInlineAccept: boolean;
   missingTrailingSpace: boolean;

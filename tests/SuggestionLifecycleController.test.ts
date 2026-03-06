@@ -20,6 +20,7 @@ describe("SuggestionLifecycleController", () => {
     const controller = new SuggestionLifecycleController({
       getEntries: () => [entry],
       dismissEntry,
+      reconcileEntrySelection: () => undefined,
     });
     controller.attachEntryListeners(entry);
 
@@ -40,6 +41,7 @@ describe("SuggestionLifecycleController", () => {
     const controller = new SuggestionLifecycleController({
       getEntries: () => [entry],
       dismissEntry,
+      reconcileEntrySelection: () => undefined,
     });
     controller.attachEntryListeners(entry);
 
