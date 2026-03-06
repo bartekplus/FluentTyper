@@ -48,6 +48,7 @@
     "extension_prediction_undo_chord",
     "grammar_autofix_undo_chord_revert",
     "extension_undo_intervening_edit_guard",
+    "extension_backspace_native_after_extension_edit",
     "grammar_autofix_manual_revert_cooldown",
     "grammar_v3_safe_rules",
     "grammar_v3_advanced_shortcuts",

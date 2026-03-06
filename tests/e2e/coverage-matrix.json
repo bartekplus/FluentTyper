@@ -694,12 +694,12 @@
     },
     {
       "id": "extension_undo_intervening_edit_guard",
-      "description": "Extension undo is invalidated after intervening user edits or caret drift.",
+      "description": "Invalid extension undo snapshots fall through to native host/browser undo after intervening edits or caret drift.",
       "coverage": [
         {
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
-          "test": "Extension undo does not trigger after an intervening user edit in #test-input"
+          "test": "Extension undo falls through to native undo after an intervening user edit in #test-input"
         },
         {
           "layer": "unit",
@@ -715,6 +715,22 @@
           "layer": "unit",
           "file": "tests/SuggestionTextEditService.test.ts",
           "test": "clears pending undo when edited text can no longer contain replacement span"
+        }
+      ]
+    },
+    {
+      "id": "extension_backspace_native_after_extension_edit",
+      "description": "Backspace remains a native delete key after extension-applied edits instead of triggering extension-owned revert behavior.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Backspace remains native after accepting a prediction in #test-input"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Backspace remains native after grammar auto-fix in #test-input"
         }
       ]
     },
