@@ -1,14 +1,26 @@
 /* global document, window, console */
 document.addEventListener("DOMContentLoaded", async () => {
   const browserAPI = window.browser || window.chrome;
-  if (!browserAPI || !browserAPI.permissions) {
-    return;
-  }
-
   const permissionsBtn = document.getElementById("grant-permissions-btn");
   const permissionsContainer = document.getElementById("permissions-container");
   const permissionsSuccess = document.getElementById("permissions-success");
+  const practiceTextarea = document.getElementById("try-me-textarea");
+
   if (!permissionsBtn || !permissionsContainer || !permissionsSuccess) {
+    return;
+  }
+
+  const setPermissionState = (granted) => {
+    permissionsContainer.hidden = granted;
+    permissionsSuccess.hidden = !granted;
+
+    if (granted && practiceTextarea instanceof HTMLTextAreaElement) {
+      practiceTextarea.focus();
+    }
+  };
+
+  if (!browserAPI || !browserAPI.permissions) {
+    setPermissionState(false);
     return;
   }
 
@@ -17,15 +29,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       const contains = await browserAPI.permissions.contains({
         origins: ["<all_urls>"],
       });
-      if (contains) {
-        permissionsContainer.style.display = "none";
-        permissionsSuccess.style.display = "block";
-      } else {
-        permissionsContainer.style.display = "block";
-        permissionsSuccess.style.display = "none";
-      }
-    } catch (e) {
-      console.error("Error checking permissions:", e);
+      setPermissionState(Boolean(contains));
+    } catch (error) {
+      console.error("Error checking permissions:", error);
+      setPermissionState(false);
     }
   };
 
@@ -42,12 +49,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       const granted = testPermissionRequest
         ? await testPermissionRequest(requestOptions)
         : await browserAPI.permissions.request(requestOptions);
+
       if (granted) {
-        permissionsContainer.style.display = "none";
-        permissionsSuccess.style.display = "block";
+        setPermissionState(true);
       }
-    } catch (e) {
-      console.error("Error requesting permissions:", e);
+    } catch (error) {
+      console.error("Error requesting permissions:", error);
     }
   });
 });
