@@ -575,7 +575,7 @@ export class SuggestionManagerRuntime {
       if (
         actualFingerprint.fullText === pendingEdit.postEditFingerprint.fullText &&
         actualFingerprint.selectionCollapsed ===
-        pendingEdit.postEditFingerprint.selectionCollapsed &&
+          pendingEdit.postEditFingerprint.selectionCollapsed &&
         snapshot.cursorOffset >= pendingEdit.replaceStart &&
         snapshot.cursorOffset <= pendingEdit.cursorAfter
       ) {
@@ -695,11 +695,11 @@ export class SuggestionManagerRuntime {
     });
     const grammarEdit = cursorContext.safeForGrammar
       ? this.grammarCoordinator.run({
-        beforeCursor: cursorContext.beforeCursor,
-        afterCursor: cursorContext.afterCursor,
-        inputAction,
-        triggers: this.resolveLocalGrammarTriggers(entry, event, cursorContext.beforeCursor),
-      })
+          beforeCursor: cursorContext.beforeCursor,
+          afterCursor: cursorContext.afterCursor,
+          inputAction,
+          triggers: this.resolveLocalGrammarTriggers(entry, event, cursorContext.beforeCursor),
+        })
       : null;
 
     if (grammarEdit) {
@@ -902,8 +902,7 @@ export class SuggestionManagerRuntime {
       typedKey.length === 1 &&
       typedKey !== typedKey.toLocaleUpperCase() &&
       typedKey === typedKey.toLocaleLowerCase();
-    const exactKeyMatch =
-      resolvedLeadingChar === typedKey && snapshotLeadingChar === typedKey;
+    const exactKeyMatch = resolvedLeadingChar === typedKey && snapshotLeadingChar === typedKey;
     const capitalizedKeyMatch =
       typedKeyIsLower &&
       resolvedLeadingChar === typedKey.toLocaleUpperCase() &&
@@ -1034,11 +1033,11 @@ export class SuggestionManagerRuntime {
     const grammarContext = this.resolveEditableCursorContext(entry, snapshot);
     const grammarEdit = grammarContext.safeForGrammar
       ? this.grammarCoordinator.run({
-        beforeCursor: grammarContext.beforeCursor,
-        afterCursor: grammarContext.afterCursor,
-        inputAction: entry.lastInputAction ?? "other",
-        triggers: ["idle"],
-      })
+          beforeCursor: grammarContext.beforeCursor,
+          afterCursor: grammarContext.afterCursor,
+          inputAction: entry.lastInputAction ?? "other",
+          triggers: ["idle"],
+        })
       : null;
     if (!grammarEdit) {
       return;

@@ -204,22 +204,22 @@ export class SuggestionTextEditService {
 
     const fingerprintMatch = isContentEditableGrammar
       ? (() => {
-        const actual = TextTargetAdapter.createPostEditFingerprint(
+          const actual = TextTargetAdapter.createPostEditFingerprint(
+            entry.elem as TextTarget,
+            snapshot,
+          );
+          return (
+            actual.fullText === postEditFingerprint.fullText &&
+            actual.selectionCollapsed === postEditFingerprint.selectionCollapsed &&
+            snapshot.cursorOffset >= replaceStart &&
+            snapshot.cursorOffset <= replaceStart + replacementText.length
+          );
+        })()
+      : TextTargetAdapter.matchesPostEditFingerprint(
           entry.elem as TextTarget,
+          postEditFingerprint,
           snapshot,
         );
-        return (
-          actual.fullText === postEditFingerprint.fullText &&
-          actual.selectionCollapsed === postEditFingerprint.selectionCollapsed &&
-          snapshot.cursorOffset >= replaceStart &&
-          snapshot.cursorOffset <= replaceStart + replacementText.length
-        );
-      })()
-      : TextTargetAdapter.matchesPostEditFingerprint(
-        entry.elem as TextTarget,
-        postEditFingerprint,
-        snapshot,
-      );
 
     if (!fingerprintMatch) {
       entry.pendingExtensionEdit = null;
@@ -763,7 +763,7 @@ export class SuggestionTextEditService {
       currentSuffixLength > prefixLength &&
       expectedSuffixLength > prefixLength &&
       currentSegmentText.charAt(currentSuffixLength - 1) ===
-      expectedSegmentText.charAt(expectedSuffixLength - 1)
+        expectedSegmentText.charAt(expectedSuffixLength - 1)
     ) {
       currentSuffixLength -= 1;
       expectedSuffixLength -= 1;
