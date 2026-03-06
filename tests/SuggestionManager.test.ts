@@ -17,7 +17,9 @@ async function waitForNextCall(
   while (Date.now() < deadline) {
     if (mock.mock.calls.length > baseline) {
       const last = mock.mock.calls.at(-1)?.[0];
-      if (last) return last;
+      if (last) {
+        return last;
+      }
     }
     await new Promise<void>((r) => setTimeout(r, 5));
   }
@@ -30,7 +32,9 @@ async function waitFor(
 ): Promise<void> {
   const deadline = Date.now() + timeout;
   while (Date.now() < deadline) {
-    if (condition()) return;
+    if (condition()) {
+      return;
+    }
     await new Promise<void>((r) => setTimeout(r, 5));
   }
   throw new Error(`Condition was not met within ${timeout}ms`);
