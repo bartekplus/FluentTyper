@@ -262,7 +262,7 @@ function createChromeMock(
   activeTab?: chrome.tabs.Tab,
 ) {
   const pending = [...outcomes];
-  const storage = new Map<string, unknown>();
+  const storage = new Map<string, unknown>([["store.settings.enable", JSON.stringify(true)]]);
 
   const runtime = {
     lastError: null as { message: string } | null,
