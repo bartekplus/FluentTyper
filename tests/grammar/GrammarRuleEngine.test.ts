@@ -160,6 +160,60 @@ describe("GrammarRuleEngine", () => {
     expect(result[0].deleteForwards).toBe(0);
   });
 
+  test("processSequence applies trigger outputs in order using shared merge semantics", () => {
+    const insertRule: GrammarRule = {
+      id: "rule1",
+      name: "Insert Rule",
+      triggers: ["insertChar"],
+      apply: (ctx) => {
+        if (ctx.beforeCursor.endsWith("a")) {
+          return {
+            replacement: "A",
+            deleteBackwards: 1,
+            deleteForwards: 0,
+          };
+        }
+        return null;
+      },
+    };
+
+    const boundaryRule: GrammarRule = {
+      id: "rule2",
+      name: "Boundary Rule",
+      triggers: ["wordBoundary"],
+      apply: (ctx) => {
+        if (ctx.afterCursor.startsWith("b")) {
+          return {
+            replacement: "",
+            deleteBackwards: 0,
+            deleteForwards: 1,
+          };
+        }
+        return null;
+      },
+    };
+
+    engine.registerRule(insertRule);
+    engine.registerRule(boundaryRule);
+
+    const result = engine.processSequence(
+      ["insertChar", "wordBoundary"],
+      {
+        beforeCursor: "hello_a",
+        afterCursor: "b_world",
+      },
+      ["rule1", "rule2"],
+    );
+
+    expect(result).toEqual({
+      replacement: "A",
+      deleteBackwards: 1,
+      deleteForwards: 1,
+      sourceRuleId: "rule2",
+      description: "Merged edits",
+    });
+  });
+
   test("mergeEdits preserves deleteForwards for local apply paths", () => {
     let invoked = false;
     const rule: GrammarRule = {
