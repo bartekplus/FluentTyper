@@ -196,13 +196,32 @@ export class SuggestionTextEditService {
     const fullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
     const replaceEnd = replaceStart + replacementText.length;
 
-    if (
-      !TextTargetAdapter.matchesPostEditFingerprint(
+    const isContentEditableGrammar =
+      source === "grammar" &&
+      "isContentEditable" in entry.elem &&
+      (entry.elem as HTMLElement).isContentEditable &&
+      TextTargetAdapter.hasCollapsedSelection(entry.elem as TextTarget);
+
+    const fingerprintMatch = isContentEditableGrammar
+      ? (() => {
+        const actual = TextTargetAdapter.createPostEditFingerprint(
+          entry.elem as TextTarget,
+          snapshot,
+        );
+        return (
+          actual.fullText === postEditFingerprint.fullText &&
+          actual.selectionCollapsed === postEditFingerprint.selectionCollapsed &&
+          snapshot.cursorOffset >= replaceStart &&
+          snapshot.cursorOffset <= replaceStart + replacementText.length
+        );
+      })()
+      : TextTargetAdapter.matchesPostEditFingerprint(
         entry.elem as TextTarget,
         postEditFingerprint,
         snapshot,
-      )
-    ) {
+      );
+
+    if (!fingerprintMatch) {
       entry.pendingExtensionEdit = null;
       return false;
     }
@@ -665,7 +684,7 @@ export class SuggestionTextEditService {
     ) {
       return {
         applyResult: {
-          didMutateDom: true,
+          didMutateDom: false,
           didDispatchInput: false,
         },
         postEditSnapshot: currentSnapshot,
@@ -716,10 +735,13 @@ export class SuggestionTextEditService {
     postEditSnapshot: SuggestionSnapshot;
   } | null {
     if (currentSegmentText === expectedSegmentText) {
+      if (!this.isTextValueElement(elem)) {
+        this.contentEditableAdapter.setCaret(elem, cursorAfter);
+      }
       const postEditSnapshot = TextTargetAdapter.snapshot(elem as TextTarget);
       return {
         applyResult: {
-          didMutateDom: true,
+          didMutateDom: false,
           didDispatchInput: false,
         },
         postEditSnapshot,
@@ -741,7 +763,7 @@ export class SuggestionTextEditService {
       currentSuffixLength > prefixLength &&
       expectedSuffixLength > prefixLength &&
       currentSegmentText.charAt(currentSuffixLength - 1) ===
-        expectedSegmentText.charAt(expectedSuffixLength - 1)
+      expectedSegmentText.charAt(expectedSuffixLength - 1)
     ) {
       currentSuffixLength -= 1;
       expectedSuffixLength -= 1;

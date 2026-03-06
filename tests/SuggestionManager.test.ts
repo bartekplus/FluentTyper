@@ -1430,6 +1430,473 @@ describe("SuggestionManager", () => {
     expect(request.inputAction).toBe("insert");
   });
 
+  test("shows popup prediction after host-handled contenteditable capitalization leaves caret stale", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+      enabledGrammarRules: ["capitalizeSentenceStart"],
+    });
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML =
+      '<p class="first:mt-0 last:mb-0" dir="auto"><span data-lexical-text="true">w</span></p>';
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    const paragraph = editable.querySelector("p");
+    const lexicalTextNode = editable.querySelector("span")?.firstChild as Text | null;
+    if (!paragraph || !lexicalTextNode) {
+      throw new Error("Expected Lexical-like paragraph");
+    }
+
+    editable.addEventListener("beforeinput", (event) => {
+      const inputEvent = event as InputEvent;
+      if (inputEvent.inputType !== "insertReplacementText") {
+        return;
+      }
+
+      event.preventDefault();
+      lexicalTextNode.textContent = inputEvent.data ?? "";
+
+      // Simulate editors like Lexical that apply the text update but keep the
+      // live selection anchored at the block boundary until a later reconcile.
+      const selection = window.getSelection();
+      if (!selection) {
+        return;
+      }
+      const staleRange = document.createRange();
+      staleRange.setStart(paragraph, 0);
+      staleRange.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(staleRange);
+    });
+
+    const initialRange = document.createRange();
+    initialRange.setStart(lexicalTextNode, 1);
+    initialRange.collapse(true);
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Expected selection");
+    }
+    selection.removeAllRanges();
+    selection.addRange(initialRange);
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+    dispatchInput(editable, { inputType: "insertText" });
+    await wait(220);
+
+    const request = getPrediction.mock.calls.at(-1)?.[0];
+    if (!request) {
+      throw new Error("Expected prediction request");
+    }
+    expect(request.text).toBe("W");
+
+    manager.fulfillPrediction(
+      buildResponse(request, {
+        predictions: ["Word\xA0"],
+      }),
+    );
+
+    const menuItems = Array.from(document.querySelectorAll(".ft-suggestion-container li"));
+    expect(menuItems.length).toBe(1);
+    expect(menuItems[0]?.textContent).toBe("Word\xA0");
+  });
+
+  test("shows popup when keydown + host capitalize + input arrive with stale caret (Reddit scenario)", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+      enabledGrammarRules: ["capitalizeSentenceStart"],
+    });
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML =
+      '<p class="first:mt-0 last:mb-0" dir="auto"><span data-lexical-text="true"></span></p>';
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    const paragraph = editable.querySelector("p");
+    const lexicalSpan = editable.querySelector("span");
+    if (!paragraph || !lexicalSpan) {
+      throw new Error("Expected Lexical-like paragraph");
+    }
+    const lexicalTextNode = lexicalSpan.appendChild(document.createTextNode(""));
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Expected selection");
+    }
+    const initialRange = document.createRange();
+    initialRange.setStart(paragraph, 0);
+    initialRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(initialRange);
+
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+
+    // 1. keydown fires first
+    dispatchKeydown(editable, "p");
+
+    // 2. Host (Lexical) capitalizes and updates DOM, caret stays stale
+    lexicalTextNode.textContent = "P";
+    const staleRange = document.createRange();
+    staleRange.setStart(paragraph, 0);
+    staleRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(staleRange);
+
+    // 3. Host fires input event (this is what Reddit/Lexical does)
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+
+    await wait(260);
+
+    const request = getPrediction.mock.calls.at(-1)?.[0];
+    if (!request) {
+      throw new Error("Expected prediction request after Reddit-like keydown+capitalize+input");
+    }
+    expect(request.text).toBe("P");
+
+    // 4. Verify popup actually shows when prediction is fulfilled
+    manager.fulfillPrediction(
+      buildResponse(request, {
+        predictions: ["Pattern\xA0"],
+      }),
+    );
+
+    const menuItems = Array.from(document.querySelectorAll(".ft-suggestion-container li"));
+    expect(menuItems.length).toBe(1);
+    expect(menuItems[0]?.textContent).toBe("Pattern\xA0");
+  });
+
+  test("shows popup when keydown + input fires before DOM mutation + stale caret (Reddit async scenario)", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+      enabledGrammarRules: [],
+    });
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML =
+      '<p class="first:mt-0 last:mb-0" dir="auto"><span data-lexical-text="true"></span></p>';
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    const paragraph = editable.querySelector("p");
+    const lexicalSpan = editable.querySelector("span");
+    if (!paragraph || !lexicalSpan) {
+      throw new Error("Expected Lexical-like paragraph");
+    }
+    const lexicalTextNode = lexicalSpan.appendChild(document.createTextNode(""));
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Expected selection");
+    }
+    const initialRange = document.createRange();
+    initialRange.setStart(paragraph, 0);
+    initialRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(initialRange);
+
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+
+    // 1. keydown fires first
+    dispatchKeydown(editable, "p");
+
+    // 2. input fires BEFORE DOM mutation (empty text still)
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+
+    // 3. THEN host actually updates DOM with capitalized text
+    lexicalTextNode.textContent = "P";
+    const staleRange = document.createRange();
+    staleRange.setStart(paragraph, 0);
+    staleRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(staleRange);
+
+    await wait(260);
+
+    const request = getPrediction.mock.calls.at(-1)?.[0];
+    if (!request) {
+      throw new Error("Expected prediction request after async DOM update");
+    }
+    expect(request.text).toBe("P");
+    expect(request.inputAction).toBe("insert");
+  });
+
+  test("shows popup when grammar capitalize fires on Lexical and host re-dispatches input (Reddit grammar scenario)", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+      enabledGrammarRules: ["capitalizeSentenceStart"],
+    });
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML =
+      '<p class="first:mt-0 last:mb-0" dir="auto"><span data-lexical-text="true"></span></p>';
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    const paragraph = editable.querySelector("p");
+    const lexicalSpan = editable.querySelector("span");
+    if (!paragraph || !lexicalSpan) {
+      throw new Error("Expected Lexical-like paragraph");
+    }
+    const lexicalTextNode = lexicalSpan.appendChild(document.createTextNode(""));
+
+    // Simulate Lexical intercepting insertReplacementText beforeinput:
+    // When our grammar rule dispatches beforeinput, Lexical handles it by
+    // changing text and potentially firing its own input event with stale caret.
+    editable.addEventListener("beforeinput", (event) => {
+      const inputEvent = event as InputEvent;
+      if (inputEvent.inputType !== "insertReplacementText") {
+        return;
+      }
+      event.preventDefault();
+      lexicalTextNode.textContent = inputEvent.data ?? "";
+
+      // Lexical leaves caret stale at paragraph boundary
+      const sel = window.getSelection();
+      if (!sel) {
+        return;
+      }
+      const staleRange = document.createRange();
+      staleRange.setStart(paragraph, 0);
+      staleRange.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(staleRange);
+
+      // Lexical fires its own input event after handling beforeinput
+      editable.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Expected selection");
+    }
+    const initialRange = document.createRange();
+    initialRange.setStart(paragraph, 0);
+    initialRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(initialRange);
+
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+
+    // 1. keydown fires
+    dispatchKeydown(editable, "p");
+
+    // 2. Host inserts "p" (lowercase), caret stale
+    lexicalTextNode.textContent = "p";
+    const staleRange = document.createRange();
+    staleRange.setStart(paragraph, 0);
+    staleRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(staleRange);
+
+    // 3. Host fires input
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+
+    // Now our grammar rule should fire (via fallback or input handler),
+    // dispatch insertReplacementText, Lexical intercepts it (beforeinput
+    // handler above), changes "p" to "P", fires input, re-enters our handler.
+
+    await wait(300);
+
+    const request = getPrediction.mock.calls.at(-1)?.[0];
+    if (!request) {
+      throw new Error("Expected prediction request after grammar capitalize on Lexical");
+    }
+    expect(request.text).toBe("P");
+
+    // Verify popup shows
+    manager.fulfillPrediction(
+      buildResponse(request, {
+        predictions: ["Pattern\xA0"],
+      }),
+    );
+    const menuItems = Array.from(document.querySelectorAll(".ft-suggestion-container li"));
+    expect(menuItems.length).toBe(1);
+  });
+
+  test("shows popup when Lexical prevents grammar beforeinput without sync DOM change (Reddit async grammar scenario)", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+      enabledGrammarRules: ["capitalizeSentenceStart"],
+    });
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML =
+      '<p class="first:mt-0 last:mb-0" dir="auto"><span data-lexical-text="true"></span></p>';
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    const paragraph = editable.querySelector("p");
+    const lexicalSpan = editable.querySelector("span");
+    if (!paragraph || !lexicalSpan) {
+      throw new Error("Expected Lexical-like paragraph");
+    }
+    const lexicalTextNode = lexicalSpan.appendChild(document.createTextNode(""));
+
+    // Lexical prevents default on our grammar's insertReplacementText
+    // but does NOT apply the text change synchronously (async reconcile).
+    editable.addEventListener("beforeinput", (event) => {
+      const inputEvent = event as InputEvent;
+      if (inputEvent.inputType !== "insertReplacementText") {
+        return;
+      }
+      event.preventDefault();
+      // Does NOT change text here — async reconcile would happen later
+    });
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Expected selection");
+    }
+    const initialRange = document.createRange();
+    initialRange.setStart(paragraph, 0);
+    initialRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(initialRange);
+
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+
+    // 1. keydown fires
+    dispatchKeydown(editable, "p");
+
+    // 2. Host inserts "p" (lowercase), caret stale
+    lexicalTextNode.textContent = "p";
+    const staleRange = document.createRange();
+    staleRange.setStart(paragraph, 0);
+    staleRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(staleRange);
+
+    // 3. Host fires input
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+
+    await wait(300);
+
+    // Even though the grammar edit was prevented, we should still get a
+    // prediction for the lowercase "p" (grammar couldn't apply, but
+    // prediction should still fire).
+    const request = getPrediction.mock.calls.at(-1)?.[0];
+    if (!request) {
+      throw new Error("Expected prediction request even when grammar edit is blocked");
+    }
+    expect(request.text).toBe("P");
+  });
+
+  test("requests prediction when fallback sees capitalized text for a lowercase typed key", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+      enabledGrammarRules: [],
+    });
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML =
+      '<p class="first:mt-0 last:mb-0" dir="auto"><span data-lexical-text="true"></span></p>';
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    const paragraph = editable.querySelector("p");
+    const lexicalSpan = editable.querySelector("span");
+    if (!paragraph || !lexicalSpan) {
+      throw new Error("Expected Lexical-like paragraph");
+    }
+    const lexicalTextNode = lexicalSpan.appendChild(document.createTextNode(""));
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Expected selection");
+    }
+    const initialRange = document.createRange();
+    initialRange.setStart(paragraph, 0);
+    initialRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(initialRange);
+
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+    dispatchKeydown(editable, "p");
+
+    lexicalTextNode.textContent = "P";
+    const staleRange = document.createRange();
+    staleRange.setStart(paragraph, 0);
+    staleRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(staleRange);
+
+    await wait(260);
+
+    const request = getPrediction.mock.calls.at(-1)?.[0];
+    if (!request) {
+      throw new Error("Expected prediction request");
+    }
+    expect(request.text).toBe("P");
+    expect(request.inputAction).toBe("insert");
+  });
+
+  test("keeps predicting from corrected text when a follow-up contenteditable input arrives with stale caret", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+      enabledGrammarRules: ["capitalizeSentenceStart"],
+    });
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML =
+      '<p class="first:mt-0 last:mb-0" dir="auto"><span data-lexical-text="true">w</span></p>';
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    const paragraph = editable.querySelector("p");
+    const lexicalTextNode = editable.querySelector("span")?.firstChild as Text | null;
+    if (!paragraph || !lexicalTextNode) {
+      throw new Error("Expected Lexical-like paragraph");
+    }
+
+    editable.addEventListener("beforeinput", (event) => {
+      const inputEvent = event as InputEvent;
+      if (inputEvent.inputType !== "insertReplacementText") {
+        return;
+      }
+
+      event.preventDefault();
+      lexicalTextNode.textContent = inputEvent.data ?? "";
+
+      const selection = window.getSelection();
+      if (!selection) {
+        return;
+      }
+      const staleRange = document.createRange();
+      staleRange.setStart(paragraph, 0);
+      staleRange.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(staleRange);
+    });
+
+    const initialRange = document.createRange();
+    initialRange.setStart(lexicalTextNode, 1);
+    initialRange.collapse(true);
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Expected selection");
+    }
+    selection.removeAllRanges();
+    selection.addRange(initialRange);
+
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+    dispatchInput(editable, { inputType: "insertText" });
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+    await wait(220);
+
+    const request = getPrediction.mock.calls.at(-1)?.[0];
+    if (!request) {
+      throw new Error("Expected prediction request");
+    }
+    expect(request.text).toBe("W");
+  });
+
   test("requests prediction when delayed contenteditable mutation arrives after insert fallback timeout", async () => {
     const { manager, getPrediction } = await createManager({
       minWordLengthToPredict: 1,
