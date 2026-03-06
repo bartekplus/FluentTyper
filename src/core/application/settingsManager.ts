@@ -1,5 +1,5 @@
 // Handles all settings-related logic for FluentTyper
-import { Store } from "@third-party/fancier-settings/lib/store.js";
+import { Store } from "../../third_party/fancier-settings/lib/store.js";
 import {
   getAliasesForCanonicalSettingKey,
   resolveCanonicalSettingKey,
