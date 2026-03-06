@@ -1,8 +1,5 @@
-import type { TextEditOperation } from "@core/domain/messageTypes";
-
 export interface PredictionResult {
   predictions: string[];
-  textEdit: TextEditOperation | null;
 }
 
 export interface PredictorStageDebugInfo {
@@ -26,7 +23,6 @@ export interface PredictionDebugEvent {
   predictionInput: string;
   numSuggestions: number;
   doPrediction: boolean;
-  textEdit: boolean;
   totalDurationMs: number;
   presage: PredictorStageDebugInfo;
   webllm: AIPredictorStageDebugInfo;

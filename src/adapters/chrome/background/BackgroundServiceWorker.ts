@@ -87,7 +87,7 @@ export class BackgroundServiceWorker {
     );
     await this.ensureRuntimeConfigReady();
 
-    const { predictions, textEdit } = await this.predictionManager.runPrediction(
+    const { predictions } = await this.predictionManager.runPrediction(
       message.context.text,
       message.context.nextChar,
       message.context.lang,
@@ -98,13 +98,13 @@ export class BackgroundServiceWorker {
     this.predictionManager.recordTraceTimelineEvent(
       traceMeta,
       "background.prediction.completed",
-      `${predictions.length} predictions${textEdit ? " + textEdit" : ""}`,
+      `${predictions.length} predictions`,
     );
-    if ((!Array.isArray(predictions) || predictions.length === 0) && !textEdit) {
+    if (!Array.isArray(predictions) || predictions.length === 0) {
       this.predictionManager.recordTraceTimelineEvent(
         traceMeta,
         "background.response.empty",
-        "no predictions and no textEdit",
+        "no predictions",
       );
     }
     const predictResponseMessage: PredictResponseMessage = {
@@ -120,7 +120,6 @@ export class BackgroundServiceWorker {
         traceId,
         frameId: message.context.frameId,
         predictions,
-        textEdit,
       },
     };
     this.predictionManager.recordTraceTimelineEvent(

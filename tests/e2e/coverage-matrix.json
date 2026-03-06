@@ -566,7 +566,7 @@
         {
           "layer": "unit",
           "file": "tests/SuggestionPredictionCoordinator.test.ts",
-          "test": "requests grammar evaluation when predictions are disabled by threshold"
+          "test": "clears suggestions without requesting predictions when disabled by threshold"
         }
       ]
     },

@@ -36,6 +36,7 @@ export interface SuggestionManagerOptions {
   displayLangHeader: boolean;
   inline_suggestion: boolean;
   enabledGrammarRules: string[];
+  userDictionaryList: string[];
   getPrediction: (context: PredictionRequest) => void;
   telemetry?: SuggestionTelemetry;
 }
@@ -91,9 +92,12 @@ export interface SuggestionEntry {
   lastInputAction: PredictionInputAction | null;
   lastBeforeCursorText: string | null;
   pendingRequestTimer: ReturnType<typeof setTimeout> | null;
+  pendingIdleTimer: ReturnType<typeof setTimeout> | null;
+  pendingGrammarPaste: boolean;
   handlers: {
     input: EventListener;
     keydown: EventListener;
+    paste: EventListener;
     focus: EventListener;
     blur: EventListener;
     click: EventListener;

@@ -547,7 +547,6 @@ interface PredictorDebugSnapshot {
     text?: string;
     predictionInput?: string;
     doPrediction?: boolean;
-    textEdit?: boolean;
     requestId?: number | null;
   }>;
 }

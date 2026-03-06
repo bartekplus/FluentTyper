@@ -99,13 +99,12 @@ describe("BackgroundServiceWorker", () => {
   // But we can check behavior
 
   describe("runPrediction", () => {
-    it("should send empty prediction response when no predictions and no textEdit", async () => {
+    it("should send empty prediction response when no predictions exist", async () => {
       // Setup mock return
       (
         worker.predictionManager.runPrediction as jest.Mock<() => Promise<unknown>>
       ).mockResolvedValue({
         predictions: [],
-        textEdit: null,
       });
       (global.chrome.tabs.get as jest.Mock).mockImplementation((id: unknown, cb: unknown) => {
         const callback = cb as (tab: chrome.tabs.Tab) => void;
@@ -132,7 +131,6 @@ describe("BackgroundServiceWorker", () => {
           command: "CMD_BACKGROUND_PAGE_PREDICT_RESP",
           context: expect.objectContaining({
             predictions: [],
-            textEdit: null,
             runtimeGeneration: 1,
           }),
         }),
@@ -145,7 +143,6 @@ describe("BackgroundServiceWorker", () => {
         worker.predictionManager.runPrediction as jest.Mock<() => Promise<unknown>>
       ).mockResolvedValue({
         predictions: ["tested"],
-        textEdit: null,
       });
       const tabId = 123;
       // Mock chrome.tabs.get callback

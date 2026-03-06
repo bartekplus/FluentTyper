@@ -11,22 +11,13 @@ import { UserDictionaryManager } from "./UserDictionaryManager";
 import { TextExpansionManager } from "./TextExpansionManager";
 import type { PresageEngineConfig } from "./PresageEngine";
 import { PresageEngine } from "./PresageEngine";
-import type { PredictionInputAction, TextEditOperation } from "@core/domain/messageTypes";
+import type { PredictionInputAction } from "@core/domain/messageTypes";
 import { MAX_NUM_SUGGESTIONS } from "@core/domain/constants";
 import type { PredictionResult } from "./PredictionTypes";
-import { GrammarRuleEngine } from "@core/domain/grammar/GrammarRuleEngine";
-import { SPACE_CHARS, SPACING_RULES, Spacing } from "@core/domain/spacingRules";
-import { createGrammarRuleCatalogRuntime } from "@core/domain/grammar/ruleFactory";
-import {
-  GRAMMAR_RULE_CATALOG,
-  normalizeGrammarRuleSelection,
-} from "@core/domain/grammar/ruleCatalog";
+import { SPACING_RULES, Spacing } from "@core/domain/spacingRules";
 const SUGGESTION_COUNT = 5;
 const MIN_WORD_LENGTH_TO_PREDICT = 1;
 const logger = createLogger("PresageHandler");
-const SAFETY_TIER_BY_RULE_ID = new Map(
-  GRAMMAR_RULE_CATALOG.map((entry) => [entry.id, entry.safetyTier] as const),
-);
 
 interface LastPrediction {
   pastStream: string;
@@ -44,7 +35,6 @@ export interface PresageConfig {
   timeFormat?: string;
   dateFormat?: string;
   userDictionaryList?: string[];
-  enabledGrammarRules?: string[];
 }
 
 export interface PresagePredictionContext {
@@ -54,7 +44,6 @@ export interface PresagePredictionContext {
   predictionInput: string;
   doPrediction: boolean;
   doCapitalize: Capitalization;
-  textEdit: TextEditOperation | null;
   effectiveNumSuggestions: number;
   tabId?: number;
 }
@@ -68,8 +57,6 @@ export class PresageHandler {
   private insertSpaceAfterAutocomplete: boolean;
   private autoCapitalize: boolean;
   private userDictionaryList: string[];
-  private grammarEngine: GrammarRuleEngine;
-  private enabledGrammarRules: string[] = [];
   private predictionInputProcessor: PredictionInputProcessor;
   private textExpansionManager: TextExpansionManager;
   private userDictionaryManager: UserDictionaryManager;
@@ -91,8 +78,6 @@ export class PresageHandler {
     this.insertSpaceAfterAutocomplete = true;
     this.autoCapitalize = true;
     this.userDictionaryList = [];
-
-    this.grammarEngine = this.buildGrammarEngine(this.insertSpaceAfterAutocomplete);
 
     this.predictionInputProcessor = new PredictionInputProcessor(
       this.minWordLengthToPredict,
@@ -133,8 +118,6 @@ export class PresageHandler {
 
     this.textExpansionManager.setTextExpansions(config.textExpansions);
     this.userDictionaryManager.setUserDictionaryList(this.userDictionaryList);
-    this.enabledGrammarRules = normalizeGrammarRuleSelection(config.enabledGrammarRules);
-    this.grammarEngine = this.buildGrammarEngine(config.insertSpaceAfterAutocomplete);
 
     this.predictionInputProcessor = new PredictionInputProcessor(
       this.minWordLengthToPredict,
@@ -153,18 +136,6 @@ export class PresageHandler {
     return {
       languageEngineCount: Object.keys(this.presageEngines).length,
     };
-  }
-
-  private buildGrammarEngine(insertSpaceAfterAutocomplete: boolean): GrammarRuleEngine {
-    const engine = new GrammarRuleEngine();
-    const rules = createGrammarRuleCatalogRuntime({
-      insertSpaceAfterAutocomplete,
-      userDictionaryList: this.userDictionaryList,
-    });
-    for (const rule of rules) {
-      engine.registerRule(rule);
-    }
-    return engine;
   }
 
   hasLanguageEngine(lang: string): boolean {
@@ -263,66 +234,6 @@ export class PresageHandler {
       effectiveNumSuggestions,
     );
 
-    let textEdit: TextEditOperation | null = null;
-    if (this.enabledGrammarRules.length > 0) {
-      // Determine event type
-      const isWordBoundary = text.length > 0 && SPACE_CHARS.includes(text[text.length - 1]);
-      const eventType = isWordBoundary ? "wordBoundary" : "insertChar";
-
-      const edits = this.grammarEngine.process(
-        eventType,
-        {
-          beforeCursor: text,
-          afterCursor: "",
-          charTyped: nextChar,
-          hints: {
-            inputAction,
-            lang,
-            userDictionary: this.userDictionaryList.slice(),
-          },
-        },
-        this.enabledGrammarRules,
-      );
-
-      if (edits.length > 0) {
-        // Map merged GrammarEdit -> TextEditOperation (backward deletion only)
-        const edit = edits[0];
-
-        // Guard: TextEditOperation does not support forward deletion.
-        // The engine should already clamp this, but reject here as a safety net.
-        if (edit.deleteForwards > 0) {
-          logger.warn(
-            "Grammar edit with deleteForwards > 0 cannot be mapped to TextEditOperation, skipping",
-            {
-              deleteForwards: edit.deleteForwards,
-              replacement: edit.replacement,
-            },
-          );
-        } else {
-          textEdit = {
-            replaceBackwardCount: edit.deleteBackwards,
-            replacementText: edit.replacement,
-            evaluatedTextLength: text.length,
-            expectedReplacedText: text.slice(text.length - edit.deleteBackwards),
-            expectedPrefixToken: text.slice(
-              Math.max(0, text.length - edit.deleteBackwards - 10),
-              text.length - edit.deleteBackwards,
-            ),
-            ...(edit.sourceRuleId ? { sourceRuleId: edit.sourceRuleId } : {}),
-            ...(edit.confidence ? { confidence: edit.confidence } : {}),
-            ...((edit.sourceRuleId && SAFETY_TIER_BY_RULE_ID.get(edit.sourceRuleId)) ||
-            edit.safetyTier
-              ? {
-                  safetyTier:
-                    (edit.sourceRuleId && SAFETY_TIER_BY_RULE_ID.get(edit.sourceRuleId)) ||
-                    edit.safetyTier,
-                }
-              : {}),
-          };
-        }
-      }
-    }
-
     return {
       text,
       nextChar,
@@ -330,7 +241,6 @@ export class PresageHandler {
       predictionInput,
       doPrediction,
       doCapitalize,
-      textEdit,
       effectiveNumSuggestions,
       tabId,
     };
@@ -359,7 +269,6 @@ export class PresageHandler {
       context.nextChar,
       context.doCapitalize,
       context.effectiveNumSuggestions,
-      context.textEdit,
     );
   }
 
@@ -388,7 +297,6 @@ export class PresageHandler {
     nextChar: string,
     doCapitalize: Capitalization,
     effectiveNumSuggestions: number,
-    textEdit: TextEditOperation | null,
   ): PredictionResult {
     let predictions = predictionCandidates.slice();
     if (predictions.length > effectiveNumSuggestions) {
@@ -435,7 +343,7 @@ export class PresageHandler {
       case Capitalization.None:
       default:
     }
-    return { predictions, textEdit };
+    return { predictions };
   }
 
   getLastPredictionInput(lang: string): string {

@@ -141,6 +141,7 @@ type ConstructorArgs = {
   displayLangHeader: boolean;
   inline_suggestion: boolean;
   enabledGrammarRules: string[];
+  userDictionaryList: string[];
   getPrediction: (context: ContentScriptPredictRequestContext) => void;
 };
 
@@ -159,6 +160,7 @@ async function createManager(overrides: Partial<ConstructorArgs> = {}) {
     displayLangHeader: true,
     inline_suggestion: false,
     enabledGrammarRules: ["commaPeriodSpacing"],
+    userDictionaryList: [],
     getPrediction,
     ...overrides,
   });
@@ -179,7 +181,6 @@ function buildResponse(
     suggestionId: request.suggestionId,
     requestId: request.requestId,
     predictions: [],
-    textEdit: null,
     ...overrides,
   };
 }
@@ -419,7 +420,7 @@ describe("SuggestionManager", () => {
     expect(hostInline.textContent).toBe("host-owned");
   });
 
-  test("rejects stale predictions and stale non-duplicate textEdit", async () => {
+  test("rejects stale predictions", async () => {
     const { manager, getPrediction } = await createManager();
     const input = document.createElement("input");
     input.type = "text";
@@ -437,41 +438,33 @@ describe("SuggestionManager", () => {
     expect(document.querySelectorAll(".ft-suggestion-container li").length).toBe(0);
 
     manager.fulfillPrediction(
-      buildResponse(req1, {
-        textEdit: {
-          replacementText: "He",
-          replaceBackwardCount: 2,
-          evaluatedTextLength: 2,
-          expectedReplacedText: "he",
-          expectedPrefixToken: "",
-          sourceRuleId: "commaPeriodSpacing",
-        },
-      }),
-    );
-    expect(input.value).toBe("he");
-
-    input.value = "world";
-    input.selectionStart = 5;
-    input.selectionEnd = 5;
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-    await wait(50);
-
-    manager.fulfillPrediction(
       buildResponse(req2, {
-        textEdit: {
-          replacementText: "XX",
-          replaceBackwardCount: 2,
-          evaluatedTextLength: 2,
-          expectedReplacedText: "he",
-          expectedPrefixToken: "",
-          sourceRuleId: "commaPeriodSpacing",
-        },
+        predictions: ["help\xA0"],
       }),
     );
-    expect(input.value).toBe("world");
+    expect(document.querySelectorAll(".ft-suggestion-container li").length).toBe(1);
   });
 
-  test("does not apply stale duplicate punctuation textEdit to text inputs", async () => {
+  test("applies local capitalization before prediction request for text inputs", async () => {
+    const { manager, getPrediction } = await createManager({
+      enabledGrammarRules: ["capitalizeSentenceStart"],
+    });
+    const input = document.createElement("input");
+    input.type = "text";
+    document.body.appendChild(input);
+    manager.queryAndAttachHelper();
+
+    input.value = "a";
+    input.selectionStart = 1;
+    input.selectionEnd = 1;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+
+    expect(input.value).toBe("A");
+    await wait(220);
+    expect(getPrediction.mock.calls.at(-1)?.[0]?.text).toBe("A");
+  });
+
+  test("applies local duplicate punctuation cleanup before prediction request gating", async () => {
     const { manager, getPrediction } = await createManager({
       enabledGrammarRules: ["duplicatePunctuationCollapse"],
     });
@@ -480,227 +473,20 @@ describe("SuggestionManager", () => {
     document.body.appendChild(input);
     manager.queryAndAttachHelper();
 
-    const req1 = await typeAndCollectRequest(input, "This is awseome,, ", getPrediction);
-    const req2 = await typeAndCollectRequest(input, "This is awseome,, ,", getPrediction);
-    expect(req2.requestId).toBeGreaterThan(req1.requestId);
-
-    manager.fulfillPrediction(
-      buildResponse(req1, {
-        textEdit: {
-          replacementText: ", ",
-          replaceBackwardCount: 3,
-          evaluatedTextLength: "This is awseome,, ".length,
-          expectedReplacedText: ",, ",
-          expectedPrefixToken: "awseome",
-          sourceRuleId: "duplicatePunctuationCollapse",
-        },
-      }),
-    );
-
-    expect(input.value).toBe("This is awseome,, ,");
-  });
-
-  test("applies stale duplicate punctuation textEdit to text inputs when only trailing space was appended", async () => {
-    const { manager, getPrediction } = await createManager({
-      enabledGrammarRules: ["duplicatePunctuationCollapse"],
-    });
-    const input = document.createElement("input");
-    input.type = "text";
-    document.body.appendChild(input);
-    manager.queryAndAttachHelper();
-
-    const req1 = await typeAndCollectRequest(input, "This is awseome,,", getPrediction);
-    const req2 = await typeAndCollectRequest(input, "This is awseome,, ", getPrediction);
-    expect(req2.requestId).toBeGreaterThan(req1.requestId);
-
-    manager.fulfillPrediction(
-      buildResponse(req1, {
-        textEdit: {
-          replacementText: ",",
-          replaceBackwardCount: 2,
-          evaluatedTextLength: "This is awseome,,".length,
-          expectedReplacedText: ",,",
-          expectedPrefixToken: "awseome",
-          sourceRuleId: "duplicatePunctuationCollapse",
-        },
-      }),
-    );
+    input.value = "This is awseome,, ";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
 
     expect(input.value).toBe("This is awseome, ");
+    await wait(220);
+    expect(getPrediction.mock.calls.length).toBe(0);
   });
 
-  test("ignores stale comma spacing edits during rapid comma typing", async () => {
+  test("applies local grammar to contenteditable targets before prediction", async () => {
     const { manager, getPrediction } = await createManager({
-      enabledGrammarRules: ["commaPeriodSpacing"],
+      enabledGrammarRules: ["capitalizeSentenceStart"],
     });
-    const input = document.createElement("input");
-    input.type = "text";
-    document.body.appendChild(input);
-    manager.queryAndAttachHelper();
-
-    const req1 = await typeAndCollectRequest(input, ",", getPrediction);
-    const req2 = await typeAndCollectRequest(input, ",,", getPrediction);
-    const req3 = await typeAndCollectRequest(input, ",,,", getPrediction);
-    expect(req3.requestId).toBeGreaterThan(req2.requestId);
-
-    manager.fulfillPrediction(
-      buildResponse(req1, {
-        textEdit: {
-          replacementText: ", ",
-          replaceBackwardCount: 1,
-          evaluatedTextLength: 1,
-          expectedReplacedText: ",",
-          expectedPrefixToken: "",
-          sourceRuleId: "commaPeriodSpacing",
-        },
-      }),
-    );
-    manager.fulfillPrediction(
-      buildResponse(req2, {
-        textEdit: {
-          replacementText: ", ",
-          replaceBackwardCount: 1,
-          evaluatedTextLength: 2,
-          expectedReplacedText: ",",
-          expectedPrefixToken: ",",
-          sourceRuleId: "commaPeriodSpacing",
-        },
-      }),
-    );
-
-    expect(input.value).toBe(",,,");
-  });
-
-  test("does not apply stale textEdit to contenteditable targets", async () => {
-    const { manager, getPrediction } = await createManager();
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.textContent = "he";
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
-    manager.queryAndAttachHelper();
-
-    setContentEditableCursor(editable, 2);
-    editable.dispatchEvent(new Event("focus", { bubbles: true }));
-    editable.dispatchEvent(new Event("input", { bubbles: true }));
-    await wait(220);
-    const req1 = getPrediction.mock.calls.at(-1)?.[0];
-    if (!req1) {
-      throw new Error("Expected first prediction request");
-    }
-
-    editable.textContent = "world";
-    setContentEditableCursor(editable, 5);
-    editable.dispatchEvent(new Event("input", { bubbles: true }));
-    await wait(220);
-
-    manager.fulfillPrediction(
-      buildResponse(req1, {
-        textEdit: {
-          replacementText: "He",
-          replaceBackwardCount: 2,
-          evaluatedTextLength: 2,
-          expectedReplacedText: "he",
-          expectedPrefixToken: "",
-        },
-      }),
-    );
-
-    expect(editable.textContent).toBe("world");
-  });
-
-  test("applies stale duplicate punctuation textEdit to contenteditable targets when guards match", async () => {
-    const { manager, getPrediction } = await createManager({
-      enabledGrammarRules: ["duplicatePunctuationCollapse"],
-    });
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.textContent = "This is awseome,,\u00A0";
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
-    manager.queryAndAttachHelper();
-
-    setContentEditableCursor(editable, (editable.textContent ?? "").length);
-    editable.dispatchEvent(new Event("focus", { bubbles: true }));
-    editable.dispatchEvent(new Event("input", { bubbles: true }));
-    await wait(220);
-    const req1 = getPrediction.mock.calls.at(-1)?.[0];
-    if (!req1) {
-      throw new Error("Expected first prediction request");
-    }
-
-    editable.dispatchEvent(new Event("input", { bubbles: true }));
-    await wait(220);
-    const req2 = getPrediction.mock.calls.at(-1)?.[0];
-    if (!req2) {
-      throw new Error("Expected second prediction request");
-    }
-    expect(req2.requestId).toBeGreaterThan(req1.requestId);
-
-    manager.fulfillPrediction(
-      buildResponse(req1, {
-        textEdit: {
-          replacementText: ", ",
-          replaceBackwardCount: 3,
-          evaluatedTextLength: "This is awseome,, ".length,
-          expectedReplacedText: ",, ",
-          expectedPrefixToken: "awseome",
-          sourceRuleId: "duplicatePunctuationCollapse",
-        },
-      }),
-    );
-
-    expect((editable.textContent ?? "").replace(/\u00a0/g, " ")).toBe("This is awseome, ");
-  });
-
-  test("does not apply stale duplicate punctuation textEdit to contenteditable when current block text is shorter", async () => {
-    const { manager, getPrediction } = await createManager({
-      enabledGrammarRules: ["duplicatePunctuationCollapse"],
-    });
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.textContent = "This is,,,";
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    document.body.appendChild(editable);
-    manager.queryAndAttachHelper();
-
-    setContentEditableCursor(editable, (editable.textContent ?? "").length);
-    editable.dispatchEvent(new Event("focus", { bubbles: true }));
-    editable.dispatchEvent(new Event("input", { bubbles: true }));
-    await wait(220);
-    const req1 = getPrediction.mock.calls.at(-1)?.[0];
-    if (!req1) {
-      throw new Error("Expected first prediction request");
-    }
-
-    editable.textContent = "This is, ";
-    setContentEditableCursor(editable, (editable.textContent ?? "").length);
-    editable.dispatchEvent(new Event("input", { bubbles: true }));
-    await wait(220);
-    const req2 = getPrediction.mock.calls.at(-1)?.[0];
-    if (!req2) {
-      throw new Error("Expected second prediction request");
-    }
-    expect(req2.requestId).toBeGreaterThan(req1.requestId);
-
-    manager.fulfillPrediction(
-      buildResponse(req1, {
-        textEdit: {
-          replacementText: ",",
-          replaceBackwardCount: 3,
-          evaluatedTextLength: "This is,,,".length,
-          expectedReplacedText: ",,,",
-          expectedPrefixToken: "This is",
-          sourceRuleId: "duplicatePunctuationCollapse",
-        },
-      }),
-    );
-
-    expect((editable.textContent ?? "").replace(/\u00a0/g, " ")).toBe("This is, ");
-  });
-
-  test("requests a fresh prediction after host-owned contenteditable textEdit", async () => {
-    const { manager, getPrediction } = await createManager();
     const editable = document.createElement("div");
     editable.setAttribute("contenteditable", "true");
     editable.textContent = "w";
@@ -720,76 +506,36 @@ describe("SuggestionManager", () => {
     setContentEditableCursor(editable, 1);
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
     editable.dispatchEvent(new Event("input", { bubbles: true }));
-    await wait(220);
-
-    const initialRequest = getPrediction.mock.calls.at(-1)?.[0];
-    if (!initialRequest) {
-      throw new Error("Expected initial prediction request");
-    }
-
-    manager.fulfillPrediction(
-      buildResponse(initialRequest, {
-        predictions: ["world\xA0"],
-        textEdit: {
-          replacementText: "W",
-          replaceBackwardCount: 1,
-          evaluatedTextLength: 1,
-          expectedReplacedText: "w",
-          expectedPrefixToken: "",
-        },
-      }),
-    );
 
     expect(editable.textContent).toBe("W");
-    expect(document.querySelectorAll(".ft-suggestion-container li").length).toBe(0);
-
-    const refreshedRequest = getPrediction.mock.calls.at(-1)?.[0];
-    expect(getPrediction.mock.calls.length).toBeGreaterThanOrEqual(2);
-    expect(refreshedRequest?.requestId).toBeGreaterThan(initialRequest.requestId);
-    expect(refreshedRequest?.text).toBe("W");
+    await wait(220);
+    expect(getPrediction.mock.calls.at(-1)?.[0]?.text).toBe("W");
   });
 
-  test("does not force refresh when host-canceled contenteditable textEdit makes no mutation", async () => {
-    const { manager, getPrediction } = await createManager();
-    const editable = document.createElement("div");
-    editable.setAttribute("contenteditable", "true");
-    editable.textContent = "w";
-    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    editable.addEventListener("beforeinput", (event) => {
-      const inputEvent = event as InputEvent;
-      if (inputEvent.inputType === "insertReplacementText") {
-        event.preventDefault();
-      }
+  test("clears stale suggestions after local grammar mutation", async () => {
+    const { manager, getPrediction } = await createManager({
+      enabledGrammarRules: ["capitalizeSentenceStart"],
     });
-    document.body.appendChild(editable);
+    const input = document.createElement("input");
+    input.type = "text";
+    document.body.appendChild(input);
     manager.queryAndAttachHelper();
 
-    setContentEditableCursor(editable, 1);
-    editable.dispatchEvent(new Event("focus", { bubbles: true }));
-    editable.dispatchEvent(new Event("input", { bubbles: true }));
-    await wait(220);
-
-    const initialRequest = getPrediction.mock.calls.at(-1)?.[0];
-    if (!initialRequest) {
-      throw new Error("Expected initial prediction request");
-    }
-
+    const request = await typeAndCollectRequest(input, "h", getPrediction);
     manager.fulfillPrediction(
-      buildResponse(initialRequest, {
-        predictions: ["world\xA0"],
-        textEdit: {
-          replacementText: "W",
-          replaceBackwardCount: 1,
-          evaluatedTextLength: 1,
-          expectedReplacedText: "w",
-          expectedPrefixToken: "",
-        },
+      buildResponse(request, {
+        predictions: ["hello\xA0"],
       }),
     );
+    expect(document.querySelectorAll(".ft-suggestion-container li").length).toBe(1);
 
-    expect(editable.textContent).toBe("w");
-    expect(getPrediction.mock.calls.length).toBe(1);
-    expect(document.querySelectorAll(".ft-suggestion-container li").length).toBeGreaterThan(0);
+    input.value = "a";
+    input.selectionStart = 1;
+    input.selectionEnd = 1;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+
+    expect(input.value).toBe("A");
+    expect(document.querySelectorAll(".ft-suggestion-container li").length).toBe(0);
   });
 
   test("inserts a regular space before first typed char after acceptance and cancels on cursor move", async () => {
@@ -942,7 +688,9 @@ describe("SuggestionManager", () => {
   });
 
   test("marks delete inputAction when backspace removes post-punctuation space", async () => {
-    const { manager, getPrediction } = await createManager();
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 0,
+    });
     const input = document.createElement("input");
     input.type = "text";
     input.value = "Hello.\xA0";
@@ -972,7 +720,9 @@ describe("SuggestionManager", () => {
   });
 
   test("infers delete inputAction from text shrink when key/inputType metadata is unavailable", async () => {
-    const { manager, getPrediction } = await createManager();
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 0,
+    });
     const input = document.createElement("input");
     input.type = "text";
     document.body.appendChild(input);
@@ -1622,7 +1372,7 @@ describe("SuggestionManager", () => {
 
     editable.textContent = "h";
     setContentEditableCursor(editable, 1);
-    await wait(120);
+    await wait(180);
 
     expect(getPrediction.mock.calls.length).toBe(1);
     const request = getPrediction.mock.calls.at(-1)?.[0];
@@ -1667,11 +1417,11 @@ describe("SuggestionManager", () => {
   test("requests prediction when contenteditable text is already mutated before keydown fallback snapshot", async () => {
     const { manager, getPrediction } = await createManager({
       minWordLengthToPredict: 1,
-      enabledGrammarRules: ["duplicatePunctuationCollapse"],
+      enabledGrammarRules: [],
     });
     const editable = document.createElement("div");
     editable.setAttribute("contenteditable", "true");
-    editable.textContent = "hello,";
+    editable.textContent = "hello";
     Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
     document.body.appendChild(editable);
     manager.queryAndAttachHelper();
@@ -1684,7 +1434,9 @@ describe("SuggestionManager", () => {
     Date.now = () => fakeNow;
 
     try {
-      dispatchKeydown(editable, ",");
+      editable.textContent = "hellox";
+      setContentEditableCursor(editable, editable.textContent.length);
+      dispatchKeydown(editable, "x");
       fakeNow += 2000;
       await wait(220);
     } finally {
@@ -1695,7 +1447,7 @@ describe("SuggestionManager", () => {
     if (!request) {
       throw new Error("Expected prediction request");
     }
-    expect(request.text).toBe("hello,");
+    expect(request.text).toBe("hellox");
     expect(request.inputAction).toBe("insert");
   });
 
@@ -1842,51 +1594,37 @@ describe("SuggestionManager", () => {
     expect(getPrediction.mock.calls.length).toBe(0);
   });
 
-  test("does not apply grammar textEdit while IME composition is active", async () => {
-    const { manager, getPrediction } = await createManager();
+  test("does not apply local grammar while IME composition is active", async () => {
+    const { manager } = await createManager({
+      enabledGrammarRules: ["englishTypoWhitelistCorrection"],
+    });
     const input = document.createElement("input");
     input.type = "text";
     document.body.appendChild(input);
     manager.queryAndAttachHelper();
-
-    const request = await typeAndCollectRequest(input, "teh ", getPrediction);
     input.dispatchEvent(new Event("compositionstart", { bubbles: true }));
 
-    manager.fulfillPrediction(
-      buildResponse(request, {
-        textEdit: {
-          replacementText: "the ",
-          replaceBackwardCount: 4,
-          evaluatedTextLength: 4,
-          expectedReplacedText: "teh ",
-        },
-      }),
-    );
+    input.value = "teh ";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    dispatchInput(input, { isComposing: true, inputType: "insertText" });
 
     expect(input.value).toBe("teh ");
   });
 
-  test("does not apply grammar textEdit when selection is active", async () => {
-    const { manager, getPrediction } = await createManager();
+  test("does not apply local grammar when selection is active", async () => {
+    const { manager } = await createManager({
+      enabledGrammarRules: ["englishTypoWhitelistCorrection"],
+    });
     const input = document.createElement("input");
     input.type = "text";
     document.body.appendChild(input);
     manager.queryAndAttachHelper();
 
-    const request = await typeAndCollectRequest(input, "teh ", getPrediction);
+    input.value = "teh ";
     input.selectionStart = 0;
     input.selectionEnd = 2;
-
-    manager.fulfillPrediction(
-      buildResponse(request, {
-        textEdit: {
-          replacementText: "the ",
-          replaceBackwardCount: 4,
-          evaluatedTextLength: 4,
-          expectedReplacedText: "teh ",
-        },
-      }),
-    );
+    dispatchInput(input, { inputType: "insertText" });
 
     expect(input.value).toBe("teh ");
   });

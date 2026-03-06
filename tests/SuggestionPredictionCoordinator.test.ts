@@ -27,7 +27,6 @@ describe("SuggestionPredictionCoordinator", () => {
       lang: "en_US",
       minWordLengthToPredict: 2,
       separatorRegex: /\s+/,
-      grammarRulesEnabled: false,
     });
 
     const input = document.createElement("input");
@@ -58,7 +57,6 @@ describe("SuggestionPredictionCoordinator", () => {
       lang: "en_US",
       minWordLengthToPredict: 3,
       separatorRegex: /\s+/,
-      grammarRulesEnabled: false,
     });
 
     const input = document.createElement("input");
@@ -83,7 +81,6 @@ describe("SuggestionPredictionCoordinator", () => {
       lang: "en_US",
       minWordLengthToPredict: 1,
       separatorRegex: /\s+/,
-      grammarRulesEnabled: true,
     });
 
     const input = document.createElement("input");
@@ -109,7 +106,7 @@ describe("SuggestionPredictionCoordinator", () => {
     });
   });
 
-  test("requests grammar evaluation when predictions are disabled by threshold", async () => {
+  test("clears suggestions without requesting predictions when disabled by threshold", async () => {
     const getPrediction = jest.fn();
     const clearSuggestions = jest.fn();
     const coordinator = new SuggestionPredictionCoordinator({
@@ -118,7 +115,6 @@ describe("SuggestionPredictionCoordinator", () => {
       lang: "en_US",
       minWordLengthToPredict: -1,
       separatorRegex: /\s+/,
-      grammarRulesEnabled: true,
     });
 
     const input = document.createElement("input");
@@ -131,17 +127,10 @@ describe("SuggestionPredictionCoordinator", () => {
     await wait(5);
 
     expect(clearSuggestions).toHaveBeenCalledTimes(1);
-    expect(getPrediction).toHaveBeenCalledTimes(1);
-    expect(getPrediction).toHaveBeenCalledWith({
-      text: "Hello.",
-      nextChar: "",
-      suggestionId: 3,
-      requestId: 1,
-      lang: "en_US",
-    });
+    expect(getPrediction).not.toHaveBeenCalled();
   });
 
-  test("does not request grammar evaluation when grammar rules are disabled", async () => {
+  test("does not request predictions when disabled by threshold", async () => {
     const getPrediction = jest.fn();
     const clearSuggestions = jest.fn();
     const coordinator = new SuggestionPredictionCoordinator({
@@ -150,7 +139,6 @@ describe("SuggestionPredictionCoordinator", () => {
       lang: "en_US",
       minWordLengthToPredict: -1,
       separatorRegex: /\s+/,
-      grammarRulesEnabled: false,
     });
 
     const input = document.createElement("input");
@@ -184,7 +172,6 @@ describe("SuggestionPredictionCoordinator", () => {
         lang: "en_US",
         minWordLengthToPredict: 1,
         separatorRegex: /\s+/,
-        grammarRulesEnabled: false,
       });
 
       const deleteInput = document.createElement("input");
@@ -258,7 +245,6 @@ describe("SuggestionPredictionCoordinator", () => {
         lang: "en_US",
         minWordLengthToPredict: 1,
         separatorRegex: /\s+/,
-        grammarRulesEnabled: false,
       });
 
       const input = document.createElement("input");
@@ -306,7 +292,6 @@ describe("SuggestionPredictionCoordinator", () => {
         lang: "en_US",
         minWordLengthToPredict: 3,
         separatorRegex: /\s+/,
-        grammarRulesEnabled: false,
       });
 
       const deleteInput = document.createElement("input");
@@ -360,7 +345,6 @@ describe("SuggestionPredictionCoordinator", () => {
         lang: "en_US",
         minWordLengthToPredict: 1,
         separatorRegex: /\s+/,
-        grammarRulesEnabled: false,
       });
 
       const input = document.createElement("input");

@@ -167,7 +167,6 @@ describe("PredictionOrchestrator coverage", () => {
       }),
     ).resolves.toEqual({
       predictions: ["alpha"],
-      textEdit: null,
     });
 
     expect(warnSpy).toHaveBeenCalledWith(
@@ -245,7 +244,7 @@ describe("PredictionOrchestrator coverage", () => {
     expect(inputEvent?.webllm?.skipReason).toBe("input_not_predictable");
   });
 
-  test("does not block predictors when grammar textEdit is emitted", async () => {
+  test("keeps predictors running when grammar settings are enabled", async () => {
     const module = createFakeModule({ current: ["world", "word"] });
     const presageHandler = new PresageHandler(module);
     const orchestrator = new PredictionOrchestrator(presageHandler);
@@ -261,7 +260,6 @@ describe("PredictionOrchestrator coverage", () => {
 
     const result = await orchestrator.runPrediction("w", "", "en_US");
 
-    expect(result.textEdit).not.toBeNull();
     expect(result.predictions.length).toBeGreaterThan(0);
   });
 
@@ -398,7 +396,6 @@ describe("PredictionOrchestrator coverage", () => {
       predictionInput: "a",
       doPrediction: true,
       doCapitalize: Capitalization.None,
-      textEdit: null,
       effectiveNumSuggestions: 1,
     };
 

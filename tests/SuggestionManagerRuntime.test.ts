@@ -25,6 +25,7 @@ describe("SuggestionManagerRuntime", () => {
       displayLangHeader: true,
       inline_suggestion: false,
       enabledGrammarRules: [],
+      userDictionaryList: [],
       getPrediction: jest.fn(),
     });
     const input = document.createElement("input");
@@ -51,6 +52,7 @@ describe("SuggestionManagerRuntime", () => {
       displayLangHeader: true,
       inline_suggestion: false,
       enabledGrammarRules: [],
+      userDictionaryList: [],
       getPrediction: jest.fn(),
     });
     const input = document.createElement("input");

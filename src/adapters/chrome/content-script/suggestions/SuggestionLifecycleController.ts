@@ -30,6 +30,7 @@ export class SuggestionLifecycleController {
   public attachEntryListeners(entry: SuggestionEntry): void {
     entry.elem.addEventListener("input", entry.handlers.input, true);
     entry.elem.addEventListener("keydown", entry.handlers.keydown, true);
+    entry.elem.addEventListener("paste", entry.handlers.paste, true);
     entry.elem.addEventListener("focus", entry.handlers.focus, true);
     entry.elem.addEventListener("blur", entry.handlers.blur, true);
     entry.elem.addEventListener("click", entry.handlers.click, true);
@@ -46,6 +47,7 @@ export class SuggestionLifecycleController {
   public detachEntryListeners(entry: SuggestionEntry): void {
     entry.elem.removeEventListener("input", entry.handlers.input, true);
     entry.elem.removeEventListener("keydown", entry.handlers.keydown, true);
+    entry.elem.removeEventListener("paste", entry.handlers.paste, true);
     entry.elem.removeEventListener("focus", entry.handlers.focus, true);
     entry.elem.removeEventListener("blur", entry.handlers.blur, true);
     entry.elem.removeEventListener("click", entry.handlers.click, true);
