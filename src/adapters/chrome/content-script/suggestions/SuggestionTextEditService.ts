@@ -347,7 +347,12 @@ export class SuggestionTextEditService {
       return { applied: false, didDispatchInput: false };
     }
 
-    const cursorAfter = replaceStart + textEdit.replacementText.length;
+    const cursorAfter = this.resolveCursorAfterTextEdit(
+      snapshot.cursorOffset,
+      replaceStart,
+      replaceEnd,
+      textEdit.replacementText,
+    );
     const applyResult = this.replaceTextByOffsets(
       entry.elem,
       fullText,
@@ -608,6 +613,21 @@ export class SuggestionTextEditService {
       return sourceRuleId;
     }
     return `fallback:${originalText}->${replacementText}`;
+  }
+
+  private resolveCursorAfterTextEdit(
+    currentCursorOffset: number,
+    replaceStart: number,
+    replaceEnd: number,
+    replacementText: string,
+  ): number {
+    if (currentCursorOffset <= replaceEnd) {
+      return replaceStart + replacementText.length;
+    }
+
+    const replacedLength = Math.max(0, replaceEnd - replaceStart);
+    const delta = replacementText.length - replacedLength;
+    return Math.max(replaceStart + replacementText.length, currentCursorOffset + delta);
   }
 
   private replaceTextByOffsets(

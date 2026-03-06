@@ -202,6 +202,32 @@ describe("SuggestionTextEditService", () => {
     expect(inputEventCount).toBe(1);
   });
 
+  test("preserves advanced caret when late capitalization edits first character", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+    });
+
+    const input = document.createElement("input");
+    input.value = "asap";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    const entry = createSuggestionEntry({ elem: input });
+
+    const result = service.applyTextEdit(entry, {
+      replacementText: "A",
+      replaceBackwardCount: 1,
+      evaluatedTextLength: 1,
+      expectedReplacedText: "a",
+      sourceRuleId: "capitalizeSentenceStart",
+    });
+
+    expect(result).toEqual({ applied: true, didDispatchInput: true });
+    expect(input.value).toBe("Asap");
+    expect(input.selectionStart).toBe(4);
+    expect(input.selectionEnd).toBe(4);
+  });
+
   test("treats no-op input textEdit as not applied and does not dispatch input", () => {
     const service = new SuggestionTextEditService({
       findMentionToken,
