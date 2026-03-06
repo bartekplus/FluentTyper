@@ -4,10 +4,6 @@ import type {
   PredictResponseContext,
 } from "../src/core/domain/messageTypes";
 
-function wait(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 async function waitForNextCall(
   mock: jest.Mock<(context: ContentScriptPredictRequestContext) => void>,
   { timeout = 2000 }: { timeout?: number } = {},
@@ -38,6 +34,16 @@ async function waitFor(
     await new Promise<void>((r) => setTimeout(r, 5));
   }
   throw new Error(`Condition was not met within ${timeout}ms`);
+}
+
+function withFakeTimers(fn: () => void, ms: number): void {
+  jest.useFakeTimers();
+  try {
+    fn();
+    jest.advanceTimersByTime(ms);
+  } finally {
+    jest.useRealTimers();
+  }
 }
 
 function dispatchKeydown(
@@ -503,10 +509,11 @@ describe("SuggestionManager", () => {
     input.value = "This is awseome,, ";
     input.selectionStart = input.value.length;
     input.selectionEnd = input.value.length;
-    input.dispatchEvent(new Event("input", { bubbles: true }));
+    withFakeTimers(() => {
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    }, 220);
 
     expect(input.value).toBe("This is awseome, ");
-    await wait(220);
     expect(getPrediction.mock.calls.length).toBe(0);
   });
 
@@ -1826,8 +1833,7 @@ describe("SuggestionManager", () => {
     setContentEditableCursor(editable, 0);
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
 
-    dispatchKeydown(editable, "h");
-    await wait(180);
+    withFakeTimers(() => dispatchKeydown(editable, "h"), 180);
     expect(getPrediction.mock.calls.length).toBe(0);
 
     editable.textContent = "h";
@@ -1859,9 +1865,10 @@ describe("SuggestionManager", () => {
     Date.now = () => fakeNow;
 
     try {
-      dispatchKeydown(editable, "x");
-      fakeNow += 2000;
-      await wait(220);
+      withFakeTimers(() => {
+        dispatchKeydown(editable, "x");
+        fakeNow += 2000;
+      }, 220);
 
       expect(getPrediction.mock.calls.length).toBe(0);
       expect(editable.textContent).toBe("hello");
@@ -1921,8 +1928,7 @@ describe("SuggestionManager", () => {
     await waitForNextCall(getPrediction);
     const baselineCalls = getPrediction.mock.calls.length;
 
-    dispatchKeydown(input, "Enter");
-    await wait(220);
+    withFakeTimers(() => dispatchKeydown(input, "Enter"), 220);
 
     expect(getPrediction.mock.calls.length).toBe(baselineCalls);
   });
@@ -1941,8 +1947,7 @@ describe("SuggestionManager", () => {
 
     setContentEditableCursor(editable, editable.textContent.length);
     editable.dispatchEvent(new Event("focus", { bubbles: true }));
-    dispatchKeydown(editable, "f", { altKey: true });
-    await wait(260);
+    withFakeTimers(() => dispatchKeydown(editable, "f", { altKey: true }), 260);
 
     expect(getPrediction.mock.calls.length).toBe(0);
   });
@@ -1961,8 +1966,7 @@ describe("SuggestionManager", () => {
     manager.queryAndAttachHelper();
 
     input.dispatchEvent(new Event("focus", { bubbles: true }));
-    dispatchKeydown(input, "f", { altKey: true });
-    await wait(260);
+    withFakeTimers(() => dispatchKeydown(input, "f", { altKey: true }), 260);
 
     expect(getPrediction.mock.calls.length).toBe(0);
   });
@@ -1980,8 +1984,7 @@ describe("SuggestionManager", () => {
     document.body.appendChild(input);
     manager.queryAndAttachHelper();
 
-    dispatchInput(input, { isComposing: true });
-    await wait(240);
+    withFakeTimers(() => dispatchInput(input, { isComposing: true }), 240);
 
     expect(getPrediction.mock.calls.length).toBe(0);
   });
@@ -2001,8 +2004,7 @@ describe("SuggestionManager", () => {
 
     input.dispatchEvent(new Event("focus", { bubbles: true }));
     input.dispatchEvent(new Event("compositionstart", { bubbles: true }));
-    dispatchKeydown(input, "x");
-    await wait(260);
+    withFakeTimers(() => dispatchKeydown(input, "x"), 260);
 
     expect(getPrediction.mock.calls.length).toBe(0);
   });
@@ -2020,8 +2022,7 @@ describe("SuggestionManager", () => {
     document.body.appendChild(input);
     manager.queryAndAttachHelper();
 
-    dispatchInput(input);
-    await wait(240);
+    withFakeTimers(() => dispatchInput(input), 240);
 
     expect(getPrediction.mock.calls.length).toBe(0);
   });
@@ -2040,8 +2041,7 @@ describe("SuggestionManager", () => {
     manager.queryAndAttachHelper();
 
     input.dispatchEvent(new Event("focus", { bubbles: true }));
-    dispatchKeydown(input, "x");
-    await wait(260);
+    withFakeTimers(() => dispatchKeydown(input, "x"), 260);
 
     expect(getPrediction.mock.calls.length).toBe(0);
   });
@@ -2150,8 +2150,7 @@ describe("SuggestionManager", () => {
     const menu = (editable as HTMLElement & { suggestionMenu?: HTMLElement }).suggestionMenu;
     expect(menu?.style.display).toBe("block");
 
-    dispatchKeydown(editable, "Backspace");
-    await wait(25);
+    withFakeTimers(() => dispatchKeydown(editable, "Backspace"), 25);
     editable.textContent = "Wha";
     setContentEditableCursor(editable, 3);
     const deleteInputEvent = new Event("input", { bubbles: true });
