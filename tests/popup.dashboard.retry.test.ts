@@ -60,7 +60,13 @@ function popupMarkup(initialAccepted = "0"): string {
     <div id="checkboxDomainHint"></div>
     <input id="checkboxEnableInput" type="checkbox" />
     <select id="languageSelect"></select>
-    <a id="runOptions"></a>
+
+    <div id="permissionBanner" class="is-hidden" data-permission-state="missing">
+      <span id="permissionBadge"></span>
+      <h2 id="permissionTitle"></h2>
+      <p id="permissionBody"></p>
+      <button id="grantPermissionBtn" type="button"></button>
+    </div>
 
     <section id="productivityDashboard"></section>
     <button id="openStatsOptionsBtn" type="button"></button>
@@ -88,12 +94,50 @@ function popupMarkup(initialAccepted = "0"): string {
     <a id="dashboardMilestoneLink"></a>
     <button id="dashboardMilestoneLaterBtn" type="button"></button>
 
-    <div id="permissionBanner" class="is-hidden" data-permission-state="missing">
-      <span id="permissionBadge"></span>
-      <h2 id="permissionTitle"></h2>
-      <p id="permissionBody"></p>
-      <button id="grantPermissionBtn" type="button"></button>
-    </div>
+    <footer class="toolbar">
+      <div class="toolbar-actions toolbar-actions--quiet">
+        <a
+          id="runOptions"
+          class="toolbar-link"
+          target="_blank"
+          rel="noopener"
+          data-i18n-title="popup_advanced_options"
+          title="Advanced Options"
+        >
+          <span class="sr-only" data-i18n="popup_advanced_options">Advanced Options</span>
+        </a>
+        <a
+          id="reportIssueLink"
+          class="toolbar-link"
+          href="https://github.com/bartekplus/FluentTyper/issues"
+          target="_blank"
+          data-i18n-title="popup_report_issue"
+          title="Report Issue"
+        >
+          <span class="sr-only" data-i18n="popup_report_issue">Report Issue</span>
+        </a>
+        <a
+          id="githubSourceLink"
+          class="toolbar-link"
+          href="https://github.com/bartekplus/FluentTyper"
+          target="_blank"
+          data-i18n-title="popup_github_source"
+          title="GitHub Source"
+        >
+          <span class="sr-only" data-i18n="popup_github_source">GitHub Source</span>
+        </a>
+        <a
+          id="supportDevelopmentLink"
+          class="toolbar-link"
+          href="https://www.buymeacoffee.com/FluentTyper"
+          target="_blank"
+          data-i18n-title="popup_support_development"
+          title="Support Development"
+        >
+          <span class="sr-only" data-i18n="popup_support_development">Support Development</span>
+        </a>
+      </div>
+    </footer>
   </body>
 </html>`;
 }
@@ -347,6 +391,12 @@ async function advanceAndFlush(ms: number): Promise<void> {
 
 function textContent(id: string): string {
   return document.getElementById(id)?.textContent || "";
+}
+
+function focusElement(id: string): Element | null {
+  const element = document.getElementById(id);
+  element?.focus();
+  return document.activeElement;
 }
 
 function dashboardStatsCallCount(chromeMock: ReturnType<typeof createChromeMock>): number {
@@ -617,6 +667,44 @@ describe("popup productivity dashboard retry/failure paths", () => {
     );
   });
 
+  test("keeps permission-first layout ahead of site controls until access is granted", async () => {
+    await loadPopupWithOutcomes(
+      [{ type: "stats", value: createPopupStats(1) }],
+      "0",
+      {
+        contains: async () => false,
+      },
+      createWebsiteTab("https://secure.example.com"),
+    );
+
+    const pageStatePanel = document.getElementById("pageStatePanel") as HTMLElement;
+    const permissionBanner = document.getElementById("permissionBanner") as HTMLElement;
+    const dashboard = document.getElementById("productivityDashboard") as HTMLElement;
+
+    expect(textContent("pageStateBadge")).toBe("Website access required");
+    expect(permissionBanner.classList.contains("is-hidden")).toBe(false);
+    expect(document.getElementById("domainSectionWrapper")?.classList.contains("is-hidden")).toBe(
+      true,
+    );
+    expect(document.getElementById("siteProfileSection")?.classList.contains("is-hidden")).toBe(
+      true,
+    );
+    expect((document.getElementById("checkboxEnableInput") as HTMLInputElement).disabled).toBe(
+      false,
+    );
+    expect((document.getElementById("languageSelect") as HTMLSelectElement).disabled).toBe(false);
+    expect(
+      Boolean(
+        pageStatePanel.compareDocumentPosition(permissionBanner) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ),
+    ).toBe(true);
+    expect(
+      Boolean(
+        permissionBanner.compareDocumentPosition(dashboard) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ),
+    ).toBe(true);
+  });
+
   test("shows a restricted-page state instead of site toggles on browser internal pages", async () => {
     await loadPopupWithOutcomes([{ type: "stats", value: createPopupStats(1) }], "0", undefined, {
       id: 11,
@@ -727,14 +815,77 @@ describe("popup productivity dashboard retry/failure paths", () => {
       );
 
       const pageStateMeta = document.getElementById("pageStateMeta") as HTMLElement;
+      const languageNode = document.getElementById("pageStateLanguage") as HTMLElement;
       const profileNode = document.getElementById("pageStateProfile") as HTMLElement;
 
       expect(textContent("pageStateBody")).toBe(
         localizedCase.overrides.popup_page_state_active_body,
       );
+      expect(languageNode.title).toBe(languageNode.textContent);
       expect(profileNode.textContent).toBe(localizedCase.overrides.popup_page_state_profile_global);
       expect(profileNode.title).toBe(localizedCase.overrides.popup_page_state_profile_global);
       expect(pageStateMeta.classList.contains("is-hidden")).toBe(false);
+    }
+  });
+
+  test("keeps popup controls keyboard-focusable in the redesigned layout", async () => {
+    await loadPopupWithOutcomes(
+      [{ type: "stats", value: createPopupStats(1) }],
+      "0",
+      {
+        contains: async () => true,
+      },
+      createWebsiteTab("https://keyboard.example.com"),
+    );
+
+    const optionsLink = document.getElementById("runOptions") as HTMLAnchorElement;
+
+    expect(optionsLink.href).toContain("options/options.html");
+    expect((focusElement("checkboxDomainInput") as HTMLElement | null)?.id).toBe(
+      "checkboxDomainInput",
+    );
+    expect((focusElement("checkboxEnableInput") as HTMLElement | null)?.id).toBe(
+      "checkboxEnableInput",
+    );
+    expect((focusElement("languageSelect") as HTMLElement | null)?.id).toBe("languageSelect");
+    expect((focusElement("openStatsOptionsBtn") as HTMLElement | null)?.id).toBe(
+      "openStatsOptionsBtn",
+    );
+    expect((focusElement("runOptions") as HTMLElement | null)?.id).toBe("runOptions");
+    expect((focusElement("reportIssueLink") as HTMLElement | null)?.id).toBe("reportIssueLink");
+  });
+
+  test("localizes footer action labels and keeps accessible text for icon links", async () => {
+    const translations = {
+      popup_advanced_options: "Optionen avancées hybrides",
+      popup_report_issue: "Probleme melden sofort",
+      popup_github_source: "Code source GitHub officiel",
+      popup_support_development: "Wesprzyj dalszy rozwoj projektu",
+    };
+    await loadPopupWithOutcomes(
+      [{ type: "stats", value: createPopupStats(1) }],
+      "0",
+      {
+        contains: async () => true,
+      },
+      createWebsiteTab("https://example.com"),
+      false,
+      translations,
+    );
+
+    const footerCases = [
+      { id: "runOptions", srText: translations.popup_advanced_options },
+      { id: "reportIssueLink", srText: translations.popup_report_issue },
+      { id: "githubSourceLink", srText: translations.popup_github_source },
+      { id: "supportDevelopmentLink", srText: translations.popup_support_development },
+    ];
+
+    for (const footerCase of footerCases) {
+      const link = document.getElementById(footerCase.id) as HTMLAnchorElement;
+      const srOnly = link.querySelector(".sr-only") as HTMLElement | null;
+
+      expect(link.title).toBe(footerCase.srText);
+      expect(srOnly?.textContent).toBe(footerCase.srText);
     }
   });
 

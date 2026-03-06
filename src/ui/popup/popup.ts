@@ -676,6 +676,14 @@ function openOptionsPageAtAnchor(anchor: string): void {
   });
 }
 
+function initializeFooterLinks(): void {
+  const optionsLink = document.getElementById("runOptions") as HTMLAnchorElement | null;
+  if (!optionsLink) {
+    return;
+  }
+  optionsLink.href = chrome.runtime.getURL("options/options.html");
+}
+
 async function acknowledgeWeeklyRecap(weekKey: string): Promise<void> {
   const message: PopupAckWeeklyRecapMessage = {
     command: CMD_POPUP_ACK_WEEKLY_RECAP,
@@ -939,6 +947,7 @@ async function loadProductivityDashboard(retryAttempt = 0): Promise<void> {
 function init() {
   syncPopupThemeWithSystem();
   translateUI();
+  initializeFooterLinks();
   document.getElementById("openStatsOptionsBtn")?.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
@@ -1077,7 +1086,8 @@ function init() {
   });
   window.document.getElementById("checkboxEnableInput")?.addEventListener("click", toggleOnOff);
   window.document.getElementById("languageSelect")?.addEventListener("change", languageChangeEvent);
-  document.getElementById("runOptions")?.addEventListener("click", () => {
+  document.getElementById("runOptions")?.addEventListener("click", (event) => {
+    event.preventDefault();
     chrome.runtime.openOptionsPage();
   });
 
