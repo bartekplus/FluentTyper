@@ -298,7 +298,8 @@ export class SpacingRule implements GrammarRule {
 
     const previousSignificantIndex = this.findPreviousSignificantIndex(inputStr, tokenStart - 1);
     if (previousSignificantIndex === null) {
-      return false;
+      const token = inputStr.slice(tokenStart, tokenEnd + 1);
+      return /\d/.test(token) || token.startsWith("$");
     }
 
     // Treat cue chars as code context only when tightly attached to the token

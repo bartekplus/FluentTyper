@@ -474,12 +474,15 @@ export class SuggestionManagerRuntime {
   }
 
   private onElementInput(id: number, event: Event): void {
-    this.cancelPendingKeyFallback(id);
     this.activeEntryId = id;
     const entry = this.entryRegistry.getById(id);
     if (!entry) {
       return;
     }
+    if (this.shouldDeferContentEditableInputToFallback(id, entry)) {
+      return;
+    }
+    this.cancelPendingKeyFallback(id);
     this.processEntryAfterEdit(entry, {
       event,
       inputActionOverride: null,
@@ -619,6 +622,30 @@ export class SuggestionManagerRuntime {
     return DUPLICATE_PUNCTUATION_TAIL_REGEX.test(beforeCursor);
   }
 
+  private shouldDeferContentEditableInputToFallback(id: number, entry: SuggestionEntry): boolean {
+    if (!this.isContentEditableElement(entry.elem)) {
+      return false;
+    }
+    const pending = this.pendingKeyFallbacks.get(id);
+    if (
+      !pending ||
+      pending.inputAction !== "insert" ||
+      pending.expectedBeforeCursor === null ||
+      pending.expectedFullText === null
+    ) {
+      return false;
+    }
+
+    const snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+    const currentFullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
+    if (currentFullText === pending.expectedFullText) {
+      return false;
+    }
+
+    const currentBeforeCursor = this.resolveBeforeCursorForPrediction(entry, snapshot.beforeCursor);
+    return currentBeforeCursor === pending.expectedBeforeCursor;
+  }
+
   private processEntryAfterEdit(
     entry: SuggestionEntry,
     {
@@ -751,7 +778,17 @@ export class SuggestionManagerRuntime {
       };
     }
     const blockContext = this.contentEditableAdapter.getBlockContext(entry.elem);
-    return blockContext ?? { beforeCursor: snapshot.beforeCursor, afterCursor: snapshot.afterCursor };
+    if (!blockContext) {
+      return { beforeCursor: snapshot.beforeCursor, afterCursor: snapshot.afterCursor };
+    }
+    if (
+      blockContext.beforeCursor.length === 0 &&
+      blockContext.afterCursor.length === 0 &&
+      this.contentEditableAdapter.isCollapsedSelectionBeforeBlockBoundary(entry.elem)
+    ) {
+      return { beforeCursor: snapshot.beforeCursor, afterCursor: snapshot.afterCursor };
+    }
+    return blockContext;
   }
 
   private resolveLocalGrammarTriggers(

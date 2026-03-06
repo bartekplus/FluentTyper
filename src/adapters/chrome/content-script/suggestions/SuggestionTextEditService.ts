@@ -282,19 +282,24 @@ export class SuggestionTextEditService {
       if (!blockContext) {
         return { applied: false, didDispatchInput: false };
       }
+      const useFullTextOffsets =
+        blockContext.beforeCursor.length === 0 &&
+        blockContext.afterCursor.length === 0 &&
+        this.contentEditableAdapter.isCollapsedSelectionBeforeBlockBoundary(entry.elem);
+      if (!useFullTextOffsets) {
+        const blockStart = snapshot.beforeCursor.length - blockContext.beforeCursor.length;
+        const blockCursor = blockContext.beforeCursor.length;
+        const blockEnd = blockStart + blockContext.beforeCursor.length + blockContext.afterCursor.length;
+        if (blockStart < 0 || blockEnd > fullText.length) {
+          return { applied: false, didDispatchInput: false };
+        }
 
-      const blockStart = snapshot.beforeCursor.length - blockContext.beforeCursor.length;
-      const blockCursor = blockContext.beforeCursor.length;
-      const blockEnd = blockStart + blockContext.beforeCursor.length + blockContext.afterCursor.length;
-      if (blockStart < 0 || blockEnd > fullText.length) {
-        return { applied: false, didDispatchInput: false };
+        replaceStart = Math.max(0, blockStart + blockCursor - deleteBackwards);
+        replaceEnd = Math.max(
+          replaceStart,
+          Math.min(fullText.length, blockStart + blockCursor + deleteForwards),
+        );
       }
-
-      replaceStart = Math.max(0, blockStart + blockCursor - deleteBackwards);
-      replaceEnd = Math.max(
-        replaceStart,
-        Math.min(fullText.length, blockStart + blockCursor + deleteForwards),
-      );
     }
 
     const originalText = fullText.slice(replaceStart, replaceEnd);

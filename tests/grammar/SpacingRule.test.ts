@@ -305,6 +305,14 @@ describe("SpacingRule", () => {
       confidence: "high",
       description: "Compacted technical punctuation spacing for code accessor",
     });
+
+    expect(ruleA.apply(getContext("cfg_1.\xA0x"))).toEqual({
+      replacement: ".x",
+      deleteBackwards: 3,
+      deleteForwards: 0,
+      confidence: "high",
+      description: "Compacted technical punctuation spacing for code accessor",
+    });
   });
 
   test("does not compact prose continuation without code cues", () => {
