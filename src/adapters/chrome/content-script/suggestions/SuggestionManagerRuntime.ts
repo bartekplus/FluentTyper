@@ -742,9 +742,10 @@ export class SuggestionManagerRuntime {
     this.dismissEntry(entry, true);
   }
 
-  private resolveCurrentPredictionContext(
-    entry: SuggestionEntry,
-  ): { beforeCursor: string; fullText: string } {
+  private resolveCurrentPredictionContext(entry: SuggestionEntry): {
+    beforeCursor: string;
+    fullText: string;
+  } {
     const snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
     return {
       beforeCursor: this.resolveBeforeCursorForPrediction(entry, snapshot.beforeCursor),
@@ -758,7 +759,8 @@ export class SuggestionManagerRuntime {
 
   private hasVisibleSuggestionState(entry: SuggestionEntry): boolean {
     return (
-      this.menuPresenter.isVisible(entry.menu, entry.suggestions.length) || entry.inlineSuggestion !== null
+      this.menuPresenter.isVisible(entry.menu, entry.suggestions.length) ||
+      entry.inlineSuggestion !== null
     );
   }
 
