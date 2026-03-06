@@ -444,6 +444,45 @@ describe("SuggestionTextEditService", () => {
     expect(editable.textContent).toBe("first SECOND");
   });
 
+  test("keeps accepted expansion before a following signature block in contenteditable", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+    });
+
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML =
+      'asap<div><span class="gmail_signature_prefix">-- </span><br><div class="gmail_signature">Pozdrawiam Bartek</div></div>';
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Selection API unavailable");
+    }
+    const range = document.createRange();
+    range.setStart(editable, 1);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    const entry = createSuggestionEntry({
+      elem: editable,
+      latestMentionText: "asap",
+      latestMentionStart: 0,
+    });
+
+    const accepted = service.acceptSuggestion(entry, "As soon as possible ");
+
+    expect(accepted).toEqual({
+      triggerText: "asap",
+      insertedText: "As soon as possible\u00A0",
+    });
+    expect(editable.innerHTML).toContain("As soon as possible&nbsp;<div");
+    expect(editable.querySelector(".gmail_signature_prefix")?.textContent).toBe("-- ");
+  });
+
   test("skips ambiguous contenteditable acceptance instead of applying stale off-caret range", () => {
     const service = new SuggestionTextEditService({
       findMentionToken,

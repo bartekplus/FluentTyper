@@ -310,6 +310,31 @@ describe("ContentEditableAdapter", () => {
     expect(result.didMutateDom).toBe(true);
   });
 
+  test("preserves a root boundary insertion before a non-empty block", () => {
+    const adapter = new ContentEditableAdapter();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML =
+      'asap<div><span class="gmail_signature_prefix">-- </span><br><div class="gmail_signature">Pozdrawiam Bartek</div></div>';
+    document.body.appendChild(editable);
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Selection API unavailable");
+    }
+    const range = document.createRange();
+    range.setStart(editable, 1);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    const result = adapter.replaceTextByOffsets(editable, 0, 4, "As soon as possible\u00A0", 20);
+
+    expect(result.didMutateDom).toBe(true);
+    expect(editable.innerHTML).toContain("As soon as possible&nbsp;<div");
+    expect(editable.querySelector(".gmail_signature_prefix")?.textContent).toBe("-- ");
+  });
+
   test("resolves block context to active line when caret is at root boundary", () => {
     const adapter = new ContentEditableAdapter();
     const editable = document.createElement("div");

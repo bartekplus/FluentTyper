@@ -143,6 +143,41 @@ export class ContentEditableAdapter {
     };
   }
 
+  public isCollapsedSelectionBeforeBlockBoundary(elem: HTMLElement): boolean {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0 || !selection.isCollapsed) {
+      return false;
+    }
+
+    const range = selection.getRangeAt(0);
+    const targetNode = elem as Node;
+    const startInside =
+      range.startContainer === targetNode || targetNode.contains(range.startContainer);
+    if (!startInside) {
+      return false;
+    }
+
+    if (range.startContainer.nodeType === Node.TEXT_NODE) {
+      const textNode = range.startContainer as Text;
+      if (range.startOffset < (textNode.textContent?.length ?? 0)) {
+        return false;
+      }
+      const nextSibling = this.findNextSiblingAcrossAncestors(textNode, elem);
+      return nextSibling?.nodeType === Node.ELEMENT_NODE && this.isBlockElement(nextSibling as Element);
+    }
+
+    const container =
+      range.startContainer.nodeType === Node.ELEMENT_NODE
+        ? (range.startContainer as Element)
+        : null;
+    if (!container) {
+      return false;
+    }
+
+    const next = this.pickAdjacentChildAtOffset(container, range.startOffset, true);
+    return next?.nodeType === Node.ELEMENT_NODE && this.isBlockElement(next as Element);
+  }
+
   private resolveBlock(node: Node, root: HTMLElement): HTMLElement {
     const blockTags = new Set([
       "P",
@@ -282,6 +317,9 @@ export class ContentEditableAdapter {
     }
 
     const startOffset = range.startOffset;
+    if (container === root && this.shouldPreserveStructuralBoundary(container, startOffset)) {
+      return;
+    }
     const normalized = this.resolveBoundaryInsertionPoint(container, startOffset);
     if (!normalized) {
       return;
@@ -339,6 +377,34 @@ export class ContentEditableAdapter {
     return { container: element, offset: element.childNodes.length };
   }
 
+  private shouldPreserveStructuralBoundary(container: Element, offset: number): boolean {
+    const next = offset < container.childNodes.length ? container.childNodes[offset] : null;
+    const previous = offset > 0 ? container.childNodes[offset - 1] : null;
+
+    return this.nodeHasMeaningfulText(next) || this.nodeHasMeaningfulText(previous);
+  }
+
+  private nodeHasMeaningfulText(node: Node | null): boolean {
+    if (!node) {
+      return false;
+    }
+
+    if (node.nodeType === Node.TEXT_NODE) {
+      return (node.textContent ?? "").length > 0;
+    }
+
+    if (node.nodeType !== Node.ELEMENT_NODE) {
+      return false;
+    }
+
+    const textContent = (node.textContent ?? "").replace(/\u00A0/g, " ").trim();
+    if (textContent.length > 0) {
+      return true;
+    }
+
+    return !(node as Element).querySelector("br");
+  }
+
   private findFirstTextNode(root: Node): Text | null {
     const showText =
       (globalThis as { NodeFilter?: { SHOW_TEXT?: number } }).NodeFilter?.SHOW_TEXT ?? 4;
@@ -357,6 +423,36 @@ export class ContentEditableAdapter {
       current = walker.nextNode() as Text | null;
     }
     return last;
+  }
+
+  private findNextSiblingAcrossAncestors(node: Node, root: HTMLElement): Node | null {
+    let current: Node | null = node;
+    const rootNode = root as Node;
+    while (current && current !== rootNode) {
+      if (current.nextSibling) {
+        return current.nextSibling;
+      }
+      current = current.parentNode;
+    }
+    return null;
+  }
+
+  private isBlockElement(node: Element): boolean {
+    return new Set([
+      "P",
+      "DIV",
+      "LI",
+      "BLOCKQUOTE",
+      "PRE",
+      "TD",
+      "TH",
+      "H1",
+      "H2",
+      "H3",
+      "H4",
+      "H5",
+      "H6",
+    ]).has(node.tagName);
   }
 
   private tryNativeReplacement(

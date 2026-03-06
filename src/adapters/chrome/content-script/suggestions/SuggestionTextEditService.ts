@@ -66,6 +66,8 @@ export class SuggestionTextEditService {
     }
 
     const currentFullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
+    const beforeBlockBoundary =
+      !isTextValueTarget && this.contentEditableAdapter.isCollapsedSelectionBeforeBlockBoundary(entry.elem);
     let replaceEnd = snapshot.beforeCursor.length;
     if (!isTextValueTarget && tokenInfo.token.length === 0) {
       while (replaceEnd > 0 && this.isSeparator(snapshot.beforeCursor.charAt(replaceEnd - 1))) {
@@ -101,9 +103,9 @@ export class SuggestionTextEditService {
       }
     }
 
-    const trailingTokenText = this.findTrailingToken(
-      blockContext?.afterCursor ?? currentFullText.slice(replaceEnd),
-    );
+    const trailingTokenText = beforeBlockBoundary
+      ? ""
+      : this.findTrailingToken(blockContext?.afterCursor ?? currentFullText.slice(replaceEnd));
     const replacedTokenText = `${triggerText}${trailingTokenText}`;
     const baseReplaceEnd = Math.min(currentFullText.length, replaceEnd + trailingTokenText.length);
     const extraWhitespaceToConsume = this.shouldConsumeFollowingSpace(
@@ -117,8 +119,13 @@ export class SuggestionTextEditService {
       baseReplaceEnd + extraWhitespaceToConsume,
     );
     const consumedTrailingWhitespace = currentFullText.slice(baseReplaceEnd, finalReplaceEnd);
+    const replacementText = this.normalizeContentEditableTrailingSpace(
+      entry.elem,
+      suggestion,
+      beforeBlockBoundary,
+    );
 
-    const cursorAfter = replaceStart + suggestion.length;
+    const cursorAfter = replaceStart + replacementText.length;
     const originalText = `${replacedTokenText}${consumedTrailingWhitespace}`;
 
     this.replaceTextByOffsets(
@@ -126,7 +133,7 @@ export class SuggestionTextEditService {
       currentFullText,
       replaceStart,
       finalReplaceEnd,
-      suggestion,
+      replacementText,
       cursorAfter,
     );
     const postEditSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
@@ -134,7 +141,7 @@ export class SuggestionTextEditService {
     entry.pendingExtensionEdit = {
       replaceStart,
       originalText,
-      replacementText: suggestion,
+      replacementText,
       cursorBefore: snapshot.cursorOffset,
       cursorAfter: postEditSnapshot.cursorOffset,
       postEditFingerprint: TextTargetAdapter.createPostEditFingerprint(
@@ -146,7 +153,7 @@ export class SuggestionTextEditService {
 
     return {
       triggerText,
-      insertedText: suggestion,
+      insertedText: replacementText,
     };
   }
 
@@ -644,6 +651,20 @@ export class SuggestionTextEditService {
       replacementText,
       cursorAfter,
     );
+  }
+
+  private normalizeContentEditableTrailingSpace(
+    elem: SuggestionElement,
+    replacementText: string,
+    beforeBlockBoundary: boolean,
+  ): string {
+    if (this.isTextValueElement(elem) || !beforeBlockBoundary || !/ $/.test(replacementText)) {
+      return replacementText;
+    }
+
+    // Rich editors can drop a plain trailing space when an insertion lands
+    // immediately before a nested block. NBSP preserves the visible gap.
+    return `${replacementText.slice(0, -1)}\xA0`;
   }
 
   private dispatchInputEvent(elem: SuggestionElement): void {

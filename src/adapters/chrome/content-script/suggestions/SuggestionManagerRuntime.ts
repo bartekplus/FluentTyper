@@ -280,10 +280,12 @@ export class SuggestionManagerRuntime {
     }
     const snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
     const beforeCursor = this.resolveBeforeCursorForPrediction(entry, snapshot.beforeCursor);
+    const afterCursor = this.resolveAfterCursorForPrediction(entry, snapshot.afterCursor);
     this.predictionCoordinator.schedule(entry, {
       force: true,
       clearSuggestions: () => this.clearSuggestions(entry),
       beforeCursorOverride: beforeCursor,
+      afterCursorOverride: afterCursor,
     });
   }
 
@@ -509,6 +511,7 @@ export class SuggestionManagerRuntime {
         typedKey: entry.lastKeydownKey,
       },
     );
+    const predictionAfterCursor = this.resolveAfterCursorForPrediction(entry, snapshot.afterCursor);
     entry.lastInputAction = inputAction;
     entry.lastKeydownKey = null;
     entry.lastBeforeCursorText = predictionBeforeCursor;
@@ -531,6 +534,7 @@ export class SuggestionManagerRuntime {
       clearSuggestions: () => this.clearSuggestions(entry),
       inputAction,
       beforeCursorOverride: predictionBeforeCursor,
+      afterCursorOverride: predictionAfterCursor,
     });
   }
 
@@ -588,6 +592,20 @@ export class SuggestionManagerRuntime {
     }
 
     return blockBeforeCursor;
+  }
+
+  private resolveAfterCursorForPrediction(
+    entry: SuggestionEntry,
+    snapshotAfterCursor: string,
+  ): string {
+    if (this.isTextValueElement(entry.elem)) {
+      return snapshotAfterCursor;
+    }
+    if (this.contentEditableAdapter.isCollapsedSelectionBeforeBlockBoundary(entry.elem)) {
+      return "";
+    }
+    const blockContext = this.contentEditableAdapter.getBlockContext(entry.elem);
+    return typeof blockContext?.afterCursor === "string" ? blockContext.afterCursor : snapshotAfterCursor;
   }
 
   private shouldPreservePendingExtensionEdit(
@@ -957,10 +975,12 @@ export class SuggestionManagerRuntime {
       inputAction: pending.inputAction,
       typedKey: pending.typedKey,
     });
+    const afterCursor = this.resolveAfterCursorForPrediction(current, snapshot.afterCursor);
     this.predictionCoordinator.reconcile(current, {
       clearSuggestions: () => this.clearSuggestions(current),
       inputAction: pending.inputAction,
       beforeCursorOverride: beforeCursor,
+      afterCursorOverride: afterCursor,
     });
   }
 
