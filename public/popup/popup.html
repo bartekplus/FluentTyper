@@ -86,215 +86,105 @@
 
     <!-- Modern Compact UI -->
     <main class="control-panel">
-      <!-- Content Area -->
       <div class="panel-body">
-        <!-- Permission Banner -->
-        <div
-          id="permissionBanner"
-          class="control-card permission-status is-hidden mb-2"
-          data-permission-state="missing"
-          aria-live="polite"
-        >
-          <span id="permissionBadge" class="permission-status__badge">
-            Website access required
-          </span>
-          <h2 id="permissionTitle" class="permission-status__title">Allow page access</h2>
-          <p id="permissionBody" class="permission-status__body">
-            FluentTyper needs website access to show suggestions in text fields, and everything
-            stays local in your browser.
-          </p>
-          <button
-            id="grantPermissionBtn"
-            class="button is-warning is-small is-rounded permission-status__action"
-            style="font-weight: 600"
-          >
-            Allow page access
-          </button>
-        </div>
-
-        <!-- Global Controls -->
-        <div class="control-card">
-          <div class="card-row border-bottom">
-            <div class="global-enable-meta">
-              <span class="row-label" data-i18n="popup_global_enable_label"
-                >Enable FluentTyper</span
-              >
-              <span class="global-enable-hint" data-i18n="popup_global_enable_hint"
-                >Global autocomplete toggle</span
-              >
+        <div class="popup-primary-stack">
+          <div id="pageStatePanel" class="page-state-panel" data-page-state="active">
+            <div class="page-state-header">
+              <div class="page-state-title-group">
+                <span class="section-inline-label" data-i18n="popup_section_this_site"
+                  >This site</span
+                >
+                <h2 id="pageStateTitle" class="page-state-title">Current site</h2>
+              </div>
+              <span id="pageStateBadge" class="page-state-badge">Active here</span>
             </div>
-            <div class="global-toggle-control">
-              <div class="field mb-0">
-                <input
-                  id="checkboxEnableInput"
-                  type="checkbox"
-                  name="checkboxEnableInput"
-                  class="switch is-small is-rounded"
-                  checked
-                />
-                <label for="checkboxEnableInput"></label>
+            <div class="page-state-summary">
+              <p id="pageStateBody" class="page-state-body"></p>
+              <div id="pageStateMeta" class="page-state-meta is-hidden">
+                <span id="pageStateLanguage" class="page-state-chip"></span>
+                <span id="pageStateProfile" class="page-state-chip"></span>
               </div>
             </div>
           </div>
-          <div class="card-row">
-            <span class="row-label" data-i18n="popup_language">Language</span>
-            <div class="select is-small is-rounded is-borderless">
-              <select id="languageSelect"></select>
-            </div>
-          </div>
-        </div>
 
-        <!-- Productivity Dashboard -->
-        <section id="productivityDashboard" class="control-card mt-2 dashboard-card">
-          <div class="card-row border-bottom dashboard-header-row">
-            <span class="row-label" data-i18n="popup_dashboard_title">Productivity Dashboard</span>
-            <button
-              id="openStatsOptionsBtn"
-              class="mini-btn"
-              type="button"
-              data-i18n="popup_dashboard_advanced_stats"
+          <div class="popup-control-grid">
+            <div
+              id="domainSectionWrapper"
+              class="setting-card setting-card--control setting-card--site is-hidden"
             >
-              Advanced Stats
-            </button>
-          </div>
-
-          <div class="dashboard-metrics">
-            <div class="metric-box">
-              <span id="metricAccepted" class="metric-value">0</span>
-              <span class="metric-label" data-i18n="popup_dashboard_metric_accepted">Accepted</span>
-            </div>
-            <div class="metric-box">
-              <span id="metricCharsSaved" class="metric-value">0</span>
-              <span class="metric-label" data-i18n="popup_dashboard_metric_chars_saved"
-                >Chars Saved</span
-              >
-            </div>
-            <div class="metric-box">
-              <span id="metricMinutesSaved" class="metric-value">0</span>
-              <span class="metric-label" data-i18n="popup_dashboard_metric_minutes_saved"
-                >Minutes Saved</span
-              >
-            </div>
-          </div>
-
-          <div class="dashboard-progress">
-            <div class="dashboard-progress-header">
-              <span data-i18n="popup_dashboard_progress_title">Milestone progress</span>
-              <span id="dashboardProgressLabel">0h / 1h</span>
-            </div>
-            <div class="dashboard-progress-track">
-              <div id="dashboardProgressFill" class="dashboard-progress-fill"></div>
-            </div>
-          </div>
-
-          <p id="dashboardPeriodSummary" class="dashboard-summary">
-            Last 7 days: 0 accepted • 0 chars • 0 min
-          </p>
-          <p id="dashboardLanguageSummary" class="dashboard-language-summary">
-            Languages: no data yet
-          </p>
-          <div id="weeklyRecapCard" class="dashboard-recap-card is-hidden">
-            <p id="weeklyRecapTitle" class="dashboard-recap-title"></p>
-            <p id="weeklyRecapSummary" class="dashboard-recap-summary"></p>
-            <p id="weeklyRecapMilestone" class="dashboard-recap-detail"></p>
-            <p id="weeklyRecapEquivalent" class="dashboard-recap-detail"></p>
-            <p id="weeklyRecapSnippet" class="dashboard-recap-snippet"></p>
-            <div class="dashboard-recap-actions">
-              <button
-                id="weeklyRecapShareBtn"
-                class="mini-btn"
-                type="button"
-                data-i18n="popup_weekly_recap_share_progress"
-              >
-                Share progress
-              </button>
-              <a
-                id="weeklyRecapSupportLink"
-                href="https://www.buymeacoffee.com/FluentTyper"
-                target="_blank"
-                class="mini-btn donate-mini-btn"
-                data-i18n="popup_weekly_recap_support_development"
-                >Support development</a
-              >
-              <button
-                id="weeklyRecapDismissBtn"
-                class="mini-btn"
-                type="button"
-                data-i18n="popup_weekly_recap_dismiss"
-              >
-                Dismiss
-              </button>
-              <button
-                id="weeklyRecapViewBtn"
-                class="mini-btn"
-                type="button"
-                data-i18n="popup_weekly_recap_view"
-              >
-                View details
-              </button>
-            </div>
-          </div>
-          <div id="dashboardMilestoneHint" class="dashboard-milestone is-hidden">
-            <span id="dashboardMilestoneText"></span>
-            <div class="dashboard-milestone-actions">
-              <button
-                id="dashboardMilestoneLaterBtn"
-                class="mini-btn"
-                type="button"
-                data-i18n="popup_donation_later"
-              >
-                Later
-              </button>
-              <a
-                id="dashboardMilestoneLink"
-                href="https://www.buymeacoffee.com/FluentTyper"
-                target="_blank"
-                class="mini-btn donate-mini-btn"
-                data-i18n="popup_donation_support"
-                >Support</a
-              >
-            </div>
-          </div>
-        </section>
-
-        <!-- Site Settings -->
-        <div id="domainSectionWrapper" class="mt-2">
-          <div class="control-card">
-            <!-- Domain Enable -->
-            <div class="card-row border-bottom">
-              <span id="checkboxDomainLabel" class="row-label" data-i18n="popup_enable_on_site"
-                >Enable on this site</span
-              >
-              <div class="field mb-0">
-                <input
-                  id="checkboxDomainInput"
-                  type="checkbox"
-                  name="checkboxDomainInput"
-                  class="switch is-small is-rounded"
-                  checked
-                />
-                <label for="checkboxDomainInput"></label>
+              <div class="setting-card-header">
+                <div class="row-copy">
+                  <span id="checkboxDomainLabel" class="row-label" data-i18n="popup_enable_on_site"
+                    >Enable on this site</span
+                  >
+                  <span id="checkboxDomainHint" class="row-hint"></span>
+                </div>
+                <div class="field mb-0">
+                  <input
+                    id="checkboxDomainInput"
+                    type="checkbox"
+                    name="checkboxDomainInput"
+                    class="switch is-small is-rounded"
+                    checked
+                  />
+                  <label for="checkboxDomainInput"></label>
+                </div>
               </div>
             </div>
 
-            <!-- Site Profile Toggle -->
-            <section id="siteProfileSection">
-              <div
-                class="card-row"
-                style="align-items: flex-start; padding-top: 0.75rem; padding-bottom: 0.75rem"
-              >
-                <div style="display: flex; flex-direction: column; gap: 0.25rem">
+            <div class="setting-card setting-card--control">
+              <div class="setting-card-header">
+                <div class="global-enable-meta">
+                  <div class="global-enable-title">
+                    <span class="section-inline-label" data-i18n="popup_section_global"
+                      >Global</span
+                    >
+                    <span class="row-label" data-i18n="popup_global_enable_label"
+                      >Enable FluentTyper</span
+                    >
+                  </div>
+                </div>
+                <div class="global-toggle-control">
+                  <div class="field mb-0">
+                    <input
+                      id="checkboxEnableInput"
+                      type="checkbox"
+                      name="checkboxEnableInput"
+                      class="switch is-small is-rounded"
+                      checked
+                    />
+                    <label for="checkboxEnableInput"></label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="setting-card setting-card--control setting-card--language">
+              <label class="setting-card-header setting-card-header--stacked" for="languageSelect">
+                <span class="row-label" data-i18n="popup_language">Language</span>
+                <div class="select is-small is-rounded is-borderless popup-select">
+                  <select id="languageSelect"></select>
+                </div>
+              </label>
+            </div>
+
+            <section
+              id="siteProfileSection"
+              class="setting-card setting-card--control setting-card--profile is-hidden"
+            >
+              <div class="setting-card-header">
+                <div class="row-copy">
                   <span class="row-label" data-i18n="popup_site_profile_toggle"
                     >Use site profile</span
                   >
                   <small
                     id="siteProfileStatus"
                     data-i18n="popup_site_profile_status_global"
-                    style="font-size: 0.75rem; color: var(--text-color-light); line-height: 1.2"
+                    class="row-hint"
                     >Using global settings</small
                   >
                 </div>
-                <div class="field mb-0" style="margin-top: 0.1rem">
+                <div class="field mb-0">
                   <input
                     id="checkboxSiteProfileInput"
                     type="checkbox"
@@ -305,13 +195,12 @@
                 </div>
               </div>
 
-              <!-- Site Profile Details (List Layout) -->
               <div id="siteProfileDetails" class="profile-details is-hidden">
                 <div class="profile-row">
                   <span class="profile-label" data-i18n="popup_site_profile_language"
                     >Language</span
                   >
-                  <div class="select is-small is-rounded is-borderless">
+                  <div class="select is-small is-rounded is-borderless popup-select">
                     <select id="siteLanguageSelect"></select>
                   </div>
                 </div>
@@ -319,7 +208,7 @@
                   <span class="profile-label" data-i18n="popup_site_profile_num_suggestions"
                     >Suggestions Count</span
                   >
-                  <div class="select is-small is-rounded is-borderless">
+                  <div class="select is-small is-rounded is-borderless popup-select">
                     <select id="siteNumSuggestionsSelect"></select>
                   </div>
                 </div>
@@ -327,29 +216,171 @@
                   <span class="profile-label" data-i18n="popup_site_profile_inline"
                     >Inline Mode</span
                   >
-                  <div class="select is-small is-rounded is-borderless">
+                  <div class="select is-small is-rounded is-borderless popup-select">
                     <select id="siteInlineModeSelect"></select>
                   </div>
                 </div>
               </div>
             </section>
           </div>
+
+          <div
+            id="permissionBanner"
+            class="permission-status is-hidden"
+            data-permission-state="missing"
+            aria-live="polite"
+          >
+            <span id="permissionBadge" class="permission-status__badge">
+              Website access required
+            </span>
+            <h2 id="permissionTitle" class="permission-status__title">Allow page access</h2>
+            <p id="permissionBody" class="permission-status__body">
+              FluentTyper needs website access to show suggestions in text fields, and everything
+              stays local in your browser.
+            </p>
+            <button
+              id="grantPermissionBtn"
+              class="button is-warning is-small is-rounded permission-status__action"
+              style="font-weight: 600"
+            >
+              Allow page access
+            </button>
+          </div>
         </div>
+
+        <section id="productivityDashboard" class="control-card dashboard-card">
+          <div class="dashboard-card-header">
+            <div class="dashboard-card-heading">
+              <span class="row-label" data-i18n="popup_dashboard_title"
+                >Productivity Dashboard</span
+              >
+              <p id="dashboardPeriodSummary" class="dashboard-period-summary">
+                Last 7 days: 0 accepted • 0 chars • 0 min
+              </p>
+            </div>
+            <button
+              id="openStatsOptionsBtn"
+              class="mini-btn secondary-action-btn"
+              type="button"
+              data-i18n="popup_dashboard_advanced_stats"
+            >
+              Advanced Stats
+            </button>
+          </div>
+
+          <div class="dashboard-content">
+            <div class="dashboard-metrics">
+              <div class="metric-box">
+                <span id="metricAccepted" class="metric-value">0</span>
+                <span class="metric-label" data-i18n="popup_dashboard_metric_accepted"
+                  >Accepted</span
+                >
+              </div>
+              <div class="metric-box">
+                <span id="metricCharsSaved" class="metric-value">0</span>
+                <span class="metric-label" data-i18n="popup_dashboard_metric_chars_saved"
+                  >Chars Saved</span
+                >
+              </div>
+              <div class="metric-box">
+                <span id="metricMinutesSaved" class="metric-value">0</span>
+                <span class="metric-label" data-i18n="popup_dashboard_metric_minutes_saved"
+                  >Minutes Saved</span
+                >
+              </div>
+            </div>
+
+            <div class="dashboard-progress">
+              <div class="dashboard-progress-header">
+                <span data-i18n="popup_dashboard_progress_title">Milestone progress</span>
+                <span id="dashboardProgressLabel">0h / 1h</span>
+              </div>
+              <div class="dashboard-progress-track">
+                <div id="dashboardProgressFill" class="dashboard-progress-fill"></div>
+              </div>
+            </div>
+
+            <p id="dashboardLanguageSummary" class="dashboard-language-summary">
+              Languages: no data yet
+            </p>
+            <div id="weeklyRecapCard" class="dashboard-recap-card is-hidden">
+              <p id="weeklyRecapTitle" class="dashboard-recap-title"></p>
+              <p id="weeklyRecapSummary" class="dashboard-recap-summary"></p>
+              <p id="weeklyRecapMilestone" class="dashboard-recap-detail"></p>
+              <p id="weeklyRecapEquivalent" class="dashboard-recap-detail"></p>
+              <p id="weeklyRecapSnippet" class="dashboard-recap-snippet"></p>
+              <div class="dashboard-recap-actions">
+                <button
+                  id="weeklyRecapShareBtn"
+                  class="mini-btn secondary-action-btn"
+                  type="button"
+                  data-i18n="popup_weekly_recap_share_progress"
+                >
+                  Share progress
+                </button>
+                <a
+                  id="weeklyRecapSupportLink"
+                  href="https://www.buymeacoffee.com/FluentTyper"
+                  target="_blank"
+                  class="mini-btn secondary-action-btn"
+                  data-i18n="popup_weekly_recap_support_development"
+                  >Support development</a
+                >
+                <button
+                  id="weeklyRecapDismissBtn"
+                  class="mini-btn secondary-action-btn"
+                  type="button"
+                  data-i18n="popup_weekly_recap_dismiss"
+                >
+                  Dismiss
+                </button>
+                <button
+                  id="weeklyRecapViewBtn"
+                  class="mini-btn secondary-action-btn"
+                  type="button"
+                  data-i18n="popup_weekly_recap_view"
+                >
+                  View details
+                </button>
+              </div>
+            </div>
+            <div id="dashboardMilestoneHint" class="dashboard-milestone is-hidden">
+              <span id="dashboardMilestoneText"></span>
+              <div class="dashboard-milestone-actions">
+                <button
+                  id="dashboardMilestoneLaterBtn"
+                  class="mini-btn secondary-action-btn"
+                  type="button"
+                  data-i18n="popup_donation_later"
+                >
+                  Later
+                </button>
+                <a
+                  id="dashboardMilestoneLink"
+                  href="https://www.buymeacoffee.com/FluentTyper"
+                  target="_blank"
+                  class="mini-btn secondary-action-btn"
+                  data-i18n="popup_donation_support"
+                  >Support</a
+                >
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
     </main>
 
-    <!-- Bottom Toolbar -->
     <footer class="toolbar">
-      <div class="toolbar-actions">
-        <!-- Options Button -->
+      <div class="toolbar-actions toolbar-actions--quiet">
         <a
-          class="toolbar-btn"
+          class="toolbar-link"
           id="runOptions"
           target="_blank"
           rel="noopener"
           data-i18n-title="popup_advanced_options"
           title="Advanced Options"
         >
+          <span class="sr-only" data-i18n="popup_advanced_options">Advanced Options</span>
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="18"
@@ -367,14 +398,15 @@
             ></path>
           </svg>
         </a>
-
-        <!-- Issue Tracker -->
         <a
-          class="toolbar-btn"
+          id="reportIssueLink"
+          class="toolbar-link"
           href="https://github.com/bartekplus/FluentTyper/issues"
           target="_blank"
+          data-i18n-title="popup_report_issue"
           title="Report Issue"
         >
+          <span class="sr-only" data-i18n="popup_report_issue">Report Issue</span>
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="18"
@@ -391,14 +423,15 @@
             <path d="M12 8h.01"></path>
           </svg>
         </a>
-
-        <!-- GitHub -->
         <a
-          class="toolbar-btn"
+          id="githubSourceLink"
+          class="toolbar-link"
           href="https://github.com/bartekplus/FluentTyper"
           target="_blank"
+          data-i18n-title="popup_github_source"
           title="GitHub Source"
         >
+          <span class="sr-only" data-i18n="popup_github_source">GitHub Source</span>
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="18"
@@ -415,31 +448,29 @@
             ></path>
           </svg>
         </a>
-      </div>
-
-      <!-- Donate Button -->
-      <a
-        href="https://www.buymeacoffee.com/FluentTyper"
-        target="_blank"
-        class="toolbar-action-btn"
-        title="Support Development"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="currentColor"
-          stroke="none"
-          class="mr-1"
-          style="color: #facc15"
+        <a
+          id="supportDevelopmentLink"
+          href="https://www.buymeacoffee.com/FluentTyper"
+          target="_blank"
+          class="toolbar-link"
+          data-i18n-title="popup_support_development"
+          title="Support Development"
         >
-          <path
-            d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
-          ></path>
-        </svg>
-        Donate
-      </a>
+          <span class="sr-only" data-i18n="popup_support_development">Support Development</span>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            stroke="none"
+          >
+            <path
+              d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
+            ></path>
+          </svg>
+        </a>
+      </div>
     </footer>
   </body>
 </html>

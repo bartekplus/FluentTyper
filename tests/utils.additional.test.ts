@@ -65,6 +65,18 @@ describe("shared utils additional coverage", () => {
     ).resolves.toBe(false);
   });
 
+  test("isEnabledForDomain defaults global enablement to true when unset", async () => {
+    const domainListKey = domainUtils.SETTINGS_DOMAIN_BLACKLIST;
+    const state = {
+      domainListMode: "blackList",
+      [domainListKey]: [],
+    };
+
+    await expect(
+      domainUtils.isEnabledForDomain(createSettings(state), "https://example.com"),
+    ).resolves.toBe(true);
+  });
+
   test("blockUnBlockDomain delegates to add/remove based on mode and action", async () => {
     const domainListKey = domainUtils.SETTINGS_DOMAIN_BLACKLIST;
     const blackListState = {

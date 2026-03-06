@@ -47,7 +47,7 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
   }
 
   async isEnabled(): Promise<boolean> {
-    return this.getBooleanField("enabled");
+    return this.getBooleanField("enabled", true);
   }
 
   async setEnabled(enabled: boolean): Promise<void> {

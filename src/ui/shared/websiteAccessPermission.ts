@@ -42,7 +42,9 @@ export interface WebsiteAccessPermissionTestHooks {
 interface WebsiteAccessPermissionControllerOptions {
   elements: WebsiteAccessPermissionElements;
   onGranted?: () => void;
+  onStateChange?: (state: WebsiteAccessPermissionState) => void | Promise<void>;
   service: WebsiteAccessPermissionService;
+  visibleStates?: WebsiteAccessPermissionState[];
 }
 
 function translate(key: string, fallback: string): string {
@@ -166,8 +168,10 @@ export class WebsiteAccessPermissionController {
   private currentState: WebsiteAccessPermissionState | null = null;
 
   private readonly copy = getWebsiteAccessPermissionCopy();
+  private readonly visibleStates: ReadonlySet<WebsiteAccessPermissionState>;
 
   constructor(private readonly options: WebsiteAccessPermissionControllerOptions) {
+    this.visibleStates = new Set(options.visibleStates ?? ["missing", "granted", "unavailable"]);
     this.options.elements.action?.addEventListener("click", () => {
       void this.handleRequest();
     });
@@ -175,19 +179,19 @@ export class WebsiteAccessPermissionController {
 
   async initialize(): Promise<void> {
     const state = await this.options.service.getState();
-    this.render(state);
+    await this.render(state);
   }
 
   private async handleRequest(): Promise<void> {
     const state = await this.options.service.requestAccess();
-    this.render(state);
+    await this.render(state);
   }
 
-  private render(state: WebsiteAccessPermissionState): void {
+  private async render(state: WebsiteAccessPermissionState): Promise<void> {
     const { action, badge, body, root, title } = this.options.elements;
     const viewModel = this.copy[state];
 
-    root.classList.remove("is-hidden");
+    root.classList.toggle("is-hidden", !this.visibleStates.has(state));
     root.dataset.permissionState = state;
     root.classList.toggle("is-success", state === "granted");
     root.classList.toggle("is-unavailable", state === "unavailable");
@@ -210,6 +214,7 @@ export class WebsiteAccessPermissionController {
       this.options.onGranted?.();
     }
 
+    await this.options.onStateChange?.(state);
     this.currentState = state;
   }
 }

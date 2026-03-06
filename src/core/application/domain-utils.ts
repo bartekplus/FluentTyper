@@ -23,7 +23,8 @@ async function getDomainListMode(settings: SettingsManager): Promise<"blackList"
 }
 
 async function isEnabledGlobally(settings: SettingsManager): Promise<boolean> {
-  return Boolean(await settings.get(SETTINGS_ENABLED));
+  const enabled = await settings.get(SETTINGS_ENABLED);
+  return typeof enabled === "boolean" ? enabled : true;
 }
 
 export function getDomain(url: string): string | undefined {
@@ -110,6 +111,21 @@ export async function isEnabledForDomain(
       (domainListMode === "whiteList" && isDomainOnBWList);
   }
   return enabledForDomain;
+}
+
+export async function isDomainAllowedByPreference(
+  settings: SettingsManager,
+  domainURL: string,
+): Promise<boolean> {
+  const [domainListMode, isDomainOnBWList] = await Promise.all([
+    getDomainListMode(settings),
+    isDomainOnList(settings, domainURL),
+  ]);
+
+  return (
+    (domainListMode === "blackList" && !isDomainOnBWList) ||
+    (domainListMode === "whiteList" && isDomainOnBWList)
+  );
 }
 
 export async function blockUnBlockDomain(
