@@ -536,45 +536,26 @@ export class SuggestionManagerRuntime {
       typedKey?: string | null;
     } = {},
   ): string {
-    if (this.isTextValueElement(entry.elem)) {
-      return snapshotBeforeCursor;
-    }
-    const blockContext = this.contentEditableAdapter.getBlockContext(entry.elem);
-    const blockBeforeCursor = blockContext?.beforeCursor;
-    if (typeof blockBeforeCursor !== "string") {
-      return snapshotBeforeCursor;
-    }
-
-    // Some rich editors update text before caret state; for the first inserted
-    // character we may temporarily see an empty block context. Seed with the
-    // typed key so min-length prediction stays responsive without using full-root text.
-    if (
-      inputAction !== "delete" &&
-      blockBeforeCursor.length === 0 &&
-      typeof typedKey === "string" &&
-      typedKey.length === 1 &&
-      typedKey.trim().length > 0
-    ) {
-      return typedKey;
-    }
-
-    return blockBeforeCursor;
+    void snapshotBeforeCursor;
+    return this.resolveEditableCursorContext(
+      entry,
+      TextTargetAdapter.snapshot(entry.elem as TextTarget),
+      {
+        inputAction,
+        typedKey,
+      },
+    ).beforeCursor;
   }
 
   private resolveAfterCursorForPrediction(
     entry: SuggestionEntry,
     snapshotAfterCursor: string,
   ): string {
-    if (this.isTextValueElement(entry.elem)) {
-      return snapshotAfterCursor;
-    }
-    if (this.contentEditableAdapter.isCollapsedSelectionBeforeBlockBoundary(entry.elem)) {
-      return "";
-    }
-    const blockContext = this.contentEditableAdapter.getBlockContext(entry.elem);
-    return typeof blockContext?.afterCursor === "string"
-      ? blockContext.afterCursor
-      : snapshotAfterCursor;
+    void snapshotAfterCursor;
+    return this.resolveEditableCursorContext(
+      entry,
+      TextTargetAdapter.snapshot(entry.elem as TextTarget),
+    ).afterCursor;
   }
 
   private shouldPreservePendingExtensionEdit(
@@ -679,25 +660,26 @@ export class SuggestionManagerRuntime {
       entry.pendingExtensionEdit = null;
     }
 
-    const provisionalBeforeCursor = this.resolveBeforeCursorForPrediction(
-      entry,
-      snapshot.beforeCursor,
-    );
+    const provisionalContext = this.resolveEditableCursorContext(entry, snapshot, { typedKey });
+    const provisionalBeforeCursor = provisionalContext.beforeCursor;
     const inputAction =
       inputActionOverride ??
       this.resolveInputAction(entry, event ?? new Event("input"), provisionalBeforeCursor);
-    const grammarContext = this.resolveGrammarContext(entry, snapshot);
-    const grammarEdit = this.grammarCoordinator.run({
-      beforeCursor: grammarContext.beforeCursor,
-      afterCursor: grammarContext.afterCursor,
+    const cursorContext = this.resolveEditableCursorContext(entry, snapshot, {
       inputAction,
-      triggers: this.resolveLocalGrammarTriggers(entry, event, grammarContext.beforeCursor),
+      typedKey,
+    });
+    const grammarEdit = this.grammarCoordinator.run({
+      beforeCursor: cursorContext.beforeCursor,
+      afterCursor: cursorContext.afterCursor,
+      inputAction,
+      triggers: this.resolveLocalGrammarTriggers(entry, event, cursorContext.beforeCursor),
     });
 
     if (grammarEdit) {
       const applyResult = this.textEditService.applyGrammarEdit(entry, grammarEdit, {
-        snapshot,
-        contentEditableContext: grammarContext.applyContext,
+        snapshot: cursorContext.snapshot,
+        contentEditableContext: cursorContext.applyContext,
       });
       if (applyResult.applied) {
         this.clearSuggestions(entry);
@@ -725,15 +707,12 @@ export class SuggestionManagerRuntime {
       }
     }
 
-    const predictionBeforeCursor = this.resolveBeforeCursorForPrediction(
-      entry,
-      snapshot.beforeCursor,
-      {
-        inputAction,
-        typedKey,
-      },
-    );
-    const predictionAfterCursor = this.resolveAfterCursorForPrediction(entry, snapshot.afterCursor);
+    const predictionContext = this.resolveEditableCursorContext(entry, snapshot, {
+      inputAction,
+      typedKey,
+    });
+    const predictionBeforeCursor = predictionContext.beforeCursor;
+    const predictionAfterCursor = predictionContext.afterCursor;
     entry.lastInputAction = inputAction;
     entry.lastKeydownKey = null;
     entry.lastBeforeCursorText = predictionBeforeCursor;
@@ -777,18 +756,27 @@ export class SuggestionManagerRuntime {
     }
   }
 
-  private resolveGrammarContext(
+  private resolveEditableCursorContext(
     entry: SuggestionEntry,
     snapshot: SuggestionSnapshot,
+    {
+      inputAction,
+      typedKey,
+    }: {
+      inputAction?: PredictionInputAction;
+      typedKey?: string | null;
+    } = {},
   ): {
     beforeCursor: string;
     afterCursor: string;
+    snapshot: SuggestionSnapshot;
     applyContext: GrammarEditApplyContext["contentEditableContext"];
   } {
     if (this.isTextValueElement(entry.elem)) {
       return {
         beforeCursor: snapshot.beforeCursor,
         afterCursor: snapshot.afterCursor,
+        snapshot,
         applyContext: null,
       };
     }
@@ -797,6 +785,7 @@ export class SuggestionManagerRuntime {
       return {
         beforeCursor: snapshot.beforeCursor,
         afterCursor: snapshot.afterCursor,
+        snapshot,
         applyContext: {
           beforeCursor: snapshot.beforeCursor,
           afterCursor: snapshot.afterCursor,
@@ -804,14 +793,18 @@ export class SuggestionManagerRuntime {
         },
       };
     }
+    const beforeBlockBoundary = this.contentEditableAdapter.isCollapsedSelectionBeforeBlockBoundary(
+      entry.elem,
+    );
     const useFullTextOffsets =
       blockContext.beforeCursor.length === 0 &&
       blockContext.afterCursor.length === 0 &&
-      this.contentEditableAdapter.isCollapsedSelectionBeforeBlockBoundary(entry.elem);
+      beforeBlockBoundary;
     if (useFullTextOffsets) {
       return {
         beforeCursor: snapshot.beforeCursor,
         afterCursor: snapshot.afterCursor,
+        snapshot,
         applyContext: {
           beforeCursor: snapshot.beforeCursor,
           afterCursor: snapshot.afterCursor,
@@ -819,12 +812,40 @@ export class SuggestionManagerRuntime {
         },
       };
     }
+    const resolvedAfterCursor = beforeBlockBoundary ? "" : blockContext.afterCursor;
+
+    const shouldSeedTypedKey =
+      inputAction !== "delete" &&
+      blockContext.beforeCursor.length === 0 &&
+      typeof typedKey === "string" &&
+      typedKey.length === 1 &&
+      typedKey.trim().length > 0 &&
+      resolvedAfterCursor.startsWith(typedKey) &&
+      snapshot.afterCursor.startsWith(typedKey);
+    if (shouldSeedTypedKey) {
+      return {
+        beforeCursor: typedKey,
+        afterCursor: resolvedAfterCursor.slice(typedKey.length),
+        snapshot: {
+          beforeCursor: `${snapshot.beforeCursor}${typedKey}`,
+          afterCursor: snapshot.afterCursor.slice(typedKey.length),
+          cursorOffset: snapshot.cursorOffset + typedKey.length,
+        },
+        applyContext: {
+          beforeCursor: typedKey,
+          afterCursor: resolvedAfterCursor.slice(typedKey.length),
+          useFullTextOffsets: false,
+        },
+      };
+    }
+
     return {
       beforeCursor: blockContext.beforeCursor,
-      afterCursor: blockContext.afterCursor,
+      afterCursor: resolvedAfterCursor,
+      snapshot,
       applyContext: {
         beforeCursor: blockContext.beforeCursor,
-        afterCursor: blockContext.afterCursor,
+        afterCursor: resolvedAfterCursor,
         useFullTextOffsets: false,
       },
     };
@@ -885,7 +906,7 @@ export class SuggestionManagerRuntime {
     }
 
     const snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
-    const grammarContext = this.resolveGrammarContext(entry, snapshot);
+    const grammarContext = this.resolveEditableCursorContext(entry, snapshot);
     const grammarEdit = this.grammarCoordinator.run({
       beforeCursor: grammarContext.beforeCursor,
       afterCursor: grammarContext.afterCursor,
@@ -897,7 +918,7 @@ export class SuggestionManagerRuntime {
     }
 
     const applyResult = this.textEditService.applyGrammarEdit(entry, grammarEdit, {
-      snapshot,
+      snapshot: grammarContext.snapshot,
       contentEditableContext: grammarContext.applyContext,
     });
     if (!applyResult.applied) {
@@ -909,8 +930,9 @@ export class SuggestionManagerRuntime {
     }
 
     const updatedSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
-    const beforeCursor = this.resolveBeforeCursorForPrediction(entry, updatedSnapshot.beforeCursor);
-    const afterCursor = this.resolveAfterCursorForPrediction(entry, updatedSnapshot.afterCursor);
+    const predictionContext = this.resolveEditableCursorContext(entry, updatedSnapshot);
+    const beforeCursor = predictionContext.beforeCursor;
+    const afterCursor = predictionContext.afterCursor;
     this.predictionCoordinator.schedule(entry, {
       force: true,
       clearSuggestions: () => this.clearSuggestions(entry),
