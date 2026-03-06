@@ -36,9 +36,13 @@ function popupMarkup(initialAccepted = "0"): string {
 <html>
   <body>
     <div id="pageStatePanel" data-page-state="active">
-      <span id="pageStateBadge"></span>
       <h2 id="pageStateTitle"></h2>
+      <span id="pageStateBadge"></span>
       <p id="pageStateBody"></p>
+      <div id="pageStateMeta" class="is-hidden">
+        <span id="pageStateLanguage"></span>
+        <span id="pageStateProfile"></span>
+      </div>
     </div>
     <input id="checkboxSiteProfileInput" type="checkbox" />
     <select id="siteLanguageSelect"></select>
@@ -56,11 +60,7 @@ function popupMarkup(initialAccepted = "0"): string {
     <select id="languageSelect"></select>
     <a id="runOptions"></a>
 
-    <details id="productivityDashboard">
-      <summary>
-        <span id="dashboardCollapsedSummary">init-collapsed</span>
-      </summary>
-    </details>
+    <section id="productivityDashboard"></section>
     <button id="openStatsOptionsBtn" type="button"></button>
     <span id="metricAccepted">${initialAccepted}</span>
     <span id="metricCharsSaved">init-chars</span>
@@ -380,7 +380,8 @@ describe("popup productivity dashboard retry/failure paths", () => {
     expect(dashboardStatsCallCount(chromeMock)).toBe(1);
     expect(textContent("metricAccepted")).toBe("60");
     expect(textContent("dashboardPeriodSummary")).not.toContain("unavailable");
-    expect(textContent("dashboardCollapsedSummary")).toContain("Last 7 days:");
+    expect(document.getElementById("productivityDashboard")?.tagName).toBe("SECTION");
+    expect(document.querySelector("summary")).toBeNull();
 
     await advanceAndFlush(10000);
     expect(dashboardStatsCallCount(chromeMock)).toBe(1);
@@ -517,6 +518,7 @@ describe("popup productivity dashboard retry/failure paths", () => {
     expect(textContent("pageStateBadge")).toBe("Restricted page");
     expect(textContent("pageStateTitle")).toBe("Browser internal page");
     expect(textContent("pageStateBody")).toContain("cannot run on browser internal pages");
+    expect(document.getElementById("pageStateMeta")?.classList.contains("is-hidden")).toBe(true);
     expect(document.getElementById("domainSectionWrapper")?.classList.contains("is-hidden")).toBe(
       true,
     );
@@ -537,5 +539,17 @@ describe("popup productivity dashboard retry/failure paths", () => {
     expect(textContent("permissionTitle")).not.toContain("permission_status_");
     expect(textContent("permissionBody")).not.toContain("permission_status_");
     expect(button.hidden).toBe(true);
+  });
+
+  test("advanced stats button opens the options page anchor", async () => {
+    const chromeMock = await loadPopupWithOutcomes([{ type: "stats", value: createPopupStats(2) }]);
+
+    (document.getElementById("openStatsOptionsBtn") as HTMLButtonElement).click();
+    await flushAsyncWork();
+
+    expect(chromeMock.tabs.create).toHaveBeenCalledTimes(1);
+    expect(chromeMock.tabs.create).toHaveBeenCalledWith({
+      url: expect.stringContaining("options/options.html#advanced_tab"),
+    });
   });
 });

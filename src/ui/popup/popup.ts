@@ -79,8 +79,11 @@ function getPageStateElements() {
     badge: document.getElementById("pageStateBadge") as HTMLElement | null,
     title: document.getElementById("pageStateTitle") as HTMLElement | null,
     body: document.getElementById("pageStateBody") as HTMLElement | null,
+    language: document.getElementById("pageStateLanguage") as HTMLElement | null,
     hint: document.getElementById("checkboxDomainHint") as HTMLElement | null,
+    meta: document.getElementById("pageStateMeta") as HTMLElement | null,
     panel: document.getElementById("pageStatePanel") as HTMLElement | null,
+    profile: document.getElementById("pageStateProfile") as HTMLElement | null,
     section: document.getElementById("domainSectionWrapper") as HTMLElement | null,
   };
 }
@@ -182,13 +185,21 @@ function resolveDisplayedLanguage(): string {
 function renderStaticPageState(
   state: Extract<PopupPageState, { kind: "restricted" | "non_actionable" }>,
 ): void {
-  const { badge, body, panel, section, title, hint } = getPageStateElements();
+  const { badge, body, meta, panel, section, title, hint, language, profile } =
+    getPageStateElements();
   if (!badge || !title || !body) {
     return;
   }
   badge.textContent = state.badge;
   title.textContent = state.title;
   body.textContent = state.body;
+  meta?.classList.add("is-hidden");
+  if (language) {
+    language.textContent = "";
+  }
+  if (profile) {
+    profile.textContent = "";
+  }
   panel?.setAttribute("data-page-state", state.kind);
   section?.classList.add("is-hidden");
   if (hint) {
@@ -221,34 +232,32 @@ async function renderActionablePageState(): Promise<void> {
     : translateLabel("popup_page_state_global_disabled_badge", "Paused globally");
   const activityCopy = globallyEnabled
     ? siteAllowed
-      ? translateLabel(
-          "popup_page_state_active_body",
-          "FluentTyper is ready to assist on this site.",
-        )
-      : translateLabel(
-          "popup_page_state_site_disabled_body",
-          "FluentTyper is disabled for this site until you turn it back on.",
-        )
-    : translateLabel(
-        "popup_page_state_global_disabled_body",
-        "FluentTyper is turned off everywhere until you re-enable it globally.",
-      );
+      ? translateLabel("popup_page_state_active_body", "Ready on this site.")
+      : translateLabel("popup_page_state_site_disabled_body", "Disabled on this site.")
+    : translateLabel("popup_page_state_global_disabled_body", "Paused everywhere.");
   const profileCopy = profile
-    ? translateLabel(
-        "popup_page_state_profile_active",
-        "A site profile is customizing behavior here.",
-      )
-    : translateLabel("popup_page_state_profile_global", "This site is using your global defaults.");
-  const { badge, body, panel, section, title, hint } = getPageStateElements();
-  if (!badge || !title || !body) {
+    ? translateLabel("popup_page_state_profile_active", "Site profile")
+    : translateLabel("popup_page_state_profile_global", "Global defaults");
+  const {
+    badge,
+    body,
+    language,
+    meta,
+    panel,
+    profile: profileNode,
+    section,
+    title,
+    hint,
+  } = getPageStateElements();
+  if (!badge || !title || !body || !language || !meta || !profileNode) {
     return;
   }
   badge.textContent = badgeLabel;
   title.textContent = currentDomainURL;
-  body.textContent = `${activityCopy} ${translateLabel(
-    "popup_page_state_language_prefix",
-    "Language",
-  )}: ${languageLabel}. ${profileCopy}`;
+  body.textContent = activityCopy;
+  language.textContent = languageLabel;
+  profileNode.textContent = profileCopy;
+  meta.classList.remove("is-hidden");
   panel?.setAttribute("data-page-state", globallyEnabled && siteAllowed ? "active" : "paused");
   section?.classList.remove("is-hidden");
   if (hint) {
@@ -717,13 +726,6 @@ function renderMilestoneHint(stats: ProductivityDashboardStats): void {
   };
 }
 
-function renderDashboardCollapsedSummary(summary: string): void {
-  const summaryNode = document.getElementById("dashboardCollapsedSummary") as HTMLElement | null;
-  if (summaryNode) {
-    summaryNode.textContent = summary;
-  }
-}
-
 function renderDashboard(stats: ProductivityDashboardStats): void {
   (document.getElementById("metricAccepted") as HTMLElement).textContent = formatNumber(
     stats.lifetime.acceptedSuggestions,
@@ -746,7 +748,6 @@ function renderDashboard(stats: ProductivityDashboardStats): void {
   (document.getElementById("dashboardPeriodSummary") as HTMLElement).textContent = periodSummary;
   (document.getElementById("dashboardLanguageSummary") as HTMLElement).textContent =
     formatLanguageSummary(stats);
-  renderDashboardCollapsedSummary(periodSummary);
   renderMilestoneProgress(stats);
   renderWeeklyRecapCard(stats);
   renderMilestoneHint(stats);
@@ -769,7 +770,6 @@ function renderDashboardUnavailable(): void {
   (document.getElementById("dashboardPeriodSummary") as HTMLElement).textContent = unavailableLabel;
   (document.getElementById("dashboardLanguageSummary") as HTMLElement).textContent =
     unavailableLabel;
-  renderDashboardCollapsedSummary(unavailableLabel);
   document.getElementById("weeklyRecapCard")?.classList.add("is-hidden");
   document.getElementById("dashboardMilestoneHint")?.classList.add("is-hidden");
 }
@@ -816,7 +816,9 @@ async function loadProductivityDashboard(retryAttempt = 0): Promise<void> {
 
 function init() {
   translateUI();
-  document.getElementById("openStatsOptionsBtn")?.addEventListener("click", () => {
+  document.getElementById("openStatsOptionsBtn")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
     openOptionsPageAtAnchor(OPTIONS_ANCHOR_ADVANCED);
   });
   window.document

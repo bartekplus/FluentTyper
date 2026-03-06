@@ -87,36 +87,90 @@
     <!-- Modern Compact UI -->
     <main class="control-panel">
       <div class="panel-body">
-        <section class="control-card primary-card">
-          <div class="card-section-header" data-i18n="popup_section_this_site">This site</div>
+        <section class="control-card popup-primary-card">
           <div id="pageStatePanel" class="page-state-panel" data-page-state="active">
-            <span id="pageStateBadge" class="page-state-badge">Active here</span>
-            <h2 id="pageStateTitle" class="page-state-title">Current site</h2>
+            <div class="page-state-header">
+              <div class="page-state-title-group">
+                <span class="section-inline-label" data-i18n="popup_section_this_site"
+                  >This site</span
+                >
+                <h2 id="pageStateTitle" class="page-state-title">Current site</h2>
+              </div>
+              <span id="pageStateBadge" class="page-state-badge">Active here</span>
+            </div>
             <p id="pageStateBody" class="page-state-body"></p>
+            <div id="pageStateMeta" class="page-state-meta is-hidden">
+              <span id="pageStateLanguage" class="page-state-chip"></span>
+              <span id="pageStateProfile" class="page-state-chip"></span>
+            </div>
           </div>
 
-          <div id="domainSectionWrapper" class="site-controls">
-            <div class="card-row border-bottom">
-              <div class="row-copy">
-                <span id="checkboxDomainLabel" class="row-label" data-i18n="popup_enable_on_site"
-                  >Enable on this site</span
-                >
-                <span id="checkboxDomainHint" class="row-hint"></span>
-              </div>
-              <div class="field mb-0">
-                <input
-                  id="checkboxDomainInput"
-                  type="checkbox"
-                  name="checkboxDomainInput"
-                  class="switch is-small is-rounded"
-                  checked
-                />
-                <label for="checkboxDomainInput"></label>
+          <div class="popup-control-grid">
+            <div
+              id="domainSectionWrapper"
+              class="setting-card setting-card--control setting-card--site"
+            >
+              <div class="setting-card-header">
+                <div class="row-copy">
+                  <span id="checkboxDomainLabel" class="row-label" data-i18n="popup_enable_on_site"
+                    >Enable on this site</span
+                  >
+                  <span id="checkboxDomainHint" class="row-hint"></span>
+                </div>
+                <div class="field mb-0">
+                  <input
+                    id="checkboxDomainInput"
+                    type="checkbox"
+                    name="checkboxDomainInput"
+                    class="switch is-small is-rounded"
+                    checked
+                  />
+                  <label for="checkboxDomainInput"></label>
+                </div>
               </div>
             </div>
 
-            <section id="siteProfileSection">
-              <div class="card-row border-bottom site-profile-toggle-row">
+            <div class="setting-card setting-card--control">
+              <div class="setting-card-header">
+                <div class="global-enable-meta">
+                  <div class="global-enable-title">
+                    <span class="section-inline-label" data-i18n="popup_section_global"
+                      >Global</span
+                    >
+                    <span class="row-label" data-i18n="popup_global_enable_label"
+                      >Enable FluentTyper</span
+                    >
+                  </div>
+                </div>
+                <div class="global-toggle-control">
+                  <div class="field mb-0">
+                    <input
+                      id="checkboxEnableInput"
+                      type="checkbox"
+                      name="checkboxEnableInput"
+                      class="switch is-small is-rounded"
+                      checked
+                    />
+                    <label for="checkboxEnableInput"></label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="setting-card setting-card--control setting-card--language">
+              <label class="setting-card-header setting-card-header--stacked" for="languageSelect">
+                <span class="row-label" data-i18n="popup_language">Language</span>
+                <div class="select is-small is-rounded is-borderless popup-select">
+                  <select id="languageSelect"></select>
+                </div>
+              </label>
+            </div>
+
+            <section
+              id="siteProfileSection"
+              class="setting-card setting-card--control setting-card--profile"
+            >
+              <div class="setting-card-header">
                 <div class="row-copy">
                   <span class="row-label" data-i18n="popup_site_profile_toggle"
                     >Use site profile</span
@@ -144,7 +198,7 @@
                   <span class="profile-label" data-i18n="popup_site_profile_language"
                     >Language</span
                   >
-                  <div class="select is-small is-rounded is-borderless">
+                  <div class="select is-small is-rounded is-borderless popup-select">
                     <select id="siteLanguageSelect"></select>
                   </div>
                 </div>
@@ -152,7 +206,7 @@
                   <span class="profile-label" data-i18n="popup_site_profile_num_suggestions"
                     >Suggestions Count</span
                   >
-                  <div class="select is-small is-rounded is-borderless">
+                  <div class="select is-small is-rounded is-borderless popup-select">
                     <select id="siteNumSuggestionsSelect"></select>
                   </div>
                 </div>
@@ -160,44 +214,12 @@
                   <span class="profile-label" data-i18n="popup_site_profile_inline"
                     >Inline Mode</span
                   >
-                  <div class="select is-small is-rounded is-borderless">
+                  <div class="select is-small is-rounded is-borderless popup-select">
                     <select id="siteInlineModeSelect"></select>
                   </div>
                 </div>
               </div>
             </section>
-          </div>
-        </section>
-
-        <section class="control-card mt-2">
-          <div class="card-section-header" data-i18n="popup_section_global">Global</div>
-          <div class="card-row border-bottom">
-            <div class="global-enable-meta">
-              <span class="row-label" data-i18n="popup_global_enable_label"
-                >Enable FluentTyper</span
-              >
-              <span class="global-enable-hint" data-i18n="popup_global_enable_hint"
-                >Global autocomplete toggle</span
-              >
-            </div>
-            <div class="global-toggle-control">
-              <div class="field mb-0">
-                <input
-                  id="checkboxEnableInput"
-                  type="checkbox"
-                  name="checkboxEnableInput"
-                  class="switch is-small is-rounded"
-                  checked
-                />
-                <label for="checkboxEnableInput"></label>
-              </div>
-            </div>
-          </div>
-          <div class="card-row">
-            <span class="row-label" data-i18n="popup_language">Language</span>
-            <div class="select is-small is-rounded is-borderless">
-              <select id="languageSelect"></select>
-            </div>
           </div>
 
           <div
@@ -224,36 +246,27 @@
           </div>
         </section>
 
-        <details id="productivityDashboard" class="control-card mt-2 dashboard-card">
-          <summary class="dashboard-disclosure-summary">
-            <div class="dashboard-disclosure-copy">
+        <section id="productivityDashboard" class="control-card dashboard-card">
+          <div class="dashboard-card-header">
+            <div class="dashboard-card-heading">
               <span class="row-label" data-i18n="popup_dashboard_title"
                 >Productivity Dashboard</span
               >
-              <p id="dashboardCollapsedSummary" class="dashboard-collapsed-summary">
+              <p id="dashboardPeriodSummary" class="dashboard-period-summary">
                 Last 7 days: 0 accepted • 0 chars • 0 min
               </p>
             </div>
-            <span class="dashboard-disclosure-indicator" data-i18n="popup_dashboard_details"
-              >Details</span
+            <button
+              id="openStatsOptionsBtn"
+              class="mini-btn secondary-action-btn"
+              type="button"
+              data-i18n="popup_dashboard_advanced_stats"
             >
-          </summary>
+              Advanced Stats
+            </button>
+          </div>
 
-          <div class="dashboard-disclosure-content">
-            <div class="card-row border-bottom dashboard-header-row">
-              <span class="row-label" data-i18n="popup_dashboard_title"
-                >Productivity Dashboard</span
-              >
-              <button
-                id="openStatsOptionsBtn"
-                class="mini-btn"
-                type="button"
-                data-i18n="popup_dashboard_advanced_stats"
-              >
-                Advanced Stats
-              </button>
-            </div>
-
+          <div class="dashboard-content">
             <div class="dashboard-metrics">
               <div class="metric-box">
                 <span id="metricAccepted" class="metric-value">0</span>
@@ -285,9 +298,6 @@
               </div>
             </div>
 
-            <p id="dashboardPeriodSummary" class="dashboard-summary">
-              Last 7 days: 0 accepted • 0 chars • 0 min
-            </p>
             <p id="dashboardLanguageSummary" class="dashboard-language-summary">
               Languages: no data yet
             </p>
@@ -300,7 +310,7 @@
               <div class="dashboard-recap-actions">
                 <button
                   id="weeklyRecapShareBtn"
-                  class="mini-btn"
+                  class="mini-btn secondary-action-btn"
                   type="button"
                   data-i18n="popup_weekly_recap_share_progress"
                 >
@@ -310,13 +320,13 @@
                   id="weeklyRecapSupportLink"
                   href="https://www.buymeacoffee.com/FluentTyper"
                   target="_blank"
-                  class="mini-btn donate-mini-btn"
+                  class="mini-btn secondary-action-btn"
                   data-i18n="popup_weekly_recap_support_development"
                   >Support development</a
                 >
                 <button
                   id="weeklyRecapDismissBtn"
-                  class="mini-btn"
+                  class="mini-btn secondary-action-btn"
                   type="button"
                   data-i18n="popup_weekly_recap_dismiss"
                 >
@@ -324,7 +334,7 @@
                 </button>
                 <button
                   id="weeklyRecapViewBtn"
-                  class="mini-btn"
+                  class="mini-btn secondary-action-btn"
                   type="button"
                   data-i18n="popup_weekly_recap_view"
                 >
@@ -337,7 +347,7 @@
               <div class="dashboard-milestone-actions">
                 <button
                   id="dashboardMilestoneLaterBtn"
-                  class="mini-btn"
+                  class="mini-btn secondary-action-btn"
                   type="button"
                   data-i18n="popup_donation_later"
                 >
@@ -347,23 +357,21 @@
                   id="dashboardMilestoneLink"
                   href="https://www.buymeacoffee.com/FluentTyper"
                   target="_blank"
-                  class="mini-btn donate-mini-btn"
+                  class="mini-btn secondary-action-btn"
                   data-i18n="popup_donation_support"
                   >Support</a
                 >
               </div>
             </div>
           </div>
-        </details>
+        </section>
       </div>
     </main>
 
-    <!-- Bottom Toolbar -->
     <footer class="toolbar">
-      <div class="toolbar-actions">
-        <!-- Options Button -->
+      <div class="toolbar-actions toolbar-actions--quiet">
         <a
-          class="toolbar-btn"
+          class="toolbar-link"
           id="runOptions"
           target="_blank"
           rel="noopener"
@@ -387,10 +395,8 @@
             ></path>
           </svg>
         </a>
-
-        <!-- Issue Tracker -->
         <a
-          class="toolbar-btn"
+          class="toolbar-link"
           href="https://github.com/bartekplus/FluentTyper/issues"
           target="_blank"
           title="Report Issue"
@@ -411,10 +417,8 @@
             <path d="M12 8h.01"></path>
           </svg>
         </a>
-
-        <!-- GitHub -->
         <a
-          class="toolbar-btn"
+          class="toolbar-link"
           href="https://github.com/bartekplus/FluentTyper"
           target="_blank"
           title="GitHub Source"
@@ -435,30 +439,26 @@
             ></path>
           </svg>
         </a>
-      </div>
-
-      <a
-        href="https://www.buymeacoffee.com/FluentTyper"
-        target="_blank"
-        class="toolbar-action-btn"
-        title="Support Development"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="currentColor"
-          stroke="none"
-          class="mr-1"
-          style="color: #facc15"
+        <a
+          href="https://www.buymeacoffee.com/FluentTyper"
+          target="_blank"
+          class="toolbar-link"
+          title="Support Development"
         >
-          <path
-            d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
-          ></path>
-        </svg>
-        Donate
-      </a>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            stroke="none"
+          >
+            <path
+              d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
+            ></path>
+          </svg>
+        </a>
+      </div>
     </footer>
   </body>
 </html>
