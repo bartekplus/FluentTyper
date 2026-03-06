@@ -43,6 +43,7 @@ interface WebsiteAccessPermissionControllerOptions {
   elements: WebsiteAccessPermissionElements;
   onGranted?: () => void;
   service: WebsiteAccessPermissionService;
+  visibleStates?: WebsiteAccessPermissionState[];
 }
 
 function translate(key: string, fallback: string): string {
@@ -166,8 +167,10 @@ export class WebsiteAccessPermissionController {
   private currentState: WebsiteAccessPermissionState | null = null;
 
   private readonly copy = getWebsiteAccessPermissionCopy();
+  private readonly visibleStates: ReadonlySet<WebsiteAccessPermissionState>;
 
   constructor(private readonly options: WebsiteAccessPermissionControllerOptions) {
+    this.visibleStates = new Set(options.visibleStates ?? ["missing", "granted", "unavailable"]);
     this.options.elements.action?.addEventListener("click", () => {
       void this.handleRequest();
     });
@@ -187,7 +190,7 @@ export class WebsiteAccessPermissionController {
     const { action, badge, body, root, title } = this.options.elements;
     const viewModel = this.copy[state];
 
-    root.classList.remove("is-hidden");
+    root.classList.toggle("is-hidden", !this.visibleStates.has(state));
     root.dataset.permissionState = state;
     root.classList.toggle("is-success", state === "granted");
     root.classList.toggle("is-unavailable", state === "unavailable");

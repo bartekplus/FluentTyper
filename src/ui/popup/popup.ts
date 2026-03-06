@@ -941,6 +941,7 @@ function init() {
         action: grantBtn,
       },
       service: new WebsiteAccessPermissionService(browserAPI),
+      visibleStates: ["missing", "unavailable"],
     });
     void permissionController.initialize();
   }

@@ -487,6 +487,7 @@ describe("popup productivity dashboard retry/failure paths", () => {
     button.click();
     await flushAsyncWork();
 
+    expect(banner.classList.contains("is-hidden")).toBe(true);
     expect(banner.dataset.permissionState).toBe("granted");
     expect(textContent("permissionTitle")).toBe("Access granted");
     expect(textContent("permissionBody")).toBe(
@@ -495,6 +496,16 @@ describe("popup productivity dashboard retry/failure paths", () => {
     expect(button.hidden).toBe(true);
     expect(chromeMock.permissions?.contains).toHaveBeenCalledWith({ origins: ["<all_urls>"] });
     expect(chromeMock.permissions?.request).toHaveBeenCalledWith({ origins: ["<all_urls>"] });
+  });
+
+  test("keeps the popup permission banner hidden when access is already granted", async () => {
+    await loadPopupWithOutcomes([{ type: "stats", value: createPopupStats(1) }], "0", {
+      contains: async () => true,
+    });
+
+    const banner = document.getElementById("permissionBanner") as HTMLElement;
+    expect(banner.dataset.permissionState).toBe("granted");
+    expect(banner.classList.contains("is-hidden")).toBe(true);
   });
 
   test("shows a restricted-page state instead of site toggles on browser internal pages", async () => {
