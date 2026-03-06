@@ -261,6 +261,32 @@ body.fluenttyper-popup {
   color: #475569;
 }
 
+@media (prefers-color-scheme: dark) {
+  .page-state-panel[data-page-state="paused"] {
+    border-color: rgba(248, 113, 113, 0.4);
+    background:
+      linear-gradient(135deg, rgba(127, 29, 29, 0.42), rgba(69, 10, 10, 0.28)),
+      var(--input-bg-color);
+  }
+
+  .page-state-panel[data-page-state="paused"] .page-state-badge {
+    color: #fca5a5;
+  }
+
+  .page-state-panel[data-page-state="restricted"],
+  .page-state-panel[data-page-state="non_actionable"] {
+    border-color: rgba(125, 211, 252, 0.3);
+    background:
+      linear-gradient(135deg, rgba(14, 116, 144, 0.28), rgba(15, 23, 42, 0.18)),
+      var(--input-bg-color);
+  }
+
+  .page-state-panel[data-page-state="restricted"] .page-state-badge,
+  .page-state-panel[data-page-state="non_actionable"] .page-state-badge {
+    color: #bae6fd;
+  }
+}
+
 .page-state-title {
   margin: 0;
   font-size: 1rem;
