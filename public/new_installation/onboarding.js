@@ -1,6 +1,7 @@
 /* global document, window, console */
 document.addEventListener("DOMContentLoaded", async () => {
   const browserAPI = window.browser || window.chrome;
+  const testWindow = window;
   const permissionsBtn = document.getElementById("grant-permissions-btn");
   const permissionsContainer = document.getElementById("permissions-container");
   const permissionsSuccess = document.getElementById("permissions-success");
@@ -26,9 +27,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const checkPermissions = async () => {
     try {
-      const contains = await browserAPI.permissions.contains({
-        origins: ["<all_urls>"],
-      });
+      const requestOptions = { origins: ["<all_urls>"] };
+      const testPermissionContains =
+        typeof testWindow.__FT_TEST_PERMISSION_CONTAINS__ === "function"
+          ? testWindow.__FT_TEST_PERMISSION_CONTAINS__
+          : null;
+      const contains = testPermissionContains
+        ? await testPermissionContains(requestOptions)
+        : await browserAPI.permissions.contains(requestOptions);
       setPermissionState(Boolean(contains));
     } catch (error) {
       console.error("Error checking permissions:", error);
@@ -43,8 +49,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       const requestOptions = { origins: ["<all_urls>"] };
       // Resolve hook at click-time so tests can set it after DOMContentLoaded.
       const testPermissionRequest =
-        typeof window.__FT_TEST_PERMISSION_REQUEST__ === "function"
-          ? window.__FT_TEST_PERMISSION_REQUEST__
+        typeof testWindow.__FT_TEST_PERMISSION_REQUEST__ === "function"
+          ? testWindow.__FT_TEST_PERMISSION_REQUEST__
           : null;
       const granted = testPermissionRequest
         ? await testPermissionRequest(requestOptions)
