@@ -29,6 +29,7 @@ import {
   getTimeoutProfile,
   launchBrowser,
   getBackgroundContext,
+  getRuntimePageUrl,
   openExtensionPage,
   openPopupPage,
   sleep,
@@ -55,8 +56,11 @@ const SUGGESTION_TIMEOUT_MS = timeoutProfile.suggestionMs;
 const RUN_DEV_RUNTIME_E2E =
   process.env.FT_E2E_DEV_RUNTIME === "1" || process.env.FT_E2E_DEV_RUNTIME === "true";
 const RUN_E2E = process.env.RUN_E2E === "1" || process.env.RUN_E2E === "true";
+const IS_CI = process.env.CI === "true" || process.env.CI === "1";
 const describeE2E = RUN_E2E ? describe : describe.skip;
 const devRuntimeTest = RUN_DEV_RUNTIME_E2E ? test : test.skip;
+const WORKER_REACQUIRE_TIMEOUT_MS = isFirefox() ? 15000 : IS_CI ? 15000 : 7000;
+const ONBOARDING_VIEWPORT = { width: 1280, height: 900 } as const;
 
 function devRuntimeEach<T>(cases: readonly T[]) {
   return RUN_DEV_RUNTIME_E2E ? test.each(cases) : test.skip.each(cases);
@@ -64,6 +68,103 @@ function devRuntimeEach<T>(cases: readonly T[]) {
 
 function browserTimeout(chromeTimeoutMs: number, firefoxTimeoutMs: number) {
   return suiteTimeout(chromeTimeoutMs, firefoxTimeoutMs);
+}
+
+type OnboardingViewportSnapshot = {
+  viewportWidth: number;
+  viewportHeight: number;
+  permissionInViewport: boolean;
+  rationaleInViewport: boolean;
+  nextActionInViewport: boolean;
+};
+
+async function captureOnboardingViewportSnapshot(page: Page): Promise<OnboardingViewportSnapshot> {
+  return await page.evaluate(() => {
+    const permissionButton = document.getElementById("grant-permissions-btn");
+    const rationale = document.querySelector(".hero-lead");
+    const nextAction = document.querySelector("[aria-label='Next action']");
+
+    const isMeaningfullyVisibleInViewport = (element: Element | null) => {
+      if (!(element instanceof HTMLElement)) {
+        return false;
+      }
+
+      const rect = element.getBoundingClientRect();
+      const visibleHeight = Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0);
+
+      return (
+        rect.top >= 0 &&
+        rect.left >= 0 &&
+        rect.right <= window.innerWidth &&
+        visibleHeight >= Math.min(rect.height, 32)
+      );
+    };
+
+    return {
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+      permissionInViewport: isMeaningfullyVisibleInViewport(permissionButton),
+      rationaleInViewport: isMeaningfullyVisibleInViewport(rationale),
+      nextActionInViewport: isMeaningfullyVisibleInViewport(nextAction),
+    };
+  });
+}
+
+async function openOnboardingPageWithPermissionHooks(
+  browser: Browser,
+  worker: BackgroundContext,
+  hooks: {
+    contains?: boolean;
+    request?: boolean;
+  },
+): Promise<Page> {
+  const url = await getRuntimePageUrl(worker, "new_installation/index.html");
+  const page = await browser.newPage();
+  await page.setViewport(ONBOARDING_VIEWPORT);
+
+  await page.evaluateOnNewDocument((hookConfig) => {
+    const testWindow = window as Window & {
+      __FT_TEST_PERMISSION_CONTAINS__?: (
+        options: chrome.permissions.Permissions,
+      ) => Promise<boolean>;
+      __FT_TEST_PERMISSION_REQUEST__?: (
+        options: chrome.permissions.Permissions,
+      ) => Promise<boolean>;
+      __lastPermissionContainsRequest?: chrome.permissions.Permissions;
+      __lastPermissionRequest?: chrome.permissions.Permissions;
+    };
+
+    if (typeof hookConfig.contains === "boolean") {
+      testWindow.__FT_TEST_PERMISSION_CONTAINS__ = async (
+        options: chrome.permissions.Permissions,
+      ) => {
+        testWindow.__lastPermissionContainsRequest = options;
+        return hookConfig.contains;
+      };
+    }
+
+    if (typeof hookConfig.request === "boolean") {
+      testWindow.__FT_TEST_PERMISSION_REQUEST__ = async (
+        options: chrome.permissions.Permissions,
+      ) => {
+        testWindow.__lastPermissionRequest = options;
+        return hookConfig.request;
+      };
+    }
+  }, hooks);
+
+  await page.goto(url, {
+    waitUntil: "domcontentloaded",
+    timeout: browserTimeout(3000, 10000),
+  });
+  await page.waitForSelector("body", {
+    timeout: browserTimeout(3000, 10000),
+  });
+  await page.waitForFunction(() => document.body.textContent?.includes("Ctrl+Z") ?? false, {
+    timeout: browserTimeout(3000, 10000),
+  });
+
+  return page;
 }
 
 function toLocalDateKey(date: Date): string {
@@ -108,7 +209,7 @@ async function reacquireWorkerContext(
       }
     },
     {
-      timeoutMs: browserTimeout(7000, 15000),
+      timeoutMs: WORKER_REACQUIRE_TIMEOUT_MS,
       intervalMs: 100,
     },
   );
@@ -1161,6 +1262,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         worker!,
         "new_installation/index.html",
       );
+      await newInstallationPage.setViewport(ONBOARDING_VIEWPORT);
       await newInstallationPage.waitForSelector("body", {
         timeout: browserTimeout(3000, 10000),
       });
@@ -1175,6 +1277,14 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         // ---- Permission flow test ----
         // Wait for the button to be ready and visible
         await newInstallationPage.waitForSelector("#grant-permissions-btn", { visible: true });
+        await newInstallationPage.waitForSelector("[aria-label='Next action']", { visible: true });
+
+        const viewportSnapshot = await captureOnboardingViewportSnapshot(newInstallationPage);
+        expect(viewportSnapshot).toMatchObject({
+          permissionInViewport: true,
+          rationaleInViewport: true,
+          nextActionInViewport: true,
+        });
 
         // Mock onboarding permission flow through explicit test hook.
         await newInstallationPage.evaluate(() => {
@@ -1206,6 +1316,11 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         // Check if success container is shown
         await newInstallationPage.waitForSelector("#permissions-success", { visible: true });
 
+        const activeElementId = await newInstallationPage.evaluate(
+          () => document.activeElement?.id ?? null,
+        );
+        expect(activeElementId).toBe("try-me-textarea");
+
         // Validate that the request was called with right arguments
 
         const reqArgs = await newInstallationPage.evaluate(() => {
@@ -1221,6 +1336,111 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await newInstallationPage.close();
     },
     browserTimeout(10000, 25000),
+  );
+
+  test(
+    "New installation page shows activation-ready state when permissions are already granted",
+    async () => {
+      expect(worker).toBeDefined();
+
+      if (isFirefox()) {
+        return;
+      }
+
+      const onboardingPage = await openOnboardingPageWithPermissionHooks(browser, worker!, {
+        contains: true,
+      });
+
+      await onboardingPage.waitForSelector("#permissions-success", { visible: true });
+
+      const onboardingState = await onboardingPage.evaluate(() => {
+        const testWindow = window as Window & {
+          __lastPermissionContainsRequest?: chrome.permissions.Permissions;
+        };
+        const permissionsContainer = document.getElementById("permissions-container");
+        const permissionsSuccess = document.getElementById("permissions-success");
+
+        return {
+          activeElementId: document.activeElement?.id ?? null,
+          permissionsContainerHidden:
+            permissionsContainer instanceof HTMLElement ? permissionsContainer.hidden : null,
+          permissionsSuccessHidden:
+            permissionsSuccess instanceof HTMLElement ? permissionsSuccess.hidden : null,
+          containsRequest: testWindow.__lastPermissionContainsRequest,
+        };
+      });
+
+      expect(onboardingState).toEqual({
+        activeElementId: "try-me-textarea",
+        permissionsContainerHidden: true,
+        permissionsSuccessHidden: false,
+        containsRequest: { origins: ["<all_urls>"] },
+      });
+
+      await onboardingPage.close();
+    },
+    browserTimeout(5000, 12000),
+  );
+
+  test(
+    "New installation page keeps permission CTA visible when access is denied",
+    async () => {
+      expect(worker).toBeDefined();
+
+      if (isFirefox()) {
+        return;
+      }
+
+      const onboardingPage = await openOnboardingPageWithPermissionHooks(browser, worker!, {
+        contains: false,
+        request: false,
+      });
+
+      await onboardingPage.waitForSelector("#grant-permissions-btn", { visible: true });
+
+      await onboardingPage.evaluate(() => {
+        const button = document.getElementById("grant-permissions-btn");
+        if (!(button instanceof HTMLElement)) {
+          throw new Error("Permission grant button is missing");
+        }
+        button.click();
+      });
+
+      await onboardingPage.waitForFunction(() => {
+        const testWindow = window as Window & {
+          __lastPermissionRequest?: chrome.permissions.Permissions;
+        };
+        return Boolean(testWindow.__lastPermissionRequest);
+      });
+
+      const onboardingState = await onboardingPage.evaluate(() => {
+        const testWindow = window as Window & {
+          __lastPermissionContainsRequest?: chrome.permissions.Permissions;
+          __lastPermissionRequest?: chrome.permissions.Permissions;
+        };
+        const permissionsContainer = document.getElementById("permissions-container");
+        const permissionsSuccess = document.getElementById("permissions-success");
+
+        return {
+          permissionsContainerHidden:
+            permissionsContainer instanceof HTMLElement ? permissionsContainer.hidden : null,
+          permissionsSuccessHidden:
+            permissionsSuccess instanceof HTMLElement ? permissionsSuccess.hidden : null,
+          containsRequest: testWindow.__lastPermissionContainsRequest,
+          permissionRequest: testWindow.__lastPermissionRequest,
+        };
+      });
+
+      expect(onboardingState).toEqual({
+        permissionsContainerHidden: false,
+        permissionsSuccessHidden: true,
+        containsRequest: { origins: ["<all_urls>"] },
+        permissionRequest: { origins: ["<all_urls>"] },
+      });
+
+      await onboardingPage.close();
+    },
+    browserTimeout(5000, 12000),
   );
 
   test(

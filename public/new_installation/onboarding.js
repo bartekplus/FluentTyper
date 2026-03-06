@@ -1,31 +1,44 @@
 /* global document, window, console */
 document.addEventListener("DOMContentLoaded", async () => {
   const browserAPI = window.browser || window.chrome;
-  if (!browserAPI || !browserAPI.permissions) {
-    return;
-  }
-
+  const testWindow = window;
   const permissionsBtn = document.getElementById("grant-permissions-btn");
   const permissionsContainer = document.getElementById("permissions-container");
   const permissionsSuccess = document.getElementById("permissions-success");
+  const practiceTextarea = document.getElementById("try-me-textarea");
+
   if (!permissionsBtn || !permissionsContainer || !permissionsSuccess) {
+    return;
+  }
+
+  const setPermissionState = (granted) => {
+    permissionsContainer.hidden = granted;
+    permissionsSuccess.hidden = !granted;
+
+    if (granted && practiceTextarea && practiceTextarea.tagName === "TEXTAREA") {
+      practiceTextarea.focus();
+    }
+  };
+
+  if (!browserAPI || !browserAPI.permissions) {
+    setPermissionState(false);
     return;
   }
 
   const checkPermissions = async () => {
     try {
-      const contains = await browserAPI.permissions.contains({
-        origins: ["<all_urls>"],
-      });
-      if (contains) {
-        permissionsContainer.style.display = "none";
-        permissionsSuccess.style.display = "block";
-      } else {
-        permissionsContainer.style.display = "block";
-        permissionsSuccess.style.display = "none";
-      }
-    } catch (e) {
-      console.error("Error checking permissions:", e);
+      const requestOptions = { origins: ["<all_urls>"] };
+      const testPermissionContains =
+        typeof testWindow.__FT_TEST_PERMISSION_CONTAINS__ === "function"
+          ? testWindow.__FT_TEST_PERMISSION_CONTAINS__
+          : null;
+      const contains = testPermissionContains
+        ? await testPermissionContains(requestOptions)
+        : await browserAPI.permissions.contains(requestOptions);
+      setPermissionState(Boolean(contains));
+    } catch (error) {
+      console.error("Error checking permissions:", error);
+      setPermissionState(false);
     }
   };
 
@@ -36,18 +49,18 @@ document.addEventListener("DOMContentLoaded", async () => {
       const requestOptions = { origins: ["<all_urls>"] };
       // Resolve hook at click-time so tests can set it after DOMContentLoaded.
       const testPermissionRequest =
-        typeof window.__FT_TEST_PERMISSION_REQUEST__ === "function"
-          ? window.__FT_TEST_PERMISSION_REQUEST__
+        typeof testWindow.__FT_TEST_PERMISSION_REQUEST__ === "function"
+          ? testWindow.__FT_TEST_PERMISSION_REQUEST__
           : null;
       const granted = testPermissionRequest
         ? await testPermissionRequest(requestOptions)
         : await browserAPI.permissions.request(requestOptions);
+
       if (granted) {
-        permissionsContainer.style.display = "none";
-        permissionsSuccess.style.display = "block";
+        setPermissionState(true);
       }
-    } catch (e) {
-      console.error("Error requesting permissions:", e);
+    } catch (error) {
+      console.error("Error requesting permissions:", error);
     }
   });
 });
