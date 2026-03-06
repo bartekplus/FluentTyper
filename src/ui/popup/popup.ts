@@ -50,6 +50,8 @@ let _siteProfileRepository: SiteProfileRepository | null = null;
 function getSettings(): SettingsManager {
   if (!_settings) {
     _settings = new SettingsManager();
+    const s = _settings as unknown as { settings: { storageBackend?: unknown; storageName?: string } };
+    console.log("[POPUP_DEBUG] getSettings: storageBackend=", !!s.settings?.storageBackend, "storageName=", s.settings?.storageName, "keys=", Object.keys(s.settings || {}));
   }
   return _settings;
 }
@@ -349,6 +351,7 @@ async function renderActionablePageState(): Promise<void> {
     isDomainAllowedByPreference(getSettings(), currentDomainURL),
     getSiteProfileRepository().getRawSiteProfiles(),
   ]);
+  console.log("[POPUP_DEBUG] renderActionable: globallyEnabled=", globallyEnabled, "siteAllowed=", siteAllowed);
   const profile = getSiteProfileForDomain(
     siteProfilesRaw,
     currentDomainURL,
