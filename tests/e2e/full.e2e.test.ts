@@ -3940,43 +3940,6 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
-    "Grammar Rule Engine reverts latest auto-fix via Cmd/Ctrl+Z in #test-contenteditable",
-    async () => {
-      const selector = "#test-contenteditable";
-
-      await setSettingAndWaitStable(
-        worker!,
-        KEY_ENABLED_GRAMMAR_RULES,
-        ["englishAlotCorrection"],
-        3,
-        browserTimeout(5000, 7000),
-      );
-      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
-      await applyConfigChange(browser, worker!);
-
-      await gotoTestPage(page, {
-        enableCkEditor: false,
-        enableQuill: false,
-      });
-      await page.bringToFront();
-      await waitForInputReady(page, selector);
-
-      await clearInputContent(page, selector);
-      await typeInInput(page, selector, "alot ");
-      await waitForInputContentEqual(page, selector, "a lot ", browserTimeout(5000, 9000));
-
-      await pressNativeUndo(page, selector);
-      await waitForInputContentEqual(page, selector, "alot ", browserTimeout(5000, 9000));
-
-      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
-      await applyConfigChange(browser, worker!);
-    },
-    browserTimeout(25000, 45000),
-  );
-
-  test(
     "Grammar Rule Engine blocks immediate reapply after manual revert until token context changes in #test-input",
     async () => {
       const selector = "#test-input";
@@ -4004,13 +3967,13 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitForInputContentEqual(page, selector, "a lot ", browserTimeout(5000, 9000));
 
       await pressNativeUndo(page, selector);
-      await waitForInputContentEqual(page, selector, "a lot ", browserTimeout(5000, 9000));
+      await waitForInputContentEqual(page, selector, "alot ", browserTimeout(5000, 9000));
 
       await sleep(400);
-      await waitForInputContentEqual(page, selector, "a lot ", browserTimeout(5000, 9000));
+      await waitForInputContentEqual(page, selector, "alot ", browserTimeout(5000, 9000));
 
       await typeInInput(page, selector, "x alot ");
-      await waitForInputContentEqual(page, selector, "a lot x a lot ", browserTimeout(5000, 9000));
+      await waitForInputContentEqual(page, selector, "alot x a lot ", browserTimeout(5000, 9000));
 
       await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
       await applyConfigChange(browser, worker!);

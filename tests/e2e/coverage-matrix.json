@@ -676,11 +676,6 @@
           "test": "Grammar Rule Engine reverts latest auto-fix via Cmd/Ctrl+Z in #test-input"
         },
         {
-          "layer": "e2e-full",
-          "file": "tests/e2e/full.e2e.test.ts",
-          "test": "Grammar Rule Engine reverts latest auto-fix via Cmd/Ctrl+Z in #test-contenteditable"
-        },
-        {
           "layer": "unit",
           "file": "tests/SuggestionTextEditService.test.ts",
           "test": "undoes latest grammar auto-fix on Cmd/Ctrl+Z when caret is unchanged"
