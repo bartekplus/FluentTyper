@@ -269,7 +269,7 @@ function createChromeMock(
     ["store.settings.enabled", JSON.stringify(true)],
     ["store.settings.language", JSON.stringify("en_US")],
     ["store.settings.fallbackLanguage", JSON.stringify("en_US")],
-    ["store.settings.enabledLanguages", JSON.stringify(["en_US"])],
+    ["store.settings.enabled_languages", JSON.stringify(["en_US"])],
     ["store.settings.domainListMode", JSON.stringify("blackList")],
     ["store.settings.siteProfiles", JSON.stringify({})],
   ]);
@@ -594,7 +594,6 @@ describe("popup productivity dashboard retry/failure paths", () => {
     expect(textContent("metricAccepted")).toBe("init-accepted");
     expect(textContent("dashboardPeriodSummary")).toBe("init-period");
   });
-
 
   test("uses shared missing and granted permission states in the popup", async () => {
     const chromeMock = await loadPopupWithOutcomes(

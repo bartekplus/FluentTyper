@@ -43,30 +43,9 @@ import {
   WebsiteAccessPermissionService,
 } from "@ui/shared/websiteAccessPermission";
 
-let _settings: SettingsManager | null = null;
-let _coreSettingsRepository: CoreSettingsRepository | null = null;
-let _siteProfileRepository: SiteProfileRepository | null = null;
-
-function getSettings(): SettingsManager {
-  if (!_settings) {
-    _settings = new SettingsManager();
-  }
-  return _settings;
-}
-
-function getCoreSettingsRepository(): CoreSettingsRepository {
-  if (!_coreSettingsRepository) {
-    _coreSettingsRepository = new CoreSettingsRepository(getSettings());
-  }
-  return _coreSettingsRepository;
-}
-
-function getSiteProfileRepository(): SiteProfileRepository {
-  if (!_siteProfileRepository) {
-    _siteProfileRepository = new SiteProfileRepository(getSettings());
-  }
-  return _siteProfileRepository;
-}
+const settings = new SettingsManager();
+const coreSettingsRepository = new CoreSettingsRepository(settings);
+const siteProfileRepository = new SiteProfileRepository(settings);
 let currentDomainURL: string | undefined;
 let currentTabId: number | null = null;
 let currentEnabledLanguages: string[] = [];
@@ -84,12 +63,12 @@ const POPUP_THEME_MEDIA_QUERY = "(prefers-color-scheme: dark)";
 type PopupPageState =
   | { kind: "actionable"; url: string }
   | {
-    kind: "restricted" | "non_actionable";
-    badge: string;
-    title: string;
-    body: string;
-    url?: string;
-  };
+      kind: "restricted" | "non_actionable";
+      badge: string;
+      title: string;
+      body: string;
+      url?: string;
+    };
 
 function translateLabel(key: string, fallback: string): string {
   const translated = i18n.get(key);
@@ -277,24 +256,24 @@ function renderPermissionBlockedPageState(state: WebsiteAccessPermissionState): 
   const permissionBlockedState =
     state === "missing"
       ? {
-        badge: translateLabel("permission_status_missing_badge", "Website access required"),
-        body: translateLabel(
-          "popup_page_state_permission_missing_body",
-          "Allow website access to use FluentTyper on this site.",
-        ),
-        kind: "paused" as const,
-      }
+          badge: translateLabel("permission_status_missing_badge", "Website access required"),
+          body: translateLabel(
+            "popup_page_state_permission_missing_body",
+            "Allow website access to use FluentTyper on this site.",
+          ),
+          kind: "paused" as const,
+        }
       : {
-        badge: translateLabel(
-          "permission_status_unavailable_badge",
-          "Website access unavailable",
-        ),
-        body: translateLabel(
-          "popup_page_state_permission_unavailable_body",
-          "FluentTyper could not verify website access on this site.",
-        ),
-        kind: "non_actionable" as const,
-      };
+          badge: translateLabel(
+            "permission_status_unavailable_badge",
+            "Website access unavailable",
+          ),
+          body: translateLabel(
+            "popup_page_state_permission_unavailable_body",
+            "FluentTyper could not verify website access on this site.",
+          ),
+          kind: "non_actionable" as const,
+        };
   const { badge, body, meta, panel, section, title, hint, language, profile } =
     getPageStateElements();
   if (!badge || !title || !body) {
@@ -345,9 +324,9 @@ async function renderActionablePageState(): Promise<void> {
   }
 
   const [globallyEnabled, siteAllowed, siteProfilesRaw] = await Promise.all([
-    getCoreSettingsRepository().isEnabled(),
-    isDomainAllowedByPreference(getSettings(), currentDomainURL),
-    getSiteProfileRepository().getRawSiteProfiles(),
+    coreSettingsRepository.isEnabled(),
+    isDomainAllowedByPreference(settings, currentDomainURL),
+    siteProfileRepository.getRawSiteProfiles(),
   ]);
   const profile = getSiteProfileForDomain(
     siteProfilesRaw,
@@ -484,9 +463,9 @@ async function loadSiteProfileEditor() {
   }
   section?.classList.remove("is-hidden");
   const [siteProfilesRaw, numSuggestionsRaw, inlineSuggestionRaw] = await Promise.all([
-    getSiteProfileRepository().getRawSiteProfiles(),
-    getCoreSettingsRepository().getNumSuggestions(),
-    getCoreSettingsRepository().getInlineSuggestion(),
+    siteProfileRepository.getRawSiteProfiles(),
+    coreSettingsRepository.getNumSuggestions(),
+    coreSettingsRepository.getInlineSuggestion(),
   ]);
   const profile = getSiteProfileForDomain(
     siteProfilesRaw,
@@ -588,16 +567,16 @@ async function saveSiteProfileFromEditor() {
   if (!toggle || !status) {
     return;
   }
-  const siteProfilesRaw = await getSiteProfileRepository().getRawSiteProfiles();
+  const siteProfilesRaw = await siteProfileRepository.getRawSiteProfiles();
   const nextProfiles = toggle.checked
     ? setSiteProfileForDomain(
-      siteProfilesRaw,
-      currentDomainURL,
-      readSiteProfileFromEditor(),
-      currentEnabledLanguages,
-    )
+        siteProfilesRaw,
+        currentDomainURL,
+        readSiteProfileFromEditor(),
+        currentEnabledLanguages,
+      )
     : removeSiteProfileForDomain(siteProfilesRaw, currentDomainURL, currentEnabledLanguages);
-  await getSiteProfileRepository().setSiteProfiles(nextProfiles);
+  await siteProfileRepository.setSiteProfiles(nextProfiles);
   status.textContent = getProfileStatusLabel(toggle.checked);
   await notifyConfigChange();
   await refreshThisSiteSection();
@@ -792,8 +771,8 @@ function renderWeeklyRecapCard(stats: ProductivityDashboardStats): void {
   milestoneNode.textContent =
     milestones.length > 0
       ? `${i18n.get("popup_weekly_recap_milestone_label")}: ${milestones
-        .map((hours) => `${formatNumber(hours)}h`)
-        .join(", ")}`
+          .map((hours) => `${formatNumber(hours)}h`)
+          .join(", ")}`
       : i18n.get("popup_weekly_recap_milestone_none");
   const equivalentTaskLabel =
     stats.weeklyRecap.equivalentTasks === 1
@@ -1001,28 +980,28 @@ function init() {
   const grantBtn = document.getElementById("grantPermissionBtn");
   const permissionController =
     permissionBanner instanceof HTMLElement &&
-      permissionBadge instanceof HTMLElement &&
-      permissionTitle instanceof HTMLElement &&
-      permissionBody instanceof HTMLElement &&
-      grantBtn instanceof HTMLButtonElement
+    permissionBadge instanceof HTMLElement &&
+    permissionTitle instanceof HTMLElement &&
+    permissionBody instanceof HTMLElement &&
+    grantBtn instanceof HTMLButtonElement
       ? new WebsiteAccessPermissionController({
-        elements: {
-          root: permissionBanner,
-          badge: permissionBadge,
-          title: permissionTitle,
-          body: permissionBody,
-          action: grantBtn,
-        },
-        onStateChange: async (state) => {
-          currentWebsiteAccessPermissionState = state;
-          if (currentPageState.kind === "actionable") {
-            await loadSiteProfileEditor();
-            await refreshThisSiteSection();
-          }
-        },
-        service: new WebsiteAccessPermissionService(browserAPI),
-        visibleStates: ["missing", "unavailable"],
-      })
+          elements: {
+            root: permissionBanner,
+            badge: permissionBadge,
+            title: permissionTitle,
+            body: permissionBody,
+            action: grantBtn,
+          },
+          onStateChange: async (state) => {
+            currentWebsiteAccessPermissionState = state;
+            if (currentPageState.kind === "actionable") {
+              await loadSiteProfileEditor();
+              await refreshThisSiteSection();
+            }
+          },
+          service: new WebsiteAccessPermissionService(browserAPI),
+          visibleStates: ["missing", "unavailable"],
+        })
       : null;
 
   chrome.tabs.query({ active: true, currentWindow: true }, async function (tabs) {
@@ -1047,7 +1026,7 @@ function init() {
     ) as HTMLInputElement | null;
 
     if (currentPageState.kind === "actionable" && currentDomainURL && nextCheckboxNode) {
-      nextCheckboxNode.checked = await isDomainAllowedByPreference(getSettings(), currentDomainURL);
+      nextCheckboxNode.checked = await isDomainAllowedByPreference(settings, currentDomainURL);
       if (currentTabId !== null) {
         nextCheckboxNode.addEventListener(
           "click",
@@ -1056,11 +1035,11 @@ function init() {
       }
     }
     if (checkboxEnableNode) {
-      checkboxEnableNode.checked = await getCoreSettingsRepository().isEnabled();
+      checkboxEnableNode.checked = await coreSettingsRepository.isEnabled();
     }
 
-    let language = await getCoreSettingsRepository().getLanguage();
-    currentEnabledLanguages = await getCoreSettingsRepository().getEnabledLanguages();
+    let language = await coreSettingsRepository.getLanguage();
+    currentEnabledLanguages = await coreSettingsRepository.getEnabledLanguages();
     const select = window.document.getElementById("languageSelect") as HTMLSelectElement;
     const allowAutoDetect = currentEnabledLanguages.length > 1;
     const isAutoDetect = language === "auto_detect";
@@ -1074,7 +1053,7 @@ function init() {
 
     if (!isValidLanguage && !(isAutoDetect && allowAutoDetect)) {
       language = displayLanguage;
-      await getCoreSettingsRepository().setLanguage(language);
+      await coreSettingsRepository.setLanguage(language);
       chrome.runtime.sendMessage({
         command: CMD_OPTIONS_PAGE_CONFIG_CHANGE,
         context: {},
@@ -1135,7 +1114,7 @@ async function addRemoveDomain(tabId: number, domainURL: string) {
       context: {},
     };
   }
-  await blockUnBlockDomain(getSettings(), domainURL, !checkboxNode.checked);
+  await blockUnBlockDomain(settings, domainURL, !checkboxNode.checked);
   await refreshThisSiteSection();
   chrome.tabs.sendMessage(tabId, message);
 }
@@ -1143,7 +1122,7 @@ async function addRemoveDomain(tabId: number, domainURL: string) {
 async function languageChangeEvent() {
   const select = window.document.getElementById("languageSelect") as HTMLSelectElement;
 
-  await getCoreSettingsRepository().setLanguage(select.value);
+  await coreSettingsRepository.setLanguage(select.value);
   await notifyConfigChange();
   currentProfileLanguageFallback = getDefaultSiteProfileLanguage(
     select.value,
@@ -1154,8 +1133,8 @@ async function languageChangeEvent() {
 }
 
 async function toggleOnOff() {
-  const newMode = !(await getCoreSettingsRepository().isEnabled());
-  await getCoreSettingsRepository().setEnabled(newMode);
+  const newMode = !(await coreSettingsRepository.isEnabled());
+  await coreSettingsRepository.setEnabled(newMode);
   await refreshThisSiteSection();
   chrome.tabs.query({}, function (tabs) {
     for (let i = 0; i < tabs.length; i++) {

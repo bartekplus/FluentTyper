@@ -23,7 +23,8 @@ async function getDomainListMode(settings: SettingsManager): Promise<"blackList"
 }
 
 async function isEnabledGlobally(settings: SettingsManager): Promise<boolean> {
-  return Boolean(await settings.get(SETTINGS_ENABLED));
+  const enabled = await settings.get(SETTINGS_ENABLED);
+  return typeof enabled === "boolean" ? enabled : true;
 }
 
 export function getDomain(url: string): string | undefined {

@@ -8,7 +8,13 @@ function createSettingsManagerMock(seed: Record<string, unknown>): SettingsManag
   } as unknown as SettingsManager;
 }
 
-describe("CoreSettingsRepository.getTextExpansions", () => {
+describe("CoreSettingsRepository", () => {
+  test("defaults enabled to true when the setting is absent", async () => {
+    const repository = new CoreSettingsRepository(createSettingsManagerMock({}));
+
+    await expect(repository.isEnabled()).resolves.toBe(true);
+  });
+
   test("keeps legacy [shortcut, string] entries for runtime compatibility", async () => {
     const repository = new CoreSettingsRepository(
       createSettingsManagerMock({
