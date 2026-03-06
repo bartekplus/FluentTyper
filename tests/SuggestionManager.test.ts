@@ -851,6 +851,96 @@ describe("SuggestionManager", () => {
     expect(input.value).toBe("h");
   });
 
+  test("hides popup when caret navigation leaves the current token", async () => {
+    const { manager, getPrediction } = await createManager();
+    const input = document.createElement("input");
+    input.type = "text";
+    document.body.appendChild(input);
+    manager.queryAndAttachHelper();
+
+    const request = await typeAndCollectRequest(input, "h", getPrediction);
+    manager.fulfillPrediction(
+      buildResponse(request, {
+        predictions: ["hello\xA0"],
+      }),
+    );
+
+    const menu = (input as HTMLInputElement & { suggestionMenu?: HTMLElement }).suggestionMenu;
+    expect(menu?.style.display).toBe("block");
+    expect(menu?.querySelectorAll("li").length).toBeGreaterThan(0);
+
+    dispatchKeydown(input, "ArrowLeft");
+
+    expect(menu?.style.display).toBe("none");
+    expect(menu?.querySelectorAll("li").length).toBe(0);
+
+    manager.fulfillPrediction(
+      buildResponse(request, {
+        predictions: ["hello\xA0"],
+      }),
+    );
+    expect(menu?.style.display).toBe("none");
+    expect(menu?.querySelectorAll("li").length).toBe(0);
+  });
+
+  test("hides popup when caret position changes without an input event", async () => {
+    const { manager, getPrediction } = await createManager();
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = "hello";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    document.body.appendChild(input);
+    manager.queryAndAttachHelper();
+
+    const request = await typeAndCollectRequest(input, input.value, getPrediction);
+    manager.fulfillPrediction(
+      buildResponse(request, {
+        predictions: ["hello\xA0"],
+      }),
+    );
+
+    const menu = (input as HTMLInputElement & { suggestionMenu?: HTMLElement }).suggestionMenu;
+    expect(menu?.style.display).toBe("block");
+    expect(menu?.querySelectorAll("li").length).toBeGreaterThan(0);
+
+    input.selectionStart = 2;
+    input.selectionEnd = 2;
+    document.dispatchEvent(new Event("selectionchange", { bubbles: true }));
+
+    expect(menu?.style.display).toBe("none");
+    expect(menu?.querySelectorAll("li").length).toBe(0);
+  });
+
+  test("hides popup when text selection appears without an input event", async () => {
+    const { manager, getPrediction } = await createManager();
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = "hello";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    document.body.appendChild(input);
+    manager.queryAndAttachHelper();
+
+    const request = await typeAndCollectRequest(input, input.value, getPrediction);
+    manager.fulfillPrediction(
+      buildResponse(request, {
+        predictions: ["hello\xA0"],
+      }),
+    );
+
+    const menu = (input as HTMLInputElement & { suggestionMenu?: HTMLElement }).suggestionMenu;
+    expect(menu?.style.display).toBe("block");
+    expect(menu?.querySelectorAll("li").length).toBeGreaterThan(0);
+
+    input.selectionStart = 1;
+    input.selectionEnd = 4;
+    document.dispatchEvent(new Event("selectionchange", { bubbles: true }));
+
+    expect(menu?.style.display).toBe("none");
+    expect(menu?.querySelectorAll("li").length).toBe(0);
+  });
+
   test("marks delete inputAction when backspace removes post-punctuation space", async () => {
     const { manager, getPrediction } = await createManager();
     const input = document.createElement("input");

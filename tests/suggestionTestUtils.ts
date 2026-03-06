@@ -24,6 +24,8 @@ export function createSuggestionEntry(
     menuHeader: overrides.menuHeader ?? null,
     latestMentionText: overrides.latestMentionText ?? "",
     latestMentionStart: overrides.latestMentionStart ?? 0,
+    visibleSuggestionBeforeCursorText: overrides.visibleSuggestionBeforeCursorText ?? null,
+    visibleSuggestionFullText: overrides.visibleSuggestionFullText ?? null,
     inlineSuggestion: overrides.inlineSuggestion ?? null,
     pendingInlineAccept: overrides.pendingInlineAccept ?? false,
     missingTrailingSpace: overrides.missingTrailingSpace ?? false,
