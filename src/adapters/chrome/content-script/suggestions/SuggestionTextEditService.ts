@@ -622,9 +622,14 @@ export class SuggestionTextEditService {
           didDispatchInput: false,
         };
       }
-      elem.value = updatedText;
-      elem.selectionStart = cursorAfter;
-      elem.selectionEnd = cursorAfter;
+      try {
+        elem.setRangeText(replacementText, boundedStart, boundedEnd, "end");
+        elem.setSelectionRange(cursorAfter, cursorAfter);
+      } catch {
+        elem.value = updatedText;
+        elem.selectionStart = cursorAfter;
+        elem.selectionEnd = cursorAfter;
+      }
       this.dispatchInputEvent(elem);
       return {
         didMutateDom: true,

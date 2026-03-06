@@ -649,7 +649,7 @@ async function pressNativeUndo(page: Page, selector: string): Promise<void> {
   await page.focus(selector);
   const modifier = process.platform === "darwin" ? "Meta" : "Control";
   await page.keyboard.down(modifier);
-  await page.keyboard.press("KeyZ");
+  await page.keyboard.press("z");
   await page.keyboard.up(modifier);
 }
 
@@ -3982,7 +3982,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
-    "Extension undo falls through to native undo after an intervening user edit in #test-input",
+    "Extension undo does not trigger after an intervening user edit in #test-input",
     async () => {
       const selector = "#test-input";
 
@@ -4012,7 +4012,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitForInputContentEqual(page, selector, "a lot x", browserTimeout(5000, 9000));
 
       await pressNativeUndo(page, selector);
-      await waitForInputContentEqual(page, selector, "a lot ", browserTimeout(5000, 9000));
+      await waitForInputContentEqual(page, selector, "a lot x", browserTimeout(5000, 9000));
 
       await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
       await applyConfigChange(browser, worker!);

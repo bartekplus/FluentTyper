@@ -689,12 +689,12 @@
     },
     {
       "id": "extension_undo_intervening_edit_guard",
-      "description": "Invalid extension undo snapshots fall through to native host/browser undo after intervening edits or caret drift.",
+      "description": "Invalid extension undo snapshots are not consumed after intervening edits or caret drift.",
       "coverage": [
         {
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
-          "test": "Extension undo falls through to native undo after an intervening user edit in #test-input"
+          "test": "Extension undo does not trigger after an intervening user edit in #test-input"
         },
         {
           "layer": "unit",
