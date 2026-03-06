@@ -129,13 +129,18 @@ export class SuggestionTextEditService {
       suggestion,
       cursorAfter,
     );
+    const postEditSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
 
     entry.pendingExtensionEdit = {
       replaceStart,
       originalText,
       replacementText: suggestion,
       cursorBefore: snapshot.cursorOffset,
-      cursorAfter,
+      cursorAfter: postEditSnapshot.cursorOffset,
+      postEditFingerprint: TextTargetAdapter.createPostEditFingerprint(
+        entry.elem as TextTarget,
+        postEditSnapshot,
+      ),
       source: "suggestion",
     };
 
@@ -159,10 +164,6 @@ export class SuggestionTextEditService {
     if (!entry.pendingExtensionEdit) {
       return false;
     }
-    if (!TextTargetAdapter.hasCollapsedSelection(entry.elem as TextTarget)) {
-      entry.pendingExtensionEdit = null;
-      return false;
-    }
 
     const snapshot: SuggestionSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
     const {
@@ -170,22 +171,27 @@ export class SuggestionTextEditService {
       originalText,
       replacementText,
       cursorBefore,
-      cursorAfter,
+      postEditFingerprint,
       source,
       sourceRuleId,
     } = entry.pendingExtensionEdit;
     const fullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
     const replaceEnd = replaceStart + replacementText.length;
 
-    if (snapshot.cursorOffset !== cursorAfter) {
+    if (
+      !TextTargetAdapter.matchesPostEditFingerprint(
+        entry.elem as TextTarget,
+        postEditFingerprint,
+        snapshot,
+      )
+    ) {
       entry.pendingExtensionEdit = null;
       return false;
     }
-    if (replaceEnd > fullText.length) {
-      entry.pendingExtensionEdit = null;
-      return false;
-    }
-    if (fullText.slice(replaceStart, replaceEnd) !== replacementText) {
+    if (
+      replaceEnd > fullText.length ||
+      fullText.slice(replaceStart, replaceEnd) !== replacementText
+    ) {
       entry.pendingExtensionEdit = null;
       return false;
     }
@@ -348,13 +354,18 @@ export class SuggestionTextEditService {
         didDispatchInput: false,
       };
     }
+    const postEditSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
 
     entry.pendingExtensionEdit = {
       replaceStart,
       originalText,
       replacementText: textEdit.replacementText,
       cursorBefore: snapshot.cursorOffset,
-      cursorAfter,
+      cursorAfter: postEditSnapshot.cursorOffset,
+      postEditFingerprint: TextTargetAdapter.createPostEditFingerprint(
+        entry.elem as TextTarget,
+        postEditSnapshot,
+      ),
       source: "grammar",
       sourceRuleId: textEdit.sourceRuleId,
     };

@@ -588,18 +588,11 @@ export class SuggestionManagerRuntime {
     snapshot: SuggestionSnapshot,
     entry: SuggestionEntry,
   ): boolean {
-    if (!TextTargetAdapter.hasCollapsedSelection(entry.elem as TextTarget)) {
-      return false;
-    }
-    const fullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
-    const replaceEnd = pendingEdit.replaceStart + pendingEdit.replacementText.length;
-    if (snapshot.cursorOffset !== pendingEdit.cursorAfter) {
-      return false;
-    }
-    if (pendingEdit.replaceStart < 0 || replaceEnd > fullText.length) {
-      return false;
-    }
-    return fullText.slice(pendingEdit.replaceStart, replaceEnd) === pendingEdit.replacementText;
+    return TextTargetAdapter.matchesPostEditFingerprint(
+      entry.elem as TextTarget,
+      pendingEdit.postEditFingerprint,
+      snapshot,
+    );
   }
 
   private resetEntryPredictionStateAfterSuppressedInput(entry: SuggestionEntry): void {

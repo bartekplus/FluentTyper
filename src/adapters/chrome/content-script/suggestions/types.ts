@@ -13,6 +13,12 @@ export interface SuggestionSnapshot {
   cursorOffset: number;
 }
 
+export interface PostEditFingerprint {
+  fullText: string;
+  cursorOffset: number;
+  selectionCollapsed: boolean;
+}
+
 export type SuggestionElement = (HTMLInputElement | HTMLTextAreaElement | HTMLElement) & {
   tributeMenu?: HTMLElement | null;
   suggestionMenu?: HTMLElement | null;
@@ -49,6 +55,7 @@ export interface ExtensionEditSnapshot {
   replacementText: string;
   cursorBefore: number;
   cursorAfter: number;
+  postEditFingerprint: PostEditFingerprint;
   source: "suggestion" | "grammar";
   sourceRuleId?: string;
 }

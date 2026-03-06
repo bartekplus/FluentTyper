@@ -709,6 +709,47 @@ describe("SuggestionTextEditService", () => {
     expect(input.value).toBe("the ");
   });
 
+  test("does not undo after same-length edit outside the replaced span", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+    });
+
+    const input = document.createElement("input");
+    input.value = "abc teh ";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    const entry = createSuggestionEntry({ elem: input });
+
+    service.applyTextEdit(entry, {
+      replacementText: "the ",
+      replaceBackwardCount: 4,
+      evaluatedTextLength: input.value.length,
+      expectedReplacedText: "teh ",
+    });
+    expect(input.value).toBe("abc the ");
+
+    input.value = "Abc the ";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+
+    const keyboardEvent = new Event("keydown", {
+      bubbles: true,
+      cancelable: true,
+    }) as KeyboardEvent;
+    Object.defineProperty(keyboardEvent, "key", { value: "z" });
+    Object.defineProperty(keyboardEvent, "ctrlKey", { value: true });
+
+    const handled = service.tryUndoLastExtensionEdit(entry, keyboardEvent, {
+      consumeKeyboardEvent: () => undefined,
+      clearSuggestions: () => undefined,
+    });
+
+    expect(handled).toBe(false);
+    expect(input.value).toBe("Abc the ");
+    expect(entry.pendingExtensionEdit).toBeNull();
+  });
+
   test("clears pending undo when caret no longer matches post-edit cursor", () => {
     const service = new SuggestionTextEditService({
       findMentionToken,
