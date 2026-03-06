@@ -142,6 +142,12 @@ body.fluenttyper-popup {
   padding: 0.55rem;
 }
 
+.panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
 .global-enable-meta {
   display: flex;
   flex-direction: column;
@@ -170,6 +176,15 @@ body.fluenttyper-popup {
   overflow: hidden;
 }
 
+.card-section-header {
+  padding: 0.6rem 0.65rem 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-color-light);
+}
+
 /* Card Rows */
 .card-row {
   display: flex;
@@ -187,6 +202,88 @@ body.fluenttyper-popup {
   font-size: 0.85rem;
   font-weight: 500;
   color: var(--text-color);
+}
+
+.row-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.row-hint {
+  font-size: 0.72rem;
+  color: var(--text-color-light);
+  line-height: 1.25;
+}
+
+.page-state-panel {
+  display: grid;
+  gap: 0.32rem;
+  margin: 0 0.65rem 0.55rem;
+  padding: 0.75rem;
+  border-radius: 0.6rem;
+  border: 1px solid rgba(79, 70, 229, 0.16);
+  background:
+    linear-gradient(135deg, rgba(79, 70, 229, 0.08), rgba(56, 189, 248, 0.08)),
+    var(--input-bg-color);
+}
+
+.page-state-panel[data-page-state="paused"] {
+  border-color: rgba(245, 158, 11, 0.28);
+  background:
+    linear-gradient(135deg, rgba(251, 191, 36, 0.12), rgba(251, 146, 60, 0.08)),
+    var(--input-bg-color);
+}
+
+.page-state-panel[data-page-state="restricted"],
+.page-state-panel[data-page-state="non_actionable"] {
+  border-color: rgba(148, 163, 184, 0.28);
+  background:
+    linear-gradient(135deg, rgba(148, 163, 184, 0.14), rgba(226, 232, 240, 0.08)),
+    var(--input-bg-color);
+}
+
+.page-state-badge {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-color-darker);
+}
+
+.page-state-panel[data-page-state="paused"] .page-state-badge {
+  color: #9a3412;
+}
+
+.page-state-panel[data-page-state="restricted"] .page-state-badge,
+.page-state-panel[data-page-state="non_actionable"] .page-state-badge {
+  color: #475569;
+}
+
+.page-state-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text-color);
+}
+
+.page-state-body {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--text-color-light);
+}
+
+.site-controls {
+  display: block;
+}
+
+.site-profile-toggle-row {
+  align-items: flex-start;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
 }
 
 /* Switches overrides for compactness */
@@ -243,6 +340,54 @@ body.fluenttyper-popup {
 }
 
 .dashboard-card {
+  overflow: hidden;
+}
+
+.dashboard-card summary {
+  list-style: none;
+}
+
+.dashboard-card summary::-webkit-details-marker {
+  display: none;
+}
+
+.dashboard-disclosure-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  padding: 0.68rem 0.65rem;
+  cursor: pointer;
+}
+
+.dashboard-disclosure-copy {
+  min-width: 0;
+}
+
+.dashboard-collapsed-summary {
+  margin: 0.18rem 0 0;
+  font-size: 0.72rem;
+  color: var(--text-color-light);
+}
+
+.dashboard-disclosure-indicator {
+  flex-shrink: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-color-light);
+}
+
+.dashboard-card[open] .dashboard-disclosure-summary {
+  border-bottom: 1px solid var(--divider-color);
+}
+
+.dashboard-card[open] .dashboard-disclosure-indicator {
+  color: var(--accent-color);
+}
+
+.dashboard-disclosure-content {
   padding-bottom: 0.45rem;
 }
 
@@ -449,9 +594,9 @@ body.fluenttyper-popup {
   align-items: center;
   padding: 0.25rem 0.75rem;
   border-radius: 6px;
-  background-color: rgba(250, 204, 21, 0.15);
-  /* Light warning tint */
-  color: var(--text-color);
+  background-color: transparent;
+  border: 1px solid var(--input-border-color);
+  color: var(--text-color-light);
   font-size: 0.8rem;
   font-weight: 600;
   text-decoration: none;
@@ -459,7 +604,8 @@ body.fluenttyper-popup {
 }
 
 .toolbar-action-btn:hover {
-  background-color: rgba(250, 204, 21, 0.25);
+  border-color: var(--accent-color);
+  color: var(--accent-color);
 }
 
 /* 4. OPTIONS PAGE LAYOUT

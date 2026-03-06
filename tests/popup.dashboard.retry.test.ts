@@ -35,7 +35,11 @@ function popupMarkup(initialAccepted = "0"): string {
   return `<!doctype html>
 <html>
   <body>
-    <button id="openStatsOptionsBtn" type="button"></button>
+    <div id="pageStatePanel" data-page-state="active">
+      <span id="pageStateBadge"></span>
+      <h2 id="pageStateTitle"></h2>
+      <p id="pageStateBody"></p>
+    </div>
     <input id="checkboxSiteProfileInput" type="checkbox" />
     <select id="siteLanguageSelect"></select>
     <select id="siteNumSuggestionsSelect"></select>
@@ -47,10 +51,17 @@ function popupMarkup(initialAccepted = "0"): string {
 
     <input id="checkboxDomainInput" type="checkbox" />
     <div id="checkboxDomainLabel"></div>
+    <div id="checkboxDomainHint"></div>
     <input id="checkboxEnableInput" type="checkbox" />
     <select id="languageSelect"></select>
     <a id="runOptions"></a>
 
+    <details id="productivityDashboard">
+      <summary>
+        <span id="dashboardCollapsedSummary">init-collapsed</span>
+      </summary>
+    </details>
+    <button id="openStatsOptionsBtn" type="button"></button>
     <span id="metricAccepted">${initialAccepted}</span>
     <span id="metricCharsSaved">init-chars</span>
     <span id="metricMinutesSaved">init-minutes</span>
@@ -190,6 +201,7 @@ function createChromeMock(
     contains?: (options: chrome.permissions.Permissions) => Promise<boolean> | boolean;
     request?: (options: chrome.permissions.Permissions) => Promise<boolean> | boolean;
   },
+  activeTab?: chrome.tabs.Tab,
 ) {
   const pending = [...outcomes];
   const storage = new Map<string, unknown>();
@@ -256,9 +268,15 @@ function createChromeMock(
   const chromeMock = {
     runtime,
     tabs: {
-      query: jest.fn((_query: unknown, callback: (tabs: chrome.tabs.Tab[]) => void) => {
-        callback([]);
-      }),
+      query: jest.fn(
+        (query: chrome.tabs.QueryInfo, callback: (tabs: chrome.tabs.Tab[]) => void) => {
+          if (query.active && query.currentWindow) {
+            callback(activeTab ? [activeTab] : []);
+            return;
+          }
+          callback([]);
+        },
+      ),
       update: jest.fn(),
       create: jest.fn(),
       sendMessage: jest.fn(),
@@ -308,9 +326,10 @@ async function loadPopupWithOutcomes(
     contains?: (options: chrome.permissions.Permissions) => Promise<boolean> | boolean;
     request?: (options: chrome.permissions.Permissions) => Promise<boolean> | boolean;
   },
+  activeTab?: chrome.tabs.Tab,
 ): Promise<ReturnType<typeof createChromeMock>> {
   activeDom = installPopupDom(initialAccepted);
-  const chromeMock = createChromeMock(outcomes, permissionApi);
+  const chromeMock = createChromeMock(outcomes, permissionApi, activeTab);
   (globalThis as unknown as { chrome: unknown }).chrome = chromeMock;
   (window as unknown as { chrome: unknown }).chrome = chromeMock;
 
@@ -361,6 +380,7 @@ describe("popup productivity dashboard retry/failure paths", () => {
     expect(dashboardStatsCallCount(chromeMock)).toBe(1);
     expect(textContent("metricAccepted")).toBe("60");
     expect(textContent("dashboardPeriodSummary")).not.toContain("unavailable");
+    expect(textContent("dashboardCollapsedSummary")).toContain("Last 7 days:");
 
     await advanceAndFlush(10000);
     expect(dashboardStatsCallCount(chromeMock)).toBe(1);
@@ -475,6 +495,20 @@ describe("popup productivity dashboard retry/failure paths", () => {
     expect(button.hidden).toBe(true);
     expect(chromeMock.permissions?.contains).toHaveBeenCalledWith({ origins: ["<all_urls>"] });
     expect(chromeMock.permissions?.request).toHaveBeenCalledWith({ origins: ["<all_urls>"] });
+  });
+
+  test("shows a restricted-page state instead of site toggles on browser internal pages", async () => {
+    await loadPopupWithOutcomes([{ type: "stats", value: createPopupStats(1) }], "0", undefined, {
+      id: 11,
+      url: "chrome://extensions",
+    });
+
+    expect(textContent("pageStateBadge")).toBe("Restricted page");
+    expect(textContent("pageStateTitle")).toBe("Browser internal page");
+    expect(textContent("pageStateBody")).toContain("cannot run on browser internal pages");
+    expect(document.getElementById("domainSectionWrapper")?.classList.contains("is-hidden")).toBe(
+      true,
+    );
   });
 
   test("shows recovery copy in the popup when permission checks are unavailable", async () => {
