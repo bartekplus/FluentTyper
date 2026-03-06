@@ -24,6 +24,7 @@ export interface SuggestionManagerOptions {
   autocomplete: boolean;
   autocompleteOnEnter: boolean;
   autocompleteOnTab: boolean;
+  insertSpaceAfterAutocomplete: boolean;
   lang: string;
   selectByDigit: boolean;
   revertOnBackspace: boolean;

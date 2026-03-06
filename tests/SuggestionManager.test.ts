@@ -12,7 +12,7 @@ function dispatchKeydown(
   target: HTMLElement,
   key: string,
   options: { altKey?: boolean; ctrlKey?: boolean; metaKey?: boolean; isComposing?: boolean } = {},
-): void {
+): KeyboardEvent {
   const event = new Event("keydown", { bubbles: true, cancelable: true }) as KeyboardEvent;
   Object.defineProperty(event, "key", { value: key });
   if (typeof options.altKey === "boolean") {
@@ -28,6 +28,7 @@ function dispatchKeydown(
     Object.defineProperty(event, "isComposing", { value: options.isComposing });
   }
   target.dispatchEvent(event);
+  return event;
 }
 
 function dispatchInput(
@@ -134,6 +135,7 @@ type ConstructorArgs = {
   autocomplete: boolean;
   autocompleteOnEnter: boolean;
   autocompleteOnTab: boolean;
+  insertSpaceAfterAutocomplete: boolean;
   lang: string;
   selectByDigit: boolean;
   revertOnBackspace: boolean;
@@ -152,6 +154,7 @@ async function createManager(overrides: Partial<ConstructorArgs> = {}) {
     autocomplete: true,
     autocompleteOnEnter: true,
     autocompleteOnTab: true,
+    insertSpaceAfterAutocomplete: true,
     lang: "en_US",
     selectByDigit: true,
     revertOnBackspace: true,
@@ -937,6 +940,82 @@ describe("SuggestionManager", () => {
 
     dispatchKeydown(input, "Tab");
     expect(input.value).toBe("functionality next");
+  });
+
+  test("does not inject delayed space after accept when insertSpaceAfterAutocomplete is disabled", async () => {
+    const { manager, getPrediction } = await createManager({
+      insertSpaceAfterAutocomplete: false,
+    });
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = "Cra";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    document.body.appendChild(input);
+    manager.queryAndAttachHelper();
+
+    input.dispatchEvent(new Event("focus", { bubbles: true }));
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    await wait(220);
+
+    const request = getPrediction.mock.calls.at(-1)?.[0];
+    if (!request) {
+      throw new Error("Expected prediction request");
+    }
+
+    manager.fulfillPrediction(
+      buildResponse(request, {
+        predictions: ["Crab"],
+      }),
+    );
+
+    dispatchKeydown(input, "Tab");
+    expect(input.value).toBe("Crab");
+
+    const keydownEvent = dispatchKeydown(input, "s");
+    expect(keydownEvent.defaultPrevented).toBe(false);
+
+    input.value = `${input.value}s`;
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    dispatchInput(input, { inputType: "insertText" });
+
+    expect(input.value).toBe("Crabs");
+  });
+
+  test("keeps delayed space insertion after accept when insertSpaceAfterAutocomplete is enabled", async () => {
+    const { manager, getPrediction } = await createManager({
+      insertSpaceAfterAutocomplete: true,
+    });
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = "Cra";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    document.body.appendChild(input);
+    manager.queryAndAttachHelper();
+
+    input.dispatchEvent(new Event("focus", { bubbles: true }));
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    await wait(220);
+
+    const request = getPrediction.mock.calls.at(-1)?.[0];
+    if (!request) {
+      throw new Error("Expected prediction request");
+    }
+
+    manager.fulfillPrediction(
+      buildResponse(request, {
+        predictions: ["Crab"],
+      }),
+    );
+
+    dispatchKeydown(input, "Tab");
+    expect(input.value).toBe("Crab");
+
+    const keydownEvent = dispatchKeydown(input, "s");
+    expect(keydownEvent.defaultPrevented).toBe(true);
+    expect(input.value).toBe("Crab s");
   });
 
   test("preserves opening smart quote prefix when accepting suggestion", async () => {

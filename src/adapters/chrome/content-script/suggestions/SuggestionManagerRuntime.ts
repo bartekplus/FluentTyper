@@ -67,6 +67,7 @@ export class SuggestionManagerRuntime {
 
   private readonly displayLangHeader: boolean;
   private readonly inlineSuggestionEnabled: boolean;
+  private readonly insertSpaceAfterAutocomplete: boolean;
 
   private lang: string;
   private separatorRegex: RegExp;
@@ -85,6 +86,7 @@ export class SuggestionManagerRuntime {
 
     this.displayLangHeader = options.displayLangHeader;
     this.inlineSuggestionEnabled = options.inline_suggestion;
+    this.insertSpaceAfterAutocomplete = options.insertSpaceAfterAutocomplete;
 
     this.lang = options.lang;
     this.separatorRegex = LANG_SEPARATOR_CHARS_REGEX[this.lang] || /\s+/;
@@ -1028,8 +1030,12 @@ export class SuggestionManagerRuntime {
   ): void {
     this.clearSuggestions(entry);
 
-    entry.missingTrailingSpace = true;
-    entry.expectedCursorPos = TextTargetAdapter.snapshot(entry.elem as TextTarget).cursorOffset;
+    const shouldExpectTrailingSpace =
+      this.insertSpaceAfterAutocomplete && !/[ \xA0]$/.test(insertedText);
+    entry.missingTrailingSpace = shouldExpectTrailingSpace;
+    entry.expectedCursorPos = shouldExpectTrailingSpace
+      ? TextTargetAdapter.snapshot(entry.elem as TextTarget).cursorOffset
+      : 0;
 
     this.telemetry.recordSuggestionAccepted({
       triggerText,
