@@ -163,7 +163,9 @@ export class ContentEditableAdapter {
         return false;
       }
       const nextSibling = this.findNextSiblingAcrossAncestors(textNode, elem);
-      return nextSibling?.nodeType === Node.ELEMENT_NODE && this.isBlockElement(nextSibling as Element);
+      return (
+        nextSibling?.nodeType === Node.ELEMENT_NODE && this.isBlockElement(nextSibling as Element)
+      );
     }
 
     const container =

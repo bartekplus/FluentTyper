@@ -67,7 +67,8 @@ export class SuggestionTextEditService {
 
     const currentFullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
     const beforeBlockBoundary =
-      !isTextValueTarget && this.contentEditableAdapter.isCollapsedSelectionBeforeBlockBoundary(entry.elem);
+      !isTextValueTarget &&
+      this.contentEditableAdapter.isCollapsedSelectionBeforeBlockBoundary(entry.elem);
     let replaceEnd = snapshot.beforeCursor.length;
     if (!isTextValueTarget && tokenInfo.token.length === 0) {
       while (replaceEnd > 0 && this.isSeparator(snapshot.beforeCursor.charAt(replaceEnd - 1))) {

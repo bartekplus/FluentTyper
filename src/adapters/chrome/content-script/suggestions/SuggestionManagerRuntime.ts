@@ -605,7 +605,9 @@ export class SuggestionManagerRuntime {
       return "";
     }
     const blockContext = this.contentEditableAdapter.getBlockContext(entry.elem);
-    return typeof blockContext?.afterCursor === "string" ? blockContext.afterCursor : snapshotAfterCursor;
+    return typeof blockContext?.afterCursor === "string"
+      ? blockContext.afterCursor
+      : snapshotAfterCursor;
   }
 
   private shouldPreservePendingExtensionEdit(
