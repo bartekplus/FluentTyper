@@ -605,34 +605,39 @@ describe("popup productivity dashboard retry/failure paths", () => {
       },
       createWebsiteTab("https://translate.google.pl"),
     );
-    const { SettingsManager } = await import("../src/core/application/settingsManager");
-    const { CoreSettingsRepository } = await import(
-      "../src/core/application/repositories/CoreSettingsRepository"
-    );
 
-    console.log("DEBUG: globalThis.chrome:", !!(globalThis as any).chrome);
-    console.log("DEBUG: globalThis.chrome.storage:", !!(globalThis as any).chrome?.storage);
+    // Import Store directly to check if the class itself is valid
+    const storeModule = await import("../src/third_party/fancier-settings/lib/store.js");
+    console.log("DEBUG: Store export:", typeof storeModule.Store);
+    console.log("DEBUG: Store is function:", typeof storeModule.Store === "function");
+    console.log("DEBUG: Store.prototype:", !!storeModule.Store?.prototype);
 
-    let s: any;
+    // Import via nonce'd path (as popup does transitively)
+    const storeModuleNonce = await import(freshModulePath("../src/third_party/fancier-settings/lib/store.js"));
+    console.log("DEBUG: Store (nonce) export:", typeof storeModuleNonce.Store);
+    console.log("DEBUG: Store (nonce) is function:", typeof storeModuleNonce.Store === "function");
+
+    // Try to construct Store directly
     try {
-      s = new SettingsManager();
-    } catch (e) {
-      console.log("DEBUG ERROR:", e);
+      const testStore = new storeModule.Store("test", {});
+      console.log("DEBUG: testStore keys:", Object.keys(testStore));
+      console.log("DEBUG: testStore.storageBackend:", !!testStore.storageBackend);
+    } catch (e: any) {
+      console.log("DEBUG: Store constructor error:", e?.message);
     }
-    const c = new CoreSettingsRepository(s);
-    console.log("DEBUG: isEnabled:", await c.isEnabled());
-    console.log("DEBUG: s.get('enable'):", await s.get("enable"));
 
-    const internalStore = (s as any).settings;
-    console.log("DEBUG: internalStore keys:", Object.keys(internalStore || {}));
-    console.log("DEBUG: internalStore constructor:", internalStore?.constructor?.name);
-    console.log("DEBUG: store backend type:", internalStore?.storageBackend?.constructor?.name);
-    console.log("DEBUG: store backend value:", !!internalStore?.storageBackend);
+    // Check what the popup's SettingsManager got
+    const { SettingsManager } = await import("../src/core/application/settingsManager");
+    const s = new SettingsManager() as any;
+    console.log("DEBUG: settings.settings keys:", Object.keys(s.settings || {}));
+    console.log("DEBUG: settings.settings constructor:", s.settings?.constructor?.name);
 
-    // Also check what mock has:
-    chromeMock.storage.local.get("store.settings.enable", (val) => {
-      console.log("DEBUG: storage has:", val);
-    });
+    // Also try nonce'd SettingsManager
+    const { SettingsManager: SM2 } = await import(freshModulePath("../src/core/application/settingsManager"));
+    const s2 = new SM2() as any;
+    console.log("DEBUG: nonce'd settings.settings keys:", Object.keys(s2.settings || {}));
+    console.log("DEBUG: nonce'd settings.settings constructor:", s2.settings?.constructor?.name);
+    console.log("DEBUG: nonce'd settings.settings.storageBackend:", !!s2.settings?.storageBackend);
   });
 
   test("uses shared missing and granted permission states in the popup", async () => {
