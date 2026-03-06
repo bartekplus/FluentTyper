@@ -822,6 +822,7 @@ describe("background routing and lifecycle", () => {
         context: expect.objectContaining({
           lang: "fr_FR",
           inline_suggestion: true,
+          insertSpaceAfterAutocomplete: true,
           enabled: true,
         }),
       }),

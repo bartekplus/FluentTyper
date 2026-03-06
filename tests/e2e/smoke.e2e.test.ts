@@ -22,6 +22,7 @@ import {
   KEY_ENABLED_GRAMMAR_RULES,
   KEY_ENABLED_LANGUAGES,
   KEY_INLINE_SUGGESTION,
+  KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
   KEY_LANGUAGE,
   KEY_MIN_WORD_LENGTH_TO_PREDICT,
   KEY_NUM_SUGGESTIONS,
@@ -67,6 +68,7 @@ const PER_TEST_RESET_SETTINGS: readonly SettingEntry[] = [
   [KEY_LANGUAGE, "en_US"],
   [KEY_TEXT_EXPANSIONS, []],
   [KEY_ENABLED_GRAMMAR_RULES, []],
+  [KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, true],
   [KEY_DOMAIN_LIST_MODE, "blackList"],
   ["domainBlackList", []],
 ];
@@ -768,6 +770,41 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       await page.keyboard.press("Tab");
       const value = await waitForInputContentMatch(page, "#test-input", /^h\S*[ \xa0]$/i);
       expect(value.toLowerCase()).toBe(firstSuggestion?.toLowerCase());
+    },
+    suiteTimeout(10000, 15000),
+  );
+
+  test(
+    "prediction popup does not inject a delayed space after accept when insertSpaceAfterAutocomplete is disabled",
+    async () => {
+      await setSettingAndWait(worker, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, false);
+      await sendConfigChange(browser, worker);
+
+      await gotoTestPage(page);
+      await page.bringToFront();
+      await waitForInputReady(page, "#test-input");
+
+      await page.focus("#test-input");
+      const element = await page.$("#test-input");
+      await element!.type("h");
+
+      const [firstSuggestion] = await waitForSuggestionTexts(page);
+      expect(firstSuggestion?.toLowerCase()).toMatch(/^h\S*$/);
+
+      await page.keyboard.press("Tab");
+      const acceptedValue = await waitForInputContentMatch(page, "#test-input", /^h\S*$/i);
+      expect(acceptedValue.toLowerCase()).toBe(firstSuggestion?.toLowerCase());
+
+      await page.keyboard.type("s");
+      const suffixedValue = await waitUntil(
+        "accepted suggestion to append typed suffix without injected space",
+        async () => {
+          const current = await page.$eval("#test-input", (el) => (el as HTMLInputElement).value);
+          return current === `${acceptedValue}s` ? current : false;
+        },
+        { timeoutMs: suiteTimeout(5000, 8000), intervalMs: 50 },
+      );
+      expect(suffixedValue).toBe(`${acceptedValue}s`);
     },
     suiteTimeout(10000, 15000),
   );

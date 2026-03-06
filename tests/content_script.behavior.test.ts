@@ -69,6 +69,7 @@ function defaultConfig(overrides: Record<string, unknown> = {}) {
     autocomplete: true,
     autocompleteOnEnter: true,
     autocompleteOnTab: true,
+    insertSpaceAfterAutocomplete: true,
     lang: "en_US",
     selectByDigit: true,
     minWordLengthToPredict: 1,

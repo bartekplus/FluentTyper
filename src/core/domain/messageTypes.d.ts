@@ -3,6 +3,7 @@ export interface SetConfigContext {
   autocomplete: boolean;
   autocompleteOnEnter: boolean;
   autocompleteOnTab: boolean;
+  insertSpaceAfterAutocomplete: boolean;
   selectByDigit: boolean;
   lang: string;
   minWordLengthToPredict: number;
