@@ -3,9 +3,11 @@ import { KEY_SITE_PROFILES } from "../src/core/domain/constants";
 
 const settingsGet = jest.fn<(key: string) => Promise<unknown>>();
 const settingsSet = jest.fn<(key: string, value: unknown) => Promise<unknown>>();
+const settingsRemoveRaw = jest.fn<(key: string) => Promise<unknown>>();
 const settingsManagerCtor = jest.fn().mockImplementation(() => ({
   get: settingsGet,
   set: settingsSet,
+  removeRaw: settingsRemoveRaw,
 }));
 let importNonce = 0;
 
@@ -24,6 +26,7 @@ describe("migrateToLocalStore", () => {
   beforeEach(async () => {
     jest.clearAllMocks();
     settingsGet.mockResolvedValue(undefined);
+    settingsRemoveRaw.mockResolvedValue(undefined);
     (globalThis as { chrome: unknown }).chrome = {
       runtime: {
         getManifest: jest.fn(() => ({ version: "2026.2.1" })),
@@ -66,6 +69,7 @@ describe("migrateToLocalStore", () => {
       lastVersion: "2026.2.1",
     });
     expect(settingsSet).toHaveBeenCalledWith(KEY_SITE_PROFILES, {});
+    expect(settingsRemoveRaw).toHaveBeenCalledWith("revertOnBackspace");
   });
 
   test("updates language and fallbackLanguage to full supported keys", async () => {
@@ -90,6 +94,7 @@ describe("migrateToLocalStore", () => {
         numSuggestions: 2,
       },
     });
+    expect(settingsRemoveRaw).toHaveBeenCalledWith("revertOnBackspace");
   });
 
   test("skips sync migration for new versions and still normalizes site profiles", async () => {
@@ -105,6 +110,7 @@ describe("migrateToLocalStore", () => {
     expect(global.chrome.storage.sync.get).not.toHaveBeenCalled();
     expect(settingsManagerCtor).toHaveBeenCalled();
     expect(settingsSet).toHaveBeenCalledWith(KEY_SITE_PROFILES, {});
+    expect(settingsRemoveRaw).toHaveBeenCalledWith("revertOnBackspace");
     expect(global.chrome.storage.local.set).toHaveBeenCalledWith({
       lastVersion: "2026.2.1",
     });

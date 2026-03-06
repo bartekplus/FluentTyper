@@ -4,7 +4,6 @@ export class SuggestionKeyboardController {
   static buildActiveKeys(config: {
     autocompleteOnEnter: boolean;
     autocompleteOnTab: boolean;
-    revertOnBackspace: boolean;
   }): string[] {
     const keys: string[] = [...SuggestionKeyboardController.DEFAULT_KEYS];
     if (config.autocompleteOnEnter) {
@@ -12,9 +11,6 @@ export class SuggestionKeyboardController {
     }
     if (config.autocompleteOnTab) {
       keys.push("Tab");
-    }
-    if (config.revertOnBackspace) {
-      keys.push("Backspace");
     }
     return keys;
   }

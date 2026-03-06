@@ -11,7 +11,6 @@ import {
   KEY_AUTOCOMPLETE_ON_TAB,
   KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
   KEY_SELECT_BY_DIGIT,
-  KEY_REVERT_ON_BACKSPACE,
   KEY_LANGUAGE,
   KEY_ENABLED_LANGUAGES,
   KEY_FALLBACK_LANGUAGE,
@@ -241,14 +240,6 @@ const manifest = {
       type: "checkbox",
       label: i18n.get("add_space_label") + ":&nbsp;<small>" + i18n.get("add_space_desc") + "</small>",
       default: true,
-    },
-    {
-      tab: i18n.get("core_settings"),
-      group: i18n.get("behavior_after_completion"),
-      name: KEY_REVERT_ON_BACKSPACE,
-      type: "checkbox",
-      label: i18n.get("smart_backspace_label") + ":&nbsp;<small>" + i18n.get("smart_backspace_desc") + "</small>",
-      default: false,
     },
     {
       tab: i18n.get("core_settings"),

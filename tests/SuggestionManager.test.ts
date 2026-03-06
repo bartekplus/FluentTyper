@@ -138,7 +138,6 @@ type ConstructorArgs = {
   insertSpaceAfterAutocomplete: boolean;
   lang: string;
   selectByDigit: boolean;
-  revertOnBackspace: boolean;
   displayLangHeader: boolean;
   inline_suggestion: boolean;
   enabledGrammarRules: string[];
@@ -157,7 +156,6 @@ async function createManager(overrides: Partial<ConstructorArgs> = {}) {
     insertSpaceAfterAutocomplete: true,
     lang: "en_US",
     selectByDigit: true,
-    revertOnBackspace: true,
     displayLangHeader: true,
     inline_suggestion: false,
     enabledGrammarRules: ["commaPeriodSpacing"],
@@ -830,10 +828,9 @@ describe("SuggestionManager", () => {
     expect(input.value).toBe("hello");
   });
 
-  test("supports digit selection and backspace revert", async () => {
+  test("supports digit selection and unified undo chord", async () => {
     const { manager, getPrediction } = await createManager({
       selectByDigit: true,
-      revertOnBackspace: true,
     });
     const input = document.createElement("input");
     input.type = "text";
@@ -850,7 +847,7 @@ describe("SuggestionManager", () => {
     dispatchKeydown(input, "2");
     expect(input.value).toBe("hi\xA0");
 
-    dispatchKeydown(input, "Backspace");
+    dispatchKeydown(input, "z", { ctrlKey: true });
     expect(input.value).toBe("h");
   });
 

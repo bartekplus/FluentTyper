@@ -16,7 +16,6 @@ import {
   KEY_INLINE_SUGGESTION,
   KEY_NUM_SUGGESTIONS,
   KEY_MIN_WORD_LENGTH_TO_PREDICT,
-  KEY_REVERT_ON_BACKSPACE,
   KEY_PRODUCTIVITY_STATS,
   KEY_SITE_PROFILES,
   KEY_TEXT_EXPANSIONS,
@@ -1175,6 +1174,12 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await newInstallationPage.waitForSelector("body", {
         timeout: browserTimeout(3000, 10000),
       });
+      await newInstallationPage.waitForFunction(
+        () => document.body.textContent?.includes("Ctrl+Z") ?? false,
+        {
+          timeout: browserTimeout(3000, 10000),
+        },
+      );
 
       if (!isFirefox()) {
         // ---- Permission flow test ----
@@ -3875,19 +3880,12 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
-    "Grammar Rule Engine reverts latest auto-fix via Backspace in #test-input",
+    "Prediction acceptance reverts latest extension change via Cmd/Ctrl+Z in #test-input",
     async () => {
       const selector = "#test-input";
 
-      await setSettingAndWaitStable(
-        worker!,
-        KEY_ENABLED_GRAMMAR_RULES,
-        ["englishTypoWhitelistCorrection"],
-        3,
-        browserTimeout(5000, 7000),
-      );
-      await setSettingAndWait(worker!, KEY_REVERT_ON_BACKSPACE, true);
       await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
       await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
       await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
       await applyConfigChange(browser, worker!);
@@ -3899,15 +3897,18 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitForInputReady(page, selector);
 
       await clearInputContent(page, selector);
-      await typeInInput(page, selector, "teh ");
-      await waitForInputContentEqual(page, selector, "the ", browserTimeout(5000, 9000));
+      await typeInInput(page, selector, "th");
+      const [firstSuggestion] = await waitForVisibleSuggestionTexts(
+        page,
+        browserTimeout(5000, 9000),
+      );
+      expect(firstSuggestion).toBeDefined();
 
-      await page.keyboard.press("Backspace");
-      await waitForInputContentEqual(page, selector, "teh ", browserTimeout(5000, 9000));
+      await page.keyboard.press("Tab");
+      await waitForInputContentEqual(page, selector, firstSuggestion!, browserTimeout(5000, 9000));
 
-      await setSettingAndWait(worker!, KEY_REVERT_ON_BACKSPACE, false);
-      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
-      await applyConfigChange(browser, worker!);
+      await dispatchUndoChord(page, selector);
+      await waitForInputContentEqual(page, selector, "th", browserTimeout(5000, 9000));
     },
     browserTimeout(25000, 45000),
   );
@@ -3924,7 +3925,6 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         3,
         browserTimeout(5000, 7000),
       );
-      await setSettingAndWait(worker!, KEY_REVERT_ON_BACKSPACE, true);
       await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
       await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
       await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
@@ -3943,7 +3943,43 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await dispatchUndoChord(page, selector);
       await waitForInputContentEqual(page, selector, "alot ", browserTimeout(5000, 9000));
 
-      await setSettingAndWait(worker!, KEY_REVERT_ON_BACKSPACE, false);
+      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await applyConfigChange(browser, worker!);
+    },
+    browserTimeout(25000, 45000),
+  );
+
+  test(
+    "Grammar Rule Engine reverts latest auto-fix via Cmd/Ctrl+Z in #test-contenteditable",
+    async () => {
+      const selector = "#test-contenteditable";
+
+      await setSettingAndWaitStable(
+        worker!,
+        KEY_ENABLED_GRAMMAR_RULES,
+        ["englishAlotCorrection"],
+        3,
+        browserTimeout(5000, 7000),
+      );
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+      await applyConfigChange(browser, worker!);
+
+      await gotoTestPage(page, {
+        enableCkEditor: false,
+        enableQuill: false,
+      });
+      await page.bringToFront();
+      await waitForInputReady(page, selector);
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "alot ");
+      await waitForInputContentEqual(page, selector, "a lot ", browserTimeout(5000, 9000));
+
+      await dispatchUndoChord(page, selector);
+      await waitForInputContentEqual(page, selector, "alot ", browserTimeout(5000, 9000));
+
       await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
       await applyConfigChange(browser, worker!);
     },
@@ -3962,7 +3998,6 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         3,
         browserTimeout(5000, 7000),
       );
-      await setSettingAndWait(worker!, KEY_REVERT_ON_BACKSPACE, true);
       await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
       await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
       await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
@@ -3978,7 +4013,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await typeInInput(page, selector, "alot ");
       await waitForInputContentEqual(page, selector, "a lot ", browserTimeout(5000, 9000));
 
-      await page.keyboard.press("Backspace");
+      await dispatchUndoChord(page, selector);
       await waitForInputContentEqual(page, selector, "alot ", browserTimeout(5000, 9000));
 
       await sleep(400);
@@ -3987,11 +4022,49 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await typeInInput(page, selector, "x alot ");
       await waitForInputContentEqual(page, selector, "alot x a lot ", browserTimeout(5000, 9000));
 
-      await setSettingAndWait(worker!, KEY_REVERT_ON_BACKSPACE, false);
       await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
       await applyConfigChange(browser, worker!);
     },
     browserTimeout(30000, 50000),
+  );
+
+  test(
+    "Extension undo does not trigger after an intervening user edit in #test-input",
+    async () => {
+      const selector = "#test-input";
+
+      await setSettingAndWaitStable(
+        worker!,
+        KEY_ENABLED_GRAMMAR_RULES,
+        ["englishAlotCorrection"],
+        3,
+        browserTimeout(5000, 7000),
+      );
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+      await applyConfigChange(browser, worker!);
+
+      await gotoTestPage(page, {
+        enableCkEditor: false,
+      });
+      await page.bringToFront();
+      await waitForInputReady(page, selector);
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "alot ");
+      await waitForInputContentEqual(page, selector, "a lot ", browserTimeout(5000, 9000));
+
+      await typeInInput(page, selector, "x");
+      await waitForInputContentEqual(page, selector, "a lot x", browserTimeout(5000, 9000));
+
+      await dispatchUndoChord(page, selector);
+      await waitForInputContentEqual(page, selector, "a lot x", browserTimeout(5000, 9000));
+
+      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await applyConfigChange(browser, worker!);
+    },
+    browserTimeout(25000, 45000),
   );
 
   test(

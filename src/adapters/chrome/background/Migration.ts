@@ -6,6 +6,8 @@ import { resolveSiteProfiles } from "@core/domain/siteProfiles";
 import { CoreSettingsRepository } from "@core/application/repositories/CoreSettingsRepository";
 import { SiteProfileRepository } from "@core/application/repositories/SiteProfileRepository";
 
+const LEGACY_REVERT_ON_BACKSPACE_KEY = "revertOnBackspace";
+
 /**
  * Migrates storage and language settings to the latest version.
  * @param lastVersion - The previous version string.
@@ -51,6 +53,9 @@ export async function migrateToLocalStore(lastVersion?: string): Promise<void> {
   }
 
   settingsManager = settingsManager || new SettingsManager();
+  if (typeof settingsManager.removeRaw === "function") {
+    await settingsManager.removeRaw(LEGACY_REVERT_ON_BACKSPACE_KEY);
+  }
   const coreSettings = new CoreSettingsRepository(settingsManager);
   const siteProfileRepository = new SiteProfileRepository(settingsManager);
   const enabledLanguages = await coreSettings.getEnabledLanguages();

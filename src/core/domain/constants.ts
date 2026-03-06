@@ -28,7 +28,6 @@ export const KEY_AUTOCOMPLETE_ON_TAB = "autocompleteOnTab";
 export const KEY_SELECT_BY_DIGIT = "selectByDigit";
 export const KEY_AUTOCOMPLETE_SEPARATOR_SOURCE = "autocompleteSeparatorSource";
 export const KEY_MIN_WORD_LENGTH_TO_PREDICT = "minWordLengthToPredict";
-export const KEY_REVERT_ON_BACKSPACE = "revertOnBackspace";
 export const KEY_NUM_SUGGESTIONS = "numSuggestions";
 export const KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE = "insertSpaceAfterAutocomplete";
 export const KEY_AUTO_CAPITALIZE = "autoCapitalize";

@@ -111,7 +111,6 @@ export class SuggestionManagerRuntime {
       autocompleteOnEnter: options.autocompleteOnEnter,
       autocompleteOnTab: options.autocompleteOnTab,
       selectByDigit: options.selectByDigit,
-      revertOnBackspace: options.revertOnBackspace,
       inlineSuggestionEnabled: this.inlineSuggestionEnabled,
       handleMissingSpaceAfterAccept: (entry, event) =>
         this.textEditService.handleMissingSpaceAfterAccept(
@@ -119,24 +118,8 @@ export class SuggestionManagerRuntime {
           event,
           this.consumeKeyboardEvent.bind(this),
         ),
-      tryRevertLastReplacement: (entry, event) =>
-        this.textEditService.tryRevertLastReplacement(entry, event, {
-          consumeKeyboardEvent: this.consumeKeyboardEvent.bind(this),
-          clearSuggestions: () => this.clearSuggestions(entry),
-        }),
-      tryRevertLastAutoFix: (entry, event) =>
-        this.textEditService.tryRevertLastAutoFix(entry, event, {
-          consumeKeyboardEvent: this.consumeKeyboardEvent.bind(this),
-          clearSuggestions: () => this.clearSuggestions(entry),
-        }),
-      tryDeleteTrailingPunctuationSpace: (entry, event) =>
-        this.textEditService.tryDeleteTrailingPunctuationSpace(
-          entry,
-          event,
-          this.consumeKeyboardEvent.bind(this),
-        ),
-      tryRevertLastAutoFixOnUndo: (entry, event) =>
-        this.textEditService.tryRevertLastAutoFix(entry, event, {
+      tryUndoLastExtensionEdit: (entry, event) =>
+        this.textEditService.tryUndoLastExtensionEdit(entry, event, {
           consumeKeyboardEvent: this.consumeKeyboardEvent.bind(this),
           clearSuggestions: () => this.clearSuggestions(entry),
         }),
@@ -344,8 +327,7 @@ export class SuggestionManagerRuntime {
       pendingInlineAccept: false,
       missingTrailingSpace: false,
       expectedCursorPos: 0,
-      lastReplacement: null,
-      lastAutoFixReplacement: null,
+      pendingExtensionEdit: null,
       manualAutoFixSuppression: null,
       isComposing: false,
       lastKeydownKey: null,
@@ -470,6 +452,7 @@ export class SuggestionManagerRuntime {
     if (!entry) {
       return;
     }
+    entry.pendingExtensionEdit = null;
     // Clicking in target often changes caret context; hide stale UI and invalidate pending responses.
     this.dismissEntry(entry, true);
   }
@@ -482,6 +465,7 @@ export class SuggestionManagerRuntime {
     if (!entry) {
       return;
     }
+    entry.pendingExtensionEdit = null;
     entry.isComposing = false;
     this.dismissEntry(entry);
   }
@@ -504,10 +488,10 @@ export class SuggestionManagerRuntime {
       snapshot.beforeCursor,
     );
     if (
-      entry.lastAutoFixReplacement &&
-      !this.shouldPreserveAutoFixSnapshot(entry.lastAutoFixReplacement, snapshot)
+      entry.pendingExtensionEdit &&
+      !this.shouldPreservePendingExtensionEdit(entry.pendingExtensionEdit, snapshot, entry)
     ) {
-      entry.lastAutoFixReplacement = null;
+      entry.pendingExtensionEdit = null;
     }
     const inputAction = this.resolveInputAction(entry, event, provisionalBeforeCursor);
     const predictionBeforeCursor = this.resolveBeforeCursorForPrediction(
@@ -599,19 +583,23 @@ export class SuggestionManagerRuntime {
     return blockBeforeCursor;
   }
 
-  private shouldPreserveAutoFixSnapshot(
-    autoFix: NonNullable<SuggestionEntry["lastAutoFixReplacement"]>,
+  private shouldPreservePendingExtensionEdit(
+    pendingEdit: NonNullable<SuggestionEntry["pendingExtensionEdit"]>,
     snapshot: SuggestionSnapshot,
+    entry: SuggestionEntry,
   ): boolean {
+    if (!TextTargetAdapter.hasCollapsedSelection(entry.elem as TextTarget)) {
+      return false;
+    }
     const fullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
-    const replaceEnd = autoFix.replaceStart + autoFix.replacementText.length;
-    if (snapshot.cursorOffset !== autoFix.cursorAfter) {
+    const replaceEnd = pendingEdit.replaceStart + pendingEdit.replacementText.length;
+    if (snapshot.cursorOffset !== pendingEdit.cursorAfter) {
       return false;
     }
-    if (autoFix.replaceStart < 0 || replaceEnd > fullText.length) {
+    if (pendingEdit.replaceStart < 0 || replaceEnd > fullText.length) {
       return false;
     }
-    return fullText.slice(autoFix.replaceStart, replaceEnd) === autoFix.replacementText;
+    return fullText.slice(pendingEdit.replaceStart, replaceEnd) === pendingEdit.replacementText;
   }
 
   private resetEntryPredictionStateAfterSuppressedInput(entry: SuggestionEntry): void {
@@ -757,6 +745,10 @@ export class SuggestionManagerRuntime {
       return;
     }
 
+    if (this.shouldInvalidatePendingExtensionEditOnKeydown(keyboardEvent)) {
+      entry.pendingExtensionEdit = null;
+    }
+
     if (keyboardEvent.key === "Backspace" || keyboardEvent.key === "Delete") {
       // Some rich editors defer/suppress input on delete keys. Reconcile when
       // DOM mutation arrives first; keep a timeout as a safety net.
@@ -782,6 +774,37 @@ export class SuggestionManagerRuntime {
         keyboardEvent.key,
       );
     }
+  }
+
+  private shouldInvalidatePendingExtensionEditOnKeydown(event: KeyboardEvent): boolean {
+    if (this.isUndoChord(event)) {
+      return false;
+    }
+    if (
+      [
+        "ArrowLeft",
+        "ArrowRight",
+        "ArrowUp",
+        "ArrowDown",
+        "Home",
+        "End",
+        "PageUp",
+        "PageDown",
+      ].includes(event.key)
+    ) {
+      return true;
+    }
+    return (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "a";
+  }
+
+  private isUndoChord(event: KeyboardEvent): boolean {
+    if (event.defaultPrevented || event.altKey || event.shiftKey) {
+      return false;
+    }
+    if (!(event.metaKey || event.ctrlKey)) {
+      return false;
+    }
+    return event.key.toLowerCase() === "z";
   }
 
   private scheduleKeyFallbackReconcile(

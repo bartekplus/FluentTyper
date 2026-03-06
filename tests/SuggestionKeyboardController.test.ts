@@ -6,9 +6,8 @@ describe("SuggestionKeyboardController", () => {
     const keys = SuggestionKeyboardController.buildActiveKeys({
       autocompleteOnEnter: true,
       autocompleteOnTab: false,
-      revertOnBackspace: true,
     });
 
-    expect(keys).toEqual(["Escape", "ArrowUp", "ArrowDown", "Space", "Enter", "Backspace"]);
+    expect(keys).toEqual(["Escape", "ArrowUp", "ArrowDown", "Space", "Enter"]);
   });
 });

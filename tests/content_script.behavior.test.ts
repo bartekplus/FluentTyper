@@ -73,7 +73,6 @@ function defaultConfig(overrides: Record<string, unknown> = {}) {
     lang: "en_US",
     selectByDigit: true,
     minWordLengthToPredict: 1,
-    revertOnBackspace: true,
     displayLangHeader: true,
     inline_suggestion: false,
     themeConfig: undefined,
