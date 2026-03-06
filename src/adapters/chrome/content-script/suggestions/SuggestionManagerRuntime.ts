@@ -563,6 +563,26 @@ export class SuggestionManagerRuntime {
     snapshot: SuggestionSnapshot,
     entry: SuggestionEntry,
   ): boolean {
+    if (
+      !this.isTextValueElement(entry.elem) &&
+      pendingEdit.source === "grammar" &&
+      TextTargetAdapter.hasCollapsedSelection(entry.elem as TextTarget)
+    ) {
+      const actualFingerprint = TextTargetAdapter.createPostEditFingerprint(
+        entry.elem as TextTarget,
+        snapshot,
+      );
+      if (
+        actualFingerprint.fullText === pendingEdit.postEditFingerprint.fullText &&
+        actualFingerprint.selectionCollapsed ===
+          pendingEdit.postEditFingerprint.selectionCollapsed &&
+        snapshot.cursorOffset >= pendingEdit.replaceStart &&
+        snapshot.cursorOffset <= pendingEdit.cursorAfter
+      ) {
+        return true;
+      }
+    }
+
     return TextTargetAdapter.matchesPostEditFingerprint(
       entry.elem as TextTarget,
       pendingEdit.postEditFingerprint,
@@ -622,7 +642,11 @@ export class SuggestionManagerRuntime {
     const snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
     const currentFullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
     if (currentFullText === pending.expectedFullText) {
-      return false;
+      // Text hasn't changed yet. Some editors (e.g. Reddit/Lexical) fire the
+      // input event before the DOM reconciliation produces the actual text
+      // mutation.  When the fallback is still inside its mutation-wait window,
+      // defer so the MutationObserver can pick up the real change later.
+      return pending.waitForTextChangeUntilMs !== null;
     }
 
     const currentBeforeCursor = this.resolveBeforeCursorForPrediction(entry, snapshot.beforeCursor);
@@ -705,6 +729,53 @@ export class SuggestionManagerRuntime {
           !this.shouldPreservePendingExtensionEdit(entry.pendingExtensionEdit, snapshot, entry)
         ) {
           entry.pendingExtensionEdit = null;
+        }
+      } else {
+        // The grammar edit could not be applied to the DOM (e.g. the host
+        // editor prevented the beforeinput).  Apply the intended text
+        // transformation so the prediction request reflects the expected
+        // result (the host will likely reconcile the change asynchronously).
+        const replacement =
+          typeof grammarEdit.replacement === "string" ? grammarEdit.replacement : "";
+        const deleteBackwards = Number.isFinite(grammarEdit.deleteBackwards)
+          ? Math.max(0, grammarEdit.deleteBackwards)
+          : 0;
+        if (replacement.length > 0 || deleteBackwards > 0) {
+          const ctx = cursorContext.snapshot;
+          const adjustedBeforeCursor =
+            ctx.beforeCursor.slice(0, Math.max(0, ctx.beforeCursor.length - deleteBackwards)) +
+            replacement;
+          const adjustedAfterCursor = ctx.afterCursor;
+
+          entry.lastInputAction = inputAction;
+          entry.lastKeydownKey = null;
+          entry.lastBeforeCursorText = adjustedBeforeCursor;
+          entry.pendingGrammarPaste = false;
+
+          const tokenInfo = this.findMentionToken(adjustedBeforeCursor);
+          entry.latestMentionText = tokenInfo.token;
+          entry.latestMentionStart = this.isTextValueElement(entry.elem) ? tokenInfo.start : -1;
+
+          if (predictionMode === "reconcile") {
+            this.predictionCoordinator.reconcile(entry, {
+              clearSuggestions: () => this.clearSuggestions(entry),
+              inputAction,
+              beforeCursorOverride: adjustedBeforeCursor,
+              afterCursorOverride: adjustedAfterCursor,
+            });
+          } else {
+            this.predictionCoordinator.schedule(entry, {
+              force: false,
+              clearSuggestions: () => this.clearSuggestions(entry),
+              inputAction,
+              beforeCursorOverride: adjustedBeforeCursor,
+              afterCursorOverride: adjustedAfterCursor,
+            });
+          }
+          if (scheduleIdle) {
+            this.scheduleIdleGrammar(entry);
+          }
+          return;
         }
       }
     }
@@ -820,26 +891,71 @@ export class SuggestionManagerRuntime {
     }
     const resolvedAfterCursor = beforeBlockBoundary ? "" : blockContext.afterCursor;
 
+    const resolvedLeadingChar = resolvedAfterCursor.charAt(0);
+    const snapshotLeadingChar = snapshot.afterCursor.charAt(0);
+    // Exact match: the typed key matches the DOM character as-is (normal case).
+    // Case-insensitive match: only when the typed key is lowercase but the host
+    // capitalized it (e.g. sentence-start auto-capitalization).  This avoids
+    // over-broadening when the user intentionally typed uppercase.
+    const typedKeyIsLower =
+      typeof typedKey === "string" &&
+      typedKey.length === 1 &&
+      typedKey !== typedKey.toLocaleUpperCase() &&
+      typedKey === typedKey.toLocaleLowerCase();
+    const exactKeyMatch = resolvedLeadingChar === typedKey && snapshotLeadingChar === typedKey;
+    const capitalizedKeyMatch =
+      typedKeyIsLower &&
+      resolvedLeadingChar === typedKey.toLocaleUpperCase() &&
+      snapshotLeadingChar === typedKey.toLocaleUpperCase();
     const shouldSeedTypedKey =
       inputAction !== "delete" &&
       blockContext.beforeCursor.length === 0 &&
       typeof typedKey === "string" &&
       typedKey.length === 1 &&
       typedKey.trim().length > 0 &&
-      resolvedAfterCursor.startsWith(typedKey) &&
-      snapshot.afterCursor.startsWith(typedKey);
+      resolvedLeadingChar.length === 1 &&
+      snapshotLeadingChar.length === 1 &&
+      (exactKeyMatch || capitalizedKeyMatch);
     if (shouldSeedTypedKey) {
       return {
-        beforeCursor: typedKey,
-        afterCursor: resolvedAfterCursor.slice(typedKey.length),
+        beforeCursor: resolvedLeadingChar,
+        afterCursor: resolvedAfterCursor.slice(resolvedLeadingChar.length),
         snapshot: {
-          beforeCursor: `${snapshot.beforeCursor}${typedKey}`,
-          afterCursor: snapshot.afterCursor.slice(typedKey.length),
-          cursorOffset: snapshot.cursorOffset + typedKey.length,
+          beforeCursor: `${snapshot.beforeCursor}${resolvedLeadingChar}`,
+          afterCursor: snapshot.afterCursor.slice(snapshotLeadingChar.length),
+          cursorOffset: snapshot.cursorOffset + resolvedLeadingChar.length,
         },
         applyContext: {
-          beforeCursor: typedKey,
-          afterCursor: resolvedAfterCursor.slice(typedKey.length),
+          beforeCursor: resolvedLeadingChar,
+          afterCursor: resolvedAfterCursor.slice(resolvedLeadingChar.length),
+          useFullTextOffsets: false,
+        },
+        safeForGrammar: true,
+      };
+    }
+
+    const pendingEdit = entry.pendingExtensionEdit;
+    const shouldSeedPendingGrammarEdit =
+      inputAction !== "delete" &&
+      typeof typedKey !== "string" &&
+      pendingEdit?.source === "grammar" &&
+      blockContext.beforeCursor.length === 0 &&
+      pendingEdit.replaceStart === snapshot.beforeCursor.length &&
+      pendingEdit.replacementText.length > 0 &&
+      resolvedAfterCursor.startsWith(pendingEdit.replacementText) &&
+      snapshot.afterCursor.startsWith(pendingEdit.replacementText);
+    if (shouldSeedPendingGrammarEdit) {
+      return {
+        beforeCursor: pendingEdit.replacementText,
+        afterCursor: resolvedAfterCursor.slice(pendingEdit.replacementText.length),
+        snapshot: {
+          beforeCursor: `${snapshot.beforeCursor}${pendingEdit.replacementText}`,
+          afterCursor: snapshot.afterCursor.slice(pendingEdit.replacementText.length),
+          cursorOffset: snapshot.cursorOffset + pendingEdit.replacementText.length,
+        },
+        applyContext: {
+          beforeCursor: pendingEdit.replacementText,
+          afterCursor: resolvedAfterCursor.slice(pendingEdit.replacementText.length),
           useFullTextOffsets: false,
         },
         safeForGrammar: true,
@@ -989,12 +1105,11 @@ export class SuggestionManagerRuntime {
     if (!this.isEntryFocused(entry)) {
       return;
     }
-    if (!this.isTextValueElement(entry.elem)) {
-      return;
-    }
-    if (!TextTargetAdapter.hasCollapsedSelection(entry.elem as TextTarget)) {
-      this.dismissEntry(entry, true);
-      return;
+    if (this.isTextValueElement(entry.elem)) {
+      if (!TextTargetAdapter.hasCollapsedSelection(entry.elem as TextTarget)) {
+        this.dismissEntry(entry, true);
+        return;
+      }
     }
     if (!this.shouldCheckCaretContextOnSelectionChange(entry)) {
       return;
@@ -1002,6 +1117,27 @@ export class SuggestionManagerRuntime {
     if (entry.visibleSuggestionBeforeCursorText === null) {
       return;
     }
+
+    if (!this.isTextValueElement(entry.elem)) {
+      // For contenteditable, compare block-local beforeCursor.  When the
+      // caret moves to a different line (e.g. Enter), the block-local
+      // context changes entirely and the popup must be dismissed.
+      // Normal edits (typing, backspace) within the same line also change
+      // beforeCursor, but the visible suggestion text will still be a
+      // prefix — so only dismiss when neither is a prefix of the other.
+      const blockContext = this.contentEditableAdapter.getBlockContext(entry.elem);
+      const currentBeforeCursor = blockContext?.beforeCursor ?? "";
+      const visibleBefore = entry.visibleSuggestionBeforeCursorText;
+      const stillRelated =
+        currentBeforeCursor === visibleBefore ||
+        currentBeforeCursor.startsWith(visibleBefore) ||
+        visibleBefore.startsWith(currentBeforeCursor);
+      if (!stillRelated) {
+        this.dismissEntry(entry, true);
+      }
+      return;
+    }
+
     if (entry.visibleSuggestionFullText === null) {
       return;
     }
@@ -1084,6 +1220,14 @@ export class SuggestionManagerRuntime {
     if (this.shouldDismissSuggestionsOnKeydown(keyboardEvent)) {
       this.dismissEntry(entry, true);
       return;
+    }
+
+    // Enter on a contenteditable always moves the caret to a new block, making
+    // the current predictions invalid. Dismiss the popup immediately so it does
+    // not linger until the fallback reconcile timer fires. The insert-fallback
+    // below still runs so that predictions for the new line are scheduled.
+    if (keyboardEvent.key === "Enter" && this.isContentEditableElement(entry.elem)) {
+      this.dismissEntry(entry, true);
     }
 
     if (keyboardEvent.key === "Backspace" || keyboardEvent.key === "Delete") {

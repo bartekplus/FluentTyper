@@ -67,6 +67,26 @@ export class ContentEditableAdapter {
       const hostHandled = beforeInputEvent.defaultPrevented || textAfterBeforeInput !== beforeText;
 
       if (hostHandled) {
+        if (textAfterBeforeInput === beforeText && selectionAnchors && selection) {
+          // Host prevented the edit without changing text.  Restore the
+          // original selection so the expanded replacement range does not
+          // corrupt subsequent cursor‑context resolution.
+          try {
+            const restoreRange = document.createRange();
+            restoreRange.setStart(
+              selectionAnchors.startPosition.container,
+              selectionAnchors.startPosition.offset,
+            );
+            restoreRange.setEnd(
+              selectionAnchors.endPosition.container,
+              selectionAnchors.endPosition.offset,
+            );
+            selection.removeAllRanges();
+            selection.addRange(restoreRange);
+          } catch {
+            // Best-effort: if the anchors are stale, leave the selection as-is.
+          }
+        }
         return {
           appliedBy: "host-beforeinput",
           didMutateDom: textAfterBeforeInput !== beforeText,
@@ -557,7 +577,7 @@ export class ContentEditableAdapter {
     return event;
   }
 
-  private setCaret(elem: HTMLElement, cursorOffset: number): void {
+  public setCaret(elem: HTMLElement, cursorOffset: number): void {
     const selection = window.getSelection();
     if (!selection) {
       return;

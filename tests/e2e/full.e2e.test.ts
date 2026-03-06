@@ -1985,6 +1985,34 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "CKEditor popup dismisses immediately when Enter is pressed",
+    async () => {
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await applyConfigChange(browser, worker!);
+
+      await gotoTestPage(page, { enableCkEditor: true });
+      await page.bringToFront();
+      await waitForInputReady(page, CKEDITOR_SELECTOR);
+
+      await page.focus(CKEDITOR_SELECTOR);
+      await page.keyboard.type("h");
+
+      // Wait for the suggestion popup to appear
+      const liCount = await waitForVisibleSuggestions(page);
+      expect(liCount).toBeGreaterThan(0);
+
+      // Pressing Enter should move the caret to a new block and dismiss the popup
+      await page.keyboard.press("Enter");
+
+      // The popup must disappear promptly — predictions for the old line are invalid
+      await waitForNoVisibleSuggestions(page, browserTimeout(2000, 4000));
+    },
+    browserTimeout(30000, 50000),
+  );
+
+  test(
     "CKEditor grammar/text-edit replacement applies in active second paragraph",
     async () => {
       try {
