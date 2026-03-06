@@ -53,6 +53,46 @@ function createFakeModule(predictionsRef: { current: string[] }): PresageModule 
   } as unknown as PresageModule;
 }
 
+function createFakeModuleWithSpy(predictionsRef: { current: string[] }): {
+  module: PresageModule;
+  predictWithProbability: ReturnType<typeof jest.fn>;
+} {
+  const callback = {
+    pastStream: "",
+    get_past_stream() {
+      return this.pastStream;
+    },
+    get_future_stream() {
+      return "";
+    },
+  };
+
+  const predictWithProbability = jest.fn(() => ({
+    size: () => predictionsRef.current.length,
+    get: (idx: number) => ({
+      prediction: predictionsRef.current[idx],
+      probability: 1,
+    }),
+  }));
+
+  return {
+    module: {
+      PresageCallback: {
+        implement: () => callback,
+      },
+      Presage: class {
+        constructor() {}
+        config() {}
+        predictWithProbability() {
+          return predictWithProbability();
+        }
+      },
+      FS: { writeFile: jest.fn() },
+    } as unknown as PresageModule,
+    predictWithProbability,
+  };
+}
+
 describe("PredictionOrchestrator parallel merge", () => {
   test("keeps Presage-only behavior when AI predictor is disabled", async () => {
     const predictionsRef = { current: ["alpha", "beta"] };
@@ -217,5 +257,25 @@ describe("PredictionOrchestrator parallel merge", () => {
     const result = await presageHandler.runPrediction("w", "", "en_US");
 
     expect(result.predictions.length).toBeGreaterThan(0);
+  });
+
+  test("re-expands cached templates so random variables stay fresh", async () => {
+    const predictionsRef = { current: ["${random:alpha|beta}"] };
+    const { module, predictWithProbability } = createFakeModuleWithSpy(predictionsRef);
+    const presageHandler = new PresageHandler(module);
+    presageHandler.setConfig(createConfig({ aiPredictorEnabled: false }));
+
+    const randomSpy = jest
+      .spyOn(Math, "random")
+      .mockReturnValueOnce(0)
+      .mockReturnValueOnce(0.99);
+
+    const firstResult = await presageHandler.runPrediction("rsales", "", "en_US");
+    const secondResult = await presageHandler.runPrediction("rsales", "", "en_US");
+
+    expect(firstResult.predictions).toEqual(["alpha"]);
+    expect(secondResult.predictions).toEqual(["beta"]);
+    expect(predictWithProbability).toHaveBeenCalledTimes(1);
+    expect(randomSpy).toHaveBeenCalledTimes(2);
   });
 });

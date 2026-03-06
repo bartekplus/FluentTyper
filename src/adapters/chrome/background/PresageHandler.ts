@@ -20,7 +20,7 @@ const logger = createLogger("PresageHandler");
 
 interface LastPrediction {
   pastStream: string;
-  predictions: string[];
+  templates: string[];
 }
 
 export interface PresageConfig {
@@ -87,7 +87,7 @@ export class PresageHandler {
         continue;
       }
       try {
-        this.lastPrediction[lang] = { pastStream: "", predictions: [] };
+        this.lastPrediction[lang] = { pastStream: "", templates: [] };
         this.presageEngines[lang] = new PresageEngine(Module, engineConfig, lang);
       } catch (error) {
         logger.warn("Failed to create Presage engine instance", {
@@ -191,11 +191,6 @@ export class PresageHandler {
     if (!this.hasLanguageEngine(lang)) {
       return [];
     }
-    if (predictionInput === this.lastPrediction[lang]?.pastStream) {
-      return this.lastPrediction[lang].predictions.slice();
-    }
-    const predictions = this.presageEngines[lang].predict(predictionInput);
-
     const resolver = TemplateExpander.createResolver(
       lang,
 
@@ -204,13 +199,22 @@ export class PresageHandler {
       tabId,
     );
 
+    if (predictionInput === this.lastPrediction[lang]?.pastStream) {
+      return Promise.all(
+        this.lastPrediction[lang].templates.map((text) =>
+          TemplateExpander.parseStringTemplateAsync(text, resolver),
+        ),
+      );
+    }
+    const predictions = this.presageEngines[lang].predict(predictionInput);
+
     const expandedPredictions = await Promise.all(
       predictions.map((text) => TemplateExpander.parseStringTemplateAsync(text, resolver)),
     );
 
     this.lastPrediction[lang] = {
       pastStream: predictionInput,
-      predictions: expandedPredictions.slice(),
+      templates: predictions.slice(),
     };
     return expandedPredictions;
   }
