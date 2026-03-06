@@ -184,6 +184,15 @@ body.fluenttyper-popup {
     rgba(79, 70, 229, 0.05),
     rgba(56, 189, 248, 0.05)
   );
+  --popup-focus-ring-color: color-mix(in srgb, var(--accent-color) 72%, white);
+  --popup-focus-ring-shadow:
+    0 0 0 2px color-mix(in srgb, var(--background-color) 55%, transparent),
+    0 0 0 4px color-mix(in srgb, var(--accent-color) 32%, transparent);
+  --popup-focus-surface: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--accent-color) 13%, transparent),
+    color-mix(in srgb, #38bdf8 12%, transparent)
+  );
   background-color: var(--background-color);
   color: var(--text-color);
   padding: 0;
@@ -550,6 +559,10 @@ body.fluenttyper-popup[data-theme="dark"] .setting-card {
 
 .popup-select {
   width: 100%;
+  border-radius: 0.55rem;
+  transition:
+    box-shadow 0.16s ease,
+    background-color 0.16s ease;
 }
 
 .popup-select select {
@@ -605,11 +618,31 @@ body.fluenttyper-popup[data-theme="dark"] .setting-card {
   border: none;
   background-color: transparent;
   box-shadow: none;
+  border-radius: 0.55rem;
+  transition: color 0.16s ease;
 }
 
 .control-card .select.is-borderless select:focus {
   border: none;
   box-shadow: none;
+}
+
+.popup-select:focus-within {
+  background: var(--popup-focus-surface);
+  box-shadow: var(--popup-focus-ring-shadow);
+}
+
+.control-card .select.is-borderless select:focus-visible {
+  outline: none;
+}
+
+.switch[type="checkbox"]:focus-visible + label::before,
+.switch[type="checkbox"]:focus-visible + label::after {
+  box-shadow: var(--popup-focus-ring-shadow);
+}
+
+.switch[type="checkbox"]:focus-visible + label::before {
+  border-color: var(--popup-focus-ring-color);
 }
 
 .dashboard-card {
@@ -649,6 +682,16 @@ body.fluenttyper-popup[data-theme="dark"] .setting-card {
 .mini-btn:hover {
   border-color: var(--accent-color);
   color: var(--accent-color);
+}
+
+.mini-btn:focus-visible,
+.permission-status__action:focus-visible,
+.toolbar-link:focus-visible {
+  outline: none;
+  border-color: var(--popup-focus-ring-color);
+  background: var(--popup-focus-surface);
+  color: var(--accent-color);
+  box-shadow: var(--popup-focus-ring-shadow);
 }
 
 .secondary-action-btn {
