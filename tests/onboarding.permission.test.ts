@@ -147,4 +147,28 @@ describe("onboarding permission status", () => {
     );
     expect(button.hidden).toBe(true);
   });
+
+  test("keeps granted state on initial render when permission is checkable but not requestable", async () => {
+    activeDom = installOnboardingDom();
+
+    const browserMock = {
+      permissions: {
+        contains: async () => true,
+      },
+    };
+    (window as unknown as { browser: unknown }).browser = browserMock;
+    (globalThis as unknown as { chrome: unknown }).chrome = browserMock;
+
+    await import(freshModulePath("../src/ui/onboarding/onboarding"));
+    document.dispatchEvent(new window.Event("DOMContentLoaded"));
+    await flushAsyncWork();
+
+    const container = document.getElementById("permissions-container") as HTMLElement;
+    const button = document.getElementById("grant-permissions-btn") as HTMLButtonElement;
+
+    expect(container.dataset.permissionState).toBe("granted");
+    expect(document.getElementById("permissions-title")?.textContent).toBe("Access granted");
+    expect(button.hidden).toBe(true);
+    expect(document.activeElement?.id).toBe("try-me-textarea");
+  });
 });

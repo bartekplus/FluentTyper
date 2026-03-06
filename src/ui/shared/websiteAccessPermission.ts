@@ -90,7 +90,7 @@ export class WebsiteAccessPermissionService {
   ) {}
 
   async getState(): Promise<WebsiteAccessPermissionState> {
-    if (!this.hasCheckHandler() || !this.hasRequestHandler()) {
+    if (!this.hasCheckHandler()) {
       return "unavailable";
     }
 
@@ -106,7 +106,7 @@ export class WebsiteAccessPermissionService {
   }
 
   async requestAccess(): Promise<WebsiteAccessPermissionState> {
-    if (!this.hasCheckHandler() || !this.hasRequestHandler()) {
+    if (!this.hasRequestHandler()) {
       return "unavailable";
     }
 
