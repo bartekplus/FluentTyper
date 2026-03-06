@@ -264,7 +264,15 @@ function createChromeMock(
   activeTab?: chrome.tabs.Tab,
 ) {
   const pending = [...outcomes];
-  const storage = new Map<string, unknown>([["store.settings.enable", JSON.stringify(true)]]);
+  const storage = new Map<string, unknown>([
+    ["store.settings.enable", JSON.stringify(true)],
+    ["store.settings.enabled", JSON.stringify(true)],
+    ["store.settings.language", JSON.stringify("en_US")],
+    ["store.settings.fallbackLanguage", JSON.stringify("en_US")],
+    ["store.settings.enabled_languages", JSON.stringify(["en_US"])],
+    ["store.settings.domainListMode", JSON.stringify("blackList")],
+    ["store.settings.siteProfiles", JSON.stringify({})],
+  ]);
 
   const runtime = {
     lastError: null as { message: string } | null,
