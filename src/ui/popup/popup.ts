@@ -38,6 +38,7 @@ import type {
 } from "@core/domain/messageTypes";
 import { i18n } from "@third-party/fancier-settings/i18n.js";
 import {
+  type WebsiteAccessPermissionState,
   WebsiteAccessPermissionController,
   WebsiteAccessPermissionService,
 } from "@ui/shared/websiteAccessPermission";
@@ -55,6 +56,7 @@ const PRODUCTIVITY_DASHBOARD_RETRY_DELAYS_MS = [150, 300, 600, 1200, 2400] as co
 let productivityDashboardRetryTimerId: number | null = null;
 let productivityDashboardLoadCancelled = false;
 let productivityDashboardLoadCompleted = false;
+let currentWebsiteAccessPermissionState: WebsiteAccessPermissionState | null = null;
 const OPTIONS_ANCHOR_ADVANCED = "advanced_tab";
 const POPUP_THEME_MEDIA_QUERY = "(prefers-color-scheme: dark)";
 
@@ -87,6 +89,34 @@ function getPageStateElements() {
     profile: document.getElementById("pageStateProfile") as HTMLElement | null,
     section: document.getElementById("domainSectionWrapper") as HTMLElement | null,
   };
+}
+
+function setSiteSpecificControlsEnabled(enabled: boolean): void {
+  const domainToggle = document.getElementById("checkboxDomainInput") as HTMLInputElement | null;
+  const profileToggle = document.getElementById(
+    "checkboxSiteProfileInput",
+  ) as HTMLInputElement | null;
+  const profileLanguage = document.getElementById("siteLanguageSelect") as HTMLSelectElement | null;
+  const profileSuggestions = document.getElementById(
+    "siteNumSuggestionsSelect",
+  ) as HTMLSelectElement | null;
+  const profileInline = document.getElementById("siteInlineModeSelect") as HTMLSelectElement | null;
+
+  if (domainToggle) {
+    domainToggle.disabled = !enabled;
+  }
+  if (profileToggle) {
+    profileToggle.disabled = !enabled;
+  }
+  if (profileLanguage) {
+    profileLanguage.disabled = !enabled;
+  }
+  if (profileSuggestions) {
+    profileSuggestions.disabled = !enabled;
+  }
+  if (profileInline) {
+    profileInline.disabled = !enabled;
+  }
 }
 
 function getCurrentPageState(url?: string): PopupPageState {
@@ -201,6 +231,57 @@ function renderStaticPageState(
   }
   panel?.setAttribute("data-page-state", state.kind);
   section?.classList.add("is-hidden");
+  setSiteSpecificControlsEnabled(false);
+  if (hint) {
+    hint.textContent = "";
+  }
+}
+
+function renderPermissionBlockedPageState(state: WebsiteAccessPermissionState): void {
+  if (!currentDomainURL) {
+    return;
+  }
+
+  const permissionBlockedState =
+    state === "missing"
+      ? {
+          badge: translateLabel("permission_status_missing_badge", "Website access required"),
+          body: translateLabel(
+            "popup_page_state_permission_missing_body",
+            "Allow website access to use FluentTyper on this site.",
+          ),
+          kind: "paused" as const,
+        }
+      : {
+          badge: translateLabel(
+            "permission_status_unavailable_badge",
+            "Website access unavailable",
+          ),
+          body: translateLabel(
+            "popup_page_state_permission_unavailable_body",
+            "FluentTyper could not verify website access on this site.",
+          ),
+          kind: "non_actionable" as const,
+        };
+  const { badge, body, meta, panel, section, title, hint, language, profile } =
+    getPageStateElements();
+  if (!badge || !title || !body) {
+    return;
+  }
+  badge.textContent = permissionBlockedState.badge;
+  title.textContent = currentDomainURL;
+  title.title = currentDomainURL;
+  body.textContent = permissionBlockedState.body;
+  meta?.classList.add("is-hidden");
+  if (language) {
+    language.textContent = "";
+  }
+  if (profile) {
+    profile.textContent = "";
+  }
+  panel?.setAttribute("data-page-state", permissionBlockedState.kind);
+  section?.classList.add("is-hidden");
+  setSiteSpecificControlsEnabled(false);
   if (hint) {
     hint.textContent = "";
   }
@@ -280,6 +361,7 @@ async function renderActionablePageState(): Promise<void> {
   meta.classList.remove("is-hidden");
   panel?.setAttribute("data-page-state", globallyEnabled && siteAllowed ? "active" : "paused");
   section?.classList.remove("is-hidden");
+  setSiteSpecificControlsEnabled(true);
   if (hint) {
     hint.textContent = currentDomainURL;
   }
@@ -288,6 +370,13 @@ async function renderActionablePageState(): Promise<void> {
 async function refreshThisSiteSection(pageState: PopupPageState | null = null): Promise<void> {
   const resolvedState = pageState ?? currentPageState;
   if (resolvedState.kind === "actionable") {
+    if (
+      currentWebsiteAccessPermissionState === "missing" ||
+      currentWebsiteAccessPermissionState === "unavailable"
+    ) {
+      renderPermissionBlockedPageState(currentWebsiteAccessPermissionState);
+      return;
+    }
     await renderActionablePageState();
     return;
   }
@@ -355,7 +444,11 @@ async function notifyConfigChange() {
 
 async function loadSiteProfileEditor() {
   const { toggle, language, suggestions, inline, section, status } = getSiteProfileElements();
-  if (!currentDomainURL || currentPageState.kind !== "actionable") {
+  if (
+    !currentDomainURL ||
+    currentPageState.kind !== "actionable" ||
+    currentWebsiteAccessPermissionState !== "granted"
+  ) {
     section?.classList.add("is-hidden");
     return;
   }
@@ -861,6 +954,38 @@ function init() {
       });
     });
 
+  const browserAPI = (window as Window & { browser?: typeof chrome }).browser || chrome;
+  const permissionBanner = document.getElementById("permissionBanner");
+  const permissionBadge = document.getElementById("permissionBadge");
+  const permissionTitle = document.getElementById("permissionTitle");
+  const permissionBody = document.getElementById("permissionBody");
+  const grantBtn = document.getElementById("grantPermissionBtn");
+  const permissionController =
+    permissionBanner instanceof HTMLElement &&
+    permissionBadge instanceof HTMLElement &&
+    permissionTitle instanceof HTMLElement &&
+    permissionBody instanceof HTMLElement &&
+    grantBtn instanceof HTMLButtonElement
+      ? new WebsiteAccessPermissionController({
+          elements: {
+            root: permissionBanner,
+            badge: permissionBadge,
+            title: permissionTitle,
+            body: permissionBody,
+            action: grantBtn,
+          },
+          onStateChange: async (state) => {
+            currentWebsiteAccessPermissionState = state;
+            if (currentPageState.kind === "actionable") {
+              await loadSiteProfileEditor();
+              await refreshThisSiteSection();
+            }
+          },
+          service: new WebsiteAccessPermissionService(browserAPI),
+          visibleStates: ["missing", "unavailable"],
+        })
+      : null;
+
   chrome.tabs.query({ active: true, currentWindow: true }, async function (tabs) {
     const currentTab = tabs.length === 1 ? tabs[0] : undefined;
     currentTabId = typeof currentTab?.id === "number" ? currentTab.id : null;
@@ -933,41 +1058,19 @@ function init() {
       displayLanguage,
       currentEnabledLanguages,
     );
-    await loadSiteProfileEditor();
-    await refreshThisSiteSection();
+    if (permissionController) {
+      await permissionController.initialize();
+    } else {
+      currentWebsiteAccessPermissionState = "unavailable";
+      await loadSiteProfileEditor();
+      await refreshThisSiteSection();
+    }
   });
   window.document.getElementById("checkboxEnableInput")?.addEventListener("click", toggleOnOff);
   window.document.getElementById("languageSelect")?.addEventListener("change", languageChangeEvent);
   document.getElementById("runOptions")?.addEventListener("click", () => {
     chrome.runtime.openOptionsPage();
   });
-
-  const browserAPI = (window as Window & { browser?: typeof chrome }).browser || chrome;
-  const permissionBanner = document.getElementById("permissionBanner");
-  const permissionBadge = document.getElementById("permissionBadge");
-  const permissionTitle = document.getElementById("permissionTitle");
-  const permissionBody = document.getElementById("permissionBody");
-  const grantBtn = document.getElementById("grantPermissionBtn");
-  if (
-    permissionBanner instanceof HTMLElement &&
-    permissionBadge instanceof HTMLElement &&
-    permissionTitle instanceof HTMLElement &&
-    permissionBody instanceof HTMLElement &&
-    grantBtn instanceof HTMLButtonElement
-  ) {
-    const permissionController = new WebsiteAccessPermissionController({
-      elements: {
-        root: permissionBanner,
-        badge: permissionBadge,
-        title: permissionTitle,
-        body: permissionBody,
-        action: grantBtn,
-      },
-      service: new WebsiteAccessPermissionService(browserAPI),
-      visibleStates: ["missing", "unavailable"],
-    });
-    void permissionController.initialize();
-  }
 
   productivityDashboardLoadCancelled = false;
   productivityDashboardLoadCompleted = false;

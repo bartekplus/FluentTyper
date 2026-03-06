@@ -42,6 +42,7 @@ export interface WebsiteAccessPermissionTestHooks {
 interface WebsiteAccessPermissionControllerOptions {
   elements: WebsiteAccessPermissionElements;
   onGranted?: () => void;
+  onStateChange?: (state: WebsiteAccessPermissionState) => void | Promise<void>;
   service: WebsiteAccessPermissionService;
   visibleStates?: WebsiteAccessPermissionState[];
 }
@@ -178,15 +179,15 @@ export class WebsiteAccessPermissionController {
 
   async initialize(): Promise<void> {
     const state = await this.options.service.getState();
-    this.render(state);
+    await this.render(state);
   }
 
   private async handleRequest(): Promise<void> {
     const state = await this.options.service.requestAccess();
-    this.render(state);
+    await this.render(state);
   }
 
-  private render(state: WebsiteAccessPermissionState): void {
+  private async render(state: WebsiteAccessPermissionState): Promise<void> {
     const { action, badge, body, root, title } = this.options.elements;
     const viewModel = this.copy[state];
 
@@ -213,6 +214,7 @@ export class WebsiteAccessPermissionController {
       this.options.onGranted?.();
     }
 
+    await this.options.onStateChange?.(state);
     this.currentState = state;
   }
 }

@@ -311,10 +311,32 @@ function createChromeMock(
   return chromeMock;
 }
 
-async function flushAsyncWork(rounds = 6): Promise<void> {
+async function flushAsyncWork(rounds = 12): Promise<void> {
   for (let idx = 0; idx < rounds; idx += 1) {
     await Promise.resolve();
   }
+}
+
+async function waitForCondition(
+  condition: () => boolean,
+  failureMessage: string,
+  maxAttempts = 50,
+): Promise<void> {
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    if (condition()) {
+      return;
+    }
+    await flushAsyncWork();
+  }
+  throw new Error(failureMessage);
+}
+
+async function waitForPopupRender(maxAttempts = 50): Promise<void> {
+  await waitForCondition(
+    () => (document.getElementById("pageStateTitle")?.textContent?.trim().length ?? 0) > 0,
+    "Popup UI did not finish rendering before assertions.",
+    maxAttempts,
+  );
 }
 
 async function advanceAndFlush(ms: number): Promise<void> {
@@ -330,6 +352,13 @@ function dashboardStatsCallCount(chromeMock: ReturnType<typeof createChromeMock>
   return chromeMock.runtime.sendMessage.mock.calls.filter(
     (call) => call[0]?.command === CMD_POPUP_GET_PRODUCTIVITY_STATS,
   ).length;
+}
+
+function createWebsiteTab(url = "https://example.com"): chrome.tabs.Tab {
+  return {
+    id: 17,
+    url,
+  };
 }
 
 async function loadPopupWithOutcomes(
@@ -349,6 +378,7 @@ async function loadPopupWithOutcomes(
 
   await import(freshModulePath("../src/ui/popup/popup"));
   document.dispatchEvent(new window.Event("DOMContentLoaded"));
+  await waitForPopupRender();
   await flushAsyncWork();
   return chromeMock;
 }
@@ -486,6 +516,7 @@ describe("popup productivity dashboard retry/failure paths", () => {
         contains: async () => false,
         request: async () => true,
       },
+      createWebsiteTab("https://translate.google.pl"),
     );
 
     const banner = document.getElementById("permissionBanner") as HTMLElement;
@@ -493,6 +524,23 @@ describe("popup productivity dashboard retry/failure paths", () => {
 
     expect(banner.classList.contains("is-hidden")).toBe(false);
     expect(banner.dataset.permissionState).toBe("missing");
+    expect(textContent("pageStateBadge")).toBe("Website access required");
+    expect(textContent("pageStateTitle")).toBe("translate.google.pl");
+    expect(textContent("pageStateBody")).toBe(
+      "Allow website access to use FluentTyper on this site.",
+    );
+    expect(document.getElementById("domainSectionWrapper")?.classList.contains("is-hidden")).toBe(
+      true,
+    );
+    expect(document.getElementById("siteProfileSection")?.classList.contains("is-hidden")).toBe(
+      true,
+    );
+    expect((document.getElementById("checkboxDomainInput") as HTMLInputElement).disabled).toBe(
+      true,
+    );
+    expect((document.getElementById("checkboxSiteProfileInput") as HTMLInputElement).disabled).toBe(
+      true,
+    );
     expect(textContent("permissionTitle")).toBe("Allow page access");
     expect(textContent("permissionBody")).toBe(
       "FluentTyper needs website access to show suggestions in text fields, and everything stays local in your browser.",
@@ -502,10 +550,22 @@ describe("popup productivity dashboard retry/failure paths", () => {
     expect(textContent("permissionBody")).not.toContain("permission_status_");
 
     button.click();
+    await waitForCondition(
+      () => textContent("pageStateBadge") === "Active here",
+      "Popup did not refresh to the granted page state after requesting access.",
+    );
     await flushAsyncWork();
 
     expect(banner.classList.contains("is-hidden")).toBe(true);
     expect(banner.dataset.permissionState).toBe("granted");
+    expect(textContent("pageStateBadge")).toBe("Active here");
+    expect(textContent("pageStateTitle")).toBe("translate.google.pl");
+    expect(document.getElementById("domainSectionWrapper")?.classList.contains("is-hidden")).toBe(
+      false,
+    );
+    expect((document.getElementById("checkboxDomainInput") as HTMLInputElement).disabled).toBe(
+      false,
+    );
     expect(textContent("permissionTitle")).toBe("Access granted");
     expect(textContent("permissionBody")).toBe(
       "FluentTyper can now show suggestions in text fields, and everything still stays local in your browser.",
@@ -516,13 +576,25 @@ describe("popup productivity dashboard retry/failure paths", () => {
   });
 
   test("keeps the popup permission banner hidden when access is already granted", async () => {
-    await loadPopupWithOutcomes([{ type: "stats", value: createPopupStats(1) }], "0", {
-      contains: async () => true,
-    });
+    await loadPopupWithOutcomes(
+      [{ type: "stats", value: createPopupStats(1) }],
+      "0",
+      {
+        contains: async () => true,
+      },
+      createWebsiteTab(),
+    );
 
     const banner = document.getElementById("permissionBanner") as HTMLElement;
     expect(banner.dataset.permissionState).toBe("granted");
     expect(banner.classList.contains("is-hidden")).toBe(true);
+    expect(textContent("pageStateBadge")).toBe("Active here");
+    expect(document.getElementById("domainSectionWrapper")?.classList.contains("is-hidden")).toBe(
+      false,
+    );
+    expect((document.getElementById("checkboxDomainInput") as HTMLInputElement).disabled).toBe(
+      false,
+    );
   });
 
   test("shows a restricted-page state instead of site toggles on browser internal pages", async () => {
@@ -541,13 +613,29 @@ describe("popup productivity dashboard retry/failure paths", () => {
   });
 
   test("shows recovery copy in the popup when permission checks are unavailable", async () => {
-    await loadPopupWithOutcomes([{ type: "stats", value: createPopupStats(1) }]);
+    await loadPopupWithOutcomes(
+      [{ type: "stats", value: createPopupStats(1) }],
+      "0",
+      undefined,
+      createWebsiteTab("https://docs.example.com"),
+    );
 
     const banner = document.getElementById("permissionBanner") as HTMLElement;
     const button = document.getElementById("grantPermissionBtn") as HTMLButtonElement;
 
     expect(banner.classList.contains("is-hidden")).toBe(false);
     expect(banner.dataset.permissionState).toBe("unavailable");
+    expect(textContent("pageStateBadge")).toBe("Website access unavailable");
+    expect(textContent("pageStateTitle")).toBe("docs.example.com");
+    expect(textContent("pageStateBody")).toBe(
+      "FluentTyper could not verify website access on this site.",
+    );
+    expect(document.getElementById("domainSectionWrapper")?.classList.contains("is-hidden")).toBe(
+      true,
+    );
+    expect((document.getElementById("checkboxDomainInput") as HTMLInputElement).disabled).toBe(
+      true,
+    );
     expect(textContent("permissionTitle")).toBe("Check browser access");
     expect(textContent("permissionBody")).toBe(
       "FluentTyper could not verify website access right now. Reopen FluentTyper or reload this page, then try again. Your typing still stays local in your browser.",

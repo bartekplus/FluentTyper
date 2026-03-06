@@ -3310,6 +3310,14 @@ i18n = Object.assign(i18n, {
     en: "Global defaults",
     pl: "Ustawienia globalne",
   },
+  "popup_page_state_permission_missing_body": {
+    en: "Allow website access to use FluentTyper on this site.",
+    pl: "Zezwól na dostęp do witryn, aby używać FluentTyper na tej stronie.",
+  },
+  "popup_page_state_permission_unavailable_body": {
+    en: "FluentTyper could not verify website access on this site.",
+    pl: "FluentTyper nie mógł sprawdzić dostępu do witryn dla tej strony.",
+  },
   "popup_dashboard_details": {
     en: "Details",
     fr: "Détails",
