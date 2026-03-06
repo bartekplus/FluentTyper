@@ -36,7 +36,6 @@ const INSERT_INPUT_FALLBACK_RETRY_INTERVAL_MS = 120;
 const INSERT_INPUT_FALLBACK_MAX_WAIT_MS = 1000;
 const LOCAL_GRAMMAR_IDLE_DELAY_MS = 220;
 const SPACING_OR_FILLER_PATTERN = "(?:[ \\xA0]|\\u200B|\\u200C|\\u200D|\\u2060|\\uFEFF)";
-const TRAILING_FILLERS_ONLY_REGEX = new RegExp(`^(?:${SPACING_OR_FILLER_PATTERN})*$`);
 const DUPLICATE_PUNCTUATION_TAIL_REGEX = new RegExp(
   `[,;:](?:${SPACING_OR_FILLER_PATTERN})*[,;:](?:${SPACING_OR_FILLER_PATTERN})*$`,
 );
@@ -685,7 +684,8 @@ export class SuggestionManagerRuntime {
       snapshot.beforeCursor,
     );
     const inputAction =
-      inputActionOverride ?? this.resolveInputAction(entry, event ?? new Event("input"), provisionalBeforeCursor);
+      inputActionOverride ??
+      this.resolveInputAction(entry, event ?? new Event("input"), provisionalBeforeCursor);
     const grammarContext = this.resolveGrammarContext(entry, snapshot);
     const grammarEdit = this.grammarCoordinator.run({
       beforeCursor: grammarContext.beforeCursor,
@@ -725,10 +725,14 @@ export class SuggestionManagerRuntime {
       }
     }
 
-    const predictionBeforeCursor = this.resolveBeforeCursorForPrediction(entry, snapshot.beforeCursor, {
-      inputAction,
-      typedKey,
-    });
+    const predictionBeforeCursor = this.resolveBeforeCursorForPrediction(
+      entry,
+      snapshot.beforeCursor,
+      {
+        inputAction,
+        typedKey,
+      },
+    );
     const predictionAfterCursor = this.resolveAfterCursorForPrediction(entry, snapshot.afterCursor);
     entry.lastInputAction = inputAction;
     entry.lastKeydownKey = null;
@@ -836,15 +840,18 @@ export class SuggestionManagerRuntime {
     }
 
     const triggers: GrammarEventType[] = [];
-    const inputType = typeof (event as InputEvent | undefined)?.inputType === "string"
-      ? ((event as InputEvent).inputType as string)
-      : "";
+    const inputType =
+      typeof (event as InputEvent | undefined)?.inputType === "string"
+        ? ((event as InputEvent).inputType as string)
+        : "";
     if (entry.pendingGrammarPaste || inputType === "insertFromPaste" || event?.type === "paste") {
       triggers.push("paste");
     }
 
     const lastChar = beforeCursor.charAt(beforeCursor.length - 1);
-    triggers.push(beforeCursor.length > 0 && SPACE_CHARS.includes(lastChar) ? "wordBoundary" : "insertChar");
+    triggers.push(
+      beforeCursor.length > 0 && SPACE_CHARS.includes(lastChar) ? "wordBoundary" : "insertChar",
+    );
     return triggers;
   }
 
@@ -869,7 +876,11 @@ export class SuggestionManagerRuntime {
 
   private runIdleGrammar(id: number): void {
     const entry = this.entryRegistry.getById(id);
-    if (!entry || !this.isEntryFocused(entry) || this.shouldSkipPredictionForUnstableInputState(entry)) {
+    if (
+      !entry ||
+      !this.isEntryFocused(entry) ||
+      this.shouldSkipPredictionForUnstableInputState(entry)
+    ) {
       return;
     }
 

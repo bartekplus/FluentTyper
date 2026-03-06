@@ -234,7 +234,6 @@ describe("content_script behavior", () => {
     expect(suggestionManager.fulfillPrediction).toHaveBeenCalledWith(
       expect.objectContaining({ suggestionId: 3, requestId: 11, predictions: ["ignored"] }),
     );
-
   });
 
   test("handleGetPrediction forwards inputAction metadata", async () => {

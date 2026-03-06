@@ -11,7 +11,6 @@ import { UserDictionaryManager } from "./UserDictionaryManager";
 import { TextExpansionManager } from "./TextExpansionManager";
 import type { PresageEngineConfig } from "./PresageEngine";
 import { PresageEngine } from "./PresageEngine";
-import type { PredictionInputAction } from "@core/domain/messageTypes";
 import { MAX_NUM_SUGGESTIONS } from "@core/domain/constants";
 import type { PredictionResult } from "./PredictionTypes";
 import { SPACING_RULES, Spacing } from "@core/domain/spacingRules";
@@ -222,7 +221,6 @@ export class PresageHandler {
     lang: string,
     numSuggestionsOverride?: number,
     tabId?: number,
-    inputAction?: PredictionInputAction,
   ): PresagePredictionContext {
     const effectiveNumSuggestions =
       typeof numSuggestionsOverride === "number"
@@ -277,7 +275,6 @@ export class PresageHandler {
     nextChar: string,
     lang: string,
     configOverride?: { numSuggestions?: number; tabId?: number },
-    inputAction?: PredictionInputAction,
   ): Promise<PredictionResult> {
     const context = this.preparePredictionContext(
       text,
@@ -285,7 +282,6 @@ export class PresageHandler {
       lang,
       configOverride?.numSuggestions,
       configOverride?.tabId,
-      inputAction,
     );
     const predictions = await this.predictPresage(context);
     return this.finalizePrediction(predictions, context);

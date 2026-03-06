@@ -307,7 +307,8 @@ export class SuggestionTextEditService {
       if (!useFullTextOffsets) {
         const blockStart = snapshot.beforeCursor.length - blockContext.beforeCursor.length;
         const blockCursor = blockContext.beforeCursor.length;
-        const blockEnd = blockStart + blockContext.beforeCursor.length + blockContext.afterCursor.length;
+        const blockEnd =
+          blockStart + blockContext.beforeCursor.length + blockContext.afterCursor.length;
         if (blockStart < 0 || blockEnd > fullText.length) {
           return { applied: false, didDispatchInput: false };
         }
@@ -339,11 +340,7 @@ export class SuggestionTextEditService {
     const expectedFullText = `${fullText.slice(0, replaceStart)}${replacement}${fullText.slice(replaceEnd)}`;
 
     const originalText = fullText.slice(replaceStart, replaceEnd);
-    const sourceRuleKey = this.resolveAutoFixRuleKey(
-      edit.sourceRuleId,
-      originalText,
-      replacement,
-    );
+    const sourceRuleKey = this.resolveAutoFixRuleKey(edit.sourceRuleId, originalText, replacement);
     if (
       entry.manualAutoFixSuppression &&
       entry.manualAutoFixSuppression.ruleKey === sourceRuleKey &&
@@ -662,7 +659,10 @@ export class SuggestionTextEditService {
   } | null {
     const currentSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
     const currentFullText = `${currentSnapshot.beforeCursor}${currentSnapshot.afterCursor}`;
-    if (currentFullText === expectedFullText && currentSnapshot.cursorOffset === expectedCursorAfter) {
+    if (
+      currentFullText === expectedFullText &&
+      currentSnapshot.cursorOffset === expectedCursorAfter
+    ) {
       return {
         applyResult: {
           didMutateDom: true,
@@ -673,10 +673,13 @@ export class SuggestionTextEditService {
     }
 
     if (expectedBlockText !== null && expectedBlockCursorAfter !== null) {
-      const liveBlockContext = this.contentEditableAdapter.getBlockContext(entry.elem as HTMLElement);
+      const liveBlockContext = this.contentEditableAdapter.getBlockContext(
+        entry.elem as HTMLElement,
+      );
       if (liveBlockContext) {
         const liveBlockText = `${liveBlockContext.beforeCursor}${liveBlockContext.afterCursor}`;
-        const blockStart = currentSnapshot.beforeCursor.length - liveBlockContext.beforeCursor.length;
+        const blockStart =
+          currentSnapshot.beforeCursor.length - liveBlockContext.beforeCursor.length;
         const blockCorrection = this.replaceCurrentTextWithExpected(
           entry.elem,
           currentFullText,
