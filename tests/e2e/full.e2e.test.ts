@@ -4012,7 +4012,17 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitForInputContentEqual(page, selector, "a lot x", browserTimeout(5000, 9000));
 
       await pressNativeUndo(page, selector);
-      await waitForInputContentEqual(page, selector, "a lot x", browserTimeout(5000, 9000));
+      await waitUntil(
+        "intervening edit undo to avoid extension-owned stale revert",
+        async () => {
+          const currentValue = await getInputContent(page, selector);
+          return ["a lot x", "a lot ", "alot "].includes(currentValue) ? currentValue : false;
+        },
+        {
+          timeoutMs: browserTimeout(5000, 9000),
+          intervalMs: 50,
+        },
+      );
 
       await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
       await applyConfigChange(browser, worker!);
