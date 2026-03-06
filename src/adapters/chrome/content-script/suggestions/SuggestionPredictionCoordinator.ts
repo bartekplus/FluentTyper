@@ -53,23 +53,39 @@ export class SuggestionPredictionCoordinator {
       clearSuggestions,
       inputAction,
       beforeCursorOverride,
+      afterCursorOverride,
     }: {
       force: boolean;
       clearSuggestions: () => void;
       inputAction?: PredictionInputAction;
       beforeCursorOverride?: string;
+      afterCursorOverride?: string;
     },
   ): void {
     this.cancelPending(entry);
 
     if (force) {
-      this.requestPrediction(entry, true, clearSuggestions, inputAction, beforeCursorOverride);
+      this.requestPrediction(
+        entry,
+        true,
+        clearSuggestions,
+        inputAction,
+        beforeCursorOverride,
+        afterCursorOverride,
+      );
       return;
     }
 
     entry.pendingRequestTimer = setTimeout(() => {
       entry.pendingRequestTimer = null;
-      this.requestPrediction(entry, false, clearSuggestions, inputAction, beforeCursorOverride);
+      this.requestPrediction(
+        entry,
+        false,
+        clearSuggestions,
+        inputAction,
+        beforeCursorOverride,
+        afterCursorOverride,
+      );
     }, this.resolveDebounceMs(inputAction));
   }
 
@@ -79,14 +95,23 @@ export class SuggestionPredictionCoordinator {
       clearSuggestions,
       inputAction,
       beforeCursorOverride,
+      afterCursorOverride,
     }: {
       clearSuggestions: () => void;
       inputAction?: PredictionInputAction;
       beforeCursorOverride?: string;
+      afterCursorOverride?: string;
     },
   ): void {
     this.cancelPending(entry);
-    this.requestPrediction(entry, false, clearSuggestions, inputAction, beforeCursorOverride);
+    this.requestPrediction(
+      entry,
+      false,
+      clearSuggestions,
+      inputAction,
+      beforeCursorOverride,
+      afterCursorOverride,
+    );
   }
 
   public cancelPending(entry: SuggestionEntry): void {
@@ -141,9 +166,11 @@ export class SuggestionPredictionCoordinator {
     clearSuggestions: () => void,
     inputAction?: PredictionInputAction,
     beforeCursorOverride?: string,
+    afterCursorOverride?: string,
   ): void {
     const snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
     const beforeCursor = beforeCursorOverride ?? snapshot.beforeCursor;
+    const afterCursor = afterCursorOverride ?? snapshot.afterCursor;
 
     const shouldPredict = this.shouldPredict(beforeCursor);
     const shouldRequestForGrammar = this.shouldRequestGrammarEdit(beforeCursor);
@@ -166,7 +193,7 @@ export class SuggestionPredictionCoordinator {
     this.getPrediction(
       this.createPredictionRequest({
         beforeCursor,
-        afterCursor: snapshot.afterCursor,
+        afterCursor,
         suggestionId: entry.id,
         requestId: entry.requestId,
         inputAction,

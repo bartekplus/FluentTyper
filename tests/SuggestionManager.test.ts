@@ -1228,6 +1228,45 @@ describe("SuggestionManager", () => {
       throw new Error("Expected prediction request");
     }
     expect(request.text).toBe("");
+    expect(request.nextChar).toBe("n");
+  });
+
+  test("uses block-local nextChar for contenteditable prediction before a following signature block", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+    });
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML =
+      'asap<div><span class="gmail_signature_prefix">-- </span><br><div class="gmail_signature">Pozdrawiam Bartek</div></div>';
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Expected selection");
+    }
+    const range = document.createRange();
+    const textNode = editable.firstChild;
+    if (!textNode || textNode.nodeType !== Node.TEXT_NODE) {
+      throw new Error("Expected leading text node");
+    }
+    range.setStart(textNode, textNode.textContent?.length ?? 0);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+    await wait(220);
+
+    const request = getPrediction.mock.calls.at(-1)?.[0];
+    if (!request) {
+      throw new Error("Expected prediction request");
+    }
+    expect(request.text).toBe("asap");
+    expect(request.nextChar).toBe("");
   });
 
   test("predicts on first character for contenteditable when caret lags after insert", async () => {
