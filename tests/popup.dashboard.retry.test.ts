@@ -26,6 +26,7 @@ const baseGlobals = {
 
 let importNonce = 0;
 let activeDom: JSDOM | null = null;
+let originalI18nGet: ((key: string) => string) | null = null;
 
 function freshModulePath(path: string): string {
   importNonce += 1;
@@ -361,6 +362,14 @@ function createWebsiteTab(url = "https://example.com"): chrome.tabs.Tab {
   };
 }
 
+async function applyTranslationOverrides(overrides?: Record<string, string>): Promise<void> {
+  const { i18n } = await import("../src/third_party/fancier-settings/i18n.js");
+  if (!originalI18nGet) {
+    originalI18nGet = i18n.get.bind(i18n);
+  }
+  i18n.get = (key: string) => overrides?.[key] ?? originalI18nGet!(key);
+}
+
 async function loadPopupWithOutcomes(
   outcomes: RuntimeOutcome[],
   initialAccepted = "0",
@@ -370,12 +379,18 @@ async function loadPopupWithOutcomes(
   },
   activeTab?: chrome.tabs.Tab,
   prefersDark = false,
+  translationOverrides?: Record<string, string>,
 ): Promise<ReturnType<typeof createChromeMock>> {
+  if (activeDom) {
+    activeDom.window.close();
+    activeDom = null;
+  }
   activeDom = installPopupDom(initialAccepted, prefersDark);
   const chromeMock = createChromeMock(outcomes, permissionApi, activeTab);
   (globalThis as unknown as { chrome: unknown }).chrome = chromeMock;
   (window as unknown as { chrome: unknown }).chrome = chromeMock;
 
+  await applyTranslationOverrides(translationOverrides);
   await import(freshModulePath("../src/ui/popup/popup"));
   document.dispatchEvent(new window.Event("DOMContentLoaded"));
   await waitForPopupRender();
@@ -389,7 +404,7 @@ describe("popup productivity dashboard retry/failure paths", () => {
     jest.useFakeTimers();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     jest.clearAllTimers();
     jest.useRealTimers();
 
@@ -417,6 +432,11 @@ describe("popup productivity dashboard retry/failure paths", () => {
     (globalThis as unknown as { matchMedia: typeof window.matchMedia }).matchMedia =
       baseGlobals.matchMedia;
     (globalThis as unknown as { chrome: unknown }).chrome = baseGlobals.chrome;
+
+    if (originalI18nGet) {
+      const { i18n } = await import("../src/third_party/fancier-settings/i18n.js");
+      i18n.get = originalI18nGet;
+    }
   });
 
   test("renders dashboard immediately on first successful stats response", async () => {
@@ -643,6 +663,79 @@ describe("popup productivity dashboard retry/failure paths", () => {
     expect(textContent("permissionTitle")).not.toContain("permission_status_");
     expect(textContent("permissionBody")).not.toContain("permission_status_");
     expect(button.hidden).toBe(true);
+  });
+
+  test("preserves full long hostnames through compact page-state and toggle hints", async () => {
+    const longDomain =
+      "very-long-subdomain-name-that-keeps-going.for-compact-popup-qa.example-enterprise-suite.co.uk";
+    await loadPopupWithOutcomes(
+      [{ type: "stats", value: createPopupStats(1) }],
+      "0",
+      {
+        contains: async () => true,
+      },
+      createWebsiteTab(`https://${longDomain}/deep/path?q=1`),
+    );
+
+    const pageStateTitle = document.getElementById("pageStateTitle") as HTMLElement;
+    const domainHint = document.getElementById("checkboxDomainHint") as HTMLElement;
+
+    expect(pageStateTitle.textContent).toBe(longDomain);
+    expect(pageStateTitle.title).toBe(longDomain);
+    expect(domainHint.textContent).toBe(longDomain);
+    expect(domainHint.title).toBe(longDomain);
+  });
+
+  test("keeps long localized popup copy intact for compact layouts", async () => {
+    const localizedCases = [
+      {
+        label: "de",
+        overrides: {
+          popup_page_state_active_body:
+            "Bereit auf dieser Website mit einer deutlich laengeren deutschen Statusbeschreibung fuer das kompakte Popup.",
+          popup_page_state_profile_global: "Globale Standardeinstellungen fuer diese Website",
+        },
+      },
+      {
+        label: "fr",
+        overrides: {
+          popup_page_state_active_body:
+            "Pret sur ce site avec une formulation francaise plus longue pour verifier la mise en page compacte du popup.",
+          popup_page_state_profile_global: "Parametres globaux utilises pour ce site",
+        },
+      },
+      {
+        label: "pl",
+        overrides: {
+          popup_page_state_active_body:
+            "Gotowe na tej stronie z dluzszym polskim opisem, ktory sprawdza zachowanie zwartego ukladu popupu.",
+          popup_page_state_profile_global: "Ustawienia globalne stosowane dla tej witryny",
+        },
+      },
+    ];
+
+    for (const localizedCase of localizedCases) {
+      await loadPopupWithOutcomes(
+        [{ type: "stats", value: createPopupStats(1) }],
+        "0",
+        {
+          contains: async () => true,
+        },
+        createWebsiteTab("https://example.com"),
+        false,
+        localizedCase.overrides,
+      );
+
+      const pageStateMeta = document.getElementById("pageStateMeta") as HTMLElement;
+      const profileNode = document.getElementById("pageStateProfile") as HTMLElement;
+
+      expect(textContent("pageStateBody")).toBe(
+        localizedCase.overrides.popup_page_state_active_body,
+      );
+      expect(profileNode.textContent).toBe(localizedCase.overrides.popup_page_state_profile_global);
+      expect(profileNode.title).toBe(localizedCase.overrides.popup_page_state_profile_global);
+      expect(pageStateMeta.classList.contains("is-hidden")).toBe(false);
+    }
   });
 
   test("advanced stats button opens the options page anchor", async () => {

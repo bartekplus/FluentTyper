@@ -276,9 +276,15 @@ body.fluenttyper-popup {
 }
 
 .row-hint {
+  display: block;
+  max-width: 100%;
+  min-width: 0;
   font-size: 0.72rem;
   color: var(--text-color-light);
   line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .section-inline-label {
@@ -310,9 +316,11 @@ body.fluenttyper-popup {
 
 .page-state-summary {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  flex-wrap: wrap;
   gap: 0.4rem;
   min-width: 0;
+  row-gap: 0.18rem;
 }
 
 .page-state-header {
@@ -483,19 +491,24 @@ body.fluenttyper-popup[data-theme="dark"] .setting-card {
 }
 
 .page-state-body {
+  flex: 1 1 15rem;
   margin: 0;
   font-size: 0.72rem;
   line-height: 1.2;
   color: var(--text-color-light);
-  white-space: nowrap;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .page-state-meta {
   display: flex;
   align-items: center;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
   gap: 0.32rem;
   min-width: 0;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .page-state-meta::before {
@@ -506,6 +519,7 @@ body.fluenttyper-popup[data-theme="dark"] .setting-card {
 
 .page-state-chip {
   display: inline;
+  max-width: 100%;
   min-width: 0;
   padding: 0;
   border: 0;

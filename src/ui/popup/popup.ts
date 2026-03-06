@@ -91,6 +91,18 @@ function getPageStateElements() {
   };
 }
 
+function setNodeTextAndTitle(node: HTMLElement | null, value: string): void {
+  if (!node) {
+    return;
+  }
+  node.textContent = value;
+  if (value.length > 0) {
+    node.title = value;
+  } else {
+    node.removeAttribute("title");
+  }
+}
+
 function setSiteSpecificControlsEnabled(enabled: boolean): void {
   const domainToggle = document.getElementById("checkboxDomainInput") as HTMLInputElement | null;
   const profileToggle = document.getElementById(
@@ -219,21 +231,20 @@ function renderStaticPageState(
     return;
   }
   badge.textContent = state.badge;
-  title.textContent = state.title;
-  title.title = state.title;
+  setNodeTextAndTitle(title, state.title);
   body.textContent = state.body;
   meta?.classList.add("is-hidden");
   if (language) {
-    language.textContent = "";
+    setNodeTextAndTitle(language, "");
   }
   if (profile) {
-    profile.textContent = "";
+    setNodeTextAndTitle(profile, "");
   }
   panel?.setAttribute("data-page-state", state.kind);
   section?.classList.add("is-hidden");
   setSiteSpecificControlsEnabled(false);
   if (hint) {
-    hint.textContent = "";
+    setNodeTextAndTitle(hint, "");
   }
 }
 
@@ -269,21 +280,20 @@ function renderPermissionBlockedPageState(state: WebsiteAccessPermissionState): 
     return;
   }
   badge.textContent = permissionBlockedState.badge;
-  title.textContent = currentDomainURL;
-  title.title = currentDomainURL;
+  setNodeTextAndTitle(title, currentDomainURL);
   body.textContent = permissionBlockedState.body;
   meta?.classList.add("is-hidden");
   if (language) {
-    language.textContent = "";
+    setNodeTextAndTitle(language, "");
   }
   if (profile) {
-    profile.textContent = "";
+    setNodeTextAndTitle(profile, "");
   }
   panel?.setAttribute("data-page-state", permissionBlockedState.kind);
   section?.classList.add("is-hidden");
   setSiteSpecificControlsEnabled(false);
   if (hint) {
-    hint.textContent = "";
+    setNodeTextAndTitle(hint, "");
   }
 }
 
@@ -353,17 +363,16 @@ async function renderActionablePageState(): Promise<void> {
     return;
   }
   badge.textContent = badgeLabel;
-  title.textContent = currentDomainURL;
-  title.title = currentDomainURL;
+  setNodeTextAndTitle(title, currentDomainURL);
   body.textContent = activityCopy;
-  language.textContent = languageLabel;
-  profileNode.textContent = profileCopy;
+  setNodeTextAndTitle(language, languageLabel);
+  setNodeTextAndTitle(profileNode, profileCopy);
   meta.classList.remove("is-hidden");
   panel?.setAttribute("data-page-state", globallyEnabled && siteAllowed ? "active" : "paused");
   section?.classList.remove("is-hidden");
   setSiteSpecificControlsEnabled(true);
   if (hint) {
-    hint.textContent = currentDomainURL;
+    setNodeTextAndTitle(hint, currentDomainURL);
   }
 }
 
