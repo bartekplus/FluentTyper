@@ -157,6 +157,51 @@ class EmptyBlockContextContentEditableAdapter extends ContentEditableAdapter {
   }
 }
 
+class LearningMismatchContentEditableAdapter extends ContentEditableAdapter {
+  public readonly preferDomMutationCalls: boolean[] = [];
+
+  public override getBlockContext(
+    elem: HTMLElement,
+  ): { beforeCursor: string; afterCursor: string } | null {
+    const fullText = elem.textContent ?? "";
+    return {
+      beforeCursor: fullText,
+      afterCursor: "",
+    };
+  }
+
+  public override replaceTextByOffsets(
+    elem: HTMLElement,
+    replaceStart: number,
+    replaceEnd: number,
+    replacementText: string,
+    cursorAfter: number,
+    options?: { preferDomMutation?: boolean },
+  ) {
+    const preferDomMutation = options?.preferDomMutation === true;
+    this.preferDomMutationCalls.push(preferDomMutation);
+    const text = elem.textContent ?? "";
+
+    if (!preferDomMutation) {
+      const insertionPoint = Math.min(text.length, replaceStart + 1);
+      elem.textContent = `${text.slice(0, insertionPoint)}${replacementText}${text.slice(insertionPoint)}`;
+      return {
+        appliedBy: "host-beforeinput" as const,
+        didMutateDom: true,
+        didDispatchInput: false,
+      };
+    }
+
+    elem.textContent = `${text.slice(0, replaceStart)}${replacementText}${text.slice(replaceEnd)}`;
+    setContentEditableCursor(elem, cursorAfter);
+    return {
+      appliedBy: "fallback-dom" as const,
+      didMutateDom: true,
+      didDispatchInput: true,
+    };
+  }
+}
+
 describe("SuggestionTextEditService", () => {
   test("accepts suggestion and replaces current token in input", () => {
     const service = new SuggestionTextEditService({
@@ -451,6 +496,74 @@ describe("SuggestionTextEditService", () => {
     const paragraphs = editable.querySelectorAll("p");
     expect(paragraphs[0]?.textContent).toBe("Title");
     expect((paragraphs[1]?.textContent ?? "").replace(/\u00a0/g, " ")).toBe("fixed. ");
+  });
+
+  test("learns DOM grammar fallback after host replacement mismatch without editor-specific checks", () => {
+    const adapter = new LearningMismatchContentEditableAdapter();
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+      contentEditableAdapter: adapter,
+    });
+
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    document.body.appendChild(editable);
+    const entry = createSuggestionEntry({ elem: editable });
+
+    editable.textContent = "fixed .";
+    const firstResult = service.applyGrammarEdit(
+      entry,
+      {
+        replacement: ". ",
+        deleteBackwards: 2,
+        deleteForwards: 0,
+        sourceRuleId: "commaPeriodSpacing",
+      },
+      {
+        snapshot: {
+          beforeCursor: "fixed .",
+          afterCursor: "",
+          cursorOffset: "fixed .".length,
+        },
+        contentEditableContext: {
+          beforeCursor: "fixed .",
+          afterCursor: "",
+          useFullTextOffsets: false,
+        },
+      },
+    );
+
+    expect(firstResult).toEqual({ applied: true, didDispatchInput: true });
+    expect(editable.textContent).toBe("fixed. ");
+    expect(adapter.preferDomMutationCalls).toEqual([false, true]);
+
+    editable.textContent = "Hello .";
+    const secondResult = service.applyGrammarEdit(
+      entry,
+      {
+        replacement: ". ",
+        deleteBackwards: 2,
+        deleteForwards: 0,
+        sourceRuleId: "commaPeriodSpacing",
+      },
+      {
+        snapshot: {
+          beforeCursor: "Hello .",
+          afterCursor: "",
+          cursorOffset: "Hello .".length,
+        },
+        contentEditableContext: {
+          beforeCursor: "Hello .",
+          afterCursor: "",
+          useFullTextOffsets: false,
+        },
+      },
+    );
+
+    expect(secondResult).toEqual({ applied: true, didDispatchInput: true });
+    expect(editable.textContent).toBe("Hello. ");
+    expect(adapter.preferDomMutationCalls).toEqual([false, true, true]);
   });
 
   test("normalizes duplicate punctuation before NBSP in contenteditable", () => {

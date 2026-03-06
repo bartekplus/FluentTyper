@@ -30,6 +30,7 @@ export class SuggestionTextEditService {
   private readonly findMentionToken: (beforeCursor: string) => { token: string; start: number };
   private readonly isSeparator: (value: string) => boolean;
   private readonly contentEditableAdapter: ContentEditableAdapter;
+  private readonly domPreferredGrammarTargets = new WeakSet<HTMLElement>();
 
   constructor({
     findMentionToken,
@@ -287,6 +288,8 @@ export class SuggestionTextEditService {
       replaceStart,
       Math.min(fullText.length, snapshot.beforeCursor.length + deleteForwards),
     );
+    let expectedBlockText: string | null = null;
+    let expectedBlockCursorAfter: number | null = null;
 
     if (!this.isTextValueElement(entry.elem)) {
       const providedContentEditableContext = context.contentEditableContext;
@@ -309,6 +312,23 @@ export class SuggestionTextEditService {
           return { applied: false, didDispatchInput: false };
         }
 
+        const blockReplaceStart = Math.max(0, blockCursor - deleteBackwards);
+        const blockReplaceEnd = Math.max(
+          blockReplaceStart,
+          Math.min(
+            blockContext.beforeCursor.length + blockContext.afterCursor.length,
+            blockCursor + deleteForwards,
+          ),
+        );
+        expectedBlockText = `${blockContext.beforeCursor}${blockContext.afterCursor}`;
+        expectedBlockText = `${expectedBlockText.slice(0, blockReplaceStart)}${replacement}${expectedBlockText.slice(blockReplaceEnd)}`;
+        expectedBlockCursorAfter = this.resolveCursorAfterTextEdit(
+          blockCursor,
+          blockReplaceStart,
+          blockReplaceEnd,
+          replacement,
+        );
+
         replaceStart = Math.max(0, blockStart + blockCursor - deleteBackwards);
         replaceEnd = Math.max(
           replaceStart,
@@ -316,6 +336,7 @@ export class SuggestionTextEditService {
         );
       }
     }
+    const expectedFullText = `${fullText.slice(0, replaceStart)}${replacement}${fullText.slice(replaceEnd)}`;
 
     const originalText = fullText.slice(replaceStart, replaceEnd);
     const sourceRuleKey = this.resolveAutoFixRuleKey(
@@ -356,7 +377,26 @@ export class SuggestionTextEditService {
         didDispatchInput: false,
       };
     }
-    const postEditSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+    let postEditSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+    let finalApplyResult = applyResult;
+
+    if (
+      !this.isTextValueElement(entry.elem) &&
+      !this.shouldPreferDomMutationForGrammar(entry.elem) &&
+      !this.matchesExpectedGrammarResult(postEditSnapshot, expectedFullText, cursorAfter)
+    ) {
+      const corrected = this.correctContentEditableGrammarMismatch(entry, {
+        expectedFullText,
+        expectedCursorAfter: cursorAfter,
+        expectedBlockText,
+        expectedBlockCursorAfter,
+      });
+      if (corrected) {
+        this.domPreferredGrammarTargets.add(entry.elem as HTMLElement);
+        finalApplyResult = corrected.applyResult;
+        postEditSnapshot = corrected.postEditSnapshot;
+      }
+    }
 
     entry.pendingExtensionEdit = {
       replaceStart,
@@ -373,7 +413,7 @@ export class SuggestionTextEditService {
     };
     return {
       applied: true,
-      didDispatchInput: applyResult.didDispatchInput,
+      didDispatchInput: finalApplyResult.didDispatchInput,
     };
   }
 
@@ -589,7 +629,140 @@ export class SuggestionTextEditService {
     if (this.isTextValueElement(elem)) {
       return false;
     }
-    return elem.classList.contains("ql-editor") || elem.closest(".ql-editor") !== null;
+    return this.domPreferredGrammarTargets.has(elem as HTMLElement);
+  }
+
+  private matchesExpectedGrammarResult(
+    snapshot: SuggestionSnapshot,
+    expectedFullText: string,
+    expectedCursorAfter: number,
+  ): boolean {
+    return (
+      `${snapshot.beforeCursor}${snapshot.afterCursor}` === expectedFullText &&
+      snapshot.cursorOffset === expectedCursorAfter
+    );
+  }
+
+  private correctContentEditableGrammarMismatch(
+    entry: SuggestionEntry,
+    {
+      expectedFullText,
+      expectedCursorAfter,
+      expectedBlockText,
+      expectedBlockCursorAfter,
+    }: {
+      expectedFullText: string;
+      expectedCursorAfter: number;
+      expectedBlockText: string | null;
+      expectedBlockCursorAfter: number | null;
+    },
+  ): {
+    applyResult: ContentEditableEditResult | { didMutateDom: boolean; didDispatchInput: boolean };
+    postEditSnapshot: SuggestionSnapshot;
+  } | null {
+    const currentSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+    const currentFullText = `${currentSnapshot.beforeCursor}${currentSnapshot.afterCursor}`;
+    if (currentFullText === expectedFullText && currentSnapshot.cursorOffset === expectedCursorAfter) {
+      return {
+        applyResult: {
+          didMutateDom: true,
+          didDispatchInput: false,
+        },
+        postEditSnapshot: currentSnapshot,
+      };
+    }
+
+    if (expectedBlockText !== null && expectedBlockCursorAfter !== null) {
+      const liveBlockContext = this.contentEditableAdapter.getBlockContext(entry.elem as HTMLElement);
+      if (liveBlockContext) {
+        const liveBlockText = `${liveBlockContext.beforeCursor}${liveBlockContext.afterCursor}`;
+        const blockStart = currentSnapshot.beforeCursor.length - liveBlockContext.beforeCursor.length;
+        const blockCorrection = this.replaceCurrentTextWithExpected(
+          entry.elem,
+          currentFullText,
+          blockStart,
+          liveBlockText,
+          expectedBlockText,
+          blockStart + expectedBlockCursorAfter,
+        );
+        if (blockCorrection) {
+          return blockCorrection;
+        }
+      }
+    }
+
+    return this.replaceCurrentTextWithExpected(
+      entry.elem,
+      currentFullText,
+      0,
+      currentFullText,
+      expectedFullText,
+      expectedCursorAfter,
+    );
+  }
+
+  private replaceCurrentTextWithExpected(
+    elem: SuggestionElement,
+    currentFullText: string,
+    segmentStart: number,
+    currentSegmentText: string,
+    expectedSegmentText: string,
+    cursorAfter: number,
+  ): {
+    applyResult: ContentEditableEditResult | { didMutateDom: boolean; didDispatchInput: boolean };
+    postEditSnapshot: SuggestionSnapshot;
+  } | null {
+    if (currentSegmentText === expectedSegmentText) {
+      const postEditSnapshot = TextTargetAdapter.snapshot(elem as TextTarget);
+      return {
+        applyResult: {
+          didMutateDom: true,
+          didDispatchInput: false,
+        },
+        postEditSnapshot,
+      };
+    }
+
+    let prefixLength = 0;
+    const maxPrefix = Math.min(currentSegmentText.length, expectedSegmentText.length);
+    while (
+      prefixLength < maxPrefix &&
+      currentSegmentText.charAt(prefixLength) === expectedSegmentText.charAt(prefixLength)
+    ) {
+      prefixLength += 1;
+    }
+
+    let currentSuffixLength = currentSegmentText.length;
+    let expectedSuffixLength = expectedSegmentText.length;
+    while (
+      currentSuffixLength > prefixLength &&
+      expectedSuffixLength > prefixLength &&
+      currentSegmentText.charAt(currentSuffixLength - 1) ===
+        expectedSegmentText.charAt(expectedSuffixLength - 1)
+    ) {
+      currentSuffixLength -= 1;
+      expectedSuffixLength -= 1;
+    }
+
+    const replaceStart = segmentStart + prefixLength;
+    const replaceEnd = segmentStart + currentSuffixLength;
+    const replacementText = expectedSegmentText.slice(prefixLength, expectedSuffixLength);
+    const applyResult = this.replaceTextByOffsets(
+      elem,
+      currentFullText,
+      replaceStart,
+      replaceEnd,
+      replacementText,
+      cursorAfter,
+      { preferDomMutation: true },
+    );
+    if (!applyResult.didMutateDom) {
+      return null;
+    }
+    return {
+      applyResult,
+      postEditSnapshot: TextTargetAdapter.snapshot(elem as TextTarget),
+    };
   }
 
   private dispatchInputEvent(elem: SuggestionElement): void {
