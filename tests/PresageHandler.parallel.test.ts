@@ -265,10 +265,7 @@ describe("PredictionOrchestrator parallel merge", () => {
     const presageHandler = new PresageHandler(module);
     presageHandler.setConfig(createConfig({ aiPredictorEnabled: false }));
 
-    const randomSpy = jest
-      .spyOn(Math, "random")
-      .mockReturnValueOnce(0)
-      .mockReturnValueOnce(0.99);
+    const randomSpy = jest.spyOn(Math, "random").mockReturnValueOnce(0).mockReturnValueOnce(0.99);
 
     const firstResult = await presageHandler.runPrediction("rsales", "", "en_US");
     const secondResult = await presageHandler.runPrediction("rsales", "", "en_US");
