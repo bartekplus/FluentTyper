@@ -269,7 +269,7 @@ function createChromeMock(
     ["store.settings.enabled", JSON.stringify(true)],
     ["store.settings.language", JSON.stringify("en_US")],
     ["store.settings.fallbackLanguage", JSON.stringify("en_US")],
-    ["store.settings.enabled_languages", JSON.stringify(["en_US"])],
+    ["store.settings.enabledLanguages", JSON.stringify(["en_US"])],
     ["store.settings.domainListMode", JSON.stringify("blackList")],
     ["store.settings.siteProfiles", JSON.stringify({})],
   ]);
@@ -593,6 +593,30 @@ describe("popup productivity dashboard retry/failure paths", () => {
     expect(dashboardStatsCallCount(chromeMock)).toBe(1);
     expect(textContent("metricAccepted")).toBe("init-accepted");
     expect(textContent("dashboardPeriodSummary")).toBe("init-period");
+  });
+
+  test("debug CI failures locally", async () => {
+    const chromeMock = await loadPopupWithOutcomes(
+      [{ type: "stats", value: createPopupStats(1) }],
+      "0",
+      {
+        contains: async () => false,
+        request: async () => true,
+      },
+      createWebsiteTab("https://translate.google.pl"),
+    );
+    const { SettingsManager } = await import("../src/core/application/settingsManager");
+    const { CoreSettingsRepository } = await import(
+      "../src/core/application/repositories/CoreSettingsRepository"
+    );
+    const s = new SettingsManager();
+    const c = new CoreSettingsRepository(s);
+    console.log("DEBUG: isEnabled:", await c.isEnabled());
+
+    // Also check what mock has:
+    chromeMock.storage.local.get("store.settings.enable", (val) => {
+      console.log("DEBUG: storage has:", val);
+    });
   });
 
   test("uses shared missing and granted permission states in the popup", async () => {
