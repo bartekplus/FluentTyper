@@ -227,6 +227,8 @@ function renderStaticPageState(
 ): void {
   const { badge, body, meta, panel, section, title, hint, language, profile } =
     getPageStateElements();
+  const domainToggle = document.getElementById("checkboxDomainInput") as HTMLInputElement | null;
+  const siteProfileSection = document.getElementById("siteProfileSection") as HTMLElement | null;
   if (!badge || !title || !body) {
     return;
   }
@@ -241,8 +243,16 @@ function renderStaticPageState(
     setNodeTextAndTitle(profile, "");
   }
   panel?.setAttribute("data-page-state", state.kind);
-  section?.classList.add("is-hidden");
   setSiteSpecificControlsEnabled(false);
+  if (state.kind === "restricted") {
+    if (domainToggle) {
+      domainToggle.checked = false;
+    }
+    section?.classList.remove("is-hidden");
+  } else {
+    section?.classList.add("is-hidden");
+  }
+  siteProfileSection?.classList.add("is-hidden");
   if (hint) {
     setNodeTextAndTitle(hint, "");
   }
