@@ -3,3 +3,4 @@ coverage/
 node_modules/
 public/third_party/
 src/third_party/
+.claude/
