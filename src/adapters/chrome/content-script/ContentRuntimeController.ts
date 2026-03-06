@@ -190,6 +190,11 @@ export class ContentRuntimeController {
 
   disable(): void {
     logger.info("Disabling content runtime");
+    if (this.pendingRestartTimer !== null) {
+      clearTimeout(this.pendingRestartTimer);
+      this.pendingRestartTimer = null;
+      this.pendingRestartToken = null;
+    }
     this.domObserver.disconnect();
     this.mutationScheduler.clear();
     this.suggestionManager?.detachAllHelpers();
