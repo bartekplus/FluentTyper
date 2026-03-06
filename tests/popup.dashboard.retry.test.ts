@@ -595,50 +595,6 @@ describe("popup productivity dashboard retry/failure paths", () => {
     expect(textContent("dashboardPeriodSummary")).toBe("init-period");
   });
 
-  test("debug CI failures locally", async () => {
-    const chromeMock = await loadPopupWithOutcomes(
-      [{ type: "stats", value: createPopupStats(1) }],
-      "0",
-      {
-        contains: async () => false,
-        request: async () => true,
-      },
-      createWebsiteTab("https://translate.google.pl"),
-    );
-
-    // Import Store directly to check if the class itself is valid
-    const storeModule = await import("../src/third_party/fancier-settings/lib/store.js");
-    console.log("DEBUG: Store export:", typeof storeModule.Store);
-    console.log("DEBUG: Store is function:", typeof storeModule.Store === "function");
-    console.log("DEBUG: Store.prototype:", !!storeModule.Store?.prototype);
-
-    // Import via nonce'd path (as popup does transitively)
-    const storeModuleNonce = await import(freshModulePath("../src/third_party/fancier-settings/lib/store.js"));
-    console.log("DEBUG: Store (nonce) export:", typeof storeModuleNonce.Store);
-    console.log("DEBUG: Store (nonce) is function:", typeof storeModuleNonce.Store === "function");
-
-    // Try to construct Store directly
-    try {
-      const testStore = new storeModule.Store("test", {});
-      console.log("DEBUG: testStore keys:", Object.keys(testStore));
-      console.log("DEBUG: testStore.storageBackend:", !!testStore.storageBackend);
-    } catch (e: any) {
-      console.log("DEBUG: Store constructor error:", e?.message);
-    }
-
-    // Check what the popup's SettingsManager got
-    const { SettingsManager } = await import("../src/core/application/settingsManager");
-    const s = new SettingsManager() as any;
-    console.log("DEBUG: settings.settings keys:", Object.keys(s.settings || {}));
-    console.log("DEBUG: settings.settings constructor:", s.settings?.constructor?.name);
-
-    // Also try nonce'd SettingsManager
-    const { SettingsManager: SM2 } = await import(freshModulePath("../src/core/application/settingsManager"));
-    const s2 = new SM2() as any;
-    console.log("DEBUG: nonce'd settings.settings keys:", Object.keys(s2.settings || {}));
-    console.log("DEBUG: nonce'd settings.settings constructor:", s2.settings?.constructor?.name);
-    console.log("DEBUG: nonce'd settings.settings.storageBackend:", !!s2.settings?.storageBackend);
-  });
 
   test("uses shared missing and granted permission states in the popup", async () => {
     const chromeMock = await loadPopupWithOutcomes(
