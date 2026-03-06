@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
 import { JSDOM } from "jsdom";
 import { CMD_POPUP_GET_PRODUCTIVITY_STATS } from "../src/core/domain/constants";
 import type { ProductivityDashboardStats } from "../src/core/domain/messageTypes";
+import { acquireDomGlobalLock } from "./support/domGlobalLock";
 
 type RuntimeOutcome =
   | { type: "stats"; value: ProductivityDashboardStats }
@@ -27,6 +28,7 @@ const baseGlobals = {
 let importNonce = 0;
 let activeDom: JSDOM | null = null;
 let originalI18nGet: ((key: string) => string) | null = null;
+let releaseDomGlobalLock: (() => void) | null = null;
 
 function freshModulePath(path: string): string {
   importNonce += 1;
@@ -454,6 +456,10 @@ describe("popup productivity dashboard retry/failure paths", () => {
     jest.useFakeTimers();
   });
 
+  beforeEach(async () => {
+    releaseDomGlobalLock = await acquireDomGlobalLock();
+  });
+
   afterEach(async () => {
     jest.clearAllTimers();
     jest.useRealTimers();
@@ -487,6 +493,9 @@ describe("popup productivity dashboard retry/failure paths", () => {
       const { i18n } = await import("../src/third_party/fancier-settings/i18n.js");
       i18n.get = originalI18nGet;
     }
+
+    releaseDomGlobalLock?.();
+    releaseDomGlobalLock = null;
   });
 
   test("renders dashboard immediately on first successful stats response", async () => {

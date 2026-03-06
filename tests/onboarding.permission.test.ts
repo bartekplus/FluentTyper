@@ -1,7 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { JSDOM } from "jsdom";
+import { acquireDomGlobalLock } from "./support/domGlobalLock";
 
 const baseGlobals = {
   window: globalThis.window,
@@ -17,6 +18,7 @@ const baseGlobals = {
 
 let importNonce = 0;
 let activeDom: JSDOM | null = null;
+let releaseDomGlobalLock: (() => void) | null = null;
 
 function freshModulePath(pathname: string): string {
   importNonce += 1;
@@ -55,6 +57,10 @@ async function flushAsyncWork(rounds = 6): Promise<void> {
   }
 }
 
+beforeEach(async () => {
+  releaseDomGlobalLock = await acquireDomGlobalLock();
+});
+
 afterEach(() => {
   if (activeDom) {
     activeDom.window.close();
@@ -74,6 +80,8 @@ afterEach(() => {
   ).HTMLTextAreaElement = baseGlobals.HTMLTextAreaElement;
   (globalThis as unknown as { Event: typeof Event }).Event = baseGlobals.Event;
   (globalThis as unknown as { chrome: unknown }).chrome = baseGlobals.chrome;
+  releaseDomGlobalLock?.();
+  releaseDomGlobalLock = null;
 });
 
 describe("onboarding permission status", () => {
