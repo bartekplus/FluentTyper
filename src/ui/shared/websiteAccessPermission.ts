@@ -47,7 +47,9 @@ interface WebsiteAccessPermissionControllerOptions {
 
 function translate(key: string, fallback: string): string {
   const translated = i18n.get(key);
-  return typeof translated === "string" && translated.length > 0 ? translated : fallback;
+  return typeof translated === "string" && translated.length > 0 && translated !== key
+    ? translated
+    : fallback;
 }
 
 export function getWebsiteAccessPermissionCopy(): WebsiteAccessPermissionCopy {

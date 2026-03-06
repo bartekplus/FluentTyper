@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
 import { JSDOM } from "jsdom";
 import { CMD_POPUP_GET_PRODUCTIVITY_STATS } from "../src/core/domain/constants";
 import type { ProductivityDashboardStats } from "../src/core/domain/messageTypes";
-import { getWebsiteAccessPermissionCopy } from "../src/ui/shared/websiteAccessPermission";
 
 type RuntimeOutcome =
   | { type: "stats"; value: ProductivityDashboardStats }
@@ -443,7 +442,6 @@ describe("popup productivity dashboard retry/failure paths", () => {
   });
 
   test("uses shared missing and granted permission states in the popup", async () => {
-    const copy = getWebsiteAccessPermissionCopy();
     const chromeMock = await loadPopupWithOutcomes(
       [{ type: "stats", value: createPopupStats(1) }],
       "0",
@@ -458,23 +456,28 @@ describe("popup productivity dashboard retry/failure paths", () => {
 
     expect(banner.classList.contains("is-hidden")).toBe(false);
     expect(banner.dataset.permissionState).toBe("missing");
-    expect(textContent("permissionTitle")).toBe(copy.missing.title);
-    expect(textContent("permissionBody")).toBe(copy.missing.body);
-    expect(button.textContent).toBe(copy.missing.actionLabel);
+    expect(textContent("permissionTitle")).toBe("Allow page access");
+    expect(textContent("permissionBody")).toBe(
+      "FluentTyper needs website access to show suggestions in text fields, and everything stays local in your browser.",
+    );
+    expect(button.textContent).toBe("Allow page access");
+    expect(textContent("permissionTitle")).not.toContain("permission_status_");
+    expect(textContent("permissionBody")).not.toContain("permission_status_");
 
     button.click();
     await flushAsyncWork();
 
     expect(banner.dataset.permissionState).toBe("granted");
-    expect(textContent("permissionTitle")).toBe(copy.granted.title);
-    expect(textContent("permissionBody")).toBe(copy.granted.body);
+    expect(textContent("permissionTitle")).toBe("Access granted");
+    expect(textContent("permissionBody")).toBe(
+      "FluentTyper can now show suggestions in text fields, and everything still stays local in your browser.",
+    );
     expect(button.hidden).toBe(true);
     expect(chromeMock.permissions?.contains).toHaveBeenCalledWith({ origins: ["<all_urls>"] });
     expect(chromeMock.permissions?.request).toHaveBeenCalledWith({ origins: ["<all_urls>"] });
   });
 
   test("shows recovery copy in the popup when permission checks are unavailable", async () => {
-    const copy = getWebsiteAccessPermissionCopy();
     await loadPopupWithOutcomes([{ type: "stats", value: createPopupStats(1) }]);
 
     const banner = document.getElementById("permissionBanner") as HTMLElement;
@@ -482,8 +485,12 @@ describe("popup productivity dashboard retry/failure paths", () => {
 
     expect(banner.classList.contains("is-hidden")).toBe(false);
     expect(banner.dataset.permissionState).toBe("unavailable");
-    expect(textContent("permissionTitle")).toBe(copy.unavailable.title);
-    expect(textContent("permissionBody")).toBe(copy.unavailable.body);
+    expect(textContent("permissionTitle")).toBe("Check browser access");
+    expect(textContent("permissionBody")).toBe(
+      "FluentTyper could not verify website access right now. Reopen this panel or reload the page, then try again. Your typing still stays local in your browser.",
+    );
+    expect(textContent("permissionTitle")).not.toContain("permission_status_");
+    expect(textContent("permissionBody")).not.toContain("permission_status_");
     expect(button.hidden).toBe(true);
   });
 });

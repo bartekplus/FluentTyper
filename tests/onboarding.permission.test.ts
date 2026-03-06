@@ -2,7 +2,6 @@ import fs from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, test } from "bun:test";
 import { JSDOM } from "jsdom";
-import { getWebsiteAccessPermissionCopy } from "../src/ui/shared/websiteAccessPermission";
 
 const baseGlobals = {
   window: globalThis.window,
@@ -79,7 +78,6 @@ afterEach(() => {
 
 describe("onboarding permission status", () => {
   test("uses the shared missing and granted permission copy", async () => {
-    const copy = getWebsiteAccessPermissionCopy();
     activeDom = installOnboardingDom();
 
     const browserMock = {
@@ -99,22 +97,31 @@ describe("onboarding permission status", () => {
     const button = document.getElementById("grant-permissions-btn") as HTMLButtonElement;
 
     expect(container.dataset.permissionState).toBe("missing");
-    expect(document.getElementById("permissions-title")?.textContent).toBe(copy.missing.title);
-    expect(document.getElementById("permissions-copy")?.textContent).toBe(copy.missing.body);
-    expect(button.textContent).toBe(copy.missing.actionLabel);
+    expect(document.getElementById("permissions-title")?.textContent).toBe("Allow page access");
+    expect(document.getElementById("permissions-copy")?.textContent).toBe(
+      "FluentTyper needs website access to show suggestions in text fields, and everything stays local in your browser.",
+    );
+    expect(button.textContent).toBe("Allow page access");
+    expect(document.getElementById("permissions-title")?.textContent).not.toContain(
+      "permission_status_",
+    );
+    expect(document.getElementById("permissions-copy")?.textContent).not.toContain(
+      "permission_status_",
+    );
 
     button.click();
     await flushAsyncWork();
 
     expect(container.dataset.permissionState).toBe("granted");
-    expect(document.getElementById("permissions-title")?.textContent).toBe(copy.granted.title);
-    expect(document.getElementById("permissions-copy")?.textContent).toBe(copy.granted.body);
+    expect(document.getElementById("permissions-title")?.textContent).toBe("Access granted");
+    expect(document.getElementById("permissions-copy")?.textContent).toBe(
+      "FluentTyper can now show suggestions in text fields, and everything still stays local in your browser.",
+    );
     expect(button.hidden).toBe(true);
     expect(document.activeElement?.id).toBe("try-me-textarea");
   });
 
   test("shows recovery copy when browser permissions are unavailable", async () => {
-    const copy = getWebsiteAccessPermissionCopy();
     activeDom = installOnboardingDom();
 
     (window as unknown as { browser: unknown }).browser = {};
@@ -128,8 +135,16 @@ describe("onboarding permission status", () => {
     const button = document.getElementById("grant-permissions-btn") as HTMLButtonElement;
 
     expect(container.dataset.permissionState).toBe("unavailable");
-    expect(document.getElementById("permissions-title")?.textContent).toBe(copy.unavailable.title);
-    expect(document.getElementById("permissions-copy")?.textContent).toBe(copy.unavailable.body);
+    expect(document.getElementById("permissions-title")?.textContent).toBe("Check browser access");
+    expect(document.getElementById("permissions-copy")?.textContent).toBe(
+      "FluentTyper could not verify website access right now. Reopen this panel or reload the page, then try again. Your typing still stays local in your browser.",
+    );
+    expect(document.getElementById("permissions-title")?.textContent).not.toContain(
+      "permission_status_",
+    );
+    expect(document.getElementById("permissions-copy")?.textContent).not.toContain(
+      "permission_status_",
+    );
     expect(button.hidden).toBe(true);
   });
 });
