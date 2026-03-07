@@ -162,7 +162,18 @@ export class ContentEditableAdapter {
       return null;
     }
 
-    const block = this.resolveBlockFromPoint(range.startContainer, range.startOffset, elem, true);
+    const resolvedBlock = this.resolveBlockFromPoint(
+      range.startContainer,
+      range.startOffset,
+      elem,
+      true,
+    );
+    // Always use innermost block so we never use a wrapper's full content (e.g. Lexical root -> div -> p, p).
+    const innermost = this.findInnermostBlockContainingRange(elem, range);
+    const block =
+      innermost && (elem === resolvedBlock || resolvedBlock.contains(innermost))
+        ? innermost
+        : resolvedBlock;
     const startPoint = this.resolvePointWithinBlock(
       range.startContainer,
       range.startOffset,
@@ -170,21 +181,290 @@ export class ContentEditableAdapter {
       elem,
     );
     const endPoint = this.resolvePointWithinBlock(range.endContainer, range.endOffset, block, elem);
-    if (!startPoint || !endPoint) {
+    if (startPoint && endPoint) {
+      const beforeRange = range.cloneRange();
+      beforeRange.selectNodeContents(block);
+      beforeRange.setEnd(startPoint.container, startPoint.offset);
+
+      const afterRange = range.cloneRange();
+      afterRange.selectNodeContents(block);
+      afterRange.setStart(endPoint.container, endPoint.offset);
+
+      let afterCursor = afterRange.toString();
+      // When block is root and cursor is at end of a direct text child whose next sibling is a block
+      // (e.g. "asap" then signature div), treat as end-of-block so nextChar is "".
+      if (
+        block === elem &&
+        afterCursor.length > 0 &&
+        range.startContainer.nodeType === Node.TEXT_NODE
+      ) {
+        const textNode = range.startContainer as Text;
+        if (
+          range.startOffset === (textNode.textContent?.length ?? 0) &&
+          elem === textNode.parentNode
+        ) {
+          const next = textNode.nextSibling;
+          if (
+            next &&
+            next.nodeType === Node.ELEMENT_NODE &&
+            BLOCK_TAGS.has((next as Element).tagName)
+          ) {
+            afterCursor = "";
+          }
+        }
+      }
+
+      return {
+        beforeCursor: beforeRange.toString(),
+        afterCursor,
+      };
+    }
+
+    // Fallback when resolvePointWithinBlock fails (e.g. some Lexical/Reddit DOM): find block
+    // by walking up from selection and compute text within that block only.
+    return this.getBlockContextByWalking(elem, range);
+  }
+
+  /**
+   * Get block-local context using only selection + DOM walk (no resolvePointWithinBlock).
+   * Use when getBlockContext returns null so we never fall back to full-root snapshot for prediction.
+   */
+  public getBlockContextBySelection(
+    elem: HTMLElement,
+  ): { beforeCursor: string; afterCursor: string } | null {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
       return null;
     }
-    const beforeRange = range.cloneRange();
-    beforeRange.selectNodeContents(block);
-    beforeRange.setEnd(startPoint.container, startPoint.offset);
+    const range = selection.getRangeAt(0);
+    const targetNode = elem as Node;
+    const startInside =
+      range.startContainer === targetNode || targetNode.contains(range.startContainer);
+    const endInside = range.endContainer === targetNode || targetNode.contains(range.endContainer);
+    if (!startInside || !endInside) {
+      return null;
+    }
+    return this.getBlockContextByWalking(elem, range);
+  }
 
-    const afterRange = range.cloneRange();
-    afterRange.selectNodeContents(block);
-    afterRange.setStart(endPoint.container, endPoint.offset);
+  public getPreviousBlockTextBySelection(elem: HTMLElement): string | null {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      return null;
+    }
 
-    return {
-      beforeCursor: beforeRange.toString(),
-      afterCursor: afterRange.toString(),
-    };
+    const range = selection.getRangeAt(0);
+    const targetNode = elem as Node;
+    const startInside =
+      range.startContainer === targetNode || targetNode.contains(range.startContainer);
+    const endInside = range.endContainer === targetNode || targetNode.contains(range.endContainer);
+    if (!startInside || !endInside) {
+      return null;
+    }
+
+    const currentBlock = this.resolveActiveBlockForRange(elem, range);
+    if (!currentBlock || currentBlock === elem) {
+      return null;
+    }
+
+    const blockElements = this.collectLeafBlockElements(elem);
+    const currentBlockIndex = blockElements.indexOf(currentBlock);
+    if (currentBlockIndex <= 0) {
+      return null;
+    }
+
+    for (let index = currentBlockIndex - 1; index >= 0; index -= 1) {
+      const previousBlockText = this.extractTrailingLineText(blockElements[index]);
+      if (previousBlockText.length > 0) {
+        return previousBlockText;
+      }
+    }
+
+    return null;
+  }
+
+  public hasMultipleBlockDescendants(elem: HTMLElement): boolean {
+    let blockCount = 0;
+    const walker = document.createTreeWalker(elem, SHOW_ELEMENT);
+    let current = walker.nextNode() as Element | null;
+    while (current) {
+      if (current !== elem && BLOCK_TAGS.has(current.tagName)) {
+        blockCount += 1;
+        if (blockCount > 1) {
+          return true;
+        }
+      }
+      current = walker.nextNode() as Element | null;
+    }
+    return false;
+  }
+
+  /**
+   * Fallback: find the innermost block element containing the selection by walking up from
+   * startContainer, then return before/after cursor text within that block only.
+   * Used when the normal path returns null (e.g. Reddit/Lexical DOM).
+   * Must use innermost block: when selection is at (wrapperDiv, 1) we use the child <p>, not the wrapper.
+   */
+  private getBlockContextByWalking(
+    root: HTMLElement,
+    range: Range,
+  ): { beforeCursor: string; afterCursor: string } | null {
+    const block = this.resolveActiveBlockForRange(root, range);
+    if (!block) {
+      return null;
+    }
+    try {
+      const startPosition = this.mapRangeEndpointIntoBlock(
+        range.startContainer,
+        range.startOffset,
+        block,
+      );
+      const endPosition = this.mapRangeEndpointIntoBlock(
+        range.endContainer,
+        range.endOffset,
+        block,
+      );
+      const beforeRange = document.createRange();
+      beforeRange.selectNodeContents(block);
+      beforeRange.setEnd(startPosition.container, startPosition.offset);
+      const afterRange = document.createRange();
+      afterRange.selectNodeContents(block);
+      afterRange.setStart(endPosition.container, endPosition.offset);
+      return {
+        beforeCursor: beforeRange.toString(),
+        afterCursor: afterRange.toString(),
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  private resolveActiveBlockForRange(root: HTMLElement, range: Range): HTMLElement | null {
+    const resolvedBlock = this.resolveBlockFromPoint(
+      range.startContainer,
+      range.startOffset,
+      root,
+      true,
+    );
+    const innermost = this.findInnermostBlockContainingRange(root, range);
+    if (innermost && (root === resolvedBlock || resolvedBlock.contains(innermost))) {
+      return innermost;
+    }
+    return resolvedBlock === root || BLOCK_TAGS.has(resolvedBlock.tagName) ? resolvedBlock : null;
+  }
+
+  private collectLeafBlockElements(root: HTMLElement): HTMLElement[] {
+    const blocks: HTMLElement[] = [];
+    const walker = document.createTreeWalker(root, SHOW_ELEMENT);
+    let current = walker.nextNode() as Element | null;
+    let lastBlock: HTMLElement | null = null;
+    while (current) {
+      if (current !== root && BLOCK_TAGS.has(current.tagName)) {
+        if (lastBlock && !lastBlock.contains(current)) {
+          blocks.push(lastBlock);
+        }
+        lastBlock = current as HTMLElement;
+      }
+      current = walker.nextNode() as Element | null;
+    }
+    if (lastBlock) {
+      blocks.push(lastBlock);
+    }
+    return blocks;
+  }
+
+  private extractTrailingLineText(block: HTMLElement): string {
+    const blockRange = document.createRange();
+    blockRange.selectNodeContents(block);
+    const blockText = blockRange.toString();
+    const trailingLine = blockText.split(/\r?\n/).at(-1) ?? "";
+    return trailingLine.trim();
+  }
+
+  private mapRangeEndpointIntoBlock(
+    container: Node,
+    offset: number,
+    block: HTMLElement,
+  ): ContentEditableDomPosition {
+    if (container === block || block.contains(container)) {
+      return { container, offset };
+    }
+    return this.resolveAncestorEndpointWithinBlock(container, offset, block);
+  }
+
+  private resolveAncestorEndpointWithinBlock(
+    container: Node,
+    offset: number,
+    block: HTMLElement,
+  ): ContentEditableDomPosition {
+    if (!(container instanceof Element) || !container.contains(block)) {
+      return { container: block, offset: 0 };
+    }
+
+    const blockIndex = this.getBlockChildIndex(container, block);
+    if (blockIndex < 0) {
+      return { container: block, offset: 0 };
+    }
+
+    if (offset <= blockIndex) {
+      return { container: block, offset: 0 };
+    }
+
+    return { container: block, offset: block.childNodes.length };
+  }
+
+  /**
+   * Find the innermost block (P, DIV, etc.) that contains the start of the range.
+   * When the cursor is at (wrapperDiv, 1) we return the child block at that offset, not the wrapper.
+   */
+  private findInnermostBlockContainingRange(root: HTMLElement, range: Range): HTMLElement | null {
+    let block: HTMLElement | null = null;
+    let current: Node | null = range.startContainer;
+    const rootNode = root as Node;
+    while (current && current !== rootNode) {
+      if (current.nodeType === Node.ELEMENT_NODE && BLOCK_TAGS.has((current as Element).tagName)) {
+        block = current as HTMLElement;
+        break;
+      }
+      current = current.parentNode;
+    }
+    if (!block) {
+      return null;
+    }
+    // Descend to the deepest block that still contains the live range start.
+    // This handles nested wrappers like root > div > div > p, and also the
+    // boundary case where the selection is at (block, offset) pointing at a
+    // block child.
+    for (;;) {
+      let descended = false;
+      for (let i = 0; i < block.childNodes.length; i += 1) {
+        const child = block.childNodes[i];
+        if (
+          child.nodeType === Node.ELEMENT_NODE &&
+          BLOCK_TAGS.has((child as Element).tagName) &&
+          (child === range.startContainer || (child as Element).contains(range.startContainer))
+        ) {
+          block = child as HTMLElement;
+          descended = true;
+          break;
+        }
+      }
+      if (!descended && range.startContainer === block) {
+        const idx =
+          range.startOffset < block.childNodes.length
+            ? range.startOffset
+            : Math.max(0, range.startOffset - 1);
+        const child = block.childNodes[idx];
+        if (child?.nodeType === Node.ELEMENT_NODE && BLOCK_TAGS.has((child as Element).tagName)) {
+          block = child as HTMLElement;
+          descended = true;
+        }
+      }
+      if (!descended) {
+        break;
+      }
+    }
+    return block;
   }
 
   public isCollapsedSelectionBeforeBlockBoundary(elem: HTMLElement): boolean {
@@ -255,7 +535,45 @@ export class ContentEditableAdapter {
       }
     }
 
-    return this.resolveBlock(node, root);
+    const block = this.resolveBlock(node, root);
+    // When the block is a container with block children at this offset, use the
+    // innermost block (e.g. Lexical/Reddit: root -> div -> p, p; cursor at (div, 1) must use second p,
+    // not the wrapper div, so prediction uses "S" only, not "Wa" + "S").
+    if (block !== root && block.nodeType === Node.ELEMENT_NODE) {
+      const el = block as Element;
+      const childOffset =
+        node === block ? offset : this.getOffsetOfNodeInBlock(block, node, offset);
+      const adjacent = this.pickAdjacentChildAtOffset(el, childOffset, preferForward);
+      if (
+        adjacent &&
+        adjacent.nodeType === Node.ELEMENT_NODE &&
+        this.isBlockElement(adjacent as Element)
+      ) {
+        const innerOffset = preferForward ? 0 : (adjacent.childNodes?.length ?? 0);
+        return this.resolveBlockFromPoint(adjacent, innerOffset, root, preferForward);
+      }
+    }
+    return block;
+  }
+
+  /** Child index of block that contains the given node (for resolving innermost block). */
+  private getOffsetOfNodeInBlock(block: HTMLElement, node: Node, _offset: number): number {
+    if (node === block) {
+      return _offset;
+    }
+    let current: Node | null = node;
+    const blockNode = block as Node;
+    while (current && current !== blockNode) {
+      const parent = current.parentNode;
+      if (parent === blockNode) {
+        return Array.prototype.indexOf.call(block.childNodes, current);
+      }
+      if (!parent) {
+        return 0;
+      }
+      current = parent;
+    }
+    return 0;
   }
 
   private pickAdjacentChildAtOffset(
@@ -302,7 +620,34 @@ export class ContentEditableAdapter {
       return { container: block, offset: block.childNodes.length };
     }
 
+    // Container is an ancestor of block (e.g. Lexical wrapper div with block = child <p>).
+    if (container.nodeType === Node.ELEMENT_NODE && (container as Element).contains(block)) {
+      const containerEl = container as Element;
+      const blockIndex = this.getBlockChildIndex(containerEl, block);
+      if (blockIndex < 0) {
+        return null;
+      }
+      if (offset <= blockIndex) {
+        return { container: block, offset: 0 };
+      }
+      return { container: block, offset: block.childNodes.length };
+    }
+
     return null;
+  }
+
+  /** Index of the direct child of container that contains or is the block. */
+  private getBlockChildIndex(container: Element, block: HTMLElement): number {
+    for (let i = 0; i < container.childNodes.length; i++) {
+      const child = container.childNodes[i];
+      if (
+        child === block ||
+        (child.nodeType === Node.ELEMENT_NODE && (child as Element).contains(block))
+      ) {
+        return i;
+      }
+    }
+    return -1;
   }
 
   private dispatchReplacementBeforeInput(

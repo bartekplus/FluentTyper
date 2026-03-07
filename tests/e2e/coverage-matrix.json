@@ -208,6 +208,27 @@
       ]
     },
     {
+      "id": "contenteditable_enter_restores_previous_block_prediction",
+      "description": "After Enter creates an empty new contenteditable block, prediction can restore immediately from the previous block without concatenating root text.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "restores prediction immediately after Enter in Lexical/Reddit contenteditable"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionManager.test.ts",
+          "test": "restores previous-block prediction immediately after Enter in wrapper div"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionManager.test.ts",
+          "test": "restores previous-block prediction immediately after Enter with root paragraphs"
+        }
+      ]
+    },
+    {
       "id": "contenteditable_rich_format_preservation",
       "description": "Contenteditable acceptance keeps surrounding rich formatting nodes.",
       "coverage": [
@@ -273,6 +294,27 @@
           "layer": "unit",
           "file": "tests/SuggestionManager.test.ts",
           "test": "skips contenteditable grammar when root-boundary selection would require full-root fallback"
+        }
+      ]
+    },
+    {
+      "id": "contenteditable_multiblock_prediction_scope",
+      "description": "Multi-paragraph contenteditable predictions stay scoped to the active Lexical-like block instead of concatenating earlier paragraphs.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "block-local prediction in Lexical/Reddit contenteditable"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "keeps second-line prediction block-local after Enter in real Lexical editor"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionManager.test.ts",
+          "test": "sends block-local text for contenteditable with wrapper div (Lexical/Reddit)"
         }
       ]
     },

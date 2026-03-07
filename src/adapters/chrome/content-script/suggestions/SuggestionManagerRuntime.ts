@@ -146,11 +146,13 @@ export class SuggestionManagerRuntime {
       acceptSuggestionAtIndex: this.acceptSuggestionAtIndex.bind(this),
       requestInlineSuggestion: (entry) => {
         entry.pendingInlineAccept = true;
-        const beforeCursor = this.resolveBeforeCursorForPrediction(entry);
+        const snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+        const ctx = this.resolveEditableCursorContext(entry, snapshot);
         this.predictionCoordinator.schedule(entry, {
           force: true,
           clearSuggestions: () => this.clearSuggestions(entry),
-          beforeCursorOverride: beforeCursor,
+          beforeCursorOverride: ctx.beforeCursor,
+          afterCursorOverride: ctx.afterCursor,
         });
       },
     });
@@ -533,10 +535,12 @@ export class SuggestionManagerRuntime {
     entry: SuggestionEntry,
     {
       inputAction,
+      hasMultipleBlockDescendants,
       typedKey,
       snapshot,
     }: {
       inputAction?: PredictionInputAction;
+      hasMultipleBlockDescendants?: boolean;
       typedKey?: string | null;
       snapshot?: SuggestionSnapshot;
     } = {},
@@ -544,7 +548,7 @@ export class SuggestionManagerRuntime {
     return this.resolveEditableCursorContext(
       entry,
       snapshot ?? TextTargetAdapter.snapshot(entry.elem as TextTarget),
-      { inputAction, typedKey },
+      { inputAction, hasMultipleBlockDescendants, typedKey },
     ).beforeCursor;
   }
 
@@ -647,12 +651,14 @@ export class SuggestionManagerRuntime {
     entry: SuggestionEntry,
     {
       event,
+      hasMultipleBlockDescendants,
       inputActionOverride,
       predictionMode,
       typedKey,
       scheduleIdle,
     }: {
       event?: Event;
+      hasMultipleBlockDescendants?: boolean;
       inputActionOverride?: PredictionInputAction | null;
       predictionMode: "schedule" | "reconcile";
       typedKey?: string | null;
@@ -673,13 +679,19 @@ export class SuggestionManagerRuntime {
     ) {
       entry.pendingExtensionEdit = null;
     }
+    const resolvedHasMultipleBlockDescendants =
+      hasMultipleBlockDescendants ?? this.resolveHasMultipleBlockDescendants(entry);
 
-    const provisionalContext = this.resolveEditableCursorContext(entry, snapshot, { typedKey });
+    const provisionalContext = this.resolveEditableCursorContext(entry, snapshot, {
+      hasMultipleBlockDescendants: resolvedHasMultipleBlockDescendants,
+      typedKey,
+    });
     const provisionalBeforeCursor = provisionalContext.beforeCursor;
     const inputAction =
       inputActionOverride ??
       this.resolveInputAction(entry, event ?? new Event("input"), provisionalBeforeCursor);
     const cursorContext = this.resolveEditableCursorContext(entry, snapshot, {
+      hasMultipleBlockDescendants: resolvedHasMultipleBlockDescendants,
       inputAction,
       typedKey,
     });
@@ -693,6 +705,11 @@ export class SuggestionManagerRuntime {
       : null;
 
     if (grammarEdit) {
+      const grammarReplacement =
+        typeof grammarEdit.replacement === "string" ? grammarEdit.replacement : "";
+      const grammarDeleteBackwards = Number.isFinite(grammarEdit.deleteBackwards)
+        ? Math.max(0, grammarEdit.deleteBackwards)
+        : 0;
       const applyResult = this.textEditService.applyGrammarEdit(entry, grammarEdit, {
         snapshot: cursorContext.snapshot,
         contentEditableContext: cursorContext.applyContext,
@@ -704,6 +721,22 @@ export class SuggestionManagerRuntime {
           entry.lastInputAction = inputAction;
           entry.lastKeydownKey = null;
           entry.pendingGrammarPaste = false;
+          return;
+        }
+
+        if (
+          !TextTargetAdapter.isTextValue(entry.elem) &&
+          this.dispatchAdjustedGrammarPrediction(entry, {
+            beforeCursor: cursorContext.beforeCursor,
+            afterCursor: cursorContext.afterCursor,
+            grammarReplacement,
+            grammarDeleteBackwards,
+            inputAction,
+            predictionMode,
+            scheduleIdle,
+            isTextValue: false,
+          })
+        ) {
           return;
         }
 
@@ -725,54 +758,35 @@ export class SuggestionManagerRuntime {
         // editor prevented the beforeinput).  Apply the intended text
         // transformation so the prediction request reflects the expected
         // result (the host will likely reconcile the change asynchronously).
-        const replacement =
-          typeof grammarEdit.replacement === "string" ? grammarEdit.replacement : "";
-        const deleteBackwards = Number.isFinite(grammarEdit.deleteBackwards)
-          ? Math.max(0, grammarEdit.deleteBackwards)
-          : 0;
-        if (replacement.length > 0 || deleteBackwards > 0) {
-          const ctx = cursorContext.snapshot;
-          const adjustedBeforeCursor =
-            ctx.beforeCursor.slice(0, Math.max(0, ctx.beforeCursor.length - deleteBackwards)) +
-            replacement;
-          const adjustedAfterCursor = ctx.afterCursor;
-
-          entry.lastInputAction = inputAction;
-          entry.lastKeydownKey = null;
-          entry.lastBeforeCursorText = adjustedBeforeCursor;
-          entry.pendingGrammarPaste = false;
-
-          const tokenInfo = this.predictionCoordinator.findMentionToken(adjustedBeforeCursor);
-          entry.latestMentionText = tokenInfo.token;
-          entry.latestMentionStart = TextTargetAdapter.isTextValue(entry.elem)
-            ? tokenInfo.start
-            : -1;
-
-          if (predictionMode === "reconcile") {
-            this.predictionCoordinator.reconcile(entry, {
-              clearSuggestions: () => this.clearSuggestions(entry),
-              inputAction,
-              beforeCursorOverride: adjustedBeforeCursor,
-              afterCursorOverride: adjustedAfterCursor,
-            });
-          } else {
-            this.predictionCoordinator.schedule(entry, {
-              force: false,
-              clearSuggestions: () => this.clearSuggestions(entry),
-              inputAction,
-              beforeCursorOverride: adjustedBeforeCursor,
-              afterCursorOverride: adjustedAfterCursor,
-            });
-          }
-          if (scheduleIdle) {
-            this.scheduleIdleGrammar(entry);
-          }
+        const isTextValue = TextTargetAdapter.isTextValue(entry.elem);
+        const adjustedContext = isTextValue
+          ? {
+              beforeCursor: cursorContext.snapshot.beforeCursor,
+              afterCursor: cursorContext.snapshot.afterCursor,
+            }
+          : {
+              beforeCursor: cursorContext.beforeCursor,
+              afterCursor: cursorContext.afterCursor,
+            };
+        if (
+          this.dispatchAdjustedGrammarPrediction(entry, {
+            beforeCursor: adjustedContext.beforeCursor,
+            afterCursor: adjustedContext.afterCursor,
+            grammarReplacement,
+            grammarDeleteBackwards,
+            inputAction,
+            predictionMode,
+            scheduleIdle,
+            isTextValue,
+          })
+        ) {
           return;
         }
       }
     }
 
     const predictionContext = this.resolveEditableCursorContext(entry, snapshot, {
+      hasMultipleBlockDescendants: resolvedHasMultipleBlockDescendants,
       inputAction,
       typedKey,
     });
@@ -823,13 +837,77 @@ export class SuggestionManagerRuntime {
     }
   }
 
+  private dispatchAdjustedGrammarPrediction(
+    entry: SuggestionEntry,
+    {
+      beforeCursor,
+      afterCursor,
+      grammarReplacement,
+      grammarDeleteBackwards,
+      inputAction,
+      predictionMode,
+      scheduleIdle,
+      isTextValue,
+    }: {
+      beforeCursor: string;
+      afterCursor: string;
+      grammarReplacement: string;
+      grammarDeleteBackwards: number;
+      inputAction: PredictionInputAction;
+      predictionMode: "schedule" | "reconcile";
+      scheduleIdle: boolean;
+      isTextValue: boolean;
+    },
+  ): boolean {
+    if (!(grammarReplacement.length > 0 || grammarDeleteBackwards > 0)) {
+      return false;
+    }
+
+    const adjustedBeforeCursor =
+      beforeCursor.slice(0, Math.max(0, beforeCursor.length - grammarDeleteBackwards)) +
+      grammarReplacement;
+    entry.lastInputAction = inputAction;
+    entry.lastKeydownKey = null;
+    entry.lastBeforeCursorText = adjustedBeforeCursor;
+    entry.pendingGrammarPaste = false;
+
+    const tokenInfo = this.predictionCoordinator.findMentionToken(adjustedBeforeCursor);
+    entry.latestMentionText = tokenInfo.token;
+    entry.latestMentionStart = isTextValue ? tokenInfo.start : -1;
+
+    if (predictionMode === "reconcile") {
+      this.predictionCoordinator.reconcile(entry, {
+        clearSuggestions: () => this.clearSuggestions(entry),
+        inputAction,
+        beforeCursorOverride: adjustedBeforeCursor,
+        afterCursorOverride: afterCursor,
+      });
+    } else {
+      this.predictionCoordinator.schedule(entry, {
+        force: false,
+        clearSuggestions: () => this.clearSuggestions(entry),
+        inputAction,
+        beforeCursorOverride: adjustedBeforeCursor,
+        afterCursorOverride: afterCursor,
+      });
+    }
+
+    if (scheduleIdle) {
+      this.scheduleIdleGrammar(entry);
+    }
+
+    return true;
+  }
+
   private resolveEditableCursorContext(
     entry: SuggestionEntry,
     snapshot: SuggestionSnapshot,
     {
+      hasMultipleBlockDescendants,
       inputAction,
       typedKey,
     }: {
+      hasMultipleBlockDescendants?: boolean;
       inputAction?: PredictionInputAction;
       typedKey?: string | null;
     } = {},
@@ -849,11 +927,16 @@ export class SuggestionManagerRuntime {
         safeForGrammar: true,
       };
     }
-    const blockContext = this.contentEditableAdapter.getBlockContext(entry.elem);
+    let blockContext = this.contentEditableAdapter.getBlockContext(entry.elem);
     if (!blockContext) {
+      blockContext = this.contentEditableAdapter.getBlockContextBySelection(entry.elem);
+    }
+    if (!blockContext) {
+      // Never use full snapshot for prediction: Range.toString() often has no newlines between
+      // blocks, so we would send concatenated "Wa"+"S". Use empty block context instead.
       return {
-        beforeCursor: snapshot.beforeCursor,
-        afterCursor: snapshot.afterCursor,
+        beforeCursor: "",
+        afterCursor: "",
         snapshot,
         applyContext: {
           beforeCursor: snapshot.beforeCursor,
@@ -866,14 +949,22 @@ export class SuggestionManagerRuntime {
     const beforeBlockBoundary = this.contentEditableAdapter.isCollapsedSelectionBeforeBlockBoundary(
       entry.elem,
     );
+    const resolvedHasMultipleBlockDescendants =
+      hasMultipleBlockDescendants ?? this.resolveHasMultipleBlockDescendants(entry);
     const useFullTextOffsets =
       blockContext.beforeCursor.length === 0 &&
       blockContext.afterCursor.length === 0 &&
       beforeBlockBoundary;
     if (useFullTextOffsets) {
+      const previousBlockFallback = resolvedHasMultipleBlockDescendants
+        ? this.contentEditableAdapter.getPreviousBlockTextBySelection(entry.elem)
+        : null;
+      // Use only the previous block's trailing line for prediction when Enter
+      // lands in a brand-new empty block. Keep applyContext rooted in the full
+      // snapshot for DOM/apply logic so we never edit outside the active block.
       return {
-        beforeCursor: snapshot.beforeCursor,
-        afterCursor: snapshot.afterCursor,
+        beforeCursor: previousBlockFallback ?? "",
+        afterCursor: "",
         snapshot,
         applyContext: {
           beforeCursor: snapshot.beforeCursor,
@@ -883,9 +974,10 @@ export class SuggestionManagerRuntime {
         safeForGrammar: false,
       };
     }
-    const resolvedAfterCursor = beforeBlockBoundary ? "" : blockContext.afterCursor;
+    const rawAfterCursor = blockContext.afterCursor;
+    const resolvedAfterCursor = beforeBlockBoundary ? "" : rawAfterCursor;
 
-    const resolvedLeadingChar = resolvedAfterCursor.charAt(0);
+    const resolvedLeadingChar = rawAfterCursor.charAt(0);
     const snapshotLeadingChar = snapshot.afterCursor.charAt(0);
     // Exact match: the typed key matches the DOM character as-is (normal case).
     // Case-insensitive match: only when the typed key is lowercase but the host
@@ -913,7 +1005,7 @@ export class SuggestionManagerRuntime {
     if (shouldSeedTypedKey) {
       return {
         beforeCursor: resolvedLeadingChar,
-        afterCursor: resolvedAfterCursor.slice(resolvedLeadingChar.length),
+        afterCursor: rawAfterCursor.slice(resolvedLeadingChar.length),
         snapshot: {
           beforeCursor: `${snapshot.beforeCursor}${resolvedLeadingChar}`,
           afterCursor: snapshot.afterCursor.slice(snapshotLeadingChar.length),
@@ -921,10 +1013,34 @@ export class SuggestionManagerRuntime {
         },
         applyContext: {
           beforeCursor: resolvedLeadingChar,
-          afterCursor: resolvedAfterCursor.slice(resolvedLeadingChar.length),
+          afterCursor: rawAfterCursor.slice(resolvedLeadingChar.length),
           useFullTextOffsets: false,
         },
         safeForGrammar: true,
+      };
+    }
+
+    const typedKeyLooksMergedIntoPreviousBlock =
+      inputAction !== "delete" &&
+      resolvedHasMultipleBlockDescendants &&
+      beforeBlockBoundary &&
+      typeof typedKey === "string" &&
+      typedKey.length === 1 &&
+      blockContext.beforeCursor === snapshot.beforeCursor &&
+      (snapshot.beforeCursor.endsWith(typedKey) ||
+        snapshot.beforeCursor.endsWith(typedKey.toLocaleUpperCase()));
+    if (typedKeyLooksMergedIntoPreviousBlock) {
+      const trailingChar = snapshot.beforeCursor.charAt(snapshot.beforeCursor.length - 1);
+      return {
+        beforeCursor: trailingChar,
+        afterCursor: "",
+        snapshot,
+        applyContext: {
+          beforeCursor: trailingChar,
+          afterCursor: "",
+          useFullTextOffsets: false,
+        },
+        safeForGrammar: false,
       };
     }
 
@@ -938,10 +1054,19 @@ export class SuggestionManagerRuntime {
       pendingEdit.replacementText.length > 0 &&
       resolvedAfterCursor.startsWith(pendingEdit.replacementText) &&
       snapshot.afterCursor.startsWith(pendingEdit.replacementText);
-    if (shouldSeedPendingGrammarEdit) {
+    const shouldSeedPendingGrammarEditFromMergedSnapshot =
+      inputAction !== "delete" &&
+      pendingEdit?.source === "grammar" &&
+      pendingEdit.replacementText.length > 0 &&
+      beforeBlockBoundary &&
+      blockContext.beforeCursor === snapshot.beforeCursor &&
+      snapshot.beforeCursor.endsWith(pendingEdit.replacementText);
+    if (shouldSeedPendingGrammarEdit || shouldSeedPendingGrammarEditFromMergedSnapshot) {
       return {
         beforeCursor: pendingEdit.replacementText,
-        afterCursor: resolvedAfterCursor.slice(pendingEdit.replacementText.length),
+        afterCursor: rawAfterCursor.startsWith(pendingEdit.replacementText)
+          ? rawAfterCursor.slice(pendingEdit.replacementText.length)
+          : resolvedAfterCursor,
         snapshot: {
           beforeCursor: `${snapshot.beforeCursor}${pendingEdit.replacementText}`,
           afterCursor: snapshot.afterCursor.slice(pendingEdit.replacementText.length),
@@ -949,7 +1074,7 @@ export class SuggestionManagerRuntime {
         },
         applyContext: {
           beforeCursor: pendingEdit.replacementText,
-          afterCursor: resolvedAfterCursor.slice(pendingEdit.replacementText.length),
+          afterCursor: rawAfterCursor.slice(pendingEdit.replacementText.length),
           useFullTextOffsets: false,
         },
         safeForGrammar: true,
@@ -1336,12 +1461,14 @@ export class SuggestionManagerRuntime {
       this.dismissEntry(current, true);
       return;
     }
-    if (this.shouldWaitForInsertTextChange(id, current, pending)) {
+    const hasMultipleBlockDescendants = this.resolveHasMultipleBlockDescendants(current);
+    if (this.shouldWaitForInsertTextChange(id, current, pending, hasMultipleBlockDescendants)) {
       return;
     }
     this.clearPendingKeyFallback(id);
     this.processEntryAfterEdit(current, {
       inputActionOverride: pending.inputAction,
+      hasMultipleBlockDescendants,
       predictionMode: "reconcile",
       typedKey: pending.typedKey,
       scheduleIdle: true,
@@ -1362,6 +1489,7 @@ export class SuggestionManagerRuntime {
     id: number,
     entry: SuggestionEntry,
     pending: PendingKeyFallback,
+    hasMultipleBlockDescendants: boolean,
   ): boolean {
     if (
       pending.inputAction !== "insert" ||
@@ -1376,6 +1504,13 @@ export class SuggestionManagerRuntime {
     const textChanged =
       pending.expectedFullText !== null && currentFullText !== pending.expectedFullText;
     if (textChanged) {
+      return false;
+    }
+    const shouldReconcileEnterAtEmptyBoundary =
+      pending.typedKey === "Enter" &&
+      hasMultipleBlockDescendants &&
+      this.contentEditableAdapter.isCollapsedSelectionBeforeBlockBoundary(entry.elem);
+    if (shouldReconcileEnterAtEmptyBoundary) {
       return false;
     }
 
@@ -1437,6 +1572,13 @@ export class SuggestionManagerRuntime {
       return !TextTargetAdapter.isInput(elem);
     }
     return event.key.length === 1;
+  }
+
+  private resolveHasMultipleBlockDescendants(entry: SuggestionEntry): boolean {
+    if (TextTargetAdapter.isTextValue(entry.elem)) {
+      return false;
+    }
+    return this.contentEditableAdapter.hasMultipleBlockDescendants(entry.elem);
   }
 
   private resolveInputAction(

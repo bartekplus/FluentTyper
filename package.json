@@ -36,6 +36,10 @@
   "homepage": "https://github.com/bartekplus/FluentTyper#readme",
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@lexical/history": "^0.41.0",
+    "@lexical/plain-text": "^0.41.0",
+    "@lexical/rich-text": "^0.41.0",
+    "@lexical/utils": "^0.41.0",
     "@mlc-ai/web-runtime": "^0.24.0-dev1",
     "@mlc-ai/web-tokenizers": "^0.1.6",
     "@mlc-ai/web-xgrammar": "^0.1.27",
@@ -48,6 +52,7 @@
     "glob": "^13.0.6",
     "globals": "^17.4.0",
     "jsdom": "^28.1.0",
+    "lexical": "^0.41.0",
     "prettier": "^3.8.1",
     "puppeteer": "^24.37.5",
     "quill": "^2.0.3",

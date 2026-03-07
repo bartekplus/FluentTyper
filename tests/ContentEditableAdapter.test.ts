@@ -357,4 +357,280 @@ describe("ContentEditableAdapter", () => {
     expect(context?.beforeCursor).toBe("");
     expect(context?.afterCursor).toBe("word");
   });
+
+  test("uses innermost block when wrapper div contains multiple paragraphs (Lexical/Reddit)", () => {
+    const adapter = new ContentEditableAdapter();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML =
+      '<div><p class="first" dir="auto"><span data-lexical-text="true">Wa</span></p><p class="second" dir="auto"><span data-lexical-text="true">S</span></p></div>';
+    document.body.appendChild(editable);
+
+    const wrapper = editable.querySelector("div")!;
+    const secondP = editable.querySelector("p.second")!;
+    const secondSpan = secondP.querySelector("span")!;
+    const secondText = secondSpan.firstChild as Text;
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Selection API unavailable");
+    }
+
+    // Cursor at (wrapper, 1) – between the two <p>s – should resolve to second paragraph, not full "Wa" + "S".
+    const rangeAtBoundary = document.createRange();
+    rangeAtBoundary.setStart(wrapper, 1);
+    rangeAtBoundary.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(rangeAtBoundary);
+
+    const contextAtBoundary = adapter.getBlockContext(editable);
+    expect(contextAtBoundary).not.toBeNull();
+    expect(contextAtBoundary?.beforeCursor).toBe("");
+    expect(contextAtBoundary?.afterCursor).toBe("S");
+
+    // Cursor after "S" in second paragraph – should still be block-local.
+    const rangeInSecond = document.createRange();
+    rangeInSecond.setStart(secondText, secondText.textContent?.length ?? 0);
+    rangeInSecond.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(rangeInSecond);
+
+    const contextInSecond = adapter.getBlockContext(editable);
+    expect(contextInSecond).not.toBeNull();
+    expect(contextInSecond?.beforeCursor).toBe("S");
+    expect(contextInSecond?.afterCursor).toBe("");
+  });
+
+  test("uses innermost block through deeper nested wrappers", () => {
+    const adapter = new ContentEditableAdapter();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML =
+      '<div class="outer"><div class="inner"><p class="target" dir="auto"><span data-lexical-text="true">Deep</span></p></div></div>';
+    document.body.appendChild(editable);
+
+    const textNode = editable.querySelector("p.target span")?.firstChild;
+    if (!textNode || textNode.nodeType !== Node.TEXT_NODE) {
+      throw new Error("Expected text node in nested paragraph");
+    }
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Selection API unavailable");
+    }
+
+    const range = document.createRange();
+    range.setStart(textNode, 2);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    const context = adapter.getBlockContext(editable);
+    expect(context).not.toBeNull();
+    expect(context?.beforeCursor).toBe("De");
+    expect(context?.afterCursor).toBe("ep");
+  });
+
+  test("returns previous paragraph text when cursor is in second paragraph", () => {
+    const adapter = new ContentEditableAdapter();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML = "<p>First</p><p>Second</p>";
+    document.body.appendChild(editable);
+
+    const secondText = editable.querySelectorAll("p")[1]?.firstChild;
+    if (!secondText || secondText.nodeType !== Node.TEXT_NODE) {
+      throw new Error("Expected second paragraph text node");
+    }
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Selection API unavailable");
+    }
+
+    const range = document.createRange();
+    range.setStart(secondText, secondText.textContent?.length ?? 0);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    expect(adapter.getPreviousBlockTextBySelection(editable)).toBe("First");
+  });
+
+  test("skips empty previous blocks when resolving previous block text", () => {
+    const adapter = new ContentEditableAdapter();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML = "<p>First</p><p></p><p>Third</p>";
+    document.body.appendChild(editable);
+
+    const thirdText = editable.querySelectorAll("p")[2]?.firstChild;
+    if (!thirdText || thirdText.nodeType !== Node.TEXT_NODE) {
+      throw new Error("Expected third paragraph text node");
+    }
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Selection API unavailable");
+    }
+
+    const range = document.createRange();
+    range.setStart(thirdText, thirdText.textContent?.length ?? 0);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    expect(adapter.getPreviousBlockTextBySelection(editable)).toBe("First");
+  });
+
+  test("returns null when there is no previous block", () => {
+    const adapter = new ContentEditableAdapter();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML = "<p>Only</p>";
+    document.body.appendChild(editable);
+
+    const onlyText = editable.querySelector("p")?.firstChild;
+    if (!onlyText || onlyText.nodeType !== Node.TEXT_NODE) {
+      throw new Error("Expected single paragraph text node");
+    }
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Selection API unavailable");
+    }
+
+    const range = document.createRange();
+    range.setStart(onlyText, onlyText.textContent?.length ?? 0);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    expect(adapter.getPreviousBlockTextBySelection(editable)).toBeNull();
+  });
+
+  test("returns null when selection resolves to the root block itself", () => {
+    const adapter = new ContentEditableAdapter();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.textContent = "Only root text";
+    document.body.appendChild(editable);
+
+    const rootText = editable.firstChild;
+    if (!rootText || rootText.nodeType !== Node.TEXT_NODE) {
+      throw new Error("Expected root text node");
+    }
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Selection API unavailable");
+    }
+
+    const range = document.createRange();
+    range.setStart(rootText, rootText.textContent?.length ?? 0);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    expect(adapter.getPreviousBlockTextBySelection(editable)).toBeNull();
+  });
+
+  test("returns only the trailing line from the previous block", () => {
+    const adapter = new ContentEditableAdapter();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML = "<p>First line\nTrailing line</p><p>Second</p>";
+    document.body.appendChild(editable);
+
+    const secondText = editable.querySelectorAll("p")[1]?.firstChild;
+    if (!secondText || secondText.nodeType !== Node.TEXT_NODE) {
+      throw new Error("Expected second paragraph text node");
+    }
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Selection API unavailable");
+    }
+
+    const range = document.createRange();
+    range.setStart(secondText, secondText.textContent?.length ?? 0);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    expect(adapter.getPreviousBlockTextBySelection(editable)).toBe("Trailing line");
+  });
+
+  test("collects leaf block elements in document order for nested blocks", () => {
+    const adapter = new ContentEditableAdapter();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML =
+      '<div class="wrapper"><div class="inner"><p>A</p><p>B</p></div><p>C</p></div>';
+    document.body.appendChild(editable);
+
+    const leafBlocks = (
+      adapter as unknown as {
+        collectLeafBlockElements: (root: HTMLElement) => HTMLElement[];
+      }
+    ).collectLeafBlockElements(editable);
+
+    expect(leafBlocks.map((block) => block.textContent)).toEqual(["A", "B", "C"]);
+  });
+
+  test("walking fallback maps ancestor boundary endpoints into resolved block", () => {
+    const adapter = new ContentEditableAdapter();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML =
+      '<div><p class="first" dir="auto"><span data-lexical-text="true">Wa</span></p><p class="second" dir="auto"><span data-lexical-text="true">S</span></p></div>';
+    document.body.appendChild(editable);
+
+    const wrapper = editable.querySelector("div")!;
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Selection API unavailable");
+    }
+
+    const range = document.createRange();
+    range.setStart(wrapper, 1);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    const originalResolvePointWithinBlock = (
+      adapter as unknown as {
+        resolvePointWithinBlock: (
+          container: Node,
+          offset: number,
+          block: HTMLElement,
+          root: HTMLElement,
+        ) => unknown;
+      }
+    ).resolvePointWithinBlock;
+
+    (
+      adapter as unknown as {
+        resolvePointWithinBlock: (
+          container: Node,
+          offset: number,
+          block: HTMLElement,
+          root: HTMLElement,
+        ) => null;
+      }
+    ).resolvePointWithinBlock = () => null;
+
+    try {
+      const context = adapter.getBlockContext(editable);
+      expect(context).not.toBeNull();
+      expect(context?.beforeCursor).toBe("");
+      expect(context?.afterCursor).toBe("S");
+    } finally {
+      (
+        adapter as unknown as {
+          resolvePointWithinBlock: typeof originalResolvePointWithinBlock;
+        }
+      ).resolvePointWithinBlock = originalResolvePointWithinBlock;
+    }
+  });
 });

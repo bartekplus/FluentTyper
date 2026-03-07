@@ -199,6 +199,14 @@ async function loadSuggestionManagerClass() {
   return module.SuggestionManager;
 }
 
+async function loadContentEditableAdapterClass() {
+  importNonce += 1;
+  const module = await import(
+    `../src/adapters/chrome/content-script/suggestions/ContentEditableAdapter?bun_test_nonce_adapter=${importNonce}`
+  );
+  return module.ContentEditableAdapter;
+}
+
 type ConstructorArgs = {
   selectors: string;
   minWordLengthToPredict: number;
@@ -1038,6 +1046,387 @@ describe("SuggestionManager", () => {
     const request = await waitForNextCall(getPrediction);
     expect(request.text).toBe("");
     expect(request.nextChar).toBe("n");
+  });
+
+  test("sends block-local text for contenteditable with wrapper div (Lexical/Reddit)", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+    });
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML =
+      '<div><p class="first" dir="auto"><span data-lexical-text="true">Wa</span></p><p class="second" dir="auto"><span data-lexical-text="true">S</span></p></div>';
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    const secondP = editable.querySelector("p.second");
+    const secondSpan = secondP?.querySelector("span");
+    const secondText = secondSpan?.firstChild;
+    if (!secondText || secondText.nodeType !== Node.TEXT_NODE) {
+      throw new Error("Expected text node in second paragraph");
+    }
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Expected selection");
+    }
+    const range = document.createRange();
+    range.setStart(secondText, (secondText as Text).textContent?.length ?? 0);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+
+    const request = await waitForNextCall(getPrediction);
+    expect(request.text).toBe("S");
+    expect(request.nextChar).toBe("");
+  });
+
+  test("sends block-local text when wrapper div mutates asynchronously after input (Reddit multiline)", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+    });
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML =
+      '<div><p class="first" dir="auto"><span data-lexical-text="true">Wa</span></p><p class="second" dir="auto"><span data-lexical-text="true"></span></p></div>';
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    const secondP = editable.querySelector("p.second");
+    const secondSpan = secondP?.querySelector("span");
+    if (!secondP || !secondSpan) {
+      throw new Error("Expected second paragraph");
+    }
+    const secondText = secondSpan.appendChild(document.createTextNode(""));
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Expected selection");
+    }
+
+    const initialRange = document.createRange();
+    initialRange.setStart(secondP, 0);
+    initialRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(initialRange);
+
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+    dispatchKeydown(editable, "s");
+
+    // Reddit/Lexical-style ordering: input fires before the DOM update, then the
+    // second paragraph text appears while the caret still points to paragraph start.
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+
+    secondText.textContent = "S";
+    const staleRange = document.createRange();
+    staleRange.setStart(secondP, 0);
+    staleRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(staleRange);
+
+    const request = await waitForNextCall(getPrediction);
+    expect(request.text).toBe("S");
+    expect(request.nextChar).toBe("");
+  });
+
+  test("keeps second-line prediction block-local after Enter in wrapper div (Reddit multiline flow)", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+    });
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML =
+      '<div><p class="first" dir="auto"><span data-lexical-text="true">Wa</span></p></div>';
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    const wrapper = editable.querySelector("div");
+    const firstText = editable.querySelector("p.first span")?.firstChild as Text | null;
+    if (!wrapper || !firstText) {
+      throw new Error("Expected wrapper and first paragraph text");
+    }
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Expected selection");
+    }
+
+    const firstRange = document.createRange();
+    firstRange.setStart(firstText, firstText.textContent?.length ?? 0);
+    firstRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(firstRange);
+
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+
+    // Enter creates a second paragraph.
+    dispatchKeydown(editable, "Enter");
+    wrapper.insertAdjacentHTML(
+      "beforeend",
+      '<p class="second" dir="auto"><span data-lexical-text="true"></span></p>',
+    );
+    const secondP = editable.querySelector("p.second");
+    const secondSpan = secondP?.querySelector("span");
+    if (!secondP || !secondSpan) {
+      throw new Error("Expected second paragraph after Enter");
+    }
+    const secondText = secondSpan.appendChild(document.createTextNode(""));
+    const enterRange = document.createRange();
+    enterRange.setStart(wrapper, 1);
+    enterRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(enterRange);
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+
+    const baselineCalls = getPrediction.mock.calls.length;
+
+    // First character on the new line arrives with Reddit/Lexical-style stale selection.
+    dispatchKeydown(editable, "s");
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+    secondText.textContent = "S";
+    const staleRange = document.createRange();
+    staleRange.setStart(wrapper, 1);
+    staleRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(staleRange);
+
+    const request = await waitForNextCall(getPrediction);
+    expect(getPrediction.mock.calls.length).toBeGreaterThan(baselineCalls);
+    expect(request.text).toBe("S");
+    expect(request.nextChar).toBe("");
+  });
+
+  test("restores previous-block prediction immediately after Enter in wrapper div", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+    });
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML =
+      '<div><p class="first" dir="auto"><span data-lexical-text="true">Wa</span></p></div>';
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    const wrapper = editable.querySelector("div");
+    const firstText = editable.querySelector("p.first span")?.firstChild as Text | null;
+    if (!wrapper || !firstText) {
+      throw new Error("Expected wrapper and first paragraph text");
+    }
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Expected selection");
+    }
+
+    const firstRange = document.createRange();
+    firstRange.setStart(firstText, firstText.textContent?.length ?? 0);
+    firstRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(firstRange);
+
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+    const baselineCalls = getPrediction.mock.calls.length;
+
+    dispatchKeydown(editable, "Enter");
+    wrapper.insertAdjacentHTML(
+      "beforeend",
+      '<p class="second" dir="auto"><span data-lexical-text="true"></span></p>',
+    );
+    const enterRange = document.createRange();
+    enterRange.setStart(wrapper, 1);
+    enterRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(enterRange);
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+
+    const request = await waitForNextCall(getPrediction);
+    expect(getPrediction.mock.calls.length).toBeGreaterThan(baselineCalls);
+    expect(request.text).toBe("Wa");
+    expect(request.nextChar).toBe("");
+  });
+
+  test("keeps second-line prediction block-local after Enter with root paragraphs (Reddit actual DOM)", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+    });
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML = '<p class="first" dir="auto"><span data-lexical-text="true">Wa</span></p>';
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    const firstText = editable.querySelector("p.first span")?.firstChild as Text | null;
+    if (!firstText) {
+      throw new Error("Expected first paragraph text");
+    }
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Expected selection");
+    }
+
+    const firstRange = document.createRange();
+    firstRange.setStart(firstText, firstText.textContent?.length ?? 0);
+    firstRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(firstRange);
+
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+
+    dispatchKeydown(editable, "Enter");
+    editable.insertAdjacentHTML(
+      "beforeend",
+      '<p class="second" dir="auto"><span data-lexical-text="true"></span></p>',
+    );
+    const secondP = editable.querySelector("p.second");
+    const secondSpan = secondP?.querySelector("span");
+    if (!secondP || !secondSpan) {
+      throw new Error("Expected second paragraph after Enter");
+    }
+    const secondText = secondSpan.appendChild(document.createTextNode(""));
+    const enterRange = document.createRange();
+    enterRange.setStart(editable, 1);
+    enterRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(enterRange);
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+
+    const baselineCalls = getPrediction.mock.calls.length;
+
+    dispatchKeydown(editable, "s");
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+    secondText.textContent = "S";
+    const staleRange = document.createRange();
+    staleRange.setStart(editable, 1);
+    staleRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(staleRange);
+
+    const request = await waitForNextCall(getPrediction);
+    expect(getPrediction.mock.calls.length).toBeGreaterThan(baselineCalls);
+    expect(request.text).toBe("S");
+    expect(request.nextChar).toBe("");
+  });
+
+  test("restores previous-block prediction immediately after Enter with root paragraphs", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+    });
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML = '<p class="first" dir="auto"><span data-lexical-text="true">Wa</span></p>';
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    const firstText = editable.querySelector("p.first span")?.firstChild as Text | null;
+    if (!firstText) {
+      throw new Error("Expected first paragraph text");
+    }
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Expected selection");
+    }
+
+    const firstRange = document.createRange();
+    firstRange.setStart(firstText, firstText.textContent?.length ?? 0);
+    firstRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(firstRange);
+
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+    const baselineCalls = getPrediction.mock.calls.length;
+
+    dispatchKeydown(editable, "Enter");
+    editable.insertAdjacentHTML(
+      "beforeend",
+      '<p class="second" dir="auto"><span data-lexical-text="true"></span></p>',
+    );
+    const enterRange = document.createRange();
+    enterRange.setStart(editable, 1);
+    enterRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(enterRange);
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+
+    const request = await waitForNextCall(getPrediction);
+    expect(getPrediction.mock.calls.length).toBeGreaterThan(baselineCalls);
+    expect(request.text).toBe("Wa");
+    expect(request.nextChar).toBe("");
+  });
+
+  test("keeps second-line capitalization block-local after Enter with root paragraphs", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+      enabledGrammarRules: ["capitalizeSentenceStart"],
+    });
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML = '<p class="first" dir="auto"><span data-lexical-text="true">Wa</span></p>';
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    const firstText = editable.querySelector("p.first span")?.firstChild as Text | null;
+    if (!firstText) {
+      throw new Error("Expected first paragraph text");
+    }
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Expected selection");
+    }
+
+    const firstRange = document.createRange();
+    firstRange.setStart(firstText, firstText.textContent?.length ?? 0);
+    firstRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(firstRange);
+
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+
+    dispatchKeydown(editable, "Enter");
+    editable.insertAdjacentHTML(
+      "beforeend",
+      '<p class="second" dir="auto"><span data-lexical-text="true"></span></p>',
+    );
+    const secondP = editable.querySelector("p.second");
+    const secondSpan = secondP?.querySelector("span");
+    if (!secondP || !secondSpan) {
+      throw new Error("Expected second paragraph after Enter");
+    }
+    const secondText = secondSpan.appendChild(document.createTextNode(""));
+    const enterRange = document.createRange();
+    enterRange.setStart(editable, 1);
+    enterRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(enterRange);
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+
+    const baselineCalls = getPrediction.mock.calls.length;
+
+    dispatchKeydown(editable, "t");
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+    secondText.textContent = "t";
+    const staleRange = document.createRange();
+    staleRange.setStart(editable, 1);
+    staleRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(staleRange);
+
+    const request = await waitForNextCall(getPrediction);
+    expect(getPrediction.mock.calls.length).toBeGreaterThan(baselineCalls);
+    expect(request.text).toBe("T");
+    expect(request.nextChar).toBe("");
   });
 
   test("uses block-local nextChar for contenteditable prediction before a following signature block", async () => {
@@ -1934,6 +2323,46 @@ describe("SuggestionManager", () => {
       dispatchKeydown(editable, "x");
       fakeNow += 2000;
     } finally {
+      Date.now = originalDateNow;
+    }
+
+    const request = await waitForNextCall(getPrediction);
+    expect(request.text).toBe("hellox");
+    expect(request.inputAction).toBe("insert");
+  });
+
+  test("keeps full paragraph context for root contenteditable when boundary detection is stale", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+      enabledGrammarRules: [],
+    });
+    const ContentEditableAdapter = await loadContentEditableAdapterClass();
+    const editable = document.createElement("p");
+    editable.setAttribute("contenteditable", "true");
+    editable.textContent = "hello";
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    setContentEditableCursor(editable, editable.textContent.length);
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+
+    const originalIsCollapsedSelectionBeforeBlockBoundary =
+      ContentEditableAdapter.prototype.isCollapsedSelectionBeforeBlockBoundary;
+    ContentEditableAdapter.prototype.isCollapsedSelectionBeforeBlockBoundary = () => true;
+
+    const originalDateNow = Date.now;
+    let fakeNow = originalDateNow();
+    Date.now = () => fakeNow;
+
+    try {
+      editable.textContent = "hellox";
+      setContentEditableCursor(editable, editable.textContent.length);
+      dispatchKeydown(editable, "x");
+      fakeNow += 2000;
+    } finally {
+      ContentEditableAdapter.prototype.isCollapsedSelectionBeforeBlockBoundary =
+        originalIsCollapsedSelectionBeforeBlockBoundary;
       Date.now = originalDateNow;
     }
 
