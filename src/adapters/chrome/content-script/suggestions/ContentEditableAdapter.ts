@@ -182,6 +182,11 @@ export class ContentEditableAdapter {
     );
     const endPoint = this.resolvePointWithinBlock(range.endContainer, range.endOffset, block, elem);
     if (startPoint && endPoint) {
+      const lineContext = this.getBrSeparatedLineContext(block, startPoint, endPoint);
+      if (lineContext) {
+        return lineContext;
+      }
+
       const beforeRange = range.cloneRange();
       beforeRange.selectNodeContents(block);
       beforeRange.setEnd(startPoint.container, startPoint.offset);
@@ -324,6 +329,10 @@ export class ContentEditableAdapter {
         range.endOffset,
         block,
       );
+      const lineContext = this.getBrSeparatedLineContext(block, startPosition, endPosition);
+      if (lineContext) {
+        return lineContext;
+      }
       const beforeRange = document.createRange();
       beforeRange.selectNodeContents(block);
       beforeRange.setEnd(startPosition.container, startPosition.offset);
@@ -413,6 +422,46 @@ export class ContentEditableAdapter {
     return { container: block, offset: block.childNodes.length };
   }
 
+  private getBrSeparatedLineContext(
+    block: HTMLElement,
+    startPosition: ContentEditableDomPosition,
+    endPosition: ContentEditableDomPosition,
+  ): { beforeCursor: string; afterCursor: string } | null {
+    const lineBreaks = Array.from(block.querySelectorAll("br"));
+    if (lineBreaks.length === 0) {
+      return null;
+    }
+
+    let lineStart: ContentEditableDomPosition = { container: block, offset: 0 };
+    let lineEnd: ContentEditableDomPosition = { container: block, offset: block.childNodes.length };
+
+    for (const lineBreak of lineBreaks) {
+      const breakStart = this.resolveNodeStartPosition(lineBreak);
+      const breakEnd = this.resolveNodeEndPosition(lineBreak);
+      if (this.comparePositions(breakEnd, startPosition) <= 0) {
+        lineStart = breakEnd;
+        continue;
+      }
+      if (this.comparePositions(endPosition, breakStart) <= 0) {
+        lineEnd = breakStart;
+        break;
+      }
+    }
+
+    const beforeRange = document.createRange();
+    beforeRange.setStart(lineStart.container, lineStart.offset);
+    beforeRange.setEnd(startPosition.container, startPosition.offset);
+
+    const afterRange = document.createRange();
+    afterRange.setStart(endPosition.container, endPosition.offset);
+    afterRange.setEnd(lineEnd.container, lineEnd.offset);
+
+    return {
+      beforeCursor: beforeRange.toString(),
+      afterCursor: afterRange.toString(),
+    };
+  }
+
   /**
    * Find the innermost block (P, DIV, etc.) that contains the start of the range.
    * When the cursor is at (wrapperDiv, 1) we return the child block at that offset, not the wrapper.
@@ -428,6 +477,16 @@ export class ContentEditableAdapter {
       }
       current = current.parentNode;
     }
+    if (!block && range.startContainer === rootNode) {
+      const idx =
+        range.startOffset < root.childNodes.length
+          ? range.startOffset
+          : Math.max(0, range.startOffset - 1);
+      const child = root.childNodes[idx];
+      if (child?.nodeType === Node.ELEMENT_NODE && BLOCK_TAGS.has((child as Element).tagName)) {
+        block = child as HTMLElement;
+      }
+    }
     if (!block) {
       return null;
     }
@@ -436,24 +495,30 @@ export class ContentEditableAdapter {
     // boundary case where the selection is at (block, offset) pointing at a
     // block child.
     for (;;) {
+      const startPosition = this.mapRangeEndpointIntoBlock(
+        range.startContainer,
+        range.startOffset,
+        block,
+      );
       let descended = false;
       for (let i = 0; i < block.childNodes.length; i += 1) {
         const child = block.childNodes[i];
         if (
           child.nodeType === Node.ELEMENT_NODE &&
           BLOCK_TAGS.has((child as Element).tagName) &&
-          (child === range.startContainer || (child as Element).contains(range.startContainer))
+          (child === startPosition.container ||
+            (child as Element).contains(startPosition.container))
         ) {
           block = child as HTMLElement;
           descended = true;
           break;
         }
       }
-      if (!descended && range.startContainer === block) {
+      if (!descended && startPosition.container === block) {
         const idx =
-          range.startOffset < block.childNodes.length
-            ? range.startOffset
-            : Math.max(0, range.startOffset - 1);
+          startPosition.offset < block.childNodes.length
+            ? startPosition.offset
+            : Math.max(0, startPosition.offset - 1);
         const child = block.childNodes[idx];
         if (child?.nodeType === Node.ELEMENT_NODE && BLOCK_TAGS.has((child as Element).tagName)) {
           block = child as HTMLElement;
@@ -1242,6 +1307,22 @@ export class ContentEditableAdapter {
     }
 
     return best;
+  }
+
+  private comparePositions(
+    left: ContentEditableDomPosition,
+    right: ContentEditableDomPosition,
+  ): number {
+    const START_TO_START = 0;
+    const leftRange = document.createRange();
+    leftRange.setStart(left.container, left.offset);
+    leftRange.collapse(true);
+
+    const rightRange = document.createRange();
+    rightRange.setStart(right.container, right.offset);
+    rightRange.collapse(true);
+
+    return leftRange.compareBoundaryPoints(START_TO_START, rightRange);
   }
 
   private isPreferredBoundaryCandidate(

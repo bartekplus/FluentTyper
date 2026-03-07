@@ -931,6 +931,11 @@ export class SuggestionManagerRuntime {
     if (!blockContext) {
       blockContext = this.contentEditableAdapter.getBlockContextBySelection(entry.elem);
     }
+    const beforeBlockBoundary = this.contentEditableAdapter.isCollapsedSelectionBeforeBlockBoundary(
+      entry.elem,
+    );
+    const resolvedHasMultipleBlockDescendants =
+      hasMultipleBlockDescendants ?? this.resolveHasMultipleBlockDescendants(entry);
     if (!blockContext) {
       // Never use full snapshot for prediction: Range.toString() often has no newlines between
       // blocks, so we would send concatenated "Wa"+"S". Use empty block context instead.
@@ -946,11 +951,6 @@ export class SuggestionManagerRuntime {
         safeForGrammar: false,
       };
     }
-    const beforeBlockBoundary = this.contentEditableAdapter.isCollapsedSelectionBeforeBlockBoundary(
-      entry.elem,
-    );
-    const resolvedHasMultipleBlockDescendants =
-      hasMultipleBlockDescendants ?? this.resolveHasMultipleBlockDescendants(entry);
     const useFullTextOffsets =
       blockContext.beforeCursor.length === 0 &&
       blockContext.afterCursor.length === 0 &&

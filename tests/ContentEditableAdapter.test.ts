@@ -431,6 +431,61 @@ describe("ContentEditableAdapter", () => {
     expect(context?.afterCursor).toBe("ep");
   });
 
+  test("uses leaf block when root boundary points at single wrapper child", () => {
+    const adapter = new ContentEditableAdapter();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML =
+      '<div class="wrapper"><div class="first"><span>Wan</span></div><div class="second"><span>t</span></div></div>';
+    document.body.appendChild(editable);
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Selection API unavailable");
+    }
+
+    const range = document.createRange();
+    range.setStart(editable, 1);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    const context = adapter.getBlockContext(editable);
+    expect(context).not.toBeNull();
+    expect(context?.beforeCursor).toBe("t");
+    expect(context?.afterCursor).toBe("");
+  });
+
+  test("scopes block context to the current br-separated line inside one paragraph", () => {
+    const adapter = new ContentEditableAdapter();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML =
+      '<p class="target" dir="auto"><span data-lexical-text="true">Wan</span><br><span data-lexical-text="true">t</span></p>';
+    document.body.appendChild(editable);
+
+    const textNode = editable.querySelectorAll("span")[1]?.firstChild;
+    if (!textNode || textNode.nodeType !== Node.TEXT_NODE) {
+      throw new Error("Expected second line text node");
+    }
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Selection API unavailable");
+    }
+
+    const range = document.createRange();
+    range.setStart(textNode, 1);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    const context = adapter.getBlockContext(editable);
+    expect(context).not.toBeNull();
+    expect(context?.beforeCursor).toBe("t");
+    expect(context?.afterCursor).toBe("");
+  });
+
   test("returns previous paragraph text when cursor is in second paragraph", () => {
     const adapter = new ContentEditableAdapter();
     const editable = document.createElement("div");
