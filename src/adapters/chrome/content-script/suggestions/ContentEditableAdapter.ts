@@ -295,25 +295,38 @@ export class ContentEditableAdapter {
     if (!block) {
       return null;
     }
-    // Descend to innermost block: if selection is at (block, offset) and a child at that boundary is a block, use it.
+    // Descend to the deepest block that still contains the live range start.
+    // This handles nested wrappers like root > div > div > p, and also the
+    // boundary case where the selection is at (block, offset) pointing at a
+    // block child.
     for (;;) {
-      const container = range.startContainer;
-      const offset = range.startOffset;
-      if (container !== block) {
+      let descended = false;
+      for (let i = 0; i < block.childNodes.length; i += 1) {
+        const child = block.childNodes[i];
+        if (
+          child.nodeType === Node.ELEMENT_NODE &&
+          BLOCK_TAGS.has((child as Element).tagName) &&
+          (child === range.startContainer || (child as Element).contains(range.startContainer))
+        ) {
+          block = child as HTMLElement;
+          descended = true;
+          break;
+        }
+      }
+      if (!descended && range.startContainer === block) {
+        const idx =
+          range.startOffset < block.childNodes.length
+            ? range.startOffset
+            : Math.max(0, range.startOffset - 1);
+        const child = block.childNodes[idx];
+        if (child?.nodeType === Node.ELEMENT_NODE && BLOCK_TAGS.has((child as Element).tagName)) {
+          block = child as HTMLElement;
+          descended = true;
+        }
+      }
+      if (!descended) {
         break;
       }
-      const childCount = block.childNodes.length;
-      const nextIndex = offset < childCount ? offset : offset - 1;
-      const child = nextIndex >= 0 && nextIndex < childCount ? block.childNodes[nextIndex] : null;
-      if (
-        child &&
-        child.nodeType === Node.ELEMENT_NODE &&
-        BLOCK_TAGS.has((child as Element).tagName)
-      ) {
-        block = child as HTMLElement;
-        continue;
-      }
-      break;
     }
     return block;
   }

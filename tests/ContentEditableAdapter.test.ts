@@ -400,4 +400,34 @@ describe("ContentEditableAdapter", () => {
     expect(contextInSecond?.beforeCursor).toBe("S");
     expect(contextInSecond?.afterCursor).toBe("");
   });
+
+  test("uses innermost block through deeper nested wrappers", () => {
+    const adapter = new ContentEditableAdapter();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML =
+      '<div class="outer"><div class="inner"><p class="target" dir="auto"><span data-lexical-text="true">Deep</span></p></div></div>';
+    document.body.appendChild(editable);
+
+    const textNode = editable.querySelector("p.target span")?.firstChild;
+    if (!textNode || textNode.nodeType !== Node.TEXT_NODE) {
+      throw new Error("Expected text node in nested paragraph");
+    }
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Selection API unavailable");
+    }
+
+    const range = document.createRange();
+    range.setStart(textNode, 2);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    const context = adapter.getBlockContext(editable);
+    expect(context).not.toBeNull();
+    expect(context?.beforeCursor).toBe("De");
+    expect(context?.afterCursor).toBe("ep");
+  });
 });
