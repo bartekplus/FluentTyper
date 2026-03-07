@@ -1,4 +1,5 @@
 import { createLogger } from "@core/application/logging/Logger";
+import { isInDocument } from "@core/application/dom-utils";
 import type {
   ContentScriptPredictRequestContext,
   PredictResponseContext,
@@ -178,8 +179,13 @@ export class ContentRuntimeController {
     } finally {
       if (this.enabled) {
         this.attachMutationObserver();
-        for (const o of this.shadowObservers.values()) {
-          o.attach();
+        for (const [root, observer] of this.shadowObservers.entries()) {
+          if (!isInDocument(root.host)) {
+            observer.disconnect();
+            this.shadowObservers.delete(root);
+          } else {
+            observer.attach();
+          }
         }
       }
     }

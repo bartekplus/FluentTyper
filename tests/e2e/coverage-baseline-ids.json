@@ -62,6 +62,7 @@
     "grammar_v3_english_language_guard",
     "grammar_v5_forced_migration",
     "input_type_eligibility",
-    "disabled_input_dynamic_reattach"
+    "disabled_input_dynamic_reattach",
+    "shadow_dom_discovery"
   ]
 }

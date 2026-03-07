@@ -927,6 +927,57 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "attaches to input inside open shadow root and shows suggestions on typing",
+    async () => {
+      await gotoTestPage(page);
+      await page.bringToFront();
+      await waitForInputReady(page, "#test-input");
+
+      // Inject a custom element with an open shadow root containing a text input.
+      await page.evaluate(() => {
+        class FtShadowTestComponent extends HTMLElement {
+          constructor() {
+            super();
+            const shadow = this.attachShadow({ mode: "open" });
+            const input = document.createElement("input");
+            input.type = "text";
+            shadow.appendChild(input);
+          }
+        }
+        customElements.define("ft-shadow-test-component", FtShadowTestComponent);
+        document.body.appendChild(document.createElement("ft-shadow-test-component"));
+      });
+
+      // Wait for the extension to discover and attach to the shadow-hosted input.
+      await waitUntil(
+        "shadow-hosted input to gain data-suggestion",
+        async () => {
+          const attached = await page.evaluate(() => {
+            const host = document.querySelector("ft-shadow-test-component");
+            return (
+              host?.shadowRoot?.querySelector("input")?.hasAttribute("data-suggestion") ?? false
+            );
+          });
+          return attached ? true : false;
+        },
+        { timeoutMs: timeoutProfile.inputReadyMs, intervalMs: 50 },
+      );
+
+      // Focus the shadow-hosted input and type; verify the suggestion popup appears.
+      await page.evaluate(() => {
+        const host = document.querySelector("ft-shadow-test-component");
+        (host?.shadowRoot?.querySelector("input") as HTMLInputElement | null)?.focus();
+      });
+      await page.keyboard.type("h");
+
+      const suggestions = await waitForSuggestionTexts(page);
+      expect(suggestions.length).toBeGreaterThan(0);
+      expect(suggestions[0]?.toLowerCase()).toMatch(/^h\S*/);
+    },
+    suiteTimeout(15000, 22000),
+  );
+
+  test(
     "reattaches to input when disabled attribute is removed and shows suggestions on typing",
     async () => {
       await gotoTestPage(page);
