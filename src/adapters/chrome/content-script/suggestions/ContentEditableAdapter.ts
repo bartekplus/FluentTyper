@@ -439,6 +439,8 @@ export class ContentEditableAdapter {
 
     for (const lineBreak of lineBreaks) {
       const breakStart = this.resolveNodeStartPosition(lineBreak);
+      // Void elements like <br> have no children, so start/end both collapse to
+      // {element, 0}; comparePositions still works because it follows DOM tree order.
       const breakEnd = this.resolveNodeEndPosition(lineBreak);
       if (this.comparePositions(breakEnd, startPosition) <= 0) {
         lineStart = breakEnd;
