@@ -39,6 +39,11 @@ export class ContentRuntimeController {
   public readonly domObserver: DomObserver;
   private readonly shadowObservers = new Map<ShadowRoot, DomObserver>();
   private shadowRootInterceptor: ShadowRootInterceptor | null = null;
+  private lateDiscoveryListenersAttached = false;
+  private readonly onDocumentFocusInBound: EventListener =
+    this.onDocumentPotentialLateTarget.bind(this);
+  private readonly onDocumentMouseDownBound: EventListener =
+    this.onDocumentPotentialLateTarget.bind(this);
 
   private _enabled = false;
   private onPredictionRequest: ((context: ContentScriptPredictRequestContext) => void) | null =
@@ -205,6 +210,7 @@ export class ContentRuntimeController {
       o.attach();
     }
     this.ensureShadowRootInterceptor();
+    this.ensureLateDiscoveryListeners();
   }
 
   disable(): void {
@@ -221,6 +227,7 @@ export class ContentRuntimeController {
     this.mutationScheduler.clear();
     this.suggestionManager?.detachAllHelpers();
     this.shadowRootInterceptor?.detach();
+    this.removeLateDiscoveryListeners();
   }
 
   restart(): void {
@@ -276,6 +283,54 @@ export class ContentRuntimeController {
       });
     }
     this.shadowRootInterceptor.attach();
+  }
+
+  private ensureLateDiscoveryListeners(): void {
+    if (this.lateDiscoveryListenersAttached) {
+      return;
+    }
+    document.addEventListener("focusin", this.onDocumentFocusInBound, true);
+    document.addEventListener("mousedown", this.onDocumentMouseDownBound, true);
+    this.lateDiscoveryListenersAttached = true;
+  }
+
+  private removeLateDiscoveryListeners(): void {
+    if (!this.lateDiscoveryListenersAttached) {
+      return;
+    }
+    document.removeEventListener("focusin", this.onDocumentFocusInBound, true);
+    document.removeEventListener("mousedown", this.onDocumentMouseDownBound, true);
+    this.lateDiscoveryListenersAttached = false;
+  }
+
+  private onDocumentPotentialLateTarget(event: Event): void {
+    if (!this.enabled || !this.suggestionManager) {
+      return;
+    }
+    const candidate = this.resolveLateDiscoveryCandidate(event);
+    if (!candidate) {
+      return;
+    }
+    this.suggestionManager.queryAndAttachHelper(candidate);
+    if (event.type === "focusin") {
+      this.suggestionManager.triggerActiveSuggestion();
+    }
+  }
+
+  private resolveLateDiscoveryCandidate(event: Event): Element | null {
+    for (const node of event.composedPath()) {
+      if (!(node instanceof Element)) {
+        continue;
+      }
+      if (node.matches(ContentRuntimeController.SELECTORS)) {
+        return node;
+      }
+      const matchingAncestor = node.closest(ContentRuntimeController.SELECTORS);
+      if (matchingAncestor) {
+        return matchingAncestor;
+      }
+    }
+    return null;
   }
 
   private initializeSuggestionManager(): void {

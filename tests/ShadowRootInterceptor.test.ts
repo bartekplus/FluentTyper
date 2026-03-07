@@ -101,9 +101,21 @@ describe("ShadowRootInterceptor", () => {
     const interceptor = new ShadowRootInterceptor(onShadowAttached);
     interceptor.attach();
 
-    // Simulate the patch firing from innerHost — composed:true so the event
-    // crosses the outer shadow boundary and reaches document.
-    innerHost.dispatchEvent(new CustomEvent(INTERCEPT_EVENT, { bubbles: true, composed: true }));
+    // Simulate browser retargeting by forcing composedPath()[0] to stay on the
+    // original dispatcher while the event bubbles out to document.
+    const event = new CustomEvent(INTERCEPT_EVENT, { bubbles: true, composed: true });
+    Object.defineProperty(event, "composedPath", {
+      value: () =>
+        [
+          innerHost,
+          outerShadow,
+          outerHost,
+          document.body,
+          document.documentElement,
+          document,
+        ].filter(Boolean),
+    });
+    innerHost.dispatchEvent(event);
 
     expect(onShadowAttached).toHaveBeenCalledWith(innerHost.shadowRoot);
 
@@ -127,6 +139,41 @@ describe("ShadowRootInterceptor", () => {
     innerHost.dispatchEvent(new CustomEvent(INTERCEPT_EVENT, { bubbles: true, composed: false }));
 
     expect(onShadowAttached).not.toHaveBeenCalled();
+
+    interceptor.detach();
+    outerHost.remove();
+  });
+
+  test("uses the original dispatcher from composedPath instead of the retargeted event.target", () => {
+    const outerHost = document.createElement("div");
+    document.body.appendChild(outerHost);
+    const outerShadow = outerHost.attachShadow({ mode: "open" });
+    const innerHost = document.createElement("div");
+    outerShadow.appendChild(innerHost);
+    innerHost.attachShadow({ mode: "open" });
+
+    const onShadowAttached = jest.fn();
+    const interceptor = new ShadowRootInterceptor(onShadowAttached);
+    interceptor.attach();
+
+    const event = new CustomEvent(INTERCEPT_EVENT, { bubbles: true, composed: true });
+    Object.defineProperty(event, "composedPath", {
+      value: () =>
+        [
+          innerHost,
+          outerShadow,
+          outerHost,
+          document.body,
+          document.documentElement,
+          document,
+        ].filter(Boolean),
+    });
+    Object.defineProperty(event, "target", { value: outerHost });
+
+    document.dispatchEvent(event);
+
+    expect(onShadowAttached).toHaveBeenCalledTimes(1);
+    expect(onShadowAttached.mock.calls[0]?.[0]).toBe(innerHost.shadowRoot);
 
     interceptor.detach();
     outerHost.remove();

@@ -1,3 +1,5 @@
+import { SHADOW_ATTACH_MARKER_ATTR } from "./ShadowRootInterceptor";
+
 /**
  * DomObserver class encapsulates MutationObserver logic for DOM changes.
  * It notifies a callback when relevant mutations occur.
@@ -35,6 +37,7 @@ export class DomObserver {
         "hidden",
         "disabled",
         "readonly",
+        SHADOW_ATTACH_MARKER_ATTR,
       ],
       subtree: true,
     });

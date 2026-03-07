@@ -5,14 +5,16 @@
  *
  * The interception is implemented by injecting a tiny <script> tag that runs
  * in the page's JavaScript context (which the extension's isolated world
- * cannot patch directly). A CustomEvent is dispatched on the host element when
- * an open shadow root is created; the content script's document listener picks
- * it up and forwards the shadow root to the caller.
+ * cannot patch directly). The patch both dispatches a CustomEvent and toggles
+ * a data attribute on the host so the content script can recover via its
+ * existing MutationObserver pipeline even when cross-world CustomEvent delivery
+ * is unreliable.
  *
  * Closed shadow roots are intentionally left unhandled.
  */
 
 const INTERCEPT_EVENT = "ft-shadow-attached";
+export const SHADOW_ATTACH_MARKER_ATTR = "data-ft-shadow-attached";
 
 // Idempotency flag stored on window to survive enable→disable→enable cycles
 // without double-patching attachShadow.
@@ -25,6 +27,7 @@ const INTERCEPT_SNIPPET = `(function(){
   Element.prototype.attachShadow = function(init) {
     var root = orig.call(this, init);
     if (init && init.mode === 'open') {
+      this.setAttribute(${JSON.stringify(SHADOW_ATTACH_MARKER_ATTR)}, 'true');
       this.dispatchEvent(new CustomEvent(${JSON.stringify(INTERCEPT_EVENT)}, {bubbles:true,composed:true}));
     }
     return root;
@@ -75,11 +78,14 @@ export class ShadowRootInterceptor {
   }
 
   private onEvent(event: Event): void {
-    const target = event.target;
-    if (!(target instanceof Element)) {
+    // For composed events crossing a shadow boundary, `event.target` is retargeted
+    // to the nearest visible host. The first composedPath() entry remains the
+    // original host that called attachShadow(), which is the root we need.
+    const source = event.composedPath()[0];
+    if (!(source instanceof Element)) {
       return;
     }
-    const { shadowRoot } = target;
+    const { shadowRoot } = source;
     if (!shadowRoot) {
       return;
     }

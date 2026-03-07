@@ -1006,6 +1006,13 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
         shadow.appendChild(input);
       });
 
+      // Focus the late shadow-hosted input so the runtime's interaction fallback
+      // can attach helpers even if attachShadow interception is unavailable.
+      await page.evaluate(() => {
+        const host = document.getElementById("ft-late-shadow-host");
+        (host?.shadowRoot?.querySelector("input") as HTMLInputElement | null)?.focus();
+      });
+
       // Wait for the extension to attach to the shadow-hosted input.
       await waitUntil(
         "late shadow root input to gain data-suggestion",
@@ -1022,10 +1029,77 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       );
 
       // Verify suggestions appear when the user types.
+      await page.keyboard.type("h");
+
+      const suggestions = await waitForSuggestionTexts(page);
+      expect(suggestions.length).toBeGreaterThan(0);
+      expect(suggestions[0]?.toLowerCase()).toMatch(/^h\S*/);
+    },
+    suiteTimeout(15000, 22000),
+  );
+
+  test(
+    "discovers input in nested shadow root created on a host inside another shadow tree",
+    async () => {
+      await gotoTestPage(page);
+      await page.bringToFront();
+      await waitForInputReady(page, "#test-input");
+
+      // Step 1: Create an outer shadow tree with an inner host but no inner
+      // shadow root yet. This exercises browser event retargeting when the late
+      // attachShadow() notification bubbles back to the document listener.
       await page.evaluate(() => {
-        const host = document.getElementById("ft-late-shadow-host");
-        (host?.shadowRoot?.querySelector("input") as HTMLInputElement | null)?.focus();
+        const outerHost = document.createElement("div");
+        outerHost.id = "ft-nested-shadow-outer-host";
+        document.body.appendChild(outerHost);
+
+        const outerShadow = outerHost.attachShadow({ mode: "open" });
+        const innerHost = document.createElement("div");
+        innerHost.id = "ft-nested-shadow-inner-host";
+        outerShadow.appendChild(innerHost);
       });
+
+      await new Promise<void>((resolve) => setTimeout(resolve, 100));
+
+      // Step 2: Attach an inner shadow root after the host is already stable in
+      // the outer shadow tree, then add an input. The extension must recover the
+      // original dispatcher via composedPath()[0], not the retargeted event.target.
+      await page.evaluate(() => {
+        const outerHost = document.getElementById("ft-nested-shadow-outer-host");
+        const innerHost = outerHost?.shadowRoot?.querySelector("#ft-nested-shadow-inner-host");
+        const innerShadow = (innerHost as HTMLElement | null)?.attachShadow({ mode: "open" });
+        const input = document.createElement("input");
+        input.type = "text";
+        innerShadow?.appendChild(input);
+      });
+
+      await page.evaluate(() => {
+        const outerHost = document.getElementById("ft-nested-shadow-outer-host");
+        const innerHost = outerHost?.shadowRoot?.querySelector("#ft-nested-shadow-inner-host");
+        (
+          (innerHost as HTMLElement | null)?.shadowRoot?.querySelector(
+            "input",
+          ) as HTMLInputElement | null
+        )?.focus();
+      });
+
+      await waitUntil(
+        "nested late shadow root input to gain data-suggestion",
+        async () => {
+          const attached = await page.evaluate(() => {
+            const outerHost = document.getElementById("ft-nested-shadow-outer-host");
+            const innerHost = outerHost?.shadowRoot?.querySelector("#ft-nested-shadow-inner-host");
+            return (
+              (innerHost as HTMLElement | null)?.shadowRoot
+                ?.querySelector("input")
+                ?.hasAttribute("data-suggestion") ?? false
+            );
+          });
+          return attached ? true : false;
+        },
+        { timeoutMs: timeoutProfile.inputReadyMs, intervalMs: 50 },
+      );
+
       await page.keyboard.type("h");
 
       const suggestions = await waitForSuggestionTexts(page);
