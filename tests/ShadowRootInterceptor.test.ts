@@ -103,9 +103,7 @@ describe("ShadowRootInterceptor", () => {
 
     // Simulate the patch firing from innerHost — composed:true so the event
     // crosses the outer shadow boundary and reaches document.
-    innerHost.dispatchEvent(
-      new CustomEvent(INTERCEPT_EVENT, { bubbles: true, composed: true }),
-    );
+    innerHost.dispatchEvent(new CustomEvent(INTERCEPT_EVENT, { bubbles: true, composed: true }));
 
     expect(onShadowAttached).toHaveBeenCalledWith(innerHost.shadowRoot);
 
