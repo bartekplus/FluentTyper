@@ -2899,7 +2899,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
                 return;
               }
 
-              const firstLineText = firstSpan.textContent ?? "";
+              const firstLineText = firstSpan.dataset.initialFirstLine ?? firstSpan.textContent ?? "";
               const fullText = paragraph.textContent ?? "";
               const secondLineText = fullText.startsWith(firstLineText)
                 ? fullText.slice(firstLineText.length)
@@ -2940,6 +2940,10 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             },
             { capture: true },
           );
+          const firstSpan = target.querySelector("span[data-lexical-text='true']");
+          if (firstSpan instanceof HTMLElement) {
+            firstSpan.dataset.initialFirstLine = firstSpan.textContent ?? "";
+          }
           target.focus();
 
           const secondSpan = target.querySelectorAll("span")[1];
