@@ -1,3 +1,24 @@
+const BLOCK_TAGS = new Set([
+  "P",
+  "DIV",
+  "LI",
+  "BLOCKQUOTE",
+  "PRE",
+  "TD",
+  "TH",
+  "H1",
+  "H2",
+  "H3",
+  "H4",
+  "H5",
+  "H6",
+]);
+
+const SHOW_TEXT =
+  (globalThis as { NodeFilter?: { SHOW_TEXT?: number } }).NodeFilter?.SHOW_TEXT ?? 4;
+const SHOW_ELEMENT =
+  (globalThis as { NodeFilter?: { SHOW_ELEMENT?: number } }).NodeFilter?.SHOW_ELEMENT ?? 1;
+
 interface ContentEditableDomPosition {
   container: Node;
   offset: number;
@@ -204,27 +225,11 @@ export class ContentEditableAdapter {
   }
 
   private resolveBlock(node: Node, root: HTMLElement): HTMLElement {
-    const blockTags = new Set([
-      "P",
-      "DIV",
-      "LI",
-      "BLOCKQUOTE",
-      "PRE",
-      "TD",
-      "TH",
-      "H1",
-      "H2",
-      "H3",
-      "H4",
-      "H5",
-      "H6",
-    ]);
-
     let current: HTMLElement | null =
       node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as HTMLElement | null);
 
     while (current && current !== root) {
-      if (blockTags.has(current.tagName)) {
+      if (BLOCK_TAGS.has(current.tagName)) {
         return current;
       }
       current = current.parentElement;
@@ -431,16 +436,12 @@ export class ContentEditableAdapter {
   }
 
   private findFirstTextNode(root: Node): Text | null {
-    const showText =
-      (globalThis as { NodeFilter?: { SHOW_TEXT?: number } }).NodeFilter?.SHOW_TEXT ?? 4;
-    const walker = document.createTreeWalker(root, showText);
+    const walker = document.createTreeWalker(root, SHOW_TEXT);
     return (walker.nextNode() as Text | null) ?? null;
   }
 
   private findLastTextNode(root: Node): Text | null {
-    const showText =
-      (globalThis as { NodeFilter?: { SHOW_TEXT?: number } }).NodeFilter?.SHOW_TEXT ?? 4;
-    const walker = document.createTreeWalker(root, showText);
+    const walker = document.createTreeWalker(root, SHOW_TEXT);
     let current = walker.nextNode() as Text | null;
     let last: Text | null = null;
     while (current) {
@@ -463,21 +464,7 @@ export class ContentEditableAdapter {
   }
 
   private isBlockElement(node: Element): boolean {
-    return new Set([
-      "P",
-      "DIV",
-      "LI",
-      "BLOCKQUOTE",
-      "PRE",
-      "TD",
-      "TH",
-      "H1",
-      "H2",
-      "H3",
-      "H4",
-      "H5",
-      "H6",
-    ]).has(node.tagName);
+    return BLOCK_TAGS.has(node.tagName);
   }
 
   private tryNativeReplacement(
@@ -693,9 +680,7 @@ export class ContentEditableAdapter {
     probeRange: Range,
     endpoint?: "start" | "end",
   ): ContentEditableDomPosition | null {
-    const showText =
-      (globalThis as { NodeFilter?: { SHOW_TEXT?: number } }).NodeFilter?.SHOW_TEXT ?? 4;
-    const walker = document.createTreeWalker(elem, showText);
+    const walker = document.createTreeWalker(elem, SHOW_TEXT);
     const entries: Array<{ node: Text; start: number; end: number; length: number }> = [];
     let current = walker.nextNode() as Text | null;
     while (current) {
@@ -813,9 +798,7 @@ export class ContentEditableAdapter {
     };
 
     addBoundaryCandidates(elem);
-    const showElement =
-      (globalThis as { NodeFilter?: { SHOW_ELEMENT?: number } }).NodeFilter?.SHOW_ELEMENT ?? 1;
-    const elementWalker = document.createTreeWalker(elem, showElement);
+    const elementWalker = document.createTreeWalker(elem, SHOW_ELEMENT);
     let currentElement = elementWalker.nextNode() as Element | null;
     while (currentElement) {
       addBoundaryCandidates(currentElement);

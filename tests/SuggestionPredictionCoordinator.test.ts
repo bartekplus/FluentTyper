@@ -154,6 +154,159 @@ describe("SuggestionPredictionCoordinator", () => {
     expect(getPrediction).not.toHaveBeenCalled();
   });
 
+  describe("isSeparator", () => {
+    function makeCoordinator(separatorRegex: RegExp) {
+      return new SuggestionPredictionCoordinator({
+        debounceByAction: ZERO_DEBOUNCE_BY_ACTION,
+        getPrediction: jest.fn(),
+        lang: "en_US",
+        minWordLengthToPredict: 1,
+        separatorRegex,
+      });
+    }
+
+    test("returns true for characters matching the separator regex", () => {
+      const coordinator = makeCoordinator(/\s/);
+      expect(coordinator.isSeparator(" ")).toBe(true);
+      expect(coordinator.isSeparator("\t")).toBe(true);
+      expect(coordinator.isSeparator("\n")).toBe(true);
+    });
+
+    test("returns false for non-separator characters", () => {
+      const coordinator = makeCoordinator(/\s/);
+      expect(coordinator.isSeparator("a")).toBe(false);
+      expect(coordinator.isSeparator("!")).toBe(false);
+      expect(coordinator.isSeparator("1")).toBe(false);
+    });
+
+    test("resets lastIndex for global regex so results are consistent across calls", () => {
+      const coordinator = makeCoordinator(/\s/g);
+      // Without lastIndex reset, alternating calls on a global regex
+      // would flip between truthy and falsy for the same input
+      expect(coordinator.isSeparator(" ")).toBe(true);
+      expect(coordinator.isSeparator(" ")).toBe(true);
+      expect(coordinator.isSeparator("a")).toBe(false);
+      expect(coordinator.isSeparator("a")).toBe(false);
+    });
+
+    test("resets lastIndex for sticky regex so results are consistent across calls", () => {
+      const coordinator = makeCoordinator(/\s/y);
+      expect(coordinator.isSeparator(" ")).toBe(true);
+      expect(coordinator.isSeparator(" ")).toBe(true);
+      expect(coordinator.isSeparator("a")).toBe(false);
+      expect(coordinator.isSeparator("a")).toBe(false);
+    });
+
+    test("non-global non-sticky regex works correctly without needing lastIndex reset", () => {
+      const coordinator = makeCoordinator(/\s/);
+      for (let i = 0; i < 5; i++) {
+        expect(coordinator.isSeparator(" ")).toBe(true);
+        expect(coordinator.isSeparator("a")).toBe(false);
+      }
+    });
+  });
+
+  describe("findMentionToken", () => {
+    function makeCoordinator(separatorRegex: RegExp = /\s/) {
+      return new SuggestionPredictionCoordinator({
+        debounceByAction: ZERO_DEBOUNCE_BY_ACTION,
+        getPrediction: jest.fn(),
+        lang: "en_US",
+        minWordLengthToPredict: 1,
+        separatorRegex,
+      });
+    }
+
+    test("returns entire string when no separator is present", () => {
+      const result = makeCoordinator().findMentionToken("hello");
+      expect(result.token).toBe("hello");
+      expect(result.start).toBe(0);
+    });
+
+    test("returns the last word after the final separator", () => {
+      const result = makeCoordinator().findMentionToken("hello world");
+      expect(result.token).toBe("world");
+      expect(result.start).toBe(6);
+    });
+
+    test("returns empty token when string ends with a separator", () => {
+      const result = makeCoordinator().findMentionToken("hello ");
+      expect(result.token).toBe("");
+      expect(result.start).toBe(6);
+    });
+
+    test("returns empty token and start 0 for empty input", () => {
+      const result = makeCoordinator().findMentionToken("");
+      expect(result.token).toBe("");
+      expect(result.start).toBe(0);
+    });
+
+    test("handles multiple separators in a row", () => {
+      const result = makeCoordinator().findMentionToken("one   two");
+      expect(result.token).toBe("two");
+      expect(result.start).toBe(6);
+    });
+
+    test("respects a multi-character-class separator regex", () => {
+      const result = makeCoordinator(/[\s,!]/).findMentionToken("hello, world!");
+      expect(result.token).toBe("");
+      expect(result.start).toBe(13);
+    });
+
+    test("returns last token in a three-word string", () => {
+      const result = makeCoordinator().findMentionToken("one two three");
+      expect(result.token).toBe("three");
+      expect(result.start).toBe(8);
+    });
+  });
+
+  describe("updateLang", () => {
+    test("changes isSeparator behavior when separator regex is updated", () => {
+      const coordinator = new SuggestionPredictionCoordinator({
+        debounceByAction: ZERO_DEBOUNCE_BY_ACTION,
+        getPrediction: jest.fn(),
+        lang: "en_US",
+        minWordLengthToPredict: 1,
+        separatorRegex: /\s/,
+      });
+
+      expect(coordinator.isSeparator(",")).toBe(false);
+      coordinator.updateLang("fr_FR", /[\s,]/);
+      expect(coordinator.isSeparator(",")).toBe(true);
+    });
+
+    test("correctly tracks lastIndex reset need when switching to a global regex", () => {
+      const coordinator = new SuggestionPredictionCoordinator({
+        debounceByAction: ZERO_DEBOUNCE_BY_ACTION,
+        getPrediction: jest.fn(),
+        lang: "en_US",
+        minWordLengthToPredict: 1,
+        separatorRegex: /\s/, // non-global — no reset needed
+      });
+
+      coordinator.updateLang("en_US", /\s/g); // now global — must reset lastIndex
+      expect(coordinator.isSeparator(" ")).toBe(true);
+      expect(coordinator.isSeparator(" ")).toBe(true); // would be false if reset was skipped
+    });
+
+    test("affects findMentionToken token boundary after separator change", () => {
+      const coordinator = new SuggestionPredictionCoordinator({
+        debounceByAction: ZERO_DEBOUNCE_BY_ACTION,
+        getPrediction: jest.fn(),
+        lang: "en_US",
+        minWordLengthToPredict: 1,
+        separatorRegex: /\s/,
+      });
+
+      // Before update: comma is part of the token
+      expect(coordinator.findMentionToken("hello,world").token).toBe("hello,world");
+
+      // After update: comma splits the token
+      coordinator.updateLang("en_US", /[\s,]/);
+      expect(coordinator.findMentionToken("hello,world").token).toBe("world");
+    });
+  });
+
   describe("action-aware debounce timing", () => {
     beforeEach(() => {
       jest.useFakeTimers();

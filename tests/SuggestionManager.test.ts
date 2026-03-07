@@ -46,6 +46,38 @@ function withFakeTimers(fn: () => void, ms: number): void {
   }
 }
 
+async function waitForNextCall(
+  mock: jest.Mock<(context: ContentScriptPredictRequestContext) => void>,
+  { timeout = 2000 }: { timeout?: number } = {},
+): Promise<ContentScriptPredictRequestContext> {
+  const baseline = mock.mock.calls.length;
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    if (mock.mock.calls.length > baseline) {
+      const last = mock.mock.calls.at(-1)?.[0];
+      if (last) {
+        return last;
+      }
+    }
+    await new Promise<void>((r) => setTimeout(r, 5));
+  }
+  throw new Error(`Expected getPrediction to be called within ${timeout}ms`);
+}
+
+async function waitFor(
+  condition: () => boolean,
+  { timeout = 2000 }: { timeout?: number } = {},
+): Promise<void> {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    if (condition()) {
+      return;
+    }
+    await new Promise<void>((r) => setTimeout(r, 5));
+  }
+  throw new Error(`Condition was not met within ${timeout}ms`);
+}
+
 function dispatchKeydown(
   target: HTMLElement,
   key: string,
