@@ -335,6 +335,35 @@ describe("ContentEditableAdapter", () => {
     expect(editable.querySelector(".gmail_signature_prefix")?.textContent).toBe("-- ");
   });
 
+  test("ignores nested signature br elements when resolving block context", () => {
+    const adapter = new ContentEditableAdapter();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML =
+      'asap<div><span class="gmail_signature_prefix">-- </span><br><div class="gmail_signature">Signature</div></div>';
+    document.body.appendChild(editable);
+
+    const textNode = editable.firstChild;
+    if (!textNode || textNode.nodeType !== Node.TEXT_NODE) {
+      throw new Error("Expected leading text node");
+    }
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Selection API unavailable");
+    }
+    const range = document.createRange();
+    range.setStart(textNode, 4);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    const context = adapter.getBlockContext(editable);
+    expect(context).not.toBeNull();
+    expect(context?.beforeCursor).toBe("asap");
+    expect(context?.afterCursor).toBe("");
+  });
+
   test("resolves block context to active line when caret is at root boundary", () => {
     const adapter = new ContentEditableAdapter();
     const editable = document.createElement("div");

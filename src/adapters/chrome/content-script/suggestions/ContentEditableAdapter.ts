@@ -427,7 +427,9 @@ export class ContentEditableAdapter {
     startPosition: ContentEditableDomPosition,
     endPosition: ContentEditableDomPosition,
   ): { beforeCursor: string; afterCursor: string } | null {
-    const lineBreaks = Array.from(block.querySelectorAll("br"));
+    const lineBreaks = Array.from(block.querySelectorAll("br")).filter(
+      (lineBreak) => !this.isNestedInsideDescendantBlock(lineBreak, block),
+    );
     if (lineBreaks.length === 0) {
       return null;
     }
@@ -460,6 +462,17 @@ export class ContentEditableAdapter {
       beforeCursor: beforeRange.toString(),
       afterCursor: afterRange.toString(),
     };
+  }
+
+  private isNestedInsideDescendantBlock(node: Element, block: HTMLElement): boolean {
+    let parent = node.parentElement;
+    while (parent && parent !== block) {
+      if (BLOCK_TAGS.has(parent.tagName)) {
+        return true;
+      }
+      parent = parent.parentElement;
+    }
+    return false;
   }
 
   /**
