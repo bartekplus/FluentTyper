@@ -102,6 +102,10 @@
       #test-quill .ql-editor {
         min-height: 80px;
       }
+
+      #test-lexical-editor {
+        min-height: 80px;
+      }
     </style>
   </head>
 
@@ -129,12 +133,17 @@
         <label for="test-quill">Quill</label>
         <div id="test-quill"></div>
       </div>
+      <div class="input-group" id="test-lexical-group">
+        <label for="test-lexical-editor">Lexical</label>
+        <div id="test-lexical-editor" contenteditable="true"></div>
+      </div>
     </div>
     <script>
       const params = new URLSearchParams(window.location.search);
       const testName = params.get("testName");
       const enableCkEditor = params.get("enableCkEditor") === "1";
       const enableQuill = params.get("enableQuill") === "1";
+      const enableLexical = params.get("enableLexical") === "1";
       if (testName) {
         document.getElementById("test-name").textContent = testName;
       }
@@ -217,6 +226,21 @@
         };
         script.onerror = () => {
           window.__testQuillError = "Failed to load Quill script";
+        };
+        document.head.appendChild(script);
+      }
+
+      window.__testLexicalReady = false;
+      window.__testLexicalError = null;
+      const lexicalGroup = document.getElementById("test-lexical-group");
+      if (!enableLexical) {
+        lexicalGroup.style.display = "none";
+      } else {
+        const script = document.createElement("script");
+        script.type = "module";
+        script.src = "/test-lexical-editor.js";
+        script.onerror = () => {
+          window.__testLexicalError = "Failed to load Lexical test editor script";
         };
         document.head.appendChild(script);
       }

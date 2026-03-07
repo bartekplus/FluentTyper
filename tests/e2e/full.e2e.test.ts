@@ -43,10 +43,17 @@ import {
 } from "./e2e-helpers";
 
 const TEST_PAGE_PATH = path.resolve(__dirname, "test-page.html");
+const TEST_LEXICAL_EDITOR_ENTRY_PATH = path.resolve(
+  __dirname,
+  "fixtures",
+  "lexical-test-editor.ts",
+);
+const TEST_LEXICAL_EDITOR_BUNDLE_PATH = "/test-lexical-editor.js";
 const TEST_HOST = "localhost";
 const SETTINGS_PREFIX = "store.settings.";
 const CKEDITOR_SELECTOR = ".ck-editor__editable";
 const QUILL_SELECTOR = ".ql-editor";
+const LEXICAL_SELECTOR = "#test-lexical-editor";
 const GENERIC_INPUT_SELECTORS = ["#test-input"] as const;
 const timeoutProfile = getTimeoutProfile();
 
@@ -68,6 +75,38 @@ function devRuntimeEach<T>(cases: readonly T[]) {
 
 function browserTimeout(chromeTimeoutMs: number, firefoxTimeoutMs: number) {
   return suiteTimeout(chromeTimeoutMs, firefoxTimeoutMs);
+}
+
+async function bundleLexicalTestEditor(): Promise<Buffer> {
+  const buildResult = await Bun.build({
+    entrypoints: [TEST_LEXICAL_EDITOR_ENTRY_PATH],
+    target: "browser",
+    format: "iife",
+    minify: false,
+    sourcemap: "none",
+    write: false,
+    define: {
+      "process.env.NODE_ENV": JSON.stringify("production"),
+    },
+  });
+  if (!buildResult.success) {
+    const errors = buildResult.logs
+      .map((log) => {
+        const location = log.position
+          ? `${log.position.file}:${log.position.line}:${log.position.column}`
+          : "unknown";
+        return `[${log.level}] ${location} ${log.message}`;
+      })
+      .join("\n");
+    throw new Error(`Failed to bundle Lexical test editor:\n${errors}`);
+  }
+
+  const bundle = buildResult.outputs[0];
+  if (!bundle) {
+    throw new Error("Lexical test editor bundle output is missing");
+  }
+
+  return Buffer.from(await bundle.arrayBuffer());
 }
 
 type OnboardingViewportSnapshot = {
@@ -187,7 +226,7 @@ function isClosedPageContext(context: BackgroundContext | null): boolean {
 
 function isRetriableWorkerError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
-  return /chrome\.storage\.local is unavailable|reading 'local'|chrome\.runtime\.getURL is unavailable|runtime\.getURL|Execution context was destroyed|Execution context is not available in detached frame or worker|Cannot find context with specified id|Target closed|Session closed/i.test(
+  return /chrome\.storage\.local is unavailable|reading 'local'|chrome\.runtime\.getURL is unavailable|runtime\.getURL|Execution context was destroyed|Execution context is not available in detached frame or worker|Cannot find context with specified id|Target closed|Session closed|Timed out after waiting \d+ms/i.test(
     message,
   );
 }
@@ -776,7 +815,7 @@ async function pressNativeUndo(page: Page, selector: string): Promise<void> {
 
 async function gotoTestPage(
   page: Page,
-  options: { enableCkEditor?: boolean; enableQuill?: boolean } = {},
+  options: { enableCkEditor?: boolean; enableQuill?: boolean; enableLexical?: boolean } = {},
 ) {
   const testName =
     typeof expect.getState === "function"
@@ -788,6 +827,9 @@ async function gotoTestPage(
   }
   if (options.enableQuill) {
     params.set("enableQuill", "1");
+  }
+  if (options.enableLexical) {
+    params.set("enableLexical", "1");
   }
   // Use a local HTTP server instead of file:// so host permissions apply consistently.
   const targetUrl = `${domainTestUrl}?${params.toString()}`;
@@ -884,6 +926,62 @@ async function waitForInputReady(page: Page, selector: string) {
       },
       { timeoutMs: INPUT_READY_TIMEOUT_MS, intervalMs: 50 },
     );
+  }
+
+  if (selector === LEXICAL_SELECTOR) {
+    await waitUntil(
+      `Lexical readiness for ${selector}`,
+      async () => {
+        const lexicalState = await page.evaluate(() => ({
+          ready: Boolean(
+            (
+              window as typeof window & {
+                __testLexicalReady?: boolean;
+              }
+            ).__testLexicalReady,
+          ),
+          error:
+            (
+              window as typeof window & {
+                __testLexicalError?: string | null;
+              }
+            ).__testLexicalError ?? null,
+          hasParagraph: document.querySelectorAll("#test-lexical-editor p").length > 0,
+          isContentEditable:
+            document.querySelector("#test-lexical-editor") instanceof HTMLElement
+              ? (document.querySelector("#test-lexical-editor") as HTMLElement).isContentEditable
+              : false,
+        }));
+
+        if (lexicalState.error) {
+          throw new Error(`Lexical failed to initialize: ${lexicalState.error}`);
+        }
+        return lexicalState.ready && lexicalState.hasParagraph && lexicalState.isContentEditable;
+      },
+      { timeoutMs: INPUT_READY_TIMEOUT_MS, intervalMs: 50 },
+    ).catch(async (error) => {
+      const debugState = await page.evaluate(() => ({
+        href: window.location.href,
+        ready: (
+          window as typeof window & {
+            __testLexicalReady?: boolean;
+          }
+        ).__testLexicalReady,
+        lexicalError: (
+          window as typeof window & {
+            __testLexicalError?: string | null;
+          }
+        ).__testLexicalError,
+        html: document.querySelector("#test-lexical-editor")?.innerHTML ?? null,
+        isContentEditable:
+          document.querySelector("#test-lexical-editor") instanceof HTMLElement
+            ? (document.querySelector("#test-lexical-editor") as HTMLElement).isContentEditable
+            : false,
+      }));
+      throw new Error(
+        `Lexical readiness timed out for ${selector}: ${JSON.stringify(debugState)} (${String(error)})`,
+      );
+    });
   }
 
   await page.waitForSelector(selector, { timeout: INPUT_READY_TIMEOUT_MS });
@@ -1075,6 +1173,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   let worker: BackgroundContext;
   let domainTestServer: Server;
   let domainTestHtml: string;
+  let lexicalTestEditorBundle: Buffer;
   let startupFirefoxInstallationPage: Page | null = null;
 
   beforeAll(async () => {
@@ -1088,8 +1187,17 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     }
     worker = await reacquireWorkerContext(browser, "initial background worker context");
     domainTestHtml = fs.readFileSync(TEST_PAGE_PATH, "utf8");
+    lexicalTestEditorBundle = await bundleLexicalTestEditor();
 
     domainTestServer = createServer((req, res) => {
+      if (req.url === TEST_LEXICAL_EDITOR_BUNDLE_PATH) {
+        res.writeHead(200, {
+          "Content-Type": "application/javascript; charset=utf-8",
+          "Content-Length": lexicalTestEditorBundle.length,
+        });
+        res.end(lexicalTestEditorBundle);
+        return;
+      }
       if (req.url && (req.url.includes("ckeditor5.umd.js") || req.url.includes("ckeditor.js"))) {
         try {
           const ckeditorPath = path.resolve(
@@ -2738,6 +2846,136 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
         expect(trace.text?.toLowerCase()).toBe("firstblockalpha");
         expect(trace.predictionInput?.toLowerCase()).toBe("firstblockalpha");
+      } finally {
+        if (!optionsPage.isClosed()) {
+          await optionsPage.close();
+        }
+      }
+    },
+    browserTimeout(20000, 35000),
+  );
+
+  test(
+    "keeps second-line prediction block-local after Enter in real Lexical editor",
+    async () => {
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await applyConfigChange(browser, worker!);
+
+      await gotoTestPage(page, { enableLexical: true });
+      await page.bringToFront();
+      await waitForInputReady(page, LEXICAL_SELECTOR);
+      await page.focus(LEXICAL_SELECTOR);
+      await page.keyboard.type("FirstBlockAlpha");
+      await waitUntil(
+        "Lexical first paragraph text",
+        async () =>
+          await page.evaluate(
+            () =>
+              document.querySelector("#test-lexical-editor p")?.textContent === "FirstBlockAlpha",
+          ),
+        {
+          timeoutMs: browserTimeout(3000, 7000),
+          intervalMs: 50,
+        },
+      );
+      await page.evaluate(() => {
+        const target = document.querySelector("#test-lexical-editor");
+        if (!(target instanceof HTMLElement)) {
+          throw new Error("Lexical editor not found");
+        }
+
+        target.focus();
+
+        const firstText = target.querySelector("p span[data-lexical-text='true']")?.firstChild;
+        if (!(firstText instanceof Text)) {
+          throw new Error("Lexical first paragraph text node not found");
+        }
+
+        const selection = window.getSelection();
+        if (!selection) {
+          throw new Error("Selection unavailable");
+        }
+
+        const range = document.createRange();
+        range.setStart(firstText, firstText.textContent?.length ?? 0);
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      });
+      await page.keyboard.press("Enter");
+      await waitUntil(
+        "Lexical creates second paragraph after Enter",
+        async () =>
+          await page.evaluate(() => {
+            const paragraphs = Array.from(document.querySelectorAll("#test-lexical-editor p"));
+            if (paragraphs.length < 2) {
+              return false;
+            }
+            const texts = paragraphs.map((paragraph) => paragraph.textContent ?? "");
+            return texts[0] === "FirstBlockAlpha" && texts[1].trim() === "";
+          }),
+        {
+          timeoutMs: browserTimeout(3000, 7000),
+          intervalMs: 50,
+        },
+      );
+
+      const optionsPage = await openOptionsPage(browser, worker!);
+      try {
+        const baselineSnapshot = await getPredictorDebugSnapshot(optionsPage);
+        const baselineTraceIds = new Set(
+          (baselineSnapshot.traces ?? [])
+            .map((trace) => trace.traceId)
+            .filter((traceId): traceId is string => typeof traceId === "string"),
+        );
+
+        await page.bringToFront();
+        await page.evaluate(() => {
+          const target = document.querySelector("#test-lexical-editor");
+          if (!(target instanceof HTMLElement)) {
+            throw new Error("Lexical editor not found");
+          }
+
+          const paragraphs = target.querySelectorAll("p");
+          const secondParagraph = paragraphs.item(1);
+          if (!(secondParagraph instanceof HTMLElement)) {
+            throw new Error("Lexical second paragraph not found");
+          }
+
+          target.focus();
+
+          const selection = window.getSelection();
+          if (!selection) {
+            throw new Error("Selection unavailable");
+          }
+
+          const range = document.createRange();
+          range.setStart(secondParagraph, 0);
+          range.collapse(true);
+          selection.removeAllRanges();
+          selection.addRange(range);
+        });
+        await page.keyboard.type("s");
+
+        const trace = await waitForPredictorTrace(
+          optionsPage,
+          (candidate) => {
+            if (!candidate.traceId || baselineTraceIds.has(candidate.traceId)) {
+              return false;
+            }
+            const predictionInput = candidate.predictionInput?.toLowerCase() ?? "";
+            const requestText = candidate.text?.toLowerCase() ?? "";
+            return predictionInput.includes("s") || requestText.includes("s");
+          },
+          browserTimeout(5000, 12000),
+        );
+
+        expect(trace.text?.toLowerCase()).toContain("s");
+        expect(trace.text?.toLowerCase()).not.toContain("firstblockalpha");
+        expect(trace.predictionInput?.toLowerCase()).toContain("s");
+        expect(trace.predictionInput?.toLowerCase()).not.toContain("firstblockalpha");
       } finally {
         if (!optionsPage.isClosed()) {
           await optionsPage.close();

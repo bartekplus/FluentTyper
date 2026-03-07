@@ -307,6 +307,11 @@
           "test": "block-local prediction in Lexical/Reddit contenteditable"
         },
         {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "keeps second-line prediction block-local after Enter in real Lexical editor"
+        },
+        {
           "layer": "unit",
           "file": "tests/SuggestionManager.test.ts",
           "test": "sends block-local text for contenteditable with wrapper div (Lexical/Reddit)"
