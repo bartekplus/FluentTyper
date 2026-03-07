@@ -1202,6 +1202,56 @@ describe("SuggestionManager", () => {
     expect(request.nextChar).toBe("");
   });
 
+  test("restores previous-block prediction immediately after Enter in wrapper div", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+    });
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML =
+      '<div><p class="first" dir="auto"><span data-lexical-text="true">Wa</span></p></div>';
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    const wrapper = editable.querySelector("div");
+    const firstText = editable.querySelector("p.first span")?.firstChild as Text | null;
+    if (!wrapper || !firstText) {
+      throw new Error("Expected wrapper and first paragraph text");
+    }
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Expected selection");
+    }
+
+    const firstRange = document.createRange();
+    firstRange.setStart(firstText, firstText.textContent?.length ?? 0);
+    firstRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(firstRange);
+
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+    const baselineCalls = getPrediction.mock.calls.length;
+
+    dispatchKeydown(editable, "Enter");
+    wrapper.insertAdjacentHTML(
+      "beforeend",
+      '<p class="second" dir="auto"><span data-lexical-text="true"></span></p>',
+    );
+    const enterRange = document.createRange();
+    enterRange.setStart(wrapper, 1);
+    enterRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(enterRange);
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+
+    const request = await waitForNextCall(getPrediction);
+    expect(getPrediction.mock.calls.length).toBeGreaterThan(baselineCalls);
+    expect(request.text).toBe("Wa");
+    expect(request.nextChar).toBe("");
+  });
+
   test("keeps second-line prediction block-local after Enter with root paragraphs (Reddit actual DOM)", async () => {
     const { manager, getPrediction } = await createManager({
       minWordLengthToPredict: 1,
@@ -1263,6 +1313,54 @@ describe("SuggestionManager", () => {
     const request = await waitForNextCall(getPrediction);
     expect(getPrediction.mock.calls.length).toBeGreaterThan(baselineCalls);
     expect(request.text).toBe("S");
+    expect(request.nextChar).toBe("");
+  });
+
+  test("restores previous-block prediction immediately after Enter with root paragraphs", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+    });
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML = '<p class="first" dir="auto"><span data-lexical-text="true">Wa</span></p>';
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    const firstText = editable.querySelector("p.first span")?.firstChild as Text | null;
+    if (!firstText) {
+      throw new Error("Expected first paragraph text");
+    }
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Expected selection");
+    }
+
+    const firstRange = document.createRange();
+    firstRange.setStart(firstText, firstText.textContent?.length ?? 0);
+    firstRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(firstRange);
+
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+    const baselineCalls = getPrediction.mock.calls.length;
+
+    dispatchKeydown(editable, "Enter");
+    editable.insertAdjacentHTML(
+      "beforeend",
+      '<p class="second" dir="auto"><span data-lexical-text="true"></span></p>',
+    );
+    const enterRange = document.createRange();
+    enterRange.setStart(editable, 1);
+    enterRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(enterRange);
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+
+    const request = await waitForNextCall(getPrediction);
+    expect(getPrediction.mock.calls.length).toBeGreaterThan(baselineCalls);
+    expect(request.text).toBe("Wa");
     expect(request.nextChar).toBe("");
   });
 

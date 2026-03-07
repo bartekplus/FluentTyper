@@ -944,11 +944,15 @@ export class SuggestionManagerRuntime {
       blockContext.afterCursor.length === 0 &&
       beforeBlockBoundary;
     if (useFullTextOffsets) {
-      // Use block context (empty) for prediction so we never send full root text.
-      // Keep applyContext with full text for grammar/apply logic only.
+      const previousBlockFallback = hasMultipleBlockDescendants
+        ? this.contentEditableAdapter.getPreviousBlockTextBySelection(entry.elem)
+        : null;
+      // Use only the previous block's trailing line for prediction when Enter
+      // lands in a brand-new empty block. Keep applyContext rooted in the full
+      // snapshot for DOM/apply logic so we never edit outside the active block.
       return {
-        beforeCursor: blockContext.beforeCursor,
-        afterCursor: blockContext.afterCursor,
+        beforeCursor: previousBlockFallback ?? "",
+        afterCursor: "",
         snapshot,
         applyContext: {
           beforeCursor: snapshot.beforeCursor,
@@ -1485,6 +1489,13 @@ export class SuggestionManagerRuntime {
     const textChanged =
       pending.expectedFullText !== null && currentFullText !== pending.expectedFullText;
     if (textChanged) {
+      return false;
+    }
+    const shouldReconcileEnterAtEmptyBoundary =
+      pending.typedKey === "Enter" &&
+      this.contentEditableAdapter.hasMultipleBlockDescendants(entry.elem) &&
+      this.contentEditableAdapter.isCollapsedSelectionBeforeBlockBoundary(entry.elem);
+    if (shouldReconcileEnterAtEmptyBoundary) {
       return false;
     }
 

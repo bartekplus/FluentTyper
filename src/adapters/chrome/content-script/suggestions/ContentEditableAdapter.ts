@@ -247,6 +247,42 @@ export class ContentEditableAdapter {
     return this.getBlockContextByWalking(elem, range);
   }
 
+  public getPreviousBlockTextBySelection(elem: HTMLElement): string | null {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      return null;
+    }
+
+    const range = selection.getRangeAt(0);
+    const targetNode = elem as Node;
+    const startInside =
+      range.startContainer === targetNode || targetNode.contains(range.startContainer);
+    const endInside = range.endContainer === targetNode || targetNode.contains(range.endContainer);
+    if (!startInside || !endInside) {
+      return null;
+    }
+
+    const currentBlock = this.resolveActiveBlockForRange(elem, range);
+    if (!currentBlock || currentBlock === elem) {
+      return null;
+    }
+
+    const blockElements = this.collectLeafBlockElements(elem);
+    const currentBlockIndex = blockElements.indexOf(currentBlock);
+    if (currentBlockIndex <= 0) {
+      return null;
+    }
+
+    for (let index = currentBlockIndex - 1; index >= 0; index -= 1) {
+      const previousBlockText = this.extractTrailingLineText(blockElements[index]);
+      if (previousBlockText.length > 0) {
+        return previousBlockText;
+      }
+    }
+
+    return null;
+  }
+
   public hasMultipleBlockDescendants(elem: HTMLElement): boolean {
     let blockCount = 0;
     const walker = document.createTreeWalker(elem, SHOW_ELEMENT);
@@ -273,7 +309,7 @@ export class ContentEditableAdapter {
     root: HTMLElement,
     range: Range,
   ): { beforeCursor: string; afterCursor: string } | null {
-    const block = this.findInnermostBlockContainingRange(root, range);
+    const block = this.resolveActiveBlockForRange(root, range);
     if (!block) {
       return null;
     }
@@ -301,6 +337,57 @@ export class ContentEditableAdapter {
     } catch {
       return null;
     }
+  }
+
+  private resolveActiveBlockForRange(root: HTMLElement, range: Range): HTMLElement | null {
+    const resolvedBlock = this.resolveBlockFromPoint(
+      range.startContainer,
+      range.startOffset,
+      root,
+      true,
+    );
+    const innermost = this.findInnermostBlockContainingRange(root, range);
+    if (innermost && (root === resolvedBlock || resolvedBlock.contains(innermost))) {
+      return innermost;
+    }
+    return resolvedBlock === root || BLOCK_TAGS.has(resolvedBlock.tagName) ? resolvedBlock : null;
+  }
+
+  private collectLeafBlockElements(root: HTMLElement): HTMLElement[] {
+    const blocks: HTMLElement[] = [];
+    const walker = document.createTreeWalker(root, SHOW_ELEMENT);
+    let current = walker.nextNode() as Element | null;
+    while (current) {
+      if (
+        current !== root &&
+        BLOCK_TAGS.has(current.tagName) &&
+        !this.hasBlockDescendant(current)
+      ) {
+        blocks.push(current as HTMLElement);
+      }
+      current = walker.nextNode() as Element | null;
+    }
+    return blocks;
+  }
+
+  private hasBlockDescendant(elem: Element): boolean {
+    const walker = document.createTreeWalker(elem, SHOW_ELEMENT);
+    let current = walker.nextNode() as Element | null;
+    while (current) {
+      if (current !== elem && BLOCK_TAGS.has(current.tagName)) {
+        return true;
+      }
+      current = walker.nextNode() as Element | null;
+    }
+    return false;
+  }
+
+  private extractTrailingLineText(block: HTMLElement): string {
+    const blockRange = document.createRange();
+    blockRange.selectNodeContents(block);
+    const blockText = blockRange.toString();
+    const trailingLine = blockText.split(/\r?\n/).at(-1) ?? "";
+    return trailingLine.trim();
   }
 
   private mapRangeEndpointIntoBlock(

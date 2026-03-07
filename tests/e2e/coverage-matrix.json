@@ -208,6 +208,27 @@
       ]
     },
     {
+      "id": "contenteditable_enter_restores_previous_block_prediction",
+      "description": "After Enter creates an empty new contenteditable block, prediction can restore immediately from the previous block without concatenating root text.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "restores prediction immediately after Enter in Lexical/Reddit contenteditable"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionManager.test.ts",
+          "test": "restores previous-block prediction immediately after Enter in wrapper div"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionManager.test.ts",
+          "test": "restores previous-block prediction immediately after Enter with root paragraphs"
+        }
+      ]
+    },
+    {
       "id": "contenteditable_rich_format_preservation",
       "description": "Contenteditable acceptance keeps surrounding rich formatting nodes.",
       "coverage": [
