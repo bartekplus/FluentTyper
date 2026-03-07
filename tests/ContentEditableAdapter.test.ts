@@ -357,4 +357,48 @@ describe("ContentEditableAdapter", () => {
     expect(context?.beforeCursor).toBe("");
     expect(context?.afterCursor).toBe("word");
   });
+
+  test("uses innermost block when wrapper div contains multiple paragraphs (Lexical/Reddit)", () => {
+    const adapter = new ContentEditableAdapter();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML =
+      '<div><p class="first" dir="auto"><span data-lexical-text="true">Wa</span></p><p class="second" dir="auto"><span data-lexical-text="true">S</span></p></div>';
+    document.body.appendChild(editable);
+
+    const wrapper = editable.querySelector("div")!;
+    const firstP = editable.querySelector("p.first")!;
+    const secondP = editable.querySelector("p.second")!;
+    const secondSpan = secondP.querySelector("span")!;
+    const secondText = secondSpan.firstChild as Text;
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Selection API unavailable");
+    }
+
+    // Cursor at (wrapper, 1) – between the two <p>s – should resolve to second paragraph, not full "Wa" + "S".
+    const rangeAtBoundary = document.createRange();
+    rangeAtBoundary.setStart(wrapper, 1);
+    rangeAtBoundary.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(rangeAtBoundary);
+
+    const contextAtBoundary = adapter.getBlockContext(editable);
+    expect(contextAtBoundary).not.toBeNull();
+    expect(contextAtBoundary?.beforeCursor).toBe("");
+    expect(contextAtBoundary?.afterCursor).toBe("S");
+
+    // Cursor after "S" in second paragraph – should still be block-local.
+    const rangeInSecond = document.createRange();
+    rangeInSecond.setStart(secondText, secondText.textContent?.length ?? 0);
+    rangeInSecond.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(rangeInSecond);
+
+    const contextInSecond = adapter.getBlockContext(editable);
+    expect(contextInSecond).not.toBeNull();
+    expect(contextInSecond?.beforeCursor).toBe("S");
+    expect(contextInSecond?.afterCursor).toBe("");
+  });
 });

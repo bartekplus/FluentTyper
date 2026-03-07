@@ -170,21 +170,62 @@ export class ContentEditableAdapter {
       elem,
     );
     const endPoint = this.resolvePointWithinBlock(range.endContainer, range.endOffset, block, elem);
-    if (!startPoint || !endPoint) {
+    if (startPoint && endPoint) {
+      const beforeRange = range.cloneRange();
+      beforeRange.selectNodeContents(block);
+      beforeRange.setEnd(startPoint.container, startPoint.offset);
+
+      const afterRange = range.cloneRange();
+      afterRange.selectNodeContents(block);
+      afterRange.setStart(endPoint.container, endPoint.offset);
+
+      return {
+        beforeCursor: beforeRange.toString(),
+        afterCursor: afterRange.toString(),
+      };
+    }
+
+    // Fallback when resolvePointWithinBlock fails (e.g. some Lexical/Reddit DOM): find block
+    // by walking up from selection and compute text within that block only.
+    return this.getBlockContextByWalking(elem, range);
+  }
+
+  /**
+   * Fallback: find the block element containing the selection by walking up from
+   * startContainer, then return before/after cursor text within that block only.
+   * Used when the normal path returns null (e.g. Reddit/Lexical DOM).
+   */
+  private getBlockContextByWalking(
+    root: HTMLElement,
+    range: Range,
+  ): { beforeCursor: string; afterCursor: string } | null {
+    let block: HTMLElement | null = null;
+    let current: Node | null = range.startContainer;
+    const rootNode = root as Node;
+    while (current && current !== rootNode) {
+      if (current.nodeType === Node.ELEMENT_NODE && BLOCK_TAGS.has((current as Element).tagName)) {
+        block = current as HTMLElement;
+        break;
+      }
+      current = current.parentNode;
+    }
+    if (!block) {
       return null;
     }
-    const beforeRange = range.cloneRange();
-    beforeRange.selectNodeContents(block);
-    beforeRange.setEnd(startPoint.container, startPoint.offset);
-
-    const afterRange = range.cloneRange();
-    afterRange.selectNodeContents(block);
-    afterRange.setStart(endPoint.container, endPoint.offset);
-
-    return {
-      beforeCursor: beforeRange.toString(),
-      afterCursor: afterRange.toString(),
-    };
+    try {
+      const beforeRange = document.createRange();
+      beforeRange.selectNodeContents(block);
+      beforeRange.setEnd(range.startContainer, range.startOffset);
+      const afterRange = document.createRange();
+      afterRange.selectNodeContents(block);
+      afterRange.setStart(range.endContainer, range.endOffset);
+      return {
+        beforeCursor: beforeRange.toString(),
+        afterCursor: afterRange.toString(),
+      };
+    } catch {
+      return null;
+    }
   }
 
   public isCollapsedSelectionBeforeBlockBoundary(elem: HTMLElement): boolean {
@@ -255,7 +296,45 @@ export class ContentEditableAdapter {
       }
     }
 
-    return this.resolveBlock(node, root);
+    let block = this.resolveBlock(node, root);
+    // When the block is a container with block children at this offset, use the
+    // innermost block (e.g. Lexical/Reddit: root -> div -> p, p; cursor at (div, 1) must use second p,
+    // not the wrapper div, so prediction uses "S" only, not "Wa" + "S").
+    if (block !== root && block.nodeType === Node.ELEMENT_NODE) {
+      const el = block as Element;
+      const childOffset =
+        node === block ? offset : this.getOffsetOfNodeInBlock(block, node, offset);
+      const adjacent = this.pickAdjacentChildAtOffset(el, childOffset, preferForward);
+      if (
+        adjacent &&
+        adjacent.nodeType === Node.ELEMENT_NODE &&
+        this.isBlockElement(adjacent as Element)
+      ) {
+        const innerOffset = preferForward ? 0 : (adjacent.childNodes?.length ?? 0);
+        return this.resolveBlockFromPoint(adjacent, innerOffset, root, preferForward);
+      }
+    }
+    return block;
+  }
+
+  /** Child index of block that contains the given node (for resolving innermost block). */
+  private getOffsetOfNodeInBlock(block: HTMLElement, node: Node, _offset: number): number {
+    if (node === block) {
+      return _offset;
+    }
+    let current: Node | null = node;
+    const blockNode = block as Node;
+    while (current && current !== blockNode) {
+      const parent = current.parentNode;
+      if (parent === blockNode) {
+        return Array.prototype.indexOf.call(block.childNodes, current);
+      }
+      if (!parent) {
+        return 0;
+      }
+      current = parent;
+    }
+    return 0;
   }
 
   private pickAdjacentChildAtOffset(
@@ -302,7 +381,34 @@ export class ContentEditableAdapter {
       return { container: block, offset: block.childNodes.length };
     }
 
+    // Container is an ancestor of block (e.g. Lexical wrapper div with block = child <p>).
+    if (
+      container.nodeType === Node.ELEMENT_NODE &&
+      (container as Element).contains(block)
+    ) {
+      const containerEl = container as Element;
+      const blockIndex = this.getBlockChildIndex(containerEl, block);
+      if (blockIndex < 0) {
+        return null;
+      }
+      if (offset <= blockIndex) {
+        return { container: block, offset: 0 };
+      }
+      return { container: block, offset: block.childNodes.length };
+    }
+
     return null;
+  }
+
+  /** Index of the direct child of container that contains or is the block. */
+  private getBlockChildIndex(container: Element, block: HTMLElement): number {
+    for (let i = 0; i < container.childNodes.length; i++) {
+      const child = container.childNodes[i];
+      if (child === block || (child.nodeType === Node.ELEMENT_NODE && (child as Element).contains(block))) {
+        return i;
+      }
+    }
+    return -1;
   }
 
   private dispatchReplacementBeforeInput(
