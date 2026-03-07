@@ -44,6 +44,8 @@ export class ContentRuntimeController {
     this.onDocumentPotentialLateTarget.bind(this);
   private readonly onDocumentMouseDownBound: EventListener =
     this.onDocumentPotentialLateTarget.bind(this);
+  private readonly onDocumentInputBound: EventListener =
+    this.onDocumentPotentialLateTarget.bind(this);
 
   private _enabled = false;
   private onPredictionRequest: ((context: ContentScriptPredictRequestContext) => void) | null =
@@ -291,6 +293,7 @@ export class ContentRuntimeController {
     }
     document.addEventListener("focusin", this.onDocumentFocusInBound, true);
     document.addEventListener("mousedown", this.onDocumentMouseDownBound, true);
+    document.addEventListener("input", this.onDocumentInputBound, true);
     this.lateDiscoveryListenersAttached = true;
   }
 
@@ -300,6 +303,7 @@ export class ContentRuntimeController {
     }
     document.removeEventListener("focusin", this.onDocumentFocusInBound, true);
     document.removeEventListener("mousedown", this.onDocumentMouseDownBound, true);
+    document.removeEventListener("input", this.onDocumentInputBound, true);
     this.lateDiscoveryListenersAttached = false;
   }
 
@@ -312,7 +316,7 @@ export class ContentRuntimeController {
       return;
     }
     this.suggestionManager.queryAndAttachHelper(candidate);
-    if (event.type === "focusin") {
+    if (event.type === "focusin" || event.type === "input") {
       this.suggestionManager.triggerActiveSuggestion();
     }
   }

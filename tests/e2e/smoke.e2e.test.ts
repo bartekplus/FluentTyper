@@ -948,9 +948,8 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
         document.body.appendChild(document.createElement("ft-shadow-test-component"));
       });
 
-      // Focus the shadow-hosted input first. Firefox does not consistently
-      // expose the eager attachment marker for this path, but the runtime's
-      // focus-driven discovery should still attach before the user types.
+      // Focus the shadow-hosted input first. The runtime now has a document-level
+      // input fallback for cases where Firefox misses the earlier discovery hook.
       await page.evaluate(() => {
         const host = document.querySelector("ft-shadow-test-component");
         (host?.shadowRoot?.querySelector("input") as HTMLInputElement | null)?.focus();
