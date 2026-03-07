@@ -357,29 +357,20 @@ export class ContentEditableAdapter {
     const blocks: HTMLElement[] = [];
     const walker = document.createTreeWalker(root, SHOW_ELEMENT);
     let current = walker.nextNode() as Element | null;
+    let lastBlock: HTMLElement | null = null;
     while (current) {
-      if (
-        current !== root &&
-        BLOCK_TAGS.has(current.tagName) &&
-        !this.hasBlockDescendant(current)
-      ) {
-        blocks.push(current as HTMLElement);
+      if (current !== root && BLOCK_TAGS.has(current.tagName)) {
+        if (lastBlock && !lastBlock.contains(current)) {
+          blocks.push(lastBlock);
+        }
+        lastBlock = current as HTMLElement;
       }
       current = walker.nextNode() as Element | null;
+    }
+    if (lastBlock) {
+      blocks.push(lastBlock);
     }
     return blocks;
-  }
-
-  private hasBlockDescendant(elem: Element): boolean {
-    const walker = document.createTreeWalker(elem, SHOW_ELEMENT);
-    let current = walker.nextNode() as Element | null;
-    while (current) {
-      if (current !== elem && BLOCK_TAGS.has(current.tagName)) {
-        return true;
-      }
-      current = walker.nextNode() as Element | null;
-    }
-    return false;
   }
 
   private extractTrailingLineText(block: HTMLElement): string {

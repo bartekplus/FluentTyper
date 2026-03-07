@@ -561,6 +561,23 @@ describe("ContentEditableAdapter", () => {
     expect(adapter.getPreviousBlockTextBySelection(editable)).toBe("Trailing line");
   });
 
+  test("collects leaf block elements in document order for nested blocks", () => {
+    const adapter = new ContentEditableAdapter();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML =
+      '<div class="wrapper"><div class="inner"><p>A</p><p>B</p></div><p>C</p></div>';
+    document.body.appendChild(editable);
+
+    const leafBlocks = (
+      adapter as unknown as {
+        collectLeafBlockElements: (root: HTMLElement) => HTMLElement[];
+      }
+    ).collectLeafBlockElements(editable);
+
+    expect(leafBlocks.map((block) => block.textContent)).toEqual(["A", "B", "C"]);
+  });
+
   test("walking fallback maps ancestor boundary endpoints into resolved block", () => {
     const adapter = new ContentEditableAdapter();
     const editable = document.createElement("div");
