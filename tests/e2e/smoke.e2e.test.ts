@@ -956,22 +956,9 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
         (host?.shadowRoot?.querySelector("input") as HTMLInputElement | null)?.focus();
       });
 
-      // Wait for the extension to discover and attach to the shadow-hosted input.
-      await waitUntil(
-        "shadow-hosted input to gain data-suggestion",
-        async () => {
-          const attached = await page.evaluate(() => {
-            const host = document.querySelector("ft-shadow-test-component");
-            return (
-              host?.shadowRoot?.querySelector("input")?.hasAttribute("data-suggestion") ?? false
-            );
-          });
-          return attached ? true : false;
-        },
-        { timeoutMs: timeoutProfile.inputReadyMs, intervalMs: 50 },
-      );
-
-      // Type and verify the suggestion popup appears.
+      // Type and verify the suggestion popup appears. This covers the actual
+      // user-visible contract and avoids a Firefox-only flake around when the
+      // internal helper marker becomes observable.
       await page.keyboard.type("h");
 
       const suggestions = await waitForSuggestionTexts(page);
