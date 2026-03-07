@@ -99,6 +99,51 @@ describe("shared utils DOM helpers", () => {
     expect(isInDocument(element)).toBe(false);
   });
 
+  // Regression: document.contains() does not pierce shadow boundaries;
+  // isInDocument must walk the shadow host chain instead.
+  test("isInDocument returns true for an element inside an attached open shadow root", () => {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const shadow = host.attachShadow({ mode: "open" });
+    const inner = document.createElement("input");
+    shadow.appendChild(inner);
+
+    // Verify that document.contains() is the naive approach that would fail:
+    expect(document.contains(inner)).toBe(false);
+    // The shadow-aware helper must return true:
+    expect(isInDocument(inner)).toBe(true);
+
+    host.remove();
+  });
+
+  test("isInDocument returns false when the shadow host is removed from the document", () => {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const shadow = host.attachShadow({ mode: "open" });
+    const inner = document.createElement("input");
+    shadow.appendChild(inner);
+    expect(isInDocument(inner)).toBe(true);
+
+    host.remove();
+    expect(isInDocument(inner)).toBe(false);
+  });
+
+  test("isInDocument returns true for a doubly-nested shadow tree", () => {
+    const outerHost = document.createElement("div");
+    document.body.appendChild(outerHost);
+    const outerShadow = outerHost.attachShadow({ mode: "open" });
+    const innerHost = document.createElement("div");
+    outerShadow.appendChild(innerHost);
+    const innerShadow = innerHost.attachShadow({ mode: "open" });
+    const deepInput = document.createElement("input");
+    innerShadow.appendChild(deepInput);
+
+    expect(isInDocument(deepInput)).toBe(true);
+
+    outerHost.remove();
+    expect(isInDocument(deepInput)).toBe(false);
+  });
+
   test("getDeepActiveElement returns null when nothing is focused", () => {
     (document.activeElement as HTMLElement | null)?.blur?.();
     expect(getDeepActiveElement(document)).toBe(document.body);

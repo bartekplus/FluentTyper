@@ -184,4 +184,76 @@ describe("SuggestionManagerRuntime", () => {
       expect(input.getAttribute("data-suggestion")).toBe("true");
     });
   });
+
+  // Regression: querySelectorAll does not pierce shadow roots, so inputs inside
+  // open shadow roots were silently skipped before deepQuerySelectorAll was added.
+  describe("open shadow DOM discovery", () => {
+    test("queryAndAttachHelper attaches to an input inside an open shadow root", () => {
+      const runtime = makeRuntime();
+      const host = document.createElement("div");
+      document.body.appendChild(host);
+      const shadow = host.attachShadow({ mode: "open" });
+      const shadowInput = document.createElement("input");
+      shadowInput.type = "text";
+      shadow.appendChild(shadowInput);
+
+      // The naive querySelectorAll("input") would miss this:
+      expect(document.querySelectorAll("input").length).toBe(0);
+
+      runtime.queryAndAttachHelper();
+      expect(shadowInput.getAttribute("data-suggestion")).toBe("true");
+
+      host.remove();
+    });
+
+    test("onShadowRootDiscovered callback is invoked for each open shadow root", () => {
+      const discovered: ShadowRoot[] = [];
+      const runtimeWithHook = new SuggestionManagerRuntime({
+        selectors: "textarea, input, [contentEditable]",
+        minWordLengthToPredict: 1,
+        autocomplete: true,
+        autocompleteOnEnter: true,
+        autocompleteOnTab: true,
+        insertSpaceAfterAutocomplete: true,
+        lang: "en_US",
+        selectByDigit: true,
+        displayLangHeader: true,
+        inline_suggestion: false,
+        enabledGrammarRules: [],
+        userDictionaryList: [],
+        getPrediction: jest.fn(),
+        onShadowRootDiscovered: (root) => discovered.push(root),
+      });
+
+      const host = document.createElement("div");
+      document.body.appendChild(host);
+      const shadow = host.attachShadow({ mode: "open" });
+      const shadowInput = document.createElement("input");
+      shadowInput.type = "text";
+      shadow.appendChild(shadowInput);
+
+      runtimeWithHook.queryAndAttachHelper();
+      expect(discovered).toContain(shadow);
+
+      host.remove();
+    });
+
+    test("removeHelpersNotInDocument detaches shadow-hosted helper when host is removed", () => {
+      const runtime = makeRuntime();
+      const host = document.createElement("div");
+      document.body.appendChild(host);
+      const shadow = host.attachShadow({ mode: "open" });
+      const shadowInput = document.createElement("input");
+      shadowInput.type = "text";
+      shadow.appendChild(shadowInput);
+
+      runtime.queryAndAttachHelper();
+      expect(shadowInput.getAttribute("data-suggestion")).toBe("true");
+
+      // Removing the host takes the shadow-hosted input out of the document.
+      host.remove();
+      runtime.removeHelpersNotInDocument();
+      expect(shadowInput.hasAttribute("data-suggestion")).toBe(false);
+    });
+  });
 });
