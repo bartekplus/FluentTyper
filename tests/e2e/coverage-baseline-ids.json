@@ -63,6 +63,7 @@
     "grammar_v5_forced_migration",
     "input_type_eligibility",
     "disabled_input_dynamic_reattach",
-    "shadow_dom_discovery"
+    "shadow_dom_discovery",
+    "shadow_dom_late_attach"
   ]
 }

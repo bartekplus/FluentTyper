@@ -978,6 +978,64 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "discovers input in shadow root created on a host already in the DOM",
+    async () => {
+      await gotoTestPage(page);
+      await page.bringToFront();
+      await waitForInputReady(page, "#test-input");
+
+      // Step 1: Insert a bare host element with no shadow root.
+      // The extension processes this mutation but finds nothing to attach to.
+      await page.evaluate(() => {
+        const host = document.createElement("div");
+        host.id = "ft-late-shadow-host";
+        document.body.appendChild(host);
+      });
+
+      // Wait long enough for the extension's mutation coalesce cycle to finish.
+      await new Promise<void>((resolve) => setTimeout(resolve, 100));
+
+      // Step 2: Call attachShadow() on the now-stationary host and append an
+      // input.  No DOM mutation fires on the parent, so the extension must use
+      // the attachShadow() interceptor to detect this shadow root.
+      await page.evaluate(() => {
+        const host = document.getElementById("ft-late-shadow-host")!;
+        const shadow = host.attachShadow({ mode: "open" });
+        const input = document.createElement("input");
+        input.type = "text";
+        shadow.appendChild(input);
+      });
+
+      // Wait for the extension to attach to the shadow-hosted input.
+      await waitUntil(
+        "late shadow root input to gain data-suggestion",
+        async () => {
+          const attached = await page.evaluate(() => {
+            const host = document.getElementById("ft-late-shadow-host");
+            return (
+              host?.shadowRoot?.querySelector("input")?.hasAttribute("data-suggestion") ?? false
+            );
+          });
+          return attached ? true : false;
+        },
+        { timeoutMs: timeoutProfile.inputReadyMs, intervalMs: 50 },
+      );
+
+      // Verify suggestions appear when the user types.
+      await page.evaluate(() => {
+        const host = document.getElementById("ft-late-shadow-host");
+        (host?.shadowRoot?.querySelector("input") as HTMLInputElement | null)?.focus();
+      });
+      await page.keyboard.type("h");
+
+      const suggestions = await waitForSuggestionTexts(page);
+      expect(suggestions.length).toBeGreaterThan(0);
+      expect(suggestions[0]?.toLowerCase()).toMatch(/^h\S*/);
+    },
+    suiteTimeout(15000, 22000),
+  );
+
+  test(
     "reattaches to input when disabled attribute is removed and shows suggestions on typing",
     async () => {
       await gotoTestPage(page);

@@ -8,6 +8,7 @@ import type {
 import { DomObserver } from "./DomObserver";
 import { MutationPipeline, type MutationPlan } from "./MutationPipeline";
 import { MutationScheduler } from "./MutationScheduler";
+import { ShadowRootInterceptor } from "./ShadowRootInterceptor";
 import { ThemeApplicator } from "./ThemeApplicator";
 import { SuggestionManager } from "./SuggestionManager";
 
@@ -37,6 +38,7 @@ export class ContentRuntimeController {
   };
   public readonly domObserver: DomObserver;
   private readonly shadowObservers = new Map<ShadowRoot, DomObserver>();
+  private shadowRootInterceptor: ShadowRootInterceptor | null = null;
 
   private _enabled = false;
   private onPredictionRequest: ((context: ContentScriptPredictRequestContext) => void) | null =
@@ -202,6 +204,7 @@ export class ContentRuntimeController {
     for (const o of this.shadowObservers.values()) {
       o.attach();
     }
+    this.ensureShadowRootInterceptor();
   }
 
   disable(): void {
@@ -217,6 +220,7 @@ export class ContentRuntimeController {
     }
     this.mutationScheduler.clear();
     this.suggestionManager?.detachAllHelpers();
+    this.shadowRootInterceptor?.detach();
   }
 
   restart(): void {
@@ -259,6 +263,19 @@ export class ContentRuntimeController {
     if (this.enabled) {
       observer.attach();
     }
+  }
+
+  private ensureShadowRootInterceptor(): void {
+    if (!this.shadowRootInterceptor) {
+      this.shadowRootInterceptor = new ShadowRootInterceptor((root) => {
+        this.registerShadowRoot(root);
+        // Trigger an initial scan of the host so elements already present in
+        // the shadow root at interception time are discovered immediately.
+        // Subsequent appends are caught by the DomObserver on the shadow root.
+        this.suggestionManager?.queryAndAttachHelper(root.host);
+      });
+    }
+    this.shadowRootInterceptor.attach();
   }
 
   private initializeSuggestionManager(): void {

@@ -1008,6 +1008,22 @@
           "test": "attaches to input inside open shadow root and shows suggestions on typing"
         }
       ]
+    },
+    {
+      "id": "shadow_dom_late_attach",
+      "description": "Extension discovers an input in a shadow root created on a host already in the DOM (late attachShadow call).",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/ShadowRootInterceptor.test.ts",
+          "test": "ShadowRootInterceptor"
+        },
+        {
+          "layer": "e2e-smoke",
+          "file": "tests/e2e/smoke.e2e.test.ts",
+          "test": "discovers input in shadow root created on a host already in the DOM"
+        }
+      ]
     }
   ]
 }
