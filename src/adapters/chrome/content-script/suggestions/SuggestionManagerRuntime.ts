@@ -1,4 +1,4 @@
-import { isInDocument } from "@core/application/dom-utils";
+import { getDeepActiveElement, isInDocument } from "@core/application/dom-utils";
 import { LANG_SEPARATOR_CHARS_REGEX, SUPPORTED_LANGUAGES } from "@core/domain/lang";
 import { InlineSuggestionPresenter } from "./InlineSuggestionPresenter";
 import { SuggestionElementDiscovery } from "./SuggestionElementDiscovery";
@@ -419,7 +419,7 @@ export class SuggestionManagerRuntime {
     if (this.activeEntryId === entry.id) {
       return true;
     }
-    const active = document.activeElement;
+    const active = getDeepActiveElement(document);
     if (!active) {
       return false;
     }
@@ -429,12 +429,12 @@ export class SuggestionManagerRuntime {
   private getActiveEntry(): SuggestionEntry | null {
     if (this.activeEntryId !== null) {
       const known = this.entryRegistry.getById(this.activeEntryId);
-      if (known && document.activeElement === known.elem) {
+      if (known && getDeepActiveElement(document) === known.elem) {
         return known;
       }
     }
 
-    const active = document.activeElement;
+    const active = getDeepActiveElement(document);
     if (!active) {
       return null;
     }

@@ -5,7 +5,7 @@ import {
   isDomainOnList,
   removeDomainFromList,
 } from "../src/core/application/domain-utils";
-import { isInDocument } from "../src/core/application/dom-utils";
+import { getDeepActiveElement, isInDocument } from "../src/core/application/dom-utils";
 import type { SettingsManager } from "../src/core/application/settingsManager";
 
 function createSettingsManager(initialDomainList: unknown[]) {
@@ -97,5 +97,29 @@ describe("shared utils DOM helpers", () => {
 
     element.remove();
     expect(isInDocument(element)).toBe(false);
+  });
+
+  test("getDeepActiveElement returns null when nothing is focused", () => {
+    (document.activeElement as HTMLElement | null)?.blur?.();
+    expect(getDeepActiveElement(document)).toBe(document.body);
+  });
+
+  test("getDeepActiveElement returns light-DOM focused element", () => {
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+    input.focus();
+    expect(getDeepActiveElement(document)).toBe(input);
+    input.remove();
+  });
+
+  test("getDeepActiveElement pierces open shadow root to find focused element", () => {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const shadow = host.attachShadow({ mode: "open" });
+    const input = document.createElement("input");
+    shadow.appendChild(input);
+    input.focus();
+    expect(getDeepActiveElement(document)).toBe(input);
+    host.remove();
   });
 });
