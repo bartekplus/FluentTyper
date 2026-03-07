@@ -927,7 +927,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
   );
 
   test(
-    "reattaches to input when disabled attribute is removed",
+    "reattaches to input when disabled attribute is removed and shows suggestions on typing",
     async () => {
       await gotoTestPage(page);
       await page.bringToFront();
@@ -942,6 +942,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
         document.querySelector("#test-disabled")?.removeAttribute("disabled");
       });
 
+      // Wait for the extension to detect the attribute change and attach the helper.
       await waitUntil(
         "disabled input to gain data-suggestion after re-enable",
         async () => {
@@ -953,7 +954,17 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
         },
         { timeoutMs: suiteTimeout(5000, 8000), intervalMs: 50 },
       );
+
+      // Verify the full user experience: focus the now-enabled input, type a
+      // character, and assert the suggestion popup actually appears on screen.
+      await page.focus("#test-disabled");
+      const element = await page.$("#test-disabled");
+      await element!.type("h");
+
+      const suggestions = await waitForSuggestionTexts(page);
+      expect(suggestions.length).toBeGreaterThan(0);
+      expect(suggestions[0]?.toLowerCase()).toMatch(/^h\S*/);
     },
-    suiteTimeout(12000, 18000),
+    suiteTimeout(15000, 22000),
   );
 });
