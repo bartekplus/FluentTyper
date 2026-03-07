@@ -367,7 +367,6 @@ describe("ContentEditableAdapter", () => {
     document.body.appendChild(editable);
 
     const wrapper = editable.querySelector("div")!;
-    const firstP = editable.querySelector("p.first")!;
     const secondP = editable.querySelector("p.second")!;
     const secondSpan = secondP.querySelector("span")!;
     const secondText = secondSpan.firstChild as Text;

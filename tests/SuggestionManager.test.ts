@@ -1040,6 +1040,43 @@ describe("SuggestionManager", () => {
     expect(request.nextChar).toBe("n");
   });
 
+  test("sends block-local text for contenteditable with wrapper div (Lexical/Reddit)", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+    });
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML =
+      '<div><p class="first" dir="auto"><span data-lexical-text="true">Wa</span></p><p class="second" dir="auto"><span data-lexical-text="true">S</span></p></div>';
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    const secondP = editable.querySelector("p.second");
+    const secondSpan = secondP?.querySelector("span");
+    const secondText = secondSpan?.firstChild;
+    if (!secondText || secondText.nodeType !== Node.TEXT_NODE) {
+      throw new Error("Expected text node in second paragraph");
+    }
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Expected selection");
+    }
+    const range = document.createRange();
+    range.setStart(secondText, (secondText as Text).textContent?.length ?? 0);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+
+    const request = await waitForNextCall(getPrediction);
+    expect(request.text).toBe("S");
+    expect(request.nextChar).toBe("");
+  });
+
   test("uses block-local nextChar for contenteditable prediction before a following signature block", async () => {
     const { manager, getPrediction } = await createManager({
       minWordLengthToPredict: 1,

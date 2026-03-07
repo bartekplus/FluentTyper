@@ -162,7 +162,18 @@ export class ContentEditableAdapter {
       return null;
     }
 
-    const block = this.resolveBlockFromPoint(range.startContainer, range.startOffset, elem, true);
+    const resolvedBlock = this.resolveBlockFromPoint(
+      range.startContainer,
+      range.startOffset,
+      elem,
+      true,
+    );
+    // Always use innermost block so we never use a wrapper's full content (e.g. Lexical root -> div -> p, p).
+    const innermost = this.findInnermostBlockContainingRange(elem, range);
+    const block =
+      innermost && (elem === resolvedBlock || resolvedBlock.contains(innermost))
+        ? innermost
+        : resolvedBlock;
     const startPoint = this.resolvePointWithinBlock(
       range.startContainer,
       range.startOffset,
@@ -179,9 +190,33 @@ export class ContentEditableAdapter {
       afterRange.selectNodeContents(block);
       afterRange.setStart(endPoint.container, endPoint.offset);
 
+      let afterCursor = afterRange.toString();
+      // When block is root and cursor is at end of a direct text child whose next sibling is a block
+      // (e.g. "asap" then signature div), treat as end-of-block so nextChar is "".
+      if (
+        block === elem &&
+        afterCursor.length > 0 &&
+        range.startContainer.nodeType === Node.TEXT_NODE
+      ) {
+        const textNode = range.startContainer as Text;
+        if (
+          range.startOffset === (textNode.textContent?.length ?? 0) &&
+          elem === textNode.parentNode
+        ) {
+          const next = textNode.nextSibling;
+          if (
+            next &&
+            next.nodeType === Node.ELEMENT_NODE &&
+            BLOCK_TAGS.has((next as Element).tagName)
+          ) {
+            afterCursor = "";
+          }
+        }
+      }
+
       return {
         beforeCursor: beforeRange.toString(),
-        afterCursor: afterRange.toString(),
+        afterCursor,
       };
     }
 
@@ -191,24 +226,38 @@ export class ContentEditableAdapter {
   }
 
   /**
-   * Fallback: find the block element containing the selection by walking up from
+   * Get block-local context using only selection + DOM walk (no resolvePointWithinBlock).
+   * Use when getBlockContext returns null so we never fall back to full-root snapshot for prediction.
+   */
+  public getBlockContextBySelection(
+    elem: HTMLElement,
+  ): { beforeCursor: string; afterCursor: string } | null {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      return null;
+    }
+    const range = selection.getRangeAt(0);
+    const targetNode = elem as Node;
+    const startInside =
+      range.startContainer === targetNode || targetNode.contains(range.startContainer);
+    const endInside = range.endContainer === targetNode || targetNode.contains(range.endContainer);
+    if (!startInside || !endInside) {
+      return null;
+    }
+    return this.getBlockContextByWalking(elem, range);
+  }
+
+  /**
+   * Fallback: find the innermost block element containing the selection by walking up from
    * startContainer, then return before/after cursor text within that block only.
    * Used when the normal path returns null (e.g. Reddit/Lexical DOM).
+   * Must use innermost block: when selection is at (wrapperDiv, 1) we use the child <p>, not the wrapper.
    */
   private getBlockContextByWalking(
     root: HTMLElement,
     range: Range,
   ): { beforeCursor: string; afterCursor: string } | null {
-    let block: HTMLElement | null = null;
-    let current: Node | null = range.startContainer;
-    const rootNode = root as Node;
-    while (current && current !== rootNode) {
-      if (current.nodeType === Node.ELEMENT_NODE && BLOCK_TAGS.has((current as Element).tagName)) {
-        block = current as HTMLElement;
-        break;
-      }
-      current = current.parentNode;
-    }
+    const block = this.findInnermostBlockContainingRange(root, range);
     if (!block) {
       return null;
     }
@@ -226,6 +275,47 @@ export class ContentEditableAdapter {
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Find the innermost block (P, DIV, etc.) that contains the start of the range.
+   * When the cursor is at (wrapperDiv, 1) we return the child block at that offset, not the wrapper.
+   */
+  private findInnermostBlockContainingRange(root: HTMLElement, range: Range): HTMLElement | null {
+    let block: HTMLElement | null = null;
+    let current: Node | null = range.startContainer;
+    const rootNode = root as Node;
+    while (current && current !== rootNode) {
+      if (current.nodeType === Node.ELEMENT_NODE && BLOCK_TAGS.has((current as Element).tagName)) {
+        block = current as HTMLElement;
+        break;
+      }
+      current = current.parentNode;
+    }
+    if (!block) {
+      return null;
+    }
+    // Descend to innermost block: if selection is at (block, offset) and a child at that boundary is a block, use it.
+    for (;;) {
+      const container = range.startContainer;
+      const offset = range.startOffset;
+      if (container !== block) {
+        break;
+      }
+      const childCount = block.childNodes.length;
+      const nextIndex = offset < childCount ? offset : offset - 1;
+      const child = nextIndex >= 0 && nextIndex < childCount ? block.childNodes[nextIndex] : null;
+      if (
+        child &&
+        child.nodeType === Node.ELEMENT_NODE &&
+        BLOCK_TAGS.has((child as Element).tagName)
+      ) {
+        block = child as HTMLElement;
+        continue;
+      }
+      break;
+    }
+    return block;
   }
 
   public isCollapsedSelectionBeforeBlockBoundary(elem: HTMLElement): boolean {
@@ -296,7 +386,7 @@ export class ContentEditableAdapter {
       }
     }
 
-    let block = this.resolveBlock(node, root);
+    const block = this.resolveBlock(node, root);
     // When the block is a container with block children at this offset, use the
     // innermost block (e.g. Lexical/Reddit: root -> div -> p, p; cursor at (div, 1) must use second p,
     // not the wrapper div, so prediction uses "S" only, not "Wa" + "S").
@@ -382,10 +472,7 @@ export class ContentEditableAdapter {
     }
 
     // Container is an ancestor of block (e.g. Lexical wrapper div with block = child <p>).
-    if (
-      container.nodeType === Node.ELEMENT_NODE &&
-      (container as Element).contains(block)
-    ) {
+    if (container.nodeType === Node.ELEMENT_NODE && (container as Element).contains(block)) {
       const containerEl = container as Element;
       const blockIndex = this.getBlockChildIndex(containerEl, block);
       if (blockIndex < 0) {
@@ -404,7 +491,10 @@ export class ContentEditableAdapter {
   private getBlockChildIndex(container: Element, block: HTMLElement): number {
     for (let i = 0; i < container.childNodes.length; i++) {
       const child = container.childNodes[i];
-      if (child === block || (child.nodeType === Node.ELEMENT_NODE && (child as Element).contains(block))) {
+      if (
+        child === block ||
+        (child.nodeType === Node.ELEMENT_NODE && (child as Element).contains(block))
+      ) {
         return i;
       }
     }

@@ -106,6 +106,7 @@ export class SuggestionManagerRuntime {
       userDictionaryList: options.userDictionaryList,
     });
     this.predictionCoordinator = new SuggestionPredictionCoordinator({
+      contentEditableAdapter: this.contentEditableAdapter,
       debounceByAction: SUGGESTION_DEBOUNCE_BY_ACTION,
       getPrediction: options.getPrediction,
       lang: this.lang,
@@ -849,15 +850,16 @@ export class SuggestionManagerRuntime {
         safeForGrammar: true,
       };
     }
-    const blockContext = this.contentEditableAdapter.getBlockContext(entry.elem);
+    let blockContext = this.contentEditableAdapter.getBlockContext(entry.elem);
     if (!blockContext) {
-      // Fallback for editors (e.g. Reddit/Lexical) where getBlockContext returns null:
-      // use only the current line so we don't send concatenated multi-line text as input.
-      const { beforeCursor: fallbackBefore, afterCursor: fallbackAfter } =
-        this.getContentEditableCurrentLineFallback(snapshot);
+      blockContext = this.contentEditableAdapter.getBlockContextBySelection(entry.elem);
+    }
+    if (!blockContext) {
+      // Never use full snapshot for prediction: Range.toString() often has no newlines between
+      // blocks, so we would send concatenated "Wa"+"S". Use empty block context instead.
       return {
-        beforeCursor: fallbackBefore,
-        afterCursor: fallbackAfter,
+        beforeCursor: "",
+        afterCursor: "",
         snapshot,
         applyContext: {
           beforeCursor: snapshot.beforeCursor,
@@ -875,9 +877,11 @@ export class SuggestionManagerRuntime {
       blockContext.afterCursor.length === 0 &&
       beforeBlockBoundary;
     if (useFullTextOffsets) {
+      // Use block context (empty) for prediction so we never send full root text.
+      // Keep applyContext with full text for grammar/apply logic only.
       return {
-        beforeCursor: snapshot.beforeCursor,
-        afterCursor: snapshot.afterCursor,
+        beforeCursor: blockContext.beforeCursor,
+        afterCursor: blockContext.afterCursor,
         snapshot,
         applyContext: {
           beforeCursor: snapshot.beforeCursor,
