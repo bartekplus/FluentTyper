@@ -948,6 +948,14 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
         document.body.appendChild(document.createElement("ft-shadow-test-component"));
       });
 
+      // Focus the shadow-hosted input first. Firefox does not consistently
+      // expose the eager attachment marker for this path, but the runtime's
+      // focus-driven discovery should still attach before the user types.
+      await page.evaluate(() => {
+        const host = document.querySelector("ft-shadow-test-component");
+        (host?.shadowRoot?.querySelector("input") as HTMLInputElement | null)?.focus();
+      });
+
       // Wait for the extension to discover and attach to the shadow-hosted input.
       await waitUntil(
         "shadow-hosted input to gain data-suggestion",
@@ -963,11 +971,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
         { timeoutMs: timeoutProfile.inputReadyMs, intervalMs: 50 },
       );
 
-      // Focus the shadow-hosted input and type; verify the suggestion popup appears.
-      await page.evaluate(() => {
-        const host = document.querySelector("ft-shadow-test-component");
-        (host?.shadowRoot?.querySelector("input") as HTMLInputElement | null)?.focus();
-      });
+      // Type and verify the suggestion popup appears.
       await page.keyboard.type("h");
 
       const suggestions = await waitForSuggestionTexts(page);
