@@ -535,10 +535,12 @@ export class SuggestionManagerRuntime {
     entry: SuggestionEntry,
     {
       inputAction,
+      hasMultipleBlockDescendants,
       typedKey,
       snapshot,
     }: {
       inputAction?: PredictionInputAction;
+      hasMultipleBlockDescendants?: boolean;
       typedKey?: string | null;
       snapshot?: SuggestionSnapshot;
     } = {},
@@ -546,7 +548,7 @@ export class SuggestionManagerRuntime {
     return this.resolveEditableCursorContext(
       entry,
       snapshot ?? TextTargetAdapter.snapshot(entry.elem as TextTarget),
-      { inputAction, typedKey },
+      { inputAction, hasMultipleBlockDescendants, typedKey },
     ).beforeCursor;
   }
 
@@ -649,12 +651,14 @@ export class SuggestionManagerRuntime {
     entry: SuggestionEntry,
     {
       event,
+      hasMultipleBlockDescendants,
       inputActionOverride,
       predictionMode,
       typedKey,
       scheduleIdle,
     }: {
       event?: Event;
+      hasMultipleBlockDescendants?: boolean;
       inputActionOverride?: PredictionInputAction | null;
       predictionMode: "schedule" | "reconcile";
       typedKey?: string | null;
@@ -675,13 +679,19 @@ export class SuggestionManagerRuntime {
     ) {
       entry.pendingExtensionEdit = null;
     }
+    const resolvedHasMultipleBlockDescendants =
+      hasMultipleBlockDescendants ?? this.resolveHasMultipleBlockDescendants(entry);
 
-    const provisionalContext = this.resolveEditableCursorContext(entry, snapshot, { typedKey });
+    const provisionalContext = this.resolveEditableCursorContext(entry, snapshot, {
+      hasMultipleBlockDescendants: resolvedHasMultipleBlockDescendants,
+      typedKey,
+    });
     const provisionalBeforeCursor = provisionalContext.beforeCursor;
     const inputAction =
       inputActionOverride ??
       this.resolveInputAction(entry, event ?? new Event("input"), provisionalBeforeCursor);
     const cursorContext = this.resolveEditableCursorContext(entry, snapshot, {
+      hasMultipleBlockDescendants: resolvedHasMultipleBlockDescendants,
       inputAction,
       typedKey,
     });
@@ -776,6 +786,7 @@ export class SuggestionManagerRuntime {
     }
 
     const predictionContext = this.resolveEditableCursorContext(entry, snapshot, {
+      hasMultipleBlockDescendants: resolvedHasMultipleBlockDescendants,
       inputAction,
       typedKey,
     });
@@ -892,9 +903,11 @@ export class SuggestionManagerRuntime {
     entry: SuggestionEntry,
     snapshot: SuggestionSnapshot,
     {
+      hasMultipleBlockDescendants,
       inputAction,
       typedKey,
     }: {
+      hasMultipleBlockDescendants?: boolean;
       inputAction?: PredictionInputAction;
       typedKey?: string | null;
     } = {},
@@ -936,15 +949,14 @@ export class SuggestionManagerRuntime {
     const beforeBlockBoundary = this.contentEditableAdapter.isCollapsedSelectionBeforeBlockBoundary(
       entry.elem,
     );
-    const hasMultipleBlockDescendants = this.contentEditableAdapter.hasMultipleBlockDescendants(
-      entry.elem,
-    );
+    const resolvedHasMultipleBlockDescendants =
+      hasMultipleBlockDescendants ?? this.resolveHasMultipleBlockDescendants(entry);
     const useFullTextOffsets =
       blockContext.beforeCursor.length === 0 &&
       blockContext.afterCursor.length === 0 &&
       beforeBlockBoundary;
     if (useFullTextOffsets) {
-      const previousBlockFallback = hasMultipleBlockDescendants
+      const previousBlockFallback = resolvedHasMultipleBlockDescendants
         ? this.contentEditableAdapter.getPreviousBlockTextBySelection(entry.elem)
         : null;
       // Use only the previous block's trailing line for prediction when Enter
@@ -1010,7 +1022,7 @@ export class SuggestionManagerRuntime {
 
     const typedKeyLooksMergedIntoPreviousBlock =
       inputAction !== "delete" &&
-      hasMultipleBlockDescendants &&
+      resolvedHasMultipleBlockDescendants &&
       beforeBlockBoundary &&
       typeof typedKey === "string" &&
       typedKey.length === 1 &&
@@ -1449,12 +1461,14 @@ export class SuggestionManagerRuntime {
       this.dismissEntry(current, true);
       return;
     }
-    if (this.shouldWaitForInsertTextChange(id, current, pending)) {
+    const hasMultipleBlockDescendants = this.resolveHasMultipleBlockDescendants(current);
+    if (this.shouldWaitForInsertTextChange(id, current, pending, hasMultipleBlockDescendants)) {
       return;
     }
     this.clearPendingKeyFallback(id);
     this.processEntryAfterEdit(current, {
       inputActionOverride: pending.inputAction,
+      hasMultipleBlockDescendants,
       predictionMode: "reconcile",
       typedKey: pending.typedKey,
       scheduleIdle: true,
@@ -1475,6 +1489,7 @@ export class SuggestionManagerRuntime {
     id: number,
     entry: SuggestionEntry,
     pending: PendingKeyFallback,
+    hasMultipleBlockDescendants: boolean,
   ): boolean {
     if (
       pending.inputAction !== "insert" ||
@@ -1493,7 +1508,7 @@ export class SuggestionManagerRuntime {
     }
     const shouldReconcileEnterAtEmptyBoundary =
       pending.typedKey === "Enter" &&
-      this.contentEditableAdapter.hasMultipleBlockDescendants(entry.elem) &&
+      hasMultipleBlockDescendants &&
       this.contentEditableAdapter.isCollapsedSelectionBeforeBlockBoundary(entry.elem);
     if (shouldReconcileEnterAtEmptyBoundary) {
       return false;
@@ -1557,6 +1572,13 @@ export class SuggestionManagerRuntime {
       return !TextTargetAdapter.isInput(elem);
     }
     return event.key.length === 1;
+  }
+
+  private resolveHasMultipleBlockDescendants(entry: SuggestionEntry): boolean {
+    if (TextTargetAdapter.isTextValue(entry.elem)) {
+      return false;
+    }
+    return this.contentEditableAdapter.hasMultipleBlockDescendants(entry.elem);
   }
 
   private resolveInputAction(
