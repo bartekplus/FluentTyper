@@ -199,6 +199,14 @@ async function loadSuggestionManagerClass() {
   return module.SuggestionManager;
 }
 
+async function loadContentEditableAdapterClass() {
+  importNonce += 1;
+  const module = await import(
+    `../src/adapters/chrome/content-script/suggestions/ContentEditableAdapter?bun_test_nonce_adapter=${importNonce}`
+  );
+  return module.ContentEditableAdapter;
+}
+
 type ConstructorArgs = {
   selectors: string;
   minWordLengthToPredict: number;
@@ -2217,6 +2225,46 @@ describe("SuggestionManager", () => {
       dispatchKeydown(editable, "x");
       fakeNow += 2000;
     } finally {
+      Date.now = originalDateNow;
+    }
+
+    const request = await waitForNextCall(getPrediction);
+    expect(request.text).toBe("hellox");
+    expect(request.inputAction).toBe("insert");
+  });
+
+  test("keeps full paragraph context for root contenteditable when boundary detection is stale", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+      enabledGrammarRules: [],
+    });
+    const ContentEditableAdapter = await loadContentEditableAdapterClass();
+    const editable = document.createElement("p");
+    editable.setAttribute("contenteditable", "true");
+    editable.textContent = "hello";
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    setContentEditableCursor(editable, editable.textContent.length);
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+
+    const originalIsCollapsedSelectionBeforeBlockBoundary =
+      ContentEditableAdapter.prototype.isCollapsedSelectionBeforeBlockBoundary;
+    ContentEditableAdapter.prototype.isCollapsedSelectionBeforeBlockBoundary = () => true;
+
+    const originalDateNow = Date.now;
+    let fakeNow = originalDateNow();
+    Date.now = () => fakeNow;
+
+    try {
+      editable.textContent = "hellox";
+      setContentEditableCursor(editable, editable.textContent.length);
+      dispatchKeydown(editable, "x");
+      fakeNow += 2000;
+    } finally {
+      ContentEditableAdapter.prototype.isCollapsedSelectionBeforeBlockBoundary =
+        originalIsCollapsedSelectionBeforeBlockBoundary;
       Date.now = originalDateNow;
     }
 

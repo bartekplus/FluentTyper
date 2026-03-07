@@ -936,6 +936,9 @@ export class SuggestionManagerRuntime {
     const beforeBlockBoundary = this.contentEditableAdapter.isCollapsedSelectionBeforeBlockBoundary(
       entry.elem,
     );
+    const hasMultipleBlockDescendants = this.contentEditableAdapter.hasMultipleBlockDescendants(
+      entry.elem,
+    );
     const useFullTextOffsets =
       blockContext.beforeCursor.length === 0 &&
       blockContext.afterCursor.length === 0 &&
@@ -1003,6 +1006,7 @@ export class SuggestionManagerRuntime {
 
     const typedKeyLooksMergedIntoPreviousBlock =
       inputAction !== "delete" &&
+      hasMultipleBlockDescendants &&
       beforeBlockBoundary &&
       typeof typedKey === "string" &&
       typedKey.length === 1 &&

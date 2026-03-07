@@ -247,6 +247,22 @@ export class ContentEditableAdapter {
     return this.getBlockContextByWalking(elem, range);
   }
 
+  public hasMultipleBlockDescendants(elem: HTMLElement): boolean {
+    let blockCount = 0;
+    const walker = document.createTreeWalker(elem, SHOW_ELEMENT);
+    let current = walker.nextNode() as Element | null;
+    while (current) {
+      if (current !== elem && BLOCK_TAGS.has(current.tagName)) {
+        blockCount += 1;
+        if (blockCount > 1) {
+          return true;
+        }
+      }
+      current = walker.nextNode() as Element | null;
+    }
+    return false;
+  }
+
   /**
    * Fallback: find the innermost block element containing the selection by walking up from
    * startContainer, then return before/after cursor text within that block only.
