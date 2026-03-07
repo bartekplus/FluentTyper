@@ -277,6 +277,22 @@
       ]
     },
     {
+      "id": "contenteditable_multiblock_prediction_scope",
+      "description": "Multi-paragraph contenteditable predictions stay scoped to the active Lexical-like block instead of concatenating earlier paragraphs.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "block-local prediction in Lexical/Reddit contenteditable"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionManager.test.ts",
+          "test": "sends block-local text for contenteditable with wrapper div (Lexical/Reddit)"
+        }
+      ]
+    },
+    {
       "id": "missing_space_cancellation",
       "description": "Cursor movement cancels automatic missing-space insertion.",
       "coverage": [

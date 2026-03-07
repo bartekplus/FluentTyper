@@ -21,6 +21,7 @@
     "model_driven_editor_transaction_safety",
     "rich_editor_local_grammar_stale_caret",
     "contenteditable_block_boundary_grammar_safety",
+    "contenteditable_multiblock_prediction_scope",
     "missing_space_cancellation",
     "inline_suggestion_tab_insert",
     "enabled_languages_popup_restriction",

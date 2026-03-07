@@ -544,9 +544,11 @@ interface PredictorDebugSnapshot {
     debugAIPredictorEnabled?: boolean;
   };
   traces?: Array<{
+    traceId?: string;
     text?: string;
     predictionInput?: string;
     doPrediction?: boolean;
+    timestampMs?: number;
     requestId?: number | null;
   }>;
 }
@@ -566,6 +568,25 @@ async function getPredictorDebugSnapshot(optionsPage: Page): Promise<PredictorDe
       );
     });
   }, CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT);
+}
+
+type PredictorDebugTrace = NonNullable<PredictorDebugSnapshot["traces"]>[number];
+
+async function waitForPredictorTrace(
+  optionsPage: Page,
+  predicate: (trace: PredictorDebugTrace) => boolean,
+  timeoutMs = browserTimeout(5000, 10000),
+): Promise<PredictorDebugTrace> {
+  return await waitUntil(
+    "predictor debug trace",
+    async () => {
+      const snapshot = await getPredictorDebugSnapshot(optionsPage);
+      const traces = Array.isArray(snapshot.traces) ? snapshot.traces : [];
+      const matchingTrace = traces.find(predicate);
+      return matchingTrace || false;
+    },
+    { timeoutMs, intervalMs: 100 },
+  );
 }
 
 async function waitForSettingValue(
@@ -2540,6 +2561,84 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       expect(richState.hasFormattedRichToken).toBeTrue();
       expect(richState.html.toLowerCase()).toContain("rich");
       expect(richState.text.replace(/\u00a0/g, " ").toLowerCase()).toContain("rich");
+    },
+    browserTimeout(20000, 35000),
+  );
+
+  test(
+    "block-local prediction in Lexical/Reddit contenteditable",
+    async () => {
+      const selector = "#test-contenteditable";
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await applyConfigChange(browser, worker!);
+
+      await gotoTestPage(page);
+      await page.bringToFront();
+      await waitForInputReady(page, selector);
+
+      const optionsPage = await openOptionsPage(browser, worker!);
+      try {
+        const baselineSnapshot = await getPredictorDebugSnapshot(optionsPage);
+        const baselineTraceIds = new Set(
+          (baselineSnapshot.traces ?? [])
+            .map((trace) => trace.traceId)
+            .filter((traceId): traceId is string => typeof traceId === "string"),
+        );
+
+        await page.evaluate((sel) => {
+          const target = document.querySelector(sel);
+          if (!(target instanceof HTMLElement)) {
+            throw new Error("Contenteditable target not found");
+          }
+
+          target.innerHTML =
+            '<div class="lexical-wrapper"><p class="first" dir="auto"><span data-lexical-text="true">FirstBlockAlpha</span></p><p class="second" dir="auto"><span data-lexical-text="true">S</span></p></div>';
+          target.focus();
+
+          const secondText = target.querySelector("p.second span")?.firstChild;
+          if (!(secondText instanceof Text)) {
+            throw new Error("Second paragraph text node not found");
+          }
+
+          const selection = window.getSelection();
+          if (!selection) {
+            throw new Error("Selection unavailable");
+          }
+
+          const range = document.createRange();
+          range.setStart(secondText, secondText.textContent?.length ?? 0);
+          range.collapse(true);
+          selection.removeAllRanges();
+          selection.addRange(range);
+        }, selector);
+
+        await page.bringToFront();
+        await page.keyboard.type("x");
+
+        const trace = await waitForPredictorTrace(
+          optionsPage,
+          (candidate) => {
+            if (!candidate.traceId || baselineTraceIds.has(candidate.traceId)) {
+              return false;
+            }
+            const predictionInput = candidate.predictionInput?.toLowerCase() ?? "";
+            const requestText = candidate.text?.toLowerCase() ?? "";
+            return predictionInput.includes("sx") || requestText.includes("sx");
+          },
+          browserTimeout(5000, 12000),
+        );
+
+        expect(trace.text?.toLowerCase()).toContain("sx");
+        expect(trace.text?.toLowerCase()).not.toContain("firstblockalpha");
+        expect(trace.predictionInput?.toLowerCase()).toContain("sx");
+        expect(trace.predictionInput?.toLowerCase()).not.toContain("firstblockalpha");
+      } finally {
+        if (!optionsPage.isClosed()) {
+          await optionsPage.close();
+        }
+      }
     },
     browserTimeout(20000, 35000),
   );
