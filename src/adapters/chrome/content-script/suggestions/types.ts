@@ -39,6 +39,7 @@ export interface SuggestionManagerOptions {
   userDictionaryList: string[];
   getPrediction: (context: PredictionRequest) => void;
   telemetry?: SuggestionTelemetry;
+  onShadowRootDiscovered?: (root: ShadowRoot) => void;
 }
 
 export interface SuggestionTelemetry {

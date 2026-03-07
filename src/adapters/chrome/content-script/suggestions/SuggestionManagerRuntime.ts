@@ -86,6 +86,7 @@ export class SuggestionManagerRuntime {
     this.discovery = new SuggestionElementDiscovery({
       selectors: options.selectors,
       isStructurallyEligibleElement: this.isStructurallyEligibleElement.bind(this),
+      onShadowRootDiscovered: options.onShadowRootDiscovered,
     });
     this.lifecycleController = new SuggestionLifecycleController({
       getEntries: () => this.entryRegistry.values(),

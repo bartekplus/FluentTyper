@@ -35,6 +35,7 @@ export class ContentRuntimeController {
     userDictionaryList: [],
   };
   public readonly domObserver: DomObserver;
+  private readonly shadowObservers = new Map<ShadowRoot, DomObserver>();
 
   private _enabled = false;
   private onPredictionRequest: ((context: ContentScriptPredictRequestContext) => void) | null =
@@ -163,6 +164,9 @@ export class ContentRuntimeController {
       mutationCount: mutationsList.length,
     });
     this.domObserver.disconnect();
+    for (const o of this.shadowObservers.values()) {
+      o.disconnect();
+    }
     try {
       if (!this.suggestionManager) {
         return;
@@ -174,6 +178,9 @@ export class ContentRuntimeController {
     } finally {
       if (this.enabled) {
         this.attachMutationObserver();
+        for (const o of this.shadowObservers.values()) {
+          o.attach();
+        }
       }
     }
   }
@@ -186,6 +193,9 @@ export class ContentRuntimeController {
     this.suggestionManager?.queryAndAttachHelper();
     this.suggestionManager?.triggerActiveSuggestion();
     this.attachMutationObserver();
+    for (const o of this.shadowObservers.values()) {
+      o.attach();
+    }
   }
 
   disable(): void {
@@ -196,6 +206,9 @@ export class ContentRuntimeController {
       this.pendingRestartToken = null;
     }
     this.domObserver.disconnect();
+    for (const o of this.shadowObservers.values()) {
+      o.disconnect();
+    }
     this.mutationScheduler.clear();
     this.suggestionManager?.detachAllHelpers();
   }
@@ -231,6 +244,17 @@ export class ContentRuntimeController {
     this.domObserver.setNode(node);
   }
 
+  private registerShadowRoot(root: ShadowRoot): void {
+    if (this.shadowObservers.has(root)) {
+      return;
+    }
+    const observer = new DomObserver(root, this.mutationCallback.bind(this));
+    this.shadowObservers.set(root, observer);
+    if (this.enabled) {
+      observer.attach();
+    }
+  }
+
   private initializeSuggestionManager(): void {
     this.predictionGeneration += 1;
     const generation = this.predictionGeneration;
@@ -258,6 +282,7 @@ export class ContentRuntimeController {
           ...context,
           runtimeGeneration: generation,
         }),
+      onShadowRootDiscovered: this.registerShadowRoot.bind(this),
     });
   }
 

@@ -96,13 +96,18 @@ export class SuggestionLifecycleController {
   }
 
   private onDocumentPointerDown(event: Event): void {
-    const target = event.target;
-    if (!(target instanceof Node)) {
-      return;
-    }
+    // Use composedPath() so that clicks inside shadow-hosted entry elements are
+    // correctly identified: event.target is retargeted to the shadow host at
+    // document level, but composedPath() contains the full chain including the
+    // actual target inside the shadow root.
+    const composedPath = event.composedPath();
 
     for (const entry of this.getEntries()) {
-      if (entry.elem.contains(target) || entry.menu.contains(target)) {
+      const clickedInEntry = composedPath.includes(entry.elem);
+      const clickedInMenu = composedPath.some(
+        (n) => n === entry.menu || (n instanceof Node && entry.menu.contains(n)),
+      );
+      if (clickedInEntry || clickedInMenu) {
         continue;
       }
       this.dismissEntry(entry);

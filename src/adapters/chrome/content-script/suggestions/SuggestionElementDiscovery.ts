@@ -3,25 +3,41 @@ import type { SuggestionElement } from "./types";
 export interface SuggestionElementDiscoveryOptions {
   selectors: string;
   isStructurallyEligibleElement: (elem: HTMLElement) => elem is SuggestionElement;
+  onShadowRootDiscovered?: (root: ShadowRoot) => void;
 }
 
 export class SuggestionElementDiscovery {
   private readonly selectors: string;
   private readonly isStructurallyEligibleElement: (elem: HTMLElement) => elem is SuggestionElement;
+  private readonly onShadowRootDiscovered?: (root: ShadowRoot) => void;
 
   constructor(options: SuggestionElementDiscoveryOptions) {
     this.selectors = options.selectors;
     this.isStructurallyEligibleElement = options.isStructurallyEligibleElement;
+    this.onShadowRootDiscovered = options.onShadowRootDiscovered;
   }
 
   public queryCandidates(root?: Element): SuggestionElement[] {
-    const elements = root
-      ? root.matches(this.selectors)
-        ? [root]
-        : Array.from(root.querySelectorAll(this.selectors))
-      : Array.from(document.querySelectorAll(this.selectors));
-
+    let elements: Element[];
+    if (root instanceof Element && root.matches(this.selectors)) {
+      elements = [root, ...this.deepQuerySelectorAll(root)];
+    } else {
+      const queryRoot: Element | ShadowRoot | Document =
+        root instanceof Element && root.shadowRoot ? root.shadowRoot : (root ?? document);
+      elements = this.deepQuerySelectorAll(queryRoot);
+    }
     return elements.filter((elem): elem is SuggestionElement => this.isEligibleElement(elem));
+  }
+
+  private deepQuerySelectorAll(root: Element | ShadowRoot | Document): Element[] {
+    const results: Element[] = Array.from(root.querySelectorAll(this.selectors));
+    for (const el of Array.from(root.querySelectorAll("*"))) {
+      if (el.shadowRoot) {
+        this.onShadowRootDiscovered?.(el.shadowRoot);
+        results.push(...this.deepQuerySelectorAll(el.shadowRoot));
+      }
+    }
+    return results;
   }
 
   private isEligibleElement(elem: Element): elem is SuggestionElement {
