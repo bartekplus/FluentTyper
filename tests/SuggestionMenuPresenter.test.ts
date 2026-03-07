@@ -20,6 +20,7 @@ describe("SuggestionMenuPresenter", () => {
       target,
       suggestions: ["hello", "hey"],
       selectedIndex: 1,
+      showShortcutDigits: true,
       menuHeader: "Lang: English",
       mentionText: "he",
     });
@@ -27,8 +28,11 @@ describe("SuggestionMenuPresenter", () => {
     expect(rendered).toBe(true);
     expect(list.querySelector("lh")?.textContent).toBe("Lang: English");
     expect(list.querySelectorAll("li").length).toBe(2);
+    expect(list.querySelector("li")?.getAttribute("data-shortcut")).toBe("1");
     expect(list.querySelector("li.highlight")?.getAttribute("data-index")).toBe("1");
-    expect(list.querySelector("li")?.innerHTML).toContain("<span>he</span>");
+    expect(list.querySelector("li")?.innerHTML).toContain(
+      '<span class="ft-suggestion-match">he</span>',
+    );
   });
 
   test("hides menu when positioning fails", () => {
@@ -48,6 +52,7 @@ describe("SuggestionMenuPresenter", () => {
       target,
       suggestions: ["hello"],
       selectedIndex: 0,
+      showShortcutDigits: false,
       menuHeader: null,
       mentionText: "",
     });

@@ -7,6 +7,7 @@ export interface SuggestionMenuRenderModel {
   target: SuggestionElement;
   suggestions: string[];
   selectedIndex: number;
+  showShortcutDigits: boolean;
   menuHeader: string | null;
   mentionText: string;
 }
@@ -33,6 +34,10 @@ export class SuggestionMenuPresenter {
       const li = document.createElement("li");
       li.innerHTML = this.buildSuggestionMenuItemHtml(model.mentionText, suggestion);
       li.setAttribute("data-index", String(index));
+      if (model.showShortcutDigits) {
+        li.classList.add("has-shortcut");
+        li.setAttribute("data-shortcut", this.formatShortcutDigit(index));
+      }
       if (index === model.selectedIndex) {
         li.classList.add("highlight");
       }
@@ -74,6 +79,10 @@ export class SuggestionMenuPresenter {
     });
   }
 
+  private formatShortcutDigit(index: number): string {
+    return index === 9 ? "0" : String(index + 1);
+  }
+
   private buildSuggestionMenuItemHtml(mentionText: string, suggestion: string): string {
     const safeSuggestion = this.escapeHtml(suggestion);
     const mention = (mentionText || "").trim();
@@ -91,7 +100,7 @@ export class SuggestionMenuPresenter {
     const before = this.escapeHtml(suggestion.slice(0, matchIndex));
     const match = this.escapeHtml(suggestion.slice(matchIndex, matchIndex + mention.length));
     const after = this.escapeHtml(suggestion.slice(matchIndex + mention.length));
-    return `${before}<span>${match}</span>${after}`;
+    return `${before}<span class="ft-suggestion-match">${match}</span>${after}`;
   }
 
   private escapeHtml(value: string): string {

@@ -76,6 +76,17 @@
     color 0.15s ease-in-out !important; /* Smooth transition */
 }
 
+.ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"]
+  li.has-shortcut::before {
+  content: attr(data-shortcut);
+  display: inline-block !important;
+  min-width: 1.25rem !important;
+  margin-right: 0.5rem !important;
+  text-align: right !important;
+  font-weight: 600 !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
 /* --- List Header --- */
 .ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"] lh {
   display: block !important;
@@ -98,7 +109,9 @@
 }
 
 /* Matched text inside a suggestion */
-.ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"] li span {
+.ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"]
+  li
+  .ft-suggestion-match {
   font-weight: 700 !important;
 }
 

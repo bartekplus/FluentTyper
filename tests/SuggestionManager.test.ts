@@ -693,6 +693,10 @@ describe("SuggestionManager", () => {
       }),
     );
 
+    const menuItems = Array.from(document.querySelectorAll(".ft-suggestion-container li"));
+    expect(menuItems[0]?.getAttribute("data-shortcut")).toBe("1");
+    expect(menuItems[1]?.getAttribute("data-shortcut")).toBe("2");
+
     dispatchKeydown(input, "2");
     expect(input.value).toBe("hi\xA0");
 
