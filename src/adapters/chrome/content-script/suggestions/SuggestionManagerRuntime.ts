@@ -716,44 +716,17 @@ export class SuggestionManagerRuntime {
 
         if (
           !TextTargetAdapter.isTextValue(entry.elem) &&
-          (grammarReplacement.length > 0 || grammarDeleteBackwards > 0)
+          this.dispatchAdjustedGrammarPrediction(entry, {
+            beforeCursor: cursorContext.beforeCursor,
+            afterCursor: cursorContext.afterCursor,
+            grammarReplacement,
+            grammarDeleteBackwards,
+            inputAction,
+            predictionMode,
+            scheduleIdle,
+            isTextValue: false,
+          })
         ) {
-          const adjustedBeforeCursor =
-            cursorContext.beforeCursor.slice(
-              0,
-              Math.max(0, cursorContext.beforeCursor.length - grammarDeleteBackwards),
-            ) + grammarReplacement;
-          const adjustedAfterCursor = cursorContext.afterCursor;
-
-          entry.lastInputAction = inputAction;
-          entry.lastKeydownKey = null;
-          entry.lastBeforeCursorText = adjustedBeforeCursor;
-          entry.pendingGrammarPaste = false;
-
-          const tokenInfo = this.predictionCoordinator.findMentionToken(adjustedBeforeCursor);
-          entry.latestMentionText = tokenInfo.token;
-          entry.latestMentionStart = -1;
-
-          if (predictionMode === "reconcile") {
-            this.predictionCoordinator.reconcile(entry, {
-              clearSuggestions: () => this.clearSuggestions(entry),
-              inputAction,
-              beforeCursorOverride: adjustedBeforeCursor,
-              afterCursorOverride: adjustedAfterCursor,
-            });
-          } else {
-            this.predictionCoordinator.schedule(entry, {
-              force: false,
-              clearSuggestions: () => this.clearSuggestions(entry),
-              inputAction,
-              beforeCursorOverride: adjustedBeforeCursor,
-              afterCursorOverride: adjustedAfterCursor,
-            });
-          }
-
-          if (scheduleIdle) {
-            this.scheduleIdleGrammar(entry);
-          }
           return;
         }
 
@@ -775,53 +748,28 @@ export class SuggestionManagerRuntime {
         // editor prevented the beforeinput).  Apply the intended text
         // transformation so the prediction request reflects the expected
         // result (the host will likely reconcile the change asynchronously).
-        if (grammarReplacement.length > 0 || grammarDeleteBackwards > 0) {
-          const ctx = TextTargetAdapter.isTextValue(entry.elem)
-            ? {
-                beforeCursor: cursorContext.snapshot.beforeCursor,
-                afterCursor: cursorContext.snapshot.afterCursor,
-              }
-            : {
-                beforeCursor: cursorContext.beforeCursor,
-                afterCursor: cursorContext.afterCursor,
-              };
-          const adjustedBeforeCursor =
-            ctx.beforeCursor.slice(
-              0,
-              Math.max(0, ctx.beforeCursor.length - grammarDeleteBackwards),
-            ) + grammarReplacement;
-          const adjustedAfterCursor = ctx.afterCursor;
-
-          entry.lastInputAction = inputAction;
-          entry.lastKeydownKey = null;
-          entry.lastBeforeCursorText = adjustedBeforeCursor;
-          entry.pendingGrammarPaste = false;
-
-          const tokenInfo = this.predictionCoordinator.findMentionToken(adjustedBeforeCursor);
-          entry.latestMentionText = tokenInfo.token;
-          entry.latestMentionStart = TextTargetAdapter.isTextValue(entry.elem)
-            ? tokenInfo.start
-            : -1;
-
-          if (predictionMode === "reconcile") {
-            this.predictionCoordinator.reconcile(entry, {
-              clearSuggestions: () => this.clearSuggestions(entry),
-              inputAction,
-              beforeCursorOverride: adjustedBeforeCursor,
-              afterCursorOverride: adjustedAfterCursor,
-            });
-          } else {
-            this.predictionCoordinator.schedule(entry, {
-              force: false,
-              clearSuggestions: () => this.clearSuggestions(entry),
-              inputAction,
-              beforeCursorOverride: adjustedBeforeCursor,
-              afterCursorOverride: adjustedAfterCursor,
-            });
-          }
-          if (scheduleIdle) {
-            this.scheduleIdleGrammar(entry);
-          }
+        const isTextValue = TextTargetAdapter.isTextValue(entry.elem);
+        const adjustedContext = isTextValue
+          ? {
+              beforeCursor: cursorContext.snapshot.beforeCursor,
+              afterCursor: cursorContext.snapshot.afterCursor,
+            }
+          : {
+              beforeCursor: cursorContext.beforeCursor,
+              afterCursor: cursorContext.afterCursor,
+            };
+        if (
+          this.dispatchAdjustedGrammarPrediction(entry, {
+            beforeCursor: adjustedContext.beforeCursor,
+            afterCursor: adjustedContext.afterCursor,
+            grammarReplacement,
+            grammarDeleteBackwards,
+            inputAction,
+            predictionMode,
+            scheduleIdle,
+            isTextValue,
+          })
+        ) {
           return;
         }
       }
@@ -876,6 +824,68 @@ export class SuggestionManagerRuntime {
     if (scheduleIdle) {
       this.scheduleIdleGrammar(entry);
     }
+  }
+
+  private dispatchAdjustedGrammarPrediction(
+    entry: SuggestionEntry,
+    {
+      beforeCursor,
+      afterCursor,
+      grammarReplacement,
+      grammarDeleteBackwards,
+      inputAction,
+      predictionMode,
+      scheduleIdle,
+      isTextValue,
+    }: {
+      beforeCursor: string;
+      afterCursor: string;
+      grammarReplacement: string;
+      grammarDeleteBackwards: number;
+      inputAction: PredictionInputAction;
+      predictionMode: "schedule" | "reconcile";
+      scheduleIdle: boolean;
+      isTextValue: boolean;
+    },
+  ): boolean {
+    if (!(grammarReplacement.length > 0 || grammarDeleteBackwards > 0)) {
+      return false;
+    }
+
+    const adjustedBeforeCursor =
+      beforeCursor.slice(0, Math.max(0, beforeCursor.length - grammarDeleteBackwards)) +
+      grammarReplacement;
+    entry.lastInputAction = inputAction;
+    entry.lastKeydownKey = null;
+    entry.lastBeforeCursorText = adjustedBeforeCursor;
+    entry.pendingGrammarPaste = false;
+
+    const tokenInfo = this.predictionCoordinator.findMentionToken(adjustedBeforeCursor);
+    entry.latestMentionText = tokenInfo.token;
+    entry.latestMentionStart = isTextValue ? tokenInfo.start : -1;
+
+    if (predictionMode === "reconcile") {
+      this.predictionCoordinator.reconcile(entry, {
+        clearSuggestions: () => this.clearSuggestions(entry),
+        inputAction,
+        beforeCursorOverride: adjustedBeforeCursor,
+        afterCursorOverride: afterCursor,
+      });
+    } else {
+      this.predictionCoordinator.schedule(entry, {
+        force: false,
+        clearSuggestions: () => this.clearSuggestions(entry),
+        inputAction,
+        beforeCursorOverride: adjustedBeforeCursor,
+        afterCursorOverride: afterCursor,
+      });
+    }
+
+    if (scheduleIdle) {
+      this.scheduleIdleGrammar(entry);
+    }
+
+    return true;
   }
 
   private resolveEditableCursorContext(
