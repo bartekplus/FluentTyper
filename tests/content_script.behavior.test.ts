@@ -99,7 +99,7 @@ jest.unstable_mockModule("../src/core/application/dom-utils", () => ({
 jest.unstable_mockModule("../src/adapters/chrome/content-script/SuggestionManager", () => ({
   SuggestionManager: jest.fn().mockImplementation(() => {
     const instance: SuggestionLike = {
-      queryAndAttachHelper: jest.fn(),
+      queryAndAttachHelper: jest.fn(() => false),
       detachAllHelpers: jest.fn(),
       removeHelpersNotInDocument: jest.fn(),
       updateLangConfig: jest.fn(),

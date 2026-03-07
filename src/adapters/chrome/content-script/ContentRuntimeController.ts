@@ -315,8 +315,8 @@ export class ContentRuntimeController {
     if (!candidate) {
       return;
     }
-    this.suggestionManager.queryAndAttachHelper(candidate);
-    if (event.type === "focusin" || event.type === "input") {
+    const attachedNow = this.suggestionManager.queryAndAttachHelper(candidate);
+    if (event.type === "focusin" || (event.type === "input" && attachedNow)) {
       this.suggestionManager.triggerActiveSuggestion();
     }
   }

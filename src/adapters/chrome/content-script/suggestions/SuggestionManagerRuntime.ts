@@ -239,8 +239,9 @@ export class SuggestionManagerRuntime {
     }
   }
 
-  public queryAndAttachHelper(root?: Element): void {
+  public queryAndAttachHelper(root?: Element): boolean {
     const candidates = this.discovery.queryCandidates(root);
+    let attachedAny = false;
 
     for (const candidate of candidates) {
       if (this.entryRegistry.isAttached(candidate)) {
@@ -261,8 +262,11 @@ export class SuggestionManagerRuntime {
 
       if (!shouldSkip) {
         this.attachHelper(candidate);
+        attachedAny = true;
       }
     }
+
+    return attachedAny;
   }
 
   public triggerActiveSuggestion(): void {
