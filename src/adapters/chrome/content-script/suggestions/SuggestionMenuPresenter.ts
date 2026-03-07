@@ -32,7 +32,11 @@ export class SuggestionMenuPresenter {
 
     model.suggestions.forEach((suggestion, index) => {
       const li = document.createElement("li");
-      li.innerHTML = this.buildSuggestionMenuItemHtml(model.mentionText, suggestion);
+      li.innerHTML = this.buildSuggestionMenuItemHtml({
+        mentionText: model.mentionText,
+        suggestion,
+        shortcutDigit: model.showShortcutDigits ? this.formatShortcutDigit(index) : null,
+      });
       li.setAttribute("data-index", String(index));
       if (model.showShortcutDigits) {
         li.classList.add("has-shortcut");
@@ -83,7 +87,22 @@ export class SuggestionMenuPresenter {
     return index === 9 ? "0" : String(index + 1);
   }
 
-  private buildSuggestionMenuItemHtml(mentionText: string, suggestion: string): string {
+  private buildSuggestionMenuItemHtml(args: {
+    mentionText: string;
+    suggestion: string;
+    shortcutDigit: string | null;
+  }): string {
+    const shortcutMarkup = args.shortcutDigit
+      ? `<span class="ft-suggestion-shortcut" aria-hidden="true">${args.shortcutDigit}</span>`
+      : "";
+    const labelMarkup = `<span class="ft-suggestion-label">${this.buildSuggestionLabelHtml(
+      args.mentionText,
+      args.suggestion,
+    )}</span>`;
+    return `${shortcutMarkup}${labelMarkup}`;
+  }
+
+  private buildSuggestionLabelHtml(mentionText: string, suggestion: string): string {
     const safeSuggestion = this.escapeHtml(suggestion);
     const mention = (mentionText || "").trim();
     if (!mention) {

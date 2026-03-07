@@ -29,8 +29,9 @@ describe("SuggestionMenuPresenter", () => {
     expect(list.querySelector("lh")?.textContent).toBe("Lang: English");
     expect(list.querySelectorAll("li").length).toBe(2);
     expect(list.querySelector("li")?.getAttribute("data-shortcut")).toBe("1");
+    expect(list.querySelector("li .ft-suggestion-shortcut")?.textContent).toBe("1");
     expect(list.querySelector("li.highlight")?.getAttribute("data-index")).toBe("1");
-    expect(list.querySelector("li")?.innerHTML).toContain(
+    expect(list.querySelector("li .ft-suggestion-label")?.innerHTML).toContain(
       '<span class="ft-suggestion-match">he</span>',
     );
   });
