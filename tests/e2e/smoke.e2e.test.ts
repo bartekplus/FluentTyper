@@ -885,4 +885,272 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
     },
     suiteTimeout(10000, 15000),
   );
+
+  test(
+    "attaches to email and url inputs",
+    async () => {
+      await gotoTestPage(page);
+      await page.bringToFront();
+      await waitForInputReady(page, "#test-input");
+
+      const results = await page.evaluate(() => ({
+        email: document.querySelector("#test-email")?.hasAttribute("data-suggestion") ?? false,
+        url: document.querySelector("#test-url")?.hasAttribute("data-suggestion") ?? false,
+      }));
+
+      expect(results.email).toBe(true);
+      expect(results.url).toBe(true);
+    },
+    suiteTimeout(10000, 15000),
+  );
+
+  test(
+    "does not attach to tel, disabled, or readonly inputs",
+    async () => {
+      await gotoTestPage(page);
+      await page.bringToFront();
+      await waitForInputReady(page, "#test-input");
+
+      const results = await page.evaluate(() => ({
+        tel: document.querySelector("#test-tel")?.hasAttribute("data-suggestion") ?? false,
+        disabled:
+          document.querySelector("#test-disabled")?.hasAttribute("data-suggestion") ?? false,
+        readonly:
+          document.querySelector("#test-readonly")?.hasAttribute("data-suggestion") ?? false,
+      }));
+
+      expect(results.tel).toBe(false);
+      expect(results.disabled).toBe(false);
+      expect(results.readonly).toBe(false);
+    },
+    suiteTimeout(10000, 15000),
+  );
+
+  test(
+    "attaches to input inside open shadow root and shows suggestions on typing",
+    async () => {
+      await gotoTestPage(page);
+      await page.bringToFront();
+      await waitForInputReady(page, "#test-input");
+
+      // Inject a custom element with an open shadow root containing a text input.
+      await page.evaluate(() => {
+        class FtShadowTestComponent extends HTMLElement {
+          constructor() {
+            super();
+            const shadow = this.attachShadow({ mode: "open" });
+            const input = document.createElement("input");
+            input.type = "text";
+            shadow.appendChild(input);
+          }
+        }
+        customElements.define("ft-shadow-test-component", FtShadowTestComponent);
+        document.body.appendChild(document.createElement("ft-shadow-test-component"));
+      });
+
+      // Focus the shadow-hosted input so the runtime's late-discovery
+      // listeners can detect it and attach a suggestion helper.
+      await page.evaluate(() => {
+        const host = document.querySelector("ft-shadow-test-component");
+        (host?.shadowRoot?.querySelector("input") as HTMLInputElement | null)?.focus();
+      });
+
+      // Wait for the extension to attach to the shadow-hosted input.
+      await waitUntil(
+        "shadow root input to gain data-suggestion",
+        async () => {
+          const attached = await page.evaluate(() => {
+            const host = document.querySelector("ft-shadow-test-component");
+            return (
+              host?.shadowRoot?.querySelector("input")?.hasAttribute("data-suggestion") ?? false
+            );
+          });
+          return attached ? true : false;
+        },
+        { timeoutMs: timeoutProfile.inputReadyMs, intervalMs: 50 },
+      );
+
+      // Type and verify the suggestion popup appears.
+      await page.keyboard.type("h");
+
+      const suggestions = await waitForSuggestionTexts(page);
+      expect(suggestions.length).toBeGreaterThan(0);
+      expect(suggestions[0]?.toLowerCase()).toMatch(/^h\S*/);
+    },
+    suiteTimeout(15000, 22000),
+  );
+
+  test(
+    "discovers input in shadow root created on a host already in the DOM",
+    async () => {
+      await gotoTestPage(page);
+      await page.bringToFront();
+      await waitForInputReady(page, "#test-input");
+
+      // Step 1: Insert a bare host element with no shadow root.
+      // The extension processes this mutation but finds nothing to attach to.
+      await page.evaluate(() => {
+        const host = document.createElement("div");
+        host.id = "ft-late-shadow-host";
+        document.body.appendChild(host);
+      });
+
+      // Wait long enough for the extension's mutation coalesce cycle to finish.
+      await new Promise<void>((resolve) => setTimeout(resolve, 100));
+
+      // Step 2: Call attachShadow() on the now-stationary host and append an
+      // input.  No DOM mutation fires on the parent, so the extension must use
+      // the attachShadow() interceptor to detect this shadow root.
+      await page.evaluate(() => {
+        const host = document.getElementById("ft-late-shadow-host")!;
+        const shadow = host.attachShadow({ mode: "open" });
+        const input = document.createElement("input");
+        input.type = "text";
+        shadow.appendChild(input);
+      });
+
+      // Focus the late shadow-hosted input so the runtime's interaction fallback
+      // can attach helpers even if attachShadow interception is unavailable.
+      await page.evaluate(() => {
+        const host = document.getElementById("ft-late-shadow-host");
+        (host?.shadowRoot?.querySelector("input") as HTMLInputElement | null)?.focus();
+      });
+
+      // Wait for the extension to attach to the shadow-hosted input.
+      await waitUntil(
+        "late shadow root input to gain data-suggestion",
+        async () => {
+          const attached = await page.evaluate(() => {
+            const host = document.getElementById("ft-late-shadow-host");
+            return (
+              host?.shadowRoot?.querySelector("input")?.hasAttribute("data-suggestion") ?? false
+            );
+          });
+          return attached ? true : false;
+        },
+        { timeoutMs: timeoutProfile.inputReadyMs, intervalMs: 50 },
+      );
+
+      // Verify suggestions appear when the user types.
+      await page.keyboard.type("h");
+
+      const suggestions = await waitForSuggestionTexts(page);
+      expect(suggestions.length).toBeGreaterThan(0);
+      expect(suggestions[0]?.toLowerCase()).toMatch(/^h\S*/);
+    },
+    suiteTimeout(15000, 22000),
+  );
+
+  test(
+    "discovers input in nested shadow root created on a host inside another shadow tree",
+    async () => {
+      await gotoTestPage(page);
+      await page.bringToFront();
+      await waitForInputReady(page, "#test-input");
+
+      // Step 1: Create an outer shadow tree with an inner host but no inner
+      // shadow root yet. This exercises browser event retargeting when the late
+      // attachShadow() notification bubbles back to the document listener.
+      await page.evaluate(() => {
+        const outerHost = document.createElement("div");
+        outerHost.id = "ft-nested-shadow-outer-host";
+        document.body.appendChild(outerHost);
+
+        const outerShadow = outerHost.attachShadow({ mode: "open" });
+        const innerHost = document.createElement("div");
+        innerHost.id = "ft-nested-shadow-inner-host";
+        outerShadow.appendChild(innerHost);
+      });
+
+      await new Promise<void>((resolve) => setTimeout(resolve, 100));
+
+      // Step 2: Attach an inner shadow root after the host is already stable in
+      // the outer shadow tree, then add an input. The extension must recover the
+      // original dispatcher via composedPath()[0], not the retargeted event.target.
+      await page.evaluate(() => {
+        const outerHost = document.getElementById("ft-nested-shadow-outer-host");
+        const innerHost = outerHost?.shadowRoot?.querySelector("#ft-nested-shadow-inner-host");
+        const innerShadow = (innerHost as HTMLElement | null)?.attachShadow({ mode: "open" });
+        const input = document.createElement("input");
+        input.type = "text";
+        innerShadow?.appendChild(input);
+      });
+
+      await page.evaluate(() => {
+        const outerHost = document.getElementById("ft-nested-shadow-outer-host");
+        const innerHost = outerHost?.shadowRoot?.querySelector("#ft-nested-shadow-inner-host");
+        (
+          (innerHost as HTMLElement | null)?.shadowRoot?.querySelector(
+            "input",
+          ) as HTMLInputElement | null
+        )?.focus();
+      });
+
+      await waitUntil(
+        "nested late shadow root input to gain data-suggestion",
+        async () => {
+          const attached = await page.evaluate(() => {
+            const outerHost = document.getElementById("ft-nested-shadow-outer-host");
+            const innerHost = outerHost?.shadowRoot?.querySelector("#ft-nested-shadow-inner-host");
+            return (
+              (innerHost as HTMLElement | null)?.shadowRoot
+                ?.querySelector("input")
+                ?.hasAttribute("data-suggestion") ?? false
+            );
+          });
+          return attached ? true : false;
+        },
+        { timeoutMs: timeoutProfile.inputReadyMs, intervalMs: 50 },
+      );
+
+      await page.keyboard.type("h");
+
+      const suggestions = await waitForSuggestionTexts(page);
+      expect(suggestions.length).toBeGreaterThan(0);
+      expect(suggestions[0]?.toLowerCase()).toMatch(/^h\S*/);
+    },
+    suiteTimeout(15000, 22000),
+  );
+
+  test(
+    "reattaches to input when disabled attribute is removed and shows suggestions on typing",
+    async () => {
+      await gotoTestPage(page);
+      await page.bringToFront();
+      await waitForInputReady(page, "#test-input");
+
+      const beforeEnable = await page.evaluate(
+        () => document.querySelector("#test-disabled")?.hasAttribute("data-suggestion") ?? false,
+      );
+      expect(beforeEnable).toBe(false);
+
+      await page.evaluate(() => {
+        document.querySelector("#test-disabled")?.removeAttribute("disabled");
+      });
+
+      // Wait for the extension to detect the attribute change and attach the helper.
+      await waitUntil(
+        "disabled input to gain data-suggestion after re-enable",
+        async () => {
+          const attached = await page.evaluate(
+            () =>
+              document.querySelector("#test-disabled")?.hasAttribute("data-suggestion") ?? false,
+          );
+          return attached ? true : false;
+        },
+        { timeoutMs: suiteTimeout(5000, 8000), intervalMs: 50 },
+      );
+
+      // Verify the full user experience: focus the now-enabled input, type a
+      // character, and assert the suggestion popup actually appears on screen.
+      await page.focus("#test-disabled");
+      const element = await page.$("#test-disabled");
+      await element!.type("h");
+
+      const suggestions = await waitForSuggestionTexts(page);
+      expect(suggestions.length).toBeGreaterThan(0);
+      expect(suggestions[0]?.toLowerCase()).toMatch(/^h\S*/);
+    },
+    suiteTimeout(15000, 22000),
+  );
 });

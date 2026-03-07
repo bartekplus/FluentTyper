@@ -8,8 +8,8 @@ export class SuggestionManager {
     this.runtime = new SuggestionManagerRuntime(options);
   }
 
-  public queryAndAttachHelper(root?: Element): void {
-    this.runtime.queryAndAttachHelper(root);
+  public queryAndAttachHelper(root?: Element): boolean {
+    return this.runtime.queryAndAttachHelper(root);
   }
 
   public removeHelpersNotInDocument(): void {

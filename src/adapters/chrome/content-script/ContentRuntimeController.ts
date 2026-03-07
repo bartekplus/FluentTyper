@@ -1,4 +1,5 @@
 import { createLogger } from "@core/application/logging/Logger";
+import { isInDocument } from "@core/application/dom-utils";
 import type {
   ContentScriptPredictRequestContext,
   PredictResponseContext,
@@ -7,6 +8,7 @@ import type {
 import { DomObserver } from "./DomObserver";
 import { MutationPipeline, type MutationPlan } from "./MutationPipeline";
 import { MutationScheduler } from "./MutationScheduler";
+import { ShadowRootInterceptor } from "./ShadowRootInterceptor";
 import { ThemeApplicator } from "./ThemeApplicator";
 import { SuggestionManager } from "./SuggestionManager";
 
@@ -35,6 +37,15 @@ export class ContentRuntimeController {
     userDictionaryList: [],
   };
   public readonly domObserver: DomObserver;
+  private readonly shadowObservers = new Map<ShadowRoot, DomObserver>();
+  private shadowRootInterceptor: ShadowRootInterceptor | null = null;
+  private lateDiscoveryListenersAttached = false;
+  private readonly onDocumentFocusInBound: EventListener =
+    this.onDocumentPotentialLateTarget.bind(this);
+  private readonly onDocumentMouseDownBound: EventListener =
+    this.onDocumentPotentialLateTarget.bind(this);
+  private readonly onDocumentInputBound: EventListener =
+    this.onDocumentPotentialLateTarget.bind(this);
 
   private _enabled = false;
   private onPredictionRequest: ((context: ContentScriptPredictRequestContext) => void) | null =
@@ -163,6 +174,9 @@ export class ContentRuntimeController {
       mutationCount: mutationsList.length,
     });
     this.domObserver.disconnect();
+    for (const o of this.shadowObservers.values()) {
+      o.disconnect();
+    }
     try {
       if (!this.suggestionManager) {
         return;
@@ -174,6 +188,14 @@ export class ContentRuntimeController {
     } finally {
       if (this.enabled) {
         this.attachMutationObserver();
+        for (const [root, observer] of this.shadowObservers.entries()) {
+          if (!isInDocument(root.host)) {
+            observer.disconnect();
+            this.shadowObservers.delete(root);
+          } else {
+            observer.attach();
+          }
+        }
       }
     }
   }
@@ -186,6 +208,11 @@ export class ContentRuntimeController {
     this.suggestionManager?.queryAndAttachHelper();
     this.suggestionManager?.triggerActiveSuggestion();
     this.attachMutationObserver();
+    for (const o of this.shadowObservers.values()) {
+      o.attach();
+    }
+    this.ensureShadowRootInterceptor();
+    this.ensureLateDiscoveryListeners();
   }
 
   disable(): void {
@@ -196,8 +223,13 @@ export class ContentRuntimeController {
       this.pendingRestartToken = null;
     }
     this.domObserver.disconnect();
+    for (const o of this.shadowObservers.values()) {
+      o.disconnect();
+    }
     this.mutationScheduler.clear();
     this.suggestionManager?.detachAllHelpers();
+    this.shadowRootInterceptor?.detach();
+    this.removeLateDiscoveryListeners();
   }
 
   restart(): void {
@@ -231,6 +263,87 @@ export class ContentRuntimeController {
     this.domObserver.setNode(node);
   }
 
+  private registerShadowRoot(root: ShadowRoot): void {
+    if (this.shadowObservers.has(root)) {
+      return;
+    }
+    const observer = new DomObserver(root, this.mutationCallback.bind(this));
+    this.shadowObservers.set(root, observer);
+    if (this.enabled) {
+      observer.attach();
+    }
+  }
+
+  private ensureShadowRootInterceptor(): void {
+    if (!this.shadowRootInterceptor) {
+      this.shadowRootInterceptor = new ShadowRootInterceptor((root) => {
+        this.registerShadowRoot(root);
+        // Trigger an initial scan of the host so elements already present in
+        // the shadow root at interception time are discovered immediately.
+        // Subsequent appends are caught by the DomObserver on the shadow root.
+        this.suggestionManager?.queryAndAttachHelper(root.host);
+      });
+    }
+    this.shadowRootInterceptor.attach();
+  }
+
+  private ensureLateDiscoveryListeners(): void {
+    if (this.lateDiscoveryListenersAttached) {
+      return;
+    }
+    document.addEventListener("focusin", this.onDocumentFocusInBound, true);
+    document.addEventListener("mousedown", this.onDocumentMouseDownBound, true);
+    document.addEventListener("input", this.onDocumentInputBound, true);
+    this.lateDiscoveryListenersAttached = true;
+  }
+
+  private removeLateDiscoveryListeners(): void {
+    if (!this.lateDiscoveryListenersAttached) {
+      return;
+    }
+    document.removeEventListener("focusin", this.onDocumentFocusInBound, true);
+    document.removeEventListener("mousedown", this.onDocumentMouseDownBound, true);
+    document.removeEventListener("input", this.onDocumentInputBound, true);
+    this.lateDiscoveryListenersAttached = false;
+  }
+
+  private onDocumentPotentialLateTarget(event: Event): void {
+    if (!this.enabled || !this.suggestionManager) {
+      return;
+    }
+    const candidate = this.resolveLateDiscoveryCandidate(event);
+    if (!candidate) {
+      return;
+    }
+    const attachedNow = this.suggestionManager.queryAndAttachHelper(candidate);
+    if (event.type === "focusin" || (event.type === "input" && attachedNow)) {
+      this.suggestionManager.triggerActiveSuggestion();
+    }
+  }
+
+  private resolveLateDiscoveryCandidate(event: Event): Element | null {
+    for (const node of event.composedPath()) {
+      if (!(node instanceof Element)) {
+        continue;
+      }
+      const shadowActiveElement = node.shadowRoot?.activeElement;
+      if (
+        shadowActiveElement instanceof Element &&
+        shadowActiveElement.matches(ContentRuntimeController.SELECTORS)
+      ) {
+        return shadowActiveElement;
+      }
+      if (node.matches(ContentRuntimeController.SELECTORS)) {
+        return node;
+      }
+      const matchingAncestor = node.closest(ContentRuntimeController.SELECTORS);
+      if (matchingAncestor) {
+        return matchingAncestor;
+      }
+    }
+    return null;
+  }
+
   private initializeSuggestionManager(): void {
     this.predictionGeneration += 1;
     const generation = this.predictionGeneration;
@@ -258,6 +371,7 @@ export class ContentRuntimeController {
           ...context,
           runtimeGeneration: generation,
         }),
+      onShadowRootDiscovered: this.registerShadowRoot.bind(this),
     });
   }
 

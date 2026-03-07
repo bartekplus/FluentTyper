@@ -60,6 +60,10 @@
     "grammar_v3_advanced_shortcuts",
     "grammar_v3_advanced_context_guard",
     "grammar_v3_english_language_guard",
-    "grammar_v5_forced_migration"
+    "grammar_v5_forced_migration",
+    "input_type_eligibility",
+    "disabled_input_dynamic_reattach",
+    "shadow_dom_discovery",
+    "shadow_dom_late_attach"
   ]
 }

@@ -1,4 +1,4 @@
-import { isInDocument } from "@core/application/dom-utils";
+import { getDeepActiveElement, isInDocument } from "@core/application/dom-utils";
 import { LANG_SEPARATOR_CHARS_REGEX, SUPPORTED_LANGUAGES } from "@core/domain/lang";
 import { InlineSuggestionPresenter } from "./InlineSuggestionPresenter";
 import { SuggestionElementDiscovery } from "./SuggestionElementDiscovery";
@@ -86,6 +86,7 @@ export class SuggestionManagerRuntime {
     this.discovery = new SuggestionElementDiscovery({
       selectors: options.selectors,
       isStructurallyEligibleElement: this.isStructurallyEligibleElement.bind(this),
+      onShadowRootDiscovered: options.onShadowRootDiscovered,
     });
     this.lifecycleController = new SuggestionLifecycleController({
       getEntries: () => this.entryRegistry.values(),
@@ -238,8 +239,9 @@ export class SuggestionManagerRuntime {
     }
   }
 
-  public queryAndAttachHelper(root?: Element): void {
+  public queryAndAttachHelper(root?: Element): boolean {
     const candidates = this.discovery.queryCandidates(root);
+    let attachedAny = false;
 
     for (const candidate of candidates) {
       if (this.entryRegistry.isAttached(candidate)) {
@@ -260,8 +262,11 @@ export class SuggestionManagerRuntime {
 
       if (!shouldSkip) {
         this.attachHelper(candidate);
+        attachedAny = true;
       }
     }
+
+    return attachedAny;
   }
 
   public triggerActiveSuggestion(): void {
@@ -289,15 +294,20 @@ export class SuggestionManagerRuntime {
 
   private isStructurallyEligibleElement(elem: HTMLElement): elem is SuggestionElement {
     if (TextTargetAdapter.isTextArea(elem)) {
-      return true;
+      const ta = elem as HTMLTextAreaElement;
+      return !ta.disabled && !ta.readOnly;
     }
 
     if (TextTargetAdapter.isInput(elem)) {
-      const inputType = (elem.type || "text").toLowerCase();
-      if (!["text", "search", ""].includes(inputType)) {
+      const input = elem as HTMLInputElement;
+      if (input.disabled || input.readOnly) {
         return false;
       }
-      const blocked = `${elem.name} ${elem.id}`.toLowerCase();
+      const inputType = (input.type || "text").toLowerCase();
+      if (!["text", "search", "", "email", "url"].includes(inputType)) {
+        return false;
+      }
+      const blocked = `${input.name} ${input.id}`.toLowerCase();
       return !blocked.includes("password") && !blocked.includes("username");
     }
 
@@ -413,7 +423,7 @@ export class SuggestionManagerRuntime {
     if (this.activeEntryId === entry.id) {
       return true;
     }
-    const active = document.activeElement;
+    const active = getDeepActiveElement(document);
     if (!active) {
       return false;
     }
@@ -423,12 +433,12 @@ export class SuggestionManagerRuntime {
   private getActiveEntry(): SuggestionEntry | null {
     if (this.activeEntryId !== null) {
       const known = this.entryRegistry.getById(this.activeEntryId);
-      if (known && document.activeElement === known.elem) {
+      if (known && getDeepActiveElement(document) === known.elem) {
         return known;
       }
     }
 
-    const active = document.activeElement;
+    const active = getDeepActiveElement(document);
     if (!active) {
       return null;
     }

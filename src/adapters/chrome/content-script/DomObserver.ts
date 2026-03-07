@@ -1,3 +1,5 @@
+import { SHADOW_ATTACH_MARKER_ATTR } from "./ShadowRootInterceptor";
+
 /**
  * DomObserver class encapsulates MutationObserver logic for DOM changes.
  * It notifies a callback when relevant mutations occur.
@@ -23,8 +25,20 @@ export class DomObserver {
     this.observer.observe(this.node, {
       childList: true,
       attributes: true,
-      // Include visibility-related attributes so hidden->visible toggles trigger rescans.
-      attributeFilter: ["contenteditable", "type", "name", "id", "style", "class", "hidden"],
+      // Include visibility-related and interactivity-related attributes so state
+      // transitions (hidden↔visible, disabled↔enabled, readonly↔editable) trigger rescans.
+      attributeFilter: [
+        "contenteditable",
+        "type",
+        "name",
+        "id",
+        "style",
+        "class",
+        "hidden",
+        "disabled",
+        "readonly",
+        SHADOW_ATTACH_MARKER_ATTR,
+      ],
       subtree: true,
     });
   }
