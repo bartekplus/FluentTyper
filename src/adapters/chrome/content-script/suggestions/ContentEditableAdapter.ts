@@ -262,12 +262,22 @@ export class ContentEditableAdapter {
       return null;
     }
     try {
+      const startPosition = this.mapRangeEndpointIntoBlock(
+        range.startContainer,
+        range.startOffset,
+        block,
+      );
+      const endPosition = this.mapRangeEndpointIntoBlock(
+        range.endContainer,
+        range.endOffset,
+        block,
+      );
       const beforeRange = document.createRange();
       beforeRange.selectNodeContents(block);
-      beforeRange.setEnd(range.startContainer, range.startOffset);
+      beforeRange.setEnd(startPosition.container, startPosition.offset);
       const afterRange = document.createRange();
       afterRange.selectNodeContents(block);
-      afterRange.setStart(range.endContainer, range.endOffset);
+      afterRange.setStart(endPosition.container, endPosition.offset);
       return {
         beforeCursor: beforeRange.toString(),
         afterCursor: afterRange.toString(),
@@ -275,6 +285,38 @@ export class ContentEditableAdapter {
     } catch {
       return null;
     }
+  }
+
+  private mapRangeEndpointIntoBlock(
+    container: Node,
+    offset: number,
+    block: HTMLElement,
+  ): ContentEditableDomPosition {
+    if (container === block || block.contains(container)) {
+      return { container, offset };
+    }
+    return this.resolveAncestorEndpointWithinBlock(container, offset, block);
+  }
+
+  private resolveAncestorEndpointWithinBlock(
+    container: Node,
+    offset: number,
+    block: HTMLElement,
+  ): ContentEditableDomPosition {
+    if (!(container instanceof Element) || !container.contains(block)) {
+      return { container: block, offset: 0 };
+    }
+
+    const blockIndex = this.getBlockChildIndex(container, block);
+    if (blockIndex < 0) {
+      return { container: block, offset: 0 };
+    }
+
+    if (offset <= blockIndex) {
+      return { container: block, offset: 0 };
+    }
+
+    return { container: block, offset: block.childNodes.length };
   }
 
   /**

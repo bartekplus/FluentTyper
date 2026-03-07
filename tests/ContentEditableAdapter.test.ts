@@ -430,4 +430,60 @@ describe("ContentEditableAdapter", () => {
     expect(context?.beforeCursor).toBe("De");
     expect(context?.afterCursor).toBe("ep");
   });
+
+  test("walking fallback maps ancestor boundary endpoints into resolved block", () => {
+    const adapter = new ContentEditableAdapter();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML =
+      '<div><p class="first" dir="auto"><span data-lexical-text="true">Wa</span></p><p class="second" dir="auto"><span data-lexical-text="true">S</span></p></div>';
+    document.body.appendChild(editable);
+
+    const wrapper = editable.querySelector("div")!;
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Selection API unavailable");
+    }
+
+    const range = document.createRange();
+    range.setStart(wrapper, 1);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    const originalResolvePointWithinBlock = (
+      adapter as unknown as {
+        resolvePointWithinBlock: (
+          container: Node,
+          offset: number,
+          block: HTMLElement,
+          root: HTMLElement,
+        ) => unknown;
+      }
+    ).resolvePointWithinBlock;
+
+    (
+      adapter as unknown as {
+        resolvePointWithinBlock: (
+          container: Node,
+          offset: number,
+          block: HTMLElement,
+          root: HTMLElement,
+        ) => null;
+      }
+    ).resolvePointWithinBlock = () => null;
+
+    try {
+      const context = adapter.getBlockContext(editable);
+      expect(context).not.toBeNull();
+      expect(context?.beforeCursor).toBe("");
+      expect(context?.afterCursor).toBe("S");
+    } finally {
+      (
+        adapter as unknown as {
+          resolvePointWithinBlock: typeof originalResolvePointWithinBlock;
+        }
+      ).resolvePointWithinBlock = originalResolvePointWithinBlock;
+    }
+  });
 });
