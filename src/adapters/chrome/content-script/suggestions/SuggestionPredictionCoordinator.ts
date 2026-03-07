@@ -25,6 +25,7 @@ export class SuggestionPredictionCoordinator {
   private lang: string;
   private minWordLengthToPredict: number;
   private separatorRegex: RegExp;
+  private separatorRegexNeedsReset: boolean;
 
   constructor(options: SuggestionPredictionCoordinatorOptions) {
     this.debounceByAction = options.debounceByAction;
@@ -32,11 +33,13 @@ export class SuggestionPredictionCoordinator {
     this.lang = options.lang;
     this.minWordLengthToPredict = options.minWordLengthToPredict;
     this.separatorRegex = options.separatorRegex;
+    this.separatorRegexNeedsReset = options.separatorRegex.global || options.separatorRegex.sticky;
   }
 
   public updateLang(lang: string, separatorRegex: RegExp): void {
     this.lang = lang;
     this.separatorRegex = separatorRegex;
+    this.separatorRegexNeedsReset = separatorRegex.global || separatorRegex.sticky;
   }
 
   public schedule(
@@ -227,7 +230,7 @@ export class SuggestionPredictionCoordinator {
   }
 
   public isSeparator(value: string): boolean {
-    if (this.separatorRegex.global || this.separatorRegex.sticky) {
+    if (this.separatorRegexNeedsReset) {
       this.separatorRegex.lastIndex = 0;
     }
     return this.separatorRegex.test(value);

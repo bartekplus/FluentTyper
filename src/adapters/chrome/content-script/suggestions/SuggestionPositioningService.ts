@@ -111,7 +111,7 @@ export class SuggestionPositioningService {
 
     const mirror = document.createElement("div");
     mirror.style.whiteSpace = "pre-wrap";
-    if (elem.nodeName !== "INPUT") {
+    if (!TextTargetAdapter.isInput(elem)) {
       mirror.style.wordWrap = "break-word";
     }
     mirror.style.position = "absolute";
@@ -129,7 +129,7 @@ export class SuggestionPositioningService {
     beforeSpan.textContent = elem.value.substring(0, position);
     mirror.appendChild(beforeSpan);
 
-    if (elem.nodeName === "INPUT") {
+    if (TextTargetAdapter.isInput(elem)) {
       mirror.textContent = mirror.textContent.replace(/\s/g, "\xA0");
     }
 
