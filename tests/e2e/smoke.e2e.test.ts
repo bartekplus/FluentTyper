@@ -956,6 +956,20 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
         (host?.shadowRoot?.querySelector("input") as HTMLInputElement | null)?.focus();
       });
 
+      await waitUntil(
+        "shadow-hosted input to receive focus",
+        async () => {
+          const focused = await page.evaluate(() => {
+            const host = document.querySelector("ft-shadow-test-component");
+            const input = host?.shadowRoot?.querySelector("input");
+            return host?.shadowRoot?.activeElement === input;
+          });
+          return focused ? true : false;
+        },
+        { timeoutMs: timeoutProfile.inputReadyMs, intervalMs: 50 },
+      );
+      await new Promise<void>((resolve) => setTimeout(resolve, 100));
+
       // Type and verify the suggestion popup appears. This covers the actual
       // user-visible contract and avoids a Firefox-only flake around when the
       // internal helper marker becomes observable.
