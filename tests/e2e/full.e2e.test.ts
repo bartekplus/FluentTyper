@@ -2856,6 +2856,169 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "keeps second-line prediction block-local in br-separated contenteditable",
+    async () => {
+      const selector = "#test-contenteditable";
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await applyConfigChange(browser, worker!);
+
+      await gotoTestPage(page);
+      await page.bringToFront();
+      await waitForInputReady(page, selector);
+
+      const optionsPage = await openOptionsPage(browser, worker!);
+      try {
+        const baselineSnapshot = await getPredictorDebugSnapshot(optionsPage);
+        const baselineTraceIds = new Set(
+          (baselineSnapshot.traces ?? [])
+            .map((trace) => trace.traceId)
+            .filter((traceId): traceId is string => typeof traceId === "string"),
+        );
+
+        await page.evaluate((sel) => {
+          const target = document.querySelector(sel);
+          if (!(target instanceof HTMLElement)) {
+            throw new Error("Contenteditable target not found");
+          }
+
+          target.innerHTML =
+            '<p class="fb-linebreak" dir="auto"><span data-lexical-text="true">Wan</span><br><span data-lexical-text="true"></span></p>';
+          target.addEventListener(
+            "input",
+            () => {
+              const paragraph = target.querySelector("p.fb-linebreak");
+              if (!(paragraph instanceof HTMLElement)) {
+                return;
+              }
+              const spans = paragraph.querySelectorAll("span[data-lexical-text='true']");
+              const firstSpan = spans.item(0);
+              const secondSpan = spans.item(1);
+              if (!(firstSpan instanceof HTMLElement) || !(secondSpan instanceof HTMLElement)) {
+                return;
+              }
+
+              const firstLineText =
+                firstSpan.dataset.initialFirstLine ?? firstSpan.textContent ?? "";
+              const fullText = paragraph.textContent ?? "";
+              const secondLineText = fullText.startsWith(firstLineText)
+                ? fullText.slice(firstLineText.length)
+                : fullText;
+
+              firstSpan.textContent = firstLineText;
+              secondSpan.textContent = secondLineText;
+
+              const existingBreak = paragraph.querySelector("br");
+              if (!(existingBreak instanceof HTMLBRElement)) {
+                const lineBreak = document.createElement("br");
+                paragraph.insertBefore(lineBreak, secondSpan);
+              } else if (existingBreak.nextSibling !== secondSpan) {
+                paragraph.insertBefore(existingBreak, secondSpan);
+              }
+
+              const childNodes = Array.from(paragraph.childNodes);
+              for (const child of childNodes) {
+                if (child === firstSpan || child === secondSpan || child.nodeName === "BR") {
+                  continue;
+                }
+                paragraph.removeChild(child);
+              }
+
+              const selection = window.getSelection();
+              if (!selection) {
+                return;
+              }
+              const secondTextNode =
+                secondSpan.firstChild instanceof Text
+                  ? secondSpan.firstChild
+                  : secondSpan.appendChild(document.createTextNode(secondLineText));
+              const range = document.createRange();
+              range.setStart(secondTextNode, secondTextNode.textContent?.length ?? 0);
+              range.collapse(true);
+              selection.removeAllRanges();
+              selection.addRange(range);
+            },
+            { capture: true },
+          );
+          const firstSpan = target.querySelector("span[data-lexical-text='true']");
+          if (firstSpan instanceof HTMLElement) {
+            firstSpan.dataset.initialFirstLine = firstSpan.textContent ?? "";
+          }
+          target.focus();
+
+          const secondSpan = target.querySelectorAll("span")[1];
+          if (!(secondSpan instanceof HTMLElement)) {
+            throw new Error("Second-line span not found");
+          }
+          const secondText = secondSpan.appendChild(document.createTextNode(""));
+
+          const selection = window.getSelection();
+          if (!selection) {
+            throw new Error("Selection unavailable");
+          }
+
+          const range = document.createRange();
+          range.setStart(secondText, 0);
+          range.collapse(true);
+          selection.removeAllRanges();
+          selection.addRange(range);
+        }, selector);
+
+        await page.bringToFront();
+        await page.keyboard.type("t");
+        await page.evaluate((sel) => {
+          const target = document.querySelector(sel);
+          if (!(target instanceof HTMLElement)) {
+            throw new Error("Contenteditable target not found");
+          }
+          const secondSpan = target.querySelectorAll("span")[1];
+          if (!(secondSpan instanceof HTMLElement)) {
+            throw new Error("Second-line span not found after typing");
+          }
+          const secondText =
+            secondSpan.firstChild instanceof Text
+              ? secondSpan.firstChild
+              : secondSpan.appendChild(document.createTextNode(""));
+          const selection = window.getSelection();
+          if (!selection) {
+            throw new Error("Selection unavailable");
+          }
+          const range = document.createRange();
+          range.setStart(secondText, secondText.textContent?.length ?? 0);
+          range.collapse(true);
+          selection.removeAllRanges();
+          selection.addRange(range);
+          target.dispatchEvent(new Event("input", { bubbles: true }));
+        }, selector);
+
+        const trace = await waitForPredictorTrace(
+          optionsPage,
+          (candidate) => {
+            if (!candidate.traceId || baselineTraceIds.has(candidate.traceId)) {
+              return false;
+            }
+            const predictionInput = candidate.predictionInput?.toLowerCase() ?? "";
+            const requestText = candidate.text?.toLowerCase() ?? "";
+            return predictionInput === "t" || requestText === "t";
+          },
+          browserTimeout(5000, 12000),
+        );
+
+        expect(trace.text?.toLowerCase()).toBe("t");
+        expect(trace.text?.toLowerCase()).not.toContain("wan");
+        expect(trace.predictionInput?.toLowerCase()).toBe("t");
+        expect(trace.predictionInput?.toLowerCase()).not.toContain("wan");
+      } finally {
+        if (!optionsPage.isClosed()) {
+          await optionsPage.close();
+        }
+      }
+    },
+    browserTimeout(20000, 35000),
+  );
+
+  test(
     "keeps second-line prediction block-local after Enter in real Lexical editor",
     async () => {
       await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");

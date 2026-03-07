@@ -319,6 +319,47 @@
       ]
     },
     {
+      "id": "contenteditable_br_line_prediction_scope",
+      "description": "Single-paragraph contenteditable predictions stay scoped to the current br-separated visual line instead of concatenating text across line breaks.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "keeps second-line prediction block-local in br-separated contenteditable"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionManager.test.ts",
+          "test": "keeps second-line prediction block-local with br-separated line break in one paragraph (Facebook actual DOM)"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ContentEditableAdapter.test.ts",
+          "test": "scopes block context to the current br-separated line inside one paragraph"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ContentEditableAdapter.test.ts",
+          "test": "scopes block context to the first line before a br separator"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ContentEditableAdapter.test.ts",
+          "test": "scopes block context to the middle line across multiple br separators"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ContentEditableAdapter.test.ts",
+          "test": "treats trailing br as an empty line placeholder after text"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ContentEditableAdapter.test.ts",
+          "test": "returns an empty current line between consecutive br separators"
+        }
+      ]
+    },
+    {
       "id": "missing_space_cancellation",
       "description": "Cursor movement cancels automatic missing-space insertion.",
       "coverage": [
