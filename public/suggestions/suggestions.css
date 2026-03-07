@@ -20,6 +20,12 @@
   --suggestion-highlight-text-light: #2d3748;
   --suggestion-border-color-light: #e2e8f0;
   --suggestion-shadow-color-light: rgba(0, 0, 0, 0.1);
+  --suggestion-shortcut-bg-light: #eef2f7;
+  --suggestion-shortcut-text-light: #334155;
+  --suggestion-shortcut-border-light: #cbd5e1;
+  --suggestion-shortcut-bg-light-active: #e2e8f0;
+  --suggestion-shortcut-text-light-active: #0f172a;
+  --suggestion-shortcut-border-light-active: #94a3b8;
 
   /* --- Dark Theme Variables --- */
   --suggestion-bg-dark: #0f172a;
@@ -30,6 +36,12 @@
   --suggestion-highlight-text-dark: #f8fafc;
   --suggestion-border-color-dark: #334155;
   --suggestion-shadow-color-dark: rgba(0, 0, 0, 0.4);
+  --suggestion-shortcut-bg-dark: #1e293b;
+  --suggestion-shortcut-text-dark: #e2e8f0;
+  --suggestion-shortcut-border-dark: #475569;
+  --suggestion-shortcut-bg-dark-active: #334155;
+  --suggestion-shortcut-text-dark-active: #f8fafc;
+  --suggestion-shortcut-border-dark-active: #64748b;
 
   /* --- Typography Variables --- */
   --suggestion-font-size: 0.9rem;
@@ -76,6 +88,51 @@
     color 0.15s ease-in-out !important; /* Smooth transition */
 }
 
+.ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"]
+  li.has-shortcut {
+  display: grid !important;
+  grid-template-columns: 1.3rem minmax(0, 1fr) !important;
+  align-items: center !important;
+  column-gap: 0.45rem !important;
+  padding-left: 0.65rem !important;
+  padding-right: 0.75rem !important;
+}
+
+.ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"]
+  li
+  .ft-suggestion-shortcut {
+  display: grid !important;
+  place-items: center !important;
+  box-sizing: border-box !important;
+  width: 1.25rem !important;
+  height: 1.25rem !important;
+  border: 1px solid var(--suggestion-shortcut-border-light) !important;
+  border-radius: 0.4rem !important;
+  background-color: var(--suggestion-shortcut-bg-light) !important;
+  color: var(--suggestion-shortcut-text-light) !important;
+  font-size: 0.78em !important;
+  line-height: 1 !important;
+  font-weight: 700 !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+.ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"]
+  li
+  .ft-suggestion-label {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"]
+  li.highlight
+  .ft-suggestion-shortcut {
+  border-color: var(--suggestion-shortcut-border-light-active) !important;
+  background-color: var(--suggestion-shortcut-bg-light-active) !important;
+  color: var(--suggestion-shortcut-text-light-active) !important;
+}
+
 /* --- List Header --- */
 .ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"] lh {
   display: block !important;
@@ -98,7 +155,9 @@
 }
 
 /* Matched text inside a suggestion */
-.ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"] li span {
+.ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"]
+  li
+  .ft-suggestion-match {
   font-weight: 700 !important;
 }
 
@@ -132,6 +191,22 @@
     li.highlight {
     background-color: var(--suggestion-highlight-bg-dark) !important;
     color: var(--suggestion-highlight-text-dark) !important;
+  }
+
+  .ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"]
+    li
+    .ft-suggestion-shortcut {
+    border-color: var(--suggestion-shortcut-border-dark) !important;
+    background-color: var(--suggestion-shortcut-bg-dark) !important;
+    color: var(--suggestion-shortcut-text-dark) !important;
+  }
+
+  .ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"]
+    li.highlight
+    .ft-suggestion-shortcut {
+    border-color: var(--suggestion-shortcut-border-dark-active) !important;
+    background-color: var(--suggestion-shortcut-bg-dark-active) !important;
+    color: var(--suggestion-shortcut-text-dark-active) !important;
   }
 
   .ft-suggestion-container[data-ft-suggestion-owned="true"][data-ft-suggestion-role="menu"]

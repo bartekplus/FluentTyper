@@ -397,7 +397,7 @@ describe("SuggestionManager", () => {
 
     const menuItems = Array.from(document.querySelectorAll(".ft-suggestion-container li"));
     expect(menuItems.length).toBe(2);
-    expect(menuItems[0]?.textContent).toBe("hello\xA0");
+    expect(menuItems[0]?.querySelector(".ft-suggestion-label")?.textContent).toBe("hello\xA0");
 
     dispatchKeydown(input, "Tab");
     expect(input.value).toBe("hello\xA0");
@@ -692,6 +692,10 @@ describe("SuggestionManager", () => {
         predictions: ["hello\xA0", "hi\xA0"],
       }),
     );
+
+    const menuItems = Array.from(document.querySelectorAll(".ft-suggestion-container li"));
+    expect(menuItems[0]?.getAttribute("data-shortcut")).toBe("1");
+    expect(menuItems[1]?.getAttribute("data-shortcut")).toBe("2");
 
     dispatchKeydown(input, "2");
     expect(input.value).toBe("hi\xA0");
@@ -1981,7 +1985,7 @@ describe("SuggestionManager", () => {
 
     const menuItems = Array.from(document.querySelectorAll(".ft-suggestion-container li"));
     expect(menuItems.length).toBe(1);
-    expect(menuItems[0]?.textContent).toBe("Word\xA0");
+    expect(menuItems[0]?.querySelector(".ft-suggestion-label")?.textContent).toBe("Word\xA0");
   });
 
   test("shows popup when keydown + host capitalize + input arrive with stale caret (Reddit scenario)", async () => {
@@ -2042,7 +2046,7 @@ describe("SuggestionManager", () => {
 
     const menuItems = Array.from(document.querySelectorAll(".ft-suggestion-container li"));
     expect(menuItems.length).toBe(1);
-    expect(menuItems[0]?.textContent).toBe("Pattern\xA0");
+    expect(menuItems[0]?.querySelector(".ft-suggestion-label")?.textContent).toBe("Pattern\xA0");
   });
 
   test("shows popup when keydown + input fires before DOM mutation + stale caret (Reddit async scenario)", async () => {

@@ -7,6 +7,7 @@ export interface SuggestionMenuRenderModel {
   target: SuggestionElement;
   suggestions: string[];
   selectedIndex: number;
+  showShortcutDigits: boolean;
   menuHeader: string | null;
   mentionText: string;
 }
@@ -31,8 +32,16 @@ export class SuggestionMenuPresenter {
 
     model.suggestions.forEach((suggestion, index) => {
       const li = document.createElement("li");
-      li.innerHTML = this.buildSuggestionMenuItemHtml(model.mentionText, suggestion);
+      li.innerHTML = this.buildSuggestionMenuItemHtml({
+        mentionText: model.mentionText,
+        suggestion,
+        shortcutDigit: model.showShortcutDigits ? this.formatShortcutDigit(index) : null,
+      });
       li.setAttribute("data-index", String(index));
+      if (model.showShortcutDigits) {
+        li.classList.add("has-shortcut");
+        li.setAttribute("data-shortcut", this.formatShortcutDigit(index));
+      }
       if (index === model.selectedIndex) {
         li.classList.add("highlight");
       }
@@ -74,7 +83,26 @@ export class SuggestionMenuPresenter {
     });
   }
 
-  private buildSuggestionMenuItemHtml(mentionText: string, suggestion: string): string {
+  private formatShortcutDigit(index: number): string {
+    return index === 9 ? "0" : String(index + 1);
+  }
+
+  private buildSuggestionMenuItemHtml(args: {
+    mentionText: string;
+    suggestion: string;
+    shortcutDigit: string | null;
+  }): string {
+    const shortcutMarkup = args.shortcutDigit
+      ? `<span class="ft-suggestion-shortcut" aria-hidden="true">${args.shortcutDigit}</span>`
+      : "";
+    const labelMarkup = `<span class="ft-suggestion-label">${this.buildSuggestionLabelHtml(
+      args.mentionText,
+      args.suggestion,
+    )}</span>`;
+    return `${shortcutMarkup}${labelMarkup}`;
+  }
+
+  private buildSuggestionLabelHtml(mentionText: string, suggestion: string): string {
     const safeSuggestion = this.escapeHtml(suggestion);
     const mention = (mentionText || "").trim();
     if (!mention) {
@@ -91,7 +119,7 @@ export class SuggestionMenuPresenter {
     const before = this.escapeHtml(suggestion.slice(0, matchIndex));
     const match = this.escapeHtml(suggestion.slice(matchIndex, matchIndex + mention.length));
     const after = this.escapeHtml(suggestion.slice(matchIndex + mention.length));
-    return `${before}<span>${match}</span>${after}`;
+    return `${before}<span class="ft-suggestion-match">${match}</span>${after}`;
   }
 
   private escapeHtml(value: string): string {

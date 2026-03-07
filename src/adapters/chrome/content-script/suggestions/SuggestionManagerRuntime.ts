@@ -76,6 +76,7 @@ export class SuggestionManagerRuntime {
   private readonly displayLangHeader: boolean;
   private readonly inlineSuggestionEnabled: boolean;
   private readonly insertSpaceAfterAutocomplete: boolean;
+  private readonly selectByDigit: boolean;
 
   private lang: string;
   private separatorRegex: RegExp;
@@ -97,6 +98,7 @@ export class SuggestionManagerRuntime {
     this.displayLangHeader = options.displayLangHeader;
     this.inlineSuggestionEnabled = options.inline_suggestion;
     this.insertSpaceAfterAutocomplete = options.insertSpaceAfterAutocomplete;
+    this.selectByDigit = options.selectByDigit;
 
     this.lang = options.lang;
     this.separatorRegex = LANG_SEPARATOR_CHARS_REGEX[this.lang] || /\s+/;
@@ -200,6 +202,7 @@ export class SuggestionManagerRuntime {
         target: entry.elem,
         suggestions: entry.suggestions,
         selectedIndex: entry.selectedIndex,
+        showShortcutDigits: this.selectByDigit,
         menuHeader: entry.menuHeader,
         mentionText: entry.latestMentionText,
       });
