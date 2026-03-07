@@ -2899,7 +2899,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
                 return;
               }
 
-              const firstLineText = firstSpan.dataset.initialFirstLine ?? firstSpan.textContent ?? "";
+              const firstLineText =
+                firstSpan.dataset.initialFirstLine ?? firstSpan.textContent ?? "";
               const fullText = paragraph.textContent ?? "";
               const secondLineText = fullText.startsWith(firstLineText)
                 ? fullText.slice(firstLineText.length)

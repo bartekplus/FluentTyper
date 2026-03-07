@@ -157,6 +157,68 @@ function getChromeExtensionIdFromTargets(browser: Browser): string | null {
   }
 }
 
+async function resolveChromeExtensionId(browser: Browser): Promise<string | null> {
+  const existingId = getChromeExtensionIdFromTargets(browser) || chromeExtensionHost || null;
+  if (existingId) {
+    return existingId;
+  }
+
+  try {
+    const extensionTarget = await browser.waitForTarget(
+      (target) =>
+        target.url().startsWith("chrome-extension://") &&
+        (target.type() === "service_worker" || target.type() === "page"),
+      { timeout: 2000 },
+    );
+    const host = new URL(extensionTarget.url()).host || null;
+    cacheChromeExtensionHost(host);
+    return host;
+  } catch {
+    return null;
+  }
+}
+
+async function openChromeExtensionPageContext(
+  browser: Browser,
+  extensionId: string,
+): Promise<BackgroundContext> {
+  const page = await browser.newPage();
+  const optionsUrl = getExtensionPageUrl(extensionId, "options/options.html");
+  try {
+    await page.goto(optionsUrl, {
+      waitUntil: "domcontentloaded",
+      timeout: EXTENSION_NAVIGATION_TIMEOUT_MS,
+    });
+  } catch (error) {
+    if (!isNavigationTimeout(error)) {
+      throw error;
+    }
+    await page.waitForFunction(
+      (expectedUrl) =>
+        window.location.href === expectedUrl || window.location.href.includes(expectedUrl),
+      { timeout: EXTENSION_NAVIGATION_RECOVERY_TIMEOUT_MS },
+      optionsUrl,
+    );
+  }
+  await page
+    .waitForFunction(
+      () =>
+        document.readyState !== "loading" &&
+        Boolean(
+          (
+            globalThis as typeof globalThis & {
+              chrome?: typeof chrome;
+            }
+          ).chrome?.storage?.local,
+        ),
+      {
+        timeout: EXTENSION_NAVIGATION_RECOVERY_TIMEOUT_MS,
+      },
+    )
+    .catch(() => undefined);
+  return page;
+}
+
 async function wakeChromeBackgroundWorker(browser: Browser, extensionId: string): Promise<void> {
   if (!browser.isConnected()) {
     return;
@@ -306,9 +368,34 @@ export async function getBackgroundContext(browser: Browser): Promise<Background
       if (!isRetriableBackgroundContextError(error)) {
         throw error;
       }
-      const extensionId = getChromeExtensionIdFromTargets(browser) || chromeExtensionHost || null;
+      const extensionId = await resolveChromeExtensionId(browser);
       if (extensionId) {
         await wakeChromeBackgroundWorker(browser, extensionId);
+        try {
+          const serviceWorkerTarget = await browser.waitForTarget(
+            (target) =>
+              target.type() === "service_worker" && target.url().endsWith("background.js"),
+            { timeout: 1500 },
+          );
+          const worker = await serviceWorkerTarget.worker();
+          if (worker) {
+            cacheChromeExtensionHost(new URL(serviceWorkerTarget.url()).host || null);
+            await worker.evaluate(() => {
+              const storage = (
+                globalThis as typeof globalThis & {
+                  chrome?: typeof chrome;
+                }
+              ).chrome?.storage?.local;
+              if (!storage) {
+                throw new Error("chrome.storage.local is unavailable");
+              }
+            });
+            return worker;
+          }
+        } catch {
+          // Fall back to an extension page context below.
+        }
+        return await openChromeExtensionPageContext(browser, extensionId);
       }
       throw new Error("chrome.storage.local is unavailable", {
         cause: error,
