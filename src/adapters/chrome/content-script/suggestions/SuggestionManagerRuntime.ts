@@ -977,23 +977,6 @@ export class SuggestionManagerRuntime {
     };
   }
 
-  /**
-   * When getBlockContext returns null (e.g. Reddit/Lexical), derive current-line context
-   * from the full snapshot so we don't send concatenated "Wa"+"S" as input.
-   */
-  private getContentEditableCurrentLineFallback(snapshot: SuggestionSnapshot): {
-    beforeCursor: string;
-    afterCursor: string;
-  } {
-    const before = snapshot.beforeCursor;
-    const after = snapshot.afterCursor;
-    const lastNewline = before.lastIndexOf("\n");
-    const firstNewlineAfter = after.indexOf("\n");
-    const lineBefore = lastNewline >= 0 ? before.slice(lastNewline + 1) : before;
-    const lineAfter = firstNewlineAfter >= 0 ? after.slice(0, firstNewlineAfter) : after;
-    return { beforeCursor: lineBefore, afterCursor: lineAfter };
-  }
-
   private resolveLocalGrammarTriggers(
     entry: SuggestionEntry,
     event: Event | undefined,
