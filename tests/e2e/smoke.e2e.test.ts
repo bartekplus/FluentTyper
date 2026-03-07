@@ -948,30 +948,29 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
         document.body.appendChild(document.createElement("ft-shadow-test-component"));
       });
 
-      // Focus the shadow-hosted input first. The runtime now has a document-level
-      // input fallback for cases where Firefox misses the earlier discovery hook.
+      // Focus the shadow-hosted input so the runtime's late-discovery
+      // listeners can detect it and attach a suggestion helper.
       await page.evaluate(() => {
         const host = document.querySelector("ft-shadow-test-component");
         (host?.shadowRoot?.querySelector("input") as HTMLInputElement | null)?.focus();
       });
 
+      // Wait for the extension to attach to the shadow-hosted input.
       await waitUntil(
-        "shadow-hosted input to receive focus",
+        "shadow root input to gain data-suggestion",
         async () => {
-          const focused = await page.evaluate(() => {
+          const attached = await page.evaluate(() => {
             const host = document.querySelector("ft-shadow-test-component");
-            const input = host?.shadowRoot?.querySelector("input");
-            return host?.shadowRoot?.activeElement === input;
+            return (
+              host?.shadowRoot?.querySelector("input")?.hasAttribute("data-suggestion") ?? false
+            );
           });
-          return focused ? true : false;
+          return attached ? true : false;
         },
         { timeoutMs: timeoutProfile.inputReadyMs, intervalMs: 50 },
       );
-      await new Promise<void>((resolve) => setTimeout(resolve, 100));
 
-      // Type and verify the suggestion popup appears. This covers the actual
-      // user-visible contract and avoids a Firefox-only flake around when the
-      // internal helper marker becomes observable.
+      // Type and verify the suggestion popup appears.
       await page.keyboard.type("h");
 
       const suggestions = await waitForSuggestionTexts(page);

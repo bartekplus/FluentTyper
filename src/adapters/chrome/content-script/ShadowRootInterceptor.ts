@@ -10,6 +10,11 @@
  * existing MutationObserver pipeline even when cross-world CustomEvent delivery
  * is unreliable.
  *
+ * The notification (setAttribute + dispatchEvent) is deferred via setTimeout(0)
+ * to avoid breaking custom element constructors — Firefox enforces the spec
+ * requirement that constructors must not add attributes, and a synchronous
+ * setAttribute inside a patched attachShadow kills the entire constructor.
+ *
  * Closed shadow roots are intentionally left unhandled.
  */
 
@@ -27,8 +32,13 @@ const INTERCEPT_SNIPPET = `(function(){
   Element.prototype.attachShadow = function(init) {
     var root = orig.call(this, init);
     if (init && init.mode === 'open') {
-      this.setAttribute(${JSON.stringify(SHADOW_ATTACH_MARKER_ATTR)}, 'true');
-      this.dispatchEvent(new CustomEvent(${JSON.stringify(INTERCEPT_EVENT)}, {bubbles:true,composed:true}));
+      var host = this;
+      setTimeout(function() {
+        try {
+          host.setAttribute(${JSON.stringify(SHADOW_ATTACH_MARKER_ATTR)}, 'true');
+          host.dispatchEvent(new CustomEvent(${JSON.stringify(INTERCEPT_EVENT)}, {bubbles:true,composed:true}));
+        } catch(e) {}
+      }, 0);
     }
     return root;
   };
