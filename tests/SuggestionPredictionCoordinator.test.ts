@@ -1,13 +1,10 @@
 import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
-import { ContentEditableAdapter } from "../src/adapters/chrome/content-script/suggestions/ContentEditableAdapter";
 import { SuggestionPredictionCoordinator } from "../src/adapters/chrome/content-script/suggestions/SuggestionPredictionCoordinator";
 import { createSuggestionEntry } from "./suggestionTestUtils";
 
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
-
-const TEST_CONTENT_EDITABLE_ADAPTER = new ContentEditableAdapter();
 
 const FIXED_DEBOUNCE_BY_ACTION = {
   insert: 120,
@@ -25,7 +22,6 @@ describe("SuggestionPredictionCoordinator", () => {
   test("force scheduling sends prediction request immediately", () => {
     const getPrediction = jest.fn();
     const coordinator = new SuggestionPredictionCoordinator({
-      contentEditableAdapter: TEST_CONTENT_EDITABLE_ADAPTER,
       debounceByAction: FIXED_DEBOUNCE_BY_ACTION,
       getPrediction,
       lang: "en_US",
@@ -56,7 +52,6 @@ describe("SuggestionPredictionCoordinator", () => {
     const getPrediction = jest.fn();
     const clearSuggestions = jest.fn();
     const coordinator = new SuggestionPredictionCoordinator({
-      contentEditableAdapter: TEST_CONTENT_EDITABLE_ADAPTER,
       debounceByAction: ZERO_DEBOUNCE_BY_ACTION,
       getPrediction,
       lang: "en_US",
@@ -81,7 +76,6 @@ describe("SuggestionPredictionCoordinator", () => {
   test("passes inputAction in prediction request when provided", async () => {
     const getPrediction = jest.fn();
     const coordinator = new SuggestionPredictionCoordinator({
-      contentEditableAdapter: TEST_CONTENT_EDITABLE_ADAPTER,
       debounceByAction: ZERO_DEBOUNCE_BY_ACTION,
       getPrediction,
       lang: "en_US",
@@ -116,7 +110,6 @@ describe("SuggestionPredictionCoordinator", () => {
     const getPrediction = jest.fn();
     const clearSuggestions = jest.fn();
     const coordinator = new SuggestionPredictionCoordinator({
-      contentEditableAdapter: TEST_CONTENT_EDITABLE_ADAPTER,
       debounceByAction: ZERO_DEBOUNCE_BY_ACTION,
       getPrediction,
       lang: "en_US",
@@ -141,7 +134,6 @@ describe("SuggestionPredictionCoordinator", () => {
     const getPrediction = jest.fn();
     const clearSuggestions = jest.fn();
     const coordinator = new SuggestionPredictionCoordinator({
-      contentEditableAdapter: TEST_CONTENT_EDITABLE_ADAPTER,
       debounceByAction: ZERO_DEBOUNCE_BY_ACTION,
       getPrediction,
       lang: "en_US",
@@ -165,7 +157,6 @@ describe("SuggestionPredictionCoordinator", () => {
   describe("isSeparator", () => {
     function makeCoordinator(separatorRegex: RegExp) {
       return new SuggestionPredictionCoordinator({
-        contentEditableAdapter: TEST_CONTENT_EDITABLE_ADAPTER,
         debounceByAction: ZERO_DEBOUNCE_BY_ACTION,
         getPrediction: jest.fn(),
         lang: "en_US",
@@ -218,7 +209,6 @@ describe("SuggestionPredictionCoordinator", () => {
   describe("findMentionToken", () => {
     function makeCoordinator(separatorRegex: RegExp = /\s/) {
       return new SuggestionPredictionCoordinator({
-        contentEditableAdapter: TEST_CONTENT_EDITABLE_ADAPTER,
         debounceByAction: ZERO_DEBOUNCE_BY_ACTION,
         getPrediction: jest.fn(),
         lang: "en_US",
@@ -273,7 +263,6 @@ describe("SuggestionPredictionCoordinator", () => {
   describe("updateLang", () => {
     test("changes isSeparator behavior when separator regex is updated", () => {
       const coordinator = new SuggestionPredictionCoordinator({
-        contentEditableAdapter: TEST_CONTENT_EDITABLE_ADAPTER,
         debounceByAction: ZERO_DEBOUNCE_BY_ACTION,
         getPrediction: jest.fn(),
         lang: "en_US",
@@ -288,7 +277,6 @@ describe("SuggestionPredictionCoordinator", () => {
 
     test("correctly tracks lastIndex reset need when switching to a global regex", () => {
       const coordinator = new SuggestionPredictionCoordinator({
-        contentEditableAdapter: TEST_CONTENT_EDITABLE_ADAPTER,
         debounceByAction: ZERO_DEBOUNCE_BY_ACTION,
         getPrediction: jest.fn(),
         lang: "en_US",
@@ -303,7 +291,6 @@ describe("SuggestionPredictionCoordinator", () => {
 
     test("affects findMentionToken token boundary after separator change", () => {
       const coordinator = new SuggestionPredictionCoordinator({
-        contentEditableAdapter: TEST_CONTENT_EDITABLE_ADAPTER,
         debounceByAction: ZERO_DEBOUNCE_BY_ACTION,
         getPrediction: jest.fn(),
         lang: "en_US",
@@ -333,7 +320,6 @@ describe("SuggestionPredictionCoordinator", () => {
     test("schedules delete requests faster than insert and other actions", () => {
       const getPrediction = jest.fn();
       const coordinator = new SuggestionPredictionCoordinator({
-        contentEditableAdapter: TEST_CONTENT_EDITABLE_ADAPTER,
         debounceByAction: FIXED_DEBOUNCE_BY_ACTION,
         getPrediction,
         lang: "en_US",
@@ -407,7 +393,6 @@ describe("SuggestionPredictionCoordinator", () => {
     test("replaces pending insert timer with faster delete timer", () => {
       const getPrediction = jest.fn();
       const coordinator = new SuggestionPredictionCoordinator({
-        contentEditableAdapter: TEST_CONTENT_EDITABLE_ADAPTER,
         debounceByAction: FIXED_DEBOUNCE_BY_ACTION,
         getPrediction,
         lang: "en_US",
@@ -455,7 +440,6 @@ describe("SuggestionPredictionCoordinator", () => {
       const clearDelete = jest.fn();
       const clearInsert = jest.fn();
       const coordinator = new SuggestionPredictionCoordinator({
-        contentEditableAdapter: TEST_CONTENT_EDITABLE_ADAPTER,
         debounceByAction: FIXED_DEBOUNCE_BY_ACTION,
         getPrediction,
         lang: "en_US",
@@ -509,7 +493,6 @@ describe("SuggestionPredictionCoordinator", () => {
     test("reconcile requests prediction immediately", () => {
       const getPrediction = jest.fn();
       const coordinator = new SuggestionPredictionCoordinator({
-        contentEditableAdapter: TEST_CONTENT_EDITABLE_ADAPTER,
         debounceByAction: FIXED_DEBOUNCE_BY_ACTION,
         getPrediction,
         lang: "en_US",

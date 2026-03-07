@@ -106,7 +106,6 @@ export class SuggestionManagerRuntime {
       userDictionaryList: options.userDictionaryList,
     });
     this.predictionCoordinator = new SuggestionPredictionCoordinator({
-      contentEditableAdapter: this.contentEditableAdapter,
       debounceByAction: SUGGESTION_DEBOUNCE_BY_ACTION,
       getPrediction: options.getPrediction,
       lang: this.lang,
@@ -147,11 +146,13 @@ export class SuggestionManagerRuntime {
       acceptSuggestionAtIndex: this.acceptSuggestionAtIndex.bind(this),
       requestInlineSuggestion: (entry) => {
         entry.pendingInlineAccept = true;
-        const beforeCursor = this.resolveBeforeCursorForPrediction(entry);
+        const snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+        const ctx = this.resolveEditableCursorContext(entry, snapshot);
         this.predictionCoordinator.schedule(entry, {
           force: true,
           clearSuggestions: () => this.clearSuggestions(entry),
-          beforeCursorOverride: beforeCursor,
+          beforeCursorOverride: ctx.beforeCursor,
+          afterCursorOverride: ctx.afterCursor,
         });
       },
     });

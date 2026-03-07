@@ -1,10 +1,8 @@
 import { TextTargetAdapter, type TextTarget } from "./TextTargetAdapter";
 import type { PredictionRequest, PredictionResponse, SuggestionEntry } from "./types";
 import type { PredictionInputAction } from "@core/domain/messageTypes";
-import type { ContentEditableAdapter } from "./ContentEditableAdapter";
 
 interface SuggestionPredictionCoordinatorOptions {
-  contentEditableAdapter: ContentEditableAdapter;
   debounceByAction: {
     insert: number;
     delete: number;
@@ -17,7 +15,6 @@ interface SuggestionPredictionCoordinatorOptions {
 }
 
 export class SuggestionPredictionCoordinator {
-  private readonly contentEditableAdapter: ContentEditableAdapter;
   private readonly debounceByAction: {
     insert: number;
     delete: number;
@@ -31,7 +28,6 @@ export class SuggestionPredictionCoordinator {
   private separatorRegexNeedsReset: boolean;
 
   constructor(options: SuggestionPredictionCoordinatorOptions) {
-    this.contentEditableAdapter = options.contentEditableAdapter;
     this.debounceByAction = options.debounceByAction;
     this.getPrediction = options.getPrediction;
     this.lang = options.lang;
@@ -155,36 +151,8 @@ export class SuggestionPredictionCoordinator {
     afterCursorOverride?: string,
   ): void {
     const snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
-    let beforeCursor: string;
-    let afterCursor: string;
-    if (TextTargetAdapter.isTextValue(entry.elem)) {
-      beforeCursor = beforeCursorOverride ?? snapshot.beforeCursor;
-      afterCursor = afterCursorOverride ?? snapshot.afterCursor;
-    } else {
-      // Contenteditable: use block-local context at request time when it has content before cursor,
-      // so we never send concatenated text from multiple paragraphs (e.g. Reddit/Lexical).
-      // When block beforeCursor is empty but override is set, use override (stale-caret case).
-      const blockContext =
-        this.contentEditableAdapter.getBlockContext(entry.elem) ??
-        this.contentEditableAdapter.getBlockContextBySelection(entry.elem);
-      if (blockContext && blockContext.beforeCursor.length > 0) {
-        beforeCursor = blockContext.beforeCursor;
-        afterCursor = blockContext.afterCursor;
-      } else if (
-        blockContext &&
-        typeof beforeCursorOverride === "string" &&
-        beforeCursorOverride.length > 0
-      ) {
-        beforeCursor = beforeCursorOverride;
-        afterCursor = afterCursorOverride ?? blockContext.afterCursor;
-      } else if (blockContext) {
-        beforeCursor = blockContext.beforeCursor;
-        afterCursor = blockContext.afterCursor;
-      } else {
-        beforeCursor = beforeCursorOverride ?? "";
-        afterCursor = afterCursorOverride ?? "";
-      }
-    }
+    const beforeCursor = beforeCursorOverride ?? snapshot.beforeCursor;
+    const afterCursor = afterCursorOverride ?? snapshot.afterCursor;
 
     const shouldPredict = this.shouldPredict(beforeCursor);
     if (!force && !shouldPredict) {
