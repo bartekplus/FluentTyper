@@ -114,7 +114,9 @@ export class SuggestionManagerRuntime {
     });
     this.telemetry = options.telemetry ?? new SuggestionTelemetryService();
     this.textEditService = new SuggestionTextEditService({
-      findMentionToken: this.predictionCoordinator.findMentionToken.bind(this.predictionCoordinator),
+      findMentionToken: this.predictionCoordinator.findMentionToken.bind(
+        this.predictionCoordinator,
+      ),
       isSeparator: this.predictionCoordinator.isSeparator.bind(this.predictionCoordinator),
       contentEditableAdapter: this.contentEditableAdapter,
     });
@@ -182,7 +184,9 @@ export class SuggestionManagerRuntime {
       this.inlinePresenter.renderForEntry({
         enabled: this.inlineSuggestionEnabled,
         entry,
-        resolveMentionToken: this.predictionCoordinator.findMentionToken.bind(this.predictionCoordinator),
+        resolveMentionToken: this.predictionCoordinator.findMentionToken.bind(
+          this.predictionCoordinator,
+        ),
       });
     } else {
       entry.inlineSuggestion = null;
@@ -442,7 +446,9 @@ export class SuggestionManagerRuntime {
     this.inlinePresenter.renderForEntry({
       enabled: this.inlineSuggestionEnabled,
       entry,
-      resolveMentionToken: this.predictionCoordinator.findMentionToken.bind(this.predictionCoordinator),
+      resolveMentionToken: this.predictionCoordinator.findMentionToken.bind(
+        this.predictionCoordinator,
+      ),
     });
   }
 
@@ -738,7 +744,9 @@ export class SuggestionManagerRuntime {
 
           const tokenInfo = this.predictionCoordinator.findMentionToken(adjustedBeforeCursor);
           entry.latestMentionText = tokenInfo.token;
-          entry.latestMentionStart = TextTargetAdapter.isTextValue(entry.elem) ? tokenInfo.start : -1;
+          entry.latestMentionStart = TextTargetAdapter.isTextValue(entry.elem)
+            ? tokenInfo.start
+            : -1;
 
           if (predictionMode === "reconcile") {
             this.predictionCoordinator.reconcile(entry, {
@@ -783,7 +791,9 @@ export class SuggestionManagerRuntime {
       this.inlinePresenter.renderForEntry({
         enabled: this.inlineSuggestionEnabled,
         entry,
-        resolveMentionToken: this.predictionCoordinator.findMentionToken.bind(this.predictionCoordinator),
+        resolveMentionToken: this.predictionCoordinator.findMentionToken.bind(
+          this.predictionCoordinator,
+        ),
       });
     }
 
@@ -1262,7 +1272,9 @@ export class SuggestionManagerRuntime {
     this.clearPendingKeyFallback(id);
     const shouldWaitForTextChange = inputAction === "insert" && observeMutations;
     const currentSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
-    const currentBeforeCursor = this.resolveBeforeCursorForPrediction(entry, { snapshot: currentSnapshot });
+    const currentBeforeCursor = this.resolveBeforeCursorForPrediction(entry, {
+      snapshot: currentSnapshot,
+    });
     const fallback: PendingKeyFallback = {
       timer: setTimeout(() => {
         this.runKeyFallbackReconcile(id);
@@ -1503,5 +1515,4 @@ export class SuggestionManagerRuntime {
       event.stopImmediatePropagation();
     }
   }
-
 }

@@ -632,7 +632,11 @@ export class SuggestionTextEditService {
     replacementText: string,
     beforeBlockBoundary: boolean,
   ): string {
-    if (TextTargetAdapter.isTextValue(elem) || !beforeBlockBoundary || !/ $/.test(replacementText)) {
+    if (
+      TextTargetAdapter.isTextValue(elem) ||
+      !beforeBlockBoundary ||
+      !/ $/.test(replacementText)
+    ) {
       return replacementText;
     }
 
@@ -793,5 +797,4 @@ export class SuggestionTextEditService {
   private dispatchInputEvent(elem: SuggestionElement): void {
     elem.dispatchEvent(new Event("input", { bubbles: true }));
   }
-
 }
