@@ -431,6 +431,136 @@ describe("ContentEditableAdapter", () => {
     expect(context?.afterCursor).toBe("ep");
   });
 
+  test("returns previous paragraph text when cursor is in second paragraph", () => {
+    const adapter = new ContentEditableAdapter();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML = "<p>First</p><p>Second</p>";
+    document.body.appendChild(editable);
+
+    const secondText = editable.querySelectorAll("p")[1]?.firstChild;
+    if (!secondText || secondText.nodeType !== Node.TEXT_NODE) {
+      throw new Error("Expected second paragraph text node");
+    }
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Selection API unavailable");
+    }
+
+    const range = document.createRange();
+    range.setStart(secondText, secondText.textContent?.length ?? 0);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    expect(adapter.getPreviousBlockTextBySelection(editable)).toBe("First");
+  });
+
+  test("skips empty previous blocks when resolving previous block text", () => {
+    const adapter = new ContentEditableAdapter();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML = "<p>First</p><p></p><p>Third</p>";
+    document.body.appendChild(editable);
+
+    const thirdText = editable.querySelectorAll("p")[2]?.firstChild;
+    if (!thirdText || thirdText.nodeType !== Node.TEXT_NODE) {
+      throw new Error("Expected third paragraph text node");
+    }
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Selection API unavailable");
+    }
+
+    const range = document.createRange();
+    range.setStart(thirdText, thirdText.textContent?.length ?? 0);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    expect(adapter.getPreviousBlockTextBySelection(editable)).toBe("First");
+  });
+
+  test("returns null when there is no previous block", () => {
+    const adapter = new ContentEditableAdapter();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML = "<p>Only</p>";
+    document.body.appendChild(editable);
+
+    const onlyText = editable.querySelector("p")?.firstChild;
+    if (!onlyText || onlyText.nodeType !== Node.TEXT_NODE) {
+      throw new Error("Expected single paragraph text node");
+    }
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Selection API unavailable");
+    }
+
+    const range = document.createRange();
+    range.setStart(onlyText, onlyText.textContent?.length ?? 0);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    expect(adapter.getPreviousBlockTextBySelection(editable)).toBeNull();
+  });
+
+  test("returns null when selection resolves to the root block itself", () => {
+    const adapter = new ContentEditableAdapter();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.textContent = "Only root text";
+    document.body.appendChild(editable);
+
+    const rootText = editable.firstChild;
+    if (!rootText || rootText.nodeType !== Node.TEXT_NODE) {
+      throw new Error("Expected root text node");
+    }
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Selection API unavailable");
+    }
+
+    const range = document.createRange();
+    range.setStart(rootText, rootText.textContent?.length ?? 0);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    expect(adapter.getPreviousBlockTextBySelection(editable)).toBeNull();
+  });
+
+  test("returns only the trailing line from the previous block", () => {
+    const adapter = new ContentEditableAdapter();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML = "<p>First line\nTrailing line</p><p>Second</p>";
+    document.body.appendChild(editable);
+
+    const secondText = editable.querySelectorAll("p")[1]?.firstChild;
+    if (!secondText || secondText.nodeType !== Node.TEXT_NODE) {
+      throw new Error("Expected second paragraph text node");
+    }
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Selection API unavailable");
+    }
+
+    const range = document.createRange();
+    range.setStart(secondText, secondText.textContent?.length ?? 0);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    expect(adapter.getPreviousBlockTextBySelection(editable)).toBe("Trailing line");
+  });
+
   test("walking fallback maps ancestor boundary endpoints into resolved block", () => {
     const adapter = new ContentEditableAdapter();
     const editable = document.createElement("div");
