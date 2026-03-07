@@ -326,6 +326,13 @@ export class ContentRuntimeController {
       if (!(node instanceof Element)) {
         continue;
       }
+      const shadowActiveElement = node.shadowRoot?.activeElement;
+      if (
+        shadowActiveElement instanceof Element &&
+        shadowActiveElement.matches(ContentRuntimeController.SELECTORS)
+      ) {
+        return shadowActiveElement;
+      }
       if (node.matches(ContentRuntimeController.SELECTORS)) {
         return node;
       }
