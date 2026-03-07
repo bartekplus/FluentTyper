@@ -25,7 +25,7 @@ const INTERCEPT_SNIPPET = `(function(){
   Element.prototype.attachShadow = function(init) {
     var root = orig.call(this, init);
     if (init && init.mode === 'open') {
-      this.dispatchEvent(new CustomEvent(${JSON.stringify(INTERCEPT_EVENT)}, {bubbles:true}));
+      this.dispatchEvent(new CustomEvent(${JSON.stringify(INTERCEPT_EVENT)}, {bubbles:true,composed:true}));
     }
     return root;
   };
