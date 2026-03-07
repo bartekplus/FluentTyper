@@ -885,4 +885,75 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
     },
     suiteTimeout(10000, 15000),
   );
+
+  test(
+    "attaches to email and url inputs",
+    async () => {
+      await gotoTestPage(page);
+      await page.bringToFront();
+      await waitForInputReady(page, "#test-input");
+
+      const results = await page.evaluate(() => ({
+        email: document.querySelector("#test-email")?.hasAttribute("data-suggestion") ?? false,
+        url: document.querySelector("#test-url")?.hasAttribute("data-suggestion") ?? false,
+      }));
+
+      expect(results.email).toBe(true);
+      expect(results.url).toBe(true);
+    },
+    suiteTimeout(10000, 15000),
+  );
+
+  test(
+    "does not attach to tel, disabled, or readonly inputs",
+    async () => {
+      await gotoTestPage(page);
+      await page.bringToFront();
+      await waitForInputReady(page, "#test-input");
+
+      const results = await page.evaluate(() => ({
+        tel: document.querySelector("#test-tel")?.hasAttribute("data-suggestion") ?? false,
+        disabled:
+          document.querySelector("#test-disabled")?.hasAttribute("data-suggestion") ?? false,
+        readonly:
+          document.querySelector("#test-readonly")?.hasAttribute("data-suggestion") ?? false,
+      }));
+
+      expect(results.tel).toBe(false);
+      expect(results.disabled).toBe(false);
+      expect(results.readonly).toBe(false);
+    },
+    suiteTimeout(10000, 15000),
+  );
+
+  test(
+    "reattaches to input when disabled attribute is removed",
+    async () => {
+      await gotoTestPage(page);
+      await page.bringToFront();
+      await waitForInputReady(page, "#test-input");
+
+      const beforeEnable = await page.evaluate(
+        () => document.querySelector("#test-disabled")?.hasAttribute("data-suggestion") ?? false,
+      );
+      expect(beforeEnable).toBe(false);
+
+      await page.evaluate(() => {
+        document.querySelector("#test-disabled")?.removeAttribute("disabled");
+      });
+
+      await waitUntil(
+        "disabled input to gain data-suggestion after re-enable",
+        async () => {
+          const attached = await page.evaluate(
+            () =>
+              document.querySelector("#test-disabled")?.hasAttribute("data-suggestion") ?? false,
+          );
+          return attached ? true : false;
+        },
+        { timeoutMs: suiteTimeout(5000, 8000), intervalMs: 50 },
+      );
+    },
+    suiteTimeout(12000, 18000),
+  );
 });

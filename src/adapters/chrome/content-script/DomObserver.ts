@@ -23,8 +23,19 @@ export class DomObserver {
     this.observer.observe(this.node, {
       childList: true,
       attributes: true,
-      // Include visibility-related attributes so hidden->visible toggles trigger rescans.
-      attributeFilter: ["contenteditable", "type", "name", "id", "style", "class", "hidden"],
+      // Include visibility-related and interactivity-related attributes so state
+      // transitions (hidden↔visible, disabled↔enabled, readonly↔editable) trigger rescans.
+      attributeFilter: [
+        "contenteditable",
+        "type",
+        "name",
+        "id",
+        "style",
+        "class",
+        "hidden",
+        "disabled",
+        "readonly",
+      ],
       subtree: true,
     });
   }

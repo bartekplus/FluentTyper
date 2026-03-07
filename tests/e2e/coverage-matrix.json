@@ -955,6 +955,48 @@
           "test": "force-sets recommended v2 grammar rules when selection still equals v1 recommended set"
         }
       ]
+    },
+    {
+      "id": "input_type_eligibility",
+      "description": "Extension attaches to email and url inputs; does not attach to tel, disabled, or readonly inputs.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionManagerRuntime.test.ts",
+          "test": "input type eligibility"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionManagerRuntime.test.ts",
+          "test": "disabled and readonly inputs"
+        },
+        {
+          "layer": "e2e-smoke",
+          "file": "tests/e2e/smoke.e2e.test.ts",
+          "test": "attaches to email and url inputs"
+        },
+        {
+          "layer": "e2e-smoke",
+          "file": "tests/e2e/smoke.e2e.test.ts",
+          "test": "does not attach to tel, disabled, or readonly inputs"
+        }
+      ]
+    },
+    {
+      "id": "disabled_input_dynamic_reattach",
+      "description": "Extension reattaches to an input when its disabled attribute is removed at runtime.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionManagerRuntime.test.ts",
+          "test": "detaches when input becomes disabled, reattaches when re-enabled"
+        },
+        {
+          "layer": "e2e-smoke",
+          "file": "tests/e2e/smoke.e2e.test.ts",
+          "test": "reattaches to input when disabled attribute is removed"
+        }
+      ]
     }
   ]
 }

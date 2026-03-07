@@ -289,15 +289,20 @@ export class SuggestionManagerRuntime {
 
   private isStructurallyEligibleElement(elem: HTMLElement): elem is SuggestionElement {
     if (TextTargetAdapter.isTextArea(elem)) {
-      return true;
+      const ta = elem as HTMLTextAreaElement;
+      return !ta.disabled && !ta.readOnly;
     }
 
     if (TextTargetAdapter.isInput(elem)) {
-      const inputType = (elem.type || "text").toLowerCase();
-      if (!["text", "search", ""].includes(inputType)) {
+      const input = elem as HTMLInputElement;
+      if (input.disabled || input.readOnly) {
         return false;
       }
-      const blocked = `${elem.name} ${elem.id}`.toLowerCase();
+      const inputType = (input.type || "text").toLowerCase();
+      if (!["text", "search", "", "email", "url"].includes(inputType)) {
+        return false;
+      }
+      const blocked = `${input.name} ${input.id}`.toLowerCase();
       return !blocked.includes("password") && !blocked.includes("username");
     }
 
