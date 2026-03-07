@@ -515,6 +515,124 @@ describe("ContentEditableAdapter", () => {
     expect(context?.afterCursor).toBe("");
   });
 
+  test("scopes block context to the first line before a br separator", () => {
+    const adapter = new ContentEditableAdapter();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML =
+      '<p class="target" dir="auto"><span data-lexical-text="true">Hello</span><br><span data-lexical-text="true">World</span></p>';
+    document.body.appendChild(editable);
+
+    const textNode = editable.querySelector("span")?.firstChild;
+    if (!textNode || textNode.nodeType !== Node.TEXT_NODE) {
+      throw new Error("Expected first line text node");
+    }
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Selection API unavailable");
+    }
+
+    const range = document.createRange();
+    range.setStart(textNode, 3);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    const context = adapter.getBlockContext(editable);
+    expect(context).not.toBeNull();
+    expect(context?.beforeCursor).toBe("Hel");
+    expect(context?.afterCursor).toBe("lo");
+  });
+
+  test("scopes block context to the middle line across multiple br separators", () => {
+    const adapter = new ContentEditableAdapter();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML = "<p>line1<br>line2<br>line3</p>";
+    document.body.appendChild(editable);
+
+    const textNode = editable.querySelector("p")?.childNodes[2] ?? null;
+    if (!textNode || textNode.nodeType !== Node.TEXT_NODE) {
+      throw new Error("Expected middle line text node");
+    }
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Selection API unavailable");
+    }
+
+    const range = document.createRange();
+    range.setStart(textNode, 2);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    const context = adapter.getBlockContext(editable);
+    expect(context).not.toBeNull();
+    expect(context?.beforeCursor).toBe("li");
+    expect(context?.afterCursor).toBe("ne2");
+  });
+
+  test("treats trailing br as an empty line placeholder after text", () => {
+    const adapter = new ContentEditableAdapter();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML =
+      '<p class="target" dir="auto"><span data-lexical-text="true">text</span><br></p>';
+    document.body.appendChild(editable);
+
+    const textNode = editable.querySelector("span")?.firstChild;
+    if (!textNode || textNode.nodeType !== Node.TEXT_NODE) {
+      throw new Error("Expected text node before trailing br");
+    }
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Selection API unavailable");
+    }
+
+    const range = document.createRange();
+    range.setStart(textNode, 4);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    const context = adapter.getBlockContext(editable);
+    expect(context).not.toBeNull();
+    expect(context?.beforeCursor).toBe("text");
+    expect(context?.afterCursor).toBe("");
+  });
+
+  test("returns an empty current line between consecutive br separators", () => {
+    const adapter = new ContentEditableAdapter();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML = "<p>above<br><br>below</p>";
+    document.body.appendChild(editable);
+
+    const paragraph = editable.querySelector("p");
+    if (!paragraph) {
+      throw new Error("Expected paragraph");
+    }
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Selection API unavailable");
+    }
+
+    const range = document.createRange();
+    range.setStart(paragraph, 2);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    const context = adapter.getBlockContext(editable);
+    expect(context).not.toBeNull();
+    expect(context?.beforeCursor).toBe("");
+    expect(context?.afterCursor).toBe("");
+  });
+
   test("returns previous paragraph text when cursor is in second paragraph", () => {
     const adapter = new ContentEditableAdapter();
     const editable = document.createElement("div");
