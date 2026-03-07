@@ -1,3 +1,4 @@
+import { TextTargetAdapter } from "./TextTargetAdapter";
 import type { SuggestionElement } from "./types";
 
 interface MenuDimensions {
@@ -67,7 +68,7 @@ export class SuggestionPositioningService {
   }
 
   public getCaretRect(elem: SuggestionElement): DOMRect | null {
-    if (this.isTextValueElement(elem)) {
+    if (TextTargetAdapter.isTextValue(elem)) {
       return this.getTextValueCaretRect(elem);
     }
     return this.getContentEditableCaretRect(elem);
@@ -315,15 +316,4 @@ export class SuggestionPositioningService {
     } as DOMRect;
   }
 
-  private isInputElement(elem: Element): elem is HTMLInputElement {
-    return elem.tagName === "INPUT";
-  }
-
-  private isTextAreaElement(elem: Element): elem is HTMLTextAreaElement {
-    return elem.tagName === "TEXTAREA";
-  }
-
-  private isTextValueElement(elem: Element): elem is HTMLInputElement | HTMLTextAreaElement {
-    return this.isInputElement(elem) || this.isTextAreaElement(elem);
-  }
 }

@@ -114,8 +114,8 @@ export class SuggestionManagerRuntime {
     });
     this.telemetry = options.telemetry ?? new SuggestionTelemetryService();
     this.textEditService = new SuggestionTextEditService({
-      findMentionToken: this.findMentionToken.bind(this),
-      isSeparator: this.isSeparator.bind(this),
+      findMentionToken: this.predictionCoordinator.findMentionToken.bind(this.predictionCoordinator),
+      isSeparator: this.predictionCoordinator.isSeparator.bind(this.predictionCoordinator),
       contentEditableAdapter: this.contentEditableAdapter,
     });
     this.keyboardHandler = new SuggestionKeyboardHandler({
@@ -144,8 +144,7 @@ export class SuggestionManagerRuntime {
       acceptSuggestionAtIndex: this.acceptSuggestionAtIndex.bind(this),
       requestInlineSuggestion: (entry) => {
         entry.pendingInlineAccept = true;
-        const snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
-        const beforeCursor = this.resolveBeforeCursorForPrediction(entry, snapshot.beforeCursor);
+        const beforeCursor = this.resolveBeforeCursorForPrediction(entry);
         this.predictionCoordinator.schedule(entry, {
           force: true,
           clearSuggestions: () => this.clearSuggestions(entry),
@@ -183,7 +182,7 @@ export class SuggestionManagerRuntime {
       this.inlinePresenter.renderForEntry({
         enabled: this.inlineSuggestionEnabled,
         entry,
-        resolveMentionToken: this.findMentionToken.bind(this),
+        resolveMentionToken: this.predictionCoordinator.findMentionToken.bind(this.predictionCoordinator),
       });
     } else {
       entry.inlineSuggestion = null;
@@ -264,9 +263,8 @@ export class SuggestionManagerRuntime {
     if (!entry) {
       return;
     }
-    const snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
-    const beforeCursor = this.resolveBeforeCursorForPrediction(entry, snapshot.beforeCursor);
-    const afterCursor = this.resolveAfterCursorForPrediction(entry, snapshot.afterCursor);
+    const beforeCursor = this.resolveBeforeCursorForPrediction(entry);
+    const afterCursor = this.resolveAfterCursorForPrediction(entry);
     this.predictionCoordinator.schedule(entry, {
       force: true,
       clearSuggestions: () => this.clearSuggestions(entry),
@@ -284,11 +282,11 @@ export class SuggestionManagerRuntime {
   }
 
   private isStructurallyEligibleElement(elem: HTMLElement): elem is SuggestionElement {
-    if (this.isTextAreaElement(elem)) {
+    if (TextTargetAdapter.isTextArea(elem)) {
       return true;
     }
 
-    if (this.isInputElement(elem)) {
+    if (TextTargetAdapter.isInput(elem)) {
       const inputType = (elem.type || "text").toLowerCase();
       if (!["text", "search", ""].includes(inputType)) {
         return false;
@@ -374,7 +372,7 @@ export class SuggestionManagerRuntime {
       return;
     }
 
-    this.cancelPendingKeyFallback(id);
+    this.clearPendingKeyFallback(id);
     this.clearPendingIdle(entry);
     this.lifecycleController.detachEntryListeners(entry);
     entry.menu.remove();
@@ -395,7 +393,7 @@ export class SuggestionManagerRuntime {
   }
 
   private dismissEntry(entry: SuggestionEntry, keepActive = false): void {
-    this.cancelPendingKeyFallback(entry.id);
+    this.clearPendingKeyFallback(entry.id);
     this.clearPendingIdle(entry);
     this.clearSuggestions(entry);
     this.predictionCoordinator.cancelPending(entry);
@@ -444,7 +442,7 @@ export class SuggestionManagerRuntime {
     this.inlinePresenter.renderForEntry({
       enabled: this.inlineSuggestionEnabled,
       entry,
-      resolveMentionToken: this.findMentionToken.bind(this),
+      resolveMentionToken: this.predictionCoordinator.findMentionToken.bind(this.predictionCoordinator),
     });
   }
 
@@ -484,7 +482,7 @@ export class SuggestionManagerRuntime {
     if (this.shouldDeferContentEditableInputToFallback(id, entry)) {
       return;
     }
-    this.cancelPendingKeyFallback(id);
+    this.clearPendingKeyFallback(id);
     this.processEntryAfterEdit(entry, {
       event,
       inputActionOverride: null,
@@ -527,7 +525,6 @@ export class SuggestionManagerRuntime {
 
   private resolveBeforeCursorForPrediction(
     entry: SuggestionEntry,
-    snapshotBeforeCursor: string,
     {
       inputAction,
       typedKey,
@@ -536,7 +533,6 @@ export class SuggestionManagerRuntime {
       typedKey?: string | null;
     } = {},
   ): string {
-    void snapshotBeforeCursor;
     return this.resolveEditableCursorContext(
       entry,
       TextTargetAdapter.snapshot(entry.elem as TextTarget),
@@ -547,11 +543,7 @@ export class SuggestionManagerRuntime {
     ).beforeCursor;
   }
 
-  private resolveAfterCursorForPrediction(
-    entry: SuggestionEntry,
-    snapshotAfterCursor: string,
-  ): string {
-    void snapshotAfterCursor;
+  private resolveAfterCursorForPrediction(entry: SuggestionEntry): string {
     return this.resolveEditableCursorContext(
       entry,
       TextTargetAdapter.snapshot(entry.elem as TextTarget),
@@ -564,7 +556,7 @@ export class SuggestionManagerRuntime {
     entry: SuggestionEntry,
   ): boolean {
     if (
-      !this.isTextValueElement(entry.elem) &&
+      !TextTargetAdapter.isTextValue(entry.elem) &&
       pendingEdit.source === "grammar" &&
       TextTargetAdapter.hasCollapsedSelection(entry.elem as TextTarget)
     ) {
@@ -626,7 +618,7 @@ export class SuggestionManagerRuntime {
   }
 
   private shouldDeferContentEditableInputToFallback(id: number, entry: SuggestionEntry): boolean {
-    if (!this.isContentEditableElement(entry.elem)) {
+    if (TextTargetAdapter.isTextValue(entry.elem)) {
       return false;
     }
     const pending = this.pendingKeyFallbacks.get(id);
@@ -649,7 +641,7 @@ export class SuggestionManagerRuntime {
       return pending.waitForTextChangeUntilMs !== null;
     }
 
-    const currentBeforeCursor = this.resolveBeforeCursorForPrediction(entry, snapshot.beforeCursor);
+    const currentBeforeCursor = this.resolveBeforeCursorForPrediction(entry);
     return currentBeforeCursor === pending.expectedBeforeCursor;
   }
 
@@ -752,9 +744,9 @@ export class SuggestionManagerRuntime {
           entry.lastBeforeCursorText = adjustedBeforeCursor;
           entry.pendingGrammarPaste = false;
 
-          const tokenInfo = this.findMentionToken(adjustedBeforeCursor);
+          const tokenInfo = this.predictionCoordinator.findMentionToken(adjustedBeforeCursor);
           entry.latestMentionText = tokenInfo.token;
-          entry.latestMentionStart = this.isTextValueElement(entry.elem) ? tokenInfo.start : -1;
+          entry.latestMentionStart = TextTargetAdapter.isTextValue(entry.elem) ? tokenInfo.start : -1;
 
           if (predictionMode === "reconcile") {
             this.predictionCoordinator.reconcile(entry, {
@@ -791,15 +783,15 @@ export class SuggestionManagerRuntime {
     entry.lastBeforeCursorText = predictionBeforeCursor;
     entry.pendingGrammarPaste = false;
 
-    const tokenInfo = this.findMentionToken(predictionBeforeCursor);
+    const tokenInfo = this.predictionCoordinator.findMentionToken(predictionBeforeCursor);
     entry.latestMentionText = tokenInfo.token;
-    entry.latestMentionStart = this.isTextValueElement(entry.elem) ? tokenInfo.start : -1;
+    entry.latestMentionStart = TextTargetAdapter.isTextValue(entry.elem) ? tokenInfo.start : -1;
 
     if (this.inlineSuggestionEnabled) {
       this.inlinePresenter.renderForEntry({
         enabled: this.inlineSuggestionEnabled,
         entry,
-        resolveMentionToken: this.findMentionToken.bind(this),
+        resolveMentionToken: this.predictionCoordinator.findMentionToken.bind(this.predictionCoordinator),
       });
     }
 
@@ -846,7 +838,7 @@ export class SuggestionManagerRuntime {
     applyContext: GrammarEditApplyContext["contentEditableContext"];
     safeForGrammar: boolean;
   } {
-    if (this.isTextValueElement(entry.elem)) {
+    if (TextTargetAdapter.isTextValue(entry.elem)) {
       return {
         beforeCursor: snapshot.beforeCursor,
         afterCursor: snapshot.afterCursor,
@@ -1068,25 +1060,6 @@ export class SuggestionManagerRuntime {
     });
   }
 
-  private isSeparator(value: string): boolean {
-    if (this.separatorRegex.global || this.separatorRegex.sticky) {
-      this.separatorRegex.lastIndex = 0;
-    }
-    return this.separatorRegex.test(value);
-  }
-
-  private findMentionToken(beforeCursor: string): { token: string; start: number } {
-    let start = beforeCursor.length;
-    while (start > 0) {
-      const current = beforeCursor.charAt(start - 1);
-      if (this.isSeparator(current)) {
-        break;
-      }
-      start -= 1;
-    }
-    return { token: beforeCursor.slice(start), start };
-  }
-
   private clearSuggestions(entry: SuggestionEntry): void {
     entry.suggestions = [];
     entry.selectedIndex = 0;
@@ -1105,7 +1078,7 @@ export class SuggestionManagerRuntime {
     if (!this.isEntryFocused(entry)) {
       return;
     }
-    if (this.isTextValueElement(entry.elem)) {
+    if (TextTargetAdapter.isTextValue(entry.elem)) {
       if (!TextTargetAdapter.hasCollapsedSelection(entry.elem as TextTarget)) {
         this.dismissEntry(entry, true);
         return;
@@ -1118,7 +1091,7 @@ export class SuggestionManagerRuntime {
       return;
     }
 
-    if (!this.isTextValueElement(entry.elem)) {
+    if (!TextTargetAdapter.isTextValue(entry.elem)) {
       // For contenteditable, compare block-local beforeCursor.  When the
       // caret moves to a different line (e.g. Enter), the block-local
       // context changes entirely and the popup must be dismissed.
@@ -1157,7 +1130,7 @@ export class SuggestionManagerRuntime {
   } {
     const snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
     return {
-      beforeCursor: this.resolveBeforeCursorForPrediction(entry, snapshot.beforeCursor),
+      beforeCursor: this.resolveBeforeCursorForPrediction(entry),
       fullText: `${snapshot.beforeCursor}${snapshot.afterCursor}`,
     };
   }
@@ -1226,7 +1199,7 @@ export class SuggestionManagerRuntime {
     // the current predictions invalid. Dismiss the popup immediately so it does
     // not linger until the fallback reconcile timer fires. The insert-fallback
     // below still runs so that predictions for the new line are scheduled.
-    if (keyboardEvent.key === "Enter" && this.isContentEditableElement(entry.elem)) {
+    if (keyboardEvent.key === "Enter" && !TextTargetAdapter.isTextValue(entry.elem)) {
       this.dismissEntry(entry, true);
     }
 
@@ -1251,7 +1224,7 @@ export class SuggestionManagerRuntime {
         entry,
         "insert",
         INSERT_INPUT_FALLBACK_TIMEOUT_MS,
-        this.isContentEditableElement(entry.elem),
+        !TextTargetAdapter.isTextValue(entry.elem),
         keyboardEvent.key,
       );
     }
@@ -1293,13 +1266,10 @@ export class SuggestionManagerRuntime {
     observeMutations: boolean,
     typedKey: string | null = null,
   ): void {
-    this.cancelPendingKeyFallback(id);
+    this.clearPendingKeyFallback(id);
     const shouldWaitForTextChange = inputAction === "insert" && observeMutations;
     const currentSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
-    const currentBeforeCursor = this.resolveBeforeCursorForPrediction(
-      entry,
-      currentSnapshot.beforeCursor,
-    );
+    const currentBeforeCursor = this.resolveBeforeCursorForPrediction(entry);
     const fallback: PendingKeyFallback = {
       timer: setTimeout(() => {
         this.runKeyFallbackReconcile(id);
@@ -1371,10 +1341,6 @@ export class SuggestionManagerRuntime {
       typedKey: pending.typedKey,
       scheduleIdle: true,
     });
-  }
-
-  private cancelPendingKeyFallback(id: number): void {
-    this.clearPendingKeyFallback(id);
   }
 
   private clearPendingKeyFallback(id: number): void {
@@ -1463,7 +1429,7 @@ export class SuggestionManagerRuntime {
       return false;
     }
     if (event.key === "Enter") {
-      return this.isContentEditableElement(elem) || this.isTextAreaElement(elem);
+      return !TextTargetAdapter.isInput(elem);
     }
     return event.key.length === 1;
   }
@@ -1545,19 +1511,4 @@ export class SuggestionManagerRuntime {
     }
   }
 
-  private isInputElement(elem: Element): elem is HTMLInputElement {
-    return elem.tagName === "INPUT";
-  }
-
-  private isTextAreaElement(elem: Element): elem is HTMLTextAreaElement {
-    return elem.tagName === "TEXTAREA";
-  }
-
-  private isTextValueElement(elem: Element): elem is HTMLInputElement | HTMLTextAreaElement {
-    return this.isInputElement(elem) || this.isTextAreaElement(elem);
-  }
-
-  private isContentEditableElement(elem: Element): boolean {
-    return !this.isInputElement(elem) && !this.isTextAreaElement(elem);
-  }
 }

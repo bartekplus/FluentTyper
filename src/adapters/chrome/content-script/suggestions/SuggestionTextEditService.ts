@@ -52,7 +52,7 @@ export class SuggestionTextEditService {
   ): { triggerText: string; insertedText: string } | null {
     entry.pendingExtensionEdit = null;
     entry.manualAutoFixSuppression = null;
-    const isTextValueTarget = this.isTextValueElement(entry.elem);
+    const isTextValueTarget = TextTargetAdapter.isTextValue(entry.elem);
     let snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
     const blockContext = isTextValueTarget
       ? null
@@ -310,7 +310,7 @@ export class SuggestionTextEditService {
     let expectedBlockText: string | null = null;
     let expectedBlockCursorAfter: number | null = null;
 
-    if (!this.isTextValueElement(entry.elem)) {
+    if (!TextTargetAdapter.isTextValue(entry.elem)) {
       const providedContentEditableContext = context.contentEditableContext;
       const blockContext =
         providedContentEditableContext ?? this.contentEditableAdapter.getBlockContext(entry.elem);
@@ -397,7 +397,7 @@ export class SuggestionTextEditService {
     let finalApplyResult = applyResult;
 
     if (
-      !this.isTextValueElement(entry.elem) &&
+      !TextTargetAdapter.isTextValue(entry.elem) &&
       !this.shouldPreferDomMutationForGrammar(entry.elem) &&
       !this.matchesExpectedGrammarResult(postEditSnapshot, expectedFullText, cursorAfter)
     ) {
@@ -594,7 +594,7 @@ export class SuggestionTextEditService {
     const boundedEnd = Math.max(boundedStart, Math.min(fullText.length, replaceEnd));
     const updatedText = `${fullText.slice(0, boundedStart)}${replacementText}${fullText.slice(boundedEnd)}`;
 
-    if (this.isTextValueElement(elem)) {
+    if (TextTargetAdapter.isTextValue(elem)) {
       const beforeValue = elem.value ?? "";
       if (updatedText === beforeValue) {
         return {
@@ -632,7 +632,7 @@ export class SuggestionTextEditService {
     replacementText: string,
     beforeBlockBoundary: boolean,
   ): string {
-    if (this.isTextValueElement(elem) || !beforeBlockBoundary || !/ $/.test(replacementText)) {
+    if (TextTargetAdapter.isTextValue(elem) || !beforeBlockBoundary || !/ $/.test(replacementText)) {
       return replacementText;
     }
 
@@ -642,7 +642,7 @@ export class SuggestionTextEditService {
   }
 
   private shouldPreferDomMutationForGrammar(elem: SuggestionElement): boolean {
-    if (this.isTextValueElement(elem)) {
+    if (TextTargetAdapter.isTextValue(elem)) {
       return false;
     }
     return this.domPreferredGrammarTargets.has(elem as HTMLElement);
@@ -735,7 +735,7 @@ export class SuggestionTextEditService {
     postEditSnapshot: SuggestionSnapshot;
   } | null {
     if (currentSegmentText === expectedSegmentText) {
-      if (!this.isTextValueElement(elem)) {
+      if (!TextTargetAdapter.isTextValue(elem)) {
         this.contentEditableAdapter.setCaret(elem, cursorAfter);
       }
       const postEditSnapshot = TextTargetAdapter.snapshot(elem as TextTarget);
@@ -794,15 +794,4 @@ export class SuggestionTextEditService {
     elem.dispatchEvent(new Event("input", { bubbles: true }));
   }
 
-  private isInputElement(elem: Element): elem is HTMLInputElement {
-    return elem.tagName === "INPUT";
-  }
-
-  private isTextAreaElement(elem: Element): elem is HTMLTextAreaElement {
-    return elem.tagName === "TEXTAREA";
-  }
-
-  private isTextValueElement(elem: Element): elem is HTMLInputElement | HTMLTextAreaElement {
-    return this.isInputElement(elem) || this.isTextAreaElement(elem);
-  }
 }

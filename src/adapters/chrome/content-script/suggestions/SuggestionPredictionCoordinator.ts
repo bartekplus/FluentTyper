@@ -226,14 +226,14 @@ export class SuggestionPredictionCoordinator {
     return token.length >= this.minWordLengthToPredict;
   }
 
-  private isSeparator(value: string): boolean {
+  public isSeparator(value: string): boolean {
     if (this.separatorRegex.global || this.separatorRegex.sticky) {
       this.separatorRegex.lastIndex = 0;
     }
     return this.separatorRegex.test(value);
   }
 
-  private findMentionToken(beforeCursor: string): { token: string; start: number } {
+  public findMentionToken(beforeCursor: string): { token: string; start: number } {
     let start = beforeCursor.length;
     while (start > 0) {
       const current = beforeCursor.charAt(start - 1);

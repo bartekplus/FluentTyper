@@ -9,14 +9,24 @@ export interface TextCursorSnapshot {
 }
 
 export class TextTargetAdapter {
+  static isInput(elem: Element): elem is HTMLInputElement {
+    return elem.tagName === "INPUT";
+  }
+
+  static isTextArea(elem: Element): elem is HTMLTextAreaElement {
+    return elem.tagName === "TEXTAREA";
+  }
+
+  static isTextValue(elem: Element): elem is HTMLInputElement | HTMLTextAreaElement {
+    return TextTargetAdapter.isInput(elem) || TextTargetAdapter.isTextArea(elem);
+  }
+
   static hasCollapsedSelection(target: TextTarget): boolean {
-    const tagName = (target as Element).tagName?.toUpperCase();
-    if (tagName === "INPUT" || tagName === "TEXTAREA") {
-      const textTarget = target as HTMLInputElement | HTMLTextAreaElement;
-      if (textTarget.selectionStart === null || textTarget.selectionEnd === null) {
+    if (TextTargetAdapter.isTextValue(target)) {
+      if (target.selectionStart === null || target.selectionEnd === null) {
         return true;
       }
-      return textTarget.selectionStart === textTarget.selectionEnd;
+      return target.selectionStart === target.selectionEnd;
     }
 
     const selection = window.getSelection();
@@ -38,9 +48,8 @@ export class TextTargetAdapter {
   }
 
   static snapshot(target: TextTarget): TextCursorSnapshot {
-    const tagName = (target as Element).tagName?.toUpperCase();
-    if (tagName === "INPUT" || tagName === "TEXTAREA") {
-      const textTarget = target as HTMLInputElement | HTMLTextAreaElement;
+    if (TextTargetAdapter.isTextValue(target)) {
+      const textTarget = target;
       const value = textTarget.value ?? "";
       const cursorOffset = textTarget.selectionStart ?? value.length;
       return {
