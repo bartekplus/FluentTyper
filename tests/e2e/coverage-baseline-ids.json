@@ -23,6 +23,7 @@
     "rich_editor_local_grammar_stale_caret",
     "contenteditable_block_boundary_grammar_safety",
     "contenteditable_multiblock_prediction_scope",
+    "contenteditable_br_line_prediction_scope",
     "missing_space_cancellation",
     "inline_suggestion_tab_insert",
     "enabled_languages_popup_restriction",
