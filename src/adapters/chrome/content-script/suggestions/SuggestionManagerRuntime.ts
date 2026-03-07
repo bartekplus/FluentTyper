@@ -695,6 +695,11 @@ export class SuggestionManagerRuntime {
       : null;
 
     if (grammarEdit) {
+      const grammarReplacement =
+        typeof grammarEdit.replacement === "string" ? grammarEdit.replacement : "";
+      const grammarDeleteBackwards = Number.isFinite(grammarEdit.deleteBackwards)
+        ? Math.max(0, grammarEdit.deleteBackwards)
+        : 0;
       const applyResult = this.textEditService.applyGrammarEdit(entry, grammarEdit, {
         snapshot: cursorContext.snapshot,
         contentEditableContext: cursorContext.applyContext,
@@ -706,6 +711,49 @@ export class SuggestionManagerRuntime {
           entry.lastInputAction = inputAction;
           entry.lastKeydownKey = null;
           entry.pendingGrammarPaste = false;
+          return;
+        }
+
+        if (
+          !TextTargetAdapter.isTextValue(entry.elem) &&
+          (grammarReplacement.length > 0 || grammarDeleteBackwards > 0)
+        ) {
+          const adjustedBeforeCursor =
+            cursorContext.beforeCursor.slice(
+              0,
+              Math.max(0, cursorContext.beforeCursor.length - grammarDeleteBackwards),
+            ) + grammarReplacement;
+          const adjustedAfterCursor = cursorContext.afterCursor;
+
+          entry.lastInputAction = inputAction;
+          entry.lastKeydownKey = null;
+          entry.lastBeforeCursorText = adjustedBeforeCursor;
+          entry.pendingGrammarPaste = false;
+
+          const tokenInfo = this.predictionCoordinator.findMentionToken(adjustedBeforeCursor);
+          entry.latestMentionText = tokenInfo.token;
+          entry.latestMentionStart = -1;
+
+          if (predictionMode === "reconcile") {
+            this.predictionCoordinator.reconcile(entry, {
+              clearSuggestions: () => this.clearSuggestions(entry),
+              inputAction,
+              beforeCursorOverride: adjustedBeforeCursor,
+              afterCursorOverride: adjustedAfterCursor,
+            });
+          } else {
+            this.predictionCoordinator.schedule(entry, {
+              force: false,
+              clearSuggestions: () => this.clearSuggestions(entry),
+              inputAction,
+              beforeCursorOverride: adjustedBeforeCursor,
+              afterCursorOverride: adjustedAfterCursor,
+            });
+          }
+
+          if (scheduleIdle) {
+            this.scheduleIdleGrammar(entry);
+          }
           return;
         }
 
@@ -727,16 +775,21 @@ export class SuggestionManagerRuntime {
         // editor prevented the beforeinput).  Apply the intended text
         // transformation so the prediction request reflects the expected
         // result (the host will likely reconcile the change asynchronously).
-        const replacement =
-          typeof grammarEdit.replacement === "string" ? grammarEdit.replacement : "";
-        const deleteBackwards = Number.isFinite(grammarEdit.deleteBackwards)
-          ? Math.max(0, grammarEdit.deleteBackwards)
-          : 0;
-        if (replacement.length > 0 || deleteBackwards > 0) {
-          const ctx = cursorContext.snapshot;
+        if (grammarReplacement.length > 0 || grammarDeleteBackwards > 0) {
+          const ctx = TextTargetAdapter.isTextValue(entry.elem)
+            ? {
+                beforeCursor: cursorContext.snapshot.beforeCursor,
+                afterCursor: cursorContext.snapshot.afterCursor,
+              }
+            : {
+                beforeCursor: cursorContext.beforeCursor,
+                afterCursor: cursorContext.afterCursor,
+              };
           const adjustedBeforeCursor =
-            ctx.beforeCursor.slice(0, Math.max(0, ctx.beforeCursor.length - deleteBackwards)) +
-            replacement;
+            ctx.beforeCursor.slice(
+              0,
+              Math.max(0, ctx.beforeCursor.length - grammarDeleteBackwards),
+            ) + grammarReplacement;
           const adjustedAfterCursor = ctx.afterCursor;
 
           entry.lastInputAction = inputAction;
@@ -892,9 +945,10 @@ export class SuggestionManagerRuntime {
         safeForGrammar: false,
       };
     }
-    const resolvedAfterCursor = beforeBlockBoundary ? "" : blockContext.afterCursor;
+    const rawAfterCursor = blockContext.afterCursor;
+    const resolvedAfterCursor = beforeBlockBoundary ? "" : rawAfterCursor;
 
-    const resolvedLeadingChar = resolvedAfterCursor.charAt(0);
+    const resolvedLeadingChar = rawAfterCursor.charAt(0);
     const snapshotLeadingChar = snapshot.afterCursor.charAt(0);
     // Exact match: the typed key matches the DOM character as-is (normal case).
     // Case-insensitive match: only when the typed key is lowercase but the host
@@ -922,7 +976,7 @@ export class SuggestionManagerRuntime {
     if (shouldSeedTypedKey) {
       return {
         beforeCursor: resolvedLeadingChar,
-        afterCursor: resolvedAfterCursor.slice(resolvedLeadingChar.length),
+        afterCursor: rawAfterCursor.slice(resolvedLeadingChar.length),
         snapshot: {
           beforeCursor: `${snapshot.beforeCursor}${resolvedLeadingChar}`,
           afterCursor: snapshot.afterCursor.slice(snapshotLeadingChar.length),
@@ -930,10 +984,33 @@ export class SuggestionManagerRuntime {
         },
         applyContext: {
           beforeCursor: resolvedLeadingChar,
-          afterCursor: resolvedAfterCursor.slice(resolvedLeadingChar.length),
+          afterCursor: rawAfterCursor.slice(resolvedLeadingChar.length),
           useFullTextOffsets: false,
         },
         safeForGrammar: true,
+      };
+    }
+
+    const typedKeyLooksMergedIntoPreviousBlock =
+      inputAction !== "delete" &&
+      beforeBlockBoundary &&
+      typeof typedKey === "string" &&
+      typedKey.length === 1 &&
+      blockContext.beforeCursor === snapshot.beforeCursor &&
+      (snapshot.beforeCursor.endsWith(typedKey) ||
+        snapshot.beforeCursor.endsWith(typedKey.toLocaleUpperCase()));
+    if (typedKeyLooksMergedIntoPreviousBlock) {
+      const trailingChar = snapshot.beforeCursor.charAt(snapshot.beforeCursor.length - 1);
+      return {
+        beforeCursor: trailingChar,
+        afterCursor: "",
+        snapshot,
+        applyContext: {
+          beforeCursor: trailingChar,
+          afterCursor: "",
+          useFullTextOffsets: false,
+        },
+        safeForGrammar: false,
       };
     }
 
@@ -947,10 +1024,19 @@ export class SuggestionManagerRuntime {
       pendingEdit.replacementText.length > 0 &&
       resolvedAfterCursor.startsWith(pendingEdit.replacementText) &&
       snapshot.afterCursor.startsWith(pendingEdit.replacementText);
-    if (shouldSeedPendingGrammarEdit) {
+    const shouldSeedPendingGrammarEditFromMergedSnapshot =
+      inputAction !== "delete" &&
+      pendingEdit?.source === "grammar" &&
+      pendingEdit.replacementText.length > 0 &&
+      beforeBlockBoundary &&
+      blockContext.beforeCursor === snapshot.beforeCursor &&
+      snapshot.beforeCursor.endsWith(pendingEdit.replacementText);
+    if (shouldSeedPendingGrammarEdit || shouldSeedPendingGrammarEditFromMergedSnapshot) {
       return {
         beforeCursor: pendingEdit.replacementText,
-        afterCursor: resolvedAfterCursor.slice(pendingEdit.replacementText.length),
+        afterCursor: rawAfterCursor.startsWith(pendingEdit.replacementText)
+          ? rawAfterCursor.slice(pendingEdit.replacementText.length)
+          : resolvedAfterCursor,
         snapshot: {
           beforeCursor: `${snapshot.beforeCursor}${pendingEdit.replacementText}`,
           afterCursor: snapshot.afterCursor.slice(pendingEdit.replacementText.length),
@@ -958,7 +1044,7 @@ export class SuggestionManagerRuntime {
         },
         applyContext: {
           beforeCursor: pendingEdit.replacementText,
-          afterCursor: resolvedAfterCursor.slice(pendingEdit.replacementText.length),
+          afterCursor: rawAfterCursor.slice(pendingEdit.replacementText.length),
           useFullTextOffsets: false,
         },
         safeForGrammar: true,
