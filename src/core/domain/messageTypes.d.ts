@@ -174,8 +174,14 @@ export type OptionsClearObservabilityEventsContext = Record<string, never>;
 export interface ContentScriptReportObservabilityEventContext {
   event: ObservabilityEvent;
 }
+export interface ContentScriptReportObservabilityModulesContext {
+  modules: string[];
+}
 export interface OptionsReportObservabilityEventContext {
   event: ObservabilityEvent;
+}
+export interface OptionsReportObservabilityModulesContext {
+  modules: string[];
 }
 
 export interface ProductivityEventSummary {
@@ -332,8 +338,16 @@ export type Message =
       context: ContentScriptReportObservabilityEventContext;
     }
   | {
+      command: "CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_MODULES";
+      context: ContentScriptReportObservabilityModulesContext;
+    }
+  | {
       command: "CMD_OPTIONS_REPORT_OBSERVABILITY_EVENT";
       context: OptionsReportObservabilityEventContext;
+    }
+  | {
+      command: "CMD_OPTIONS_REPORT_OBSERVABILITY_MODULES";
+      context: OptionsReportObservabilityModulesContext;
     }
   | {
       command: "CMD_GET_AUTO_LANGUAGE_STATUS";
@@ -413,9 +427,17 @@ export type ContentScriptReportObservabilityEventMessage = Extract<
   Message,
   { command: "CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_EVENT" }
 >;
+export type ContentScriptReportObservabilityModulesMessage = Extract<
+  Message,
+  { command: "CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_MODULES" }
+>;
 export type OptionsReportObservabilityEventMessage = Extract<
   Message,
   { command: "CMD_OPTIONS_REPORT_OBSERVABILITY_EVENT" }
+>;
+export type OptionsReportObservabilityModulesMessage = Extract<
+  Message,
+  { command: "CMD_OPTIONS_REPORT_OBSERVABILITY_MODULES" }
 >;
 export type GetAutoLanguageStatusMessage = Extract<
   Message,

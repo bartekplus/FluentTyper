@@ -1,8 +1,13 @@
 import { checkLastError } from "@core/application/transport-utils";
-import { createLogger, setGlobalObservabilityRuntime } from "@core/application/logging/Logger";
+import {
+  createLogger,
+  getRegisteredObservabilityModules,
+  setGlobalObservabilityRuntime,
+} from "@core/application/logging/Logger";
 import {
   CMD_CONTENT_SCRIPT_GET_CONFIG,
   CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_EVENT,
+  CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_MODULES,
 } from "@core/domain/constants";
 import type {
   ContentScriptGetConfigMessage,
@@ -42,6 +47,16 @@ if (typeof __FT_DEV_BUILD__ !== "undefined" && __FT_DEV_BUILD__) {
       }
     },
   });
+  try {
+    chrome.runtime.sendMessage({
+      command: CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_MODULES,
+      context: {
+        modules: getRegisteredObservabilityModules(),
+      },
+    });
+  } catch {
+    // Ignore runtime disconnects during page teardown.
+  }
 }
 
 class FluentTyper {

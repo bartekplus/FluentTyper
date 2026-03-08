@@ -1,5 +1,9 @@
 import { SettingsEngine } from "@ui/settings-engine/SettingsEngine.js";
-import { createLogger, setGlobalObservabilityRuntime } from "@core/application/logging/Logger";
+import {
+  createLogger,
+  getRegisteredObservabilityModules,
+  setGlobalObservabilityRuntime,
+} from "@core/application/logging/Logger";
 import { Store } from "@core/application/storage/Store.js";
 import { dispatchSettingsSaveStatus } from "@ui/settings-engine/controls/FieldControl.js";
 import { SUPPORTED_LANGUAGES, resolveEnabledLanguages } from "@core/domain/lang";
@@ -74,6 +78,7 @@ import {
   CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT,
   CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE,
   CMD_OPTIONS_REPORT_OBSERVABILITY_EVENT,
+  CMD_OPTIONS_REPORT_OBSERVABILITY_MODULES,
 } from "@core/domain/constants";
 import { i18n } from "./fluenttyperI18n.js";
 import { manifest } from "./settingsManifest.js";
@@ -127,6 +132,16 @@ function applyOptionsObservabilityRuntime(
       }
     },
   });
+  try {
+    chrome.runtime.sendMessage({
+      command: CMD_OPTIONS_REPORT_OBSERVABILITY_MODULES,
+      context: {
+        modules: getRegisteredObservabilityModules(),
+      },
+    });
+  } catch {
+    // Ignore runtime disconnects during page teardown.
+  }
 }
 
 function optionsPageConfigChange() {

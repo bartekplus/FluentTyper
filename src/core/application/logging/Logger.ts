@@ -135,6 +135,14 @@ export function getRegisteredObservabilityModules(): string[] {
   return [...(getLoggingGlobals().__FT_OBSERVABILITY_REGISTERED_MODULES__ || new Set<string>())];
 }
 
+export function registerObservabilityModule(scope: string): void {
+  const globals = getLoggingGlobals();
+  if (!globals.__FT_OBSERVABILITY_REGISTERED_MODULES__) {
+    globals.__FT_OBSERVABILITY_REGISTERED_MODULES__ = new Set<string>();
+  }
+  globals.__FT_OBSERVABILITY_REGISTERED_MODULES__.add(scope);
+}
+
 export function resetGlobalObservabilityRuntime(): void {
   const globals = getLoggingGlobals();
   delete globals.__FT_OBSERVABILITY_CONFIG__;
@@ -151,11 +159,7 @@ export class Logger {
   constructor(scope: string, options: LoggerOptions = {}) {
     this.scope = scope;
     this.explicitMinLevel = options.minLevel;
-    const globals = getLoggingGlobals();
-    if (!globals.__FT_OBSERVABILITY_REGISTERED_MODULES__) {
-      globals.__FT_OBSERVABILITY_REGISTERED_MODULES__ = new Set<string>();
-    }
-    globals.__FT_OBSERVABILITY_REGISTERED_MODULES__.add(scope);
+    registerObservabilityModule(scope);
   }
 
   setMinLevel(level: LogLevel): void {

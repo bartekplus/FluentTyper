@@ -143,6 +143,31 @@ describe("ObservabilityService", () => {
     );
   });
 
+  test("marks forwarded content modules as registered without waiting for events", () => {
+    const service = new ObservabilityService({
+      isDevBuild: true,
+      getPredictorSnapshot: () => createPredictorSnapshot(),
+      getAutoLanguageRuntimes: () => [],
+    });
+
+    service.registerRemoteModules("content_script", [
+      "ContentRuntimeController",
+      "HostChangeWatcher",
+    ]);
+
+    const snapshot = service.getSnapshot();
+    const contentRuntimeController = snapshot.modules.find(
+      (module) => module.moduleId === "ContentRuntimeController",
+    );
+
+    expect(contentRuntimeController).toEqual(
+      expect.objectContaining({
+        registered: true,
+        sources: expect.arrayContaining(["content_script"]),
+      }),
+    );
+  });
+
   test("replaces runtime status for repeated restarts on one tab/frame", () => {
     let now = 100;
     const service = new ObservabilityService({

@@ -61,6 +61,7 @@ export class ObservabilityService {
   private config: ObservabilityConfig = cloneConfig(DEFAULT_OBSERVABILITY_CONFIG);
   private events: ObservabilityEvent[] = [];
   private readonly moduleSources = new Map<string, Set<ObservabilityEvent["source"]>>();
+  private readonly remotelyRegisteredModules = new Map<string, Set<ObservabilityEvent["source"]>>();
   private readonly lastEventAt = new Map<string, number>();
   private readonly contentRuntimes = new Map<string, ContentRuntimeState>();
 
@@ -112,6 +113,23 @@ export class ObservabilityService {
     this.moduleSources.set(event.moduleId, sourceSet);
     if (this.events.length > MAX_OBSERVABILITY_EVENTS) {
       this.events = this.events.slice(0, MAX_OBSERVABILITY_EVENTS);
+    }
+  }
+
+  registerRemoteModules(source: ObservabilityEvent["source"], modules: string[]): void {
+    if (source === "background") {
+      return;
+    }
+    for (const moduleId of modules) {
+      if (typeof moduleId !== "string" || moduleId.trim().length === 0) {
+        continue;
+      }
+      const normalizedModuleId = moduleId.trim();
+      const sources =
+        this.remotelyRegisteredModules.get(normalizedModuleId) ||
+        new Set<ObservabilityEvent["source"]>();
+      sources.add(source);
+      this.remotelyRegisteredModules.set(normalizedModuleId, sources);
     }
   }
 
@@ -231,6 +249,7 @@ export class ObservabilityService {
     const allModules = new Set<string>([
       ...OBSERVABILITY_MODULE_IDS,
       ...loggerRegisteredModules,
+      ...this.remotelyRegisteredModules.keys(),
       ...this.moduleSources.keys(),
     ]);
     return [...allModules]
@@ -238,16 +257,22 @@ export class ObservabilityService {
       .map((moduleId) => {
         const override =
           this.config.moduleOverrides[moduleId as keyof typeof this.config.moduleOverrides];
+        const sources = new Set<ObservabilityEvent["source"]>([
+          ...(this.moduleSources.get(moduleId) || new Set<ObservabilityEvent["source"]>()),
+          ...(this.remotelyRegisteredModules.get(moduleId) ||
+            new Set<ObservabilityEvent["source"]>()),
+        ]);
         return {
           moduleId,
           enabled: typeof override?.enabled === "boolean" ? override.enabled : this.config.enabled,
           level: override?.level || this.config.defaultLevel,
           hasOverride: Boolean(override && Object.keys(override).length > 0),
           override: override || null,
-          sources: [
-            ...(this.moduleSources.get(moduleId) || new Set<ObservabilityEvent["source"]>()),
-          ],
-          registered: loggerRegisteredModules.has(moduleId) || this.moduleSources.has(moduleId),
+          sources: [...sources],
+          registered:
+            loggerRegisteredModules.has(moduleId) ||
+            this.remotelyRegisteredModules.has(moduleId) ||
+            this.moduleSources.has(moduleId),
           lastEventAt: this.lastEventAt.get(moduleId) || null,
         };
       });
