@@ -5528,6 +5528,45 @@ i18n.extend({
     pl: "Podgląd",
     pr: "Visualização",
   },
+  appearance_presets_title: {
+    en: "Starter looks",
+  },
+  appearance_presets_copy: {
+    en: "Pick a starting point, then fine-tune the popup below.",
+  },
+  appearance_preview_copy: {
+    en: "See how suggestions will look while you adjust colors and spacing.",
+  },
+  appearance_density_title: {
+    en: "Size & density",
+  },
+  appearance_density_copy: {
+    en: "Make the suggestion list feel more compact, balanced, or roomy.",
+  },
+  appearance_font_size_title: {
+    en: "Text size",
+  },
+  appearance_row_height_title: {
+    en: "Row height",
+  },
+  appearance_side_padding_title: {
+    en: "Side padding",
+  },
+  appearance_density_compact: {
+    en: "Compact",
+  },
+  appearance_density_balanced: {
+    en: "Balanced",
+  },
+  appearance_density_roomy: {
+    en: "Roomy",
+  },
+  appearance_density_tight: {
+    en: "Tight",
+  },
+  appearance_density_wide: {
+    en: "Wide",
+  },
   appearance_light_preview: {
     en: "Light preview",
     fr: "Aperçu clair",
@@ -5560,6 +5599,36 @@ i18n.extend({
     de: "Erweiterte Farben",
     pl: "Zaawansowane kolory",
     pr: "Cores avançadas",
+  },
+  appearance_advanced_colors_copy: {
+    en: "Fine-tune how the popup sits on bright and dark websites.",
+  },
+  appearance_light_surface_title: {
+    en: "Popup on light pages",
+  },
+  appearance_light_surface_copy: {
+    en: "Use these colors when the suggestion popup appears on bright websites.",
+  },
+  appearance_dark_surface_title: {
+    en: "Popup on dark pages",
+  },
+  appearance_dark_surface_copy: {
+    en: "Use these colors when the suggestion popup appears on dark websites.",
+  },
+  appearance_background_title: {
+    en: "Background",
+  },
+  appearance_text_title: {
+    en: "Text",
+  },
+  appearance_selected_row_bg_title: {
+    en: "Selected row background",
+  },
+  appearance_selected_row_text_title: {
+    en: "Selected row text",
+  },
+  appearance_border_title: {
+    en: "Border",
   },
   appearance_contrast_checks: {
     en: "Contrast checks",

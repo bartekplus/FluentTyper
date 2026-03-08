@@ -190,8 +190,11 @@ export class SettingsEngine {
   }
 
   private createControl(params: FieldConfig): FieldControl {
-    const container = this.getOrCreateGroup(params.tab, params.group);
     const control = this.instantiateControl(params);
+    if (params.type === "valueOnly") {
+      return control;
+    }
+    const container = this.getOrCreateGroup(params.tab, params.group);
     control.rootElement.setAttribute("data-search-text", this.buildFieldSearchText(params));
     container.appendChild(control.rootElement);
     return control;

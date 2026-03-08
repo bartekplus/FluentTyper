@@ -227,4 +227,22 @@ describe("AppearanceStudio theme value compatibility", () => {
     const preview = root.querySelector(".appearance-preview") as HTMLElement;
     expect(preview.style.background).toBe("rgb(17, 34, 51)");
   });
+
+  test("uses user-facing labels for density and advanced color groups", () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    const { registry } = createRegistry(DEFAULT_THEME);
+
+    new AppearanceStudio(root, registry as never, {
+      default: DEFAULT_THEME,
+      compact: COMPACT_THEME,
+    });
+
+    expect(root.textContent).toContain("Starter looks");
+    expect(root.textContent).toContain("Size & density");
+    expect(root.textContent).toContain("Popup on light pages");
+    expect(root.textContent).toContain("Selected row background");
+    expect(root.textContent).not.toContain("Light Theme Colors");
+    expect(root.textContent).not.toContain("Highlight Background");
+  });
 });

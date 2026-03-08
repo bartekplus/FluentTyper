@@ -262,8 +262,9 @@ export class AppearanceStudio {
     const shell = document.createElement("section");
     shell.className = "settings-inline-card";
     const title = document.createElement("h4");
-    title.textContent = i18n.get("theme_presets");
+    title.textContent = i18n.get("appearance_presets_title");
     shell.appendChild(title);
+    shell.appendChild(this.createHelperText(i18n.get("appearance_presets_copy")));
 
     const grid = document.createElement("div");
     grid.className = "preset-grid";
@@ -300,6 +301,7 @@ export class AppearanceStudio {
     const title = document.createElement("h4");
     title.textContent = i18n.get("appearance_preview_title");
     shell.appendChild(title);
+    shell.appendChild(this.createHelperText(i18n.get("appearance_preview_copy")));
 
     const toggle = document.createElement("div");
     toggle.className = "segmented-control";
@@ -345,12 +347,13 @@ export class AppearanceStudio {
     const shell = document.createElement("section");
     shell.className = "settings-inline-card";
     const title = document.createElement("h4");
-    title.textContent = i18n.get("typography_spacing");
+    title.textContent = i18n.get("appearance_density_title");
     shell.appendChild(title);
+    shell.appendChild(this.createHelperText(i18n.get("appearance_density_copy")));
 
     shell.appendChild(
       this.createSelectField(
-        i18n.get("font_size_label"),
+        i18n.get("appearance_font_size_title"),
         theme[KEY_SUGGESTION_FONT_SIZE],
         [
           ["0.8rem", "0.8rem"],
@@ -364,12 +367,12 @@ export class AppearanceStudio {
     );
     shell.appendChild(
       this.createSelectField(
-        i18n.get("vertical_padding_label"),
+        i18n.get("appearance_row_height_title"),
         theme[KEY_SUGGESTION_PADDING_VERTICAL],
         [
-          ["0.4rem", "0.4rem"],
-          ["0.6rem", "0.6rem"],
-          ["0.8rem", "0.8rem"],
+          ["0.4rem", i18n.get("appearance_density_compact")],
+          ["0.6rem", i18n.get("appearance_density_balanced")],
+          ["0.8rem", i18n.get("appearance_density_roomy")],
         ],
         (value) => this.registry[KEY_SUGGESTION_PADDING_VERTICAL].set(value),
         (value) => this.syncLiveTheme({ ...theme, [KEY_SUGGESTION_PADDING_VERTICAL]: value }),
@@ -377,12 +380,12 @@ export class AppearanceStudio {
     );
     shell.appendChild(
       this.createSelectField(
-        i18n.get("horizontal_padding_label"),
+        i18n.get("appearance_side_padding_title"),
         theme[KEY_SUGGESTION_PADDING_HORIZONTAL],
         [
-          ["0.6rem", "0.6rem"],
-          ["0.8rem", "0.8rem"],
-          ["1rem", "1rem"],
+          ["0.6rem", i18n.get("appearance_density_tight")],
+          ["0.8rem", i18n.get("appearance_density_balanced")],
+          ["1rem", i18n.get("appearance_density_wide")],
         ],
         (value) => this.registry[KEY_SUGGESTION_PADDING_HORIZONTAL].set(value),
         (value) => this.syncLiveTheme({ ...theme, [KEY_SUGGESTION_PADDING_HORIZONTAL]: value }),
@@ -397,80 +400,39 @@ export class AppearanceStudio {
     const summary = document.createElement("summary");
     summary.textContent = i18n.get("appearance_advanced_colors");
     shell.appendChild(summary);
-
-    const fields = [
-      [KEY_SUGGESTION_BG_LIGHT, this.composeThemeLabel("light_theme_colors", "bg_color_label")],
-      [KEY_SUGGESTION_TEXT_LIGHT, this.composeThemeLabel("light_theme_colors", "text_color_label")],
-      [
-        KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT,
-        this.composeThemeLabel("light_theme_colors", "highlight_bg_label"),
-      ],
-      [
-        KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT,
-        this.composeThemeLabel("light_theme_colors", "highlight_text_label"),
-      ],
-      [
-        KEY_SUGGESTION_BORDER_LIGHT,
-        this.composeThemeLabel("light_theme_colors", "border_color_label"),
-      ],
-      [KEY_SUGGESTION_BG_DARK, this.composeThemeLabel("dark_theme_colors", "bg_color_label")],
-      [KEY_SUGGESTION_TEXT_DARK, this.composeThemeLabel("dark_theme_colors", "text_color_label")],
-      [
-        KEY_SUGGESTION_HIGHLIGHT_BG_DARK,
-        this.composeThemeLabel("dark_theme_colors", "highlight_bg_label"),
-      ],
-      [
-        KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK,
-        this.composeThemeLabel("dark_theme_colors", "highlight_text_label"),
-      ],
-      [
-        KEY_SUGGESTION_BORDER_DARK,
-        this.composeThemeLabel("dark_theme_colors", "border_color_label"),
-      ],
-    ] as const;
     const draftTheme = { ...theme };
+    shell.appendChild(this.createHelperText(i18n.get("appearance_advanced_colors_copy")));
 
-    fields.forEach(([key, label]) => {
-      const field = document.createElement("label");
-      field.className = "settings-stack-field";
-      const title = document.createElement("span");
-      title.textContent = label;
-      const inputs = document.createElement("div");
-      inputs.className = "is-flex is-align-items-center";
-      inputs.style.gap = "0.75rem";
-
-      const rawInput = document.createElement("input");
-      rawInput.type = "text";
-      rawInput.className = "input";
-      rawInput.value = theme[key];
-      rawInput.addEventListener("input", () => {
-        draftTheme[key] = rawInput.value.trim();
-        input.value = getColorPickerValue(draftTheme[key]);
-        input.disabled = !isThemeColorEditableWithPicker(draftTheme[key]);
-        this.syncLiveTheme(draftTheme);
-      });
-      rawInput.addEventListener("change", () => {
-        this.registry[key].set(rawInput.value.trim());
-      });
-
-      const input = document.createElement("input");
-      input.type = "color";
-      input.className = "input";
-      input.value = getColorPickerValue(theme[key]);
-      input.disabled = !isThemeColorEditableWithPicker(theme[key]);
-      input.addEventListener("input", () => {
-        const mergedValue = mergeColorPickerValue(input.value, rawInput.value);
-        rawInput.value = mergedValue;
-        draftTheme[key] = mergedValue;
-        this.syncLiveTheme(draftTheme);
-      });
-      input.addEventListener("change", () => {
-        this.registry[key].set(mergeColorPickerValue(input.value, rawInput.value));
-      });
-      inputs.append(rawInput, input);
-      field.append(title, inputs);
-      shell.appendChild(field);
-    });
+    shell.appendChild(
+      this.createColorFieldGroup(
+        i18n.get("appearance_light_surface_title"),
+        i18n.get("appearance_light_surface_copy"),
+        [
+          [KEY_SUGGESTION_BG_LIGHT, i18n.get("appearance_background_title")],
+          [KEY_SUGGESTION_TEXT_LIGHT, i18n.get("appearance_text_title")],
+          [KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT, i18n.get("appearance_selected_row_bg_title")],
+          [KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT, i18n.get("appearance_selected_row_text_title")],
+          [KEY_SUGGESTION_BORDER_LIGHT, i18n.get("appearance_border_title")],
+        ],
+        theme,
+        draftTheme,
+      ),
+    );
+    shell.appendChild(
+      this.createColorFieldGroup(
+        i18n.get("appearance_dark_surface_title"),
+        i18n.get("appearance_dark_surface_copy"),
+        [
+          [KEY_SUGGESTION_BG_DARK, i18n.get("appearance_background_title")],
+          [KEY_SUGGESTION_TEXT_DARK, i18n.get("appearance_text_title")],
+          [KEY_SUGGESTION_HIGHLIGHT_BG_DARK, i18n.get("appearance_selected_row_bg_title")],
+          [KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK, i18n.get("appearance_selected_row_text_title")],
+          [KEY_SUGGESTION_BORDER_DARK, i18n.get("appearance_border_title")],
+        ],
+        theme,
+        draftTheme,
+      ),
+    );
 
     return shell;
   }
@@ -484,10 +446,6 @@ export class AppearanceStudio {
     this.liveContrastSection = shell;
     this.updateContrastWarnings(theme);
     return shell;
-  }
-
-  private composeThemeLabel(themeKey: string, fieldKey: string): string {
-    return `${i18n.get(themeKey)} · ${i18n.get(fieldKey)}`;
   }
 
   private createSelectField(
@@ -514,6 +472,74 @@ export class AppearanceStudio {
     select.addEventListener("change", () => onChange(select.value));
     field.append(title, select);
     return field;
+  }
+
+  private createHelperText(copy: string): HTMLElement {
+    const text = document.createElement("p");
+    text.className = "settings-inline-help";
+    text.textContent = copy;
+    return text;
+  }
+
+  private createColorFieldGroup(
+    titleText: string,
+    copy: string,
+    fields: Array<[ThemeKey, string]>,
+    theme: Record<ThemeKey, string>,
+    draftTheme: Record<ThemeKey, string>,
+  ): HTMLElement {
+    const group = document.createElement("section");
+    group.className = "settings-inline-card";
+
+    const title = document.createElement("h4");
+    title.textContent = titleText;
+    group.appendChild(title);
+    group.appendChild(this.createHelperText(copy));
+
+    fields.forEach(([key, label]) => {
+      const field = document.createElement("label");
+      field.className = "settings-stack-field";
+      const fieldTitle = document.createElement("span");
+      fieldTitle.textContent = label;
+      const inputs = document.createElement("div");
+      inputs.className = "is-flex is-align-items-center";
+      inputs.style.gap = "0.75rem";
+
+      const rawInput = document.createElement("input");
+      rawInput.type = "text";
+      rawInput.className = "input";
+      rawInput.value = theme[key];
+      rawInput.addEventListener("input", () => {
+        draftTheme[key] = rawInput.value.trim();
+        pickerInput.value = getColorPickerValue(draftTheme[key]);
+        pickerInput.disabled = !isThemeColorEditableWithPicker(draftTheme[key]);
+        this.syncLiveTheme(draftTheme);
+      });
+      rawInput.addEventListener("change", () => {
+        this.registry[key].set(rawInput.value.trim());
+      });
+
+      const pickerInput = document.createElement("input");
+      pickerInput.type = "color";
+      pickerInput.className = "input";
+      pickerInput.value = getColorPickerValue(theme[key]);
+      pickerInput.disabled = !isThemeColorEditableWithPicker(theme[key]);
+      pickerInput.addEventListener("input", () => {
+        const mergedValue = mergeColorPickerValue(pickerInput.value, rawInput.value);
+        rawInput.value = mergedValue;
+        draftTheme[key] = mergedValue;
+        this.syncLiveTheme(draftTheme);
+      });
+      pickerInput.addEventListener("change", () => {
+        this.registry[key].set(mergeColorPickerValue(pickerInput.value, rawInput.value));
+      });
+
+      inputs.append(rawInput, pickerInput);
+      field.append(fieldTitle, inputs);
+      group.appendChild(field);
+    });
+
+    return group;
   }
 
   private readThemeValues(): Record<ThemeKey, string> {
@@ -576,7 +602,7 @@ export class AppearanceStudio {
 
     const warnings = [
       {
-        label: this.composeThemeLabel("light_theme_colors", "text_color_label"),
+        label: `${i18n.get("appearance_light_surface_title")} · ${i18n.get("appearance_text_title")}`,
         ratio: calculateThemeContrast(
           theme[KEY_SUGGESTION_BG_LIGHT],
           theme[KEY_SUGGESTION_TEXT_LIGHT],
@@ -584,7 +610,7 @@ export class AppearanceStudio {
         ),
       },
       {
-        label: this.composeThemeLabel("light_theme_colors", "highlight_text_label"),
+        label: `${i18n.get("appearance_light_surface_title")} · ${i18n.get("appearance_selected_row_text_title")}`,
         ratio: calculateThemeContrast(
           theme[KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT],
           theme[KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT],
@@ -592,7 +618,7 @@ export class AppearanceStudio {
         ),
       },
       {
-        label: this.composeThemeLabel("dark_theme_colors", "text_color_label"),
+        label: `${i18n.get("appearance_dark_surface_title")} · ${i18n.get("appearance_text_title")}`,
         ratio: calculateThemeContrast(
           theme[KEY_SUGGESTION_BG_DARK],
           theme[KEY_SUGGESTION_TEXT_DARK],
@@ -600,7 +626,7 @@ export class AppearanceStudio {
         ),
       },
       {
-        label: this.composeThemeLabel("dark_theme_colors", "highlight_text_label"),
+        label: `${i18n.get("appearance_dark_surface_title")} · ${i18n.get("appearance_selected_row_text_title")}`,
         ratio: calculateThemeContrast(
           theme[KEY_SUGGESTION_HIGHLIGHT_BG_DARK],
           theme[KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK],

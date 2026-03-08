@@ -148,4 +148,39 @@ describe("SettingsEngine navigation", () => {
     expect(elements.main.scrollTop).toBe(0);
     expect(elements.content.querySelector(".content-tab.is-active")?.id).toBe("about_support_tab");
   });
+
+  test("value-only controls do not render empty visible groups", () => {
+    const elements = createEngineElements();
+    const engine = new SettingsEngine({
+      container: elements,
+    });
+
+    engine.buildFromManifest({
+      name: "Test",
+      icon: "/icon.png",
+      tabs: [{ id: "theming_tab", label: "Appearance" }],
+      settings: [
+        {
+          tab: "theming_tab",
+          group: "Studio",
+          name: "appearanceStudioPanel",
+          type: "customPanel",
+          label: "Appearance studio",
+          description: "Preview and tune the popup.",
+        },
+        {
+          tab: "theming_tab",
+          group: "Light Theme Colors",
+          name: "hiddenThemeValue",
+          type: "valueOnly",
+          default: "#ffffff",
+        },
+      ],
+    });
+
+    const groups = elements.content.querySelectorAll(".settings-group");
+    expect(groups).toHaveLength(1);
+    expect(elements.content.textContent || "").not.toContain("Light Theme Colors");
+    expect(elements.content.querySelector("#appearanceStudioPanelPanelRoot")).not.toBeNull();
+  });
 });
