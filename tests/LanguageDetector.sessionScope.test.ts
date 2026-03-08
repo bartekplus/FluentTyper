@@ -6,6 +6,7 @@ import {
 } from "../src/core/domain/autoLanguageDetection";
 
 type SettingsState = Record<string, unknown>;
+const SESSION_TTL_MS = 5 * 60 * 1000;
 
 function createSettingsManager(initialState: Partial<SettingsState> = {}) {
   const state: SettingsState = {
@@ -229,5 +230,120 @@ describe("LanguageDetector live session scoping", () => {
         .slice(-AUTO_LANGUAGE_MAX_SAMPLE_TOKENS)
         .join(" ") + " ",
     );
+  });
+
+  test("stale-session pruning persists a soft site prior and clears stale live state", async () => {
+    const { detector, settingsState } = createDetector();
+    const nowSpy = jest.spyOn(Date, "now");
+    let now = 10_000;
+    nowSpy.mockImplementation(() => now);
+
+    try {
+      await detector.resolveLanguage({
+        text: "bonjour merci monde francais encore discussion phrase texte ",
+        nextChar: "",
+        tabId: 21,
+        frameId: 0,
+        suggestionId: 1,
+        runtimeGeneration: 1,
+        domainURL: "example.com",
+        enabledLanguages: ["en_US", "fr_FR"],
+      });
+
+      expect(
+        await detector.getRecentSessionStatusForScope({
+          tabId: 21,
+          domainURL: "example.com",
+        }),
+      ).toEqual(
+        expect.objectContaining({
+          language: "fr_FR",
+          frameId: 0,
+          domain: "example.com",
+        }),
+      );
+
+      now += SESSION_TTL_MS + 1;
+
+      expect(
+        await detector.getRecentSessionStatusForScope({
+          tabId: 21,
+          domainURL: "example.com",
+        }),
+      ).toBeNull();
+      expect(
+        await detector.getLiveRuntimeStatus({
+          tabId: 21,
+          domainURL: "example.com",
+        }),
+      ).toBeNull();
+      expect(settingsState.autoLanguageSitePriors).toEqual({
+        "example.com": {
+          fr_FR: expect.any(Number),
+        },
+      });
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
+
+  test("revisit uses a pruned soft prior provisionally but stronger fresh evidence overrides it", async () => {
+    const { detector, settingsState } = createDetector();
+    const nowSpy = jest.spyOn(Date, "now");
+    let now = 20_000;
+    nowSpy.mockImplementation(() => now);
+
+    try {
+      await detector.resolveLanguage({
+        text: "bonjour merci monde francais encore discussion phrase texte ",
+        nextChar: "",
+        tabId: 31,
+        frameId: 0,
+        suggestionId: 1,
+        runtimeGeneration: 1,
+        domainURL: "example.com",
+        enabledLanguages: ["en_US", "fr_FR"],
+      });
+
+      now += SESSION_TTL_MS + 1;
+      await detector.getRecentSessionStatusForScope({
+        tabId: 31,
+        domainURL: "example.com",
+      });
+
+      expect(settingsState.autoLanguageSitePriors).toEqual({
+        "example.com": {
+          fr_FR: expect.any(Number),
+        },
+      });
+
+      const provisionalRevisit = await detector.resolveLanguage({
+        text: "hi",
+        nextChar: "",
+        tabId: 32,
+        frameId: 0,
+        suggestionId: 1,
+        runtimeGeneration: 1,
+        domainURL: "example.com",
+        enabledLanguages: ["en_US", "fr_FR"],
+      });
+      expect(provisionalRevisit.language).toBe("fr_FR");
+      expect(provisionalRevisit.source).toBe("provisional_site_prior");
+
+      const strongEnglishRevisit = await detector.resolveLanguage({
+        text: "hello english paragraph with long cursor history and steady typing ",
+        nextChar: "",
+        tabId: 32,
+        frameId: 0,
+        suggestionId: 1,
+        runtimeGeneration: 1,
+        domainURL: "example.com",
+        enabledLanguages: ["en_US", "fr_FR"],
+      });
+      expect(strongEnglishRevisit.language).toBe("en_US");
+      expect(strongEnglishRevisit.source).toBe("detection");
+    } finally {
+      nowSpy.mockRestore();
+    }
   });
 });
