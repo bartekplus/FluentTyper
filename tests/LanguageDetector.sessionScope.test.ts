@@ -1,15 +1,22 @@
-import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
-import { LanguageDetector } from "../src/adapters/chrome/background/LanguageDetector";
+import { afterEach, beforeEach, describe, expect, jest, mock, test } from "bun:test";
 import {
   AUTO_LANGUAGE_MAX_SAMPLE_CHARS,
   AUTO_LANGUAGE_MAX_SAMPLE_TOKENS,
 } from "../src/core/domain/autoLanguageDetection";
 import { acquireDomGlobalLock } from "./support/domGlobalLock";
+import type { LanguageDetector as LanguageDetectorType } from "../src/adapters/chrome/background/LanguageDetector";
 
 type SettingsState = Record<string, unknown>;
 const SESSION_TTL_MS = 5 * 60 * 1000;
 const baseChrome = (globalThis as unknown as { chrome: unknown }).chrome;
 let releaseDomGlobalLock: (() => void) | null = null;
+let importNonce = 0;
+let LanguageDetectorClass: { new (settings: never): LanguageDetectorType };
+
+function freshModulePath(path: string): string {
+  importNonce += 1;
+  return `${path}?bun_test_nonce_language_detector_scope=${importNonce}`;
+}
 
 function createSettingsManager(initialState: Partial<SettingsState> = {}) {
   const state: SettingsState = {
@@ -56,7 +63,7 @@ function createDetector(initialState: Partial<SettingsState> = {}) {
   } as unknown as typeof chrome;
 
   return {
-    detector: new LanguageDetector(manager as never),
+    detector: new LanguageDetectorClass(manager as never),
     settingsState: state,
     settingsManager: manager,
     detectLanguage,
@@ -67,6 +74,10 @@ function createDetector(initialState: Partial<SettingsState> = {}) {
 describe.serial("LanguageDetector live session scoping", () => {
   beforeEach(async () => {
     releaseDomGlobalLock = await acquireDomGlobalLock();
+    mock.restore();
+    ({ LanguageDetector: LanguageDetectorClass } = await import(
+      freshModulePath("../src/adapters/chrome/background/LanguageDetector")
+    ));
     jest.clearAllMocks();
   });
 

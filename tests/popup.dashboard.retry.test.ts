@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, jest, mock, test } from "bun:test";
 import { JSDOM } from "jsdom";
 import {
   CMD_GET_AUTO_LANGUAGE_STATUS,
@@ -470,6 +470,7 @@ async function loadPopupWithOutcomes(
     activeDom = null;
   }
   activeDom = installPopupDom(initialAccepted, prefersDark);
+  mock.restore();
   const chromeMock = createChromeMock(
     outcomes,
     permissionApi,
