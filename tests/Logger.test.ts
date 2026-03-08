@@ -111,18 +111,18 @@ describe("Logger", () => {
         enabled: true,
         defaultLevel: "error",
         moduleOverrides: {
-          PredictionManager: {
+          OptionsObservability: {
             enabled: true,
             level: "debug",
           },
         },
       },
     });
-    const logger = createLogger("PredictionManager");
+    const logger = createLogger("OptionsObservability");
 
     logger.debug("visible from override");
 
-    expect(console.debug).toHaveBeenCalledWith("[PredictionManager] visible from override");
+    expect(console.debug).toHaveBeenCalledWith("[OptionsObservability] visible from override");
   });
 
   test("suppresses disabled modules from runtime config", () => {
@@ -131,13 +131,13 @@ describe("Logger", () => {
         enabled: true,
         defaultLevel: "debug",
         moduleOverrides: {
-          PredictionManager: {
+          OptionsObservability: {
             enabled: false,
           },
         },
       },
     });
-    const logger = createLogger("PredictionManager");
+    const logger = createLogger("OptionsObservability");
 
     logger.error("hidden");
 

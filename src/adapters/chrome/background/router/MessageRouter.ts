@@ -11,6 +11,7 @@ import {
   CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE,
   CMD_OPTIONS_GET_OBSERVABILITY_SNAPSHOT,
   CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT,
+  CMD_OPTIONS_REPORT_OBSERVABILITY_EVENT,
   CMD_OPTIONS_PAGE_CONFIG_CHANGE,
   CMD_OPTIONS_RESET_PRODUCTIVITY_STATS,
   CMD_POPUP_ACK_DONATION_MILESTONE,
@@ -61,6 +62,7 @@ const ROUTED_MESSAGE_COMMANDS = [
   CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE,
   CMD_OPTIONS_GET_OBSERVABILITY_SNAPSHOT,
   CMD_OPTIONS_CLEAR_OBSERVABILITY_EVENTS,
+  CMD_OPTIONS_REPORT_OBSERVABILITY_EVENT,
 ] as const;
 
 type RoutedMessageCommand = (typeof ROUTED_MESSAGE_COMMANDS)[number];
@@ -129,6 +131,7 @@ const MESSAGE_ERROR_LABELS: Record<RoutedMessageCommand, string> = {
   [CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE]: "MessageRouter.handleOptionsClearPredictorDebugTrace",
   [CMD_OPTIONS_GET_OBSERVABILITY_SNAPSHOT]: "MessageRouter.handleOptionsGetObservabilitySnapshot",
   [CMD_OPTIONS_CLEAR_OBSERVABILITY_EVENTS]: "MessageRouter.handleOptionsClearObservabilityEvents",
+  [CMD_OPTIONS_REPORT_OBSERVABILITY_EVENT]: "MessageRouter.handleOptionsReportObservabilityEvent",
 };
 
 export class MessageRouter {
@@ -199,6 +202,10 @@ export class MessageRouter {
     register(
       CMD_OPTIONS_CLEAR_OBSERVABILITY_EVENTS,
       this.handleOptionsClearObservabilityEvents.bind(this),
+    );
+    register(
+      CMD_OPTIONS_REPORT_OBSERVABILITY_EVENT,
+      this.handleOptionsReportObservabilityEvent.bind(this),
     );
   }
 
@@ -549,6 +556,17 @@ export class MessageRouter {
   ): Promise<void> {
     const { sendResponse, worker } = payload;
     worker.observabilityService.clearEvents();
+    this.respondOk(sendResponse);
+  }
+
+  private async handleOptionsReportObservabilityEvent(
+    payload: CommandPayload<typeof CMD_OPTIONS_REPORT_OBSERVABILITY_EVENT>,
+  ): Promise<void> {
+    const { request, sendResponse, worker } = payload;
+    worker.observabilityService.recordEvent({
+      ...request.context.event,
+      source: "options",
+    });
     this.respondOk(sendResponse);
   }
 }

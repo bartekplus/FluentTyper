@@ -174,6 +174,9 @@ export type OptionsClearObservabilityEventsContext = Record<string, never>;
 export interface ContentScriptReportObservabilityEventContext {
   event: ObservabilityEvent;
 }
+export interface OptionsReportObservabilityEventContext {
+  event: ObservabilityEvent;
+}
 
 export interface ProductivityEventSummary {
   suggestionsShown: number;
@@ -329,6 +332,10 @@ export type Message =
       context: ContentScriptReportObservabilityEventContext;
     }
   | {
+      command: "CMD_OPTIONS_REPORT_OBSERVABILITY_EVENT";
+      context: OptionsReportObservabilityEventContext;
+    }
+  | {
       command: "CMD_GET_AUTO_LANGUAGE_STATUS";
       context: GetAutoLanguageStatusContext;
     };
@@ -405,6 +412,10 @@ export type OptionsClearObservabilityEventsMessage = Extract<
 export type ContentScriptReportObservabilityEventMessage = Extract<
   Message,
   { command: "CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_EVENT" }
+>;
+export type OptionsReportObservabilityEventMessage = Extract<
+  Message,
+  { command: "CMD_OPTIONS_REPORT_OBSERVABILITY_EVENT" }
 >;
 export type GetAutoLanguageStatusMessage = Extract<
   Message,

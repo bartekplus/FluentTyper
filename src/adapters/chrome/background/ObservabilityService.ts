@@ -222,7 +222,7 @@ export class ObservabilityService {
           sources: [
             ...(this.moduleSources.get(moduleId) || new Set<ObservabilityEvent["source"]>()),
           ],
-          registered: loggerRegisteredModules.has(moduleId),
+          registered: loggerRegisteredModules.has(moduleId) || this.moduleSources.has(moduleId),
           lastEventAt: this.lastEventAt.get(moduleId) || null,
         };
       });

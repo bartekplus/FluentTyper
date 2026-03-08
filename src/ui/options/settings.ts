@@ -1,5 +1,5 @@
 import { SettingsEngine } from "@ui/settings-engine/SettingsEngine.js";
-import { createLogger } from "@core/application/logging/Logger";
+import { createLogger, setGlobalObservabilityRuntime } from "@core/application/logging/Logger";
 import { Store } from "@core/application/storage/Store.js";
 import { dispatchSettingsSaveStatus } from "@ui/settings-engine/controls/FieldControl.js";
 import { SUPPORTED_LANGUAGES, resolveEnabledLanguages } from "@core/domain/lang";
@@ -73,6 +73,7 @@ import {
   CMD_OPTIONS_RESET_PRODUCTIVITY_STATS,
   CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT,
   CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE,
+  CMD_OPTIONS_REPORT_OBSERVABILITY_EVENT,
 } from "@core/domain/constants";
 import { i18n } from "./fluenttyperI18n.js";
 import { manifest } from "./settingsManifest.js";
@@ -91,6 +92,42 @@ let predictorDebugBindingsInitialized = false;
 let observabilityLastSignature = "";
 let observabilityBindingsInitialized = false;
 const observabilityLogger = createLogger("OptionsObservability");
+
+function resolveOptionsObservabilityConfig(
+  registry: ReturnType<SettingsEngine["buildFromManifest"]>,
+) {
+  const enabled = registry[KEY_OBSERVABILITY_ENABLED]?.get();
+  const defaultLevel = registry[KEY_OBSERVABILITY_DEFAULT_LEVEL]?.get();
+  return {
+    enabled: typeof enabled === "boolean" ? enabled : true,
+    defaultLevel: isLogLevel(defaultLevel) ? defaultLevel : "debug",
+    moduleOverrides: getObservabilityModuleOverrides(registry),
+  };
+}
+
+function applyOptionsObservabilityRuntime(
+  registry: ReturnType<SettingsEngine["buildFromManifest"]>,
+) {
+  if (!IS_DEV_BUILD) {
+    return;
+  }
+  setGlobalObservabilityRuntime({
+    config: resolveOptionsObservabilityConfig(registry),
+    source: "options",
+    sink: (event) => {
+      try {
+        chrome.runtime.sendMessage({
+          command: CMD_OPTIONS_REPORT_OBSERVABILITY_EVENT,
+          context: {
+            event,
+          },
+        });
+      } catch {
+        // Ignore runtime disconnects during page teardown.
+      }
+    },
+  });
+}
 
 function optionsPageConfigChange() {
   const message = {
@@ -1951,6 +1988,7 @@ function setupObservabilityDashboard(registry: ReturnType<SettingsEngine["buildF
   };
   const root = mountIfNeeded();
   if (root) {
+    applyOptionsObservabilityRuntime(registry);
     observabilityLogger.info("Mounting observability dashboard");
     scheduleRefresh();
   }
@@ -1988,13 +2026,14 @@ function setupObservabilityDashboard(registry: ReturnType<SettingsEngine["buildF
       const key = target.getAttribute("data-key");
       const nextEnabled = target.getAttribute("data-enabled") === "true";
       if (key) {
-        observabilityLogger.info("Updating predictor debug toggle", {
-          key,
-          nextEnabled,
-        });
         const setting = registry[key];
         if (setting && typeof setting.set === "function") {
           setting.set(Boolean(nextEnabled));
+          applyOptionsObservabilityRuntime(registry);
+          observabilityLogger.info("Updating predictor debug toggle", {
+            key,
+            nextEnabled,
+          });
           optionsPageConfigChange();
           window.setTimeout(scheduleRefresh, 120);
         }
@@ -2031,12 +2070,13 @@ function setupObservabilityDashboard(registry: ReturnType<SettingsEngine["buildF
       current.level = isLogLevel(target.value) ? target.value : "debug";
     }
     overrides[moduleId] = current;
+    setObservabilityModuleOverrides(registry, overrides);
+    applyOptionsObservabilityRuntime(registry);
     observabilityLogger.info("Updating module override", {
       moduleId,
       enabled: current.enabled,
       level: current.level,
     });
-    setObservabilityModuleOverrides(registry, overrides);
     optionsPageConfigChange();
     window.setTimeout(scheduleRefresh, 120);
   });
@@ -2109,6 +2149,7 @@ window.addEventListener("DOMContentLoaded", function () {
       );
     }
     new AboutWorkspacePanel(registry.aboutWorkspacePanel.element as HTMLElement);
+    applyOptionsObservabilityRuntime(registry);
 
     registry[KEY_LANGUAGE].addEvent("action", async function () {
       await validateLanguageSettings(registry, store);
@@ -2223,6 +2264,9 @@ window.addEventListener("DOMContentLoaded", function () {
         return;
       }
       setting.addEvent("action", function () {
+        if (element === KEY_OBSERVABILITY_ENABLED || element === KEY_OBSERVABILITY_DEFAULT_LEVEL) {
+          applyOptionsObservabilityRuntime(registry);
+        }
         optionsPageConfigChange();
         if (
           element === KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED ||

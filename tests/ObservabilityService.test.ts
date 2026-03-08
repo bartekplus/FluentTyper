@@ -129,4 +129,71 @@ describe("ObservabilityService", () => {
     expect(snapshot.reason).toBe("dev_build_required");
     expect(snapshot.events).toHaveLength(0);
   });
+
+  test("marks options modules as registered after forwarding option events", () => {
+    const service = new ObservabilityService({
+      isDevBuild: true,
+      getPredictorSnapshot: () =>
+        ({
+          generatedAtMs: 1,
+          config: {
+            aiPredictorEnabled: true,
+            aiModelId: "model",
+            aiPredictionTimeoutMs: 120,
+            debugPresagePredictorEnabled: true,
+            debugAIPredictorEnabled: true,
+          },
+          runtime: {
+            presage: { languageEngineCount: 1 },
+            webllm: {
+              enabled: true,
+              modelId: "model",
+              status: "ready",
+              hasWebGPU: true,
+              initAttemptCount: 1,
+              isGenerating: false,
+              cacheSize: 0,
+              lastFailureAt: null,
+              lastInitStartedAt: null,
+              lastInitDurationMs: null,
+              lastInitProgress: null,
+              lastInitProgressAt: null,
+              lastInitProgressText: null,
+              lastInitError: null,
+              lastInitProgressLog: [],
+              lastPredictAt: null,
+              lastPredictDurationMs: null,
+              lastPredictSource: "none",
+              lastPredictInput: null,
+              lastRawOutputPreview: null,
+              lastPredictOutputCount: 0,
+              lastPredictError: null,
+            },
+          },
+          traces: [],
+        }) as const,
+      getAutoLanguageRuntimes: () => [],
+    });
+
+    service.recordEvent({
+      id: "opt-1",
+      timestampMs: 10,
+      source: "options",
+      moduleId: "OptionsObservability",
+      level: "info",
+      message: "mounted",
+    });
+
+    const snapshot = service.getSnapshot();
+    const optionsModule = snapshot.modules.find(
+      (module) => module.moduleId === "OptionsObservability",
+    );
+
+    expect(snapshot.events[0]?.source).toBe("options");
+    expect(optionsModule).toEqual(
+      expect.objectContaining({
+        registered: true,
+      }),
+    );
+  });
 });
