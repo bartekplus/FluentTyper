@@ -30,6 +30,8 @@
     "auto_detect_language_guards",
     "productivity_dashboard_render_reset",
     "auto_detect_prediction_flow",
+    "auto_detect_live_status",
+    "dev_auto_detect_session_lock",
     "multi_language_prediction",
     "extension_ui_translation",
     "options_workspace_localized_shell",

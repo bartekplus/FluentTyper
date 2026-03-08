@@ -446,6 +446,48 @@
       ]
     },
     {
+      "id": "auto_detect_live_status",
+      "description": "auto_detect keeps the stored global language unchanged while a live detected language session is active.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Auto-detect keeps the stored global language while typing in a detected language"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/optionsPanels.reactivity.test.ts",
+          "test": "language summary only mentions fallback when auto-detect is active"
+        }
+      ]
+    },
+    {
+      "id": "dev_auto_detect_session_lock",
+      "description": "The language toggle command creates a session-only lock in auto_detect mode without persisting a site override.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "CMD_TOGGLE_FT_ACTIVE_LANG creates an auto-detect session lock without persisting site overrides"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/background.routing.test.ts",
+          "test": "onCommand uses a session-only lock for active auto-detect sessions"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/optionsPanels.reactivity.test.ts",
+          "test": "language summary only mentions fallback when auto-detect is active"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/autoLanguageDetection.test.ts",
+          "test": "respects manual lock"
+        }
+      ]
+    },
+    {
       "id": "multi_language_prediction",
       "description": "Predictions work across supported language models.",
       "coverage": [
