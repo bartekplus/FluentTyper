@@ -34,7 +34,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          lfs: true
+          fetch-depth: 1
       - name: Branch name
         id: branch_name
         run: |
