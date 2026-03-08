@@ -68,6 +68,11 @@ export class SliderControl extends BaseControl<number> {
       }
       if (this.tooltip) {
         this.tooltip.textContent = formatted;
+        // Position tooltip above the thumb based on value percentage
+        const min = parseFloat(input.min) || 0;
+        const max = parseFloat(input.max) || 100;
+        const pct = ((value - min) / (max - min)) * 100;
+        this.tooltip.style.left = `${pct}%`;
         this.tooltip.classList.add("slider-tooltip--visible");
       }
     };

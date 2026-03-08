@@ -82,27 +82,9 @@ export class ListBoxControl extends BaseControl<string[]> implements ListBoxFiel
 
   store(): void {
     if (this.name !== undefined) {
-      void this.store_persist();
+      void this.store.set(this.name, this.options);
     }
     this.emitter.fireEvent("action", this.get());
-  }
-
-  private async store_persist(): Promise<void> {
-    if (this.name !== undefined) {
-      await this.storeWithFeedback();
-    }
-  }
-
-  private async storeWithFeedback(): Promise<void> {
-    if (this.name === undefined) {
-      return;
-    }
-    await this._storeInternal(this.name, this.options);
-    // No "saved" indicator for list box — items are managed imperatively
-  }
-
-  private async _storeInternal(name: string, value: unknown): Promise<void> {
-    await this.store.set(name, value);
   }
 
   remove(): void {
@@ -115,7 +97,7 @@ export class ListBoxControl extends BaseControl<string[]> implements ListBoxFiel
     }
     this.selected = [];
     if (this.name !== undefined) {
-      void this._storeInternal(this.name, this.options);
+      void this.store.set(this.name, this.options);
     }
     this.emitter.fireEvent("action", this.get());
   }
@@ -127,7 +109,7 @@ export class ListBoxControl extends BaseControl<string[]> implements ListBoxFiel
     }
     this.selected = [];
     if (this.name !== undefined) {
-      void this._storeInternal(this.name, this.options);
+      void this.store.set(this.name, this.options);
     }
     this.emitter.fireEvent("action", this.get());
   }

@@ -284,6 +284,7 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
     input.className = "grammar-rule-card-toggle";
     input.setAttribute("role", "checkbox");
     input.setAttribute("aria-label", rule.text);
+    input.setAttribute("aria-checked", "false");
 
     const body = document.createElement("div");
     body.className = "grammar-rule-card-body";
@@ -412,6 +413,7 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
 
     for (const ctrl of this.ruleControls) {
       const isChecked = ctrl.input.checked;
+      ctrl.input.setAttribute("aria-checked", String(isChecked));
       ctrl.card.classList.toggle("is-active", isChecked);
       if (isChecked) {
         activeCount++;
