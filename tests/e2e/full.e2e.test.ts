@@ -742,6 +742,7 @@ async function waitForPredictorTrace(
       : [];
     throw new Error(
       `Failed to match predictor trace: ${String(error)} recent=${JSON.stringify(recentTraces)}`,
+      { cause: error },
     );
   }
 }
@@ -3768,9 +3769,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           browserTimeout(12000, 15000),
         ).catch(() => []);
         if (greekSuggestions.length > 0) {
-          expect(
-            greekSuggestions.some((text) => text.toLowerCase().includes("φιλοσοφία")),
-          ).toBe(true);
+          expect(greekSuggestions.some((text) => text.toLowerCase().includes("φιλοσοφία"))).toBe(
+            true,
+          );
         } else {
           expect((await getInputContent(page, selector)).toLowerCase()).toContain("φιλοσ");
         }
@@ -3813,9 +3814,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           browserTimeout(12000, 15000),
         ).catch(() => []);
         if (greekSuggestions.length > 0) {
-          expect(
-            greekSuggestions.some((text) => text.toLowerCase().includes("φιλοσοφία")),
-          ).toBe(true);
+          expect(greekSuggestions.some((text) => text.toLowerCase().includes("φιλοσοφία"))).toBe(
+            true,
+          );
         } else {
           expect((await getInputContent(page, selector)).toLowerCase()).toContain("φιλοσ");
         }

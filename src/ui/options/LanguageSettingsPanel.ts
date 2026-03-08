@@ -365,7 +365,8 @@ export class LanguageSettingsPanel {
         command: CMD_GET_AUTO_LANGUAGE_STATUS,
         context: {},
       });
-      const status = (response as { status?: { language?: string; locked?: boolean } | null })?.status;
+      const status = (response as { status?: { language?: string; locked?: boolean } | null })
+        ?.status;
       if (!status || typeof status.language !== "string" || status.language.length === 0) {
         return null;
       }

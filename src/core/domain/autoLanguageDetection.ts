@@ -154,10 +154,7 @@ export function extractAutoLanguageSample(text: string): string {
   return source.slice(-AUTO_LANGUAGE_MAX_SAMPLE_CHARS).trimStart();
 }
 
-export function updateAutoLanguageRollingSample(
-  previousSample: string,
-  nextText: string,
-): string {
+export function updateAutoLanguageRollingSample(previousSample: string, nextText: string): string {
   if (typeof nextText === "string" && nextText.length > 0) {
     return extractAutoLanguageSample(nextText);
   }
@@ -179,7 +176,9 @@ export function sanitizeAutoLanguageSitePriors(
     const normalizedEntries = Object.entries(entryRaw as Record<string, unknown>)
       .filter(
         ([language, weight]) =>
-          enabledLanguages.includes(language) && typeof weight === "number" && Number.isFinite(weight),
+          enabledLanguages.includes(language) &&
+          typeof weight === "number" &&
+          Number.isFinite(weight),
       )
       .map(([language, weight]) => [language, clampProbability(weight)] as const)
       .filter(([, weight]) => weight > 0)
@@ -249,7 +248,10 @@ export function resolveAutoLanguageDecision(
   const sampleText = extractAutoLanguageSample(input.sampleText);
   const atTokenBoundary = isTokenBoundary(input.sampleText);
   const pasteLikeInput = input.inputAction === "other";
-  const documentLanguageHint = resolveHintLanguage(input.documentLanguageHint, input.allowedLanguages);
+  const documentLanguageHint = resolveHintLanguage(
+    input.documentLanguageHint,
+    input.allowedLanguages,
+  );
   const pageLanguageHint = resolveHintLanguage(input.pageLanguageHint, input.allowedLanguages);
   const sitePriorLanguage = resolveHintLanguage(input.sitePriorLanguage, input.allowedLanguages);
   const strongScriptLanguage = getStrongScriptLanguage(sampleText, input.allowedLanguages);
@@ -262,8 +264,9 @@ export function resolveAutoLanguageDecision(
     input.session.manualLockLanguage,
     input.allowedLanguages,
   );
-  const fallbackLanguage = resolveHintLanguage(input.fallbackLanguage, input.allowedLanguages)
-    || input.allowedLanguages[0];
+  const fallbackLanguage =
+    resolveHintLanguage(input.fallbackLanguage, input.allowedLanguages) ||
+    input.allowedLanguages[0];
   const stableLanguage = resolveHintLanguage(input.session.stableLanguage, input.allowedLanguages);
   let pendingLanguage = resolveHintLanguage(input.session.pendingLanguage, input.allowedLanguages);
   let pendingConfirmations = Number.isFinite(input.session.pendingConfirmations)
@@ -303,7 +306,10 @@ export function resolveAutoLanguageDecision(
     if (!language) {
       continue;
     }
-    scores.set(language, Math.max(scores.get(language) || 0, clampProbability(detection.percentage / 100)));
+    scores.set(
+      language,
+      Math.max(scores.get(language) || 0, clampProbability(detection.percentage / 100)),
+    );
   }
   if (documentLanguageHint) {
     scores.set(documentLanguageHint, (scores.get(documentLanguageHint) || 0) + DOCUMENT_HINT_BONUS);
@@ -415,11 +421,7 @@ export function resolveAutoLanguageDecision(
     };
   }
 
-  if (
-    switchSuppressedUntilBoundary &&
-    !atTokenBoundary &&
-    !pasteLikeInput
-  ) {
+  if (switchSuppressedUntilBoundary && !atTokenBoundary && !pasteLikeInput) {
     return {
       resolvedLanguage: stableLanguage,
       stableLanguage,
@@ -459,9 +461,7 @@ export function resolveAutoLanguageDecision(
 
   const canSwitchNow = atTokenBoundary || pasteLikeInput;
   const eligibleChallenger =
-    canSwitchNow &&
-    topScore >= SWITCH_THRESHOLD &&
-    topScore - stableScore >= SWITCH_MARGIN;
+    canSwitchNow && topScore >= SWITCH_THRESHOLD && topScore - stableScore >= SWITCH_MARGIN;
 
   if (!eligibleChallenger) {
     return {

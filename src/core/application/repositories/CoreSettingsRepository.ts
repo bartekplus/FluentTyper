@@ -141,9 +141,7 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
       : {};
   }
 
-  async setAutoLanguageSitePriors(
-    priors: Record<string, Record<string, number>>,
-  ): Promise<void> {
+  async setAutoLanguageSitePriors(priors: Record<string, Record<string, number>>): Promise<void> {
     await this.setField("autoLanguageSitePriors", priors);
   }
 

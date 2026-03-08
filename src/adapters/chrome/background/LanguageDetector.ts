@@ -8,7 +8,6 @@ import {
   sanitizeAutoLanguageSitePriors,
   updateAutoLanguageRollingSample,
   type AutoLanguageBrowserDetection,
-  type AutoLanguageSitePriors,
 } from "@core/domain/autoLanguageDetection";
 import { normalizeDomainHost } from "@core/domain/siteProfiles";
 import { resolveEnabledPredictionLanguages } from "@core/domain/lang";
@@ -325,9 +324,7 @@ export class LanguageDetector {
     return `${tabId}:${frameId}`;
   }
 
-  private trackLiveRuntime(
-    scope: AutoLanguageSessionLookup,
-  ): AutoLanguageLiveRuntimeState | null {
+  private trackLiveRuntime(scope: AutoLanguageSessionLookup): AutoLanguageLiveRuntimeState | null {
     const runtimeGeneration =
       typeof scope.runtimeGeneration === "number" && Number.isFinite(scope.runtimeGeneration)
         ? scope.runtimeGeneration
@@ -339,9 +336,7 @@ export class LanguageDetector {
     const domain = normalizeDomainHost(scope.domainURL || "") || null;
     const existing = this.liveRuntimes.get(key);
     const reusesPageContext =
-      existing &&
-      existing.runtimeGeneration === runtimeGeneration &&
-      existing.domain === domain;
+      existing && existing.runtimeGeneration === runtimeGeneration && existing.domain === domain;
     const runtime: AutoLanguageLiveRuntimeState = {
       key,
       tabId: scope.tabId,

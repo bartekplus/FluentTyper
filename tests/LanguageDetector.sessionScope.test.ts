@@ -31,10 +31,11 @@ function createDetector(initialState: Partial<SettingsState> = {}) {
   const { manager, state } = createSettingsManager(initialState);
   const detectLanguage = jest.fn(async (text: string) => {
     const englishMatches =
-      text.match(/\b(?:hello|english|steady|paragraph|history|typing|long|cursor)\b/gi)?.length || 0;
+      text.match(/\b(?:hello|english|steady|paragraph|history|typing|long|cursor)\b/gi)?.length ||
+      0;
     const frenchMatches =
-      text.match(/\b(?:bonjour|merci|monde|francais|encore|discussion|phrase|texte)\b/gi)
-        ?.length || 0;
+      text.match(/\b(?:bonjour|merci|monde|francais|encore|discussion|phrase|texte)\b/gi)?.length ||
+      0;
     if (frenchMatches > englishMatches) {
       return { languages: [{ language: "fr", percentage: 96 }] };
     }
@@ -220,7 +221,9 @@ describe("LanguageDetector live session scoping", () => {
     expect(secondFrenchObservation.language).toBe("fr_FR");
 
     const detectorInputs = detectLanguage.mock.calls.map(([text]) => String(text));
-    expect(detectorInputs.every((text) => text.length <= AUTO_LANGUAGE_MAX_SAMPLE_CHARS)).toBe(true);
+    expect(detectorInputs.every((text) => text.length <= AUTO_LANGUAGE_MAX_SAMPLE_CHARS)).toBe(
+      true,
+    );
     expect(
       detectorInputs.every(
         (text) => (text.match(/\p{L}+/gu)?.length || 0) <= AUTO_LANGUAGE_MAX_SAMPLE_TOKENS,
@@ -230,7 +233,8 @@ describe("LanguageDetector live session scoping", () => {
       "bonjour merci monde francais encore discussion phrase texte"
         .split(/\s+/)
         .slice(-AUTO_LANGUAGE_MAX_SAMPLE_TOKENS)
-        .join(" ") + " ",
+        .join(" ")
+        .concat(" "),
     );
   });
 

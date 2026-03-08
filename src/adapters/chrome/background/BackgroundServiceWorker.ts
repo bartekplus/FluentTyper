@@ -172,12 +172,7 @@ export class BackgroundServiceWorker {
   async resolveAutoLanguage(
     context: Pick<
       ContentScriptPredictRequestContext,
-      | "text"
-      | "nextChar"
-      | "suggestionId"
-      | "runtimeGeneration"
-      | "inputAction"
-      | "documentLang"
+      "text" | "nextChar" | "suggestionId" | "runtimeGeneration" | "inputAction" | "documentLang"
     > & {
       tabId: number;
       frameId: number;

@@ -68,10 +68,7 @@ export class CommandRouter {
             lang: nextLanguage.language,
           },
         };
-        if (
-          typeof nextLanguage.tabId === "number" &&
-          typeof nextLanguage.frameId === "number"
-        ) {
+        if (typeof nextLanguage.tabId === "number" && typeof nextLanguage.frameId === "number") {
           worker.sendCommandToTabContentScript(
             nextLanguage.tabId,
             nextLanguage.frameId,

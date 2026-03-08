@@ -22,12 +22,12 @@ import {
   CMD_POPUP_PAGE_ENABLE,
   CMD_POPUP_PAGE_DISABLE,
   CMD_OPTIONS_PAGE_CONFIG_CHANGE,
-    CMD_POPUP_GET_PRODUCTIVITY_STATS,
-    CMD_POPUP_ACK_WEEKLY_RECAP,
-    CMD_POPUP_ACK_DONATION_MILESTONE,
-    CMD_GET_AUTO_LANGUAGE_STATUS,
-    MAX_NUM_SUGGESTIONS,
-  } from "@core/domain/constants";
+  CMD_POPUP_GET_PRODUCTIVITY_STATS,
+  CMD_POPUP_ACK_WEEKLY_RECAP,
+  CMD_POPUP_ACK_DONATION_MILESTONE,
+  CMD_GET_AUTO_LANGUAGE_STATUS,
+  MAX_NUM_SUGGESTIONS,
+} from "@core/domain/constants";
 import type {
   OptionsPageConfigChangeMessage,
   PopupPageEnableMessage,
@@ -235,7 +235,8 @@ async function getActiveAutoLanguageStatus(): Promise<{
         domainURL: currentDomainURL,
       },
     });
-    const status = (response as { status?: { language?: string; locked?: boolean } | null })?.status;
+    const status = (response as { status?: { language?: string; locked?: boolean } | null })
+      ?.status;
     if (!status || typeof status.language !== "string" || status.language.length === 0) {
       return null;
     }
@@ -379,8 +380,7 @@ async function renderActionablePageState(): Promise<void> {
     currentProfileLanguageFallback,
     currentEnabledLanguages,
   );
-  const fallbackLanguageLabel =
-    SUPPORTED_LANGUAGES[fallbackLanguageCode] || fallbackLanguageCode;
+  const fallbackLanguageLabel = SUPPORTED_LANGUAGES[fallbackLanguageCode] || fallbackLanguageCode;
   const languageCode = autoLanguageStatus?.language || configuredLanguage;
   const languageLabel = SUPPORTED_LANGUAGES[languageCode] || languageCode;
   const badgeLabel = globallyEnabled
@@ -425,7 +425,9 @@ async function renderActionablePageState(): Promise<void> {
   }
   badge.textContent = badgeLabel;
   setNodeTextAndTitle(title, currentDomainURL);
-  body.textContent = autoDetectReasonCopy ? `${activityCopy} ${autoDetectReasonCopy}` : activityCopy;
+  body.textContent = autoDetectReasonCopy
+    ? `${activityCopy} ${autoDetectReasonCopy}`
+    : activityCopy;
   if (configuredLanguage === "auto_detect" && autoLanguageStatus?.language) {
     const liveLabel = formatTranslation("language_panel_auto_detect_current", {
       language: languageLabel,

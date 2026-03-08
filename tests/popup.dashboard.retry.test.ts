@@ -299,7 +299,12 @@ function createChromeMock(
           callback(next.value);
           return;
         }
-        if (message?.command && runtimeResponses && message.command in runtimeResponses && callback) {
+        if (
+          message?.command &&
+          runtimeResponses &&
+          message.command in runtimeResponses &&
+          callback
+        ) {
           runtime.lastError = null;
           callback(runtimeResponses[message.command]);
           return;
