@@ -65,13 +65,8 @@ const RUN_DEV_RUNTIME_E2E =
 const RUN_E2E = process.env.RUN_E2E === "1" || process.env.RUN_E2E === "true";
 const IS_CI = process.env.CI === "true" || process.env.CI === "1";
 const describeE2E = RUN_E2E ? describe : describe.skip;
-const devRuntimeTest = RUN_DEV_RUNTIME_E2E ? test : test.skip;
 const WORKER_REACQUIRE_TIMEOUT_MS = isFirefox() ? 15000 : IS_CI ? 15000 : 7000;
 const ONBOARDING_VIEWPORT = { width: 1280, height: 900 } as const;
-
-function devRuntimeEach<T>(cases: readonly T[]) {
-  return RUN_DEV_RUNTIME_E2E ? test.each(cases) : test.skip.each(cases);
-}
 
 function browserTimeout(chromeTimeoutMs: number, firefoxTimeoutMs: number) {
   return suiteTimeout(chromeTimeoutMs, firefoxTimeoutMs);
@@ -116,6 +111,76 @@ type OnboardingViewportSnapshot = {
   rationaleInViewport: boolean;
   nextActionInViewport: boolean;
 };
+
+type TestNameContext = {
+  fullName?: string;
+  name?: string;
+};
+
+type TrackedTestCallback = (...args: unknown[]) => unknown;
+type TestRegistrarLike = {
+  (name: string, fn: TrackedTestCallback, timeout?: number): unknown;
+  (
+    name: string,
+    options: unknown,
+    fn: TrackedTestCallback,
+    timeout?: number,
+  ): unknown;
+  each: (cases: readonly unknown[]) => (
+    name: string,
+    fn: TrackedTestCallback,
+    timeout?: number,
+  ) => unknown;
+  skip?: TestRegistrarLike;
+};
+
+let currentE2ETestName = "Unknown Test";
+
+function wrapTrackedTestCallback(
+  fallbackName: string,
+  callback: TrackedTestCallback,
+): TrackedTestCallback {
+  return async (...args: unknown[]) => {
+    const [context] = args as [TestNameContext | undefined];
+    currentE2ETestName = context?.fullName || context?.name || fallbackName || "Unknown Test";
+    return await callback(...args);
+  };
+}
+
+function createTrackedSkipRegistrar(base: TestRegistrarLike): TestRegistrarLike {
+  const tracked = ((name: string, optionsOrFn: unknown, maybeFn?: unknown, maybeTimeout?: number) => {
+    if (typeof optionsOrFn === "function") {
+      return base(name, wrapTrackedTestCallback(name, optionsOrFn), maybeFn);
+    }
+    if (typeof maybeFn === "function") {
+      return base(name, optionsOrFn, wrapTrackedTestCallback(name, maybeFn), maybeTimeout);
+    }
+    return base(name, optionsOrFn, maybeFn as TrackedTestCallback, maybeTimeout);
+  }) as TestRegistrarLike;
+
+  tracked.each = ((cases: readonly unknown[]) => {
+    const eachBase = base.each(cases);
+    return (name: string, callback: TrackedTestCallback, timeout?: number) =>
+      eachBase(name, wrapTrackedTestCallback(name, callback), timeout);
+  }) as TestRegistrarLike["each"];
+
+  return tracked;
+}
+
+function createTrackedTestRegistrar(base: TestRegistrarLike): TestRegistrarLike {
+  const tracked = createTrackedSkipRegistrar(base);
+  if (base.skip) {
+    tracked.skip = createTrackedSkipRegistrar(base.skip);
+  }
+  return tracked;
+}
+
+const test = createTrackedTestRegistrar(globalThis.test as unknown as TestRegistrarLike);
+const devRuntimeTest = RUN_DEV_RUNTIME_E2E ? test : test.skip;
+
+function devRuntimeEach<T>(cases: readonly T[]) {
+  return RUN_DEV_RUNTIME_E2E ? test.each(cases) : test.skip.each(cases);
+}
 
 async function captureOnboardingViewportSnapshot(page: Page): Promise<OnboardingViewportSnapshot> {
   return await page.evaluate(() => {
@@ -854,11 +919,7 @@ async function gotoTestPage(
   page: Page,
   options: { enableCkEditor?: boolean; enableQuill?: boolean; enableLexical?: boolean } = {},
 ) {
-  const testName =
-    typeof expect.getState === "function"
-      ? expect.getState().currentTestName || "Unknown Test"
-      : "Unknown Test";
-  const params = new URLSearchParams({ testName });
+  const params = new URLSearchParams({ testName: currentE2ETestName });
   if (options.enableCkEditor) {
     params.set("enableCkEditor", "1");
   }

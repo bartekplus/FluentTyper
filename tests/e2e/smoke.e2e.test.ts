@@ -50,6 +50,58 @@ type PredictorDebugSnapshot = {
   };
 };
 
+type TestNameContext = {
+  fullName?: string;
+  name?: string;
+};
+
+type TrackedTestCallback = (...args: unknown[]) => unknown;
+type TestRegistrarLike = {
+  (name: string, fn: TrackedTestCallback, timeout?: number): unknown;
+  each: (cases: readonly unknown[]) => (
+    name: string,
+    fn: TrackedTestCallback,
+    timeout?: number,
+  ) => unknown;
+  skip?: TestRegistrarLike;
+};
+
+let currentE2ETestName = "Unknown Test";
+
+function wrapTrackedTestCallback(
+  fallbackName: string,
+  callback: TrackedTestCallback,
+): TrackedTestCallback {
+  return async (...args: unknown[]) => {
+    const [context] = args as [TestNameContext | undefined];
+    currentE2ETestName = context?.fullName || context?.name || fallbackName || "Unknown Test";
+    return await callback(...args);
+  };
+}
+
+function createTrackedSkipRegistrar(base: TestRegistrarLike): TestRegistrarLike {
+  const tracked = ((name: string, callback: TrackedTestCallback, timeout?: number) =>
+    base(name, wrapTrackedTestCallback(name, callback), timeout)) as TestRegistrarLike;
+
+  tracked.each = ((cases: readonly unknown[]) => {
+    const eachBase = base.each(cases);
+    return (name: string, callback: TrackedTestCallback, timeout?: number) =>
+      eachBase(name, wrapTrackedTestCallback(name, callback), timeout);
+  }) as TestRegistrarLike["each"];
+
+  return tracked;
+}
+
+function createTrackedTestRegistrar(base: TestRegistrarLike): TestRegistrarLike {
+  const tracked = createTrackedSkipRegistrar(base);
+  if (base.skip) {
+    tracked.skip = createTrackedSkipRegistrar(base.skip);
+  }
+  return tracked;
+}
+
+const test = createTrackedTestRegistrar(globalThis.test as unknown as TestRegistrarLike);
+
 type SettingEntry = readonly [key: string, value: unknown];
 
 let domainTestUrl = "";
@@ -432,7 +484,8 @@ async function waitForInputReady(page: Page, selector: string): Promise<void> {
 }
 
 async function gotoTestPage(page: Page): Promise<void> {
-  await page.goto(domainTestUrl, {
+  const targetUrl = `${domainTestUrl}?${new URLSearchParams({ testName: currentE2ETestName }).toString()}`;
+  await page.goto(targetUrl, {
     waitUntil: "domcontentloaded",
     timeout: timeoutProfile.navigationMs,
   });
