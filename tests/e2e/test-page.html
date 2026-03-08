@@ -168,6 +168,61 @@
         document.getElementById("test-name").textContent = testName;
       }
 
+      window.__ftResetTestPage = () => {
+        if (document.activeElement instanceof HTMLElement) {
+          document.activeElement.blur();
+        }
+        window.getSelection?.()?.removeAllRanges();
+
+        const clearElement = (element) => {
+          if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
+            element.value = "";
+            return;
+          }
+          if (element instanceof HTMLElement && element.isContentEditable) {
+            element.textContent = "";
+          }
+        };
+
+        document
+          .querySelectorAll("textarea, input, [contenteditable='true']")
+          .forEach(clearElement);
+
+        const disabledInput = document.getElementById("test-disabled");
+        if (disabledInput instanceof HTMLInputElement) {
+          disabledInput.disabled = true;
+        }
+
+        const readonlyInput = document.getElementById("test-readonly");
+        if (readonlyInput instanceof HTMLInputElement) {
+          readonlyInput.readOnly = true;
+        }
+
+        document.querySelector("ft-shadow-test-component")?.remove();
+        document.getElementById("ft-late-shadow-host")?.remove();
+        document.getElementById("ft-nested-shadow-outer-host")?.remove();
+
+        if (window.__testCkEditor?.setData) {
+          void window.__testCkEditor.setData("");
+        }
+        if (window.__testQuill?.setText) {
+          window.__testQuill.setText("");
+        }
+        if (window.__testLexical?.update) {
+          window.__testLexical.update(() => {
+            const root = window.__testLexical.getRootElement();
+            if (root instanceof HTMLElement) {
+              root.textContent = "";
+            }
+          });
+        }
+
+        const testNameHeading = document.getElementById("test-name");
+        if (testNameHeading) {
+          testNameHeading.textContent = testName || "";
+        }
+      };
+
       window.__testCkEditorReady = false;
       window.__testCkEditorError = null;
       const ckEditorGroup = document.getElementById("test-ckeditor-group");
