@@ -50,6 +50,10 @@ export class TextAssetsPanel {
   private clearDictionaryArmed = false;
   private snippetDeleteArmed = false;
   private bulkDictionaryValue = "";
+  private activeSnippetBody: HTMLTextAreaElement | null = null;
+  private activeSnippetPreview: HTMLElement | null = null;
+  private liveDateFormat = "";
+  private liveTimeFormat = "";
 
   constructor(root: HTMLElement, registry: SettingsRegistry, store: Store) {
     this.root = root;
@@ -60,14 +64,28 @@ export class TextAssetsPanel {
     this.registry[KEY_USER_DICTIONARY_LIST]?.addEvent("action", () => void this.load());
     this.registry[KEY_DATE_FORMAT]?.addEvent("action", () => void this.render());
     this.registry[KEY_TIME_FORMAT]?.addEvent("action", () => void this.render());
+    this.registry[KEY_DATE_FORMAT]?.addEvent("change", () => {
+      this.liveDateFormat = String(this.registry[KEY_DATE_FORMAT].get() || "");
+      this.refreshActiveSnippetPreview();
+      void this.render();
+    });
+    this.registry[KEY_TIME_FORMAT]?.addEvent("change", () => {
+      this.liveTimeFormat = String(this.registry[KEY_TIME_FORMAT].get() || "");
+      this.refreshActiveSnippetPreview();
+      void this.render();
+    });
 
+    this.liveDateFormat = String(this.registry[KEY_DATE_FORMAT]?.get() || "");
+    this.liveTimeFormat = String(this.registry[KEY_TIME_FORMAT]?.get() || "");
     void this.load();
   }
 
   private async load(): Promise<void> {
-    const [rawExpansions, rawDictionary] = await Promise.all([
+    const [rawExpansions, rawDictionary, rawDateFormat, rawTimeFormat] = await Promise.all([
       this.store.get(KEY_TEXT_EXPANSIONS),
       this.store.get(KEY_USER_DICTIONARY_LIST),
+      this.store.get(KEY_DATE_FORMAT),
+      this.store.get(KEY_TIME_FORMAT),
     ]);
     const expansions = Array.isArray(rawExpansions)
       ? rawExpansions.filter(
@@ -82,6 +100,8 @@ export class TextAssetsPanel {
     this.dictionary = Array.isArray(rawDictionary)
       ? rawDictionary.map((entry) => String(entry)).filter(Boolean)
       : [];
+    this.liveDateFormat = typeof rawDateFormat === "string" ? rawDateFormat : "";
+    this.liveTimeFormat = typeof rawTimeFormat === "string" ? rawTimeFormat : "";
     this.render();
   }
 
@@ -280,6 +300,8 @@ export class TextAssetsPanel {
     const preview = document.createElement("div");
     preview.className = "snippet-preview";
     this.updateSnippetPreview(preview, body.value);
+    this.activeSnippetBody = body;
+    this.activeSnippetPreview = preview;
     body.addEventListener("input", () => {
       this.updateSnippetPreview(preview, body.value);
     });
@@ -577,7 +599,12 @@ export class TextAssetsPanel {
     dateInput.className = "input";
     dateInput.value = String(this.registry[KEY_DATE_FORMAT].get() || "");
     dateInput.placeholder = i18n.get("custom_date_format_label");
+    dateInput.addEventListener("input", () => {
+      this.liveDateFormat = dateInput.value;
+      this.refreshActiveSnippetPreview();
+    });
     dateInput.addEventListener("change", () => {
+      this.liveDateFormat = dateInput.value;
       this.registry[KEY_DATE_FORMAT].set(dateInput.value);
     });
 
@@ -585,13 +612,61 @@ export class TextAssetsPanel {
     timeInput.className = "input";
     timeInput.value = String(this.registry[KEY_TIME_FORMAT].get() || "");
     timeInput.placeholder = i18n.get("custom_time_format_label");
+    timeInput.addEventListener("input", () => {
+      this.liveTimeFormat = timeInput.value;
+      this.refreshActiveSnippetPreview();
+    });
     timeInput.addEventListener("change", () => {
+      this.liveTimeFormat = timeInput.value;
       this.registry[KEY_TIME_FORMAT].set(timeInput.value);
     });
 
     const docs = document.createElement("div");
-    docs.className = "settings-inline-help";
-    docs.textContent = i18n.get("text_assets_advanced_variables_docs");
+    docs.className = "settings-inline-card";
+
+    const docsIntro = document.createElement("p");
+    docsIntro.className = "settings-inline-help";
+    docsIntro.textContent = i18n.get("text_assets_advanced_variables_docs");
+    docs.appendChild(docsIntro);
+
+    const variableGroups = document.createElement("ul");
+    variableGroups.className = "settings-inline-help";
+    [
+      i18n.get("text_assets_variable_group_datetime"),
+      i18n.get("text_assets_variable_group_utility"),
+      i18n.get("text_assets_variable_group_page"),
+    ].forEach((groupText) => {
+      const item = document.createElement("li");
+      item.textContent = groupText;
+      variableGroups.appendChild(item);
+    });
+    docs.appendChild(variableGroups);
+
+    const formatHelp = document.createElement("p");
+    formatHelp.className = "settings-inline-help";
+    formatHelp.textContent = i18n.get("text_assets_luxon_intro");
+    docs.appendChild(formatHelp);
+
+    const docsLink = document.createElement("a");
+    docsLink.href = "https://moment.github.io/luxon/#/formatting?id=table-of-tokens";
+    docsLink.target = "_blank";
+    docsLink.rel = "noreferrer";
+    docsLink.textContent = i18n.get("text_assets_luxon_link_label");
+    docs.appendChild(docsLink);
+
+    const exampleList = document.createElement("ul");
+    exampleList.className = "settings-inline-help";
+    [
+      i18n.get("text_assets_luxon_example_date_short"),
+      i18n.get("text_assets_luxon_example_date_long"),
+      i18n.get("text_assets_luxon_example_time_short"),
+      i18n.get("text_assets_luxon_example_time_long"),
+    ].forEach((example) => {
+      const item = document.createElement("li");
+      item.textContent = example;
+      exampleList.appendChild(item);
+    });
+    docs.appendChild(exampleList);
 
     shell.append(
       this.createLabeledField(i18n.get("custom_date_format_label"), dateInput),
@@ -723,8 +798,8 @@ export class TextAssetsPanel {
   }
 
   private updateSnippetPreview(target: HTMLElement, rawValue: string): void {
-    const dateFormat = String(this.registry[KEY_DATE_FORMAT].get() || "");
-    const timeFormat = String(this.registry[KEY_TIME_FORMAT].get() || "");
+    const dateFormat = this.liveDateFormat;
+    const timeFormat = this.liveTimeFormat;
     const preview = rawValue.replace(/\$\{([^}:]+)(?::([^}]+))?\}/g, (_match, varName, arg) => {
       if (varName === "page_url") {
         return "https://example.com/path";
@@ -746,6 +821,13 @@ export class TextAssetsPanel {
       );
     });
     target.textContent = preview || i18n.get("text_assets_preview_placeholder");
+  }
+
+  private refreshActiveSnippetPreview(): void {
+    if (!this.activeSnippetBody || !this.activeSnippetPreview) {
+      return;
+    }
+    this.updateSnippetPreview(this.activeSnippetPreview, this.activeSnippetBody.value);
   }
 
   private extractNewDictionaryWords(rawValue: string): string[] {

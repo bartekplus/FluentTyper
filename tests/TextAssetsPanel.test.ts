@@ -1,5 +1,6 @@
 import "./setup";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { Settings } from "luxon";
 import type { Store } from "../src/core/application/storage/Store.js";
 import type { SettingsRegistry } from "../src/ui/settings-engine/SettingsEngine.js";
 import { TextAssetsPanel } from "../src/ui/options/TextAssetsPanel.js";
@@ -14,7 +15,7 @@ import {
 type SettingsMap = Record<string, unknown>;
 
 class MockControl {
-  private readonly handlers: Array<(value: unknown) => void> = [];
+  private readonly handlers: Record<string, Array<(value: unknown) => void>> = {};
   private value: unknown;
   private readonly onSet: (value: unknown) => void;
 
@@ -24,19 +25,20 @@ class MockControl {
   }
 
   addEvent(type: string, fn: (value: unknown) => void): void {
-    if (type === "action") {
-      this.handlers.push(fn);
-    }
+    this.handlers[type] = [...(this.handlers[type] || []), fn];
   }
 
   get(): unknown {
     return this.value;
   }
 
-  set(value: unknown): this {
+  set(value: unknown, silent = false): this {
     this.value = value;
     this.onSet(value);
-    this.handlers.forEach((handler) => handler(value));
+    (this.handlers.change || []).forEach((handler) => handler(value));
+    if (!silent) {
+      (this.handlers.action || []).forEach((handler) => handler(value));
+    }
     return this;
   }
 }
@@ -95,6 +97,7 @@ describe("TextAssetsPanel", () => {
 
   afterEach(() => {
     document.body.replaceChildren();
+    Settings.now = () => Date.now();
   });
 
   test("prevents duplicate snippet shortcuts and shows an inline warning", async () => {
@@ -208,5 +211,108 @@ describe("TextAssetsPanel", () => {
     await flushAsyncWork();
 
     expect(values[KEY_USER_DICTIONARY_LIST]).toEqual([]);
+  });
+
+  test("dynamic variables help links to Luxon docs and shows format examples", async () => {
+    const values: SettingsMap = {
+      [KEY_TEXT_EXPANSIONS]: [],
+      [KEY_USER_DICTIONARY_LIST]: [],
+      [KEY_DATE_FORMAT]: "",
+      [KEY_TIME_FORMAT]: "",
+    };
+    const store = createStore(values);
+    const registry = createRegistry(values);
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+
+    new TextAssetsPanel(root, registry, store);
+    await flushAsyncWork();
+
+    const disclosure = Array.from(root.querySelectorAll("details")).find((entry) =>
+      entry.textContent?.includes(i18n.get("dynamic_variables")),
+    ) as HTMLDetailsElement;
+    disclosure.open = true;
+
+    expect(root.textContent).toContain(
+      "Use dynamic variables inside snippets to insert dates, times, utility values, and page details.",
+    );
+    expect(root.textContent).toContain("Date & time: ${time}, ${date}, ${date:+1d}, ${datetime}");
+    expect(root.textContent).toContain("Utility values: ${uuid}, ${random:A|B|C}");
+    expect(root.textContent).toContain("Page details: ${page_url}, ${page_title}, ${page_domain}");
+    expect(root.textContent).toContain("These format fields use Luxon tokens.");
+    expect(root.textContent).toContain("Date example: dd LLL yyyy -> 08 Mar 2026");
+    expect(root.textContent).toContain("Time example: HH:mm -> 14:05");
+
+    const docsLink = Array.from(root.querySelectorAll<HTMLAnchorElement>("a")).find((entry) =>
+      entry.textContent?.includes("Open Luxon token reference"),
+    );
+    expect(docsLink?.href).toBe("https://moment.github.io/luxon/#/formatting?id=table-of-tokens");
+  });
+
+  test("snippet preview updates live when custom date and time formats change", async () => {
+    Settings.now = () => new Date("2026-03-08T14:05:06.000Z").getTime();
+    const values: SettingsMap = {
+      [KEY_TEXT_EXPANSIONS]: [],
+      [KEY_USER_DICTIONARY_LIST]: [],
+      [KEY_DATE_FORMAT]: "dd LLL yyyy",
+      [KEY_TIME_FORMAT]: "HH:mm",
+    };
+    const store = createStore(values);
+    const registry = createRegistry(values);
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+
+    new TextAssetsPanel(root, registry, store);
+    await flushAsyncWork();
+
+    findButtonByText(root, i18n.get("text_assets_new_snippet")).click();
+
+    const bodyInput = root.querySelector(".text-assets-editor textarea") as HTMLTextAreaElement;
+    bodyInput.value = "${date} ${time}";
+    bodyInput.dispatchEvent(new Event("input", { bubbles: true }));
+
+    const previewBefore = root.querySelector(".snippet-preview") as HTMLElement;
+    expect(previewBefore.textContent).toContain("08 Mar 2026");
+    expect(previewBefore.textContent).toContain("14:05");
+
+    const dateFormatInput = root.querySelector<HTMLInputElement>(
+      `input[placeholder="${i18n.get("custom_date_format_label")}"]`,
+    );
+    const timeFormatInput = root.querySelector<HTMLInputElement>(
+      `input[placeholder="${i18n.get("custom_time_format_label")}"]`,
+    );
+    dateFormatInput!.value = "yyyy/MM/dd";
+    dateFormatInput!.dispatchEvent(new Event("input", { bubbles: true }));
+    timeFormatInput!.value = "HH:mm:ss";
+    timeFormatInput!.dispatchEvent(new Event("input", { bubbles: true }));
+
+    const previewAfter = root.querySelector(".snippet-preview") as HTMLElement;
+    expect(previewAfter.textContent).toContain("2026/03/08");
+    expect(previewAfter.textContent).toContain("14:05:06");
+  });
+
+  test("snippet preview uses saved custom date and time formats on initial render", async () => {
+    Settings.now = () => new Date("2026-03-08T14:05:06.000Z").getTime();
+    const values: SettingsMap = {
+      [KEY_TEXT_EXPANSIONS]: [["stamp", "${date} ${time}"]],
+      [KEY_USER_DICTIONARY_LIST]: [],
+      [KEY_DATE_FORMAT]: "yyyy/MM/dd",
+      [KEY_TIME_FORMAT]: "HH:mm:ss",
+    };
+    const store = createStore(values);
+    const registry = createRegistry({
+      ...values,
+      [KEY_DATE_FORMAT]: "",
+      [KEY_TIME_FORMAT]: "",
+    });
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+
+    new TextAssetsPanel(root, registry, store);
+    await flushAsyncWork();
+
+    const preview = root.querySelector(".snippet-preview") as HTMLElement;
+    expect(preview.textContent).toContain("2026/03/08");
+    expect(preview.textContent).toContain("14:05:06");
   });
 });
