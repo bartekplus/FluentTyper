@@ -119,8 +119,10 @@ describe("SiteProfilesManager", () => {
     await flushAsyncWork();
 
     expect(root.querySelector("#siteProfilesTableBody img")).toBeNull();
-    expect(root.querySelectorAll("td")[0]?.textContent ?? "").toContain("evil.example");
-    expect(root.querySelectorAll("td")[1]?.textContent ?? "").toContain(
+    expect(root.querySelector(".site-profile-row-domain")?.textContent ?? "").toContain(
+      "evil.example",
+    );
+    expect(root.querySelector(".site-profile-row")?.textContent ?? "").toContain(
       "English (US)<img src=x onerror=alert(1)>",
     );
     const actionButtons = Array.from(

@@ -576,7 +576,6 @@ body.fluenttyper-options .settings-group.settings-group-panel-only .settings-gro
 
 .site-profiles-shell {
   display: grid;
-  grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
   gap: 0.85rem;
   align-items: start;
 }
@@ -586,10 +585,81 @@ body.fluenttyper-options .settings-group.settings-group-panel-only .settings-gro
   display: grid;
   gap: 0.75rem;
   min-width: 0;
+  padding: 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--input-border-color) 90%, transparent);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--box-background-color) 96%, transparent);
 }
 
 .site-profiles-list {
-  overflow-x: auto;
+  overflow-x: visible;
+}
+
+.site-profiles-form-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
+.site-profiles-field-wide {
+  grid-column: 1 / -1;
+}
+
+.site-profiles-card-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.site-profile-row {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--input-border-color) 90%, transparent);
+  border-radius: 0.95rem;
+  background: color-mix(in srgb, var(--box-background-color) 96%, transparent);
+}
+
+.site-profile-row-header {
+  display: flex;
+  gap: 0.75rem;
+  align-items: start;
+  justify-content: space-between;
+}
+
+.site-profile-row-domain {
+  font-weight: 700;
+  word-break: break-word;
+}
+
+.site-profile-row-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.site-profile-row-meta {
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.site-profile-meta-item {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.site-profile-meta-label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-color-light);
+}
+
+.site-profile-meta-value {
+  line-height: 1.4;
 }
 
 .site-profiles-list .is-selected-row {
@@ -952,9 +1022,18 @@ body.fluenttyper-options .settings-group.settings-group-panel-only .settings-gro
 }
 
 @media (max-width: 1280px) {
-  .site-management-grid,
-  .site-profiles-shell {
+  .site-profiles-form-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  .site-profile-row-header {
+    flex-direction: column;
+  }
+
+  .site-profile-row-actions {
+    justify-content: flex-start;
   }
 }
 

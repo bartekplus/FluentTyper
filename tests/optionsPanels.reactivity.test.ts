@@ -176,7 +176,7 @@ describe("options panel reactivity", () => {
 
     const languageSelectBefore = root.querySelector("#siteProfileLanguageSelect");
     expect(languageSelectBefore?.textContent).toContain("German");
-    expect(root.querySelectorAll("#siteProfilesTableBody tr")).toHaveLength(1);
+    expect(root.querySelectorAll("#siteProfilesTableBody .site-profile-row")).toHaveLength(1);
 
     values[KEY_ENABLED_LANGUAGES] = ["en_US"];
     registry[KEY_ENABLED_LANGUAGES].set(values[KEY_ENABLED_LANGUAGES], true);
@@ -184,7 +184,7 @@ describe("options panel reactivity", () => {
 
     const languageSelectAfter = root.querySelector("#siteProfileLanguageSelect");
     expect(languageSelectAfter?.textContent).not.toContain("German");
-    expect(root.querySelectorAll("#siteProfilesTableBody tr")).toHaveLength(0);
+    expect(root.querySelectorAll("#siteProfilesTableBody .site-profile-row")).toHaveLength(0);
     expect(root.textContent).toContain(i18n.get("site_profiles_empty_workspace"));
   });
 });
