@@ -55,6 +55,9 @@ class FluentTyper {
       getLanguage: () => this.config.lang,
       getPredictionGeneration: () => this.runtimeController.getPredictionGeneration(),
     });
+    this.runtimeController.setRuntimeActivityHandler((runtimeGeneration) => {
+      this.contentMessageHandler.reportRuntimeStatus(runtimeGeneration);
+    });
 
     this.runtimeController.setPredictionRequestHandler((context) =>
       this.handleGetPrediction(context),

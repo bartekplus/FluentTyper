@@ -3,7 +3,9 @@ import {
   CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
   CMD_CONTENT_SCRIPT_GET_CONFIG,
   CMD_CONTENT_SCRIPT_PREDICT_REQ,
+  CMD_CONTENT_SCRIPT_REPORT_RUNTIME_STATUS,
   CMD_CONTENT_SCRIPT_USAGE_EVENT,
+  CMD_GET_AUTO_LANGUAGE_STATUS,
   CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE,
   CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT,
   CMD_OPTIONS_PAGE_CONFIG_CHANGE,
@@ -45,6 +47,8 @@ const ROUTED_MESSAGE_COMMANDS = [
   CMD_OPTIONS_PAGE_CONFIG_CHANGE,
   CMD_CONTENT_SCRIPT_GET_CONFIG,
   CMD_CONTENT_SCRIPT_USAGE_EVENT,
+  CMD_CONTENT_SCRIPT_REPORT_RUNTIME_STATUS,
+  CMD_GET_AUTO_LANGUAGE_STATUS,
   CMD_POPUP_GET_PRODUCTIVITY_STATS,
   CMD_POPUP_ACK_WEEKLY_RECAP,
   CMD_POPUP_ACK_DONATION_MILESTONE,
@@ -106,6 +110,8 @@ const MESSAGE_ERROR_LABELS: Record<RoutedMessageCommand, string> = {
   [CMD_OPTIONS_PAGE_CONFIG_CHANGE]: "handleOptionsPageConfigChange",
   [CMD_CONTENT_SCRIPT_GET_CONFIG]: "MessageRouter.handleContentScriptGetConfig",
   [CMD_CONTENT_SCRIPT_USAGE_EVENT]: "MessageRouter.handleContentScriptUsageEvent",
+  [CMD_CONTENT_SCRIPT_REPORT_RUNTIME_STATUS]: "MessageRouter.handleContentScriptRuntimeStatus",
+  [CMD_GET_AUTO_LANGUAGE_STATUS]: "MessageRouter.handleGetAutoLanguageStatus",
   [CMD_POPUP_GET_PRODUCTIVITY_STATS]: "MessageRouter.handlePopupGetProductivityStats",
   [CMD_POPUP_ACK_WEEKLY_RECAP]: "MessageRouter.handlePopupAckWeeklyRecap",
   [CMD_POPUP_ACK_DONATION_MILESTONE]: "MessageRouter.handlePopupAckDonationMilestone",
@@ -152,6 +158,11 @@ export class MessageRouter {
     register(CMD_OPTIONS_PAGE_CONFIG_CHANGE, this.handleOptionsPageConfigChange.bind(this));
     register(CMD_CONTENT_SCRIPT_GET_CONFIG, this.handleContentScriptGetConfig.bind(this));
     register(CMD_CONTENT_SCRIPT_USAGE_EVENT, this.handleContentScriptUsageEvent.bind(this));
+    register(
+      CMD_CONTENT_SCRIPT_REPORT_RUNTIME_STATUS,
+      this.handleContentScriptRuntimeStatus.bind(this),
+    );
+    register(CMD_GET_AUTO_LANGUAGE_STATUS, this.handleGetAutoLanguageStatus.bind(this));
     register(CMD_POPUP_GET_PRODUCTIVITY_STATS, this.handlePopupGetProductivityStats.bind(this));
     register(CMD_POPUP_ACK_WEEKLY_RECAP, this.handlePopupAckWeeklyRecap.bind(this));
     register(CMD_POPUP_ACK_DONATION_MILESTONE, this.handlePopupAckDonationMilestone.bind(this));
@@ -261,11 +272,14 @@ export class MessageRouter {
 
     if (language === "auto_detect") {
       try {
-        language = await worker.detectLanguage(
-          request.context.text,
+        const resolution = await worker.resolveAutoLanguage({
+          ...request.context,
           tabId,
-          domainSettings.enabledLanguages,
-        );
+          frameId,
+          domainURL,
+          enabledLanguages: domainSettings.enabledLanguages,
+        });
+        language = resolution.language;
       } catch (error) {
         if (isFluentTyperError(error)) {
           throw error;
@@ -284,7 +298,7 @@ export class MessageRouter {
           lang: language,
         },
       };
-      worker.sendCommandToActiveTabContentScript(updateLangConfigMessage);
+      worker.sendCommandToTabContentScript(tabId, frameId, updateLangConfigMessage);
     }
 
     const predictRequestMessage: PredictRequestMessage = {
@@ -375,6 +389,52 @@ export class MessageRouter {
     const { request, sendResponse, worker } = payload;
     await worker.productivityStatsManager.recordUsageEvent(request.context);
     this.respondOk(sendResponse);
+  }
+
+  private async handleContentScriptRuntimeStatus(
+    payload: CommandPayload<typeof CMD_CONTENT_SCRIPT_REPORT_RUNTIME_STATUS>,
+  ): Promise<void> {
+    const { request, sender, sendResponse, worker } = payload;
+    const senderContext = resolveSenderRoutingContext(sender);
+    if (!senderContext) {
+      throw new TransportError("Missing sender tab id for runtime status request", {
+        code: "message_missing_sender_tab_id",
+      });
+    }
+    worker.reportAutoLanguageRuntime({
+      tabId: senderContext.tabId,
+      frameId: senderContext.frameId,
+      runtimeGeneration: request.context.runtimeGeneration,
+      domainURL: request.context.domainURL,
+    });
+    this.respondOk(sendResponse);
+  }
+
+  private async handleGetAutoLanguageStatus(
+    payload: CommandPayload<typeof CMD_GET_AUTO_LANGUAGE_STATUS>,
+  ): Promise<void> {
+    const { request, sendResponse, worker } = payload;
+    const fallbackTab =
+      typeof request.context.tabId === "number"
+        ? await worker.tabMessenger.getActiveTabContext()
+        : await worker.tabMessenger.getLastActiveWebsiteTabContext();
+    const tabId =
+      typeof request.context.tabId === "number" && Number.isFinite(request.context.tabId)
+        ? request.context.tabId
+        : fallbackTab?.tabId;
+    if (typeof tabId !== "number") {
+      sendResponse({ status: null });
+      return;
+    }
+    const domainURL = request.context.domainURL || fallbackTab?.hostname || undefined;
+    sendResponse({
+      status: await worker.getAutoLanguageStatusForScope({
+        tabId,
+        frameId: request.context.frameId,
+        runtimeGeneration: request.context.runtimeGeneration,
+        domainURL,
+      }),
+    });
   }
 
   private async handlePopupGetProductivityStats(

@@ -50,6 +50,7 @@ export class ContentRuntimeController {
   private _enabled = false;
   private onPredictionRequest: ((context: ContentScriptPredictRequestContext) => void) | null =
     null;
+  private onRuntimeActivity: ((runtimeGeneration: number) => void) | null = null;
   private onRestartRequest: () => void;
   private readonly mutationPipeline: MutationPipeline;
   private readonly mutationScheduler: MutationScheduler;
@@ -86,6 +87,10 @@ export class ContentRuntimeController {
 
   setRestartRequestHandler(handler: () => void): void {
     this.onRestartRequest = handler;
+  }
+
+  setRuntimeActivityHandler(handler: (runtimeGeneration: number) => void): void {
+    this.onRuntimeActivity = handler;
   }
 
   set enabled(newValue: boolean) {
@@ -129,6 +134,9 @@ export class ContentRuntimeController {
   }
 
   updateLanguage(lang: string): void {
+    if (this.config.lang === lang) {
+      return;
+    }
     this.config.lang = lang;
     this.suggestionManager?.updateLangConfig(this.config.lang);
   }
@@ -213,6 +221,7 @@ export class ContentRuntimeController {
     }
     this.ensureShadowRootInterceptor();
     this.ensureLateDiscoveryListeners();
+    this.reportRuntimeActivity();
   }
 
   disable(): void {
@@ -315,6 +324,7 @@ export class ContentRuntimeController {
     if (!candidate) {
       return;
     }
+    this.reportRuntimeActivity();
     const attachedNow = this.suggestionManager.queryAndAttachHelper(candidate);
     if (event.type === "focusin" || (event.type === "input" && attachedNow)) {
       this.suggestionManager.triggerActiveSuggestion();
@@ -373,6 +383,14 @@ export class ContentRuntimeController {
         }),
       onShadowRootDiscovered: this.registerShadowRoot.bind(this),
     });
+    this.reportRuntimeActivity();
+  }
+
+  private reportRuntimeActivity(): void {
+    if (this.predictionGeneration <= 0) {
+      return;
+    }
+    this.onRuntimeActivity?.(this.predictionGeneration);
   }
 
   private executeMutationPlan(mutationPlan: MutationPlan): void {

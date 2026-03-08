@@ -74,9 +74,22 @@ export interface ContentScriptPredictRequestContext {
   suggestionId: number;
   requestId: number;
   lang: string;
+  documentLang?: string;
   runtimeGeneration?: number;
   traceId?: string;
   traceStartedAtMs?: number;
+}
+
+export interface ContentScriptRuntimeStatusContext {
+  runtimeGeneration: number;
+  domainURL?: string;
+}
+
+export interface GetAutoLanguageStatusContext {
+  tabId?: number;
+  frameId?: number;
+  runtimeGeneration?: number;
+  domainURL?: string;
 }
 
 // Context for CMD_OPTIONS_PAGE_CONFIG_CHANGE
@@ -264,6 +277,10 @@ export type Message =
       context: ContentScriptUsageEventContext;
     }
   | {
+      command: "CMD_CONTENT_SCRIPT_REPORT_RUNTIME_STATUS";
+      context: ContentScriptRuntimeStatusContext;
+    }
+  | {
       command: "CMD_POPUP_GET_PRODUCTIVITY_STATS";
       context: PopupGetProductivityStatsContext;
     }
@@ -286,6 +303,10 @@ export type Message =
   | {
       command: "CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE";
       context: OptionsClearPredictorDebugTraceContext;
+    }
+  | {
+      command: "CMD_GET_AUTO_LANGUAGE_STATUS";
+      context: GetAutoLanguageStatusContext;
     };
 export type ConfigMessage = Extract<Message, { command: "CMD_BACKGROUND_PAGE_SET_CONFIG" }>;
 export type PredictRequestMessage = Extract<
@@ -321,6 +342,10 @@ export type ContentScriptUsageEventMessage = Extract<
   Message,
   { command: "CMD_CONTENT_SCRIPT_USAGE_EVENT" }
 >;
+export type ContentScriptRuntimeStatusMessage = Extract<
+  Message,
+  { command: "CMD_CONTENT_SCRIPT_REPORT_RUNTIME_STATUS" }
+>;
 export type PopupGetProductivityStatsMessage = Extract<
   Message,
   { command: "CMD_POPUP_GET_PRODUCTIVITY_STATS" }
@@ -344,4 +369,8 @@ export type OptionsGetPredictorDebugSnapshotMessage = Extract<
 export type OptionsClearPredictorDebugTraceMessage = Extract<
   Message,
   { command: "CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE" }
+>;
+export type GetAutoLanguageStatusMessage = Extract<
+  Message,
+  { command: "CMD_GET_AUTO_LANGUAGE_STATUS" }
 >;

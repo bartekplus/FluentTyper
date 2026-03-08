@@ -1,15 +1,19 @@
 import "./setup";
-import { beforeEach, describe, expect, jest, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
 import type { Store } from "../src/core/application/storage/Store.js";
 import {
+  KEY_AUTO_LANGUAGE_SITE_PRIORS,
   KEY_ENABLED_LANGUAGES,
   KEY_FALLBACK_LANGUAGE,
   KEY_LANGUAGE,
   KEY_SITE_PROFILES,
 } from "../src/core/domain/constants";
 import { validateLanguageSettings } from "../src/ui/options/settings.js";
+import { acquireDomGlobalLock } from "./support/domGlobalLock";
 
 type SettingsMap = Record<string, unknown>;
+const baseChrome = (globalThis as unknown as { chrome: unknown }).chrome;
+let releaseDomGlobalLock: (() => void) | null = null;
 
 class MockControl {
   readonly calls: Array<{ value: unknown; silent: boolean }> = [];
@@ -32,13 +36,20 @@ function createStore(values: SettingsMap): Store {
   } as Store;
 }
 
-describe("validateLanguageSettings", () => {
-  beforeEach(() => {
+describe.serial("validateLanguageSettings", () => {
+  beforeEach(async () => {
+    releaseDomGlobalLock = await acquireDomGlobalLock();
     (
       globalThis.chrome as typeof chrome & {
         runtime: typeof chrome.runtime & { sendMessage: ReturnType<typeof jest.fn> };
       }
     ).runtime.sendMessage = jest.fn();
+  });
+
+  afterEach(() => {
+    (globalThis as unknown as { chrome: unknown }).chrome = baseChrome;
+    releaseDomGlobalLock?.();
+    releaseDomGlobalLock = null;
   });
 
   test("sanitizes invalid primary/fallback languages and prunes site profiles that use removed languages", async () => {
@@ -79,6 +90,12 @@ describe("validateLanguageSettings", () => {
       [KEY_ENABLED_LANGUAGES]: ["pt_BR", "bogus", "en_US"],
       [KEY_LANGUAGE]: "auto_detect",
       [KEY_FALLBACK_LANGUAGE]: "pt_BR",
+      [KEY_AUTO_LANGUAGE_SITE_PRIORS]: {
+        "example.com": {
+          pt_BR: 0.8,
+          de_DE: 0.5,
+        },
+      },
       [KEY_SITE_PROFILES]: {},
     };
     const registry = {
@@ -92,6 +109,11 @@ describe("validateLanguageSettings", () => {
     expect(values[KEY_ENABLED_LANGUAGES]).toEqual(["en_US", "pt_BR"]);
     expect(values[KEY_LANGUAGE]).toBe("auto_detect");
     expect(values[KEY_FALLBACK_LANGUAGE]).toBe("pt_BR");
+    expect(values[KEY_AUTO_LANGUAGE_SITE_PRIORS]).toEqual({
+      "example.com": {
+        pt_BR: 0.8,
+      },
+    });
     expect((registry[KEY_ENABLED_LANGUAGES] as unknown as MockControl).calls).toEqual([
       { value: ["en_US", "pt_BR"], silent: true },
     ]);

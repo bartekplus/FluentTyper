@@ -16,14 +16,18 @@ function freshModulePath(path: string): string {
   return `${path}?bun_test_nonce_migration=${importNonce}`;
 }
 
-jest.unstable_mockModule("../src/core/application/settingsManager", () => ({
-  SettingsManager: settingsManagerCtor,
-}));
+function installMigrationModuleMocks(): void {
+  jest.unstable_mockModule("../src/core/application/settingsManager", () => ({
+    SettingsManager: settingsManagerCtor,
+  }));
+}
 
 describe("migrateToLocalStore", () => {
   let migrateToLocalStore: (lastVersion?: string) => Promise<void>;
 
   beforeEach(async () => {
+    mock.restore();
+    installMigrationModuleMocks();
     jest.clearAllMocks();
     settingsGet.mockResolvedValue(undefined);
     settingsRemoveRaw.mockResolvedValue(undefined);

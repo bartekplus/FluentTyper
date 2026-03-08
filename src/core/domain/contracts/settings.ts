@@ -2,6 +2,7 @@ import {
   KEY_AI_MODEL_ID,
   KEY_AI_PREDICTION_TIMEOUT_MS,
   KEY_AI_PREDICTOR_ENABLED,
+  KEY_AUTO_LANGUAGE_SITE_PRIORS,
   KEY_AUTO_CAPITALIZE,
   KEY_AUTOCOMPLETE,
   KEY_AUTOCOMPLETE_ON_ENTER,
@@ -58,6 +59,7 @@ export const SETTINGS_KEYS = {
   selectByDigit: KEY_SELECT_BY_DIGIT,
   displayLangHeader: KEY_DISPLAY_LANG_HEADER,
   autoCapitalize: KEY_AUTO_CAPITALIZE,
+  autoLanguageSitePriors: KEY_AUTO_LANGUAGE_SITE_PRIORS,
   insertSpaceAfterAutocomplete: KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
   textExpansions: KEY_TEXT_EXPANSIONS,
 
@@ -107,6 +109,7 @@ export interface SettingsSchema {
   selectByDigit: boolean;
   displayLangHeader: boolean;
   autoCapitalize: boolean;
+  autoLanguageSitePriors: Record<string, Record<string, number>>;
   insertSpaceAfterAutocomplete: boolean;
   textExpansions: Array<[string, object]>;
 

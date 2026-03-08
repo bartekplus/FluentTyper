@@ -46,6 +46,37 @@ export class TabMessenger {
     return this.lastActiveTabId;
   }
 
+  private extractHostname(url: string | undefined): string {
+    if (typeof url !== "string" || url.length === 0) {
+      return "";
+    }
+    try {
+      return new URL(url).hostname || "";
+    } catch {
+      return "";
+    }
+  }
+
+  private isWebsiteUrl(url: string | undefined): boolean {
+    return typeof url === "string" && /^(https?):\/\//i.test(url);
+  }
+
+  private toWebsiteTabContext(
+    tab: chrome.tabs.Tab | undefined,
+  ): { tabId: number; hostname: string } | undefined {
+    if (!tab || typeof tab.id !== "number" || !this.isWebsiteUrl(tab.url)) {
+      return undefined;
+    }
+    const hostname = this.extractHostname(tab.url);
+    if (!hostname) {
+      return undefined;
+    }
+    return {
+      tabId: tab.id,
+      hostname,
+    };
+  }
+
   sendToActiveTab(message: Message): void {
     this.getActiveTabId().then((tabId) => {
       if (tabId !== undefined) {
@@ -54,21 +85,55 @@ export class TabMessenger {
     });
   }
 
-  async getActiveTabHostname(): Promise<{ tabId: number; hostname: string } | undefined> {
+  sendToTab(tabId: number, frameId: number, message: Message): void {
+    chrome.tabs.sendMessage(tabId, message, { frameId });
+  }
+
+  async getActiveTabContext(): Promise<{ tabId: number; hostname: string } | undefined> {
     const tabId = await this.getActiveTabId();
     if (tabId === undefined) {
       return undefined;
     }
     try {
-      const response = await promisifiedSendMessage<{ hostname?: string }>(
-        tabId,
-        { command: CMD_GET_HOSTNAME },
-        { frameId: 0 },
-      );
-      return { tabId, hostname: response?.hostname || "" };
+      const tab = await chrome.tabs.query({ active: true, currentWindow: true });
+      const activeTab = tab.find((entry) => entry.id === tabId) || tab[0];
+      return { tabId, hostname: this.extractHostname(activeTab?.url) };
     } catch {
       return { tabId, hostname: "" };
     }
+  }
+
+  async getLastActiveWebsiteTabContext(): Promise<{ tabId: number; hostname: string } | undefined> {
+    try {
+      const currentWindowTabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      const currentContext = this.toWebsiteTabContext(currentWindowTabs[0]);
+      if (currentContext) {
+        return currentContext;
+      }
+
+      const lastFocusedTabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+      const lastFocusedContext = this.toWebsiteTabContext(lastFocusedTabs[0]);
+      if (lastFocusedContext) {
+        return lastFocusedContext;
+      }
+
+      const allTabs = await chrome.tabs.query({});
+      const recentWebsiteTab = [...allTabs]
+        .filter((tab) => this.isWebsiteUrl(tab.url))
+        .sort((left, right) => (right.lastAccessed || 0) - (left.lastAccessed || 0))[0];
+      const recentContext = this.toWebsiteTabContext(recentWebsiteTab);
+      if (recentContext) {
+        return recentContext;
+      }
+
+      if (typeof this.lastActiveTabId === "number") {
+        const tab = await chrome.tabs.get(this.lastActiveTabId);
+        return this.toWebsiteTabContext(tab);
+      }
+    } catch {
+      return undefined;
+    }
+    return undefined;
   }
 
   async sendToAllTabs(

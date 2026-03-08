@@ -5,6 +5,7 @@ import {
   CMD_BACKGROUND_PAGE_SET_CONFIG,
   CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
   CMD_CONTENT_SCRIPT_PREDICT_REQ,
+  CMD_CONTENT_SCRIPT_REPORT_RUNTIME_STATUS,
   CMD_GET_HOSTNAME,
   CMD_POPUP_PAGE_DISABLE,
   CMD_POPUP_PAGE_ENABLE,
@@ -15,6 +16,7 @@ import {
 import type {
   ContentScriptPredictRequestContext,
   ContentScriptPredictRequestMessage,
+  ContentScriptRuntimeStatusMessage,
   Message,
   PopupPageStatusMessage,
   PredictResponseContext,
@@ -56,6 +58,8 @@ export type ContentMessageHandlerDependencies = {
 
 export class ContentMessageHandler {
   private pendingReq: ContentScriptPredictRequestMessage | null = null;
+  private lastRuntimeStatusSignature: string | null = null;
+  private lastRuntimeStatusAt = 0;
 
   constructor(private readonly dependencies: ContentMessageHandlerDependencies) {}
 
@@ -90,11 +94,38 @@ export class ContentMessageHandler {
         requestId: context.requestId,
         runtimeGeneration,
         lang: this.dependencies.getLanguage(),
+        documentLang: document.documentElement.lang || undefined,
         traceId,
         traceStartedAtMs,
       },
     };
     this.pendingReq = message;
+    chrome.runtime.sendMessage(message);
+  }
+
+  reportRuntimeStatus(runtimeGeneration?: number): void {
+    const resolvedRuntimeGeneration =
+      typeof runtimeGeneration === "number" && Number.isFinite(runtimeGeneration)
+        ? runtimeGeneration
+        : this.dependencies.getPredictionGeneration();
+    if (resolvedRuntimeGeneration <= 0) {
+      return;
+    }
+    const domainURL = window.location.hostname || undefined;
+    const signature = `${resolvedRuntimeGeneration}:${domainURL || ""}`;
+    const now = Date.now();
+    if (this.lastRuntimeStatusSignature === signature && now - this.lastRuntimeStatusAt < 250) {
+      return;
+    }
+    this.lastRuntimeStatusSignature = signature;
+    this.lastRuntimeStatusAt = now;
+    const message: ContentScriptRuntimeStatusMessage = {
+      command: CMD_CONTENT_SCRIPT_REPORT_RUNTIME_STATUS,
+      context: {
+        runtimeGeneration: resolvedRuntimeGeneration,
+        domainURL,
+      },
+    };
     chrome.runtime.sendMessage(message);
   }
 

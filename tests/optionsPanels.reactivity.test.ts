@@ -14,8 +14,11 @@ import {
   KEY_NUM_SUGGESTIONS,
   KEY_SITE_PROFILES,
 } from "../src/core/domain/constants";
+import { acquireDomGlobalLock } from "./support/domGlobalLock";
 
 type SettingsMap = Record<string, unknown>;
+const baseChrome = (globalThis as unknown as { chrome: unknown }).chrome;
+let releaseDomGlobalLock: (() => void) | null = null;
 
 class MockControl {
   private readonly handlers: Array<(value: unknown) => void> = [];
@@ -82,13 +85,22 @@ function findButtonByText(root: HTMLElement, text: string): HTMLButtonElement {
   return button;
 }
 
-describe("options panel reactivity", () => {
-  beforeEach(() => {
+describe.serial("options panel reactivity", () => {
+  beforeEach(async () => {
+    releaseDomGlobalLock = await acquireDomGlobalLock();
     i18n.lang = "en";
+    (
+      globalThis.chrome as typeof chrome & {
+        runtime: typeof chrome.runtime & { sendMessage: (message: unknown) => Promise<unknown> };
+      }
+    ).runtime.sendMessage = () => Promise.resolve({ status: null });
   });
 
   afterEach(() => {
     document.body.replaceChildren();
+    (globalThis as unknown as { chrome: unknown }).chrome = baseChrome;
+    releaseDomGlobalLock?.();
+    releaseDomGlobalLock = null;
   });
 
   test("language warnings refresh when site profiles change", async () => {
@@ -145,12 +157,51 @@ describe("options panel reactivity", () => {
     expect(summaryText).not.toContain("Fallback:");
 
     values[KEY_LANGUAGE] = "auto_detect";
+    (
+      globalThis.chrome as typeof chrome & {
+        runtime: typeof chrome.runtime & { sendMessage: (message: unknown) => Promise<unknown> };
+      }
+    ).runtime.sendMessage = () =>
+      Promise.resolve({
+        status: {
+          language: "de_DE",
+          locked: true,
+        },
+      });
     registry[KEY_LANGUAGE].set(values[KEY_LANGUAGE], true);
     await flushAsyncWork();
 
     const autoDetectSummary = root.querySelector(".language-panel-summary p")?.textContent || "";
     expect(autoDetectSummary).toContain("Primary behavior: Auto-detect.");
     expect(autoDetectSummary).toContain("Fallback: German.");
+    expect(root.textContent).toContain("Auto-detect currently using German.");
+    expect(root.textContent).toContain("Session lock is active.");
+  });
+
+  test("language summary shows waiting copy when no live website session exists", async () => {
+    const values: SettingsMap = {
+      [KEY_ENABLED_LANGUAGES]: ["en_US", "de_DE", "fr_FR"],
+      [KEY_LANGUAGE]: "auto_detect",
+      [KEY_FALLBACK_LANGUAGE]: "fr_FR",
+      [KEY_SITE_PROFILES]: {},
+    };
+    const store = createStore(values);
+    const registry = createRegistry(values);
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+
+    (
+      globalThis.chrome as typeof chrome & {
+        runtime: typeof chrome.runtime & { sendMessage: (message: unknown) => Promise<unknown> };
+      }
+    ).runtime.sendMessage = () => Promise.resolve({ status: null });
+
+    new LanguageSettingsPanel(root, registry, store);
+    await flushAsyncWork();
+
+    expect(root.textContent).toContain(
+      "Waiting for a live website typing session. Fallback: French.",
+    );
   });
 
   test("sites UI refreshes immediately when enabled languages change", async () => {

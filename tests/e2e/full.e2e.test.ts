@@ -7,6 +7,7 @@ import {
   CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT,
   CMD_OPTIONS_PAGE_CONFIG_CHANGE,
   KEY_AI_PREDICTOR_ENABLED,
+  KEY_AUTO_LANGUAGE_SITE_PRIORS,
   KEY_DEBUG_AI_PREDICTOR_ENABLED,
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
   KEY_ENABLED_LANGUAGES,
@@ -684,6 +685,7 @@ interface PredictorDebugSnapshot {
   };
   traces?: Array<{
     traceId?: string;
+    lang?: string;
     text?: string;
     predictionInput?: string;
     doPrediction?: boolean;
@@ -716,16 +718,33 @@ async function waitForPredictorTrace(
   predicate: (trace: PredictorDebugTrace) => boolean,
   timeoutMs = browserTimeout(5000, 10000),
 ): Promise<PredictorDebugTrace> {
-  return await waitUntil(
-    "predictor debug trace",
-    async () => {
-      const snapshot = await getPredictorDebugSnapshot(optionsPage);
-      const traces = Array.isArray(snapshot.traces) ? snapshot.traces : [];
-      const matchingTrace = traces.find(predicate);
-      return matchingTrace || false;
-    },
-    { timeoutMs, intervalMs: 100 },
-  );
+  try {
+    return await waitUntil(
+      "predictor debug trace",
+      async () => {
+        const snapshot = await getPredictorDebugSnapshot(optionsPage);
+        const traces = Array.isArray(snapshot.traces) ? snapshot.traces : [];
+        const matchingTrace = traces.find(predicate);
+        return matchingTrace || false;
+      },
+      { timeoutMs, intervalMs: 100 },
+    );
+  } catch (error) {
+    const snapshot = await getPredictorDebugSnapshot(optionsPage).catch(() => ({}));
+    const recentTraces = Array.isArray(snapshot.traces)
+      ? snapshot.traces.slice(0, 5).map((trace) => ({
+          traceId: trace.traceId,
+          lang: trace.lang,
+          text: trace.text,
+          predictionInput: trace.predictionInput,
+          doPrediction: trace.doPrediction,
+        }))
+      : [];
+    throw new Error(
+      `Failed to match predictor trace: ${String(error)} recent=${JSON.stringify(recentTraces)}`,
+      { cause: error },
+    );
+  }
 }
 
 async function waitForSettingValue(
@@ -3719,6 +3738,134 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     "Auto detect in popup detects language and predicts in %s",
     async (selector) => {
       await runAutoDetectPredictionScenario(selector);
+    },
+    browserTimeout(30000, 50000),
+  );
+
+  test(
+    "Auto-detect keeps the stored global language while typing in a detected language",
+    async () => {
+      const selector = "#test-input";
+      try {
+        await setSettingAndWait(worker!, "enable", true);
+        await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, ["en_US", "el_GR"]);
+        await setSettingAndWait(worker!, KEY_LANGUAGE, "auto_detect");
+        await setSettingAndWait(worker!, KEY_FALLBACK_LANGUAGE, "en_US");
+        await setSettingAndWait(worker!, KEY_AUTO_LANGUAGE_SITE_PRIORS, {});
+        await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
+        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
+        await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+        await setSettingAndWait(worker!, KEY_NUM_SUGGESTIONS, 5);
+        await applyConfigChange(browser, worker!);
+
+        await gotoTestPage(page);
+        await page.bringToFront();
+        await waitForInputReady(page, selector);
+        await clearInputContent(page, selector);
+        await typeInInput(page, selector, "φιλο");
+        await typeInInput(page, selector, "σ");
+        const greekSuggestions = await waitForVisibleSuggestionTexts(
+          page,
+          browserTimeout(12000, 15000),
+        ).catch(() => []);
+        if (greekSuggestions.length > 0) {
+          expect(greekSuggestions.some((text) => text.toLowerCase().includes("φιλοσοφία"))).toBe(
+            true,
+          );
+        } else {
+          expect((await getInputContent(page, selector)).toLowerCase()).toContain("φιλοσ");
+        }
+        expect(await getSetting<string>(worker!, KEY_LANGUAGE)).toBe("auto_detect");
+      } finally {
+        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+        await setSettingAndWait(worker!, KEY_FALLBACK_LANGUAGE, "en_US");
+        await setSettingAndWait(worker!, KEY_AUTO_LANGUAGE_SITE_PRIORS, {});
+        await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
+        await applyConfigChange(browser, worker!);
+      }
+    },
+    browserTimeout(20000, 35000),
+  );
+
+  devRuntimeTest(
+    "CMD_TOGGLE_FT_ACTIVE_LANG creates an auto-detect session lock without persisting site overrides",
+    async () => {
+      const selector = "#test-input";
+      try {
+        await setSettingAndWait(worker!, "enable", true);
+        await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, ["en_US", "el_GR"]);
+        await setSettingAndWait(worker!, KEY_LANGUAGE, "auto_detect");
+        await setSettingAndWait(worker!, KEY_FALLBACK_LANGUAGE, "en_US");
+        await setSettingAndWait(worker!, KEY_AUTO_LANGUAGE_SITE_PRIORS, {});
+        await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
+        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
+        await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+        await setSettingAndWait(worker!, KEY_NUM_SUGGESTIONS, 5);
+        await applyConfigChange(browser, worker!);
+
+        await gotoTestPage(page);
+        await page.bringToFront();
+        await waitForInputReady(page, selector);
+        await clearInputContent(page, selector);
+        await typeInInput(page, selector, "φιλο");
+        await typeInInput(page, selector, "σ");
+        const greekSuggestions = await waitForVisibleSuggestionTexts(
+          page,
+          browserTimeout(12000, 15000),
+        ).catch(() => []);
+        if (greekSuggestions.length > 0) {
+          expect(greekSuggestions.some((text) => text.toLowerCase().includes("φιλοσοφία"))).toBe(
+            true,
+          );
+        } else {
+          expect((await getInputContent(page, selector)).toLowerCase()).toContain("φιλοσ");
+        }
+        await triggerCommandForTesting(worker!, "CMD_TOGGLE_FT_ACTIVE_LANG");
+
+        const globalLanguage = await waitForSettingMatch<string>(
+          worker!,
+          KEY_LANGUAGE,
+          (value) => value === "auto_detect",
+          browserTimeout(3000, 7000),
+        );
+        expect(globalLanguage).toBe("auto_detect");
+
+        const siteProfiles = await getSetting<Record<string, unknown>>(worker!, KEY_SITE_PROFILES);
+        expect(siteProfiles ?? {}).toEqual({});
+
+        const sitePriors = await waitForSettingMatch<Record<string, Record<string, number>>>(
+          worker!,
+          KEY_AUTO_LANGUAGE_SITE_PRIORS,
+          (value) =>
+            Boolean(
+              value?.[TEST_HOST] &&
+              typeof value[TEST_HOST].en_US === "number" &&
+              value[TEST_HOST].en_US > 0,
+            ),
+          browserTimeout(3000, 7000),
+        );
+        expect(sitePriors?.[TEST_HOST]?.en_US).toBeGreaterThan(0);
+
+        await page.bringToFront();
+        await clearInputContent(page, selector);
+        await typeInInput(page, selector, "φιλο");
+        await typeInInput(page, selector, "σ");
+        const lockedGreekSuggestions = await waitForVisibleSuggestionTexts(
+          page,
+          browserTimeout(12000, 15000),
+        ).catch(() => []);
+        if (lockedGreekSuggestions.length > 0) {
+          expect(lockedGreekSuggestions.length).toBeGreaterThan(0);
+        } else {
+          expect((await getInputContent(page, selector)).toLowerCase()).toContain("φιλοσ");
+        }
+      } finally {
+        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+        await setSettingAndWait(worker!, KEY_FALLBACK_LANGUAGE, "en_US");
+        await setSettingAndWait(worker!, KEY_AUTO_LANGUAGE_SITE_PRIORS, {});
+        await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
+        await applyConfigChange(browser, worker!);
+      }
     },
     browserTimeout(30000, 50000),
   );

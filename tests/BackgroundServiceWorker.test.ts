@@ -39,33 +39,42 @@ const mockChrome = {
 };
 (global as unknown as { chrome: unknown }).chrome = mockChrome;
 
-// Define mocks using unstable_mockModule BEFORE importing the module under test
-jest.unstable_mockModule("../src/core/application/settingsManager", () => ({
-  SettingsManager: jest.fn().mockImplementation(() => ({
-    get: jest.fn(),
-    set: jest.fn(),
-  })),
-}));
-jest.unstable_mockModule("../src/adapters/chrome/background/LanguageDetector", () => ({
-  LanguageDetector: jest.fn(),
-}));
-jest.unstable_mockModule("../src/adapters/chrome/background/PredictionManager", () => ({
-  PredictionManager: jest.fn().mockImplementation(() => ({
-    initialize: jest.fn(),
-    setConfig: jest.fn(),
-    runPrediction: jest.fn(),
-    ensureTraceId: jest.fn((traceId?: string) => traceId || "generated-trace-id"),
-    recordTraceTimelineEvent: jest.fn(
-      (meta?: { traceId?: string }) => meta?.traceId || "generated-trace-id",
-    ),
-  })),
-}));
-jest.unstable_mockModule("../src/adapters/chrome/background/TabMessenger", () => ({
-  TabMessenger: jest.fn().mockImplementation(() => ({
-    sendToAllTabs: jest.fn(),
-    sendToActiveTab: jest.fn(),
-  })),
-}));
+function installBackgroundServiceWorkerModuleMocks(): void {
+  jest.unstable_mockModule("../src/core/application/settingsManager", () => ({
+    SettingsManager: jest.fn().mockImplementation(() => ({
+      get: jest.fn(),
+      set: jest.fn(),
+    })),
+  }));
+  jest.unstable_mockModule("../src/adapters/chrome/background/LanguageDetector", () => ({
+    LanguageDetector: jest.fn().mockImplementation(() => ({
+      resolveLanguage: jest.fn(),
+      reportRuntimeActivity: jest.fn(),
+      getLiveRuntimeStatus: jest.fn(),
+      getRecentSessionStatusForScope: jest.fn(),
+      cycleManualLockForScope: jest.fn(),
+    })),
+  }));
+  jest.unstable_mockModule("../src/adapters/chrome/background/PredictionManager", () => ({
+    PredictionManager: jest.fn().mockImplementation(() => ({
+      initialize: jest.fn(),
+      setConfig: jest.fn(),
+      runPrediction: jest.fn(),
+      ensureTraceId: jest.fn((traceId?: string) => traceId || "generated-trace-id"),
+      recordTraceTimelineEvent: jest.fn(
+        (meta?: { traceId?: string }) => meta?.traceId || "generated-trace-id",
+      ),
+    })),
+  }));
+  jest.unstable_mockModule("../src/adapters/chrome/background/TabMessenger", () => ({
+    TabMessenger: jest.fn().mockImplementation(() => ({
+      sendToAllTabs: jest.fn(),
+      sendToActiveTab: jest.fn(),
+      sendToTab: jest.fn(),
+      getActiveTabContext: jest.fn(),
+    })),
+  }));
+}
 
 // Import types for type safety (does not trigger module load)
 import type { BackgroundServiceWorker as BackgroundServiceWorkerType } from "../src/adapters/chrome/background/background";
@@ -73,9 +82,16 @@ import type { BackgroundServiceWorker as BackgroundServiceWorkerType } from "../
 describe("BackgroundServiceWorker", () => {
   let BackgroundServiceWorkerClass: { new (): BackgroundServiceWorkerType };
   let worker: BackgroundServiceWorkerType;
+  let importNonce = 0;
+
+  function freshModulePath(path: string): string {
+    importNonce += 1;
+    return `${path}?bun_test_nonce_background_service_worker=${importNonce}`;
+  }
 
   beforeAll(async () => {
-    const module = await import("../src/adapters/chrome/background/background");
+    installBackgroundServiceWorkerModuleMocks();
+    const module = await import(freshModulePath("../src/adapters/chrome/background/background"));
     BackgroundServiceWorkerClass = module.BackgroundServiceWorker;
   });
 
@@ -89,9 +105,6 @@ describe("BackgroundServiceWorker", () => {
 
   afterEach(() => {
     jest.clearAllMocks();
-  });
-
-  afterAll(() => {
     mock.restore();
   });
 

@@ -288,6 +288,9 @@ export class SuggestionManagerRuntime {
   }
 
   public updateLangConfig(lang: string): void {
+    if (this.lang === lang) {
+      return;
+    }
     this.lang = lang;
     this.separatorRegex = LANG_SEPARATOR_CHARS_REGEX[lang] || /\s+/;
     this.grammarCoordinator.updateLanguage(this.lang);

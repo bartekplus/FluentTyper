@@ -9,7 +9,7 @@
     "build": "bun build.ts --mode=production",
     "check": "bun run lint && bun run format:check",
     "lint": "eslint . --cache --cache-location .cache/eslint --max-warnings=0",
-    "test": "bun test tests/*.test.ts tests/*.test.js tests/grammar/*.test.ts",
+    "test": "bun scripts/run-unit-tests.ts",
     "test:e2e": "bun scripts/run-e2e.ts --suite=smoke",
     "test:e2e:full": "bun scripts/run-e2e.ts --suite=full",
     "test:e2e:dev": "bun scripts/run-e2e.ts --mode=development",

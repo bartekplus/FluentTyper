@@ -446,6 +446,106 @@
       ]
     },
     {
+      "id": "auto_detect_live_status",
+      "description": "auto_detect shows the active detected language for a live session and explicit waiting copy when no website session is available.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Auto-detect keeps the stored global language while typing in a detected language"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/optionsPanels.reactivity.test.ts",
+          "test": "language summary only mentions fallback when auto-detect is active"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/optionsPanels.reactivity.test.ts",
+          "test": "language summary shows waiting copy when no live website session exists"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/background.routing.test.ts",
+          "test": "onMessage returns null auto language status when no website tab context exists"
+        }
+      ]
+    },
+    {
+      "id": "auto_detect_runtime_scope_isolation",
+      "description": "auto_detect status and manual locks stay scoped to the current tab runtime, domain, and active frame.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/LanguageDetector.sessionScope.test.ts",
+          "test": "same-tab navigation cannot reuse a previous page session"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/LanguageDetector.sessionScope.test.ts",
+          "test": "only the active frame runtime is affected in a multi-frame tab"
+        }
+      ]
+    },
+    {
+      "id": "auto_detect_rolling_sample_switching",
+      "description": "auto_detect scoring uses the capped rolling sample near the cursor so sustained new-language text can overtake older history.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/LanguageDetector.sessionScope.test.ts",
+          "test": "sustained french near the cursor overcomes a long english history"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/autoLanguageDetection.test.ts",
+          "test": "extracts a capped rolling sample from the latest tokens"
+        }
+      ]
+    },
+    {
+      "id": "auto_detect_stale_session_priors",
+      "description": "auto_detect prunes stale live sessions, persists soft site priors, and allows stronger fresh evidence to override them on revisit.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/LanguageDetector.sessionScope.test.ts",
+          "test": "stale-session pruning persists a soft site prior and clears stale live state"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/LanguageDetector.sessionScope.test.ts",
+          "test": "revisit uses a pruned soft prior provisionally but stronger fresh evidence overrides it"
+        }
+      ]
+    },
+    {
+      "id": "dev_auto_detect_session_lock",
+      "description": "The language toggle command creates a session-only lock in auto_detect mode without persisting a site override.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "CMD_TOGGLE_FT_ACTIVE_LANG creates an auto-detect session lock without persisting site overrides"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/background.routing.test.ts",
+          "test": "onCommand uses a session-only lock for active auto-detect sessions"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/optionsPanels.reactivity.test.ts",
+          "test": "language summary only mentions fallback when auto-detect is active"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/autoLanguageDetection.test.ts",
+          "test": "respects manual lock"
+        }
+      ]
+    },
+    {
       "id": "multi_language_prediction",
       "description": "Predictions work across supported language models.",
       "coverage": [

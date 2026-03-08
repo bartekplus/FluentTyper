@@ -3,6 +3,7 @@ import {
   CMD_BACKGROUND_PAGE_PREDICT_RESP,
   CMD_BACKGROUND_PAGE_SET_CONFIG,
   CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
+  CMD_CONTENT_SCRIPT_REPORT_RUNTIME_STATUS,
   CMD_CONTENT_SCRIPT_GET_CONFIG,
   CMD_POPUP_PAGE_DISABLE,
   CMD_POPUP_PAGE_ENABLE,
@@ -187,10 +188,27 @@ describe("content_script behavior", () => {
     expect(suggestionInstances[0].detachAllHelpers).toHaveBeenCalled();
   });
 
+  test("reports live runtime status when the active content runtime starts", async () => {
+    const { fluentTyper, sendMessage } = await loadContentScript();
+
+    fluentTyper.enable();
+
+    expect(sendMessage.mock.calls[1]?.[0]).toEqual(
+      expect.objectContaining({
+        command: CMD_CONTENT_SCRIPT_REPORT_RUNTIME_STATUS,
+        context: expect.objectContaining({
+          runtimeGeneration: 1,
+          domainURL: window.location.hostname || undefined,
+        }),
+      }),
+    );
+  });
+
   test("handleGetPrediction sends request and matching response fulfills prediction", async () => {
     const { fluentTyper, suggestionInstances, sendMessage } = await loadContentScript();
 
     fluentTyper.enable();
+    document.documentElement.lang = "fr-FR";
     const suggestionManager = suggestionInstances[0];
 
     fluentTyper.handleGetPrediction({
@@ -207,6 +225,7 @@ describe("content_script behavior", () => {
           suggestionId: 3,
           requestId: 10,
           lang: "en_US",
+          documentLang: "fr-FR",
           traceId: expect.any(String),
           traceStartedAtMs: expect.any(Number),
         }),
@@ -239,6 +258,7 @@ describe("content_script behavior", () => {
   test("handleGetPrediction forwards inputAction metadata", async () => {
     const { fluentTyper, sendMessage } = await loadContentScript();
     fluentTyper.enable();
+    document.documentElement.lang = "de";
 
     fluentTyper.handleGetPrediction({
       text: "Hello.",
@@ -256,6 +276,7 @@ describe("content_script behavior", () => {
           inputAction: "delete",
           suggestionId: 3,
           requestId: 10,
+          documentLang: "de",
         }),
       }),
     );
@@ -501,6 +522,19 @@ describe("content_script behavior", () => {
         (response) => (response as { command?: string }).command === CMD_STATUS_COMMAND,
       ),
     ).toBe(true);
+  });
+
+  test("same-language runtime update does not thrash suggestion manager", async () => {
+    const { fluentTyper } = await loadContentScript();
+    fluentTyper.enable();
+    const suggestionManager = fluentTyper.suggestionManager as SuggestionLike;
+
+    fluentTyper.messageHandler({
+      command: CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
+      context: { lang: "en_US" },
+    });
+
+    expect(suggestionManager.updateLangConfig).not.toHaveBeenCalled();
   });
 
   test("processMutations reattaches helpers for added and attribute-target elements", async () => {

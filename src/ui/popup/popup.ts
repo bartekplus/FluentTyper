@@ -25,6 +25,7 @@ import {
   CMD_POPUP_GET_PRODUCTIVITY_STATS,
   CMD_POPUP_ACK_WEEKLY_RECAP,
   CMD_POPUP_ACK_DONATION_MILESTONE,
+  CMD_GET_AUTO_LANGUAGE_STATUS,
   MAX_NUM_SUGGESTIONS,
 } from "@core/domain/constants";
 import type {
@@ -36,7 +37,7 @@ import type {
   PopupAckWeeklyRecapMessage,
   PopupAckDonationMilestoneMessage,
 } from "@core/domain/messageTypes";
-import { i18n } from "@ui/options/fluenttyperI18n.js";
+import { formatTranslation, i18n } from "@ui/options/fluenttyperI18n.js";
 import {
   type WebsiteAccessPermissionState,
   WebsiteAccessPermissionController,
@@ -222,6 +223,32 @@ function resolveDisplayedLanguage(): string {
   return currentProfileLanguageFallback;
 }
 
+async function getActiveAutoLanguageStatus(): Promise<{
+  language: string;
+  locked: boolean;
+} | null> {
+  try {
+    const response = await chrome.runtime.sendMessage({
+      command: CMD_GET_AUTO_LANGUAGE_STATUS,
+      context: {
+        tabId: currentTabId ?? undefined,
+        domainURL: currentDomainURL,
+      },
+    });
+    const status = (response as { status?: { language?: string; locked?: boolean } | null })
+      ?.status;
+    if (!status || typeof status.language !== "string" || status.language.length === 0) {
+      return null;
+    }
+    return {
+      language: status.language,
+      locked: status.locked === true,
+    };
+  } catch {
+    return null;
+  }
+}
+
 function renderStaticPageState(
   state: Extract<PopupPageState, { kind: "restricted" | "non_actionable" }>,
 ): void {
@@ -329,7 +356,10 @@ function syncPopupThemeWithSystem(): void {
 
 async function renderActionablePageState(): Promise<void> {
   if (!currentDomainURL) {
-    renderStaticPageState(getCurrentPageState(undefined));
+    const fallbackState = getCurrentPageState(undefined);
+    if (fallbackState.kind !== "actionable") {
+      renderStaticPageState(fallbackState);
+    }
     return;
   }
 
@@ -343,7 +373,15 @@ async function renderActionablePageState(): Promise<void> {
     currentDomainURL,
     currentEnabledLanguages,
   );
-  const languageCode = profile?.language || resolveDisplayedLanguage();
+  const configuredLanguage = profile?.language || resolveDisplayedLanguage();
+  const autoLanguageStatus =
+    configuredLanguage === "auto_detect" ? await getActiveAutoLanguageStatus() : null;
+  const fallbackLanguageCode = getDefaultSiteProfileLanguage(
+    currentProfileLanguageFallback,
+    currentEnabledLanguages,
+  );
+  const fallbackLanguageLabel = SUPPORTED_LANGUAGES[fallbackLanguageCode] || fallbackLanguageCode;
+  const languageCode = autoLanguageStatus?.language || configuredLanguage;
   const languageLabel = SUPPORTED_LANGUAGES[languageCode] || languageCode;
   const badgeLabel = globallyEnabled
     ? siteAllowed
@@ -355,6 +393,19 @@ async function renderActionablePageState(): Promise<void> {
       ? translateLabel("popup_page_state_active_body", "Ready on this site.")
       : translateLabel("popup_page_state_site_disabled_body", "Disabled on this site.")
     : translateLabel("popup_page_state_global_disabled_body", "Paused everywhere.");
+  const autoDetectReasonCopy =
+    configuredLanguage === "auto_detect" && globallyEnabled && siteAllowed
+      ? autoLanguageStatus?.locked
+        ? translateLabel("popup_auto_detect_reason_locked", "Locked for this typing session.")
+        : autoLanguageStatus?.language
+          ? translateLabel(
+              "popup_auto_detect_reason_active",
+              "Switches only after sustained nearby text. Single foreign words do not flip it.",
+            )
+          : formatTranslation("popup_auto_detect_reason_waiting", {
+              language: fallbackLanguageLabel,
+            })
+      : "";
   const profileCopy = profile
     ? translateLabel("popup_page_state_profile_active", "Site profile")
     : translateLabel("popup_page_state_profile_global", "Global defaults");
@@ -374,8 +425,17 @@ async function renderActionablePageState(): Promise<void> {
   }
   badge.textContent = badgeLabel;
   setNodeTextAndTitle(title, currentDomainURL);
-  body.textContent = activityCopy;
-  setNodeTextAndTitle(language, languageLabel);
+  body.textContent = autoDetectReasonCopy
+    ? `${activityCopy} ${autoDetectReasonCopy}`
+    : activityCopy;
+  if (configuredLanguage === "auto_detect" && autoLanguageStatus?.language) {
+    const liveLabel = formatTranslation("language_panel_auto_detect_current", {
+      language: languageLabel,
+    });
+    setNodeTextAndTitle(language, liveLabel);
+  } else {
+    setNodeTextAndTitle(language, languageLabel);
+  }
   setNodeTextAndTitle(profileNode, profileCopy);
   meta.classList.remove("is-hidden");
   panel?.setAttribute("data-page-state", globallyEnabled && siteAllowed ? "active" : "paused");
