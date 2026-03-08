@@ -127,14 +127,14 @@ function isNavigationTimeout(error: unknown): boolean {
 
 function isRetriableRuntimeUrlError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
-  return /runtime\.getURL|Cannot read properties of undefined|Execution context was destroyed|Session closed|Target closed|Connection closed/i.test(
+  return /runtime\.getURL|Cannot read properties of undefined|Execution context was destroyed|Session closed|Target closed|Connection closed|NoSuchFrameError|Browsing Context with id .* not found/i.test(
     message,
   );
 }
 
 function isRetriableBackgroundContextError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
-  return /Execution context was destroyed|Execution context is not available in detached frame or worker|Cannot find context with specified id|Session closed|Target closed|Connection closed|background worker is unavailable|Waiting failed/i.test(
+  return /Execution context was destroyed|Execution context is not available in detached frame or worker|Cannot find context with specified id|Session closed|Target closed|Connection closed|background worker is unavailable|Waiting failed|NoSuchFrameError|Browsing Context with id .* not found/i.test(
     message,
   );
 }

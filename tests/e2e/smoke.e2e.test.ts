@@ -127,7 +127,7 @@ const PER_TEST_RESET_SETTINGS: readonly SettingEntry[] = [
 
 function isRetriableWorkerError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
-  return /chrome\.storage\.local is unavailable|reading 'local'|Execution context was destroyed|Execution context is not available in detached frame or worker|Cannot find context with specified id|Target closed|Session closed/i.test(
+  return /chrome\.storage\.local is unavailable|reading 'local'|Execution context was destroyed|Execution context is not available in detached frame or worker|Cannot find context with specified id|Target closed|Session closed|NoSuchFrameError|Browsing Context with id .* not found/i.test(
     message,
   );
 }

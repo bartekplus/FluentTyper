@@ -290,7 +290,7 @@ function isClosedPageContext(context: BackgroundContext | null): boolean {
 
 function isRetriableWorkerError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
-  return /chrome\.storage\.local is unavailable|reading 'local'|chrome\.runtime\.getURL is unavailable|runtime\.getURL|Execution context was destroyed|Execution context is not available in detached frame or worker|Cannot find context with specified id|Target closed|Session closed|Timed out after waiting \d+ms/i.test(
+  return /chrome\.storage\.local is unavailable|reading 'local'|chrome\.runtime\.getURL is unavailable|runtime\.getURL|Execution context was destroyed|Execution context is not available in detached frame or worker|Cannot find context with specified id|Target closed|Session closed|Timed out after waiting \d+ms|NoSuchFrameError|Browsing Context with id .* not found/i.test(
     message,
   );
 }
