@@ -230,7 +230,10 @@ async function getActiveAutoLanguageStatus(): Promise<{
   try {
     const response = await chrome.runtime.sendMessage({
       command: CMD_GET_AUTO_LANGUAGE_STATUS,
-      context: {},
+      context: {
+        tabId: currentTabId ?? undefined,
+        domainURL: currentDomainURL,
+      },
     });
     const status = (response as { status?: { language?: string; locked?: boolean } | null })?.status;
     if (!status || typeof status.language !== "string" || status.language.length === 0) {

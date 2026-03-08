@@ -46,6 +46,17 @@ export class TabMessenger {
     return this.lastActiveTabId;
   }
 
+  private extractHostname(url: string | undefined): string {
+    if (typeof url !== "string" || url.length === 0) {
+      return "";
+    }
+    try {
+      return new URL(url).hostname || "";
+    } catch {
+      return "";
+    }
+  }
+
   sendToActiveTab(message: Message): void {
     this.getActiveTabId().then((tabId) => {
       if (tabId !== undefined) {
@@ -58,18 +69,15 @@ export class TabMessenger {
     chrome.tabs.sendMessage(tabId, message, { frameId });
   }
 
-  async getActiveTabHostname(): Promise<{ tabId: number; hostname: string } | undefined> {
+  async getActiveTabContext(): Promise<{ tabId: number; hostname: string } | undefined> {
     const tabId = await this.getActiveTabId();
     if (tabId === undefined) {
       return undefined;
     }
     try {
-      const response = await promisifiedSendMessage<{ hostname?: string }>(
-        tabId,
-        { command: CMD_GET_HOSTNAME },
-        { frameId: 0 },
-      );
-      return { tabId, hostname: response?.hostname || "" };
+      const tab = await chrome.tabs.query({ active: true, currentWindow: true });
+      const activeTab = tab.find((entry) => entry.id === tabId) || tab[0];
+      return { tabId, hostname: this.extractHostname(activeTab?.url) };
     } catch {
       return { tabId, hostname: "" };
     }

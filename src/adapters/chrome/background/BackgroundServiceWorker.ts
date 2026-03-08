@@ -4,7 +4,11 @@ import { getErrorMessage, logError } from "@core/domain/error";
 import { SettingsManager } from "@core/application/settingsManager";
 import { CoreSettingsRepository } from "@core/application/repositories/CoreSettingsRepository";
 import { LanguageDetector } from "./LanguageDetector";
-import type { AutoLanguageSessionStatus } from "./LanguageDetector";
+import type {
+  AutoLanguageLiveRuntimeStatus,
+  AutoLanguageSessionLookup,
+  AutoLanguageSessionStatus,
+} from "./LanguageDetector";
 import { PredictionManager } from "./PredictionManager";
 import { TabMessenger } from "./TabMessenger";
 import { ProductivityStatsManager } from "./ProductivityStatsManager";
@@ -184,6 +188,15 @@ export class BackgroundServiceWorker {
     return this.languageDetector.resolveLanguage(context);
   }
 
+  reportAutoLanguageRuntime(
+    context: Pick<AutoLanguageSessionLookup, "runtimeGeneration" | "domainURL"> & {
+      tabId: number;
+      frameId: number;
+    },
+  ): void {
+    this.languageDetector.reportRuntimeActivity(context);
+  }
+
   sendCommandToActiveTabContentScript(message: import("@core/domain/messageTypes").Message): void {
     this.tabMessenger.sendToActiveTab(message);
   }
@@ -218,23 +231,39 @@ export class BackgroundServiceWorker {
     );
   }
 
-  async getAutoLanguageStatusForTab(
-    tabId: number,
+  async getAutoLanguageStatusForScope(
+    scope: AutoLanguageSessionLookup,
   ): Promise<AutoLanguageSessionStatus | null> {
-    return this.languageDetector.getRecentSessionStatusForTab(tabId);
+    return this.languageDetector.getRecentSessionStatusForScope(scope);
   }
 
-  async handleActiveLanguageToggle(domainURL: string | undefined): Promise<{
+  async getLiveAutoLanguageRuntime(
+    scope: AutoLanguageSessionLookup,
+  ): Promise<AutoLanguageLiveRuntimeStatus | null> {
+    return this.languageDetector.getLiveRuntimeStatus(scope);
+  }
+
+  async handleActiveLanguageToggle(scope: AutoLanguageSessionLookup): Promise<{
     language: string;
     tabId?: number;
     frameId?: number;
   }> {
-    const activeTab = await this.tabMessenger.getActiveTabHostname();
-    const tabId = activeTab?.tabId;
+    const tabId = scope.tabId;
     if (typeof tabId === "number") {
-      const domainSettings = await resolveDomainRuntimeSettings(this.settingsManager, domainURL);
+      const liveRuntime = await this.getLiveAutoLanguageRuntime(scope);
+      const effectiveDomainURL = liveRuntime?.domain || scope.domainURL;
+      const effectiveScope: AutoLanguageSessionLookup = {
+        tabId,
+        frameId: liveRuntime?.frameId,
+        runtimeGeneration: liveRuntime?.runtimeGeneration,
+        domainURL: effectiveDomainURL || undefined,
+      };
+      const domainSettings = await resolveDomainRuntimeSettings(
+        this.settingsManager,
+        effectiveDomainURL || undefined,
+      );
       if (domainSettings.language === "auto_detect") {
-        const status = await this.languageDetector.cycleManualLockForTab(tabId);
+        const status = await this.languageDetector.cycleManualLockForScope(effectiveScope);
         if (status) {
           return {
             language: status.language,
@@ -243,11 +272,18 @@ export class BackgroundServiceWorker {
           };
         }
       }
+      const nextLang = await rotateLanguageForDomain(
+        this.settingsManager,
+        effectiveDomainURL || undefined,
+      );
+      return {
+        language: nextLang,
+        tabId,
+        frameId: liveRuntime?.frameId ?? 0,
+      };
     }
-    const nextLang = await rotateLanguageForDomain(this.settingsManager, domainURL);
     return {
-      language: nextLang,
-      tabId,
+      language: this.language,
       frameId: 0,
     };
   }

@@ -55,9 +55,11 @@ export class CommandRouter {
       },
       [CMD_TOGGLE_FT_ACTIVE_LANG]: async () => {
         const worker = getWorker();
-        const result = await worker.tabMessenger.getActiveTabHostname();
-        const domainURL = result?.hostname || undefined;
-        const nextLanguage = await worker.handleActiveLanguageToggle(domainURL);
+        const activeTab = await worker.tabMessenger.getActiveTabContext();
+        const nextLanguage = await worker.handleActiveLanguageToggle({
+          tabId: activeTab?.tabId ?? -1,
+          domainURL: activeTab?.hostname || undefined,
+        });
         worker.language = nextLanguage.language;
 
         const updateLangConfigMessage: UpdateLangConfigMessage = {

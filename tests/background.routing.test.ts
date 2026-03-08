@@ -5,6 +5,7 @@ import {
   CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
   CMD_CONTENT_SCRIPT_GET_CONFIG,
   CMD_CONTENT_SCRIPT_PREDICT_REQ,
+  CMD_CONTENT_SCRIPT_REPORT_RUNTIME_STATUS,
   CMD_CONTENT_SCRIPT_USAGE_EVENT,
   CMD_GET_AUTO_LANGUAGE_STATUS,
   CMD_OPTIONS_PAGE_CONFIG_CHANGE,
@@ -74,8 +75,8 @@ const backgroundHarnessMocks = {
     tabId: 1,
     frameId: 0,
   })),
-  cycleManualLockForTab: jest.fn(async () => null),
-  getRecentSessionStatusForTab: jest.fn(async () => null),
+  cycleManualLockForScope: jest.fn(async () => null),
+  getRecentSessionStatusForScope: jest.fn(async () => null),
   predictionRun: jest.fn(async () => ({ predictions: [] })),
   predictionInitialize: jest.fn(async () => undefined),
   predictionSetConfig: jest.fn(),
@@ -86,7 +87,7 @@ const backgroundHarnessMocks = {
   tabSendToAll: jest.fn(),
   tabSendToActive: jest.fn(),
   tabSendToTab: jest.fn(),
-  getActiveTabHostname: jest.fn(async () => ({
+  getActiveTabContext: jest.fn(async () => ({
     tabId: 1,
     hostname: "example.com",
   })),
@@ -107,9 +108,12 @@ jest.unstable_mockModule("../src/core/application/settingsManager", () => ({
 jest.unstable_mockModule("../src/adapters/chrome/background/LanguageDetector", () => ({
   LanguageDetector: jest.fn().mockImplementation(() => ({
     resolveLanguage: (...args: [unknown]) => backgroundHarnessMocks.resolveAutoLanguage(...args),
-    cycleManualLockForTab: (...args: [number]) => backgroundHarnessMocks.cycleManualLockForTab(...args),
-    getRecentSessionStatusForTab: (...args: [number]) =>
-      backgroundHarnessMocks.getRecentSessionStatusForTab(...args),
+    reportRuntimeActivity: jest.fn(),
+    getLiveRuntimeStatus: jest.fn(async () => null),
+    cycleManualLockForScope: (...args: [unknown]) =>
+      backgroundHarnessMocks.cycleManualLockForScope(...args),
+    getRecentSessionStatusForScope: (...args: [unknown]) =>
+      backgroundHarnessMocks.getRecentSessionStatusForScope(...args),
   })),
 }));
 
@@ -131,7 +135,7 @@ jest.unstable_mockModule("../src/adapters/chrome/background/TabMessenger", () =>
       backgroundHarnessMocks.tabSendToAll(...args),
     sendToActiveTab: (...args: [unknown]) => backgroundHarnessMocks.tabSendToActive(...args),
     sendToTab: (...args: [number, number, unknown]) => backgroundHarnessMocks.tabSendToTab(...args),
-    getActiveTabHostname: (...args: []) => backgroundHarnessMocks.getActiveTabHostname(...args),
+    getActiveTabContext: (...args: []) => backgroundHarnessMocks.getActiveTabContext(...args),
   })),
 }));
 
@@ -238,8 +242,8 @@ async function loadBackgroundHarness(stateOverrides: Record<string, unknown> = {
     tabId: 111,
     frameId: 0,
   }));
-  const cycleManualLockForTab = jest.fn(async () => null);
-  const getRecentSessionStatusForTab = jest.fn(async () => null);
+  const cycleManualLockForScope = jest.fn(async () => null);
+  const getRecentSessionStatusForScope = jest.fn(async () => null);
   const predictionRun = jest.fn(async () => ({
     predictions: ["hello"],
   }));
@@ -252,7 +256,7 @@ async function loadBackgroundHarness(stateOverrides: Record<string, unknown> = {
   const tabSendToAll = jest.fn();
   const tabSendToActive = jest.fn();
   const tabSendToTab = jest.fn();
-  const getActiveTabHostname = jest.fn(async () => ({
+  const getActiveTabContext = jest.fn(async () => ({
     tabId: 1,
     hostname: "example.com",
   }));
@@ -306,8 +310,8 @@ async function loadBackgroundHarness(stateOverrides: Record<string, unknown> = {
   backgroundHarnessMocks.settingsGet = settingsGet;
   backgroundHarnessMocks.settingsSet = settingsSet;
   backgroundHarnessMocks.resolveAutoLanguage = resolveAutoLanguage;
-  backgroundHarnessMocks.cycleManualLockForTab = cycleManualLockForTab;
-  backgroundHarnessMocks.getRecentSessionStatusForTab = getRecentSessionStatusForTab;
+  backgroundHarnessMocks.cycleManualLockForScope = cycleManualLockForScope;
+  backgroundHarnessMocks.getRecentSessionStatusForScope = getRecentSessionStatusForScope;
   backgroundHarnessMocks.predictionRun = predictionRun;
   backgroundHarnessMocks.predictionInitialize = predictionInitialize;
   backgroundHarnessMocks.predictionSetConfig = predictionSetConfig;
@@ -316,7 +320,7 @@ async function loadBackgroundHarness(stateOverrides: Record<string, unknown> = {
   backgroundHarnessMocks.tabSendToAll = tabSendToAll;
   backgroundHarnessMocks.tabSendToActive = tabSendToActive;
   backgroundHarnessMocks.tabSendToTab = tabSendToTab;
-  backgroundHarnessMocks.getActiveTabHostname = getActiveTabHostname;
+  backgroundHarnessMocks.getActiveTabContext = getActiveTabContext;
   backgroundHarnessMocks.checkLastError = checkLastError;
   backgroundHarnessMocks.getDomain = getDomain;
   backgroundHarnessMocks.isEnabledForDomain = isEnabledForDomain;
@@ -348,8 +352,8 @@ async function loadBackgroundHarness(stateOverrides: Record<string, unknown> = {
     settingsGet,
     settingsSet,
     resolveAutoLanguage,
-    cycleManualLockForTab,
-    getRecentSessionStatusForTab,
+    cycleManualLockForScope,
+    getRecentSessionStatusForScope,
     predictionRun,
     predictionInitialize,
     predictionSetConfig,
@@ -519,7 +523,7 @@ describe("background routing and lifecycle", () => {
     const harness = await loadBackgroundHarness({
       language: "auto_detect",
     });
-    harness.cycleManualLockForTab.mockResolvedValueOnce({
+    harness.cycleManualLockForScope.mockResolvedValueOnce({
       language: "fr_FR",
       source: "manual_lock",
       locked: true,
@@ -532,7 +536,12 @@ describe("background routing and lifecycle", () => {
     harness.onCommand(CMD_TOGGLE_FT_ACTIVE_LANG);
     await flushPromises();
 
-    expect(harness.cycleManualLockForTab).toHaveBeenCalledWith(1);
+    expect(harness.cycleManualLockForScope).toHaveBeenCalledWith({
+      tabId: 1,
+      frameId: undefined,
+      runtimeGeneration: undefined,
+      domainURL: "example.com",
+    });
     expect(harness.settingsSet).not.toHaveBeenCalledWith(KEY_LANGUAGE, expect.anything());
     expect(harness.tabSendToTab).toHaveBeenCalledWith(1, 0, {
       command: CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
@@ -997,7 +1006,7 @@ describe("background routing and lifecycle", () => {
 
   test("onMessage returns active auto language session status", async () => {
     const harness = await loadBackgroundHarness();
-    harness.getRecentSessionStatusForTab.mockResolvedValueOnce({
+    harness.getRecentSessionStatusForScope.mockResolvedValueOnce({
       language: "de_DE",
       source: "manual_lock",
       locked: true,
@@ -1009,7 +1018,10 @@ describe("background routing and lifecycle", () => {
     const sendResponse = jest.fn();
 
     harness.onMessage(
-      { command: CMD_GET_AUTO_LANGUAGE_STATUS, context: {} },
+      {
+        command: CMD_GET_AUTO_LANGUAGE_STATUS,
+        context: { tabId: 1, domainURL: "example.com" },
+      },
       {} as chrome.runtime.MessageSender,
       sendResponse,
     );
@@ -1021,6 +1033,36 @@ describe("background routing and lifecycle", () => {
         locked: true,
       }),
     });
+  });
+
+  test("onMessage records live runtime status for the sender frame", async () => {
+    const harness = await loadBackgroundHarness();
+    const reportSpy = jest.spyOn(
+      harness.module.BackgroundServiceWorker.prototype,
+      "reportAutoLanguageRuntime",
+    );
+    const sendResponse = jest.fn();
+
+    harness.onMessage(
+      {
+        command: CMD_CONTENT_SCRIPT_REPORT_RUNTIME_STATUS,
+        context: {
+          runtimeGeneration: 4,
+          domainURL: "iframe.example",
+        },
+      },
+      { tab: { id: 42 } as chrome.tabs.Tab, frameId: 7 },
+      sendResponse,
+    );
+    await flushPromises();
+
+    expect(reportSpy).toHaveBeenCalledWith({
+      tabId: 42,
+      frameId: 7,
+      runtimeGeneration: 4,
+      domainURL: "iframe.example",
+    });
+    expect(sendResponse).toHaveBeenCalledWith({ ok: true });
   });
 
   test("onMessage handles productivity usage + popup stats commands", async () => {

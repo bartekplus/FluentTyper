@@ -3,6 +3,7 @@ import {
   CMD_BACKGROUND_PAGE_PREDICT_RESP,
   CMD_BACKGROUND_PAGE_SET_CONFIG,
   CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
+  CMD_CONTENT_SCRIPT_REPORT_RUNTIME_STATUS,
   CMD_CONTENT_SCRIPT_GET_CONFIG,
   CMD_POPUP_PAGE_DISABLE,
   CMD_POPUP_PAGE_ENABLE,
@@ -185,6 +186,22 @@ describe("content_script behavior", () => {
     fluentTyper.enabled = false;
     expect(domObserver.disconnect).toHaveBeenCalled();
     expect(suggestionInstances[0].detachAllHelpers).toHaveBeenCalled();
+  });
+
+  test("reports live runtime status when the active content runtime starts", async () => {
+    const { fluentTyper, sendMessage } = await loadContentScript();
+
+    fluentTyper.enable();
+
+    expect(sendMessage.mock.calls[1]?.[0]).toEqual(
+      expect.objectContaining({
+        command: CMD_CONTENT_SCRIPT_REPORT_RUNTIME_STATUS,
+        context: expect.objectContaining({
+          runtimeGeneration: 1,
+          domainURL: window.location.hostname || undefined,
+        }),
+      }),
+    );
   });
 
   test("handleGetPrediction sends request and matching response fulfills prediction", async () => {
