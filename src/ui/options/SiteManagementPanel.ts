@@ -2,8 +2,10 @@ import type { SettingsRegistry } from "@ui/settings-engine/SettingsEngine.js";
 import type { Store } from "@core/application/storage/Store.js";
 import {
   KEY_DOMAIN_LIST_MODE,
+  KEY_ENABLED_LANGUAGES,
   KEY_INLINE_SUGGESTION,
   KEY_NUM_SUGGESTIONS,
+  KEY_SITE_PROFILES,
 } from "@core/domain/constants";
 import { normalizeDomainHost } from "@core/domain/siteProfiles";
 import { SiteProfilesManager } from "./siteProfiles.js";
@@ -37,11 +39,14 @@ export class SiteManagementPanel {
           rootElement: this.siteProfilesRoot,
         },
       },
+      this.store,
       this.onConfigChange,
     );
 
     this.registry[KEY_DOMAIN_LIST_MODE]?.addEvent("action", () => void this.render());
     this.registry.domainBlackList?.addEvent("action", () => void this.render());
+    this.registry[KEY_ENABLED_LANGUAGES]?.addEvent("action", () => void this.render());
+    this.registry[KEY_SITE_PROFILES]?.addEvent("action", () => void this.render());
     this.registry[KEY_NUM_SUGGESTIONS]?.addEvent(
       "action",
       () => void this.siteProfilesManager.render(),

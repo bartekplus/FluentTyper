@@ -1,5 +1,6 @@
 import "./setup";
 import { afterEach, describe, expect, jest, test } from "bun:test";
+import { Store } from "../src/core/application/storage/Store.js";
 import {
   KEY_ENABLED_LANGUAGES,
   KEY_INLINE_SUGGESTION,
@@ -93,11 +94,14 @@ describe("SiteProfilesManager", () => {
     root.id = "siteProfilesEditorRoot";
     document.body.appendChild(root);
 
-    new SiteProfilesManager({
-      siteProfilesEditor: {
-        rootElement: root,
+    new SiteProfilesManager(
+      {
+        siteProfilesEditor: {
+          rootElement: root,
+        },
       },
-    });
+      new Store("settings"),
+    );
 
     await flushAsyncWork();
 

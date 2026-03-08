@@ -33,6 +33,9 @@ export class LanguageSettingsPanel {
     this.registry[KEY_FALLBACK_LANGUAGE]?.addEvent("action", () => {
       void this.render();
     });
+    this.registry[KEY_SITE_PROFILES]?.addEvent("action", () => {
+      void this.render();
+    });
 
     void this.render();
   }

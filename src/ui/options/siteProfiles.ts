@@ -1,4 +1,4 @@
-import { Store } from "@core/application/storage/Store.js";
+import type { Store } from "@core/application/storage/Store.js";
 import { SUPPORTED_LANGUAGES, resolveEnabledLanguages } from "@core/domain/lang";
 import {
   KEY_ENABLED_LANGUAGES,
@@ -92,10 +92,14 @@ export class SiteProfilesManager {
   private statusIsError = false;
   private elements!: SiteProfilesElements;
 
-  constructor(settings: FancierSettingsLike, onConfigChange?: () => Promise<void> | void) {
+  constructor(
+    settings: FancierSettingsLike,
+    store: Store,
+    onConfigChange?: () => Promise<void> | void,
+  ) {
     this.settings = settings;
+    this.store = store;
     this.onConfigChange = onConfigChange;
-    this.store = new Store("settings");
     this.root = this.settings.siteProfilesEditor.rootElement;
     this.buildUI();
     this.cacheElements();
