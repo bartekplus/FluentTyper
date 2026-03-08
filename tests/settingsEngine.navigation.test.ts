@@ -1,7 +1,9 @@
 import "./setup";
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, jest, test } from "bun:test";
 import { SettingsEngine } from "../src/ui/settings-engine/SettingsEngine.js";
 import type { ManifestDefinition } from "../src/ui/settings-engine/types.js";
+
+const originalScrollIntoView = HTMLElement.prototype.scrollIntoView;
 
 function createManifest(): ManifestDefinition {
   return {
@@ -57,6 +59,7 @@ function createEngineElements() {
 afterEach(() => {
   document.body.replaceChildren();
   window.location.hash = "";
+  HTMLElement.prototype.scrollIntoView = originalScrollIntoView;
 });
 
 describe("SettingsEngine navigation", () => {
@@ -104,5 +107,21 @@ describe("SettingsEngine navigation", () => {
     expect(elements.tabs.querySelector("li.is-active a")?.getAttribute("href")).toBe(
       "#advanced_tab",
     );
+  });
+
+  test("tab changes reset the shared scroll position to the active section", () => {
+    const scrollSpy = jest.fn();
+    HTMLElement.prototype.scrollIntoView = scrollSpy;
+    const elements = createEngineElements();
+    const engine = new SettingsEngine({
+      container: elements,
+    });
+
+    engine.buildFromManifest(createManifest());
+    elements.mobileTabs.value = "about_support_tab";
+    elements.mobileTabs.dispatchEvent(new Event("change", { bubbles: true }));
+
+    expect(scrollSpy).toHaveBeenCalled();
+    expect(elements.content.querySelector(".content-tab.is-active")?.id).toBe("about_support_tab");
   });
 });

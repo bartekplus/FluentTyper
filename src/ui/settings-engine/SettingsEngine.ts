@@ -122,6 +122,10 @@ export class SettingsEngine {
       if (this.mobileTabs) {
         this.mobileTabs.value = tabId;
       }
+      tab.content.scrollIntoView?.({
+        block: "start",
+        inline: "nearest",
+      });
     }
   }
 
