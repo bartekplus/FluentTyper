@@ -120,7 +120,7 @@ export class SliderControl extends BaseControl<number> {
     }
 
     if (!silent) {
-      this._element.dispatchEvent(new Event("change"));
+      this._element.dispatchEvent(new Event("input"));
     }
 
     return this;

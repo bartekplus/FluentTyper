@@ -99,11 +99,26 @@ describe("SliderControl", () => {
     const ctrl = new SliderControl({ type: "slider", min: 0, max: 10 }, makeStore());
     const received: number[] = [];
     ctrl.addEvent("action", (v) => received.push(v as number));
-    // Slider action fires on "input" events (user interaction), not on programmatic set()
     const input = ctrl.element as HTMLInputElement;
     input.value = "7";
     input.dispatchEvent(new Event("input"));
     expect(received).toEqual([7]);
+  });
+
+  test("non-silent set fires action exactly once", () => {
+    const ctrl = new SliderControl({ type: "slider", min: 0, max: 10 }, makeStore());
+    const received: number[] = [];
+    ctrl.addEvent("action", (v) => received.push(v as number));
+    ctrl.set(5, false);
+    expect(received).toEqual([5]);
+  });
+
+  test("silent set does not fire action", () => {
+    const ctrl = new SliderControl({ type: "slider", min: 0, max: 10 }, makeStore());
+    const received: number[] = [];
+    ctrl.addEvent("action", (v) => received.push(v as number));
+    ctrl.set(5, true);
+    expect(received).toHaveLength(0);
   });
 
   test("tooltip element is rendered", () => {
@@ -154,6 +169,22 @@ describe("TextareaControl", () => {
   test("element is a textarea", () => {
     const ctrl = new TextareaControl({ type: "textarea" }, makeStore());
     expect(ctrl.element.tagName.toLowerCase()).toBe("textarea");
+  });
+
+  test("non-silent set fires action", () => {
+    const ctrl = new TextareaControl({ type: "textarea" }, makeStore());
+    const received: string[] = [];
+    ctrl.addEvent("action", (v) => received.push(v as string));
+    ctrl.set("hello", false);
+    expect(received).toEqual(["hello"]);
+  });
+
+  test("silent set does not fire action", () => {
+    const ctrl = new TextareaControl({ type: "textarea" }, makeStore());
+    const received: string[] = [];
+    ctrl.addEvent("action", (v) => received.push(v as string));
+    ctrl.set("hello", true);
+    expect(received).toHaveLength(0);
   });
 });
 
@@ -225,6 +256,22 @@ describe("RadioControl", () => {
     const ctrl = new RadioControl({ type: "radioButtons", options: OPTIONS }, makeStore());
     const inputs = ctrl.rootElement.querySelectorAll('input[type="radio"]');
     expect(inputs.length).toBe(2);
+  });
+
+  test("non-silent set fires action", () => {
+    const ctrl = new RadioControl({ type: "radioButtons", options: OPTIONS }, makeStore());
+    const received: string[] = [];
+    ctrl.addEvent("action", (v) => received.push(v as string));
+    ctrl.set("opt1", false);
+    expect(received).toEqual(["opt1"]);
+  });
+
+  test("silent set does not fire action", () => {
+    const ctrl = new RadioControl({ type: "radioButtons", options: OPTIONS }, makeStore());
+    const received: string[] = [];
+    ctrl.addEvent("action", (v) => received.push(v as string));
+    ctrl.set("opt1", true);
+    expect(received).toHaveLength(0);
   });
 });
 
