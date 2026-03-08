@@ -1,5 +1,5 @@
 import "./setup";
-import { beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
 import { KEY_ENABLED_GRAMMAR_RULES } from "../src/core/domain/constants";
 import { manifest } from "../src/ui/options/settingsManifest.js";
 import { i18n } from "../src/ui/options/fluenttyperI18n.js";
@@ -84,6 +84,35 @@ function visibleRuleValues(host: HTMLElement): string[] {
     .map((card) => (card.querySelector(".grammar-rule-card-toggle") as HTMLInputElement).value);
 }
 
+function visibleRuleCards(host: HTMLElement): HTMLLabelElement[] {
+  return Array.from(host.querySelectorAll(".grammar-rule-card")).filter(
+    (card): card is HTMLLabelElement =>
+      card instanceof HTMLElement &&
+      card.tagName.toLowerCase() === "label" &&
+      !card.classList.contains("is-hidden"),
+  );
+}
+
+function findRuleCard(host: HTMLElement, value: string): HTMLLabelElement {
+  const input = host.querySelector(
+    `.grammar-rule-card-toggle[value="${value}"]`,
+  ) as HTMLInputElement | null;
+  if (
+    !(input instanceof HTMLElement) ||
+    input.tagName.toLowerCase() !== "input" ||
+    !(input.parentElement instanceof HTMLElement) ||
+    input.parentElement.tagName.toLowerCase() !== "label"
+  ) {
+    throw new Error(`Missing rule card ${value}`);
+  }
+  return input.parentElement as HTMLLabelElement;
+}
+
+function pressKey(target: HTMLElement, key: string): void {
+  const event = new window.KeyboardEvent("keydown", { key, bubbles: true });
+  target.dispatchEvent(event);
+}
+
 function clickFilter(host: HTMLElement, filterKey: string): void {
   const button = host.querySelector(`.grammar-rule-filter-button[data-filter="${filterKey}"]`);
   if (!(button instanceof HTMLElement)) {
@@ -93,8 +122,18 @@ function clickFilter(host: HTMLElement, filterKey: string): void {
 }
 
 describe("ruleToggleCards setting", () => {
+  let fakeTimersActive = false;
+
   beforeEach(() => {
     document.body.innerHTML = "";
+    fakeTimersActive = false;
+  });
+
+  afterEach(() => {
+    if (fakeTimersActive) {
+      jest.clearAllTimers();
+    }
+    jest.useRealTimers();
   });
 
   test("manifest maps grammar rules to the dedicated grammar tab with metadata", () => {
@@ -145,7 +184,10 @@ describe("ruleToggleCards setting", () => {
     expect(actionLabels).not.toContain(i18n.get("grammar_rules_safe_defaults"));
   });
 
-  test("search and tier/language filters narrow visible grammar cards", () => {
+  test("search waits for a 300 ms debounce and clear-search restores results immediately", () => {
+    jest.useFakeTimers();
+    fakeTimersActive = true;
+
     const { host } = buildRuleToggleCardsHost();
     const noMatches = host.querySelector(".grammar-rule-selector-no-results");
     expect(noMatches).toBeInstanceOf(HTMLElement);
@@ -157,6 +199,51 @@ describe("ruleToggleCards setting", () => {
       "advancedEllipsis",
     ]);
 
+    const searchInput = host.querySelector(".grammar-rule-search-input");
+    expect(searchInput).toBeInstanceOf(HTMLElement);
+    const input = searchInput as HTMLInputElement;
+    const clearButton = host.querySelector(".grammar-rule-search-clear");
+    expect(clearButton).toBeInstanceOf(HTMLElement);
+
+    input.value = "ellipsis";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+
+    expect(visibleRuleValues(host)).toEqual([
+      "safePunctuation",
+      "englishPronounI",
+      "advancedEllipsis",
+    ]);
+    jest.advanceTimersByTime(299);
+    expect(visibleRuleValues(host)).toEqual([
+      "safePunctuation",
+      "englishPronounI",
+      "advancedEllipsis",
+    ]);
+    jest.advanceTimersByTime(1);
+    expect(visibleRuleValues(host)).toEqual(["advancedEllipsis"]);
+    expect((noMatches as HTMLElement).classList.contains("is-hidden")).toBe(true);
+
+    input.value = "definitely-no-such-rule";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+
+    jest.advanceTimersByTime(300);
+    expect(visibleRuleValues(host)).toEqual([]);
+    expect((noMatches as HTMLElement).classList.contains("is-hidden")).toBe(false);
+
+    (clearButton as HTMLElement).dispatchEvent(new Event("click", { bubbles: true }));
+
+    expect(input.value).toBe("");
+    expect(visibleRuleValues(host)).toEqual([
+      "safePunctuation",
+      "englishPronounI",
+      "advancedEllipsis",
+    ]);
+    expect((noMatches as HTMLElement).classList.contains("is-hidden")).toBe(true);
+  });
+
+  test("tier and language filters narrow visible grammar cards", () => {
+    const { host } = buildRuleToggleCardsHost();
+
     clickFilter(host, "advanced");
     expect(visibleRuleValues(host)).toEqual(["advancedEllipsis"]);
 
@@ -167,27 +254,44 @@ describe("ruleToggleCards setting", () => {
       '.grammar-rule-filter-button[data-filter="recommended"]',
     );
     expect(recommendedFilterButton).toBeNull();
+  });
 
-    clickFilter(host, "all");
-    const searchInput = host.querySelector(".grammar-rule-search-input");
-    expect(searchInput).toBeInstanceOf(HTMLElement);
-    const input = searchInput as HTMLInputElement;
-    input.value = "ellipsis";
-    input.dispatchEvent(new Event("input", { bubbles: true }));
+  test("uses roving tabindex for cards and supports arrow and Space keyboard control", () => {
+    const { host, bundle } = buildRuleToggleCardsHost();
 
+    const safeCard = findRuleCard(host, "safePunctuation");
+    const englishCard = findRuleCard(host, "englishPronounI");
+    const advancedCard = findRuleCard(host, "advancedEllipsis");
+
+    expect(visibleRuleCards(host).map((card) => card.tabIndex)).toEqual([0, -1, -1]);
+    expect(
+      Array.from(host.querySelectorAll(".grammar-rule-card-toggle")).map((input) =>
+        (input as HTMLInputElement).tabIndex,
+      ),
+    ).toEqual([-1, -1, -1]);
+
+    safeCard.focus();
+    expect(document.activeElement).toBe(safeCard);
+
+    pressKey(safeCard, "ArrowDown");
+    expect(visibleRuleCards(host).map((card) => card.tabIndex)).toEqual([-1, 0, -1]);
+    expect(host.querySelector('.grammar-rule-card[tabindex="0"]')).toBe(englishCard);
+
+    pressKey(englishCard, "ArrowRight");
+    expect(visibleRuleCards(host).map((card) => card.tabIndex)).toEqual([-1, -1, 0]);
+    expect(host.querySelector('.grammar-rule-card[tabindex="0"]')).toBe(advancedCard);
+
+    pressKey(advancedCard, " ");
+    expect(bundle.get()).toEqual(["advancedEllipsis"]);
+    expect(
+      (advancedCard.querySelector(".grammar-rule-card-toggle") as HTMLInputElement).checked,
+    ).toBe(true);
+
+    clickFilter(host, "advanced");
     expect(visibleRuleValues(host)).toEqual(["advancedEllipsis"]);
-    expect((noMatches as HTMLElement).classList.contains("is-hidden")).toBe(true);
-
-    input.value = "definitely-no-such-rule";
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-
-    expect(visibleRuleValues(host)).toEqual([]);
-    expect((noMatches as HTMLElement).classList.contains("is-hidden")).toBe(false);
-
-    input.value = "";
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-    expect(visibleRuleValues(host).length).toBeGreaterThan(0);
-    expect((noMatches as HTMLElement).classList.contains("is-hidden")).toBe(true);
+    expect(visibleRuleCards(host).map((card) => card.tabIndex)).toEqual([0]);
+    expect(safeCard.tabIndex).toBe(-1);
+    expect(englishCard.tabIndex).toBe(-1);
   });
 
   test("bulk actions and enabled-only filter stay in sync with selected rule values", () => {

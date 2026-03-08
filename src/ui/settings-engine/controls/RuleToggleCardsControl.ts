@@ -35,6 +35,8 @@ interface SectionBundle {
   list: HTMLElement;
 }
 
+const SEARCH_DEBOUNCE_MS = 300;
+
 function normalizeRule(option: unknown): NormalizedRule {
   if (Array.isArray(option)) {
     const [v, t] = option as [unknown, unknown];
@@ -74,6 +76,7 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
   private activeFilter = "all";
   private searchQuery = "";
   private rovingIndex = 0;
+  private searchDebounceTimer: number | null = null;
   private readonly summaryLabel: string;
   private readonly emptyStateText: string;
 
@@ -240,15 +243,14 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
     // --- Events ---
     searchInput.addEventListener("input", () => {
       clearBtn.style.display = searchInput.value ? "" : "none";
-      this.searchQuery = searchInput.value.trim().toLowerCase();
-      this.updateStateUI();
+      this.scheduleSearch(searchInput.value);
     });
 
     clearBtn.addEventListener("click", () => {
       searchInput.value = "";
       clearBtn.style.display = "none";
-      this.searchQuery = "";
-      this.updateStateUI();
+      this.applySearchQuery("");
+      searchInput.focus();
     });
 
     this.updateFilterButtons();
@@ -278,11 +280,16 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
   private createCard(rule: NormalizedRule, container: HTMLElement): RuleControl {
     const card = document.createElement("label");
     card.className = "grammar-rule-card";
+    card.setAttribute("role", "checkbox");
+    card.setAttribute("aria-label", rule.text);
+    card.setAttribute("aria-checked", "false");
 
     const input = document.createElement("input");
     input.type = "checkbox";
     input.value = rule.value;
     input.className = "grammar-rule-card-toggle";
+    input.tabIndex = -1;
+    input.setAttribute("tabindex", "-1");
     input.setAttribute("role", "checkbox");
     input.setAttribute("aria-label", rule.text);
     input.setAttribute("aria-checked", "false");
@@ -332,8 +339,10 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
       this.emitter.fireEvent("action", value);
     });
 
-    // Keyboard: Space toggles, Arrow keys navigate within the group
-    card.setAttribute("tabindex", "0");
+    this.setTabIndex(card, -1);
+    card.addEventListener("focus", () => {
+      this.syncRovingTabIndex(card);
+    });
     card.addEventListener("keydown", (e: KeyboardEvent) => {
       if (e.key === " ") {
         e.preventDefault();
@@ -353,22 +362,96 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
     return { value: rule.value, input, card, rule, sectionType: rule.safetyTier };
   }
 
+  private getVisibleRuleControls(): RuleControl[] {
+    return this.ruleControls
+      .filter((rc) => !rc.card.classList.contains("is-hidden"))
+      .sort((left, right) => {
+        if (left.card === right.card) {
+          return 0;
+        }
+        return left.card.compareDocumentPosition(right.card) & Node.DOCUMENT_POSITION_FOLLOWING
+          ? -1
+          : 1;
+      });
+  }
+
+  private scheduleSearch(value: string): void {
+    if (this.searchDebounceTimer !== null) {
+      window.clearTimeout(this.searchDebounceTimer);
+    }
+    const nextQuery = value.trim().toLowerCase();
+    this.searchDebounceTimer = window.setTimeout(() => {
+      this.searchDebounceTimer = null;
+      this.applySearchQuery(nextQuery);
+    }, SEARCH_DEBOUNCE_MS);
+  }
+
+  private applySearchQuery(query: string): void {
+    if (this.searchDebounceTimer !== null) {
+      window.clearTimeout(this.searchDebounceTimer);
+      this.searchDebounceTimer = null;
+    }
+    this.searchQuery = query;
+    this.updateStateUI();
+  }
+
+  private setTabIndex(element: HTMLElement, value: number): void {
+    element.tabIndex = value;
+    element.setAttribute("tabindex", String(value));
+  }
+
+  private syncRovingTabIndex(preferredCard?: HTMLLabelElement): void {
+    const visible = this.getVisibleRuleControls();
+    if (visible.length === 0) {
+      this.rovingIndex = 0;
+      for (const ctrl of this.ruleControls) {
+        this.setTabIndex(ctrl.card, -1);
+      }
+      return;
+    }
+
+    let nextIndex = -1;
+    if (preferredCard) {
+      nextIndex = visible.findIndex((ctrl) => ctrl.card === preferredCard);
+    }
+    if (nextIndex === -1 && document.activeElement instanceof HTMLElement) {
+      nextIndex = visible.findIndex((ctrl) => ctrl.card === document.activeElement);
+    }
+    if (nextIndex === -1) {
+      nextIndex = Math.min(this.rovingIndex, visible.length - 1);
+    }
+    if (nextIndex < 0) {
+      nextIndex = 0;
+    }
+
+    this.rovingIndex = nextIndex;
+    const activeCard = visible[nextIndex]?.card;
+    for (const ctrl of this.ruleControls) {
+      this.setTabIndex(ctrl.card, ctrl.card === activeCard ? 0 : -1);
+    }
+  }
+
   private moveRovingFocus(direction: 1 | -1): void {
-    const visible = this.ruleControls.filter((rc) => !rc.card.classList.contains("is-hidden"));
+    const visible = this.getVisibleRuleControls();
     if (visible.length === 0) {
       return;
     }
 
-    const currentIdx = visible.findIndex((rc) => rc.card === document.activeElement);
+    const currentIdx = visible.findIndex(
+      (rc) => rc.card === document.activeElement || rc.card.tabIndex === 0,
+    );
     let next = currentIdx + direction;
+    if (currentIdx === -1) {
+      next = direction === 1 ? 0 : visible.length - 1;
+    }
     if (next < 0) {
       next = visible.length - 1;
     }
     if (next >= visible.length) {
       next = 0;
     }
+    this.syncRovingTabIndex(visible[next].card);
     visible[next].card.focus();
-    this.rovingIndex = next;
   }
 
   private updateFilterButtons(): void {
@@ -413,6 +496,7 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
     for (const ctrl of this.ruleControls) {
       const isChecked = ctrl.input.checked;
       ctrl.input.setAttribute("aria-checked", String(isChecked));
+      ctrl.card.setAttribute("aria-checked", String(isChecked));
       ctrl.card.classList.toggle("is-active", isChecked);
       if (isChecked) {
         activeCount++;
@@ -434,6 +518,7 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
     this.safeSection.section.classList.toggle("is-hidden", safeVisible === 0);
     this.advancedSection.section.classList.toggle("is-hidden", advancedVisible === 0);
     this.noResults.classList.toggle("is-hidden", visibleCount > 0);
+    this.syncRovingTabIndex();
 
     if (activeCount === 0) {
       this.summary.innerText = this.emptyStateText;
@@ -442,6 +527,14 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
       this.summary.innerText = `${this.summaryLabel}: ${activeCount}/${this.ruleControls.length}`;
       this.summary.classList.remove("is-empty");
     }
+  }
+
+  override destroy(): void {
+    if (this.searchDebounceTimer !== null) {
+      window.clearTimeout(this.searchDebounceTimer);
+      this.searchDebounceTimer = null;
+    }
+    super.destroy();
   }
 
   get(): string[] {
