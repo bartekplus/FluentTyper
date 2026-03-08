@@ -122,17 +122,11 @@ function clickFilter(host: HTMLElement, filterKey: string): void {
 }
 
 describe("ruleToggleCards setting", () => {
-  let fakeTimersActive = false;
-
   beforeEach(() => {
     document.body.innerHTML = "";
-    fakeTimersActive = false;
   });
 
   afterEach(() => {
-    if (fakeTimersActive) {
-      jest.clearAllTimers();
-    }
     jest.useRealTimers();
   });
 
@@ -184,10 +178,7 @@ describe("ruleToggleCards setting", () => {
     expect(actionLabels).not.toContain(i18n.get("grammar_rules_safe_defaults"));
   });
 
-  test("search waits for a 300 ms debounce and clear-search restores results immediately", () => {
-    jest.useFakeTimers();
-    fakeTimersActive = true;
-
+  test("search updates immediately and clear-search restores all results", () => {
     const { host } = buildRuleToggleCardsHost();
     const noMatches = host.querySelector(".grammar-rule-selector-no-results");
     expect(noMatches).toBeInstanceOf(HTMLElement);
@@ -208,25 +199,12 @@ describe("ruleToggleCards setting", () => {
     input.value = "ellipsis";
     input.dispatchEvent(new Event("input", { bubbles: true }));
 
-    expect(visibleRuleValues(host)).toEqual([
-      "safePunctuation",
-      "englishPronounI",
-      "advancedEllipsis",
-    ]);
-    jest.advanceTimersByTime(299);
-    expect(visibleRuleValues(host)).toEqual([
-      "safePunctuation",
-      "englishPronounI",
-      "advancedEllipsis",
-    ]);
-    jest.advanceTimersByTime(1);
     expect(visibleRuleValues(host)).toEqual(["advancedEllipsis"]);
     expect((noMatches as HTMLElement).classList.contains("is-hidden")).toBe(true);
 
     input.value = "definitely-no-such-rule";
     input.dispatchEvent(new Event("input", { bubbles: true }));
 
-    jest.advanceTimersByTime(300);
     expect(visibleRuleValues(host)).toEqual([]);
     expect((noMatches as HTMLElement).classList.contains("is-hidden")).toBe(false);
 

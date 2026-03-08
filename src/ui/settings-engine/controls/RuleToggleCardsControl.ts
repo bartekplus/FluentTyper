@@ -35,8 +35,6 @@ interface SectionBundle {
   list: HTMLElement;
 }
 
-const SEARCH_DEBOUNCE_MS = 300;
-
 function normalizeRule(option: unknown): NormalizedRule {
   if (Array.isArray(option)) {
     const [v, t] = option as [unknown, unknown];
@@ -76,7 +74,6 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
   private activeFilter = "all";
   private searchQuery = "";
   private rovingIndex = 0;
-  private searchDebounceTimer: number | null = null;
   private readonly summaryLabel: string;
   private readonly emptyStateText: string;
 
@@ -243,7 +240,7 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
     // --- Events ---
     searchInput.addEventListener("input", () => {
       clearBtn.style.display = searchInput.value ? "" : "none";
-      this.scheduleSearch(searchInput.value);
+      this.applySearchQuery(searchInput.value);
     });
 
     clearBtn.addEventListener("click", () => {
@@ -375,23 +372,8 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
       });
   }
 
-  private scheduleSearch(value: string): void {
-    if (this.searchDebounceTimer !== null) {
-      window.clearTimeout(this.searchDebounceTimer);
-    }
-    const nextQuery = value.trim().toLowerCase();
-    this.searchDebounceTimer = window.setTimeout(() => {
-      this.searchDebounceTimer = null;
-      this.applySearchQuery(nextQuery);
-    }, SEARCH_DEBOUNCE_MS);
-  }
-
   private applySearchQuery(query: string): void {
-    if (this.searchDebounceTimer !== null) {
-      window.clearTimeout(this.searchDebounceTimer);
-      this.searchDebounceTimer = null;
-    }
-    this.searchQuery = query;
+    this.searchQuery = query.trim().toLowerCase();
     this.updateStateUI();
   }
 
@@ -530,10 +512,6 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
   }
 
   override destroy(): void {
-    if (this.searchDebounceTimer !== null) {
-      window.clearTimeout(this.searchDebounceTimer);
-      this.searchDebounceTimer = null;
-    }
     super.destroy();
   }
 
