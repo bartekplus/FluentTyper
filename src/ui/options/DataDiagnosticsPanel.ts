@@ -27,8 +27,6 @@ export class DataDiagnosticsPanel {
   render(): void {
     const shell = document.createElement("div");
     shell.className = "workspace-panel-stack";
-    const primaryGrid = document.createElement("div");
-    primaryGrid.className = "workspace-card-grid";
 
     const productivity = createWorkspaceCard(
       i18n.get("productivity_dashboard_group"),
@@ -36,7 +34,7 @@ export class DataDiagnosticsPanel {
     );
     moveControlToBody(this.registry, "productivityStatsPanel", productivity.body);
     moveControlToBody(this.registry, "resetProductivityStatsButton", productivity.body);
-    primaryGrid.appendChild(productivity.card);
+    shell.appendChild(productivity.card);
 
     const config = createWorkspaceCard(
       i18n.get("config_data"),
@@ -44,27 +42,24 @@ export class DataDiagnosticsPanel {
     );
     moveControlToBody(this.registry, "importSettingButton", config.body);
     moveControlToBody(this.registry, "exportSettingButton", config.body);
-    primaryGrid.appendChild(config.card);
-    shell.appendChild(primaryGrid);
+    shell.appendChild(config.card);
 
     if (this.isDevBuild) {
       const debugDisclosure = document.createElement("details");
-      debugDisclosure.className = "settings-disclosure";
+      debugDisclosure.className = "settings-disclosure settings-inline-card";
       const debugSummary = document.createElement("summary");
       debugSummary.textContent = i18n.get("predictor_debug_group");
       debugDisclosure.appendChild(debugSummary);
 
-      const debug = createWorkspaceCard(
-        i18n.get("predictor_debug_group"),
-        i18n.get("predictor_debug_desc"),
-      );
-      moveControlToBody(this.registry, "predictorDebugHint", debug.body);
-      moveControlToBody(this.registry, KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED, debug.body);
-      moveControlToBody(this.registry, KEY_DEBUG_AI_PREDICTOR_ENABLED, debug.body);
-      moveControlToBody(this.registry, KEY_AI_MODEL_ID, debug.body);
-      moveControlToBody(this.registry, KEY_AI_PREDICTION_TIMEOUT_MS, debug.body);
-      moveControlToBody(this.registry, "predictorDebugPanel", debug.body);
-      debugDisclosure.appendChild(debug.card);
+      const debugBody = document.createElement("div");
+      debugBody.className = "workspace-section-body";
+      moveControlToBody(this.registry, "predictorDebugHint", debugBody);
+      moveControlToBody(this.registry, KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED, debugBody);
+      moveControlToBody(this.registry, KEY_DEBUG_AI_PREDICTOR_ENABLED, debugBody);
+      moveControlToBody(this.registry, KEY_AI_MODEL_ID, debugBody);
+      moveControlToBody(this.registry, KEY_AI_PREDICTION_TIMEOUT_MS, debugBody);
+      moveControlToBody(this.registry, "predictorDebugPanel", debugBody);
+      debugDisclosure.appendChild(debugBody);
       shell.appendChild(debugDisclosure);
     }
 

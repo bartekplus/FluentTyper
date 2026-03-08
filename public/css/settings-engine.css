@@ -345,6 +345,10 @@ body.fluenttyper-options .settings-group.settings-group-panel-only .settings-gro
   font-weight: 700;
 }
 
+.settings-disclosure > .workspace-section-body {
+  padding-top: 0.1rem;
+}
+
 .text-assets-toolbar,
 .text-assets-actions,
 .site-profile-card-header,

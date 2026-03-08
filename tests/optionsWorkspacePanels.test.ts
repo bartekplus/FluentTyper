@@ -153,6 +153,10 @@ describe("options workspace panels", () => {
     expect(panelRoot.textContent).toContain("Productivity graph");
     expect(panelRoot.textContent).toContain("Import settings");
     expect(panelRoot.textContent).toContain("Debug dashboard");
+    expect(
+      panelRoot.querySelectorAll(".workspace-panel-stack > .settings-inline-card"),
+    ).toHaveLength(3);
+    expect(panelRoot.querySelector(".settings-disclosure .settings-inline-card")).toBeNull();
     expect(tab.querySelectorAll(".settings-group.is-empty-workspace-group")).toHaveLength(3);
   });
 
