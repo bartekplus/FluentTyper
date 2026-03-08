@@ -14,6 +14,7 @@ import {
   KEY_SUGGESTION_TEXT_DARK,
   KEY_SUGGESTION_TEXT_LIGHT,
 } from "@core/domain/constants";
+import { i18n } from "./fluenttyperI18n.js";
 
 type ThemePreset = Record<string, string>;
 
@@ -66,7 +67,7 @@ export class AppearanceStudio {
     const shell = document.createElement("section");
     shell.className = "settings-inline-card";
     const title = document.createElement("h4");
-    title.textContent = "Presets";
+    title.textContent = i18n.get("theme_presets");
     shell.appendChild(title);
 
     const grid = document.createElement("div");
@@ -76,13 +77,16 @@ export class AppearanceStudio {
       button.type = "button";
       button.className = "preset-card";
       const label = document.createElement("strong");
-      label.textContent = presetName === "compact" ? "Compact" : "Default";
+      label.textContent =
+        presetName === "compact"
+          ? i18n.get("use_compact_theme_btn")
+          : i18n.get("use_default_theme_btn");
       button.appendChild(label);
       const desc = document.createElement("span");
       desc.textContent =
         presetName === "compact"
-          ? "Tighter padding with a lighter visual footprint."
-          : "Balanced spacing and the standard FluentTyper appearance.";
+          ? i18n.get("use_compact_theme_desc")
+          : i18n.get("use_default_theme_desc");
       button.appendChild(desc);
       button.addEventListener("click", () => {
         Object.entries(preset).forEach(([key, value]) => {
@@ -99,7 +103,7 @@ export class AppearanceStudio {
     const shell = document.createElement("section");
     shell.className = "settings-inline-card";
     const title = document.createElement("h4");
-    title.textContent = "Preview";
+    title.textContent = i18n.get("appearance_preview_title");
     shell.appendChild(title);
 
     const toggle = document.createElement("div");
@@ -111,7 +115,10 @@ export class AppearanceStudio {
       if (mode === this.previewMode) {
         button.classList.add("is-active");
       }
-      button.textContent = mode === "light" ? "Light preview" : "Dark preview";
+      button.textContent =
+        mode === "light"
+          ? i18n.get("appearance_light_preview")
+          : i18n.get("appearance_dark_preview");
       button.addEventListener("click", () => {
         this.previewMode = mode as "light" | "dark";
         this.render();
@@ -140,7 +147,11 @@ export class AppearanceStudio {
     preview.style.fontSize = theme[KEY_SUGGESTION_FONT_SIZE];
     preview.style.padding = `${theme[KEY_SUGGESTION_PADDING_VERTICAL]} ${theme[KEY_SUGGESTION_PADDING_HORIZONTAL]}`;
 
-    ["meeting notes", "meeting notes today", "meeting notes template"].forEach((entry, index) => {
+    [
+      i18n.get("appearance_sample_one"),
+      i18n.get("appearance_sample_two"),
+      i18n.get("appearance_sample_three"),
+    ].forEach((entry, index) => {
       const item = document.createElement("div");
       item.className = "appearance-preview-item";
       item.textContent = entry;
@@ -159,42 +170,42 @@ export class AppearanceStudio {
     const shell = document.createElement("section");
     shell.className = "settings-inline-card";
     const title = document.createElement("h4");
-    title.textContent = "Typography & spacing";
+    title.textContent = i18n.get("typography_spacing");
     shell.appendChild(title);
 
     shell.appendChild(
       this.createSelectField(
-        "Font size",
+        i18n.get("font_size_label"),
         theme[KEY_SUGGESTION_FONT_SIZE],
         [
-          ["0.8rem", "Smaller"],
-          ["0.85rem", "Compact"],
-          ["0.9rem", "Normal"],
-          ["1rem", "Large"],
+          ["0.8rem", "0.8rem"],
+          ["0.85rem", "0.85rem"],
+          ["0.9rem", "0.9rem"],
+          ["1rem", "1rem"],
         ],
         (value) => this.registry[KEY_SUGGESTION_FONT_SIZE].set(value),
       ),
     );
     shell.appendChild(
       this.createSelectField(
-        "Vertical padding",
+        i18n.get("vertical_padding_label"),
         theme[KEY_SUGGESTION_PADDING_VERTICAL],
         [
-          ["0.4rem", "Compact"],
-          ["0.6rem", "Normal"],
-          ["0.8rem", "Large"],
+          ["0.4rem", "0.4rem"],
+          ["0.6rem", "0.6rem"],
+          ["0.8rem", "0.8rem"],
         ],
         (value) => this.registry[KEY_SUGGESTION_PADDING_VERTICAL].set(value),
       ),
     );
     shell.appendChild(
       this.createSelectField(
-        "Horizontal padding",
+        i18n.get("horizontal_padding_label"),
         theme[KEY_SUGGESTION_PADDING_HORIZONTAL],
         [
-          ["0.6rem", "Compact"],
-          ["0.8rem", "Normal"],
-          ["1rem", "Large"],
+          ["0.6rem", "0.6rem"],
+          ["0.8rem", "0.8rem"],
+          ["1rem", "1rem"],
         ],
         (value) => this.registry[KEY_SUGGESTION_PADDING_HORIZONTAL].set(value),
       ),
@@ -206,20 +217,38 @@ export class AppearanceStudio {
     const shell = document.createElement("details");
     shell.className = "settings-disclosure";
     const summary = document.createElement("summary");
-    summary.textContent = "Advanced colors";
+    summary.textContent = i18n.get("appearance_advanced_colors");
     shell.appendChild(summary);
 
     const fields = [
-      [KEY_SUGGESTION_BG_LIGHT, "Light background"],
-      [KEY_SUGGESTION_TEXT_LIGHT, "Light text"],
-      [KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT, "Light highlight background"],
-      [KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT, "Light highlight text"],
-      [KEY_SUGGESTION_BORDER_LIGHT, "Light border"],
-      [KEY_SUGGESTION_BG_DARK, "Dark background"],
-      [KEY_SUGGESTION_TEXT_DARK, "Dark text"],
-      [KEY_SUGGESTION_HIGHLIGHT_BG_DARK, "Dark highlight background"],
-      [KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK, "Dark highlight text"],
-      [KEY_SUGGESTION_BORDER_DARK, "Dark border"],
+      [KEY_SUGGESTION_BG_LIGHT, this.composeThemeLabel("light_theme_colors", "bg_color_label")],
+      [KEY_SUGGESTION_TEXT_LIGHT, this.composeThemeLabel("light_theme_colors", "text_color_label")],
+      [
+        KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT,
+        this.composeThemeLabel("light_theme_colors", "highlight_bg_label"),
+      ],
+      [
+        KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT,
+        this.composeThemeLabel("light_theme_colors", "highlight_text_label"),
+      ],
+      [
+        KEY_SUGGESTION_BORDER_LIGHT,
+        this.composeThemeLabel("light_theme_colors", "border_color_label"),
+      ],
+      [KEY_SUGGESTION_BG_DARK, this.composeThemeLabel("dark_theme_colors", "bg_color_label")],
+      [KEY_SUGGESTION_TEXT_DARK, this.composeThemeLabel("dark_theme_colors", "text_color_label")],
+      [
+        KEY_SUGGESTION_HIGHLIGHT_BG_DARK,
+        this.composeThemeLabel("dark_theme_colors", "highlight_bg_label"),
+      ],
+      [
+        KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK,
+        this.composeThemeLabel("dark_theme_colors", "highlight_text_label"),
+      ],
+      [
+        KEY_SUGGESTION_BORDER_DARK,
+        this.composeThemeLabel("dark_theme_colors", "border_color_label"),
+      ],
     ] as const;
 
     fields.forEach(([key, label]) => {
@@ -245,33 +274,33 @@ export class AppearanceStudio {
     const shell = document.createElement("section");
     shell.className = "settings-inline-card";
     const title = document.createElement("h4");
-    title.textContent = "Contrast checks";
+    title.textContent = i18n.get("appearance_contrast_checks");
     shell.appendChild(title);
 
     const warnings = [
       {
-        label: "Light theme text",
+        label: this.composeThemeLabel("light_theme_colors", "text_color_label"),
         ratio: this.calculateContrast(
           theme[KEY_SUGGESTION_BG_LIGHT],
           theme[KEY_SUGGESTION_TEXT_LIGHT],
         ),
       },
       {
-        label: "Light theme highlight",
+        label: this.composeThemeLabel("light_theme_colors", "highlight_text_label"),
         ratio: this.calculateContrast(
           theme[KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT],
           theme[KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT],
         ),
       },
       {
-        label: "Dark theme text",
+        label: this.composeThemeLabel("dark_theme_colors", "text_color_label"),
         ratio: this.calculateContrast(
           theme[KEY_SUGGESTION_BG_DARK],
           theme[KEY_SUGGESTION_TEXT_DARK],
         ),
       },
       {
-        label: "Dark theme highlight",
+        label: this.composeThemeLabel("dark_theme_colors", "highlight_text_label"),
         ratio: this.calculateContrast(
           theme[KEY_SUGGESTION_HIGHLIGHT_BG_DARK],
           theme[KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK],
@@ -284,11 +313,15 @@ export class AppearanceStudio {
       item.className = "settings-inline-help";
       item.textContent =
         warning.ratio < 4.5
-          ? `${warning.label}: ${warning.ratio.toFixed(2)}:1. Consider increasing contrast.`
-          : `${warning.label}: ${warning.ratio.toFixed(2)}:1. Looks good.`;
+          ? `${warning.label}: ${warning.ratio.toFixed(2)}:1. ${i18n.get("appearance_contrast_warn")}`
+          : `${warning.label}: ${warning.ratio.toFixed(2)}:1. ${i18n.get("appearance_contrast_good")}`;
       shell.appendChild(item);
     });
     return shell;
+  }
+
+  private composeThemeLabel(themeKey: string, fieldKey: string): string {
+    return `${i18n.get(themeKey)} · ${i18n.get(fieldKey)}`;
   }
 
   private createSelectField(

@@ -158,7 +158,7 @@ function importSettingButtonFileSelected(
       const jsonSettings = JSON.parse(fr.result as string) as Record<string, unknown>;
       delete jsonSettings["store.settings.revertOnBackspace"];
       chrome.storage.local.set(jsonSettings as Record<string, unknown>);
-      dispatchSettingsSaveStatus("saved", { message: "Settings imported." });
+      dispatchSettingsSaveStatus("saved", { message: i18n.get("settings_imported") });
       optionsPageConfigChange();
       location.reload();
     } catch (error) {
@@ -224,17 +224,40 @@ function setupSaveToast() {
     window.clearTimeout(timerId);
     toast.classList.remove("is-hidden", "is-error");
     if (detail.state === "saving") {
-      text.textContent = "Saving changes...";
+      text.textContent = i18n.get("settings_status_saving");
       return;
     }
     if (detail.state === "error") {
       toast.classList.add("is-error");
-      text.textContent = detail.message || "Unable to save settings.";
+      text.textContent = detail.message || i18n.get("settings_status_error");
       timerId = window.setTimeout(() => toast.classList.add("is-hidden"), 2200);
       return;
     }
-    text.textContent = "Changes saved";
+    text.textContent = detail.message || i18n.get("settings_status_saved");
     timerId = window.setTimeout(() => toast.classList.add("is-hidden"), 1400);
+  });
+}
+
+function localizeStaticShell() {
+  document.querySelectorAll<HTMLElement>("[data-i18n]").forEach((element) => {
+    const key = element.dataset.i18n;
+    if (key) {
+      element.textContent = i18n.get(key);
+    }
+  });
+
+  document.querySelectorAll<HTMLInputElement>("[data-i18n-placeholder]").forEach((element) => {
+    const key = element.dataset.i18nPlaceholder;
+    if (key) {
+      element.placeholder = i18n.get(key);
+    }
+  });
+
+  document.querySelectorAll<HTMLElement>("[data-i18n-aria-label]").forEach((element) => {
+    const key = element.dataset.i18nAriaLabel;
+    if (key) {
+      element.setAttribute("aria-label", i18n.get(key));
+    }
   });
 }
 
@@ -1426,6 +1449,7 @@ function setupPredictorDebugDashboard(registry: ReturnType<SettingsEngine["build
 }
 
 window.addEventListener("DOMContentLoaded", function () {
+  localizeStaticShell();
   setupSaveToast();
   const defaults: Record<string, unknown> = {};
   for (const setting of manifest.settings) {
@@ -1506,7 +1530,7 @@ window.addEventListener("DOMContentLoaded", function () {
       });
     });
     registry.exportSettingButton.addEvent("action", function () {
-      dispatchSettingsSaveStatus("saved", { message: "Settings exported." });
+      dispatchSettingsSaveStatus("saved", { message: i18n.get("settings_exported") });
     });
 
     const importInputElem = registry.importSettingButton.element as HTMLInputElement;

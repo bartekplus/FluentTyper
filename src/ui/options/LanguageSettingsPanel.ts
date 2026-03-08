@@ -12,6 +12,7 @@ import {
   KEY_SITE_PROFILES,
 } from "@core/domain/constants";
 import { resolveSiteProfiles } from "@core/domain/siteProfiles";
+import { formatTranslation, i18n } from "./fluenttyperI18n.js";
 
 export class LanguageSettingsPanel {
   private readonly root: HTMLElement;
@@ -71,22 +72,30 @@ export class LanguageSettingsPanel {
     shell.className = "language-panel-summary";
 
     const title = document.createElement("h4");
-    title.textContent = "Writing setup";
+    title.textContent = i18n.get("language_panel_summary_title");
     shell.appendChild(title);
 
     const text = document.createElement("p");
     const primaryLabel =
-      language === "auto_detect" ? "Auto-detect" : SUPPORTED_LANGUAGES[language] || language;
+      language === "auto_detect"
+        ? i18n.get("language_panel_auto_detect")
+        : SUPPORTED_LANGUAGES[language] || language;
     const fallbackLabel = SUPPORTED_LANGUAGES[fallbackLanguage] || fallbackLanguage;
     text.textContent =
       enabledLanguages.length > 1
-        ? `${enabledLanguages.length} writing languages enabled. Primary behavior: ${primaryLabel}. Fallback: ${fallbackLabel}.`
-        : `Single-language mode is active for ${SUPPORTED_LANGUAGES[enabledLanguages[0]] || enabledLanguages[0]}.`;
+        ? formatTranslation("language_panel_summary_multi", {
+            count: enabledLanguages.length,
+            primary: primaryLabel,
+            fallback: fallbackLabel,
+          })
+        : formatTranslation("language_panel_summary_single", {
+            language: SUPPORTED_LANGUAGES[enabledLanguages[0]] || enabledLanguages[0],
+          });
     shell.appendChild(text);
 
     const link = document.createElement("a");
     link.href = "#site_mgmt_tab";
-    link.textContent = "Manage site-specific language overrides";
+    link.textContent = i18n.get("language_panel_site_overrides_link");
     shell.appendChild(link);
 
     return shell;
@@ -116,14 +125,14 @@ export class LanguageSettingsPanel {
       const count = usageCounts[languageKey] || 0;
       meta.textContent =
         count > 0
-          ? `Used by ${count} site ${count === 1 ? "profile" : "profiles"}`
-          : "Available for predictions and grammar";
+          ? formatTranslation("language_panel_usage_count", { count })
+          : i18n.get("language_panel_site_available");
       button.appendChild(meta);
 
       if (count > 0 && enabledLanguages.includes(languageKey)) {
         const warning = document.createElement("span");
         warning.className = "language-card-warning";
-        warning.textContent = "Removing this language resets those site-specific overrides.";
+        warning.textContent = i18n.get("language_panel_site_override_warning");
         button.appendChild(warning);
       }
 
@@ -156,14 +165,14 @@ export class LanguageSettingsPanel {
     const primaryCard = document.createElement("section");
     primaryCard.className = "settings-inline-card";
     const primaryLabel = document.createElement("label");
-    primaryLabel.textContent = "Primary writing language";
+    primaryLabel.textContent = i18n.get("primary_lang_label");
     primaryCard.appendChild(primaryLabel);
     const primarySelect = document.createElement("select");
     primarySelect.className = "input";
     if (enabledLanguages.length > 1) {
       const autoDetect = document.createElement("option");
       autoDetect.value = "auto_detect";
-      autoDetect.textContent = "Auto-detect from typing";
+      autoDetect.textContent = i18n.get("language_panel_auto_detect");
       primarySelect.appendChild(autoDetect);
     }
     enabledLanguages.forEach((languageKey) => {
@@ -184,22 +193,21 @@ export class LanguageSettingsPanel {
     primaryCard.appendChild(primarySelect);
     const primaryHelp = document.createElement("p");
     primaryHelp.className = "settings-inline-help";
-    primaryHelp.textContent =
-      "Use auto-detect when you regularly switch between enabled writing languages.";
+    primaryHelp.textContent = i18n.get("language_panel_primary_help");
     primaryCard.appendChild(primaryHelp);
     grid.appendChild(primaryCard);
 
     const detectionCard = document.createElement("section");
     detectionCard.className = "settings-inline-card";
     const detectionTitle = document.createElement("label");
-    detectionTitle.textContent = "Detection behavior";
+    detectionTitle.textContent = i18n.get("language_panel_detection_title");
     detectionCard.appendChild(detectionTitle);
     const detectionCopy = document.createElement("p");
     detectionCopy.className = "settings-inline-help";
     detectionCopy.textContent =
       enabledLanguages.length > 1
-        ? "When auto-detect cannot decide, FluentTyper falls back to the language below."
-        : "Fallback language is hidden in single-language mode because it is not needed.";
+        ? i18n.get("language_panel_detection_multi")
+        : i18n.get("language_panel_detection_single");
     detectionCard.appendChild(detectionCopy);
 
     if (enabledLanguages.length > 1 && primarySelect.value === "auto_detect") {

@@ -7,6 +7,7 @@ import {
 } from "@core/domain/constants";
 import { normalizeDomainHost } from "@core/domain/siteProfiles";
 import { SiteProfilesManager } from "./siteProfiles.js";
+import { i18n } from "./fluenttyperI18n.js";
 
 type DomainListMode = "blackList" | "whiteList";
 
@@ -72,12 +73,11 @@ export class SiteManagementPanel {
     const header = document.createElement("div");
     header.className = "site-profile-card-header";
     const title = document.createElement("h4");
-    title.textContent = "Per-site writing profiles";
+    title.textContent = i18n.get("site_profiles");
     header.appendChild(title);
     const note = document.createElement("p");
     note.className = "settings-inline-help";
-    note.textContent =
-      "Override the writing language, suggestion count, and inline mode for specific domains.";
+    note.textContent = i18n.get("site_profiles_desc");
     header.appendChild(note);
     profileCard.appendChild(header);
     profileCard.appendChild(this.siteProfilesRoot);
@@ -91,7 +91,7 @@ export class SiteManagementPanel {
     card.className = "settings-inline-card";
 
     const title = document.createElement("h4");
-    title.textContent = "Where FluentTyper runs";
+    title.textContent = i18n.get("site_management_access_title");
     card.appendChild(title);
 
     const segmented = document.createElement("div");
@@ -99,13 +99,13 @@ export class SiteManagementPanel {
     const modes: Array<{ value: DomainListMode; label: string; hint: string }> = [
       {
         value: "blackList",
-        label: "Enabled everywhere",
-        hint: "FluentTyper works on all sites except the blocked ones below.",
+        label: i18n.get("site_management_blacklist_label"),
+        hint: i18n.get("site_management_blacklist_hint"),
       },
       {
         value: "whiteList",
-        label: "Only on allowed sites",
-        hint: "FluentTyper stays off until a site is explicitly added below.",
+        label: i18n.get("site_management_whitelist_label"),
+        hint: i18n.get("site_management_whitelist_hint"),
       },
     ];
     modes.forEach((entry) => {
@@ -133,7 +133,7 @@ export class SiteManagementPanel {
     const search = document.createElement("input");
     search.type = "search";
     search.className = "input";
-    search.placeholder = "Search domains";
+    search.placeholder = i18n.get("site_management_search_domains");
     search.value = this.searchQuery;
     search.addEventListener("input", () => {
       this.searchQuery = search.value.trim().toLowerCase();
@@ -143,13 +143,16 @@ export class SiteManagementPanel {
 
     const addInput = document.createElement("input");
     addInput.className = "input";
-    addInput.placeholder = "example.com or https://example.com";
+    addInput.placeholder = i18n.get("site_management_domain_placeholder");
     toolbar.appendChild(addInput);
 
     const addButton = document.createElement("button");
     addButton.type = "button";
     addButton.className = "button";
-    addButton.textContent = mode === "blackList" ? "Block site" : "Allow site";
+    addButton.textContent =
+      mode === "blackList"
+        ? i18n.get("site_management_block_site")
+        : i18n.get("site_management_allow_site");
     addButton.addEventListener("click", () => {
       const normalized = normalizeDomainHost(addInput.value);
       if (!normalized) {
@@ -179,13 +182,16 @@ export class SiteManagementPanel {
 
         const hint = document.createElement("div");
         hint.className = "domain-table-hint";
-        hint.textContent = mode === "blackList" ? "Blocked" : "Allowed";
+        hint.textContent =
+          mode === "blackList"
+            ? i18n.get("site_management_blocked")
+            : i18n.get("site_management_allowed");
         row.appendChild(hint);
 
         const removeButton = document.createElement("button");
         removeButton.type = "button";
         removeButton.className = "button is-light";
-        removeButton.textContent = "Remove";
+        removeButton.textContent = i18n.get("remove");
         removeButton.addEventListener("click", () => {
           this.registry.domainBlackList.set(domainList.filter((entry) => entry !== domain));
           this.onConfigChange();
@@ -199,8 +205,8 @@ export class SiteManagementPanel {
       empty.className = "settings-inline-help";
       empty.textContent =
         mode === "blackList"
-          ? "No blocked sites yet."
-          : "No allowed sites yet. Add domains to enable FluentTyper only there.";
+          ? i18n.get("site_management_empty_blocked")
+          : i18n.get("site_management_empty_allowed");
       table.appendChild(empty);
     }
 

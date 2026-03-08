@@ -9,6 +9,7 @@ import {
   KEY_USER_DICTIONARY_LIST,
 } from "@core/domain/constants";
 import { resolveDynamicVariable } from "@core/domain/variables";
+import { i18n } from "./fluenttyperI18n.js";
 
 type TextExpansionEntry = [string, string];
 
@@ -86,7 +87,7 @@ export class TextAssetsPanel {
     const search = document.createElement("input");
     search.type = "search";
     search.className = "input";
-    search.placeholder = "Search snippets";
+    search.placeholder = i18n.get("text_assets_search_placeholder");
     search.value = this.searchQuery;
     search.addEventListener("input", () => {
       this.searchQuery = search.value.trim().toLowerCase();
@@ -97,14 +98,14 @@ export class TextAssetsPanel {
     const actions = document.createElement("div");
     actions.className = "text-assets-actions";
 
-    const addButton = this.createButton("New snippet", () => {
+    const addButton = this.createButton(i18n.get("text_assets_new_snippet"), () => {
       this.expansions = [["", ""], ...this.expansions];
       this.editingIndex = 0;
       this.render();
     });
     actions.appendChild(addButton);
 
-    const exportButton = this.createButton("Export CSV", () => {
+    const exportButton = this.createButton(i18n.get("text_expander_export_csv_btn"), () => {
       const csv = stringify(this.expansions);
       const blob = new Blob([csv], { type: "text/csv" });
       const link = document.createElement("a");
@@ -117,7 +118,7 @@ export class TextAssetsPanel {
 
     const importLabel = document.createElement("label");
     importLabel.className = "settings-ghost-button";
-    importLabel.textContent = "Import CSV";
+    importLabel.textContent = i18n.get("text_expander_import_csv_btn");
     const importInput = document.createElement("input");
     importInput.type = "file";
     importInput.accept = ".csv";
@@ -163,7 +164,7 @@ export class TextAssetsPanel {
     if (filtered.length === 0) {
       const empty = document.createElement("p");
       empty.className = "settings-inline-help";
-      empty.textContent = "No snippets match your search.";
+      empty.textContent = i18n.get("text_assets_no_snippets");
       list.appendChild(empty);
     } else {
       filtered.forEach(([shortcut, text]) => {
@@ -177,10 +178,10 @@ export class TextAssetsPanel {
           item.classList.add("is-active");
         }
         const title = document.createElement("strong");
-        title.textContent = shortcut || "Untitled shortcut";
+        title.textContent = shortcut || i18n.get("text_assets_untitled_shortcut");
         item.appendChild(title);
         const excerpt = document.createElement("span");
-        excerpt.textContent = text.slice(0, 80) || "Add expansion text";
+        excerpt.textContent = text.slice(0, 80) || i18n.get("text_assets_add_expansion_text");
         item.appendChild(excerpt);
         item.addEventListener("click", () => {
           this.editingIndex = actualIndex;
@@ -207,13 +208,13 @@ export class TextAssetsPanel {
 
     const shortcut = document.createElement("input");
     shortcut.className = "input";
-    shortcut.placeholder = "Shortcut trigger";
+    shortcut.placeholder = i18n.get("text_expander_shortcut_placeholder");
     shortcut.value = currentEntry[0];
 
     const body = document.createElement("textarea");
     body.className = "textarea";
     body.rows = 8;
-    body.placeholder = "Expanded text";
+    body.placeholder = i18n.get("text_expander_shortcut_text_placeholder");
     body.value = currentEntry[1];
 
     const variables = document.createElement("div");
@@ -240,7 +241,7 @@ export class TextAssetsPanel {
     const actions = document.createElement("div");
     actions.className = "text-assets-actions";
     actions.appendChild(
-      this.createButton("Save snippet", () => {
+      this.createButton(i18n.get("text_assets_save_snippet"), () => {
         const nextEntry: TextExpansionEntry = [shortcut.value.trim(), body.value];
         if (!nextEntry[0]) {
           return;
@@ -256,7 +257,7 @@ export class TextAssetsPanel {
     );
     actions.appendChild(
       this.createButton(
-        "Delete snippet",
+        i18n.get("text_assets_delete_snippet"),
         () => {
           if (this.editingIndex < 0) {
             return;
@@ -270,10 +271,10 @@ export class TextAssetsPanel {
     );
 
     editor.append(
-      this.createLabeledField("Shortcut", shortcut),
-      this.createLabeledField("Expansion", body),
+      this.createLabeledField(i18n.get("text_expander_shortcut_placeholder"), shortcut),
+      this.createLabeledField(i18n.get("text_assets_expansion_label"), body),
       variables,
-      this.createLabeledField("Preview", preview),
+      this.createLabeledField(i18n.get("text_assets_preview_label"), preview),
       actions,
     );
     return editor;
@@ -284,7 +285,7 @@ export class TextAssetsPanel {
     shell.className = "settings-inline-card";
 
     const title = document.createElement("h4");
-    title.textContent = "Dictionary";
+    title.textContent = i18n.get("custom_words");
     shell.appendChild(title);
 
     const toolbar = document.createElement("div");
@@ -292,7 +293,7 @@ export class TextAssetsPanel {
     const search = document.createElement("input");
     search.type = "search";
     search.className = "input";
-    search.placeholder = "Search words";
+    search.placeholder = i18n.get("text_assets_dictionary_search");
     search.value = this.dictionaryQuery;
     search.addEventListener("input", () => {
       this.dictionaryQuery = search.value.trim().toLowerCase();
@@ -302,10 +303,10 @@ export class TextAssetsPanel {
 
     const addInput = document.createElement("input");
     addInput.className = "input";
-    addInput.placeholder = "Add a custom word";
+    addInput.placeholder = i18n.get("text_assets_add_custom_word_placeholder");
     toolbar.appendChild(addInput);
 
-    const addButton = this.createButton("Add", () => {
+    const addButton = this.createButton(i18n.get("add"), () => {
       const value = addInput.value.trim();
       if (!value || this.dictionary.includes(value)) {
         return;
@@ -336,17 +337,17 @@ export class TextAssetsPanel {
     const bulk = document.createElement("details");
     bulk.className = "settings-disclosure";
     const summary = document.createElement("summary");
-    summary.textContent = "Bulk add and import";
+    summary.textContent = i18n.get("text_assets_bulk_add_import");
     bulk.appendChild(summary);
 
     const bulkTextarea = document.createElement("textarea");
     bulkTextarea.className = "textarea";
     bulkTextarea.rows = 4;
-    bulkTextarea.placeholder = "Paste one word per line";
+    bulkTextarea.placeholder = i18n.get("text_assets_paste_word_per_line");
     bulk.appendChild(bulkTextarea);
 
     bulk.appendChild(
-      this.createButton("Add words", () => {
+      this.createButton(i18n.get("text_assets_add_words"), () => {
         const nextWords = bulkTextarea.value
           .split(/\r?\n/)
           .map((entry) => entry.trim())
@@ -360,7 +361,7 @@ export class TextAssetsPanel {
 
     const importLabel = document.createElement("label");
     importLabel.className = "settings-ghost-button";
-    importLabel.textContent = "Import TXT";
+    importLabel.textContent = i18n.get("import_dict_btn");
     const importInput = document.createElement("input");
     importInput.type = "file";
     importInput.accept = ".txt";
@@ -388,7 +389,7 @@ export class TextAssetsPanel {
     bulk.appendChild(importLabel);
     bulk.appendChild(
       this.createButton(
-        "Clear dictionary",
+        i18n.get("clear_dict_btn"),
         () => {
           this.dictionary = [];
           this.persistDictionary();
@@ -406,13 +407,13 @@ export class TextAssetsPanel {
     shell.className = "settings-disclosure";
 
     const summary = document.createElement("summary");
-    summary.textContent = "Advanced variables";
+    summary.textContent = i18n.get("dynamic_variables");
     shell.appendChild(summary);
 
     const dateInput = document.createElement("input");
     dateInput.className = "input";
     dateInput.value = String(this.registry[KEY_DATE_FORMAT].get() || "");
-    dateInput.placeholder = "Custom date format";
+    dateInput.placeholder = i18n.get("custom_date_format_label");
     dateInput.addEventListener("change", () => {
       this.registry[KEY_DATE_FORMAT].set(dateInput.value);
     });
@@ -420,19 +421,18 @@ export class TextAssetsPanel {
     const timeInput = document.createElement("input");
     timeInput.className = "input";
     timeInput.value = String(this.registry[KEY_TIME_FORMAT].get() || "");
-    timeInput.placeholder = "Custom time format";
+    timeInput.placeholder = i18n.get("custom_time_format_label");
     timeInput.addEventListener("change", () => {
       this.registry[KEY_TIME_FORMAT].set(timeInput.value);
     });
 
     const docs = document.createElement("div");
     docs.className = "settings-inline-help";
-    docs.textContent =
-      "Supported variables: ${time}, ${date}, ${date:+1d}, ${datetime}, ${uuid}, ${random:A|B|C}, ${page_url}, ${page_title}, ${page_domain}.";
+    docs.textContent = i18n.get("text_assets_advanced_variables_docs");
 
     shell.append(
-      this.createLabeledField("Date format", dateInput),
-      this.createLabeledField("Time format", timeInput),
+      this.createLabeledField(i18n.get("custom_date_format_label"), dateInput),
+      this.createLabeledField(i18n.get("custom_time_format_label"), timeInput),
       docs,
     );
     return shell;
@@ -504,6 +504,6 @@ export class TextAssetsPanel {
         ) || `\${${String(varName)}}`
       );
     });
-    target.textContent = preview || "Preview updates as you type.";
+    target.textContent = preview || i18n.get("text_assets_preview_placeholder");
   }
 }

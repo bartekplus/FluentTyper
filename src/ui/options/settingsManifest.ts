@@ -1,4 +1,4 @@
-import { i18n } from "./fluenttyperI18n.js";
+import { formatTranslation, i18n } from "./fluenttyperI18n.js";
 import type { ManifestDefinition } from "@ui/settings-engine/types.js";
 import { SUPPORTED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS } from "@core/domain/lang";
 import {
@@ -52,24 +52,21 @@ import {
 } from "@core/domain/grammar/ruleCatalog";
 
 // --- UI Content ---
-const donateHTML =
-  '<div class="has-text-centered"> \
-  <p class="support-donate-note">Developing and maintaining FluentTyper is a passion project. If you find it useful, please consider supporting its future development. Your contribution helps us add new features and keep the extension running smoothly.</p> \
-  <a class="support-donate-link" href="https://www.buymeacoffee.com/FluentTyper" target="_blank" rel="noopener noreferrer">Buy Me a Coffee</a></div>';
-const aboutHighlightsHTML =
-  '<div class="about-highlights"> \
-  <span class="about-pill">Autocomplete</span> \
-  <span class="about-pill">Text Expander</span> \
-  <span class="about-pill">Multilingual Support</span> \
-  <span class="about-pill">Site Profiles</span> \
-  </div>';
-const supportLinksHTML =
-  '<div class="support-links-list"> \
-  <a href="https://github.com/bartekplus/FluentTyper/issues/new?template=bug_report.yml" target="_blank" rel="noopener noreferrer">Report a bug</a> - Open a GitHub issue with reproducible steps.<br /> \
-  <a href="https://github.com/bartekplus/FluentTyper/issues/new?template=feature_request.yml" target="_blank" rel="noopener noreferrer">Request a feature</a> - Share ideas and vote on improvements.<br /> \
-  <a href="https://github.com/bartekplus/FluentTyper#readme" target="_blank" rel="noopener noreferrer">Read documentation</a> - Setup help, configuration details, and usage tips.<br /> \
-  <a href="https://github.com/bartekplus/FluentTyper/blob/main/SECURITY.md" target="_blank" rel="noopener noreferrer">Security policy</a> - Responsible disclosure and security contact details. \
-  </div>';
+const donateHTML = `<div class="has-text-centered">
+  <p class="support-donate-note">${i18n.get("support_donate_note")}</p>
+  <a class="support-donate-link" href="https://www.buymeacoffee.com/FluentTyper" target="_blank" rel="noopener noreferrer">${i18n.get("support_donate_link")}</a></div>`;
+const aboutHighlightsHTML = `<div class="about-highlights">
+  <span class="about-pill">${i18n.get("about_highlight_autocomplete")}</span>
+  <span class="about-pill">${i18n.get("about_highlight_text_expander")}</span>
+  <span class="about-pill">${i18n.get("about_highlight_multilingual")}</span>
+  <span class="about-pill">${i18n.get("about_highlight_site_profiles")}</span>
+  </div>`;
+const supportLinksHTML = `<div class="support-links-list">
+  <a href="https://github.com/bartekplus/FluentTyper/issues/new?template=bug_report.yml" target="_blank" rel="noopener noreferrer">${i18n.get("popup_report_issue")}</a> - ${i18n.get("support_report_bug_desc")}<br />
+  <a href="https://github.com/bartekplus/FluentTyper/issues/new?template=feature_request.yml" target="_blank" rel="noopener noreferrer">${i18n.get("support_request_feature_label")}</a> - ${i18n.get("support_request_feature_desc")}<br />
+  <a href="https://github.com/bartekplus/FluentTyper#readme" target="_blank" rel="noopener noreferrer">${i18n.get("support_read_docs_label")}</a> - ${i18n.get("support_read_docs_desc")}<br />
+  <a href="https://github.com/bartekplus/FluentTyper/blob/main/SECURITY.md" target="_blank" rel="noopener noreferrer">${i18n.get("support_security_policy_label")}</a> - ${i18n.get("support_security_policy_desc")}
+  </div>`;
 const IS_DEV_BUILD = typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
 const EXTENSION_VERSION =
   typeof chrome !== "undefined" && typeof chrome.runtime?.getManifest === "function"
@@ -128,72 +125,72 @@ const GRAMMAR_RULE_OPTIONS = GRAMMAR_RULE_CATALOG.map((rule) => {
 
 // --- Manifest Definition ---
 const manifest: ManifestDefinition = {
-  name: "FluentTyper Settings",
+  name: i18n.get("options_page_title"),
   icon: "/icon/icon128.png",
   tabs: [
     {
       id: "core_settings",
-      label: "Essentials",
-      title: "Essentials",
-      shortDescription: "Core typing behavior and suggestion acceptance.",
+      label: i18n.get("options_tab_essentials"),
+      title: i18n.get("options_tab_essentials"),
+      shortDescription: i18n.get("options_tab_essentials_desc"),
       icon: "ES",
-      keywords: ["typing", "autocomplete", "suggestions"],
+      keywords: [i18n.get("options_tab_essentials"), i18n.get("prediction_engine")],
     },
     {
       id: "grammar_tab",
-      label: "Grammar",
-      title: "Grammar",
-      shortDescription: "Choose which writing corrections FluentTyper applies.",
+      label: i18n.get("grammar_tab"),
+      title: i18n.get("grammar_tab"),
+      shortDescription: i18n.get("options_tab_grammar_desc"),
       icon: "GR",
-      keywords: ["grammar", "rules", "corrections"],
+      keywords: [i18n.get("grammar_rules"), i18n.get("grammar_tab")],
     },
     {
       id: "language_tab",
-      label: "Languages",
-      title: "Languages",
-      shortDescription: "UI language, writing languages, and detection behavior.",
+      label: i18n.get("options_tab_languages"),
+      title: i18n.get("options_tab_languages"),
+      shortDescription: i18n.get("options_tab_languages_desc"),
       icon: "LA",
-      keywords: ["language", "fallback", "autodetect"],
+      keywords: [i18n.get("options_tab_languages"), i18n.get("language_selection")],
     },
     {
       id: "shortcuts_expansions_tab",
-      label: "Snippets & Dictionary",
-      title: "Snippets & Dictionary",
-      shortDescription: "Personal snippets, shortcuts, variables, and custom words.",
+      label: i18n.get("options_tab_snippets"),
+      title: i18n.get("options_tab_snippets"),
+      shortDescription: i18n.get("options_tab_snippets_desc"),
       icon: "SD",
-      keywords: ["snippets", "dictionary", "expansions", "variables"],
+      keywords: [i18n.get("options_tab_snippets"), i18n.get("text_expander")],
     },
     {
       id: "site_mgmt_tab",
-      label: "Sites",
-      title: "Sites",
-      shortDescription: "Decide where FluentTyper runs and customize site profiles.",
+      label: i18n.get("options_tab_sites"),
+      title: i18n.get("options_tab_sites"),
+      shortDescription: i18n.get("options_tab_sites_desc"),
       icon: "SI",
-      keywords: ["sites", "domains", "profiles", "whitelist", "blacklist"],
+      keywords: [i18n.get("options_tab_sites"), i18n.get("site_profiles")],
     },
     {
       id: "theming_tab",
-      label: "Appearance",
-      title: "Appearance",
-      shortDescription: "Preview and customize the suggestion menu look and feel.",
+      label: i18n.get("theming_tab"),
+      title: i18n.get("theming_tab"),
+      shortDescription: i18n.get("options_tab_appearance_desc"),
       icon: "AP",
-      keywords: ["theme", "preview", "colors", "spacing"],
+      keywords: [i18n.get("theming_tab"), i18n.get("theme_presets")],
     },
     {
       id: "advanced_tab",
-      label: "Data & Diagnostics",
-      title: "Data & Diagnostics",
-      shortDescription: "Backups, productivity stats, and optional debug tools.",
+      label: i18n.get("options_tab_data"),
+      title: i18n.get("options_tab_data"),
+      shortDescription: i18n.get("options_tab_data_desc"),
       icon: "DD",
-      keywords: ["advanced", "diagnostics", "backup", "stats"],
+      keywords: [i18n.get("options_tab_data"), i18n.get("config_data")],
     },
     {
       id: "about_support_tab",
-      label: "About",
-      title: "About",
-      shortDescription: "Version, support links, and project information.",
+      label: i18n.get("options_tab_about"),
+      title: i18n.get("options_tab_about"),
+      shortDescription: i18n.get("options_tab_about_desc"),
       icon: "AB",
-      keywords: ["about", "support", "version"],
+      keywords: [i18n.get("options_tab_about"), i18n.get("support_development_group")],
     },
   ],
   settings: [
@@ -357,10 +354,9 @@ const manifest: ManifestDefinition = {
       group: i18n.get("language_selection"),
       name: "languagePreferencesPanel",
       type: "customPanel",
-      label: "Writing languages",
-      description:
-        "Choose which languages FluentTyper should support, which one is primary, and how auto-detection should behave.",
-      keywords: ["enabled languages", "primary language", "fallback"],
+      label: i18n.get("options_panel_language_label"),
+      description: i18n.get("options_panel_language_desc"),
+      keywords: [i18n.get("options_panel_language_label"), i18n.get("fallback_lang_label")],
     },
     {
       tab: "language_tab",
@@ -400,10 +396,9 @@ const manifest: ManifestDefinition = {
       group: i18n.get("text_expander"),
       name: "writingAssetsPanel",
       type: "customPanel",
-      label: "Snippets, variables, and dictionary",
-      description:
-        "Manage reusable snippets, dynamic variables, and personal dictionary words from one workspace.",
-      keywords: ["text expander", "dictionary", "shortcuts", "variables"],
+      label: i18n.get("options_panel_text_assets_label"),
+      description: i18n.get("options_panel_text_assets_desc"),
+      keywords: [i18n.get("options_panel_text_assets_label"), i18n.get("dynamic_variables")],
     },
     {
       tab: "shortcuts_expansions_tab",
@@ -460,10 +455,9 @@ const manifest: ManifestDefinition = {
       group: i18n.get("manage_domains"),
       name: "siteManagementPanel",
       type: "customPanel",
-      label: "Where FluentTyper runs and site profiles",
-      description:
-        "Set your global site access mode, manage domains, and customize language behavior for individual sites.",
-      keywords: ["domain list", "site profiles", "whitelist", "blacklist"],
+      label: i18n.get("options_panel_sites_label"),
+      description: i18n.get("options_panel_sites_desc"),
+      keywords: [i18n.get("options_panel_sites_label"), i18n.get("domain_list_mode")],
     },
     {
       tab: "site_mgmt_tab",
@@ -495,10 +489,9 @@ const manifest: ManifestDefinition = {
       group: i18n.get("theme_presets"),
       name: "appearanceStudioPanel",
       type: "customPanel",
-      label: "Appearance studio",
-      description:
-        "Preview light and dark suggestion themes, apply presets, and fine-tune spacing and colors.",
-      keywords: ["theme preview", "contrast", "colors", "padding"],
+      label: i18n.get("options_panel_appearance_label"),
+      description: i18n.get("options_panel_appearance_desc"),
+      keywords: [i18n.get("options_panel_appearance_label"), i18n.get("typography_spacing")],
     },
     {
       tab: "theming_tab",
@@ -712,7 +705,7 @@ const manifest: ManifestDefinition = {
       group: i18n.get("about_fluent_typer_group"),
       name: "Version",
       type: "description",
-      text: `<span class="version-chip">Version ${EXTENSION_VERSION}</span>`,
+      text: `<span class="version-chip">${formatTranslation("options_version_chip", { version: EXTENSION_VERSION })}</span>`,
     },
     {
       tab: "about_support_tab",

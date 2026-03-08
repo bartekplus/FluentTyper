@@ -20,6 +20,7 @@ import {
   type SiteProfile,
   type SiteProfiles,
 } from "@core/domain/siteProfiles";
+import { formatTranslation, i18n } from "./fluenttyperI18n.js";
 
 interface FancierSettingsLike {
   siteProfilesEditor: {
@@ -42,11 +43,11 @@ interface SiteProfilesElements {
 }
 
 function getOnOffLabel(value: boolean): string {
-  return value ? "On" : "Off";
+  return value ? i18n.get("site_profile_on") : i18n.get("site_profile_off");
 }
 
 function getInheritLabel(globalValueLabel: string): string {
-  return `Inherit (${globalValueLabel})`;
+  return `${i18n.get("site_profile_inherit_global")} (${globalValueLabel})`;
 }
 
 function getPrimaryLanguage(enabledLanguages: string[]): string {
@@ -87,7 +88,7 @@ export class SiteProfilesManager {
   private readonly root: HTMLElement;
   private editingDomain: string | null = null;
   private searchQuery = "";
-  private statusText = "Create site-specific overrides without changing your global defaults.";
+  private statusText = i18n.get("site_profiles_editor_default_status");
   private statusIsError = false;
   private elements!: SiteProfilesElements;
 
@@ -106,34 +107,44 @@ export class SiteProfilesManager {
     const shell = createElement("div", { className: "site-profiles-shell" });
 
     const editor = createElement("div", { className: "site-profiles-editor" });
-    const title = createElement("h5", { textContent: "Profile editor" });
+    const title = createElement("h5", { textContent: i18n.get("site_profiles_editor_title") });
     editor.appendChild(title);
 
-    const domainField = this.createField("Domain", "siteProfileDomainInput", "example.com");
+    const domainField = this.createField(
+      i18n.get("site_profiles_domain_label"),
+      "siteProfileDomainInput",
+      i18n.get("site_profiles_domain_placeholder"),
+    );
     const preview = createElement("p", {
       id: "siteProfileNormalizedPreview",
       className: "settings-inline-help",
-      textContent: "We normalize full URLs to a hostname before saving.",
+      textContent: i18n.get("site_profiles_normalized_preview_default"),
     });
 
-    const languageField = this.createSelectField("Language", "siteProfileLanguageSelect");
+    const languageField = this.createSelectField(
+      i18n.get("site_profiles_table_language"),
+      "siteProfileLanguageSelect",
+    );
     const suggestionsField = this.createSelectField(
-      "Suggestions",
+      i18n.get("site_profiles_table_num_suggestions"),
       "siteProfileNumSuggestionsSelect",
     );
-    const inlineField = this.createSelectField("Inline mode", "siteProfileInlineSelect");
+    const inlineField = this.createSelectField(
+      i18n.get("site_profiles_inline_mode_label"),
+      "siteProfileInlineSelect",
+    );
 
     const actions = createElement("div", { className: "text-assets-actions" });
     const saveButton = createElement("button", {
       id: "siteProfileSaveButton",
       className: "button",
-      textContent: "Save profile",
+      textContent: i18n.get("site_profiles_add_btn"),
       attributes: { type: "button" },
     });
     const cancelButton = createElement("button", {
       id: "siteProfileCancelButton",
       className: "button is-light",
-      textContent: "Cancel",
+      textContent: i18n.get("site_profiles_cancel_btn"),
       attributes: { type: "button" },
     });
     actions.append(saveButton, cancelButton);
@@ -159,7 +170,10 @@ export class SiteProfilesManager {
     const searchInput = createElement("input", {
       id: "siteProfilesSearchInput",
       className: "input",
-      attributes: { type: "search", placeholder: "Search site profiles" },
+      attributes: {
+        type: "search",
+        placeholder: i18n.get("site_profiles_search_placeholder"),
+      },
     }) as HTMLInputElement;
     searchRow.appendChild(searchInput);
     list.appendChild(searchRow);
@@ -167,12 +181,18 @@ export class SiteProfilesManager {
     const emptyState = createElement("p", {
       id: "siteProfilesEmptyState",
       className: "settings-inline-help",
-      textContent: "No site profiles yet. Add a domain on the left to create the first one.",
+      textContent: i18n.get("site_profiles_empty_workspace"),
     });
     const table = createElement("table", { className: "table is-fullwidth" });
     const head = createElement("thead");
     const headRow = createElement("tr");
-    ["Domain", "Language", "Suggestions", "Inline", "Actions"].forEach((heading) => {
+    [
+      i18n.get("site_profiles_table_domain"),
+      i18n.get("site_profiles_table_language"),
+      i18n.get("site_profiles_table_num_suggestions"),
+      i18n.get("site_profiles_table_inline_mode"),
+      i18n.get("site_profiles_table_actions"),
+    ].forEach((heading) => {
       headRow.appendChild(createElement("th", { textContent: heading }));
     });
     head.appendChild(headRow);
@@ -265,8 +285,8 @@ export class SiteProfilesManager {
   private updateNormalizedPreview(): void {
     const normalized = normalizeDomainHost(this.elements.domainInput.value.trim());
     this.elements.normalizedPreview.textContent = normalized
-      ? `Normalized domain: ${normalized}`
-      : "We normalize full URLs to a hostname before saving.";
+      ? formatTranslation("site_profiles_normalized_preview_value", { domain: normalized })
+      : i18n.get("site_profiles_normalized_preview_default");
   }
 
   private getEditorProfile(enabledLanguages: string[]): SiteProfile {
@@ -343,7 +363,9 @@ export class SiteProfilesManager {
           ? "on"
           : "off"
         : "global";
-    this.elements.saveButton.textContent = this.editingDomain ? "Update profile" : "Save profile";
+    this.elements.saveButton.textContent = this.editingDomain
+      ? i18n.get("site_profiles_update_btn")
+      : i18n.get("site_profiles_add_btn");
     this.elements.cancelButton.classList.toggle("is-hidden", !this.editingDomain);
     this.updateNormalizedPreview();
   }
@@ -388,13 +410,13 @@ export class SiteProfilesManager {
       const actions = createElement("td");
       const edit = createElement("button", {
         className: "button is-light",
-        textContent: "Edit",
+        textContent: i18n.get("site_profiles_edit_btn"),
         attributes: { type: "button", "data-action": "edit" },
       });
       edit.dataset.domain = domain;
       const remove = createElement("button", {
         className: "button is-light",
-        textContent: "Remove",
+        textContent: i18n.get("remove"),
         attributes: { type: "button", "data-action": "remove" },
       });
       remove.dataset.domain = domain;
@@ -427,20 +449,20 @@ export class SiteProfilesManager {
 
   startEdit(domain: string): void {
     this.editingDomain = domain;
-    this.setStatus(`Editing profile for ${domain}`);
+    this.setStatus(formatTranslation("site_profiles_update_status", { domain }));
     void this.render();
   }
 
   cancelEdit(): void {
     this.editingDomain = null;
-    this.setStatus("Create site-specific overrides without changing your global defaults.");
+    this.setStatus(i18n.get("site_profiles_editor_default_status"));
     void this.render();
   }
 
   async saveProfile(): Promise<void> {
     const normalizedDomain = normalizeDomainHost(this.elements.domainInput.value.trim());
     if (!normalizedDomain) {
-      this.setStatus("Enter a valid domain or URL.", true);
+      this.setStatus(i18n.get("site_profiles_invalid_domain"), true);
       return;
     }
 
@@ -459,7 +481,7 @@ export class SiteProfilesManager {
 
     await this.store.set(KEY_SITE_PROFILES, nextProfiles);
     this.editingDomain = normalizedDomain;
-    this.setStatus("Site profile saved.");
+    this.setStatus(i18n.get("site_profiles_saved_status"));
     await this.notifyConfigChange();
     await this.render();
   }
@@ -472,7 +494,7 @@ export class SiteProfilesManager {
     if (this.editingDomain === domain) {
       this.editingDomain = null;
     }
-    this.setStatus("Site profile removed.");
+    this.setStatus(i18n.get("site_profiles_removed_status"));
     await this.notifyConfigChange();
     await this.render();
   }
