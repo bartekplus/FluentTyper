@@ -88,7 +88,7 @@ export class SiteManagementPanel {
     profileCard.appendChild(this.siteProfilesRoot);
 
     const shell = document.createElement("div");
-    shell.className = "workspace-main-grid";
+    shell.className = "workspace-main-grid site-management-grid";
     shell.append(accessCard, profileCard);
 
     this.root.replaceChildren(shell);

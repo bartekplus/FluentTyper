@@ -403,6 +403,7 @@ body.fluenttyper-options .settings-group.settings-group-panel-only .settings-gro
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 0.85rem;
+  align-items: start;
 }
 
 .workspace-overview-card {
@@ -444,6 +445,7 @@ body.fluenttyper-options .settings-group.settings-group-panel-only .settings-gro
 .workspace-section-card .workspace-section-body {
   display: grid;
   gap: 0.9rem;
+  align-content: start;
 }
 
 .language-panel-summary {
@@ -583,6 +585,11 @@ body.fluenttyper-options .settings-group.settings-group-panel-only .settings-gro
 .site-profiles-list {
   display: grid;
   gap: 0.75rem;
+  min-width: 0;
+}
+
+.site-profiles-list {
+  overflow-x: auto;
 }
 
 .site-profiles-list .is-selected-row {
@@ -940,6 +947,13 @@ body.fluenttyper-options .settings-group.settings-group-panel-only .settings-gro
   .text-assets-shell,
   .site-profiles-shell,
   .workspace-main-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 1280px) {
+  .site-management-grid,
+  .site-profiles-shell {
     grid-template-columns: minmax(0, 1fr);
   }
 }
