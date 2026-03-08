@@ -1,3 +1,4 @@
+import "./setup";
 import { afterEach, describe, expect, jest, test } from "bun:test";
 
 type StorageSnapshot = Record<string, string>;
