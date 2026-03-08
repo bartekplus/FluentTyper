@@ -17,6 +17,7 @@ import {
 import { i18n } from "./fluenttyperI18n.js";
 
 type ThemePreset = Record<string, string>;
+type RGBAColor = { r: number; g: number; b: number; a: number };
 
 const THEME_KEYS = [
   KEY_SUGGESTION_BG_LIGHT,
@@ -35,6 +36,197 @@ const THEME_KEYS = [
 ] as const;
 
 type ThemeKey = (typeof THEME_KEYS)[number];
+const LIGHT_THEME_CANVAS = "#ffffff";
+const DARK_THEME_CANVAS = "#020617";
+
+function clampChannel(value: number): number {
+  return Math.max(0, Math.min(255, Math.round(value)));
+}
+
+function clampAlpha(value: number): number {
+  return Math.max(0, Math.min(1, value));
+}
+
+function normalizeAlphaString(alpha: number): string {
+  const normalized = clampAlpha(alpha);
+  return Number.isInteger(normalized)
+    ? String(normalized)
+    : normalized.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
+}
+
+function parseRgbPart(value: string): number | null {
+  const numericValue = Number.parseFloat(value);
+  return Number.isFinite(numericValue) ? clampChannel(numericValue) : null;
+}
+
+function parseAlphaPart(value: string): number | null {
+  const numericValue = Number.parseFloat(value);
+  return Number.isFinite(numericValue) ? clampAlpha(numericValue) : null;
+}
+
+export function parseThemeColor(rawValue: string): RGBAColor | null {
+  const value = rawValue.trim();
+  if (!value) {
+    return null;
+  }
+
+  if (value.startsWith("#")) {
+    const hex = value.slice(1);
+    if (hex.length === 3 || hex.length === 4) {
+      const channels = [...hex].map((part) => Number.parseInt(part + part, 16));
+      if (channels.some((part) => Number.isNaN(part))) {
+        return null;
+      }
+      return {
+        r: channels[0],
+        g: channels[1],
+        b: channels[2],
+        a: hex.length === 4 ? channels[3] / 255 : 1,
+      };
+    }
+    if (hex.length === 6 || hex.length === 8) {
+      const pairs = hex.match(/.{1,2}/g);
+      if (!pairs) {
+        return null;
+      }
+      const channels = pairs.map((part) => Number.parseInt(part, 16));
+      if (channels.some((part) => Number.isNaN(part))) {
+        return null;
+      }
+      return {
+        r: channels[0],
+        g: channels[1],
+        b: channels[2],
+        a: hex.length === 8 ? channels[3] / 255 : 1,
+      };
+    }
+    return null;
+  }
+
+  const rgbMatch = value.match(
+    /^rgba?\(\s*([^\s,]+)\s*,\s*([^\s,]+)\s*,\s*([^\s,]+)(?:\s*,\s*([^)]+))?\s*\)$/i,
+  );
+  if (!rgbMatch) {
+    return null;
+  }
+
+  const r = parseRgbPart(rgbMatch[1]);
+  const g = parseRgbPart(rgbMatch[2]);
+  const b = parseRgbPart(rgbMatch[3]);
+  const a = rgbMatch[4] === undefined ? 1 : parseAlphaPart(rgbMatch[4]);
+  if (r === null || g === null || b === null || a === null) {
+    return null;
+  }
+  return { r, g, b, a };
+}
+
+export function toOpaqueHex(color: RGBAColor): string {
+  return `#${[color.r, color.g, color.b]
+    .map((channel) => clampChannel(channel).toString(16).padStart(2, "0"))
+    .join("")}`;
+}
+
+function toAlphaHex(color: RGBAColor): string {
+  return `#${[color.r, color.g, color.b, Math.round(clampAlpha(color.a) * 255)]
+    .map((channel) => clampChannel(channel).toString(16).padStart(2, "0"))
+    .join("")}`;
+}
+
+function toRgbString(color: RGBAColor): string {
+  return `rgb(${clampChannel(color.r)}, ${clampChannel(color.g)}, ${clampChannel(color.b)})`;
+}
+
+function toRgbaString(color: RGBAColor): string {
+  return `rgba(${clampChannel(color.r)}, ${clampChannel(color.g)}, ${clampChannel(color.b)}, ${normalizeAlphaString(color.a)})`;
+}
+
+export function getColorPickerValue(rawValue: string): string {
+  const parsed = parseThemeColor(rawValue);
+  return parsed ? toOpaqueHex(parsed) : "#000000";
+}
+
+export function isThemeColorEditableWithPicker(rawValue: string): boolean {
+  return parseThemeColor(rawValue) !== null;
+}
+
+export function mergeColorPickerValue(pickerHex: string, previousRawValue: string): string {
+  const pickerColor = parseThemeColor(pickerHex);
+  if (!pickerColor) {
+    return previousRawValue;
+  }
+
+  const previous = parseThemeColor(previousRawValue);
+  if (!previous) {
+    return toOpaqueHex(pickerColor);
+  }
+
+  const nextColor: RGBAColor = { ...pickerColor, a: previous.a };
+  const previousValue = previousRawValue.trim().toLowerCase();
+  if (previousValue.startsWith("rgba(")) {
+    return toRgbaString(nextColor);
+  }
+  if (previousValue.startsWith("rgb(")) {
+    return toRgbString(nextColor);
+  }
+  if (previousValue.startsWith("#") && previousValue.length === 5) {
+    return toAlphaHex(nextColor);
+  }
+  if (previousValue.startsWith("#") && previousValue.length === 9) {
+    return toAlphaHex(nextColor);
+  }
+  if (previous.a < 1) {
+    return toRgbaString(nextColor);
+  }
+  return toOpaqueHex(nextColor);
+}
+
+function compositeForegroundOverBackground(
+  foreground: RGBAColor,
+  background: RGBAColor,
+): RGBAColor {
+  const alpha = foreground.a + background.a * (1 - foreground.a);
+  if (alpha <= 0) {
+    return { r: 0, g: 0, b: 0, a: 0 };
+  }
+
+  return {
+    r: (foreground.r * foreground.a + background.r * background.a * (1 - foreground.a)) / alpha,
+    g: (foreground.g * foreground.a + background.g * background.a * (1 - foreground.a)) / alpha,
+    b: (foreground.b * foreground.a + background.b * background.a * (1 - foreground.a)) / alpha,
+    a: alpha,
+  };
+}
+
+function resolveOpaqueColor(rawValue: string, backdropRawValue: string): RGBAColor {
+  const backdrop = parseThemeColor(backdropRawValue) ?? { r: 0, g: 0, b: 0, a: 1 };
+  const parsed = parseThemeColor(rawValue);
+  if (!parsed) {
+    return backdrop;
+  }
+  return parsed.a >= 1 ? parsed : compositeForegroundOverBackground(parsed, backdrop);
+}
+
+export function calculateThemeContrast(
+  backgroundRawValue: string,
+  foregroundRawValue: string,
+  backdropRawValue: string,
+): number {
+  const background = resolveOpaqueColor(backgroundRawValue, backdropRawValue);
+  const foreground = resolveOpaqueColor(foregroundRawValue, toOpaqueHex(background));
+  const backgroundLuminance = relativeLuminance(background);
+  const foregroundLuminance = relativeLuminance(foreground);
+  const lighter = Math.max(backgroundLuminance, foregroundLuminance);
+  const darker = Math.min(backgroundLuminance, foregroundLuminance);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function relativeLuminance(color: RGBAColor): number {
+  const channels = [color.r, color.g, color.b].map((channel) => {
+    const normalized = clampChannel(channel) / 255;
+    return normalized <= 0.03928 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+}
 
 export class AppearanceStudio {
   private readonly root: HTMLElement;
@@ -256,14 +448,28 @@ export class AppearanceStudio {
       field.className = "settings-stack-field";
       const title = document.createElement("span");
       title.textContent = label;
+      const inputs = document.createElement("div");
+      inputs.className = "is-flex is-align-items-center";
+      inputs.style.gap = "0.75rem";
+
+      const rawInput = document.createElement("input");
+      rawInput.type = "text";
+      rawInput.className = "input";
+      rawInput.value = theme[key];
+      rawInput.addEventListener("change", () => {
+        this.registry[key].set(rawInput.value.trim());
+      });
+
       const input = document.createElement("input");
       input.type = "color";
       input.className = "input";
-      input.value = theme[key];
+      input.value = getColorPickerValue(theme[key]);
+      input.disabled = !isThemeColorEditableWithPicker(theme[key]);
       input.addEventListener("change", () => {
-        this.registry[key].set(input.value);
+        this.registry[key].set(mergeColorPickerValue(input.value, rawInput.value));
       });
-      field.append(title, input);
+      inputs.append(rawInput, input);
+      field.append(title, inputs);
       shell.appendChild(field);
     });
 
@@ -280,30 +486,38 @@ export class AppearanceStudio {
     const warnings = [
       {
         label: this.composeThemeLabel("light_theme_colors", "text_color_label"),
-        ratio: this.calculateContrast(
+        ratio: calculateThemeContrast(
           theme[KEY_SUGGESTION_BG_LIGHT],
           theme[KEY_SUGGESTION_TEXT_LIGHT],
+          LIGHT_THEME_CANVAS,
         ),
       },
       {
         label: this.composeThemeLabel("light_theme_colors", "highlight_text_label"),
-        ratio: this.calculateContrast(
+        ratio: calculateThemeContrast(
           theme[KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT],
           theme[KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT],
+          resolveOpaqueColor(theme[KEY_SUGGESTION_BG_LIGHT], LIGHT_THEME_CANVAS)
+            ? toOpaqueHex(resolveOpaqueColor(theme[KEY_SUGGESTION_BG_LIGHT], LIGHT_THEME_CANVAS))
+            : LIGHT_THEME_CANVAS,
         ),
       },
       {
         label: this.composeThemeLabel("dark_theme_colors", "text_color_label"),
-        ratio: this.calculateContrast(
+        ratio: calculateThemeContrast(
           theme[KEY_SUGGESTION_BG_DARK],
           theme[KEY_SUGGESTION_TEXT_DARK],
+          DARK_THEME_CANVAS,
         ),
       },
       {
         label: this.composeThemeLabel("dark_theme_colors", "highlight_text_label"),
-        ratio: this.calculateContrast(
+        ratio: calculateThemeContrast(
           theme[KEY_SUGGESTION_HIGHLIGHT_BG_DARK],
           theme[KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK],
+          resolveOpaqueColor(theme[KEY_SUGGESTION_BG_DARK], DARK_THEME_CANVAS)
+            ? toOpaqueHex(resolveOpaqueColor(theme[KEY_SUGGESTION_BG_DARK], DARK_THEME_CANVAS))
+            : DARK_THEME_CANVAS,
         ),
       },
     ];
@@ -356,24 +570,5 @@ export class AppearanceStudio {
       },
       {} as Record<ThemeKey, string>,
     );
-  }
-
-  private calculateContrast(backgroundHex: string, foregroundHex: string): number {
-    const bg = this.relativeLuminance(backgroundHex);
-    const fg = this.relativeLuminance(foregroundHex);
-    const lighter = Math.max(bg, fg);
-    const darker = Math.min(bg, fg);
-    return (lighter + 0.05) / (darker + 0.05);
-  }
-
-  private relativeLuminance(hex: string): number {
-    const normalized = hex.replace("#", "");
-    const values = [0, 2, 4].map(
-      (start) => Number.parseInt(normalized.slice(start, start + 2), 16) / 255,
-    );
-    const channels = values.map((value) =>
-      value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4,
-    );
-    return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
   }
 }
