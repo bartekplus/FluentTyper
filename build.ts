@@ -20,6 +20,7 @@ interface CliOptions {
   mode: BuildMode;
   watch: boolean;
   platform: string;
+  outDir?: string;
 }
 
 interface BuildContext {
@@ -37,6 +38,10 @@ interface BuildContext {
 }
 
 function parseCliOptions(argv: string[]): CliOptions {
+  const outDirEqualsArg = argv.find((arg) => arg.startsWith("--outdir="));
+  const outDirIndex = argv.indexOf("--outdir");
+  const outDirValueFromNext = outDirIndex >= 0 ? argv[outDirIndex + 1] : undefined;
+
   const platformEqualsArg = argv.find((arg) => arg.startsWith("--platform="));
   const platformIndex = argv.indexOf("--platform");
   const platformValueFromNext = platformIndex >= 0 ? argv[platformIndex + 1] : undefined;
@@ -54,6 +59,9 @@ function parseCliOptions(argv: string[]): CliOptions {
   return {
     mode,
     watch: argv.includes("--watch"),
+    outDir:
+      outDirEqualsArg?.slice("--outdir=".length) ??
+      (outDirValueFromNext && outDirValueFromNext.length > 0 ? outDirValueFromNext : undefined),
     platform: platformRaw && platformRaw.length > 0 ? platformRaw : "chrome",
   };
 }
@@ -312,7 +320,7 @@ async function main(): Promise<void> {
   const __dirname = path.dirname(__filename);
   const rootDir = __dirname;
   const srcDir = path.join(rootDir, "src");
-  const buildDir = path.join(rootDir, "build");
+  const buildDir = path.resolve(rootDir, cliOptions.outDir ?? "build");
   const publicDir = path.join(rootDir, "public");
   const platformDir = path.join(rootDir, "platform", platform);
 
@@ -343,7 +351,9 @@ async function main(): Promise<void> {
     ),
   };
 
-  console.log(`Building FluentTyper (${context.mode}, platform=${platform})...`);
+  console.log(
+    `Building FluentTyper (${context.mode}, platform=${platform}, outDir=${path.relative(rootDir, buildDir) || "."})...`,
+  );
   const startedAt = Date.now();
   await bundleExtension(context);
   const durationMs = Date.now() - startedAt;
