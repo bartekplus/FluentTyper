@@ -1,9 +1,8 @@
 import "./setup";
-import { afterEach, describe, expect, jest, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 import { SettingsEngine } from "../src/ui/settings-engine/SettingsEngine.js";
 import type { ManifestDefinition } from "../src/ui/settings-engine/types.js";
-
-const originalScrollIntoView = HTMLElement.prototype.scrollIntoView;
+const originalWindowScrollTo = window.scrollTo;
 
 function createManifest(): ManifestDefinition {
   return {
@@ -42,10 +41,13 @@ function createManifest(): ManifestDefinition {
 
 function createEngineElements() {
   const tabs = document.createElement("ul");
+  const main = document.createElement("main");
+  main.className = "options-main";
   const content = document.createElement("div");
   const mobileTabs = document.createElement("select");
   const searchInput = document.createElement("input");
-  document.body.append(tabs, mobileTabs, searchInput, content);
+  main.append(mobileTabs, searchInput, content);
+  document.body.append(tabs, main);
   (globalThis as { location?: Location }).location = window.location;
   window.history.replaceState = ((_data, _unused, url) => {
     if (typeof url === "string" && url.startsWith("#")) {
@@ -53,13 +55,13 @@ function createEngineElements() {
     }
   }) as History["replaceState"];
   (globalThis as { history?: History }).history = window.history;
-  return { tabs, content, mobileTabs, searchInput };
+  return { tabs, main, content, mobileTabs, searchInput };
 }
 
 afterEach(() => {
   document.body.replaceChildren();
   window.location.hash = "";
-  HTMLElement.prototype.scrollIntoView = originalScrollIntoView;
+  window.scrollTo = originalWindowScrollTo;
 });
 
 describe("SettingsEngine navigation", () => {
@@ -109,19 +111,41 @@ describe("SettingsEngine navigation", () => {
     );
   });
 
-  test("tab changes reset the shared scroll position to the active section", () => {
-    const scrollSpy = jest.fn();
-    HTMLElement.prototype.scrollIntoView = scrollSpy;
+  test("sidebar tab clicks reset scroll and update the active section", () => {
     const elements = createEngineElements();
     const engine = new SettingsEngine({
       container: elements,
     });
+    document.documentElement.scrollTop = 360;
+    elements.main.scrollTop = 180;
+
+    engine.buildFromManifest(createManifest());
+
+    const aboutTabLink = Array.from(elements.tabs.querySelectorAll<HTMLAnchorElement>("a")).find(
+      (link) => link.getAttribute("href") === "#about_support_tab",
+    );
+    aboutTabLink?.dispatchEvent(new Event("click", { bubbles: true, cancelable: true }));
+
+    expect(window.location.hash).toBe("#about_support_tab");
+    expect(document.documentElement.scrollTop).toBe(0);
+    expect(elements.main.scrollTop).toBe(0);
+    expect(elements.content.querySelector(".content-tab.is-active")?.id).toBe("about_support_tab");
+  });
+
+  test("tab changes reset the shared scroll position to the active section", () => {
+    const elements = createEngineElements();
+    const engine = new SettingsEngine({
+      container: elements,
+    });
+    document.documentElement.scrollTop = 480;
+    elements.main.scrollTop = 240;
 
     engine.buildFromManifest(createManifest());
     elements.mobileTabs.value = "about_support_tab";
     elements.mobileTabs.dispatchEvent(new Event("change", { bubbles: true }));
 
-    expect(scrollSpy).toHaveBeenCalled();
+    expect(document.documentElement.scrollTop).toBe(0);
+    expect(elements.main.scrollTop).toBe(0);
     expect(elements.content.querySelector(".content-tab.is-active")?.id).toBe("about_support_tab");
   });
 });

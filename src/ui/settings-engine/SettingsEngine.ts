@@ -122,10 +122,7 @@ export class SettingsEngine {
       if (this.mobileTabs) {
         this.mobileTabs.value = tabId;
       }
-      tab.content.scrollIntoView?.({
-        block: "start",
-        inline: "nearest",
-      });
+      this.resetScrollPosition();
     }
   }
 
@@ -135,6 +132,7 @@ export class SettingsEngine {
       const bundle = this.tabManager.create(meta);
 
       bundle.tabA.addEventListener("click", () => {
+        this.activateTabById(tabId);
         history.replaceState(null, "", `#${tabId}`);
       });
 
@@ -358,5 +356,31 @@ export class SettingsEngine {
       fragments.push(...params.keywords);
     }
     return fragments.join(" ").toLowerCase();
+  }
+
+  private resetScrollPosition(): void {
+    const contentRoot =
+      this.mobileTabs?.closest(".options-main") ?? this.searchInput?.closest(".options-main");
+    if (contentRoot instanceof HTMLElement) {
+      contentRoot.scrollTop = 0;
+      contentRoot.scrollLeft = 0;
+      contentRoot.scrollTo?.(0, 0);
+    }
+
+    const scrollingElement = document.scrollingElement;
+    if (scrollingElement) {
+      scrollingElement.scrollTop = 0;
+      scrollingElement.scrollLeft = 0;
+    }
+    document.documentElement.scrollTop = 0;
+    document.documentElement.scrollLeft = 0;
+    if (document.body) {
+      document.body.scrollTop = 0;
+      document.body.scrollLeft = 0;
+    }
+    const userAgent = navigator.userAgent.toLowerCase();
+    if (!userAgent.includes("jsdom")) {
+      window.scrollTo?.(0, 0);
+    }
   }
 }
