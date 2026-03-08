@@ -1,5 +1,6 @@
 import { CMD_BACKGROUND_PAGE_PREDICT_RESP } from "@core/domain/constants";
 import { checkLastError } from "@core/application/transport-utils";
+import { createLogger } from "@core/application/logging/Logger";
 import { getErrorMessage, logError } from "@core/domain/error";
 import { SettingsManager } from "@core/application/settingsManager";
 import { CoreSettingsRepository } from "@core/application/repositories/CoreSettingsRepository";
@@ -30,11 +31,13 @@ import {
   sanitizeSiteProfilesSetting,
 } from "./config/runtimeSettings";
 import { ConfigAssembler } from "./config/ConfigAssembler";
+import { ObservabilityService } from "./ObservabilityService";
 
 declare const __FT_DEV_BUILD__: boolean | undefined;
 
 export const IS_DEV_BUILD = typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
 export const ENABLE_AI_PREDICTOR = IS_DEV_BUILD;
+const logger = createLogger("BackgroundServiceWorker");
 
 export class BackgroundServiceWorker {
   static instance: BackgroundServiceWorker;
@@ -44,6 +47,7 @@ export class BackgroundServiceWorker {
   predictionManager!: PredictionManager;
   tabMessenger!: TabMessenger;
   productivityStatsManager!: ProductivityStatsManager;
+  observabilityService!: ObservabilityService;
   configAssembler!: ConfigAssembler;
   language!: string;
   private runtimeConfigReady = false;
@@ -60,6 +64,11 @@ export class BackgroundServiceWorker {
     this.predictionManager = new PredictionManager();
     this.tabMessenger = new TabMessenger();
     this.productivityStatsManager = new ProductivityStatsManager(this.settingsManager);
+    this.observabilityService = new ObservabilityService({
+      isDevBuild: IS_DEV_BUILD,
+      getPredictorSnapshot: () => this.predictionManager.getPredictorDebugSnapshot(),
+      getAutoLanguageRuntimes: () => this.languageDetector.getDebugState().liveRuntimes,
+    });
     this.configAssembler = new ConfigAssembler(this.settingsManager, {
       enableAIPredictor: ENABLE_AI_PREDICTOR,
       isDevBuild: IS_DEV_BUILD,
@@ -216,9 +225,14 @@ export class BackgroundServiceWorker {
     await this.predictionManager.initialize();
     const runtimeConfig = await this.configAssembler.assemblePredictionRuntimeConfig();
     this.language = runtimeConfig.language;
+    this.observabilityService.setConfig(runtimeConfig.observabilityConfig);
     this.predictionManager.setConfig(runtimeConfig.predictionConfig);
     this.productivityStatsManager.setSnippetShortcuts(runtimeConfig.textExpansions);
     this.runtimeConfigReady = true;
+    logger.info("Broadcasting runtime config update", {
+      aiPredictorEnabled: runtimeConfig.predictionConfig.aiPredictorEnabled,
+      observabilityEnabled: runtimeConfig.observabilityConfig?.enabled,
+    });
     await this.tabMessenger.sendToAllTabs(
       await this.getBackgroundPageSetConfigMsg(),
       this.settingsManager,

@@ -12,6 +12,7 @@ import type {
 } from "./PredictionTypes";
 import libPresageMod from "@third-party/libpresage/libpresage.js";
 import { WebLLMPredictor } from "./WebLLMPredictor";
+import { createLogger } from "@core/application/logging/Logger";
 import { DEFAULT_AI_PREDICTION_TIMEOUT_MS } from "@core/domain/constants";
 import { PredictorError, getErrorMessage } from "@core/domain/error";
 import type { PredictionInputAction } from "@core/domain/messageTypes";
@@ -87,6 +88,7 @@ export interface PredictorDebugSnapshot {
 const MAX_DEBUG_TRACES = 80;
 const MAX_TRACE_TIMELINE_EVENTS = 48;
 const TIMELINE_DETAIL_MAX_LENGTH = 180;
+const logger = createLogger("PredictionManager");
 
 export class PredictionManager {
   private libPresageMod: () => Promise<PresageModule>;
@@ -187,6 +189,11 @@ export class PredictionManager {
     this.currentConfig = {
       ...config,
     };
+    logger.info("Applying prediction manager config", {
+      aiPredictorEnabled: config.aiPredictorEnabled,
+      debugPresagePredictorEnabled: config.debugPresagePredictorEnabled,
+      debugAIPredictorEnabled: config.debugAIPredictorEnabled,
+    });
     if (!this.predictionOrchestrator) {
       throw new PredictorError("Prediction orchestrator not initialized", {
         code: "predictor_orchestrator_missing",
@@ -196,6 +203,7 @@ export class PredictionManager {
   }
 
   clearPredictorDebugTrace(): void {
+    logger.info("Clearing predictor debug traces");
     this.debugTraces = [];
     this.debugTraceById.clear();
     this.getWebLLMPredictor().clearCache();

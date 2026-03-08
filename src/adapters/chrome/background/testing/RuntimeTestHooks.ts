@@ -3,6 +3,7 @@ import {
   CMD_TOGGLE_FT_ACTIVE_TAB,
   CMD_TRIGGER_FT_ACTIVE_TAB,
 } from "@core/domain/constants";
+import { createLogger } from "@core/application/logging/Logger";
 import type { CommandRouter } from "../router/CommandRouter";
 
 declare const __FT_DEV_BUILD__: boolean | undefined;
@@ -31,6 +32,7 @@ const TEST_MSG_CLEAR_WEBLLM_PREDICTIONS = "TEST_CLEAR_WEBLLM_PREDICTIONS";
 const TEST_MSG_GET_WEBLLM_PREDICTION_CALLS = "TEST_GET_WEBLLM_PREDICTION_CALLS";
 const ENABLE_RUNTIME_TEST_HOOKS =
   typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
+const logger = createLogger("RuntimeTestHooks");
 
 function getWebLLMTestGlobals(): WebLLMTestGlobals {
   return globalThis as WebLLMTestGlobals;
@@ -45,10 +47,15 @@ function setWebLLMTestOverride(predictions: string[], delayMs: number): void {
     delayMs,
     calls: [],
   };
+  logger.info("Set WebLLM test override", {
+    predictionCount: normalizedPredictions.length,
+    delayMs,
+  });
 }
 
 function clearWebLLMTestOverride(): void {
   delete getWebLLMTestGlobals()[WEB_LLM_TEST_OVERRIDE_KEY];
+  logger.info("Cleared WebLLM test override");
 }
 
 function getWebLLMTestPredictionCalls(): RuntimeTestPredictionRequest[] {
@@ -81,6 +88,10 @@ export async function maybePredictFromRuntimeTestOverride(
       numSuggestions: request.numSuggestions,
     });
   }
+  logger.debug("Serving runtime test prediction override", {
+    lang: request.lang,
+    numSuggestions: request.numSuggestions,
+  });
   const delayMs =
     typeof override.delayMs === "number" && Number.isFinite(override.delayMs)
       ? Math.max(0, Math.round(override.delayMs))
@@ -103,6 +114,7 @@ export function registerRuntimeTestHooks(commandRouter: CommandRouter): void {
   if (!ENABLE_RUNTIME_TEST_HOOKS) {
     return;
   }
+  logger.info("Registering runtime test hooks");
   if (typeof globalThis !== "undefined") {
     getWebLLMTestGlobals().triggerCommandForTesting = async (command: string) => {
       await commandRouter.handle(command);

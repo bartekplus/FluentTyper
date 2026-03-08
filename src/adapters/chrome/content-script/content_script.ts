@@ -1,6 +1,9 @@
 import { checkLastError } from "@core/application/transport-utils";
-import { createLogger } from "@core/application/logging/Logger";
-import { CMD_CONTENT_SCRIPT_GET_CONFIG } from "@core/domain/constants";
+import { createLogger, setGlobalObservabilityRuntime } from "@core/application/logging/Logger";
+import {
+  CMD_CONTENT_SCRIPT_GET_CONFIG,
+  CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_EVENT,
+} from "@core/domain/constants";
 import type {
   ContentScriptGetConfigMessage,
   ContentScriptPredictRequestContext,
@@ -21,6 +24,25 @@ declare global {
 }
 
 const logger = createLogger("FluentTyperContentScript");
+declare const __FT_DEV_BUILD__: boolean | undefined;
+
+if (typeof __FT_DEV_BUILD__ !== "undefined" && __FT_DEV_BUILD__) {
+  setGlobalObservabilityRuntime({
+    source: "content_script",
+    sink: (event) => {
+      try {
+        chrome.runtime.sendMessage({
+          command: CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_EVENT,
+          context: {
+            event,
+          },
+        });
+      } catch {
+        // Ignore runtime disconnects during page teardown.
+      }
+    },
+  });
+}
 
 class FluentTyper {
   private readonly runtimeController: ContentRuntimeController;

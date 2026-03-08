@@ -198,7 +198,7 @@ describe("SettingsEngine navigation", () => {
           id: "advanced_tab",
           label: "Data & Diagnostics",
           title: "Data & Diagnostics",
-          shortDescription: "Backups, productivity stats, and optional debug tools.",
+          shortDescription: "Backups, import/export, and productivity stats.",
         },
       ],
       settings: [
@@ -208,7 +208,7 @@ describe("SettingsEngine navigation", () => {
           name: "dataDiagnosticsPanel",
           type: "customPanel",
           label: "Data & Diagnostics",
-          description: "Backups, productivity stats, and optional debug tools.",
+          description: "Backups, import/export, and productivity stats.",
         },
       ],
     });

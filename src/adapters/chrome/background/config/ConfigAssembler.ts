@@ -8,9 +8,11 @@ import type { SettingsManager } from "@core/application/settingsManager";
 import type { ConfigMessage } from "@core/domain/messageTypes";
 import type { PredictionConfig } from "../PredictionManager";
 import { CoreSettingsRepository } from "@core/application/repositories/CoreSettingsRepository";
+import { ObservabilitySettingsRepository } from "@core/application/repositories/ObservabilitySettingsRepository";
 import { PredictorSettingsRepository } from "@core/application/repositories/PredictorSettingsRepository";
 import { resolveActiveLanguage, resolveDomainRuntimeSettings } from "./runtimeSettings";
 import { normalizeGrammarRuleSelection } from "@core/domain/grammar/ruleCatalog";
+import type { ObservabilityConfig } from "@core/domain/observability";
 
 interface ConfigAssemblerOptions {
   enableAIPredictor: boolean;
@@ -21,18 +23,21 @@ export interface AssembledPredictionRuntimeConfig {
   language: string;
   predictionConfig: PredictionConfig;
   textExpansions: Array<[string, object]>;
+  observabilityConfig?: ObservabilityConfig;
 }
 
 export class ConfigAssembler {
   private readonly settingsManager: SettingsManager;
   private readonly coreSettingsRepository: CoreSettingsRepository;
   private readonly predictorSettingsRepository: PredictorSettingsRepository;
+  private readonly observabilitySettingsRepository: ObservabilitySettingsRepository;
   private readonly options: ConfigAssemblerOptions;
 
   constructor(settingsManager: SettingsManager, options: ConfigAssemblerOptions) {
     this.settingsManager = settingsManager;
     this.coreSettingsRepository = new CoreSettingsRepository(settingsManager);
     this.predictorSettingsRepository = new PredictorSettingsRepository(settingsManager);
+    this.observabilitySettingsRepository = new ObservabilitySettingsRepository(settingsManager);
     this.options = options;
   }
 
@@ -49,6 +54,7 @@ export class ConfigAssembler {
       displayLangHeader,
       userDictionaryList,
       themeConfig,
+      observability,
     ] = await Promise.all([
       this.coreSettingsRepository.isEnabled(),
       this.coreSettingsRepository.getAutocomplete(),
@@ -60,6 +66,7 @@ export class ConfigAssembler {
       this.coreSettingsRepository.getDisplayLangHeader(),
       this.coreSettingsRepository.getUserDictionaryList(),
       this.coreSettingsRepository.getThemeSettings(),
+      this.options.isDevBuild ? this.observabilitySettingsRepository.getSnapshot() : null,
     ]);
 
     return {
@@ -80,6 +87,14 @@ export class ConfigAssembler {
         ),
         userDictionaryList,
         themeConfig,
+        observability:
+          this.options.isDevBuild && observability
+            ? {
+                enabled: observability.enabled,
+                defaultLevel: observability.defaultLevel,
+                moduleOverrides: observability.moduleOverrides,
+              }
+            : undefined,
       },
     };
   }
@@ -97,6 +112,7 @@ export class ConfigAssembler {
       dateFormat,
       userDictionaryList,
       predictorSettings,
+      observabilitySettings,
     ] = await Promise.all([
       this.coreSettingsRepository.getNumSuggestions(),
       this.coreSettingsRepository.getMinWordLengthToPredict(),
@@ -108,6 +124,7 @@ export class ConfigAssembler {
       this.coreSettingsRepository.getDateFormat(),
       this.coreSettingsRepository.getUserDictionaryList(),
       this.predictorSettingsRepository.getSnapshot(),
+      this.options.isDevBuild ? this.observabilitySettingsRepository.getSnapshot() : null,
     ]);
     const normalizedGrammarRules = normalizeGrammarRuleSelection(enabledGrammarRules);
     const autoCapitalize = normalizedGrammarRules.includes("capitalizeSentenceStart");
@@ -115,6 +132,14 @@ export class ConfigAssembler {
     return {
       language,
       textExpansions,
+      observabilityConfig:
+        this.options.isDevBuild && observabilitySettings
+          ? {
+              enabled: observabilitySettings.enabled,
+              defaultLevel: observabilitySettings.defaultLevel,
+              moduleOverrides: observabilitySettings.moduleOverrides,
+            }
+          : undefined,
       predictionConfig: {
         numSuggestions,
         engineNumSuggestions: MAX_NUM_SUGGESTIONS,

@@ -4,6 +4,7 @@ import type { SettingsRegistry } from "../src/ui/settings-engine/SettingsEngine.
 import { EssentialsWorkspacePanel } from "../src/ui/options/EssentialsWorkspacePanel.js";
 import { DataDiagnosticsPanel } from "../src/ui/options/DataDiagnosticsPanel.js";
 import { GrammarWorkspacePanel } from "../src/ui/options/GrammarWorkspacePanel.js";
+import { ObservabilityWorkspacePanel } from "../src/ui/options/ObservabilityWorkspacePanel.js";
 import {
   KEY_AI_MODEL_ID,
   KEY_AI_PREDICTION_TIMEOUT_MS,
@@ -17,6 +18,9 @@ import {
   KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
   KEY_MIN_WORD_LENGTH_TO_PREDICT,
   KEY_NUM_SUGGESTIONS,
+  KEY_OBSERVABILITY_DEFAULT_LEVEL,
+  KEY_OBSERVABILITY_ENABLED,
+  KEY_OBSERVABILITY_MODULE_OVERRIDES,
   KEY_SELECT_BY_DIGIT,
 } from "../src/core/domain/constants";
 
@@ -111,7 +115,7 @@ describe("options workspace panels", () => {
     expect(tab.querySelectorAll(".settings-group.is-empty-workspace-group")).toHaveLength(4);
   });
 
-  test("data workspace absorbs diagnostics controls into custom cards", () => {
+  test("data workspace keeps diagnostics limited to productivity and import/export", () => {
     const tab = document.createElement("section");
     tab.className = "content-tab";
     const panelRoot = document.createElement("div");
@@ -123,12 +127,6 @@ describe("options workspace panels", () => {
       resetProductivityStatsButton: new MockPanelControl("Reset stats"),
       importSettingButton: new MockPanelControl("Import settings"),
       exportSettingButton: new MockPanelControl("Export settings"),
-      predictorDebugHint: new MockPanelControl("Debug hint"),
-      [KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED]: new MockPanelControl("Trace Presage"),
-      [KEY_DEBUG_AI_PREDICTOR_ENABLED]: new MockPanelControl("Trace AI"),
-      [KEY_AI_MODEL_ID]: new MockPanelControl("Model"),
-      [KEY_AI_PREDICTION_TIMEOUT_MS]: new MockPanelControl("Timeout"),
-      predictorDebugPanel: new MockPanelControl("Debug dashboard"),
     } as unknown as SettingsRegistry;
 
     createGroup(tab, "Productivity", [
@@ -139,25 +137,57 @@ describe("options workspace panels", () => {
       registry.importSettingButton as unknown as MockPanelControl,
       registry.exportSettingButton as unknown as MockPanelControl,
     ]);
-    createGroup(tab, "Debug", [
-      registry.predictorDebugHint as unknown as MockPanelControl,
+    new DataDiagnosticsPanel(panelRoot, registry);
+
+    expect(panelRoot.textContent).toContain("Productivity graph");
+    expect(panelRoot.textContent).toContain("Import settings");
+    expect(panelRoot.textContent).not.toContain("Debug dashboard");
+    expect(
+      panelRoot.querySelectorAll(".workspace-panel-stack > .settings-inline-card"),
+    ).toHaveLength(2);
+    expect(tab.querySelectorAll(".settings-group.is-empty-workspace-group")).toHaveLength(2);
+  });
+
+  test("observability workspace groups controls, predictor settings, and dashboard shell", () => {
+    const tab = document.createElement("section");
+    tab.className = "content-tab";
+    const panelRoot = document.createElement("div");
+    tab.appendChild(panelRoot);
+    document.body.appendChild(tab);
+
+    const registry = {
+      observabilityHint: new MockPanelControl("Observability hint"),
+      observabilityPanel: new MockPanelControl("Observability dashboard"),
+      [KEY_OBSERVABILITY_ENABLED]: new MockPanelControl("Observability enabled"),
+      [KEY_OBSERVABILITY_DEFAULT_LEVEL]: new MockPanelControl("Default log level"),
+      [KEY_OBSERVABILITY_MODULE_OVERRIDES]: new MockPanelControl("Overrides"),
+      [KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED]: new MockPanelControl("Trace Presage"),
+      [KEY_DEBUG_AI_PREDICTOR_ENABLED]: new MockPanelControl("Trace AI"),
+      [KEY_AI_MODEL_ID]: new MockPanelControl("Model"),
+      [KEY_AI_PREDICTION_TIMEOUT_MS]: new MockPanelControl("Timeout"),
+    } as unknown as SettingsRegistry;
+
+    createGroup(tab, "Controls", [
+      registry.observabilityHint as unknown as MockPanelControl,
+      registry[KEY_OBSERVABILITY_ENABLED] as unknown as MockPanelControl,
+      registry[KEY_OBSERVABILITY_DEFAULT_LEVEL] as unknown as MockPanelControl,
+    ]);
+    createGroup(tab, "Predictor", [
       registry[KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED] as unknown as MockPanelControl,
       registry[KEY_DEBUG_AI_PREDICTOR_ENABLED] as unknown as MockPanelControl,
       registry[KEY_AI_MODEL_ID] as unknown as MockPanelControl,
       registry[KEY_AI_PREDICTION_TIMEOUT_MS] as unknown as MockPanelControl,
-      registry.predictorDebugPanel as unknown as MockPanelControl,
     ]);
+    createGroup(tab, "Dashboard", [registry.observabilityPanel as unknown as MockPanelControl]);
 
-    new DataDiagnosticsPanel(panelRoot, registry, true);
+    new ObservabilityWorkspacePanel(panelRoot, registry);
 
-    expect(panelRoot.textContent).toContain("Productivity graph");
-    expect(panelRoot.textContent).toContain("Import settings");
-    expect(panelRoot.textContent).toContain("Debug dashboard");
+    expect(panelRoot.textContent).toContain("Observability enabled");
+    expect(panelRoot.textContent).toContain("Trace Presage");
+    expect(panelRoot.textContent).toContain("Observability dashboard");
     expect(
       panelRoot.querySelectorAll(".workspace-panel-stack > .settings-inline-card"),
     ).toHaveLength(3);
-    expect(panelRoot.querySelector(".settings-disclosure .settings-inline-card")).toBeNull();
-    expect(tab.querySelectorAll(".settings-group.is-empty-workspace-group")).toHaveLength(3);
   });
 
   test("grammar workspace wraps the rule selector in the shared card layout", () => {

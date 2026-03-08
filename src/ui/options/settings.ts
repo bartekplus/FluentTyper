@@ -1,4 +1,5 @@
 import { SettingsEngine } from "@ui/settings-engine/SettingsEngine.js";
+import { createLogger } from "@core/application/logging/Logger";
 import { Store } from "@core/application/storage/Store.js";
 import { dispatchSettingsSaveStatus } from "@ui/settings-engine/controls/FieldControl.js";
 import { SUPPORTED_LANGUAGES, resolveEnabledLanguages } from "@core/domain/lang";
@@ -10,8 +11,15 @@ import { DataDiagnosticsPanel } from "@ui/options/DataDiagnosticsPanel";
 import { AboutWorkspacePanel } from "@ui/options/AboutWorkspacePanel";
 import { EssentialsWorkspacePanel } from "@ui/options/EssentialsWorkspacePanel";
 import { GrammarWorkspacePanel } from "@ui/options/GrammarWorkspacePanel";
+import { ObservabilityWorkspacePanel } from "@ui/options/ObservabilityWorkspacePanel";
 import { resolveSiteProfiles } from "@core/domain/siteProfiles";
 import { sanitizeAutoLanguageSitePriors } from "@core/domain/autoLanguageDetection";
+import {
+  OBSERVABILITY_MODULE_IDS,
+  isLogLevel,
+  type LogLevel,
+  type ObservabilitySnapshot,
+} from "@core/domain/observability";
 import {
   KEY_AUTOCOMPLETE,
   KEY_AUTOCOMPLETE_ON_ENTER,
@@ -54,9 +62,14 @@ import {
   KEY_SUGGESTION_PADDING_HORIZONTAL,
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
   KEY_DEBUG_AI_PREDICTOR_ENABLED,
+  KEY_OBSERVABILITY_DEFAULT_LEVEL,
+  KEY_OBSERVABILITY_ENABLED,
+  KEY_OBSERVABILITY_MODULE_OVERRIDES,
   CMD_POPUP_GET_PRODUCTIVITY_STATS,
   CMD_POPUP_ACK_WEEKLY_RECAP,
   CMD_POPUP_ACK_DONATION_MILESTONE,
+  CMD_OPTIONS_CLEAR_OBSERVABILITY_EVENTS,
+  CMD_OPTIONS_GET_OBSERVABILITY_SNAPSHOT,
   CMD_OPTIONS_RESET_PRODUCTIVITY_STATS,
   CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT,
   CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE,
@@ -69,9 +82,15 @@ const PRODUCTIVITY_INSIGHTS_RETRY_DELAY_MS = 200;
 const PREDICTOR_DEBUG_MAX_RETRIES = 4;
 const PREDICTOR_DEBUG_RETRY_DELAY_MS = 250;
 const PREDICTOR_DEBUG_POLL_INTERVAL_MS = 1500;
+const OBSERVABILITY_MAX_RETRIES = 4;
+const OBSERVABILITY_RETRY_DELAY_MS = 250;
+const OBSERVABILITY_POLL_INTERVAL_MS = 1500;
 const IS_DEV_BUILD = typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
 let predictorDebugLastSignature = "";
 let predictorDebugBindingsInitialized = false;
+let observabilityLastSignature = "";
+let observabilityBindingsInitialized = false;
+const observabilityLogger = createLogger("OptionsObservability");
 
 function optionsPageConfigChange() {
   const message = {
@@ -1012,6 +1031,7 @@ function renderPredictorDebugSnapshot(root: HTMLElement, snapshot: PredictorSnap
   root.innerHTML = "";
   const shell = document.createElement("section");
   shell.className = "predictor-debug";
+  shell.id = "predictorDebugRoot";
 
   const header = document.createElement("div");
   header.className = "predictor-debug-header";
@@ -1474,6 +1494,566 @@ function setupPredictorDebugDashboard(registry: ReturnType<SettingsEngine["build
   }, PREDICTOR_DEBUG_POLL_INTERVAL_MS);
 }
 
+void setupPredictorDebugDashboard;
+
+type ObservabilitySnapshotRecord = ObservabilitySnapshot;
+
+function isObservabilitySnapshot(snapshot: unknown): snapshot is ObservabilitySnapshotRecord {
+  return (
+    !!snapshot &&
+    typeof snapshot === "object" &&
+    !Array.isArray(snapshot) &&
+    typeof (snapshot as Record<string, unknown>).generatedAtMs === "number" &&
+    typeof (snapshot as Record<string, unknown>).available === "boolean" &&
+    Array.isArray((snapshot as Record<string, unknown>).events) &&
+    Array.isArray((snapshot as Record<string, unknown>).modules)
+  );
+}
+
+function getObservabilityRootElement() {
+  return document.getElementById("observabilityRoot");
+}
+
+function buildObservabilitySnapshotSignature(snapshot: ObservabilitySnapshotRecord) {
+  try {
+    return JSON.stringify(snapshot);
+  } catch {
+    return "";
+  }
+}
+
+function getObservabilityModuleOverrides(
+  registry: ReturnType<SettingsEngine["buildFromManifest"]>,
+): Record<string, { enabled?: boolean; level?: LogLevel }> {
+  const value = registry[KEY_OBSERVABILITY_MODULE_OVERRIDES]?.get();
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+  const result: Record<string, { enabled?: boolean; level?: LogLevel }> = {};
+  for (const [moduleId, override] of Object.entries(value as Record<string, unknown>)) {
+    if (!OBSERVABILITY_MODULE_IDS.includes(moduleId as (typeof OBSERVABILITY_MODULE_IDS)[number])) {
+      continue;
+    }
+    if (!override || typeof override !== "object" || Array.isArray(override)) {
+      continue;
+    }
+    const record = override as Record<string, unknown>;
+    const nextOverride: { enabled?: boolean; level?: LogLevel } = {};
+    if (typeof record.enabled === "boolean") {
+      nextOverride.enabled = record.enabled;
+    }
+    if (isLogLevel(record.level)) {
+      nextOverride.level = record.level;
+    }
+    if (Object.keys(nextOverride).length > 0) {
+      result[moduleId] = nextOverride;
+    }
+  }
+  return result;
+}
+
+function setObservabilityModuleOverrides(
+  registry: ReturnType<SettingsEngine["buildFromManifest"]>,
+  overrides: Record<string, { enabled?: boolean; level?: LogLevel }>,
+) {
+  const setting = registry[KEY_OBSERVABILITY_MODULE_OVERRIDES];
+  if (!setting || typeof setting.set !== "function") {
+    return;
+  }
+  setting.set(overrides);
+}
+
+function renderObservabilityStatus(root: HTMLElement, text: string, isError = false) {
+  root.innerHTML = "";
+  const shell = document.createElement("div");
+  shell.className = "predictor-debug-status";
+  if (isError) {
+    shell.classList.add("is-error");
+  }
+  const message = document.createElement("p");
+  message.textContent = text;
+  shell.appendChild(message);
+  const refreshButton = document.createElement("button");
+  refreshButton.type = "button";
+  refreshButton.className = "button is-small is-light";
+  refreshButton.textContent = "Refresh";
+  refreshButton.setAttribute("data-action", "refresh-observability");
+  shell.appendChild(refreshButton);
+  root.appendChild(shell);
+}
+
+function createObservabilityLevelSelect(value: unknown, moduleId: string) {
+  const select = document.createElement("select");
+  select.className = "input";
+  select.setAttribute("data-action", "set-observability-module-level");
+  select.setAttribute("data-module-id", moduleId);
+  ["debug", "info", "warn", "error"].forEach((level) => {
+    const option = document.createElement("option");
+    option.value = level;
+    option.textContent = level;
+    option.selected = value === level;
+    select.appendChild(option);
+  });
+  return select;
+}
+
+function appendObservabilityInfoItem(container: HTMLElement, label: string, value: string) {
+  const row = document.createElement("div");
+  row.className = "predictor-debug-info-row";
+  const key = document.createElement("span");
+  key.textContent = label;
+  const val = document.createElement("strong");
+  val.textContent = value;
+  row.append(key, val);
+  container.appendChild(row);
+}
+
+function renderObservabilitySnapshot(
+  root: HTMLElement,
+  snapshot: ObservabilitySnapshotRecord,
+  registry: ReturnType<SettingsEngine["buildFromManifest"]>,
+) {
+  const events = Array.isArray(snapshot.events)
+    ? (snapshot.events as Array<Record<string, unknown>>)
+    : [];
+  const modules = Array.isArray(snapshot.modules)
+    ? (snapshot.modules as Array<Record<string, unknown>>)
+    : [];
+  const config =
+    snapshot.config && typeof snapshot.config === "object"
+      ? (snapshot.config as Record<string, unknown>)
+      : {};
+  const summary =
+    snapshot.summary && typeof snapshot.summary === "object"
+      ? (snapshot.summary as Record<string, unknown>)
+      : {};
+  const predictor =
+    snapshot.predictor && typeof snapshot.predictor === "object"
+      ? (snapshot.predictor as Record<string, unknown>)
+      : null;
+  root.innerHTML = "";
+  root.setAttribute("data-raw-snapshot", JSON.stringify(snapshot, null, 2));
+
+  const shell = document.createElement("section");
+  shell.className = "predictor-debug";
+
+  const header = document.createElement("div");
+  header.className = "predictor-debug-header";
+  const titleBlock = document.createElement("div");
+  const title = document.createElement("h3");
+  title.textContent = "Observability Dashboard";
+  const subtitle = document.createElement("p");
+  subtitle.textContent = `Updated ${formatClockTime(snapshot.generatedAtMs)}`;
+  titleBlock.append(title, subtitle);
+  header.appendChild(titleBlock);
+
+  const actions = document.createElement("div");
+  actions.className = "predictor-debug-actions";
+  [
+    ["Refresh", "refresh-observability"],
+    ["Clear Events", "clear-observability"],
+    ["Copy Snapshot", "copy-observability"],
+  ].forEach(([label, action]) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "button is-small is-light";
+    button.textContent = label;
+    button.setAttribute("data-action", action);
+    actions.appendChild(button);
+  });
+  header.appendChild(actions);
+  shell.appendChild(header);
+
+  const infoGrid = document.createElement("div");
+  infoGrid.className = "predictor-debug-info-grid";
+
+  const systemCard = document.createElement("article");
+  systemCard.className = "predictor-debug-info-card";
+  const systemTitle = document.createElement("h4");
+  systemTitle.textContent = "System Status";
+  systemCard.appendChild(systemTitle);
+  appendObservabilityInfoItem(systemCard, "Build", snapshot.devBuild ? "dev" : "release");
+  appendObservabilityInfoItem(
+    systemCard,
+    "Observability",
+    snapshot.available ? "available" : String(snapshot.reason || "unavailable"),
+  );
+  appendObservabilityInfoItem(systemCard, "Global enabled", String(config.enabled ?? false));
+  appendObservabilityInfoItem(systemCard, "Default level", String(config.defaultLevel || "n/a"));
+  appendObservabilityInfoItem(systemCard, "Events", String(summary.totalEvents || 0));
+  appendObservabilityInfoItem(
+    systemCard,
+    "Content runtimes",
+    String(Array.isArray(snapshot.contentRuntimes) ? snapshot.contentRuntimes.length : 0),
+  );
+  appendObservabilityInfoItem(
+    systemCard,
+    "Auto-language runtimes",
+    String(Array.isArray(snapshot.autoLanguageRuntimes) ? snapshot.autoLanguageRuntimes.length : 0),
+  );
+  infoGrid.appendChild(systemCard);
+
+  const predictorCard = document.createElement("article");
+  predictorCard.className = "predictor-debug-info-card";
+  const predictorTitle = document.createElement("h4");
+  predictorTitle.textContent = "Predictor Diagnostics";
+  predictorCard.appendChild(predictorTitle);
+  if (predictor) {
+    const predictorConfig = predictor.config as
+      | {
+          aiPredictorEnabled?: boolean;
+          aiModelId?: string;
+          debugPresagePredictorEnabled?: boolean;
+          debugAIPredictorEnabled?: boolean;
+        }
+      | undefined;
+    const traces = Array.isArray(predictor.traces) ? predictor.traces : [];
+    appendObservabilityInfoItem(
+      predictorCard,
+      "AI predictor",
+      predictorConfig?.aiPredictorEnabled ? "enabled" : "disabled",
+    );
+    appendObservabilityInfoItem(
+      predictorCard,
+      "Presage route",
+      predictorConfig?.debugPresagePredictorEnabled ? "enabled" : "disabled",
+    );
+    appendObservabilityInfoItem(
+      predictorCard,
+      "WebLLM route",
+      predictorConfig?.debugAIPredictorEnabled ? "enabled" : "disabled",
+    );
+    appendObservabilityInfoItem(
+      predictorCard,
+      "Model",
+      String(predictorConfig?.aiModelId || "n/a"),
+    );
+    appendObservabilityInfoItem(predictorCard, "Recent traces", String(traces.length));
+    const latestTrace = traces[0] as Record<string, unknown> | undefined;
+    appendObservabilityInfoItem(
+      predictorCard,
+      "Latest trace",
+      latestTrace ? String(latestTrace.traceId || latestTrace.requestId || "available") : "none",
+    );
+    predictorCard.appendChild(
+      createPredictorToggleAction(
+        "Presage route toggle",
+        KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
+        Boolean(predictorConfig?.debugPresagePredictorEnabled),
+      ),
+    );
+    predictorCard.appendChild(
+      createPredictorToggleAction(
+        "WebLLM route toggle",
+        KEY_DEBUG_AI_PREDICTOR_ENABLED,
+        Boolean(predictorConfig?.debugAIPredictorEnabled),
+      ),
+    );
+  } else {
+    appendObservabilityInfoItem(predictorCard, "State", "Unavailable");
+  }
+  infoGrid.appendChild(predictorCard);
+  shell.appendChild(infoGrid);
+
+  const modulesSection = document.createElement("section");
+  modulesSection.className = "predictor-debug-traces";
+  const modulesTitle = document.createElement("h4");
+  modulesTitle.textContent = "Module Controls";
+  modulesSection.appendChild(modulesTitle);
+  const modulesList = document.createElement("div");
+  modulesList.className = "predictor-debug-trace-list";
+  const activeOverrides = getObservabilityModuleOverrides(registry);
+  modules.forEach((moduleStateRecord) => {
+    const moduleState = moduleStateRecord as {
+      moduleId?: string;
+      enabled?: boolean;
+      level?: string;
+      registered?: boolean;
+      sources?: string[];
+      lastEventAt?: number;
+    };
+    const moduleId = String(moduleState.moduleId || "unknown");
+    const card = document.createElement("article");
+    card.className = "predictor-debug-trace";
+    const topRow = document.createElement("div");
+    topRow.className = "predictor-debug-trace-top";
+    const name = document.createElement("strong");
+    name.textContent = moduleId;
+    const status = document.createElement("span");
+    status.textContent = `${moduleState.enabled ? "enabled" : "disabled"} · ${String(
+      moduleState.level || "debug",
+    )}`;
+    topRow.append(name, status);
+    card.appendChild(topRow);
+
+    const detail = document.createElement("p");
+    detail.className = "predictor-debug-stage";
+    detail.textContent = `Registered: ${moduleState.registered ? "yes" : "no"} | Sources: ${
+      Array.isArray(moduleState.sources) ? moduleState.sources.join(", ") || "none" : "none"
+    } | Last event: ${
+      typeof moduleState.lastEventAt === "number"
+        ? formatClockTime(moduleState.lastEventAt)
+        : "none"
+    }`;
+    card.appendChild(detail);
+
+    const controls = document.createElement("div");
+    controls.className = "predictor-debug-toggle-row";
+    const enabledToggle = document.createElement("input");
+    enabledToggle.type = "checkbox";
+    enabledToggle.checked = Boolean(
+      activeOverrides[moduleId]?.enabled ?? moduleState.enabled ?? config.enabled,
+    );
+    enabledToggle.setAttribute("data-action", "toggle-observability-module");
+    enabledToggle.setAttribute("data-module-id", moduleId);
+    controls.appendChild(enabledToggle);
+    controls.appendChild(
+      createObservabilityLevelSelect(
+        activeOverrides[moduleId]?.level || moduleState.level || "debug",
+        moduleId,
+      ),
+    );
+    card.appendChild(controls);
+    modulesList.appendChild(card);
+  });
+  modulesSection.appendChild(modulesList);
+  shell.appendChild(modulesSection);
+
+  const eventsSection = document.createElement("section");
+  eventsSection.className = "predictor-debug-traces";
+  const eventsTitle = document.createElement("h4");
+  eventsTitle.textContent = "Recent Events";
+  eventsSection.appendChild(eventsTitle);
+  if (events.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "predictor-debug-empty";
+    empty.textContent = "No observability events captured yet.";
+    eventsSection.appendChild(empty);
+  } else {
+    const list = document.createElement("div");
+    list.className = "predictor-debug-trace-list";
+    events.slice(0, 80).forEach((eventRecord) => {
+      const event = eventRecord as {
+        moduleId?: string;
+        level?: string;
+        timestampMs?: number;
+        source?: string;
+        message?: string;
+        traceId?: string;
+        requestId?: number;
+        tabId?: number;
+        frameId?: number;
+        context?: unknown;
+      };
+      const card = document.createElement("article");
+      card.className = "predictor-debug-trace";
+      const topRow = document.createElement("div");
+      topRow.className = "predictor-debug-trace-top";
+      const main = document.createElement("strong");
+      main.textContent = `${String(event.moduleId || "module")} · ${String(event.level || "debug")} · ${formatClockTime(event.timestampMs)}`;
+      const source = document.createElement("span");
+      source.textContent = String(event.source || "unknown");
+      topRow.append(main, source);
+      card.appendChild(topRow);
+      const message = document.createElement("p");
+      message.className = "predictor-debug-output";
+      message.textContent = String(event.message || "");
+      card.appendChild(message);
+      const meta = document.createElement("p");
+      meta.className = "predictor-debug-stage";
+      meta.textContent = `trace=${String(event.traceId || "n/a")} request=${String(
+        event.requestId ?? "n/a",
+      )} tab=${String(event.tabId ?? "n/a")} frame=${String(event.frameId ?? "n/a")}`;
+      card.appendChild(meta);
+      if (event.context && typeof event.context === "object") {
+        const context = document.createElement("pre");
+        context.className = "predictor-debug-stage";
+        context.textContent = JSON.stringify(event.context, null, 2);
+        card.appendChild(context);
+      }
+      list.appendChild(card);
+    });
+    eventsSection.appendChild(list);
+  }
+  shell.appendChild(eventsSection);
+
+  const rawSection = document.createElement("section");
+  rawSection.className = "predictor-debug-traces";
+  const rawTitle = document.createElement("h4");
+  rawTitle.textContent = "Raw Snapshot";
+  rawSection.appendChild(rawTitle);
+  const raw = document.createElement("pre");
+  raw.className = "predictor-debug-stage";
+  raw.textContent = JSON.stringify(snapshot, null, 2);
+  rawSection.appendChild(raw);
+  shell.appendChild(rawSection);
+
+  root.appendChild(shell);
+}
+
+async function loadObservabilitySnapshot(root: HTMLElement, retryCount = 0) {
+  const hasRenderedDashboard = Boolean(root.querySelector(".predictor-debug"));
+  if (retryCount === 0 && !hasRenderedDashboard) {
+    renderObservabilityStatus(root, "Loading observability dashboard...");
+  }
+  const response = await sendRuntimeMessage({
+    command: CMD_OPTIONS_GET_OBSERVABILITY_SNAPSHOT,
+    context: {},
+  });
+  if (!isObservabilitySnapshot(response)) {
+    if (retryCount < OBSERVABILITY_MAX_RETRIES) {
+      window.setTimeout(() => {
+        void loadObservabilitySnapshot(root, retryCount + 1);
+      }, OBSERVABILITY_RETRY_DELAY_MS);
+      return;
+    }
+    renderObservabilityStatus(root, "Observability snapshot unavailable.", true);
+    return;
+  }
+  if (!response.available) {
+    renderObservabilityStatus(root, "Observability is available only in development builds.", true);
+    return;
+  }
+  const signature = buildObservabilitySnapshotSignature(response);
+  if (
+    signature &&
+    signature === observabilityLastSignature &&
+    root.querySelector(".predictor-debug, .predictor-debug-status")
+  ) {
+    return;
+  }
+  observabilityLastSignature = signature;
+  const registry = (
+    window as unknown as {
+      __ftSettingsRegistry?: ReturnType<SettingsEngine["buildFromManifest"]>;
+    }
+  ).__ftSettingsRegistry;
+  if (registry) {
+    renderObservabilitySnapshot(root, response, registry);
+  }
+}
+
+function setupObservabilityDashboard(registry: ReturnType<SettingsEngine["buildFromManifest"]>) {
+  if (!IS_DEV_BUILD) {
+    return;
+  }
+  const registryHost = window as unknown as {
+    __ftSettingsRegistry?: ReturnType<SettingsEngine["buildFromManifest"]>;
+  };
+  registryHost.__ftSettingsRegistry = registry;
+  const mountIfNeeded = () => getObservabilityRootElement();
+  const scheduleRefresh = () => {
+    const root = mountIfNeeded();
+    if (root) {
+      observabilityLastSignature = "";
+      void loadObservabilitySnapshot(root);
+    }
+  };
+  const root = mountIfNeeded();
+  if (root) {
+    observabilityLogger.info("Mounting observability dashboard");
+    scheduleRefresh();
+  }
+  if (observabilityBindingsInitialized) {
+    return;
+  }
+  observabilityBindingsInitialized = true;
+
+  document.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+    const action = target.getAttribute("data-action");
+    const root = mountIfNeeded();
+    if (!root) {
+      return;
+    }
+    if (action === "refresh-observability") {
+      observabilityLogger.debug("Refreshing observability dashboard");
+      scheduleRefresh();
+      return;
+    }
+    if (action === "clear-observability") {
+      observabilityLogger.warn("Clearing observability events from options");
+      void sendRuntimeMessage({
+        command: CMD_OPTIONS_CLEAR_OBSERVABILITY_EVENTS,
+        context: {},
+      }).then(() => {
+        scheduleRefresh();
+      });
+      return;
+    }
+    if (action === "set-predictor-toggle") {
+      const key = target.getAttribute("data-key");
+      const nextEnabled = target.getAttribute("data-enabled") === "true";
+      if (key) {
+        observabilityLogger.info("Updating predictor debug toggle", {
+          key,
+          nextEnabled,
+        });
+        const setting = registry[key];
+        if (setting && typeof setting.set === "function") {
+          setting.set(Boolean(nextEnabled));
+          optionsPageConfigChange();
+          window.setTimeout(scheduleRefresh, 120);
+        }
+      }
+      return;
+    }
+    if (action === "copy-observability") {
+      const raw = root.getAttribute("data-raw-snapshot") || "";
+      if (raw && navigator.clipboard?.writeText) {
+        void navigator.clipboard.writeText(raw);
+      }
+    }
+  });
+
+  document.addEventListener("change", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+    const action = target.getAttribute("data-action");
+    if (!action) {
+      return;
+    }
+    const moduleId = target.getAttribute("data-module-id");
+    if (!moduleId) {
+      return;
+    }
+    const overrides = getObservabilityModuleOverrides(registry);
+    const current = { ...(overrides[moduleId] || {}) };
+    if (action === "toggle-observability-module" && target instanceof HTMLInputElement) {
+      current.enabled = target.checked;
+    }
+    if (action === "set-observability-module-level" && target instanceof HTMLSelectElement) {
+      current.level = isLogLevel(target.value) ? target.value : "debug";
+    }
+    overrides[moduleId] = current;
+    observabilityLogger.info("Updating module override", {
+      moduleId,
+      enabled: current.enabled,
+      level: current.level,
+    });
+    setObservabilityModuleOverrides(registry, overrides);
+    optionsPageConfigChange();
+    window.setTimeout(scheduleRefresh, 120);
+  });
+
+  window.addEventListener("focus", scheduleRefresh);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) {
+      scheduleRefresh();
+    }
+  });
+  window.setInterval(() => {
+    if (!document.hidden) {
+      scheduleRefresh();
+    }
+  }, OBSERVABILITY_POLL_INTERVAL_MS);
+}
+
 window.addEventListener("DOMContentLoaded", function () {
   localizeStaticShell();
   setupSaveToast();
@@ -1521,11 +2101,13 @@ window.addEventListener("DOMContentLoaded", function () {
       registry,
       themePresets,
     );
-    new DataDiagnosticsPanel(
-      registry.dataDiagnosticsPanel.element as HTMLElement,
-      registry,
-      IS_DEV_BUILD,
-    );
+    new DataDiagnosticsPanel(registry.dataDiagnosticsPanel.element as HTMLElement, registry);
+    if (IS_DEV_BUILD && registry.observabilityWorkspacePanel?.element) {
+      new ObservabilityWorkspacePanel(
+        registry.observabilityWorkspacePanel.element as HTMLElement,
+        registry,
+      );
+    }
     new AboutWorkspacePanel(registry.aboutWorkspacePanel.element as HTMLElement);
 
     registry[KEY_LANGUAGE].addEvent("action", async function () {
@@ -1536,7 +2118,7 @@ window.addEventListener("DOMContentLoaded", function () {
     });
     await validateLanguageSettings(registry, store);
     setupProductivityInsights();
-    setupPredictorDebugDashboard(registry);
+    setupObservabilityDashboard(registry);
     registry.resetProductivityStatsButton.addEvent("action", async function () {
       await sendRuntimeMessage({
         command: CMD_OPTIONS_RESET_PRODUCTIVITY_STATS,
@@ -1619,6 +2201,8 @@ window.addEventListener("DOMContentLoaded", function () {
       KEY_AI_PREDICTION_TIMEOUT_MS,
       KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
       KEY_DEBUG_AI_PREDICTOR_ENABLED,
+      KEY_OBSERVABILITY_ENABLED,
+      KEY_OBSERVABILITY_DEFAULT_LEVEL,
       // Theme settings
       KEY_SUGGESTION_BG_LIGHT,
       KEY_SUGGESTION_TEXT_LIGHT,
@@ -1651,6 +2235,20 @@ window.addEventListener("DOMContentLoaded", function () {
           if (root) {
             predictorDebugLastSignature = "";
             void loadPredictorDebugSnapshot(root);
+          }
+        }
+        if (
+          element === KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED ||
+          element === KEY_DEBUG_AI_PREDICTOR_ENABLED ||
+          element === KEY_AI_MODEL_ID ||
+          element === KEY_AI_PREDICTION_TIMEOUT_MS ||
+          element === KEY_OBSERVABILITY_ENABLED ||
+          element === KEY_OBSERVABILITY_DEFAULT_LEVEL
+        ) {
+          const root = document.getElementById("observabilityRoot");
+          if (root) {
+            observabilityLastSignature = "";
+            void loadObservabilitySnapshot(root);
           }
         }
       });
