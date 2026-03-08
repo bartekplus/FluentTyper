@@ -9,7 +9,7 @@
       "css": ["suggestions/suggestions.css"],
       "js": ["content_script.js"],
       "matches": ["<all_urls>"],
-      "run_at": "document_idle",
+      "run_at": "document_end",
       "all_frames": true,
       "match_about_blank": true
     }

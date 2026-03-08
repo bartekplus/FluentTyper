@@ -217,6 +217,116 @@ async function setSettingAndWait(
   );
 }
 
+async function setSettingsAndWait(
+  worker: BackgroundContext,
+  settings: readonly SettingEntry[],
+): Promise<void> {
+  if (settings.length === 0) {
+    return;
+  }
+
+  const expectedByStorageKey = Object.fromEntries(
+    settings.map(([key, value]) => [`${SETTINGS_PREFIX}${key}`, JSON.stringify(value)]),
+  );
+  const storageKeys = Object.keys(expectedByStorageKey);
+  let workerContext = worker;
+
+  await waitUntil(
+    "batched settings write",
+    async () => {
+      try {
+        await workerContext.evaluate(
+          (serializedValues) =>
+            new Promise<void>((resolve, reject) => {
+              const storage = (
+                globalThis as typeof globalThis & {
+                  chrome?: typeof chrome;
+                }
+              ).chrome?.storage?.local;
+              if (!storage) {
+                reject(new Error("chrome.storage.local is unavailable"));
+                return;
+              }
+              storage.set(serializedValues, () => {
+                const runtime = (
+                  globalThis as typeof globalThis & {
+                    chrome?: typeof chrome;
+                  }
+                ).chrome?.runtime;
+                if (runtime?.lastError) {
+                  reject(new Error(runtime.lastError.message));
+                  return;
+                }
+                resolve();
+              });
+            }),
+          expectedByStorageKey,
+        );
+        return true;
+      } catch (error) {
+        if (!isRetriableWorkerError(error)) {
+          throw error;
+        }
+        if (activeBrowserForWorkerRecovery) {
+          workerContext = await reacquireWorker(activeBrowserForWorkerRecovery);
+        }
+        return false;
+      }
+    },
+    { timeoutMs: 4000, intervalMs: 100 },
+  );
+
+  await waitUntil(
+    "batched settings to stabilize",
+    async () => {
+      try {
+        const currentValues = (await workerContext.evaluate(
+          (storageKeysInner) =>
+            new Promise<Record<string, string | undefined>>((resolve, reject) => {
+              const storage = (
+                globalThis as typeof globalThis & {
+                  chrome?: typeof chrome;
+                }
+              ).chrome?.storage?.local;
+              if (!storage) {
+                reject(new Error("chrome.storage.local is unavailable"));
+                return;
+              }
+              storage.get(storageKeysInner, (resultInner) => {
+                const runtime = (
+                  globalThis as typeof globalThis & {
+                    chrome?: typeof chrome;
+                  }
+                ).chrome?.runtime;
+                if (runtime?.lastError) {
+                  reject(new Error(runtime.lastError.message));
+                  return;
+                }
+                resolve(resultInner as Record<string, string | undefined>);
+              });
+            }),
+          storageKeys,
+        )) as Record<string, string | undefined>;
+
+        return storageKeys.every(
+          (storageKey) => currentValues[storageKey] === expectedByStorageKey[storageKey],
+        )
+          ? true
+          : false;
+      } catch (error) {
+        if (!isRetriableWorkerError(error)) {
+          throw error;
+        }
+        if (activeBrowserForWorkerRecovery) {
+          workerContext = await reacquireWorker(activeBrowserForWorkerRecovery);
+        }
+        return false;
+      }
+    },
+    { timeoutMs: 5000, intervalMs: 50 },
+  );
+}
+
 async function sendConfigChange(browser: Browser, worker: BackgroundContext): Promise<void> {
   const send = async (context: BackgroundContext): Promise<void> => {
     await context.evaluate((command) => {
@@ -262,16 +372,10 @@ async function openOptionsPage(browser: Browser, worker: BackgroundContext): Pro
 
 async function waitForInputReady(page: Page, selector: string): Promise<void> {
   await page.waitForSelector(selector, { timeout: timeoutProfile.inputReadyMs });
-  await waitUntil(
-    `input helper attach for ${selector}`,
-    async () => {
-      const isAttached = await page.evaluate(
-        (sel) => document.querySelector(sel)?.hasAttribute("data-suggestion") ?? false,
-        selector,
-      );
-      return isAttached ? true : false;
-    },
-    { timeoutMs: timeoutProfile.inputReadyMs, intervalMs: 50 },
+  await page.waitForFunction(
+    (sel) => document.querySelector(sel)?.hasAttribute("data-suggestion") ?? false,
+    { timeout: timeoutProfile.inputReadyMs },
+    selector,
   );
 }
 
@@ -283,43 +387,40 @@ async function gotoTestPage(page: Page): Promise<void> {
 }
 
 async function waitForSuggestionTexts(page: Page): Promise<string[]> {
-  return await waitUntil(
-    "visible suggestion list",
-    async () => {
-      const texts = await page.evaluate(() => {
-        const activeElement = document.activeElement as
-          | (HTMLElement & { suggestionMenu?: Element | null })
-          | null;
-        const activeMenu = activeElement?.suggestionMenu;
-        const containers = [
-          ...(activeMenu instanceof Element ? [activeMenu] : []),
-          ...Array.from(document.querySelectorAll(".ft-suggestion-container")).filter(
-            (container) => container !== activeMenu,
-          ),
-        ];
-        for (const container of containers) {
-          const style = window.getComputedStyle(container);
-          if (
-            style.display === "none" ||
-            style.visibility === "hidden" ||
-            style.opacity === "0" ||
-            container.getClientRects().length === 0
-          ) {
-            continue;
-          }
-          const visibleTexts = Array.from(container.querySelectorAll("li"))
-            .map((li) => li.textContent ?? "")
-            .filter((text) => text.length > 0);
-          if (visibleTexts.length > 0) {
-            return visibleTexts;
-          }
+  const handle = await page.waitForFunction(
+    () => {
+      const activeElement = document.activeElement as
+        | (HTMLElement & { suggestionMenu?: Element | null })
+        | null;
+      const activeMenu = activeElement?.suggestionMenu;
+      const containers = [
+        ...(activeMenu instanceof Element ? [activeMenu] : []),
+        ...Array.from(document.querySelectorAll(".ft-suggestion-container")).filter(
+          (container) => container !== activeMenu,
+        ),
+      ];
+      for (const container of containers) {
+        const style = window.getComputedStyle(container);
+        if (
+          style.display === "none" ||
+          style.visibility === "hidden" ||
+          style.opacity === "0" ||
+          container.getClientRects().length === 0
+        ) {
+          continue;
         }
-        return [];
-      });
-      return texts.length > 0 ? texts : false;
+        const visibleTexts = Array.from(container.querySelectorAll("li"))
+          .map((li) => li.textContent ?? "")
+          .filter((text) => text.length > 0);
+        if (visibleTexts.length > 0) {
+          return visibleTexts;
+        }
+      }
+      return false;
     },
-    { timeoutMs: timeoutProfile.suggestionMs, intervalMs: 50 },
+    { timeout: timeoutProfile.suggestionMs },
   );
+  return (await handle.jsonValue()) as string[];
 }
 
 async function waitForInputContentMatch(
@@ -327,26 +428,26 @@ async function waitForInputContentMatch(
   selector: string,
   pattern: RegExp,
 ): Promise<string> {
-  return await waitUntil(
-    `input ${selector} to match ${String(pattern)}`,
-    async () => {
-      const currentValue = await page.$eval(
-        selector,
-        (el) => ((el as HTMLInputElement).value ?? el.textContent ?? "") as string,
-      );
-      return pattern.test(currentValue) ? currentValue : false;
+  const handle = await page.waitForFunction(
+    (sel, patternSource, patternFlags) => {
+      const element = document.querySelector(sel) as HTMLInputElement | HTMLElement | null;
+      const currentValue =
+        (element as HTMLInputElement | null)?.value ?? element?.textContent ?? "";
+      return new RegExp(patternSource, patternFlags).test(currentValue) ? currentValue : false;
     },
-    { timeoutMs: timeoutProfile.suggestionMs, intervalMs: 50 },
+    { timeout: timeoutProfile.suggestionMs },
+    selector,
+    pattern.source,
+    pattern.flags,
   );
+  return (await handle.jsonValue()) as string;
 }
 
 async function applySettings(
   worker: BackgroundContext,
   settings: readonly SettingEntry[],
 ): Promise<void> {
-  for (const [key, value] of settings) {
-    await setSettingAndWait(worker, key, value);
-  }
+  await setSettingsAndWait(worker, settings);
 }
 
 async function closePageSafely(pageToClose: Page | null | undefined): Promise<void> {
