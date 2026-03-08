@@ -40,13 +40,14 @@ function createDetector(initialState: Partial<SettingsState> = {}) {
     }
     return { languages: [{ language: "en", percentage: 96 }] };
   });
+  const pageDetectLanguage = jest.fn(async () => null);
 
   (globalThis as unknown as { chrome: typeof chrome }).chrome = {
     i18n: {
       detectLanguage,
     },
     tabs: {
-      detectLanguage: jest.fn(async () => null),
+      detectLanguage: pageDetectLanguage,
     },
   } as unknown as typeof chrome;
 
@@ -55,6 +56,7 @@ function createDetector(initialState: Partial<SettingsState> = {}) {
     settingsState: state,
     settingsManager: manager,
     detectLanguage,
+    pageDetectLanguage,
   };
 }
 
@@ -230,6 +232,62 @@ describe("LanguageDetector live session scoping", () => {
         .slice(-AUTO_LANGUAGE_MAX_SAMPLE_TOKENS)
         .join(" ") + " ",
     );
+  });
+
+  test("caches page language hints until the runtime or page scope changes", async () => {
+    const { detector, pageDetectLanguage } = createDetector();
+    pageDetectLanguage.mockResolvedValue("fr");
+
+    const first = await detector.resolveLanguage({
+      text: "hi",
+      nextChar: "",
+      tabId: 14,
+      frameId: 0,
+      suggestionId: 1,
+      runtimeGeneration: 1,
+      domainURL: "example.com",
+      enabledLanguages: ["en_US", "fr_FR"],
+    });
+    const repeated = await detector.resolveLanguage({
+      text: "hi there",
+      nextChar: "",
+      tabId: 14,
+      frameId: 0,
+      suggestionId: 1,
+      runtimeGeneration: 1,
+      domainURL: "example.com",
+      enabledLanguages: ["en_US", "fr_FR"],
+    });
+
+    expect(first.language).toBe("fr_FR");
+    expect(first.source).toBe("provisional_page");
+    expect(repeated.language).toBe("fr_FR");
+    expect(repeated.source).toBe("provisional_page");
+    expect(pageDetectLanguage).toHaveBeenCalledTimes(1);
+
+    await detector.resolveLanguage({
+      text: "hi again",
+      nextChar: "",
+      tabId: 14,
+      frameId: 0,
+      suggestionId: 1,
+      runtimeGeneration: 2,
+      domainURL: "example.com",
+      enabledLanguages: ["en_US", "fr_FR"],
+    });
+    expect(pageDetectLanguage).toHaveBeenCalledTimes(2);
+
+    await detector.resolveLanguage({
+      text: "hi once more",
+      nextChar: "",
+      tabId: 14,
+      frameId: 0,
+      suggestionId: 1,
+      runtimeGeneration: 2,
+      domainURL: "other.example",
+      enabledLanguages: ["en_US", "fr_FR"],
+    });
+    expect(pageDetectLanguage).toHaveBeenCalledTimes(3);
   });
 
   test("stale-session pruning persists a soft site prior and clears stale live state", async () => {

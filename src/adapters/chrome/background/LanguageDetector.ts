@@ -75,6 +75,8 @@ interface AutoLanguageSessionState {
   stableLanguage: string | null;
   resolvedLanguage: string;
   rollingSample: string;
+  pageLanguageHint: string | null;
+  pageLanguageHintResolved: boolean;
   pendingLanguage: string | null;
   pendingConfirmations: number;
   manualLockLanguage: string | null;
@@ -90,6 +92,9 @@ interface AutoLanguageLiveRuntimeState {
   frameId: number;
   runtimeGeneration: number;
   domain: string | null;
+  pageLanguageHint: string | null;
+  pageLanguageHintResolved: boolean;
+  pageLanguageHintPromise: Promise<string | null> | null;
   lastSeenAt: number;
   activityOrder: number;
 }
@@ -120,6 +125,10 @@ export class LanguageDetector {
     const priors = sanitizeAutoLanguageSitePriors(priorsRaw, allowedLanguages);
     const sitePrior = getAutoLanguageSitePrior(priors, domain || undefined, allowedLanguages);
     const key = this.getSessionKey(request);
+    const nextRuntimeGeneration =
+      typeof request.runtimeGeneration === "number" && Number.isFinite(request.runtimeGeneration)
+        ? request.runtimeGeneration
+        : 0;
     const session =
       this.sessions.get(key) ||
       ({
@@ -127,15 +136,14 @@ export class LanguageDetector {
         tabId: request.tabId,
         frameId: request.frameId,
         suggestionId: request.suggestionId,
-        runtimeGeneration:
-          typeof request.runtimeGeneration === "number" && Number.isFinite(request.runtimeGeneration)
-            ? request.runtimeGeneration
-            : 0,
+        runtimeGeneration: nextRuntimeGeneration,
         domain,
         enabledLanguages: allowedLanguages.slice(),
         stableLanguage: null,
         resolvedLanguage: fallbackLanguage,
         rollingSample: "",
+        pageLanguageHint: null,
+        pageLanguageHintResolved: false,
         pendingLanguage: null,
         pendingConfirmations: 0,
         manualLockLanguage: null,
@@ -145,18 +153,21 @@ export class LanguageDetector {
         priorEligible: false,
       } as AutoLanguageSessionState);
 
+    const pageScopeChanged =
+      session.runtimeGeneration !== nextRuntimeGeneration || session.domain !== domain;
     session.tabId = request.tabId;
     session.frameId = request.frameId;
     session.suggestionId = request.suggestionId;
-    session.runtimeGeneration =
-      typeof request.runtimeGeneration === "number" && Number.isFinite(request.runtimeGeneration)
-        ? request.runtimeGeneration
-        : 0;
+    session.runtimeGeneration = nextRuntimeGeneration;
     session.domain = domain;
     session.enabledLanguages = allowedLanguages.slice();
     session.lastSeenAt = now;
+    if (pageScopeChanged) {
+      session.pageLanguageHint = null;
+      session.pageLanguageHintResolved = false;
+    }
     session.rollingSample = updateAutoLanguageRollingSample(session.rollingSample, request.text);
-    this.reportRuntimeActivity({
+    const runtime = this.trackLiveRuntime({
       tabId: request.tabId,
       frameId: request.frameId,
       runtimeGeneration: session.runtimeGeneration,
@@ -167,7 +178,7 @@ export class LanguageDetector {
 
     const [browserDetections, pageLanguageHint] = await Promise.all([
       this.detectBrowserLanguages(rollingSample),
-      this.detectPageLanguage(request.tabId),
+      this.getCachedPageLanguageHint(session, runtime, request.tabId),
     ]);
 
     const decision = resolveAutoLanguageDecision({
@@ -213,23 +224,7 @@ export class LanguageDetector {
   }
 
   reportRuntimeActivity(scope: AutoLanguageSessionLookup): void {
-    const runtimeGeneration =
-      typeof scope.runtimeGeneration === "number" && Number.isFinite(scope.runtimeGeneration)
-        ? scope.runtimeGeneration
-        : 0;
-    if (runtimeGeneration <= 0) {
-      return;
-    }
-    const key = this.getLiveRuntimeKey(scope.tabId, scope.frameId ?? 0);
-    this.liveRuntimes.set(key, {
-      key,
-      tabId: scope.tabId,
-      frameId: scope.frameId ?? 0,
-      runtimeGeneration,
-      domain: normalizeDomainHost(scope.domainURL || "") || null,
-      lastSeenAt: Date.now(),
-      activityOrder: (this.liveRuntimeSequence += 1),
-    });
+    this.trackLiveRuntime(scope);
   }
 
   async getLiveRuntimeStatus(
@@ -330,6 +325,39 @@ export class LanguageDetector {
     return `${tabId}:${frameId}`;
   }
 
+  private trackLiveRuntime(
+    scope: AutoLanguageSessionLookup,
+  ): AutoLanguageLiveRuntimeState | null {
+    const runtimeGeneration =
+      typeof scope.runtimeGeneration === "number" && Number.isFinite(scope.runtimeGeneration)
+        ? scope.runtimeGeneration
+        : 0;
+    if (runtimeGeneration <= 0) {
+      return null;
+    }
+    const key = this.getLiveRuntimeKey(scope.tabId, scope.frameId ?? 0);
+    const domain = normalizeDomainHost(scope.domainURL || "") || null;
+    const existing = this.liveRuntimes.get(key);
+    const reusesPageContext =
+      existing &&
+      existing.runtimeGeneration === runtimeGeneration &&
+      existing.domain === domain;
+    const runtime: AutoLanguageLiveRuntimeState = {
+      key,
+      tabId: scope.tabId,
+      frameId: scope.frameId ?? 0,
+      runtimeGeneration,
+      domain,
+      pageLanguageHint: reusesPageContext ? existing.pageLanguageHint : null,
+      pageLanguageHintResolved: reusesPageContext ? existing.pageLanguageHintResolved : false,
+      pageLanguageHintPromise: reusesPageContext ? existing.pageLanguageHintPromise : null,
+      lastSeenAt: Date.now(),
+      activityOrder: (this.liveRuntimeSequence += 1),
+    };
+    this.liveRuntimes.set(key, runtime);
+    return runtime;
+  }
+
   private getMatchingLiveRuntime(
     scope: AutoLanguageSessionLookup,
   ): AutoLanguageLiveRuntimeState | null {
@@ -375,6 +403,40 @@ export class LanguageDetector {
     } catch {
       return null;
     }
+  }
+
+  private async getCachedPageLanguageHint(
+    session: AutoLanguageSessionState,
+    runtime: AutoLanguageLiveRuntimeState | null,
+    tabId: number,
+  ): Promise<string | null> {
+    if (!runtime) {
+      if (session.pageLanguageHintResolved) {
+        return session.pageLanguageHint;
+      }
+      const pageLanguageHint = await this.detectPageLanguage(tabId);
+      session.pageLanguageHint = pageLanguageHint;
+      session.pageLanguageHintResolved = true;
+      return pageLanguageHint;
+    }
+
+    if (runtime.pageLanguageHintResolved) {
+      return runtime.pageLanguageHint;
+    }
+    if (!runtime.pageLanguageHintPromise) {
+      runtime.pageLanguageHintPromise = this.detectPageLanguage(tabId).then((pageLanguageHint) => {
+        runtime.pageLanguageHint = pageLanguageHint;
+        runtime.pageLanguageHintResolved = true;
+        runtime.pageLanguageHintPromise = null;
+        this.liveRuntimes.set(runtime.key, runtime);
+        return pageLanguageHint;
+      });
+      this.liveRuntimes.set(runtime.key, runtime);
+    }
+    const pageLanguageHint = await runtime.pageLanguageHintPromise;
+    session.pageLanguageHint = pageLanguageHint;
+    session.pageLanguageHintResolved = true;
+    return pageLanguageHint;
   }
 
   private async pruneStaleState(now: number): Promise<void> {
