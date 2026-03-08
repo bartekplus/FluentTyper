@@ -223,7 +223,7 @@ describe("SettingsEngine navigation", () => {
     );
   });
 
-  test("custom panels keep their group shell when it adds distinct section structure", () => {
+  test("custom panels always collapse the outer group shell", () => {
     const elements = createEngineElements();
     const engine = new SettingsEngine({
       container: elements,
@@ -252,10 +252,7 @@ describe("SettingsEngine navigation", () => {
     });
 
     const panelGroup = elements.content.querySelector(".settings-group");
-    expect(panelGroup?.classList.contains("settings-group-panel-only")).toBe(false);
-    expect(
-      (elements.content.querySelector(".settings-group-title") as HTMLElement | null)?.innerText,
-    ).toBe("Writing setup");
+    expect(panelGroup?.classList.contains("settings-group-panel-only")).toBe(true);
     expect(elements.content.querySelector(".settings-custom-panel-label")).toBeNull();
     expect(elements.content.querySelector(".settings-custom-panel-description")).toBeNull();
     expect(elements.content.querySelector("#languagePreferencesPanelPanelRoot")).not.toBeNull();

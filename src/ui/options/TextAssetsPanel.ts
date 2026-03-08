@@ -106,11 +106,14 @@ export class TextAssetsPanel {
   }
 
   render(): void {
-    this.root.replaceChildren(
+    const shell = document.createElement("div");
+    shell.className = "workspace-panel-stack";
+    shell.append(
       this.createSnippetWorkspaceCard(),
       this.createDictionaryWorkspace(),
       this.createVariableWorkspace(),
     );
+    this.root.replaceChildren(shell);
   }
 
   private createToolbar(): HTMLElement {

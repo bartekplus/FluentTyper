@@ -249,13 +249,16 @@ export class AppearanceStudio {
 
   render(): void {
     const theme = this.readThemeValues();
-    this.root.replaceChildren(
+    const shell = document.createElement("div");
+    shell.className = "workspace-panel-stack";
+    shell.append(
       this.createPresetCards(),
       this.createPreviewCard(theme),
       this.createTypographyCard(theme),
       this.createAdvancedColors(theme),
       this.createContrastWarnings(theme),
     );
+    this.root.replaceChildren(shell);
   }
 
   private createPresetCards(): HTMLElement {

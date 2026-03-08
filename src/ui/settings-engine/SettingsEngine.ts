@@ -198,21 +198,10 @@ export class SettingsEngine {
     const groupRoot = container.closest(".settings-group");
     control.rootElement.setAttribute("data-search-text", this.buildFieldSearchText(params));
     container.appendChild(control.rootElement);
-    if (params.type === "customPanel" && this.shouldCollapsePanelGroup(params.tab, params.group)) {
+    if (params.type === "customPanel") {
       groupRoot?.classList.add("settings-group-panel-only");
     }
     return control;
-  }
-
-  private shouldCollapsePanelGroup(tabId: string, groupLabel: string): boolean {
-    const tabMeta = this.tabMetaMap[tabId];
-    const normalize = (value: string | undefined) =>
-      (value || "").replace(/\s+/g, " ").trim().toLowerCase();
-    const normalizedGroup = normalize(groupLabel);
-    if (!normalizedGroup) {
-      return false;
-    }
-    return [tabMeta?.label, tabMeta?.title].some((value) => normalize(value) === normalizedGroup);
   }
 
   private instantiateControl(params: FieldConfig): FieldControl {

@@ -87,7 +87,11 @@ export class SiteManagementPanel {
     profileCard.appendChild(header);
     profileCard.appendChild(this.siteProfilesRoot);
 
-    this.root.replaceChildren(accessCard, profileCard);
+    const shell = document.createElement("div");
+    shell.className = "workspace-panel-stack";
+    shell.append(accessCard, profileCard);
+
+    this.root.replaceChildren(shell);
     await this.siteProfilesManager.render();
   }
 

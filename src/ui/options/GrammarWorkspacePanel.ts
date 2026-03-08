@@ -17,7 +17,15 @@ export class GrammarWorkspacePanel {
     if (!control?.rootElement) {
       return;
     }
-    this.root.replaceChildren(control.rootElement);
+    const shell = document.createElement("div");
+    shell.className = "workspace-panel-stack";
+
+    const card = document.createElement("section");
+    card.className = "settings-inline-card";
+    card.appendChild(control.rootElement);
+
+    shell.appendChild(card);
+    this.root.replaceChildren(shell);
     pruneEmptySettingsGroups(this.root);
   }
 }

@@ -3,12 +3,14 @@ import { afterEach, describe, expect, test } from "bun:test";
 import type { SettingsRegistry } from "../src/ui/settings-engine/SettingsEngine.js";
 import { EssentialsWorkspacePanel } from "../src/ui/options/EssentialsWorkspacePanel.js";
 import { DataDiagnosticsPanel } from "../src/ui/options/DataDiagnosticsPanel.js";
+import { GrammarWorkspacePanel } from "../src/ui/options/GrammarWorkspacePanel.js";
 import {
   KEY_AI_MODEL_ID,
   KEY_AI_PREDICTION_TIMEOUT_MS,
   KEY_AUTOCOMPLETE,
   KEY_AUTOCOMPLETE_ON_ENTER,
   KEY_AUTOCOMPLETE_ON_TAB,
+  KEY_ENABLED_GRAMMAR_RULES,
   KEY_DEBUG_AI_PREDICTOR_ENABLED,
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
   KEY_INLINE_SUGGESTION,
@@ -152,5 +154,28 @@ describe("options workspace panels", () => {
     expect(panelRoot.textContent).toContain("Import settings");
     expect(panelRoot.textContent).toContain("Debug dashboard");
     expect(tab.querySelectorAll(".settings-group.is-empty-workspace-group")).toHaveLength(3);
+  });
+
+  test("grammar workspace wraps the rule selector in the shared card layout", () => {
+    const tab = document.createElement("section");
+    tab.className = "content-tab";
+    const panelRoot = document.createElement("div");
+    tab.appendChild(panelRoot);
+    document.body.appendChild(tab);
+
+    const registry = {
+      [KEY_ENABLED_GRAMMAR_RULES]: new MockPanelControl("Enabled Grammar Rules"),
+    } as unknown as SettingsRegistry;
+
+    createGroup(tab, "Grammar", [
+      registry[KEY_ENABLED_GRAMMAR_RULES] as unknown as MockPanelControl,
+    ]);
+
+    new GrammarWorkspacePanel(panelRoot, registry);
+
+    expect(panelRoot.querySelector(".workspace-panel-stack")).not.toBeNull();
+    expect(panelRoot.querySelector(".settings-inline-card")).not.toBeNull();
+    expect(panelRoot.textContent).toContain("Enabled Grammar Rules");
+    expect(tab.querySelectorAll(".settings-group.is-empty-workspace-group")).toHaveLength(1);
   });
 });

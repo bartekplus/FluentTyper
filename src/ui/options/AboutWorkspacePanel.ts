@@ -29,10 +29,10 @@ export class AboutWorkspacePanel {
 
   render(): void {
     const shell = document.createElement("div");
-    shell.className = "workspace-overview-grid";
+    shell.className = "workspace-panel-stack";
 
     const productCard = document.createElement("section");
-    productCard.className = "workspace-overview-card";
+    productCard.className = "settings-inline-card workspace-overview-card";
     const productTitle = document.createElement("h4");
     productTitle.textContent = i18n.get("about_fluent_typer_group");
     const productCopy = document.createElement("p");
@@ -59,7 +59,7 @@ export class AboutWorkspacePanel {
     productCard.append(productTitle, productCopy, version, highlightRow);
 
     const supportCard = document.createElement("section");
-    supportCard.className = "workspace-overview-card";
+    supportCard.className = "settings-inline-card workspace-overview-card";
     const supportTitle = document.createElement("h4");
     supportTitle.textContent = i18n.get("support_development_group");
     supportCard.appendChild(supportTitle);
@@ -93,7 +93,7 @@ export class AboutWorkspacePanel {
     );
 
     const donateCard = document.createElement("section");
-    donateCard.className = "workspace-overview-card";
+    donateCard.className = "settings-inline-card workspace-overview-card";
     const donateTitle = document.createElement("h4");
     donateTitle.textContent = i18n.get("support_donate_link");
     const donateCopy = document.createElement("p");
@@ -107,7 +107,11 @@ export class AboutWorkspacePanel {
     donateLink.textContent = i18n.get("support_donate_link");
     donateCard.append(donateTitle, donateCopy, donateLink);
 
-    shell.append(productCard, supportCard, donateCard);
+    const secondaryGrid = document.createElement("div");
+    secondaryGrid.className = "workspace-card-grid";
+    secondaryGrid.append(supportCard, donateCard);
+
+    shell.append(productCard, secondaryGrid);
     this.root.replaceChildren(shell);
   }
 }

@@ -389,6 +389,12 @@ body.fluenttyper-options .settings-group.settings-group-panel-only .settings-gro
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
+.workspace-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
 .workspace-overview-card {
   display: grid;
   gap: 0.75rem;
