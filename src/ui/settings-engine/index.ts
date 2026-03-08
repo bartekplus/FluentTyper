@@ -14,8 +14,6 @@ export type {
 } from "./types.js";
 export { SettingsEngine } from "./SettingsEngine.js";
 export type { SettingsRegistry, SettingsEngineOptions } from "./SettingsEngine.js";
-export { Store } from "./store/Store.js";
-export type { StorageBackend } from "./store/StorageBackend.js";
 export { I18n } from "./i18n/I18n.js";
 export type { TranslationMap, TranslationDictionary } from "./i18n/I18n.js";
 

@@ -1,5 +1,5 @@
 import { SettingsEngine } from "@ui/settings-engine/SettingsEngine.js";
-import { Store } from "@ui/settings-engine/store/Store.js";
+import { Store } from "@core/application/storage/Store.js";
 import type {
   SelectFieldControl,
   ListBoxFieldControl,

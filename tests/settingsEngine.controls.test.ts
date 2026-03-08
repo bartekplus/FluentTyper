@@ -9,7 +9,7 @@ import { ValueOnlyControl } from "../src/ui/settings-engine/controls/ValueOnlyCo
 import { TextControl } from "../src/ui/settings-engine/controls/TextControl.js";
 import { TextareaControl } from "../src/ui/settings-engine/controls/TextareaControl.js";
 import { RadioControl } from "../src/ui/settings-engine/controls/RadioControl.js";
-import { Store } from "../src/ui/settings-engine/store/Store.js";
+import { Store } from "../src/core/application/storage/Store.js";
 
 function makeStore(): Store {
   return new Store("test-controls");

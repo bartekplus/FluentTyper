@@ -1,4 +1,4 @@
-import { Store } from "@ui/settings-engine/store/Store.js";
+import { Store } from "@core/application/storage/Store.js";
 import { getUniqueID } from "@ui/settings-engine/controls/FieldControl.js";
 import { i18n } from "./fluenttyperI18n.js";
 import { parse } from "csv-parse/sync";

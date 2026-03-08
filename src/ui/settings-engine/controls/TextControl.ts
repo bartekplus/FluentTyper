@@ -1,5 +1,5 @@
 import type { TextConfig } from "../types.js";
-import type { Store } from "../store/Store.js";
+import type { Store } from "@core/application/storage/Store.js";
 import { BaseControl } from "./FieldControl.js";
 
 export class TextControl extends BaseControl<string> {

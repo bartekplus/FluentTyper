@@ -4,7 +4,7 @@ import { KEY_ENABLED_GRAMMAR_RULES } from "../src/core/domain/constants";
 import { manifest } from "../src/ui/options/settingsManifest.js";
 import { i18n } from "../src/ui/options/fluenttyperI18n.js";
 import { RuleToggleCardsControl } from "../src/ui/settings-engine/controls/RuleToggleCardsControl.js";
-import { Store } from "../src/ui/settings-engine/store/Store.js";
+import { Store } from "../src/core/application/storage/Store.js";
 
 function buildRuleToggleCardsHost() {
   const host = document.createElement("div");
@@ -265,8 +265,8 @@ describe("ruleToggleCards setting", () => {
 
     expect(visibleRuleCards(host).map((card) => card.tabIndex)).toEqual([0, -1, -1]);
     expect(
-      Array.from(host.querySelectorAll(".grammar-rule-card-toggle")).map((input) =>
-        (input as HTMLInputElement).tabIndex,
+      Array.from(host.querySelectorAll(".grammar-rule-card-toggle")).map(
+        (input) => (input as HTMLInputElement).tabIndex,
       ),
     ).toEqual([-1, -1, -1]);
 

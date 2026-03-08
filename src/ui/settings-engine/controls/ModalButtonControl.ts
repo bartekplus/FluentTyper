@@ -1,5 +1,5 @@
 import type { ModalButtonConfig, FieldConfig } from "../types.js";
-import type { Store } from "../store/Store.js";
+import type { Store } from "@core/application/storage/Store.js";
 import type { FieldControl } from "./FieldControl.js";
 import { BaseControl } from "./FieldControl.js";
 

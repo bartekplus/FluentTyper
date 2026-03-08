@@ -94,7 +94,9 @@ function installChromeStorageMock(options: ChromeStorageMockOptions = {}): {
   return { storageState, localSet };
 }
 
-function installLocalStorageMock(initialState: StorageSnapshot = {}): { storageState: StorageSnapshot } {
+function installLocalStorageMock(initialState: StorageSnapshot = {}): {
+  storageState: StorageSnapshot;
+} {
   const storageState: StorageSnapshot = { ...initialState };
   const localStorageMock = {
     get length(): number {
@@ -164,7 +166,7 @@ describe("ChromeStorageBackend.getAll", () => {
 describe("Store async semantics", () => {
   test("set resolves only after backend callback completes", async () => {
     const { localSet } = installChromeStorageMock({ setDelayMs: 25 });
-    const { Store } = await import(freshModulePath("../src/ui/settings-engine/store/Store.js"));
+    const { Store } = await import(freshModulePath("../src/core/application/storage/Store.js"));
     const store = new Store("unit", {});
 
     let resolved = false;
@@ -182,7 +184,7 @@ describe("Store async semantics", () => {
 
   test("get waits for async default seeding to finish", async () => {
     const { storageState } = installChromeStorageMock({ setDelayMs: 20 });
-    const { Store } = await import(freshModulePath("../src/ui/settings-engine/store/Store.js"));
+    const { Store } = await import(freshModulePath("../src/core/application/storage/Store.js"));
     const store = new Store("startup", { enabled: true });
 
     const value = await store.get("enabled");
@@ -197,7 +199,7 @@ describe("Store async semantics", () => {
         "extensionState.language": '"pl"',
       },
     });
-    const { Store } = await import(freshModulePath("../src/ui/settings-engine/store/Store.js"));
+    const { Store } = await import(freshModulePath("../src/core/application/storage/Store.js"));
     const store = new Store("settings", { enable: true, language: "en" });
 
     await expect(store.getAll()).resolves.toEqual({
@@ -216,7 +218,7 @@ describe("Store async semantics", () => {
       "extensionState.enabled": "false",
       "extensionState.language": '"pl"',
     });
-    const { Store } = await import(freshModulePath("../src/ui/settings-engine/store/Store.js"));
+    const { Store } = await import(freshModulePath("../src/core/application/storage/Store.js"));
     const store = new Store("settings", { enable: true, language: "en" });
 
     await expect(store.getAll()).resolves.toEqual({

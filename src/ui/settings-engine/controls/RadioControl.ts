@@ -1,5 +1,5 @@
 import type { RadioConfig } from "../types.js";
-import type { Store } from "../store/Store.js";
+import type { Store } from "@core/application/storage/Store.js";
 import { BaseControl, getUniqueID } from "./FieldControl.js";
 
 export class RadioControl extends BaseControl<string> {

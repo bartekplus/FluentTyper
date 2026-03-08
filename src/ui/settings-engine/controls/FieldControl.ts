@@ -1,4 +1,4 @@
-import type { Store } from "../store/Store.js";
+import type { Store } from "@core/application/storage/Store.js";
 
 // --- Unique ID generator ---
 let _uid = Date.now();

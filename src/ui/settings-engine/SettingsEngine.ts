@@ -1,6 +1,6 @@
 import type { FieldConfig, ManifestDefinition } from "./types.js";
 import type { FieldControl } from "./controls/FieldControl.js";
-import { Store } from "./store/Store.js";
+import { Store } from "@core/application/storage/Store.js";
 import { TabManager } from "./layout/TabManager.js";
 import { createGroup } from "./layout/GroupManager.js";
 

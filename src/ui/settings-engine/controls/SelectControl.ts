@@ -1,5 +1,5 @@
 import type { SelectConfig, OptionEntry } from "../types.js";
-import type { Store } from "../store/Store.js";
+import type { Store } from "@core/application/storage/Store.js";
 import type { SelectFieldControl } from "./FieldControl.js";
 import { BaseControl } from "./FieldControl.js";
 

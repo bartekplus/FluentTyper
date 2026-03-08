@@ -1,5 +1,5 @@
 import type { ListBoxConfig } from "../types.js";
-import type { Store } from "../store/Store.js";
+import type { Store } from "@core/application/storage/Store.js";
 import type { ListBoxFieldControl } from "./FieldControl.js";
 import { BaseControl } from "./FieldControl.js";
 
