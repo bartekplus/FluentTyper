@@ -95,15 +95,10 @@ function showSavedIndicator(rootEl: HTMLElement): void {
   }
   indicator.classList.remove("field-saved-indicator--hidden");
   indicator.classList.add("field-saved-indicator--visible");
-  const handle = window.setTimeout(() => {
-    if (indicator) {
-      indicator.classList.remove("field-saved-indicator--visible");
-      indicator.classList.add("field-saved-indicator--hidden");
-    }
+  window.setTimeout(() => {
+    indicator.classList.remove("field-saved-indicator--visible");
+    indicator.classList.add("field-saved-indicator--hidden");
   }, 1500);
-  // Store handle so duplicate calls can be debounced
-  (indicator as HTMLElement & { _clearHandle?: ReturnType<typeof setTimeout> })._clearHandle =
-    handle;
 }
 
 // --- Abstract base control ---

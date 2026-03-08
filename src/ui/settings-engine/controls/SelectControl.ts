@@ -43,9 +43,7 @@ export class SelectControl extends BaseControl<string> implements SelectFieldCon
     }
 
     select.addEventListener("change", () => {
-      if (params.name !== undefined) {
-        this.persistToStorage(this.get());
-      }
+      this.persistToStorage(this.get());
       this.emitter.fireEvent("action", this.get());
     });
 

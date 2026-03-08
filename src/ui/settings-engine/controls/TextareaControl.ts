@@ -27,9 +27,7 @@ export class TextareaControl extends BaseControl<string> {
     }
 
     const handleChange = (): void => {
-      if (params.name !== undefined) {
-        this.persistToStorage(this.get());
-      }
+      this.persistToStorage(this.get());
       this.emitter.fireEvent("action", this.get());
     };
 

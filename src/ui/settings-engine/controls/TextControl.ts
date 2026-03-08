@@ -23,14 +23,8 @@ export class TextControl extends BaseControl<string> {
     }
 
     const input = document.createElement("input");
-
-    if (params.colorPicker) {
-      input.type = "text";
-      input.className = "color";
-    } else {
-      input.type = "text";
-      input.className = "input";
-    }
+    input.type = "text";
+    input.className = params.colorPicker ? "color" : "input";
 
     if (params.text) {
       input.placeholder = params.text;
@@ -82,7 +76,7 @@ export class TextControl extends BaseControl<string> {
         errorEl.style.display = "none";
       }
 
-      if (params.name !== undefined && params.store !== false) {
+      if (params.store !== false) {
         this.persistToStorage(this.get());
       }
 

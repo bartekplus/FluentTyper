@@ -36,9 +36,7 @@ export class ListBoxMultiSelectControl extends BaseControl<string[]> {
 
     select.addEventListener("change", () => {
       const value = this.get();
-      if (params.name !== undefined) {
-        this.persistToStorage(value);
-      }
+      this.persistToStorage(value);
       this.emitter.fireEvent("action", value);
     });
 

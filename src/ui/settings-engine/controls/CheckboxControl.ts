@@ -32,9 +32,7 @@ export class CheckboxControl extends BaseControl<boolean> {
 
     input.addEventListener("change", () => {
       const value = this.get();
-      if (params.name !== undefined) {
-        this.persistToStorage(value);
-      }
+      this.persistToStorage(value);
       this.emitter.fireEvent("action", value);
     });
 

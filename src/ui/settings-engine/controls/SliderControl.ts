@@ -61,28 +61,10 @@ export class SliderControl extends BaseControl<number> {
     root.appendChild(control);
     this._element = input;
 
-    const updateDisplay = (value: number): void => {
-      const formatted = this.displayModifier ? this.displayModifier(value) : String(value);
-      if (this.display) {
-        this.display.innerText = formatted;
-      }
-      if (this.tooltip) {
-        this.tooltip.textContent = formatted;
-        // Position tooltip above the thumb based on value percentage
-        const min = parseFloat(input.min) || 0;
-        const max = parseFloat(input.max) || 100;
-        const pct = ((value - min) / (max - min)) * 100;
-        this.tooltip.style.left = `${pct}%`;
-        this.tooltip.classList.add("slider-tooltip--visible");
-      }
-    };
-
     input.addEventListener("input", () => {
       const value = this.get();
-      updateDisplay(value);
-      if (params.name !== undefined) {
-        this.persistToStorage(value);
-      }
+      this.updateDisplay(value, input);
+      this.persistToStorage(value);
       this.emitter.fireEvent("action", value);
     });
 
@@ -106,6 +88,25 @@ export class SliderControl extends BaseControl<number> {
     }
   }
 
+  private formatValue(value: number): string {
+    return this.displayModifier ? this.displayModifier(value) : String(value);
+  }
+
+  private updateDisplay(value: number, input: HTMLInputElement): void {
+    const formatted = this.formatValue(value);
+    if (this.display) {
+      this.display.innerText = formatted;
+    }
+    if (this.tooltip) {
+      this.tooltip.textContent = formatted;
+      const min = parseFloat(input.min) || 0;
+      const max = parseFloat(input.max) || 100;
+      const pct = ((value - min) / (max - min)) * 100;
+      this.tooltip.style.left = `${pct}%`;
+      this.tooltip.classList.add("slider-tooltip--visible");
+    }
+  }
+
   get(): number {
     return Number((this._element as HTMLInputElement).value);
   }
@@ -113,7 +114,7 @@ export class SliderControl extends BaseControl<number> {
   set(value: number, silent?: boolean): this {
     (this._element as HTMLInputElement).value = String(value);
 
-    const formatted = this.displayModifier ? this.displayModifier(value) : String(value);
+    const formatted = this.formatValue(value);
     if (this.display) {
       this.display.innerText = formatted;
     }

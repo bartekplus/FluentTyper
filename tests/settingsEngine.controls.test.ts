@@ -58,10 +58,7 @@ describe("CheckboxControl", () => {
   });
 
   test("label renders when provided", () => {
-    const ctrl = new CheckboxControl(
-      { type: "checkbox", label: "My Feature" },
-      makeStore(),
-    );
+    const ctrl = new CheckboxControl({ type: "checkbox", label: "My Feature" }, makeStore());
     expect(ctrl.rootElement.textContent).toContain("My Feature");
   });
 });

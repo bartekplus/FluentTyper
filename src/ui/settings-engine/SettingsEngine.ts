@@ -104,92 +104,42 @@ export class SettingsEngine {
 
   private createControl(params: FieldConfig): FieldControl {
     const container = this.getOrCreateGroup(params.tab, params.group);
-    const store = this.store;
-
-    let control: FieldControl;
-
-    switch (params.type) {
-      case "checkbox":
-        control = new CheckboxControl(params, store);
-        break;
-      case "slider":
-        control = new SliderControl(params, store);
-        break;
-      case "text":
-        control = new TextControl(params, store);
-        break;
-      case "textarea":
-        control = new TextareaControl(params, store);
-        break;
-      case "popupButton":
-        control = new SelectControl(params, store);
-        break;
-      case "listBox":
-        control = new ListBoxControl(params, store);
-        break;
-      case "listBoxMultiselect":
-        control = new ListBoxMultiSelectControl(params, store);
-        break;
-      case "radioButtons":
-        control = new RadioControl(params, store);
-        break;
-      case "button":
-        control = new ButtonControl(params, store);
-        break;
-      case "modalButton":
-        control = new ModalButtonControl(params, store, (p) => this.createNestedControl(p));
-        break;
-      case "description":
-        control = new DescriptionControl(params, store);
-        break;
-      case "valueOnly":
-        control = new ValueOnlyControl(params, store);
-        break;
-      case "ruleToggleCards":
-        control = new RuleToggleCardsControl(params, store);
-        break;
-      default: {
-        const _exhaustive: never = params;
-        throw new Error(`Unknown field type: ${JSON.stringify(_exhaustive)}`);
-      }
-    }
-
+    const control = this.instantiateControl(params);
     container.appendChild(control.rootElement);
     return control;
   }
 
-  private createNestedControl(params: FieldConfig): FieldControl {
-    const store = this.store;
+  private instantiateControl(params: FieldConfig): FieldControl {
     switch (params.type) {
       case "checkbox":
-        return new CheckboxControl(params, store);
+        return new CheckboxControl(params, this.store);
       case "slider":
-        return new SliderControl(params, store);
+        return new SliderControl(params, this.store);
       case "text":
-        return new TextControl(params, store);
+        return new TextControl(params, this.store);
       case "textarea":
-        return new TextareaControl(params, store);
+        return new TextareaControl(params, this.store);
       case "popupButton":
-        return new SelectControl(params, store);
+        return new SelectControl(params, this.store);
       case "listBox":
-        return new ListBoxControl(params, store);
+        return new ListBoxControl(params, this.store);
       case "listBoxMultiselect":
-        return new ListBoxMultiSelectControl(params, store);
+        return new ListBoxMultiSelectControl(params, this.store);
       case "radioButtons":
-        return new RadioControl(params, store);
+        return new RadioControl(params, this.store);
       case "button":
-        return new ButtonControl(params, store);
+        return new ButtonControl(params, this.store);
       case "modalButton":
-        return new ModalButtonControl(params, store, (p) => this.createNestedControl(p));
+        return new ModalButtonControl(params, this.store, (p) => this.instantiateControl(p));
       case "description":
-        return new DescriptionControl(params, store);
+        return new DescriptionControl(params, this.store);
       case "valueOnly":
-        return new ValueOnlyControl(params, store);
+        return new ValueOnlyControl(params, this.store);
       case "ruleToggleCards":
-        return new RuleToggleCardsControl(params, store);
+        return new RuleToggleCardsControl(params, this.store);
       default: {
         const _exhaustive: never = params;
-        throw new Error(`Unknown nested field type: ${JSON.stringify(_exhaustive)}`);
+        throw new Error(`Unknown field type: ${JSON.stringify(_exhaustive)}`);
       }
     }
   }

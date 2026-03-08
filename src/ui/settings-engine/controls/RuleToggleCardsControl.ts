@@ -222,11 +222,12 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
     root.appendChild(container);
 
     // --- Build rule cards ---
-    const rawOptions = Array.isArray(params.options)
-      ? params.options
-      : Array.isArray((params.options as { values?: unknown[] } | undefined)?.values)
-        ? (params.options as { values: unknown[] }).values
-        : [];
+    let rawOptions: unknown[] = [];
+    if (Array.isArray(params.options)) {
+      rawOptions = params.options;
+    } else if (params.options && Array.isArray((params.options as { values?: unknown[] }).values)) {
+      rawOptions = (params.options as { values: unknown[] }).values;
+    }
 
     const rules = rawOptions.map(normalizeRule).filter((r) => r.value.length > 0);
 
@@ -327,9 +328,7 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
     input.addEventListener("change", () => {
       this.updateStateUI();
       const value = this.get();
-      if (this.name !== undefined) {
-        this.persistToStorage(value);
-      }
+      this.persistToStorage(value);
       this.emitter.fireEvent("action", value);
     });
 
@@ -457,9 +456,7 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
     this.updateStateUI();
     if (!silent) {
       const value = this.get();
-      if (this.name !== undefined) {
-        this.persistToStorage(value);
-      }
+      this.persistToStorage(value);
       this.emitter.fireEvent("action", value);
     }
     return this;
