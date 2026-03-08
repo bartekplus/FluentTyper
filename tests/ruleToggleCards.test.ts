@@ -122,7 +122,7 @@ describe("ruleToggleCards setting", () => {
     ) as Record<string, unknown> | undefined;
 
     expect(grammarSetting).toBeDefined();
-    expect(grammarSetting?.tab).toBe(i18n.get("grammar_tab"));
+    expect(grammarSetting?.tab).toBe("grammar_tab");
     expect(grammarSetting?.filterRecommendedLabel).toBeUndefined();
 
     const options = (grammarSetting?.options || []) as Array<Record<string, unknown>>;

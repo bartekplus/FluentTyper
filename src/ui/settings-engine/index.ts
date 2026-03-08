@@ -5,7 +5,13 @@ export type {
   ListBoxFieldControl,
 } from "./controls/FieldControl.js";
 export { BaseControl, TypedEventEmitter, getUniqueID } from "./controls/FieldControl.js";
-export type { FieldConfig, ManifestDefinition, OptionEntry, RuleToggleAction } from "./types.js";
+export type {
+  FieldConfig,
+  ManifestDefinition,
+  OptionEntry,
+  RuleToggleAction,
+  TabConfig,
+} from "./types.js";
 export { SettingsEngine } from "./SettingsEngine.js";
 export type { SettingsRegistry, SettingsEngineOptions } from "./SettingsEngine.js";
 export { Store } from "./store/Store.js";

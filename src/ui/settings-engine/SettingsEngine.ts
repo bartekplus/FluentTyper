@@ -36,8 +36,14 @@ export class SettingsEngine {
 
   private readonly tabs: Record<
     string,
-    { content: HTMLElement; groups: Record<string, HTMLElement> }
+    {
+      bundle: ReturnType<TabManager["create"]>;
+      content: HTMLElement;
+      groups: Record<string, HTMLElement>;
+    }
   > = {};
+
+  private tabLabelMap: Record<string, string> = {};
 
   constructor(options: SettingsEngineOptions) {
     this.tabManager = new TabManager(options.container.tabs, options.container.content);
@@ -59,10 +65,20 @@ export class SettingsEngine {
         iconEl.src = options.icon;
       }
     }
+
+    window.addEventListener("hashchange", () => {
+      this.activateTabById(location.hash.substring(1));
+    });
   }
 
   buildFromManifest(manifest: ManifestDefinition): SettingsRegistry {
     const registry: SettingsRegistry = {};
+
+    // Register tab id → label mapping before iterating settings
+    this.tabLabelMap = {};
+    for (const tab of manifest.tabs) {
+      this.tabLabelMap[tab.id] = tab.label;
+    }
 
     for (const params of manifest.settings) {
       const control = this.createControl(params);
@@ -71,28 +87,40 @@ export class SettingsEngine {
       }
     }
 
+    // Apply initial hash routing after all tabs are created
+    const initialAnchor = location.hash.substring(1);
+    if (initialAnchor) {
+      this.activateTabById(initialAnchor);
+    }
+
     return registry;
   }
 
-  private getOrCreateTab(tabLabel: string): HTMLElement {
-    if (!(tabLabel in this.tabs)) {
-      const bundle = this.tabManager.create();
-      bundle.tabA.innerText = tabLabel;
-
-      // Hash-based tab routing
-      const anchor = location.hash.substring(1);
-      if (tabLabel === anchor || tabLabel === decodeURIComponent(anchor)) {
-        bundle.activate();
-      }
-
-      this.tabs[tabLabel] = { content: bundle.content, groups: {} };
+  private activateTabById(tabId: string): void {
+    const tab = this.tabs[tabId];
+    if (tab) {
+      tab.bundle.activate();
     }
-    return this.tabs[tabLabel].content;
   }
 
-  private getOrCreateGroup(tabLabel: string, groupLabel: string): HTMLElement {
-    const tabContent = this.getOrCreateTab(tabLabel);
-    const tab = this.tabs[tabLabel];
+  private getOrCreateTab(tabId: string): HTMLElement {
+    if (!(tabId in this.tabs)) {
+      const bundle = this.tabManager.create();
+      bundle.tabA.innerText = this.tabLabelMap[tabId] ?? tabId;
+      bundle.tabA.href = `#${tabId}`;
+
+      bundle.tabA.addEventListener("click", () => {
+        history.replaceState(null, "", `#${tabId}`);
+      });
+
+      this.tabs[tabId] = { bundle, content: bundle.content, groups: {} };
+    }
+    return this.tabs[tabId].content;
+  }
+
+  private getOrCreateGroup(tabId: string, groupLabel: string): HTMLElement {
+    const tabContent = this.getOrCreateTab(tabId);
+    const tab = this.tabs[tabId];
 
     if (!(groupLabel in tab.groups)) {
       const groupBundle = createGroup(tabContent, groupLabel || tabLabel);

@@ -177,8 +177,14 @@ export type FieldConfig =
   | RuleToggleCardsConfig
   | ValueOnlyConfig;
 
+export interface TabConfig {
+  id: string;
+  label: string;
+}
+
 export interface ManifestDefinition {
   name: string;
   icon: string;
+  tabs: TabConfig[];
   settings: FieldConfig[];
 }
