@@ -250,6 +250,7 @@ body.fluenttyper-options .settings-group .field {
 
 body.fluenttyper-options .settings-group.settings-group-panel-only {
   border: 0;
+  padding: 0;
   background: transparent;
   box-shadow: none;
 }
