@@ -290,7 +290,7 @@ function isClosedPageContext(context: BackgroundContext | null): boolean {
 
 function isRetriableWorkerError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
-  return /chrome\.storage\.local is unavailable|reading 'local'|chrome\.runtime\.getURL is unavailable|runtime\.getURL|Execution context was destroyed|Execution context is not available in detached frame or worker|Cannot find context with specified id|Target closed|Session closed|Timed out after waiting \d+ms/i.test(
+  return /chrome\.storage\.local is unavailable|reading 'local'|chrome\.runtime\.getURL is unavailable|runtime\.getURL|Execution context was destroyed|Execution context is not available in detached frame or worker|Cannot find context with specified id|Target closed|Session closed|Timed out after waiting \d+ms|NoSuchFrameError|Browsing Context with id .* not found/i.test(
     message,
   );
 }
@@ -3809,7 +3809,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   test(
     "Extension UI language translates options page correctly",
     async () => {
-      // i18n short codes mapped to full locale codes and expected divider text
+      // i18n short codes mapped to full locale codes and expected visible options copy
       const TEST_LANGS: {
         locale: string;
         expected: string;
@@ -3883,18 +3883,12 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           }
 
           // 3. Verify options page translation.
-          await optionsPage.waitForSelector("#content .divider", {
+          await optionsPage.waitForSelector("#content", {
             timeout: browserTimeout(1000, 5000),
           });
 
           const textFound = await optionsPage.evaluate((exp: string) => {
-            const dividers = document.querySelectorAll(".divider");
-            for (const d of dividers) {
-              if (d.textContent?.includes(exp)) {
-                return true;
-              }
-            }
-            return false;
+            return document.body.textContent?.includes(exp) ?? false;
           }, expected);
 
           expect(textFound).toBe(true);

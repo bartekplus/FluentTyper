@@ -1,5 +1,6 @@
 import "./setup";
 import { afterEach, describe, expect, jest, test } from "bun:test";
+import { Store } from "../src/core/application/storage/Store.js";
 import {
   KEY_ENABLED_LANGUAGES,
   KEY_INLINE_SUGGESTION,
@@ -7,6 +8,7 @@ import {
   KEY_SITE_PROFILES,
 } from "../src/core/domain/constants";
 import { SUPPORTED_LANGUAGES } from "../src/core/domain/lang";
+import { i18n } from "../src/ui/options/fluenttyperI18n.js";
 import { SiteProfilesManager } from "../src/ui/options/siteProfiles.js";
 
 type StorageSnapshot = Record<string, string>;
@@ -72,6 +74,18 @@ afterEach(() => {
   SUPPORTED_LANGUAGES.en_US = originalEnglishLabel;
 });
 
+function createStore(values: Record<string, unknown>): Store {
+  return {
+    get(name: string) {
+      return Promise.resolve(values[name]);
+    },
+    set(name: string, value: unknown) {
+      values[name] = value;
+      return Promise.resolve();
+    },
+  } as Store;
+}
+
 describe("SiteProfilesManager", () => {
   test("renders site profile values as text instead of html", async () => {
     SUPPORTED_LANGUAGES.en_US = "English (US)<img src=x onerror=alert(1)>";
@@ -93,17 +107,22 @@ describe("SiteProfilesManager", () => {
     root.id = "siteProfilesEditorRoot";
     document.body.appendChild(root);
 
-    new SiteProfilesManager({
-      siteProfilesEditor: {
-        rootElement: root,
+    new SiteProfilesManager(
+      {
+        siteProfilesEditor: {
+          rootElement: root,
+        },
       },
-    });
+      new Store("settings"),
+    );
 
     await flushAsyncWork();
 
     expect(root.querySelector("#siteProfilesTableBody img")).toBeNull();
-    expect(root.querySelectorAll("td")[0]?.textContent ?? "").toContain("evil.example");
-    expect(root.querySelectorAll("td")[1]?.textContent ?? "").toContain(
+    expect(root.querySelector(".site-profile-row-domain")?.textContent ?? "").toContain(
+      "evil.example",
+    );
+    expect(root.querySelector(".site-profile-row")?.textContent ?? "").toContain(
       "English (US)<img src=x onerror=alert(1)>",
     );
     const actionButtons = Array.from(
@@ -113,5 +132,53 @@ describe("SiteProfilesManager", () => {
     actionButtons.forEach((button) => {
       expect(button.dataset.domain).toBe("evil.example");
     });
+  });
+
+  test("requires a confirmation click before removing a site profile", async () => {
+    i18n.lang = "en";
+    const values = {
+      [KEY_ENABLED_LANGUAGES]: ["en_US"],
+      [KEY_SITE_PROFILES]: {
+        "docs.example": {
+          language: "en_US",
+        },
+      },
+      [KEY_NUM_SUGGESTIONS]: 4,
+      [KEY_INLINE_SUGGESTION]: false,
+    };
+
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+
+    new SiteProfilesManager(
+      {
+        siteProfilesEditor: {
+          rootElement: root,
+        },
+      },
+      createStore(values),
+    );
+
+    await flushAsyncWork();
+
+    const removeButton = Array.from(
+      root.querySelectorAll<HTMLButtonElement>("button[data-action='remove']"),
+    )[0];
+    removeButton.click();
+    await flushAsyncWork();
+
+    expect(Object.keys(values[KEY_SITE_PROFILES] as Record<string, unknown>)).toHaveLength(1);
+    expect(root.textContent).toContain(
+      "Click Remove again to delete the profile for docs.example.",
+    );
+
+    const confirmedRemoveButton = Array.from(
+      root.querySelectorAll<HTMLButtonElement>("button[data-action='remove']"),
+    )[0];
+    confirmedRemoveButton.click();
+    await flushAsyncWork();
+
+    expect(values[KEY_SITE_PROFILES]).toEqual({});
+    expect(root.textContent).toContain(i18n.get("site_profiles_removed_status"));
   });
 });

@@ -1,0 +1,190 @@
+import "./setup";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import type { Store } from "../src/core/application/storage/Store.js";
+import type { SettingsRegistry } from "../src/ui/settings-engine/SettingsEngine.js";
+import { LanguageSettingsPanel } from "../src/ui/options/LanguageSettingsPanel.js";
+import { SiteManagementPanel } from "../src/ui/options/SiteManagementPanel.js";
+import { i18n } from "../src/ui/options/fluenttyperI18n.js";
+import {
+  KEY_DOMAIN_LIST_MODE,
+  KEY_ENABLED_LANGUAGES,
+  KEY_FALLBACK_LANGUAGE,
+  KEY_INLINE_SUGGESTION,
+  KEY_LANGUAGE,
+  KEY_NUM_SUGGESTIONS,
+  KEY_SITE_PROFILES,
+} from "../src/core/domain/constants";
+
+type SettingsMap = Record<string, unknown>;
+
+class MockControl {
+  private readonly handlers: Array<(value: unknown) => void> = [];
+  private value: unknown;
+
+  constructor(value?: unknown) {
+    this.value = value;
+  }
+
+  addEvent(type: string, fn: (value: unknown) => void): void {
+    if (type === "action") {
+      this.handlers.push(fn);
+    }
+  }
+
+  get(): unknown {
+    return this.value;
+  }
+
+  set(value: unknown): this {
+    this.value = value;
+    this.handlers.forEach((handler) => handler(value));
+    return this;
+  }
+}
+
+function createStore(values: SettingsMap): Store {
+  return {
+    get(name: string) {
+      return Promise.resolve(values[name]);
+    },
+    set(name: string, value: unknown) {
+      values[name] = value;
+      return Promise.resolve();
+    },
+  } as Store;
+}
+
+function createRegistry(initialValues: SettingsMap): SettingsRegistry {
+  return {
+    [KEY_LANGUAGE]: new MockControl(initialValues[KEY_LANGUAGE]),
+    [KEY_ENABLED_LANGUAGES]: new MockControl(initialValues[KEY_ENABLED_LANGUAGES]),
+    [KEY_FALLBACK_LANGUAGE]: new MockControl(initialValues[KEY_FALLBACK_LANGUAGE]),
+    [KEY_SITE_PROFILES]: new MockControl(initialValues[KEY_SITE_PROFILES]),
+    [KEY_DOMAIN_LIST_MODE]: new MockControl(initialValues[KEY_DOMAIN_LIST_MODE]),
+    domainBlackList: new MockControl(initialValues.domainBlackList),
+    [KEY_NUM_SUGGESTIONS]: new MockControl(initialValues[KEY_NUM_SUGGESTIONS]),
+    [KEY_INLINE_SUGGESTION]: new MockControl(initialValues[KEY_INLINE_SUGGESTION]),
+  } as unknown as SettingsRegistry;
+}
+
+async function flushAsyncWork(): Promise<void> {
+  await Promise.resolve();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+function findButtonByText(root: HTMLElement, text: string): HTMLButtonElement {
+  const button = Array.from(root.querySelectorAll<HTMLButtonElement>("button")).find((entry) =>
+    entry.textContent?.includes(text),
+  );
+  if (!button) {
+    throw new Error(`Button with text "${text}" not found`);
+  }
+  return button;
+}
+
+describe("options panel reactivity", () => {
+  beforeEach(() => {
+    i18n.lang = "en";
+  });
+
+  afterEach(() => {
+    document.body.replaceChildren();
+  });
+
+  test("language warnings refresh when site profiles change", async () => {
+    const values: SettingsMap = {
+      [KEY_ENABLED_LANGUAGES]: ["en_US", "de_DE"],
+      [KEY_LANGUAGE]: "en_US",
+      [KEY_FALLBACK_LANGUAGE]: "en_US",
+      [KEY_SITE_PROFILES]: {},
+    };
+    const store = createStore(values);
+    const registry = createRegistry(values);
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+
+    new LanguageSettingsPanel(root, registry, store);
+    await flushAsyncWork();
+
+    const germanCardBefore = findButtonByText(root, "German");
+    expect(germanCardBefore.textContent).toContain(i18n.get("language_panel_site_available"));
+    expect(germanCardBefore.textContent).not.toContain(
+      i18n.get("language_panel_site_override_warning"),
+    );
+
+    values[KEY_SITE_PROFILES] = {
+      "docs.example": {
+        language: "de_DE",
+      },
+    };
+    registry[KEY_SITE_PROFILES].set(values[KEY_SITE_PROFILES], true);
+    await flushAsyncWork();
+
+    const germanCardAfter = findButtonByText(root, "German");
+    expect(germanCardAfter.textContent).toContain("Site profiles: 1");
+    expect(germanCardAfter.textContent).toContain(i18n.get("language_panel_site_override_warning"));
+  });
+
+  test("language summary only mentions fallback when auto-detect is active", async () => {
+    const values: SettingsMap = {
+      [KEY_ENABLED_LANGUAGES]: ["en_US", "de_DE", "fr_FR"],
+      [KEY_LANGUAGE]: "en_US",
+      [KEY_FALLBACK_LANGUAGE]: "de_DE",
+      [KEY_SITE_PROFILES]: {},
+    };
+    const store = createStore(values);
+    const registry = createRegistry(values);
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+
+    new LanguageSettingsPanel(root, registry, store);
+    await flushAsyncWork();
+
+    const summaryText = root.querySelector(".language-panel-summary p")?.textContent || "";
+    expect(summaryText).toContain("3 writing languages enabled. Primary behavior: English (US).");
+    expect(summaryText).not.toContain("Fallback:");
+
+    values[KEY_LANGUAGE] = "auto_detect";
+    registry[KEY_LANGUAGE].set(values[KEY_LANGUAGE], true);
+    await flushAsyncWork();
+
+    const autoDetectSummary = root.querySelector(".language-panel-summary p")?.textContent || "";
+    expect(autoDetectSummary).toContain("Primary behavior: Auto-detect.");
+    expect(autoDetectSummary).toContain("Fallback: German.");
+  });
+
+  test("sites UI refreshes immediately when enabled languages change", async () => {
+    const values: SettingsMap = {
+      [KEY_DOMAIN_LIST_MODE]: "blackList",
+      domainBlackList: [],
+      [KEY_ENABLED_LANGUAGES]: ["en_US", "de_DE"],
+      [KEY_SITE_PROFILES]: {
+        "docs.example": {
+          language: "de_DE",
+        },
+      },
+      [KEY_NUM_SUGGESTIONS]: 4,
+      [KEY_INLINE_SUGGESTION]: false,
+    };
+    const store = createStore(values);
+    const registry = createRegistry(values);
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+
+    new SiteManagementPanel(root, registry, store, () => {});
+    await flushAsyncWork();
+
+    const languageSelectBefore = root.querySelector("#siteProfileLanguageSelect");
+    expect(languageSelectBefore?.textContent).toContain("German");
+    expect(root.querySelectorAll("#siteProfilesTableBody .site-profile-row")).toHaveLength(1);
+
+    values[KEY_ENABLED_LANGUAGES] = ["en_US"];
+    registry[KEY_ENABLED_LANGUAGES].set(values[KEY_ENABLED_LANGUAGES], true);
+    await flushAsyncWork();
+
+    const languageSelectAfter = root.querySelector("#siteProfileLanguageSelect");
+    expect(languageSelectAfter?.textContent).not.toContain("German");
+    expect(root.querySelectorAll("#siteProfilesTableBody .site-profile-row")).toHaveLength(0);
+    expect(root.textContent).toContain(i18n.get("site_profiles_empty_workspace"));
+  });
+});

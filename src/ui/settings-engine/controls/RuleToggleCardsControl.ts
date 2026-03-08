@@ -33,6 +33,7 @@ interface ActionButton {
 interface SectionBundle {
   section: HTMLElement;
   list: HTMLElement;
+  details?: HTMLDetailsElement;
 }
 
 function normalizeRule(option: unknown): NormalizedRule {
@@ -257,6 +258,24 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
   }
 
   private createSection(title: string, sectionType: "safe" | "advanced"): SectionBundle {
+    if (sectionType === "advanced") {
+      const details = document.createElement("details");
+      details.className = `grammar-rule-section grammar-rule-section-${sectionType}`;
+
+      const summary = document.createElement("summary");
+      summary.className = "grammar-rule-section-title";
+      summary.innerText = title;
+      details.appendChild(summary);
+
+      const list = document.createElement("div");
+      list.className = "grammar-rule-selector-list";
+      list.setAttribute("role", "group");
+      list.setAttribute("aria-label", title);
+      details.appendChild(list);
+
+      return { section: details, list, details };
+    }
+
     const section = document.createElement("section");
     section.className = `grammar-rule-section grammar-rule-section-${sectionType}`;
 
@@ -499,6 +518,16 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
 
     this.safeSection.section.classList.toggle("is-hidden", safeVisible === 0);
     this.advancedSection.section.classList.toggle("is-hidden", advancedVisible === 0);
+    if (this.advancedSection.details) {
+      this.advancedSection.details.open =
+        advancedVisible > 0 &&
+        (this.searchQuery.length > 0 ||
+          this.activeFilter === "advanced" ||
+          this.activeFilter === "enabled" ||
+          this.ruleControls.some(
+            (ctrl) => ctrl.rule.safetyTier === "advanced" && ctrl.input.checked,
+          ));
+    }
     this.noResults.classList.toggle("is-hidden", visibleCount > 0);
     this.syncRovingTabIndex();
 

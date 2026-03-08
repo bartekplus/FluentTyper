@@ -16,13 +16,44 @@ export class TabManager {
     this.contentContainer = contentContainer;
   }
 
-  create(): TabBundle {
+  create(config: {
+    id: string;
+    label: string;
+    shortDescription?: string;
+    icon?: string;
+  }): TabBundle {
     const tabA = document.createElement("a");
+    tabA.href = `#${config.id}`;
+    tabA.className = "settings-nav-link";
+    tabA.title = config.shortDescription
+      ? `${config.label}: ${config.shortDescription}`
+      : config.label;
     const tabLi = document.createElement("li");
     tabLi.appendChild(tabA);
 
     const content = document.createElement("div");
-    content.className = "content-tab";
+    content.className = "content-tab options-tab-content";
+
+    const icon = document.createElement("span");
+    icon.className = "settings-nav-icon";
+    icon.textContent = config.icon || config.label.slice(0, 1);
+
+    const copy = document.createElement("span");
+    copy.className = "settings-nav-copy";
+    const title = document.createElement("span");
+    title.className = "settings-nav-title";
+    title.textContent = config.label;
+    copy.appendChild(title);
+
+    if (config.shortDescription) {
+      const description = document.createElement("span");
+      description.className = "settings-nav-description";
+      description.textContent = config.shortDescription;
+      copy.appendChild(description);
+    }
+
+    tabA.appendChild(icon);
+    tabA.appendChild(copy);
 
     this.tabContainer.appendChild(tabLi);
     this.contentContainer.appendChild(content);

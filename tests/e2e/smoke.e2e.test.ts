@@ -19,6 +19,7 @@ import {
   CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT,
   CMD_OPTIONS_PAGE_CONFIG_CHANGE,
   KEY_DOMAIN_LIST_MODE,
+  KEY_EXTENSION_LANGUAGE,
   KEY_ENABLED_GRAMMAR_RULES,
   KEY_ENABLED_LANGUAGES,
   KEY_INLINE_SUGGESTION,
@@ -126,7 +127,7 @@ const PER_TEST_RESET_SETTINGS: readonly SettingEntry[] = [
 
 function isRetriableWorkerError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
-  return /chrome\.storage\.local is unavailable|reading 'local'|Execution context was destroyed|Execution context is not available in detached frame or worker|Cannot find context with specified id|Target closed|Session closed/i.test(
+  return /chrome\.storage\.local is unavailable|reading 'local'|Execution context was destroyed|Execution context is not available in detached frame or worker|Cannot find context with specified id|Target closed|Session closed|NoSuchFrameError|Browsing Context with id .* not found/i.test(
     message,
   );
 }
@@ -784,6 +785,117 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
     });
     expect(hasRuntimeHook).toBe(false);
   }, 7000);
+
+  test(
+    "options workspace localizes shell copy and honors deep links",
+    async () => {
+      await setSettingAndWait(worker, KEY_EXTENSION_LANGUAGE, "fr_FR");
+
+      if (isFirefox()) {
+        await worker.evaluate(() => {
+          localStorage.setItem("store.settings.extensionLanguage", JSON.stringify("fr_FR"));
+        });
+      }
+
+      const optionsPage = await openExtensionPage(
+        browser,
+        worker,
+        "options/options.html#advanced_tab",
+      );
+      try {
+        if (!isFirefox()) {
+          await optionsPage.evaluate(() => {
+            localStorage.setItem("store.settings.extensionLanguage", JSON.stringify("fr_FR"));
+          });
+          await optionsPage.reload({ waitUntil: "domcontentloaded" });
+        }
+
+        await optionsPage.waitForSelector("#advanced_tab:not(.is-hidden)", {
+          timeout: suiteTimeout(3000, 7000),
+        });
+
+        const snapshot = await optionsPage.evaluate(() => ({
+          workspaceTitle: document.querySelector(".options-brand-title")?.textContent?.trim(),
+          searchPlaceholder: (
+            document.getElementById("options-search-input") as HTMLInputElement | null
+          )?.placeholder,
+          activeTabId:
+            document.querySelector(".content-tab.is-active")?.getAttribute("data-tab-id") ?? "",
+        }));
+
+        expect(snapshot.workspaceTitle).toBe("Espace des paramètres");
+        expect(snapshot.searchPlaceholder).toBe("Rechercher dans les paramètres");
+        expect(snapshot.activeTabId).toBe("advanced_tab");
+      } finally {
+        if (!optionsPage.isClosed()) {
+          await optionsPage.evaluate(() => {
+            localStorage.setItem("store.settings.extensionLanguage", JSON.stringify("auto_detect"));
+          });
+          await optionsPage.close();
+        }
+        await setSettingAndWait(worker, KEY_EXTENSION_LANGUAGE, "auto_detect");
+      }
+    },
+    suiteTimeout(8000, 14000),
+  );
+
+  test(
+    "mobile section switcher changes the active options section and hash",
+    async () => {
+      const optionsPage = await openOptionsPage(browser, worker);
+      try {
+        await optionsPage.setViewport({ width: 390, height: 844, isMobile: true });
+
+        await optionsPage.select("#mobile-section-select", "site_mgmt_tab");
+        await optionsPage.waitForFunction(() => window.location.hash === "#site_mgmt_tab", {
+          timeout: suiteTimeout(2000, 6000),
+        });
+
+        const state = await optionsPage.evaluate(() => ({
+          activeTabId:
+            document.querySelector(".content-tab.is-active")?.getAttribute("data-tab-id") ?? "",
+        }));
+
+        expect(state.activeTabId).toBe("site_mgmt_tab");
+      } finally {
+        if (!optionsPage.isClosed()) {
+          await optionsPage.close();
+        }
+      }
+    },
+    suiteTimeout(7000, 12000),
+  );
+
+  test(
+    "popup advanced stats opens the options page at the advanced tab anchor",
+    async () => {
+      const popupPage = await openPopupPage(browser, worker);
+      let advancedPage: Page | null = null;
+      try {
+        await popupPage.waitForSelector("#openStatsOptionsBtn", {
+          timeout: suiteTimeout(3000, 7000),
+        });
+        const targetPromise = browser.waitForTarget(
+          (target) =>
+            target.type() === "page" && target.url().includes("options/options.html#advanced_tab"),
+          { timeout: suiteTimeout(3000, 7000) },
+        );
+
+        await popupPage.click("#openStatsOptionsBtn");
+        const target = await targetPromise;
+        advancedPage = await target.asPage();
+        expect(target.url()).toContain("options/options.html#advanced_tab");
+      } finally {
+        if (advancedPage && !advancedPage.isClosed()) {
+          await advancedPage.close();
+        }
+        if (!popupPage.isClosed()) {
+          await popupPage.close();
+        }
+      }
+    },
+    suiteTimeout(7000, 12000),
+  );
 
   test(
     "keeps predictor debug panel hidden in options page",

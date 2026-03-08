@@ -3,15 +3,22 @@ export interface GroupBundle {
 }
 
 export function createGroup(tabContent: HTMLElement, label: string): GroupBundle {
-  const groupDiv = document.createElement("div");
+  const groupDiv = document.createElement("section");
   groupDiv.className = "settings-group";
 
-  const divider = document.createElement("div");
-  divider.className = "divider settings-group-title";
-  divider.innerText = label;
-  groupDiv.appendChild(divider);
+  const header = document.createElement("div");
+  header.className = "settings-group-header";
+  const title = document.createElement("h3");
+  title.className = "settings-group-title divider";
+  title.innerText = label;
+  header.appendChild(title);
+  groupDiv.appendChild(header);
+
+  const body = document.createElement("div");
+  body.className = "settings-group-body";
+  groupDiv.appendChild(body);
 
   tabContent.appendChild(groupDiv);
 
-  return { content: groupDiv };
+  return { content: body };
 }

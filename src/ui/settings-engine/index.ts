@@ -29,5 +29,6 @@ export { RadioControl } from "./controls/RadioControl.js";
 export { ButtonControl } from "./controls/ButtonControl.js";
 export { ModalButtonControl } from "./controls/ModalButtonControl.js";
 export { DescriptionControl } from "./controls/DescriptionControl.js";
+export { CustomPanelControl } from "./controls/CustomPanelControl.js";
 export { ValueOnlyControl } from "./controls/ValueOnlyControl.js";
 export { RuleToggleCardsControl } from "./controls/RuleToggleCardsControl.js";

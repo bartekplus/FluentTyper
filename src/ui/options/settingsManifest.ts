@@ -1,7 +1,6 @@
 import { i18n } from "./fluenttyperI18n.js";
 import type { ManifestDefinition } from "@ui/settings-engine/types.js";
 import { SUPPORTED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS } from "@core/domain/lang";
-import { DOMAIN_LIST_MODE } from "@core/application/domain-utils";
 import {
   KEY_AUTOCOMPLETE,
   KEY_AUTOCOMPLETE_ON_ENTER,
@@ -26,8 +25,7 @@ import {
   KEY_DOMAIN_LIST_MODE,
   KEY_DISPLAY_LANG_HEADER,
   KEY_EXTENSION_LANGUAGE,
-  KEY_USE_DEFAULT_THEME_BTN,
-  KEY_USE_COMPACT_THEME_BTN,
+  KEY_SITE_PROFILES,
   KEY_SUGGESTION_BG_LIGHT,
   KEY_SUGGESTION_TEXT_LIGHT,
   KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT,
@@ -53,44 +51,7 @@ import {
   RECOMMENDED_V3_GRAMMAR_RULES,
 } from "@core/domain/grammar/ruleCatalog";
 
-// --- UI Content ---
-const donateHTML =
-  '<div class="has-text-centered"> \
-  <p class="support-donate-note">Developing and maintaining FluentTyper is a passion project. If you find it useful, please consider supporting its future development. Your contribution helps us add new features and keep the extension running smoothly.</p> \
-  <a class="support-donate-link" href="https://www.buymeacoffee.com/FluentTyper" target="_blank" rel="noopener noreferrer">Buy Me a Coffee</a></div>';
-const aboutHighlightsHTML =
-  '<div class="about-highlights"> \
-  <span class="about-pill">Autocomplete</span> \
-  <span class="about-pill">Text Expander</span> \
-  <span class="about-pill">Multilingual Support</span> \
-  <span class="about-pill">Site Profiles</span> \
-  </div>';
-const supportLinksHTML =
-  '<div class="support-links-list"> \
-  <a href="https://github.com/bartekplus/FluentTyper/issues/new?template=bug_report.yml" target="_blank" rel="noopener noreferrer">Report a bug</a> - Open a GitHub issue with reproducible steps.<br /> \
-  <a href="https://github.com/bartekplus/FluentTyper/issues/new?template=feature_request.yml" target="_blank" rel="noopener noreferrer">Request a feature</a> - Share ideas and vote on improvements.<br /> \
-  <a href="https://github.com/bartekplus/FluentTyper#readme" target="_blank" rel="noopener noreferrer">Read documentation</a> - Setup help, configuration details, and usage tips.<br /> \
-  <a href="https://github.com/bartekplus/FluentTyper/blob/main/SECURITY.md" target="_blank" rel="noopener noreferrer">Security policy</a> - Responsible disclosure and security contact details. \
-  </div>';
-const variablesDocumentationHTML = `<div class="text-expander-help"> \
-    <p class="text-expander-help-title"><strong>${i18n.get("text_expander_vars_supported")}</strong></p> \
-    <ul class="text-expander-help-list"> \
-      <li><code>\${time}</code> - ${i18n.get("text_expander_var_time")}</li> \
-      <li><code>\${date}</code> - ${i18n.get("text_expander_var_date")}</li> \
-      <li><code>\${date:+1d}</code> - ${i18n.get("text_expander_var_date_math")}</li> \
-      <li><code>\${datetime}</code> - ${i18n.get("text_expander_var_datetime")}</li> \
-      <li><code>\${uuid}</code> - ${i18n.get("text_expander_var_uuid")}</li> \
-      <li><code>\${random:A|B|C}</code> - ${i18n.get("text_expander_var_random")}</li> \
-      <li><code>\${page_url}</code> - ${i18n.get("text_expander_var_page_url")}</li> \
-      <li><code>\${page_title}</code> - ${i18n.get("text_expander_var_page_title")}</li> \
-      <li><code>\${page_domain}</code> - ${i18n.get("text_expander_var_page_domain")}</li> \
-    </ul> \
-  </div>`;
 const IS_DEV_BUILD = typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
-const EXTENSION_VERSION =
-  typeof chrome !== "undefined" && typeof chrome.runtime?.getManifest === "function"
-    ? chrome.runtime.getManifest().version
-    : "dev";
 
 const WEBLLM_DEV_MODEL_OPTIONS = [
   ["SmolLM2-360M-Instruct-q4f16_1-MLC", "SmolLM2 360M q4f16 (fastest)"],
@@ -144,22 +105,87 @@ const GRAMMAR_RULE_OPTIONS = GRAMMAR_RULE_CATALOG.map((rule) => {
 
 // --- Manifest Definition ---
 const manifest: ManifestDefinition = {
-  name: "FluentTyper Settings",
+  name: i18n.get("options_page_title"),
   icon: "/icon/icon128.png",
   tabs: [
-    { id: "core_settings", label: i18n.get("core_settings") },
-    { id: "grammar_tab", label: i18n.get("grammar_tab") },
-    { id: "language_tab", label: i18n.get("language_tab") },
-    { id: "shortcuts_expansions_tab", label: i18n.get("shortcuts_expansions_tab") },
-    { id: "site_mgmt_tab", label: i18n.get("site_mgmt_tab") },
-    { id: "theming_tab", label: i18n.get("theming_tab") },
-    { id: "advanced_tab", label: i18n.get("advanced_tab") },
-    { id: "about_support_tab", label: i18n.get("about_support_tab") },
+    {
+      id: "core_settings",
+      label: i18n.get("options_tab_essentials"),
+      title: i18n.get("options_tab_essentials"),
+      shortDescription: i18n.get("options_tab_essentials_desc"),
+      icon: "ES",
+      keywords: [i18n.get("options_tab_essentials"), i18n.get("prediction_engine")],
+    },
+    {
+      id: "grammar_tab",
+      label: i18n.get("grammar_tab"),
+      title: i18n.get("grammar_tab"),
+      shortDescription: i18n.get("options_tab_grammar_desc"),
+      icon: "GR",
+      keywords: [i18n.get("grammar_rules"), i18n.get("grammar_tab")],
+    },
+    {
+      id: "language_tab",
+      label: i18n.get("options_tab_languages"),
+      title: i18n.get("options_tab_languages"),
+      shortDescription: i18n.get("options_tab_languages_desc"),
+      icon: "LA",
+      keywords: [i18n.get("options_tab_languages"), i18n.get("language_selection")],
+    },
+    {
+      id: "shortcuts_expansions_tab",
+      label: i18n.get("options_tab_snippets"),
+      title: i18n.get("options_tab_snippets"),
+      shortDescription: i18n.get("options_tab_snippets_desc"),
+      icon: "SD",
+      keywords: [i18n.get("options_tab_snippets"), i18n.get("text_expander")],
+    },
+    {
+      id: "site_mgmt_tab",
+      label: i18n.get("options_tab_sites"),
+      title: i18n.get("options_tab_sites"),
+      shortDescription: i18n.get("options_tab_sites_desc"),
+      icon: "SI",
+      keywords: [i18n.get("options_tab_sites"), i18n.get("site_profiles")],
+    },
+    {
+      id: "theming_tab",
+      label: i18n.get("theming_tab"),
+      title: i18n.get("theming_tab"),
+      shortDescription: i18n.get("options_tab_appearance_desc"),
+      icon: "AP",
+      keywords: [i18n.get("theming_tab"), i18n.get("theme_presets")],
+    },
+    {
+      id: "advanced_tab",
+      label: i18n.get("options_tab_data"),
+      title: i18n.get("options_tab_data"),
+      shortDescription: i18n.get("options_tab_data_desc"),
+      icon: "DD",
+      keywords: [i18n.get("options_tab_data"), i18n.get("config_data")],
+    },
+    {
+      id: "about_support_tab",
+      label: i18n.get("options_tab_about"),
+      title: i18n.get("options_tab_about"),
+      shortDescription: i18n.get("options_tab_about_desc"),
+      icon: "AB",
+      keywords: [i18n.get("options_tab_about"), i18n.get("support_development_group")],
+    },
   ],
   settings: [
     // =========================================================================
     // TAB: Typing & Autocomplete (Merged Core & Autocomplete)
     // =========================================================================
+    {
+      tab: "core_settings",
+      group: i18n.get("options_tab_essentials"),
+      name: "essentialsWorkspacePanel",
+      type: "customPanel",
+      label: i18n.get("options_tab_essentials"),
+      description: i18n.get("options_tab_essentials_desc"),
+      keywords: [i18n.get("prediction_engine"), i18n.get("accept_predictions")],
+    },
     {
       tab: "core_settings",
       group: i18n.get("General"),
@@ -258,6 +284,15 @@ const manifest: ManifestDefinition = {
     // =========================================================================
     {
       tab: "grammar_tab",
+      group: i18n.get("grammar_tab"),
+      name: "grammarWorkspacePanel",
+      type: "customPanel",
+      label: i18n.get("grammar_tab"),
+      description: i18n.get("options_tab_grammar_desc"),
+      keywords: [i18n.get("grammar_rules"), i18n.get("grammar_tab")],
+    },
+    {
+      tab: "grammar_tab",
       group: i18n.get("grammar_rules"),
       name: KEY_ENABLED_GRAMMAR_RULES,
       type: "ruleToggleCards",
@@ -315,28 +350,31 @@ const manifest: ManifestDefinition = {
     {
       tab: "language_tab",
       group: i18n.get("language_selection"),
+      name: "languagePreferencesPanel",
+      type: "customPanel",
+      label: i18n.get("options_panel_language_label"),
+      description: i18n.get("options_panel_language_desc"),
+      keywords: [i18n.get("options_panel_language_label"), i18n.get("fallback_lang_label")],
+    },
+    {
+      tab: "language_tab",
+      group: i18n.get("language_selection"),
       name: KEY_LANGUAGE,
-      type: "popupButton",
-      options: Object.entries(SUPPORTED_LANGUAGES),
-      label: i18n.get("primary_lang_label"),
+      type: "valueOnly",
       default: "en_US",
     },
     {
       tab: "language_tab",
       group: i18n.get("language_selection"),
       name: KEY_ENABLED_LANGUAGES,
-      type: "listBoxMultiselect",
-      label: i18n.get("enabled_langs_label"),
-      options: SUPPORTED_PREDICTION_LANGUAGE_KEYS.map((lang) => [lang, SUPPORTED_LANGUAGES[lang]]),
+      type: "valueOnly",
       default: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
     },
     {
       tab: "language_tab",
       group: i18n.get("language_selection"),
       name: KEY_FALLBACK_LANGUAGE,
-      type: "popupButton",
-      options: Object.entries(SUPPORTED_LANGUAGES),
-      label: `${i18n.get("fallback_lang_label")}:&nbsp;<small>${i18n.get("fallback_lang_desc")}</small>`,
+      type: "valueOnly",
       default: "en_US",
     },
     {
@@ -354,9 +392,17 @@ const manifest: ManifestDefinition = {
     {
       tab: "shortcuts_expansions_tab",
       group: i18n.get("text_expander"),
+      name: "writingAssetsPanel",
+      type: "customPanel",
+      label: i18n.get("options_panel_text_assets_label"),
+      description: i18n.get("options_panel_text_assets_desc"),
+      keywords: [i18n.get("options_panel_text_assets_label"), i18n.get("dynamic_variables")],
+    },
+    {
+      tab: "shortcuts_expansions_tab",
+      group: i18n.get("text_expander"),
       name: KEY_TEXT_EXPANSIONS,
       type: "valueOnly",
-      label: i18n.get("text_expander_desc"),
       default: [
         [
           "FF",
@@ -379,75 +425,24 @@ const manifest: ManifestDefinition = {
     },
     {
       tab: "shortcuts_expansions_tab",
-      group: i18n.get("text_expander"),
-      name: "textExpanderHelp",
-      type: "description",
-      text: variablesDocumentationHTML,
-    },
-
-    {
-      tab: "shortcuts_expansions_tab",
       group: i18n.get("dynamic_variables"),
       name: KEY_DATE_FORMAT,
-      type: "text",
-      label: `${i18n.get("custom_date_format_label")}:&nbsp;<small>${i18n.get("custom_date_format_desc")}</small>`,
+      type: "valueOnly",
       default: "",
     },
     {
       tab: "shortcuts_expansions_tab",
       group: i18n.get("dynamic_variables"),
       name: KEY_TIME_FORMAT,
-      type: "text",
-      label: `${i18n.get("custom_time_format_label")}:&nbsp;<small>${i18n.get("custom_time_format_desc")}</small>`,
+      type: "valueOnly",
       default: "",
     },
     {
       tab: "shortcuts_expansions_tab",
       group: i18n.get("custom_words"),
       name: KEY_USER_DICTIONARY_LIST,
-      type: "listBox",
-      label: i18n.get("personal_dict_label"),
+      type: "valueOnly",
       default: [],
-    },
-    {
-      tab: "shortcuts_expansions_tab",
-      group: i18n.get("add_remove_words"),
-      name: "userDictionary",
-      type: "text",
-      subtype: "text",
-      pattern: "^\\S+$",
-      label: i18n.get("add_new_word_label"),
-      text: i18n.get("my_custom_word_placeholder"),
-      store: false,
-    },
-    {
-      tab: "shortcuts_expansions_tab",
-      group: i18n.get("add_remove_words"),
-      name: "addUserWordBtn",
-      type: "button",
-      text: i18n.get("add_word_btn"),
-    },
-    {
-      tab: "shortcuts_expansions_tab",
-      group: i18n.get("add_remove_words"),
-      name: "removeUserWordBtn",
-      type: "button",
-      text: i18n.get("remove_word_btn"),
-    },
-    {
-      tab: "shortcuts_expansions_tab",
-      group: i18n.get("dict_mgmt"),
-      name: "importUserDictButton",
-      type: "button",
-      text: i18n.get("import_dict_btn"),
-      label: i18n.get("import_dict_desc"),
-    },
-    {
-      tab: "shortcuts_expansions_tab",
-      group: i18n.get("dict_mgmt"),
-      name: "removeAllUserWordsBtn",
-      type: "button",
-      text: i18n.get("clear_dict_btn"),
     },
 
     // =========================================================================
@@ -455,51 +450,33 @@ const manifest: ManifestDefinition = {
     // =========================================================================
     {
       tab: "site_mgmt_tab",
+      group: i18n.get("manage_domains"),
+      name: "siteManagementPanel",
+      type: "customPanel",
+      label: i18n.get("options_panel_sites_label"),
+      description: i18n.get("options_panel_sites_desc"),
+      keywords: [i18n.get("options_panel_sites_label"), i18n.get("domain_list_mode")],
+    },
+    {
+      tab: "site_mgmt_tab",
       group: i18n.get("domain_list_mode"),
       name: KEY_DOMAIN_LIST_MODE,
-      type: "popupButton",
-      options: Object.entries(DOMAIN_LIST_MODE),
-      label: `${i18n.get("choose_list_mode_label")}:&nbsp;<small>${i18n.get("choose_list_mode_desc")}</small>`,
+      type: "valueOnly",
       default: "blackList",
     },
     {
       tab: "site_mgmt_tab",
       group: i18n.get("manage_domains"),
       name: "domainBlackList",
-      type: "listBox",
-      label: i18n.get("domain_list_label"),
+      type: "valueOnly",
       default: [],
     },
     {
       tab: "site_mgmt_tab",
-      group: i18n.get("manage_domains"),
-      name: "domain",
-      type: "text",
-      subtype: "url",
-      label: i18n.get("add_domain_label"),
-      text: i18n.get("x-domain"),
-      store: false,
-    },
-    {
-      tab: "site_mgmt_tab",
-      group: i18n.get("manage_domains"),
-      name: "addDomainBtn",
-      type: "button",
-      text: i18n.get("add"),
-    },
-    {
-      tab: "site_mgmt_tab",
-      group: i18n.get("manage_domains"),
-      name: "removeDomainBtn",
-      type: "button",
-      text: i18n.get("remove_selected_btn"),
-    },
-    {
-      tab: "site_mgmt_tab",
       group: i18n.get("site_profiles"),
-      name: "siteProfilesEditor",
-      type: "description",
-      text: "<div id='siteProfilesEditorRoot'></div>",
+      name: KEY_SITE_PROFILES,
+      type: "valueOnly",
+      default: {},
     },
 
     // =========================================================================
@@ -508,163 +485,116 @@ const manifest: ManifestDefinition = {
     {
       tab: "theming_tab",
       group: i18n.get("theme_presets"),
-      name: KEY_USE_DEFAULT_THEME_BTN,
-      type: "button",
-      text: i18n.get("use_default_theme_btn"),
-      label: i18n.get("use_default_theme_desc"),
-    },
-    {
-      tab: "theming_tab",
-      group: i18n.get("theme_presets"),
-      name: KEY_USE_COMPACT_THEME_BTN,
-      type: "button",
-      text: i18n.get("use_compact_theme_btn"),
-      label: i18n.get("use_compact_theme_desc"),
+      name: "appearanceStudioPanel",
+      type: "customPanel",
+      label: i18n.get("options_panel_appearance_label"),
+      description: i18n.get("options_panel_appearance_desc"),
+      keywords: [i18n.get("options_panel_appearance_label"), i18n.get("typography_spacing")],
     },
     {
       tab: "theming_tab",
       group: i18n.get("light_theme_colors"),
       name: KEY_SUGGESTION_BG_LIGHT,
-      type: "text",
-      subtype: "color",
-      required: true,
-      label: `${i18n.get("bg_color_label")}:&nbsp;<small>${i18n.get("light_bg_color_desc")}</small>`,
+      type: "valueOnly",
       default: "#ffffff",
     },
     {
       tab: "theming_tab",
       group: i18n.get("light_theme_colors"),
       name: KEY_SUGGESTION_TEXT_LIGHT,
-      type: "text",
-      subtype: "color",
-      required: true,
-      label: `${i18n.get("text_color_label")}:&nbsp;<small>${i18n.get("light_text_color_desc")}</small>`,
+      type: "valueOnly",
       default: "#2d3748",
     },
     {
       tab: "theming_tab",
       group: i18n.get("light_theme_colors"),
       name: KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT,
-      type: "text",
-      subtype: "color",
-      required: true,
-      label: `${i18n.get("highlight_bg_label")}:&nbsp;<small>${i18n.get("light_highlight_bg_desc")}</small>`,
+      type: "valueOnly",
       default: "#edf2f7",
     },
     {
       tab: "theming_tab",
       group: i18n.get("light_theme_colors"),
       name: KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT,
-      type: "text",
-      subtype: "color",
-      required: true,
-      label: `${i18n.get("highlight_text_label")}:&nbsp;<small>${i18n.get("light_highlight_text_desc")}</small>`,
+      type: "valueOnly",
       default: "#2d3748",
     },
     {
       tab: "theming_tab",
       group: i18n.get("light_theme_colors"),
       name: KEY_SUGGESTION_BORDER_LIGHT,
-      type: "text",
-      subtype: "color",
-      required: true,
-      label: `${i18n.get("border_color_label")}:&nbsp;<small>${i18n.get("light_border_color_desc")}</small>`,
+      type: "valueOnly",
       default: "#e2e8f0",
     },
     {
       tab: "theming_tab",
       group: i18n.get("dark_theme_colors"),
       name: KEY_SUGGESTION_BG_DARK,
-      type: "text",
-      subtype: "color",
-      required: true,
-      label: `${i18n.get("bg_color_label")}:&nbsp;<small>${i18n.get("dark_bg_color_desc")}</small>`,
+      type: "valueOnly",
       default: "#0f172a",
     },
     {
       tab: "theming_tab",
       group: i18n.get("dark_theme_colors"),
       name: KEY_SUGGESTION_TEXT_DARK,
-      type: "text",
-      subtype: "color",
-      required: true,
-      label: `${i18n.get("text_color_label")}:&nbsp;<small>${i18n.get("dark_text_color_desc")}</small>`,
+      type: "valueOnly",
       default: "#e2e8f0",
     },
     {
       tab: "theming_tab",
       group: i18n.get("dark_theme_colors"),
       name: KEY_SUGGESTION_HIGHLIGHT_BG_DARK,
-      type: "text",
-      subtype: "color",
-      required: true,
-      label: `${i18n.get("highlight_bg_label")}:&nbsp;<small>${i18n.get("dark_highlight_bg_desc")}</small>`,
+      type: "valueOnly",
       default: "#1e293b",
     },
     {
       tab: "theming_tab",
       group: i18n.get("dark_theme_colors"),
       name: KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK,
-      type: "text",
-      subtype: "color",
-      required: true,
-      label: `${i18n.get("highlight_text_label")}:&nbsp;<small>${i18n.get("dark_highlight_text_desc")}</small>`,
+      type: "valueOnly",
       default: "#f8fafc",
     },
     {
       tab: "theming_tab",
       group: i18n.get("dark_theme_colors"),
       name: KEY_SUGGESTION_BORDER_DARK,
-      type: "text",
-      subtype: "color",
-      required: true,
-      label: `${i18n.get("border_color_label")}:&nbsp;<small>${i18n.get("dark_border_color_desc")}</small>`,
+      type: "valueOnly",
       default: "#334155",
     },
     {
       tab: "theming_tab",
       group: i18n.get("typography_spacing"),
       name: KEY_SUGGESTION_FONT_SIZE,
-      type: "popupButton",
-      options: [
-        ["0.8rem", "Smaller (0.8rem)"],
-        ["0.85rem", "Compact (0.85rem)"],
-        ["0.9rem", "Normal (0.9rem)"],
-        ["1rem", "Large (1rem)"],
-      ],
-      label: `${i18n.get("font_size_label")}:&nbsp;<small>${i18n.get("font_size_desc")}</small>`,
+      type: "valueOnly",
       default: "0.9rem",
     },
     {
       tab: "theming_tab",
       group: i18n.get("typography_spacing"),
       name: KEY_SUGGESTION_PADDING_VERTICAL,
-      type: "popupButton",
-      options: [
-        ["0.4rem", "Compact (0.4rem)"],
-        ["0.6rem", "Normal (0.6rem)"],
-        ["0.8rem", "Large (0.8rem)"],
-      ],
-      label: `${i18n.get("vertical_padding_label")}:&nbsp;<small>${i18n.get("vertical_padding_desc")}</small>`,
+      type: "valueOnly",
       default: "0.6rem",
     },
     {
       tab: "theming_tab",
       group: i18n.get("typography_spacing"),
       name: KEY_SUGGESTION_PADDING_HORIZONTAL,
-      type: "popupButton",
-      options: [
-        ["0.6rem", "Compact (0.6rem)"],
-        ["0.8rem", "Normal (0.8rem)"],
-        ["1rem", "Large (1rem)"],
-      ],
-      label: `${i18n.get("horizontal_padding_label")}:&nbsp;<small>${i18n.get("horizontal_padding_desc")}</small>`,
+      type: "valueOnly",
       default: "0.8rem",
     },
 
     // =========================================================================
     // TAB: Data & Backup
     // =========================================================================
+    {
+      tab: "advanced_tab",
+      group: i18n.get("options_tab_data"),
+      name: "dataDiagnosticsPanel",
+      type: "customPanel",
+      label: i18n.get("options_tab_data"),
+      description: i18n.get("options_tab_data_desc"),
+      keywords: [i18n.get("options_tab_data"), i18n.get("productivity_dashboard_group")],
+    },
     {
       tab: "advanced_tab",
       group: i18n.get("productivity_dashboard_group"),
@@ -765,38 +695,12 @@ const manifest: ManifestDefinition = {
     // =========================================================================
     {
       tab: "about_support_tab",
-      group: i18n.get("about_fluent_typer_group"),
-      name: "FluentTyperHighlights",
-      type: "description",
-      text: aboutHighlightsHTML,
-    },
-    {
-      tab: "about_support_tab",
-      group: i18n.get("about_fluent_typer_group"),
-      name: "FluentTyperInfo",
-      type: "description",
-      text: i18n.get("x-FluentTyper"),
-    },
-    {
-      tab: "about_support_tab",
-      group: i18n.get("about_fluent_typer_group"),
-      name: "Version",
-      type: "description",
-      text: `<span class="version-chip">Version ${EXTENSION_VERSION}</span>`,
-    },
-    {
-      tab: "about_support_tab",
-      group: i18n.get("support_development_group"),
-      name: "SupportLinks",
-      type: "description",
-      text: supportLinksHTML,
-    },
-    {
-      tab: "about_support_tab",
-      group: i18n.get("support_development_group"),
-      name: "Donate",
-      type: "description",
-      text: donateHTML,
+      group: i18n.get("about_support_tab"),
+      name: "aboutWorkspacePanel",
+      type: "customPanel",
+      label: i18n.get("options_tab_about"),
+      description: i18n.get("options_tab_about_desc"),
+      keywords: [i18n.get("options_tab_about"), i18n.get("support_development_group")],
     },
   ],
 };
