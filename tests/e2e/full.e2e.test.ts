@@ -65,13 +65,8 @@ const RUN_DEV_RUNTIME_E2E =
 const RUN_E2E = process.env.RUN_E2E === "1" || process.env.RUN_E2E === "true";
 const IS_CI = process.env.CI === "true" || process.env.CI === "1";
 const describeE2E = RUN_E2E ? describe : describe.skip;
-const devRuntimeTest = RUN_DEV_RUNTIME_E2E ? test : test.skip;
 const WORKER_REACQUIRE_TIMEOUT_MS = isFirefox() ? 15000 : IS_CI ? 15000 : 7000;
 const ONBOARDING_VIEWPORT = { width: 1280, height: 900 } as const;
-
-function devRuntimeEach<T>(cases: readonly T[]) {
-  return RUN_DEV_RUNTIME_E2E ? test.each(cases) : test.skip.each(cases);
-}
 
 function browserTimeout(chromeTimeoutMs: number, firefoxTimeoutMs: number) {
   return suiteTimeout(chromeTimeoutMs, firefoxTimeoutMs);
@@ -116,6 +111,74 @@ type OnboardingViewportSnapshot = {
   rationaleInViewport: boolean;
   nextActionInViewport: boolean;
 };
+
+type TestNameContext = {
+  fullName?: string;
+  name?: string;
+};
+
+type TrackedTestCallback = (...args: unknown[]) => unknown;
+type TestRegistrarLike = {
+  (name: string, fn: TrackedTestCallback, timeout?: number): unknown;
+  (name: string, options: unknown, fn: TrackedTestCallback, timeout?: number): unknown;
+  each: (
+    cases: readonly unknown[],
+  ) => (name: string, fn: TrackedTestCallback, timeout?: number) => unknown;
+  skip?: TestRegistrarLike;
+};
+
+let currentE2ETestName = "Unknown Test";
+
+function wrapTrackedTestCallback(
+  fallbackName: string,
+  callback: TrackedTestCallback,
+): TrackedTestCallback {
+  return async (...args: unknown[]) => {
+    const [context] = args as [TestNameContext | undefined];
+    currentE2ETestName = context?.fullName || context?.name || fallbackName || "Unknown Test";
+    return await callback(...args);
+  };
+}
+
+function createTrackedSkipRegistrar(base: TestRegistrarLike): TestRegistrarLike {
+  const tracked = ((
+    name: string,
+    optionsOrFn: unknown,
+    maybeFn?: unknown,
+    maybeTimeout?: number,
+  ) => {
+    if (typeof optionsOrFn === "function") {
+      return base(name, wrapTrackedTestCallback(name, optionsOrFn), maybeFn);
+    }
+    if (typeof maybeFn === "function") {
+      return base(name, optionsOrFn, wrapTrackedTestCallback(name, maybeFn), maybeTimeout);
+    }
+    return base(name, optionsOrFn, maybeFn as TrackedTestCallback, maybeTimeout);
+  }) as TestRegistrarLike;
+
+  tracked.each = ((cases: readonly unknown[]) => {
+    const eachBase = base.each(cases);
+    return (name: string, callback: TrackedTestCallback, timeout?: number) =>
+      eachBase(name, wrapTrackedTestCallback(name, callback), timeout);
+  }) as TestRegistrarLike["each"];
+
+  return tracked;
+}
+
+function createTrackedTestRegistrar(base: TestRegistrarLike): TestRegistrarLike {
+  const tracked = createTrackedSkipRegistrar(base);
+  if (base.skip) {
+    tracked.skip = createTrackedSkipRegistrar(base.skip);
+  }
+  return tracked;
+}
+
+const test = createTrackedTestRegistrar(globalThis.test as unknown as TestRegistrarLike);
+const devRuntimeTest = RUN_DEV_RUNTIME_E2E ? test : test.skip;
+
+function devRuntimeEach<T>(cases: readonly T[]) {
+  return RUN_DEV_RUNTIME_E2E ? test.each(cases) : test.skip.each(cases);
+}
 
 async function captureOnboardingViewportSnapshot(page: Page): Promise<OnboardingViewportSnapshot> {
   return await page.evaluate(() => {
@@ -216,6 +279,7 @@ function toLocalDateKey(date: Date): string {
 let domainTestUrl: string;
 let activeBrowserForWorkerRecovery: Browser | null = null;
 let latestWorkerContext: BackgroundContext | null = null;
+let settingsDirty = true;
 
 function isClosedPageContext(context: BackgroundContext | null): boolean {
   if (!context || typeof (context as Page).isClosed !== "function") {
@@ -256,6 +320,41 @@ async function reacquireWorkerContext(
   return recovered;
 }
 
+async function ensureWorkerContext(
+  browser: Browser,
+  currentWorker: BackgroundContext | undefined,
+): Promise<BackgroundContext> {
+  if (currentWorker && !isClosedPageContext(currentWorker)) {
+    try {
+      await currentWorker.evaluate(() => {
+        const storage = (
+          globalThis as typeof globalThis & {
+            chrome?: typeof chrome;
+          }
+        ).chrome?.storage?.local;
+        if (!storage) {
+          throw new Error("chrome.storage.local is unavailable");
+        }
+      });
+      latestWorkerContext = currentWorker;
+      return currentWorker;
+    } catch (error) {
+      if (!isRetriableWorkerError(error)) {
+        throw error;
+      }
+    }
+  }
+
+  return await reacquireWorkerContext(browser, "reused background worker context");
+}
+
+async function ensurePrimaryPage(browser: Browser): Promise<Page> {
+  const nextPage = await browser.newPage();
+  nextPage.setDefaultNavigationTimeout(NAVIGATION_TIMEOUT_MS);
+  await nextPage.bringToFront();
+  return nextPage;
+}
+
 async function recoverWorkerForRetry(
   existingWorker: BackgroundContext,
 ): Promise<BackgroundContext> {
@@ -288,6 +387,7 @@ async function recoverWorkerForRetry(
 }
 
 async function setSetting(worker: BackgroundContext, key: string, value: unknown): Promise<void> {
+  settingsDirty = true;
   const storageKey = `${SETTINGS_PREFIX}${key}`;
   let workerContext = worker;
   latestWorkerContext = workerContext;
@@ -817,11 +917,7 @@ async function gotoTestPage(
   page: Page,
   options: { enableCkEditor?: boolean; enableQuill?: boolean; enableLexical?: boolean } = {},
 ) {
-  const testName =
-    typeof expect.getState === "function"
-      ? expect.getState().currentTestName || "Unknown Test"
-      : "Unknown Test";
-  const params = new URLSearchParams({ testName });
+  const params = new URLSearchParams({ testName: currentE2ETestName });
   if (options.enableCkEditor) {
     params.set("enableCkEditor", "1");
   }
@@ -1186,6 +1282,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         pages.find((openPage) => openPage.url().includes("/new_installation/index.html")) ?? null;
     }
     worker = await reacquireWorkerContext(browser, "initial background worker context");
+    page = await ensurePrimaryPage(browser);
     domainTestHtml = fs.readFileSync(TEST_PAGE_PATH, "utf8");
     lexicalTestEditorBundle = await bundleLexicalTestEditor();
 
@@ -1287,19 +1384,20 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
 
   beforeEach(async () => {
     try {
-      worker = await reacquireWorkerContext(browser, "beforeEach background worker context");
+      worker = await ensureWorkerContext(browser, worker);
     } catch (error) {
       if (!isRetriableWorkerError(error)) {
         throw error;
       }
       worker = await recoverWorkerForRetry(worker);
     }
-    // Keep the legacy baseline for non-grammar E2E flows so popup/inline
-    // prediction scenarios remain deterministic regardless of defaults.
-    await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
-    page = await browser.newPage();
-    page.setDefaultNavigationTimeout(NAVIGATION_TIMEOUT_MS);
-    await page.bringToFront();
+    if (settingsDirty) {
+      // Keep the legacy baseline for non-grammar E2E flows so popup/inline
+      // prediction scenarios remain deterministic regardless of defaults.
+      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      settingsDirty = false;
+    }
+    page = await ensurePrimaryPage(browser);
   });
 
   afterEach(async () => {
@@ -1344,6 +1442,13 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           resolve();
         });
       });
+    }
+    try {
+      if (page && typeof page.isClosed === "function" && !page.isClosed()) {
+        await page.close();
+      }
+    } catch {
+      // Ignore teardown errors from page shutdown.
     }
     try {
       if (worker && typeof worker.close === "function") {
@@ -4014,6 +4119,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       // the "action" event and call optionsPageConfigChange().
       const optionsPage = await openOptionsPage(browser, worker!);
       try {
+        settingsDirty = true;
         await optionsPage.evaluate(
           (key: string, command: string) => {
             // The fancier-settings framework exposes each manifest entry by name.

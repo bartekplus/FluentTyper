@@ -2,7 +2,9 @@ import type { Browser, Page, WebWorker } from "puppeteer";
 import puppeteer from "puppeteer";
 import path from "path";
 
-const EXTENSION_PATH = path.resolve(__dirname, "../../build/");
+const EXTENSION_PATH = path.resolve(
+  process.env.E2E_EXTENSION_PATH || path.join(__dirname, "../../build/"),
+);
 const IS_CI = process.env.CI === "true" || process.env.CI === "1";
 
 export type BrowserType = "chrome" | "firefox";

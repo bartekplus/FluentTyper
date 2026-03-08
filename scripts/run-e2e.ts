@@ -1,4 +1,5 @@
 import { mkdir } from "node:fs/promises";
+import path from "node:path";
 import process from "node:process";
 
 type E2EMode = "production" | "development";
@@ -96,20 +97,32 @@ async function runCommand(cmd: string[], extraEnv: Record<string, string> = {}):
   }
 }
 
+function createIsolatedBuildDir(options: CliOptions): string {
+  return path.resolve(
+    process.cwd(),
+    ".tmp",
+    "e2e-builds",
+    `${options.mode}-${options.platform}-${options.suite}-${process.pid}-${Date.now()}`,
+  );
+}
+
 async function main(): Promise<void> {
   const options = parseCliOptions(process.argv.slice(2));
   const bunExecutable = Bun.which("bun") ?? "bun";
+  const extensionBuildDir = createIsolatedBuildDir(options);
 
-  await mkdir(".tmp", { recursive: true });
+  await mkdir(path.dirname(extensionBuildDir), { recursive: true });
   await runCommand([
     bunExecutable,
     "build.ts",
     `--mode=${options.mode}`,
     `--platform=${options.platform}`,
+    `--outdir=${extensionBuildDir}`,
   ]);
 
   const sharedE2EEnv = {
     E2E_BROWSER: options.platform,
+    E2E_EXTENSION_PATH: extensionBuildDir,
     E2E_SUITE: options.suite,
     RUN_E2E: "1",
   };

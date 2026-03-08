@@ -47,16 +47,11 @@ bun run build
 bun run build --platform=firefox
 ```
 
-### Watch mode (iterative dev)
-
-```bash
-bun run watch
-```
-
 ### Quality gates (before PR)
 
 ```bash
-bun run check
+bun run lint
+bun run format:check
 bun run test
 bun run test:e2e
 bun run check:e2e:coverage
@@ -80,17 +75,6 @@ Smoke budget policy:
 ```bash
 bun run fix
 ```
-
----
-
-## Load the extension locally
-
-1. Build for your target browser:
-   - **Chrome/Edge**: `bun run build`
-   - **Firefox**: `bun run build --platform=firefox`
-2. Load `build/` as an unpacked extension:
-   - **Chrome/Edge**: Extensions → Developer mode → “Load unpacked” → select `build/`
-   - **Firefox**: `about:debugging` → “This Firefox” → “Load Temporary Add-on” → select `build/manifest.json`
 
 ---
 
@@ -232,7 +216,8 @@ Do not hand-edit versions in multiple places without running the script.
 ## What to include in PRs
 
 - A short description of the user-visible impact.
-- Tests run (at least `bun run check` + `bun run test` + `bun run test:e2e` + `bun run check:e2e:coverage`).
+- Tests run.
+  Required baseline: `bun run lint` + `bun run format:check` + `bun run test` + `bun run test:e2e` + `bun run check:e2e:coverage`.
 - If changing runtime behavior: add/adjust tests (unit and/or e2e).
 - If changing UI: screenshots are helpful.
 

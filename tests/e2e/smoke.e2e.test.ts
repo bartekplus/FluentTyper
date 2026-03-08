@@ -50,10 +50,61 @@ type PredictorDebugSnapshot = {
   };
 };
 
+type TestNameContext = {
+  fullName?: string;
+  name?: string;
+};
+
+type TrackedTestCallback = (...args: unknown[]) => unknown;
+type TestRegistrarLike = {
+  (name: string, fn: TrackedTestCallback, timeout?: number): unknown;
+  each: (
+    cases: readonly unknown[],
+  ) => (name: string, fn: TrackedTestCallback, timeout?: number) => unknown;
+  skip?: TestRegistrarLike;
+};
+
+let currentE2ETestName = "Unknown Test";
+
+function wrapTrackedTestCallback(
+  fallbackName: string,
+  callback: TrackedTestCallback,
+): TrackedTestCallback {
+  return async (...args: unknown[]) => {
+    const [context] = args as [TestNameContext | undefined];
+    currentE2ETestName = context?.fullName || context?.name || fallbackName || "Unknown Test";
+    return await callback(...args);
+  };
+}
+
+function createTrackedSkipRegistrar(base: TestRegistrarLike): TestRegistrarLike {
+  const tracked = ((name: string, callback: TrackedTestCallback, timeout?: number) =>
+    base(name, wrapTrackedTestCallback(name, callback), timeout)) as TestRegistrarLike;
+
+  tracked.each = ((cases: readonly unknown[]) => {
+    const eachBase = base.each(cases);
+    return (name: string, callback: TrackedTestCallback, timeout?: number) =>
+      eachBase(name, wrapTrackedTestCallback(name, callback), timeout);
+  }) as TestRegistrarLike["each"];
+
+  return tracked;
+}
+
+function createTrackedTestRegistrar(base: TestRegistrarLike): TestRegistrarLike {
+  const tracked = createTrackedSkipRegistrar(base);
+  if (base.skip) {
+    tracked.skip = createTrackedSkipRegistrar(base.skip);
+  }
+  return tracked;
+}
+
+const test = createTrackedTestRegistrar(globalThis.test as unknown as TestRegistrarLike);
+
 type SettingEntry = readonly [key: string, value: unknown];
 
 let domainTestUrl = "";
 let activeBrowserForWorkerRecovery: Browser | null = null;
+let settingsDirty = true;
 
 const STATIC_DEFAULT_SETTINGS: readonly SettingEntry[] = [
   [KEY_MIN_WORD_LENGTH_TO_PREDICT, 1],
@@ -97,7 +148,57 @@ async function reacquireWorker(browser: Browser): Promise<BackgroundContext> {
   );
 }
 
+async function ensureWorker(
+  browser: Browser,
+  currentWorker: BackgroundContext | undefined,
+): Promise<BackgroundContext> {
+  if (currentWorker) {
+    if ("isClosed" in currentWorker && typeof currentWorker.isClosed === "function") {
+      if (!currentWorker.isClosed()) {
+        try {
+          await currentWorker.evaluate(() => {
+            const storage = (
+              globalThis as typeof globalThis & {
+                chrome?: typeof chrome;
+              }
+            ).chrome?.storage?.local;
+            if (!storage) {
+              throw new Error("chrome.storage.local is unavailable");
+            }
+          });
+          return currentWorker;
+        } catch (error) {
+          if (!isRetriableWorkerError(error)) {
+            throw error;
+          }
+        }
+      }
+    } else {
+      try {
+        await currentWorker.evaluate(() => {
+          const storage = (
+            globalThis as typeof globalThis & {
+              chrome?: typeof chrome;
+            }
+          ).chrome?.storage?.local;
+          if (!storage) {
+            throw new Error("chrome.storage.local is unavailable");
+          }
+        });
+        return currentWorker;
+      } catch (error) {
+        if (!isRetriableWorkerError(error)) {
+          throw error;
+        }
+      }
+    }
+  }
+
+  return reacquireWorker(browser);
+}
+
 async function setSetting(worker: BackgroundContext, key: string, value: unknown): Promise<void> {
+  settingsDirty = true;
   const storageKey = `${SETTINGS_PREFIX}${key}`;
   let workerContext = worker;
   await waitUntil(
@@ -224,6 +325,7 @@ async function setSettingsAndWait(
   if (settings.length === 0) {
     return;
   }
+  settingsDirty = true;
 
   const expectedByStorageKey = Object.fromEntries(
     settings.map(([key, value]) => [`${SETTINGS_PREFIX}${key}`, JSON.stringify(value)]),
@@ -380,10 +482,74 @@ async function waitForInputReady(page: Page, selector: string): Promise<void> {
 }
 
 async function gotoTestPage(page: Page): Promise<void> {
-  await page.goto(domainTestUrl, {
+  const targetUrl = `${domainTestUrl}?${new URLSearchParams({ testName: currentE2ETestName }).toString()}`;
+  await page.goto(targetUrl, {
     waitUntil: "domcontentloaded",
     timeout: timeoutProfile.navigationMs,
   });
+}
+
+async function resetTestPageState(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    (
+      globalThis as typeof globalThis & {
+        __ftResetTestPage?: () => void;
+      }
+    ).__ftResetTestPage?.();
+  });
+
+  await waitUntil(
+    "test page reset",
+    async () => {
+      const resetComplete = await page.evaluate(() => {
+        const valuesCleared = Array.from(
+          document.querySelectorAll("textarea, input, [contenteditable='true']"),
+        ).every((element) => {
+          if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
+            return element.value === "";
+          }
+          return (
+            !(element instanceof HTMLElement && element.isContentEditable) ||
+            element.textContent === ""
+          );
+        });
+
+        const disabledInput = document.getElementById("test-disabled");
+        const readonlyInput = document.getElementById("test-readonly");
+
+        return (
+          valuesCleared &&
+          disabledInput instanceof HTMLInputElement &&
+          disabledInput.disabled &&
+          readonlyInput instanceof HTMLInputElement &&
+          readonlyInput.readOnly &&
+          !document.querySelector("ft-shadow-test-component") &&
+          !document.getElementById("ft-late-shadow-host") &&
+          !document.getElementById("ft-nested-shadow-outer-host")
+        );
+      });
+      return resetComplete ? true : false;
+    },
+    { timeoutMs: suiteTimeout(1500, 3000), intervalMs: 50 },
+  );
+}
+
+async function prepareReusableTestPage(browser: Browser, page: Page | null): Promise<Page> {
+  let nextPage = page;
+  if (!nextPage || nextPage.isClosed()) {
+    nextPage = await browser.newPage();
+    nextPage.setDefaultNavigationTimeout(timeoutProfile.navigationMs);
+  }
+
+  await nextPage.bringToFront();
+  if (!nextPage.url().startsWith(domainTestUrl)) {
+    await gotoTestPage(nextPage);
+  } else {
+    await resetTestPageState(nextPage);
+  }
+
+  await waitForInputReady(nextPage, "#test-input");
+  return nextPage;
 }
 
 async function waitForSuggestionTexts(page: Page): Promise<string[]> {
@@ -535,24 +701,15 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
 
     await applySettings(worker, STATIC_DEFAULT_SETTINGS);
     await sendConfigChange(browser, worker);
+    settingsDirty = false;
   }, 60000);
 
   beforeEach(async () => {
-    worker = await reacquireWorker(browser);
-    await applySettings(worker, PER_TEST_RESET_SETTINGS);
-    await sendConfigChange(browser, worker);
-    page = await browser.newPage();
-    page.setDefaultNavigationTimeout(timeoutProfile.navigationMs);
-    await page.bringToFront();
-  });
-
-  afterEach(async () => {
-    await closePageSafely(page);
-    page = null;
-    try {
-      worker = await reacquireWorker(browser);
-    } catch {
-      // Ignore worker recovery errors here; beforeEach re-acquires for the next test.
+    worker = await ensureWorker(browser, worker);
+    if (settingsDirty) {
+      await applySettings(worker, PER_TEST_RESET_SETTINGS);
+      await sendConfigChange(browser, worker);
+      settingsDirty = false;
     }
   });
 
@@ -569,6 +726,9 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       });
     }
     await closePageSafely(page);
+    if ("isClosed" in worker && typeof worker.isClosed === "function") {
+      await closePageSafely(worker);
+    }
     try {
       await browser.close();
     } catch {
@@ -807,6 +967,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
         expect(probe.noMatchVisibleCount).toBe(0);
         expect(probe.noResultsVisible).toBe(true);
         expect(probe.selectedId.length).toBeGreaterThan(0);
+        settingsDirty = true;
         selectedRuleId = probe.selectedId;
       } finally {
         if (!optionsPage.isClosed()) {
@@ -844,9 +1005,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       await setSettingAndWait(worker, "domainBlackList", ["[", TEST_HOST]);
       await sendConfigChange(browser, worker);
 
-      await gotoTestPage(page);
-      await page.bringToFront();
-      await waitForInputReady(page, "#test-input");
+      page = await prepareReusableTestPage(browser, page);
 
       const attached = await page.$eval("#test-input", (el) => el.hasAttribute("data-suggestion"));
       expect(attached).toBe(true);
@@ -857,9 +1016,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
   test(
     "prediction popup accepts suggestion with TAB in #test-input",
     async () => {
-      await gotoTestPage(page);
-      await page.bringToFront();
-      await waitForInputReady(page, "#test-input");
+      page = await prepareReusableTestPage(browser, page);
 
       await page.focus("#test-input");
       const element = await page.$("#test-input");
@@ -881,9 +1038,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       await setSettingAndWait(worker, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, false);
       await sendConfigChange(browser, worker);
 
-      await gotoTestPage(page);
-      await page.bringToFront();
-      await waitForInputReady(page, "#test-input");
+      page = await prepareReusableTestPage(browser, page);
 
       await page.focus("#test-input");
       const element = await page.$("#test-input");
@@ -918,9 +1073,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       await setSettingAndWait(worker, KEY_TEXT_EXPANSIONS, [["asap", "as soon as possible"]]);
       await sendConfigChange(browser, worker);
 
-      await gotoTestPage(page);
-      await page.bringToFront();
-      await waitForInputReady(page, "#test-input");
+      page = await prepareReusableTestPage(browser, page);
 
       const element = await page.$("#test-input");
       await element!.type("asap");
@@ -947,6 +1100,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
 
       const optionsPage = await openOptionsPage(browser, worker);
       try {
+        settingsDirty = true;
         await optionsPage.evaluate(
           (key, command) => {
             const rules = ["capitalizeSentenceStart", "commaPeriodSpacing"];
@@ -990,9 +1144,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
   test(
     "attaches to email and url inputs",
     async () => {
-      await gotoTestPage(page);
-      await page.bringToFront();
-      await waitForInputReady(page, "#test-input");
+      page = await prepareReusableTestPage(browser, page);
 
       const results = await page.evaluate(() => ({
         email: document.querySelector("#test-email")?.hasAttribute("data-suggestion") ?? false,
@@ -1008,9 +1160,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
   test(
     "does not attach to tel, disabled, or readonly inputs",
     async () => {
-      await gotoTestPage(page);
-      await page.bringToFront();
-      await waitForInputReady(page, "#test-input");
+      page = await prepareReusableTestPage(browser, page);
 
       const results = await page.evaluate(() => ({
         tel: document.querySelector("#test-tel")?.hasAttribute("data-suggestion") ?? false,
@@ -1030,9 +1180,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
   test(
     "attaches to input inside open shadow root and shows suggestions on typing",
     async () => {
-      await gotoTestPage(page);
-      await page.bringToFront();
-      await waitForInputReady(page, "#test-input");
+      page = await prepareReusableTestPage(browser, page);
 
       // Inject a custom element with an open shadow root containing a text input.
       await page.evaluate(() => {
@@ -1084,9 +1232,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
   test(
     "discovers input in shadow root created on a host already in the DOM",
     async () => {
-      await gotoTestPage(page);
-      await page.bringToFront();
-      await waitForInputReady(page, "#test-input");
+      page = await prepareReusableTestPage(browser, page);
 
       // Step 1: Insert a bare host element with no shadow root.
       // The extension processes this mutation but finds nothing to attach to.
@@ -1145,9 +1291,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
   test(
     "discovers input in nested shadow root created on a host inside another shadow tree",
     async () => {
-      await gotoTestPage(page);
-      await page.bringToFront();
-      await waitForInputReady(page, "#test-input");
+      page = await prepareReusableTestPage(browser, page);
 
       // Step 1: Create an outer shadow tree with an inner host but no inner
       // shadow root yet. This exercises browser event retargeting when the late
@@ -1216,9 +1360,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
   test(
     "reattaches to input when disabled attribute is removed and shows suggestions on typing",
     async () => {
-      await gotoTestPage(page);
-      await page.bringToFront();
-      await waitForInputReady(page, "#test-input");
+      page = await prepareReusableTestPage(browser, page);
 
       const beforeEnable = await page.evaluate(
         () => document.querySelector("#test-disabled")?.hasAttribute("data-suggestion") ?? false,

@@ -34,7 +34,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          lfs: true
+          fetch-depth: 1
       - name: Branch name
         id: branch_name
         run: |
@@ -57,8 +57,7 @@ jobs:
       - name: Prepare files
         run: |
           bun install --frozen-lockfile
-          bun run build --platform=${{ matrix.browser }}
-          mv build ${{ matrix.browser }}
+          bun run build --platform=${{ matrix.browser }} --outdir=${{ matrix.browser }}
         env:
           SOURCE_TAG: ${{ steps.branch_name.outputs.SOURCE_TAG }}
       - name: Zip Release
