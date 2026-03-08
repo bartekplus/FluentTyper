@@ -90,6 +90,7 @@ export class ContentMessageHandler {
         requestId: context.requestId,
         runtimeGeneration,
         lang: this.dependencies.getLanguage(),
+        documentLang: document.documentElement.lang || undefined,
         traceId,
         traceStartedAtMs,
       },

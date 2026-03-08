@@ -4,6 +4,7 @@ import { getErrorMessage, logError } from "@core/domain/error";
 import { SettingsManager } from "@core/application/settingsManager";
 import { CoreSettingsRepository } from "@core/application/repositories/CoreSettingsRepository";
 import { LanguageDetector } from "./LanguageDetector";
+import type { AutoLanguageSessionStatus } from "./LanguageDetector";
 import { PredictionManager } from "./PredictionManager";
 import { TabMessenger } from "./TabMessenger";
 import { ProductivityStatsManager } from "./ProductivityStatsManager";
@@ -13,11 +14,17 @@ import { migrateSettingsV5 } from "@core/application/settings/SettingsMigrationV
 import { migrateSettingsV6 } from "@core/application/settings/SettingsMigrationV6";
 import { migrateToLocalStore } from "./Migration";
 import type {
+  ContentScriptPredictRequestContext,
   ConfigMessage,
   PredictRequestMessage,
   PredictResponseMessage,
 } from "@core/domain/messageTypes";
-import { sanitizeSiteProfilesSetting } from "./config/runtimeSettings";
+import {
+  resolveDomainRuntimeSettings,
+  rotateLanguageForDomain,
+  sanitizeAutoLanguagePriorsSetting,
+  sanitizeSiteProfilesSetting,
+} from "./config/runtimeSettings";
 import { ConfigAssembler } from "./config/ConfigAssembler";
 
 declare const __FT_DEV_BUILD__: boolean | undefined;
@@ -158,12 +165,35 @@ export class BackgroundServiceWorker {
     });
   }
 
-  async detectLanguage(text: string, tabId: number, enabledLanguages?: string[]): Promise<string> {
-    return this.languageDetector.detectLanguage(text, tabId, enabledLanguages);
+  async resolveAutoLanguage(
+    context: Pick<
+      ContentScriptPredictRequestContext,
+      | "text"
+      | "nextChar"
+      | "suggestionId"
+      | "runtimeGeneration"
+      | "inputAction"
+      | "documentLang"
+    > & {
+      tabId: number;
+      frameId: number;
+      domainURL?: string;
+      enabledLanguages?: string[];
+    },
+  ) {
+    return this.languageDetector.resolveLanguage(context);
   }
 
   sendCommandToActiveTabContentScript(message: import("@core/domain/messageTypes").Message): void {
     this.tabMessenger.sendToActiveTab(message);
+  }
+
+  sendCommandToTabContentScript(
+    tabId: number,
+    frameId: number,
+    message: import("@core/domain/messageTypes").Message,
+  ): void {
+    this.tabMessenger.sendToTab(tabId, frameId, message);
   }
 
   async getBackgroundPageSetConfigMsg(domainURL?: string): Promise<ConfigMessage> {
@@ -174,6 +204,7 @@ export class BackgroundServiceWorker {
 
   async updatePresageConfig(): Promise<void> {
     await sanitizeSiteProfilesSetting(this.settingsManager);
+    await sanitizeAutoLanguagePriorsSetting(this.settingsManager);
     await this.predictionManager.initialize();
     const runtimeConfig = await this.configAssembler.assemblePredictionRuntimeConfig();
     this.language = runtimeConfig.language;
@@ -185,6 +216,40 @@ export class BackgroundServiceWorker {
       this.settingsManager,
       (domain: string) => this.configAssembler.resolveDomainConfigOverrides(domain),
     );
+  }
+
+  async getAutoLanguageStatusForTab(
+    tabId: number,
+  ): Promise<AutoLanguageSessionStatus | null> {
+    return this.languageDetector.getRecentSessionStatusForTab(tabId);
+  }
+
+  async handleActiveLanguageToggle(domainURL: string | undefined): Promise<{
+    language: string;
+    tabId?: number;
+    frameId?: number;
+  }> {
+    const activeTab = await this.tabMessenger.getActiveTabHostname();
+    const tabId = activeTab?.tabId;
+    if (typeof tabId === "number") {
+      const domainSettings = await resolveDomainRuntimeSettings(this.settingsManager, domainURL);
+      if (domainSettings.language === "auto_detect") {
+        const status = await this.languageDetector.cycleManualLockForTab(tabId);
+        if (status) {
+          return {
+            language: status.language,
+            tabId: status.tabId,
+            frameId: status.frameId,
+          };
+        }
+      }
+    }
+    const nextLang = await rotateLanguageForDomain(this.settingsManager, domainURL);
+    return {
+      language: nextLang,
+      tabId,
+      frameId: 0,
+    };
   }
 
   async initialize(lastVersion: string | undefined): Promise<void> {

@@ -7,6 +7,7 @@ import {
 } from "@core/domain/siteProfiles";
 import { CoreSettingsRepository } from "@core/application/repositories/CoreSettingsRepository";
 import { SiteProfileRepository } from "@core/application/repositories/SiteProfileRepository";
+import { sanitizeAutoLanguageSitePriors } from "@core/domain/autoLanguageDetection";
 
 export interface DomainRuntimeSettings {
   language: string;
@@ -88,6 +89,20 @@ export async function sanitizeSiteProfilesSetting(settingsManager: SettingsManag
   const sanitizedSiteProfiles = resolveSiteProfiles(siteProfilesRaw, enabledLanguages);
   if (JSON.stringify(siteProfilesRaw || {}) !== JSON.stringify(sanitizedSiteProfiles)) {
     await siteProfileRepository.setSiteProfiles(sanitizedSiteProfiles);
+  }
+}
+
+export async function sanitizeAutoLanguagePriorsSetting(
+  settingsManager: SettingsManager,
+): Promise<void> {
+  const settingsRepository = new CoreSettingsRepository(settingsManager);
+  const [priorsRaw, enabledLanguages] = await Promise.all([
+    settingsRepository.getAutoLanguageSitePriors(),
+    settingsRepository.getEnabledLanguages(),
+  ]);
+  const sanitizedPriors = sanitizeAutoLanguageSitePriors(priorsRaw, enabledLanguages);
+  if (JSON.stringify(priorsRaw || {}) !== JSON.stringify(sanitizedPriors)) {
+    await settingsRepository.setAutoLanguageSitePriors(sanitizedPriors);
   }
 }
 

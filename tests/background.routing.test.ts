@@ -6,6 +6,7 @@ import {
   CMD_CONTENT_SCRIPT_GET_CONFIG,
   CMD_CONTENT_SCRIPT_PREDICT_REQ,
   CMD_CONTENT_SCRIPT_USAGE_EVENT,
+  CMD_GET_AUTO_LANGUAGE_STATUS,
   CMD_OPTIONS_PAGE_CONFIG_CHANGE,
   CMD_OPTIONS_RESET_PRODUCTIVITY_STATS,
   CMD_POPUP_ACK_DONATION_MILESTONE,
@@ -64,7 +65,17 @@ class MockPredictorError extends Error {
 const backgroundHarnessMocks = {
   settingsGet: jest.fn(async () => undefined),
   settingsSet: jest.fn(async () => undefined),
-  languageDetect: jest.fn(async () => "en_US"),
+  resolveAutoLanguage: jest.fn(async () => ({
+    language: "en_US",
+    changed: true,
+    source: "detection",
+    isLocked: false,
+    switched: false,
+    tabId: 1,
+    frameId: 0,
+  })),
+  cycleManualLockForTab: jest.fn(async () => null),
+  getRecentSessionStatusForTab: jest.fn(async () => null),
   predictionRun: jest.fn(async () => ({ predictions: [] })),
   predictionInitialize: jest.fn(async () => undefined),
   predictionSetConfig: jest.fn(),
@@ -74,6 +85,7 @@ const backgroundHarnessMocks = {
   ),
   tabSendToAll: jest.fn(),
   tabSendToActive: jest.fn(),
+  tabSendToTab: jest.fn(),
   getActiveTabHostname: jest.fn(async () => ({
     tabId: 1,
     hostname: "example.com",
@@ -94,8 +106,10 @@ jest.unstable_mockModule("../src/core/application/settingsManager", () => ({
 
 jest.unstable_mockModule("../src/adapters/chrome/background/LanguageDetector", () => ({
   LanguageDetector: jest.fn().mockImplementation(() => ({
-    detectLanguage: (...args: [string, number, string[]?]) =>
-      backgroundHarnessMocks.languageDetect(...args),
+    resolveLanguage: (...args: [unknown]) => backgroundHarnessMocks.resolveAutoLanguage(...args),
+    cycleManualLockForTab: (...args: [number]) => backgroundHarnessMocks.cycleManualLockForTab(...args),
+    getRecentSessionStatusForTab: (...args: [number]) =>
+      backgroundHarnessMocks.getRecentSessionStatusForTab(...args),
   })),
 }));
 
@@ -116,6 +130,7 @@ jest.unstable_mockModule("../src/adapters/chrome/background/TabMessenger", () =>
     sendToAllTabs: (...args: [unknown, unknown?, unknown?]) =>
       backgroundHarnessMocks.tabSendToAll(...args),
     sendToActiveTab: (...args: [unknown]) => backgroundHarnessMocks.tabSendToActive(...args),
+    sendToTab: (...args: [number, number, unknown]) => backgroundHarnessMocks.tabSendToTab(...args),
     getActiveTabHostname: (...args: []) => backgroundHarnessMocks.getActiveTabHostname(...args),
   })),
 }));
@@ -214,7 +229,17 @@ async function loadBackgroundHarness(stateOverrides: Record<string, unknown> = {
   const settingsSet = jest.fn(async (key: string, value: unknown) => {
     state[key] = value;
   });
-  const languageDetect = jest.fn(async () => "fr_FR");
+  const resolveAutoLanguage = jest.fn(async () => ({
+    language: "fr_FR",
+    changed: true,
+    source: "detection",
+    isLocked: false,
+    switched: false,
+    tabId: 111,
+    frameId: 0,
+  }));
+  const cycleManualLockForTab = jest.fn(async () => null);
+  const getRecentSessionStatusForTab = jest.fn(async () => null);
   const predictionRun = jest.fn(async () => ({
     predictions: ["hello"],
   }));
@@ -226,6 +251,7 @@ async function loadBackgroundHarness(stateOverrides: Record<string, unknown> = {
   );
   const tabSendToAll = jest.fn();
   const tabSendToActive = jest.fn();
+  const tabSendToTab = jest.fn();
   const getActiveTabHostname = jest.fn(async () => ({
     tabId: 1,
     hostname: "example.com",
@@ -279,7 +305,9 @@ async function loadBackgroundHarness(stateOverrides: Record<string, unknown> = {
 
   backgroundHarnessMocks.settingsGet = settingsGet;
   backgroundHarnessMocks.settingsSet = settingsSet;
-  backgroundHarnessMocks.languageDetect = languageDetect;
+  backgroundHarnessMocks.resolveAutoLanguage = resolveAutoLanguage;
+  backgroundHarnessMocks.cycleManualLockForTab = cycleManualLockForTab;
+  backgroundHarnessMocks.getRecentSessionStatusForTab = getRecentSessionStatusForTab;
   backgroundHarnessMocks.predictionRun = predictionRun;
   backgroundHarnessMocks.predictionInitialize = predictionInitialize;
   backgroundHarnessMocks.predictionSetConfig = predictionSetConfig;
@@ -287,6 +315,7 @@ async function loadBackgroundHarness(stateOverrides: Record<string, unknown> = {
   backgroundHarnessMocks.predictionRecordTraceTimelineEvent = predictionRecordTraceTimelineEvent;
   backgroundHarnessMocks.tabSendToAll = tabSendToAll;
   backgroundHarnessMocks.tabSendToActive = tabSendToActive;
+  backgroundHarnessMocks.tabSendToTab = tabSendToTab;
   backgroundHarnessMocks.getActiveTabHostname = getActiveTabHostname;
   backgroundHarnessMocks.checkLastError = checkLastError;
   backgroundHarnessMocks.getDomain = getDomain;
@@ -318,7 +347,9 @@ async function loadBackgroundHarness(stateOverrides: Record<string, unknown> = {
     state,
     settingsGet,
     settingsSet,
-    languageDetect,
+    resolveAutoLanguage,
+    cycleManualLockForTab,
+    getRecentSessionStatusForTab,
     predictionRun,
     predictionInitialize,
     predictionSetConfig,
@@ -326,6 +357,7 @@ async function loadBackgroundHarness(stateOverrides: Record<string, unknown> = {
     predictionRecordTraceTimelineEvent,
     tabSendToAll,
     tabSendToActive,
+    tabSendToTab,
     checkLastError,
     getDomain,
     isEnabledForDomain,
@@ -431,7 +463,7 @@ describe("background routing and lifecycle", () => {
       expect.objectContaining({ command: CMD_TRIGGER_FT_ACTIVE_TAB }),
     );
     expect(harness.settingsSet).toHaveBeenCalledWith(KEY_LANGUAGE, "fr_FR");
-    expect(harness.tabSendToActive).toHaveBeenCalledWith({
+    expect(harness.tabSendToTab).toHaveBeenCalledWith(1, 0, {
       command: CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
       context: { lang: "fr_FR" },
     });
@@ -457,7 +489,7 @@ describe("background routing and lifecycle", () => {
         }),
       }),
     );
-    expect(harness.tabSendToActive).toHaveBeenCalledWith({
+    expect(harness.tabSendToTab).toHaveBeenCalledWith(1, 0, {
       command: CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
       context: { lang: "fr_FR" },
     });
@@ -477,7 +509,32 @@ describe("background routing and lifecycle", () => {
     await flushPromises();
 
     expect(harness.settingsSet).toHaveBeenCalledWith(KEY_LANGUAGE, "fr_FR");
-    expect(harness.tabSendToActive).toHaveBeenCalledWith({
+    expect(harness.tabSendToTab).toHaveBeenCalledWith(1, 0, {
+      command: CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
+      context: { lang: "fr_FR" },
+    });
+  });
+
+  test("onCommand uses a session-only lock for active auto-detect sessions", async () => {
+    const harness = await loadBackgroundHarness({
+      language: "auto_detect",
+    });
+    harness.cycleManualLockForTab.mockResolvedValueOnce({
+      language: "fr_FR",
+      source: "manual_lock",
+      locked: true,
+      tabId: 1,
+      frameId: 0,
+      domain: "example.com",
+      updatedAt: Date.now(),
+    });
+
+    harness.onCommand(CMD_TOGGLE_FT_ACTIVE_LANG);
+    await flushPromises();
+
+    expect(harness.cycleManualLockForTab).toHaveBeenCalledWith(1);
+    expect(harness.settingsSet).not.toHaveBeenCalledWith(KEY_LANGUAGE, expect.anything());
+    expect(harness.tabSendToTab).toHaveBeenCalledWith(1, 0, {
       command: CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
       context: { lang: "fr_FR" },
     });
@@ -668,9 +725,9 @@ describe("background routing and lifecycle", () => {
     const harness = await loadBackgroundHarness();
     harness.state[KEY_LANGUAGE] = "en_US";
 
-    const sendToActiveSpy = jest.spyOn(
+    const sendToTabSpy = jest.spyOn(
       harness.module.BackgroundServiceWorker.prototype,
-      "sendCommandToActiveTabContentScript",
+      "sendCommandToTabContentScript",
     );
     const runPredictionSpy = jest
       .spyOn(harness.module.BackgroundServiceWorker.prototype, "runPrediction")
@@ -693,7 +750,7 @@ describe("background routing and lifecycle", () => {
     );
     await flushPromises();
 
-    expect(sendToActiveSpy).toHaveBeenCalledWith({
+    expect(sendToTabSpy).toHaveBeenCalledWith(2, 0, {
       command: CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
       context: { lang: "en_US" },
     });
@@ -720,9 +777,9 @@ describe("background routing and lifecycle", () => {
       language: "auto_detect",
       enabled_languages: ["en_US", "fr_FR"],
     });
-    const sendToActiveSpy = jest.spyOn(
+    const sendToTabSpy = jest.spyOn(
       harness.module.BackgroundServiceWorker.prototype,
-      "sendCommandToActiveTabContentScript",
+      "sendCommandToTabContentScript",
     );
     const runPredictionSpy = jest
       .spyOn(harness.module.BackgroundServiceWorker.prototype, "runPrediction")
@@ -745,8 +802,15 @@ describe("background routing and lifecycle", () => {
     );
     await flushPromises();
 
-    expect(harness.languageDetect).toHaveBeenCalledWith("bonjour", 111, ["en_US", "fr_FR"]);
-    expect(sendToActiveSpy).toHaveBeenCalledWith({
+    expect(harness.resolveAutoLanguage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: "bonjour",
+        tabId: 111,
+        frameId: 0,
+        enabledLanguages: ["en_US", "fr_FR"],
+      }),
+    );
+    expect(sendToTabSpy).toHaveBeenCalledWith(111, 0, {
       command: CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
       context: { lang: "fr_FR" },
     });
@@ -929,6 +993,34 @@ describe("background routing and lifecycle", () => {
     expect(unknown).toBe(false);
     expect(harness.logError).toHaveBeenCalledWith("onMessage", "Unknown command: UNKNOWN");
     expect(harness.checkLastError).toHaveBeenCalled();
+  });
+
+  test("onMessage returns active auto language session status", async () => {
+    const harness = await loadBackgroundHarness();
+    harness.getRecentSessionStatusForTab.mockResolvedValueOnce({
+      language: "de_DE",
+      source: "manual_lock",
+      locked: true,
+      tabId: 1,
+      frameId: 0,
+      domain: "example.com",
+      updatedAt: Date.now(),
+    });
+    const sendResponse = jest.fn();
+
+    harness.onMessage(
+      { command: CMD_GET_AUTO_LANGUAGE_STATUS, context: {} },
+      {} as chrome.runtime.MessageSender,
+      sendResponse,
+    );
+    await flushPromises();
+
+    expect(sendResponse).toHaveBeenCalledWith({
+      status: expect.objectContaining({
+        language: "de_DE",
+        locked: true,
+      }),
+    });
   });
 
   test("onMessage handles productivity usage + popup stats commands", async () => {

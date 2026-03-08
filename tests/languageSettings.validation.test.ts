@@ -2,6 +2,7 @@ import "./setup";
 import { beforeEach, describe, expect, jest, test } from "bun:test";
 import type { Store } from "../src/core/application/storage/Store.js";
 import {
+  KEY_AUTO_LANGUAGE_SITE_PRIORS,
   KEY_ENABLED_LANGUAGES,
   KEY_FALLBACK_LANGUAGE,
   KEY_LANGUAGE,
@@ -79,6 +80,12 @@ describe("validateLanguageSettings", () => {
       [KEY_ENABLED_LANGUAGES]: ["pt_BR", "bogus", "en_US"],
       [KEY_LANGUAGE]: "auto_detect",
       [KEY_FALLBACK_LANGUAGE]: "pt_BR",
+      [KEY_AUTO_LANGUAGE_SITE_PRIORS]: {
+        "example.com": {
+          pt_BR: 0.8,
+          de_DE: 0.5,
+        },
+      },
       [KEY_SITE_PROFILES]: {},
     };
     const registry = {
@@ -92,6 +99,11 @@ describe("validateLanguageSettings", () => {
     expect(values[KEY_ENABLED_LANGUAGES]).toEqual(["en_US", "pt_BR"]);
     expect(values[KEY_LANGUAGE]).toBe("auto_detect");
     expect(values[KEY_FALLBACK_LANGUAGE]).toBe("pt_BR");
+    expect(values[KEY_AUTO_LANGUAGE_SITE_PRIORS]).toEqual({
+      "example.com": {
+        pt_BR: 0.8,
+      },
+    });
     expect((registry[KEY_ENABLED_LANGUAGES] as unknown as MockControl).calls).toEqual([
       { value: ["en_US", "pt_BR"], silent: true },
     ]);

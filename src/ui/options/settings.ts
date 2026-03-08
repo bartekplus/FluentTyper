@@ -11,6 +11,7 @@ import { AboutWorkspacePanel } from "@ui/options/AboutWorkspacePanel";
 import { EssentialsWorkspacePanel } from "@ui/options/EssentialsWorkspacePanel";
 import { GrammarWorkspacePanel } from "@ui/options/GrammarWorkspacePanel";
 import { resolveSiteProfiles } from "@core/domain/siteProfiles";
+import { sanitizeAutoLanguageSitePriors } from "@core/domain/autoLanguageDetection";
 import {
   KEY_AUTOCOMPLETE,
   KEY_AUTOCOMPLETE_ON_ENTER,
@@ -18,6 +19,7 @@ import {
   KEY_AI_PREDICTOR_ENABLED,
   KEY_AI_MODEL_ID,
   KEY_AI_PREDICTION_TIMEOUT_MS,
+  KEY_AUTO_LANGUAGE_SITE_PRIORS,
   KEY_LANGUAGE,
   KEY_FALLBACK_LANGUAGE,
   KEY_ENABLED_LANGUAGES,
@@ -107,6 +109,21 @@ export async function sanitizeSiteProfilesForEnabledLanguages(
   return hasChanges;
 }
 
+export async function sanitizeAutoLanguagePriorsForEnabledLanguages(
+  store: Store,
+  enabledLanguages: string[] | null,
+) {
+  const resolvedEnabledLanguages =
+    enabledLanguages || resolveEnabledLanguages(await store.get(KEY_ENABLED_LANGUAGES));
+  const rawPriors = await store.get(KEY_AUTO_LANGUAGE_SITE_PRIORS);
+  const sanitizedPriors = sanitizeAutoLanguageSitePriors(rawPriors, resolvedEnabledLanguages);
+  const hasChanges = JSON.stringify(rawPriors || {}) !== JSON.stringify(sanitizedPriors);
+  if (hasChanges) {
+    await store.set(KEY_AUTO_LANGUAGE_SITE_PRIORS, sanitizedPriors);
+  }
+  return hasChanges;
+}
+
 export async function validateLanguageSettings(
   registry: ReturnType<SettingsEngine["buildFromManifest"]>,
   store: Store,
@@ -148,7 +165,11 @@ export async function validateLanguageSettings(
     store,
     enabledLanguages,
   );
-  if (siteProfilesChanged || didSanitize) {
+  const sitePriorsChanged = await sanitizeAutoLanguagePriorsForEnabledLanguages(
+    store,
+    enabledLanguages,
+  );
+  if (siteProfilesChanged || sitePriorsChanged || didSanitize) {
     optionsPageConfigChange();
   }
 }

@@ -134,6 +134,19 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
     return this.getBooleanField("autoCapitalize");
   }
 
+  async getAutoLanguageSitePriors(): Promise<Record<string, Record<string, number>>> {
+    const value = await this.getField("autoLanguageSitePriors");
+    return value && typeof value === "object" && !Array.isArray(value)
+      ? (value as Record<string, Record<string, number>>)
+      : {};
+  }
+
+  async setAutoLanguageSitePriors(
+    priors: Record<string, Record<string, number>>,
+  ): Promise<void> {
+    await this.setField("autoLanguageSitePriors", priors);
+  }
+
   async getEnabledGrammarRules(): Promise<string[]> {
     return this.getStringArrayField("enabledGrammarRules");
   }

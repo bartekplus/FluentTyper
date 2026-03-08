@@ -20,6 +20,7 @@ export const CMD_POPUP_ACK_DONATION_MILESTONE = "CMD_POPUP_ACK_DONATION_MILESTON
 export const CMD_OPTIONS_RESET_PRODUCTIVITY_STATS = "CMD_OPTIONS_RESET_PRODUCTIVITY_STATS";
 export const CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT = "CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT";
 export const CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE = "CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE";
+export const CMD_GET_AUTO_LANGUAGE_STATUS = "CMD_GET_AUTO_LANGUAGE_STATUS";
 
 // Config Keys
 export const KEY_AUTOCOMPLETE = "autocomplete";
@@ -39,6 +40,7 @@ export const KEY_USER_DICTIONARY_LIST = "userDictionaryList";
 export const KEY_LANGUAGE = "language";
 export const KEY_FALLBACK_LANGUAGE = "fallbackLanguage";
 export const KEY_ENABLED_LANGUAGES = "enabled_languages";
+export const KEY_AUTO_LANGUAGE_SITE_PRIORS = "autoLanguageSitePriors";
 export const KEY_ENABLED_GRAMMAR_RULES = "enabledGrammarRules";
 /** @deprecated Legacy key – kept only for one-time migration in SettingsMigrationV3. */
 export const KEY_LEGACY_APPLY_SPACING_RULES = "applySpacingRules";

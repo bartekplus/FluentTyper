@@ -5088,6 +5088,12 @@ i18n.extend({
     pl: "Język zapasowy jest ukryty w trybie jednego języka, ponieważ nie jest potrzebny.",
     pr: "O idioma de reserva fica oculto no modo de idioma único porque não é necessário.",
   },
+  language_panel_auto_detect_current: {
+    en: "Auto-detect currently using {language}.",
+  },
+  language_panel_auto_detect_locked: {
+    en: "Session lock is active.",
+  },
   text_assets_search_placeholder: {
     en: "Search snippets",
     fr: "Rechercher des extraits",

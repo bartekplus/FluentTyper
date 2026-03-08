@@ -12,7 +12,6 @@ import type {
   UpdateLangConfigMessage,
 } from "@core/domain/messageTypes";
 import type { BackgroundServiceWorker } from "../BackgroundServiceWorker";
-import { rotateLanguageForDomain } from "../config/runtimeSettings";
 import {
   createErrorMappingMiddleware,
   createLoggingMiddleware,
@@ -58,16 +57,27 @@ export class CommandRouter {
         const worker = getWorker();
         const result = await worker.tabMessenger.getActiveTabHostname();
         const domainURL = result?.hostname || undefined;
-        const nextLang = await rotateLanguageForDomain(worker.settingsManager, domainURL);
-        worker.language = nextLang;
+        const nextLanguage = await worker.handleActiveLanguageToggle(domainURL);
+        worker.language = nextLanguage.language;
 
         const updateLangConfigMessage: UpdateLangConfigMessage = {
           command: CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
           context: {
-            lang: nextLang,
+            lang: nextLanguage.language,
           },
         };
-        worker.sendCommandToActiveTabContentScript(updateLangConfigMessage);
+        if (
+          typeof nextLanguage.tabId === "number" &&
+          typeof nextLanguage.frameId === "number"
+        ) {
+          worker.sendCommandToTabContentScript(
+            nextLanguage.tabId,
+            nextLanguage.frameId,
+            updateLangConfigMessage,
+          );
+        } else {
+          worker.sendCommandToActiveTabContentScript(updateLangConfigMessage);
+        }
       },
     };
 

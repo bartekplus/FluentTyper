@@ -129,6 +129,9 @@ export class ContentRuntimeController {
   }
 
   updateLanguage(lang: string): void {
+    if (this.config.lang === lang) {
+      return;
+    }
     this.config.lang = lang;
     this.suggestionManager?.updateLangConfig(this.config.lang);
   }

@@ -47,7 +47,11 @@ jest.unstable_mockModule("../src/core/application/settingsManager", () => ({
   })),
 }));
 jest.unstable_mockModule("../src/adapters/chrome/background/LanguageDetector", () => ({
-  LanguageDetector: jest.fn(),
+  LanguageDetector: jest.fn().mockImplementation(() => ({
+    resolveLanguage: jest.fn(),
+    getRecentSessionStatusForTab: jest.fn(),
+    cycleManualLockForTab: jest.fn(),
+  })),
 }));
 jest.unstable_mockModule("../src/adapters/chrome/background/PredictionManager", () => ({
   PredictionManager: jest.fn().mockImplementation(() => ({
@@ -64,6 +68,8 @@ jest.unstable_mockModule("../src/adapters/chrome/background/TabMessenger", () =>
   TabMessenger: jest.fn().mockImplementation(() => ({
     sendToAllTabs: jest.fn(),
     sendToActiveTab: jest.fn(),
+    sendToTab: jest.fn(),
+    getActiveTabHostname: jest.fn(),
   })),
 }));
 

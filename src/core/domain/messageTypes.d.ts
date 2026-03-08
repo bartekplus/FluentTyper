@@ -74,10 +74,13 @@ export interface ContentScriptPredictRequestContext {
   suggestionId: number;
   requestId: number;
   lang: string;
+  documentLang?: string;
   runtimeGeneration?: number;
   traceId?: string;
   traceStartedAtMs?: number;
 }
+
+export type GetAutoLanguageStatusContext = Record<string, never>;
 
 // Context for CMD_OPTIONS_PAGE_CONFIG_CHANGE
 export type OptionsPageConfigChangeContext = Record<string, never>;
@@ -286,6 +289,10 @@ export type Message =
   | {
       command: "CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE";
       context: OptionsClearPredictorDebugTraceContext;
+    }
+  | {
+      command: "CMD_GET_AUTO_LANGUAGE_STATUS";
+      context: GetAutoLanguageStatusContext;
     };
 export type ConfigMessage = Extract<Message, { command: "CMD_BACKGROUND_PAGE_SET_CONFIG" }>;
 export type PredictRequestMessage = Extract<
@@ -344,4 +351,8 @@ export type OptionsGetPredictorDebugSnapshotMessage = Extract<
 export type OptionsClearPredictorDebugTraceMessage = Extract<
   Message,
   { command: "CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE" }
+>;
+export type GetAutoLanguageStatusMessage = Extract<
+  Message,
+  { command: "CMD_GET_AUTO_LANGUAGE_STATUS" }
 >;

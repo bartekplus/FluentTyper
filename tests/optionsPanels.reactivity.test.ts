@@ -85,6 +85,11 @@ function findButtonByText(root: HTMLElement, text: string): HTMLButtonElement {
 describe("options panel reactivity", () => {
   beforeEach(() => {
     i18n.lang = "en";
+    (
+      globalThis.chrome as typeof chrome & {
+        runtime: typeof chrome.runtime & { sendMessage: (message: unknown) => Promise<unknown> };
+      }
+    ).runtime.sendMessage = () => Promise.resolve({ status: null });
   });
 
   afterEach(() => {
@@ -145,12 +150,25 @@ describe("options panel reactivity", () => {
     expect(summaryText).not.toContain("Fallback:");
 
     values[KEY_LANGUAGE] = "auto_detect";
+    (
+      globalThis.chrome as typeof chrome & {
+        runtime: typeof chrome.runtime & { sendMessage: (message: unknown) => Promise<unknown> };
+      }
+    ).runtime.sendMessage = () =>
+      Promise.resolve({
+        status: {
+          language: "de_DE",
+          locked: true,
+        },
+      });
     registry[KEY_LANGUAGE].set(values[KEY_LANGUAGE], true);
     await flushAsyncWork();
 
     const autoDetectSummary = root.querySelector(".language-panel-summary p")?.textContent || "";
     expect(autoDetectSummary).toContain("Primary behavior: Auto-detect.");
     expect(autoDetectSummary).toContain("Fallback: German.");
+    expect(root.textContent).toContain("Auto-detect currently using German.");
+    expect(root.textContent).toContain("Session lock is active.");
   });
 
   test("sites UI refreshes immediately when enabled languages change", async () => {

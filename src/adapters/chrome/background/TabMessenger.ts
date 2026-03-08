@@ -54,6 +54,10 @@ export class TabMessenger {
     });
   }
 
+  sendToTab(tabId: number, frameId: number, message: Message): void {
+    chrome.tabs.sendMessage(tabId, message, { frameId });
+  }
+
   async getActiveTabHostname(): Promise<{ tabId: number; hostname: string } | undefined> {
     const tabId = await this.getActiveTabId();
     if (tabId === undefined) {

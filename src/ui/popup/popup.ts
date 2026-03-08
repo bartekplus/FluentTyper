@@ -22,11 +22,12 @@ import {
   CMD_POPUP_PAGE_ENABLE,
   CMD_POPUP_PAGE_DISABLE,
   CMD_OPTIONS_PAGE_CONFIG_CHANGE,
-  CMD_POPUP_GET_PRODUCTIVITY_STATS,
-  CMD_POPUP_ACK_WEEKLY_RECAP,
-  CMD_POPUP_ACK_DONATION_MILESTONE,
-  MAX_NUM_SUGGESTIONS,
-} from "@core/domain/constants";
+    CMD_POPUP_GET_PRODUCTIVITY_STATS,
+    CMD_POPUP_ACK_WEEKLY_RECAP,
+    CMD_POPUP_ACK_DONATION_MILESTONE,
+    CMD_GET_AUTO_LANGUAGE_STATUS,
+    MAX_NUM_SUGGESTIONS,
+  } from "@core/domain/constants";
 import type {
   OptionsPageConfigChangeMessage,
   PopupPageEnableMessage,
@@ -36,7 +37,7 @@ import type {
   PopupAckWeeklyRecapMessage,
   PopupAckDonationMilestoneMessage,
 } from "@core/domain/messageTypes";
-import { i18n } from "@ui/options/fluenttyperI18n.js";
+import { formatTranslation, i18n } from "@ui/options/fluenttyperI18n.js";
 import {
   type WebsiteAccessPermissionState,
   WebsiteAccessPermissionController,
@@ -222,6 +223,28 @@ function resolveDisplayedLanguage(): string {
   return currentProfileLanguageFallback;
 }
 
+async function getActiveAutoLanguageStatus(): Promise<{
+  language: string;
+  locked: boolean;
+} | null> {
+  try {
+    const response = await chrome.runtime.sendMessage({
+      command: CMD_GET_AUTO_LANGUAGE_STATUS,
+      context: {},
+    });
+    const status = (response as { status?: { language?: string; locked?: boolean } | null })?.status;
+    if (!status || typeof status.language !== "string" || status.language.length === 0) {
+      return null;
+    }
+    return {
+      language: status.language,
+      locked: status.locked === true,
+    };
+  } catch {
+    return null;
+  }
+}
+
 function renderStaticPageState(
   state: Extract<PopupPageState, { kind: "restricted" | "non_actionable" }>,
 ): void {
@@ -329,7 +352,10 @@ function syncPopupThemeWithSystem(): void {
 
 async function renderActionablePageState(): Promise<void> {
   if (!currentDomainURL) {
-    renderStaticPageState(getCurrentPageState(undefined));
+    const fallbackState = getCurrentPageState(undefined);
+    if (fallbackState.kind !== "actionable") {
+      renderStaticPageState(fallbackState);
+    }
     return;
   }
 
@@ -343,7 +369,10 @@ async function renderActionablePageState(): Promise<void> {
     currentDomainURL,
     currentEnabledLanguages,
   );
-  const languageCode = profile?.language || resolveDisplayedLanguage();
+  const configuredLanguage = profile?.language || resolveDisplayedLanguage();
+  const autoLanguageStatus =
+    configuredLanguage === "auto_detect" ? await getActiveAutoLanguageStatus() : null;
+  const languageCode = autoLanguageStatus?.language || configuredLanguage;
   const languageLabel = SUPPORTED_LANGUAGES[languageCode] || languageCode;
   const badgeLabel = globallyEnabled
     ? siteAllowed
@@ -375,7 +404,14 @@ async function renderActionablePageState(): Promise<void> {
   badge.textContent = badgeLabel;
   setNodeTextAndTitle(title, currentDomainURL);
   body.textContent = activityCopy;
-  setNodeTextAndTitle(language, languageLabel);
+  if (configuredLanguage === "auto_detect" && autoLanguageStatus?.language) {
+    const liveLabel = formatTranslation("language_panel_auto_detect_current", {
+      language: languageLabel,
+    });
+    setNodeTextAndTitle(language, liveLabel);
+  } else {
+    setNodeTextAndTitle(language, languageLabel);
+  }
   setNodeTextAndTitle(profileNode, profileCopy);
   meta.classList.remove("is-hidden");
   panel?.setAttribute("data-page-state", globallyEnabled && siteAllowed ? "active" : "paused");

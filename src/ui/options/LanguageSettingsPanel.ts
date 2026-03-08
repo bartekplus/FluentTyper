@@ -6,6 +6,7 @@ import {
   resolveEnabledLanguages,
 } from "@core/domain/lang";
 import {
+  CMD_GET_AUTO_LANGUAGE_STATUS,
   KEY_ENABLED_LANGUAGES,
   KEY_EXTENSION_LANGUAGE,
   KEY_FALLBACK_LANGUAGE,
@@ -68,6 +69,8 @@ export class LanguageSettingsPanel {
         : enabledLanguages[0];
     const siteProfiles = resolveSiteProfiles(siteProfilesRaw, enabledLanguages);
     const usageCounts = this.countSiteProfileUsage(siteProfiles);
+    const autoLanguageStatus =
+      language === "auto_detect" ? await this.fetchAutoLanguageStatus() : null;
 
     const shell = document.createElement("div");
     shell.className = "workspace-panel-stack";
@@ -76,7 +79,7 @@ export class LanguageSettingsPanel {
     topGrid.className = "workspace-top-grid";
     topGrid.append(
       this.createExtensionUiCard(),
-      this.createSummary(enabledLanguages, language, fallbackLanguage),
+      this.createSummary(enabledLanguages, language, fallbackLanguage, autoLanguageStatus),
       this.createLanguageDisplayCard(),
     );
 
@@ -113,6 +116,7 @@ export class LanguageSettingsPanel {
     enabledLanguages: string[],
     language: string,
     fallbackLanguage: string,
+    autoLanguageStatus: { language: string; locked: boolean } | null,
   ): HTMLElement {
     const shell = document.createElement("section");
     shell.className = "settings-inline-card language-panel-summary";
@@ -145,6 +149,20 @@ export class LanguageSettingsPanel {
       });
     }
     shell.appendChild(text);
+
+    if (language === "auto_detect" && autoLanguageStatus?.language) {
+      const activeStatus = document.createElement("p");
+      activeStatus.className = "settings-inline-help";
+      const activeLabel =
+        SUPPORTED_LANGUAGES[autoLanguageStatus.language] || autoLanguageStatus.language;
+      activeStatus.textContent = formatTranslation("language_panel_auto_detect_current", {
+        language: activeLabel,
+      });
+      if (autoLanguageStatus.locked) {
+        activeStatus.textContent += ` ${i18n.get("language_panel_auto_detect_locked")}`;
+      }
+      shell.appendChild(activeStatus);
+    }
 
     const link = document.createElement("a");
     link.href = "#site_mgmt_tab";
@@ -300,5 +318,24 @@ export class LanguageSettingsPanel {
       acc[profile.language] = (acc[profile.language] || 0) + 1;
       return acc;
     }, {});
+  }
+
+  private async fetchAutoLanguageStatus(): Promise<{ language: string; locked: boolean } | null> {
+    try {
+      const response = await chrome.runtime.sendMessage({
+        command: CMD_GET_AUTO_LANGUAGE_STATUS,
+        context: {},
+      });
+      const status = (response as { status?: { language?: string; locked?: boolean } | null })?.status;
+      if (!status || typeof status.language !== "string" || status.language.length === 0) {
+        return null;
+      }
+      return {
+        language: status.language,
+        locked: status.locked === true,
+      };
+    } catch {
+      return null;
+    }
   }
 }
