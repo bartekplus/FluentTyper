@@ -171,6 +171,24 @@ export class LanguageSettingsPanel {
       shell.appendChild(waitingStatus);
     }
 
+    if (language === "auto_detect") {
+      const behaviorStatus = document.createElement("p");
+      behaviorStatus.className = "settings-inline-help";
+      behaviorStatus.textContent = autoLanguageStatus?.locked
+        ? i18n.get("language_panel_auto_detect_locked_reason")
+        : autoLanguageStatus?.language
+          ? i18n.get("language_panel_auto_detect_live_reason")
+          : formatTranslation("language_panel_auto_detect_waiting_reason", {
+              language: fallbackLabel,
+            });
+      shell.appendChild(behaviorStatus);
+
+      const learningStatus = document.createElement("p");
+      learningStatus.className = "settings-inline-help";
+      learningStatus.textContent = i18n.get("language_panel_auto_detect_learning");
+      shell.appendChild(learningStatus);
+    }
+
     const link = document.createElement("a");
     link.href = "#site_mgmt_tab";
     link.textContent = i18n.get("language_panel_site_overrides_link");
@@ -292,6 +310,20 @@ export class LanguageSettingsPanel {
         ? i18n.get("language_panel_detection_multi")
         : i18n.get("language_panel_detection_single");
     detectionCard.appendChild(detectionCopy);
+
+    if (enabledLanguages.length > 1) {
+      const stabilityCopy = document.createElement("p");
+      stabilityCopy.className = "settings-inline-help";
+      stabilityCopy.textContent = i18n.get("language_panel_detection_stable");
+      detectionCard.appendChild(stabilityCopy);
+
+      const lockCopy = document.createElement("p");
+      lockCopy.className = "settings-inline-help";
+      lockCopy.textContent = formatTranslation("language_panel_detection_lock_and_fallback", {
+        language: SUPPORTED_LANGUAGES[fallbackLanguage] || fallbackLanguage,
+      });
+      detectionCard.appendChild(lockCopy);
+    }
 
     if (enabledLanguages.length > 1 && primarySelect.value === "auto_detect") {
       const fallbackSelect = document.createElement("select");

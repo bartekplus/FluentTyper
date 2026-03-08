@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
 import { JSDOM } from "jsdom";
-import { CMD_POPUP_GET_PRODUCTIVITY_STATS } from "../src/core/domain/constants";
+import {
+  CMD_GET_AUTO_LANGUAGE_STATUS,
+  CMD_POPUP_GET_PRODUCTIVITY_STATS,
+} from "../src/core/domain/constants";
 import type { ProductivityDashboardStats } from "../src/core/domain/messageTypes";
 import { acquireDomGlobalLock } from "./support/domGlobalLock";
 
@@ -262,6 +265,8 @@ function createChromeMock(
     request?: (options: chrome.permissions.Permissions) => Promise<boolean> | boolean;
   },
   activeTab?: chrome.tabs.Tab,
+  runtimeResponses?: Record<string, unknown>,
+  storageOverrides?: Record<string, unknown>,
 ) {
   const pending = [...outcomes];
   const storage = new Map<string, unknown>([
@@ -272,6 +277,7 @@ function createChromeMock(
     ["store.settings.enabled_languages", JSON.stringify(["en_US"])],
     ["store.settings.domainListMode", JSON.stringify("blackList")],
     ["store.settings.siteProfiles", JSON.stringify({})],
+    ...Object.entries(storageOverrides || {}),
   ]);
 
   const runtime = {
@@ -293,10 +299,21 @@ function createChromeMock(
           callback(next.value);
           return;
         }
+        if (message?.command && runtimeResponses && message.command in runtimeResponses && callback) {
+          runtime.lastError = null;
+          callback(runtimeResponses[message.command]);
+          return;
+        }
+        if (message?.command && runtimeResponses && message.command in runtimeResponses) {
+          runtime.lastError = null;
+          return Promise.resolve(runtimeResponses[message.command]);
+        }
         if (callback) {
           runtime.lastError = null;
           callback({ ok: true });
+          return;
         }
+        return Promise.resolve({ ok: true });
       },
     ),
     getURL: jest.fn((path: string) => `chrome-extension://popup-test/${path}`),
@@ -440,13 +457,21 @@ async function loadPopupWithOutcomes(
   activeTab?: chrome.tabs.Tab,
   prefersDark = false,
   translationOverrides?: Record<string, string>,
+  runtimeResponses?: Record<string, unknown>,
+  storageOverrides?: Record<string, unknown>,
 ): Promise<ReturnType<typeof createChromeMock>> {
   if (activeDom) {
     activeDom.window.close();
     activeDom = null;
   }
   activeDom = installPopupDom(initialAccepted, prefersDark);
-  const chromeMock = createChromeMock(outcomes, permissionApi, activeTab);
+  const chromeMock = createChromeMock(
+    outcomes,
+    permissionApi,
+    activeTab,
+    runtimeResponses,
+    storageOverrides,
+  );
   (globalThis as unknown as { chrome: unknown }).chrome = chromeMock;
   (window as unknown as { chrome: unknown }).chrome = chromeMock;
 
@@ -879,6 +904,37 @@ describe("popup productivity dashboard retry/failure paths", () => {
     );
     expect((focusElement("runOptions") as HTMLElement | null)?.id).toBe("runOptions");
     expect((focusElement("reportIssueLink") as HTMLElement | null)?.id).toBe("reportIssueLink");
+  });
+
+  test("explains stable auto-detect behavior in the popup", async () => {
+    await loadPopupWithOutcomes(
+      [{ type: "stats", value: createPopupStats(1) }],
+      "0",
+      {
+        contains: async () => true,
+      },
+      createWebsiteTab("https://example.com"),
+      false,
+      undefined,
+      {
+        [CMD_GET_AUTO_LANGUAGE_STATUS]: {
+          status: {
+            language: "fr_FR",
+            locked: false,
+          },
+        },
+      },
+      {
+        "store.settings.language": JSON.stringify("auto_detect"),
+        "store.settings.fallbackLanguage": JSON.stringify("en_US"),
+        "store.settings.enabled_languages": JSON.stringify(["en_US", "fr_FR"]),
+      },
+    );
+
+    expect(textContent("pageStateLanguage")).toContain("Auto-detect currently using French");
+    expect(textContent("pageStateBody")).toContain(
+      "Switches only after sustained nearby text. Single foreign words do not flip it.",
+    );
   });
 
   test("localizes footer action labels and keeps accessible text for icon links", async () => {
