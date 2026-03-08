@@ -125,6 +125,34 @@ describe("options panel reactivity", () => {
     expect(germanCardAfter.textContent).toContain(i18n.get("language_panel_site_override_warning"));
   });
 
+  test("language summary only mentions fallback when auto-detect is active", async () => {
+    const values: SettingsMap = {
+      [KEY_ENABLED_LANGUAGES]: ["en_US", "de_DE", "fr_FR"],
+      [KEY_LANGUAGE]: "en_US",
+      [KEY_FALLBACK_LANGUAGE]: "de_DE",
+      [KEY_SITE_PROFILES]: {},
+    };
+    const store = createStore(values);
+    const registry = createRegistry(values);
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+
+    new LanguageSettingsPanel(root, registry, store);
+    await flushAsyncWork();
+
+    const summaryText = root.querySelector(".language-panel-summary p")?.textContent || "";
+    expect(summaryText).toContain("3 writing languages enabled. Primary behavior: English (US).");
+    expect(summaryText).not.toContain("Fallback:");
+
+    values[KEY_LANGUAGE] = "auto_detect";
+    registry[KEY_LANGUAGE].set(values[KEY_LANGUAGE], true);
+    await flushAsyncWork();
+
+    const autoDetectSummary = root.querySelector(".language-panel-summary p")?.textContent || "";
+    expect(autoDetectSummary).toContain("Primary behavior: Auto-detect.");
+    expect(autoDetectSummary).toContain("Fallback: German.");
+  });
+
   test("sites UI refreshes immediately when enabled languages change", async () => {
     const values: SettingsMap = {
       [KEY_DOMAIN_LIST_MODE]: "blackList",

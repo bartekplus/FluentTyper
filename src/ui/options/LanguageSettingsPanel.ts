@@ -84,16 +84,23 @@ export class LanguageSettingsPanel {
         ? i18n.get("language_panel_auto_detect")
         : SUPPORTED_LANGUAGES[language] || language;
     const fallbackLabel = SUPPORTED_LANGUAGES[fallbackLanguage] || fallbackLanguage;
-    text.textContent =
-      enabledLanguages.length > 1
-        ? formatTranslation("language_panel_summary_multi", {
-            count: enabledLanguages.length,
-            primary: primaryLabel,
-            fallback: fallbackLabel,
-          })
-        : formatTranslation("language_panel_summary_single", {
-            language: SUPPORTED_LANGUAGES[enabledLanguages[0]] || enabledLanguages[0],
-          });
+    if (enabledLanguages.length > 1) {
+      text.textContent =
+        language === "auto_detect"
+          ? formatTranslation("language_panel_summary_multi", {
+              count: enabledLanguages.length,
+              primary: primaryLabel,
+              fallback: fallbackLabel,
+            })
+          : formatTranslation("language_panel_summary_multi_fixed", {
+              count: enabledLanguages.length,
+              primary: primaryLabel,
+            });
+    } else {
+      text.textContent = formatTranslation("language_panel_summary_single", {
+        language: SUPPORTED_LANGUAGES[enabledLanguages[0]] || enabledLanguages[0],
+      });
+    }
     shell.appendChild(text);
 
     const link = document.createElement("a");

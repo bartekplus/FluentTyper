@@ -4978,6 +4978,17 @@ i18n.extend({
     pl: "Włączono {count} języki pisania. Główne zachowanie: {primary}. Zapasowy: {fallback}.",
     pr: "{count} idiomas de escrita ativados. Comportamento principal: {primary}. Reserva: {fallback}.",
   },
+  language_panel_summary_multi_fixed: {
+    en: "{count} writing languages enabled. Primary behavior: {primary}.",
+    fr: "{count} langues d'écriture activées. Comportement principal : {primary}.",
+    hr: "Omogućena su {count} jezika pisanja. Primarno ponašanje: {primary}.",
+    es: "{count} idiomas de escritura activados. Comportamiento principal: {primary}.",
+    el: "Είναι ενεργές {count} γλώσσες γραφής. Κύρια συμπεριφορά: {primary}.",
+    sv: "{count} skrivspråk aktiverade. Primärt beteende: {primary}.",
+    de: "{count} Schreibsprachen aktiviert. Primäres Verhalten: {primary}.",
+    pl: "Włączono {count} języki pisania. Główne zachowanie: {primary}.",
+    pr: "{count} idiomas de escrita ativados. Comportamento principal: {primary}.",
+  },
   language_panel_summary_single: {
     en: "Single-language mode is active for {language}.",
     fr: "Le mode à langue unique est actif pour {language}.",
