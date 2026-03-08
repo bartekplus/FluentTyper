@@ -120,17 +120,10 @@ type TestNameContext = {
 type TrackedTestCallback = (...args: unknown[]) => unknown;
 type TestRegistrarLike = {
   (name: string, fn: TrackedTestCallback, timeout?: number): unknown;
-  (
-    name: string,
-    options: unknown,
-    fn: TrackedTestCallback,
-    timeout?: number,
-  ): unknown;
-  each: (cases: readonly unknown[]) => (
-    name: string,
-    fn: TrackedTestCallback,
-    timeout?: number,
-  ) => unknown;
+  (name: string, options: unknown, fn: TrackedTestCallback, timeout?: number): unknown;
+  each: (
+    cases: readonly unknown[],
+  ) => (name: string, fn: TrackedTestCallback, timeout?: number) => unknown;
   skip?: TestRegistrarLike;
 };
 
@@ -148,7 +141,12 @@ function wrapTrackedTestCallback(
 }
 
 function createTrackedSkipRegistrar(base: TestRegistrarLike): TestRegistrarLike {
-  const tracked = ((name: string, optionsOrFn: unknown, maybeFn?: unknown, maybeTimeout?: number) => {
+  const tracked = ((
+    name: string,
+    optionsOrFn: unknown,
+    maybeFn?: unknown,
+    maybeTimeout?: number,
+  ) => {
     if (typeof optionsOrFn === "function") {
       return base(name, wrapTrackedTestCallback(name, optionsOrFn), maybeFn);
     }

@@ -58,11 +58,9 @@ type TestNameContext = {
 type TrackedTestCallback = (...args: unknown[]) => unknown;
 type TestRegistrarLike = {
   (name: string, fn: TrackedTestCallback, timeout?: number): unknown;
-  each: (cases: readonly unknown[]) => (
-    name: string,
-    fn: TrackedTestCallback,
-    timeout?: number,
-  ) => unknown;
+  each: (
+    cases: readonly unknown[],
+  ) => (name: string, fn: TrackedTestCallback, timeout?: number) => unknown;
   skip?: TestRegistrarLike;
 };
 
