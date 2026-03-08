@@ -67,7 +67,7 @@ export class SliderControl extends BaseControl<number> {
         this.display.innerText = formatted;
       }
       if (this.tooltip) {
-        this.tooltip.innerText = formatted;
+        this.tooltip.textContent = formatted;
         this.tooltip.classList.add("slider-tooltip--visible");
       }
     };
