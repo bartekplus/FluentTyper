@@ -36,7 +36,7 @@ import type {
   PopupAckWeeklyRecapMessage,
   PopupAckDonationMilestoneMessage,
 } from "@core/domain/messageTypes";
-import { i18n } from "@third-party/fancier-settings/i18n.js";
+import { i18n } from "@ui/options/fluenttyperI18n.js";
 import {
   type WebsiteAccessPermissionState,
   WebsiteAccessPermissionController,

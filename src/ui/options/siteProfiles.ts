@@ -1,5 +1,5 @@
-import { Store } from "@third-party/fancier-settings/lib/store.js";
-import { i18n } from "@third-party/fancier-settings/i18n.js";
+import { Store } from "@core/application/storage/Store.js";
+import { i18n } from "./fluenttyperI18n.js";
 import { SUPPORTED_LANGUAGES, resolveEnabledLanguages } from "@core/domain/lang";
 import {
   KEY_ENABLED_LANGUAGES,
@@ -22,15 +22,9 @@ import {
   type SiteProfiles,
 } from "@core/domain/siteProfiles";
 
-interface FancierBundle {
-  element: HTMLElement;
-}
-
 interface FancierSettingsLike {
-  manifest: {
-    siteProfilesEditor: {
-      bundle: FancierBundle;
-    };
+  siteProfilesEditor: {
+    rootElement: HTMLElement;
   };
 }
 
@@ -59,6 +53,74 @@ function getPrimaryLanguage(enabledLanguages: string[]): string {
   return enabledLanguages[0] || "en_US";
 }
 
+function createElement<K extends keyof HTMLElementTagNameMap>(
+  tagName: K,
+  options: {
+    className?: string;
+    id?: string;
+    textContent?: string;
+    attributes?: Record<string, string>;
+  } = {},
+): HTMLElementTagNameMap[K] {
+  const element = document.createElement(tagName);
+  if (options.className) {
+    element.className = options.className;
+  }
+  if (options.id) {
+    element.id = options.id;
+  }
+  if (options.textContent !== undefined) {
+    element.textContent = options.textContent;
+  }
+  if (options.attributes) {
+    Object.entries(options.attributes).forEach(([name, value]) => {
+      element.setAttribute(name, value);
+    });
+  }
+  return element;
+}
+
+function createSelectField(
+  columnClassName: string,
+  labelText: string,
+  selectId: string,
+): HTMLDivElement {
+  const column = createElement("div", { className: columnClassName });
+  const label = createElement("label", {
+    className: "label",
+    textContent: labelText,
+    attributes: { for: selectId },
+  });
+  const selectWrapper = createElement("div", { className: "select is-fullwidth" });
+  const select = createElement("select", { id: selectId });
+
+  selectWrapper.appendChild(select);
+  column.append(label, selectWrapper);
+  return column;
+}
+
+function createTextField(
+  columnClassName: string,
+  labelText: string,
+  inputId: string,
+  placeholder: string,
+): HTMLDivElement {
+  const column = createElement("div", { className: columnClassName });
+  const label = createElement("label", {
+    className: "label",
+    textContent: labelText,
+    attributes: { for: inputId },
+  });
+  const input = createElement("input", {
+    id: inputId,
+    className: "input",
+    attributes: { type: "text", placeholder },
+  });
+
+  column.append(label, input);
+  return column;
+}
+
 export class SiteProfilesManager {
   private readonly settings: FancierSettingsLike;
   private readonly onConfigChange: (() => Promise<void> | void) | undefined;
@@ -74,9 +136,8 @@ export class SiteProfilesManager {
     this.onConfigChange = onConfigChange;
     this.store = new Store("settings");
     this.root =
-      this.settings.manifest.siteProfilesEditor.bundle.element.querySelector(
-        "#siteProfilesEditorRoot",
-      ) || this.settings.manifest.siteProfilesEditor.bundle.element;
+      this.settings.siteProfilesEditor.rootElement.querySelector("#siteProfilesEditorRoot") ||
+      this.settings.siteProfilesEditor.rootElement;
     this.buildUI();
     this.cacheElements();
     this.bindEvents();
@@ -85,47 +146,91 @@ export class SiteProfilesManager {
   }
 
   private buildUI(): void {
-    this.root.innerHTML = `
-      <p class="help mb-3">${i18n.get("site_profiles_desc")}</p>
-      <div class="columns is-multiline">
-        <div class="column is-4">
-          <label class="label" for="siteProfileDomainInput">${i18n.get("site_profiles_domain_label")}</label>
-          <input id="siteProfileDomainInput" class="input" type="text" placeholder="${i18n.get("site_profiles_domain_placeholder")}" />
-        </div>
-        <div class="column is-3">
-          <label class="label" for="siteProfileLanguageSelect">${i18n.get("site_profiles_language_label")}</label>
-          <div class="select is-fullwidth"><select id="siteProfileLanguageSelect"></select></div>
-        </div>
-        <div class="column is-3">
-          <label class="label" for="siteProfileNumSuggestionsSelect">${i18n.get("site_profiles_num_suggestions_label")}</label>
-          <div class="select is-fullwidth"><select id="siteProfileNumSuggestionsSelect"></select></div>
-        </div>
-        <div class="column is-2">
-          <label class="label" for="siteProfileInlineSelect">${i18n.get("site_profiles_inline_mode_label")}</label>
-          <div class="select is-fullwidth"><select id="siteProfileInlineSelect"></select></div>
-        </div>
-      </div>
-      <div class="field is-grouped mb-2">
-        <p class="control"><button id="siteProfileSaveButton" class="button is-primary" type="button">${i18n.get("site_profiles_add_btn")}</button></p>
-        <p class="control"><button id="siteProfileCancelButton" class="button" type="button">${i18n.get("site_profiles_cancel_btn")}</button></p>
-      </div>
-      <p id="siteProfilesFormStatus" class="help mb-4"></p>
-      <p id="siteProfilesEmptyState" class="help is-hidden">${i18n.get("site_profiles_empty")}</p>
-      <div id="siteProfilesTableContainer" class="table-container">
-        <table class="table is-fullwidth is-striped is-hoverable">
-          <thead>
-            <tr>
-              <th>${i18n.get("site_profiles_table_domain")}</th>
-              <th>${i18n.get("site_profiles_table_language")}</th>
-              <th>${i18n.get("site_profiles_table_num_suggestions")}</th>
-              <th>${i18n.get("site_profiles_table_inline_mode")}</th>
-              <th>${i18n.get("site_profiles_table_actions")}</th>
-            </tr>
-          </thead>
-          <tbody id="siteProfilesTableBody"></tbody>
-        </table>
-      </div>
-    `;
+    const description = createElement("p", {
+      className: "help mb-3",
+      textContent: i18n.get("site_profiles_desc"),
+    });
+
+    const fieldsRow = createElement("div", { className: "columns is-multiline" });
+    fieldsRow.append(
+      createTextField(
+        "column is-4",
+        i18n.get("site_profiles_domain_label"),
+        "siteProfileDomainInput",
+        i18n.get("site_profiles_domain_placeholder"),
+      ),
+      createSelectField(
+        "column is-3",
+        i18n.get("site_profiles_language_label"),
+        "siteProfileLanguageSelect",
+      ),
+      createSelectField(
+        "column is-3",
+        i18n.get("site_profiles_num_suggestions_label"),
+        "siteProfileNumSuggestionsSelect",
+      ),
+      createSelectField(
+        "column is-2",
+        i18n.get("site_profiles_inline_mode_label"),
+        "siteProfileInlineSelect",
+      ),
+    );
+
+    const actions = createElement("div", { className: "field is-grouped mb-2" });
+    const saveControl = createElement("p", { className: "control" });
+    const saveButton = createElement("button", {
+      id: "siteProfileSaveButton",
+      className: "button is-primary",
+      textContent: i18n.get("site_profiles_add_btn"),
+      attributes: { type: "button" },
+    });
+    saveControl.appendChild(saveButton);
+
+    const cancelControl = createElement("p", { className: "control" });
+    const cancelButton = createElement("button", {
+      id: "siteProfileCancelButton",
+      className: "button",
+      textContent: i18n.get("site_profiles_cancel_btn"),
+      attributes: { type: "button" },
+    });
+    cancelControl.appendChild(cancelButton);
+    actions.append(saveControl, cancelControl);
+
+    const status = createElement("p", {
+      id: "siteProfilesFormStatus",
+      className: "help mb-4",
+    });
+    const emptyState = createElement("p", {
+      id: "siteProfilesEmptyState",
+      className: "help is-hidden",
+      textContent: i18n.get("site_profiles_empty"),
+    });
+
+    const tableContainer = createElement("div", {
+      id: "siteProfilesTableContainer",
+      className: "table-container",
+    });
+    const table = createElement("table", {
+      className: "table is-fullwidth is-striped is-hoverable",
+    });
+    const head = createElement("thead");
+    const headRow = createElement("tr");
+    [
+      i18n.get("site_profiles_table_domain"),
+      i18n.get("site_profiles_table_language"),
+      i18n.get("site_profiles_table_num_suggestions"),
+      i18n.get("site_profiles_table_inline_mode"),
+      i18n.get("site_profiles_table_actions"),
+    ].forEach((heading) => {
+      headRow.appendChild(createElement("th", { textContent: heading }));
+    });
+    head.appendChild(headRow);
+
+    const body = createElement("tbody", { id: "siteProfilesTableBody" });
+    table.append(head, body);
+    tableContainer.appendChild(table);
+
+    this.root.replaceChildren(description, fieldsRow, actions, status, emptyState, tableContainer);
   }
 
   private cacheElements(): void {
@@ -215,7 +320,7 @@ export class SiteProfilesManager {
   }
 
   private populateLanguageOptions(enabledLanguages: string[]): void {
-    this.elements.languageSelect.innerHTML = "";
+    this.elements.languageSelect.replaceChildren();
     enabledLanguages.forEach((langCode) => {
       const option = document.createElement("option");
       option.value = langCode;
@@ -225,7 +330,7 @@ export class SiteProfilesManager {
   }
 
   private populateSuggestionsOptions(globalNumSuggestions: number): void {
-    this.elements.numSuggestionsSelect.innerHTML = "";
+    this.elements.numSuggestionsSelect.replaceChildren();
     const inheritOption = document.createElement("option");
     inheritOption.value = "global";
     inheritOption.textContent = getInheritLabel(String(globalNumSuggestions));
@@ -239,7 +344,7 @@ export class SiteProfilesManager {
   }
 
   private populateInlineOptions(globalInlineSuggestion: boolean): void {
-    this.elements.inlineSelect.innerHTML = "";
+    this.elements.inlineSelect.replaceChildren();
     [
       {
         value: "global",
@@ -282,7 +387,7 @@ export class SiteProfilesManager {
   ): void {
     const profileEntries = Object.entries(siteProfiles).sort(([a], [b]) => a.localeCompare(b));
 
-    this.elements.tableBody.innerHTML = "";
+    this.elements.tableBody.replaceChildren();
     const hasProfiles = profileEntries.length > 0;
     this.elements.emptyState.classList.toggle("is-hidden", hasProfiles);
     this.elements.tableContainer.classList.toggle("is-hidden", !hasProfiles);
@@ -301,18 +406,33 @@ export class SiteProfilesManager {
           ? getOnOffLabel(profile.inline_suggestion)
           : getInheritLabel(getOnOffLabel(globalInlineSuggestion));
 
-      row.innerHTML = `
-        <td>${domain}</td>
-        <td>${SUPPORTED_LANGUAGES[profile.language] || profile.language}</td>
-        <td>${numSuggestionsLabel}</td>
-        <td>${inlineLabel}</td>
-        <td>
-          <div class="buttons are-small">
-            <button class="button is-link is-light" type="button" data-action="edit" data-domain="${domain}">${i18n.get("site_profiles_edit_btn")}</button>
-            <button class="button is-danger is-light" type="button" data-action="remove" data-domain="${domain}">${i18n.get("remove")}</button>
-          </div>
-        </td>
-      `;
+      row.appendChild(createElement("td", { textContent: domain }));
+      row.appendChild(
+        createElement("td", {
+          textContent: SUPPORTED_LANGUAGES[profile.language] || profile.language,
+        }),
+      );
+      row.appendChild(createElement("td", { textContent: numSuggestionsLabel }));
+      row.appendChild(createElement("td", { textContent: inlineLabel }));
+
+      const actionsCell = createElement("td");
+      const actions = createElement("div", { className: "buttons are-small" });
+      const editButton = createElement("button", {
+        className: "button is-link is-light",
+        textContent: i18n.get("site_profiles_edit_btn"),
+        attributes: { type: "button", "data-action": "edit" },
+      });
+      editButton.dataset.domain = domain;
+      const removeButton = createElement("button", {
+        className: "button is-danger is-light",
+        textContent: i18n.get("remove"),
+        attributes: { type: "button", "data-action": "remove" },
+      });
+      removeButton.dataset.domain = domain;
+      actions.append(editButton, removeButton);
+      actionsCell.appendChild(actions);
+      row.appendChild(actionsCell);
+
       this.elements.tableBody.appendChild(row);
     });
   }

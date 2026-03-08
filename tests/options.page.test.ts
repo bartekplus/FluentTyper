@@ -12,11 +12,8 @@ describe("options page scripts", () => {
   });
 
   test("does not expose the removed Smart Backspace setting", () => {
-    const manifestPath = path.resolve(
-      process.cwd(),
-      "src/third_party/fancier-settings/manifest.js",
-    );
-    const i18nPath = path.resolve(process.cwd(), "src/third_party/fancier-settings/i18n.js");
+    const manifestPath = path.resolve(process.cwd(), "src/ui/options/settingsManifest.ts");
+    const i18nPath = path.resolve(process.cwd(), "src/ui/options/fluenttyperI18n.ts");
 
     const manifest = fs.readFileSync(manifestPath, "utf8");
     const i18n = fs.readFileSync(i18nPath, "utf8");
