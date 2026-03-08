@@ -12,6 +12,14 @@ import { resolveDynamicVariable } from "@core/domain/variables";
 import { formatTranslation, i18n } from "./fluenttyperI18n.js";
 
 type TextExpansionEntry = [string, string];
+type SnippetRow = {
+  id: string;
+  shortcut: string;
+  text: string;
+  savedShortcut: string;
+  savedText: string;
+  persisted: boolean;
+};
 
 const VARIABLE_SNIPPETS = [
   "${time}",
@@ -31,8 +39,9 @@ export class TextAssetsPanel {
   private readonly store: Store;
   private searchQuery = "";
   private dictionaryQuery = "";
-  private editingIndex = -1;
-  private expansions: TextExpansionEntry[] = [];
+  private snippetRows: SnippetRow[] = [];
+  private selectedSnippetId: string | null = null;
+  private snippetRowSeq = 0;
   private dictionary: string[] = [];
   private snippetStatusText = "";
   private snippetStatusIsError = false;
@@ -60,7 +69,7 @@ export class TextAssetsPanel {
       this.store.get(KEY_TEXT_EXPANSIONS),
       this.store.get(KEY_USER_DICTIONARY_LIST),
     ]);
-    this.expansions = Array.isArray(rawExpansions)
+    const expansions = Array.isArray(rawExpansions)
       ? rawExpansions.filter(
           (entry): entry is [string, string] =>
             Array.isArray(entry) &&
@@ -69,12 +78,10 @@ export class TextAssetsPanel {
             typeof entry[1] === "string",
         )
       : [];
+    this.reconcileSnippetRows(expansions);
     this.dictionary = Array.isArray(rawDictionary)
       ? rawDictionary.map((entry) => String(entry)).filter(Boolean)
       : [];
-    if (this.editingIndex >= this.expansions.length) {
-      this.editingIndex = this.expansions.length > 0 ? 0 : -1;
-    }
     this.render();
   }
 
@@ -106,7 +113,9 @@ export class TextAssetsPanel {
     actions.className = "text-assets-actions";
 
     const addButton = this.createButton(i18n.get("text_assets_new_snippet"), () => {
-      this.editingIndex = -1;
+      const row = this.createSnippetRow({ shortcut: "", text: "", persisted: false });
+      this.snippetRows = [row, ...this.snippetRows];
+      this.selectedSnippetId = row.id;
       this.snippetDeleteArmed = false;
       this.setSnippetStatus("");
       this.render();
@@ -114,7 +123,7 @@ export class TextAssetsPanel {
     actions.appendChild(addButton);
 
     const exportButton = this.createButton(i18n.get("text_expander_export_csv_btn"), () => {
-      const csv = stringify(this.expansions);
+      const csv = stringify(this.getPersistedExpansions());
       const blob = new Blob([csv], { type: "text/csv" });
       const link = document.createElement("a");
       link.href = window.URL.createObjectURL(blob);
@@ -147,8 +156,9 @@ export class TextAssetsPanel {
         const imported = parsed
           .filter((row) => row.length === 2)
           .map((row) => [String(row[0]), String(row[1])] as TextExpansionEntry);
-        this.expansions = this.mergeExpansions(imported, this.expansions);
-        this.persistExpansions();
+        this.syncPersistedRows(this.mergeExpansions(imported, this.getPersistedExpansions()));
+        this.setSnippetStatus(i18n.get("settings_status_saved"));
+        this.persistSnippetRows();
       });
       reader.readAsText(file);
       importInput.value = "";
@@ -166,22 +176,26 @@ export class TextAssetsPanel {
 
     const list = document.createElement("div");
     list.className = "text-assets-list";
-    const filtered = this.expansions
-      .map((entry, index) => ({ entry, index }))
-      .filter(({ entry: [shortcut, text] }) =>
-        [shortcut, text].join(" ").toLowerCase().includes(this.searchQuery),
-      );
-    if (filtered.length === 0) {
+    const filtered = this.snippetRows.filter(({ shortcut, text }) =>
+      [shortcut, text].join(" ").toLowerCase().includes(this.searchQuery),
+    );
+    if (!filtered.length && !this.searchQuery && !this.snippetRows.length) {
       const empty = document.createElement("p");
       empty.className = "settings-inline-help";
       empty.textContent = i18n.get("text_assets_no_snippets");
       list.appendChild(empty);
+    } else if (!filtered.length) {
+      const empty = document.createElement("p");
+      empty.className = "settings-inline-help";
+      empty.textContent = i18n.get("nothing-found");
+      list.appendChild(empty);
     } else {
-      filtered.forEach(({ entry: [shortcut, text], index }) => {
+      filtered.forEach(({ id, shortcut, text }) => {
         const item = document.createElement("button");
         item.type = "button";
         item.className = "text-assets-list-item";
-        if (index === this.editingIndex) {
+        item.dataset.snippetRowId = id;
+        if (id === this.selectedSnippetId) {
           item.classList.add("is-active");
         }
         const title = document.createElement("strong");
@@ -191,13 +205,17 @@ export class TextAssetsPanel {
         excerpt.textContent = text.slice(0, 80) || i18n.get("text_assets_add_expansion_text");
         item.appendChild(excerpt);
         item.addEventListener("click", () => {
-          this.editingIndex = index;
+          this.selectedSnippetId = id;
           this.snippetDeleteArmed = false;
           this.setSnippetStatus("");
           this.render();
         });
         list.appendChild(item);
       });
+    }
+
+    if (!this.selectedSnippetId && filtered.length > 0) {
+      this.selectedSnippetId = filtered[0].id;
     }
 
     const editor = this.createSnippetEditor();
@@ -210,10 +228,10 @@ export class TextAssetsPanel {
     const editor = document.createElement("div");
     editor.className = "text-assets-editor";
 
-    const currentEntry =
-      this.editingIndex >= 0
-        ? this.expansions[this.editingIndex]
-        : (["", ""] as TextExpansionEntry);
+    const currentRow = this.getSelectedSnippet();
+    const currentEntry: TextExpansionEntry = currentRow
+      ? [currentRow.shortcut, currentRow.text]
+      : ["", ""];
 
     const shortcut = document.createElement("input");
     shortcut.className = "input";
@@ -222,6 +240,9 @@ export class TextAssetsPanel {
     shortcut.addEventListener("input", () => {
       shortcut.setCustomValidity("");
       this.snippetDeleteArmed = false;
+      if (currentRow) {
+        currentRow.shortcut = shortcut.value;
+      }
       if (this.snippetStatusIsError) {
         this.setSnippetStatus("");
       }
@@ -234,6 +255,9 @@ export class TextAssetsPanel {
     body.value = currentEntry[1];
     body.addEventListener("input", () => {
       this.snippetDeleteArmed = false;
+      if (currentRow) {
+        currentRow.text = body.value;
+      }
     });
 
     const variables = document.createElement("div");
@@ -245,6 +269,9 @@ export class TextAssetsPanel {
       chip.textContent = token;
       chip.addEventListener("click", () => {
         body.value += body.value ? ` ${token}` : token;
+        if (currentRow) {
+          currentRow.text = body.value;
+        }
         this.updateSnippetPreview(preview, body.value);
       });
       variables.appendChild(chip);
@@ -270,29 +297,30 @@ export class TextAssetsPanel {
     actions.className = "text-assets-actions";
     actions.appendChild(
       this.createButton(i18n.get("text_assets_save_snippet"), () => {
+        const targetRow =
+          this.getSelectedSnippet() || this.createDetachedSnippetDraft(shortcut.value, body.value);
         const nextEntry: TextExpansionEntry = [shortcut.value.trim(), body.value];
         if (!nextEntry[0]) {
           return;
         }
-        const duplicateIndex = this.expansions.findIndex(
-          ([existingShortcut], index) =>
-            existingShortcut === nextEntry[0] && index !== this.editingIndex,
+        const duplicateRow = this.snippetRows.find(
+          (row) => row.id !== targetRow.id && row.shortcut.trim() === nextEntry[0],
         );
-        if (duplicateIndex !== -1) {
+        if (duplicateRow) {
           shortcut.setCustomValidity(i18n.get("text_assets_duplicate_shortcut"));
           shortcut.reportValidity();
           updateSnippetStatus(i18n.get("text_assets_duplicate_shortcut"), true);
           return;
         }
-        if (this.editingIndex === -1) {
-          this.expansions = [nextEntry, ...this.expansions];
-          this.editingIndex = 0;
-        } else {
-          this.expansions[this.editingIndex] = nextEntry;
-        }
+        targetRow.shortcut = nextEntry[0];
+        targetRow.text = nextEntry[1];
+        targetRow.savedShortcut = nextEntry[0];
+        targetRow.savedText = nextEntry[1];
+        targetRow.persisted = true;
+        this.selectedSnippetId = targetRow.id;
         this.snippetDeleteArmed = false;
         updateSnippetStatus(i18n.get("settings_status_saved"));
-        this.persistExpansions();
+        this.persistSnippetRows();
       }),
     );
     actions.appendChild(
@@ -301,8 +329,13 @@ export class TextAssetsPanel {
         () => {
           this.snippetDeleteArmed = false;
           updateSnippetStatus("");
-          if (this.expansions.length > 0) {
-            this.editingIndex = this.editingIndex === -1 ? 0 : this.editingIndex;
+          const selectedRow = this.getSelectedSnippet();
+          if (selectedRow?.persisted) {
+            selectedRow.shortcut = selectedRow.savedShortcut;
+            selectedRow.text = selectedRow.savedText;
+          } else if (selectedRow && this.snippetRows.length > 1) {
+            this.selectedSnippetId =
+              this.snippetRows.find((row) => row.id !== selectedRow.id)?.id ?? selectedRow.id;
           }
           this.render();
         },
@@ -315,7 +348,8 @@ export class TextAssetsPanel {
           ? i18n.get("text_assets_delete_snippet_confirm")
           : i18n.get("text_assets_delete_snippet"),
         () => {
-          if (this.editingIndex < 0) {
+          const selectedRow = this.getSelectedSnippet();
+          if (!selectedRow) {
             return;
           }
           if (!this.snippetDeleteArmed) {
@@ -324,11 +358,20 @@ export class TextAssetsPanel {
             this.render();
             return;
           }
-          this.expansions.splice(this.editingIndex, 1);
-          this.editingIndex = this.expansions.length > 0 ? 0 : -1;
+          const removedIndex = this.snippetRows.findIndex((row) => row.id === selectedRow.id);
+          this.snippetRows = this.snippetRows.filter((row) => row.id !== selectedRow.id);
+          this.selectedSnippetId =
+            this.snippetRows[removedIndex]?.id ??
+            this.snippetRows[removedIndex - 1]?.id ??
+            this.snippetRows[0]?.id ??
+            null;
           this.snippetDeleteArmed = false;
           updateSnippetStatus(i18n.get("text_assets_snippet_deleted"));
-          this.persistExpansions();
+          if (selectedRow.persisted) {
+            this.persistSnippetRows();
+            return;
+          }
+          this.render();
         },
         "is-danger",
       ),
@@ -577,11 +620,8 @@ export class TextAssetsPanel {
     return wrapper;
   }
 
-  private persistExpansions(): void {
-    this.expansions = this.expansions
-      .filter(([shortcut]) => shortcut.trim().length > 0)
-      .map(([shortcut, text]) => [shortcut.trim(), text]);
-    this.registry[KEY_TEXT_EXPANSIONS].set(this.expansions);
+  private persistSnippetRows(): void {
+    this.registry[KEY_TEXT_EXPANSIONS].set(this.getPersistedExpansions());
   }
 
   private persistDictionary(): void {
@@ -600,6 +640,86 @@ export class TextAssetsPanel {
       }
     });
     return Array.from(merged.entries());
+  }
+
+  private getSelectedSnippet(): SnippetRow | null {
+    if (!this.selectedSnippetId) {
+      return null;
+    }
+    return this.snippetRows.find((row) => row.id === this.selectedSnippetId) ?? null;
+  }
+
+  private getPersistedExpansions(): TextExpansionEntry[] {
+    return this.snippetRows
+      .filter((row) => row.persisted && row.savedShortcut.trim().length > 0)
+      .map((row) => [row.savedShortcut.trim(), row.savedText]);
+  }
+
+  private createSnippetRow({
+    shortcut,
+    text,
+    persisted,
+    id,
+  }: {
+    shortcut: string;
+    text: string;
+    persisted: boolean;
+    id?: string;
+  }): SnippetRow {
+    return {
+      id: id ?? this.nextSnippetRowId(),
+      shortcut,
+      text,
+      savedShortcut: shortcut,
+      savedText: text,
+      persisted,
+    };
+  }
+
+  private createDetachedSnippetDraft(shortcut: string, text: string): SnippetRow {
+    const row = this.createSnippetRow({ shortcut, text, persisted: false });
+    this.snippetRows = [row, ...this.snippetRows];
+    this.selectedSnippetId = row.id;
+    return row;
+  }
+
+  private nextSnippetRowId(): string {
+    this.snippetRowSeq += 1;
+    return `snippet-row-${this.snippetRowSeq}`;
+  }
+
+  private syncPersistedRows(expansions: TextExpansionEntry[]): void {
+    const drafts = this.snippetRows.filter((row) => !row.persisted);
+    const existingIdsBySignature = new Map<string, string[]>();
+    this.snippetRows
+      .filter((row) => row.persisted)
+      .forEach((row) => {
+        const signature = `${row.savedShortcut}\u0000${row.savedText}`;
+        existingIdsBySignature.set(signature, [
+          ...(existingIdsBySignature.get(signature) || []),
+          row.id,
+        ]);
+      });
+
+    const persistedRows = expansions.map(([shortcut, text]) => {
+      const signature = `${shortcut}\u0000${text}`;
+      const nextId = existingIdsBySignature.get(signature)?.shift();
+      return this.createSnippetRow({
+        shortcut,
+        text,
+        persisted: true,
+        id: nextId,
+      });
+    });
+
+    this.snippetRows = [...drafts, ...persistedRows];
+    if (!this.selectedSnippetId || !this.getSelectedSnippet()) {
+      this.selectedSnippetId = this.snippetRows[0]?.id ?? null;
+    }
+  }
+
+  private reconcileSnippetRows(expansions: TextExpansionEntry[]): void {
+    this.syncPersistedRows(expansions);
   }
 
   private updateSnippetPreview(target: HTMLElement, rawValue: string): void {

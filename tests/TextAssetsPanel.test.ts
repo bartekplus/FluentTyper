@@ -125,6 +125,55 @@ describe("TextAssetsPanel", () => {
 
     expect(root.textContent).toContain(i18n.get("text_assets_duplicate_shortcut"));
     expect(values[KEY_TEXT_EXPANSIONS]).toEqual([["brb", "be right back"]]);
+    expect(shortcutInput.value).toBe("brb");
+    expect(bodyInput.value).toBe("be right there");
+  });
+
+  test("keeps multiple unsaved snippet drafts independently editable", async () => {
+    const values: SettingsMap = {
+      [KEY_TEXT_EXPANSIONS]: [["brb", "be right back"]],
+      [KEY_USER_DICTIONARY_LIST]: [],
+      [KEY_DATE_FORMAT]: "",
+      [KEY_TIME_FORMAT]: "",
+    };
+    const store = createStore(values);
+    const registry = createRegistry(values);
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+
+    new TextAssetsPanel(root, registry, store);
+    await flushAsyncWork();
+
+    findButtonByText(root, i18n.get("text_assets_new_snippet")).click();
+    let shortcutInput = root.querySelector(".text-assets-editor input") as HTMLInputElement;
+    let bodyInput = root.querySelector(".text-assets-editor textarea") as HTMLTextAreaElement;
+    shortcutInput.value = "sig";
+    shortcutInput.dispatchEvent(new Event("input", { bubbles: true }));
+    bodyInput.value = "first draft";
+    bodyInput.dispatchEvent(new Event("input", { bubbles: true }));
+
+    findButtonByText(root, i18n.get("text_assets_new_snippet")).click();
+    shortcutInput = root.querySelector(".text-assets-editor input") as HTMLInputElement;
+    bodyInput = root.querySelector(".text-assets-editor textarea") as HTMLTextAreaElement;
+    shortcutInput.value = "ty";
+    shortcutInput.dispatchEvent(new Event("input", { bubbles: true }));
+    bodyInput.value = "second draft";
+    bodyInput.dispatchEvent(new Event("input", { bubbles: true }));
+
+    let snippetRows = root.querySelectorAll<HTMLButtonElement>(".text-assets-list-item");
+    snippetRows[1].click();
+
+    shortcutInput = root.querySelector(".text-assets-editor input") as HTMLInputElement;
+    bodyInput = root.querySelector(".text-assets-editor textarea") as HTMLTextAreaElement;
+    expect(shortcutInput.value).toBe("sig");
+    expect(bodyInput.value).toBe("first draft");
+
+    snippetRows = root.querySelectorAll<HTMLButtonElement>(".text-assets-list-item");
+    snippetRows[0].click();
+    shortcutInput = root.querySelector(".text-assets-editor input") as HTMLInputElement;
+    bodyInput = root.querySelector(".text-assets-editor textarea") as HTMLTextAreaElement;
+    expect(shortcutInput.value).toBe("ty");
+    expect(bodyInput.value).toBe("second draft");
   });
 
   test("bulk add deduplicates dictionary words and clear-all requires confirmation", async () => {
