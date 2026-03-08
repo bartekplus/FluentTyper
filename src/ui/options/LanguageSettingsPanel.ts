@@ -80,11 +80,18 @@ export class LanguageSettingsPanel {
       this.createLanguageDisplayCard(),
     );
 
-    shell.append(
-      topGrid,
-      this.createLanguageGridSection(enabledLanguages, usageCounts),
-      this.createBehaviorCards(enabledLanguages, language, fallbackLanguage),
+    const lowerGrid = document.createElement("div");
+    lowerGrid.className = "workspace-main-grid";
+    const languageGridSection = this.createLanguageGridSection(enabledLanguages, usageCounts);
+    languageGridSection.classList.add("workspace-span-full");
+    lowerGrid.append(
+      languageGridSection,
+      ...Array.from(
+        this.createBehaviorCards(enabledLanguages, language, fallbackLanguage).children,
+      ),
     );
+
+    shell.append(topGrid, lowerGrid);
 
     this.root.replaceChildren(shell);
     pruneEmptySettingsGroups(this.root);

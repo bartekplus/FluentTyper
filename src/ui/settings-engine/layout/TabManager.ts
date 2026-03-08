@@ -25,6 +25,9 @@ export class TabManager {
     const tabA = document.createElement("a");
     tabA.href = `#${config.id}`;
     tabA.className = "settings-nav-link";
+    tabA.title = config.shortDescription
+      ? `${config.label}: ${config.shortDescription}`
+      : config.label;
     const tabLi = document.createElement("li");
     tabLi.appendChild(tabA);
 

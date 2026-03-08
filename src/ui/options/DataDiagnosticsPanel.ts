@@ -27,6 +27,8 @@ export class DataDiagnosticsPanel {
   render(): void {
     const shell = document.createElement("div");
     shell.className = "workspace-panel-stack";
+    const primaryGrid = document.createElement("div");
+    primaryGrid.className = "workspace-card-grid";
 
     const productivity = createWorkspaceCard(
       i18n.get("productivity_dashboard_group"),
@@ -34,7 +36,7 @@ export class DataDiagnosticsPanel {
     );
     moveControlToBody(this.registry, "productivityStatsPanel", productivity.body);
     moveControlToBody(this.registry, "resetProductivityStatsButton", productivity.body);
-    shell.appendChild(productivity.card);
+    primaryGrid.appendChild(productivity.card);
 
     const config = createWorkspaceCard(
       i18n.get("config_data"),
@@ -42,9 +44,16 @@ export class DataDiagnosticsPanel {
     );
     moveControlToBody(this.registry, "importSettingButton", config.body);
     moveControlToBody(this.registry, "exportSettingButton", config.body);
-    shell.appendChild(config.card);
+    primaryGrid.appendChild(config.card);
+    shell.appendChild(primaryGrid);
 
     if (this.isDevBuild) {
+      const debugDisclosure = document.createElement("details");
+      debugDisclosure.className = "settings-disclosure";
+      const debugSummary = document.createElement("summary");
+      debugSummary.textContent = i18n.get("predictor_debug_group");
+      debugDisclosure.appendChild(debugSummary);
+
       const debug = createWorkspaceCard(
         i18n.get("predictor_debug_group"),
         i18n.get("predictor_debug_desc"),
@@ -55,7 +64,8 @@ export class DataDiagnosticsPanel {
       moveControlToBody(this.registry, KEY_AI_MODEL_ID, debug.body);
       moveControlToBody(this.registry, KEY_AI_PREDICTION_TIMEOUT_MS, debug.body);
       moveControlToBody(this.registry, "predictorDebugPanel", debug.body);
-      shell.appendChild(debug.card);
+      debugDisclosure.appendChild(debug.card);
+      shell.appendChild(debugDisclosure);
     }
 
     this.root.replaceChildren(shell);

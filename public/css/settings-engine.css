@@ -7,7 +7,7 @@ body.fluenttyper-options {
 
 body.fluenttyper-options .options-app {
   display: grid;
-  grid-template-columns: 300px minmax(0, 1fr);
+  grid-template-columns: 272px minmax(0, 1fr);
   min-height: 100vh;
   background:
     radial-gradient(circle at top left, var(--options-bg-blob-1), transparent 32%),
@@ -20,9 +20,9 @@ body.fluenttyper-options .options-sidebar {
   top: 0;
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 0.9rem;
   height: 100vh;
-  padding: 1.5rem;
+  padding: 1.15rem 1rem;
   border-right: 1px solid color-mix(in srgb, var(--input-border-color) 78%, transparent);
   background: color-mix(in srgb, var(--box-background-color) 88%, transparent);
   backdrop-filter: blur(18px);
@@ -31,7 +31,7 @@ body.fluenttyper-options .options-sidebar {
 body.fluenttyper-options .options-sidebar-header {
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
+  gap: 0.3rem;
 }
 
 body.fluenttyper-options .options-brand-kicker {
@@ -45,14 +45,15 @@ body.fluenttyper-options .options-brand-kicker {
 
 body.fluenttyper-options .options-brand-title {
   margin: 0;
-  font-size: 1.8rem;
+  font-size: 1.55rem;
   line-height: 1.05;
 }
 
 body.fluenttyper-options .options-brand-copy {
   margin: 0;
+  font-size: 0.92rem;
   color: var(--text-color-light);
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
 body.fluenttyper-options .options-search {
@@ -66,7 +67,7 @@ body.fluenttyper-options .options-nav {
 body.fluenttyper-options .options-nav ul {
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
+  gap: 0.3rem;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -78,10 +79,10 @@ body.fluenttyper-options .options-nav li.is-search-hidden {
 
 body.fluenttyper-options .settings-nav-link {
   display: grid;
-  grid-template-columns: 2.4rem minmax(0, 1fr);
-  gap: 0.8rem;
+  grid-template-columns: 2.1rem minmax(0, 1fr);
+  gap: 0.65rem;
   align-items: start;
-  padding: 0.85rem 0.9rem;
+  padding: 0.6rem 0.7rem;
   border: 1px solid transparent;
   border-radius: 1rem;
   color: inherit;
@@ -106,9 +107,9 @@ body.fluenttyper-options .settings-nav-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.4rem;
-  height: 2.4rem;
-  border-radius: 0.8rem;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 0.65rem;
   background: color-mix(in srgb, var(--accent-color) 14%, var(--box-background-color));
   color: var(--accent-color);
   font-size: 0.72rem;
@@ -120,26 +121,34 @@ body.fluenttyper-options .settings-nav-icon {
 body.fluenttyper-options .settings-nav-copy {
   display: flex;
   flex-direction: column;
-  gap: 0.22rem;
+  gap: 0.1rem;
   min-width: 0;
 }
 
 body.fluenttyper-options .settings-nav-title {
   font-weight: 700;
+  line-height: 1.2;
 }
 
 body.fluenttyper-options .settings-nav-description {
-  font-size: 0.85rem;
+  display: none;
+  font-size: 0.78rem;
   line-height: 1.35;
   color: var(--text-color-light);
+}
+
+body.fluenttyper-options .options-nav li.is-active .settings-nav-description,
+body.fluenttyper-options .settings-nav-link:hover .settings-nav-description,
+body.fluenttyper-options .settings-nav-link:focus-visible .settings-nav-description {
+  display: block;
 }
 
 body.fluenttyper-options .options-main {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.85rem;
   min-width: 0;
-  padding: 1.5rem;
+  padding: 1.15rem;
 }
 
 body.fluenttyper-options .options-mobile-toolbar {
@@ -153,7 +162,7 @@ body.fluenttyper-options .options-content {
 body.fluenttyper-options .content-tab {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.85rem;
 }
 
 body.fluenttyper-options .content-tab.is-search-filtered-out {
@@ -176,7 +185,7 @@ body.fluenttyper-options .content-tab.is-search-filtered-out {
 }
 
 body.fluenttyper-options .settings-section-header {
-  padding: 1.25rem 1.4rem;
+  padding: 0.95rem 1.1rem;
   border: 1px solid color-mix(in srgb, var(--input-border-color) 90%, transparent);
   border-radius: 1.25rem;
   background: linear-gradient(
@@ -198,20 +207,20 @@ body.fluenttyper-options .settings-section-eyebrow {
 
 body.fluenttyper-options .settings-section-title {
   margin: 0;
-  font-size: 1.85rem;
-  line-height: 1.05;
+  font-size: 1.5rem;
+  line-height: 1.08;
 }
 
 body.fluenttyper-options .settings-section-description {
-  margin: 0.55rem 0 0;
-  max-width: 48rem;
+  margin: 0.35rem 0 0;
+  max-width: 42rem;
   color: var(--text-color-light);
-  line-height: 1.6;
+  line-height: 1.45;
 }
 
 body.fluenttyper-options .settings-section-body {
   display: grid;
-  gap: 1rem;
+  gap: 0.85rem;
 }
 
 body.fluenttyper-options .settings-group {
@@ -229,7 +238,7 @@ body.fluenttyper-options .settings-group .is-search-hidden {
 }
 
 body.fluenttyper-options .settings-group-header {
-  padding: 1rem 1.2rem 0;
+  padding: 0.85rem 1rem 0;
 }
 
 body.fluenttyper-options .settings-group-title {
@@ -240,8 +249,8 @@ body.fluenttyper-options .settings-group-title {
 
 body.fluenttyper-options .settings-group-body {
   display: grid;
-  gap: 1rem;
-  padding: 1rem 1.2rem 1.25rem;
+  gap: 0.85rem;
+  padding: 0.85rem 1rem 1rem;
 }
 
 body.fluenttyper-options .settings-group .field {
@@ -282,8 +291,8 @@ body.fluenttyper-options .settings-group.settings-group-panel-only .settings-gro
 .settings-inline-card,
 .settings-custom-panel {
   display: grid;
-  gap: 0.9rem;
-  padding: 1.05rem;
+  gap: 0.7rem;
+  padding: 0.9rem;
   border: 1px solid color-mix(in srgb, var(--input-border-color) 90%, transparent);
   border-radius: 1rem;
   background: color-mix(in srgb, var(--feature-box-bg) 94%, transparent);
@@ -297,7 +306,7 @@ body.fluenttyper-options .settings-group.settings-group-panel-only .settings-gro
 
 .settings-custom-panel-body {
   display: grid;
-  gap: 1rem;
+  gap: 0.85rem;
 }
 
 .settings-custom-panel-description,
@@ -324,8 +333,8 @@ body.fluenttyper-options .settings-group.settings-group-panel-only .settings-gro
 
 .settings-disclosure {
   display: grid;
-  gap: 0.8rem;
-  padding: 1rem;
+  gap: 0.65rem;
+  padding: 0.9rem;
   border: 1px solid color-mix(in srgb, var(--input-border-color) 90%, transparent);
   border-radius: 1rem;
   background: color-mix(in srgb, var(--box-background-color) 90%, transparent);
@@ -392,14 +401,14 @@ body.fluenttyper-options .settings-group.settings-group-panel-only .settings-gro
 
 .workspace-card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 0.85rem;
 }
 
 .workspace-overview-card {
   display: grid;
-  gap: 0.75rem;
-  padding: 1.05rem;
+  gap: 0.65rem;
+  padding: 0.95rem;
   border: 1px solid color-mix(in srgb, var(--input-border-color) 90%, transparent);
   border-radius: 1rem;
   background: color-mix(in srgb, var(--feature-box-bg) 94%, transparent);
@@ -412,13 +421,24 @@ body.fluenttyper-options .settings-group.settings-group-panel-only .settings-gro
 
 .workspace-panel-stack {
   display: grid;
-  gap: 1rem;
+  gap: 0.85rem;
 }
 
 .workspace-top-grid {
   display: grid;
-  gap: 1rem;
+  gap: 0.85rem;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.workspace-main-grid {
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
+.workspace-main-grid > .workspace-span-full {
+  grid-column: 1 / -1;
 }
 
 .workspace-section-card .workspace-section-body {
@@ -441,8 +461,8 @@ body.fluenttyper-options .settings-group.settings-group-panel-only .settings-gro
 
 .language-card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 0.8rem;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.7rem;
 }
 
 .language-card {
@@ -469,8 +489,8 @@ body.fluenttyper-options .settings-group.settings-group-panel-only .settings-gro
 
 .text-assets-shell {
   display: grid;
-  grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
-  gap: 1rem;
+  grid-template-columns: minmax(200px, 280px) minmax(0, 1fr);
+  gap: 0.85rem;
 }
 
 .text-assets-list {
@@ -554,15 +574,15 @@ body.fluenttyper-options .settings-group.settings-group-panel-only .settings-gro
 
 .site-profiles-shell {
   display: grid;
-  grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
-  gap: 1rem;
+  grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+  gap: 0.85rem;
   align-items: start;
 }
 
 .site-profiles-editor,
 .site-profiles-list {
   display: grid;
-  gap: 0.9rem;
+  gap: 0.75rem;
 }
 
 .site-profiles-list .is-selected-row {
@@ -572,7 +592,7 @@ body.fluenttyper-options .settings-group.settings-group-panel-only .settings-gro
 .appearance-preview {
   display: grid;
   gap: 0.2rem;
-  max-width: 340px;
+  width: min(100%, 340px);
   border: 1px solid;
   border-radius: 1rem;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
@@ -585,7 +605,7 @@ body.fluenttyper-options .settings-group.settings-group-panel-only .settings-gro
 
 .preset-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
 }
 
 .preset-card {
@@ -778,7 +798,7 @@ body.fluenttyper-options .settings-group.settings-group-panel-only .settings-gro
 .grammar-rule-selector,
 .grammar-rule-sections {
   display: grid;
-  gap: 0.8rem;
+  gap: 0.7rem;
 }
 
 .grammar-rule-selector-search-row,
@@ -828,6 +848,7 @@ body.fluenttyper-options .settings-group.settings-group-panel-only .settings-gro
 .grammar-rule-selector-list {
   display: grid;
   gap: 0.45rem;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
 }
 
 .grammar-rule-card {
@@ -917,7 +938,14 @@ body.fluenttyper-options .settings-group.settings-group-panel-only .settings-gro
   }
 
   .text-assets-shell,
-  .site-profiles-shell {
+  .site-profiles-shell,
+  .workspace-main-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-height: 860px) {
+  body.fluenttyper-options .options-brand-copy {
+    display: none;
   }
 }

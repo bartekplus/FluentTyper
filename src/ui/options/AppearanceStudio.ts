@@ -251,13 +251,15 @@ export class AppearanceStudio {
     const theme = this.readThemeValues();
     const shell = document.createElement("div");
     shell.className = "workspace-panel-stack";
-    shell.append(
-      this.createPresetCards(),
-      this.createPreviewCard(theme),
-      this.createTypographyCard(theme),
-      this.createAdvancedColors(theme),
-      this.createContrastWarnings(theme),
-    );
+    const topGrid = document.createElement("div");
+    topGrid.className = "workspace-main-grid";
+    topGrid.append(this.createPresetCards(), this.createPreviewCard(theme));
+
+    const lowerGrid = document.createElement("div");
+    lowerGrid.className = "workspace-main-grid";
+    lowerGrid.append(this.createTypographyCard(theme), this.createContrastWarnings(theme));
+
+    shell.append(topGrid, lowerGrid, this.createAdvancedColors(theme));
     this.root.replaceChildren(shell);
   }
 

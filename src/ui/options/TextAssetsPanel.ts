@@ -108,11 +108,10 @@ export class TextAssetsPanel {
   render(): void {
     const shell = document.createElement("div");
     shell.className = "workspace-panel-stack";
-    shell.append(
-      this.createSnippetWorkspaceCard(),
-      this.createDictionaryWorkspace(),
-      this.createVariableWorkspace(),
-    );
+    const lowerGrid = document.createElement("div");
+    lowerGrid.className = "workspace-main-grid";
+    lowerGrid.append(this.createDictionaryWorkspace(), this.createVariableWorkspace());
+    shell.append(this.createSnippetWorkspaceCard(), lowerGrid);
     this.root.replaceChildren(shell);
   }
 
