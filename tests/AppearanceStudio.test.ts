@@ -57,18 +57,26 @@ const COMPACT_THEME = {
 
 function createRegistry(initialValues: Record<string, string>) {
   const values = { ...initialValues };
-  const handlers = new Map<string, Array<() => void>>();
+  const handlers = new Map<string, Record<string, Array<() => void>>>();
   const registry = Object.fromEntries(
     Object.keys(initialValues).map((key) => [
       key,
       {
         get: () => values[key],
-        set: (value: unknown) => {
+        set: (value: unknown, silent = false) => {
           values[key] = String(value);
-          (handlers.get(key) || []).forEach((handler) => handler());
+          const listeners = handlers.get(key) || {};
+          (listeners.change || []).forEach((handler) => handler());
+          if (!silent) {
+            (listeners.action || []).forEach((handler) => handler());
+          }
         },
-        addEvent: (_type: string, handler: () => void) => {
-          handlers.set(key, [...(handlers.get(key) || []), handler]);
+        addEvent: (type: string, handler: () => void) => {
+          const listeners = handlers.get(key) || {};
+          handlers.set(key, {
+            ...listeners,
+            [type]: [...(listeners[type] || []), handler],
+          });
         },
       },
     ]),
@@ -183,5 +191,40 @@ describe("AppearanceStudio theme value compatibility", () => {
     const previewAfterToggle = root.querySelector(".appearance-preview") as HTMLElement;
     expect(previewAfterToggle.dataset.mode).toBe("dark");
     expect(previewAfterToggle.style.background).toBe("rgb(15, 23, 42)");
+  });
+
+  test("advanced color typing updates preview and contrast before blur", () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    const { registry } = createRegistry(DEFAULT_THEME);
+
+    new AppearanceStudio(root, registry as never, {
+      default: DEFAULT_THEME,
+      compact: COMPACT_THEME,
+    });
+
+    const rawInput = root.querySelectorAll<HTMLInputElement>('input[type="text"]')[0];
+    rawInput.value = "#112233";
+    rawInput.dispatchEvent(new Event("input", { bubbles: true }));
+
+    const preview = root.querySelector(".appearance-preview") as HTMLElement;
+    expect(preview.style.background).toBe("rgb(17, 34, 51)");
+    expect(root.textContent).toContain("1.35:1");
+  });
+
+  test("silent theme loads update preview without requiring a mode toggle", () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    const { registry } = createRegistry(DEFAULT_THEME);
+
+    new AppearanceStudio(root, registry as never, {
+      default: DEFAULT_THEME,
+      compact: COMPACT_THEME,
+    });
+
+    registry[KEY_SUGGESTION_BG_LIGHT].set("#112233", true);
+
+    const preview = root.querySelector(".appearance-preview") as HTMLElement;
+    expect(preview.style.background).toBe("rgb(17, 34, 51)");
   });
 });
