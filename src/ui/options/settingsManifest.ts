@@ -56,8 +56,8 @@ import {
 // --- UI Content ---
 const donateHTML =
   '<div class="has-text-centered"> \
-  <p style="margin-bottom: 1rem;">Developing and maintaining FluentTyper is a passion project. If you find it useful, please consider supporting its future development. Your contribution helps us add new features and keep the extension running smoothly.</p> \
-  <a href="https://www.buymeacoffee.com/FluentTyper" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png"  alt="Buy Me A Coffee" style="height: 60px !important; width: 217px !important"/></a></div>';
+  <p class="support-donate-note">Developing and maintaining FluentTyper is a passion project. If you find it useful, please consider supporting its future development. Your contribution helps us add new features and keep the extension running smoothly.</p> \
+  <a class="support-donate-link" href="https://www.buymeacoffee.com/FluentTyper" target="_blank" rel="noopener noreferrer">Buy Me a Coffee</a></div>';
 const aboutHighlightsHTML =
   '<div class="about-highlights"> \
   <span class="about-pill">Autocomplete</span> \
@@ -72,9 +72,9 @@ const supportLinksHTML =
   <a href="https://github.com/bartekplus/FluentTyper#readme" target="_blank" rel="noopener noreferrer">Read documentation</a> - Setup help, configuration details, and usage tips.<br /> \
   <a href="https://github.com/bartekplus/FluentTyper/blob/main/SECURITY.md" target="_blank" rel="noopener noreferrer">Security policy</a> - Responsible disclosure and security contact details. \
   </div>';
-const variablesDocumentationHTML = `<div class="text-expander-help" style="font-size: 0.9em; opacity: 0.9;"> \
-    <p style="margin-bottom: 0.5rem;"><strong>${i18n.get("text_expander_vars_supported")}</strong></p> \
-    <ul style="list-style-type: disc; margin-left: 1.5rem; margin-bottom: 0;"> \
+const variablesDocumentationHTML = `<div class="text-expander-help"> \
+    <p class="text-expander-help-title"><strong>${i18n.get("text_expander_vars_supported")}</strong></p> \
+    <ul class="text-expander-help-list"> \
       <li><code>\${time}</code> - ${i18n.get("text_expander_var_time")}</li> \
       <li><code>\${date}</code> - ${i18n.get("text_expander_var_date")}</li> \
       <li><code>\${date:+1d}</code> - ${i18n.get("text_expander_var_date_math")}</li> \

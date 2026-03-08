@@ -1,8 +1,11 @@
 import type { DescriptionConfig } from "../types.js";
 import type { Store } from "@core/application/storage/Store.js";
 import { BaseControl } from "./FieldControl.js";
+import { setSafeHtmlContent } from "../dom/safeHtml.js";
 
 export class DescriptionControl extends BaseControl<string> {
+  private value = "";
+
   constructor(params: DescriptionConfig, store: Store) {
     super(params, store);
 
@@ -14,7 +17,8 @@ export class DescriptionControl extends BaseControl<string> {
 
     const content = params.description ?? params.text ?? "";
     if (content) {
-      body.innerHTML = content;
+      this.value = content;
+      setSafeHtmlContent(body, content);
     }
 
     root.appendChild(body);
@@ -22,11 +26,12 @@ export class DescriptionControl extends BaseControl<string> {
   }
 
   get(): string {
-    return this._element.innerHTML;
+    return this.value;
   }
 
   set(value: string): this {
-    this._element.innerHTML = value;
+    this.value = value;
+    setSafeHtmlContent(this._element, value);
     return this;
   }
 }

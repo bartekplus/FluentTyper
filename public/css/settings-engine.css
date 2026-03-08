@@ -115,6 +115,44 @@
   margin-top: 0.25rem;
 }
 
+.text-expander-help {
+  font-size: 0.9em;
+  opacity: 0.9;
+}
+
+.text-expander-help-title {
+  margin-bottom: 0.5rem;
+}
+
+.text-expander-help-list {
+  list-style-type: disc;
+  margin-left: 1.5rem;
+  margin-bottom: 0;
+}
+
+.support-donate-note {
+  margin-bottom: 1rem;
+}
+
+.support-donate-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3rem;
+  padding: 0.75rem 1.25rem;
+  border-radius: 999px;
+  background: #ffdd57;
+  color: #2f2a14;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.support-donate-link:hover,
+.support-donate-link:focus-visible {
+  background: #ffd43b;
+  color: #201c0d;
+}
+
 /* ----------------------------------------------------------
    Grammar rule selector — layout
    ---------------------------------------------------------- */

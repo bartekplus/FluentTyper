@@ -316,6 +316,23 @@ describe("DescriptionControl", () => {
     );
     expect(ctrl.get()).toBe("Some text");
   });
+
+  test("sanitizes html while preserving allowed markup", () => {
+    const ctrl = new DescriptionControl(
+      {
+        type: "description",
+        description:
+          '<div id="safe-root">Hello<script>alert(1)</script><a href="javascript:alert(1)" target="_blank">link</a><strong>world</strong></div>',
+      },
+      makeStore(),
+    );
+
+    expect(ctrl.rootElement.querySelector("#safe-root")).not.toBeNull();
+    expect(ctrl.rootElement.querySelector("script")).toBeNull();
+    expect(ctrl.rootElement.querySelector("a")?.getAttribute("href")).toBeNull();
+    expect(ctrl.rootElement.querySelector("strong")?.textContent).toBe("world");
+    expect(ctrl.rootElement.textContent).toContain("Hello");
+  });
 });
 
 // ── ValueOnlyControl ───────────────────────────────────────────────────────
