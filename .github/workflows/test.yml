@@ -46,7 +46,7 @@ jobs:
         with:
           bun-version: "1.3.10"
       - run: bun install --frozen-lockfile
-      - run: bun test
+      - run: bun run test
       - run: bun run check:e2e:coverage
 
   e2e-smoke:
