@@ -209,7 +209,7 @@ describe("AppearanceStudio theme value compatibility", () => {
 
     const preview = root.querySelector(".appearance-preview") as HTMLElement;
     expect(preview.style.background).toBe("rgb(17, 34, 51)");
-    expect(root.textContent).toContain("1.35:1");
+    expect(root.textContent).toContain("Needs stronger contrast.");
   });
 
   test("silent theme loads update preview without requiring a mode toggle", () => {
@@ -244,5 +244,21 @@ describe("AppearanceStudio theme value compatibility", () => {
     expect(root.textContent).toContain("Selected row background");
     expect(root.textContent).not.toContain("Light Theme Colors");
     expect(root.textContent).not.toContain("Highlight Background");
+  });
+
+  test("contrast checks use readability language instead of raw ratios", () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    const { registry } = createRegistry(DEFAULT_THEME);
+
+    new AppearanceStudio(root, registry as never, {
+      default: DEFAULT_THEME,
+      compact: COMPACT_THEME,
+    });
+
+    expect(root.textContent).toContain("Main text on light pages");
+    expect(root.textContent).toContain("Very clear.");
+    expect(root.textContent).not.toContain(":1");
+    expect(root.textContent).not.toContain("Popup on light pages · Text");
   });
 });

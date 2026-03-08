@@ -5641,8 +5641,23 @@ i18n.extend({
     pl: "Sprawdzanie kontrastu",
     pr: "Verificações de contraste",
   },
+  appearance_contrast_copy: {
+    en: "These checks tell you whether the popup should feel easy or hard to read.",
+  },
+  appearance_contrast_light_text_label: {
+    en: "Main text on light pages",
+  },
+  appearance_contrast_light_selected_label: {
+    en: "Selected row on light pages",
+  },
+  appearance_contrast_dark_text_label: {
+    en: "Main text on dark pages",
+  },
+  appearance_contrast_dark_selected_label: {
+    en: "Selected row on dark pages",
+  },
   appearance_contrast_warn: {
-    en: "Consider increasing contrast.",
+    en: "Needs stronger contrast.",
     fr: "Envisagez d'augmenter le contraste.",
     hr: "Razmotrite povećanje kontrasta.",
     es: "Considera aumentar el contraste.",
@@ -5652,8 +5667,11 @@ i18n.extend({
     pl: "Rozważ zwiększenie kontrastu.",
     pr: "Considere aumentar o contraste.",
   },
+  appearance_contrast_okay: {
+    en: "Readable, but could be stronger.",
+  },
   appearance_contrast_good: {
-    en: "Looks good.",
+    en: "Easy to read.",
     fr: "C'est bon.",
     hr: "Izgleda dobro.",
     es: "Se ve bien.",
@@ -5662,6 +5680,9 @@ i18n.extend({
     de: "Sieht gut aus.",
     pl: "Wygląda dobrze.",
     pr: "Parece bom.",
+  },
+  appearance_contrast_excellent: {
+    en: "Very clear.",
   },
   appearance_sample_one: {
     en: "meeting notes",

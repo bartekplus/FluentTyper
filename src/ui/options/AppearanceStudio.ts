@@ -443,6 +443,7 @@ export class AppearanceStudio {
     const title = document.createElement("h4");
     title.textContent = i18n.get("appearance_contrast_checks");
     shell.appendChild(title);
+    shell.appendChild(this.createHelperText(i18n.get("appearance_contrast_copy")));
     this.liveContrastSection = shell;
     this.updateContrastWarnings(theme);
     return shell;
@@ -602,7 +603,7 @@ export class AppearanceStudio {
 
     const warnings = [
       {
-        label: `${i18n.get("appearance_light_surface_title")} · ${i18n.get("appearance_text_title")}`,
+        label: i18n.get("appearance_contrast_light_text_label"),
         ratio: calculateThemeContrast(
           theme[KEY_SUGGESTION_BG_LIGHT],
           theme[KEY_SUGGESTION_TEXT_LIGHT],
@@ -610,7 +611,7 @@ export class AppearanceStudio {
         ),
       },
       {
-        label: `${i18n.get("appearance_light_surface_title")} · ${i18n.get("appearance_selected_row_text_title")}`,
+        label: i18n.get("appearance_contrast_light_selected_label"),
         ratio: calculateThemeContrast(
           theme[KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT],
           theme[KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT],
@@ -618,7 +619,7 @@ export class AppearanceStudio {
         ),
       },
       {
-        label: `${i18n.get("appearance_dark_surface_title")} · ${i18n.get("appearance_text_title")}`,
+        label: i18n.get("appearance_contrast_dark_text_label"),
         ratio: calculateThemeContrast(
           theme[KEY_SUGGESTION_BG_DARK],
           theme[KEY_SUGGESTION_TEXT_DARK],
@@ -626,7 +627,7 @@ export class AppearanceStudio {
         ),
       },
       {
-        label: `${i18n.get("appearance_dark_surface_title")} · ${i18n.get("appearance_selected_row_text_title")}`,
+        label: i18n.get("appearance_contrast_dark_selected_label"),
         ratio: calculateThemeContrast(
           theme[KEY_SUGGESTION_HIGHLIGHT_BG_DARK],
           theme[KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK],
@@ -638,11 +639,21 @@ export class AppearanceStudio {
     warnings.forEach((warning) => {
       const item = document.createElement("p");
       item.className = "settings-inline-help";
-      item.textContent =
-        warning.ratio < 4.5
-          ? `${warning.label}: ${warning.ratio.toFixed(2)}:1. ${i18n.get("appearance_contrast_warn")}`
-          : `${warning.label}: ${warning.ratio.toFixed(2)}:1. ${i18n.get("appearance_contrast_good")}`;
+      item.textContent = `${warning.label}: ${this.describeContrast(warning.ratio)}`;
       this.liveContrastSection?.appendChild(item);
     });
+  }
+
+  private describeContrast(ratio: number): string {
+    if (ratio >= 7) {
+      return i18n.get("appearance_contrast_excellent");
+    }
+    if (ratio >= 4.5) {
+      return i18n.get("appearance_contrast_good");
+    }
+    if (ratio >= 3) {
+      return i18n.get("appearance_contrast_okay");
+    }
+    return i18n.get("appearance_contrast_warn");
   }
 }
