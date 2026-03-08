@@ -17,6 +17,9 @@ import {
   KEY_AI_PREDICTION_TIMEOUT_MS,
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
   KEY_DEBUG_AI_PREDICTOR_ENABLED,
+  KEY_OBSERVABILITY_DEFAULT_LEVEL,
+  KEY_OBSERVABILITY_ENABLED,
+  KEY_OBSERVABILITY_MODULE_OVERRIDES,
   KEY_ENABLED_GRAMMAR_RULES,
   KEY_TIME_FORMAT,
   KEY_DATE_FORMAT,
@@ -63,6 +66,13 @@ const WEBLLM_DEV_MODEL_OPTIONS = [
   ["Qwen2.5-3B-Instruct-q4f16_1-MLC", "Qwen2.5 3B q4f16"],
   ["Qwen2.5-7B-Instruct-q4f16_1-MLC", "Qwen2.5 7B q4f16"],
   ["Mistral-7B-Instruct-v0.3-q4f16_1-MLC", "Mistral 7B Instruct v0.3 q4f16"],
+];
+
+const LOG_LEVEL_OPTIONS = [
+  { value: "debug", text: "Debug" },
+  { value: "info", text: "Info" },
+  { value: "warn", text: "Warn" },
+  { value: "error", text: "Error" },
 ];
 
 const SAFE_GRAMMAR_RULE_IDS = new Set(
@@ -164,6 +174,18 @@ const manifest: ManifestDefinition = {
       icon: "DD",
       keywords: [i18n.get("options_tab_data"), i18n.get("config_data")],
     },
+    ...(IS_DEV_BUILD
+      ? [
+          {
+            id: "observability_tab",
+            label: i18n.get("observability_tab"),
+            title: i18n.get("observability_tab"),
+            shortDescription: i18n.get("observability_tab_desc"),
+            icon: "OB",
+            keywords: [i18n.get("observability_tab"), i18n.get("observability_dashboard_group")],
+          },
+        ]
+      : []),
     {
       id: "about_support_tab",
       label: i18n.get("options_tab_about"),
@@ -629,15 +651,55 @@ const manifest: ManifestDefinition = {
     ...(IS_DEV_BUILD
       ? [
           {
-            tab: "advanced_tab",
-            group: i18n.get("predictor_debug_group"),
-            name: "predictorDebugHint",
-            type: "description",
-            text: `<p>${i18n.get("predictor_debug_desc")}</p>`,
+            tab: "observability_tab",
+            group: i18n.get("observability_tab"),
+            name: "observabilityWorkspacePanel",
+            type: "customPanel",
+            label: i18n.get("observability_tab"),
+            description: i18n.get("observability_tab_desc"),
+            keywords: [
+              i18n.get("observability_dashboard_group"),
+              i18n.get("observability_controls_group"),
+            ],
           },
           {
-            tab: "advanced_tab",
-            group: i18n.get("predictor_debug_group"),
+            tab: "observability_tab",
+            group: i18n.get("observability_controls_group"),
+            name: "observabilityHint",
+            type: "description",
+            text: `<p>${i18n.get("observability_desc")}</p>`,
+          },
+          {
+            tab: "observability_tab",
+            group: i18n.get("observability_controls_group"),
+            name: KEY_OBSERVABILITY_ENABLED,
+            type: "checkbox",
+            label: `${i18n.get("observability_enabled_label")}:&nbsp;<small>${i18n.get(
+              "observability_enabled_desc",
+            )}</small>`,
+            default: true,
+          },
+          {
+            tab: "observability_tab",
+            group: i18n.get("observability_controls_group"),
+            name: KEY_OBSERVABILITY_DEFAULT_LEVEL,
+            type: "popupButton",
+            options: LOG_LEVEL_OPTIONS,
+            label: `${i18n.get("observability_default_level_label")}:&nbsp;<small>${i18n.get(
+              "observability_default_level_desc",
+            )}</small>`,
+            default: "debug",
+          },
+          {
+            tab: "observability_tab",
+            group: i18n.get("observability_controls_group"),
+            name: KEY_OBSERVABILITY_MODULE_OVERRIDES,
+            type: "valueOnly",
+            default: {},
+          },
+          {
+            tab: "observability_tab",
+            group: i18n.get("observability_predictor_group"),
             name: KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
             type: "checkbox",
             label: `${i18n.get("predictor_debug_presage_label")}:&nbsp;<small>${i18n.get(
@@ -646,8 +708,8 @@ const manifest: ManifestDefinition = {
             default: true,
           },
           {
-            tab: "advanced_tab",
-            group: i18n.get("predictor_debug_group"),
+            tab: "observability_tab",
+            group: i18n.get("observability_predictor_group"),
             name: KEY_DEBUG_AI_PREDICTOR_ENABLED,
             type: "checkbox",
             label: `${i18n.get("predictor_debug_webllm_label")}:&nbsp;<small>${i18n.get(
@@ -656,8 +718,8 @@ const manifest: ManifestDefinition = {
             default: true,
           },
           {
-            tab: "advanced_tab",
-            group: i18n.get("predictor_debug_group"),
+            tab: "observability_tab",
+            group: i18n.get("observability_predictor_group"),
             name: KEY_AI_MODEL_ID,
             type: "popupButton",
             options: WEBLLM_DEV_MODEL_OPTIONS,
@@ -667,8 +729,8 @@ const manifest: ManifestDefinition = {
             default: DEFAULT_AI_MODEL_ID,
           },
           {
-            tab: "advanced_tab",
-            group: i18n.get("predictor_debug_group"),
+            tab: "observability_tab",
+            group: i18n.get("observability_predictor_group"),
             name: KEY_AI_PREDICTION_TIMEOUT_MS,
             type: "slider",
             min: 20,
@@ -681,11 +743,11 @@ const manifest: ManifestDefinition = {
             default: DEFAULT_AI_PREDICTION_TIMEOUT_MS,
           },
           {
-            tab: "advanced_tab",
-            group: i18n.get("predictor_debug_group"),
-            name: "predictorDebugPanel",
+            tab: "observability_tab",
+            group: i18n.get("observability_dashboard_group"),
+            name: "observabilityPanel",
             type: "description",
-            text: `<div id='predictorDebugRoot'>${i18n.get("predictor_debug_loading")}</div>`,
+            text: `<div id='observabilityRoot'>${i18n.get("observability_loading")}</div>`,
           },
         ]
       : []),

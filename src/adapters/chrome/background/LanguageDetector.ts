@@ -12,8 +12,10 @@ import {
 import { normalizeDomainHost } from "@core/domain/siteProfiles";
 import { resolveEnabledPredictionLanguages } from "@core/domain/lang";
 import type { PredictionInputAction } from "@core/domain/messageTypes";
+import { createLogger } from "@core/application/logging/Logger";
 
 const SESSION_TTL_MS = 5 * 60 * 1000;
+const logger = createLogger("LanguageDetector");
 
 export interface AutoLanguageRequest {
   text: string;
@@ -223,7 +225,30 @@ export class LanguageDetector {
   }
 
   reportRuntimeActivity(scope: AutoLanguageSessionLookup): void {
+    logger.debug("Recording runtime activity", {
+      tabId: scope.tabId,
+      frameId: scope.frameId,
+      runtimeGeneration: scope.runtimeGeneration,
+    });
     this.trackLiveRuntime(scope);
+  }
+
+  getDebugState(): {
+    liveRuntimes: AutoLanguageLiveRuntimeStatus[];
+    sessionCount: number;
+  } {
+    return {
+      liveRuntimes: [...this.liveRuntimes.values()]
+        .sort((left, right) => right.lastSeenAt - left.lastSeenAt)
+        .map((runtime) => ({
+          tabId: runtime.tabId,
+          frameId: runtime.frameId,
+          runtimeGeneration: runtime.runtimeGeneration,
+          domain: runtime.domain,
+          updatedAt: runtime.lastSeenAt,
+        })),
+      sessionCount: this.sessions.size,
+    };
   }
 
   async getLiveRuntimeStatus(

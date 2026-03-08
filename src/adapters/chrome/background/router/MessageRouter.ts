@@ -3,11 +3,17 @@ import {
   CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
   CMD_CONTENT_SCRIPT_GET_CONFIG,
   CMD_CONTENT_SCRIPT_PREDICT_REQ,
+  CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_EVENT,
+  CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_MODULES,
   CMD_CONTENT_SCRIPT_REPORT_RUNTIME_STATUS,
   CMD_CONTENT_SCRIPT_USAGE_EVENT,
   CMD_GET_AUTO_LANGUAGE_STATUS,
+  CMD_OPTIONS_CLEAR_OBSERVABILITY_EVENTS,
   CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE,
+  CMD_OPTIONS_GET_OBSERVABILITY_SNAPSHOT,
   CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT,
+  CMD_OPTIONS_REPORT_OBSERVABILITY_EVENT,
+  CMD_OPTIONS_REPORT_OBSERVABILITY_MODULES,
   CMD_OPTIONS_PAGE_CONFIG_CHANGE,
   CMD_OPTIONS_RESET_PRODUCTIVITY_STATS,
   CMD_POPUP_ACK_DONATION_MILESTONE,
@@ -48,6 +54,8 @@ const ROUTED_MESSAGE_COMMANDS = [
   CMD_CONTENT_SCRIPT_GET_CONFIG,
   CMD_CONTENT_SCRIPT_USAGE_EVENT,
   CMD_CONTENT_SCRIPT_REPORT_RUNTIME_STATUS,
+  CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_EVENT,
+  CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_MODULES,
   CMD_GET_AUTO_LANGUAGE_STATUS,
   CMD_POPUP_GET_PRODUCTIVITY_STATS,
   CMD_POPUP_ACK_WEEKLY_RECAP,
@@ -55,6 +63,10 @@ const ROUTED_MESSAGE_COMMANDS = [
   CMD_OPTIONS_RESET_PRODUCTIVITY_STATS,
   CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT,
   CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE,
+  CMD_OPTIONS_GET_OBSERVABILITY_SNAPSHOT,
+  CMD_OPTIONS_CLEAR_OBSERVABILITY_EVENTS,
+  CMD_OPTIONS_REPORT_OBSERVABILITY_EVENT,
+  CMD_OPTIONS_REPORT_OBSERVABILITY_MODULES,
 ] as const;
 
 type RoutedMessageCommand = (typeof ROUTED_MESSAGE_COMMANDS)[number];
@@ -111,6 +123,10 @@ const MESSAGE_ERROR_LABELS: Record<RoutedMessageCommand, string> = {
   [CMD_CONTENT_SCRIPT_GET_CONFIG]: "MessageRouter.handleContentScriptGetConfig",
   [CMD_CONTENT_SCRIPT_USAGE_EVENT]: "MessageRouter.handleContentScriptUsageEvent",
   [CMD_CONTENT_SCRIPT_REPORT_RUNTIME_STATUS]: "MessageRouter.handleContentScriptRuntimeStatus",
+  [CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_EVENT]:
+    "MessageRouter.handleContentScriptReportObservabilityEvent",
+  [CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_MODULES]:
+    "MessageRouter.handleContentScriptReportObservabilityModules",
   [CMD_GET_AUTO_LANGUAGE_STATUS]: "MessageRouter.handleGetAutoLanguageStatus",
   [CMD_POPUP_GET_PRODUCTIVITY_STATS]: "MessageRouter.handlePopupGetProductivityStats",
   [CMD_POPUP_ACK_WEEKLY_RECAP]: "MessageRouter.handlePopupAckWeeklyRecap",
@@ -119,6 +135,11 @@ const MESSAGE_ERROR_LABELS: Record<RoutedMessageCommand, string> = {
   [CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT]:
     "MessageRouter.handleOptionsGetPredictorDebugSnapshot",
   [CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE]: "MessageRouter.handleOptionsClearPredictorDebugTrace",
+  [CMD_OPTIONS_GET_OBSERVABILITY_SNAPSHOT]: "MessageRouter.handleOptionsGetObservabilitySnapshot",
+  [CMD_OPTIONS_CLEAR_OBSERVABILITY_EVENTS]: "MessageRouter.handleOptionsClearObservabilityEvents",
+  [CMD_OPTIONS_REPORT_OBSERVABILITY_EVENT]: "MessageRouter.handleOptionsReportObservabilityEvent",
+  [CMD_OPTIONS_REPORT_OBSERVABILITY_MODULES]:
+    "MessageRouter.handleOptionsReportObservabilityModules",
 };
 
 export class MessageRouter {
@@ -162,6 +183,14 @@ export class MessageRouter {
       CMD_CONTENT_SCRIPT_REPORT_RUNTIME_STATUS,
       this.handleContentScriptRuntimeStatus.bind(this),
     );
+    register(
+      CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_EVENT,
+      this.handleContentScriptReportObservabilityEvent.bind(this),
+    );
+    register(
+      CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_MODULES,
+      this.handleContentScriptReportObservabilityModules.bind(this),
+    );
     register(CMD_GET_AUTO_LANGUAGE_STATUS, this.handleGetAutoLanguageStatus.bind(this));
     register(CMD_POPUP_GET_PRODUCTIVITY_STATS, this.handlePopupGetProductivityStats.bind(this));
     register(CMD_POPUP_ACK_WEEKLY_RECAP, this.handlePopupAckWeeklyRecap.bind(this));
@@ -177,6 +206,22 @@ export class MessageRouter {
     register(
       CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE,
       this.handleOptionsClearPredictorDebugTrace.bind(this),
+    );
+    register(
+      CMD_OPTIONS_GET_OBSERVABILITY_SNAPSHOT,
+      this.handleOptionsGetObservabilitySnapshot.bind(this),
+    );
+    register(
+      CMD_OPTIONS_CLEAR_OBSERVABILITY_EVENTS,
+      this.handleOptionsClearObservabilityEvents.bind(this),
+    );
+    register(
+      CMD_OPTIONS_REPORT_OBSERVABILITY_EVENT,
+      this.handleOptionsReportObservabilityEvent.bind(this),
+    );
+    register(
+      CMD_OPTIONS_REPORT_OBSERVABILITY_MODULES,
+      this.handleOptionsReportObservabilityModules.bind(this),
     );
   }
 
@@ -407,6 +452,39 @@ export class MessageRouter {
       runtimeGeneration: request.context.runtimeGeneration,
       domainURL: request.context.domainURL,
     });
+    worker.observabilityService.recordContentRuntimeStatus({
+      tabId: senderContext.tabId,
+      frameId: senderContext.frameId,
+      runtimeGeneration: request.context.runtimeGeneration,
+      domainURL: request.context.domainURL,
+    });
+    this.respondOk(sendResponse);
+  }
+
+  private async handleContentScriptReportObservabilityEvent(
+    payload: CommandPayload<typeof CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_EVENT>,
+  ): Promise<void> {
+    const { request, sender, sendResponse, worker } = payload;
+    const senderContext = resolveSenderRoutingContext(sender);
+    if (!senderContext) {
+      throw new TransportError("Missing sender tab id for observability event", {
+        code: "message_missing_sender_tab_id",
+      });
+    }
+    worker.observabilityService.recordEvent({
+      ...request.context.event,
+      source: "content_script",
+      tabId: request.context.event.tabId ?? senderContext.tabId,
+      frameId: request.context.event.frameId ?? senderContext.frameId,
+    });
+    this.respondOk(sendResponse);
+  }
+
+  private async handleContentScriptReportObservabilityModules(
+    payload: CommandPayload<typeof CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_MODULES>,
+  ): Promise<void> {
+    const { request, sendResponse, worker } = payload;
+    worker.observabilityService.registerRemoteModules("content_script", request.context.modules);
     this.respondOk(sendResponse);
   }
 
@@ -477,7 +555,7 @@ export class MessageRouter {
   ): Promise<void> {
     const { sendResponse, worker } = payload;
     await worker.predictionManager.initialize();
-    sendResponse(worker.predictionManager.getPredictorDebugSnapshot());
+    sendResponse(worker.observabilityService.getLegacyPredictorSnapshot());
   }
 
   private async handleOptionsClearPredictorDebugTrace(
@@ -485,6 +563,42 @@ export class MessageRouter {
   ): Promise<void> {
     const { sendResponse, worker } = payload;
     worker.predictionManager.clearPredictorDebugTrace();
+    worker.observabilityService.clearEvents();
+    this.respondOk(sendResponse);
+  }
+
+  private async handleOptionsGetObservabilitySnapshot(
+    payload: CommandPayload<typeof CMD_OPTIONS_GET_OBSERVABILITY_SNAPSHOT>,
+  ): Promise<void> {
+    const { sendResponse, worker } = payload;
+    await worker.predictionManager.initialize();
+    sendResponse(worker.observabilityService.getSnapshot());
+  }
+
+  private async handleOptionsClearObservabilityEvents(
+    payload: CommandPayload<typeof CMD_OPTIONS_CLEAR_OBSERVABILITY_EVENTS>,
+  ): Promise<void> {
+    const { sendResponse, worker } = payload;
+    worker.observabilityService.clearEvents();
+    this.respondOk(sendResponse);
+  }
+
+  private async handleOptionsReportObservabilityEvent(
+    payload: CommandPayload<typeof CMD_OPTIONS_REPORT_OBSERVABILITY_EVENT>,
+  ): Promise<void> {
+    const { request, sendResponse, worker } = payload;
+    worker.observabilityService.recordEvent({
+      ...request.context.event,
+      source: "options",
+    });
+    this.respondOk(sendResponse);
+  }
+
+  private async handleOptionsReportObservabilityModules(
+    payload: CommandPayload<typeof CMD_OPTIONS_REPORT_OBSERVABILITY_MODULES>,
+  ): Promise<void> {
+    const { request, sendResponse, worker } = payload;
+    worker.observabilityService.registerRemoteModules("options", request.context.modules);
     this.respondOk(sendResponse);
   }
 }

@@ -2,6 +2,9 @@ import {
   KEY_AI_MODEL_ID,
   KEY_AI_PREDICTION_TIMEOUT_MS,
   KEY_AI_PREDICTOR_ENABLED,
+  KEY_OBSERVABILITY_DEFAULT_LEVEL,
+  KEY_OBSERVABILITY_ENABLED,
+  KEY_OBSERVABILITY_MODULE_OVERRIDES,
   KEY_AUTO_LANGUAGE_SITE_PRIORS,
   KEY_AUTO_CAPITALIZE,
   KEY_AUTOCOMPLETE,
@@ -41,6 +44,7 @@ import {
   KEY_SUGGESTION_TEXT_LIGHT,
   KEY_USER_DICTIONARY_LIST,
 } from "../constants";
+import type { LogLevel, ObservabilityModuleOverride } from "../observability";
 import type { SiteProfiles } from "../siteProfiles";
 
 export const SETTINGS_KEYS = {
@@ -73,6 +77,9 @@ export const SETTINGS_KEYS = {
   aiPredictionTimeoutMs: KEY_AI_PREDICTION_TIMEOUT_MS,
   debugPresagePredictorEnabled: KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
   debugAiPredictorEnabled: KEY_DEBUG_AI_PREDICTOR_ENABLED,
+  observabilityEnabled: KEY_OBSERVABILITY_ENABLED,
+  observabilityDefaultLevel: KEY_OBSERVABILITY_DEFAULT_LEVEL,
+  observabilityModuleOverrides: KEY_OBSERVABILITY_MODULE_OVERRIDES,
   productivityStats: KEY_PRODUCTIVITY_STATS,
   enabledGrammarRules: KEY_ENABLED_GRAMMAR_RULES,
   suggestionBgLight: KEY_SUGGESTION_BG_LIGHT,
@@ -123,6 +130,9 @@ export interface SettingsSchema {
   aiPredictionTimeoutMs: number;
   debugPresagePredictorEnabled: boolean;
   debugAiPredictorEnabled: boolean;
+  observabilityEnabled: boolean;
+  observabilityDefaultLevel: LogLevel;
+  observabilityModuleOverrides: Record<string, ObservabilityModuleOverride>;
   productivityStats: Record<string, unknown>;
   enabledGrammarRules: string[];
   suggestionBgLight: string;

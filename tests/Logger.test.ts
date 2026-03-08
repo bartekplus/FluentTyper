@@ -1,9 +1,15 @@
 import { jest } from "bun:test";
-import { createLogger } from "../src/core/application/logging/Logger";
+import {
+  createLogger,
+  resetGlobalObservabilityRuntime,
+  setGlobalObservabilityRuntime,
+} from "../src/core/application/logging/Logger";
+import type { ObservabilityConfig } from "../src/core/domain/observability";
 
 type LoggingGlobals = typeof globalThis & {
   __FT_DEV_BUILD__?: boolean;
   __FT_LOG_LEVEL__?: string;
+  __FT_OBSERVABILITY_CONFIG__?: ObservabilityConfig;
 };
 
 function setOptionalBoolean(
@@ -43,12 +49,15 @@ describe("Logger", () => {
 
     delete loggingGlobals.__FT_DEV_BUILD__;
     delete loggingGlobals.__FT_LOG_LEVEL__;
+    delete loggingGlobals.__FT_OBSERVABILITY_CONFIG__;
+    resetGlobalObservabilityRuntime();
   });
 
   afterEach(() => {
     jest.restoreAllMocks();
     setOptionalBoolean(loggingGlobals, "__FT_DEV_BUILD__", originalDevBuild);
     setOptionalString(loggingGlobals, "__FT_LOG_LEVEL__", originalLogLevel);
+    resetGlobalObservabilityRuntime();
   });
 
   test("defaults to warn level in non-dev builds", () => {
@@ -94,5 +103,44 @@ describe("Logger", () => {
 
     expect(console.debug).not.toHaveBeenCalled();
     expect(console.info).toHaveBeenCalledWith("[LoggerCustom] visible");
+  });
+
+  test("supports runtime module overrides", () => {
+    setGlobalObservabilityRuntime({
+      config: {
+        enabled: true,
+        defaultLevel: "error",
+        moduleOverrides: {
+          OptionsObservability: {
+            enabled: true,
+            level: "debug",
+          },
+        },
+      },
+    });
+    const logger = createLogger("OptionsObservability");
+
+    logger.debug("visible from override");
+
+    expect(console.debug).toHaveBeenCalledWith("[OptionsObservability] visible from override");
+  });
+
+  test("suppresses disabled modules from runtime config", () => {
+    setGlobalObservabilityRuntime({
+      config: {
+        enabled: true,
+        defaultLevel: "debug",
+        moduleOverrides: {
+          OptionsObservability: {
+            enabled: false,
+          },
+        },
+      },
+    });
+    const logger = createLogger("OptionsObservability");
+
+    logger.error("hidden");
+
+    expect(console.error).not.toHaveBeenCalled();
   });
 });

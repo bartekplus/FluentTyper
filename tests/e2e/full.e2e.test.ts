@@ -1964,10 +1964,6 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await setSetting(worker!, key, true);
         await sendOptionsPageConfigChange(optionsPage);
         await waitForSnapshotValue(optionsPage, key, true);
-
-        await optionsPage.waitForSelector("#predictorDebugRoot", {
-          timeout: 10000,
-        });
         await togglePredictorDebugButton(optionsPage, key);
 
         await waitForSettingValue(worker!, key, false);

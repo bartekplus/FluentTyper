@@ -5,6 +5,9 @@ import type {
   ProductivityDashboardStats,
 } from "@core/domain/messageTypes";
 import { ProductivityStatsService } from "@core/application/productivityStats/ProductivityStatsService";
+import { createLogger } from "@core/application/logging/Logger";
+
+const logger = createLogger("ProductivityStatsManager");
 
 export class ProductivityStatsManager {
   private readonly service: ProductivityStatsService;
@@ -22,6 +25,10 @@ export class ProductivityStatsManager {
   }
 
   async recordUsageEvent(event: ContentScriptUsageEventContext): Promise<void> {
+    logger.debug("Recording productivity usage event", {
+      eventType: event.eventType,
+      language: "language" in event ? event.language : undefined,
+    });
     await this.service.recordUsageEvent(event);
   }
 
@@ -46,6 +53,7 @@ export class ProductivityStatsManager {
   }
 
   async resetStats(): Promise<void> {
+    logger.warn("Resetting productivity stats");
     await this.service.resetStats();
   }
 }

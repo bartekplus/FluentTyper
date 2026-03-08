@@ -1,4 +1,9 @@
 import { SettingsEngine } from "@ui/settings-engine/SettingsEngine.js";
+import {
+  createLogger,
+  getRegisteredObservabilityModules,
+  setGlobalObservabilityRuntime,
+} from "@core/application/logging/Logger";
 import { Store } from "@core/application/storage/Store.js";
 import { dispatchSettingsSaveStatus } from "@ui/settings-engine/controls/FieldControl.js";
 import { SUPPORTED_LANGUAGES, resolveEnabledLanguages } from "@core/domain/lang";
@@ -10,8 +15,15 @@ import { DataDiagnosticsPanel } from "@ui/options/DataDiagnosticsPanel";
 import { AboutWorkspacePanel } from "@ui/options/AboutWorkspacePanel";
 import { EssentialsWorkspacePanel } from "@ui/options/EssentialsWorkspacePanel";
 import { GrammarWorkspacePanel } from "@ui/options/GrammarWorkspacePanel";
+import { ObservabilityWorkspacePanel } from "@ui/options/ObservabilityWorkspacePanel";
 import { resolveSiteProfiles } from "@core/domain/siteProfiles";
 import { sanitizeAutoLanguageSitePriors } from "@core/domain/autoLanguageDetection";
+import {
+  OBSERVABILITY_MODULE_IDS,
+  isLogLevel,
+  type LogLevel,
+  type ObservabilitySnapshot,
+} from "@core/domain/observability";
 import {
   KEY_AUTOCOMPLETE,
   KEY_AUTOCOMPLETE_ON_ENTER,
@@ -54,12 +66,19 @@ import {
   KEY_SUGGESTION_PADDING_HORIZONTAL,
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
   KEY_DEBUG_AI_PREDICTOR_ENABLED,
+  KEY_OBSERVABILITY_DEFAULT_LEVEL,
+  KEY_OBSERVABILITY_ENABLED,
+  KEY_OBSERVABILITY_MODULE_OVERRIDES,
   CMD_POPUP_GET_PRODUCTIVITY_STATS,
   CMD_POPUP_ACK_WEEKLY_RECAP,
   CMD_POPUP_ACK_DONATION_MILESTONE,
+  CMD_OPTIONS_CLEAR_OBSERVABILITY_EVENTS,
+  CMD_OPTIONS_GET_OBSERVABILITY_SNAPSHOT,
   CMD_OPTIONS_RESET_PRODUCTIVITY_STATS,
   CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT,
   CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE,
+  CMD_OPTIONS_REPORT_OBSERVABILITY_EVENT,
+  CMD_OPTIONS_REPORT_OBSERVABILITY_MODULES,
 } from "@core/domain/constants";
 import { i18n } from "./fluenttyperI18n.js";
 import { manifest } from "./settingsManifest.js";
@@ -69,9 +88,70 @@ const PRODUCTIVITY_INSIGHTS_RETRY_DELAY_MS = 200;
 const PREDICTOR_DEBUG_MAX_RETRIES = 4;
 const PREDICTOR_DEBUG_RETRY_DELAY_MS = 250;
 const PREDICTOR_DEBUG_POLL_INTERVAL_MS = 1500;
+const OBSERVABILITY_MAX_RETRIES = 4;
+const OBSERVABILITY_RETRY_DELAY_MS = 250;
+const OBSERVABILITY_POLL_INTERVAL_MS = 1500;
 const IS_DEV_BUILD = typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
 let predictorDebugLastSignature = "";
 let predictorDebugBindingsInitialized = false;
+let observabilityLastSignature = "";
+let observabilityBindingsInitialized = false;
+let observabilityCurrentSnapshot: ObservabilitySnapshot | null = null;
+const observabilityUIState = {
+  moduleQuery: "",
+  moduleFilter: "all" as "all" | "overrides" | "enabled" | "unregistered",
+  eventQuery: "",
+  eventSource: "all" as "all" | "background" | "content_script" | "options",
+  eventLevel: "all" as "all" | LogLevel,
+  livePaused: false,
+};
+const observabilityLogger = createLogger("OptionsObservability");
+
+function resolveOptionsObservabilityConfig(
+  registry: ReturnType<SettingsEngine["buildFromManifest"]>,
+) {
+  const enabled = registry[KEY_OBSERVABILITY_ENABLED]?.get();
+  const defaultLevel = registry[KEY_OBSERVABILITY_DEFAULT_LEVEL]?.get();
+  return {
+    enabled: typeof enabled === "boolean" ? enabled : true,
+    defaultLevel: isLogLevel(defaultLevel) ? defaultLevel : "debug",
+    moduleOverrides: getObservabilityModuleOverrides(registry),
+  };
+}
+
+function applyOptionsObservabilityRuntime(
+  registry: ReturnType<SettingsEngine["buildFromManifest"]>,
+) {
+  if (!IS_DEV_BUILD) {
+    return;
+  }
+  setGlobalObservabilityRuntime({
+    config: resolveOptionsObservabilityConfig(registry),
+    source: "options",
+    sink: (event) => {
+      try {
+        chrome.runtime.sendMessage({
+          command: CMD_OPTIONS_REPORT_OBSERVABILITY_EVENT,
+          context: {
+            event,
+          },
+        });
+      } catch {
+        // Ignore runtime disconnects during page teardown.
+      }
+    },
+  });
+  try {
+    chrome.runtime.sendMessage({
+      command: CMD_OPTIONS_REPORT_OBSERVABILITY_MODULES,
+      context: {
+        modules: getRegisteredObservabilityModules(),
+      },
+    });
+  } catch {
+    // Ignore runtime disconnects during page teardown.
+  }
+}
 
 function optionsPageConfigChange() {
   const message = {
@@ -1012,6 +1092,7 @@ function renderPredictorDebugSnapshot(root: HTMLElement, snapshot: PredictorSnap
   root.innerHTML = "";
   const shell = document.createElement("section");
   shell.className = "predictor-debug";
+  shell.id = "predictorDebugRoot";
 
   const header = document.createElement("div");
   header.className = "predictor-debug-header";
@@ -1474,6 +1555,1085 @@ function setupPredictorDebugDashboard(registry: ReturnType<SettingsEngine["build
   }, PREDICTOR_DEBUG_POLL_INTERVAL_MS);
 }
 
+void setupPredictorDebugDashboard;
+
+type ObservabilitySnapshotRecord = ObservabilitySnapshot;
+
+function isObservabilitySnapshot(snapshot: unknown): snapshot is ObservabilitySnapshotRecord {
+  return (
+    !!snapshot &&
+    typeof snapshot === "object" &&
+    !Array.isArray(snapshot) &&
+    typeof (snapshot as Record<string, unknown>).generatedAtMs === "number" &&
+    typeof (snapshot as Record<string, unknown>).available === "boolean" &&
+    Array.isArray((snapshot as Record<string, unknown>).events) &&
+    Array.isArray((snapshot as Record<string, unknown>).modules)
+  );
+}
+
+function getObservabilityRootElement() {
+  return document.getElementById("observabilityRoot");
+}
+
+function buildObservabilitySnapshotSignature(snapshot: ObservabilitySnapshotRecord) {
+  try {
+    return JSON.stringify({
+      ...snapshot,
+      generatedAtMs: 0,
+    });
+  } catch {
+    return "";
+  }
+}
+
+function getObservabilityModuleOverrides(
+  registry: ReturnType<SettingsEngine["buildFromManifest"]>,
+): Record<string, { enabled?: boolean; level?: LogLevel }> {
+  const value = registry[KEY_OBSERVABILITY_MODULE_OVERRIDES]?.get();
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+  const result: Record<string, { enabled?: boolean; level?: LogLevel }> = {};
+  for (const [moduleId, override] of Object.entries(value as Record<string, unknown>)) {
+    if (!OBSERVABILITY_MODULE_IDS.includes(moduleId as (typeof OBSERVABILITY_MODULE_IDS)[number])) {
+      continue;
+    }
+    if (!override || typeof override !== "object" || Array.isArray(override)) {
+      continue;
+    }
+    const record = override as Record<string, unknown>;
+    const nextOverride: { enabled?: boolean; level?: LogLevel } = {};
+    if (typeof record.enabled === "boolean") {
+      nextOverride.enabled = record.enabled;
+    }
+    if (isLogLevel(record.level)) {
+      nextOverride.level = record.level;
+    }
+    if (Object.keys(nextOverride).length > 0) {
+      result[moduleId] = nextOverride;
+    }
+  }
+  return result;
+}
+
+function setObservabilityModuleOverrides(
+  registry: ReturnType<SettingsEngine["buildFromManifest"]>,
+  overrides: Record<string, { enabled?: boolean; level?: LogLevel }>,
+) {
+  const setting = registry[KEY_OBSERVABILITY_MODULE_OVERRIDES];
+  if (!setting || typeof setting.set !== "function") {
+    return;
+  }
+  setting.set(overrides);
+}
+
+function renderObservabilityStatus(root: HTMLElement, text: string, isError = false) {
+  root.innerHTML = "";
+  const shell = document.createElement("div");
+  shell.className = "observability-status";
+  if (isError) {
+    shell.classList.add("is-error");
+  }
+  const message = document.createElement("p");
+  message.textContent = text;
+  shell.appendChild(message);
+  const refreshButton = document.createElement("button");
+  refreshButton.type = "button";
+  refreshButton.className = "button is-small is-light";
+  refreshButton.textContent = "Refresh";
+  refreshButton.setAttribute("data-action", "refresh-observability");
+  shell.appendChild(refreshButton);
+  root.appendChild(shell);
+}
+
+function createObservabilityLevelSelect(value: unknown, moduleId: string) {
+  const select = document.createElement("select");
+  select.className = "input";
+  select.setAttribute("data-action", "set-observability-module-level");
+  select.setAttribute("data-module-id", moduleId);
+  ["debug", "info", "warn", "error"].forEach((level) => {
+    const option = document.createElement("option");
+    option.value = level;
+    option.textContent = level;
+    option.selected = value === level;
+    select.appendChild(option);
+  });
+  return select;
+}
+
+function createObservabilitySelect(
+  action: string,
+  selectedValue: string,
+  options: Array<{ value: string; label: string }>,
+) {
+  const select = document.createElement("select");
+  select.className = "input observability-select";
+  select.setAttribute("data-action", action);
+  options.forEach((optionConfig) => {
+    const option = document.createElement("option");
+    option.value = optionConfig.value;
+    option.textContent = optionConfig.label;
+    option.selected = optionConfig.value === selectedValue;
+    select.appendChild(option);
+  });
+  return select;
+}
+
+function createObservabilitySearchInput(
+  action: string,
+  value: string,
+  placeholder: string,
+  ariaLabel: string,
+) {
+  const input = document.createElement("input");
+  input.type = "search";
+  input.className = "input observability-search";
+  input.value = value;
+  input.placeholder = placeholder;
+  input.setAttribute("aria-label", ariaLabel);
+  input.setAttribute("data-action", action);
+  return input;
+}
+
+function createObservabilityBadge(
+  label: string,
+  tone: "neutral" | "accent" | "success" | "warn" | "error" = "neutral",
+) {
+  const badge = document.createElement("span");
+  badge.className = `observability-badge is-${tone}`;
+  badge.textContent = label;
+  return badge;
+}
+
+function createObservabilityCard(title: string, eyebrow?: string) {
+  const card = document.createElement("article");
+  card.className = "observability-card";
+  if (eyebrow) {
+    const eyebrowElement = document.createElement("p");
+    eyebrowElement.className = "observability-card-eyebrow";
+    eyebrowElement.textContent = eyebrow;
+    card.appendChild(eyebrowElement);
+  }
+  const heading = document.createElement("h4");
+  heading.textContent = title;
+  card.appendChild(heading);
+  return card;
+}
+
+function appendObservabilityInfoItem(container: HTMLElement, label: string, value: string) {
+  const row = document.createElement("div");
+  row.className = "observability-info-row";
+  const key = document.createElement("span");
+  key.textContent = label;
+  const val = document.createElement("strong");
+  val.textContent = value;
+  row.append(key, val);
+  container.appendChild(row);
+}
+
+function readObservabilityScrollState(root: HTMLElement) {
+  return Array.from(root.querySelectorAll<HTMLElement>("[data-observability-scroll-key]")).map(
+    (element) => ({
+      key: element.getAttribute("data-observability-scroll-key") || "",
+      top: element.scrollTop,
+      left: element.scrollLeft,
+    }),
+  );
+}
+
+function restoreObservabilityScrollState(
+  root: HTMLElement,
+  scrollState: Array<{ key: string; top: number; left: number }>,
+) {
+  scrollState.forEach((entry) => {
+    const pane = root.querySelector<HTMLElement>(`[data-observability-scroll-key="${entry.key}"]`);
+    if (!pane) {
+      return;
+    }
+    pane.scrollTop = entry.top;
+    pane.scrollLeft = entry.left;
+  });
+}
+
+function countObservabilityRegisteredModules(modules: Array<Record<string, unknown>>) {
+  return modules.filter((moduleState) => Boolean(moduleState.registered)).length;
+}
+
+function countObservabilityOverriddenModules(modules: Array<Record<string, unknown>>) {
+  return modules.filter((moduleState) => Boolean(moduleState.hasOverride)).length;
+}
+
+function matchesObservabilityModuleFilter(
+  moduleState: {
+    moduleId?: string;
+    enabled?: boolean;
+    registered?: boolean;
+    hasOverride?: boolean;
+    sources?: string[];
+  },
+  query: string,
+  filter: typeof observabilityUIState.moduleFilter,
+) {
+  const normalizedQuery = query.trim().toLowerCase();
+  const haystack = [
+    String(moduleState.moduleId || ""),
+    ...(Array.isArray(moduleState.sources)
+      ? moduleState.sources.map((value) => String(value))
+      : []),
+  ]
+    .join(" ")
+    .toLowerCase();
+  if (normalizedQuery && !haystack.includes(normalizedQuery)) {
+    return false;
+  }
+  if (filter === "overrides") {
+    return Boolean(moduleState.hasOverride);
+  }
+  if (filter === "enabled") {
+    return Boolean(moduleState.enabled);
+  }
+  if (filter === "unregistered") {
+    return !moduleState.registered;
+  }
+  return true;
+}
+
+function matchesObservabilityEventFilter(
+  event: {
+    moduleId?: string;
+    source?: string;
+    level?: string;
+    message?: string;
+    traceId?: string;
+    requestId?: number;
+    tabId?: number;
+    frameId?: number;
+  },
+  query: string,
+  source: typeof observabilityUIState.eventSource,
+  level: typeof observabilityUIState.eventLevel,
+) {
+  if (source !== "all" && event.source !== source) {
+    return false;
+  }
+  if (level !== "all" && event.level !== level) {
+    return false;
+  }
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) {
+    return true;
+  }
+  const haystack = [
+    String(event.moduleId || ""),
+    String(event.source || ""),
+    String(event.level || ""),
+    String(event.message || ""),
+    String(event.traceId || ""),
+    String(event.requestId ?? ""),
+    String(event.tabId ?? ""),
+    String(event.frameId ?? ""),
+  ]
+    .join(" ")
+    .toLowerCase();
+  return haystack.includes(normalizedQuery);
+}
+
+function shouldDeferObservabilityRefresh(root: HTMLElement) {
+  if (observabilityUIState.livePaused) {
+    return true;
+  }
+  const activeElement = document.activeElement;
+  if (activeElement instanceof HTMLElement && root.contains(activeElement)) {
+    if (
+      activeElement.matches(
+        "input, select, textarea, button, summary, details, [contenteditable='true']",
+      )
+    ) {
+      return true;
+    }
+  }
+  return Array.from(root.querySelectorAll<HTMLElement>("[data-observability-scroll-key]")).some(
+    (element) =>
+      element.scrollTop > 12 &&
+      (element.matches(":hover") ||
+        element === activeElement ||
+        (activeElement instanceof HTMLElement && element.contains(activeElement))),
+  );
+}
+
+function updateObservabilityLiveStatus(root: HTMLElement, text: string) {
+  const status = root.querySelector<HTMLElement>("[data-observability-live-status]");
+  if (status) {
+    status.textContent = text;
+  }
+}
+
+function renderStoredObservabilitySnapshot(
+  root: HTMLElement,
+  registry: ReturnType<SettingsEngine["buildFromManifest"]>,
+) {
+  if (observabilityCurrentSnapshot) {
+    renderObservabilitySnapshot(root, observabilityCurrentSnapshot, registry);
+  }
+}
+
+function renderObservabilitySnapshot(
+  root: HTMLElement,
+  snapshot: ObservabilitySnapshotRecord,
+  registry: ReturnType<SettingsEngine["buildFromManifest"]>,
+) {
+  const pageScrollX = window.scrollX;
+  const pageScrollY = window.scrollY;
+  const scrollState = readObservabilityScrollState(root);
+  const events = Array.isArray(snapshot.events)
+    ? (snapshot.events as Array<Record<string, unknown>>)
+    : [];
+  const modules = Array.isArray(snapshot.modules)
+    ? (snapshot.modules as Array<Record<string, unknown>>)
+    : [];
+  const config =
+    snapshot.config && typeof snapshot.config === "object"
+      ? (snapshot.config as Record<string, unknown>)
+      : {};
+  const summary =
+    snapshot.summary && typeof snapshot.summary === "object"
+      ? (snapshot.summary as Record<string, unknown>)
+      : {};
+  const predictor =
+    snapshot.predictor && typeof snapshot.predictor === "object"
+      ? (snapshot.predictor as Record<string, unknown>)
+      : null;
+  const filteredModules = modules.filter((moduleStateRecord) =>
+    matchesObservabilityModuleFilter(
+      moduleStateRecord as {
+        moduleId?: string;
+        enabled?: boolean;
+        registered?: boolean;
+        hasOverride?: boolean;
+        sources?: string[];
+      },
+      observabilityUIState.moduleQuery,
+      observabilityUIState.moduleFilter,
+    ),
+  );
+  const filteredEvents = events
+    .filter((eventRecord) =>
+      matchesObservabilityEventFilter(
+        eventRecord as {
+          moduleId?: string;
+          source?: string;
+          level?: string;
+          message?: string;
+          traceId?: string;
+          requestId?: number;
+          tabId?: number;
+          frameId?: number;
+        },
+        observabilityUIState.eventQuery,
+        observabilityUIState.eventSource,
+        observabilityUIState.eventLevel,
+      ),
+    )
+    .slice(0, 120);
+  const summaryEventsByLevel =
+    summary.eventsByLevel && typeof summary.eventsByLevel === "object"
+      ? (summary.eventsByLevel as Partial<Record<LogLevel, number>>)
+      : {};
+  const predictorConfig = predictor?.config as
+    | {
+        aiPredictorEnabled?: boolean;
+        aiModelId?: string;
+        debugPresagePredictorEnabled?: boolean;
+        debugAIPredictorEnabled?: boolean;
+      }
+    | undefined;
+  const predictorTraces = Array.isArray(predictor?.traces) ? predictor.traces : [];
+  root.innerHTML = "";
+  root.setAttribute("data-raw-snapshot", JSON.stringify(snapshot, null, 2));
+
+  const shell = document.createElement("section");
+  shell.className = "observability-dashboard";
+
+  const header = document.createElement("div");
+  header.className = "observability-header";
+  const titleBlock = document.createElement("div");
+  const title = document.createElement("h3");
+  title.textContent = "Observability Control Room";
+  const subtitle = document.createElement("p");
+  subtitle.textContent = `Updated ${formatClockTime(snapshot.generatedAtMs)}`;
+  subtitle.setAttribute("data-observability-live-status", "true");
+  titleBlock.append(title, subtitle);
+  header.appendChild(titleBlock);
+
+  const actions = document.createElement("div");
+  actions.className = "observability-actions";
+  [
+    ["Refresh", "refresh-observability"],
+    ["Clear Events", "clear-observability"],
+    ["Copy Snapshot", "copy-observability"],
+    [observabilityUIState.livePaused ? "Resume Live" : "Pause Live", "toggle-observability-live"],
+  ].forEach(([label, action]) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "button is-small is-light";
+    button.textContent = label;
+    button.setAttribute("data-action", action);
+    actions.appendChild(button);
+  });
+  header.appendChild(actions);
+  shell.appendChild(header);
+
+  const summaryGrid = document.createElement("div");
+  summaryGrid.className = "observability-summary-grid";
+
+  const systemCard = createObservabilityCard("Environment", "System status");
+  appendObservabilityInfoItem(systemCard, "Build", snapshot.devBuild ? "dev" : "release");
+  appendObservabilityInfoItem(
+    systemCard,
+    "Observability",
+    snapshot.available ? "available" : String(snapshot.reason || "unavailable"),
+  );
+  appendObservabilityInfoItem(
+    systemCard,
+    "Live refresh",
+    observabilityUIState.livePaused ? "paused" : "active",
+  );
+  appendObservabilityInfoItem(systemCard, "Global enabled", String(config.enabled ?? false));
+  appendObservabilityInfoItem(systemCard, "Default level", String(config.defaultLevel || "n/a"));
+  summaryGrid.appendChild(systemCard);
+
+  const coverageCard = createObservabilityCard("Coverage", "What is currently visible");
+  appendObservabilityInfoItem(
+    coverageCard,
+    "Registered modules",
+    `${countObservabilityRegisteredModules(modules)} / ${modules.length}`,
+  );
+  appendObservabilityInfoItem(
+    coverageCard,
+    "Overrides",
+    String(countObservabilityOverriddenModules(modules)),
+  );
+  appendObservabilityInfoItem(
+    coverageCard,
+    "Content runtimes",
+    String(Array.isArray(snapshot.contentRuntimes) ? snapshot.contentRuntimes.length : 0),
+  );
+  appendObservabilityInfoItem(
+    coverageCard,
+    "Auto-language runtimes",
+    String(Array.isArray(snapshot.autoLanguageRuntimes) ? snapshot.autoLanguageRuntimes.length : 0),
+  );
+  summaryGrid.appendChild(coverageCard);
+
+  const eventVolumeCard = createObservabilityCard("Event Volume", "Current buffer");
+  appendObservabilityInfoItem(eventVolumeCard, "Buffered events", String(summary.totalEvents || 0));
+  appendObservabilityInfoItem(
+    eventVolumeCard,
+    "Debug / info",
+    `${summaryEventsByLevel.debug || 0} / ${summaryEventsByLevel.info || 0}`,
+  );
+  appendObservabilityInfoItem(
+    eventVolumeCard,
+    "Warn / error",
+    `${summaryEventsByLevel.warn || 0} / ${summaryEventsByLevel.error || 0}`,
+  );
+  appendObservabilityInfoItem(
+    eventVolumeCard,
+    "Visible events",
+    `${filteredEvents.length} / ${events.length}`,
+  );
+  summaryGrid.appendChild(eventVolumeCard);
+
+  const predictorCard = createObservabilityCard("Predictor Diagnostics", "Route controls");
+  if (predictor) {
+    appendObservabilityInfoItem(
+      predictorCard,
+      "AI predictor",
+      predictorConfig?.aiPredictorEnabled ? "enabled" : "disabled",
+    );
+    appendObservabilityInfoItem(
+      predictorCard,
+      "Presage route",
+      predictorConfig?.debugPresagePredictorEnabled ? "enabled" : "disabled",
+    );
+    appendObservabilityInfoItem(
+      predictorCard,
+      "WebLLM route",
+      predictorConfig?.debugAIPredictorEnabled ? "enabled" : "disabled",
+    );
+    appendObservabilityInfoItem(
+      predictorCard,
+      "Model",
+      String(predictorConfig?.aiModelId || "n/a"),
+    );
+    appendObservabilityInfoItem(predictorCard, "Recent traces", String(predictorTraces.length));
+    predictorCard.appendChild(
+      createPredictorToggleAction(
+        "Presage route toggle",
+        KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
+        Boolean(predictorConfig?.debugPresagePredictorEnabled),
+      ),
+    );
+    predictorCard.appendChild(
+      createPredictorToggleAction(
+        "WebLLM route toggle",
+        KEY_DEBUG_AI_PREDICTOR_ENABLED,
+        Boolean(predictorConfig?.debugAIPredictorEnabled),
+      ),
+    );
+  } else {
+    appendObservabilityInfoItem(predictorCard, "State", "Unavailable");
+  }
+  summaryGrid.appendChild(predictorCard);
+  shell.appendChild(summaryGrid);
+
+  const workspaceGrid = document.createElement("div");
+  workspaceGrid.className = "workspace-main-grid";
+
+  const modulesSection = document.createElement("section");
+  modulesSection.className = "observability-pane";
+  const modulesHeader = document.createElement("div");
+  modulesHeader.className = "observability-pane-header";
+  const modulesTitleBlock = document.createElement("div");
+  const modulesTitle = document.createElement("h4");
+  modulesTitle.textContent = "Module Controls";
+  const modulesSubtitle = document.createElement("p");
+  modulesSubtitle.textContent = `${filteredModules.length} of ${modules.length} modules shown`;
+  modulesTitleBlock.append(modulesTitle, modulesSubtitle);
+  const modulesToolbar = document.createElement("div");
+  modulesToolbar.className = "observability-pane-toolbar";
+  modulesToolbar.append(
+    createObservabilitySearchInput(
+      "filter-observability-modules",
+      observabilityUIState.moduleQuery,
+      "Search by module or source",
+      "Filter observability modules",
+    ),
+  );
+  modulesToolbar.append(
+    createObservabilitySelect(
+      "set-observability-module-filter",
+      observabilityUIState.moduleFilter,
+      [
+        { value: "all", label: "All modules" },
+        { value: "overrides", label: "Overrides" },
+        { value: "enabled", label: "Enabled" },
+        { value: "unregistered", label: "Unregistered" },
+      ],
+    ),
+  );
+  modulesHeader.append(modulesTitleBlock, modulesToolbar);
+  modulesSection.appendChild(modulesHeader);
+  const modulesList = document.createElement("div");
+  modulesList.className = "observability-scroll-region observability-module-list";
+  modulesList.setAttribute("data-observability-scroll-key", "modules");
+  const activeOverrides = getObservabilityModuleOverrides(registry);
+  filteredModules.forEach((moduleStateRecord) => {
+    const moduleState = moduleStateRecord as {
+      moduleId?: string;
+      enabled?: boolean;
+      level?: string;
+      registered?: boolean;
+      hasOverride?: boolean;
+      sources?: string[];
+      lastEventAt?: number;
+    };
+    const moduleId = String(moduleState.moduleId || "unknown");
+    const card = document.createElement("article");
+    card.className = "observability-module-row";
+    const topRow = document.createElement("div");
+    topRow.className = "observability-row-top";
+    const name = document.createElement("strong");
+    name.textContent = moduleId;
+    const badges = document.createElement("div");
+    badges.className = "observability-badge-row";
+    badges.appendChild(
+      createObservabilityBadge(
+        moduleState.registered ? "registered" : "unregistered",
+        moduleState.registered ? "success" : "warn",
+      ),
+    );
+    badges.appendChild(
+      createObservabilityBadge(
+        moduleState.enabled ? "enabled" : "disabled",
+        moduleState.enabled ? "accent" : "neutral",
+      ),
+    );
+    if (moduleState.hasOverride) {
+      badges.appendChild(createObservabilityBadge("override", "accent"));
+    }
+    topRow.append(name, badges);
+    card.appendChild(topRow);
+
+    const detail = document.createElement("div");
+    detail.className = "observability-module-meta";
+    detail.appendChild(
+      createObservabilityBadge(
+        `level ${String(moduleState.level || "debug")}`,
+        moduleState.level === "error"
+          ? "error"
+          : moduleState.level === "warn"
+            ? "warn"
+            : moduleState.level === "info"
+              ? "success"
+              : "neutral",
+      ),
+    );
+    if (Array.isArray(moduleState.sources) && moduleState.sources.length > 0) {
+      moduleState.sources.forEach((sourceValue) => {
+        detail.appendChild(createObservabilityBadge(String(sourceValue), "neutral"));
+      });
+    } else {
+      detail.appendChild(createObservabilityBadge("no source yet", "neutral"));
+    }
+    detail.appendChild(
+      createObservabilityBadge(
+        `last ${typeof moduleState.lastEventAt === "number" ? formatClockTime(moduleState.lastEventAt) : "none"}`,
+        "neutral",
+      ),
+    );
+    card.appendChild(detail);
+
+    const controls = document.createElement("div");
+    controls.className = "observability-module-controls";
+    const enabledLabel = document.createElement("label");
+    enabledLabel.className = "observability-inline-toggle";
+    const enabledToggle = document.createElement("input");
+    enabledToggle.type = "checkbox";
+    enabledToggle.checked = Boolean(
+      activeOverrides[moduleId]?.enabled ?? moduleState.enabled ?? config.enabled,
+    );
+    enabledToggle.setAttribute("data-action", "toggle-observability-module");
+    enabledToggle.setAttribute("data-module-id", moduleId);
+    const enabledText = document.createElement("span");
+    enabledText.textContent = "Enabled";
+    enabledLabel.append(enabledToggle, enabledText);
+    controls.appendChild(enabledLabel);
+    const levelControl = document.createElement("label");
+    levelControl.className = "observability-inline-select";
+    const levelLabel = document.createElement("span");
+    levelLabel.textContent = "Level";
+    levelControl.append(
+      levelLabel,
+      createObservabilityLevelSelect(
+        activeOverrides[moduleId]?.level || moduleState.level || "debug",
+        moduleId,
+      ),
+    );
+    controls.appendChild(levelControl);
+    card.appendChild(controls);
+    modulesList.appendChild(card);
+  });
+  if (filteredModules.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "observability-empty";
+    empty.textContent = "No modules match the current filter.";
+    modulesList.appendChild(empty);
+  }
+  modulesSection.appendChild(modulesList);
+  workspaceGrid.appendChild(modulesSection);
+
+  const eventsSection = document.createElement("section");
+  eventsSection.className = "observability-pane";
+  const eventsHeader = document.createElement("div");
+  eventsHeader.className = "observability-pane-header";
+  const eventsTitleBlock = document.createElement("div");
+  const eventsTitle = document.createElement("h4");
+  eventsTitle.textContent = "Recent Events";
+  const eventsSubtitle = document.createElement("p");
+  eventsSubtitle.textContent = `${filteredEvents.length} of ${events.length} events shown`;
+  eventsTitleBlock.append(eventsTitle, eventsSubtitle);
+  const eventsToolbar = document.createElement("div");
+  eventsToolbar.className = "observability-pane-toolbar";
+  eventsToolbar.append(
+    createObservabilitySearchInput(
+      "filter-observability-events",
+      observabilityUIState.eventQuery,
+      "Search message, trace, tab, or module",
+      "Filter observability events",
+    ),
+  );
+  eventsToolbar.append(
+    createObservabilitySelect("set-observability-event-source", observabilityUIState.eventSource, [
+      { value: "all", label: "All sources" },
+      { value: "background", label: "Background" },
+      { value: "content_script", label: "Content script" },
+      { value: "options", label: "Options" },
+    ]),
+  );
+  eventsToolbar.append(
+    createObservabilitySelect("set-observability-event-level", observabilityUIState.eventLevel, [
+      { value: "all", label: "All levels" },
+      { value: "debug", label: "Debug" },
+      { value: "info", label: "Info" },
+      { value: "warn", label: "Warn" },
+      { value: "error", label: "Error" },
+    ]),
+  );
+  eventsHeader.append(eventsTitleBlock, eventsToolbar);
+  eventsSection.appendChild(eventsHeader);
+  if (events.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "observability-empty";
+    empty.textContent = "No observability events captured yet.";
+    eventsSection.appendChild(empty);
+  } else {
+    const list = document.createElement("div");
+    list.className = "observability-scroll-region observability-event-list";
+    list.setAttribute("data-observability-scroll-key", "events");
+    filteredEvents.forEach((eventRecord) => {
+      const event = eventRecord as {
+        moduleId?: string;
+        level?: string;
+        timestampMs?: number;
+        source?: string;
+        message?: string;
+        traceId?: string;
+        requestId?: number;
+        tabId?: number;
+        frameId?: number;
+        context?: unknown;
+      };
+      const card = document.createElement("article");
+      card.className = "observability-event-card";
+      const topRow = document.createElement("div");
+      topRow.className = "observability-row-top";
+      const main = document.createElement("strong");
+      main.textContent = String(event.moduleId || "module");
+      const eventTime = document.createElement("span");
+      eventTime.textContent = formatClockTime(event.timestampMs);
+      topRow.append(main, eventTime);
+      card.appendChild(topRow);
+      const chips = document.createElement("div");
+      chips.className = "observability-badge-row";
+      chips.appendChild(
+        createObservabilityBadge(
+          String(event.level || "debug"),
+          event.level === "error"
+            ? "error"
+            : event.level === "warn"
+              ? "warn"
+              : event.level === "info"
+                ? "success"
+                : "neutral",
+        ),
+      );
+      chips.appendChild(
+        createObservabilityBadge(
+          String(event.source || "unknown"),
+          event.source === "options" ? "accent" : "neutral",
+        ),
+      );
+      if (event.traceId) {
+        chips.appendChild(createObservabilityBadge(`trace ${event.traceId}`, "neutral"));
+      }
+      if (typeof event.requestId === "number") {
+        chips.appendChild(createObservabilityBadge(`req ${event.requestId}`, "neutral"));
+      }
+      if (typeof event.tabId === "number") {
+        chips.appendChild(createObservabilityBadge(`tab ${event.tabId}`, "neutral"));
+      }
+      if (typeof event.frameId === "number") {
+        chips.appendChild(createObservabilityBadge(`frame ${event.frameId}`, "neutral"));
+      }
+      card.appendChild(chips);
+      const message = document.createElement("p");
+      message.className = "observability-event-message";
+      message.textContent = String(event.message || "");
+      card.appendChild(message);
+      if (event.context && typeof event.context === "object") {
+        const details = document.createElement("details");
+        details.className = "observability-event-context";
+        const contextSummary = document.createElement("summary");
+        contextSummary.textContent = "Context";
+        const context = document.createElement("pre");
+        context.textContent = JSON.stringify(event.context, null, 2);
+        details.append(contextSummary, context);
+        card.appendChild(details);
+      }
+      list.appendChild(card);
+    });
+    if (filteredEvents.length === 0) {
+      const empty = document.createElement("p");
+      empty.className = "observability-empty";
+      empty.textContent = "No events match the current filter.";
+      list.appendChild(empty);
+    }
+    eventsSection.appendChild(list);
+  }
+  workspaceGrid.appendChild(eventsSection);
+
+  const rawSection = document.createElement("section");
+  rawSection.className = "observability-pane workspace-span-full";
+  const rawTitle = document.createElement("h4");
+  rawTitle.textContent = "Raw Snapshot";
+  const rawDetails = document.createElement("details");
+  rawDetails.className = "observability-raw";
+  const rawSummary = document.createElement("summary");
+  rawSummary.textContent = "Inspect full machine-readable snapshot";
+  const raw = document.createElement("pre");
+  raw.className = "observability-raw-preview";
+  raw.textContent = JSON.stringify(snapshot, null, 2);
+  rawDetails.append(rawSummary, raw);
+  rawSection.append(rawTitle, rawDetails);
+  workspaceGrid.appendChild(rawSection);
+  shell.appendChild(workspaceGrid);
+
+  root.appendChild(shell);
+  updateObservabilityLiveStatus(
+    root,
+    observabilityUIState.livePaused
+      ? "Live updates paused"
+      : `Updated ${formatClockTime(snapshot.generatedAtMs)}`,
+  );
+  window.requestAnimationFrame(() => {
+    window.scrollTo(pageScrollX, pageScrollY);
+    restoreObservabilityScrollState(root, scrollState);
+  });
+}
+
+async function loadObservabilitySnapshot(root: HTMLElement, retryCount = 0) {
+  const hasRenderedDashboard = Boolean(root.querySelector(".observability-dashboard"));
+  if (retryCount === 0 && !hasRenderedDashboard) {
+    renderObservabilityStatus(root, "Loading observability dashboard...");
+  }
+  const response = await sendRuntimeMessage({
+    command: CMD_OPTIONS_GET_OBSERVABILITY_SNAPSHOT,
+    context: {},
+  });
+  if (!isObservabilitySnapshot(response)) {
+    if (retryCount < OBSERVABILITY_MAX_RETRIES) {
+      window.setTimeout(() => {
+        void loadObservabilitySnapshot(root, retryCount + 1);
+      }, OBSERVABILITY_RETRY_DELAY_MS);
+      return;
+    }
+    renderObservabilityStatus(root, "Observability snapshot unavailable.", true);
+    return;
+  }
+  if (!response.available) {
+    renderObservabilityStatus(root, "Observability is available only in development builds.", true);
+    return;
+  }
+  observabilityCurrentSnapshot = response;
+  const signature = buildObservabilitySnapshotSignature(response);
+  if (
+    signature &&
+    signature === observabilityLastSignature &&
+    root.querySelector(".observability-dashboard, .observability-status")
+  ) {
+    updateObservabilityLiveStatus(
+      root,
+      observabilityUIState.livePaused
+        ? "Live updates paused"
+        : `Updated ${formatClockTime(response.generatedAtMs)}`,
+    );
+    return;
+  }
+  observabilityLastSignature = signature;
+  const registry = (
+    window as unknown as {
+      __ftSettingsRegistry?: ReturnType<SettingsEngine["buildFromManifest"]>;
+    }
+  ).__ftSettingsRegistry;
+  if (registry) {
+    renderObservabilitySnapshot(root, response, registry);
+  }
+}
+
+function setupObservabilityDashboard(registry: ReturnType<SettingsEngine["buildFromManifest"]>) {
+  if (!IS_DEV_BUILD) {
+    return;
+  }
+  const registryHost = window as unknown as {
+    __ftSettingsRegistry?: ReturnType<SettingsEngine["buildFromManifest"]>;
+  };
+  registryHost.__ftSettingsRegistry = registry;
+  const mountIfNeeded = () => getObservabilityRootElement() as HTMLElement | null;
+  const scheduleRefresh = (force = false) => {
+    const root = mountIfNeeded();
+    if (root) {
+      if (!force && shouldDeferObservabilityRefresh(root)) {
+        updateObservabilityLiveStatus(
+          root,
+          observabilityUIState.livePaused
+            ? "Live updates paused"
+            : "Live updates paused while you inspect the dashboard",
+        );
+        return;
+      }
+      if (force) {
+        observabilityLastSignature = "";
+      }
+      void loadObservabilitySnapshot(root);
+    }
+  };
+  const root = mountIfNeeded();
+  if (root) {
+    applyOptionsObservabilityRuntime(registry);
+    observabilityLogger.info("Mounting observability dashboard");
+    scheduleRefresh(true);
+  }
+  if (observabilityBindingsInitialized) {
+    return;
+  }
+  observabilityBindingsInitialized = true;
+
+  document.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+    const action = target.getAttribute("data-action");
+    const root = mountIfNeeded();
+    if (!root) {
+      return;
+    }
+    if (action === "refresh-observability") {
+      observabilityLogger.debug("Refreshing observability dashboard");
+      scheduleRefresh(true);
+      return;
+    }
+    if (action === "clear-observability") {
+      observabilityLogger.warn("Clearing observability events from options");
+      void sendRuntimeMessage({
+        command: CMD_OPTIONS_CLEAR_OBSERVABILITY_EVENTS,
+        context: {},
+      }).then(() => {
+        scheduleRefresh(true);
+      });
+      return;
+    }
+    if (action === "toggle-observability-live") {
+      observabilityUIState.livePaused = !observabilityUIState.livePaused;
+      renderStoredObservabilitySnapshot(root, registry);
+      if (!observabilityUIState.livePaused) {
+        scheduleRefresh(true);
+      }
+      return;
+    }
+    if (action === "set-predictor-toggle") {
+      const key = target.getAttribute("data-key");
+      const nextEnabled = target.getAttribute("data-enabled") === "true";
+      if (key) {
+        const setting = registry[key];
+        if (setting && typeof setting.set === "function") {
+          setting.set(Boolean(nextEnabled));
+          applyOptionsObservabilityRuntime(registry);
+          observabilityLogger.info("Updating predictor debug toggle", {
+            key,
+            nextEnabled,
+          });
+          optionsPageConfigChange();
+          window.setTimeout(() => scheduleRefresh(true), 120);
+        }
+      }
+      return;
+    }
+    if (action === "copy-observability") {
+      const raw = root.getAttribute("data-raw-snapshot") || "";
+      if (raw && navigator.clipboard?.writeText) {
+        void navigator.clipboard.writeText(raw);
+      }
+    }
+  });
+
+  document.addEventListener("input", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+    const action = target.getAttribute("data-action");
+    const root = mountIfNeeded();
+    if (!root) {
+      return;
+    }
+    if (action === "filter-observability-modules" && target instanceof HTMLInputElement) {
+      observabilityUIState.moduleQuery = target.value;
+      renderStoredObservabilitySnapshot(root, registry);
+      return;
+    }
+    if (action === "filter-observability-events" && target instanceof HTMLInputElement) {
+      observabilityUIState.eventQuery = target.value;
+      renderStoredObservabilitySnapshot(root, registry);
+    }
+  });
+
+  document.addEventListener("change", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+    const action = target.getAttribute("data-action");
+    if (!action) {
+      return;
+    }
+    const root = mountIfNeeded();
+    if (!root) {
+      return;
+    }
+    if (action === "set-observability-module-filter" && target instanceof HTMLSelectElement) {
+      observabilityUIState.moduleFilter =
+        target.value === "overrides" ||
+        target.value === "enabled" ||
+        target.value === "unregistered"
+          ? target.value
+          : "all";
+      renderStoredObservabilitySnapshot(root, registry);
+      return;
+    }
+    if (action === "set-observability-event-source" && target instanceof HTMLSelectElement) {
+      observabilityUIState.eventSource =
+        target.value === "background" ||
+        target.value === "content_script" ||
+        target.value === "options"
+          ? target.value
+          : "all";
+      renderStoredObservabilitySnapshot(root, registry);
+      return;
+    }
+    if (action === "set-observability-event-level" && target instanceof HTMLSelectElement) {
+      observabilityUIState.eventLevel = isLogLevel(target.value) ? target.value : "all";
+      renderStoredObservabilitySnapshot(root, registry);
+      return;
+    }
+    const moduleId = target.getAttribute("data-module-id");
+    if (!moduleId) {
+      return;
+    }
+    const overrides = getObservabilityModuleOverrides(registry);
+    const current = { ...(overrides[moduleId] || {}) };
+    if (action === "toggle-observability-module" && target instanceof HTMLInputElement) {
+      current.enabled = target.checked;
+    }
+    if (action === "set-observability-module-level" && target instanceof HTMLSelectElement) {
+      current.level = isLogLevel(target.value) ? target.value : "debug";
+    }
+    overrides[moduleId] = current;
+    setObservabilityModuleOverrides(registry, overrides);
+    applyOptionsObservabilityRuntime(registry);
+    observabilityLogger.info("Updating module override", {
+      moduleId,
+      enabled: current.enabled,
+      level: current.level,
+    });
+    optionsPageConfigChange();
+    window.setTimeout(() => scheduleRefresh(true), 120);
+  });
+
+  window.addEventListener("focus", () => scheduleRefresh());
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) {
+      scheduleRefresh();
+    }
+  });
+  window.setInterval(() => {
+    if (!document.hidden) {
+      scheduleRefresh();
+    }
+  }, OBSERVABILITY_POLL_INTERVAL_MS);
+}
+
 window.addEventListener("DOMContentLoaded", function () {
   localizeStaticShell();
   setupSaveToast();
@@ -1521,12 +2681,15 @@ window.addEventListener("DOMContentLoaded", function () {
       registry,
       themePresets,
     );
-    new DataDiagnosticsPanel(
-      registry.dataDiagnosticsPanel.element as HTMLElement,
-      registry,
-      IS_DEV_BUILD,
-    );
+    new DataDiagnosticsPanel(registry.dataDiagnosticsPanel.element as HTMLElement, registry);
+    if (IS_DEV_BUILD && registry.observabilityWorkspacePanel?.element) {
+      new ObservabilityWorkspacePanel(
+        registry.observabilityWorkspacePanel.element as HTMLElement,
+        registry,
+      );
+    }
     new AboutWorkspacePanel(registry.aboutWorkspacePanel.element as HTMLElement);
+    applyOptionsObservabilityRuntime(registry);
 
     registry[KEY_LANGUAGE].addEvent("action", async function () {
       await validateLanguageSettings(registry, store);
@@ -1536,7 +2699,7 @@ window.addEventListener("DOMContentLoaded", function () {
     });
     await validateLanguageSettings(registry, store);
     setupProductivityInsights();
-    setupPredictorDebugDashboard(registry);
+    setupObservabilityDashboard(registry);
     registry.resetProductivityStatsButton.addEvent("action", async function () {
       await sendRuntimeMessage({
         command: CMD_OPTIONS_RESET_PRODUCTIVITY_STATS,
@@ -1619,6 +2782,8 @@ window.addEventListener("DOMContentLoaded", function () {
       KEY_AI_PREDICTION_TIMEOUT_MS,
       KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
       KEY_DEBUG_AI_PREDICTOR_ENABLED,
+      KEY_OBSERVABILITY_ENABLED,
+      KEY_OBSERVABILITY_DEFAULT_LEVEL,
       // Theme settings
       KEY_SUGGESTION_BG_LIGHT,
       KEY_SUGGESTION_TEXT_LIGHT,
@@ -1639,6 +2804,9 @@ window.addEventListener("DOMContentLoaded", function () {
         return;
       }
       setting.addEvent("action", function () {
+        if (element === KEY_OBSERVABILITY_ENABLED || element === KEY_OBSERVABILITY_DEFAULT_LEVEL) {
+          applyOptionsObservabilityRuntime(registry);
+        }
         optionsPageConfigChange();
         if (
           element === KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED ||
@@ -1651,6 +2819,20 @@ window.addEventListener("DOMContentLoaded", function () {
           if (root) {
             predictorDebugLastSignature = "";
             void loadPredictorDebugSnapshot(root);
+          }
+        }
+        if (
+          element === KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED ||
+          element === KEY_DEBUG_AI_PREDICTOR_ENABLED ||
+          element === KEY_AI_MODEL_ID ||
+          element === KEY_AI_PREDICTION_TIMEOUT_MS ||
+          element === KEY_OBSERVABILITY_ENABLED ||
+          element === KEY_OBSERVABILITY_DEFAULT_LEVEL
+        ) {
+          const root = document.getElementById("observabilityRoot");
+          if (root) {
+            observabilityLastSignature = "";
+            void loadObservabilitySnapshot(root);
           }
         }
       });

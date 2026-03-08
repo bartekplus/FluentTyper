@@ -1,3 +1,9 @@
+import type {
+  ObservabilityConfig,
+  ObservabilityEvent,
+  ObservabilitySnapshot,
+} from "./observability";
+
 // Context for CMD_BACKGROUND_PAGE_SET_CONFIG
 export interface SetConfigContext {
   autocomplete: boolean;
@@ -28,6 +34,7 @@ export interface SetConfigContext {
     suggestionPaddingVertical: string;
     suggestionPaddingHorizontal: string;
   };
+  observability?: ObservabilityConfig;
 }
 
 export type PredictionInputAction = "insert" | "delete" | "other";
@@ -162,6 +169,20 @@ export interface PopupAckDonationMilestoneContext {
 export type OptionsResetProductivityStatsContext = Record<string, never>;
 export type OptionsGetPredictorDebugSnapshotContext = Record<string, never>;
 export type OptionsClearPredictorDebugTraceContext = Record<string, never>;
+export type OptionsGetObservabilitySnapshotContext = Record<string, never>;
+export type OptionsClearObservabilityEventsContext = Record<string, never>;
+export interface ContentScriptReportObservabilityEventContext {
+  event: ObservabilityEvent;
+}
+export interface ContentScriptReportObservabilityModulesContext {
+  modules: string[];
+}
+export interface OptionsReportObservabilityEventContext {
+  event: ObservabilityEvent;
+}
+export interface OptionsReportObservabilityModulesContext {
+  modules: string[];
+}
 
 export interface ProductivityEventSummary {
   suggestionsShown: number;
@@ -305,6 +326,30 @@ export type Message =
       context: OptionsClearPredictorDebugTraceContext;
     }
   | {
+      command: "CMD_OPTIONS_GET_OBSERVABILITY_SNAPSHOT";
+      context: OptionsGetObservabilitySnapshotContext;
+    }
+  | {
+      command: "CMD_OPTIONS_CLEAR_OBSERVABILITY_EVENTS";
+      context: OptionsClearObservabilityEventsContext;
+    }
+  | {
+      command: "CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_EVENT";
+      context: ContentScriptReportObservabilityEventContext;
+    }
+  | {
+      command: "CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_MODULES";
+      context: ContentScriptReportObservabilityModulesContext;
+    }
+  | {
+      command: "CMD_OPTIONS_REPORT_OBSERVABILITY_EVENT";
+      context: OptionsReportObservabilityEventContext;
+    }
+  | {
+      command: "CMD_OPTIONS_REPORT_OBSERVABILITY_MODULES";
+      context: OptionsReportObservabilityModulesContext;
+    }
+  | {
       command: "CMD_GET_AUTO_LANGUAGE_STATUS";
       context: GetAutoLanguageStatusContext;
     };
@@ -370,7 +415,33 @@ export type OptionsClearPredictorDebugTraceMessage = Extract<
   Message,
   { command: "CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE" }
 >;
+export type OptionsGetObservabilitySnapshotMessage = Extract<
+  Message,
+  { command: "CMD_OPTIONS_GET_OBSERVABILITY_SNAPSHOT" }
+>;
+export type OptionsClearObservabilityEventsMessage = Extract<
+  Message,
+  { command: "CMD_OPTIONS_CLEAR_OBSERVABILITY_EVENTS" }
+>;
+export type ContentScriptReportObservabilityEventMessage = Extract<
+  Message,
+  { command: "CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_EVENT" }
+>;
+export type ContentScriptReportObservabilityModulesMessage = Extract<
+  Message,
+  { command: "CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_MODULES" }
+>;
+export type OptionsReportObservabilityEventMessage = Extract<
+  Message,
+  { command: "CMD_OPTIONS_REPORT_OBSERVABILITY_EVENT" }
+>;
+export type OptionsReportObservabilityModulesMessage = Extract<
+  Message,
+  { command: "CMD_OPTIONS_REPORT_OBSERVABILITY_MODULES" }
+>;
 export type GetAutoLanguageStatusMessage = Extract<
   Message,
   { command: "CMD_GET_AUTO_LANGUAGE_STATUS" }
 >;
+
+export type ObservabilitySnapshotResponse = ObservabilitySnapshot;

@@ -1,4 +1,4 @@
-import { createLogger } from "@core/application/logging/Logger";
+import { createLogger, setGlobalObservabilityRuntime } from "@core/application/logging/Logger";
 import { isInDocument } from "@core/application/dom-utils";
 import type {
   ContentScriptPredictRequestContext,
@@ -110,6 +110,12 @@ export class ContentRuntimeController {
   }
 
   setConfig(config: SetConfigContext): void {
+    if (config.observability) {
+      setGlobalObservabilityRuntime({
+        config: config.observability,
+        source: "content_script",
+      });
+    }
     logger.debug("Applying runtime config update", {
       enabled: config.enabled,
       lang: config.lang,
