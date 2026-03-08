@@ -19,11 +19,18 @@ import type { PredictorDebugSnapshot } from "./PredictionManager";
 
 const logger = createLogger("BackgroundServiceWorker");
 const MAX_OBSERVABILITY_EVENTS = 250;
+const CONTENT_RUNTIME_TTL_MS = 5 * 60 * 1000;
+const MAX_CONTENT_RUNTIMES = 64;
+
+interface ContentRuntimeState extends ObservabilityContentRuntimeStatus {
+  key: string;
+}
 
 interface ObservabilityServiceOptions {
   isDevBuild: boolean;
   getPredictorSnapshot: () => PredictorDebugSnapshot;
   getAutoLanguageRuntimes: () => AutoLanguageLiveRuntimeStatus[];
+  now?: () => number;
 }
 
 function cloneConfig(config: ObservabilityConfig): ObservabilityConfig {
@@ -50,16 +57,18 @@ export class ObservabilityService {
   private readonly isDevBuild: boolean;
   private readonly getPredictorSnapshot: () => PredictorDebugSnapshot;
   private readonly getAutoLanguageRuntimes: () => AutoLanguageLiveRuntimeStatus[];
+  private readonly now: () => number;
   private config: ObservabilityConfig = cloneConfig(DEFAULT_OBSERVABILITY_CONFIG);
   private events: ObservabilityEvent[] = [];
   private readonly moduleSources = new Map<string, Set<ObservabilityEvent["source"]>>();
   private readonly lastEventAt = new Map<string, number>();
-  private readonly contentRuntimes = new Map<string, ObservabilityContentRuntimeStatus>();
+  private readonly contentRuntimes = new Map<string, ContentRuntimeState>();
 
   constructor(options: ObservabilityServiceOptions) {
     this.isDevBuild = options.isDevBuild;
     this.getPredictorSnapshot = options.getPredictorSnapshot;
     this.getAutoLanguageRuntimes = options.getAutoLanguageRuntimes;
+    this.now = options.now || (() => Date.now());
     if (this.isDevBuild) {
       setGlobalObservabilityRuntime({
         config: this.config,
@@ -112,14 +121,19 @@ export class ObservabilityService {
     runtimeGeneration: number;
     domainURL?: string;
   }): void {
-    const key = `${scope.tabId}:${scope.frameId}:${scope.runtimeGeneration}`;
+    if (!Number.isFinite(scope.runtimeGeneration) || scope.runtimeGeneration <= 0) {
+      return;
+    }
+    const key = this.getContentRuntimeKey(scope.tabId, scope.frameId);
     this.contentRuntimes.set(key, {
+      key,
       tabId: scope.tabId,
       frameId: scope.frameId,
       runtimeGeneration: scope.runtimeGeneration,
       domain: normalizeDomain(scope.domainURL),
-      updatedAt: Date.now(),
+      updatedAt: this.now(),
     });
+    this.pruneContentRuntimes(this.now());
   }
 
   clearEvents(): void {
@@ -129,6 +143,7 @@ export class ObservabilityService {
   }
 
   getSnapshot(): ObservabilitySnapshot {
+    this.pruneContentRuntimes(this.now());
     if (!this.isDevBuild) {
       return {
         generatedAtMs: Date.now(),
@@ -161,9 +176,15 @@ export class ObservabilityService {
         context: event.context ? { ...event.context } : undefined,
       })),
       predictor: this.getPredictorSnapshot(),
-      contentRuntimes: [...this.contentRuntimes.values()].sort(
-        (left, right) => right.updatedAt - left.updatedAt,
-      ),
+      contentRuntimes: [...this.contentRuntimes.values()]
+        .sort((left, right) => right.updatedAt - left.updatedAt)
+        .map((runtime) => ({
+          tabId: runtime.tabId,
+          frameId: runtime.frameId,
+          runtimeGeneration: runtime.runtimeGeneration,
+          domain: runtime.domain,
+          updatedAt: runtime.updatedAt,
+        })),
       autoLanguageRuntimes: this.getAutoLanguageRuntimes().map((runtime) => ({
         tabId: runtime.tabId,
         frameId: runtime.frameId,
@@ -176,6 +197,10 @@ export class ObservabilityService {
 
   getLegacyPredictorSnapshot(): PredictorDebugSnapshot {
     return this.getPredictorSnapshot();
+  }
+
+  pruneStaleState(): void {
+    this.pruneContentRuntimes(this.now());
   }
 
   private buildSummary(): ObservabilitySnapshot["summary"] {
@@ -226,5 +251,26 @@ export class ObservabilityService {
           lastEventAt: this.lastEventAt.get(moduleId) || null,
         };
       });
+  }
+
+  private getContentRuntimeKey(tabId: number, frameId: number): string {
+    return `${tabId}:${frameId}`;
+  }
+
+  private pruneContentRuntimes(now: number): void {
+    for (const [key, runtime] of this.contentRuntimes.entries()) {
+      if (now - runtime.updatedAt > CONTENT_RUNTIME_TTL_MS) {
+        this.contentRuntimes.delete(key);
+      }
+    }
+    if (this.contentRuntimes.size <= MAX_CONTENT_RUNTIMES) {
+      return;
+    }
+    const staleFirst = [...this.contentRuntimes.values()].sort(
+      (left, right) => right.updatedAt - left.updatedAt,
+    );
+    for (const runtime of staleFirst.slice(MAX_CONTENT_RUNTIMES)) {
+      this.contentRuntimes.delete(runtime.key);
+    }
   }
 }
