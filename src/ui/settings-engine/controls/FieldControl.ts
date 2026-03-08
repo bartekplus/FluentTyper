@@ -83,22 +83,20 @@ export interface ListBoxFieldControl extends FieldControl<string[]> {
   store(): void;
 }
 
-// --- Saved indicator helper ---
+export type SettingsSaveStatusState = "saving" | "saved" | "error";
 
-function showSavedIndicator(rootEl: HTMLElement): void {
-  let indicator = rootEl.querySelector<HTMLElement>(".field-saved-indicator");
-  if (!indicator) {
-    indicator = document.createElement("span");
-    indicator.className = "field-saved-indicator";
-    indicator.textContent = "Saved ✓";
-    rootEl.appendChild(indicator);
-  }
-  indicator.classList.remove("field-saved-indicator--hidden");
-  indicator.classList.add("field-saved-indicator--visible");
-  window.setTimeout(() => {
-    indicator.classList.remove("field-saved-indicator--visible");
-    indicator.classList.add("field-saved-indicator--hidden");
-  }, 1500);
+export function dispatchSettingsSaveStatus(
+  state: SettingsSaveStatusState,
+  detail?: { message?: string },
+): void {
+  window.dispatchEvent(
+    new CustomEvent("fluenttyper:settings-save-status", {
+      detail: {
+        state,
+        message: detail?.message,
+      },
+    }),
+  );
 }
 
 // --- Abstract base control ---
@@ -153,11 +151,15 @@ export abstract class BaseControl<TValue> implements FieldControl<TValue> {
     if (this.name === undefined) {
       return;
     }
+    dispatchSettingsSaveStatus("saving");
     void this.store
       .set(this.name, value)
       .then(() => {
-        showSavedIndicator(this._rootElement);
+        dispatchSettingsSaveStatus("saved");
       })
-      .catch(console.error);
+      .catch((error) => {
+        console.error(error);
+        dispatchSettingsSaveStatus("error", { message: "Unable to save settings." });
+      });
   }
 }

@@ -1,23 +1,164 @@
-/* ============================================================
-   settings-engine.css — FluentTyper settings UI enhancements
-   ============================================================ */
+/* Layout */
 
-/* ----------------------------------------------------------
-   Focus rings (all interactive controls)
-   ---------------------------------------------------------- */
-
-.grammar-rule-card:focus-visible,
-.grammar-rule-filter-button:focus-visible,
-.grammar-rule-selector-actions .button:focus-visible,
-.grammar-rule-search-input:focus-visible,
-.grammar-rule-search-clear:focus-visible {
-  outline: 2px solid var(--color-primary, #3273dc);
-  outline-offset: 2px;
+body.fluenttyper-options {
+  min-height: 100vh;
+  margin: 0;
 }
 
-/* ----------------------------------------------------------
-   Tab switching — fade + slide-up transition
-   ---------------------------------------------------------- */
+body.fluenttyper-options .options-app {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, var(--options-bg-blob-1), transparent 32%),
+    radial-gradient(circle at bottom right, var(--options-bg-blob-2), transparent 28%),
+    var(--background-color);
+}
+
+body.fluenttyper-options .options-sidebar {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  height: 100vh;
+  padding: 1.5rem;
+  border-right: 1px solid color-mix(in srgb, var(--input-border-color) 78%, transparent);
+  background: color-mix(in srgb, var(--box-background-color) 88%, transparent);
+  backdrop-filter: blur(18px);
+}
+
+body.fluenttyper-options .options-sidebar-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+body.fluenttyper-options .options-brand-kicker {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-color);
+}
+
+body.fluenttyper-options .options-brand-title {
+  margin: 0;
+  font-size: 1.8rem;
+  line-height: 1.05;
+}
+
+body.fluenttyper-options .options-brand-copy {
+  margin: 0;
+  color: var(--text-color-light);
+  line-height: 1.5;
+}
+
+body.fluenttyper-options .options-search {
+  display: block;
+}
+
+body.fluenttyper-options .options-nav {
+  overflow-y: auto;
+}
+
+body.fluenttyper-options .options-nav ul {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+body.fluenttyper-options .options-nav li.is-search-hidden {
+  display: none;
+}
+
+body.fluenttyper-options .settings-nav-link {
+  display: grid;
+  grid-template-columns: 2.4rem minmax(0, 1fr);
+  gap: 0.8rem;
+  align-items: start;
+  padding: 0.85rem 0.9rem;
+  border: 1px solid transparent;
+  border-radius: 1rem;
+  color: inherit;
+  text-decoration: none;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    transform 140ms ease,
+    box-shadow 140ms ease;
+}
+
+body.fluenttyper-options .settings-nav-link:hover,
+body.fluenttyper-options .settings-nav-link:focus-visible,
+body.fluenttyper-options .options-nav li.is-active .settings-nav-link {
+  background: color-mix(in srgb, var(--accent-color) 14%, transparent);
+  border-color: color-mix(in srgb, var(--accent-color) 24%, transparent);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px -24px var(--box-shadow-color);
+}
+
+body.fluenttyper-options .settings-nav-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 0.8rem;
+  background: color-mix(in srgb, var(--accent-color) 14%, var(--box-background-color));
+  color: var(--accent-color);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+body.fluenttyper-options .settings-nav-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.22rem;
+  min-width: 0;
+}
+
+body.fluenttyper-options .settings-nav-title {
+  font-weight: 700;
+}
+
+body.fluenttyper-options .settings-nav-description {
+  font-size: 0.85rem;
+  line-height: 1.35;
+  color: var(--text-color-light);
+}
+
+body.fluenttyper-options .options-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+  padding: 1.5rem;
+}
+
+body.fluenttyper-options .options-mobile-toolbar {
+  display: none;
+}
+
+body.fluenttyper-options .options-content {
+  min-width: 0;
+}
+
+body.fluenttyper-options .content-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+body.fluenttyper-options .content-tab.is-search-filtered-out {
+  display: none;
+}
 
 .options-tab-content {
   animation: tab-fade-in 180ms ease-out both;
@@ -34,19 +175,423 @@
   }
 }
 
-/* ----------------------------------------------------------
-   Checkbox / toggle — smooth background transition
-   ---------------------------------------------------------- */
+body.fluenttyper-options .settings-section-header {
+  padding: 1.25rem 1.4rem;
+  border: 1px solid color-mix(in srgb, var(--input-border-color) 90%, transparent);
+  border-radius: 1.25rem;
+  background: linear-gradient(
+    135deg,
+    var(--options-header-gradient-start),
+    var(--options-header-gradient-end)
+  );
+  box-shadow: 0 18px 36px -30px var(--box-shadow-color);
+}
+
+body.fluenttyper-options .settings-section-eyebrow {
+  margin: 0 0 0.25rem;
+  color: var(--accent-color);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+body.fluenttyper-options .settings-section-title {
+  margin: 0;
+  font-size: 1.85rem;
+  line-height: 1.05;
+}
+
+body.fluenttyper-options .settings-section-description {
+  margin: 0.55rem 0 0;
+  max-width: 48rem;
+  color: var(--text-color-light);
+  line-height: 1.6;
+}
+
+body.fluenttyper-options .settings-section-body {
+  display: grid;
+  gap: 1rem;
+}
+
+body.fluenttyper-options .settings-group {
+  border: 1px solid color-mix(in srgb, var(--input-border-color) 90%, transparent);
+  border-radius: 1.2rem;
+  background: color-mix(in srgb, var(--box-background-color) 94%, transparent);
+  box-shadow: 0 16px 32px -28px var(--box-shadow-color);
+  overflow: hidden;
+}
+
+body.fluenttyper-options .settings-group.is-search-hidden,
+body.fluenttyper-options .settings-group .is-search-hidden {
+  display: none;
+}
+
+body.fluenttyper-options .settings-group-header {
+  padding: 1rem 1.2rem 0;
+}
+
+body.fluenttyper-options .settings-group-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+body.fluenttyper-options .settings-group-body {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem 1.2rem 1.25rem;
+}
+
+body.fluenttyper-options .settings-group .field {
+  margin: 0;
+}
+
+.settings-group .label,
+.settings-group .settings-stack-field > span,
+.settings-inline-card h4,
+.settings-custom-panel-label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-weight: 700;
+}
+
+.settings-group .label small {
+  display: block;
+  margin-top: 0.22rem;
+  color: var(--text-color-light);
+  line-height: 1.5;
+}
+
+.settings-inline-card,
+.settings-custom-panel {
+  display: grid;
+  gap: 0.9rem;
+  padding: 1.05rem;
+  border: 1px solid color-mix(in srgb, var(--input-border-color) 90%, transparent);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--feature-box-bg) 94%, transparent);
+}
+
+.settings-custom-panel {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.settings-custom-panel-body {
+  display: grid;
+  gap: 1rem;
+}
+
+.settings-custom-panel-description,
+.settings-inline-help,
+.settings-group .description-body,
+.text-assets-list-item span,
+.language-card-meta,
+.language-card-warning,
+.settings-nav-description {
+  color: var(--text-color-light);
+}
+
+.settings-stack-field {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.settings-stack-field .input,
+.settings-stack-field .textarea,
+.settings-inline-card .input,
+.settings-inline-card .textarea {
+  width: 100%;
+}
+
+.settings-disclosure {
+  display: grid;
+  gap: 0.8rem;
+  padding: 1rem;
+  border: 1px solid color-mix(in srgb, var(--input-border-color) 90%, transparent);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--box-background-color) 90%, transparent);
+}
+
+.settings-disclosure summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.text-assets-toolbar,
+.text-assets-actions,
+.site-profile-card-header,
+.language-behavior-grid,
+.preset-grid,
+.site-profiles-shell,
+.segmented-control,
+.variable-chip-row,
+.dictionary-chip-grid,
+.domain-table {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.segmented-control {
+  padding: 0.25rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--feature-box-bg) 94%, transparent);
+}
+
+.segmented-control-button {
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  padding: 0.7rem 1rem;
+  font: inherit;
+  cursor: pointer;
+}
+
+.segmented-control-button.is-active {
+  background: color-mix(in srgb, var(--accent-color) 14%, var(--box-background-color));
+  color: var(--accent-color);
+  box-shadow: 0 12px 24px -24px var(--box-shadow-color);
+}
+
+.settings-ghost-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.5rem;
+  padding: 0.7rem 1rem;
+  border: 1px dashed color-mix(in srgb, var(--input-border-color) 88%, transparent);
+  border-radius: 0.9rem;
+  cursor: pointer;
+}
+
+.language-panel-summary {
+  display: grid;
+  gap: 0.45rem;
+  padding: 1rem 1.05rem;
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--accent-color) 10%, var(--box-background-color));
+}
+
+.language-panel-summary h4 {
+  margin: 0;
+}
+
+.language-panel-summary p {
+  margin: 0;
+}
+
+.language-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.8rem;
+}
+
+.language-card {
+  display: grid;
+  gap: 0.35rem;
+  justify-items: start;
+  padding: 0.95rem;
+  border: 1px solid color-mix(in srgb, var(--input-border-color) 90%, transparent);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--box-background-color) 96%, transparent);
+  cursor: pointer;
+  text-align: left;
+}
+
+.language-card.is-active {
+  border-color: color-mix(in srgb, var(--accent-color) 42%, transparent);
+  background: color-mix(in srgb, var(--accent-color) 10%, var(--box-background-color));
+}
+
+.language-card-warning {
+  font-size: 0.82rem;
+  color: #c2410c;
+}
+
+.text-assets-shell {
+  display: grid;
+  grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
+  gap: 1rem;
+}
+
+.text-assets-list {
+  display: grid;
+  gap: 0.55rem;
+  align-content: start;
+}
+
+.text-assets-list-item {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.8rem;
+  border: 1px solid color-mix(in srgb, var(--input-border-color) 90%, transparent);
+  border-radius: 0.95rem;
+  background: color-mix(in srgb, var(--box-background-color) 96%, transparent);
+  cursor: pointer;
+  text-align: left;
+}
+
+.text-assets-list-item.is-active {
+  border-color: color-mix(in srgb, var(--accent-color) 42%, transparent);
+  background: color-mix(in srgb, var(--accent-color) 10%, var(--box-background-color));
+}
+
+.text-assets-editor {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.variable-chip,
+.dictionary-chip {
+  border: 1px solid color-mix(in srgb, var(--input-border-color) 90%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--feature-box-bg) 92%, transparent);
+  padding: 0.5rem 0.8rem;
+  font: inherit;
+  cursor: pointer;
+}
+
+.snippet-preview {
+  min-height: 4.2rem;
+  padding: 0.9rem;
+  border: 1px dashed color-mix(in srgb, var(--input-border-color) 90%, transparent);
+  border-radius: 0.9rem;
+  background: color-mix(in srgb, var(--box-background-color) 90%, transparent);
+  white-space: pre-wrap;
+}
+
+.dictionary-chip-grid {
+  align-items: flex-start;
+}
+
+.dictionary-chip::after {
+  content: " ×";
+}
+
+.domain-table {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.domain-table-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.85rem;
+  border: 1px solid color-mix(in srgb, var(--input-border-color) 90%, transparent);
+  border-radius: 0.95rem;
+  background: color-mix(in srgb, var(--box-background-color) 95%, transparent);
+}
+
+.domain-table-name {
+  font-weight: 700;
+}
+
+.domain-table-hint {
+  color: var(--text-color-light);
+  font-size: 0.88rem;
+}
+
+.site-profiles-shell {
+  display: grid;
+  grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.site-profiles-editor,
+.site-profiles-list {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.appearance-preview {
+  display: grid;
+  gap: 0.2rem;
+  max-width: 340px;
+  border: 1px solid;
+  border-radius: 1rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.appearance-preview-item {
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.7rem;
+}
+
+.preset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.preset-card {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--input-border-color) 90%, transparent);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--box-background-color) 96%, transparent);
+  cursor: pointer;
+  text-align: left;
+}
+
+.settings-save-toast {
+  position: fixed;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  z-index: 50;
+  padding: 0.8rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--accent-color) 26%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--box-background-color) 96%, transparent);
+  box-shadow: 0 22px 40px -32px var(--box-shadow-color);
+}
+
+.settings-save-toast.is-error {
+  border-color: rgba(220, 38, 38, 0.35);
+}
+
+.is-hidden {
+  display: none !important;
+}
+
+.is-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Existing enhanced controls */
+
+.grammar-rule-card:focus-visible,
+.grammar-rule-filter-button:focus-visible,
+.grammar-rule-selector-actions .button:focus-visible,
+.grammar-rule-search-input:focus-visible,
+.grammar-rule-search-clear:focus-visible,
+.settings-nav-link:focus-visible,
+.language-card:focus-visible,
+.text-assets-list-item:focus-visible,
+.preset-card:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+}
 
 .switch input[type="checkbox"] + .check {
   transition:
     background-color 200ms ease,
     border-color 200ms ease;
 }
-
-/* ----------------------------------------------------------
-   Slider — floating tooltip above thumb
-   ---------------------------------------------------------- */
 
 .slider-wrapper {
   position: relative;
@@ -72,10 +617,6 @@
   opacity: 1;
 }
 
-/* ----------------------------------------------------------
-   Color input — hex label next to swatch
-   ---------------------------------------------------------- */
-
 .color-input-wrapper {
   display: flex;
   align-items: center;
@@ -85,49 +626,13 @@
 .color-hex-label {
   font-size: 0.8rem;
   font-family: monospace;
-  color: var(--color-text-muted, #666);
+  color: var(--text-color-light);
 }
-
-/* ----------------------------------------------------------
-   Inline "Saved ✓" indicator per field
-   ---------------------------------------------------------- */
-
-.field-saved-indicator {
-  display: inline-block;
-  font-size: 0.75rem;
-  color: #23d160;
-  margin-left: 0.5rem;
-  opacity: 0;
-  transition: opacity 300ms ease;
-}
-
-.field-saved-indicator.is-visible {
-  opacity: 1;
-}
-
-/* ----------------------------------------------------------
-   Inline validation error
-   ---------------------------------------------------------- */
 
 .field-error-message {
   font-size: 0.75rem;
   color: #ff3860;
   margin-top: 0.25rem;
-}
-
-.text-expander-help {
-  font-size: 0.9em;
-  opacity: 0.9;
-}
-
-.text-expander-help-title {
-  margin-bottom: 0.5rem;
-}
-
-.text-expander-help-list {
-  list-style-type: disc;
-  margin-left: 1.5rem;
-  margin-bottom: 0;
 }
 
 .support-donate-note {
@@ -153,25 +658,20 @@
   color: #201c0d;
 }
 
-/* ----------------------------------------------------------
-   Grammar rule selector — layout
-   ---------------------------------------------------------- */
-
-.grammar-rule-selector-field {
-  margin-bottom: 1rem;
+.grammar-rule-selector-field,
+.grammar-rule-selector,
+.grammar-rule-sections {
+  display: grid;
+  gap: 0.8rem;
 }
 
-.grammar-rule-selector {
+.grammar-rule-selector-search-row,
+.grammar-rule-selector-toolbar,
+.grammar-rule-card-title-row {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.grammar-rule-selector-search-row {
-  display: flex;
-  align-items: center;
   gap: 0.5rem;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 .grammar-rule-selector-search {
@@ -189,210 +689,84 @@
   right: 0.4rem;
   top: 50%;
   transform: translateY(-50%);
-  background: none;
-  border: none;
+  border: 0;
+  background: transparent;
   cursor: pointer;
   font-size: 1rem;
-  color: var(--color-text-muted, #888);
-  line-height: 1;
-  padding: 0 0.2rem;
-}
-
-.grammar-rule-search-clear:hover {
-  color: var(--color-text, #333);
-}
-
-.grammar-rule-selector-filters {
-  flex-shrink: 0;
 }
 
 .grammar-rule-filter-button.is-selected {
-  background-color: var(--color-primary, #3273dc);
-  border-color: var(--color-primary, #3273dc);
+  background-color: var(--accent-color);
+  border-color: var(--accent-color);
   color: #fff;
 }
 
-/* ----------------------------------------------------------
-   Grammar rule selector — toolbar
-   ---------------------------------------------------------- */
-
-.grammar-rule-selector-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.grammar-rule-selector-summary {
-  font-size: 0.8rem;
-  color: var(--color-text-muted, #666);
-}
-
-.grammar-rule-selector-summary.is-empty {
-  font-style: italic;
-}
-
-/* ----------------------------------------------------------
-   Grammar rule selector — no-results
-   ---------------------------------------------------------- */
-
-.grammar-rule-selector-no-results {
-  padding: 0.75rem 0;
-  color: var(--color-text-muted, #888);
-  font-style: italic;
-  font-size: 0.875rem;
-}
-
-/* ----------------------------------------------------------
-   Grammar rule sections
-   ---------------------------------------------------------- */
-
-.grammar-rule-sections {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.grammar-rule-section-title {
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-text-muted, #888);
-  margin-bottom: 0.5rem;
+.grammar-rule-selector-summary,
+.grammar-rule-selector-no-results,
+.grammar-rule-section-title,
+.grammar-rule-card-description,
+.grammar-rule-card-example {
+  color: var(--text-color-light);
 }
 
 .grammar-rule-selector-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
+  display: grid;
+  gap: 0.45rem;
 }
-
-/* ----------------------------------------------------------
-   Grammar rule cards
-   ---------------------------------------------------------- */
 
 .grammar-rule-card {
   display: flex;
   align-items: flex-start;
   gap: 0.6rem;
-  padding: 0.65rem 0.75rem;
-  border: 1px solid var(--color-border, #dbdbdb);
-  border-radius: 6px;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid color-mix(in srgb, var(--input-border-color) 92%, transparent);
+  border-radius: 0.9rem;
+  background: color-mix(in srgb, var(--box-background-color) 96%, transparent);
   cursor: pointer;
-  transition:
-    border-color 140ms ease,
-    background-color 140ms ease,
-    box-shadow 140ms ease;
-  background: var(--color-card-bg, #fff);
 }
 
-.grammar-rule-card:hover {
-  border-color: var(--color-primary, #3273dc);
-  background: var(--color-card-hover, #f5f9ff);
-}
-
+.grammar-rule-card:hover,
 .grammar-rule-card.is-active {
-  border-color: var(--color-primary, #3273dc);
-  background: var(--color-card-active, #eef4ff);
-  box-shadow: 0 0 0 1px var(--color-primary, #3273dc);
-}
-
-.grammar-rule-card-toggle {
-  margin-top: 0.15rem;
-  flex-shrink: 0;
-  accent-color: var(--color-primary, #3273dc);
+  border-color: color-mix(in srgb, var(--accent-color) 42%, transparent);
+  background: color-mix(in srgb, var(--accent-color) 10%, var(--box-background-color));
 }
 
 .grammar-rule-card-body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  min-width: 0;
-}
-
-.grammar-rule-card-title-row {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  flex-wrap: wrap;
-}
-
-.grammar-rule-card-title {
-  font-weight: 500;
-  font-size: 0.875rem;
+  display: grid;
+  gap: 0.2rem;
 }
 
 .grammar-rule-card-badge {
-  font-size: 0.65rem;
-  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.12rem 0.42rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent-color) 12%, var(--box-background-color));
+  color: var(--accent-color);
+  font-size: 0.7rem;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  padding: 1px 5px;
-  border-radius: 3px;
-  background: var(--color-badge-bg, #e8f3ff);
-  color: var(--color-primary, #3273dc);
 }
-
-.grammar-rule-card-description {
-  font-size: 0.8rem;
-  color: var(--color-text-muted, #666);
-  margin: 0;
-}
-
-.grammar-rule-card-example {
-  font-size: 0.78rem;
-  font-family: monospace;
-  color: var(--color-text-muted, #888);
-  margin: 0;
-}
-
-/* ----------------------------------------------------------
-   Modal overlay — focus trap + backdrop
-   ---------------------------------------------------------- */
 
 .settings-modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
   z-index: 100;
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: modal-backdrop-in 150ms ease both;
-}
-
-@keyframes modal-backdrop-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  background: rgba(0, 0, 0, 0.45);
 }
 
 .settings-modal {
-  background: var(--color-card-bg, #fff);
-  border-radius: 8px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.22);
-  max-width: 560px;
-  width: calc(100% - 2rem);
+  width: min(560px, calc(100% - 2rem));
   max-height: 80vh;
   overflow-y: auto;
   padding: 1.5rem;
-  animation: modal-slide-in 160ms cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
-}
-
-@keyframes modal-slide-in {
-  from {
-    opacity: 0;
-    transform: translateY(-12px) scale(0.97);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+  border-radius: 1rem;
+  background: var(--box-background-color);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.22);
 }
 
 .settings-modal-header {
@@ -402,21 +776,32 @@
   margin-bottom: 1rem;
 }
 
-.settings-modal-title {
-  font-size: 1rem;
-  font-weight: 600;
-}
-
 .settings-modal-close {
-  background: none;
-  border: none;
+  border: 0;
+  background: transparent;
   cursor: pointer;
   font-size: 1.25rem;
-  color: var(--color-text-muted, #888);
-  line-height: 1;
-  padding: 0.2rem;
 }
 
-.settings-modal-close:hover {
-  color: var(--color-text, #333);
+@media (max-width: 960px) {
+  .options-app {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .options-sidebar {
+    display: none;
+  }
+
+  .options-main {
+    padding: 1rem;
+  }
+
+  .options-mobile-toolbar {
+    display: block;
+  }
+
+  .text-assets-shell,
+  .site-profiles-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

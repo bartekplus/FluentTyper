@@ -22,13 +22,44 @@
   </head>
 
   <body class="fluenttyper-options">
-    <div class="container is-two-thirds options-layout">
-      <div class="options-shell">
-        <div class="tabs options-tabs">
+    <div class="options-app">
+      <aside class="options-sidebar">
+        <div class="options-sidebar-header">
+          <p class="options-brand-kicker">FluentTyper</p>
+          <h1 class="options-brand-title">Settings Workspace</h1>
+          <p class="options-brand-copy">
+            Configure typing, languages, snippets, site rules, and appearance from one place.
+          </p>
+        </div>
+
+        <label class="options-search">
+          <span class="is-sr-only">Search settings</span>
+          <input
+            id="options-search-input"
+            class="input"
+            type="search"
+            placeholder="Search settings"
+          />
+        </label>
+
+        <nav class="options-nav" aria-label="Settings sections">
           <ul id="tab-container"></ul>
+        </nav>
+      </aside>
+
+      <main class="options-main">
+        <div class="options-mobile-toolbar">
+          <label class="settings-stack-field">
+            <span>Section</span>
+            <select id="mobile-section-select" class="input"></select>
+          </label>
         </div>
         <div id="content" class="options-content"></div>
-      </div>
+      </main>
+    </div>
+
+    <div id="settings-save-toast" class="settings-save-toast is-hidden" aria-live="polite">
+      <span id="settings-save-toast-text">Changes saved</span>
     </div>
   </body>
 </html>

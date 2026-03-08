@@ -1,12 +1,11 @@
 import { SettingsEngine } from "@ui/settings-engine/SettingsEngine.js";
 import { Store } from "@core/application/storage/Store.js";
-import type {
-  SelectFieldControl,
-  ListBoxFieldControl,
-} from "@ui/settings-engine/controls/FieldControl.js";
+import { dispatchSettingsSaveStatus } from "@ui/settings-engine/controls/FieldControl.js";
 import { SUPPORTED_LANGUAGES, resolveEnabledLanguages } from "@core/domain/lang";
-import { TextExpander } from "@ui/options/textExpander";
-import { SiteProfilesManager } from "@ui/options/siteProfiles";
+import { LanguageSettingsPanel } from "@ui/options/LanguageSettingsPanel";
+import { TextAssetsPanel } from "@ui/options/TextAssetsPanel";
+import { SiteManagementPanel } from "@ui/options/SiteManagementPanel";
+import { AppearanceStudio } from "@ui/options/AppearanceStudio";
 import { resolveSiteProfiles } from "@core/domain/siteProfiles";
 import {
   KEY_AUTOCOMPLETE,
@@ -34,8 +33,6 @@ import {
   KEY_SITE_PROFILES,
   KEY_ENABLED_GRAMMAR_RULES,
   // theme settings
-  KEY_USE_DEFAULT_THEME_BTN,
-  KEY_USE_COMPACT_THEME_BTN,
   KEY_SUGGESTION_BG_LIGHT,
   KEY_SUGGESTION_TEXT_LIGHT,
   KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT,
@@ -75,28 +72,6 @@ function optionsPageConfigChange() {
     context: {},
   };
   chrome.runtime.sendMessage(message);
-}
-
-function fallbackLanguageVisibility(
-  registry: ReturnType<SettingsEngine["buildFromManifest"]>,
-  value: unknown,
-) {
-  if (value === "auto_detect") {
-    registry.fallbackLanguage.rootElement.classList.remove("is-hidden");
-  } else {
-    registry.fallbackLanguage.rootElement.classList.add("is-hidden");
-  }
-}
-
-function buildLanguageOptions(enabledLanguages: string[], allowAutoDetect: boolean) {
-  const options: [string, string][] = enabledLanguages.map((lang) => [
-    lang,
-    SUPPORTED_LANGUAGES[lang as keyof typeof SUPPORTED_LANGUAGES] ?? lang,
-  ]);
-  if (allowAutoDetect) {
-    options.unshift(["auto_detect", SUPPORTED_LANGUAGES.auto_detect]);
-  }
-  return options;
 }
 
 function arraysEqual(a: unknown, b: unknown): boolean {
@@ -147,31 +122,28 @@ async function validateLanguageSettings(
   const resolvedFallbackLanguage = enabledLanguages.includes(fallbackLanguage)
     ? fallbackLanguage
     : enabledLanguages[0];
-
-  const primaryOptions = buildLanguageOptions(enabledLanguages, allowAutoDetect);
-  const fallbackOptions = buildLanguageOptions(enabledLanguages, false);
-  (registry.language as SelectFieldControl).setOptions(primaryOptions, resolvedLanguage);
-  (registry.fallbackLanguage as SelectFieldControl).setOptions(
-    fallbackOptions,
-    resolvedFallbackLanguage,
-  );
-
+  let didSanitize = false;
   if (!arraysEqual(enabledLanguagesRaw, enabledLanguages)) {
-    registry[KEY_ENABLED_LANGUAGES].set(enabledLanguages);
+    await store.set(KEY_ENABLED_LANGUAGES, enabledLanguages);
+    registry[KEY_ENABLED_LANGUAGES].set(enabledLanguages, true);
+    didSanitize = true;
   }
-
   if (resolvedLanguage !== language) {
-    registry.language.set(resolvedLanguage);
+    await store.set(KEY_LANGUAGE, resolvedLanguage);
+    registry[KEY_LANGUAGE].set(resolvedLanguage, true);
+    didSanitize = true;
   }
   if (resolvedFallbackLanguage !== fallbackLanguage) {
-    registry.fallbackLanguage.set(resolvedFallbackLanguage);
+    await store.set(KEY_FALLBACK_LANGUAGE, resolvedFallbackLanguage);
+    registry[KEY_FALLBACK_LANGUAGE].set(resolvedFallbackLanguage, true);
+    didSanitize = true;
   }
 
   const siteProfilesChanged = await sanitizeSiteProfilesForEnabledLanguages(
     store,
     enabledLanguages,
   );
-  if (siteProfilesChanged) {
+  if (siteProfilesChanged || didSanitize) {
     optionsPageConfigChange();
   }
 }
@@ -185,8 +157,8 @@ function importSettingButtonFileSelected(
     try {
       const jsonSettings = JSON.parse(fr.result as string) as Record<string, unknown>;
       delete jsonSettings["store.settings.revertOnBackspace"];
-      console.log(jsonSettings);
       chrome.storage.local.set(jsonSettings as Record<string, unknown>);
+      dispatchSettingsSaveStatus("saved", { message: "Settings imported." });
       optionsPageConfigChange();
       location.reload();
     } catch (error) {
@@ -200,46 +172,6 @@ function importSettingButtonFileSelected(
     }
   });
 
-  fr.readAsText((importInputElem.files as FileList)[0]);
-  importInputElem.value = "";
-}
-
-function importUserDictFileSelected(registry: ReturnType<SettingsEngine["buildFromManifest"]>) {
-  const importInputElem = registry.importUserDictButton.element as HTMLInputElement;
-  const fr = new FileReader();
-  fr.addEventListener("load", () => {
-    try {
-      const fileContent = fr.result as string;
-      const lines = fileContent.split("\n");
-      const wordRegex = /^\w+$/;
-      let count = 0;
-
-      lines.forEach((line) => {
-        const word = line.trim();
-        if (word && wordRegex.test(word)) {
-          (registry[KEY_USER_DICTIONARY_LIST] as ListBoxFieldControl).add(word, false);
-          count += 1;
-        }
-      });
-      (registry[KEY_USER_DICTIONARY_LIST] as ListBoxFieldControl).store();
-
-      const block = document.createElement("div");
-      block.className = "block";
-      const notification = document.createElement("div");
-      notification.className = "notification is-success";
-      notification.textContent = `Imported:  ${count} words`;
-      block.appendChild(notification);
-      registry.importUserDictButton.rootElement.appendChild(block);
-    } catch (error) {
-      const block = document.createElement("div");
-      block.className = "block";
-      const notification = document.createElement("div");
-      notification.className = "notification is-danger";
-      notification.textContent = `Failed to import user dictionary file:  ${String(error)}`;
-      block.appendChild(notification);
-      registry.importUserDictButton.rootElement.appendChild(block);
-    }
-  });
   fr.readAsText((importInputElem.files as FileList)[0]);
   importInputElem.value = "";
 }
@@ -277,18 +209,32 @@ const themePresets = {
   },
 };
 
-function applyThemePreset(
-  registry: ReturnType<SettingsEngine["buildFromManifest"]>,
-  presetName: string,
-) {
-  const presetToApply = presetName === "compact" ? themePresets.compact : themePresets.default;
-
-  console.log(`FluentTyper: Applying ${presetName} theme preset`);
-
-  Object.keys(presetToApply).forEach((key) => {
-    if (registry[key]) {
-      registry[key].set(presetToApply[key as keyof typeof presetToApply]);
+function setupSaveToast() {
+  const toast = document.getElementById("settings-save-toast");
+  const text = document.getElementById("settings-save-toast-text");
+  if (!toast || !text) {
+    return;
+  }
+  let timerId = 0;
+  window.addEventListener("fluenttyper:settings-save-status", (event) => {
+    const detail = (event as CustomEvent<{ state?: string; message?: string }>).detail;
+    if (!detail?.state) {
+      return;
     }
+    window.clearTimeout(timerId);
+    toast.classList.remove("is-hidden", "is-error");
+    if (detail.state === "saving") {
+      text.textContent = "Saving changes...";
+      return;
+    }
+    if (detail.state === "error") {
+      toast.classList.add("is-error");
+      text.textContent = detail.message || "Unable to save settings.";
+      timerId = window.setTimeout(() => toast.classList.add("is-hidden"), 2200);
+      return;
+    }
+    text.textContent = "Changes saved";
+    timerId = window.setTimeout(() => toast.classList.add("is-hidden"), 1400);
   });
 }
 
@@ -1480,6 +1426,7 @@ function setupPredictorDebugDashboard(registry: ReturnType<SettingsEngine["build
 }
 
 window.addEventListener("DOMContentLoaded", function () {
+  setupSaveToast();
   const defaults: Record<string, unknown> = {};
   for (const setting of manifest.settings) {
     if (setting.name !== undefined && "default" in setting) {
@@ -1491,6 +1438,8 @@ window.addEventListener("DOMContentLoaded", function () {
     container: {
       tabs: document.getElementById("tab-container") as HTMLElement,
       content: document.getElementById("content") as HTMLElement,
+      mobileTabs: document.getElementById("mobile-section-select") as HTMLSelectElement | null,
+      searchInput: document.getElementById("options-search-input") as HTMLInputElement | null,
     },
     store,
     name: manifest.name,
@@ -1499,25 +1448,31 @@ window.addEventListener("DOMContentLoaded", function () {
   const registry = engine.buildFromManifest(manifest);
 
   void (async () => {
-    new TextExpander(registry, optionsPageConfigChange);
-    registry.removeDomainBtn.addEvent("action", function () {
-      (registry.domainBlackList as ListBoxFieldControl).remove();
-    });
+    new LanguageSettingsPanel(
+      registry.languagePreferencesPanel.element as HTMLElement,
+      registry,
+      store,
+    );
+    new TextAssetsPanel(registry.writingAssetsPanel.element as HTMLElement, registry, store);
+    new SiteManagementPanel(
+      registry.siteManagementPanel.element as HTMLElement,
+      registry,
+      store,
+      optionsPageConfigChange,
+    );
+    new AppearanceStudio(
+      registry.appearanceStudioPanel.element as HTMLElement,
+      registry,
+      themePresets,
+    );
 
-    fallbackLanguageVisibility(registry, await store.get(KEY_LANGUAGE));
-    let siteProfilesManager: SiteProfilesManager | null = null;
-
-    registry.language.addEvent("action", async function (value) {
-      fallbackLanguageVisibility(registry, value);
+    registry[KEY_LANGUAGE].addEvent("action", async function () {
       await validateLanguageSettings(registry, store);
     });
-
     registry[KEY_ENABLED_LANGUAGES].addEvent("action", async function () {
       await validateLanguageSettings(registry, store);
-      siteProfilesManager?.render();
     });
     await validateLanguageSettings(registry, store);
-    siteProfilesManager = new SiteProfilesManager(registry, optionsPageConfigChange);
     setupProductivityInsights();
     setupPredictorDebugDashboard(registry);
     registry.resetProductivityStatsButton.addEvent("action", async function () {
@@ -1529,35 +1484,6 @@ window.addEventListener("DOMContentLoaded", function () {
       if (root) {
         await loadProductivityInsights(root);
       }
-    });
-
-    registry.addDomainBtn.addEvent("action", function () {
-      const domainInput = registry.domain.element as HTMLInputElement;
-      if (domainInput.checkValidity()) {
-        const domainURL = registry.domain.get() as string;
-        const hostName = new URL(domainURL).hostname;
-        if (hostName) {
-          (registry.domainBlackList as ListBoxFieldControl).add(hostName);
-          domainInput.value = "";
-        }
-      }
-    });
-
-    // User dictionary add action
-    registry.addUserWordBtn.addEvent("action", function () {
-      const wordInput = registry.userDictionary.element as HTMLInputElement;
-      if (wordInput.checkValidity()) {
-        const word = registry.userDictionary.get() as string;
-        (registry[KEY_USER_DICTIONARY_LIST] as ListBoxFieldControl).add(word);
-        wordInput.value = "";
-      }
-    });
-    // User dictionary remove action
-    registry.removeUserWordBtn.addEvent("action", function () {
-      (registry[KEY_USER_DICTIONARY_LIST] as ListBoxFieldControl).remove();
-    });
-    registry.removeAllUserWordsBtn.addEvent("action", function () {
-      (registry[KEY_USER_DICTIONARY_LIST] as ListBoxFieldControl).removeAll();
     });
 
     registry.exportSettingButton.addEvent("action", function () {
@@ -1579,34 +1505,20 @@ window.addEventListener("DOMContentLoaded", function () {
         dlink.remove();
       });
     });
+    registry.exportSettingButton.addEvent("action", function () {
+      dispatchSettingsSaveStatus("saved", { message: "Settings exported." });
+    });
 
     const importInputElem = registry.importSettingButton.element as HTMLInputElement;
     importInputElem.type = "file";
     importInputElem.accept = ".json";
     importInputElem.addEventListener("input", importSettingButtonFileSelected.bind(null, registry));
 
-    const importUserDictElem = registry.importUserDictButton.element as HTMLInputElement;
-    importUserDictElem.type = "file";
-    importUserDictElem.accept = ".txt";
-    importUserDictElem.addEventListener("input", importUserDictFileSelected.bind(null, registry));
-
-    // Theme preset buttons
-    registry[KEY_USE_DEFAULT_THEME_BTN].addEvent("action", function () {
-      applyThemePreset(registry, "default");
-    });
-    registry[KEY_USE_COMPACT_THEME_BTN].addEvent("action", function () {
-      applyThemePreset(registry, "compact");
-    });
-
     registry[KEY_INLINE_SUGGESTION].addEvent("action", function () {
       if (registry[KEY_INLINE_SUGGESTION].get()) {
         registry[KEY_AUTOCOMPLETE_ON_TAB].set(true);
         registry[KEY_NUM_SUGGESTIONS].set(10);
       }
-      siteProfilesManager?.render();
-    });
-    registry[KEY_NUM_SUGGESTIONS].addEvent("action", function () {
-      siteProfilesManager?.render();
     });
 
     registry[KEY_EXTENSION_LANGUAGE].addEvent("action", function () {
@@ -1665,25 +1577,20 @@ window.addEventListener("DOMContentLoaded", function () {
         return;
       }
       setting.addEvent("action", function () {
-        void store
-          .set(element, setting.get())
-          .catch(() => undefined)
-          .finally(() => {
-            optionsPageConfigChange();
-            if (
-              element === KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED ||
-              element === KEY_DEBUG_AI_PREDICTOR_ENABLED ||
-              element === KEY_AI_PREDICTOR_ENABLED ||
-              element === KEY_AI_MODEL_ID ||
-              element === KEY_AI_PREDICTION_TIMEOUT_MS
-            ) {
-              const root = document.getElementById("predictorDebugRoot");
-              if (root) {
-                predictorDebugLastSignature = "";
-                void loadPredictorDebugSnapshot(root);
-              }
-            }
-          });
+        optionsPageConfigChange();
+        if (
+          element === KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED ||
+          element === KEY_DEBUG_AI_PREDICTOR_ENABLED ||
+          element === KEY_AI_PREDICTOR_ENABLED ||
+          element === KEY_AI_MODEL_ID ||
+          element === KEY_AI_PREDICTION_TIMEOUT_MS
+        ) {
+          const root = document.getElementById("predictorDebugRoot");
+          if (root) {
+            predictorDebugLastSignature = "";
+            void loadPredictorDebugSnapshot(root);
+          }
+        }
       });
     });
   })();

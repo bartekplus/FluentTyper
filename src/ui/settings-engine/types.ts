@@ -131,6 +131,16 @@ export type DescriptionConfig = {
   text?: string;
 };
 
+export type CustomPanelConfig = {
+  type: "customPanel";
+  tab: string;
+  group: string;
+  name?: string;
+  label?: string;
+  description?: string;
+  keywords?: string[];
+};
+
 export type RuleToggleCardsConfig = {
   type: "ruleToggleCards";
   tab: string;
@@ -174,12 +184,17 @@ export type FieldConfig =
   | ButtonConfig
   | ModalButtonConfig
   | DescriptionConfig
+  | CustomPanelConfig
   | RuleToggleCardsConfig
   | ValueOnlyConfig;
 
 export interface TabConfig {
   id: string;
   label: string;
+  title?: string;
+  shortDescription?: string;
+  icon?: string;
+  keywords?: string[];
 }
 
 export interface ManifestDefinition {
