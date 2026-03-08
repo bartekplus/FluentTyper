@@ -6,6 +6,8 @@ import { LanguageSettingsPanel } from "@ui/options/LanguageSettingsPanel";
 import { TextAssetsPanel } from "@ui/options/TextAssetsPanel";
 import { SiteManagementPanel } from "@ui/options/SiteManagementPanel";
 import { AppearanceStudio } from "@ui/options/AppearanceStudio";
+import { DataDiagnosticsPanel } from "@ui/options/DataDiagnosticsPanel";
+import { AboutWorkspacePanel } from "@ui/options/AboutWorkspacePanel";
 import { resolveSiteProfiles } from "@core/domain/siteProfiles";
 import {
   KEY_AUTOCOMPLETE,
@@ -63,6 +65,7 @@ const PRODUCTIVITY_INSIGHTS_RETRY_DELAY_MS = 200;
 const PREDICTOR_DEBUG_MAX_RETRIES = 4;
 const PREDICTOR_DEBUG_RETRY_DELAY_MS = 250;
 const PREDICTOR_DEBUG_POLL_INTERVAL_MS = 1500;
+const IS_DEV_BUILD = typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
 let predictorDebugLastSignature = "";
 let predictorDebugBindingsInitialized = false;
 
@@ -1489,6 +1492,8 @@ window.addEventListener("DOMContentLoaded", function () {
       registry,
       themePresets,
     );
+    new DataDiagnosticsPanel(registry.dataDiagnosticsPanel.element as HTMLElement, IS_DEV_BUILD);
+    new AboutWorkspacePanel(registry.aboutWorkspacePanel.element as HTMLElement);
 
     registry[KEY_LANGUAGE].addEvent("action", async function () {
       await validateLanguageSettings(registry, store);

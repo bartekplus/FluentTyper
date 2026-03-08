@@ -325,6 +325,7 @@ body.fluenttyper-options .settings-group .field {
 .site-profile-card-header,
 .language-behavior-grid,
 .preset-grid,
+.workspace-overview-grid,
 .site-profiles-shell,
 .segmented-control,
 .variable-chip-row,
@@ -366,6 +367,25 @@ body.fluenttyper-options .settings-group .field {
   border: 1px dashed color-mix(in srgb, var(--input-border-color) 88%, transparent);
   border-radius: 0.9rem;
   cursor: pointer;
+}
+
+.workspace-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.workspace-overview-card {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1.05rem;
+  border: 1px solid color-mix(in srgb, var(--input-border-color) 90%, transparent);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--feature-box-bg) 94%, transparent);
+}
+
+.workspace-overview-card h4,
+.workspace-overview-card p {
+  margin: 0;
 }
 
 .language-panel-summary {
@@ -508,6 +528,10 @@ body.fluenttyper-options .settings-group .field {
 .site-profiles-list {
   display: grid;
   gap: 0.9rem;
+}
+
+.site-profiles-list .is-selected-row {
+  background: color-mix(in srgb, var(--accent-color) 8%, var(--box-background-color));
 }
 
 .appearance-preview {

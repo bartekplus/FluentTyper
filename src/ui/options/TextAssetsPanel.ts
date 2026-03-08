@@ -9,7 +9,7 @@ import {
   KEY_USER_DICTIONARY_LIST,
 } from "@core/domain/constants";
 import { resolveDynamicVariable } from "@core/domain/variables";
-import { i18n } from "./fluenttyperI18n.js";
+import { formatTranslation, i18n } from "./fluenttyperI18n.js";
 
 type TextExpansionEntry = [string, string];
 
@@ -34,6 +34,13 @@ export class TextAssetsPanel {
   private editingIndex = -1;
   private expansions: TextExpansionEntry[] = [];
   private dictionary: string[] = [];
+  private snippetStatusText = "";
+  private snippetStatusIsError = false;
+  private dictionaryStatusText = "";
+  private dictionaryStatusIsError = false;
+  private clearDictionaryArmed = false;
+  private snippetDeleteArmed = false;
+  private bulkDictionaryValue = "";
 
   constructor(root: HTMLElement, registry: SettingsRegistry, store: Store) {
     this.root = root;
@@ -99,8 +106,9 @@ export class TextAssetsPanel {
     actions.className = "text-assets-actions";
 
     const addButton = this.createButton(i18n.get("text_assets_new_snippet"), () => {
-      this.expansions = [["", ""], ...this.expansions];
-      this.editingIndex = 0;
+      this.editingIndex = -1;
+      this.snippetDeleteArmed = false;
+      this.setSnippetStatus("");
       this.render();
     });
     actions.appendChild(addButton);
@@ -158,23 +166,22 @@ export class TextAssetsPanel {
 
     const list = document.createElement("div");
     list.className = "text-assets-list";
-    const filtered = this.expansions.filter(([shortcut, text]) =>
-      [shortcut, text].join(" ").toLowerCase().includes(this.searchQuery),
-    );
+    const filtered = this.expansions
+      .map((entry, index) => ({ entry, index }))
+      .filter(({ entry: [shortcut, text] }) =>
+        [shortcut, text].join(" ").toLowerCase().includes(this.searchQuery),
+      );
     if (filtered.length === 0) {
       const empty = document.createElement("p");
       empty.className = "settings-inline-help";
       empty.textContent = i18n.get("text_assets_no_snippets");
       list.appendChild(empty);
     } else {
-      filtered.forEach(([shortcut, text]) => {
-        const actualIndex = this.expansions.findIndex(
-          (entry) => entry[0] === shortcut && entry[1] === text,
-        );
+      filtered.forEach(({ entry: [shortcut, text], index }) => {
         const item = document.createElement("button");
         item.type = "button";
         item.className = "text-assets-list-item";
-        if (actualIndex === this.editingIndex) {
+        if (index === this.editingIndex) {
           item.classList.add("is-active");
         }
         const title = document.createElement("strong");
@@ -184,7 +191,9 @@ export class TextAssetsPanel {
         excerpt.textContent = text.slice(0, 80) || i18n.get("text_assets_add_expansion_text");
         item.appendChild(excerpt);
         item.addEventListener("click", () => {
-          this.editingIndex = actualIndex;
+          this.editingIndex = index;
+          this.snippetDeleteArmed = false;
+          this.setSnippetStatus("");
           this.render();
         });
         list.appendChild(item);
@@ -210,12 +219,22 @@ export class TextAssetsPanel {
     shortcut.className = "input";
     shortcut.placeholder = i18n.get("text_expander_shortcut_placeholder");
     shortcut.value = currentEntry[0];
+    shortcut.addEventListener("input", () => {
+      shortcut.setCustomValidity("");
+      this.snippetDeleteArmed = false;
+      if (this.snippetStatusIsError) {
+        this.setSnippetStatus("");
+      }
+    });
 
     const body = document.createElement("textarea");
     body.className = "textarea";
     body.rows = 8;
     body.placeholder = i18n.get("text_expander_shortcut_text_placeholder");
     body.value = currentEntry[1];
+    body.addEventListener("input", () => {
+      this.snippetDeleteArmed = false;
+    });
 
     const variables = document.createElement("div");
     variables.className = "variable-chip-row";
@@ -238,6 +257,15 @@ export class TextAssetsPanel {
       this.updateSnippetPreview(preview, body.value);
     });
 
+    const status = document.createElement("p");
+    status.className = "settings-inline-help";
+    const updateSnippetStatus = (text: string, isError = false) => {
+      this.setSnippetStatus(text, isError);
+      status.textContent = text || i18n.get("text_assets_snippet_helper_text");
+      status.classList.toggle("has-text-danger", isError);
+    };
+    updateSnippetStatus(this.snippetStatusText, this.snippetStatusIsError);
+
     const actions = document.createElement("div");
     actions.className = "text-assets-actions";
     actions.appendChild(
@@ -246,24 +274,60 @@ export class TextAssetsPanel {
         if (!nextEntry[0]) {
           return;
         }
+        const duplicateIndex = this.expansions.findIndex(
+          ([existingShortcut], index) =>
+            existingShortcut === nextEntry[0] && index !== this.editingIndex,
+        );
+        if (duplicateIndex !== -1) {
+          shortcut.setCustomValidity(i18n.get("text_assets_duplicate_shortcut"));
+          shortcut.reportValidity();
+          updateSnippetStatus(i18n.get("text_assets_duplicate_shortcut"), true);
+          return;
+        }
         if (this.editingIndex === -1) {
           this.expansions = [nextEntry, ...this.expansions];
           this.editingIndex = 0;
         } else {
           this.expansions[this.editingIndex] = nextEntry;
         }
+        this.snippetDeleteArmed = false;
+        updateSnippetStatus(i18n.get("settings_status_saved"));
         this.persistExpansions();
       }),
     );
     actions.appendChild(
       this.createButton(
-        i18n.get("text_assets_delete_snippet"),
+        i18n.get("site_profiles_cancel_btn"),
+        () => {
+          this.snippetDeleteArmed = false;
+          updateSnippetStatus("");
+          if (this.expansions.length > 0) {
+            this.editingIndex = this.editingIndex === -1 ? 0 : this.editingIndex;
+          }
+          this.render();
+        },
+        "is-light",
+      ),
+    );
+    actions.appendChild(
+      this.createButton(
+        this.snippetDeleteArmed
+          ? i18n.get("text_assets_delete_snippet_confirm")
+          : i18n.get("text_assets_delete_snippet"),
         () => {
           if (this.editingIndex < 0) {
             return;
           }
+          if (!this.snippetDeleteArmed) {
+            this.snippetDeleteArmed = true;
+            updateSnippetStatus(i18n.get("text_assets_delete_snippet_confirm"), true);
+            this.render();
+            return;
+          }
           this.expansions.splice(this.editingIndex, 1);
           this.editingIndex = this.expansions.length > 0 ? 0 : -1;
+          this.snippetDeleteArmed = false;
+          updateSnippetStatus(i18n.get("text_assets_snippet_deleted"));
           this.persistExpansions();
         },
         "is-danger",
@@ -276,6 +340,7 @@ export class TextAssetsPanel {
       variables,
       this.createLabeledField(i18n.get("text_assets_preview_label"), preview),
       actions,
+      status,
     );
     return editor;
   }
@@ -304,6 +369,12 @@ export class TextAssetsPanel {
     const addInput = document.createElement("input");
     addInput.className = "input";
     addInput.placeholder = i18n.get("text_assets_add_custom_word_placeholder");
+    addInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        addButton.click();
+      }
+    });
     toolbar.appendChild(addInput);
 
     const addButton = this.createButton(i18n.get("add"), () => {
@@ -312,26 +383,44 @@ export class TextAssetsPanel {
         return;
       }
       this.dictionary = [...this.dictionary, value].sort((a, b) => a.localeCompare(b));
+      this.clearDictionaryArmed = false;
+      this.setDictionaryStatus(i18n.get("settings_status_saved"));
       this.persistDictionary();
     });
     toolbar.appendChild(addButton);
     shell.appendChild(toolbar);
 
     const list = document.createElement("div");
-    list.className = "dictionary-chip-grid";
-    this.dictionary
-      .filter((word) => word.toLowerCase().includes(this.dictionaryQuery))
-      .forEach((word) => {
-        const item = document.createElement("button");
-        item.type = "button";
-        item.className = "dictionary-chip";
-        item.textContent = word;
-        item.addEventListener("click", () => {
+    list.className = "domain-table";
+    const filteredWords = this.dictionary.filter((word) =>
+      word.toLowerCase().includes(this.dictionaryQuery),
+    );
+    filteredWords.forEach((word) => {
+      const row = document.createElement("div");
+      row.className = "domain-table-row";
+      const label = document.createElement("div");
+      label.className = "domain-table-name";
+      label.textContent = word;
+      row.appendChild(label);
+      const removeButton = this.createButton(
+        i18n.get("remove"),
+        () => {
           this.dictionary = this.dictionary.filter((entry) => entry !== word);
+          this.clearDictionaryArmed = false;
+          this.setDictionaryStatus(i18n.get("settings_status_saved"));
           this.persistDictionary();
-        });
-        list.appendChild(item);
-      });
+        },
+        "is-light",
+      );
+      row.appendChild(removeButton);
+      list.appendChild(row);
+    });
+    if (!filteredWords.length) {
+      const empty = document.createElement("p");
+      empty.className = "settings-inline-help";
+      empty.textContent = i18n.get("text_assets_no_dictionary_matches");
+      list.appendChild(empty);
+    }
     shell.appendChild(list);
 
     const bulk = document.createElement("details");
@@ -344,20 +433,34 @@ export class TextAssetsPanel {
     bulkTextarea.className = "textarea";
     bulkTextarea.rows = 4;
     bulkTextarea.placeholder = i18n.get("text_assets_paste_word_per_line");
+    bulkTextarea.value = this.bulkDictionaryValue;
+    const bulkPreview = document.createElement("p");
+    bulkPreview.className = "settings-inline-help";
+    const bulkAddButton = this.createButton(i18n.get("text_assets_add_words"), () => {
+      const nextWords = this.extractNewDictionaryWords(bulkTextarea.value);
+      if (nextWords.length === 0) {
+        return;
+      }
+      this.dictionary = Array.from(new Set([...this.dictionary, ...nextWords])).sort((a, b) =>
+        a.localeCompare(b),
+      );
+      this.bulkDictionaryValue = "";
+      bulkTextarea.value = "";
+      this.updateBulkPreview(bulkPreview, bulkAddButton, bulkTextarea.value);
+      this.clearDictionaryArmed = false;
+      this.setDictionaryStatus(i18n.get("settings_status_saved"));
+      this.persistDictionary();
+    });
+    bulkTextarea.addEventListener("input", () => {
+      this.bulkDictionaryValue = bulkTextarea.value;
+      this.clearDictionaryArmed = false;
+      this.updateBulkPreview(bulkPreview, bulkAddButton, bulkTextarea.value);
+    });
     bulk.appendChild(bulkTextarea);
+    this.updateBulkPreview(bulkPreview, bulkAddButton, bulkTextarea.value);
+    bulk.appendChild(bulkPreview);
 
-    bulk.appendChild(
-      this.createButton(i18n.get("text_assets_add_words"), () => {
-        const nextWords = bulkTextarea.value
-          .split(/\r?\n/)
-          .map((entry) => entry.trim())
-          .filter(Boolean);
-        this.dictionary = Array.from(new Set([...this.dictionary, ...nextWords])).sort((a, b) =>
-          a.localeCompare(b),
-        );
-        this.persistDictionary();
-      }),
-    );
+    bulk.appendChild(bulkAddButton);
 
     const importLabel = document.createElement("label");
     importLabel.className = "settings-ghost-button";
@@ -380,6 +483,8 @@ export class TextAssetsPanel {
         this.dictionary = Array.from(new Set([...this.dictionary, ...words])).sort((a, b) =>
           a.localeCompare(b),
         );
+        this.clearDictionaryArmed = false;
+        this.setDictionaryStatus(i18n.get("settings_status_saved"));
         this.persistDictionary();
       });
       reader.readAsText(file);
@@ -389,15 +494,30 @@ export class TextAssetsPanel {
     bulk.appendChild(importLabel);
     bulk.appendChild(
       this.createButton(
-        i18n.get("clear_dict_btn"),
+        this.clearDictionaryArmed
+          ? i18n.get("text_assets_clear_words_confirm")
+          : i18n.get("clear_dict_btn"),
         () => {
+          if (!this.clearDictionaryArmed) {
+            this.clearDictionaryArmed = true;
+            this.setDictionaryStatus(i18n.get("text_assets_clear_words_confirm"), true);
+            this.render();
+            return;
+          }
           this.dictionary = [];
+          this.clearDictionaryArmed = false;
+          this.setDictionaryStatus(i18n.get("settings_status_saved"));
           this.persistDictionary();
         },
         "is-danger",
       ),
     );
 
+    const status = document.createElement("p");
+    status.className = "settings-inline-help";
+    status.textContent = this.dictionaryStatusText || i18n.get("text_assets_bulk_helper_text");
+    status.classList.toggle("has-text-danger", this.dictionaryStatusIsError);
+    shell.appendChild(status);
     shell.appendChild(bulk);
     return shell;
   }
@@ -465,6 +585,7 @@ export class TextAssetsPanel {
   }
 
   private persistDictionary(): void {
+    this.dictionary = Array.from(new Set(this.dictionary)).sort((a, b) => a.localeCompare(b));
     this.registry[KEY_USER_DICTIONARY_LIST].set(this.dictionary);
   }
 
@@ -505,5 +626,39 @@ export class TextAssetsPanel {
       );
     });
     target.textContent = preview || i18n.get("text_assets_preview_placeholder");
+  }
+
+  private extractNewDictionaryWords(rawValue: string): string[] {
+    const existing = new Set(this.dictionary);
+    return Array.from(
+      new Set(
+        rawValue
+          .split(/\r?\n/)
+          .map((entry) => entry.trim())
+          .filter((entry) => entry.length > 0 && !existing.has(entry)),
+      ),
+    );
+  }
+
+  private updateBulkPreview(
+    preview: HTMLElement,
+    addButton: HTMLButtonElement,
+    rawValue: string,
+  ): void {
+    const words = this.extractNewDictionaryWords(rawValue);
+    preview.textContent = formatTranslation("text_assets_bulk_add_preview", {
+      count: words.length,
+    });
+    addButton.textContent = `${i18n.get("text_assets_add_words")} (${words.length})`;
+  }
+
+  private setSnippetStatus(text: string, isError = false): void {
+    this.snippetStatusText = text;
+    this.snippetStatusIsError = isError;
+  }
+
+  private setDictionaryStatus(text: string, isError = false): void {
+    this.dictionaryStatusText = text;
+    this.dictionaryStatusIsError = isError;
   }
 }

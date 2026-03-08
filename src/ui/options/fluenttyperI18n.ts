@@ -5253,6 +5253,30 @@ i18n.extend({
     pl: "Podgląd aktualizuje się podczas pisania.",
     pr: "A visualização é atualizada enquanto você digita.",
   },
+  text_assets_duplicate_shortcut: {
+    en: "That shortcut already exists. Open it from the list to edit it instead.",
+  },
+  text_assets_delete_snippet_confirm: {
+    en: "Click again to delete",
+  },
+  text_assets_snippet_deleted: {
+    en: "Snippet deleted.",
+  },
+  text_assets_snippet_helper_text: {
+    en: "Choose a snippet to edit, or start a new one without overwriting the list first.",
+  },
+  text_assets_no_dictionary_matches: {
+    en: "No dictionary words match your search yet.",
+  },
+  text_assets_bulk_add_preview: {
+    en: "{count} new words ready to add",
+  },
+  text_assets_clear_words_confirm: {
+    en: "Click again to clear all words",
+  },
+  text_assets_bulk_helper_text: {
+    en: "Quick add keeps your dictionary tidy, and bulk add skips duplicates automatically.",
+  },
   site_management_access_title: {
     en: "Where FluentTyper runs",
     fr: "Où FluentTyper fonctionne",
@@ -5472,6 +5496,15 @@ i18n.extend({
     de: "Profil wird bearbeitet für {domain}",
     pl: "Edycja profilu dla {domain}",
     pr: "Editando perfil para {domain}",
+  },
+  site_profiles_remove_confirm_status: {
+    en: "Click Remove again to delete the profile for {domain}.",
+  },
+  site_profiles_duplicate_domain_status: {
+    en: "A profile for {domain} already exists. Open it from the table to edit it.",
+  },
+  site_profiles_no_matches: {
+    en: "No site profiles match your search.",
   },
   appearance_preview_title: {
     en: "Preview",

@@ -1,4 +1,4 @@
-import { formatTranslation, i18n } from "./fluenttyperI18n.js";
+import { i18n } from "./fluenttyperI18n.js";
 import type { ManifestDefinition } from "@ui/settings-engine/types.js";
 import { SUPPORTED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS } from "@core/domain/lang";
 import {
@@ -51,27 +51,7 @@ import {
   RECOMMENDED_V3_GRAMMAR_RULES,
 } from "@core/domain/grammar/ruleCatalog";
 
-// --- UI Content ---
-const donateHTML = `<div class="has-text-centered">
-  <p class="support-donate-note">${i18n.get("support_donate_note")}</p>
-  <a class="support-donate-link" href="https://www.buymeacoffee.com/FluentTyper" target="_blank" rel="noopener noreferrer">${i18n.get("support_donate_link")}</a></div>`;
-const aboutHighlightsHTML = `<div class="about-highlights">
-  <span class="about-pill">${i18n.get("about_highlight_autocomplete")}</span>
-  <span class="about-pill">${i18n.get("about_highlight_text_expander")}</span>
-  <span class="about-pill">${i18n.get("about_highlight_multilingual")}</span>
-  <span class="about-pill">${i18n.get("about_highlight_site_profiles")}</span>
-  </div>`;
-const supportLinksHTML = `<div class="support-links-list">
-  <a href="https://github.com/bartekplus/FluentTyper/issues/new?template=bug_report.yml" target="_blank" rel="noopener noreferrer">${i18n.get("popup_report_issue")}</a> - ${i18n.get("support_report_bug_desc")}<br />
-  <a href="https://github.com/bartekplus/FluentTyper/issues/new?template=feature_request.yml" target="_blank" rel="noopener noreferrer">${i18n.get("support_request_feature_label")}</a> - ${i18n.get("support_request_feature_desc")}<br />
-  <a href="https://github.com/bartekplus/FluentTyper#readme" target="_blank" rel="noopener noreferrer">${i18n.get("support_read_docs_label")}</a> - ${i18n.get("support_read_docs_desc")}<br />
-  <a href="https://github.com/bartekplus/FluentTyper/blob/main/SECURITY.md" target="_blank" rel="noopener noreferrer">${i18n.get("support_security_policy_label")}</a> - ${i18n.get("support_security_policy_desc")}
-  </div>`;
 const IS_DEV_BUILD = typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
-const EXTENSION_VERSION =
-  typeof chrome !== "undefined" && typeof chrome.runtime?.getManifest === "function"
-    ? chrome.runtime.getManifest().version
-    : "dev";
 
 const WEBLLM_DEV_MODEL_OPTIONS = [
   ["SmolLM2-360M-Instruct-q4f16_1-MLC", "SmolLM2 360M q4f16 (fastest)"],
@@ -590,6 +570,15 @@ const manifest: ManifestDefinition = {
     // =========================================================================
     {
       tab: "advanced_tab",
+      group: i18n.get("options_tab_data"),
+      name: "dataDiagnosticsPanel",
+      type: "customPanel",
+      label: i18n.get("options_tab_data"),
+      description: i18n.get("options_tab_data_desc"),
+      keywords: [i18n.get("options_tab_data"), i18n.get("productivity_dashboard_group")],
+    },
+    {
+      tab: "advanced_tab",
       group: i18n.get("productivity_dashboard_group"),
       name: "productivityStatsPanel",
       type: "description",
@@ -688,38 +677,12 @@ const manifest: ManifestDefinition = {
     // =========================================================================
     {
       tab: "about_support_tab",
-      group: i18n.get("about_fluent_typer_group"),
-      name: "FluentTyperHighlights",
-      type: "description",
-      text: aboutHighlightsHTML,
-    },
-    {
-      tab: "about_support_tab",
-      group: i18n.get("about_fluent_typer_group"),
-      name: "FluentTyperInfo",
-      type: "description",
-      text: i18n.get("x-FluentTyper"),
-    },
-    {
-      tab: "about_support_tab",
-      group: i18n.get("about_fluent_typer_group"),
-      name: "Version",
-      type: "description",
-      text: `<span class="version-chip">${formatTranslation("options_version_chip", { version: EXTENSION_VERSION })}</span>`,
-    },
-    {
-      tab: "about_support_tab",
-      group: i18n.get("support_development_group"),
-      name: "SupportLinks",
-      type: "description",
-      text: supportLinksHTML,
-    },
-    {
-      tab: "about_support_tab",
-      group: i18n.get("support_development_group"),
-      name: "Donate",
-      type: "description",
-      text: donateHTML,
+      group: i18n.get("about_support_tab"),
+      name: "aboutWorkspacePanel",
+      type: "customPanel",
+      label: i18n.get("options_tab_about"),
+      description: i18n.get("options_tab_about_desc"),
+      keywords: [i18n.get("options_tab_about"), i18n.get("support_development_group")],
     },
   ],
 };

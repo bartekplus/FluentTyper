@@ -29,6 +29,7 @@ interface FancierSettingsLike {
 }
 
 interface SiteProfilesElements {
+  editingBadge: HTMLElement;
   domainInput: HTMLInputElement;
   languageSelect: HTMLSelectElement;
   numSuggestionsSelect: HTMLSelectElement;
@@ -87,6 +88,7 @@ export class SiteProfilesManager {
   private readonly store: Store;
   private readonly root: HTMLElement;
   private editingDomain: string | null = null;
+  private pendingRemovalDomain: string | null = null;
   private searchQuery = "";
   private statusText = i18n.get("site_profiles_editor_default_status");
   private statusIsError = false;
@@ -113,6 +115,12 @@ export class SiteProfilesManager {
     const editor = createElement("div", { className: "site-profiles-editor" });
     const title = createElement("h5", { textContent: i18n.get("site_profiles_editor_title") });
     editor.appendChild(title);
+    const editingBadge = createElement("p", {
+      id: "siteProfilesEditingBadge",
+      className: "settings-inline-help",
+      textContent: "",
+    });
+    editor.appendChild(editingBadge);
 
     const domainField = this.createField(
       i18n.get("site_profiles_domain_label"),
@@ -231,6 +239,7 @@ export class SiteProfilesManager {
   private cacheElements(): void {
     this.elements = {
       domainInput: this.root.querySelector("#siteProfileDomainInput") as HTMLInputElement,
+      editingBadge: this.root.querySelector("#siteProfilesEditingBadge") as HTMLElement,
       languageSelect: this.root.querySelector("#siteProfileLanguageSelect") as HTMLSelectElement,
       numSuggestionsSelect: this.root.querySelector(
         "#siteProfileNumSuggestionsSelect",
@@ -371,6 +380,9 @@ export class SiteProfilesManager {
       ? i18n.get("site_profiles_update_btn")
       : i18n.get("site_profiles_add_btn");
     this.elements.cancelButton.classList.toggle("is-hidden", !this.editingDomain);
+    this.elements.editingBadge.textContent = this.editingDomain
+      ? formatTranslation("site_profiles_update_status", { domain: this.editingDomain })
+      : i18n.get("site_profiles_form_hint");
     this.updateNormalizedPreview();
   }
 
@@ -385,9 +397,15 @@ export class SiteProfilesManager {
 
     this.elements.tableBody.replaceChildren();
     this.elements.emptyState.classList.toggle("is-hidden", profileEntries.length > 0);
+    this.elements.emptyState.textContent = this.searchQuery
+      ? i18n.get("site_profiles_no_matches")
+      : i18n.get("site_profiles_empty_workspace");
 
     profileEntries.forEach(([domain, profile]) => {
       const row = document.createElement("tr");
+      if (this.editingDomain === domain) {
+        row.classList.add("is-selected-row");
+      }
       row.appendChild(createElement("td", { textContent: domain }));
       row.appendChild(
         createElement("td", {
@@ -420,7 +438,10 @@ export class SiteProfilesManager {
       edit.dataset.domain = domain;
       const remove = createElement("button", {
         className: "button is-light",
-        textContent: i18n.get("remove"),
+        textContent:
+          this.pendingRemovalDomain === domain
+            ? i18n.get("text_assets_delete_snippet_confirm")
+            : i18n.get("remove"),
         attributes: { type: "button", "data-action": "remove" },
       });
       remove.dataset.domain = domain;
@@ -453,12 +474,14 @@ export class SiteProfilesManager {
 
   startEdit(domain: string): void {
     this.editingDomain = domain;
+    this.pendingRemovalDomain = null;
     this.setStatus(formatTranslation("site_profiles_update_status", { domain }));
     void this.render();
   }
 
   cancelEdit(): void {
     this.editingDomain = null;
+    this.pendingRemovalDomain = null;
     this.setStatus(i18n.get("site_profiles_editor_default_status"));
     void this.render();
   }
@@ -473,6 +496,18 @@ export class SiteProfilesManager {
     const enabledLanguages = resolveEnabledLanguages(await this.store.get(KEY_ENABLED_LANGUAGES));
     const profile = this.getEditorProfile(enabledLanguages);
     const siteProfilesRaw = await this.store.get(KEY_SITE_PROFILES);
+    if (this.editingDomain !== normalizedDomain) {
+      const existingProfiles = resolveSiteProfiles(siteProfilesRaw, enabledLanguages);
+      if (existingProfiles[normalizedDomain]) {
+        this.setStatus(
+          formatTranslation("site_profiles_duplicate_domain_status", {
+            domain: normalizedDomain,
+          }),
+          true,
+        );
+        return;
+      }
+    }
     let nextProfiles = setSiteProfileForDomain(
       siteProfilesRaw,
       normalizedDomain,
@@ -485,16 +520,30 @@ export class SiteProfilesManager {
 
     await this.store.set(KEY_SITE_PROFILES, nextProfiles);
     this.editingDomain = normalizedDomain;
+    this.pendingRemovalDomain = null;
     this.setStatus(i18n.get("site_profiles_saved_status"));
     await this.notifyConfigChange();
     await this.render();
   }
 
   async removeProfile(domain: string): Promise<void> {
+    if (this.pendingRemovalDomain !== domain) {
+      this.pendingRemovalDomain = domain;
+      this.setStatus(
+        formatTranslation("site_profiles_remove_confirm_status", {
+          domain,
+        }),
+        true,
+      );
+      await this.render();
+      return;
+    }
+
     const enabledLanguages = resolveEnabledLanguages(await this.store.get(KEY_ENABLED_LANGUAGES));
     const currentProfiles = await this.store.get(KEY_SITE_PROFILES);
     const nextProfiles = removeSiteProfileForDomain(currentProfiles, domain, enabledLanguages);
     await this.store.set(KEY_SITE_PROFILES, nextProfiles);
+    this.pendingRemovalDomain = null;
     if (this.editingDomain === domain) {
       this.editingDomain = null;
     }

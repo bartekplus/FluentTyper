@@ -248,6 +248,7 @@ export class SettingsEngine {
   private applySearch(rawQuery: string): void {
     const query = rawQuery.trim().toLowerCase();
     let firstVisibleTabId: string | null = null;
+    let firstMatchTarget: HTMLElement | null = null;
 
     Object.entries(this.tabs).forEach(([tabId, tab]) => {
       let tabMatches = !query;
@@ -267,6 +268,9 @@ export class SettingsEngine {
           control.classList.toggle("is-search-hidden", !matches);
           if (matches) {
             groupMatches = true;
+            if (query && firstMatchTarget === null) {
+              firstMatchTarget = control;
+            }
           }
         });
 
@@ -276,6 +280,9 @@ export class SettingsEngine {
           controls.forEach((control) => {
             control.classList.remove("is-search-hidden");
           });
+          if (firstMatchTarget === null) {
+            firstMatchTarget = groupRoot;
+          }
         }
 
         groupRoot?.classList.toggle("is-search-hidden", !groupMatches);
@@ -301,6 +308,9 @@ export class SettingsEngine {
             (control as HTMLElement).classList.remove("is-search-hidden");
           });
         });
+        if (firstMatchTarget === null) {
+          firstMatchTarget = tab.content;
+        }
       }
 
       tab.bundle.tabLi.classList.toggle("is-search-hidden", !tabMatches);
@@ -318,6 +328,14 @@ export class SettingsEngine {
       (!activeTabId || this.tabs[activeTabId].content.classList.contains("is-search-filtered-out"))
     ) {
       this.activateTabById(firstVisibleTabId);
+    }
+
+    if (query && firstMatchTarget) {
+      firstMatchTarget.scrollIntoView({
+        block: "start",
+        inline: "nearest",
+        behavior: "smooth",
+      });
     }
   }
 
