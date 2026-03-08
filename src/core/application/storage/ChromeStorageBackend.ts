@@ -54,6 +54,9 @@ export class ChromeStorageBackend implements StorageBackend {
         this.backend.get(null, (values) => {
           const result: Record<string, string> = {};
           for (const [key, value] of Object.entries(values)) {
+            if (!key.startsWith(prefix)) {
+              continue;
+            }
             result[key.substring(prefix.length)] = value as string;
           }
           resolve(result);
