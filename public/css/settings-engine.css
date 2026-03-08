@@ -717,6 +717,63 @@ body.fluenttyper-options .settings-group.settings-group-panel-only .settings-gro
   color: #201c0d;
 }
 
+.support-action-link {
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr);
+  gap: 0.8rem;
+  align-items: start;
+  padding: 0.85rem 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--input-border-color) 90%, transparent);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--feature-box-bg) 94%, transparent);
+  color: inherit;
+  text-decoration: none;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    transform 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.support-action-link:hover,
+.support-action-link:focus-visible {
+  background: color-mix(in srgb, var(--accent-color) 10%, var(--box-background-color));
+  border-color: color-mix(in srgb, var(--accent-color) 26%, transparent);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px -24px var(--box-shadow-color);
+}
+
+.support-action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.5rem;
+  height: 2.5rem;
+  padding: 0 0.35rem;
+  border-radius: 0.8rem;
+  background: color-mix(in srgb, var(--accent-color) 14%, var(--box-background-color));
+  color: var(--accent-color);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.support-action-copy {
+  display: grid;
+  gap: 0.18rem;
+  min-width: 0;
+}
+
+.support-action-title {
+  font-weight: 700;
+}
+
+.support-action-description {
+  color: var(--text-color-light);
+  line-height: 1.45;
+}
+
 .grammar-rule-selector-field,
 .grammar-rule-selector,
 .grammar-rule-sections {

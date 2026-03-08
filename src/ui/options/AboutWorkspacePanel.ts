@@ -1,3 +1,4 @@
+import { setSafeHtmlContent } from "@ui/settings-engine/dom/safeHtml.js";
 import { formatTranslation, i18n } from "./fluenttyperI18n.js";
 
 const EXTENSION_VERSION =
@@ -5,18 +6,36 @@ const EXTENSION_VERSION =
     ? chrome.runtime.getManifest().version
     : "dev";
 
-function createLink(href: string, label: string, description: string): HTMLElement {
-  const row = document.createElement("p");
-  row.className = "settings-inline-help";
-
+function createActionLink(
+  href: string,
+  label: string,
+  description: string,
+  iconText: string,
+): HTMLElement {
   const anchor = document.createElement("a");
+  anchor.className = "support-action-link";
   anchor.href = href;
   anchor.target = "_blank";
   anchor.rel = "noopener noreferrer";
-  anchor.textContent = label;
-  row.appendChild(anchor);
-  row.append(` - ${description}`);
-  return row;
+
+  const icon = document.createElement("span");
+  icon.className = "support-action-icon";
+  icon.textContent = iconText;
+
+  const copy = document.createElement("span");
+  copy.className = "support-action-copy";
+
+  const title = document.createElement("span");
+  title.className = "support-action-title";
+  title.textContent = label;
+
+  const body = document.createElement("span");
+  body.className = "support-action-description";
+  body.textContent = description;
+
+  copy.append(title, body);
+  anchor.append(icon, copy);
+  return anchor;
 }
 
 export class AboutWorkspacePanel {
@@ -37,7 +56,7 @@ export class AboutWorkspacePanel {
     productTitle.textContent = i18n.get("about_fluent_typer_group");
     const productCopy = document.createElement("p");
     productCopy.className = "settings-inline-help";
-    productCopy.textContent = i18n.get("x-FluentTyper");
+    setSafeHtmlContent(productCopy, i18n.get("x-FluentTyper"));
     const version = document.createElement("span");
     version.className = "version-chip";
     version.textContent = formatTranslation("options_version_chip", {
@@ -64,31 +83,35 @@ export class AboutWorkspacePanel {
     supportTitle.textContent = i18n.get("support_development_group");
     supportCard.appendChild(supportTitle);
     supportCard.appendChild(
-      createLink(
+      createActionLink(
         "https://github.com/bartekplus/FluentTyper/issues/new?template=bug_report.yml",
         i18n.get("popup_report_issue"),
         i18n.get("support_report_bug_desc"),
+        "!",
       ),
     );
     supportCard.appendChild(
-      createLink(
+      createActionLink(
         "https://github.com/bartekplus/FluentTyper/issues/new?template=feature_request.yml",
         i18n.get("support_request_feature_label"),
         i18n.get("support_request_feature_desc"),
+        "+",
       ),
     );
     supportCard.appendChild(
-      createLink(
+      createActionLink(
         "https://github.com/bartekplus/FluentTyper#readme",
         i18n.get("support_read_docs_label"),
         i18n.get("support_read_docs_desc"),
+        "DOC",
       ),
     );
     supportCard.appendChild(
-      createLink(
+      createActionLink(
         "https://github.com/bartekplus/FluentTyper/blob/main/SECURITY.md",
         i18n.get("support_security_policy_label"),
         i18n.get("support_security_policy_desc"),
+        "SEC",
       ),
     );
 
