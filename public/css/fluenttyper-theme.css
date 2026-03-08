@@ -1659,6 +1659,346 @@ body.fluenttyper-options {
   color: #b91c1c;
 }
 
+.fluenttyper-options .observability-status {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.84rem;
+  color: var(--text-color-light);
+}
+
+.fluenttyper-options .observability-status.is-error {
+  color: #b91c1c;
+}
+
+.fluenttyper-options .observability-dashboard {
+  display: grid;
+  gap: 0.95rem;
+}
+
+.fluenttyper-options .observability-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.9rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--accent-color) 18%, var(--divider-color));
+  border-radius: 1rem;
+  background:
+    radial-gradient(
+      circle at top left,
+      color-mix(in srgb, var(--accent-color) 14%, transparent),
+      transparent 52%
+    ),
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--box-background-color) 95%, transparent),
+      color-mix(in srgb, var(--feature-box-bg) 82%, transparent)
+    );
+}
+
+.fluenttyper-options .observability-header h3,
+.fluenttyper-options .observability-header p {
+  margin: 0;
+}
+
+.fluenttyper-options .observability-header h3 {
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: var(--text-color);
+}
+
+.fluenttyper-options .observability-header p {
+  margin-top: 0.2rem;
+  font-size: 0.79rem;
+  color: var(--text-color-light);
+}
+
+.fluenttyper-options .observability-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.45rem;
+}
+
+.fluenttyper-options .observability-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 0.8rem;
+}
+
+.fluenttyper-options .observability-card,
+.fluenttyper-options .observability-pane {
+  border: 1px solid color-mix(in srgb, var(--input-border-color) 88%, transparent);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--feature-box-bg) 95%, transparent);
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.06);
+}
+
+.fluenttyper-options .observability-card {
+  display: grid;
+  gap: 0.42rem;
+  padding: 0.9rem 0.95rem;
+}
+
+.fluenttyper-options .observability-card-eyebrow {
+  margin: 0;
+  font-size: 0.69rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-color);
+}
+
+.fluenttyper-options .observability-card h4,
+.fluenttyper-options .observability-pane h4 {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: var(--text-color);
+}
+
+.fluenttyper-options .observability-info-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.65rem;
+  font-size: 0.77rem;
+  color: var(--text-color-light);
+}
+
+.fluenttyper-options .observability-info-row strong {
+  color: var(--text-color);
+}
+
+.fluenttyper-options .observability-pane {
+  display: grid;
+  gap: 0.85rem;
+  padding: 0.95rem;
+  min-height: 0;
+}
+
+.fluenttyper-options .observability-pane-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.fluenttyper-options .observability-pane-header p {
+  margin: 0.16rem 0 0;
+  font-size: 0.76rem;
+  color: var(--text-color-light);
+}
+
+.fluenttyper-options .observability-pane-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.45rem;
+}
+
+.fluenttyper-options .observability-search {
+  min-width: min(100%, 18rem);
+}
+
+.fluenttyper-options .observability-select {
+  min-width: 8.4rem;
+}
+
+.fluenttyper-options .observability-scroll-region {
+  min-height: 0;
+  max-height: 28rem;
+  overflow: auto;
+  padding-right: 0.15rem;
+  overscroll-behavior: contain;
+}
+
+.fluenttyper-options .observability-module-list,
+.fluenttyper-options .observability-event-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.fluenttyper-options .observability-module-row,
+.fluenttyper-options .observability-event-card {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.78rem 0.82rem;
+  border: 1px solid color-mix(in srgb, var(--divider-color) 90%, transparent);
+  border-radius: 0.9rem;
+  background: color-mix(in srgb, var(--box-background-color) 96%, transparent);
+}
+
+.fluenttyper-options .observability-row-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem;
+  font-size: 0.79rem;
+}
+
+.fluenttyper-options .observability-row-top strong {
+  color: var(--text-color);
+  font-size: 0.84rem;
+}
+
+.fluenttyper-options .observability-row-top span {
+  color: var(--text-color-light);
+  white-space: nowrap;
+}
+
+.fluenttyper-options .observability-badge-row,
+.fluenttyper-options .observability-module-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.fluenttyper-options .observability-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.45rem;
+  border-radius: 999px;
+  padding: 0.12rem 0.5rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  border: 1px solid color-mix(in srgb, var(--divider-color) 90%, transparent);
+  background: color-mix(in srgb, var(--box-background-color) 98%, transparent);
+  color: var(--text-color-light);
+}
+
+.fluenttyper-options .observability-badge.is-accent {
+  color: var(--accent-color);
+  border-color: color-mix(in srgb, var(--accent-color) 28%, var(--divider-color));
+  background: color-mix(in srgb, var(--accent-color) 10%, var(--box-background-color));
+}
+
+.fluenttyper-options .observability-badge.is-success {
+  color: #166534;
+  border-color: rgba(22, 101, 52, 0.22);
+  background: rgba(22, 101, 52, 0.1);
+}
+
+.fluenttyper-options .observability-badge.is-warn {
+  color: #92400e;
+  border-color: rgba(146, 64, 14, 0.22);
+  background: rgba(217, 119, 6, 0.12);
+}
+
+.fluenttyper-options .observability-badge.is-error {
+  color: #991b1b;
+  border-color: rgba(153, 27, 27, 0.22);
+  background: rgba(220, 38, 38, 0.1);
+}
+
+.fluenttyper-options .observability-module-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
+.fluenttyper-options .observability-inline-toggle,
+.fluenttyper-options .observability-inline-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.76rem;
+  color: var(--text-color-light);
+}
+
+.fluenttyper-options .observability-inline-select .input {
+  min-width: 6.9rem;
+}
+
+.fluenttyper-options .observability-event-message {
+  margin: 0;
+  font-size: 0.81rem;
+  line-height: 1.45;
+  color: var(--text-color);
+}
+
+.fluenttyper-options .observability-event-context {
+  border-top: 1px dashed color-mix(in srgb, var(--divider-color) 86%, transparent);
+  padding-top: 0.42rem;
+}
+
+.fluenttyper-options .observability-event-context summary,
+.fluenttyper-options .observability-raw summary {
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-color-light);
+}
+
+.fluenttyper-options .observability-event-context pre,
+.fluenttyper-options .observability-raw-preview {
+  margin: 0.45rem 0 0;
+  padding: 0.7rem;
+  max-height: 18rem;
+  overflow: auto;
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, var(--box-background-color) 95%, #0f172a 5%);
+  font-size: 0.72rem;
+  line-height: 1.42;
+  color: var(--text-color-light);
+}
+
+.fluenttyper-options .observability-empty {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-color-light);
+}
+
+@media (prefers-color-scheme: dark) {
+  .fluenttyper-options .observability-card,
+  .fluenttyper-options .observability-pane {
+    box-shadow: 0 18px 38px rgba(2, 6, 23, 0.24);
+  }
+
+  .fluenttyper-options .observability-badge.is-success {
+    color: #bbf7d0;
+    border-color: rgba(34, 197, 94, 0.32);
+    background: rgba(34, 197, 94, 0.14);
+  }
+
+  .fluenttyper-options .observability-badge.is-warn {
+    color: #fde68a;
+    border-color: rgba(245, 158, 11, 0.32);
+    background: rgba(245, 158, 11, 0.14);
+  }
+
+  .fluenttyper-options .observability-badge.is-error {
+    color: #fecaca;
+    border-color: rgba(248, 113, 113, 0.32);
+    background: rgba(248, 113, 113, 0.14);
+  }
+}
+
+@media screen and (max-width: 960px) {
+  .fluenttyper-options .observability-header,
+  .fluenttyper-options .observability-pane-header,
+  .fluenttyper-options .observability-module-controls {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+
+  .fluenttyper-options .observability-actions,
+  .fluenttyper-options .observability-pane-toolbar {
+    justify-content: flex-start;
+  }
+
+  .fluenttyper-options .observability-search,
+  .fluenttyper-options .observability-select,
+  .fluenttyper-options .observability-inline-select .input {
+    min-width: 0;
+    width: 100%;
+  }
+}
+
 .fluenttyper-options .about-highlights {
   display: flex;
   flex-wrap: wrap;

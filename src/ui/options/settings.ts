@@ -96,6 +96,15 @@ let predictorDebugLastSignature = "";
 let predictorDebugBindingsInitialized = false;
 let observabilityLastSignature = "";
 let observabilityBindingsInitialized = false;
+let observabilityCurrentSnapshot: ObservabilitySnapshot | null = null;
+const observabilityUIState = {
+  moduleQuery: "",
+  moduleFilter: "all" as "all" | "overrides" | "enabled" | "unregistered",
+  eventQuery: "",
+  eventSource: "all" as "all" | "background" | "content_script" | "options",
+  eventLevel: "all" as "all" | LogLevel,
+  livePaused: false,
+};
 const observabilityLogger = createLogger("OptionsObservability");
 
 function resolveOptionsObservabilityConfig(
@@ -1568,7 +1577,10 @@ function getObservabilityRootElement() {
 
 function buildObservabilitySnapshotSignature(snapshot: ObservabilitySnapshotRecord) {
   try {
-    return JSON.stringify(snapshot);
+    return JSON.stringify({
+      ...snapshot,
+      generatedAtMs: 0,
+    });
   } catch {
     return "";
   }
@@ -1618,7 +1630,7 @@ function setObservabilityModuleOverrides(
 function renderObservabilityStatus(root: HTMLElement, text: string, isError = false) {
   root.innerHTML = "";
   const shell = document.createElement("div");
-  shell.className = "predictor-debug-status";
+  shell.className = "observability-status";
   if (isError) {
     shell.classList.add("is-error");
   }
@@ -1649,9 +1661,68 @@ function createObservabilityLevelSelect(value: unknown, moduleId: string) {
   return select;
 }
 
+function createObservabilitySelect(
+  action: string,
+  selectedValue: string,
+  options: Array<{ value: string; label: string }>,
+) {
+  const select = document.createElement("select");
+  select.className = "input observability-select";
+  select.setAttribute("data-action", action);
+  options.forEach((optionConfig) => {
+    const option = document.createElement("option");
+    option.value = optionConfig.value;
+    option.textContent = optionConfig.label;
+    option.selected = optionConfig.value === selectedValue;
+    select.appendChild(option);
+  });
+  return select;
+}
+
+function createObservabilitySearchInput(
+  action: string,
+  value: string,
+  placeholder: string,
+  ariaLabel: string,
+) {
+  const input = document.createElement("input");
+  input.type = "search";
+  input.className = "input observability-search";
+  input.value = value;
+  input.placeholder = placeholder;
+  input.setAttribute("aria-label", ariaLabel);
+  input.setAttribute("data-action", action);
+  return input;
+}
+
+function createObservabilityBadge(
+  label: string,
+  tone: "neutral" | "accent" | "success" | "warn" | "error" = "neutral",
+) {
+  const badge = document.createElement("span");
+  badge.className = `observability-badge is-${tone}`;
+  badge.textContent = label;
+  return badge;
+}
+
+function createObservabilityCard(title: string, eyebrow?: string) {
+  const card = document.createElement("article");
+  card.className = "observability-card";
+  if (eyebrow) {
+    const eyebrowElement = document.createElement("p");
+    eyebrowElement.className = "observability-card-eyebrow";
+    eyebrowElement.textContent = eyebrow;
+    card.appendChild(eyebrowElement);
+  }
+  const heading = document.createElement("h4");
+  heading.textContent = title;
+  card.appendChild(heading);
+  return card;
+}
+
 function appendObservabilityInfoItem(container: HTMLElement, label: string, value: string) {
   const row = document.createElement("div");
-  row.className = "predictor-debug-info-row";
+  row.className = "observability-info-row";
   const key = document.createElement("span");
   key.textContent = label;
   const val = document.createElement("strong");
@@ -1660,11 +1731,160 @@ function appendObservabilityInfoItem(container: HTMLElement, label: string, valu
   container.appendChild(row);
 }
 
+function readObservabilityScrollState(root: HTMLElement) {
+  return Array.from(root.querySelectorAll<HTMLElement>("[data-observability-scroll-key]")).map(
+    (element) => ({
+      key: element.getAttribute("data-observability-scroll-key") || "",
+      top: element.scrollTop,
+      left: element.scrollLeft,
+    }),
+  );
+}
+
+function restoreObservabilityScrollState(
+  root: HTMLElement,
+  scrollState: Array<{ key: string; top: number; left: number }>,
+) {
+  scrollState.forEach((entry) => {
+    const pane = root.querySelector<HTMLElement>(`[data-observability-scroll-key="${entry.key}"]`);
+    if (!pane) {
+      return;
+    }
+    pane.scrollTop = entry.top;
+    pane.scrollLeft = entry.left;
+  });
+}
+
+function countObservabilityRegisteredModules(modules: Array<Record<string, unknown>>) {
+  return modules.filter((moduleState) => Boolean(moduleState.registered)).length;
+}
+
+function countObservabilityOverriddenModules(modules: Array<Record<string, unknown>>) {
+  return modules.filter((moduleState) => Boolean(moduleState.hasOverride)).length;
+}
+
+function matchesObservabilityModuleFilter(
+  moduleState: {
+    moduleId?: string;
+    enabled?: boolean;
+    registered?: boolean;
+    hasOverride?: boolean;
+    sources?: string[];
+  },
+  query: string,
+  filter: typeof observabilityUIState.moduleFilter,
+) {
+  const normalizedQuery = query.trim().toLowerCase();
+  const haystack = [
+    String(moduleState.moduleId || ""),
+    ...(Array.isArray(moduleState.sources)
+      ? moduleState.sources.map((value) => String(value))
+      : []),
+  ]
+    .join(" ")
+    .toLowerCase();
+  if (normalizedQuery && !haystack.includes(normalizedQuery)) {
+    return false;
+  }
+  if (filter === "overrides") {
+    return Boolean(moduleState.hasOverride);
+  }
+  if (filter === "enabled") {
+    return Boolean(moduleState.enabled);
+  }
+  if (filter === "unregistered") {
+    return !moduleState.registered;
+  }
+  return true;
+}
+
+function matchesObservabilityEventFilter(
+  event: {
+    moduleId?: string;
+    source?: string;
+    level?: string;
+    message?: string;
+    traceId?: string;
+    requestId?: number;
+    tabId?: number;
+    frameId?: number;
+  },
+  query: string,
+  source: typeof observabilityUIState.eventSource,
+  level: typeof observabilityUIState.eventLevel,
+) {
+  if (source !== "all" && event.source !== source) {
+    return false;
+  }
+  if (level !== "all" && event.level !== level) {
+    return false;
+  }
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) {
+    return true;
+  }
+  const haystack = [
+    String(event.moduleId || ""),
+    String(event.source || ""),
+    String(event.level || ""),
+    String(event.message || ""),
+    String(event.traceId || ""),
+    String(event.requestId ?? ""),
+    String(event.tabId ?? ""),
+    String(event.frameId ?? ""),
+  ]
+    .join(" ")
+    .toLowerCase();
+  return haystack.includes(normalizedQuery);
+}
+
+function shouldDeferObservabilityRefresh(root: HTMLElement) {
+  if (observabilityUIState.livePaused) {
+    return true;
+  }
+  const activeElement = document.activeElement;
+  if (activeElement instanceof HTMLElement && root.contains(activeElement)) {
+    if (
+      activeElement.matches(
+        "input, select, textarea, button, summary, details, [contenteditable='true']",
+      )
+    ) {
+      return true;
+    }
+  }
+  return Array.from(root.querySelectorAll<HTMLElement>("[data-observability-scroll-key]")).some(
+    (element) =>
+      element.scrollTop > 12 &&
+      (element.matches(":hover") ||
+        element === activeElement ||
+        (activeElement instanceof HTMLElement && element.contains(activeElement))),
+  );
+}
+
+function updateObservabilityLiveStatus(root: HTMLElement, text: string) {
+  const status = root.querySelector<HTMLElement>("[data-observability-live-status]");
+  if (status) {
+    status.textContent = text;
+  }
+}
+
+function renderStoredObservabilitySnapshot(
+  root: HTMLElement,
+  registry: ReturnType<SettingsEngine["buildFromManifest"]>,
+) {
+  if (observabilityCurrentSnapshot) {
+    renderObservabilitySnapshot(root, observabilityCurrentSnapshot, registry);
+  }
+}
+
 function renderObservabilitySnapshot(
   root: HTMLElement,
   snapshot: ObservabilitySnapshotRecord,
   registry: ReturnType<SettingsEngine["buildFromManifest"]>,
 ) {
+  const pageScrollX = window.scrollX;
+  const pageScrollY = window.scrollY;
+  const scrollState = readObservabilityScrollState(root);
   const events = Array.isArray(snapshot.events)
     ? (snapshot.events as Array<Record<string, unknown>>)
     : [];
@@ -1683,28 +1903,75 @@ function renderObservabilitySnapshot(
     snapshot.predictor && typeof snapshot.predictor === "object"
       ? (snapshot.predictor as Record<string, unknown>)
       : null;
+  const filteredModules = modules.filter((moduleStateRecord) =>
+    matchesObservabilityModuleFilter(
+      moduleStateRecord as {
+        moduleId?: string;
+        enabled?: boolean;
+        registered?: boolean;
+        hasOverride?: boolean;
+        sources?: string[];
+      },
+      observabilityUIState.moduleQuery,
+      observabilityUIState.moduleFilter,
+    ),
+  );
+  const filteredEvents = events
+    .filter((eventRecord) =>
+      matchesObservabilityEventFilter(
+        eventRecord as {
+          moduleId?: string;
+          source?: string;
+          level?: string;
+          message?: string;
+          traceId?: string;
+          requestId?: number;
+          tabId?: number;
+          frameId?: number;
+        },
+        observabilityUIState.eventQuery,
+        observabilityUIState.eventSource,
+        observabilityUIState.eventLevel,
+      ),
+    )
+    .slice(0, 120);
+  const summaryEventsByLevel =
+    summary.eventsByLevel && typeof summary.eventsByLevel === "object"
+      ? (summary.eventsByLevel as Partial<Record<LogLevel, number>>)
+      : {};
+  const predictorConfig = predictor?.config as
+    | {
+        aiPredictorEnabled?: boolean;
+        aiModelId?: string;
+        debugPresagePredictorEnabled?: boolean;
+        debugAIPredictorEnabled?: boolean;
+      }
+    | undefined;
+  const predictorTraces = Array.isArray(predictor?.traces) ? predictor.traces : [];
   root.innerHTML = "";
   root.setAttribute("data-raw-snapshot", JSON.stringify(snapshot, null, 2));
 
   const shell = document.createElement("section");
-  shell.className = "predictor-debug";
+  shell.className = "observability-dashboard";
 
   const header = document.createElement("div");
-  header.className = "predictor-debug-header";
+  header.className = "observability-header";
   const titleBlock = document.createElement("div");
   const title = document.createElement("h3");
-  title.textContent = "Observability Dashboard";
+  title.textContent = "Observability Control Room";
   const subtitle = document.createElement("p");
   subtitle.textContent = `Updated ${formatClockTime(snapshot.generatedAtMs)}`;
+  subtitle.setAttribute("data-observability-live-status", "true");
   titleBlock.append(title, subtitle);
   header.appendChild(titleBlock);
 
   const actions = document.createElement("div");
-  actions.className = "predictor-debug-actions";
+  actions.className = "observability-actions";
   [
     ["Refresh", "refresh-observability"],
     ["Clear Events", "clear-observability"],
     ["Copy Snapshot", "copy-observability"],
+    [observabilityUIState.livePaused ? "Resume Live" : "Pause Live", "toggle-observability-live"],
   ].forEach(([label, action]) => {
     const button = document.createElement("button");
     button.type = "button";
@@ -1716,50 +1983,69 @@ function renderObservabilitySnapshot(
   header.appendChild(actions);
   shell.appendChild(header);
 
-  const infoGrid = document.createElement("div");
-  infoGrid.className = "predictor-debug-info-grid";
+  const summaryGrid = document.createElement("div");
+  summaryGrid.className = "observability-summary-grid";
 
-  const systemCard = document.createElement("article");
-  systemCard.className = "predictor-debug-info-card";
-  const systemTitle = document.createElement("h4");
-  systemTitle.textContent = "System Status";
-  systemCard.appendChild(systemTitle);
+  const systemCard = createObservabilityCard("Environment", "System status");
   appendObservabilityInfoItem(systemCard, "Build", snapshot.devBuild ? "dev" : "release");
   appendObservabilityInfoItem(
     systemCard,
     "Observability",
     snapshot.available ? "available" : String(snapshot.reason || "unavailable"),
   );
-  appendObservabilityInfoItem(systemCard, "Global enabled", String(config.enabled ?? false));
-  appendObservabilityInfoItem(systemCard, "Default level", String(config.defaultLevel || "n/a"));
-  appendObservabilityInfoItem(systemCard, "Events", String(summary.totalEvents || 0));
   appendObservabilityInfoItem(
     systemCard,
+    "Live refresh",
+    observabilityUIState.livePaused ? "paused" : "active",
+  );
+  appendObservabilityInfoItem(systemCard, "Global enabled", String(config.enabled ?? false));
+  appendObservabilityInfoItem(systemCard, "Default level", String(config.defaultLevel || "n/a"));
+  summaryGrid.appendChild(systemCard);
+
+  const coverageCard = createObservabilityCard("Coverage", "What is currently visible");
+  appendObservabilityInfoItem(
+    coverageCard,
+    "Registered modules",
+    `${countObservabilityRegisteredModules(modules)} / ${modules.length}`,
+  );
+  appendObservabilityInfoItem(
+    coverageCard,
+    "Overrides",
+    String(countObservabilityOverriddenModules(modules)),
+  );
+  appendObservabilityInfoItem(
+    coverageCard,
     "Content runtimes",
     String(Array.isArray(snapshot.contentRuntimes) ? snapshot.contentRuntimes.length : 0),
   );
   appendObservabilityInfoItem(
-    systemCard,
+    coverageCard,
     "Auto-language runtimes",
     String(Array.isArray(snapshot.autoLanguageRuntimes) ? snapshot.autoLanguageRuntimes.length : 0),
   );
-  infoGrid.appendChild(systemCard);
+  summaryGrid.appendChild(coverageCard);
 
-  const predictorCard = document.createElement("article");
-  predictorCard.className = "predictor-debug-info-card";
-  const predictorTitle = document.createElement("h4");
-  predictorTitle.textContent = "Predictor Diagnostics";
-  predictorCard.appendChild(predictorTitle);
+  const eventVolumeCard = createObservabilityCard("Event Volume", "Current buffer");
+  appendObservabilityInfoItem(eventVolumeCard, "Buffered events", String(summary.totalEvents || 0));
+  appendObservabilityInfoItem(
+    eventVolumeCard,
+    "Debug / info",
+    `${summaryEventsByLevel.debug || 0} / ${summaryEventsByLevel.info || 0}`,
+  );
+  appendObservabilityInfoItem(
+    eventVolumeCard,
+    "Warn / error",
+    `${summaryEventsByLevel.warn || 0} / ${summaryEventsByLevel.error || 0}`,
+  );
+  appendObservabilityInfoItem(
+    eventVolumeCard,
+    "Visible events",
+    `${filteredEvents.length} / ${events.length}`,
+  );
+  summaryGrid.appendChild(eventVolumeCard);
+
+  const predictorCard = createObservabilityCard("Predictor Diagnostics", "Route controls");
   if (predictor) {
-    const predictorConfig = predictor.config as
-      | {
-          aiPredictorEnabled?: boolean;
-          aiModelId?: string;
-          debugPresagePredictorEnabled?: boolean;
-          debugAIPredictorEnabled?: boolean;
-        }
-      | undefined;
-    const traces = Array.isArray(predictor.traces) ? predictor.traces : [];
     appendObservabilityInfoItem(
       predictorCard,
       "AI predictor",
@@ -1780,13 +2066,7 @@ function renderObservabilitySnapshot(
       "Model",
       String(predictorConfig?.aiModelId || "n/a"),
     );
-    appendObservabilityInfoItem(predictorCard, "Recent traces", String(traces.length));
-    const latestTrace = traces[0] as Record<string, unknown> | undefined;
-    appendObservabilityInfoItem(
-      predictorCard,
-      "Latest trace",
-      latestTrace ? String(latestTrace.traceId || latestTrace.requestId || "available") : "none",
-    );
+    appendObservabilityInfoItem(predictorCard, "Recent traces", String(predictorTraces.length));
     predictorCard.appendChild(
       createPredictorToggleAction(
         "Presage route toggle",
@@ -1804,53 +2084,120 @@ function renderObservabilitySnapshot(
   } else {
     appendObservabilityInfoItem(predictorCard, "State", "Unavailable");
   }
-  infoGrid.appendChild(predictorCard);
-  shell.appendChild(infoGrid);
+  summaryGrid.appendChild(predictorCard);
+  shell.appendChild(summaryGrid);
+
+  const workspaceGrid = document.createElement("div");
+  workspaceGrid.className = "workspace-main-grid";
 
   const modulesSection = document.createElement("section");
-  modulesSection.className = "predictor-debug-traces";
+  modulesSection.className = "observability-pane";
+  const modulesHeader = document.createElement("div");
+  modulesHeader.className = "observability-pane-header";
+  const modulesTitleBlock = document.createElement("div");
   const modulesTitle = document.createElement("h4");
   modulesTitle.textContent = "Module Controls";
-  modulesSection.appendChild(modulesTitle);
+  const modulesSubtitle = document.createElement("p");
+  modulesSubtitle.textContent = `${filteredModules.length} of ${modules.length} modules shown`;
+  modulesTitleBlock.append(modulesTitle, modulesSubtitle);
+  const modulesToolbar = document.createElement("div");
+  modulesToolbar.className = "observability-pane-toolbar";
+  modulesToolbar.append(
+    createObservabilitySearchInput(
+      "filter-observability-modules",
+      observabilityUIState.moduleQuery,
+      "Search by module or source",
+      "Filter observability modules",
+    ),
+  );
+  modulesToolbar.append(
+    createObservabilitySelect(
+      "set-observability-module-filter",
+      observabilityUIState.moduleFilter,
+      [
+        { value: "all", label: "All modules" },
+        { value: "overrides", label: "Overrides" },
+        { value: "enabled", label: "Enabled" },
+        { value: "unregistered", label: "Unregistered" },
+      ],
+    ),
+  );
+  modulesHeader.append(modulesTitleBlock, modulesToolbar);
+  modulesSection.appendChild(modulesHeader);
   const modulesList = document.createElement("div");
-  modulesList.className = "predictor-debug-trace-list";
+  modulesList.className = "observability-scroll-region observability-module-list";
+  modulesList.setAttribute("data-observability-scroll-key", "modules");
   const activeOverrides = getObservabilityModuleOverrides(registry);
-  modules.forEach((moduleStateRecord) => {
+  filteredModules.forEach((moduleStateRecord) => {
     const moduleState = moduleStateRecord as {
       moduleId?: string;
       enabled?: boolean;
       level?: string;
       registered?: boolean;
+      hasOverride?: boolean;
       sources?: string[];
       lastEventAt?: number;
     };
     const moduleId = String(moduleState.moduleId || "unknown");
     const card = document.createElement("article");
-    card.className = "predictor-debug-trace";
+    card.className = "observability-module-row";
     const topRow = document.createElement("div");
-    topRow.className = "predictor-debug-trace-top";
+    topRow.className = "observability-row-top";
     const name = document.createElement("strong");
     name.textContent = moduleId;
-    const status = document.createElement("span");
-    status.textContent = `${moduleState.enabled ? "enabled" : "disabled"} · ${String(
-      moduleState.level || "debug",
-    )}`;
-    topRow.append(name, status);
+    const badges = document.createElement("div");
+    badges.className = "observability-badge-row";
+    badges.appendChild(
+      createObservabilityBadge(
+        moduleState.registered ? "registered" : "unregistered",
+        moduleState.registered ? "success" : "warn",
+      ),
+    );
+    badges.appendChild(
+      createObservabilityBadge(
+        moduleState.enabled ? "enabled" : "disabled",
+        moduleState.enabled ? "accent" : "neutral",
+      ),
+    );
+    if (moduleState.hasOverride) {
+      badges.appendChild(createObservabilityBadge("override", "accent"));
+    }
+    topRow.append(name, badges);
     card.appendChild(topRow);
 
-    const detail = document.createElement("p");
-    detail.className = "predictor-debug-stage";
-    detail.textContent = `Registered: ${moduleState.registered ? "yes" : "no"} | Sources: ${
-      Array.isArray(moduleState.sources) ? moduleState.sources.join(", ") || "none" : "none"
-    } | Last event: ${
-      typeof moduleState.lastEventAt === "number"
-        ? formatClockTime(moduleState.lastEventAt)
-        : "none"
-    }`;
+    const detail = document.createElement("div");
+    detail.className = "observability-module-meta";
+    detail.appendChild(
+      createObservabilityBadge(
+        `level ${String(moduleState.level || "debug")}`,
+        moduleState.level === "error"
+          ? "error"
+          : moduleState.level === "warn"
+            ? "warn"
+            : moduleState.level === "info"
+              ? "success"
+              : "neutral",
+      ),
+    );
+    if (Array.isArray(moduleState.sources) && moduleState.sources.length > 0) {
+      moduleState.sources.forEach((sourceValue) => {
+        detail.appendChild(createObservabilityBadge(String(sourceValue), "neutral"));
+      });
+    } else {
+      detail.appendChild(createObservabilityBadge("no source yet", "neutral"));
+    }
+    detail.appendChild(
+      createObservabilityBadge(
+        `last ${typeof moduleState.lastEventAt === "number" ? formatClockTime(moduleState.lastEventAt) : "none"}`,
+        "neutral",
+      ),
+    );
     card.appendChild(detail);
 
     const controls = document.createElement("div");
-    controls.className = "predictor-debug-toggle-row";
+    controls.className = "observability-module-controls";
+    const enabledLabel = document.createElement("label");
+    enabledLabel.className = "observability-inline-toggle";
     const enabledToggle = document.createElement("input");
     enabledToggle.type = "checkbox";
     enabledToggle.checked = Boolean(
@@ -1858,33 +2205,83 @@ function renderObservabilitySnapshot(
     );
     enabledToggle.setAttribute("data-action", "toggle-observability-module");
     enabledToggle.setAttribute("data-module-id", moduleId);
-    controls.appendChild(enabledToggle);
-    controls.appendChild(
+    const enabledText = document.createElement("span");
+    enabledText.textContent = "Enabled";
+    enabledLabel.append(enabledToggle, enabledText);
+    controls.appendChild(enabledLabel);
+    const levelControl = document.createElement("label");
+    levelControl.className = "observability-inline-select";
+    const levelLabel = document.createElement("span");
+    levelLabel.textContent = "Level";
+    levelControl.append(
+      levelLabel,
       createObservabilityLevelSelect(
         activeOverrides[moduleId]?.level || moduleState.level || "debug",
         moduleId,
       ),
     );
+    controls.appendChild(levelControl);
     card.appendChild(controls);
     modulesList.appendChild(card);
   });
+  if (filteredModules.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "observability-empty";
+    empty.textContent = "No modules match the current filter.";
+    modulesList.appendChild(empty);
+  }
   modulesSection.appendChild(modulesList);
-  shell.appendChild(modulesSection);
+  workspaceGrid.appendChild(modulesSection);
 
   const eventsSection = document.createElement("section");
-  eventsSection.className = "predictor-debug-traces";
+  eventsSection.className = "observability-pane";
+  const eventsHeader = document.createElement("div");
+  eventsHeader.className = "observability-pane-header";
+  const eventsTitleBlock = document.createElement("div");
   const eventsTitle = document.createElement("h4");
   eventsTitle.textContent = "Recent Events";
-  eventsSection.appendChild(eventsTitle);
+  const eventsSubtitle = document.createElement("p");
+  eventsSubtitle.textContent = `${filteredEvents.length} of ${events.length} events shown`;
+  eventsTitleBlock.append(eventsTitle, eventsSubtitle);
+  const eventsToolbar = document.createElement("div");
+  eventsToolbar.className = "observability-pane-toolbar";
+  eventsToolbar.append(
+    createObservabilitySearchInput(
+      "filter-observability-events",
+      observabilityUIState.eventQuery,
+      "Search message, trace, tab, or module",
+      "Filter observability events",
+    ),
+  );
+  eventsToolbar.append(
+    createObservabilitySelect("set-observability-event-source", observabilityUIState.eventSource, [
+      { value: "all", label: "All sources" },
+      { value: "background", label: "Background" },
+      { value: "content_script", label: "Content script" },
+      { value: "options", label: "Options" },
+    ]),
+  );
+  eventsToolbar.append(
+    createObservabilitySelect("set-observability-event-level", observabilityUIState.eventLevel, [
+      { value: "all", label: "All levels" },
+      { value: "debug", label: "Debug" },
+      { value: "info", label: "Info" },
+      { value: "warn", label: "Warn" },
+      { value: "error", label: "Error" },
+    ]),
+  );
+  eventsHeader.append(eventsTitleBlock, eventsToolbar);
+  eventsSection.appendChild(eventsHeader);
   if (events.length === 0) {
     const empty = document.createElement("p");
-    empty.className = "predictor-debug-empty";
+    empty.className = "observability-empty";
     empty.textContent = "No observability events captured yet.";
     eventsSection.appendChild(empty);
   } else {
     const list = document.createElement("div");
-    list.className = "predictor-debug-trace-list";
-    events.slice(0, 80).forEach((eventRecord) => {
+    list.className = "observability-scroll-region observability-event-list";
+    list.setAttribute("data-observability-scroll-key", "events");
+    filteredEvents.forEach((eventRecord) => {
       const event = eventRecord as {
         moduleId?: string;
         level?: string;
@@ -1898,53 +2295,105 @@ function renderObservabilitySnapshot(
         context?: unknown;
       };
       const card = document.createElement("article");
-      card.className = "predictor-debug-trace";
+      card.className = "observability-event-card";
       const topRow = document.createElement("div");
-      topRow.className = "predictor-debug-trace-top";
+      topRow.className = "observability-row-top";
       const main = document.createElement("strong");
-      main.textContent = `${String(event.moduleId || "module")} · ${String(event.level || "debug")} · ${formatClockTime(event.timestampMs)}`;
-      const source = document.createElement("span");
-      source.textContent = String(event.source || "unknown");
-      topRow.append(main, source);
+      main.textContent = String(event.moduleId || "module");
+      const eventTime = document.createElement("span");
+      eventTime.textContent = formatClockTime(event.timestampMs);
+      topRow.append(main, eventTime);
       card.appendChild(topRow);
+      const chips = document.createElement("div");
+      chips.className = "observability-badge-row";
+      chips.appendChild(
+        createObservabilityBadge(
+          String(event.level || "debug"),
+          event.level === "error"
+            ? "error"
+            : event.level === "warn"
+              ? "warn"
+              : event.level === "info"
+                ? "success"
+                : "neutral",
+        ),
+      );
+      chips.appendChild(
+        createObservabilityBadge(
+          String(event.source || "unknown"),
+          event.source === "options" ? "accent" : "neutral",
+        ),
+      );
+      if (event.traceId) {
+        chips.appendChild(createObservabilityBadge(`trace ${event.traceId}`, "neutral"));
+      }
+      if (typeof event.requestId === "number") {
+        chips.appendChild(createObservabilityBadge(`req ${event.requestId}`, "neutral"));
+      }
+      if (typeof event.tabId === "number") {
+        chips.appendChild(createObservabilityBadge(`tab ${event.tabId}`, "neutral"));
+      }
+      if (typeof event.frameId === "number") {
+        chips.appendChild(createObservabilityBadge(`frame ${event.frameId}`, "neutral"));
+      }
+      card.appendChild(chips);
       const message = document.createElement("p");
-      message.className = "predictor-debug-output";
+      message.className = "observability-event-message";
       message.textContent = String(event.message || "");
       card.appendChild(message);
-      const meta = document.createElement("p");
-      meta.className = "predictor-debug-stage";
-      meta.textContent = `trace=${String(event.traceId || "n/a")} request=${String(
-        event.requestId ?? "n/a",
-      )} tab=${String(event.tabId ?? "n/a")} frame=${String(event.frameId ?? "n/a")}`;
-      card.appendChild(meta);
       if (event.context && typeof event.context === "object") {
+        const details = document.createElement("details");
+        details.className = "observability-event-context";
+        const contextSummary = document.createElement("summary");
+        contextSummary.textContent = "Context";
         const context = document.createElement("pre");
-        context.className = "predictor-debug-stage";
         context.textContent = JSON.stringify(event.context, null, 2);
-        card.appendChild(context);
+        details.append(contextSummary, context);
+        card.appendChild(details);
       }
       list.appendChild(card);
     });
+    if (filteredEvents.length === 0) {
+      const empty = document.createElement("p");
+      empty.className = "observability-empty";
+      empty.textContent = "No events match the current filter.";
+      list.appendChild(empty);
+    }
     eventsSection.appendChild(list);
   }
-  shell.appendChild(eventsSection);
+  workspaceGrid.appendChild(eventsSection);
 
   const rawSection = document.createElement("section");
-  rawSection.className = "predictor-debug-traces";
+  rawSection.className = "observability-pane workspace-span-full";
   const rawTitle = document.createElement("h4");
   rawTitle.textContent = "Raw Snapshot";
-  rawSection.appendChild(rawTitle);
+  const rawDetails = document.createElement("details");
+  rawDetails.className = "observability-raw";
+  const rawSummary = document.createElement("summary");
+  rawSummary.textContent = "Inspect full machine-readable snapshot";
   const raw = document.createElement("pre");
-  raw.className = "predictor-debug-stage";
+  raw.className = "observability-raw-preview";
   raw.textContent = JSON.stringify(snapshot, null, 2);
-  rawSection.appendChild(raw);
-  shell.appendChild(rawSection);
+  rawDetails.append(rawSummary, raw);
+  rawSection.append(rawTitle, rawDetails);
+  workspaceGrid.appendChild(rawSection);
+  shell.appendChild(workspaceGrid);
 
   root.appendChild(shell);
+  updateObservabilityLiveStatus(
+    root,
+    observabilityUIState.livePaused
+      ? "Live updates paused"
+      : `Updated ${formatClockTime(snapshot.generatedAtMs)}`,
+  );
+  window.requestAnimationFrame(() => {
+    window.scrollTo(pageScrollX, pageScrollY);
+    restoreObservabilityScrollState(root, scrollState);
+  });
 }
 
 async function loadObservabilitySnapshot(root: HTMLElement, retryCount = 0) {
-  const hasRenderedDashboard = Boolean(root.querySelector(".predictor-debug"));
+  const hasRenderedDashboard = Boolean(root.querySelector(".observability-dashboard"));
   if (retryCount === 0 && !hasRenderedDashboard) {
     renderObservabilityStatus(root, "Loading observability dashboard...");
   }
@@ -1966,12 +2415,19 @@ async function loadObservabilitySnapshot(root: HTMLElement, retryCount = 0) {
     renderObservabilityStatus(root, "Observability is available only in development builds.", true);
     return;
   }
+  observabilityCurrentSnapshot = response;
   const signature = buildObservabilitySnapshotSignature(response);
   if (
     signature &&
     signature === observabilityLastSignature &&
-    root.querySelector(".predictor-debug, .predictor-debug-status")
+    root.querySelector(".observability-dashboard, .observability-status")
   ) {
+    updateObservabilityLiveStatus(
+      root,
+      observabilityUIState.livePaused
+        ? "Live updates paused"
+        : `Updated ${formatClockTime(response.generatedAtMs)}`,
+    );
     return;
   }
   observabilityLastSignature = signature;
@@ -1993,11 +2449,22 @@ function setupObservabilityDashboard(registry: ReturnType<SettingsEngine["buildF
     __ftSettingsRegistry?: ReturnType<SettingsEngine["buildFromManifest"]>;
   };
   registryHost.__ftSettingsRegistry = registry;
-  const mountIfNeeded = () => getObservabilityRootElement();
-  const scheduleRefresh = () => {
+  const mountIfNeeded = () => getObservabilityRootElement() as HTMLElement | null;
+  const scheduleRefresh = (force = false) => {
     const root = mountIfNeeded();
     if (root) {
-      observabilityLastSignature = "";
+      if (!force && shouldDeferObservabilityRefresh(root)) {
+        updateObservabilityLiveStatus(
+          root,
+          observabilityUIState.livePaused
+            ? "Live updates paused"
+            : "Live updates paused while you inspect the dashboard",
+        );
+        return;
+      }
+      if (force) {
+        observabilityLastSignature = "";
+      }
       void loadObservabilitySnapshot(root);
     }
   };
@@ -2005,7 +2472,7 @@ function setupObservabilityDashboard(registry: ReturnType<SettingsEngine["buildF
   if (root) {
     applyOptionsObservabilityRuntime(registry);
     observabilityLogger.info("Mounting observability dashboard");
-    scheduleRefresh();
+    scheduleRefresh(true);
   }
   if (observabilityBindingsInitialized) {
     return;
@@ -2024,7 +2491,7 @@ function setupObservabilityDashboard(registry: ReturnType<SettingsEngine["buildF
     }
     if (action === "refresh-observability") {
       observabilityLogger.debug("Refreshing observability dashboard");
-      scheduleRefresh();
+      scheduleRefresh(true);
       return;
     }
     if (action === "clear-observability") {
@@ -2033,8 +2500,16 @@ function setupObservabilityDashboard(registry: ReturnType<SettingsEngine["buildF
         command: CMD_OPTIONS_CLEAR_OBSERVABILITY_EVENTS,
         context: {},
       }).then(() => {
-        scheduleRefresh();
+        scheduleRefresh(true);
       });
+      return;
+    }
+    if (action === "toggle-observability-live") {
+      observabilityUIState.livePaused = !observabilityUIState.livePaused;
+      renderStoredObservabilitySnapshot(root, registry);
+      if (!observabilityUIState.livePaused) {
+        scheduleRefresh(true);
+      }
       return;
     }
     if (action === "set-predictor-toggle") {
@@ -2050,7 +2525,7 @@ function setupObservabilityDashboard(registry: ReturnType<SettingsEngine["buildF
             nextEnabled,
           });
           optionsPageConfigChange();
-          window.setTimeout(scheduleRefresh, 120);
+          window.setTimeout(() => scheduleRefresh(true), 120);
         }
       }
       return;
@@ -2063,6 +2538,27 @@ function setupObservabilityDashboard(registry: ReturnType<SettingsEngine["buildF
     }
   });
 
+  document.addEventListener("input", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+    const action = target.getAttribute("data-action");
+    const root = mountIfNeeded();
+    if (!root) {
+      return;
+    }
+    if (action === "filter-observability-modules" && target instanceof HTMLInputElement) {
+      observabilityUIState.moduleQuery = target.value;
+      renderStoredObservabilitySnapshot(root, registry);
+      return;
+    }
+    if (action === "filter-observability-events" && target instanceof HTMLInputElement) {
+      observabilityUIState.eventQuery = target.value;
+      renderStoredObservabilitySnapshot(root, registry);
+    }
+  });
+
   document.addEventListener("change", (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) {
@@ -2070,6 +2566,35 @@ function setupObservabilityDashboard(registry: ReturnType<SettingsEngine["buildF
     }
     const action = target.getAttribute("data-action");
     if (!action) {
+      return;
+    }
+    const root = mountIfNeeded();
+    if (!root) {
+      return;
+    }
+    if (action === "set-observability-module-filter" && target instanceof HTMLSelectElement) {
+      observabilityUIState.moduleFilter =
+        target.value === "overrides" ||
+        target.value === "enabled" ||
+        target.value === "unregistered"
+          ? target.value
+          : "all";
+      renderStoredObservabilitySnapshot(root, registry);
+      return;
+    }
+    if (action === "set-observability-event-source" && target instanceof HTMLSelectElement) {
+      observabilityUIState.eventSource =
+        target.value === "background" ||
+        target.value === "content_script" ||
+        target.value === "options"
+          ? target.value
+          : "all";
+      renderStoredObservabilitySnapshot(root, registry);
+      return;
+    }
+    if (action === "set-observability-event-level" && target instanceof HTMLSelectElement) {
+      observabilityUIState.eventLevel = isLogLevel(target.value) ? target.value : "all";
+      renderStoredObservabilitySnapshot(root, registry);
       return;
     }
     const moduleId = target.getAttribute("data-module-id");
@@ -2093,10 +2618,10 @@ function setupObservabilityDashboard(registry: ReturnType<SettingsEngine["buildF
       level: current.level,
     });
     optionsPageConfigChange();
-    window.setTimeout(scheduleRefresh, 120);
+    window.setTimeout(() => scheduleRefresh(true), 120);
   });
 
-  window.addEventListener("focus", scheduleRefresh);
+  window.addEventListener("focus", () => scheduleRefresh());
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) {
       scheduleRefresh();
