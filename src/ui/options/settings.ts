@@ -8,6 +8,8 @@ import { SiteManagementPanel } from "@ui/options/SiteManagementPanel";
 import { AppearanceStudio } from "@ui/options/AppearanceStudio";
 import { DataDiagnosticsPanel } from "@ui/options/DataDiagnosticsPanel";
 import { AboutWorkspacePanel } from "@ui/options/AboutWorkspacePanel";
+import { EssentialsWorkspacePanel } from "@ui/options/EssentialsWorkspacePanel";
+import { GrammarWorkspacePanel } from "@ui/options/GrammarWorkspacePanel";
 import { resolveSiteProfiles } from "@core/domain/siteProfiles";
 import {
   KEY_AUTOCOMPLETE,
@@ -1475,6 +1477,12 @@ window.addEventListener("DOMContentLoaded", function () {
   const registry = engine.buildFromManifest(manifest);
 
   void (async () => {
+    new EssentialsWorkspacePanel(
+      registry.essentialsWorkspacePanel.element as HTMLElement,
+      registry,
+      IS_DEV_BUILD,
+    );
+    new GrammarWorkspacePanel(registry.grammarWorkspacePanel.element as HTMLElement, registry);
     new LanguageSettingsPanel(
       registry.languagePreferencesPanel.element as HTMLElement,
       registry,
@@ -1492,7 +1500,11 @@ window.addEventListener("DOMContentLoaded", function () {
       registry,
       themePresets,
     );
-    new DataDiagnosticsPanel(registry.dataDiagnosticsPanel.element as HTMLElement, IS_DEV_BUILD);
+    new DataDiagnosticsPanel(
+      registry.dataDiagnosticsPanel.element as HTMLElement,
+      registry,
+      IS_DEV_BUILD,
+    );
     new AboutWorkspacePanel(registry.aboutWorkspacePanel.element as HTMLElement);
 
     registry[KEY_LANGUAGE].addEvent("action", async function () {

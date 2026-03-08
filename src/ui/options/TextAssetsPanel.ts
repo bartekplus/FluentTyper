@@ -107,8 +107,7 @@ export class TextAssetsPanel {
 
   render(): void {
     this.root.replaceChildren(
-      this.createToolbar(),
-      this.createSnippetWorkspace(),
+      this.createSnippetWorkspaceCard(),
       this.createDictionaryWorkspace(),
       this.createVariableWorkspace(),
     );
@@ -188,6 +187,23 @@ export class TextAssetsPanel {
 
     toolbar.appendChild(actions);
     return toolbar;
+  }
+
+  private createSnippetWorkspaceCard(): HTMLElement {
+    const shell = document.createElement("section");
+    shell.className = "settings-inline-card";
+
+    const title = document.createElement("h4");
+    title.textContent = i18n.get("text_expander");
+    shell.appendChild(title);
+
+    const helper = document.createElement("p");
+    helper.className = "settings-inline-help";
+    helper.textContent = i18n.get("options_panel_text_assets_desc");
+    shell.appendChild(helper);
+
+    shell.append(this.createToolbar(), this.createSnippetWorkspace());
+    return shell;
   }
 
   private createSnippetWorkspace(): HTMLElement {

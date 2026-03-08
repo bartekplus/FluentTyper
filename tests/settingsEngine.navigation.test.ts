@@ -222,4 +222,42 @@ describe("SettingsEngine navigation", () => {
       "Data & Diagnostics",
     );
   });
+
+  test("custom panels keep their group shell when it adds distinct section structure", () => {
+    const elements = createEngineElements();
+    const engine = new SettingsEngine({
+      container: elements,
+    });
+
+    engine.buildFromManifest({
+      name: "Test",
+      icon: "/icon.png",
+      tabs: [
+        {
+          id: "language_tab",
+          label: "Languages",
+          title: "Languages",
+        },
+      ],
+      settings: [
+        {
+          tab: "language_tab",
+          group: "Writing setup",
+          name: "languagePreferencesPanel",
+          type: "customPanel",
+          label: "Writing setup",
+          description: "Choose writing languages and detection behavior.",
+        },
+      ],
+    });
+
+    const panelGroup = elements.content.querySelector(".settings-group");
+    expect(panelGroup?.classList.contains("settings-group-panel-only")).toBe(false);
+    expect(
+      (elements.content.querySelector(".settings-group-title") as HTMLElement | null)?.innerText,
+    ).toBe("Writing setup");
+    expect(elements.content.querySelector(".settings-custom-panel-label")).toBeNull();
+    expect(elements.content.querySelector(".settings-custom-panel-description")).toBeNull();
+    expect(elements.content.querySelector("#languagePreferencesPanelPanelRoot")).not.toBeNull();
+  });
 });

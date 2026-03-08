@@ -1,55 +1,64 @@
+import type { SettingsRegistry } from "@ui/settings-engine/SettingsEngine.js";
+import {
+  KEY_AI_MODEL_ID,
+  KEY_AI_PREDICTION_TIMEOUT_MS,
+  KEY_DEBUG_AI_PREDICTOR_ENABLED,
+  KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
+} from "@core/domain/constants";
 import { i18n } from "./fluenttyperI18n.js";
-
-function createCard(titleText: string, bodyText: string): HTMLElement {
-  const card = document.createElement("section");
-  card.className = "workspace-overview-card";
-
-  const title = document.createElement("h4");
-  title.textContent = titleText;
-  card.appendChild(title);
-
-  const body = document.createElement("p");
-  body.className = "settings-inline-help";
-  body.textContent = bodyText;
-  card.appendChild(body);
-
-  return card;
-}
+import {
+  createWorkspaceCard,
+  moveControlToBody,
+  pruneEmptySettingsGroups,
+} from "./workspacePanelUtils.js";
 
 export class DataDiagnosticsPanel {
   private readonly root: HTMLElement;
+  private readonly registry: SettingsRegistry;
   private readonly isDevBuild: boolean;
 
-  constructor(root: HTMLElement, isDevBuild: boolean) {
+  constructor(root: HTMLElement, registry: SettingsRegistry, isDevBuild: boolean) {
     this.root = root;
+    this.registry = registry;
     this.isDevBuild = isDevBuild;
     this.render();
   }
 
   render(): void {
     const shell = document.createElement("div");
-    shell.className = "workspace-overview-grid";
+    shell.className = "workspace-panel-stack";
 
-    shell.appendChild(createCard(i18n.get("options_tab_data"), i18n.get("options_tab_data_desc")));
-    shell.appendChild(
-      createCard(
-        i18n.get("productivity_dashboard_group"),
-        i18n.get("productivity_insights_subtitle"),
-      ),
+    const productivity = createWorkspaceCard(
+      i18n.get("productivity_dashboard_group"),
+      i18n.get("productivity_insights_subtitle"),
     );
-    shell.appendChild(
-      createCard(
-        i18n.get("config_data"),
-        `${i18n.get("import_settings_desc")} ${i18n.get("export_settings_desc")}`,
-      ),
+    moveControlToBody(this.registry, "productivityStatsPanel", productivity.body);
+    moveControlToBody(this.registry, "resetProductivityStatsButton", productivity.body);
+    shell.appendChild(productivity.card);
+
+    const config = createWorkspaceCard(
+      i18n.get("config_data"),
+      `${i18n.get("import_settings_desc")} ${i18n.get("export_settings_desc")}`,
     );
+    moveControlToBody(this.registry, "importSettingButton", config.body);
+    moveControlToBody(this.registry, "exportSettingButton", config.body);
+    shell.appendChild(config.card);
 
     if (this.isDevBuild) {
-      shell.appendChild(
-        createCard(i18n.get("predictor_debug_group"), i18n.get("predictor_debug_desc")),
+      const debug = createWorkspaceCard(
+        i18n.get("predictor_debug_group"),
+        i18n.get("predictor_debug_desc"),
       );
+      moveControlToBody(this.registry, "predictorDebugHint", debug.body);
+      moveControlToBody(this.registry, KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED, debug.body);
+      moveControlToBody(this.registry, KEY_DEBUG_AI_PREDICTOR_ENABLED, debug.body);
+      moveControlToBody(this.registry, KEY_AI_MODEL_ID, debug.body);
+      moveControlToBody(this.registry, KEY_AI_PREDICTION_TIMEOUT_MS, debug.body);
+      moveControlToBody(this.registry, "predictorDebugPanel", debug.body);
+      shell.appendChild(debug.card);
     }
 
     this.root.replaceChildren(shell);
+    pruneEmptySettingsGroups(this.root);
   }
 }

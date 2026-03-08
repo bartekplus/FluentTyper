@@ -223,6 +223,7 @@ body.fluenttyper-options .settings-group {
 }
 
 body.fluenttyper-options .settings-group.is-search-hidden,
+body.fluenttyper-options .settings-group.is-empty-workspace-group,
 body.fluenttyper-options .settings-group .is-search-hidden {
   display: none;
 }
@@ -402,12 +403,25 @@ body.fluenttyper-options .settings-group.settings-group-panel-only .settings-gro
   margin: 0;
 }
 
+.workspace-panel-stack {
+  display: grid;
+  gap: 1rem;
+}
+
+.workspace-top-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.workspace-section-card .workspace-section-body {
+  display: grid;
+  gap: 0.9rem;
+}
+
 .language-panel-summary {
   display: grid;
   gap: 0.45rem;
-  padding: 1rem 1.05rem;
-  border-radius: 1rem;
-  background: color-mix(in srgb, var(--accent-color) 10%, var(--box-background-color));
 }
 
 .language-panel-summary h4 {

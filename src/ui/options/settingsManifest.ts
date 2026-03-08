@@ -179,6 +179,15 @@ const manifest: ManifestDefinition = {
     // =========================================================================
     {
       tab: "core_settings",
+      group: i18n.get("options_tab_essentials"),
+      name: "essentialsWorkspacePanel",
+      type: "customPanel",
+      label: i18n.get("options_tab_essentials"),
+      description: i18n.get("options_tab_essentials_desc"),
+      keywords: [i18n.get("prediction_engine"), i18n.get("accept_predictions")],
+    },
+    {
+      tab: "core_settings",
       group: i18n.get("General"),
       name: "enable",
       type: "checkbox",
@@ -273,6 +282,15 @@ const manifest: ManifestDefinition = {
     // =========================================================================
     // TAB: Grammar Rules
     // =========================================================================
+    {
+      tab: "grammar_tab",
+      group: i18n.get("grammar_tab"),
+      name: "grammarWorkspacePanel",
+      type: "customPanel",
+      label: i18n.get("grammar_tab"),
+      description: i18n.get("options_tab_grammar_desc"),
+      keywords: [i18n.get("grammar_rules"), i18n.get("grammar_tab")],
+    },
     {
       tab: "grammar_tab",
       group: i18n.get("grammar_rules"),

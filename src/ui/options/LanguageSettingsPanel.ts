@@ -7,12 +7,19 @@ import {
 } from "@core/domain/lang";
 import {
   KEY_ENABLED_LANGUAGES,
+  KEY_EXTENSION_LANGUAGE,
   KEY_FALLBACK_LANGUAGE,
   KEY_LANGUAGE,
+  KEY_DISPLAY_LANG_HEADER,
   KEY_SITE_PROFILES,
 } from "@core/domain/constants";
 import { resolveSiteProfiles } from "@core/domain/siteProfiles";
 import { formatTranslation, i18n } from "./fluenttyperI18n.js";
+import {
+  createWorkspaceCard,
+  moveControlToBody,
+  pruneEmptySettingsGroups,
+} from "./workspacePanelUtils.js";
 
 export class LanguageSettingsPanel {
   private readonly root: HTMLElement;
@@ -25,6 +32,9 @@ export class LanguageSettingsPanel {
     this.store = store;
 
     this.registry[KEY_LANGUAGE]?.addEvent("action", () => {
+      void this.render();
+    });
+    this.registry[KEY_EXTENSION_LANGUAGE]?.addEvent("action", () => {
       void this.render();
     });
     this.registry[KEY_ENABLED_LANGUAGES]?.addEvent("action", () => {
@@ -59,11 +69,37 @@ export class LanguageSettingsPanel {
     const siteProfiles = resolveSiteProfiles(siteProfilesRaw, enabledLanguages);
     const usageCounts = this.countSiteProfileUsage(siteProfiles);
 
-    this.root.replaceChildren(
+    const shell = document.createElement("div");
+    shell.className = "workspace-panel-stack";
+
+    const topGrid = document.createElement("div");
+    topGrid.className = "workspace-top-grid";
+    topGrid.append(
+      this.createExtensionUiCard(),
       this.createSummary(enabledLanguages, language, fallbackLanguage),
-      this.createLanguageGrid(enabledLanguages, usageCounts),
+      this.createLanguageDisplayCard(),
+    );
+
+    shell.append(
+      topGrid,
+      this.createLanguageGridSection(enabledLanguages, usageCounts),
       this.createBehaviorCards(enabledLanguages, language, fallbackLanguage),
     );
+
+    this.root.replaceChildren(shell);
+    pruneEmptySettingsGroups(this.root);
+  }
+
+  private createExtensionUiCard(): HTMLElement {
+    const { card, body } = createWorkspaceCard(i18n.get("extension_ui_language"));
+    moveControlToBody(this.registry, KEY_EXTENSION_LANGUAGE, body);
+    return card;
+  }
+
+  private createLanguageDisplayCard(): HTMLElement {
+    const { card, body } = createWorkspaceCard(i18n.get("language_display"));
+    moveControlToBody(this.registry, KEY_DISPLAY_LANG_HEADER, body);
+    return card;
   }
 
   private createSummary(
@@ -72,7 +108,7 @@ export class LanguageSettingsPanel {
     fallbackLanguage: string,
   ): HTMLElement {
     const shell = document.createElement("section");
-    shell.className = "language-panel-summary";
+    shell.className = "settings-inline-card language-panel-summary";
 
     const title = document.createElement("h4");
     title.textContent = i18n.get("language_panel_summary_title");
@@ -111,11 +147,15 @@ export class LanguageSettingsPanel {
     return shell;
   }
 
-  private createLanguageGrid(
+  private createLanguageGridSection(
     enabledLanguages: string[],
     usageCounts: Record<string, number>,
   ): HTMLElement {
-    const section = document.createElement("section");
+    const { card, body } = createWorkspaceCard(
+      i18n.get("options_panel_language_label"),
+      i18n.get("options_panel_language_desc"),
+    );
+    const section = document.createElement("div");
     section.className = "language-card-grid";
 
     SUPPORTED_PREDICTION_LANGUAGE_KEYS.forEach((languageKey) => {
@@ -161,7 +201,8 @@ export class LanguageSettingsPanel {
       section.appendChild(button);
     });
 
-    return section;
+    body.appendChild(section);
+    return card;
   }
 
   private createBehaviorCards(
