@@ -488,7 +488,7 @@ async function loadPopupWithOutcomes(
   return chromeMock;
 }
 
-describe("popup productivity dashboard retry/failure paths", () => {
+describe.serial("popup productivity dashboard retry/failure paths", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();

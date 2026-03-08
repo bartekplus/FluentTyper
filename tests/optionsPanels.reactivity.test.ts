@@ -85,7 +85,7 @@ function findButtonByText(root: HTMLElement, text: string): HTMLButtonElement {
   return button;
 }
 
-describe("options panel reactivity", () => {
+describe.serial("options panel reactivity", () => {
   beforeEach(async () => {
     releaseDomGlobalLock = await acquireDomGlobalLock();
     i18n.lang = "en";

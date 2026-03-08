@@ -64,7 +64,7 @@ function createDetector(initialState: Partial<SettingsState> = {}) {
   };
 }
 
-describe("LanguageDetector live session scoping", () => {
+describe.serial("LanguageDetector live session scoping", () => {
   beforeEach(async () => {
     releaseDomGlobalLock = await acquireDomGlobalLock();
     jest.clearAllMocks();

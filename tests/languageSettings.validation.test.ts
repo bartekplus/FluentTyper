@@ -36,7 +36,7 @@ function createStore(values: SettingsMap): Store {
   } as Store;
 }
 
-describe("validateLanguageSettings", () => {
+describe.serial("validateLanguageSettings", () => {
   beforeEach(async () => {
     releaseDomGlobalLock = await acquireDomGlobalLock();
     (
