@@ -1,5 +1,5 @@
 import "./setup";
-import { beforeEach, describe, expect, jest, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
 import type { Store } from "../src/core/application/storage/Store.js";
 import {
   KEY_AUTO_LANGUAGE_SITE_PRIORS,
@@ -9,8 +9,11 @@ import {
   KEY_SITE_PROFILES,
 } from "../src/core/domain/constants";
 import { validateLanguageSettings } from "../src/ui/options/settings.js";
+import { acquireDomGlobalLock } from "./support/domGlobalLock";
 
 type SettingsMap = Record<string, unknown>;
+const baseChrome = (globalThis as unknown as { chrome: unknown }).chrome;
+let releaseDomGlobalLock: (() => void) | null = null;
 
 class MockControl {
   readonly calls: Array<{ value: unknown; silent: boolean }> = [];
@@ -34,12 +37,19 @@ function createStore(values: SettingsMap): Store {
 }
 
 describe("validateLanguageSettings", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    releaseDomGlobalLock = await acquireDomGlobalLock();
     (
       globalThis.chrome as typeof chrome & {
         runtime: typeof chrome.runtime & { sendMessage: ReturnType<typeof jest.fn> };
       }
     ).runtime.sendMessage = jest.fn();
+  });
+
+  afterEach(() => {
+    (globalThis as unknown as { chrome: unknown }).chrome = baseChrome;
+    releaseDomGlobalLock?.();
+    releaseDomGlobalLock = null;
   });
 
   test("sanitizes invalid primary/fallback languages and prunes site profiles that use removed languages", async () => {

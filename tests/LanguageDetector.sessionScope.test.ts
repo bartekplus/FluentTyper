@@ -1,12 +1,15 @@
-import { beforeEach, describe, expect, jest, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
 import { LanguageDetector } from "../src/adapters/chrome/background/LanguageDetector";
 import {
   AUTO_LANGUAGE_MAX_SAMPLE_CHARS,
   AUTO_LANGUAGE_MAX_SAMPLE_TOKENS,
 } from "../src/core/domain/autoLanguageDetection";
+import { acquireDomGlobalLock } from "./support/domGlobalLock";
 
 type SettingsState = Record<string, unknown>;
 const SESSION_TTL_MS = 5 * 60 * 1000;
+const baseChrome = (globalThis as unknown as { chrome: unknown }).chrome;
+let releaseDomGlobalLock: (() => void) | null = null;
 
 function createSettingsManager(initialState: Partial<SettingsState> = {}) {
   const state: SettingsState = {
@@ -62,8 +65,15 @@ function createDetector(initialState: Partial<SettingsState> = {}) {
 }
 
 describe("LanguageDetector live session scoping", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    releaseDomGlobalLock = await acquireDomGlobalLock();
     jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    (globalThis as unknown as { chrome: unknown }).chrome = baseChrome;
+    releaseDomGlobalLock?.();
+    releaseDomGlobalLock = null;
   });
 
   test("same-tab navigation cannot reuse a previous page session", async () => {

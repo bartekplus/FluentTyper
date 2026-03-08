@@ -14,8 +14,11 @@ import {
   KEY_NUM_SUGGESTIONS,
   KEY_SITE_PROFILES,
 } from "../src/core/domain/constants";
+import { acquireDomGlobalLock } from "./support/domGlobalLock";
 
 type SettingsMap = Record<string, unknown>;
+const baseChrome = (globalThis as unknown as { chrome: unknown }).chrome;
+let releaseDomGlobalLock: (() => void) | null = null;
 
 class MockControl {
   private readonly handlers: Array<(value: unknown) => void> = [];
@@ -83,7 +86,8 @@ function findButtonByText(root: HTMLElement, text: string): HTMLButtonElement {
 }
 
 describe("options panel reactivity", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    releaseDomGlobalLock = await acquireDomGlobalLock();
     i18n.lang = "en";
     (
       globalThis.chrome as typeof chrome & {
@@ -94,6 +98,9 @@ describe("options panel reactivity", () => {
 
   afterEach(() => {
     document.body.replaceChildren();
+    (globalThis as unknown as { chrome: unknown }).chrome = baseChrome;
+    releaseDomGlobalLock?.();
+    releaseDomGlobalLock = null;
   });
 
   test("language warnings refresh when site profiles change", async () => {
