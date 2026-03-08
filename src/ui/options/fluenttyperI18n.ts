@@ -5546,14 +5546,35 @@ i18n.extend({
   appearance_font_size_title: {
     en: "Text size",
   },
+  appearance_font_size_xs: {
+    en: "Smallest",
+  },
+  appearance_font_size_sm: {
+    en: "Small",
+  },
+  appearance_font_size_md: {
+    en: "Balanced",
+  },
+  appearance_font_size_lg: {
+    en: "Large",
+  },
+  appearance_font_size_xl: {
+    en: "Largest",
+  },
   appearance_row_height_title: {
     en: "Row height",
   },
   appearance_side_padding_title: {
     en: "Side padding",
   },
+  appearance_density_ultra_compact: {
+    en: "Ultra compact",
+  },
   appearance_density_compact: {
     en: "Compact",
+  },
+  appearance_density_comfortable: {
+    en: "Comfortable",
   },
   appearance_density_balanced: {
     en: "Balanced",
@@ -5561,11 +5582,17 @@ i18n.extend({
   appearance_density_roomy: {
     en: "Roomy",
   },
+  appearance_density_ultra_tight: {
+    en: "Ultra tight",
+  },
   appearance_density_tight: {
     en: "Tight",
   },
   appearance_density_wide: {
     en: "Wide",
+  },
+  appearance_density_extra_wide: {
+    en: "Extra wide",
   },
   appearance_light_preview: {
     en: "Light preview",

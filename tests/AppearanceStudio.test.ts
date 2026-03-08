@@ -246,6 +246,25 @@ describe("AppearanceStudio theme value compatibility", () => {
     expect(root.textContent).not.toContain("Highlight Background");
   });
 
+  test("size and density controls expose five tuning steps each", () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    const { registry } = createRegistry(DEFAULT_THEME);
+
+    new AppearanceStudio(root, registry as never, {
+      default: DEFAULT_THEME,
+      compact: COMPACT_THEME,
+    });
+
+    const selects = root.querySelectorAll<HTMLSelectElement>(".settings-stack-field select");
+    expect(selects[0]?.options).toHaveLength(5);
+    expect(selects[1]?.options).toHaveLength(5);
+    expect(selects[2]?.options).toHaveLength(5);
+    expect(root.textContent).toContain("Ultra compact");
+    expect(root.textContent).toContain("Comfortable");
+    expect(root.textContent).toContain("Extra wide");
+  });
+
   test("contrast checks use readability language instead of raw ratios", () => {
     const root = document.createElement("div");
     document.body.appendChild(root);
