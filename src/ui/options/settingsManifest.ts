@@ -1,10 +1,7 @@
-import { i18n } from "./i18n.js";
-import {
-  SUPPORTED_LANGUAGES,
-  SUPPORTED_PREDICTION_LANGUAGE_KEYS,
-} from "@core/domain/lang";
+import { i18n } from "./fluenttyperI18n.js";
+import type { ManifestDefinition } from "@ui/settings-engine/types.js";
+import { SUPPORTED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS } from "@core/domain/lang";
 import { DOMAIN_LIST_MODE } from "@core/application/domain-utils";
-import { DATE_TIME_VARIABLES } from "@core/domain/variables";
 import {
   KEY_AUTOCOMPLETE,
   KEY_AUTOCOMPLETE_ON_ENTER,
@@ -22,7 +19,6 @@ import {
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
   KEY_DEBUG_AI_PREDICTOR_ENABLED,
   KEY_ENABLED_GRAMMAR_RULES,
-
   KEY_TIME_FORMAT,
   KEY_DATE_FORMAT,
   KEY_TEXT_EXPANSIONS,
@@ -76,26 +72,23 @@ const supportLinksHTML =
   <a href="https://github.com/bartekplus/FluentTyper#readme" target="_blank" rel="noopener noreferrer">Read documentation</a> - Setup help, configuration details, and usage tips.<br /> \
   <a href="https://github.com/bartekplus/FluentTyper/blob/main/SECURITY.md" target="_blank" rel="noopener noreferrer">Security policy</a> - Responsible disclosure and security contact details. \
   </div>';
-const variablesDocumentationHTML =
-  '<div class="text-expander-help" style="font-size: 0.9em; opacity: 0.9;"> \
-    <p style="margin-bottom: 0.5rem;"><strong>' + i18n.get("text_expander_vars_supported") + '</strong></p> \
+const variablesDocumentationHTML = `<div class="text-expander-help" style="font-size: 0.9em; opacity: 0.9;"> \
+    <p style="margin-bottom: 0.5rem;"><strong>${i18n.get("text_expander_vars_supported")}</strong></p> \
     <ul style="list-style-type: disc; margin-left: 1.5rem; margin-bottom: 0;"> \
-      <li><code>\${time}</code> - ' + i18n.get("text_expander_var_time") + '</li> \
-      <li><code>\${date}</code> - ' + i18n.get("text_expander_var_date") + '</li> \
-      <li><code>\${date:+1d}</code> - ' + i18n.get("text_expander_var_date_math") + '</li> \
-      <li><code>\${datetime}</code> - ' + i18n.get("text_expander_var_datetime") + '</li> \
-      <li><code>\${uuid}</code> - ' + i18n.get("text_expander_var_uuid") + '</li> \
-      <li><code>\${random:A|B|C}</code> - ' + i18n.get("text_expander_var_random") + '</li> \
-      <li><code>\${page_url}</code> - ' + i18n.get("text_expander_var_page_url") + '</li> \
-      <li><code>\${page_title}</code> - ' + i18n.get("text_expander_var_page_title") + '</li> \
-      <li><code>\${page_domain}</code> - ' + i18n.get("text_expander_var_page_domain") + '</li> \
+      <li><code>\${time}</code> - ${i18n.get("text_expander_var_time")}</li> \
+      <li><code>\${date}</code> - ${i18n.get("text_expander_var_date")}</li> \
+      <li><code>\${date:+1d}</code> - ${i18n.get("text_expander_var_date_math")}</li> \
+      <li><code>\${datetime}</code> - ${i18n.get("text_expander_var_datetime")}</li> \
+      <li><code>\${uuid}</code> - ${i18n.get("text_expander_var_uuid")}</li> \
+      <li><code>\${random:A|B|C}</code> - ${i18n.get("text_expander_var_random")}</li> \
+      <li><code>\${page_url}</code> - ${i18n.get("text_expander_var_page_url")}</li> \
+      <li><code>\${page_title}</code> - ${i18n.get("text_expander_var_page_title")}</li> \
+      <li><code>\${page_domain}</code> - ${i18n.get("text_expander_var_page_domain")}</li> \
     </ul> \
-  </div>';
-const IS_DEV_BUILD =
-  typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
+  </div>`;
+const IS_DEV_BUILD = typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
 const EXTENSION_VERSION =
-  typeof chrome !== "undefined" &&
-    typeof chrome.runtime?.getManifest === "function"
+  typeof chrome !== "undefined" && typeof chrome.runtime?.getManifest === "function"
     ? chrome.runtime.getManifest().version
     : "dev";
 
@@ -127,7 +120,9 @@ const GRAMMAR_RULE_OPTIONS = GRAMMAR_RULE_CATALOG.map((rule) => {
       ? i18n.get("grammar_rule_rollout_safe_badge")
       : i18n.get("grammar_rule_rollout_advanced_badge");
   const recommendedBadge =
-    HAS_DISTINCT_RECOMMENDED_BADGE && rule.recommended ? i18n.get("grammar_rule_recommended_badge") : "";
+    HAS_DISTINCT_RECOMMENDED_BADGE && rule.recommended
+      ? i18n.get("grammar_rule_recommended_badge")
+      : "";
   const scopeBadge =
     rule.languageScope === "en_US" ? i18n.get("grammar_rule_scope_en_us_badge") : "";
   const badge = [rolloutBadge, recommendedBadge, scopeBadge].filter(Boolean).join(" · ");
@@ -148,7 +143,7 @@ const GRAMMAR_RULE_OPTIONS = GRAMMAR_RULE_CATALOG.map((rule) => {
 });
 
 // --- Manifest Definition ---
-const manifest = {
+const manifest: ManifestDefinition = {
   name: "FluentTyper Settings",
   icon: "/icon/icon128.png",
   settings: [
@@ -171,7 +166,7 @@ const manifest = {
       min: 0,
       max: 10,
       display: true,
-      label: i18n.get("num_predictions_label") + ":&nbsp;<small>" + i18n.get("num_predictions_desc") + "</small>",
+      label: `${i18n.get("num_predictions_label")}:&nbsp;<small>${i18n.get("num_predictions_desc")}</small>`,
       default: DEFAULT_NUM_SUGGESTIONS,
     },
     {
@@ -182,31 +177,29 @@ const manifest = {
       min: -1,
       max: 12,
       display: true,
-      label: i18n.get("min_chars_label") + ":&nbsp;<small>" + i18n.get("min_chars_desc") + "</small>",
+      label: `${i18n.get("min_chars_label")}:&nbsp;<small>${i18n.get("min_chars_desc")}</small>`,
       default: 1,
     },
     ...(IS_DEV_BUILD
       ? [
-        {
-          tab: i18n.get("core_settings"),
-          group: i18n.get("prediction_engine"),
-          name: KEY_AI_PREDICTOR_ENABLED,
-          type: "checkbox",
-          label:
-            i18n.get("enable_ai_predictor_label") +
-            ":&nbsp;<small>" +
-            i18n.get("enable_ai_predictor_desc") +
-            "</small>",
-          default: true,
-        },
-      ]
+          {
+            tab: i18n.get("core_settings"),
+            group: i18n.get("prediction_engine"),
+            name: KEY_AI_PREDICTOR_ENABLED,
+            type: "checkbox",
+            label: `${i18n.get("enable_ai_predictor_label")}:&nbsp;<small>${i18n.get(
+              "enable_ai_predictor_desc",
+            )}</small>`,
+            default: true,
+          },
+        ]
       : []),
     {
       tab: i18n.get("core_settings"),
       group: i18n.get("accept_predictions"),
       name: KEY_AUTOCOMPLETE_ON_TAB,
       type: "checkbox",
-      label: i18n.get("accept_tab_label") + ":&nbsp;<small>" + i18n.get("accept_tab_desc") + "</small>",
+      label: `${i18n.get("accept_tab_label")}:&nbsp;<small>${i18n.get("accept_tab_desc")}</small>`,
       default: true,
     },
     {
@@ -214,7 +207,7 @@ const manifest = {
       group: i18n.get("accept_predictions"),
       name: KEY_AUTOCOMPLETE_ON_ENTER,
       type: "checkbox",
-      label: i18n.get("accept_enter_label") + ":&nbsp;<small>" + i18n.get("accept_enter_desc") + "</small>",
+      label: `${i18n.get("accept_enter_label")}:&nbsp;<small>${i18n.get("accept_enter_desc")}</small>`,
       default: false,
     },
     {
@@ -222,7 +215,7 @@ const manifest = {
       group: i18n.get("accept_predictions"),
       name: KEY_AUTOCOMPLETE,
       type: "checkbox",
-      label: i18n.get("accept_space_label") + ":&nbsp;<small>" + i18n.get("accept_space_desc") + "</small>",
+      label: `${i18n.get("accept_space_label")}:&nbsp;<small>${i18n.get("accept_space_desc")}</small>`,
       default: false,
     },
     {
@@ -230,7 +223,7 @@ const manifest = {
       group: i18n.get("accept_predictions"),
       name: KEY_SELECT_BY_DIGIT,
       type: "checkbox",
-      label: i18n.get("accept_digits_label") + ":&nbsp;<small>" + i18n.get("accept_digits_desc") + "</small>",
+      label: `${i18n.get("accept_digits_label")}:&nbsp;<small>${i18n.get("accept_digits_desc")}</small>`,
       default: false,
     },
     {
@@ -238,7 +231,7 @@ const manifest = {
       group: i18n.get("behavior_after_completion"),
       name: KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
       type: "checkbox",
-      label: i18n.get("add_space_label") + ":&nbsp;<small>" + i18n.get("add_space_desc") + "</small>",
+      label: `${i18n.get("add_space_label")}:&nbsp;<small>${i18n.get("add_space_desc")}</small>`,
       default: true,
     },
     {
@@ -246,7 +239,7 @@ const manifest = {
       group: i18n.get("behavior_after_completion"),
       name: KEY_INLINE_SUGGESTION,
       type: "checkbox",
-      label: i18n.get("enable_inline_suggestion_label") + ":&nbsp;<small>" + i18n.get("enable_inline_suggestion_desc") + "</small>",
+      label: `${i18n.get("enable_inline_suggestion_label")}:&nbsp;<small>${i18n.get("enable_inline_suggestion_desc")}</small>`,
       default: false,
     },
 
@@ -302,9 +295,11 @@ const manifest = {
       type: "popupButton",
       options: [
         ["auto_detect", i18n.get("auto_detect_lang")],
-        ...Object.entries(SUPPORTED_LANGUAGES).filter(([key]) => key !== "textExpander" && key !== "auto_detect"),
+        ...Object.entries(SUPPORTED_LANGUAGES).filter(
+          ([key]) => key !== "textExpander" && key !== "auto_detect",
+        ),
       ],
-      label: i18n.get("extension_language_label") + ":&nbsp;<small>" + i18n.get("extension_language_desc") + "</small>",
+      label: `${i18n.get("extension_language_label")}:&nbsp;<small>${i18n.get("extension_language_desc")}</small>`,
       default: "auto_detect",
     },
     {
@@ -322,10 +317,7 @@ const manifest = {
       name: KEY_ENABLED_LANGUAGES,
       type: "listBoxMultiselect",
       label: i18n.get("enabled_langs_label"),
-      options: SUPPORTED_PREDICTION_LANGUAGE_KEYS.map((lang) => [
-        lang,
-        SUPPORTED_LANGUAGES[lang],
-      ]),
+      options: SUPPORTED_PREDICTION_LANGUAGE_KEYS.map((lang) => [lang, SUPPORTED_LANGUAGES[lang]]),
       default: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
     },
     {
@@ -334,7 +326,7 @@ const manifest = {
       name: KEY_FALLBACK_LANGUAGE,
       type: "popupButton",
       options: Object.entries(SUPPORTED_LANGUAGES),
-      label: i18n.get("fallback_lang_label") + ":&nbsp;<small>" + i18n.get("fallback_lang_desc") + "</small>",
+      label: `${i18n.get("fallback_lang_label")}:&nbsp;<small>${i18n.get("fallback_lang_desc")}</small>`,
       default: "en_US",
     },
     {
@@ -342,7 +334,7 @@ const manifest = {
       group: i18n.get("language_display"),
       name: KEY_DISPLAY_LANG_HEADER,
       type: "checkbox",
-      label: i18n.get("show_lang_header_label") + ":&nbsp;<small>" + i18n.get("show_lang_header_desc") + "</small>",
+      label: `${i18n.get("show_lang_header_label")}:&nbsp;<small>${i18n.get("show_lang_header_desc")}</small>`,
       default: false,
     },
 
@@ -356,7 +348,10 @@ const manifest = {
       type: "valueOnly",
       label: i18n.get("text_expander_desc"),
       default: [
-        ["FF", "Check out FluentTyper, a phenomenal productivity app that autocompletes words as you type, saving loads of time. It's free, and I think you'll love it!"],
+        [
+          "FF",
+          "Check out FluentTyper, a phenomenal productivity app that autocompletes words as you type, saving loads of time. It's free, and I think you'll love it!",
+        ],
         ["callMe", "Call me back once you get free."],
         ["asap", "as soon as possible"],
         ["afaik", "as far as I know"],
@@ -385,7 +380,7 @@ const manifest = {
       group: i18n.get("dynamic_variables"),
       name: KEY_DATE_FORMAT,
       type: "text",
-      label: i18n.get("custom_date_format_label") + ":&nbsp;<small>" + i18n.get("custom_date_format_desc") + "</small>",
+      label: `${i18n.get("custom_date_format_label")}:&nbsp;<small>${i18n.get("custom_date_format_desc")}</small>`,
       default: "",
     },
     {
@@ -393,7 +388,7 @@ const manifest = {
       group: i18n.get("dynamic_variables"),
       name: KEY_TIME_FORMAT,
       type: "text",
-      label: i18n.get("custom_time_format_label") + ":&nbsp;<small>" + i18n.get("custom_time_format_desc") + "</small>",
+      label: `${i18n.get("custom_time_format_label")}:&nbsp;<small>${i18n.get("custom_time_format_desc")}</small>`,
       default: "",
     },
     {
@@ -410,7 +405,7 @@ const manifest = {
       name: "userDictionary",
       type: "text",
       subtype: "text",
-      pattern: '^\\S+$',
+      pattern: "^\\S+$",
       label: i18n.get("add_new_word_label"),
       text: i18n.get("my_custom_word_placeholder"),
       store: false,
@@ -454,7 +449,7 @@ const manifest = {
       name: KEY_DOMAIN_LIST_MODE,
       type: "popupButton",
       options: Object.entries(DOMAIN_LIST_MODE),
-      label: i18n.get("choose_list_mode_label") + ":&nbsp;<small>" + i18n.get("choose_list_mode_desc") + "</small>",
+      label: `${i18n.get("choose_list_mode_label")}:&nbsp;<small>${i18n.get("choose_list_mode_desc")}</small>`,
       default: "blackList",
     },
     {
@@ -523,7 +518,7 @@ const manifest = {
       type: "text",
       subtype: "color",
       required: true,
-      label: i18n.get("bg_color_label") + ":&nbsp;<small>" + i18n.get("light_bg_color_desc") + "</small>",
+      label: `${i18n.get("bg_color_label")}:&nbsp;<small>${i18n.get("light_bg_color_desc")}</small>`,
       default: "#ffffff",
     },
     {
@@ -533,7 +528,7 @@ const manifest = {
       type: "text",
       subtype: "color",
       required: true,
-      label: i18n.get("text_color_label") + ":&nbsp;<small>" + i18n.get("light_text_color_desc") + "</small>",
+      label: `${i18n.get("text_color_label")}:&nbsp;<small>${i18n.get("light_text_color_desc")}</small>`,
       default: "#2d3748",
     },
     {
@@ -543,7 +538,7 @@ const manifest = {
       type: "text",
       subtype: "color",
       required: true,
-      label: i18n.get("highlight_bg_label") + ":&nbsp;<small>" + i18n.get("light_highlight_bg_desc") + "</small>",
+      label: `${i18n.get("highlight_bg_label")}:&nbsp;<small>${i18n.get("light_highlight_bg_desc")}</small>`,
       default: "#edf2f7",
     },
     {
@@ -553,7 +548,7 @@ const manifest = {
       type: "text",
       subtype: "color",
       required: true,
-      label: i18n.get("highlight_text_label") + ":&nbsp;<small>" + i18n.get("light_highlight_text_desc") + "</small>",
+      label: `${i18n.get("highlight_text_label")}:&nbsp;<small>${i18n.get("light_highlight_text_desc")}</small>`,
       default: "#2d3748",
     },
     {
@@ -563,7 +558,7 @@ const manifest = {
       type: "text",
       subtype: "color",
       required: true,
-      label: i18n.get("border_color_label") + ":&nbsp;<small>" + i18n.get("light_border_color_desc") + "</small>",
+      label: `${i18n.get("border_color_label")}:&nbsp;<small>${i18n.get("light_border_color_desc")}</small>`,
       default: "#e2e8f0",
     },
     {
@@ -573,7 +568,7 @@ const manifest = {
       type: "text",
       subtype: "color",
       required: true,
-      label: i18n.get("bg_color_label") + ":&nbsp;<small>" + i18n.get("dark_bg_color_desc") + "</small>",
+      label: `${i18n.get("bg_color_label")}:&nbsp;<small>${i18n.get("dark_bg_color_desc")}</small>`,
       default: "#0f172a",
     },
     {
@@ -583,7 +578,7 @@ const manifest = {
       type: "text",
       subtype: "color",
       required: true,
-      label: i18n.get("text_color_label") + ":&nbsp;<small>" + i18n.get("dark_text_color_desc") + "</small>",
+      label: `${i18n.get("text_color_label")}:&nbsp;<small>${i18n.get("dark_text_color_desc")}</small>`,
       default: "#e2e8f0",
     },
     {
@@ -593,7 +588,7 @@ const manifest = {
       type: "text",
       subtype: "color",
       required: true,
-      label: i18n.get("highlight_bg_label") + ":&nbsp;<small>" + i18n.get("dark_highlight_bg_desc") + "</small>",
+      label: `${i18n.get("highlight_bg_label")}:&nbsp;<small>${i18n.get("dark_highlight_bg_desc")}</small>`,
       default: "#1e293b",
     },
     {
@@ -603,7 +598,7 @@ const manifest = {
       type: "text",
       subtype: "color",
       required: true,
-      label: i18n.get("highlight_text_label") + ":&nbsp;<small>" + i18n.get("dark_highlight_text_desc") + "</small>",
+      label: `${i18n.get("highlight_text_label")}:&nbsp;<small>${i18n.get("dark_highlight_text_desc")}</small>`,
       default: "#f8fafc",
     },
     {
@@ -613,7 +608,7 @@ const manifest = {
       type: "text",
       subtype: "color",
       required: true,
-      label: i18n.get("border_color_label") + ":&nbsp;<small>" + i18n.get("dark_border_color_desc") + "</small>",
+      label: `${i18n.get("border_color_label")}:&nbsp;<small>${i18n.get("dark_border_color_desc")}</small>`,
       default: "#334155",
     },
     {
@@ -627,7 +622,7 @@ const manifest = {
         ["0.9rem", "Normal (0.9rem)"],
         ["1rem", "Large (1rem)"],
       ],
-      label: i18n.get("font_size_label") + ":&nbsp;<small>" + i18n.get("font_size_desc") + "</small>",
+      label: `${i18n.get("font_size_label")}:&nbsp;<small>${i18n.get("font_size_desc")}</small>`,
       default: "0.9rem",
     },
     {
@@ -640,7 +635,7 @@ const manifest = {
         ["0.6rem", "Normal (0.6rem)"],
         ["0.8rem", "Large (0.8rem)"],
       ],
-      label: i18n.get("vertical_padding_label") + ":&nbsp;<small>" + i18n.get("vertical_padding_desc") + "</small>",
+      label: `${i18n.get("vertical_padding_label")}:&nbsp;<small>${i18n.get("vertical_padding_desc")}</small>`,
       default: "0.6rem",
     },
     {
@@ -653,7 +648,7 @@ const manifest = {
         ["0.8rem", "Normal (0.8rem)"],
         ["1rem", "Large (1rem)"],
       ],
-      label: i18n.get("horizontal_padding_label") + ":&nbsp;<small>" + i18n.get("horizontal_padding_desc") + "</small>",
+      label: `${i18n.get("horizontal_padding_label")}:&nbsp;<small>${i18n.get("horizontal_padding_desc")}</small>`,
       default: "0.8rem",
     },
 
@@ -693,74 +688,66 @@ const manifest = {
     },
     ...(IS_DEV_BUILD
       ? [
-        {
-          tab: i18n.get("advanced_tab"),
-          group: i18n.get("predictor_debug_group"),
-          name: "predictorDebugHint",
-          type: "description",
-          text: `<p>${i18n.get("predictor_debug_desc")}</p>`,
-        },
-        {
-          tab: i18n.get("advanced_tab"),
-          group: i18n.get("predictor_debug_group"),
-          name: KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
-          type: "checkbox",
-          label:
-            i18n.get("predictor_debug_presage_label") +
-            ":&nbsp;<small>" +
-            i18n.get("predictor_debug_presage_desc") +
-            "</small>",
-          default: true,
-        },
-        {
-          tab: i18n.get("advanced_tab"),
-          group: i18n.get("predictor_debug_group"),
-          name: KEY_DEBUG_AI_PREDICTOR_ENABLED,
-          type: "checkbox",
-          label:
-            i18n.get("predictor_debug_webllm_label") +
-            ":&nbsp;<small>" +
-            i18n.get("predictor_debug_webllm_desc") +
-            "</small>",
-          default: true,
-        },
-        {
-          tab: i18n.get("advanced_tab"),
-          group: i18n.get("predictor_debug_group"),
-          name: KEY_AI_MODEL_ID,
-          type: "popupButton",
-          options: WEBLLM_DEV_MODEL_OPTIONS,
-          label:
-            i18n.get("predictor_debug_model_label") +
-            ":&nbsp;<small>" +
-            i18n.get("predictor_debug_model_desc") +
-            "</small>",
-          default: DEFAULT_AI_MODEL_ID,
-        },
-        {
-          tab: i18n.get("advanced_tab"),
-          group: i18n.get("predictor_debug_group"),
-          name: KEY_AI_PREDICTION_TIMEOUT_MS,
-          type: "slider",
-          min: 20,
-          max: 2000,
-          step: 10,
-          display: true,
-          label:
-            i18n.get("predictor_debug_timeout_label") +
-            ":&nbsp;<small>" +
-            i18n.get("predictor_debug_timeout_desc") +
-            "</small>",
-          default: DEFAULT_AI_PREDICTION_TIMEOUT_MS,
-        },
-        {
-          tab: i18n.get("advanced_tab"),
-          group: i18n.get("predictor_debug_group"),
-          name: "predictorDebugPanel",
-          type: "description",
-          text: `<div id='predictorDebugRoot'>${i18n.get("predictor_debug_loading")}</div>`,
-        },
-      ]
+          {
+            tab: i18n.get("advanced_tab"),
+            group: i18n.get("predictor_debug_group"),
+            name: "predictorDebugHint",
+            type: "description",
+            text: `<p>${i18n.get("predictor_debug_desc")}</p>`,
+          },
+          {
+            tab: i18n.get("advanced_tab"),
+            group: i18n.get("predictor_debug_group"),
+            name: KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
+            type: "checkbox",
+            label: `${i18n.get("predictor_debug_presage_label")}:&nbsp;<small>${i18n.get(
+              "predictor_debug_presage_desc",
+            )}</small>`,
+            default: true,
+          },
+          {
+            tab: i18n.get("advanced_tab"),
+            group: i18n.get("predictor_debug_group"),
+            name: KEY_DEBUG_AI_PREDICTOR_ENABLED,
+            type: "checkbox",
+            label: `${i18n.get("predictor_debug_webllm_label")}:&nbsp;<small>${i18n.get(
+              "predictor_debug_webllm_desc",
+            )}</small>`,
+            default: true,
+          },
+          {
+            tab: i18n.get("advanced_tab"),
+            group: i18n.get("predictor_debug_group"),
+            name: KEY_AI_MODEL_ID,
+            type: "popupButton",
+            options: WEBLLM_DEV_MODEL_OPTIONS,
+            label: `${i18n.get("predictor_debug_model_label")}:&nbsp;<small>${i18n.get(
+              "predictor_debug_model_desc",
+            )}</small>`,
+            default: DEFAULT_AI_MODEL_ID,
+          },
+          {
+            tab: i18n.get("advanced_tab"),
+            group: i18n.get("predictor_debug_group"),
+            name: KEY_AI_PREDICTION_TIMEOUT_MS,
+            type: "slider",
+            min: 20,
+            max: 2000,
+            step: 10,
+            display: true,
+            label: `${i18n.get("predictor_debug_timeout_label")}:&nbsp;<small>${i18n.get(
+              "predictor_debug_timeout_desc",
+            )}</small>`,
+            default: DEFAULT_AI_PREDICTION_TIMEOUT_MS,
+          },
+          {
+            tab: i18n.get("advanced_tab"),
+            group: i18n.get("predictor_debug_group"),
+            name: "predictorDebugPanel",
+            type: "description",
+            text: `<div id='predictorDebugRoot'>${i18n.get("predictor_debug_loading")}</div>`,
+          },
+        ]
       : []),
 
     // =========================================================================

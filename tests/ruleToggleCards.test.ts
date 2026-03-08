@@ -1,80 +1,81 @@
 import "./setup";
 import { beforeEach, describe, expect, test } from "bun:test";
 import { KEY_ENABLED_GRAMMAR_RULES } from "../src/core/domain/constants";
-import { manifest } from "../src/third_party/fancier-settings/manifest.js";
-import { i18n } from "../src/third_party/fancier-settings/i18n.js";
-import { Setting } from "../src/third_party/fancier-settings/js/classes/setting.js";
+import { manifest } from "../src/ui/options/settingsManifest.js";
+import { i18n } from "../src/ui/options/fluenttyperI18n.js";
+import { RuleToggleCardsControl } from "../src/ui/settings-engine/controls/RuleToggleCardsControl.js";
+import { Store } from "../src/ui/settings-engine/store/Store.js";
 
 function buildRuleToggleCardsHost() {
   const host = document.createElement("div");
   document.body.appendChild(host);
-  const setting = new Setting(host);
-  const bundle = setting.create({
-    type: "ruleToggleCards",
-    label: "Grammar Rules",
-    summaryLabel: "Active rules",
-    emptyStateText: "No grammar rules enabled.",
-    noMatchesText: "No grammar rules match your search.",
-    searchPlaceholder: "Search grammar rules...",
-    sectionSafeLabel: "Safe rules",
-    sectionAdvancedLabel: "Advanced (optional)",
-    filterAllLabel: "All",
-    filterSafeLabel: "Safe",
-    filterAdvancedLabel: "Advanced",
-    filterEnglishOnlyLabel: "English only",
-    filterEnabledOnlyLabel: "Enabled only",
-    actions: [
-      {
-        actionKey: "recommended",
-        text: "Recommended",
-        values: ["safePunctuation", "englishPronounI"],
-      },
-      {
-        actionKey: "enable_all",
-        text: "Enable all",
-        values: ["safePunctuation", "advancedEllipsis", "englishPronounI"],
-      },
-      {
-        actionKey: "disable_all",
-        text: "Disable all",
-        values: [],
-      },
-    ],
-    options: [
-      {
-        value: "safePunctuation",
-        text: "Safe punctuation spacing",
-        description: "Fixes punctuation spacing in common prose.",
-        example: 'Example: "Hello ,world" -> "Hello, world"',
-        recommended: true,
-        safetyTier: "safe",
-        languageScope: "all",
-      },
-      {
-        value: "advancedEllipsis",
-        text: "Ellipsis shortcut",
-        description: "Converts three dots into an ellipsis.",
-        example: 'Example: "..." -> "…"',
-        recommended: false,
-        safetyTier: "advanced",
-        languageScope: "all",
-      },
-      {
-        value: "englishPronounI",
-        text: "English pronoun I",
-        description: 'Capitalizes standalone English "i".',
-        example: 'Example: "i am" -> "I am"',
-        recommended: false,
-        safetyTier: "safe",
-        languageScope: "en_US",
-      },
-    ],
-    default: [],
-  }) as {
-    get: () => string[];
-  };
-
-  return { host, bundle };
+  const store = new Store("test");
+  const control = new RuleToggleCardsControl(
+    {
+      type: "ruleToggleCards",
+      tab: "",
+      group: "",
+      label: "Grammar Rules",
+      summaryLabel: "Active rules",
+      emptyStateText: "No grammar rules enabled.",
+      noMatchesText: "No grammar rules match your search.",
+      searchPlaceholder: "Search grammar rules...",
+      sectionSafeLabel: "Safe rules",
+      sectionAdvancedLabel: "Advanced (optional)",
+      filterAllLabel: "All",
+      filterSafeLabel: "Safe",
+      filterAdvancedLabel: "Advanced",
+      filterEnglishOnlyLabel: "English only",
+      filterEnabledOnlyLabel: "Enabled only",
+      actions: [
+        {
+          actionKey: "recommended",
+          text: "Recommended",
+          values: ["safePunctuation", "englishPronounI"],
+        },
+        {
+          actionKey: "enable_all",
+          text: "Enable all",
+          values: ["safePunctuation", "advancedEllipsis", "englishPronounI"],
+        },
+        {
+          actionKey: "disable_all",
+          text: "Disable all",
+          values: [],
+        },
+      ],
+      options: [
+        {
+          value: "safePunctuation",
+          text: "Safe punctuation spacing",
+          description: "Fixes punctuation spacing in common prose.",
+          example: 'Example: "Hello ,world" -> "Hello, world"',
+          safetyTier: "safe",
+          languageScope: "all",
+        },
+        {
+          value: "advancedEllipsis",
+          text: "Ellipsis shortcut",
+          description: "Converts three dots into an ellipsis.",
+          example: 'Example: "..." -> "…"',
+          safetyTier: "advanced",
+          languageScope: "all",
+        },
+        {
+          value: "englishPronounI",
+          text: "English pronoun I",
+          description: 'Capitalizes standalone English "i".',
+          example: 'Example: "i am" -> "I am"',
+          safetyTier: "safe",
+          languageScope: "en_US",
+        },
+      ],
+      default: [],
+    },
+    store,
+  );
+  host.appendChild(control.rootElement);
+  return { host, bundle: control };
 }
 
 function visibleRuleValues(host: HTMLElement): string[] {

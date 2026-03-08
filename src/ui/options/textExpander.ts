@@ -1,21 +1,17 @@
-import { Store } from "@third-party/fancier-settings/lib/store.js";
-import { i18n } from "@third-party/fancier-settings/i18n.js";
-import { ElementWrapper, getUniqueID } from "@third-party/fancier-settings/js/classes/utils.js";
+import { Store } from "@ui/settings-engine/store/Store.js";
+import { getUniqueID } from "@ui/settings-engine/controls/FieldControl.js";
+import { i18n } from "./fluenttyperI18n.js";
 import { parse } from "csv-parse/sync";
 import { stringify } from "csv-stringify/sync";
 
 type TextExpansionEntry = [string, string];
 
-interface FancierBundleLike {
-  element: HTMLElement;
+interface ControlLike {
+  rootElement: HTMLElement;
 }
 
 interface FancierSettingsLike {
-  manifest: {
-    textExpansions: {
-      bundle: FancierBundleLike;
-    };
-  };
+  textExpansions: ControlLike;
 }
 
 interface ElementWrapperLike {
@@ -26,7 +22,63 @@ interface ElementWrapperLike {
 }
 
 function createElementWrapper(tag: string, props: Record<string, unknown>): ElementWrapperLike {
-  return new ElementWrapper(tag, props) as unknown as ElementWrapperLike;
+  const el = document.createElement(tag);
+  if (props.class) {
+    el.className = String(props.class);
+  }
+  if (props.type) {
+    (el as HTMLInputElement).type = String(props.type);
+  }
+  if (props.id) {
+    el.id = String(props.id);
+  }
+  if (props.text) {
+    el.textContent = String(props.text);
+  }
+  if (props.href) {
+    (el as HTMLAnchorElement).href = String(props.href);
+  }
+  if (props.download) {
+    (el as HTMLAnchorElement).download = String(props.download);
+  }
+  if (props.required) {
+    (el as HTMLInputElement).required = Boolean(props.required);
+  }
+  if (props.pattern) {
+    (el as HTMLInputElement).pattern = String(props.pattern);
+  }
+  if (props.maxlength) {
+    (el as HTMLInputElement).maxLength = Number(props.maxlength);
+  }
+  if (props.rows !== undefined && props.rows !== "") {
+    (el as HTMLTextAreaElement).rows = Number(props.rows);
+  }
+
+  const wrapper: ElementWrapperLike = {
+    element: el,
+    inject(parent) {
+      const parentEl = parent instanceof HTMLElement ? parent : parent.element;
+      parentEl.appendChild(el);
+      return this;
+    },
+    addEvent(type, fn) {
+      el.addEventListener(type, fn as EventListener);
+    },
+    set(key, value) {
+      if (key === "placeholder") {
+        (el as HTMLInputElement).placeholder = String(value);
+      } else if (key === "value") {
+        (el as HTMLInputElement).value = String(value);
+      } else if (key === "readonly") {
+        (el as HTMLInputElement).readOnly = Boolean(value);
+      } else if (key === "disabled") {
+        (el as HTMLInputElement).disabled = Boolean(value);
+      } else {
+        el.setAttribute(key, String(value));
+      }
+    },
+  };
+  return wrapper;
 }
 
 export class TextExpander {
@@ -70,11 +122,15 @@ export class TextExpander {
     this.callbackFn();
   }
 
+  private get containerElement(): HTMLElement {
+    return this.settingsWithManifest.textExpansions.rootElement;
+  }
+
   private clearRender(): void {
-    const node = this.settingsWithManifest.manifest.textExpansions.bundle.element;
-    const clonedNode = node.cloneNode(false) as HTMLElement;
-    node.parentNode?.replaceChild(clonedNode, node);
-    this.settingsWithManifest.manifest.textExpansions.bundle.element = clonedNode;
+    const node = this.containerElement;
+    while (node.firstChild) {
+      node.removeChild(node.firstChild);
+    }
   }
 
   private fileInputChange(): void {
@@ -132,6 +188,7 @@ export class TextExpander {
   }
 
   private renderImportExport(): void {
+    const container = this.containerElement;
     const fileElem = createElementWrapper("div", {
       class: "file block buttons",
     });
@@ -162,7 +219,7 @@ export class TextExpander {
     fileCTA.inject(fileLabelElem);
     fileNameSpanElem.inject(fileLabelElem);
     fileLabelElem.inject(fileElem);
-    fileElem.inject(this.settingsWithManifest.manifest.textExpansions.bundle.element);
+    fileElem.inject(container);
 
     if (this.importedElemCount) {
       const block = createElementWrapper("div", { class: "block" });
@@ -172,7 +229,7 @@ export class TextExpander {
       });
       this.importedElemCount = 0;
       notification.inject(block);
-      block.inject(this.settingsWithManifest.manifest.textExpansions.bundle.element);
+      block.inject(container);
     }
 
     const button = createElementWrapper("a", {
@@ -190,10 +247,11 @@ export class TextExpander {
     buttonRemoveAll.inject(fileElem);
     buttonRemoveAll.addEvent("click", this.delAllShortcuts.bind(this));
 
-    dividerElem.inject(this.settingsWithManifest.manifest.textExpansions.bundle.element);
+    dividerElem.inject(container);
   }
 
   private renderNode(key: string, val: string, shortcutIndex: number | null): void {
+    const container = this.containerElement;
     const dividerElem = createElementWrapper("hr", {});
     const columnElem = createElementWrapper("div", {
       class: "columns is-expanded",
@@ -245,7 +303,6 @@ export class TextExpander {
       });
       const inputElem = createElementWrapper(input.type, {
         id: input.id,
-        idErrMsg,
         class: input.class,
         contentEditable: false,
         required: true,
@@ -288,8 +345,8 @@ export class TextExpander {
       });
     }
 
-    columnElem.inject(this.settingsWithManifest.manifest.textExpansions.bundle.element);
-    dividerElem.inject(this.settingsWithManifest.manifest.textExpansions.bundle.element);
+    columnElem.inject(container);
+    dividerElem.inject(container);
   }
 
   private setInputState(

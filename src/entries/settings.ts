@@ -1,2 +1,2 @@
 import "@core/application/polyfills/bufferGlobal";
-import "@third-party/fancier-settings/settings";
+import "@ui/options/settings";

@@ -81,9 +81,7 @@ function installChromeStorageMock(setDelayMs = 0): {
 describe("Store async semantics", () => {
   test("set resolves only after backend callback completes", async () => {
     const { localSet } = installChromeStorageMock(25);
-    const { Store } = await import(
-      freshModulePath("../src/third_party/fancier-settings/lib/store.js")
-    );
+    const { Store } = await import(freshModulePath("../src/ui/settings-engine/store/Store.js"));
     const store = new Store("unit", {});
 
     let resolved = false;
@@ -101,9 +99,7 @@ describe("Store async semantics", () => {
 
   test("get waits for async default seeding to finish", async () => {
     const { storageState } = installChromeStorageMock(20);
-    const { Store } = await import(
-      freshModulePath("../src/third_party/fancier-settings/lib/store.js")
-    );
+    const { Store } = await import(freshModulePath("../src/ui/settings-engine/store/Store.js"));
     const store = new Store("startup", { enabled: true });
 
     const value = await store.get("enabled");

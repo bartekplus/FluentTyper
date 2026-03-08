@@ -180,7 +180,7 @@ async function bundleExtension(context: BuildContext): Promise<void> {
     },
     {
       entrypoint: path.join(context.srcDir, "entries", "settings.ts"),
-      outfile: path.join(context.buildDir, "third_party", "fancier-settings", "settings.js"),
+      outfile: path.join(context.buildDir, "options", "settings.js"),
       label: "options/settings",
     },
     {

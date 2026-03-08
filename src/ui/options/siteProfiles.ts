@@ -1,5 +1,5 @@
-import { Store } from "@third-party/fancier-settings/lib/store.js";
-import { i18n } from "@third-party/fancier-settings/i18n.js";
+import { Store } from "@ui/settings-engine/store/Store.js";
+import { i18n } from "./fluenttyperI18n.js";
 import { SUPPORTED_LANGUAGES, resolveEnabledLanguages } from "@core/domain/lang";
 import {
   KEY_ENABLED_LANGUAGES,
@@ -22,15 +22,9 @@ import {
   type SiteProfiles,
 } from "@core/domain/siteProfiles";
 
-interface FancierBundle {
-  element: HTMLElement;
-}
-
 interface FancierSettingsLike {
-  manifest: {
-    siteProfilesEditor: {
-      bundle: FancierBundle;
-    };
+  siteProfilesEditor: {
+    rootElement: HTMLElement;
   };
 }
 
@@ -74,9 +68,8 @@ export class SiteProfilesManager {
     this.onConfigChange = onConfigChange;
     this.store = new Store("settings");
     this.root =
-      this.settings.manifest.siteProfilesEditor.bundle.element.querySelector(
-        "#siteProfilesEditorRoot",
-      ) || this.settings.manifest.siteProfilesEditor.bundle.element;
+      this.settings.siteProfilesEditor.rootElement.querySelector("#siteProfilesEditorRoot") ||
+      this.settings.siteProfilesEditor.rootElement;
     this.buildUI();
     this.cacheElements();
     this.bindEvents();

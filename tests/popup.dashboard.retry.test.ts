@@ -423,7 +423,7 @@ function createWebsiteTab(url = "https://example.com"): chrome.tabs.Tab {
 }
 
 async function applyTranslationOverrides(overrides?: Record<string, string>): Promise<void> {
-  const { i18n } = await import("../src/third_party/fancier-settings/i18n.js");
+  const { i18n } = await import("../src/ui/options/fluenttyperI18n.js");
   if (!originalI18nGet) {
     originalI18nGet = i18n.get.bind(i18n);
   }
@@ -498,7 +498,7 @@ describe("popup productivity dashboard retry/failure paths", () => {
     (globalThis as unknown as { chrome: unknown }).chrome = baseGlobals.chrome;
 
     if (originalI18nGet) {
-      const { i18n } = await import("../src/third_party/fancier-settings/i18n.js");
+      const { i18n } = await import("../src/ui/options/fluenttyperI18n.js");
       i18n.get = originalI18nGet;
     }
 

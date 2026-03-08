@@ -1,6 +1,9 @@
-import { FancierSettingsWithManifest } from "./js/classes/fancier-settings.js";
-import { Store } from "./lib/store.js";
-import { ElementWrapper } from "./js/classes/utils.js";
+import { SettingsEngine } from "@ui/settings-engine/SettingsEngine.js";
+import { Store } from "@ui/settings-engine/store/Store.js";
+import type {
+  SelectFieldControl,
+  ListBoxFieldControl,
+} from "@ui/settings-engine/controls/FieldControl.js";
 import { SUPPORTED_LANGUAGES, resolveEnabledLanguages } from "@core/domain/lang";
 import { TextExpander } from "@ui/options/textExpander";
 import { SiteProfilesManager } from "@ui/options/siteProfiles";
@@ -20,7 +23,6 @@ import {
   KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
   KEY_AUTO_CAPITALIZE,
   KEY_SELECT_BY_DIGIT,
-
   KEY_TIME_FORMAT,
   KEY_DATE_FORMAT,
   KEY_TEXT_EXPANSIONS,
@@ -56,7 +58,8 @@ import {
   CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT,
   CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE,
 } from "@core/domain/constants";
-import { i18n } from "./i18n.js";
+import { i18n } from "./fluenttyperI18n.js";
+import { manifest } from "./settingsManifest.js";
 
 const PRODUCTIVITY_INSIGHTS_MAX_RETRIES = 5;
 const PRODUCTIVITY_INSIGHTS_RETRY_DELAY_MS = 200;
@@ -74,21 +77,21 @@ function optionsPageConfigChange() {
   chrome.runtime.sendMessage(message);
 }
 
-function fallbackLanguageVisibility(settings, value) {
-  if (value === "auto_detect")
-    settings.manifest.fallbackLanguage.bundle.element.classList.remove(
-      "is-hidden"
-    );
-  else
-    settings.manifest.fallbackLanguage.bundle.element.classList.add(
-      "is-hidden"
-    );
+function fallbackLanguageVisibility(
+  registry: ReturnType<SettingsEngine["buildFromManifest"]>,
+  value: unknown,
+) {
+  if (value === "auto_detect") {
+    registry.fallbackLanguage.rootElement.classList.remove("is-hidden");
+  } else {
+    registry.fallbackLanguage.rootElement.classList.add("is-hidden");
+  }
 }
 
-function buildLanguageOptions(enabledLanguages, allowAutoDetect) {
-  const options = enabledLanguages.map((lang) => [
+function buildLanguageOptions(enabledLanguages: string[], allowAutoDetect: boolean) {
+  const options: [string, string][] = enabledLanguages.map((lang) => [
     lang,
-    SUPPORTED_LANGUAGES[lang],
+    SUPPORTED_LANGUAGES[lang as keyof typeof SUPPORTED_LANGUAGES] ?? lang,
   ]);
   if (allowAutoDetect) {
     options.unshift(["auto_detect", SUPPORTED_LANGUAGES.auto_detect]);
@@ -96,24 +99,26 @@ function buildLanguageOptions(enabledLanguages, allowAutoDetect) {
   return options;
 }
 
-function arraysEqual(a, b) {
+function arraysEqual(a: unknown, b: unknown): boolean {
   if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) {
     return false;
   }
   for (let i = 0; i < a.length; i++) {
-    if (a[i] !== b[i]) return false;
+    if (a[i] !== b[i]) {
+      return false;
+    }
   }
   return true;
 }
 
-async function sanitizeSiteProfilesForEnabledLanguages(store, enabledLanguages) {
+async function sanitizeSiteProfilesForEnabledLanguages(
+  store: Store,
+  enabledLanguages: string[] | null,
+) {
   const resolvedEnabledLanguages =
     enabledLanguages || resolveEnabledLanguages(await store.get(KEY_ENABLED_LANGUAGES));
   const rawSiteProfiles = await store.get(KEY_SITE_PROFILES);
-  const sanitizedSiteProfiles = resolveSiteProfiles(
-    rawSiteProfiles,
-    resolvedEnabledLanguages,
-  );
+  const sanitizedSiteProfiles = resolveSiteProfiles(rawSiteProfiles, resolvedEnabledLanguages);
   const hasChanges =
     JSON.stringify(rawSiteProfiles || {}) !== JSON.stringify(sanitizedSiteProfiles);
   if (hasChanges) {
@@ -122,13 +127,16 @@ async function sanitizeSiteProfilesForEnabledLanguages(store, enabledLanguages) 
   return hasChanges;
 }
 
-async function validateLanguageSettings(settings, store) {
+async function validateLanguageSettings(
+  registry: ReturnType<SettingsEngine["buildFromManifest"]>,
+  store: Store,
+) {
   const enabledLanguagesRaw = await store.get(KEY_ENABLED_LANGUAGES);
   const enabledLanguages = resolveEnabledLanguages(enabledLanguagesRaw);
   const allowAutoDetect = enabledLanguages.length > 1;
-  const language = (await store.get(KEY_LANGUAGE)) || enabledLanguages[0];
+  const language = ((await store.get(KEY_LANGUAGE)) as string | undefined) || enabledLanguages[0];
   const fallbackLanguage =
-    (await store.get(KEY_FALLBACK_LANGUAGE)) || enabledLanguages[0];
+    ((await store.get(KEY_FALLBACK_LANGUAGE)) as string | undefined) || enabledLanguages[0];
 
   const resolvedLanguage =
     language === "auto_detect" && allowAutoDetect
@@ -140,26 +148,23 @@ async function validateLanguageSettings(settings, store) {
     ? fallbackLanguage
     : enabledLanguages[0];
 
-  const primaryOptions = buildLanguageOptions(
-    enabledLanguages,
-    allowAutoDetect,
-  );
+  const primaryOptions = buildLanguageOptions(enabledLanguages, allowAutoDetect);
   const fallbackOptions = buildLanguageOptions(enabledLanguages, false);
-  settings.manifest.language.setOptions(primaryOptions, resolvedLanguage);
-  settings.manifest.fallbackLanguage.setOptions(
+  (registry.language as SelectFieldControl).setOptions(primaryOptions, resolvedLanguage);
+  (registry.fallbackLanguage as SelectFieldControl).setOptions(
     fallbackOptions,
     resolvedFallbackLanguage,
   );
 
   if (!arraysEqual(enabledLanguagesRaw, enabledLanguages)) {
-    settings.manifest[KEY_ENABLED_LANGUAGES].set(enabledLanguages);
+    registry[KEY_ENABLED_LANGUAGES].set(enabledLanguages);
   }
 
   if (resolvedLanguage !== language) {
-    settings.manifest.language.set(resolvedLanguage);
+    registry.language.set(resolvedLanguage);
   }
   if (resolvedFallbackLanguage !== fallbackLanguage) {
-    settings.manifest.fallbackLanguage.set(resolvedFallbackLanguage);
+    registry.fallbackLanguage.set(resolvedFallbackLanguage);
   }
 
   const siteProfilesChanged = await sanitizeSiteProfilesForEnabledLanguages(
@@ -171,78 +176,73 @@ async function validateLanguageSettings(settings, store) {
   }
 }
 
-function importSettingButtonFileSelected(settings) {
-  const importInputElem = settings.manifest.importSettingButton.element.element;
+function importSettingButtonFileSelected(
+  registry: ReturnType<SettingsEngine["buildFromManifest"]>,
+) {
+  const importInputElem = registry.importSettingButton.element as HTMLInputElement;
   const fr = new FileReader();
   fr.addEventListener("load", () => {
     try {
-      const jsonSettings = JSON.parse(fr.result);
+      const jsonSettings = JSON.parse(fr.result as string) as Record<string, unknown>;
       delete jsonSettings["store.settings.revertOnBackspace"];
       console.log(jsonSettings);
-      chrome.storage.local.set(jsonSettings);
+      chrome.storage.local.set(jsonSettings as Record<string, unknown>);
       optionsPageConfigChange();
       location.reload();
     } catch (error) {
-      const block = new ElementWrapper("div", { class: "block" });
-      const notification = new ElementWrapper("div", {
-        class: "notification is-danger",
-        text: "Failed to import JSON file:  " + error,
-      });
-
-      notification.inject(block);
-      block.inject(settings.manifest.importSettingButton.bundle);
+      const block = document.createElement("div");
+      block.className = "block";
+      const notification = document.createElement("div");
+      notification.className = "notification is-danger";
+      notification.textContent = `Failed to import JSON file:  ${String(error)}`;
+      block.appendChild(notification);
+      registry.importSettingButton.rootElement.appendChild(block);
     }
   });
 
-  fr.readAsText(importInputElem.files[0]);
-  importInputElem.value = null;
+  fr.readAsText((importInputElem.files as FileList)[0]);
+  importInputElem.value = "";
 }
 
-function importUserDictFileSelected(settings) {
-  const importInputElem = settings.manifest.importUserDictButton.element.element;
+function importUserDictFileSelected(registry: ReturnType<SettingsEngine["buildFromManifest"]>) {
+  const importInputElem = registry.importUserDictButton.element as HTMLInputElement;
   const fr = new FileReader();
   fr.addEventListener("load", () => {
     try {
-      const fileContent = fr.result;
-      const lines = fileContent.split('\n');
-      // Regex to match a single word (letters, numbers, underscore) without spaces or other special chars
+      const fileContent = fr.result as string;
+      const lines = fileContent.split("\n");
       const wordRegex = /^\w+$/;
       let count = 0;
 
-      lines.forEach(line => {
+      lines.forEach((line) => {
         const word = line.trim();
         if (word && wordRegex.test(word)) {
-          settings.manifest.userDictionaryList.add(word, false);
+          (registry[KEY_USER_DICTIONARY_LIST] as ListBoxFieldControl).add(word, false);
           count += 1;
         }
       });
-      settings.manifest.userDictionaryList.store();
+      (registry[KEY_USER_DICTIONARY_LIST] as ListBoxFieldControl).store();
 
-      const block = new ElementWrapper("div", { class: "block" });
-      const notification = new ElementWrapper("div", {
-        class: "notification is-success",
-        text: "Imported:  " + count + " words",
-      });
-
-      notification.inject(block);
-      block.inject(settings.manifest.importUserDictButton.bundle);
+      const block = document.createElement("div");
+      block.className = "block";
+      const notification = document.createElement("div");
+      notification.className = "notification is-success";
+      notification.textContent = `Imported:  ${count} words`;
+      block.appendChild(notification);
+      registry.importUserDictButton.rootElement.appendChild(block);
     } catch (error) {
-      const block = new ElementWrapper("div", { class: "block" });
-      const notification = new ElementWrapper("div", {
-        class: "notification is-danger",
-        text: "Failed to import user dictionary file:  " + error,
-      });
-
-      notification.inject(block);
-      block.inject(settings.manifest.importUserDictButton.bundle);
+      const block = document.createElement("div");
+      block.className = "block";
+      const notification = document.createElement("div");
+      notification.className = "notification is-danger";
+      notification.textContent = `Failed to import user dictionary file:  ${String(error)}`;
+      block.appendChild(notification);
+      registry.importUserDictButton.rootElement.appendChild(block);
     }
   });
-  fr.readAsText(importInputElem.files[0]);
-  importInputElem.value = null;
+  fr.readAsText((importInputElem.files as FileList)[0]);
+  importInputElem.value = "";
 }
-
-// Theme application is now handled through the messaging system
-// This function is no longer needed as themes are applied via background script
 
 const themePresets = {
   default: {
@@ -258,7 +258,7 @@ const themePresets = {
     suggestionBorderDark: "#334155",
     suggestionFontSize: "0.9rem",
     suggestionPaddingVertical: "0.6rem",
-    suggestionPaddingHorizontal: "0.8rem"
+    suggestionPaddingHorizontal: "0.8rem",
   },
   compact: {
     suggestionBgLight: "rgba(255, 255, 255, 0.85)",
@@ -273,31 +273,32 @@ const themePresets = {
     suggestionBorderDark: "rgba(71, 85, 105, 0.72)",
     suggestionFontSize: "0.85rem",
     suggestionPaddingVertical: "0.4rem",
-    suggestionPaddingHorizontal: "0.6rem"
-  }
+    suggestionPaddingHorizontal: "0.6rem",
+  },
 };
 
-function applyThemePreset(settings, presetName) {
-  const presetToApply = presetName === 'compact' ? themePresets.compact : themePresets.default;
+function applyThemePreset(
+  registry: ReturnType<SettingsEngine["buildFromManifest"]>,
+  presetName: string,
+) {
+  const presetToApply = presetName === "compact" ? themePresets.compact : themePresets.default;
 
   console.log(`FluentTyper: Applying ${presetName} theme preset`);
 
-  Object.keys(presetToApply).forEach(key => {
-    if (settings.manifest[key]) {
-      settings.manifest[key].set(presetToApply[key]);
+  Object.keys(presetToApply).forEach((key) => {
+    if (registry[key]) {
+      registry[key].set(presetToApply[key as keyof typeof presetToApply]);
     }
   });
-
-  // Theme will be applied through the messaging system when settings change
 }
 
-let lastMarkedDonationPromptId = null;
+let lastMarkedDonationPromptId: string | null = null;
 
-function t(key) {
+function t(key: string) {
   return i18n.get(key);
 }
 
-function formatMetricNumber(value) {
+function formatMetricNumber(value: unknown) {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     return "0";
   }
@@ -306,7 +307,7 @@ function formatMetricNumber(value) {
   }).format(value);
 }
 
-function formatWeekRange(weekKey) {
+function formatWeekRange(weekKey: unknown) {
   if (typeof weekKey !== "string") {
     return "n/a";
   }
@@ -323,14 +324,14 @@ function formatWeekRange(weekKey) {
   return `${formatter.format(startDate)} - ${formatter.format(endDate)}`;
 }
 
-function formatLanguageLabel(language) {
+function formatLanguageLabel(language: unknown) {
   if (typeof language !== "string" || !language) {
     return t("productivity_unknown_language");
   }
-  return SUPPORTED_LANGUAGES[language] || language;
+  return SUPPORTED_LANGUAGES[language as keyof typeof SUPPORTED_LANGUAGES] || language;
 }
 
-function formatTrendDayLabel(dateKey) {
+function formatTrendDayLabel(dateKey: unknown) {
   if (typeof dateKey !== "string") {
     return "";
   }
@@ -341,9 +342,9 @@ function formatTrendDayLabel(dateKey) {
   return new Intl.DateTimeFormat(undefined, { weekday: "short" }).format(date);
 }
 
-function sendRuntimeMessage(message) {
-  return new Promise((resolve) => {
-    chrome.runtime.sendMessage(message, (response) => {
+function sendRuntimeMessage(message: object) {
+  return new Promise<unknown>((resolve) => {
+    chrome.runtime.sendMessage(message, (response: unknown) => {
       if (chrome.runtime.lastError) {
         resolve(null);
         return;
@@ -353,7 +354,7 @@ function sendRuntimeMessage(message) {
   });
 }
 
-async function acknowledgeWeeklyRecap(weekKey) {
+async function acknowledgeWeeklyRecap(weekKey: unknown) {
   if (typeof weekKey !== "string" || !weekKey) {
     return;
   }
@@ -363,7 +364,7 @@ async function acknowledgeWeeklyRecap(weekKey) {
   });
 }
 
-async function handleDonationPromptAction(prompt, action) {
+async function handleDonationPromptAction(prompt: Record<string, unknown>, action: string) {
   if (!prompt || typeof prompt.promptId !== "string" || !prompt.promptId) {
     return;
   }
@@ -372,13 +373,19 @@ async function handleDonationPromptAction(prompt, action) {
     context: {
       promptId: prompt.promptId,
       action,
-      milestoneHours:
-        typeof prompt.milestoneHours === "number" ? prompt.milestoneHours : null,
+      milestoneHours: typeof prompt.milestoneHours === "number" ? prompt.milestoneHours : null,
     },
   });
 }
 
-function appendRankedList(container, rows, emptyText, rowMapper) {
+type RankedRow = Record<string, unknown>;
+
+function appendRankedList(
+  container: HTMLElement,
+  rows: RankedRow[],
+  emptyText: string,
+  rowMapper: (row: RankedRow) => [string, string],
+) {
   const list = document.createElement("ul");
   list.className = "productivity-insights-list";
   if (!Array.isArray(rows) || rows.length === 0) {
@@ -402,7 +409,13 @@ function appendRankedList(container, rows, emptyText, rowMapper) {
   container.appendChild(list);
 }
 
-function appendMetricCard(container, label, metric) {
+type MetricStats = {
+  estimatedMinutesSaved: unknown;
+  acceptedSuggestions: unknown;
+  charactersSaved: unknown;
+};
+
+function appendMetricCard(container: HTMLElement, label: string, metric: MetricStats) {
   const card = document.createElement("article");
   card.className = "productivity-insights-metric";
   const title = document.createElement("h4");
@@ -421,7 +434,7 @@ function appendMetricCard(container, label, metric) {
   container.appendChild(card);
 }
 
-function appendTrendChart(container, trendPoints) {
+function appendTrendChart(container: HTMLElement, trendPoints: unknown) {
   const section = document.createElement("section");
   section.className = "productivity-insights-section";
   const title = document.createElement("h4");
@@ -430,11 +443,10 @@ function appendTrendChart(container, trendPoints) {
 
   const chart = document.createElement("div");
   chart.className = "productivity-trend-chart";
-  const points = Array.isArray(trendPoints) ? trendPoints : [];
+  const points = Array.isArray(trendPoints) ? (trendPoints as Record<string, unknown>[]) : [];
   const maxMinutes =
     points.reduce(
-      (maxValue, point) =>
-        Math.max(maxValue, Number(point?.estimatedMinutesSaved) || 0),
+      (maxValue, point) => Math.max(maxValue, Number(point?.estimatedMinutesSaved) || 0),
       0,
     ) || 1;
 
@@ -469,7 +481,10 @@ function appendTrendChart(container, trendPoints) {
   container.appendChild(section);
 }
 
-function appendMilestoneProgress(container, milestoneProgress) {
+function appendMilestoneProgress(
+  container: HTMLElement,
+  milestoneProgress: Record<string, unknown>,
+) {
   const section = document.createElement("section");
   section.className = "productivity-insights-section";
   const title = document.createElement("h4");
@@ -496,7 +511,7 @@ function appendMilestoneProgress(container, milestoneProgress) {
   container.appendChild(section);
 }
 
-function appendEventSummary(container, eventSummary) {
+function appendEventSummary(container: HTMLElement, eventSummary: Record<string, unknown>) {
   const section = document.createElement("section");
   section.className = "productivity-insights-section";
   const title = document.createElement("h4");
@@ -516,7 +531,9 @@ function appendEventSummary(container, eventSummary) {
   container.appendChild(section);
 }
 
-function renderProductivityInsights(root, stats) {
+type ProductivityStats = Record<string, unknown>;
+
+function renderProductivityInsights(root: HTMLElement, stats: ProductivityStats) {
   root.innerHTML = "";
 
   const shell = document.createElement("section");
@@ -542,9 +559,9 @@ function renderProductivityInsights(root, stats) {
 
   const metricGrid = document.createElement("div");
   metricGrid.className = "productivity-insights-grid";
-  appendMetricCard(metricGrid, t("productivity_metric_today"), stats.today);
-  appendMetricCard(metricGrid, t("productivity_metric_last7"), stats.last7Days);
-  appendMetricCard(metricGrid, t("productivity_metric_lifetime"), stats.lifetime);
+  appendMetricCard(metricGrid, t("productivity_metric_today"), stats.today as MetricStats);
+  appendMetricCard(metricGrid, t("productivity_metric_last7"), stats.last7Days as MetricStats);
+  appendMetricCard(metricGrid, t("productivity_metric_lifetime"), stats.lifetime as MetricStats);
   shell.appendChild(metricGrid);
 
   const trendSection = document.createElement("section");
@@ -555,7 +572,7 @@ function renderProductivityInsights(root, stats) {
   trendValue.className = "trend-value";
   if (stats.weekOverWeekDeltaPct === null) {
     trendValue.textContent = t("productivity_week_over_week_empty");
-  } else if (stats.weekOverWeekDeltaPct >= 0) {
+  } else if ((stats.weekOverWeekDeltaPct as number) >= 0) {
     trendValue.textContent = `+${stats.weekOverWeekDeltaPct}% ${t("productivity_week_over_week_suffix")}`;
   } else {
     trendValue.textContent = `${stats.weekOverWeekDeltaPct}% ${t("productivity_week_over_week_suffix")}`;
@@ -564,8 +581,8 @@ function renderProductivityInsights(root, stats) {
   trendSection.appendChild(trendValue);
   shell.appendChild(trendSection);
   appendTrendChart(shell, stats.last7DaysTrend);
-  appendMilestoneProgress(shell, stats.milestoneProgress);
-  appendEventSummary(shell, stats.last7DaysEvents);
+  appendMilestoneProgress(shell, stats.milestoneProgress as Record<string, unknown>);
+  appendEventSummary(shell, stats.last7DaysEvents as Record<string, unknown>);
 
   const columns = document.createElement("div");
   columns.className = "productivity-insights-columns";
@@ -577,10 +594,10 @@ function renderProductivityInsights(root, stats) {
   snippetSection.appendChild(snippetTitle);
   appendRankedList(
     snippetSection,
-    stats.topSnippets || [],
+    (stats.topSnippets as RankedRow[]) || [],
     t("productivity_top_snippets_empty"),
     (row) => [
-      row.snippet,
+      String(row.snippet),
       `${row.count}x • ${formatMetricNumber(row.estimatedMinutesSaved)} ${t("popup_short_minutes")}`,
     ],
   );
@@ -593,7 +610,7 @@ function renderProductivityInsights(root, stats) {
   languageWeekSection.appendChild(languageWeekTitle);
   appendRankedList(
     languageWeekSection,
-    stats.perLanguageLast7Days || [],
+    (stats.perLanguageLast7Days as RankedRow[]) || [],
     t("productivity_languages_empty"),
     (row) => [
       formatLanguageLabel(row.language),
@@ -609,7 +626,7 @@ function renderProductivityInsights(root, stats) {
   languageLifetimeSection.appendChild(languageLifetimeTitle);
   appendRankedList(
     languageLifetimeSection,
-    stats.perLanguageLifetime || [],
+    (stats.perLanguageLifetime as RankedRow[]) || [],
     t("productivity_languages_empty"),
     (row) => [
       formatLanguageLabel(row.language),
@@ -619,22 +636,24 @@ function renderProductivityInsights(root, stats) {
   columns.appendChild(languageLifetimeSection);
   shell.appendChild(columns);
 
+  const weeklyRecap = stats.weeklyRecap as Record<string, unknown> | undefined;
   const recapSection = document.createElement("section");
   recapSection.className = "productivity-insights-section recap-section";
   const recapTitle = document.createElement("h4");
-  recapTitle.textContent = `${t("productivity_weekly_recap_title")} (${formatWeekRange(stats.weeklyRecap?.weekKey)})`;
+  recapTitle.textContent = `${t("productivity_weekly_recap_title")} (${formatWeekRange(weeklyRecap?.weekKey)})`;
   const recapSummary = document.createElement("p");
-  recapSummary.textContent = `${formatMetricNumber(stats.weeklyRecap?.acceptedSuggestions)} ${t("popup_short_accepted")} • ${formatMetricNumber(
-    stats.weeklyRecap?.charactersSaved,
+  recapSummary.textContent = `${formatMetricNumber(weeklyRecap?.acceptedSuggestions)} ${t("popup_short_accepted")} • ${formatMetricNumber(
+    weeklyRecap?.charactersSaved,
   )} ${t("popup_short_chars")} • ${formatMetricNumber(
-    stats.weeklyRecap?.estimatedMinutesSaved,
+    weeklyRecap?.estimatedMinutesSaved,
   )} ${t("popup_short_minutes")}`;
   recapSection.appendChild(recapTitle);
   recapSection.appendChild(recapSummary);
-  if (stats.weeklyRecap?.topSnippet) {
+  if (weeklyRecap?.topSnippet) {
     const recapTopSnippet = document.createElement("p");
     recapTopSnippet.className = "recap-top-snippet";
-    recapTopSnippet.textContent = `${t("productivity_top_snippet_label")}: ${stats.weeklyRecap.topSnippet.snippet} (${stats.weeklyRecap.topSnippet.count}x)`;
+    const topSnippet = weeklyRecap.topSnippet as Record<string, unknown>;
+    recapTopSnippet.textContent = `${t("productivity_top_snippet_label")}: ${topSnippet.snippet} (${topSnippet.count}x)`;
     recapSection.appendChild(recapTopSnippet);
   } else {
     const recapTopSnippet = document.createElement("p");
@@ -648,22 +667,23 @@ function renderProductivityInsights(root, stats) {
     recapAction.className = "button is-small is-light recap-action";
     recapAction.textContent = t("productivity_weekly_recap_mark_seen");
     recapAction.onclick = async () => {
-      await acknowledgeWeeklyRecap(stats.weeklyRecap.weekKey);
+      await acknowledgeWeeklyRecap(weeklyRecap?.weekKey);
       await loadProductivityInsights(root);
     };
     recapSection.appendChild(recapAction);
   }
   shell.appendChild(recapSection);
 
-  if (stats.donationPrompt) {
-    if (lastMarkedDonationPromptId !== stats.donationPrompt.promptId) {
-      lastMarkedDonationPromptId = stats.donationPrompt.promptId;
-      void handleDonationPromptAction(stats.donationPrompt, "shown");
+  const donationPrompt = stats.donationPrompt as Record<string, unknown> | undefined;
+  if (donationPrompt) {
+    if (lastMarkedDonationPromptId !== donationPrompt.promptId) {
+      lastMarkedDonationPromptId = String(donationPrompt.promptId);
+      void handleDonationPromptAction(donationPrompt, "shown");
     }
     const donationSection = document.createElement("div");
     donationSection.className = "productivity-insights-donation";
     const donationText = document.createElement("span");
-    donationText.textContent = stats.donationPrompt.message;
+    donationText.textContent = String(donationPrompt.message);
     const donationActions = document.createElement("div");
     donationActions.className = "productivity-insights-donation-actions";
     const laterButton = document.createElement("button");
@@ -671,7 +691,7 @@ function renderProductivityInsights(root, stats) {
     laterButton.className = "button is-small is-light";
     laterButton.textContent = t("popup_donation_later");
     laterButton.onclick = async () => {
-      await handleDonationPromptAction(stats.donationPrompt, "snooze");
+      await handleDonationPromptAction(donationPrompt, "snooze");
       await loadProductivityInsights(root);
     };
     const donationLink = document.createElement("a");
@@ -680,7 +700,7 @@ function renderProductivityInsights(root, stats) {
     donationLink.rel = "noopener noreferrer";
     donationLink.textContent = t("popup_donation_support");
     donationLink.onclick = () => {
-      void handleDonationPromptAction(stats.donationPrompt, "supported");
+      void handleDonationPromptAction(donationPrompt, "supported");
     };
     donationActions.appendChild(laterButton);
     donationActions.appendChild(donationLink);
@@ -694,7 +714,7 @@ function renderProductivityInsights(root, stats) {
   root.appendChild(shell);
 }
 
-function renderProductivityInsightsStatus(root, messageKey) {
+function renderProductivityInsightsStatus(root: HTMLElement, messageKey: string) {
   root.innerHTML = "";
   const status = document.createElement("div");
   status.className = "productivity-insights-status";
@@ -708,7 +728,7 @@ function renderProductivityInsightsStatus(root, messageKey) {
   root.appendChild(status);
 }
 
-async function loadProductivityInsights(root, retryCount = 0) {
+async function loadProductivityInsights(root: HTMLElement, retryCount = 0) {
   if (retryCount === 0) {
     renderProductivityInsightsStatus(root, "productivity_insights_loading");
   }
@@ -720,7 +740,7 @@ async function loadProductivityInsights(root, retryCount = 0) {
     !response ||
     typeof response !== "object" ||
     Array.isArray(response) ||
-    "ok" in response
+    "ok" in (response as object)
   ) {
     if (retryCount < PRODUCTIVITY_INSIGHTS_MAX_RETRIES) {
       window.setTimeout(() => {
@@ -731,7 +751,7 @@ async function loadProductivityInsights(root, retryCount = 0) {
     renderProductivityInsightsStatus(root, "productivity_insights_failed");
     return;
   }
-  renderProductivityInsights(root, response);
+  renderProductivityInsights(root, response as ProductivityStats);
 }
 
 function setupProductivityInsights() {
@@ -760,19 +780,21 @@ function setupProductivityInsights() {
   void loadProductivityInsights(root);
 }
 
-function isPredictorDebugSnapshot(snapshot) {
+type PredictorSnapshot = Record<string, unknown>;
+
+function isPredictorDebugSnapshot(snapshot: unknown): snapshot is PredictorSnapshot {
   return (
-    snapshot &&
+    !!snapshot &&
     typeof snapshot === "object" &&
     !Array.isArray(snapshot) &&
-    typeof snapshot.generatedAtMs === "number" &&
-    snapshot.runtime &&
-    typeof snapshot.runtime === "object" &&
-    Array.isArray(snapshot.traces)
+    typeof (snapshot as Record<string, unknown>).generatedAtMs === "number" &&
+    !!(snapshot as Record<string, unknown>).runtime &&
+    typeof (snapshot as Record<string, unknown>).runtime === "object" &&
+    Array.isArray((snapshot as Record<string, unknown>).traces)
   );
 }
 
-function formatDurationMs(value) {
+function formatDurationMs(value: unknown) {
   const numericValue = Number(value);
   if (!Number.isFinite(numericValue)) {
     return "0 ms";
@@ -781,7 +803,7 @@ function formatDurationMs(value) {
   return `${rounded} ms`;
 }
 
-function formatProgressPercent(value) {
+function formatProgressPercent(value: unknown) {
   const numericValue = Number(value);
   if (!Number.isFinite(numericValue)) {
     return "n/a";
@@ -790,8 +812,8 @@ function formatProgressPercent(value) {
   return `${Math.round(clamped * 100)}%`;
 }
 
-function formatClockTime(timestampMs) {
-  const date = new Date(timestampMs);
+function formatClockTime(timestampMs: unknown) {
+  const date = new Date(timestampMs as number);
   if (Number.isNaN(date.getTime())) {
     return "n/a";
   }
@@ -802,7 +824,7 @@ function formatClockTime(timestampMs) {
   }).format(date);
 }
 
-function previewValue(value, maxLen = 180) {
+function previewValue(value: unknown, maxLen = 180) {
   if (typeof value !== "string") {
     return "";
   }
@@ -813,15 +835,15 @@ function previewValue(value, maxLen = 180) {
   return `${trimmed.slice(0, maxLen)}...`;
 }
 
-function formatPredictionList(predictions) {
+function formatPredictionList(predictions: unknown) {
   if (!Array.isArray(predictions) || predictions.length === 0) {
     return "[]";
   }
-  return predictions.join(" | ");
+  return (predictions as string[]).join(" | ");
 }
 
-function formatTraceTimeline(events) {
-  const items = Array.isArray(events) ? events : [];
+function formatTraceTimeline(events: unknown) {
+  const items = Array.isArray(events) ? (events as Record<string, unknown>[]) : [];
   if (items.length === 0) {
     return "<none>";
   }
@@ -842,7 +864,7 @@ function formatTraceTimeline(events) {
     .join(" -> ");
 }
 
-function buildPredictorDebugSnapshotSignature(snapshot) {
+function buildPredictorDebugSnapshotSignature(snapshot: PredictorSnapshot) {
   try {
     return JSON.stringify({
       config: snapshot?.config || null,
@@ -858,8 +880,8 @@ function getPredictorDebugRootElement() {
   return document.getElementById("predictorDebugRoot");
 }
 
-function summarizePredictorTraces(traces) {
-  const items = Array.isArray(traces) ? traces : [];
+function summarizePredictorTraces(traces: unknown[]) {
+  const items = traces as Record<string, unknown>[];
   let totalDuration = 0;
   let presageAttempts = 0;
   let presageDuration = 0;
@@ -869,14 +891,16 @@ function summarizePredictorTraces(traces) {
 
   items.forEach((trace) => {
     totalDuration += Number(trace?.totalDurationMs) || 0;
-    if (trace?.presage?.attempted) {
+    const presage = trace?.presage as Record<string, unknown> | undefined;
+    if (presage?.attempted) {
       presageAttempts += 1;
-      presageDuration += Number(trace.presage.durationMs) || 0;
+      presageDuration += Number(presage.durationMs) || 0;
     }
-    if (trace?.webllm?.attempted) {
+    const webllm = trace?.webllm as Record<string, unknown> | undefined;
+    if (webllm?.attempted) {
       aiAttempts += 1;
-      aiDuration += Number(trace.webllm.durationMs) || 0;
-      if (trace.webllm.timedOut) {
+      aiDuration += Number(webllm.durationMs) || 0;
+      if (webllm.timedOut) {
         aiTimeouts += 1;
       }
     }
@@ -886,15 +910,14 @@ function summarizePredictorTraces(traces) {
     requestCount: items.length,
     avgTotalDurationMs: items.length > 0 ? totalDuration / items.length : 0,
     presageAttempts,
-    avgPresageDurationMs:
-      presageAttempts > 0 ? presageDuration / presageAttempts : 0,
+    avgPresageDurationMs: presageAttempts > 0 ? presageDuration / presageAttempts : 0,
     aiAttempts,
     avgAIDurationMs: aiAttempts > 0 ? aiDuration / aiAttempts : 0,
     aiTimeouts,
   };
 }
 
-function createPredictorDebugMetric(label, value, subValue) {
+function createPredictorDebugMetric(label: string, value: string, subValue?: string) {
   const card = document.createElement("article");
   card.className = "predictor-debug-metric";
 
@@ -917,7 +940,7 @@ function createPredictorDebugMetric(label, value, subValue) {
   return card;
 }
 
-function appendPredictorInfoItem(container, label, value) {
+function appendPredictorInfoItem(container: HTMLElement, label: string, value: string) {
   const row = document.createElement("div");
   row.className = "predictor-debug-info-row";
 
@@ -932,7 +955,7 @@ function appendPredictorInfoItem(container, label, value) {
   container.appendChild(row);
 }
 
-function createPredictorToggleAction(label, key, enabled) {
+function createPredictorToggleAction(label: string, key: string, enabled: boolean) {
   const row = document.createElement("div");
   row.className = "predictor-debug-toggle-row";
 
@@ -954,7 +977,7 @@ function createPredictorToggleAction(label, key, enabled) {
   return row;
 }
 
-function renderPredictorDebugStatus(root, text, isError = false) {
+function renderPredictorDebugStatus(root: HTMLElement, text: string, isError = false) {
   root.innerHTML = "";
   const shell = document.createElement("div");
   shell.className = "predictor-debug-status";
@@ -976,15 +999,20 @@ function renderPredictorDebugStatus(root, text, isError = false) {
   root.appendChild(shell);
 }
 
-function renderPredictorDebugSnapshot(root, snapshot) {
+function renderPredictorDebugSnapshot(root: HTMLElement, snapshot: PredictorSnapshot) {
   const pageScrollX = window.scrollX;
   const pageScrollY = window.scrollY;
   const currentTraceList = root.querySelector(".predictor-debug-trace-list");
-  const traceScrollTop =
-    currentTraceList instanceof HTMLElement ? currentTraceList.scrollTop : 0;
+  const traceScrollTop = currentTraceList instanceof HTMLElement ? currentTraceList.scrollTop : 0;
 
-  const traces = Array.isArray(snapshot.traces) ? snapshot.traces : [];
+  const traces = Array.isArray(snapshot.traces)
+    ? (snapshot.traces as Record<string, unknown>[])
+    : [];
   const stats = summarizePredictorTraces(traces);
+  const config = snapshot.config as Record<string, unknown> | undefined;
+  const runtime = snapshot.runtime as Record<string, unknown> | undefined;
+  const runtimeWebllm = (runtime?.webllm as Record<string, unknown>) ?? {};
+  const runtimePresage = (runtime?.presage as Record<string, unknown>) ?? {};
 
   root.innerHTML = "";
   const shell = document.createElement("section");
@@ -1029,36 +1057,36 @@ function renderPredictorDebugSnapshot(root, snapshot) {
   appendPredictorInfoItem(
     configCard,
     "AI predictor",
-    snapshot.config?.aiPredictorEnabled ? "enabled" : "disabled",
+    config?.aiPredictorEnabled ? "enabled" : "disabled",
   );
-  appendPredictorInfoItem(configCard, "AI model", snapshot.config?.aiModelId || "n/a");
+  appendPredictorInfoItem(configCard, "AI model", String(config?.aiModelId || "n/a"));
   appendPredictorInfoItem(
     configCard,
     "Presage route",
-    snapshot.config?.debugPresagePredictorEnabled ? "enabled" : "disabled",
+    config?.debugPresagePredictorEnabled ? "enabled" : "disabled",
   );
   appendPredictorInfoItem(
     configCard,
     "WebLLM route",
-    snapshot.config?.debugAIPredictorEnabled ? "enabled" : "disabled",
+    config?.debugAIPredictorEnabled ? "enabled" : "disabled",
   );
   appendPredictorInfoItem(
     configCard,
     "WebLLM timeout budget",
-    `${Math.max(20, Number(snapshot.config?.aiPredictionTimeoutMs) || 0)} ms`,
+    `${Math.max(20, Number(config?.aiPredictionTimeoutMs) || 0)} ms`,
   );
   configCard.appendChild(
     createPredictorToggleAction(
       "Presage route toggle",
       KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
-      Boolean(snapshot.config?.debugPresagePredictorEnabled),
+      Boolean(config?.debugPresagePredictorEnabled),
     ),
   );
   configCard.appendChild(
     createPredictorToggleAction(
       "WebLLM route toggle",
       KEY_DEBUG_AI_PREDICTOR_ENABLED,
-      Boolean(snapshot.config?.debugAIPredictorEnabled),
+      Boolean(config?.debugAIPredictorEnabled),
     ),
   );
   infoGrid.appendChild(configCard);
@@ -1071,24 +1099,20 @@ function renderPredictorDebugSnapshot(root, snapshot) {
   appendPredictorInfoItem(
     runtimeCard,
     "Presage engines",
-    String(snapshot.runtime?.presage?.languageEngineCount ?? 0),
+    String(runtimePresage?.languageEngineCount ?? 0),
   );
   appendPredictorInfoItem(
     runtimeCard,
     "WebGPU",
-    snapshot.runtime?.webllm?.hasWebGPU ? "available" : "missing",
+    runtimeWebllm?.hasWebGPU ? "available" : "missing",
   );
-  appendPredictorInfoItem(
-    runtimeCard,
-    "WebLLM status",
-    snapshot.runtime?.webllm?.status || "n/a",
-  );
+  appendPredictorInfoItem(runtimeCard, "WebLLM status", String(runtimeWebllm?.status || "n/a"));
   appendPredictorInfoItem(
     runtimeCard,
     "WebLLM init attempts",
-    String(snapshot.runtime?.webllm?.initAttemptCount ?? 0),
+    String(runtimeWebllm?.initAttemptCount ?? 0),
   );
-  const initStartedAt = snapshot.runtime?.webllm?.lastInitStartedAt;
+  const initStartedAt = runtimeWebllm?.lastInitStartedAt;
   appendPredictorInfoItem(
     runtimeCard,
     "Last WebLLM init start",
@@ -1097,98 +1121,91 @@ function renderPredictorDebugSnapshot(root, snapshot) {
   appendPredictorInfoItem(
     runtimeCard,
     "Last WebLLM init duration",
-    snapshot.runtime?.webllm?.lastInitDurationMs != null
-      ? formatDurationMs(snapshot.runtime.webllm.lastInitDurationMs)
+    runtimeWebllm?.lastInitDurationMs != null
+      ? formatDurationMs(runtimeWebllm.lastInitDurationMs)
       : "n/a",
   );
   appendPredictorInfoItem(
     runtimeCard,
     "Last WebLLM init progress",
-    snapshot.runtime?.webllm?.lastInitProgress != null
-      ? formatProgressPercent(snapshot.runtime.webllm.lastInitProgress)
+    runtimeWebllm?.lastInitProgress != null
+      ? formatProgressPercent(runtimeWebllm.lastInitProgress)
       : "n/a",
   );
   appendPredictorInfoItem(
     runtimeCard,
     "Last WebLLM init stage",
-    snapshot.runtime?.webllm?.lastInitProgressText
-      ? previewValue(snapshot.runtime.webllm.lastInitProgressText, 80)
+    runtimeWebllm?.lastInitProgressText
+      ? previewValue(runtimeWebllm.lastInitProgressText, 80)
       : "none",
   );
   appendPredictorInfoItem(
     runtimeCard,
     "Last WebLLM init error",
-    snapshot.runtime?.webllm?.lastInitError
-      ? previewValue(snapshot.runtime.webllm.lastInitError, 80)
-      : "none",
+    runtimeWebllm?.lastInitError ? previewValue(runtimeWebllm.lastInitError, 80) : "none",
   );
   appendPredictorInfoItem(
     runtimeCard,
     "WebLLM generating",
-    snapshot.runtime?.webllm?.isGenerating ? "yes" : "no",
+    runtimeWebllm?.isGenerating ? "yes" : "no",
   );
   appendPredictorInfoItem(
     runtimeCard,
     "WebLLM cache entries",
-    String(snapshot.runtime?.webllm?.cacheSize ?? 0),
+    String(runtimeWebllm?.cacheSize ?? 0),
   );
-  const lastFailureAt = snapshot.runtime?.webllm?.lastFailureAt;
+  const lastFailureAt = runtimeWebllm?.lastFailureAt;
   appendPredictorInfoItem(
     runtimeCard,
     "Last WebLLM failure",
-    typeof lastFailureAt === "number"
-      ? formatClockTime(lastFailureAt)
-      : "none",
+    typeof lastFailureAt === "number" ? formatClockTime(lastFailureAt) : "none",
   );
   appendPredictorInfoItem(
     runtimeCard,
     "Last WebLLM source",
-    snapshot.runtime?.webllm?.lastPredictSource || "n/a",
+    String(runtimeWebllm?.lastPredictSource || "n/a"),
   );
   appendPredictorInfoItem(
     runtimeCard,
     "Last WebLLM duration",
-    snapshot.runtime?.webllm?.lastPredictDurationMs != null
-      ? formatDurationMs(snapshot.runtime.webllm.lastPredictDurationMs)
+    runtimeWebllm?.lastPredictDurationMs != null
+      ? formatDurationMs(runtimeWebllm.lastPredictDurationMs)
       : "n/a",
   );
   appendPredictorInfoItem(
     runtimeCard,
     "Last WebLLM output count",
-    String(snapshot.runtime?.webllm?.lastPredictOutputCount ?? 0),
+    String(runtimeWebllm?.lastPredictOutputCount ?? 0),
   );
   appendPredictorInfoItem(
     runtimeCard,
     "Last WebLLM error",
-    snapshot.runtime?.webllm?.lastPredictError
-      ? previewValue(snapshot.runtime.webllm.lastPredictError, 80)
-      : "none",
+    runtimeWebllm?.lastPredictError ? previewValue(runtimeWebllm.lastPredictError, 80) : "none",
   );
   const rawPreview = document.createElement("p");
   rawPreview.className = "predictor-debug-stage";
-  rawPreview.textContent = `Last raw output: ${previewValue(
-    snapshot.runtime?.webllm?.lastRawOutputPreview || "",
-    220,
-  ) || "<empty>"}`;
+  rawPreview.textContent = `Last raw output: ${
+    previewValue(runtimeWebllm?.lastRawOutputPreview || "", 220) || "<empty>"
+  }`;
   runtimeCard.appendChild(rawPreview);
-  const initProgressLog = Array.isArray(snapshot.runtime?.webllm?.lastInitProgressLog)
-    ? snapshot.runtime.webllm.lastInitProgressLog
+  const initProgressLog = Array.isArray(runtimeWebllm?.lastInitProgressLog)
+    ? (runtimeWebllm.lastInitProgressLog as Record<string, unknown>[])
     : [];
   const initProgressPreview = document.createElement("p");
   initProgressPreview.className = "predictor-debug-stage";
   initProgressPreview.textContent =
     initProgressLog.length > 0
       ? `Init progress: ${initProgressLog
-        .map((entry) => {
-          const label =
-            typeof entry?.text === "string" && entry.text.trim().length > 0
-              ? entry.text.trim()
-              : "stage";
-          const progress = formatProgressPercent(entry?.progress);
-          const at = formatClockTime(entry?.atMs);
-          return `${at} ${progress} ${label}`;
-        })
-        .join(" | ")}`
+          .map((entry) => {
+            const label =
+              typeof entry?.text === "string" && entry.text.trim().length > 0
+                ? entry.text.trim()
+                : "stage";
+            const progress = formatProgressPercent(entry?.progress);
+            const at = formatClockTime(entry?.atMs);
+            return `${at} ${progress} ${label}`;
+          })
+          .join(" | ")}`
       : "Init progress: <none>";
   runtimeCard.appendChild(initProgressPreview);
   infoGrid.appendChild(runtimeCard);
@@ -1198,11 +1215,7 @@ function renderPredictorDebugSnapshot(root, snapshot) {
   const metrics = document.createElement("div");
   metrics.className = "predictor-debug-metrics";
   metrics.appendChild(
-    createPredictorDebugMetric(
-      "Requests",
-      String(stats.requestCount),
-      "recent traces",
-    ),
+    createPredictorDebugMetric("Requests", String(stats.requestCount), "recent traces"),
   );
   metrics.appendChild(
     createPredictorDebugMetric(
@@ -1248,8 +1261,7 @@ function renderPredictorDebugSnapshot(root, snapshot) {
       const topRow = document.createElement("div");
       topRow.className = "predictor-debug-trace-top";
       const mainLabel = document.createElement("strong");
-      const requestLabel =
-        typeof trace.requestId === "number" ? `#${trace.requestId}` : "#n/a";
+      const requestLabel = typeof trace.requestId === "number" ? `#${trace.requestId}` : "#n/a";
       const traceLabel =
         typeof trace.traceId === "string" && trace.traceId.trim().length > 0
           ? trace.traceId
@@ -1263,20 +1275,20 @@ function renderPredictorDebugSnapshot(root, snapshot) {
 
       const routeRow = document.createElement("p");
       routeRow.className = "predictor-debug-stage";
-      routeRow.textContent =
-        `Route: tab=${trace.tabId ?? "n/a"} frame=${trace.frameId ?? "n/a"} suggestion=${trace.suggestionId ?? "n/a"}`;
+      routeRow.textContent = `Route: tab=${trace.tabId ?? "n/a"} frame=${trace.frameId ?? "n/a"} suggestion=${trace.suggestionId ?? "n/a"}`;
       card.appendChild(routeRow);
 
       const stageRow = document.createElement("p");
       stageRow.className = "predictor-debug-stage";
-      const presageStage = trace.presage?.attempted
-        ? `${formatDurationMs(trace.presage.durationMs)} (${(trace.presage?.predictions || []).length})`
-        : `skipped (${trace.presage?.skipReason || "unknown"})`;
-      const webllmStage = trace.webllm?.attempted
-        ? `${formatDurationMs(trace.webllm.durationMs)} (${(trace.webllm?.predictions || []).length}${trace.webllm?.timedOut ? ", timeout" : ""})`
-        : `skipped (${trace.webllm?.skipReason || "unknown"})`;
-      stageRow.textContent =
-        `Presage: ${presageStage} | WebLLM: ${webllmStage}`;
+      const tracePresage = trace.presage as Record<string, unknown> | undefined;
+      const traceWebllm = trace.webllm as Record<string, unknown> | undefined;
+      const presageStage = tracePresage?.attempted
+        ? `${formatDurationMs(tracePresage.durationMs)} (${((tracePresage?.predictions as unknown[]) || []).length})`
+        : `skipped (${tracePresage?.skipReason || "unknown"})`;
+      const webllmStage = traceWebllm?.attempted
+        ? `${formatDurationMs(traceWebllm.durationMs)} (${((traceWebllm?.predictions as unknown[]) || []).length}${traceWebllm?.timedOut ? ", timeout" : ""})`
+        : `skipped (${traceWebllm?.skipReason || "unknown"})`;
+      stageRow.textContent = `Presage: ${presageStage} | WebLLM: ${webllmStage}`;
       card.appendChild(stageRow);
 
       const input = document.createElement("p");
@@ -1291,12 +1303,12 @@ function renderPredictorDebugSnapshot(root, snapshot) {
 
       const presageOutput = document.createElement("p");
       presageOutput.className = "predictor-debug-stage";
-      presageOutput.textContent = `Presage output: ${formatPredictionList(trace.presage?.predictions)}`;
+      presageOutput.textContent = `Presage output: ${formatPredictionList(tracePresage?.predictions)}`;
       card.appendChild(presageOutput);
 
       const webllmOutput = document.createElement("p");
       webllmOutput.className = "predictor-debug-stage";
-      webllmOutput.textContent = `WebLLM output: ${formatPredictionList(trace.webllm?.predictions)}`;
+      webllmOutput.textContent = `WebLLM output: ${formatPredictionList(traceWebllm?.predictions)}`;
       card.appendChild(webllmOutput);
 
       const timeline = document.createElement("p");
@@ -1321,7 +1333,7 @@ function renderPredictorDebugSnapshot(root, snapshot) {
   });
 }
 
-async function loadPredictorDebugSnapshot(root, retryCount = 0) {
+async function loadPredictorDebugSnapshot(root: HTMLElement, retryCount = 0) {
   const hasRenderedDashboard = Boolean(root.querySelector(".predictor-debug"));
   if (retryCount === 0 && !hasRenderedDashboard) {
     renderPredictorDebugStatus(root, "Loading predictor telemetry...");
@@ -1361,15 +1373,19 @@ async function loadPredictorDebugSnapshot(root, retryCount = 0) {
   renderPredictorDebugSnapshot(root, response);
 }
 
-function setPredictorDebugToggle(settings, key, enabled) {
-  const setting = settings?.manifest?.[key];
+function setPredictorDebugToggle(
+  registry: ReturnType<SettingsEngine["buildFromManifest"]>,
+  key: string,
+  enabled: boolean,
+) {
+  const setting = registry?.[key];
   if (!setting || typeof setting.set !== "function") {
     return;
   }
   setting.set(Boolean(enabled));
 }
 
-function setupPredictorDebugDashboard(settings) {
+function setupPredictorDebugDashboard(registry: ReturnType<SettingsEngine["buildFromManifest"]>) {
   const mountIfNeeded = () => {
     const root = getPredictorDebugRootElement();
     if (!root) {
@@ -1424,11 +1440,8 @@ function setupPredictorDebugDashboard(settings) {
     if (action === "set-predictor-toggle") {
       const key = actionTarget.getAttribute("data-key");
       const nextEnabled = actionTarget.getAttribute("data-enabled") === "true";
-      if (
-        key === KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED ||
-        key === KEY_DEBUG_AI_PREDICTOR_ENABLED
-      ) {
-        setPredictorDebugToggle(settings, key, nextEnabled);
+      if (key === KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED || key === KEY_DEBUG_AI_PREDICTOR_ENABLED) {
+        setPredictorDebugToggle(registry, key, nextEnabled);
         predictorDebugLastSignature = "";
         window.setTimeout(() => {
           const latestRoot = mountIfNeeded();
@@ -1467,229 +1480,211 @@ function setupPredictorDebugDashboard(settings) {
 }
 
 window.addEventListener("DOMContentLoaded", function () {
-  //chrome.storage.local.clear();
+  const defaults: Record<string, unknown> = {};
+  for (const setting of manifest.settings) {
+    if (setting.name !== undefined && "default" in setting) {
+      defaults[setting.name] = (setting as { default?: unknown }).default;
+    }
+  }
+  const store = new Store("settings", defaults);
+  const engine = new SettingsEngine({
+    container: {
+      tabs: document.getElementById("tab-container") as HTMLElement,
+      content: document.getElementById("content") as HTMLElement,
+    },
+    store,
+    name: manifest.name,
+    icon: manifest.icon,
+  });
+  const registry = engine.buildFromManifest(manifest);
 
-  // Option 1: Use the manifest:
-  (() =>
-    new FancierSettingsWithManifest(async function (settings) {
-      new TextExpander(settings, optionsPageConfigChange);
-      settings.manifest.removeDomainBtn.addEvent("action", function () {
-        settings.manifest.domainBlackList.remove();
+  void (async () => {
+    new TextExpander(registry, optionsPageConfigChange);
+    registry.removeDomainBtn.addEvent("action", function () {
+      (registry.domainBlackList as ListBoxFieldControl).remove();
+    });
+
+    fallbackLanguageVisibility(registry, await store.get(KEY_LANGUAGE));
+    let siteProfilesManager: SiteProfilesManager | null = null;
+
+    registry.language.addEvent("action", async function (value) {
+      fallbackLanguageVisibility(registry, value);
+      await validateLanguageSettings(registry, store);
+    });
+
+    registry[KEY_ENABLED_LANGUAGES].addEvent("action", async function () {
+      await validateLanguageSettings(registry, store);
+      siteProfilesManager?.render();
+    });
+    await validateLanguageSettings(registry, store);
+    siteProfilesManager = new SiteProfilesManager(registry, optionsPageConfigChange);
+    setupProductivityInsights();
+    setupPredictorDebugDashboard(registry);
+    registry.resetProductivityStatsButton.addEvent("action", async function () {
+      await sendRuntimeMessage({
+        command: CMD_OPTIONS_RESET_PRODUCTIVITY_STATS,
+        context: {},
       });
+      const root = document.getElementById("productivityStatsRoot");
+      if (root) {
+        await loadProductivityInsights(root);
+      }
+    });
 
-      const store = new Store("settings");
-      fallbackLanguageVisibility(settings, await store.get(KEY_LANGUAGE));
-      let siteProfilesManager = null;
-
-      settings.manifest.language.addEvent("action", async function (value) {
-        fallbackLanguageVisibility(settings, value);
-        await validateLanguageSettings(settings, store);
-      });
-
-      settings.manifest[KEY_ENABLED_LANGUAGES].addEvent(
-        "action",
-        async function () {
-          await validateLanguageSettings(settings, store);
-          siteProfilesManager?.render();
-        },
-      );
-      await validateLanguageSettings(settings, store);
-      siteProfilesManager = new SiteProfilesManager(
-        settings,
-        optionsPageConfigChange,
-      );
-      setupProductivityInsights();
-      setupPredictorDebugDashboard(settings);
-      settings.manifest.resetProductivityStatsButton.addEvent(
-        "action",
-        async function () {
-          await sendRuntimeMessage({
-            command: CMD_OPTIONS_RESET_PRODUCTIVITY_STATS,
-            context: {},
-          });
-          const root = document.getElementById("productivityStatsRoot");
-          if (root) {
-            await loadProductivityInsights(root);
-          }
-        },
-      );
-
-      settings.manifest.addDomainBtn.addEvent("action", function () {
-        if (settings.manifest.domain.element.element.checkValidity()) {
-          const domainURL = settings.manifest.domain.get();
-          const hostName = new URL(domainURL).hostname;
-          if (hostName) {
-            settings.manifest.domainBlackList.add(hostName);
-            settings.manifest.domain.element.element.value = "";
-          }
+    registry.addDomainBtn.addEvent("action", function () {
+      const domainInput = registry.domain.element as HTMLInputElement;
+      if (domainInput.checkValidity()) {
+        const domainURL = registry.domain.get() as string;
+        const hostName = new URL(domainURL).hostname;
+        if (hostName) {
+          (registry.domainBlackList as ListBoxFieldControl).add(hostName);
+          domainInput.value = "";
         }
+      }
+    });
+
+    // User dictionary add action
+    registry.addUserWordBtn.addEvent("action", function () {
+      const wordInput = registry.userDictionary.element as HTMLInputElement;
+      if (wordInput.checkValidity()) {
+        const word = registry.userDictionary.get() as string;
+        (registry[KEY_USER_DICTIONARY_LIST] as ListBoxFieldControl).add(word);
+        wordInput.value = "";
+      }
+    });
+    // User dictionary remove action
+    registry.removeUserWordBtn.addEvent("action", function () {
+      (registry[KEY_USER_DICTIONARY_LIST] as ListBoxFieldControl).remove();
+    });
+    registry.removeAllUserWordsBtn.addEvent("action", function () {
+      (registry[KEY_USER_DICTIONARY_LIST] as ListBoxFieldControl).removeAll();
+    });
+
+    registry.exportSettingButton.addEvent("action", function () {
+      chrome.storage.local.get(null, function (items) {
+        const result = JSON.stringify(items);
+        const blob = new Blob([result], { type: "application/json" });
+        const exportFilename = "FluentTyperSettings.json";
+        const dlink = document.createElement("a");
+        dlink.href = window.URL.createObjectURL(blob);
+        dlink.download = exportFilename;
+        dlink.onclick = function () {
+          const that = this as HTMLAnchorElement;
+          setTimeout(function () {
+            window.URL.revokeObjectURL(that.href);
+          }, 1500);
+        };
+
+        dlink.click();
+        dlink.remove();
       });
+    });
 
-      // User dictionary add action
-      settings.manifest.addUserWordBtn.addEvent("action", function () {
-        if (settings.manifest.userDictionary.element.element.checkValidity()) {
-          const word = settings.manifest.userDictionary.get();
-          settings.manifest.userDictionaryList.add(word);
-          settings.manifest.userDictionary.element.element.value = "";
-        }
-      });
-      // User dictionary remove action
-      settings.manifest.removeUserWordBtn.addEvent("action", function () {
-        settings.manifest.userDictionaryList.remove();
-      });
-      settings.manifest.removeAllUserWordsBtn.addEvent("action", function () {
-        settings.manifest.userDictionaryList.removeAll();
-      });
+    const importInputElem = registry.importSettingButton.element as HTMLInputElement;
+    importInputElem.type = "file";
+    importInputElem.accept = ".json";
+    importInputElem.addEventListener("input", importSettingButtonFileSelected.bind(null, registry));
 
-      settings.manifest.exportSettingButton.addEvent("action", function () {
-        chrome.storage.local.get(null, function (items) {
-          // null implies all items
-          // Convert object to a JSON.
-          const result = JSON.stringify(items);
-          const blob = new Blob([result], { type: "application/json" });
-          const exportFilename = "FluentTyperSettings.json";
-          const dlink = document.createElement("a");
-          dlink.href = window.URL.createObjectURL(blob);
-          dlink.download = exportFilename;
-          dlink.onclick = function () {
-            // revokeObjectURL needs a delay to work properly
-            const that = this;
-            setTimeout(function () {
-              window.URL.revokeObjectURL(that.href);
-            }, 1500);
-          };
+    const importUserDictElem = registry.importUserDictButton.element as HTMLInputElement;
+    importUserDictElem.type = "file";
+    importUserDictElem.accept = ".txt";
+    importUserDictElem.addEventListener("input", importUserDictFileSelected.bind(null, registry));
 
-          dlink.click();
-          dlink.remove();
-        });
-      });
+    // Theme preset buttons
+    registry[KEY_USE_DEFAULT_THEME_BTN].addEvent("action", function () {
+      applyThemePreset(registry, "default");
+    });
+    registry[KEY_USE_COMPACT_THEME_BTN].addEvent("action", function () {
+      applyThemePreset(registry, "compact");
+    });
 
-      const importInputElem =
-        settings.manifest.importSettingButton.element.element;
-      importInputElem.type = "file";
-      importInputElem.accept = ".json";
-      importInputElem.addEventListener(
-        "input",
-        importSettingButtonFileSelected.bind(null, settings)
-      );
+    registry[KEY_INLINE_SUGGESTION].addEvent("action", function () {
+      if (registry[KEY_INLINE_SUGGESTION].get()) {
+        registry[KEY_AUTOCOMPLETE_ON_TAB].set(true);
+        registry[KEY_NUM_SUGGESTIONS].set(10);
+      }
+      siteProfilesManager?.render();
+    });
+    registry[KEY_NUM_SUGGESTIONS].addEvent("action", function () {
+      siteProfilesManager?.render();
+    });
 
-      const importUserDictElem =
-        settings.manifest.importUserDictButton.element.element;
-      importUserDictElem.type = "file";
-      importUserDictElem.accept = ".txt";
-      importUserDictElem.addEventListener(
-        "input",
-        importUserDictFileSelected.bind(null, settings)
-      );
+    registry[KEY_EXTENSION_LANGUAGE].addEvent("action", function () {
+      const langValue = registry[KEY_EXTENSION_LANGUAGE].get();
+      const storageKey = `store.settings.${KEY_EXTENSION_LANGUAGE}`;
+      localStorage.setItem(storageKey, JSON.stringify(langValue));
+      optionsPageConfigChange();
+      setTimeout(() => location.reload(), 100);
+    });
 
-      // Theme preset buttons
-      settings.manifest[KEY_USE_DEFAULT_THEME_BTN].addEvent("action", function () {
-        applyThemePreset(settings, 'default');
-      });
-      settings.manifest[KEY_USE_COMPACT_THEME_BTN].addEvent("action", function () {
-        applyThemePreset(settings, 'compact');
-      });
+    // Update presage config on change
+    [
+      KEY_AUTOCOMPLETE,
+      KEY_AUTOCOMPLETE_ON_ENTER,
+      KEY_AUTOCOMPLETE_ON_TAB,
+      KEY_LANGUAGE,
+      KEY_ENABLED_LANGUAGES,
+      KEY_DOMAIN_LIST_MODE,
+      KEY_FALLBACK_LANGUAGE,
+      KEY_NUM_SUGGESTIONS,
+      KEY_MIN_WORD_LENGTH_TO_PREDICT,
+      KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
+      KEY_AUTO_CAPITALIZE,
+      KEY_SELECT_BY_DIGIT,
+      KEY_ENABLED_GRAMMAR_RULES,
 
-      settings.manifest[KEY_INLINE_SUGGESTION].addEvent("action", function () {
-        if (settings.manifest[KEY_INLINE_SUGGESTION].get()) {
-          settings.manifest[KEY_AUTOCOMPLETE_ON_TAB].set(true);
-          settings.manifest[KEY_NUM_SUGGESTIONS].set(10);
-        }
-        siteProfilesManager?.render();
-      });
-      settings.manifest[KEY_NUM_SUGGESTIONS].addEvent("action", function () {
-        siteProfilesManager?.render();
-      });
-
-      settings.manifest[KEY_EXTENSION_LANGUAGE].addEvent("action", function () {
-        // Sync to localStorage so i18n.js can read it synchronously on next page load
-        const langValue = settings.manifest[KEY_EXTENSION_LANGUAGE].get();
-        const storageKey = `store.settings.${KEY_EXTENSION_LANGUAGE}`;
-        localStorage.setItem(storageKey, JSON.stringify(langValue));
-        optionsPageConfigChange();
-        setTimeout(() => location.reload(), 100);
-      });
-
-      // Theme settings event listeners
-      const themeSettings = [
-        KEY_SUGGESTION_BG_LIGHT, KEY_SUGGESTION_TEXT_LIGHT, KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT,
-        KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT, KEY_SUGGESTION_BORDER_LIGHT,
-        KEY_SUGGESTION_BG_DARK, KEY_SUGGESTION_TEXT_DARK, KEY_SUGGESTION_HIGHLIGHT_BG_DARK,
-        KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK, KEY_SUGGESTION_BORDER_DARK,
-        KEY_SUGGESTION_FONT_SIZE, KEY_SUGGESTION_PADDING_VERTICAL, KEY_SUGGESTION_PADDING_HORIZONTAL
-      ];
-
-      // Theme settings are now handled through the messaging system
-      // No direct theme application needed here
-
-      // Update pressage config on change
-      [
-        KEY_AUTOCOMPLETE,
-        KEY_AUTOCOMPLETE_ON_ENTER,
-        KEY_AUTOCOMPLETE_ON_TAB,
-        KEY_LANGUAGE,
-        KEY_ENABLED_LANGUAGES,
-        KEY_DOMAIN_LIST_MODE,
-        KEY_FALLBACK_LANGUAGE,
-        KEY_NUM_SUGGESTIONS,
-        KEY_MIN_WORD_LENGTH_TO_PREDICT,
-        KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
-        KEY_AUTO_CAPITALIZE,
-        KEY_SELECT_BY_DIGIT,
-        KEY_ENABLED_GRAMMAR_RULES,
-
-        KEY_TIME_FORMAT,
-        KEY_DATE_FORMAT,
-        KEY_TEXT_EXPANSIONS,
-        KEY_USER_DICTIONARY_LIST,
-        KEY_DISPLAY_LANG_HEADER,
-        KEY_INLINE_SUGGESTION,
-        KEY_EXTENSION_LANGUAGE,
-        KEY_AI_PREDICTOR_ENABLED,
-        KEY_AI_MODEL_ID,
-        KEY_AI_PREDICTION_TIMEOUT_MS,
-        KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
-        KEY_DEBUG_AI_PREDICTOR_ENABLED,
-        // Theme settings
-        KEY_SUGGESTION_BG_LIGHT,
-        KEY_SUGGESTION_TEXT_LIGHT,
-        KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT,
-        KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT,
-        KEY_SUGGESTION_BORDER_LIGHT,
-        KEY_SUGGESTION_BG_DARK,
-        KEY_SUGGESTION_TEXT_DARK,
-        KEY_SUGGESTION_HIGHLIGHT_BG_DARK,
-        KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK,
-        KEY_SUGGESTION_BORDER_DARK,
-        KEY_SUGGESTION_FONT_SIZE,
-        KEY_SUGGESTION_PADDING_VERTICAL,
-        KEY_SUGGESTION_PADDING_HORIZONTAL
-      ].forEach((element) => {
-        const setting = settings.manifest[element];
-        if (!setting || typeof setting.addEvent !== "function") {
-          return;
-        }
-        setting.addEvent("action", function () {
-          void store
-            .set(element, setting.get())
-            .catch(() => undefined)
-            .finally(() => {
-              optionsPageConfigChange();
-              if (
-                element === KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED ||
-                element === KEY_DEBUG_AI_PREDICTOR_ENABLED ||
-                element === KEY_AI_PREDICTOR_ENABLED ||
-                element === KEY_AI_MODEL_ID ||
-                element === KEY_AI_PREDICTION_TIMEOUT_MS
-              ) {
-                const root = document.getElementById("predictorDebugRoot");
-                if (root) {
-                  predictorDebugLastSignature = "";
-                  void loadPredictorDebugSnapshot(root);
-                }
+      KEY_TIME_FORMAT,
+      KEY_DATE_FORMAT,
+      KEY_TEXT_EXPANSIONS,
+      KEY_USER_DICTIONARY_LIST,
+      KEY_DISPLAY_LANG_HEADER,
+      KEY_INLINE_SUGGESTION,
+      KEY_EXTENSION_LANGUAGE,
+      KEY_AI_PREDICTOR_ENABLED,
+      KEY_AI_MODEL_ID,
+      KEY_AI_PREDICTION_TIMEOUT_MS,
+      KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
+      KEY_DEBUG_AI_PREDICTOR_ENABLED,
+      // Theme settings
+      KEY_SUGGESTION_BG_LIGHT,
+      KEY_SUGGESTION_TEXT_LIGHT,
+      KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT,
+      KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT,
+      KEY_SUGGESTION_BORDER_LIGHT,
+      KEY_SUGGESTION_BG_DARK,
+      KEY_SUGGESTION_TEXT_DARK,
+      KEY_SUGGESTION_HIGHLIGHT_BG_DARK,
+      KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK,
+      KEY_SUGGESTION_BORDER_DARK,
+      KEY_SUGGESTION_FONT_SIZE,
+      KEY_SUGGESTION_PADDING_VERTICAL,
+      KEY_SUGGESTION_PADDING_HORIZONTAL,
+    ].forEach((element) => {
+      const setting = registry[element];
+      if (!setting || typeof setting.addEvent !== "function") {
+        return;
+      }
+      setting.addEvent("action", function () {
+        void store
+          .set(element, setting.get())
+          .catch(() => undefined)
+          .finally(() => {
+            optionsPageConfigChange();
+            if (
+              element === KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED ||
+              element === KEY_DEBUG_AI_PREDICTOR_ENABLED ||
+              element === KEY_AI_PREDICTOR_ENABLED ||
+              element === KEY_AI_MODEL_ID ||
+              element === KEY_AI_PREDICTION_TIMEOUT_MS
+            ) {
+              const root = document.getElementById("predictorDebugRoot");
+              if (root) {
+                predictorDebugLastSignature = "";
+                void loadPredictorDebugSnapshot(root);
               }
-            });
-        });
+            }
+          });
       });
-    }))();
+    });
+  })();
 });
