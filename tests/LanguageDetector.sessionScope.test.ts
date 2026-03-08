@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, jest, test } from "bun:test";
 import { LanguageDetector } from "../src/adapters/chrome/background/LanguageDetector";
+import {
+  AUTO_LANGUAGE_MAX_SAMPLE_CHARS,
+  AUTO_LANGUAGE_MAX_SAMPLE_TOKENS,
+} from "../src/core/domain/autoLanguageDetection";
 
 type SettingsState = Record<string, unknown>;
 
@@ -24,15 +28,21 @@ function createSettingsManager(initialState: Partial<SettingsState> = {}) {
 
 function createDetector(initialState: Partial<SettingsState> = {}) {
   const { manager, state } = createSettingsManager(initialState);
+  const detectLanguage = jest.fn(async (text: string) => {
+    const englishMatches =
+      text.match(/\b(?:hello|english|steady|paragraph|history|typing|long|cursor)\b/gi)?.length || 0;
+    const frenchMatches =
+      text.match(/\b(?:bonjour|merci|monde|francais|encore|discussion|phrase|texte)\b/gi)
+        ?.length || 0;
+    if (frenchMatches > englishMatches) {
+      return { languages: [{ language: "fr", percentage: 96 }] };
+    }
+    return { languages: [{ language: "en", percentage: 96 }] };
+  });
 
   (globalThis as unknown as { chrome: typeof chrome }).chrome = {
     i18n: {
-      detectLanguage: jest.fn(async (text: string) => {
-        if (text.includes("bonjour")) {
-          return { languages: [{ language: "fr", percentage: 96 }] };
-        }
-        return { languages: [{ language: "en", percentage: 96 }] };
-      }),
+      detectLanguage,
     },
     tabs: {
       detectLanguage: jest.fn(async () => null),
@@ -43,6 +53,7 @@ function createDetector(initialState: Partial<SettingsState> = {}) {
     detector: new LanguageDetector(manager as never),
     settingsState: state,
     settingsManager: manager,
+    detectLanguage,
   };
 }
 
@@ -161,5 +172,62 @@ describe("LanguageDetector live session scoping", () => {
         en_US: expect.any(Number),
       },
     });
+  });
+
+  test("sustained french near the cursor overcomes a long english history", async () => {
+    const { detector, detectLanguage } = createDetector();
+    const longEnglishHistory =
+      "hello english paragraph with long cursor history and steady typing " +
+      "hello english paragraph with long cursor history and steady typing " +
+      "hello english paragraph with long cursor history and steady typing ";
+
+    const initial = await detector.resolveLanguage({
+      text: `${longEnglishHistory}hello english paragraph with steady typing `,
+      nextChar: "",
+      tabId: 13,
+      frameId: 0,
+      suggestionId: 1,
+      runtimeGeneration: 1,
+      domainURL: "example.com",
+      enabledLanguages: ["en_US", "fr_FR"],
+    });
+    const firstFrenchObservation = await detector.resolveLanguage({
+      text: `${longEnglishHistory}bonjour merci monde francais encore discussion `,
+      nextChar: "",
+      tabId: 13,
+      frameId: 0,
+      suggestionId: 1,
+      runtimeGeneration: 1,
+      domainURL: "example.com",
+      enabledLanguages: ["en_US", "fr_FR"],
+    });
+    const secondFrenchObservation = await detector.resolveLanguage({
+      text: `${longEnglishHistory}bonjour merci monde francais encore discussion phrase texte `,
+      nextChar: "",
+      tabId: 13,
+      frameId: 0,
+      suggestionId: 1,
+      runtimeGeneration: 1,
+      domainURL: "example.com",
+      enabledLanguages: ["en_US", "fr_FR"],
+    });
+
+    expect(initial.language).toBe("en_US");
+    expect(firstFrenchObservation.language).toBe("en_US");
+    expect(secondFrenchObservation.language).toBe("fr_FR");
+
+    const detectorInputs = detectLanguage.mock.calls.map(([text]) => String(text));
+    expect(detectorInputs.every((text) => text.length <= AUTO_LANGUAGE_MAX_SAMPLE_CHARS)).toBe(true);
+    expect(
+      detectorInputs.every(
+        (text) => (text.match(/\p{L}+/gu)?.length || 0) <= AUTO_LANGUAGE_MAX_SAMPLE_TOKENS,
+      ),
+    ).toBe(true);
+    expect(detectorInputs.at(-1)).toBe(
+      "bonjour merci monde francais encore discussion phrase texte"
+        .split(/\s+/)
+        .slice(-AUTO_LANGUAGE_MAX_SAMPLE_TOKENS)
+        .join(" ") + " ",
+    );
   });
 });

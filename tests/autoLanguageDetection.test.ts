@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { getAutoLanguageSitePrior, resolveAutoLanguageDecision } from "../src/core/domain/autoLanguageDetection";
+import {
+  AUTO_LANGUAGE_MAX_SAMPLE_CHARS,
+  AUTO_LANGUAGE_MAX_SAMPLE_TOKENS,
+  extractAutoLanguageSample,
+  getAutoLanguageSitePrior,
+  resolveAutoLanguageDecision,
+} from "../src/core/domain/autoLanguageDetection";
 
 const allowedLanguages = ["en_US", "fr_FR", "el_GR"];
 
@@ -161,5 +167,15 @@ describe("auto language detection decision engine", () => {
 
     expect(result.resolvedLanguage).toBe("fr_FR");
     expect(result.stableLanguage).toBe("fr_FR");
+  });
+
+  test("extracts a capped rolling sample from the latest tokens", () => {
+    const sample = extractAutoLanguageSample(
+      "one two three four five six seven eight nine ten eleven twelve",
+    );
+
+    expect(sample.split(/\s+/)).toHaveLength(AUTO_LANGUAGE_MAX_SAMPLE_TOKENS);
+    expect(sample.length).toBeLessThanOrEqual(AUTO_LANGUAGE_MAX_SAMPLE_CHARS);
+    expect(sample).toBe("seven eight nine ten eleven twelve");
   });
 });

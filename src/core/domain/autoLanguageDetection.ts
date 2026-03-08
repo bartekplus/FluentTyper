@@ -55,8 +55,8 @@ export interface ResolveAutoLanguageDecisionResult {
   stableScore: number;
 }
 
-const MAX_SAMPLE_CHARS = 160;
-const MAX_SAMPLE_TOKENS = 6;
+export const AUTO_LANGUAGE_MAX_SAMPLE_CHARS = 160;
+export const AUTO_LANGUAGE_MAX_SAMPLE_TOKENS = 6;
 const INITIAL_COMMIT_THRESHOLD = 0.65;
 const SWITCH_THRESHOLD = 0.75;
 const SWITCH_MARGIN = 0.2;
@@ -138,14 +138,30 @@ export function extractAutoLanguageSample(text: string): string {
   if (typeof text !== "string" || text.length === 0) {
     return "";
   }
+  const lastChar = text.charAt(text.length - 1);
+  const trailingBoundary = lastChar && BOUNDARY_REGEX.test(lastChar) ? lastChar : "";
   const tokens = [...text.matchAll(TOKEN_REGEX)].map((match) => match[0]);
-  const limitedTokens = tokens.slice(-MAX_SAMPLE_TOKENS);
+  const limitedTokens = tokens.slice(-AUTO_LANGUAGE_MAX_SAMPLE_TOKENS);
   const tokenSample = limitedTokens.join(" ").trim();
-  const source = tokenSample || text.trim();
-  if (source.length <= MAX_SAMPLE_CHARS) {
+  const textSample = text.trim();
+  let source = tokenSample || textSample;
+  if (source && trailingBoundary) {
+    source += trailingBoundary;
+  }
+  if (source.length <= AUTO_LANGUAGE_MAX_SAMPLE_CHARS) {
     return source;
   }
-  return source.slice(-MAX_SAMPLE_CHARS).trimStart();
+  return source.slice(-AUTO_LANGUAGE_MAX_SAMPLE_CHARS).trimStart();
+}
+
+export function updateAutoLanguageRollingSample(
+  previousSample: string,
+  nextText: string,
+): string {
+  if (typeof nextText === "string" && nextText.length > 0) {
+    return extractAutoLanguageSample(nextText);
+  }
+  return extractAutoLanguageSample(previousSample);
 }
 
 export function sanitizeAutoLanguageSitePriors(

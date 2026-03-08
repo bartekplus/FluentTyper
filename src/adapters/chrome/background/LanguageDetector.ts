@@ -1,10 +1,12 @@
 import type { SettingsManager } from "@core/application/settingsManager";
 import { CoreSettingsRepository } from "@core/application/repositories/CoreSettingsRepository";
 import {
+  extractAutoLanguageSample,
   getAutoLanguageSitePrior,
   recordAutoLanguageSitePrior,
   resolveAutoLanguageDecision,
   sanitizeAutoLanguageSitePriors,
+  updateAutoLanguageRollingSample,
   type AutoLanguageBrowserDetection,
   type AutoLanguageSitePriors,
 } from "@core/domain/autoLanguageDetection";
@@ -72,6 +74,7 @@ interface AutoLanguageSessionState {
   enabledLanguages: string[];
   stableLanguage: string | null;
   resolvedLanguage: string;
+  rollingSample: string;
   pendingLanguage: string | null;
   pendingConfirmations: number;
   manualLockLanguage: string | null;
@@ -132,6 +135,7 @@ export class LanguageDetector {
         enabledLanguages: allowedLanguages.slice(),
         stableLanguage: null,
         resolvedLanguage: fallbackLanguage,
+        rollingSample: "",
         pendingLanguage: null,
         pendingConfirmations: 0,
         manualLockLanguage: null,
@@ -151,6 +155,7 @@ export class LanguageDetector {
     session.domain = domain;
     session.enabledLanguages = allowedLanguages.slice();
     session.lastSeenAt = now;
+    session.rollingSample = updateAutoLanguageRollingSample(session.rollingSample, request.text);
     this.reportRuntimeActivity({
       tabId: request.tabId,
       frameId: request.frameId,
@@ -158,15 +163,17 @@ export class LanguageDetector {
       domainURL: request.domainURL,
     });
 
+    const rollingSample = session.rollingSample || extractAutoLanguageSample(request.text);
+
     const [browserDetections, pageLanguageHint] = await Promise.all([
-      this.detectBrowserLanguages(request.text),
+      this.detectBrowserLanguages(rollingSample),
       this.detectPageLanguage(request.tabId),
     ]);
 
     const decision = resolveAutoLanguageDecision({
       allowedLanguages,
       fallbackLanguage,
-      sampleText: request.text,
+      sampleText: rollingSample,
       browserDetections,
       documentLanguageHint: request.documentLang,
       pageLanguageHint,
