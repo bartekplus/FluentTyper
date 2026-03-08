@@ -57,6 +57,7 @@ const COMPACT_THEME = {
 
 function createRegistry(initialValues: Record<string, string>) {
   const values = { ...initialValues };
+  const handlers = new Map<string, Array<() => void>>();
   const registry = Object.fromEntries(
     Object.keys(initialValues).map((key) => [
       key,
@@ -64,8 +65,11 @@ function createRegistry(initialValues: Record<string, string>) {
         get: () => values[key],
         set: (value: unknown) => {
           values[key] = String(value);
+          (handlers.get(key) || []).forEach((handler) => handler());
         },
-        addEvent: () => undefined,
+        addEvent: (_type: string, handler: () => void) => {
+          handlers.set(key, [...(handlers.get(key) || []), handler]);
+        },
       },
     ]),
   );
@@ -151,5 +155,33 @@ describe("AppearanceStudio theme value compatibility", () => {
     colorInputs[0]!.dispatchEvent(new Event("change"));
 
     expect(values[KEY_SUGGESTION_BG_LIGHT]).toBe("rgba(17, 34, 51, 0.85)");
+  });
+
+  test("preview updates when theme values change and when preview mode switches", () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    const { registry } = createRegistry(DEFAULT_THEME);
+
+    new AppearanceStudio(root, registry as never, {
+      default: DEFAULT_THEME,
+      compact: COMPACT_THEME,
+    });
+
+    const previewBefore = root.querySelector(".appearance-preview") as HTMLElement;
+    expect(previewBefore.dataset.mode).toBe("light");
+    expect(previewBefore.style.background).toBe("rgb(255, 255, 255)");
+
+    registry[KEY_SUGGESTION_BG_LIGHT].set("#112233");
+    const previewAfterLightUpdate = root.querySelector(".appearance-preview") as HTMLElement;
+    expect(previewAfterLightUpdate.style.background).toBe("rgb(17, 34, 51)");
+
+    const darkToggle = Array.from(
+      root.querySelectorAll<HTMLButtonElement>(".segmented-control-button"),
+    ).find((button) => button.textContent === "Dark preview");
+    darkToggle?.click();
+
+    const previewAfterToggle = root.querySelector(".appearance-preview") as HTMLElement;
+    expect(previewAfterToggle.dataset.mode).toBe("dark");
+    expect(previewAfterToggle.style.background).toBe("rgb(15, 23, 42)");
   });
 });

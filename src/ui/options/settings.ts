@@ -89,7 +89,7 @@ function arraysEqual(a: unknown, b: unknown): boolean {
   return true;
 }
 
-async function sanitizeSiteProfilesForEnabledLanguages(
+export async function sanitizeSiteProfilesForEnabledLanguages(
   store: Store,
   enabledLanguages: string[] | null,
 ) {
@@ -105,7 +105,7 @@ async function sanitizeSiteProfilesForEnabledLanguages(
   return hasChanges;
 }
 
-async function validateLanguageSettings(
+export async function validateLanguageSettings(
   registry: ReturnType<SettingsEngine["buildFromManifest"]>,
   store: Store,
 ) {

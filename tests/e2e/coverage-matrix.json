@@ -468,6 +468,81 @@
       ]
     },
     {
+      "id": "options_workspace_localized_shell",
+      "description": "The redesigned options shell localizes the workspace title, search, and active deep-linked section.",
+      "coverage": [
+        {
+          "layer": "e2e-smoke",
+          "file": "tests/e2e/smoke.e2e.test.ts",
+          "test": "options workspace localizes shell copy and honors deep links"
+        }
+      ]
+    },
+    {
+      "id": "options_workspace_mobile_nav",
+      "description": "The redesigned mobile section switcher changes the active options section and URL hash.",
+      "coverage": [
+        {
+          "layer": "e2e-smoke",
+          "file": "tests/e2e/smoke.e2e.test.ts",
+          "test": "mobile section switcher changes the active options section and hash"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/settingsEngine.navigation.test.ts",
+          "test": "mobile section switcher updates active section and hash"
+        }
+      ]
+    },
+    {
+      "id": "options_workspace_hash_activation",
+      "description": "Options workspace activates the correct section from initial and changed URL hashes.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/settingsEngine.navigation.test.ts",
+          "test": "activates the tab from the initial hash"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/settingsEngine.navigation.test.ts",
+          "test": "responds to hashchange events by activating the matching section"
+        }
+      ]
+    },
+    {
+      "id": "popup_advanced_stats_anchor",
+      "description": "Popup advanced stats opens the options page directly to the advanced tab anchor.",
+      "coverage": [
+        {
+          "layer": "e2e-smoke",
+          "file": "tests/e2e/smoke.e2e.test.ts",
+          "test": "popup advanced stats opens the options page at the advanced tab anchor"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/popup.dashboard.retry.test.ts",
+          "test": "advanced stats button opens the options page anchor"
+        }
+      ]
+    },
+    {
+      "id": "options_language_sanitization",
+      "description": "Language settings validation sanitizes stored language choices and prunes invalid site-profile overrides.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/languageSettings.validation.test.ts",
+          "test": "sanitizes invalid primary/fallback languages and prunes site profiles that use removed languages"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/languageSettings.validation.test.ts",
+          "test": "normalizes enabled language order and preserves auto-detect only when multiple languages remain"
+        }
+      ]
+    },
+    {
       "id": "popup_escape_close",
       "description": "Escape key closes visible suggestion popup.",
       "coverage": [
