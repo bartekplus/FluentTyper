@@ -414,16 +414,19 @@ export class MessageRouter {
     payload: CommandPayload<typeof CMD_GET_AUTO_LANGUAGE_STATUS>,
   ): Promise<void> {
     const { request, sendResponse, worker } = payload;
-    const activeTab = await worker.tabMessenger.getActiveTabContext();
+    const fallbackTab =
+      typeof request.context.tabId === "number"
+        ? await worker.tabMessenger.getActiveTabContext()
+        : await worker.tabMessenger.getLastActiveWebsiteTabContext();
     const tabId =
       typeof request.context.tabId === "number" && Number.isFinite(request.context.tabId)
         ? request.context.tabId
-        : activeTab?.tabId;
+        : fallbackTab?.tabId;
     if (typeof tabId !== "number") {
       sendResponse({ status: null });
       return;
     }
-    const domainURL = request.context.domainURL || activeTab?.hostname || undefined;
+    const domainURL = request.context.domainURL || fallbackTab?.hostname || undefined;
     sendResponse({
       status: await worker.getAutoLanguageStatusForScope({
         tabId,

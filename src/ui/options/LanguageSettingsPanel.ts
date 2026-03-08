@@ -162,6 +162,13 @@ export class LanguageSettingsPanel {
         activeStatus.textContent += ` ${i18n.get("language_panel_auto_detect_locked")}`;
       }
       shell.appendChild(activeStatus);
+    } else if (language === "auto_detect") {
+      const waitingStatus = document.createElement("p");
+      waitingStatus.className = "settings-inline-help";
+      waitingStatus.textContent = formatTranslation("language_panel_auto_detect_waiting", {
+        language: fallbackLabel,
+      });
+      shell.appendChild(waitingStatus);
     }
 
     const link = document.createElement("a");
@@ -322,26 +329,9 @@ export class LanguageSettingsPanel {
 
   private async fetchAutoLanguageStatus(): Promise<{ language: string; locked: boolean } | null> {
     try {
-      let tabId: number | undefined;
-      let domainURL: string | undefined;
-      try {
-        const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (typeof activeTab?.id === "number") {
-          tabId = activeTab.id;
-        }
-        if (typeof activeTab?.url === "string" && activeTab.url.length > 0) {
-          domainURL = new URL(activeTab.url).hostname || undefined;
-        }
-      } catch {
-        tabId = undefined;
-        domainURL = undefined;
-      }
       const response = await chrome.runtime.sendMessage({
         command: CMD_GET_AUTO_LANGUAGE_STATUS,
-        context: {
-          tabId,
-          domainURL,
-        },
+        context: {},
       });
       const status = (response as { status?: { language?: string; locked?: boolean } | null })?.status;
       if (!status || typeof status.language !== "string" || status.language.length === 0) {

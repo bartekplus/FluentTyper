@@ -91,6 +91,10 @@ const backgroundHarnessMocks = {
     tabId: 1,
     hostname: "example.com",
   })),
+  getLastActiveWebsiteTabContext: jest.fn(async () => ({
+    tabId: 1,
+    hostname: "example.com",
+  })),
   checkLastError: jest.fn(),
   getDomain: jest.fn(() => "example.com"),
   isEnabledForDomain: jest.fn(async () => true),
@@ -136,6 +140,8 @@ jest.unstable_mockModule("../src/adapters/chrome/background/TabMessenger", () =>
     sendToActiveTab: (...args: [unknown]) => backgroundHarnessMocks.tabSendToActive(...args),
     sendToTab: (...args: [number, number, unknown]) => backgroundHarnessMocks.tabSendToTab(...args),
     getActiveTabContext: (...args: []) => backgroundHarnessMocks.getActiveTabContext(...args),
+    getLastActiveWebsiteTabContext: (...args: []) =>
+      backgroundHarnessMocks.getLastActiveWebsiteTabContext(...args),
   })),
 }));
 
@@ -260,6 +266,10 @@ async function loadBackgroundHarness(stateOverrides: Record<string, unknown> = {
     tabId: 1,
     hostname: "example.com",
   }));
+  const getLastActiveWebsiteTabContext = jest.fn(async () => ({
+    tabId: 9,
+    hostname: "docs.example",
+  }));
   const checkLastError = jest.fn();
   const getDomain = jest.fn(() => "example.com");
   const isEnabledForDomain = jest.fn(async () => true);
@@ -321,6 +331,7 @@ async function loadBackgroundHarness(stateOverrides: Record<string, unknown> = {
   backgroundHarnessMocks.tabSendToActive = tabSendToActive;
   backgroundHarnessMocks.tabSendToTab = tabSendToTab;
   backgroundHarnessMocks.getActiveTabContext = getActiveTabContext;
+  backgroundHarnessMocks.getLastActiveWebsiteTabContext = getLastActiveWebsiteTabContext;
   backgroundHarnessMocks.checkLastError = checkLastError;
   backgroundHarnessMocks.getDomain = getDomain;
   backgroundHarnessMocks.isEnabledForDomain = isEnabledForDomain;
@@ -362,6 +373,8 @@ async function loadBackgroundHarness(stateOverrides: Record<string, unknown> = {
     tabSendToAll,
     tabSendToActive,
     tabSendToTab,
+    getActiveTabContext,
+    getLastActiveWebsiteTabContext,
     checkLastError,
     getDomain,
     isEnabledForDomain,
@@ -1010,29 +1023,49 @@ describe("background routing and lifecycle", () => {
       language: "de_DE",
       source: "manual_lock",
       locked: true,
-      tabId: 1,
+      tabId: 9,
       frameId: 0,
-      domain: "example.com",
+      domain: "docs.example",
       updatedAt: Date.now(),
     });
     const sendResponse = jest.fn();
 
     harness.onMessage(
-      {
-        command: CMD_GET_AUTO_LANGUAGE_STATUS,
-        context: { tabId: 1, domainURL: "example.com" },
-      },
+      { command: CMD_GET_AUTO_LANGUAGE_STATUS, context: {} },
       {} as chrome.runtime.MessageSender,
       sendResponse,
     );
     await flushPromises();
 
+    expect(harness.getLastActiveWebsiteTabContext).toHaveBeenCalled();
+    expect(harness.getRecentSessionStatusForScope).toHaveBeenCalledWith({
+      tabId: 9,
+      frameId: undefined,
+      runtimeGeneration: undefined,
+      domainURL: "docs.example",
+    });
     expect(sendResponse).toHaveBeenCalledWith({
       status: expect.objectContaining({
         language: "de_DE",
         locked: true,
       }),
     });
+  });
+
+  test("onMessage returns null auto language status when no website tab context exists", async () => {
+    const harness = await loadBackgroundHarness();
+    harness.getLastActiveWebsiteTabContext.mockResolvedValueOnce(undefined);
+    const sendResponse = jest.fn();
+
+    harness.onMessage(
+      { command: CMD_GET_AUTO_LANGUAGE_STATUS, context: {} },
+      {} as chrome.runtime.MessageSender,
+      sendResponse,
+    );
+    await flushPromises();
+
+    expect(sendResponse).toHaveBeenCalledWith({ status: null });
+    expect(harness.getRecentSessionStatusForScope).not.toHaveBeenCalled();
   });
 
   test("onMessage records live runtime status for the sender frame", async () => {

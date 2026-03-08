@@ -57,6 +57,26 @@ export class TabMessenger {
     }
   }
 
+  private isWebsiteUrl(url: string | undefined): boolean {
+    return typeof url === "string" && /^(https?):\/\//i.test(url);
+  }
+
+  private toWebsiteTabContext(
+    tab: chrome.tabs.Tab | undefined,
+  ): { tabId: number; hostname: string } | undefined {
+    if (!tab || typeof tab.id !== "number" || !this.isWebsiteUrl(tab.url)) {
+      return undefined;
+    }
+    const hostname = this.extractHostname(tab.url);
+    if (!hostname) {
+      return undefined;
+    }
+    return {
+      tabId: tab.id,
+      hostname,
+    };
+  }
+
   sendToActiveTab(message: Message): void {
     this.getActiveTabId().then((tabId) => {
       if (tabId !== undefined) {
@@ -81,6 +101,39 @@ export class TabMessenger {
     } catch {
       return { tabId, hostname: "" };
     }
+  }
+
+  async getLastActiveWebsiteTabContext(): Promise<{ tabId: number; hostname: string } | undefined> {
+    try {
+      const currentWindowTabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      const currentContext = this.toWebsiteTabContext(currentWindowTabs[0]);
+      if (currentContext) {
+        return currentContext;
+      }
+
+      const lastFocusedTabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+      const lastFocusedContext = this.toWebsiteTabContext(lastFocusedTabs[0]);
+      if (lastFocusedContext) {
+        return lastFocusedContext;
+      }
+
+      const allTabs = await chrome.tabs.query({});
+      const recentWebsiteTab = [...allTabs]
+        .filter((tab) => this.isWebsiteUrl(tab.url))
+        .sort((left, right) => (right.lastAccessed || 0) - (left.lastAccessed || 0))[0];
+      const recentContext = this.toWebsiteTabContext(recentWebsiteTab);
+      if (recentContext) {
+        return recentContext;
+      }
+
+      if (typeof this.lastActiveTabId === "number") {
+        const tab = await chrome.tabs.get(this.lastActiveTabId);
+        return this.toWebsiteTabContext(tab);
+      }
+    } catch {
+      return undefined;
+    }
+    return undefined;
   }
 
   async sendToAllTabs(

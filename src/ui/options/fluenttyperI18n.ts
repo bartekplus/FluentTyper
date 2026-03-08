@@ -5094,6 +5094,9 @@ i18n.extend({
   language_panel_auto_detect_locked: {
     en: "Session lock is active.",
   },
+  language_panel_auto_detect_waiting: {
+    en: "Waiting for a live website typing session. Fallback: {language}.",
+  },
   text_assets_search_placeholder: {
     en: "Search snippets",
     fr: "Rechercher des extraits",

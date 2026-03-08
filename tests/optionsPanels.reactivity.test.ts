@@ -171,6 +171,32 @@ describe("options panel reactivity", () => {
     expect(root.textContent).toContain("Session lock is active.");
   });
 
+  test("language summary shows waiting copy when no live website session exists", async () => {
+    const values: SettingsMap = {
+      [KEY_ENABLED_LANGUAGES]: ["en_US", "de_DE", "fr_FR"],
+      [KEY_LANGUAGE]: "auto_detect",
+      [KEY_FALLBACK_LANGUAGE]: "fr_FR",
+      [KEY_SITE_PROFILES]: {},
+    };
+    const store = createStore(values);
+    const registry = createRegistry(values);
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+
+    (
+      globalThis.chrome as typeof chrome & {
+        runtime: typeof chrome.runtime & { sendMessage: (message: unknown) => Promise<unknown> };
+      }
+    ).runtime.sendMessage = () => Promise.resolve({ status: null });
+
+    new LanguageSettingsPanel(root, registry, store);
+    await flushAsyncWork();
+
+    expect(root.textContent).toContain(
+      "Waiting for a live website typing session. Fallback: French.",
+    );
+  });
+
   test("sites UI refreshes immediately when enabled languages change", async () => {
     const values: SettingsMap = {
       [KEY_DOMAIN_LIST_MODE]: "blackList",
