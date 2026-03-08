@@ -195,8 +195,12 @@ export class SettingsEngine {
       return control;
     }
     const container = this.getOrCreateGroup(params.tab, params.group);
+    const groupRoot = container.closest(".settings-group");
     control.rootElement.setAttribute("data-search-text", this.buildFieldSearchText(params));
     container.appendChild(control.rootElement);
+    if (params.type === "customPanel") {
+      groupRoot?.classList.add("settings-group-panel-only");
+    }
     return control;
   }
 

@@ -247,6 +247,20 @@ body.fluenttyper-options .settings-group .field {
   margin: 0;
 }
 
+body.fluenttyper-options .settings-group.settings-group-panel-only {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+body.fluenttyper-options .settings-group.settings-group-panel-only .settings-group-header {
+  display: none;
+}
+
+body.fluenttyper-options .settings-group.settings-group-panel-only .settings-group-body {
+  padding: 0;
+}
+
 .settings-group .label,
 .settings-group .settings-stack-field > span,
 .settings-inline-card h4,

@@ -2207,7 +2207,7 @@ i18n.extend({
     pr: "Permite o uso de variáveis como ${date} ou ${time} nas suas expansões. Variáveis suportadas: ",
   },
   custom_date_format_label: {
-    en: "Custom date format token:",
+    en: "Custom date format:",
     fr: "Token de format de date personnalisé :",
     hr: "Prilagođeni token za format datuma:",
     es: "Token de formato de fecha personalizado:",
@@ -2229,7 +2229,7 @@ i18n.extend({
     pr: "ex., 'fff' -> 'Agosto 6, 2014, 1:07 PM EDT'. Veja todos os tokens suportados <a href='https://moment.github.io/luxon/#/formatting?id=table-of-tokens' target='_blank'>aqui</a>.",
   },
   custom_time_format_label: {
-    en: "Custom time format token:",
+    en: "Custom time format:",
     fr: "Token de format d'heure personnalisé :",
     hr: "Prilagođeni token za format vremena:",
     es: "Token de formato de hora personalizado:",
@@ -5243,7 +5243,7 @@ i18n.extend({
     pr: "Adicionar palavras",
   },
   text_assets_advanced_variables_docs: {
-    en: "Supported variables: ${time}, ${date}, ${date:+1d}, ${datetime}, ${uuid}, ${random:A|B|C}, ${page_url}, ${page_title}, ${page_domain}.",
+    en: "Use dynamic variables inside snippets to insert dates, times, utility values, and page details.",
     fr: "Variables prises en charge : ${time}, ${date}, ${date:+1d}, ${datetime}, ${uuid}, ${random:A|B|C}, ${page_url}, ${page_title}, ${page_domain}.",
     hr: "Podržane varijable: ${time}, ${date}, ${date:+1d}, ${datetime}, ${uuid}, ${random:A|B|C}, ${page_url}, ${page_title}, ${page_domain}.",
     es: "Variables compatibles: ${time}, ${date}, ${date:+1d}, ${datetime}, ${uuid}, ${random:A|B|C}, ${page_url}, ${page_title}, ${page_domain}.",
@@ -5252,6 +5252,33 @@ i18n.extend({
     de: "Unterstützte Variablen: ${time}, ${date}, ${date:+1d}, ${datetime}, ${uuid}, ${random:A|B|C}, ${page_url}, ${page_title}, ${page_domain}.",
     pl: "Obsługiwane zmienne: ${time}, ${date}, ${date:+1d}, ${datetime}, ${uuid}, ${random:A|B|C}, ${page_url}, ${page_title}, ${page_domain}.",
     pr: "Variáveis suportadas: ${time}, ${date}, ${date:+1d}, ${datetime}, ${uuid}, ${random:A|B|C}, ${page_url}, ${page_title}, ${page_domain}.",
+  },
+  text_assets_variable_group_datetime: {
+    en: "Date & time: ${time}, ${date}, ${date:+1d}, ${datetime}",
+  },
+  text_assets_variable_group_utility: {
+    en: "Utility values: ${uuid}, ${random:A|B|C}",
+  },
+  text_assets_variable_group_page: {
+    en: "Page details: ${page_url}, ${page_title}, ${page_domain}",
+  },
+  text_assets_luxon_intro: {
+    en: "These format fields use Luxon tokens. Use them to control how ${date}, ${time}, and ${datetime} render.",
+  },
+  text_assets_luxon_link_label: {
+    en: "Open Luxon token reference",
+  },
+  text_assets_luxon_example_date_short: {
+    en: "Date example: dd LLL yyyy -> 08 Mar 2026",
+  },
+  text_assets_luxon_example_date_long: {
+    en: "Date example: DDDD -> Sunday, March 8, 2026",
+  },
+  text_assets_luxon_example_time_short: {
+    en: "Time example: HH:mm -> 14:05",
+  },
+  text_assets_luxon_example_time_long: {
+    en: "Time example: h:mm a ZZZZ -> 2:05 PM Central European Standard Time",
   },
   text_assets_preview_placeholder: {
     en: "Preview updates as you type.",

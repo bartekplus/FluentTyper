@@ -10,20 +10,6 @@ export class CustomPanelControl extends BaseControl<null> {
     root.className = "settings-custom-panel field";
     this._rootElement = root;
 
-    if (params.label) {
-      const label = document.createElement("h3");
-      label.className = "settings-custom-panel-label";
-      label.textContent = params.label;
-      root.appendChild(label);
-    }
-
-    if (params.description) {
-      const description = document.createElement("p");
-      description.className = "settings-custom-panel-description";
-      description.textContent = params.description;
-      root.appendChild(description);
-    }
-
     const body = document.createElement("div");
     body.className = "settings-custom-panel-body";
     if (params.name) {

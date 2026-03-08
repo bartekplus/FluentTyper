@@ -183,4 +183,43 @@ describe("SettingsEngine navigation", () => {
     expect(elements.content.textContent || "").not.toContain("Light Theme Colors");
     expect(elements.content.querySelector("#appearanceStudioPanelPanelRoot")).not.toBeNull();
   });
+
+  test("custom panels do not repeat their own heading copy inside panel-only groups", () => {
+    const elements = createEngineElements();
+    const engine = new SettingsEngine({
+      container: elements,
+    });
+
+    engine.buildFromManifest({
+      name: "Test",
+      icon: "/icon.png",
+      tabs: [
+        {
+          id: "advanced_tab",
+          label: "Data & Diagnostics",
+          title: "Data & Diagnostics",
+          shortDescription: "Backups, productivity stats, and optional debug tools.",
+        },
+      ],
+      settings: [
+        {
+          tab: "advanced_tab",
+          group: "Data & Diagnostics",
+          name: "dataDiagnosticsPanel",
+          type: "customPanel",
+          label: "Data & Diagnostics",
+          description: "Backups, productivity stats, and optional debug tools.",
+        },
+      ],
+    });
+
+    const panelGroup = elements.content.querySelector(".settings-group");
+    expect(panelGroup?.classList.contains("settings-group-panel-only")).toBe(true);
+    expect(elements.content.querySelector(".settings-custom-panel-label")).toBeNull();
+    expect(elements.content.querySelector(".settings-custom-panel-description")).toBeNull();
+    expect(elements.content.querySelector("#dataDiagnosticsPanelPanelRoot")).not.toBeNull();
+    expect(elements.content.querySelector(".settings-section-title")?.textContent?.trim()).toBe(
+      "Data & Diagnostics",
+    );
+  });
 });
