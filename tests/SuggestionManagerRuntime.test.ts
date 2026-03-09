@@ -539,13 +539,19 @@ describe("SuggestionManagerRuntime", () => {
       expect(getManualAttachButton(input.parentElement ?? document)).toBeNull();
     });
 
-    test("does not show manual attach icon for contenteditable conflict candidates", () => {
+    test("attaches to contenteditable editors even when they expose aria autocomplete widgets", () => {
       const runtime = makeRuntime();
       const editable = document.createElement("div");
-      editable.contentEditable = "true";
-      editable.setAttribute("role", "combobox");
+      editable.setAttribute("contenteditable", "true");
+      Object.defineProperty(editable, "isContentEditable", {
+        configurable: true,
+        value: true,
+      });
+      editable.setAttribute("role", "textbox");
+      editable.setAttribute("aria-autocomplete", "list");
       editable.setAttribute("aria-expanded", "true");
       editable.setAttribute("aria-controls", "editable-list");
+      editable.setAttribute("data-lexical-editor", "true");
       const list = document.createElement("div");
       list.id = "editable-list";
       list.setAttribute("role", "listbox");
@@ -553,7 +559,7 @@ describe("SuggestionManagerRuntime", () => {
 
       runtime.queryAndAttachHelper();
 
-      expect(editable.hasAttribute("data-suggestion")).toBe(false);
+      expect(editable.getAttribute("data-suggestion")).toBe("true");
       expect(getManualAttachButton(document)).toBeNull();
     });
 
