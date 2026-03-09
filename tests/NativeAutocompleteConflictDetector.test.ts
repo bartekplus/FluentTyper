@@ -49,7 +49,12 @@ describe("NativeAutocompleteConflictDetector", () => {
     "username",
     "email",
     "name",
-    "name-family",
+    "honorific-prefix",
+    "given-name",
+    "additional-name",
+    "family-name",
+    "honorific-suffix",
+    "nickname",
     "tel",
     "tel-national",
     "street-address",
@@ -64,6 +69,14 @@ describe("NativeAutocompleteConflictDetector", () => {
     const input = document.createElement("input");
     input.type = "text";
     input.setAttribute("autocomplete", token);
+
+    expect(detector.isNativeAutocompletePreferred(input)).toBe(true);
+  });
+
+  test("blocks standard semantic tokens when mixed with section/shipping prefixes", () => {
+    const input = document.createElement("input");
+    input.type = "text";
+    input.setAttribute("autocomplete", "section-checkout shipping given-name");
 
     expect(detector.isNativeAutocompletePreferred(input)).toBe(true);
   });

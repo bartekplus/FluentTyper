@@ -5,6 +5,13 @@ const CONTROLLED_POPUP_ROLES = new Set(["listbox", "grid", "tree", "dialog", "me
 const AUTOCOMPLETE_BLOCKLIST = new Set([
   "username",
   "email",
+  "name",
+  "honorific-prefix",
+  "given-name",
+  "additional-name",
+  "family-name",
+  "honorific-suffix",
+  "nickname",
   "street-address",
   "postal-code",
   "one-time-code",
@@ -12,7 +19,7 @@ const AUTOCOMPLETE_BLOCKLIST = new Set([
   "new-password",
   "url",
 ]);
-const AUTOCOMPLETE_BLOCKED_PREFIXES = ["name", "tel", "address-", "cc-"];
+const AUTOCOMPLETE_BLOCKED_PREFIXES = ["tel", "address-", "cc-"];
 
 export class NativeAutocompleteConflictDetector {
   public isNativeAutocompletePreferred(elem: SuggestionElement): boolean {
