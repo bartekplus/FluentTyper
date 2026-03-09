@@ -378,7 +378,11 @@ export class SuggestionManagerRuntime {
   }
 
   private isManualAttachSupportedElement(elem: SuggestionElement): elem is ManualAttachTarget {
-    return TextTargetAdapter.isInput(elem) || TextTargetAdapter.isTextArea(elem) || elem.isContentEditable;
+    return (
+      TextTargetAdapter.isInput(elem) ||
+      TextTargetAdapter.isTextArea(elem) ||
+      elem.isContentEditable
+    );
   }
 
   private isVisiblyInteractiveElement(elem: HTMLElement): boolean {

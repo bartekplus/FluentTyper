@@ -369,11 +369,7 @@ export class ManualAttachUiManager {
       .map((candidate) => candidate.getBoundingClientRect())
       .filter((rect) => rect.width > 0 && rect.height > 0)
       .filter((rect) => this.hasVerticalOverlap(rect, elementRect))
-      .filter((rect) =>
-        isRtl
-          ? rect.right <= elementMidpoint
-          : rect.left >= elementMidpoint,
-      );
+      .filter((rect) => (isRtl ? rect.right <= elementMidpoint : rect.left >= elementMidpoint));
     if (obstacles.length === 0) {
       return null;
     }
