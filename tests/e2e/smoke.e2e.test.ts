@@ -590,6 +590,29 @@ async function waitForSuggestionTexts(page: Page): Promise<string[]> {
   return (await handle.jsonValue()) as string[];
 }
 
+async function typeInInput(page: Page, selector: string, text: string): Promise<void> {
+  await page.focus(selector);
+  const element = await page.$(selector);
+  if (!element) {
+    throw new Error(`Input element not found for selector: ${selector}`);
+  }
+  await element.type(text);
+}
+
+async function clearInputContent(page: Page, selector: string): Promise<void> {
+  await page.evaluate((sel) => {
+    const target = document.querySelector(sel);
+    if (!target) {
+      return;
+    }
+    if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
+      target.value = "";
+      return;
+    }
+    target.textContent = "";
+  }, selector);
+}
+
 async function waitForInputContentMatch(
   page: Page,
   selector: string,
