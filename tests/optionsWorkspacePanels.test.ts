@@ -5,6 +5,7 @@ import { EssentialsWorkspacePanel } from "../src/ui/options/EssentialsWorkspaceP
 import { DataDiagnosticsPanel } from "../src/ui/options/DataDiagnosticsPanel.js";
 import { GrammarWorkspacePanel } from "../src/ui/options/GrammarWorkspacePanel.js";
 import { ObservabilityWorkspacePanel } from "../src/ui/options/ObservabilityWorkspacePanel.js";
+import { i18n } from "../src/ui/options/fluenttyperI18n.js";
 import {
   KEY_AI_MODEL_ID,
   KEY_AI_PREDICTION_TIMEOUT_MS,
@@ -141,6 +142,7 @@ describe("options workspace panels", () => {
 
     expect(panelRoot.textContent).toContain("Productivity graph");
     expect(panelRoot.textContent).toContain("Import settings");
+    expect(panelRoot.textContent).toContain(i18n.get("data_panel_transfer_copy"));
     expect(panelRoot.textContent).not.toContain("Debug dashboard");
     expect(
       panelRoot.querySelectorAll(".workspace-panel-stack > .settings-inline-card"),

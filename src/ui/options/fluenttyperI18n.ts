@@ -4967,6 +4967,9 @@ i18n.extend({
     pl: "Kopie zapasowe, import/eksport i statystyki produktywności.",
     pr: "Backups, importação/exportação e estatísticas de produtividade.",
   },
+  data_panel_transfer_copy: {
+    en: "Back up your current setup or restore it from a local JSON file.",
+  },
   options_tab_about: {
     en: "About",
     fr: "À propos",

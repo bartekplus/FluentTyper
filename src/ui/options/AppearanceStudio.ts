@@ -1,5 +1,6 @@
 import type { SettingsRegistry } from "@ui/settings-engine/SettingsEngine.js";
 import {
+  KEY_SELECT_BY_DIGIT,
   KEY_SUGGESTION_BG_DARK,
   KEY_SUGGESTION_BG_LIGHT,
   KEY_SUGGESTION_BORDER_DARK,
@@ -254,6 +255,8 @@ export class AppearanceStudio {
       this.registry[key]?.addEvent("action", () => this.render());
       this.registry[key]?.addEvent("change", () => this.render());
     });
+    this.registry[KEY_SELECT_BY_DIGIT]?.addEvent("action", () => this.render());
+    this.registry[KEY_SELECT_BY_DIGIT]?.addEvent("change", () => this.render());
     this.render();
   }
 
@@ -340,17 +343,36 @@ export class AppearanceStudio {
     shell.appendChild(toggle);
 
     const preview = document.createElement("div");
-    preview.className = "appearance-preview";
+    preview.className = "appearance-preview ft-suggestion-container";
+    preview.setAttribute("data-ft-suggestion-owned", "true");
+    preview.setAttribute("data-ft-suggestion-role", "menu");
+    preview.tabIndex = 0;
+    const list = document.createElement("ul");
+    const showShortcutDigits = this.registry[KEY_SELECT_BY_DIGIT]?.get() === true;
     [
       i18n.get("appearance_sample_one"),
       i18n.get("appearance_sample_two"),
       i18n.get("appearance_sample_three"),
-    ].forEach((entry) => {
-      const item = document.createElement("div");
+    ].forEach((entry, index) => {
+      const item = document.createElement("li");
       item.className = "appearance-preview-item";
-      item.textContent = entry;
-      preview.appendChild(item);
+      if (index === 1) {
+        item.classList.add("highlight");
+      }
+      if (showShortcutDigits) {
+        const shortcut = document.createElement("span");
+        shortcut.className = "ft-suggestion-shortcut";
+        shortcut.textContent = String(index + 1);
+        item.appendChild(shortcut);
+        item.classList.add("has-shortcut");
+      }
+      const label = document.createElement("span");
+      label.className = "ft-suggestion-label";
+      label.textContent = entry;
+      item.appendChild(label);
+      list.appendChild(item);
     });
+    preview.appendChild(list);
     this.livePreview = preview;
     this.updatePreviewCard(theme);
 
@@ -595,22 +617,28 @@ export class AppearanceStudio {
       : theme[KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK];
     const border = isLight ? theme[KEY_SUGGESTION_BORDER_LIGHT] : theme[KEY_SUGGESTION_BORDER_DARK];
 
-    preview.style.background = bg;
-    preview.style.borderColor = border;
+    preview.style.setProperty("--suggestion-bg-light", bg);
+    preview.style.setProperty("--suggestion-text-light", text);
+    preview.style.setProperty("--suggestion-highlight-bg-light", highlightBg);
+    preview.style.setProperty("--suggestion-highlight-text-light", highlightText);
+    preview.style.setProperty("--suggestion-border-color-light", border);
+    preview.style.setProperty("--suggestion-bg-dark", bg);
+    preview.style.setProperty("--suggestion-text-dark", text);
+    preview.style.setProperty("--suggestion-highlight-bg-dark", highlightBg);
+    preview.style.setProperty("--suggestion-highlight-text-dark", highlightText);
+    preview.style.setProperty("--suggestion-border-color-dark", border);
+    preview.style.setProperty("--suggestion-font-size", theme[KEY_SUGGESTION_FONT_SIZE]);
+    preview.style.setProperty(
+      "--suggestion-padding-vertical",
+      theme[KEY_SUGGESTION_PADDING_VERTICAL],
+    );
+    preview.style.setProperty(
+      "--suggestion-padding-horizontal",
+      theme[KEY_SUGGESTION_PADDING_HORIZONTAL],
+    );
     preview.style.color = text;
-    preview.style.fontSize = theme[KEY_SUGGESTION_FONT_SIZE];
-    preview.style.padding = `${theme[KEY_SUGGESTION_PADDING_VERTICAL]} ${theme[KEY_SUGGESTION_PADDING_HORIZONTAL]}`;
 
-    const items = Array.from(preview.querySelectorAll<HTMLElement>(".appearance-preview-item"));
-    items.forEach((item, index) => {
-      if (index === 1) {
-        item.style.background = highlightBg;
-        item.style.color = highlightText;
-        return;
-      }
-      item.style.background = "";
-      item.style.color = "";
-    });
+    preview.setAttribute("data-mode", this.previewMode);
   }
 
   private updateContrastWarnings(theme: Record<ThemeKey, string>): void {

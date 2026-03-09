@@ -30,7 +30,7 @@ export class DataDiagnosticsPanel {
 
     const config = createWorkspaceCard(
       i18n.get("config_data"),
-      `${i18n.get("import_settings_desc")} ${i18n.get("export_settings_desc")}`,
+      i18n.get("data_panel_transfer_copy"),
     );
     moveControlToBody(this.registry, "importSettingButton", config.body);
     moveControlToBody(this.registry, "exportSettingButton", config.body);

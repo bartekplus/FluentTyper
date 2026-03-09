@@ -12,6 +12,17 @@ function normalizeOption(opt: RawOption): { value: string; text: string; group?:
   return opt;
 }
 
+function toAriaLabel(label?: string): string {
+  if (!label) {
+    return "";
+  }
+  return label
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export class SelectControl extends BaseControl<string> implements SelectFieldControl {
   private readonly selectEl: HTMLSelectElement;
 
@@ -36,7 +47,7 @@ export class SelectControl extends BaseControl<string> implements SelectFieldCon
     wrapper.className = "select";
 
     const select = document.createElement("select");
-    select.setAttribute("aria-label", params.label ?? "");
+    select.setAttribute("aria-label", toAriaLabel(params.label));
 
     if (params.options) {
       this.populateOptions(select, params.options);

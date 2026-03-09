@@ -6,8 +6,10 @@ import { LanguageSettingsPanel } from "../src/ui/options/LanguageSettingsPanel.j
 import { SiteManagementPanel } from "../src/ui/options/SiteManagementPanel.js";
 import { i18n } from "../src/ui/options/fluenttyperI18n.js";
 import {
+  KEY_DISPLAY_LANG_HEADER,
   KEY_DOMAIN_LIST_MODE,
   KEY_ENABLED_LANGUAGES,
+  KEY_EXTENSION_LANGUAGE,
   KEY_FALLBACK_LANGUAGE,
   KEY_INLINE_SUGGESTION,
   KEY_LANGUAGE,
@@ -21,11 +23,17 @@ const baseChrome = (globalThis as unknown as { chrome: unknown }).chrome;
 let releaseDomGlobalLock: (() => void) | null = null;
 
 class MockControl {
+  readonly rootElement: HTMLElement;
+  readonly element: HTMLElement;
   private readonly handlers: Array<(value: unknown) => void> = [];
   private value: unknown;
 
-  constructor(value?: unknown) {
+  constructor(value?: unknown, label = "") {
     this.value = value;
+    this.rootElement = document.createElement("div");
+    this.rootElement.className = "field";
+    this.rootElement.textContent = label;
+    this.element = this.rootElement;
   }
 
   addEvent(type: string, fn: (value: unknown) => void): void {
@@ -63,6 +71,14 @@ function createRegistry(initialValues: SettingsMap): SettingsRegistry {
     [KEY_ENABLED_LANGUAGES]: new MockControl(initialValues[KEY_ENABLED_LANGUAGES]),
     [KEY_FALLBACK_LANGUAGE]: new MockControl(initialValues[KEY_FALLBACK_LANGUAGE]),
     [KEY_SITE_PROFILES]: new MockControl(initialValues[KEY_SITE_PROFILES]),
+    [KEY_EXTENSION_LANGUAGE]: new MockControl(
+      initialValues[KEY_EXTENSION_LANGUAGE],
+      "Extension Language",
+    ),
+    [KEY_DISPLAY_LANG_HEADER]: new MockControl(
+      initialValues[KEY_DISPLAY_LANG_HEADER],
+      "Show language of prediction",
+    ),
     [KEY_DOMAIN_LIST_MODE]: new MockControl(initialValues[KEY_DOMAIN_LIST_MODE]),
     domainBlackList: new MockControl(initialValues.domainBlackList),
     [KEY_NUM_SUGGESTIONS]: new MockControl(initialValues[KEY_NUM_SUGGESTIONS]),
@@ -202,6 +218,30 @@ describe.serial("options panel reactivity", () => {
     expect(root.textContent).toContain(
       "Waiting for a live website typing session. Fallback: French.",
     );
+  });
+
+  test("language workspace moves prediction language display into a full-width row", async () => {
+    const values: SettingsMap = {
+      [KEY_ENABLED_LANGUAGES]: ["en_US", "de_DE"],
+      [KEY_LANGUAGE]: "en_US",
+      [KEY_FALLBACK_LANGUAGE]: "en_US",
+      [KEY_EXTENSION_LANGUAGE]: "auto_detect",
+      [KEY_DISPLAY_LANG_HEADER]: true,
+      [KEY_SITE_PROFILES]: {},
+    };
+    const store = createStore(values);
+    const registry = createRegistry(values);
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+
+    new LanguageSettingsPanel(root, registry, store);
+    await flushAsyncWork();
+
+    expect(root.querySelector(".workspace-top-grid")).not.toBeNull();
+    const fullWidthCards = root.querySelectorAll(".workspace-main-grid > .workspace-span-full");
+    expect(fullWidthCards.length).toBeGreaterThanOrEqual(2);
+    expect(root.textContent).toContain(i18n.get("language_display"));
+    expect(root.textContent).toContain(i18n.get("show_lang_header_label"));
   });
 
   test("sites UI refreshes immediately when enabled languages change", async () => {
