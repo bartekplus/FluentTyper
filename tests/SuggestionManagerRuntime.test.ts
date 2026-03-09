@@ -242,6 +242,37 @@ describe("SuggestionManagerRuntime", () => {
       expect(input.style.paddingRight).not.toBe("");
     });
 
+    test("shows a manual attach icon for semantic autocomplete conflicts", () => {
+      const runtime = makeRuntime();
+      const input = document.createElement("input");
+      input.type = "text";
+      input.setAttribute("autocomplete", "email");
+      document.body.appendChild(input);
+
+      runtime.queryAndAttachHelper();
+
+      expect(input.hasAttribute("data-suggestion")).toBe(false);
+      expect(getManualAttachButton(input.parentElement ?? document)).not.toBeNull();
+    });
+
+    test("shows a manual attach icon for aria combobox conflicts", () => {
+      const runtime = makeRuntime();
+      const list = document.createElement("div");
+      list.id = "cities";
+      list.setAttribute("role", "listbox");
+      const input = document.createElement("input");
+      input.type = "text";
+      input.setAttribute("role", "combobox");
+      input.setAttribute("aria-expanded", "true");
+      input.setAttribute("aria-controls", "cities");
+      document.body.append(list, input);
+
+      runtime.queryAndAttachHelper();
+
+      expect(input.hasAttribute("data-suggestion")).toBe(false);
+      expect(getManualAttachButton(input.parentElement ?? document)).not.toBeNull();
+    });
+
     test("positions the manual attach icon on inline-end for rtl inputs", () => {
       const runtime = makeRuntime();
       const parent = document.createElement("div");
@@ -308,6 +339,61 @@ describe("SuggestionManagerRuntime", () => {
         expect(button).not.toBeNull();
 
         button?.focus();
+        clickManualAttachButton(button as HTMLButtonElement);
+
+        expect(input.getAttribute("data-suggestion")).toBe("true");
+        expect(document.activeElement).toBe(input);
+
+        jest.advanceTimersByTime(700);
+        expect(getManualAttachButton(input.parentElement ?? document)).toBeNull();
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    test("clicking the manual attach icon force-attaches a semantic autocomplete conflict", () => {
+      jest.useFakeTimers();
+      try {
+        const runtime = makeRuntime();
+        const input = document.createElement("input");
+        input.type = "text";
+        input.setAttribute("autocomplete", "email");
+        document.body.appendChild(input);
+
+        runtime.queryAndAttachHelper();
+        const button = getManualAttachButton(input.parentElement ?? document);
+        expect(button).not.toBeNull();
+
+        clickManualAttachButton(button as HTMLButtonElement);
+
+        expect(input.getAttribute("data-suggestion")).toBe("true");
+        expect(document.activeElement).toBe(input);
+
+        jest.advanceTimersByTime(700);
+        expect(getManualAttachButton(input.parentElement ?? document)).toBeNull();
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    test("clicking the manual attach icon force-attaches an aria combobox conflict", () => {
+      jest.useFakeTimers();
+      try {
+        const runtime = makeRuntime();
+        const list = document.createElement("div");
+        list.id = "cities";
+        list.setAttribute("role", "listbox");
+        const input = document.createElement("input");
+        input.type = "text";
+        input.setAttribute("role", "combobox");
+        input.setAttribute("aria-expanded", "true");
+        input.setAttribute("aria-controls", "cities");
+        document.body.append(list, input);
+
+        runtime.queryAndAttachHelper();
+        const button = getManualAttachButton(input.parentElement ?? document);
+        expect(button).not.toBeNull();
+
         clickManualAttachButton(button as HTMLButtonElement);
 
         expect(input.getAttribute("data-suggestion")).toBe("true");
