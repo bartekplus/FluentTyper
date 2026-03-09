@@ -343,6 +343,17 @@ const manifest: ManifestDefinition = {
     },
     {
       tab: "core_settings",
+      group: i18n.get("General"),
+      name: KEY_PREFER_NATIVE_AUTOCOMPLETE,
+      type: "checkbox",
+      label: buildFieldLabel(
+        i18n.get("prefer_native_autocomplete_label"),
+        i18n.get("prefer_native_autocomplete_desc"),
+      ),
+      default: true,
+    },
+    {
+      tab: "core_settings",
       group: i18n.get("prediction_engine"),
       name: KEY_NUM_SUGGESTIONS,
       type: "slider",
@@ -415,18 +426,6 @@ const manifest: ManifestDefinition = {
       ),
       default: false,
     },
-    {
-      tab: "core_settings",
-      group: i18n.get("behavior_after_completion"),
-      name: KEY_PREFER_NATIVE_AUTOCOMPLETE,
-      type: "checkbox",
-      label: buildFieldLabel(
-        i18n.get("prefer_native_autocomplete_label"),
-        i18n.get("prefer_native_autocomplete_desc"),
-      ),
-      default: true,
-    },
-
     // =========================================================================
     // TAB: Grammar Rules
     // =========================================================================
