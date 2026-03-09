@@ -676,38 +676,13 @@ body.fluenttyper-options .settings-group.settings-group-panel-only .settings-gro
 }
 
 .appearance-preview {
-  display: grid;
-  gap: 0.2rem;
+  position: static !important;
   width: min(100%, 340px);
-  border: 1px solid;
-  border-radius: 1rem;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  margin-top: 0.15rem;
 }
 
 .appearance-preview-item {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-  padding: 0.55rem 0.7rem;
-  border-radius: 0.7rem;
-}
-
-.appearance-preview-shortcut {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 1.45rem;
-  height: 1.45rem;
-  border-radius: 999px;
-  background: color-mix(in srgb, currentColor 12%, transparent);
-  font-size: 0.82em;
-  font-weight: 700;
-  line-height: 1;
-  flex-shrink: 0;
-}
-
-.appearance-preview-label {
-  min-width: 0;
+  list-style: none;
 }
 
 .preset-grid {
