@@ -75,6 +75,11 @@ const LOG_LEVEL_OPTIONS = [
   { value: "error", text: "Error" },
 ];
 
+function buildFieldLabel(label: string, description: string): string {
+  const normalizedLabel = label.replace(/[:\s]+$/, "");
+  return `${normalizedLabel}:&nbsp;<small>${description}</small>`;
+}
+
 const DEV_TABS: ManifestDefinition["tabs"] = [
   {
     id: "observability_tab",
@@ -92,9 +97,10 @@ const DEV_PREDICTOR_SETTINGS: FieldConfig[] = [
     group: i18n.get("prediction_engine"),
     name: KEY_AI_PREDICTOR_ENABLED,
     type: "checkbox",
-    label: `${i18n.get("enable_ai_predictor_label")}:&nbsp;<small>${i18n.get(
-      "enable_ai_predictor_desc",
-    )}</small>`,
+    label: buildFieldLabel(
+      i18n.get("enable_ai_predictor_label"),
+      i18n.get("enable_ai_predictor_desc"),
+    ),
     default: true,
   },
 ];
@@ -121,9 +127,10 @@ const DEV_OBSERVABILITY_SETTINGS: FieldConfig[] = [
     group: i18n.get("observability_controls_group"),
     name: KEY_OBSERVABILITY_ENABLED,
     type: "checkbox",
-    label: `${i18n.get("observability_enabled_label")}:&nbsp;<small>${i18n.get(
-      "observability_enabled_desc",
-    )}</small>`,
+    label: buildFieldLabel(
+      i18n.get("observability_enabled_label"),
+      i18n.get("observability_enabled_desc"),
+    ),
     default: true,
   },
   {
@@ -132,9 +139,10 @@ const DEV_OBSERVABILITY_SETTINGS: FieldConfig[] = [
     name: KEY_OBSERVABILITY_DEFAULT_LEVEL,
     type: "popupButton",
     options: LOG_LEVEL_OPTIONS,
-    label: `${i18n.get("observability_default_level_label")}:&nbsp;<small>${i18n.get(
-      "observability_default_level_desc",
-    )}</small>`,
+    label: buildFieldLabel(
+      i18n.get("observability_default_level_label"),
+      i18n.get("observability_default_level_desc"),
+    ),
     default: "debug",
   },
   {
@@ -149,9 +157,10 @@ const DEV_OBSERVABILITY_SETTINGS: FieldConfig[] = [
     group: i18n.get("observability_predictor_group"),
     name: KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
     type: "checkbox",
-    label: `${i18n.get("predictor_debug_presage_label")}:&nbsp;<small>${i18n.get(
-      "predictor_debug_presage_desc",
-    )}</small>`,
+    label: buildFieldLabel(
+      i18n.get("predictor_debug_presage_label"),
+      i18n.get("predictor_debug_presage_desc"),
+    ),
     default: true,
   },
   {
@@ -159,9 +168,10 @@ const DEV_OBSERVABILITY_SETTINGS: FieldConfig[] = [
     group: i18n.get("observability_predictor_group"),
     name: KEY_DEBUG_AI_PREDICTOR_ENABLED,
     type: "checkbox",
-    label: `${i18n.get("predictor_debug_webllm_label")}:&nbsp;<small>${i18n.get(
-      "predictor_debug_webllm_desc",
-    )}</small>`,
+    label: buildFieldLabel(
+      i18n.get("predictor_debug_webllm_label"),
+      i18n.get("predictor_debug_webllm_desc"),
+    ),
     default: true,
   },
   {
@@ -170,9 +180,10 @@ const DEV_OBSERVABILITY_SETTINGS: FieldConfig[] = [
     name: KEY_AI_MODEL_ID,
     type: "popupButton",
     options: WEBLLM_DEV_MODEL_OPTIONS,
-    label: `${i18n.get("predictor_debug_model_label")}:&nbsp;<small>${i18n.get(
-      "predictor_debug_model_desc",
-    )}</small>`,
+    label: buildFieldLabel(
+      i18n.get("predictor_debug_model_label"),
+      i18n.get("predictor_debug_model_desc"),
+    ),
     default: DEFAULT_AI_MODEL_ID,
   },
   {
@@ -184,9 +195,10 @@ const DEV_OBSERVABILITY_SETTINGS: FieldConfig[] = [
     max: 2000,
     step: 10,
     display: true,
-    label: `${i18n.get("predictor_debug_timeout_label")}:&nbsp;<small>${i18n.get(
-      "predictor_debug_timeout_desc",
-    )}</small>`,
+    label: buildFieldLabel(
+      i18n.get("predictor_debug_timeout_label"),
+      i18n.get("predictor_debug_timeout_desc"),
+    ),
     default: DEFAULT_AI_PREDICTION_TIMEOUT_MS,
   },
   {
@@ -336,7 +348,7 @@ const manifest: ManifestDefinition = {
       min: 0,
       max: 10,
       display: true,
-      label: `${i18n.get("num_predictions_label")}:&nbsp;<small>${i18n.get("num_predictions_desc")}</small>`,
+      label: buildFieldLabel(i18n.get("num_predictions_label"), i18n.get("num_predictions_desc")),
       default: DEFAULT_NUM_SUGGESTIONS,
     },
     {
@@ -347,7 +359,7 @@ const manifest: ManifestDefinition = {
       min: -1,
       max: 12,
       display: true,
-      label: `${i18n.get("min_chars_label")}:&nbsp;<small>${i18n.get("min_chars_desc")}</small>`,
+      label: buildFieldLabel(i18n.get("min_chars_label"), i18n.get("min_chars_desc")),
       default: 1,
     },
     ...(IS_DEV_BUILD ? DEV_PREDICTOR_SETTINGS : []),
@@ -356,7 +368,7 @@ const manifest: ManifestDefinition = {
       group: i18n.get("accept_predictions"),
       name: KEY_AUTOCOMPLETE_ON_TAB,
       type: "checkbox",
-      label: `${i18n.get("accept_tab_label")}:&nbsp;<small>${i18n.get("accept_tab_desc")}</small>`,
+      label: buildFieldLabel(i18n.get("accept_tab_label"), i18n.get("accept_tab_desc")),
       default: true,
     },
     {
@@ -364,7 +376,7 @@ const manifest: ManifestDefinition = {
       group: i18n.get("accept_predictions"),
       name: KEY_AUTOCOMPLETE_ON_ENTER,
       type: "checkbox",
-      label: `${i18n.get("accept_enter_label")}:&nbsp;<small>${i18n.get("accept_enter_desc")}</small>`,
+      label: buildFieldLabel(i18n.get("accept_enter_label"), i18n.get("accept_enter_desc")),
       default: false,
     },
     {
@@ -372,7 +384,7 @@ const manifest: ManifestDefinition = {
       group: i18n.get("accept_predictions"),
       name: KEY_AUTOCOMPLETE,
       type: "checkbox",
-      label: `${i18n.get("accept_space_label")}:&nbsp;<small>${i18n.get("accept_space_desc")}</small>`,
+      label: buildFieldLabel(i18n.get("accept_space_label"), i18n.get("accept_space_desc")),
       default: false,
     },
     {
@@ -380,7 +392,7 @@ const manifest: ManifestDefinition = {
       group: i18n.get("accept_predictions"),
       name: KEY_SELECT_BY_DIGIT,
       type: "checkbox",
-      label: `${i18n.get("accept_digits_label")}:&nbsp;<small>${i18n.get("accept_digits_desc")}</small>`,
+      label: buildFieldLabel(i18n.get("accept_digits_label"), i18n.get("accept_digits_desc")),
       default: false,
     },
     {
@@ -388,7 +400,7 @@ const manifest: ManifestDefinition = {
       group: i18n.get("behavior_after_completion"),
       name: KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
       type: "checkbox",
-      label: `${i18n.get("add_space_label")}:&nbsp;<small>${i18n.get("add_space_desc")}</small>`,
+      label: buildFieldLabel(i18n.get("add_space_label"), i18n.get("add_space_desc")),
       default: true,
     },
     {
@@ -396,7 +408,10 @@ const manifest: ManifestDefinition = {
       group: i18n.get("behavior_after_completion"),
       name: KEY_INLINE_SUGGESTION,
       type: "checkbox",
-      label: `${i18n.get("enable_inline_suggestion_label")}:&nbsp;<small>${i18n.get("enable_inline_suggestion_desc")}</small>`,
+      label: buildFieldLabel(
+        i18n.get("enable_inline_suggestion_label"),
+        i18n.get("enable_inline_suggestion_desc"),
+      ),
       default: false,
     },
 
@@ -465,7 +480,10 @@ const manifest: ManifestDefinition = {
           ([key]) => key !== "textExpander" && key !== "auto_detect",
         ),
       ],
-      label: `${i18n.get("extension_language_label")}:&nbsp;<small>${i18n.get("extension_language_desc")}</small>`,
+      label: buildFieldLabel(
+        i18n.get("extension_language_label"),
+        i18n.get("extension_language_desc"),
+      ),
       default: "auto_detect",
     },
     {
@@ -503,7 +521,7 @@ const manifest: ManifestDefinition = {
       group: i18n.get("language_display"),
       name: KEY_DISPLAY_LANG_HEADER,
       type: "checkbox",
-      label: `${i18n.get("show_lang_header_label")}:&nbsp;<small>${i18n.get("show_lang_header_desc")}</small>`,
+      label: buildFieldLabel(i18n.get("show_lang_header_label"), i18n.get("show_lang_header_desc")),
       default: false,
     },
 

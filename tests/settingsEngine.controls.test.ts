@@ -231,6 +231,21 @@ describe("SelectControl", () => {
     ctrl.set("c", false);
     expect(received).toEqual(["c"]);
   });
+
+  test("uses plain text for aria-label when label contains helper markup", () => {
+    const ctrl = new SelectControl(
+      {
+        type: "popupButton",
+        options: OPTIONS,
+        label: "Extension Language:&nbsp;<small>Choose the UI language.</small>",
+      },
+      makeStore(),
+    );
+
+    expect(ctrl.element.getAttribute("aria-label")).toBe(
+      "Extension Language: Choose the UI language.",
+    );
+  });
 });
 
 // ── RadioControl ───────────────────────────────────────────────────────────

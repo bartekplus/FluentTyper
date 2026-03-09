@@ -8,6 +8,7 @@ import {
   parseThemeColor,
 } from "../src/ui/options/AppearanceStudio.js";
 import {
+  KEY_SELECT_BY_DIGIT,
   KEY_SUGGESTION_BG_DARK,
   KEY_SUGGESTION_BG_LIGHT,
   KEY_SUGGESTION_BORDER_DARK,
@@ -55,8 +56,8 @@ const COMPACT_THEME = {
   [KEY_SUGGESTION_PADDING_HORIZONTAL]: "0.6rem",
 };
 
-function createRegistry(initialValues: Record<string, string>) {
-  const values = { ...initialValues };
+function createRegistry(initialValues: Record<string, unknown>) {
+  const values: Record<string, unknown> = { ...initialValues };
   const handlers = new Map<string, Record<string, Array<() => void>>>();
   const registry = Object.fromEntries(
     Object.keys(initialValues).map((key) => [
@@ -64,7 +65,7 @@ function createRegistry(initialValues: Record<string, string>) {
       {
         get: () => values[key],
         set: (value: unknown, silent = false) => {
-          values[key] = String(value);
+          values[key] = value;
           const listeners = handlers.get(key) || {};
           (listeners.change || []).forEach((handler) => handler());
           if (!silent) {
@@ -191,6 +192,30 @@ describe("AppearanceStudio theme value compatibility", () => {
     const previewAfterToggle = root.querySelector(".appearance-preview") as HTMLElement;
     expect(previewAfterToggle.dataset.mode).toBe("dark");
     expect(previewAfterToggle.style.background).toBe("rgb(15, 23, 42)");
+  });
+
+  test("preview shows shortcut numbers only when digit selection is enabled", () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    const { registry } = createRegistry({
+      ...DEFAULT_THEME,
+      [KEY_SELECT_BY_DIGIT]: false,
+    });
+
+    new AppearanceStudio(root, registry as never, {
+      default: DEFAULT_THEME,
+      compact: COMPACT_THEME,
+    });
+
+    expect(root.querySelector(".appearance-preview-shortcut")).toBeNull();
+
+    registry[KEY_SELECT_BY_DIGIT].set(true);
+
+    const shortcuts = root.querySelectorAll(".appearance-preview-shortcut");
+    expect(shortcuts).toHaveLength(3);
+    expect(shortcuts[0]?.textContent).toBe("1");
+    expect(shortcuts[1]?.textContent).toBe("2");
+    expect(shortcuts[2]?.textContent).toBe("3");
   });
 
   test("advanced color typing updates preview and contrast before blur", () => {

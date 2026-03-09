@@ -274,10 +274,15 @@ body.fluenttyper-options .settings-group.settings-group-panel-only .settings-gro
 
 .settings-group .label,
 .settings-group .settings-stack-field > span,
-.settings-inline-card h4,
 .settings-custom-panel-label {
   display: block;
   margin-bottom: 0.35rem;
+  font-weight: 700;
+}
+
+.settings-inline-card h4 {
+  display: block;
+  margin: 0 0 0.35rem;
   font-weight: 700;
 }
 
@@ -680,8 +685,29 @@ body.fluenttyper-options .settings-group.settings-group-panel-only .settings-gro
 }
 
 .appearance-preview-item {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
   padding: 0.55rem 0.7rem;
   border-radius: 0.7rem;
+}
+
+.appearance-preview-shortcut {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.45rem;
+  height: 1.45rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  font-size: 0.82em;
+  font-weight: 700;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.appearance-preview-label {
+  min-width: 0;
 }
 
 .preset-grid {

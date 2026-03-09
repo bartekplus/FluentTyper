@@ -1,5 +1,6 @@
 import type { SettingsRegistry } from "@ui/settings-engine/SettingsEngine.js";
 import {
+  KEY_SELECT_BY_DIGIT,
   KEY_SUGGESTION_BG_DARK,
   KEY_SUGGESTION_BG_LIGHT,
   KEY_SUGGESTION_BORDER_DARK,
@@ -254,6 +255,8 @@ export class AppearanceStudio {
       this.registry[key]?.addEvent("action", () => this.render());
       this.registry[key]?.addEvent("change", () => this.render());
     });
+    this.registry[KEY_SELECT_BY_DIGIT]?.addEvent("action", () => this.render());
+    this.registry[KEY_SELECT_BY_DIGIT]?.addEvent("change", () => this.render());
     this.render();
   }
 
@@ -341,14 +344,24 @@ export class AppearanceStudio {
 
     const preview = document.createElement("div");
     preview.className = "appearance-preview";
+    const showShortcutDigits = this.registry[KEY_SELECT_BY_DIGIT]?.get() === true;
     [
       i18n.get("appearance_sample_one"),
       i18n.get("appearance_sample_two"),
       i18n.get("appearance_sample_three"),
-    ].forEach((entry) => {
+    ].forEach((entry, index) => {
       const item = document.createElement("div");
       item.className = "appearance-preview-item";
-      item.textContent = entry;
+      if (showShortcutDigits) {
+        const shortcut = document.createElement("span");
+        shortcut.className = "appearance-preview-shortcut";
+        shortcut.textContent = String(index + 1);
+        item.appendChild(shortcut);
+      }
+      const label = document.createElement("span");
+      label.className = "appearance-preview-label";
+      label.textContent = entry;
+      item.appendChild(label);
       preview.appendChild(item);
     });
     this.livePreview = preview;

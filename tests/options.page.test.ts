@@ -23,6 +23,18 @@ describe("options page scripts", () => {
     expect(i18n).not.toContain("Enable Smart Backspace");
   });
 
+  test("does not build doubled punctuation into composed field labels", async () => {
+    const { manifest } = await import("../src/ui/options/settingsManifest.js");
+    const extensionLanguageSetting = manifest.settings.find(
+      (setting) => setting.name === "extensionLanguage",
+    );
+
+    expect(extensionLanguageSetting).toBeDefined();
+    expect("label" in extensionLanguageSetting! && extensionLanguageSetting.label).not.toContain(
+      "::",
+    );
+  });
+
   test("prioritizes activation flow over demo and support content on onboarding", () => {
     const onboardingHtmlPath = path.resolve(process.cwd(), "public/new_installation/index.html");
     const html = fs.readFileSync(onboardingHtmlPath, "utf8");
