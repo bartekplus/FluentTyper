@@ -309,22 +309,25 @@ export class ManualAttachUiManager {
   }
 
   private resolveMountTarget(element: ManualAttachTarget): ManualAttachMountTarget {
-    if (this.isHtmlElement(element.parentElement, element.ownerDocument)) {
-      return {
-        containerParent: element.parentElement,
-        positioningParent: element.parentElement,
-      };
+    const { ownerDocument } = element;
+    const { parentElement } = element;
+    if (this.isHtmlElement(parentElement, ownerDocument)) {
+      return this.createMountTarget(parentElement, parentElement);
     }
     const root = element.getRootNode();
-    if ("host" in root && this.isHtmlElement(root.host, element.ownerDocument)) {
-      return {
-        containerParent: root,
-        positioningParent: null,
-      };
+    if (this.isShadowRoot(root, ownerDocument) && this.isHtmlElement(root.host, ownerDocument)) {
+      return this.createMountTarget(root, null);
     }
+    return this.createMountTarget(ownerDocument.body, ownerDocument.body);
+  }
+
+  private createMountTarget(
+    containerParent: ManualAttachMountTarget["containerParent"],
+    positioningParent: ManualAttachMountTarget["positioningParent"],
+  ): ManualAttachMountTarget {
     return {
-      containerParent: element.ownerDocument.body,
-      positioningParent: element.ownerDocument.body,
+      containerParent,
+      positioningParent,
     };
   }
 
@@ -399,6 +402,18 @@ export class ManualAttachUiManager {
       ownerDocument?: Document;
     };
     return candidate.nodeType === 1 && candidate.ownerDocument === ownerDocument;
+  }
+
+  private isShadowRoot(node: Node, ownerDocument: Document): node is ShadowRoot {
+    const shadowRootConstructor = ownerDocument.defaultView?.ShadowRoot;
+    if (typeof shadowRootConstructor === "function") {
+      return node instanceof shadowRootConstructor;
+    }
+    return (
+      "host" in node &&
+      this.isHtmlElement((node as { host: unknown }).host, ownerDocument) &&
+      node.ownerDocument === ownerDocument
+    );
   }
 }
 
