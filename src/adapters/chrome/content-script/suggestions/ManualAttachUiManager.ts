@@ -222,14 +222,14 @@ export class ManualAttachUiManager {
 
   private applyIdleState(handle: ManualAttachUiHandle): void {
     Object.assign(handle.button.style, {
-      backgroundColor: "rgba(255, 255, 255, 0.72)",
+      backgroundColor: "rgba(255, 255, 255, 0.82)",
       borderColor: "transparent",
       boxShadow: "none",
       transform: "scale(1)",
     });
     Object.assign(handle.icon.style, {
-      opacity: "0.4",
-      filter: "grayscale(1) saturate(0) contrast(0.92)",
+      opacity: "0.55",
+      filter: "grayscale(1) saturate(0) contrast(0.98)",
     });
     Object.assign(handle.checkmark.style, {
       opacity: "0",
