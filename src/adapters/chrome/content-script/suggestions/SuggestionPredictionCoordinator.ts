@@ -1,6 +1,15 @@
 import { TextTargetAdapter, type TextTarget } from "./TextTargetAdapter";
 import type { PredictionRequest, PredictionResponse, SuggestionEntry } from "./types";
 import type { PredictionInputAction } from "@core/domain/messageTypes";
+import { createLogger } from "@core/application/logging/Logger";
+import {
+  createPredictionTraceContext,
+  resolveTraceAgeMs,
+  type PredictionTraceContext,
+} from "../predictionTrace";
+
+const FIRST_CHAR_DEBOUNCE_CAP_MS = 24;
+const logger = createLogger("SuggestionPredictionCoordinator");
 
 interface SuggestionPredictionCoordinatorOptions {
   debounceByAction: {
@@ -60,17 +69,32 @@ export class SuggestionPredictionCoordinator {
   ): void {
     this.cancelPending(entry);
 
+    const beforeCursor =
+      beforeCursorOverride ?? TextTargetAdapter.snapshot(entry.elem as TextTarget).beforeCursor;
+    const traceContext = createPredictionTraceContext();
+
     if (force) {
       this.requestPrediction(
         entry,
         true,
         clearSuggestions,
         inputAction,
-        beforeCursorOverride,
+        beforeCursor,
         afterCursorOverride,
+        traceContext,
       );
       return;
     }
+
+    const debounceMs = this.resolveDebounceMs(inputAction, beforeCursor);
+    logger.debug("Scheduled prediction request", {
+      traceId: traceContext.traceId,
+      requestId: entry.requestId + 1,
+      suggestionId: entry.id,
+      inputAction: inputAction || "other",
+      debounceMs,
+      tokenLength: this.findMentionToken(beforeCursor).token.length,
+    });
 
     entry.pendingRequestTimer = setTimeout(() => {
       entry.pendingRequestTimer = null;
@@ -79,10 +103,11 @@ export class SuggestionPredictionCoordinator {
         false,
         clearSuggestions,
         inputAction,
-        beforeCursorOverride,
+        beforeCursor,
         afterCursorOverride,
+        traceContext,
       );
-    }, this.resolveDebounceMs(inputAction));
+    }, debounceMs);
   }
 
   public reconcile(
@@ -100,13 +125,16 @@ export class SuggestionPredictionCoordinator {
     },
   ): void {
     this.cancelPending(entry);
+    const beforeCursor =
+      beforeCursorOverride ?? TextTargetAdapter.snapshot(entry.elem as TextTarget).beforeCursor;
     this.requestPrediction(
       entry,
       false,
       clearSuggestions,
       inputAction,
-      beforeCursorOverride,
+      beforeCursor,
       afterCursorOverride,
+      createPredictionTraceContext(),
     );
   }
 
@@ -149,6 +177,7 @@ export class SuggestionPredictionCoordinator {
     inputAction?: PredictionInputAction,
     beforeCursorOverride?: string,
     afterCursorOverride?: string,
+    traceContext: PredictionTraceContext = createPredictionTraceContext(),
   ): void {
     const snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
     const beforeCursor = beforeCursorOverride ?? snapshot.beforeCursor;
@@ -170,6 +199,14 @@ export class SuggestionPredictionCoordinator {
     entry.latestMentionText = tokenInfo.token;
     entry.latestMentionStart = tokenInfo.start;
     entry.requestId += 1;
+    logger.debug("Dispatching prediction request", {
+      traceId: traceContext.traceId,
+      requestId: entry.requestId,
+      suggestionId: entry.id,
+      inputAction: inputAction || "other",
+      requestAgeMs: resolveTraceAgeMs(traceContext.traceStartedAtMs),
+      tokenLength: tokenInfo.token.length,
+    });
 
     this.getPrediction(
       this.createPredictionRequest({
@@ -178,6 +215,7 @@ export class SuggestionPredictionCoordinator {
         suggestionId: entry.id,
         requestId: entry.requestId,
         inputAction,
+        traceContext,
       }),
     );
   }
@@ -188,12 +226,14 @@ export class SuggestionPredictionCoordinator {
     suggestionId,
     requestId,
     inputAction,
+    traceContext,
   }: {
     beforeCursor: string;
     afterCursor: string;
     suggestionId: number;
     requestId: number;
     inputAction?: PredictionInputAction;
+    traceContext: PredictionTraceContext;
   }): PredictionRequest {
     return {
       text: beforeCursor,
@@ -201,18 +241,28 @@ export class SuggestionPredictionCoordinator {
       suggestionId,
       requestId,
       lang: this.lang,
+      traceId: traceContext.traceId,
+      traceStartedAtMs: traceContext.traceStartedAtMs,
       ...(inputAction ? { inputAction } : {}),
     };
   }
 
-  private resolveDebounceMs(inputAction?: PredictionInputAction): number {
+  private resolveDebounceMs(
+    inputAction?: PredictionInputAction,
+    beforeCursor: string = "",
+  ): number {
+    const isFirstTokenChar = this.findMentionToken(beforeCursor).token.length <= 1;
     if (inputAction === "insert") {
-      return this.debounceByAction.insert;
+      return isFirstTokenChar
+        ? Math.min(this.debounceByAction.insert, FIRST_CHAR_DEBOUNCE_CAP_MS)
+        : this.debounceByAction.insert;
     }
     if (inputAction === "delete") {
       return this.debounceByAction.delete;
     }
-    return this.debounceByAction.other;
+    return isFirstTokenChar
+      ? Math.min(this.debounceByAction.other, FIRST_CHAR_DEBOUNCE_CAP_MS)
+      : this.debounceByAction.other;
   }
 
   private shouldPredict(beforeCursor: string): boolean {

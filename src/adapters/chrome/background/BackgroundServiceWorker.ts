@@ -138,6 +138,7 @@ export class BackgroundServiceWorker {
         requestId: message.context.requestId,
         runtimeGeneration: message.context.runtimeGeneration,
         traceId,
+        traceStartedAtMs: message.context.traceStartedAtMs,
         frameId: message.context.frameId,
         predictions,
       },

@@ -14,6 +14,8 @@ export const OBSERVABILITY_MODULE_IDS = [
   "ContentMessageHandler",
   "ContentRuntimeController",
   "HostChangeWatcher",
+  "SuggestionPredictionCoordinator",
+  "SuggestionManagerRuntime",
   "SuggestionTextEditService",
   "FluentTyperContentScript",
   "OptionsObservability",

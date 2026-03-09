@@ -38,13 +38,17 @@ describe("SuggestionPredictionCoordinator", () => {
     coordinator.schedule(entry, { force: true, clearSuggestions: jest.fn() });
 
     expect(getPrediction).toHaveBeenCalledTimes(1);
-    expect(getPrediction).toHaveBeenCalledWith({
-      text: "hello",
-      nextChar: "",
-      suggestionId: 9,
-      requestId: 1,
-      lang: "en_US",
-    });
+    expect(getPrediction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: "hello",
+        nextChar: "",
+        suggestionId: 9,
+        requestId: 1,
+        lang: "en_US",
+        traceId: expect.any(String),
+        traceStartedAtMs: expect.any(Number),
+      }),
+    );
     expect(entry.latestMentionText).toBe("hello");
   });
 
@@ -96,14 +100,18 @@ describe("SuggestionPredictionCoordinator", () => {
     });
     await wait(5);
 
-    expect(getPrediction).toHaveBeenCalledWith({
-      text: "Hello.",
-      nextChar: "",
-      suggestionId: 2,
-      requestId: 1,
-      lang: "en_US",
-      inputAction: "delete",
-    });
+    expect(getPrediction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: "Hello.",
+        nextChar: "",
+        suggestionId: 2,
+        requestId: 1,
+        lang: "en_US",
+        inputAction: "delete",
+        traceId: expect.any(String),
+        traceStartedAtMs: expect.any(Number),
+      }),
+    );
   });
 
   test("clears suggestions without requesting predictions when disabled by threshold", async () => {
@@ -381,11 +389,52 @@ describe("SuggestionPredictionCoordinator", () => {
         expect.objectContaining({
           suggestionId: 11,
           inputAction: "insert",
+          traceId: expect.any(String),
+          traceStartedAtMs: expect.any(Number),
         }),
       );
       expect(getPrediction).toHaveBeenCalledWith(
         expect.objectContaining({
           suggestionId: 12,
+          traceId: expect.any(String),
+          traceStartedAtMs: expect.any(Number),
+        }),
+      );
+    });
+
+    test("caps first-character insert debounce for snappier new-word popups", () => {
+      const getPrediction = jest.fn();
+      const coordinator = new SuggestionPredictionCoordinator({
+        debounceByAction: FIXED_DEBOUNCE_BY_ACTION,
+        getPrediction,
+        lang: "en_US",
+        minWordLengthToPredict: 1,
+        separatorRegex: /\s+/,
+      });
+
+      const input = document.createElement("input");
+      input.value = "h";
+      input.selectionStart = input.value.length;
+      input.selectionEnd = input.value.length;
+      const entry = createSuggestionEntry({ id: 17, elem: input });
+
+      coordinator.schedule(entry, {
+        force: false,
+        clearSuggestions: jest.fn(),
+        inputAction: "insert",
+      });
+
+      jest.advanceTimersByTime(23);
+      expect(getPrediction).toHaveBeenCalledTimes(0);
+
+      jest.advanceTimersByTime(1);
+      expect(getPrediction).toHaveBeenCalledTimes(1);
+      expect(getPrediction).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          suggestionId: 17,
+          inputAction: "insert",
+          traceId: expect.any(String),
+          traceStartedAtMs: expect.any(Number),
         }),
       );
     });
@@ -428,6 +477,8 @@ describe("SuggestionPredictionCoordinator", () => {
         expect.objectContaining({
           suggestionId: 13,
           inputAction: "delete",
+          traceId: expect.any(String),
+          traceStartedAtMs: expect.any(Number),
         }),
       );
 
@@ -512,14 +563,18 @@ describe("SuggestionPredictionCoordinator", () => {
       });
 
       expect(getPrediction).toHaveBeenCalledTimes(1);
-      expect(getPrediction).toHaveBeenCalledWith({
-        text: "hello",
-        nextChar: "",
-        suggestionId: 16,
-        requestId: 1,
-        lang: "en_US",
-        inputAction: "delete",
-      });
+      expect(getPrediction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          text: "hello",
+          nextChar: "",
+          suggestionId: 16,
+          requestId: 1,
+          lang: "en_US",
+          inputAction: "delete",
+          traceId: expect.any(String),
+          traceStartedAtMs: expect.any(Number),
+        }),
+      );
     });
   });
 });
