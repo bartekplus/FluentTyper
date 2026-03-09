@@ -1,6 +1,7 @@
 import { jest, mock } from "bun:test";
 import {
   CMD_BACKGROUND_PAGE_PREDICT_REQ,
+  CMD_BACKGROUND_PAGE_PREDICT_RESP,
   CMD_BACKGROUND_PAGE_SET_CONFIG,
   CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
   CMD_CONTENT_SCRIPT_GET_CONFIG,
@@ -1268,5 +1269,112 @@ describe("background routing and lifecycle", () => {
     await flushPromises();
     expect(resetSpy).toHaveBeenCalled();
     expect(resetResponse).toHaveBeenCalledWith({ ok: true });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Performance regression tests
+  // ---------------------------------------------------------------------------
+
+  test("prediction response is sent via sendMessage directly without a chrome.tabs.get pre-flight", async () => {
+    // Regression guard: before this fix, BackgroundServiceWorker.runPrediction
+    // called chrome.tabs.get before every sendMessage, adding ~5–10 ms IPC
+    // latency.  The method must now call sendMessage directly.
+    const harness = await loadBackgroundHarness();
+
+    const tabsGetSpy = jest.spyOn(harness.chromeMock.tabs, "get");
+    jest.spyOn(harness.chromeMock.tabs, "sendMessage").mockResolvedValue(undefined);
+
+    // Mock updatePresageConfig so ensureRuntimeConfigReady resolves immediately
+    // without needing the full settings / Presage initialisation path.
+    jest
+      .spyOn(harness.module.BackgroundServiceWorker.prototype, "updatePresageConfig")
+      .mockResolvedValue(undefined);
+
+    // Route through onMessage (same path as a real content-script keystroke).
+    // We deliberately do NOT mock runPrediction so the real dispatch code runs.
+    harness.onMessage(
+      {
+        command: CMD_CONTENT_SCRIPT_PREDICT_REQ,
+        context: {
+          text: "hello",
+          nextChar: "",
+          lang: "en_US",
+          suggestionId: 1,
+          requestId: 1,
+          runtimeGeneration: 1,
+        },
+      },
+      { tab: { id: 42 } as chrome.tabs.Tab, frameId: 0 },
+      jest.fn(),
+    );
+    await flushPromises();
+
+    // Response dispatched directly via sendMessage.
+    expect(harness.chromeMock.tabs.sendMessage).toHaveBeenCalledWith(
+      42,
+      expect.objectContaining({ command: CMD_BACKGROUND_PAGE_PREDICT_RESP }),
+      { frameId: 0 },
+    );
+    // No pre-flight tab existence check.
+    expect(tabsGetSpy).not.toHaveBeenCalled();
+  });
+
+  test("domain settings cache is invalidated after CMD_OPTIONS_PAGE_CONFIG_CHANGE so next prediction sees fresh settings", async () => {
+    // Regression guard: MessageRouter must call domainSettingsCache.invalidate()
+    // after a settings change so the very next prediction request reads fresh
+    // values instead of returning a stale cache hit.
+    const harness = await loadBackgroundHarness({ language: "en_US" });
+
+    const runPredictionSpy = jest
+      .spyOn(harness.module.BackgroundServiceWorker.prototype, "runPrediction")
+      .mockResolvedValue(undefined);
+
+    const sender = {
+      tab: { id: 1, url: "https://example.com/path" } as chrome.tabs.Tab,
+      frameId: 0,
+    };
+    const predictCtx = {
+      text: "hello",
+      nextChar: "",
+      lang: "en_US",
+      suggestionId: 1,
+      requestId: 1,
+      runtimeGeneration: 1,
+    };
+
+    // First prediction — populates the cache with en_US.
+    harness.onMessage(
+      { command: CMD_CONTENT_SCRIPT_PREDICT_REQ, context: predictCtx },
+      sender,
+      jest.fn(),
+    );
+    await flushPromises();
+
+    // Language changes in settings while the cache still holds en_US.
+    harness.state.language = "fr_FR";
+
+    // Trigger config change — this must flush the domain settings cache.
+    harness.onMessage(
+      { command: CMD_OPTIONS_PAGE_CONFIG_CHANGE, context: {} },
+      {} as chrome.runtime.MessageSender,
+      jest.fn(),
+    );
+    await flushPromises();
+
+    // Second prediction after the cache was invalidated.
+    harness.onMessage(
+      { command: CMD_CONTENT_SCRIPT_PREDICT_REQ, context: { ...predictCtx, requestId: 2 } },
+      sender,
+      jest.fn(),
+    );
+    await flushPromises();
+
+    // The language forwarded to runPrediction must reflect the updated state.
+    expect(runPredictionSpy).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        context: expect.objectContaining({ lang: "fr_FR" }),
+      }),
+      undefined,
+    );
   });
 });
