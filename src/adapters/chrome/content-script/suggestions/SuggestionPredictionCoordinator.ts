@@ -8,7 +8,7 @@ import {
   type PredictionTraceContext,
 } from "../predictionTrace";
 
-const FIRST_CHAR_DEBOUNCE_CAP_MS = 24;
+const FIRST_CHAR_DEBOUNCE_CAP_MS = 12;
 const logger = createLogger("SuggestionPredictionCoordinator");
 
 interface SuggestionPredictionCoordinatorOptions {

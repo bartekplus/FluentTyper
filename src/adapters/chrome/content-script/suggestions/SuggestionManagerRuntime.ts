@@ -42,9 +42,9 @@ const DUPLICATE_PUNCTUATION_TAIL_REGEX = new RegExp(
   `[,;:](?:${SPACING_OR_FILLER_PATTERN})*[,;:](?:${SPACING_OR_FILLER_PATTERN})*$`,
 );
 const SUGGESTION_DEBOUNCE_BY_ACTION = {
-  insert: 36,
-  delete: 24,
-  other: 40,
+  insert: 20,
+  delete: 12,
+  other: 20,
 };
 const logger = createLogger("SuggestionManagerRuntime");
 

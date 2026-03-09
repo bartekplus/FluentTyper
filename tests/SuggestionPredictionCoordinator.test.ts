@@ -424,7 +424,7 @@ describe("SuggestionPredictionCoordinator", () => {
         inputAction: "insert",
       });
 
-      jest.advanceTimersByTime(23);
+      jest.advanceTimersByTime(11);
       expect(getPrediction).toHaveBeenCalledTimes(0);
 
       jest.advanceTimersByTime(1);
