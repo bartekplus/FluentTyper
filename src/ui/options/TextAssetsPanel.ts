@@ -33,6 +33,16 @@ const VARIABLE_SNIPPETS = [
   "${page_domain}",
 ];
 
+function toTextValue(value: unknown): string {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
+    return String(value);
+  }
+  return "";
+}
+
 export class TextAssetsPanel {
   private readonly root: HTMLElement;
   private readonly registry: SettingsRegistry;
@@ -65,18 +75,18 @@ export class TextAssetsPanel {
     this.registry[KEY_DATE_FORMAT]?.addEvent("action", () => void this.render());
     this.registry[KEY_TIME_FORMAT]?.addEvent("action", () => void this.render());
     this.registry[KEY_DATE_FORMAT]?.addEvent("change", () => {
-      this.liveDateFormat = String(this.registry[KEY_DATE_FORMAT].get() || "");
+      this.liveDateFormat = toTextValue(this.registry[KEY_DATE_FORMAT].get());
       this.refreshActiveSnippetPreview();
       void this.render();
     });
     this.registry[KEY_TIME_FORMAT]?.addEvent("change", () => {
-      this.liveTimeFormat = String(this.registry[KEY_TIME_FORMAT].get() || "");
+      this.liveTimeFormat = toTextValue(this.registry[KEY_TIME_FORMAT].get());
       this.refreshActiveSnippetPreview();
       void this.render();
     });
 
-    this.liveDateFormat = String(this.registry[KEY_DATE_FORMAT]?.get() || "");
-    this.liveTimeFormat = String(this.registry[KEY_TIME_FORMAT]?.get() || "");
+    this.liveDateFormat = toTextValue(this.registry[KEY_DATE_FORMAT]?.get());
+    this.liveTimeFormat = toTextValue(this.registry[KEY_TIME_FORMAT]?.get());
     void this.load();
   }
 
@@ -98,7 +108,7 @@ export class TextAssetsPanel {
       : [];
     this.reconcileSnippetRows(expansions);
     this.dictionary = Array.isArray(rawDictionary)
-      ? rawDictionary.map((entry) => String(entry)).filter(Boolean)
+      ? rawDictionary.map((entry) => toTextValue(entry)).filter(Boolean)
       : [];
     this.liveDateFormat = typeof rawDateFormat === "string" ? rawDateFormat : "";
     this.liveTimeFormat = typeof rawTimeFormat === "string" ? rawTimeFormat : "";
@@ -168,7 +178,8 @@ export class TextAssetsPanel {
       }
       const reader = new FileReader();
       reader.addEventListener("load", () => {
-        const parsed = parse(reader.result as string, {
+        const csvText = typeof reader.result === "string" ? reader.result : "";
+        const parsed = parse(csvText, {
           skip_records_with_error: true,
           relax_column_count: true,
           columns: false,
@@ -176,7 +187,7 @@ export class TextAssetsPanel {
         }) as unknown[][];
         const imported = parsed
           .filter((row) => row.length === 2)
-          .map((row) => [String(row[0]), String(row[1])] as TextExpansionEntry);
+          .map((row) => [toTextValue(row[0]), toTextValue(row[1])] as TextExpansionEntry);
         this.syncPersistedRows(this.mergeExpansions(imported, this.getPersistedExpansions()));
         this.setSnippetStatus(i18n.get("settings_status_saved"));
         this.persistSnippetRows();
@@ -559,7 +570,7 @@ export class TextAssetsPanel {
       }
       const reader = new FileReader();
       reader.addEventListener("load", () => {
-        const words = String(reader.result)
+        const words = toTextValue(reader.result)
           .split(/\r?\n/)
           .map((entry) => entry.trim())
           .filter(Boolean);
@@ -615,7 +626,7 @@ export class TextAssetsPanel {
 
     const dateInput = document.createElement("input");
     dateInput.className = "input";
-    dateInput.value = String(this.registry[KEY_DATE_FORMAT].get() || "");
+    dateInput.value = toTextValue(this.registry[KEY_DATE_FORMAT].get());
     dateInput.placeholder = i18n.get("custom_date_format_label");
     dateInput.addEventListener("input", () => {
       this.liveDateFormat = dateInput.value;
@@ -628,7 +639,7 @@ export class TextAssetsPanel {
 
     const timeInput = document.createElement("input");
     timeInput.className = "input";
-    timeInput.value = String(this.registry[KEY_TIME_FORMAT].get() || "");
+    timeInput.value = toTextValue(this.registry[KEY_TIME_FORMAT].get());
     timeInput.placeholder = i18n.get("custom_time_format_label");
     timeInput.addEventListener("input", () => {
       this.liveTimeFormat = timeInput.value;

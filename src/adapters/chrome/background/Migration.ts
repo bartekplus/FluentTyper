@@ -32,8 +32,8 @@ export async function migrateToLocalStore(lastVersion?: string): Promise<void> {
 
   if (migrateStore) {
     chrome.storage.sync.get(null, (result: { [key: string]: unknown }) => {
-      chrome.storage.local.set(result);
-      chrome.storage.local.set({ lastVersion: currentVersion });
+      void chrome.storage.local.set(result);
+      void chrome.storage.local.set({ lastVersion: currentVersion });
     });
   }
 
@@ -63,5 +63,5 @@ export async function migrateToLocalStore(lastVersion?: string): Promise<void> {
   const siteProfiles = resolveSiteProfiles(rawSiteProfiles, enabledLanguages);
   await siteProfileRepository.setSiteProfiles(siteProfiles);
 
-  chrome.storage.local.set({ lastVersion: currentVersion });
+  void chrome.storage.local.set({ lastVersion: currentVersion });
 }

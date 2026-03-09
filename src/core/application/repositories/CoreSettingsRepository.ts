@@ -24,6 +24,16 @@ type ThemeSettings = Pick<
   | "suggestionPaddingHorizontal"
 >;
 
+function toStoredString(value: unknown): string | null {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
+    return String(value);
+  }
+  return null;
+}
+
 export class CoreSettingsRepository extends SettingsRepositoryBase {
   private static toBoolean(value: unknown, fallback = false): boolean {
     return typeof value === "boolean" ? value : fallback;
@@ -43,7 +53,11 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
 
   private async getStringArrayField(field: SettingField): Promise<string[]> {
     const value = await this.getField(field);
-    return Array.isArray(value) ? value.map((item) => String(item)) : [];
+    return Array.isArray(value)
+      ? value
+          .map((item) => toStoredString(item))
+          .filter((item): item is string => typeof item === "string")
+      : [];
   }
 
   async isEnabled(): Promise<boolean> {
@@ -136,9 +150,7 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
 
   async getAutoLanguageSitePriors(): Promise<Record<string, Record<string, number>>> {
     const value = await this.getField("autoLanguageSitePriors");
-    return value && typeof value === "object" && !Array.isArray(value)
-      ? (value as Record<string, Record<string, number>>)
-      : {};
+    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
   }
 
   async setAutoLanguageSitePriors(priors: Record<string, Record<string, number>>): Promise<void> {

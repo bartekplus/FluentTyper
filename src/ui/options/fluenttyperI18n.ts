@@ -11,10 +11,10 @@ try {
     const storageKey = `store.settings.${KEY_EXTENSION_LANGUAGE}`;
     const rawValue = localStorage.getItem(storageKey);
     if (rawValue) {
-      const extLang = JSON.parse(rawValue);
-      if (extLang && extLang !== "auto_detect") {
+      const parsedLanguage: unknown = JSON.parse(rawValue);
+      if (typeof parsedLanguage === "string" && parsedLanguage !== "auto_detect") {
         // Locale codes use underscore (e.g. en_US), i18n uses short codes (e.g. en)
-        let shortCode = extLang.split("_")[0];
+        let shortCode = parsedLanguage.split("_")[0];
         // Map pt -> pr to match i18n translation keys for Portuguese
         if (shortCode === "pt") {
           shortCode = "pr";

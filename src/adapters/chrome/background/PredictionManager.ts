@@ -15,7 +15,6 @@ import { WebLLMPredictor } from "./WebLLMPredictor";
 import { createLogger } from "@core/application/logging/Logger";
 import { DEFAULT_AI_PREDICTION_TIMEOUT_MS } from "@core/domain/constants";
 import { PredictorError, getErrorMessage } from "@core/domain/error";
-import type { PredictionInputAction } from "@core/domain/messageTypes";
 
 export interface PredictionDebugRequestMeta {
   traceId?: string;
@@ -102,7 +101,7 @@ export class PredictionManager {
 
   constructor() {
     this.libPresageMod = libPresageMod as () => Promise<PresageModule>;
-    this.initialize();
+    void this.initialize();
   }
 
   async initialize(): Promise<void> {
@@ -137,7 +136,6 @@ export class PredictionManager {
     lang: string,
     configOverride?: { numSuggestions?: number },
     debugMeta?: PredictionDebugRequestMeta,
-    inputAction?: PredictionInputAction,
   ): Promise<PredictionResult> {
     await this.initialize();
     if (!this.predictionOrchestrator) {
@@ -167,7 +165,6 @@ export class PredictionManager {
         nextChar,
         lang,
         runConfig,
-        inputAction,
       );
       this.recordTraceTimelineEvent(
         resolvedDebugMeta,

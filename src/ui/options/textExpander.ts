@@ -21,31 +21,48 @@ interface ElementWrapperLike {
   set(key: string, value: string | number | boolean): void;
 }
 
+function toElementString(value: unknown): string | null {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
+    return String(value);
+  }
+  return null;
+}
+
 function createElementWrapper(tag: string, props: Record<string, unknown>): ElementWrapperLike {
   const el = document.createElement(tag);
-  if (props.class) {
-    el.className = String(props.class);
+  const className = toElementString(props.class);
+  if (className) {
+    el.className = className;
   }
-  if (props.type) {
-    (el as HTMLInputElement).type = String(props.type);
+  const type = toElementString(props.type);
+  if (type) {
+    (el as HTMLInputElement).type = type;
   }
-  if (props.id) {
-    el.id = String(props.id);
+  const id = toElementString(props.id);
+  if (id) {
+    el.id = id;
   }
-  if (props.text) {
-    el.textContent = String(props.text);
+  const text = toElementString(props.text);
+  if (text) {
+    el.textContent = text;
   }
-  if (props.href) {
-    (el as HTMLAnchorElement).href = String(props.href);
+  const href = toElementString(props.href);
+  if (href) {
+    (el as HTMLAnchorElement).href = href;
   }
-  if (props.download) {
-    (el as HTMLAnchorElement).download = String(props.download);
+  const download = toElementString(props.download);
+  if (download) {
+    (el as HTMLAnchorElement).download = download;
   }
   if (props.required) {
     (el as HTMLInputElement).required = Boolean(props.required);
   }
-  if (props.pattern) {
-    (el as HTMLInputElement).pattern = String(props.pattern);
+  const pattern = toElementString(props.pattern);
+  if (pattern) {
+    (el as HTMLInputElement).pattern = pattern;
   }
   if (props.maxlength) {
     (el as HTMLInputElement).maxLength = Number(props.maxlength);
@@ -135,7 +152,7 @@ export class TextExpander {
 
   private fileInputChange(): void {
     const fileInput = document.getElementById("csvFileInput") as HTMLInputElement | null;
-    const fileNameSpanElem = document.getElementById("fileNameSpanElemId") as HTMLElement | null;
+    const fileNameSpanElem = document.getElementById("fileNameSpanElemId");
     const file = fileInput?.files?.[0];
     if (!fileInput || !fileNameSpanElem || !file) {
       return;
@@ -146,7 +163,8 @@ export class TextExpander {
     reader.addEventListener(
       "load",
       () => {
-        const parsedData = parse(reader.result as string, {
+        const csvText = typeof reader.result === "string" ? reader.result : "";
+        const parsedData = parse(csvText, {
           skip_records_with_error: true,
           relax_column_count: true,
           columns: false,
@@ -165,8 +183,8 @@ export class TextExpander {
 
         parsedData.forEach((element) => {
           if (element.length === 2) {
-            shortcutElem.value = String(element[0]);
-            shortcutTextElem.value = String(element[1]);
+            shortcutElem.value = toElementString(element[0]) ?? "";
+            shortcutTextElem.value = toElementString(element[1]) ?? "";
             if (this.addNewShortcut(false)) {
               this.importedElemCount += 1;
             }
@@ -341,7 +359,7 @@ export class TextExpander {
       });
     } else {
       button.addEvent("click", () => {
-        this.delShortcut(shortcutIndex as number);
+        this.delShortcut(shortcutIndex);
       });
     }
 
@@ -354,7 +372,7 @@ export class TextExpander {
     errMsgStr: string,
     isValid: boolean,
   ): void {
-    const errMsgNode = document.getElementById(`${element.id}ErrMsg`) as HTMLElement | null;
+    const errMsgNode = document.getElementById(`${element.id}ErrMsg`);
     if (!errMsgNode) {
       return;
     }

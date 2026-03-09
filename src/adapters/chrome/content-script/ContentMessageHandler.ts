@@ -94,7 +94,7 @@ export class ContentMessageHandler {
       },
     };
     this.pendingReq = message;
-    chrome.runtime.sendMessage(message);
+    void chrome.runtime.sendMessage(message);
   }
 
   reportRuntimeStatus(runtimeGeneration?: number): void {
@@ -120,7 +120,7 @@ export class ContentMessageHandler {
         domainURL,
       },
     };
-    chrome.runtime.sendMessage(message);
+    void chrome.runtime.sendMessage(message);
   }
 
   handleMessage(

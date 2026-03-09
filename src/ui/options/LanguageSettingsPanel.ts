@@ -361,7 +361,7 @@ export class LanguageSettingsPanel {
 
   private async fetchAutoLanguageStatus(): Promise<{ language: string; locked: boolean } | null> {
     try {
-      const response = await chrome.runtime.sendMessage({
+      const response: unknown = await chrome.runtime.sendMessage({
         command: CMD_GET_AUTO_LANGUAGE_STATUS,
         context: {},
       });

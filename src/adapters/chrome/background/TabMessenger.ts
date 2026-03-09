@@ -78,15 +78,15 @@ export class TabMessenger {
   }
 
   sendToActiveTab(message: Message): void {
-    this.getActiveTabId().then((tabId) => {
+    void this.getActiveTabId().then((tabId) => {
       if (tabId !== undefined) {
-        chrome.tabs.sendMessage(tabId, message, { frameId: 0 });
+        void chrome.tabs.sendMessage(tabId, message, { frameId: 0 });
       }
     });
   }
 
   sendToTab(tabId: number, frameId: number, message: Message): void {
-    chrome.tabs.sendMessage(tabId, message, { frameId });
+    void chrome.tabs.sendMessage(tabId, message, { frameId });
   }
 
   async getActiveTabContext(): Promise<{ tabId: number; hostname: string } | undefined> {
@@ -174,7 +174,7 @@ export class TabMessenger {
           },
         };
         try {
-          chrome.tabs.sendMessage(tab.id, messageForTab, { frameId: 0 });
+          void chrome.tabs.sendMessage(tab.id, messageForTab, { frameId: 0 });
         } catch (error) {
           console.warn(`sendToAllTabs failed: ${getErrorMessage(error)}`);
         }

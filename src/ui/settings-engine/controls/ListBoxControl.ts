@@ -75,14 +75,14 @@ export class ListBoxControl extends BaseControl<string[]> implements ListBoxFiel
       this.options.push(value);
       this.appendOption(value);
       if (storeValue) {
-        this.store();
+        this.persist();
       }
     }
   }
 
-  store(): void {
+  persist(): void {
     if (this.name !== undefined) {
-      void this.store.set(this.name, this.options);
+      void this.storage.set(this.name, this.options);
     }
     this.emitter.fireEvent("action", this.get());
   }
@@ -97,7 +97,7 @@ export class ListBoxControl extends BaseControl<string[]> implements ListBoxFiel
     }
     this.selected = [];
     if (this.name !== undefined) {
-      void this.store.set(this.name, this.options);
+      void this.storage.set(this.name, this.options);
     }
     this.emitter.fireEvent("action", this.get());
   }
@@ -109,7 +109,7 @@ export class ListBoxControl extends BaseControl<string[]> implements ListBoxFiel
     }
     this.selected = [];
     if (this.name !== undefined) {
-      void this.store.set(this.name, this.options);
+      void this.storage.set(this.name, this.options);
     }
     this.emitter.fireEvent("action", this.get());
   }

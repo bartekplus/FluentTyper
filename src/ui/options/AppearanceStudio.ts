@@ -64,6 +64,16 @@ function parseAlphaPart(value: string): number | null {
   return Number.isFinite(numericValue) ? clampAlpha(numericValue) : null;
 }
 
+function readThemeValue(value: unknown): string {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
+    return String(value);
+  }
+  return "";
+}
+
 export function parseThemeColor(rawValue: string): RGBAColor | null {
   const value = rawValue.trim();
   if (!value) {
@@ -556,7 +566,7 @@ export class AppearanceStudio {
   private readThemeValues(): Record<ThemeKey, string> {
     return THEME_KEYS.reduce(
       (acc, key) => {
-        acc[key] = String(this.registry[key].get() || "");
+        acc[key] = readThemeValue(this.registry[key].get());
         return acc;
       },
       {} as Record<ThemeKey, string>,

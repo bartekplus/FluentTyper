@@ -644,7 +644,7 @@ export class ContentEditableAdapter {
     let current: Node | null = node;
     const blockNode = block as Node;
     while (current && current !== blockNode) {
-      const parent = current.parentNode;
+      const parent: Node | null = current.parentNode;
       if (parent === blockNode) {
         return Array.prototype.indexOf.call(block.childNodes, current);
       }
@@ -1286,7 +1286,7 @@ export class ContentEditableAdapter {
 
     let current: Node | null = anchorPosition.container;
     while (current && current !== root) {
-      const parent = current.parentNode;
+      const parent: Node | null = current.parentNode;
       if (!(parent instanceof Element) || !(parent === root || root.contains(parent))) {
         break;
       }

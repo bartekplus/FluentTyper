@@ -15,6 +15,7 @@ export default defineConfig([
   {
     ignores: [
       ".cache/**",
+      ".claude/**",
       ".tmp/**",
       "build/**",
       "coverage/**",
@@ -33,7 +34,7 @@ export default defineConfig([
     plugins: { js },
     extends: ["js/recommended"],
   },
-  ...tseslint.configs.recommended,
+  ...tseslint.configs.recommendedTypeChecked,
   {
     files: MODULE_FILES,
     languageOptions: {
@@ -42,6 +43,18 @@ export default defineConfig([
         tsconfigRootDir: ESLINT_CONFIG_DIR,
       },
     },
+  },
+  {
+    files: ["**/*.{js,mjs,cjs}"],
+    ...tseslint.configs.disableTypeChecked,
+  },
+  {
+    files: TEST_FILES,
+    ...tseslint.configs.disableTypeChecked,
+  },
+  {
+    files: TOOLING_FILES,
+    ...tseslint.configs.disableTypeChecked,
   },
   {
     files: SOURCE_FILES,
@@ -78,27 +91,6 @@ export default defineConfig([
     rules: {
       "@typescript-eslint/no-require-imports": "off",
       "prefer-template": "off",
-    },
-  },
-  {
-    rules: {
-      "@typescript-eslint/consistent-type-imports": [
-        "error",
-        {
-          prefer: "type-imports",
-          disallowTypeAnnotations: false,
-        },
-      ],
-      "@typescript-eslint/no-explicit-any": "error",
-      curly: ["error", "all"],
-      "object-shorthand": ["error", "always"],
-      "prefer-template": "error",
-    },
-  },
-  {
-    files: ["src/**/*.{ts,mts,cts,d.ts}"],
-    rules: {
-      "@typescript-eslint/no-non-null-assertion": "error",
     },
   },
   {

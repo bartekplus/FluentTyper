@@ -18,9 +18,9 @@ export function promisifiedSendMessage<T = unknown, M = unknown>(
   return new Promise<T | undefined>((resolve, reject) => {
     chrome.tabs.sendMessage(tabId, message, options || {}, (res) => {
       if (chrome.runtime.lastError) {
-        reject(chrome.runtime.lastError);
+        reject(new Error(chrome.runtime.lastError.message));
       } else {
-        resolve(res);
+        resolve(res as T | undefined);
       }
     });
   });

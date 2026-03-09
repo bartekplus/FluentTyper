@@ -171,7 +171,7 @@ export class MessageRouter {
 
     const register = <TCommand extends RoutedMessageCommand>(
       command: TCommand,
-      handler: (payload: CommandPayload<TCommand>) => Promise<void>,
+      handler: (payload: CommandPayload<TCommand>) => Promise<void> | void,
     ): void => {
       this.registry.register(command, this.createCommandHandler(command, handler));
     };
@@ -264,7 +264,7 @@ export class MessageRouter {
 
   private createCommandHandler<TCommand extends RoutedMessageCommand>(
     command: TCommand,
-    handler: (payload: CommandPayload<TCommand>) => Promise<void>,
+    handler: (payload: CommandPayload<TCommand>) => Promise<void> | void,
   ): (payload: MessageDispatchPayload) => Promise<void> {
     return async (payload) => {
       if (payload.request.command !== command) {
@@ -440,9 +440,9 @@ export class MessageRouter {
     this.respondOk(sendResponse);
   }
 
-  private async handleContentScriptRuntimeStatus(
+  private handleContentScriptRuntimeStatus(
     payload: CommandPayload<typeof CMD_CONTENT_SCRIPT_REPORT_RUNTIME_STATUS>,
-  ): Promise<void> {
+  ): void {
     const { request, sender, sendResponse, worker } = payload;
     const senderContext = resolveSenderRoutingContext(sender);
     if (!senderContext) {
@@ -465,9 +465,9 @@ export class MessageRouter {
     this.respondOk(sendResponse);
   }
 
-  private async handleContentScriptReportObservabilityEvent(
+  private handleContentScriptReportObservabilityEvent(
     payload: CommandPayload<typeof CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_EVENT>,
-  ): Promise<void> {
+  ): void {
     const { request, sender, sendResponse, worker } = payload;
     const senderContext = resolveSenderRoutingContext(sender);
     if (!senderContext) {
@@ -484,9 +484,9 @@ export class MessageRouter {
     this.respondOk(sendResponse);
   }
 
-  private async handleContentScriptReportObservabilityModules(
+  private handleContentScriptReportObservabilityModules(
     payload: CommandPayload<typeof CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_MODULES>,
-  ): Promise<void> {
+  ): void {
     const { request, sendResponse, worker } = payload;
     worker.observabilityService.registerRemoteModules("content_script", request.context.modules);
     this.respondOk(sendResponse);
@@ -562,9 +562,9 @@ export class MessageRouter {
     sendResponse(worker.observabilityService.getLegacyPredictorSnapshot());
   }
 
-  private async handleOptionsClearPredictorDebugTrace(
+  private handleOptionsClearPredictorDebugTrace(
     payload: CommandPayload<typeof CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE>,
-  ): Promise<void> {
+  ): void {
     const { sendResponse, worker } = payload;
     worker.predictionManager.clearPredictorDebugTrace();
     worker.observabilityService.clearEvents();
@@ -579,17 +579,17 @@ export class MessageRouter {
     sendResponse(worker.observabilityService.getSnapshot());
   }
 
-  private async handleOptionsClearObservabilityEvents(
+  private handleOptionsClearObservabilityEvents(
     payload: CommandPayload<typeof CMD_OPTIONS_CLEAR_OBSERVABILITY_EVENTS>,
-  ): Promise<void> {
+  ): void {
     const { sendResponse, worker } = payload;
     worker.observabilityService.clearEvents();
     this.respondOk(sendResponse);
   }
 
-  private async handleOptionsReportObservabilityEvent(
+  private handleOptionsReportObservabilityEvent(
     payload: CommandPayload<typeof CMD_OPTIONS_REPORT_OBSERVABILITY_EVENT>,
-  ): Promise<void> {
+  ): void {
     const { request, sendResponse, worker } = payload;
     worker.observabilityService.recordEvent({
       ...request.context.event,
@@ -598,9 +598,9 @@ export class MessageRouter {
     this.respondOk(sendResponse);
   }
 
-  private async handleOptionsReportObservabilityModules(
+  private handleOptionsReportObservabilityModules(
     payload: CommandPayload<typeof CMD_OPTIONS_REPORT_OBSERVABILITY_MODULES>,
-  ): Promise<void> {
+  ): void {
     const { request, sendResponse, worker } = payload;
     worker.observabilityService.registerRemoteModules("options", request.context.modules);
     this.respondOk(sendResponse);

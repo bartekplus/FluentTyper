@@ -96,7 +96,7 @@ export interface ObservabilitySnapshot {
   modules: ObservabilityModuleState[];
   summary: ObservabilitySummary;
   events: ObservabilityEvent[];
-  predictor: Record<string, unknown> | null;
+  predictor: unknown;
   contentRuntimes: ObservabilityContentRuntimeStatus[];
   autoLanguageRuntimes: ObservabilityAutoLanguageRuntimeStatus[];
 }

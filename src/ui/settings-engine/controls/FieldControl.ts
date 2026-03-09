@@ -7,7 +7,8 @@ export function getUniqueID(): string {
 }
 
 // --- Typed event emitter ---
-type EventHandler = (...args: unknown[]) => void;
+type ValueEventHandler<TValue> = (value: TValue) => void;
+type EventHandler<TValue = unknown> = ValueEventHandler<TValue> | (() => void);
 
 export class TypedEventEmitter {
   private readonly events: Record<string, EventHandler[]> = {};
@@ -62,10 +63,10 @@ export interface FieldControl<TValue = unknown> {
 
   get(): TValue;
   set(value: TValue, silent?: boolean): this;
-  addEvent(type: "action", fn: (value: TValue) => void): void;
-  addEvent(type: "change", fn: (value: TValue) => void): void;
+  addEvent(type: "action", fn: ValueEventHandler<TValue>): void;
+  addEvent(type: "change", fn: ValueEventHandler<TValue>): void;
   addEvent(type: "modal_done", fn: () => void): void;
-  addEvent(type: string, fn: EventHandler): void;
+  addEvent(type: string, fn: EventHandler<TValue>): void;
   destroy(): void;
 }
 
@@ -80,7 +81,7 @@ export interface ListBoxFieldControl extends FieldControl<string[]> {
   add(value: string, storeValue?: boolean): void;
   remove(): void;
   removeAll(): void;
-  store(): void;
+  persist(): void;
 }
 
 export type SettingsSaveStatusState = "saving" | "saved" | "error";
@@ -103,14 +104,14 @@ export function dispatchSettingsSaveStatus(
 
 export abstract class BaseControl<TValue> implements FieldControl<TValue> {
   protected readonly emitter = new TypedEventEmitter();
-  protected readonly store: Store;
+  protected readonly storage: Store;
   protected readonly name: string | undefined;
 
   protected _rootElement!: HTMLElement;
   protected _element!: HTMLElement;
 
   constructor(params: { name?: string; [key: string]: unknown }, store: Store) {
-    this.store = store;
+    this.storage = store;
     this.name = params.name;
   }
 
@@ -125,8 +126,12 @@ export abstract class BaseControl<TValue> implements FieldControl<TValue> {
   abstract get(): TValue;
   abstract set(value: TValue, silent?: boolean): this;
 
-  addEvent(type: string, fn: EventHandler): void {
-    this.emitter.addEvent(type, fn);
+  addEvent(type: "action", fn: ValueEventHandler<TValue>): void;
+  addEvent(type: "change", fn: ValueEventHandler<TValue>): void;
+  addEvent(type: "modal_done", fn: () => void): void;
+  addEvent(type: string, fn: EventHandler<TValue>): void;
+  addEvent(type: string, fn: EventHandler<TValue>): void {
+    this.emitter.addEvent(type, fn as (...args: unknown[]) => void);
   }
 
   destroy(): void {
@@ -138,7 +143,7 @@ export abstract class BaseControl<TValue> implements FieldControl<TValue> {
       return;
     }
     try {
-      const value = await this.store.get(this.name);
+      const value = await this.storage.get(this.name);
       if (value !== undefined) {
         this.set(value as TValue, true);
       }
@@ -152,7 +157,7 @@ export abstract class BaseControl<TValue> implements FieldControl<TValue> {
       return;
     }
     dispatchSettingsSaveStatus("saving");
-    void this.store
+    void this.storage
       .set(this.name, value)
       .then(() => {
         dispatchSettingsSaveStatus("saved");

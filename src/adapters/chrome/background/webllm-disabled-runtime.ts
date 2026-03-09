@@ -18,6 +18,6 @@ export interface MLCEngineInterface {
   unload: () => Promise<void>;
 }
 
-export async function CreateMLCEngine(): Promise<MLCEngineInterface> {
+export function CreateMLCEngine(): Promise<MLCEngineInterface> {
   throw new Error("WebLLM runtime is disabled in this build");
 }

@@ -36,7 +36,7 @@ if (typeof __FT_DEV_BUILD__ !== "undefined" && __FT_DEV_BUILD__) {
     source: "content_script",
     sink: (event) => {
       try {
-        chrome.runtime.sendMessage({
+        void chrome.runtime.sendMessage({
           command: CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_EVENT,
           context: {
             event,
@@ -48,7 +48,7 @@ if (typeof __FT_DEV_BUILD__ !== "undefined" && __FT_DEV_BUILD__) {
     },
   });
   try {
-    chrome.runtime.sendMessage({
+    void chrome.runtime.sendMessage({
       command: CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_MODULES,
       context: {
         modules: getRegisteredObservabilityModules(),

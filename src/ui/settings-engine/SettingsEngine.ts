@@ -263,7 +263,7 @@ export class SettingsEngine {
       let tabMatches = !query;
 
       Object.entries(tab.groups).forEach(([groupLabel, groupContent]) => {
-        const groupRoot = groupContent.closest(".settings-group") as HTMLElement | null;
+        const groupRoot = groupContent.closest<HTMLElement>(".settings-group");
         const controls = Array.from(groupContent.children) as HTMLElement[];
         let groupMatches = !query;
 
@@ -339,8 +339,9 @@ export class SettingsEngine {
       this.activateTabById(firstVisibleTabId);
     }
 
-    if (query && firstMatchTarget) {
-      firstMatchTarget.scrollIntoView({
+    const matchTarget = firstMatchTarget as HTMLElement | null;
+    if (query && matchTarget) {
+      matchTarget.scrollIntoView({
         block: "start",
         inline: "nearest",
         behavior: "smooth",

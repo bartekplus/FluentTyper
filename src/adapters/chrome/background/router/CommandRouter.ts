@@ -28,7 +28,7 @@ const SUPPORTED_RUNTIME_COMMANDS = [
 ] as const;
 
 type RuntimeCommand = (typeof SUPPORTED_RUNTIME_COMMANDS)[number];
-type RuntimeCommandHandler = () => Promise<void>;
+type RuntimeCommandHandler = () => Promise<void> | void;
 
 const RUNTIME_COMMAND_SET = new Set<string>(SUPPORTED_RUNTIME_COMMANDS);
 
@@ -41,13 +41,13 @@ export class CommandRouter {
 
   constructor(getWorker: () => BackgroundServiceWorker) {
     const handlers: Record<RuntimeCommand, RuntimeCommandHandler> = {
-      [CMD_TOGGLE_FT_ACTIVE_TAB]: async () => {
+      [CMD_TOGGLE_FT_ACTIVE_TAB]: () => {
         const message: ToggleActiveTabMessage = {
           command: CMD_TOGGLE_FT_ACTIVE_TAB,
         };
         getWorker().sendCommandToActiveTabContentScript(message);
       },
-      [CMD_TRIGGER_FT_ACTIVE_TAB]: async () => {
+      [CMD_TRIGGER_FT_ACTIVE_TAB]: () => {
         const message: TriggerActiveTabMessage = {
           command: CMD_TRIGGER_FT_ACTIVE_TAB,
         };

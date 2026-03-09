@@ -7,6 +7,16 @@ export const SETTINGS_DOMAIN_BLACKLIST = getSettingStorageKey("domainList");
 const SETTINGS_ENABLED = getSettingStorageKey("enabled");
 const SETTINGS_DOMAIN_LIST_MODE = getSettingStorageKey("domainListMode");
 
+function toDomainListEntry(value: unknown): string | null {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
+    return String(value);
+  }
+  return null;
+}
+
 export const DOMAIN_LIST_MODE = {
   blackList: "Blacklist - enabled on all websites, disabled on specific sites",
   whiteList: "Whitelist - disabled on all websites, enabled on specific sites",
@@ -14,7 +24,11 @@ export const DOMAIN_LIST_MODE = {
 
 async function getDomainList(settings: SettingsManager): Promise<string[]> {
   const domainList = await settings.get(SETTINGS_DOMAIN_BLACKLIST);
-  return Array.isArray(domainList) ? domainList.map((entry) => String(entry)) : [];
+  return Array.isArray(domainList)
+    ? domainList
+        .map((entry) => toDomainListEntry(entry))
+        .filter((entry): entry is string => typeof entry === "string")
+    : [];
 }
 
 async function getDomainListMode(settings: SettingsManager): Promise<"blackList" | "whiteList"> {
@@ -46,7 +60,7 @@ export async function isDomainOnList(
   try {
     const domainList = await getDomainList(settings);
     for (let i = 0; i < domainList.length; i++) {
-      const listDomain = normalizeDomainHost(String(domainList[i]));
+      const listDomain = normalizeDomainHost(domainList[i]);
       if (listDomain && normalizedDomain === listDomain) {
         return true;
       }
@@ -83,7 +97,7 @@ export async function removeDomainFromList(
   try {
     const domainList = await getDomainList(settings);
     for (let i = 0; i < domainList.length; i++) {
-      const listDomain = normalizeDomainHost(String(domainList[i]));
+      const listDomain = normalizeDomainHost(domainList[i]);
       if (listDomain && normalizedDomain === listDomain) {
         domainList.splice(i, 1);
         await settings.set(SETTINGS_DOMAIN_BLACKLIST, domainList);

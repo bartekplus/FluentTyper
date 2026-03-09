@@ -1,5 +1,12 @@
 import type { StorageBackend } from "./StorageBackend.js";
 
+function toError(error: unknown): Error {
+  if (error instanceof Error) {
+    return error;
+  }
+  return new Error(typeof error === "string" ? error : String(error));
+}
+
 export class ChromeStorageBackend implements StorageBackend {
   private readonly backend: chrome.storage.StorageArea;
 
@@ -14,7 +21,7 @@ export class ChromeStorageBackend implements StorageBackend {
           resolve(value[key] as string | undefined);
         });
       } catch (ex) {
-        reject(ex);
+        reject(toError(ex));
       }
     });
   }
@@ -25,13 +32,13 @@ export class ChromeStorageBackend implements StorageBackend {
         this.backend.set({ [key]: value }, () => {
           const lastError = chrome.runtime?.lastError;
           if (lastError) {
-            reject(lastError);
+            reject(new Error(lastError.message));
             return;
           }
           resolve();
         });
       } catch (ex) {
-        reject(ex);
+        reject(toError(ex));
       }
     });
   }
@@ -43,7 +50,7 @@ export class ChromeStorageBackend implements StorageBackend {
           resolve();
         });
       } catch (ex) {
-        reject(ex);
+        reject(toError(ex));
       }
     });
   }
@@ -62,7 +69,7 @@ export class ChromeStorageBackend implements StorageBackend {
           resolve(result);
         });
       } catch (ex) {
-        reject(ex);
+        reject(toError(ex));
       }
     });
   }
