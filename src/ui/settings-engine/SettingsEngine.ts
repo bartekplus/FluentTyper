@@ -339,8 +339,9 @@ export class SettingsEngine {
       this.activateTabById(firstVisibleTabId);
     }
 
-    if (query && firstMatchTarget) {
-      firstMatchTarget.scrollIntoView({
+    const matchTarget = firstMatchTarget as HTMLElement | null;
+    if (query && matchTarget) {
+      matchTarget.scrollIntoView({
         block: "start",
         inline: "nearest",
         behavior: "smooth",

@@ -2,6 +2,13 @@ import type { ListBoxMultiselectConfig, OptionEntry } from "../types.js";
 import type { Store } from "@core/application/storage/Store.js";
 import { BaseControl } from "./FieldControl.js";
 
+function appendOption(select: HTMLSelectElement, option: OptionEntry): void {
+  const el = document.createElement("option");
+  el.value = option.value;
+  el.text = option.text ?? option.value;
+  select.appendChild(el);
+}
+
 export class ListBoxMultiSelectControl extends BaseControl<string[]> {
   private readonly selectEl: HTMLSelectElement;
 
@@ -59,21 +66,17 @@ export class ListBoxMultiSelectControl extends BaseControl<string[]> {
     }
 
     if (Array.isArray(options)) {
-      for (const opt of options as [string, string][]) {
-        const el = document.createElement("option");
-        el.value = opt[0];
-        el.text = opt[1] ?? opt[0];
-        select.appendChild(el);
+      for (const optionGroup of options) {
+        for (const option of optionGroup) {
+          appendOption(select, option);
+        }
       }
       return;
     }
 
     const optObj = options as { groups?: string[]; values: OptionEntry[] };
     for (const opt of optObj.values ?? []) {
-      const el = document.createElement("option");
-      el.value = opt.value;
-      el.text = opt.text ?? opt.value;
-      select.appendChild(el);
+      appendOption(select, opt);
     }
   }
 

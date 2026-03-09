@@ -26,6 +26,11 @@ export interface GrammarEditApplyContext {
   } | null;
 }
 
+type GrammarEditInput = GrammarEdit & {
+  replacementText?: string;
+  replaceBackwardCount?: number;
+};
+
 export class SuggestionTextEditService {
   private readonly findMentionToken: (beforeCursor: string) => { token: string; start: number };
   private readonly isSeparator: (value: string) => boolean;
@@ -280,7 +285,7 @@ export class SuggestionTextEditService {
 
   public applyGrammarEdit(
     entry: SuggestionEntry,
-    edit: GrammarEdit & Record<string, unknown>,
+    edit: GrammarEditInput,
     context: GrammarEditApplyContext = {},
   ): TextEditApplyResult {
     const replacement =
@@ -289,14 +294,17 @@ export class SuggestionTextEditService {
         : typeof edit.replacementText === "string"
           ? edit.replacementText
           : "";
-    const deleteBackwards = Number.isFinite(edit.deleteBackwards)
-      ? Math.max(0, edit.deleteBackwards)
-      : Number.isFinite(edit.replaceBackwardCount)
-        ? Math.max(0, edit.replaceBackwardCount)
+    const deleteBackwards =
+      typeof edit.deleteBackwards === "number" && Number.isFinite(edit.deleteBackwards)
+        ? Math.max(0, edit.deleteBackwards)
+        : typeof edit.replaceBackwardCount === "number" &&
+            Number.isFinite(edit.replaceBackwardCount)
+          ? Math.max(0, edit.replaceBackwardCount)
+          : 0;
+    const deleteForwards =
+      typeof edit.deleteForwards === "number" && Number.isFinite(edit.deleteForwards)
+        ? Math.max(0, edit.deleteForwards)
         : 0;
-    const deleteForwards = Number.isFinite(edit.deleteForwards)
-      ? Math.max(0, edit.deleteForwards)
-      : 0;
     const snapshot: SuggestionSnapshot =
       context.snapshot ?? TextTargetAdapter.snapshot(entry.elem as TextTarget);
     this.syncManualAutoFixSuppression(entry, snapshot);

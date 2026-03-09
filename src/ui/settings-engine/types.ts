@@ -4,6 +4,8 @@ export interface OptionEntry {
   group?: string;
 }
 
+export type OptionTuple = [string, string];
+
 export interface RuleToggleAction {
   actionKey?: string;
   text: string;
@@ -67,7 +69,11 @@ export type SelectConfig = {
   group: string;
   name?: string;
   label?: string;
-  options?: OptionEntry[] | OptionEntry[][] | { groups?: string[]; values: OptionEntry[] };
+  options?:
+    | OptionTuple[]
+    | OptionEntry[]
+    | OptionEntry[][]
+    | { groups?: string[]; values: OptionEntry[] };
   default?: string;
 };
 

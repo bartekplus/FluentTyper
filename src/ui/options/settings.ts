@@ -22,7 +22,11 @@ import {
   OBSERVABILITY_MODULE_IDS,
   isLogLevel,
   type LogLevel,
+  type ObservabilityConfig,
+  type ObservabilityEvent,
+  type ObservabilityModuleState,
   type ObservabilitySnapshot,
+  type ObservabilitySummary,
 } from "@core/domain/observability";
 import {
   KEY_AUTOCOMPLETE,
@@ -1755,22 +1759,16 @@ function restoreObservabilityScrollState(
   });
 }
 
-function countObservabilityRegisteredModules(modules: Array<Record<string, unknown>>) {
+function countObservabilityRegisteredModules(modules: ObservabilityModuleState[]) {
   return modules.filter((moduleState) => Boolean(moduleState.registered)).length;
 }
 
-function countObservabilityOverriddenModules(modules: Array<Record<string, unknown>>) {
+function countObservabilityOverriddenModules(modules: ObservabilityModuleState[]) {
   return modules.filter((moduleState) => Boolean(moduleState.hasOverride)).length;
 }
 
 function matchesObservabilityModuleFilter(
-  moduleState: {
-    moduleId?: string;
-    enabled?: boolean;
-    registered?: boolean;
-    hasOverride?: boolean;
-    sources?: string[];
-  },
+  moduleState: Partial<ObservabilityModuleState>,
   query: string,
   filter: typeof observabilityUIState.moduleFilter,
 ) {
@@ -1799,16 +1797,7 @@ function matchesObservabilityModuleFilter(
 }
 
 function matchesObservabilityEventFilter(
-  event: {
-    moduleId?: string;
-    source?: string;
-    level?: string;
-    message?: string;
-    traceId?: string;
-    requestId?: number;
-    tabId?: number;
-    frameId?: number;
-  },
+  event: Partial<ObservabilityEvent>,
   query: string,
   source: typeof observabilityUIState.eventSource,
   level: typeof observabilityUIState.eventLevel,
@@ -1885,33 +1874,17 @@ function renderObservabilitySnapshot(
   const pageScrollX = window.scrollX;
   const pageScrollY = window.scrollY;
   const scrollState = readObservabilityScrollState(root);
-  const events = Array.isArray(snapshot.events)
-    ? (snapshot.events as Array<Record<string, unknown>>)
-    : [];
-  const modules = Array.isArray(snapshot.modules)
-    ? (snapshot.modules as Array<Record<string, unknown>>)
-    : [];
-  const config =
-    snapshot.config && typeof snapshot.config === "object"
-      ? (snapshot.config as Record<string, unknown>)
-      : {};
-  const summary =
-    snapshot.summary && typeof snapshot.summary === "object"
-      ? (snapshot.summary as Record<string, unknown>)
-      : {};
+  const events = snapshot.events;
+  const modules = snapshot.modules;
+  const config: ObservabilityConfig = snapshot.config;
+  const summary: ObservabilitySummary = snapshot.summary;
   const predictor =
     snapshot.predictor && typeof snapshot.predictor === "object"
       ? (snapshot.predictor as Record<string, unknown>)
       : null;
   const filteredModules = modules.filter((moduleStateRecord) =>
     matchesObservabilityModuleFilter(
-      moduleStateRecord as {
-        moduleId?: string;
-        enabled?: boolean;
-        registered?: boolean;
-        hasOverride?: boolean;
-        sources?: string[];
-      },
+      moduleStateRecord,
       observabilityUIState.moduleQuery,
       observabilityUIState.moduleFilter,
     ),
@@ -1919,16 +1892,7 @@ function renderObservabilitySnapshot(
   const filteredEvents = events
     .filter((eventRecord) =>
       matchesObservabilityEventFilter(
-        eventRecord as {
-          moduleId?: string;
-          source?: string;
-          level?: string;
-          message?: string;
-          traceId?: string;
-          requestId?: number;
-          tabId?: number;
-          frameId?: number;
-        },
+        eventRecord,
         observabilityUIState.eventQuery,
         observabilityUIState.eventSource,
         observabilityUIState.eventLevel,
