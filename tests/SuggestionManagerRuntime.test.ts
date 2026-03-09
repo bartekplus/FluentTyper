@@ -338,6 +338,46 @@ describe("SuggestionManagerRuntime", () => {
       expect(getManualAttachButton(input.parentElement ?? document)).not.toBeNull();
     });
 
+    test("shows a manual attach icon for contenteditable combobox conflicts inside composite editors", () => {
+      const runtime = makeRuntime();
+      const shell = document.createElement("div");
+      const leftActions = document.createElement("div");
+      const editorShell = document.createElement("div");
+      const editable = document.createElement("div");
+      const placeholder = document.createElement("div");
+      const rightActions = document.createElement("div");
+      const list = document.createElement("div");
+      list.id = "editable-list";
+      list.setAttribute("role", "listbox");
+      editable.setAttribute("contenteditable", "true");
+      Object.defineProperty(editable, "isContentEditable", {
+        configurable: true,
+        value: true,
+      });
+      editable.tabIndex = 0;
+      editable.setAttribute("role", "combobox");
+      editable.setAttribute("aria-expanded", "true");
+      editable.setAttribute("aria-controls", "editable-list");
+      placeholder.setAttribute("aria-hidden", "true");
+      editorShell.append(editable, placeholder);
+      shell.append(leftActions, editorShell, rightActions);
+      document.body.append(shell, list);
+      mockRect(shell, { left: 10, top: 20, width: 360, height: 52 });
+      mockRect(editorShell, { left: 86, top: 24, width: 190, height: 40 });
+      mockRect(editable, { left: 94, top: 30, width: 150, height: 28 });
+
+      runtime.queryAndAttachHelper();
+
+      expect(editable.hasAttribute("data-suggestion")).toBe(false);
+      expect(getManualAttachButton(leftActions)).toBeNull();
+      expect(getManualAttachButton(rightActions)).toBeNull();
+      const container = getManualAttachContainer(editorShell);
+      expect(container).not.toBeNull();
+      expect(container?.style.left).toBe("132px");
+      expect(container?.style.top).toBe("14px");
+      expect(editable.style.paddingRight).not.toBe("");
+    });
+
     test("positions the manual attach icon on inline-end for rtl inputs", () => {
       const runtime = makeRuntime();
       const parent = document.createElement("div");
@@ -466,6 +506,41 @@ describe("SuggestionManagerRuntime", () => {
 
         jest.advanceTimersByTime(700);
         expect(getManualAttachButton(input.parentElement ?? document)).toBeNull();
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    test("clicking the manual attach icon force-attaches a contenteditable combobox conflict", () => {
+      jest.useFakeTimers();
+      try {
+        const runtime = makeRuntime();
+        const editable = document.createElement("div");
+        const list = document.createElement("div");
+        editable.setAttribute("contenteditable", "true");
+        Object.defineProperty(editable, "isContentEditable", {
+          configurable: true,
+          value: true,
+        });
+        editable.tabIndex = 0;
+        editable.setAttribute("role", "combobox");
+        editable.setAttribute("aria-expanded", "true");
+        editable.setAttribute("aria-controls", "editable-list");
+        list.id = "editable-list";
+        list.setAttribute("role", "listbox");
+        document.body.append(editable, list);
+
+        runtime.queryAndAttachHelper();
+        const button = getManualAttachButton(editable.parentElement ?? document);
+        expect(button).not.toBeNull();
+
+        clickManualAttachButton(button as HTMLButtonElement);
+
+        expect(editable.getAttribute("data-suggestion")).toBe("true");
+        expect(document.activeElement).toBe(editable);
+
+        jest.advanceTimersByTime(700);
+        expect(getManualAttachButton(editable.parentElement ?? document)).toBeNull();
       } finally {
         jest.useRealTimers();
       }

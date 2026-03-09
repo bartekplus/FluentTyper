@@ -26,6 +26,9 @@ export class NativeAutocompleteConflictDetector {
     if (this.hasInputList(elem)) {
       return true;
     }
+    if (this.hasComboboxRole(elem)) {
+      return true;
+    }
     if (this.hasTextControlAriaConflict(elem)) {
       return true;
     }
@@ -42,12 +45,13 @@ export class NativeAutocompleteConflictDetector {
     return TextTargetAdapter.isInput(elem) && elem.hasAttribute("list");
   }
 
+  private hasComboboxRole(elem: SuggestionElement): boolean {
+    return elem.getAttribute("role") === "combobox";
+  }
+
   private hasTextControlAriaConflict(elem: SuggestionElement): boolean {
     if (!TextTargetAdapter.isTextValue(elem)) {
       return false;
-    }
-    if (elem.getAttribute("role") === "combobox") {
-      return true;
     }
     const ariaAutocomplete = elem.getAttribute("aria-autocomplete");
     return ariaAutocomplete === "list" || ariaAutocomplete === "both";

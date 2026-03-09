@@ -8,7 +8,7 @@ const SUCCESS_STATE_MS = 650;
 export const MANUAL_ATTACH_BUTTON_CLASS = "ft-manual-attach-button";
 export const MANUAL_ATTACH_TOOLTIP = "Click to enable FluentTyper for this field.";
 
-export type ManualAttachTarget = HTMLInputElement | HTMLTextAreaElement;
+export type ManualAttachTarget = HTMLInputElement | HTMLTextAreaElement | HTMLElement;
 
 interface ParentPositionState {
   count: number;
@@ -274,17 +274,17 @@ export class ManualAttachUiManager {
   private updatePlacement(element: ManualAttachTarget, handle: ManualAttachUiHandle): void {
     const elementRect = element.getBoundingClientRect();
     const isTextarea = element.tagName.toLowerCase() === "textarea";
+    const isContentEditableTarget = !isTextarea && element.isContentEditable;
     const isRtl = element.ownerDocument.defaultView?.getComputedStyle(element).direction === "rtl";
-    const offsetTop = isTextarea
-      ? FIELD_INSET_PX
-      : Math.max(0, (elementRect.height - BUTTON_SIZE_PX) / 2);
+    const offsetTop = this.resolveOffsetTop(elementRect.height, {
+      prefersTopInset: isTextarea || isContentEditableTarget,
+    });
     if (handle.usesViewportPositioning) {
-      const left = Math.max(
-        0,
-        isRtl
-          ? elementRect.left + FIELD_INSET_PX
-          : elementRect.left + elementRect.width - BUTTON_SIZE_PX - FIELD_INSET_PX,
-      );
+      const left = this.resolveInlineOffset({
+        rectStart: elementRect.left,
+        rectSize: elementRect.width,
+        isRtl,
+      });
       const top = Math.max(0, elementRect.top + offsetTop);
       handle.container.style.left = `${Math.round(left)}px`;
       handle.container.style.top = `${Math.round(top)}px`;
@@ -292,20 +292,48 @@ export class ManualAttachUiManager {
     }
 
     const parentRect = handle.positioningParent?.getBoundingClientRect();
-    const left = Math.max(
-      0,
-      isRtl
-        ? elementRect.left - (parentRect?.left ?? 0) + FIELD_INSET_PX
-        : elementRect.left -
-            (parentRect?.left ?? 0) +
-            elementRect.width -
-            BUTTON_SIZE_PX -
-            FIELD_INSET_PX,
-    );
+    const left = this.resolveInlineOffset({
+      rectStart: elementRect.left - (parentRect?.left ?? 0),
+      rectSize: elementRect.width,
+      isRtl,
+    });
     const top = Math.max(0, elementRect.top - (parentRect?.top ?? 0) + offsetTop);
 
     handle.container.style.left = `${Math.round(left)}px`;
     handle.container.style.top = `${Math.round(top)}px`;
+  }
+
+  private resolveInlineOffset(options: {
+    rectStart: number;
+    rectSize: number;
+    isRtl: boolean;
+  }): number {
+    const minOffset = options.rectStart;
+    const maxOffset = options.rectStart + Math.max(0, options.rectSize - BUTTON_SIZE_PX);
+    const desired = options.isRtl
+      ? options.rectStart + FIELD_INSET_PX
+      : options.rectStart + options.rectSize - BUTTON_SIZE_PX - FIELD_INSET_PX;
+    return this.clampToRange(desired, minOffset, maxOffset);
+  }
+
+  private resolveOffsetTop(
+    height: number,
+    options: {
+      prefersTopInset: boolean;
+    },
+  ): number {
+    const maxOffset = Math.max(0, height - BUTTON_SIZE_PX);
+    const desired = options.prefersTopInset
+      ? FIELD_INSET_PX
+      : Math.max(0, (height - BUTTON_SIZE_PX) / 2);
+    return this.clampToRange(desired, 0, maxOffset);
+  }
+
+  private clampToRange(value: number, min: number, max: number): number {
+    if (max <= min) {
+      return min;
+    }
+    return Math.min(Math.max(value, min), max);
   }
 
   private resolveMountTarget(element: ManualAttachTarget): ManualAttachMountTarget {

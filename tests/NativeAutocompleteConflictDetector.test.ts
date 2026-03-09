@@ -47,6 +47,14 @@ describe("NativeAutocompleteConflictDetector", () => {
     expect(detector.isNativeAutocompletePreferred(editor)).toBe(false);
   });
 
+  test("blocks explicit contenteditable combobox editors", () => {
+    const editor = document.createElement("div");
+    editor.contentEditable = "true";
+    editor.setAttribute("role", "combobox");
+
+    expect(detector.isNativeAutocompletePreferred(editor)).toBe(true);
+  });
+
   test("blocks expanded controls wired to a popup listbox", () => {
     const input = document.createElement("input");
     input.type = "text";
