@@ -442,6 +442,40 @@ describe("SuggestionManager", () => {
     expect(document.querySelector(".ft-suggestion-inline")).toBeNull();
   });
 
+  test("dispatches input predictions within the reduced runtime debounce budget", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+    });
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = "he";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    document.body.appendChild(input);
+    manager.queryAndAttachHelper();
+
+    jest.useFakeTimers();
+    try {
+      dispatchInput(input, { inputType: "insertText" });
+
+      jest.advanceTimersByTime(19);
+      expect(getPrediction).toHaveBeenCalledTimes(0);
+
+      jest.advanceTimersByTime(1);
+      expect(getPrediction).toHaveBeenCalledTimes(1);
+      expect(getPrediction).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          text: "he",
+          requestId: 1,
+          traceId: expect.any(String),
+          traceStartedAtMs: expect.any(Number),
+        }),
+      );
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   test("clears inline suggestion on blur", async () => {
     const { manager, getPrediction } = await createManager({ inline_suggestion: true });
     const input = document.createElement("input");
