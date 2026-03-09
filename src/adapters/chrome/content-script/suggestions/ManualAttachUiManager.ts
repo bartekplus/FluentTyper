@@ -274,13 +274,16 @@ export class ManualAttachUiManager {
   private updatePlacement(element: ManualAttachTarget, handle: ManualAttachUiHandle): void {
     const elementRect = element.getBoundingClientRect();
     const isTextarea = element.tagName.toLowerCase() === "textarea";
+    const isRtl = element.ownerDocument.defaultView?.getComputedStyle(element).direction === "rtl";
     const offsetTop = isTextarea
       ? FIELD_INSET_PX
       : Math.max(0, (elementRect.height - BUTTON_SIZE_PX) / 2);
     if (handle.usesViewportPositioning) {
       const left = Math.max(
         0,
-        elementRect.left + elementRect.width - BUTTON_SIZE_PX - FIELD_INSET_PX,
+        isRtl
+          ? elementRect.left + FIELD_INSET_PX
+          : elementRect.left + elementRect.width - BUTTON_SIZE_PX - FIELD_INSET_PX,
       );
       const top = Math.max(0, elementRect.top + offsetTop);
       handle.container.style.left = `${Math.round(left)}px`;
@@ -291,11 +294,13 @@ export class ManualAttachUiManager {
     const parentRect = handle.positioningParent?.getBoundingClientRect();
     const left = Math.max(
       0,
-      elementRect.left -
-        (parentRect?.left ?? 0) +
-        elementRect.width -
-        BUTTON_SIZE_PX -
-        FIELD_INSET_PX,
+      isRtl
+        ? elementRect.left - (parentRect?.left ?? 0) + FIELD_INSET_PX
+        : elementRect.left -
+            (parentRect?.left ?? 0) +
+            elementRect.width -
+            BUTTON_SIZE_PX -
+            FIELD_INSET_PX,
     );
     const top = Math.max(0, elementRect.top - (parentRect?.top ?? 0) + offsetTop);
 

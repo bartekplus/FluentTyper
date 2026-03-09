@@ -5,9 +5,34 @@ function getManualAttachButton(root: ParentNode = document): HTMLButtonElement |
   return root.querySelector(".ft-manual-attach-button");
 }
 
+function getManualAttachContainer(root: ParentNode = document): HTMLDivElement | null {
+  return root.querySelector(".ft-manual-attach");
+}
+
 function clickManualAttachButton(button: HTMLButtonElement): void {
   button.dispatchEvent(new window.MouseEvent("mousedown", { bubbles: true, cancelable: true }));
   button.dispatchEvent(new window.MouseEvent("click", { bubbles: true, cancelable: true }));
+}
+
+function mockRect(
+  element: Element,
+  rect: Pick<DOMRect, "left" | "top" | "width" | "height">,
+): void {
+  Object.defineProperty(element, "getBoundingClientRect", {
+    configurable: true,
+    value: () =>
+      ({
+        x: rect.left,
+        y: rect.top,
+        left: rect.left,
+        top: rect.top,
+        width: rect.width,
+        height: rect.height,
+        right: rect.left + rect.width,
+        bottom: rect.top + rect.height,
+        toJSON: () => ({}),
+      }) satisfies DOMRect,
+  });
 }
 
 describe("SuggestionManagerRuntime", () => {
@@ -215,6 +240,56 @@ describe("SuggestionManagerRuntime", () => {
       expect(button).not.toBeNull();
       expect(button?.title).toBe("Click to enable FluentTyper for this field.");
       expect(input.style.paddingRight).not.toBe("");
+    });
+
+    test("positions the manual attach icon on inline-end for rtl inputs", () => {
+      const runtime = makeRuntime();
+      const parent = document.createElement("div");
+      const list = document.createElement("datalist");
+      list.id = "cities";
+      const input = document.createElement("input");
+      input.type = "text";
+      input.dir = "rtl";
+      input.setAttribute("list", "cities");
+      parent.append(input);
+      document.body.append(list, parent);
+      mockRect(parent, { left: 10, top: 20, width: 220, height: 80 });
+      mockRect(input, { left: 30, top: 40, width: 100, height: 50 });
+
+      runtime.queryAndAttachHelper();
+
+      const container = getManualAttachContainer(parent);
+      expect(container).not.toBeNull();
+      expect(container?.style.left).toBe("28px");
+      expect(container?.style.top).toBe("36px");
+      expect(input.style.paddingLeft).not.toBe("");
+      expect(input.style.paddingRight).toBe("");
+    });
+
+    test("positions the manual attach icon on inline-end for rtl textareas", () => {
+      const runtime = makeRuntime("textarea");
+      const parent = document.createElement("div");
+      const list = document.createElement("div");
+      list.id = "cities";
+      list.setAttribute("role", "listbox");
+      const textarea = document.createElement("textarea");
+      textarea.dir = "rtl";
+      textarea.setAttribute("role", "combobox");
+      textarea.setAttribute("aria-expanded", "true");
+      textarea.setAttribute("aria-controls", "cities");
+      parent.append(textarea);
+      document.body.append(list, parent);
+      mockRect(parent, { left: 12, top: 18, width: 260, height: 160 });
+      mockRect(textarea, { left: 32, top: 44, width: 120, height: 80 });
+
+      runtime.queryAndAttachHelper();
+
+      const container = getManualAttachContainer(parent);
+      expect(container).not.toBeNull();
+      expect(container?.style.left).toBe("28px");
+      expect(container?.style.top).toBe("34px");
+      expect(textarea.style.paddingLeft).not.toBe("");
+      expect(textarea.style.paddingRight).toBe("");
     });
 
     test("clicking the manual attach icon force-attaches and restores focus", () => {
