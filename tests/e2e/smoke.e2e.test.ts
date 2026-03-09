@@ -760,6 +760,65 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "onboarding playground manual attach icon enables the native autocomplete field",
+    async () => {
+      const installationPage = await openExtensionPage(
+        browser,
+        worker,
+        "new_installation/index.html",
+      );
+      try {
+        await installationPage.waitForSelector("#try-me-textarea", {
+          timeout: suiteTimeout(3000, 7000),
+        });
+        await installationPage.waitForSelector("#try-native-list-input", {
+          timeout: suiteTimeout(3000, 7000),
+        });
+
+        await installationPage.waitForFunction(
+          () =>
+            document
+              .querySelector("#try-native-list-input")
+              ?.parentElement?.querySelector(".ft-manual-attach-button") instanceof
+            HTMLButtonElement,
+          { timeout: suiteTimeout(3000, 7000) },
+        );
+
+        const initialState = await installationPage.evaluate(() => ({
+          standardAttached:
+            document.querySelector("#try-me-textarea")?.hasAttribute("data-suggestion") ?? false,
+          nativeAttached:
+            document.querySelector("#try-native-list-input")?.hasAttribute("data-suggestion") ??
+            false,
+        }));
+        expect(initialState.standardAttached).toBe(true);
+        expect(initialState.nativeAttached).toBe(false);
+
+        await installationPage.evaluate(() => {
+          const button = document
+            .querySelector("#try-native-list-input")
+            ?.parentElement?.querySelector(".ft-manual-attach-button") as HTMLButtonElement | null;
+          button?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+          button?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+        });
+
+        await installationPage.waitForFunction(
+          () => {
+            const field = document.querySelector("#try-native-list-input");
+            return field?.hasAttribute("data-suggestion") && document.activeElement === field;
+          },
+          { timeout: suiteTimeout(3000, 7000) },
+        );
+      } finally {
+        if (!installationPage.isClosed()) {
+          await installationPage.close();
+        }
+      }
+    },
+    suiteTimeout(8000, 14000),
+  );
+
+  test(
     "popup page loads",
     async () => {
       const popupPage = await openPopupPage(browser, worker);
@@ -1308,6 +1367,45 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       expect(results.semanticEmail).toBe(false);
       expect(results.combobox).toBe(false);
       expect(results.normalText).toBe(true);
+    },
+    suiteTimeout(10000, 15000),
+  );
+
+  test(
+    "manual attach icon force-enables FluentTyper for a conflicting field",
+    async () => {
+      page = await prepareReusableTestPage(browser, page);
+
+      await page.waitForFunction(
+        () =>
+          document
+            .querySelector("#test-native-list")
+            ?.parentElement?.querySelector(".ft-manual-attach-button") instanceof HTMLButtonElement,
+        { timeout: timeoutProfile.inputReadyMs },
+      );
+
+      await page.evaluate(() => {
+        const button = document
+          .querySelector("#test-native-list")
+          ?.parentElement?.querySelector(".ft-manual-attach-button") as HTMLButtonElement | null;
+        button?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+        button?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+      });
+
+      await waitUntil(
+        "native list input to gain data-suggestion after manual attach",
+        async () => {
+          return await page.$eval(
+            "#test-native-list",
+            (el) => el.hasAttribute("data-suggestion") && document.activeElement === el,
+          );
+        },
+        { timeoutMs: suiteTimeout(3000, 6000), intervalMs: 50 },
+      );
+
+      await typeInInput(page, "#test-native-list", "th");
+      const suggestions = await waitForSuggestionTexts(page);
+      expect(suggestions.length).toBeGreaterThan(0);
     },
     suiteTimeout(10000, 15000),
   );

@@ -228,6 +228,58 @@
         gap: 0.75rem;
       }
 
+      .playground-grid {
+        display: grid;
+        gap: 1rem;
+      }
+
+      .playground-field {
+        display: grid;
+        gap: 0.55rem;
+      }
+
+      .playground-label {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--onboarding-ink);
+      }
+
+      .playground-badge {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 0.22rem 0.55rem;
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .playground-badge.is-active {
+        color: #0369a1;
+        background: rgba(14, 165, 233, 0.12);
+      }
+
+      .playground-badge.is-native {
+        color: #9a3412;
+        background: rgba(249, 115, 22, 0.12);
+      }
+
+      .playground-task {
+        padding: 0.9rem 1rem;
+        border-radius: 1rem;
+        border: 1px solid rgba(14, 165, 233, 0.18);
+        background: linear-gradient(135deg, rgba(240, 249, 255, 0.96), rgba(248, 250, 252, 0.98));
+      }
+
+      .playground-task strong {
+        color: #075985;
+      }
+
       .practice-step {
         display: grid;
         grid-template-columns: auto 1fr;
@@ -486,8 +538,9 @@
                 <div class="activation-next" aria-label="Next action">
                   <strong>Next action:</strong>
                   <p class="panel-copy">
-                    Type <code>Helo </code> or <code>I can't wiat </code> in the practice box, then
-                    press <kbd>Tab</kbd> when the suggestion appears.
+                    Type <code>Helo </code> or <code>I can't wiat </code> in the standard field, or
+                    click the faded corner icon in the native-autocomplete field to enable
+                    FluentTyper there too.
                   </p>
                 </div>
 
@@ -501,11 +554,11 @@
                 <div class="practice-header">
                   <span class="eyebrow">Use it now</span>
                   <h2 id="practice-title" class="practice-title">
-                    Practice without leaving this page
+                    Practice the attach flow without leaving this page
                   </h2>
                   <p class="practice-copy">
-                    The setup path is fully self-contained here: grant access, try a typo, and see
-                    how FluentTyper responds before you open anything else.
+                    FluentTyper stays out of your way when websites have their own autocomplete.
+                    Need our predictions anyway? Just click the corner icon.
                   </p>
                 </div>
 
@@ -518,24 +571,58 @@
                     <span class="practice-step-number">2</span>
                     <p>
                       <strong>Type</strong> <code>Helo </code> or <code>I can't wiat </code> in the
-                      box below.
+                      standard field below.
                     </p>
                   </div>
                   <div class="practice-step">
                     <span class="practice-step-number">3</span>
                     <p>
-                      Use <kbd>&uarr;</kbd> and <kbd>&darr;</kbd> to browse suggestions, press
-                      <kbd>Tab</kbd> to accept, and <kbd>Esc</kbd> to hide them.
+                      <strong>Try enabling FluentTyper</strong> on the native autocomplete field by
+                      clicking the faded icon in its corner.
                     </p>
                   </div>
                 </div>
 
-                <textarea
-                  id="try-me-textarea"
-                  rows="6"
-                  class="textarea is-medium"
-                  placeholder="Try: Helo or I can't wiat"
-                ></textarea>
+                <div class="playground-task">
+                  <p class="practice-copy">
+                    <strong>Playground task:</strong> Use the first field normally, then click the
+                    corner icon in the second field and start typing right away.
+                  </p>
+                </div>
+
+                <div class="playground-grid" aria-label="Manual attach playground">
+                  <div class="playground-field">
+                    <div class="playground-label">
+                      <label for="try-me-textarea">Standard input</label>
+                      <span class="playground-badge is-active">FluentTyper active</span>
+                    </div>
+                    <textarea
+                      id="try-me-textarea"
+                      rows="5"
+                      class="textarea is-medium"
+                      placeholder="Try: Helo or I can't wiat"
+                    ></textarea>
+                  </div>
+
+                  <div class="playground-field">
+                    <div class="playground-label">
+                      <label for="try-native-list-input">Native autocomplete field</label>
+                      <span class="playground-badge is-native">Backs off by default</span>
+                    </div>
+                    <input
+                      id="try-native-list-input"
+                      class="input is-medium"
+                      type="text"
+                      list="try-native-options"
+                      placeholder="Click the icon, then type your city"
+                    />
+                    <datalist id="try-native-options">
+                      <option value="Warsaw"></option>
+                      <option value="Berlin"></option>
+                      <option value="Barcelona"></option>
+                    </datalist>
+                  </div>
+                </div>
 
                 <div class="shortcut-list" aria-label="Editing tips">
                   <span class="shortcut-chip"

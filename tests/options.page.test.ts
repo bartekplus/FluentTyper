@@ -45,6 +45,7 @@ describe("options page scripts", () => {
     const firstMainSection = document.querySelector("main > section");
     const permissionButton = document.getElementById("grant-permissions-btn");
     const practiceTextarea = document.getElementById("try-me-textarea");
+    const nativeAttachInput = document.getElementById("try-native-list-input");
     const demoSection = document.getElementById("demo");
     const supportSection = document.getElementById("support");
 
@@ -57,8 +58,16 @@ describe("options page scripts", () => {
 
     expect(permissionButton).not.toBeNull();
     expect(practiceTextarea).not.toBeNull();
+    expect(nativeAttachInput).not.toBeNull();
     expect(demoSection).not.toBeNull();
     expect(supportSection).not.toBeNull();
+
+    expect(firstMainSection?.textContent).toContain(
+      "Need our predictions anyway? Just click the corner icon.",
+    );
+    expect(firstMainSection?.textContent).toContain(
+      "Try enabling FluentTyper on the native autocomplete field",
+    );
 
     expect(permissionButton!.compareDocumentPosition(demoSection!)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,

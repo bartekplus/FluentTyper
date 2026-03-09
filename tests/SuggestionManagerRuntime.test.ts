@@ -1,12 +1,22 @@
 import { beforeEach, describe, expect, jest, test } from "bun:test";
 import { SuggestionManagerRuntime } from "../src/adapters/chrome/content-script/suggestions/SuggestionManagerRuntime";
 
+function getManualAttachButton(root: ParentNode = document): HTMLButtonElement | null {
+  return root.querySelector(".ft-manual-attach-button");
+}
+
+function clickManualAttachButton(button: HTMLButtonElement): void {
+  button.dispatchEvent(new window.MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+  button.dispatchEvent(new window.MouseEvent("click", { bubbles: true, cancelable: true }));
+}
+
 describe("SuggestionManagerRuntime", () => {
   beforeEach(() => {
     document.body.innerHTML = "";
     (globalThis as unknown as { chrome: unknown }).chrome = {
       runtime: {
         sendMessage: jest.fn(),
+        getURL: jest.fn((path: string) => `chrome-extension://test/${path}`),
         lastError: undefined,
       },
     };
@@ -189,7 +199,7 @@ describe("SuggestionManagerRuntime", () => {
   });
 
   describe("native autocomplete conflict handling", () => {
-    test("does not attach to fields with datalist when preferNativeAutocomplete is enabled", () => {
+    test("shows a manual attach icon for datalist conflicts when preferNativeAutocomplete is enabled", () => {
       const runtime = makeRuntime();
       const list = document.createElement("datalist");
       list.id = "cities";
@@ -201,9 +211,41 @@ describe("SuggestionManagerRuntime", () => {
       runtime.queryAndAttachHelper();
 
       expect(input.hasAttribute("data-suggestion")).toBe(false);
+      const button = getManualAttachButton(input.parentElement ?? document);
+      expect(button).not.toBeNull();
+      expect(button?.title).toBe("Click to enable FluentTyper for this field.");
+      expect(input.style.paddingRight).not.toBe("");
     });
 
-    test("detaches helper when input gains native autocomplete conflict attributes", () => {
+    test("clicking the manual attach icon force-attaches and restores focus", () => {
+      jest.useFakeTimers();
+      try {
+        const runtime = makeRuntime();
+        const list = document.createElement("datalist");
+        list.id = "cities";
+        const input = document.createElement("input");
+        input.type = "text";
+        input.setAttribute("list", "cities");
+        document.body.append(list, input);
+
+        runtime.queryAndAttachHelper();
+        const button = getManualAttachButton(input.parentElement ?? document);
+        expect(button).not.toBeNull();
+
+        button?.focus();
+        clickManualAttachButton(button as HTMLButtonElement);
+
+        expect(input.getAttribute("data-suggestion")).toBe("true");
+        expect(document.activeElement).toBe(input);
+
+        jest.advanceTimersByTime(700);
+        expect(getManualAttachButton(input.parentElement ?? document)).toBeNull();
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    test("detaches helper and replaces it with the manual attach icon when input gains native conflict attributes", () => {
       const runtime = makeRuntime();
       const list = document.createElement("datalist");
       list.id = "cities";
@@ -218,9 +260,10 @@ describe("SuggestionManagerRuntime", () => {
       runtime.removeHelpersNotInDocument();
 
       expect(input.hasAttribute("data-suggestion")).toBe(false);
+      expect(getManualAttachButton(input.parentElement ?? document)).not.toBeNull();
     });
 
-    test("reattaches helper after native autocomplete conflict is removed", () => {
+    test("reattaches helper after native autocomplete conflict is removed and clears the icon", () => {
       const runtime = makeRuntime();
       const list = document.createElement("datalist");
       list.id = "cities";
@@ -231,11 +274,13 @@ describe("SuggestionManagerRuntime", () => {
 
       runtime.queryAndAttachHelper();
       expect(input.hasAttribute("data-suggestion")).toBe(false);
+      expect(getManualAttachButton(input.parentElement ?? document)).not.toBeNull();
 
       input.removeAttribute("list");
       runtime.queryAndAttachHelper();
 
       expect(input.getAttribute("data-suggestion")).toBe("true");
+      expect(getManualAttachButton(input.parentElement ?? document)).toBeNull();
     });
 
     test("attaches to conflicting fields when preferNativeAutocomplete is disabled", () => {
@@ -265,6 +310,44 @@ describe("SuggestionManagerRuntime", () => {
       runtime.queryAndAttachHelper();
 
       expect(input.getAttribute("data-suggestion")).toBe("true");
+      expect(getManualAttachButton(input.parentElement ?? document)).toBeNull();
+    });
+
+    test("does not show manual attach icon for contenteditable conflict candidates", () => {
+      const runtime = makeRuntime();
+      const editable = document.createElement("div");
+      editable.contentEditable = "true";
+      editable.setAttribute("role", "combobox");
+      editable.setAttribute("aria-expanded", "true");
+      editable.setAttribute("aria-controls", "editable-list");
+      const list = document.createElement("div");
+      list.id = "editable-list";
+      list.setAttribute("role", "listbox");
+      document.body.append(editable, list);
+
+      runtime.queryAndAttachHelper();
+
+      expect(editable.hasAttribute("data-suggestion")).toBe(false);
+      expect(getManualAttachButton(document)).toBeNull();
+    });
+
+    test("removes the manual attach icon when a conflicting field becomes readonly", () => {
+      const runtime = makeRuntime();
+      const list = document.createElement("datalist");
+      list.id = "cities";
+      const input = document.createElement("input");
+      input.type = "text";
+      input.setAttribute("list", "cities");
+      document.body.append(list, input);
+
+      runtime.queryAndAttachHelper();
+      expect(getManualAttachButton(input.parentElement ?? document)).not.toBeNull();
+
+      input.readOnly = true;
+      runtime.removeHelpersNotInDocument();
+
+      expect(getManualAttachButton(input.parentElement ?? document)).toBeNull();
+      expect(input.style.paddingRight).toBe("");
     });
   });
 
@@ -338,6 +421,27 @@ describe("SuggestionManagerRuntime", () => {
       host.remove();
       runtime.removeHelpersNotInDocument();
       expect(shadowInput.hasAttribute("data-suggestion")).toBe(false);
+    });
+
+    test("removes the manual attach icon when a shadow-hosted conflicting field is removed", () => {
+      const runtime = makeRuntime();
+      const host = document.createElement("div");
+      document.body.appendChild(host);
+      const shadow = host.attachShadow({ mode: "open" });
+      const list = document.createElement("datalist");
+      list.id = "cities";
+      const shadowInput = document.createElement("input");
+      shadowInput.type = "text";
+      shadowInput.setAttribute("list", "cities");
+      shadow.append(list, shadowInput);
+
+      runtime.queryAndAttachHelper();
+      expect(getManualAttachButton(host)).not.toBeNull();
+
+      host.remove();
+      runtime.removeHelpersNotInDocument();
+
+      expect(getManualAttachButton(host)).toBeNull();
     });
   });
 });
