@@ -55,6 +55,7 @@ function popupMarkup(initialAccepted = "0"): string {
     <select id="siteLanguageSelect"></select>
     <select id="siteNumSuggestionsSelect"></select>
     <select id="siteInlineModeSelect"></select>
+    <select id="sitePreferNativeAutocompleteSelect"></select>
     <div id="domainSectionWrapper"></div>
     <section id="siteProfileSection"></section>
     <small id="siteProfileStatus"></small>

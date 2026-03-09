@@ -4,6 +4,7 @@ export interface SiteProfile {
   language: string;
   numSuggestions?: number;
   inline_suggestion?: boolean;
+  preferNativeAutocomplete?: boolean;
 }
 
 export type SiteProfiles = Record<string, SiteProfile>;
@@ -76,6 +77,9 @@ export function sanitizeSiteProfile(
   }
   if (typeof profile.inline_suggestion === "boolean") {
     siteProfile.inline_suggestion = profile.inline_suggestion;
+  }
+  if (typeof profile.preferNativeAutocomplete === "boolean") {
+    siteProfile.preferNativeAutocomplete = profile.preferNativeAutocomplete;
   }
   return siteProfile;
 }

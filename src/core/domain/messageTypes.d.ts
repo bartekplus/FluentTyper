@@ -14,6 +14,7 @@ export interface SetConfigContext {
   lang: string;
   minWordLengthToPredict: number;
   inline_suggestion: boolean;
+  preferNativeAutocomplete: boolean;
   enabled: boolean;
   displayLangHeader: boolean;
   enabledGrammarRules: string[];

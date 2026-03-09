@@ -99,6 +99,10 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
     return this.getBooleanField("inlineSuggestion");
   }
 
+  async getPreferNativeAutocomplete(): Promise<boolean> {
+    return this.getBooleanField("preferNativeAutocomplete", true);
+  }
+
   async getDomainListMode(): Promise<DomainListMode> {
     const mode = await this.getField("domainListMode");
     return mode === "whiteList" ? "whiteList" : DEFAULT_DOMAIN_LIST_MODE;

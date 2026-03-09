@@ -130,6 +130,32 @@
         <input type="url" id="test-url" />
       </div>
       <div class="input-group">
+        <label for="test-native-list">Datalist Input</label>
+        <input type="text" id="test-native-list" list="test-native-options" />
+        <datalist id="test-native-options">
+          <option value="Warsaw"></option>
+          <option value="Berlin"></option>
+        </datalist>
+      </div>
+      <div class="input-group">
+        <label for="test-semantic-email">Semantic Autocomplete Input</label>
+        <input type="text" id="test-semantic-email" autocomplete="email" />
+      </div>
+      <div class="input-group">
+        <label for="test-combobox">ARIA Combobox Input</label>
+        <input
+          type="text"
+          id="test-combobox"
+          role="combobox"
+          aria-expanded="true"
+          aria-controls="test-combobox-list"
+        />
+        <div id="test-combobox-list" role="listbox">
+          <div role="option">Alpha</div>
+          <div role="option">Beta</div>
+        </div>
+      </div>
+      <div class="input-group">
         <label for="test-tel">Tel Input</label>
         <input type="tel" id="test-tel" />
       </div>

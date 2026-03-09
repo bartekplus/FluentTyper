@@ -18,8 +18,7 @@ describe("SuggestionElementDiscovery", () => {
 
     const discovery = new SuggestionElementDiscovery({
       selectors: "input",
-      isStructurallyEligibleElement: (elem: HTMLElement): elem is SuggestionElement =>
-        elem.tagName === "INPUT",
+      isEligibleElement: (elem: HTMLElement): elem is SuggestionElement => elem.tagName === "INPUT",
     });
 
     const candidates = discovery.queryCandidates();
@@ -33,8 +32,7 @@ describe("SuggestionElementDiscovery", () => {
 
     const discovery = new SuggestionElementDiscovery({
       selectors: "input",
-      isStructurallyEligibleElement: (elem: HTMLElement): elem is SuggestionElement =>
-        elem.tagName === "INPUT",
+      isEligibleElement: (elem: HTMLElement): elem is SuggestionElement => elem.tagName === "INPUT",
     });
 
     const candidates = discovery.queryCandidates(rootInput);
@@ -56,8 +54,7 @@ describe("SuggestionElementDiscovery", () => {
 
     const discovery = new SuggestionElementDiscovery({
       selectors: "input",
-      isStructurallyEligibleElement: (elem: HTMLElement): elem is SuggestionElement =>
-        elem.tagName === "INPUT",
+      isEligibleElement: (elem: HTMLElement): elem is SuggestionElement => elem.tagName === "INPUT",
     });
 
     const candidates = discovery.queryCandidates();
@@ -77,8 +74,7 @@ describe("SuggestionElementDiscovery", () => {
     const discovered: ShadowRoot[] = [];
     const discovery = new SuggestionElementDiscovery({
       selectors: "input",
-      isStructurallyEligibleElement: (elem: HTMLElement): elem is SuggestionElement =>
-        elem.tagName === "INPUT",
+      isEligibleElement: (elem: HTMLElement): elem is SuggestionElement => elem.tagName === "INPUT",
       onShadowRootDiscovered: (root) => discovered.push(root),
     });
 
@@ -98,8 +94,7 @@ describe("SuggestionElementDiscovery", () => {
 
     const discovery = new SuggestionElementDiscovery({
       selectors: "input",
-      isStructurallyEligibleElement: (elem: HTMLElement): elem is SuggestionElement =>
-        elem.tagName === "INPUT",
+      isEligibleElement: (elem: HTMLElement): elem is SuggestionElement => elem.tagName === "INPUT",
     });
 
     const candidates = discovery.queryCandidates(host);
@@ -122,8 +117,7 @@ describe("SuggestionElementDiscovery", () => {
     const discovered: ShadowRoot[] = [];
     const discovery = new SuggestionElementDiscovery({
       selectors: "input",
-      isStructurallyEligibleElement: (elem: HTMLElement): elem is SuggestionElement =>
-        elem.tagName === "INPUT",
+      isEligibleElement: (elem: HTMLElement): elem is SuggestionElement => elem.tagName === "INPUT",
       onShadowRootDiscovered: (root) => discovered.push(root),
     });
 

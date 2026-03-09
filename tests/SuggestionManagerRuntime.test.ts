@@ -24,6 +24,7 @@ describe("SuggestionManagerRuntime", () => {
       selectByDigit: true,
       displayLangHeader: true,
       inline_suggestion: false,
+      preferNativeAutocomplete: true,
       enabledGrammarRules: [],
       userDictionaryList: [],
       getPrediction: jest.fn(),
@@ -51,6 +52,7 @@ describe("SuggestionManagerRuntime", () => {
       selectByDigit: true,
       displayLangHeader: true,
       inline_suggestion: false,
+      preferNativeAutocomplete: true,
       enabledGrammarRules: [],
       userDictionaryList: [],
       getPrediction: jest.fn(),
@@ -78,6 +80,7 @@ describe("SuggestionManagerRuntime", () => {
       selectByDigit: true,
       displayLangHeader: true,
       inline_suggestion: false,
+      preferNativeAutocomplete: true,
       enabledGrammarRules: [],
       userDictionaryList: [],
       getPrediction: jest.fn(),
@@ -185,6 +188,86 @@ describe("SuggestionManagerRuntime", () => {
     });
   });
 
+  describe("native autocomplete conflict handling", () => {
+    test("does not attach to fields with datalist when preferNativeAutocomplete is enabled", () => {
+      const runtime = makeRuntime();
+      const list = document.createElement("datalist");
+      list.id = "cities";
+      const input = document.createElement("input");
+      input.type = "text";
+      input.setAttribute("list", "cities");
+      document.body.append(list, input);
+
+      runtime.queryAndAttachHelper();
+
+      expect(input.hasAttribute("data-suggestion")).toBe(false);
+    });
+
+    test("detaches helper when input gains native autocomplete conflict attributes", () => {
+      const runtime = makeRuntime();
+      const list = document.createElement("datalist");
+      list.id = "cities";
+      const input = document.createElement("input");
+      input.type = "text";
+      document.body.append(list, input);
+
+      runtime.queryAndAttachHelper();
+      expect(input.getAttribute("data-suggestion")).toBe("true");
+
+      input.setAttribute("list", "cities");
+      runtime.removeHelpersNotInDocument();
+
+      expect(input.hasAttribute("data-suggestion")).toBe(false);
+    });
+
+    test("reattaches helper after native autocomplete conflict is removed", () => {
+      const runtime = makeRuntime();
+      const list = document.createElement("datalist");
+      list.id = "cities";
+      const input = document.createElement("input");
+      input.type = "text";
+      input.setAttribute("list", "cities");
+      document.body.append(list, input);
+
+      runtime.queryAndAttachHelper();
+      expect(input.hasAttribute("data-suggestion")).toBe(false);
+
+      input.removeAttribute("list");
+      runtime.queryAndAttachHelper();
+
+      expect(input.getAttribute("data-suggestion")).toBe("true");
+    });
+
+    test("attaches to conflicting fields when preferNativeAutocomplete is disabled", () => {
+      const runtime = new SuggestionManagerRuntime({
+        selectors: "input",
+        minWordLengthToPredict: 1,
+        autocomplete: true,
+        autocompleteOnEnter: true,
+        autocompleteOnTab: true,
+        insertSpaceAfterAutocomplete: true,
+        lang: "en_US",
+        selectByDigit: true,
+        displayLangHeader: true,
+        inline_suggestion: false,
+        preferNativeAutocomplete: false,
+        enabledGrammarRules: [],
+        userDictionaryList: [],
+        getPrediction: jest.fn(),
+      });
+      const list = document.createElement("datalist");
+      list.id = "cities";
+      const input = document.createElement("input");
+      input.type = "text";
+      input.setAttribute("list", "cities");
+      document.body.append(list, input);
+
+      runtime.queryAndAttachHelper();
+
+      expect(input.getAttribute("data-suggestion")).toBe("true");
+    });
+  });
+
   // Regression: querySelectorAll does not pierce shadow roots, so inputs inside
   // open shadow roots were silently skipped before deepQuerySelectorAll was added.
   describe("open shadow DOM discovery", () => {
@@ -219,6 +302,7 @@ describe("SuggestionManagerRuntime", () => {
         selectByDigit: true,
         displayLangHeader: true,
         inline_suggestion: false,
+        preferNativeAutocomplete: true,
         enabledGrammarRules: [],
         userDictionaryList: [],
         getPrediction: jest.fn(),

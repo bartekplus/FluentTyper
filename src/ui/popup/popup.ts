@@ -15,6 +15,7 @@ import {
 } from "@core/domain/siteProfiles";
 import {
   parseInlineOverride,
+  parsePreferNativeAutocompleteOverride,
   parseSuggestionsOverride,
   resolveGlobalNumSuggestions,
 } from "@core/domain/siteProfileService";
@@ -114,6 +115,9 @@ function setSiteSpecificControlsEnabled(enabled: boolean): void {
     "siteNumSuggestionsSelect",
   ) as HTMLSelectElement | null;
   const profileInline = document.getElementById("siteInlineModeSelect") as HTMLSelectElement | null;
+  const profilePreferNativeAutocomplete = document.getElementById(
+    "sitePreferNativeAutocompleteSelect",
+  ) as HTMLSelectElement | null;
 
   if (domainToggle) {
     domainToggle.disabled = !enabled;
@@ -129,6 +133,9 @@ function setSiteSpecificControlsEnabled(enabled: boolean): void {
   }
   if (profileInline) {
     profileInline.disabled = !enabled;
+  }
+  if (profilePreferNativeAutocomplete) {
+    profilePreferNativeAutocomplete.disabled = !enabled;
   }
 }
 
@@ -468,6 +475,9 @@ function getSiteProfileElements() {
     language: document.getElementById("siteLanguageSelect") as HTMLSelectElement,
     suggestions: document.getElementById("siteNumSuggestionsSelect") as HTMLSelectElement,
     inline: document.getElementById("siteInlineModeSelect") as HTMLSelectElement,
+    preferNativeAutocomplete: document.getElementById(
+      "sitePreferNativeAutocompleteSelect",
+    ) as HTMLSelectElement,
     section: document.getElementById("siteProfileSection") as HTMLElement,
     status: document.getElementById("siteProfileStatus") as HTMLElement,
   };
@@ -481,7 +491,7 @@ function getDefaultSiteProfileLanguage(language: string, enabledLanguages: strin
 }
 
 function setSiteProfileInputsDisabled(disabled: boolean): void {
-  const { language, suggestions, inline } = getSiteProfileElements();
+  const { language, suggestions, inline, preferNativeAutocomplete } = getSiteProfileElements();
   const details = document.getElementById("siteProfileDetails");
   if (disabled) {
     details?.classList.add("is-hidden");
@@ -496,6 +506,9 @@ function setSiteProfileInputsDisabled(disabled: boolean): void {
   }
   if (inline) {
     inline.disabled = disabled;
+  }
+  if (preferNativeAutocomplete) {
+    preferNativeAutocomplete.disabled = disabled;
   }
 }
 
@@ -522,7 +535,8 @@ function notifyConfigChange(): Promise<unknown> {
 }
 
 async function loadSiteProfileEditor() {
-  const { toggle, language, suggestions, inline, section, status } = getSiteProfileElements();
+  const { toggle, language, suggestions, inline, preferNativeAutocomplete, section, status } =
+    getSiteProfileElements();
   if (
     !currentDomainURL ||
     currentPageState.kind !== "actionable" ||
@@ -532,11 +546,13 @@ async function loadSiteProfileEditor() {
     return;
   }
   section?.classList.remove("is-hidden");
-  const [siteProfilesRaw, numSuggestionsRaw, inlineSuggestionRaw] = await Promise.all([
-    siteProfileRepository.getRawSiteProfiles(),
-    coreSettingsRepository.getNumSuggestions(),
-    coreSettingsRepository.getInlineSuggestion(),
-  ]);
+  const [siteProfilesRaw, numSuggestionsRaw, inlineSuggestionRaw, preferNativeAutocompleteRaw] =
+    await Promise.all([
+      siteProfileRepository.getRawSiteProfiles(),
+      coreSettingsRepository.getNumSuggestions(),
+      coreSettingsRepository.getInlineSuggestion(),
+      coreSettingsRepository.getPreferNativeAutocomplete(),
+    ]);
   const profile = getSiteProfileForDomain(
     siteProfilesRaw,
     currentDomainURL,
@@ -544,8 +560,9 @@ async function loadSiteProfileEditor() {
   );
   const globalNumSuggestions = resolveGlobalNumSuggestions(numSuggestionsRaw);
   const globalInlineSuggestion = inlineSuggestionRaw === true;
+  const globalPreferNativeAutocomplete = preferNativeAutocompleteRaw !== false;
 
-  if (!toggle || !language || !suggestions || !inline || !status) {
+  if (!toggle || !language || !suggestions || !inline || !preferNativeAutocomplete || !status) {
     return;
   }
 
@@ -569,20 +586,15 @@ async function loadSiteProfileEditor() {
     suggestions.appendChild(option);
   }
 
-  inline.innerHTML = "";
-  [
-    {
-      value: "global",
-      text: getInheritLabel(getOnOffLabel(globalInlineSuggestion)),
-    },
-    { value: "on", text: getOnOffLabel(true) },
-    { value: "off", text: getOnOffLabel(false) },
-  ].forEach((entry) => {
-    const option = document.createElement("option");
-    option.value = entry.value;
-    option.textContent = entry.text;
-    inline.appendChild(option);
-  });
+  populateBooleanOverrideOptions(inline, globalInlineSuggestion, getOnOffLabel);
+  populateBooleanOverrideOptions(
+    preferNativeAutocomplete,
+    globalPreferNativeAutocomplete,
+    (value) =>
+      value
+        ? i18n.get("prefer_native_autocomplete_on")
+        : i18n.get("prefer_native_autocomplete_off"),
+  );
 
   const fallbackLanguage = getDefaultSiteProfileLanguage(
     currentProfileLanguageFallback,
@@ -599,19 +611,26 @@ async function loadSiteProfileEditor() {
           ? "on"
           : "off"
         : "global";
+    preferNativeAutocomplete.value =
+      typeof profile.preferNativeAutocomplete === "boolean"
+        ? profile.preferNativeAutocomplete
+          ? "on"
+          : "off"
+        : "global";
     status.textContent = getProfileStatusLabel(true);
   } else {
     toggle.checked = false;
     language.value = fallbackLanguage;
     suggestions.value = "global";
     inline.value = "global";
+    preferNativeAutocomplete.value = "global";
     status.textContent = getProfileStatusLabel(false);
   }
   setSiteProfileInputsDisabled(!toggle.checked);
 }
 
 function readSiteProfileFromEditor(): SiteProfile {
-  const { language, suggestions, inline } = getSiteProfileElements();
+  const { language, suggestions, inline, preferNativeAutocomplete } = getSiteProfileElements();
   const languageValue = currentEnabledLanguages.includes(language.value)
     ? language.value
     : currentProfileLanguageFallback;
@@ -626,7 +645,34 @@ function readSiteProfileFromEditor(): SiteProfile {
   if (typeof inlineSuggestion === "boolean") {
     profile.inline_suggestion = inlineSuggestion;
   }
+  const preferNativeAutocompleteOverride = parsePreferNativeAutocompleteOverride(
+    preferNativeAutocomplete.value,
+  );
+  if (typeof preferNativeAutocompleteOverride === "boolean") {
+    profile.preferNativeAutocomplete = preferNativeAutocompleteOverride;
+  }
   return profile;
+}
+
+function populateBooleanOverrideOptions(
+  select: HTMLSelectElement,
+  globalValue: boolean,
+  describeValue: (value: boolean) => string,
+): void {
+  select.innerHTML = "";
+  [
+    {
+      value: "global",
+      text: getInheritLabel(describeValue(globalValue)),
+    },
+    { value: "on", text: describeValue(true) },
+    { value: "off", text: describeValue(false) },
+  ].forEach((entry) => {
+    const option = document.createElement("option");
+    option.value = entry.value;
+    option.textContent = entry.text;
+    select.appendChild(option);
+  });
 }
 
 async function saveSiteProfileFromEditor() {
@@ -1030,7 +1076,12 @@ function init() {
       await saveSiteProfileFromEditor();
     })();
   });
-  ["siteLanguageSelect", "siteNumSuggestionsSelect", "siteInlineModeSelect"]
+  [
+    "siteLanguageSelect",
+    "siteNumSuggestionsSelect",
+    "siteInlineModeSelect",
+    "sitePreferNativeAutocompleteSelect",
+  ]
     .map((id) => document.getElementById(id))
     .forEach((element) => {
       element?.addEventListener("change", () => {

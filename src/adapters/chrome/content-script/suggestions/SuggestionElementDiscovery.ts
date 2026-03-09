@@ -2,18 +2,18 @@ import type { SuggestionElement } from "./types";
 
 export interface SuggestionElementDiscoveryOptions {
   selectors: string;
-  isStructurallyEligibleElement: (elem: HTMLElement) => elem is SuggestionElement;
+  isEligibleElement: (elem: HTMLElement) => elem is SuggestionElement;
   onShadowRootDiscovered?: (root: ShadowRoot) => void;
 }
 
 export class SuggestionElementDiscovery {
   private readonly selectors: string;
-  private readonly isStructurallyEligibleElement: (elem: HTMLElement) => elem is SuggestionElement;
+  private readonly isEligibleElementPredicate: (elem: HTMLElement) => elem is SuggestionElement;
   private readonly onShadowRootDiscovered?: (root: ShadowRoot) => void;
 
   constructor(options: SuggestionElementDiscoveryOptions) {
     this.selectors = options.selectors;
-    this.isStructurallyEligibleElement = options.isStructurallyEligibleElement;
+    this.isEligibleElementPredicate = options.isEligibleElement;
     this.onShadowRootDiscovered = options.onShadowRootDiscovered;
   }
 
@@ -44,7 +44,7 @@ export class SuggestionElementDiscovery {
     if (!(elem instanceof HTMLElement)) {
       return false;
     }
-    if (!this.isStructurallyEligibleElement(elem)) {
+    if (!this.isEligibleElementPredicate(elem)) {
       return false;
     }
     if (!this.isVisiblyInteractive(elem)) {

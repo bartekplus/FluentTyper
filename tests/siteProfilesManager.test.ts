@@ -5,6 +5,7 @@ import {
   KEY_ENABLED_LANGUAGES,
   KEY_INLINE_SUGGESTION,
   KEY_NUM_SUGGESTIONS,
+  KEY_PREFER_NATIVE_AUTOCOMPLETE,
   KEY_SITE_PROFILES,
 } from "../src/core/domain/constants";
 import { SUPPORTED_LANGUAGES } from "../src/core/domain/lang";
@@ -97,10 +98,12 @@ describe("SiteProfilesManager", () => {
           language: "en_US",
           numSuggestions: 3,
           inline_suggestion: true,
+          preferNativeAutocomplete: false,
         },
       }),
       [`store.settings.${KEY_NUM_SUGGESTIONS}`]: JSON.stringify(4),
       [`store.settings.${KEY_INLINE_SUGGESTION}`]: JSON.stringify(false),
+      [`store.settings.${KEY_PREFER_NATIVE_AUTOCOMPLETE}`]: JSON.stringify(true),
     });
 
     const root = document.createElement("div");
@@ -145,6 +148,7 @@ describe("SiteProfilesManager", () => {
       },
       [KEY_NUM_SUGGESTIONS]: 4,
       [KEY_INLINE_SUGGESTION]: false,
+      [KEY_PREFER_NATIVE_AUTOCOMPLETE]: true,
     };
 
     const root = document.createElement("div");

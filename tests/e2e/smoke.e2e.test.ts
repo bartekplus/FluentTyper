@@ -1290,6 +1290,29 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "prefers native/page autocomplete for conflicting fields",
+    async () => {
+      page = await prepareReusableTestPage(browser, page);
+
+      const results = await page.evaluate(() => ({
+        nativeList:
+          document.querySelector("#test-native-list")?.hasAttribute("data-suggestion") ?? false,
+        semanticEmail:
+          document.querySelector("#test-semantic-email")?.hasAttribute("data-suggestion") ?? false,
+        combobox:
+          document.querySelector("#test-combobox")?.hasAttribute("data-suggestion") ?? false,
+        normalText: document.querySelector("#test-input")?.hasAttribute("data-suggestion") ?? false,
+      }));
+
+      expect(results.nativeList).toBe(false);
+      expect(results.semanticEmail).toBe(false);
+      expect(results.combobox).toBe(false);
+      expect(results.normalText).toBe(true);
+    },
+    suiteTimeout(10000, 15000),
+  );
+
+  test(
     "attaches to input inside open shadow root and shows suggestions on typing",
     async () => {
       page = await prepareReusableTestPage(browser, page);

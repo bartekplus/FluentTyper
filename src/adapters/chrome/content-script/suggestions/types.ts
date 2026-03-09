@@ -35,6 +35,7 @@ export interface SuggestionManagerOptions {
   selectByDigit: boolean;
   displayLangHeader: boolean;
   inline_suggestion: boolean;
+  preferNativeAutocomplete: boolean;
   enabledGrammarRules: string[];
   userDictionaryList: string[];
   getPrediction: (context: PredictionRequest) => void;
