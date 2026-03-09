@@ -76,6 +76,7 @@ function defaultConfig(overrides: Record<string, unknown> = {}) {
     minWordLengthToPredict: 1,
     displayLangHeader: true,
     inline_suggestion: false,
+    preferNativeAutocomplete: true,
     themeConfig: undefined,
     ...overrides,
   };
@@ -95,6 +96,7 @@ jest.unstable_mockModule("../src/core/application/transport-utils", () => ({
 
 jest.unstable_mockModule("../src/core/application/dom-utils", () => ({
   isInDocument: (element: Element) => document.contains(element),
+  getDeepActiveElement: (doc: Document) => doc.activeElement,
 }));
 
 jest.unstable_mockModule("../src/adapters/chrome/content-script/SuggestionManager", () => ({

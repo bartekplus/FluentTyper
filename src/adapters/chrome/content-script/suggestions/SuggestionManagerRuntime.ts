@@ -2,6 +2,7 @@ import { getDeepActiveElement, isInDocument } from "@core/application/dom-utils"
 import { createLogger } from "@core/application/logging/Logger";
 import { LANG_SEPARATOR_CHARS_REGEX, SUPPORTED_LANGUAGES } from "@core/domain/lang";
 import { InlineSuggestionPresenter } from "./InlineSuggestionPresenter";
+import { NativeAutocompleteConflictDetector } from "./NativeAutocompleteConflictDetector";
 import { SuggestionElementDiscovery } from "./SuggestionElementDiscovery";
 import { SuggestionEntryRegistry } from "./SuggestionEntryRegistry";
 import { SuggestionGrammarCoordinator } from "./SuggestionGrammarCoordinator";
@@ -79,7 +80,9 @@ export class SuggestionManagerRuntime {
   private readonly displayLangHeader: boolean;
   private readonly inlineSuggestionEnabled: boolean;
   private readonly insertSpaceAfterAutocomplete: boolean;
+  private readonly preferNativeAutocomplete: boolean;
   private readonly selectByDigit: boolean;
+  private readonly nativeAutocompleteConflictDetector = new NativeAutocompleteConflictDetector();
 
   private lang: string;
   private separatorRegex: RegExp;
@@ -89,7 +92,7 @@ export class SuggestionManagerRuntime {
   constructor(options: SuggestionManagerOptions) {
     this.discovery = new SuggestionElementDiscovery({
       selectors: options.selectors,
-      isStructurallyEligibleElement: this.isStructurallyEligibleElement.bind(this),
+      isEligibleElement: this.isEligibleElement.bind(this),
       onShadowRootDiscovered: options.onShadowRootDiscovered,
     });
     this.lifecycleController = new SuggestionLifecycleController({
@@ -101,6 +104,7 @@ export class SuggestionManagerRuntime {
     this.displayLangHeader = options.displayLangHeader;
     this.inlineSuggestionEnabled = options.inline_suggestion;
     this.insertSpaceAfterAutocomplete = options.insertSpaceAfterAutocomplete;
+    this.preferNativeAutocomplete = options.preferNativeAutocomplete;
     this.selectByDigit = options.selectByDigit;
 
     this.lang = options.lang;
@@ -256,7 +260,7 @@ export class SuggestionManagerRuntime {
     for (const [id, entry] of this.entryRegistry.entriesById()) {
       // Keep helpers attached for temporarily hidden elements, but detach when element
       // becomes structurally/security-ineligible (e.g. password fields).
-      if (!isInDocument(entry.elem) || !this.isStructurallyEligibleElement(entry.elem)) {
+      if (!isInDocument(entry.elem) || !this.isEligibleElement(entry.elem)) {
         this.detachHelper(id);
       }
     }
@@ -338,6 +342,16 @@ export class SuggestionManagerRuntime {
     }
 
     return elem.isContentEditable;
+  }
+
+  private isEligibleElement(elem: HTMLElement): elem is SuggestionElement {
+    if (!this.isStructurallyEligibleElement(elem)) {
+      return false;
+    }
+    if (!this.preferNativeAutocomplete) {
+      return true;
+    }
+    return !this.nativeAutocompleteConflictDetector.isNativeAutocompletePreferred(elem);
   }
 
   private attachHelper(elem: SuggestionElement): void {

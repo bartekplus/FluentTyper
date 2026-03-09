@@ -2415,6 +2415,12 @@ i18n.extend({
     pl: "Tryb inline",
     pr: "Modo inline",
   },
+  site_profiles_table_prefer_native_autocomplete: {
+    en: "Prefer Native Autocomplete",
+  },
+  site_profiles_prefer_native_autocomplete_label: {
+    en: "Prefer Native Autocomplete",
+  },
   site_profiles_add_btn: {
     en: "Add Profile",
     fr: "Ajouter un profil",
@@ -2601,6 +2607,12 @@ i18n.extend({
     de: "Ein",
     pl: "Wł.",
     pr: "Ligado",
+  },
+  prefer_native_autocomplete_on: {
+    en: "Prefer native",
+  },
+  prefer_native_autocomplete_off: {
+    en: "Prefer FluentTyper",
   },
   site_profile_off: {
     en: "Off",
@@ -3141,6 +3153,12 @@ i18n.extend({
     pl: "Uwaga: Funkcja eksperymentalna, działa tylko z klawiszem Tab. Po włączeniu, opcja 'Akceptuj klawiszem Tab' i 'Liczba podpowiedzi' zostaną zablokowane na wymagane wartości.",
     pr: "Nota: Funcionalidade experimental que funciona apenas com a tecla Tab. Após ativada, 'Aceitar com Tab' e 'Número de previsões' serão bloqueados nos valores necessários.",
   },
+  prefer_native_autocomplete_label: {
+    en: "Prefer native autocomplete in conflict fields",
+  },
+  prefer_native_autocomplete_desc: {
+    en: "Yield to native or page-provided autocomplete when a field clearly exposes its own suggestion UI.",
+  },
   config_data: {
     en: "Configuration Data",
     fr: "Données de Configuration",
@@ -3415,6 +3433,12 @@ i18n.extend({
     de: "Optional. Übernimmt standardmäßig die globalen Einstellungen.",
     es: "Opcional. Hereda la configuración global de forma predeterminada.",
     pl: "Opcjonalne. Domyślnie dziedziczy ustawienia globalne.",
+  },
+  popup_site_profile_prefer_native_autocomplete: {
+    en: "Prefer native autocomplete",
+  },
+  popup_site_profile_prefer_native_autocomplete_desc: {
+    en: "Optional. Inherit global by default.",
   },
   popup_global_enable_label: {
     en: "Enable FluentTyper",

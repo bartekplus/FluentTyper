@@ -13,6 +13,7 @@ export interface DomainRuntimeSettings {
   language: string;
   enabledLanguages: string[];
   inlineSuggestion: boolean;
+  preferNativeAutocomplete: boolean;
   numSuggestions: number;
   hasNumSuggestionsOverride: boolean;
 }
@@ -48,14 +49,21 @@ export async function resolveDomainRuntimeSettings(
 ): Promise<DomainRuntimeSettings> {
   const settingsRepository = new CoreSettingsRepository(settingsManager);
   const siteProfileRepository = new SiteProfileRepository(settingsManager);
-  const [globalLanguage, enabledLanguages, inlineSuggestionGlobal, numGlobal, siteProfilesRaw] =
-    await Promise.all([
-      resolveActiveLanguage(settingsManager),
-      settingsRepository.getEnabledLanguages(),
-      settingsRepository.getInlineSuggestion(),
-      settingsRepository.getNumSuggestions(),
-      siteProfileRepository.getSiteProfiles(),
-    ]);
+  const [
+    globalLanguage,
+    enabledLanguages,
+    inlineSuggestionGlobal,
+    preferNativeAutocompleteGlobal,
+    numGlobal,
+    siteProfilesRaw,
+  ] = await Promise.all([
+    resolveActiveLanguage(settingsManager),
+    settingsRepository.getEnabledLanguages(),
+    settingsRepository.getInlineSuggestion(),
+    settingsRepository.getPreferNativeAutocomplete(),
+    settingsRepository.getNumSuggestions(),
+    siteProfileRepository.getSiteProfiles(),
+  ]);
   const profile = domainURL
     ? getSiteProfileForDomain(siteProfilesRaw, domainURL, enabledLanguages)
     : undefined;
@@ -65,6 +73,10 @@ export async function resolveDomainRuntimeSettings(
     typeof profile?.inline_suggestion === "boolean"
       ? profile.inline_suggestion
       : inlineSuggestionGlobal;
+  const preferNativeAutocomplete =
+    typeof profile?.preferNativeAutocomplete === "boolean"
+      ? profile.preferNativeAutocomplete
+      : preferNativeAutocompleteGlobal;
   const hasNumSuggestionsOverride = typeof profile?.numSuggestions === "number";
   const numSuggestions = clampNumSuggestions(
     hasNumSuggestionsOverride ? profile?.numSuggestions : numGlobal,
@@ -74,6 +86,7 @@ export async function resolveDomainRuntimeSettings(
     language,
     enabledLanguages,
     inlineSuggestion,
+    preferNativeAutocomplete,
     numSuggestions,
     hasNumSuggestionsOverride,
   };

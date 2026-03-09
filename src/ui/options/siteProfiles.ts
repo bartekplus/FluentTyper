@@ -4,11 +4,13 @@ import {
   KEY_ENABLED_LANGUAGES,
   KEY_INLINE_SUGGESTION,
   KEY_NUM_SUGGESTIONS,
+  KEY_PREFER_NATIVE_AUTOCOMPLETE,
   KEY_SITE_PROFILES,
   MAX_NUM_SUGGESTIONS,
 } from "@core/domain/constants";
 import {
   parseInlineOverride,
+  parsePreferNativeAutocompleteOverride,
   parseSuggestionsOverride,
   resolveGlobalNumSuggestions,
 } from "@core/domain/siteProfileService";
@@ -34,6 +36,7 @@ interface SiteProfilesElements {
   languageSelect: HTMLSelectElement;
   numSuggestionsSelect: HTMLSelectElement;
   inlineSelect: HTMLSelectElement;
+  preferNativeAutocompleteSelect: HTMLSelectElement;
   searchInput: HTMLInputElement;
   normalizedPreview: HTMLElement;
   saveButton: HTMLButtonElement;
@@ -146,6 +149,10 @@ export class SiteProfilesManager {
       i18n.get("site_profiles_inline_mode_label"),
       "siteProfileInlineSelect",
     );
+    const preferNativeAutocompleteField = this.createSelectField(
+      i18n.get("site_profiles_prefer_native_autocomplete_label"),
+      "siteProfilePreferNativeAutocompleteSelect",
+    );
 
     const actions = createElement("div", { className: "text-assets-actions" });
     const saveButton = createElement("button", {
@@ -169,7 +176,14 @@ export class SiteProfilesManager {
     });
 
     const formGrid = createElement("div", { className: "site-profiles-form-grid" });
-    formGrid.append(domainField, preview, languageField, suggestionsField, inlineField);
+    formGrid.append(
+      domainField,
+      preview,
+      languageField,
+      suggestionsField,
+      inlineField,
+      preferNativeAutocompleteField,
+    );
 
     editor.append(formGrid, actions, status);
 
@@ -233,6 +247,9 @@ export class SiteProfilesManager {
         "#siteProfileNumSuggestionsSelect",
       ) as HTMLSelectElement,
       inlineSelect: this.root.querySelector("#siteProfileInlineSelect") as HTMLSelectElement,
+      preferNativeAutocompleteSelect: this.root.querySelector(
+        "#siteProfilePreferNativeAutocompleteSelect",
+      ) as HTMLSelectElement,
       searchInput: this.root.querySelector("#siteProfilesSearchInput") as HTMLInputElement,
       normalizedPreview: this.root.querySelector("#siteProfileNormalizedPreview") as HTMLElement,
       saveButton: this.root.querySelector("#siteProfileSaveButton") as HTMLButtonElement,
@@ -306,6 +323,13 @@ export class SiteProfilesManager {
       profile.inline_suggestion = inlineSuggestion;
     }
 
+    const preferNativeAutocomplete = parsePreferNativeAutocompleteOverride(
+      this.elements.preferNativeAutocompleteSelect.value,
+    );
+    if (typeof preferNativeAutocomplete === "boolean") {
+      profile.preferNativeAutocomplete = preferNativeAutocomplete;
+    }
+
     return profile;
   }
 
@@ -338,16 +362,39 @@ export class SiteProfilesManager {
   }
 
   private populateInlineOptions(globalInlineSuggestion: boolean): void {
-    this.elements.inlineSelect.replaceChildren();
+    this.populateBooleanOverrideOptions(
+      this.elements.inlineSelect,
+      globalInlineSuggestion,
+      getOnOffLabel,
+    );
+  }
+
+  private populatePreferNativeAutocompleteOptions(globalPreferNativeAutocomplete: boolean): void {
+    this.populateBooleanOverrideOptions(
+      this.elements.preferNativeAutocompleteSelect,
+      globalPreferNativeAutocomplete,
+      (value) =>
+        value
+          ? i18n.get("prefer_native_autocomplete_on")
+          : i18n.get("prefer_native_autocomplete_off"),
+    );
+  }
+
+  private populateBooleanOverrideOptions(
+    select: HTMLSelectElement,
+    globalValue: boolean,
+    describeValue: (value: boolean) => string,
+  ): void {
+    select.replaceChildren();
     [
-      { value: "global", label: getInheritLabel(getOnOffLabel(globalInlineSuggestion)) },
-      { value: "on", label: getOnOffLabel(true) },
-      { value: "off", label: getOnOffLabel(false) },
+      { value: "global", label: getInheritLabel(describeValue(globalValue)) },
+      { value: "on", label: describeValue(true) },
+      { value: "off", label: describeValue(false) },
     ].forEach((entry) => {
       const option = document.createElement("option");
       option.value = entry.value;
       option.textContent = entry.label;
-      this.elements.inlineSelect.appendChild(option);
+      select.appendChild(option);
     });
   }
 
@@ -361,6 +408,12 @@ export class SiteProfilesManager {
     this.elements.inlineSelect.value =
       typeof profile?.inline_suggestion === "boolean"
         ? profile.inline_suggestion
+          ? "on"
+          : "off"
+        : "global";
+    this.elements.preferNativeAutocompleteSelect.value =
+      typeof profile?.preferNativeAutocomplete === "boolean"
+        ? profile.preferNativeAutocomplete
           ? "on"
           : "off"
         : "global";
@@ -378,6 +431,7 @@ export class SiteProfilesManager {
     siteProfiles: SiteProfiles,
     globalNumSuggestions: number,
     globalInlineSuggestion: boolean,
+    globalPreferNativeAutocomplete: boolean,
   ): void {
     const profileEntries = Object.entries(siteProfiles)
       .filter(([domain]) => domain.toLowerCase().includes(this.searchQuery))
@@ -445,6 +499,19 @@ export class SiteProfilesManager {
               ? getOnOffLabel(profile.inline_suggestion)
               : getInheritLabel(getOnOffLabel(globalInlineSuggestion)),
         },
+        {
+          label: i18n.get("site_profiles_table_prefer_native_autocomplete"),
+          value:
+            typeof profile.preferNativeAutocomplete === "boolean"
+              ? profile.preferNativeAutocomplete
+                ? i18n.get("prefer_native_autocomplete_on")
+                : i18n.get("prefer_native_autocomplete_off")
+              : getInheritLabel(
+                  globalPreferNativeAutocomplete
+                    ? i18n.get("prefer_native_autocomplete_on")
+                    : i18n.get("prefer_native_autocomplete_off"),
+                ),
+        },
       ].forEach((entry) => {
         const item = createElement("div", { className: "site-profile-meta-item" });
         item.appendChild(
@@ -468,23 +535,37 @@ export class SiteProfilesManager {
   }
 
   async render(): Promise<void> {
-    const [enabledLanguagesRaw, rawProfiles, rawNumSuggestions, rawInline] = await Promise.all([
+    const [
+      enabledLanguagesRaw,
+      rawProfiles,
+      rawNumSuggestions,
+      rawInline,
+      rawPreferNativeAutocomplete,
+    ] = await Promise.all([
       this.store.get(KEY_ENABLED_LANGUAGES),
       this.store.get(KEY_SITE_PROFILES),
       this.store.get(KEY_NUM_SUGGESTIONS),
       this.store.get(KEY_INLINE_SUGGESTION),
+      this.store.get(KEY_PREFER_NATIVE_AUTOCOMPLETE),
     ]);
 
     const enabledLanguages = resolveEnabledLanguages(enabledLanguagesRaw);
     const siteProfiles = resolveSiteProfiles(rawProfiles, enabledLanguages);
     const globalNumSuggestions = resolveGlobalNumSuggestions(rawNumSuggestions);
     const globalInlineSuggestion = rawInline === true;
+    const globalPreferNativeAutocomplete = rawPreferNativeAutocomplete !== false;
 
     this.populateLanguageOptions(enabledLanguages);
     this.populateSuggestionsOptions(globalNumSuggestions);
     this.populateInlineOptions(globalInlineSuggestion);
+    this.populatePreferNativeAutocompleteOptions(globalPreferNativeAutocomplete);
     this.applyEditorState(enabledLanguages, siteProfiles);
-    this.renderTable(siteProfiles, globalNumSuggestions, globalInlineSuggestion);
+    this.renderTable(
+      siteProfiles,
+      globalNumSuggestions,
+      globalInlineSuggestion,
+      globalPreferNativeAutocomplete,
+    );
     this.setStatus(this.statusText, this.statusIsError);
   }
 

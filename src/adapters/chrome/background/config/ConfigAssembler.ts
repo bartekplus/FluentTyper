@@ -82,6 +82,7 @@ export class ConfigAssembler {
         minWordLengthToPredict,
         displayLangHeader,
         inline_suggestion: domainSettings.inlineSuggestion,
+        preferNativeAutocomplete: domainSettings.preferNativeAutocomplete,
         enabledGrammarRules: normalizeGrammarRuleSelection(
           await this.coreSettingsRepository.getEnabledGrammarRules(),
         ),
@@ -168,11 +169,12 @@ export class ConfigAssembler {
 
   async resolveDomainConfigOverrides(
     domainURL: string,
-  ): Promise<{ lang: string; inline_suggestion: boolean }> {
+  ): Promise<{ lang: string; inline_suggestion: boolean; preferNativeAutocomplete: boolean }> {
     const domainSettings = await resolveDomainRuntimeSettings(this.settingsManager, domainURL);
     return {
       lang: domainSettings.language,
       inline_suggestion: domainSettings.inlineSuggestion,
+      preferNativeAutocomplete: domainSettings.preferNativeAutocomplete,
     };
   }
 }

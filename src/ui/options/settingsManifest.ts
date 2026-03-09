@@ -29,6 +29,7 @@ import {
   KEY_DISPLAY_LANG_HEADER,
   KEY_EXTENSION_LANGUAGE,
   KEY_SITE_PROFILES,
+  KEY_PREFER_NATIVE_AUTOCOMPLETE,
   KEY_SUGGESTION_BG_LIGHT,
   KEY_SUGGESTION_TEXT_LIGHT,
   KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT,
@@ -413,6 +414,17 @@ const manifest: ManifestDefinition = {
         i18n.get("enable_inline_suggestion_desc"),
       ),
       default: false,
+    },
+    {
+      tab: "core_settings",
+      group: i18n.get("behavior_after_completion"),
+      name: KEY_PREFER_NATIVE_AUTOCOMPLETE,
+      type: "checkbox",
+      label: buildFieldLabel(
+        i18n.get("prefer_native_autocomplete_label"),
+        i18n.get("prefer_native_autocomplete_desc"),
+      ),
+      default: true,
     },
 
     // =========================================================================

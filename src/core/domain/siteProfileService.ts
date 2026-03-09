@@ -19,6 +19,14 @@ export function parseSuggestionsOverride(value: string): number | undefined {
 }
 
 export function parseInlineOverride(value: string): boolean | undefined {
+  return parseBooleanOverride(value);
+}
+
+export function parsePreferNativeAutocompleteOverride(value: string): boolean | undefined {
+  return parseBooleanOverride(value);
+}
+
+function parseBooleanOverride(value: string): boolean | undefined {
   if (value === "on") {
     return true;
   }

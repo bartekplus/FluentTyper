@@ -218,6 +218,7 @@ type ConstructorArgs = {
   selectByDigit: boolean;
   displayLangHeader: boolean;
   inline_suggestion: boolean;
+  preferNativeAutocomplete: boolean;
   enabledGrammarRules: string[];
   userDictionaryList: string[];
   getPrediction: (context: ContentScriptPredictRequestContext) => void;
@@ -237,6 +238,7 @@ async function createManager(overrides: Partial<ConstructorArgs> = {}) {
     selectByDigit: true,
     displayLangHeader: true,
     inline_suggestion: false,
+    preferNativeAutocomplete: true,
     enabledGrammarRules: ["commaPeriodSpacing"],
     userDictionaryList: [],
     getPrediction,

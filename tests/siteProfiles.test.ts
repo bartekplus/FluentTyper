@@ -23,6 +23,7 @@ describe("site profiles helpers", () => {
           language: "fr_FR",
           numSuggestions: 7.6,
           inline_suggestion: true,
+          preferNativeAutocomplete: false,
         },
         "bad-domain-[": {
           language: "en_US",
@@ -40,6 +41,7 @@ describe("site profiles helpers", () => {
         language: "fr_FR",
         numSuggestions: 8,
         inline_suggestion: true,
+        preferNativeAutocomplete: false,
       },
     });
   });
@@ -54,6 +56,7 @@ describe("site profiles helpers", () => {
         "example.com": {
           language: "fr_FR",
           inline_suggestion: false,
+          preferNativeAutocomplete: true,
         },
       },
       enabledLanguages,
@@ -63,6 +66,7 @@ describe("site profiles helpers", () => {
       "example.com": {
         language: "fr_FR",
         inline_suggestion: false,
+        preferNativeAutocomplete: true,
       },
     });
   });
@@ -110,6 +114,7 @@ describe("site profiles helpers", () => {
       {
         language: "en_US",
         inline_suggestion: false,
+        preferNativeAutocomplete: true,
       },
       enabledLanguages,
     );
@@ -117,6 +122,7 @@ describe("site profiles helpers", () => {
       "docs.example": {
         language: "en_US",
         inline_suggestion: false,
+        preferNativeAutocomplete: true,
       },
     });
   });

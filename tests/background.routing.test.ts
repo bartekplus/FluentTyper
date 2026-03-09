@@ -214,6 +214,7 @@ async function loadBackgroundHarness(stateOverrides: Record<string, unknown> = {
     minWordLengthToPredict: 1,
     displayLangHeader: true,
     inline_suggestion: false,
+    preferNativeAutocomplete: true,
     suggestionBgLight: "#fff",
     suggestionTextLight: "#111",
     suggestionHighlightBgLight: "#eee",
@@ -900,10 +901,12 @@ describe("background routing and lifecycle", () => {
         "example.com": {
           language: "fr_FR",
           inline_suggestion: true,
+          preferNativeAutocomplete: false,
         },
       },
       language: "en_US",
       inline_suggestion: false,
+      preferNativeAutocomplete: true,
     });
     const sendResponse = jest.fn();
 
@@ -919,6 +922,7 @@ describe("background routing and lifecycle", () => {
         context: expect.objectContaining({
           lang: "fr_FR",
           inline_suggestion: true,
+          preferNativeAutocomplete: false,
           insertSpaceAfterAutocomplete: true,
           enabled: true,
         }),
@@ -936,6 +940,7 @@ describe("background routing and lifecycle", () => {
       },
       language: "en_US",
       inline_suggestion: false,
+      preferNativeAutocomplete: false,
     });
     const sendResponse = jest.fn();
     harness.getDomain.mockReturnValueOnce("other.example");
@@ -952,6 +957,7 @@ describe("background routing and lifecycle", () => {
         context: expect.objectContaining({
           lang: "en_US",
           inline_suggestion: false,
+          preferNativeAutocomplete: false,
           enabled: true,
         }),
       }),

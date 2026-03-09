@@ -32,6 +32,7 @@ export class ContentRuntimeController {
     minWordLengthToPredict: 0,
     displayLangHeader: true,
     inline_suggestion: false,
+    preferNativeAutocomplete: true,
     themeConfig: undefined,
     enabledGrammarRules: [],
     userDictionaryList: [],
@@ -380,6 +381,7 @@ export class ContentRuntimeController {
       selectByDigit: this.config.selectByDigit,
       displayLangHeader: this.config.displayLangHeader,
       inline_suggestion: this.config.inline_suggestion,
+      preferNativeAutocomplete: this.config.preferNativeAutocomplete,
       enabledGrammarRules: this.config.enabledGrammarRules,
       userDictionaryList: this.config.userDictionaryList,
       getPrediction: (context: ContentScriptPredictRequestContext) =>
