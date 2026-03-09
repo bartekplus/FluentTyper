@@ -15,8 +15,15 @@ interface ParentPositionState {
   originalPosition: string;
 }
 
+interface ManualAttachMountTarget {
+  containerParent: HTMLElement | ShadowRoot;
+  positioningParent: HTMLElement | null;
+}
+
 interface ManualAttachUiHandle {
-  parent: HTMLElement;
+  containerParent: HTMLElement | ShadowRoot;
+  positioningParent: HTMLElement | null;
+  usesViewportPositioning: boolean;
   container: HTMLDivElement;
   button: HTMLButtonElement;
   icon: HTMLImageElement;
@@ -52,8 +59,8 @@ export class ManualAttachUiManager {
       return;
     }
 
-    const parent = this.resolveParent(element);
-    const handle = this.createHandle(element, parent);
+    const mountTarget = this.resolveMountTarget(element);
+    const handle = this.createHandle(element, mountTarget);
     this.handles.set(element, handle);
     this.updatePlacement(element, handle);
     this.applyPadding(element);
@@ -71,7 +78,9 @@ export class ManualAttachUiManager {
     }
     handle.container.remove();
     this.restorePadding(element, handle);
-    this.releaseParent(handle.parent);
+    if (handle.positioningParent) {
+      this.releaseParent(handle.positioningParent);
+    }
   }
 
   public removeAll(): void {
@@ -88,13 +97,18 @@ export class ManualAttachUiManager {
     return this.handles.get(element)?.successPending === true;
   }
 
-  private createHandle(element: ManualAttachTarget, parent: HTMLElement): ManualAttachUiHandle {
-    this.reserveParent(parent);
+  private createHandle(
+    element: ManualAttachTarget,
+    mountTarget: ManualAttachMountTarget,
+  ): ManualAttachUiHandle {
+    if (mountTarget.positioningParent) {
+      this.reserveParent(mountTarget.positioningParent);
+    }
 
     const container = element.ownerDocument.createElement("div");
     container.className = "ft-manual-attach";
     Object.assign(container.style, {
-      position: "absolute",
+      position: mountTarget.positioningParent === null ? "fixed" : "absolute",
       zIndex: "2147483000",
       width: `${BUTTON_SIZE_PX}px`,
       height: `${BUTTON_SIZE_PX}px`,
@@ -153,7 +167,9 @@ export class ManualAttachUiManager {
     });
 
     const handle: ManualAttachUiHandle = {
-      parent,
+      containerParent: mountTarget.containerParent,
+      positioningParent: mountTarget.positioningParent,
+      usesViewportPositioning: mountTarget.positioningParent === null,
       container,
       button,
       icon,
@@ -198,7 +214,7 @@ export class ManualAttachUiManager {
 
     button.append(icon, checkmark);
     container.appendChild(button);
-    parent.appendChild(container);
+    mountTarget.containerParent.appendChild(container);
     this.applyIdleState(handle);
 
     return handle;
@@ -256,33 +272,55 @@ export class ManualAttachUiManager {
   }
 
   private updatePlacement(element: ManualAttachTarget, handle: ManualAttachUiHandle): void {
-    const parentRect = handle.parent.getBoundingClientRect();
     const elementRect = element.getBoundingClientRect();
     const isTextarea = element.tagName.toLowerCase() === "textarea";
+    const offsetTop = isTextarea
+      ? FIELD_INSET_PX
+      : Math.max(0, (elementRect.height - BUTTON_SIZE_PX) / 2);
+    if (handle.usesViewportPositioning) {
+      const left = Math.max(
+        0,
+        elementRect.left + elementRect.width - BUTTON_SIZE_PX - FIELD_INSET_PX,
+      );
+      const top = Math.max(0, elementRect.top + offsetTop);
+      handle.container.style.left = `${Math.round(left)}px`;
+      handle.container.style.top = `${Math.round(top)}px`;
+      return;
+    }
+
+    const parentRect = handle.positioningParent?.getBoundingClientRect();
     const left = Math.max(
       0,
-      elementRect.left - parentRect.left + elementRect.width - BUTTON_SIZE_PX - FIELD_INSET_PX,
+      elementRect.left -
+        (parentRect?.left ?? 0) +
+        elementRect.width -
+        BUTTON_SIZE_PX -
+        FIELD_INSET_PX,
     );
-    const top = Math.max(
-      0,
-      elementRect.top -
-        parentRect.top +
-        (isTextarea ? FIELD_INSET_PX : Math.max(0, (elementRect.height - BUTTON_SIZE_PX) / 2)),
-    );
+    const top = Math.max(0, elementRect.top - (parentRect?.top ?? 0) + offsetTop);
 
     handle.container.style.left = `${Math.round(left)}px`;
     handle.container.style.top = `${Math.round(top)}px`;
   }
 
-  private resolveParent(element: ManualAttachTarget): HTMLElement {
+  private resolveMountTarget(element: ManualAttachTarget): ManualAttachMountTarget {
     if (element.parentElement instanceof HTMLElement) {
-      return element.parentElement;
+      return {
+        containerParent: element.parentElement,
+        positioningParent: element.parentElement,
+      };
     }
     const root = element.getRootNode();
     if ("host" in root && root.host instanceof HTMLElement) {
-      return root.host;
+      return {
+        containerParent: root,
+        positioningParent: null,
+      };
     }
-    return element.ownerDocument.body;
+    return {
+      containerParent: element.ownerDocument.body,
+      positioningParent: element.ownerDocument.body,
+    };
   }
 
   private reserveParent(parent: HTMLElement): void {

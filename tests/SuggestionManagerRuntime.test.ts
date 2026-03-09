@@ -423,6 +423,24 @@ describe("SuggestionManagerRuntime", () => {
       expect(shadowInput.hasAttribute("data-suggestion")).toBe(false);
     });
 
+    test("renders the manual attach icon inside the shadow root for a direct conflicting child", () => {
+      const runtime = makeRuntime();
+      const host = document.createElement("div");
+      document.body.appendChild(host);
+      const shadow = host.attachShadow({ mode: "open" });
+      const list = document.createElement("datalist");
+      list.id = "cities";
+      const shadowInput = document.createElement("input");
+      shadowInput.type = "text";
+      shadowInput.setAttribute("list", "cities");
+      shadow.append(list, shadowInput);
+
+      runtime.queryAndAttachHelper();
+
+      expect(getManualAttachButton(shadow)).not.toBeNull();
+      expect(getManualAttachButton(host)).toBeNull();
+    });
+
     test("removes the manual attach icon when a shadow-hosted conflicting field is removed", () => {
       const runtime = makeRuntime();
       const host = document.createElement("div");
@@ -436,11 +454,13 @@ describe("SuggestionManagerRuntime", () => {
       shadow.append(list, shadowInput);
 
       runtime.queryAndAttachHelper();
-      expect(getManualAttachButton(host)).not.toBeNull();
+      expect(getManualAttachButton(shadow)).not.toBeNull();
+      expect(getManualAttachButton(host)).toBeNull();
 
       host.remove();
       runtime.removeHelpersNotInDocument();
 
+      expect(getManualAttachButton(shadow)).toBeNull();
       expect(getManualAttachButton(host)).toBeNull();
     });
   });
