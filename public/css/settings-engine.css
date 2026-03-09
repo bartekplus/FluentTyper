@@ -81,7 +81,7 @@ body.fluenttyper-options .settings-nav-link {
   display: grid;
   grid-template-columns: 2.1rem minmax(0, 1fr);
   gap: 0.65rem;
-  align-items: start;
+  align-items: center;
   padding: 0.6rem 0.7rem;
   border: 1px solid transparent;
   border-radius: 1rem;
@@ -107,6 +107,7 @@ body.fluenttyper-options .settings-nav-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  align-self: center;
   width: 2.1rem;
   height: 2.1rem;
   border-radius: 0.65rem;
@@ -114,6 +115,7 @@ body.fluenttyper-options .settings-nav-icon {
   color: var(--accent-color);
   font-size: 0.72rem;
   font-weight: 800;
+  line-height: 1;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -121,19 +123,20 @@ body.fluenttyper-options .settings-nav-icon {
 body.fluenttyper-options .settings-nav-copy {
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
+  justify-content: center;
+  gap: 0.15rem;
   min-width: 0;
 }
 
 body.fluenttyper-options .settings-nav-title {
   font-weight: 700;
-  line-height: 1.2;
+  line-height: 1.15;
 }
 
 body.fluenttyper-options .settings-nav-description {
   display: none;
   font-size: 0.78rem;
-  line-height: 1.35;
+  line-height: 1.4;
   color: var(--text-color-light);
 }
 
