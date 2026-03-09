@@ -134,7 +134,7 @@ function applyOptionsObservabilityRuntime(
     source: "options",
     sink: (event) => {
       try {
-        chrome.runtime.sendMessage({
+        void chrome.runtime.sendMessage({
           command: CMD_OPTIONS_REPORT_OBSERVABILITY_EVENT,
           context: {
             event,
@@ -146,7 +146,7 @@ function applyOptionsObservabilityRuntime(
     },
   });
   try {
-    chrome.runtime.sendMessage({
+    void chrome.runtime.sendMessage({
       command: CMD_OPTIONS_REPORT_OBSERVABILITY_MODULES,
       context: {
         modules: getRegisteredObservabilityModules(),
@@ -162,7 +162,7 @@ function optionsPageConfigChange() {
     command: "CMD_OPTIONS_PAGE_CONFIG_CHANGE",
     context: {},
   };
-  chrome.runtime.sendMessage(message);
+  void chrome.runtime.sendMessage(message);
 }
 
 function arraysEqual(a: unknown, b: unknown): boolean {
@@ -267,7 +267,7 @@ function importSettingButtonFileSelected(
     try {
       const jsonSettings = JSON.parse(fr.result as string) as Record<string, unknown>;
       delete jsonSettings["store.settings.revertOnBackspace"];
-      chrome.storage.local.set(jsonSettings);
+      void chrome.storage.local.set(jsonSettings);
       dispatchSettingsSaveStatus("saved", { message: i18n.get("settings_imported") });
       optionsPageConfigChange();
       location.reload();
@@ -384,6 +384,16 @@ function formatMetricNumber(value: unknown) {
   return new Intl.NumberFormat(undefined, {
     maximumFractionDigits: 1,
   }).format(value);
+}
+
+function formatLooseText(value: unknown, fallback = ""): string {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
+    return String(value);
+  }
+  return fallback;
 }
 
 function formatWeekRange(weekKey: unknown) {
@@ -649,12 +659,13 @@ function renderProductivityInsights(root: HTMLElement, stats: ProductivityStats)
   trendTitle.textContent = t("productivity_week_over_week_title");
   const trendValue = document.createElement("p");
   trendValue.className = "trend-value";
-  if (stats.weekOverWeekDeltaPct === null) {
+  const weekOverWeekDeltaPct = Number(stats.weekOverWeekDeltaPct);
+  if (stats.weekOverWeekDeltaPct === null || !Number.isFinite(weekOverWeekDeltaPct)) {
     trendValue.textContent = t("productivity_week_over_week_empty");
-  } else if ((stats.weekOverWeekDeltaPct as number) >= 0) {
-    trendValue.textContent = `+${stats.weekOverWeekDeltaPct}% ${t("productivity_week_over_week_suffix")}`;
+  } else if (weekOverWeekDeltaPct >= 0) {
+    trendValue.textContent = `+${weekOverWeekDeltaPct}% ${t("productivity_week_over_week_suffix")}`;
   } else {
-    trendValue.textContent = `${stats.weekOverWeekDeltaPct}% ${t("productivity_week_over_week_suffix")}`;
+    trendValue.textContent = `${weekOverWeekDeltaPct}% ${t("productivity_week_over_week_suffix")}`;
   }
   trendSection.appendChild(trendTitle);
   trendSection.appendChild(trendValue);
@@ -676,8 +687,8 @@ function renderProductivityInsights(root: HTMLElement, stats: ProductivityStats)
     (stats.topSnippets as RankedRow[]) || [],
     t("productivity_top_snippets_empty"),
     (row) => [
-      String(row.snippet),
-      `${row.count}x • ${formatMetricNumber(row.estimatedMinutesSaved)} ${t("popup_short_minutes")}`,
+      formatLooseText(row.snippet),
+      `${formatMetricNumber(row.count)}x • ${formatMetricNumber(row.estimatedMinutesSaved)} ${t("popup_short_minutes")}`,
     ],
   );
   columns.appendChild(snippetSection);
@@ -732,7 +743,7 @@ function renderProductivityInsights(root: HTMLElement, stats: ProductivityStats)
     const recapTopSnippet = document.createElement("p");
     recapTopSnippet.className = "recap-top-snippet";
     const topSnippet = weeklyRecap.topSnippet as Record<string, unknown>;
-    recapTopSnippet.textContent = `${t("productivity_top_snippet_label")}: ${topSnippet.snippet} (${topSnippet.count}x)`;
+    recapTopSnippet.textContent = `${t("productivity_top_snippet_label")}: ${formatLooseText(topSnippet.snippet)} (${formatMetricNumber(topSnippet.count)}x)`;
     recapSection.appendChild(recapTopSnippet);
   } else {
     const recapTopSnippet = document.createElement("p");
@@ -1134,7 +1145,7 @@ function renderPredictorDebugSnapshot(root: HTMLElement, snapshot: PredictorSnap
     "AI predictor",
     config?.aiPredictorEnabled ? "enabled" : "disabled",
   );
-  appendPredictorInfoItem(configCard, "AI model", String(config?.aiModelId || "n/a"));
+  appendPredictorInfoItem(configCard, "AI model", formatLooseText(config?.aiModelId, "n/a"));
   appendPredictorInfoItem(
     configCard,
     "Presage route",
@@ -1174,18 +1185,22 @@ function renderPredictorDebugSnapshot(root: HTMLElement, snapshot: PredictorSnap
   appendPredictorInfoItem(
     runtimeCard,
     "Presage engines",
-    String(runtimePresage?.languageEngineCount ?? 0),
+    formatMetricNumber(runtimePresage?.languageEngineCount),
   );
   appendPredictorInfoItem(
     runtimeCard,
     "WebGPU",
     runtimeWebllm?.hasWebGPU ? "available" : "missing",
   );
-  appendPredictorInfoItem(runtimeCard, "WebLLM status", String(runtimeWebllm?.status || "n/a"));
+  appendPredictorInfoItem(
+    runtimeCard,
+    "WebLLM status",
+    formatLooseText(runtimeWebllm?.status, "n/a"),
+  );
   appendPredictorInfoItem(
     runtimeCard,
     "WebLLM init attempts",
-    String(runtimeWebllm?.initAttemptCount ?? 0),
+    formatMetricNumber(runtimeWebllm?.initAttemptCount),
   );
   const initStartedAt = runtimeWebllm?.lastInitStartedAt;
   appendPredictorInfoItem(
@@ -1227,7 +1242,7 @@ function renderPredictorDebugSnapshot(root: HTMLElement, snapshot: PredictorSnap
   appendPredictorInfoItem(
     runtimeCard,
     "WebLLM cache entries",
-    String(runtimeWebllm?.cacheSize ?? 0),
+    formatMetricNumber(runtimeWebllm?.cacheSize),
   );
   const lastFailureAt = runtimeWebllm?.lastFailureAt;
   appendPredictorInfoItem(
@@ -1238,7 +1253,7 @@ function renderPredictorDebugSnapshot(root: HTMLElement, snapshot: PredictorSnap
   appendPredictorInfoItem(
     runtimeCard,
     "Last WebLLM source",
-    String(runtimeWebllm?.lastPredictSource || "n/a"),
+    formatLooseText(runtimeWebllm?.lastPredictSource, "n/a"),
   );
   appendPredictorInfoItem(
     runtimeCard,
@@ -1250,7 +1265,7 @@ function renderPredictorDebugSnapshot(root: HTMLElement, snapshot: PredictorSnap
   appendPredictorInfoItem(
     runtimeCard,
     "Last WebLLM output count",
-    String(runtimeWebllm?.lastPredictOutputCount ?? 0),
+    formatMetricNumber(runtimeWebllm?.lastPredictOutputCount),
   );
   appendPredictorInfoItem(
     runtimeCard,
@@ -1341,7 +1356,7 @@ function renderPredictorDebugSnapshot(root: HTMLElement, snapshot: PredictorSnap
         typeof trace.traceId === "string" && trace.traceId.trim().length > 0
           ? trace.traceId
           : "n/a";
-      mainLabel.textContent = `${traceLabel} • ${requestLabel} • ${trace.lang || "n/a"} • ${formatClockTime(trace.timestampMs)}`;
+      mainLabel.textContent = `${traceLabel} • ${requestLabel} • ${formatLooseText(trace.lang, "n/a")} • ${formatClockTime(trace.timestampMs)}`;
       const total = document.createElement("span");
       total.textContent = formatDurationMs(trace.totalDurationMs);
       topRow.appendChild(mainLabel);
@@ -1350,7 +1365,7 @@ function renderPredictorDebugSnapshot(root: HTMLElement, snapshot: PredictorSnap
 
       const routeRow = document.createElement("p");
       routeRow.className = "predictor-debug-stage";
-      routeRow.textContent = `Route: tab=${trace.tabId ?? "n/a"} frame=${trace.frameId ?? "n/a"} suggestion=${trace.suggestionId ?? "n/a"}`;
+      routeRow.textContent = `Route: tab=${formatLooseText(trace.tabId, "n/a")} frame=${formatLooseText(trace.frameId, "n/a")} suggestion=${formatLooseText(trace.suggestionId, "n/a")}`;
       card.appendChild(routeRow);
 
       const stageRow = document.createElement("p");
@@ -1359,10 +1374,10 @@ function renderPredictorDebugSnapshot(root: HTMLElement, snapshot: PredictorSnap
       const traceWebllm = trace.webllm as Record<string, unknown> | undefined;
       const presageStage = tracePresage?.attempted
         ? `${formatDurationMs(tracePresage.durationMs)} (${((tracePresage?.predictions as unknown[]) || []).length})`
-        : `skipped (${tracePresage?.skipReason || "unknown"})`;
+        : `skipped (${formatLooseText(tracePresage?.skipReason, "unknown")})`;
       const webllmStage = traceWebllm?.attempted
         ? `${formatDurationMs(traceWebllm.durationMs)} (${((traceWebllm?.predictions as unknown[]) || []).length}${traceWebllm?.timedOut ? ", timeout" : ""})`
-        : `skipped (${traceWebllm?.skipReason || "unknown"})`;
+        : `skipped (${formatLooseText(traceWebllm?.skipReason, "unknown")})`;
       stageRow.textContent = `Presage: ${presageStage} | WebLLM: ${webllmStage}`;
       card.appendChild(stageRow);
 
@@ -1484,48 +1499,50 @@ function setupPredictorDebugDashboard(registry: ReturnType<SettingsEngine["build
   }
   predictorDebugBindingsInitialized = true;
 
-  document.addEventListener("click", async (event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLElement)) {
-      return;
-    }
-    const actionTarget = target.closest("#predictorDebugRoot [data-action]");
-    if (!(actionTarget instanceof HTMLElement)) {
-      return;
-    }
-    const root = mountIfNeeded();
-    if (!root) {
-      return;
-    }
-    const action = actionTarget.getAttribute("data-action");
-    if (action === "refresh-predictor-debug") {
-      predictorDebugLastSignature = "";
-      void loadPredictorDebugSnapshot(root);
-      return;
-    }
-    if (action === "clear-predictor-debug") {
-      await sendRuntimeMessage({
-        command: CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE,
-        context: {},
-      });
-      predictorDebugLastSignature = "";
-      void loadPredictorDebugSnapshot(root);
-      return;
-    }
-    if (action === "set-predictor-toggle") {
-      const key = actionTarget.getAttribute("data-key");
-      const nextEnabled = actionTarget.getAttribute("data-enabled") === "true";
-      if (key === KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED || key === KEY_DEBUG_AI_PREDICTOR_ENABLED) {
-        setPredictorDebugToggle(registry, key, nextEnabled);
-        predictorDebugLastSignature = "";
-        window.setTimeout(() => {
-          const latestRoot = mountIfNeeded();
-          if (latestRoot) {
-            void loadPredictorDebugSnapshot(latestRoot);
-          }
-        }, 80);
+  document.addEventListener("click", (event) => {
+    void (async () => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) {
+        return;
       }
-    }
+      const actionTarget = target.closest("#predictorDebugRoot [data-action]");
+      if (!(actionTarget instanceof HTMLElement)) {
+        return;
+      }
+      const root = mountIfNeeded();
+      if (!root) {
+        return;
+      }
+      const action = actionTarget.getAttribute("data-action");
+      if (action === "refresh-predictor-debug") {
+        predictorDebugLastSignature = "";
+        void loadPredictorDebugSnapshot(root);
+        return;
+      }
+      if (action === "clear-predictor-debug") {
+        await sendRuntimeMessage({
+          command: CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE,
+          context: {},
+        });
+        predictorDebugLastSignature = "";
+        void loadPredictorDebugSnapshot(root);
+        return;
+      }
+      if (action === "set-predictor-toggle") {
+        const key = actionTarget.getAttribute("data-key");
+        const nextEnabled = actionTarget.getAttribute("data-enabled") === "true";
+        if (key === KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED || key === KEY_DEBUG_AI_PREDICTOR_ENABLED) {
+          setPredictorDebugToggle(registry, key, nextEnabled);
+          predictorDebugLastSignature = "";
+          window.setTimeout(() => {
+            const latestRoot = mountIfNeeded();
+            if (latestRoot) {
+              void loadPredictorDebugSnapshot(latestRoot);
+            }
+          }, 80);
+        }
+      }
+    })();
   });
 
   window.addEventListener("focus", () => {
@@ -2635,24 +2652,26 @@ window.addEventListener("DOMContentLoaded", function () {
     new AboutWorkspacePanel(registry.aboutWorkspacePanel.element);
     applyOptionsObservabilityRuntime(registry);
 
-    registry[KEY_LANGUAGE].addEvent("action", async function () {
-      await validateLanguageSettings(registry, store);
+    registry[KEY_LANGUAGE].addEvent("action", function () {
+      void validateLanguageSettings(registry, store);
     });
-    registry[KEY_ENABLED_LANGUAGES].addEvent("action", async function () {
-      await validateLanguageSettings(registry, store);
+    registry[KEY_ENABLED_LANGUAGES].addEvent("action", function () {
+      void validateLanguageSettings(registry, store);
     });
     await validateLanguageSettings(registry, store);
     setupProductivityInsights();
     setupObservabilityDashboard(registry);
-    registry.resetProductivityStatsButton.addEvent("action", async function () {
-      await sendRuntimeMessage({
-        command: CMD_OPTIONS_RESET_PRODUCTIVITY_STATS,
-        context: {},
-      });
-      const root = document.getElementById("productivityStatsRoot");
-      if (root) {
-        await loadProductivityInsights(root);
-      }
+    registry.resetProductivityStatsButton.addEvent("action", function () {
+      void (async () => {
+        await sendRuntimeMessage({
+          command: CMD_OPTIONS_RESET_PRODUCTIVITY_STATS,
+          context: {},
+        });
+        const root = document.getElementById("productivityStatsRoot");
+        if (root) {
+          await loadProductivityInsights(root);
+        }
+      })();
     });
 
     registry.exportSettingButton.addEvent("action", function () {

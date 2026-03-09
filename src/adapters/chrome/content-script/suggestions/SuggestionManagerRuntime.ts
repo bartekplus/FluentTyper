@@ -1466,7 +1466,7 @@ export class SuggestionManagerRuntime {
             return;
           }
           pending.reconcileScheduled = true;
-          Promise.resolve().then(() => {
+          void Promise.resolve().then(() => {
             this.runKeyFallbackReconcile(id);
           });
         });

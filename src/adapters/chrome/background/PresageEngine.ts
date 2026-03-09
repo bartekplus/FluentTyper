@@ -48,7 +48,8 @@ export class PresageEngine {
     for (let i = 0; i < predictionsNative.size(); i++) {
       let text: string | null;
       try {
-        text = JSON.parse(predictionsNative.get(i).prediction);
+        const parsedPrediction: unknown = JSON.parse(predictionsNative.get(i).prediction);
+        text = typeof parsedPrediction === "string" ? parsedPrediction : null;
       } catch {
         text = predictionsNative.get(i).prediction;
       }

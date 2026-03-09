@@ -101,7 +101,7 @@ export class PredictionManager {
 
   constructor() {
     this.libPresageMod = libPresageMod as () => Promise<PresageModule>;
-    this.initialize();
+    void this.initialize();
   }
 
   async initialize(): Promise<void> {

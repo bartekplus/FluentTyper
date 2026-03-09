@@ -27,7 +27,7 @@ export class BackgroundBootstrap {
   private onInstalled(details: chrome.runtime.InstalledDetails): void {
     checkLastError();
     if (details.reason === "install") {
-      chrome.tabs.create({
+      void chrome.tabs.create({
         url: "new_installation/index.html",
       });
       return;
@@ -43,9 +43,13 @@ export class BackgroundBootstrap {
   }
 
   private loadLastVersionAndInitialize(): void {
-    chrome.storage.local.get("lastVersion", async (result) => {
+    const initializeFromLastVersion = (result: { lastVersion?: unknown }): Promise<void> => {
       const lastVersion = result?.lastVersion as string | undefined;
-      await this.getWorker().initialize(lastVersion);
-    });
+      return this.getWorker().initialize(lastVersion);
+    };
+    chrome.storage.local.get(
+      "lastVersion",
+      initializeFromLastVersion as unknown as (items: { [key: string]: unknown }) => void,
+    );
   }
 }

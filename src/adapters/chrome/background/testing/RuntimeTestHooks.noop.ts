@@ -6,11 +6,11 @@ interface RuntimeTestPredictionRequest {
   numSuggestions: number;
 }
 
-export async function maybePredictFromRuntimeTestOverride(
+export function maybePredictFromRuntimeTestOverride(
   request: RuntimeTestPredictionRequest,
 ): Promise<string[] | null> {
   void request;
-  return null;
+  return Promise.resolve(null);
 }
 
 export function registerRuntimeTestHooks(commandRouter: CommandRouter): void {

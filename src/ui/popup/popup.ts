@@ -228,7 +228,7 @@ async function getActiveAutoLanguageStatus(): Promise<{
   locked: boolean;
 } | null> {
   try {
-    const response = await chrome.runtime.sendMessage({
+    const response: unknown = await chrome.runtime.sendMessage({
       command: CMD_GET_AUTO_LANGUAGE_STATUS,
       context: {
         tabId: currentTabId ?? undefined,
@@ -513,12 +513,12 @@ function getProfileStatusLabel(profileEnabled: boolean): string {
     : i18n.get("popup_site_profile_status_global");
 }
 
-async function notifyConfigChange() {
+function notifyConfigChange(): Promise<unknown> {
   const message: OptionsPageConfigChangeMessage = {
     command: CMD_OPTIONS_PAGE_CONFIG_CHANGE,
     context: {},
   };
-  chrome.runtime.sendMessage(message);
+  return chrome.runtime.sendMessage(message);
 }
 
 async function loadSiteProfileEditor() {
@@ -736,13 +736,13 @@ function openOptionsPageAtAnchor(anchor: string): void {
   chrome.tabs.query({ url: `${baseUrl}*` }, (tabs) => {
     const existingOptionsTab = tabs.find((tab) => typeof tab.id === "number");
     if (existingOptionsTab?.id !== undefined) {
-      chrome.tabs.update(existingOptionsTab.id, {
+      void chrome.tabs.update(existingOptionsTab.id, {
         active: true,
         url: targetUrl,
       });
       return;
     }
-    chrome.tabs.create({ url: targetUrl });
+    void chrome.tabs.create({ url: targetUrl });
   });
 }
 
@@ -1023,22 +1023,24 @@ function init() {
     event.stopPropagation();
     openOptionsPageAtAnchor(OPTIONS_ANCHOR_ADVANCED);
   });
-  window.document
-    .getElementById("checkboxSiteProfileInput")
-    ?.addEventListener("click", async () => {
+  window.document.getElementById("checkboxSiteProfileInput")?.addEventListener("click", () => {
+    void (async () => {
       const { toggle } = getSiteProfileElements();
       setSiteProfileInputsDisabled(!toggle.checked);
       await saveSiteProfileFromEditor();
-    });
+    })();
+  });
   ["siteLanguageSelect", "siteNumSuggestionsSelect", "siteInlineModeSelect"]
     .map((id) => document.getElementById(id))
     .forEach((element) => {
-      element?.addEventListener("change", async () => {
-        const { toggle } = getSiteProfileElements();
-        if (!toggle.checked) {
-          return;
-        }
-        await saveSiteProfileFromEditor();
+      element?.addEventListener("change", () => {
+        void (async () => {
+          const { toggle } = getSiteProfileElements();
+          if (!toggle.checked) {
+            return;
+          }
+          await saveSiteProfileFromEditor();
+        })();
       });
     });
 
@@ -1074,91 +1076,100 @@ function init() {
         })
       : null;
 
-  chrome.tabs.query({ active: true, currentWindow: true }, async function (tabs) {
-    const currentTab = tabs.length === 1 ? tabs[0] : undefined;
-    currentTabId = typeof currentTab?.id === "number" ? currentTab.id : null;
-    currentPageState = getCurrentPageState(currentTab?.url);
-    currentDomainURL =
-      currentPageState.kind === "actionable" ? getDomain(currentTab?.url || "") : undefined;
-    if (currentPageState.kind !== "actionable") {
-      await refreshThisSiteSection();
-    }
-
-    const checkboxNode = document.getElementById("checkboxDomainInput") as HTMLInputElement | null;
-    const checkboxEnableNode = document.getElementById(
-      "checkboxEnableInput",
-    ) as HTMLInputElement | null;
-    if (checkboxNode) {
-      checkboxNode.replaceWith(checkboxNode.cloneNode(true));
-    }
-    const nextCheckboxNode = document.getElementById(
-      "checkboxDomainInput",
-    ) as HTMLInputElement | null;
-
-    if (currentPageState.kind === "actionable" && currentDomainURL && nextCheckboxNode) {
-      nextCheckboxNode.checked = await isDomainAllowedByPreference(settings, currentDomainURL);
-      if (currentTabId !== null) {
-        nextCheckboxNode.addEventListener(
-          "click",
-          addRemoveDomain.bind(null, currentTabId, currentDomainURL),
-        );
+  chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+    void (async () => {
+      const currentTab = tabs.length === 1 ? tabs[0] : undefined;
+      currentTabId = typeof currentTab?.id === "number" ? currentTab.id : null;
+      currentPageState = getCurrentPageState(currentTab?.url);
+      currentDomainURL =
+        currentPageState.kind === "actionable" ? getDomain(currentTab?.url || "") : undefined;
+      if (currentPageState.kind !== "actionable") {
+        await refreshThisSiteSection();
       }
-    }
-    if (checkboxEnableNode) {
-      checkboxEnableNode.checked = await coreSettingsRepository.isEnabled();
-    }
 
-    let language = await coreSettingsRepository.getLanguage();
-    currentEnabledLanguages = await coreSettingsRepository.getEnabledLanguages();
-    const select = window.document.getElementById("languageSelect") as HTMLSelectElement;
-    const allowAutoDetect = currentEnabledLanguages.length > 1;
-    const isAutoDetect = language === "auto_detect";
-    const isValidLanguage = currentEnabledLanguages.includes(language);
-    const displayLanguage =
-      isAutoDetect && allowAutoDetect
-        ? "auto_detect"
-        : isValidLanguage
-          ? language
-          : currentEnabledLanguages[0];
+      const checkboxNode = document.getElementById(
+        "checkboxDomainInput",
+      ) as HTMLInputElement | null;
+      const checkboxEnableNode = document.getElementById(
+        "checkboxEnableInput",
+      ) as HTMLInputElement | null;
+      if (checkboxNode) {
+        checkboxNode.replaceWith(checkboxNode.cloneNode(true));
+      }
+      const nextCheckboxNode = document.getElementById(
+        "checkboxDomainInput",
+      ) as HTMLInputElement | null;
 
-    if (!isValidLanguage && !(isAutoDetect && allowAutoDetect)) {
-      language = displayLanguage;
-      await coreSettingsRepository.setLanguage(language);
-      chrome.runtime.sendMessage({
-        command: CMD_OPTIONS_PAGE_CONFIG_CHANGE,
-        context: {},
-      });
-    }
-    if (allowAutoDetect) {
-      const opt = window.document.createElement("option");
-      opt.value = "auto_detect";
-      opt.textContent = SUPPORTED_LANGUAGES.auto_detect;
-      select.appendChild(opt);
-    }
-    for (const langCode of currentEnabledLanguages) {
-      const opt = window.document.createElement("option");
-      opt.value = langCode;
-      opt.textContent = SUPPORTED_LANGUAGES[langCode];
-      select.appendChild(opt);
-    }
-    select.value = displayLanguage;
-    currentProfileLanguageFallback = getDefaultSiteProfileLanguage(
-      displayLanguage,
-      currentEnabledLanguages,
-    );
-    if (permissionController) {
-      await permissionController.initialize();
-    } else {
-      currentWebsiteAccessPermissionState = "unavailable";
-      await loadSiteProfileEditor();
-      await refreshThisSiteSection();
-    }
+      if (currentPageState.kind === "actionable" && currentDomainURL && nextCheckboxNode) {
+        const activeDomainURL = currentDomainURL;
+        nextCheckboxNode.checked = await isDomainAllowedByPreference(settings, activeDomainURL);
+        const activeTabId = currentTabId;
+        if (activeTabId !== null) {
+          nextCheckboxNode.addEventListener("click", () => {
+            void addRemoveDomain(activeTabId, activeDomainURL);
+          });
+        }
+      }
+      if (checkboxEnableNode) {
+        checkboxEnableNode.checked = await coreSettingsRepository.isEnabled();
+      }
+
+      let language = await coreSettingsRepository.getLanguage();
+      currentEnabledLanguages = await coreSettingsRepository.getEnabledLanguages();
+      const select = window.document.getElementById("languageSelect") as HTMLSelectElement;
+      const allowAutoDetect = currentEnabledLanguages.length > 1;
+      const isAutoDetect = language === "auto_detect";
+      const isValidLanguage = currentEnabledLanguages.includes(language);
+      const displayLanguage =
+        isAutoDetect && allowAutoDetect
+          ? "auto_detect"
+          : isValidLanguage
+            ? language
+            : currentEnabledLanguages[0];
+
+      if (!isValidLanguage && !(isAutoDetect && allowAutoDetect)) {
+        language = displayLanguage;
+        await coreSettingsRepository.setLanguage(language);
+        void chrome.runtime.sendMessage({
+          command: CMD_OPTIONS_PAGE_CONFIG_CHANGE,
+          context: {},
+        });
+      }
+      if (allowAutoDetect) {
+        const opt = window.document.createElement("option");
+        opt.value = "auto_detect";
+        opt.textContent = SUPPORTED_LANGUAGES.auto_detect;
+        select.appendChild(opt);
+      }
+      for (const langCode of currentEnabledLanguages) {
+        const opt = window.document.createElement("option");
+        opt.value = langCode;
+        opt.textContent = SUPPORTED_LANGUAGES[langCode];
+        select.appendChild(opt);
+      }
+      select.value = displayLanguage;
+      currentProfileLanguageFallback = getDefaultSiteProfileLanguage(
+        displayLanguage,
+        currentEnabledLanguages,
+      );
+      if (permissionController) {
+        await permissionController.initialize();
+      } else {
+        currentWebsiteAccessPermissionState = "unavailable";
+        await loadSiteProfileEditor();
+        await refreshThisSiteSection();
+      }
+    })();
   });
-  window.document.getElementById("checkboxEnableInput")?.addEventListener("click", toggleOnOff);
-  window.document.getElementById("languageSelect")?.addEventListener("change", languageChangeEvent);
+  window.document.getElementById("checkboxEnableInput")?.addEventListener("click", () => {
+    void toggleOnOff();
+  });
+  window.document.getElementById("languageSelect")?.addEventListener("change", () => {
+    void languageChangeEvent();
+  });
   document.getElementById("runOptions")?.addEventListener("click", (event) => {
     event.preventDefault();
-    chrome.runtime.openOptionsPage();
+    void chrome.runtime.openOptionsPage();
   });
 
   productivityDashboardLoadCancelled = false;
@@ -1186,7 +1197,7 @@ async function addRemoveDomain(tabId: number, domainURL: string) {
   }
   await blockUnBlockDomain(settings, domainURL, !checkboxNode.checked);
   await refreshThisSiteSection();
-  chrome.tabs.sendMessage(tabId, message);
+  void chrome.tabs.sendMessage(tabId, message);
 }
 
 async function languageChangeEvent() {
@@ -1222,7 +1233,7 @@ async function toggleOnOff() {
       }
       const tabId = tabs[i].id;
       if (typeof tabId === "number") {
-        chrome.tabs.sendMessage(tabId, message);
+        void chrome.tabs.sendMessage(tabId, message);
       }
     }
   });

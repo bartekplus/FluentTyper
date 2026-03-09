@@ -48,7 +48,7 @@ export class ProductivityStatsService {
   }
 
   async recordUsageEvent(event: ContentScriptUsageEventContext): Promise<void> {
-    await this.enqueueMutation(async (state) => {
+    await this.enqueueMutation((state) => {
       const todayKey = this.sanitizer.toLocalDateKey(this.now());
       const todayBucket = state.daily[todayKey] || this.sanitizer.createDailyState();
 

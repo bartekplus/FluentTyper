@@ -36,30 +36,41 @@ interface SectionBundle {
   details?: HTMLDetailsElement;
 }
 
+function toRuleString(value: unknown): string | null {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
+    return String(value);
+  }
+  return null;
+}
+
 function normalizeRule(option: unknown): NormalizedRule {
   if (Array.isArray(option)) {
     const [v, t] = option as [unknown, unknown];
+    const value = toRuleString(v) ?? "";
     return {
-      value: String(v ?? ""),
-      text: t !== undefined ? String(t) : String(v ?? ""),
+      value,
+      text: toRuleString(t) ?? value,
       safetyTier: "safe",
       languageScope: "all",
     };
   }
   if (option && typeof option === "object") {
     const o = option as Record<string, unknown>;
-    const value = o["value"] !== undefined ? String(o["value"]) : "";
+    const value = toRuleString(o["value"]) ?? "";
     return {
       value,
-      text: o["text"] !== undefined ? String(o["text"]) : value,
-      description: o["description"] !== undefined ? String(o["description"]) : undefined,
-      example: o["example"] !== undefined ? String(o["example"]) : undefined,
-      badge: o["badge"] !== undefined ? String(o["badge"]) : undefined,
+      text: toRuleString(o["text"]) ?? value,
+      description: toRuleString(o["description"]) ?? undefined,
+      example: toRuleString(o["example"]) ?? undefined,
+      badge: toRuleString(o["badge"]) ?? undefined,
       safetyTier: o["safetyTier"] === "advanced" ? "advanced" : "safe",
       languageScope: o["languageScope"] === "en_US" ? "en_US" : "all",
     };
   }
-  const sv = String(option ?? "");
+  const sv = toRuleString(option) ?? "";
   return { value: sv, text: sv, safetyTier: "safe", languageScope: "all" };
 }
 
@@ -182,12 +193,14 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
         const btn = document.createElement("button");
         btn.type = "button";
         btn.className = "button is-small is-light";
-        btn.textContent = String(action.text);
+        btn.textContent = toRuleString(action.text) ?? "";
         if (action.actionKey?.trim()) {
           btn.dataset["action"] = action.actionKey.trim();
         }
 
-        const values = action.values.map(String);
+        const values = action.values
+          .map((value) => toRuleString(value))
+          .filter((value): value is string => typeof value === "string");
         btn.addEventListener("click", (e) => {
           e.preventDefault();
           this.set(values);
