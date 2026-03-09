@@ -418,6 +418,44 @@ describe("SuggestionManagerRuntime", () => {
       expect(container?.style.left).toBe("124px");
     });
 
+    test("avoids same-wrapper inline-end controls for contenteditable manual attach placement", () => {
+      const runtime = makeRuntime();
+      const shell = document.createElement("div");
+      const editorShell = document.createElement("div");
+      const editable = document.createElement("div");
+      const placeholder = document.createElement("div");
+      const inlineAction = document.createElement("button");
+      const list = document.createElement("div");
+      list.id = "editable-list";
+      list.setAttribute("role", "listbox");
+      editable.setAttribute("contenteditable", "true");
+      Object.defineProperty(editable, "isContentEditable", {
+        configurable: true,
+        value: true,
+      });
+      editable.tabIndex = 0;
+      editable.setAttribute("role", "combobox");
+      editable.setAttribute("aria-expanded", "true");
+      editable.setAttribute("aria-controls", "editable-list");
+      placeholder.setAttribute("aria-hidden", "true");
+      inlineAction.type = "button";
+      editorShell.append(editable, placeholder, inlineAction);
+      shell.appendChild(editorShell);
+      document.body.append(shell, list);
+      mockRect(shell, { left: 10, top: 20, width: 260, height: 52 });
+      mockRect(editorShell, { left: 86, top: 24, width: 150, height: 40 });
+      mockRect(editable, { left: 94, top: 30, width: 140, height: 28 });
+      mockRect(placeholder, { left: 94, top: 30, width: 140, height: 20 });
+      mockRect(inlineAction, { left: 220, top: 28, width: 16, height: 24 });
+
+      runtime.queryAndAttachHelper();
+
+      const container = getManualAttachContainer(editorShell);
+      expect(container).not.toBeNull();
+      expect(container?.style.left).toBe("108px");
+      expect(getManualAttachButton(editorShell)).not.toBeNull();
+    });
+
     test("positions the manual attach icon on inline-end for rtl inputs", () => {
       const runtime = makeRuntime();
       const parent = document.createElement("div");

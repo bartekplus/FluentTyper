@@ -346,22 +346,32 @@ export class ManualAttachUiManager {
   ): { start: number; end: number } | null {
     const positioningParent = handle.positioningParent;
     const layoutParent = positioningParent?.parentElement;
-    if (!positioningParent || !layoutParent) {
+    if (!positioningParent) {
       return null;
     }
     const elementRect = element.getBoundingClientRect();
     const elementMidpoint = elementRect.left + elementRect.width / 2;
-    const siblings = Array.from(layoutParent.children).filter(
+    const sameWrapperCandidates = Array.from(positioningParent.querySelectorAll("*")).filter(
       (candidate): candidate is HTMLElement =>
-        candidate instanceof HTMLElement && candidate !== positioningParent,
+        candidate instanceof HTMLElement &&
+        candidate !== element &&
+        candidate !== handle.container &&
+        !element.contains(candidate) &&
+        !candidate.contains(element),
     );
-    const obstacles = siblings
+    const siblingCandidates = layoutParent
+      ? Array.from(layoutParent.children).filter(
+          (candidate): candidate is HTMLElement =>
+            candidate instanceof HTMLElement && candidate !== positioningParent,
+        )
+      : [];
+    const obstacles = [...sameWrapperCandidates, ...siblingCandidates]
       .map((candidate) => candidate.getBoundingClientRect())
       .filter((rect) => rect.width > 0 && rect.height > 0)
       .filter((rect) =>
         isRtl
-          ? rect.left + rect.width / 2 <= elementMidpoint
-          : rect.left + rect.width / 2 >= elementMidpoint,
+          ? rect.right <= elementMidpoint
+          : rect.left >= elementMidpoint,
       );
     if (obstacles.length === 0) {
       return null;
