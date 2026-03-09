@@ -22,6 +22,7 @@ import type {
   PredictResponseContext,
   SetConfigContext,
 } from "@core/domain/messageTypes";
+import { generatePredictionTraceId, resolveTraceAgeMs } from "./predictionTrace";
 
 type RuntimeInboundMessage =
   | Message
@@ -34,14 +35,6 @@ const logger = createLogger("ContentMessageHandler");
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
-}
-
-function generatePredictionTraceId(): string {
-  const randomPart =
-    typeof globalThis.crypto?.randomUUID === "function"
-      ? globalThis.crypto.randomUUID()
-      : `${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`;
-  return `pred-${randomPart}`;
 }
 
 export type ContentMessageHandlerDependencies = {
@@ -83,6 +76,7 @@ export class ContentMessageHandler {
       runtimeGeneration,
       nextChar: context.nextChar,
       lang: this.dependencies.getLanguage(),
+      requestAgeMs: resolveTraceAgeMs(traceStartedAtMs),
     });
     const message: ContentScriptPredictRequestMessage = {
       command: CMD_CONTENT_SCRIPT_PREDICT_REQ,
@@ -170,6 +164,7 @@ export class ContentMessageHandler {
             suggestionId: context.suggestionId,
             runtimeGeneration: context.runtimeGeneration,
             predictionCount: context.predictions.length,
+            responseAgeMs: resolveTraceAgeMs(context.traceStartedAtMs),
           });
         } else {
           logger.debug(

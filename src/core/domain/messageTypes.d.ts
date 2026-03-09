@@ -65,6 +65,7 @@ export interface PredictResponseContext {
   requestId: number;
   runtimeGeneration?: number;
   traceId?: string;
+  traceStartedAtMs?: number;
   predictions: string[];
 }
 

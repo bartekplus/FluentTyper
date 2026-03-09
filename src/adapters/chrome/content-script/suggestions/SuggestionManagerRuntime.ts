@@ -1,4 +1,5 @@
 import { getDeepActiveElement, isInDocument } from "@core/application/dom-utils";
+import { createLogger } from "@core/application/logging/Logger";
 import { LANG_SEPARATOR_CHARS_REGEX, SUPPORTED_LANGUAGES } from "@core/domain/lang";
 import { InlineSuggestionPresenter } from "./InlineSuggestionPresenter";
 import { SuggestionElementDiscovery } from "./SuggestionElementDiscovery";
@@ -21,6 +22,7 @@ import { TextTargetAdapter, type TextTarget } from "./TextTargetAdapter";
 import type { PredictionInputAction } from "@core/domain/messageTypes";
 import type { GrammarEventType } from "@core/domain/grammar/types";
 import { SPACE_CHARS } from "@core/domain/spacingRules";
+import { resolveTraceAgeMs } from "../predictionTrace";
 import type {
   PredictionResponse,
   SuggestionElement,
@@ -40,10 +42,11 @@ const DUPLICATE_PUNCTUATION_TAIL_REGEX = new RegExp(
   `[,;:](?:${SPACING_OR_FILLER_PATTERN})*[,;:](?:${SPACING_OR_FILLER_PATTERN})*$`,
 );
 const SUGGESTION_DEBOUNCE_BY_ACTION = {
-  insert: 120,
-  delete: 60,
-  other: 120,
+  insert: 20,
+  delete: 12,
+  other: 20,
 };
+const logger = createLogger("SuggestionManagerRuntime");
 
 interface PendingKeyFallback {
   timer: ReturnType<typeof setTimeout>;
@@ -217,9 +220,26 @@ export class SuggestionManagerRuntime {
     }
 
     if (entry.suggestions.length > 0) {
+      logger.debug("Rendered suggestion popup", {
+        traceId: context.traceId,
+        requestId: context.requestId,
+        suggestionId: context.suggestionId,
+        runtimeGeneration: context.runtimeGeneration,
+        predictionCount: entry.suggestions.length,
+        totalLatencyMs: resolveTraceAgeMs(context.traceStartedAtMs),
+        renderer: this.inlineSuggestionEnabled ? "inline" : "menu",
+      });
       this.telemetry.recordSuggestionShown({
         suggestionCount: entry.suggestions.length,
         language: context.lang,
+      });
+    } else {
+      logger.debug("Prediction response produced no visible suggestions", {
+        traceId: context.traceId,
+        requestId: context.requestId,
+        suggestionId: context.suggestionId,
+        runtimeGeneration: context.runtimeGeneration,
+        totalLatencyMs: resolveTraceAgeMs(context.traceStartedAtMs),
       });
     }
   }
