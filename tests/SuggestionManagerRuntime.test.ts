@@ -363,8 +363,10 @@ describe("SuggestionManagerRuntime", () => {
       shell.append(leftActions, editorShell, rightActions);
       document.body.append(shell, list);
       mockRect(shell, { left: 10, top: 20, width: 360, height: 52 });
+      mockRect(leftActions, { left: 18, top: 30, width: 56, height: 28 });
       mockRect(editorShell, { left: 86, top: 24, width: 190, height: 40 });
       mockRect(editable, { left: 94, top: 30, width: 150, height: 28 });
+      mockRect(rightActions, { left: 236, top: 28, width: 32, height: 32 });
 
       runtime.queryAndAttachHelper();
 
@@ -373,9 +375,47 @@ describe("SuggestionManagerRuntime", () => {
       expect(getManualAttachButton(rightActions)).toBeNull();
       const container = getManualAttachContainer(editorShell);
       expect(container).not.toBeNull();
-      expect(container?.style.left).toBe("132px");
+      expect(container?.style.left).toBe("124px");
       expect(container?.style.top).toBe("14px");
-      expect(editable.style.paddingRight).not.toBe("");
+      expect(editable.style.paddingRight).toBe("");
+      expect(editable.style.paddingLeft).toBe("");
+    });
+
+    test("repositions contenteditable manual attach icon when inline-end sibling controls appear", () => {
+      const runtime = makeRuntime();
+      const shell = document.createElement("div");
+      const editorShell = document.createElement("div");
+      const editable = document.createElement("div");
+      const rightActions = document.createElement("div");
+      const list = document.createElement("div");
+      list.id = "editable-list";
+      list.setAttribute("role", "listbox");
+      editable.setAttribute("contenteditable", "true");
+      Object.defineProperty(editable, "isContentEditable", {
+        configurable: true,
+        value: true,
+      });
+      editable.tabIndex = 0;
+      editable.setAttribute("role", "combobox");
+      editable.setAttribute("aria-expanded", "true");
+      editable.setAttribute("aria-controls", "editable-list");
+      shell.append(editorShell, rightActions);
+      editorShell.appendChild(editable);
+      document.body.append(shell, list);
+      mockRect(shell, { left: 10, top: 20, width: 320, height: 52 });
+      mockRect(editorShell, { left: 86, top: 24, width: 190, height: 40 });
+      mockRect(editable, { left: 94, top: 30, width: 150, height: 28 });
+      mockRect(rightActions, { left: 280, top: 28, width: 0, height: 0 });
+
+      runtime.queryAndAttachHelper();
+
+      const container = getManualAttachContainer(editorShell);
+      expect(container?.style.left).toBe("132px");
+
+      mockRect(rightActions, { left: 236, top: 28, width: 32, height: 32 });
+      runtime.removeHelpersNotInDocument();
+
+      expect(container?.style.left).toBe("124px");
     });
 
     test("positions the manual attach icon on inline-end for rtl inputs", () => {

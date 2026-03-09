@@ -431,6 +431,10 @@ export class SuggestionManagerRuntime {
         }
         continue;
       }
+      if (this.shouldShowManualAttachUi(element)) {
+        this.manualAttachUiManager.ensureForElement(element);
+        continue;
+      }
       if (!this.shouldShowManualAttachUi(element)) {
         this.manualAttachUiManager.removeForElement(element);
       }
