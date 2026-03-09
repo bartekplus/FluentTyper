@@ -368,6 +368,7 @@ export class ManualAttachUiManager {
     const obstacles = [...sameWrapperCandidates, ...siblingCandidates]
       .map((candidate) => candidate.getBoundingClientRect())
       .filter((rect) => rect.width > 0 && rect.height > 0)
+      .filter((rect) => this.hasVerticalOverlap(rect, elementRect))
       .filter((rect) =>
         isRtl
           ? rect.right <= elementMidpoint
@@ -382,6 +383,10 @@ export class ManualAttachUiManager {
     }
     const nearest = obstacles.reduce((best, rect) => (rect.left < best.left ? rect : best));
     return { start: nearest.left, end: nearest.right };
+  }
+
+  private hasVerticalOverlap(candidateRect: DOMRect, elementRect: DOMRect): boolean {
+    return candidateRect.bottom > elementRect.top && candidateRect.top < elementRect.bottom;
   }
 
   private resolveOffsetTop(

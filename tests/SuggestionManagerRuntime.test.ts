@@ -456,6 +456,40 @@ describe("SuggestionManagerRuntime", () => {
       expect(getManualAttachButton(editorShell)).not.toBeNull();
     });
 
+    test("ignores non-overlapping rows when resolving contenteditable manual attach obstacles", () => {
+      const runtime = makeRuntime();
+      const shell = document.createElement("div");
+      const editorShell = document.createElement("div");
+      const editable = document.createElement("div");
+      const lowerRowAction = document.createElement("button");
+      const list = document.createElement("div");
+      list.id = "editable-list";
+      list.setAttribute("role", "listbox");
+      editable.setAttribute("contenteditable", "true");
+      Object.defineProperty(editable, "isContentEditable", {
+        configurable: true,
+        value: true,
+      });
+      editable.tabIndex = 0;
+      editable.setAttribute("role", "combobox");
+      editable.setAttribute("aria-expanded", "true");
+      editable.setAttribute("aria-controls", "editable-list");
+      lowerRowAction.type = "button";
+      shell.append(editorShell, lowerRowAction);
+      editorShell.appendChild(editable);
+      document.body.append(shell, list);
+      mockRect(shell, { left: 10, top: 20, width: 320, height: 96 });
+      mockRect(editorShell, { left: 86, top: 24, width: 190, height: 40 });
+      mockRect(editable, { left: 94, top: 30, width: 150, height: 28 });
+      mockRect(lowerRowAction, { left: 236, top: 76, width: 32, height: 24 });
+
+      runtime.queryAndAttachHelper();
+
+      const container = getManualAttachContainer(editorShell);
+      expect(container).not.toBeNull();
+      expect(container?.style.left).toBe("132px");
+    });
+
     test("positions the manual attach icon on inline-end for rtl inputs", () => {
       const runtime = makeRuntime();
       const parent = document.createElement("div");
