@@ -309,14 +309,14 @@ export class ManualAttachUiManager {
   }
 
   private resolveMountTarget(element: ManualAttachTarget): ManualAttachMountTarget {
-    if (element.parentElement instanceof HTMLElement) {
+    if (this.isHtmlElement(element.parentElement, element.ownerDocument)) {
       return {
         containerParent: element.parentElement,
         positioningParent: element.parentElement,
       };
     }
     const root = element.getRootNode();
-    if ("host" in root && root.host instanceof HTMLElement) {
+    if ("host" in root && this.isHtmlElement(root.host, element.ownerDocument)) {
       return {
         containerParent: root,
         positioningParent: null,
@@ -388,6 +388,17 @@ export class ManualAttachUiManager {
       return;
     }
     element.style.paddingRight = value;
+  }
+
+  private isHtmlElement(node: unknown, ownerDocument: Document): node is HTMLElement {
+    if (!node || typeof node !== "object") {
+      return false;
+    }
+    const candidate = node as Partial<HTMLElement> & {
+      nodeType?: number;
+      ownerDocument?: Document;
+    };
+    return candidate.nodeType === 1 && candidate.ownerDocument === ownerDocument;
   }
 }
 

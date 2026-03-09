@@ -1,5 +1,21 @@
-import { beforeEach, describe, expect, jest, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
 import { SuggestionManagerRuntime } from "../src/adapters/chrome/content-script/suggestions/SuggestionManagerRuntime";
+import { acquireDomGlobalLock } from "./support/domGlobalLock";
+
+const baseGlobals = {
+  window: globalThis.window,
+  document: globalThis.document,
+  navigator: globalThis.navigator,
+  Node: globalThis.Node,
+  Element: globalThis.Element,
+  HTMLElement: globalThis.HTMLElement,
+  HTMLButtonElement: globalThis.HTMLButtonElement,
+  Event: globalThis.Event,
+  CustomEvent: globalThis.CustomEvent,
+  MutationObserver: globalThis.MutationObserver,
+  getComputedStyle: globalThis.getComputedStyle,
+  chrome: (globalThis as unknown as { chrome: unknown }).chrome,
+};
 
 function getManualAttachButton(root: ParentNode = document): HTMLButtonElement | null {
   return root.querySelector(".ft-manual-attach-button");
@@ -36,8 +52,33 @@ function mockRect(
 }
 
 describe("SuggestionManagerRuntime", () => {
+  let releaseDomGlobalLock: (() => void) | null = null;
+
+  beforeEach(async () => {
+    releaseDomGlobalLock = await acquireDomGlobalLock();
+  });
+
   beforeEach(() => {
+    jest.useRealTimers();
+    jest.restoreAllMocks();
+    (globalThis as unknown as { window: Window }).window = baseGlobals.window;
+    (globalThis as unknown as { document: Document }).document = baseGlobals.document;
+    (globalThis as unknown as { navigator: Navigator }).navigator = baseGlobals.navigator;
+    (globalThis as unknown as { Node: typeof Node }).Node = baseGlobals.Node;
+    (globalThis as unknown as { Element: typeof Element }).Element = baseGlobals.Element;
+    (globalThis as unknown as { HTMLElement: typeof HTMLElement }).HTMLElement =
+      baseGlobals.HTMLElement;
+    (globalThis as unknown as { HTMLButtonElement: typeof HTMLButtonElement }).HTMLButtonElement =
+      baseGlobals.HTMLButtonElement;
+    (globalThis as unknown as { Event: typeof Event }).Event = baseGlobals.Event;
+    (globalThis as unknown as { CustomEvent: typeof CustomEvent }).CustomEvent =
+      baseGlobals.CustomEvent;
+    (globalThis as unknown as { MutationObserver: typeof MutationObserver }).MutationObserver =
+      baseGlobals.MutationObserver;
+    (globalThis as unknown as { getComputedStyle: typeof getComputedStyle }).getComputedStyle =
+      baseGlobals.getComputedStyle;
     document.body.innerHTML = "";
+    document.documentElement.dir = "";
     (globalThis as unknown as { chrome: unknown }).chrome = {
       runtime: {
         sendMessage: jest.fn(),
@@ -45,6 +86,30 @@ describe("SuggestionManagerRuntime", () => {
         lastError: undefined,
       },
     };
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+    jest.restoreAllMocks();
+    (globalThis as unknown as { window: Window }).window = baseGlobals.window;
+    (globalThis as unknown as { document: Document }).document = baseGlobals.document;
+    (globalThis as unknown as { navigator: Navigator }).navigator = baseGlobals.navigator;
+    (globalThis as unknown as { Node: typeof Node }).Node = baseGlobals.Node;
+    (globalThis as unknown as { Element: typeof Element }).Element = baseGlobals.Element;
+    (globalThis as unknown as { HTMLElement: typeof HTMLElement }).HTMLElement =
+      baseGlobals.HTMLElement;
+    (globalThis as unknown as { HTMLButtonElement: typeof HTMLButtonElement }).HTMLButtonElement =
+      baseGlobals.HTMLButtonElement;
+    (globalThis as unknown as { Event: typeof Event }).Event = baseGlobals.Event;
+    (globalThis as unknown as { CustomEvent: typeof CustomEvent }).CustomEvent =
+      baseGlobals.CustomEvent;
+    (globalThis as unknown as { MutationObserver: typeof MutationObserver }).MutationObserver =
+      baseGlobals.MutationObserver;
+    (globalThis as unknown as { getComputedStyle: typeof getComputedStyle }).getComputedStyle =
+      baseGlobals.getComputedStyle;
+    (globalThis as unknown as { chrome: unknown }).chrome = baseGlobals.chrome;
+    releaseDomGlobalLock?.();
+    releaseDomGlobalLock = null;
   });
 
   test("attaches and detaches helper markers through public API", () => {
