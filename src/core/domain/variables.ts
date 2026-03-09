@@ -5,7 +5,7 @@ function getCurrentDateTime(lang: string): DateTime {
   let now = DateTime.now();
 
   try {
-    if (["textExpander", "auto_detect"].includes(lang as string)) {
+    if (["textExpander", "auto_detect"].includes(lang)) {
       lang = Settings.defaultLocale;
     }
     // Convert underscores to hyphens for valid BCP 47 locale tags

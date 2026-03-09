@@ -184,7 +184,7 @@ export class SiteProfilesManager {
         type: "search",
         placeholder: i18n.get("site_profiles_search_placeholder"),
       },
-    }) as HTMLInputElement;
+    });
     searchRow.appendChild(searchInput);
     list.appendChild(searchRow);
 

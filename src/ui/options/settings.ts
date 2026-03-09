@@ -267,7 +267,7 @@ function importSettingButtonFileSelected(
     try {
       const jsonSettings = JSON.parse(fr.result as string) as Record<string, unknown>;
       delete jsonSettings["store.settings.revertOnBackspace"];
-      chrome.storage.local.set(jsonSettings as Record<string, unknown>);
+      chrome.storage.local.set(jsonSettings);
       dispatchSettingsSaveStatus("saved", { message: i18n.get("settings_imported") });
       optionsPageConfigChange();
       location.reload();
@@ -407,7 +407,7 @@ function formatLanguageLabel(language: unknown) {
   if (typeof language !== "string" || !language) {
     return t("productivity_unknown_language");
   }
-  return SUPPORTED_LANGUAGES[language as keyof typeof SUPPORTED_LANGUAGES] || language;
+  return SUPPORTED_LANGUAGES[language] || language;
 }
 
 function formatTrendDayLabel(dateKey: unknown) {
@@ -815,12 +815,7 @@ async function loadProductivityInsights(root: HTMLElement, retryCount = 0) {
     command: CMD_POPUP_GET_PRODUCTIVITY_STATS,
     context: {},
   });
-  if (
-    !response ||
-    typeof response !== "object" ||
-    Array.isArray(response) ||
-    "ok" in (response as object)
-  ) {
+  if (!response || typeof response !== "object" || Array.isArray(response) || "ok" in response) {
     if (retryCount < PRODUCTIVITY_INSIGHTS_MAX_RETRIES) {
       window.setTimeout(() => {
         void loadProductivityInsights(root, retryCount + 1);
@@ -2413,7 +2408,7 @@ function setupObservabilityDashboard(registry: ReturnType<SettingsEngine["buildF
     __ftSettingsRegistry?: ReturnType<SettingsEngine["buildFromManifest"]>;
   };
   registryHost.__ftSettingsRegistry = registry;
-  const mountIfNeeded = () => getObservabilityRootElement() as HTMLElement | null;
+  const mountIfNeeded = () => getObservabilityRootElement();
   const scheduleRefresh = (force = false) => {
     const root = mountIfNeeded();
     if (root) {
@@ -2622,37 +2617,22 @@ window.addEventListener("DOMContentLoaded", function () {
   const registry = engine.buildFromManifest(manifest);
 
   void (async () => {
-    new EssentialsWorkspacePanel(
-      registry.essentialsWorkspacePanel.element as HTMLElement,
-      registry,
-      IS_DEV_BUILD,
-    );
-    new GrammarWorkspacePanel(registry.grammarWorkspacePanel.element as HTMLElement, registry);
-    new LanguageSettingsPanel(
-      registry.languagePreferencesPanel.element as HTMLElement,
-      registry,
-      store,
-    );
-    new TextAssetsPanel(registry.writingAssetsPanel.element as HTMLElement, registry, store);
+    new EssentialsWorkspacePanel(registry.essentialsWorkspacePanel.element, registry, IS_DEV_BUILD);
+    new GrammarWorkspacePanel(registry.grammarWorkspacePanel.element, registry);
+    new LanguageSettingsPanel(registry.languagePreferencesPanel.element, registry, store);
+    new TextAssetsPanel(registry.writingAssetsPanel.element, registry, store);
     new SiteManagementPanel(
-      registry.siteManagementPanel.element as HTMLElement,
+      registry.siteManagementPanel.element,
       registry,
       store,
       optionsPageConfigChange,
     );
-    new AppearanceStudio(
-      registry.appearanceStudioPanel.element as HTMLElement,
-      registry,
-      themePresets,
-    );
-    new DataDiagnosticsPanel(registry.dataDiagnosticsPanel.element as HTMLElement, registry);
+    new AppearanceStudio(registry.appearanceStudioPanel.element, registry, themePresets);
+    new DataDiagnosticsPanel(registry.dataDiagnosticsPanel.element, registry);
     if (IS_DEV_BUILD && registry.observabilityWorkspacePanel?.element) {
-      new ObservabilityWorkspacePanel(
-        registry.observabilityWorkspacePanel.element as HTMLElement,
-        registry,
-      );
+      new ObservabilityWorkspacePanel(registry.observabilityWorkspacePanel.element, registry);
     }
-    new AboutWorkspacePanel(registry.aboutWorkspacePanel.element as HTMLElement);
+    new AboutWorkspacePanel(registry.aboutWorkspacePanel.element);
     applyOptionsObservabilityRuntime(registry);
 
     registry[KEY_LANGUAGE].addEvent("action", async function () {

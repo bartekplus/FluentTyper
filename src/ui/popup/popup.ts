@@ -80,15 +80,15 @@ function translateLabel(key: string, fallback: string): string {
 
 function getPageStateElements() {
   return {
-    badge: document.getElementById("pageStateBadge") as HTMLElement | null,
-    title: document.getElementById("pageStateTitle") as HTMLElement | null,
-    body: document.getElementById("pageStateBody") as HTMLElement | null,
-    language: document.getElementById("pageStateLanguage") as HTMLElement | null,
-    hint: document.getElementById("checkboxDomainHint") as HTMLElement | null,
-    meta: document.getElementById("pageStateMeta") as HTMLElement | null,
-    panel: document.getElementById("pageStatePanel") as HTMLElement | null,
-    profile: document.getElementById("pageStateProfile") as HTMLElement | null,
-    section: document.getElementById("domainSectionWrapper") as HTMLElement | null,
+    badge: document.getElementById("pageStateBadge"),
+    title: document.getElementById("pageStateTitle"),
+    body: document.getElementById("pageStateBody"),
+    language: document.getElementById("pageStateLanguage"),
+    hint: document.getElementById("checkboxDomainHint"),
+    meta: document.getElementById("pageStateMeta"),
+    panel: document.getElementById("pageStatePanel"),
+    profile: document.getElementById("pageStateProfile"),
+    section: document.getElementById("domainSectionWrapper"),
   };
 }
 
@@ -255,7 +255,7 @@ function renderStaticPageState(
   const { badge, body, meta, panel, section, title, hint, language, profile } =
     getPageStateElements();
   const domainToggle = document.getElementById("checkboxDomainInput") as HTMLInputElement | null;
-  const siteProfileSection = document.getElementById("siteProfileSection") as HTMLElement | null;
+  const siteProfileSection = document.getElementById("siteProfileSection");
   if (!badge || !title || !body) {
     return;
   }
@@ -798,8 +798,8 @@ function formatLanguageSummary(stats: ProductivityDashboardStats): string {
 }
 
 function renderMilestoneProgress(stats: ProductivityDashboardStats): void {
-  const fillNode = document.getElementById("dashboardProgressFill") as HTMLElement | null;
-  const labelNode = document.getElementById("dashboardProgressLabel") as HTMLElement | null;
+  const fillNode = document.getElementById("dashboardProgressFill");
+  const labelNode = document.getElementById("dashboardProgressLabel");
   if (!fillNode || !labelNode) {
     return;
   }

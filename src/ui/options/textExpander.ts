@@ -135,7 +135,7 @@ export class TextExpander {
 
   private fileInputChange(): void {
     const fileInput = document.getElementById("csvFileInput") as HTMLInputElement | null;
-    const fileNameSpanElem = document.getElementById("fileNameSpanElemId") as HTMLElement | null;
+    const fileNameSpanElem = document.getElementById("fileNameSpanElemId");
     const file = fileInput?.files?.[0];
     if (!fileInput || !fileNameSpanElem || !file) {
       return;
@@ -341,7 +341,7 @@ export class TextExpander {
       });
     } else {
       button.addEvent("click", () => {
-        this.delShortcut(shortcutIndex as number);
+        this.delShortcut(shortcutIndex);
       });
     }
 
@@ -354,7 +354,7 @@ export class TextExpander {
     errMsgStr: string,
     isValid: boolean,
   ): void {
-    const errMsgNode = document.getElementById(`${element.id}ErrMsg`) as HTMLElement | null;
+    const errMsgNode = document.getElementById(`${element.id}ErrMsg`);
     if (!errMsgNode) {
       return;
     }

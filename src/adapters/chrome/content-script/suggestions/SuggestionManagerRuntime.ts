@@ -320,12 +320,12 @@ export class SuggestionManagerRuntime {
 
   private isStructurallyEligibleElement(elem: HTMLElement): elem is SuggestionElement {
     if (TextTargetAdapter.isTextArea(elem)) {
-      const ta = elem as HTMLTextAreaElement;
+      const ta = elem;
       return !ta.disabled && !ta.readOnly;
     }
 
     if (TextTargetAdapter.isInput(elem)) {
-      const input = elem as HTMLInputElement;
+      const input = elem;
       if (input.disabled || input.readOnly) {
         return false;
       }
@@ -1142,7 +1142,7 @@ export class SuggestionManagerRuntime {
     const triggers: GrammarEventType[] = [];
     const inputType =
       typeof (event as InputEvent | undefined)?.inputType === "string"
-        ? ((event as InputEvent).inputType as string)
+        ? (event as InputEvent).inputType
         : "";
     if (entry.pendingGrammarPaste || inputType === "insertFromPaste" || event?.type === "paste") {
       triggers.push("paste");

@@ -136,9 +136,7 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
 
   async getAutoLanguageSitePriors(): Promise<Record<string, Record<string, number>>> {
     const value = await this.getField("autoLanguageSitePriors");
-    return value && typeof value === "object" && !Array.isArray(value)
-      ? (value as Record<string, Record<string, number>>)
-      : {};
+    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
   }
 
   async setAutoLanguageSitePriors(priors: Record<string, Record<string, number>>): Promise<void> {
