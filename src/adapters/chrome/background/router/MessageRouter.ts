@@ -36,7 +36,7 @@ import {
   isFluentTyperError,
   logError,
 } from "@core/domain/error";
-import { resolveDomainRuntimeSettings } from "../config/runtimeSettings";
+import { DomainSettingsCache } from "../config/DomainSettingsCache";
 import type { BackgroundServiceWorker } from "../BackgroundServiceWorker";
 import {
   createErrorMappingMiddleware,
@@ -145,6 +145,7 @@ const MESSAGE_ERROR_LABELS: Record<RoutedMessageCommand, string> = {
 export class MessageRouter {
   private readonly getWorker: () => BackgroundServiceWorker;
   private readonly registry: HandlerRegistry<RoutedMessageCommand, MessageDispatchPayload, void>;
+  private readonly domainSettingsCache = new DomainSettingsCache();
 
   constructor(getWorker: () => BackgroundServiceWorker) {
     this.getWorker = getWorker;
@@ -299,9 +300,9 @@ export class MessageRouter {
     const { tabId, frameId } = senderContext;
     const domainURL = getDomain(sender.tab?.url || "");
 
-    let domainSettings: Awaited<ReturnType<typeof resolveDomainRuntimeSettings>>;
+    let domainSettings: Awaited<ReturnType<DomainSettingsCache["resolve"]>>;
     try {
-      domainSettings = await resolveDomainRuntimeSettings(worker.settingsManager, domainURL);
+      domainSettings = await this.domainSettingsCache.resolve(worker.settingsManager, domainURL);
     } catch (error) {
       if (isFluentTyperError(error)) {
         throw error;
@@ -398,6 +399,9 @@ export class MessageRouter {
         cause: error,
       });
     }
+    // Settings changed — flush cached domain settings so the next prediction
+    // request picks up the new values without waiting for the TTL to expire.
+    this.domainSettingsCache.invalidate();
     this.respondOk(sendResponse);
   }
 
