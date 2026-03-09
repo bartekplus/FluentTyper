@@ -2,6 +2,11 @@ import { getDeepActiveElement, isInDocument } from "@core/application/dom-utils"
 import { createLogger } from "@core/application/logging/Logger";
 import { LANG_SEPARATOR_CHARS_REGEX, SUPPORTED_LANGUAGES } from "@core/domain/lang";
 import { InlineSuggestionPresenter } from "./InlineSuggestionPresenter";
+import {
+  ManualAttachUiManager,
+  type ManualAttachTarget,
+  resolveManualAttachIconUrl,
+} from "./ManualAttachUiManager";
 import { NativeAutocompleteConflictDetector } from "./NativeAutocompleteConflictDetector";
 import { SuggestionElementDiscovery } from "./SuggestionElementDiscovery";
 import { SuggestionEntryRegistry } from "./SuggestionEntryRegistry";
@@ -63,7 +68,9 @@ interface PendingKeyFallback {
 export class SuggestionManagerRuntime {
   private readonly discovery: SuggestionElementDiscovery;
   private readonly entryRegistry = new SuggestionEntryRegistry();
+  private forcedNativeConflictElements = new WeakSet<SuggestionElement>();
   private readonly lifecycleController: SuggestionLifecycleController;
+  private readonly manualAttachUiManager: ManualAttachUiManager;
   private readonly positioningService = new SuggestionPositioningService();
   private readonly menuPresenter = new SuggestionMenuPresenter(this.positioningService);
   private readonly inlinePresenter = new InlineSuggestionPresenter({
@@ -92,7 +99,7 @@ export class SuggestionManagerRuntime {
   constructor(options: SuggestionManagerOptions) {
     this.discovery = new SuggestionElementDiscovery({
       selectors: options.selectors,
-      isEligibleElement: this.isEligibleElement.bind(this),
+      isCandidateElement: this.isStructurallyEligibleElement.bind(this),
       onShadowRootDiscovered: options.onShadowRootDiscovered,
     });
     this.lifecycleController = new SuggestionLifecycleController({
@@ -106,6 +113,10 @@ export class SuggestionManagerRuntime {
     this.insertSpaceAfterAutocomplete = options.insertSpaceAfterAutocomplete;
     this.preferNativeAutocomplete = options.preferNativeAutocomplete;
     this.selectByDigit = options.selectByDigit;
+    this.manualAttachUiManager = new ManualAttachUiManager({
+      iconUrl: resolveManualAttachIconUrl(),
+      onActivate: this.handleManualAttachActivate.bind(this),
+    });
 
     this.lang = options.lang;
     this.separatorRegex = LANG_SEPARATOR_CHARS_REGEX[this.lang] || /\s+/;
@@ -252,6 +263,8 @@ export class SuggestionManagerRuntime {
     for (const id of [...this.entryRegistry.ids()]) {
       this.detachHelper(id);
     }
+    this.manualAttachUiManager.removeAll();
+    this.forcedNativeConflictElements = new WeakSet<SuggestionElement>();
     this.entryRegistry.clear();
     this.activeEntryId = null;
   }
@@ -260,10 +273,17 @@ export class SuggestionManagerRuntime {
     for (const [id, entry] of this.entryRegistry.entriesById()) {
       // Keep helpers attached for temporarily hidden elements, but detach when element
       // becomes structurally/security-ineligible (e.g. password fields).
-      if (!isInDocument(entry.elem) || !this.isEligibleElement(entry.elem)) {
+      if (!isInDocument(entry.elem) || !this.isStructurallyEligibleElement(entry.elem)) {
+        this.forcedNativeConflictElements.delete(entry.elem);
         this.detachHelper(id);
+        continue;
+      }
+      if (this.shouldDemoteAttachedElement(entry.elem)) {
+        this.detachHelper(id);
+        this.syncManualAttachUi(entry.elem);
       }
     }
+    this.pruneManualAttachUi();
   }
 
   public queryAndAttachHelper(root?: Element): boolean {
@@ -272,6 +292,12 @@ export class SuggestionManagerRuntime {
 
     for (const candidate of candidates) {
       if (this.entryRegistry.isAttached(candidate)) {
+        if (
+          !this.isManualAttachSupportedElement(candidate) ||
+          !this.manualAttachUiManager.isSuccessPending(candidate)
+        ) {
+          this.removeManualAttachUi(candidate);
+        }
         continue;
       }
 
@@ -288,11 +314,18 @@ export class SuggestionManagerRuntime {
       }
 
       if (!shouldSkip) {
-        this.attachHelper(candidate);
-        attachedAny = true;
+        if (this.shouldShowManualAttachUi(candidate)) {
+          this.manualAttachUiManager.ensureForElement(candidate);
+          continue;
+        }
+        this.removeManualAttachUi(candidate);
+        if (this.attachElement(candidate)) {
+          attachedAny = true;
+        }
       }
     }
 
+    this.pruneManualAttachUi();
     return attachedAny;
   }
 
@@ -344,17 +377,105 @@ export class SuggestionManagerRuntime {
     return elem.isContentEditable;
   }
 
-  private isEligibleElement(elem: HTMLElement): elem is SuggestionElement {
-    if (!this.isStructurallyEligibleElement(elem)) {
-      return false;
-    }
-    if (!this.preferNativeAutocomplete) {
-      return true;
-    }
-    return !this.nativeAutocompleteConflictDetector.isNativeAutocompletePreferred(elem);
+  private isManualAttachSupportedElement(elem: SuggestionElement): elem is ManualAttachTarget {
+    return TextTargetAdapter.isInput(elem) || TextTargetAdapter.isTextArea(elem);
   }
 
-  private attachHelper(elem: SuggestionElement): void {
+  private isVisiblyInteractiveElement(elem: HTMLElement): boolean {
+    const style = window.getComputedStyle(elem);
+    return style.display !== "none" && style.visibility !== "hidden";
+  }
+
+  private hasNativeAutocompleteConflict(elem: SuggestionElement): boolean {
+    return this.nativeAutocompleteConflictDetector.isNativeAutocompletePreferred(elem);
+  }
+
+  private shouldDemoteAttachedElement(elem: SuggestionElement): boolean {
+    return (
+      this.preferNativeAutocomplete &&
+      !this.forcedNativeConflictElements.has(elem) &&
+      this.hasNativeAutocompleteConflict(elem)
+    );
+  }
+
+  private shouldShowManualAttachUi(elem: SuggestionElement): elem is ManualAttachTarget {
+    return (
+      this.preferNativeAutocomplete &&
+      !this.entryRegistry.isAttached(elem) &&
+      !this.forcedNativeConflictElements.has(elem) &&
+      this.isManualAttachSupportedElement(elem) &&
+      this.hasNativeAutocompleteConflict(elem)
+    );
+  }
+
+  private removeManualAttachUi(elem: SuggestionElement): void {
+    if (this.isManualAttachSupportedElement(elem)) {
+      this.manualAttachUiManager.removeForElement(elem);
+    }
+  }
+
+  private pruneManualAttachUi(): void {
+    for (const element of [...this.manualAttachUiManager.targets()]) {
+      if (
+        !isInDocument(element) ||
+        !this.isStructurallyEligibleElement(element) ||
+        !this.isVisiblyInteractiveElement(element)
+      ) {
+        this.forcedNativeConflictElements.delete(element);
+        this.manualAttachUiManager.removeForElement(element);
+        continue;
+      }
+      if (this.entryRegistry.isAttached(element)) {
+        if (!this.manualAttachUiManager.isSuccessPending(element)) {
+          this.manualAttachUiManager.removeForElement(element);
+        }
+        continue;
+      }
+      if (!this.shouldShowManualAttachUi(element)) {
+        this.manualAttachUiManager.removeForElement(element);
+      }
+    }
+  }
+
+  private syncManualAttachUi(elem: SuggestionElement): void {
+    if (this.entryRegistry.isAttached(elem)) {
+      this.removeManualAttachUi(elem);
+      return;
+    }
+    if (this.shouldShowManualAttachUi(elem)) {
+      this.manualAttachUiManager.ensureForElement(elem);
+      return;
+    }
+    this.removeManualAttachUi(elem);
+  }
+
+  private handleManualAttachActivate(elem: ManualAttachTarget): void {
+    if (!isInDocument(elem) || !this.isStructurallyEligibleElement(elem)) {
+      this.manualAttachUiManager.removeForElement(elem);
+      return;
+    }
+    this.attachElement(elem, { forceNativeConflict: true });
+    try {
+      elem.focus({ preventScroll: true });
+    } catch {
+      elem.focus();
+    }
+  }
+
+  private attachElement(
+    elem: SuggestionElement,
+    options: { forceNativeConflict?: boolean } = {},
+  ): boolean {
+    if (this.entryRegistry.isAttached(elem) || !this.isStructurallyEligibleElement(elem)) {
+      return false;
+    }
+
+    if (options.forceNativeConflict) {
+      this.forcedNativeConflictElements.add(elem);
+    } else if (this.preferNativeAutocomplete && this.hasNativeAutocompleteConflict(elem)) {
+      return false;
+    }
+
     const id = this.entryRegistry.allocateId();
 
     const menu = SuggestionMenuView.ensureMenu(document.body);
@@ -420,6 +541,14 @@ export class SuggestionManagerRuntime {
 
     this.entryRegistry.register(entry);
     this.lifecycleController.attachEntryListeners(entry);
+    if (
+      !options.forceNativeConflict ||
+      !this.isManualAttachSupportedElement(elem) ||
+      !this.manualAttachUiManager.isSuccessPending(elem)
+    ) {
+      this.removeManualAttachUi(elem);
+    }
+    return true;
   }
 
   private detachHelper(id: number): void {

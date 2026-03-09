@@ -95,7 +95,13 @@ jest.unstable_mockModule("../src/core/application/transport-utils", () => ({
 }));
 
 jest.unstable_mockModule("../src/core/application/dom-utils", () => ({
-  isInDocument: (element: Element) => document.contains(element),
+  isInDocument: (element: Element) => {
+    let root = element.getRootNode();
+    while (root !== document && "host" in root) {
+      root = (root as ShadowRoot).host.getRootNode();
+    }
+    return root === document;
+  },
   getDeepActiveElement: (doc: Document) => doc.activeElement,
 }));
 

@@ -590,6 +590,29 @@ async function waitForSuggestionTexts(page: Page): Promise<string[]> {
   return (await handle.jsonValue()) as string[];
 }
 
+async function typeInInput(page: Page, selector: string, text: string): Promise<void> {
+  await page.focus(selector);
+  const element = await page.$(selector);
+  if (!element) {
+    throw new Error(`Input element not found for selector: ${selector}`);
+  }
+  await element.type(text);
+}
+
+async function clearInputContent(page: Page, selector: string): Promise<void> {
+  await page.evaluate((sel) => {
+    const target = document.querySelector(sel);
+    if (!target) {
+      return;
+    }
+    if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
+      target.value = "";
+      return;
+    }
+    target.textContent = "";
+  }, selector);
+}
+
 async function waitForInputContentMatch(
   page: Page,
   selector: string,
@@ -757,6 +780,65 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       }
     },
     suiteTimeout(7000, 12000),
+  );
+
+  test(
+    "onboarding playground manual attach icon enables the native autocomplete field",
+    async () => {
+      const installationPage = await openExtensionPage(
+        browser,
+        worker,
+        "new_installation/index.html",
+      );
+      try {
+        await installationPage.waitForSelector("#try-me-textarea", {
+          timeout: suiteTimeout(3000, 7000),
+        });
+        await installationPage.waitForSelector("#try-native-list-input", {
+          timeout: suiteTimeout(3000, 7000),
+        });
+
+        await installationPage.waitForFunction(
+          () =>
+            document
+              .querySelector("#try-native-list-input")
+              ?.parentElement?.querySelector(".ft-manual-attach-button") instanceof
+            HTMLButtonElement,
+          { timeout: suiteTimeout(3000, 7000) },
+        );
+
+        const initialState = await installationPage.evaluate(() => ({
+          standardAttached:
+            document.querySelector("#try-me-textarea")?.hasAttribute("data-suggestion") ?? false,
+          nativeAttached:
+            document.querySelector("#try-native-list-input")?.hasAttribute("data-suggestion") ??
+            false,
+        }));
+        expect(initialState.standardAttached).toBe(true);
+        expect(initialState.nativeAttached).toBe(false);
+
+        await installationPage.evaluate(() => {
+          const button = document
+            .querySelector("#try-native-list-input")
+            ?.parentElement?.querySelector(".ft-manual-attach-button") as HTMLButtonElement | null;
+          button?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+          button?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+        });
+
+        await installationPage.waitForFunction(
+          () => {
+            const field = document.querySelector("#try-native-list-input");
+            return field?.hasAttribute("data-suggestion") && document.activeElement === field;
+          },
+          { timeout: suiteTimeout(3000, 7000) },
+        );
+      } finally {
+        if (!installationPage.isClosed()) {
+          await installationPage.close();
+        }
+      }
+    },
+    suiteTimeout(8000, 14000),
   );
 
   test(
@@ -1297,19 +1379,117 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       const results = await page.evaluate(() => ({
         nativeList:
           document.querySelector("#test-native-list")?.hasAttribute("data-suggestion") ?? false,
+        nativeListButton:
+          document
+            .querySelector("#test-native-list")
+            ?.parentElement?.querySelector(".ft-manual-attach-button") instanceof HTMLButtonElement,
         semanticEmail:
           document.querySelector("#test-semantic-email")?.hasAttribute("data-suggestion") ?? false,
+        semanticEmailButton:
+          document
+            .querySelector("#test-semantic-email")
+            ?.parentElement?.querySelector(".ft-manual-attach-button") instanceof HTMLButtonElement,
         combobox:
           document.querySelector("#test-combobox")?.hasAttribute("data-suggestion") ?? false,
+        comboboxButton:
+          document
+            .querySelector("#test-combobox")
+            ?.parentElement?.querySelector(".ft-manual-attach-button") instanceof HTMLButtonElement,
         normalText: document.querySelector("#test-input")?.hasAttribute("data-suggestion") ?? false,
       }));
 
       expect(results.nativeList).toBe(false);
+      expect(results.nativeListButton).toBe(true);
       expect(results.semanticEmail).toBe(false);
+      expect(results.semanticEmailButton).toBe(true);
       expect(results.combobox).toBe(false);
+      expect(results.comboboxButton).toBe(true);
       expect(results.normalText).toBe(true);
     },
     suiteTimeout(10000, 15000),
+  );
+
+  test(
+    "manual attach icon force-enables FluentTyper for a conflicting field",
+    async () => {
+      page = await prepareReusableTestPage(browser, page);
+
+      await page.waitForFunction(
+        () =>
+          document
+            .querySelector("#test-native-list")
+            ?.parentElement?.querySelector(".ft-manual-attach-button") instanceof HTMLButtonElement,
+        { timeout: timeoutProfile.inputReadyMs },
+      );
+
+      await page.evaluate(() => {
+        const button = document
+          .querySelector("#test-native-list")
+          ?.parentElement?.querySelector(".ft-manual-attach-button") as HTMLButtonElement | null;
+        button?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+        button?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+      });
+
+      await waitUntil(
+        "native list input to gain data-suggestion after manual attach",
+        async () => {
+          return await page.$eval(
+            "#test-native-list",
+            (el) => el.hasAttribute("data-suggestion") && document.activeElement === el,
+          );
+        },
+        { timeoutMs: suiteTimeout(3000, 6000), intervalMs: 50 },
+      );
+
+      await typeInInput(page, "#test-native-list", "th");
+      const suggestions = await waitForSuggestionTexts(page);
+      expect(suggestions.length).toBeGreaterThan(0);
+    },
+    suiteTimeout(10000, 15000),
+  );
+
+  test(
+    "manual attach icon force-enables semantic autocomplete and aria combobox conflicts",
+    async () => {
+      page = await prepareReusableTestPage(browser, page);
+
+      for (const selector of ["#test-semantic-email", "#test-combobox"]) {
+        await page.waitForFunction(
+          (fieldSelector) =>
+            document
+              .querySelector(fieldSelector)
+              ?.parentElement?.querySelector(".ft-manual-attach-button") instanceof
+            HTMLButtonElement,
+          { timeout: timeoutProfile.inputReadyMs },
+          selector,
+        );
+
+        await page.evaluate((fieldSelector) => {
+          const button = document
+            .querySelector(fieldSelector)
+            ?.parentElement?.querySelector(".ft-manual-attach-button") as HTMLButtonElement | null;
+          button?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+          button?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+        }, selector);
+
+        await waitUntil(
+          `${selector} to gain data-suggestion after manual attach`,
+          async () => {
+            return await page.$eval(
+              selector,
+              (el) => el.hasAttribute("data-suggestion") && document.activeElement === el,
+            );
+          },
+          { timeoutMs: suiteTimeout(3000, 6000), intervalMs: 50 },
+        );
+
+        await typeInInput(page, selector, "th");
+        const suggestions = await waitForSuggestionTexts(page);
+        expect(suggestions.length).toBeGreaterThan(0);
+        await clearInputContent(page, selector);
+      }
+    },
+    suiteTimeout(12000, 18000),
   );
 
   test(

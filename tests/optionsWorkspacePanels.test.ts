@@ -22,6 +22,7 @@ import {
   KEY_OBSERVABILITY_DEFAULT_LEVEL,
   KEY_OBSERVABILITY_ENABLED,
   KEY_OBSERVABILITY_MODULE_OVERRIDES,
+  KEY_PREFER_NATIVE_AUTOCOMPLETE,
   KEY_SELECT_BY_DIGIT,
 } from "../src/core/domain/constants";
 
@@ -82,6 +83,7 @@ describe("options workspace panels", () => {
 
     const registry = {
       enable: new MockPanelControl("Enable FluentTyper"),
+      [KEY_PREFER_NATIVE_AUTOCOMPLETE]: new MockPanelControl("Prefer native autocomplete"),
       [KEY_NUM_SUGGESTIONS]: new MockPanelControl("Number of suggestions"),
       [KEY_MIN_WORD_LENGTH_TO_PREDICT]: new MockPanelControl("Minimum characters"),
       [KEY_AUTOCOMPLETE_ON_TAB]: new MockPanelControl("Accept on Tab"),
@@ -92,7 +94,10 @@ describe("options workspace panels", () => {
       [KEY_INLINE_SUGGESTION]: new MockPanelControl("Inline suggestion"),
     } as unknown as SettingsRegistry;
 
-    createGroup(tab, "General", [registry.enable as unknown as MockPanelControl]);
+    createGroup(tab, "General", [
+      registry.enable as unknown as MockPanelControl,
+      registry[KEY_PREFER_NATIVE_AUTOCOMPLETE] as unknown as MockPanelControl,
+    ]);
     createGroup(tab, "Prediction", [
       registry[KEY_NUM_SUGGESTIONS] as unknown as MockPanelControl,
       registry[KEY_MIN_WORD_LENGTH_TO_PREDICT] as unknown as MockPanelControl,
@@ -111,6 +116,7 @@ describe("options workspace panels", () => {
     new EssentialsWorkspacePanel(panelRoot, registry, false);
 
     expect(panelRoot.textContent).toContain("Enable FluentTyper");
+    expect(panelRoot.textContent).toContain("Prefer native autocomplete");
     expect(panelRoot.textContent).toContain("Number of suggestions");
     expect(panelRoot.textContent).toContain("Inline suggestion");
     expect(tab.querySelectorAll(".settings-group.is-empty-workspace-group")).toHaveLength(4);
