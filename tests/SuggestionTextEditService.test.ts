@@ -784,6 +784,45 @@ describe("SuggestionTextEditService", () => {
     expect(entry.pendingExtensionEdit?.postEditBlockText).toBe("What is the best ");
   });
 
+  test("treats deferred host-owned contenteditable acceptance as successful", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+      contentEditableAdapter: new HostCanceledNoMutationContentEditableAdapter(),
+    });
+
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML = "<p><span>Wh</span></p>";
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+
+    const textNode = editable.querySelector("span")?.firstChild as Text | null;
+    if (!textNode) {
+      throw new Error("Expected text node");
+    }
+    setTextNodeCursor(textNode, textNode.textContent?.length ?? 0);
+
+    const entry = createSuggestionEntry({
+      elem: editable,
+      latestMentionText: "Wh",
+      latestMentionStart: -1,
+    });
+
+    const accepted = service.acceptSuggestion(entry, "What ");
+
+    expect(accepted).toEqual({
+      triggerText: "Wh",
+      insertedText: "What ",
+      cursorAfter: 5,
+      cursorAfterIsBlockLocal: true,
+    });
+    expect(entry.pendingExtensionEdit?.blockScoped).toBe(true);
+    expect(entry.pendingExtensionEdit?.replacementText).toBe("What ");
+    expect(entry.pendingExtensionEdit?.postEditBlockText).toBe("What ");
+    expect(editable.textContent).toBe("Wh");
+  });
+
   test("clears delayed post-accept space state when caret moves to a different paragraph at the same local offset", () => {
     const service = new SuggestionTextEditService({
       findMentionToken,

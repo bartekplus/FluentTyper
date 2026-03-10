@@ -1687,6 +1687,83 @@ describe("SuggestionManager", () => {
     expect(editable.querySelector("i")?.textContent).toBe("next");
   });
 
+  test("does not reopen prediction or mutate text on a second Tab after Facebook-style acceptance", async () => {
+    const { manager, getPrediction } = await createManager();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML =
+      '<div class="wrapper"><div class="first" dir="auto"><span data-text="true">wha</span></div></div>';
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    const firstBlock = editable.querySelector("div.first");
+    const textNode = editable.querySelector("span")?.firstChild as Text | null;
+    if (!firstBlock || !textNode) {
+      throw new Error("Expected Facebook-style contenteditable block");
+    }
+
+    editable.addEventListener("beforeinput", (event) => {
+      const inputEvent = event as InputEvent;
+      if (inputEvent.inputType !== "insertReplacementText") {
+        return;
+      }
+
+      event.preventDefault();
+      textNode.textContent = inputEvent.data ?? "";
+
+      const selection = window.getSelection();
+      if (!selection) {
+        return;
+      }
+      const staleRange = document.createRange();
+      staleRange.setStart(firstBlock, 0);
+      staleRange.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(staleRange);
+
+      dispatchInput(editable, { inputType: "insertText" });
+    });
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Expected selection");
+    }
+    const initialRange = document.createRange();
+    initialRange.setStart(textNode, textNode.textContent?.length ?? 0);
+    initialRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(initialRange);
+
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+    editable.dispatchEvent(new Event("input", { bubbles: true }));
+
+    const request = await waitForNextCall(getPrediction);
+    expect(request.text).toBe("wha");
+
+    manager.fulfillPrediction(
+      buildResponse(request, {
+        predictions: ["what"],
+      }),
+    );
+
+    const baselineCallCount = getPrediction.mock.calls.length;
+    const firstTab = dispatchKeydown(editable, "Tab");
+    expect(firstTab.defaultPrevented).toBe(true);
+    expect(editable.textContent).toBe("what");
+
+    await new Promise<void>((resolve) => setTimeout(resolve, 40));
+    expect(getPrediction.mock.calls.length).toBe(baselineCallCount);
+
+    const secondTab = dispatchKeydown(editable, "Tab");
+    expect(secondTab.defaultPrevented).toBe(false);
+    expect(editable.textContent).toBe("what");
+
+    await new Promise<void>((resolve) => setTimeout(resolve, 40));
+    expect(getPrediction.mock.calls.length).toBe(baselineCallCount);
+    expect(editable.textContent).toBe("what");
+  });
+
   test("hides contenteditable popup on outside click even without blur", async () => {
     const { manager, getPrediction } = await createManager();
     const editable = document.createElement("div");
