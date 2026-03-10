@@ -8,7 +8,7 @@ const SUCCESS_STATE_MS = 650;
 export const MANUAL_ATTACH_BUTTON_CLASS = "ft-manual-attach-button";
 export const MANUAL_ATTACH_TOOLTIP = "Click to enable FluentTyper for this field.";
 
-export type ManualAttachTarget = HTMLInputElement | HTMLTextAreaElement;
+export type ManualAttachTarget = HTMLInputElement | HTMLTextAreaElement | HTMLElement;
 
 interface ParentPositionState {
   count: number;
@@ -63,7 +63,9 @@ export class ManualAttachUiManager {
     const handle = this.createHandle(element, mountTarget);
     this.handles.set(element, handle);
     this.updatePlacement(element, handle);
-    this.applyPadding(element);
+    if (this.shouldReserveInlinePadding(element)) {
+      this.applyPadding(element);
+    }
   }
 
   public removeForElement(element: ManualAttachTarget): void {
@@ -274,17 +276,22 @@ export class ManualAttachUiManager {
   private updatePlacement(element: ManualAttachTarget, handle: ManualAttachUiHandle): void {
     const elementRect = element.getBoundingClientRect();
     const isTextarea = element.tagName.toLowerCase() === "textarea";
+    const isContentEditableTarget = !isTextarea && element.isContentEditable;
     const isRtl = element.ownerDocument.defaultView?.getComputedStyle(element).direction === "rtl";
-    const offsetTop = isTextarea
-      ? FIELD_INSET_PX
-      : Math.max(0, (elementRect.height - BUTTON_SIZE_PX) / 2);
+    const inlineObstacle = isContentEditableTarget
+      ? this.resolveInlineObstacle(element, handle, isRtl)
+      : null;
+    const offsetTop = this.resolveOffsetTop(elementRect.height, {
+      prefersTopInset: isTextarea || isContentEditableTarget,
+    });
     if (handle.usesViewportPositioning) {
-      const left = Math.max(
-        0,
-        isRtl
-          ? elementRect.left + FIELD_INSET_PX
-          : elementRect.left + elementRect.width - BUTTON_SIZE_PX - FIELD_INSET_PX,
-      );
+      const left = this.resolveInlineOffset({
+        rectStart: elementRect.left,
+        rectSize: elementRect.width,
+        isRtl,
+        obstacleStart: inlineObstacle?.start,
+        obstacleEnd: inlineObstacle?.end,
+      });
       const top = Math.max(0, elementRect.top + offsetTop);
       handle.container.style.left = `${Math.round(left)}px`;
       handle.container.style.top = `${Math.round(top)}px`;
@@ -292,20 +299,110 @@ export class ManualAttachUiManager {
     }
 
     const parentRect = handle.positioningParent?.getBoundingClientRect();
-    const left = Math.max(
-      0,
-      isRtl
-        ? elementRect.left - (parentRect?.left ?? 0) + FIELD_INSET_PX
-        : elementRect.left -
-            (parentRect?.left ?? 0) +
-            elementRect.width -
-            BUTTON_SIZE_PX -
-            FIELD_INSET_PX,
-    );
+    const left = this.resolveInlineOffset({
+      rectStart: elementRect.left - (parentRect?.left ?? 0),
+      rectSize: elementRect.width,
+      isRtl,
+      obstacleStart:
+        typeof inlineObstacle?.start === "number"
+          ? inlineObstacle.start - (parentRect?.left ?? 0)
+          : undefined,
+      obstacleEnd:
+        typeof inlineObstacle?.end === "number"
+          ? inlineObstacle.end - (parentRect?.left ?? 0)
+          : undefined,
+    });
     const top = Math.max(0, elementRect.top - (parentRect?.top ?? 0) + offsetTop);
 
     handle.container.style.left = `${Math.round(left)}px`;
     handle.container.style.top = `${Math.round(top)}px`;
+  }
+
+  private resolveInlineOffset(options: {
+    rectStart: number;
+    rectSize: number;
+    isRtl: boolean;
+    obstacleStart?: number;
+    obstacleEnd?: number;
+  }): number {
+    let minOffset = options.rectStart;
+    let maxOffset = options.rectStart + Math.max(0, options.rectSize - BUTTON_SIZE_PX);
+    if (typeof options.obstacleStart === "number" && !options.isRtl) {
+      maxOffset = Math.min(maxOffset, options.obstacleStart - BUTTON_SIZE_PX - FIELD_INSET_PX);
+    }
+    if (typeof options.obstacleEnd === "number" && options.isRtl) {
+      minOffset = Math.max(minOffset, options.obstacleEnd + FIELD_INSET_PX);
+    }
+    const desired = options.isRtl
+      ? options.rectStart + FIELD_INSET_PX
+      : options.rectStart + options.rectSize - BUTTON_SIZE_PX - FIELD_INSET_PX;
+    return this.clampToRange(desired, minOffset, maxOffset);
+  }
+
+  private resolveInlineObstacle(
+    element: ManualAttachTarget,
+    handle: ManualAttachUiHandle,
+    isRtl: boolean,
+  ): { start: number; end: number } | null {
+    const positioningParent = handle.positioningParent;
+    const layoutParent = positioningParent?.parentElement;
+    if (!positioningParent) {
+      return null;
+    }
+    const elementRect = element.getBoundingClientRect();
+    const elementMidpoint = elementRect.left + elementRect.width / 2;
+    const sameWrapperCandidates = Array.from(positioningParent.querySelectorAll("*")).filter(
+      (candidate): candidate is HTMLElement =>
+        candidate instanceof HTMLElement &&
+        candidate !== element &&
+        candidate !== handle.container &&
+        !element.contains(candidate) &&
+        !candidate.contains(element),
+    );
+    const siblingCandidates = layoutParent
+      ? Array.from(layoutParent.children).filter(
+          (candidate): candidate is HTMLElement =>
+            candidate instanceof HTMLElement && candidate !== positioningParent,
+        )
+      : [];
+    const obstacles = [...sameWrapperCandidates, ...siblingCandidates]
+      .map((candidate) => candidate.getBoundingClientRect())
+      .filter((rect) => rect.width > 0 && rect.height > 0)
+      .filter((rect) => this.hasVerticalOverlap(rect, elementRect))
+      .filter((rect) => (isRtl ? rect.right <= elementMidpoint : rect.left >= elementMidpoint));
+    if (obstacles.length === 0) {
+      return null;
+    }
+    if (isRtl) {
+      const nearest = obstacles.reduce((best, rect) => (rect.right > best.right ? rect : best));
+      return { start: nearest.left, end: nearest.right };
+    }
+    const nearest = obstacles.reduce((best, rect) => (rect.left < best.left ? rect : best));
+    return { start: nearest.left, end: nearest.right };
+  }
+
+  private hasVerticalOverlap(candidateRect: DOMRect, elementRect: DOMRect): boolean {
+    return candidateRect.bottom > elementRect.top && candidateRect.top < elementRect.bottom;
+  }
+
+  private resolveOffsetTop(
+    height: number,
+    options: {
+      prefersTopInset: boolean;
+    },
+  ): number {
+    const maxOffset = Math.max(0, height - BUTTON_SIZE_PX);
+    const desired = options.prefersTopInset
+      ? FIELD_INSET_PX
+      : Math.max(0, (height - BUTTON_SIZE_PX) / 2);
+    return this.clampToRange(desired, 0, maxOffset);
+  }
+
+  private clampToRange(value: number, min: number, max: number): number {
+    if (max <= min) {
+      return min;
+    }
+    return Math.min(Math.max(value, min), max);
   }
 
   private resolveMountTarget(element: ManualAttachTarget): ManualAttachMountTarget {
@@ -376,7 +473,13 @@ export class ManualAttachUiManager {
   }
 
   private restorePadding(element: ManualAttachTarget, handle: ManualAttachUiHandle): void {
-    this.setInlineEndPaddingStyleValue(element, handle.originalPaddingInlineEnd);
+    if (this.shouldReserveInlinePadding(element)) {
+      this.setInlineEndPaddingStyleValue(element, handle.originalPaddingInlineEnd);
+    }
+  }
+
+  private shouldReserveInlinePadding(element: ManualAttachTarget): boolean {
+    return !element.isContentEditable;
   }
 
   private getInlineEndPaddingStyleValue(element: ManualAttachTarget): string {

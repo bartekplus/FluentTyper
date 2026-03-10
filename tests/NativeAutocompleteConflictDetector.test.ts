@@ -19,7 +19,7 @@ describe("NativeAutocompleteConflictDetector", () => {
     expect(detector.isNativeAutocompletePreferred(input)).toBe(true);
   });
 
-  test("blocks combobox widgets and aria list autocomplete", () => {
+  test("blocks combobox widgets and aria list autocomplete on text controls", () => {
     const combobox = document.createElement("input");
     combobox.type = "text";
     combobox.setAttribute("role", "combobox");
@@ -30,6 +30,29 @@ describe("NativeAutocompleteConflictDetector", () => {
 
     expect(detector.isNativeAutocompletePreferred(combobox)).toBe(true);
     expect(detector.isNativeAutocompletePreferred(ariaAutocomplete)).toBe(true);
+  });
+
+  test("allows rich contenteditable editors that expose aria autocomplete metadata", () => {
+    const editor = document.createElement("div");
+    editor.contentEditable = "true";
+    editor.setAttribute("role", "textbox");
+    editor.setAttribute("aria-autocomplete", "list");
+    editor.setAttribute("aria-expanded", "true");
+    editor.setAttribute("aria-controls", "emoji-suggestion");
+    const listbox = document.createElement("div");
+    listbox.id = "emoji-suggestion";
+    listbox.setAttribute("role", "listbox");
+    document.body.append(editor, listbox);
+
+    expect(detector.isNativeAutocompletePreferred(editor)).toBe(false);
+  });
+
+  test("blocks explicit contenteditable combobox editors", () => {
+    const editor = document.createElement("div");
+    editor.contentEditable = "true";
+    editor.setAttribute("role", "combobox");
+
+    expect(detector.isNativeAutocompletePreferred(editor)).toBe(true);
   });
 
   test("blocks expanded controls wired to a popup listbox", () => {

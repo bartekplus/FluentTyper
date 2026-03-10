@@ -378,7 +378,11 @@ export class SuggestionManagerRuntime {
   }
 
   private isManualAttachSupportedElement(elem: SuggestionElement): elem is ManualAttachTarget {
-    return TextTargetAdapter.isInput(elem) || TextTargetAdapter.isTextArea(elem);
+    return (
+      TextTargetAdapter.isInput(elem) ||
+      TextTargetAdapter.isTextArea(elem) ||
+      elem.isContentEditable
+    );
   }
 
   private isVisiblyInteractiveElement(elem: HTMLElement): boolean {
@@ -429,6 +433,10 @@ export class SuggestionManagerRuntime {
         if (!this.manualAttachUiManager.isSuccessPending(element)) {
           this.manualAttachUiManager.removeForElement(element);
         }
+        continue;
+      }
+      if (this.shouldShowManualAttachUi(element)) {
+        this.manualAttachUiManager.ensureForElement(element);
         continue;
       }
       if (!this.shouldShowManualAttachUi(element)) {
