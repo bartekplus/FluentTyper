@@ -18,6 +18,92 @@ const baseGlobals = {
   chrome: (globalThis as unknown as { chrome: unknown }).chrome,
 };
 
+function runtimeDebugState(runtime: SuggestionManagerRuntime): {
+  attachedSessions: number;
+  buildsEntrySessions: boolean;
+  handlesPredictionInternally: boolean;
+} {
+  const runtimeInternal = runtime as unknown as {
+    sessionRegistry?: Map<number, unknown>;
+    buildEntrySession?: unknown;
+  };
+  const firstSession = runtimeInternal.sessionRegistry?.values().next().value as
+    | {
+        handleInput?: unknown;
+        handlePredictionResponse?: unknown;
+        handleCompositionStart?: unknown;
+        handleCompositionEnd?: unknown;
+      }
+    | undefined;
+  const sessionOwnsEntryBehavior =
+    typeof firstSession?.handleInput === "function" &&
+    typeof firstSession?.handlePredictionResponse === "function" &&
+    typeof firstSession?.handleCompositionStart === "function" &&
+    typeof firstSession?.handleCompositionEnd === "function";
+
+  return {
+    attachedSessions: runtimeInternal.sessionRegistry?.size ?? 0,
+    buildsEntrySessions: typeof runtimeInternal.buildEntrySession === "function",
+    handlesPredictionInternally: !sessionOwnsEntryBehavior,
+  };
+}
+
+function getAttachedSession(
+  runtime: SuggestionManagerRuntime,
+  id: number,
+): {
+  requestPrediction?: () => void;
+  requestInlineSuggestion?: () => void;
+  handleInput?: (event: Event) => void;
+  handleKeyFallbackReconcile?: (...args: unknown[]) => void;
+  handleKeyDown?: (event: KeyboardEvent) => void;
+  reconcileSelection?: () => void;
+  handleClick?: () => void;
+  handleBlur?: () => void;
+  acceptSuggestionAtIndex?: (index: number) => void;
+  acceptSuggestion?: (suggestion: string) => void;
+  handleFocus?: () => void;
+  handlePaste?: () => void;
+  handlePredictionResponse?: (context: {
+    requestId: number;
+    suggestionId: number;
+    predictions: string[];
+  }) => void;
+  handleCompositionStart?: () => void;
+  handleCompositionEnd?: () => void;
+} {
+  const runtimeInternal = runtime as unknown as {
+    sessionRegistry: Map<number, unknown>;
+  };
+
+  const session = runtimeInternal.sessionRegistry.get(id);
+  if (!session) {
+    throw new Error(`Expected attached session for entry ${id}`);
+  }
+
+  return session as {
+    requestPrediction?: () => void;
+    requestInlineSuggestion?: () => void;
+    handleInput?: (event: Event) => void;
+    handleKeyFallbackReconcile?: (...args: unknown[]) => void;
+    handleKeyDown?: (event: KeyboardEvent) => void;
+    reconcileSelection?: () => void;
+    handleClick?: () => void;
+    handleBlur?: () => void;
+    acceptSuggestionAtIndex?: (index: number) => void;
+    acceptSuggestion?: (suggestion: string) => void;
+    handleFocus?: () => void;
+    handlePaste?: () => void;
+    handlePredictionResponse?: (context: {
+      requestId: number;
+      suggestionId: number;
+      predictions: string[];
+    }) => void;
+    handleCompositionStart?: () => void;
+    handleCompositionEnd?: () => void;
+  };
+}
+
 function getManualAttachButton(root: ParentNode = document): HTMLButtonElement | null {
   return root.querySelector(".ft-manual-attach-button");
 }
@@ -141,6 +227,48 @@ describe("SuggestionManagerRuntime", () => {
     expect(input.hasAttribute("data-suggestion")).toBe(false);
   });
 
+  test("runtime only orchestrates attach, active-session lookup, and response routing", () => {
+    const runtime = makeRuntime();
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+
+    expect(runtime.queryAndAttachHelper()).toBe(true);
+    expect(runtime.queryAndAttachHelper()).toBe(false);
+
+    expect(runtimeDebugState(runtime)).toMatchObject({
+      attachedSessions: 1,
+      buildsEntrySessions: true,
+      handlesPredictionInternally: false,
+    });
+  });
+
+  test("triggerActiveSuggestion delegates prediction workflow to the active session", () => {
+    const runtime = makeRuntime("input");
+    const input = document.createElement("input");
+    input.type = "text";
+    document.body.appendChild(input);
+
+    runtime.queryAndAttachHelper();
+    input.dispatchEvent(new Event("focus", { bubbles: true }));
+
+    const runtimeInternal = runtime as unknown as {
+      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
+    };
+    const entry = runtimeInternal.entryRegistry.getByElement(input);
+    if (!entry) {
+      throw new Error("Expected attached suggestion entry");
+    }
+
+    const session = getAttachedSession(runtime, entry.id);
+    const requestPrediction = jest.fn();
+    session.requestPrediction = requestPrediction;
+
+    input.focus();
+    runtime.triggerActiveSuggestion();
+
+    expect(requestPrediction).toHaveBeenCalledTimes(1);
+  });
+
   test("detaches helper when attached input becomes structurally ineligible", () => {
     const runtime = new SuggestionManagerRuntime({
       selectors: "input",
@@ -169,86 +297,506 @@ describe("SuggestionManagerRuntime", () => {
     expect(input.hasAttribute("data-suggestion")).toBe(false);
   });
 
-  test("clears block-scoped accept transient state on click and blur", () => {
+  test("blur dismiss clears entry request state through session cleanup", () => {
+    const runtime = makeRuntime("input");
+    const input = document.createElement("input");
+    input.type = "text";
+    document.body.appendChild(input);
+
+    runtime.queryAndAttachHelper();
+
+    const runtimeInternal = runtime as unknown as {
+      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
+      predictionCoordinator: { cancelPending: (entry: SuggestionEntry) => void };
+    };
+    const entry = runtimeInternal.entryRegistry.getByElement(input);
+    if (!entry) {
+      throw new Error("Expected attached suggestion entry");
+    }
+
+    entry.suggestions = ["hello"];
+    entry.inlineSuggestion = "hello";
+    entry.pendingInlineAccept = true;
+    entry.pendingRequestTimer = setTimeout(() => undefined, 1000);
+    entry.pendingIdleTimer = setTimeout(() => undefined, 1000);
+    runtimeInternal.predictionCoordinator.cancelPending = jest.fn();
+
+    input.dispatchEvent(new Event("blur", { bubbles: true }));
+
+    expect(entry.pendingRequestTimer).toBeNull();
+    expect(entry.pendingIdleTimer).toBeNull();
+    expect(entry.suggestions).toEqual([]);
+    expect(entry.inlineSuggestion).toBeNull();
+    expect(entry.pendingInlineAccept).toBe(false);
+  });
+
+  test("fulfillPrediction routes prediction responses through the entry session", () => {
+    const runtime = makeRuntime("input");
+    const input = document.createElement("input");
+    input.type = "text";
+    document.body.appendChild(input);
+
+    runtime.queryAndAttachHelper();
+
+    const runtimeInternal = runtime as unknown as {
+      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
+    };
+    const entry = runtimeInternal.entryRegistry.getByElement(input);
+    if (!entry) {
+      throw new Error("Expected attached suggestion entry");
+    }
+
+    const session = getAttachedSession(runtime, entry.id);
+    const handlePredictionResponse = jest.fn();
+    session.handlePredictionResponse = handlePredictionResponse;
+
+    runtime.fulfillPrediction({
+      requestId: 2,
+      suggestionId: entry.id,
+      predictions: ["beta"],
+    });
+
+    expect(handlePredictionResponse).toHaveBeenCalledWith(
+      expect.objectContaining({ suggestionId: entry.id, predictions: ["beta"] }),
+    );
+  });
+
+  test("input events route through the entry session", () => {
+    const runtime = makeRuntime("input");
+    const input = document.createElement("input");
+    input.type = "text";
+    document.body.appendChild(input);
+
+    runtime.queryAndAttachHelper();
+
+    const runtimeInternal = runtime as unknown as {
+      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
+    };
+    const entry = runtimeInternal.entryRegistry.getByElement(input);
+    if (!entry) {
+      throw new Error("Expected attached suggestion entry");
+    }
+
+    const session = getAttachedSession(runtime, entry.id);
+    const handleInput = jest.fn();
+    session.handleInput = handleInput;
+
+    const inputEvent = new Event("input", { bubbles: true });
+    input.dispatchEvent(inputEvent);
+
+    expect(handleInput).toHaveBeenCalledWith(inputEvent);
+  });
+
+  test("composition events route through the entry session", () => {
+    const runtime = makeRuntime("input");
+    const input = document.createElement("input");
+    input.type = "text";
+    document.body.appendChild(input);
+
+    runtime.queryAndAttachHelper();
+
+    const runtimeInternal = runtime as unknown as {
+      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
+    };
+    const entry = runtimeInternal.entryRegistry.getByElement(input);
+    if (!entry) {
+      throw new Error("Expected attached suggestion entry");
+    }
+
+    const session = getAttachedSession(runtime, entry.id);
+    const handleCompositionStart = jest.fn();
+    const handleCompositionEnd = jest.fn();
+    session.handleCompositionStart = handleCompositionStart;
+    session.handleCompositionEnd = handleCompositionEnd;
+
+    input.dispatchEvent(new Event("compositionstart", { bubbles: true }));
+    input.dispatchEvent(new Event("compositionend", { bubbles: true }));
+
+    expect(handleCompositionStart).toHaveBeenCalledTimes(1);
+    expect(handleCompositionEnd).toHaveBeenCalledTimes(1);
+  });
+
+  test("inline keyboard request delegates to the attached session", () => {
+    const runtime = new SuggestionManagerRuntime({
+      selectors: "input",
+      minWordLengthToPredict: 1,
+      autocomplete: true,
+      autocompleteOnEnter: true,
+      autocompleteOnTab: true,
+      insertSpaceAfterAutocomplete: true,
+      lang: "en_US",
+      selectByDigit: true,
+      displayLangHeader: true,
+      inline_suggestion: true,
+      preferNativeAutocomplete: true,
+      enabledGrammarRules: [],
+      userDictionaryList: [],
+      getPrediction: jest.fn(),
+    });
+    const input = document.createElement("input");
+    input.type = "text";
+    document.body.appendChild(input);
+
+    runtime.queryAndAttachHelper();
+
+    const runtimeInternal = runtime as unknown as {
+      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
+    };
+    const entry = runtimeInternal.entryRegistry.getByElement(input);
+    if (!entry) {
+      throw new Error("Expected attached suggestion entry");
+    }
+
+    entry.latestMentionText = "hel";
+    const session = getAttachedSession(runtime, entry.id);
+    const requestInlineSuggestion = jest.fn();
+    session.requestInlineSuggestion = requestInlineSuggestion;
+
+    input.dispatchEvent(
+      new window.KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true }),
+    );
+
+    expect(requestInlineSuggestion).toHaveBeenCalledTimes(1);
+  });
+
+  test("fallback reconcile delegates to the attached session", () => {
     const runtime = makeRuntime();
     const editable = document.createElement("div");
     editable.setAttribute("contenteditable", "true");
     Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-    editable.innerHTML = "<p>Alpha best</p>";
+    editable.textContent = "Alpha";
     document.body.appendChild(editable);
 
     runtime.queryAndAttachHelper(editable);
 
     const runtimeInternal = runtime as unknown as {
       entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
+      pendingKeyFallbacks: Map<number, unknown>;
+      runKeyFallbackReconcile: (id: number) => void;
     };
     const entry = runtimeInternal.entryRegistry.getByElement(editable);
     if (!entry) {
       throw new Error("Expected attached suggestion entry");
     }
 
-    const block = editable.querySelector("p") as HTMLElement;
-    entry.pendingExtensionEdit = {
-      replaceStart: 6,
-      originalText: "bes",
-      replacementText: "best",
-      cursorBefore: 9,
-      cursorAfter: 10,
-      postEditFingerprint: {
-        fullText: "",
-        cursorOffset: 10,
-        selectionCollapsed: true,
-      },
-      source: "suggestion",
-      blockScoped: true,
-      blockElement: block,
-      postEditBlockText: "Alpha best",
+    const session = getAttachedSession(runtime, entry.id);
+    const handleKeyFallbackReconcile = jest.fn();
+    session.handleKeyFallbackReconcile = handleKeyFallbackReconcile;
+    runtimeInternal.pendingKeyFallbacks.set(entry.id, {
+      timer: setTimeout(() => undefined, 1000),
+      observer: null,
+      reconcileScheduled: false,
+      inputAction: "insert",
+      expectedBeforeCursor: "Alpha",
+      expectedFullText: "Alpha",
+      typedKey: "a",
+      waitForTextChangeUntilMs: null,
+    });
+
+    runtimeInternal.runKeyFallbackReconcile(entry.id);
+
+    expect(handleKeyFallbackReconcile).toHaveBeenCalledTimes(1);
+  });
+
+  test("keydown handling delegates active fallback setup to the attached session", () => {
+    const runtime = makeRuntime("input");
+    const input = document.createElement("input");
+    input.type = "text";
+    document.body.appendChild(input);
+
+    runtime.queryAndAttachHelper();
+
+    const runtimeInternal = runtime as unknown as {
+      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
     };
-    entry.missingTrailingSpace = true;
-    entry.expectedCursorPos = 10;
-    entry.expectedCursorPosIsBlockLocal = true;
-    entry.expectedCursorPosBlockElement = block;
-    entry.expectedCursorPosBlockText = "Alpha best";
+    const entry = runtimeInternal.entryRegistry.getByElement(input);
+    if (!entry) {
+      throw new Error("Expected attached suggestion entry");
+    }
 
-    editable.dispatchEvent(new Event("click", { bubbles: true }));
+    const session = getAttachedSession(runtime, entry.id);
+    const handleKeyDown = jest.fn();
+    session.handleKeyDown = handleKeyDown;
 
-    expect(entry.pendingExtensionEdit).toBeNull();
-    expect(entry.missingTrailingSpace).toBe(false);
-    expect(entry.expectedCursorPos).toBe(0);
-    expect(entry.expectedCursorPosIsBlockLocal).toBe(false);
-    expect(entry.expectedCursorPosBlockElement).toBeNull();
-    expect(entry.expectedCursorPosBlockText).toBeNull();
+    const keydown = new window.KeyboardEvent("keydown", {
+      key: "a",
+      bubbles: true,
+      cancelable: true,
+    });
+    input.dispatchEvent(keydown);
 
-    entry.pendingExtensionEdit = {
-      replaceStart: 6,
-      originalText: "bes",
-      replacementText: "best",
-      cursorBefore: 9,
-      cursorAfter: 10,
-      postEditFingerprint: {
-        fullText: "",
-        cursorOffset: 10,
-        selectionCollapsed: true,
-      },
-      source: "suggestion",
-      blockScoped: true,
-      blockElement: block,
-      postEditBlockText: "Alpha best",
+    expect(handleKeyDown).toHaveBeenCalledTimes(1);
+    expect(handleKeyDown.mock.calls[0]?.[0]).toBe(keydown);
+  });
+
+  test("selection reconciliation delegates to the attached session", () => {
+    const runtime = makeRuntime("input");
+    const input = document.createElement("input");
+    input.type = "text";
+    document.body.appendChild(input);
+
+    runtime.queryAndAttachHelper();
+    input.dispatchEvent(new Event("focus", { bubbles: true }));
+
+    const runtimeInternal = runtime as unknown as {
+      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
     };
-    entry.missingTrailingSpace = true;
-    entry.expectedCursorPos = 10;
-    entry.expectedCursorPosIsBlockLocal = true;
-    entry.expectedCursorPosBlockElement = block;
-    entry.expectedCursorPosBlockText = "Alpha best";
+    const entry = runtimeInternal.entryRegistry.getByElement(input);
+    if (!entry) {
+      throw new Error("Expected attached suggestion entry");
+    }
 
-    editable.dispatchEvent(new Event("blur", { bubbles: true }));
+    const session = getAttachedSession(runtime, entry.id);
+    const reconcileSelection = jest.fn();
+    session.reconcileSelection = reconcileSelection;
 
-    expect(entry.pendingExtensionEdit).toBeNull();
-    expect(entry.missingTrailingSpace).toBe(false);
-    expect(entry.expectedCursorPos).toBe(0);
-    expect(entry.expectedCursorPosIsBlockLocal).toBe(false);
-    expect(entry.expectedCursorPosBlockElement).toBeNull();
-    expect(entry.expectedCursorPosBlockText).toBeNull();
+    document.dispatchEvent(new Event("selectionchange", { bubbles: true }));
+
+    expect(reconcileSelection).toHaveBeenCalledTimes(1);
+  });
+
+  test("click and blur cleanup delegate to the attached session", () => {
+    const runtime = makeRuntime("input");
+    const input = document.createElement("input");
+    input.type = "text";
+    document.body.appendChild(input);
+
+    runtime.queryAndAttachHelper();
+
+    const runtimeInternal = runtime as unknown as {
+      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
+    };
+    const entry = runtimeInternal.entryRegistry.getByElement(input);
+    if (!entry) {
+      throw new Error("Expected attached suggestion entry");
+    }
+
+    const session = getAttachedSession(runtime, entry.id);
+    const handleClick = jest.fn();
+    const handleBlur = jest.fn();
+    session.handleClick = handleClick;
+    session.handleBlur = handleBlur;
+
+    input.dispatchEvent(new Event("click", { bubbles: true }));
+    input.dispatchEvent(new Event("blur", { bubbles: true }));
+
+    expect(handleClick).toHaveBeenCalledTimes(1);
+    expect(handleBlur).toHaveBeenCalledTimes(1);
+  });
+
+  test("focus and paste delegate to the attached session", () => {
+    const runtime = makeRuntime("input");
+    const input = document.createElement("input");
+    input.type = "text";
+    document.body.appendChild(input);
+
+    runtime.queryAndAttachHelper();
+
+    const runtimeInternal = runtime as unknown as {
+      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
+    };
+    const entry = runtimeInternal.entryRegistry.getByElement(input);
+    if (!entry) {
+      throw new Error("Expected attached suggestion entry");
+    }
+
+    const session = getAttachedSession(runtime, entry.id);
+    const handleFocus = jest.fn();
+    const handlePaste = jest.fn();
+    session.handleFocus = handleFocus;
+    session.handlePaste = handlePaste;
+
+    input.dispatchEvent(new Event("focus", { bubbles: true }));
+    input.dispatchEvent(new Event("paste", { bubbles: true }));
+
+    expect(handleFocus).toHaveBeenCalledTimes(1);
+    expect(handlePaste).toHaveBeenCalledTimes(1);
+  });
+
+  test("menu click delegates acceptance to the attached session", () => {
+    const runtime = makeRuntime("input");
+    const input = document.createElement("input");
+    input.type = "text";
+    document.body.appendChild(input);
+
+    runtime.queryAndAttachHelper();
+
+    const runtimeInternal = runtime as unknown as {
+      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
+    };
+    const entry = runtimeInternal.entryRegistry.getByElement(input);
+    if (!entry) {
+      throw new Error("Expected attached suggestion entry");
+    }
+
+    entry.suggestions = ["alpha"];
+    const item = document.createElement("li");
+    item.setAttribute("data-index", "0");
+    entry.list.appendChild(item);
+
+    const session = getAttachedSession(runtime, entry.id);
+    const acceptSuggestionAtIndex = jest.fn();
+    session.acceptSuggestionAtIndex = acceptSuggestionAtIndex;
+
+    item.dispatchEvent(new Event("click", { bubbles: true }));
+
+    expect(acceptSuggestionAtIndex).toHaveBeenCalledTimes(1);
+    expect(acceptSuggestionAtIndex).toHaveBeenCalledWith(0);
+  });
+
+  test("keyboard accept delegates active accept flow to the attached session", () => {
+    const runtime = new SuggestionManagerRuntime({
+      selectors: "input",
+      minWordLengthToPredict: 1,
+      autocomplete: true,
+      autocompleteOnEnter: true,
+      autocompleteOnTab: true,
+      insertSpaceAfterAutocomplete: true,
+      lang: "en_US",
+      selectByDigit: true,
+      displayLangHeader: true,
+      inline_suggestion: true,
+      preferNativeAutocomplete: true,
+      enabledGrammarRules: [],
+      userDictionaryList: [],
+      getPrediction: jest.fn(),
+    });
+    const input = document.createElement("input");
+    input.type = "text";
+    document.body.appendChild(input);
+
+    runtime.queryAndAttachHelper();
+
+    const runtimeInternal = runtime as unknown as {
+      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
+    };
+    const entry = runtimeInternal.entryRegistry.getByElement(input);
+    if (!entry) {
+      throw new Error("Expected attached suggestion entry");
+    }
+
+    entry.inlineSuggestion = "beta";
+    const session = getAttachedSession(runtime, entry.id);
+    const acceptSuggestion = jest.fn();
+    session.acceptSuggestion = acceptSuggestion;
+
+    input.dispatchEvent(
+      new window.KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true }),
+    );
+
+    expect(acceptSuggestion).toHaveBeenCalledTimes(1);
+    expect(acceptSuggestion).toHaveBeenCalledWith("beta");
+  });
+
+  test("existing attached sessions use updated lang config", () => {
+    const telemetry = {
+      recordSuggestionShown: jest.fn(),
+      recordSuggestionAccepted: jest.fn(),
+    };
+    const runtime = new SuggestionManagerRuntime({
+      selectors: "input",
+      minWordLengthToPredict: 1,
+      autocomplete: true,
+      autocompleteOnEnter: true,
+      autocompleteOnTab: true,
+      insertSpaceAfterAutocomplete: true,
+      lang: "en_US",
+      selectByDigit: true,
+      displayLangHeader: true,
+      inline_suggestion: true,
+      preferNativeAutocomplete: true,
+      enabledGrammarRules: [],
+      userDictionaryList: [],
+      getPrediction: jest.fn(),
+      telemetry: telemetry as never,
+    });
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = "bet";
+    input.selectionStart = 3;
+    input.selectionEnd = 3;
+    document.body.appendChild(input);
+
+    runtime.queryAndAttachHelper();
+    runtime.updateLangConfig("pl_PL");
+
+    const runtimeInternal = runtime as unknown as {
+      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
+    };
+    const entry = runtimeInternal.entryRegistry.getByElement(input);
+    if (!entry) {
+      throw new Error("Expected attached suggestion entry");
+    }
+
+    entry.inlineSuggestion = "beta";
+
+    input.dispatchEvent(
+      new window.KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true }),
+    );
+
+    expect(telemetry.recordSuggestionAccepted).toHaveBeenCalledWith(
+      expect.objectContaining({ language: "pl_PL" }),
+    );
+  });
+
+  test("real routed input skips prediction scheduling when the input event is composing", () => {
+    const runtime = makeRuntime("input");
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = "alpha";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    document.body.appendChild(input);
+
+    runtime.queryAndAttachHelper();
+
+    const runtimeInternal = runtime as unknown as {
+      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
+      predictionCoordinator: { schedule: (entry: SuggestionEntry, context: unknown) => void };
+    };
+    const entry = runtimeInternal.entryRegistry.getByElement(input);
+    if (!entry) {
+      throw new Error("Expected attached suggestion entry");
+    }
+
+    runtimeInternal.predictionCoordinator.schedule = jest.fn();
+    const initialRequestId = entry.requestId;
+    const inputEvent = new Event("input", { bubbles: true }) as InputEvent;
+    Object.defineProperty(inputEvent, "isComposing", { value: true });
+
+    input.dispatchEvent(inputEvent);
+
+    expect(runtimeInternal.predictionCoordinator.schedule).not.toHaveBeenCalled();
+    expect(entry.requestId).toBe(initialRequestId + 1);
+  });
+
+  test("real routed input skips prediction scheduling for non-collapsed selection", () => {
+    const runtime = makeRuntime("input");
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = "alpha";
+    input.selectionStart = 1;
+    input.selectionEnd = 4;
+    document.body.appendChild(input);
+
+    runtime.queryAndAttachHelper();
+
+    const runtimeInternal = runtime as unknown as {
+      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
+      predictionCoordinator: { schedule: (entry: SuggestionEntry, context: unknown) => void };
+    };
+    const entry = runtimeInternal.entryRegistry.getByElement(input);
+    if (!entry) {
+      throw new Error("Expected attached suggestion entry");
+    }
+
+    runtimeInternal.predictionCoordinator.schedule = jest.fn();
+    const initialRequestId = entry.requestId;
+
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+
+    expect(runtimeInternal.predictionCoordinator.schedule).not.toHaveBeenCalled();
+    expect(entry.requestId).toBe(initialRequestId + 1);
   });
 
   const makeRuntime = (selectors = "textarea, input, [contentEditable]") =>

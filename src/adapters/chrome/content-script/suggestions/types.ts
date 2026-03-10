@@ -3,6 +3,10 @@ import type {
   PredictResponseContext,
   PredictionInputAction,
 } from "@core/domain/messageTypes";
+import type { ContentEditableAdapter } from "./ContentEditableAdapter";
+import type { SuggestionGrammarCoordinator } from "./SuggestionGrammarCoordinator";
+import type { SuggestionPredictionCoordinator } from "./SuggestionPredictionCoordinator";
+import type { SuggestionTextEditService } from "./SuggestionTextEditService";
 
 export type PredictionRequest = ContentScriptPredictRequestContext;
 export type PredictionResponse = PredictResponseContext;
@@ -11,6 +15,30 @@ export interface SuggestionSnapshot {
   beforeCursor: string;
   afterCursor: string;
   cursorOffset: number;
+}
+
+export interface EditableContext {
+  kind: "text-value" | "contenteditable";
+  beforeCursor: string;
+  afterCursor: string;
+  fullText: string;
+  cursorOffset: number;
+  selectionStable: boolean;
+  blockContext?: {
+    beforeCursor: string;
+    afterCursor: string;
+  } | null;
+}
+
+export interface PendingKeyFallback {
+  timer: ReturnType<typeof setTimeout>;
+  observer: MutationObserver | null;
+  reconcileScheduled: boolean;
+  inputAction: PredictionInputAction;
+  expectedBeforeCursor: string | null;
+  expectedFullText: string | null;
+  typedKey: string | null;
+  waitForTextChangeUntilMs: number | null;
 }
 
 export interface PostEditFingerprint {
@@ -115,4 +143,56 @@ export interface SuggestionEntry {
     menuMouseDown: EventListener;
     menuClick: EventListener;
   };
+}
+
+export interface SuggestionEntrySessionOptions {
+  entry: SuggestionEntry;
+  editableContextResolver: {
+    resolve(elem: SuggestionElement): EditableContext | null;
+  };
+  clearPendingFallback?: () => void;
+  hideMenu: () => void;
+  clearInlinePresenter: () => void;
+  isFocused: () => boolean;
+  displayLangHeader: boolean;
+  inlineSuggestionEnabled: boolean;
+  predictionCoordinator: Pick<
+    SuggestionPredictionCoordinator,
+    "shouldProcessResponse" | "schedule" | "reconcile" | "cancelPending" | "findMentionToken"
+  >;
+  grammarCoordinator: Pick<SuggestionGrammarCoordinator, "hasEnabledRules" | "run">;
+  textEditService: Pick<
+    SuggestionTextEditService,
+    "applyGrammarEdit" | "syncManualAutoFixSuppression" | "acceptSuggestion"
+  >;
+  contentEditableAdapter: Pick<
+    ContentEditableAdapter,
+    | "getBlockContext"
+    | "getBlockContextBySelection"
+    | "isCollapsedSelectionBeforeBlockBoundary"
+    | "getPreviousBlockTextBySelection"
+    | "getActiveBlockElement"
+    | "hasMultipleBlockDescendants"
+  >;
+  getPendingFallback?: () => PendingKeyFallback | undefined;
+  renderMenu: (context: {
+    suggestions: string[];
+    selectedIndex: number;
+    menuHeader: string | null;
+    mentionText: string;
+  }) => void;
+  renderInline: () => void;
+  recordSuggestionShown: (context: { suggestionCount: number; language: string }) => void;
+  recordSuggestionAccepted: (context: {
+    triggerText: string;
+    insertedText: string;
+    language: string;
+  }) => void;
+  getLang: () => string;
+  insertSpaceAfterAutocomplete: boolean;
+  logRenderedSuggestionPopup: (
+    context: PredictionResponse,
+    details: { predictionCount: number; renderer: "inline" | "menu" },
+  ) => void;
+  logNoVisibleSuggestions: (context: PredictionResponse) => void;
 }
