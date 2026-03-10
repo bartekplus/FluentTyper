@@ -1957,6 +1957,52 @@ describe("SuggestionManager", () => {
     expect(request.inputAction).toBe("insert");
   });
 
+  test("applies grammar immediately for large contenteditable while predicting from fallback reconcile", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+      enabledGrammarRules: ["capitalizeSentenceStart"],
+    });
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML = `<p>${"a".repeat(25_000)}</p><p></p>`;
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    const secondParagraph = editable.querySelectorAll("p")[1];
+    if (!secondParagraph) {
+      throw new Error("Expected second paragraph");
+    }
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Expected selection");
+    }
+
+    const initialRange = document.createRange();
+    initialRange.setStart(secondParagraph, 0);
+    initialRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(initialRange);
+
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+    dispatchKeydown(editable, "w");
+
+    secondParagraph.textContent = "w";
+    const staleCaretRange = document.createRange();
+    staleCaretRange.setStart(secondParagraph, 0);
+    staleCaretRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(staleCaretRange);
+
+    const request = await waitForNextCall(getPrediction);
+    const paragraphs = editable.querySelectorAll("p");
+    expect(paragraphs[0]?.textContent).toBe("a".repeat(25_000));
+    expect(paragraphs[1]?.textContent).toBe("W");
+    expect(request.text).toBe("W");
+    expect(request.inputAction).toBe("insert");
+  });
+
   test("shows popup prediction after host-handled contenteditable capitalization leaves caret stale", async () => {
     const { manager, getPrediction } = await createManager({
       minWordLengthToPredict: 1,
@@ -2480,6 +2526,79 @@ describe("SuggestionManager", () => {
 
     const request = await waitForNextCall(getPrediction);
     expect(request.text).toBe("hellox");
+    expect(request.inputAction).toBe("insert");
+  });
+
+  test("requests prediction from direct fallback fast-path when resolved reconcile context fails", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+      enabledGrammarRules: [],
+    });
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML =
+      '<p class="first:mt-0 last:mb-0" dir="auto"><span data-lexical-text="true"></span></p>';
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    const paragraph = editable.querySelector("p");
+    const lexicalSpan = editable.querySelector("span");
+    if (!paragraph || !lexicalSpan) {
+      throw new Error("Expected Lexical-like paragraph");
+    }
+    const lexicalTextNode = lexicalSpan.appendChild(document.createTextNode(""));
+
+    const runtime = (manager as unknown as { runtime: Record<string, unknown> }).runtime;
+    const originalResolveEditableCursorContext = runtime.resolveEditableCursorContext as (
+      entry: unknown,
+      snapshot: unknown,
+      options?: { inputAction?: string; typedKey?: string | null },
+    ) => {
+      beforeCursor: string;
+    };
+    let shouldThrowOnResolvedReconcile = false;
+    jest
+      .spyOn(runtime, "resolveEditableCursorContext")
+      .mockImplementation((entry, snapshot, options) => {
+        const result = originalResolveEditableCursorContext.call(runtime, entry, snapshot, options);
+        const stack = new Error().stack ?? "";
+        if (
+          shouldThrowOnResolvedReconcile &&
+          options?.inputAction === "insert" &&
+          options.typedKey === "w" &&
+          result.beforeCursor === "w" &&
+          stack.includes("tryDispatchResolvedContentEditableFallbackReconcile") &&
+          !stack.includes("resolveBeforeCursorForPrediction")
+        ) {
+          throw new Error("Synthetic reconcile resolution failure");
+        }
+        return result;
+      });
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Expected selection");
+    }
+    const initialRange = document.createRange();
+    initialRange.setStart(paragraph, 0);
+    initialRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(initialRange);
+
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+    dispatchKeydown(editable, "w");
+
+    lexicalTextNode.textContent = "w";
+    const staleRange = document.createRange();
+    staleRange.setStart(paragraph, 0);
+    staleRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(staleRange);
+    shouldThrowOnResolvedReconcile = true;
+
+    const request = await waitForNextCall(getPrediction);
+    expect(request.text).toBe("w");
     expect(request.inputAction).toBe("insert");
   });
 

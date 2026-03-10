@@ -61,6 +61,9 @@ export interface ExtensionEditSnapshot {
   postEditFingerprint: PostEditFingerprint;
   source: "suggestion" | "grammar";
   sourceRuleId?: string;
+  blockScoped?: boolean;
+  postEditBlockText?: string | null;
+  blockElement?: HTMLElement | null;
 }
 
 export interface ManualAutoFixSuppressionSnapshot {
@@ -87,12 +90,16 @@ export interface SuggestionEntry {
   pendingInlineAccept: boolean;
   missingTrailingSpace: boolean;
   expectedCursorPos: number;
+  expectedCursorPosIsBlockLocal: boolean;
+  expectedCursorPosBlockElement: HTMLElement | null;
+  expectedCursorPosBlockText: string | null;
   pendingExtensionEdit: ExtensionEditSnapshot | null;
   manualAutoFixSuppression: ManualAutoFixSuppressionSnapshot | null;
   isComposing: boolean;
   lastKeydownKey: string | null;
   lastInputAction: PredictionInputAction | null;
   lastBeforeCursorText: string | null;
+  hasMultipleBlockDescendants: boolean;
   pendingRequestTimer: ReturnType<typeof setTimeout> | null;
   pendingIdleTimer: ReturnType<typeof setTimeout> | null;
   pendingGrammarPaste: boolean;

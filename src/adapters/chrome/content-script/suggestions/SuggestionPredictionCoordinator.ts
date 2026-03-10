@@ -179,15 +179,27 @@ export class SuggestionPredictionCoordinator {
     afterCursorOverride?: string,
     traceContext: PredictionTraceContext = createPredictionTraceContext(),
   ): void {
-    const snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
-    const beforeCursor = beforeCursorOverride ?? snapshot.beforeCursor;
-    const afterCursor = afterCursorOverride ?? snapshot.afterCursor;
+    const snapshot =
+      beforeCursorOverride === undefined || afterCursorOverride === undefined
+        ? TextTargetAdapter.snapshot(entry.elem as TextTarget)
+        : null;
+    const beforeCursor = beforeCursorOverride ?? snapshot?.beforeCursor ?? "";
+    const afterCursor = afterCursorOverride ?? snapshot?.afterCursor ?? "";
 
     const shouldPredict = this.shouldPredict(beforeCursor);
     if (!force && !shouldPredict) {
       // No new request will be sent, so bump the request id to invalidate
       // any in-flight responses from previous input states.
       entry.requestId += 1;
+      logger.debug("Suppressing prediction request for non-predictable input", {
+        traceId: traceContext.traceId,
+        requestId: entry.requestId,
+        suggestionId: entry.id,
+        inputAction: inputAction || "other",
+        beforeCursorLength: beforeCursor.length,
+        afterCursorLength: afterCursor.length,
+        tokenLength: this.findMentionToken(beforeCursor).token.length,
+      });
       clearSuggestions();
       return;
     }
