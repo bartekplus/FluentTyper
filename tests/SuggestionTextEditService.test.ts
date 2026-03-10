@@ -285,6 +285,34 @@ describe("SuggestionTextEditService", () => {
     expect(inputEventCount).toBe(1);
   });
 
+  test("dispatches a bubbling input event for text-value grammar edits", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+    });
+
+    const input = document.createElement("input");
+    input.value = "teh ";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    const entry = createSuggestionEntry({ elem: input });
+
+    let receivedBubblingInput = false;
+    input.addEventListener("input", (event) => {
+      receivedBubblingInput = event.bubbles;
+    });
+
+    const result = service.applyGrammarEdit(entry, {
+      replacementText: "the ",
+      replaceBackwardCount: 4,
+      evaluatedTextLength: 4,
+      expectedReplacedText: "teh ",
+    });
+
+    expect(result).toEqual({ applied: true, didDispatchInput: true });
+    expect(receivedBubblingInput).toBe(true);
+  });
+
   test("supports forward-delete grammar edits from the live caret", () => {
     const service = new SuggestionTextEditService({
       findMentionToken,

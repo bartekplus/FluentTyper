@@ -65,6 +65,65 @@ describe("ContentEditableAdapter", () => {
     expect(context).toBeNull();
   });
 
+  test("reports stable selection for collapsed caret inside one block", () => {
+    const adapter = new ContentEditableAdapter();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML = "<p>Alpha beta</p>";
+    document.body.appendChild(editable);
+
+    const textNode = editable.querySelector("p")?.firstChild;
+    if (!textNode || textNode.nodeType !== Node.TEXT_NODE) {
+      throw new Error("Expected paragraph text node");
+    }
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Selection API unavailable");
+    }
+
+    const range = document.createRange();
+    range.setStart(textNode, 5);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    expect(adapter.hasUnstableSelection(editable)).toBe(false);
+  });
+
+  test("reports unstable selection when selection spans blocks", () => {
+    const adapter = new ContentEditableAdapter();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML = "<p>Alpha</p><p>Beta</p>";
+    document.body.appendChild(editable);
+
+    const paragraphs = editable.querySelectorAll("p");
+    const startText = paragraphs[0]?.firstChild;
+    const endText = paragraphs[1]?.firstChild;
+    if (
+      !startText ||
+      startText.nodeType !== Node.TEXT_NODE ||
+      !endText ||
+      endText.nodeType !== Node.TEXT_NODE
+    ) {
+      throw new Error("Expected paragraph text nodes");
+    }
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Selection API unavailable");
+    }
+
+    const range = document.createRange();
+    range.setStart(startText, 1);
+    range.setEnd(endText, 2);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    expect(adapter.hasUnstableSelection(editable)).toBe(true);
+  });
+
   test("dispatches only one semantic replacement event to avoid duplicate inserts", () => {
     const adapter = new ContentEditableAdapter();
     const editable = document.createElement("div");

@@ -252,6 +252,36 @@ export class ContentEditableAdapter {
     return this.resolveActiveBlockForRange(elem, range);
   }
 
+  public hasUnstableSelection(elem: HTMLElement): boolean {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      return true;
+    }
+
+    const range = selection.getRangeAt(0);
+    const targetNode = elem as Node;
+    const startInside =
+      range.startContainer === targetNode || targetNode.contains(range.startContainer);
+    const endInside = range.endContainer === targetNode || targetNode.contains(range.endContainer);
+    if (!startInside || !endInside) {
+      return true;
+    }
+
+    if (selection.isCollapsed) {
+      return false;
+    }
+
+    const startBlock = this.resolveBlockFromPoint(
+      range.startContainer,
+      range.startOffset,
+      elem,
+      true,
+    );
+    const endBlock = this.resolveBlockFromPoint(range.endContainer, range.endOffset, elem, false);
+
+    return startBlock !== endBlock;
+  }
+
   /**
    * Get block-local context using only selection + DOM walk (no resolvePointWithinBlock).
    * Use when getBlockContext returns null so we never fall back to full-root snapshot for prediction.
