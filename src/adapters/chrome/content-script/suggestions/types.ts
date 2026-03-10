@@ -93,6 +93,7 @@ export interface SuggestionEntry {
   lastKeydownKey: string | null;
   lastInputAction: PredictionInputAction | null;
   lastBeforeCursorText: string | null;
+  hasMultipleBlockDescendants: boolean;
   pendingRequestTimer: ReturnType<typeof setTimeout> | null;
   pendingIdleTimer: ReturnType<typeof setTimeout> | null;
   pendingGrammarPaste: boolean;

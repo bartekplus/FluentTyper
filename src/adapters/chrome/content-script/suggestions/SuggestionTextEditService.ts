@@ -315,8 +315,13 @@ export class SuggestionTextEditService {
       replaceStart,
       Math.min(fullText.length, snapshot.beforeCursor.length + deleteForwards),
     );
+    let blockReplaceStart: number | null = null;
+    let blockReplaceEnd: number | null = null;
+    let blockCursorAfter: number | null = null;
+    let blockSourceText: string | null = null;
     let expectedBlockText: string | null = null;
     let expectedBlockCursorAfter: number | null = null;
+    let activeBlock: HTMLElement | null = null;
 
     if (!TextTargetAdapter.isTextValue(entry.elem)) {
       const providedContentEditableContext = context.contentEditableContext;
@@ -340,15 +345,16 @@ export class SuggestionTextEditService {
           return { applied: false, didDispatchInput: false };
         }
 
-        const blockReplaceStart = Math.max(0, blockCursor - deleteBackwards);
-        const blockReplaceEnd = Math.max(
+        blockReplaceStart = Math.max(0, blockCursor - deleteBackwards);
+        blockReplaceEnd = Math.max(
           blockReplaceStart,
           Math.min(
             blockContext.beforeCursor.length + blockContext.afterCursor.length,
             blockCursor + deleteForwards,
           ),
         );
-        expectedBlockText = `${blockContext.beforeCursor}${blockContext.afterCursor}`;
+        blockSourceText = `${blockContext.beforeCursor}${blockContext.afterCursor}`;
+        expectedBlockText = blockSourceText;
         expectedBlockText = `${expectedBlockText.slice(0, blockReplaceStart)}${replacement}${expectedBlockText.slice(blockReplaceEnd)}`;
         expectedBlockCursorAfter = this.resolveCursorAfterTextEdit(
           blockCursor,
@@ -356,12 +362,14 @@ export class SuggestionTextEditService {
           blockReplaceEnd,
           replacement,
         );
+        blockCursorAfter = expectedBlockCursorAfter;
 
         replaceStart = Math.max(0, blockStart + blockCursor - deleteBackwards);
         replaceEnd = Math.max(
           replaceStart,
           Math.min(fullText.length, blockStart + blockCursor + deleteForwards),
         );
+        activeBlock = this.contentEditableAdapter.getActiveBlockElement(entry.elem as HTMLElement);
       }
     }
     const expectedFullText = `${fullText.slice(0, replaceStart)}${replacement}${fullText.slice(replaceEnd)}`;
@@ -386,22 +394,53 @@ export class SuggestionTextEditService {
       replaceEnd,
       replacement,
     );
-    const applyResult = this.replaceTextByOffsets(
-      entry.elem,
-      fullText,
-      replaceStart,
-      replaceEnd,
-      replacement,
-      cursorAfter,
-      { preferDomMutation: this.shouldPreferDomMutationForGrammar(entry.elem) },
-    );
+    const applyResult =
+      !TextTargetAdapter.isTextValue(entry.elem) &&
+      activeBlock !== null &&
+      blockReplaceStart !== null &&
+      blockReplaceEnd !== null &&
+      blockCursorAfter !== null
+        ? this.replaceTextByOffsets(
+            entry.elem,
+            blockSourceText ?? "",
+            blockReplaceStart,
+            blockReplaceEnd,
+            replacement,
+            blockCursorAfter,
+            {
+              preferDomMutation: this.shouldPreferDomMutationForGrammar(entry.elem),
+              scopeRoot: activeBlock,
+            },
+          )
+        : this.replaceTextByOffsets(
+            entry.elem,
+            fullText,
+            replaceStart,
+            replaceEnd,
+            replacement,
+            cursorAfter,
+            { preferDomMutation: this.shouldPreferDomMutationForGrammar(entry.elem) },
+          );
     if (!applyResult.didMutateDom) {
       return {
         applied: false,
         didDispatchInput: false,
       };
     }
-    let postEditSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+    let postEditSnapshot: SuggestionSnapshot | null =
+      !TextTargetAdapter.isTextValue(entry.elem) &&
+      activeBlock !== null &&
+      expectedBlockText !== null &&
+      (activeBlock.textContent ?? "") === expectedBlockText
+        ? {
+            beforeCursor: expectedFullText.slice(0, cursorAfter),
+            afterCursor: expectedFullText.slice(cursorAfter),
+            cursorOffset: cursorAfter,
+          }
+        : null;
+    if (postEditSnapshot === null) {
+      postEditSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+    }
     let finalApplyResult = applyResult;
 
     if (

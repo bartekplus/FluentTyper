@@ -107,6 +107,7 @@ const observabilityUIState = {
   eventQuery: "",
   eventSource: "all" as "all" | "background" | "content_script" | "options",
   eventLevel: "all" as "all" | LogLevel,
+  scopeDomain: "all",
   livePaused: false,
 };
 const observabilityLogger = createLogger("OptionsObservability");
@@ -1779,6 +1780,95 @@ function countObservabilityOverriddenModules(modules: ObservabilityModuleState[]
   return modules.filter((moduleState) => Boolean(moduleState.hasOverride)).length;
 }
 
+function buildObservabilitySummaryFromEvents(events: ObservabilityEvent[]): ObservabilitySummary {
+  const eventsByLevel: Record<LogLevel, number> = {
+    debug: 0,
+    info: 0,
+    warn: 0,
+    error: 0,
+  };
+  const eventsBySource: Record<ObservabilityEvent["source"], number> = {
+    background: 0,
+    content_script: 0,
+    options: 0,
+  };
+  events.forEach((event) => {
+    eventsByLevel[event.level] += 1;
+    eventsBySource[event.source] += 1;
+  });
+  return {
+    totalEvents: events.length,
+    eventsByLevel,
+    eventsBySource,
+  };
+}
+
+function collectObservabilityScopeDomains(snapshot: ObservabilitySnapshotRecord): string[] {
+  const domains = new Set<string>();
+  [...snapshot.contentRuntimes, ...snapshot.autoLanguageRuntimes].forEach((runtime) => {
+    if (typeof runtime.domain === "string" && runtime.domain.trim().length > 0) {
+      domains.add(runtime.domain);
+    }
+  });
+  return [...domains].sort((left, right) => left.localeCompare(right));
+}
+
+function buildScopedObservabilitySnapshot(
+  snapshot: ObservabilitySnapshotRecord,
+  scopeDomain: string,
+): ObservabilitySnapshotRecord {
+  if (scopeDomain === "all") {
+    return snapshot;
+  }
+
+  const normalizedDomain = scopeDomain.trim().toLowerCase();
+  if (!normalizedDomain) {
+    return snapshot;
+  }
+
+  const scopedContentRuntimes = snapshot.contentRuntimes.filter(
+    (runtime) => runtime.domain === normalizedDomain,
+  );
+  const scopedAutoLanguageRuntimes = snapshot.autoLanguageRuntimes.filter(
+    (runtime) => runtime.domain === normalizedDomain,
+  );
+  const matchingTabIds = new Set<number>();
+  scopedContentRuntimes.forEach((runtime) => {
+    matchingTabIds.add(runtime.tabId);
+  });
+  scopedAutoLanguageRuntimes.forEach((runtime) => {
+    matchingTabIds.add(runtime.tabId);
+  });
+
+  const scopedEvents = snapshot.events.filter(
+    (event) => typeof event.tabId === "number" && matchingTabIds.has(event.tabId),
+  );
+  const predictor =
+    snapshot.predictor && typeof snapshot.predictor === "object"
+      ? ({
+          ...snapshot.predictor,
+          traces: Array.isArray((snapshot.predictor as Record<string, unknown>).traces)
+            ? (
+                (snapshot.predictor as Record<string, unknown>).traces as Array<
+                  Record<string, unknown>
+                >
+              ).filter((trace) =>
+                typeof trace.tabId === "number" ? matchingTabIds.has(trace.tabId) : false,
+              )
+            : [],
+        } satisfies Record<string, unknown>)
+      : snapshot.predictor;
+
+  return {
+    ...snapshot,
+    summary: buildObservabilitySummaryFromEvents(scopedEvents),
+    events: scopedEvents,
+    predictor,
+    contentRuntimes: scopedContentRuntimes,
+    autoLanguageRuntimes: scopedAutoLanguageRuntimes,
+  };
+}
+
 function matchesObservabilityModuleFilter(
   moduleState: Partial<ObservabilityModuleState>,
   query: string,
@@ -1886,13 +1976,24 @@ function renderObservabilitySnapshot(
   const pageScrollX = window.scrollX;
   const pageScrollY = window.scrollY;
   const scrollState = readObservabilityScrollState(root);
-  const events = snapshot.events;
-  const modules = snapshot.modules;
-  const config: ObservabilityConfig = snapshot.config;
-  const summary: ObservabilitySummary = snapshot.summary;
+  const availableScopeDomains = collectObservabilityScopeDomains(snapshot);
+  if (
+    observabilityUIState.scopeDomain !== "all" &&
+    !availableScopeDomains.includes(observabilityUIState.scopeDomain)
+  ) {
+    observabilityUIState.scopeDomain = "all";
+  }
+  const scopedSnapshot = buildScopedObservabilitySnapshot(
+    snapshot,
+    observabilityUIState.scopeDomain,
+  );
+  const events = scopedSnapshot.events;
+  const modules = scopedSnapshot.modules;
+  const config: ObservabilityConfig = scopedSnapshot.config;
+  const summary: ObservabilitySummary = scopedSnapshot.summary;
   const predictor =
-    snapshot.predictor && typeof snapshot.predictor === "object"
-      ? (snapshot.predictor as Record<string, unknown>)
+    scopedSnapshot.predictor && typeof scopedSnapshot.predictor === "object"
+      ? (scopedSnapshot.predictor as Record<string, unknown>)
       : null;
   const filteredModules = modules.filter((moduleStateRecord) =>
     matchesObservabilityModuleFilter(
@@ -1926,6 +2027,7 @@ function renderObservabilitySnapshot(
   const predictorTraces = Array.isArray(predictor?.traces) ? predictor.traces : [];
   root.innerHTML = "";
   root.setAttribute("data-raw-snapshot", JSON.stringify(snapshot, null, 2));
+  root.setAttribute("data-raw-snapshot-scoped", JSON.stringify(scopedSnapshot, null, 2));
 
   const shell = document.createElement("section");
   shell.className = "observability-dashboard";
@@ -1936,17 +2038,27 @@ function renderObservabilitySnapshot(
   const title = document.createElement("h3");
   title.textContent = "Observability Control Room";
   const subtitle = document.createElement("p");
-  subtitle.textContent = `Updated ${formatClockTime(snapshot.generatedAtMs)}`;
+  subtitle.textContent =
+    observabilityUIState.scopeDomain === "all"
+      ? `Updated ${formatClockTime(snapshot.generatedAtMs)}`
+      : `Updated ${formatClockTime(snapshot.generatedAtMs)} · scope ${observabilityUIState.scopeDomain}`;
   subtitle.setAttribute("data-observability-live-status", "true");
   titleBlock.append(title, subtitle);
   header.appendChild(titleBlock);
 
   const actions = document.createElement("div");
   actions.className = "observability-actions";
+  actions.appendChild(
+    createObservabilitySelect("set-observability-scope-domain", observabilityUIState.scopeDomain, [
+      { value: "all", label: "All sites" },
+      ...availableScopeDomains.map((domain) => ({ value: domain, label: domain })),
+    ]),
+  );
   [
     ["Refresh", "refresh-observability"],
     ["Clear Events", "clear-observability"],
     ["Copy Snapshot", "copy-observability"],
+    ["Copy Site Snapshot", "copy-scoped-observability"],
     [observabilityUIState.livePaused ? "Resume Live" : "Pause Live", "toggle-observability-live"],
   ].forEach(([label, action]) => {
     const button = document.createElement("button");
@@ -1992,12 +2104,18 @@ function renderObservabilitySnapshot(
   appendObservabilityInfoItem(
     coverageCard,
     "Content runtimes",
-    String(Array.isArray(snapshot.contentRuntimes) ? snapshot.contentRuntimes.length : 0),
+    String(
+      Array.isArray(scopedSnapshot.contentRuntimes) ? scopedSnapshot.contentRuntimes.length : 0,
+    ),
   );
   appendObservabilityInfoItem(
     coverageCard,
     "Auto-language runtimes",
-    String(Array.isArray(snapshot.autoLanguageRuntimes) ? snapshot.autoLanguageRuntimes.length : 0),
+    String(
+      Array.isArray(scopedSnapshot.autoLanguageRuntimes)
+        ? scopedSnapshot.autoLanguageRuntimes.length
+        : 0,
+    ),
   );
   summaryGrid.appendChild(coverageCard);
 
@@ -2346,10 +2464,13 @@ function renderObservabilitySnapshot(
   const rawDetails = document.createElement("details");
   rawDetails.className = "observability-raw";
   const rawSummary = document.createElement("summary");
-  rawSummary.textContent = "Inspect full machine-readable snapshot";
+  rawSummary.textContent =
+    observabilityUIState.scopeDomain === "all"
+      ? "Inspect full machine-readable snapshot"
+      : `Inspect machine-readable snapshot for ${observabilityUIState.scopeDomain}`;
   const raw = document.createElement("pre");
   raw.className = "observability-raw-preview";
-  raw.textContent = JSON.stringify(snapshot, null, 2);
+  raw.textContent = JSON.stringify(scopedSnapshot, null, 2);
   rawDetails.append(rawSummary, raw);
   rawSection.append(rawTitle, rawDetails);
   workspaceGrid.appendChild(rawSection);
@@ -2360,7 +2481,9 @@ function renderObservabilitySnapshot(
     root,
     observabilityUIState.livePaused
       ? "Live updates paused"
-      : `Updated ${formatClockTime(snapshot.generatedAtMs)}`,
+      : observabilityUIState.scopeDomain === "all"
+        ? `Updated ${formatClockTime(snapshot.generatedAtMs)}`
+        : `Updated ${formatClockTime(snapshot.generatedAtMs)} · scope ${observabilityUIState.scopeDomain}`,
   );
   window.requestAnimationFrame(() => {
     window.scrollTo(pageScrollX, pageScrollY);
@@ -2511,6 +2634,13 @@ function setupObservabilityDashboard(registry: ReturnType<SettingsEngine["buildF
       if (raw && navigator.clipboard?.writeText) {
         void navigator.clipboard.writeText(raw);
       }
+      return;
+    }
+    if (action === "copy-scoped-observability") {
+      const raw = root.getAttribute("data-raw-snapshot-scoped") || "";
+      if (raw && navigator.clipboard?.writeText) {
+        void navigator.clipboard.writeText(raw);
+      }
     }
   });
 
@@ -2570,6 +2700,11 @@ function setupObservabilityDashboard(registry: ReturnType<SettingsEngine["buildF
     }
     if (action === "set-observability-event-level" && target instanceof HTMLSelectElement) {
       observabilityUIState.eventLevel = isLogLevel(target.value) ? target.value : "all";
+      renderStoredObservabilitySnapshot(root, registry);
+      return;
+    }
+    if (action === "set-observability-scope-domain" && target instanceof HTMLSelectElement) {
+      observabilityUIState.scopeDomain = target.value || "all";
       renderStoredObservabilitySnapshot(root, registry);
       return;
     }

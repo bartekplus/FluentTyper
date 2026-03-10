@@ -53,17 +53,21 @@ export class ContentEditableAdapter {
     replaceEnd: number,
     replacementText: string,
     cursorAfter: number,
-    { preferDomMutation = false }: { preferDomMutation?: boolean } = {},
+    {
+      preferDomMutation = false,
+      scopeRoot = null,
+    }: { preferDomMutation?: boolean; scopeRoot?: HTMLElement | null } = {},
   ): ContentEditableEditResult {
-    const selectionAnchors = this.captureSelectionOffsetAnchors(elem);
+    const editScope = scopeRoot ?? elem;
+    const selectionAnchors = this.captureSelectionOffsetAnchors(editScope);
     const startPosition = this.resolveContentEditablePosition(
-      elem,
+      editScope,
       replaceStart,
       selectionAnchors,
       "start",
     );
     const endPosition = this.resolveContentEditablePosition(
-      elem,
+      editScope,
       replaceEnd,
       selectionAnchors,
       "end",
@@ -127,7 +131,7 @@ export class ContentEditableAdapter {
 
     const hadSelectedContent = !range.collapsed;
     range.deleteContents();
-    this.normalizeCollapsedInsertionRange(range, elem);
+    this.normalizeCollapsedInsertionRange(range, editScope);
 
     let insertedReplacement = false;
     if (replacementText.length > 0) {
@@ -137,7 +141,7 @@ export class ContentEditableAdapter {
       insertedReplacement = true;
     }
 
-    this.setCaret(elem, cursorAfter);
+    this.setCaret(editScope, cursorAfter);
     this.dispatchReplacementInput(elem, range, replacementText);
 
     return {
@@ -228,6 +232,24 @@ export class ContentEditableAdapter {
     // Fallback when resolvePointWithinBlock fails (e.g. some Lexical/Reddit DOM): find block
     // by walking up from selection and compute text within that block only.
     return this.getBlockContextByWalking(elem, range);
+  }
+
+  public getActiveBlockElement(elem: HTMLElement): HTMLElement | null {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      return null;
+    }
+
+    const range = selection.getRangeAt(0);
+    const targetNode = elem as Node;
+    const startInside =
+      range.startContainer === targetNode || targetNode.contains(range.startContainer);
+    const endInside = range.endContainer === targetNode || targetNode.contains(range.endContainer);
+    if (!startInside || !endInside) {
+      return null;
+    }
+
+    return this.resolveActiveBlockForRange(elem, range);
   }
 
   /**
