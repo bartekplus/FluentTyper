@@ -1,6 +1,7 @@
 import { DEFAULT_NUM_SUGGESTIONS } from "@core/domain/constants";
 import type { DomainListMode, SettingField, SettingsSchema } from "@core/domain/contracts/settings";
 import { resolveEnabledLanguages } from "@core/domain/lang";
+import { DEFAULT_SUGGESTION_THEME_SETTINGS } from "@core/domain/themeDefaults";
 import { SettingsRepositoryBase } from "./SettingsRepositoryBase";
 
 const DEFAULT_DOMAIN_LIST_MODE: DomainListMode = "blackList";
@@ -205,6 +206,7 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
   }
 
   async getThemeSettings(): Promise<ThemeSettings> {
+    const defaults = DEFAULT_SUGGESTION_THEME_SETTINGS;
     const [
       suggestionBgLight,
       suggestionTextLight,
@@ -236,19 +238,58 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
     ]);
 
     return {
-      suggestionBgLight: CoreSettingsRepository.toString(suggestionBgLight),
-      suggestionTextLight: CoreSettingsRepository.toString(suggestionTextLight),
-      suggestionHighlightBgLight: CoreSettingsRepository.toString(suggestionHighlightBgLight),
-      suggestionHighlightTextLight: CoreSettingsRepository.toString(suggestionHighlightTextLight),
-      suggestionBorderLight: CoreSettingsRepository.toString(suggestionBorderLight),
-      suggestionBgDark: CoreSettingsRepository.toString(suggestionBgDark),
-      suggestionTextDark: CoreSettingsRepository.toString(suggestionTextDark),
-      suggestionHighlightBgDark: CoreSettingsRepository.toString(suggestionHighlightBgDark),
-      suggestionHighlightTextDark: CoreSettingsRepository.toString(suggestionHighlightTextDark),
-      suggestionBorderDark: CoreSettingsRepository.toString(suggestionBorderDark),
-      suggestionFontSize: CoreSettingsRepository.toString(suggestionFontSize),
-      suggestionPaddingVertical: CoreSettingsRepository.toString(suggestionPaddingVertical),
-      suggestionPaddingHorizontal: CoreSettingsRepository.toString(suggestionPaddingHorizontal),
+      suggestionBgLight: CoreSettingsRepository.toString(
+        suggestionBgLight,
+        defaults.suggestionBgLight,
+      ),
+      suggestionTextLight: CoreSettingsRepository.toString(
+        suggestionTextLight,
+        defaults.suggestionTextLight,
+      ),
+      suggestionHighlightBgLight: CoreSettingsRepository.toString(
+        suggestionHighlightBgLight,
+        defaults.suggestionHighlightBgLight,
+      ),
+      suggestionHighlightTextLight: CoreSettingsRepository.toString(
+        suggestionHighlightTextLight,
+        defaults.suggestionHighlightTextLight,
+      ),
+      suggestionBorderLight: CoreSettingsRepository.toString(
+        suggestionBorderLight,
+        defaults.suggestionBorderLight,
+      ),
+      suggestionBgDark: CoreSettingsRepository.toString(
+        suggestionBgDark,
+        defaults.suggestionBgDark,
+      ),
+      suggestionTextDark: CoreSettingsRepository.toString(
+        suggestionTextDark,
+        defaults.suggestionTextDark,
+      ),
+      suggestionHighlightBgDark: CoreSettingsRepository.toString(
+        suggestionHighlightBgDark,
+        defaults.suggestionHighlightBgDark,
+      ),
+      suggestionHighlightTextDark: CoreSettingsRepository.toString(
+        suggestionHighlightTextDark,
+        defaults.suggestionHighlightTextDark,
+      ),
+      suggestionBorderDark: CoreSettingsRepository.toString(
+        suggestionBorderDark,
+        defaults.suggestionBorderDark,
+      ),
+      suggestionFontSize: CoreSettingsRepository.toString(
+        suggestionFontSize,
+        defaults.suggestionFontSize,
+      ),
+      suggestionPaddingVertical: CoreSettingsRepository.toString(
+        suggestionPaddingVertical,
+        defaults.suggestionPaddingVertical,
+      ),
+      suggestionPaddingHorizontal: CoreSettingsRepository.toString(
+        suggestionPaddingHorizontal,
+        defaults.suggestionPaddingHorizontal,
+      ),
     };
   }
 }

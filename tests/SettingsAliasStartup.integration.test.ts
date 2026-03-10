@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { DEFAULT_SUGGESTION_THEME_SETTINGS } from "../src/core/domain/themeDefaults";
 
 type StorageSnapshot = Record<string, string>;
 
@@ -85,6 +86,17 @@ async function loadSettingsModules() {
 }
 
 describe("settings alias startup integration", () => {
+  test("returns default theme settings on fresh install without seeding storage", async () => {
+    const { storageState } = installChromeStorageMock();
+    const { SettingsManager, CoreSettingsRepository } = await loadSettingsModules();
+    const settings = new SettingsManager();
+    const coreSettings = new CoreSettingsRepository(settings);
+
+    expect(await coreSettings.getThemeSettings()).toEqual(DEFAULT_SUGGESTION_THEME_SETTINGS);
+    expect(storageState["store.settings.suggestionBgLight"]).toBeUndefined();
+    expect(storageState["store.settings.suggestionBgDark"]).toBeUndefined();
+  });
+
   test("does not seed canonical defaults over alias-only values", async () => {
     const { storageState } = installChromeStorageMock({
       "store.settings.enabled": "false",

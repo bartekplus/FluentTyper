@@ -84,6 +84,7 @@ import {
   CMD_OPTIONS_REPORT_OBSERVABILITY_EVENT,
   CMD_OPTIONS_REPORT_OBSERVABILITY_MODULES,
 } from "@core/domain/constants";
+import { DEFAULT_SUGGESTION_THEME_SETTINGS } from "@core/domain/themeDefaults";
 import { i18n } from "./fluenttyperI18n.js";
 import { manifest } from "./settingsManifest.js";
 
@@ -288,21 +289,7 @@ function importSettingButtonFileSelected(
 }
 
 const themePresets = {
-  default: {
-    suggestionBgLight: "#ffffff",
-    suggestionTextLight: "#2d3748",
-    suggestionHighlightBgLight: "#edf2f7",
-    suggestionHighlightTextLight: "#2d3748",
-    suggestionBorderLight: "#e2e8f0",
-    suggestionBgDark: "#0f172a",
-    suggestionTextDark: "#e2e8f0",
-    suggestionHighlightBgDark: "#1e293b",
-    suggestionHighlightTextDark: "#f8fafc",
-    suggestionBorderDark: "#334155",
-    suggestionFontSize: "0.9rem",
-    suggestionPaddingVertical: "0.6rem",
-    suggestionPaddingHorizontal: "0.8rem",
-  },
+  default: { ...DEFAULT_SUGGESTION_THEME_SETTINGS },
   compact: {
     suggestionBgLight: "rgba(255, 255, 255, 0.85)",
     suggestionTextLight: "#1a202c",
