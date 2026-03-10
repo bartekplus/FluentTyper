@@ -31,6 +31,7 @@ import {
   KEY_TEXT_EXPANSIONS,
 } from "../../src/core/domain/constants";
 import { RECOMMENDED_V3_GRAMMAR_RULES } from "../../src/core/domain/grammar/ruleCatalog";
+import { DEFAULT_SUGGESTION_THEME_SETTINGS } from "../../src/core/domain/themeDefaults";
 
 const RUN_E2E = process.env.RUN_E2E === "1" || process.env.RUN_E2E === "true";
 const describeE2E = RUN_E2E ? describe : describe.skip;
@@ -115,6 +116,12 @@ const STATIC_DEFAULT_SETTINGS: readonly SettingEntry[] = [
   ["enable", true],
 ];
 
+const SUGGESTION_THEME_RESET_SETTINGS: readonly SettingEntry[] = Object.entries(
+  DEFAULT_SUGGESTION_THEME_SETTINGS,
+).map(([key, value]) => [key, value] as const);
+
+const SUGGESTION_THEME_SETTING_KEYS = SUGGESTION_THEME_RESET_SETTINGS.map(([key]) => key);
+
 const PER_TEST_RESET_SETTINGS: readonly SettingEntry[] = [
   [KEY_ENABLED_LANGUAGES, ["en_US", "de_DE", "textExpander"]],
   [KEY_LANGUAGE, "en_US"],
@@ -123,6 +130,7 @@ const PER_TEST_RESET_SETTINGS: readonly SettingEntry[] = [
   [KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, true],
   [KEY_DOMAIN_LIST_MODE, "blackList"],
   ["domainBlackList", []],
+  ...SUGGESTION_THEME_RESET_SETTINGS,
 ];
 
 function isRetriableWorkerError(error: unknown): boolean {
@@ -430,6 +438,112 @@ async function setSettingsAndWait(
   );
 }
 
+async function clearSettingsAndWait(
+  worker: BackgroundContext,
+  keys: readonly string[],
+): Promise<void> {
+  if (keys.length === 0) {
+    return;
+  }
+  settingsDirty = true;
+
+  const storageKeys = keys.map((key) => `${SETTINGS_PREFIX}${key}`);
+  let workerContext = worker;
+
+  await waitUntil(
+    "batched settings clear",
+    async () => {
+      try {
+        await workerContext.evaluate(
+          (storageKeysInner) =>
+            new Promise<void>((resolve, reject) => {
+              const storage = (
+                globalThis as typeof globalThis & {
+                  chrome?: typeof chrome;
+                }
+              ).chrome?.storage?.local;
+              if (!storage) {
+                reject(new Error("chrome.storage.local is unavailable"));
+                return;
+              }
+              storage.remove(storageKeysInner, () => {
+                const runtime = (
+                  globalThis as typeof globalThis & {
+                    chrome?: typeof chrome;
+                  }
+                ).chrome?.runtime;
+                if (runtime?.lastError) {
+                  reject(new Error(runtime.lastError.message));
+                  return;
+                }
+                resolve();
+              });
+            }),
+          storageKeys,
+        );
+        return true;
+      } catch (error) {
+        if (!isRetriableWorkerError(error)) {
+          throw error;
+        }
+        if (activeBrowserForWorkerRecovery) {
+          workerContext = await reacquireWorker(activeBrowserForWorkerRecovery);
+        }
+        return false;
+      }
+    },
+    { timeoutMs: 4000, intervalMs: 100 },
+  );
+
+  await waitUntil(
+    "cleared settings to stabilize",
+    async () => {
+      try {
+        const currentValues = (await workerContext.evaluate(
+          (storageKeysInner) =>
+            new Promise<Record<string, string | undefined>>((resolve, reject) => {
+              const storage = (
+                globalThis as typeof globalThis & {
+                  chrome?: typeof chrome;
+                }
+              ).chrome?.storage?.local;
+              if (!storage) {
+                reject(new Error("chrome.storage.local is unavailable"));
+                return;
+              }
+              storage.get(storageKeysInner, (resultInner) => {
+                const runtime = (
+                  globalThis as typeof globalThis & {
+                    chrome?: typeof chrome;
+                  }
+                ).chrome?.runtime;
+                if (runtime?.lastError) {
+                  reject(new Error(runtime.lastError.message));
+                  return;
+                }
+                resolve(resultInner as Record<string, string | undefined>);
+              });
+            }),
+          storageKeys,
+        )) as Record<string, string | undefined>;
+
+        return storageKeys.every((storageKey) => currentValues[storageKey] === undefined)
+          ? true
+          : false;
+      } catch (error) {
+        if (!isRetriableWorkerError(error)) {
+          throw error;
+        }
+        if (activeBrowserForWorkerRecovery) {
+          workerContext = await reacquireWorker(activeBrowserForWorkerRecovery);
+        }
+        return false;
+      }
+    },
+    { timeoutMs: 5000, intervalMs: 50 },
+  );
+}
+
 async function sendConfigChange(browser: Browser, worker: BackgroundContext): Promise<void> {
   const send = async (context: BackgroundContext): Promise<void> => {
     await context.evaluate((command) => {
@@ -588,6 +702,49 @@ async function waitForSuggestionTexts(page: Page): Promise<string[]> {
     { timeout: timeoutProfile.suggestionMs },
   );
   return (await handle.jsonValue()) as string[];
+}
+
+async function getVisibleSuggestionThemeSnapshot(page: Page): Promise<{
+  backgroundColor: string;
+  overrideCssText: string | null;
+}> {
+  const handle = await page.waitForFunction(
+    () => {
+      const activeElement = document.activeElement as
+        | (HTMLElement & { suggestionMenu?: Element | null })
+        | null;
+      const activeMenu = activeElement?.suggestionMenu;
+      const containers = [
+        ...(activeMenu instanceof Element ? [activeMenu] : []),
+        ...Array.from(document.querySelectorAll(".ft-suggestion-container")).filter(
+          (container) => container !== activeMenu,
+        ),
+      ];
+      for (const container of containers) {
+        const style = window.getComputedStyle(container);
+        if (
+          style.display === "none" ||
+          style.visibility === "hidden" ||
+          style.opacity === "0" ||
+          container.getClientRects().length === 0
+        ) {
+          continue;
+        }
+        const overrideCssText =
+          document.getElementById("fluent-typer-theme-overrides")?.textContent ?? null;
+        return {
+          backgroundColor: style.backgroundColor,
+          overrideCssText,
+        };
+      }
+      return false;
+    },
+    { timeout: timeoutProfile.suggestionMs },
+  );
+  return (await handle.jsonValue()) as {
+    backgroundColor: string;
+    overrideCssText: string | null;
+  };
 }
 
 async function typeInInput(page: Page, selector: string, text: string): Promise<void> {
@@ -856,6 +1013,28 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       }
     },
     suiteTimeout(6000, 10000),
+  );
+
+  test(
+    "fresh install suggestion popup keeps the default opaque theme",
+    async () => {
+      await clearSettingsAndWait(worker, SUGGESTION_THEME_SETTING_KEYS);
+      await sendConfigChange(browser, worker);
+
+      page = await prepareReusableTestPage(browser, page);
+
+      await typeInInput(page, "#test-input", "h");
+      await waitForSuggestionTexts(page);
+
+      const themeSnapshot = await getVisibleSuggestionThemeSnapshot(page);
+
+      expect(themeSnapshot.overrideCssText).toContain(
+        `--suggestion-bg-light: ${DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionBgLight}`,
+      );
+      expect(themeSnapshot.backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+      expect(themeSnapshot.backgroundColor).not.toBe("transparent");
+    },
+    suiteTimeout(8000, 12000),
   );
 
   test("does not expose runtime command test hooks", async () => {
