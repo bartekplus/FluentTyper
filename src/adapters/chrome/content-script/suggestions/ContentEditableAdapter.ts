@@ -93,10 +93,10 @@ export class ContentEditableAdapter {
       logger.debug("Dispatching contenteditable replacement beforeinput", {
         replaceStart,
         replaceEnd,
-        replacementText,
         cursorAfter,
-        editScopeText: editScope.textContent ?? "",
-        editorText: beforeText,
+        replacementLength: replacementText.length,
+        editScopeTextLength: (editScope.textContent ?? "").length,
+        editorTextLength: beforeText.length,
       });
       const beforeInputEvent = this.dispatchReplacementBeforeInput(elem, range, replacementText);
       const textAfterBeforeInput = elem.textContent ?? "";
@@ -106,7 +106,7 @@ export class ContentEditableAdapter {
         logger.debug("Contenteditable replacement handled by host", {
           defaultPrevented: beforeInputEvent.defaultPrevented,
           didMutateDom: textAfterBeforeInput !== beforeText,
-          textAfterBeforeInput,
+          textLengthDelta: textAfterBeforeInput.length - beforeText.length,
         });
         if (textAfterBeforeInput === beforeText && selectionAnchors && selection) {
           // Host prevented the edit without changing text.  Restore the
@@ -139,7 +139,7 @@ export class ContentEditableAdapter {
       if (nativeReplacementResult.didMutateDom) {
         logger.debug("Contenteditable replacement handled by execCommand fallback", {
           didDispatchInput: nativeReplacementResult.didDispatchInput,
-          editorText: elem.textContent ?? "",
+          editorTextLength: (elem.textContent ?? "").length,
         });
         return {
           appliedBy: "fallback-dom",
@@ -166,10 +166,10 @@ export class ContentEditableAdapter {
     logger.debug("Contenteditable replacement applied by DOM fallback", {
       replaceStart,
       replaceEnd,
-      replacementText,
       cursorAfter,
-      editScopeText: editScope.textContent ?? "",
-      editorText: elem.textContent ?? "",
+      replacementLength: replacementText.length,
+      editScopeTextLength: (editScope.textContent ?? "").length,
+      editorTextLength: (elem.textContent ?? "").length,
     });
 
     return {

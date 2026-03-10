@@ -823,6 +823,80 @@ describe("SuggestionTextEditService", () => {
     expect(editable.textContent).toBe("Wh");
   });
 
+  test("does nothing when delayed post-accept spacing is not armed", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+    });
+
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = "Crab";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    document.body.appendChild(input);
+
+    const entry = createSuggestionEntry({
+      elem: input,
+      missingTrailingSpace: false,
+      expectedCursorPos: input.value.length,
+    });
+
+    let consumed = false;
+    const keyboardEvent = new Event("keydown", {
+      bubbles: true,
+      cancelable: true,
+    }) as KeyboardEvent;
+    Object.defineProperty(keyboardEvent, "key", { value: "s" });
+
+    service.handleMissingSpaceAfterAccept(entry, keyboardEvent, () => {
+      consumed = true;
+    });
+
+    expect(consumed).toBe(false);
+    expect(input.value).toBe("Crab");
+    expect(entry.missingTrailingSpace).toBe(false);
+  });
+
+  test("inserts delayed post-accept spacing for the next typed character", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+    });
+
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = "Crab";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    document.body.appendChild(input);
+
+    const entry = createSuggestionEntry({
+      elem: input,
+      missingTrailingSpace: true,
+      expectedCursorPos: input.value.length,
+    });
+
+    let consumed = false;
+    const keyboardEvent = new Event("keydown", {
+      bubbles: true,
+      cancelable: true,
+    }) as KeyboardEvent;
+    Object.defineProperty(keyboardEvent, "key", { value: "s" });
+
+    service.handleMissingSpaceAfterAccept(entry, keyboardEvent, () => {
+      consumed = true;
+      keyboardEvent.preventDefault();
+    });
+
+    expect(consumed).toBe(true);
+    expect(input.value).toBe("Crab s");
+    expect(input.selectionStart).toBe(6);
+    expect(input.selectionEnd).toBe(6);
+    expect(entry.missingTrailingSpace).toBe(false);
+    expect(entry.expectedCursorPos).toBe(0);
+  });
+
   test("clears delayed post-accept space state when caret moves to a different paragraph at the same local offset", () => {
     const service = new SuggestionTextEditService({
       findMentionToken,

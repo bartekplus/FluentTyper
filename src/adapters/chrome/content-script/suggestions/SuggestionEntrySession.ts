@@ -123,12 +123,9 @@ export class SuggestionEntrySession {
         suppressNextSuggestionInputPrediction: this.entry.suppressNextSuggestionInputPrediction,
         pendingInlineAccept: this.entry.pendingInlineAccept,
         missingTrailingSpace: this.entry.missingTrailingSpace,
-        latestMentionText: this.entry.latestMentionText,
         hasPendingExtensionEdit: this.entry.pendingExtensionEdit !== null,
         pendingExtensionEditSource: this.entry.pendingExtensionEdit?.source,
-        pendingExtensionEditReplacement: this.entry.pendingExtensionEdit?.replacementText,
-        selection: this.describeActiveSelection(),
-        editorText: this.entry.elem.textContent ?? "",
+        pendingExtensionEditBlockScoped: this.entry.pendingExtensionEdit?.blockScoped ?? false,
       });
     }
     controls.dispatchKeyboard();
@@ -193,11 +190,11 @@ export class SuggestionEntrySession {
         suggestionId: this.entry.id,
         requestId: this.entry.requestId,
         inputType: this.resolveInputType(event),
-        selection: this.describeActiveSelection(),
-        snapshotBeforeCursor: snapshot.beforeCursor,
-        snapshotAfterCursor: snapshot.afterCursor,
         snapshotCursorOffset: snapshot.cursorOffset,
-        pendingExtensionEdit: this.describePendingExtensionEdit(),
+        snapshotBeforeCursorLength: snapshot.beforeCursor.length,
+        snapshotAfterCursorLength: snapshot.afterCursor.length,
+        hasPendingExtensionEdit: this.entry.pendingExtensionEdit !== null,
+        pendingExtensionEditSource: this.entry.pendingExtensionEdit?.source ?? null,
       });
       if (
         this.entry.pendingExtensionEdit !== null &&
@@ -207,8 +204,8 @@ export class SuggestionEntrySession {
           suggestionId: this.entry.id,
           requestId: this.entry.requestId,
           inputType: this.resolveInputType(event),
-          selection: this.describeActiveSelection(),
-          editorText: this.entry.elem.textContent ?? "",
+          pendingExtensionEditSource: this.entry.pendingExtensionEdit.source,
+          pendingExtensionEditBlockScoped: this.entry.pendingExtensionEdit.blockScoped ?? false,
         });
         this.suppressAcceptedSuggestionInput();
         return;
@@ -217,8 +214,7 @@ export class SuggestionEntrySession {
         suggestionId: this.entry.id,
         requestId: this.entry.requestId,
         inputType: this.resolveInputType(event),
-        selection: this.describeActiveSelection(),
-        editorText: this.entry.elem.textContent ?? "",
+        hasPendingExtensionEdit: this.entry.pendingExtensionEdit !== null,
       });
       this.entry.suppressNextSuggestionInputPrediction = false;
     }
@@ -1194,13 +1190,13 @@ export class SuggestionEntrySession {
     logger.debug("Accepted suggestion state armed", {
       suggestionId: this.entry.id,
       requestId: this.entry.requestId,
-      triggerText,
-      insertedText,
       cursorAfter,
       cursorAfterIsBlockLocal,
-      selection: this.describeActiveSelection(),
-      editorText: this.entry.elem.textContent ?? "",
-      pendingExtensionEdit: this.describePendingExtensionEdit(),
+      triggerLength: triggerText.length,
+      insertedLength: insertedText.length,
+      hasPendingExtensionEdit: this.entry.pendingExtensionEdit !== null,
+      pendingExtensionEditSource: this.entry.pendingExtensionEdit?.source ?? null,
+      pendingExtensionEditBlockScoped: this.entry.pendingExtensionEdit?.blockScoped ?? false,
     });
     const shouldExpectTrailingSpace =
       this.insertSpaceAfterAutocomplete && !/[ \xA0]$/.test(insertedText);
@@ -1728,65 +1724,6 @@ export class SuggestionEntrySession {
 
   private resolveInputType(event: Event): string {
     return typeof (event as InputEvent).inputType === "string" ? (event as InputEvent).inputType : "";
-  }
-
-  private describePendingExtensionEdit(): Record<string, unknown> | null {
-    const pendingEdit = this.entry.pendingExtensionEdit;
-    if (!pendingEdit) {
-      return null;
-    }
-    return {
-      source: pendingEdit.source,
-      replaceStart: pendingEdit.replaceStart,
-      originalText: pendingEdit.originalText,
-      replacementText: pendingEdit.replacementText,
-      cursorBefore: pendingEdit.cursorBefore,
-      cursorAfter: pendingEdit.cursorAfter,
-      blockScoped: pendingEdit.blockScoped ?? false,
-      postEditBlockText: pendingEdit.postEditBlockText ?? null,
-    };
-  }
-
-  private describeActiveSelection(): Record<string, unknown> {
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) {
-      return {
-        rangeCount: selection?.rangeCount ?? 0,
-        anchor: null,
-        focus: null,
-      };
-    }
-    const range = selection.getRangeAt(0);
-    return {
-      rangeCount: selection.rangeCount,
-      isCollapsed: selection.isCollapsed,
-      anchor: this.describeNodePosition(selection.anchorNode, selection.anchorOffset),
-      focus: this.describeNodePosition(selection.focusNode, selection.focusOffset),
-      start: this.describeNodePosition(range.startContainer, range.startOffset),
-      end: this.describeNodePosition(range.endContainer, range.endOffset),
-    };
-  }
-
-  private describeNodePosition(node: Node | null, offset: number): string | null {
-    if (!node) {
-      return null;
-    }
-    if (node.nodeType === Node.TEXT_NODE) {
-      const text = node.textContent ?? "";
-      const preview = text.length > 24 ? `${text.slice(0, 24)}...` : text;
-      const parent = node.parentElement;
-      return `#text("${preview}")@${offset}${parent ? ` in <${parent.tagName.toLowerCase()}>` : ""}`;
-    }
-    if (node.nodeType === Node.ELEMENT_NODE) {
-      const element = node as Element;
-      const id = element.id ? `#${element.id}` : "";
-      const className =
-        typeof element.className === "string" && element.className.trim().length > 0
-          ? `.${element.className.trim().replace(/\s+/g, ".")}`
-          : "";
-      return `<${element.tagName.toLowerCase()}${id}${className}>@${offset}`;
-    }
-    return `${node.nodeName}@${offset}`;
   }
 
   private shouldCheckCaretContextOnSelectionChange(): boolean {

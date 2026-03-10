@@ -157,14 +157,14 @@ export class SuggestionTextEditService {
     const originalText = `${replacedTokenText}${consumedTrailingWhitespace}`;
     logger.debug("Accepting suggestion in text target", {
       suggestionId: entry.id,
-      triggerText,
-      suggestion,
       replaceStart,
       replaceEnd: finalReplaceEnd,
       cursorAfter,
       beforeBlockBoundary,
-      currentFullText,
-      replacementText,
+      triggerLength: triggerText.length,
+      suggestionLength: suggestion.length,
+      replacementLength: replacementText.length,
+      consumedTrailingWhitespaceLength: consumedTrailingWhitespace.length,
     });
 
     this.replaceTextByOffsets(
@@ -624,10 +624,9 @@ export class SuggestionTextEditService {
       expectedCursorPosIsBlockLocal: entry.expectedCursorPosIsBlockLocal,
       currentCursorOffset,
       blockStateMatches,
-      beforeCursor: blockContext?.beforeCursor ?? snapshot?.beforeCursor ?? "",
-      afterCursor: blockContext?.afterCursor ?? snapshot?.afterCursor ?? "",
-      activeBlockText: activeBlock?.textContent ?? null,
-      editorText: entry.elem.textContent ?? "",
+      beforeCursorLength: (blockContext?.beforeCursor ?? snapshot?.beforeCursor ?? "").length,
+      afterCursorLength: (blockContext?.afterCursor ?? snapshot?.afterCursor ?? "").length,
+      hasActiveBlock: activeBlock !== null,
     });
 
     if (!blockStateMatches || currentCursorOffset !== entry.expectedCursorPos || key.length > 1) {
@@ -666,21 +665,22 @@ export class SuggestionTextEditService {
       return;
     }
 
-    consumeKeyboardEvent(event);
-    logger.debug("Applying delayed post-accept spacing", {
-      suggestionId: entry.id,
-      key,
-      replaceStart,
-      replacementText,
-      cursorAfter,
-      editorText: entry.elem.textContent ?? "",
-    });
-
     const fullText = `${beforeCursor}${afterCursor}`;
     const replaceStart = beforeCursor.length;
     const replaceEnd = replaceStart;
     const replacementText = ` ${key}`;
     const cursorAfter = replaceStart + replacementText.length;
+
+    consumeKeyboardEvent(event);
+    logger.debug("Applying delayed post-accept spacing", {
+      suggestionId: entry.id,
+      key,
+      replaceStart,
+      replaceEnd,
+      cursorAfter,
+      replacementLength: replacementText.length,
+      isBlockLocal: activeBlock !== null,
+    });
 
     this.replaceTextByOffsets(
       entry.elem,
@@ -934,17 +934,16 @@ export class SuggestionTextEditService {
 
     logger.debug("Accepting suggestion in contenteditable", {
       suggestionId: entry.id,
-      triggerText,
-      suggestion,
       beforeBlockBoundary,
       replaceStart,
       replaceEnd: finalReplaceEnd,
-      replacementText,
       cursorAfter,
-      activeBlockText: activeBlock.textContent ?? "",
-      blockBeforeCursor: blockContext.beforeCursor,
-      blockAfterCursor: blockContext.afterCursor,
-      expectedPostEditBlockText,
+      triggerLength: triggerText.length,
+      suggestionLength: suggestion.length,
+      replacementLength: replacementText.length,
+      blockBeforeCursorLength: blockContext.beforeCursor.length,
+      blockAfterCursorLength: blockContext.afterCursor.length,
+      expectedPostEditBlockTextLength: expectedPostEditBlockText.length,
     });
 
     const applyResult = this.replaceTextByOffsets(
@@ -964,10 +963,11 @@ export class SuggestionTextEditService {
     if (hostAcceptedAsync) {
       logger.debug("Treating deferred host contenteditable accept as successful", {
         suggestionId: entry.id,
-        triggerText,
-        suggestion,
-        replacementText,
-        expectedPostEditBlockText,
+        replaceStart,
+        replaceEnd: finalReplaceEnd,
+        cursorAfter,
+        replacementLength: replacementText.length,
+        expectedPostEditBlockTextLength: expectedPostEditBlockText.length,
       });
     }
 
