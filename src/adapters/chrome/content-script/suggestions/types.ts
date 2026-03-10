@@ -63,6 +63,7 @@ export interface ExtensionEditSnapshot {
   sourceRuleId?: string;
   blockScoped?: boolean;
   postEditBlockText?: string | null;
+  blockElement?: HTMLElement | null;
 }
 
 export interface ManualAutoFixSuppressionSnapshot {
@@ -90,6 +91,8 @@ export interface SuggestionEntry {
   missingTrailingSpace: boolean;
   expectedCursorPos: number;
   expectedCursorPosIsBlockLocal: boolean;
+  expectedCursorPosBlockElement: HTMLElement | null;
+  expectedCursorPosBlockText: string | null;
   pendingExtensionEdit: ExtensionEditSnapshot | null;
   manualAutoFixSuppression: ManualAutoFixSuppressionSnapshot | null;
   isComposing: boolean;

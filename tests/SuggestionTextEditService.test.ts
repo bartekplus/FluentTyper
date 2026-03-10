@@ -756,6 +756,115 @@ describe("SuggestionTextEditService", () => {
     expect(entry.pendingExtensionEdit?.postEditBlockText).toBe("What is the best ");
   });
 
+  test("clears delayed post-accept space state when caret moves to a different paragraph at the same local offset", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+    });
+
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML = "<p>Alpha bes</p><p>Gamma line</p>";
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+
+    const firstParagraph = editable.querySelectorAll("p")[0] as HTMLElement;
+    const secondParagraph = editable.querySelectorAll("p")[1] as HTMLElement;
+    setTextNodeCursor(firstParagraph.firstChild as Text, "Alpha bes".length);
+
+    const entry = createSuggestionEntry({
+      elem: editable,
+      latestMentionText: "bes",
+      latestMentionStart: -1,
+    });
+
+    const accepted = service.acceptSuggestion(entry, "best");
+    expect(accepted).toEqual({
+      triggerText: "bes",
+      insertedText: "best",
+      cursorAfter: 10,
+      cursorAfterIsBlockLocal: true,
+    });
+
+    entry.missingTrailingSpace = true;
+    entry.expectedCursorPos = 10;
+    entry.expectedCursorPosIsBlockLocal = true;
+    entry.expectedCursorPosBlockElement = entry.pendingExtensionEdit?.blockElement ?? null;
+    entry.expectedCursorPosBlockText = entry.pendingExtensionEdit?.postEditBlockText ?? null;
+
+    setTextNodeCursor(secondParagraph.firstChild as Text, "Gamma line".length);
+
+    let consumed = false;
+    const keyboardEvent = new Event("keydown", {
+      bubbles: true,
+      cancelable: true,
+    }) as KeyboardEvent;
+    Object.defineProperty(keyboardEvent, "key", { value: "x" });
+
+    service.handleMissingSpaceAfterAccept(entry, keyboardEvent, () => {
+      consumed = true;
+    });
+
+    expect(consumed).toBe(false);
+    expect(entry.missingTrailingSpace).toBe(false);
+    expect(entry.expectedCursorPos).toBe(0);
+    expect(entry.expectedCursorPosIsBlockLocal).toBe(false);
+    expect(entry.expectedCursorPosBlockElement).toBeNull();
+    expect(entry.expectedCursorPosBlockText).toBeNull();
+    expect(firstParagraph.textContent).toBe("Alpha best");
+    expect(secondParagraph.textContent).toBe("Gamma line");
+  });
+
+  test("does not undo block-scoped acceptance after caret moves to a different paragraph at the same local offset", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+    });
+
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML = "<p>Alpha bes</p><p>Gamma line</p>";
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+
+    const firstParagraph = editable.querySelectorAll("p")[0] as HTMLElement;
+    const secondParagraph = editable.querySelectorAll("p")[1] as HTMLElement;
+    setTextNodeCursor(firstParagraph.firstChild as Text, "Alpha bes".length);
+
+    const entry = createSuggestionEntry({
+      elem: editable,
+      latestMentionText: "bes",
+      latestMentionStart: -1,
+    });
+
+    service.acceptSuggestion(entry, "best");
+    expect(firstParagraph.textContent).toBe("Alpha best");
+    expect(entry.pendingExtensionEdit?.blockScoped).toBe(true);
+
+    setTextNodeCursor(secondParagraph.firstChild as Text, "Gamma line".length);
+
+    let consumed = false;
+    const keyboardEvent = new Event("keydown", {
+      bubbles: true,
+      cancelable: true,
+    }) as KeyboardEvent;
+    Object.defineProperty(keyboardEvent, "key", { value: "z" });
+    Object.defineProperty(keyboardEvent, "ctrlKey", { value: true });
+
+    const handled = service.tryUndoLastExtensionEdit(entry, keyboardEvent, {
+      consumeKeyboardEvent: () => {
+        consumed = true;
+      },
+      clearSuggestions: () => undefined,
+    });
+
+    expect(handled).toBe(false);
+    expect(consumed).toBe(false);
+    expect(firstParagraph.textContent).toBe("Alpha best");
+    expect(secondParagraph.textContent).toBe("Gamma line");
+    expect(entry.pendingExtensionEdit).toBeNull();
+  });
+
   test("skips ambiguous contenteditable acceptance instead of applying stale off-caret range", () => {
     const service = new SuggestionTextEditService({
       findMentionToken,

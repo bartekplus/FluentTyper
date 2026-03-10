@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
 import { SuggestionManagerRuntime } from "../src/adapters/chrome/content-script/suggestions/SuggestionManagerRuntime";
+import type { SuggestionEntry } from "../src/adapters/chrome/content-script/suggestions/types";
 import { acquireDomGlobalLock } from "./support/domGlobalLock";
 
 const baseGlobals = {
@@ -166,6 +167,88 @@ describe("SuggestionManagerRuntime", () => {
     runtime.removeHelpersNotInDocument();
 
     expect(input.hasAttribute("data-suggestion")).toBe(false);
+  });
+
+  test("clears block-scoped accept transient state on click and blur", () => {
+    const runtime = makeRuntime();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    editable.innerHTML = "<p>Alpha best</p>";
+    document.body.appendChild(editable);
+
+    runtime.queryAndAttachHelper(editable);
+
+    const runtimeInternal = runtime as unknown as {
+      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
+    };
+    const entry = runtimeInternal.entryRegistry.getByElement(editable);
+    if (!entry) {
+      throw new Error("Expected attached suggestion entry");
+    }
+
+    const block = editable.querySelector("p") as HTMLElement;
+    entry.pendingExtensionEdit = {
+      replaceStart: 6,
+      originalText: "bes",
+      replacementText: "best",
+      cursorBefore: 9,
+      cursorAfter: 10,
+      postEditFingerprint: {
+        fullText: "",
+        cursorOffset: 10,
+        selectionCollapsed: true,
+      },
+      source: "suggestion",
+      blockScoped: true,
+      blockElement: block,
+      postEditBlockText: "Alpha best",
+    };
+    entry.missingTrailingSpace = true;
+    entry.expectedCursorPos = 10;
+    entry.expectedCursorPosIsBlockLocal = true;
+    entry.expectedCursorPosBlockElement = block;
+    entry.expectedCursorPosBlockText = "Alpha best";
+
+    editable.dispatchEvent(new Event("click", { bubbles: true }));
+
+    expect(entry.pendingExtensionEdit).toBeNull();
+    expect(entry.missingTrailingSpace).toBe(false);
+    expect(entry.expectedCursorPos).toBe(0);
+    expect(entry.expectedCursorPosIsBlockLocal).toBe(false);
+    expect(entry.expectedCursorPosBlockElement).toBeNull();
+    expect(entry.expectedCursorPosBlockText).toBeNull();
+
+    entry.pendingExtensionEdit = {
+      replaceStart: 6,
+      originalText: "bes",
+      replacementText: "best",
+      cursorBefore: 9,
+      cursorAfter: 10,
+      postEditFingerprint: {
+        fullText: "",
+        cursorOffset: 10,
+        selectionCollapsed: true,
+      },
+      source: "suggestion",
+      blockScoped: true,
+      blockElement: block,
+      postEditBlockText: "Alpha best",
+    };
+    entry.missingTrailingSpace = true;
+    entry.expectedCursorPos = 10;
+    entry.expectedCursorPosIsBlockLocal = true;
+    entry.expectedCursorPosBlockElement = block;
+    entry.expectedCursorPosBlockText = "Alpha best";
+
+    editable.dispatchEvent(new Event("blur", { bubbles: true }));
+
+    expect(entry.pendingExtensionEdit).toBeNull();
+    expect(entry.missingTrailingSpace).toBe(false);
+    expect(entry.expectedCursorPos).toBe(0);
+    expect(entry.expectedCursorPosIsBlockLocal).toBe(false);
+    expect(entry.expectedCursorPosBlockElement).toBeNull();
+    expect(entry.expectedCursorPosBlockText).toBeNull();
   });
 
   const makeRuntime = (selectors = "textarea, input, [contentEditable]") =>

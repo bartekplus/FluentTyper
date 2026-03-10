@@ -31,6 +31,8 @@ export function createSuggestionEntry(
     missingTrailingSpace: overrides.missingTrailingSpace ?? false,
     expectedCursorPos: overrides.expectedCursorPos ?? 0,
     expectedCursorPosIsBlockLocal: overrides.expectedCursorPosIsBlockLocal ?? false,
+    expectedCursorPosBlockElement: overrides.expectedCursorPosBlockElement ?? null,
+    expectedCursorPosBlockText: overrides.expectedCursorPosBlockText ?? null,
     pendingExtensionEdit: overrides.pendingExtensionEdit ?? null,
     manualAutoFixSuppression: overrides.manualAutoFixSuppression ?? null,
     isComposing: overrides.isComposing ?? false,

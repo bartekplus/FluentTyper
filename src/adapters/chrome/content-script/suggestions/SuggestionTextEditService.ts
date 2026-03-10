@@ -313,7 +313,8 @@ export class SuggestionTextEditService {
     if (
       !activeBlock ||
       !blockContext ||
-      !TextTargetAdapter.hasCollapsedSelection(entry.elem as TextTarget)
+      !TextTargetAdapter.hasCollapsedSelection(entry.elem as TextTarget) ||
+      activeBlock !== (pendingEdit.blockElement ?? null)
     ) {
       entry.pendingExtensionEdit = null;
       return false;
@@ -598,10 +599,15 @@ export class SuggestionTextEditService {
         : null;
     const currentCursorOffset =
       blockContext !== null ? blockContext.beforeCursor.length : (snapshot?.cursorOffset ?? -1);
+    const blockStateMatches =
+      !entry.expectedCursorPosIsBlockLocal ||
+      (activeBlock !== null &&
+        activeBlock === entry.expectedCursorPosBlockElement &&
+        `${blockContext?.beforeCursor ?? ""}${blockContext?.afterCursor ?? ""}` ===
+          (entry.expectedCursorPosBlockText ?? ""));
 
-    if (currentCursorOffset !== entry.expectedCursorPos || key.length > 1) {
-      entry.missingTrailingSpace = false;
-      entry.expectedCursorPosIsBlockLocal = false;
+    if (!blockStateMatches || currentCursorOffset !== entry.expectedCursorPos || key.length > 1) {
+      this.clearMissingTrailingSpaceState(entry);
       return;
     }
 
@@ -609,8 +615,7 @@ export class SuggestionTextEditService {
       return;
     }
 
-    entry.missingTrailingSpace = false;
-    entry.expectedCursorPosIsBlockLocal = false;
+    this.clearMissingTrailingSpaceState(entry);
 
     const beforeCursor = blockContext?.beforeCursor ?? snapshot?.beforeCursor ?? "";
     const afterCursor = blockContext?.afterCursor ?? snapshot?.afterCursor ?? "";
@@ -645,6 +650,14 @@ export class SuggestionTextEditService {
       cursorAfter,
       { scopeRoot: activeBlock },
     );
+  }
+
+  private clearMissingTrailingSpaceState(entry: SuggestionEntry): void {
+    entry.missingTrailingSpace = false;
+    entry.expectedCursorPos = 0;
+    entry.expectedCursorPosIsBlockLocal = false;
+    entry.expectedCursorPosBlockElement = null;
+    entry.expectedCursorPosBlockText = null;
   }
 
   private findTrailingToken(afterCursor: string): string {
@@ -909,6 +922,7 @@ export class SuggestionTextEditService {
       },
       source: "suggestion",
       blockScoped: true,
+      blockElement: activeBlock,
       postEditBlockText,
     };
 
