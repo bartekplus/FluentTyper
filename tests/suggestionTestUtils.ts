@@ -30,6 +30,7 @@ export function createSuggestionEntry(
     pendingInlineAccept: overrides.pendingInlineAccept ?? false,
     missingTrailingSpace: overrides.missingTrailingSpace ?? false,
     expectedCursorPos: overrides.expectedCursorPos ?? 0,
+    expectedCursorPosIsBlockLocal: overrides.expectedCursorPosIsBlockLocal ?? false,
     pendingExtensionEdit: overrides.pendingExtensionEdit ?? null,
     manualAutoFixSuppression: overrides.manualAutoFixSuppression ?? null,
     isComposing: overrides.isComposing ?? false,

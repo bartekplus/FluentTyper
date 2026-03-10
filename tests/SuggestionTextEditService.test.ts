@@ -77,7 +77,7 @@ class HostHandledContentEditableAdapter extends ContentEditableAdapter {
     replaceEnd: number,
     replacementText: string,
     cursorAfter: number,
-    options?: { preferDomMutation?: boolean },
+    options?: { preferDomMutation?: boolean; scopeRoot?: HTMLElement | null },
   ) {
     void elem;
     void replaceStart;
@@ -110,7 +110,7 @@ class HostCanceledNoMutationContentEditableAdapter extends ContentEditableAdapte
     replaceEnd: number,
     replacementText: string,
     cursorAfter: number,
-    options?: { preferDomMutation?: boolean },
+    options?: { preferDomMutation?: boolean; scopeRoot?: HTMLElement | null },
   ) {
     void elem;
     void replaceStart;
@@ -143,7 +143,7 @@ class EmptyBlockContextContentEditableAdapter extends ContentEditableAdapter {
     replaceEnd: number,
     replacementText: string,
     cursorAfter: number,
-    options?: { preferDomMutation?: boolean },
+    options?: { preferDomMutation?: boolean; scopeRoot?: HTMLElement | null },
   ) {
     const text = elem.textContent ?? "";
     void options;
@@ -176,7 +176,7 @@ class LearningMismatchContentEditableAdapter extends ContentEditableAdapter {
     replaceEnd: number,
     replacementText: string,
     cursorAfter: number,
-    options?: { preferDomMutation?: boolean },
+    options?: { preferDomMutation?: boolean; scopeRoot?: HTMLElement | null },
   ) {
     const preferDomMutation = options?.preferDomMutation === true;
     this.preferDomMutationCalls.push(preferDomMutation);
@@ -202,6 +202,33 @@ class LearningMismatchContentEditableAdapter extends ContentEditableAdapter {
   }
 }
 
+class RecordingAcceptContentEditableAdapter extends ContentEditableAdapter {
+  public lastScopeRoot: HTMLElement | null = null;
+  public lastReplaceStart: number | null = null;
+  public lastReplaceEnd: number | null = null;
+
+  public override replaceTextByOffsets(
+    elem: HTMLElement,
+    replaceStart: number,
+    replaceEnd: number,
+    replacementText: string,
+    cursorAfter: number,
+    options?: { preferDomMutation?: boolean; scopeRoot?: HTMLElement | null },
+  ) {
+    this.lastScopeRoot = options?.scopeRoot ?? null;
+    this.lastReplaceStart = replaceStart;
+    this.lastReplaceEnd = replaceEnd;
+    return super.replaceTextByOffsets(
+      elem,
+      replaceStart,
+      replaceEnd,
+      replacementText,
+      cursorAfter,
+      options,
+    );
+  }
+}
+
 describe("SuggestionTextEditService", () => {
   test("accepts suggestion and replaces current token in input", () => {
     const service = new SuggestionTextEditService({
@@ -221,7 +248,12 @@ describe("SuggestionTextEditService", () => {
 
     const accepted = service.acceptSuggestion(entry, "function");
 
-    expect(accepted).toEqual({ triggerText: "fun", insertedText: "function" });
+    expect(accepted).toEqual({
+      triggerText: "fun",
+      insertedText: "function",
+      cursorAfter: 8,
+      cursorAfterIsBlockLocal: false,
+    });
     expect(input.value).toBe("function");
   });
 
@@ -636,6 +668,8 @@ describe("SuggestionTextEditService", () => {
     expect(accepted).toEqual({
       triggerText: "second",
       insertedText: "SECOND",
+      cursorAfter: 12,
+      cursorAfterIsBlockLocal: false,
     });
     expect(editable.textContent).toBe("first SECOND");
   });
@@ -674,9 +708,52 @@ describe("SuggestionTextEditService", () => {
     expect(accepted).toEqual({
       triggerText: "asap",
       insertedText: "As soon as possible\u00A0",
+      cursorAfter: 20,
+      cursorAfterIsBlockLocal: false,
     });
     expect(editable.innerHTML).toContain("As soon as possible&nbsp;<div");
     expect(editable.querySelector(".gmail_signature_prefix")?.textContent).toBe("-- ");
+  });
+
+  test("accepts contenteditable suggestion using active block offsets", () => {
+    const adapter = new RecordingAcceptContentEditableAdapter();
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+      contentEditableAdapter: adapter,
+    });
+
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML = "<p>Intro line</p><p>What is the bes</p>";
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+
+    const secondParagraph = editable.querySelectorAll("p")[1] as HTMLElement;
+    const secondText = secondParagraph.firstChild as Text;
+    setTextNodeCursor(secondText, secondText.textContent?.length ?? 0);
+
+    const entry = createSuggestionEntry({
+      elem: editable,
+      latestMentionText: "bes",
+      latestMentionStart: -1,
+    });
+
+    const accepted = service.acceptSuggestion(entry, "best ");
+
+    expect(accepted).toEqual({
+      triggerText: "bes",
+      insertedText: "best ",
+      cursorAfter: 17,
+      cursorAfterIsBlockLocal: true,
+    });
+    expect(secondParagraph.textContent).toBe("What is the best ");
+    expect((editable.querySelectorAll("p")[0] as HTMLElement).textContent).toBe("Intro line");
+    expect(adapter.lastScopeRoot).toBe(secondParagraph);
+    expect(adapter.lastReplaceStart).toBe(12);
+    expect(adapter.lastReplaceEnd).toBe(15);
+    expect(entry.pendingExtensionEdit?.blockScoped).toBe(true);
+    expect(entry.pendingExtensionEdit?.postEditBlockText).toBe("What is the best ");
   });
 
   test("skips ambiguous contenteditable acceptance instead of applying stale off-caret range", () => {

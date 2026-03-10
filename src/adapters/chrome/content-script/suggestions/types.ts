@@ -61,6 +61,8 @@ export interface ExtensionEditSnapshot {
   postEditFingerprint: PostEditFingerprint;
   source: "suggestion" | "grammar";
   sourceRuleId?: string;
+  blockScoped?: boolean;
+  postEditBlockText?: string | null;
 }
 
 export interface ManualAutoFixSuppressionSnapshot {
@@ -87,6 +89,7 @@ export interface SuggestionEntry {
   pendingInlineAccept: boolean;
   missingTrailingSpace: boolean;
   expectedCursorPos: number;
+  expectedCursorPosIsBlockLocal: boolean;
   pendingExtensionEdit: ExtensionEditSnapshot | null;
   manualAutoFixSuppression: ManualAutoFixSuppressionSnapshot | null;
   isComposing: boolean;

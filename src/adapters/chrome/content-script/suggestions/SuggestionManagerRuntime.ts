@@ -507,6 +507,7 @@ export class SuggestionManagerRuntime {
       pendingInlineAccept: false,
       missingTrailingSpace: false,
       expectedCursorPos: 0,
+      expectedCursorPosIsBlockLocal: false,
       pendingExtensionEdit: null,
       manualAutoFixSuppression: null,
       isComposing: false,
@@ -746,6 +747,23 @@ export class SuggestionManagerRuntime {
     snapshot: SuggestionSnapshot,
     entry: SuggestionEntry,
   ): boolean {
+    if (
+      pendingEdit.blockScoped &&
+      !TextTargetAdapter.isTextValue(entry.elem) &&
+      (entry.elem as HTMLElement).isContentEditable
+    ) {
+      const blockContext = this.contentEditableAdapter.getBlockContext(entry.elem as HTMLElement);
+      if (!blockContext || !TextTargetAdapter.hasCollapsedSelection(entry.elem as TextTarget)) {
+        return false;
+      }
+      const blockFullText = `${blockContext.beforeCursor}${blockContext.afterCursor}`;
+      return (
+        blockFullText === (pendingEdit.postEditBlockText ?? "") &&
+        blockContext.beforeCursor.length >= pendingEdit.replaceStart &&
+        blockContext.beforeCursor.length <= pendingEdit.cursorAfter
+      );
+    }
+
     if (
       !TextTargetAdapter.isTextValue(entry.elem) &&
       pendingEdit.source === "grammar" &&
@@ -2322,22 +2340,29 @@ export class SuggestionManagerRuntime {
     if (!accepted) {
       return;
     }
-    this.finishAcceptedSuggestion(entry, accepted.triggerText, accepted.insertedText);
+    this.finishAcceptedSuggestion(
+      entry,
+      accepted.triggerText,
+      accepted.insertedText,
+      accepted.cursorAfter,
+      accepted.cursorAfterIsBlockLocal,
+    );
   }
 
   private finishAcceptedSuggestion(
     entry: SuggestionEntry,
     triggerText: string,
     insertedText: string,
+    cursorAfter: number,
+    cursorAfterIsBlockLocal: boolean,
   ): void {
     this.clearSuggestions(entry);
 
     const shouldExpectTrailingSpace =
       this.insertSpaceAfterAutocomplete && !/[ \xA0]$/.test(insertedText);
     entry.missingTrailingSpace = shouldExpectTrailingSpace;
-    entry.expectedCursorPos = shouldExpectTrailingSpace
-      ? TextTargetAdapter.snapshot(entry.elem as TextTarget).cursorOffset
-      : 0;
+    entry.expectedCursorPos = shouldExpectTrailingSpace ? cursorAfter : 0;
+    entry.expectedCursorPosIsBlockLocal = shouldExpectTrailingSpace && cursorAfterIsBlockLocal;
 
     this.telemetry.recordSuggestionAccepted({
       triggerText,
