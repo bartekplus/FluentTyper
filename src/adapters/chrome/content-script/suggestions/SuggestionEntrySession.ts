@@ -87,6 +87,9 @@ export class SuggestionEntrySession {
   }
 
   public requestInlineSuggestion(): void {
+    if (this.entry.suppressNextSuggestionInputPrediction) {
+      return;
+    }
     this.entry.pendingInlineAccept = true;
     this.requestPrediction();
   }
@@ -113,6 +116,18 @@ export class SuggestionEntrySession {
     },
   ): void {
     this.entry.lastKeydownKey = keyboardEvent.key;
+    if (!TextTargetAdapter.isTextValue(this.entry.elem) && keyboardEvent.key === "Tab") {
+      logger.debug("Contenteditable Tab keydown", {
+        suggestionId: this.entry.id,
+        requestId: this.entry.requestId,
+        suppressNextSuggestionInputPrediction: this.entry.suppressNextSuggestionInputPrediction,
+        pendingInlineAccept: this.entry.pendingInlineAccept,
+        missingTrailingSpace: this.entry.missingTrailingSpace,
+        hasPendingExtensionEdit: this.entry.pendingExtensionEdit !== null,
+        pendingExtensionEditSource: this.entry.pendingExtensionEdit?.source,
+        pendingExtensionEditBlockScoped: this.entry.pendingExtensionEdit?.blockScoped ?? false,
+      });
+    }
     controls.dispatchKeyboard();
 
     if (keyboardEvent.defaultPrevented) {
@@ -168,6 +183,40 @@ export class SuggestionEntrySession {
     if (!context.selectionStable || this.entry.isComposing) {
       this.handleSuppressedInput();
       return;
+    }
+    if (this.entry.suppressNextSuggestionInputPrediction) {
+      const snapshot = TextTargetAdapter.snapshot(this.entry.elem as TextTarget);
+      logger.debug("Evaluating post-accept input suppression", {
+        suggestionId: this.entry.id,
+        requestId: this.entry.requestId,
+        inputType: this.resolveInputType(event),
+        snapshotCursorOffset: snapshot.cursorOffset,
+        snapshotBeforeCursorLength: snapshot.beforeCursor.length,
+        snapshotAfterCursorLength: snapshot.afterCursor.length,
+        hasPendingExtensionEdit: this.entry.pendingExtensionEdit !== null,
+        pendingExtensionEditSource: this.entry.pendingExtensionEdit?.source ?? null,
+      });
+      if (
+        this.entry.pendingExtensionEdit !== null &&
+        this.shouldPreservePendingExtensionEdit(snapshot)
+      ) {
+        logger.debug("Suppressing post-accept input echo", {
+          suggestionId: this.entry.id,
+          requestId: this.entry.requestId,
+          inputType: this.resolveInputType(event),
+          pendingExtensionEditSource: this.entry.pendingExtensionEdit.source,
+          pendingExtensionEditBlockScoped: this.entry.pendingExtensionEdit.blockScoped ?? false,
+        });
+        this.suppressAcceptedSuggestionInput();
+        return;
+      }
+      logger.debug("Post-accept suppression window ended on real edit", {
+        suggestionId: this.entry.id,
+        requestId: this.entry.requestId,
+        inputType: this.resolveInputType(event),
+        hasPendingExtensionEdit: this.entry.pendingExtensionEdit !== null,
+      });
+      this.entry.suppressNextSuggestionInputPrediction = false;
     }
 
     this.processEntryAfterEdit({
@@ -1107,8 +1156,10 @@ export class SuggestionEntrySession {
   }
 
   private acceptSuggestionInternal(suggestion: string): void {
+    this.entry.suppressNextSuggestionInputPrediction = true;
     const accepted = this.textEditService.acceptSuggestion(this.entry, suggestion);
     if (!accepted) {
+      this.entry.suppressNextSuggestionInputPrediction = false;
       return;
     }
     this.finishAcceptedSuggestion(
@@ -1125,7 +1176,28 @@ export class SuggestionEntrySession {
     cursorAfter: number,
     cursorAfterIsBlockLocal: boolean,
   ): void {
+    this.clearPendingFallback();
+    this.predictionCoordinator.cancelPending(this.entry);
+    this.clearPendingRequestTimer();
+    this.clearPendingIdleTimer();
+    this.entry.requestId += 1;
+    this.entry.lastKeydownKey = null;
+    this.entry.lastBeforeCursorText = null;
+    this.entry.latestMentionText = "";
+    this.entry.latestMentionStart = TextTargetAdapter.isTextValue(this.entry.elem) ? 0 : -1;
+    this.entry.pendingGrammarPaste = false;
     this.clearSuggestions();
+    logger.debug("Accepted suggestion state armed", {
+      suggestionId: this.entry.id,
+      requestId: this.entry.requestId,
+      cursorAfter,
+      cursorAfterIsBlockLocal,
+      triggerLength: triggerText.length,
+      insertedLength: insertedText.length,
+      hasPendingExtensionEdit: this.entry.pendingExtensionEdit !== null,
+      pendingExtensionEditSource: this.entry.pendingExtensionEdit?.source ?? null,
+      pendingExtensionEditBlockScoped: this.entry.pendingExtensionEdit?.blockScoped ?? false,
+    });
     const shouldExpectTrailingSpace =
       this.insertSpaceAfterAutocomplete && !/[ \xA0]$/.test(insertedText);
     this.entry.missingTrailingSpace = shouldExpectTrailingSpace;
@@ -1637,6 +1709,23 @@ export class SuggestionEntrySession {
     this.entry.visibleSuggestionBeforeCursorText = null;
     this.entry.visibleSuggestionFullText = null;
     this.clearSuggestions();
+  }
+
+  private suppressAcceptedSuggestionInput(): void {
+    this.clearPendingIdleTimer();
+    this.entry.lastInputAction = null;
+    this.entry.lastKeydownKey = null;
+    this.entry.lastBeforeCursorText = null;
+    this.entry.pendingGrammarPaste = false;
+    this.entry.visibleSuggestionBeforeCursorText = null;
+    this.entry.visibleSuggestionFullText = null;
+    this.clearSuggestions();
+  }
+
+  private resolveInputType(event: Event): string {
+    return typeof (event as InputEvent).inputType === "string"
+      ? (event as InputEvent).inputType
+      : "";
   }
 
   private shouldCheckCaretContextOnSelectionChange(): boolean {

@@ -392,6 +392,7 @@ export class SuggestionManagerRuntime {
       expectedCursorPosBlockElement: null,
       expectedCursorPosBlockText: null,
       pendingExtensionEdit: null,
+      suppressNextSuggestionInputPrediction: false,
       manualAutoFixSuppression: null,
       isComposing: false,
       lastKeydownKey: null,

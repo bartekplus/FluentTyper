@@ -358,7 +358,14 @@ test("session paste marks grammar-paste state", () => {
 });
 
 test("session acceptance lifecycle applies accepted suggestion state", () => {
-  const entry = createSuggestionEntry({ requestId: 2, suggestions: ["beta"] });
+  const entry = createSuggestionEntry({
+    requestId: 2,
+    suggestions: ["beta"],
+    latestMentionText: "bet",
+    latestMentionStart: 0,
+  });
+  entry.pendingRequestTimer = setTimeout(() => undefined, 1000);
+  entry.pendingIdleTimer = setTimeout(() => undefined, 1000);
   const textEditService = {
     acceptSuggestion: jest.fn(() => ({
       triggerText: "bet",
@@ -370,8 +377,24 @@ test("session acceptance lifecycle applies accepted suggestion state", () => {
     syncManualAutoFixSuppression: jest.fn(),
   };
   const recordSuggestionAccepted = jest.fn();
+  const clearPendingFallback = jest.fn();
+  const predictionCoordinator = {
+    shouldProcessResponse: (_entry: SuggestionEntry, context: PredictionResponse) =>
+      context.requestId === entry.requestId,
+    schedule: jest.fn(),
+    reconcile: jest.fn(),
+    cancelPending: jest.fn(() => {
+      if (entry.pendingRequestTimer) {
+        clearTimeout(entry.pendingRequestTimer);
+        entry.pendingRequestTimer = null;
+      }
+    }),
+    findMentionToken: () => ({ token: "hel", start: 0 }),
+  };
   const session = makeSession({
     entry,
+    clearPendingFallback,
+    predictionCoordinator,
     textEditService,
     recordSuggestionAccepted,
     insertSpaceAfterAutocomplete: true,
@@ -382,13 +405,213 @@ test("session acceptance lifecycle applies accepted suggestion state", () => {
 
   expect(textEditService.acceptSuggestion).toHaveBeenCalledWith(entry, "beta");
   expect(entry.suggestions).toEqual([]);
+  expect(entry.requestId).toBe(3);
+  expect(entry.pendingRequestTimer).toBeNull();
+  expect(entry.pendingIdleTimer).toBeNull();
+  expect(entry.lastBeforeCursorText).toBeNull();
+  expect(entry.latestMentionText).toBe("");
+  expect(entry.latestMentionStart).toBe(0);
+  expect(entry.suppressNextSuggestionInputPrediction).toBe(true);
   expect(entry.missingTrailingSpace).toBe(true);
   expect(entry.expectedCursorPos).toBe(4);
+  expect(clearPendingFallback).toHaveBeenCalledTimes(1);
+  expect(predictionCoordinator.cancelPending).toHaveBeenCalledWith(entry);
   expect(recordSuggestionAccepted).toHaveBeenCalledWith({
     triggerText: "bet",
     insertedText: "beta",
     language: "en_US",
   });
+});
+
+test("session ignores stale prediction responses after suggestion acceptance", () => {
+  const entry = createSuggestionEntry({
+    requestId: 2,
+    suggestions: ["beta"],
+    latestMentionText: "bet",
+  });
+  const renderMenu = jest.fn();
+  const textEditService = {
+    acceptSuggestion: jest.fn(() => ({
+      triggerText: "bet",
+      insertedText: "beta",
+      cursorAfter: 4,
+      cursorAfterIsBlockLocal: false,
+    })),
+    applyGrammarEdit: jest.fn(() => ({ applied: false, didDispatchInput: false })),
+    syncManualAutoFixSuppression: jest.fn(),
+  };
+  const predictionCoordinator = {
+    shouldProcessResponse: (_entry: SuggestionEntry, context: PredictionResponse) =>
+      context.requestId === entry.requestId,
+    schedule: jest.fn(),
+    reconcile: jest.fn(),
+    cancelPending: jest.fn(),
+    findMentionToken: () => ({ token: "hel", start: 0 }),
+  };
+  const session = makeSession({
+    entry,
+    renderMenu,
+    predictionCoordinator,
+    textEditService,
+  });
+
+  session.acceptSuggestionAtIndex(0);
+  session.handlePredictionResponse({
+    requestId: 2,
+    suggestionId: entry.id,
+    predictions: ["beta again"],
+    lang: "en_US",
+  });
+
+  expect(entry.requestId).toBe(3);
+  expect(entry.suggestions).toEqual([]);
+  expect(renderMenu).not.toHaveBeenCalled();
+});
+
+test("session suppresses the synthetic input emitted by accepted suggestions", () => {
+  const clearPendingFallback = jest.fn();
+  const predictionCoordinator = {
+    shouldProcessResponse: (_entry: SuggestionEntry, context: PredictionResponse) =>
+      context.requestId === 2,
+    schedule: jest.fn(),
+    reconcile: jest.fn(),
+    cancelPending: jest.fn(),
+    findMentionToken: () => ({ token: "what", start: 0 }),
+  };
+  const input = document.createElement("input");
+  input.value = "what";
+  input.selectionStart = input.value.length;
+  input.selectionEnd = input.value.length;
+  const entry = createSuggestionEntry({
+    elem: input as SuggestionEntry["elem"],
+    requestId: 2,
+    suggestions: ["stale"],
+    inlineSuggestion: "stale",
+    visibleSuggestionBeforeCursorText: "wha",
+    visibleSuggestionFullText: "wha",
+    pendingExtensionEdit: {
+      replaceStart: 0,
+      originalText: "wha",
+      replacementText: "what",
+      cursorBefore: 3,
+      cursorAfter: 4,
+      postEditFingerprint: {
+        fullText: "what",
+        cursorOffset: 4,
+        selectionCollapsed: true,
+      },
+      source: "suggestion",
+    },
+    suppressNextSuggestionInputPrediction: true,
+  });
+  const session = makeSession({
+    entry,
+    clearPendingFallback,
+    predictionCoordinator,
+    editableContextResolver: {
+      resolve: () => ({
+        kind: "text-value",
+        beforeCursor: "what",
+        afterCursor: "",
+        fullText: "what",
+        cursorOffset: 4,
+        selectionStable: true,
+      }),
+    },
+  });
+  const inputEvent = new Event("input") as InputEvent;
+  Object.defineProperty(inputEvent, "inputType", { value: "insertText" });
+
+  session.handleInput(inputEvent);
+
+  expect(clearPendingFallback).toHaveBeenCalledTimes(1);
+  expect(predictionCoordinator.schedule).not.toHaveBeenCalled();
+  expect(predictionCoordinator.reconcile).not.toHaveBeenCalled();
+  expect(entry.suggestions).toEqual([]);
+  expect(entry.inlineSuggestion).toBeNull();
+  expect(entry.visibleSuggestionBeforeCursorText).toBeNull();
+  expect(entry.visibleSuggestionFullText).toBeNull();
+  expect(entry.suppressNextSuggestionInputPrediction).toBe(true);
+});
+
+test("session resumes prediction after the first real user edit following acceptance", () => {
+  const predictionCoordinator = {
+    shouldProcessResponse: (_entry: SuggestionEntry, context: PredictionResponse) =>
+      context.requestId === 2,
+    schedule: jest.fn(),
+    reconcile: jest.fn(),
+    cancelPending: jest.fn(),
+    findMentionToken: () => ({ token: "whats", start: 0 }),
+  };
+  const input = document.createElement("input");
+  input.value = "whats";
+  input.selectionStart = input.value.length;
+  input.selectionEnd = input.value.length;
+  const entry = createSuggestionEntry({
+    elem: input as SuggestionEntry["elem"],
+    requestId: 2,
+    pendingExtensionEdit: {
+      replaceStart: 0,
+      originalText: "wha",
+      replacementText: "what",
+      cursorBefore: 3,
+      cursorAfter: 4,
+      postEditFingerprint: {
+        fullText: "what",
+        cursorOffset: 4,
+        selectionCollapsed: true,
+      },
+      source: "suggestion",
+    },
+    suppressNextSuggestionInputPrediction: true,
+    lastKeydownKey: "s",
+  });
+  const session = makeSession({
+    entry,
+    predictionCoordinator,
+    editableContextResolver: {
+      resolve: () => ({
+        kind: "text-value",
+        beforeCursor: "whats",
+        afterCursor: "",
+        fullText: "whats",
+        cursorOffset: 5,
+        selectionStable: true,
+      }),
+    },
+  });
+  const inputEvent = new Event("input") as InputEvent;
+  Object.defineProperty(inputEvent, "inputType", { value: "insertText" });
+
+  session.handleInput(inputEvent);
+
+  expect(entry.suppressNextSuggestionInputPrediction).toBe(false);
+  expect(predictionCoordinator.schedule).toHaveBeenCalledTimes(1);
+});
+
+test("session does not request inline suggestion while post-accept suppression is active", () => {
+  const predictionCoordinator = {
+    shouldProcessResponse: (_entry: SuggestionEntry, context: PredictionResponse) =>
+      context.requestId === 2,
+    schedule: jest.fn(),
+    reconcile: jest.fn(),
+    cancelPending: jest.fn(),
+    findMentionToken: () => ({ token: "what", start: 0 }),
+  };
+  const entry = createSuggestionEntry({
+    requestId: 2,
+    latestMentionText: "what",
+    suppressNextSuggestionInputPrediction: true,
+  });
+  const session = makeSession({
+    entry,
+    predictionCoordinator,
+  });
+
+  session.requestInlineSuggestion();
+
+  expect(entry.pendingInlineAccept).toBe(false);
+  expect(predictionCoordinator.schedule).not.toHaveBeenCalled();
 });
 
 test("session clears idle and resets prediction bookkeeping when input is suppressed", () => {

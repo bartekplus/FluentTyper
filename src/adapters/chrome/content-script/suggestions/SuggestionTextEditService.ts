@@ -155,6 +155,17 @@ export class SuggestionTextEditService {
 
     const cursorAfter = replaceStart + replacementText.length;
     const originalText = `${replacedTokenText}${consumedTrailingWhitespace}`;
+    logger.debug("Accepting suggestion in text target", {
+      suggestionId: entry.id,
+      replaceStart,
+      replaceEnd: finalReplaceEnd,
+      cursorAfter,
+      beforeBlockBoundary,
+      triggerLength: triggerText.length,
+      suggestionLength: suggestion.length,
+      replacementLength: replacementText.length,
+      consumedTrailingWhitespaceLength: consumedTrailingWhitespace.length,
+    });
 
     this.replaceTextByOffsets(
       entry.elem,
@@ -606,7 +617,28 @@ export class SuggestionTextEditService {
         `${blockContext?.beforeCursor ?? ""}${blockContext?.afterCursor ?? ""}` ===
           (entry.expectedCursorPosBlockText ?? ""));
 
+    logger.debug("Evaluating delayed post-accept spacing", {
+      suggestionId: entry.id,
+      key,
+      expectedCursorPos: entry.expectedCursorPos,
+      expectedCursorPosIsBlockLocal: entry.expectedCursorPosIsBlockLocal,
+      currentCursorOffset,
+      blockStateMatches,
+      beforeCursorLength: (blockContext?.beforeCursor ?? snapshot?.beforeCursor ?? "").length,
+      afterCursorLength: (blockContext?.afterCursor ?? snapshot?.afterCursor ?? "").length,
+      hasActiveBlock: activeBlock !== null,
+    });
+
     if (!blockStateMatches || currentCursorOffset !== entry.expectedCursorPos || key.length > 1) {
+      logger.debug("Clearing delayed post-accept spacing state", {
+        suggestionId: entry.id,
+        reason: !blockStateMatches
+          ? "block_state_mismatch"
+          : currentCursorOffset !== entry.expectedCursorPos
+            ? "cursor_mismatch"
+            : "non_character_key",
+        key,
+      });
       this.clearMissingTrailingSpaceState(entry);
       return;
     }
@@ -633,13 +665,22 @@ export class SuggestionTextEditService {
       return;
     }
 
-    consumeKeyboardEvent(event);
-
     const fullText = `${beforeCursor}${afterCursor}`;
     const replaceStart = beforeCursor.length;
     const replaceEnd = replaceStart;
     const replacementText = ` ${key}`;
     const cursorAfter = replaceStart + replacementText.length;
+
+    consumeKeyboardEvent(event);
+    logger.debug("Applying delayed post-accept spacing", {
+      suggestionId: entry.id,
+      key,
+      replaceStart,
+      replaceEnd,
+      cursorAfter,
+      replacementLength: replacementText.length,
+      isBlockLocal: activeBlock !== null,
+    });
 
     this.replaceTextByOffsets(
       entry.elem,
@@ -889,6 +930,21 @@ export class SuggestionTextEditService {
     );
     const cursorAfter = replaceStart + replacementText.length;
     const originalText = blockSourceText.slice(replaceStart, finalReplaceEnd);
+    const expectedPostEditBlockText = `${blockSourceText.slice(0, replaceStart)}${replacementText}${blockSourceText.slice(finalReplaceEnd)}`;
+
+    logger.debug("Accepting suggestion in contenteditable", {
+      suggestionId: entry.id,
+      beforeBlockBoundary,
+      replaceStart,
+      replaceEnd: finalReplaceEnd,
+      cursorAfter,
+      triggerLength: triggerText.length,
+      suggestionLength: suggestion.length,
+      replacementLength: replacementText.length,
+      blockBeforeCursorLength: blockContext.beforeCursor.length,
+      blockAfterCursorLength: blockContext.afterCursor.length,
+      expectedPostEditBlockTextLength: expectedPostEditBlockText.length,
+    });
 
     const applyResult = this.replaceTextByOffsets(
       entry.elem,
@@ -899,15 +955,31 @@ export class SuggestionTextEditService {
       cursorAfter,
       { scopeRoot: activeBlock },
     );
-    if (!applyResult.didMutateDom) {
+    const hostAcceptedAsync =
+      applyResult.appliedBy === "host-beforeinput" && !applyResult.didMutateDom;
+    if (!applyResult.didMutateDom && !hostAcceptedAsync) {
       return null;
+    }
+    if (hostAcceptedAsync) {
+      logger.debug("Treating deferred host contenteditable accept as successful", {
+        suggestionId: entry.id,
+        replaceStart,
+        replaceEnd: finalReplaceEnd,
+        cursorAfter,
+        replacementLength: replacementText.length,
+        expectedPostEditBlockTextLength: expectedPostEditBlockText.length,
+      });
     }
 
     const postEditBlockContext = this.contentEditableAdapter.getBlockContext(
       entry.elem as HTMLElement,
     );
-    const postEditBlockText = activeBlock.textContent ?? "";
-    const postEditCursorAfter = postEditBlockContext?.beforeCursor.length ?? cursorAfter;
+    const postEditBlockText = hostAcceptedAsync
+      ? expectedPostEditBlockText
+      : (activeBlock.textContent ?? "");
+    const postEditCursorAfter = hostAcceptedAsync
+      ? cursorAfter
+      : (postEditBlockContext?.beforeCursor.length ?? cursorAfter);
 
     entry.pendingExtensionEdit = {
       replaceStart,

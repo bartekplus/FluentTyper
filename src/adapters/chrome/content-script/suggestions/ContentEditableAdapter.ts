@@ -1,3 +1,5 @@
+import { createLogger } from "@core/application/logging/Logger";
+
 const BLOCK_TAGS = new Set([
   "P",
   "DIV",
@@ -18,6 +20,7 @@ const SHOW_TEXT =
   (globalThis as { NodeFilter?: { SHOW_TEXT?: number } }).NodeFilter?.SHOW_TEXT ?? 4;
 const SHOW_ELEMENT =
   (globalThis as { NodeFilter?: { SHOW_ELEMENT?: number } }).NodeFilter?.SHOW_ELEMENT ?? 1;
+const logger = createLogger("ContentEditableAdapter");
 
 interface ContentEditableDomPosition {
   container: Node;
@@ -87,11 +90,24 @@ export class ContentEditableAdapter {
 
     if (!preferDomMutation) {
       const beforeText = elem.textContent ?? "";
+      logger.debug("Dispatching contenteditable replacement beforeinput", {
+        replaceStart,
+        replaceEnd,
+        cursorAfter,
+        replacementLength: replacementText.length,
+        editScopeTextLength: (editScope.textContent ?? "").length,
+        editorTextLength: beforeText.length,
+      });
       const beforeInputEvent = this.dispatchReplacementBeforeInput(elem, range, replacementText);
       const textAfterBeforeInput = elem.textContent ?? "";
       const hostHandled = beforeInputEvent.defaultPrevented || textAfterBeforeInput !== beforeText;
 
       if (hostHandled) {
+        logger.debug("Contenteditable replacement handled by host", {
+          defaultPrevented: beforeInputEvent.defaultPrevented,
+          didMutateDom: textAfterBeforeInput !== beforeText,
+          textLengthDelta: textAfterBeforeInput.length - beforeText.length,
+        });
         if (textAfterBeforeInput === beforeText && selectionAnchors && selection) {
           // Host prevented the edit without changing text.  Restore the
           // original selection so the expanded replacement range does not
@@ -121,6 +137,10 @@ export class ContentEditableAdapter {
 
       const nativeReplacementResult = this.tryNativeReplacement(elem, replacementText);
       if (nativeReplacementResult.didMutateDom) {
+        logger.debug("Contenteditable replacement handled by execCommand fallback", {
+          didDispatchInput: nativeReplacementResult.didDispatchInput,
+          editorTextLength: (elem.textContent ?? "").length,
+        });
         return {
           appliedBy: "fallback-dom",
           didMutateDom: true,
@@ -143,6 +163,14 @@ export class ContentEditableAdapter {
 
     this.setCaret(editScope, cursorAfter);
     this.dispatchReplacementInput(elem, range, replacementText);
+    logger.debug("Contenteditable replacement applied by DOM fallback", {
+      replaceStart,
+      replaceEnd,
+      cursorAfter,
+      replacementLength: replacementText.length,
+      editScopeTextLength: (editScope.textContent ?? "").length,
+      editorTextLength: (elem.textContent ?? "").length,
+    });
 
     return {
       appliedBy: "fallback-dom",

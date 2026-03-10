@@ -34,6 +34,7 @@ export function createSuggestionEntry(
     expectedCursorPosBlockElement: overrides.expectedCursorPosBlockElement ?? null,
     expectedCursorPosBlockText: overrides.expectedCursorPosBlockText ?? null,
     pendingExtensionEdit: overrides.pendingExtensionEdit ?? null,
+    suppressNextSuggestionInputPrediction: overrides.suppressNextSuggestionInputPrediction ?? false,
     manualAutoFixSuppression: overrides.manualAutoFixSuppression ?? null,
     isComposing: overrides.isComposing ?? false,
     lastKeydownKey: overrides.lastKeydownKey ?? null,

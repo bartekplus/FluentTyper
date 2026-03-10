@@ -784,6 +784,119 @@ describe("SuggestionTextEditService", () => {
     expect(entry.pendingExtensionEdit?.postEditBlockText).toBe("What is the best ");
   });
 
+  test("treats deferred host-owned contenteditable acceptance as successful", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+      contentEditableAdapter: new HostCanceledNoMutationContentEditableAdapter(),
+    });
+
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML = "<p><span>Wh</span></p>";
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+
+    const textNode = editable.querySelector("span")?.firstChild as Text | null;
+    if (!textNode) {
+      throw new Error("Expected text node");
+    }
+    setTextNodeCursor(textNode, textNode.textContent?.length ?? 0);
+
+    const entry = createSuggestionEntry({
+      elem: editable,
+      latestMentionText: "Wh",
+      latestMentionStart: -1,
+    });
+
+    const accepted = service.acceptSuggestion(entry, "What ");
+
+    expect(accepted).toEqual({
+      triggerText: "Wh",
+      insertedText: "What ",
+      cursorAfter: 5,
+      cursorAfterIsBlockLocal: true,
+    });
+    expect(entry.pendingExtensionEdit?.blockScoped).toBe(true);
+    expect(entry.pendingExtensionEdit?.replacementText).toBe("What ");
+    expect(entry.pendingExtensionEdit?.postEditBlockText).toBe("What ");
+    expect(editable.textContent).toBe("Wh");
+  });
+
+  test("does nothing when delayed post-accept spacing is not armed", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+    });
+
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = "Crab";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    document.body.appendChild(input);
+
+    const entry = createSuggestionEntry({
+      elem: input,
+      missingTrailingSpace: false,
+      expectedCursorPos: input.value.length,
+    });
+
+    let consumed = false;
+    const keyboardEvent = new Event("keydown", {
+      bubbles: true,
+      cancelable: true,
+    }) as KeyboardEvent;
+    Object.defineProperty(keyboardEvent, "key", { value: "s" });
+
+    service.handleMissingSpaceAfterAccept(entry, keyboardEvent, () => {
+      consumed = true;
+    });
+
+    expect(consumed).toBe(false);
+    expect(input.value).toBe("Crab");
+    expect(entry.missingTrailingSpace).toBe(false);
+  });
+
+  test("inserts delayed post-accept spacing for the next typed character", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+    });
+
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = "Crab";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    document.body.appendChild(input);
+
+    const entry = createSuggestionEntry({
+      elem: input,
+      missingTrailingSpace: true,
+      expectedCursorPos: input.value.length,
+    });
+
+    let consumed = false;
+    const keyboardEvent = new Event("keydown", {
+      bubbles: true,
+      cancelable: true,
+    }) as KeyboardEvent;
+    Object.defineProperty(keyboardEvent, "key", { value: "s" });
+
+    service.handleMissingSpaceAfterAccept(entry, keyboardEvent, () => {
+      consumed = true;
+      keyboardEvent.preventDefault();
+    });
+
+    expect(consumed).toBe(true);
+    expect(input.value).toBe("Crab s");
+    expect(input.selectionStart).toBe(6);
+    expect(input.selectionEnd).toBe(6);
+    expect(entry.missingTrailingSpace).toBe(false);
+    expect(entry.expectedCursorPos).toBe(0);
+  });
+
   test("clears delayed post-accept space state when caret moves to a different paragraph at the same local offset", () => {
     const service = new SuggestionTextEditService({
       findMentionToken,

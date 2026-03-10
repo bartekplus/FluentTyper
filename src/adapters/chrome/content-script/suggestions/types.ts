@@ -122,6 +122,7 @@ export interface SuggestionEntry {
   expectedCursorPosBlockElement: HTMLElement | null;
   expectedCursorPosBlockText: string | null;
   pendingExtensionEdit: ExtensionEditSnapshot | null;
+  suppressNextSuggestionInputPrediction: boolean;
   manualAutoFixSuppression: ManualAutoFixSuppressionSnapshot | null;
   isComposing: boolean;
   lastKeydownKey: string | null;
