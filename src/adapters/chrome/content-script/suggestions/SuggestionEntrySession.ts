@@ -1723,7 +1723,9 @@ export class SuggestionEntrySession {
   }
 
   private resolveInputType(event: Event): string {
-    return typeof (event as InputEvent).inputType === "string" ? (event as InputEvent).inputType : "";
+    return typeof (event as InputEvent).inputType === "string"
+      ? (event as InputEvent).inputType
+      : "";
   }
 
   private shouldCheckCaretContextOnSelectionChange(): boolean {
