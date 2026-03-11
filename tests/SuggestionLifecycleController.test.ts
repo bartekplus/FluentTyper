@@ -115,7 +115,7 @@ describe("SuggestionLifecycleController", () => {
     outside.remove();
   });
 
-  test("listens to backing textarea input for CodeMirror-backed entries", () => {
+  test("listens to backing textarea lifecycle events for CodeMirror-backed entries", () => {
     const textarea = document.createElement("textarea");
     const codeMirror = document.createElement("div");
     codeMirror.className = "CodeMirror-code";
@@ -124,16 +124,19 @@ describe("SuggestionLifecycleController", () => {
     document.body.append(textarea, codeMirror, menu);
 
     const input = jest.fn();
+    const keydown = jest.fn();
+    const focus = jest.fn();
+    const blur = jest.fn();
     const entry = createSuggestionEntry({
       elem: codeMirror as unknown as SuggestionElement,
       inputEventTarget: textarea,
       menu,
       handlers: {
         input,
-        keydown: () => undefined,
+        keydown,
         paste: () => undefined,
-        focus: () => undefined,
-        blur: () => undefined,
+        focus,
+        blur,
         click: () => undefined,
         compositionStart: () => undefined,
         compositionEnd: () => undefined,
@@ -150,10 +153,22 @@ describe("SuggestionLifecycleController", () => {
     controller.attachEntryListeners(entry);
 
     textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    textarea.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Tab", bubbles: true }));
+    textarea.dispatchEvent(new Event("focus", { bubbles: true }));
+    textarea.dispatchEvent(new Event("blur", { bubbles: true }));
     expect(input).toHaveBeenCalledTimes(1);
+    expect(keydown).toHaveBeenCalledTimes(1);
+    expect(focus).toHaveBeenCalledTimes(1);
+    expect(blur).toHaveBeenCalledTimes(1);
 
     controller.detachEntryListeners(entry);
     textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    textarea.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Tab", bubbles: true }));
+    textarea.dispatchEvent(new Event("focus", { bubbles: true }));
+    textarea.dispatchEvent(new Event("blur", { bubbles: true }));
     expect(input).toHaveBeenCalledTimes(1);
+    expect(keydown).toHaveBeenCalledTimes(1);
+    expect(focus).toHaveBeenCalledTimes(1);
+    expect(blur).toHaveBeenCalledTimes(1);
   });
 });
