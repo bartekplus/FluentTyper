@@ -20,7 +20,7 @@ export type SuggestionThemeSettings = Pick<
 export const DEFAULT_SUGGESTION_THEME_SETTINGS: SuggestionThemeSettings = {
   suggestionBgLight: "#ffffff",
   suggestionTextLight: "#2d3748",
-  suggestionHighlightBgLight: "#2563eb",
+  suggestionHighlightBgLight: "#0f172a",
   suggestionHighlightTextLight: "#ffffff",
   suggestionBorderLight: "#e2e8f0",
   suggestionBgDark: "#0f172a",

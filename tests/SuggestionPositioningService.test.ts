@@ -118,9 +118,9 @@ describe("SuggestionPositioningService", () => {
     expect(menu.style.getPropertyValue("--ft-text-transform")).toBe(
       SUGGESTION_POPUP_TEXT_TRANSFORM,
     );
-    expect(menu.style.getPropertyValue("--ft-font-size")).toBe("16px");
-    expect(menu.style.getPropertyValue("--ft-row-height")).toBe("28px");
-    expect(menu.style.getPropertyValue("--ft-panel-min-width")).toBe("168px");
+    expect(menu.style.getPropertyValue("--ft-font-size")).toBe("15px");
+    expect(menu.style.getPropertyValue("--ft-row-height")).toBe("27px");
+    expect(menu.style.getPropertyValue("--ft-panel-min-width")).toBe("148px");
   });
 
   test("keeps popup width compact even when the target field is very wide", () => {
@@ -133,8 +133,8 @@ describe("SuggestionPositioningService", () => {
 
     service.syncMenuTypography(menu, input);
 
-    expect(menu.style.getPropertyValue("--ft-panel-min-width")).toBe("156px");
-    expect(menu.style.getPropertyValue("--ft-pad-y")).toBe("4px");
+    expect(menu.style.getPropertyValue("--ft-panel-min-width")).toBe("148px");
+    expect(menu.style.getPropertyValue("--ft-pad-y")).toBe("3px");
   });
 
   test("maps master-era default theme sizing to the new compact popup defaults", () => {
@@ -187,10 +187,10 @@ describe("SuggestionPositioningService", () => {
     service.syncMenuTypography(menu, input);
 
     expect(menu.style.getPropertyValue("--ft-font-size")).toBe("12px");
-    expect(menu.style.getPropertyValue("--ft-pad-y")).toBe("4px");
+    expect(menu.style.getPropertyValue("--ft-pad-y")).toBe("3px");
     expect(menu.style.getPropertyValue("--ft-pad-x")).toBe("6px");
-    expect(menu.style.getPropertyValue("--ft-row-height")).toBe("28px");
-    expect(menu.style.getPropertyValue("--ft-panel-min-width")).toBe("156px");
+    expect(menu.style.getPropertyValue("--ft-row-height")).toBe("27px");
+    expect(menu.style.getPropertyValue("--ft-panel-min-width")).toBe("148px");
   });
 
   test("cleans up marker fallback and keeps selection valid for zero-height ranges", () => {

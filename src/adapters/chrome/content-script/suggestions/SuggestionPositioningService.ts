@@ -37,18 +37,18 @@ export class SuggestionPositioningService {
     const fontSizePx = this.resolveFontSizePx(computed.fontSize);
     const lineHeightPx = this.resolveLineHeightPx(computed.lineHeight, fontSizePx);
     const themeScale = this.resolveLegacyThemeScale(menu, typographyAnchor, fontSizePx);
-    const popupFontSizePx = Math.round(this.clamp(fontSizePx * 0.88 * themeScale.fontSize, 12, 16));
+    const popupFontSizePx = Math.round(this.clamp(fontSizePx * 0.84 * themeScale.fontSize, 12, 15));
     const popupLineHeightPx = Math.round(
-      this.clamp(lineHeightPx * 0.9 * themeScale.fontSize, 17, 24),
+      this.clamp(lineHeightPx * 0.86 * themeScale.fontSize, 16, 22),
     );
-    const padX = Math.round(this.clamp(fontSizePx * 0.5 * themeScale.paddingHorizontal, 6, 11));
-    const padY = Math.round(this.clamp(fontSizePx * 0.18 * themeScale.paddingVertical, 4, 7));
+    const padX = Math.round(this.clamp(fontSizePx * 0.44 * themeScale.paddingHorizontal, 6, 10));
+    const padY = Math.round(this.clamp(fontSizePx * 0.14 * themeScale.paddingVertical, 3, 6));
     const rowHeightPx = Math.round(
-      this.clamp(popupLineHeightPx + fontSizePx * 0.36 * themeScale.paddingVertical, 28, 36),
+      this.clamp(popupLineHeightPx + fontSizePx * 0.24 * themeScale.paddingVertical, 27, 34),
     );
-    const radiusPx = Math.round(this.clamp(fontSizePx * 0.62, 9, 12));
+    const radiusPx = Math.round(this.clamp(fontSizePx * 0.56, 9, 12));
     const availableViewportWidth = Math.max(
-      160,
+      152,
       window.innerWidth - SuggestionPositioningService.VIEWPORT_PADDING_PX * 2,
     );
 
@@ -66,7 +66,7 @@ export class SuggestionPositioningService {
     menu.style.setProperty("--ft-radius", `${radiusPx}px`);
     menu.style.setProperty(
       "--ft-panel-min-width",
-      `${Math.round(this.clamp(Math.max(popupFontSizePx * 10.5, 156), 156, availableViewportWidth))}px`,
+      `${Math.round(this.clamp(Math.max(popupFontSizePx * 9, 148), 148, availableViewportWidth))}px`,
     );
     menu.style.setProperty("--suggestion-font-size", `${popupFontSizePx}px`);
     menu.style.setProperty("--suggestion-padding-vertical", `${padY}px`);

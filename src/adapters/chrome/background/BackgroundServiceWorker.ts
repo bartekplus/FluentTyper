@@ -16,6 +16,7 @@ import { migrateSettingsV3 } from "@core/application/settings/SettingsMigrationV
 import { migrateSettingsV4 } from "@core/application/settings/SettingsMigrationV4";
 import { migrateSettingsV5 } from "@core/application/settings/SettingsMigrationV5";
 import { migrateSettingsV6 } from "@core/application/settings/SettingsMigrationV6";
+import { migrateSettingsV7 } from "@core/application/settings/SettingsMigrationV7";
 import { migrateToLocalStore } from "./Migration";
 import type {
   ContentScriptPredictRequestContext,
@@ -301,6 +302,7 @@ export class BackgroundServiceWorker {
         await migrateSettingsV4(this.settingsManager);
         await migrateSettingsV5(this.settingsManager);
         await migrateSettingsV6(this.settingsManager);
+        await migrateSettingsV7(this.settingsManager);
         await this.predictionManager.initialize();
         await this.updatePresageConfig();
       } catch (error) {
