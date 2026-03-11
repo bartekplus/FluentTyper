@@ -250,16 +250,22 @@ export class SuggestionEntrySession {
         caretTrace: buildCaretTrace(snapshot.beforeCursor, snapshot.afterCursor),
         activeBlockTrace: this.buildActiveBlockTrace(),
       });
+      const shouldSuppressAwaitedHostEcho =
+        this.entry.pendingExtensionEdit?.awaitingHostInputEcho === true;
       if (
         this.entry.pendingExtensionEdit !== null &&
-        this.shouldPreservePendingExtensionEdit(snapshot)
+        (shouldSuppressAwaitedHostEcho || this.shouldPreservePendingExtensionEdit(snapshot))
       ) {
+        if (shouldSuppressAwaitedHostEcho) {
+          this.entry.pendingExtensionEdit.awaitingHostInputEcho = false;
+        }
         logger.debug("Suppressing post-accept input echo", {
           suggestionId: this.entry.id,
           requestId: this.entry.requestId,
           inputType: this.resolveInputType(event),
           pendingExtensionEditSource: this.entry.pendingExtensionEdit.source,
           pendingExtensionEditBlockScoped: this.entry.pendingExtensionEdit.blockScoped ?? false,
+          pendingExtensionEditAwaitingHostInputEcho: shouldSuppressAwaitedHostEcho,
         });
         this.suppressAcceptedSuggestionInput();
         return;
@@ -1269,8 +1275,14 @@ export class SuggestionEntrySession {
           : null,
       activeBlockTrace: this.buildActiveBlockTrace(),
     });
+    const trailingCharAfterAccept = this.resolveTrailingCharAfterAcceptedSuggestion(
+      cursorAfter,
+      cursorAfterIsBlockLocal,
+    );
     const shouldExpectTrailingSpace =
-      this.insertSpaceAfterAutocomplete && !/[ \xA0]$/.test(insertedText);
+      this.insertSpaceAfterAutocomplete &&
+      !/[ \xA0]$/.test(insertedText) &&
+      !/[ \xA0]/.test(trailingCharAfterAccept);
     this.entry.missingTrailingSpace = shouldExpectTrailingSpace;
     this.entry.expectedCursorPos = shouldExpectTrailingSpace ? cursorAfter : 0;
     this.entry.expectedCursorPosIsBlockLocal = shouldExpectTrailingSpace && cursorAfterIsBlockLocal;
@@ -1287,6 +1299,20 @@ export class SuggestionEntrySession {
       insertedText,
       language: this.getLang(),
     });
+  }
+
+  private resolveTrailingCharAfterAcceptedSuggestion(
+    cursorAfter: number,
+    cursorAfterIsBlockLocal: boolean,
+  ): string {
+    const pendingEdit = this.entry.pendingExtensionEdit;
+    if (!pendingEdit) {
+      return "";
+    }
+    if (cursorAfterIsBlockLocal && pendingEdit.blockScoped) {
+      return (pendingEdit.postEditBlockText ?? "").charAt(cursorAfter);
+    }
+    return pendingEdit.postEditFingerprint.fullText.charAt(cursorAfter);
   }
 
   private clearPendingExtensionEdit(): void {

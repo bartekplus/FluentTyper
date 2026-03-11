@@ -87,6 +87,7 @@ export interface ExtensionEditSnapshot {
   cursorBefore: number;
   cursorAfter: number;
   postEditFingerprint: PostEditFingerprint;
+  awaitingHostInputEcho?: boolean;
   source: "suggestion" | "grammar";
   sourceRuleId?: string;
   blockScoped?: boolean;

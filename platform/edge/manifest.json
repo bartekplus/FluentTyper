@@ -6,6 +6,14 @@
   "optional_host_permissions": ["<all_urls>"],
   "content_scripts": [
     {
+      "js": ["content_script_main_world.js"],
+      "matches": ["<all_urls>"],
+      "run_at": "document_end",
+      "all_frames": true,
+      "match_about_blank": true,
+      "world": "MAIN"
+    },
+    {
       "css": ["suggestions/suggestions.css"],
       "js": ["content_script.js"],
       "matches": ["<all_urls>"],

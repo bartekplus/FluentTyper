@@ -2,6 +2,7 @@ import { createLogger } from "@core/application/logging/Logger";
 import type { GrammarEdit } from "@core/domain/grammar/types";
 import { SPACING_RULES, Spacing } from "@core/domain/spacingRules";
 import { ContentEditableAdapter, type ContentEditableEditResult } from "./ContentEditableAdapter";
+import { HostEditorAdapterResolver, type HostEditorSession } from "./HostEditorAdapterResolver";
 import { TextTargetAdapter, type TextTarget } from "./TextTargetAdapter";
 import type {
   ManualAutoFixSuppressionSnapshot,
@@ -121,20 +122,24 @@ export class SuggestionTextEditService {
   private readonly findMentionToken: (beforeCursor: string) => { token: string; start: number };
   private readonly isSeparator: (value: string) => boolean;
   private readonly contentEditableAdapter: ContentEditableAdapter;
+  private readonly hostEditorAdapterResolver: HostEditorAdapterResolver;
   private readonly domPreferredGrammarTargets = new WeakSet<HTMLElement>();
 
   constructor({
     findMentionToken,
     isSeparator,
     contentEditableAdapter = new ContentEditableAdapter(),
+    hostEditorAdapterResolver = new HostEditorAdapterResolver(),
   }: {
     findMentionToken: (beforeCursor: string) => { token: string; start: number };
     isSeparator: (value: string) => boolean;
     contentEditableAdapter?: ContentEditableAdapter;
+    hostEditorAdapterResolver?: HostEditorAdapterResolver;
   }) {
     this.findMentionToken = findMentionToken;
     this.isSeparator = isSeparator;
     this.contentEditableAdapter = contentEditableAdapter;
+    this.hostEditorAdapterResolver = hostEditorAdapterResolver;
   }
 
   public acceptSuggestion(
@@ -762,6 +767,10 @@ export class SuggestionTextEditService {
     const replaceEnd = replaceStart;
     const replacementText = ` ${key}`;
     const cursorAfter = replaceStart + replacementText.length;
+    const hostEditorSession =
+      activeBlock !== null
+        ? this.resolveHostEditorSession(entry.elem as HTMLElement, fullText)
+        : null;
 
     consumeKeyboardEvent(event);
     logger.debug("Applying delayed post-accept spacing", {
@@ -774,6 +783,18 @@ export class SuggestionTextEditService {
       isBlockLocal: activeBlock !== null,
     });
 
+    if (hostEditorSession) {
+      const result = hostEditorSession.applyBlockReplacement({
+        replaceStart,
+        replaceEnd,
+        replacementText,
+        cursorAfter,
+      });
+      if (result.applied) {
+        return;
+      }
+    }
+
     this.replaceTextByOffsets(
       entry.elem,
       fullText,
@@ -781,7 +802,9 @@ export class SuggestionTextEditService {
       replaceEnd,
       replacementText,
       cursorAfter,
-      { scopeRoot: activeBlock },
+      {
+        scopeRoot: activeBlock,
+      },
     );
   }
 
@@ -883,6 +906,10 @@ export class SuggestionTextEditService {
     return Math.max(replaceStart + replacementText.length, currentCursorOffset + delta);
   }
 
+  private normalizeComparableBlockText(value: string): string {
+    return value.replaceAll("\xA0", " ");
+  }
+
   private replaceTextByOffsets(
     elem: SuggestionElement,
     fullText: string,
@@ -965,6 +992,27 @@ export class SuggestionTextEditService {
     );
   }
 
+  private resolveHostEditorSession(
+    elem: HTMLElement,
+    expectedBlockText: string,
+  ): HostEditorSession | null {
+    const session = this.hostEditorAdapterResolver.resolve(elem);
+    if (!session) {
+      return null;
+    }
+    const hostBlockContext = session.getBlockContextAtSelection();
+    if (!hostBlockContext) {
+      return null;
+    }
+    if (
+      this.normalizeComparableBlockText(hostBlockContext.blockText) !==
+      this.normalizeComparableBlockText(expectedBlockText)
+    ) {
+      return null;
+    }
+    return session;
+  }
+
   private acceptContentEditableSuggestion(
     entry: SuggestionEntry,
     suggestion: string,
@@ -1005,8 +1053,17 @@ export class SuggestionTextEditService {
       ? ""
       : this.findTrailingToken(blockContext.afterCursor);
     const baseReplaceEnd = Math.min(blockSourceText.length, replaceEnd + trailingTokenText.length);
-    const extraWhitespaceToConsume = this.shouldConsumeFollowingSpace(
+    const rawReplacementText = this.normalizeContentEditableTrailingSpace(
+      entry.elem,
       suggestion,
+      beforeBlockBoundary,
+    );
+    const replacementText =
+      trailingTokenText.length > 0 && / $/.test(rawReplacementText)
+        ? rawReplacementText.slice(0, -1)
+        : rawReplacementText;
+    const extraWhitespaceToConsume = this.shouldConsumeFollowingSpace(
+      replacementText,
       blockSourceText.charAt(baseReplaceEnd),
     )
       ? 1
@@ -1014,11 +1071,6 @@ export class SuggestionTextEditService {
     const finalReplaceEnd = Math.min(
       blockSourceText.length,
       baseReplaceEnd + extraWhitespaceToConsume,
-    );
-    const replacementText = this.normalizeContentEditableTrailingSpace(
-      entry.elem,
-      suggestion,
-      beforeBlockBoundary,
     );
     const cursorAfter = replaceStart + replacementText.length;
     const originalText = blockSourceText.slice(replaceStart, finalReplaceEnd);
@@ -1062,19 +1114,37 @@ export class SuggestionTextEditService {
       postEditBlockText: expectedPostEditBlockText,
     };
 
-    const applyResult = this.replaceTextByOffsets(
-      entry.elem,
+    const hostEditorSession = this.resolveHostEditorSession(
+      entry.elem as HTMLElement,
       blockSourceText,
-      replaceStart,
-      finalReplaceEnd,
-      replacementText,
-      cursorAfter,
-      { scopeRoot: activeBlock },
     );
+    const applyResult = hostEditorSession
+      ? (() => {
+          const result = hostEditorSession.applyBlockReplacement({
+            replaceStart,
+            replaceEnd: finalReplaceEnd,
+            replacementText,
+            cursorAfter,
+          });
+          return {
+            didMutateDom: result.applied,
+            didDispatchInput: result.didDispatchInput,
+          };
+        })()
+      : this.replaceTextByOffsets(
+          entry.elem,
+          blockSourceText,
+          replaceStart,
+          finalReplaceEnd,
+          replacementText,
+          cursorAfter,
+          { scopeRoot: activeBlock },
+        );
     const hostAcceptedAsync =
       "appliedBy" in applyResult &&
       applyResult.appliedBy === "host-beforeinput" &&
       !applyResult.didMutateDom;
+    const hostEditorApplied = hostEditorSession !== null;
     if (!applyResult.didMutateDom && !hostAcceptedAsync) {
       entry.pendingExtensionEdit = null;
       return null;
@@ -1093,20 +1163,30 @@ export class SuggestionTextEditService {
     const postEditBlockContext = this.contentEditableAdapter.getBlockContext(
       entry.elem as HTMLElement,
     );
+    const hostPostEditBlockContext = hostEditorSession?.getBlockContextAtSelection() ?? null;
     const postEditBlockText = hostAcceptedAsync
       ? expectedPostEditBlockText
-      : (activeBlock.textContent ?? "");
+      : (hostPostEditBlockContext?.blockText ?? activeBlock.textContent ?? "");
     const postEditCursorAfter = hostAcceptedAsync
       ? cursorAfter
-      : (postEditBlockContext?.beforeCursor.length ?? cursorAfter);
+      : (hostPostEditBlockContext?.beforeCursor.length ??
+        postEditBlockContext?.beforeCursor.length ??
+        cursorAfter);
+
+    if (hostEditorApplied && activeBlock.textContent === postEditBlockText) {
+      this.contentEditableAdapter.setCaret(activeBlock, postEditCursorAfter);
+    }
 
     if (entry.pendingExtensionEdit) {
       entry.pendingExtensionEdit.cursorAfter = postEditCursorAfter;
-      entry.pendingExtensionEdit.postEditFingerprint = {
-        fullText: "",
-        cursorOffset: postEditCursorAfter,
-        selectionCollapsed: TextTargetAdapter.hasCollapsedSelection(entry.elem as TextTarget),
-      };
+      entry.pendingExtensionEdit.awaitingHostInputEcho = hostEditorApplied;
+      entry.pendingExtensionEdit.postEditFingerprint = hostEditorApplied
+        ? hostEditorSession.createPostEditFingerprint()
+        : {
+            fullText: "",
+            cursorOffset: postEditCursorAfter,
+            selectionCollapsed: TextTargetAdapter.hasCollapsedSelection(entry.elem as TextTarget),
+          };
       entry.pendingExtensionEdit.blockElement = activeBlock;
       entry.pendingExtensionEdit.postEditBlockText = postEditBlockText;
     }

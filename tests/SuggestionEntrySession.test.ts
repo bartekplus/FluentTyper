@@ -423,6 +423,71 @@ test("session acceptance lifecycle applies accepted suggestion state", () => {
   });
 });
 
+test("session skips delayed spacing when a block-scoped accepted word already has a following space", () => {
+  const editable = document.createElement("div");
+  editable.setAttribute("contenteditable", "true");
+  Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+  const block = document.createElement("pre");
+  block.textContent = "dm medbae on discreetness for any mistakes";
+  editable.appendChild(block);
+  document.body.appendChild(editable);
+
+  const entry = createSuggestionEntry({
+    elem: editable as SuggestionEntry["elem"],
+    requestId: 2,
+    suggestions: ["discreetness "],
+    latestMentionText: "discsds",
+  });
+  const textEditService = {
+    acceptSuggestion: jest.fn(() => {
+      entry.pendingExtensionEdit = {
+        replaceStart: 13,
+        originalText: "discsdsreetness",
+        replacementText: "discreetness",
+        cursorBefore: 20,
+        cursorAfter: 25,
+        postEditFingerprint: {
+          fullText: "",
+          cursorOffset: 25,
+          selectionCollapsed: true,
+        },
+        source: "suggestion",
+        blockScoped: true,
+        blockElement: block,
+        postEditBlockText: "dm medbae on discreetness for any mistakes",
+      };
+      return {
+        triggerText: "discsds",
+        insertedText: "discreetness",
+        cursorAfter: 25,
+        cursorAfterIsBlockLocal: true,
+      };
+    }),
+    applyGrammarEdit: jest.fn(() => ({ applied: false, didDispatchInput: false })),
+    syncManualAutoFixSuppression: jest.fn(),
+  };
+  const predictionCoordinator = {
+    shouldProcessResponse: (_entry: SuggestionEntry, context: PredictionResponse) =>
+      context.requestId === entry.requestId,
+    schedule: jest.fn(),
+    reconcile: jest.fn(),
+    cancelPending: jest.fn(),
+    findMentionToken: () => ({ token: "discsds", start: 13 }),
+  };
+  const session = makeSession({
+    entry,
+    textEditService,
+    predictionCoordinator,
+    insertSpaceAfterAutocomplete: true,
+  });
+
+  session.acceptSuggestionAtIndex(0);
+
+  expect(entry.missingTrailingSpace).toBe(false);
+  expect(entry.expectedCursorPos).toBe(0);
+  expect(entry.expectedCursorPosIsBlockLocal).toBe(false);
+});
+
 test("session ignores stale prediction responses after suggestion acceptance", () => {
   const entry = createSuggestionEntry({
     requestId: 2,
@@ -587,6 +652,86 @@ test("session resumes prediction after the first real user edit following accept
 
   expect(entry.suppressNextSuggestionInputPrediction).toBe(false);
   expect(predictionCoordinator.schedule).toHaveBeenCalledTimes(1);
+});
+
+test("session preserves a pending host-owned contenteditable accept through its immediate input echo", () => {
+  const editable = document.createElement("div");
+  editable.setAttribute("contenteditable", "true");
+  Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+  const block = document.createElement("pre");
+  block.className = "CodeMirror-line";
+  block.textContent = "dm medbae on disxcord for any mistakes/feedback or typos in translation";
+  editable.appendChild(block);
+  document.body.appendChild(editable);
+
+  const entry = createSuggestionEntry({
+    elem: editable as SuggestionEntry["elem"],
+    requestId: 2,
+    suppressNextSuggestionInputPrediction: true,
+    suggestions: ["discord "],
+    pendingExtensionEdit: {
+      replaceStart: 13,
+      originalText: "disxcord",
+      replacementText: "discord",
+      cursorBefore: 17,
+      cursorAfter: 20,
+      postEditFingerprint: {
+        fullText: "",
+        cursorOffset: 20,
+        selectionCollapsed: true,
+      },
+      awaitingHostInputEcho: true,
+      source: "suggestion",
+      blockScoped: true,
+      blockElement: block,
+      postEditBlockText: "dm medbae on discord for any mistakes/feedback or typos in translation",
+    },
+  });
+
+  const predictionCoordinator = {
+    shouldProcessResponse: (_entry: SuggestionEntry, context: PredictionResponse) =>
+      context.requestId === entry.requestId,
+    schedule: jest.fn(),
+    reconcile: jest.fn(),
+    cancelPending: jest.fn(),
+    findMentionToken: () => ({ token: "discord", start: 0 }),
+  };
+  const contentEditableAdapter = {
+    ...new ContentEditableAdapter(),
+    getActiveBlockElement: () => block,
+    getBlockContext: () => ({
+      beforeCursor: "dm medbae on disx",
+      afterCursor: "cord for any mistakes/feedback or typos in translation",
+    }),
+  } as ContentEditableAdapter;
+
+  const session = makeSession({
+    entry,
+    predictionCoordinator,
+    contentEditableAdapter,
+    editableContextResolver: {
+      resolve: () => ({
+        kind: "contenteditable",
+        beforeCursor: "#->Elysian Realm recommended builds 8.7<-\ndm medbae on disx",
+        afterCursor: "cord for any mistakes/feedback or typos in translation",
+        fullText:
+          "#->Elysian Realm recommended builds 8.7<-\ndm medbae on disxcord for any mistakes/feedback or typos in translation",
+        cursorOffset: 59,
+        selectionStable: true,
+        blockContext: {
+          beforeCursor: "dm medbae on disx",
+          afterCursor: "cord for any mistakes/feedback or typos in translation",
+        },
+      }),
+    },
+  });
+
+  session.handleInput(new Event("input"));
+
+  expect(entry.pendingExtensionEdit).not.toBeNull();
+  expect(entry.pendingExtensionEdit?.awaitingHostInputEcho).toBe(false);
+  expect(entry.suppressNextSuggestionInputPrediction).toBe(true);
+  expect(predictionCoordinator.schedule).not.toHaveBeenCalled();
 });
 
 test("session does not request inline suggestion while post-accept suppression is active", () => {
