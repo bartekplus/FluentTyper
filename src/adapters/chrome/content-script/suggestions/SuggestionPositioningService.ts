@@ -27,17 +27,25 @@ export class SuggestionPositioningService {
   private static readonly CARET_GAP_PX = 8;
   private static readonly HORIZONTAL_OFFSET_PX = 12;
   private static readonly DEFAULT_FONT_SIZE_PX = 16;
+  private static readonly LEGACY_THEME_FONT_SIZE = "0.9rem";
+  private static readonly LEGACY_THEME_PADDING_VERTICAL = "0.6rem";
+  private static readonly LEGACY_THEME_PADDING_HORIZONTAL = "0.8rem";
 
   public syncMenuTypography(menu: HTMLDivElement, elem: SuggestionElement): void {
     const typographyAnchor = this.resolveTypographyAnchor(elem);
     const computed = window.getComputedStyle(typographyAnchor);
     const fontSizePx = this.resolveFontSizePx(computed.fontSize);
     const lineHeightPx = this.resolveLineHeightPx(computed.lineHeight, fontSizePx);
-    const popupFontSizePx = Math.round(this.clamp(fontSizePx * 0.88, 12, 16));
-    const popupLineHeightPx = Math.round(this.clamp(lineHeightPx * 0.9, 17, 24));
-    const rowHeightPx = Math.round(this.clamp(popupLineHeightPx + fontSizePx * 0.36, 28, 36));
-    const padX = Math.round(this.clamp(fontSizePx * 0.5, 7, 11));
-    const padY = Math.round(this.clamp(fontSizePx * 0.18, 4, 6));
+    const themeScale = this.resolveLegacyThemeScale(menu, typographyAnchor, fontSizePx);
+    const popupFontSizePx = Math.round(this.clamp(fontSizePx * 0.88 * themeScale.fontSize, 12, 16));
+    const popupLineHeightPx = Math.round(
+      this.clamp(lineHeightPx * 0.9 * themeScale.fontSize, 17, 24),
+    );
+    const padX = Math.round(this.clamp(fontSizePx * 0.5 * themeScale.paddingHorizontal, 6, 11));
+    const padY = Math.round(this.clamp(fontSizePx * 0.18 * themeScale.paddingVertical, 4, 7));
+    const rowHeightPx = Math.round(
+      this.clamp(popupLineHeightPx + fontSizePx * 0.36 * themeScale.paddingVertical, 28, 36),
+    );
     const radiusPx = Math.round(this.clamp(fontSizePx * 0.62, 9, 12));
     const availableViewportWidth = Math.max(
       160,
@@ -359,6 +367,175 @@ export class SuggestionPositioningService {
     }
 
     return elem;
+  }
+
+  private resolveLegacyThemeScale(
+    menu: HTMLDivElement,
+    typographyAnchor: HTMLElement,
+    contextFontSizePx: number,
+  ): {
+    fontSize: number;
+    paddingVertical: number;
+    paddingHorizontal: number;
+  } {
+    const root = menu.ownerDocument?.documentElement;
+    if (!root) {
+      return {
+        fontSize: 1,
+        paddingVertical: 1,
+        paddingHorizontal: 1,
+      };
+    }
+
+    const rootComputedStyle = window.getComputedStyle(root);
+
+    return {
+      fontSize: this.resolveThemeLengthScale({
+        rootComputedStyle,
+        variableName: "--ft-theme-suggestion-font-size",
+        legacyDefaultValue: SuggestionPositioningService.LEGACY_THEME_FONT_SIZE,
+        property: "font-size",
+        typographyAnchor,
+        contextFontSizePx,
+        minScale: 0.85,
+        maxScale: 1.2,
+      }),
+      paddingVertical: this.resolveThemeLengthScale({
+        rootComputedStyle,
+        variableName: "--ft-theme-suggestion-padding-vertical",
+        legacyDefaultValue: SuggestionPositioningService.LEGACY_THEME_PADDING_VERTICAL,
+        property: "padding-top",
+        typographyAnchor,
+        contextFontSizePx,
+        minScale: 0.75,
+        maxScale: 1.2,
+      }),
+      paddingHorizontal: this.resolveThemeLengthScale({
+        rootComputedStyle,
+        variableName: "--ft-theme-suggestion-padding-horizontal",
+        legacyDefaultValue: SuggestionPositioningService.LEGACY_THEME_PADDING_HORIZONTAL,
+        property: "padding-left",
+        typographyAnchor,
+        contextFontSizePx,
+        minScale: 0.75,
+        maxScale: 1.2,
+      }),
+    };
+  }
+
+  private resolveThemeLengthScale(args: {
+    rootComputedStyle: CSSStyleDeclaration;
+    variableName: string;
+    legacyDefaultValue: string;
+    property: "font-size" | "padding-top" | "padding-left";
+    typographyAnchor: HTMLElement;
+    contextFontSizePx: number;
+    minScale: number;
+    maxScale: number;
+  }): number {
+    const rawThemeValue = args.rootComputedStyle.getPropertyValue(args.variableName).trim();
+    if (!rawThemeValue) {
+      return 1;
+    }
+
+    const rootFontSizePx = this.resolveFontSizePx(args.rootComputedStyle.fontSize);
+    const resolvedThemeValuePx = this.resolveCssLengthPx(
+      rawThemeValue,
+      args.property,
+      args.typographyAnchor,
+      rootFontSizePx,
+      args.contextFontSizePx,
+    );
+    const resolvedLegacyDefaultPx = this.resolveCssLengthPx(
+      args.legacyDefaultValue,
+      args.property,
+      args.typographyAnchor,
+      rootFontSizePx,
+      args.contextFontSizePx,
+    );
+
+    if (
+      !resolvedThemeValuePx ||
+      !resolvedLegacyDefaultPx ||
+      resolvedLegacyDefaultPx <= 0 ||
+      !Number.isFinite(resolvedThemeValuePx) ||
+      !Number.isFinite(resolvedLegacyDefaultPx)
+    ) {
+      return 1;
+    }
+
+    return this.clamp(resolvedThemeValuePx / resolvedLegacyDefaultPx, args.minScale, args.maxScale);
+  }
+
+  private resolveCssLengthPx(
+    value: string,
+    property: "font-size" | "padding-top" | "padding-left",
+    typographyAnchor: HTMLElement,
+    rootFontSizePx: number,
+    contextFontSizePx: number,
+  ): number | null {
+    const normalizedValue = value.trim().toLowerCase();
+    if (!normalizedValue) {
+      return null;
+    }
+    if (normalizedValue === "0") {
+      return 0;
+    }
+
+    const pxMatch = normalizedValue.match(/^(-?\d*\.?\d+)px$/);
+    if (pxMatch) {
+      return Number.parseFloat(pxMatch[1]);
+    }
+
+    const remMatch = normalizedValue.match(/^(-?\d*\.?\d+)rem$/);
+    if (remMatch) {
+      return Number.parseFloat(remMatch[1]) * rootFontSizePx;
+    }
+
+    const emMatch = normalizedValue.match(/^(-?\d*\.?\d+)em$/);
+    if (emMatch) {
+      return Number.parseFloat(emMatch[1]) * contextFontSizePx;
+    }
+
+    return this.measureCssLengthPx(value, property, typographyAnchor, contextFontSizePx);
+  }
+
+  private measureCssLengthPx(
+    value: string,
+    property: "font-size" | "padding-top" | "padding-left",
+    typographyAnchor: HTMLElement,
+    contextFontSizePx: number,
+  ): number | null {
+    const doc = typographyAnchor.ownerDocument ?? document;
+    const measurementRoot = doc.body ?? doc.documentElement;
+    if (!measurementRoot) {
+      return null;
+    }
+
+    const measurementContainer = doc.createElement("div");
+    measurementContainer.style.position = "absolute";
+    measurementContainer.style.visibility = "hidden";
+    measurementContainer.style.pointerEvents = "none";
+    measurementContainer.style.fontSize = `${contextFontSizePx}px`;
+
+    const probe = doc.createElement("div");
+    probe.style.setProperty(property, value);
+    measurementContainer.appendChild(probe);
+    measurementRoot.appendChild(measurementContainer);
+
+    try {
+      const probeComputedStyle = window.getComputedStyle(probe);
+      const resolvedValue =
+        property === "font-size"
+          ? probeComputedStyle.fontSize
+          : property === "padding-top"
+            ? probeComputedStyle.paddingTop
+            : probeComputedStyle.paddingLeft;
+      const resolvedPx = Number.parseFloat(resolvedValue);
+      return Number.isFinite(resolvedPx) ? resolvedPx : null;
+    } finally {
+      measurementContainer.remove();
+    }
   }
 
   private resolveFontSizePx(fontSize: string): number {

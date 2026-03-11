@@ -4,7 +4,13 @@ import { SUGGESTION_POPUP_FONT_FAMILY } from "../src/adapters/chrome/content-scr
 
 describe("SuggestionPopupShadowStyles", () => {
   test("restores explicit foreground and typography after list reset", () => {
-    expect(SUGGESTION_POPUP_SHADOW_CSS).toContain(`--ft-font-family: ${SUGGESTION_POPUP_FONT_FAMILY};`);
+    expect(SUGGESTION_POPUP_SHADOW_CSS).toContain(
+      `--ft-font-family: ${SUGGESTION_POPUP_FONT_FAMILY};`,
+    );
+    expect(SUGGESTION_POPUP_SHADOW_CSS).toContain("var(--suggestion-highlight-bg-light, #2563eb)");
+    expect(SUGGESTION_POPUP_SHADOW_CSS).toContain(
+      "var(--suggestion-highlight-text-light, #ffffff)",
+    );
     expect(SUGGESTION_POPUP_SHADOW_CSS).toContain("--ft-row-height: 28px;");
     expect(SUGGESTION_POPUP_SHADOW_CSS).toContain("--ft-panel-min-width: 164px;");
     expect(SUGGESTION_POPUP_SHADOW_CSS).toMatch(

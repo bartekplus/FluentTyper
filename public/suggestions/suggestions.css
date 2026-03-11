@@ -16,8 +16,8 @@
   --suggestion-text-light: #2d3748; /* A softer black */
   --suggestion-header-bg-light: #f7fafc;
   --suggestion-header-text-light: #718096; /* Gray for less emphasis */
-  --suggestion-highlight-bg-light: #edf2f7;
-  --suggestion-highlight-text-light: #2d3748;
+  --suggestion-highlight-bg-light: #2563eb;
+  --suggestion-highlight-text-light: #ffffff;
   --suggestion-border-color-light: #e2e8f0;
   --suggestion-shadow-color-light: rgba(0, 0, 0, 0.1);
   --suggestion-shortcut-bg-light: #eef2f7;

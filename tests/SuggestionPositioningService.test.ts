@@ -24,6 +24,10 @@ describe("SuggestionPositioningService", () => {
 
   beforeEach(() => {
     document.body.innerHTML = "";
+    document.getElementById("fluent-typer-theme-overrides")?.remove();
+    document.documentElement.style.removeProperty("--ft-theme-suggestion-font-size");
+    document.documentElement.style.removeProperty("--ft-theme-suggestion-padding-vertical");
+    document.documentElement.style.removeProperty("--ft-theme-suggestion-padding-horizontal");
     window.getSelection()?.removeAllRanges();
     if (rangeCtor) {
       originalRangeRectDescriptor = Object.getOwnPropertyDescriptor(
@@ -35,6 +39,10 @@ describe("SuggestionPositioningService", () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
+    document.getElementById("fluent-typer-theme-overrides")?.remove();
+    document.documentElement.style.removeProperty("--ft-theme-suggestion-font-size");
+    document.documentElement.style.removeProperty("--ft-theme-suggestion-padding-vertical");
+    document.documentElement.style.removeProperty("--ft-theme-suggestion-padding-horizontal");
     if (rangeCtor) {
       if (originalRangeRectDescriptor) {
         Object.defineProperty(
@@ -127,6 +135,62 @@ describe("SuggestionPositioningService", () => {
 
     expect(menu.style.getPropertyValue("--ft-panel-min-width")).toBe("156px");
     expect(menu.style.getPropertyValue("--ft-pad-y")).toBe("4px");
+  });
+
+  test("maps master-era default theme sizing to the new compact popup defaults", () => {
+    const service = new SuggestionPositioningService();
+    const baselineMenu = document.createElement("div");
+    const upgradedMenu = document.createElement("div");
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+
+    service.syncMenuTypography(baselineMenu, input);
+
+    document.documentElement.style.setProperty("--ft-theme-suggestion-font-size", "0.9rem");
+    document.documentElement.style.setProperty("--ft-theme-suggestion-padding-vertical", "0.6rem");
+    document.documentElement.style.setProperty(
+      "--ft-theme-suggestion-padding-horizontal",
+      "0.8rem",
+    );
+
+    service.syncMenuTypography(upgradedMenu, input);
+
+    expect(upgradedMenu.style.getPropertyValue("--ft-font-size")).toBe(
+      baselineMenu.style.getPropertyValue("--ft-font-size"),
+    );
+    expect(upgradedMenu.style.getPropertyValue("--ft-pad-y")).toBe(
+      baselineMenu.style.getPropertyValue("--ft-pad-y"),
+    );
+    expect(upgradedMenu.style.getPropertyValue("--ft-pad-x")).toBe(
+      baselineMenu.style.getPropertyValue("--ft-pad-x"),
+    );
+    expect(upgradedMenu.style.getPropertyValue("--ft-panel-min-width")).toBe(
+      baselineMenu.style.getPropertyValue("--ft-panel-min-width"),
+    );
+  });
+
+  test("keeps custom master-era size and spacing preferences as compact scaling hints", () => {
+    const service = new SuggestionPositioningService();
+    const menu = document.createElement("div");
+    const input = document.createElement("input");
+    input.style.fontSize = "16px";
+    input.style.lineHeight = "20px";
+    document.body.appendChild(input);
+
+    document.documentElement.style.setProperty("--ft-theme-suggestion-font-size", "0.75rem");
+    document.documentElement.style.setProperty("--ft-theme-suggestion-padding-vertical", "0.45rem");
+    document.documentElement.style.setProperty(
+      "--ft-theme-suggestion-padding-horizontal",
+      "0.6rem",
+    );
+
+    service.syncMenuTypography(menu, input);
+
+    expect(menu.style.getPropertyValue("--ft-font-size")).toBe("12px");
+    expect(menu.style.getPropertyValue("--ft-pad-y")).toBe("4px");
+    expect(menu.style.getPropertyValue("--ft-pad-x")).toBe("6px");
+    expect(menu.style.getPropertyValue("--ft-row-height")).toBe("28px");
+    expect(menu.style.getPropertyValue("--ft-panel-min-width")).toBe("156px");
   });
 
   test("cleans up marker fallback and keeps selection valid for zero-height ranges", () => {

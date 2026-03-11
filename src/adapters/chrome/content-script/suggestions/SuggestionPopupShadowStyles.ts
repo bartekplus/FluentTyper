@@ -24,11 +24,11 @@ export const SUGGESTION_POPUP_SHADOW_CSS = `
   );
   --ft-panel-highlight-bg: var(
     --ft-theme-suggestion-highlight-bg-light,
-    var(--suggestion-highlight-bg-light, rgba(37, 99, 235, 0.1))
+    var(--suggestion-highlight-bg-light, #2563eb)
   );
   --ft-panel-highlight-fg: var(
     --ft-theme-suggestion-highlight-text-light,
-    var(--suggestion-highlight-text-light, #0f172a)
+    var(--suggestion-highlight-text-light, #ffffff)
   );
   --ft-panel-header-fg: color-mix(
     in srgb,

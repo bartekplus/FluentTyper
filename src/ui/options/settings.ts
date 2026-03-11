@@ -293,8 +293,8 @@ const themePresets = {
   compact: {
     suggestionBgLight: "rgba(255, 255, 255, 0.85)",
     suggestionTextLight: "#1a202c",
-    suggestionHighlightBgLight: "rgba(226, 232, 240, 0.9)",
-    suggestionHighlightTextLight: "#1a202c",
+    suggestionHighlightBgLight: "rgba(37, 99, 235, 0.96)",
+    suggestionHighlightTextLight: "#ffffff",
     suggestionBorderLight: "rgba(226, 232, 240, 0.7)",
     suggestionBgDark: "rgba(15, 23, 42, 0.9)",
     suggestionTextDark: "#f8fafc",
