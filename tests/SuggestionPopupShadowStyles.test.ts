@@ -28,5 +28,8 @@ describe("SuggestionPopupShadowStyles", () => {
     expect(SUGGESTION_POPUP_SHADOW_CSS).toMatch(
       /\.ft-suggestion-label\s*\{[\s\S]*-webkit-text-fill-color:\s*currentColor;/,
     );
+    expect(SUGGESTION_POPUP_SHADOW_CSS).toMatch(
+      /\.ft-suggestion-match\s*\{[\s\S]*color:\s*inherit;/,
+    );
   });
 });

@@ -35,11 +35,6 @@ export const SUGGESTION_POPUP_SHADOW_CSS = `
     var(--ft-panel-fg) 58%,
     transparent
   );
-  --ft-panel-match-fg: color-mix(
-    in srgb,
-    var(--ft-panel-fg) 70%,
-    #2563eb
-  );
   --ft-shortcut-bg: color-mix(
     in srgb,
     var(--ft-panel-bg) 82%,
@@ -274,7 +269,7 @@ export const SUGGESTION_POPUP_SHADOW_CSS = `
 
 .ft-suggestion-match {
   all: initial;
-  color: var(--ft-panel-match-fg);
+  color: inherit;
   -webkit-text-fill-color: currentColor;
   font-family: inherit;
   font-size: inherit;
@@ -282,10 +277,6 @@ export const SUGGESTION_POPUP_SHADOW_CSS = `
   font-weight: 800;
   letter-spacing: inherit;
   text-transform: inherit;
-}
-
-.ft-suggestion-list li.highlight .ft-suggestion-match {
-  color: inherit;
 }
 
 @media (prefers-reduced-motion: reduce) {
