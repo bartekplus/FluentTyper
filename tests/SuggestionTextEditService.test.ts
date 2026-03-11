@@ -1332,6 +1332,21 @@ describe("SuggestionTextEditService", () => {
       elem: input,
       missingTrailingSpace: true,
       expectedCursorPos: input.value.length,
+      suppressNextSuggestionInputPrediction: true,
+      pendingExtensionEdit: {
+        replaceStart: 0,
+        originalText: "Wa",
+        replacementText: "Was",
+        cursorBefore: 2,
+        cursorAfter: 3,
+        postEditFingerprint: {
+          fullText: "Was",
+          cursorOffset: 3,
+          selectionCollapsed: true,
+        },
+        awaitingHostInputEcho: true,
+        source: "suggestion",
+      },
     });
 
     let consumed = false;
@@ -1350,8 +1365,8 @@ describe("SuggestionTextEditService", () => {
     expect(input.value).toBe("Was");
     expect(entry.missingTrailingSpace).toBe(false);
     expect(entry.expectedCursorPos).toBe(0);
-    expect(entry.suppressNextSuggestionInputPrediction).toBe(false);
-    expect(entry.pendingExtensionEdit?.awaitingHostInputEcho ?? false).toBe(false);
+    expect(entry.suppressNextSuggestionInputPrediction).toBe(true);
+    expect(entry.pendingExtensionEdit?.awaitingHostInputEcho ?? false).toBe(true);
   });
 
   test("clears delayed post-accept spacing when the user types a literal space in contenteditable", () => {
@@ -1412,8 +1427,8 @@ describe("SuggestionTextEditService", () => {
     expect(entry.expectedCursorPosIsBlockLocal).toBe(false);
     expect(entry.expectedCursorPosBlockElement).toBeNull();
     expect(entry.expectedCursorPosBlockText).toBeNull();
-    expect(entry.suppressNextSuggestionInputPrediction).toBe(false);
-    expect(entry.pendingExtensionEdit?.awaitingHostInputEcho).toBe(false);
+    expect(entry.suppressNextSuggestionInputPrediction).toBe(true);
+    expect(entry.pendingExtensionEdit?.awaitingHostInputEcho).toBe(true);
   });
 
   test("uses the host editor path for delayed post-accept spacing in host-owned contenteditables", () => {

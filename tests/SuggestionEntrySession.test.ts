@@ -872,8 +872,7 @@ test("session does not suppress the first real user edit after host-owned accept
     editableContextResolver: {
       resolve: () => ({
         kind: "contenteditable",
-        beforeCursor:
-          "#->Elysian Realm recommended builds 8.7<-\ndm medbae on discordx",
+        beforeCursor: "#->Elysian Realm recommended builds 8.7<-\ndm medbae on discordx",
         afterCursor: " for any mistakes/feedback or typos in translation",
         fullText:
           "#->Elysian Realm recommended builds 8.7<-\ndm medbae on discordx for any mistakes/feedback or typos in translation",

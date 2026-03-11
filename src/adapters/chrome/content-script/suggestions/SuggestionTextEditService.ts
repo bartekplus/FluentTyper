@@ -743,10 +743,6 @@ export class SuggestionTextEditService {
     if (!(key.length === 1 && key.trim().length > 0)) {
       if (key.length === 1) {
         this.clearMissingTrailingSpaceState(entry);
-        entry.suppressNextSuggestionInputPrediction = false;
-        if (entry.pendingExtensionEdit) {
-          entry.pendingExtensionEdit.awaitingHostInputEcho = false;
-        }
       }
       return;
     }
@@ -1082,14 +1078,11 @@ export class SuggestionTextEditService {
       ? ""
       : this.findTrailingToken(blockContext.afterCursor);
     const baseReplaceEnd = Math.min(blockSourceText.length, replaceEnd + trailingTokenText.length);
-    const hostEditorSession = this.resolveHostEditorSession(
-      entry.elem as HTMLElement,
-      {
-        beforeCursor: blockContext.beforeCursor,
-        afterCursor: blockContext.afterCursor,
-        blockText: blockSourceText,
-      },
-    );
+    const hostEditorSession = this.resolveHostEditorSession(entry.elem as HTMLElement, {
+      beforeCursor: blockContext.beforeCursor,
+      afterCursor: blockContext.afterCursor,
+      blockText: blockSourceText,
+    });
     const rawReplacementText = this.normalizeContentEditableTrailingSpace(entry.elem, suggestion, {
       beforeBlockBoundary,
       endsAtBlockBoundary: baseReplaceEnd >= blockSourceText.length,
