@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
 import { SuggestionPositioningService } from "../src/adapters/chrome/content-script/suggestions/SuggestionPositioningService";
+import {
+  SUGGESTION_POPUP_FONT_FAMILY,
+  SUGGESTION_POPUP_FONT_WEIGHT,
+  SUGGESTION_POPUP_LETTER_SPACING,
+  SUGGESTION_POPUP_TEXT_TRANSFORM,
+} from "../src/adapters/chrome/content-script/suggestions/SuggestionPopupTypography";
 import { createRect } from "./suggestionTestUtils";
 
 class CaretPositioningService extends SuggestionPositioningService {
@@ -18,6 +24,10 @@ describe("SuggestionPositioningService", () => {
 
   beforeEach(() => {
     document.body.innerHTML = "";
+    document.getElementById("fluent-typer-theme-overrides")?.remove();
+    document.documentElement.style.removeProperty("--ft-theme-suggestion-font-size");
+    document.documentElement.style.removeProperty("--ft-theme-suggestion-padding-vertical");
+    document.documentElement.style.removeProperty("--ft-theme-suggestion-padding-horizontal");
     window.getSelection()?.removeAllRanges();
     if (rangeCtor) {
       originalRangeRectDescriptor = Object.getOwnPropertyDescriptor(
@@ -29,6 +39,10 @@ describe("SuggestionPositioningService", () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
+    document.getElementById("fluent-typer-theme-overrides")?.remove();
+    document.documentElement.style.removeProperty("--ft-theme-suggestion-font-size");
+    document.documentElement.style.removeProperty("--ft-theme-suggestion-padding-vertical");
+    document.documentElement.style.removeProperty("--ft-theme-suggestion-padding-horizontal");
     if (rangeCtor) {
       if (originalRangeRectDescriptor) {
         Object.defineProperty(
@@ -66,6 +80,117 @@ describe("SuggestionPositioningService", () => {
 
     const positioned = service.positionMenu(menu, target);
     expect(positioned).toBe(false);
+  });
+
+  test("keeps popup typography product-owned while adapting its size to the active text node", () => {
+    const service = new SuggestionPositioningService();
+    const menu = document.createElement("div");
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML =
+      '<span style="font-size: 18px; font-family: Georgia; font-weight: 900; letter-spacing: 0.2em; text-transform: uppercase;">Hello</span>';
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+
+    const textNode = editable.querySelector("span")?.firstChild as Text | null;
+    if (!textNode) {
+      throw new Error("Expected text node");
+    }
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Expected selection");
+    }
+    const range = document.createRange();
+    range.setStart(textNode, textNode.textContent?.length ?? 0);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    service.syncMenuTypography(menu, editable);
+
+    expect(menu.style.fontFamily).toBe(SUGGESTION_POPUP_FONT_FAMILY);
+    expect(menu.style.getPropertyValue("--ft-font-family")).toBe(SUGGESTION_POPUP_FONT_FAMILY);
+    expect(menu.style.getPropertyValue("--ft-font-weight")).toBe(SUGGESTION_POPUP_FONT_WEIGHT);
+    expect(menu.style.getPropertyValue("--ft-letter-spacing")).toBe(
+      SUGGESTION_POPUP_LETTER_SPACING,
+    );
+    expect(menu.style.getPropertyValue("--ft-text-transform")).toBe(
+      SUGGESTION_POPUP_TEXT_TRANSFORM,
+    );
+    expect(menu.style.getPropertyValue("--ft-font-size")).toBe("15px");
+    expect(menu.style.getPropertyValue("--ft-row-height")).toBe("27px");
+    expect(menu.style.getPropertyValue("--ft-panel-min-width")).toBe("148px");
+  });
+
+  test("keeps popup width compact even when the target field is very wide", () => {
+    const service = new SuggestionPositioningService();
+    const menu = document.createElement("div");
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+
+    jest.spyOn(input, "getBoundingClientRect").mockReturnValue(createRect(0, 0, 960, 40));
+
+    service.syncMenuTypography(menu, input);
+
+    expect(menu.style.getPropertyValue("--ft-panel-min-width")).toBe("148px");
+    expect(menu.style.getPropertyValue("--ft-pad-y")).toBe("3px");
+  });
+
+  test("maps master-era default theme sizing to the new compact popup defaults", () => {
+    const service = new SuggestionPositioningService();
+    const baselineMenu = document.createElement("div");
+    const upgradedMenu = document.createElement("div");
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+
+    service.syncMenuTypography(baselineMenu, input);
+
+    document.documentElement.style.setProperty("--ft-theme-suggestion-font-size", "0.9rem");
+    document.documentElement.style.setProperty("--ft-theme-suggestion-padding-vertical", "0.6rem");
+    document.documentElement.style.setProperty(
+      "--ft-theme-suggestion-padding-horizontal",
+      "0.8rem",
+    );
+
+    service.syncMenuTypography(upgradedMenu, input);
+
+    expect(upgradedMenu.style.getPropertyValue("--ft-font-size")).toBe(
+      baselineMenu.style.getPropertyValue("--ft-font-size"),
+    );
+    expect(upgradedMenu.style.getPropertyValue("--ft-pad-y")).toBe(
+      baselineMenu.style.getPropertyValue("--ft-pad-y"),
+    );
+    expect(upgradedMenu.style.getPropertyValue("--ft-pad-x")).toBe(
+      baselineMenu.style.getPropertyValue("--ft-pad-x"),
+    );
+    expect(upgradedMenu.style.getPropertyValue("--ft-panel-min-width")).toBe(
+      baselineMenu.style.getPropertyValue("--ft-panel-min-width"),
+    );
+  });
+
+  test("keeps custom master-era size and spacing preferences as compact scaling hints", () => {
+    const service = new SuggestionPositioningService();
+    const menu = document.createElement("div");
+    const input = document.createElement("input");
+    input.style.fontSize = "16px";
+    input.style.lineHeight = "20px";
+    document.body.appendChild(input);
+
+    document.documentElement.style.setProperty("--ft-theme-suggestion-font-size", "0.75rem");
+    document.documentElement.style.setProperty("--ft-theme-suggestion-padding-vertical", "0.45rem");
+    document.documentElement.style.setProperty(
+      "--ft-theme-suggestion-padding-horizontal",
+      "0.6rem",
+    );
+
+    service.syncMenuTypography(menu, input);
+
+    expect(menu.style.getPropertyValue("--ft-font-size")).toBe("12px");
+    expect(menu.style.getPropertyValue("--ft-pad-y")).toBe("3px");
+    expect(menu.style.getPropertyValue("--ft-pad-x")).toBe("6px");
+    expect(menu.style.getPropertyValue("--ft-row-height")).toBe("27px");
+    expect(menu.style.getPropertyValue("--ft-panel-min-width")).toBe("148px");
   });
 
   test("cleans up marker fallback and keeps selection valid for zero-height ranges", () => {

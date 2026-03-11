@@ -59,6 +59,7 @@ export const KEY_GRAMMAR_RULES_V2_MIGRATED = "grammarRulesV2Migrated";
 export const KEY_GRAMMAR_RULES_V2_BACKUP = "grammarRulesV2Backup";
 export const KEY_GRAMMAR_RULES_V3_MIGRATED = "grammarRulesV3Migrated";
 export const KEY_GRAMMAR_RULES_V3_BACKUP = "grammarRulesV3Backup";
+export const KEY_SUGGESTION_THEME_V1_MIGRATED = "suggestionThemeV1Migrated";
 export const KEY_DOMAIN_LIST_MODE = "domainListMode";
 export const KEY_AI_PREDICTOR_ENABLED = "aiPredictorEnabled";
 export const KEY_AI_MODEL_ID = "aiModelId";

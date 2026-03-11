@@ -3,6 +3,7 @@ import type {
   ContentScriptPredictRequestContext,
   PredictResponseContext,
 } from "../src/core/domain/messageTypes";
+import { querySuggestionMenuItemByIndex, querySuggestionMenuItems } from "./suggestionTestUtils";
 
 async function waitForNextCall(
   mock: jest.Mock<(context: ContentScriptPredictRequestContext) => void>,
@@ -150,6 +151,14 @@ function setContentEditableCursor(target: HTMLElement, offset: number): void {
   }
   selection.removeAllRanges();
   selection.addRange(range);
+}
+
+function queryMenuItems(menu: Element | null | undefined): HTMLLIElement[] {
+  if (!(menu instanceof HTMLElement)) {
+    return [];
+  }
+  const root = menu.shadowRoot ?? menu;
+  return Array.from(root.querySelectorAll("li[data-index]")) as HTMLLIElement[];
 }
 
 function ensureRangeRectApi(): void {
@@ -397,7 +406,7 @@ describe("SuggestionManager", () => {
       }),
     );
 
-    const menuItems = Array.from(document.querySelectorAll(".ft-suggestion-container li"));
+    const menuItems = querySuggestionMenuItems();
     expect(menuItems.length).toBe(2);
     expect(menuItems[0]?.querySelector(".ft-suggestion-label")?.textContent).toBe("hello\xA0");
 
@@ -411,11 +420,16 @@ describe("SuggestionManager", () => {
       }),
     );
 
-    const second = document.querySelector(
-      ".ft-suggestion-container li[data-index='1']",
-    ) as HTMLElement;
-    second.dispatchEvent(new Event("mousedown", { bubbles: true, cancelable: true }));
-    second.dispatchEvent(new Event("click", { bubbles: true, cancelable: true }));
+    const second = querySuggestionMenuItemByIndex(1) as HTMLElement;
+    const menuMouseDown = new Event("mousedown", {
+      bubbles: true,
+      cancelable: true,
+    }) as MouseEvent;
+    Object.defineProperty(menuMouseDown, "composed", { value: true });
+    second.dispatchEvent(menuMouseDown);
+    const menuClick = new Event("click", { bubbles: true, cancelable: true }) as MouseEvent;
+    Object.defineProperty(menuClick, "composed", { value: true });
+    second.dispatchEvent(menuClick);
 
     expect(input.value).toBe("hi\xA0");
   });
@@ -434,7 +448,7 @@ describe("SuggestionManager", () => {
       }),
     );
 
-    expect(document.querySelectorAll(".ft-suggestion-container li").length).toBe(0);
+    expect(querySuggestionMenuItems().length).toBe(0);
     const ghost = document.querySelector(".ft-suggestion-inline") as HTMLElement | null;
     expect(ghost).toBeDefined();
     expect(ghost?.textContent).toBe("ord\xA0");
@@ -544,14 +558,14 @@ describe("SuggestionManager", () => {
         predictions: ["hello\xA0"],
       }),
     );
-    expect(document.querySelectorAll(".ft-suggestion-container li").length).toBe(0);
+    expect(querySuggestionMenuItems().length).toBe(0);
 
     manager.fulfillPrediction(
       buildResponse(req2, {
         predictions: ["help\xA0"],
       }),
     );
-    expect(document.querySelectorAll(".ft-suggestion-container li").length).toBe(1);
+    expect(querySuggestionMenuItems().length).toBe(1);
   });
 
   test("applies local capitalization before prediction request for text inputs", async () => {
@@ -666,7 +680,7 @@ describe("SuggestionManager", () => {
         predictions: ["hello\xA0"],
       }),
     );
-    expect(document.querySelectorAll(".ft-suggestion-container li").length).toBe(1);
+    expect(querySuggestionMenuItems().length).toBe(1);
 
     input.value = "a";
     input.selectionStart = 1;
@@ -674,7 +688,7 @@ describe("SuggestionManager", () => {
     input.dispatchEvent(new Event("input", { bubbles: true }));
 
     expect(input.value).toBe("A");
-    expect(document.querySelectorAll(".ft-suggestion-container li").length).toBe(0);
+    expect(querySuggestionMenuItems().length).toBe(0);
   });
 
   test("inserts a regular space before first typed char after acceptance and cancels on cursor move", async () => {
@@ -729,7 +743,7 @@ describe("SuggestionManager", () => {
       }),
     );
 
-    const menuItems = Array.from(document.querySelectorAll(".ft-suggestion-container li"));
+    const menuItems = querySuggestionMenuItems();
     expect(menuItems[0]?.getAttribute("data-shortcut")).toBe("1");
     expect(menuItems[1]?.getAttribute("data-shortcut")).toBe("2");
 
@@ -756,12 +770,12 @@ describe("SuggestionManager", () => {
 
     const menu = (input as HTMLInputElement & { suggestionMenu?: HTMLElement }).suggestionMenu;
     expect(menu?.style.display).toBe("block");
-    expect(menu?.querySelectorAll("li").length).toBeGreaterThan(0);
+    expect(queryMenuItems(menu).length).toBeGreaterThan(0);
 
     dispatchKeydown(input, "ArrowLeft");
 
     expect(menu?.style.display).toBe("none");
-    expect(menu?.querySelectorAll("li").length).toBe(0);
+    expect(queryMenuItems(menu).length).toBe(0);
 
     manager.fulfillPrediction(
       buildResponse(request, {
@@ -769,7 +783,7 @@ describe("SuggestionManager", () => {
       }),
     );
     expect(menu?.style.display).toBe("none");
-    expect(menu?.querySelectorAll("li").length).toBe(0);
+    expect(queryMenuItems(menu).length).toBe(0);
   });
 
   test("hides popup when caret position changes without an input event", async () => {
@@ -791,14 +805,14 @@ describe("SuggestionManager", () => {
 
     const menu = (input as HTMLInputElement & { suggestionMenu?: HTMLElement }).suggestionMenu;
     expect(menu?.style.display).toBe("block");
-    expect(menu?.querySelectorAll("li").length).toBeGreaterThan(0);
+    expect(queryMenuItems(menu).length).toBeGreaterThan(0);
 
     input.selectionStart = 2;
     input.selectionEnd = 2;
     document.dispatchEvent(new Event("selectionchange", { bubbles: true }));
 
     expect(menu?.style.display).toBe("none");
-    expect(menu?.querySelectorAll("li").length).toBe(0);
+    expect(queryMenuItems(menu).length).toBe(0);
   });
 
   test("hides popup when text selection appears without an input event", async () => {
@@ -820,14 +834,14 @@ describe("SuggestionManager", () => {
 
     const menu = (input as HTMLInputElement & { suggestionMenu?: HTMLElement }).suggestionMenu;
     expect(menu?.style.display).toBe("block");
-    expect(menu?.querySelectorAll("li").length).toBeGreaterThan(0);
+    expect(queryMenuItems(menu).length).toBeGreaterThan(0);
 
     input.selectionStart = 1;
     input.selectionEnd = 4;
     document.dispatchEvent(new Event("selectionchange", { bubbles: true }));
 
     expect(menu?.style.display).toBe("none");
-    expect(menu?.querySelectorAll("li").length).toBe(0);
+    expect(queryMenuItems(menu).length).toBe(0);
   });
 
   test("marks delete inputAction when backspace removes post-punctuation space", async () => {
@@ -1789,12 +1803,12 @@ describe("SuggestionManager", () => {
 
     const menu = (editable as HTMLElement & { suggestionMenu?: HTMLElement }).suggestionMenu;
     expect(menu?.style.display).toBe("block");
-    expect(menu?.querySelectorAll("li").length).toBeGreaterThan(0);
+    expect(queryMenuItems(menu).length).toBeGreaterThan(0);
 
     outside.dispatchEvent(new Event("mousedown", { bubbles: true, cancelable: true }));
 
     expect(menu?.style.display).toBe("none");
-    expect(menu?.querySelectorAll("li").length).toBe(0);
+    expect(queryMenuItems(menu).length).toBe(0);
 
     manager.fulfillPrediction(
       buildResponse(request, {
@@ -1802,7 +1816,7 @@ describe("SuggestionManager", () => {
       }),
     );
     expect(menu?.style.display).toBe("none");
-    expect(menu?.querySelectorAll("li").length).toBe(0);
+    expect(queryMenuItems(menu).length).toBe(0);
   });
 
   test("hides contenteditable popup when clicking inside target to move caret", async () => {
@@ -1828,12 +1842,12 @@ describe("SuggestionManager", () => {
 
     const menu = (editable as HTMLElement & { suggestionMenu?: HTMLElement }).suggestionMenu;
     expect(menu?.style.display).toBe("block");
-    expect(menu?.querySelectorAll("li").length).toBeGreaterThan(0);
+    expect(queryMenuItems(menu).length).toBeGreaterThan(0);
 
     editable.dispatchEvent(new Event("click", { bubbles: true, cancelable: true }));
 
     expect(menu?.style.display).toBe("none");
-    expect(menu?.querySelectorAll("li").length).toBe(0);
+    expect(queryMenuItems(menu).length).toBe(0);
   });
 
   test("ignores stale contenteditable response after backspace clears below threshold", async () => {
@@ -1862,7 +1876,7 @@ describe("SuggestionManager", () => {
 
     const menu = (editable as HTMLElement & { suggestionMenu?: HTMLElement }).suggestionMenu;
     expect(menu?.style.display).toBe("block");
-    expect(menu?.querySelectorAll("li").length).toBeGreaterThan(0);
+    expect(queryMenuItems(menu).length).toBeGreaterThan(0);
 
     editable.textContent = "";
     setContentEditableCursor(editable, 0);
@@ -1874,7 +1888,7 @@ describe("SuggestionManager", () => {
     await waitFor(() => menu?.style.display === "none");
 
     expect(menu?.style.display).toBe("none");
-    expect(menu?.querySelectorAll("li").length).toBe(0);
+    expect(queryMenuItems(menu).length).toBe(0);
 
     manager.fulfillPrediction(
       buildResponse(firstRequest, {
@@ -1883,7 +1897,7 @@ describe("SuggestionManager", () => {
     );
 
     expect(menu?.style.display).toBe("none");
-    expect(menu?.querySelectorAll("li").length).toBe(0);
+    expect(queryMenuItems(menu).length).toBe(0);
   });
 
   test("hides contenteditable popup when delete lowers token below threshold without input event", async () => {
@@ -1912,7 +1926,7 @@ describe("SuggestionManager", () => {
 
     const menu = (editable as HTMLElement & { suggestionMenu?: HTMLElement }).suggestionMenu;
     expect(menu?.style.display).toBe("block");
-    expect(menu?.querySelectorAll("li").length).toBeGreaterThan(0);
+    expect(queryMenuItems(menu).length).toBeGreaterThan(0);
 
     dispatchKeydown(editable, "Backspace");
     editable.textContent = "";
@@ -1920,7 +1934,7 @@ describe("SuggestionManager", () => {
     await waitFor(() => menu?.style.display === "none");
 
     expect(menu?.style.display).toBe("none");
-    expect(menu?.querySelectorAll("li").length).toBe(0);
+    expect(queryMenuItems(menu).length).toBe(0);
   });
 
   test("requests prediction for contenteditable inserts when input event is missing", async () => {
@@ -2142,7 +2156,7 @@ describe("SuggestionManager", () => {
       }),
     );
 
-    const menuItems = Array.from(document.querySelectorAll(".ft-suggestion-container li"));
+    const menuItems = querySuggestionMenuItems();
     expect(menuItems.length).toBe(1);
     expect(menuItems[0]?.querySelector(".ft-suggestion-label")?.textContent).toBe("Word\xA0");
   });
@@ -2203,7 +2217,7 @@ describe("SuggestionManager", () => {
       }),
     );
 
-    const menuItems = Array.from(document.querySelectorAll(".ft-suggestion-container li"));
+    const menuItems = querySuggestionMenuItems();
     expect(menuItems.length).toBe(1);
     expect(menuItems[0]?.querySelector(".ft-suggestion-label")?.textContent).toBe("Pattern\xA0");
   });
@@ -2344,7 +2358,7 @@ describe("SuggestionManager", () => {
         predictions: ["Pattern\xA0"],
       }),
     );
-    const menuItems = Array.from(document.querySelectorAll(".ft-suggestion-container li"));
+    const menuItems = querySuggestionMenuItems();
     expect(menuItems.length).toBe(1);
   });
 
@@ -2916,7 +2930,7 @@ describe("SuggestionManager", () => {
 
     const menu = (editable as HTMLElement & { suggestionMenu?: HTMLElement }).suggestionMenu;
     expect(menu?.style.display).toBe("block");
-    expect(menu?.querySelectorAll("li").length).toBeGreaterThan(0);
+    expect(queryMenuItems(menu).length).toBeGreaterThan(0);
 
     dispatchKeydown(editable, "Backspace");
     editable.textContent = "Wha";
@@ -2929,7 +2943,7 @@ describe("SuggestionManager", () => {
     await waitFor(() => menu?.style.display === "block");
 
     expect(menu?.style.display).toBe("block");
-    expect(menu?.querySelectorAll("li").length).toBeGreaterThan(0);
+    expect(queryMenuItems(menu).length).toBeGreaterThan(0);
   });
 
   test("keeps contenteditable popup visible when delete input event arrives asynchronously", async () => {
@@ -2970,7 +2984,7 @@ describe("SuggestionManager", () => {
     await waitForNextCall(getPrediction);
 
     expect(menu?.style.display).toBe("block");
-    expect(menu?.querySelectorAll("li").length).toBeGreaterThan(0);
+    expect(queryMenuItems(menu).length).toBeGreaterThan(0);
   });
 
   test("preserves paragraph break when replacing token at end of first paragraph", async () => {

@@ -1129,6 +1129,8 @@ async function waitForVisibleSuggestionTexts(
     "visible suggestions",
     async () => {
       const texts = await page.evaluate(() => {
+        const getMenuRoot = (container: Element): ParentNode =>
+          (container as HTMLElement).shadowRoot ?? container;
         const activeElement = document.activeElement as
           | (HTMLElement & { suggestionMenu?: Element | null })
           | null;
@@ -1149,7 +1151,7 @@ async function waitForVisibleSuggestionTexts(
           ) {
             continue;
           }
-          const visibleTexts = Array.from(container.querySelectorAll("li"))
+          const visibleTexts = Array.from(getMenuRoot(container).querySelectorAll("li[data-index]"))
             .map((li) => li.textContent ?? "")
             .filter((text) => text.length > 0);
           if (visibleTexts.length > 0) {
@@ -1166,6 +1168,8 @@ async function waitForVisibleSuggestionTexts(
 
 async function hasVisibleSuggestions(page: Page): Promise<boolean> {
   return page.evaluate(() => {
+    const getMenuRoot = (container: Element): ParentNode =>
+      (container as HTMLElement).shadowRoot ?? container;
     const activeElement = document.activeElement as
       | (HTMLElement & { suggestionMenu?: Element | null })
       | null;
@@ -1186,7 +1190,7 @@ async function hasVisibleSuggestions(page: Page): Promise<boolean> {
       ) {
         return false;
       }
-      return container.querySelectorAll("li").length > 0;
+      return getMenuRoot(container).querySelectorAll("li[data-index]").length > 0;
     });
   });
 }
@@ -1197,6 +1201,8 @@ async function waitForNoVisibleSuggestions(
 ): Promise<void> {
   await page.waitForFunction(
     () => {
+      const getMenuRoot = (container: Element): ParentNode =>
+        (container as HTMLElement).shadowRoot ?? container;
       const activeElement = document.activeElement as
         | (HTMLElement & { suggestionMenu?: Element | null })
         | null;
@@ -1217,7 +1223,7 @@ async function waitForNoVisibleSuggestions(
         ) {
           return true;
         }
-        return container.querySelectorAll("li").length === 0;
+        return getMenuRoot(container).querySelectorAll("li[data-index]").length === 0;
       });
     },
     { timeout: timeoutMs },
@@ -1230,6 +1236,8 @@ async function clickFirstVisibleSuggestion(
 ): Promise<void> {
   await page.waitForFunction(
     () => {
+      const getMenuRoot = (container: Element): ParentNode =>
+        (container as HTMLElement).shadowRoot ?? container;
       const activeElement = document.activeElement as
         | (HTMLElement & { suggestionMenu?: Element | null })
         | null;
@@ -1250,7 +1258,7 @@ async function clickFirstVisibleSuggestion(
         ) {
           continue;
         }
-        const first = container.querySelector("li:first-child");
+        const first = getMenuRoot(container).querySelector("li[data-index]");
         if (first instanceof HTMLElement) {
           first.dispatchEvent(
             new MouseEvent("mousedown", {
@@ -2043,6 +2051,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           "site profile override suggestion visibility",
           async () => {
             const state = await page.evaluate(() => {
+              const getMenuRoot = (container: Element): ParentNode =>
+                (container as HTMLElement).shadowRoot ?? container;
               const hasInlineSuggestion = Boolean(
                 document.querySelector(".ft-suggestion-inline")?.textContent,
               );
@@ -2057,7 +2067,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
                 ) {
                   return false;
                 }
-                return container.querySelectorAll("li").length > 0;
+                return getMenuRoot(container).querySelectorAll("li[data-index]").length > 0;
               });
               return {
                 hasInlineSuggestion,
@@ -4110,9 +4120,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       const element = await page.$(selector);
 
       await element!.type("h"); // Trigger popup
-      await page.waitForSelector(".ft-suggestion-container li", {
-        timeout: browserTimeout(4000, 10000),
-      });
+      await waitForVisibleSuggestionTexts(page, browserTimeout(4000, 10000));
       await page.keyboard.press("Escape");
 
       // Wait for the popup to disappear

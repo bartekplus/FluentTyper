@@ -471,6 +471,7 @@ describe("content_script behavior", () => {
     const style = document.getElementById("fluent-typer-theme-overrides");
     expect(style).not.toBeNull();
     expect(style!.textContent).toContain("--suggestion-bg-light: #ffffff");
+    expect(style!.textContent).toContain("--ft-theme-suggestion-text-dark: #f4f4f4");
     expect(restartSpy).toHaveBeenCalled();
   });
 
