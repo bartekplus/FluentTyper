@@ -968,6 +968,7 @@ describe("SuggestionTextEditService", () => {
     expect(editable.textContent).toBe("What is the best ");
     expect(entry.pendingExtensionEdit?.postEditFingerprint.fullText).toBe("What is the best ");
     expect(entry.pendingExtensionEdit?.postEditFingerprint.cursorOffset).toBe(17);
+    expect(entry.pendingExtensionEdit?.awaitingHostInputEcho).toBe(false);
   });
 
   test("restores the visible block caret after host-owned acceptance when the host model does not update DOM selection itself", () => {
@@ -1175,6 +1176,7 @@ describe("SuggestionTextEditService", () => {
     expect(entry.pendingExtensionEdit?.blockScoped).toBe(true);
     expect(entry.pendingExtensionEdit?.replacementText).toBe("What ");
     expect(entry.pendingExtensionEdit?.postEditBlockText).toBe("What ");
+    expect(entry.pendingExtensionEdit?.awaitingHostInputEcho).toBe(true);
     expect(editable.textContent).toBe("Wh");
   });
 

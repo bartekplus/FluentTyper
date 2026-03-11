@@ -1145,6 +1145,7 @@ export class SuggestionTextEditService {
       applyResult.appliedBy === "host-beforeinput" &&
       !applyResult.didMutateDom;
     const hostEditorApplied = hostEditorSession !== null;
+    const shouldAwaitHostInputEcho = hostAcceptedAsync || applyResult.didDispatchInput;
     if (!applyResult.didMutateDom && !hostAcceptedAsync) {
       entry.pendingExtensionEdit = null;
       return null;
@@ -1179,7 +1180,7 @@ export class SuggestionTextEditService {
 
     if (entry.pendingExtensionEdit) {
       entry.pendingExtensionEdit.cursorAfter = postEditCursorAfter;
-      entry.pendingExtensionEdit.awaitingHostInputEcho = hostEditorApplied;
+      entry.pendingExtensionEdit.awaitingHostInputEcho = shouldAwaitHostInputEcho;
       entry.pendingExtensionEdit.postEditFingerprint = hostEditorApplied
         ? hostEditorSession.createPostEditFingerprint()
         : {

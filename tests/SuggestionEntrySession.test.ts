@@ -734,6 +734,86 @@ test("session preserves a pending host-owned contenteditable accept through its 
   expect(predictionCoordinator.schedule).not.toHaveBeenCalled();
 });
 
+test("session does not suppress the first real user edit after host-owned accept when no echo is pending", () => {
+  const editable = document.createElement("div");
+  editable.setAttribute("contenteditable", "true");
+  Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+  const block = document.createElement("pre");
+  block.className = "CodeMirror-line";
+  block.textContent = "dm medbae on discordx for any mistakes/feedback or typos in translation";
+  editable.appendChild(block);
+  document.body.appendChild(editable);
+
+  const entry = createSuggestionEntry({
+    elem: editable as SuggestionEntry["elem"],
+    requestId: 2,
+    suppressNextSuggestionInputPrediction: true,
+    suggestions: ["discord "],
+    lastKeydownKey: "x",
+    pendingExtensionEdit: {
+      replaceStart: 13,
+      originalText: "disxcord",
+      replacementText: "discord",
+      cursorBefore: 17,
+      cursorAfter: 20,
+      postEditFingerprint: {
+        fullText: "",
+        cursorOffset: 20,
+        selectionCollapsed: true,
+      },
+      awaitingHostInputEcho: false,
+      source: "suggestion",
+      blockScoped: true,
+      blockElement: block,
+      postEditBlockText: "dm medbae on discord for any mistakes/feedback or typos in translation",
+    },
+  });
+
+  const predictionCoordinator = {
+    shouldProcessResponse: (_entry: SuggestionEntry, context: PredictionResponse) =>
+      context.requestId === entry.requestId,
+    schedule: jest.fn(),
+    reconcile: jest.fn(),
+    cancelPending: jest.fn(),
+    findMentionToken: () => ({ token: "discordx", start: 13 }),
+  };
+  const contentEditableAdapter = Object.assign(new ContentEditableAdapter(), {
+    getActiveBlockElement: () => block,
+    hasMultipleBlockDescendants: () => false,
+    getBlockContext: () => ({
+      beforeCursor: "dm medbae on discordx",
+      afterCursor: " for any mistakes/feedback or typos in translation",
+    }),
+  }) as ContentEditableAdapter;
+
+  const session = makeSession({
+    entry,
+    predictionCoordinator,
+    contentEditableAdapter,
+    editableContextResolver: {
+      resolve: () => ({
+        kind: "contenteditable",
+        beforeCursor:
+          "#->Elysian Realm recommended builds 8.7<-\ndm medbae on discordx",
+        afterCursor: " for any mistakes/feedback or typos in translation",
+        fullText:
+          "#->Elysian Realm recommended builds 8.7<-\ndm medbae on discordx for any mistakes/feedback or typos in translation",
+        cursorOffset: 63,
+        selectionStable: true,
+        blockContext: {
+          beforeCursor: "dm medbae on discordx",
+          afterCursor: " for any mistakes/feedback or typos in translation",
+        },
+      }),
+    },
+  });
+
+  session.handleInput(new Event("input"));
+
+  expect(entry.suppressNextSuggestionInputPrediction).toBe(false);
+  expect(predictionCoordinator.schedule).toHaveBeenCalledTimes(1);
+});
+
 test("session does not request inline suggestion while post-accept suppression is active", () => {
   const predictionCoordinator = {
     shouldProcessResponse: (_entry: SuggestionEntry, context: PredictionResponse) =>
