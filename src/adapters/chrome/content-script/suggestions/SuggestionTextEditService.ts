@@ -956,7 +956,9 @@ export class SuggestionTextEditService {
       { scopeRoot: activeBlock },
     );
     const hostAcceptedAsync =
-      applyResult.appliedBy === "host-beforeinput" && !applyResult.didMutateDom;
+      "appliedBy" in applyResult &&
+      applyResult.appliedBy === "host-beforeinput" &&
+      !applyResult.didMutateDom;
     if (!applyResult.didMutateDom && !hostAcceptedAsync) {
       return null;
     }
