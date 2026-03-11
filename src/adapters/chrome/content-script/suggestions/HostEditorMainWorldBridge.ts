@@ -4,27 +4,13 @@ import {
   HOST_EDITOR_REQUEST_EVENT,
   HOST_EDITOR_RESPONSE_ATTR,
 } from "./HostEditorBridgeProtocol";
-
-interface LineEditorCursor {
-  line: number;
-  ch: number;
-}
-
-interface LineEditorController {
-  replaceRange(
-    replacementText: string,
-    from: LineEditorCursor,
-    to?: LineEditorCursor,
-    origin?: string,
-  ): void;
-  setCursor(position: LineEditorCursor): void;
-  getCursor(): LineEditorCursor;
-  getLine(line: number): string;
-  posFromIndex(index: number): LineEditorCursor;
-  indexFromPos(position: LineEditorCursor): number;
-  operation?(callback: () => void): void;
-  focus?(): void;
-}
+import {
+  isLineEditorController,
+  readLineEditorBlockContext,
+  readLineEditorCursor,
+  type LineEditorController,
+  type LineEditorCursor,
+} from "./HostEditorControllerUtils";
 
 type BridgeRequest =
   | {
@@ -38,21 +24,6 @@ type BridgeRequest =
       cursorAfter: number;
       expectedBlockText: string;
     };
-
-function isLineEditorController(value: unknown): value is LineEditorController {
-  if (!value || typeof value !== "object") {
-    return false;
-  }
-  const candidate = value as Partial<LineEditorController>;
-  return (
-    typeof candidate.replaceRange === "function" &&
-    typeof candidate.setCursor === "function" &&
-    typeof candidate.getCursor === "function" &&
-    typeof candidate.getLine === "function" &&
-    typeof candidate.posFromIndex === "function" &&
-    typeof candidate.indexFromPos === "function"
-  );
-}
 
 function findLineEditorController(elem: HTMLElement): LineEditorController | null {
   let current: HTMLElement | null = elem;
@@ -73,38 +44,8 @@ function findLineEditorController(elem: HTMLElement): LineEditorController | nul
   return null;
 }
 
-function readCursor(controller: LineEditorController): LineEditorCursor | null {
-  const cursor = controller.getCursor();
-  if (
-    !cursor ||
-    typeof cursor !== "object" ||
-    typeof cursor.line !== "number" ||
-    typeof cursor.ch !== "number" ||
-    !Number.isFinite(cursor.line) ||
-    !Number.isFinite(cursor.ch)
-  ) {
-    return null;
-  }
-  return {
-    line: Math.max(0, Math.trunc(cursor.line)),
-    ch: Math.max(0, Math.trunc(cursor.ch)),
-  };
-}
-
 function getBlockContext(controller: LineEditorController) {
-  const cursor = readCursor(controller);
-  if (!cursor) {
-    return null;
-  }
-  const blockText = controller.getLine(cursor.line);
-  if (typeof blockText !== "string" || cursor.ch < 0 || cursor.ch > blockText.length) {
-    return null;
-  }
-  return {
-    beforeCursor: blockText.slice(0, cursor.ch),
-    afterCursor: blockText.slice(cursor.ch),
-    blockText,
-  };
+  return readLineEditorBlockContext(controller);
 }
 
 function findBackingTextValueTarget(
@@ -150,7 +91,7 @@ function applyBlockReplacement(
   elem: HTMLElement,
   request: Extract<BridgeRequest, { action: "applyBlockReplacement" }>,
 ) {
-  const cursor = readCursor(controller);
+  const cursor = readLineEditorCursor(controller);
   if (!cursor) {
     return { applied: false, didDispatchInput: false };
   }
