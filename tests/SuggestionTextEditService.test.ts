@@ -1095,6 +1095,52 @@ describe("SuggestionTextEditService", () => {
     expect(hostModel.editable.textContent).toBe("What is the best ");
   });
 
+  test("falls back to generic DOM contenteditable acceptance when host cursor context drifts on identical line text", () => {
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    editable.textContent = "repeat line";
+    document.body.appendChild(editable);
+    setContentEditableCursor(editable, 10);
+
+    let applyCalls = 0;
+    const pageBridge: HostEditorPageBridge = {
+      getBlockContextAtSelection() {
+        return {
+          beforeCursor: "repeat li",
+          afterCursor: "ne",
+          blockText: "repeat line",
+        };
+      },
+      applyBlockReplacement() {
+        applyCalls += 1;
+        return { applied: true, didDispatchInput: false };
+      },
+    };
+
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+      hostEditorAdapterResolver: new HostEditorAdapterResolver(pageBridge),
+    });
+    const entry = createSuggestionEntry({
+      elem: editable,
+      latestMentionText: "lin",
+      latestMentionStart: -1,
+    });
+
+    const accepted = service.acceptSuggestion(entry, "line ");
+
+    expect(accepted).toEqual({
+      triggerText: "lin",
+      insertedText: "line",
+      cursorAfter: 11,
+      cursorAfterIsBlockLocal: true,
+    });
+    expect(applyCalls).toBe(0);
+    expect(editable.textContent).toBe("repeat line");
+  });
+
   test("arms pending contenteditable suggestion edit before synthetic input dispatch", () => {
     const service = new SuggestionTextEditService({
       findMentionToken,

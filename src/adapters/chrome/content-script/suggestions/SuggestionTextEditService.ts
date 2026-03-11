@@ -769,7 +769,11 @@ export class SuggestionTextEditService {
     const cursorAfter = replaceStart + replacementText.length;
     const hostEditorSession =
       activeBlock !== null
-        ? this.resolveHostEditorSession(entry.elem as HTMLElement, fullText)
+        ? this.resolveHostEditorSession(entry.elem as HTMLElement, {
+            beforeCursor,
+            afterCursor,
+            blockText: fullText,
+          })
         : null;
 
     consumeKeyboardEvent(event);
@@ -994,7 +998,11 @@ export class SuggestionTextEditService {
 
   private resolveHostEditorSession(
     elem: HTMLElement,
-    expectedBlockText: string,
+    expectedBlockContext: {
+      beforeCursor: string;
+      afterCursor: string;
+      blockText: string;
+    },
   ): HostEditorSession | null {
     const session = this.hostEditorAdapterResolver.resolve(elem);
     if (!session) {
@@ -1006,7 +1014,11 @@ export class SuggestionTextEditService {
     }
     if (
       this.normalizeComparableBlockText(hostBlockContext.blockText) !==
-      this.normalizeComparableBlockText(expectedBlockText)
+        this.normalizeComparableBlockText(expectedBlockContext.blockText) ||
+      this.normalizeComparableBlockText(hostBlockContext.beforeCursor) !==
+        this.normalizeComparableBlockText(expectedBlockContext.beforeCursor) ||
+      this.normalizeComparableBlockText(hostBlockContext.afterCursor) !==
+        this.normalizeComparableBlockText(expectedBlockContext.afterCursor)
     ) {
       return null;
     }
@@ -1116,7 +1128,11 @@ export class SuggestionTextEditService {
 
     const hostEditorSession = this.resolveHostEditorSession(
       entry.elem as HTMLElement,
-      blockSourceText,
+      {
+        beforeCursor: blockContext.beforeCursor,
+        afterCursor: blockContext.afterCursor,
+        blockText: blockSourceText,
+      },
     );
     const applyResult = hostEditorSession
       ? (() => {
