@@ -143,6 +143,34 @@ describe("SuggestionPredictionCoordinator", () => {
     );
   });
 
+  test("retains keep-pred punctuation in the bounded suffix", () => {
+    const getPrediction = jest.fn();
+    const coordinator = new SuggestionPredictionCoordinator({
+      debounceByAction: FIXED_DEBOUNCE_BY_ACTION,
+      getPrediction,
+      lang: "en_US",
+      minWordLengthToPredict: 1,
+      separatorRegex: /[\s/-]+/,
+    });
+
+    const input = document.createElement("input");
+    input.value = "co-op later";
+    input.selectionStart = 2;
+    input.selectionEnd = 2;
+    const entry = createSuggestionEntry({ id: 12, elem: input });
+
+    coordinator.schedule(entry, { force: true, clearSuggestions: jest.fn() });
+
+    expect(getPrediction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: "co",
+        nextChar: "-",
+        afterCursorTokenSuffix: "-op",
+        suggestionId: 12,
+      }),
+    );
+  });
+
   test("clears suggestions without requesting predictions when disabled by threshold", async () => {
     const getPrediction = jest.fn();
     const clearSuggestions = jest.fn();

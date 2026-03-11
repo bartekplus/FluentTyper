@@ -1,6 +1,7 @@
 import { TextTargetAdapter, type TextTarget } from "./TextTargetAdapter";
 import type { PredictionRequest, PredictionResponse, SuggestionEntry } from "./types";
 import type { PredictionInputAction } from "@core/domain/messageTypes";
+import { extractPredictionTokenSuffix } from "@core/domain/predictionToken";
 import { createLogger } from "@core/application/logging/Logger";
 import {
   createPredictionTraceContext,
@@ -313,14 +314,6 @@ export class SuggestionPredictionCoordinator {
   }
 
   private extractAfterCursorTokenSuffix(afterCursor: string): string {
-    let end = 0;
-    while (end < afterCursor.length) {
-      const current = afterCursor.charAt(end);
-      if (this.isSeparator(current) || /\s/u.test(current)) {
-        break;
-      }
-      end += 1;
-    }
-    return afterCursor.slice(0, end);
+    return extractPredictionTokenSuffix(afterCursor, (char) => this.isSeparator(char));
   }
 }
