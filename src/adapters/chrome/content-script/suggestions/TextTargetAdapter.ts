@@ -21,6 +21,31 @@ export class TextTargetAdapter {
     return TextTargetAdapter.isInput(elem) || TextTargetAdapter.isTextArea(elem);
   }
 
+  static findBackingTextValueTarget(elem: Element): HTMLInputElement | HTMLTextAreaElement | null {
+    if (TextTargetAdapter.isTextValue(elem)) {
+      return elem;
+    }
+    if (!(elem instanceof HTMLElement)) {
+      return null;
+    }
+    const codeMirrorRoot = elem.closest(".CodeMirror");
+    if (!(codeMirrorRoot instanceof HTMLElement)) {
+      return null;
+    }
+    const candidate = codeMirrorRoot.previousElementSibling;
+    const view = candidate?.ownerDocument?.defaultView;
+    const InputCtor = view?.HTMLInputElement;
+    const TextAreaCtor = view?.HTMLTextAreaElement;
+    if (
+      candidate &&
+      ((typeof InputCtor === "function" && candidate instanceof InputCtor) ||
+        (typeof TextAreaCtor === "function" && candidate instanceof TextAreaCtor))
+    ) {
+      return candidate;
+    }
+    return null;
+  }
+
   static hasCollapsedSelection(target: TextTarget): boolean {
     if (TextTargetAdapter.isTextValue(target)) {
       if (target.selectionStart === null || target.selectionEnd === null) {

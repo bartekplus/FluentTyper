@@ -47,6 +47,31 @@ describe("TextTargetAdapter", () => {
     });
   });
 
+  describe("findBackingTextValueTarget", () => {
+    test("returns null for plain contenteditable elements", () => {
+      const editable = document.createElement("div");
+      editable.setAttribute("contenteditable", "true");
+
+      expect(TextTargetAdapter.findBackingTextValueTarget(editable)).toBeNull();
+    });
+
+    test("returns adjacent CodeMirror textarea for contenteditable editor roots", () => {
+      const wrapper = document.createElement("div");
+      const textarea = document.createElement("textarea");
+      textarea.style.display = "none";
+      const codeMirror = document.createElement("div");
+      codeMirror.className = "CodeMirror";
+      const codeMirrorCode = document.createElement("div");
+      codeMirrorCode.className = "CodeMirror-code";
+      codeMirrorCode.setAttribute("contenteditable", "true");
+      codeMirror.appendChild(codeMirrorCode);
+      wrapper.append(textarea, codeMirror);
+      document.body.appendChild(wrapper);
+
+      expect(TextTargetAdapter.findBackingTextValueTarget(codeMirrorCode)).toBe(textarea);
+    });
+  });
+
   describe("snapshot", () => {
     test("captures before/after cursor for text inputs", () => {
       const input = document.createElement("input");

@@ -104,6 +104,7 @@ export interface ManualAutoFixSuppressionSnapshot {
 export interface SuggestionEntry {
   id: number;
   elem: SuggestionElement;
+  inputEventTarget: HTMLInputElement | HTMLTextAreaElement | null;
   menu: HTMLDivElement;
   list: HTMLUListElement;
   requestId: number;
@@ -132,6 +133,7 @@ export interface SuggestionEntry {
   pendingRequestTimer: ReturnType<typeof setTimeout> | null;
   pendingIdleTimer: ReturnType<typeof setTimeout> | null;
   pendingGrammarPaste: boolean;
+  recentInteractionTrail: string[];
   handlers: {
     input: EventListener;
     keydown: EventListener;

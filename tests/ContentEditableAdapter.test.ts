@@ -283,6 +283,69 @@ describe("ContentEditableAdapter", () => {
     }
   });
 
+  test("skips native insertText fallback for scoped block replacements", () => {
+    const adapter = new ContentEditableAdapter();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML = "<pre>hello wrld</pre><pre>later line</pre>";
+    document.body.appendChild(editable);
+
+    const activeBlock = editable.querySelector("pre");
+    if (!activeBlock) {
+      throw new Error("Expected active block");
+    }
+
+    const textNode = activeBlock.firstChild;
+    if (!textNode || textNode.nodeType !== Node.TEXT_NODE) {
+      throw new Error("Expected active block text node");
+    }
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Selection API unavailable");
+    }
+    const range = document.createRange();
+    range.setStart(textNode, 10);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    const originalExecCommand = document.execCommand;
+    let execCommandCallCount = 0;
+    document.execCommand = ((commandId: string, _showUi?: boolean, value?: string) => {
+      if (commandId !== "insertText") {
+        return false;
+      }
+      execCommandCallCount += 1;
+      const currentSelection = window.getSelection();
+      if (!currentSelection || currentSelection.rangeCount === 0) {
+        return false;
+      }
+      const currentRange = currentSelection.getRangeAt(0);
+      currentRange.deleteContents();
+      const replacementNode = document.createTextNode(value ?? "");
+      currentRange.insertNode(replacementNode);
+      return true;
+    }) as typeof document.execCommand;
+
+    try {
+      const result = adapter.replaceTextByOffsets(editable, 6, 10, "world", 11, {
+        scopeRoot: activeBlock as HTMLElement,
+      });
+
+      expect(execCommandCallCount).toBe(0);
+      expect(result).toEqual({
+        appliedBy: "fallback-dom",
+        didMutateDom: true,
+        didDispatchInput: true,
+      });
+      expect(activeBlock.textContent).toBe("hello world");
+      expect(editable.querySelectorAll("pre")[1]?.textContent).toBe("later line");
+    } finally {
+      document.execCommand = originalExecCommand;
+    }
+  });
+
   test("maps offset zero to structural boundary before leading empty block text", () => {
     const adapter = new ContentEditableAdapter();
     const editable = document.createElement("div");

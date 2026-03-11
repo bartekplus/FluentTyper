@@ -185,9 +185,11 @@ export class ContentRuntimeController {
   }
 
   processMutations(mutationsList: MutationRecord[]): void {
-    logger.debug("Processing DOM mutations", {
-      mutationCount: mutationsList.length,
-    });
+    if (mutationsList.length > 1) {
+      logger.debug("Processing DOM mutations", {
+        mutationCount: mutationsList.length,
+      });
+    }
     this.domObserver.disconnect();
     for (const o of this.shadowObservers.values()) {
       o.disconnect();

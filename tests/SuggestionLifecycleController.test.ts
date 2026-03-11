@@ -114,4 +114,46 @@ describe("SuggestionLifecycleController", () => {
     menu.remove();
     outside.remove();
   });
+
+  test("listens to backing textarea input for CodeMirror-backed entries", () => {
+    const textarea = document.createElement("textarea");
+    const codeMirror = document.createElement("div");
+    codeMirror.className = "CodeMirror-code";
+    codeMirror.setAttribute("contenteditable", "true");
+    const menu = document.createElement("div");
+    document.body.append(textarea, codeMirror, menu);
+
+    const input = jest.fn();
+    const entry = createSuggestionEntry({
+      elem: codeMirror as unknown as SuggestionElement,
+      inputEventTarget: textarea,
+      menu,
+      handlers: {
+        input,
+        keydown: () => undefined,
+        paste: () => undefined,
+        focus: () => undefined,
+        blur: () => undefined,
+        click: () => undefined,
+        compositionStart: () => undefined,
+        compositionEnd: () => undefined,
+        menuMouseDown: () => undefined,
+        menuClick: () => undefined,
+      },
+    });
+
+    const controller = new SuggestionLifecycleController({
+      getEntries: () => [entry],
+      dismissEntry: () => undefined,
+      reconcileEntrySelection: () => undefined,
+    });
+    controller.attachEntryListeners(entry);
+
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(input).toHaveBeenCalledTimes(1);
+
+    controller.detachEntryListeners(entry);
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(input).toHaveBeenCalledTimes(1);
+  });
 });

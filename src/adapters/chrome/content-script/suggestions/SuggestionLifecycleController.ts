@@ -36,6 +36,20 @@ export class SuggestionLifecycleController {
     entry.elem.addEventListener("click", entry.handlers.click, true);
     entry.elem.addEventListener("compositionstart", entry.handlers.compositionStart, true);
     entry.elem.addEventListener("compositionend", entry.handlers.compositionEnd, true);
+    if (entry.inputEventTarget && entry.inputEventTarget !== entry.elem) {
+      entry.inputEventTarget.addEventListener("input", entry.handlers.input, true);
+      entry.inputEventTarget.addEventListener("paste", entry.handlers.paste, true);
+      entry.inputEventTarget.addEventListener(
+        "compositionstart",
+        entry.handlers.compositionStart,
+        true,
+      );
+      entry.inputEventTarget.addEventListener(
+        "compositionend",
+        entry.handlers.compositionEnd,
+        true,
+      );
+    }
     entry.list.addEventListener("mousedown", entry.handlers.menuMouseDown);
     entry.list.addEventListener("click", entry.handlers.menuClick);
 
@@ -53,6 +67,20 @@ export class SuggestionLifecycleController {
     entry.elem.removeEventListener("click", entry.handlers.click, true);
     entry.elem.removeEventListener("compositionstart", entry.handlers.compositionStart, true);
     entry.elem.removeEventListener("compositionend", entry.handlers.compositionEnd, true);
+    if (entry.inputEventTarget && entry.inputEventTarget !== entry.elem) {
+      entry.inputEventTarget.removeEventListener("input", entry.handlers.input, true);
+      entry.inputEventTarget.removeEventListener("paste", entry.handlers.paste, true);
+      entry.inputEventTarget.removeEventListener(
+        "compositionstart",
+        entry.handlers.compositionStart,
+        true,
+      );
+      entry.inputEventTarget.removeEventListener(
+        "compositionend",
+        entry.handlers.compositionEnd,
+        true,
+      );
+    }
     entry.list.removeEventListener("mousedown", entry.handlers.menuMouseDown);
     entry.list.removeEventListener("click", entry.handlers.menuClick);
 

@@ -11,6 +11,85 @@ import type {
 } from "./types";
 
 const logger = createLogger("SuggestionTextEditService");
+const TRACE_TEXT_LIMIT = 48;
+const TRACE_HTML_LIMIT = 220;
+
+function collapseTraceWhitespace(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function clipTraceText(value: string, limit: number, mode: "start" | "end" = "end"): string {
+  if (value.length <= limit) {
+    return value;
+  }
+  if (mode === "start") {
+    return `${value.slice(0, Math.max(0, limit - 3))}...`;
+  }
+  return `...${value.slice(-(limit - 3))}`;
+}
+
+function buildCaretTrace(
+  beforeCursor: string,
+  afterCursor: string,
+): {
+  beforePreview: string;
+  afterPreview: string;
+  aroundCaret: string;
+  tokenBeforeCaret: string;
+  tokenAfterCaret: string;
+} {
+  const beforePreview = clipTraceText(
+    collapseTraceWhitespace(beforeCursor.slice(-TRACE_TEXT_LIMIT * 2)),
+    TRACE_TEXT_LIMIT,
+  );
+  const afterPreview = clipTraceText(
+    collapseTraceWhitespace(afterCursor.slice(0, TRACE_TEXT_LIMIT * 2)),
+    TRACE_TEXT_LIMIT,
+    "start",
+  );
+  return {
+    beforePreview,
+    afterPreview,
+    aroundCaret: `${beforePreview}|${afterPreview}`,
+    tokenBeforeCaret: clipTraceText(
+      beforeCursor.match(/[^\s.,!?;:()[\]{}"'`<>/\\|@#$%^&*_+=~-]+$/u)?.[0] ?? "",
+      TRACE_TEXT_LIMIT,
+    ),
+    tokenAfterCaret: clipTraceText(
+      afterCursor.match(/^[^\s.,!?;:()[\]{}"'`<>/\\|@#$%^&*_+=~-]+/u)?.[0] ?? "",
+      TRACE_TEXT_LIMIT,
+      "start",
+    ),
+  };
+}
+
+function buildElementSnapshot(
+  element: HTMLElement | null,
+  beforeCursor: string,
+  afterCursor: string,
+): Record<string, unknown> | null {
+  if (!element) {
+    return null;
+  }
+  const className =
+    typeof element.className === "string" ? collapseTraceWhitespace(element.className) : "";
+  return {
+    tagName: element.tagName.toLowerCase(),
+    id: element.id || null,
+    className: className || null,
+    textLength: (element.textContent ?? "").length,
+    caretTrace: buildCaretTrace(beforeCursor, afterCursor),
+    textPreview: clipTraceText(
+      collapseTraceWhitespace(element.textContent ?? ""),
+      TRACE_TEXT_LIMIT,
+    ),
+    htmlPreview: clipTraceText(
+      collapseTraceWhitespace(element.outerHTML),
+      TRACE_HTML_LIMIT,
+      "start",
+    ),
+  };
+}
 
 export interface TextEditApplyResult {
   applied: boolean;
@@ -167,7 +246,21 @@ export class SuggestionTextEditService {
       consumedTrailingWhitespaceLength: consumedTrailingWhitespace.length,
     });
 
-    this.replaceTextByOffsets(
+    entry.pendingExtensionEdit = {
+      replaceStart,
+      originalText,
+      replacementText,
+      cursorBefore: snapshot.cursorOffset,
+      cursorAfter,
+      postEditFingerprint: {
+        fullText: `${currentFullText.slice(0, replaceStart)}${replacementText}${currentFullText.slice(finalReplaceEnd)}`,
+        cursorOffset: cursorAfter,
+        selectionCollapsed: true,
+      },
+      source: "suggestion",
+    };
+
+    const applyResult = this.replaceTextByOffsets(
       entry.elem,
       currentFullText,
       replaceStart,
@@ -175,20 +268,19 @@ export class SuggestionTextEditService {
       replacementText,
       cursorAfter,
     );
+    if (!applyResult.didMutateDom) {
+      entry.pendingExtensionEdit = null;
+      return null;
+    }
     const postEditSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
 
-    entry.pendingExtensionEdit = {
-      replaceStart,
-      originalText,
-      replacementText,
-      cursorBefore: snapshot.cursorOffset,
-      cursorAfter: postEditSnapshot.cursorOffset,
-      postEditFingerprint: TextTargetAdapter.createPostEditFingerprint(
+    if (entry.pendingExtensionEdit) {
+      entry.pendingExtensionEdit.cursorAfter = postEditSnapshot.cursorOffset;
+      entry.pendingExtensionEdit.postEditFingerprint = TextTargetAdapter.createPostEditFingerprint(
         entry.elem as TextTarget,
         postEditSnapshot,
-      ),
-      source: "suggestion",
-    };
+      );
+    }
 
     return {
       triggerText,
@@ -944,7 +1036,31 @@ export class SuggestionTextEditService {
       blockBeforeCursorLength: blockContext.beforeCursor.length,
       blockAfterCursorLength: blockContext.afterCursor.length,
       expectedPostEditBlockTextLength: expectedPostEditBlockText.length,
+      activeBlockSnapshot: buildElementSnapshot(
+        activeBlock,
+        blockContext.beforeCursor,
+        blockContext.afterCursor,
+      ),
+      caretTraceBeforeEdit: buildCaretTrace(blockContext.beforeCursor, blockContext.afterCursor),
+      recentInteractionTrail: entry.recentInteractionTrail.slice(),
     });
+
+    entry.pendingExtensionEdit = {
+      replaceStart,
+      originalText,
+      replacementText,
+      cursorBefore: blockContext.beforeCursor.length,
+      cursorAfter,
+      postEditFingerprint: {
+        fullText: "",
+        cursorOffset: cursorAfter,
+        selectionCollapsed: TextTargetAdapter.hasCollapsedSelection(entry.elem as TextTarget),
+      },
+      source: "suggestion",
+      blockScoped: true,
+      blockElement: activeBlock,
+      postEditBlockText: expectedPostEditBlockText,
+    };
 
     const applyResult = this.replaceTextByOffsets(
       entry.elem,
@@ -960,6 +1076,7 @@ export class SuggestionTextEditService {
       applyResult.appliedBy === "host-beforeinput" &&
       !applyResult.didMutateDom;
     if (!applyResult.didMutateDom && !hostAcceptedAsync) {
+      entry.pendingExtensionEdit = null;
       return null;
     }
     if (hostAcceptedAsync) {
@@ -983,22 +1100,16 @@ export class SuggestionTextEditService {
       ? cursorAfter
       : (postEditBlockContext?.beforeCursor.length ?? cursorAfter);
 
-    entry.pendingExtensionEdit = {
-      replaceStart,
-      originalText,
-      replacementText,
-      cursorBefore: blockContext.beforeCursor.length,
-      cursorAfter: postEditCursorAfter,
-      postEditFingerprint: {
+    if (entry.pendingExtensionEdit) {
+      entry.pendingExtensionEdit.cursorAfter = postEditCursorAfter;
+      entry.pendingExtensionEdit.postEditFingerprint = {
         fullText: "",
         cursorOffset: postEditCursorAfter,
         selectionCollapsed: TextTargetAdapter.hasCollapsedSelection(entry.elem as TextTarget),
-      },
-      source: "suggestion",
-      blockScoped: true,
-      blockElement: activeBlock,
-      postEditBlockText,
-    };
+      };
+      entry.pendingExtensionEdit.blockElement = activeBlock;
+      entry.pendingExtensionEdit.postEditBlockText = postEditBlockText;
+    }
 
     const finishedAt =
       typeof globalThis.performance?.now === "function" ? globalThis.performance.now() : Date.now();
@@ -1009,6 +1120,16 @@ export class SuggestionTextEditService {
       blockTextLength: blockSourceText.length,
       durationMs,
       blockScoped: true,
+      activeBlockSnapshot: buildElementSnapshot(
+        activeBlock,
+        postEditBlockText.slice(0, postEditCursorAfter),
+        postEditBlockText.slice(postEditCursorAfter),
+      ),
+      caretTraceAfterEdit: buildCaretTrace(
+        postEditBlockText.slice(0, postEditCursorAfter),
+        postEditBlockText.slice(postEditCursorAfter),
+      ),
+      recentInteractionTrail: entry.recentInteractionTrail.slice(),
     });
 
     return {

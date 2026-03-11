@@ -88,6 +88,8 @@ export class ContentEditableAdapter {
       selection.addRange(range);
     }
 
+    const shouldTryNativeReplacement = !preferDomMutation && editScope === elem;
+
     if (!preferDomMutation) {
       const beforeText = elem.textContent ?? "";
       logger.debug("Dispatching contenteditable replacement beforeinput", {
@@ -135,17 +137,19 @@ export class ContentEditableAdapter {
         };
       }
 
-      const nativeReplacementResult = this.tryNativeReplacement(elem, replacementText);
-      if (nativeReplacementResult.didMutateDom) {
-        logger.debug("Contenteditable replacement handled by execCommand fallback", {
-          didDispatchInput: nativeReplacementResult.didDispatchInput,
-          editorTextLength: (elem.textContent ?? "").length,
-        });
-        return {
-          appliedBy: "fallback-dom",
-          didMutateDom: true,
-          didDispatchInput: nativeReplacementResult.didDispatchInput,
-        };
+      if (shouldTryNativeReplacement) {
+        const nativeReplacementResult = this.tryNativeReplacement(elem, replacementText);
+        if (nativeReplacementResult.didMutateDom) {
+          logger.debug("Contenteditable replacement handled by execCommand fallback", {
+            didDispatchInput: nativeReplacementResult.didDispatchInput,
+            editorTextLength: (elem.textContent ?? "").length,
+          });
+          return {
+            appliedBy: "fallback-dom",
+            didMutateDom: true,
+            didDispatchInput: nativeReplacementResult.didDispatchInput,
+          };
+        }
       }
     }
 

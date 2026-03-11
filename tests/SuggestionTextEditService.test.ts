@@ -784,6 +784,51 @@ describe("SuggestionTextEditService", () => {
     expect(entry.pendingExtensionEdit?.postEditBlockText).toBe("What is the best ");
   });
 
+  test("arms pending contenteditable suggestion edit before synthetic input dispatch", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+    });
+
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML = "<p>What is the bes</p>";
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+
+    const paragraph = editable.querySelector("p") as HTMLElement | null;
+    const textNode = paragraph?.firstChild as Text | null;
+    if (!paragraph || !textNode) {
+      throw new Error("Expected paragraph text node");
+    }
+    setTextNodeCursor(textNode, textNode.textContent?.length ?? 0);
+
+    const entry = createSuggestionEntry({
+      elem: editable,
+      latestMentionText: "bes",
+      latestMentionStart: -1,
+    });
+
+    let pendingEditDuringInput: typeof entry.pendingExtensionEdit | null = null;
+    editable.addEventListener("input", () => {
+      pendingEditDuringInput = entry.pendingExtensionEdit
+        ? { ...entry.pendingExtensionEdit }
+        : null;
+    });
+
+    const accepted = service.acceptSuggestion(entry, "best ");
+
+    expect(accepted).toEqual({
+      triggerText: "bes",
+      insertedText: "best ",
+      cursorAfter: 17,
+      cursorAfterIsBlockLocal: true,
+    });
+    expect(pendingEditDuringInput?.blockScoped).toBe(true);
+    expect(pendingEditDuringInput?.replacementText).toBe("best ");
+    expect(pendingEditDuringInput?.postEditBlockText).toBe("What is the best ");
+  });
+
   test("treats deferred host-owned contenteditable acceptance as successful", () => {
     const service = new SuggestionTextEditService({
       findMentionToken,

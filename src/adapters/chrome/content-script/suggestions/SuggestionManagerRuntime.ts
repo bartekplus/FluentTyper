@@ -373,6 +373,9 @@ export class SuggestionManagerRuntime {
     const entry: SuggestionEntry = {
       id,
       elem,
+      inputEventTarget: !TextTargetAdapter.isTextValue(elem)
+        ? TextTargetAdapter.findBackingTextValueTarget(elem)
+        : null,
       menu,
       list,
       requestId: 0,
@@ -401,6 +404,7 @@ export class SuggestionManagerRuntime {
       pendingRequestTimer: null,
       pendingIdleTimer: null,
       pendingGrammarPaste: false,
+      recentInteractionTrail: [],
       handlers: {
         input: () => undefined,
         keydown: () => undefined,
