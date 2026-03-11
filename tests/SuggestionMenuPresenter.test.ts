@@ -26,7 +26,7 @@ describe("SuggestionMenuPresenter", () => {
     });
 
     expect(rendered).toBe(true);
-    expect(list.querySelector("lh")?.textContent).toBe("Lang: English");
+    expect(menu.querySelector(".ft-suggestion-header")?.textContent).toBe("Lang: English");
     expect(list.querySelectorAll("li").length).toBe(2);
     expect(list.querySelector("li")?.getAttribute("data-shortcut")).toBe("1");
     expect(list.querySelector("li .ft-suggestion-shortcut")?.textContent).toBe("1");

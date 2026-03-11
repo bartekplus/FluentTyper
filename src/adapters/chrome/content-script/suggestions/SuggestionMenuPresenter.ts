@@ -1,4 +1,5 @@
 import { SuggestionPositioningService } from "./SuggestionPositioningService";
+import { SuggestionMenuView } from "./SuggestionMenuView";
 import type { SuggestionElement } from "./types";
 
 export interface SuggestionMenuRenderModel {
@@ -23,21 +24,35 @@ export class SuggestionMenuPresenter {
 
   public render(model: SuggestionMenuRenderModel): boolean {
     model.list.innerHTML = "";
+    const header = SuggestionMenuView.resolveHeader(model.menu);
+    const panel = SuggestionMenuView.resolvePanel(model.menu);
 
-    if (model.menuHeader) {
-      const header = document.createElement("lh");
-      header.textContent = model.menuHeader;
-      model.list.appendChild(header);
+    if (header) {
+      if (model.menuHeader) {
+        header.textContent = model.menuHeader;
+        header.hidden = false;
+      } else {
+        header.textContent = "";
+        header.hidden = true;
+      }
+    } else if (model.menuHeader) {
+      const fallbackHeader = document.createElement("div");
+      fallbackHeader.className = SuggestionMenuView.HEADER_CLASS;
+      fallbackHeader.textContent = model.menuHeader;
+      model.menu.insertBefore(fallbackHeader, model.list);
     }
 
     model.suggestions.forEach((suggestion, index) => {
       const li = document.createElement("li");
+      li.id = `ft-suggestion-option-${model.menu.dataset.ftSuggestionId ?? "runtime"}-${index}`;
       li.innerHTML = this.buildSuggestionMenuItemHtml({
         mentionText: model.mentionText,
         suggestion,
         shortcutDigit: model.showShortcutDigits ? this.formatShortcutDigit(index) : null,
       });
       li.setAttribute("data-index", String(index));
+      li.setAttribute("role", "option");
+      li.setAttribute("aria-selected", index === model.selectedIndex ? "true" : "false");
       if (model.showShortcutDigits) {
         li.classList.add("has-shortcut");
         li.setAttribute("data-shortcut", this.formatShortcutDigit(index));
@@ -50,21 +65,44 @@ export class SuggestionMenuPresenter {
 
     if (model.suggestions.length === 0) {
       this.hide(model.menu, model.list);
+      if (panel !== model.menu) {
+        panel.setAttribute("aria-hidden", "true");
+      }
       return false;
     }
 
+    model.menu.style.setProperty("display", "block", "important");
+    model.menu.style.setProperty("visibility", "hidden", "important");
     this.positioningService.syncMenuTypography(model.menu, model.target);
     if (!this.positioningService.positionMenu(model.menu, model.target)) {
       this.hide(model.menu, model.list);
+      if (panel !== model.menu) {
+        panel.setAttribute("aria-hidden", "true");
+      }
       return false;
     }
 
-    model.menu.style.display = "block";
+    panel.setAttribute("aria-hidden", "false");
+    panel.setAttribute(
+      "aria-activedescendant",
+      `ft-suggestion-option-${model.menu.dataset.ftSuggestionId ?? "runtime"}-${model.selectedIndex}`,
+    );
+    model.menu.style.setProperty("display", "block", "important");
+    model.menu.style.setProperty("visibility", "visible", "important");
     return true;
   }
 
   public hide(menu: HTMLDivElement, list: HTMLUListElement): void {
-    menu.style.display = "none";
+    const header = SuggestionMenuView.resolveHeader(menu);
+    const panel = SuggestionMenuView.resolvePanel(menu);
+    menu.style.setProperty("display", "none", "important");
+    menu.style.setProperty("visibility", "visible", "important");
+    if (header) {
+      header.textContent = "";
+      header.hidden = true;
+    }
+    panel.setAttribute("aria-hidden", "true");
+    panel.removeAttribute("aria-activedescendant");
     list.innerHTML = "";
   }
 
@@ -77,8 +115,14 @@ export class SuggestionMenuPresenter {
     items.forEach((item, index) => {
       if (index === selectedIndex) {
         item.classList.add("highlight");
+        item.setAttribute("aria-selected", "true");
+        list.parentElement?.setAttribute("aria-activedescendant", item.id);
+        if (typeof item.scrollIntoView === "function") {
+          item.scrollIntoView({ block: "nearest" });
+        }
       } else {
         item.classList.remove("highlight");
+        item.setAttribute("aria-selected", "false");
       }
     });
   }

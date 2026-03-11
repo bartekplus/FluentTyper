@@ -8,3 +8,4 @@ scripts/community-oscar
 .tmp
 .DS_Store
 .cache
+.worktrees

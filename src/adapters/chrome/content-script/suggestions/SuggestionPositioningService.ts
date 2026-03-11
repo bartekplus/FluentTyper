@@ -1,4 +1,13 @@
 import { TextTargetAdapter } from "./TextTargetAdapter";
+import {
+  SUGGESTION_POPUP_FONT_FAMILY,
+  SUGGESTION_POPUP_FONT_STRETCH,
+  SUGGESTION_POPUP_FONT_STYLE,
+  SUGGESTION_POPUP_FONT_WEIGHT,
+  SUGGESTION_POPUP_LETTER_SPACING,
+  SUGGESTION_POPUP_TEXT_TRANSFORM,
+  SUGGESTION_POPUP_WORD_SPACING,
+} from "./SuggestionPopupTypography";
 import type { SuggestionElement } from "./types";
 
 interface MenuDimensions {
@@ -7,43 +16,60 @@ interface MenuDimensions {
 }
 
 interface MenuCoordinates {
-  position: "fixed";
-  left: number | "auto";
-  top: number | "auto";
-  right?: number;
-  bottom?: number;
-  maxHeight?: number;
-  maxWidth?: number;
+  left: number;
+  top: number;
+  maxHeight: number;
+  maxWidth: number;
 }
 
-type TypographyProperty =
-  | "fontStyle"
-  | "fontVariant"
-  | "fontWeight"
-  | "fontStretch"
-  | "fontSizeAdjust"
-  | "fontFamily";
-
 export class SuggestionPositioningService {
-  public syncMenuTypography(menu: HTMLDivElement, elem: SuggestionElement): void {
-    const properties: TypographyProperty[] = [
-      "fontStyle",
-      "fontVariant",
-      "fontWeight",
-      "fontStretch",
-      "fontSizeAdjust",
-      "fontFamily",
-    ];
-    const computed = window.getComputedStyle(elem);
-    const menuStyle = menu.style as unknown as Record<TypographyProperty, string>;
+  private static readonly VIEWPORT_PADDING_PX = 8;
+  private static readonly CARET_GAP_PX = 8;
+  private static readonly HORIZONTAL_OFFSET_PX = 12;
+  private static readonly DEFAULT_FONT_SIZE_PX = 16;
 
-    menu.style.fontSize = `${Math.round((Number.parseInt(computed.fontSize, 10) || 16) * 0.9)}px`;
-    for (const property of properties) {
-      const value = computed[property];
-      if (typeof value === "string") {
-        menuStyle[property] = value;
-      }
-    }
+  public syncMenuTypography(menu: HTMLDivElement, elem: SuggestionElement): void {
+    const typographyAnchor = this.resolveTypographyAnchor(elem);
+    const computed = window.getComputedStyle(typographyAnchor);
+    const fontSizePx = this.resolveFontSizePx(computed.fontSize);
+    const lineHeightPx = this.resolveLineHeightPx(computed.lineHeight, fontSizePx);
+    const popupFontSizePx = Math.round(this.clamp(fontSizePx * 0.88, 12, 16));
+    const popupLineHeightPx = Math.round(this.clamp(lineHeightPx * 0.9, 17, 24));
+    const rowHeightPx = Math.round(this.clamp(popupLineHeightPx + fontSizePx * 0.36, 28, 36));
+    const padX = Math.round(this.clamp(fontSizePx * 0.5, 7, 11));
+    const padY = Math.round(this.clamp(fontSizePx * 0.18, 4, 6));
+    const radiusPx = Math.round(this.clamp(fontSizePx * 0.62, 9, 12));
+    const availableViewportWidth = Math.max(
+      160,
+      window.innerWidth - SuggestionPositioningService.VIEWPORT_PADDING_PX * 2,
+    );
+
+    menu.style.fontSize = `${popupFontSizePx}px`;
+    menu.style.lineHeight = `${popupLineHeightPx}px`;
+    menu.style.direction = computed.direction;
+    menu.style.fontFamily = SUGGESTION_POPUP_FONT_FAMILY;
+    menu.style.fontWeight = SUGGESTION_POPUP_FONT_WEIGHT;
+    menu.style.fontStyle = SUGGESTION_POPUP_FONT_STYLE;
+    menu.style.setProperty("--ft-font-size", `${popupFontSizePx}px`);
+    menu.style.setProperty("--ft-line-height", `${popupLineHeightPx}px`);
+    menu.style.setProperty("--ft-row-height", `${rowHeightPx}px`);
+    menu.style.setProperty("--ft-pad-x", `${padX}px`);
+    menu.style.setProperty("--ft-pad-y", `${padY}px`);
+    menu.style.setProperty("--ft-radius", `${radiusPx}px`);
+    menu.style.setProperty(
+      "--ft-panel-min-width",
+      `${Math.round(this.clamp(Math.max(popupFontSizePx * 10.5, 156), 156, availableViewportWidth))}px`,
+    );
+    menu.style.setProperty("--suggestion-font-size", `${popupFontSizePx}px`);
+    menu.style.setProperty("--suggestion-padding-vertical", `${padY}px`);
+    menu.style.setProperty("--suggestion-padding-horizontal", `${padX}px`);
+    menu.style.setProperty("--ft-font-family", SUGGESTION_POPUP_FONT_FAMILY);
+    menu.style.setProperty("--ft-font-weight", SUGGESTION_POPUP_FONT_WEIGHT);
+    menu.style.setProperty("--ft-font-style", SUGGESTION_POPUP_FONT_STYLE);
+    menu.style.setProperty("--ft-font-stretch", SUGGESTION_POPUP_FONT_STRETCH);
+    menu.style.setProperty("--ft-letter-spacing", SUGGESTION_POPUP_LETTER_SPACING);
+    menu.style.setProperty("--ft-word-spacing", SUGGESTION_POPUP_WORD_SPACING);
+    menu.style.setProperty("--ft-text-transform", SUGGESTION_POPUP_TEXT_TRANSFORM);
   }
 
   public positionMenu(menu: HTMLDivElement, elem: SuggestionElement): boolean {
@@ -52,18 +78,16 @@ export class SuggestionPositioningService {
       return false;
     }
 
-    const coordinates = this.getMenuCoordinatesForRect(menu, rect);
+    const coordinates = this.getMenuCoordinatesForRect(menu, rect, elem);
 
-    menu.style.position = coordinates.position;
-    menu.style.top = coordinates.top === "auto" ? "auto" : `${Math.max(0, coordinates.top)}px`;
-    menu.style.left = coordinates.left === "auto" ? "auto" : `${Math.max(0, coordinates.left)}px`;
-    menu.style.right =
-      typeof coordinates.right === "number" ? `${Math.max(0, coordinates.right)}px` : "auto";
-    menu.style.bottom =
-      typeof coordinates.bottom === "number" ? `${Math.max(0, coordinates.bottom)}px` : "auto";
-    menu.style.maxHeight = `${Math.max(0, coordinates.maxHeight ?? 500)}px`;
-    menu.style.maxWidth = `${Math.max(0, coordinates.maxWidth ?? 300)}px`;
-    menu.style.zIndex = "2147483647";
+    menu.style.setProperty("position", "fixed", "important");
+    menu.style.setProperty("top", `${coordinates.top}px`, "important");
+    menu.style.setProperty("left", `${coordinates.left}px`, "important");
+    menu.style.setProperty("right", "auto", "important");
+    menu.style.setProperty("bottom", "auto", "important");
+    menu.style.setProperty("max-height", `${coordinates.maxHeight}px`, "important");
+    menu.style.setProperty("max-width", `${coordinates.maxWidth}px`, "important");
+    menu.style.setProperty("z-index", "2147483647", "important");
     return true;
   }
 
@@ -235,71 +259,122 @@ export class SuggestionPositioningService {
     );
   }
 
-  private getMenuCoordinatesForRect(menu: HTMLDivElement, rect: DOMRect): MenuCoordinates {
+  private getMenuCoordinatesForRect(
+    menu: HTMLDivElement,
+    rect: DOMRect,
+    elem: SuggestionElement,
+  ): MenuCoordinates {
     const menuDimensions = this.getMenuDimensions(menu);
-    const coordinates: MenuCoordinates = {
-      position: "fixed",
-      left: rect.left,
-      top: rect.top + rect.height,
+    const viewportPadding = SuggestionPositioningService.VIEWPORT_PADDING_PX;
+    const gap = SuggestionPositioningService.CARET_GAP_PX;
+    const availableBelow = Math.max(0, window.innerHeight - rect.bottom - gap - viewportPadding);
+    const availableAbove = Math.max(0, rect.top - gap - viewportPadding);
+    const maxHeight = Math.max(
+      96,
+      availableBelow >= availableAbove ? availableBelow : availableAbove,
+    );
+    const showBelow = availableBelow >= menuDimensions.height || availableBelow >= availableAbove;
+    const rawTop = showBelow
+      ? rect.bottom + gap
+      : rect.top - gap - Math.min(menuDimensions.height, maxHeight);
+    const top = this.clamp(
+      rawTop,
+      viewportPadding,
+      Math.max(
+        viewportPadding,
+        window.innerHeight - viewportPadding - Math.min(menuDimensions.height, maxHeight),
+      ),
+    );
+
+    const isRtl = window.getComputedStyle(elem).direction === "rtl";
+    const rawLeft = isRtl
+      ? rect.right - menuDimensions.width + SuggestionPositioningService.HORIZONTAL_OFFSET_PX
+      : rect.left - SuggestionPositioningService.HORIZONTAL_OFFSET_PX;
+    const left = this.clamp(
+      rawLeft,
+      viewportPadding,
+      Math.max(
+        viewportPadding,
+        window.innerWidth - viewportPadding - Math.max(1, menuDimensions.width),
+      ),
+    );
+
+    return {
+      left,
+      top,
+      maxHeight,
+      maxWidth: Math.max(1, window.innerWidth - viewportPadding * 2),
     };
-
-    const availableSpaceOnTop = rect.top;
-    const availableSpaceOnBottom = window.innerHeight - (rect.top + rect.height);
-
-    if (availableSpaceOnBottom < menuDimensions.height) {
-      if (
-        availableSpaceOnTop >= menuDimensions.height ||
-        availableSpaceOnTop > availableSpaceOnBottom
-      ) {
-        coordinates.top = "auto";
-        coordinates.bottom = window.innerHeight - rect.top;
-        if (availableSpaceOnBottom < menuDimensions.height) {
-          coordinates.maxHeight = availableSpaceOnTop;
-        }
-      } else if (availableSpaceOnTop < menuDimensions.height) {
-        coordinates.maxHeight = availableSpaceOnBottom;
-      }
-    }
-
-    const availableSpaceOnLeft = rect.left;
-    const availableSpaceOnRight = window.innerWidth - rect.left;
-
-    if (availableSpaceOnRight < menuDimensions.width) {
-      if (
-        availableSpaceOnLeft >= menuDimensions.width ||
-        availableSpaceOnLeft > availableSpaceOnRight
-      ) {
-        coordinates.left = "auto";
-        coordinates.right = window.innerWidth - rect.left;
-        if (availableSpaceOnRight < menuDimensions.width) {
-          coordinates.maxWidth = availableSpaceOnLeft;
-        }
-      } else if (availableSpaceOnLeft < menuDimensions.width) {
-        coordinates.maxWidth = availableSpaceOnRight;
-      }
-    }
-
-    return coordinates;
   }
 
   private getMenuDimensions(menu: HTMLDivElement): MenuDimensions {
-    menu.style.top = "0px";
-    menu.style.left = "0px";
-    menu.style.right = "auto";
-    menu.style.bottom = "auto";
-    menu.style.position = "fixed";
-    menu.style.visibility = "hidden";
-    menu.style.display = "block";
+    const previous = {
+      top: menu.style.top,
+      left: menu.style.left,
+      right: menu.style.right,
+      bottom: menu.style.bottom,
+      position: menu.style.position,
+      visibility: menu.style.visibility,
+      display: menu.style.display,
+    };
+
+    menu.style.setProperty("top", "0px", "important");
+    menu.style.setProperty("left", "0px", "important");
+    menu.style.setProperty("right", "auto", "important");
+    menu.style.setProperty("bottom", "auto", "important");
+    menu.style.setProperty("position", "fixed", "important");
+    menu.style.setProperty("visibility", "hidden", "important");
+    menu.style.setProperty("display", "block", "important");
 
     const dimensions: MenuDimensions = {
       width: menu.offsetWidth,
       height: menu.offsetHeight,
     };
 
-    menu.style.display = "none";
-    menu.style.visibility = "visible";
+    menu.style.position = previous.position;
+    menu.style.top = previous.top;
+    menu.style.left = previous.left;
+    menu.style.right = previous.right;
+    menu.style.bottom = previous.bottom;
+    menu.style.visibility = previous.visibility;
+    menu.style.display = previous.display;
 
     return dimensions;
+  }
+
+  private resolveTypographyAnchor(elem: SuggestionElement): HTMLElement {
+    if (TextTargetAdapter.isTextValue(elem)) {
+      return elem;
+    }
+
+    const selection = window.getSelection();
+    const anchorNode = selection?.anchorNode ?? null;
+    if (anchorNode && elem.contains(anchorNode)) {
+      if (anchorNode.nodeType === Node.TEXT_NODE) {
+        return anchorNode.parentElement ?? elem;
+      }
+      if (anchorNode instanceof HTMLElement) {
+        return anchorNode;
+      }
+    }
+
+    return elem;
+  }
+
+  private resolveFontSizePx(fontSize: string): number {
+    return Number.parseFloat(fontSize) || SuggestionPositioningService.DEFAULT_FONT_SIZE_PX;
+  }
+
+  private resolveLineHeightPx(lineHeight: string, fontSizePx: number): number {
+    const parsed = Number.parseFloat(lineHeight);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+    return fontSizePx * 1.35;
+  }
+
+  private clamp(value: number, min: number, max: number): number {
+    return Math.max(min, Math.min(value, max));
   }
 
   private createRect(left: number, top: number, width: number, height: number): DOMRect {

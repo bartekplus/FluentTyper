@@ -72,3 +72,26 @@ export function createRect(left = 10, top = 20, width = 30, height = 12): DOMRec
     toJSON: () => ({ left, top, width, height }),
   } as DOMRect;
 }
+
+export function getSuggestionMenuRoots(doc: Document = document): ParentNode[] {
+  return Array.from(doc.querySelectorAll<HTMLElement>(".ft-suggestion-container")).map(
+    (container) => container.shadowRoot ?? container,
+  );
+}
+
+export function querySuggestionMenuItems(doc: Document = document): HTMLLIElement[] {
+  return getSuggestionMenuRoots(doc).flatMap(
+    (root) => Array.from(root.querySelectorAll("li[data-index]")) as HTMLLIElement[],
+  );
+}
+
+export function querySuggestionMenuItemByIndex(
+  index: number,
+  doc: Document = document,
+): HTMLLIElement | null {
+  return (
+    getSuggestionMenuRoots(doc)
+      .map((root) => root.querySelector(`li[data-index="${index}"]`) as HTMLLIElement | null)
+      .find((item) => item !== null) ?? null
+  );
+}

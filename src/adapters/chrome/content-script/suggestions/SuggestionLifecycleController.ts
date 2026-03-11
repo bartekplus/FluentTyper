@@ -36,8 +36,8 @@ export class SuggestionLifecycleController {
     entry.elem.addEventListener("click", entry.handlers.click, true);
     entry.elem.addEventListener("compositionstart", entry.handlers.compositionStart, true);
     entry.elem.addEventListener("compositionend", entry.handlers.compositionEnd, true);
-    entry.menu.addEventListener("mousedown", entry.handlers.menuMouseDown);
-    entry.menu.addEventListener("click", entry.handlers.menuClick);
+    entry.list.addEventListener("mousedown", entry.handlers.menuMouseDown);
+    entry.list.addEventListener("click", entry.handlers.menuClick);
 
     this.attachedEntryCount += 1;
     this.ensureDocumentPointerDownListener();
@@ -53,8 +53,8 @@ export class SuggestionLifecycleController {
     entry.elem.removeEventListener("click", entry.handlers.click, true);
     entry.elem.removeEventListener("compositionstart", entry.handlers.compositionStart, true);
     entry.elem.removeEventListener("compositionend", entry.handlers.compositionEnd, true);
-    entry.menu.removeEventListener("mousedown", entry.handlers.menuMouseDown);
-    entry.menu.removeEventListener("click", entry.handlers.menuClick);
+    entry.list.removeEventListener("mousedown", entry.handlers.menuMouseDown);
+    entry.list.removeEventListener("click", entry.handlers.menuClick);
 
     this.attachedEntryCount = Math.max(0, this.attachedEntryCount - 1);
     if (this.attachedEntryCount === 0) {

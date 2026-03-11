@@ -670,6 +670,8 @@ async function prepareReusableTestPage(browser: Browser, page: Page | null): Pro
 async function waitForSuggestionTexts(page: Page): Promise<string[]> {
   const handle = await page.waitForFunction(
     () => {
+      const getMenuRoot = (container: Element): ParentNode =>
+        (container as HTMLElement).shadowRoot ?? container;
       const activeElement = document.activeElement as
         | (HTMLElement & { suggestionMenu?: Element | null })
         | null;
@@ -690,7 +692,7 @@ async function waitForSuggestionTexts(page: Page): Promise<string[]> {
         ) {
           continue;
         }
-        const visibleTexts = Array.from(container.querySelectorAll("li"))
+        const visibleTexts = Array.from(getMenuRoot(container).querySelectorAll("li[data-index]"))
           .map((li) => li.textContent ?? "")
           .filter((text) => text.length > 0);
         if (visibleTexts.length > 0) {
@@ -710,6 +712,10 @@ async function getVisibleSuggestionThemeSnapshot(page: Page): Promise<{
 }> {
   const handle = await page.waitForFunction(
     () => {
+      const getPanel = (container: Element): Element =>
+        ((container as HTMLElement).shadowRoot?.querySelector(
+          ".ft-suggestion-panel",
+        ) as Element | null) ?? container;
       const activeElement = document.activeElement as
         | (HTMLElement & { suggestionMenu?: Element | null })
         | null;
@@ -733,7 +739,7 @@ async function getVisibleSuggestionThemeSnapshot(page: Page): Promise<{
         const overrideCssText =
           document.getElementById("fluent-typer-theme-overrides")?.textContent ?? null;
         return {
-          backgroundColor: style.backgroundColor,
+          backgroundColor: window.getComputedStyle(getPanel(container)).backgroundColor,
           overrideCssText,
         };
       }

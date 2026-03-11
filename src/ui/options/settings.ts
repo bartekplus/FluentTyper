@@ -301,7 +301,7 @@ const themePresets = {
     suggestionHighlightBgDark: "rgba(30, 41, 59, 0.92)",
     suggestionHighlightTextDark: "#f8fafc",
     suggestionBorderDark: "rgba(71, 85, 105, 0.72)",
-    suggestionFontSize: "0.85rem",
+    suggestionFontSize: "0.8rem",
     suggestionPaddingVertical: "0.4rem",
     suggestionPaddingHorizontal: "0.6rem",
   },

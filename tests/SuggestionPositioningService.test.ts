@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
 import { SuggestionPositioningService } from "../src/adapters/chrome/content-script/suggestions/SuggestionPositioningService";
+import {
+  SUGGESTION_POPUP_FONT_FAMILY,
+  SUGGESTION_POPUP_FONT_WEIGHT,
+  SUGGESTION_POPUP_LETTER_SPACING,
+  SUGGESTION_POPUP_TEXT_TRANSFORM,
+} from "../src/adapters/chrome/content-script/suggestions/SuggestionPopupTypography";
 import { createRect } from "./suggestionTestUtils";
 
 class CaretPositioningService extends SuggestionPositioningService {
@@ -66,6 +72,61 @@ describe("SuggestionPositioningService", () => {
 
     const positioned = service.positionMenu(menu, target);
     expect(positioned).toBe(false);
+  });
+
+  test("keeps popup typography product-owned while adapting its size to the active text node", () => {
+    const service = new SuggestionPositioningService();
+    const menu = document.createElement("div");
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML =
+      '<span style="font-size: 18px; font-family: Georgia; font-weight: 900; letter-spacing: 0.2em; text-transform: uppercase;">Hello</span>';
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+
+    const textNode = editable.querySelector("span")?.firstChild as Text | null;
+    if (!textNode) {
+      throw new Error("Expected text node");
+    }
+
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Expected selection");
+    }
+    const range = document.createRange();
+    range.setStart(textNode, textNode.textContent?.length ?? 0);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    service.syncMenuTypography(menu, editable);
+
+    expect(menu.style.fontFamily).toBe(SUGGESTION_POPUP_FONT_FAMILY);
+    expect(menu.style.getPropertyValue("--ft-font-family")).toBe(SUGGESTION_POPUP_FONT_FAMILY);
+    expect(menu.style.getPropertyValue("--ft-font-weight")).toBe(SUGGESTION_POPUP_FONT_WEIGHT);
+    expect(menu.style.getPropertyValue("--ft-letter-spacing")).toBe(
+      SUGGESTION_POPUP_LETTER_SPACING,
+    );
+    expect(menu.style.getPropertyValue("--ft-text-transform")).toBe(
+      SUGGESTION_POPUP_TEXT_TRANSFORM,
+    );
+    expect(menu.style.getPropertyValue("--ft-font-size")).toBe("16px");
+    expect(menu.style.getPropertyValue("--ft-row-height")).toBe("28px");
+    expect(menu.style.getPropertyValue("--ft-panel-min-width")).toBe("168px");
+  });
+
+  test("keeps popup width compact even when the target field is very wide", () => {
+    const service = new SuggestionPositioningService();
+    const menu = document.createElement("div");
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+
+    jest.spyOn(input, "getBoundingClientRect").mockReturnValue(createRect(0, 0, 960, 40));
+
+    service.syncMenuTypography(menu, input);
+
+    expect(menu.style.getPropertyValue("--ft-panel-min-width")).toBe("156px");
+    expect(menu.style.getPropertyValue("--ft-pad-y")).toBe("4px");
   });
 
   test("cleans up marker fallback and keeps selection valid for zero-height ranges", () => {

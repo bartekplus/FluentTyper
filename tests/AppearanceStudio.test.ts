@@ -35,7 +35,7 @@ const DEFAULT_THEME = {
   [KEY_SUGGESTION_HIGHLIGHT_BG_DARK]: "#1e293b",
   [KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK]: "#f8fafc",
   [KEY_SUGGESTION_BORDER_DARK]: "#334155",
-  [KEY_SUGGESTION_FONT_SIZE]: "0.9rem",
+  [KEY_SUGGESTION_FONT_SIZE]: "0.85rem",
   [KEY_SUGGESTION_PADDING_VERTICAL]: "0.6rem",
   [KEY_SUGGESTION_PADDING_HORIZONTAL]: "0.8rem",
 };
@@ -51,7 +51,7 @@ const COMPACT_THEME = {
   [KEY_SUGGESTION_HIGHLIGHT_BG_DARK]: "rgba(30, 41, 59, 0.92)",
   [KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK]: "#f8fafc",
   [KEY_SUGGESTION_BORDER_DARK]: "rgba(71, 85, 105, 0.72)",
-  [KEY_SUGGESTION_FONT_SIZE]: "0.85rem",
+  [KEY_SUGGESTION_FONT_SIZE]: "0.8rem",
   [KEY_SUGGESTION_PADDING_VERTICAL]: "0.4rem",
   [KEY_SUGGESTION_PADDING_HORIZONTAL]: "0.6rem",
 };
@@ -288,6 +288,21 @@ describe("AppearanceStudio theme value compatibility", () => {
     expect(root.textContent).toContain("Ultra compact");
     expect(root.textContent).toContain("Comfortable");
     expect(root.textContent).toContain("Extra wide");
+  });
+
+  test("text size defaults to the balanced middle step", () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    const { registry } = createRegistry(DEFAULT_THEME);
+
+    new AppearanceStudio(root, registry as never, {
+      default: DEFAULT_THEME,
+      compact: COMPACT_THEME,
+    });
+
+    const selects = root.querySelectorAll<HTMLSelectElement>(".settings-stack-field select");
+    expect(selects[0]?.value).toBe("0.85rem");
+    expect(selects[0]?.selectedOptions[0]?.textContent).toBe("Balanced");
   });
 
   test("contrast checks use readability language instead of raw ratios", () => {

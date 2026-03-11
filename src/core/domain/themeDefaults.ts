@@ -28,7 +28,7 @@ export const DEFAULT_SUGGESTION_THEME_SETTINGS: SuggestionThemeSettings = {
   suggestionHighlightBgDark: "#1e293b",
   suggestionHighlightTextDark: "#f8fafc",
   suggestionBorderDark: "#334155",
-  suggestionFontSize: "0.9rem",
+  suggestionFontSize: "0.85rem",
   suggestionPaddingVertical: "0.6rem",
   suggestionPaddingHorizontal: "0.8rem",
 };

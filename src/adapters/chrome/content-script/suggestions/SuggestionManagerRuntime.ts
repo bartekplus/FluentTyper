@@ -368,8 +368,7 @@ export class SuggestionManagerRuntime {
 
     const id = this.entryRegistry.allocateId();
 
-    const menu = SuggestionMenuView.ensureMenu(document.body);
-    const list = menu.querySelector("ul") as HTMLUListElement;
+    const { menu, list } = SuggestionMenuView.ensureMenu(document.body ?? document.documentElement);
 
     const entry: SuggestionEntry = {
       id,
@@ -431,6 +430,7 @@ export class SuggestionManagerRuntime {
 
     elem.setAttribute("data-tribute", "true");
     elem.setAttribute("data-suggestion", "true");
+    menu.dataset.ftSuggestionId = String(id);
     elem.tributeMenu = menu;
     elem.suggestionMenu = menu;
 
@@ -648,12 +648,11 @@ export class SuggestionManagerRuntime {
 
   private onMenuClick(id: number, event: Event): void {
     this.activeEntryId = id;
-    const target = event.target as HTMLElement | null;
-    if (!target) {
-      return;
-    }
-
-    const item = target.closest("li");
+    const item = (
+      typeof event.composedPath === "function" ? event.composedPath() : [event.target]
+    ).find((node) => node instanceof HTMLElement && node.matches("li[data-index]")) as
+      | HTMLElement
+      | undefined;
     if (!item) {
       return;
     }
