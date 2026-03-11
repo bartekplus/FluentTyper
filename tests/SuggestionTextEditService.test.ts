@@ -847,17 +847,17 @@ describe("SuggestionTextEditService", () => {
 
     expect(accepted).toEqual({
       triggerText: "bes",
-      insertedText: "best ",
+      insertedText: "best\u00A0",
       cursorAfter: 17,
       cursorAfterIsBlockLocal: true,
     });
-    expect(secondParagraph.textContent).toBe("What is the best ");
+    expect(secondParagraph.textContent).toBe("What is the best\u00A0");
     expect((editable.querySelectorAll("p")[0] as HTMLElement).textContent).toBe("Intro line");
     expect(adapter.lastScopeRoot).toBe(secondParagraph);
     expect(adapter.lastReplaceStart).toBe(12);
     expect(adapter.lastReplaceEnd).toBe(15);
     expect(entry.pendingExtensionEdit?.blockScoped).toBe(true);
-    expect(entry.pendingExtensionEdit?.postEditBlockText).toBe("What is the best ");
+    expect(entry.pendingExtensionEdit?.postEditBlockText).toBe("What is the best\u00A0");
   });
 
   test("uses a generic host editor session for contenteditable acceptance when capabilities match", () => {
@@ -968,7 +968,7 @@ describe("SuggestionTextEditService", () => {
     expect(editable.textContent).toBe("What is the best ");
     expect(entry.pendingExtensionEdit?.postEditFingerprint.fullText).toBe("What is the best ");
     expect(entry.pendingExtensionEdit?.postEditFingerprint.cursorOffset).toBe(17);
-    expect(entry.pendingExtensionEdit?.awaitingHostInputEcho).toBe(false);
+    expect(entry.pendingExtensionEdit?.awaitingHostInputEcho ?? false).toBe(false);
   });
 
   test("restores the visible block caret after host-owned acceptance when the host model does not update DOM selection itself", () => {
@@ -1087,12 +1087,12 @@ describe("SuggestionTextEditService", () => {
 
     expect(accepted).toEqual({
       triggerText: "bes",
-      insertedText: "best ",
+      insertedText: "best\u00A0",
       cursorAfter: 17,
       cursorAfterIsBlockLocal: true,
     });
     expect(hostModel.getReplaceRangeCalls()).toBe(0);
-    expect(hostModel.editable.textContent).toBe("What is the best ");
+    expect(hostModel.editable.textContent).toBe("What is the best\u00A0");
   });
 
   test("falls back to generic DOM contenteditable acceptance when host cursor context drifts on identical line text", () => {
@@ -1133,12 +1133,12 @@ describe("SuggestionTextEditService", () => {
 
     expect(accepted).toEqual({
       triggerText: "lin",
-      insertedText: "line",
-      cursorAfter: 11,
+      insertedText: "line\u00A0",
+      cursorAfter: 12,
       cursorAfterIsBlockLocal: true,
     });
     expect(applyCalls).toBe(0);
-    expect(editable.textContent).toBe("repeat line");
+    expect(editable.textContent).toBe("repeat line\u00A0");
   });
 
   test("arms pending contenteditable suggestion edit before synthetic input dispatch", () => {
@@ -1177,13 +1177,13 @@ describe("SuggestionTextEditService", () => {
 
     expect(accepted).toEqual({
       triggerText: "bes",
-      insertedText: "best ",
+      insertedText: "best\u00A0",
       cursorAfter: 17,
       cursorAfterIsBlockLocal: true,
     });
     expect(pendingEditDuringInput?.blockScoped).toBe(true);
-    expect(pendingEditDuringInput?.replacementText).toBe("best ");
-    expect(pendingEditDuringInput?.postEditBlockText).toBe("What is the best ");
+    expect(pendingEditDuringInput?.replacementText).toBe("best\u00A0");
+    expect(pendingEditDuringInput?.postEditBlockText).toBe("What is the best\u00A0");
   });
 
   test("treats deferred host-owned contenteditable acceptance as successful", () => {
@@ -1215,13 +1215,13 @@ describe("SuggestionTextEditService", () => {
 
     expect(accepted).toEqual({
       triggerText: "Wh",
-      insertedText: "What ",
+      insertedText: "What\u00A0",
       cursorAfter: 5,
       cursorAfterIsBlockLocal: true,
     });
     expect(entry.pendingExtensionEdit?.blockScoped).toBe(true);
-    expect(entry.pendingExtensionEdit?.replacementText).toBe("What ");
-    expect(entry.pendingExtensionEdit?.postEditBlockText).toBe("What ");
+    expect(entry.pendingExtensionEdit?.replacementText).toBe("What\u00A0");
+    expect(entry.pendingExtensionEdit?.postEditBlockText).toBe("What\u00A0");
     expect(entry.pendingExtensionEdit?.awaitingHostInputEcho).toBe(true);
     expect(editable.textContent).toBe("Wh");
   });
@@ -1278,6 +1278,21 @@ describe("SuggestionTextEditService", () => {
       elem: input,
       missingTrailingSpace: true,
       expectedCursorPos: input.value.length,
+      suppressNextSuggestionInputPrediction: true,
+      pendingExtensionEdit: {
+        replaceStart: 0,
+        originalText: "Wa",
+        replacementText: "Was",
+        cursorBefore: 2,
+        cursorAfter: 3,
+        postEditFingerprint: {
+          fullText: "Was",
+          cursorOffset: 3,
+          selectionCollapsed: true,
+        },
+        awaitingHostInputEcho: true,
+        source: "suggestion",
+      },
     });
 
     let consumed = false;
@@ -1298,6 +1313,107 @@ describe("SuggestionTextEditService", () => {
     expect(input.selectionEnd).toBe(6);
     expect(entry.missingTrailingSpace).toBe(false);
     expect(entry.expectedCursorPos).toBe(0);
+  });
+
+  test("clears delayed post-accept spacing when the user types a literal space", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+    });
+
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = "Was";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    document.body.appendChild(input);
+
+    const entry = createSuggestionEntry({
+      elem: input,
+      missingTrailingSpace: true,
+      expectedCursorPos: input.value.length,
+    });
+
+    let consumed = false;
+    const keyboardEvent = new Event("keydown", {
+      bubbles: true,
+      cancelable: true,
+    }) as KeyboardEvent;
+    Object.defineProperty(keyboardEvent, "key", { value: " " });
+
+    service.handleMissingSpaceAfterAccept(entry, keyboardEvent, () => {
+      consumed = true;
+      keyboardEvent.preventDefault();
+    });
+
+    expect(consumed).toBe(false);
+    expect(input.value).toBe("Was");
+    expect(entry.missingTrailingSpace).toBe(false);
+    expect(entry.expectedCursorPos).toBe(0);
+    expect(entry.suppressNextSuggestionInputPrediction).toBe(false);
+    expect(entry.pendingExtensionEdit?.awaitingHostInputEcho ?? false).toBe(false);
+  });
+
+  test("clears delayed post-accept spacing when the user types a literal space in contenteditable", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+    });
+
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    editable.textContent = "Was";
+    document.body.appendChild(editable);
+    setContentEditableCursor(editable, 3);
+
+    const entry = createSuggestionEntry({
+      elem: editable,
+      missingTrailingSpace: true,
+      expectedCursorPos: 3,
+      expectedCursorPosIsBlockLocal: true,
+      expectedCursorPosBlockElement: editable,
+      expectedCursorPosBlockText: "Was",
+      suppressNextSuggestionInputPrediction: true,
+      pendingExtensionEdit: {
+        replaceStart: 0,
+        originalText: "Wa",
+        replacementText: "Was",
+        cursorBefore: 2,
+        cursorAfter: 3,
+        postEditFingerprint: {
+          fullText: "",
+          cursorOffset: 3,
+          selectionCollapsed: true,
+        },
+        awaitingHostInputEcho: true,
+        source: "suggestion",
+        blockScoped: true,
+        blockElement: editable,
+        postEditBlockText: "Was",
+      },
+    });
+
+    let consumed = false;
+    const keyboardEvent = new Event("keydown", {
+      bubbles: true,
+      cancelable: true,
+    }) as KeyboardEvent;
+    Object.defineProperty(keyboardEvent, "key", { value: " " });
+
+    service.handleMissingSpaceAfterAccept(entry, keyboardEvent, () => {
+      consumed = true;
+      keyboardEvent.preventDefault();
+    });
+
+    expect(consumed).toBe(false);
+    expect(entry.missingTrailingSpace).toBe(false);
+    expect(entry.expectedCursorPos).toBe(0);
+    expect(entry.expectedCursorPosIsBlockLocal).toBe(false);
+    expect(entry.expectedCursorPosBlockElement).toBeNull();
+    expect(entry.expectedCursorPosBlockText).toBeNull();
+    expect(entry.suppressNextSuggestionInputPrediction).toBe(false);
+    expect(entry.pendingExtensionEdit?.awaitingHostInputEcho).toBe(false);
   });
 
   test("uses the host editor path for delayed post-accept spacing in host-owned contenteditables", () => {

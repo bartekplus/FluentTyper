@@ -231,11 +231,11 @@ export class SuggestionTextEditService {
       baseReplaceEnd + extraWhitespaceToConsume,
     );
     const consumedTrailingWhitespace = currentFullText.slice(baseReplaceEnd, finalReplaceEnd);
-    const replacementText = this.normalizeContentEditableTrailingSpace(
-      entry.elem,
-      suggestion,
+    const replacementText = this.normalizeContentEditableTrailingSpace(entry.elem, suggestion, {
       beforeBlockBoundary,
-    );
+      endsAtBlockBoundary: finalReplaceEnd >= currentFullText.length,
+      hostOwned: false,
+    });
 
     const cursorAfter = replaceStart + replacementText.length;
     const originalText = `${replacedTokenText}${consumedTrailingWhitespace}`;
@@ -741,6 +741,13 @@ export class SuggestionTextEditService {
     }
 
     if (!(key.length === 1 && key.trim().length > 0)) {
+      if (key.length === 1) {
+        this.clearMissingTrailingSpaceState(entry);
+        entry.suppressNextSuggestionInputPrediction = false;
+        if (entry.pendingExtensionEdit) {
+          entry.pendingExtensionEdit.awaitingHostInputEcho = false;
+        }
+      }
       return;
     }
 
@@ -963,18 +970,28 @@ export class SuggestionTextEditService {
   private normalizeContentEditableTrailingSpace(
     elem: SuggestionElement,
     replacementText: string,
-    beforeBlockBoundary: boolean,
+    {
+      beforeBlockBoundary,
+      endsAtBlockBoundary,
+      hostOwned,
+    }: {
+      beforeBlockBoundary: boolean;
+      endsAtBlockBoundary: boolean;
+      hostOwned: boolean;
+    },
   ): string {
     if (
       TextTargetAdapter.isTextValue(elem) ||
-      !beforeBlockBoundary ||
-      !/ $/.test(replacementText)
+      hostOwned ||
+      !/ $/.test(replacementText) ||
+      (!beforeBlockBoundary && !endsAtBlockBoundary)
     ) {
       return replacementText;
     }
 
     // Rich editors can drop a plain trailing space when an insertion lands
-    // immediately before a nested block. NBSP preserves the visible gap.
+    // immediately before a nested block or at the end of a block. NBSP
+    // preserves the visible gap and keeps the next typed character separated.
     return `${replacementText.slice(0, -1)}\xA0`;
   }
 
@@ -1065,11 +1082,19 @@ export class SuggestionTextEditService {
       ? ""
       : this.findTrailingToken(blockContext.afterCursor);
     const baseReplaceEnd = Math.min(blockSourceText.length, replaceEnd + trailingTokenText.length);
-    const rawReplacementText = this.normalizeContentEditableTrailingSpace(
-      entry.elem,
-      suggestion,
-      beforeBlockBoundary,
+    const hostEditorSession = this.resolveHostEditorSession(
+      entry.elem as HTMLElement,
+      {
+        beforeCursor: blockContext.beforeCursor,
+        afterCursor: blockContext.afterCursor,
+        blockText: blockSourceText,
+      },
     );
+    const rawReplacementText = this.normalizeContentEditableTrailingSpace(entry.elem, suggestion, {
+      beforeBlockBoundary,
+      endsAtBlockBoundary: baseReplaceEnd >= blockSourceText.length,
+      hostOwned: hostEditorSession !== null,
+    });
     const replacementText =
       trailingTokenText.length > 0 && / $/.test(rawReplacementText)
         ? rawReplacementText.slice(0, -1)
@@ -1126,14 +1151,6 @@ export class SuggestionTextEditService {
       postEditBlockText: expectedPostEditBlockText,
     };
 
-    const hostEditorSession = this.resolveHostEditorSession(
-      entry.elem as HTMLElement,
-      {
-        beforeCursor: blockContext.beforeCursor,
-        afterCursor: blockContext.afterCursor,
-        blockText: blockSourceText,
-      },
-    );
     const applyResult = hostEditorSession
       ? (() => {
           const result = hostEditorSession.applyBlockReplacement({

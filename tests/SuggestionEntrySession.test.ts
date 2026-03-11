@@ -696,14 +696,14 @@ test("session preserves a pending host-owned contenteditable accept through its 
     cancelPending: jest.fn(),
     findMentionToken: () => ({ token: "discord", start: 0 }),
   };
-  const contentEditableAdapter = {
-    ...new ContentEditableAdapter(),
+  const contentEditableAdapter = Object.assign(new ContentEditableAdapter(), {
     getActiveBlockElement: () => block,
+    hasMultipleBlockDescendants: () => false,
     getBlockContext: () => ({
-      beforeCursor: "dm medbae on disx",
-      afterCursor: "cord for any mistakes/feedback or typos in translation",
+      beforeCursor: "dm medbae on discord",
+      afterCursor: " for any mistakes/feedback or typos in translation",
     }),
-  } as ContentEditableAdapter;
+  }) as ContentEditableAdapter;
 
   const session = makeSession({
     entry,
@@ -712,15 +712,15 @@ test("session preserves a pending host-owned contenteditable accept through its 
     editableContextResolver: {
       resolve: () => ({
         kind: "contenteditable",
-        beforeCursor: "#->Elysian Realm recommended builds 8.7<-\ndm medbae on disx",
-        afterCursor: "cord for any mistakes/feedback or typos in translation",
+        beforeCursor: "#->Elysian Realm recommended builds 8.7<-\ndm medbae on discord",
+        afterCursor: " for any mistakes/feedback or typos in translation",
         fullText:
-          "#->Elysian Realm recommended builds 8.7<-\ndm medbae on disxcord for any mistakes/feedback or typos in translation",
-        cursorOffset: 59,
+          "#->Elysian Realm recommended builds 8.7<-\ndm medbae on discord for any mistakes/feedback or typos in translation",
+        cursorOffset: 62,
         selectionStable: true,
         blockContext: {
-          beforeCursor: "dm medbae on disx",
-          afterCursor: "cord for any mistakes/feedback or typos in translation",
+          beforeCursor: "dm medbae on discord",
+          afterCursor: " for any mistakes/feedback or typos in translation",
         },
       }),
     },
@@ -732,6 +732,85 @@ test("session preserves a pending host-owned contenteditable accept through its 
   expect(entry.pendingExtensionEdit?.awaitingHostInputEcho).toBe(false);
   expect(entry.suppressNextSuggestionInputPrediction).toBe(true);
   expect(predictionCoordinator.schedule).not.toHaveBeenCalled();
+});
+
+test("session does not suppress a real user edit while awaiting a host echo once the snapshot has advanced past the accepted state", () => {
+  const editable = document.createElement("div");
+  editable.setAttribute("contenteditable", "true");
+  Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+  const block = document.createElement("p");
+  block.textContent = "Was w";
+  editable.appendChild(block);
+  document.body.appendChild(editable);
+
+  const entry = createSuggestionEntry({
+    elem: editable as SuggestionEntry["elem"],
+    requestId: 5,
+    suppressNextSuggestionInputPrediction: true,
+    lastKeydownKey: "w",
+    pendingExtensionEdit: {
+      replaceStart: 0,
+      originalText: "Wa",
+      replacementText: "Was",
+      cursorBefore: 2,
+      cursorAfter: 3,
+      postEditFingerprint: {
+        fullText: "",
+        cursorOffset: 3,
+        selectionCollapsed: true,
+      },
+      awaitingHostInputEcho: true,
+      source: "suggestion",
+      blockScoped: true,
+      blockElement: block,
+      postEditBlockText: "Was",
+    },
+  });
+
+  const predictionCoordinator = {
+    shouldProcessResponse: (_entry: SuggestionEntry, context: PredictionResponse) =>
+      context.requestId === entry.requestId,
+    schedule: jest.fn(),
+    reconcile: jest.fn(),
+    cancelPending: jest.fn(),
+    findMentionToken: () => ({ token: "w", start: 4 }),
+  };
+  const contentEditableAdapter = Object.assign(new ContentEditableAdapter(), {
+    getActiveBlockElement: () => block,
+    hasMultipleBlockDescendants: () => false,
+    getBlockContext: () => ({
+      beforeCursor: "Was w",
+      afterCursor: "",
+    }),
+  }) as ContentEditableAdapter;
+
+  const session = makeSession({
+    entry,
+    predictionCoordinator,
+    contentEditableAdapter,
+    editableContextResolver: {
+      resolve: () => ({
+        kind: "contenteditable",
+        beforeCursor: "Was w",
+        afterCursor: "",
+        fullText: "Was w",
+        cursorOffset: 5,
+        selectionStable: true,
+        blockContext: {
+          beforeCursor: "Was w",
+          afterCursor: "",
+        },
+      }),
+    },
+  });
+  const inputEvent = new Event("input") as InputEvent;
+  Object.defineProperty(inputEvent, "inputType", { value: "insertText" });
+
+  session.handleInput(inputEvent);
+
+  expect(entry.pendingExtensionEdit?.awaitingHostInputEcho ?? false).toBe(false);
+  expect(entry.suppressNextSuggestionInputPrediction).toBe(false);
+  expect(predictionCoordinator.schedule).toHaveBeenCalledTimes(1);
 });
 
 test("session does not suppress the first real user edit after host-owned accept when no echo is pending", () => {
@@ -812,6 +891,97 @@ test("session does not suppress the first real user edit after host-owned accept
 
   expect(entry.suppressNextSuggestionInputPrediction).toBe(false);
   expect(predictionCoordinator.schedule).toHaveBeenCalledTimes(1);
+});
+
+test("session releases post-accept suppression on a literal space keydown when no host echo is pending", () => {
+  const entry = createSuggestionEntry({
+    requestId: 2,
+    suppressNextSuggestionInputPrediction: true,
+    missingTrailingSpace: true,
+    expectedCursorPos: 3,
+    pendingExtensionEdit: {
+      replaceStart: 0,
+      originalText: "Wa",
+      replacementText: "Was",
+      cursorBefore: 2,
+      cursorAfter: 3,
+      postEditFingerprint: {
+        fullText: "Was",
+        cursorOffset: 3,
+        selectionCollapsed: true,
+      },
+      awaitingHostInputEcho: false,
+      source: "suggestion",
+    },
+  });
+  const session = makeSession({ entry });
+  const dispatchKeyboard = jest.fn();
+  const dismissEntry = jest.fn();
+  const clearPendingFallback = jest.fn();
+  const storePendingFallback = jest.fn();
+  const runReconcile = jest.fn();
+  const keyboardEvent = new Event("keydown", {
+    bubbles: true,
+    cancelable: true,
+  }) as KeyboardEvent;
+  Object.defineProperty(keyboardEvent, "key", { value: " " });
+
+  session.handleKeyDown(keyboardEvent, {
+    dispatchKeyboard,
+    dismissEntry,
+    clearPendingFallback,
+    storePendingFallback,
+    runReconcile,
+  });
+
+  expect(dispatchKeyboard).toHaveBeenCalledTimes(1);
+  expect(entry.suppressNextSuggestionInputPrediction).toBe(false);
+  expect(entry.missingTrailingSpace).toBe(false);
+  expect(entry.expectedCursorPos).toBe(0);
+  expect(entry.pendingExtensionEdit).toBeNull();
+});
+
+test("session keeps post-accept suppression on space keydown while a host echo is still pending", () => {
+  const entry = createSuggestionEntry({
+    requestId: 2,
+    suppressNextSuggestionInputPrediction: true,
+    missingTrailingSpace: true,
+    expectedCursorPos: 3,
+    pendingExtensionEdit: {
+      replaceStart: 0,
+      originalText: "Wa",
+      replacementText: "Was",
+      cursorBefore: 2,
+      cursorAfter: 3,
+      postEditFingerprint: {
+        fullText: "Was",
+        cursorOffset: 3,
+        selectionCollapsed: true,
+      },
+      awaitingHostInputEcho: true,
+      source: "suggestion",
+    },
+  });
+  const session = makeSession({ entry });
+  const dispatchKeyboard = jest.fn();
+  const keyboardEvent = new Event("keydown", {
+    bubbles: true,
+    cancelable: true,
+  }) as KeyboardEvent;
+  Object.defineProperty(keyboardEvent, "key", { value: " " });
+
+  session.handleKeyDown(keyboardEvent, {
+    dispatchKeyboard,
+    dismissEntry: jest.fn(),
+    clearPendingFallback: jest.fn(),
+    storePendingFallback: jest.fn(),
+    runReconcile: jest.fn(),
+  });
+
+  expect(dispatchKeyboard).toHaveBeenCalledTimes(1);
+  expect(entry.suppressNextSuggestionInputPrediction).toBe(true);
+  expect(entry.missingTrailingSpace).toBe(true);
+  expect(entry.pendingExtensionEdit?.awaitingHostInputEcho).toBe(true);
 });
 
 test("session does not request inline suggestion while post-accept suppression is active", () => {

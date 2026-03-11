@@ -184,6 +184,11 @@ export class SuggestionEntrySession {
       return;
     }
 
+    if (this.shouldReleaseAcceptedSuggestionSuppressionOnKeydown(keyboardEvent)) {
+      this.clearAcceptedSuggestionTransientState();
+      this.entry.suppressNextSuggestionInputPrediction = false;
+    }
+
     if (this.shouldInvalidatePendingExtensionEditOnKeydown(keyboardEvent)) {
       this.clearAcceptedSuggestionTransientState();
     }
@@ -237,6 +242,7 @@ export class SuggestionEntrySession {
     }
     if (this.entry.suppressNextSuggestionInputPrediction) {
       const snapshot = TextTargetAdapter.snapshot(this.entry.elem as TextTarget);
+      const preservesPendingExtensionEdit = this.shouldPreservePendingExtensionEdit(snapshot);
       logger.debug("Evaluating post-accept input suppression", {
         suggestionId: this.entry.id,
         requestId: this.entry.requestId,
@@ -251,10 +257,11 @@ export class SuggestionEntrySession {
         activeBlockTrace: this.buildActiveBlockTrace(),
       });
       const shouldSuppressAwaitedHostEcho =
-        this.entry.pendingExtensionEdit?.awaitingHostInputEcho === true;
+        this.entry.pendingExtensionEdit?.awaitingHostInputEcho === true &&
+        preservesPendingExtensionEdit;
       if (
         this.entry.pendingExtensionEdit !== null &&
-        (shouldSuppressAwaitedHostEcho || this.shouldPreservePendingExtensionEdit(snapshot))
+        (shouldSuppressAwaitedHostEcho || preservesPendingExtensionEdit)
       ) {
         if (shouldSuppressAwaitedHostEcho) {
           this.entry.pendingExtensionEdit.awaitingHostInputEcho = false;
@@ -278,6 +285,9 @@ export class SuggestionEntrySession {
         recentInteractionTrail: this.entry.recentInteractionTrail.slice(),
         activeBlockTrace: this.buildActiveBlockTrace(),
       });
+      if (this.entry.pendingExtensionEdit) {
+        this.entry.pendingExtensionEdit.awaitingHostInputEcho = false;
+      }
       this.entry.suppressNextSuggestionInputPrediction = false;
     }
 
@@ -1354,6 +1364,20 @@ export class SuggestionEntrySession {
       return true;
     }
     return ["ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"].includes(event.key);
+  }
+
+  private shouldReleaseAcceptedSuggestionSuppressionOnKeydown(event: KeyboardEvent): boolean {
+    if (
+      !this.entry.suppressNextSuggestionInputPrediction ||
+      !this.entry.missingTrailingSpace ||
+      this.entry.pendingExtensionEdit?.awaitingHostInputEcho === true
+    ) {
+      return false;
+    }
+    if (event.metaKey || event.ctrlKey || event.altKey || event.isComposing) {
+      return false;
+    }
+    return event.key.length === 1 && /^\s$/u.test(event.key);
   }
 
   private shouldScheduleInsertFallback(event: KeyboardEvent): boolean {
