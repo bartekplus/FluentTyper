@@ -352,7 +352,7 @@ export class MessageRouter {
       context: {
         text: request.context.text,
         nextChar: request.context.nextChar,
-        afterCursor: request.context.afterCursor,
+        afterCursorTokenSuffix: request.context.afterCursorTokenSuffix,
         inputAction: request.context.inputAction,
         lang: language,
         tabId,

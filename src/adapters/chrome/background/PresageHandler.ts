@@ -39,7 +39,7 @@ export interface PresageConfig {
 export interface PresagePredictionContext {
   text: string;
   nextChar: string;
-  afterCursor?: string;
+  afterCursorTokenSuffix?: string;
   lang: string;
   predictionInput: string;
   doPrediction: boolean;
@@ -170,7 +170,7 @@ export class PresageHandler {
     predictionInput: string,
     language: string,
     numSuggestions: number = this.numSuggestions,
-    afterCursor?: string,
+    afterCursorTokenSuffix?: string,
   ): {
     predictionInput: string;
     lastWord: string;
@@ -182,7 +182,7 @@ export class PresageHandler {
       language,
       numSuggestions,
       this.predictNextWordAfterSeparatorChar,
-      afterCursor,
+      afterCursorTokenSuffix,
     );
   }
 
@@ -228,7 +228,7 @@ export class PresageHandler {
     lang: string,
     numSuggestionsOverride?: number,
     tabId?: number,
-    afterCursor?: string,
+    afterCursorTokenSuffix?: string,
   ): PresagePredictionContext {
     const effectiveNumSuggestions =
       typeof numSuggestionsOverride === "number"
@@ -238,13 +238,13 @@ export class PresageHandler {
       text,
       lang,
       effectiveNumSuggestions,
-      afterCursor,
+      afterCursorTokenSuffix,
     );
 
     return {
       text,
       nextChar,
-      afterCursor,
+      afterCursorTokenSuffix,
       lang,
       predictionInput,
       doPrediction,
@@ -285,7 +285,7 @@ export class PresageHandler {
     nextChar: string,
     lang: string,
     configOverride?: { numSuggestions?: number; tabId?: number },
-    afterCursor?: string,
+    afterCursorTokenSuffix?: string,
   ): Promise<PredictionResult> {
     const context = this.preparePredictionContext(
       text,
@@ -293,7 +293,7 @@ export class PresageHandler {
       lang,
       configOverride?.numSuggestions,
       configOverride?.tabId,
-      afterCursor,
+      afterCursorTokenSuffix,
     );
     const predictions = await this.predictPresage(context);
     return this.finalizePrediction(predictions, context);

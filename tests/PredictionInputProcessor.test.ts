@@ -70,8 +70,8 @@ describe("PredictionInputProcessor", () => {
       expect(result.doPrediction).toBe(true);
       expect(Object.values(Capitalization)).toContain(result.doCapitalize);
     });
-    it("should extend the active word with the trailing text after the cursor", () => {
-      const result = processor.processInput("I like Whb", "en_US", 1, true, "tsoever now");
+    it("should extend the active word with the bounded token suffix after the cursor", () => {
+      const result = processor.processInput("I like Whb", "en_US", 1, true, "tsoever");
       expect(result.predictionInput).toBe("i like whbtsoever");
       expect(result.lastWord).toBe("Whbtsoever");
       expect(result.doPrediction).toBe(true);

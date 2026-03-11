@@ -590,7 +590,7 @@ describe("background routing and lifecycle", () => {
         context: {
           text: "hello",
           nextChar: "",
-          afterCursor: " world",
+          afterCursorTokenSuffix: "",
           inputAction: "delete",
           lang: "en_US",
           suggestionId: 1,
@@ -611,7 +611,7 @@ describe("background routing and lifecycle", () => {
         context: expect.objectContaining({
           text: "hello",
           nextChar: "",
-          afterCursor: " world",
+          afterCursorTokenSuffix: "",
           inputAction: "delete",
           lang: "en_US",
           tabId: 321,

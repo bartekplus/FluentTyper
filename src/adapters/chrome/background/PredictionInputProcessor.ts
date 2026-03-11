@@ -77,20 +77,14 @@ export class PredictionInputProcessor {
     return value.replaceAll(RegExp(additionalSeparatorRegex, "g"), " ");
   }
 
-  private resolveCurrentWordSuffix(afterCursor: string | undefined, language: string): string {
-    if (typeof afterCursor !== "string" || afterCursor.length === 0) {
+  private resolveCurrentWordSuffix(
+    afterCursorTokenSuffix: string | undefined,
+    language: string,
+  ): string {
+    if (typeof afterCursorTokenSuffix !== "string" || afterCursorTokenSuffix.length === 0) {
       return "";
     }
-    const normalizedAfterCursor = this.normalizeAdditionalSeparators(afterCursor, language);
-    let suffixEnd = 0;
-    while (suffixEnd < normalizedAfterCursor.length) {
-      const currentChar = normalizedAfterCursor.charAt(suffixEnd);
-      if (this.separatorCharRegex.test(currentChar) || this.whiteSpaceRegex.test(currentChar)) {
-        break;
-      }
-      suffixEnd += 1;
-    }
-    return normalizedAfterCursor.slice(0, suffixEnd);
+    return this.normalizeAdditionalSeparators(afterCursorTokenSuffix, language);
   }
 
   processInput(
@@ -98,7 +92,7 @@ export class PredictionInputProcessor {
     language: string,
     numSuggestions: number,
     predictNextWordAfterSeparatorChar: boolean,
-    afterCursor?: string,
+    afterCursorTokenSuffix?: string,
   ): {
     predictionInput: string;
     lastWord: string;
@@ -115,7 +109,7 @@ export class PredictionInputProcessor {
     }
     const endsWithSpace = predictionInput !== predictionInput.trimEnd();
     predictionInput = this.normalizeAdditionalSeparators(predictionInput, language);
-    const currentWordSuffix = this.resolveCurrentWordSuffix(afterCursor, language);
+    const currentWordSuffix = this.resolveCurrentWordSuffix(afterCursorTokenSuffix, language);
     const predictionInputWithCurrentWord = `${predictionInput}${currentWordSuffix}`;
     const lastWordsArray = predictionInputWithCurrentWord
       .split(this.whiteSpaceRegex)

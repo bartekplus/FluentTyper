@@ -247,10 +247,11 @@ export class SuggestionPredictionCoordinator {
     inputAction?: PredictionInputAction;
     traceContext: PredictionTraceContext;
   }): PredictionRequest {
+    const afterCursorTokenSuffix = this.extractAfterCursorTokenSuffix(afterCursor);
     return {
       text: beforeCursor,
       nextChar: afterCursor.charAt(0) || "",
-      afterCursor,
+      afterCursorTokenSuffix,
       suggestionId,
       requestId,
       lang: this.lang,
@@ -309,5 +310,17 @@ export class SuggestionPredictionCoordinator {
       start -= 1;
     }
     return { token: beforeCursor.slice(start), start };
+  }
+
+  private extractAfterCursorTokenSuffix(afterCursor: string): string {
+    let end = 0;
+    while (end < afterCursor.length) {
+      const current = afterCursor.charAt(end);
+      if (this.isSeparator(current) || /\s/u.test(current)) {
+        break;
+      }
+      end += 1;
+    }
+    return afterCursor.slice(0, end);
   }
 }

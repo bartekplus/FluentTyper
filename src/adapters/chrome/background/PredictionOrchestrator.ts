@@ -117,7 +117,7 @@ export class PredictionOrchestrator {
     nextChar: string,
     lang: string,
     configOverride?: PredictionRunConfig,
-    afterCursor?: string,
+    afterCursorTokenSuffix?: string,
   ): Promise<PredictionResult> {
     const startedAt = Date.now();
     const context = this.presageHandler.preparePredictionContext(
@@ -126,7 +126,7 @@ export class PredictionOrchestrator {
       lang,
       configOverride?.numSuggestions,
       configOverride?.tabId,
-      afterCursor,
+      afterCursorTokenSuffix,
     );
 
     const presageDebug: PredictorStageDebugInfo = {

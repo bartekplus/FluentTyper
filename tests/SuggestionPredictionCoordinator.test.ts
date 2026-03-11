@@ -104,7 +104,7 @@ describe("SuggestionPredictionCoordinator", () => {
       expect.objectContaining({
         text: "Hello.",
         nextChar: "",
-        afterCursor: "",
+        afterCursorTokenSuffix: "",
         suggestionId: 2,
         requestId: 1,
         lang: "en_US",
@@ -115,7 +115,7 @@ describe("SuggestionPredictionCoordinator", () => {
     );
   });
 
-  test("includes afterCursor text for mid-word edits", () => {
+  test("includes only the current token suffix for mid-word edits", () => {
     const getPrediction = jest.fn();
     const coordinator = new SuggestionPredictionCoordinator({
       debounceByAction: FIXED_DEBOUNCE_BY_ACTION,
@@ -126,7 +126,7 @@ describe("SuggestionPredictionCoordinator", () => {
     });
 
     const input = document.createElement("input");
-    input.value = "Whbtsoever";
+    input.value = "Whbtsoever now";
     input.selectionStart = 3;
     input.selectionEnd = 3;
     const entry = createSuggestionEntry({ id: 11, elem: input });
@@ -137,7 +137,7 @@ describe("SuggestionPredictionCoordinator", () => {
       expect.objectContaining({
         text: "Whb",
         nextChar: "t",
-        afterCursor: "tsoever",
+        afterCursorTokenSuffix: "tsoever",
         suggestionId: 11,
       }),
     );
