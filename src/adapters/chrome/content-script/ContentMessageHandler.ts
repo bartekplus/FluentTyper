@@ -83,6 +83,7 @@ export class ContentMessageHandler {
       context: {
         text: context.text,
         nextChar: context.nextChar,
+        afterCursor: context.afterCursor,
         inputAction: context.inputAction,
         suggestionId: context.suggestionId,
         requestId: context.requestId,

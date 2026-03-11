@@ -271,6 +271,7 @@ describe("content_script behavior", () => {
     fluentTyper.handleGetPrediction({
       text: "Hello.",
       nextChar: "",
+      afterCursor: "world",
       inputAction: "delete",
       suggestionId: 3,
       requestId: 10,
@@ -281,6 +282,7 @@ describe("content_script behavior", () => {
         command: "CMD_CONTENT_SCRIPT_PREDICT_REQ",
         context: expect.objectContaining({
           text: "Hello.",
+          afterCursor: "world",
           inputAction: "delete",
           suggestionId: 3,
           requestId: 10,

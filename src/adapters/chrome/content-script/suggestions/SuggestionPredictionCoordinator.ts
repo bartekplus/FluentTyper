@@ -250,6 +250,7 @@ export class SuggestionPredictionCoordinator {
     return {
       text: beforeCursor,
       nextChar: afterCursor.charAt(0) || "",
+      afterCursor,
       suggestionId,
       requestId,
       lang: this.lang,

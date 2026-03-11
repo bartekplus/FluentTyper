@@ -125,7 +125,7 @@ function installBackgroundHarnessModuleMocks(): void {
 
   jest.unstable_mockModule("../src/adapters/chrome/background/PredictionManager", () => ({
     PredictionManager: jest.fn().mockImplementation(() => ({
-      runPrediction: (...args: [string, string, string, unknown?, unknown?]) =>
+      runPrediction: (...args: [string, string, string, unknown?, unknown?, string?]) =>
         backgroundHarnessMocks.predictionRun(...args),
       initialize: () => backgroundHarnessMocks.predictionInitialize(),
       setConfig: (...args: [unknown]) => backgroundHarnessMocks.predictionSetConfig(...args),
@@ -590,6 +590,7 @@ describe("background routing and lifecycle", () => {
         context: {
           text: "hello",
           nextChar: "",
+          afterCursor: " world",
           inputAction: "delete",
           lang: "en_US",
           suggestionId: 1,
@@ -610,6 +611,7 @@ describe("background routing and lifecycle", () => {
         context: expect.objectContaining({
           text: "hello",
           nextChar: "",
+          afterCursor: " world",
           inputAction: "delete",
           lang: "en_US",
           tabId: 321,

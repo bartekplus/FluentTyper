@@ -136,6 +136,7 @@ export class PredictionManager {
     lang: string,
     configOverride?: { numSuggestions?: number },
     debugMeta?: PredictionDebugRequestMeta,
+    afterCursor?: string,
   ): Promise<PredictionResult> {
     await this.initialize();
     if (!this.predictionOrchestrator) {
@@ -165,6 +166,7 @@ export class PredictionManager {
         nextChar,
         lang,
         runConfig,
+        afterCursor,
       );
       this.recordTraceTimelineEvent(
         resolvedDebugMeta,

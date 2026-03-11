@@ -69,11 +69,36 @@ export class PredictionInputProcessor {
     return true;
   }
 
+  private normalizeAdditionalSeparators(value: string, language: string): string {
+    const additionalSeparatorRegex = LANG_ADDITIONAL_SEPARATOR_REGEX[language];
+    if (!additionalSeparatorRegex) {
+      return value;
+    }
+    return value.replaceAll(RegExp(additionalSeparatorRegex, "g"), " ");
+  }
+
+  private resolveCurrentWordSuffix(afterCursor: string | undefined, language: string): string {
+    if (typeof afterCursor !== "string" || afterCursor.length === 0) {
+      return "";
+    }
+    const normalizedAfterCursor = this.normalizeAdditionalSeparators(afterCursor, language);
+    let suffixEnd = 0;
+    while (suffixEnd < normalizedAfterCursor.length) {
+      const currentChar = normalizedAfterCursor.charAt(suffixEnd);
+      if (this.separatorCharRegex.test(currentChar) || this.whiteSpaceRegex.test(currentChar)) {
+        break;
+      }
+      suffixEnd += 1;
+    }
+    return normalizedAfterCursor.slice(0, suffixEnd);
+  }
+
   processInput(
     predictionInput: string,
     language: string,
     numSuggestions: number,
     predictNextWordAfterSeparatorChar: boolean,
+    afterCursor?: string,
   ): {
     predictionInput: string;
     lastWord: string;
@@ -89,11 +114,10 @@ export class PredictionInputProcessor {
       };
     }
     const endsWithSpace = predictionInput !== predictionInput.trimEnd();
-    const additionalSeparatorRegex = LANG_ADDITIONAL_SEPARATOR_REGEX[language];
-    if (additionalSeparatorRegex) {
-      predictionInput = predictionInput.replaceAll(RegExp(additionalSeparatorRegex, "g"), " ");
-    }
-    const lastWordsArray = predictionInput
+    predictionInput = this.normalizeAdditionalSeparators(predictionInput, language);
+    const currentWordSuffix = this.resolveCurrentWordSuffix(afterCursor, language);
+    const predictionInputWithCurrentWord = `${predictionInput}${currentWordSuffix}`;
+    const lastWordsArray = predictionInputWithCurrentWord
       .split(this.whiteSpaceRegex)
       .filter((e) => e.trim())
       .splice(-PAST_WORDS_COUNT);

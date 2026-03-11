@@ -104,12 +104,41 @@ describe("SuggestionPredictionCoordinator", () => {
       expect.objectContaining({
         text: "Hello.",
         nextChar: "",
+        afterCursor: "",
         suggestionId: 2,
         requestId: 1,
         lang: "en_US",
         inputAction: "delete",
         traceId: expect.any(String),
         traceStartedAtMs: expect.any(Number),
+      }),
+    );
+  });
+
+  test("includes afterCursor text for mid-word edits", () => {
+    const getPrediction = jest.fn();
+    const coordinator = new SuggestionPredictionCoordinator({
+      debounceByAction: FIXED_DEBOUNCE_BY_ACTION,
+      getPrediction,
+      lang: "en_US",
+      minWordLengthToPredict: 1,
+      separatorRegex: /\s+/,
+    });
+
+    const input = document.createElement("input");
+    input.value = "Whbtsoever";
+    input.selectionStart = 3;
+    input.selectionEnd = 3;
+    const entry = createSuggestionEntry({ id: 11, elem: input });
+
+    coordinator.schedule(entry, { force: true, clearSuggestions: jest.fn() });
+
+    expect(getPrediction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: "Whb",
+        nextChar: "t",
+        afterCursor: "tsoever",
+        suggestionId: 11,
       }),
     );
   });
