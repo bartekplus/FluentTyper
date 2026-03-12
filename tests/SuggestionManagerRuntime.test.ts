@@ -1170,6 +1170,42 @@ describe("SuggestionManagerRuntime", () => {
       expect(container?.style.left).toBe("132px");
     });
 
+    test("uses a high-contrast dark surface treatment for manual attach icon", () => {
+      const runtime = makeRuntime();
+      const shell = document.createElement("div");
+      const editorShell = document.createElement("div");
+      const editable = document.createElement("div");
+      const list = document.createElement("div");
+      list.id = "editable-list";
+      list.setAttribute("role", "listbox");
+      shell.style.backgroundColor = "rgb(29, 28, 29)";
+      editorShell.style.backgroundColor = "rgb(29, 28, 29)";
+      editable.setAttribute("contenteditable", "true");
+      Object.defineProperty(editable, "isContentEditable", {
+        configurable: true,
+        value: true,
+      });
+      editable.tabIndex = 0;
+      editable.setAttribute("role", "combobox");
+      editable.setAttribute("aria-expanded", "true");
+      editable.setAttribute("aria-controls", "editable-list");
+      editorShell.appendChild(editable);
+      shell.appendChild(editorShell);
+      document.body.append(shell, list);
+      mockRect(shell, { left: 10, top: 20, width: 260, height: 52 });
+      mockRect(editorShell, { left: 86, top: 24, width: 150, height: 40 });
+      mockRect(editable, { left: 94, top: 30, width: 150, height: 28 });
+
+      runtime.queryAndAttachHelper();
+
+      const button = getManualAttachButton(editorShell);
+      const icon = button?.querySelector("img");
+      expect(button).not.toBeNull();
+      expect(button?.style.backgroundColor).toBe("rgba(15, 23, 42, 0.92)");
+      expect(button?.style.borderColor).toBe("rgba(148, 163, 184, 0.34)");
+      expect(icon?.style.filter).not.toContain("grayscale");
+    });
+
     test("ignores non-overlapping rows when resolving contenteditable manual attach obstacles", () => {
       const runtime = makeRuntime();
       const shell = document.createElement("div");
