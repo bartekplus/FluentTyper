@@ -1134,6 +1134,42 @@ describe("SuggestionManagerRuntime", () => {
       expect(getManualAttachButton(editorShell)).not.toBeNull();
     });
 
+    test("ignores nested decorative descendants when positioning contenteditable manual attach icon", () => {
+      const runtime = makeRuntime();
+      const shell = document.createElement("div");
+      const editorShell = document.createElement("div");
+      const editable = document.createElement("div");
+      const decorationLayer = document.createElement("div");
+      const decorationIcon = document.createElement("span");
+      const list = document.createElement("div");
+      list.id = "editable-list";
+      list.setAttribute("role", "listbox");
+      editable.setAttribute("contenteditable", "true");
+      Object.defineProperty(editable, "isContentEditable", {
+        configurable: true,
+        value: true,
+      });
+      editable.tabIndex = 0;
+      editable.setAttribute("role", "combobox");
+      editable.setAttribute("aria-expanded", "true");
+      editable.setAttribute("aria-controls", "editable-list");
+      decorationLayer.appendChild(decorationIcon);
+      editorShell.append(editable, decorationLayer);
+      shell.appendChild(editorShell);
+      document.body.append(shell, list);
+      mockRect(shell, { left: 10, top: 20, width: 260, height: 52 });
+      mockRect(editorShell, { left: 86, top: 24, width: 150, height: 40 });
+      mockRect(editable, { left: 94, top: 30, width: 150, height: 28 });
+      mockRect(decorationLayer, { left: 214, top: 26, width: 18, height: 28 });
+      mockRect(decorationIcon, { left: 214, top: 30, width: 14, height: 14 });
+
+      runtime.queryAndAttachHelper();
+
+      const container = getManualAttachContainer(editorShell);
+      expect(container).not.toBeNull();
+      expect(container?.style.left).toBe("132px");
+    });
+
     test("ignores non-overlapping rows when resolving contenteditable manual attach obstacles", () => {
       const runtime = makeRuntime();
       const shell = document.createElement("div");

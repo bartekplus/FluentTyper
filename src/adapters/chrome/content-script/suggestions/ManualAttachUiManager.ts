@@ -4,6 +4,17 @@ const BUTTON_SIZE_PX = 18;
 const FIELD_INSET_PX = 8;
 const PADDING_RESERVE_PX = BUTTON_SIZE_PX + FIELD_INSET_PX * 2;
 const SUCCESS_STATE_MS = 650;
+const INLINE_OBSTACLE_SELECTOR = [
+  "button",
+  "a[href]",
+  "input",
+  "textarea",
+  "select",
+  "[contenteditable='true']",
+  "[role='button']",
+  "[role='combobox']",
+  "[role='textbox']",
+].join(", ");
 
 export const MANUAL_ATTACH_BUTTON_CLASS = "ft-manual-attach-button";
 export const MANUAL_ATTACH_TOOLTIP = "Click to enable FluentTyper for this field.";
@@ -351,11 +362,15 @@ export class ManualAttachUiManager {
     }
     const elementRect = element.getBoundingClientRect();
     const elementMidpoint = elementRect.left + elementRect.width / 2;
-    const sameWrapperCandidates = Array.from(positioningParent.querySelectorAll("*")).filter(
+    // Only consider peer layout boxes around the editor. Deep descendants inside
+    // complex editors (like Slack) can appear/disappear while typing and should
+    // not yank the manual-attach control around.
+    const sameWrapperCandidates = Array.from(positioningParent.children).filter(
       (candidate): candidate is HTMLElement =>
         candidate instanceof HTMLElement &&
         candidate !== element &&
         candidate !== handle.container &&
+        this.isInlineObstacleCandidate(candidate) &&
         !element.contains(candidate) &&
         !candidate.contains(element),
     );
@@ -383,6 +398,16 @@ export class ManualAttachUiManager {
 
   private hasVerticalOverlap(candidateRect: DOMRect, elementRect: DOMRect): boolean {
     return candidateRect.bottom > elementRect.top && candidateRect.top < elementRect.bottom;
+  }
+
+  private isInlineObstacleCandidate(candidate: HTMLElement): boolean {
+    if (candidate.getAttribute("aria-hidden") === "true") {
+      return false;
+    }
+    if (candidate.matches(INLINE_OBSTACLE_SELECTOR)) {
+      return true;
+    }
+    return candidate.querySelector(INLINE_OBSTACLE_SELECTOR) instanceof HTMLElement;
   }
 
   private resolveOffsetTop(
