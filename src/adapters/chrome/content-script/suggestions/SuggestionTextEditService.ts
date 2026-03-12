@@ -47,6 +47,7 @@ function buildElementSnapshot(
 export interface TextEditApplyResult {
   applied: boolean;
   didDispatchInput: boolean;
+  suppressedByManualRevert?: boolean;
 }
 
 interface AcceptedSuggestionEditResult {
@@ -574,7 +575,7 @@ export class SuggestionTextEditService {
         sourceRuleKey,
         replaceStart,
       });
-      return { applied: false, didDispatchInput: false };
+      return { applied: false, didDispatchInput: false, suppressedByManualRevert: true };
     }
 
     const cursorAfter = this.resolveCursorAfterTextEdit(

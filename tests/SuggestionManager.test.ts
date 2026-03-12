@@ -789,7 +789,7 @@ describe("SuggestionManager", () => {
   });
 
   test("reverts capitalization auto-fix on Ctrl+Z without reapplying it", async () => {
-    const { manager } = await createManager({
+    const { manager, getPrediction } = await createManager({
       enabledGrammarRules: ["capitalizeSentenceStart"],
     });
     const input = document.createElement("input");
@@ -803,10 +803,14 @@ describe("SuggestionManager", () => {
     dispatchInput(input, { inputType: "insertText" });
 
     expect(input.value).toBe("W");
+    const initialPrediction = await waitForNextCall(getPrediction);
+    expect(initialPrediction.text).toBe("W");
 
     dispatchKeydown(input, "z", { ctrlKey: true });
 
     expect(input.value).toBe("w");
+    const postUndoPrediction = await waitForNextCall(getPrediction);
+    expect(postUndoPrediction.text).toBe("w");
   });
 
   test("hides popup when caret navigation leaves the current token", async () => {

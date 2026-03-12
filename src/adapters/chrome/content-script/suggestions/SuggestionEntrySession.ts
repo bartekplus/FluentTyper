@@ -1045,6 +1045,7 @@ export class SuggestionEntrySession {
           return;
         }
       } else if (
+        !applyResult.suppressedByManualRevert &&
         this.dispatchAdjustedGrammarPrediction({
           beforeCursor: TextTargetAdapter.isTextValue(this.entry.elem)
             ? cursorContext.snapshot.beforeCursor

@@ -1726,7 +1726,11 @@ describe("SuggestionTextEditService", () => {
       sourceRuleId: "englishAlotCorrection",
     });
 
-    expect(reapplyResult).toEqual({ applied: false, didDispatchInput: false });
+    expect(reapplyResult).toEqual({
+      applied: false,
+      didDispatchInput: false,
+      suppressedByManualRevert: true,
+    });
     expect(input.value).toBe("alot");
   });
 
