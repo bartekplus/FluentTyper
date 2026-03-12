@@ -28,6 +28,7 @@ export class SuggestionLifecycleController {
   }
 
   public attachEntryListeners(entry: SuggestionEntry): void {
+    entry.elem.addEventListener("beforeinput", entry.handlers.beforeinput, true);
     entry.elem.addEventListener("input", entry.handlers.input, true);
     entry.elem.addEventListener("keydown", entry.handlers.keydown, true);
     entry.elem.addEventListener("paste", entry.handlers.paste, true);
@@ -46,6 +47,7 @@ export class SuggestionLifecycleController {
   }
 
   public detachEntryListeners(entry: SuggestionEntry): void {
+    entry.elem.removeEventListener("beforeinput", entry.handlers.beforeinput, true);
     entry.elem.removeEventListener("input", entry.handlers.input, true);
     entry.elem.removeEventListener("keydown", entry.handlers.keydown, true);
     entry.elem.removeEventListener("paste", entry.handlers.paste, true);
@@ -71,6 +73,7 @@ export class SuggestionLifecycleController {
       return;
     }
     const method = attach ? "addEventListener" : "removeEventListener";
+    inputEventTarget[method]("beforeinput", entry.handlers.beforeinput, true);
     inputEventTarget[method]("input", entry.handlers.input, true);
     inputEventTarget[method]("keydown", entry.handlers.keydown, true);
     inputEventTarget[method]("paste", entry.handlers.paste, true);

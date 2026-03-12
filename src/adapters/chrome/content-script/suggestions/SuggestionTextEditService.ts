@@ -47,6 +47,7 @@ function buildElementSnapshot(
 export interface TextEditApplyResult {
   applied: boolean;
   didDispatchInput: boolean;
+  suppressedByManualRevert?: boolean;
 }
 
 interface AcceptedSuggestionEditResult {
@@ -258,6 +259,43 @@ export class SuggestionTextEditService {
       clearSuggestions: () => void;
     },
   ): boolean {
+    return this.tryUndoPendingExtensionEdit(entry, event, {
+      consumeEvent: consumeKeyboardEvent,
+      clearSuggestions,
+    });
+  }
+
+  public tryUndoLastExtensionEditOnBeforeInput(
+    entry: SuggestionEntry,
+    event: InputEvent,
+    {
+      consumeInputEvent,
+      clearSuggestions,
+    }: {
+      consumeInputEvent: (event: InputEvent) => void;
+      clearSuggestions: () => void;
+    },
+  ): boolean {
+    if (event.inputType !== "historyUndo") {
+      return false;
+    }
+    return this.tryUndoPendingExtensionEdit(entry, event, {
+      consumeEvent: consumeInputEvent,
+      clearSuggestions,
+    });
+  }
+
+  private tryUndoPendingExtensionEdit(
+    entry: SuggestionEntry,
+    event: Event,
+    {
+      consumeEvent,
+      clearSuggestions,
+    }: {
+      consumeEvent: (event: Event) => void;
+      clearSuggestions: () => void;
+    },
+  ): boolean {
     if (!entry.pendingExtensionEdit) {
       return false;
     }
@@ -268,7 +306,7 @@ export class SuggestionTextEditService {
       (entry.elem as HTMLElement).isContentEditable
     ) {
       return this.tryUndoBlockScopedExtensionEdit(entry, event, {
-        consumeKeyboardEvent,
+        consumeEvent,
         clearSuggestions,
       });
     }
@@ -323,7 +361,20 @@ export class SuggestionTextEditService {
       return false;
     }
 
-    consumeKeyboardEvent(event);
+    const manualAutoFixSuppression =
+      source === "grammar"
+        ? this.createManualAutoFixSuppression({
+            ruleKey: this.resolveAutoFixRuleKey(sourceRuleId, originalText, replacementText),
+            replaceStart,
+            fullText: `${fullText.slice(0, replaceStart)}${originalText}${fullText.slice(replaceEnd)}`,
+            cursorOffset: cursorBefore,
+          })
+        : null;
+
+    entry.pendingExtensionEdit = null;
+    entry.manualAutoFixSuppression = manualAutoFixSuppression;
+
+    consumeEvent(event);
 
     this.replaceTextByOffsets(
       entry.elem,
@@ -334,30 +385,18 @@ export class SuggestionTextEditService {
       cursorBefore,
     );
 
-    if (source === "grammar") {
-      const revertedFullText = `${fullText.slice(0, replaceStart)}${originalText}${fullText.slice(replaceEnd)}`;
-      entry.manualAutoFixSuppression = this.createManualAutoFixSuppression({
-        ruleKey: this.resolveAutoFixRuleKey(sourceRuleId, originalText, replacementText),
-        replaceStart,
-        fullText: revertedFullText,
-        cursorOffset: cursorBefore,
-      });
-    } else {
-      entry.manualAutoFixSuppression = null;
-    }
-    entry.pendingExtensionEdit = null;
     clearSuggestions();
     return true;
   }
 
   private tryUndoBlockScopedExtensionEdit(
     entry: SuggestionEntry,
-    event: KeyboardEvent,
+    event: Event,
     {
-      consumeKeyboardEvent,
+      consumeEvent,
       clearSuggestions,
     }: {
-      consumeKeyboardEvent: (event: KeyboardEvent) => void;
+      consumeEvent: (event: Event) => void;
       clearSuggestions: () => void;
     },
   ): boolean {
@@ -398,7 +437,9 @@ export class SuggestionTextEditService {
       return false;
     }
 
-    consumeKeyboardEvent(event);
+    entry.pendingExtensionEdit = null;
+
+    consumeEvent(event);
 
     this.replaceTextByOffsets(
       entry.elem,
@@ -410,7 +451,6 @@ export class SuggestionTextEditService {
       { scopeRoot: activeBlock },
     );
 
-    entry.pendingExtensionEdit = null;
     clearSuggestions();
     return true;
   }
@@ -535,7 +575,7 @@ export class SuggestionTextEditService {
         sourceRuleKey,
         replaceStart,
       });
-      return { applied: false, didDispatchInput: false };
+      return { applied: false, didDispatchInput: false, suppressedByManualRevert: true };
     }
 
     const cursorAfter = this.resolveCursorAfterTextEdit(

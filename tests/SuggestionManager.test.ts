@@ -116,6 +116,18 @@ function dispatchInput(
   target.dispatchEvent(event);
 }
 
+function dispatchBeforeInput(
+  target: HTMLElement,
+  options: { inputType?: string } = {},
+): InputEvent {
+  const event = new Event("beforeinput", { bubbles: true, cancelable: true }) as InputEvent;
+  if (typeof options.inputType === "string") {
+    Object.defineProperty(event, "inputType", { value: options.inputType });
+  }
+  target.dispatchEvent(event);
+  return event;
+}
+
 function setContentEditableCursor(target: HTMLElement, offset: number): void {
   const walker = document.createTreeWalker(target, NodeFilter.SHOW_TEXT);
   let current = walker.nextNode() as Text | null;
@@ -752,6 +764,53 @@ describe("SuggestionManager", () => {
 
     dispatchKeydown(input, "z", { ctrlKey: true });
     expect(input.value).toBe("h");
+  });
+
+  test("reverts capitalization auto-fix on beforeinput historyUndo without reapplying it", async () => {
+    const { manager } = await createManager({
+      enabledGrammarRules: ["capitalizeSentenceStart"],
+    });
+    const input = document.createElement("input");
+    input.type = "text";
+    document.body.appendChild(input);
+    manager.queryAndAttachHelper();
+
+    input.value = "w";
+    input.selectionStart = 1;
+    input.selectionEnd = 1;
+    dispatchInput(input, { inputType: "insertText" });
+
+    expect(input.value).toBe("W");
+
+    const undoEvent = dispatchBeforeInput(input, { inputType: "historyUndo" });
+
+    expect(undoEvent.defaultPrevented).toBe(true);
+    expect(input.value).toBe("w");
+  });
+
+  test("reverts capitalization auto-fix on Ctrl+Z without reapplying it", async () => {
+    const { manager, getPrediction } = await createManager({
+      enabledGrammarRules: ["capitalizeSentenceStart"],
+    });
+    const input = document.createElement("input");
+    input.type = "text";
+    document.body.appendChild(input);
+    manager.queryAndAttachHelper();
+
+    input.value = "w";
+    input.selectionStart = 1;
+    input.selectionEnd = 1;
+    dispatchInput(input, { inputType: "insertText" });
+
+    expect(input.value).toBe("W");
+    const initialPrediction = await waitForNextCall(getPrediction);
+    expect(initialPrediction.text).toBe("W");
+
+    dispatchKeydown(input, "z", { ctrlKey: true });
+
+    expect(input.value).toBe("w");
+    const postUndoPrediction = await waitForNextCall(getPrediction);
+    expect(postUndoPrediction.text).toBe("w");
   });
 
   test("hides popup when caret navigation leaves the current token", async () => {
