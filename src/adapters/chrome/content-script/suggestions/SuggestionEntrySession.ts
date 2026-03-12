@@ -4,6 +4,7 @@ import type { PredictionInputAction } from "@core/domain/messageTypes";
 import { SPACE_CHARS } from "@core/domain/spacingRules";
 import { isNativeUndoChord } from "./keyboardShortcuts";
 import { TextTargetAdapter, type TextTarget } from "./TextTargetAdapter";
+import { buildCaretTrace, clipTraceText, collapseTraceWhitespace } from "./traceUtils";
 import type {
   PendingKeyFallback,
   PredictionResponse,
@@ -25,52 +26,6 @@ const DUPLICATE_PUNCTUATION_TAIL_REGEX = new RegExp(
   `[,;:](?:${SPACING_OR_FILLER_PATTERN})*[,;:](?:${SPACING_OR_FILLER_PATTERN})*$`,
 );
 const logger = createLogger("SuggestionEntrySession");
-
-function collapseTraceWhitespace(value: string): string {
-  return value.replace(/\s+/g, " ").trim();
-}
-
-function clipTraceText(value: string, limit: number, mode: "start" | "end" = "end"): string {
-  if (value.length <= limit) {
-    return value;
-  }
-  if (mode === "start") {
-    return `${value.slice(0, Math.max(0, limit - 3))}...`;
-  }
-  return `...${value.slice(-(limit - 3))}`;
-}
-
-function buildCaretTrace(
-  beforeCursor: string,
-  afterCursor: string,
-): {
-  beforePreview: string;
-  afterPreview: string;
-  aroundCaret: string;
-  tokenBeforeCaret: string;
-  tokenAfterCaret: string;
-} {
-  const beforePreview = clipTraceText(
-    collapseTraceWhitespace(beforeCursor.slice(-CARET_TRACE_TEXT_LIMIT * 2)),
-    CARET_TRACE_TEXT_LIMIT,
-  );
-  const afterPreview = clipTraceText(
-    collapseTraceWhitespace(afterCursor.slice(0, CARET_TRACE_TEXT_LIMIT * 2)),
-    CARET_TRACE_TEXT_LIMIT,
-    "start",
-  );
-  const tokenBeforeCaret =
-    beforeCursor.match(/[^\s.,!?;:()[\]{}"'`<>/\\|@#$%^&*_+=~-]+$/u)?.[0] ?? "";
-  const tokenAfterCaret =
-    afterCursor.match(/^[^\s.,!?;:()[\]{}"'`<>/\\|@#$%^&*_+=~-]+/u)?.[0] ?? "";
-  return {
-    beforePreview,
-    afterPreview,
-    aroundCaret: `${beforePreview}|${afterPreview}`,
-    tokenBeforeCaret: clipTraceText(tokenBeforeCaret, CARET_TRACE_TEXT_LIMIT),
-    tokenAfterCaret: clipTraceText(tokenAfterCaret, CARET_TRACE_TEXT_LIMIT, "start"),
-  };
-}
 
 export class SuggestionEntrySession {
   private readonly entry: SuggestionEntry;
@@ -253,7 +208,11 @@ export class SuggestionEntrySession {
         hasPendingExtensionEdit: this.entry.pendingExtensionEdit !== null,
         pendingExtensionEditSource: this.entry.pendingExtensionEdit?.source ?? null,
         recentInteractionTrail: this.entry.recentInteractionTrail.slice(),
-        caretTrace: buildCaretTrace(snapshot.beforeCursor, snapshot.afterCursor),
+        caretTrace: buildCaretTrace(
+          snapshot.beforeCursor,
+          snapshot.afterCursor,
+          CARET_TRACE_TEXT_LIMIT,
+        ),
         activeBlockTrace: this.buildActiveBlockTrace(),
       });
       const shouldSuppressAwaitedHostEcho =
@@ -1281,6 +1240,7 @@ export class SuggestionEntrySession {
                 this.entry.pendingExtensionEdit.postEditBlockText ??
                 this.entry.pendingExtensionEdit.postEditFingerprint.fullText
               ).slice(this.entry.pendingExtensionEdit.cursorAfter),
+              CARET_TRACE_TEXT_LIMIT,
             )
           : null,
       activeBlockTrace: this.buildActiveBlockTrace(),
@@ -1902,7 +1862,11 @@ export class SuggestionEntrySession {
       id: activeBlock.id || null,
       className: className || null,
       textLength: (activeBlock.textContent ?? "").length,
-      caretTrace: buildCaretTrace(blockContext.beforeCursor, blockContext.afterCursor),
+      caretTrace: buildCaretTrace(
+        blockContext.beforeCursor,
+        blockContext.afterCursor,
+        CARET_TRACE_TEXT_LIMIT,
+      ),
       textPreview: clipTraceText(
         collapseTraceWhitespace(activeBlock.textContent ?? ""),
         CARET_TRACE_TEXT_LIMIT * 2,

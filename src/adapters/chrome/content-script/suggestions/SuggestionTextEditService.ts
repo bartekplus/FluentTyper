@@ -4,6 +4,7 @@ import { SPACING_RULES, Spacing } from "@core/domain/spacingRules";
 import { ContentEditableAdapter, type ContentEditableEditResult } from "./ContentEditableAdapter";
 import { HostEditorAdapterResolver, type HostEditorSession } from "./HostEditorAdapterResolver";
 import { TextTargetAdapter, type TextTarget } from "./TextTargetAdapter";
+import { buildCaretTrace, clipTraceText, collapseTraceWhitespace } from "./traceUtils";
 import type {
   ManualAutoFixSuppressionSnapshot,
   SuggestionEntry,
@@ -14,55 +15,6 @@ import type {
 const logger = createLogger("SuggestionTextEditService");
 const TRACE_TEXT_LIMIT = 48;
 const TRACE_HTML_LIMIT = 220;
-
-function collapseTraceWhitespace(value: string): string {
-  return value.replace(/\s+/g, " ").trim();
-}
-
-function clipTraceText(value: string, limit: number, mode: "start" | "end" = "end"): string {
-  if (value.length <= limit) {
-    return value;
-  }
-  if (mode === "start") {
-    return `${value.slice(0, Math.max(0, limit - 3))}...`;
-  }
-  return `...${value.slice(-(limit - 3))}`;
-}
-
-function buildCaretTrace(
-  beforeCursor: string,
-  afterCursor: string,
-): {
-  beforePreview: string;
-  afterPreview: string;
-  aroundCaret: string;
-  tokenBeforeCaret: string;
-  tokenAfterCaret: string;
-} {
-  const beforePreview = clipTraceText(
-    collapseTraceWhitespace(beforeCursor.slice(-TRACE_TEXT_LIMIT * 2)),
-    TRACE_TEXT_LIMIT,
-  );
-  const afterPreview = clipTraceText(
-    collapseTraceWhitespace(afterCursor.slice(0, TRACE_TEXT_LIMIT * 2)),
-    TRACE_TEXT_LIMIT,
-    "start",
-  );
-  return {
-    beforePreview,
-    afterPreview,
-    aroundCaret: `${beforePreview}|${afterPreview}`,
-    tokenBeforeCaret: clipTraceText(
-      beforeCursor.match(/[^\s.,!?;:()[\]{}"'`<>/\\|@#$%^&*_+=~-]+$/u)?.[0] ?? "",
-      TRACE_TEXT_LIMIT,
-    ),
-    tokenAfterCaret: clipTraceText(
-      afterCursor.match(/^[^\s.,!?;:()[\]{}"'`<>/\\|@#$%^&*_+=~-]+/u)?.[0] ?? "",
-      TRACE_TEXT_LIMIT,
-      "start",
-    ),
-  };
-}
 
 function buildElementSnapshot(
   element: HTMLElement | null,
@@ -79,7 +31,7 @@ function buildElementSnapshot(
     id: element.id || null,
     className: className || null,
     textLength: (element.textContent ?? "").length,
-    caretTrace: buildCaretTrace(beforeCursor, afterCursor),
+    caretTrace: buildCaretTrace(beforeCursor, afterCursor, TRACE_TEXT_LIMIT),
     textPreview: clipTraceText(
       collapseTraceWhitespace(element.textContent ?? ""),
       TRACE_TEXT_LIMIT,
@@ -1123,7 +1075,11 @@ export class SuggestionTextEditService {
         blockContext.beforeCursor,
         blockContext.afterCursor,
       ),
-      caretTraceBeforeEdit: buildCaretTrace(blockContext.beforeCursor, blockContext.afterCursor),
+      caretTraceBeforeEdit: buildCaretTrace(
+        blockContext.beforeCursor,
+        blockContext.afterCursor,
+        TRACE_TEXT_LIMIT,
+      ),
       recentInteractionTrail: entry.recentInteractionTrail.slice(),
     });
 
@@ -1235,6 +1191,7 @@ export class SuggestionTextEditService {
       caretTraceAfterEdit: buildCaretTrace(
         postEditBlockText.slice(0, postEditCursorAfter),
         postEditBlockText.slice(postEditCursorAfter),
+        TRACE_TEXT_LIMIT,
       ),
       recentInteractionTrail: entry.recentInteractionTrail.slice(),
     });
