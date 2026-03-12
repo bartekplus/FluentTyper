@@ -144,6 +144,14 @@ describe("bugs", () => {
       },
     );
   });
+
+  test("mid-word edits pass the whole word to presage", async () => {
+    mod.PresageCallback.predictions = ["Whatsoever"];
+
+    await testContext.ph.runPrediction("Whb", "", "en_US", undefined, "tsoever");
+
+    expect(testContext.ph.getLastPredictionInput("en_US")).toBe("whbtsoever");
+  });
 });
 
 describe("features", () => {

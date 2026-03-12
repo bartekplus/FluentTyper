@@ -36,6 +36,7 @@ export class SuggestionLifecycleController {
     entry.elem.addEventListener("click", entry.handlers.click, true);
     entry.elem.addEventListener("compositionstart", entry.handlers.compositionStart, true);
     entry.elem.addEventListener("compositionend", entry.handlers.compositionEnd, true);
+    this.toggleBackingInputTargetListeners(entry, true);
     entry.list.addEventListener("mousedown", entry.handlers.menuMouseDown);
     entry.list.addEventListener("click", entry.handlers.menuClick);
 
@@ -53,6 +54,7 @@ export class SuggestionLifecycleController {
     entry.elem.removeEventListener("click", entry.handlers.click, true);
     entry.elem.removeEventListener("compositionstart", entry.handlers.compositionStart, true);
     entry.elem.removeEventListener("compositionend", entry.handlers.compositionEnd, true);
+    this.toggleBackingInputTargetListeners(entry, false);
     entry.list.removeEventListener("mousedown", entry.handlers.menuMouseDown);
     entry.list.removeEventListener("click", entry.handlers.menuClick);
 
@@ -61,6 +63,21 @@ export class SuggestionLifecycleController {
       this.removeDocumentPointerDownListener();
       this.removeDocumentSelectionChangeListener();
     }
+  }
+
+  private toggleBackingInputTargetListeners(entry: SuggestionEntry, attach: boolean): void {
+    const inputEventTarget = entry.inputEventTarget;
+    if (!inputEventTarget || inputEventTarget === entry.elem) {
+      return;
+    }
+    const method = attach ? "addEventListener" : "removeEventListener";
+    inputEventTarget[method]("input", entry.handlers.input, true);
+    inputEventTarget[method]("keydown", entry.handlers.keydown, true);
+    inputEventTarget[method]("paste", entry.handlers.paste, true);
+    inputEventTarget[method]("focus", entry.handlers.focus, true);
+    inputEventTarget[method]("blur", entry.handlers.blur, true);
+    inputEventTarget[method]("compositionstart", entry.handlers.compositionStart, true);
+    inputEventTarget[method]("compositionend", entry.handlers.compositionEnd, true);
   }
 
   private ensureDocumentPointerDownListener(): void {

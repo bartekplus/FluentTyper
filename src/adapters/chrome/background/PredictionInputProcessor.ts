@@ -1,5 +1,9 @@
 // Utility for processing prediction input for PresageHandler
 import { DEFAULT_SEPARATOR_CHARS_REGEX, LANG_ADDITIONAL_SEPARATOR_REGEX } from "@core/domain/lang";
+import {
+  extractPredictionTokenSuffix,
+  KEEP_PREDICTION_TOKEN_CHARS_REGEX,
+} from "@core/domain/predictionToken";
 import { checkAutoCapitalize, Capitalization } from "./CapitalizationHelper";
 import { isNumber } from "@core/application/domain-utils";
 
@@ -17,7 +21,7 @@ export class PredictionInputProcessor {
 
   constructor(minWordLengthToPredict = MIN_WORD_LENGTH_TO_PREDICT, autoCapitalize = true) {
     this.separatorCharRegex = RegExp(DEFAULT_SEPARATOR_CHARS_REGEX);
-    this.keepPredCharRegex = /\[|\(|{|<|\/|-|\*|\+|=|"/;
+    this.keepPredCharRegex = KEEP_PREDICTION_TOKEN_CHARS_REGEX;
     this.whiteSpaceRegex = /\s+/;
     this.letterRegex = /^\p{L}/u;
     this.minWordLengthToPredict = minWordLengthToPredict;
@@ -69,11 +73,36 @@ export class PredictionInputProcessor {
     return true;
   }
 
+  private normalizeAdditionalSeparators(value: string, language: string): string {
+    const additionalSeparatorRegex = LANG_ADDITIONAL_SEPARATOR_REGEX[language];
+    if (!additionalSeparatorRegex) {
+      return value;
+    }
+    return value.replaceAll(RegExp(additionalSeparatorRegex, "g"), " ");
+  }
+
+  private resolveCurrentWordSuffix(
+    afterCursorTokenSuffix: string | undefined,
+    language: string,
+  ): string {
+    if (typeof afterCursorTokenSuffix !== "string" || afterCursorTokenSuffix.length === 0) {
+      return "";
+    }
+    const normalizedAfterCursor = this.normalizeAdditionalSeparators(
+      afterCursorTokenSuffix,
+      language,
+    );
+    return extractPredictionTokenSuffix(normalizedAfterCursor, (char) =>
+      this.separatorCharRegex.test(char),
+    );
+  }
+
   processInput(
     predictionInput: string,
     language: string,
     numSuggestions: number,
     predictNextWordAfterSeparatorChar: boolean,
+    afterCursorTokenSuffix?: string,
   ): {
     predictionInput: string;
     lastWord: string;
@@ -89,11 +118,10 @@ export class PredictionInputProcessor {
       };
     }
     const endsWithSpace = predictionInput !== predictionInput.trimEnd();
-    const additionalSeparatorRegex = LANG_ADDITIONAL_SEPARATOR_REGEX[language];
-    if (additionalSeparatorRegex) {
-      predictionInput = predictionInput.replaceAll(RegExp(additionalSeparatorRegex, "g"), " ");
-    }
-    const lastWordsArray = predictionInput
+    predictionInput = this.normalizeAdditionalSeparators(predictionInput, language);
+    const currentWordSuffix = this.resolveCurrentWordSuffix(afterCursorTokenSuffix, language);
+    const predictionInputWithCurrentWord = `${predictionInput}${currentWordSuffix}`;
+    const lastWordsArray = predictionInputWithCurrentWord
       .split(this.whiteSpaceRegex)
       .filter((e) => e.trim())
       .splice(-PAST_WORDS_COUNT);

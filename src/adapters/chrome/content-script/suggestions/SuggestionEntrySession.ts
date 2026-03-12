@@ -4,6 +4,7 @@ import type { PredictionInputAction } from "@core/domain/messageTypes";
 import { SPACE_CHARS } from "@core/domain/spacingRules";
 import { isNativeUndoChord } from "./keyboardShortcuts";
 import { TextTargetAdapter, type TextTarget } from "./TextTargetAdapter";
+import { buildCaretTrace, clipTraceText, collapseTraceWhitespace } from "./traceUtils";
 import type {
   PendingKeyFallback,
   PredictionResponse,
@@ -18,6 +19,8 @@ const DELETE_INPUT_FALLBACK_TIMEOUT_MS = 220;
 const INSERT_INPUT_FALLBACK_TIMEOUT_MS = 140;
 const INSERT_INPUT_FALLBACK_RETRY_INTERVAL_MS = 120;
 const INSERT_INPUT_FALLBACK_MAX_WAIT_MS = 1000;
+const INTERACTION_TRACE_LIMIT = 12;
+const CARET_TRACE_TEXT_LIMIT = 24;
 const SPACING_OR_FILLER_PATTERN = "(?:[ \\xA0]|\\u200B|\\u200C|\\u200D|\\u2060|\\uFEFF)";
 const DUPLICATE_PUNCTUATION_TAIL_REGEX = new RegExp(
   `[,;:](?:${SPACING_OR_FILLER_PATTERN})*[,;:](?:${SPACING_OR_FILLER_PATTERN})*$`,
@@ -102,6 +105,7 @@ export class SuggestionEntrySession {
   }
 
   public handlePaste(): void {
+    this.pushInteractionTrace("paste");
     this.entry.pendingGrammarPaste = true;
   }
 
@@ -116,6 +120,7 @@ export class SuggestionEntrySession {
     },
   ): void {
     this.entry.lastKeydownKey = keyboardEvent.key;
+    this.pushInteractionTrace(this.describeKeyboardInteraction(keyboardEvent));
     if (!TextTargetAdapter.isTextValue(this.entry.elem) && keyboardEvent.key === "Tab") {
       logger.debug("Contenteditable Tab keydown", {
         suggestionId: this.entry.id,
@@ -132,6 +137,11 @@ export class SuggestionEntrySession {
 
     if (keyboardEvent.defaultPrevented) {
       return;
+    }
+
+    if (this.shouldReleaseAcceptedSuggestionSuppressionOnKeydown(keyboardEvent)) {
+      this.clearAcceptedSuggestionTransientState();
+      this.entry.suppressNextSuggestionInputPrediction = false;
     }
 
     if (this.shouldInvalidatePendingExtensionEditOnKeydown(keyboardEvent)) {
@@ -170,6 +180,7 @@ export class SuggestionEntrySession {
   }
 
   public handleInput(event: Event): void {
+    this.pushInteractionTrace(this.describeInputInteraction(event));
     const context = this.editableContextResolver.resolve(this.entry.elem);
     if (!context) {
       this.handleSuppressedInput();
@@ -186,6 +197,7 @@ export class SuggestionEntrySession {
     }
     if (this.entry.suppressNextSuggestionInputPrediction) {
       const snapshot = TextTargetAdapter.snapshot(this.entry.elem as TextTarget);
+      const preservesPendingExtensionEdit = this.shouldPreservePendingExtensionEdit(snapshot);
       logger.debug("Evaluating post-accept input suppression", {
         suggestionId: this.entry.id,
         requestId: this.entry.requestId,
@@ -195,17 +207,31 @@ export class SuggestionEntrySession {
         snapshotAfterCursorLength: snapshot.afterCursor.length,
         hasPendingExtensionEdit: this.entry.pendingExtensionEdit !== null,
         pendingExtensionEditSource: this.entry.pendingExtensionEdit?.source ?? null,
+        recentInteractionTrail: this.entry.recentInteractionTrail.slice(),
+        caretTrace: buildCaretTrace(
+          snapshot.beforeCursor,
+          snapshot.afterCursor,
+          CARET_TRACE_TEXT_LIMIT,
+        ),
+        activeBlockTrace: this.buildActiveBlockTrace(),
       });
+      const shouldSuppressAwaitedHostEcho =
+        this.entry.pendingExtensionEdit?.awaitingHostInputEcho === true &&
+        preservesPendingExtensionEdit;
       if (
         this.entry.pendingExtensionEdit !== null &&
-        this.shouldPreservePendingExtensionEdit(snapshot)
+        (shouldSuppressAwaitedHostEcho || preservesPendingExtensionEdit)
       ) {
+        if (shouldSuppressAwaitedHostEcho) {
+          this.entry.pendingExtensionEdit.awaitingHostInputEcho = false;
+        }
         logger.debug("Suppressing post-accept input echo", {
           suggestionId: this.entry.id,
           requestId: this.entry.requestId,
           inputType: this.resolveInputType(event),
           pendingExtensionEditSource: this.entry.pendingExtensionEdit.source,
           pendingExtensionEditBlockScoped: this.entry.pendingExtensionEdit.blockScoped ?? false,
+          pendingExtensionEditAwaitingHostInputEcho: shouldSuppressAwaitedHostEcho,
         });
         this.suppressAcceptedSuggestionInput();
         return;
@@ -215,7 +241,12 @@ export class SuggestionEntrySession {
         requestId: this.entry.requestId,
         inputType: this.resolveInputType(event),
         hasPendingExtensionEdit: this.entry.pendingExtensionEdit !== null,
+        recentInteractionTrail: this.entry.recentInteractionTrail.slice(),
+        activeBlockTrace: this.buildActiveBlockTrace(),
       });
+      if (this.entry.pendingExtensionEdit) {
+        this.entry.pendingExtensionEdit.awaitingHostInputEcho = false;
+      }
       this.entry.suppressNextSuggestionInputPrediction = false;
     }
 
@@ -1197,9 +1228,31 @@ export class SuggestionEntrySession {
       hasPendingExtensionEdit: this.entry.pendingExtensionEdit !== null,
       pendingExtensionEditSource: this.entry.pendingExtensionEdit?.source ?? null,
       pendingExtensionEditBlockScoped: this.entry.pendingExtensionEdit?.blockScoped ?? false,
+      recentInteractionTrail: this.entry.recentInteractionTrail.slice(),
+      pendingEditCaretTrace:
+        this.entry.pendingExtensionEdit !== null
+          ? buildCaretTrace(
+              (
+                this.entry.pendingExtensionEdit.postEditBlockText ??
+                this.entry.pendingExtensionEdit.postEditFingerprint.fullText
+              ).slice(0, this.entry.pendingExtensionEdit.cursorAfter),
+              (
+                this.entry.pendingExtensionEdit.postEditBlockText ??
+                this.entry.pendingExtensionEdit.postEditFingerprint.fullText
+              ).slice(this.entry.pendingExtensionEdit.cursorAfter),
+              CARET_TRACE_TEXT_LIMIT,
+            )
+          : null,
+      activeBlockTrace: this.buildActiveBlockTrace(),
     });
+    const trailingCharAfterAccept = this.resolveTrailingCharAfterAcceptedSuggestion(
+      cursorAfter,
+      cursorAfterIsBlockLocal,
+    );
     const shouldExpectTrailingSpace =
-      this.insertSpaceAfterAutocomplete && !/[ \xA0]$/.test(insertedText);
+      this.insertSpaceAfterAutocomplete &&
+      !/[ \xA0]$/.test(insertedText) &&
+      !/[ \xA0]/.test(trailingCharAfterAccept);
     this.entry.missingTrailingSpace = shouldExpectTrailingSpace;
     this.entry.expectedCursorPos = shouldExpectTrailingSpace ? cursorAfter : 0;
     this.entry.expectedCursorPosIsBlockLocal = shouldExpectTrailingSpace && cursorAfterIsBlockLocal;
@@ -1216,6 +1269,20 @@ export class SuggestionEntrySession {
       insertedText,
       language: this.getLang(),
     });
+  }
+
+  private resolveTrailingCharAfterAcceptedSuggestion(
+    cursorAfter: number,
+    cursorAfterIsBlockLocal: boolean,
+  ): string {
+    const pendingEdit = this.entry.pendingExtensionEdit;
+    if (!pendingEdit) {
+      return "";
+    }
+    if (cursorAfterIsBlockLocal && pendingEdit.blockScoped) {
+      return (pendingEdit.postEditBlockText ?? "").charAt(cursorAfter);
+    }
+    return pendingEdit.postEditFingerprint.fullText.charAt(cursorAfter);
   }
 
   private clearPendingExtensionEdit(): void {
@@ -1257,6 +1324,20 @@ export class SuggestionEntrySession {
       return true;
     }
     return ["ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"].includes(event.key);
+  }
+
+  private shouldReleaseAcceptedSuggestionSuppressionOnKeydown(event: KeyboardEvent): boolean {
+    if (
+      !this.entry.suppressNextSuggestionInputPrediction ||
+      !this.entry.missingTrailingSpace ||
+      this.entry.pendingExtensionEdit?.awaitingHostInputEcho === true
+    ) {
+      return false;
+    }
+    if (event.metaKey || event.ctrlKey || event.altKey || event.isComposing) {
+      return false;
+    }
+    return event.key.length === 1 && /^\s$/u.test(event.key);
   }
 
   private shouldScheduleInsertFallback(event: KeyboardEvent): boolean {
@@ -1720,6 +1801,78 @@ export class SuggestionEntrySession {
     this.entry.visibleSuggestionBeforeCursorText = null;
     this.entry.visibleSuggestionFullText = null;
     this.clearSuggestions();
+  }
+
+  private pushInteractionTrace(step: string): void {
+    if (typeof step !== "string" || step.length === 0) {
+      return;
+    }
+    this.entry.recentInteractionTrail.push(step);
+    if (this.entry.recentInteractionTrail.length > INTERACTION_TRACE_LIMIT) {
+      this.entry.recentInteractionTrail.splice(
+        0,
+        this.entry.recentInteractionTrail.length - INTERACTION_TRACE_LIMIT,
+      );
+    }
+  }
+
+  private describeKeyboardInteraction(event: KeyboardEvent): string {
+    const modifiers = [
+      event.ctrlKey ? "Ctrl" : "",
+      event.metaKey ? "Meta" : "",
+      event.altKey ? "Alt" : "",
+      event.shiftKey ? "Shift" : "",
+    ].filter(Boolean);
+    const prefix = modifiers.length > 0 ? `${modifiers.join("+")}+` : "";
+    return `keydown:${prefix}${event.key}`;
+  }
+
+  private describeInputInteraction(event: Event): string {
+    const inputEvent = event as InputEvent;
+    const inputType =
+      typeof inputEvent.inputType === "string" && inputEvent.inputType.length > 0
+        ? inputEvent.inputType
+        : event.type;
+    const data =
+      typeof inputEvent.data === "string" && inputEvent.data.length > 0
+        ? clipTraceText(collapseTraceWhitespace(inputEvent.data), 12, "start")
+        : "";
+    return data ? `input:${inputType}:${data}` : `input:${inputType}`;
+  }
+
+  private buildActiveBlockTrace(): Record<string, unknown> | null {
+    if (TextTargetAdapter.isTextValue(this.entry.elem)) {
+      return null;
+    }
+    const activeBlock = this.contentEditableAdapter.getActiveBlockElement(
+      this.entry.elem as HTMLElement,
+    );
+    const blockContext = this.contentEditableAdapter.getBlockContext(
+      this.entry.elem as HTMLElement,
+    );
+    if (!activeBlock || !blockContext) {
+      return null;
+    }
+    const className =
+      typeof activeBlock.className === "string"
+        ? collapseTraceWhitespace(activeBlock.className)
+        : "";
+    return {
+      tagName: activeBlock.tagName.toLowerCase(),
+      id: activeBlock.id || null,
+      className: className || null,
+      textLength: (activeBlock.textContent ?? "").length,
+      caretTrace: buildCaretTrace(
+        blockContext.beforeCursor,
+        blockContext.afterCursor,
+        CARET_TRACE_TEXT_LIMIT,
+      ),
+      textPreview: clipTraceText(
+        collapseTraceWhitespace(activeBlock.textContent ?? ""),
+        CARET_TRACE_TEXT_LIMIT * 2,
+      ),
+      htmlPreview: clipTraceText(collapseTraceWhitespace(activeBlock.outerHTML), 180, "start"),
+    };
   }
 
   private resolveInputType(event: Event): string {

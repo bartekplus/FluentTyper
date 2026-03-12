@@ -16,6 +16,7 @@ export function createSuggestionEntry(
   return {
     id: overrides.id ?? 1,
     elem,
+    inputEventTarget: overrides.inputEventTarget ?? null,
     menu,
     list,
     requestId: overrides.requestId ?? 0,
@@ -44,6 +45,7 @@ export function createSuggestionEntry(
     pendingRequestTimer: overrides.pendingRequestTimer ?? null,
     pendingIdleTimer: overrides.pendingIdleTimer ?? null,
     pendingGrammarPaste: overrides.pendingGrammarPaste ?? false,
+    recentInteractionTrail: overrides.recentInteractionTrail ?? [],
     handlers: overrides.handlers ?? {
       input: () => undefined,
       keydown: () => undefined,

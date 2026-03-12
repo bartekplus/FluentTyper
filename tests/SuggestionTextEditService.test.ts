@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { ContentEditableAdapter } from "../src/adapters/chrome/content-script/suggestions/ContentEditableAdapter";
+import { HostEditorAdapterResolver } from "../src/adapters/chrome/content-script/suggestions/HostEditorAdapterResolver";
+import type { HostEditorPageBridge } from "../src/adapters/chrome/content-script/suggestions/HostEditorPageBridge";
 import { SuggestionTextEditService } from "../src/adapters/chrome/content-script/suggestions/SuggestionTextEditService";
 import { createSuggestionEntry } from "./suggestionTestUtils";
 
@@ -227,6 +229,80 @@ class RecordingAcceptContentEditableAdapter extends ContentEditableAdapter {
       options,
     );
   }
+}
+
+function createHostModelEditable({
+  text,
+  cursor,
+  controllerAncestorDepth = 0,
+}: {
+  text: string;
+  cursor: number;
+  controllerAncestorDepth?: number;
+}): {
+  editable: HTMLElement;
+  getReplaceRangeCalls: () => number;
+  setControllerLine: (value: string) => void;
+} {
+  const controllerRoot = document.createElement("div");
+  document.body.appendChild(controllerRoot);
+
+  let current = controllerRoot;
+  for (let index = 0; index < controllerAncestorDepth; index += 1) {
+    const wrapper = document.createElement("div");
+    current.appendChild(wrapper);
+    current = wrapper;
+  }
+
+  const editable = document.createElement("div");
+  editable.setAttribute("contenteditable", "true");
+  Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+  editable.textContent = text;
+  current.appendChild(editable);
+  setContentEditableCursor(editable, cursor);
+
+  let line = text;
+  let ch = cursor;
+  let replaceRangeCalls = 0;
+  (controllerRoot as HTMLElement & { genericEditorController?: unknown }).genericEditorController =
+    {
+      replaceRange(
+        replacementText: string,
+        from: { line: number; ch: number },
+        to?: { line: number; ch: number },
+      ) {
+        replaceRangeCalls += 1;
+        line = `${line.slice(0, from.ch)}${replacementText}${line.slice(to?.ch ?? from.ch)}`;
+        editable.textContent = line;
+      },
+      setCursor(position: { line: number; ch: number }) {
+        ch = position.ch;
+        setContentEditableCursor(editable, ch);
+      },
+      getCursor() {
+        return { line: 0, ch };
+      },
+      getLine(lineIndex: number) {
+        return lineIndex === 0 ? line : "";
+      },
+      posFromIndex(index: number) {
+        return { line: 0, ch: index };
+      },
+      indexFromPos(position: { line: number; ch: number }) {
+        return position.ch;
+      },
+      operation(callback: () => void) {
+        callback();
+      },
+    };
+
+  return {
+    editable,
+    getReplaceRangeCalls: () => replaceRangeCalls,
+    setControllerLine: (value: string) => {
+      line = value;
+    },
+  };
 }
 
 describe("SuggestionTextEditService", () => {
@@ -771,17 +847,343 @@ describe("SuggestionTextEditService", () => {
 
     expect(accepted).toEqual({
       triggerText: "bes",
-      insertedText: "best ",
+      insertedText: "best\u00A0",
       cursorAfter: 17,
       cursorAfterIsBlockLocal: true,
     });
-    expect(secondParagraph.textContent).toBe("What is the best ");
+    expect(secondParagraph.textContent).toBe("What is the best\u00A0");
     expect((editable.querySelectorAll("p")[0] as HTMLElement).textContent).toBe("Intro line");
     expect(adapter.lastScopeRoot).toBe(secondParagraph);
     expect(adapter.lastReplaceStart).toBe(12);
     expect(adapter.lastReplaceEnd).toBe(15);
     expect(entry.pendingExtensionEdit?.blockScoped).toBe(true);
-    expect(entry.pendingExtensionEdit?.postEditBlockText).toBe("What is the best ");
+    expect(entry.pendingExtensionEdit?.postEditBlockText).toBe("What is the best\u00A0");
+  });
+
+  test("uses a generic host editor session for contenteditable acceptance when capabilities match", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+      hostEditorAdapterResolver: new HostEditorAdapterResolver(),
+    });
+    const hostModel = createHostModelEditable({ text: "What is the bes", cursor: 15 });
+
+    const entry = createSuggestionEntry({
+      elem: hostModel.editable,
+      latestMentionText: "bes",
+      latestMentionStart: -1,
+    });
+
+    const accepted = service.acceptSuggestion(entry, "best ");
+
+    expect(accepted).toEqual({
+      triggerText: "bes",
+      insertedText: "best ",
+      cursorAfter: 17,
+      cursorAfterIsBlockLocal: true,
+    });
+    expect(hostModel.getReplaceRangeCalls()).toBe(1);
+    expect(hostModel.editable.textContent).toBe("What is the best ");
+    expect(entry.pendingExtensionEdit?.postEditFingerprint.fullText).toBe("What is the best ");
+    expect(entry.pendingExtensionEdit?.postEditFingerprint.cursorOffset).toBe(17);
+  });
+
+  test("uses a host editor session when the controller is mounted above the editable subtree", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+      hostEditorAdapterResolver: new HostEditorAdapterResolver(),
+    });
+    const hostModel = createHostModelEditable({
+      text: "What is the bes",
+      cursor: 15,
+      controllerAncestorDepth: 7,
+    });
+
+    const entry = createSuggestionEntry({
+      elem: hostModel.editable,
+      latestMentionText: "bes",
+      latestMentionStart: -1,
+    });
+
+    const accepted = service.acceptSuggestion(entry, "best ");
+
+    expect(accepted).toEqual({
+      triggerText: "bes",
+      insertedText: "best ",
+      cursorAfter: 17,
+      cursorAfterIsBlockLocal: true,
+    });
+    expect(hostModel.getReplaceRangeCalls()).toBe(1);
+    expect(hostModel.editable.textContent).toBe("What is the best ");
+  });
+
+  test("uses the page-bridge host editor path when the page-owned controller is not directly visible", () => {
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    editable.textContent = "What is the bes";
+    document.body.appendChild(editable);
+    setContentEditableCursor(editable, 15);
+
+    let blockText = "What is the bes";
+    let beforeCursor = "What is the bes";
+    let afterCursor = "";
+    let applyCalls = 0;
+    const pageBridge: HostEditorPageBridge = {
+      getBlockContextAtSelection() {
+        return { beforeCursor, afterCursor, blockText };
+      },
+      applyBlockReplacement(_elem, args) {
+        applyCalls += 1;
+        blockText = `${blockText.slice(0, args.replaceStart)}${args.replacementText}${blockText.slice(args.replaceEnd)}`;
+        beforeCursor = blockText.slice(0, args.cursorAfter);
+        afterCursor = blockText.slice(args.cursorAfter);
+        editable.textContent = blockText;
+        setContentEditableCursor(editable, args.cursorAfter);
+        return { applied: true, didDispatchInput: false };
+      },
+    };
+
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+      hostEditorAdapterResolver: new HostEditorAdapterResolver(pageBridge),
+    });
+    const entry = createSuggestionEntry({
+      elem: editable,
+      latestMentionText: "bes",
+      latestMentionStart: -1,
+    });
+
+    const accepted = service.acceptSuggestion(entry, "best ");
+
+    expect(accepted).toEqual({
+      triggerText: "bes",
+      insertedText: "best ",
+      cursorAfter: 17,
+      cursorAfterIsBlockLocal: true,
+    });
+    expect(applyCalls).toBe(1);
+    expect(editable.textContent).toBe("What is the best ");
+    expect(entry.pendingExtensionEdit?.postEditFingerprint.fullText).toBe("What is the best ");
+    expect(entry.pendingExtensionEdit?.postEditFingerprint.cursorOffset).toBe(17);
+    expect(entry.pendingExtensionEdit?.awaitingHostInputEcho ?? false).toBe(false);
+  });
+
+  test("restores the visible block caret after host-owned acceptance when the host model does not update DOM selection itself", () => {
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    editable.textContent = "What is the bes";
+    document.body.appendChild(editable);
+    setContentEditableCursor(editable, 15);
+
+    let blockText = "What is the bes";
+    let beforeCursor = "What is the bes";
+    let afterCursor = "";
+    const pageBridge: HostEditorPageBridge = {
+      getBlockContextAtSelection() {
+        return { beforeCursor, afterCursor, blockText };
+      },
+      applyBlockReplacement(_elem, args) {
+        blockText = `${blockText.slice(0, args.replaceStart)}${args.replacementText}${blockText.slice(args.replaceEnd)}`;
+        beforeCursor = blockText.slice(0, args.cursorAfter);
+        afterCursor = blockText.slice(args.cursorAfter);
+        editable.textContent = blockText;
+        return { applied: true, didDispatchInput: false };
+      },
+    };
+
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+      hostEditorAdapterResolver: new HostEditorAdapterResolver(pageBridge),
+    });
+    const entry = createSuggestionEntry({
+      elem: editable,
+      latestMentionText: "bes",
+      latestMentionStart: -1,
+    });
+
+    const accepted = service.acceptSuggestion(entry, "best ");
+    const selection = window.getSelection();
+
+    expect(accepted).toEqual({
+      triggerText: "bes",
+      insertedText: "best ",
+      cursorAfter: 17,
+      cursorAfterIsBlockLocal: true,
+    });
+    expect(selection?.anchorNode?.textContent).toContain("What is the best ");
+    expect(selection?.anchorOffset).toBe(17);
+  });
+
+  test("keeps the caret at end-of-word for mid-word host acceptance instead of moving past the separator", () => {
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    editable.textContent = "What is the txxxxypos thing";
+    document.body.appendChild(editable);
+    setContentEditableCursor(editable, 17);
+
+    let blockText = "What is the txxxxypos thing";
+    let beforeCursor = "What is the txxxx";
+    let afterCursor = "ypos thing";
+    const pageBridge: HostEditorPageBridge = {
+      getBlockContextAtSelection() {
+        return { beforeCursor, afterCursor, blockText };
+      },
+      applyBlockReplacement(_elem, args) {
+        blockText = `${blockText.slice(0, args.replaceStart)}${args.replacementText}${blockText.slice(args.replaceEnd)}`;
+        beforeCursor = blockText.slice(0, args.cursorAfter);
+        afterCursor = blockText.slice(args.cursorAfter);
+        editable.textContent = blockText;
+        setContentEditableCursor(editable, args.cursorAfter);
+        return { applied: true, didDispatchInput: false };
+      },
+    };
+
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+      hostEditorAdapterResolver: new HostEditorAdapterResolver(pageBridge),
+    });
+    const entry = createSuggestionEntry({
+      elem: editable,
+      latestMentionText: "txxxx",
+      latestMentionStart: -1,
+    });
+
+    const accepted = service.acceptSuggestion(entry, "toxicologists ");
+
+    expect(accepted).toEqual({
+      triggerText: "txxxx",
+      insertedText: "toxicologists",
+      cursorAfter: 25,
+      cursorAfterIsBlockLocal: true,
+    });
+    expect(editable.textContent).toBe("What is the toxicologists thing");
+    expect(entry.pendingExtensionEdit?.postEditFingerprint.cursorOffset).toBe(25);
+    expect(entry.pendingExtensionEdit?.postEditBlockText).toBe("What is the toxicologists thing");
+  });
+
+  test("falls back to generic DOM contenteditable acceptance when host block parity does not match", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+      hostEditorAdapterResolver: new HostEditorAdapterResolver(),
+    });
+    const hostModel = createHostModelEditable({ text: "What is the bes", cursor: 15 });
+    hostModel.setControllerLine("Mismatched text");
+
+    const entry = createSuggestionEntry({
+      elem: hostModel.editable,
+      latestMentionText: "bes",
+      latestMentionStart: -1,
+    });
+
+    const accepted = service.acceptSuggestion(entry, "best ");
+
+    expect(accepted).toEqual({
+      triggerText: "bes",
+      insertedText: "best\u00A0",
+      cursorAfter: 17,
+      cursorAfterIsBlockLocal: true,
+    });
+    expect(hostModel.getReplaceRangeCalls()).toBe(0);
+    expect(hostModel.editable.textContent).toBe("What is the best\u00A0");
+  });
+
+  test("falls back to generic DOM contenteditable acceptance when host cursor context drifts on identical line text", () => {
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    editable.textContent = "repeat line";
+    document.body.appendChild(editable);
+    setContentEditableCursor(editable, 10);
+
+    let applyCalls = 0;
+    const pageBridge: HostEditorPageBridge = {
+      getBlockContextAtSelection() {
+        return {
+          beforeCursor: "repeat li",
+          afterCursor: "ne",
+          blockText: "repeat line",
+        };
+      },
+      applyBlockReplacement() {
+        applyCalls += 1;
+        return { applied: true, didDispatchInput: false };
+      },
+    };
+
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+      hostEditorAdapterResolver: new HostEditorAdapterResolver(pageBridge),
+    });
+    const entry = createSuggestionEntry({
+      elem: editable,
+      latestMentionText: "lin",
+      latestMentionStart: -1,
+    });
+
+    const accepted = service.acceptSuggestion(entry, "line ");
+
+    expect(accepted).toEqual({
+      triggerText: "lin",
+      insertedText: "line\u00A0",
+      cursorAfter: 12,
+      cursorAfterIsBlockLocal: true,
+    });
+    expect(applyCalls).toBe(0);
+    expect(editable.textContent).toBe("repeat line\u00A0");
+  });
+
+  test("arms pending contenteditable suggestion edit before synthetic input dispatch", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+    });
+
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML = "<p>What is the bes</p>";
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+
+    const paragraph = editable.querySelector("p") as HTMLElement | null;
+    const textNode = paragraph?.firstChild as Text | null;
+    if (!paragraph || !textNode) {
+      throw new Error("Expected paragraph text node");
+    }
+    setTextNodeCursor(textNode, textNode.textContent?.length ?? 0);
+
+    const entry = createSuggestionEntry({
+      elem: editable,
+      latestMentionText: "bes",
+      latestMentionStart: -1,
+    });
+
+    let pendingEditDuringInput: typeof entry.pendingExtensionEdit | null = null;
+    editable.addEventListener("input", () => {
+      pendingEditDuringInput = entry.pendingExtensionEdit
+        ? { ...entry.pendingExtensionEdit }
+        : null;
+    });
+
+    const accepted = service.acceptSuggestion(entry, "best ");
+
+    expect(accepted).toEqual({
+      triggerText: "bes",
+      insertedText: "best\u00A0",
+      cursorAfter: 17,
+      cursorAfterIsBlockLocal: true,
+    });
+    expect(pendingEditDuringInput?.blockScoped).toBe(true);
+    expect(pendingEditDuringInput?.replacementText).toBe("best\u00A0");
+    expect(pendingEditDuringInput?.postEditBlockText).toBe("What is the best\u00A0");
   });
 
   test("treats deferred host-owned contenteditable acceptance as successful", () => {
@@ -813,13 +1215,14 @@ describe("SuggestionTextEditService", () => {
 
     expect(accepted).toEqual({
       triggerText: "Wh",
-      insertedText: "What ",
+      insertedText: "What\u00A0",
       cursorAfter: 5,
       cursorAfterIsBlockLocal: true,
     });
     expect(entry.pendingExtensionEdit?.blockScoped).toBe(true);
-    expect(entry.pendingExtensionEdit?.replacementText).toBe("What ");
-    expect(entry.pendingExtensionEdit?.postEditBlockText).toBe("What ");
+    expect(entry.pendingExtensionEdit?.replacementText).toBe("What\u00A0");
+    expect(entry.pendingExtensionEdit?.postEditBlockText).toBe("What\u00A0");
+    expect(entry.pendingExtensionEdit?.awaitingHostInputEcho).toBe(true);
     expect(editable.textContent).toBe("Wh");
   });
 
@@ -875,6 +1278,21 @@ describe("SuggestionTextEditService", () => {
       elem: input,
       missingTrailingSpace: true,
       expectedCursorPos: input.value.length,
+      suppressNextSuggestionInputPrediction: true,
+      pendingExtensionEdit: {
+        replaceStart: 0,
+        originalText: "Wa",
+        replacementText: "Was",
+        cursorBefore: 2,
+        cursorAfter: 3,
+        postEditFingerprint: {
+          fullText: "Was",
+          cursorOffset: 3,
+          selectionCollapsed: true,
+        },
+        awaitingHostInputEcho: true,
+        source: "suggestion",
+      },
     });
 
     let consumed = false;
@@ -895,6 +1313,155 @@ describe("SuggestionTextEditService", () => {
     expect(input.selectionEnd).toBe(6);
     expect(entry.missingTrailingSpace).toBe(false);
     expect(entry.expectedCursorPos).toBe(0);
+  });
+
+  test("clears delayed post-accept spacing when the user types a literal space", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+    });
+
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = "Was";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    document.body.appendChild(input);
+
+    const entry = createSuggestionEntry({
+      elem: input,
+      missingTrailingSpace: true,
+      expectedCursorPos: input.value.length,
+      suppressNextSuggestionInputPrediction: true,
+      pendingExtensionEdit: {
+        replaceStart: 0,
+        originalText: "Wa",
+        replacementText: "Was",
+        cursorBefore: 2,
+        cursorAfter: 3,
+        postEditFingerprint: {
+          fullText: "Was",
+          cursorOffset: 3,
+          selectionCollapsed: true,
+        },
+        awaitingHostInputEcho: true,
+        source: "suggestion",
+      },
+    });
+
+    let consumed = false;
+    const keyboardEvent = new Event("keydown", {
+      bubbles: true,
+      cancelable: true,
+    }) as KeyboardEvent;
+    Object.defineProperty(keyboardEvent, "key", { value: " " });
+
+    service.handleMissingSpaceAfterAccept(entry, keyboardEvent, () => {
+      consumed = true;
+      keyboardEvent.preventDefault();
+    });
+
+    expect(consumed).toBe(false);
+    expect(input.value).toBe("Was");
+    expect(entry.missingTrailingSpace).toBe(false);
+    expect(entry.expectedCursorPos).toBe(0);
+    expect(entry.suppressNextSuggestionInputPrediction).toBe(true);
+    expect(entry.pendingExtensionEdit?.awaitingHostInputEcho ?? false).toBe(true);
+  });
+
+  test("clears delayed post-accept spacing when the user types a literal space in contenteditable", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+    });
+
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    editable.textContent = "Was";
+    document.body.appendChild(editable);
+    setContentEditableCursor(editable, 3);
+
+    const entry = createSuggestionEntry({
+      elem: editable,
+      missingTrailingSpace: true,
+      expectedCursorPos: 3,
+      expectedCursorPosIsBlockLocal: true,
+      expectedCursorPosBlockElement: editable,
+      expectedCursorPosBlockText: "Was",
+      suppressNextSuggestionInputPrediction: true,
+      pendingExtensionEdit: {
+        replaceStart: 0,
+        originalText: "Wa",
+        replacementText: "Was",
+        cursorBefore: 2,
+        cursorAfter: 3,
+        postEditFingerprint: {
+          fullText: "",
+          cursorOffset: 3,
+          selectionCollapsed: true,
+        },
+        awaitingHostInputEcho: true,
+        source: "suggestion",
+        blockScoped: true,
+        blockElement: editable,
+        postEditBlockText: "Was",
+      },
+    });
+
+    let consumed = false;
+    const keyboardEvent = new Event("keydown", {
+      bubbles: true,
+      cancelable: true,
+    }) as KeyboardEvent;
+    Object.defineProperty(keyboardEvent, "key", { value: " " });
+
+    service.handleMissingSpaceAfterAccept(entry, keyboardEvent, () => {
+      consumed = true;
+      keyboardEvent.preventDefault();
+    });
+
+    expect(consumed).toBe(false);
+    expect(entry.missingTrailingSpace).toBe(false);
+    expect(entry.expectedCursorPos).toBe(0);
+    expect(entry.expectedCursorPosIsBlockLocal).toBe(false);
+    expect(entry.expectedCursorPosBlockElement).toBeNull();
+    expect(entry.expectedCursorPosBlockText).toBeNull();
+    expect(entry.suppressNextSuggestionInputPrediction).toBe(true);
+    expect(entry.pendingExtensionEdit?.awaitingHostInputEcho).toBe(true);
+  });
+
+  test("uses the host editor path for delayed post-accept spacing in host-owned contenteditables", () => {
+    const hostModel = createHostModelEditable({ text: "What is the best", cursor: 16 });
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+    });
+    const entry = createSuggestionEntry({
+      elem: hostModel.editable,
+      missingTrailingSpace: true,
+      expectedCursorPos: 16,
+      expectedCursorPosIsBlockLocal: true,
+      expectedCursorPosBlockElement: hostModel.editable,
+      expectedCursorPosBlockText: "What is the best",
+    });
+
+    let consumed = false;
+    const keyboardEvent = new Event("keydown", {
+      bubbles: true,
+      cancelable: true,
+    }) as KeyboardEvent;
+    Object.defineProperty(keyboardEvent, "key", { value: "s" });
+
+    service.handleMissingSpaceAfterAccept(entry, keyboardEvent, () => {
+      consumed = true;
+      keyboardEvent.preventDefault();
+    });
+
+    expect(consumed).toBe(true);
+    expect(hostModel.getReplaceRangeCalls()).toBe(1);
+    expect(hostModel.editable.textContent).toBe("What is the best s");
+    expect(entry.missingTrailingSpace).toBe(false);
   });
 
   test("clears delayed post-accept space state when caret moves to a different paragraph at the same local offset", () => {

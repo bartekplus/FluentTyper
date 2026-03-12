@@ -104,12 +104,69 @@ describe("SuggestionPredictionCoordinator", () => {
       expect.objectContaining({
         text: "Hello.",
         nextChar: "",
+        afterCursorTokenSuffix: "",
         suggestionId: 2,
         requestId: 1,
         lang: "en_US",
         inputAction: "delete",
         traceId: expect.any(String),
         traceStartedAtMs: expect.any(Number),
+      }),
+    );
+  });
+
+  test("includes only the current token suffix for mid-word edits", () => {
+    const getPrediction = jest.fn();
+    const coordinator = new SuggestionPredictionCoordinator({
+      debounceByAction: FIXED_DEBOUNCE_BY_ACTION,
+      getPrediction,
+      lang: "en_US",
+      minWordLengthToPredict: 1,
+      separatorRegex: /\s+/,
+    });
+
+    const input = document.createElement("input");
+    input.value = "Whbtsoever now";
+    input.selectionStart = 3;
+    input.selectionEnd = 3;
+    const entry = createSuggestionEntry({ id: 11, elem: input });
+
+    coordinator.schedule(entry, { force: true, clearSuggestions: jest.fn() });
+
+    expect(getPrediction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: "Whb",
+        nextChar: "t",
+        afterCursorTokenSuffix: "tsoever",
+        suggestionId: 11,
+      }),
+    );
+  });
+
+  test("retains keep-pred punctuation in the bounded suffix", () => {
+    const getPrediction = jest.fn();
+    const coordinator = new SuggestionPredictionCoordinator({
+      debounceByAction: FIXED_DEBOUNCE_BY_ACTION,
+      getPrediction,
+      lang: "en_US",
+      minWordLengthToPredict: 1,
+      separatorRegex: /[\s/-]+/,
+    });
+
+    const input = document.createElement("input");
+    input.value = "co-op later";
+    input.selectionStart = 2;
+    input.selectionEnd = 2;
+    const entry = createSuggestionEntry({ id: 12, elem: input });
+
+    coordinator.schedule(entry, { force: true, clearSuggestions: jest.fn() });
+
+    expect(getPrediction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: "co",
+        nextChar: "-",
+        afterCursorTokenSuffix: "-op",
+        suggestionId: 12,
       }),
     );
   });

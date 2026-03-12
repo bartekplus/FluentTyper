@@ -44,6 +44,7 @@ export type PredictionInputAction = "insert" | "delete" | "other";
 export interface PredictRequestContext {
   text: string;
   nextChar: string;
+  afterCursorTokenSuffix?: string;
   inputAction?: PredictionInputAction;
   lang: string;
   tabId: number;
@@ -79,6 +80,7 @@ export interface UpdateLangConfigContext {
 export interface ContentScriptPredictRequestContext {
   text: string;
   nextChar: string;
+  afterCursorTokenSuffix?: string;
   inputAction?: PredictionInputAction;
   suggestionId: number;
   requestId: number;

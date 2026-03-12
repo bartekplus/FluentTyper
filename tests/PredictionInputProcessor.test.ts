@@ -70,6 +70,21 @@ describe("PredictionInputProcessor", () => {
       expect(result.doPrediction).toBe(true);
       expect(Object.values(Capitalization)).toContain(result.doCapitalize);
     });
+    it("should extend the active word with the bounded token suffix after the cursor", () => {
+      const result = processor.processInput("I like Whb", "en_US", 1, true, "tsoever");
+      expect(result.predictionInput).toBe("i like whbtsoever");
+      expect(result.lastWord).toBe("Whbtsoever");
+      expect(result.doPrediction).toBe(true);
+    });
+    it("should retain keep-pred punctuation while trimming the rest of the trailing token", () => {
+      const hyphenResult = processor.processInput("co", "en_US", 1, true, "-op later");
+      expect(hyphenResult.predictionInput).toBe("co-op");
+      expect(hyphenResult.lastWord).toBe("op");
+
+      const slashResult = processor.processInput("use", "en_US", 1, true, "/case next");
+      expect(slashResult.predictionInput).toBe("use/case");
+      expect(slashResult.lastWord).toBe("case");
+    });
     it("should not predict if numSuggestions is 0", () => {
       const result = processor.processInput("Hello world", "en_US", 0, true);
       expect(result.doPrediction).toBe(false);

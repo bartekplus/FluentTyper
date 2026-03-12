@@ -613,6 +613,53 @@ describe("SuggestionManagerRuntime", () => {
     expect(handlePaste).toHaveBeenCalledTimes(1);
   });
 
+  test("backing textarea keydown, focus, and blur delegate to the attached contenteditable session", () => {
+    const runtime = makeRuntime();
+    const wrapper = document.createElement("div");
+    const textarea = document.createElement("textarea");
+    const codeMirror = document.createElement("div");
+    codeMirror.className = "CodeMirror";
+    const codeMirrorCode = document.createElement("div");
+    codeMirrorCode.className = "CodeMirror-code";
+    codeMirrorCode.setAttribute("contenteditable", "true");
+    Object.defineProperty(codeMirrorCode, "isContentEditable", { value: true, configurable: true });
+    codeMirror.appendChild(codeMirrorCode);
+    wrapper.append(textarea, codeMirror);
+    document.body.appendChild(wrapper);
+
+    runtime.queryAndAttachHelper();
+
+    const runtimeInternal = runtime as unknown as {
+      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
+    };
+    const entry = runtimeInternal.entryRegistry.getByElement(codeMirrorCode);
+    if (!entry) {
+      throw new Error("Expected attached suggestion entry");
+    }
+
+    const session = getAttachedSession(runtime, entry.id);
+    const handleKeyDown = jest.fn();
+    const handleFocus = jest.fn();
+    const handleBlur = jest.fn();
+    session.handleKeyDown = handleKeyDown;
+    session.handleFocus = handleFocus;
+    session.handleBlur = handleBlur;
+
+    const keydown = new window.KeyboardEvent("keydown", {
+      key: "Tab",
+      bubbles: true,
+      cancelable: true,
+    });
+    textarea.dispatchEvent(keydown);
+    textarea.dispatchEvent(new Event("focus", { bubbles: true }));
+    textarea.dispatchEvent(new Event("blur", { bubbles: true }));
+
+    expect(handleKeyDown).toHaveBeenCalledTimes(1);
+    expect(handleKeyDown.mock.calls[0]?.[0]).toBe(keydown);
+    expect(handleFocus).toHaveBeenCalledTimes(1);
+    expect(handleBlur).toHaveBeenCalledTimes(1);
+  });
+
   test("menu click delegates acceptance to the attached session", () => {
     const runtime = makeRuntime("input");
     const input = document.createElement("input");

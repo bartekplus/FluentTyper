@@ -113,6 +113,7 @@ export class BackgroundServiceWorker {
       message.context.lang,
       configOverride,
       traceMeta,
+      message.context.afterCursorTokenSuffix,
     );
     this.predictionManager.recordTraceTimelineEvent(
       traceMeta,
