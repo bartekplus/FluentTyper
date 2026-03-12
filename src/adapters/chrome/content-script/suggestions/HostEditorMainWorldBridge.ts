@@ -48,6 +48,9 @@ function getBlockContext(controller: LineEditorController) {
   return readLineEditorBlockContext(controller);
 }
 
+// Intentionally duplicated from TextTargetAdapter: the main-world bridge runs in
+// a separate injected bundle and stays self-contained instead of importing
+// extension-world helpers across the world boundary.
 function findBackingTextValueTarget(
   elem: HTMLElement,
 ): HTMLInputElement | HTMLTextAreaElement | null {
