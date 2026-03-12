@@ -136,6 +136,7 @@ export interface SuggestionEntry {
   pendingGrammarPaste: boolean;
   recentInteractionTrail: string[];
   handlers: {
+    beforeinput: EventListener;
     input: EventListener;
     keydown: EventListener;
     paste: EventListener;

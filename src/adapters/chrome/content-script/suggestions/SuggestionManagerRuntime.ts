@@ -128,14 +128,14 @@ export class SuggestionManagerRuntime {
         this.textEditService.handleMissingSpaceAfterAccept(
           entry,
           event,
-          this.consumeKeyboardEvent.bind(this),
+          this.consumeCancelableEvent.bind(this),
         ),
       tryUndoLastExtensionEdit: (entry, event) =>
         this.textEditService.tryUndoLastExtensionEdit(entry, event, {
-          consumeKeyboardEvent: this.consumeKeyboardEvent.bind(this),
+          consumeKeyboardEvent: this.consumeCancelableEvent.bind(this),
           clearSuggestions: () => this.clearSuggestions(entry),
         }),
-      consumeKeyboardEvent: this.consumeKeyboardEvent.bind(this),
+      consumeKeyboardEvent: this.consumeCancelableEvent.bind(this),
       clearSuggestions: this.clearSuggestions.bind(this),
       isMenuVisible: (entry) => this.menuPresenter.isVisible(entry.menu, entry.suggestions.length),
       updateSelectionHighlight: (entry) =>
@@ -406,6 +406,7 @@ export class SuggestionManagerRuntime {
       pendingGrammarPaste: false,
       recentInteractionTrail: [],
       handlers: {
+        beforeinput: () => undefined,
         input: () => undefined,
         keydown: () => undefined,
         paste: () => undefined,
@@ -419,6 +420,7 @@ export class SuggestionManagerRuntime {
       },
     };
 
+    entry.handlers.beforeinput = this.onElementBeforeInput.bind(this, id);
     entry.handlers.input = this.onElementInput.bind(this, id);
     entry.handlers.keydown = this.onElementKeyDown.bind(this, id);
     entry.handlers.paste = this.onElementPaste.bind(this, id);
@@ -554,6 +556,22 @@ export class SuggestionManagerRuntime {
       return;
     }
     this.sessionRegistry.get(id)?.handleInput(event);
+  }
+
+  private onElementBeforeInput(id: number, event: Event): void {
+    this.activeEntryId = id;
+    const entry = this.entryRegistry.getById(id);
+    if (!entry) {
+      return;
+    }
+    const inputEvent = event as InputEvent;
+    const handled = this.textEditService.tryUndoLastExtensionEditOnBeforeInput(entry, inputEvent, {
+      consumeInputEvent: this.consumeCancelableEvent.bind(this),
+      clearSuggestions: () => this.clearSuggestions(entry),
+    });
+    if (handled) {
+      this.clearPendingKeyFallback(id);
+    }
   }
 
   private onElementPaste(id: number): void {
@@ -730,7 +748,7 @@ export class SuggestionManagerRuntime {
     this.pendingKeyFallbacks.delete(id);
   }
 
-  private consumeKeyboardEvent(event: KeyboardEvent): void {
+  private consumeCancelableEvent(event: Event): void {
     event.preventDefault();
     event.stopPropagation();
     if (typeof event.stopImmediatePropagation === "function") {
