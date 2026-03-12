@@ -1610,6 +1610,26 @@ describe("SuggestionManagerRuntime", () => {
       expect(getManualAttachButton(host)).toBeNull();
     });
 
+    test("uses dark surface styling for a shadow-hosted conflicting field on a dark host", () => {
+      const runtime = makeRuntime();
+      const host = document.createElement("div");
+      host.style.backgroundColor = "rgb(29, 28, 29)";
+      document.body.appendChild(host);
+      const shadow = host.attachShadow({ mode: "open" });
+      const list = document.createElement("datalist");
+      list.id = "cities";
+      const shadowInput = document.createElement("input");
+      shadowInput.type = "text";
+      shadowInput.setAttribute("list", "cities");
+      shadow.append(list, shadowInput);
+
+      runtime.queryAndAttachHelper();
+
+      const button = getManualAttachButton(shadow);
+      expect(button).not.toBeNull();
+      expect(button?.style.backgroundColor).toBe("rgba(15, 23, 42, 0.92)");
+    });
+
     test("removes the manual attach icon when a shadow-hosted conflicting field is removed", () => {
       const runtime = makeRuntime();
       const host = document.createElement("div");

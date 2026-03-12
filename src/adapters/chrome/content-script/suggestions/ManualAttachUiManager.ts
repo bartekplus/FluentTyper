@@ -455,10 +455,24 @@ export class ManualAttachUiManager {
 
   private collectAncestorElements(element: ManualAttachTarget): HTMLElement[] {
     const ancestors: HTMLElement[] = [];
-    let current = element.parentElement;
+    let current: HTMLElement | null = element;
     while (current) {
-      ancestors.push(current);
-      current = current.parentElement;
+      const parentElement = current.parentElement;
+      if (this.isHtmlElement(parentElement, current.ownerDocument)) {
+        ancestors.push(parentElement);
+        current = parentElement;
+        continue;
+      }
+      const rootNode = current.getRootNode();
+      if (
+        this.isShadowRoot(rootNode, current.ownerDocument) &&
+        this.isHtmlElement(rootNode.host, current.ownerDocument)
+      ) {
+        ancestors.push(rootNode.host);
+        current = rootNode.host;
+        continue;
+      }
+      current = null;
     }
     const body = element.ownerDocument.body;
     if (body && !ancestors.includes(body)) {
