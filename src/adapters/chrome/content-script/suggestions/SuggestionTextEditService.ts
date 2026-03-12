@@ -990,6 +990,49 @@ export class SuggestionTextEditService {
     return session;
   }
 
+  private applyContentEditableSuggestionEdit({
+    elem,
+    blockSourceText,
+    replaceStart,
+    replaceEnd,
+    replacementText,
+    cursorAfter,
+    activeBlock,
+    hostEditorSession,
+  }: {
+    elem: SuggestionElement;
+    blockSourceText: string;
+    replaceStart: number;
+    replaceEnd: number;
+    replacementText: string;
+    cursorAfter: number;
+    activeBlock: HTMLElement;
+    hostEditorSession: HostEditorSession | null;
+  }): ContentEditableEditResult | { didMutateDom: boolean; didDispatchInput: boolean } {
+    if (hostEditorSession) {
+      const result = hostEditorSession.applyBlockReplacement({
+        replaceStart,
+        replaceEnd,
+        replacementText,
+        cursorAfter,
+      });
+      return {
+        didMutateDom: result.applied,
+        didDispatchInput: result.didDispatchInput,
+      };
+    }
+
+    return this.replaceTextByOffsets(
+      elem,
+      blockSourceText,
+      replaceStart,
+      replaceEnd,
+      replacementText,
+      cursorAfter,
+      { scopeRoot: activeBlock },
+    );
+  }
+
   private acceptContentEditableSuggestion(
     entry: SuggestionEntry,
     suggestion: string,
@@ -1100,28 +1143,16 @@ export class SuggestionTextEditService {
       postEditBlockText: expectedPostEditBlockText,
     };
 
-    const applyResult = hostEditorSession
-      ? (() => {
-          const result = hostEditorSession.applyBlockReplacement({
-            replaceStart,
-            replaceEnd: finalReplaceEnd,
-            replacementText,
-            cursorAfter,
-          });
-          return {
-            didMutateDom: result.applied,
-            didDispatchInput: result.didDispatchInput,
-          };
-        })()
-      : this.replaceTextByOffsets(
-          entry.elem,
-          blockSourceText,
-          replaceStart,
-          finalReplaceEnd,
-          replacementText,
-          cursorAfter,
-          { scopeRoot: activeBlock },
-        );
+    const applyResult = this.applyContentEditableSuggestionEdit({
+      elem: entry.elem,
+      blockSourceText,
+      replaceStart,
+      replaceEnd: finalReplaceEnd,
+      replacementText,
+      cursorAfter,
+      activeBlock,
+      hostEditorSession,
+    });
     const hostAcceptedAsync =
       "appliedBy" in applyResult &&
       applyResult.appliedBy === "host-beforeinput" &&
