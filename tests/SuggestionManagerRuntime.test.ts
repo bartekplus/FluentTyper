@@ -1134,6 +1134,78 @@ describe("SuggestionManagerRuntime", () => {
       expect(getManualAttachButton(editorShell)).not.toBeNull();
     });
 
+    test("ignores nested decorative descendants when positioning contenteditable manual attach icon", () => {
+      const runtime = makeRuntime();
+      const shell = document.createElement("div");
+      const editorShell = document.createElement("div");
+      const editable = document.createElement("div");
+      const decorationLayer = document.createElement("div");
+      const decorationIcon = document.createElement("span");
+      const list = document.createElement("div");
+      list.id = "editable-list";
+      list.setAttribute("role", "listbox");
+      editable.setAttribute("contenteditable", "true");
+      Object.defineProperty(editable, "isContentEditable", {
+        configurable: true,
+        value: true,
+      });
+      editable.tabIndex = 0;
+      editable.setAttribute("role", "combobox");
+      editable.setAttribute("aria-expanded", "true");
+      editable.setAttribute("aria-controls", "editable-list");
+      decorationLayer.appendChild(decorationIcon);
+      editorShell.append(editable, decorationLayer);
+      shell.appendChild(editorShell);
+      document.body.append(shell, list);
+      mockRect(shell, { left: 10, top: 20, width: 260, height: 52 });
+      mockRect(editorShell, { left: 86, top: 24, width: 150, height: 40 });
+      mockRect(editable, { left: 94, top: 30, width: 150, height: 28 });
+      mockRect(decorationLayer, { left: 214, top: 26, width: 18, height: 28 });
+      mockRect(decorationIcon, { left: 214, top: 30, width: 14, height: 14 });
+
+      runtime.queryAndAttachHelper();
+
+      const container = getManualAttachContainer(editorShell);
+      expect(container).not.toBeNull();
+      expect(container?.style.left).toBe("132px");
+    });
+
+    test("uses a high-contrast dark surface treatment for manual attach icon", () => {
+      const runtime = makeRuntime();
+      const shell = document.createElement("div");
+      const editorShell = document.createElement("div");
+      const editable = document.createElement("div");
+      const list = document.createElement("div");
+      list.id = "editable-list";
+      list.setAttribute("role", "listbox");
+      shell.style.backgroundColor = "rgb(29, 28, 29)";
+      editorShell.style.backgroundColor = "rgb(29, 28, 29)";
+      editable.setAttribute("contenteditable", "true");
+      Object.defineProperty(editable, "isContentEditable", {
+        configurable: true,
+        value: true,
+      });
+      editable.tabIndex = 0;
+      editable.setAttribute("role", "combobox");
+      editable.setAttribute("aria-expanded", "true");
+      editable.setAttribute("aria-controls", "editable-list");
+      editorShell.appendChild(editable);
+      shell.appendChild(editorShell);
+      document.body.append(shell, list);
+      mockRect(shell, { left: 10, top: 20, width: 260, height: 52 });
+      mockRect(editorShell, { left: 86, top: 24, width: 150, height: 40 });
+      mockRect(editable, { left: 94, top: 30, width: 150, height: 28 });
+
+      runtime.queryAndAttachHelper();
+
+      const button = getManualAttachButton(editorShell);
+      const icon = button?.querySelector("img");
+      expect(button).not.toBeNull();
+      expect(button?.style.backgroundColor).toBe("rgba(15, 23, 42, 0.92)");
+      expect(button?.style.borderColor).toBe("rgba(148, 163, 184, 0.34)");
+      expect(icon?.style.filter).not.toContain("grayscale");
+    });
+
     test("ignores non-overlapping rows when resolving contenteditable manual attach obstacles", () => {
       const runtime = makeRuntime();
       const shell = document.createElement("div");
@@ -1536,6 +1608,26 @@ describe("SuggestionManagerRuntime", () => {
 
       expect(getManualAttachButton(shadow)).not.toBeNull();
       expect(getManualAttachButton(host)).toBeNull();
+    });
+
+    test("uses dark surface styling for a shadow-hosted conflicting field on a dark host", () => {
+      const runtime = makeRuntime();
+      const host = document.createElement("div");
+      host.style.backgroundColor = "rgb(29, 28, 29)";
+      document.body.appendChild(host);
+      const shadow = host.attachShadow({ mode: "open" });
+      const list = document.createElement("datalist");
+      list.id = "cities";
+      const shadowInput = document.createElement("input");
+      shadowInput.type = "text";
+      shadowInput.setAttribute("list", "cities");
+      shadow.append(list, shadowInput);
+
+      runtime.queryAndAttachHelper();
+
+      const button = getManualAttachButton(shadow);
+      expect(button).not.toBeNull();
+      expect(button?.style.backgroundColor).toBe("rgba(15, 23, 42, 0.92)");
     });
 
     test("removes the manual attach icon when a shadow-hosted conflicting field is removed", () => {

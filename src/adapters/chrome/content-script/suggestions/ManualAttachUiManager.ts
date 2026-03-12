@@ -4,11 +4,30 @@ const BUTTON_SIZE_PX = 18;
 const FIELD_INSET_PX = 8;
 const PADDING_RESERVE_PX = BUTTON_SIZE_PX + FIELD_INSET_PX * 2;
 const SUCCESS_STATE_MS = 650;
+const INLINE_OBSTACLE_SELECTOR = [
+  "button",
+  "a[href]",
+  "input",
+  "textarea",
+  "select",
+  "[contenteditable='true']",
+  "[role='button']",
+  "[role='combobox']",
+  "[role='textbox']",
+].join(", ");
 
 export const MANUAL_ATTACH_BUTTON_CLASS = "ft-manual-attach-button";
 export const MANUAL_ATTACH_TOOLTIP = "Click to enable FluentTyper for this field.";
 
 export type ManualAttachTarget = HTMLInputElement | HTMLTextAreaElement | HTMLElement;
+type ManualAttachSurfaceTone = "light" | "dark";
+
+interface RgbaColor {
+  r: number;
+  g: number;
+  b: number;
+  a: number;
+}
 
 interface ParentPositionState {
   count: number;
@@ -28,6 +47,7 @@ interface ManualAttachUiHandle {
   button: HTMLButtonElement;
   icon: HTMLImageElement;
   checkmark: HTMLSpanElement;
+  surfaceTone: ManualAttachSurfaceTone;
   originalPaddingInlineEnd: string;
   successTimer: ReturnType<typeof setTimeout> | null;
   successPending: boolean;
@@ -53,6 +73,7 @@ export class ManualAttachUiManager {
     const existing = this.handles.get(element);
     if (existing) {
       this.updatePlacement(element, existing);
+      this.updateSurfaceTone(element, existing);
       if (!existing.successPending) {
         this.applyIdleState(existing);
       }
@@ -137,6 +158,7 @@ export class ManualAttachUiManager {
       transition:
         "transform 140ms ease, box-shadow 140ms ease, background-color 140ms ease, border-color 140ms ease",
       outline: "none",
+      backdropFilter: "blur(8px) saturate(1.12)",
     });
 
     const icon = element.ownerDocument.createElement("img");
@@ -176,6 +198,7 @@ export class ManualAttachUiManager {
       button,
       icon,
       checkmark,
+      surfaceTone: this.resolveSurfaceTone(element),
       originalPaddingInlineEnd: this.getInlineEndPaddingStyleValue(element),
       successTimer: null,
       successPending: false,
@@ -223,15 +246,20 @@ export class ManualAttachUiManager {
   }
 
   private applyIdleState(handle: ManualAttachUiHandle): void {
+    const isDarkSurface = handle.surfaceTone === "dark";
     Object.assign(handle.button.style, {
-      backgroundColor: "rgba(255, 255, 255, 0.82)",
-      borderColor: "transparent",
-      boxShadow: "none",
+      backgroundColor: isDarkSurface ? "rgba(15, 23, 42, 0.92)" : "rgba(255, 255, 255, 0.9)",
+      borderColor: isDarkSurface ? "rgba(148, 163, 184, 0.34)" : "rgba(148, 163, 184, 0.2)",
+      boxShadow: isDarkSurface
+        ? "0 10px 18px -14px rgba(2, 6, 23, 0.96)"
+        : "0 8px 14px -14px rgba(15, 23, 42, 0.4)",
       transform: "scale(1)",
     });
     Object.assign(handle.icon.style, {
-      opacity: "0.55",
-      filter: "grayscale(1) saturate(0) contrast(0.98)",
+      opacity: isDarkSurface ? "0.96" : "0.72",
+      filter: isDarkSurface
+        ? "drop-shadow(0 1px 2px rgba(2, 6, 23, 0.45))"
+        : "grayscale(0.24) saturate(0.78) contrast(1.02)",
     });
     Object.assign(handle.checkmark.style, {
       opacity: "0",
@@ -240,15 +268,18 @@ export class ManualAttachUiManager {
   }
 
   private applyHoverState(handle: ManualAttachUiHandle): void {
+    const isDarkSurface = handle.surfaceTone === "dark";
     Object.assign(handle.button.style, {
-      backgroundColor: "rgba(255, 255, 255, 0.96)",
-      borderColor: "rgba(14, 165, 233, 0.24)",
-      boxShadow: "0 6px 14px -10px rgba(14, 165, 233, 0.9)",
+      backgroundColor: isDarkSurface ? "rgba(30, 41, 59, 0.98)" : "rgba(255, 255, 255, 0.98)",
+      borderColor: isDarkSurface ? "rgba(96, 165, 250, 0.48)" : "rgba(14, 165, 233, 0.32)",
+      boxShadow: isDarkSurface
+        ? "0 10px 20px -12px rgba(96, 165, 250, 0.62)"
+        : "0 8px 18px -12px rgba(14, 165, 233, 0.58)",
       transform: "scale(1.05)",
     });
     Object.assign(handle.icon.style, {
       opacity: "1",
-      filter: "none",
+      filter: isDarkSurface ? "drop-shadow(0 1px 2px rgba(2, 6, 23, 0.42))" : "none",
     });
     Object.assign(handle.checkmark.style, {
       opacity: "0",
@@ -257,10 +288,13 @@ export class ManualAttachUiManager {
   }
 
   private applySuccessState(handle: ManualAttachUiHandle): void {
+    const isDarkSurface = handle.surfaceTone === "dark";
     Object.assign(handle.button.style, {
-      backgroundColor: "rgba(236, 253, 245, 0.98)",
-      borderColor: "rgba(16, 185, 129, 0.32)",
-      boxShadow: "0 8px 18px -12px rgba(4, 120, 87, 0.95)",
+      backgroundColor: isDarkSurface ? "rgba(6, 78, 59, 0.94)" : "rgba(236, 253, 245, 0.98)",
+      borderColor: isDarkSurface ? "rgba(52, 211, 153, 0.48)" : "rgba(16, 185, 129, 0.32)",
+      boxShadow: isDarkSurface
+        ? "0 10px 20px -12px rgba(4, 120, 87, 0.92)"
+        : "0 8px 18px -12px rgba(4, 120, 87, 0.95)",
       transform: "scale(1.08)",
     });
     Object.assign(handle.icon.style, {
@@ -268,9 +302,14 @@ export class ManualAttachUiManager {
       filter: "none",
     });
     Object.assign(handle.checkmark.style, {
+      color: isDarkSurface ? "#d1fae5" : "#047857",
       opacity: "1",
       transform: "scale(1)",
     });
+  }
+
+  private updateSurfaceTone(element: ManualAttachTarget, handle: ManualAttachUiHandle): void {
+    handle.surfaceTone = this.resolveSurfaceTone(element);
   }
 
   private updatePlacement(element: ManualAttachTarget, handle: ManualAttachUiHandle): void {
@@ -351,11 +390,15 @@ export class ManualAttachUiManager {
     }
     const elementRect = element.getBoundingClientRect();
     const elementMidpoint = elementRect.left + elementRect.width / 2;
-    const sameWrapperCandidates = Array.from(positioningParent.querySelectorAll("*")).filter(
+    // Only consider peer layout boxes around the editor. Deep descendants inside
+    // complex editors (like Slack) can appear/disappear while typing and should
+    // not yank the manual-attach control around.
+    const sameWrapperCandidates = Array.from(positioningParent.children).filter(
       (candidate): candidate is HTMLElement =>
         candidate instanceof HTMLElement &&
         candidate !== element &&
         candidate !== handle.container &&
+        this.isInlineObstacleCandidate(candidate) &&
         !element.contains(candidate) &&
         !candidate.contains(element),
     );
@@ -383,6 +426,97 @@ export class ManualAttachUiManager {
 
   private hasVerticalOverlap(candidateRect: DOMRect, elementRect: DOMRect): boolean {
     return candidateRect.bottom > elementRect.top && candidateRect.top < elementRect.bottom;
+  }
+
+  private isInlineObstacleCandidate(candidate: HTMLElement): boolean {
+    if (candidate.getAttribute("aria-hidden") === "true") {
+      return false;
+    }
+    if (candidate.matches(INLINE_OBSTACLE_SELECTOR)) {
+      return true;
+    }
+    return candidate.querySelector(INLINE_OBSTACLE_SELECTOR) instanceof HTMLElement;
+  }
+
+  private resolveSurfaceTone(element: ManualAttachTarget): ManualAttachSurfaceTone {
+    const colorSources = [element, ...this.collectAncestorElements(element)];
+    for (const candidate of colorSources) {
+      const backgroundColor =
+        candidate.ownerDocument.defaultView?.getComputedStyle(candidate).backgroundColor;
+      const parsed = this.parseCssColor(backgroundColor);
+      if (parsed && parsed.a > 0.05) {
+        return this.relativeLuminance(parsed) < 0.36 ? "dark" : "light";
+      }
+    }
+    return element.ownerDocument.defaultView?.matchMedia?.("(prefers-color-scheme: dark)").matches
+      ? "dark"
+      : "light";
+  }
+
+  private collectAncestorElements(element: ManualAttachTarget): HTMLElement[] {
+    const ancestors: HTMLElement[] = [];
+    let current: HTMLElement | null = element;
+    while (current) {
+      const parentElement = current.parentElement;
+      if (this.isHtmlElement(parentElement, current.ownerDocument)) {
+        ancestors.push(parentElement);
+        current = parentElement;
+        continue;
+      }
+      const rootNode = current.getRootNode();
+      if (
+        this.isShadowRoot(rootNode, current.ownerDocument) &&
+        this.isHtmlElement(rootNode.host, current.ownerDocument)
+      ) {
+        ancestors.push(rootNode.host);
+        current = rootNode.host;
+        continue;
+      }
+      current = null;
+    }
+    const body = element.ownerDocument.body;
+    if (body && !ancestors.includes(body)) {
+      ancestors.push(body);
+    }
+    return ancestors;
+  }
+
+  private parseCssColor(rawValue: string | undefined): RgbaColor | null {
+    if (!rawValue) {
+      return null;
+    }
+    const value = rawValue.trim().toLowerCase();
+    const rgbMatch = value.match(
+      /^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})(?:\s*,\s*(\d*\.?\d+))?\s*\)$/,
+    );
+    if (!rgbMatch) {
+      return null;
+    }
+    const r = Number.parseInt(rgbMatch[1], 10);
+    const g = Number.parseInt(rgbMatch[2], 10);
+    const b = Number.parseInt(rgbMatch[3], 10);
+    const a = rgbMatch[4] === undefined ? 1 : Number.parseFloat(rgbMatch[4]);
+    if ([r, g, b, a].some((part) => Number.isNaN(part))) {
+      return null;
+    }
+    return {
+      r: this.clampChannel(r),
+      g: this.clampChannel(g),
+      b: this.clampChannel(b),
+      a: Math.min(Math.max(a, 0), 1),
+    };
+  }
+
+  private relativeLuminance(color: RgbaColor): number {
+    const channels = [color.r, color.g, color.b].map((channel) => {
+      const normalized = this.clampChannel(channel) / 255;
+      return normalized <= 0.03928 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+  }
+
+  private clampChannel(channel: number): number {
+    return Math.min(Math.max(Math.round(channel), 0), 255);
   }
 
   private resolveOffsetTop(
