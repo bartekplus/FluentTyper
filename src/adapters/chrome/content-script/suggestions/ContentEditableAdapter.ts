@@ -88,6 +88,9 @@ export class ContentEditableAdapter {
       selection.addRange(range);
     }
 
+    // execCommand("insertText") operates at the editor/root selection level.
+    // For scoped block edits we skip it on purpose, because a root-wide native
+    // replacement can leak outside the intended block and corrupt caret context.
     const shouldTryNativeReplacement = !preferDomMutation && editScope === elem;
 
     if (!preferDomMutation) {
