@@ -1264,7 +1264,7 @@ describe("SuggestionTextEditService", () => {
     expect(editable.textContent).toBe("Wh");
   });
 
-  test("retries generic contenteditable acceptance with direct DOM mutation after a canceled no-op beforeinput", () => {
+  test("keeps generic contenteditable acceptance deferred when beforeinput is canceled without immediate DOM mutation", () => {
     const service = new SuggestionTextEditService({
       findMentionToken,
       isSeparator: (value) => /\s/.test(value),
@@ -1297,7 +1297,7 @@ describe("SuggestionTextEditService", () => {
       cursorAfter: 5,
       cursorAfterIsBlockLocal: true,
     });
-    expect(editable.textContent).toBe("What\u00A0");
+    expect(editable.textContent).toBe("Wh");
     expect(entry.pendingExtensionEdit?.awaitingHostInputEcho).toBe(true);
   });
 

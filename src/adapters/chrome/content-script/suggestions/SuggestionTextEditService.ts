@@ -1071,29 +1071,7 @@ export class SuggestionTextEditService {
       cursorAfter,
       { scopeRoot: activeBlock },
     );
-    const deferredHostNoMutation =
-      "appliedBy" in initialApplyResult &&
-      initialApplyResult.appliedBy === "host-beforeinput" &&
-      !initialApplyResult.didMutateDom;
-
-    if (!deferredHostNoMutation) {
-      return initialApplyResult;
-    }
-
-    const domFallbackResult = this.replaceTextByOffsets(
-      elem,
-      blockSourceText,
-      replaceStart,
-      replaceEnd,
-      replacementText,
-      cursorAfter,
-      {
-        preferDomMutation: true,
-        scopeRoot: activeBlock,
-      },
-    );
-
-    return domFallbackResult.didMutateDom ? domFallbackResult : initialApplyResult;
+    return initialApplyResult;
   }
 
   private acceptContentEditableSuggestion(
