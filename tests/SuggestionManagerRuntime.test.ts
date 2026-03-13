@@ -529,6 +529,127 @@ describe("SuggestionManagerRuntime", () => {
     expect(handleKeyDown.mock.calls[0]?.[0]).toBe(keydown);
   });
 
+  test("document-level Tab capture accepts suggestions when an ancestor swallows keydown before the entry listener", () => {
+    const runtime = makeRuntime();
+    const wrapper = document.createElement("div");
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    wrapper.appendChild(editable);
+    document.body.appendChild(wrapper);
+
+    runtime.queryAndAttachHelper();
+
+    const runtimeInternal = runtime as unknown as {
+      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
+    };
+    const entry = runtimeInternal.entryRegistry.getByElement(editable);
+    if (!entry) {
+      throw new Error("Expected attached suggestion entry");
+    }
+
+    entry.suggestions = ["hello"];
+    entry.selectedIndex = 0;
+    entry.menu.style.display = "block";
+
+    const session = getAttachedSession(runtime, entry.id);
+    const acceptSuggestionAtIndex = jest.fn(() => true);
+    session.acceptSuggestionAtIndex = acceptSuggestionAtIndex;
+
+    wrapper.addEventListener(
+      "keydown",
+      (event) => {
+        event.stopPropagation();
+      },
+      true,
+    );
+
+    const keydown = new window.KeyboardEvent("keydown", {
+      key: "Tab",
+      bubbles: true,
+      cancelable: true,
+    });
+    editable.dispatchEvent(keydown);
+
+    expect(acceptSuggestionAtIndex).toHaveBeenCalledTimes(1);
+    expect(acceptSuggestionAtIndex).toHaveBeenCalledWith(0);
+    expect(keydown.defaultPrevented).toBe(true);
+  });
+
+  test("early bridge accept delegates popup acceptance to the attached session", () => {
+    const runtime = makeRuntime();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+
+    runtime.queryAndAttachHelper();
+
+    const runtimeInternal = runtime as unknown as {
+      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
+    };
+    const entry = runtimeInternal.entryRegistry.getByElement(editable);
+    if (!entry) {
+      throw new Error("Expected attached suggestion entry");
+    }
+
+    entry.suggestions = ["hello"];
+    entry.selectedIndex = 0;
+    entry.menu.style.display = "block";
+
+    const session = getAttachedSession(runtime, entry.id);
+    const acceptSuggestionAtIndex = jest.fn(() => true);
+    session.acceptSuggestionAtIndex = acceptSuggestionAtIndex;
+
+    expect(
+      (
+        runtime as unknown as {
+          handleEarlyTabAcceptRequest: (entryId: string) => { accepted: boolean };
+        }
+      ).handleEarlyTabAcceptRequest(String(entry.id)),
+    ).toEqual(expect.objectContaining({ accepted: true }));
+    expect(acceptSuggestionAtIndex).toHaveBeenCalledTimes(1);
+    expect(acceptSuggestionAtIndex).toHaveBeenCalledWith(0);
+  });
+
+  test("early bridge accept reports failure when session acceptance returns false", () => {
+    const runtime = makeRuntime();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+
+    runtime.queryAndAttachHelper();
+
+    const runtimeInternal = runtime as unknown as {
+      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
+    };
+    const entry = runtimeInternal.entryRegistry.getByElement(editable);
+    if (!entry) {
+      throw new Error("Expected attached suggestion entry");
+    }
+
+    entry.suggestions = ["hello"];
+    entry.selectedIndex = 0;
+    entry.menu.style.display = "block";
+
+    const session = getAttachedSession(runtime, entry.id);
+    session.acceptSuggestionAtIndex = jest.fn(() => false);
+
+    expect(
+      (
+        runtime as unknown as {
+          handleEarlyTabAcceptRequest: (entryId: string) => { accepted: boolean; reason: string };
+        }
+      ).handleEarlyTabAcceptRequest(String(entry.id)),
+    ).toEqual(
+      expect.objectContaining({
+        accepted: false,
+        reason: "accept_failed",
+      }),
+    );
+  });
+
   test("selection reconciliation delegates to the attached session", () => {
     const runtime = makeRuntime("input");
     const input = document.createElement("input");

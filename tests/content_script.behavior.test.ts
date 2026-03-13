@@ -1,16 +1,20 @@
 import { jest, mock } from "bun:test";
 import {
+  CMD_CONTENT_SCRIPT_GET_CONFIG,
+  CMD_CONTENT_SCRIPT_REPORT_RUNTIME_STATUS,
   CMD_BACKGROUND_PAGE_PREDICT_RESP,
   CMD_BACKGROUND_PAGE_SET_CONFIG,
   CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
-  CMD_CONTENT_SCRIPT_REPORT_RUNTIME_STATUS,
-  CMD_CONTENT_SCRIPT_GET_CONFIG,
   CMD_POPUP_PAGE_DISABLE,
   CMD_POPUP_PAGE_ENABLE,
   CMD_STATUS_COMMAND,
   CMD_TOGGLE_FT_ACTIVE_TAB,
   CMD_TRIGGER_FT_ACTIVE_TAB,
 } from "../src/core/domain/constants";
+import {
+  EARLY_TAB_ACCEPT_MESSAGE_TYPE,
+  EARLY_TAB_ACCEPT_REQUEST_EVENT,
+} from "../src/adapters/chrome/content-script/suggestions/EarlyTabAcceptBridgeProtocol";
 
 type SuggestionLike = {
   queryAndAttachHelper: jest.Mock;
@@ -19,6 +23,7 @@ type SuggestionLike = {
   updateLangConfig: jest.Mock;
   triggerActiveSuggestion: jest.Mock;
   fulfillPrediction: jest.Mock;
+  handleEarlyTabAcceptRequest: jest.Mock;
   autocompleteSeparator?: RegExp;
 };
 
@@ -114,6 +119,14 @@ jest.unstable_mockModule("../src/adapters/chrome/content-script/SuggestionManage
       updateLangConfig: jest.fn(),
       triggerActiveSuggestion: jest.fn(),
       fulfillPrediction: jest.fn(),
+      handleEarlyTabAcceptRequest: jest.fn(() => ({
+        accepted: false,
+        reason: "entry_not_found",
+        entryId: "0",
+        suggestionCount: 0,
+        menuVisible: false,
+        hasInlineSuggestion: false,
+      })),
     };
     behaviorHarness.suggestionInstances.push(instance);
     return instance;
@@ -210,6 +223,61 @@ describe("content_script behavior", () => {
         }),
       }),
     );
+  });
+
+  test("consumes early Tab bridge requests when suggestion acceptance succeeds", async () => {
+    const { fluentTyper, suggestionInstances } = await loadContentScript();
+
+    fluentTyper.enable();
+    const suggestionManager = suggestionInstances[0];
+    suggestionManager.handleEarlyTabAcceptRequest.mockReturnValue({
+      accepted: true,
+      reason: "accepted_menu",
+      entryId: "17",
+      suggestionCount: 1,
+      menuVisible: true,
+      hasInlineSuggestion: false,
+    });
+
+    const event = new window.MessageEvent("message", {
+      source: window,
+      data: {
+        source: EARLY_TAB_ACCEPT_REQUEST_EVENT,
+        type: EARLY_TAB_ACCEPT_MESSAGE_TYPE,
+        entryId: "17",
+      },
+    });
+    window.dispatchEvent(event);
+
+    expect(suggestionManager.handleEarlyTabAcceptRequest).toHaveBeenCalledWith("17");
+  });
+
+  test("consumes early Tab bridge requests even when message source is not the page window", async () => {
+    const { fluentTyper, suggestionInstances } = await loadContentScript();
+
+    fluentTyper.enable();
+    const suggestionManager = suggestionInstances[0];
+    suggestionManager.handleEarlyTabAcceptRequest.mockReturnValue({
+      accepted: true,
+      reason: "accepted_menu",
+      entryId: "23",
+      suggestionCount: 1,
+      menuVisible: true,
+      hasInlineSuggestion: false,
+    });
+
+    const channel = new MessageChannel();
+    const event = new window.MessageEvent("message", {
+      source: channel.port1,
+      data: {
+        source: EARLY_TAB_ACCEPT_REQUEST_EVENT,
+        type: EARLY_TAB_ACCEPT_MESSAGE_TYPE,
+        entryId: "23",
+      },
+    });
+    window.dispatchEvent(event);
+
+    expect(suggestionManager.handleEarlyTabAcceptRequest).toHaveBeenCalledWith("23");
   });
 
   test("handleGetPrediction sends request and matching response fulfills prediction", async () => {

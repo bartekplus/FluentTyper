@@ -1,4 +1,7 @@
-import { SuggestionManagerRuntime } from "./suggestions/SuggestionManagerRuntime";
+import {
+  SuggestionManagerRuntime,
+  type EarlyTabAcceptResult,
+} from "./suggestions/SuggestionManagerRuntime";
 import type { PredictionResponse, SuggestionManagerOptions } from "./suggestions/types";
 
 export class SuggestionManager {
@@ -18,6 +21,10 @@ export class SuggestionManager {
 
   public triggerActiveSuggestion(): void {
     this.runtime.triggerActiveSuggestion();
+  }
+
+  public handleEarlyTabAcceptRequest(entryId: string): EarlyTabAcceptResult {
+    return this.runtime.handleEarlyTabAcceptRequest(entryId);
   }
 
   public updateLangConfig(lang: string): void {
