@@ -533,6 +533,49 @@ test("session ignores stale prediction responses after suggestion acceptance", (
   expect(renderMenu).not.toHaveBeenCalled();
 });
 
+test("session ignores an immediate duplicate suggestion accept while the first accepted edit is still pending", () => {
+  const editable = document.createElement("div");
+  editable.setAttribute("contenteditable", "true");
+  Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+
+  const entry = createSuggestionEntry({
+    elem: editable as SuggestionEntry["elem"],
+    requestId: 2,
+    suggestions: ["beta"],
+    latestMentionText: "bet",
+  });
+  const textEditService = {
+    acceptSuggestion: jest.fn(() => {
+      entry.pendingExtensionEdit = {
+        replaceStart: 0,
+        originalText: "bet",
+        replacementText: "beta",
+        cursorBefore: 3,
+        cursorAfter: 4,
+        postEditFingerprint: {
+          fullText: "beta",
+          cursorOffset: 4,
+          selectionCollapsed: true,
+        },
+        source: "suggestion",
+      };
+      return {
+        triggerText: "bet",
+        insertedText: "beta",
+        cursorAfter: 4,
+        cursorAfterIsBlockLocal: false,
+      };
+    }),
+    applyGrammarEdit: jest.fn(() => ({ applied: false, didDispatchInput: false })),
+    syncManualAutoFixSuppression: jest.fn(),
+  };
+  const session = makeSession({ entry, textEditService });
+
+  expect(session.acceptSuggestionAtIndex(0)).toBe(true);
+  expect(session.acceptSuggestionAtIndex(0)).toBe(false);
+  expect(textEditService.acceptSuggestion).toHaveBeenCalledTimes(1);
+});
+
 test("session suppresses the synthetic input emitted by accepted suggestions", () => {
   const clearPendingFallback = jest.fn();
   const predictionCoordinator = {

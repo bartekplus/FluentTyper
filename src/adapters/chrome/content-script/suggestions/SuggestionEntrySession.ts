@@ -53,6 +53,7 @@ export class SuggestionEntrySession {
   private readonly insertSpaceAfterAutocomplete: boolean;
   private readonly logRenderedSuggestionPopup: SuggestionEntrySessionOptions["logRenderedSuggestionPopup"];
   private readonly logNoVisibleSuggestions: (context: PredictionResponse) => void;
+  private lastAcceptedSuggestion: string | null = null;
 
   constructor(options: SuggestionEntrySessionOptions) {
     this.entry = options.entry;
@@ -1188,12 +1189,21 @@ export class SuggestionEntrySession {
   }
 
   private acceptSuggestionInternal(suggestion: string): boolean {
+    if (
+      this.lastAcceptedSuggestion === suggestion &&
+      this.entry.suppressNextSuggestionInputPrediction &&
+      this.entry.pendingExtensionEdit?.source === "suggestion"
+    ) {
+      return false;
+    }
+
     this.entry.suppressNextSuggestionInputPrediction = true;
     const accepted = this.textEditService.acceptSuggestion(this.entry, suggestion);
     if (!accepted) {
       this.entry.suppressNextSuggestionInputPrediction = false;
       return false;
     }
+    this.lastAcceptedSuggestion = suggestion;
     this.finishAcceptedSuggestion(
       accepted.triggerText,
       accepted.insertedText,
@@ -1292,6 +1302,7 @@ export class SuggestionEntrySession {
   }
 
   private clearAcceptedSuggestionTransientState(): void {
+    this.lastAcceptedSuggestion = null;
     this.clearPendingExtensionEdit();
     this.entry.missingTrailingSpace = false;
     this.entry.expectedCursorPos = 0;
