@@ -12,11 +12,14 @@ export class SuggestionLifecycleController {
   private readonly dismissEntry: (entry: SuggestionEntry) => void;
   private readonly reconcileEntrySelection: (entry: SuggestionEntry) => void;
   private readonly doc: Document;
+  private readonly keydownListenerByEntryId = new Map<number, EventListener>();
   private attachedEntryCount = 0;
   private documentPointerDownListenerAttached = false;
+  private documentKeyDownListenerAttached = false;
   private documentSelectionChangeListenerAttached = false;
   private readonly onDocumentPointerDownBound: EventListener =
     this.onDocumentPointerDown.bind(this);
+  private readonly onDocumentKeyDownBound: EventListener = this.onDocumentKeyDown.bind(this);
   private readonly onDocumentSelectionChangeBound: EventListener =
     this.onDocumentSelectionChange.bind(this);
 
@@ -30,7 +33,7 @@ export class SuggestionLifecycleController {
   public attachEntryListeners(entry: SuggestionEntry): void {
     entry.elem.addEventListener("beforeinput", entry.handlers.beforeinput, true);
     entry.elem.addEventListener("input", entry.handlers.input, true);
-    entry.elem.addEventListener("keydown", entry.handlers.keydown, true);
+    entry.elem.addEventListener("keydown", this.getEntryKeydownListener(entry), true);
     entry.elem.addEventListener("paste", entry.handlers.paste, true);
     entry.elem.addEventListener("focus", entry.handlers.focus, true);
     entry.elem.addEventListener("blur", entry.handlers.blur, true);
@@ -43,13 +46,14 @@ export class SuggestionLifecycleController {
 
     this.attachedEntryCount += 1;
     this.ensureDocumentPointerDownListener();
+    this.ensureDocumentKeyDownListener();
     this.ensureDocumentSelectionChangeListener();
   }
 
   public detachEntryListeners(entry: SuggestionEntry): void {
     entry.elem.removeEventListener("beforeinput", entry.handlers.beforeinput, true);
     entry.elem.removeEventListener("input", entry.handlers.input, true);
-    entry.elem.removeEventListener("keydown", entry.handlers.keydown, true);
+    entry.elem.removeEventListener("keydown", this.getEntryKeydownListener(entry), true);
     entry.elem.removeEventListener("paste", entry.handlers.paste, true);
     entry.elem.removeEventListener("focus", entry.handlers.focus, true);
     entry.elem.removeEventListener("blur", entry.handlers.blur, true);
@@ -59,10 +63,12 @@ export class SuggestionLifecycleController {
     this.toggleBackingInputTargetListeners(entry, false);
     entry.list.removeEventListener("mousedown", entry.handlers.menuMouseDown);
     entry.list.removeEventListener("click", entry.handlers.menuClick);
+    this.keydownListenerByEntryId.delete(entry.id);
 
     this.attachedEntryCount = Math.max(0, this.attachedEntryCount - 1);
     if (this.attachedEntryCount === 0) {
       this.removeDocumentPointerDownListener();
+      this.removeDocumentKeyDownListener();
       this.removeDocumentSelectionChangeListener();
     }
   }
@@ -75,12 +81,29 @@ export class SuggestionLifecycleController {
     const method = attach ? "addEventListener" : "removeEventListener";
     inputEventTarget[method]("beforeinput", entry.handlers.beforeinput, true);
     inputEventTarget[method]("input", entry.handlers.input, true);
-    inputEventTarget[method]("keydown", entry.handlers.keydown, true);
+    inputEventTarget[method]("keydown", this.getEntryKeydownListener(entry), true);
     inputEventTarget[method]("paste", entry.handlers.paste, true);
     inputEventTarget[method]("focus", entry.handlers.focus, true);
     inputEventTarget[method]("blur", entry.handlers.blur, true);
     inputEventTarget[method]("compositionstart", entry.handlers.compositionStart, true);
     inputEventTarget[method]("compositionend", entry.handlers.compositionEnd, true);
+  }
+
+  private getEntryKeydownListener(entry: SuggestionEntry): EventListener {
+    const existing = this.keydownListenerByEntryId.get(entry.id);
+    if (existing) {
+      return existing;
+    }
+
+    const listener: EventListener = (event) => {
+      const keyboardEvent = event as KeyboardEvent & { __ftDocumentTabCaptureHandled?: boolean };
+      if (keyboardEvent.__ftDocumentTabCaptureHandled) {
+        return;
+      }
+      entry.handlers.keydown(event);
+    };
+    this.keydownListenerByEntryId.set(entry.id, listener);
+    return listener;
   }
 
   private ensureDocumentPointerDownListener(): void {
@@ -97,6 +120,22 @@ export class SuggestionLifecycleController {
     }
     this.doc.removeEventListener("mousedown", this.onDocumentPointerDownBound, true);
     this.documentPointerDownListenerAttached = false;
+  }
+
+  private ensureDocumentKeyDownListener(): void {
+    if (this.documentKeyDownListenerAttached) {
+      return;
+    }
+    this.doc.addEventListener("keydown", this.onDocumentKeyDownBound, true);
+    this.documentKeyDownListenerAttached = true;
+  }
+
+  private removeDocumentKeyDownListener(): void {
+    if (!this.documentKeyDownListenerAttached) {
+      return;
+    }
+    this.doc.removeEventListener("keydown", this.onDocumentKeyDownBound, true);
+    this.documentKeyDownListenerAttached = false;
   }
 
   private ensureDocumentSelectionChangeListener(): void {
@@ -132,6 +171,61 @@ export class SuggestionLifecycleController {
       }
       this.dismissEntry(entry);
     }
+  }
+
+  private onDocumentKeyDown(event: Event): void {
+    const keyboardEvent = event as KeyboardEvent & { __ftDocumentTabCaptureHandled?: boolean };
+    if (
+      keyboardEvent.defaultPrevented ||
+      keyboardEvent.key !== "Tab" ||
+      keyboardEvent.__ftDocumentTabCaptureHandled
+    ) {
+      return;
+    }
+
+    const composedPath = typeof event.composedPath === "function" ? event.composedPath() : [];
+    const path = composedPath.length > 0 ? composedPath : [event.target];
+    const entries = [...this.getEntries()];
+
+    for (const node of path) {
+      const directBackingTargetMatch = entries.find(
+        (entry) => this.isDocumentTabFallbackEligible(entry) && node === entry.inputEventTarget,
+      );
+      if (directBackingTargetMatch) {
+        directBackingTargetMatch.handlers.keydown(keyboardEvent);
+        keyboardEvent.__ftDocumentTabCaptureHandled = true;
+        return;
+      }
+
+      const directElementMatch = entries.find(
+        (entry) => this.isDocumentTabFallbackEligible(entry) && node === entry.elem,
+      );
+      if (directElementMatch) {
+        directElementMatch.handlers.keydown(keyboardEvent);
+        keyboardEvent.__ftDocumentTabCaptureHandled = true;
+        return;
+      }
+
+      if (!(node instanceof Node)) {
+        continue;
+      }
+
+      const containingEntry = entries.find(
+        (entry) => this.isDocumentTabFallbackEligible(entry) && entry.elem.contains(node),
+      );
+      if (containingEntry) {
+        containingEntry.handlers.keydown(keyboardEvent);
+        keyboardEvent.__ftDocumentTabCaptureHandled = true;
+        return;
+      }
+    }
+  }
+
+  private isDocumentTabFallbackEligible(entry: SuggestionEntry): boolean {
+    return (
+      entry.inlineSuggestion !== null ||
+      (entry.suggestions.length > 0 && entry.menu.style.display !== "none")
+    );
   }
 
   private onDocumentSelectionChange(): void {

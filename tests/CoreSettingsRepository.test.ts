@@ -21,6 +21,13 @@ describe("CoreSettingsRepository", () => {
     await expect(repository.getPreferNativeAutocomplete()).resolves.toBe(true);
   });
 
+  test("defaults autocompleteOnEnter and autocompleteOnTab to true when absent", async () => {
+    const repository = new CoreSettingsRepository(createSettingsManagerMock({}));
+
+    await expect(repository.getAutocompleteOnEnter()).resolves.toBe(true);
+    await expect(repository.getAutocompleteOnTab()).resolves.toBe(true);
+  });
+
   test("keeps legacy [shortcut, string] entries for runtime compatibility", async () => {
     const repository = new CoreSettingsRepository(
       createSettingsManagerMock({

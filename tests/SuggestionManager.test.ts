@@ -5,6 +5,8 @@ import type {
 } from "../src/core/domain/messageTypes";
 import { querySuggestionMenuItemByIndex, querySuggestionMenuItems } from "./suggestionTestUtils";
 
+const activeManagers: Array<{ detachAllHelpers: () => void }> = [];
+
 async function waitForNextCall(
   mock: jest.Mock<(context: ContentScriptPredictRequestContext) => void>,
   { timeout = 2000 }: { timeout?: number } = {},
@@ -265,6 +267,7 @@ async function createManager(overrides: Partial<ConstructorArgs> = {}) {
     getPrediction,
     ...overrides,
   });
+  activeManagers.push(manager);
 
   return { manager, getPrediction };
 }
@@ -312,6 +315,9 @@ describe("SuggestionManager", () => {
   });
 
   afterEach(() => {
+    while (activeManagers.length > 0) {
+      activeManagers.pop()?.detachAllHelpers();
+    }
     document.body.innerHTML = "";
   });
 

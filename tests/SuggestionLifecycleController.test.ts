@@ -124,7 +124,6 @@ describe("SuggestionLifecycleController", () => {
     document.body.append(textarea, codeMirror, menu);
 
     const input = jest.fn();
-    const keydown = jest.fn();
     const focus = jest.fn();
     const blur = jest.fn();
     const entry = createSuggestionEntry({
@@ -133,7 +132,7 @@ describe("SuggestionLifecycleController", () => {
       menu,
       handlers: {
         input,
-        keydown,
+        keydown: () => undefined,
         paste: () => undefined,
         focus,
         blur,
@@ -153,21 +152,17 @@ describe("SuggestionLifecycleController", () => {
     controller.attachEntryListeners(entry);
 
     textarea.dispatchEvent(new Event("input", { bubbles: true }));
-    textarea.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Tab", bubbles: true }));
     textarea.dispatchEvent(new Event("focus", { bubbles: true }));
     textarea.dispatchEvent(new Event("blur", { bubbles: true }));
     expect(input).toHaveBeenCalledTimes(1);
-    expect(keydown).toHaveBeenCalledTimes(1);
     expect(focus).toHaveBeenCalledTimes(1);
     expect(blur).toHaveBeenCalledTimes(1);
 
     controller.detachEntryListeners(entry);
     textarea.dispatchEvent(new Event("input", { bubbles: true }));
-    textarea.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Tab", bubbles: true }));
     textarea.dispatchEvent(new Event("focus", { bubbles: true }));
     textarea.dispatchEvent(new Event("blur", { bubbles: true }));
     expect(input).toHaveBeenCalledTimes(1);
-    expect(keydown).toHaveBeenCalledTimes(1);
     expect(focus).toHaveBeenCalledTimes(1);
     expect(blur).toHaveBeenCalledTimes(1);
   });

@@ -432,16 +432,16 @@ export class SuggestionEntrySession {
     controls.dismissEntry();
   }
 
-  public acceptSuggestionAtIndex(index: number): void {
+  public acceptSuggestionAtIndex(index: number): boolean {
     const suggestion = this.entry.suggestions[index];
     if (!suggestion) {
-      return;
+      return false;
     }
-    this.acceptSuggestion(suggestion);
+    return this.acceptSuggestion(suggestion);
   }
 
-  public acceptSuggestion(suggestion: string): void {
-    this.acceptSuggestionInternal(suggestion);
+  public acceptSuggestion(suggestion: string): boolean {
+    return this.acceptSuggestionInternal(suggestion);
   }
 
   public reconcileSelection(controls: { dismissEntry: () => void }): void {
@@ -1187,12 +1187,12 @@ export class SuggestionEntrySession {
     return true;
   }
 
-  private acceptSuggestionInternal(suggestion: string): void {
+  private acceptSuggestionInternal(suggestion: string): boolean {
     this.entry.suppressNextSuggestionInputPrediction = true;
     const accepted = this.textEditService.acceptSuggestion(this.entry, suggestion);
     if (!accepted) {
       this.entry.suppressNextSuggestionInputPrediction = false;
-      return;
+      return false;
     }
     this.finishAcceptedSuggestion(
       accepted.triggerText,
@@ -1200,6 +1200,7 @@ export class SuggestionEntrySession {
       accepted.cursorAfter,
       accepted.cursorAfterIsBlockLocal,
     );
+    return true;
   }
 
   private finishAcceptedSuggestion(

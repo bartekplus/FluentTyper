@@ -18,6 +18,7 @@ import type {
 import { ContentMessageHandler } from "./ContentMessageHandler";
 import { ContentRuntimeController } from "./ContentRuntimeController";
 import { HostChangeWatcher } from "./HostChangeWatcher";
+import { isEarlyTabAcceptMessage } from "./suggestions/EarlyTabAcceptBridgeProtocol";
 import { ThemeApplicator } from "./ThemeApplicator";
 import type { DomObserver } from "./DomObserver";
 import type { SuggestionManager } from "./SuggestionManager";
@@ -68,6 +69,8 @@ class FluentTyper {
     sender?: chrome.runtime.MessageSender,
     sendResponse?: (response: unknown) => void,
   ) => this.messageHandler(message, sender, sendResponse);
+  private readonly boundEarlyTabAcceptHandler = (event: MessageEvent) =>
+    this.handleEarlyTabAccept(event);
 
   constructor() {
     logger.info("Initializing content script", {
@@ -110,6 +113,7 @@ class FluentTyper {
     });
 
     chrome.runtime.onMessage.addListener(this.boundMessageHandler);
+    window.addEventListener("message", this.boundEarlyTabAcceptHandler);
     this.hostChangeWatcher.start();
     this.getConfig();
   }
@@ -186,7 +190,16 @@ class FluentTyper {
     logger.info("Destroying content script instance");
     this.hostChangeWatcher.stop();
     this.disable();
+    window.removeEventListener("message", this.boundEarlyTabAcceptHandler);
     chrome.runtime.onMessage.removeListener(this.boundMessageHandler);
+  }
+
+  handleEarlyTabAccept(event: MessageEvent): void {
+    if (!isEarlyTabAcceptMessage(event.data)) {
+      return;
+    }
+
+    this.runtimeController.handleEarlyTabAcceptRequest(event.data.entryId);
   }
 
   messageHandler(

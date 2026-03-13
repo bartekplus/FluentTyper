@@ -14,8 +14,8 @@ interface SuggestionKeyboardHandlerOptions {
   clearSuggestions: (entry: SuggestionEntry) => void;
   isMenuVisible: (entry: SuggestionEntry) => boolean;
   updateSelectionHighlight: (entry: SuggestionEntry) => void;
-  acceptSuggestion: (entry: SuggestionEntry, suggestion: string) => void;
-  acceptSuggestionAtIndex: (entry: SuggestionEntry, index: number) => void;
+  acceptSuggestion: (entry: SuggestionEntry, suggestion: string) => boolean;
+  acceptSuggestionAtIndex: (entry: SuggestionEntry, index: number) => boolean;
   requestInlineSuggestion: (entry: SuggestionEntry) => void;
 }
 
@@ -38,8 +38,8 @@ export class SuggestionKeyboardHandler {
   private readonly clearSuggestions: (entry: SuggestionEntry) => void;
   private readonly isMenuVisible: (entry: SuggestionEntry) => boolean;
   private readonly updateSelectionHighlight: (entry: SuggestionEntry) => void;
-  private readonly acceptSuggestion: (entry: SuggestionEntry, suggestion: string) => void;
-  private readonly acceptSuggestionAtIndex: (entry: SuggestionEntry, index: number) => void;
+  private readonly acceptSuggestion: (entry: SuggestionEntry, suggestion: string) => boolean;
+  private readonly acceptSuggestionAtIndex: (entry: SuggestionEntry, index: number) => boolean;
   private readonly requestInlineSuggestion: (entry: SuggestionEntry) => void;
 
   constructor(options: SuggestionKeyboardHandlerOptions) {

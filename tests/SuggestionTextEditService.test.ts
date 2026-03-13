@@ -128,6 +128,44 @@ class HostCanceledNoMutationContentEditableAdapter extends ContentEditableAdapte
   }
 }
 
+class DeferredHostThenDomFallbackContentEditableAdapter extends ContentEditableAdapter {
+  public override getBlockContext(
+    elem: HTMLElement,
+  ): { beforeCursor: string; afterCursor: string } | null {
+    const fullText = elem.textContent ?? "";
+    return {
+      beforeCursor: fullText,
+      afterCursor: "",
+    };
+  }
+
+  public override replaceTextByOffsets(
+    elem: HTMLElement,
+    replaceStart: number,
+    replaceEnd: number,
+    replacementText: string,
+    cursorAfter: number,
+    options?: { preferDomMutation?: boolean; scopeRoot?: HTMLElement | null },
+  ) {
+    if (options?.preferDomMutation === true) {
+      return super.replaceTextByOffsets(
+        elem,
+        replaceStart,
+        replaceEnd,
+        replacementText,
+        cursorAfter,
+        options,
+      );
+    }
+
+    return {
+      appliedBy: "host-beforeinput" as const,
+      didMutateDom: false,
+      didDispatchInput: false,
+    };
+  }
+}
+
 class EmptyBlockContextContentEditableAdapter extends ContentEditableAdapter {
   public override getBlockContext(
     elem: HTMLElement,
@@ -1224,6 +1262,43 @@ describe("SuggestionTextEditService", () => {
     expect(entry.pendingExtensionEdit?.postEditBlockText).toBe("What\u00A0");
     expect(entry.pendingExtensionEdit?.awaitingHostInputEcho).toBe(true);
     expect(editable.textContent).toBe("Wh");
+  });
+
+  test("retries generic contenteditable acceptance with direct DOM mutation after a canceled no-op beforeinput", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+      contentEditableAdapter: new DeferredHostThenDomFallbackContentEditableAdapter(),
+    });
+
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML = "<p><span>Wh</span></p>";
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+
+    const textNode = editable.querySelector("span")?.firstChild as Text | null;
+    if (!textNode) {
+      throw new Error("Expected text node");
+    }
+    setTextNodeCursor(textNode, textNode.textContent?.length ?? 0);
+
+    const entry = createSuggestionEntry({
+      elem: editable,
+      latestMentionText: "Wh",
+      latestMentionStart: -1,
+    });
+
+    const accepted = service.acceptSuggestion(entry, "What ");
+
+    expect(accepted).toEqual({
+      triggerText: "Wh",
+      insertedText: "What\u00A0",
+      cursorAfter: 5,
+      cursorAfterIsBlockLocal: true,
+    });
+    expect(editable.textContent).toBe("What\u00A0");
+    expect(entry.pendingExtensionEdit?.awaitingHostInputEcho).toBe(true);
   });
 
   test("does nothing when delayed post-accept spacing is not armed", () => {

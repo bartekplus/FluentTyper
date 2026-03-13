@@ -152,6 +152,19 @@ export class ContentRuntimeController {
     this.suggestionManager?.triggerActiveSuggestion();
   }
 
+  handleEarlyTabAcceptRequest(entryId: string): EarlyTabAcceptResult {
+    return (
+      this.suggestionManager?.handleEarlyTabAcceptRequest(entryId) ?? {
+        accepted: false,
+        reason: "entry_not_found",
+        entryId,
+        suggestionCount: 0,
+        menuVisible: false,
+        hasInlineSuggestion: false,
+      }
+    );
+  }
+
   getPredictionGeneration(): number {
     return this.predictionGeneration;
   }
@@ -420,3 +433,4 @@ export class ContentRuntimeController {
     }
   }
 }
+import type { EarlyTabAcceptResult } from "./suggestions/SuggestionManagerRuntime";

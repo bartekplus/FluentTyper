@@ -122,11 +122,11 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
   }
 
   async getAutocompleteOnEnter(): Promise<boolean> {
-    return this.getBooleanField("autocompleteOnEnter");
+    return this.getBooleanField("autocompleteOnEnter", true);
   }
 
   async getAutocompleteOnTab(): Promise<boolean> {
-    return this.getBooleanField("autocompleteOnTab");
+    return this.getBooleanField("autocompleteOnTab", true);
   }
 
   async getSelectByDigit(): Promise<boolean> {

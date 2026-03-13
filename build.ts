@@ -187,6 +187,11 @@ async function bundleExtension(context: BuildContext): Promise<void> {
       label: "content_script",
     },
     {
+      entrypoint: path.join(context.srcDir, "entries", "content_script_main_world_start.ts"),
+      outfile: path.join(context.buildDir, "content_script_main_world_start.js"),
+      label: "content_script_main_world_start",
+    },
+    {
       entrypoint: path.join(context.srcDir, "entries", "content_script_main_world.ts"),
       outfile: path.join(context.buildDir, "content_script_main_world.js"),
       label: "content_script_main_world",

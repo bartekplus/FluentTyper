@@ -23,6 +23,11 @@ import { EditableContextResolver } from "./EditableContextResolver";
 import { SuggestionTextEditService } from "./SuggestionTextEditService";
 import { ContentEditableAdapter } from "./ContentEditableAdapter";
 import { TextTargetAdapter } from "./TextTargetAdapter";
+import {
+  EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR,
+  EARLY_TAB_ACCEPT_ENABLED_ATTR,
+  EARLY_TAB_ACCEPT_ENTRY_ID_ATTR,
+} from "./EarlyTabAcceptBridgeProtocol";
 import { resolveTraceAgeMs } from "../predictionTrace";
 import type {
   PendingKeyFallback,
@@ -39,6 +44,21 @@ const SUGGESTION_DEBOUNCE_BY_ACTION = {
   other: 20,
 };
 const logger = createLogger("SuggestionManagerRuntime");
+
+export interface EarlyTabAcceptResult {
+  accepted: boolean;
+  reason:
+    | "entry_not_found"
+    | "session_not_found"
+    | "accepted_inline"
+    | "accepted_menu"
+    | "accept_failed"
+    | "no_visible_suggestion_state";
+  entryId: string;
+  suggestionCount: number;
+  menuVisible: boolean;
+  hasInlineSuggestion: boolean;
+}
 
 export class SuggestionManagerRuntime {
   private readonly discovery: SuggestionElementDiscovery;
@@ -62,6 +82,7 @@ export class SuggestionManagerRuntime {
   private readonly pendingKeyFallbacks = new Map<number, PendingKeyFallback>();
 
   private readonly displayLangHeader: boolean;
+  private readonly autocompleteOnTab: boolean;
   private readonly inlineSuggestionEnabled: boolean;
   private readonly insertSpaceAfterAutocomplete: boolean;
   private readonly preferNativeAutocomplete: boolean;
@@ -86,6 +107,7 @@ export class SuggestionManagerRuntime {
     });
 
     this.displayLangHeader = options.displayLangHeader;
+    this.autocompleteOnTab = options.autocompleteOnTab;
     this.inlineSuggestionEnabled = options.inline_suggestion;
     this.insertSpaceAfterAutocomplete = options.insertSpaceAfterAutocomplete;
     this.preferNativeAutocomplete = options.preferNativeAutocomplete;
@@ -197,6 +219,71 @@ export class SuggestionManagerRuntime {
       return;
     }
     this.sessionRegistry.get(entry.id)?.requestPrediction();
+  }
+
+  public handleEarlyTabAcceptRequest(entryId: string): EarlyTabAcceptResult {
+    const entry = this.resolveEntryForBridgeEntryId(entryId);
+    if (!entry) {
+      return {
+        accepted: false,
+        reason: "entry_not_found",
+        entryId,
+        suggestionCount: 0,
+        menuVisible: false,
+        hasInlineSuggestion: false,
+      };
+    }
+
+    const session = this.sessionRegistry.get(entry.id);
+    if (!session) {
+      return {
+        accepted: false,
+        reason: "session_not_found",
+        entryId,
+        suggestionCount: entry.suggestions.length,
+        menuVisible: this.menuPresenter.isVisible(entry.menu, entry.suggestions.length),
+        hasInlineSuggestion: entry.inlineSuggestion !== null,
+      };
+    }
+
+    this.activeEntryId = entry.id;
+
+    if (this.inlineSuggestionEnabled && entry.inlineSuggestion) {
+      const accepted = session.acceptSuggestion(entry.inlineSuggestion);
+      return {
+        accepted,
+        reason: accepted ? "accepted_inline" : "accept_failed",
+        entryId,
+        suggestionCount: entry.suggestions.length,
+        menuVisible: this.menuPresenter.isVisible(entry.menu, entry.suggestions.length),
+        hasInlineSuggestion: true,
+      };
+    }
+
+    if (
+      this.autocompleteOnTab &&
+      this.menuPresenter.isVisible(entry.menu, entry.suggestions.length) &&
+      entry.suggestions.length > 0
+    ) {
+      const accepted = session.acceptSuggestionAtIndex(entry.selectedIndex);
+      return {
+        accepted,
+        reason: accepted ? "accepted_menu" : "accept_failed",
+        entryId,
+        suggestionCount: entry.suggestions.length,
+        menuVisible: true,
+        hasInlineSuggestion: entry.inlineSuggestion !== null,
+      };
+    }
+
+    return {
+      accepted: false,
+      reason: "no_visible_suggestion_state",
+      entryId,
+      suggestionCount: entry.suggestions.length,
+      menuVisible: this.menuPresenter.isVisible(entry.menu, entry.suggestions.length),
+      hasInlineSuggestion: entry.inlineSuggestion !== null,
+    };
   }
 
   public updateLangConfig(lang: string): void {
@@ -436,6 +523,12 @@ export class SuggestionManagerRuntime {
 
     elem.setAttribute("data-tribute", "true");
     elem.setAttribute("data-suggestion", "true");
+    elem.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, String(id));
+    elem.setAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR, String(this.autocompleteOnTab));
+    elem.setAttribute(
+      EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR,
+      String(this.shouldUseEarlyTabBridge(elem)),
+    );
     menu.dataset.ftSuggestionId = String(id);
     elem.tributeMenu = menu;
     elem.suggestionMenu = menu;
@@ -470,6 +563,9 @@ export class SuggestionManagerRuntime {
     delete entry.elem.suggestionMenu;
     entry.elem.removeAttribute("data-tribute");
     entry.elem.removeAttribute("data-suggestion");
+    entry.elem.removeAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR);
+    entry.elem.removeAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR);
+    entry.elem.removeAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR);
 
     this.entryRegistry.unregister(id);
     this.sessionRegistry.delete(id);
@@ -518,6 +614,15 @@ export class SuggestionManagerRuntime {
       this.activeEntryId = entry.id;
     }
     return entry;
+  }
+
+  private resolveEntryForBridgeEntryId(entryId: string): SuggestionEntry | null {
+    const numericId = Number(entryId);
+    if (!Number.isInteger(numericId)) {
+      return null;
+    }
+
+    return this.entryRegistry.getById(numericId) ?? null;
   }
 
   private onElementFocus(id: number): void {
@@ -693,12 +798,16 @@ export class SuggestionManagerRuntime {
   }
 
   private onElementKeyDown(id: number, event: Event): void {
+    const keyboardEvent = event as KeyboardEvent & { __ftDocumentTabCaptureHandled?: boolean };
+    if (keyboardEvent.__ftDocumentTabCaptureHandled) {
+      return;
+    }
+
     this.activeEntryId = id;
     const entry = this.entryRegistry.getById(id);
     if (!entry) {
       return;
     }
-    const keyboardEvent = event as KeyboardEvent;
     this.sessionRegistry.get(id)?.handleKeyDown(keyboardEvent, {
       dispatchKeyboard: () => this.keyboardHandler.handle(entry, keyboardEvent),
       dismissEntry: (keepActive = true) => this.dismissEntry(entry, keepActive),
@@ -746,6 +855,10 @@ export class SuggestionManagerRuntime {
     clearTimeout(pending.timer);
     pending.observer?.disconnect();
     this.pendingKeyFallbacks.delete(id);
+  }
+
+  private shouldUseEarlyTabBridge(elem: SuggestionElement): boolean {
+    return elem.tagName !== "INPUT" && elem.tagName !== "TEXTAREA";
   }
 
   private consumeCancelableEvent(event: Event): void {
