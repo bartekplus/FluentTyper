@@ -1472,6 +1472,48 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "text expansion popup shows duplicate shortcut entries and accepts a non-default selection",
+    async () => {
+      await setSettingAndWait(worker, KEY_ENABLED_LANGUAGES, ["textExpander"]);
+      await setSettingAndWait(worker, KEY_LANGUAGE, "textExpander");
+      await setSettingAndWait(worker, KEY_TEXT_EXPANSIONS, [
+        ["asap", "as soon as possible"],
+        ["asap", "at some available point"],
+      ]);
+      await sendConfigChange(browser, worker);
+
+      page = await prepareReusableTestPage(browser, page);
+
+      const element = await page.$("#test-input");
+      await element!.type("asap");
+
+      const suggestions = await waitForSuggestionTexts(page);
+      expect(suggestions).toHaveLength(2);
+      expect(
+        suggestions.some((suggestion) => /^as soon as possible[ \xa0]$/i.test(suggestion)),
+      ).toBe(true);
+      expect(
+        suggestions.some((suggestion) => /^at some available point[ \xa0]$/i.test(suggestion)),
+      ).toBe(true);
+
+      const selectedSuggestion = suggestions[1];
+      await page.keyboard.press("ArrowDown");
+      await page.keyboard.press("Tab");
+
+      const value = await waitUntil(
+        "selected duplicate text expansion to be accepted",
+        async () => {
+          const current = await page.$eval("#test-input", (el) => (el as HTMLInputElement).value);
+          return current === selectedSuggestion ? current : false;
+        },
+        { timeoutMs: timeoutProfile.suggestionMs, intervalMs: 50 },
+      );
+      expect(value).toBe(selectedSuggestion);
+    },
+    suiteTimeout(10000, 15000),
+  );
+
+  test(
     "options config change command updates grammar rules in runtime storage",
     async () => {
       await setSettingAndWait(worker, KEY_ENABLED_GRAMMAR_RULES, []);

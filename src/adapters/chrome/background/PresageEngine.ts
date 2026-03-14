@@ -11,12 +11,16 @@ export interface PresageEngineConfig {
 }
 
 export class PresageEngine {
+  private readonly Module: PresageModule;
+  private readonly lang: string;
   public libPresage: Presage;
   private libPresageCallback: PresageCallback;
   private libPresageCallbackImpl: unknown = {};
   private config: PresageEngineConfig;
 
   constructor(Module: PresageModule, config: PresageEngineConfig, lang: string) {
+    this.Module = Module;
+    this.lang = lang;
     this.config = config;
 
     this.libPresageCallback = {
@@ -29,16 +33,18 @@ export class PresageEngine {
       },
     };
     this.libPresageCallbackImpl = Module.PresageCallback.implement(this.libPresageCallback);
-    this.libPresage = new Module.Presage(
-      this.libPresageCallbackImpl,
-      `resources_js/${lang}/presage.xml`,
-    );
+    this.libPresage = this.createLibPresage();
     this.setConfig(config);
   }
 
   setConfig(config: PresageEngineConfig) {
     this.config = config;
     this.libPresage.config("Presage.Selector.SUGGESTIONS", this.config.numSuggestions.toString());
+  }
+
+  reinitialize(): void {
+    this.libPresage = this.createLibPresage();
+    this.setConfig(this.config);
   }
 
   predict(predictionInput: string): string[] {
@@ -58,5 +64,12 @@ export class PresageEngine {
       }
     }
     return predictions;
+  }
+
+  private createLibPresage(): Presage {
+    return new this.Module.Presage(
+      this.libPresageCallbackImpl,
+      `resources_js/${this.lang}/presage.xml`,
+    );
   }
 }

@@ -188,7 +188,7 @@ export class TextAssetsPanel {
         const imported = parsed
           .filter((row) => row.length === 2)
           .map((row) => [toTextValue(row[0]), toTextValue(row[1])] as TextExpansionEntry);
-        this.syncPersistedRows(this.mergeExpansions(imported, this.getPersistedExpansions()));
+        this.syncPersistedRows(this.mergeExpansions(this.getPersistedExpansions(), imported));
         this.setSnippetStatus(i18n.get("settings_status_saved"));
         this.persistSnippetRows();
       });
@@ -352,15 +352,6 @@ export class TextAssetsPanel {
           this.getSelectedSnippet() || this.createDetachedSnippetDraft(shortcut.value, body.value);
         const nextEntry: TextExpansionEntry = [shortcut.value.trim(), body.value];
         if (!nextEntry[0]) {
-          return;
-        }
-        const duplicateRow = this.snippetRows.find(
-          (row) => row.id !== targetRow.id && row.shortcut.trim() === nextEntry[0],
-        );
-        if (duplicateRow) {
-          shortcut.setCustomValidity(i18n.get("text_assets_duplicate_shortcut"));
-          shortcut.reportValidity();
-          updateSnippetStatus(i18n.get("text_assets_duplicate_shortcut"), true);
           return;
         }
         targetRow.shortcut = nextEntry[0];
@@ -734,16 +725,22 @@ export class TextAssetsPanel {
   }
 
   private mergeExpansions(
-    imported: TextExpansionEntry[],
     existing: TextExpansionEntry[],
+    imported: TextExpansionEntry[],
   ): TextExpansionEntry[] {
-    const merged = new Map<string, string>();
-    [...existing, ...imported].forEach(([shortcut, text]) => {
-      if (shortcut.trim()) {
-        merged.set(shortcut.trim(), text);
+    const seen = new Set<string>();
+    return [...existing, ...imported].flatMap(([shortcut, text]) => {
+      const normalizedShortcut = shortcut.trim();
+      if (!normalizedShortcut) {
+        return [];
       }
+      const signature = JSON.stringify([normalizedShortcut, text]);
+      if (seen.has(signature)) {
+        return [];
+      }
+      seen.add(signature);
+      return [[normalizedShortcut, text]] as TextExpansionEntry[];
     });
-    return Array.from(merged.entries());
   }
 
   private getSelectedSnippet(): SnippetRow | null {

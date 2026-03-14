@@ -64,6 +64,8 @@ export class PresageHandler {
   private timeFormat?: string;
   private dateFormat?: string;
   private engineNumSuggestions: number;
+  private textExpansionsSignature = "";
+  private userDictionarySignature = "";
 
   constructor(Module: PresageModule) {
     const engineConfig: PresageEngineConfig = {
@@ -102,6 +104,12 @@ export class PresageHandler {
   }
 
   setConfig(config: PresageConfig): void {
+    const textExpansionsSignature = JSON.stringify(config.textExpansions ?? []);
+    const userDictionarySignature = JSON.stringify(config.userDictionaryList ?? []);
+    const shouldRefreshEngines =
+      textExpansionsSignature !== this.textExpansionsSignature ||
+      userDictionarySignature !== this.userDictionarySignature;
+
     this.numSuggestions = config.numSuggestions;
     this.engineNumSuggestions = Math.min(
       MAX_NUM_SUGGESTIONS,
@@ -115,6 +123,13 @@ export class PresageHandler {
     this.timeFormat = config.timeFormat;
     this.dateFormat = config.dateFormat;
     this.userDictionaryList = config.userDictionaryList || [];
+
+    if (shouldRefreshEngines) {
+      this.refreshPresageEngines();
+      this.resetLastPredictionState();
+      this.textExpansionsSignature = textExpansionsSignature;
+      this.userDictionarySignature = userDictionarySignature;
+    }
 
     this.textExpansionManager.setTextExpansions(config.textExpansions);
     this.userDictionaryManager.setUserDictionaryList(this.userDictionaryList);
@@ -359,5 +374,17 @@ export class PresageHandler {
       return this.lastPrediction[lang].pastStream;
     }
     return "";
+  }
+
+  private refreshPresageEngines(): void {
+    for (const presageEngine of Object.values(this.presageEngines)) {
+      presageEngine.reinitialize();
+    }
+  }
+
+  private resetLastPredictionState(): void {
+    for (const lang of Object.keys(this.presageEngines)) {
+      this.lastPrediction[lang] = { pastStream: "", templates: [] };
+    }
   }
 }
