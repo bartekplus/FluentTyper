@@ -13,6 +13,7 @@ import {
 } from "../src/core/domain/constants";
 
 type SettingsMap = Record<string, unknown>;
+type FileReaderCtor = typeof FileReader;
 
 class MockControl {
   private readonly handlers: Record<string, Array<(value: unknown) => void>> = {};
@@ -100,7 +101,7 @@ describe("TextAssetsPanel", () => {
     Settings.now = () => Date.now();
   });
 
-  test("prevents duplicate snippet shortcuts and shows an inline warning", async () => {
+  test("allows saving multiple snippets with the same shortcut", async () => {
     const values: SettingsMap = {
       [KEY_TEXT_EXPANSIONS]: [["brb", "be right back"]],
       [KEY_USER_DICTIONARY_LIST]: [],
@@ -125,11 +126,81 @@ describe("TextAssetsPanel", () => {
     bodyInput.dispatchEvent(new Event("input", { bubbles: true }));
 
     findButtonByText(root, i18n.get("text_assets_save_snippet")).click();
+    await flushAsyncWork();
 
-    expect(root.textContent).toContain(i18n.get("text_assets_duplicate_shortcut"));
-    expect(values[KEY_TEXT_EXPANSIONS]).toEqual([["brb", "be right back"]]);
-    expect(shortcutInput.value).toBe("brb");
-    expect(bodyInput.value).toBe("be right there");
+    expect(values[KEY_TEXT_EXPANSIONS]).toEqual([
+      ["brb", "be right there"],
+      ["brb", "be right back"],
+    ]);
+
+    const snippetRows = root.querySelectorAll<HTMLButtonElement>(".text-assets-list-item");
+    expect(snippetRows).toHaveLength(2);
+    snippetRows[0].click();
+    expect((root.querySelector(".text-assets-editor textarea") as HTMLTextAreaElement).value).toBe(
+      "be right there",
+    );
+    snippetRows[1].click();
+    expect((root.querySelector(".text-assets-editor textarea") as HTMLTextAreaElement).value).toBe(
+      "be right back",
+    );
+  });
+
+  test("csv import preserves duplicate snippet shortcuts in file order", async () => {
+    const values: SettingsMap = {
+      [KEY_TEXT_EXPANSIONS]: [["brb", "be right back"]],
+      [KEY_USER_DICTIONARY_LIST]: [],
+      [KEY_DATE_FORMAT]: "",
+      [KEY_TIME_FORMAT]: "",
+    };
+    const store = createStore(values);
+    const registry = createRegistry(values);
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+
+    const originalFileReader = globalThis.FileReader as FileReaderCtor;
+    class MockFileReader {
+      public result: string | ArrayBuffer | null = null;
+      private readonly handlers: Record<string, Array<() => void>> = {};
+
+      addEventListener(type: string, handler: () => void): void {
+        this.handlers[type] = [...(this.handlers[type] || []), handler];
+      }
+
+      readAsText(): void {
+        this.result = "sig,first import\nsig,second import";
+        for (const handler of this.handlers.load || []) {
+          handler();
+        }
+      }
+    }
+    Object.assign(globalThis, {
+      FileReader: MockFileReader as unknown as FileReaderCtor,
+    });
+
+    try {
+      new TextAssetsPanel(root, registry, store);
+      await flushAsyncWork();
+
+      const importInput = root.querySelector<HTMLInputElement>('input[type="file"][accept=".csv"]');
+      expect(importInput).not.toBeNull();
+      Object.defineProperty(importInput!, "files", {
+        configurable: true,
+        value: [new File(["ignored"], "snippets.csv", { type: "text/csv" })],
+      });
+
+      importInput!.dispatchEvent(new Event("input", { bubbles: true }));
+      await flushAsyncWork();
+
+      expect(values[KEY_TEXT_EXPANSIONS]).toEqual([
+        ["brb", "be right back"],
+        ["sig", "first import"],
+        ["sig", "second import"],
+      ]);
+    } finally {
+      Object.assign(globalThis, {
+        FileReader: originalFileReader,
+      });
+    }
   });
 
   test("keeps multiple unsaved snippet drafts independently editable", async () => {
