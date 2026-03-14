@@ -728,9 +728,18 @@ export class TextAssetsPanel {
     existing: TextExpansionEntry[],
     imported: TextExpansionEntry[],
   ): TextExpansionEntry[] {
+    const seen = new Set<string>();
     return [...existing, ...imported].flatMap(([shortcut, text]) => {
       const normalizedShortcut = shortcut.trim();
-      return normalizedShortcut ? ([[normalizedShortcut, text]] as TextExpansionEntry[]) : [];
+      if (!normalizedShortcut) {
+        return [];
+      }
+      const signature = JSON.stringify([normalizedShortcut, text]);
+      if (seen.has(signature)) {
+        return [];
+      }
+      seen.add(signature);
+      return [[normalizedShortcut, text]] as TextExpansionEntry[];
     });
   }
 

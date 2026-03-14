@@ -145,7 +145,7 @@ describe("TextAssetsPanel", () => {
     );
   });
 
-  test("csv import preserves duplicate snippet shortcuts in file order", async () => {
+  test("csv import deduplicates exact snippet pairs while keeping same-shortcut variants", async () => {
     const values: SettingsMap = {
       [KEY_TEXT_EXPANSIONS]: [["brb", "be right back"]],
       [KEY_USER_DICTIONARY_LIST]: [],
@@ -167,7 +167,7 @@ describe("TextAssetsPanel", () => {
       }
 
       readAsText(): void {
-        this.result = "sig,first import\nsig,second import";
+        this.result = "brb,be right back\nsig,first import\nsig,first import\nsig,second import";
         for (const handler of this.handlers.load || []) {
           handler();
         }
@@ -188,6 +188,8 @@ describe("TextAssetsPanel", () => {
         value: [new File(["ignored"], "snippets.csv", { type: "text/csv" })],
       });
 
+      importInput!.dispatchEvent(new Event("input", { bubbles: true }));
+      await flushAsyncWork();
       importInput!.dispatchEvent(new Event("input", { bubbles: true }));
       await flushAsyncWork();
 
