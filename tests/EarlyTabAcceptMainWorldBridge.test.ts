@@ -4,6 +4,7 @@ import {
   EARLY_TAB_ACCEPT_ENTRY_ID_ATTR,
   EARLY_TAB_ACCEPT_ENABLED_ATTR,
   EARLY_TAB_ACCEPT_MESSAGE_TYPE,
+  EARLY_TAB_ACCEPT_VISIBLE_ATTR,
   installEarlyTabAcceptMainWorldBridge,
   resetEarlyTabAcceptMainWorldBridgeForTests,
 } from "../src/adapters/chrome/content-script/suggestions/EarlyTabAcceptMainWorldBridge";
@@ -30,10 +31,9 @@ describe("EarlyTabAcceptMainWorldBridge", () => {
     input.setAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR, "true");
     input.setAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR, "true");
     input.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, "7");
+    input.setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "true");
     const menu = document.createElement("div");
     menu.style.display = "block";
-    menu.setAttribute("data-ft-suggestion-role", "menu");
-    menu.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, "7");
     document.body.append(input, menu);
 
     const pageCaptureBlocker = (event: Event) => {
@@ -71,10 +71,9 @@ describe("EarlyTabAcceptMainWorldBridge", () => {
     input.setAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR, "true");
     input.setAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR, "true");
     input.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, "9");
+    input.setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "true");
     const menu = document.createElement("div");
     menu.style.display = "block";
-    menu.setAttribute("data-ft-suggestion-role", "menu");
-    menu.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, "9");
     document.body.append(input, menu);
 
     const windowCaptureBlocker = (event: Event) => {
@@ -112,10 +111,9 @@ describe("EarlyTabAcceptMainWorldBridge", () => {
     input.setAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR, "true");
     input.setAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR, "true");
     input.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, "7");
+    input.setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "false");
     const menu = document.createElement("div");
     menu.style.display = "none";
-    menu.setAttribute("data-ft-suggestion-role", "menu");
-    menu.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, "7");
     document.body.append(input, menu);
 
     const keydown = new window.KeyboardEvent("keydown", {
@@ -140,10 +138,9 @@ describe("EarlyTabAcceptMainWorldBridge", () => {
     input.setAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR, "false");
     input.setAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR, "true");
     input.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, "11");
+    input.setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "true");
     const menu = document.createElement("div");
     menu.style.display = "block";
-    menu.setAttribute("data-ft-suggestion-role", "menu");
-    menu.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, "11");
     document.body.append(input, menu);
 
     const keydown = new window.KeyboardEvent("keydown", {
@@ -168,10 +165,9 @@ describe("EarlyTabAcceptMainWorldBridge", () => {
     input.setAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR, "true");
     input.setAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR, "false");
     input.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, "13");
+    input.setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "true");
     const menu = document.createElement("div");
     menu.style.display = "block";
-    menu.setAttribute("data-ft-suggestion-role", "menu");
-    menu.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, "13");
     document.body.append(input, menu);
 
     const keydown = new window.KeyboardEvent("keydown", {

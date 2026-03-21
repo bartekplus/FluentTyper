@@ -27,6 +27,7 @@ import {
   EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR,
   EARLY_TAB_ACCEPT_ENABLED_ATTR,
   EARLY_TAB_ACCEPT_ENTRY_ID_ATTR,
+  EARLY_TAB_ACCEPT_VISIBLE_ATTR,
 } from "./EarlyTabAcceptBridgeProtocol";
 import { resolveTraceAgeMs } from "../predictionTrace";
 import type {
@@ -529,7 +530,8 @@ export class SuggestionManagerRuntime {
       EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR,
       String(this.shouldUseEarlyTabBridge(elem)),
     );
-    menu.dataset.ftSuggestionId = String(id);
+    elem.setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "false");
+    menu.id = SuggestionMenuView.resolveHostId(id);
     elem.tributeMenu = menu;
     elem.suggestionMenu = menu;
 
@@ -566,6 +568,7 @@ export class SuggestionManagerRuntime {
     entry.elem.removeAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR);
     entry.elem.removeAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR);
     entry.elem.removeAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR);
+    entry.elem.removeAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR);
 
     this.entryRegistry.unregister(id);
     this.sessionRegistry.delete(id);
@@ -711,7 +714,7 @@ export class SuggestionManagerRuntime {
       entry,
       editableContextResolver: this.editableContextResolver,
       clearPendingFallback: () => this.clearPendingKeyFallback(entry.id),
-      hideMenu: () => this.menuPresenter.hide(entry.menu, entry.list),
+      hideMenu: () => this.menuPresenter.hide(entry.menu, entry.list, entry.elem),
       clearInlinePresenter: () => this.inlinePresenter.clearAll(),
       isFocused: () => this.isEntryFocused(entry),
       displayLangHeader: this.displayLangHeader,
@@ -723,6 +726,7 @@ export class SuggestionManagerRuntime {
       getPendingFallback: () => this.pendingKeyFallbacks.get(entry.id),
       renderMenu: ({ suggestions, selectedIndex, menuHeader, mentionText }) =>
         this.menuPresenter.render({
+          menuId: entry.id,
           menu: entry.menu,
           list: entry.list,
           target: entry.elem,

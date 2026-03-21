@@ -7,28 +7,24 @@ export interface SuggestionMenuElements {
 
 export class SuggestionMenuView {
   static readonly CONTAINER_CLASS = "ft-suggestion-container";
-  static readonly OWNED_ATTR = "data-ft-suggestion-owned";
-  static readonly ROLE_ATTR = "data-ft-suggestion-role";
-  static readonly MENU_ROLE = "menu";
-  static readonly SHADOW_ATTR = "data-ft-suggestion-shadow";
+  static readonly HOST_ID_PREFIX = "ft-menu-";
   static readonly PANEL_CLASS = "ft-suggestion-panel";
   static readonly HEADER_CLASS = "ft-suggestion-header";
   static readonly LIST_CLASS = "ft-suggestion-list";
+
+  static resolveHostId(entryId: number | string): string {
+    return `${SuggestionMenuView.HOST_ID_PREFIX}${entryId}`;
+  }
 
   static ensureMenu(
     container: HTMLElement = document.body ?? document.documentElement,
   ): SuggestionMenuElements {
     const doc = container.ownerDocument ?? document;
     const menu = doc.createElement("div");
-    menu.className = SuggestionMenuView.CONTAINER_CLASS;
-    menu.setAttribute(SuggestionMenuView.OWNED_ATTR, "true");
-    menu.setAttribute(SuggestionMenuView.ROLE_ATTR, SuggestionMenuView.MENU_ROLE);
-    menu.setAttribute("tabindex", "-1");
 
     let list!: HTMLUListElement;
     if (typeof menu.attachShadow === "function") {
       this.applyBaseHostStyles(menu, true);
-      menu.setAttribute(SuggestionMenuView.SHADOW_ATTR, "true");
       const shadowRoot = menu.attachShadow({ mode: "open" });
       shadowRoot.appendChild(this.createShadowStyle(doc));
       shadowRoot.appendChild(
@@ -38,6 +34,7 @@ export class SuggestionMenuView {
       );
     } else {
       this.applyBaseHostStyles(menu, false);
+      menu.className = SuggestionMenuView.CONTAINER_CLASS;
       list = doc.createElement("ul");
       list.className = SuggestionMenuView.LIST_CLASS;
       menu.appendChild(this.createHeader(doc));
@@ -72,7 +69,7 @@ export class SuggestionMenuView {
     onListCreated: (list: HTMLUListElement) => void,
   ): HTMLDivElement {
     const panel = doc.createElement("div");
-    panel.className = SuggestionMenuView.PANEL_CLASS;
+    panel.className = `${SuggestionMenuView.PANEL_CLASS} ${SuggestionMenuView.CONTAINER_CLASS}`;
     panel.setAttribute("part", "panel");
     panel.setAttribute("role", "listbox");
     panel.setAttribute("aria-hidden", "true");

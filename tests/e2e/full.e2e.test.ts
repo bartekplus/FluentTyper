@@ -1131,15 +1131,46 @@ async function waitForVisibleSuggestionTexts(
       const texts = await page.evaluate(() => {
         const getMenuRoot = (container: Element): ParentNode =>
           (container as HTMLElement).shadowRoot ?? container;
-        const activeElement = document.activeElement as
-          | (HTMLElement & { suggestionMenu?: Element | null })
-          | null;
-        const activeMenu = activeElement?.suggestionMenu;
+        const getDeepActiveElement = (): HTMLElement | null => {
+          let active: Element | null = document.activeElement;
+          while (active instanceof HTMLElement && active.shadowRoot?.activeElement) {
+            active = active.shadowRoot.activeElement;
+          }
+          return active instanceof HTMLElement ? active : null;
+        };
+        const getMenuHostId = (entryId: string): string => `ft-menu-${entryId}`;
+        const collectManagedElements = (root: ParentNode): HTMLElement[] => [
+          ...Array.from(root.querySelectorAll<HTMLElement>('[data-suggestion="true"]')),
+          ...Array.from(root.querySelectorAll<HTMLElement>("*")).flatMap((element) =>
+            element.shadowRoot ? collectManagedElements(element.shadowRoot) : [],
+          ),
+        ];
+        const getManagedMenus = (): Element[] => {
+          const seen = new Set<Element>();
+          return collectManagedElements(document)
+            .map((element) => element.getAttribute("data-ft-suggestion-id"))
+            .filter(
+              (entryId): entryId is string => typeof entryId === "string" && entryId.length > 0,
+            )
+            .map((entryId) => document.getElementById(getMenuHostId(entryId)))
+            .filter((menu): menu is Element => menu instanceof Element)
+            .filter((menu) => {
+              if (seen.has(menu)) {
+                return false;
+              }
+              seen.add(menu);
+              return true;
+            });
+        };
+        const activeElement = getDeepActiveElement();
+        const activeEntryId = activeElement?.getAttribute("data-ft-suggestion-id");
+        const activeMenu =
+          typeof activeEntryId === "string"
+            ? document.getElementById(getMenuHostId(activeEntryId))
+            : null;
         const containers = [
           ...(activeMenu instanceof Element ? [activeMenu] : []),
-          ...Array.from(document.querySelectorAll(".ft-suggestion-container")).filter(
-            (container) => container !== activeMenu,
-          ),
+          ...getManagedMenus().filter((container) => container !== activeMenu),
         ];
         for (const container of containers) {
           const style = window.getComputedStyle(container);
@@ -1170,15 +1201,44 @@ async function hasVisibleSuggestions(page: Page): Promise<boolean> {
   return page.evaluate(() => {
     const getMenuRoot = (container: Element): ParentNode =>
       (container as HTMLElement).shadowRoot ?? container;
-    const activeElement = document.activeElement as
-      | (HTMLElement & { suggestionMenu?: Element | null })
-      | null;
-    const activeMenu = activeElement?.suggestionMenu;
+    const getDeepActiveElement = (): HTMLElement | null => {
+      let active: Element | null = document.activeElement;
+      while (active instanceof HTMLElement && active.shadowRoot?.activeElement) {
+        active = active.shadowRoot.activeElement;
+      }
+      return active instanceof HTMLElement ? active : null;
+    };
+    const getMenuHostId = (entryId: string): string => `ft-menu-${entryId}`;
+    const collectManagedElements = (root: ParentNode): HTMLElement[] => [
+      ...Array.from(root.querySelectorAll<HTMLElement>('[data-suggestion="true"]')),
+      ...Array.from(root.querySelectorAll<HTMLElement>("*")).flatMap((element) =>
+        element.shadowRoot ? collectManagedElements(element.shadowRoot) : [],
+      ),
+    ];
+    const getManagedMenus = (): Element[] => {
+      const seen = new Set<Element>();
+      return collectManagedElements(document)
+        .map((element) => element.getAttribute("data-ft-suggestion-id"))
+        .filter((entryId): entryId is string => typeof entryId === "string" && entryId.length > 0)
+        .map((entryId) => document.getElementById(getMenuHostId(entryId)))
+        .filter((menu): menu is Element => menu instanceof Element)
+        .filter((menu) => {
+          if (seen.has(menu)) {
+            return false;
+          }
+          seen.add(menu);
+          return true;
+        });
+    };
+    const activeElement = getDeepActiveElement();
+    const activeEntryId = activeElement?.getAttribute("data-ft-suggestion-id");
+    const activeMenu =
+      typeof activeEntryId === "string"
+        ? document.getElementById(getMenuHostId(activeEntryId))
+        : null;
     const containers = [
       ...(activeMenu instanceof Element ? [activeMenu] : []),
-      ...Array.from(document.querySelectorAll(".ft-suggestion-container")).filter(
-        (container) => container !== activeMenu,
-      ),
+      ...getManagedMenus().filter((container) => container !== activeMenu),
     ];
     return containers.some((container) => {
       const style = window.getComputedStyle(container);
@@ -1203,15 +1263,44 @@ async function waitForNoVisibleSuggestions(
     () => {
       const getMenuRoot = (container: Element): ParentNode =>
         (container as HTMLElement).shadowRoot ?? container;
-      const activeElement = document.activeElement as
-        | (HTMLElement & { suggestionMenu?: Element | null })
-        | null;
-      const activeMenu = activeElement?.suggestionMenu;
+      const getDeepActiveElement = (): HTMLElement | null => {
+        let active: Element | null = document.activeElement;
+        while (active instanceof HTMLElement && active.shadowRoot?.activeElement) {
+          active = active.shadowRoot.activeElement;
+        }
+        return active instanceof HTMLElement ? active : null;
+      };
+      const getMenuHostId = (entryId: string): string => `ft-menu-${entryId}`;
+      const collectManagedElements = (root: ParentNode): HTMLElement[] => [
+        ...Array.from(root.querySelectorAll<HTMLElement>('[data-suggestion="true"]')),
+        ...Array.from(root.querySelectorAll<HTMLElement>("*")).flatMap((element) =>
+          element.shadowRoot ? collectManagedElements(element.shadowRoot) : [],
+        ),
+      ];
+      const getManagedMenus = (): Element[] => {
+        const seen = new Set<Element>();
+        return collectManagedElements(document)
+          .map((element) => element.getAttribute("data-ft-suggestion-id"))
+          .filter((entryId): entryId is string => typeof entryId === "string" && entryId.length > 0)
+          .map((entryId) => document.getElementById(getMenuHostId(entryId)))
+          .filter((menu): menu is Element => menu instanceof Element)
+          .filter((menu) => {
+            if (seen.has(menu)) {
+              return false;
+            }
+            seen.add(menu);
+            return true;
+          });
+      };
+      const activeElement = getDeepActiveElement();
+      const activeEntryId = activeElement?.getAttribute("data-ft-suggestion-id");
+      const activeMenu =
+        typeof activeEntryId === "string"
+          ? document.getElementById(getMenuHostId(activeEntryId))
+          : null;
       const containers = [
         ...(activeMenu instanceof Element ? [activeMenu] : []),
-        ...Array.from(document.querySelectorAll(".ft-suggestion-container")).filter(
-          (container) => container !== activeMenu,
-        ),
+        ...getManagedMenus().filter((container) => container !== activeMenu),
       ];
       return containers.every((container) => {
         const style = window.getComputedStyle(container);
@@ -1238,15 +1327,44 @@ async function clickFirstVisibleSuggestion(
     () => {
       const getMenuRoot = (container: Element): ParentNode =>
         (container as HTMLElement).shadowRoot ?? container;
-      const activeElement = document.activeElement as
-        | (HTMLElement & { suggestionMenu?: Element | null })
-        | null;
-      const activeMenu = activeElement?.suggestionMenu;
+      const getDeepActiveElement = (): HTMLElement | null => {
+        let active: Element | null = document.activeElement;
+        while (active instanceof HTMLElement && active.shadowRoot?.activeElement) {
+          active = active.shadowRoot.activeElement;
+        }
+        return active instanceof HTMLElement ? active : null;
+      };
+      const getMenuHostId = (entryId: string): string => `ft-menu-${entryId}`;
+      const collectManagedElements = (root: ParentNode): HTMLElement[] => [
+        ...Array.from(root.querySelectorAll<HTMLElement>('[data-suggestion="true"]')),
+        ...Array.from(root.querySelectorAll<HTMLElement>("*")).flatMap((element) =>
+          element.shadowRoot ? collectManagedElements(element.shadowRoot) : [],
+        ),
+      ];
+      const getManagedMenus = (): Element[] => {
+        const seen = new Set<Element>();
+        return collectManagedElements(document)
+          .map((element) => element.getAttribute("data-ft-suggestion-id"))
+          .filter((entryId): entryId is string => typeof entryId === "string" && entryId.length > 0)
+          .map((entryId) => document.getElementById(getMenuHostId(entryId)))
+          .filter((menu): menu is Element => menu instanceof Element)
+          .filter((menu) => {
+            if (seen.has(menu)) {
+              return false;
+            }
+            seen.add(menu);
+            return true;
+          });
+      };
+      const activeElement = getDeepActiveElement();
+      const activeEntryId = activeElement?.getAttribute("data-ft-suggestion-id");
+      const activeMenu =
+        typeof activeEntryId === "string"
+          ? document.getElementById(getMenuHostId(activeEntryId))
+          : null;
       const containers = [
         ...(activeMenu instanceof Element ? [activeMenu] : []),
-        ...Array.from(document.querySelectorAll(".ft-suggestion-container")).filter(
-          (container) => container !== activeMenu,
-        ),
+        ...getManagedMenus().filter((container) => container !== activeMenu),
       ];
       for (const container of containers) {
         const style = window.getComputedStyle(container);
@@ -2053,10 +2171,51 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             const state = await page.evaluate(() => {
               const getMenuRoot = (container: Element): ParentNode =>
                 (container as HTMLElement).shadowRoot ?? container;
+              const getDeepActiveElement = (): HTMLElement | null => {
+                let active: Element | null = document.activeElement;
+                while (active instanceof HTMLElement && active.shadowRoot?.activeElement) {
+                  active = active.shadowRoot.activeElement;
+                }
+                return active instanceof HTMLElement ? active : null;
+              };
+              const getMenuHostId = (entryId: string): string => `ft-menu-${entryId}`;
+              const collectManagedElements = (root: ParentNode): HTMLElement[] => [
+                ...Array.from(root.querySelectorAll<HTMLElement>('[data-suggestion="true"]')),
+                ...Array.from(root.querySelectorAll<HTMLElement>("*")).flatMap((element) =>
+                  element.shadowRoot ? collectManagedElements(element.shadowRoot) : [],
+                ),
+              ];
+              const getManagedMenus = (): Element[] => {
+                const seen = new Set<Element>();
+                return collectManagedElements(document)
+                  .map((element) => element.getAttribute("data-ft-suggestion-id"))
+                  .filter(
+                    (entryId): entryId is string =>
+                      typeof entryId === "string" && entryId.length > 0,
+                  )
+                  .map((entryId) => document.getElementById(getMenuHostId(entryId)))
+                  .filter((menu): menu is Element => menu instanceof Element)
+                  .filter((menu) => {
+                    if (seen.has(menu)) {
+                      return false;
+                    }
+                    seen.add(menu);
+                    return true;
+                  });
+              };
               const hasInlineSuggestion = Boolean(
                 document.querySelector(".ft-suggestion-inline")?.textContent,
               );
-              const containers = Array.from(document.querySelectorAll(".ft-suggestion-container"));
+              const activeElement = getDeepActiveElement();
+              const activeEntryId = activeElement?.getAttribute("data-ft-suggestion-id");
+              const activeMenu =
+                typeof activeEntryId === "string"
+                  ? document.getElementById(getMenuHostId(activeEntryId))
+                  : null;
+              const containers = [
+                ...(activeMenu instanceof Element ? [activeMenu] : []),
+                ...getManagedMenus().filter((container) => container !== activeMenu),
+              ];
               const hasVisiblePopup = containers.some((container) => {
                 const style = window.getComputedStyle(container);
                 if (
