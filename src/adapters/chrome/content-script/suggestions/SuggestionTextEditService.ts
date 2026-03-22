@@ -623,6 +623,21 @@ export class SuggestionTextEditService {
         didDispatchInput: false,
       };
     }
+
+    // React-based editors (Facebook/Lexical, Reddit/Slate) reconcile the DOM
+    // asynchronously via microtasks, overriding any cursor position we set
+    // synchronously. Schedule a deferred setCaret to run after framework
+    // reconciliation completes.
+    if (edit.cursorOffset !== undefined && !TextTargetAdapter.isTextValue(entry.elem)) {
+      const targetElem = entry.elem as HTMLElement;
+      const targetCursor = cursorAfter;
+      requestAnimationFrame(() => {
+        if (targetElem.isConnected) {
+          this.contentEditableAdapter.setCaret(targetElem, targetCursor);
+        }
+      });
+    }
+
     let postEditSnapshot: SuggestionSnapshot | null =
       !TextTargetAdapter.isTextValue(entry.elem) &&
       activeBlock !== null &&
