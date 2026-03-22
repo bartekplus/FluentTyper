@@ -1,4 +1,6 @@
 import {
+  CURSOR_MOVE_COUNT_ATTR,
+  CURSOR_MOVE_EVENT,
   HOST_EDITOR_MAIN_WORLD_FLAG,
   HOST_EDITOR_REQUEST_ATTR,
   HOST_EDITOR_REQUEST_EVENT,
@@ -145,6 +147,34 @@ export function installHostEditorMainWorldBridge(doc: Document = document): void
   }
 
   (win as Window & { [HOST_EDITOR_MAIN_WORLD_FLAG]?: boolean })[HOST_EDITOR_MAIN_WORLD_FLAG] = true;
+
+  // Cursor movement bridge: content script (isolated world) dispatches this
+  // event when it needs to reposition the cursor in the main world. Running
+  // Selection.modify() in the main world triggers native selectionchange events
+  // that React-based editors (Lexical, Slate) listen for to sync their internal
+  // selection state.
+  doc.addEventListener(
+    CURSOR_MOVE_EVENT,
+    (event) => {
+      const source = event.composedPath()[0];
+      if (!(source instanceof HTMLElement)) {
+        return;
+      }
+      const rawCount = source.getAttribute(CURSOR_MOVE_COUNT_ATTR);
+      const count = rawCount ? parseInt(rawCount, 10) : 0;
+      if (!Number.isFinite(count) || count <= 0) {
+        return;
+      }
+      const sel = win.getSelection();
+      if (!sel) {
+        return;
+      }
+      for (let i = 0; i < count; i++) {
+        sel.modify("move", "backward", "character");
+      }
+    },
+    true,
+  );
 
   doc.addEventListener(
     HOST_EDITOR_REQUEST_EVENT,

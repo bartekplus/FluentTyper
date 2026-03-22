@@ -313,6 +313,19 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     defaultEnabled: false,
     priority: 133,
   },
+  {
+    id: "autoBracketClose",
+    name: "Auto-close brackets and quotes",
+    titleI18nKey: "grammar_rule_auto_bracket_close",
+    descriptionI18nKey: "grammar_rule_auto_bracket_close_desc",
+    exampleI18nKey: "grammar_rule_auto_bracket_close_example",
+    languageScope: "all",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    defaultEnabled: false,
+    priority: 134,
+  },
 ] as const;
 
 export type CatalogRuleId = (typeof GRAMMAR_RULE_CATALOG)[number]["id"];

@@ -5763,4 +5763,139 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     },
     browserTimeout(30000, 50000),
   );
+
+  test(
+    "Grammar Rule Engine auto-closes brackets and places cursor between them in #test-input",
+    async () => {
+      const selector = "#test-input";
+
+      await setSettingAndWaitStable(
+        worker!,
+        KEY_ENABLED_GRAMMAR_RULES,
+        ["autoBracketClose"],
+        3,
+        browserTimeout(5000, 7000),
+      );
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+      await applyConfigChange(browser, worker!);
+
+      await gotoTestPage(page, {
+        enableCkEditor: false,
+      });
+      await page.bringToFront();
+      await waitForInputReady(page, selector);
+
+      // Test auto-close for parentheses: typing "(" should produce "()"
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "hello (");
+      await waitForInputContentEqual(page, selector, "hello ()", browserTimeout(5000, 9000));
+
+      // Verify cursor is BETWEEN the brackets by typing a character:
+      // if cursor is inside "(|)", typing "x" produces "(x)".
+      // if cursor is at end "()|", typing "x" produces "()x".
+      await typeInInput(page, selector, "x");
+      await waitForInputContentEqual(page, selector, "hello (x)", browserTimeout(5000, 9000));
+
+      // Test auto-close for double quotes
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, 'say "');
+      await waitForInputContentEqual(page, selector, 'say ""', browserTimeout(5000, 9000));
+
+      await typeInInput(page, selector, "hi");
+      await waitForInputContentEqual(page, selector, 'say "hi"', browserTimeout(5000, 9000));
+
+      // Test overtype: typing closing bracket when it's already ahead should skip over
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "test (");
+      await waitForInputContentEqual(page, selector, "test ()", browserTimeout(5000, 9000));
+      await typeInInput(page, selector, "ok");
+      await waitForInputContentEqual(page, selector, "test (ok)", browserTimeout(5000, 9000));
+      await typeInInput(page, selector, ")");
+      await waitForInputContentEqual(page, selector, "test (ok)", browserTimeout(5000, 9000));
+
+      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await applyConfigChange(browser, worker!);
+    },
+    browserTimeout(30000, 50000),
+  );
+
+  test(
+    "Grammar Rule Engine auto-closes brackets in #test-contenteditable",
+    async () => {
+      const selector = "#test-contenteditable";
+
+      await setSettingAndWaitStable(
+        worker!,
+        KEY_ENABLED_GRAMMAR_RULES,
+        ["autoBracketClose"],
+        3,
+        browserTimeout(5000, 7000),
+      );
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+      await applyConfigChange(browser, worker!);
+
+      await gotoTestPage(page, {
+        enableCkEditor: false,
+        enableQuill: false,
+      });
+      await page.bringToFront();
+      await waitForInputReady(page, selector);
+
+      // Auto-close parentheses
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "hello (");
+      await waitForInputContentMatch(page, selector, /^hello \(\)$/, browserTimeout(5000, 9000));
+
+      // Verify cursor position: typing after auto-close should insert between brackets
+      await typeInInput(page, selector, "x");
+      await waitForInputContentMatch(page, selector, /^hello \(x\)$/, browserTimeout(5000, 9000));
+
+      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await applyConfigChange(browser, worker!);
+    },
+    browserTimeout(30000, 50000),
+  );
+
+  test(
+    "Grammar Rule Engine auto-closes brackets in Lexical editor",
+    async () => {
+      const selector = LEXICAL_SELECTOR;
+
+      await setSettingAndWaitStable(
+        worker!,
+        KEY_ENABLED_GRAMMAR_RULES,
+        ["autoBracketClose"],
+        3,
+        browserTimeout(5000, 7000),
+      );
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+      await applyConfigChange(browser, worker!);
+
+      await gotoTestPage(page, { enableLexical: true });
+      await page.bringToFront();
+      await waitForInputReady(page, selector);
+
+      await page.focus(selector);
+      await page.keyboard.type("hello (");
+      await waitForInputContentMatch(page, selector, /^hello \(\)$/, browserTimeout(5000, 9000));
+
+      // Wait for deferred cursor repositioning (rAF + setTimeout in content script)
+      await sleep(200);
+
+      // Verify cursor is between brackets by typing a character:
+      // if cursor is inside "(|)", typing "x" produces "(x)".
+      await page.keyboard.type("x");
+      await waitForInputContentMatch(page, selector, /^hello \(x\)$/, browserTimeout(5000, 9000));
+
+      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await applyConfigChange(browser, worker!);
+    },
+    browserTimeout(30000, 50000),
+  );
 });

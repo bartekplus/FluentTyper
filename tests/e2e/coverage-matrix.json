@@ -1121,6 +1121,37 @@
       ]
     },
     {
+      "id": "grammar_auto_bracket_close",
+      "description": "Auto-bracket-close rule inserts matching closing bracket/quote, positions cursor between them, and supports overtype skip-over.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Grammar Rule Engine auto-closes brackets and places cursor between them in #test-input"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Grammar Rule Engine auto-closes brackets in #test-contenteditable"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Grammar Rule Engine auto-closes brackets in Lexical editor"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/AutoBracketCloseRule.test.ts",
+          "test": "typing %s auto-closes to %s"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/AutoBracketCloseRule.test.ts",
+          "test": "auto-closes \" without oscillation"
+        }
+      ]
+    },
+    {
       "id": "grammar_v5_forced_migration",
       "description": "Settings migration V5 force-applies recommended grammar defaults with backup and marker.",
       "coverage": [

@@ -14,7 +14,13 @@ export function applyGrammarEditToContext(
     after = after.slice(edit.deleteForwards);
   }
 
-  before += edit.replacement;
+  if (edit.cursorOffset !== undefined) {
+    const offset = Math.max(0, Math.min(edit.replacement.length, edit.cursorOffset));
+    before += edit.replacement.slice(0, offset);
+    after = edit.replacement.slice(offset) + after;
+  } else {
+    before += edit.replacement;
+  }
 
   return {
     ...context,
@@ -32,6 +38,7 @@ export function mergeSequentialGrammarEdits(edits: GrammarEdit[]): GrammarEdit[]
   let mergedConfidence: GrammarEdit["confidence"] | undefined;
   let mergedSourceRuleId: GrammarEdit["sourceRuleId"] | undefined;
   let mergedSafetyTier: GrammarEdit["safetyTier"] | undefined;
+  let mergedCursorOffset: number | undefined;
   let accumulatedString = "";
   let baseDeleteBackwards = 0;
 
@@ -53,6 +60,9 @@ export function mergeSequentialGrammarEdits(edits: GrammarEdit[]): GrammarEdit[]
     if (edit.safetyTier) {
       mergedSafetyTier = edit.safetyTier;
     }
+    if (edit.cursorOffset !== undefined) {
+      mergedCursorOffset = keepAccumulated + edit.cursorOffset;
+    }
   }
 
   return [
@@ -60,6 +70,7 @@ export function mergeSequentialGrammarEdits(edits: GrammarEdit[]): GrammarEdit[]
       replacement: accumulatedString,
       deleteBackwards: baseDeleteBackwards,
       deleteForwards: totalDeleteForwards,
+      ...(mergedCursorOffset !== undefined ? { cursorOffset: mergedCursorOffset } : {}),
       ...(mergedConfidence ? { confidence: mergedConfidence } : {}),
       ...(mergedSourceRuleId ? { sourceRuleId: mergedSourceRuleId } : {}),
       ...(mergedSafetyTier ? { safetyTier: mergedSafetyTier } : {}),

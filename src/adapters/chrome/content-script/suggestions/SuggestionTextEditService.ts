@@ -3,6 +3,7 @@ import type { GrammarEdit } from "@core/domain/grammar/types";
 import { SPACING_RULES, Spacing } from "@core/domain/spacingRules";
 import { ContentEditableAdapter, type ContentEditableEditResult } from "./ContentEditableAdapter";
 import { HostEditorAdapterResolver, type HostEditorSession } from "./HostEditorAdapterResolver";
+import { CURSOR_MOVE_COUNT_ATTR, CURSOR_MOVE_EVENT } from "./HostEditorBridgeProtocol";
 import { TextTargetAdapter, type TextTarget } from "./TextTargetAdapter";
 import { buildCaretTrace, clipTraceText, collapseTraceWhitespace } from "./traceUtils";
 import type {
@@ -546,12 +547,15 @@ export class SuggestionTextEditService {
         blockSourceText = `${blockContext.beforeCursor}${blockContext.afterCursor}`;
         expectedBlockText = blockSourceText;
         expectedBlockText = `${expectedBlockText.slice(0, blockReplaceStart)}${replacement}${expectedBlockText.slice(blockReplaceEnd)}`;
-        expectedBlockCursorAfter = this.resolveCursorAfterTextEdit(
-          blockCursor,
-          blockReplaceStart,
-          blockReplaceEnd,
-          replacement,
-        );
+        expectedBlockCursorAfter =
+          edit.cursorOffset !== undefined
+            ? blockReplaceStart + Math.max(0, Math.min(replacement.length, edit.cursorOffset))
+            : this.resolveCursorAfterTextEdit(
+                blockCursor,
+                blockReplaceStart,
+                blockReplaceEnd,
+                replacement,
+              );
         blockCursorAfter = expectedBlockCursorAfter;
 
         replaceStart = Math.max(0, blockStart + blockCursor - deleteBackwards);
@@ -578,12 +582,15 @@ export class SuggestionTextEditService {
       return { applied: false, didDispatchInput: false, suppressedByManualRevert: true };
     }
 
-    const cursorAfter = this.resolveCursorAfterTextEdit(
-      snapshot.cursorOffset,
-      replaceStart,
-      replaceEnd,
-      replacement,
-    );
+    const cursorAfter =
+      edit.cursorOffset !== undefined
+        ? replaceStart + Math.max(0, Math.min(replacement.length, edit.cursorOffset))
+        : this.resolveCursorAfterTextEdit(
+            snapshot.cursorOffset,
+            replaceStart,
+            replaceEnd,
+            replacement,
+          );
     const applyResult =
       !TextTargetAdapter.isTextValue(entry.elem) &&
       activeBlock !== null &&
@@ -611,12 +618,54 @@ export class SuggestionTextEditService {
             cursorAfter,
             { preferDomMutation: this.shouldPreferDomMutationForGrammar(entry.elem) },
           );
+    // For edits with cursorOffset on contenteditable, schedule deferred cursor
+    // repositioning BEFORE the didMutateDom check. React-based editors (Lexical,
+    // Slate) handle beforeinput by calling preventDefault() and reconciling the
+    // DOM asynchronously via microtask. This means didMutateDom is false at check
+    // time even though the edit WILL be applied. The deferred callback validates
+    // that the expected text appeared before moving the cursor.
+    if (edit.cursorOffset !== undefined && !TextTargetAdapter.isTextValue(entry.elem)) {
+      const moveBackCount = replacement.length - edit.cursorOffset;
+      if (moveBackCount > 0) {
+        const targetElem = entry.elem as HTMLElement;
+        // React-based editors (Lexical, Slate) reconcile the DOM asynchronously
+        // and override cursor positions set via setCaret. Dispatch a bridge event
+        // to the main-world script which calls Selection.modify() there. Running
+        // in the main world triggers native selectionchange events that host
+        // editors detect and use to sync their internal selection state.
+        let applied = false;
+        const applyModify = () => {
+          if (applied || !targetElem.isConnected) {
+            return;
+          }
+          // Validate that the replacement text actually appeared in the DOM
+          // before moving the cursor. This distinguishes async host reconciliation
+          // (Lexical) from true edit rejection.
+          const currentText = targetElem.textContent ?? "";
+          if (!currentText.includes(replacement)) {
+            return;
+          }
+          applied = true;
+          targetElem.setAttribute(CURSOR_MOVE_COUNT_ATTR, String(moveBackCount));
+          targetElem.dispatchEvent(
+            new CustomEvent(CURSOR_MOVE_EVENT, { bubbles: true, composed: true }),
+          );
+          targetElem.removeAttribute(CURSOR_MOVE_COUNT_ATTR);
+        };
+        // Schedule at multiple timing points to cover different editor
+        // reconciliation strategies. Only the first successful one applies.
+        requestAnimationFrame(applyModify);
+        setTimeout(applyModify, 30);
+      }
+    }
+
     if (!applyResult.didMutateDom) {
       return {
         applied: false,
         didDispatchInput: false,
       };
     }
+
     let postEditSnapshot: SuggestionSnapshot | null =
       !TextTargetAdapter.isTextValue(entry.elem) &&
       activeBlock !== null &&

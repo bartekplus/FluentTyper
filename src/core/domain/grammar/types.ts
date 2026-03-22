@@ -25,6 +25,7 @@ export type GrammarRuleId =
   | "emdashShortcut"
   | "smartQuoteNormalization"
   | "duplicatePunctuationCollapse"
+  | "autoBracketClose"
   // Legacy ids kept for compatibility and migration handling.
   | "spacingRule"
   | "capitalizeFirstLetter";
@@ -46,6 +47,7 @@ export interface GrammarEdit {
   replacement: string;
   deleteBackwards: number; // Number of characters to delete before the cursor
   deleteForwards: number; // Number of characters to delete after the cursor
+  cursorOffset?: number; // If set, cursor is placed at replaceStart + cursorOffset instead of end of replacement
   confidence?: "high" | "medium";
   sourceRuleId?: Exclude<GrammarRuleId, "spacingRule" | "capitalizeFirstLetter">;
   safetyTier?: "safe" | "advanced";

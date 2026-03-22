@@ -24,6 +24,7 @@ import { EnglishYourWelcomeCorrectionRule } from "./implementations/EnglishYourW
 import { EnglishTheirThereBeVerbRule } from "./implementations/EnglishTheirThereBeVerbRule";
 import { EnglishAlotCorrectionRule } from "./implementations/EnglishAlotCorrectionRule";
 import { EnglishPronounVerbWhitelistAgreementRule } from "./implementations/EnglishPronounVerbWhitelistAgreementRule";
+import { AutoBracketCloseRule } from "./implementations/AutoBracketCloseRule";
 
 export function createGrammarRuleCatalogRuntime(options: {
   insertSpaceAfterAutocomplete: boolean;
@@ -66,6 +67,7 @@ export function createGrammarRuleCatalogRuntime(options: {
     emdashShortcut: new EmdashShortcutRule(),
     smartQuoteNormalization: new SmartQuoteNormalizationRule(),
     duplicatePunctuationCollapse: new DuplicatePunctuationCollapseRule(),
+    autoBracketClose: new AutoBracketCloseRule(),
   };
 
   return GRAMMAR_RULE_CATALOG.slice()
