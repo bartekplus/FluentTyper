@@ -15,6 +15,14 @@ declare global {
   }
 }
 
+function createMenu(entryId: string, styles: Partial<CSSStyleDeclaration> = {}): HTMLDivElement {
+  const menu = document.createElement("div");
+  menu.id = `ft-menu-${entryId}`;
+  menu.style.display = "block";
+  Object.assign(menu.style, styles);
+  return menu;
+}
+
 describe("EarlyTabAcceptMainWorldBridge", () => {
   afterEach(() => {
     document.body.innerHTML = "";
@@ -32,8 +40,7 @@ describe("EarlyTabAcceptMainWorldBridge", () => {
     input.setAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR, "true");
     input.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, "7");
     input.setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "true");
-    const menu = document.createElement("div");
-    menu.style.display = "block";
+    const menu = createMenu("7");
     document.body.append(input, menu);
 
     const pageCaptureBlocker = (event: Event) => {
@@ -72,8 +79,7 @@ describe("EarlyTabAcceptMainWorldBridge", () => {
     input.setAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR, "true");
     input.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, "9");
     input.setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "true");
-    const menu = document.createElement("div");
-    menu.style.display = "block";
+    const menu = createMenu("9");
     document.body.append(input, menu);
 
     const windowCaptureBlocker = (event: Event) => {
@@ -112,8 +118,7 @@ describe("EarlyTabAcceptMainWorldBridge", () => {
     input.setAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR, "true");
     input.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, "7");
     input.setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "false");
-    const menu = document.createElement("div");
-    menu.style.display = "none";
+    const menu = createMenu("7", { display: "none" });
     document.body.append(input, menu);
 
     const keydown = new window.KeyboardEvent("keydown", {
@@ -139,8 +144,7 @@ describe("EarlyTabAcceptMainWorldBridge", () => {
     input.setAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR, "true");
     input.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, "11");
     input.setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "true");
-    const menu = document.createElement("div");
-    menu.style.display = "block";
+    const menu = createMenu("11");
     document.body.append(input, menu);
 
     const keydown = new window.KeyboardEvent("keydown", {
@@ -166,8 +170,60 @@ describe("EarlyTabAcceptMainWorldBridge", () => {
     input.setAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR, "false");
     input.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, "13");
     input.setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "true");
-    const menu = document.createElement("div");
-    menu.style.display = "block";
+    const menu = createMenu("13");
+    document.body.append(input, menu);
+
+    const keydown = new window.KeyboardEvent("keydown", {
+      key: "Tab",
+      bubbles: true,
+      cancelable: true,
+    });
+    input.dispatchEvent(keydown);
+
+    expect(postMessageSpy).not.toHaveBeenCalled();
+    expect(keydown.defaultPrevented).toBe(false);
+    postMessageSpy.mockRestore();
+  });
+
+  test("does not post when the popup host was removed without clearing the visible flag", () => {
+    installEarlyTabAcceptMainWorldBridge(document);
+    const postMessageSpy = jest.spyOn(window, "postMessage");
+
+    const input = document.createElement("div");
+    input.setAttribute("contenteditable", "true");
+    input.setAttribute("data-suggestion", "true");
+    input.setAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR, "true");
+    input.setAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR, "true");
+    input.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, "17");
+    input.setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "true");
+    const menu = createMenu("17");
+    document.body.append(input, menu);
+    menu.remove();
+
+    const keydown = new window.KeyboardEvent("keydown", {
+      key: "Tab",
+      bubbles: true,
+      cancelable: true,
+    });
+    input.dispatchEvent(keydown);
+
+    expect(postMessageSpy).not.toHaveBeenCalled();
+    expect(keydown.defaultPrevented).toBe(false);
+    postMessageSpy.mockRestore();
+  });
+
+  test("does not post when the popup host is computed hidden without clearing the visible flag", () => {
+    installEarlyTabAcceptMainWorldBridge(document);
+    const postMessageSpy = jest.spyOn(window, "postMessage");
+
+    const input = document.createElement("div");
+    input.setAttribute("contenteditable", "true");
+    input.setAttribute("data-suggestion", "true");
+    input.setAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR, "true");
+    input.setAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR, "true");
+    input.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, "19");
+    input.setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "true");
+    const menu = createMenu("19", { visibility: "hidden" });
     document.body.append(input, menu);
 
     const keydown = new window.KeyboardEvent("keydown", {

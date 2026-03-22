@@ -612,6 +612,50 @@ describe("SuggestionManagerRuntime", () => {
     expect(acceptSuggestionAtIndex).toHaveBeenCalledWith(0);
   });
 
+  test("early bridge accept reports no visible suggestion state when the popup host is hidden", () => {
+    const runtime = makeRuntime();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+
+    runtime.queryAndAttachHelper();
+
+    const runtimeInternal = runtime as unknown as {
+      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
+    };
+    const entry = runtimeInternal.entryRegistry.getByElement(editable);
+    if (!entry) {
+      throw new Error("Expected attached suggestion entry");
+    }
+
+    entry.suggestions = ["hello"];
+    entry.selectedIndex = 0;
+    entry.menu.style.display = "block";
+    entry.menu.style.visibility = "hidden";
+
+    const session = getAttachedSession(runtime, entry.id);
+    const acceptSuggestionAtIndex = jest.fn(() => true);
+    session.acceptSuggestionAtIndex = acceptSuggestionAtIndex;
+
+    expect(
+      (
+        runtime as unknown as {
+          handleEarlyTabAcceptRequest: (entryId: string) => {
+            accepted: boolean;
+            reason: string;
+          };
+        }
+      ).handleEarlyTabAcceptRequest(String(entry.id)),
+    ).toEqual(
+      expect.objectContaining({
+        accepted: false,
+        reason: "no_visible_suggestion_state",
+      }),
+    );
+    expect(acceptSuggestionAtIndex).not.toHaveBeenCalled();
+  });
+
   test("early bridge accept reports failure when session acceptance returns false", () => {
     const runtime = makeRuntime();
     const editable = document.createElement("div");
@@ -648,6 +692,53 @@ describe("SuggestionManagerRuntime", () => {
         reason: "accept_failed",
       }),
     );
+  });
+
+  test("document-level Tab capture ignores suggestions when the popup host was removed", () => {
+    const runtime = makeRuntime();
+    const wrapper = document.createElement("div");
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    wrapper.appendChild(editable);
+    document.body.appendChild(wrapper);
+
+    runtime.queryAndAttachHelper();
+
+    const runtimeInternal = runtime as unknown as {
+      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
+    };
+    const entry = runtimeInternal.entryRegistry.getByElement(editable);
+    if (!entry) {
+      throw new Error("Expected attached suggestion entry");
+    }
+
+    entry.suggestions = ["hello"];
+    entry.selectedIndex = 0;
+    entry.menu.style.display = "block";
+    entry.menu.remove();
+
+    const session = getAttachedSession(runtime, entry.id);
+    const acceptSuggestionAtIndex = jest.fn(() => true);
+    session.acceptSuggestionAtIndex = acceptSuggestionAtIndex;
+
+    wrapper.addEventListener(
+      "keydown",
+      (event) => {
+        event.stopPropagation();
+      },
+      true,
+    );
+
+    const keydown = new window.KeyboardEvent("keydown", {
+      key: "Tab",
+      bubbles: true,
+      cancelable: true,
+    });
+    editable.dispatchEvent(keydown);
+
+    expect(acceptSuggestionAtIndex).not.toHaveBeenCalled();
+    expect(keydown.defaultPrevented).toBe(false);
   });
 
   test("selection reconciliation delegates to the attached session", () => {

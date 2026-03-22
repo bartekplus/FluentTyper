@@ -1,3 +1,4 @@
+import { isSuggestionMenuHostVisible } from "./SuggestionMenuHost";
 import type { SuggestionEntry } from "./types";
 
 export interface SuggestionLifecycleControllerOptions {
@@ -222,10 +223,7 @@ export class SuggestionLifecycleController {
   }
 
   private isDocumentTabFallbackEligible(entry: SuggestionEntry): boolean {
-    return (
-      entry.inlineSuggestion !== null ||
-      (entry.suggestions.length > 0 && entry.menu.style.display !== "none")
-    );
+    return entry.inlineSuggestion !== null || isSuggestionMenuHostVisible(entry.menu);
   }
 
   private onDocumentSelectionChange(): void {

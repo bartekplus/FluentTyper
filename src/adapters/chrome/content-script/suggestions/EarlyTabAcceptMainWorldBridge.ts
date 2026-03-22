@@ -7,6 +7,10 @@ import {
   EARLY_TAB_ACCEPT_REQUEST_EVENT,
   EARLY_TAB_ACCEPT_VISIBLE_ATTR,
 } from "./EarlyTabAcceptBridgeProtocol";
+import {
+  isSuggestionMenuHostVisible,
+  resolveSuggestionMenuHost,
+} from "./SuggestionMenuHost";
 
 type FluentTyperManagedElement = HTMLElement;
 type FluentTyperBridgeWindow = Window & {
@@ -16,20 +20,28 @@ type FluentTyperBridgeWindow = Window & {
 
 function isManagedSuggestionTarget(
   element: HTMLElement | null,
+  doc: Document,
 ): element is FluentTyperManagedElement {
+  const entryId =
+    element instanceof HTMLElement ? element.getAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR) : null;
   return (
     element instanceof HTMLElement &&
     element.getAttribute("data-suggestion") === "true" &&
     element.getAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR) === "true" &&
     element.getAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR) === "true" &&
-    element.getAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR) === "true"
+    element.getAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR) === "true" &&
+    !!entryId &&
+    isSuggestionMenuHostVisible(resolveSuggestionMenuHost(doc, entryId))
   );
 }
 
-function findManagedSuggestionTarget(start: HTMLElement | null): FluentTyperManagedElement | null {
+function findManagedSuggestionTarget(
+  start: HTMLElement | null,
+  doc: Document,
+): FluentTyperManagedElement | null {
   let current: Node | null = start;
   while (current) {
-    if (current instanceof HTMLElement && isManagedSuggestionTarget(current)) {
+    if (current instanceof HTMLElement && isManagedSuggestionTarget(current, doc)) {
       return current;
     }
     current = current.parentNode;
@@ -44,7 +56,7 @@ function resolveManagedSuggestionTarget(
   const path = typeof event.composedPath === "function" ? event.composedPath() : [event.target];
   for (const node of path) {
     if (node instanceof HTMLElement) {
-      const match = findManagedSuggestionTarget(node);
+      const match = findManagedSuggestionTarget(node, doc);
       if (match) {
         return match;
       }
@@ -52,7 +64,7 @@ function resolveManagedSuggestionTarget(
   }
 
   const activeElement = doc.activeElement;
-  return activeElement instanceof HTMLElement ? findManagedSuggestionTarget(activeElement) : null;
+  return activeElement instanceof HTMLElement ? findManagedSuggestionTarget(activeElement, doc) : null;
 }
 
 export function installEarlyTabAcceptMainWorldBridge(doc: Document = document): void {

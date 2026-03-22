@@ -1,3 +1,7 @@
+import {
+  resolveSuggestionMenuHostId,
+  SUGGESTION_MENU_HOST_ID_PREFIX,
+} from "./SuggestionMenuHost";
 import { SUGGESTION_POPUP_SHADOW_CSS } from "./SuggestionPopupShadowStyles";
 
 export interface SuggestionMenuElements {
@@ -7,13 +11,13 @@ export interface SuggestionMenuElements {
 
 export class SuggestionMenuView {
   static readonly CONTAINER_CLASS = "ft-suggestion-container";
-  static readonly HOST_ID_PREFIX = "ft-menu-";
+  static readonly HOST_ID_PREFIX = SUGGESTION_MENU_HOST_ID_PREFIX;
   static readonly PANEL_CLASS = "ft-suggestion-panel";
   static readonly HEADER_CLASS = "ft-suggestion-header";
   static readonly LIST_CLASS = "ft-suggestion-list";
 
   static resolveHostId(entryId: number | string): string {
-    return `${SuggestionMenuView.HOST_ID_PREFIX}${entryId}`;
+    return resolveSuggestionMenuHostId(entryId);
   }
 
   static ensureMenu(

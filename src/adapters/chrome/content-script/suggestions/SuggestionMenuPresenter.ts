@@ -1,4 +1,5 @@
 import { EARLY_TAB_ACCEPT_VISIBLE_ATTR } from "./EarlyTabAcceptBridgeProtocol";
+import { isSuggestionMenuHostVisible } from "./SuggestionMenuHost";
 import { SuggestionPositioningService } from "./SuggestionPositioningService";
 import { SuggestionMenuView } from "./SuggestionMenuView";
 import type { SuggestionElement } from "./types";
@@ -111,7 +112,7 @@ export class SuggestionMenuPresenter {
   }
 
   public isVisible(menu: HTMLDivElement, suggestionCount: number): boolean {
-    return menu.style.display !== "none" && suggestionCount > 0;
+    return suggestionCount > 0 && isSuggestionMenuHostVisible(menu);
   }
 
   public updateHighlight(list: HTMLUListElement, selectedIndex: number): void {
