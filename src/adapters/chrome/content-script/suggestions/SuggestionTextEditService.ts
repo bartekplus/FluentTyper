@@ -108,16 +108,12 @@ export class SuggestionTextEditService {
       : this.contentEditableAdapter.getBlockContext(entry.elem);
     const blockTokenInfo = blockContext ? this.findMentionToken(blockContext.beforeCursor) : null;
     if (!isTextValueTarget && blockContext && blockTokenInfo && blockTokenInfo.token.length > 0) {
-      return this.acceptContentEditableSuggestion(entry, suggestion, blockContext);
+      return this.acceptContentEditableSuggestion(entry, suggestion, blockContext, blockTokenInfo);
     }
 
     let snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
-    const tokenSource = snapshot.beforeCursor;
-    const tokenInfo = this.findMentionToken(tokenSource);
-    const cursorTokenInfo = this.findMentionToken(snapshot.beforeCursor);
-    const triggerText = isTextValueTarget
-      ? tokenInfo.token || cursorTokenInfo.token || entry.latestMentionText
-      : tokenInfo.token || entry.latestMentionText;
+    const tokenInfo = this.findMentionToken(snapshot.beforeCursor);
+    const triggerText = tokenInfo.token || entry.latestMentionText;
 
     if (!isTextValueTarget && triggerText && snapshot.beforeCursor.length === 0) {
       const fullText = entry.elem.textContent ?? "";
@@ -1127,6 +1123,7 @@ export class SuggestionTextEditService {
     entry: SuggestionEntry,
     suggestion: string,
     blockContext: { beforeCursor: string; afterCursor: string },
+    blockTokenInfo: { token: string; start: number },
   ): AcceptedSuggestionEditResult | null {
     const startedAt =
       typeof globalThis.performance?.now === "function" ? globalThis.performance.now() : Date.now();
@@ -1137,15 +1134,14 @@ export class SuggestionTextEditService {
       return null;
     }
 
-    const tokenInfo = this.findMentionToken(blockContext.beforeCursor);
-    const triggerText = tokenInfo.token || entry.latestMentionText;
+    const triggerText = blockTokenInfo.token || entry.latestMentionText;
     const beforeBlockBoundary = this.contentEditableAdapter.isCollapsedSelectionBeforeBlockBoundary(
       entry.elem,
     );
     const blockSourceText = `${blockContext.beforeCursor}${blockContext.afterCursor}`;
 
     let replaceEnd = blockContext.beforeCursor.length;
-    if (tokenInfo.token.length === 0) {
+    if (blockTokenInfo.token.length === 0) {
       while (replaceEnd > 0 && this.isSeparator(blockContext.beforeCursor.charAt(replaceEnd - 1))) {
         replaceEnd -= 1;
       }

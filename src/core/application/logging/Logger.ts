@@ -1,5 +1,6 @@
 import {
   DEFAULT_OBSERVABILITY_CONFIG,
+  isLogLevel,
   type LogLevel,
   type ObservabilityConfig,
   type ObservabilityEvent,
@@ -42,26 +43,10 @@ function getLoggingGlobals(): LoggerRuntimeGlobals {
   return globalThis as LoggerRuntimeGlobals;
 }
 
-function parseLogLevel(level: unknown): LogLevel | null {
-  if (typeof level !== "string") {
-    return null;
-  }
-  const normalized = level.trim().toLowerCase();
-  if (
-    normalized === "debug" ||
-    normalized === "info" ||
-    normalized === "warn" ||
-    normalized === "error"
-  ) {
-    return normalized;
-  }
-  return null;
-}
-
 function resolveDefaultMinLevel(): LogLevel {
   const globals = getLoggingGlobals();
-  const explicitLogLevel = parseLogLevel(globals.__FT_LOG_LEVEL__);
-  if (explicitLogLevel) {
+  const explicitLogLevel = globals.__FT_LOG_LEVEL__;
+  if (isLogLevel(explicitLogLevel)) {
     return explicitLogLevel;
   }
   return globals.__FT_DEV_BUILD__ ? "debug" : "warn";

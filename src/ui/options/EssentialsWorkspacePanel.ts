@@ -12,6 +12,7 @@ import {
   KEY_SELECT_BY_DIGIT,
 } from "@core/domain/constants";
 import { i18n } from "./fluenttyperI18n.js";
+import { createWorkspaceShell } from "./workspacePanelUtils.js";
 import {
   createWorkspaceCard,
   moveControlToBody,
@@ -31,8 +32,7 @@ export class EssentialsWorkspacePanel {
   }
 
   render(): void {
-    const shell = document.createElement("div");
-    shell.className = "workspace-panel-stack";
+    const shell = createWorkspaceShell();
 
     const general = createWorkspaceCard(i18n.get("General"));
     moveControlToBody(this.registry, "enable", general.body);

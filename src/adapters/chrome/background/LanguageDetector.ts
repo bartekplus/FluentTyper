@@ -126,47 +126,12 @@ export class LanguageDetector {
     const priors = sanitizeAutoLanguageSitePriors(priorsRaw, allowedLanguages);
     const sitePrior = getAutoLanguageSitePrior(priors, domain || undefined, allowedLanguages);
     const key = this.getSessionKey(request);
-    const nextRuntimeGeneration =
-      typeof request.runtimeGeneration === "number" && Number.isFinite(request.runtimeGeneration)
-        ? request.runtimeGeneration
-        : 0;
+    const nextRuntimeGeneration = this.resolveRuntimeGeneration(request.runtimeGeneration);
     const session =
       this.sessions.get(key) ||
-      ({
-        key,
-        tabId: request.tabId,
-        frameId: request.frameId,
-        suggestionId: request.suggestionId,
-        runtimeGeneration: nextRuntimeGeneration,
-        domain,
-        enabledLanguages: allowedLanguages.slice(),
-        stableLanguage: null,
-        resolvedLanguage: fallbackLanguage,
-        rollingSample: "",
-        pageLanguageHint: null,
-        pageLanguageHintResolved: false,
-        pendingLanguage: null,
-        pendingConfirmations: 0,
-        manualLockLanguage: null,
-        switchSuppressedUntilBoundary: false,
-        source: "fallback",
-        lastSeenAt: now,
-        priorEligible: false,
-      } as AutoLanguageSessionState);
+      this.createSessionState(key, request, nextRuntimeGeneration, domain, allowedLanguages, fallbackLanguage, now);
 
-    const pageScopeChanged =
-      session.runtimeGeneration !== nextRuntimeGeneration || session.domain !== domain;
-    session.tabId = request.tabId;
-    session.frameId = request.frameId;
-    session.suggestionId = request.suggestionId;
-    session.runtimeGeneration = nextRuntimeGeneration;
-    session.domain = domain;
-    session.enabledLanguages = allowedLanguages.slice();
-    session.lastSeenAt = now;
-    if (pageScopeChanged) {
-      session.pageLanguageHint = null;
-      session.pageLanguageHintResolved = false;
-    }
+    this.syncSessionScope(session, request, nextRuntimeGeneration, domain, allowedLanguages, now);
     session.rollingSample = updateAutoLanguageRollingSample(session.rollingSample, request.text);
     const runtime = this.trackLiveRuntime({
       tabId: request.tabId,
@@ -222,6 +187,66 @@ export class LanguageDetector {
       tabId: request.tabId,
       frameId: request.frameId,
     };
+  }
+
+  private resolveRuntimeGeneration(runtimeGeneration: unknown): number {
+    return typeof runtimeGeneration === "number" && Number.isFinite(runtimeGeneration)
+      ? runtimeGeneration
+      : 0;
+  }
+
+  private createSessionState(
+    key: string,
+    request: AutoLanguageRequest,
+    runtimeGeneration: number,
+    domain: string | null,
+    allowedLanguages: string[],
+    fallbackLanguage: string,
+    now: number,
+  ): AutoLanguageSessionState {
+    return {
+      key,
+      tabId: request.tabId,
+      frameId: request.frameId,
+      suggestionId: request.suggestionId,
+      runtimeGeneration,
+      domain,
+      enabledLanguages: allowedLanguages.slice(),
+      stableLanguage: null,
+      resolvedLanguage: fallbackLanguage,
+      rollingSample: "",
+      pageLanguageHint: null,
+      pageLanguageHintResolved: false,
+      pendingLanguage: null,
+      pendingConfirmations: 0,
+      manualLockLanguage: null,
+      switchSuppressedUntilBoundary: false,
+      source: "fallback",
+      lastSeenAt: now,
+      priorEligible: false,
+    };
+  }
+
+  private syncSessionScope(
+    session: AutoLanguageSessionState,
+    request: AutoLanguageRequest,
+    runtimeGeneration: number,
+    domain: string | null,
+    allowedLanguages: string[],
+    now: number,
+  ): void {
+    const scopeChanged = session.runtimeGeneration !== runtimeGeneration || session.domain !== domain;
+    session.tabId = request.tabId;
+    session.frameId = request.frameId;
+    session.suggestionId = request.suggestionId;
+    session.runtimeGeneration = runtimeGeneration;
+    session.domain = domain;
+    session.enabledLanguages = allowedLanguages.slice();
+    session.lastSeenAt = now;
+    if (scopeChanged) {
+      session.pageLanguageHint = null;
+      session.pageLanguageHintResolved = false;
+    }
   }
 
   reportRuntimeActivity(scope: AutoLanguageSessionLookup): void {

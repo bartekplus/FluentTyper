@@ -120,7 +120,7 @@ export class BackgroundServiceWorker {
       "background.prediction.completed",
       `${predictions.length} predictions`,
     );
-    if (!Array.isArray(predictions) || predictions.length === 0) {
+    if (predictions.length === 0) {
       this.predictionManager.recordTraceTimelineEvent(
         traceMeta,
         "background.response.empty",

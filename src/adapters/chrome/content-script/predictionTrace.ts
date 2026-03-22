@@ -13,9 +13,10 @@ export function generatePredictionTraceId(): string {
 
 export function createPredictionTraceContext(
   startedAtMs: number = Date.now(),
+  traceId?: string,
 ): PredictionTraceContext {
   return {
-    traceId: generatePredictionTraceId(),
+    traceId: traceId ?? generatePredictionTraceId(),
     traceStartedAtMs: startedAtMs,
   };
 }

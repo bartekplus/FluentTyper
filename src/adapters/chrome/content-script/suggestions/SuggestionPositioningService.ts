@@ -200,12 +200,9 @@ export class SuggestionPositioningService {
 
     document.body.removeChild(mirror);
 
-    const clamp = (value: number, min: number, max: number): number =>
-      Math.max(min, Math.min(value, max));
-
     return this.createRect(
-      clamp(caretRect.left, mirrorRect.left, mirrorRect.left + mirrorRect.width),
-      clamp(lineBoxTop, mirrorRect.top, mirrorRect.top + mirrorRect.height),
+      this.clamp(caretRect.left, mirrorRect.left, mirrorRect.left + mirrorRect.width),
+      this.clamp(lineBoxTop, mirrorRect.top, mirrorRect.top + mirrorRect.height),
       0,
       Math.min(mirrorRect.height, lineBoxHeight),
     );
@@ -256,12 +253,9 @@ export class SuggestionPositioningService {
     }
 
     const parentRect = parent.getBoundingClientRect();
-    const clamp = (value: number, min: number, max: number): number =>
-      Math.max(min, Math.min(value, max));
-
     return this.createRect(
-      clamp(rect.left, parentRect.left, parentRect.left + parentRect.width),
-      clamp(rect.top, parentRect.top, parentRect.top + parentRect.height),
+      this.clamp(rect.left, parentRect.left, parentRect.left + parentRect.width),
+      this.clamp(rect.top, parentRect.top, parentRect.top + parentRect.height),
       0,
       Math.min(parentRect.height, rect.height),
     );

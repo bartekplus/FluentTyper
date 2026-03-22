@@ -14,11 +14,6 @@ export interface CheckAutoCapitalizeParams {
   autoCapitalize: boolean;
 }
 
-/**
- * Checks if auto capitalization should be applied based on the input tokens and punctuation marks.
- * @param params - Parameters for capitalization check
- * @returns {Capitalization} The type of capitalization to be applied.
- */
 export function checkAutoCapitalize({
   lastWord,
   wordCount,
@@ -26,14 +21,11 @@ export function checkAutoCapitalize({
   endsWithSpace,
   autoCapitalize,
 }: CheckAutoCapitalizeParams): Capitalization {
-  const firstCharacterOfLastWord = lastWord.slice(0, 1);
-
-  // Whole word capitalization: " XYZ"
   if (!endsWithSpace && lastWord && lastWord.length > 1 && lastWord === lastWord.toUpperCase()) {
     return Capitalization.WholeWord;
   }
 
-  // First letter capitalization: " Xyz"
+  const firstCharacterOfLastWord = lastWord.slice(0, 1);
   if (
     !endsWithSpace &&
     isLetter(firstCharacterOfLastWord) &&
@@ -42,7 +34,6 @@ export function checkAutoCapitalize({
     return Capitalization.FirstLetter;
   }
 
-  // Auto capitalization after sentence-ending punctuation
   if (
     autoCapitalize &&
     newSentence &&

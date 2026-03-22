@@ -14,6 +14,10 @@ export class RecapPolicy {
     private readonly aggregator: StatsAggregator,
   ) {}
 
+  private estimateHoursSaved(acceptedSuggestions: number, charactersSaved: number): number {
+    return this.aggregator.estimateMinutesSaved(acceptedSuggestions, charactersSaved) / 60;
+  }
+
   summarizeWeek(
     daily: Record<string, DailyProductivityState>,
     weekStart: Date,
@@ -26,16 +30,14 @@ export class RecapPolicy {
     );
     const throughWeek = this.aggregator.aggregateThroughDate(daily, weekEnd);
 
-    const beforeWeekHours =
-      this.aggregator.estimateMinutesSaved(
-        beforeWeek.acceptedSuggestions,
-        beforeWeek.charactersSaved,
-      ) / 60;
-    const throughWeekHours =
-      this.aggregator.estimateMinutesSaved(
-        throughWeek.acceptedSuggestions,
-        throughWeek.charactersSaved,
-      ) / 60;
+    const beforeWeekHours = this.estimateHoursSaved(
+      beforeWeek.acceptedSuggestions,
+      beforeWeek.charactersSaved,
+    );
+    const throughWeekHours = this.estimateHoursSaved(
+      throughWeek.acceptedSuggestions,
+      throughWeek.charactersSaved,
+    );
 
     const milestonesCrossedHours = DONATION_MILESTONE_HOURS.filter(
       (milestone) => beforeWeekHours < milestone && throughWeekHours >= milestone,
@@ -71,6 +73,7 @@ export class RecapPolicy {
     const expectedRecapWeekKey = this.sanitizer.toLocalDateKey(
       this.sanitizer.addDays(currentWeekStart, -7),
     );
+    // Only surface the previous completed week, and only after the local reveal hour.
     if (weeklyRecap.weekKey !== expectedRecapWeekKey) {
       return false;
     }

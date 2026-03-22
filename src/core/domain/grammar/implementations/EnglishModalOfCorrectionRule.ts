@@ -1,10 +1,7 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
 import {
-  hasTrailingTokenBoundary,
-  isEnglishLanguageContext,
   isLikelyCodeLikeContext,
-  resolveInputAction,
-  splitTrailingDelimiters,
+  resolveEnglishBoundaryContext,
 } from "./helpers/EnglishRuleShared";
 import { applyWordCase, detectWordCase } from "./helpers/GenericRuleShared";
 
@@ -16,27 +13,20 @@ export class EnglishModalOfCorrectionRule implements GrammarRule {
   readonly triggers: GrammarEventType[] = ["wordBoundary"];
 
   apply(context: GrammarContext): GrammarEdit | null {
-    if (!isEnglishLanguageContext(context)) {
-      return null;
-    }
-    if (resolveInputAction(context) === "delete") {
-      return null;
-    }
-    if (!hasTrailingTokenBoundary(context.beforeCursor)) {
+    const boundaryContext = resolveEnglishBoundaryContext(context);
+    if (!boundaryContext) {
       return null;
     }
 
-    const input = context.beforeCursor;
-    const { core, trailing } = splitTrailingDelimiters(input);
-    const match = core.match(MODAL_OF_REGEX);
+    const match = boundaryContext.core.match(MODAL_OF_REGEX);
     if (!match) {
       return null;
     }
 
     const phrase = match[0];
     const modal = match[1];
-    const phraseStart = core.length - phrase.length;
-    if (isLikelyCodeLikeContext(core, phraseStart, core.length)) {
+    const phraseStart = boundaryContext.core.length - phrase.length;
+    if (isLikelyCodeLikeContext(boundaryContext.core, phraseStart, boundaryContext.core.length)) {
       return null;
     }
 
@@ -45,8 +35,8 @@ export class EnglishModalOfCorrectionRule implements GrammarRule {
     const haveWord = style === "upper" ? "HAVE" : "have";
 
     return {
-      replacement: `${normalizedModal} ${haveWord}${trailing}`,
-      deleteBackwards: input.length - phraseStart,
+      replacement: `${normalizedModal} ${haveWord}${boundaryContext.trailing}`,
+      deleteBackwards: boundaryContext.input.length - phraseStart,
       deleteForwards: 0,
       confidence: "high",
       safetyTier: "safe",

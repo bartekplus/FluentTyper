@@ -1,5 +1,6 @@
 import type { GrammarContext, GrammarEdit } from "../../types";
 import { SPACE_CHARS } from "../../../spacingRules";
+import { resolveInputAction as resolveGrammarInputAction } from "./GenericRuleShared";
 
 export abstract class SpacingRuleShared {
   protected static readonly CODE_CUE_CHARS = new Set("=([{:+-*/%&|!<>?,".split(""));
@@ -16,11 +17,7 @@ export abstract class SpacingRuleShared {
   }
 
   protected resolveInputAction(context: GrammarContext): "insert" | "delete" | "other" | null {
-    const candidate = context.hints?.inputAction;
-    if (candidate === "insert" || candidate === "delete" || candidate === "other") {
-      return candidate;
-    }
-    return null;
+    return resolveGrammarInputAction(context);
   }
 
   protected createEdit(

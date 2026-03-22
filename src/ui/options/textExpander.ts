@@ -21,6 +21,11 @@ interface ElementWrapperLike {
   set(key: string, value: string | number | boolean): void;
 }
 
+interface AddShortcutInputs {
+  shortcut: HTMLInputElement | null;
+  shortcutText: HTMLTextAreaElement | null;
+}
+
 function toElementString(value: unknown): string | null {
   if (typeof value === "string") {
     return value;
@@ -98,10 +103,17 @@ function createElementWrapper(tag: string, props: Record<string, unknown>): Elem
   return wrapper;
 }
 
+function getAddShortcutInputs(ids: [string, string]): AddShortcutInputs {
+  return {
+    shortcut: document.getElementById(ids[0]) as HTMLInputElement | null,
+    shortcutText: document.getElementById(ids[1]) as HTMLTextAreaElement | null,
+  };
+}
+
 export class TextExpander {
   private readonly callbackFn: () => void;
   private readonly textExpansionsStoreKey = "textExpansions";
-  private readonly addNewShortcutIDs = ["newShortcut", "newShortcatText"];
+  private readonly addNewShortcutIDs: [string, string] = ["newShortcut", "newShortcatText"];
   private readonly store: Store;
   private readonly settingsWithManifest: FancierSettingsLike;
   private importedElemCount = 0;
@@ -171,12 +183,9 @@ export class TextExpander {
           skip_empty_lines: true,
         }) as unknown[][];
 
-        const shortcutElem = document.getElementById(
-          this.addNewShortcutIDs[0],
-        ) as HTMLInputElement | null;
-        const shortcutTextElem = document.getElementById(
-          this.addNewShortcutIDs[1],
-        ) as HTMLTextAreaElement | null;
+        const { shortcut: shortcutElem, shortcutText: shortcutTextElem } = getAddShortcutInputs(
+          this.addNewShortcutIDs,
+        );
         if (!shortcutElem || !shortcutTextElem) {
           return;
         }
@@ -390,10 +399,10 @@ export class TextExpander {
 
   private shortcutInputChange(): boolean {
     let isValid = true;
-    [
-      document.getElementById(this.addNewShortcutIDs[0]) as HTMLInputElement | null,
-      document.getElementById(this.addNewShortcutIDs[1]) as HTMLTextAreaElement | null,
-    ].forEach((element, index) => {
+    const { shortcut: shortcutElem, shortcutText: shortcutTextElem } = getAddShortcutInputs(
+      this.addNewShortcutIDs,
+    );
+    [shortcutElem, shortcutTextElem].forEach((element, index) => {
       if (!element) {
         return;
       }
@@ -423,12 +432,9 @@ export class TextExpander {
   }
 
   private addNewShortcut(renderAndSave = true): boolean {
-    const shortcutElem = document.getElementById(
-      this.addNewShortcutIDs[0],
-    ) as HTMLInputElement | null;
-    const shortcutTextElem = document.getElementById(
-      this.addNewShortcutIDs[1],
-    ) as HTMLTextAreaElement | null;
+    const { shortcut: shortcutElem, shortcutText: shortcutTextElem } = getAddShortcutInputs(
+      this.addNewShortcutIDs,
+    );
 
     if (!shortcutElem || !shortcutTextElem) {
       return false;

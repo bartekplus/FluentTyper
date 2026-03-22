@@ -100,9 +100,7 @@ export class SettingsEngine {
 
     for (const params of manifest.settings) {
       const control = this.createControl(params);
-      if (params.name !== undefined) {
-        registry[params.name] = control;
-      }
+      this.registerControl(registry, params, control);
     }
 
     // Apply initial hash routing after all tabs are created
@@ -194,14 +192,23 @@ export class SettingsEngine {
     if (params.type === "valueOnly") {
       return control;
     }
-    const container = this.getOrCreateGroup(params.tab, params.group);
-    const groupRoot = container.closest(".settings-group");
+    const groupContainer = this.getOrCreateGroup(params.tab, params.group);
     control.rootElement.setAttribute("data-search-text", this.buildFieldSearchText(params));
-    container.appendChild(control.rootElement);
+    groupContainer.appendChild(control.rootElement);
     if (params.type === "customPanel") {
-      groupRoot?.classList.add("settings-group-panel-only");
+      groupContainer.closest(".settings-group")?.classList.add("settings-group-panel-only");
     }
     return control;
+  }
+
+  private registerControl(
+    registry: SettingsRegistry,
+    params: FieldConfig,
+    control: FieldControl,
+  ): void {
+    if (params.name !== undefined) {
+      registry[params.name] = control;
+    }
   }
 
   private instantiateControl(params: FieldConfig): FieldControl {

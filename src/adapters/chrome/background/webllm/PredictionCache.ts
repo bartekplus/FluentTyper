@@ -19,19 +19,19 @@ export class PredictionCache {
   }
 
   getCacheKey(modelId: string, request: PredictorRequest): string {
-    return `${modelId}|${request.lang}|${request.numSuggestions}|${request.predictionInput}`;
+    return [modelId, request.lang, request.numSuggestions, request.predictionInput].join("|");
   }
 
   get(cacheKey: string): string[] | null {
-    const cached = this.cache.get(cacheKey);
-    if (!cached) {
+    const entry = this.cache.get(cacheKey);
+    if (!entry) {
       return null;
     }
-    if (cached.expiresAt < Date.now()) {
+    if (entry.expiresAt < Date.now()) {
       this.cache.delete(cacheKey);
       return null;
     }
-    return cached.predictions.slice();
+    return entry.predictions.slice();
   }
 
   set(cacheKey: string, predictions: string[]): void {

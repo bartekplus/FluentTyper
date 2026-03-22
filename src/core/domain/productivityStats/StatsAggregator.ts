@@ -22,6 +22,40 @@ import type {
 export class StatsAggregator {
   constructor(private readonly sanitizer: StatsSanitizer) {}
 
+  private createAggregatedCounters(): AggregatedCounters {
+    return {
+      acceptedSuggestions: 0,
+      charactersSaved: 0,
+      suggestionsShown: 0,
+      snippetsExpanded: 0,
+      charsInsertedFromSnippet: 0,
+      charsTypedForTrigger: 0,
+      snippetUsage: {},
+      languageUsage: {},
+    };
+  }
+
+  private createLanguageUsageCounters(): LanguageUsageCounters {
+    return {
+      acceptedSuggestions: 0,
+      charactersSaved: 0,
+    };
+  }
+
+  private addLanguageUsageCounters(
+    usageMap: Record<string, LanguageUsageCounters>,
+    language: string,
+    acceptedSuggestions: number,
+    charactersSaved: number,
+  ): void {
+    if (!usageMap[language]) {
+      usageMap[language] = this.createLanguageUsageCounters();
+    }
+
+    usageMap[language].acceptedSuggestions += acceptedSuggestions;
+    usageMap[language].charactersSaved += charactersSaved;
+  }
+
   estimateMinutesSaved(acceptedSuggestions: number, charactersSaved: number): number {
     const typingMinutes = charactersSaved / TYPING_CHARACTERS_PER_MINUTE;
     const acceptanceMinutes = (acceptedSuggestions * ACCEPTANCE_BONUS_SECONDS) / 60;
@@ -78,15 +112,7 @@ export class StatsAggregator {
     language: string,
     charactersSaved: number,
   ): void {
-    if (!usageMap[language]) {
-      usageMap[language] = {
-        acceptedSuggestions: 0,
-        charactersSaved: 0,
-      };
-    }
-
-    usageMap[language].acceptedSuggestions += 1;
-    usageMap[language].charactersSaved += charactersSaved;
+    this.addLanguageUsageCounters(usageMap, language, 1, charactersSaved);
   }
 
   aggregateRange(
@@ -94,22 +120,14 @@ export class StatsAggregator {
     start: Date,
     end: Date,
   ): AggregatedCounters {
-    const counters: AggregatedCounters = {
-      acceptedSuggestions: 0,
-      charactersSaved: 0,
-      suggestionsShown: 0,
-      snippetsExpanded: 0,
-      charsInsertedFromSnippet: 0,
-      charsTypedForTrigger: 0,
-      snippetUsage: {},
-      languageUsage: {},
-    };
+    const counters = this.createAggregatedCounters();
 
     const cursor = this.sanitizer.startOfLocalDay(start);
     const endKey = this.sanitizer.toLocalDateKey(end);
 
     while (this.sanitizer.toLocalDateKey(cursor) <= endKey) {
-      const entry = daily[this.sanitizer.toLocalDateKey(cursor)];
+      const dayKey = this.sanitizer.toLocalDateKey(cursor);
+      const entry = daily[dayKey];
       if (entry) {
         counters.acceptedSuggestions += entry.acceptedSuggestions;
         counters.charactersSaved += entry.charactersSaved;
@@ -128,14 +146,12 @@ export class StatsAggregator {
         }
 
         for (const [language, values] of Object.entries(entry.languageUsage)) {
-          if (!counters.languageUsage[language]) {
-            counters.languageUsage[language] = {
-              acceptedSuggestions: 0,
-              charactersSaved: 0,
-            };
-          }
-          counters.languageUsage[language].acceptedSuggestions += values.acceptedSuggestions;
-          counters.languageUsage[language].charactersSaved += values.charactersSaved;
+          this.addLanguageUsageCounters(
+            counters.languageUsage,
+            language,
+            values.acceptedSuggestions,
+            values.charactersSaved,
+          );
         }
       }
 
@@ -250,16 +266,14 @@ export class StatsAggregator {
   ): ProductivityDashboardStats["milestoneProgress"] {
     const lifetimeHoursSaved = this.sanitizer.roundMetric(lifetimeMinutesSaved / 60);
     const previousMilestoneHours =
-      DONATION_MILESTONE_HOURS.filter((milestone) => lifetimeHoursSaved >= milestone).sort(
-        (left, right) => right - left,
-      )[0] || 0;
+      [...DONATION_MILESTONE_HOURS].reverse().find((milestone) => lifetimeHoursSaved >= milestone) ||
+      0;
+    const highestDefinedMilestone =
+      DONATION_MILESTONE_HOURS[DONATION_MILESTONE_HOURS.length - 1] || 0;
 
     let nextMilestoneHours =
       DONATION_MILESTONE_HOURS.find((milestone) => lifetimeHoursSaved < milestone) ||
-      Math.max(
-        DONATION_MILESTONE_HOURS[DONATION_MILESTONE_HOURS.length - 1] + 5,
-        Math.ceil(lifetimeHoursSaved / 5) * 5,
-      );
+      Math.max(highestDefinedMilestone + 5, Math.ceil(lifetimeHoursSaved / 5) * 5);
 
     if (nextMilestoneHours <= previousMilestoneHours) {
       nextMilestoneHours = previousMilestoneHours + 5;

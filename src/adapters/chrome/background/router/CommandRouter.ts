@@ -89,8 +89,8 @@ export class CommandRouter {
           logError("CommandRouter.handle", error);
         },
       }),
-      createLoggingMiddleware(logger),
       createValidationMiddleware<void, void, RuntimeCommand>(isRuntimeCommand),
+      createLoggingMiddleware(logger),
     ]);
 
     this.registry

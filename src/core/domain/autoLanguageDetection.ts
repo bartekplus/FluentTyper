@@ -65,6 +65,7 @@ const QUALIFIED_TOKEN_THRESHOLD = 3;
 const DOCUMENT_HINT_BONUS = 0.15;
 const PAGE_HINT_BONUS = 0.1;
 const SITE_PRIOR_MAX_BONUS = 0.1;
+const MAX_SITE_PRIOR_ENTRIES = 3;
 const STICKY_BONUS = 0.05;
 const GREEK_SCRIPT_REGEX = /[\u0370-\u03FF\u1F00-\u1FFF]/u;
 const LETTER_REGEX = /\p{L}/u;
@@ -134,6 +135,10 @@ function compareCandidateScores(
   return left.language.localeCompare(right.language);
 }
 
+function keepTopSitePriorEntries(entries: Array<[string, number]>): Array<[string, number]> {
+  return entries.sort((left, right) => right[1] - left[1]).slice(0, MAX_SITE_PRIOR_ENTRIES);
+}
+
 export function extractAutoLanguageSample(text: string): string {
   if (typeof text !== "string" || text.length === 0) {
     return "";
@@ -182,12 +187,11 @@ export function sanitizeAutoLanguageSitePriors(
       )
       .map(([language, weight]) => [language, clampProbability(weight)] as const)
       .filter(([, weight]) => weight > 0)
-      .sort((left, right) => right[1] - left[1])
-      .slice(0, 3);
+      .map(([language, weight]) => [language, weight] as [string, number]);
     if (normalizedEntries.length === 0) {
       continue;
     }
-    result[domain] = Object.fromEntries(normalizedEntries);
+    result[domain] = Object.fromEntries(keepTopSitePriorEntries(normalizedEntries));
   }
   return result;
 }
@@ -205,10 +209,9 @@ export function recordAutoLanguageSitePrior(
   }
   const increment = strong ? 0.35 : 0.15;
   current[language] = Math.min(1, clampProbability(current[language]) + increment);
-  const limited = Object.entries(current)
-    .filter(([, weight]) => weight > 0.01)
-    .sort((left, right) => right[1] - left[1])
-    .slice(0, 3);
+  const limited = keepTopSitePriorEntries(
+    Object.entries(current).filter(([, weight]) => weight > 0.01),
+  );
   if (limited.length === 0) {
     const withoutDomain = { ...next };
     delete withoutDomain[domain];

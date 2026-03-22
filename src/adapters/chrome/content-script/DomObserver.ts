@@ -1,20 +1,20 @@
 import { SHADOW_ATTACH_MARKER_ATTR } from "./ShadowRootInterceptor";
 
 /**
- * DomObserver class encapsulates MutationObserver logic for DOM changes.
- * It notifies a callback when relevant mutations occur.
+ * Wraps a MutationObserver around a single root node and forwards only
+ * non-empty mutation batches to the runtime callback.
  */
 export class DomObserver {
   private observer: MutationObserver | null = null;
   private node: Node;
-  private callback: (mutationsList: MutationRecord[]) => void;
+  private readonly callback: (mutationsList: MutationRecord[]) => void;
 
   constructor(node: Node, callback: (mutationsList: MutationRecord[]) => void) {
     this.node = node;
     this.callback = callback;
   }
 
-  attach() {
+  attach(): void {
     if (!this.observer) {
       this.observer = new MutationObserver((mutationsList) => {
         if (mutationsList.length > 0) {
@@ -50,13 +50,13 @@ export class DomObserver {
     });
   }
 
-  disconnect() {
+  disconnect(): void {
     if (this.observer) {
       this.observer.disconnect();
     }
   }
 
-  setNode(node: Node) {
+  setNode(node: Node): void {
     this.node = node;
     if (this.observer) {
       this.disconnect();
@@ -64,7 +64,7 @@ export class DomObserver {
     }
   }
 
-  getNode() {
+  getNode(): Node {
     return this.node;
   }
 }

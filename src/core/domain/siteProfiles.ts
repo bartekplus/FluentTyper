@@ -9,6 +9,13 @@ export interface SiteProfile {
 
 export type SiteProfiles = Record<string, SiteProfile>;
 
+function toRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  return value as Record<string, unknown>;
+}
+
 export function normalizeDomainHost(domainOrUrl: string): string | undefined {
   if (typeof domainOrUrl !== "string") {
     return undefined;
@@ -62,10 +69,10 @@ export function sanitizeSiteProfile(
   profileRaw: unknown,
   enabledLanguages: string[],
 ): SiteProfile | undefined {
-  if (!profileRaw || typeof profileRaw !== "object" || Array.isArray(profileRaw)) {
+  const profile = toRecord(profileRaw);
+  if (!profile) {
     return undefined;
   }
-  const profile = profileRaw as Record<string, unknown>;
   const language = normalizeLanguage(profile.language, enabledLanguages);
   if (!language) {
     return undefined;
@@ -88,10 +95,10 @@ export function resolveSiteProfiles(
   profilesRaw: unknown,
   enabledLanguages: string[],
 ): SiteProfiles {
-  if (!profilesRaw || typeof profilesRaw !== "object" || Array.isArray(profilesRaw)) {
+  const profiles = toRecord(profilesRaw);
+  if (!profiles) {
     return {};
   }
-  const profiles = profilesRaw as Record<string, unknown>;
   const resolvedProfiles: SiteProfiles = {};
   for (const [domainKey, profileRaw] of Object.entries(profiles)) {
     const normalizedDomain = normalizeDomainHost(domainKey);

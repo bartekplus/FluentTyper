@@ -6,6 +6,10 @@ import { getSettingStorageKey } from "@core/domain/contracts/settings";
 export const SETTINGS_DOMAIN_BLACKLIST = getSettingStorageKey("domainList");
 const SETTINGS_ENABLED = getSettingStorageKey("enabled");
 const SETTINGS_DOMAIN_LIST_MODE = getSettingStorageKey("domainListMode");
+const WHITESPACE_REGEX = /\s+/;
+const WHITESPACE_EXCLUDING_NEWLINE_REGEX = /[^\S\r\n]+/;
+const LETTER_REGEX = /^\p{L}/u;
+const DIGITS_ONLY_REGEX = /[^0-9]/g;
 
 function toDomainListEntry(value: unknown): string | null {
   if (typeof value === "string") {
@@ -21,6 +25,13 @@ export const DOMAIN_LIST_MODE = {
   blackList: "Blacklist - enabled on all websites, disabled on specific sites",
   whiteList: "Whitelist - disabled on all websites, enabled on specific sites",
 };
+
+function isDomainAllowedByMode(
+  mode: "blackList" | "whiteList",
+  isDomainOnBWList: boolean,
+): boolean {
+  return (mode === "blackList" && !isDomainOnBWList) || (mode === "whiteList" && isDomainOnBWList);
+}
 
 async function getDomainList(settings: SettingsManager): Promise<string[]> {
   const domainList = await settings.get(SETTINGS_DOMAIN_BLACKLIST);
@@ -118,13 +129,7 @@ export async function isEnabledForDomain(
     getDomainListMode(settings),
     isDomainOnList(settings, domainURL),
   ]);
-  let enabledForDomain = enabled;
-  if (enabledForDomain) {
-    enabledForDomain =
-      (domainListMode === "blackList" && !isDomainOnBWList) ||
-      (domainListMode === "whiteList" && isDomainOnBWList);
-  }
-  return enabledForDomain;
+  return enabled && isDomainAllowedByMode(domainListMode, isDomainOnBWList);
 }
 
 export async function isDomainAllowedByPreference(
@@ -136,10 +141,7 @@ export async function isDomainAllowedByPreference(
     isDomainOnList(settings, domainURL),
   ]);
 
-  return (
-    (domainListMode === "blackList" && !isDomainOnBWList) ||
-    (domainListMode === "whiteList" && isDomainOnBWList)
-  );
+  return isDomainAllowedByMode(domainListMode, isDomainOnBWList);
 }
 
 export async function blockUnBlockDomain(
@@ -156,22 +158,17 @@ export async function blockUnBlockDomain(
 }
 
 export function isWhiteSpace(character: string, matchNewLine: boolean = true): boolean {
-  const whiteSpaceRegex = /\s+/;
-  const whiteSpaceRegexExcludeNewLine = /[^\S\r\n]+/;
-  if (matchNewLine) {
-    return whiteSpaceRegex.test(character);
-  } else {
-    return whiteSpaceRegexExcludeNewLine.test(character);
-  }
+  return matchNewLine
+    ? WHITESPACE_REGEX.test(character)
+    : WHITESPACE_EXCLUDING_NEWLINE_REGEX.test(character);
 }
 
 export function isLetter(character: string): boolean {
-  const letterRegex = /^\p{L}/u;
-  return letterRegex.test(character);
+  return LETTER_REGEX.test(character);
 }
 
 function countDigits(str: string): number {
-  return str.replace(/[^0-9]/g, "").length;
+  return str.replace(DIGITS_ONLY_REGEX, "").length;
 }
 
 export function isNumber(str: string): boolean {

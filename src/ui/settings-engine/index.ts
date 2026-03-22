@@ -1,4 +1,3 @@
-// Public API
 export type {
   FieldControl,
   SelectFieldControl,
@@ -17,7 +16,6 @@ export type { SettingsRegistry, SettingsEngineOptions } from "./SettingsEngine.j
 export { I18n } from "./i18n/I18n.js";
 export type { TranslationMap, TranslationDictionary } from "./i18n/I18n.js";
 
-// Controls (re-exported for direct import when needed)
 export { CheckboxControl } from "./controls/CheckboxControl.js";
 export { SliderControl } from "./controls/SliderControl.js";
 export { TextControl } from "./controls/TextControl.js";

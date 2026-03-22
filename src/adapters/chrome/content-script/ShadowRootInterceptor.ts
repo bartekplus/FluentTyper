@@ -45,15 +45,14 @@ const INTERCEPT_SNIPPET = `(function(){
 })();`;
 
 export class ShadowRootInterceptor {
-  private readonly onShadowAttached: (root: ShadowRoot) => void;
-  private readonly doc: Document;
   private readonly handler: EventListener;
   private attached = false;
   private injected = false;
 
-  constructor(onShadowAttached: (root: ShadowRoot) => void, doc: Document = document) {
-    this.onShadowAttached = onShadowAttached;
-    this.doc = doc;
+  constructor(
+    private readonly onShadowAttached: (root: ShadowRoot) => void,
+    private readonly doc: Document = document,
+  ) {
     this.handler = this.onEvent.bind(this);
   }
 

@@ -1,11 +1,57 @@
 import { DEFAULT_SUGGESTION_THEME_SETTINGS } from "@core/domain/themeDefaults";
 import type { SetConfigContext } from "@core/domain/messageTypes";
 
+type ThemeSettings = NonNullable<SetConfigContext["themeConfig"]>;
+type ThemeSettingKey = keyof ThemeSettings;
+
+type ThemeSettingSpec = {
+  key: ThemeSettingKey;
+  cssName: string;
+  cssProperty: string;
+};
+
+const THEME_SETTING_SPECS: ThemeSettingSpec[] = [
+  { key: "suggestionBgLight", cssName: "suggestion-bg-light", cssProperty: "color" },
+  { key: "suggestionTextLight", cssName: "suggestion-text-light", cssProperty: "color" },
+  {
+    key: "suggestionHighlightBgLight",
+    cssName: "suggestion-highlight-bg-light",
+    cssProperty: "color",
+  },
+  {
+    key: "suggestionHighlightTextLight",
+    cssName: "suggestion-highlight-text-light",
+    cssProperty: "color",
+  },
+  { key: "suggestionBorderLight", cssName: "suggestion-border-color-light", cssProperty: "color" },
+  { key: "suggestionBgDark", cssName: "suggestion-bg-dark", cssProperty: "color" },
+  { key: "suggestionTextDark", cssName: "suggestion-text-dark", cssProperty: "color" },
+  {
+    key: "suggestionHighlightBgDark",
+    cssName: "suggestion-highlight-bg-dark",
+    cssProperty: "color",
+  },
+  {
+    key: "suggestionHighlightTextDark",
+    cssName: "suggestion-highlight-text-dark",
+    cssProperty: "color",
+  },
+  { key: "suggestionBorderDark", cssName: "suggestion-border-color-dark", cssProperty: "color" },
+  { key: "suggestionFontSize", cssName: "suggestion-font-size", cssProperty: "font-size" },
+  {
+    key: "suggestionPaddingVertical",
+    cssName: "suggestion-padding-vertical",
+    cssProperty: "padding-top",
+  },
+  {
+    key: "suggestionPaddingHorizontal",
+    cssName: "suggestion-padding-horizontal",
+    cssProperty: "padding-left",
+  },
+];
+
 export class ThemeApplicator {
-  apply(
-    themeSettings: NonNullable<SetConfigContext["themeConfig"]>,
-    doc: Document = document,
-  ): void {
+  apply(themeSettings: ThemeSettings, doc: Document = document): void {
     const safeThemeSettings = this.sanitizeThemeSettings(themeSettings, doc);
     const existingStyle = doc.getElementById("fluent-typer-theme-overrides");
     if (existingStyle) {
@@ -15,124 +61,34 @@ export class ThemeApplicator {
     const styleElement = doc.createElement("style");
     styleElement.id = "fluent-typer-theme-overrides";
 
-    styleElement.textContent = `
-      :root {
-        --suggestion-bg-light: ${safeThemeSettings.suggestionBgLight} !important;
-        --ft-theme-suggestion-bg-light: ${safeThemeSettings.suggestionBgLight} !important;
-        --suggestion-text-light: ${safeThemeSettings.suggestionTextLight} !important;
-        --ft-theme-suggestion-text-light: ${safeThemeSettings.suggestionTextLight} !important;
-        --suggestion-highlight-bg-light: ${safeThemeSettings.suggestionHighlightBgLight} !important;
-        --ft-theme-suggestion-highlight-bg-light: ${safeThemeSettings.suggestionHighlightBgLight} !important;
-        --suggestion-highlight-text-light: ${safeThemeSettings.suggestionHighlightTextLight} !important;
-        --ft-theme-suggestion-highlight-text-light: ${safeThemeSettings.suggestionHighlightTextLight} !important;
-        --suggestion-border-color-light: ${safeThemeSettings.suggestionBorderLight} !important;
-        --ft-theme-suggestion-border-color-light: ${safeThemeSettings.suggestionBorderLight} !important;
-        --suggestion-bg-dark: ${safeThemeSettings.suggestionBgDark} !important;
-        --ft-theme-suggestion-bg-dark: ${safeThemeSettings.suggestionBgDark} !important;
-        --suggestion-text-dark: ${safeThemeSettings.suggestionTextDark} !important;
-        --ft-theme-suggestion-text-dark: ${safeThemeSettings.suggestionTextDark} !important;
-        --suggestion-highlight-bg-dark: ${safeThemeSettings.suggestionHighlightBgDark} !important;
-        --ft-theme-suggestion-highlight-bg-dark: ${safeThemeSettings.suggestionHighlightBgDark} !important;
-        --suggestion-highlight-text-dark: ${safeThemeSettings.suggestionHighlightTextDark} !important;
-        --ft-theme-suggestion-highlight-text-dark: ${safeThemeSettings.suggestionHighlightTextDark} !important;
-        --suggestion-border-color-dark: ${safeThemeSettings.suggestionBorderDark} !important;
-        --ft-theme-suggestion-border-color-dark: ${safeThemeSettings.suggestionBorderDark} !important;
-        --suggestion-font-size: ${safeThemeSettings.suggestionFontSize} !important;
-        --ft-theme-suggestion-font-size: ${safeThemeSettings.suggestionFontSize} !important;
-        --suggestion-padding-vertical: ${safeThemeSettings.suggestionPaddingVertical} !important;
-        --ft-theme-suggestion-padding-vertical: ${safeThemeSettings.suggestionPaddingVertical} !important;
-        --suggestion-padding-horizontal: ${safeThemeSettings.suggestionPaddingHorizontal} !important;
-        --ft-theme-suggestion-padding-horizontal: ${safeThemeSettings.suggestionPaddingHorizontal} !important;
-      }
-    `;
+    styleElement.textContent = this.buildThemeOverrideCss(safeThemeSettings);
 
     doc.head.appendChild(styleElement);
   }
 
-  private sanitizeThemeSettings(
-    themeSettings: NonNullable<SetConfigContext["themeConfig"]>,
-    doc: Document,
-  ): NonNullable<SetConfigContext["themeConfig"]> {
-    return {
-      suggestionBgLight: this.sanitizeCssValue(
-        themeSettings.suggestionBgLight,
-        DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionBgLight,
-        "color",
+  private buildThemeOverrideCss(themeSettings: ThemeSettings): string {
+    const lines: string[] = [":root {"];
+    for (const spec of THEME_SETTING_SPECS) {
+      const value = themeSettings[spec.key];
+      lines.push(`  --${spec.cssName}: ${value} !important;`);
+      lines.push(`  --ft-theme-${spec.cssName}: ${value} !important;`);
+    }
+    lines.push("}");
+    return lines.join("\n");
+  }
+
+  private sanitizeThemeSettings(themeSettings: ThemeSettings, doc: Document): ThemeSettings {
+    const sanitizedThemeSettings = {} as ThemeSettings;
+    for (const spec of THEME_SETTING_SPECS) {
+      const fallbackValue = DEFAULT_SUGGESTION_THEME_SETTINGS[spec.key];
+      sanitizedThemeSettings[spec.key] = this.sanitizeCssValue(
+        themeSettings[spec.key],
+        fallbackValue,
+        spec.cssProperty,
         doc,
-      ),
-      suggestionTextLight: this.sanitizeCssValue(
-        themeSettings.suggestionTextLight,
-        DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionTextLight,
-        "color",
-        doc,
-      ),
-      suggestionHighlightBgLight: this.sanitizeCssValue(
-        themeSettings.suggestionHighlightBgLight,
-        DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionHighlightBgLight,
-        "color",
-        doc,
-      ),
-      suggestionHighlightTextLight: this.sanitizeCssValue(
-        themeSettings.suggestionHighlightTextLight,
-        DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionHighlightTextLight,
-        "color",
-        doc,
-      ),
-      suggestionBorderLight: this.sanitizeCssValue(
-        themeSettings.suggestionBorderLight,
-        DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionBorderLight,
-        "color",
-        doc,
-      ),
-      suggestionBgDark: this.sanitizeCssValue(
-        themeSettings.suggestionBgDark,
-        DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionBgDark,
-        "color",
-        doc,
-      ),
-      suggestionTextDark: this.sanitizeCssValue(
-        themeSettings.suggestionTextDark,
-        DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionTextDark,
-        "color",
-        doc,
-      ),
-      suggestionHighlightBgDark: this.sanitizeCssValue(
-        themeSettings.suggestionHighlightBgDark,
-        DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionHighlightBgDark,
-        "color",
-        doc,
-      ),
-      suggestionHighlightTextDark: this.sanitizeCssValue(
-        themeSettings.suggestionHighlightTextDark,
-        DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionHighlightTextDark,
-        "color",
-        doc,
-      ),
-      suggestionBorderDark: this.sanitizeCssValue(
-        themeSettings.suggestionBorderDark,
-        DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionBorderDark,
-        "color",
-        doc,
-      ),
-      suggestionFontSize: this.sanitizeCssValue(
-        themeSettings.suggestionFontSize,
-        DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionFontSize,
-        "font-size",
-        doc,
-      ),
-      suggestionPaddingVertical: this.sanitizeCssValue(
-        themeSettings.suggestionPaddingVertical,
-        DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionPaddingVertical,
-        "padding-top",
-        doc,
-      ),
-      suggestionPaddingHorizontal: this.sanitizeCssValue(
-        themeSettings.suggestionPaddingHorizontal,
-        DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionPaddingHorizontal,
-        "padding-left",
-        doc,
-      ),
-    };
+      );
+    }
+    return sanitizedThemeSettings;
   }
 
   private sanitizeCssValue(

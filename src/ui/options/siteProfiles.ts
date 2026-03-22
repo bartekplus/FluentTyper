@@ -23,6 +23,7 @@ import {
   type SiteProfiles,
 } from "@core/domain/siteProfiles";
 import { formatTranslation, i18n } from "./fluenttyperI18n.js";
+import { createStackField } from "./workspacePanelUtils.js";
 
 interface FancierSettingsLike {
   siteProfilesEditor: {
@@ -219,23 +220,19 @@ export class SiteProfilesManager {
   }
 
   private createField(labelText: string, inputId: string, placeholder: string): HTMLElement {
-    const wrapper = createElement("label", { className: "settings-stack-field" });
-    wrapper.appendChild(createElement("span", { textContent: labelText }));
-    wrapper.appendChild(
-      createElement("input", {
-        id: inputId,
-        className: "input",
-        attributes: { type: "text", placeholder },
-      }),
-    );
-    return wrapper;
+    const input = createElement("input", {
+      id: inputId,
+      className: "input",
+      attributes: { type: "text", placeholder },
+    });
+    return createStackField(labelText, input);
   }
 
   private createSelectField(labelText: string, selectId: string): HTMLElement {
-    const wrapper = createElement("label", { className: "settings-stack-field" });
-    wrapper.appendChild(createElement("span", { textContent: labelText }));
-    wrapper.appendChild(createElement("select", { id: selectId, className: "input" }));
-    return wrapper;
+    return createStackField(
+      labelText,
+      createElement("select", { id: selectId, className: "input" }),
+    );
   }
 
   private cacheElements(): void {

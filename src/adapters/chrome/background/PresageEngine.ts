@@ -1,4 +1,3 @@
-// filepath: src/background/PresageEngine.ts
 import type { Presage, PresageModule, PresageCallback } from "./PresageTypes";
 
 export interface PresagePrediction {
@@ -11,19 +10,19 @@ export interface PresageEngineConfig {
 }
 
 export class PresageEngine {
-  private readonly Module: PresageModule;
+  private readonly module: PresageModule;
   private readonly lang: string;
   public libPresage: Presage;
-  private libPresageCallback: PresageCallback;
-  private libPresageCallbackImpl: unknown = {};
+  private readonly callback: PresageCallback;
+  private callbackImpl: unknown;
   private config: PresageEngineConfig;
 
   constructor(Module: PresageModule, config: PresageEngineConfig, lang: string) {
-    this.Module = Module;
+    this.module = Module;
     this.lang = lang;
     this.config = config;
 
-    this.libPresageCallback = {
+    this.callback = {
       pastStream: "",
       get_past_stream() {
         return this.pastStream;
@@ -32,7 +31,7 @@ export class PresageEngine {
         return "";
       },
     };
-    this.libPresageCallbackImpl = Module.PresageCallback.implement(this.libPresageCallback);
+    this.callbackImpl = this.module.PresageCallback.implement(this.callback);
     this.libPresage = this.createLibPresage();
     this.setConfig(config);
   }
@@ -48,17 +47,11 @@ export class PresageEngine {
   }
 
   predict(predictionInput: string): string[] {
-    this.libPresageCallback.pastStream = predictionInput;
+    this.callback.pastStream = predictionInput;
     const predictions: string[] = [];
     const predictionsNative = this.libPresage.predictWithProbability();
     for (let i = 0; i < predictionsNative.size(); i++) {
-      let text: string | null;
-      try {
-        const parsedPrediction: unknown = JSON.parse(predictionsNative.get(i).prediction);
-        text = typeof parsedPrediction === "string" ? parsedPrediction : null;
-      } catch {
-        text = predictionsNative.get(i).prediction;
-      }
+      const text = this.parsePrediction(predictionsNative.get(i).prediction);
       if (text) {
         predictions.push(text);
       }
@@ -67,9 +60,18 @@ export class PresageEngine {
   }
 
   private createLibPresage(): Presage {
-    return new this.Module.Presage(
-      this.libPresageCallbackImpl,
+    return new this.module.Presage(
+      this.callbackImpl,
       `resources_js/${this.lang}/presage.xml`,
     );
+  }
+
+  private parsePrediction(rawPrediction: string): string | null {
+    try {
+      const parsedPrediction: unknown = JSON.parse(rawPrediction);
+      return typeof parsedPrediction === "string" ? parsedPrediction : null;
+    } catch {
+      return rawPrediction;
+    }
   }
 }

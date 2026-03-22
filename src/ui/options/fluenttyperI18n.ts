@@ -2,30 +2,31 @@ import { I18n } from "@ui/settings-engine/i18n/I18n.js";
 import { KEY_EXTENSION_LANGUAGE } from "@core/domain/constants";
 
 const i18n = new I18n();
-// Override language from localStorage if extension language is set.
-// Uses synchronous localStorage (available in page contexts like options page)
-// instead of async chrome.storage.local to avoid top-level await which breaks
-// service-worker entry bundling.
-try {
-  if (typeof localStorage !== "undefined") {
+function applyStoredExtensionLanguage(target: I18n): void {
+  if (typeof localStorage === "undefined") {
+    return;
+  }
+
+  try {
     const storageKey = `store.settings.${KEY_EXTENSION_LANGUAGE}`;
     const rawValue = localStorage.getItem(storageKey);
-    if (rawValue) {
-      const parsedLanguage: unknown = JSON.parse(rawValue);
-      if (typeof parsedLanguage === "string" && parsedLanguage !== "auto_detect") {
-        // Locale codes use underscore (e.g. en_US), i18n uses short codes (e.g. en)
-        let shortCode = parsedLanguage.split("_")[0];
-        // Map pt -> pr to match i18n translation keys for Portuguese
-        if (shortCode === "pt") {
-          shortCode = "pr";
-        }
-        i18n.lang = shortCode;
-      }
+    if (!rawValue) {
+      return;
     }
+
+    const parsedLanguage: unknown = JSON.parse(rawValue);
+    if (typeof parsedLanguage !== "string" || parsedLanguage === "auto_detect") {
+      return;
+    }
+
+    const localePrefix = parsedLanguage.split("_")[0];
+    const shortCode = localePrefix === "pt" ? "pr" : localePrefix;
+    target.lang = shortCode;
+  } catch {
+    // Ignore malformed storage entries and keep the browser default.
   }
-} catch {
-  // Silently ignore - use default navigator language
 }
+applyStoredExtensionLanguage(i18n);
 
 i18n.extend({
   add_domain: {

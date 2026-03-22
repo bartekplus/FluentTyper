@@ -1,12 +1,15 @@
 import type { ListBoxMultiselectConfig, OptionEntry } from "../types.js";
 import type { Store } from "@core/application/storage/Store.js";
-import { BaseControl } from "./FieldControl.js";
+import {
+  BaseControl,
+  appendLabel,
+  createControlContainer,
+  createFieldRoot,
+  createOptionElement,
+} from "./FieldControl.js";
 
 function appendOption(select: HTMLSelectElement, option: OptionEntry): void {
-  const el = document.createElement("option");
-  el.value = option.value;
-  el.text = option.text ?? option.value;
-  select.appendChild(el);
+  select.appendChild(createOptionElement(option.value, option.text ?? option.value));
 }
 
 export class ListBoxMultiSelectControl extends BaseControl<string[]> {
@@ -15,19 +18,12 @@ export class ListBoxMultiSelectControl extends BaseControl<string[]> {
   constructor(params: ListBoxMultiselectConfig, store: Store) {
     super(params, store);
 
-    const root = document.createElement("div");
-    root.className = "field";
+    const root = createFieldRoot();
     this._rootElement = root;
 
-    if (params.label) {
-      const label = document.createElement("label");
-      label.className = "label";
-      label.innerHTML = params.label;
-      root.appendChild(label);
-    }
+    appendLabel(root, params.label);
 
-    const control = document.createElement("div");
-    control.className = "control";
+    const control = createControlContainer();
 
     const wrapper = document.createElement("div");
     wrapper.className = "select is-multiple is-fullwidth";

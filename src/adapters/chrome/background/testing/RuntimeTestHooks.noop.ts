@@ -7,12 +7,11 @@ interface RuntimeTestPredictionRequest {
 }
 
 export function maybePredictFromRuntimeTestOverride(
-  request: RuntimeTestPredictionRequest,
+  _request: RuntimeTestPredictionRequest,
 ): Promise<string[] | null> {
-  void request;
   return Promise.resolve(null);
 }
 
-export function registerRuntimeTestHooks(commandRouter: CommandRouter): void {
-  void commandRouter;
+export function registerRuntimeTestHooks(_commandRouter: CommandRouter): void {
+  return;
 }

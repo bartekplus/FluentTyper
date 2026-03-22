@@ -553,10 +553,6 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
     }
   }
 
-  override destroy(): void {
-    super.destroy();
-  }
-
   get(): string[] {
     return this.ruleControls.filter((rc) => rc.input.checked).map((rc) => rc.value);
   }

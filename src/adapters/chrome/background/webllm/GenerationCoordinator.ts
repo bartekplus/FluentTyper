@@ -43,12 +43,9 @@ export class GenerationCoordinator {
   }
 
   registerGeneration(seq: number, request: PredictorRequest): void {
-    let resolveDone = () => {};
-    const donePromise = new Promise<void>((resolve) => {
-      resolveDone = resolve;
-    });
-    this.generationDonePromises.set(seq, donePromise);
-    this.generationDoneResolvers.set(seq, resolveDone);
+    const deferred = this.createDeferred();
+    this.generationDonePromises.set(seq, deferred.promise);
+    this.generationDoneResolvers.set(seq, deferred.resolve);
     this.inFlightGenerationSeq = seq;
     this.inFlightRequest = {
       lang: request.lang,
@@ -58,12 +55,7 @@ export class GenerationCoordinator {
   }
 
   completeGeneration(seq: number): void {
-    const resolveDone = this.generationDoneResolvers.get(seq);
-    if (resolveDone) {
-      this.generationDoneResolvers.delete(seq);
-      this.generationDonePromises.delete(seq);
-      resolveDone();
-    }
+    this.resolveGeneration(seq);
     if (this.inFlightGenerationSeq === seq) {
       this.inFlightGenerationSeq = null;
       this.inFlightRequest = null;
@@ -77,16 +69,7 @@ export class GenerationCoordinator {
     if (!donePromise || timeoutMs <= 0) {
       return;
     }
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
-    await Promise.race([
-      donePromise,
-      new Promise<void>((resolve) => {
-        timeoutId = setTimeout(resolve, timeoutMs);
-      }),
-    ]);
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-    }
+    await this.raceWithTimeout(donePromise, timeoutMs);
   }
 
   clearGenerationTracking(): void {
@@ -99,5 +82,36 @@ export class GenerationCoordinator {
     this.inFlightRequest = null;
     this.cancelledGenerationSeqs.clear();
     this.isGenerating = false;
+  }
+
+  private createDeferred(): { promise: Promise<void>; resolve: () => void } {
+    let resolve = () => {};
+    const promise = new Promise<void>((resolvePromise) => {
+      resolve = resolvePromise;
+    });
+    return { promise, resolve };
+  }
+
+  private resolveGeneration(seq: number): void {
+    const resolveDone = this.generationDoneResolvers.get(seq);
+    if (!resolveDone) {
+      return;
+    }
+    this.generationDoneResolvers.delete(seq);
+    this.generationDonePromises.delete(seq);
+    resolveDone();
+  }
+
+  private async raceWithTimeout(promise: Promise<void>, timeoutMs: number): Promise<void> {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    await Promise.race([
+      promise,
+      new Promise<void>((resolve) => {
+        timeoutId = setTimeout(resolve, timeoutMs);
+      }),
+    ]);
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
   }
 }

@@ -6,7 +6,15 @@ const EMAIL_LIKE_REGEX = /[^\s@]+@[^\s@]+\.[^\s@]+/;
 const CODE_TOKEN_REGEX = /[\\/_=<>`$]|::|->|=>|\w+\.\w+/;
 
 export function isDeleteInputAction(context: GrammarContext): boolean {
-  return context.hints?.inputAction === "delete";
+  return resolveInputAction(context) === "delete";
+}
+
+export function resolveInputAction(context: GrammarContext): "insert" | "delete" | "other" | null {
+  const action = context.hints?.inputAction;
+  if (action === "insert" || action === "delete" || action === "other") {
+    return action;
+  }
+  return null;
 }
 
 export function splitTrailingSpaces(input: string): { core: string; trailingSpaces: string } {
@@ -70,6 +78,14 @@ export function applyWordCase(word: string, style: "upper" | "title" | "lower"):
     return `${word.charAt(0).toUpperCase()}${word.slice(1).toLowerCase()}`;
   }
   return word.toLowerCase();
+}
+
+export function isLowercaseLetter(ch: string): boolean {
+  return ch.toLowerCase() !== ch.toUpperCase() && ch === ch.toLowerCase();
+}
+
+export function normalizeWordSet(entries: readonly string[]): Set<string> {
+  return new Set(entries.map((entry) => entry.trim().toLowerCase()).filter(Boolean));
 }
 
 export function isLikelyApostropheContext(inputBeforeQuote: string): boolean {

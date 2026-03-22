@@ -1,6 +1,6 @@
 import type { SettingsRegistry } from "@ui/settings-engine/SettingsEngine.js";
 import { KEY_ENABLED_GRAMMAR_RULES } from "@core/domain/constants";
-import { pruneEmptySettingsGroups } from "./workspacePanelUtils.js";
+import { createWorkspaceShell, pruneEmptySettingsGroups } from "./workspacePanelUtils.js";
 
 export class GrammarWorkspacePanel {
   private readonly root: HTMLElement;
@@ -17,8 +17,7 @@ export class GrammarWorkspacePanel {
     if (!control?.rootElement) {
       return;
     }
-    const shell = document.createElement("div");
-    shell.className = "workspace-panel-stack";
+    const shell = createWorkspaceShell();
 
     const card = document.createElement("section");
     card.className = "settings-inline-card";

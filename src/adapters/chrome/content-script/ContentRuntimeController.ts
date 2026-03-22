@@ -11,11 +11,13 @@ import { MutationScheduler } from "./MutationScheduler";
 import { ShadowRootInterceptor } from "./ShadowRootInterceptor";
 import { ThemeApplicator } from "./ThemeApplicator";
 import { SuggestionManager } from "./SuggestionManager";
+import type { EarlyTabAcceptResult } from "./suggestions/SuggestionManagerRuntime";
 
 const logger = createLogger("ContentRuntimeController");
 
 export class ContentRuntimeController {
   private static readonly SELECTORS = "textarea, input, [contentEditable]";
+  private static readonly LATE_DISCOVERY_EVENTS = ["focusin", "mousedown", "input"] as const;
   private static readonly MUTATION_COALESCE_DELAY_MS = 16;
   private static readonly MAX_MUTATION_BATCH_SIZE = 200;
   private static readonly MAX_MUTATION_ROOTS = 64;
@@ -41,11 +43,8 @@ export class ContentRuntimeController {
   private readonly shadowObservers = new Map<ShadowRoot, DomObserver>();
   private shadowRootInterceptor: ShadowRootInterceptor | null = null;
   private lateDiscoveryListenersAttached = false;
-  private readonly onDocumentFocusInBound: EventListener =
-    this.onDocumentPotentialLateTarget.bind(this);
-  private readonly onDocumentMouseDownBound: EventListener =
-    this.onDocumentPotentialLateTarget.bind(this);
-  private readonly onDocumentInputBound: EventListener =
+  private readonly onMutationCallbackBound = this.mutationCallback.bind(this);
+  private readonly onDocumentPotentialLateTargetBound: EventListener =
     this.onDocumentPotentialLateTarget.bind(this);
 
   private _enabled = false;
@@ -62,7 +61,7 @@ export class ContentRuntimeController {
   constructor(private readonly themeApplicator: ThemeApplicator = new ThemeApplicator()) {
     this.domObserver = new DomObserver(
       document.body || document.documentElement,
-      this.mutationCallback.bind(this),
+      this.onMutationCallbackBound,
     );
     this.mutationScheduler = new MutationScheduler(
       ContentRuntimeController.MUTATION_COALESCE_DELAY_MS,
@@ -204,9 +203,7 @@ export class ContentRuntimeController {
       });
     }
     this.domObserver.disconnect();
-    for (const o of this.shadowObservers.values()) {
-      o.disconnect();
-    }
+    this.disconnectShadowObservers();
     try {
       if (!this.suggestionManager) {
         return;
@@ -218,14 +215,7 @@ export class ContentRuntimeController {
     } finally {
       if (this.enabled) {
         this.attachMutationObserver();
-        for (const [root, observer] of this.shadowObservers.entries()) {
-          if (!isInDocument(root.host)) {
-            observer.disconnect();
-            this.shadowObservers.delete(root);
-          } else {
-            observer.attach();
-          }
-        }
+        this.refreshShadowObservers();
       }
     }
   }
@@ -238,9 +228,7 @@ export class ContentRuntimeController {
     this.suggestionManager?.queryAndAttachHelper();
     this.suggestionManager?.triggerActiveSuggestion();
     this.attachMutationObserver();
-    for (const o of this.shadowObservers.values()) {
-      o.attach();
-    }
+    this.refreshShadowObservers();
     this.ensureShadowRootInterceptor();
     this.ensureLateDiscoveryListeners();
     this.reportRuntimeActivity();
@@ -254,9 +242,7 @@ export class ContentRuntimeController {
       this.pendingRestartToken = null;
     }
     this.domObserver.disconnect();
-    for (const o of this.shadowObservers.values()) {
-      o.disconnect();
-    }
+    this.disconnectShadowObservers();
     this.mutationScheduler.clear();
     this.suggestionManager?.detachAllHelpers();
     this.shadowRootInterceptor?.detach();
@@ -298,9 +284,26 @@ export class ContentRuntimeController {
     if (this.shadowObservers.has(root)) {
       return;
     }
-    const observer = new DomObserver(root, this.mutationCallback.bind(this));
+    const observer = new DomObserver(root, this.onMutationCallbackBound);
     this.shadowObservers.set(root, observer);
     if (this.enabled) {
+      observer.attach();
+    }
+  }
+
+  private disconnectShadowObservers(): void {
+    for (const observer of this.shadowObservers.values()) {
+      observer.disconnect();
+    }
+  }
+
+  private refreshShadowObservers(): void {
+    for (const [root, observer] of this.shadowObservers.entries()) {
+      if (!isInDocument(root.host)) {
+        observer.disconnect();
+        this.shadowObservers.delete(root);
+        continue;
+      }
       observer.attach();
     }
   }
@@ -322,9 +325,9 @@ export class ContentRuntimeController {
     if (this.lateDiscoveryListenersAttached) {
       return;
     }
-    document.addEventListener("focusin", this.onDocumentFocusInBound, true);
-    document.addEventListener("mousedown", this.onDocumentMouseDownBound, true);
-    document.addEventListener("input", this.onDocumentInputBound, true);
+    for (const eventName of ContentRuntimeController.LATE_DISCOVERY_EVENTS) {
+      document.addEventListener(eventName, this.onDocumentPotentialLateTargetBound, true);
+    }
     this.lateDiscoveryListenersAttached = true;
   }
 
@@ -332,9 +335,9 @@ export class ContentRuntimeController {
     if (!this.lateDiscoveryListenersAttached) {
       return;
     }
-    document.removeEventListener("focusin", this.onDocumentFocusInBound, true);
-    document.removeEventListener("mousedown", this.onDocumentMouseDownBound, true);
-    document.removeEventListener("input", this.onDocumentInputBound, true);
+    for (const eventName of ContentRuntimeController.LATE_DISCOVERY_EVENTS) {
+      document.removeEventListener(eventName, this.onDocumentPotentialLateTargetBound, true);
+    }
     this.lateDiscoveryListenersAttached = false;
   }
 
@@ -421,16 +424,17 @@ export class ContentRuntimeController {
       return;
     }
 
-    if (mutationPlan.type === "full-scan") {
-      this.suggestionManager.queryAndAttachHelper();
-      return;
-    }
-
-    if (mutationPlan.type === "targeted-scan") {
-      for (const mutationRoot of mutationPlan.roots) {
-        this.suggestionManager.queryAndAttachHelper(mutationRoot);
-      }
+    switch (mutationPlan.type) {
+      case "full-scan":
+        this.suggestionManager.queryAndAttachHelper();
+        return;
+      case "targeted-scan":
+        for (const mutationRoot of mutationPlan.roots) {
+          this.suggestionManager.queryAndAttachHelper(mutationRoot);
+        }
+        return;
+      default:
+        return;
     }
   }
 }
-import type { EarlyTabAcceptResult } from "./suggestions/SuggestionManagerRuntime";

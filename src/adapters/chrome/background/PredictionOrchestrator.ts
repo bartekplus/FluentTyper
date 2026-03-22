@@ -148,7 +148,6 @@ export class PredictionOrchestrator {
     };
 
     const canRunPredictionBase = context.doPrediction && context.effectiveNumSuggestions > 0;
-
     const canRunPresage =
       canRunPredictionBase &&
       this.debugPresagePredictorEnabled &&
@@ -206,11 +205,7 @@ export class PredictionOrchestrator {
     try {
       aiResult = await aiPromise;
     } catch {
-      aiResult = {
-        predictions: [],
-        durationMs: 0,
-        timedOut: false,
-      };
+      aiResult = this.createEmptyAIPredictionResult();
     }
 
     aiDebug.durationMs = aiResult.durationMs;
@@ -249,11 +244,7 @@ export class PredictionOrchestrator {
     numSuggestions: number,
   ): Promise<AIPredictionResult> {
     if (!this.aiPredictor) {
-      return {
-        predictions: [],
-        durationMs: 0,
-        timedOut: false,
-      };
+      return this.createEmptyAIPredictionResult();
     }
 
     this.aiPredictor.interruptActiveGeneration?.("newer_request");
@@ -264,16 +255,13 @@ export class PredictionOrchestrator {
     const timeoutPromise = new Promise<{
       predictions: string[];
       timedOut: boolean;
-    }>((resolve) => {
+      }>((resolve) => {
       timeoutId = setTimeout(() => {
         this.interruptAIPrediction("timeout", {
           lang,
           predictionInput,
         });
-        resolve({
-          predictions: [],
-          timedOut: true,
-        });
+        resolve(this.createEmptyAIPredictionResult(true));
       }, this.aiPredictionTimeoutMs);
     });
 
@@ -287,10 +275,7 @@ export class PredictionOrchestrator {
         predictions,
         timedOut: false,
       }))
-      .catch(() => ({
-        predictions: [],
-        timedOut: false,
-      }));
+      .catch(() => this.createEmptyAIPredictionResult());
 
     const result = await Promise.race([predictionPromise, timeoutPromise]);
     if (timeoutId) {
@@ -323,6 +308,14 @@ export class PredictionOrchestrator {
         error: getErrorMessage(error),
       });
     }
+  }
+
+  private createEmptyAIPredictionResult(timedOut = false): AIPredictionResult {
+    return {
+      predictions: [],
+      durationMs: 0,
+      timedOut,
+    };
   }
 
   private emitDebugEvent(

@@ -1,7 +1,13 @@
 import type { ModalButtonConfig, FieldConfig } from "../types.js";
 import type { Store } from "@core/application/storage/Store.js";
 import type { FieldControl } from "./FieldControl.js";
-import { BaseControl } from "./FieldControl.js";
+import {
+  BaseControl,
+  appendLabel,
+  createButtonInput,
+  createControlContainer,
+  createFieldRoot,
+} from "./FieldControl.js";
 
 type ControlFactory = (params: FieldConfig) => FieldControl;
 
@@ -11,26 +17,13 @@ export class ModalButtonControl extends BaseControl<string> {
   constructor(params: ModalButtonConfig, store: Store, createControl: ControlFactory) {
     super(params, store);
 
-    const root = document.createElement("div");
-    root.className = "field";
+    const root = createFieldRoot();
     this._rootElement = root;
 
-    const control = document.createElement("div");
-    control.className = "control";
+    const control = createControlContainer();
+    appendLabel(control, params.label);
 
-    if (params.label) {
-      const label = document.createElement("label");
-      label.className = "label";
-      label.innerHTML = params.label;
-      control.appendChild(label);
-    }
-
-    const btn = document.createElement("input");
-    btn.type = "button";
-    btn.className = "button is-primary";
-    if (params.text) {
-      btn.value = params.text;
-    }
+    const btn = createButtonInput(params.text);
 
     control.appendChild(btn);
     root.appendChild(control);
@@ -60,10 +53,7 @@ export class ModalButtonControl extends BaseControl<string> {
       modalBox.appendChild(nestedControl.rootElement);
     }
 
-    const doneBtn = document.createElement("input");
-    doneBtn.type = "button";
-    doneBtn.className = "button is-primary";
-    doneBtn.value = "Done";
+    const doneBtn = createButtonInput("Done");
     modalBox.appendChild(doneBtn);
 
     backdrop.appendChild(modalBox);

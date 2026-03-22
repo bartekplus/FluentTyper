@@ -1,6 +1,13 @@
 import type { TextConfig } from "../types.js";
 import type { Store } from "@core/application/storage/Store.js";
-import { BaseControl } from "./FieldControl.js";
+import {
+  BaseControl,
+  appendLabel,
+  createControlContainer,
+  createFieldRoot,
+  createInputElement,
+  dispatchControlEvent,
+} from "./FieldControl.js";
 
 export class TextControl extends BaseControl<string> {
   private hexLabel?: HTMLSpanElement;
@@ -8,23 +15,13 @@ export class TextControl extends BaseControl<string> {
   constructor(params: TextConfig, store: Store) {
     super(params, store);
 
-    const root = document.createElement("div");
-    root.className = "field";
+    const root = createFieldRoot();
     this._rootElement = root;
 
-    const control = document.createElement("div");
-    control.className = "control";
+    const control = createControlContainer();
+    appendLabel(control, params.label);
 
-    if (params.label) {
-      const label = document.createElement("label");
-      label.className = "label";
-      label.innerHTML = params.label;
-      control.appendChild(label);
-    }
-
-    const input = document.createElement("input");
-    input.type = "text";
-    input.className = params.colorPicker ? "color" : "input";
+    const input = createInputElement("text", params.colorPicker ? "color" : "input");
 
     if (params.text) {
       input.placeholder = params.text;
@@ -68,13 +65,8 @@ export class TextControl extends BaseControl<string> {
       const valid = input.checkValidity();
       input.classList.toggle("is-success", valid);
       input.classList.toggle("is-danger", !valid);
-
-      if (!valid) {
-        errorEl.textContent = input.validationMessage || "Invalid value";
-        errorEl.style.display = "";
-      } else {
-        errorEl.style.display = "none";
-      }
+      errorEl.textContent = valid ? "" : input.validationMessage || "Invalid value";
+      errorEl.style.display = valid ? "none" : "";
 
       if (params.store !== false) {
         this.persistToStorage(this.get());
@@ -105,7 +97,7 @@ export class TextControl extends BaseControl<string> {
       this.hexLabel.textContent = String(value ?? "").toUpperCase();
     }
     if (!silent) {
-      this._element.dispatchEvent(new Event("change"));
+      dispatchControlEvent(this._element, "change");
     }
     return this;
   }

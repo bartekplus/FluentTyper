@@ -78,7 +78,3 @@ export function mergeSequentialGrammarEdits(edits: GrammarEdit[]): GrammarEdit[]
     },
   ];
 }
-
-export function mergeSequentialGrammarEdit(edits: GrammarEdit[]): GrammarEdit | null {
-  return mergeSequentialGrammarEdits(edits)[0] ?? null;
-}

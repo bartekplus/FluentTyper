@@ -1,5 +1,6 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
 import { SPACE_CHARS } from "../../spacingRules";
+import { isLowercaseLetter } from "./helpers/GenericRuleShared";
 
 const SENTENCE_ENDING_CHARS = new Set([".", "!", "?"]);
 const CLOSING_CHARS = new Set([")", "]", "}", '"', "'", "”", "’"]);
@@ -16,7 +17,7 @@ export class CapitalizeSentenceStartRule implements GrammarRule {
     }
 
     const lastChar = text[text.length - 1];
-    if (lastChar.toLowerCase() === lastChar.toUpperCase() || lastChar !== lastChar.toLowerCase()) {
+    if (!isLowercaseLetter(lastChar)) {
       return null;
     }
 

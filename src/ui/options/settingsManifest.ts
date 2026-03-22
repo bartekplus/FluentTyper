@@ -1,5 +1,10 @@
 import { i18n } from "./fluenttyperI18n.js";
-import type { FieldConfig, ManifestDefinition, OptionTuple } from "@ui/settings-engine/types.js";
+import type {
+  FieldConfig,
+  ManifestDefinition,
+  OptionTuple,
+  TabConfig,
+} from "@ui/settings-engine/types.js";
 import { SUPPORTED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS } from "@core/domain/lang";
 import {
   KEY_AUTOCOMPLETE,
@@ -82,15 +87,31 @@ function buildFieldLabel(label: string, description: string): string {
   return `${normalizedLabel}:&nbsp;<small>${description}</small>`;
 }
 
+function createTab(
+  id: string,
+  labelKey: string,
+  shortDescriptionKey: string,
+  icon: string,
+  keywordKeys: string[],
+): TabConfig {
+  return {
+    id,
+    label: i18n.get(labelKey),
+    title: i18n.get(labelKey),
+    shortDescription: i18n.get(shortDescriptionKey),
+    icon,
+    keywords: keywordKeys.map((key) => i18n.get(key)),
+  };
+}
+
 const DEV_TABS: ManifestDefinition["tabs"] = [
-  {
-    id: "observability_tab",
-    label: i18n.get("observability_tab"),
-    title: i18n.get("observability_tab"),
-    shortDescription: i18n.get("observability_tab_desc"),
-    icon: "OB",
-    keywords: [i18n.get("observability_tab"), i18n.get("observability_dashboard_group")],
-  },
+  createTab(
+    "observability_tab",
+    "observability_tab",
+    "observability_tab_desc",
+    "OB",
+    ["observability_tab", "observability_dashboard_group"],
+  ),
 ];
 
 const DEV_PREDICTOR_SETTINGS: FieldConfig[] = [
@@ -255,71 +276,63 @@ const manifest: ManifestDefinition = {
   name: i18n.get("options_page_title"),
   icon: "/icon/icon128.png",
   tabs: [
-    {
-      id: "core_settings",
-      label: i18n.get("options_tab_essentials"),
-      title: i18n.get("options_tab_essentials"),
-      shortDescription: i18n.get("options_tab_essentials_desc"),
-      icon: "ES",
-      keywords: [i18n.get("options_tab_essentials"), i18n.get("prediction_engine")],
-    },
-    {
-      id: "grammar_tab",
-      label: i18n.get("grammar_tab"),
-      title: i18n.get("grammar_tab"),
-      shortDescription: i18n.get("options_tab_grammar_desc"),
-      icon: "GR",
-      keywords: [i18n.get("grammar_rules"), i18n.get("grammar_tab")],
-    },
-    {
-      id: "language_tab",
-      label: i18n.get("options_tab_languages"),
-      title: i18n.get("options_tab_languages"),
-      shortDescription: i18n.get("options_tab_languages_desc"),
-      icon: "LA",
-      keywords: [i18n.get("options_tab_languages"), i18n.get("language_selection")],
-    },
-    {
-      id: "shortcuts_expansions_tab",
-      label: i18n.get("options_tab_snippets"),
-      title: i18n.get("options_tab_snippets"),
-      shortDescription: i18n.get("options_tab_snippets_desc"),
-      icon: "SD",
-      keywords: [i18n.get("options_tab_snippets"), i18n.get("text_expander")],
-    },
-    {
-      id: "site_mgmt_tab",
-      label: i18n.get("options_tab_sites"),
-      title: i18n.get("options_tab_sites"),
-      shortDescription: i18n.get("options_tab_sites_desc"),
-      icon: "SI",
-      keywords: [i18n.get("options_tab_sites"), i18n.get("site_profiles")],
-    },
-    {
-      id: "theming_tab",
-      label: i18n.get("theming_tab"),
-      title: i18n.get("theming_tab"),
-      shortDescription: i18n.get("options_tab_appearance_desc"),
-      icon: "AP",
-      keywords: [i18n.get("theming_tab"), i18n.get("theme_presets")],
-    },
-    {
-      id: "advanced_tab",
-      label: i18n.get("options_tab_data"),
-      title: i18n.get("options_tab_data"),
-      shortDescription: i18n.get("options_tab_data_desc"),
-      icon: "DD",
-      keywords: [i18n.get("options_tab_data"), i18n.get("config_data")],
-    },
+    createTab(
+      "core_settings",
+      "options_tab_essentials",
+      "options_tab_essentials_desc",
+      "ES",
+      ["options_tab_essentials", "prediction_engine"],
+    ),
+    createTab(
+      "grammar_tab",
+      "grammar_tab",
+      "options_tab_grammar_desc",
+      "GR",
+      ["grammar_rules", "grammar_tab"],
+    ),
+    createTab(
+      "language_tab",
+      "options_tab_languages",
+      "options_tab_languages_desc",
+      "LA",
+      ["options_tab_languages", "language_selection"],
+    ),
+    createTab(
+      "shortcuts_expansions_tab",
+      "options_tab_snippets",
+      "options_tab_snippets_desc",
+      "SD",
+      ["options_tab_snippets", "text_expander"],
+    ),
+    createTab(
+      "site_mgmt_tab",
+      "options_tab_sites",
+      "options_tab_sites_desc",
+      "SI",
+      ["options_tab_sites", "site_profiles"],
+    ),
+    createTab(
+      "theming_tab",
+      "theming_tab",
+      "options_tab_appearance_desc",
+      "AP",
+      ["theming_tab", "theme_presets"],
+    ),
+    createTab(
+      "advanced_tab",
+      "options_tab_data",
+      "options_tab_data_desc",
+      "DD",
+      ["options_tab_data", "config_data"],
+    ),
     ...(IS_DEV_BUILD ? DEV_TABS : []),
-    {
-      id: "about_support_tab",
-      label: i18n.get("options_tab_about"),
-      title: i18n.get("options_tab_about"),
-      shortDescription: i18n.get("options_tab_about_desc"),
-      icon: "AB",
-      keywords: [i18n.get("options_tab_about"), i18n.get("support_development_group")],
-    },
+    createTab(
+      "about_support_tab",
+      "options_tab_about",
+      "options_tab_about_desc",
+      "AB",
+      ["options_tab_about", "support_development_group"],
+    ),
   ],
   settings: [
     // =========================================================================
