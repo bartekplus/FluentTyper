@@ -25,6 +25,22 @@ async function createLiveHandler(): Promise<PresageHandler> {
   return new PresageHandler(Module);
 }
 
+describe("PresageHandler live user dictionary", () => {
+  test("custom words appear in suggestions when userDictionaryList is set", async () => {
+    // Regression: DefaultDictionaryPredictor was accidentally removed from presage.xml
+    // causing custom words to be silently ignored (issue #341).
+    const handler = await createLiveHandler();
+
+    handler.setConfig({
+      ...createLiveConfig([]),
+      userDictionaryList: ["fluenttypertest"],
+    });
+
+    const result = await handler.runPrediction("fluenttypert", "", "en_US");
+    expect(result.predictions.map((p) => p.trim())).toContain("fluenttypertest");
+  });
+});
+
 describe("PresageHandler live text expansion config refresh", () => {
   test("refreshes duplicate text expansions after runtime config changes", async () => {
     const handler = await createLiveHandler();

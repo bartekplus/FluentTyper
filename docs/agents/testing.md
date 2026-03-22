@@ -10,6 +10,10 @@ Testing expectations depend on what changed. Use the smallest suite that still p
 - Dev-runtime e2e: `bun run test:e2e:dev`
 - Coverage matrix validation: `bun run check:e2e:coverage`
 
+## Regression Tests for Bug Fixes
+
+Every bug fix must include a regression test that would have caught the bug. Add the test to the most appropriate existing test file before writing the fix, or immediately after. The test must fail on the unfixed code and pass on the fixed code.
+
 ## Baseline Before a PR
 
 Run these for every PR:
