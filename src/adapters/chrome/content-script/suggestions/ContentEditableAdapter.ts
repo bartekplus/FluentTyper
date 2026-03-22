@@ -132,11 +132,6 @@ export class ContentEditableAdapter {
           } catch {
             // Best-effort: if the anchors are stale, leave the selection as-is.
           }
-        } else {
-          // Host applied the text change but may have positioned the cursor
-          // at the end of the replacement. Override to the requested position
-          // (needed for mid-replacement cursors like auto-bracket-close).
-          this.setCaret(editScope, cursorAfter);
         }
         return {
           appliedBy: "host-beforeinput",
@@ -173,12 +168,8 @@ export class ContentEditableAdapter {
       insertedReplacement = true;
     }
 
-    this.dispatchReplacementInput(elem, range, replacementText);
-    // Set cursor AFTER dispatching the input event. Host editors (e.g.,
-    // Facebook, Draft.js) may handle the input event synchronously and
-    // reposition the cursor to the end of the replacement. By setting
-    // the cursor afterwards, our position takes precedence.
     this.setCaret(editScope, cursorAfter);
+    this.dispatchReplacementInput(elem, range, replacementText);
     logger.debug("Contenteditable replacement applied by DOM fallback", {
       replaceStart,
       replaceEnd,
