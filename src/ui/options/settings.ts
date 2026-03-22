@@ -1,4 +1,5 @@
 import { SettingsEngine } from "@ui/settings-engine/SettingsEngine.js";
+import type { SettingsRegistry } from "@ui/settings-engine/SettingsEngine.js";
 import {
   createLogger,
   getRegisteredObservabilityModules,
@@ -165,6 +166,167 @@ function optionsPageConfigChange() {
     context: {},
   };
   void chrome.runtime.sendMessage(message);
+}
+
+const CONFIG_REFRESH_KEYS = [
+  KEY_AUTOCOMPLETE,
+  KEY_AUTOCOMPLETE_ON_ENTER,
+  KEY_AUTOCOMPLETE_ON_TAB,
+  KEY_LANGUAGE,
+  KEY_ENABLED_LANGUAGES,
+  KEY_DOMAIN_LIST_MODE,
+  KEY_FALLBACK_LANGUAGE,
+  KEY_NUM_SUGGESTIONS,
+  KEY_MIN_WORD_LENGTH_TO_PREDICT,
+  KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
+  KEY_AUTO_CAPITALIZE,
+  KEY_SELECT_BY_DIGIT,
+  KEY_ENABLED_GRAMMAR_RULES,
+  KEY_TIME_FORMAT,
+  KEY_DATE_FORMAT,
+  KEY_TEXT_EXPANSIONS,
+  KEY_USER_DICTIONARY_LIST,
+  KEY_DISPLAY_LANG_HEADER,
+  KEY_INLINE_SUGGESTION,
+  KEY_EXTENSION_LANGUAGE,
+  KEY_AI_PREDICTOR_ENABLED,
+  KEY_AI_MODEL_ID,
+  KEY_AI_PREDICTION_TIMEOUT_MS,
+  KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
+  KEY_DEBUG_AI_PREDICTOR_ENABLED,
+  KEY_OBSERVABILITY_ENABLED,
+  KEY_OBSERVABILITY_DEFAULT_LEVEL,
+  KEY_SUGGESTION_BG_LIGHT,
+  KEY_SUGGESTION_TEXT_LIGHT,
+  KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT,
+  KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT,
+  KEY_SUGGESTION_BORDER_LIGHT,
+  KEY_SUGGESTION_BG_DARK,
+  KEY_SUGGESTION_TEXT_DARK,
+  KEY_SUGGESTION_HIGHLIGHT_BG_DARK,
+  KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK,
+  KEY_SUGGESTION_BORDER_DARK,
+  KEY_SUGGESTION_FONT_SIZE,
+  KEY_SUGGESTION_PADDING_VERTICAL,
+  KEY_SUGGESTION_PADDING_HORIZONTAL,
+] as const;
+
+const PREDICTOR_DEBUG_REFRESH_KEYS = new Set([
+  KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
+  KEY_DEBUG_AI_PREDICTOR_ENABLED,
+  KEY_AI_PREDICTOR_ENABLED,
+  KEY_AI_MODEL_ID,
+  KEY_AI_PREDICTION_TIMEOUT_MS,
+]);
+
+const OBSERVABILITY_REFRESH_KEYS = new Set([
+  KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
+  KEY_DEBUG_AI_PREDICTOR_ENABLED,
+  KEY_AI_MODEL_ID,
+  KEY_AI_PREDICTION_TIMEOUT_MS,
+  KEY_OBSERVABILITY_ENABLED,
+  KEY_OBSERVABILITY_DEFAULT_LEVEL,
+]);
+
+function bindActionHandler(registry: SettingsRegistry, key: string, handler: () => void): void {
+  registry[key]?.addEvent("action", handler);
+}
+
+function refreshPredictorDebug(rootId: string): void {
+  const root = document.getElementById(rootId);
+  if (!root) {
+    return;
+  }
+  predictorDebugLastSignature = "";
+  void loadPredictorDebugSnapshot(root);
+}
+
+function refreshObservabilitySnapshot(rootId: string): void {
+  const root = document.getElementById(rootId);
+  if (!root) {
+    return;
+  }
+  observabilityLastSignature = "";
+  void loadObservabilitySnapshot(root);
+}
+
+function handleConfigRefreshTrigger(registry: SettingsRegistry, key: string): void {
+  if (key === KEY_OBSERVABILITY_ENABLED || key === KEY_OBSERVABILITY_DEFAULT_LEVEL) {
+    applyOptionsObservabilityRuntime(registry);
+  }
+
+  optionsPageConfigChange();
+
+  if (PREDICTOR_DEBUG_REFRESH_KEYS.has(key)) {
+    refreshPredictorDebug("predictorDebugRoot");
+  }
+  if (OBSERVABILITY_REFRESH_KEYS.has(key)) {
+    refreshObservabilitySnapshot("observabilityRoot");
+  }
+}
+
+function wireValidationHandlers(registry: SettingsRegistry, store: Store): void {
+  bindActionHandler(registry, KEY_LANGUAGE, () => {
+    void validateLanguageSettings(registry, store);
+  });
+  bindActionHandler(registry, KEY_ENABLED_LANGUAGES, () => {
+    void validateLanguageSettings(registry, store);
+  });
+}
+
+function wireImportExportHandlers(registry: SettingsRegistry): void {
+  registry.exportSettingButton.addEvent("action", function () {
+    chrome.storage.local.get(null, function (items) {
+      const result = JSON.stringify(items);
+      const blob = new Blob([result], { type: "application/json" });
+      const exportFilename = "FluentTyperSettings.json";
+      const dlink = document.createElement("a");
+      dlink.href = window.URL.createObjectURL(blob);
+      dlink.download = exportFilename;
+      dlink.onclick = function () {
+        const that = this as HTMLAnchorElement;
+        setTimeout(function () {
+          window.URL.revokeObjectURL(that.href);
+        }, 1500);
+      };
+
+      dlink.click();
+      dlink.remove();
+    });
+  });
+  registry.exportSettingButton.addEvent("action", function () {
+    dispatchSettingsSaveStatus("saved", { message: i18n.get("settings_exported") });
+  });
+
+  const importInputElem = registry.importSettingButton.element as HTMLInputElement;
+  importInputElem.type = "file";
+  importInputElem.accept = ".json";
+  importInputElem.addEventListener("input", importSettingButtonFileSelected.bind(null, registry));
+}
+
+function wireRuntimeSettingsHandlers(registry: SettingsRegistry): void {
+  bindActionHandler(registry, KEY_INLINE_SUGGESTION, () => {
+    if (registry[KEY_INLINE_SUGGESTION].get()) {
+      registry[KEY_AUTOCOMPLETE_ON_TAB].set(true);
+      registry[KEY_NUM_SUGGESTIONS].set(10);
+    }
+  });
+
+  bindActionHandler(registry, KEY_EXTENSION_LANGUAGE, () => {
+    const langValue = registry[KEY_EXTENSION_LANGUAGE].get();
+    const storageKey = `store.settings.${KEY_EXTENSION_LANGUAGE}`;
+    localStorage.setItem(storageKey, JSON.stringify(langValue));
+    optionsPageConfigChange();
+    setTimeout(() => location.reload(), 100);
+  });
+
+  for (const key of CONFIG_REFRESH_KEYS) {
+    const setting = registry[key];
+    if (!setting || typeof setting.addEvent !== "function") {
+      continue;
+    }
+    setting.addEvent("action", () => handleConfigRefreshTrigger(registry, key));
+  }
 }
 
 function arraysEqual(a: unknown, b: unknown): boolean {
@@ -2774,12 +2936,7 @@ window.addEventListener("DOMContentLoaded", function () {
     new AboutWorkspacePanel(registry.aboutWorkspacePanel.element);
     applyOptionsObservabilityRuntime(registry);
 
-    registry[KEY_LANGUAGE].addEvent("action", function () {
-      void validateLanguageSettings(registry, store);
-    });
-    registry[KEY_ENABLED_LANGUAGES].addEvent("action", function () {
-      void validateLanguageSettings(registry, store);
-    });
+    wireValidationHandlers(registry, store);
     await validateLanguageSettings(registry, store);
     setupProductivityInsights();
     setupObservabilityDashboard(registry);
@@ -2796,131 +2953,7 @@ window.addEventListener("DOMContentLoaded", function () {
       })();
     });
 
-    registry.exportSettingButton.addEvent("action", function () {
-      chrome.storage.local.get(null, function (items) {
-        const result = JSON.stringify(items);
-        const blob = new Blob([result], { type: "application/json" });
-        const exportFilename = "FluentTyperSettings.json";
-        const dlink = document.createElement("a");
-        dlink.href = window.URL.createObjectURL(blob);
-        dlink.download = exportFilename;
-        dlink.onclick = function () {
-          const that = this as HTMLAnchorElement;
-          setTimeout(function () {
-            window.URL.revokeObjectURL(that.href);
-          }, 1500);
-        };
-
-        dlink.click();
-        dlink.remove();
-      });
-    });
-    registry.exportSettingButton.addEvent("action", function () {
-      dispatchSettingsSaveStatus("saved", { message: i18n.get("settings_exported") });
-    });
-
-    const importInputElem = registry.importSettingButton.element as HTMLInputElement;
-    importInputElem.type = "file";
-    importInputElem.accept = ".json";
-    importInputElem.addEventListener("input", importSettingButtonFileSelected.bind(null, registry));
-
-    registry[KEY_INLINE_SUGGESTION].addEvent("action", function () {
-      if (registry[KEY_INLINE_SUGGESTION].get()) {
-        registry[KEY_AUTOCOMPLETE_ON_TAB].set(true);
-        registry[KEY_NUM_SUGGESTIONS].set(10);
-      }
-    });
-
-    registry[KEY_EXTENSION_LANGUAGE].addEvent("action", function () {
-      const langValue = registry[KEY_EXTENSION_LANGUAGE].get();
-      const storageKey = `store.settings.${KEY_EXTENSION_LANGUAGE}`;
-      localStorage.setItem(storageKey, JSON.stringify(langValue));
-      optionsPageConfigChange();
-      setTimeout(() => location.reload(), 100);
-    });
-
-    // Update presage config on change
-    [
-      KEY_AUTOCOMPLETE,
-      KEY_AUTOCOMPLETE_ON_ENTER,
-      KEY_AUTOCOMPLETE_ON_TAB,
-      KEY_LANGUAGE,
-      KEY_ENABLED_LANGUAGES,
-      KEY_DOMAIN_LIST_MODE,
-      KEY_FALLBACK_LANGUAGE,
-      KEY_NUM_SUGGESTIONS,
-      KEY_MIN_WORD_LENGTH_TO_PREDICT,
-      KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
-      KEY_AUTO_CAPITALIZE,
-      KEY_SELECT_BY_DIGIT,
-      KEY_ENABLED_GRAMMAR_RULES,
-
-      KEY_TIME_FORMAT,
-      KEY_DATE_FORMAT,
-      KEY_TEXT_EXPANSIONS,
-      KEY_USER_DICTIONARY_LIST,
-      KEY_DISPLAY_LANG_HEADER,
-      KEY_INLINE_SUGGESTION,
-      KEY_EXTENSION_LANGUAGE,
-      KEY_AI_PREDICTOR_ENABLED,
-      KEY_AI_MODEL_ID,
-      KEY_AI_PREDICTION_TIMEOUT_MS,
-      KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
-      KEY_DEBUG_AI_PREDICTOR_ENABLED,
-      KEY_OBSERVABILITY_ENABLED,
-      KEY_OBSERVABILITY_DEFAULT_LEVEL,
-      // Theme settings
-      KEY_SUGGESTION_BG_LIGHT,
-      KEY_SUGGESTION_TEXT_LIGHT,
-      KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT,
-      KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT,
-      KEY_SUGGESTION_BORDER_LIGHT,
-      KEY_SUGGESTION_BG_DARK,
-      KEY_SUGGESTION_TEXT_DARK,
-      KEY_SUGGESTION_HIGHLIGHT_BG_DARK,
-      KEY_SUGGESTION_HIGHLIGHT_TEXT_DARK,
-      KEY_SUGGESTION_BORDER_DARK,
-      KEY_SUGGESTION_FONT_SIZE,
-      KEY_SUGGESTION_PADDING_VERTICAL,
-      KEY_SUGGESTION_PADDING_HORIZONTAL,
-    ].forEach((element) => {
-      const setting = registry[element];
-      if (!setting || typeof setting.addEvent !== "function") {
-        return;
-      }
-      setting.addEvent("action", function () {
-        if (element === KEY_OBSERVABILITY_ENABLED || element === KEY_OBSERVABILITY_DEFAULT_LEVEL) {
-          applyOptionsObservabilityRuntime(registry);
-        }
-        optionsPageConfigChange();
-        if (
-          element === KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED ||
-          element === KEY_DEBUG_AI_PREDICTOR_ENABLED ||
-          element === KEY_AI_PREDICTOR_ENABLED ||
-          element === KEY_AI_MODEL_ID ||
-          element === KEY_AI_PREDICTION_TIMEOUT_MS
-        ) {
-          const root = document.getElementById("predictorDebugRoot");
-          if (root) {
-            predictorDebugLastSignature = "";
-            void loadPredictorDebugSnapshot(root);
-          }
-        }
-        if (
-          element === KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED ||
-          element === KEY_DEBUG_AI_PREDICTOR_ENABLED ||
-          element === KEY_AI_MODEL_ID ||
-          element === KEY_AI_PREDICTION_TIMEOUT_MS ||
-          element === KEY_OBSERVABILITY_ENABLED ||
-          element === KEY_OBSERVABILITY_DEFAULT_LEVEL
-        ) {
-          const root = document.getElementById("observabilityRoot");
-          if (root) {
-            observabilityLastSignature = "";
-            void loadObservabilitySnapshot(root);
-          }
-        }
-      });
-    });
+    wireImportExportHandlers(registry);
+    wireRuntimeSettingsHandlers(registry);
   })();
 });

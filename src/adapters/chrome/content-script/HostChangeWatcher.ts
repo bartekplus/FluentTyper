@@ -57,11 +57,7 @@ export class HostChangeWatcher {
   checkHostName(): boolean {
     const decision = this.stateMachine.evaluateHost(window.location.hostname);
     if (decision.type === "host-changed") {
-      logger.info("Host changed; refetching config", {
-        previousHost: decision.previousHostName,
-        nextHost: decision.nextHostName,
-      });
-      this.dependencies.requestConfig();
+      this.handleHostChange(decision.previousHostName, decision.nextHostName);
       return true;
     }
     return false;
@@ -76,24 +72,22 @@ export class HostChangeWatcher {
       runtimeEnabled: this.dependencies.isRuntimeEnabled(),
     });
 
-    if (decision.type === "host-changed") {
-      logger.info("Host changed; refetching config", {
-        previousHost: decision.previousHostName,
-        nextHost: decision.nextHostName,
-      });
-      this.dependencies.requestConfig();
-      logger.debug("Host changed during watchdog cycle; skipping DOM restart");
-      return;
-    }
-
-    if (decision.type === "node-changed") {
-      logger.warn("Observed root node changed; restarting runtime", {
-        runtimeEnabled: decision.runtimeEnabled,
-      });
-      if (decision.runtimeEnabled) {
-        this.dependencies.restartRuntime();
-      }
-      this.dependencies.setObservedNode(decision.nextObservedNode);
+    switch (decision.type) {
+      case "host-changed":
+        this.handleHostChange(decision.previousHostName, decision.nextHostName);
+        logger.debug("Host changed during watchdog cycle; skipping DOM restart");
+        return;
+      case "node-changed":
+        logger.warn("Observed root node changed; restarting runtime", {
+          runtimeEnabled: decision.runtimeEnabled,
+        });
+        if (decision.runtimeEnabled) {
+          this.dependencies.restartRuntime();
+        }
+        this.dependencies.setObservedNode(decision.nextObservedNode);
+        return;
+      default:
+        return;
     }
   }
 
@@ -117,6 +111,14 @@ export class HostChangeWatcher {
     this.rootNodeObserver.observe(document.documentElement, {
       childList: true,
     });
+  }
+
+  private handleHostChange(previousHostName: string, nextHostName: string): void {
+    logger.info("Host changed; refetching config", {
+      previousHost: previousHostName,
+      nextHost: nextHostName,
+    });
+    this.dependencies.requestConfig();
   }
 
   private attachWatchDogEventListeners(): void {

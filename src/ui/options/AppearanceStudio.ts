@@ -16,6 +16,12 @@ import {
   KEY_SUGGESTION_TEXT_LIGHT,
 } from "@core/domain/constants";
 import { i18n } from "./fluenttyperI18n.js";
+import {
+  bindRerender,
+  createStackField,
+  createWorkspaceGrid,
+  createWorkspaceShell,
+} from "./workspacePanelUtils.js";
 
 type ThemePreset = Record<string, string>;
 type RGBAColor = { r: number; g: number; b: number; a: number };
@@ -252,24 +258,19 @@ export class AppearanceStudio {
     this.registry = registry;
     this.presets = presets;
     THEME_KEYS.forEach((key) => {
-      this.registry[key]?.addEvent("action", () => this.render());
-      this.registry[key]?.addEvent("change", () => this.render());
+      bindRerender(this.registry[key], () => this.render());
     });
-    this.registry[KEY_SELECT_BY_DIGIT]?.addEvent("action", () => this.render());
-    this.registry[KEY_SELECT_BY_DIGIT]?.addEvent("change", () => this.render());
+    bindRerender(this.registry[KEY_SELECT_BY_DIGIT], () => this.render());
     this.render();
   }
 
   render(): void {
     const theme = this.readThemeValues();
-    const shell = document.createElement("div");
-    shell.className = "workspace-panel-stack";
-    const topGrid = document.createElement("div");
-    topGrid.className = "workspace-main-grid";
+    const shell = createWorkspaceShell();
+    const topGrid = createWorkspaceGrid("workspace-main-grid");
     topGrid.append(this.createPresetCards(), this.createPreviewCard(theme));
 
-    const lowerGrid = document.createElement("div");
-    lowerGrid.className = "workspace-main-grid";
+    const lowerGrid = createWorkspaceGrid("workspace-main-grid");
     lowerGrid.append(this.createTypographyCard(theme), this.createContrastWarnings(theme));
 
     shell.append(topGrid, lowerGrid, this.createAdvancedColors(theme));
@@ -498,10 +499,6 @@ export class AppearanceStudio {
     onChange: (value: string) => void,
     onInput?: (value: string) => void,
   ): HTMLElement {
-    const field = document.createElement("label");
-    field.className = "settings-stack-field";
-    const title = document.createElement("span");
-    title.textContent = labelText;
     const select = document.createElement("select");
     select.className = "input";
     options.forEach(([optionValue, optionLabel]) => {
@@ -513,8 +510,7 @@ export class AppearanceStudio {
     select.value = value;
     select.addEventListener("input", () => onInput?.(select.value));
     select.addEventListener("change", () => onChange(select.value));
-    field.append(title, select);
-    return field;
+    return createStackField(labelText, select);
   }
 
   private createHelperText(copy: string): HTMLElement {
@@ -540,10 +536,6 @@ export class AppearanceStudio {
     group.appendChild(this.createHelperText(copy));
 
     fields.forEach(([key, label]) => {
-      const field = document.createElement("label");
-      field.className = "settings-stack-field";
-      const fieldTitle = document.createElement("span");
-      fieldTitle.textContent = label;
       const inputs = document.createElement("div");
       inputs.className = "is-flex is-align-items-center";
       inputs.style.gap = "0.75rem";
@@ -578,8 +570,7 @@ export class AppearanceStudio {
       });
 
       inputs.append(rawInput, pickerInput);
-      field.append(fieldTitle, inputs);
-      group.appendChild(field);
+      group.appendChild(createStackField(label, inputs));
     });
 
     return group;

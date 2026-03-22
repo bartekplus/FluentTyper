@@ -66,7 +66,7 @@ export class ConfigAssembler {
       this.coreSettingsRepository.getDisplayLangHeader(),
       this.coreSettingsRepository.getUserDictionaryList(),
       this.coreSettingsRepository.getThemeSettings(),
-      this.options.isDevBuild ? this.observabilitySettingsRepository.getSnapshot() : null,
+      this.getObservabilityConfig(),
     ]);
 
     return {
@@ -88,14 +88,7 @@ export class ConfigAssembler {
         ),
         userDictionaryList,
         themeConfig,
-        observability:
-          this.options.isDevBuild && observability
-            ? {
-                enabled: observability.enabled,
-                defaultLevel: observability.defaultLevel,
-                moduleOverrides: observability.moduleOverrides,
-              }
-            : undefined,
+        observability,
       },
     };
   }
@@ -113,7 +106,7 @@ export class ConfigAssembler {
       dateFormat,
       userDictionaryList,
       predictorSettings,
-      observabilitySettings,
+      observability,
     ] = await Promise.all([
       this.coreSettingsRepository.getNumSuggestions(),
       this.coreSettingsRepository.getMinWordLengthToPredict(),
@@ -125,7 +118,7 @@ export class ConfigAssembler {
       this.coreSettingsRepository.getDateFormat(),
       this.coreSettingsRepository.getUserDictionaryList(),
       this.predictorSettingsRepository.getSnapshot(),
-      this.options.isDevBuild ? this.observabilitySettingsRepository.getSnapshot() : null,
+      this.getObservabilityConfig(),
     ]);
     const normalizedGrammarRules = normalizeGrammarRuleSelection(enabledGrammarRules);
     const autoCapitalize = normalizedGrammarRules.includes("capitalizeSentenceStart");
@@ -133,14 +126,7 @@ export class ConfigAssembler {
     return {
       language,
       textExpansions,
-      observabilityConfig:
-        this.options.isDevBuild && observabilitySettings
-          ? {
-              enabled: observabilitySettings.enabled,
-              defaultLevel: observabilitySettings.defaultLevel,
-              moduleOverrides: observabilitySettings.moduleOverrides,
-            }
-          : undefined,
+      observabilityConfig: observability,
       predictionConfig: {
         numSuggestions,
         engineNumSuggestions: MAX_NUM_SUGGESTIONS,
@@ -175,6 +161,21 @@ export class ConfigAssembler {
       lang: domainSettings.language,
       inline_suggestion: domainSettings.inlineSuggestion,
       preferNativeAutocomplete: domainSettings.preferNativeAutocomplete,
+    };
+  }
+
+  private async getObservabilityConfig(): Promise<ObservabilityConfig | undefined> {
+    if (!this.options.isDevBuild) {
+      return undefined;
+    }
+    const snapshot = await this.observabilitySettingsRepository.getSnapshot();
+    if (!snapshot) {
+      return undefined;
+    }
+    return {
+      enabled: snapshot.enabled,
+      defaultLevel: snapshot.defaultLevel,
+      moduleOverrides: snapshot.moduleOverrides,
     };
   }
 }

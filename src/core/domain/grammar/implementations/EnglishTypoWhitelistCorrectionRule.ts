@@ -2,10 +2,9 @@ import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from 
 import {
   applyCasePattern,
   findTrailingLetterToken,
-  hasTrailingTokenBoundary,
-  isEnglishLanguageContext,
   isLikelyCodeLikeContext,
-  resolveInputAction,
+  normalizeWordSet,
+  resolveEnglishBoundaryContext,
   resolveUserDictionarySet,
 } from "./helpers/EnglishRuleShared";
 
@@ -30,23 +29,16 @@ export class EnglishTypoWhitelistCorrectionRule implements GrammarRule {
   private readonly fallbackUserDictionary: Set<string>;
 
   constructor(userDictionaryList: string[] = []) {
-    this.fallbackUserDictionary = new Set(
-      userDictionaryList.map((entry) => entry.trim().toLowerCase()).filter(Boolean),
-    );
+    this.fallbackUserDictionary = normalizeWordSet(userDictionaryList);
   }
 
   apply(context: GrammarContext): GrammarEdit | null {
-    if (!isEnglishLanguageContext(context)) {
-      return null;
-    }
-    if (resolveInputAction(context) === "delete") {
-      return null;
-    }
-    if (!hasTrailingTokenBoundary(context.beforeCursor)) {
+    const boundaryContext = resolveEnglishBoundaryContext(context);
+    if (!boundaryContext) {
       return null;
     }
 
-    const tokenInfo = findTrailingLetterToken(context.beforeCursor);
+    const tokenInfo = findTrailingLetterToken(boundaryContext.input);
     if (!tokenInfo) {
       return null;
     }
@@ -72,7 +64,7 @@ export class EnglishTypoWhitelistCorrectionRule implements GrammarRule {
 
     return {
       replacement: `${replacementToken}${tokenInfo.trailing}`,
-      deleteBackwards: context.beforeCursor.length - tokenInfo.tokenStart,
+      deleteBackwards: boundaryContext.input.length - tokenInfo.tokenStart,
       deleteForwards: 0,
       confidence: "high",
       description: "Corrected common English typo",

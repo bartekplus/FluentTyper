@@ -1,4 +1,3 @@
-// Utility for processing prediction input for PresageHandler
 import { DEFAULT_SEPARATOR_CHARS_REGEX, LANG_ADDITIONAL_SEPARATOR_REGEX } from "@core/domain/lang";
 import {
   extractPredictionTokenSuffix,
@@ -12,12 +11,12 @@ export const PAST_WORDS_COUNT = 5;
 export const MIN_WORD_LENGTH_TO_PREDICT = 1;
 
 export class PredictionInputProcessor {
-  separatorCharRegex: RegExp;
-  keepPredCharRegex: RegExp;
-  whiteSpaceRegex: RegExp;
-  letterRegex: RegExp;
-  minWordLengthToPredict: number;
-  autoCapitalize: boolean;
+  readonly separatorCharRegex: RegExp;
+  readonly keepPredCharRegex: RegExp;
+  readonly whiteSpaceRegex: RegExp;
+  readonly letterRegex: RegExp;
+  readonly minWordLengthToPredict: number;
+  readonly autoCapitalize: boolean;
 
   constructor(minWordLengthToPredict = MIN_WORD_LENGTH_TO_PREDICT, autoCapitalize = true) {
     this.separatorCharRegex = RegExp(DEFAULT_SEPARATOR_CHARS_REGEX);
@@ -32,17 +31,17 @@ export class PredictionInputProcessor {
     wordArray: string[];
     newSentence: boolean;
   } {
-    let newSentence = false;
-    let wordArray = wordArrayOrig.slice();
+    const wordArray = wordArrayOrig.slice();
     for (let index = wordArray.length - 1; index >= 0; index--) {
       const element = wordArray[index];
       if (NEW_SENTENCE_CHARS.includes(element) || NEW_SENTENCE_CHARS.includes(element.slice(-1))) {
-        wordArray = wordArray.splice(index + 1);
-        newSentence = true;
-        break;
+        return {
+          wordArray: wordArray.slice(index + 1),
+          newSentence: true,
+        };
       }
     }
-    return { wordArray, newSentence };
+    return { wordArray, newSentence: false };
   }
 
   checkDoPrediction(
@@ -54,23 +53,15 @@ export class PredictionInputProcessor {
     if (numSuggestions <= 0) {
       return false;
     }
-    if (!endsWithSpace && isNumber(lastWord)) {
+    if (endsWithSpace) {
+      return predictNextWordAfterSeparatorChar;
+    }
+    if (isNumber(lastWord) || lastWord.length < this.minWordLengthToPredict) {
       return false;
     }
-    if (endsWithSpace && !predictNextWordAfterSeparatorChar) {
-      return false;
-    }
-    if (!endsWithSpace && lastWord.length < this.minWordLengthToPredict) {
-      return false;
-    }
-    if (
-      !endsWithSpace &&
-      (lastWord.match(this.separatorCharRegex) || []).length !==
-        (lastWord.match(this.keepPredCharRegex) || []).length
-    ) {
-      return false;
-    }
-    return true;
+    const separatorMatches = lastWord.match(this.separatorCharRegex) || [];
+    const keepMatches = lastWord.match(this.keepPredCharRegex) || [];
+    return separatorMatches.length === keepMatches.length;
   }
 
   private normalizeAdditionalSeparators(value: string, language: string): string {
@@ -118,18 +109,18 @@ export class PredictionInputProcessor {
       };
     }
     const endsWithSpace = predictionInput !== predictionInput.trimEnd();
-    predictionInput = this.normalizeAdditionalSeparators(predictionInput, language);
+    const normalizedInput = this.normalizeAdditionalSeparators(predictionInput, language);
     const currentWordSuffix = this.resolveCurrentWordSuffix(afterCursorTokenSuffix, language);
-    const predictionInputWithCurrentWord = `${predictionInput}${currentWordSuffix}`;
+    const predictionInputWithCurrentWord = `${normalizedInput}${currentWordSuffix}`;
     const lastWordsArray = predictionInputWithCurrentWord
       .split(this.whiteSpaceRegex)
       .filter((e) => e.trim())
-      .splice(-PAST_WORDS_COUNT);
+      .slice(-PAST_WORDS_COUNT);
     const { wordArray, newSentence } = this.removePrevSentence(lastWordsArray);
-    predictionInput = wordArray.join(" ") + (endsWithSpace ? " " : "");
-    let lastWord = lastWordsArray.length ? lastWordsArray[lastWordsArray.length - 1] : "";
-    lastWord =
-      lastWord
+    const trimmedPredictionInput = wordArray.join(" ") + (endsWithSpace ? " " : "");
+    const lastWordRaw = lastWordsArray.length ? lastWordsArray[lastWordsArray.length - 1] : "";
+    const lastWord =
+      lastWordRaw
         .split(this.keepPredCharRegex)
         .filter((e) => e.trim())
         .pop() || "";
@@ -146,7 +137,11 @@ export class PredictionInputProcessor {
       numSuggestions,
       predictNextWordAfterSeparatorChar,
     );
-    predictionInput = predictionInput.toLowerCase();
-    return { predictionInput, lastWord, doPrediction, doCapitalize };
+    return {
+      predictionInput: trimmedPredictionInput.toLowerCase(),
+      lastWord,
+      doPrediction,
+      doCapitalize,
+    };
   }
 }

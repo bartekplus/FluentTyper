@@ -1,6 +1,14 @@
 import type { RadioConfig } from "../types.js";
 import type { Store } from "@core/application/storage/Store.js";
-import { BaseControl, getUniqueID } from "./FieldControl.js";
+import {
+  BaseControl,
+  appendLabel,
+  createControlContainer,
+  createFieldRoot,
+  createInputElement,
+  dispatchControlEvent,
+  getUniqueID,
+} from "./FieldControl.js";
 
 export class RadioControl extends BaseControl<string> {
   private readonly radios: HTMLInputElement[] = [];
@@ -8,30 +16,22 @@ export class RadioControl extends BaseControl<string> {
   constructor(params: RadioConfig, store: Store) {
     super(params, store);
 
-    const root = document.createElement("div");
-    root.className = "field";
+    const root = createFieldRoot();
     this._rootElement = root;
 
-    const control = document.createElement("div");
-    control.className = "control";
+    const control = createControlContainer();
     root.appendChild(control);
 
     const groupId = getUniqueID();
 
-    if (params.label) {
-      const label = document.createElement("label");
-      label.className = "label";
-      label.innerHTML = params.label;
-      control.appendChild(label);
-    }
+    appendLabel(control, params.label);
 
     for (const [value, text] of params.options ?? []) {
       const optionId = getUniqueID();
       const radioLabel = document.createElement("label");
       radioLabel.className = "radio";
 
-      const radio = document.createElement("input");
-      radio.type = "radio";
+      const radio = createInputElement("radio");
       radio.id = optionId;
       radio.name = groupId;
       radio.value = value;
@@ -70,7 +70,7 @@ export class RadioControl extends BaseControl<string> {
       target.checked = true;
     }
     if (!silent) {
-      this._element.dispatchEvent(new Event("change"));
+      dispatchControlEvent(this._element, "change");
     }
     return this;
   }

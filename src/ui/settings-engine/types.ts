@@ -12,8 +12,6 @@ export interface RuleToggleAction {
   values: string[];
 }
 
-// --- Discriminated union of all field config shapes ---
-
 export type CheckboxConfig = {
   type: "checkbox";
   tab: string;

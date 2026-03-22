@@ -5,57 +5,15 @@ import {
   getSettingStorageKey,
 } from "@core/domain/contracts/settings";
 import { KEY_AUTO_CAPITALIZE, KEY_LEGACY_APPLY_SPACING_RULES } from "@core/domain/constants";
-import type { JsonValue } from "../settingsManager";
 import type { SettingsManager } from "../settingsManager";
+import {
+  readFirstDefinedSetting,
+  readRawSetting,
+  removeRawSetting,
+  writeRawSetting,
+} from "./settingsAccess";
 
-type RawSettingsAccess = {
-  getRaw?: (key: string) => Promise<unknown>;
-  setRaw?: (key: string, value: JsonValue) => Promise<void>;
-  removeRaw?: (key: string) => Promise<void>;
-};
-
-async function readRaw(settings: SettingsManager, key: string): Promise<unknown> {
-  const maybeRawSettings = settings as unknown as RawSettingsAccess;
-  if (typeof maybeRawSettings.getRaw === "function") {
-    return maybeRawSettings.getRaw(key);
-  }
-  return settings.get(key);
-}
-
-async function writeRaw(settings: SettingsManager, key: string, value: JsonValue): Promise<void> {
-  const maybeRawSettings = settings as unknown as RawSettingsAccess;
-  if (typeof maybeRawSettings.setRaw === "function") {
-    await maybeRawSettings.setRaw(key, value);
-    return;
-  }
-  await settings.set(key, value);
-}
-
-async function removeRaw(settings: SettingsManager, key: string): Promise<void> {
-  const maybeRawSettings = settings as unknown as RawSettingsAccess;
-  if (typeof maybeRawSettings.removeRaw === "function") {
-    await maybeRawSettings.removeRaw(key);
-    return;
-  }
-  await settings.set(key, undefined as unknown as JsonValue);
-}
-
-async function readFirstDefined(settings: SettingsManager, keys: string[]): Promise<unknown> {
-  for (const key of keys) {
-    const value = await readRaw(settings, key);
-    if (typeof value !== "undefined") {
-      return value;
-    }
-  }
-  return undefined;
-}
-
-export async function readSettingWithAliases(
-  settings: SettingsManager,
-  field: SettingField,
-): Promise<unknown> {
-  return readFirstDefined(settings, getSettingStorageAliases(field));
-}
+export { readSettingWithAliases } from "./settingsAccess";
 
 export async function migrateSettingsV3(settings: SettingsManager): Promise<void> {
   try {
@@ -64,49 +22,49 @@ export async function migrateSettingsV3(settings: SettingsManager): Promise<void
       const aliases = getSettingStorageAliases(field);
       const canonical = aliases[0];
       const aliasKeys = aliases.slice(1);
-      const canonicalValue = await readRaw(settings, canonical);
-      const aliasValue = await readFirstDefined(settings, aliasKeys);
+      const canonicalValue = await readRawSetting(settings, canonical);
+      const aliasValue = await readFirstDefinedSetting(settings, aliasKeys);
 
       if (typeof canonicalValue === "undefined" && typeof aliasValue !== "undefined") {
-        await writeRaw(settings, canonical, aliasValue as JsonValue);
+        await writeRawSetting(settings, canonical, aliasValue as never);
       }
 
       for (const aliasKey of aliasKeys) {
-        if (typeof (await readRaw(settings, aliasKey)) !== "undefined") {
-          await removeRaw(settings, aliasKey);
+        if (typeof (await readRawSetting(settings, aliasKey)) !== "undefined") {
+          await removeRawSetting(settings, aliasKey);
         }
       }
     }
 
     // Migrate legacy applySpacingRules boolean → enabledGrammarRules array
-    const legacyValue = await readRaw(settings, KEY_LEGACY_APPLY_SPACING_RULES);
+    const legacyValue = await readRawSetting(settings, KEY_LEGACY_APPLY_SPACING_RULES);
     if (typeof legacyValue !== "undefined") {
       if (legacyValue === true) {
         const grammarKey = getSettingStorageKey("enabledGrammarRules");
-        const existing = await readRaw(settings, grammarKey);
+        const existing = await readRawSetting(settings, grammarKey);
         if (typeof existing === "undefined") {
-          await writeRaw(settings, grammarKey, ["spacingRule"] as JsonValue);
+          await writeRawSetting(settings, grammarKey, ["spacingRule"] as never);
         }
       }
-      await writeRaw(settings, KEY_LEGACY_APPLY_SPACING_RULES, false);
+      await writeRawSetting(settings, KEY_LEGACY_APPLY_SPACING_RULES, false as never);
     }
 
     // Migrate legacy autoCapitalize boolean to grammar rule selection once.
     // We mark the legacy key as false after migration to avoid re-enabling
     // the rule on every startup if the user later disables it in grammar rules.
-    const legacyAutoCapitalize = await readRaw(settings, KEY_AUTO_CAPITALIZE);
+    const legacyAutoCapitalize = await readRawSetting(settings, KEY_AUTO_CAPITALIZE);
     if (legacyAutoCapitalize === true) {
       const grammarKey = getSettingStorageKey("enabledGrammarRules");
-      const existing = await readRaw(settings, grammarKey);
+      const existing = await readRawSetting(settings, grammarKey);
       const currentRules = Array.isArray(existing) ? existing.map((rule) => String(rule)) : [];
 
       if (!currentRules.includes("capitalizeFirstLetter")) {
-        await writeRaw(settings, grammarKey, [
+        await writeRawSetting(settings, grammarKey, [
           ...currentRules,
           "capitalizeFirstLetter",
-        ] as JsonValue);
+        ] as never);
       }
-      await writeRaw(settings, KEY_AUTO_CAPITALIZE, false);
+      await writeRawSetting(settings, KEY_AUTO_CAPITALIZE, false as never);
     }
   } catch (error) {
     console.warn("[SettingsMigrationV3] Failed to migrate settings:", error);

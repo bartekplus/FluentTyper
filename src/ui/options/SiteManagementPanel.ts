@@ -10,6 +10,7 @@ import {
 import { normalizeDomainHost } from "@core/domain/siteProfiles";
 import { SiteProfilesManager } from "./siteProfiles.js";
 import { i18n } from "./fluenttyperI18n.js";
+import { bindRerender, createWorkspaceCard, createWorkspaceShell } from "./workspacePanelUtils.js";
 
 type DomainListMode = "blackList" | "whiteList";
 
@@ -43,18 +44,12 @@ export class SiteManagementPanel {
       this.onConfigChange,
     );
 
-    this.registry[KEY_DOMAIN_LIST_MODE]?.addEvent("action", () => void this.render());
-    this.registry.domainBlackList?.addEvent("action", () => void this.render());
-    this.registry[KEY_ENABLED_LANGUAGES]?.addEvent("action", () => void this.render());
-    this.registry[KEY_SITE_PROFILES]?.addEvent("action", () => void this.render());
-    this.registry[KEY_NUM_SUGGESTIONS]?.addEvent(
-      "action",
-      () => void this.siteProfilesManager.render(),
-    );
-    this.registry[KEY_INLINE_SUGGESTION]?.addEvent(
-      "action",
-      () => void this.siteProfilesManager.render(),
-    );
+    bindRerender(this.registry[KEY_DOMAIN_LIST_MODE], () => this.render());
+    bindRerender(this.registry.domainBlackList, () => this.render());
+    bindRerender(this.registry[KEY_ENABLED_LANGUAGES], () => this.render());
+    bindRerender(this.registry[KEY_SITE_PROFILES], () => this.render());
+    bindRerender(this.registry[KEY_NUM_SUGGESTIONS], () => this.siteProfilesManager.render());
+    bindRerender(this.registry[KEY_INLINE_SUGGESTION], () => this.siteProfilesManager.render());
 
     void this.render();
   }
@@ -73,23 +68,14 @@ export class SiteManagementPanel {
       : [];
 
     const accessCard = this.createAccessCard(mode, domainList);
-    const profileCard = document.createElement("section");
-    profileCard.className = "settings-inline-card";
-    const header = document.createElement("div");
-    header.className = "site-profile-card-header";
-    const title = document.createElement("h4");
-    title.textContent = i18n.get("site_profiles");
-    header.appendChild(title);
-    const note = document.createElement("p");
-    note.className = "settings-inline-help";
-    note.textContent = i18n.get("site_profiles_desc");
-    header.appendChild(note);
-    profileCard.appendChild(header);
-    profileCard.appendChild(this.siteProfilesRoot);
+    const profileCard = createWorkspaceCard(
+      i18n.get("site_profiles"),
+      i18n.get("site_profiles_desc"),
+    );
+    profileCard.body.appendChild(this.siteProfilesRoot);
 
-    const shell = document.createElement("div");
-    shell.className = "workspace-panel-stack";
-    shell.append(accessCard, profileCard);
+    const shell = createWorkspaceShell();
+    shell.append(accessCard, profileCard.card);
 
     this.root.replaceChildren(shell);
     await this.siteProfilesManager.render();

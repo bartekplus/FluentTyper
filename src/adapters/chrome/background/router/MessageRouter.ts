@@ -163,10 +163,10 @@ export class MessageRouter {
           context.payload.sendResponse(mappedError.response);
         },
       }),
-      createLoggingMiddleware(logger),
       createValidationMiddleware<MessageDispatchPayload, void, RoutedMessageCommand>(
         isRoutedMessageCommand,
       ),
+      createLoggingMiddleware(logger),
     ]);
 
     const register = <TCommand extends RoutedMessageCommand>(

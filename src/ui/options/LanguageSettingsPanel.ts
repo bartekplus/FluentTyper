@@ -17,7 +17,10 @@ import {
 import { resolveSiteProfiles } from "@core/domain/siteProfiles";
 import { formatTranslation, i18n } from "./fluenttyperI18n.js";
 import {
+  bindRerender,
   createWorkspaceCard,
+  createWorkspaceGrid,
+  createWorkspaceShell,
   moveControlToBody,
   pruneEmptySettingsGroups,
 } from "./workspacePanelUtils.js";
@@ -32,21 +35,11 @@ export class LanguageSettingsPanel {
     this.registry = registry;
     this.store = store;
 
-    this.registry[KEY_LANGUAGE]?.addEvent("action", () => {
-      void this.render();
-    });
-    this.registry[KEY_EXTENSION_LANGUAGE]?.addEvent("action", () => {
-      void this.render();
-    });
-    this.registry[KEY_ENABLED_LANGUAGES]?.addEvent("action", () => {
-      void this.render();
-    });
-    this.registry[KEY_FALLBACK_LANGUAGE]?.addEvent("action", () => {
-      void this.render();
-    });
-    this.registry[KEY_SITE_PROFILES]?.addEvent("action", () => {
-      void this.render();
-    });
+    bindRerender(this.registry[KEY_LANGUAGE], () => this.render());
+    bindRerender(this.registry[KEY_EXTENSION_LANGUAGE], () => this.render());
+    bindRerender(this.registry[KEY_ENABLED_LANGUAGES], () => this.render());
+    bindRerender(this.registry[KEY_FALLBACK_LANGUAGE], () => this.render());
+    bindRerender(this.registry[KEY_SITE_PROFILES], () => this.render());
 
     void this.render();
   }
@@ -72,18 +65,15 @@ export class LanguageSettingsPanel {
     const autoLanguageStatus =
       language === "auto_detect" ? await this.fetchAutoLanguageStatus() : null;
 
-    const shell = document.createElement("div");
-    shell.className = "workspace-panel-stack";
+    const shell = createWorkspaceShell();
 
-    const topGrid = document.createElement("div");
-    topGrid.className = "workspace-top-grid";
+    const topGrid = createWorkspaceGrid("workspace-top-grid");
     topGrid.append(
       this.createExtensionUiCard(),
       this.createSummary(enabledLanguages, language, fallbackLanguage, autoLanguageStatus),
     );
 
-    const lowerGrid = document.createElement("div");
-    lowerGrid.className = "workspace-main-grid";
+    const lowerGrid = createWorkspaceGrid("workspace-main-grid");
     const languageDisplayCard = this.createLanguageDisplayCard();
     languageDisplayCard.classList.add("workspace-span-full");
     const languageGridSection = this.createLanguageGridSection(enabledLanguages, usageCounts);

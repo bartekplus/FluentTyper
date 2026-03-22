@@ -33,15 +33,25 @@ const TEST_MSG_GET_WEBLLM_PREDICTION_CALLS = "TEST_GET_WEBLLM_PREDICTION_CALLS";
 const ENABLE_RUNTIME_TEST_HOOKS =
   typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
 const logger = createLogger("RuntimeTestHooks");
+const TEST_TRIGGER_COMMAND_ALLOW_LIST = new Set<string>([
+  CMD_TOGGLE_FT_ACTIVE_TAB,
+  CMD_TRIGGER_FT_ACTIVE_TAB,
+  CMD_TOGGLE_FT_ACTIVE_LANG,
+]);
 
 function getWebLLMTestGlobals(): WebLLMTestGlobals {
   return globalThis as WebLLMTestGlobals;
 }
 
-function setWebLLMTestOverride(predictions: string[], delayMs: number): void {
-  const normalizedPredictions = predictions
+function normalizePredictions(predictions: unknown[]): string[] {
+  return predictions
+    .filter((prediction): prediction is string => typeof prediction === "string")
     .map((prediction) => prediction.trim())
     .filter((prediction) => prediction.length > 0);
+}
+
+function setWebLLMTestOverride(predictions: string[], delayMs: number): void {
+  const normalizedPredictions = normalizePredictions(predictions);
   getWebLLMTestGlobals()[WEB_LLM_TEST_OVERRIDE_KEY] = {
     predictions: normalizedPredictions,
     delayMs,
@@ -99,15 +109,9 @@ export async function maybePredictFromRuntimeTestOverride(
   if (delayMs > 0) {
     await new Promise((resolve) => setTimeout(resolve, delayMs));
   }
-  if (!Array.isArray(override.predictions)) {
-    return [];
-  }
-
-  return override.predictions
-    .filter((item): item is string => typeof item === "string")
-    .map((item) => item.trim())
-    .filter((item) => item.length > 0)
-    .slice(0, request.numSuggestions);
+  return Array.isArray(override.predictions)
+    ? normalizePredictions(override.predictions).slice(0, request.numSuggestions)
+    : [];
 }
 
 export function registerRuntimeTestHooks(commandRouter: CommandRouter): void {
@@ -115,17 +119,9 @@ export function registerRuntimeTestHooks(commandRouter: CommandRouter): void {
     return;
   }
   logger.info("Registering runtime test hooks");
-  if (typeof globalThis !== "undefined") {
-    getWebLLMTestGlobals().triggerCommandForTesting = async (command: string) => {
-      await commandRouter.handle(command);
-    };
-  }
-
-  const testTriggerCommandAllowList = new Set<string>([
-    CMD_TOGGLE_FT_ACTIVE_TAB,
-    CMD_TRIGGER_FT_ACTIVE_TAB,
-    CMD_TOGGLE_FT_ACTIVE_LANG,
-  ]);
+  getWebLLMTestGlobals().triggerCommandForTesting = async (command: string) => {
+    await commandRouter.handle(command);
+  };
 
   const isTrustedInternalSender = (sender: chrome.runtime.MessageSender): boolean => {
     if (typeof sender.url === "string" && sender.url.startsWith(chrome.runtime.getURL(""))) {
@@ -155,7 +151,7 @@ export function registerRuntimeTestHooks(commandRouter: CommandRouter): void {
     switch (type) {
       case TEST_MSG_TRIGGER_COMMAND: {
         const command = (message as { command?: unknown }).command;
-        if (typeof command !== "string" || !testTriggerCommandAllowList.has(command)) {
+        if (typeof command !== "string" || !TEST_TRIGGER_COMMAND_ALLOW_LIST.has(command)) {
           sendResponse({ ok: false });
           return true;
         }

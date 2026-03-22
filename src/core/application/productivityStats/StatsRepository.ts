@@ -1,20 +1,15 @@
 import type { JsonValue, SettingsManager } from "@core/application/settingsManager";
 import { getSettingStorageKey } from "@core/domain/contracts/settings";
-import type { StatsSanitizer } from "@core/domain/productivityStats/StatsSanitizer";
 import type { ProductivityStatsState } from "@core/domain/productivityStats/types";
-import { readSettingWithAliases } from "../settings/SettingsMigrationV3";
+import { readSettingWithAliases } from "../settings/settingsAccess";
 
 const PRODUCTIVITY_STATS_KEY = getSettingStorageKey("productivityStats");
 
 export class StatsRepository {
-  constructor(
-    private readonly settingsManager: SettingsManager,
-    private readonly sanitizer: StatsSanitizer,
-  ) {}
+  constructor(private readonly settingsManager: SettingsManager) {}
 
-  async loadState(): Promise<ProductivityStatsState> {
-    const rawState = await readSettingWithAliases(this.settingsManager, "productivityStats");
-    return this.sanitizer.sanitizeStatsState(rawState);
+  async loadState(): Promise<unknown> {
+    return readSettingWithAliases(this.settingsManager, "productivityStats");
   }
 
   async saveState(state: ProductivityStatsState): Promise<void> {

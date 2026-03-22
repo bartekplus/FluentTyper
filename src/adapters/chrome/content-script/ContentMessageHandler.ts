@@ -22,7 +22,7 @@ import type {
   PredictResponseContext,
   SetConfigContext,
 } from "@core/domain/messageTypes";
-import { generatePredictionTraceId, resolveTraceAgeMs } from "./predictionTrace";
+import { createPredictionTraceContext, resolveTraceAgeMs } from "./predictionTrace";
 
 type RuntimeInboundMessage =
   | Message
@@ -61,22 +61,24 @@ export class ContentMessageHandler {
       typeof context.runtimeGeneration === "number" && Number.isFinite(context.runtimeGeneration)
         ? context.runtimeGeneration
         : this.dependencies.getPredictionGeneration();
-    const traceId = isNonEmptyString(context.traceId)
-      ? context.traceId.trim()
-      : generatePredictionTraceId();
     const traceStartedAtMs =
       typeof context.traceStartedAtMs === "number" && Number.isFinite(context.traceStartedAtMs)
         ? context.traceStartedAtMs
         : Date.now();
+    const traceContext = createPredictionTraceContext(
+      traceStartedAtMs,
+      isNonEmptyString(context.traceId) ? context.traceId.trim() : undefined,
+    );
+    const lang = this.dependencies.getLanguage();
 
     logger.debug("Preparing prediction request", {
-      traceId,
+      traceId: traceContext.traceId,
       requestId: context.requestId,
       suggestionId: context.suggestionId,
       runtimeGeneration,
       nextChar: context.nextChar,
-      lang: this.dependencies.getLanguage(),
-      requestAgeMs: resolveTraceAgeMs(traceStartedAtMs),
+      lang,
+      requestAgeMs: resolveTraceAgeMs(traceContext.traceStartedAtMs),
     });
     const message: ContentScriptPredictRequestMessage = {
       command: CMD_CONTENT_SCRIPT_PREDICT_REQ,
@@ -88,10 +90,10 @@ export class ContentMessageHandler {
         suggestionId: context.suggestionId,
         requestId: context.requestId,
         runtimeGeneration,
-        lang: this.dependencies.getLanguage(),
+        lang,
         documentLang: document.documentElement.lang || undefined,
-        traceId,
-        traceStartedAtMs,
+        traceId: traceContext.traceId,
+        traceStartedAtMs: traceContext.traceStartedAtMs,
       },
     };
     this.pendingReq = message;
@@ -131,7 +133,6 @@ export class ContentMessageHandler {
   ): void {
     void sender;
     checkLastError();
-    let sendStatusMsg = false;
     if (!message) {
       logger.error("Received empty runtime message");
       return;
@@ -143,89 +144,88 @@ export class ContentMessageHandler {
 
     switch (message.command) {
       case CMD_BACKGROUND_PAGE_PREDICT_RESP: {
-        const context = (message as { context: PredictResponseContext }).context;
-        const traceIdMatches =
-          !isNonEmptyString(this.pendingReq?.context.traceId) ||
-          !isNonEmptyString(context.traceId) ||
-          this.pendingReq?.context.traceId === context.traceId;
-        const isMatchingPending =
-          this.pendingReq &&
-          this.pendingReq.context.suggestionId === context.suggestionId &&
-          this.pendingReq.context.requestId === context.requestId &&
-          this.pendingReq.context.runtimeGeneration === context.runtimeGeneration &&
-          traceIdMatches;
-
-        if (isMatchingPending) {
-          // Clear before fulfillment so synchronous follow-up requests created
-          // by text edits are not wiped out after the callback returns.
-          this.pendingReq = null;
-          logger.debug("Fulfilling prediction response", {
-            traceId: context.traceId,
-            requestId: context.requestId,
-            suggestionId: context.suggestionId,
-            runtimeGeneration: context.runtimeGeneration,
-            predictionCount: context.predictions.length,
-            responseAgeMs: resolveTraceAgeMs(context.traceStartedAtMs),
-          });
-        } else {
-          logger.debug(
-            "Forwarding non-matching prediction response for manager-level stale filtering",
-            {
-              traceId: context.traceId,
-              requestId: context.requestId,
-              suggestionId: context.suggestionId,
-              runtimeGeneration: context.runtimeGeneration,
-              pendingRequestId: this.pendingReq?.context.requestId,
-              pendingSuggestionId: this.pendingReq?.context.suggestionId,
-              pendingGeneration: this.pendingReq?.context.runtimeGeneration,
-            },
-          );
-        }
-        this.dependencies.fulfillPrediction(context);
-        break;
+        this.handlePredictionResponse((message as { context: PredictResponseContext }).context);
+        return;
       }
       case CMD_BACKGROUND_PAGE_SET_CONFIG:
         this.dependencies.setConfig((message as { context: SetConfigContext }).context);
-        sendStatusMsg = true;
-        break;
+        this.sendRuntimeStatus(sendResponse);
+        return;
       case CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG:
         this.dependencies.updateLanguage((message as { context: { lang: string } }).context.lang);
-        sendStatusMsg = true;
-        break;
+        this.sendRuntimeStatus(sendResponse);
+        return;
       case CMD_POPUP_PAGE_DISABLE:
         this.dependencies.setEnabled(false);
-        sendStatusMsg = true;
-        break;
+        this.sendRuntimeStatus(sendResponse);
+        return;
       case CMD_POPUP_PAGE_ENABLE:
         this.dependencies.setEnabled(true);
-        sendStatusMsg = true;
-        break;
+        this.sendRuntimeStatus(sendResponse);
+        return;
       case CMD_TOGGLE_FT_ACTIVE_TAB:
         this.dependencies.toggleEnabled();
-        sendStatusMsg = true;
-        break;
+        this.sendRuntimeStatus(sendResponse);
+        return;
       case CMD_TRIGGER_FT_ACTIVE_TAB:
         this.dependencies.triggerActiveSuggestion();
-        sendStatusMsg = true;
-        break;
+        this.sendRuntimeStatus(sendResponse);
+        return;
       case CMD_GET_HOSTNAME:
-        if (sendResponse) {
-          sendResponse({ hostname: window.location.hostname });
-        }
-        break;
+        sendResponse?.({ hostname: window.location.hostname });
+        return;
       default:
         logger.debug("Unknown message command", { command: message.command });
-        break;
+        return;
     }
+  }
 
-    if (sendStatusMsg) {
-      const statusMsg: PopupPageStatusMessage = {
-        command: CMD_STATUS_COMMAND,
-        context: { enabled: this.dependencies.getEnabled() },
-      };
-      if (sendResponse) {
-        sendResponse(statusMsg);
-      }
+  private handlePredictionResponse(context: PredictResponseContext): void {
+    const traceIdMatches =
+      !isNonEmptyString(this.pendingReq?.context.traceId) ||
+      !isNonEmptyString(context.traceId) ||
+      this.pendingReq?.context.traceId === context.traceId;
+    const isMatchingPending =
+      this.pendingReq &&
+      this.pendingReq.context.suggestionId === context.suggestionId &&
+      this.pendingReq.context.requestId === context.requestId &&
+      this.pendingReq.context.runtimeGeneration === context.runtimeGeneration &&
+      traceIdMatches;
+
+    if (isMatchingPending) {
+      // Clear before fulfillment so synchronous follow-up requests created
+      // by text edits are not wiped out after the callback returns.
+      this.pendingReq = null;
+      logger.debug("Fulfilling prediction response", {
+        traceId: context.traceId,
+        requestId: context.requestId,
+        suggestionId: context.suggestionId,
+        runtimeGeneration: context.runtimeGeneration,
+        predictionCount: context.predictions.length,
+        responseAgeMs: resolveTraceAgeMs(context.traceStartedAtMs),
+      });
+    } else {
+      logger.debug(
+        "Forwarding non-matching prediction response for manager-level stale filtering",
+        {
+          traceId: context.traceId,
+          requestId: context.requestId,
+          suggestionId: context.suggestionId,
+          runtimeGeneration: context.runtimeGeneration,
+          pendingRequestId: this.pendingReq?.context.requestId,
+          pendingSuggestionId: this.pendingReq?.context.suggestionId,
+          pendingGeneration: this.pendingReq?.context.runtimeGeneration,
+        },
+      );
     }
+    this.dependencies.fulfillPrediction(context);
+  }
+
+  private sendRuntimeStatus(sendResponse?: (response: unknown) => void): void {
+    const statusMsg: PopupPageStatusMessage = {
+      command: CMD_STATUS_COMMAND,
+      context: { enabled: this.dependencies.getEnabled() },
+    };
+    sendResponse?.(statusMsg);
   }
 }

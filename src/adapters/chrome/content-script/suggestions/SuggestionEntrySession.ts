@@ -2,7 +2,18 @@ import { createLogger } from "@core/application/logging/Logger";
 import { SUPPORTED_LANGUAGES } from "@core/domain/lang";
 import type { PredictionInputAction } from "@core/domain/messageTypes";
 import { SPACE_CHARS } from "@core/domain/spacingRules";
-import { isNativeUndoChord } from "./keyboardShortcuts";
+import {
+  resolveEditableCursorContext as resolveEditableCursorContextHelper,
+  resolvePredictionInputAction as resolvePredictionInputActionHelper,
+} from "./SuggestionEntryPredictionContext";
+import {
+  clearAcceptedSuggestionTransientState as clearAcceptedSuggestionTransientEntryState,
+  resolveAcceptedSuggestionSpaceState,
+  shouldDismissSuggestionsOnKeydown as shouldDismissSuggestionsOnKeydownHelper,
+  shouldInvalidatePendingExtensionEditOnKeydown as shouldInvalidatePendingExtensionEditOnKeydownHelper,
+  shouldReleaseAcceptedSuggestionSuppressionOnKeydown as shouldReleaseAcceptedSuggestionSuppressionOnKeydownHelper,
+  syncAcceptedSuggestionTrailingSpaceState as syncAcceptedSuggestionTrailingSpaceStateHelper,
+} from "./SuggestionAcceptedState";
 import { TextTargetAdapter, type TextTarget } from "./TextTargetAdapter";
 import { buildCaretTrace, clipTraceText, collapseTraceWhitespace } from "./traceUtils";
 import type {
@@ -1257,44 +1268,23 @@ export class SuggestionEntrySession {
           : null,
       activeBlockTrace: this.buildActiveBlockTrace(),
     });
-    const trailingCharAfterAccept = this.resolveTrailingCharAfterAcceptedSuggestion(
+    const acceptedSpaceState = resolveAcceptedSuggestionSpaceState({
+      entry: this.entry,
+      insertSpaceAfterAutocomplete: this.insertSpaceAfterAutocomplete,
+      insertedText,
       cursorAfter,
       cursorAfterIsBlockLocal,
-    );
-    const shouldExpectTrailingSpace =
-      this.insertSpaceAfterAutocomplete &&
-      !/[ \xA0]$/.test(insertedText) &&
-      !/[ \xA0]/.test(trailingCharAfterAccept);
-    this.entry.missingTrailingSpace = shouldExpectTrailingSpace;
-    this.entry.expectedCursorPos = shouldExpectTrailingSpace ? cursorAfter : 0;
-    this.entry.expectedCursorPosIsBlockLocal = shouldExpectTrailingSpace && cursorAfterIsBlockLocal;
-    this.entry.expectedCursorPosBlockElement =
-      shouldExpectTrailingSpace && cursorAfterIsBlockLocal
-        ? (this.entry.pendingExtensionEdit?.blockElement ?? null)
-        : null;
-    this.entry.expectedCursorPosBlockText =
-      shouldExpectTrailingSpace && cursorAfterIsBlockLocal
-        ? (this.entry.pendingExtensionEdit?.postEditBlockText ?? null)
-        : null;
+    });
+    this.entry.missingTrailingSpace = acceptedSpaceState.missingTrailingSpace;
+    this.entry.expectedCursorPos = acceptedSpaceState.expectedCursorPos;
+    this.entry.expectedCursorPosIsBlockLocal = acceptedSpaceState.expectedCursorPosIsBlockLocal;
+    this.entry.expectedCursorPosBlockElement = acceptedSpaceState.expectedCursorPosBlockElement;
+    this.entry.expectedCursorPosBlockText = acceptedSpaceState.expectedCursorPosBlockText;
     this.recordSuggestionAccepted({
       triggerText,
       insertedText,
       language: this.getLang(),
     });
-  }
-
-  private resolveTrailingCharAfterAcceptedSuggestion(
-    cursorAfter: number,
-    cursorAfterIsBlockLocal: boolean,
-  ): string {
-    const pendingEdit = this.entry.pendingExtensionEdit;
-    if (!pendingEdit) {
-      return "";
-    }
-    if (cursorAfterIsBlockLocal && pendingEdit.blockScoped) {
-      return (pendingEdit.postEditBlockText ?? "").charAt(cursorAfter);
-    }
-    return pendingEdit.postEditFingerprint.fullText.charAt(cursorAfter);
   }
 
   private clearPendingExtensionEdit(): void {
@@ -1303,54 +1293,24 @@ export class SuggestionEntrySession {
 
   private clearAcceptedSuggestionTransientState(): void {
     this.lastAcceptedSuggestion = null;
-    this.clearPendingExtensionEdit();
-    this.entry.missingTrailingSpace = false;
-    this.entry.expectedCursorPos = 0;
-    this.entry.expectedCursorPosIsBlockLocal = false;
-    this.entry.expectedCursorPosBlockElement = null;
-    this.entry.expectedCursorPosBlockText = null;
+    clearAcceptedSuggestionTransientEntryState(this.entry);
   }
 
   private shouldInvalidatePendingExtensionEditOnKeydown(event: KeyboardEvent): boolean {
-    if (isNativeUndoChord(event)) {
-      return false;
-    }
-    if (
-      [
-        "ArrowLeft",
-        "ArrowRight",
-        "ArrowUp",
-        "ArrowDown",
-        "Home",
-        "End",
-        "PageUp",
-        "PageDown",
-      ].includes(event.key)
-    ) {
-      return true;
-    }
-    return (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "a";
+    return shouldInvalidatePendingExtensionEditOnKeydownHelper(event);
   }
 
   private shouldDismissSuggestionsOnKeydown(event: KeyboardEvent): boolean {
-    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "a") {
-      return true;
-    }
-    return ["ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"].includes(event.key);
+    return shouldDismissSuggestionsOnKeydownHelper(event);
   }
 
   private shouldReleaseAcceptedSuggestionSuppressionOnKeydown(event: KeyboardEvent): boolean {
-    if (
-      !this.entry.suppressNextSuggestionInputPrediction ||
-      !this.entry.missingTrailingSpace ||
-      this.entry.pendingExtensionEdit?.awaitingHostInputEcho === true
-    ) {
-      return false;
-    }
-    if (event.metaKey || event.ctrlKey || event.altKey || event.isComposing) {
-      return false;
-    }
-    return event.key.length === 1 && /^\s$/u.test(event.key);
+    return shouldReleaseAcceptedSuggestionSuppressionOnKeydownHelper({
+      event,
+      suppressNextSuggestionInputPrediction: this.entry.suppressNextSuggestionInputPrediction,
+      missingTrailingSpace: this.entry.missingTrailingSpace,
+      awaitingHostInputEcho: this.entry.pendingExtensionEdit?.awaitingHostInputEcho === true,
+    });
   }
 
   private shouldScheduleInsertFallback(event: KeyboardEvent): boolean {
@@ -1389,27 +1349,10 @@ export class SuggestionEntrySession {
   }
 
   private resolveInputAction(event: Event, currentBeforeCursor: string): PredictionInputAction {
-    const inputEvent = event as Event & { inputType?: unknown };
-    const inputType = typeof inputEvent.inputType === "string" ? inputEvent.inputType : "";
-    if (inputType.startsWith("delete")) {
-      return "delete";
-    }
-    if (inputType.startsWith("insert")) {
-      return "insert";
-    }
-    if (this.entry.lastKeydownKey === "Backspace" || this.entry.lastKeydownKey === "Delete") {
-      return "delete";
-    }
-    const previousBeforeCursor = this.entry.lastBeforeCursorText;
-    if (typeof previousBeforeCursor === "string") {
-      if (currentBeforeCursor.length < previousBeforeCursor.length) {
-        return "delete";
-      }
-      if (currentBeforeCursor.length > previousBeforeCursor.length) {
-        return "insert";
-      }
-    }
-    return "other";
+    return resolvePredictionInputActionHelper(event, currentBeforeCursor, {
+      lastKeydownKey: this.entry.lastKeydownKey,
+      lastBeforeCursorText: this.entry.lastBeforeCursorText,
+    });
   }
 
   private resolveLocalGrammarTriggers(
@@ -1496,28 +1439,7 @@ export class SuggestionEntrySession {
   }
 
   private syncAcceptedSuggestionTrailingSpaceState(): void {
-    if (!this.entry.missingTrailingSpace || !this.entry.expectedCursorPosIsBlockLocal) {
-      return;
-    }
-    if (TextTargetAdapter.isTextValue(this.entry.elem)) {
-      return;
-    }
-    const activeBlock = this.contentEditableAdapter.getActiveBlockElement(
-      this.entry.elem as HTMLElement,
-    );
-    const blockContext = this.contentEditableAdapter.getBlockContext(
-      this.entry.elem as HTMLElement,
-    );
-    if (
-      !activeBlock ||
-      !blockContext ||
-      activeBlock !== this.entry.expectedCursorPosBlockElement ||
-      `${blockContext.beforeCursor}${blockContext.afterCursor}` !==
-        (this.entry.expectedCursorPosBlockText ?? "") ||
-      blockContext.beforeCursor.length !== this.entry.expectedCursorPos
-    ) {
-      this.clearAcceptedSuggestionTransientState();
-    }
+    syncAcceptedSuggestionTrailingSpaceStateHelper(this.entry, this.contentEditableAdapter);
   }
 
   private shouldDeferContentEditableInputToFallback(context: {
@@ -1564,183 +1486,16 @@ export class SuggestionEntrySession {
     applyContext: { beforeCursor: string; afterCursor: string; useFullTextOffsets: boolean } | null;
     safeForGrammar: boolean;
   } {
-    if (TextTargetAdapter.isTextValue(entry.elem)) {
-      const resolvedSnapshot = snapshot ?? TextTargetAdapter.snapshot(entry.elem as TextTarget);
-      return {
-        beforeCursor: resolvedSnapshot.beforeCursor,
-        afterCursor: resolvedSnapshot.afterCursor,
-        snapshot: resolvedSnapshot,
-        applyContext: null,
-        safeForGrammar: true,
-      };
-    }
-    let blockContext = this.contentEditableAdapter.getBlockContext(entry.elem);
-    if (!blockContext) {
-      blockContext = this.contentEditableAdapter.getBlockContextBySelection(entry.elem);
-    }
-    if (!blockContext) {
-      return {
-        beforeCursor: "",
-        afterCursor: "",
-        snapshot:
-          snapshot ??
-          ({ beforeCursor: "", afterCursor: "", cursorOffset: 0 } satisfies SuggestionSnapshot),
-        applyContext: {
-          beforeCursor: snapshot?.beforeCursor ?? "",
-          afterCursor: snapshot?.afterCursor ?? "",
-          useFullTextOffsets: true,
-        },
-        safeForGrammar: false,
-      };
-    }
-    const beforeBlockBoundary = this.contentEditableAdapter.isCollapsedSelectionBeforeBlockBoundary(
-      entry.elem,
-    );
     const resolvedHasMultipleBlockDescendants =
       hasMultipleBlockDescendants ?? this.resolveHasMultipleBlockDescendants();
-    const useFullTextOffsets =
-      blockContext.beforeCursor.length === 0 &&
-      blockContext.afterCursor.length === 0 &&
-      beforeBlockBoundary;
-    if (useFullTextOffsets) {
-      const previousBlockFallback = resolvedHasMultipleBlockDescendants
-        ? this.contentEditableAdapter.getPreviousBlockTextBySelection(entry.elem)
-        : null;
-      return {
-        beforeCursor: previousBlockFallback ?? "",
-        afterCursor: "",
-        snapshot:
-          snapshot ??
-          ({ beforeCursor: "", afterCursor: "", cursorOffset: 0 } satisfies SuggestionSnapshot),
-        applyContext: {
-          beforeCursor: snapshot?.beforeCursor ?? "",
-          afterCursor: snapshot?.afterCursor ?? "",
-          useFullTextOffsets: true,
-        },
-        safeForGrammar: false,
-      };
-    }
-    const rawAfterCursor = blockContext.afterCursor;
-    const resolvedAfterCursor = beforeBlockBoundary ? "" : rawAfterCursor;
-    const resolvedSnapshot =
-      snapshot ??
-      ({
-        beforeCursor: blockContext.beforeCursor,
-        afterCursor: resolvedAfterCursor,
-        cursorOffset: blockContext.beforeCursor.length,
-      } satisfies SuggestionSnapshot);
-    const resolvedLeadingChar = rawAfterCursor.charAt(0);
-    const snapshotLeadingChar = resolvedSnapshot.afterCursor.charAt(0);
-    const typedKeyIsLower =
-      typeof typedKey === "string" &&
-      typedKey.length === 1 &&
-      typedKey !== typedKey.toLocaleUpperCase() &&
-      typedKey === typedKey.toLocaleLowerCase();
-    const exactKeyMatch = resolvedLeadingChar === typedKey && snapshotLeadingChar === typedKey;
-    const capitalizedKeyMatch =
-      typedKeyIsLower &&
-      resolvedLeadingChar === typedKey.toLocaleUpperCase() &&
-      snapshotLeadingChar === typedKey.toLocaleUpperCase();
-    const shouldSeedTypedKey =
-      inputAction !== "delete" &&
-      blockContext.beforeCursor.length === 0 &&
-      typeof typedKey === "string" &&
-      typedKey.length === 1 &&
-      typedKey.trim().length > 0 &&
-      resolvedLeadingChar.length === 1 &&
-      snapshotLeadingChar.length === 1 &&
-      (exactKeyMatch || capitalizedKeyMatch);
-    if (shouldSeedTypedKey) {
-      return {
-        beforeCursor: resolvedLeadingChar,
-        afterCursor: rawAfterCursor.slice(resolvedLeadingChar.length),
-        snapshot: {
-          beforeCursor: `${resolvedSnapshot.beforeCursor}${resolvedLeadingChar}`,
-          afterCursor: resolvedSnapshot.afterCursor.slice(snapshotLeadingChar.length),
-          cursorOffset: resolvedSnapshot.cursorOffset + resolvedLeadingChar.length,
-        },
-        applyContext: {
-          beforeCursor: resolvedLeadingChar,
-          afterCursor: rawAfterCursor.slice(resolvedLeadingChar.length),
-          useFullTextOffsets: false,
-        },
-        safeForGrammar: true,
-      };
-    }
-    const pendingEdit = entry.pendingExtensionEdit;
-    const shouldSeedPendingGrammarEdit =
-      inputAction !== "delete" &&
-      typeof typedKey !== "string" &&
-      pendingEdit?.source === "grammar" &&
-      blockContext.beforeCursor.length === 0 &&
-      pendingEdit.replaceStart === resolvedSnapshot.beforeCursor.length &&
-      pendingEdit.replacementText.length > 0 &&
-      resolvedAfterCursor.startsWith(pendingEdit.replacementText) &&
-      resolvedSnapshot.afterCursor.startsWith(pendingEdit.replacementText);
-    const shouldSeedPendingGrammarEditFromMergedSnapshot =
-      inputAction !== "delete" &&
-      pendingEdit?.source === "grammar" &&
-      pendingEdit.replacementText.length > 0 &&
-      beforeBlockBoundary &&
-      blockContext.beforeCursor === resolvedSnapshot.beforeCursor &&
-      resolvedSnapshot.beforeCursor.endsWith(pendingEdit.replacementText);
-    if (shouldSeedPendingGrammarEdit || shouldSeedPendingGrammarEditFromMergedSnapshot) {
-      return {
-        beforeCursor: pendingEdit.replacementText,
-        afterCursor: rawAfterCursor.startsWith(pendingEdit.replacementText)
-          ? rawAfterCursor.slice(pendingEdit.replacementText.length)
-          : rawAfterCursor.length > 0
-            ? rawAfterCursor
-            : resolvedAfterCursor,
-        snapshot: {
-          beforeCursor: `${resolvedSnapshot.beforeCursor}${pendingEdit.replacementText}`,
-          afterCursor: resolvedSnapshot.afterCursor.slice(pendingEdit.replacementText.length),
-          cursorOffset: resolvedSnapshot.cursorOffset + pendingEdit.replacementText.length,
-        },
-        applyContext: {
-          beforeCursor: pendingEdit.replacementText,
-          afterCursor: rawAfterCursor.slice(pendingEdit.replacementText.length),
-          useFullTextOffsets: false,
-        },
-        safeForGrammar: true,
-      };
-    }
-    const typedKeyLooksMergedIntoPreviousBlock =
-      inputAction !== "delete" &&
-      resolvedHasMultipleBlockDescendants &&
-      beforeBlockBoundary &&
-      typeof typedKey === "string" &&
-      typedKey.length === 1 &&
-      blockContext.beforeCursor === resolvedSnapshot.beforeCursor &&
-      (resolvedSnapshot.beforeCursor.endsWith(typedKey) ||
-        resolvedSnapshot.beforeCursor.endsWith(typedKey.toLocaleUpperCase()));
-    if (typedKeyLooksMergedIntoPreviousBlock) {
-      const trailingChar = resolvedSnapshot.beforeCursor.charAt(
-        resolvedSnapshot.beforeCursor.length - 1,
-      );
-      return {
-        beforeCursor: trailingChar,
-        afterCursor: "",
-        snapshot: resolvedSnapshot,
-        applyContext: {
-          beforeCursor: trailingChar,
-          afterCursor: "",
-          useFullTextOffsets: false,
-        },
-        safeForGrammar: false,
-      };
-    }
-    return {
-      beforeCursor: blockContext.beforeCursor,
-      afterCursor: resolvedAfterCursor,
-      snapshot: resolvedSnapshot,
-      applyContext: {
-        beforeCursor: blockContext.beforeCursor,
-        afterCursor: resolvedAfterCursor,
-        useFullTextOffsets: false,
-      },
-      safeForGrammar: true,
-    };
+    return resolveEditableCursorContextHelper({
+      entry,
+      snapshot,
+      contentEditableAdapter: this.contentEditableAdapter,
+      hasMultipleBlockDescendants: resolvedHasMultipleBlockDescendants,
+      inputAction,
+      typedKey,
+    });
   }
 
   private scheduleIdleGrammar(): void {

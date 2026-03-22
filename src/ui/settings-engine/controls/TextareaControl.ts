@@ -1,24 +1,22 @@
 import type { TextareaConfig } from "../types.js";
 import type { Store } from "@core/application/storage/Store.js";
-import { BaseControl } from "./FieldControl.js";
+import {
+  BaseControl,
+  appendLabel,
+  createControlContainer,
+  createFieldRoot,
+  dispatchControlEvent,
+} from "./FieldControl.js";
 
 export class TextareaControl extends BaseControl<string> {
   constructor(params: TextareaConfig, store: Store) {
     super(params, store);
 
-    const root = document.createElement("div");
-    root.className = "field";
+    const root = createFieldRoot();
     this._rootElement = root;
 
-    const control = document.createElement("div");
-    control.className = "control";
-
-    if (params.label) {
-      const label = document.createElement("label");
-      label.className = "label";
-      label.innerHTML = params.label;
-      control.appendChild(label);
-    }
+    const control = createControlContainer();
+    appendLabel(control, params.label);
 
     const textarea = document.createElement("textarea");
     textarea.className = "textarea";
@@ -48,7 +46,7 @@ export class TextareaControl extends BaseControl<string> {
   set(value: string, silent?: boolean): this {
     (this._element as HTMLTextAreaElement).value = String(value ?? "");
     if (!silent) {
-      this._element.dispatchEvent(new Event("change"));
+      dispatchControlEvent(this._element, "change");
     }
     return this;
   }

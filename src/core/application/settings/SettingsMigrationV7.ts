@@ -4,13 +4,8 @@ import {
   KEY_SUGGESTION_THEME_V1_MIGRATED,
 } from "@core/domain/constants";
 import { DEFAULT_SUGGESTION_THEME_SETTINGS } from "@core/domain/themeDefaults";
-import type { JsonValue } from "../settingsManager";
 import type { SettingsManager } from "../settingsManager";
-
-type RawSettingsAccess = {
-  getRaw?: (key: string) => Promise<unknown>;
-  setRaw?: (key: string, value: JsonValue) => Promise<void>;
-};
+import { readRawSetting, writeRawSetting } from "./settingsAccess";
 
 const LEGACY_LIGHT_HIGHLIGHT_DEFAULTS = [
   {
@@ -26,23 +21,6 @@ const LEGACY_LIGHT_HIGHLIGHT_DEFAULTS = [
     text: "#ffffff",
   },
 ] as const;
-
-async function readRaw(settings: SettingsManager, key: string): Promise<unknown> {
-  const maybeRawSettings = settings as unknown as RawSettingsAccess;
-  if (typeof maybeRawSettings.getRaw === "function") {
-    return maybeRawSettings.getRaw(key);
-  }
-  return settings.get(key);
-}
-
-async function writeRaw(settings: SettingsManager, key: string, value: JsonValue): Promise<void> {
-  const maybeRawSettings = settings as unknown as RawSettingsAccess;
-  if (typeof maybeRawSettings.setRaw === "function") {
-    await maybeRawSettings.setRaw(key, value);
-    return;
-  }
-  await settings.set(key, value);
-}
 
 function normalizeString(value: unknown): string | null {
   return typeof value === "string" ? value.trim().toLowerCase() : null;
@@ -64,30 +42,30 @@ function matchesAnyLegacyLightDefault(background: unknown, text: unknown): boole
 
 export async function migrateSettingsV7(settings: SettingsManager): Promise<void> {
   try {
-    const migrated = await readRaw(settings, KEY_SUGGESTION_THEME_V1_MIGRATED);
+    const migrated = await readRawSetting(settings, KEY_SUGGESTION_THEME_V1_MIGRATED);
     if (migrated === true) {
       return;
     }
 
     const [highlightBgLight, highlightTextLight] = await Promise.all([
-      readRaw(settings, KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT),
-      readRaw(settings, KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT),
+      readRawSetting(settings, KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT),
+      readRawSetting(settings, KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT),
     ]);
 
     if (matchesAnyLegacyLightDefault(highlightBgLight, highlightTextLight)) {
-      await writeRaw(
+      await writeRawSetting(
         settings,
         KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT,
-        DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionHighlightBgLight as JsonValue,
+        DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionHighlightBgLight as never,
       );
-      await writeRaw(
+      await writeRawSetting(
         settings,
         KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT,
-        DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionHighlightTextLight as JsonValue,
+        DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionHighlightTextLight as never,
       );
     }
 
-    await writeRaw(settings, KEY_SUGGESTION_THEME_V1_MIGRATED, true as JsonValue);
+    await writeRawSetting(settings, KEY_SUGGESTION_THEME_V1_MIGRATED, true as never);
   } catch (error) {
     console.warn("[SettingsMigrationV7] Failed to migrate settings:", error);
   }

@@ -29,6 +29,7 @@ export class DonationPromptPolicy {
       return null;
     }
 
+    // Weekly recap cards reuse the same donation surface, so they take priority.
     if (shouldShowWeeklyRecapCard) {
       return {
         promptId: `weekly_recap_${weeklyRecap.weekKey}`,
@@ -57,6 +58,7 @@ export class DonationPromptPolicy {
       (lifetime.acceptedSuggestions >= DONATION_FIRST_VALUE_ACCEPTS ||
         lifetime.estimatedMinutesSaved >= DONATION_FIRST_VALUE_MINUTES)
     ) {
+      // The first-value ask appears once the user has clearly seen the product save time.
       return {
         promptId: "first_value",
         kind: "first_value",

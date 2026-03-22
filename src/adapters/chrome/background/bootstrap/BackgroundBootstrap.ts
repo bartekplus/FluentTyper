@@ -7,9 +7,9 @@ import { MessageRouter } from "../router/MessageRouter";
 import { registerRuntimeTestHooks } from "@adapters/chrome/background/testing/RuntimeTestHooks";
 
 export class BackgroundBootstrap {
-  private readonly getWorker = (): BackgroundServiceWorker => new BackgroundServiceWorker();
-  private readonly commandRouter = new CommandRouter(this.getWorker);
-  private readonly messageRouter = new MessageRouter(this.getWorker);
+  private readonly worker = new BackgroundServiceWorker();
+  private readonly commandRouter = new CommandRouter(() => this.worker);
+  private readonly messageRouter = new MessageRouter(() => this.worker);
 
   register(): void {
     chrome.runtime.onInstalled.addListener(this.onInstalled.bind(this));
@@ -43,10 +43,20 @@ export class BackgroundBootstrap {
   }
 
   private loadLastVersionAndInitialize(): void {
-    const initializeFromLastVersion = (result: { lastVersion?: unknown }): Promise<void> => {
-      const lastVersion = result?.lastVersion as string | undefined;
-      return this.getWorker().initialize(lastVersion);
+    const initializeFromLastVersion = async ({
+      lastVersion,
+    }: {
+      lastVersion?: unknown;
+    }): Promise<void> => {
+      try {
+        await this.worker.initialize(typeof lastVersion === "string" ? lastVersion : undefined);
+      } catch (error) {
+        logError("lastVersion handler", error);
+      }
     };
+
+    // Keep listener registration synchronous, but still await startup work once the
+    // persisted version is available so migration/config initialization stays ordered.
     chrome.storage.local.get(
       "lastVersion",
       initializeFromLastVersion as unknown as (items: { [key: string]: unknown }) => void,

@@ -346,31 +346,28 @@ const V1_RECOMMENDED_RULES: CatalogRuleId[] = [
   "neutralPunctuationPolicy",
 ];
 
-// This is the pre-v3 recommended set (current users migrated by V5).
-const V2_RECOMMENDED_RULES: CatalogRuleId[] = [
-  "capitalizeSentenceStart",
-  "capitalizeAfterLineBreak",
+const V2_RECOMMENDED_MIDDLE_RULES: CatalogRuleId[] = [
   "englishPronounICapitalization",
   "englishContractionNormalization",
   "englishTypoWhitelistCorrection",
-  "technicalTokenCompaction",
-  "mathOperatorSpacing",
-  "slashContextSpacing",
-  "openingBracketSpacing",
-  "closingBracketSpacing",
-  "commaPeriodSpacing",
-  "collapseRepeatedSpaces",
-  "trimSpaceBeforeLineBreak",
-  "neutralPunctuationPolicy",
 ];
 
-export const DEFAULT_V1_GRAMMAR_RULES: CatalogRuleId[] = V1_RECOMMENDED_RULES.slice();
+// This is the pre-v3 recommended set (current users migrated by V5).
+const V2_RECOMMENDED_RULES: CatalogRuleId[] = [
+  ...V1_RECOMMENDED_RULES.slice(0, 2),
+  ...V2_RECOMMENDED_MIDDLE_RULES,
+  ...V1_RECOMMENDED_RULES.slice(2),
+];
 
-export const RECOMMENDED_V1_GRAMMAR_RULES: CatalogRuleId[] = V1_RECOMMENDED_RULES.slice();
+const copyRuleIds = (ruleIds: readonly CatalogRuleId[]): CatalogRuleId[] => [...ruleIds];
 
-export const DEFAULT_V2_GRAMMAR_RULES: CatalogRuleId[] = V2_RECOMMENDED_RULES.slice();
+export const DEFAULT_V1_GRAMMAR_RULES: CatalogRuleId[] = copyRuleIds(V1_RECOMMENDED_RULES);
 
-export const RECOMMENDED_V2_GRAMMAR_RULES: CatalogRuleId[] = V2_RECOMMENDED_RULES.slice();
+export const RECOMMENDED_V1_GRAMMAR_RULES: CatalogRuleId[] = copyRuleIds(V1_RECOMMENDED_RULES);
+
+export const DEFAULT_V2_GRAMMAR_RULES: CatalogRuleId[] = copyRuleIds(V2_RECOMMENDED_RULES);
+
+export const RECOMMENDED_V2_GRAMMAR_RULES: CatalogRuleId[] = copyRuleIds(V2_RECOMMENDED_RULES);
 
 export const DEFAULT_V3_GRAMMAR_RULES: CatalogRuleId[] = GRAMMAR_RULE_CATALOG.filter(
   (entry) => entry.defaultRollout === "on",

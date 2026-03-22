@@ -5,21 +5,15 @@ import {
   Spacing,
   type SpacingRule as SpacingPolicy,
 } from "../../spacingRules";
+import { SpacingRuleShared } from "./helpers/SpacingRuleShared";
 
-export class SpacingRule implements GrammarRule {
+export class SpacingRule extends SpacingRuleShared implements GrammarRule {
   readonly id = "spacingRule";
   readonly name = "Spacing Rule";
   readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
-  private static readonly CODE_CUE_CHARS = new Set("=([{:+-*/%&|!<>?,".split(""));
-  private static readonly MATH_OPERATORS = new Set(["=", "+", "*"]);
-  private static readonly OPENING_BRACKETS = new Set(["(", "[", "{"]);
-  private static readonly CLOSING_BRACKETS = new Set([")", "]", "}"]);
-  private static readonly CONTROL_KEYWORDS = new Set(["if", "for", "while", "switch", "catch"]);
-
-  private insertSpaceAfterAutocomplete: boolean;
 
   constructor(insertSpaceAfterAutocomplete: boolean = true) {
-    this.insertSpaceAfterAutocomplete = insertSpaceAfterAutocomplete;
+    super(insertSpaceAfterAutocomplete);
   }
 
   apply(context: GrammarContext): GrammarEdit | null {
@@ -40,71 +34,54 @@ export class SpacingRule implements GrammarRule {
 
     const length = inputStr.length;
     const lastChar = inputStr[length - 1];
-    const lastCharMin1 = inputStr[length - 2];
-    const lastCharMin2 = inputStr[length - 3];
+    const previousChar = inputStr[length - 2];
+    const charBeforePrevious = inputStr[length - 3];
 
-    if (!lastCharMin1) {
+    if (!previousChar || !SPACING_RULES[lastChar]) {
       return null;
     }
-    if (!SPACING_RULES[lastChar]) {
-      return null;
-    }
+
     const effectivePolicy = this.resolveEffectiveSpacingRule(inputStr, lastChar, length - 1);
-    if (!effectivePolicy) {
-      return null;
-    }
-    if (SPACE_CHARS.includes(lastCharMin2)) {
+    if (
+      !effectivePolicy ||
+      (charBeforePrevious !== undefined && SPACE_CHARS.includes(charBeforePrevious))
+    ) {
       return null;
     }
 
     const requiresSpaceBefore = effectivePolicy.spaceBefore === Spacing.INSERT_SPACE;
     const requiresNoSpaceBefore = effectivePolicy.spaceBefore === Spacing.REMOVE_SPACE;
-    const hasSpaceBefore = SPACE_CHARS.includes(lastCharMin1);
-
+    const hasSpaceBefore = SPACE_CHARS.includes(previousChar);
     const insertSpaceAfter =
       this.insertSpaceAfterAutocomplete && effectivePolicy.spaceAfter === Spacing.INSERT_SPACE;
-
     const spaceBeforeViolated =
       (requiresSpaceBefore && !hasSpaceBefore) || (requiresNoSpaceBefore && hasSpaceBefore);
-    const inputAction = this.resolveInputAction(context);
 
-    // Respect explicit user deletion of the auto-inserted trailing space.
-    if (inputAction === "delete" && !spaceBeforeViolated && insertSpaceAfter) {
+    if (this.resolveInputAction(context) === "delete" && !spaceBeforeViolated && insertSpaceAfter) {
       return null;
     }
-
     if (!spaceBeforeViolated && !insertSpaceAfter) {
       return null;
     }
 
-    let deleteBackwards: number;
-    let replacement: string;
-
     if (spaceBeforeViolated) {
-      deleteBackwards = hasSpaceBefore ? 2 : 1;
-      const idealPrefix = requiresSpaceBefore ? "\xA0" : "";
-      const idealSuffix = insertSpaceAfter ? "\xA0" : "";
-      replacement = `${idealPrefix}${lastChar}${idealSuffix}`;
-    } else {
-      deleteBackwards = 1;
-      replacement = `${lastChar}\xA0`;
+      const replacement = `${requiresSpaceBefore ? "\xA0" : ""}${lastChar}${insertSpaceAfter ? "\xA0" : ""}`;
+      return {
+        replacement,
+        deleteBackwards: hasSpaceBefore ? 2 : 1,
+        deleteForwards: 0,
+        confidence: "high",
+        description: "Applied standard spacing rules for punctuation",
+      };
     }
 
     return {
-      replacement,
-      deleteBackwards,
+      replacement: `${lastChar}\xA0`,
+      deleteBackwards: 1,
       deleteForwards: 0,
       confidence: "high",
       description: "Applied standard spacing rules for punctuation",
     };
-  }
-
-  private resolveInputAction(context: GrammarContext): "insert" | "delete" | "other" | null {
-    const candidate = context.hints?.inputAction;
-    if (candidate === "insert" || candidate === "delete" || candidate === "other") {
-      return candidate;
-    }
-    return null;
   }
 
   private applyTechnicalCompaction(inputStr: string): GrammarEdit | null {
@@ -164,7 +141,7 @@ export class SpacingRule implements GrammarRule {
     const rightChar = inputStr[rightIndex];
     const operatorIndex = rightIndex - 1;
     const operatorChar = inputStr[operatorIndex];
-    if (!SpacingRule.MATH_OPERATORS.has(operatorChar)) {
+    if (!SpacingRuleShared.MATH_OPERATORS.has(operatorChar)) {
       return null;
     }
 
@@ -181,150 +158,13 @@ export class SpacingRule implements GrammarRule {
       return null;
     }
 
-    const replacement = `${leftOperand.text}\xA0${operatorChar}\xA0${rightChar}`;
     return {
-      replacement,
+      replacement: `${leftOperand.text}\xA0${operatorChar}\xA0${rightChar}`,
       deleteBackwards: inputStr.length - leftOperand.start,
       deleteForwards: 0,
       confidence: "high",
       description: "Applied context-aware math operator spacing",
     };
-  }
-
-  private readLeftOperand(
-    inputStr: string,
-    operatorIndex: number,
-  ): { start: number; text: string; kind: "identifier" | "number" | "closingBracket" } | null {
-    const leftIndex = this.findPreviousSignificantIndex(inputStr, operatorIndex - 1);
-    if (leftIndex === null) {
-      return null;
-    }
-
-    const leftChar = inputStr[leftIndex];
-    if (SpacingRule.CLOSING_BRACKETS.has(leftChar)) {
-      return { start: leftIndex, text: leftChar, kind: "closingBracket" };
-    }
-
-    if (this.isDigit(leftChar)) {
-      const numericBounds = this.readNumericTokenBoundsAt(inputStr, leftIndex);
-      if (!numericBounds) {
-        return null;
-      }
-      return {
-        start: numericBounds.start,
-        text: inputStr.slice(numericBounds.start, numericBounds.end + 1),
-        kind: "number",
-      };
-    }
-
-    const tokenBounds = this.readIdentifierTokenBoundsAt(inputStr, leftIndex);
-    if (!tokenBounds) {
-      return null;
-    }
-
-    return {
-      start: tokenBounds.start,
-      text: inputStr.slice(tokenBounds.start, tokenBounds.end + 1),
-      kind: "identifier",
-    };
-  }
-
-  private isEqualsRightOperandLike(ch: string | undefined): boolean {
-    if (!ch) {
-      return false;
-    }
-    if (this.isIdentifierStartChar(ch) || this.isDigit(ch)) {
-      return true;
-    }
-    if (["'", '"', "`"].includes(ch)) {
-      return true;
-    }
-    return SpacingRule.OPENING_BRACKETS.has(ch);
-  }
-
-  private isArithmeticOperatorContext(
-    operatorChar: string,
-    leftOperand: { text: string; kind: "identifier" | "number" | "closingBracket" },
-    rightChar: string,
-  ): boolean {
-    if (!["+", "*"].includes(operatorChar)) {
-      return false;
-    }
-
-    const leftNumeric = leftOperand.kind === "number";
-    const rightNumeric = this.isDigit(rightChar);
-    if (leftNumeric || rightNumeric) {
-      return true;
-    }
-
-    const leftSingleIdentifier = leftOperand.kind === "identifier" && leftOperand.text.length === 1;
-    const rightSingleIdentifier = this.isIdentifierStartChar(rightChar);
-    return leftSingleIdentifier && rightSingleIdentifier;
-  }
-
-  private readNumericTokenBoundsAt(
-    inputStr: string,
-    index: number,
-  ): { start: number; end: number } | null {
-    if (!this.isDigit(inputStr[index])) {
-      return null;
-    }
-
-    let start = index;
-    while (start > 0 && /[0-9.]/.test(inputStr[start - 1])) {
-      start -= 1;
-    }
-
-    let end = index;
-    while (end + 1 < inputStr.length && /[0-9.]/.test(inputStr[end + 1])) {
-      end += 1;
-    }
-
-    return { start, end };
-  }
-
-  private shouldCompactAccessor(inputStr: string, punctIndex: number): boolean {
-    const tokenEnd = punctIndex - 1;
-    let tokenStart = tokenEnd;
-
-    while (tokenStart >= 0 && this.isIdentifierChar(inputStr[tokenStart])) {
-      tokenStart -= 1;
-    }
-
-    tokenStart += 1;
-    if (tokenStart > tokenEnd) {
-      return false;
-    }
-
-    const previousSignificantIndex = this.findPreviousSignificantIndex(inputStr, tokenStart - 1);
-    if (previousSignificantIndex === null) {
-      const token = inputStr.slice(tokenStart, tokenEnd + 1);
-      return /\d/.test(token) || token.startsWith("$");
-    }
-
-    // Treat cue chars as code context only when tightly attached to the token
-    // before the dot (e.g. "obj.user. x"), not across sentence whitespace.
-    if (previousSignificantIndex !== tokenStart - 1) {
-      return false;
-    }
-
-    const previousSignificant = inputStr[previousSignificantIndex];
-    return previousSignificant === "." || SpacingRule.CODE_CUE_CHARS.has(previousSignificant);
-  }
-
-  private findPreviousSignificantChar(inputStr: string, startIndex: number): string | null {
-    const index = this.findPreviousSignificantIndex(inputStr, startIndex);
-    return index === null ? null : inputStr[index];
-  }
-
-  private findPreviousSignificantIndex(inputStr: string, startIndex: number): number | null {
-    for (let i = startIndex; i >= 0; i -= 1) {
-      const ch = inputStr[i];
-      if (!SPACE_CHARS.includes(ch)) {
-        return i;
-      }
-    }
-    return null;
   }
 
   private resolveEffectiveSpacingRule(
@@ -337,14 +177,12 @@ export class SpacingRule implements GrammarRule {
       return null;
     }
 
-    if (SpacingRule.OPENING_BRACKETS.has(lastChar)) {
+    if (SpacingRuleShared.OPENING_BRACKETS.has(lastChar)) {
       return this.resolveOpeningBracketRule(inputStr, lastChar, lastIndex, baseRule);
     }
-
-    if (SpacingRule.CLOSING_BRACKETS.has(lastChar)) {
+    if (SpacingRuleShared.CLOSING_BRACKETS.has(lastChar)) {
       return this.resolveClosingBracketRule(inputStr, lastChar, lastIndex);
     }
-
     if (lastChar === "/") {
       return this.resolveSlashRule(inputStr, lastIndex, baseRule);
     }
@@ -361,18 +199,15 @@ export class SpacingRule implements GrammarRule {
     if (openingBracket === "(" && this.isControlKeywordBeforeIndex(inputStr, openingIndex)) {
       return baseRule;
     }
-
     if (
       openingBracket === "{" &&
       this.findPreviousSignificantChar(inputStr, openingIndex - 1) === ")"
     ) {
       return baseRule;
     }
-
     if (this.isTightlyAttached(inputStr, openingIndex)) {
       return { ...baseRule, spaceBefore: Spacing.NO_CHANGE };
     }
-
     return baseRule;
   }
 
@@ -403,14 +238,12 @@ export class SpacingRule implements GrammarRule {
         spaceAfter: Spacing.NO_CHANGE,
       };
     }
-
     if (this.isSlashOperatorContext(inputStr, slashIndex)) {
       return {
         spaceBefore: Spacing.INSERT_SPACE,
         spaceAfter: Spacing.INSERT_SPACE,
       };
     }
-
     return baseRule;
   }
 
@@ -459,54 +292,6 @@ export class SpacingRule implements GrammarRule {
     return /[\p{L}\p{N}]/u.test(ch);
   }
 
-  private isTightlyAttached(inputStr: string, index: number): boolean {
-    if (index <= 0) {
-      return false;
-    }
-    return !SPACE_CHARS.includes(inputStr[index - 1]);
-  }
-
-  private isControlKeywordBeforeIndex(inputStr: string, index: number): boolean {
-    const previousIndex = this.findPreviousSignificantIndex(inputStr, index - 1);
-    if (previousIndex === null) {
-      return false;
-    }
-
-    const tokenBounds = this.readIdentifierTokenBoundsAt(inputStr, previousIndex);
-    if (!tokenBounds) {
-      return false;
-    }
-
-    const token = inputStr.slice(tokenBounds.start, tokenBounds.end + 1).toLowerCase();
-    if (!SpacingRule.CONTROL_KEYWORDS.has(token)) {
-      return false;
-    }
-
-    const charBeforeToken = tokenBounds.start > 0 ? inputStr[tokenBounds.start - 1] : undefined;
-    return !this.isIdentifierChar(charBeforeToken);
-  }
-
-  private readIdentifierTokenBoundsAt(
-    inputStr: string,
-    index: number,
-  ): { start: number; end: number } | null {
-    if (!this.isIdentifierChar(inputStr[index])) {
-      return null;
-    }
-
-    let start = index;
-    while (start > 0 && this.isIdentifierChar(inputStr[start - 1])) {
-      start -= 1;
-    }
-
-    let end = index;
-    while (end + 1 < inputStr.length && this.isIdentifierChar(inputStr[end + 1])) {
-      end += 1;
-    }
-
-    return { start, end };
-  }
-
   private isProseLikeClosingContext(
     inputStr: string,
     closingBracket: string,
@@ -550,55 +335,17 @@ export class SpacingRule implements GrammarRule {
     return false;
   }
 
-  private findMatchingOpeningIndex(
-    inputStr: string,
-    closingIndex: number,
-    openingBracket: string,
-    closingBracket: string,
-  ): number | null {
-    let depth = 0;
-    for (let i = closingIndex; i >= 0; i -= 1) {
-      const ch = inputStr[i];
-      if (ch === closingBracket) {
-        depth += 1;
-        continue;
-      }
-      if (ch === openingBracket) {
-        depth -= 1;
-        if (depth === 0) {
-          return i;
-        }
-      }
+  // Preserve the legacy spacing rule's narrower straight-quote heuristic.
+  protected override isEqualsRightOperandLike(ch: string | undefined): boolean {
+    if (!ch) {
+      return false;
     }
-    return null;
-  }
-
-  private getOpeningBracket(closingBracket: string): string | null {
-    switch (closingBracket) {
-      case ")":
-        return "(";
-      case "]":
-        return "[";
-      case "}":
-        return "{";
-      default:
-        return null;
+    if (this.isIdentifierStartChar(ch) || this.isDigit(ch)) {
+      return true;
     }
-  }
-
-  private isLikelyCodeContinuationChar(ch: string): boolean {
-    return this.isIdentifierChar(ch) || [")", "]", "}", ".", "'", '"', "`"].includes(ch);
-  }
-
-  private isDigit(ch: string | undefined): boolean {
-    return typeof ch === "string" && ch >= "0" && ch <= "9";
-  }
-
-  private isIdentifierChar(ch: string | undefined): boolean {
-    return typeof ch === "string" && /[A-Za-z0-9_$]/.test(ch);
-  }
-
-  private isIdentifierStartChar(ch: string | undefined): boolean {
-    return typeof ch === "string" && /[A-Za-z_$]/.test(ch);
+    if (["'", '"', "`"].includes(ch)) {
+      return true;
+    }
+    return SpacingRuleShared.OPENING_BRACKETS.has(ch);
   }
 }

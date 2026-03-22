@@ -1,7 +1,14 @@
 import type { SelectConfig, OptionEntry } from "../types.js";
 import type { Store } from "@core/application/storage/Store.js";
 import type { SelectFieldControl } from "./FieldControl.js";
-import { BaseControl } from "./FieldControl.js";
+import {
+  BaseControl,
+  appendLabel,
+  createControlContainer,
+  createFieldRoot,
+  createOptionElement,
+  dispatchControlEvent,
+} from "./FieldControl.js";
 
 type RawOption = [string, string] | { value: string; text: string; group?: string };
 
@@ -29,19 +36,12 @@ export class SelectControl extends BaseControl<string> implements SelectFieldCon
   constructor(params: SelectConfig, store: Store) {
     super(params, store);
 
-    const root = document.createElement("div");
-    root.className = "field";
+    const root = createFieldRoot();
     this._rootElement = root;
 
-    if (params.label) {
-      const label = document.createElement("label");
-      label.className = "label";
-      label.innerHTML = params.label;
-      root.appendChild(label);
-    }
+    appendLabel(root, params.label);
 
-    const control = document.createElement("div");
-    control.className = "control";
+    const control = createControlContainer();
 
     const wrapper = document.createElement("div");
     wrapper.className = "select";
@@ -76,10 +76,7 @@ export class SelectControl extends BaseControl<string> implements SelectFieldCon
     if (Array.isArray(options)) {
       for (const opt of options as RawOption[]) {
         const { value, text } = normalizeOption(opt);
-        const el = document.createElement("option");
-        el.value = value;
-        el.text = text;
-        select.appendChild(el);
+        select.appendChild(createOptionElement(value, text));
       }
       return;
     }
@@ -98,9 +95,7 @@ export class SelectControl extends BaseControl<string> implements SelectFieldCon
     }
 
     for (const opt of optObj.values ?? []) {
-      const el = document.createElement("option");
-      el.value = opt.value;
-      el.text = opt.text ?? opt.value;
+      const el = createOptionElement(opt.value, opt.text ?? opt.value);
       if (opt.group && opt.group in groups) {
         groups[opt.group].appendChild(el);
       } else {
@@ -119,9 +114,7 @@ export class SelectControl extends BaseControl<string> implements SelectFieldCon
 
     for (const opt of options) {
       const { value, text } = normalizeOption(opt);
-      const el = document.createElement("option");
-      el.value = value;
-      el.text = text;
+      const el = createOptionElement(value, text);
       if (selectedValue !== undefined && value === selectedValue) {
         el.selected = true;
       }
@@ -136,7 +129,7 @@ export class SelectControl extends BaseControl<string> implements SelectFieldCon
   set(value: string, silent?: boolean): this {
     this.selectEl.value = String(value ?? "");
     if (!silent) {
-      this.selectEl.dispatchEvent(new Event("change"));
+      dispatchControlEvent(this.selectEl, "change");
     }
     return this;
   }

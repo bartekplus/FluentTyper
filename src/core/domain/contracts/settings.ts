@@ -170,6 +170,19 @@ const ALIASES_BY_CANONICAL: Record<string, string[]> = {
   [SETTINGS_KEYS.suggestionPaddingHorizontal]: ["tributePaddingHorizontal"],
 };
 
+const CANONICAL_BY_STORAGE_KEY: Record<string, string> = Object.entries(
+  ALIASES_BY_CANONICAL,
+).reduce(
+  (lookup, [canonical, aliases]) => {
+    lookup[canonical] = canonical;
+    for (const alias of aliases) {
+      lookup[alias] = canonical;
+    }
+    return lookup;
+  },
+  {} as Record<string, string>,
+);
+
 export function getSettingStorageKey(field: SettingField): string {
   return SETTINGS_KEYS[field];
 }
@@ -180,12 +193,7 @@ export function getSettingStorageAliases(field: SettingField): string[] {
 }
 
 export function resolveCanonicalSettingKey(key: string): string {
-  for (const [canonical, aliases] of Object.entries(ALIASES_BY_CANONICAL)) {
-    if (key === canonical || aliases.includes(key)) {
-      return canonical;
-    }
-  }
-  return key;
+  return CANONICAL_BY_STORAGE_KEY[key] || key;
 }
 
 export function getAliasesForCanonicalSettingKey(canonicalKey: string): string[] {

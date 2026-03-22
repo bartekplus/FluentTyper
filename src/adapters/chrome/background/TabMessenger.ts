@@ -1,4 +1,3 @@
-// Handles messaging to tabs/content scripts for FluentTyper
 import type { SettingsManager } from "@core/application/settingsManager";
 import { isEnabledForDomain } from "@core/application/domain-utils";
 import { checkLastError, promisifiedSendMessage } from "@core/application/transport-utils";
@@ -15,33 +14,34 @@ export class TabMessenger {
     });
   }
 
+  private async queryTabs(
+    queryInfo: chrome.tabs.QueryInfo,
+  ): Promise<chrome.tabs.Tab[] | undefined> {
+    try {
+      return await chrome.tabs.query(queryInfo);
+    } catch {
+      return undefined;
+    }
+  }
+
+  private getTabIdFromTabs(tabs: chrome.tabs.Tab[] | undefined): number | undefined {
+    const tabId = tabs?.[0]?.id;
+    return typeof tabId === "number" ? tabId : undefined;
+  }
+
   private async getActiveTabId(): Promise<number | undefined> {
     checkLastError();
-    try {
-      let tabs: chrome.tabs.Tab[] | undefined;
-      try {
-        tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-      } catch {
-        // Expected in Firefox during background shortcuts if no current window
-      }
-      const firstTabUrl = tabs?.[0]?.url ?? "";
-      const isExtensionPage =
-        firstTabUrl.startsWith("chrome-extension://") || firstTabUrl.startsWith("moz-extension://");
-      // If no tabs found, or if the current window is an internal extension page, fallback to lastFocusedWindow
-      if (!tabs || tabs.length === 0 || isExtensionPage) {
-        const fallbackTabs = await chrome.tabs.query({
-          active: true,
-          lastFocusedWindow: true,
-        });
-        if (fallbackTabs && fallbackTabs.length > 0) {
-          tabs = fallbackTabs;
-        }
-      }
-      if (tabs && tabs.length >= 1 && typeof tabs[0].id === "number") {
-        return tabs[0].id;
-      }
-    } catch (e) {
-      console.warn("Failed to query active tab:", e);
+    const tabs = await this.queryTabs({ active: true, currentWindow: true });
+    const firstTabUrl = tabs?.[0]?.url ?? "";
+    const isExtensionPage =
+      firstTabUrl.startsWith("chrome-extension://") || firstTabUrl.startsWith("moz-extension://");
+    const fallbackTabs =
+      !tabs || tabs.length === 0 || isExtensionPage
+        ? await this.queryTabs({ active: true, lastFocusedWindow: true })
+        : undefined;
+    const activeTabId = this.getTabIdFromTabs(fallbackTabs ?? tabs);
+    if (activeTabId !== undefined) {
+      return activeTabId;
     }
     return this.lastActiveTabId;
   }
@@ -104,34 +104,33 @@ export class TabMessenger {
   }
 
   async getLastActiveWebsiteTabContext(): Promise<{ tabId: number; hostname: string } | undefined> {
-    try {
-      const currentWindowTabs = await chrome.tabs.query({ active: true, currentWindow: true });
-      const currentContext = this.toWebsiteTabContext(currentWindowTabs[0]);
-      if (currentContext) {
-        return currentContext;
-      }
+    const currentWindowTabs = await this.queryTabs({ active: true, currentWindow: true });
+    const currentContext = this.toWebsiteTabContext(currentWindowTabs?.[0]);
+    if (currentContext) {
+      return currentContext;
+    }
 
-      const lastFocusedTabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-      const lastFocusedContext = this.toWebsiteTabContext(lastFocusedTabs[0]);
-      if (lastFocusedContext) {
-        return lastFocusedContext;
-      }
+    const lastFocusedTabs = await this.queryTabs({ active: true, lastFocusedWindow: true });
+    const lastFocusedContext = this.toWebsiteTabContext(lastFocusedTabs?.[0]);
+    if (lastFocusedContext) {
+      return lastFocusedContext;
+    }
 
-      const allTabs = await chrome.tabs.query({});
-      const recentWebsiteTab = [...allTabs]
-        .filter((tab) => this.isWebsiteUrl(tab.url))
-        .sort((left, right) => (right.lastAccessed || 0) - (left.lastAccessed || 0))[0];
-      const recentContext = this.toWebsiteTabContext(recentWebsiteTab);
-      if (recentContext) {
-        return recentContext;
-      }
+    const allTabs = await this.queryTabs({});
+    const recentWebsiteTab = [...(allTabs ?? [])]
+      .filter((tab) => this.isWebsiteUrl(tab.url))
+      .sort((left, right) => (right.lastAccessed || 0) - (left.lastAccessed || 0))[0];
+    const recentContext = this.toWebsiteTabContext(recentWebsiteTab);
+    if (recentContext) {
+      return recentContext;
+    }
 
-      if (typeof this.lastActiveTabId === "number") {
-        const tab = await chrome.tabs.get(this.lastActiveTabId);
-        return this.toWebsiteTabContext(tab);
+    if (typeof this.lastActiveTabId === "number") {
+      try {
+        return this.toWebsiteTabContext(await chrome.tabs.get(this.lastActiveTabId));
+      } catch {
+        return undefined;
       }
-    } catch {
-      return undefined;
     }
     return undefined;
   }

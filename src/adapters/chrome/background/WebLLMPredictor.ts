@@ -85,10 +85,7 @@ export class WebLLMPredictor implements SecondaryPredictor {
     this.enabled = nextEnabled;
     this.modelId = nextModelId;
 
-    if (modelChanged) {
-      this.resetEngine();
-    }
-    if (enabledChanged && !this.enabled) {
+    if (modelChanged || (enabledChanged && !this.enabled)) {
       this.resetEngine();
     }
   }
@@ -305,6 +302,17 @@ export class WebLLMPredictor implements SecondaryPredictor {
     return this.engineLifecycleService.ensureReady(this.enabled, this.modelId);
   }
 
+  private createEmptyPredictionPayload(): PredictionResponsePayload {
+    return {
+      predictions: [],
+      rawOutput: "",
+    };
+  }
+
+  private getMaxTokens(numSuggestions: number): number {
+    return Math.max(16, numSuggestions * 8);
+  }
+
   private resetEngine(): void {
     this.predictionCache.clear();
     this.generationCoordinator.advanceGenerationSeq();
@@ -319,7 +327,7 @@ export class WebLLMPredictor implements SecondaryPredictor {
   ): Promise<PredictionResponsePayload> {
     const engine = this.engineLifecycleService.getEngine();
     if (!engine) {
-      return { predictions: [], rawOutput: "" };
+      return this.createEmptyPredictionPayload();
     }
     const chatCompletion = (await engine.chat.completions.create({
       stream: false,
@@ -330,7 +338,7 @@ export class WebLLMPredictor implements SecondaryPredictor {
         modeContext,
       ),
       n: 1,
-      max_tokens: Math.max(16, request.numSuggestions * 8),
+      max_tokens: this.getMaxTokens(request.numSuggestions),
       temperature: 0.2,
       top_p: 0.95,
     })) as ChatCreateResponse;
@@ -347,7 +355,7 @@ export class WebLLMPredictor implements SecondaryPredictor {
   ): Promise<PredictionResponsePayload> {
     const engine = this.engineLifecycleService.getEngine();
     if (!engine) {
-      return { predictions: [], rawOutput: "" };
+      return this.createEmptyPredictionPayload();
     }
     const chatCompletion = (await engine.chat.completions.create({
       stream: false,
@@ -357,7 +365,7 @@ export class WebLLMPredictor implements SecondaryPredictor {
         modeContext,
       ),
       n: 1,
-      max_tokens: Math.max(16, request.numSuggestions * 8),
+      max_tokens: this.getMaxTokens(request.numSuggestions),
       temperature: 0.2,
       top_p: 0.95,
     })) as ChatCreateResponse;
@@ -374,7 +382,7 @@ export class WebLLMPredictor implements SecondaryPredictor {
   ): Promise<PredictionResponsePayload> {
     const engine = this.engineLifecycleService.getEngine();
     if (!engine) {
-      return { predictions: [], rawOutput: "" };
+      return this.createEmptyPredictionPayload();
     }
     const completion = (await engine.completions.create({
       stream: false,
@@ -385,7 +393,7 @@ export class WebLLMPredictor implements SecondaryPredictor {
         modeContext,
       ),
       n: 1,
-      max_tokens: Math.max(16, request.numSuggestions * 8),
+      max_tokens: this.getMaxTokens(request.numSuggestions),
       temperature: 0.2,
       top_p: 0.95,
     })) as CompletionCreateResponse;

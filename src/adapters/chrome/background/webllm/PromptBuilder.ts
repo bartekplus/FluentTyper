@@ -5,8 +5,7 @@ export class PromptBuilder {
 
   resolvePredictionMode(predictionInput: string): PredictionModeContext {
     const trimmedInput = predictionInput.trim();
-    const endsWithSpace = predictionInput !== predictionInput.trimEnd();
-    if (trimmedInput.length === 0 || endsWithSpace) {
+    if (trimmedInput.length === 0 || predictionInput !== predictionInput.trimEnd()) {
       return {
         mode: "next_word",
         fragment: "",
@@ -14,15 +13,9 @@ export class PromptBuilder {
     }
     const fragmentMatch = trimmedInput.match(/([\p{L}\p{N}'-]+)$/u);
     const fragment = (fragmentMatch?.[1] || "").toLowerCase();
-    if (!fragment) {
-      return {
-        mode: "next_word",
-        fragment: "",
-      };
-    }
     return {
-      mode: "complete_or_correct",
-      fragment,
+      mode: fragment ? "complete_or_correct" : "next_word",
+      fragment: fragment || "",
     };
   }
 
@@ -32,9 +25,9 @@ export class PromptBuilder {
     numSuggestions: number,
     modeContext: PredictionModeContext,
   ): string {
-    const languageLabel = lang.replace("_", "-");
-    const safeText = predictionInput.trim() || "<empty>";
-    const count = Math.min(this.maxGenerationChoices, Math.max(1, numSuggestions));
+    const languageLabel = this.getLanguageLabel(lang);
+    const safeText = this.getSafeText(predictionInput);
+    const count = this.getSuggestionCount(numSuggestions);
     if (modeContext.mode === "complete_or_correct") {
       return [
         `You are a typing autocomplete assistant for language ${languageLabel}.`,
@@ -72,9 +65,9 @@ export class PromptBuilder {
     numSuggestions: number,
     modeContext: PredictionModeContext,
   ): Array<{ role: "system" | "user"; content: string }> {
-    const languageLabel = lang.replace("_", "-");
-    const safeText = predictionInput.trim() || "<empty>";
-    const count = Math.min(this.maxGenerationChoices, Math.max(1, numSuggestions));
+    const languageLabel = this.getLanguageLabel(lang);
+    const safeText = this.getSafeText(predictionInput);
+    const count = this.getSuggestionCount(numSuggestions);
     if (modeContext.mode === "complete_or_correct") {
       return [
         {
@@ -127,8 +120,8 @@ export class PromptBuilder {
     numSuggestions: number,
     modeContext: PredictionModeContext,
   ): Array<{ role: "user"; content: string }> {
-    const safeText = predictionInput.trim() || "<empty>";
-    const count = Math.min(this.maxGenerationChoices, Math.max(1, numSuggestions));
+    const safeText = this.getSafeText(predictionInput);
+    const count = this.getSuggestionCount(numSuggestions);
     if (modeContext.mode === "complete_or_correct") {
       return [
         {
@@ -150,5 +143,17 @@ export class PromptBuilder {
         content: `Complete the text "${safeText}" with ${count} likely next single words. Return only comma-separated words.`,
       },
     ];
+  }
+
+  private getLanguageLabel(lang: string): string {
+    return lang.replace("_", "-");
+  }
+
+  private getSafeText(predictionInput: string): string {
+    return predictionInput.trim() || "<empty>";
+  }
+
+  private getSuggestionCount(numSuggestions: number): number {
+    return Math.min(this.maxGenerationChoices, Math.max(1, numSuggestions));
   }
 }

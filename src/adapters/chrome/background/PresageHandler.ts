@@ -4,7 +4,6 @@ import { createLogger } from "@core/application/logging/Logger";
 import { getErrorMessage } from "@core/domain/error";
 import { Capitalization } from "./CapitalizationHelper";
 import { PredictionInputProcessor } from "./PredictionInputProcessor";
-import type { TemplateVariables } from "./TemplateExpander";
 import { TemplateExpander } from "./TemplateExpander";
 import type { PresageModule } from "./PresageTypes";
 import { UserDictionaryManager } from "./UserDictionaryManager";
@@ -157,30 +156,6 @@ export class PresageHandler {
     return lang in this.presageEngines;
   }
 
-  parseStringTemplate(str: string, obj: TemplateVariables): string {
-    return TemplateExpander.parseStringTemplate(str, obj);
-  }
-
-  getExpandedVariables(lang: string): TemplateVariables {
-    return TemplateExpander.getExpandedVariables(
-      lang,
-
-      this.timeFormat ?? "",
-      this.dateFormat ?? "",
-    );
-  }
-
-  removePrevSentence(wordArrayOrig: string[]): {
-    wordArray: string[];
-    foundNewSentence: boolean;
-  } {
-    const result = this.predictionInputProcessor.removePrevSentence(wordArrayOrig);
-    return {
-      wordArray: result.wordArray,
-      foundNewSentence: result.newSentence,
-    };
-  }
-
   processInput(
     predictionInput: string,
     language: string,
@@ -211,30 +186,26 @@ export class PresageHandler {
     }
     const resolver = TemplateExpander.createResolver(
       lang,
-
       this.timeFormat ?? "",
       this.dateFormat ?? "",
       tabId,
     );
-
-    if (predictionInput === this.lastPrediction[lang]?.pastStream) {
+    const cachedPrediction = this.lastPrediction[lang];
+    if (cachedPrediction?.pastStream === predictionInput) {
       return Promise.all(
-        this.lastPrediction[lang].templates.map((text) =>
+        cachedPrediction.templates.map((text) =>
           TemplateExpander.parseStringTemplateAsync(text, resolver),
         ),
       );
     }
     const predictions = this.presageEngines[lang].predict(predictionInput);
-
-    const expandedPredictions = await Promise.all(
-      predictions.map((text) => TemplateExpander.parseStringTemplateAsync(text, resolver)),
-    );
-
     this.lastPrediction[lang] = {
       pastStream: predictionInput,
       templates: predictions.slice(),
     };
-    return expandedPredictions;
+    return Promise.all(
+      predictions.map((text) => TemplateExpander.parseStringTemplateAsync(text, resolver)),
+    );
   }
 
   preparePredictionContext(
@@ -270,13 +241,11 @@ export class PresageHandler {
   }
 
   async predictPresage(context: PresagePredictionContext): Promise<string[]> {
-    if (!context.doPrediction) {
-      return [];
-    }
-    if (context.effectiveNumSuggestions <= 0) {
-      return [];
-    }
-    if (!this.hasLanguageEngine(context.lang)) {
+    if (
+      !context.doPrediction ||
+      context.effectiveNumSuggestions <= 0 ||
+      !this.hasLanguageEngine(context.lang)
+    ) {
       return [];
     }
     return this.doPredictionHandler(context.predictionInput, context.lang, context.tabId);

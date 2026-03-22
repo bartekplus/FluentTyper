@@ -15,44 +15,44 @@ export class ResponseParser {
     response: ChatCreateResponse,
     limit: number,
   ): Promise<PredictionResponsePayload> {
-    if (!this.isAsyncIterable<ChatCompletionChunkResponse>(response)) {
-      return this.parseChatCompletionOutput(response, limit);
-    }
-    let rawOutput = "";
-    for await (const chunk of response) {
-      for (const choice of chunk.choices ?? []) {
-        const content = choice?.delta?.content;
-        if (typeof content === "string") {
-          rawOutput += content;
+    if (this.isAsyncIterable<ChatCompletionChunkResponse>(response)) {
+      let rawOutput = "";
+      for await (const chunk of response) {
+        for (const choice of chunk.choices ?? []) {
+          const content = choice?.delta?.content;
+          if (typeof content === "string") {
+            rawOutput += content;
+          }
         }
       }
+      return {
+        predictions: this.parsePredictionLines(rawOutput, limit),
+        rawOutput,
+      };
     }
-    return {
-      predictions: this.parsePredictionLines(rawOutput, limit),
-      rawOutput,
-    };
+    return this.parseChatCompletionOutput(response, limit);
   }
 
   async parseCompletionCreateResponse(
     response: CompletionCreateResponse,
     limit: number,
   ): Promise<PredictionResponsePayload> {
-    if (!this.isAsyncIterable<CompletionChunkResponse>(response)) {
-      return this.parseCompletionOutput(response, limit);
-    }
-    let rawOutput = "";
-    for await (const chunk of response) {
-      for (const choice of chunk.choices ?? []) {
-        const text = choice?.text;
-        if (typeof text === "string") {
-          rawOutput += text;
+    if (this.isAsyncIterable<CompletionChunkResponse>(response)) {
+      let rawOutput = "";
+      for await (const chunk of response) {
+        for (const choice of chunk.choices ?? []) {
+          const text = choice?.text;
+          if (typeof text === "string") {
+            rawOutput += text;
+          }
         }
       }
+      return {
+        predictions: this.parsePredictionLines(rawOutput, limit),
+        rawOutput,
+      };
     }
-    return {
-      predictions: this.parsePredictionLines(rawOutput, limit),
-      rawOutput,
-    };
+    return this.parseCompletionOutput(response, limit);
   }
 
   async enrichFromEngineMessage(
@@ -149,9 +149,8 @@ export class ResponseParser {
     if (typeof value !== "object" || value === null) {
       return false;
     }
-    const maybeIterable = value as {
-      [Symbol.asyncIterator]?: unknown;
-    };
-    return typeof maybeIterable[Symbol.asyncIterator] === "function";
+    return (
+      typeof (value as { [Symbol.asyncIterator]?: unknown })[Symbol.asyncIterator] === "function"
+    );
   }
 }

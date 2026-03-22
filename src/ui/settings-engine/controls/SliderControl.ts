@@ -1,6 +1,14 @@
 import type { SliderConfig } from "../types.js";
 import type { Store } from "@core/application/storage/Store.js";
-import { BaseControl, getUniqueID } from "./FieldControl.js";
+import {
+  BaseControl,
+  appendLabel,
+  createControlContainer,
+  createFieldRoot,
+  createInputElement,
+  dispatchControlEvent,
+  getUniqueID,
+} from "./FieldControl.js";
 
 export class SliderControl extends BaseControl<number> {
   private display?: HTMLOutputElement;
@@ -11,22 +19,14 @@ export class SliderControl extends BaseControl<number> {
     super(params, store);
     this.displayModifier = params.displayModifier;
 
-    const root = document.createElement("div");
-    root.className = "field";
+    const root = createFieldRoot();
     this._rootElement = root;
 
-    const control = document.createElement("div");
-    control.className = "control";
-
-    if (params.label) {
-      const label = document.createElement("label");
-      label.innerHTML = params.label;
-      control.appendChild(label);
-    }
+    const control = createControlContainer();
+    appendLabel(control, params.label);
 
     const name = getUniqueID();
-    const input = document.createElement("input");
-    input.type = "range";
+    const input = createInputElement("range");
     input.name = name;
     input.className = `slider is-fullwidth${params.display ? " has-output" : ""}`;
     if (params.min !== undefined) {
@@ -120,7 +120,7 @@ export class SliderControl extends BaseControl<number> {
     }
 
     if (!silent) {
-      this._element.dispatchEvent(new Event("input"));
+      dispatchControlEvent(this._element, "input");
     }
 
     return this;

@@ -100,6 +100,62 @@ export function dispatchSettingsSaveStatus(
   );
 }
 
+export function createFieldRoot(className = "field"): HTMLDivElement {
+  const root = document.createElement("div");
+  root.className = className;
+  return root;
+}
+
+export function createControlContainer(className = "control"): HTMLDivElement {
+  const control = document.createElement("div");
+  control.className = className;
+  return control;
+}
+
+export function appendLabel(
+  parent: HTMLElement,
+  label?: string,
+  className = "label",
+): HTMLLabelElement | undefined {
+  if (!label) {
+    return undefined;
+  }
+
+  const element = document.createElement("label");
+  element.className = className;
+  element.innerHTML = label;
+  parent.appendChild(element);
+  return element;
+}
+
+export function createInputElement(type: string, className?: string): HTMLInputElement {
+  const input = document.createElement("input");
+  input.type = type;
+  if (className) {
+    input.className = className;
+  }
+  return input;
+}
+
+export function createButtonInput(text?: string): HTMLInputElement {
+  const input = createInputElement("button", "button is-primary");
+  if (text) {
+    input.value = text;
+  }
+  return input;
+}
+
+export function createOptionElement(value: string, text = value): HTMLOptionElement {
+  const option = document.createElement("option");
+  option.value = value;
+  option.text = text;
+  return option;
+}
+
+export function dispatchControlEvent(target: EventTarget, type: string): void {
+  target.dispatchEvent(new Event(type));
+}
+
 // --- Abstract base control ---
 
 export abstract class BaseControl<TValue> implements FieldControl<TValue> {

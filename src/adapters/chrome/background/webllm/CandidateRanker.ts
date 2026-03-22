@@ -6,13 +6,25 @@ export class CandidateRanker {
     modeContext: PredictionModeContext,
     limit: number,
   ): string[] {
-    const normalizedRaw = predictions
-      .filter((item): item is string => typeof item === "string")
-      .map((item) => item.trim())
-      .filter((item) => item.length > 0);
+    const normalized = this.normalizePredictions(predictions);
+    if (modeContext.mode !== "complete_or_correct" || !modeContext.fragment) {
+      return normalized.slice(0, limit);
+    }
+    const ranked = this.rankCompletionCandidates(normalized, modeContext.fragment, limit);
+    return ranked.length > 0 ? ranked : normalized.slice(0, limit);
+  }
+
+  private normalizePredictions(predictions: string[]): string[] {
     const normalized: string[] = [];
     const seen = new Set<string>();
-    for (const token of normalizedRaw) {
+    for (const item of predictions) {
+      if (typeof item !== "string") {
+        continue;
+      }
+      const token = item.trim();
+      if (!token) {
+        continue;
+      }
       const normalizedToken = token.toLowerCase();
       if (seen.has(normalizedToken)) {
         continue;
@@ -20,16 +32,20 @@ export class CandidateRanker {
       seen.add(normalizedToken);
       normalized.push(token);
     }
-    if (modeContext.mode !== "complete_or_correct" || !modeContext.fragment) {
-      return normalized.slice(0, limit);
-    }
+    return normalized;
+  }
+
+  private rankCompletionCandidates(
+    predictions: string[],
+    fragment: string,
+    limit: number,
+  ): string[] {
     const bestByToken = new Map<string, { token: string; score: number; index: number }>();
-    for (let index = 0; index < normalized.length; index += 1) {
-      const token = normalized[index];
+    predictions.forEach((token, index) => {
       const tokenLower = token.toLowerCase();
-      const score = this.scoreCompletionCandidate(tokenLower, modeContext.fragment);
+      const score = this.scoreCompletionCandidate(tokenLower, fragment);
       if (score === null) {
-        continue;
+        return;
       }
       const existing = bestByToken.get(tokenLower);
       if (
@@ -39,21 +55,12 @@ export class CandidateRanker {
       ) {
         bestByToken.set(tokenLower, { token, score, index });
       }
-    }
-    const ranked = Array.from(bestByToken.values())
-      .sort((a, b) => {
-        if (a.score !== b.score) {
-          return a.score - b.score;
-        }
-        return a.index - b.index;
-      })
+    });
+
+    return Array.from(bestByToken.values())
+      .sort((a, b) => (a.score !== b.score ? a.score - b.score : a.index - b.index))
       .map((entry) => entry.token)
       .slice(0, limit);
-    if (ranked.length > 0) {
-      return ranked;
-    }
-    // Avoid empty output if model returns unusual tokens that fail strict filtering.
-    return normalized.slice(0, limit);
   }
 
   private scoreCompletionCandidate(candidate: string, fragment: string): number | null {

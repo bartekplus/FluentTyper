@@ -73,10 +73,7 @@ export class EngineLifecycleService {
   }
 
   async ensureReady(enabled: boolean, modelId: string): Promise<boolean> {
-    if (!enabled) {
-      return false;
-    }
-    if (!this.hasWebGPU()) {
+    if (!enabled || !this.hasWebGPU()) {
       return false;
     }
     if (this.status === PredictorStatus.Ready && this.engine) {
@@ -95,18 +92,7 @@ export class EngineLifecycleService {
     this.status = PredictorStatus.Loading;
     this.initAttemptCount += 1;
     const initStartedAt = Date.now();
-    this.lastInitStartedAt = initStartedAt;
-    this.lastInitDurationMs = 0;
-    this.lastInitProgress = 0;
-    this.lastInitProgressAt = initStartedAt;
-    this.lastInitProgressText = "initializing";
-    this.lastInitError = null;
-    this.lastInitProgressLog = [];
-    this.recordInitProgress({
-      progress: 0,
-      timeElapsed: 0,
-      text: "initializing",
-    });
+    this.resetInitTracking(initStartedAt);
 
     this.initPromise = (async () => {
       try {
@@ -115,35 +101,11 @@ export class EngineLifecycleService {
             this.recordInitProgress(report);
           },
         });
-        this.status = PredictorStatus.Ready;
-        this.lastFailureAt = 0;
-        this.lastInitDurationMs = Date.now() - initStartedAt;
-        this.lastInitProgress = 1;
-        this.lastInitProgressAt = Date.now();
-        this.lastInitProgressText = "ready";
-        this.recordInitProgress({
-          progress: 1,
-          timeElapsed: this.lastInitDurationMs,
-          text: "ready",
-        });
+        this.markInitReady(initStartedAt);
         return true;
       } catch (error) {
         const errorMessage = getErrorMessage(error);
-        this.engine = null;
-        this.status = PredictorStatus.Failed;
-        this.lastFailureAt = Date.now();
-        this.lastInitDurationMs = Date.now() - initStartedAt;
-        this.lastInitError = errorMessage;
-        this.lastInitProgressAt = Date.now();
-        this.lastInitProgressText = "failed";
-        this.recordInitProgress({
-          progress:
-            this.lastInitProgress >= 0 && Number.isFinite(this.lastInitProgress)
-              ? this.lastInitProgress
-              : 0,
-          timeElapsed: this.lastInitDurationMs,
-          text: `failed: ${this.lastInitError}`,
-        });
+        this.markInitFailed(initStartedAt, errorMessage);
         logger.warn("WebLLM init failed; fallback to Presage", {
           modelId,
           initAttemptCount: this.initAttemptCount,
@@ -201,5 +163,53 @@ export class EngineLifecycleService {
         this.lastInitProgressLog.length - INIT_PROGRESS_LOG_LIMIT,
       );
     }
+  }
+
+  private resetInitTracking(initStartedAt: number): void {
+    this.lastInitStartedAt = initStartedAt;
+    this.lastInitDurationMs = 0;
+    this.lastInitProgress = 0;
+    this.lastInitProgressAt = initStartedAt;
+    this.lastInitProgressText = "initializing";
+    this.lastInitError = null;
+    this.lastInitProgressLog = [];
+    this.recordInitProgress({
+      progress: 0,
+      timeElapsed: 0,
+      text: "initializing",
+    });
+  }
+
+  private markInitReady(initStartedAt: number): void {
+    this.status = PredictorStatus.Ready;
+    this.lastFailureAt = 0;
+    this.lastInitDurationMs = Date.now() - initStartedAt;
+    this.lastInitProgress = 1;
+    this.lastInitProgressAt = Date.now();
+    this.lastInitProgressText = "ready";
+    this.recordInitProgress({
+      progress: 1,
+      timeElapsed: this.lastInitDurationMs,
+      text: "ready",
+    });
+  }
+
+  private markInitFailed(initStartedAt: number, errorMessage: string): void {
+    this.engine = null;
+    this.status = PredictorStatus.Failed;
+    this.lastFailureAt = Date.now();
+    this.lastInitDurationMs = Date.now() - initStartedAt;
+    this.lastInitError = errorMessage;
+    this.lastInitProgressAt = Date.now();
+    this.lastInitProgressText = "failed";
+    const progress =
+      this.lastInitProgress >= 0 && Number.isFinite(this.lastInitProgress)
+        ? this.lastInitProgress
+        : 0;
+    this.recordInitProgress({
+      progress,
+      timeElapsed: this.lastInitDurationMs,
+      text: `failed: ${this.lastInitError}`,
+    });
   }
 }

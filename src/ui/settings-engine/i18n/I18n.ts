@@ -14,18 +14,12 @@ export class I18n {
       return this.lang;
     }
 
-    if (Object.prototype.hasOwnProperty.call(this, value)) {
-      const entry = this[value] as TranslationMap;
-      if (Object.prototype.hasOwnProperty.call(entry, this.lang)) {
-        return entry[this.lang];
-      } else if (Object.prototype.hasOwnProperty.call(entry, "en")) {
-        return entry["en"];
-      } else {
-        return Object.values(entry)[0] ?? value;
-      }
+    if (!Object.prototype.hasOwnProperty.call(this, value)) {
+      return value;
     }
 
-    return value;
+    const entry = this[value] as TranslationMap;
+    return entry[this.lang] ?? entry.en ?? Object.values(entry)[0] ?? value;
   }
 
   extend(translations: TranslationDictionary): void {

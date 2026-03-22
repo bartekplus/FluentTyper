@@ -10,6 +10,12 @@ import {
 } from "@core/domain/constants";
 import { resolveDynamicVariable } from "@core/domain/variables";
 import { formatTranslation, i18n } from "./fluenttyperI18n.js";
+import {
+  bindControlEvents,
+  createStackField,
+  createWorkspaceGrid,
+  createWorkspaceShell,
+} from "./workspacePanelUtils.js";
 
 type TextExpansionEntry = [string, string];
 type SnippetRow = {
@@ -70,20 +76,32 @@ export class TextAssetsPanel {
     this.registry = registry;
     this.store = store;
 
-    this.registry[KEY_TEXT_EXPANSIONS]?.addEvent("action", () => void this.load());
-    this.registry[KEY_USER_DICTIONARY_LIST]?.addEvent("action", () => void this.load());
-    this.registry[KEY_DATE_FORMAT]?.addEvent("action", () => void this.render());
-    this.registry[KEY_TIME_FORMAT]?.addEvent("action", () => void this.render());
-    this.registry[KEY_DATE_FORMAT]?.addEvent("change", () => {
-      this.liveDateFormat = toTextValue(this.registry[KEY_DATE_FORMAT].get());
-      this.refreshActiveSnippetPreview();
-      void this.render();
-    });
-    this.registry[KEY_TIME_FORMAT]?.addEvent("change", () => {
-      this.liveTimeFormat = toTextValue(this.registry[KEY_TIME_FORMAT].get());
-      this.refreshActiveSnippetPreview();
-      void this.render();
-    });
+    bindControlEvents(this.registry[KEY_TEXT_EXPANSIONS], [["action", () => void this.load()]]);
+    bindControlEvents(this.registry[KEY_USER_DICTIONARY_LIST], [
+      ["action", () => void this.load()],
+    ]);
+    bindControlEvents(this.registry[KEY_DATE_FORMAT], [["action", () => void this.render()]]);
+    bindControlEvents(this.registry[KEY_TIME_FORMAT], [["action", () => void this.render()]]);
+    bindControlEvents(this.registry[KEY_DATE_FORMAT], [
+      [
+        "change",
+        () => {
+          this.liveDateFormat = toTextValue(this.registry[KEY_DATE_FORMAT].get());
+          this.refreshActiveSnippetPreview();
+          void this.render();
+        },
+      ],
+    ]);
+    bindControlEvents(this.registry[KEY_TIME_FORMAT], [
+      [
+        "change",
+        () => {
+          this.liveTimeFormat = toTextValue(this.registry[KEY_TIME_FORMAT].get());
+          this.refreshActiveSnippetPreview();
+          void this.render();
+        },
+      ],
+    ]);
 
     this.liveDateFormat = toTextValue(this.registry[KEY_DATE_FORMAT]?.get());
     this.liveTimeFormat = toTextValue(this.registry[KEY_TIME_FORMAT]?.get());
@@ -116,10 +134,8 @@ export class TextAssetsPanel {
   }
 
   render(): void {
-    const shell = document.createElement("div");
-    shell.className = "workspace-panel-stack";
-    const lowerGrid = document.createElement("div");
-    lowerGrid.className = "workspace-main-grid";
+    const shell = createWorkspaceShell();
+    const lowerGrid = createWorkspaceGrid("workspace-main-grid");
     lowerGrid.append(this.createDictionaryWorkspace(), this.createVariableWorkspace());
     shell.append(this.createSnippetWorkspaceCard(), lowerGrid);
     this.root.replaceChildren(shell);
@@ -420,10 +436,10 @@ export class TextAssetsPanel {
     );
 
     editor.append(
-      this.createLabeledField(i18n.get("text_expander_shortcut_placeholder"), shortcut),
-      this.createLabeledField(i18n.get("text_assets_expansion_label"), body),
+      createStackField(i18n.get("text_expander_shortcut_placeholder"), shortcut),
+      createStackField(i18n.get("text_assets_expansion_label"), body),
       variables,
-      this.createLabeledField(i18n.get("text_assets_preview_label"), preview),
+      createStackField(i18n.get("text_assets_preview_label"), preview),
       actions,
       status,
     );
@@ -689,8 +705,8 @@ export class TextAssetsPanel {
     docs.appendChild(exampleList);
 
     shell.append(
-      this.createLabeledField(i18n.get("custom_date_format_label"), dateInput),
-      this.createLabeledField(i18n.get("custom_time_format_label"), timeInput),
+      createStackField(i18n.get("custom_date_format_label"), dateInput),
+      createStackField(i18n.get("custom_time_format_label"), timeInput),
       docs,
     );
     return shell;
@@ -703,16 +719,6 @@ export class TextAssetsPanel {
     button.textContent = label;
     button.addEventListener("click", onClick);
     return button;
-  }
-
-  private createLabeledField(labelText: string, field: HTMLElement): HTMLElement {
-    const wrapper = document.createElement("label");
-    wrapper.className = "settings-stack-field";
-    const label = document.createElement("span");
-    label.textContent = labelText;
-    wrapper.appendChild(label);
-    wrapper.appendChild(field);
-    return wrapper;
   }
 
   private persistSnippetRows(): void {

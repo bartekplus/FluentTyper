@@ -2,10 +2,8 @@ import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from 
 import {
   applyCasePattern,
   findTrailingLetterToken,
-  hasTrailingTokenBoundary,
-  isEnglishLanguageContext,
   isLikelyCodeLikeContext,
-  resolveInputAction,
+  resolveEnglishBoundaryContext,
 } from "./helpers/EnglishRuleShared";
 
 const ENGLISH_CONTRACTION_MAP: Record<string, string> = {
@@ -38,17 +36,12 @@ export class EnglishContractionNormalizationRule implements GrammarRule {
   readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
 
   apply(context: GrammarContext): GrammarEdit | null {
-    if (!isEnglishLanguageContext(context)) {
-      return null;
-    }
-    if (resolveInputAction(context) === "delete") {
-      return null;
-    }
-    if (!hasTrailingTokenBoundary(context.beforeCursor)) {
+    const boundaryContext = resolveEnglishBoundaryContext(context);
+    if (!boundaryContext) {
       return null;
     }
 
-    const tokenInfo = findTrailingLetterToken(context.beforeCursor);
+    const tokenInfo = findTrailingLetterToken(boundaryContext.input);
     if (!tokenInfo) {
       return null;
     }
@@ -75,7 +68,7 @@ export class EnglishContractionNormalizationRule implements GrammarRule {
 
     return {
       replacement: `${normalizedToken}${tokenInfo.trailing}`,
-      deleteBackwards: context.beforeCursor.length - tokenInfo.tokenStart,
+      deleteBackwards: boundaryContext.input.length - tokenInfo.tokenStart,
       deleteForwards: 0,
       confidence: "high",
       description: "Normalized English contraction",

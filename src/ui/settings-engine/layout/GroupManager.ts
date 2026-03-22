@@ -10,7 +10,7 @@ export function createGroup(tabContent: HTMLElement, label: string): GroupBundle
   header.className = "settings-group-header";
   const title = document.createElement("h3");
   title.className = "settings-group-title divider";
-  title.innerText = label;
+  title.textContent = label;
   header.appendChild(title);
   groupDiv.appendChild(header);
 

@@ -13,11 +13,13 @@ import type {
   ContentScriptGetConfigMessage,
   ContentScriptPredictRequestContext,
   Message,
+  PredictResponseContext,
   SetConfigContext,
 } from "@core/domain/messageTypes";
 import { ContentMessageHandler } from "./ContentMessageHandler";
+import type { ContentMessageHandlerDependencies } from "./ContentMessageHandler";
 import { ContentRuntimeController } from "./ContentRuntimeController";
-import { HostChangeWatcher } from "./HostChangeWatcher";
+import { HostChangeWatcher, type HostChangeWatcherDependencies } from "./HostChangeWatcher";
 import { isEarlyTabAcceptMessage } from "./suggestions/EarlyTabAcceptBridgeProtocol";
 import { ThemeApplicator } from "./ThemeApplicator";
 import type { DomObserver } from "./DomObserver";
@@ -80,37 +82,16 @@ class FluentTyper {
     this.runtimeController = new ContentRuntimeController(new ThemeApplicator());
     this.runtimeController.setRestartRequestHandler(() => this.restart());
 
-    this.contentMessageHandler = new ContentMessageHandler({
-      getEnabled: () => this.enabled,
-      setEnabled: (value) => {
-        this.enabled = value;
-      },
-      toggleEnabled: () => {
-        this.enabled = !this.enabled;
-      },
-      setConfig: (config) => this.setConfig(config),
-      updateLanguage: (lang) => this.runtimeController.updateLanguage(lang),
-      triggerActiveSuggestion: () => this.runtimeController.triggerActiveSuggestion(),
-      fulfillPrediction: (context) => this.runtimeController.fulfillPrediction(context),
-      getLanguage: () => this.config.lang,
-      getPredictionGeneration: () => this.runtimeController.getPredictionGeneration(),
-    });
+    this.contentMessageHandler = new ContentMessageHandler(
+      this.createContentMessageHandlerDependencies(),
+    );
     this.runtimeController.setRuntimeActivityHandler((runtimeGeneration) => {
       this.contentMessageHandler.reportRuntimeStatus(runtimeGeneration);
     });
 
-    this.runtimeController.setPredictionRequestHandler((context) =>
-      this.handleGetPrediction(context),
-    );
+    this.runtimeController.setPredictionRequestHandler(this.handleGetPrediction.bind(this));
 
-    this.hostChangeWatcher = new HostChangeWatcher({
-      watchDogRunner: () => this.watchDog(),
-      getObservedNode: () => this.runtimeController.getObservedNode(),
-      setObservedNode: (node) => this.runtimeController.setObservedNode(node),
-      isRuntimeEnabled: () => this.enabled,
-      restartRuntime: () => this.restart(),
-      requestConfig: () => this.getConfig(),
-    });
+    this.hostChangeWatcher = new HostChangeWatcher(this.createHostChangeWatcherDependencies());
 
     chrome.runtime.onMessage.addListener(this.boundMessageHandler);
     window.addEventListener("message", this.boundEarlyTabAcceptHandler);
@@ -208,6 +189,36 @@ class FluentTyper {
     sendResponse?: (response: unknown) => void,
   ): void {
     this.contentMessageHandler.handleMessage(message, sender, sendResponse);
+  }
+
+  private createContentMessageHandlerDependencies(): ContentMessageHandlerDependencies {
+    return {
+      getEnabled: () => this.enabled,
+      setEnabled: (value: boolean) => {
+        this.enabled = value;
+      },
+      toggleEnabled: () => {
+        this.enabled = !this.enabled;
+      },
+      setConfig: (config: SetConfigContext) => this.setConfig(config),
+      updateLanguage: (lang: string) => this.runtimeController.updateLanguage(lang),
+      triggerActiveSuggestion: () => this.runtimeController.triggerActiveSuggestion(),
+      fulfillPrediction: (context: PredictResponseContext) =>
+        this.runtimeController.fulfillPrediction(context),
+      getLanguage: () => this.config.lang,
+      getPredictionGeneration: () => this.runtimeController.getPredictionGeneration(),
+    };
+  }
+
+  private createHostChangeWatcherDependencies(): HostChangeWatcherDependencies {
+    return {
+      watchDogRunner: () => this.watchDog(),
+      getObservedNode: () => this.runtimeController.getObservedNode(),
+      setObservedNode: (node: Node) => this.runtimeController.setObservedNode(node),
+      isRuntimeEnabled: () => this.enabled,
+      restartRuntime: () => this.restart(),
+      requestConfig: () => this.getConfig(),
+    };
   }
 
   getConfig(): void {

@@ -11,6 +11,13 @@ export class StatsSanitizer {
     return typeof value === "object" && value !== null && !Array.isArray(value);
   }
 
+  private normalizeTrimmedString(value: unknown): string {
+    if (typeof value !== "string") {
+      return "";
+    }
+    return value.trim();
+  }
+
   clampCount(value: unknown): number {
     if (typeof value !== "number" || !Number.isFinite(value)) {
       return 0;
@@ -26,17 +33,11 @@ export class StatsSanitizer {
   }
 
   normalizeSnippetKey(value: unknown): string {
-    if (typeof value !== "string") {
-      return "";
-    }
-    return value.trim().toLocaleLowerCase().slice(0, 80);
+    return this.normalizeTrimmedString(value).toLocaleLowerCase().slice(0, 80);
   }
 
   normalizeLanguageKey(value: unknown): string {
-    if (typeof value !== "string") {
-      return "unknown";
-    }
-    const normalized = value.trim();
+    const normalized = this.normalizeTrimmedString(value);
     if (!normalized) {
       return "unknown";
     }
@@ -93,7 +94,7 @@ export class StatsSanitizer {
     };
   }
 
-  createDailyState(): DailyProductivityState {
+  private createZeroCounters(): DailyProductivityState {
     return {
       acceptedSuggestions: 0,
       charactersSaved: 0,
@@ -106,17 +107,14 @@ export class StatsSanitizer {
     };
   }
 
+  createDailyState(): DailyProductivityState {
+    return this.createZeroCounters();
+  }
+
   createDefaultStatsState(): ProductivityStatsState {
     return {
       schemaVersion: STATS_SCHEMA_VERSION,
-      acceptedSuggestions: 0,
-      charactersSaved: 0,
-      suggestionsShown: 0,
-      snippetsExpanded: 0,
-      charsInsertedFromSnippet: 0,
-      charsTypedForTrigger: 0,
-      snippetUsage: {},
-      languageUsage: {},
+      ...this.createZeroCounters(),
       daily: {},
       shownMilestones: [],
       firstValuePromptAcknowledged: false,
@@ -167,12 +165,8 @@ export class StatsSanitizer {
       if (typeof rawValue === "number") {
         const count = this.clampCount(rawValue);
         if (count > 0) {
-          counters = {
-            count,
-            charactersSaved: 0,
-            charsInserted: 0,
-            charsTyped: 0,
-          };
+          counters = this.createSnippetCounters();
+          counters.count = count;
         }
       } else if (this.isObjectRecord(rawValue)) {
         const count = this.clampCount(rawValue.count);
@@ -180,12 +174,11 @@ export class StatsSanitizer {
         const charsInserted = this.clampCount(rawValue.charsInserted);
         const charsTyped = this.clampCount(rawValue.charsTyped);
         if (count > 0 || charactersSaved > 0 || charsInserted > 0 || charsTyped > 0) {
-          counters = {
-            count,
-            charactersSaved,
-            charsInserted,
-            charsTyped,
-          };
+          counters = this.createSnippetCounters();
+          counters.count = count;
+          counters.charactersSaved = charactersSaved;
+          counters.charsInserted = charsInserted;
+          counters.charsTyped = charsTyped;
         }
       }
 
@@ -250,6 +243,9 @@ export class StatsSanitizer {
       return this.createDefaultStatsState();
     }
 
+    const lastDonationPromptAt = this.parseIsoDate(value.lastDonationPromptAt);
+    const donationSnoozedUntil = this.parseIsoDate(value.donationSnoozedUntil);
+
     return {
       schemaVersion: STATS_SCHEMA_VERSION,
       acceptedSuggestions: this.clampCount(value.acceptedSuggestions),
@@ -269,12 +265,8 @@ export class StatsSanitizer {
       firstValuePromptAcknowledged: value.firstValuePromptAcknowledged === true,
       lastWeeklyRecapWeek:
         typeof value.lastWeeklyRecapWeek === "string" ? value.lastWeeklyRecapWeek : null,
-      lastDonationPromptAt: this.parseIsoDate(value.lastDonationPromptAt)
-        ? (value.lastDonationPromptAt as string)
-        : null,
-      donationSnoozedUntil: this.parseIsoDate(value.donationSnoozedUntil)
-        ? (value.donationSnoozedUntil as string)
-        : null,
+      lastDonationPromptAt: lastDonationPromptAt ? (value.lastDonationPromptAt as string) : null,
+      donationSnoozedUntil: donationSnoozedUntil ? (value.donationSnoozedUntil as string) : null,
     };
   }
 }

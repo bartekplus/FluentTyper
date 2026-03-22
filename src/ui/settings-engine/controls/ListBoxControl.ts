@@ -1,7 +1,13 @@
 import type { ListBoxConfig } from "../types.js";
 import type { Store } from "@core/application/storage/Store.js";
 import type { ListBoxFieldControl } from "./FieldControl.js";
-import { BaseControl } from "./FieldControl.js";
+import {
+  BaseControl,
+  appendLabel,
+  createControlContainer,
+  createFieldRoot,
+  createOptionElement,
+} from "./FieldControl.js";
 
 export class ListBoxControl extends BaseControl<string[]> implements ListBoxFieldControl {
   private readonly selectEl: HTMLSelectElement;
@@ -11,19 +17,12 @@ export class ListBoxControl extends BaseControl<string[]> implements ListBoxFiel
   constructor(params: ListBoxConfig, store: Store) {
     super(params, store);
 
-    const root = document.createElement("div");
-    root.className = "field";
+    const root = createFieldRoot();
     this._rootElement = root;
 
-    if (params.label) {
-      const label = document.createElement("label");
-      label.className = "label";
-      label.innerHTML = params.label;
-      root.appendChild(label);
-    }
+    appendLabel(root, params.label);
 
-    const control = document.createElement("div");
-    control.className = "control";
+    const control = createControlContainer();
 
     const wrapper = document.createElement("div");
     wrapper.className = "select is-multiple is-fullwidth";
@@ -64,10 +63,14 @@ export class ListBoxControl extends BaseControl<string[]> implements ListBoxFiel
   }
 
   private appendOption(value: string): void {
-    const opt = document.createElement("option");
-    opt.value = value;
-    opt.text = value;
-    this.selectEl.appendChild(opt);
+    this.selectEl.appendChild(createOptionElement(value));
+  }
+
+  private persistOptions(): void {
+    if (this.name !== undefined) {
+      void this.storage.set(this.name, this.options);
+    }
+    this.emitter.fireEvent("action", this.get());
   }
 
   add(value: string, storeValue = true): void {
@@ -75,16 +78,13 @@ export class ListBoxControl extends BaseControl<string[]> implements ListBoxFiel
       this.options.push(value);
       this.appendOption(value);
       if (storeValue) {
-        this.persist();
+        this.persistOptions();
       }
     }
   }
 
   persist(): void {
-    if (this.name !== undefined) {
-      void this.storage.set(this.name, this.options);
-    }
-    this.emitter.fireEvent("action", this.get());
+    this.persistOptions();
   }
 
   remove(): void {
@@ -96,22 +96,14 @@ export class ListBoxControl extends BaseControl<string[]> implements ListBoxFiel
       }
     }
     this.selected = [];
-    if (this.name !== undefined) {
-      void this.storage.set(this.name, this.options);
-    }
-    this.emitter.fireEvent("action", this.get());
+    this.persistOptions();
   }
 
   removeAll(): void {
     this.options = [];
-    while (this.selectEl.firstChild) {
-      this.selectEl.removeChild(this.selectEl.firstChild);
-    }
+    this.selectEl.replaceChildren();
     this.selected = [];
-    if (this.name !== undefined) {
-      void this.storage.set(this.name, this.options);
-    }
-    this.emitter.fireEvent("action", this.get());
+    this.persistOptions();
   }
 
   get(): string[] {

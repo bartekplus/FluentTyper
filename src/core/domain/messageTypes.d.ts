@@ -5,6 +5,22 @@ import type {
 } from "./observability";
 
 // Context for CMD_BACKGROUND_PAGE_SET_CONFIG
+export interface SuggestionThemeConfig {
+  suggestionBgLight: string;
+  suggestionTextLight: string;
+  suggestionHighlightBgLight: string;
+  suggestionHighlightTextLight: string;
+  suggestionBorderLight: string;
+  suggestionBgDark: string;
+  suggestionTextDark: string;
+  suggestionHighlightBgDark: string;
+  suggestionHighlightTextDark: string;
+  suggestionBorderDark: string;
+  suggestionFontSize: string;
+  suggestionPaddingVertical: string;
+  suggestionPaddingHorizontal: string;
+}
+
 export interface SetConfigContext {
   autocomplete: boolean;
   autocompleteOnEnter: boolean;
@@ -19,22 +35,8 @@ export interface SetConfigContext {
   displayLangHeader: boolean;
   enabledGrammarRules: string[];
   userDictionaryList: string[];
-  // Theme configuration
-  themeConfig?: {
-    suggestionBgLight: string;
-    suggestionTextLight: string;
-    suggestionHighlightBgLight: string;
-    suggestionHighlightTextLight: string;
-    suggestionBorderLight: string;
-    suggestionBgDark: string;
-    suggestionTextDark: string;
-    suggestionHighlightBgDark: string;
-    suggestionHighlightTextDark: string;
-    suggestionBorderDark: string;
-    suggestionFontSize: string;
-    suggestionPaddingVertical: string;
-    suggestionPaddingHorizontal: string;
-  };
+  // Theme configuration is reused by settings and options payloads.
+  themeConfig?: SuggestionThemeConfig;
   observability?: ObservabilityConfig;
 }
 

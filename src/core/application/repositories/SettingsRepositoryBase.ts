@@ -2,7 +2,7 @@ import type { JsonValue } from "../settingsManager";
 import { SettingsManager } from "../settingsManager";
 import type { SettingField, SettingsSchema } from "@core/domain/contracts/settings";
 import { getSettingStorageKey } from "@core/domain/contracts/settings";
-import { readSettingWithAliases } from "../settings/SettingsMigrationV3";
+import { readSettingWithAliases } from "../settings/settingsAccess";
 
 export class SettingsRepositoryBase {
   protected readonly settings: SettingsManager;

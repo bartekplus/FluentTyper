@@ -1,5 +1,6 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
 import { SPACE_CHARS } from "../../spacingRules";
+import { isLowercaseLetter } from "./helpers/GenericRuleShared";
 
 export class CapitalizeAfterLineBreakRule implements GrammarRule {
   readonly id = "capitalizeAfterLineBreak" as const;
@@ -13,7 +14,7 @@ export class CapitalizeAfterLineBreakRule implements GrammarRule {
     }
 
     const lastChar = text[text.length - 1];
-    if (lastChar.toLowerCase() === lastChar.toUpperCase() || lastChar !== lastChar.toLowerCase()) {
+    if (!isLowercaseLetter(lastChar)) {
       return null;
     }
 

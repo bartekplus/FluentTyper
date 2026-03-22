@@ -30,11 +30,10 @@ export function createGrammarRuleCatalogRuntime(options: {
   insertSpaceAfterAutocomplete: boolean;
   userDictionaryList: string[];
 }): GrammarRule[] {
-  const spacingOptions = {
-    insertSpaceAfterAutocomplete: options.insertSpaceAfterAutocomplete,
-  };
+  const insertSpaceAfterAutocomplete = options.insertSpaceAfterAutocomplete;
 
   const ruleById: Record<CatalogRuleId, GrammarRule> = {
+    // Core v1/v2 language rules.
     capitalizeSentenceStart: new CapitalizeSentenceStartRule(),
     capitalizeAfterLineBreak: new CapitalizeAfterLineBreakRule(),
     englishPronounICapitalization: new EnglishPronounICapitalizationRule(),
@@ -48,21 +47,19 @@ export function createGrammarRuleCatalogRuntime(options: {
     englishTheirThereBeVerb: new EnglishTheirThereBeVerbRule(),
     englishAlotCorrection: new EnglishAlotCorrectionRule(options.userDictionaryList),
     englishPronounVerbWhitelistAgreement: new EnglishPronounVerbWhitelistAgreementRule(),
-    commaPeriodSpacing: new CommaPeriodSpacingRule(spacingOptions.insertSpaceAfterAutocomplete),
-    openingBracketSpacing: new OpeningBracketSpacingRule(
-      spacingOptions.insertSpaceAfterAutocomplete,
-    ),
-    closingBracketSpacing: new ClosingBracketSpacingRule(
-      spacingOptions.insertSpaceAfterAutocomplete,
-    ),
-    slashContextSpacing: new SlashContextSpacingRule(spacingOptions.insertSpaceAfterAutocomplete),
-    mathOperatorSpacing: new MathOperatorSpacingRule(spacingOptions.insertSpaceAfterAutocomplete),
-    technicalTokenCompaction: new TechnicalTokenCompactionRule(
-      spacingOptions.insertSpaceAfterAutocomplete,
-    ),
+
+    // Spacing and punctuation rules share the autocomplete spacing toggle.
+    commaPeriodSpacing: new CommaPeriodSpacingRule(insertSpaceAfterAutocomplete),
+    openingBracketSpacing: new OpeningBracketSpacingRule(insertSpaceAfterAutocomplete),
+    closingBracketSpacing: new ClosingBracketSpacingRule(insertSpaceAfterAutocomplete),
+    slashContextSpacing: new SlashContextSpacingRule(insertSpaceAfterAutocomplete),
+    mathOperatorSpacing: new MathOperatorSpacingRule(insertSpaceAfterAutocomplete),
+    technicalTokenCompaction: new TechnicalTokenCompactionRule(insertSpaceAfterAutocomplete),
     collapseRepeatedSpaces: new CollapseRepeatedSpacesRule(),
     trimSpaceBeforeLineBreak: new TrimSpaceBeforeLineBreakRule(),
     neutralPunctuationPolicy: new NeutralPunctuationPolicyRule(),
+
+    // Advanced rules stay grouped together so the catalog order is the only priority source.
     ellipsisShortcut: new EllipsisShortcutRule(),
     emdashShortcut: new EmdashShortcutRule(),
     smartQuoteNormalization: new SmartQuoteNormalizationRule(),

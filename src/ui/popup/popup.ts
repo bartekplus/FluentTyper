@@ -93,6 +93,8 @@ function getPageStateElements() {
   };
 }
 
+type PageStateElements = ReturnType<typeof getPageStateElements>;
+
 function setNodeTextAndTitle(node: HTMLElement | null, value: string): void {
   if (!node) {
     return;
@@ -103,6 +105,47 @@ function setNodeTextAndTitle(node: HTMLElement | null, value: string): void {
   } else {
     node.removeAttribute("title");
   }
+}
+
+function clearPageStateSupplementalContent(elements: PageStateElements): void {
+  if (elements.language) {
+    setNodeTextAndTitle(elements.language, "");
+  }
+  if (elements.profile) {
+    setNodeTextAndTitle(elements.profile, "");
+  }
+  elements.meta?.classList.add("is-hidden");
+  if (elements.hint) {
+    setNodeTextAndTitle(elements.hint, "");
+  }
+}
+
+function renderNonActionablePageState(
+  state: Pick<Extract<PopupPageState, { kind: "restricted" | "non_actionable" }>, "badge" | "body">,
+  titleText: string,
+  panelState: "restricted" | "non_actionable" | "paused",
+  showDomainSection: boolean,
+  clearDomainToggle = false,
+): void {
+  const elements = getPageStateElements();
+  const { badge, title, body, panel, section } = elements;
+  if (!badge || !title || !body) {
+    return;
+  }
+
+  badge.textContent = state.badge;
+  setNodeTextAndTitle(title, titleText);
+  body.textContent = state.body;
+  clearPageStateSupplementalContent(elements);
+  panel?.setAttribute("data-page-state", panelState);
+  setSiteSpecificControlsEnabled(false);
+  if (clearDomainToggle) {
+    const domainToggle = document.getElementById("checkboxDomainInput") as HTMLInputElement | null;
+    if (domainToggle) {
+      domainToggle.checked = false;
+    }
+  }
+  section?.classList.toggle("is-hidden", !showDomainSection);
 }
 
 function setSiteSpecificControlsEnabled(enabled: boolean): void {
@@ -259,37 +302,15 @@ async function getActiveAutoLanguageStatus(): Promise<{
 function renderStaticPageState(
   state: Extract<PopupPageState, { kind: "restricted" | "non_actionable" }>,
 ): void {
-  const { badge, body, meta, panel, section, title, hint, language, profile } =
-    getPageStateElements();
-  const domainToggle = document.getElementById("checkboxDomainInput") as HTMLInputElement | null;
   const siteProfileSection = document.getElementById("siteProfileSection");
-  if (!badge || !title || !body) {
-    return;
-  }
-  badge.textContent = state.badge;
-  setNodeTextAndTitle(title, state.title);
-  body.textContent = state.body;
-  meta?.classList.add("is-hidden");
-  if (language) {
-    setNodeTextAndTitle(language, "");
-  }
-  if (profile) {
-    setNodeTextAndTitle(profile, "");
-  }
-  panel?.setAttribute("data-page-state", state.kind);
-  setSiteSpecificControlsEnabled(false);
-  if (state.kind === "restricted") {
-    if (domainToggle) {
-      domainToggle.checked = false;
-    }
-    section?.classList.remove("is-hidden");
-  } else {
-    section?.classList.add("is-hidden");
-  }
+  renderNonActionablePageState(
+    state,
+    state.title,
+    state.kind,
+    state.kind === "restricted",
+    state.kind === "restricted",
+  );
   siteProfileSection?.classList.add("is-hidden");
-  if (hint) {
-    setNodeTextAndTitle(hint, "");
-  }
 }
 
 function renderPermissionBlockedPageState(state: WebsiteAccessPermissionState): void {
@@ -318,27 +339,12 @@ function renderPermissionBlockedPageState(state: WebsiteAccessPermissionState): 
           ),
           kind: "non_actionable" as const,
         };
-  const { badge, body, meta, panel, section, title, hint, language, profile } =
-    getPageStateElements();
-  if (!badge || !title || !body) {
-    return;
-  }
-  badge.textContent = permissionBlockedState.badge;
-  setNodeTextAndTitle(title, currentDomainURL);
-  body.textContent = permissionBlockedState.body;
-  meta?.classList.add("is-hidden");
-  if (language) {
-    setNodeTextAndTitle(language, "");
-  }
-  if (profile) {
-    setNodeTextAndTitle(profile, "");
-  }
-  panel?.setAttribute("data-page-state", permissionBlockedState.kind);
-  section?.classList.add("is-hidden");
-  setSiteSpecificControlsEnabled(false);
-  if (hint) {
-    setNodeTextAndTitle(hint, "");
-  }
+  renderNonActionablePageState(
+    permissionBlockedState,
+    currentDomainURL,
+    permissionBlockedState.kind,
+    false,
+  );
 }
 
 function applyPopupThemeMode(theme: "light" | "dark"): void {
@@ -471,15 +477,15 @@ async function refreshThisSiteSection(pageState: PopupPageState | null = null): 
 
 function getSiteProfileElements() {
   return {
-    toggle: document.getElementById("checkboxSiteProfileInput") as HTMLInputElement,
-    language: document.getElementById("siteLanguageSelect") as HTMLSelectElement,
-    suggestions: document.getElementById("siteNumSuggestionsSelect") as HTMLSelectElement,
-    inline: document.getElementById("siteInlineModeSelect") as HTMLSelectElement,
+    toggle: document.getElementById("checkboxSiteProfileInput") as HTMLInputElement | null,
+    language: document.getElementById("siteLanguageSelect") as HTMLSelectElement | null,
+    suggestions: document.getElementById("siteNumSuggestionsSelect") as HTMLSelectElement | null,
+    inline: document.getElementById("siteInlineModeSelect") as HTMLSelectElement | null,
     preferNativeAutocomplete: document.getElementById(
       "sitePreferNativeAutocompleteSelect",
-    ) as HTMLSelectElement,
-    section: document.getElementById("siteProfileSection") as HTMLElement,
-    status: document.getElementById("siteProfileStatus") as HTMLElement,
+    ) as HTMLSelectElement | null,
+    section: document.getElementById("siteProfileSection"),
+    status: document.getElementById("siteProfileStatus"),
   };
 }
 
@@ -526,6 +532,29 @@ function getProfileStatusLabel(profileEnabled: boolean): string {
     : i18n.get("popup_site_profile_status_global");
 }
 
+function createSelectOption(value: string, text: string): HTMLOptionElement {
+  const option = document.createElement("option");
+  option.value = value;
+  option.textContent = text;
+  return option;
+}
+
+function populateLanguageOptions(select: HTMLSelectElement, languages: string[]): void {
+  select.replaceChildren();
+  for (const langCode of languages) {
+    select.appendChild(createSelectOption(langCode, SUPPORTED_LANGUAGES[langCode] || langCode));
+  }
+}
+
+function populateSuggestionOptions(select: HTMLSelectElement, globalNumSuggestions: number): void {
+  select.replaceChildren(
+    createSelectOption("global", getInheritLabel(String(globalNumSuggestions))),
+  );
+  for (let idx = 0; idx <= MAX_NUM_SUGGESTIONS; idx += 1) {
+    select.appendChild(createSelectOption(String(idx), String(idx)));
+  }
+}
+
 function notifyConfigChange(): Promise<unknown> {
   const message: OptionsPageConfigChangeMessage = {
     command: CMD_OPTIONS_PAGE_CONFIG_CHANGE,
@@ -566,25 +595,8 @@ async function loadSiteProfileEditor() {
     return;
   }
 
-  language.innerHTML = "";
-  for (const langCode of currentEnabledLanguages) {
-    const option = document.createElement("option");
-    option.value = langCode;
-    option.textContent = SUPPORTED_LANGUAGES[langCode];
-    language.appendChild(option);
-  }
-
-  suggestions.innerHTML = "";
-  const globalSuggestionOption = document.createElement("option");
-  globalSuggestionOption.value = "global";
-  globalSuggestionOption.textContent = getInheritLabel(String(globalNumSuggestions));
-  suggestions.appendChild(globalSuggestionOption);
-  for (let idx = 0; idx <= MAX_NUM_SUGGESTIONS; idx++) {
-    const option = document.createElement("option");
-    option.value = String(idx);
-    option.textContent = String(idx);
-    suggestions.appendChild(option);
-  }
+  populateLanguageOptions(language, currentEnabledLanguages);
+  populateSuggestionOptions(suggestions, globalNumSuggestions);
 
   populateBooleanOverrideOptions(inline, globalInlineSuggestion, getOnOffLabel);
   populateBooleanOverrideOptions(
@@ -631,23 +643,24 @@ async function loadSiteProfileEditor() {
 
 function readSiteProfileFromEditor(): SiteProfile {
   const { language, suggestions, inline, preferNativeAutocomplete } = getSiteProfileElements();
-  const languageValue = currentEnabledLanguages.includes(language.value)
-    ? language.value
-    : currentProfileLanguageFallback;
+  const languageValue =
+    language && currentEnabledLanguages.includes(language.value)
+      ? language.value
+      : currentProfileLanguageFallback;
   const profile: SiteProfile = {
     language: languageValue,
   };
-  const numSuggestions = parseSuggestionsOverride(suggestions.value);
+  const numSuggestions = suggestions ? parseSuggestionsOverride(suggestions.value) : undefined;
   if (typeof numSuggestions === "number") {
     profile.numSuggestions = numSuggestions;
   }
-  const inlineSuggestion = parseInlineOverride(inline.value);
+  const inlineSuggestion = inline ? parseInlineOverride(inline.value) : undefined;
   if (typeof inlineSuggestion === "boolean") {
     profile.inline_suggestion = inlineSuggestion;
   }
-  const preferNativeAutocompleteOverride = parsePreferNativeAutocompleteOverride(
-    preferNativeAutocomplete.value,
-  );
+  const preferNativeAutocompleteOverride = preferNativeAutocomplete
+    ? parsePreferNativeAutocompleteOverride(preferNativeAutocomplete.value)
+    : undefined;
   if (typeof preferNativeAutocompleteOverride === "boolean") {
     profile.preferNativeAutocomplete = preferNativeAutocompleteOverride;
   }
@@ -659,20 +672,11 @@ function populateBooleanOverrideOptions(
   globalValue: boolean,
   describeValue: (value: boolean) => string,
 ): void {
-  select.innerHTML = "";
-  [
-    {
-      value: "global",
-      text: getInheritLabel(describeValue(globalValue)),
-    },
-    { value: "on", text: describeValue(true) },
-    { value: "off", text: describeValue(false) },
-  ].forEach((entry) => {
-    const option = document.createElement("option");
-    option.value = entry.value;
-    option.textContent = entry.text;
-    select.appendChild(option);
-  });
+  select.replaceChildren(
+    createSelectOption("global", getInheritLabel(describeValue(globalValue))),
+    createSelectOption("on", describeValue(true)),
+    createSelectOption("off", describeValue(false)),
+  );
 }
 
 async function saveSiteProfileFromEditor() {
@@ -1072,6 +1076,9 @@ function init() {
   window.document.getElementById("checkboxSiteProfileInput")?.addEventListener("click", () => {
     void (async () => {
       const { toggle } = getSiteProfileElements();
+      if (!toggle) {
+        return;
+      }
       setSiteProfileInputsDisabled(!toggle.checked);
       await saveSiteProfileFromEditor();
     })();
@@ -1087,7 +1094,7 @@ function init() {
       element?.addEventListener("change", () => {
         void (async () => {
           const { toggle } = getSiteProfileElements();
-          if (!toggle.checked) {
+          if (!toggle || !toggle.checked) {
             return;
           }
           await saveSiteProfileFromEditor();

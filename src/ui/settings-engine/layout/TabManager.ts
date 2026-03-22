@@ -59,6 +59,11 @@ export class TabManager {
     this.contentContainer.appendChild(content);
 
     content.classList.add("is-hidden");
+    const setActiveState = (active: boolean): void => {
+      tabLi.classList.toggle("is-active", active);
+      content.classList.toggle("is-active", active);
+      content.classList.toggle("is-hidden", !active);
+    };
 
     const bundle: TabBundle = {
       tabLi,
@@ -68,15 +73,11 @@ export class TabManager {
         if (this.activeBundle && this.activeBundle !== bundle) {
           this.activeBundle.deactivate();
         }
-        tabLi.classList.add("is-active");
-        content.classList.add("is-active");
-        content.classList.remove("is-hidden");
+        setActiveState(true);
         this.activeBundle = bundle;
       },
       deactivate: () => {
-        tabLi.classList.remove("is-active");
-        content.classList.remove("is-active");
-        content.classList.add("is-hidden");
+        setActiveState(false);
         this.activeBundle = null;
       },
     };

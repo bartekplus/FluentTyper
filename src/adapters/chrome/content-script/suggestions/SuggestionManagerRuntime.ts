@@ -166,16 +166,15 @@ export class SuggestionManagerRuntime {
       updateSelectionHighlight: (entry) =>
         this.menuPresenter.updateHighlight(entry.list, entry.selectedIndex),
       acceptSuggestion: (entry, suggestion) =>
-        this.sessionRegistry.get(entry.id)?.acceptSuggestion(suggestion) ?? false,
+        this.getSession(entry.id)?.acceptSuggestion(suggestion) ?? false,
       acceptSuggestionAtIndex: (entry, index) =>
-        this.sessionRegistry.get(entry.id)?.acceptSuggestionAtIndex(index) ?? false,
-      requestInlineSuggestion: (entry) =>
-        this.sessionRegistry.get(entry.id)?.requestInlineSuggestion(),
+        this.getSession(entry.id)?.acceptSuggestionAtIndex(index) ?? false,
+      requestInlineSuggestion: (entry) => this.getSession(entry.id)?.requestInlineSuggestion(),
     });
   }
 
   public fulfillPrediction(context: PredictionResponse): void {
-    this.sessionRegistry.get(context.suggestionId)?.handlePredictionResponse(context);
+    this.getSession(context.suggestionId)?.handlePredictionResponse(context);
   }
 
   public detachAllHelpers(): void {
@@ -221,7 +220,7 @@ export class SuggestionManagerRuntime {
     if (!entry) {
       return;
     }
-    this.sessionRegistry.get(entry.id)?.requestPrediction();
+    this.getSession(entry.id)?.requestPrediction();
   }
 
   public handleEarlyTabAcceptRequest(entryId: string): EarlyTabAcceptResult {
@@ -237,7 +236,7 @@ export class SuggestionManagerRuntime {
       };
     }
 
-    const session = this.sessionRegistry.get(entry.id);
+    const session = this.getSession(entry.id);
     if (!session) {
       return {
         accepted: false,
@@ -562,7 +561,7 @@ export class SuggestionManagerRuntime {
     }
 
     this.clearPendingKeyFallback(id);
-    this.sessionRegistry.get(id)?.dispose();
+    this.getSession(id)?.dispose();
     this.lifecycleController.detachEntryListeners(entry);
     entry.menu.remove();
     const stateHost = resolveSuggestionStateHost(entry.elem);
@@ -588,7 +587,7 @@ export class SuggestionManagerRuntime {
 
   private dismissEntry(entry: SuggestionEntry, keepActive = false): void {
     this.clearPendingKeyFallback(entry.id);
-    this.sessionRegistry.get(entry.id)?.dispose();
+    this.getSession(entry.id)?.dispose();
     entry.requestId += 1;
     if (!keepActive && this.activeEntryId === entry.id) {
       this.activeEntryId = null;
@@ -636,7 +635,7 @@ export class SuggestionManagerRuntime {
 
   private onElementFocus(id: number): void {
     this.activeEntryId = id;
-    this.sessionRegistry.get(id)?.handleFocus();
+    this.getSession(id)?.handleFocus();
   }
 
   private onElementClick(id: number): void {
@@ -645,7 +644,7 @@ export class SuggestionManagerRuntime {
     if (!entry) {
       return;
     }
-    this.sessionRegistry.get(id)?.handleClick({
+    this.getSession(id)?.handleClick({
       dismissEntry: () => this.dismissEntry(entry, true),
     });
   }
@@ -658,7 +657,7 @@ export class SuggestionManagerRuntime {
     if (!entry) {
       return;
     }
-    this.sessionRegistry.get(id)?.handleBlur({
+    this.getSession(id)?.handleBlur({
       dismissEntry: () => this.dismissEntry(entry),
     });
   }
@@ -669,7 +668,7 @@ export class SuggestionManagerRuntime {
     if (!entry) {
       return;
     }
-    this.sessionRegistry.get(id)?.handleInput(event);
+    this.getSession(id)?.handleInput(event);
   }
 
   private onElementBeforeInput(id: number, event: Event): void {
@@ -690,7 +689,7 @@ export class SuggestionManagerRuntime {
 
   private onElementPaste(id: number): void {
     this.activeEntryId = id;
-    this.sessionRegistry.get(id)?.handlePaste();
+    this.getSession(id)?.handlePaste();
   }
 
   private onElementCompositionStart(id: number): void {
@@ -699,7 +698,7 @@ export class SuggestionManagerRuntime {
     if (!entry) {
       return;
     }
-    this.sessionRegistry.get(id)?.handleCompositionStart();
+    this.getSession(id)?.handleCompositionStart();
   }
 
   private onElementCompositionEnd(id: number): void {
@@ -708,11 +707,11 @@ export class SuggestionManagerRuntime {
     if (!entry) {
       return;
     }
-    this.sessionRegistry.get(id)?.handleCompositionEnd();
+    this.getSession(id)?.handleCompositionEnd();
   }
 
   private clearSuggestions(entry: SuggestionEntry): void {
-    this.sessionRegistry.get(entry.id)?.clearSuggestions();
+    this.getSession(entry.id)?.clearSuggestions();
   }
 
   private buildEntrySession(entry: SuggestionEntry): SuggestionEntrySession {
@@ -778,7 +777,7 @@ export class SuggestionManagerRuntime {
   }
 
   private reconcileEntrySelection(entry: SuggestionEntry): void {
-    this.sessionRegistry.get(entry.id)?.reconcileSelection({
+    this.getSession(entry.id)?.reconcileSelection({
       dismissEntry: () => this.dismissEntry(entry, true),
     });
   }
@@ -804,7 +803,7 @@ export class SuggestionManagerRuntime {
       return;
     }
 
-    this.sessionRegistry.get(id)?.acceptSuggestionAtIndex(index);
+    this.getSession(id)?.acceptSuggestionAtIndex(index);
   }
 
   private onElementKeyDown(id: number, event: Event): void {
@@ -818,7 +817,7 @@ export class SuggestionManagerRuntime {
     if (!entry) {
       return;
     }
-    this.sessionRegistry.get(id)?.handleKeyDown(keyboardEvent, {
+    this.getSession(id)?.handleKeyDown(keyboardEvent, {
       dispatchKeyboard: () => this.keyboardHandler.handle(entry, keyboardEvent),
       dismissEntry: (keepActive = true) => this.dismissEntry(entry, keepActive),
       clearPendingFallback: () => this.clearPendingKeyFallback(id),
@@ -838,7 +837,7 @@ export class SuggestionManagerRuntime {
       this.clearPendingKeyFallback(id);
       return;
     }
-    this.sessionRegistry.get(id)?.handleKeyFallbackReconcile(pending, {
+    this.getSession(id)?.handleKeyFallbackReconcile(pending, {
       clearPendingFallback: () => this.clearPendingKeyFallback(id),
       dismissEntry: () => this.dismissEntry(current, true),
       rescheduleFallback: (delayMs: number) =>
@@ -869,6 +868,10 @@ export class SuggestionManagerRuntime {
 
   private shouldUseEarlyTabBridge(elem: SuggestionElement): boolean {
     return elem.tagName !== "INPUT" && elem.tagName !== "TEXTAREA";
+  }
+
+  private getSession(entryId: number): SuggestionEntrySession | undefined {
+    return this.sessionRegistry.get(entryId);
   }
 
   private consumeCancelableEvent(event: Event): void {

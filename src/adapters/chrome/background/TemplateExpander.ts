@@ -1,22 +1,20 @@
-// TemplateExpander.ts
-// Utility for template and variable expansion
 import { resolveDynamicVariable } from "@core/domain/variables";
 
 export interface TemplateVariables {
   [key: string]: string;
 }
 
+const TEMPLATE_REGEX = /\$\{(?!\d)[a-zA-Z0-9_æøåÆØÅ]+(?::[^}]+)?\}/g;
+const TEMPLATE_SPLIT_REGEX = /\$\{(?!\d)[a-zA-Z0-9_æøåÆØÅ]+(?::[^}]+)?\}/;
+const TEMPLATE_ARG_REGEX = /[^{}]+(?=})/g;
+
 export class TemplateExpander {
-  /**
-   * Expands a string template asynchronously using a resolver.
-   */
   static async parseStringTemplateAsync(
     str: string,
     resolver: (fullVarName: string) => Promise<string | undefined>,
   ): Promise<string> {
-    const regex = /\$\{(?!\d)[a-zA-Z0-9_æøåÆØÅ]+(?::[^}]+)?\}/g;
-    const parts = str.split(regex);
-    const argsMatches = str.match(regex) || [];
+    const parts = str.split(TEMPLATE_REGEX);
+    const argsMatches = str.match(TEMPLATE_REGEX) || [];
 
     const parameters = await Promise.all(
       argsMatches.map(async (match) => {
@@ -29,12 +27,9 @@ export class TemplateExpander {
     return String.raw({ raw: parts }, ...parameters);
   }
 
-  /**
-   * Evaluates templates synchronously if variables are pre-computed.
-   */
   static parseStringTemplate(str: string, obj: TemplateVariables): string {
-    const parts = str.split(/\$\{(?!\d)[a-zA-Z0-9_æøåÆØÅ]+(?::[^}]+)?\}/);
-    const args = str.match(/[^{}]+(?=})/g) || [];
+    const parts = str.split(TEMPLATE_SPLIT_REGEX);
+    const args = str.match(TEMPLATE_ARG_REGEX) || [];
     const parameters = args.map(
       (argument) =>
         obj[argument] || (obj[argument] === undefined ? `\${${argument}}` : obj[argument]),
@@ -42,9 +37,6 @@ export class TemplateExpander {
     return String.raw({ raw: parts }, ...parameters);
   }
 
-  /**
-   * Generates a resolver function for the active context.
-   */
   static createResolver(
     lang: string,
     timeFormat: string,
@@ -52,7 +44,6 @@ export class TemplateExpander {
     tabId?: number,
   ): (fullVarName: string) => Promise<string | undefined> {
     return async (fullVarName: string) => {
-      // split varName from arg
       const colonIdx = fullVarName.indexOf(":");
       let varName = fullVarName;
       let arg: string | undefined = undefined;
@@ -62,52 +53,24 @@ export class TemplateExpander {
         arg = fullVarName.slice(colonIdx + 1);
       }
 
-      // Check standard variables from variables.ts
-      let stdVar: string | undefined = undefined;
       try {
-        stdVar = resolveDynamicVariable(varName, arg, lang, timeFormat, dateFormat);
+        const stdVar = resolveDynamicVariable(varName, arg, lang, timeFormat, dateFormat);
+        if (stdVar !== undefined) {
+          return stdVar;
+        }
       } catch (e) {
         console.warn(`Failed to resolve variable ${varName}`, e);
       }
-      if (stdVar !== undefined) {
-        return stdVar;
-      }
 
-      // Check browser context variables
-      if (
-        ["page_url", "page_title", "page_domain"].includes(varName) &&
-        typeof chrome !== "undefined" &&
-        chrome.tabs &&
-        tabId
-      ) {
-        try {
-          const tab = await chrome.tabs.get(tabId);
-          if (varName === "page_url") {
-            return tab.url || "";
-          }
-          if (varName === "page_title") {
-            return tab.title || "";
-          }
-          if (varName === "page_domain" && tab.url) {
-            try {
-              const urlObj = new URL(tab.url);
-              return urlObj.hostname;
-            } catch {
-              return "";
-            }
-          }
-        } catch (error) {
-          console.warn(`Failed to fetch tab data for ${varName}`, error);
-        }
+      const pageVariable = await TemplateExpander.resolvePageVariable(varName, tabId);
+      if (pageVariable !== undefined) {
+        return pageVariable;
       }
 
       return undefined;
     };
   }
 
-  /**
-   * @deprecated Used by older synchronous paths, will evaluate a fixed subset of variables.
-   */
   static getExpandedVariables(
     lang: string,
     timeFormat: string,
@@ -124,5 +87,41 @@ export class TemplateExpander {
       expandedTemplateVariables["date"] = dateVal;
     }
     return expandedTemplateVariables;
+  }
+
+  private static async resolvePageVariable(
+    varName: string,
+    tabId?: number,
+  ): Promise<string | undefined> {
+    if (
+      !["page_url", "page_title", "page_domain"].includes(varName) ||
+      typeof chrome === "undefined" ||
+      !chrome.tabs ||
+      !tabId
+    ) {
+      return undefined;
+    }
+    try {
+      const tab = await chrome.tabs.get(tabId);
+      if (varName === "page_url") {
+        return tab.url || "";
+      }
+      if (varName === "page_title") {
+        return tab.title || "";
+      }
+      if (varName === "page_domain") {
+        if (!tab.url) {
+          return "";
+        }
+        try {
+          return new URL(tab.url).hostname;
+        } catch {
+          return "";
+        }
+      }
+    } catch (error) {
+      console.warn(`Failed to fetch tab data for ${varName}`, error);
+    }
+    return undefined;
   }
 }

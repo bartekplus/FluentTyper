@@ -51,18 +51,16 @@ export class MutationPipeline {
 
   private collectMutationRoots(mutationsList: MutationRecord[]): Element[] {
     const candidates: Element[] = [];
+    const addCandidate = (node: Node | null | undefined): void => {
+      if (node instanceof Element && isInDocument(node)) {
+        candidates.push(node);
+      }
+    };
+
     for (const mutation of mutationsList) {
-      mutation.addedNodes.forEach((node) => {
-        if (node instanceof Element && isInDocument(node)) {
-          candidates.push(node);
-        }
-      });
-      if (
-        mutation.type === "attributes" &&
-        mutation.target instanceof Element &&
-        isInDocument(mutation.target)
-      ) {
-        candidates.push(mutation.target);
+      mutation.addedNodes.forEach(addCandidate);
+      if (mutation.type === "attributes") {
+        addCandidate(mutation.target);
       }
     }
 

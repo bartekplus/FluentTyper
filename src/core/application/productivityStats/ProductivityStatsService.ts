@@ -8,7 +8,10 @@ import { DonationPromptPolicy } from "@core/domain/productivityStats/DonationPro
 import { RecapPolicy } from "@core/domain/productivityStats/RecapPolicy";
 import { StatsAggregator } from "@core/domain/productivityStats/StatsAggregator";
 import { StatsSanitizer } from "@core/domain/productivityStats/StatsSanitizer";
-import type { ProductivityStatsState } from "@core/domain/productivityStats/types";
+import type {
+  DailyProductivityState,
+  ProductivityStatsState,
+} from "@core/domain/productivityStats/types";
 import { StatsRepository } from "./StatsRepository";
 
 export class ProductivityStatsService {
@@ -27,8 +30,48 @@ export class ProductivityStatsService {
     this.aggregator = new StatsAggregator(this.sanitizer);
     this.recapPolicy = new RecapPolicy(this.sanitizer, this.aggregator);
     this.donationPromptPolicy = new DonationPromptPolicy(this.sanitizer);
-    this.repository = new StatsRepository(settingsManager, this.sanitizer);
+    this.repository = new StatsRepository(settingsManager);
     this.now = options.now || (() => new Date());
+  }
+
+  private getTodayBucket(
+    state: ProductivityStatsState,
+    now: Date,
+  ): { todayKey: string; todayBucket: DailyProductivityState } {
+    const todayKey = this.sanitizer.toLocalDateKey(now);
+    return {
+      todayKey,
+      todayBucket: state.daily[todayKey] || this.sanitizer.createDailyState(),
+    };
+  }
+
+  private recordLanguageUsage(
+    state: ProductivityStatsState,
+    todayBucket: DailyProductivityState,
+    language: string,
+    charactersSaved: number,
+  ): void {
+    this.aggregator.incrementLanguageUsageCounter(state.languageUsage, language, charactersSaved);
+    this.aggregator.incrementLanguageUsageCounter(
+      todayBucket.languageUsage,
+      language,
+      charactersSaved,
+    );
+  }
+
+  private recordSnippetUsage(
+    state: ProductivityStatsState,
+    todayBucket: DailyProductivityState,
+    snippetKey: string,
+    update: {
+      countDelta?: number;
+      charsSavedDelta?: number;
+      charsInsertedDelta?: number;
+      charsTypedDelta?: number;
+    },
+  ): void {
+    this.aggregator.incrementSnippetUsageCounter(state.snippetUsage, snippetKey, update);
+    this.aggregator.incrementSnippetUsageCounter(todayBucket.snippetUsage, snippetKey, update);
   }
 
   setSnippetShortcuts(textExpansions: unknown): void {
@@ -49,8 +92,7 @@ export class ProductivityStatsService {
 
   async recordUsageEvent(event: ContentScriptUsageEventContext): Promise<void> {
     await this.enqueueMutation((state) => {
-      const todayKey = this.sanitizer.toLocalDateKey(this.now());
-      const todayBucket = state.daily[todayKey] || this.sanitizer.createDailyState();
+      const { todayKey, todayBucket } = this.getTodayBucket(state, this.now());
 
       switch (event.eventType) {
         case "suggestion_shown": {
@@ -71,19 +113,10 @@ export class ProductivityStatsService {
 
           state.acceptedSuggestions += 1;
           state.charactersSaved += charactersSaved;
-          this.aggregator.incrementLanguageUsageCounter(
-            state.languageUsage,
-            language,
-            charactersSaved,
-          );
+          this.recordLanguageUsage(state, todayBucket, language, charactersSaved);
 
           todayBucket.acceptedSuggestions += 1;
           todayBucket.charactersSaved += charactersSaved;
-          this.aggregator.incrementLanguageUsageCounter(
-            todayBucket.languageUsage,
-            language,
-            charactersSaved,
-          );
           break;
         }
 
@@ -99,18 +132,10 @@ export class ProductivityStatsService {
 
           state.snippetsExpanded += 1;
           todayBucket.snippetsExpanded += 1;
-          this.aggregator.incrementSnippetUsageCounter(state.snippetUsage, normalizedSnippetKey, {
+          this.recordSnippetUsage(state, todayBucket, normalizedSnippetKey, {
             countDelta: 1,
             charsSavedDelta: charactersSaved,
           });
-          this.aggregator.incrementSnippetUsageCounter(
-            todayBucket.snippetUsage,
-            normalizedSnippetKey,
-            {
-              countDelta: 1,
-              charsSavedDelta: charactersSaved,
-            },
-          );
           break;
         }
 
@@ -127,16 +152,9 @@ export class ProductivityStatsService {
 
           state.charsInsertedFromSnippet += insertedChars;
           todayBucket.charsInsertedFromSnippet += insertedChars;
-          this.aggregator.incrementSnippetUsageCounter(state.snippetUsage, normalizedSnippetKey, {
+          this.recordSnippetUsage(state, todayBucket, normalizedSnippetKey, {
             charsInsertedDelta: insertedChars,
           });
-          this.aggregator.incrementSnippetUsageCounter(
-            todayBucket.snippetUsage,
-            normalizedSnippetKey,
-            {
-              charsInsertedDelta: insertedChars,
-            },
-          );
           break;
         }
 
@@ -153,16 +171,9 @@ export class ProductivityStatsService {
 
           state.charsTypedForTrigger += typedChars;
           todayBucket.charsTypedForTrigger += typedChars;
-          this.aggregator.incrementSnippetUsageCounter(state.snippetUsage, normalizedSnippetKey, {
+          this.recordSnippetUsage(state, todayBucket, normalizedSnippetKey, {
             charsTypedDelta: typedChars,
           });
-          this.aggregator.incrementSnippetUsageCounter(
-            todayBucket.snippetUsage,
-            normalizedSnippetKey,
-            {
-              charsTypedDelta: typedChars,
-            },
-          );
           break;
         }
 
@@ -180,8 +191,7 @@ export class ProductivityStatsService {
     const state = await this.loadState();
     const now = this.now();
 
-    const todayKey = this.sanitizer.toLocalDateKey(now);
-    const todayBucket = state.daily[todayKey] || this.sanitizer.createDailyState();
+    const { todayBucket } = this.getTodayBucket(state, now);
     const today = this.aggregator.metricsFromCounters(
       todayBucket.acceptedSuggestions,
       todayBucket.charactersSaved,
@@ -225,7 +235,6 @@ export class ProductivityStatsService {
     const previousWeekStart = this.sanitizer.addDays(currentWeekStart, -7);
     const currentWeek = this.recapPolicy.summarizeWeek(state.daily, currentWeekStart);
     const previousWeek = this.recapPolicy.summarizeWeek(state.daily, previousWeekStart);
-    const weeklyRecap = previousWeek;
 
     const weekOverWeekDeltaPct =
       previousWeek.estimatedMinutesSaved > 0
@@ -238,7 +247,7 @@ export class ProductivityStatsService {
 
     const shouldShowWeeklyRecapCard = this.recapPolicy.shouldShowWeeklyRecap(
       state,
-      weeklyRecap,
+      previousWeek,
       now,
     );
 
@@ -254,13 +263,13 @@ export class ProductivityStatsService {
       topSnippets,
       weekOverWeekDeltaPct,
       milestoneProgress: this.aggregator.getMilestoneProgress(lifetime.estimatedMinutesSaved),
-      weeklyRecap,
+      weeklyRecap: previousWeek,
       shouldShowWeeklyRecap: shouldShowWeeklyRecapCard,
       donationPrompt: this.donationPromptPolicy.toDonationPrompt(
         state,
         lifetime,
         now,
-        weeklyRecap,
+        previousWeek,
         shouldShowWeeklyRecapCard,
       ),
     };
@@ -332,7 +341,7 @@ export class ProductivityStatsService {
   }
 
   private async loadState(): Promise<ProductivityStatsState> {
-    return this.repository.loadState();
+    return this.sanitizer.sanitizeStatsState(await this.repository.loadState());
   }
 
   private async saveState(state: ProductivityStatsState): Promise<void> {

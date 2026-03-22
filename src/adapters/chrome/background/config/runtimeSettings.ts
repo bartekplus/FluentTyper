@@ -18,6 +18,11 @@ export interface DomainRuntimeSettings {
   hasNumSuggestionsOverride: boolean;
 }
 
+interface LanguageState {
+  language: string;
+  enabledLanguages: string[];
+}
+
 export function clampNumSuggestions(value: unknown): number {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     return 0;
@@ -25,22 +30,34 @@ export function clampNumSuggestions(value: unknown): number {
   return Math.min(MAX_NUM_SUGGESTIONS, Math.max(0, Math.round(value)));
 }
 
-export async function resolveActiveLanguage(settingsManager: SettingsManager): Promise<string> {
+async function resolveLanguageState(settingsManager: SettingsManager): Promise<LanguageState> {
   const settingsRepository = new CoreSettingsRepository(settingsManager);
   const [currentLanguage, enabledLanguages] = await Promise.all([
     settingsRepository.getLanguage(),
     settingsRepository.getEnabledLanguages(),
   ]);
-  const allowAutoDetect = enabledLanguages.length > 1;
-  if (currentLanguage === "auto_detect" && allowAutoDetect) {
-    return currentLanguage;
+  if (currentLanguage === "auto_detect" && enabledLanguages.length > 1) {
+    return {
+      language: currentLanguage,
+      enabledLanguages,
+    };
   }
   if (enabledLanguages.includes(currentLanguage)) {
-    return currentLanguage;
+    return {
+      language: currentLanguage,
+      enabledLanguages,
+    };
   }
   const fallbackLanguage = enabledLanguages[0];
   await settingsRepository.setLanguage(fallbackLanguage);
-  return fallbackLanguage;
+  return {
+    language: fallbackLanguage,
+    enabledLanguages,
+  };
+}
+
+export async function resolveActiveLanguage(settingsManager: SettingsManager): Promise<string> {
+  return (await resolveLanguageState(settingsManager)).language;
 }
 
 export async function resolveDomainRuntimeSettings(
@@ -50,25 +67,23 @@ export async function resolveDomainRuntimeSettings(
   const settingsRepository = new CoreSettingsRepository(settingsManager);
   const siteProfileRepository = new SiteProfileRepository(settingsManager);
   const [
-    globalLanguage,
-    enabledLanguages,
+    languageState,
     inlineSuggestionGlobal,
     preferNativeAutocompleteGlobal,
     numGlobal,
     siteProfilesRaw,
   ] = await Promise.all([
-    resolveActiveLanguage(settingsManager),
-    settingsRepository.getEnabledLanguages(),
+    resolveLanguageState(settingsManager),
     settingsRepository.getInlineSuggestion(),
     settingsRepository.getPreferNativeAutocomplete(),
     settingsRepository.getNumSuggestions(),
     siteProfileRepository.getSiteProfiles(),
   ]);
   const profile = domainURL
-    ? getSiteProfileForDomain(siteProfilesRaw, domainURL, enabledLanguages)
+    ? getSiteProfileForDomain(siteProfilesRaw, domainURL, languageState.enabledLanguages)
     : undefined;
 
-  const language = profile?.language ?? globalLanguage;
+  const language = profile?.language ?? languageState.language;
   const inlineSuggestion =
     typeof profile?.inline_suggestion === "boolean"
       ? profile.inline_suggestion
@@ -84,7 +99,7 @@ export async function resolveDomainRuntimeSettings(
 
   return {
     language,
-    enabledLanguages,
+    enabledLanguages: languageState.enabledLanguages,
     inlineSuggestion,
     preferNativeAutocomplete,
     numSuggestions,

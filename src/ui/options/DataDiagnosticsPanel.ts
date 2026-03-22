@@ -1,5 +1,6 @@
 import type { SettingsRegistry } from "@ui/settings-engine/SettingsEngine.js";
 import { i18n } from "./fluenttyperI18n.js";
+import { createWorkspaceShell } from "./workspacePanelUtils.js";
 import {
   createWorkspaceCard,
   moveControlToBody,
@@ -17,8 +18,7 @@ export class DataDiagnosticsPanel {
   }
 
   render(): void {
-    const shell = document.createElement("div");
-    shell.className = "workspace-panel-stack";
+    const shell = createWorkspaceShell();
 
     const productivity = createWorkspaceCard(
       i18n.get("productivity_dashboard_group"),

@@ -1,10 +1,9 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
 import {
+  type EnglishBoundaryContext,
+  resolveEnglishBoundaryContext,
   findTrailingLetterToken,
-  hasTrailingTokenBoundary,
-  isEnglishLanguageContext,
   isLikelyCodeLikeContext,
-  splitTrailingDelimiters,
 } from "./helpers/EnglishRuleShared";
 
 const ENGLISH_APOSTROPHE_PRONOUN_REGEX = /(^|[^A-Za-z0-9_])(i)(['’](?:m|ve|ll|d))$/;
@@ -15,23 +14,19 @@ export class EnglishPronounICapitalizationRule implements GrammarRule {
   readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
 
   apply(context: GrammarContext): GrammarEdit | null {
-    if (!isEnglishLanguageContext(context)) {
-      return null;
-    }
-    const inputStr = context.beforeCursor;
-    if (inputStr.length === 0) {
-      return null;
-    }
-    if (!hasTrailingTokenBoundary(inputStr)) {
+    const boundaryContext = resolveEnglishBoundaryContext(context, {
+      ignoreDeleteInputAction: true,
+    });
+    if (!boundaryContext) {
       return null;
     }
 
-    const apostropheCorrection = this.applyApostrophePronoun(inputStr);
+    const apostropheCorrection = this.applyApostrophePronoun(boundaryContext);
     if (apostropheCorrection) {
       return apostropheCorrection;
     }
 
-    const tokenInfo = findTrailingLetterToken(inputStr);
+    const tokenInfo = findTrailingLetterToken(boundaryContext.input);
     if (!tokenInfo || tokenInfo.token !== "i") {
       return null;
     }
@@ -42,18 +37,15 @@ export class EnglishPronounICapitalizationRule implements GrammarRule {
     const replacement = `I${tokenInfo.trailing}`;
     return {
       replacement,
-      deleteBackwards: inputStr.length - tokenInfo.tokenStart,
+      deleteBackwards: boundaryContext.input.length - tokenInfo.tokenStart,
       deleteForwards: 0,
       confidence: "high",
       description: "Capitalized English pronoun I",
     };
   }
 
-  private applyApostrophePronoun(inputStr: string): GrammarEdit | null {
-    const { core, trailing } = splitTrailingDelimiters(inputStr);
-    if (core.length === 0 || trailing.length === 0) {
-      return null;
-    }
+  private applyApostrophePronoun(boundaryContext: EnglishBoundaryContext): GrammarEdit | null {
+    const { core, trailing, input } = boundaryContext;
     const match = core.match(ENGLISH_APOSTROPHE_PRONOUN_REGEX);
     if (!match) {
       return null;
@@ -71,7 +63,7 @@ export class EnglishPronounICapitalizationRule implements GrammarRule {
     const replacement = `I${core.slice(replaceStart + 1)}${trailing}`;
     return {
       replacement,
-      deleteBackwards: inputStr.length - replaceStart,
+      deleteBackwards: input.length - replaceStart,
       deleteForwards: 0,
       confidence: "high",
       description: "Capitalized English pronoun in contraction",

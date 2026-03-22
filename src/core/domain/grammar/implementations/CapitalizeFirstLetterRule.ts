@@ -1,5 +1,6 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
 import { SPACE_CHARS } from "../../spacingRules";
+import { isLowercaseLetter } from "./helpers/GenericRuleShared";
 
 export class CapitalizeFirstLetterRule implements GrammarRule {
   readonly id = "capitalizeFirstLetter";
@@ -14,8 +15,7 @@ export class CapitalizeFirstLetterRule implements GrammarRule {
 
     const lastChar = text[text.length - 1];
 
-    // We only capitalize valid lowercase alphabetic letters
-    if (lastChar.toLowerCase() === lastChar.toUpperCase() || lastChar !== lastChar.toLowerCase()) {
+    if (!isLowercaseLetter(lastChar)) {
       return null;
     }
 

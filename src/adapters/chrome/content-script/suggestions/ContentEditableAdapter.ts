@@ -187,17 +187,8 @@ export class ContentEditableAdapter {
   }
 
   public getBlockContext(elem: HTMLElement): { beforeCursor: string; afterCursor: string } | null {
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) {
-      return null;
-    }
-
-    const range = selection.getRangeAt(0);
-    const targetNode = elem as Node;
-    const startInside =
-      range.startContainer === targetNode || targetNode.contains(range.startContainer);
-    const endInside = range.endContainer === targetNode || targetNode.contains(range.endContainer);
-    if (!startInside || !endInside) {
+    const range = this.resolveSelectionRangeWithinElement(elem);
+    if (!range) {
       return null;
     }
 
@@ -270,17 +261,8 @@ export class ContentEditableAdapter {
   }
 
   public getActiveBlockElement(elem: HTMLElement): HTMLElement | null {
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) {
-      return null;
-    }
-
-    const range = selection.getRangeAt(0);
-    const targetNode = elem as Node;
-    const startInside =
-      range.startContainer === targetNode || targetNode.contains(range.startContainer);
-    const endInside = range.endContainer === targetNode || targetNode.contains(range.endContainer);
-    if (!startInside || !endInside) {
+    const range = this.resolveSelectionRangeWithinElement(elem);
+    if (!range) {
       return null;
     }
 
@@ -288,17 +270,13 @@ export class ContentEditableAdapter {
   }
 
   public hasUnstableSelection(elem: HTMLElement): boolean {
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) {
+    const range = this.resolveSelectionRangeWithinElement(elem);
+    if (!range) {
       return true;
     }
 
-    const range = selection.getRangeAt(0);
-    const targetNode = elem as Node;
-    const startInside =
-      range.startContainer === targetNode || targetNode.contains(range.startContainer);
-    const endInside = range.endContainer === targetNode || targetNode.contains(range.endContainer);
-    if (!startInside || !endInside) {
+    const selection = window.getSelection();
+    if (!selection) {
       return true;
     }
 
@@ -324,33 +302,16 @@ export class ContentEditableAdapter {
   public getBlockContextBySelection(
     elem: HTMLElement,
   ): { beforeCursor: string; afterCursor: string } | null {
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) {
-      return null;
-    }
-    const range = selection.getRangeAt(0);
-    const targetNode = elem as Node;
-    const startInside =
-      range.startContainer === targetNode || targetNode.contains(range.startContainer);
-    const endInside = range.endContainer === targetNode || targetNode.contains(range.endContainer);
-    if (!startInside || !endInside) {
+    const range = this.resolveSelectionRangeWithinElement(elem);
+    if (!range) {
       return null;
     }
     return this.getBlockContextByWalking(elem, range);
   }
 
   public getPreviousBlockTextBySelection(elem: HTMLElement): string | null {
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) {
-      return null;
-    }
-
-    const range = selection.getRangeAt(0);
-    const targetNode = elem as Node;
-    const startInside =
-      range.startContainer === targetNode || targetNode.contains(range.startContainer);
-    const endInside = range.endContainer === targetNode || targetNode.contains(range.endContainer);
-    if (!startInside || !endInside) {
+    const range = this.resolveSelectionRangeWithinElement(elem);
+    if (!range) {
       return null;
     }
 
@@ -640,11 +601,8 @@ export class ContentEditableAdapter {
       return false;
     }
 
-    const range = selection.getRangeAt(0);
-    const targetNode = elem as Node;
-    const startInside =
-      range.startContainer === targetNode || targetNode.contains(range.startContainer);
-    if (!startInside) {
+    const range = this.resolveSelectionRangeWithinElement(elem, { requireEndContainer: false });
+    if (!range) {
       return false;
     }
 
@@ -1127,17 +1085,8 @@ export class ContentEditableAdapter {
   }
 
   private captureSelectionOffsetAnchors(root: HTMLElement): SelectionOffsetAnchors | null {
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) {
-      return null;
-    }
-
-    const range = selection.getRangeAt(0);
-    const rootNode = root as Node;
-    const startInside =
-      range.startContainer === rootNode || rootNode.contains(range.startContainer);
-    const endInside = range.endContainer === rootNode || rootNode.contains(range.endContainer);
-    if (!startInside || !endInside) {
+    const range = this.resolveSelectionRangeWithinElement(root);
+    if (!range) {
       return null;
     }
 
@@ -1184,6 +1133,30 @@ export class ContentEditableAdapter {
       return selectionAnchors.endPosition;
     }
     return null;
+  }
+
+  private resolveSelectionRangeWithinElement(
+    elem: HTMLElement,
+    { requireEndContainer = true }: { requireEndContainer?: boolean } = {},
+  ): Range | null {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      return null;
+    }
+
+    const range = selection.getRangeAt(0);
+    const targetNode = elem as Node;
+    const startInside =
+      range.startContainer === targetNode || targetNode.contains(range.startContainer);
+    if (!startInside) {
+      return null;
+    }
+    if (!requireEndContainer) {
+      return range;
+    }
+
+    const endInside = range.endContainer === targetNode || targetNode.contains(range.endContainer);
+    return endInside ? range : null;
   }
 
   private resolveWithinTextNodes(
