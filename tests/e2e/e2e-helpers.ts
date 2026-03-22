@@ -6,6 +6,7 @@ const EXTENSION_PATH = path.resolve(
   process.env.E2E_EXTENSION_PATH || path.join(__dirname, "../../build/"),
 );
 const IS_CI = process.env.CI === "true" || process.env.CI === "1";
+const IS_HEADED = process.env.E2E_HEADED === "true" || process.env.E2E_HEADED === "1";
 
 export type BrowserType = "chrome" | "firefox";
 export type E2ESuite = "smoke" | "full";
@@ -105,7 +106,7 @@ async function launchChrome(): Promise<Browser> {
     args.push("--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage");
   }
   return puppeteer.launch({
-    headless: IS_CI,
+    headless: !IS_HEADED,
     args,
     defaultViewport: null,
   });
@@ -323,7 +324,7 @@ async function resolveFirefoxExtensionHost(browser: Browser, extensionId: string
 async function launchFirefox(): Promise<Browser> {
   const browser = await puppeteer.launch({
     browser: "firefox",
-    headless: IS_CI,
+    headless: !IS_HEADED,
     defaultViewport: null,
   });
 

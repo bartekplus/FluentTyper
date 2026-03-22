@@ -10,6 +10,7 @@ interface CliOptions {
   mode: E2EMode;
   platform: BrowserPlatform;
   suite: E2ESuite;
+  headed: boolean;
   passthroughArgs: string[];
 }
 
@@ -17,6 +18,7 @@ function parseCliOptions(argv: string[]): CliOptions {
   let mode: E2EMode = "production";
   let platform: BrowserPlatform = "chrome";
   let suite: E2ESuite = "smoke";
+  let headed = false;
   const passthroughArgs: string[] = [];
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -72,10 +74,14 @@ function parseCliOptions(argv: string[]): CliOptions {
       }
       throw new Error(`Unsupported suite: ${String(value)}`);
     }
+    if (arg === "--headed") {
+      headed = true;
+      continue;
+    }
     passthroughArgs.push(arg);
   }
 
-  return { mode, platform, suite, passthroughArgs };
+  return { mode, platform, suite, headed, passthroughArgs };
 }
 
 async function runCommand(cmd: string[], extraEnv: Record<string, string> = {}): Promise<void> {
@@ -120,12 +126,15 @@ async function main(): Promise<void> {
     `--outdir=${extensionBuildDir}`,
   ]);
 
-  const sharedE2EEnv = {
+  const sharedE2EEnv: Record<string, string> = {
     E2E_BROWSER: options.platform,
     E2E_EXTENSION_PATH: extensionBuildDir,
     E2E_SUITE: options.suite,
     RUN_E2E: "1",
   };
+  if (options.headed) {
+    sharedE2EEnv.E2E_HEADED = "1";
+  }
 
   if (options.mode === "development") {
     await runCommand(
