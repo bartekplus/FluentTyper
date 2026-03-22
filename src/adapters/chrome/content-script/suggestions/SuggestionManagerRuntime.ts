@@ -166,9 +166,9 @@ export class SuggestionManagerRuntime {
       updateSelectionHighlight: (entry) =>
         this.menuPresenter.updateHighlight(entry.list, entry.selectedIndex),
       acceptSuggestion: (entry, suggestion) =>
-        this.sessionRegistry.get(entry.id)?.acceptSuggestion(suggestion),
+        this.sessionRegistry.get(entry.id)?.acceptSuggestion(suggestion) ?? false,
       acceptSuggestionAtIndex: (entry, index) =>
-        this.sessionRegistry.get(entry.id)?.acceptSuggestionAtIndex(index),
+        this.sessionRegistry.get(entry.id)?.acceptSuggestionAtIndex(index) ?? false,
       requestInlineSuggestion: (entry) =>
         this.sessionRegistry.get(entry.id)?.requestInlineSuggestion(),
     });

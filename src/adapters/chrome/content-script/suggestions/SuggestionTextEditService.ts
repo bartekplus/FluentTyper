@@ -260,7 +260,7 @@ export class SuggestionTextEditService {
     },
   ): boolean {
     return this.tryUndoPendingExtensionEdit(entry, event, {
-      consumeEvent: consumeKeyboardEvent,
+      consumeEvent: (undoEvent) => consumeKeyboardEvent(undoEvent as KeyboardEvent),
       clearSuggestions,
     });
   }
@@ -280,7 +280,7 @@ export class SuggestionTextEditService {
       return false;
     }
     return this.tryUndoPendingExtensionEdit(entry, event, {
-      consumeEvent: consumeInputEvent,
+      consumeEvent: (undoEvent) => consumeInputEvent(undoEvent as InputEvent),
       clearSuggestions,
     });
   }
