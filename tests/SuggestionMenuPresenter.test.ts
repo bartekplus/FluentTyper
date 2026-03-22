@@ -15,6 +15,7 @@ describe("SuggestionMenuPresenter", () => {
     menu.appendChild(list);
 
     const rendered = presenter.render({
+      menuId: 1,
       menu,
       list,
       target,
@@ -48,6 +49,7 @@ describe("SuggestionMenuPresenter", () => {
     menu.appendChild(list);
 
     const rendered = presenter.render({
+      menuId: 1,
       menu,
       list,
       target,

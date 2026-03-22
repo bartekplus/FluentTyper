@@ -3,6 +3,7 @@ export const EARLY_TAB_ACCEPT_MAIN_WORLD_FLAG = "__ftEarlyTabAcceptBridgeInstall
 export const EARLY_TAB_ACCEPT_ENTRY_ID_ATTR = "data-ft-suggestion-id";
 export const EARLY_TAB_ACCEPT_ENABLED_ATTR = "data-ft-autocomplete-on-tab";
 export const EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR = "data-ft-early-tab-bridge";
+export const EARLY_TAB_ACCEPT_VISIBLE_ATTR = "data-ft-suggestion-visible";
 export const EARLY_TAB_ACCEPT_MESSAGE_TYPE = "ft-early-tab-accept-message";
 
 export interface EarlyTabAcceptMessage {

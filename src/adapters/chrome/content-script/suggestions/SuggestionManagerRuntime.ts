@@ -17,8 +17,10 @@ import { SuggestionLifecycleController } from "./SuggestionLifecycleController";
 import { SuggestionMenuPresenter } from "./SuggestionMenuPresenter";
 import { SuggestionPositioningService } from "./SuggestionPositioningService";
 import { SuggestionPredictionCoordinator } from "./SuggestionPredictionCoordinator";
+import { resolveSuggestionStateHost } from "./SuggestionStateHost";
 import { SuggestionMenuView } from "./SuggestionMenuView";
 import { SuggestionTelemetryService } from "./SuggestionTelemetryService";
+import { resolveSuggestionOverlayRoot } from "./SuggestionOverlayRoot";
 import { EditableContextResolver } from "./EditableContextResolver";
 import { SuggestionTextEditService } from "./SuggestionTextEditService";
 import { ContentEditableAdapter } from "./ContentEditableAdapter";
@@ -27,6 +29,7 @@ import {
   EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR,
   EARLY_TAB_ACCEPT_ENABLED_ATTR,
   EARLY_TAB_ACCEPT_ENTRY_ID_ATTR,
+  EARLY_TAB_ACCEPT_VISIBLE_ATTR,
 } from "./EarlyTabAcceptBridgeProtocol";
 import { resolveTraceAgeMs } from "../predictionTrace";
 import type {
@@ -454,8 +457,11 @@ export class SuggestionManagerRuntime {
     this.removeManualAttachUi(elem);
 
     const id = this.entryRegistry.allocateId();
+    const stateHost = resolveSuggestionStateHost(elem);
 
-    const { menu, list } = SuggestionMenuView.ensureMenu(document.body ?? document.documentElement);
+    const { menu, list } = SuggestionMenuView.ensureMenu(
+      resolveSuggestionOverlayRoot(elem.ownerDocument ?? document),
+    );
 
     const entry: SuggestionEntry = {
       id,
@@ -521,15 +527,16 @@ export class SuggestionManagerRuntime {
     };
     entry.handlers.menuClick = this.onMenuClick.bind(this, id);
 
-    elem.setAttribute("data-tribute", "true");
-    elem.setAttribute("data-suggestion", "true");
-    elem.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, String(id));
-    elem.setAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR, String(this.autocompleteOnTab));
-    elem.setAttribute(
+    stateHost.setAttribute("data-tribute", "true");
+    stateHost.setAttribute("data-suggestion", "true");
+    stateHost.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, String(id));
+    stateHost.setAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR, String(this.autocompleteOnTab));
+    stateHost.setAttribute(
       EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR,
       String(this.shouldUseEarlyTabBridge(elem)),
     );
-    menu.dataset.ftSuggestionId = String(id);
+    stateHost.setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "false");
+    menu.id = SuggestionMenuView.resolveHostId(id);
     elem.tributeMenu = menu;
     elem.suggestionMenu = menu;
 
@@ -558,14 +565,16 @@ export class SuggestionManagerRuntime {
     this.sessionRegistry.get(id)?.dispose();
     this.lifecycleController.detachEntryListeners(entry);
     entry.menu.remove();
+    const stateHost = resolveSuggestionStateHost(entry.elem);
 
     delete entry.elem.tributeMenu;
     delete entry.elem.suggestionMenu;
-    entry.elem.removeAttribute("data-tribute");
-    entry.elem.removeAttribute("data-suggestion");
-    entry.elem.removeAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR);
-    entry.elem.removeAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR);
-    entry.elem.removeAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR);
+    stateHost.removeAttribute("data-tribute");
+    stateHost.removeAttribute("data-suggestion");
+    stateHost.removeAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR);
+    stateHost.removeAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR);
+    stateHost.removeAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR);
+    stateHost.removeAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR);
 
     this.entryRegistry.unregister(id);
     this.sessionRegistry.delete(id);
@@ -711,7 +720,7 @@ export class SuggestionManagerRuntime {
       entry,
       editableContextResolver: this.editableContextResolver,
       clearPendingFallback: () => this.clearPendingKeyFallback(entry.id),
-      hideMenu: () => this.menuPresenter.hide(entry.menu, entry.list),
+      hideMenu: () => this.menuPresenter.hide(entry.menu, entry.list, entry.elem),
       clearInlinePresenter: () => this.inlinePresenter.clearAll(),
       isFocused: () => this.isEntryFocused(entry),
       displayLangHeader: this.displayLangHeader,
@@ -723,6 +732,7 @@ export class SuggestionManagerRuntime {
       getPendingFallback: () => this.pendingKeyFallbacks.get(entry.id),
       renderMenu: ({ suggestions, selectedIndex, menuHeader, mentionText }) =>
         this.menuPresenter.render({
+          menuId: entry.id,
           menu: entry.menu,
           list: entry.list,
           target: entry.elem,

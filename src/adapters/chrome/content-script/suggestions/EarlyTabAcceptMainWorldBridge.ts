@@ -5,7 +5,9 @@ import {
   EARLY_TAB_ACCEPT_MAIN_WORLD_FLAG,
   EARLY_TAB_ACCEPT_MESSAGE_TYPE,
   EARLY_TAB_ACCEPT_REQUEST_EVENT,
+  EARLY_TAB_ACCEPT_VISIBLE_ATTR,
 } from "./EarlyTabAcceptBridgeProtocol";
+import { isSuggestionMenuHostVisible, resolveSuggestionMenuHost } from "./SuggestionMenuHost";
 
 type FluentTyperManagedElement = HTMLElement;
 type FluentTyperBridgeWindow = Window & {
@@ -13,36 +15,20 @@ type FluentTyperBridgeWindow = Window & {
   __ftEarlyTabAcceptBridgeKeydownHandler?: (event: KeyboardEvent) => void;
 };
 
-function resolveSuggestionMenu(
-  element: FluentTyperManagedElement,
-  doc: Document,
-): HTMLElement | null {
-  const entryId = element.getAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR);
-  if (!entryId) {
-    return null;
-  }
-
-  const menu = doc.querySelector(
-    `[data-ft-suggestion-role="menu"][${EARLY_TAB_ACCEPT_ENTRY_ID_ATTR}="${entryId}"]`,
-  );
-  return menu instanceof HTMLElement ? menu : null;
-}
-
-function hasVisibleSuggestionMenu(element: FluentTyperManagedElement, doc: Document): boolean {
-  const menu = resolveSuggestionMenu(element, doc);
-  return menu instanceof HTMLElement && menu.isConnected && menu.style.display !== "none";
-}
-
 function isManagedSuggestionTarget(
   element: HTMLElement | null,
   doc: Document,
 ): element is FluentTyperManagedElement {
+  const entryId =
+    element instanceof HTMLElement ? element.getAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR) : null;
   return (
     element instanceof HTMLElement &&
     element.getAttribute("data-suggestion") === "true" &&
     element.getAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR) === "true" &&
     element.getAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR) === "true" &&
-    hasVisibleSuggestionMenu(element, doc)
+    element.getAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR) === "true" &&
+    !!entryId &&
+    isSuggestionMenuHostVisible(resolveSuggestionMenuHost(doc, entryId))
   );
 }
 
@@ -155,4 +141,5 @@ export {
   EARLY_TAB_ACCEPT_ENTRY_ID_ATTR,
   EARLY_TAB_ACCEPT_MESSAGE_TYPE,
   EARLY_TAB_ACCEPT_REQUEST_EVENT,
+  EARLY_TAB_ACCEPT_VISIBLE_ATTR,
 } from "./EarlyTabAcceptBridgeProtocol";

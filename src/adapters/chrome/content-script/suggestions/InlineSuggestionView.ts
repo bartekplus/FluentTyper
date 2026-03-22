@@ -1,3 +1,5 @@
+import { resolveSuggestionOverlayRoot } from "./SuggestionOverlayRoot";
+
 export class InlineSuggestionView {
   static readonly CLASS_NAME = "ft-suggestion-inline";
   static readonly OWNED_ATTR = "data-ft-suggestion-owned";
@@ -54,7 +56,7 @@ export class InlineSuggestionView {
       ghost.style.maxWidth = `${maxWidth}px`;
     }
 
-    doc.body.appendChild(ghost);
+    resolveSuggestionOverlayRoot(doc).appendChild(ghost);
     return ghost;
   }
 

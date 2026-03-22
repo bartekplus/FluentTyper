@@ -1,8 +1,12 @@
+import { EARLY_TAB_ACCEPT_VISIBLE_ATTR } from "./EarlyTabAcceptBridgeProtocol";
+import { isSuggestionMenuHostVisible } from "./SuggestionMenuHost";
+import { resolveSuggestionStateHost } from "./SuggestionStateHost";
 import { SuggestionPositioningService } from "./SuggestionPositioningService";
 import { SuggestionMenuView } from "./SuggestionMenuView";
 import type { SuggestionElement } from "./types";
 
 export interface SuggestionMenuRenderModel {
+  menuId: number;
   menu: HTMLDivElement;
   list: HTMLUListElement;
   target: SuggestionElement;
@@ -44,7 +48,7 @@ export class SuggestionMenuPresenter {
 
     model.suggestions.forEach((suggestion, index) => {
       const li = document.createElement("li");
-      li.id = `ft-suggestion-option-${model.menu.dataset.ftSuggestionId ?? "runtime"}-${index}`;
+      li.id = `ft-suggestion-option-${model.menuId}-${index}`;
       li.innerHTML = this.buildSuggestionMenuItemHtml({
         mentionText: model.mentionText,
         suggestion,
@@ -64,7 +68,7 @@ export class SuggestionMenuPresenter {
     });
 
     if (model.suggestions.length === 0) {
-      this.hide(model.menu, model.list);
+      this.hide(model.menu, model.list, model.target);
       if (panel !== model.menu) {
         panel.setAttribute("aria-hidden", "true");
       }
@@ -75,7 +79,7 @@ export class SuggestionMenuPresenter {
     model.menu.style.setProperty("visibility", "hidden", "important");
     this.positioningService.syncMenuTypography(model.menu, model.target);
     if (!this.positioningService.positionMenu(model.menu, model.target)) {
-      this.hide(model.menu, model.list);
+      this.hide(model.menu, model.list, model.target);
       if (panel !== model.menu) {
         panel.setAttribute("aria-hidden", "true");
       }
@@ -85,18 +89,22 @@ export class SuggestionMenuPresenter {
     panel.setAttribute("aria-hidden", "false");
     panel.setAttribute(
       "aria-activedescendant",
-      `ft-suggestion-option-${model.menu.dataset.ftSuggestionId ?? "runtime"}-${model.selectedIndex}`,
+      `ft-suggestion-option-${model.menuId}-${model.selectedIndex}`,
     );
     model.menu.style.setProperty("display", "block", "important");
     model.menu.style.setProperty("visibility", "visible", "important");
+    resolveSuggestionStateHost(model.target).setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "true");
     return true;
   }
 
-  public hide(menu: HTMLDivElement, list: HTMLUListElement): void {
+  public hide(menu: HTMLDivElement, list: HTMLUListElement, target?: SuggestionElement): void {
     const header = SuggestionMenuView.resolveHeader(menu);
     const panel = SuggestionMenuView.resolvePanel(menu);
     menu.style.setProperty("display", "none", "important");
     menu.style.setProperty("visibility", "visible", "important");
+    if (target) {
+      resolveSuggestionStateHost(target).setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "false");
+    }
     if (header) {
       header.textContent = "";
       header.hidden = true;
@@ -107,7 +115,7 @@ export class SuggestionMenuPresenter {
   }
 
   public isVisible(menu: HTMLDivElement, suggestionCount: number): boolean {
-    return menu.style.display !== "none" && suggestionCount > 0;
+    return suggestionCount > 0 && isSuggestionMenuHostVisible(menu);
   }
 
   public updateHighlight(list: HTMLUListElement, selectedIndex: number): void {

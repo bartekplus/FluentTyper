@@ -2,6 +2,8 @@ import type {
   SuggestionEntry,
   SuggestionElement,
 } from "../src/adapters/chrome/content-script/suggestions/types";
+import { EARLY_TAB_ACCEPT_ENTRY_ID_ATTR } from "../src/adapters/chrome/content-script/suggestions/EarlyTabAcceptMainWorldBridge";
+import { SuggestionMenuView } from "../src/adapters/chrome/content-script/suggestions/SuggestionMenuView";
 
 export function createSuggestionEntry(
   overrides: Partial<SuggestionEntry> & { elem?: SuggestionElement } = {},
@@ -76,9 +78,27 @@ export function createRect(left = 10, top = 20, width = 30, height = 12): DOMRec
 }
 
 export function getSuggestionMenuRoots(doc: Document = document): ParentNode[] {
-  return Array.from(doc.querySelectorAll<HTMLElement>(".ft-suggestion-container")).map(
-    (container) => container.shadowRoot ?? container,
-  );
+  const seen = new Set<ParentNode>();
+  const collectManagedElements = (root: ParentNode): HTMLElement[] => [
+    ...Array.from(root.querySelectorAll<HTMLElement>('[data-suggestion="true"]')),
+    ...Array.from(root.querySelectorAll<HTMLElement>("*")).flatMap((element) =>
+      element.shadowRoot ? collectManagedElements(element.shadowRoot) : [],
+    ),
+  ];
+
+  return collectManagedElements(doc)
+    .map((element) => element.getAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR))
+    .filter((entryId): entryId is string => typeof entryId === "string" && entryId.length > 0)
+    .map((entryId) => doc.getElementById(SuggestionMenuView.resolveHostId(entryId)))
+    .filter((menu): menu is HTMLElement => menu instanceof HTMLElement)
+    .map((container) => container.shadowRoot ?? container)
+    .filter((root) => {
+      if (seen.has(root)) {
+        return false;
+      }
+      seen.add(root);
+      return true;
+    });
 }
 
 export function querySuggestionMenuItems(doc: Document = document): HTMLLIElement[] {

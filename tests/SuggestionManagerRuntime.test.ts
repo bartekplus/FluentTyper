@@ -117,6 +117,11 @@ function clickManualAttachButton(button: HTMLButtonElement): void {
   button.dispatchEvent(new window.MouseEvent("click", { bubbles: true, cancelable: true }));
 }
 
+function removeSuggestionOverlayNodes(): void {
+  document.querySelectorAll('[id^="ft-menu-"]').forEach((node) => node.remove());
+  document.querySelectorAll(".ft-suggestion-inline").forEach((node) => node.remove());
+}
+
 function mockRect(
   element: Element,
   rect: Pick<DOMRect, "left" | "top" | "width" | "height">,
@@ -165,6 +170,9 @@ describe("SuggestionManagerRuntime", () => {
     (globalThis as unknown as { getComputedStyle: typeof getComputedStyle }).getComputedStyle =
       baseGlobals.getComputedStyle;
     document.body.innerHTML = "";
+    document.body.removeAttribute("contenteditable");
+    delete (document.body as { isContentEditable?: boolean }).isContentEditable;
+    removeSuggestionOverlayNodes();
     document.documentElement.dir = "";
     (globalThis as unknown as { chrome: unknown }).chrome = {
       runtime: {
@@ -195,6 +203,7 @@ describe("SuggestionManagerRuntime", () => {
     (globalThis as unknown as { getComputedStyle: typeof getComputedStyle }).getComputedStyle =
       baseGlobals.getComputedStyle;
     (globalThis as unknown as { chrome: unknown }).chrome = baseGlobals.chrome;
+    removeSuggestionOverlayNodes();
     releaseDomGlobalLock?.();
     releaseDomGlobalLock = null;
   });
@@ -225,6 +234,51 @@ describe("SuggestionManagerRuntime", () => {
 
     runtime.detachAllHelpers();
     expect(input.hasAttribute("data-suggestion")).toBe(false);
+  });
+
+  test("mounts the popup host outside a contenteditable body root", () => {
+    const runtime = makeRuntime();
+    const originalBodyContentEditable = Object.getOwnPropertyDescriptor(
+      document.body,
+      "isContentEditable",
+    );
+    document.body.setAttribute("contenteditable", "true");
+    Object.defineProperty(document.body, "isContentEditable", {
+      value: true,
+      configurable: true,
+    });
+    try {
+      runtime.queryAndAttachHelper();
+
+      const runtimeInternal = runtime as unknown as {
+        entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
+      };
+      const entry = runtimeInternal.entryRegistry.getByElement(document.body);
+      if (!entry) {
+        throw new Error("Expected attached suggestion entry");
+      }
+
+      expect(entry.menu.parentElement).toBe(document.documentElement);
+      expect(document.body.querySelector(`#${entry.menu.id}`)).toBeNull();
+      expect(document.body.hasAttribute("data-suggestion")).toBe(false);
+      expect(document.body.hasAttribute("data-tribute")).toBe(false);
+      expect(document.body.hasAttribute("data-ft-suggestion-id")).toBe(false);
+      expect(document.documentElement.getAttribute("data-suggestion")).toBe("true");
+      expect(document.documentElement.getAttribute("data-tribute")).toBe("true");
+      expect(document.documentElement.getAttribute("data-ft-suggestion-id")).toBe(String(entry.id));
+
+      runtime.detachAllHelpers();
+      expect(document.documentElement.hasAttribute("data-suggestion")).toBe(false);
+      expect(document.documentElement.hasAttribute("data-tribute")).toBe(false);
+      expect(document.documentElement.hasAttribute("data-ft-suggestion-id")).toBe(false);
+    } finally {
+      document.body.removeAttribute("contenteditable");
+      if (originalBodyContentEditable) {
+        Object.defineProperty(document.body, "isContentEditable", originalBodyContentEditable);
+      } else {
+        delete (document.body as { isContentEditable?: boolean }).isContentEditable;
+      }
+    }
   });
 
   test("runtime only orchestrates attach, active-session lookup, and response routing", () => {
@@ -612,6 +666,50 @@ describe("SuggestionManagerRuntime", () => {
     expect(acceptSuggestionAtIndex).toHaveBeenCalledWith(0);
   });
 
+  test("early bridge accept reports no visible suggestion state when the popup host is hidden", () => {
+    const runtime = makeRuntime();
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+
+    runtime.queryAndAttachHelper();
+
+    const runtimeInternal = runtime as unknown as {
+      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
+    };
+    const entry = runtimeInternal.entryRegistry.getByElement(editable);
+    if (!entry) {
+      throw new Error("Expected attached suggestion entry");
+    }
+
+    entry.suggestions = ["hello"];
+    entry.selectedIndex = 0;
+    entry.menu.style.display = "block";
+    entry.menu.style.visibility = "hidden";
+
+    const session = getAttachedSession(runtime, entry.id);
+    const acceptSuggestionAtIndex = jest.fn(() => true);
+    session.acceptSuggestionAtIndex = acceptSuggestionAtIndex;
+
+    expect(
+      (
+        runtime as unknown as {
+          handleEarlyTabAcceptRequest: (entryId: string) => {
+            accepted: boolean;
+            reason: string;
+          };
+        }
+      ).handleEarlyTabAcceptRequest(String(entry.id)),
+    ).toEqual(
+      expect.objectContaining({
+        accepted: false,
+        reason: "no_visible_suggestion_state",
+      }),
+    );
+    expect(acceptSuggestionAtIndex).not.toHaveBeenCalled();
+  });
+
   test("early bridge accept reports failure when session acceptance returns false", () => {
     const runtime = makeRuntime();
     const editable = document.createElement("div");
@@ -648,6 +746,53 @@ describe("SuggestionManagerRuntime", () => {
         reason: "accept_failed",
       }),
     );
+  });
+
+  test("document-level Tab capture ignores suggestions when the popup host was removed", () => {
+    const runtime = makeRuntime();
+    const wrapper = document.createElement("div");
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    wrapper.appendChild(editable);
+    document.body.appendChild(wrapper);
+
+    runtime.queryAndAttachHelper();
+
+    const runtimeInternal = runtime as unknown as {
+      entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
+    };
+    const entry = runtimeInternal.entryRegistry.getByElement(editable);
+    if (!entry) {
+      throw new Error("Expected attached suggestion entry");
+    }
+
+    entry.suggestions = ["hello"];
+    entry.selectedIndex = 0;
+    entry.menu.style.display = "block";
+    entry.menu.remove();
+
+    const session = getAttachedSession(runtime, entry.id);
+    const acceptSuggestionAtIndex = jest.fn(() => true);
+    session.acceptSuggestionAtIndex = acceptSuggestionAtIndex;
+
+    wrapper.addEventListener(
+      "keydown",
+      (event) => {
+        event.stopPropagation();
+      },
+      true,
+    );
+
+    const keydown = new window.KeyboardEvent("keydown", {
+      key: "Tab",
+      bubbles: true,
+      cancelable: true,
+    });
+    editable.dispatchEvent(keydown);
+
+    expect(acceptSuggestionAtIndex).not.toHaveBeenCalled();
+    expect(keydown.defaultPrevented).toBe(false);
   });
 
   test("selection reconciliation delegates to the attached session", () => {
