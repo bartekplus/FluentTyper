@@ -546,12 +546,15 @@ export class SuggestionTextEditService {
         blockSourceText = `${blockContext.beforeCursor}${blockContext.afterCursor}`;
         expectedBlockText = blockSourceText;
         expectedBlockText = `${expectedBlockText.slice(0, blockReplaceStart)}${replacement}${expectedBlockText.slice(blockReplaceEnd)}`;
-        expectedBlockCursorAfter = this.resolveCursorAfterTextEdit(
-          blockCursor,
-          blockReplaceStart,
-          blockReplaceEnd,
-          replacement,
-        );
+        expectedBlockCursorAfter =
+          edit.cursorOffset !== undefined
+            ? blockReplaceStart + Math.max(0, Math.min(replacement.length, edit.cursorOffset))
+            : this.resolveCursorAfterTextEdit(
+                blockCursor,
+                blockReplaceStart,
+                blockReplaceEnd,
+                replacement,
+              );
         blockCursorAfter = expectedBlockCursorAfter;
 
         replaceStart = Math.max(0, blockStart + blockCursor - deleteBackwards);
@@ -578,12 +581,15 @@ export class SuggestionTextEditService {
       return { applied: false, didDispatchInput: false, suppressedByManualRevert: true };
     }
 
-    const cursorAfter = this.resolveCursorAfterTextEdit(
-      snapshot.cursorOffset,
-      replaceStart,
-      replaceEnd,
-      replacement,
-    );
+    const cursorAfter =
+      edit.cursorOffset !== undefined
+        ? replaceStart + Math.max(0, Math.min(replacement.length, edit.cursorOffset))
+        : this.resolveCursorAfterTextEdit(
+            snapshot.cursorOffset,
+            replaceStart,
+            replaceEnd,
+            replacement,
+          );
     const applyResult =
       !TextTargetAdapter.isTextValue(entry.elem) &&
       activeBlock !== null &&
