@@ -14,7 +14,9 @@ export class EnglishPronounICapitalizationRule implements GrammarRule {
   readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
 
   apply(context: GrammarContext): GrammarEdit | null {
-    const boundaryContext = resolveEnglishBoundaryContext(context, { ignoreDeleteInputAction: true });
+    const boundaryContext = resolveEnglishBoundaryContext(context, {
+      ignoreDeleteInputAction: true,
+    });
     if (!boundaryContext) {
       return null;
     }

@@ -169,8 +169,7 @@ export class SuggestionManagerRuntime {
         this.getSession(entry.id)?.acceptSuggestion(suggestion) ?? false,
       acceptSuggestionAtIndex: (entry, index) =>
         this.getSession(entry.id)?.acceptSuggestionAtIndex(index) ?? false,
-      requestInlineSuggestion: (entry) =>
-        this.getSession(entry.id)?.requestInlineSuggestion(),
+      requestInlineSuggestion: (entry) => this.getSession(entry.id)?.requestInlineSuggestion(),
     });
   }
 

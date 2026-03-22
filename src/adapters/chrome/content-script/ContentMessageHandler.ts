@@ -22,10 +22,7 @@ import type {
   PredictResponseContext,
   SetConfigContext,
 } from "@core/domain/messageTypes";
-import {
-  createPredictionTraceContext,
-  resolveTraceAgeMs,
-} from "./predictionTrace";
+import { createPredictionTraceContext, resolveTraceAgeMs } from "./predictionTrace";
 
 type RuntimeInboundMessage =
   | Message

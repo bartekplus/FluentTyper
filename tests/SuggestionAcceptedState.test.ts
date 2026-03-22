@@ -192,10 +192,7 @@ describe("SuggestionAcceptedState", () => {
 
   describe("keyboard policy", () => {
     test("releases the accepted-suggestion suppression only for literal whitespace input", () => {
-      const event: Pick<
-        KeyboardEvent,
-        "key" | "metaKey" | "ctrlKey" | "altKey" | "isComposing"
-      > = {
+      const event: Pick<KeyboardEvent, "key" | "metaKey" | "ctrlKey" | "altKey" | "isComposing"> = {
         key: " ",
         metaKey: false,
         ctrlKey: false,
@@ -261,12 +258,8 @@ describe("SuggestionAcceptedState", () => {
         ctrlKey: false,
       };
 
-      expect(
-        shouldInvalidatePendingExtensionEditOnKeydown(undoChord),
-      ).toBe(false);
-      expect(
-        shouldInvalidatePendingExtensionEditOnKeydown(arrowLeft),
-      ).toBe(true);
+      expect(shouldInvalidatePendingExtensionEditOnKeydown(undoChord)).toBe(false);
+      expect(shouldInvalidatePendingExtensionEditOnKeydown(arrowLeft)).toBe(true);
       expect(shouldDismissSuggestionsOnKeydown(home)).toBe(true);
     });
   });

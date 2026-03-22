@@ -339,7 +339,12 @@ function renderPermissionBlockedPageState(state: WebsiteAccessPermissionState): 
           ),
           kind: "non_actionable" as const,
         };
-  renderNonActionablePageState(permissionBlockedState, currentDomainURL, permissionBlockedState.kind, false);
+  renderNonActionablePageState(
+    permissionBlockedState,
+    currentDomainURL,
+    permissionBlockedState.kind,
+    false,
+  );
 }
 
 function applyPopupThemeMode(theme: "light" | "dark"): void {
@@ -541,11 +546,10 @@ function populateLanguageOptions(select: HTMLSelectElement, languages: string[])
   }
 }
 
-function populateSuggestionOptions(
-  select: HTMLSelectElement,
-  globalNumSuggestions: number,
-): void {
-  select.replaceChildren(createSelectOption("global", getInheritLabel(String(globalNumSuggestions))));
+function populateSuggestionOptions(select: HTMLSelectElement, globalNumSuggestions: number): void {
+  select.replaceChildren(
+    createSelectOption("global", getInheritLabel(String(globalNumSuggestions))),
+  );
   for (let idx = 0; idx <= MAX_NUM_SUGGESTIONS; idx += 1) {
     select.appendChild(createSelectOption(String(idx), String(idx)));
   }
@@ -639,9 +643,10 @@ async function loadSiteProfileEditor() {
 
 function readSiteProfileFromEditor(): SiteProfile {
   const { language, suggestions, inline, preferNativeAutocomplete } = getSiteProfileElements();
-  const languageValue = language && currentEnabledLanguages.includes(language.value)
-    ? language.value
-    : currentProfileLanguageFallback;
+  const languageValue =
+    language && currentEnabledLanguages.includes(language.value)
+      ? language.value
+      : currentProfileLanguageFallback;
   const profile: SiteProfile = {
     language: languageValue,
   };

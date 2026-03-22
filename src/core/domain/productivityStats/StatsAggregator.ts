@@ -266,8 +266,9 @@ export class StatsAggregator {
   ): ProductivityDashboardStats["milestoneProgress"] {
     const lifetimeHoursSaved = this.sanitizer.roundMetric(lifetimeMinutesSaved / 60);
     const previousMilestoneHours =
-      [...DONATION_MILESTONE_HOURS].reverse().find((milestone) => lifetimeHoursSaved >= milestone) ||
-      0;
+      [...DONATION_MILESTONE_HOURS]
+        .reverse()
+        .find((milestone) => lifetimeHoursSaved >= milestone) || 0;
     const highestDefinedMilestone =
       DONATION_MILESTONE_HOURS[DONATION_MILESTONE_HOURS.length - 1] || 0;
 

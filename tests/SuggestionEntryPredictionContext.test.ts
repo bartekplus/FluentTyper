@@ -196,14 +196,10 @@ describe("resolvePredictionInputAction", () => {
   test("prefers event inputType when resolving the prediction action", () => {
     const inputEvent = new Event("input") as Event & { inputType?: string };
     inputEvent.inputType = "deleteContentBackward";
-    const action = resolvePredictionInputAction(
-      inputEvent,
-      "hell",
-      {
-        lastKeydownKey: null,
-        lastBeforeCursorText: "hello",
-      },
-    );
+    const action = resolvePredictionInputAction(inputEvent, "hell", {
+      lastKeydownKey: null,
+      lastBeforeCursorText: "hello",
+    });
 
     expect(action).toBe("delete");
   });

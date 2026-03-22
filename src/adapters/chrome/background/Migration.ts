@@ -32,7 +32,9 @@ export async function migrateToLocalStore(lastVersion?: string): Promise<void> {
   const siteProfileRepository = new SiteProfileRepository(settingsManager);
   const enabledLanguages = await coreSettings.getEnabledLanguages();
   const rawSiteProfiles = await siteProfileRepository.getRawSiteProfiles();
-  await siteProfileRepository.setSiteProfiles(resolveSiteProfiles(rawSiteProfiles, enabledLanguages));
+  await siteProfileRepository.setSiteProfiles(
+    resolveSiteProfiles(rawSiteProfiles, enabledLanguages),
+  );
 
   void chrome.storage.local.set({ lastVersion: currentVersion });
 }

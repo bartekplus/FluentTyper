@@ -77,19 +77,31 @@ export class TextAssetsPanel {
     this.store = store;
 
     bindControlEvents(this.registry[KEY_TEXT_EXPANSIONS], [["action", () => void this.load()]]);
-    bindControlEvents(this.registry[KEY_USER_DICTIONARY_LIST], [["action", () => void this.load()]]);
+    bindControlEvents(this.registry[KEY_USER_DICTIONARY_LIST], [
+      ["action", () => void this.load()],
+    ]);
     bindControlEvents(this.registry[KEY_DATE_FORMAT], [["action", () => void this.render()]]);
     bindControlEvents(this.registry[KEY_TIME_FORMAT], [["action", () => void this.render()]]);
-    bindControlEvents(this.registry[KEY_DATE_FORMAT], [["change", () => {
-      this.liveDateFormat = toTextValue(this.registry[KEY_DATE_FORMAT].get());
-      this.refreshActiveSnippetPreview();
-      void this.render();
-    }]]);
-    bindControlEvents(this.registry[KEY_TIME_FORMAT], [["change", () => {
-      this.liveTimeFormat = toTextValue(this.registry[KEY_TIME_FORMAT].get());
-      this.refreshActiveSnippetPreview();
-      void this.render();
-    }]]);
+    bindControlEvents(this.registry[KEY_DATE_FORMAT], [
+      [
+        "change",
+        () => {
+          this.liveDateFormat = toTextValue(this.registry[KEY_DATE_FORMAT].get());
+          this.refreshActiveSnippetPreview();
+          void this.render();
+        },
+      ],
+    ]);
+    bindControlEvents(this.registry[KEY_TIME_FORMAT], [
+      [
+        "change",
+        () => {
+          this.liveTimeFormat = toTextValue(this.registry[KEY_TIME_FORMAT].get());
+          this.refreshActiveSnippetPreview();
+          void this.render();
+        },
+      ],
+    ]);
 
     this.liveDateFormat = toTextValue(this.registry[KEY_DATE_FORMAT]?.get());
     this.liveTimeFormat = toTextValue(this.registry[KEY_TIME_FORMAT]?.get());

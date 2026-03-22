@@ -149,6 +149,8 @@ export class ResponseParser {
     if (typeof value !== "object" || value === null) {
       return false;
     }
-    return typeof (value as { [Symbol.asyncIterator]?: unknown })[Symbol.asyncIterator] === "function";
+    return (
+      typeof (value as { [Symbol.asyncIterator]?: unknown })[Symbol.asyncIterator] === "function"
+    );
   }
 }

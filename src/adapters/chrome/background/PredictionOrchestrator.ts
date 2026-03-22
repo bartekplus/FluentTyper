@@ -255,7 +255,7 @@ export class PredictionOrchestrator {
     const timeoutPromise = new Promise<{
       predictions: string[];
       timedOut: boolean;
-      }>((resolve) => {
+    }>((resolve) => {
       timeoutId = setTimeout(() => {
         this.interruptAIPrediction("timeout", {
           lang,

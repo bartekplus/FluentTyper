@@ -10,11 +10,7 @@ import {
 import { normalizeDomainHost } from "@core/domain/siteProfiles";
 import { SiteProfilesManager } from "./siteProfiles.js";
 import { i18n } from "./fluenttyperI18n.js";
-import {
-  bindRerender,
-  createWorkspaceCard,
-  createWorkspaceShell,
-} from "./workspacePanelUtils.js";
+import { bindRerender, createWorkspaceCard, createWorkspaceShell } from "./workspacePanelUtils.js";
 
 type DomainListMode = "blackList" | "whiteList";
 

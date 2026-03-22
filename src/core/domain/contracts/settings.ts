@@ -170,7 +170,9 @@ const ALIASES_BY_CANONICAL: Record<string, string[]> = {
   [SETTINGS_KEYS.suggestionPaddingHorizontal]: ["tributePaddingHorizontal"],
 };
 
-const CANONICAL_BY_STORAGE_KEY: Record<string, string> = Object.entries(ALIASES_BY_CANONICAL).reduce(
+const CANONICAL_BY_STORAGE_KEY: Record<string, string> = Object.entries(
+  ALIASES_BY_CANONICAL,
+).reduce(
   (lookup, [canonical, aliases]) => {
     lookup[canonical] = canonical;
     for (const alias of aliases) {

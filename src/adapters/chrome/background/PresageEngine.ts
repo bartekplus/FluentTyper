@@ -60,10 +60,7 @@ export class PresageEngine {
   }
 
   private createLibPresage(): Presage {
-    return new this.module.Presage(
-      this.callbackImpl,
-      `resources_js/${this.lang}/presage.xml`,
-    );
+    return new this.module.Presage(this.callbackImpl, `resources_js/${this.lang}/presage.xml`);
   }
 
   private parsePrediction(rawPrediction: string): string | null {

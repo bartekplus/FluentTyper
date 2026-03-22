@@ -105,13 +105,10 @@ function createTab(
 }
 
 const DEV_TABS: ManifestDefinition["tabs"] = [
-  createTab(
+  createTab("observability_tab", "observability_tab", "observability_tab_desc", "OB", [
     "observability_tab",
-    "observability_tab",
-    "observability_tab_desc",
-    "OB",
-    ["observability_tab", "observability_dashboard_group"],
-  ),
+    "observability_dashboard_group",
+  ]),
 ];
 
 const DEV_PREDICTOR_SETTINGS: FieldConfig[] = [
@@ -276,27 +273,18 @@ const manifest: ManifestDefinition = {
   name: i18n.get("options_page_title"),
   icon: "/icon/icon128.png",
   tabs: [
-    createTab(
-      "core_settings",
+    createTab("core_settings", "options_tab_essentials", "options_tab_essentials_desc", "ES", [
       "options_tab_essentials",
-      "options_tab_essentials_desc",
-      "ES",
-      ["options_tab_essentials", "prediction_engine"],
-    ),
-    createTab(
+      "prediction_engine",
+    ]),
+    createTab("grammar_tab", "grammar_tab", "options_tab_grammar_desc", "GR", [
+      "grammar_rules",
       "grammar_tab",
-      "grammar_tab",
-      "options_tab_grammar_desc",
-      "GR",
-      ["grammar_rules", "grammar_tab"],
-    ),
-    createTab(
-      "language_tab",
+    ]),
+    createTab("language_tab", "options_tab_languages", "options_tab_languages_desc", "LA", [
       "options_tab_languages",
-      "options_tab_languages_desc",
-      "LA",
-      ["options_tab_languages", "language_selection"],
-    ),
+      "language_selection",
+    ]),
     createTab(
       "shortcuts_expansions_tab",
       "options_tab_snippets",
@@ -304,35 +292,23 @@ const manifest: ManifestDefinition = {
       "SD",
       ["options_tab_snippets", "text_expander"],
     ),
-    createTab(
-      "site_mgmt_tab",
+    createTab("site_mgmt_tab", "options_tab_sites", "options_tab_sites_desc", "SI", [
       "options_tab_sites",
-      "options_tab_sites_desc",
-      "SI",
-      ["options_tab_sites", "site_profiles"],
-    ),
-    createTab(
+      "site_profiles",
+    ]),
+    createTab("theming_tab", "theming_tab", "options_tab_appearance_desc", "AP", [
       "theming_tab",
-      "theming_tab",
-      "options_tab_appearance_desc",
-      "AP",
-      ["theming_tab", "theme_presets"],
-    ),
-    createTab(
-      "advanced_tab",
+      "theme_presets",
+    ]),
+    createTab("advanced_tab", "options_tab_data", "options_tab_data_desc", "DD", [
       "options_tab_data",
-      "options_tab_data_desc",
-      "DD",
-      ["options_tab_data", "config_data"],
-    ),
+      "config_data",
+    ]),
     ...(IS_DEV_BUILD ? DEV_TABS : []),
-    createTab(
-      "about_support_tab",
+    createTab("about_support_tab", "options_tab_about", "options_tab_about_desc", "AB", [
       "options_tab_about",
-      "options_tab_about_desc",
-      "AB",
-      ["options_tab_about", "support_development_group"],
-    ),
+      "support_development_group",
+    ]),
   ],
   settings: [
     // =========================================================================

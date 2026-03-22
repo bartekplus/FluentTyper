@@ -228,11 +228,7 @@ const OBSERVABILITY_REFRESH_KEYS = new Set([
   KEY_OBSERVABILITY_DEFAULT_LEVEL,
 ]);
 
-function bindActionHandler(
-  registry: SettingsRegistry,
-  key: string,
-  handler: () => void,
-): void {
+function bindActionHandler(registry: SettingsRegistry, key: string, handler: () => void): void {
   registry[key]?.addEvent("action", handler);
 }
 

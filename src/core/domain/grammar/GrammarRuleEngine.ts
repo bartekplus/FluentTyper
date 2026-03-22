@@ -1,7 +1,4 @@
-import {
-  applyGrammarEditToContext,
-  mergeSequentialGrammarEdits,
-} from "./GrammarEditSequencing";
+import { applyGrammarEditToContext, mergeSequentialGrammarEdits } from "./GrammarEditSequencing";
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "./types";
 
 const MAX_PROCESS_ITERATIONS = 5;
@@ -132,10 +129,7 @@ export class GrammarRuleEngine {
     return !enabledRules || enabledRules.includes(ruleId);
   }
 
-  private getSourceRuleId(
-    rule: GrammarRule,
-    edit: GrammarEdit,
-  ): GrammarEdit["sourceRuleId"] {
+  private getSourceRuleId(rule: GrammarRule, edit: GrammarEdit): GrammarEdit["sourceRuleId"] {
     if (edit.sourceRuleId) {
       return edit.sourceRuleId;
     }

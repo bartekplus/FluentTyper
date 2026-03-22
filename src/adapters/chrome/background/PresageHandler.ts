@@ -193,7 +193,9 @@ export class PresageHandler {
     const cachedPrediction = this.lastPrediction[lang];
     if (cachedPrediction?.pastStream === predictionInput) {
       return Promise.all(
-        cachedPrediction.templates.map((text) => TemplateExpander.parseStringTemplateAsync(text, resolver)),
+        cachedPrediction.templates.map((text) =>
+          TemplateExpander.parseStringTemplateAsync(text, resolver),
+        ),
       );
     }
     const predictions = this.presageEngines[lang].predict(predictionInput);

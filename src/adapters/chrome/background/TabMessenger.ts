@@ -14,7 +14,9 @@ export class TabMessenger {
     });
   }
 
-  private async queryTabs(queryInfo: chrome.tabs.QueryInfo): Promise<chrome.tabs.Tab[] | undefined> {
+  private async queryTabs(
+    queryInfo: chrome.tabs.QueryInfo,
+  ): Promise<chrome.tabs.Tab[] | undefined> {
     try {
       return await chrome.tabs.query(queryInfo);
     } catch {

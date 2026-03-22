@@ -216,7 +216,11 @@ export class SpacingRule extends SpacingRuleShared implements GrammarRule {
     closingBracket: string,
     closingIndex: number,
   ): SpacingPolicy {
-    const shouldInsertAfter = this.isProseLikeClosingContext(inputStr, closingBracket, closingIndex);
+    const shouldInsertAfter = this.isProseLikeClosingContext(
+      inputStr,
+      closingBracket,
+      closingIndex,
+    );
     return {
       spaceBefore: Spacing.REMOVE_SPACE,
       spaceAfter: shouldInsertAfter ? Spacing.INSERT_SPACE : Spacing.NO_CHANGE,

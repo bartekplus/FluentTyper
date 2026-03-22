@@ -49,7 +49,9 @@ function resolveBlockContext(
   contentEditableAdapter: SuggestionEntrySessionContentEditableAdapter,
 ): CursorContextBlock | null {
   const blockContext = contentEditableAdapter.getBlockContext(entry.elem as HTMLElement);
-  return blockContext ?? contentEditableAdapter.getBlockContextBySelection(entry.elem as HTMLElement);
+  return (
+    blockContext ?? contentEditableAdapter.getBlockContextBySelection(entry.elem as HTMLElement)
+  );
 }
 
 /**
@@ -63,23 +65,21 @@ function resolveBlockContext(
  *   character matches the typed character
  * - pending grammar replacements can seed contenteditable contexts
  */
-export function resolveEditableCursorContext(
-  {
-    entry,
-    contentEditableAdapter,
-    snapshot,
-    hasMultipleBlockDescendants,
-    inputAction,
-    typedKey,
-  }: {
-    entry: SuggestionEntryCursorContextSource;
-    contentEditableAdapter: SuggestionEntrySessionContentEditableAdapter;
-    snapshot: SuggestionSnapshot | null;
-    hasMultipleBlockDescendants: boolean;
-    inputAction?: PredictionInputAction;
-    typedKey?: string | null;
-  },
-): EditableCursorContext {
+export function resolveEditableCursorContext({
+  entry,
+  contentEditableAdapter,
+  snapshot,
+  hasMultipleBlockDescendants,
+  inputAction,
+  typedKey,
+}: {
+  entry: SuggestionEntryCursorContextSource;
+  contentEditableAdapter: SuggestionEntrySessionContentEditableAdapter;
+  snapshot: SuggestionSnapshot | null;
+  hasMultipleBlockDescendants: boolean;
+  inputAction?: PredictionInputAction;
+  typedKey?: string | null;
+}): EditableCursorContext {
   if (TextTargetAdapter.isTextValue(entry.elem)) {
     const resolvedSnapshot = snapshot ?? TextTargetAdapter.snapshot(entry.elem as TextTarget);
     return {

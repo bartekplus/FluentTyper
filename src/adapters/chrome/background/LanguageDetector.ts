@@ -129,7 +129,15 @@ export class LanguageDetector {
     const nextRuntimeGeneration = this.resolveRuntimeGeneration(request.runtimeGeneration);
     const session =
       this.sessions.get(key) ||
-      this.createSessionState(key, request, nextRuntimeGeneration, domain, allowedLanguages, fallbackLanguage, now);
+      this.createSessionState(
+        key,
+        request,
+        nextRuntimeGeneration,
+        domain,
+        allowedLanguages,
+        fallbackLanguage,
+        now,
+      );
 
     this.syncSessionScope(session, request, nextRuntimeGeneration, domain, allowedLanguages, now);
     session.rollingSample = updateAutoLanguageRollingSample(session.rollingSample, request.text);
@@ -235,7 +243,8 @@ export class LanguageDetector {
     allowedLanguages: string[],
     now: number,
   ): void {
-    const scopeChanged = session.runtimeGeneration !== runtimeGeneration || session.domain !== domain;
+    const scopeChanged =
+      session.runtimeGeneration !== runtimeGeneration || session.domain !== domain;
     session.tabId = request.tabId;
     session.frameId = request.frameId;
     session.suggestionId = request.suggestionId;

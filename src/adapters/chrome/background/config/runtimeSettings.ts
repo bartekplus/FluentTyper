@@ -66,14 +66,19 @@ export async function resolveDomainRuntimeSettings(
 ): Promise<DomainRuntimeSettings> {
   const settingsRepository = new CoreSettingsRepository(settingsManager);
   const siteProfileRepository = new SiteProfileRepository(settingsManager);
-  const [languageState, inlineSuggestionGlobal, preferNativeAutocompleteGlobal, numGlobal, siteProfilesRaw] =
-    await Promise.all([
-      resolveLanguageState(settingsManager),
-      settingsRepository.getInlineSuggestion(),
-      settingsRepository.getPreferNativeAutocomplete(),
-      settingsRepository.getNumSuggestions(),
-      siteProfileRepository.getSiteProfiles(),
-    ]);
+  const [
+    languageState,
+    inlineSuggestionGlobal,
+    preferNativeAutocompleteGlobal,
+    numGlobal,
+    siteProfilesRaw,
+  ] = await Promise.all([
+    resolveLanguageState(settingsManager),
+    settingsRepository.getInlineSuggestion(),
+    settingsRepository.getPreferNativeAutocomplete(),
+    settingsRepository.getNumSuggestions(),
+    siteProfileRepository.getSiteProfiles(),
+  ]);
   const profile = domainURL
     ? getSiteProfileForDomain(siteProfilesRaw, domainURL, languageState.enabledLanguages)
     : undefined;
