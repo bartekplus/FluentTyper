@@ -102,10 +102,7 @@ export class AutoBracketCloseRule implements GrammarRule {
     // that suggest comparison/shift operators (e.g., "a>", "1>", ">>")
     if (closeChar === ">") {
       const beforeTyped = beforeCursor.slice(0, -1);
-      if (
-        beforeTyped.length > 0 &&
-        WORD_CHAR_REGEX.test(beforeTyped[beforeTyped.length - 1])
-      ) {
+      if (beforeTyped.length > 0 && WORD_CHAR_REGEX.test(beforeTyped[beforeTyped.length - 1])) {
         return null;
       }
     }
