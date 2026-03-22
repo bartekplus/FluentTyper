@@ -686,12 +686,18 @@ async function waitForSuggestionTexts(page: Page): Promise<string[]> {
           element.shadowRoot ? collectManagedElements(element.shadowRoot) : [],
         ),
       ];
-      const getManagedMenus = (): Element[] => {
+      const getKnownMenus = (): Element[] => {
         const seen = new Set<Element>();
-        return collectManagedElements(document)
-          .map((element) => element.getAttribute("data-ft-suggestion-id"))
-          .filter((entryId): entryId is string => typeof entryId === "string" && entryId.length > 0)
-          .map((entryId) => document.getElementById(getMenuHostId(entryId)))
+        return [
+          ...collectManagedElements(document)
+            .map((element) => element.getAttribute("data-ft-suggestion-id"))
+            .filter(
+              (entryId): entryId is string => typeof entryId === "string" && entryId.length > 0,
+            )
+            .map((entryId) => document.getElementById(getMenuHostId(entryId)))
+            .filter((menu): menu is Element => menu instanceof Element),
+          ...Array.from(document.querySelectorAll<HTMLElement>('[id^="ft-menu-"]')),
+        ]
           .filter((menu): menu is Element => menu instanceof Element)
           .filter((menu) => {
             if (seen.has(menu)) {
@@ -709,7 +715,7 @@ async function waitForSuggestionTexts(page: Page): Promise<string[]> {
           : null;
       const containers = [
         ...(activeMenu instanceof Element ? [activeMenu] : []),
-        ...getManagedMenus().filter((container) => container !== activeMenu),
+        ...getKnownMenus().filter((container) => container !== activeMenu),
       ];
       for (const container of containers) {
         const style = window.getComputedStyle(container);
@@ -759,12 +765,18 @@ async function getVisibleSuggestionThemeSnapshot(page: Page): Promise<{
           element.shadowRoot ? collectManagedElements(element.shadowRoot) : [],
         ),
       ];
-      const getManagedMenus = (): Element[] => {
+      const getKnownMenus = (): Element[] => {
         const seen = new Set<Element>();
-        return collectManagedElements(document)
-          .map((element) => element.getAttribute("data-ft-suggestion-id"))
-          .filter((entryId): entryId is string => typeof entryId === "string" && entryId.length > 0)
-          .map((entryId) => document.getElementById(getMenuHostId(entryId)))
+        return [
+          ...collectManagedElements(document)
+            .map((element) => element.getAttribute("data-ft-suggestion-id"))
+            .filter(
+              (entryId): entryId is string => typeof entryId === "string" && entryId.length > 0,
+            )
+            .map((entryId) => document.getElementById(getMenuHostId(entryId)))
+            .filter((menu): menu is Element => menu instanceof Element),
+          ...Array.from(document.querySelectorAll<HTMLElement>('[id^="ft-menu-"]')),
+        ]
           .filter((menu): menu is Element => menu instanceof Element)
           .filter((menu) => {
             if (seen.has(menu)) {
@@ -782,7 +794,7 @@ async function getVisibleSuggestionThemeSnapshot(page: Page): Promise<{
           : null;
       const containers = [
         ...(activeMenu instanceof Element ? [activeMenu] : []),
-        ...getManagedMenus().filter((container) => container !== activeMenu),
+        ...getKnownMenus().filter((container) => container !== activeMenu),
       ];
       for (const container of containers) {
         const style = window.getComputedStyle(container);

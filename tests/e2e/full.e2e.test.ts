@@ -1145,14 +1145,18 @@ async function waitForVisibleSuggestionTexts(
             element.shadowRoot ? collectManagedElements(element.shadowRoot) : [],
           ),
         ];
-        const getManagedMenus = (): Element[] => {
+        const getKnownMenus = (): Element[] => {
           const seen = new Set<Element>();
-          return collectManagedElements(document)
-            .map((element) => element.getAttribute("data-ft-suggestion-id"))
-            .filter(
-              (entryId): entryId is string => typeof entryId === "string" && entryId.length > 0,
-            )
-            .map((entryId) => document.getElementById(getMenuHostId(entryId)))
+          return [
+            ...collectManagedElements(document)
+              .map((element) => element.getAttribute("data-ft-suggestion-id"))
+              .filter(
+                (entryId): entryId is string => typeof entryId === "string" && entryId.length > 0,
+              )
+              .map((entryId) => document.getElementById(getMenuHostId(entryId)))
+              .filter((menu): menu is Element => menu instanceof Element),
+            ...Array.from(document.querySelectorAll<HTMLElement>('[id^="ft-menu-"]')),
+          ]
             .filter((menu): menu is Element => menu instanceof Element)
             .filter((menu) => {
               if (seen.has(menu)) {
@@ -1170,7 +1174,7 @@ async function waitForVisibleSuggestionTexts(
             : null;
         const containers = [
           ...(activeMenu instanceof Element ? [activeMenu] : []),
-          ...getManagedMenus().filter((container) => container !== activeMenu),
+          ...getKnownMenus().filter((container) => container !== activeMenu),
         ];
         for (const container of containers) {
           const style = window.getComputedStyle(container);
@@ -1215,12 +1219,16 @@ async function hasVisibleSuggestions(page: Page): Promise<boolean> {
         element.shadowRoot ? collectManagedElements(element.shadowRoot) : [],
       ),
     ];
-    const getManagedMenus = (): Element[] => {
+    const getKnownMenus = (): Element[] => {
       const seen = new Set<Element>();
-      return collectManagedElements(document)
-        .map((element) => element.getAttribute("data-ft-suggestion-id"))
-        .filter((entryId): entryId is string => typeof entryId === "string" && entryId.length > 0)
-        .map((entryId) => document.getElementById(getMenuHostId(entryId)))
+      return [
+        ...collectManagedElements(document)
+          .map((element) => element.getAttribute("data-ft-suggestion-id"))
+          .filter((entryId): entryId is string => typeof entryId === "string" && entryId.length > 0)
+          .map((entryId) => document.getElementById(getMenuHostId(entryId)))
+          .filter((menu): menu is Element => menu instanceof Element),
+        ...Array.from(document.querySelectorAll<HTMLElement>('[id^="ft-menu-"]')),
+      ]
         .filter((menu): menu is Element => menu instanceof Element)
         .filter((menu) => {
           if (seen.has(menu)) {
@@ -1238,7 +1246,7 @@ async function hasVisibleSuggestions(page: Page): Promise<boolean> {
         : null;
     const containers = [
       ...(activeMenu instanceof Element ? [activeMenu] : []),
-      ...getManagedMenus().filter((container) => container !== activeMenu),
+      ...getKnownMenus().filter((container) => container !== activeMenu),
     ];
     return containers.some((container) => {
       const style = window.getComputedStyle(container);
@@ -1277,12 +1285,18 @@ async function waitForNoVisibleSuggestions(
           element.shadowRoot ? collectManagedElements(element.shadowRoot) : [],
         ),
       ];
-      const getManagedMenus = (): Element[] => {
+      const getKnownMenus = (): Element[] => {
         const seen = new Set<Element>();
-        return collectManagedElements(document)
-          .map((element) => element.getAttribute("data-ft-suggestion-id"))
-          .filter((entryId): entryId is string => typeof entryId === "string" && entryId.length > 0)
-          .map((entryId) => document.getElementById(getMenuHostId(entryId)))
+        return [
+          ...collectManagedElements(document)
+            .map((element) => element.getAttribute("data-ft-suggestion-id"))
+            .filter(
+              (entryId): entryId is string => typeof entryId === "string" && entryId.length > 0,
+            )
+            .map((entryId) => document.getElementById(getMenuHostId(entryId)))
+            .filter((menu): menu is Element => menu instanceof Element),
+          ...Array.from(document.querySelectorAll<HTMLElement>('[id^="ft-menu-"]')),
+        ]
           .filter((menu): menu is Element => menu instanceof Element)
           .filter((menu) => {
             if (seen.has(menu)) {
@@ -1300,7 +1314,7 @@ async function waitForNoVisibleSuggestions(
           : null;
       const containers = [
         ...(activeMenu instanceof Element ? [activeMenu] : []),
-        ...getManagedMenus().filter((container) => container !== activeMenu),
+        ...getKnownMenus().filter((container) => container !== activeMenu),
       ];
       return containers.every((container) => {
         const style = window.getComputedStyle(container);
@@ -1341,12 +1355,18 @@ async function clickFirstVisibleSuggestion(
           element.shadowRoot ? collectManagedElements(element.shadowRoot) : [],
         ),
       ];
-      const getManagedMenus = (): Element[] => {
+      const getKnownMenus = (): Element[] => {
         const seen = new Set<Element>();
-        return collectManagedElements(document)
-          .map((element) => element.getAttribute("data-ft-suggestion-id"))
-          .filter((entryId): entryId is string => typeof entryId === "string" && entryId.length > 0)
-          .map((entryId) => document.getElementById(getMenuHostId(entryId)))
+        return [
+          ...collectManagedElements(document)
+            .map((element) => element.getAttribute("data-ft-suggestion-id"))
+            .filter(
+              (entryId): entryId is string => typeof entryId === "string" && entryId.length > 0,
+            )
+            .map((entryId) => document.getElementById(getMenuHostId(entryId)))
+            .filter((menu): menu is Element => menu instanceof Element),
+          ...Array.from(document.querySelectorAll<HTMLElement>('[id^="ft-menu-"]')),
+        ]
           .filter((menu): menu is Element => menu instanceof Element)
           .filter((menu) => {
             if (seen.has(menu)) {
@@ -1364,7 +1384,7 @@ async function clickFirstVisibleSuggestion(
           : null;
       const containers = [
         ...(activeMenu instanceof Element ? [activeMenu] : []),
-        ...getManagedMenus().filter((container) => container !== activeMenu),
+        ...getKnownMenus().filter((container) => container !== activeMenu),
       ];
       for (const container of containers) {
         const style = window.getComputedStyle(container);
@@ -2185,15 +2205,19 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
                   element.shadowRoot ? collectManagedElements(element.shadowRoot) : [],
                 ),
               ];
-              const getManagedMenus = (): Element[] => {
+              const getKnownMenus = (): Element[] => {
                 const seen = new Set<Element>();
-                return collectManagedElements(document)
-                  .map((element) => element.getAttribute("data-ft-suggestion-id"))
-                  .filter(
-                    (entryId): entryId is string =>
-                      typeof entryId === "string" && entryId.length > 0,
-                  )
-                  .map((entryId) => document.getElementById(getMenuHostId(entryId)))
+                return [
+                  ...collectManagedElements(document)
+                    .map((element) => element.getAttribute("data-ft-suggestion-id"))
+                    .filter(
+                      (entryId): entryId is string =>
+                        typeof entryId === "string" && entryId.length > 0,
+                    )
+                    .map((entryId) => document.getElementById(getMenuHostId(entryId)))
+                    .filter((menu): menu is Element => menu instanceof Element),
+                  ...Array.from(document.querySelectorAll<HTMLElement>('[id^="ft-menu-"]')),
+                ]
                   .filter((menu): menu is Element => menu instanceof Element)
                   .filter((menu) => {
                     if (seen.has(menu)) {
@@ -2214,7 +2238,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
                   : null;
               const containers = [
                 ...(activeMenu instanceof Element ? [activeMenu] : []),
-                ...getManagedMenus().filter((container) => container !== activeMenu),
+                ...getKnownMenus().filter((container) => container !== activeMenu),
               ];
               const hasVisiblePopup = containers.some((container) => {
                 const style = window.getComputedStyle(container);
