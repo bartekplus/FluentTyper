@@ -117,6 +117,11 @@ function clickManualAttachButton(button: HTMLButtonElement): void {
   button.dispatchEvent(new window.MouseEvent("click", { bubbles: true, cancelable: true }));
 }
 
+function removeSuggestionOverlayNodes(): void {
+  document.querySelectorAll('[id^="ft-menu-"]').forEach((node) => node.remove());
+  document.querySelectorAll(".ft-suggestion-inline").forEach((node) => node.remove());
+}
+
 function mockRect(
   element: Element,
   rect: Pick<DOMRect, "left" | "top" | "width" | "height">,
@@ -167,6 +172,7 @@ describe("SuggestionManagerRuntime", () => {
     document.body.innerHTML = "";
     document.body.removeAttribute("contenteditable");
     delete (document.body as { isContentEditable?: boolean }).isContentEditable;
+    removeSuggestionOverlayNodes();
     document.documentElement.dir = "";
     (globalThis as unknown as { chrome: unknown }).chrome = {
       runtime: {
@@ -197,6 +203,7 @@ describe("SuggestionManagerRuntime", () => {
     (globalThis as unknown as { getComputedStyle: typeof getComputedStyle }).getComputedStyle =
       baseGlobals.getComputedStyle;
     (globalThis as unknown as { chrome: unknown }).chrome = baseGlobals.chrome;
+    removeSuggestionOverlayNodes();
     releaseDomGlobalLock?.();
     releaseDomGlobalLock = null;
   });
@@ -253,6 +260,17 @@ describe("SuggestionManagerRuntime", () => {
 
       expect(entry.menu.parentElement).toBe(document.documentElement);
       expect(document.body.querySelector(`#${entry.menu.id}`)).toBeNull();
+      expect(document.body.hasAttribute("data-suggestion")).toBe(false);
+      expect(document.body.hasAttribute("data-tribute")).toBe(false);
+      expect(document.body.hasAttribute("data-ft-suggestion-id")).toBe(false);
+      expect(document.documentElement.getAttribute("data-suggestion")).toBe("true");
+      expect(document.documentElement.getAttribute("data-tribute")).toBe("true");
+      expect(document.documentElement.getAttribute("data-ft-suggestion-id")).toBe(String(entry.id));
+
+      runtime.detachAllHelpers();
+      expect(document.documentElement.hasAttribute("data-suggestion")).toBe(false);
+      expect(document.documentElement.hasAttribute("data-tribute")).toBe(false);
+      expect(document.documentElement.hasAttribute("data-ft-suggestion-id")).toBe(false);
     } finally {
       document.body.removeAttribute("contenteditable");
       if (originalBodyContentEditable) {

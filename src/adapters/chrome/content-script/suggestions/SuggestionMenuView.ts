@@ -1,7 +1,4 @@
-import {
-  resolveSuggestionMenuHostId,
-  SUGGESTION_MENU_HOST_ID_PREFIX,
-} from "./SuggestionMenuHost";
+import { resolveSuggestionMenuHostId, SUGGESTION_MENU_HOST_ID_PREFIX } from "./SuggestionMenuHost";
 import { SUGGESTION_POPUP_SHADOW_CSS } from "./SuggestionPopupShadowStyles";
 
 export interface SuggestionMenuElements {

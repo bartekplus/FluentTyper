@@ -26,6 +26,14 @@ function createMenu(entryId: string, styles: Partial<CSSStyleDeclaration> = {}):
 describe("EarlyTabAcceptMainWorldBridge", () => {
   afterEach(() => {
     document.body.innerHTML = "";
+    document.body.removeAttribute("contenteditable");
+    delete (document.body as { isContentEditable?: boolean }).isContentEditable;
+    document.documentElement.removeAttribute("data-suggestion");
+    document.documentElement.removeAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR);
+    document.documentElement.removeAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR);
+    document.documentElement.removeAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR);
+    document.documentElement.removeAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR);
+    document.querySelectorAll('[id^="ft-menu-"]').forEach((node) => node.remove());
     resetEarlyTabAcceptMainWorldBridgeForTests(document);
   });
 
@@ -235,6 +243,42 @@ describe("EarlyTabAcceptMainWorldBridge", () => {
 
     expect(postMessageSpy).not.toHaveBeenCalled();
     expect(keydown.defaultPrevented).toBe(false);
+    postMessageSpy.mockRestore();
+  });
+
+  test("posts for a contenteditable body when the bridge markers live on the html root", () => {
+    installEarlyTabAcceptMainWorldBridge(document);
+    const postMessageSpy = jest.spyOn(window, "postMessage");
+
+    document.body.setAttribute("contenteditable", "true");
+    Object.defineProperty(document.body, "isContentEditable", {
+      value: true,
+      configurable: true,
+    });
+    document.documentElement.setAttribute("data-suggestion", "true");
+    document.documentElement.setAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR, "true");
+    document.documentElement.setAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR, "true");
+    document.documentElement.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, "29");
+    document.documentElement.setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "true");
+    const menu = createMenu("29");
+    document.documentElement.append(menu);
+
+    const keydown = new window.KeyboardEvent("keydown", {
+      key: "Tab",
+      bubbles: true,
+      cancelable: true,
+    });
+    document.body.dispatchEvent(keydown);
+
+    expect(postMessageSpy).toHaveBeenCalledWith(
+      {
+        source: "ft-early-tab-accept-request",
+        type: EARLY_TAB_ACCEPT_MESSAGE_TYPE,
+        entryId: "29",
+      },
+      "*",
+    );
+    expect(keydown.defaultPrevented).toBe(true);
     postMessageSpy.mockRestore();
   });
 });

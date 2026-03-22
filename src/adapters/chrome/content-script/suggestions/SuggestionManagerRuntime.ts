@@ -17,6 +17,7 @@ import { SuggestionLifecycleController } from "./SuggestionLifecycleController";
 import { SuggestionMenuPresenter } from "./SuggestionMenuPresenter";
 import { SuggestionPositioningService } from "./SuggestionPositioningService";
 import { SuggestionPredictionCoordinator } from "./SuggestionPredictionCoordinator";
+import { resolveSuggestionStateHost } from "./SuggestionStateHost";
 import { SuggestionMenuView } from "./SuggestionMenuView";
 import { SuggestionTelemetryService } from "./SuggestionTelemetryService";
 import { resolveSuggestionOverlayRoot } from "./SuggestionOverlayRoot";
@@ -456,6 +457,7 @@ export class SuggestionManagerRuntime {
     this.removeManualAttachUi(elem);
 
     const id = this.entryRegistry.allocateId();
+    const stateHost = resolveSuggestionStateHost(elem);
 
     const { menu, list } = SuggestionMenuView.ensureMenu(
       resolveSuggestionOverlayRoot(elem.ownerDocument ?? document),
@@ -525,15 +527,15 @@ export class SuggestionManagerRuntime {
     };
     entry.handlers.menuClick = this.onMenuClick.bind(this, id);
 
-    elem.setAttribute("data-tribute", "true");
-    elem.setAttribute("data-suggestion", "true");
-    elem.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, String(id));
-    elem.setAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR, String(this.autocompleteOnTab));
-    elem.setAttribute(
+    stateHost.setAttribute("data-tribute", "true");
+    stateHost.setAttribute("data-suggestion", "true");
+    stateHost.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, String(id));
+    stateHost.setAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR, String(this.autocompleteOnTab));
+    stateHost.setAttribute(
       EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR,
       String(this.shouldUseEarlyTabBridge(elem)),
     );
-    elem.setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "false");
+    stateHost.setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "false");
     menu.id = SuggestionMenuView.resolveHostId(id);
     elem.tributeMenu = menu;
     elem.suggestionMenu = menu;
@@ -563,15 +565,16 @@ export class SuggestionManagerRuntime {
     this.sessionRegistry.get(id)?.dispose();
     this.lifecycleController.detachEntryListeners(entry);
     entry.menu.remove();
+    const stateHost = resolveSuggestionStateHost(entry.elem);
 
     delete entry.elem.tributeMenu;
     delete entry.elem.suggestionMenu;
-    entry.elem.removeAttribute("data-tribute");
-    entry.elem.removeAttribute("data-suggestion");
-    entry.elem.removeAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR);
-    entry.elem.removeAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR);
-    entry.elem.removeAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR);
-    entry.elem.removeAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR);
+    stateHost.removeAttribute("data-tribute");
+    stateHost.removeAttribute("data-suggestion");
+    stateHost.removeAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR);
+    stateHost.removeAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR);
+    stateHost.removeAttribute(EARLY_TAB_ACCEPT_BRIDGE_TARGET_ATTR);
+    stateHost.removeAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR);
 
     this.entryRegistry.unregister(id);
     this.sessionRegistry.delete(id);

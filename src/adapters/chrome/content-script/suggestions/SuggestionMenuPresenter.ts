@@ -1,5 +1,6 @@
 import { EARLY_TAB_ACCEPT_VISIBLE_ATTR } from "./EarlyTabAcceptBridgeProtocol";
 import { isSuggestionMenuHostVisible } from "./SuggestionMenuHost";
+import { resolveSuggestionStateHost } from "./SuggestionStateHost";
 import { SuggestionPositioningService } from "./SuggestionPositioningService";
 import { SuggestionMenuView } from "./SuggestionMenuView";
 import type { SuggestionElement } from "./types";
@@ -92,7 +93,7 @@ export class SuggestionMenuPresenter {
     );
     model.menu.style.setProperty("display", "block", "important");
     model.menu.style.setProperty("visibility", "visible", "important");
-    model.target.setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "true");
+    resolveSuggestionStateHost(model.target).setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "true");
     return true;
   }
 
@@ -101,7 +102,9 @@ export class SuggestionMenuPresenter {
     const panel = SuggestionMenuView.resolvePanel(menu);
     menu.style.setProperty("display", "none", "important");
     menu.style.setProperty("visibility", "visible", "important");
-    target?.setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "false");
+    if (target) {
+      resolveSuggestionStateHost(target).setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "false");
+    }
     if (header) {
       header.textContent = "";
       header.hidden = true;

@@ -7,10 +7,7 @@ import {
   EARLY_TAB_ACCEPT_REQUEST_EVENT,
   EARLY_TAB_ACCEPT_VISIBLE_ATTR,
 } from "./EarlyTabAcceptBridgeProtocol";
-import {
-  isSuggestionMenuHostVisible,
-  resolveSuggestionMenuHost,
-} from "./SuggestionMenuHost";
+import { isSuggestionMenuHostVisible, resolveSuggestionMenuHost } from "./SuggestionMenuHost";
 
 type FluentTyperManagedElement = HTMLElement;
 type FluentTyperBridgeWindow = Window & {
@@ -64,7 +61,9 @@ function resolveManagedSuggestionTarget(
   }
 
   const activeElement = doc.activeElement;
-  return activeElement instanceof HTMLElement ? findManagedSuggestionTarget(activeElement, doc) : null;
+  return activeElement instanceof HTMLElement
+    ? findManagedSuggestionTarget(activeElement, doc)
+    : null;
 }
 
 export function installEarlyTabAcceptMainWorldBridge(doc: Document = document): void {
