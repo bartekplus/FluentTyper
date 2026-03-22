@@ -19,6 +19,7 @@ import { SuggestionPositioningService } from "./SuggestionPositioningService";
 import { SuggestionPredictionCoordinator } from "./SuggestionPredictionCoordinator";
 import { SuggestionMenuView } from "./SuggestionMenuView";
 import { SuggestionTelemetryService } from "./SuggestionTelemetryService";
+import { resolveSuggestionOverlayRoot } from "./SuggestionOverlayRoot";
 import { EditableContextResolver } from "./EditableContextResolver";
 import { SuggestionTextEditService } from "./SuggestionTextEditService";
 import { ContentEditableAdapter } from "./ContentEditableAdapter";
@@ -456,7 +457,9 @@ export class SuggestionManagerRuntime {
 
     const id = this.entryRegistry.allocateId();
 
-    const { menu, list } = SuggestionMenuView.ensureMenu(document.body ?? document.documentElement);
+    const { menu, list } = SuggestionMenuView.ensureMenu(
+      resolveSuggestionOverlayRoot(elem.ownerDocument ?? document),
+    );
 
     const entry: SuggestionEntry = {
       id,

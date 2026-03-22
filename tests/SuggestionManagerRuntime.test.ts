@@ -165,6 +165,8 @@ describe("SuggestionManagerRuntime", () => {
     (globalThis as unknown as { getComputedStyle: typeof getComputedStyle }).getComputedStyle =
       baseGlobals.getComputedStyle;
     document.body.innerHTML = "";
+    document.body.removeAttribute("contenteditable");
+    delete (document.body as { isContentEditable?: boolean }).isContentEditable;
     document.documentElement.dir = "";
     (globalThis as unknown as { chrome: unknown }).chrome = {
       runtime: {
@@ -225,6 +227,40 @@ describe("SuggestionManagerRuntime", () => {
 
     runtime.detachAllHelpers();
     expect(input.hasAttribute("data-suggestion")).toBe(false);
+  });
+
+  test("mounts the popup host outside a contenteditable body root", () => {
+    const runtime = makeRuntime();
+    const originalBodyContentEditable = Object.getOwnPropertyDescriptor(
+      document.body,
+      "isContentEditable",
+    );
+    document.body.setAttribute("contenteditable", "true");
+    Object.defineProperty(document.body, "isContentEditable", {
+      value: true,
+      configurable: true,
+    });
+    try {
+      runtime.queryAndAttachHelper();
+
+      const runtimeInternal = runtime as unknown as {
+        entryRegistry: { getByElement: (elem: Element) => SuggestionEntry | undefined };
+      };
+      const entry = runtimeInternal.entryRegistry.getByElement(document.body);
+      if (!entry) {
+        throw new Error("Expected attached suggestion entry");
+      }
+
+      expect(entry.menu.parentElement).toBe(document.documentElement);
+      expect(document.body.querySelector(`#${entry.menu.id}`)).toBeNull();
+    } finally {
+      document.body.removeAttribute("contenteditable");
+      if (originalBodyContentEditable) {
+        Object.defineProperty(document.body, "isContentEditable", originalBodyContentEditable);
+      } else {
+        delete (document.body as { isContentEditable?: boolean }).isContentEditable;
+      }
+    }
   });
 
   test("runtime only orchestrates attach, active-session lookup, and response routing", () => {
