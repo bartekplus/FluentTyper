@@ -58,3 +58,20 @@ if (!jestCompat.resetModules) {
     mock.restore();
   };
 }
+
+const resetDom = (): void => {
+  document.head.innerHTML = "";
+  document.body.innerHTML = "";
+  for (const attribute of [...document.documentElement.attributes]) {
+    document.documentElement.removeAttribute(attribute.name);
+  }
+  window.getSelection()?.removeAllRanges();
+};
+
+beforeEach(() => {
+  resetDom();
+});
+
+afterEach(() => {
+  resetDom();
+});

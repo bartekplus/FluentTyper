@@ -457,7 +457,7 @@ export class ManualAttachUiManager {
     const ancestors: HTMLElement[] = [];
     let current: HTMLElement | null = element;
     while (current) {
-      const parentElement = current.parentElement;
+      const parentElement: HTMLElement | null = current.parentElement;
       if (this.isHtmlElement(parentElement, current.ownerDocument)) {
         ancestors.push(parentElement);
         current = parentElement;
