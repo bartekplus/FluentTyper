@@ -484007,7 +484007,7 @@ e¥‰6ZeŒÃ›g3Bz«×ÍÖRf*HÕ$DÞ„ç¶ÂI¹ˆ&TÌ}"Œ	‹2Åœ`¹jç1M Îq'¸       ¾     
 <Presage>
     <PredictorRegistry>
         <LOGGER>ERROR</LOGGER>
-        <PREDICTORS>DefaultSmoothedNgramTriePredictor DefaultAspellPredictor DefaultHunspellPredictor DefaultAbbreviationExpansionPredictor DefaultRecencyPredictor</PREDICTORS>
+        <PREDICTORS>DefaultSmoothedNgramTriePredictor DefaultAspellPredictor DefaultHunspellPredictor DefaultAbbreviationExpansionPredictor DefaultDictionaryPredictor DefaultRecencyPredictor</PREDICTORS>
     </PredictorRegistry>
     <ContextTracker>
         <LOGGER>ERROR</LOGGER>
@@ -484068,5 +484068,11 @@ e¥‰6ZeŒÃ›g3Bz«×ÍÖRf*HÕ$DÞ„ç¶ÂI¹ˆ&TÌ}"Œ	‹2Åœ`¹jç1M Îq'¸       ¾     
             <ABBREVIATIONS>/resources_js/common/abbreviations.txt</ABBREVIATIONS>
             <PREPEND_BACKSPACES>no</PREPEND_BACKSPACES>
         </DefaultAbbreviationExpansionPredictor>
+        <DefaultDictionaryPredictor>
+            <PREDICTOR>DictionaryPredictor</PREDICTOR>
+            <LOGGER>ERROR</LOGGER>
+            <DICTIONARY>/resources_js/common/userDict.txt</DICTIONARY>
+            <PROBABILITY>0.0000001</PROBABILITY>
+        </DefaultDictionaryPredictor>
     </Predictors>
 </Presage>
