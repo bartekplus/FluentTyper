@@ -21,6 +21,7 @@ export default defineConfig([
       "coverage/**",
       "node_modules/**",
       "public/third_party/**",
+      "scripts/.deps/**",
       "src/third_party/**",
     ],
   },

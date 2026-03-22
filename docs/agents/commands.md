@@ -48,6 +48,7 @@ python3 scripts/rebuild_all.py --repack
 ```
 
 This runs two steps:
+
 1. **Package** – repacks all `resources_js/` directories into updated `.data` files (copied to `public/third_party/libpresage/`) and regenerates the pre-JS loader stubs in `scripts/.deps/gen/`.
 2. **Link** – re-links `libpresage.js` with the new stubs embedded, requiring a pre-built `libpresage.so.1.1.1` in `scripts/.deps/presage/`.
 
@@ -59,6 +60,7 @@ python3 scripts/rebuild_all.py --repack
 ```
 
 After repacking, the following files will be modified and must be committed:
+
 - `public/third_party/libpresage/*.data`
 - `src/third_party/libpresage/libpresage.js`
 
@@ -68,6 +70,16 @@ After repacking, the following files will be modified and must be committed:
 
 - If a change affects runtime behavior, run the expanded e2e suite described in [testing.md](testing.md).
 - If a change affects docs or workflows, keep [`README.md`](../../README.md) and [`CONTRIBUTING.md`](../../CONTRIBUTING.md) aligned with the same command surface.
+
+## Quality Gate (required before every PR)
+
+Run the full check suite and fix all errors before pushing:
+
+```
+bun run check
+```
+
+This runs lint (`eslint`), format check (`prettier --check`), and typecheck in sequence. All three must pass. Do not push a branch with a failing `bun run check`.
 
 ## PR Notes
 
