@@ -43,14 +43,23 @@ export class BackgroundBootstrap {
   }
 
   private loadLastVersionAndInitialize(): void {
-    // Keep listener registration synchronous, but still await startup work once the
-    // persisted version is available so migration/config initialization stays ordered.
-    chrome.storage.local.get("lastVersion", async ({ lastVersion }) => {
+    const initializeFromLastVersion = async ({
+      lastVersion,
+    }: {
+      lastVersion?: unknown;
+    }): Promise<void> => {
       try {
         await this.worker.initialize(typeof lastVersion === "string" ? lastVersion : undefined);
       } catch (error) {
         logError("lastVersion handler", error);
       }
-    });
+    };
+
+    // Keep listener registration synchronous, but still await startup work once the
+    // persisted version is available so migration/config initialization stays ordered.
+    chrome.storage.local.get(
+      "lastVersion",
+      initializeFromLastVersion as unknown as (items: { [key: string]: unknown }) => void,
+    );
   }
 }
