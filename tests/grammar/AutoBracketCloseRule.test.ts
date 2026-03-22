@@ -5,6 +5,7 @@ import {
   applyGrammarEditToContext,
   mergeSequentialGrammarEdits,
 } from "../../src/core/domain/grammar/GrammarEditSequencing";
+import { GrammarRuleEngine } from "../../src/core/domain/grammar/GrammarRuleEngine";
 
 function context(
   beforeCursor: string,
@@ -165,6 +166,15 @@ describe("AutoBracketCloseRule", () => {
       expect(rule.apply(context("value>", ">3", { inputAction: "insert" }))).toBeNull();
     });
 
+    test("does not overtype symmetric quote after non-word char (prevents oscillation)", () => {
+      // After auto-close, engine re-evaluates: beforeCursor='"', afterCursor='"'
+      // The char before the quote is a space (or start of string) — NOT a closing quote scenario
+      expect(rule.apply(context(' "', '"rest', { inputAction: "insert" }))).toBeNull();
+      expect(rule.apply(context('"', '"rest', { inputAction: "insert" }))).toBeNull();
+      expect(rule.apply(context(" '", "'rest", { inputAction: "insert" }))).toBeNull();
+      expect(rule.apply(context(" `", "`rest", { inputAction: "insert" }))).toBeNull();
+    });
+
     test("does not overtype when afterCursor does not match", () => {
       expect(rule.apply(context("text)", "other", { inputAction: "insert" }))).toBeNull();
     });
@@ -273,5 +283,75 @@ describe("applyGrammarEditToContext with cursorOffset", () => {
     );
     expect(result.beforeCursor).toBe("hello");
     expect(result.afterCursor).toBe("()world");
+  });
+});
+
+describe("GrammarRuleEngine integration with AutoBracketCloseRule", () => {
+  function makeEngine(): GrammarRuleEngine {
+    const engine = new GrammarRuleEngine();
+    engine.registerRule(new AutoBracketCloseRule());
+    return engine;
+  }
+
+  test("auto-closes ( without oscillation", () => {
+    const engine = makeEngine();
+    const edits = engine.process("insertChar", {
+      beforeCursor: "hello (",
+      afterCursor: " world",
+      hints: { inputAction: "insert" },
+    });
+    expect(edits).toHaveLength(1);
+    expect(edits[0].replacement).toBe("()");
+    expect(edits[0].cursorOffset).toBe(1);
+    expect(edits[0].deleteBackwards).toBe(1);
+  });
+
+  test('auto-closes " without oscillation — must NOT produce """"', () => {
+    const engine = makeEngine();
+    const edits = engine.process("insertChar", {
+      beforeCursor: 'hello "',
+      afterCursor: " world",
+      hints: { inputAction: "insert" },
+    });
+    expect(edits).toHaveLength(1);
+    expect(edits[0].replacement).toBe('""');
+    expect(edits[0].cursorOffset).toBe(1);
+    expect(edits[0].deleteBackwards).toBe(1);
+  });
+
+  test("auto-closes ' without oscillation", () => {
+    const engine = makeEngine();
+    const edits = engine.process("insertChar", {
+      beforeCursor: "hello '",
+      afterCursor: " world",
+      hints: { inputAction: "insert" },
+    });
+    expect(edits).toHaveLength(1);
+    expect(edits[0].replacement).toBe("''");
+    expect(edits[0].cursorOffset).toBe(1);
+  });
+
+  test("auto-closes ` without oscillation", () => {
+    const engine = makeEngine();
+    const edits = engine.process("insertChar", {
+      beforeCursor: "hello `",
+      afterCursor: " world",
+      hints: { inputAction: "insert" },
+    });
+    expect(edits).toHaveLength(1);
+    expect(edits[0].replacement).toBe("``");
+    expect(edits[0].cursorOffset).toBe(1);
+  });
+
+  test('overtypes closing " after word character', () => {
+    const engine = makeEngine();
+    const edits = engine.process("insertChar", {
+      beforeCursor: '"hello"',
+      afterCursor: '"rest',
+      hints: { inputAction: "insert" },
+    });
+    expect(edits).toHaveLength(1);
+    expect(edits[0].replacement).toBe('"');
+    expect(edits[0].deleteForwards).toBe(1);
   });
 });

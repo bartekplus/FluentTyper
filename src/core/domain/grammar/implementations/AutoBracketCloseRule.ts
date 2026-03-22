@@ -98,11 +98,21 @@ export class AutoBracketCloseRule implements GrammarRule {
   }
 
   private handleOvertype(beforeCursor: string, closeChar: string): GrammarEdit | null {
+    const beforeTyped = beforeCursor.slice(0, -1);
+
     // For > specifically: don't overtype when preceded by certain patterns
     // that suggest comparison/shift operators (e.g., "a>", "1>", ">>")
     if (closeChar === ">") {
-      const beforeTyped = beforeCursor.slice(0, -1);
       if (beforeTyped.length > 0 && WORD_CHAR_REGEX.test(beforeTyped[beforeTyped.length - 1])) {
+        return null;
+      }
+    }
+
+    // For symmetric quotes: only overtype when preceded by a word character.
+    // This distinguishes "user closing a quote" (e.g., "hello"|) from
+    // "engine re-processing after auto-close" (e.g., "|) which would oscillate.
+    if (SYMMETRIC_QUOTES.has(closeChar)) {
+      if (beforeTyped.length === 0 || !WORD_CHAR_REGEX.test(beforeTyped[beforeTyped.length - 1])) {
         return null;
       }
     }
