@@ -12,6 +12,9 @@ export interface SuggestionMenuElements {
 export class SuggestionMenuView {
   static readonly CONTAINER_CLASS = "ft-suggestion-container";
   static readonly HOST_ID_PREFIX = SUGGESTION_MENU_HOST_ID_PREFIX;
+  static readonly OWNED_ATTR = "data-ft-suggestion-owned";
+  static readonly ROLE_ATTR = "data-ft-suggestion-role";
+  static readonly MENU_ROLE = "menu";
   static readonly PANEL_CLASS = "ft-suggestion-panel";
   static readonly HEADER_CLASS = "ft-suggestion-header";
   static readonly LIST_CLASS = "ft-suggestion-list";
@@ -39,6 +42,8 @@ export class SuggestionMenuView {
     } else {
       this.applyBaseHostStyles(menu, false);
       menu.className = SuggestionMenuView.CONTAINER_CLASS;
+      menu.setAttribute(SuggestionMenuView.OWNED_ATTR, "true");
+      menu.setAttribute(SuggestionMenuView.ROLE_ATTR, SuggestionMenuView.MENU_ROLE);
       list = doc.createElement("ul");
       list.className = SuggestionMenuView.LIST_CLASS;
       menu.appendChild(this.createHeader(doc));
