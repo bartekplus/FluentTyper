@@ -213,6 +213,470 @@ describe("InlineSuggestionView", () => {
     container.remove();
   });
 
+  test("renderMirrorPreview creates three spans: before (normal), suffix (ghost), after (normal)", () => {
+    const input = document.createElement("input");
+    input.value = "highest stand with Spell Checker";
+    input.selectionStart = 14;
+    input.selectionEnd = 14;
+    document.body.appendChild(input);
+
+    const mirror = InlineSuggestionView.renderMirrorPreview({
+      target: input,
+      suffix: "ards",
+      cursorOffset: 14,
+      doc: document,
+    });
+
+    expect(mirror).not.toBeNull();
+    const spans = mirror!.querySelectorAll("span");
+    expect(spans.length).toBe(3);
+    // Before cursor — normal text colour (mirrors input)
+    expect(spans[0]!.textContent).toBe("highest\u00A0stand\u00A0");
+    expect(spans[0]!.style.color).not.toBe("transparent");
+    expect(spans[0]!.style.opacity).toBe("");
+    // Suffix — ghost-styled
+    expect(spans[1]!.textContent).toBe("ards");
+    expect(spans[1]!.style.opacity).toBe("0.5");
+    expect(spans[1]!.style.color).not.toBe("transparent");
+    // After cursor — normal text colour (shifted by suffix width)
+    expect(spans[2]!.textContent).toBe("with\u00A0Spell\u00A0Checker");
+    expect(spans[2]!.style.color).not.toBe("transparent");
+    expect(spans[2]!.style.opacity).toBe("");
+
+    input.remove();
+  });
+
+  test("renderMirrorPreview copies box-model properties from target", () => {
+    const input = document.createElement("input");
+    input.value = "hello world";
+    input.style.padding = "8px";
+    input.style.fontSize = "18px";
+    document.body.appendChild(input);
+
+    const mirror = InlineSuggestionView.renderMirrorPreview({
+      target: input,
+      suffix: "!",
+      cursorOffset: 5,
+      doc: document,
+    });
+
+    expect(mirror).not.toBeNull();
+    expect(mirror!.style.overflow).toBe("hidden");
+    expect(mirror!.style.borderColor).toBe("transparent");
+    expect(mirror!.style.position).toBe("fixed");
+    expect(mirror!.style.pointerEvents).toBe("none");
+
+    input.remove();
+  });
+
+  test("renderMirrorPreview applies background color", () => {
+    const input = document.createElement("input");
+    input.value = "test";
+    input.style.backgroundColor = "rgb(0, 128, 255)";
+    document.body.appendChild(input);
+
+    const mirror = InlineSuggestionView.renderMirrorPreview({
+      target: input,
+      suffix: "ing",
+      cursorOffset: 4,
+      doc: document,
+    });
+
+    expect(mirror).not.toBeNull();
+    expect(mirror!.style.backgroundColor).toBe("rgb(0, 128, 255)");
+
+    input.remove();
+  });
+
+  test("renderMirrorPreview returns null when suffix is empty", () => {
+    const input = document.createElement("input");
+    input.value = "test";
+    document.body.appendChild(input);
+
+    const mirror = InlineSuggestionView.renderMirrorPreview({
+      target: input,
+      suffix: "",
+      cursorOffset: 4,
+      doc: document,
+    });
+
+    expect(mirror).toBeNull();
+
+    input.remove();
+  });
+
+  test("renderMirrorPreview uses pre-wrap for textarea and preserves real spaces", () => {
+    const textarea = document.createElement("textarea");
+    textarea.value = "hello world";
+    document.body.appendChild(textarea);
+
+    const mirror = InlineSuggestionView.renderMirrorPreview({
+      target: textarea,
+      suffix: "!",
+      cursorOffset: 5,
+      doc: document,
+    });
+
+    expect(mirror).not.toBeNull();
+    expect(mirror!.style.whiteSpace).toBe("pre-wrap");
+    expect(mirror!.style.wordWrap).toBe("break-word");
+    // Textarea doesn't replace spaces with NBSP
+    const spans = mirror!.querySelectorAll("span");
+    expect(spans[0]!.textContent).toBe("hello");
+    expect(spans[2]!.textContent).toBe(" world");
+    // All spans use real text colour
+    expect(spans[0]!.style.color).not.toBe("transparent");
+    expect(spans[2]!.style.color).not.toBe("transparent");
+
+    textarea.remove();
+  });
+
+  test("renderMirrorPreview respects entryId", () => {
+    const input = document.createElement("input");
+    input.value = "test";
+    document.body.appendChild(input);
+
+    InlineSuggestionView.renderMirrorPreview({
+      target: input,
+      suffix: "ing",
+      cursorOffset: 4,
+      entryId: 1,
+      doc: document,
+    });
+    InlineSuggestionView.renderMirrorPreview({
+      target: input,
+      suffix: "ed",
+      cursorOffset: 4,
+      entryId: 2,
+      doc: document,
+    });
+
+    const all = document.querySelectorAll(`.${InlineSuggestionView.CLASS_NAME}`);
+    expect(all.length).toBe(2);
+
+    InlineSuggestionView.removeForEntry(1, document);
+    const remaining = document.querySelectorAll(`.${InlineSuggestionView.CLASS_NAME}`);
+    expect(remaining.length).toBe(1);
+
+    input.remove();
+  });
+
+  test("renderContentEditableMirrorPreview clones DOM content and inserts ghost suffix", () => {
+    const container = document.createElement("div");
+    container.contentEditable = "true";
+    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(container);
+
+    const p = document.createElement("p");
+    p.textContent = "highest stand with Spell Checker";
+    container.appendChild(p);
+
+    // Place cursor at offset 14 (after "highest stand ")
+    const textNode = p.firstChild!;
+    const range = document.createRange();
+    range.setStart(textNode, 14);
+    range.collapse(true);
+    const sel = window.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    const mirror = InlineSuggestionView.renderContentEditableMirrorPreview({
+      target: container,
+      suffix: "ards",
+      doc: document,
+    });
+
+    expect(mirror).not.toBeNull();
+    // The suffix span is inserted at the cursor position
+    const suffixSpan = mirror!.querySelector("span");
+    expect(suffixSpan).not.toBeNull();
+    expect(suffixSpan!.textContent).toBe("ards");
+    expect(suffixSpan!.style.opacity).toBe("0.5");
+    // Full text content includes the suffix (splitText at offset 14 = "highest stand " | "with…")
+    expect(mirror!.textContent).toBe("highest stand ardswith Spell Checker");
+
+    container.remove();
+  });
+
+  test("renderContentEditableMirrorPreview preserves inline formatting", () => {
+    const container = document.createElement("div");
+    container.contentEditable = "true";
+    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(container);
+
+    const p = document.createElement("p");
+    // "highest <strong>stand</strong> with Spell Checker"
+    p.appendChild(document.createTextNode("highest "));
+    const strong = document.createElement("strong");
+    strong.textContent = "stand";
+    p.appendChild(strong);
+    p.appendChild(document.createTextNode(" with Spell Checker"));
+    container.appendChild(p);
+
+    // Place cursor at offset 5 inside the <strong> ("stand|")
+    const strongText = strong.firstChild!;
+    const range = document.createRange();
+    range.setStart(strongText, 5);
+    range.collapse(true);
+    const sel = window.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    const mirror = InlineSuggestionView.renderContentEditableMirrorPreview({
+      target: container,
+      suffix: "ards",
+      doc: document,
+    });
+
+    expect(mirror).not.toBeNull();
+    // The <strong> tag is preserved in the clone
+    const strongClone = mirror!.querySelector("strong");
+    expect(strongClone).not.toBeNull();
+    // Suffix span is inserted inside the strong (after the split text node)
+    const suffixSpan = mirror!.querySelector("span");
+    expect(suffixSpan).not.toBeNull();
+    expect(suffixSpan!.textContent).toBe("ards");
+    expect(suffixSpan!.style.opacity).toBe("0.5");
+    // Full text includes both original content and suffix
+    expect(mirror!.textContent).toContain("stand");
+    expect(mirror!.textContent).toContain("ards");
+
+    container.remove();
+  });
+
+  test("renderContentEditableMirrorPreview returns null when suffix is empty", () => {
+    const container = document.createElement("div");
+    container.contentEditable = "true";
+    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
+    container.textContent = "test";
+    document.body.appendChild(container);
+
+    const textNode = container.firstChild!;
+    const range = document.createRange();
+    range.setStart(textNode, 4);
+    range.collapse(true);
+    const sel = window.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    const mirror = InlineSuggestionView.renderContentEditableMirrorPreview({
+      target: container,
+      suffix: "",
+      doc: document,
+    });
+
+    expect(mirror).toBeNull();
+
+    container.remove();
+  });
+
+  test("renderContentEditableMirrorPreview positions mirror over block element", () => {
+    const container = document.createElement("div");
+    container.contentEditable = "true";
+    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(container);
+
+    const p = document.createElement("p");
+    p.textContent = "hello world";
+    container.appendChild(p);
+
+    const textNode = p.firstChild!;
+    const range = document.createRange();
+    range.setStart(textNode, 5);
+    range.collapse(true);
+    const sel = window.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    const mirror = InlineSuggestionView.renderContentEditableMirrorPreview({
+      target: container,
+      suffix: "!",
+      doc: document,
+    });
+
+    expect(mirror).not.toBeNull();
+    expect(mirror!.style.position).toBe("fixed");
+    expect(mirror!.style.pointerEvents).toBe("none");
+    expect(mirror!.style.overflow).toBe("hidden");
+
+    container.remove();
+  });
+
+  test("renderContentEditableMirrorPreview handles element-node caret between inline children", () => {
+    const container = document.createElement("div");
+    container.contentEditable = "true";
+    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(container);
+
+    // Lexical/ProseMirror pattern: <p><strong>Hello</strong><em>world</em></p>
+    // Caret at (p, 1) — between the two inline children.
+    const p = document.createElement("p");
+    const strong = document.createElement("strong");
+    strong.textContent = "Hello";
+    const em = document.createElement("em");
+    em.textContent = "world";
+    p.appendChild(strong);
+    p.appendChild(em);
+    container.appendChild(p);
+
+    const range = document.createRange();
+    // Caret on the element node <p> at offset 1 (between <strong> and <em>)
+    range.setStart(p, 1);
+    range.collapse(true);
+    const sel = window.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    const mirror = InlineSuggestionView.renderContentEditableMirrorPreview({
+      target: container,
+      suffix: " ",
+      doc: document,
+    });
+
+    expect(mirror).not.toBeNull();
+    // Suffix span should be between the cloned <strong> and <em>, not at the end.
+    const children = Array.from(mirror!.childNodes);
+    const suffixIndex = children.findIndex(
+      (c) => c.nodeType === Node.ELEMENT_NODE && (c as HTMLElement).style.opacity === "0.5",
+    );
+    expect(suffixIndex).toBe(1); // index 0 = <strong>, 1 = suffix, 2 = <em>
+    expect(children.length).toBe(3);
+
+    container.remove();
+  });
+
+  test("renderContentEditableMirrorPreview preserves pre whitespace for <pre> blocks", () => {
+    const container = document.createElement("div");
+    container.contentEditable = "true";
+    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(container);
+
+    const pre = document.createElement("pre");
+    pre.textContent = "line1\n  indented";
+    container.appendChild(pre);
+
+    const textNode = pre.firstChild!;
+    const range = document.createRange();
+    range.setStart(textNode, 5);
+    range.collapse(true);
+    const sel = window.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    const mirror = InlineSuggestionView.renderContentEditableMirrorPreview({
+      target: container,
+      suffix: "!",
+      doc: document,
+    });
+
+    expect(mirror).not.toBeNull();
+    // whiteSpace should be copied from the <pre> computed style,
+    // preserving preformatted spacing/newlines.
+    expect(mirror!.style.whiteSpace).toBe("pre");
+
+    container.remove();
+  });
+
+  test("renderReplacePreview renders two spans for typed prefix and suffix", () => {
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+
+    const ghost = InlineSuggestionView.renderReplacePreview({
+      target: input,
+      fullWord: "standards",
+      typedPrefix: "stand",
+      caretRect: { left: 100, top: 20, width: 0, height: 16 } as DOMRect,
+      doc: document,
+    });
+
+    expect(ghost).not.toBeNull();
+    const spans = ghost!.querySelectorAll("span");
+    expect(spans.length).toBe(2);
+    expect(spans[0]!.textContent).toBe("stand");
+    expect(spans[1]!.textContent).toBe("ards");
+    expect(spans[1]!.style.opacity).toBe("0.5");
+
+    input.remove();
+  });
+
+  test("renderReplacePreview positions ghost at word start", () => {
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+
+    const ghost = InlineSuggestionView.renderReplacePreview({
+      target: input,
+      fullWord: "standards",
+      typedPrefix: "stand",
+      caretRect: { left: 100, top: 20, width: 0, height: 16 } as DOMRect,
+      doc: document,
+    });
+
+    expect(ghost).not.toBeNull();
+    // Ghost left should be less than caret left (shifted back by prefix width)
+    const ghostLeft = parseFloat(ghost!.style.left);
+    expect(ghostLeft).toBeLessThanOrEqual(100);
+  });
+
+  test("renderReplacePreview applies background color", () => {
+    const input = document.createElement("input");
+    input.style.backgroundColor = "rgb(255, 255, 0)";
+    document.body.appendChild(input);
+
+    const ghost = InlineSuggestionView.renderReplacePreview({
+      target: input,
+      fullWord: "standards",
+      typedPrefix: "stand",
+      caretRect: { left: 100, top: 20, width: 0, height: 16 } as DOMRect,
+      doc: document,
+    });
+
+    expect(ghost).not.toBeNull();
+    expect(ghost!.style.backgroundColor).toBe("rgb(255, 255, 0)");
+
+    input.remove();
+  });
+
+  test("renderReplacePreview returns null when suffix is empty", () => {
+    const ghost = InlineSuggestionView.renderReplacePreview({
+      target: document.body,
+      fullWord: "stand",
+      typedPrefix: "stand",
+      caretRect: { left: 100, top: 20, width: 0, height: 16 } as DOMRect,
+      doc: document,
+    });
+
+    expect(ghost).toBeNull();
+  });
+
+  test("renderReplacePreview respects entryId and removeForEntry", () => {
+    const caretRect = { left: 100, top: 20, width: 0, height: 16 } as DOMRect;
+
+    InlineSuggestionView.renderReplacePreview({
+      target: document.body,
+      fullWord: "standards",
+      typedPrefix: "stand",
+      caretRect,
+      entryId: 1,
+      doc: document,
+    });
+    InlineSuggestionView.renderReplacePreview({
+      target: document.body,
+      fullWord: "hello",
+      typedPrefix: "hel",
+      caretRect,
+      entryId: 2,
+      doc: document,
+    });
+
+    const allBefore = document.querySelectorAll(`.${InlineSuggestionView.CLASS_NAME}`);
+    expect(allBefore.length).toBe(2);
+
+    InlineSuggestionView.removeForEntry(1, document);
+
+    const remaining = document.querySelectorAll(`.${InlineSuggestionView.CLASS_NAME}`);
+    expect(remaining.length).toBe(1);
+  });
+
   test("removeForEntry only removes ghost for the specified entry", () => {
     const caretRect = { left: 0, top: 0, width: 0, height: 16 } as DOMRect;
 

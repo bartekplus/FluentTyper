@@ -107,6 +107,130 @@ describe("InlineSuggestionPresenter", () => {
     expect(removeAllSpy).toHaveBeenCalledTimes(1);
   });
 
+  test("uses renderMirrorPreview for input mid-text", () => {
+    const renderSpy = jest
+      .spyOn(InlineSuggestionView, "render")
+      .mockImplementation(() => undefined);
+    const mirrorPreviewSpy = jest
+      .spyOn(InlineSuggestionView, "renderMirrorPreview")
+      .mockImplementation(() => undefined);
+    const replacePreviewSpy = jest
+      .spyOn(InlineSuggestionView, "renderReplacePreview")
+      .mockImplementation(() => undefined);
+    const positioning = {
+      getCaretRect: jest.fn(() => createRect()),
+    } as unknown as SuggestionPositioningService;
+    const presenter = new InlineSuggestionPresenter({ positioningService: positioning });
+
+    const input = document.createElement("input");
+    input.value = "highest stand with Spell Checker";
+    input.selectionStart = 14;
+    input.selectionEnd = 14;
+    const entry = createSuggestionEntry({
+      elem: input,
+      inlineSuggestion: "standards",
+      latestMentionText: "stand",
+    });
+
+    presenter.renderForEntry({
+      enabled: true,
+      entry,
+      resolveMentionToken: () => ({ token: "stand", start: 8 }),
+    });
+
+    expect(renderSpy).not.toHaveBeenCalled();
+    expect(replacePreviewSpy).not.toHaveBeenCalled();
+    expect(mirrorPreviewSpy).toHaveBeenCalledTimes(1);
+    expect(mirrorPreviewSpy.mock.calls[0]?.[0].suffix).toBe("ards");
+    expect(mirrorPreviewSpy.mock.calls[0]?.[0].cursorOffset).toBe(14);
+  });
+
+  test("uses renderContentEditableMirrorPreview for contenteditable mid-text", () => {
+    const renderSpy = jest
+      .spyOn(InlineSuggestionView, "render")
+      .mockImplementation(() => undefined);
+    const mirrorPreviewSpy = jest
+      .spyOn(InlineSuggestionView, "renderMirrorPreview")
+      .mockImplementation(() => undefined);
+    const ceMirrorSpy = jest
+      .spyOn(InlineSuggestionView, "renderContentEditableMirrorPreview")
+      .mockImplementation(() => undefined);
+    const positioning = {
+      getCaretRect: jest.fn(() => createRect()),
+    } as unknown as SuggestionPositioningService;
+    const presenter = new InlineSuggestionPresenter({ positioningService: positioning });
+
+    const container = document.createElement("div");
+    container.contentEditable = "true";
+    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
+    container.textContent = "highest stand with Spell Checker";
+    document.body.appendChild(container);
+
+    // Set up selection mid-text
+    const textNode = container.firstChild!;
+    const range = document.createRange();
+    range.setStart(textNode, 14);
+    range.collapse(true);
+    const sel = window.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    const entry = createSuggestionEntry({
+      elem: container,
+      inlineSuggestion: "standards",
+      latestMentionText: "stand",
+    });
+
+    presenter.renderForEntry({
+      enabled: true,
+      entry,
+      resolveMentionToken: () => ({ token: "stand", start: 8 }),
+    });
+
+    expect(renderSpy).not.toHaveBeenCalled();
+    expect(mirrorPreviewSpy).not.toHaveBeenCalled();
+    expect(ceMirrorSpy).toHaveBeenCalledTimes(1);
+    expect(ceMirrorSpy.mock.calls[0]?.[0].suffix).toBe("ards");
+
+    container.remove();
+  });
+
+  test("uses standard render when caret is at end of text", () => {
+    const renderSpy = jest
+      .spyOn(InlineSuggestionView, "render")
+      .mockImplementation(() => undefined);
+    const mirrorPreviewSpy = jest
+      .spyOn(InlineSuggestionView, "renderMirrorPreview")
+      .mockImplementation(() => undefined);
+    const replacePreviewSpy = jest
+      .spyOn(InlineSuggestionView, "renderReplacePreview")
+      .mockImplementation(() => undefined);
+    const positioning = {
+      getCaretRect: jest.fn(() => createRect()),
+    } as unknown as SuggestionPositioningService;
+    const presenter = new InlineSuggestionPresenter({ positioningService: positioning });
+
+    const input = document.createElement("input");
+    input.value = "fun";
+    input.selectionStart = 3;
+    input.selectionEnd = 3;
+    const entry = createSuggestionEntry({
+      elem: input,
+      inlineSuggestion: "function",
+      latestMentionText: "fun",
+    });
+
+    presenter.renderForEntry({
+      enabled: true,
+      entry,
+      resolveMentionToken: () => ({ token: "fun", start: 0 }),
+    });
+
+    expect(renderSpy).toHaveBeenCalledTimes(1);
+    expect(mirrorPreviewSpy).not.toHaveBeenCalled();
+    expect(replacePreviewSpy).not.toHaveBeenCalled();
+  });
+
   test("re-renders ghost when externally removed from DOM", async () => {
     const positioning = {
       getCaretRect: jest.fn(() => createRect()),

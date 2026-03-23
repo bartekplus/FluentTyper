@@ -1,6 +1,67 @@
 import { resolveSuggestionOverlayRoot } from "./SuggestionOverlayRoot";
+import { TextTargetAdapter } from "./TextTargetAdapter";
 
 const ENTRY_ID_ATTR = "data-ft-suggestion-entry-id";
+
+/** Properties copied from the target to the mirror div for pixel-perfect overlay. */
+const MIRROR_PROPERTIES = [
+  "direction",
+  "boxSizing",
+  "width",
+  "height",
+  "overflowX",
+  "overflowY",
+  "borderTopWidth",
+  "borderRightWidth",
+  "borderBottomWidth",
+  "borderLeftWidth",
+  "borderStyle",
+  "paddingTop",
+  "paddingRight",
+  "paddingBottom",
+  "paddingLeft",
+  "color",
+  "fontStyle",
+  "fontVariant",
+  "fontWeight",
+  "fontStretch",
+  "fontSize",
+  "fontSizeAdjust",
+  "lineHeight",
+  "fontFamily",
+  "textAlign",
+  "textTransform",
+  "textIndent",
+  "textDecoration",
+  "letterSpacing",
+  "wordSpacing",
+  "whiteSpace",
+  "wordWrap",
+  "overflowWrap",
+  "display",
+  "listStyleType",
+  "listStylePosition",
+] as const;
+
+/** Visual properties inlined onto each cloned child element so styles
+ *  from editor-scoped CSS (class selectors) are preserved in the overlay. */
+const INLINE_STYLE_PROPERTIES = [
+  "color",
+  "backgroundColor",
+  "fontFamily",
+  "fontSize",
+  "fontWeight",
+  "fontStyle",
+  "fontVariant",
+  "textDecoration",
+  "textDecorationColor",
+  "textDecorationStyle",
+  "letterSpacing",
+  "wordSpacing",
+  "lineHeight",
+  "verticalAlign",
+  "textTransform",
+] as const;
 
 const BLOCK_TAGS = new Set([
   "P",
@@ -51,20 +112,7 @@ export class InlineSuggestionView {
     const styleTarget = InlineSuggestionView.resolveCaretElement(target, doc) ?? target;
     const computedStyle = window.getComputedStyle(styleTarget);
 
-    ghost.style.font = computedStyle.font;
-    ghost.style.fontFamily = computedStyle.fontFamily;
-    ghost.style.fontSize = computedStyle.fontSize;
-    ghost.style.fontWeight = computedStyle.fontWeight;
-    ghost.style.fontStyle = computedStyle.fontStyle;
-    ghost.style.fontVariant = computedStyle.fontVariant;
-    ghost.style.letterSpacing = computedStyle.letterSpacing;
-    ghost.style.wordSpacing = computedStyle.wordSpacing;
-    ghost.style.textTransform = computedStyle.textTransform;
-    ghost.style.lineHeight = computedStyle.lineHeight;
-    ghost.style.direction = computedStyle.direction;
-    ghost.style.fontFeatureSettings = computedStyle.fontFeatureSettings;
-    ghost.style.fontKerning = computedStyle.fontKerning;
-    ghost.style.textAlign = computedStyle.textAlign;
+    InlineSuggestionView.applyFontStyles(ghost, computedStyle);
 
     // The computed lineHeight may be larger than the caretRect height because
     // it includes CSS leading.  Shift the ghost up by half the difference so
@@ -94,6 +142,420 @@ export class InlineSuggestionView {
 
     resolveSuggestionOverlayRoot(doc).appendChild(ghost);
     return ghost;
+  }
+
+  /**
+   * Render a replace-preview ghost for mid-text suggestions.
+   *
+   * Instead of appending a suffix at the caret (which overlaps following text),
+   * this overlays the full suggested word over the current word position with a
+   * background colour so the suggestion is always readable.
+   */
+  static renderReplacePreview({
+    target,
+    fullWord,
+    typedPrefix,
+    caretRect,
+    entryId,
+    doc = document,
+  }: {
+    target: HTMLElement;
+    fullWord: string;
+    typedPrefix: string;
+    caretRect: DOMRect;
+    entryId?: number;
+    doc?: Document;
+  }): HTMLDivElement | null {
+    InlineSuggestionView.removeForEntry(entryId, doc);
+
+    const suffix = fullWord.slice(typedPrefix.length);
+    if (!suffix) {
+      return null;
+    }
+
+    const ghost = doc.createElement("div");
+    ghost.className = InlineSuggestionView.CLASS_NAME;
+    ghost.setAttribute(InlineSuggestionView.OWNED_ATTR, "true");
+    ghost.setAttribute(InlineSuggestionView.ROLE_ATTR, InlineSuggestionView.INLINE_ROLE);
+    if (entryId !== undefined) {
+      ghost.setAttribute(ENTRY_ID_ATTR, String(entryId));
+    }
+
+    const styleTarget = InlineSuggestionView.resolveCaretElement(target, doc) ?? target;
+    const computedStyle = window.getComputedStyle(styleTarget);
+
+    InlineSuggestionView.applyFontStyles(ghost, computedStyle);
+
+    const prefixSpan = doc.createElement("span");
+    prefixSpan.textContent = typedPrefix;
+
+    const suffixSpan = doc.createElement("span");
+    suffixSpan.style.opacity = "0.5";
+    suffixSpan.textContent = suffix;
+
+    ghost.appendChild(prefixSpan);
+    ghost.appendChild(suffixSpan);
+
+    const lineHeightPx = parseFloat(computedStyle.lineHeight);
+    const leadingOffset =
+      caretRect.height > 0 && lineHeightPx > caretRect.height
+        ? (lineHeightPx - caretRect.height) / 2
+        : 0;
+
+    const prefixWidth = InlineSuggestionView.measureTextWidth(typedPrefix, computedStyle, doc);
+    const wordStartLeft = caretRect.left - prefixWidth;
+
+    ghost.style.color = computedStyle.color;
+    ghost.style.backgroundColor = InlineSuggestionView.resolveBackgroundColor(target);
+    ghost.style.position = "fixed";
+    ghost.style.left = `${wordStartLeft}px`;
+    ghost.style.top = `${caretRect.top - leadingOffset}px`;
+    ghost.style.pointerEvents = "none";
+    ghost.style.whiteSpace = "pre";
+    ghost.style.zIndex = "10000";
+    ghost.style.overflow = "hidden";
+
+    const targetRect = target.getBoundingClientRect();
+    const maxWidth = Math.max(0, targetRect.right - wordStartLeft);
+    if (maxWidth > 0) {
+      ghost.style.maxWidth = `${maxWidth}px`;
+    }
+
+    resolveSuggestionOverlayRoot(doc).appendChild(ghost);
+    return ghost;
+  }
+
+  /**
+   * Mirror-layer preview for input/textarea mid-text suggestions.
+   *
+   * Creates a mirror div positioned exactly over the target element,
+   * matching its box model.  The mirror contains the full "accepted" text
+   * with only the inserted suffix visible (ghost-styled) — surrounding
+   * words reflow naturally, eliminating overlap.
+   */
+  static renderMirrorPreview({
+    target,
+    suffix,
+    cursorOffset,
+    entryId,
+    doc = document,
+  }: {
+    target: HTMLInputElement | HTMLTextAreaElement;
+    suffix: string;
+    cursorOffset: number;
+    entryId?: number;
+    doc?: Document;
+  }): HTMLDivElement | null {
+    InlineSuggestionView.removeForEntry(entryId, doc);
+
+    if (!suffix) {
+      return null;
+    }
+
+    const mirror = doc.createElement("div");
+    mirror.className = InlineSuggestionView.CLASS_NAME;
+    mirror.setAttribute(InlineSuggestionView.OWNED_ATTR, "true");
+    mirror.setAttribute(InlineSuggestionView.ROLE_ATTR, InlineSuggestionView.INLINE_ROLE);
+    if (entryId !== undefined) {
+      mirror.setAttribute(ENTRY_ID_ATTR, String(entryId));
+    }
+
+    const computed = window.getComputedStyle(target);
+    const isInput = TextTargetAdapter.isInput(target);
+
+    // Copy all box-model and font properties so the mirror matches exactly.
+    for (const prop of MIRROR_PROPERTIES) {
+      (mirror.style as unknown as Record<string, string>)[prop] = computed[prop];
+    }
+
+    mirror.style.borderColor = "transparent";
+    mirror.style.backgroundColor = InlineSuggestionView.resolveBackgroundColor(target);
+    mirror.style.overflow = "hidden";
+    mirror.style.whiteSpace = isInput ? "pre" : "pre-wrap";
+    if (!isInput) {
+      mirror.style.wordWrap = "break-word";
+    }
+
+    // Build three spans: before (normal) | suffix (ghost) | after (normal).
+    // The before and after spans use the real text colour so the mirror
+    // fully replaces the input's visual — the user sees the text as it
+    // would look after accepting, with only the suffix ghost-styled.
+    const value = target.value ?? "";
+    const beforeText = value.slice(0, cursorOffset);
+    const afterText = value.slice(cursorOffset);
+    const textColor = computed.color;
+
+    const beforeSpan = doc.createElement("span");
+    beforeSpan.style.color = textColor;
+    beforeSpan.textContent = isInput ? beforeText.replace(/\s/g, "\u00A0") : beforeText;
+
+    const suffixSpan = doc.createElement("span");
+    suffixSpan.style.color = textColor;
+    suffixSpan.style.opacity = "0.5";
+    suffixSpan.textContent = isInput ? suffix.replace(/\s/g, "\u00A0") : suffix;
+
+    const afterSpan = doc.createElement("span");
+    afterSpan.style.color = textColor;
+    afterSpan.textContent = isInput ? afterText.replace(/\s/g, "\u00A0") : afterText;
+
+    mirror.appendChild(beforeSpan);
+    mirror.appendChild(suffixSpan);
+    mirror.appendChild(afterSpan);
+
+    // Position fixed, exactly over the target element.
+    const rect = target.getBoundingClientRect();
+    mirror.style.position = "fixed";
+    mirror.style.left = `${rect.left}px`;
+    mirror.style.top = `${rect.top}px`;
+    mirror.style.pointerEvents = "none";
+    mirror.style.zIndex = "10000";
+
+    resolveSuggestionOverlayRoot(doc).appendChild(mirror);
+
+    // Sync scroll after appending so the mirror is in the DOM.
+    mirror.scrollTop = target.scrollTop;
+    mirror.scrollLeft = target.scrollLeft;
+
+    return mirror;
+  }
+
+  /**
+   * Mirror-layer preview for contenteditable mid-text suggestions.
+   *
+   * Clones the block element's DOM (preserving formatting such as bold,
+   * italic, colors, links) and inserts a ghost-styled suffix span at the
+   * cursor position.  The mirror is positioned over the original block so
+   * surrounding words reflow naturally around the suffix.
+   */
+  static renderContentEditableMirrorPreview({
+    target,
+    suffix,
+    entryId,
+    doc = document,
+  }: {
+    target: HTMLElement;
+    suffix: string;
+    entryId?: number;
+    doc?: Document;
+  }): HTMLDivElement | null {
+    InlineSuggestionView.removeForEntry(entryId, doc);
+
+    if (!suffix) {
+      return null;
+    }
+
+    const win = doc.defaultView ?? window;
+    const selection = win.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      return null;
+    }
+
+    const range = selection.getRangeAt(0);
+    const blockElement = InlineSuggestionView.findContainingBlock(target, selection);
+    if (!blockElement) {
+      return null;
+    }
+
+    const mirror = doc.createElement("div");
+    mirror.className = InlineSuggestionView.CLASS_NAME;
+    mirror.setAttribute(InlineSuggestionView.OWNED_ATTR, "true");
+    mirror.setAttribute(InlineSuggestionView.ROLE_ATTR, InlineSuggestionView.INLINE_ROLE);
+    if (entryId !== undefined) {
+      mirror.setAttribute(ENTRY_ID_ATTR, String(entryId));
+    }
+
+    const computed = window.getComputedStyle(blockElement);
+
+    // Copy box-model + font properties from the block element.
+    for (const prop of MIRROR_PROPERTIES) {
+      (mirror.style as unknown as Record<string, string>)[prop] = computed[prop];
+    }
+
+    mirror.style.borderColor = "transparent";
+    mirror.style.backgroundColor = InlineSuggestionView.resolveBackgroundColor(blockElement);
+    mirror.style.overflow = "hidden";
+
+    // Clone the block's child nodes and inline their computed styles so
+    // class-based CSS from the editor stylesheet (e.g. TinyMCE) is
+    // preserved even though the clone lives outside the editor DOM.
+    for (const child of Array.from(blockElement.childNodes)) {
+      mirror.appendChild(child.cloneNode(true));
+    }
+    InlineSuggestionView.inlineComputedStyles(blockElement, mirror);
+
+    // Find the cursor position in the cloned content and insert the suffix.
+    const suffixSpan = doc.createElement("span");
+    suffixSpan.style.opacity = "0.5";
+    suffixSpan.textContent = suffix;
+
+    const path = InlineSuggestionView.getNodePath(blockElement, range.startContainer);
+    const cloneTarget = InlineSuggestionView.followNodePath(mirror, path);
+
+    if (cloneTarget && cloneTarget.nodeType === Node.TEXT_NODE) {
+      // Caret is inside a text node — split and insert.
+      const textNode = cloneTarget as Text;
+      const afterNode = textNode.splitText(range.startOffset);
+      afterNode.parentNode!.insertBefore(suffixSpan, afterNode);
+    } else if (cloneTarget && cloneTarget.nodeType === Node.ELEMENT_NODE) {
+      // Caret is on an element node (common in Lexical / ProseMirror /
+      // TinyMCE when the selection sits between inline children).
+      // range.startOffset is the child index where the caret sits.
+      const parent = cloneTarget as HTMLElement;
+      const refChild = parent.childNodes[range.startOffset] ?? null;
+      parent.insertBefore(suffixSpan, refChild);
+    } else {
+      // Fallback: append suffix at end if we can't resolve the position.
+      mirror.appendChild(suffixSpan);
+    }
+
+    const blockRect = blockElement.getBoundingClientRect();
+    mirror.style.position = "fixed";
+    mirror.style.left = `${blockRect.left}px`;
+    mirror.style.top = `${blockRect.top}px`;
+    mirror.style.pointerEvents = "none";
+    mirror.style.zIndex = "10000";
+
+    resolveSuggestionOverlayRoot(doc).appendChild(mirror);
+    return mirror;
+  }
+
+  /** Compute the path (child-node indices) from root to target. */
+  private static getNodePath(root: Node, target: Node): number[] {
+    const path: number[] = [];
+    let current = target;
+    while (current !== root && current.parentNode) {
+      const parent = current.parentNode;
+      path.unshift(Array.from(parent.childNodes).indexOf(current as ChildNode));
+      current = parent;
+    }
+    return current === root ? path : [];
+  }
+
+  /**
+   * Walk the original and cloned trees in parallel, inlining the computed
+   * style of every element node onto the clone.  This preserves styles
+   * that come from class-based CSS rules which no longer match once the
+   * clone is moved outside the editor DOM.
+   */
+  private static inlineComputedStyles(original: Node, clone: Node): void {
+    const origChildren = original.childNodes;
+    const cloneChildren = clone.childNodes;
+    const len = Math.min(origChildren.length, cloneChildren.length);
+
+    for (let i = 0; i < len; i++) {
+      const origChild = origChildren[i];
+      const cloneChild = cloneChildren[i];
+
+      if (origChild.nodeType === Node.ELEMENT_NODE && cloneChild.nodeType === Node.ELEMENT_NODE) {
+        const origEl = origChild as HTMLElement;
+        const cloneEl = cloneChild as HTMLElement;
+        const cs = window.getComputedStyle(origEl);
+
+        for (const prop of INLINE_STYLE_PROPERTIES) {
+          (cloneEl.style as unknown as Record<string, string>)[prop] = cs[prop];
+        }
+
+        // Recurse into children.
+        InlineSuggestionView.inlineComputedStyles(origEl, cloneEl);
+      }
+    }
+  }
+
+  /** Follow a child-node-index path from root, returning the target node. */
+  private static followNodePath(root: Node, path: number[]): Node | null {
+    let current: Node = root;
+    for (const index of path) {
+      if (index < 0 || index >= current.childNodes.length) {
+        return null;
+      }
+      current = current.childNodes[index];
+    }
+    return current;
+  }
+
+  /**
+   * Walk up from the selection anchor to find the nearest block-level
+   * element within the contenteditable target.
+   */
+  private static findContainingBlock(
+    target: HTMLElement,
+    selection: Selection,
+  ): HTMLElement | null {
+    let node: Node | null = selection.anchorNode;
+    if (!node) {
+      return null;
+    }
+
+    // If we start on a text node, move to its parent element.
+    if (node.nodeType === Node.TEXT_NODE) {
+      node = node.parentElement;
+    }
+
+    while (node && node !== target) {
+      if (node.nodeType === Node.ELEMENT_NODE && BLOCK_TAGS.has((node as Element).tagName)) {
+        return node as HTMLElement;
+      }
+      node = node.parentNode;
+    }
+
+    // No block found inside target — use target itself.
+    return target;
+  }
+
+  private static applyFontStyles(ghost: HTMLElement, computedStyle: CSSStyleDeclaration): void {
+    ghost.style.font = computedStyle.font;
+    ghost.style.fontFamily = computedStyle.fontFamily;
+    ghost.style.fontSize = computedStyle.fontSize;
+    ghost.style.fontWeight = computedStyle.fontWeight;
+    ghost.style.fontStyle = computedStyle.fontStyle;
+    ghost.style.fontVariant = computedStyle.fontVariant;
+    ghost.style.letterSpacing = computedStyle.letterSpacing;
+    ghost.style.wordSpacing = computedStyle.wordSpacing;
+    ghost.style.textTransform = computedStyle.textTransform;
+    ghost.style.lineHeight = computedStyle.lineHeight;
+    ghost.style.direction = computedStyle.direction;
+    ghost.style.fontFeatureSettings = computedStyle.fontFeatureSettings;
+    ghost.style.fontKerning = computedStyle.fontKerning;
+    ghost.style.textAlign = computedStyle.textAlign;
+  }
+
+  private static measureTextWidth(
+    text: string,
+    computedStyle: CSSStyleDeclaration,
+    doc: Document,
+  ): number {
+    const span = doc.createElement("span");
+    span.style.position = "absolute";
+    span.style.visibility = "hidden";
+    span.style.whiteSpace = "pre";
+    span.style.font = computedStyle.font;
+    span.style.fontFamily = computedStyle.fontFamily;
+    span.style.fontSize = computedStyle.fontSize;
+    span.style.fontWeight = computedStyle.fontWeight;
+    span.style.fontStyle = computedStyle.fontStyle;
+    span.style.fontVariant = computedStyle.fontVariant;
+    span.style.letterSpacing = computedStyle.letterSpacing;
+    span.style.wordSpacing = computedStyle.wordSpacing;
+    span.style.textTransform = computedStyle.textTransform;
+    span.style.fontFeatureSettings = computedStyle.fontFeatureSettings;
+    span.style.fontKerning = computedStyle.fontKerning;
+    span.textContent = text;
+    doc.body.appendChild(span);
+    const width = span.getBoundingClientRect().width;
+    span.remove();
+    return width;
+  }
+
+  private static resolveBackgroundColor(target: HTMLElement): string {
+    let el: HTMLElement | null = target;
+    while (el) {
+      const bg = window.getComputedStyle(el).backgroundColor;
+      if (bg && bg !== "transparent" && bg !== "rgba(0, 0, 0, 0)") {
+        return bg;
+      }
+      el = el.parentElement;
+    }
+    return "#ffffff";
   }
 
   /**
