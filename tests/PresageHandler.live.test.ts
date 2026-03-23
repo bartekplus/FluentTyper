@@ -9,6 +9,7 @@ function createLiveConfig(textExpansions: Array<[string, string]>) {
     minWordLengthToPredict: 0,
     insertSpaceAfterAutocomplete: true,
     autoCapitalize: false,
+    prefixOnlyMode: false,
     textExpansions,
     timeFormat: "",
     dateFormat: "",
