@@ -438,10 +438,16 @@ export class SuggestionEntrySession {
 
   public handleBlur(controls: { dismissEntry: () => void }): void {
     if (this.inlineSuggestionEnabled && this.entry.inlineSuggestion !== null) {
-      // Defer dismiss when an inline suggestion is active: sites like Google
-      // Translate replace the textarea DOM element during heavy DOM rebuilds,
-      // causing a transient blur on the old element even though focus moves to
-      // the replacement element immediately.  By deferring to a microtask we
+      // Hide the inline ghost immediately so the mirror overlay does not
+      // linger visibly while the deferred dismiss settles.  If this turns
+      // out to be a transient blur (e.g. Google Translate DOM rebuild),
+      // the ghost will be re-rendered on the next input event.
+      this.clearInlinePresenter();
+
+      // Defer the full dismiss: sites like Google Translate replace the
+      // textarea DOM element during heavy DOM rebuilds, causing a
+      // transient blur on the old element even though focus moves to the
+      // replacement element immediately.  By deferring to a microtask we
       // give the browser time to settle focus on the new element before
       // checking whether the entry is still focused.
       void Promise.resolve().then(() => {
