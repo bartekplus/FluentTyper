@@ -345,6 +345,14 @@ const manifest: ManifestDefinition = {
     },
     {
       tab: "core_settings",
+      group: i18n.get("General"),
+      name: KEY_PREFIX_ONLY_MODE,
+      type: "checkbox",
+      label: buildFieldLabel(i18n.get("prefix_only_mode_label"), i18n.get("prefix_only_mode_desc")),
+      default: false,
+    },
+    {
+      tab: "core_settings",
       group: i18n.get("prediction_engine"),
       name: KEY_NUM_SUGGESTIONS,
       type: "slider",
@@ -415,14 +423,6 @@ const manifest: ManifestDefinition = {
         i18n.get("enable_inline_suggestion_label"),
         i18n.get("enable_inline_suggestion_desc"),
       ),
-      default: false,
-    },
-    {
-      tab: "core_settings",
-      group: i18n.get("behavior_after_completion"),
-      name: KEY_PREFIX_ONLY_MODE,
-      type: "checkbox",
-      label: buildFieldLabel(i18n.get("prefix_only_mode_label"), i18n.get("prefix_only_mode_desc")),
       default: false,
     },
     // =========================================================================
