@@ -85,13 +85,33 @@ export class InlineSuggestionPresenter {
       return;
     }
 
-    const ghost = InlineSuggestionView.render({
-      target: entry.elem,
-      text: suffix,
-      caretRect,
-      entryId: entry.id,
-      doc: this.doc,
-    });
+    const isMidText = snapshot.afterCursor.length > 0;
+
+    let ghost: HTMLDivElement | null;
+    if (isMidText && TextTargetAdapter.isTextValue(entry.elem as TextTarget)) {
+      ghost = InlineSuggestionView.renderMirrorPreview({
+        target: entry.elem as HTMLInputElement | HTMLTextAreaElement,
+        suffix,
+        cursorOffset: snapshot.cursorOffset,
+        entryId: entry.id,
+        doc: this.doc,
+      });
+    } else if (isMidText) {
+      ghost = InlineSuggestionView.renderContentEditableMirrorPreview({
+        target: entry.elem,
+        suffix,
+        entryId: entry.id,
+        doc: this.doc,
+      });
+    } else {
+      ghost = InlineSuggestionView.render({
+        target: entry.elem,
+        text: suffix,
+        caretRect,
+        entryId: entry.id,
+        doc: this.doc,
+      });
+    }
 
     this.activeGhost = ghost;
     this.activeEntryId = entry.id;
