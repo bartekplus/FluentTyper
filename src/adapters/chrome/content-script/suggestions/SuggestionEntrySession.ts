@@ -438,10 +438,13 @@ export class SuggestionEntrySession {
 
   public handleBlur(controls: { dismissEntry: () => void }): void {
     if (this.inlineSuggestionEnabled && this.entry.inlineSuggestion !== null) {
-      // Hide the inline ghost immediately so the mirror overlay does not
-      // linger visibly while the deferred dismiss settles.  If this turns
-      // out to be a transient blur (e.g. Google Translate DOM rebuild),
-      // the ghost will be re-rendered on the next input event.
+      // Hide the inline ghost and clear the cached suggestion immediately
+      // so the mirror overlay does not linger visibly while the deferred
+      // dismiss settles, and so handleFocus() does not briefly re-render
+      // the stale suggestion if the user clicks back into the editor.
+      // If this turns out to be a transient blur (e.g. Google Translate
+      // DOM rebuild), a fresh prediction will be requested on next input.
+      this.entry.inlineSuggestion = null;
       this.clearInlinePresenter();
 
       // Defer the full dismiss: sites like Google Translate replace the
