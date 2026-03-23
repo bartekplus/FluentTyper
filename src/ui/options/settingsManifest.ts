@@ -422,10 +422,7 @@ const manifest: ManifestDefinition = {
       group: i18n.get("behavior_after_completion"),
       name: KEY_PREFIX_ONLY_MODE,
       type: "checkbox",
-      label: buildFieldLabel(
-        i18n.get("prefix_only_mode_label"),
-        i18n.get("prefix_only_mode_desc"),
-      ),
+      label: buildFieldLabel(i18n.get("prefix_only_mode_label"), i18n.get("prefix_only_mode_desc")),
       default: false,
     },
     // =========================================================================

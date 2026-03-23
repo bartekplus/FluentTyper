@@ -72,7 +72,10 @@ describe("PresageEngine", () => {
     const module = {
       PresageCallback: { implement: jest.fn((cb) => cb) },
       Presage: class {
-        constructor(_cb: unknown, public path: string) {}
+        constructor(
+          _cb: unknown,
+          public path: string,
+        ) {}
         config = config;
         predictWithProbability() {
           return { size: () => 0, get: () => ({ prediction: "" }) };

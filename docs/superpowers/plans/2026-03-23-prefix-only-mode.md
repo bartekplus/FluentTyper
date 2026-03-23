@@ -14,20 +14,20 @@
 
 ## File Map
 
-| File | Action | Responsibility |
-|------|--------|---------------|
-| `src/core/domain/constants.ts` | Modify | Add `KEY_PREFIX_ONLY_MODE` constant |
-| `src/core/domain/contracts/settings.ts` | Modify | Add to `SETTINGS_KEYS` and `SettingsSchema` |
-| `src/core/application/repositories/CoreSettingsRepository.ts` | Modify | Add `getPrefixOnlyMode()` accessor |
-| `src/adapters/chrome/background/PresageEngine.ts` | Modify | Add `prefixOnlyMode` to config, call `libPresage.config()` |
-| `src/adapters/chrome/background/PresageHandler.ts` | Modify | Thread `prefixOnlyMode` through to engines |
-| `src/adapters/chrome/background/config/ConfigAssembler.ts` | Modify | Read both settings, compute effective value |
-| `src/ui/options/fluenttyperI18n.ts` | Modify | Add i18n entries |
-| `src/ui/options/settingsManifest.ts` | Modify | Add checkbox definition |
-| `tests/PresageEngine.test.ts` | Modify | Test PREFIX_ONLY_MODE config call |
-| `tests/CoreSettingsRepository.test.ts` | Modify | Test default value |
-| `tests/PredictionOrchestrator.test.ts` | Modify | Update `createConfig` helper |
-| `tests/ConfigAssembler.prefixOnly.test.ts` | Create | Test effective prefixOnlyMode OR-logic |
+| File                                                          | Action | Responsibility                                             |
+| ------------------------------------------------------------- | ------ | ---------------------------------------------------------- |
+| `src/core/domain/constants.ts`                                | Modify | Add `KEY_PREFIX_ONLY_MODE` constant                        |
+| `src/core/domain/contracts/settings.ts`                       | Modify | Add to `SETTINGS_KEYS` and `SettingsSchema`                |
+| `src/core/application/repositories/CoreSettingsRepository.ts` | Modify | Add `getPrefixOnlyMode()` accessor                         |
+| `src/adapters/chrome/background/PresageEngine.ts`             | Modify | Add `prefixOnlyMode` to config, call `libPresage.config()` |
+| `src/adapters/chrome/background/PresageHandler.ts`            | Modify | Thread `prefixOnlyMode` through to engines                 |
+| `src/adapters/chrome/background/config/ConfigAssembler.ts`    | Modify | Read both settings, compute effective value                |
+| `src/ui/options/fluenttyperI18n.ts`                           | Modify | Add i18n entries                                           |
+| `src/ui/options/settingsManifest.ts`                          | Modify | Add checkbox definition                                    |
+| `tests/PresageEngine.test.ts`                                 | Modify | Test PREFIX_ONLY_MODE config call                          |
+| `tests/CoreSettingsRepository.test.ts`                        | Modify | Test default value                                         |
+| `tests/PredictionOrchestrator.test.ts`                        | Modify | Update `createConfig` helper                               |
+| `tests/ConfigAssembler.prefixOnly.test.ts`                    | Create | Test effective prefixOnlyMode OR-logic                     |
 
 ---
 
@@ -36,6 +36,7 @@
 ### Task 1: Add constant and settings contract
 
 **Files:**
+
 - Modify: `src/core/domain/constants.ts:74` (after `KEY_INLINE_SUGGESTION`)
 - Modify: `src/core/domain/contracts/settings.ts:22,58,112` (import, SETTINGS_KEYS, SettingsSchema)
 
@@ -52,16 +53,19 @@ export const KEY_PREFIX_ONLY_MODE = "prefixOnlyMode";
 In `src/core/domain/contracts/settings.ts`:
 
 Add to imports:
+
 ```typescript
 KEY_PREFIX_ONLY_MODE,
 ```
 
 Add to `SETTINGS_KEYS` (after `inlineSuggestion`):
+
 ```typescript
 prefixOnlyMode: KEY_PREFIX_ONLY_MODE,
 ```
 
 Add to `SettingsSchema` (after `inlineSuggestion: boolean`):
+
 ```typescript
 prefixOnlyMode: boolean;
 ```
@@ -81,6 +85,7 @@ git commit -m "feat: add prefixOnlyMode to domain constants and settings contrac
 ### Task 2: Add repository accessor with test
 
 **Files:**
+
 - Modify: `src/core/application/repositories/CoreSettingsRepository.ts:101` (after `getInlineSuggestion`)
 - Modify: `tests/CoreSettingsRepository.test.ts`
 
@@ -130,6 +135,7 @@ git commit -m "feat: add getPrefixOnlyMode to CoreSettingsRepository"
 ### Task 3: Add prefixOnlyMode to PresageEngine with test
 
 **Files:**
+
 - Modify: `src/adapters/chrome/background/PresageEngine.ts:8-9,39-42`
 - Modify: `tests/PresageEngine.test.ts`
 
@@ -144,7 +150,10 @@ test("setConfig calls PREFIX_ONLY_MODE on native presage", () => {
   const module = {
     PresageCallback: { implement: jest.fn((cb) => cb) },
     Presage: class {
-      constructor(_cb: unknown, public path: string) {}
+      constructor(
+        _cb: unknown,
+        public path: string,
+      ) {}
       config = config;
       predictWithProbability() {
         return { size: () => 0, get: () => ({ prediction: "" }) };
@@ -173,6 +182,7 @@ Expected: FAIL — `prefixOnlyMode` not in type / no PREFIX_ONLY_MODE config cal
 In `src/adapters/chrome/background/PresageEngine.ts`:
 
 Update `PresageEngineConfig`:
+
 ```typescript
 export interface PresageEngineConfig {
   numSuggestions: number;
@@ -181,6 +191,7 @@ export interface PresageEngineConfig {
 ```
 
 Update `setConfig()`:
+
 ```typescript
 setConfig(config: PresageEngineConfig) {
   this.config = config;
@@ -201,11 +212,13 @@ const engine = new PresageEngine(module, { numSuggestions: 3, prefixOnlyMode: fa
 ```
 
 And update the `setConfig` call:
+
 ```typescript
 engine.setConfig({ numSuggestions: 7, prefixOnlyMode: false });
 ```
 
 Similarly for the second existing test:
+
 ```typescript
 const engine = new PresageEngine(module, { numSuggestions: 3, prefixOnlyMode: false }, "en_US");
 ```
@@ -225,6 +238,7 @@ git commit -m "feat: add PREFIX_ONLY_MODE config to PresageEngine"
 ### Task 4: Thread prefixOnlyMode through PresageHandler
 
 **Files:**
+
 - Modify: `src/adapters/chrome/background/PresageHandler.ts:25-36,56-58,105-144`
 
 - [ ] **Step 1: Add to PresageConfig interface**
@@ -250,21 +264,25 @@ export interface PresageConfig {
 - [ ] **Step 2: Add instance field and wire up setConfig**
 
 Add instance field (after `private autoCapitalize: boolean;`):
+
 ```typescript
 private prefixOnlyMode: boolean;
 ```
 
 Initialize in constructor (after `this.autoCapitalize = true;`):
+
 ```typescript
 this.prefixOnlyMode = false;
 ```
 
 In `setConfig()`, after `this.autoCapitalize = config.autoCapitalize;`:
+
 ```typescript
 this.prefixOnlyMode = config.prefixOnlyMode;
 ```
 
 Update the engine config in the loop (lines ~140-144):
+
 ```typescript
 for (const [, presageEngine] of Object.entries(this.presageEngines)) {
   presageEngine.setConfig({
@@ -275,6 +293,7 @@ for (const [, presageEngine] of Object.entries(this.presageEngines)) {
 ```
 
 Also update the constructor's initial engine config (line ~70):
+
 ```typescript
 const engineConfig: PresageEngineConfig = {
   numSuggestions: SUGGESTION_COUNT,
@@ -301,6 +320,7 @@ git commit -m "feat: thread prefixOnlyMode through PresageHandler to engines"
 ### Task 5: Update PredictionOrchestrator test helper
 
 **Files:**
+
 - Modify: `tests/PredictionOrchestrator.test.ts:29-44`
 
 - [ ] **Step 1: Add prefixOnlyMode to createConfig helper**
@@ -342,6 +362,7 @@ git commit -m "test: add prefixOnlyMode to PredictionOrchestrator test helper"
 ### Task 6: Wire up ConfigAssembler
 
 **Files:**
+
 - Modify: `src/adapters/chrome/background/config/ConfigAssembler.ts:96-153`
 
 - [ ] **Step 1: Add reads to assemblePredictionRuntimeConfig**
@@ -407,6 +428,7 @@ git commit -m "feat: compute effective prefixOnlyMode in ConfigAssembler"
 ### Task 6b: Test ConfigAssembler effective value logic
 
 **Files:**
+
 - Create: `tests/ConfigAssembler.prefixOnly.test.ts`
 
 - [ ] **Step 1: Write tests for the three scenarios from the spec**
@@ -506,6 +528,7 @@ git commit -m "test: verify effective prefixOnlyMode OR-logic in ConfigAssembler
 ### Task 7: Add i18n entries
 
 **Files:**
+
 - Modify: `src/ui/options/fluenttyperI18n.ts` (after `enable_inline_suggestion_desc` block, around line 3189)
 
 - [ ] **Step 1: Add i18n entries**
@@ -547,6 +570,7 @@ git commit -m "feat: add prefix-only mode i18n entries"
 ### Task 8: Add settings manifest entry
 
 **Files:**
+
 - Modify: `src/ui/options/settingsManifest.ts:51,418` (import + entry)
 
 - [ ] **Step 1: Add import**
