@@ -121,22 +121,23 @@ def ensure_presage(env: dict[str, str], jobs: int) -> None:
     if not (target / "Makefile").is_file():
         run_cmd(["emconfigure", "autoreconf", "-i", "-f"], cwd=target, env=env, quiet=True)
         run_cmd(["emconfigure", "./bootstrap"], cwd=target, env=env, quiet=True)
-        run_cmd(
-            [
-                "emconfigure",
-                "./configure",
-                "--host=i686-gnu",
-                "--disable-python-binding",
-                "--disable-gprompter",
-                "--disable-gpresagemate",
-                "--disable-sqlite",
-                "--enable-shared",
-            ],
-            cwd=target,
-            env=env,
-            quiet=True,
-        )
+        configure_cmd = [
+            "emconfigure",
+            "./configure",
+            "--host=i686-gnu",
+            "--disable-python-binding",
+            "--disable-gprompter",
+            "--disable-gpresagemate",
+            "--disable-sqlite",
+            "--enable-shared",
+        ]
+        if "CPPFLAGS" in env:
+            configure_cmd.append(f"CPPFLAGS={env['CPPFLAGS']}")
+        if "LDFLAGS" in env:
+            configure_cmd.append(f"LDFLAGS={env['LDFLAGS']}")
+        run_cmd(configure_cmd, cwd=target, env=env, quiet=True)
 
+    run_cmd(["emmake", "make", "dirs.h"], cwd=target, env=env, quiet=True)
     run_cmd(["emmake", "make", "-C", "src/lib", f"-j{jobs}"], cwd=target, env=env, quiet=True)
     print("PRESAGE built")
 
