@@ -582,7 +582,7 @@ export class SuggestionManagerRuntime {
       this.activeEntryId = null;
     }
 
-    this.inlinePresenter.clearAll();
+    this.inlinePresenter.clearForEntry(id);
   }
 
   private dismissEntry(entry: SuggestionEntry, keepActive = false): void {
@@ -720,7 +720,7 @@ export class SuggestionManagerRuntime {
       editableContextResolver: this.editableContextResolver,
       clearPendingFallback: () => this.clearPendingKeyFallback(entry.id),
       hideMenu: () => this.menuPresenter.hide(entry.menu, entry.list, entry.elem),
-      clearInlinePresenter: () => this.inlinePresenter.clearAll(),
+      clearInlinePresenter: () => this.inlinePresenter.clearForEntry(entry.id),
       isFocused: () => this.isEntryFocused(entry),
       displayLangHeader: this.displayLangHeader,
       inlineSuggestionEnabled: this.inlineSuggestionEnabled,

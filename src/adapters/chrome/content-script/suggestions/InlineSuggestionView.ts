@@ -1,5 +1,7 @@
 import { resolveSuggestionOverlayRoot } from "./SuggestionOverlayRoot";
 
+const ENTRY_ID_ATTR = "data-ft-suggestion-entry-id";
+
 export class InlineSuggestionView {
   static readonly CLASS_NAME = "ft-suggestion-inline";
   static readonly OWNED_ATTR = "data-ft-suggestion-owned";
@@ -10,19 +12,24 @@ export class InlineSuggestionView {
     target,
     text,
     caretRect,
+    entryId,
     doc = document,
   }: {
     target: HTMLElement;
     text: string;
     caretRect: DOMRect;
+    entryId?: number;
     doc?: Document;
   }): HTMLDivElement | null {
-    InlineSuggestionView.removeAll(doc);
+    InlineSuggestionView.removeForEntry(entryId, doc);
 
     const ghost = doc.createElement("div");
     ghost.className = InlineSuggestionView.CLASS_NAME;
     ghost.setAttribute(InlineSuggestionView.OWNED_ATTR, "true");
     ghost.setAttribute(InlineSuggestionView.ROLE_ATTR, InlineSuggestionView.INLINE_ROLE);
+    if (entryId !== undefined) {
+      ghost.setAttribute(ENTRY_ID_ATTR, String(entryId));
+    }
     ghost.textContent = text;
 
     const computedStyle = window.getComputedStyle(target);
@@ -63,6 +70,17 @@ export class InlineSuggestionView {
   static removeAll(doc: Document = document): void {
     const nodes = doc.querySelectorAll(
       `[${InlineSuggestionView.OWNED_ATTR}="true"][${InlineSuggestionView.ROLE_ATTR}="${InlineSuggestionView.INLINE_ROLE}"]`,
+    );
+    nodes.forEach((node) => node.remove());
+  }
+
+  static removeForEntry(entryId: number | undefined, doc: Document = document): void {
+    if (entryId === undefined) {
+      InlineSuggestionView.removeAll(doc);
+      return;
+    }
+    const nodes = doc.querySelectorAll(
+      `[${InlineSuggestionView.OWNED_ATTR}="true"][${InlineSuggestionView.ROLE_ATTR}="${InlineSuggestionView.INLINE_ROLE}"][${ENTRY_ID_ATTR}="${entryId}"]`,
     );
     nodes.forEach((node) => node.remove());
   }
