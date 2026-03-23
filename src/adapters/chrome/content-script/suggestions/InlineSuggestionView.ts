@@ -32,7 +32,9 @@ export class InlineSuggestionView {
     }
     ghost.textContent = text;
 
-    const computedStyle = window.getComputedStyle(target);
+    const styleTarget = InlineSuggestionView.resolveCaretElement(target, doc) ?? target;
+    const computedStyle = window.getComputedStyle(styleTarget);
+
     ghost.style.color = computedStyle.color;
     ghost.style.opacity = "0.5";
     ghost.style.position = "fixed";
@@ -51,7 +53,13 @@ export class InlineSuggestionView {
     ghost.style.letterSpacing = computedStyle.letterSpacing;
     ghost.style.wordSpacing = computedStyle.wordSpacing;
     ghost.style.textTransform = computedStyle.textTransform;
-    ghost.style.lineHeight = computedStyle.lineHeight;
+    // Use caretRect height as lineHeight so the ghost text baseline aligns
+    // with the actual caret position.  The computed lineHeight of the inner
+    // element (e.g. <H1> in TinyMCE) is typically larger than the caret rect
+    // because it includes leading; using it directly shifts the ghost text down.
+    ghost.style.lineHeight = caretRect.height > 0 ? `${caretRect.height}px` : computedStyle.lineHeight;
+    ghost.style.height = caretRect.height > 0 ? `${caretRect.height}px` : "auto";
+    ghost.style.overflow = "hidden";
     ghost.style.direction = computedStyle.direction;
     ghost.style.fontFeatureSettings = computedStyle.fontFeatureSettings;
     ghost.style.fontKerning = computedStyle.fontKerning;
@@ -65,6 +73,42 @@ export class InlineSuggestionView {
 
     resolveSuggestionOverlayRoot(doc).appendChild(ghost);
     return ghost;
+  }
+
+  /**
+   * For contenteditable elements, resolve the element closest to the caret
+   * so we copy the right computed font (e.g. `<p>` or `<span>` inside a
+   * TinyMCE body rather than the outer `<body>` / `<div>` container).
+   */
+  private static resolveCaretElement(target: HTMLElement, doc: Document): HTMLElement | null {
+    if (!target.isContentEditable) {
+      return null;
+    }
+
+    const win = doc.defaultView ?? window;
+    const selection = win.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      return null;
+    }
+
+    const anchor = selection.anchorNode;
+    if (!anchor) {
+      return null;
+    }
+
+    const elem =
+      anchor.nodeType === Node.TEXT_NODE ? anchor.parentElement : (anchor as HTMLElement);
+
+    if (!elem || elem === target) {
+      return null;
+    }
+
+    // Only use the resolved element if it lives inside our target.
+    if (!target.contains(elem)) {
+      return null;
+    }
+
+    return elem;
   }
 
   static removeAll(doc: Document = document): void {
