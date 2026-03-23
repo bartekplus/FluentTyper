@@ -208,7 +208,7 @@ def link_library(debug: bool, pre_js_files: list[Path], gen_dir: Path) -> None:
     aspell_lib = BUILD_DIR / "aspell" / ".libs"
     presage_so = BUILD_DIR / "presage" / "src" / "lib" / ".libs" / "libpresage.so.1.1.1"
 
-    compile_options = ["-O0", "-sASSERTIONS", "-sNO_DISABLE_EXCEPTION_CATCHING"] if debug else ["-O3", "-s", "NO_EXIT_RUNTIME=1"]
+    compile_options = ["-O0", "-sASSERTIONS", "-fwasm-exceptions"] if debug else ["-O3", "-s", "NO_EXIT_RUNTIME=1", "-fwasm-exceptions"]
 
     cmd = [
         "emcc",
@@ -230,16 +230,17 @@ def link_library(debug: bool, pre_js_files: list[Path], gen_dir: Path) -> None:
         "-s",
         "MODULARIZE=1",
         "-s",
-        "ENVIRONMENT=web",
+        "ENVIRONMENT=web,node",
         "-s",
         "TEXTDECODER=1",
         "-s",
         "EXPORT_ES6=1",
         "--llvm-lto",
-        "1",
+        "0",
         "-sFORCE_FILESYSTEM",
         "-s",
         "NO_DYNAMIC_EXECUTION=1",
+        "-sEXPORT_EXCEPTION_HANDLING_HELPERS",
         "-sSTACK_SIZE=5MB",
     ]
 
@@ -282,8 +283,8 @@ def main() -> int:
     jobs = cpu_jobs()
 
     base_env = os.environ.copy()
-    base_env["CFLAGS"] = "-O3"
-    base_env["CXXFLAGS"] = "-O3"
+    base_env["CFLAGS"] = "-O3 -fwasm-exceptions"
+    base_env["CXXFLAGS"] = "-O3 -fwasm-exceptions"
     base_env["LIBTOOLIZE"] = "glibtoolize"
     base_env["EM_CACHE"] = str(EM_CACHE_DIR)
 
@@ -295,7 +296,7 @@ def main() -> int:
 
     if build_presage:
         presage_env = base_env.copy()
-        presage_env["CXXFLAGS"] = "-O2 -std=c++17"
+        presage_env["CXXFLAGS"] = "-O2 -std=c++17 -fwasm-exceptions"
         presage_env["CPPFLAGS"] = (
             f"-I{BUILD_DIR / 'marisa-trie' / 'include'} "
             f"-I{BUILD_DIR / 'hunspell' / 'src'} "

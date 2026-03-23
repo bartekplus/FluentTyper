@@ -261266,6 +261266,7 @@ M  lÿÿÿ   Õ  aÿÿÿ)Z   sÿÿÿ¸   }  Ãÿÿÿ_   ¾  Ãÿÿÿ   ×  eÿÿÿžP  æ   ÿÿÿZ
         <LOGGER>ERROR</LOGGER>
         <SLIDING_WINDOW_SIZE>0</SLIDING_WINDOW_SIZE>
 	<LOWERCASE_MODE>yes</LOWERCASE_MODE>
+	<PREFIX_ONLY_MODE>no</PREFIX_ONLY_MODE>
 	<ONLINE_LEARNING>no</ONLINE_LEARNING>
     </ContextTracker>
     <Selector>
