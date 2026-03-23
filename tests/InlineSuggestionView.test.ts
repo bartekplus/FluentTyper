@@ -361,7 +361,7 @@ describe("InlineSuggestionView", () => {
     input.remove();
   });
 
-  test("renderContentEditableMirrorPreview creates three spans with shifted text", () => {
+  test("renderContentEditableMirrorPreview clones DOM content and inserts ghost suffix", () => {
     const container = document.createElement("div");
     container.contentEditable = "true";
     Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
@@ -387,17 +387,59 @@ describe("InlineSuggestionView", () => {
     });
 
     expect(mirror).not.toBeNull();
-    const spans = mirror!.querySelectorAll("span");
-    expect(spans.length).toBe(3);
-    // Before cursor text
-    expect(spans[0]!.textContent).toBe("highest stand ");
-    expect(spans[0]!.style.color).not.toBe("transparent");
-    // Suffix — ghost-styled
-    expect(spans[1]!.textContent).toBe("ards");
-    expect(spans[1]!.style.opacity).toBe("0.5");
-    // After cursor — shifted naturally
-    expect(spans[2]!.textContent).toBe("with Spell Checker");
-    expect(spans[2]!.style.color).not.toBe("transparent");
+    // The suffix span is inserted at the cursor position
+    const suffixSpan = mirror!.querySelector("span");
+    expect(suffixSpan).not.toBeNull();
+    expect(suffixSpan!.textContent).toBe("ards");
+    expect(suffixSpan!.style.opacity).toBe("0.5");
+    // Full text content includes the suffix (splitText at offset 14 = "highest stand " | "with…")
+    expect(mirror!.textContent).toBe("highest stand ardswith Spell Checker");
+
+    container.remove();
+  });
+
+  test("renderContentEditableMirrorPreview preserves inline formatting", () => {
+    const container = document.createElement("div");
+    container.contentEditable = "true";
+    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(container);
+
+    const p = document.createElement("p");
+    // "highest <strong>stand</strong> with Spell Checker"
+    p.appendChild(document.createTextNode("highest "));
+    const strong = document.createElement("strong");
+    strong.textContent = "stand";
+    p.appendChild(strong);
+    p.appendChild(document.createTextNode(" with Spell Checker"));
+    container.appendChild(p);
+
+    // Place cursor at offset 5 inside the <strong> ("stand|")
+    const strongText = strong.firstChild!;
+    const range = document.createRange();
+    range.setStart(strongText, 5);
+    range.collapse(true);
+    const sel = window.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    const mirror = InlineSuggestionView.renderContentEditableMirrorPreview({
+      target: container,
+      suffix: "ards",
+      doc: document,
+    });
+
+    expect(mirror).not.toBeNull();
+    // The <strong> tag is preserved in the clone
+    const strongClone = mirror!.querySelector("strong");
+    expect(strongClone).not.toBeNull();
+    // Suffix span is inserted inside the strong (after the split text node)
+    const suffixSpan = mirror!.querySelector("span");
+    expect(suffixSpan).not.toBeNull();
+    expect(suffixSpan!.textContent).toBe("ards");
+    expect(suffixSpan!.style.opacity).toBe("0.5");
+    // Full text includes both original content and suffix
+    expect(mirror!.textContent).toContain("stand");
+    expect(mirror!.textContent).toContain("ards");
 
     container.remove();
   });
@@ -456,7 +498,6 @@ describe("InlineSuggestionView", () => {
     expect(mirror!.style.position).toBe("fixed");
     expect(mirror!.style.pointerEvents).toBe("none");
     expect(mirror!.style.overflow).toBe("hidden");
-    expect(mirror!.style.whiteSpace).toBe("pre-wrap");
 
     container.remove();
   });

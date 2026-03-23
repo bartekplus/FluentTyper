@@ -295,10 +295,10 @@ export class InlineSuggestionView {
   /**
    * Mirror-layer preview for contenteditable mid-text suggestions.
    *
-   * Finds the block element (e.g. `<p>`) containing the cursor, extracts
-   * the plain text before/after the cursor within that block, and creates
-   * a mirror div positioned over the block.  The mirror shows the full
-   * "accepted" text with only the suffix ghost-styled.
+   * Clones the block element's DOM (preserving formatting such as bold,
+   * italic, colors, links) and inserts a ghost-styled suffix span at the
+   * cursor position.  The mirror is positioned over the original block so
+   * surrounding words reflow naturally around the suffix.
    */
   static renderContentEditableMirrorPreview({
     target,
@@ -329,23 +329,6 @@ export class InlineSuggestionView {
       return null;
     }
 
-    // Extract plain text before and after the cursor within this block.
-    let beforeText: string;
-    let afterText: string;
-    try {
-      const preRange = doc.createRange();
-      preRange.selectNodeContents(blockElement);
-      preRange.setEnd(range.startContainer, range.startOffset);
-      beforeText = preRange.toString();
-
-      const postRange = doc.createRange();
-      postRange.selectNodeContents(blockElement);
-      postRange.setStart(range.endContainer, range.endOffset);
-      afterText = postRange.toString();
-    } catch {
-      return null;
-    }
-
     const mirror = doc.createElement("div");
     mirror.className = InlineSuggestionView.CLASS_NAME;
     mirror.setAttribute(InlineSuggestionView.OWNED_ATTR, "true");
@@ -364,27 +347,30 @@ export class InlineSuggestionView {
     mirror.style.borderColor = "transparent";
     mirror.style.backgroundColor = InlineSuggestionView.resolveBackgroundColor(blockElement);
     mirror.style.overflow = "hidden";
-    mirror.style.whiteSpace = "pre-wrap";
-    mirror.style.wordWrap = "break-word";
 
-    const textColor = computed.color;
+    // Clone the block's child nodes to preserve formatting (bold, italic, etc.).
+    for (const child of Array.from(blockElement.childNodes)) {
+      mirror.appendChild(child.cloneNode(true));
+    }
 
-    const beforeSpan = doc.createElement("span");
-    beforeSpan.style.color = textColor;
-    beforeSpan.textContent = beforeText;
+    // Find the cursor position in the cloned content and insert the suffix.
+    const path = InlineSuggestionView.getNodePath(blockElement, range.startContainer);
+    const cloneTarget = InlineSuggestionView.followNodePath(mirror, path);
 
-    const suffixSpan = doc.createElement("span");
-    suffixSpan.style.color = textColor;
-    suffixSpan.style.opacity = "0.5";
-    suffixSpan.textContent = suffix;
-
-    const afterSpan = doc.createElement("span");
-    afterSpan.style.color = textColor;
-    afterSpan.textContent = afterText;
-
-    mirror.appendChild(beforeSpan);
-    mirror.appendChild(suffixSpan);
-    mirror.appendChild(afterSpan);
+    if (cloneTarget && cloneTarget.nodeType === Node.TEXT_NODE) {
+      const textNode = cloneTarget as Text;
+      const afterNode = textNode.splitText(range.startOffset);
+      const suffixSpan = doc.createElement("span");
+      suffixSpan.style.opacity = "0.5";
+      suffixSpan.textContent = suffix;
+      afterNode.parentNode!.insertBefore(suffixSpan, afterNode);
+    } else {
+      // Fallback: append suffix at end if we can't find the exact position.
+      const suffixSpan = doc.createElement("span");
+      suffixSpan.style.opacity = "0.5";
+      suffixSpan.textContent = suffix;
+      mirror.appendChild(suffixSpan);
+    }
 
     const blockRect = blockElement.getBoundingClientRect();
     mirror.style.position = "fixed";
@@ -395,6 +381,30 @@ export class InlineSuggestionView {
 
     resolveSuggestionOverlayRoot(doc).appendChild(mirror);
     return mirror;
+  }
+
+  /** Compute the path (child-node indices) from root to target. */
+  private static getNodePath(root: Node, target: Node): number[] {
+    const path: number[] = [];
+    let current = target;
+    while (current !== root && current.parentNode) {
+      const parent = current.parentNode;
+      path.unshift(Array.from(parent.childNodes).indexOf(current as ChildNode));
+      current = parent;
+    }
+    return current === root ? path : [];
+  }
+
+  /** Follow a child-node-index path from root, returning the target node. */
+  private static followNodePath(root: Node, path: number[]): Node | null {
+    let current: Node = root;
+    for (const index of path) {
+      if (index < 0 || index >= current.childNodes.length) {
+        return null;
+      }
+      current = current.childNodes[index];
+    }
+    return current;
   }
 
   /**
