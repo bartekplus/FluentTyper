@@ -35,6 +35,12 @@ const MIRROR_PROPERTIES = [
   "textDecoration",
   "letterSpacing",
   "wordSpacing",
+  "whiteSpace",
+  "wordWrap",
+  "overflowWrap",
+  "display",
+  "listStyleType",
+  "listStylePosition",
 ] as const;
 
 /** Visual properties inlined onto each cloned child element so styles
@@ -378,21 +384,27 @@ export class InlineSuggestionView {
     InlineSuggestionView.inlineComputedStyles(blockElement, mirror);
 
     // Find the cursor position in the cloned content and insert the suffix.
+    const suffixSpan = doc.createElement("span");
+    suffixSpan.style.opacity = "0.5";
+    suffixSpan.textContent = suffix;
+
     const path = InlineSuggestionView.getNodePath(blockElement, range.startContainer);
     const cloneTarget = InlineSuggestionView.followNodePath(mirror, path);
 
     if (cloneTarget && cloneTarget.nodeType === Node.TEXT_NODE) {
+      // Caret is inside a text node — split and insert.
       const textNode = cloneTarget as Text;
       const afterNode = textNode.splitText(range.startOffset);
-      const suffixSpan = doc.createElement("span");
-      suffixSpan.style.opacity = "0.5";
-      suffixSpan.textContent = suffix;
       afterNode.parentNode!.insertBefore(suffixSpan, afterNode);
+    } else if (cloneTarget && cloneTarget.nodeType === Node.ELEMENT_NODE) {
+      // Caret is on an element node (common in Lexical / ProseMirror /
+      // TinyMCE when the selection sits between inline children).
+      // range.startOffset is the child index where the caret sits.
+      const parent = cloneTarget as HTMLElement;
+      const refChild = parent.childNodes[range.startOffset] ?? null;
+      parent.insertBefore(suffixSpan, refChild);
     } else {
-      // Fallback: append suffix at end if we can't find the exact position.
-      const suffixSpan = doc.createElement("span");
-      suffixSpan.style.opacity = "0.5";
-      suffixSpan.textContent = suffix;
+      // Fallback: append suffix at end if we can't resolve the position.
       mirror.appendChild(suffixSpan);
     }
 

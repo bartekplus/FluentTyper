@@ -502,6 +502,81 @@ describe("InlineSuggestionView", () => {
     container.remove();
   });
 
+  test("renderContentEditableMirrorPreview handles element-node caret between inline children", () => {
+    const container = document.createElement("div");
+    container.contentEditable = "true";
+    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(container);
+
+    // Lexical/ProseMirror pattern: <p><strong>Hello</strong><em>world</em></p>
+    // Caret at (p, 1) — between the two inline children.
+    const p = document.createElement("p");
+    const strong = document.createElement("strong");
+    strong.textContent = "Hello";
+    const em = document.createElement("em");
+    em.textContent = "world";
+    p.appendChild(strong);
+    p.appendChild(em);
+    container.appendChild(p);
+
+    const range = document.createRange();
+    // Caret on the element node <p> at offset 1 (between <strong> and <em>)
+    range.setStart(p, 1);
+    range.collapse(true);
+    const sel = window.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    const mirror = InlineSuggestionView.renderContentEditableMirrorPreview({
+      target: container,
+      suffix: " ",
+      doc: document,
+    });
+
+    expect(mirror).not.toBeNull();
+    // Suffix span should be between the cloned <strong> and <em>, not at the end.
+    const children = Array.from(mirror!.childNodes);
+    const suffixIndex = children.findIndex(
+      (c) => c.nodeType === Node.ELEMENT_NODE && (c as HTMLElement).style.opacity === "0.5",
+    );
+    expect(suffixIndex).toBe(1); // index 0 = <strong>, 1 = suffix, 2 = <em>
+    expect(children.length).toBe(3);
+
+    container.remove();
+  });
+
+  test("renderContentEditableMirrorPreview preserves pre whitespace for <pre> blocks", () => {
+    const container = document.createElement("div");
+    container.contentEditable = "true";
+    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(container);
+
+    const pre = document.createElement("pre");
+    pre.textContent = "line1\n  indented";
+    container.appendChild(pre);
+
+    const textNode = pre.firstChild!;
+    const range = document.createRange();
+    range.setStart(textNode, 5);
+    range.collapse(true);
+    const sel = window.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    const mirror = InlineSuggestionView.renderContentEditableMirrorPreview({
+      target: container,
+      suffix: "!",
+      doc: document,
+    });
+
+    expect(mirror).not.toBeNull();
+    // whiteSpace should be copied from the <pre> computed style,
+    // preserving preformatted spacing/newlines.
+    expect(mirror!.style.whiteSpace).toBe("pre");
+
+    container.remove();
+  });
+
   test("renderReplacePreview renders two spans for typed prefix and suffix", () => {
     const input = document.createElement("input");
     document.body.appendChild(input);
