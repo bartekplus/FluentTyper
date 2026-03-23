@@ -37,6 +37,26 @@ const MIRROR_PROPERTIES = [
   "wordSpacing",
 ] as const;
 
+/** Visual properties inlined onto each cloned child element so styles
+ *  from editor-scoped CSS (class selectors) are preserved in the overlay. */
+const INLINE_STYLE_PROPERTIES = [
+  "color",
+  "backgroundColor",
+  "fontFamily",
+  "fontSize",
+  "fontWeight",
+  "fontStyle",
+  "fontVariant",
+  "textDecoration",
+  "textDecorationColor",
+  "textDecorationStyle",
+  "letterSpacing",
+  "wordSpacing",
+  "lineHeight",
+  "verticalAlign",
+  "textTransform",
+] as const;
+
 const BLOCK_TAGS = new Set([
   "P",
   "DIV",
@@ -349,10 +369,13 @@ export class InlineSuggestionView {
     mirror.style.backgroundColor = InlineSuggestionView.resolveBackgroundColor(blockElement);
     mirror.style.overflow = "hidden";
 
-    // Clone the block's child nodes to preserve formatting (bold, italic, etc.).
+    // Clone the block's child nodes and inline their computed styles so
+    // class-based CSS from the editor stylesheet (e.g. TinyMCE) is
+    // preserved even though the clone lives outside the editor DOM.
     for (const child of Array.from(blockElement.childNodes)) {
       mirror.appendChild(child.cloneNode(true));
     }
+    InlineSuggestionView.inlineComputedStyles(blockElement, mirror);
 
     // Find the cursor position in the cloned content and insert the suffix.
     const path = InlineSuggestionView.getNodePath(blockElement, range.startContainer);
@@ -394,6 +417,36 @@ export class InlineSuggestionView {
       current = parent;
     }
     return current === root ? path : [];
+  }
+
+  /**
+   * Walk the original and cloned trees in parallel, inlining the computed
+   * style of every element node onto the clone.  This preserves styles
+   * that come from class-based CSS rules which no longer match once the
+   * clone is moved outside the editor DOM.
+   */
+  private static inlineComputedStyles(original: Node, clone: Node): void {
+    const origChildren = original.childNodes;
+    const cloneChildren = clone.childNodes;
+    const len = Math.min(origChildren.length, cloneChildren.length);
+
+    for (let i = 0; i < len; i++) {
+      const origChild = origChildren[i];
+      const cloneChild = cloneChildren[i];
+
+      if (origChild.nodeType === Node.ELEMENT_NODE && cloneChild.nodeType === Node.ELEMENT_NODE) {
+        const origEl = origChild as HTMLElement;
+        const cloneEl = cloneChild as HTMLElement;
+        const cs = window.getComputedStyle(origEl);
+
+        for (const prop of INLINE_STYLE_PROPERTIES) {
+          (cloneEl.style as unknown as Record<string, string>)[prop] = cs[prop];
+        }
+
+        // Recurse into children.
+        InlineSuggestionView.inlineComputedStyles(origEl, cloneEl);
+      }
+    }
   }
 
   /** Follow a child-node-index path from root, returning the target node. */
