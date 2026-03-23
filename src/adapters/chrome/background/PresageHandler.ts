@@ -29,6 +29,7 @@ export interface PresageConfig {
   insertSpaceAfterAutocomplete: boolean;
   autoCapitalize: boolean;
   textExpansions: Array<[string, object]>;
+  prefixOnlyMode: boolean;
 
   timeFormat?: string;
   dateFormat?: string;
@@ -55,6 +56,7 @@ export class PresageHandler {
   private predictNextWordAfterSeparatorChar: boolean;
   private insertSpaceAfterAutocomplete: boolean;
   private autoCapitalize: boolean;
+  private prefixOnlyMode: boolean;
   private userDictionaryList: string[];
   private predictionInputProcessor: PredictionInputProcessor;
   private textExpansionManager: TextExpansionManager;
@@ -69,6 +71,7 @@ export class PresageHandler {
   constructor(Module: PresageModule) {
     const engineConfig: PresageEngineConfig = {
       numSuggestions: SUGGESTION_COUNT,
+      prefixOnlyMode: false,
     };
     this.presageEngines = {};
     this.lastPrediction = {};
@@ -78,6 +81,7 @@ export class PresageHandler {
     this.predictNextWordAfterSeparatorChar = false;
     this.insertSpaceAfterAutocomplete = true;
     this.autoCapitalize = true;
+    this.prefixOnlyMode = false;
     this.userDictionaryList = [];
 
     this.predictionInputProcessor = new PredictionInputProcessor(
@@ -118,6 +122,7 @@ export class PresageHandler {
     this.predictNextWordAfterSeparatorChar = this.minWordLengthToPredict === 0;
     this.insertSpaceAfterAutocomplete = config.insertSpaceAfterAutocomplete;
     this.autoCapitalize = config.autoCapitalize;
+    this.prefixOnlyMode = config.prefixOnlyMode;
 
     this.timeFormat = config.timeFormat;
     this.dateFormat = config.dateFormat;
@@ -140,6 +145,7 @@ export class PresageHandler {
     for (const [, presageEngine] of Object.entries(this.presageEngines)) {
       presageEngine.setConfig({
         numSuggestions: this.engineNumSuggestions,
+        prefixOnlyMode: this.prefixOnlyMode,
       });
     }
   }
