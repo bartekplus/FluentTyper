@@ -94,7 +94,7 @@ describe("InlineSuggestionView", () => {
     container.remove();
   });
 
-  test("uses caretRect height as lineHeight to prevent baseline misalignment", () => {
+  test("shifts ghost top upward to compensate for leading when lineHeight exceeds caret height", () => {
     const container = document.createElement("div");
     container.contentEditable = "true";
     Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
@@ -113,20 +113,39 @@ describe("InlineSuggestionView", () => {
     sel.removeAllRanges();
     sel.addRange(range);
 
+    const caretTop = 50;
+    const caretHeight = 37;
     const ghost = InlineSuggestionView.render({
       target: container,
       text: " suffix",
-      caretRect: { left: 100, top: 50, width: 0, height: 37 } as DOMRect,
+      caretRect: { left: 100, top: caretTop, width: 0, height: caretHeight } as DOMRect,
       doc: document,
     });
 
     expect(ghost).not.toBeNull();
-    // lineHeight must match caretRect.height, not the element's computed lineHeight
-    expect(ghost!.style.lineHeight).toBe("37px");
-    expect(ghost!.style.height).toBe("37px");
-    expect(ghost!.style.overflow).toBe("hidden");
+    // lineHeight is preserved from the element (not clamped)
+    expect(ghost!.style.lineHeight).toBe("44.8px");
+    // height is NOT set — wrapping suggestions must not be truncated
+    expect(ghost!.style.height).toBe("");
+    expect(ghost!.style.overflow).toBe("");
+    // top is shifted up by half the leading: (44.8 - 37) / 2 = 3.9
+    const expectedTop = caretTop - (44.8 - caretHeight) / 2;
+    expect(parseFloat(ghost!.style.top)).toBeCloseTo(expectedTop, 1);
 
     container.remove();
+  });
+
+  test("does not shift ghost top when lineHeight is smaller than caret height", () => {
+    const ghost = InlineSuggestionView.render({
+      target: document.body,
+      text: "test",
+      caretRect: { left: 10, top: 20, width: 0, height: 16 } as DOMRect,
+      doc: document,
+    });
+
+    expect(ghost).not.toBeNull();
+    // No leading offset when lineHeight <= caretRect.height
+    expect(ghost!.style.top).toBe("20px");
   });
 
   test("does not resolve caret element for non-contenteditable targets", () => {
@@ -146,6 +165,52 @@ describe("InlineSuggestionView", () => {
     expect(ghost!.style.fontSize).toBe(window.getComputedStyle(input).fontSize);
 
     input.remove();
+  });
+
+  test("resolves block child at wrapper-boundary selection (Lexical/Reddit)", () => {
+    const container = document.createElement("div");
+    container.contentEditable = "true";
+    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(container);
+
+    // Lexical-style structure: root > wrapper div > p.first + p.second
+    const wrapper = document.createElement("div");
+    const firstP = document.createElement("p");
+    firstP.className = "first";
+    firstP.style.fontFamily = "Times, serif";
+    firstP.style.fontSize = "14px";
+    firstP.textContent = "Wa";
+    const secondP = document.createElement("p");
+    secondP.className = "second";
+    secondP.style.fontFamily = "Georgia, serif";
+    secondP.style.fontSize = "18px";
+    secondP.textContent = "S";
+    wrapper.appendChild(firstP);
+    wrapper.appendChild(secondP);
+    container.appendChild(wrapper);
+
+    // Place caret at (wrapper, 1) — between the two <p>s.
+    // This is the wrapper-boundary pattern where anchorNode is the wrapper div.
+    const sel = window.getSelection()!;
+    const range = document.createRange();
+    range.setStart(wrapper, 1);
+    range.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    const ghost = InlineSuggestionView.render({
+      target: container,
+      text: " completion",
+      caretRect: { left: 50, top: 30, width: 0, height: 18 } as DOMRect,
+      doc: document,
+    });
+
+    expect(ghost).not.toBeNull();
+    // Should resolve to secondP (the block child at offset 1), not the wrapper div
+    expect(ghost!.style.fontFamily).toBe("Georgia, serif");
+    expect(ghost!.style.fontSize).toBe("18px");
+
+    container.remove();
   });
 
   test("removeForEntry only removes ghost for the specified entry", () => {
