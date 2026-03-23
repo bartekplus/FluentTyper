@@ -7,6 +7,7 @@ export interface PresagePrediction {
 
 export interface PresageEngineConfig {
   numSuggestions: number;
+  prefixOnlyMode: boolean;
 }
 
 export class PresageEngine {
@@ -39,6 +40,7 @@ export class PresageEngine {
   setConfig(config: PresageEngineConfig) {
     this.config = config;
     this.libPresage.config("Presage.Selector.SUGGESTIONS", this.config.numSuggestions.toString());
+    this.libPresage.config("Presage.ContextTracker.PREFIX_ONLY_MODE", this.config.prefixOnlyMode ? "yes" : "no");
   }
 
   reinitialize(): void {
