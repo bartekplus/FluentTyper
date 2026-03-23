@@ -146821,6 +146821,7 @@ Fì9¹fÒè#ª’Sœr¨ø*ôCZL<¥.ãàR¶À[ŒJ¹šh\%y³Þ&nãØÊ¶Õ‹ßIfr§á–H}J05Ô|!1‰™ë}™Ö°vU~
         <LOGGER>ERROR</LOGGER>
         <SLIDING_WINDOW_SIZE>0</SLIDING_WINDOW_SIZE>
 	<LOWERCASE_MODE>yes</LOWERCASE_MODE>
+	<PREFIX_ONLY_MODE>no</PREFIX_ONLY_MODE>
 	<ONLINE_LEARNING>no</ONLINE_LEARNING>
     </ContextTracker>
     <Selector>

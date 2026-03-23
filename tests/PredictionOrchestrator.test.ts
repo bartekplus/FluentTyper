@@ -33,6 +33,7 @@ function createConfig(overrides: Partial<PredictionConfig> = {}): PredictionConf
     insertSpaceAfterAutocomplete: false,
     autoCapitalize: false,
     textExpansions: [],
+    prefixOnlyMode: false,
 
     timeFormat: "",
     dateFormat: "",

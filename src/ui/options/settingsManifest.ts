@@ -49,6 +49,7 @@ import {
   KEY_SUGGESTION_PADDING_VERTICAL,
   KEY_SUGGESTION_PADDING_HORIZONTAL,
   KEY_INLINE_SUGGESTION,
+  KEY_PREFIX_ONLY_MODE,
   DEFAULT_NUM_SUGGESTIONS,
   DEFAULT_AI_MODEL_ID,
   DEFAULT_AI_PREDICTION_TIMEOUT_MS,
@@ -341,6 +342,14 @@ const manifest: ManifestDefinition = {
         i18n.get("prefer_native_autocomplete_desc"),
       ),
       default: true,
+    },
+    {
+      tab: "core_settings",
+      group: i18n.get("General"),
+      name: KEY_PREFIX_ONLY_MODE,
+      type: "checkbox",
+      label: buildFieldLabel(i18n.get("prefix_only_mode_label"), i18n.get("prefix_only_mode_desc")),
+      default: false,
     },
     {
       tab: "core_settings",

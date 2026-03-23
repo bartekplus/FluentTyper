@@ -44,6 +44,11 @@ describe("CoreSettingsRepository", () => {
     ]);
   });
 
+  test("defaults prefixOnlyMode to false when the setting is absent", async () => {
+    const repository = new CoreSettingsRepository(createSettingsManagerMock({}));
+    await expect(repository.getPrefixOnlyMode()).resolves.toBe(false);
+  });
+
   test("keeps object entries and filters invalid rows", async () => {
     const repository = new CoreSettingsRepository(
       createSettingsManagerMock({

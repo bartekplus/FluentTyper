@@ -154729,6 +154729,7 @@ oı©tctlwÈeiWåídl9nciri¸j$-oeàÈu¡,qgm”»tnôi¦pY“cieao vueihtdVshâc˜fg	v&fsod
         <LOGGER>ERROR</LOGGER>
         <SLIDING_WINDOW_SIZE>0</SLIDING_WINDOW_SIZE>
 	<LOWERCASE_MODE>yes</LOWERCASE_MODE>
+	<PREFIX_ONLY_MODE>no</PREFIX_ONLY_MODE>
 	<ONLINE_LEARNING>no</ONLINE_LEARNING>
     </ContextTracker>
     <Selector>

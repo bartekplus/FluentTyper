@@ -9,6 +9,7 @@ import {
   KEY_MIN_WORD_LENGTH_TO_PREDICT,
   KEY_NUM_SUGGESTIONS,
   KEY_PREFER_NATIVE_AUTOCOMPLETE,
+  KEY_PREFIX_ONLY_MODE,
   KEY_SELECT_BY_DIGIT,
 } from "@core/domain/constants";
 import { i18n } from "./fluenttyperI18n.js";
@@ -37,6 +38,7 @@ export class EssentialsWorkspacePanel {
     const general = createWorkspaceCard(i18n.get("General"));
     moveControlToBody(this.registry, "enable", general.body);
     moveControlToBody(this.registry, KEY_PREFER_NATIVE_AUTOCOMPLETE, general.body);
+    moveControlToBody(this.registry, KEY_PREFIX_ONLY_MODE, general.body);
 
     const prediction = createWorkspaceCard(i18n.get("prediction_engine"));
     moveControlToBody(this.registry, KEY_NUM_SUGGESTIONS, prediction.body);

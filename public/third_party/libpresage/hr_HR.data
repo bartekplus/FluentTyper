@@ -230784,6 +230784,7 @@ N  Ñ' 6  @'  v¡  zÿÿÿi2  uÍ  rÿÿÿy€ ¦ eÿÿÿ+
         <LOGGER>ERROR</LOGGER>
         <SLIDING_WINDOW_SIZE>0</SLIDING_WINDOW_SIZE>
 	<LOWERCASE_MODE>yes</LOWERCASE_MODE>
+	<PREFIX_ONLY_MODE>no</PREFIX_ONLY_MODE>
 	<ONLINE_LEARNING>no</ONLINE_LEARNING>
     </ContextTracker>
     <Selector>

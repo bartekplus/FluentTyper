@@ -25,12 +25,12 @@ describe("PresageEngine", () => {
       FS: { writeFile: jest.fn() },
     } as unknown as PresageModule;
 
-    const engine = new PresageEngine(module, { numSuggestions: 3 }, "en_US");
+    const engine = new PresageEngine(module, { numSuggestions: 3, prefixOnlyMode: false }, "en_US");
 
     expect(callbackImplement).toHaveBeenCalledTimes(1);
     expect(config).toHaveBeenCalledWith("Presage.Selector.SUGGESTIONS", "3");
 
-    engine.setConfig({ numSuggestions: 7 });
+    engine.setConfig({ numSuggestions: 7, prefixOnlyMode: false });
     expect(config).toHaveBeenCalledWith("Presage.Selector.SUGGESTIONS", "7");
   });
 
@@ -59,11 +59,35 @@ describe("PresageEngine", () => {
       FS: { writeFile: jest.fn() },
     } as unknown as PresageModule;
 
-    const engine = new PresageEngine(module, { numSuggestions: 3 }, "en_US");
+    const engine = new PresageEngine(module, { numSuggestions: 3, prefixOnlyMode: false }, "en_US");
     const predictions = engine.predict("input text");
 
     const callbackArg = implement.mock.calls[0]?.[0] as { pastStream: string };
     expect(callbackArg.pastStream).toBe("input text");
     expect(predictions).toEqual(["hello", "world"]);
+  });
+
+  test("setConfig calls PREFIX_ONLY_MODE on native presage", () => {
+    const config = jest.fn();
+    const module = {
+      PresageCallback: { implement: jest.fn((cb) => cb) },
+      Presage: class {
+        constructor(
+          _cb: unknown,
+          public path: string,
+        ) {}
+        config = config;
+        predictWithProbability() {
+          return { size: () => 0, get: () => ({ prediction: "" }) };
+        }
+      },
+      FS: { writeFile: jest.fn() },
+    } as unknown as PresageModule;
+
+    const engine = new PresageEngine(module, { numSuggestions: 3, prefixOnlyMode: false }, "en_US");
+    expect(config).toHaveBeenCalledWith("Presage.ContextTracker.PREFIX_ONLY_MODE", "no");
+
+    engine.setConfig({ numSuggestions: 3, prefixOnlyMode: true });
+    expect(config).toHaveBeenCalledWith("Presage.ContextTracker.PREFIX_ONLY_MODE", "yes");
   });
 });
