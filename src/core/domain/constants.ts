@@ -71,6 +71,7 @@ export const KEY_OBSERVABILITY_DEFAULT_LEVEL = "observabilityDefaultLevel";
 export const KEY_OBSERVABILITY_MODULE_OVERRIDES = "observabilityModuleOverrides";
 export const KEY_DISPLAY_LANG_HEADER = "displayLangHeader";
 export const KEY_INLINE_SUGGESTION = "inline_suggestion";
+export const KEY_PREFIX_ONLY_MODE = "prefixOnlyMode";
 export const KEY_PREFER_NATIVE_AUTOCOMPLETE = "preferNativeAutocomplete";
 export const KEY_EXTENSION_LANGUAGE = "extensionLanguage";
 export const KEY_ENABLED = "enable";
