@@ -20,6 +20,7 @@ const MIRROR_PROPERTIES = [
   "paddingRight",
   "paddingBottom",
   "paddingLeft",
+  "color",
   "fontStyle",
   "fontVariant",
   "fontWeight",
