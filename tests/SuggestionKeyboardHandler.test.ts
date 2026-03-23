@@ -53,7 +53,7 @@ describe("SuggestionKeyboardHandler", () => {
     expect(updateSelectionHighlight).toHaveBeenCalledWith(entry);
   });
 
-  test("requests inline suggestion on Tab when inline suggestion is missing", () => {
+  test("requests inline suggestion on Tab when suggestions exist but inline is null", () => {
     const requestInlineSuggestion = jest.fn();
     const consumeKeyboardEvent = jest.fn((event: KeyboardEvent) => {
       event.preventDefault();
@@ -65,12 +65,34 @@ describe("SuggestionKeyboardHandler", () => {
     const entry = createSuggestionEntry({
       inlineSuggestion: null,
       latestMentionText: "fu",
+      suggestions: ["function"],
     });
 
     handler.handle(entry, createEvent("Tab"));
 
     expect(consumeKeyboardEvent).toHaveBeenCalledTimes(1);
     expect(requestInlineSuggestion).toHaveBeenCalledWith(entry);
+  });
+
+  test("does not consume Tab when suggestions have been dismissed", () => {
+    const requestInlineSuggestion = jest.fn();
+    const consumeKeyboardEvent = jest.fn((event: KeyboardEvent) => {
+      event.preventDefault();
+    });
+    const handler = createHandler({
+      consumeKeyboardEvent,
+      requestInlineSuggestion,
+    });
+    const entry = createSuggestionEntry({
+      inlineSuggestion: null,
+      latestMentionText: "fu",
+      suggestions: [],
+    });
+
+    handler.handle(entry, createEvent("Tab"));
+
+    expect(consumeKeyboardEvent).not.toHaveBeenCalled();
+    expect(requestInlineSuggestion).not.toHaveBeenCalled();
   });
 
   test("tries unified extension undo on Cmd/Ctrl+Z before native undo", () => {
