@@ -128,9 +128,10 @@ export class PresageHandler {
     this.dateFormat = config.dateFormat;
     this.userDictionaryList = config.userDictionaryList || [];
 
+    this.resetLastPredictionState();
+
     if (shouldRefreshEngines) {
       this.refreshPresageEngines();
-      this.resetLastPredictionState();
       this.textExpansionsSignature = textExpansionsSignature;
       this.userDictionarySignature = userDictionarySignature;
     }
