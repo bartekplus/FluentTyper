@@ -108,6 +108,7 @@ export class ConfigAssembler {
       predictorSettings,
       observability,
       prefixOnlyMode,
+      inlineSuggestion,
     ] = await Promise.all([
       this.coreSettingsRepository.getNumSuggestions(),
       this.coreSettingsRepository.getMinWordLengthToPredict(),
@@ -121,6 +122,7 @@ export class ConfigAssembler {
       this.predictorSettingsRepository.getSnapshot(),
       this.getObservabilityConfig(),
       this.coreSettingsRepository.getPrefixOnlyMode(),
+      this.coreSettingsRepository.getInlineSuggestion(),
     ]);
     const normalizedGrammarRules = normalizeGrammarRuleSelection(enabledGrammarRules);
     const autoCapitalize = normalizedGrammarRules.includes("capitalizeSentenceStart");
@@ -136,7 +138,7 @@ export class ConfigAssembler {
         insertSpaceAfterAutocomplete,
         autoCapitalize,
         textExpansions,
-        prefixOnlyMode,
+        prefixOnlyMode: prefixOnlyMode || inlineSuggestion,
 
         timeFormat,
         dateFormat,
