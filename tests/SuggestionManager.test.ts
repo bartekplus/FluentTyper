@@ -527,6 +527,8 @@ describe("SuggestionManager", () => {
     expect(document.querySelector(".ft-suggestion-inline")).not.toBeNull();
 
     input.dispatchEvent(new Event("blur", { bubbles: true }));
+    // Blur dismiss is deferred via microtask when inline suggestion is active
+    await Promise.resolve();
     expect(document.querySelector(".ft-suggestion-inline")).toBeNull();
   });
 
@@ -553,6 +555,8 @@ describe("SuggestionManager", () => {
     ).not.toBeNull();
 
     input.dispatchEvent(new Event("blur", { bubbles: true }));
+    // Blur dismiss is deferred via microtask when inline suggestion is active
+    await Promise.resolve();
 
     expect(
       document.querySelector(".ft-suggestion-inline[data-ft-suggestion-owned='true']"),

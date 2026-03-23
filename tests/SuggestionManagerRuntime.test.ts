@@ -502,6 +502,7 @@ describe("SuggestionManagerRuntime", () => {
     }
 
     entry.latestMentionText = "hel";
+    entry.suggestions = ["hello"];
     const session = getAttachedSession(runtime, entry.id);
     const requestInlineSuggestion = jest.fn();
     session.requestInlineSuggestion = requestInlineSuggestion;

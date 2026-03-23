@@ -93,7 +93,7 @@ export class SuggestionKeyboardHandler {
         return;
       }
 
-      if (entry.latestMentionText.length > 0) {
+      if (entry.suggestions.length > 0 && entry.latestMentionText.length > 0) {
         this.consumeKeyboardEvent(keyboardEvent);
         this.requestInlineSuggestion(entry);
         return;
