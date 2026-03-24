@@ -196,7 +196,19 @@ export class SuggestionPositioningService {
     const glyphHeight = glyphRect.height || fallbackHeight;
     const lineBoxHeight = Math.max(glyphHeight, fallbackHeight);
     const extraLeading = Math.max(0, lineBoxHeight - glyphHeight);
-    const lineBoxTop = glyphRect.top - extraLeading / 2;
+    let lineBoxTop = glyphRect.top - extraLeading / 2;
+
+    // <input> elements vertically center their text, but the mirror <div>
+    // top-aligns it after padding.  Shift the caret down by the centering
+    // offset so inline suggestions align with the actual text position.
+    if (TextTargetAdapter.isInput(elem)) {
+      const padTop = Number.parseFloat(computed.paddingTop) || 0;
+      const padBottom = Number.parseFloat(computed.paddingBottom) || 0;
+      const borderTop = Number.parseFloat(computed.borderTopWidth) || 0;
+      const borderBottom = Number.parseFloat(computed.borderBottomWidth) || 0;
+      const contentHeight = elementRect.height - padTop - padBottom - borderTop - borderBottom;
+      lineBoxTop += Math.max(0, (contentHeight - lineBoxHeight) / 2);
+    }
 
     document.body.removeChild(mirror);
 
