@@ -12,167 +12,250 @@ Thanks for your interest in improving FluentTyper. This document is for develope
 
 ### Requirements
 
-- Bun 1.3.10 (pinned in `packageManager`)
+- [Bun](https://bun.sh/) `1.3.10` (pinned in `packageManager`)
 
 ### Local Setup
 
 1. Fork the repository and clone your fork.
-2. Use Bun lockfile-based install for reproducibility (`bun.lock` is canonical).
-3. Install dependencies:
+2. Install dependencies (`bun.lock` is the canonical lockfile):
    ```bash
    bun install
    ```
-4. Build the extension:
+3. Build the extension:
    ```bash
    bun run build
    ```
 
 ## Run Locally in a Browser
 
-Build once:
+Build once, or use watch mode for iterative development:
 
 ```bash
-bun run build
-```
-
-Or run watch mode for iterative development:
-
-```bash
-bun run watch
-```
-
-To build Firefox instead of the default Chrome target:
-
-```bash
+bun run build              # production build (Chrome)
 bun run build --platform=firefox
+bun run watch              # dev mode, rebuilds on change
 ```
 
 Load the unpacked extension from the `build/` directory:
 
-- Chrome/Edge: open extensions page, enable developer mode, choose "Load unpacked", select `build/`
-- Firefox: open `about:debugging`, choose "This Firefox", click "Load Temporary Add-on", select `build/manifest.json`
+- **Chrome/Edge**: open extensions page, enable developer mode, choose "Load unpacked", select `build/`
+- **Firefox**: open `about:debugging`, choose "This Firefox", click "Load Temporary Add-on", select `build/manifest.json`
 
-## Architecture Contribution Rules
+## Architecture
 
-This repository uses a layered architecture. New code should follow these boundaries:
+FluentTyper uses a strict layered clean architecture. Imports flow downward only:
 
-- `src/core/domain`: domain models, contracts, guards, and pure logic. Do not import from `@core/application`, `@adapters`, or `@ui`.
-- `src/core/application`: use-case orchestration, repositories, logging, and settings access. Do not import from `@adapters` or `@ui`.
-- `src/adapters/chrome`: browser/runtime integration (background and content-script). Do not import from `@ui`.
-- `src/ui`: popup/options UI. Do not import from adapter internals.
+```
+src/core/domain/          # Pure business logic, contracts, types
+    ↓
+src/core/application/     # Use-case orchestration, repositories, logging
+    ↓
+src/adapters/chrome/      # Browser integration (background + content-script)
+    ↓
+src/ui/                   # Popup, settings, onboarding UI
+```
 
-Adapter-specific separation:
+### Layer Rules
 
-- `src/adapters/chrome/background` must not import from `@adapters/chrome/content-script/*`.
-- `src/adapters/chrome/content-script` must not import from `@adapters/chrome/background/*`.
+| Layer | Path | Cannot import from |
+|-------|------|--------------------|
+| Domain | `src/core/domain/` | application, adapters, UI |
+| Application | `src/core/application/` | adapters, UI |
+| Adapters | `src/adapters/chrome/` | UI |
+| UI | `src/ui/` | adapter internals |
 
-Import and placement conventions:
+Additionally, background and content-script are isolated from each other:
 
-- Prefer path aliases: `@core/*`, `@adapters/*`, `@ui/*`, `@third-party/*`.
-- Do not add new imports from legacy roots like `src/background/*`, `src/content-script/*`, or `src/shared/*`.
-- Keep modules focused and composable. Avoid re-introducing large monolithic runtime files.
-- Put cross-layer contracts in `src/core/domain/contracts` and keep message schemas/types in `src/core/domain/messageTypes.d.ts`.
-- Update tests with architectural changes (for example routing changes in `tests/background.routing.test.ts`, content runtime changes in `tests/content_script.behavior.test.ts` and `tests/content_script.watchdog.test.ts`).
+- `src/adapters/chrome/background/` must not import from `content-script/`
+- `src/adapters/chrome/content-script/` must not import from `background/`
+
+These boundaries are enforced by ESLint `no-restricted-imports` rules.
+
+### Entry Points
+
+All entry points live in `src/entries/`:
+
+| Entry | Context | Timing |
+|-------|---------|--------|
+| `background.ts` | Service worker | Extension load |
+| `content_script.ts` | Isolated world | `document_end` |
+| `content_script_main_world.ts` | Main world | `document_end` |
+| `content_script_main_world_start.ts` | Main world | `document_start` |
+| `popup.ts` | Popup | User click |
+| `settings.ts` | Options page | User navigation |
+| `onboarding.ts` | Onboarding page | First install |
+
+### Import Conventions
+
+- Prefer path aliases: `@core/*`, `@adapters/*`, `@ui/*`, `@third-party/*`
+- Do not add imports from legacy roots (`src/background/*`, `src/content-script/*`, `src/shared/*`)
+- Cross-layer contracts go in `src/core/domain/contracts/`
+- Runtime message schemas go in `src/core/domain/messageTypes.d.ts`
+
+See [docs/agents/architecture.md](docs/agents/architecture.md) for full details.
 
 ## Quality Checks
 
-Run these before opening a pull request:
+### Before Every PR
 
 ```bash
-bun run check
-bun run test
+bun run check              # lint + format + typecheck (all must pass)
+bun run test               # unit tests
+bun run test:e2e           # e2e smoke (Chrome, <=10s target)
+bun run check:e2e:coverage # coverage matrix validation
 ```
 
-Optional local autofix formatting and linting:
+### Conditional Suites
+
+Run these when your changes affect the corresponding area:
 
 ```bash
-bun run lint
-```
-
-PR end-to-end expectations:
-
-```bash
-# Required for every PR:
-bun run test:e2e
-bun run check:e2e:coverage
-
-# Required when changing runtime/e2e behavior:
+# Runtime or e2e behavior changed:
 bun run test:e2e:full
 bun run test:e2e:full --platform=firefox
 
-# Required when changing development-mode runtime hooks/toggles:
+# Development-mode hooks or toggles changed:
 bun run test:e2e:dev
 bun run test:e2e:dev --platform=firefox
 
-# Recommended for cross-browser smoke validation before PR:
+# Cross-browser smoke (recommended):
 bun run test:e2e --platform=firefox
 ```
 
-Notes:
+### Autofix
 
-- `bun run test:e2e` is the fast smoke suite and defaults to `--platform=chrome`.
-- `bun run test:e2e:full` runs deeper regression e2e coverage.
-- `bun run test:e2e:dev` builds with `--mode=development` and runs dev/runtime-hook-specific e2e coverage.
-- Smoke budget target is `<=10s` wall-time for `bun run test:e2e --platform=chrome` and `bun run test:e2e --platform=firefox`.
-- CI reports smoke runtime for both browsers, but does not fail solely for exceeding the 10s target.
-- `bun run check:e2e:coverage` validates behavior IDs and coverage mappings in:
+```bash
+bun run fix                # lint:fix + format
+```
+
+## Testing Policy
+
+### Regression Tests
+
+Every bug fix must include a regression test that would have caught the bug. The test must fail on the unfixed code and pass on the fixed code.
+
+### Architecture-Sensitive Tests
+
+Update these when your changes affect the corresponding area:
+
+| Change area | Test file(s) |
+|-------------|-------------|
+| Background routing | `tests/background.routing.test.ts` |
+| Content-script runtime | `tests/content_script.behavior.test.ts`, `tests/content_script.watchdog.test.ts` |
+
+### E2E Coverage Matrix
+
+- Coverage parity is behavior-based, not test-count-based.
+- When behavior coverage moves between e2e/unit/integration tests, update:
   - `tests/e2e/coverage-matrix.json`
   - `tests/e2e/coverage-baseline-ids.json`
+- Keep selector-heavy permutations in unit/integration tests; reserve e2e for truly editor-specific behavior.
 
-### E2E Coverage Policy
+### Smoke Budget
 
-- Coverage parity is tracked by behavior coverage, not by preserving identical e2e test counts.
-- When adding, removing, or moving behavior coverage between e2e/unit/integration tests, update `tests/e2e/coverage-matrix.json` and `tests/e2e/coverage-baseline-ids.json`.
-- Keep selector-heavy permutations in unit/integration tests when behavior is selector-agnostic, and reserve e2e selector fan-out for truly editor-specific behavior.
+- Target: `<=10s` wall-time for `bun run test:e2e` on both Chrome and Firefox.
+- CI reports regressions but does not fail solely for exceeding the target.
+
+## Runtime Feature Workflows
+
+### Prediction and Messaging
+
+Content script observes typing, requests predictions via runtime messaging, background runs prediction and responds, content script renders suggestions.
+
+When changing message shapes, update all of:
+
+1. `src/core/domain/messageTypes.d.ts`
+2. `src/core/domain/constants.ts`
+3. Background routers under `src/adapters/chrome/background/router/`
+4. Content-script handlers under `src/adapters/chrome/content-script/`
+
+### Predictor Constraints
+
+- Production builds are **Presage-only**. Do not make WebLLM required for normal operation.
+- Preserve safe fallbacks when the AI predictor is unavailable or times out.
+- Do not expand the network surface area in production builds.
+
+### Adding a Setting
+
+1. Add key/constant in `src/core/domain/constants.ts`
+2. Wire through repositories in `src/core/application/repositories/`
+3. Include in runtime config via `src/adapters/chrome/background/config/ConfigAssembler.ts`
+4. Update popup or settings UI, defaults, and any needed migrations
+
+### Adding a Dynamic Variable
+
+1. Add to `resolveDynamicVariable()` in `src/core/domain/variables.ts` if computable locally
+2. Extend `TemplateExpander.createResolver()` if it needs browser context (tab, URL, etc.)
+3. Add or update tests
+
+### Logging
+
+- Production: warn and error only
+- Never log user text content
+- Guard debug logging behind development mode or logging level controls
+
+## Rebuilding Language Assets
+
+When changing `presage.xml` or the language template, repack:
+
+```bash
+python3 scripts/rebuild_all.py --repack
+```
+
+If the compiled `.so` is missing (`scripts/.deps/presage/`), run a full rebuild first:
+
+```bash
+python3 scripts/rebuild_libpresage.py --deps --presage
+python3 scripts/rebuild_all.py --repack
+```
+
+Commit the modified files: `public/third_party/libpresage/*.data` and `src/third_party/libpresage/libpresage.js`.
+
+## Versioning
+
+- `package.json` is the source of truth for the extension version.
+- Use `bun run bump` for version bumps (syncs browser manifests automatically).
+- Do not hand-edit manifest versions in `platform/*/manifest.json`.
+- Browser manifests: `platform/chrome/manifest.json`, `platform/firefox/manifest.json`, `platform/edge/manifest.json`
 
 ## Branch and PR Workflow
 
 1. Create a branch from `master`.
 2. Keep commits focused and descriptive.
 3. Open a pull request against `master`.
-4. Ensure CI is green (tests and lint checks).
-5. Describe what changed, why, and how it was tested.
+4. Ensure CI is green (lint, unit tests, e2e).
+5. In the PR description:
+   - Summarize user-visible impact
+   - List the test suites you ran
+   - Include screenshots for UI changes
 
-## Bug Reporting Process
+## Bug Reporting
 
-Both users and contributors should report product bugs via GitHub issue forms:
+Report bugs via GitHub issue forms:
 
-- Issue chooser: [github.com/bartekplus/FluentTyper/issues/new/choose](https://github.com/bartekplus/FluentTyper/issues/new/choose)
-- Direct bug form: [bug_report.yml](https://github.com/bartekplus/FluentTyper/issues/new?template=bug_report.yml)
+- [Issue chooser](https://github.com/bartekplus/FluentTyper/issues/new/choose)
+- [Direct bug form](https://github.com/bartekplus/FluentTyper/issues/new?template=bug_report.yml)
 
-Include these details in every bug report:
+Include: reproduction steps, expected vs. actual behavior, browser/OS, FluentTyper version, screenshots or recordings.
 
-- Clear reproduction steps
-- Expected result
-- Actual result
-- Browser and OS
-- FluentTyper version
-- Screenshots or recordings (if available)
+## Feature Requests
 
-## Feature Request Process
+Propose improvements via GitHub issue forms:
 
-Use GitHub issue forms for feature ideas and product improvements:
+- [Issue chooser](https://github.com/bartekplus/FluentTyper/issues/new/choose)
+- [Direct feature form](https://github.com/bartekplus/FluentTyper/issues/new?template=feature_request.yml)
 
-- Issue chooser: [github.com/bartekplus/FluentTyper/issues/new/choose](https://github.com/bartekplus/FluentTyper/issues/new/choose)
-- Direct feature form: [feature_request.yml](https://github.com/bartekplus/FluentTyper/issues/new?template=feature_request.yml)
-
-Strong feature requests include:
-
-- The user problem and impact
-- A concrete proposal
-- Alternatives considered
-- Browser-specific context
+Include: the user problem, a concrete proposal, alternatives considered, browser context.
 
 ## Security Reporting
 
 Do not disclose vulnerabilities in public issues. Follow [SECURITY.md](SECURITY.md) for private reporting.
 
-## Documentation Contributions
-
-Documentation improvements are welcome. Keep audience separation:
+## Documentation
 
 - `README.md`: end-user focused
 - `CONTRIBUTING.md`: developer and contribution workflow
+- `docs/agents/`: detailed guides for architecture, testing, commands, and runtime features
 
 When behavior changes, update docs in the same pull request.
 

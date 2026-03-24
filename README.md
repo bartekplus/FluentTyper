@@ -5,6 +5,7 @@
 Type less, do more. FluentTyper brings smart autocomplete, spell checking, and text expansion to text inputs across the web.
 
 [![CI (lint, unit, e2e)](https://github.com/bartekplus/FluentTyper/actions/workflows/test.yml/badge.svg)](https://github.com/bartekplus/FluentTyper/actions/workflows/test.yml)
+[![CodeQL](https://github.com/bartekplus/FluentTyper/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/bartekplus/FluentTyper/actions/workflows/codeql-analysis.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Support-FFDD00?logo=buymeacoffee&logoColor=000000)](https://www.buymeacoffee.com/FluentTyper)
 
@@ -92,6 +93,68 @@ FluentTyper is privacy-first:
 - Predictions are generated locally on your computer
 - In dev/debug builds, when AI predictor is enabled, only model artifacts are downloaded; typed content stays local
 
+## Development Setup
+
+FluentTyper uses [Bun](https://bun.sh/) as the primary package manager and script runner.
+
+### Prerequisites
+
+- [Bun](https://bun.sh/) `1.3.10` (pinned in `packageManager`)
+
+### Install and Build
+
+```bash
+bun install
+bun run build
+bun run build --platform=firefox
+```
+
+### Quality Checks
+
+```bash
+bun run check          # lint + format + typecheck
+bun run lint           # ESLint only
+bun run typecheck      # TypeScript only
+bun run format:check   # Prettier only
+```
+
+### Testing
+
+```bash
+bun test               # unit tests
+bun run test:e2e       # e2e smoke (Chrome)
+bun run test:e2e:full  # full regression (Chrome + Firefox)
+```
+
+### Development Watch
+
+```bash
+bun run watch          # rebuilds on file changes (dev mode)
+```
+
+Migration note: `bun.lock` is the source of truth for reproducible installs. npm/pnpm are no longer required for normal development workflows.
+
+## Architecture
+
+FluentTyper follows a strict layered clean architecture:
+
+```
+src/
+  core/
+    domain/        # Pure business logic, contracts, types
+    application/   # Use-case orchestration, repositories
+  adapters/
+    chrome/
+      background/  # Service worker, prediction engines
+      content-script/ # DOM interaction, suggestion UI
+  ui/
+    options/       # Settings pages
+    popup/         # Extension popup
+    onboarding/    # First-run experience
+```
+
+Layer boundaries are enforced by ESLint `no-restricted-imports` rules. See [docs/agents/architecture.md](docs/agents/architecture.md) for details.
+
 ## Bug Reporting
 
 Please report bugs through GitHub Issues using the bug template:
@@ -129,28 +192,12 @@ If you discovered a security vulnerability, follow [SECURITY.md](SECURITY.md) an
 
 Development and contribution guidelines are in [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Development Setup (Bun)
-
-FluentTyper uses [Bun](https://bun.sh/) as the primary package manager and script runner.
-
-Prerequisites:
-
-- Bun `1.3.10` (pinned in `packageManager`)
-
-Install and run common tasks:
-
-```bash
-bun install
-bun run build
-bun run build --platform=firefox
-bun run check
-bun test
-```
-
-Migration note: `bun.lock` is the source of truth for reproducible installs. npm/pnpm are no longer required for normal development workflows.
-
 ## Sponsorship and Support
 
 If FluentTyper saves you time, you can support maintenance and future development:
 
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Donate-FFDD00?logo=buymeacoffee&logoColor=000000)](https://www.buymeacoffee.com/FluentTyper)
+
+## License
+
+[MIT](LICENSE) - Copyright (c) 2026 Bartosz Tomczyk
