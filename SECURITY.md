@@ -2,9 +2,9 @@
 
 ## Supported Versions
 
-| Version | Supported |
-|---------|-----------|
-| Latest release | Yes |
+| Version           | Supported   |
+| ----------------- | ----------- |
+| Latest release    | Yes         |
 | Previous releases | Best-effort |
 
 FluentTyper is maintained on a best-effort basis, with priority given to the latest released version.

@@ -57,12 +57,12 @@ src/ui/                   # Popup, settings, onboarding UI
 
 ### Layer Rules
 
-| Layer | Path | Cannot import from |
-|-------|------|--------------------|
-| Domain | `src/core/domain/` | application, adapters, UI |
-| Application | `src/core/application/` | adapters, UI |
-| Adapters | `src/adapters/chrome/` | UI |
-| UI | `src/ui/` | adapter internals |
+| Layer       | Path                    | Cannot import from        |
+| ----------- | ----------------------- | ------------------------- |
+| Domain      | `src/core/domain/`      | application, adapters, UI |
+| Application | `src/core/application/` | adapters, UI              |
+| Adapters    | `src/adapters/chrome/`  | UI                        |
+| UI          | `src/ui/`               | adapter internals         |
 
 Additionally, background and content-script are isolated from each other:
 
@@ -75,15 +75,15 @@ These boundaries are enforced by ESLint `no-restricted-imports` rules.
 
 All entry points live in `src/entries/`:
 
-| Entry | Context | Timing |
-|-------|---------|--------|
-| `background.ts` | Service worker | Extension load |
-| `content_script.ts` | Isolated world | `document_end` |
-| `content_script_main_world.ts` | Main world | `document_end` |
-| `content_script_main_world_start.ts` | Main world | `document_start` |
-| `popup.ts` | Popup | User click |
-| `settings.ts` | Options page | User navigation |
-| `onboarding.ts` | Onboarding page | First install |
+| Entry                                | Context         | Timing           |
+| ------------------------------------ | --------------- | ---------------- |
+| `background.ts`                      | Service worker  | Extension load   |
+| `content_script.ts`                  | Isolated world  | `document_end`   |
+| `content_script_main_world.ts`       | Main world      | `document_end`   |
+| `content_script_main_world_start.ts` | Main world      | `document_start` |
+| `popup.ts`                           | Popup           | User click       |
+| `settings.ts`                        | Options page    | User navigation  |
+| `onboarding.ts`                      | Onboarding page | First install    |
 
 ### Import Conventions
 
@@ -138,9 +138,9 @@ Every bug fix must include a regression test that would have caught the bug. The
 
 Update these when your changes affect the corresponding area:
 
-| Change area | Test file(s) |
-|-------------|-------------|
-| Background routing | `tests/background.routing.test.ts` |
+| Change area            | Test file(s)                                                                     |
+| ---------------------- | -------------------------------------------------------------------------------- |
+| Background routing     | `tests/background.routing.test.ts`                                               |
 | Content-script runtime | `tests/content_script.behavior.test.ts`, `tests/content_script.watchdog.test.ts` |
 
 ### E2E Coverage Matrix
