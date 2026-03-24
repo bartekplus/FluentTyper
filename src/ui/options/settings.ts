@@ -305,8 +305,7 @@ function wireImportExportHandlers(registry: SettingsRegistry): void {
   importInputElem.addEventListener("input", importSettingButtonFileSelected.bind(null, registry));
 }
 
-function applyInlineSuggestionLocks(registry: SettingsRegistry): void {
-  const enabled = registry[KEY_INLINE_SUGGESTION].get() as boolean;
+function applyInlineSuggestionLocks(registry: SettingsRegistry, enabled: boolean): void {
   if (enabled) {
     registry[KEY_AUTOCOMPLETE_ON_TAB].set(true);
     registry[KEY_NUM_SUGGESTIONS].set(10);
@@ -319,7 +318,7 @@ function applyInlineSuggestionLocks(registry: SettingsRegistry): void {
 
 function wireRuntimeSettingsHandlers(registry: SettingsRegistry): void {
   bindActionHandler(registry, KEY_INLINE_SUGGESTION, () => {
-    applyInlineSuggestionLocks(registry);
+    applyInlineSuggestionLocks(registry, registry[KEY_INLINE_SUGGESTION].get() as boolean);
   });
 
   bindActionHandler(registry, KEY_EXTENSION_LANGUAGE, () => {
@@ -2965,6 +2964,7 @@ window.addEventListener("DOMContentLoaded", function () {
 
     wireImportExportHandlers(registry);
     wireRuntimeSettingsHandlers(registry);
-    applyInlineSuggestionLocks(registry);
+    const inlineEnabled = Boolean(await store.get(KEY_INLINE_SUGGESTION));
+    applyInlineSuggestionLocks(registry, inlineEnabled);
   })();
 });
