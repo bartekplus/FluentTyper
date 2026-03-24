@@ -234,6 +234,91 @@ describe("SuggestionPositioningService", () => {
     expect(editable.contains(restoredRange.startContainer)).toBe(true);
   });
 
+  /**
+   * Regression: <input> elements vertically center their text, but the
+   * mirror <div> used for caret measurement top-aligns it.  The caret rect
+   * must include the centering offset so inline suggestions line up.
+   *
+   * Setup: input height 40px, 4px padding, 1px border → content 30px.
+   * Line-height 20px → centering offset = (30 − 20) / 2 = 5px.
+   */
+  test("shifts caret rect down for vertically centered <input> text", () => {
+    const service = new SuggestionPositioningService();
+    const input = document.createElement("input");
+    input.value = "ab";
+    input.style.fontSize = "14px";
+    input.style.lineHeight = "20px";
+    input.style.height = "40px";
+    input.style.paddingTop = "4px";
+    input.style.paddingBottom = "4px";
+    input.style.borderTopWidth = "1px";
+    input.style.borderBottomWidth = "1px";
+    input.style.boxSizing = "border-box";
+    document.body.appendChild(input);
+    input.setSelectionRange(1, 1);
+
+    const elemRect = createRect(50, 100, 200, 40);
+    // Text in the mirror starts at top + border + padding = 100 + 1 + 4 = 105.
+    const spanRect = createRect(55, 105, 8, 14);
+
+    jest.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      if (this === input) return elemRect;
+      if (this.id === "input-textarea-caret-position-mirror-div") return elemRect;
+      if (this.tagName === "SPAN") return spanRect;
+      return createRect(0, 0, 0, 0);
+    });
+
+    const rect = service.getCaretRect(input);
+
+    // lineBoxHeight = max(14, 20) = 20, extraLeading = 6, lineBoxTop = 105 − 3 = 102
+    // centering offset = (30 − 20) / 2 = 5  → adjusted top = 107
+    expect(rect).not.toBeNull();
+    expect(rect!.top).toBe(107);
+    expect(rect!.height).toBe(20);
+  });
+
+  /**
+   * <textarea> elements do NOT vertically center their text — text starts
+   * at the top after padding, same as a <div>.  The caret rect must NOT
+   * include any centering offset.
+   */
+  test("does not shift caret rect for <textarea> (no vertical centering)", () => {
+    const service = new SuggestionPositioningService();
+    const textarea = document.createElement("textarea");
+    textarea.value = "ab";
+    textarea.style.fontSize = "14px";
+    textarea.style.lineHeight = "20px";
+    textarea.style.height = "40px";
+    textarea.style.paddingTop = "4px";
+    textarea.style.paddingBottom = "4px";
+    textarea.style.borderTopWidth = "1px";
+    textarea.style.borderBottomWidth = "1px";
+    textarea.style.boxSizing = "border-box";
+    document.body.appendChild(textarea);
+    textarea.setSelectionRange(1, 1);
+
+    const elemRect = createRect(50, 100, 200, 40);
+    const spanRect = createRect(55, 105, 8, 14);
+
+    jest.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      if (this === textarea) return elemRect;
+      if (this.id === "input-textarea-caret-position-mirror-div") return elemRect;
+      if (this.tagName === "SPAN") return spanRect;
+      return createRect(0, 0, 0, 0);
+    });
+
+    const rect = service.getCaretRect(textarea);
+
+    // Same layout but no centering: lineBoxTop = 105 − 3 = 102
+    expect(rect).not.toBeNull();
+    expect(rect!.top).toBe(102);
+    expect(rect!.height).toBe(20);
+  });
+
   test("always removes marker fallback node even if marker measurement throws", () => {
     if (!rangeCtor) {
       return;
