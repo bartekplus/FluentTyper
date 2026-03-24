@@ -63,6 +63,7 @@ export interface FieldControl<TValue = unknown> {
 
   get(): TValue;
   set(value: TValue, silent?: boolean): this;
+  setDisabled(disabled: boolean): void;
   addEvent(type: "action", fn: ValueEventHandler<TValue>): void;
   addEvent(type: "change", fn: ValueEventHandler<TValue>): void;
   addEvent(type: "modal_done", fn: () => void): void;
@@ -188,6 +189,13 @@ export abstract class BaseControl<TValue> implements FieldControl<TValue> {
   addEvent(type: string, fn: EventHandler<TValue>): void;
   addEvent(type: string, fn: EventHandler<TValue>): void {
     this.emitter.addEvent(type, fn as (...args: unknown[]) => void);
+  }
+
+  setDisabled(disabled: boolean): void {
+    if ("disabled" in this._element) {
+      (this._element as HTMLInputElement).disabled = disabled;
+    }
+    this._rootElement?.classList.toggle("is-disabled", disabled);
   }
 
   destroy(): void {

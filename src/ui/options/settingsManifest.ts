@@ -346,6 +346,17 @@ const manifest: ManifestDefinition = {
     {
       tab: "core_settings",
       group: i18n.get("General"),
+      name: KEY_INLINE_SUGGESTION,
+      type: "checkbox",
+      label: buildFieldLabel(
+        i18n.get("enable_inline_suggestion_label"),
+        i18n.get("enable_inline_suggestion_desc"),
+      ),
+      default: false,
+    },
+    {
+      tab: "core_settings",
+      group: i18n.get("General"),
       name: KEY_PREFIX_ONLY_MODE,
       type: "checkbox",
       label: buildFieldLabel(i18n.get("prefix_only_mode_label"), i18n.get("prefix_only_mode_desc")),
@@ -413,17 +424,6 @@ const manifest: ManifestDefinition = {
       type: "checkbox",
       label: buildFieldLabel(i18n.get("add_space_label"), i18n.get("add_space_desc")),
       default: true,
-    },
-    {
-      tab: "core_settings",
-      group: i18n.get("behavior_after_completion"),
-      name: KEY_INLINE_SUGGESTION,
-      type: "checkbox",
-      label: buildFieldLabel(
-        i18n.get("enable_inline_suggestion_label"),
-        i18n.get("enable_inline_suggestion_desc"),
-      ),
-      default: false,
     },
     // =========================================================================
     // TAB: Grammar Rules

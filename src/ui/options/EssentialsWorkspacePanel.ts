@@ -37,6 +37,7 @@ export class EssentialsWorkspacePanel {
 
     const general = createWorkspaceCard(i18n.get("General"));
     moveControlToBody(this.registry, "enable", general.body);
+    moveControlToBody(this.registry, KEY_INLINE_SUGGESTION, general.body);
     moveControlToBody(this.registry, KEY_PREFER_NATIVE_AUTOCOMPLETE, general.body);
     moveControlToBody(this.registry, KEY_PREFIX_ONLY_MODE, general.body);
 
@@ -55,7 +56,6 @@ export class EssentialsWorkspacePanel {
 
     const behavior = createWorkspaceCard(i18n.get("behavior_after_completion"));
     moveControlToBody(this.registry, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, behavior.body);
-    moveControlToBody(this.registry, KEY_INLINE_SUGGESTION, behavior.body);
 
     shell.append(general.card, prediction.card, acceptance.card, behavior.card);
     this.root.replaceChildren(shell);

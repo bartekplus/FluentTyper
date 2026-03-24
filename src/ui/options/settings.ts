@@ -52,6 +52,7 @@ import {
   KEY_DOMAIN_LIST_MODE,
   KEY_DISPLAY_LANG_HEADER,
   KEY_INLINE_SUGGESTION,
+  KEY_PREFIX_ONLY_MODE,
   KEY_EXTENSION_LANGUAGE,
   KEY_SITE_PROFILES,
   KEY_ENABLED_GRAMMAR_RULES,
@@ -304,12 +305,20 @@ function wireImportExportHandlers(registry: SettingsRegistry): void {
   importInputElem.addEventListener("input", importSettingButtonFileSelected.bind(null, registry));
 }
 
+function applyInlineSuggestionLocks(registry: SettingsRegistry, enabled: boolean): void {
+  if (enabled) {
+    registry[KEY_AUTOCOMPLETE_ON_TAB].set(true);
+    registry[KEY_NUM_SUGGESTIONS].set(10);
+    registry[KEY_PREFIX_ONLY_MODE].set(true);
+  }
+  registry[KEY_AUTOCOMPLETE_ON_TAB].setDisabled(enabled);
+  registry[KEY_PREFIX_ONLY_MODE].setDisabled(enabled);
+  registry[KEY_NUM_SUGGESTIONS].setDisabled(enabled);
+}
+
 function wireRuntimeSettingsHandlers(registry: SettingsRegistry): void {
   bindActionHandler(registry, KEY_INLINE_SUGGESTION, () => {
-    if (registry[KEY_INLINE_SUGGESTION].get()) {
-      registry[KEY_AUTOCOMPLETE_ON_TAB].set(true);
-      registry[KEY_NUM_SUGGESTIONS].set(10);
-    }
+    applyInlineSuggestionLocks(registry, registry[KEY_INLINE_SUGGESTION].get() as boolean);
   });
 
   bindActionHandler(registry, KEY_EXTENSION_LANGUAGE, () => {
@@ -2955,5 +2964,7 @@ window.addEventListener("DOMContentLoaded", function () {
 
     wireImportExportHandlers(registry);
     wireRuntimeSettingsHandlers(registry);
+    const inlineEnabled = Boolean(await store.get(KEY_INLINE_SUGGESTION));
+    applyInlineSuggestionLocks(registry, inlineEnabled);
   })();
 });
