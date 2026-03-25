@@ -45,6 +45,7 @@ export interface PresagePredictionContext {
 
 export class PresageHandler {
   private presageEngines: Record<string, PresageEngine>;
+  private lastPredictionInputByLang: Record<string, string> = {};
   private numSuggestions: number;
   private minWordLengthToPredict: number;
   private predictNextWordAfterSeparatorChar: boolean;
@@ -188,6 +189,7 @@ export class PresageHandler {
       tabId,
     );
     const predictions = this.presageEngines[lang].predict(predictionInput);
+    this.lastPredictionInputByLang[lang] = predictionInput;
     return Promise.all(
       predictions.map((text) => TemplateExpander.parseStringTemplateAsync(text, resolver)),
     );
@@ -321,6 +323,10 @@ export class PresageHandler {
       default:
     }
     return { predictions };
+  }
+
+  getLastPredictionInput(lang: string): string {
+    return this.lastPredictionInputByLang[lang] ?? "";
   }
 
   private refreshPresageEngines(): void {

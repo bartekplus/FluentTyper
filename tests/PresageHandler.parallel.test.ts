@@ -260,7 +260,7 @@ describe("PredictionOrchestrator parallel merge", () => {
     expect(result.predictions.length).toBeGreaterThan(0);
   });
 
-  test("re-expands cached templates so random variables stay fresh", async () => {
+  test("re-expands random variables on every call", async () => {
     const predictionsRef = { current: ["${random:alpha|beta}"] };
     const { module, predictWithProbability } = createFakeModuleWithSpy(predictionsRef);
     const presageHandler = new PresageHandler(module);
@@ -273,7 +273,7 @@ describe("PredictionOrchestrator parallel merge", () => {
 
     expect(firstResult.predictions).toEqual(["alpha"]);
     expect(secondResult.predictions).toEqual(["beta"]);
-    expect(predictWithProbability).toHaveBeenCalledTimes(1);
+    expect(predictWithProbability).toHaveBeenCalledTimes(2);
     expect(randomSpy).toHaveBeenCalledTimes(2);
   });
 });
