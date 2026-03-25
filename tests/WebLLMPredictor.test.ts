@@ -134,26 +134,6 @@ describe("WebLLMPredictor", () => {
     expect(engine.completions.create).toHaveBeenCalledTimes(1);
   });
 
-  test("uses cache for identical requests", async () => {
-    const engine = createMockEngine();
-    createMLCEngineMock.mockResolvedValue(engine);
-    const { WebLLMPredictor } = await import("../src/adapters/chrome/background/WebLLMPredictor");
-    const predictor = new WebLLMPredictor();
-
-    const request = {
-      lang: "en_US",
-      predictionInput: "hello ",
-      numSuggestions: 3,
-    };
-
-    const first = await predictor.predict(request);
-    const second = await predictor.predict(request);
-
-    expect(first).toEqual(second);
-    expect(engine.chat.completions.create).toHaveBeenCalledTimes(1);
-    expect(engine.completions.create).toHaveBeenCalledTimes(0);
-  });
-
   test("parses streamed chat chunks from async iterable responses", async () => {
     const engine = createMockEngine({
       chatCompletionImpl: async () =>

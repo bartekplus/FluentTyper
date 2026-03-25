@@ -9,7 +9,6 @@ import type {
 import { CandidateRanker } from "./webllm/CandidateRanker";
 import { EngineLifecycleService } from "./webllm/EngineLifecycleService";
 import { GenerationCoordinator } from "./webllm/GenerationCoordinator";
-import { PredictionCache } from "./webllm/PredictionCache";
 import { PromptBuilder } from "./webllm/PromptBuilder";
 import { ResponseParser } from "./webllm/ResponseParser";
 import { maybePredictFromRuntimeTestOverride } from "@adapters/chrome/background/testing/RuntimeTestHooks";
@@ -21,7 +20,6 @@ import type {
   PredictionResponsePayload,
 } from "./webllm/types";
 
-const CACHE_TTL_MS = 5000;
 const MAX_GENERATION_CHOICES = 5;
 const logger = createLogger("WebLLMPredictor");
 
@@ -36,7 +34,6 @@ export interface WebLLMPredictorDebugState {
   hasWebGPU: boolean;
   initAttemptCount: number;
   isGenerating: boolean;
-  cacheSize: number;
   lastFailureAt: number | null;
   lastInitStartedAt: number | null;
   lastInitDurationMs: number | null;
@@ -60,7 +57,6 @@ export class WebLLMPredictor implements SecondaryPredictor {
   private readonly promptBuilder = new PromptBuilder(MAX_GENERATION_CHOICES);
   private readonly responseParser = new ResponseParser();
   private readonly candidateRanker = new CandidateRanker();
-  private readonly predictionCache = new PredictionCache(CACHE_TTL_MS);
 
   private enabled = DEFAULT_AI_PREDICTOR_ENABLED;
   private modelId = DEFAULT_AI_MODEL_ID;
@@ -99,7 +95,6 @@ export class WebLLMPredictor implements SecondaryPredictor {
       hasWebGPU: lifecycleState.hasWebGPU,
       initAttemptCount: lifecycleState.initAttemptCount,
       isGenerating: this.generationCoordinator.getIsGenerating(),
-      cacheSize: this.predictionCache.size(),
       lastFailureAt: lifecycleState.lastFailureAt > 0 ? lifecycleState.lastFailureAt : null,
       lastInitStartedAt:
         lifecycleState.lastInitStartedAt > 0 ? lifecycleState.lastInitStartedAt : null,
@@ -120,10 +115,6 @@ export class WebLLMPredictor implements SecondaryPredictor {
       lastPredictOutputCount: this.lastPredictOutputCount,
       lastPredictError: this.lastPredictError,
     };
-  }
-
-  clearCache(): void {
-    this.predictionCache.clear();
   }
 
   preload(): void {
@@ -170,11 +161,6 @@ export class WebLLMPredictor implements SecondaryPredictor {
         return [];
       }
       return testOverridePredictions;
-    }
-    const cacheKey = this.predictionCache.getCacheKey(this.modelId, request);
-    const cachedPredictions = this.predictionCache.get(cacheKey);
-    if (cachedPredictions) {
-      return cachedPredictions;
     }
     const ready = await this.ensureReady();
     if (!ready || !this.engineLifecycleService.getEngine() || this.isRequestStale(requestSeq)) {
@@ -252,9 +238,6 @@ export class WebLLMPredictor implements SecondaryPredictor {
         request.numSuggestions,
       );
 
-      if (predictions.length > 0) {
-        this.predictionCache.set(cacheKey, predictions);
-      }
       this.lastPredictDurationMs = Date.now() - predictStartedAt;
       this.lastPredictSource = source;
       this.lastRawOutputPreview = rawOutput.slice(0, 400);
@@ -314,7 +297,6 @@ export class WebLLMPredictor implements SecondaryPredictor {
   }
 
   private resetEngine(): void {
-    this.predictionCache.clear();
     this.generationCoordinator.advanceGenerationSeq();
     this.interruptActiveGeneration("reset");
     this.generationCoordinator.clearGenerationTracking();

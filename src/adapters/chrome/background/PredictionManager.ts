@@ -59,7 +59,6 @@ export interface PredictorDebugSnapshot {
       hasWebGPU: boolean;
       initAttemptCount: number;
       isGenerating: boolean;
-      cacheSize: number;
       lastFailureAt: number | null;
       lastInitStartedAt: number | null;
       lastInitDurationMs: number | null;
@@ -205,7 +204,6 @@ export class PredictionManager {
     logger.info("Clearing predictor debug traces");
     this.debugTraces = [];
     this.debugTraceById.clear();
-    this.getWebLLMPredictor().clearCache();
   }
 
   getPredictorDebugSnapshot(): PredictorDebugSnapshot {
@@ -244,7 +242,6 @@ export class PredictionManager {
           hasWebGPU: webllmDebugState.hasWebGPU,
           initAttemptCount: webllmDebugState.initAttemptCount,
           isGenerating: webllmDebugState.isGenerating,
-          cacheSize: webllmDebugState.cacheSize,
           lastFailureAt: webllmDebugState.lastFailureAt,
           lastInitStartedAt: webllmDebugState.lastInitStartedAt,
           lastInitDurationMs: webllmDebugState.lastInitDurationMs,

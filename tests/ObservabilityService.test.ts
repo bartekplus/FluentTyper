@@ -21,7 +21,6 @@ function createPredictorSnapshot() {
         hasWebGPU: true,
         initAttemptCount: 1,
         isGenerating: false,
-        cacheSize: 0,
         lastFailureAt: null,
         lastInitStartedAt: null,
         lastInitDurationMs: null,
