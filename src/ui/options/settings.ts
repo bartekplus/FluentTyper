@@ -1398,11 +1398,6 @@ function renderPredictorDebugSnapshot(root: HTMLElement, snapshot: PredictorSnap
     "WebLLM generating",
     runtimeWebllm?.isGenerating ? "yes" : "no",
   );
-  appendPredictorInfoItem(
-    runtimeCard,
-    "WebLLM cache entries",
-    formatMetricNumber(runtimeWebllm?.cacheSize),
-  );
   const lastFailureAt = runtimeWebllm?.lastFailureAt;
   appendPredictorInfoItem(
     runtimeCard,
