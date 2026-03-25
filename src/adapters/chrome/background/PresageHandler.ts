@@ -17,11 +17,6 @@ const SUGGESTION_COUNT = 5;
 const MIN_WORD_LENGTH_TO_PREDICT = 1;
 const logger = createLogger("PresageHandler");
 
-interface LastPrediction {
-  pastStream: string;
-  templates: string[];
-}
-
 export interface PresageConfig {
   numSuggestions: number;
   engineNumSuggestions?: number;
@@ -50,7 +45,6 @@ export interface PresagePredictionContext {
 
 export class PresageHandler {
   private presageEngines: Record<string, PresageEngine>;
-  private lastPrediction: Record<string, LastPrediction>;
   private numSuggestions: number;
   private minWordLengthToPredict: number;
   private predictNextWordAfterSeparatorChar: boolean;
@@ -74,7 +68,6 @@ export class PresageHandler {
       prefixOnlyMode: false,
     };
     this.presageEngines = {};
-    this.lastPrediction = {};
     this.numSuggestions = SUGGESTION_COUNT;
     this.engineNumSuggestions = MAX_NUM_SUGGESTIONS;
     this.minWordLengthToPredict = MIN_WORD_LENGTH_TO_PREDICT;
@@ -93,7 +86,6 @@ export class PresageHandler {
         continue;
       }
       try {
-        this.lastPrediction[lang] = { pastStream: "", templates: [] };
         this.presageEngines[lang] = new PresageEngine(Module, engineConfig, lang);
       } catch (error) {
         logger.warn("Failed to create Presage engine instance", {
@@ -127,8 +119,6 @@ export class PresageHandler {
     this.timeFormat = config.timeFormat;
     this.dateFormat = config.dateFormat;
     this.userDictionaryList = config.userDictionaryList || [];
-
-    this.resetLastPredictionState();
 
     if (shouldRefreshEngines) {
       this.refreshPresageEngines();
@@ -197,19 +187,7 @@ export class PresageHandler {
       this.dateFormat ?? "",
       tabId,
     );
-    const cachedPrediction = this.lastPrediction[lang];
-    if (cachedPrediction?.pastStream === predictionInput) {
-      return Promise.all(
-        cachedPrediction.templates.map((text) =>
-          TemplateExpander.parseStringTemplateAsync(text, resolver),
-        ),
-      );
-    }
     const predictions = this.presageEngines[lang].predict(predictionInput);
-    this.lastPrediction[lang] = {
-      pastStream: predictionInput,
-      templates: predictions.slice(),
-    };
     return Promise.all(
       predictions.map((text) => TemplateExpander.parseStringTemplateAsync(text, resolver)),
     );
@@ -345,22 +323,9 @@ export class PresageHandler {
     return { predictions };
   }
 
-  getLastPredictionInput(lang: string): string {
-    if (lang in this.lastPrediction) {
-      return this.lastPrediction[lang].pastStream;
-    }
-    return "";
-  }
-
   private refreshPresageEngines(): void {
     for (const presageEngine of Object.values(this.presageEngines)) {
       presageEngine.reinitialize();
-    }
-  }
-
-  private resetLastPredictionState(): void {
-    for (const lang of Object.keys(this.presageEngines)) {
-      this.lastPrediction[lang] = { pastStream: "", templates: [] };
     }
   }
 }
