@@ -26,7 +26,7 @@ jobs:
           fetch-depth: 1
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: "1.3.11"
+          bun-version: "1.3.10"
       - run: bun install --frozen-lockfile
       - name: ESLint
         run: bun run lint
@@ -44,7 +44,7 @@ jobs:
           fetch-depth: 1
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: "1.3.11"
+          bun-version: "1.3.10"
       - run: bun install --frozen-lockfile
       - name: Run unit tests (with retry for JSDOM flakiness on Linux)
         uses: nick-fields/retry@v3
@@ -70,7 +70,7 @@ jobs:
           fetch-depth: 1
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: "1.3.11"
+          bun-version: "1.3.10"
       - run: bun install --frozen-lockfile
       - name: Install Firefox for Puppeteer
         if: matrix.browser == 'firefox'
@@ -114,7 +114,7 @@ jobs:
           fetch-depth: 1
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: "1.3.11"
+          bun-version: "1.3.10"
       - run: bun install --frozen-lockfile
       - name: Install Firefox for Puppeteer
         if: matrix.browser == 'firefox'

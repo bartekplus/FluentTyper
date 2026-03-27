@@ -2,7 +2,7 @@
 
 FluentTyper is a privacy-first browser extension that provides local autocomplete, spellcheck, and text expansion across the web.
 
-- Package manager: `bun@1.3.11`
+- Package manager: `bun@1.3.10`
 - Build: `bun run build`
 - Firefox build: `bun run build --platform=firefox`
 - Full repo check: `bun run check`
