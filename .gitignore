@@ -9,3 +9,4 @@ scripts/community-oscar
 .DS_Store
 .cache
 .worktrees
+.claude
