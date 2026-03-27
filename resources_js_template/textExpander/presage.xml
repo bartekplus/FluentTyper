@@ -2,12 +2,13 @@
 <Presage>
     <PredictorRegistry>
         <LOGGER>ERROR</LOGGER>
-        <PREDICTORS>DefaultAbbreviationExpansionPredictor</PREDICTORS>
+        <PREDICTORS>DefaultAbbreviationExpansionPredictor DefaultDictionaryPredictor</PREDICTORS>
     </PredictorRegistry>
     <ContextTracker>
         <LOGGER>ERROR</LOGGER>
         <SLIDING_WINDOW_SIZE>0</SLIDING_WINDOW_SIZE>
 	<LOWERCASE_MODE>yes</LOWERCASE_MODE>
+	<PREFIX_ONLY_MODE>no</PREFIX_ONLY_MODE>
 	<ONLINE_LEARNING>no</ONLINE_LEARNING>
     </ContextTracker>
     <Selector>
@@ -33,5 +34,11 @@
             <ABBREVIATIONS>/resources_js/common/abbreviations.txt</ABBREVIATIONS>
             <PREPEND_BACKSPACES>no</PREPEND_BACKSPACES>
         </DefaultAbbreviationExpansionPredictor>
+        <DefaultDictionaryPredictor>
+            <PREDICTOR>DictionaryPredictor</PREDICTOR>
+            <LOGGER>ERROR</LOGGER>
+            <DICTIONARY>/resources_js/common/userDict.txt</DICTIONARY>
+            <PROBABILITY>0.0000001</PROBABILITY>
+        </DefaultDictionaryPredictor>
     </Predictors>
 </Presage>
