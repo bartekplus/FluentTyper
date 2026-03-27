@@ -3,7 +3,9 @@ import { globSync } from "glob";
 const POPUP_TEST = "tests/popup.dashboard.retry.test.ts";
 const SUGGESTION_MANAGER_TEST = "tests/SuggestionManager.test.ts";
 
-const ISOLATED_TESTS = new Set([POPUP_TEST, SUGGESTION_MANAGER_TEST]);
+const UTILS_TEST = "tests/utils.test.ts";
+
+const ISOLATED_TESTS = new Set([POPUP_TEST, SUGGESTION_MANAGER_TEST, UTILS_TEST]);
 
 function sortedUnique(entries: string[]): string[] {
   return [...new Set(entries)].sort((left, right) => left.localeCompare(right));
