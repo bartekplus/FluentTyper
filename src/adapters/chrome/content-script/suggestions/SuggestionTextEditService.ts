@@ -1146,11 +1146,16 @@ export class SuggestionTextEditService {
       return null;
     }
     const lineOffset = hostBefore.length - cleanBrBefore.length;
-    // Recompute local offsets in terms of the clean (filler-stripped) text.
-    const fillerOffset = brLineText.length - cleanBrLineText.length;
-    const cleanReplaceStart = Math.max(0, localReplaceStart - fillerOffset);
-    const cleanReplaceEnd = Math.max(0, localReplaceEnd - fillerOffset);
-    const cleanCursorAfter = Math.max(0, localCursorAfter - fillerOffset);
+    // Recompute local offsets in terms of the clean (filler-stripped) text
+    // by counting only the filler characters that precede each position.
+    const fillersBeforeOffset = (offset: number): number =>
+      brLineText.slice(0, offset).length - stripFillerChars(brLineText.slice(0, offset)).length;
+    const cleanReplaceStart = Math.max(
+      0,
+      localReplaceStart - fillersBeforeOffset(localReplaceStart),
+    );
+    const cleanReplaceEnd = Math.max(0, localReplaceEnd - fillersBeforeOffset(localReplaceEnd));
+    const cleanCursorAfter = Math.max(0, localCursorAfter - fillersBeforeOffset(localCursorAfter));
     const fullReplaceStart = lineOffset + cleanReplaceStart;
     const fullReplaceEnd = lineOffset + cleanReplaceEnd;
     const fullCursorAfter = lineOffset + cleanCursorAfter;

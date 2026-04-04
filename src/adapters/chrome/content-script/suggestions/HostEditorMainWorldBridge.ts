@@ -44,7 +44,13 @@ interface CKEditorInstance {
   model: CKEditorModel;
 }
 
+const ckEditorInstanceCache = new WeakMap<HTMLElement, CKEditorInstance | null>();
+
 function findCKEditor5Instance(elem: HTMLElement): CKEditorInstance | null {
+  const cached = ckEditorInstanceCache.get(elem);
+  if (cached !== undefined) {
+    return cached;
+  }
   let current: any = elem;
   while (current) {
     try {
@@ -52,13 +58,16 @@ function findCKEditor5Instance(elem: HTMLElement): CKEditorInstance | null {
         current.ckeditorInstance &&
         typeof current.ckeditorInstance.model?.change === "function"
       ) {
-        return current.ckeditorInstance as CKEditorInstance;
+        const instance = current.ckeditorInstance as CKEditorInstance;
+        ckEditorInstanceCache.set(elem, instance);
+        return instance;
       }
     } catch {
       // Property access may throw on exotic host objects.
     }
     current = current.parentElement;
   }
+  ckEditorInstanceCache.set(elem, null);
   return null;
 }
 
@@ -90,6 +99,9 @@ function extractModelBlockMapping(block: any): BlockTextMapping | null {
       modelOffset += 1;
     } else if (child.is && !child.is("$text") && !child.is("$textProxy")) {
       // Inline object (image, widget, etc.) – offsets diverge unpredictably.
+      return null;
+    } else if (!child.is) {
+      // Unknown node type without an `is` method (exotic 3rd-party plugin).
       return null;
     }
   }
@@ -207,16 +219,23 @@ function applyCKEditor5BlockReplacement(
     mapping.softBreakModelOffsets,
     "end",
   );
-  // After the replacement, softBreak positions after the edit shift.
+  // After the replacement, softBreaks inside the deleted range no longer
+  // exist.  Filter them out, then shift the survivors that come after the
+  // edit by the length delta.
   const replacedLength = request.replaceEnd - request.replaceStart;
   const lengthDelta = request.replacementText.length - replacedLength;
-  const updatedSoftBreakOffsets = mapping.softBreakModelOffsets.map((sbOffset) =>
-    sbOffset > modelReplaceStart ? sbOffset + lengthDelta : sbOffset,
-  );
+  const updatedSoftBreakOffsets = mapping.softBreakModelOffsets
+    .filter((sbOffset) => sbOffset <= modelReplaceStart || sbOffset >= modelReplaceEnd)
+    .map((sbOffset) => (sbOffset > modelReplaceStart ? sbOffset + lengthDelta : sbOffset));
+  // Use "end" when the cursor sits at the replacement boundary so it stays
+  // on the same line as the replaced text (before a softBreak).  Use "start"
+  // when the cursor is past the replacement (e.g. on the next line).
+  const cursorIsAtReplacementBoundary =
+    request.cursorAfter <= request.replaceStart + request.replacementText.length;
   const modelCursorAfter = textOffsetToModelOffset(
     request.cursorAfter,
     updatedSoftBreakOffsets,
-    "end",
+    cursorIsAtReplacementBoundary ? "end" : "start",
   );
 
   // Capture text attributes (bold, italic, etc.) at the replacement start so
