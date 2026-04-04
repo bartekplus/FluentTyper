@@ -17,6 +17,12 @@ const logger = createLogger("SuggestionTextEditService");
 const TRACE_TEXT_LIMIT = 48;
 const TRACE_HTML_LIMIT = 220;
 
+/** Strip zero-width filler characters that rich editors inject into the DOM. */
+const FILLER_CHARS_REGEX = /\u200B|\u200C|\u200D|\u2060|\uFEFF/g;
+function stripFillerChars(value: string): string {
+  return value.replace(FILLER_CHARS_REGEX, "");
+}
+
 function buildElementSnapshot(
   element: HTMLElement | null,
   beforeCursor: string,
@@ -587,33 +593,86 @@ export class SuggestionTextEditService {
             replaceEnd,
             replacement,
           );
-    const applyResult =
+    let applyResult:
+      | ContentEditableEditResult
+      | { didMutateDom: boolean; didDispatchInput: boolean }
+      | null = null;
+    if (
       !TextTargetAdapter.isTextValue(entry.elem) &&
       activeBlock !== null &&
       blockReplaceStart !== null &&
       blockReplaceEnd !== null &&
-      blockCursorAfter !== null
-        ? this.replaceTextByOffsets(
-            entry.elem,
-            blockSourceText ?? "",
+      blockCursorAfter !== null &&
+      blockSourceText !== null
+    ) {
+      const blockContext =
+        context.contentEditableContext ??
+        this.contentEditableAdapter.getBlockContext(entry.elem as HTMLElement);
+      if (blockContext) {
+        const hostEditorSession = this.resolveHostEditorSession(entry.elem as HTMLElement, {
+          beforeCursor: blockContext.beforeCursor,
+          afterCursor: blockContext.afterCursor,
+          blockText: blockSourceText,
+        });
+        if (hostEditorSession) {
+          const hostResult = hostEditorSession.applyBlockReplacement({
+            replaceStart: blockReplaceStart,
+            replaceEnd: blockReplaceEnd,
+            replacementText: replacement,
+            cursorAfter: blockCursorAfter,
+          });
+          if (hostResult.applied) {
+            applyResult = {
+              didMutateDom: true,
+              didDispatchInput: hostResult.didDispatchInput,
+            };
+          }
+        }
+        if (applyResult === null) {
+          // The primary match may fail when getBlockContext returns a
+          // BR-separated line but the host editor (e.g. CKEditor-5) uses
+          // the full paragraph block.  Translate local offsets into the
+          // host's full-block coordinate space and retry.
+          applyResult = this.tryHostGrammarEditWithFullBlockOffsets(
+            entry.elem as HTMLElement,
+            blockSourceText,
             blockReplaceStart,
             blockReplaceEnd,
             replacement,
             blockCursorAfter,
-            {
-              preferDomMutation: this.shouldPreferDomMutationForGrammar(entry.elem),
-              scopeRoot: activeBlock,
-            },
-          )
-        : this.replaceTextByOffsets(
-            entry.elem,
-            fullText,
-            replaceStart,
-            replaceEnd,
-            replacement,
-            cursorAfter,
-            { preferDomMutation: this.shouldPreferDomMutationForGrammar(entry.elem) },
           );
+        }
+      }
+    }
+    if (applyResult === null) {
+      applyResult =
+        !TextTargetAdapter.isTextValue(entry.elem) &&
+        activeBlock !== null &&
+        blockReplaceStart !== null &&
+        blockReplaceEnd !== null &&
+        blockCursorAfter !== null
+          ? this.replaceTextByOffsets(
+              entry.elem,
+              blockSourceText ?? "",
+              blockReplaceStart,
+              blockReplaceEnd,
+              replacement,
+              blockCursorAfter,
+              {
+                preferDomMutation: this.shouldPreferDomMutationForGrammar(entry.elem),
+                scopeRoot: activeBlock,
+              },
+            )
+          : this.replaceTextByOffsets(
+              entry.elem,
+              fullText,
+              replaceStart,
+              replaceEnd,
+              replacement,
+              cursorAfter,
+              { preferDomMutation: this.shouldPreferDomMutationForGrammar(entry.elem) },
+            );
+    }
     // For edits with cursorOffset on contenteditable, schedule deferred cursor
     // repositioning BEFORE the didMutateDom check. React-based editors (Lexical,
     // Slate) handle beforeinput by calling preventDefault() and reconciling the
@@ -1046,6 +1105,82 @@ export class SuggestionTextEditService {
     );
   }
 
+  /**
+   * Fallback for grammar edits when the primary host session match fails.
+   *
+   * This handles editors like CKEditor-5 whose model block spans the entire
+   * paragraph while FluentTyper returns a BR-separated line context.  We
+   * resolve the host session without a parity check, locate where the
+   * BR-separated line sits inside the host's full block text, translate the
+   * local offsets, and apply via the host API.
+   */
+  private tryHostGrammarEditWithFullBlockOffsets(
+    elem: HTMLElement,
+    brLineText: string,
+    localReplaceStart: number,
+    localReplaceEnd: number,
+    replacementText: string,
+    localCursorAfter: number,
+  ): { didMutateDom: boolean; didDispatchInput: boolean } | null {
+    const session = this.hostEditorAdapterResolver.resolve(elem);
+    if (!session) {
+      return null;
+    }
+    const hostBlockContext = session.getBlockContextAtSelection();
+    if (!hostBlockContext) {
+      return null;
+    }
+    const hostBlockText = hostBlockContext.blockText;
+    // Strip zero-width filler characters that CKEditor-5 inserts in the DOM
+    // but that don't exist in its model text.
+    const cleanBrLineText = stripFillerChars(brLineText);
+    if (hostBlockText === cleanBrLineText) {
+      return null;
+    }
+    // The BR-separated line should appear as a substring of the host's full
+    // block text.  We locate it by anchoring on the cursor position: the host
+    // reports beforeCursor whose suffix must match the BR-line beforeCursor.
+    const cleanBrBefore = stripFillerChars(brLineText.slice(0, localReplaceEnd));
+    const hostBefore = this.normalizeComparableBlockText(hostBlockContext.beforeCursor);
+    if (!hostBefore.endsWith(this.normalizeComparableBlockText(cleanBrBefore))) {
+      return null;
+    }
+    const lineOffset = hostBefore.length - cleanBrBefore.length;
+    // Recompute local offsets in terms of the clean (filler-stripped) text.
+    const fillerOffset = brLineText.length - cleanBrLineText.length;
+    const cleanReplaceStart = Math.max(0, localReplaceStart - fillerOffset);
+    const cleanReplaceEnd = Math.max(0, localReplaceEnd - fillerOffset);
+    const cleanCursorAfter = Math.max(0, localCursorAfter - fillerOffset);
+    const fullReplaceStart = lineOffset + cleanReplaceStart;
+    const fullReplaceEnd = lineOffset + cleanReplaceEnd;
+    const fullCursorAfter = lineOffset + cleanCursorAfter;
+    if (fullReplaceStart < 0 || fullReplaceEnd > hostBlockText.length || fullCursorAfter < 0) {
+      return null;
+    }
+    // Verify the text at the computed range matches what we expect to replace.
+    const textAtRange = hostBlockText.slice(fullReplaceStart, fullReplaceEnd);
+    const expectedText = stripFillerChars(brLineText.slice(localReplaceStart, localReplaceEnd));
+    if (
+      this.normalizeComparableBlockText(textAtRange) !==
+      this.normalizeComparableBlockText(expectedText)
+    ) {
+      return null;
+    }
+    const hostResult = session.applyBlockReplacement({
+      replaceStart: fullReplaceStart,
+      replaceEnd: fullReplaceEnd,
+      replacementText,
+      cursorAfter: fullCursorAfter,
+    });
+    if (!hostResult.applied) {
+      return null;
+    }
+    return {
+      didMutateDom: true,
+      didDispatchInput: hostResult.didDispatchInput,
+    };
+  }
+
   private resolveHostEditorSession(
     elem: HTMLElement,
     expectedBlockContext: {
@@ -1105,6 +1240,20 @@ export class SuggestionTextEditService {
         didMutateDom: result.applied,
         didDispatchInput: result.didDispatchInput,
       };
+    }
+
+    // When the primary host session match failed (e.g. BR-separated line
+    // context vs CKEditor-5 full-block), try with translated offsets.
+    const fallbackResult = this.tryHostGrammarEditWithFullBlockOffsets(
+      elem as HTMLElement,
+      blockSourceText,
+      replaceStart,
+      replaceEnd,
+      replacementText,
+      cursorAfter,
+    );
+    if (fallbackResult) {
+      return fallbackResult;
     }
 
     const initialApplyResult = this.replaceTextByOffsets(

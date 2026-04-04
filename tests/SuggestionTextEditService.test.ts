@@ -2038,4 +2038,329 @@ describe("SuggestionTextEditService", () => {
     expect(entry.pendingExtensionEdit).toBeNull();
     expect(input.value).toBe("t");
   });
+
+  test("routes block-scoped grammar edit through host editor session when available", () => {
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    editable.textContent = "hello world";
+    document.body.appendChild(editable);
+    setContentEditableCursor(editable, 1);
+
+    let blockText = "hello world";
+    let beforeCursor = "h";
+    let afterCursor = "ello world";
+    let applyCalls = 0;
+    const pageBridge: HostEditorPageBridge = {
+      getBlockContextAtSelection() {
+        return { beforeCursor, afterCursor, blockText };
+      },
+      applyBlockReplacement(_elem, args) {
+        applyCalls += 1;
+        blockText = `${blockText.slice(0, args.replaceStart)}${args.replacementText}${blockText.slice(args.replaceEnd)}`;
+        beforeCursor = blockText.slice(0, args.cursorAfter);
+        afterCursor = blockText.slice(args.cursorAfter);
+        editable.textContent = blockText;
+        setContentEditableCursor(editable, args.cursorAfter);
+        return { applied: true, didDispatchInput: false };
+      },
+    };
+
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+      hostEditorAdapterResolver: new HostEditorAdapterResolver(pageBridge),
+    });
+    const entry = createSuggestionEntry({ elem: editable });
+
+    const result = service.applyGrammarEdit(
+      entry,
+      {
+        replacement: "H",
+        deleteBackwards: 1,
+        deleteForwards: 0,
+        sourceRuleId: "capitalizeSentenceStart",
+      },
+      {
+        snapshot: {
+          beforeCursor: "h",
+          afterCursor: "ello world",
+          cursorOffset: 1,
+        },
+        contentEditableContext: {
+          beforeCursor: "h",
+          afterCursor: "ello world",
+          useFullTextOffsets: false,
+        },
+      },
+    );
+
+    expect(result).toEqual({ applied: true, didDispatchInput: false });
+    expect(applyCalls).toBe(1);
+    expect(editable.textContent).toBe("Hello world");
+  });
+
+  test("grammar edit via host session sets correct pendingExtensionEdit for undo", () => {
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    editable.textContent = "hello world";
+    document.body.appendChild(editable);
+    setContentEditableCursor(editable, 1);
+
+    let blockText = "hello world";
+    let beforeCursor = "h";
+    let afterCursor = "ello world";
+    const pageBridge: HostEditorPageBridge = {
+      getBlockContextAtSelection() {
+        return { beforeCursor, afterCursor, blockText };
+      },
+      applyBlockReplacement(_elem, args) {
+        blockText = `${blockText.slice(0, args.replaceStart)}${args.replacementText}${blockText.slice(args.replaceEnd)}`;
+        beforeCursor = blockText.slice(0, args.cursorAfter);
+        afterCursor = blockText.slice(args.cursorAfter);
+        editable.textContent = blockText;
+        setContentEditableCursor(editable, args.cursorAfter);
+        return { applied: true, didDispatchInput: false };
+      },
+    };
+
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+      hostEditorAdapterResolver: new HostEditorAdapterResolver(pageBridge),
+    });
+    const entry = createSuggestionEntry({ elem: editable });
+
+    service.applyGrammarEdit(
+      entry,
+      {
+        replacement: "H",
+        deleteBackwards: 1,
+        deleteForwards: 0,
+        sourceRuleId: "capitalizeSentenceStart",
+      },
+      {
+        snapshot: {
+          beforeCursor: "h",
+          afterCursor: "ello world",
+          cursorOffset: 1,
+        },
+        contentEditableContext: {
+          beforeCursor: "h",
+          afterCursor: "ello world",
+          useFullTextOffsets: false,
+        },
+      },
+    );
+
+    expect(entry.pendingExtensionEdit).not.toBeNull();
+    expect(entry.pendingExtensionEdit?.source).toBe("grammar");
+    expect(entry.pendingExtensionEdit?.originalText).toBe("h");
+    expect(entry.pendingExtensionEdit?.replacementText).toBe("H");
+    expect(entry.pendingExtensionEdit?.replaceStart).toBe(0);
+  });
+
+  test("falls back to replaceTextByOffsets for grammar edit when host session is not available", () => {
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+    });
+
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    editable.textContent = "teh ";
+    document.body.appendChild(editable);
+    setContentEditableCursor(editable, 4);
+    const entry = createSuggestionEntry({ elem: editable });
+
+    const result = service.applyGrammarEdit(
+      entry,
+      {
+        replacement: "the ",
+        deleteBackwards: 4,
+        deleteForwards: 0,
+        sourceRuleId: "typoFix",
+      },
+      {
+        snapshot: {
+          beforeCursor: "teh ",
+          afterCursor: "",
+          cursorOffset: 4,
+        },
+        contentEditableContext: {
+          beforeCursor: "teh ",
+          afterCursor: "",
+          useFullTextOffsets: false,
+        },
+      },
+    );
+
+    expect(result).toEqual({ applied: true, didDispatchInput: true });
+    expect(editable.textContent).toBe("the ");
+  });
+
+  test("translates BR-separated line offsets to full-block offsets for host grammar edit", () => {
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    // Simulate a block with text before and after a <br>
+    editable.textContent = "First line. second line. a";
+    document.body.appendChild(editable);
+    setContentEditableCursor(editable, 26);
+
+    // The host editor sees the FULL block text
+    let fullBlockText = "First line. second line. a";
+    let hostBeforeCursor = "First line. second line. a";
+    let hostAfterCursor = "";
+    let applyCalls = 0;
+    let lastApplyArgs: {
+      replaceStart: number;
+      replaceEnd: number;
+      replacementText: string;
+      cursorAfter: number;
+    } | null = null;
+    const pageBridge: HostEditorPageBridge = {
+      getBlockContextAtSelection() {
+        return {
+          beforeCursor: hostBeforeCursor,
+          afterCursor: hostAfterCursor,
+          blockText: fullBlockText,
+        };
+      },
+      applyBlockReplacement(_elem, args) {
+        applyCalls += 1;
+        lastApplyArgs = {
+          replaceStart: args.replaceStart,
+          replaceEnd: args.replaceEnd,
+          replacementText: args.replacementText,
+          cursorAfter: args.cursorAfter,
+        };
+        fullBlockText = `${fullBlockText.slice(0, args.replaceStart)}${args.replacementText}${fullBlockText.slice(args.replaceEnd)}`;
+        hostBeforeCursor = fullBlockText.slice(0, args.cursorAfter);
+        hostAfterCursor = fullBlockText.slice(args.cursorAfter);
+        editable.textContent = fullBlockText;
+        setContentEditableCursor(editable, args.cursorAfter);
+        return { applied: true, didDispatchInput: false };
+      },
+    };
+
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+      hostEditorAdapterResolver: new HostEditorAdapterResolver(pageBridge),
+    });
+    const entry = createSuggestionEntry({ elem: editable });
+
+    // FluentTyper sees the BR-separated line context: "second line. a"
+    // Grammar wants to capitalize 'a' -> 'A' (deleteBackwards: 1, replacement: "A")
+    const result = service.applyGrammarEdit(
+      entry,
+      {
+        replacement: "A",
+        deleteBackwards: 1,
+        deleteForwards: 0,
+        sourceRuleId: "capitalizeSentenceStart",
+      },
+      {
+        snapshot: {
+          beforeCursor: "First line. second line. a",
+          afterCursor: "",
+          cursorOffset: 26,
+        },
+        contentEditableContext: {
+          // BR-separated line context (text after the BR)
+          beforeCursor: "second line. a",
+          afterCursor: "",
+          useFullTextOffsets: false,
+        },
+      },
+    );
+
+    expect(result).toEqual({ applied: true, didDispatchInput: false });
+    expect(applyCalls).toBe(1);
+    // The replacement should happen at offset 25 in the full block (not offset 13)
+    expect(lastApplyArgs?.replaceStart).toBe(25);
+    expect(lastApplyArgs?.replaceEnd).toBe(26);
+    expect(lastApplyArgs?.replacementText).toBe("A");
+    expect(lastApplyArgs?.cursorAfter).toBe(26);
+    expect(editable.textContent).toBe("First line. second line. A");
+  });
+
+  test("routes suggestion acceptance through host with full-block offset translation for BR-separated lines", () => {
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    // Build DOM with a <br> to trigger BR-separated line context
+    editable.appendChild(document.createTextNode("First line."));
+    editable.appendChild(document.createElement("br"));
+    editable.appendChild(document.createTextNode("tes"));
+    document.body.appendChild(editable);
+    // Place cursor at end of "tes" (the text node after <br>)
+    const textAfterBr = editable.childNodes[2] as Text;
+    const range = document.createRange();
+    range.setStart(textAfterBr, 3);
+    range.collapse(true);
+    const selection = window.getSelection();
+    if (selection) {
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+
+    // Host editor sees full block text (no BR separation)
+    let fullBlockText = "First line.tes";
+    let hostBeforeCursor = "First line.tes";
+    let hostAfterCursor = "";
+    let applyCalls = 0;
+    let lastApplyArgs: {
+      replaceStart: number;
+      replaceEnd: number;
+      replacementText: string;
+      cursorAfter: number;
+    } | null = null;
+    const pageBridge: HostEditorPageBridge = {
+      getBlockContextAtSelection() {
+        return {
+          beforeCursor: hostBeforeCursor,
+          afterCursor: hostAfterCursor,
+          blockText: fullBlockText,
+        };
+      },
+      applyBlockReplacement(_elem, args) {
+        applyCalls += 1;
+        lastApplyArgs = {
+          replaceStart: args.replaceStart,
+          replaceEnd: args.replaceEnd,
+          replacementText: args.replacementText,
+          cursorAfter: args.cursorAfter,
+        };
+        fullBlockText = `${fullBlockText.slice(0, args.replaceStart)}${args.replacementText}${fullBlockText.slice(args.replaceEnd)}`;
+        hostBeforeCursor = fullBlockText.slice(0, args.cursorAfter);
+        hostAfterCursor = fullBlockText.slice(args.cursorAfter);
+        editable.textContent = fullBlockText;
+        setContentEditableCursor(editable, args.cursorAfter);
+        return { applied: true, didDispatchInput: false };
+      },
+    };
+
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+      hostEditorAdapterResolver: new HostEditorAdapterResolver(pageBridge),
+    });
+    const entry = createSuggestionEntry({
+      elem: editable,
+      latestMentionText: "tes",
+      latestMentionStart: -1,
+    });
+
+    const accepted = service.acceptSuggestion(entry, "test ");
+
+    expect(accepted).not.toBeNull();
+    expect(applyCalls).toBe(1);
+    // The replacement should happen at offset 11 in the full block
+    expect(lastApplyArgs?.replaceStart).toBe(11);
+    expect((editable.textContent ?? "").replace(/\u00a0/g, " ")).toBe("First line.test ");
+  });
 });
