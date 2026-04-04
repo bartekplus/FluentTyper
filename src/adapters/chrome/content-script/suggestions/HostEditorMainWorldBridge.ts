@@ -27,6 +27,263 @@ type BridgeRequest =
       expectedBlockText: string;
     };
 
+// ── CKEditor-5 integration ──────────────────────────────────────────
+// CKEditor-5 stores its editor instance on the root editable element as
+// `ckeditorInstance`.  We use the model API to apply replacements so the
+// editor's internal model stays consistent with the DOM.  This avoids
+// the problems caused by dispatching synthetic beforeinput events which
+// CKEditor-5 handles using its own (stale) model selection.
+
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument */
+interface CKEditorModel {
+  document: { selection: { getFirstPosition(): any } };
+  change(callback: (writer: any) => void): void;
+}
+
+interface CKEditorInstance {
+  model: CKEditorModel;
+}
+
+const ckEditorInstanceCache = new WeakMap<HTMLElement, CKEditorInstance | null>();
+
+function findCKEditor5Instance(elem: HTMLElement): CKEditorInstance | null {
+  const cached = ckEditorInstanceCache.get(elem);
+  if (cached !== undefined) {
+    return cached;
+  }
+  let current: any = elem;
+  while (current) {
+    try {
+      if (
+        current.ckeditorInstance &&
+        typeof current.ckeditorInstance.model?.change === "function"
+      ) {
+        const instance = current.ckeditorInstance as CKEditorInstance;
+        ckEditorInstanceCache.set(elem, instance);
+        return instance;
+      }
+    } catch {
+      // Property access may throw on exotic host objects.
+    }
+    current = current.parentElement;
+  }
+  ckEditorInstanceCache.set(elem, null);
+  return null;
+}
+
+/**
+ * Mapping between plain-text offsets (used by FluentTyper / DOM textContent)
+ * and CKEditor-5 model offsets.  softBreak elements count as 1 model offset
+ * but contribute 0 text characters, so every softBreak before a position adds
+ * +1 to the model offset relative to the text offset.
+ */
+interface BlockTextMapping {
+  text: string;
+  /** Model offsets at which softBreak elements occur (sorted ascending). */
+  softBreakModelOffsets: number[];
+}
+
+function extractModelBlockMapping(block: any): BlockTextMapping | null {
+  if (!block || typeof block.getChildren !== "function") {
+    return null;
+  }
+  let text = "";
+  const softBreakModelOffsets: number[] = [];
+  let modelOffset = 0;
+  for (const child of block.getChildren()) {
+    if (typeof child.data === "string") {
+      text += child.data;
+      modelOffset += child.data.length;
+    } else if (child.is && (child.is("softBreak") || child.is("element", "softBreak"))) {
+      softBreakModelOffsets.push(modelOffset);
+      modelOffset += 1;
+    } else if (child.is && !child.is("$text") && !child.is("$textProxy")) {
+      // Inline object (image, widget, etc.) – offsets diverge unpredictably.
+      return null;
+    } else if (!child.is) {
+      // Unknown node type without an `is` method (exotic 3rd-party plugin).
+      return null;
+    }
+  }
+  return { text, softBreakModelOffsets };
+}
+
+/**
+ * Convert a plain-text offset to a CKEditor-5 model offset.
+ *
+ * @param endpoint — `"start"` (default) maps to the position AFTER a
+ *   softBreak when the text offset sits exactly at the boundary.  Use for
+ *   range starts and cursor positions.  `"end"` maps to BEFORE the
+ *   softBreak, which is correct for range ends so the softBreak element
+ *   itself is not included in a removal range.
+ */
+function textOffsetToModelOffset(
+  textOffset: number,
+  softBreakModelOffsets: number[],
+  endpoint: "start" | "end" = "start",
+): number {
+  let adjustment = 0;
+  for (const sbModelOffset of softBreakModelOffsets) {
+    const crosses =
+      endpoint === "end"
+        ? sbModelOffset < textOffset + adjustment
+        : sbModelOffset <= textOffset + adjustment;
+    if (crosses) {
+      adjustment += 1;
+    } else {
+      break;
+    }
+  }
+  return textOffset + adjustment;
+}
+
+/** Convert a CKEditor-5 model offset to a plain-text offset. */
+function modelOffsetToTextOffset(modelOffset: number, softBreakModelOffsets: number[]): number {
+  let adjustment = 0;
+  for (const sbModelOffset of softBreakModelOffsets) {
+    if (sbModelOffset < modelOffset) {
+      adjustment += 1;
+    } else {
+      break;
+    }
+  }
+  return modelOffset - adjustment;
+}
+
+function getCKEditor5BlockContext(
+  editor: CKEditorInstance,
+): { beforeCursor: string; afterCursor: string; blockText: string } | null {
+  const position = editor.model.document.selection.getFirstPosition();
+  if (!position) {
+    return null;
+  }
+  const block = position.parent;
+  if (!block) {
+    return null;
+  }
+  if (typeof block.is === "function" && block.is("rootElement")) {
+    return null;
+  }
+  const mapping = extractModelBlockMapping(block);
+  if (mapping === null) {
+    return null;
+  }
+  const textOffset = modelOffsetToTextOffset(position.offset, mapping.softBreakModelOffsets);
+  if (textOffset < 0 || textOffset > mapping.text.length) {
+    return null;
+  }
+  return {
+    beforeCursor: mapping.text.slice(0, textOffset),
+    afterCursor: mapping.text.slice(textOffset),
+    blockText: mapping.text,
+  };
+}
+
+function applyCKEditor5BlockReplacement(
+  editor: CKEditorInstance,
+  request: Extract<BridgeRequest, { action: "applyBlockReplacement" }>,
+): { applied: boolean; didDispatchInput: boolean } {
+  const position = editor.model.document.selection.getFirstPosition();
+  if (!position) {
+    return { applied: false, didDispatchInput: false };
+  }
+  const block = position.parent;
+  if (!block) {
+    return { applied: false, didDispatchInput: false };
+  }
+  const mapping = extractModelBlockMapping(block);
+  if (
+    mapping === null ||
+    mapping.text !== request.expectedBlockText ||
+    request.replaceStart < 0 ||
+    request.replaceEnd < request.replaceStart ||
+    request.replaceEnd > mapping.text.length
+  ) {
+    return { applied: false, didDispatchInput: false };
+  }
+  const expectedLength =
+    mapping.text.length -
+    (request.replaceEnd - request.replaceStart) +
+    request.replacementText.length;
+  if (request.cursorAfter < 0 || request.cursorAfter > expectedLength) {
+    return { applied: false, didDispatchInput: false };
+  }
+
+  // Translate text offsets to model offsets (accounting for softBreaks).
+  const modelReplaceStart = textOffsetToModelOffset(
+    request.replaceStart,
+    mapping.softBreakModelOffsets,
+  );
+  const modelReplaceEnd = textOffsetToModelOffset(
+    request.replaceEnd,
+    mapping.softBreakModelOffsets,
+    "end",
+  );
+  // After the replacement, softBreaks inside the deleted range no longer
+  // exist.  Filter them out, then shift the survivors that come after the
+  // edit by the length delta.
+  const replacedLength = request.replaceEnd - request.replaceStart;
+  const lengthDelta = request.replacementText.length - replacedLength;
+  const updatedSoftBreakOffsets = mapping.softBreakModelOffsets
+    .filter((sbOffset) => sbOffset <= modelReplaceStart || sbOffset >= modelReplaceEnd)
+    .map((sbOffset) => (sbOffset > modelReplaceStart ? sbOffset + lengthDelta : sbOffset));
+  // Use "end" when the cursor sits at the replacement boundary so it stays
+  // on the same line as the replaced text (before a softBreak).  Use "start"
+  // when the cursor is past the replacement (e.g. on the next line).
+  const cursorIsAtReplacementBoundary =
+    request.cursorAfter <= request.replaceStart + request.replacementText.length;
+  const modelCursorAfter = textOffsetToModelOffset(
+    request.cursorAfter,
+    updatedSoftBreakOffsets,
+    cursorIsAtReplacementBoundary ? "end" : "start",
+  );
+
+  // Capture text attributes (bold, italic, etc.) at the replacement start so
+  // the inserted text preserves the surrounding formatting.
+  let textAttrs: Record<string, unknown> | null = null;
+  try {
+    const probePos = editor.model.document.selection.getFirstPosition();
+    if (probePos) {
+      const node = probePos.textNode ?? probePos.nodeBefore ?? probePos.nodeAfter;
+      if (node && typeof node.getAttributes === "function") {
+        const attrs: Record<string, unknown> = {};
+        for (const [key, value] of node.getAttributes()) {
+          attrs[key] = value;
+        }
+        if (Object.keys(attrs).length > 0) {
+          textAttrs = attrs;
+        }
+      }
+    }
+  } catch {
+    // Best-effort: proceed without attributes.
+  }
+
+  try {
+    editor.model.change((writer: any) => {
+      const startPos = writer.createPositionAt(block, modelReplaceStart);
+      const endPos = writer.createPositionAt(block, modelReplaceEnd);
+      const range = writer.createRange(startPos, endPos);
+      writer.remove(range);
+      if (request.replacementText.length > 0) {
+        const insertPos = writer.createPositionAt(block, modelReplaceStart);
+        if (textAttrs) {
+          writer.insertText(request.replacementText, textAttrs, insertPos);
+        } else {
+          writer.insertText(request.replacementText, insertPos);
+        }
+      }
+      const cursorPos = writer.createPositionAt(block, modelCursorAfter);
+      writer.setSelection(cursorPos);
+    });
+  } catch {
+    return { applied: false, didDispatchInput: false };
+  }
+
+  return { applied: true, didDispatchInput: false };
+}
+/* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument */
+
 function findLineEditorController(elem: HTMLElement): LineEditorController | null {
   let current: HTMLElement | null = elem;
   while (current) {
@@ -203,6 +460,21 @@ export function installHostEditorMainWorldBridge(doc: Document = document): void
               ok: true,
               result: applyBlockReplacement(controller, source, request),
             };
+          }
+        } else {
+          const ckEditor = findCKEditor5Instance(source);
+          if (ckEditor) {
+            if (request.action === "getBlockContext") {
+              const blockContext = getCKEditor5BlockContext(ckEditor);
+              if (blockContext) {
+                response = { ok: true, blockContext };
+              }
+            } else {
+              response = {
+                ok: true,
+                result: applyCKEditor5BlockReplacement(ckEditor, request),
+              };
+            }
           }
         }
       } catch {
