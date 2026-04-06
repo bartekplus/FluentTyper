@@ -629,6 +629,26 @@ export class SuggestionTextEditService {
           }
         }
         if (applyResult === null) {
+          applyResult = this.tryHostGrammarEditWithMissingLeadingRange(
+            entry.elem as HTMLElement,
+            blockSourceText,
+            blockReplaceStart,
+            blockReplaceEnd,
+            replacement,
+            blockCursorAfter,
+          );
+        }
+        if (applyResult === null) {
+          applyResult = this.tryHostGrammarEditWithMatchingBlockText(
+            entry.elem as HTMLElement,
+            blockSourceText,
+            blockReplaceStart,
+            blockReplaceEnd,
+            replacement,
+            blockCursorAfter,
+          );
+        }
+        if (applyResult === null) {
           // The primary match may fail when getBlockContext returns a
           // BR-separated line but the host editor (e.g. CKEditor-5) uses
           // the full paragraph block.  Translate local offsets into the
@@ -1176,6 +1196,97 @@ export class SuggestionTextEditService {
       replaceEnd: fullReplaceEnd,
       replacementText,
       cursorAfter: fullCursorAfter,
+    });
+    if (!hostResult.applied) {
+      return null;
+    }
+    return {
+      didMutateDom: true,
+      didDispatchInput: hostResult.didDispatchInput,
+    };
+  }
+
+  private tryHostGrammarEditWithMatchingBlockText(
+    elem: HTMLElement,
+    blockText: string,
+    replaceStart: number,
+    replaceEnd: number,
+    replacementText: string,
+    cursorAfter: number,
+  ): { didMutateDom: boolean; didDispatchInput: boolean } | null {
+    const session = this.hostEditorAdapterResolver.resolve(elem);
+    if (!session) {
+      return null;
+    }
+    const hostBlockContext = session.getBlockContextAtSelection();
+    if (!hostBlockContext) {
+      return null;
+    }
+    if (
+      this.normalizeComparableBlockText(hostBlockContext.blockText) !==
+      this.normalizeComparableBlockText(blockText)
+    ) {
+      return null;
+    }
+
+    const hostSlice = hostBlockContext.blockText.slice(replaceStart, replaceEnd);
+    const expectedSlice = blockText.slice(replaceStart, replaceEnd);
+    if (this.normalizeComparableBlockText(hostSlice) !== this.normalizeComparableBlockText(expectedSlice)) {
+      return null;
+    }
+
+    const hostResult = session.applyBlockReplacement({
+      replaceStart,
+      replaceEnd,
+      replacementText,
+      cursorAfter,
+    });
+    if (!hostResult.applied) {
+      return null;
+    }
+    return {
+      didMutateDom: true,
+      didDispatchInput: hostResult.didDispatchInput,
+    };
+  }
+
+  private tryHostGrammarEditWithMissingLeadingRange(
+    elem: HTMLElement,
+    blockText: string,
+    replaceStart: number,
+    replaceEnd: number,
+    replacementText: string,
+    cursorAfter: number,
+  ): { didMutateDom: boolean; didDispatchInput: boolean } | null {
+    if (
+      replaceStart !== 0 ||
+      blockText.length < 1
+    ) {
+      return null;
+    }
+
+    const session = this.hostEditorAdapterResolver.resolve(elem);
+    if (!session) {
+      return null;
+    }
+    const hostBlockContext = session.getBlockContextAtSelection();
+    if (!hostBlockContext) {
+      return null;
+    }
+
+    const hostBlockText = this.normalizeComparableBlockText(hostBlockContext.blockText);
+    const expectedTail = this.normalizeComparableBlockText(
+      `${blockText.slice(0, replaceStart)}${blockText.slice(replaceEnd)}`,
+    );
+    if (hostBlockText !== expectedTail) {
+      return null;
+    }
+
+    const hostResult = session.applyBlockReplacement({
+      replaceStart,
+      replaceEnd: replaceStart,
+      replacementText,
+      cursorAfter,
     });
     if (!hostResult.applied) {
       return null;

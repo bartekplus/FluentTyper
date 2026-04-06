@@ -2161,6 +2161,144 @@ describe("SuggestionTextEditService", () => {
     expect(entry.pendingExtensionEdit?.replaceStart).toBe(0);
   });
 
+  test("routes grammar edit through host when block text matches but cursor split is stale", () => {
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    editable.textContent = "dThe";
+    document.body.appendChild(editable);
+    setContentEditableCursor(editable, 1);
+
+    let blockText = "dThe";
+    let beforeCursor = "";
+    let afterCursor = "dThe";
+    let applyCalls = 0;
+    const pageBridge: HostEditorPageBridge = {
+      getBlockContextAtSelection() {
+        return { beforeCursor, afterCursor, blockText };
+      },
+      applyBlockReplacement(_elem, args) {
+        applyCalls += 1;
+        blockText = `${blockText.slice(0, args.replaceStart)}${args.replacementText}${blockText.slice(args.replaceEnd)}`;
+        beforeCursor = blockText.slice(0, args.cursorAfter);
+        afterCursor = blockText.slice(args.cursorAfter);
+        editable.textContent = blockText;
+        setContentEditableCursor(editable, args.cursorAfter);
+        return { applied: true, didDispatchInput: false };
+      },
+    };
+
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+      hostEditorAdapterResolver: new HostEditorAdapterResolver(pageBridge),
+    });
+    const entry = createSuggestionEntry({ elem: editable });
+
+    const result = service.applyGrammarEdit(
+      entry,
+      {
+        replacement: "D",
+        deleteBackwards: 1,
+        deleteForwards: 0,
+        sourceRuleId: "capitalizeFirstLetter",
+      },
+      {
+        snapshot: {
+          beforeCursor: "d",
+          afterCursor: "The",
+          cursorOffset: 1,
+        },
+        contentEditableContext: {
+          beforeCursor: "d",
+          afterCursor: "The",
+          useFullTextOffsets: false,
+        },
+      },
+    );
+
+    expect(result).toEqual({ applied: true, didDispatchInput: false });
+    expect(applyCalls).toBe(1);
+    expect(editable.textContent).toBe("DThe");
+  });
+
+  test("routes leading-char grammar edit through host when the typed DOM char has not reached the host model yet", () => {
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    editable.textContent = "dThe";
+    document.body.appendChild(editable);
+    setContentEditableCursor(editable, 1);
+
+    let blockText = "The";
+    let beforeCursor = "T";
+    let afterCursor = "he";
+    let applyCalls = 0;
+    let lastApplyArgs:
+      | {
+          replaceStart: number;
+          replaceEnd: number;
+          replacementText: string;
+          cursorAfter: number;
+        }
+      | null = null;
+    const pageBridge: HostEditorPageBridge = {
+      getBlockContextAtSelection() {
+        return { beforeCursor, afterCursor, blockText };
+      },
+      applyBlockReplacement(_elem, args) {
+        applyCalls += 1;
+        lastApplyArgs = { ...args };
+        blockText = `${blockText.slice(0, args.replaceStart)}${args.replacementText}${blockText.slice(args.replaceEnd)}`;
+        beforeCursor = blockText.slice(0, args.cursorAfter);
+        afterCursor = blockText.slice(args.cursorAfter);
+        editable.textContent = blockText;
+        setContentEditableCursor(editable, args.cursorAfter);
+        return { applied: true, didDispatchInput: false };
+      },
+    };
+
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+      hostEditorAdapterResolver: new HostEditorAdapterResolver(pageBridge),
+    });
+    const entry = createSuggestionEntry({ elem: editable });
+
+    const result = service.applyGrammarEdit(
+      entry,
+      {
+        replacement: "D",
+        deleteBackwards: 1,
+        deleteForwards: 0,
+        sourceRuleId: "capitalizeFirstLetter",
+      },
+      {
+        snapshot: {
+          beforeCursor: "d",
+          afterCursor: "The",
+          cursorOffset: 1,
+        },
+        contentEditableContext: {
+          beforeCursor: "d",
+          afterCursor: "The",
+          useFullTextOffsets: false,
+        },
+      },
+    );
+
+    expect(result).toEqual({ applied: true, didDispatchInput: false });
+    expect(applyCalls).toBe(1);
+    expect(lastApplyArgs).toEqual({
+      replaceStart: 0,
+      replaceEnd: 0,
+      replacementText: "D",
+      cursorAfter: 1,
+      expectedBlockText: "The",
+    });
+    expect(editable.textContent).toBe("DThe");
+  });
+
   test("falls back to replaceTextByOffsets for grammar edit when host session is not available", () => {
     const service = new SuggestionTextEditService({
       findMentionToken,
