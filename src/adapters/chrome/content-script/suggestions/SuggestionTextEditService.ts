@@ -1826,6 +1826,8 @@ export class SuggestionTextEditService {
     setTimeout(validate, 120);
     setTimeout(validate, 250);
     setTimeout(validate, 500);
+    setTimeout(validate, 1000);
+    setTimeout(validate, 2000);
   }
 
   private dispatchInputEvent(elem: SuggestionElement): void {
