@@ -788,6 +788,14 @@ export class SuggestionTextEditService {
       source: "grammar",
       sourceRuleId: edit.sourceRuleId,
     };
+    if (!TextTargetAdapter.isTextValue(entry.elem)) {
+      this.scheduleDeferredContentEditableGrammarValidation(entry, {
+        expectedFullText,
+        expectedCursorAfter: cursorAfter,
+        expectedBlockText,
+        expectedBlockCursorAfter,
+      });
+    }
     return {
       applied: true,
       didDispatchInput: finalApplyResult.didDispatchInput,
@@ -1715,6 +1723,67 @@ export class SuggestionTextEditService {
       applyResult,
       postEditSnapshot: TextTargetAdapter.snapshot(elem as TextTarget),
     };
+  }
+
+  private scheduleDeferredContentEditableGrammarValidation(
+    entry: SuggestionEntry,
+    {
+      expectedFullText,
+      expectedCursorAfter,
+      expectedBlockText,
+      expectedBlockCursorAfter,
+    }: {
+      expectedFullText: string;
+      expectedCursorAfter: number;
+      expectedBlockText: string | null;
+      expectedBlockCursorAfter: number | null;
+    },
+  ): void {
+    const elem = entry.elem;
+    if (TextTargetAdapter.isTextValue(elem)) {
+      return;
+    }
+
+    let applied = false;
+    const validate = () => {
+      if (applied || !elem.isConnected || entry.pendingExtensionEdit?.source !== "grammar") {
+        return;
+      }
+      const currentSnapshot = TextTargetAdapter.snapshot(elem as TextTarget);
+      if (
+        this.matchesExpectedGrammarResult(currentSnapshot, expectedFullText, expectedCursorAfter)
+      ) {
+        return;
+      }
+
+      const corrected = this.correctContentEditableGrammarMismatch(entry, {
+        expectedFullText,
+        expectedCursorAfter,
+        expectedBlockText,
+        expectedBlockCursorAfter,
+      });
+      if (!corrected) {
+        return;
+      }
+
+      applied = true;
+      this.domPreferredGrammarTargets.add(elem as HTMLElement);
+      if (entry.pendingExtensionEdit) {
+        entry.pendingExtensionEdit.cursorAfter = corrected.postEditSnapshot.cursorOffset;
+        entry.pendingExtensionEdit.postEditFingerprint =
+          TextTargetAdapter.createPostEditFingerprint(
+            elem as TextTarget,
+            corrected.postEditSnapshot,
+          );
+      }
+    };
+
+    if (typeof globalThis.requestAnimationFrame === "function") {
+      globalThis.requestAnimationFrame(validate);
+    } else {
+      setTimeout(validate, 0);
+    }
+    setTimeout(validate, 30);
   }
 
   private dispatchInputEvent(elem: SuggestionElement): void {
