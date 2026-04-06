@@ -2620,7 +2620,10 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
                 return false;
               }
               const normalize = (text: string): string =>
-                text.replace(/\u00a0/g, " ").replace(/\u200b/g, "").trim();
+                text
+                  .replace(/\u00a0/g, " ")
+                  .replace(/\u200b/g, "")
+                  .trim();
               return (
                 normalize(paragraphs[0]?.textContent ?? "") === "First line" &&
                 normalize(paragraphs[1]?.textContent ?? "") === "DThe"

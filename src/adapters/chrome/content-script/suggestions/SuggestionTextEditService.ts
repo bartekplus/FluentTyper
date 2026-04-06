@@ -1231,7 +1231,10 @@ export class SuggestionTextEditService {
 
     const hostSlice = hostBlockContext.blockText.slice(replaceStart, replaceEnd);
     const expectedSlice = blockText.slice(replaceStart, replaceEnd);
-    if (this.normalizeComparableBlockText(hostSlice) !== this.normalizeComparableBlockText(expectedSlice)) {
+    if (
+      this.normalizeComparableBlockText(hostSlice) !==
+      this.normalizeComparableBlockText(expectedSlice)
+    ) {
       return null;
     }
 
@@ -1258,10 +1261,7 @@ export class SuggestionTextEditService {
     replacementText: string,
     cursorAfter: number,
   ): { didMutateDom: boolean; didDispatchInput: boolean } | null {
-    if (
-      replaceStart !== 0 ||
-      blockText.length < 1
-    ) {
+    if (replaceStart !== 0 || blockText.length < 1) {
       return null;
     }
 

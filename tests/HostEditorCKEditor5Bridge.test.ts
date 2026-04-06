@@ -173,10 +173,11 @@ function createCKEditorMockWithDomSelectionBlocks(
           const node =
             viewPosition.domParent.nodeType === Node.TEXT_NODE
               ? viewPosition.domParent
-              : viewPosition.domParent.childNodes[viewPosition.domOffset] ??
+              : (viewPosition.domParent.childNodes[viewPosition.domOffset] ??
                 viewPosition.domParent.childNodes[viewPosition.domOffset - 1] ??
-                viewPosition.domParent;
-          const paragraph = node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as Element);
+                viewPosition.domParent);
+          const paragraph =
+            node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as Element);
           const blockIndex = paragraphs.indexOf(paragraph as HTMLParagraphElement) as 0 | 1;
           return {
             parent: blocks[blockIndex],

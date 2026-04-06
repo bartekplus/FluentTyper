@@ -2234,14 +2234,12 @@ describe("SuggestionTextEditService", () => {
     let beforeCursor = "T";
     let afterCursor = "he";
     let applyCalls = 0;
-    let lastApplyArgs:
-      | {
-          replaceStart: number;
-          replaceEnd: number;
-          replacementText: string;
-          cursorAfter: number;
-        }
-      | null = null;
+    let lastApplyArgs: {
+      replaceStart: number;
+      replaceEnd: number;
+      replacementText: string;
+      cursorAfter: number;
+    } | null = null;
     const pageBridge: HostEditorPageBridge = {
       getBlockContextAtSelection() {
         return { beforeCursor, afterCursor, blockText };
