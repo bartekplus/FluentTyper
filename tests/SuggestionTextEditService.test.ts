@@ -2426,9 +2426,11 @@ describe("SuggestionTextEditService", () => {
       expect(result).toEqual({ applied: true, didDispatchInput: false });
       expect(editable.textContent).toBe("DThe");
 
-      editable.textContent = "DdThe";
-      setContentEditableCursor(editable, 2);
-      jest.advanceTimersByTime(31);
+      setTimeout(() => {
+        editable.textContent = "DdThe";
+        setContentEditableCursor(editable, 2);
+      }, 75);
+      jest.advanceTimersByTime(130);
 
       expect(editable.textContent).toBe("DThe");
     } finally {
