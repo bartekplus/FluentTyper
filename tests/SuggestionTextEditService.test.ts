@@ -2430,8 +2430,8 @@ describe("SuggestionTextEditService", () => {
       setTimeout(() => {
         editable.textContent = "DdThe";
         setContentEditableCursor(editable, 2);
-      }, 75);
-      jest.advanceTimersByTime(130);
+      }, 350);
+      jest.advanceTimersByTime(550);
 
       expect(editable.textContent).toBe("DThe");
     } finally {
