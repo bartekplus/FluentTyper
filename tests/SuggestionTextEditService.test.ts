@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, jest, test } from "bun:test";
 import { ContentEditableAdapter } from "../src/adapters/chrome/content-script/suggestions/ContentEditableAdapter";
 import { HostEditorAdapterResolver } from "../src/adapters/chrome/content-script/suggestions/HostEditorAdapterResolver";
 import type { HostEditorPageBridge } from "../src/adapters/chrome/content-script/suggestions/HostEditorPageBridge";
@@ -2295,6 +2295,150 @@ describe("SuggestionTextEditService", () => {
       expectedBlockText: "The",
     });
     expect(editable.textContent).toBe("DThe");
+  });
+
+  test("does not reapply deferred grammar correction for plain contenteditable after further user input", () => {
+    jest.useFakeTimers();
+    const originalRequestAnimationFrame = globalThis.requestAnimationFrame;
+    (
+      globalThis as typeof globalThis & {
+        requestAnimationFrame?: typeof requestAnimationFrame;
+      }
+    ).requestAnimationFrame = undefined;
+
+    try {
+      const service = new SuggestionTextEditService({
+        findMentionToken,
+        isSeparator: (value) => /\s/.test(value),
+      });
+
+      const editable = document.createElement("div");
+      editable.setAttribute("contenteditable", "true");
+      Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+      editable.textContent = "dThe";
+      document.body.appendChild(editable);
+      setContentEditableCursor(editable, 1);
+      const entry = createSuggestionEntry({ elem: editable });
+
+      const result = service.applyGrammarEdit(
+        entry,
+        {
+          replacement: "D",
+          deleteBackwards: 1,
+          deleteForwards: 0,
+          sourceRuleId: "capitalizeFirstLetter",
+        },
+        {
+          snapshot: {
+            beforeCursor: "d",
+            afterCursor: "The",
+            cursorOffset: 1,
+          },
+          contentEditableContext: {
+            beforeCursor: "d",
+            afterCursor: "The",
+            useFullTextOffsets: false,
+          },
+        },
+      );
+
+      expect(result).toEqual({ applied: true, didDispatchInput: true });
+      expect(editable.textContent).toBe("DThe");
+
+      editable.textContent = "DThex";
+      setContentEditableCursor(editable, 5);
+      jest.advanceTimersByTime(31);
+
+      expect(editable.textContent).toBe("DThex");
+    } finally {
+      (
+        globalThis as typeof globalThis & {
+          requestAnimationFrame?: typeof requestAnimationFrame;
+        }
+      ).requestAnimationFrame = originalRequestAnimationFrame;
+      jest.useRealTimers();
+    }
+  });
+
+  test("reapplies deferred grammar correction for host editor after late DOM echo", () => {
+    jest.useFakeTimers();
+    const originalRequestAnimationFrame = globalThis.requestAnimationFrame;
+    (
+      globalThis as typeof globalThis & {
+        requestAnimationFrame?: typeof requestAnimationFrame;
+      }
+    ).requestAnimationFrame = undefined;
+
+    try {
+      const editable = document.createElement("div");
+      editable.setAttribute("contenteditable", "true");
+      Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+      editable.textContent = "dThe";
+      document.body.appendChild(editable);
+      setContentEditableCursor(editable, 1);
+
+      let blockText = "dThe";
+      let beforeCursor = "d";
+      let afterCursor = "The";
+      const pageBridge: HostEditorPageBridge = {
+        getBlockContextAtSelection() {
+          return { beforeCursor, afterCursor, blockText };
+        },
+        applyBlockReplacement(_elem, args) {
+          blockText = `${blockText.slice(0, args.replaceStart)}${args.replacementText}${blockText.slice(args.replaceEnd)}`;
+          beforeCursor = blockText.slice(0, args.cursorAfter);
+          afterCursor = blockText.slice(args.cursorAfter);
+          editable.textContent = blockText;
+          setContentEditableCursor(editable, args.cursorAfter);
+          return { applied: true, didDispatchInput: false };
+        },
+      };
+
+      const service = new SuggestionTextEditService({
+        findMentionToken,
+        isSeparator: (value) => /\s/.test(value),
+        hostEditorAdapterResolver: new HostEditorAdapterResolver(pageBridge),
+      });
+      const entry = createSuggestionEntry({ elem: editable });
+
+      const result = service.applyGrammarEdit(
+        entry,
+        {
+          replacement: "D",
+          deleteBackwards: 1,
+          deleteForwards: 0,
+          sourceRuleId: "capitalizeFirstLetter",
+        },
+        {
+          snapshot: {
+            beforeCursor: "d",
+            afterCursor: "The",
+            cursorOffset: 1,
+          },
+          contentEditableContext: {
+            beforeCursor: "d",
+            afterCursor: "The",
+            useFullTextOffsets: false,
+          },
+        },
+      );
+
+      expect(result).toEqual({ applied: true, didDispatchInput: false });
+      expect(editable.textContent).toBe("DThe");
+
+      editable.textContent = "DdThe";
+      setContentEditableCursor(editable, 2);
+      jest.advanceTimersByTime(31);
+
+      expect(editable.textContent).toBe("DThe");
+    } finally {
+      (
+        globalThis as typeof globalThis & {
+          requestAnimationFrame?: typeof requestAnimationFrame;
+        }
+      ).requestAnimationFrame = originalRequestAnimationFrame;
+      jest.useRealTimers();
+    }
   });
 
   test("falls back to replaceTextByOffsets for grammar edit when host session is not available", () => {

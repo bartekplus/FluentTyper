@@ -593,6 +593,7 @@ export class SuggestionTextEditService {
             replaceEnd,
             replacement,
           );
+    let usedHostEditorForGrammarEdit = false;
     let applyResult:
       | ContentEditableEditResult
       | { didMutateDom: boolean; didDispatchInput: boolean }
@@ -615,6 +616,7 @@ export class SuggestionTextEditService {
           blockText: blockSourceText,
         });
         if (hostEditorSession) {
+          usedHostEditorForGrammarEdit = true;
           const hostResult = hostEditorSession.applyBlockReplacement({
             replaceStart: blockReplaceStart,
             replaceEnd: blockReplaceEnd,
@@ -637,6 +639,9 @@ export class SuggestionTextEditService {
             replacement,
             blockCursorAfter,
           );
+          if (applyResult !== null) {
+            usedHostEditorForGrammarEdit = true;
+          }
         }
         if (applyResult === null) {
           applyResult = this.tryHostGrammarEditWithMatchingBlockText(
@@ -647,6 +652,9 @@ export class SuggestionTextEditService {
             replacement,
             blockCursorAfter,
           );
+          if (applyResult !== null) {
+            usedHostEditorForGrammarEdit = true;
+          }
         }
         if (applyResult === null) {
           // The primary match may fail when getBlockContext returns a
@@ -661,6 +669,9 @@ export class SuggestionTextEditService {
             replacement,
             blockCursorAfter,
           );
+          if (applyResult !== null) {
+            usedHostEditorForGrammarEdit = true;
+          }
         }
       }
     }
@@ -788,7 +799,7 @@ export class SuggestionTextEditService {
       source: "grammar",
       sourceRuleId: edit.sourceRuleId,
     };
-    if (!TextTargetAdapter.isTextValue(entry.elem)) {
+    if (!TextTargetAdapter.isTextValue(entry.elem) && usedHostEditorForGrammarEdit) {
       this.scheduleDeferredContentEditableGrammarValidation(entry, {
         expectedFullText,
         expectedCursorAfter: cursorAfter,
