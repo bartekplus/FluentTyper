@@ -2426,6 +2426,7 @@ describe("SuggestionTextEditService", () => {
       expect(result).toEqual({ applied: true, didDispatchInput: false });
       expect(editable.textContent).toBe("DThe");
 
+      entry.pendingExtensionEdit = null;
       setTimeout(() => {
         editable.textContent = "DdThe";
         setContentEditableCursor(editable, 2);

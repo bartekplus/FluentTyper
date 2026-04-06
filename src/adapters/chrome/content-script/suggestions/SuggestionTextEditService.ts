@@ -805,6 +805,7 @@ export class SuggestionTextEditService {
         expectedCursorAfter: cursorAfter,
         expectedBlockText,
         expectedBlockCursorAfter,
+        originalText,
       });
     }
     return {
@@ -1142,6 +1143,20 @@ export class SuggestionTextEditService {
       `${snapshot.beforeCursor}${snapshot.afterCursor}` === expectedFullText &&
       snapshot.cursorOffset === expectedCursorAfter
     );
+  }
+
+  private isLikelyLateHostGrammarEcho(
+    snapshot: SuggestionSnapshot,
+    expectedFullText: string,
+    expectedCursorAfter: number,
+    originalText: string,
+  ): boolean {
+    if (originalText.length === 0) {
+      return false;
+    }
+    const currentFullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
+    const echoedFullText = `${expectedFullText.slice(0, expectedCursorAfter)}${originalText}${expectedFullText.slice(expectedCursorAfter)}`;
+    return currentFullText === echoedFullText;
   }
 
   /**
@@ -1743,11 +1758,13 @@ export class SuggestionTextEditService {
       expectedCursorAfter,
       expectedBlockText,
       expectedBlockCursorAfter,
+      originalText,
     }: {
       expectedFullText: string;
       expectedCursorAfter: number;
       expectedBlockText: string | null;
       expectedBlockCursorAfter: number | null;
+      originalText: string;
     },
   ): void {
     const elem = entry.elem;
@@ -1757,13 +1774,24 @@ export class SuggestionTextEditService {
 
     let applied = false;
     const validate = () => {
-      if (applied || !elem.isConnected || entry.pendingExtensionEdit?.source !== "grammar") {
+      if (applied || !elem.isConnected) {
         return;
       }
       const currentSnapshot = TextTargetAdapter.snapshot(elem as TextTarget);
       if (
         this.matchesExpectedGrammarResult(currentSnapshot, expectedFullText, expectedCursorAfter)
       ) {
+        return;
+      }
+      const shouldRepairMismatch =
+        entry.pendingExtensionEdit?.source === "grammar" ||
+        this.isLikelyLateHostGrammarEcho(
+          currentSnapshot,
+          expectedFullText,
+          expectedCursorAfter,
+          originalText,
+        );
+      if (!shouldRepairMismatch) {
         return;
       }
 
