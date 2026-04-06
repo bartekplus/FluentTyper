@@ -2562,6 +2562,97 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "CKEditor capitalizes at the start of an existing paragraph without touching the previous paragraph",
+    async () => {
+      try {
+        await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, ["capitalizeFirstLetter"]);
+        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+        await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+        await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+        await applyConfigChange(browser, worker!);
+
+        await gotoTestPage(page, { enableCkEditor: true });
+        await page.bringToFront();
+        await waitForInputReady(page, CKEDITOR_SELECTOR);
+
+        await page.evaluate(() => {
+          const ckEditor = (
+            window as typeof window & {
+              __testCkEditor?: { setData: (data: string) => void };
+            }
+          ).__testCkEditor;
+          if (!ckEditor) {
+            throw new Error("CKEditor test instance not found");
+          }
+          ckEditor.setData("<p>First line</p><p>The</p>");
+        });
+
+        const clickTarget = await page.evaluate(() => {
+          const editable = document.querySelector(".ck-editor__editable");
+          const secondParagraph = editable?.querySelectorAll("p")[1];
+          const textNode = secondParagraph?.firstChild;
+          if (!(textNode instanceof Text)) {
+            throw new Error("CKEditor second paragraph text node missing");
+          }
+          secondParagraph.scrollIntoView({ block: "center", inline: "nearest" });
+          const range = document.createRange();
+          range.setStart(textNode, 0);
+          range.setEnd(textNode, 1);
+          const rect = range.getBoundingClientRect();
+          return {
+            x: rect.left + 1,
+            y: rect.top + rect.height / 2,
+          };
+        });
+
+        await page.mouse.click(clickTarget.x, clickTarget.y);
+        await page.keyboard.type("d");
+
+        try {
+          await page.waitForFunction(
+            () => {
+              const editable = document.querySelector(".ck-editor__editable");
+              if (!editable) {
+                return false;
+              }
+              const paragraphs = Array.from(editable.querySelectorAll("p"));
+              if (paragraphs.length < 2) {
+                return false;
+              }
+              const normalize = (text: string): string =>
+                text.replace(/\u00a0/g, " ").replace(/\u200b/g, "").trim();
+              return (
+                normalize(paragraphs[0]?.textContent ?? "") === "First line" &&
+                normalize(paragraphs[1]?.textContent ?? "") === "DThe"
+              );
+            },
+            { timeout: browserTimeout(1500, 3000) },
+          );
+        } catch {
+          const debugState = await page.evaluate(() => {
+            const editable = document.querySelector(".ck-editor__editable");
+            const paragraphs = editable ? Array.from(editable.querySelectorAll("p")) : [];
+            const normalize = (text: string): string =>
+              text.replace(/\u00a0/g, " ").replace(/\u200b/g, "");
+            return {
+              html: editable?.innerHTML ?? "",
+              textContent: normalize(editable?.textContent ?? ""),
+              paragraphs: paragraphs.map((paragraph) => normalize(paragraph.textContent ?? "")),
+            };
+          });
+          throw new Error(
+            `CKEditor paragraph-start capitalization mismatch: ${JSON.stringify(debugState)}`,
+          );
+        }
+      } finally {
+        await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+        await applyConfigChange(browser, worker!);
+      }
+    },
+    browserTimeout(30000, 50000),
+  );
+
+  test(
     "Quill preserves block structure and caret-correct insertion on Tab acceptance",
     async () => {
       await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");

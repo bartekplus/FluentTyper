@@ -40,8 +40,39 @@ interface CKEditorModel {
   change(callback: (writer: any) => void): void;
 }
 
+interface CKEditorEditingViewDomConverter {
+  domPositionToView(domParent: Node, domOffset?: number): any;
+}
+
+interface CKEditorEditingView {
+  domConverter?: CKEditorEditingViewDomConverter;
+}
+
+interface CKEditorEditingMapper {
+  toModelPosition(viewPosition: any): any;
+}
+
+interface CKEditorEditing {
+  mapper?: CKEditorEditingMapper;
+  view?: CKEditorEditingView;
+}
+
+interface CKEditorUiEditable {
+  element?: HTMLElement | null;
+}
+
+interface CKEditorUiView {
+  editable?: CKEditorUiEditable;
+}
+
+interface CKEditorUi {
+  view?: CKEditorUiView;
+}
+
 interface CKEditorInstance {
   model: CKEditorModel;
+  editing?: CKEditorEditing;
+  ui?: CKEditorUi;
 }
 
 const ckEditorInstanceCache = new WeakMap<HTMLElement, CKEditorInstance | null>();
@@ -150,10 +181,47 @@ function modelOffsetToTextOffset(modelOffset: number, softBreakModelOffsets: num
   return modelOffset - adjustment;
 }
 
+function getCKEditorEditableElement(editor: CKEditorInstance): HTMLElement | null {
+  const editable = editor.ui?.view?.editable?.element;
+  return editable instanceof HTMLElement ? editable : null;
+}
+
+function getCKEditor5SelectionPosition(editor: CKEditorInstance): any {
+  const editable = getCKEditorEditableElement(editor);
+  const domSelection = document.getSelection();
+  if (
+    editable &&
+    domSelection &&
+    domSelection.rangeCount > 0 &&
+    typeof editor.editing?.view?.domConverter?.domPositionToView === "function" &&
+    typeof editor.editing?.mapper?.toModelPosition === "function"
+  ) {
+    try {
+      const range = domSelection.getRangeAt(0);
+      if (editable === range.startContainer || editable.contains(range.startContainer)) {
+        const viewPosition = editor.editing.view.domConverter.domPositionToView(
+          range.startContainer,
+          range.startOffset,
+        );
+        if (viewPosition) {
+          const modelPosition = editor.editing.mapper.toModelPosition(viewPosition);
+          if (modelPosition) {
+            return modelPosition;
+          }
+        }
+      }
+    } catch {
+      // Fall through to CKEditor's current model selection.
+    }
+  }
+
+  return editor.model.document.selection.getFirstPosition();
+}
+
 function getCKEditor5BlockContext(
   editor: CKEditorInstance,
 ): { beforeCursor: string; afterCursor: string; blockText: string } | null {
-  const position = editor.model.document.selection.getFirstPosition();
+  const position = getCKEditor5SelectionPosition(editor);
   if (!position) {
     return null;
   }
@@ -183,7 +251,7 @@ function applyCKEditor5BlockReplacement(
   editor: CKEditorInstance,
   request: Extract<BridgeRequest, { action: "applyBlockReplacement" }>,
 ): { applied: boolean; didDispatchInput: boolean } {
-  const position = editor.model.document.selection.getFirstPosition();
+  const position = getCKEditor5SelectionPosition(editor);
   if (!position) {
     return { applied: false, didDispatchInput: false };
   }
@@ -242,7 +310,7 @@ function applyCKEditor5BlockReplacement(
   // the inserted text preserves the surrounding formatting.
   let textAttrs: Record<string, unknown> | null = null;
   try {
-    const probePos = editor.model.document.selection.getFirstPosition();
+    const probePos = position;
     if (probePos) {
       const node = probePos.textNode ?? probePos.nodeBefore ?? probePos.nodeAfter;
       if (node && typeof node.getAttributes === "function") {
