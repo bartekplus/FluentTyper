@@ -276,6 +276,70 @@ describe("HostEditorMainWorldBridge – CKEditor-5", () => {
     expect(mock.getText()).toBe("hello world");
   });
 
+  test("flushes pending CKEditor MutationObserver records before reading block context", () => {
+    // Simulates Firefox CKEditor-5 where the DOM shows "dThe" but the
+    // editor's MutationObserver hasn't yet reconciled the typed "d" into
+    // the model.  The bridge must flush the observer (via its public
+    // `flush()` method) so the block context it returns matches the DOM.
+    let modelText = "The";
+    let flushed = false;
+    const block = {
+      is(type: string) {
+        return type === "element" || type === "paragraph";
+      },
+      getChildren() {
+        return [{ data: modelText, is: (type: string) => type === "$text" }];
+      },
+    };
+    const editor = {
+      model: {
+        document: {
+          selection: {
+            getFirstPosition() {
+              return { parent: block, offset: flushed ? 1 : 0 };
+            },
+          },
+        },
+        change() {
+          // not used in this test
+        },
+      },
+      editing: {
+        view: {
+          _observers: new Map<unknown, { flush?: () => void; _mutationObserver?: unknown }>([
+            [
+              {},
+              {
+                _mutationObserver: {},
+                flush() {
+                  // Simulate processing pending records: the typed "d"
+                  // moves from the DOM into the model.
+                  modelText = "dThe";
+                  flushed = true;
+                },
+              },
+            ],
+          ]),
+        },
+      },
+    };
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    (editable as HTMLElement & { ckeditorInstance?: unknown }).ckeditorInstance = editor;
+    document.body.appendChild(editable);
+
+    const response = dispatchBridgeRequest(editable, { action: "getBlockContext" });
+
+    expect(response).toEqual({
+      ok: true,
+      blockContext: {
+        beforeCursor: "d",
+        afterCursor: "The",
+        blockText: "dThe",
+      },
+    });
+  });
+
   test("rewrites block when host model lags the caller's view (Firefox leading-char lag)", () => {
     // Simulates Firefox CKEditor-5 where the DOM shows "dThe" (the user
     // just typed `d`) but the editor model is still "The".  The caller's

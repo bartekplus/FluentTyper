@@ -44,8 +44,14 @@ interface CKEditorEditingViewDomConverter {
   domPositionToView(domParent: Node, domOffset?: number): any;
 }
 
+interface CKEditorViewObserver {
+  flush?: () => void;
+  _mutationObserver?: unknown;
+}
+
 interface CKEditorEditingView {
   domConverter?: CKEditorEditingViewDomConverter;
+  _observers?: Map<unknown, CKEditorViewObserver>;
 }
 
 interface CKEditorEditingMapper {
@@ -221,6 +227,10 @@ function getCKEditor5SelectionPosition(editor: CKEditorInstance): any {
 function getCKEditor5BlockContext(
   editor: CKEditorInstance,
 ): { beforeCursor: string; afterCursor: string; blockText: string } | null {
+  // Drain any pending DOM mutation records so the returned block text
+  // reflects what the user sees in the DOM, not a stale model snapshot
+  // (Firefox CKEditor-5 may briefly lag by one character after typing).
+  flushCKEditor5PendingMutations(editor);
   const position = getCKEditor5SelectionPosition(editor);
   if (!position) {
     return null;
@@ -247,10 +257,42 @@ function getCKEditor5BlockContext(
   };
 }
 
+/**
+ * Synchronously drain any pending DOM mutation records that CKEditor-5's
+ * MutationObserver has queued but not yet reconciled into the model.  On
+ * Firefox, a character typed into the DOM can sit in this queue briefly
+ * while the observer's microtask is still pending.  Flushing here before we
+ * read or write the model ensures we operate on a state that agrees with
+ * what the user sees in the DOM.
+ */
+function flushCKEditor5PendingMutations(editor: CKEditorInstance): void {
+  const observers = editor.editing?.view?._observers;
+  if (!observers || typeof observers.values !== "function") {
+    return;
+  }
+  for (const observer of observers.values()) {
+    // The MutationObserver wrapper is the only observer that owns a
+    // native `_mutationObserver` instance.  Its `flush()` synchronously
+    // processes any pending records and reconciles them into the model.
+    if (observer && observer._mutationObserver && typeof observer.flush === "function") {
+      try {
+        observer.flush();
+      } catch {
+        // Best-effort: if flushing throws, proceed without it.
+      }
+      return;
+    }
+  }
+}
+
 function applyCKEditor5BlockReplacement(
   editor: CKEditorInstance,
   request: Extract<BridgeRequest, { action: "applyBlockReplacement" }>,
 ): { applied: boolean; didDispatchInput: boolean } {
+  // Drain any pending DOM mutation records before reading the model so that
+  // a freshly-typed character already in the DOM (Firefox CKEditor-5 lag)
+  // is reflected in the model we plan to edit.
+  flushCKEditor5PendingMutations(editor);
   const position = getCKEditor5SelectionPosition(editor);
   if (!position) {
     return { applied: false, didDispatchInput: false };
