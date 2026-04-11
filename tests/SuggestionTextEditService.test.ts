@@ -1,4 +1,4 @@
-import { describe, expect, jest, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { ContentEditableAdapter } from "../src/adapters/chrome/content-script/suggestions/ContentEditableAdapter";
 import { HostEditorAdapterResolver } from "../src/adapters/chrome/content-script/suggestions/HostEditorAdapterResolver";
 import type { HostEditorPageBridge } from "../src/adapters/chrome/content-script/suggestions/HostEditorPageBridge";
@@ -2222,7 +2222,15 @@ describe("SuggestionTextEditService", () => {
     expect(editable.textContent).toBe("DThe");
   });
 
-  test("routes leading-char grammar edit through host when the typed DOM char has not reached the host model yet", () => {
+  test("bypasses host session and uses direct DOM mutation when host block text is stale", () => {
+    // Firefox CKEditor-5 can expose a newly typed character in the DOM before
+    // the host editor's model has observed it.  Historic fallbacks tried to
+    // patch the host model anyway, which raced with the host's pending sync
+    // and duplicated the typed character ("DdThe" instead of "DThe").  Now we
+    // detect that the host adapter is present but its reported state is
+    // stale, and route the fallback through a direct DOM mutation.  The host
+    // editor's MutationObserver then sees a single clean diff and reconciles
+    // its model in one step.
     const editable = document.createElement("div");
     editable.setAttribute("contenteditable", "true");
     Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
@@ -2230,28 +2238,14 @@ describe("SuggestionTextEditService", () => {
     document.body.appendChild(editable);
     setContentEditableCursor(editable, 1);
 
-    let blockText = "The";
-    let beforeCursor = "T";
-    let afterCursor = "he";
+    // Host reports stale state: "The" instead of the DOM's "dThe".
     let applyCalls = 0;
-    let lastApplyArgs: {
-      replaceStart: number;
-      replaceEnd: number;
-      replacementText: string;
-      cursorAfter: number;
-    } | null = null;
     const pageBridge: HostEditorPageBridge = {
       getBlockContextAtSelection() {
-        return { beforeCursor, afterCursor, blockText };
+        return { beforeCursor: "", afterCursor: "The", blockText: "The" };
       },
-      applyBlockReplacement(_elem, args) {
+      applyBlockReplacement() {
         applyCalls += 1;
-        lastApplyArgs = { ...args };
-        blockText = `${blockText.slice(0, args.replaceStart)}${args.replacementText}${blockText.slice(args.replaceEnd)}`;
-        beforeCursor = blockText.slice(0, args.cursorAfter);
-        afterCursor = blockText.slice(args.cursorAfter);
-        editable.textContent = blockText;
-        setContentEditableCursor(editable, args.cursorAfter);
         return { applied: true, didDispatchInput: false };
       },
     };
@@ -2285,163 +2279,11 @@ describe("SuggestionTextEditService", () => {
       },
     );
 
-    expect(result).toEqual({ applied: true, didDispatchInput: false });
-    expect(applyCalls).toBe(1);
-    expect(lastApplyArgs).toEqual({
-      replaceStart: 0,
-      replaceEnd: 0,
-      replacementText: "D",
-      cursorAfter: 1,
-      expectedBlockText: "The",
-    });
+    expect(result.applied).toBe(true);
+    // Never routed through the stale host model – the host mutation would
+    // race with the host's pending sync and duplicate the typed char.
+    expect(applyCalls).toBe(0);
     expect(editable.textContent).toBe("DThe");
-  });
-
-  test("does not reapply deferred grammar correction for plain contenteditable after further user input", () => {
-    jest.useFakeTimers();
-    const originalRequestAnimationFrame = globalThis.requestAnimationFrame;
-    (
-      globalThis as typeof globalThis & {
-        requestAnimationFrame?: typeof requestAnimationFrame;
-      }
-    ).requestAnimationFrame = undefined;
-
-    try {
-      const service = new SuggestionTextEditService({
-        findMentionToken,
-        isSeparator: (value) => /\s/.test(value),
-      });
-
-      const editable = document.createElement("div");
-      editable.setAttribute("contenteditable", "true");
-      Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-      editable.textContent = "dThe";
-      document.body.appendChild(editable);
-      setContentEditableCursor(editable, 1);
-      const entry = createSuggestionEntry({ elem: editable });
-
-      const result = service.applyGrammarEdit(
-        entry,
-        {
-          replacement: "D",
-          deleteBackwards: 1,
-          deleteForwards: 0,
-          sourceRuleId: "capitalizeFirstLetter",
-        },
-        {
-          snapshot: {
-            beforeCursor: "d",
-            afterCursor: "The",
-            cursorOffset: 1,
-          },
-          contentEditableContext: {
-            beforeCursor: "d",
-            afterCursor: "The",
-            useFullTextOffsets: false,
-          },
-        },
-      );
-
-      expect(result).toEqual({ applied: true, didDispatchInput: true });
-      expect(editable.textContent).toBe("DThe");
-
-      editable.textContent = "DThex";
-      setContentEditableCursor(editable, 5);
-      jest.advanceTimersByTime(31);
-
-      expect(editable.textContent).toBe("DThex");
-    } finally {
-      (
-        globalThis as typeof globalThis & {
-          requestAnimationFrame?: typeof requestAnimationFrame;
-        }
-      ).requestAnimationFrame = originalRequestAnimationFrame;
-      jest.useRealTimers();
-    }
-  });
-
-  test("reapplies deferred grammar correction for host editor after late DOM echo", () => {
-    jest.useFakeTimers();
-    const originalRequestAnimationFrame = globalThis.requestAnimationFrame;
-    (
-      globalThis as typeof globalThis & {
-        requestAnimationFrame?: typeof requestAnimationFrame;
-      }
-    ).requestAnimationFrame = undefined;
-
-    try {
-      const editable = document.createElement("div");
-      editable.setAttribute("contenteditable", "true");
-      Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
-      editable.textContent = "dThe";
-      document.body.appendChild(editable);
-      setContentEditableCursor(editable, 1);
-
-      let blockText = "dThe";
-      let beforeCursor = "d";
-      let afterCursor = "The";
-      const pageBridge: HostEditorPageBridge = {
-        getBlockContextAtSelection() {
-          return { beforeCursor, afterCursor, blockText };
-        },
-        applyBlockReplacement(_elem, args) {
-          blockText = `${blockText.slice(0, args.replaceStart)}${args.replacementText}${blockText.slice(args.replaceEnd)}`;
-          beforeCursor = blockText.slice(0, args.cursorAfter);
-          afterCursor = blockText.slice(args.cursorAfter);
-          editable.textContent = blockText;
-          setContentEditableCursor(editable, args.cursorAfter);
-          return { applied: true, didDispatchInput: false };
-        },
-      };
-
-      const service = new SuggestionTextEditService({
-        findMentionToken,
-        isSeparator: (value) => /\s/.test(value),
-        hostEditorAdapterResolver: new HostEditorAdapterResolver(pageBridge),
-      });
-      const entry = createSuggestionEntry({ elem: editable });
-
-      const result = service.applyGrammarEdit(
-        entry,
-        {
-          replacement: "D",
-          deleteBackwards: 1,
-          deleteForwards: 0,
-          sourceRuleId: "capitalizeFirstLetter",
-        },
-        {
-          snapshot: {
-            beforeCursor: "d",
-            afterCursor: "The",
-            cursorOffset: 1,
-          },
-          contentEditableContext: {
-            beforeCursor: "d",
-            afterCursor: "The",
-            useFullTextOffsets: false,
-          },
-        },
-      );
-
-      expect(result).toEqual({ applied: true, didDispatchInput: false });
-      expect(editable.textContent).toBe("DThe");
-
-      entry.pendingExtensionEdit = null;
-      setTimeout(() => {
-        editable.textContent = "DdThe";
-        setContentEditableCursor(editable, 2);
-      }, 1500);
-      jest.advanceTimersByTime(2200);
-
-      expect(editable.textContent).toBe("DThe");
-    } finally {
-      (
-        globalThis as typeof globalThis & {
-          requestAnimationFrame?: typeof requestAnimationFrame;
-        }
-      ).requestAnimationFrame = originalRequestAnimationFrame;
-      jest.useRealTimers();
-    }
   });
 
   test("falls back to replaceTextByOffsets for grammar edit when host session is not available", () => {

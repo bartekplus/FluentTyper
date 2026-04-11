@@ -593,7 +593,6 @@ export class SuggestionTextEditService {
             replaceEnd,
             replacement,
           );
-    let usedHostEditorForGrammarEdit = false;
     let applyResult:
       | ContentEditableEditResult
       | { didMutateDom: boolean; didDispatchInput: boolean }
@@ -616,7 +615,6 @@ export class SuggestionTextEditService {
           blockText: blockSourceText,
         });
         if (hostEditorSession) {
-          usedHostEditorForGrammarEdit = true;
           const hostResult = hostEditorSession.applyBlockReplacement({
             replaceStart: blockReplaceStart,
             replaceEnd: blockReplaceEnd,
@@ -631,19 +629,6 @@ export class SuggestionTextEditService {
           }
         }
         if (applyResult === null) {
-          applyResult = this.tryHostGrammarEditWithMissingLeadingRange(
-            entry.elem as HTMLElement,
-            blockSourceText,
-            blockReplaceStart,
-            blockReplaceEnd,
-            replacement,
-            blockCursorAfter,
-          );
-          if (applyResult !== null) {
-            usedHostEditorForGrammarEdit = true;
-          }
-        }
-        if (applyResult === null) {
           applyResult = this.tryHostGrammarEditWithMatchingBlockText(
             entry.elem as HTMLElement,
             blockSourceText,
@@ -652,9 +637,6 @@ export class SuggestionTextEditService {
             replacement,
             blockCursorAfter,
           );
-          if (applyResult !== null) {
-            usedHostEditorForGrammarEdit = true;
-          }
         }
         if (applyResult === null) {
           // The primary match may fail when getBlockContext returns a
@@ -669,13 +651,23 @@ export class SuggestionTextEditService {
             replacement,
             blockCursorAfter,
           );
-          if (applyResult !== null) {
-            usedHostEditorForGrammarEdit = true;
-          }
         }
       }
     }
     if (applyResult === null) {
+      // When every host-editor path above failed, the host's model state
+      // is inconsistent with the DOM view the extension built its edit
+      // from (e.g. Firefox CKEditor-5 hasn't yet synced the character the
+      // user just typed).  In that situation routing the fallback through
+      // beforeinput/execCommand re-enters the host's stale model and
+      // produces a duplicated character.  Force a direct DOM mutation
+      // instead so the host's MutationObserver sees a single clean diff
+      // and reconciles its model in one step.
+      const hostAdapterPresent =
+        !TextTargetAdapter.isTextValue(entry.elem) &&
+        this.hostEditorAdapterResolver.resolve(entry.elem as HTMLElement) !== null;
+      const preferDomMutation =
+        this.shouldPreferDomMutationForGrammar(entry.elem) || hostAdapterPresent;
       applyResult =
         !TextTargetAdapter.isTextValue(entry.elem) &&
         activeBlock !== null &&
@@ -690,7 +682,7 @@ export class SuggestionTextEditService {
               replacement,
               blockCursorAfter,
               {
-                preferDomMutation: this.shouldPreferDomMutationForGrammar(entry.elem),
+                preferDomMutation,
                 scopeRoot: activeBlock,
               },
             )
@@ -701,7 +693,7 @@ export class SuggestionTextEditService {
               replaceEnd,
               replacement,
               cursorAfter,
-              { preferDomMutation: this.shouldPreferDomMutationForGrammar(entry.elem) },
+              { preferDomMutation },
             );
     }
     // For edits with cursorOffset on contenteditable, schedule deferred cursor
@@ -799,15 +791,6 @@ export class SuggestionTextEditService {
       source: "grammar",
       sourceRuleId: edit.sourceRuleId,
     };
-    if (!TextTargetAdapter.isTextValue(entry.elem) && usedHostEditorForGrammarEdit) {
-      this.scheduleDeferredContentEditableGrammarValidation(entry, {
-        expectedFullText,
-        expectedCursorAfter: cursorAfter,
-        expectedBlockText,
-        expectedBlockCursorAfter,
-        originalText,
-      });
-    }
     return {
       applied: true,
       didDispatchInput: finalApplyResult.didDispatchInput,
@@ -1145,20 +1128,6 @@ export class SuggestionTextEditService {
     );
   }
 
-  private isLikelyLateHostGrammarEcho(
-    snapshot: SuggestionSnapshot,
-    expectedFullText: string,
-    expectedCursorAfter: number,
-    originalText: string,
-  ): boolean {
-    if (originalText.length === 0) {
-      return false;
-    }
-    const currentFullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
-    const echoedFullText = `${expectedFullText.slice(0, expectedCursorAfter)}${originalText}${expectedFullText.slice(expectedCursorAfter)}`;
-    return currentFullText === echoedFullText;
-  }
-
   /**
    * Fallback for grammar edits when the primary host session match fails.
    *
@@ -1275,50 +1244,6 @@ export class SuggestionTextEditService {
     const hostResult = session.applyBlockReplacement({
       replaceStart,
       replaceEnd,
-      replacementText,
-      cursorAfter,
-    });
-    if (!hostResult.applied) {
-      return null;
-    }
-    return {
-      didMutateDom: true,
-      didDispatchInput: hostResult.didDispatchInput,
-    };
-  }
-
-  private tryHostGrammarEditWithMissingLeadingRange(
-    elem: HTMLElement,
-    blockText: string,
-    replaceStart: number,
-    replaceEnd: number,
-    replacementText: string,
-    cursorAfter: number,
-  ): { didMutateDom: boolean; didDispatchInput: boolean } | null {
-    if (replaceStart !== 0 || blockText.length < 1) {
-      return null;
-    }
-
-    const session = this.hostEditorAdapterResolver.resolve(elem);
-    if (!session) {
-      return null;
-    }
-    const hostBlockContext = session.getBlockContextAtSelection();
-    if (!hostBlockContext) {
-      return null;
-    }
-
-    const hostBlockText = this.normalizeComparableBlockText(hostBlockContext.blockText);
-    const expectedTail = this.normalizeComparableBlockText(
-      `${blockText.slice(0, replaceStart)}${blockText.slice(replaceEnd)}`,
-    );
-    if (hostBlockText !== expectedTail) {
-      return null;
-    }
-
-    const hostResult = session.applyBlockReplacement({
-      replaceStart,
-      replaceEnd: replaceStart,
       replacementText,
       cursorAfter,
     });
@@ -1749,85 +1674,6 @@ export class SuggestionTextEditService {
       applyResult,
       postEditSnapshot: TextTargetAdapter.snapshot(elem as TextTarget),
     };
-  }
-
-  private scheduleDeferredContentEditableGrammarValidation(
-    entry: SuggestionEntry,
-    {
-      expectedFullText,
-      expectedCursorAfter,
-      expectedBlockText,
-      expectedBlockCursorAfter,
-      originalText,
-    }: {
-      expectedFullText: string;
-      expectedCursorAfter: number;
-      expectedBlockText: string | null;
-      expectedBlockCursorAfter: number | null;
-      originalText: string;
-    },
-  ): void {
-    const elem = entry.elem;
-    if (TextTargetAdapter.isTextValue(elem)) {
-      return;
-    }
-
-    let applied = false;
-    const validate = () => {
-      if (applied || !elem.isConnected) {
-        return;
-      }
-      const currentSnapshot = TextTargetAdapter.snapshot(elem as TextTarget);
-      if (
-        this.matchesExpectedGrammarResult(currentSnapshot, expectedFullText, expectedCursorAfter)
-      ) {
-        return;
-      }
-      const shouldRepairMismatch =
-        entry.pendingExtensionEdit?.source === "grammar" ||
-        this.isLikelyLateHostGrammarEcho(
-          currentSnapshot,
-          expectedFullText,
-          expectedCursorAfter,
-          originalText,
-        );
-      if (!shouldRepairMismatch) {
-        return;
-      }
-
-      const corrected = this.correctContentEditableGrammarMismatch(entry, {
-        expectedFullText,
-        expectedCursorAfter,
-        expectedBlockText,
-        expectedBlockCursorAfter,
-      });
-      if (!corrected) {
-        return;
-      }
-
-      applied = true;
-      this.domPreferredGrammarTargets.add(elem as HTMLElement);
-      if (entry.pendingExtensionEdit) {
-        entry.pendingExtensionEdit.cursorAfter = corrected.postEditSnapshot.cursorOffset;
-        entry.pendingExtensionEdit.postEditFingerprint =
-          TextTargetAdapter.createPostEditFingerprint(
-            elem as TextTarget,
-            corrected.postEditSnapshot,
-          );
-      }
-    };
-
-    if (typeof globalThis.requestAnimationFrame === "function") {
-      globalThis.requestAnimationFrame(validate);
-    } else {
-      setTimeout(validate, 0);
-    }
-    setTimeout(validate, 30);
-    setTimeout(validate, 120);
-    setTimeout(validate, 250);
-    setTimeout(validate, 500);
-    setTimeout(validate, 1000);
-    setTimeout(validate, 2000);
   }
 
   private dispatchInputEvent(elem: SuggestionElement): void {
