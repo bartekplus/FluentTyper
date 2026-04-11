@@ -2161,6 +2161,160 @@ describe("SuggestionTextEditService", () => {
     expect(entry.pendingExtensionEdit?.replaceStart).toBe(0);
   });
 
+  test("routes grammar edit through host when block text matches but cursor split is stale", () => {
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    editable.textContent = "dThe";
+    document.body.appendChild(editable);
+    setContentEditableCursor(editable, 1);
+
+    let blockText = "dThe";
+    let beforeCursor = "";
+    let afterCursor = "dThe";
+    let applyCalls = 0;
+    const pageBridge: HostEditorPageBridge = {
+      getBlockContextAtSelection() {
+        return { beforeCursor, afterCursor, blockText };
+      },
+      applyBlockReplacement(_elem, args) {
+        applyCalls += 1;
+        blockText = `${blockText.slice(0, args.replaceStart)}${args.replacementText}${blockText.slice(args.replaceEnd)}`;
+        beforeCursor = blockText.slice(0, args.cursorAfter);
+        afterCursor = blockText.slice(args.cursorAfter);
+        editable.textContent = blockText;
+        setContentEditableCursor(editable, args.cursorAfter);
+        return { applied: true, didDispatchInput: false };
+      },
+    };
+
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+      hostEditorAdapterResolver: new HostEditorAdapterResolver(pageBridge),
+    });
+    const entry = createSuggestionEntry({ elem: editable });
+
+    const result = service.applyGrammarEdit(
+      entry,
+      {
+        replacement: "D",
+        deleteBackwards: 1,
+        deleteForwards: 0,
+        sourceRuleId: "capitalizeFirstLetter",
+      },
+      {
+        snapshot: {
+          beforeCursor: "d",
+          afterCursor: "The",
+          cursorOffset: 1,
+        },
+        contentEditableContext: {
+          beforeCursor: "d",
+          afterCursor: "The",
+          useFullTextOffsets: false,
+        },
+      },
+    );
+
+    expect(result).toEqual({ applied: true, didDispatchInput: false });
+    expect(applyCalls).toBe(1);
+    expect(editable.textContent).toBe("DThe");
+  });
+
+  test("routes grammar edit through host bridge with caller's block text when host model is stale", () => {
+    // Firefox CKEditor-5 can expose a newly typed character in the DOM
+    // before its model observes it.  Historic fallbacks tried to patch the
+    // host through beforeinput or a targeted model insertion and then
+    // "repair" the aftermath, which raced with the host's pending sync and
+    // duplicated the typed character.  We now forward the caller's view
+    // ("dThe") as expectedBlockText and let the bridge decide how to apply
+    // – for CKEditor-5 a stale model triggers a full block rewrite through
+    // the editor's own model API, which reconciles in one step.
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    editable.textContent = "dThe";
+    document.body.appendChild(editable);
+    setContentEditableCursor(editable, 1);
+
+    // Host initially reports stale state: "The" instead of the DOM's "dThe".
+    let blockText = "The";
+    let beforeCursor = "";
+    let afterCursor = "The";
+    const applyCalls: Array<{
+      replaceStart: number;
+      replaceEnd: number;
+      replacementText: string;
+      cursorAfter: number;
+      expectedBlockText: string;
+    }> = [];
+    const pageBridge: HostEditorPageBridge = {
+      getBlockContextAtSelection() {
+        return { beforeCursor, afterCursor, blockText };
+      },
+      applyBlockReplacement(_elem, args) {
+        applyCalls.push({ ...args });
+        // Simulate the bridge's full-block rewrite when the caller's view
+        // diverges from the host model.  Post-edit block text:
+        //   expectedBlockText[0..replaceStart] + replacementText +
+        //   expectedBlockText[replaceEnd..]
+        blockText =
+          args.expectedBlockText.slice(0, args.replaceStart) +
+          args.replacementText +
+          args.expectedBlockText.slice(args.replaceEnd);
+        beforeCursor = blockText.slice(0, args.cursorAfter);
+        afterCursor = blockText.slice(args.cursorAfter);
+        editable.textContent = blockText;
+        setContentEditableCursor(editable, args.cursorAfter);
+        return { applied: true, didDispatchInput: false };
+      },
+    };
+
+    const service = new SuggestionTextEditService({
+      findMentionToken,
+      isSeparator: (value) => /\s/.test(value),
+      hostEditorAdapterResolver: new HostEditorAdapterResolver(pageBridge),
+    });
+    const entry = createSuggestionEntry({ elem: editable });
+
+    const result = service.applyGrammarEdit(
+      entry,
+      {
+        replacement: "D",
+        deleteBackwards: 1,
+        deleteForwards: 0,
+        sourceRuleId: "capitalizeFirstLetter",
+      },
+      {
+        snapshot: {
+          beforeCursor: "d",
+          afterCursor: "The",
+          cursorOffset: 1,
+        },
+        contentEditableContext: {
+          beforeCursor: "d",
+          afterCursor: "The",
+          useFullTextOffsets: false,
+        },
+      },
+    );
+
+    expect(result.applied).toBe(true);
+    // Exactly one host call, with the caller's view of the block text
+    // attached so the bridge can rewrite through CKEditor's own model
+    // API rather than racing the pending DOM sync.
+    expect(applyCalls).toHaveLength(1);
+    expect(applyCalls[0]).toEqual({
+      replaceStart: 0,
+      replaceEnd: 1,
+      replacementText: "D",
+      cursorAfter: 1,
+      expectedBlockText: "dThe",
+    });
+    expect(editable.textContent).toBe("DThe");
+  });
+
   test("falls back to replaceTextByOffsets for grammar edit when host session is not available", () => {
     const service = new SuggestionTextEditService({
       findMentionToken,

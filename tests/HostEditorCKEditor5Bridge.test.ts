@@ -36,6 +36,9 @@ function createCKEditorMock(initialText: string, initialCursorOffset: number) {
     createRange(start: { offset: number }, end: { offset: number }) {
       return { start, end };
     },
+    createRangeIn() {
+      return { start: { offset: 0 }, end: { offset: text.length } };
+    },
     remove(range: { start: { offset: number }; end: { offset: number } }) {
       text = text.slice(0, range.start.offset) + text.slice(range.end.offset);
     },
@@ -66,6 +69,137 @@ function createCKEditorMock(initialText: string, initialCursorOffset: number) {
     editor,
     getText: () => text,
     getCursorOffset: () => cursorOffset,
+  };
+}
+
+function createCKEditorMockWithDomSelectionBlocks(
+  initialTexts: [string, string],
+  staleSelection: { blockIndex: 0 | 1; offset: number },
+) {
+  const texts = [...initialTexts];
+  let selectionBlockIndex = staleSelection.blockIndex;
+  let selectionOffset = staleSelection.offset;
+
+  const editable = document.createElement("div");
+  editable.setAttribute("contenteditable", "true");
+  const paragraphs = texts.map((text) => {
+    const paragraph = document.createElement("p");
+    paragraph.appendChild(document.createTextNode(text));
+    editable.appendChild(paragraph);
+    return paragraph;
+  });
+
+  const blocks = texts.map((_text, index) => ({
+    is(type: string) {
+      return type === "element" || type === "paragraph";
+    },
+    getChildren() {
+      return [{ data: texts[index], is: (type: string) => type === "$text" }];
+    },
+  }));
+
+  const writer = {
+    createPositionAt(element: unknown, offset: number) {
+      return { parent: element, offset };
+    },
+    createRange(
+      start: { parent: unknown; offset: number },
+      end: { parent: unknown; offset: number },
+    ) {
+      return { start, end };
+    },
+    remove(range: {
+      start: { parent: unknown; offset: number };
+      end: { parent: unknown; offset: number };
+    }) {
+      const blockIndex = blocks.indexOf(range.start.parent as (typeof blocks)[number]);
+      texts[blockIndex] =
+        texts[blockIndex].slice(0, range.start.offset) + texts[blockIndex].slice(range.end.offset);
+      paragraphs[blockIndex].textContent = texts[blockIndex];
+    },
+    insertText(
+      insertText: string,
+      attrsOrPosition:
+        | { parent: unknown; offset: number }
+        | Record<string, unknown>
+        | null
+        | undefined,
+      maybePosition?: { parent: unknown; offset: number },
+    ) {
+      const position = maybePosition ?? (attrsOrPosition as { parent: unknown; offset: number });
+      const blockIndex = blocks.indexOf(position.parent as (typeof blocks)[number]);
+      texts[blockIndex] =
+        texts[blockIndex].slice(0, position.offset) +
+        insertText +
+        texts[blockIndex].slice(position.offset);
+      paragraphs[blockIndex].textContent = texts[blockIndex];
+    },
+    setSelection(position: { parent: unknown; offset: number }) {
+      selectionBlockIndex = blocks.indexOf(position.parent as (typeof blocks)[number]) as 0 | 1;
+      selectionOffset = position.offset;
+    },
+  };
+
+  const editor = {
+    model: {
+      document: {
+        selection: {
+          getFirstPosition() {
+            return {
+              parent: blocks[selectionBlockIndex],
+              offset: selectionOffset,
+            };
+          },
+        },
+      },
+      change(callback: (w: typeof writer) => void) {
+        callback(writer);
+      },
+    },
+    ui: {
+      view: {
+        editable: {
+          element: editable,
+        },
+      },
+    },
+    editing: {
+      view: {
+        domConverter: {
+          domPositionToView(domParent: Node, domOffset: number) {
+            return { domParent, domOffset };
+          },
+        },
+      },
+      mapper: {
+        toModelPosition(viewPosition: { domParent: Node; domOffset: number }) {
+          const node =
+            viewPosition.domParent.nodeType === Node.TEXT_NODE
+              ? viewPosition.domParent
+              : (viewPosition.domParent.childNodes[viewPosition.domOffset] ??
+                viewPosition.domParent.childNodes[viewPosition.domOffset - 1] ??
+                viewPosition.domParent);
+          const paragraph =
+            node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as Element);
+          const blockIndex = paragraphs.indexOf(paragraph as HTMLParagraphElement) as 0 | 1;
+          return {
+            parent: blocks[blockIndex],
+            offset:
+              viewPosition.domParent.nodeType === Node.TEXT_NODE
+                ? viewPosition.domOffset
+                : (paragraph?.textContent?.length ?? 0),
+          };
+        },
+      },
+    },
+  };
+
+  return {
+    editor,
+    editable,
+    paragraphs,
+    getTexts: () => [...texts],
+    getSelection: () => ({ blockIndex: selectionBlockIndex, offset: selectionOffset }),
   };
 }
 
@@ -142,6 +276,118 @@ describe("HostEditorMainWorldBridge – CKEditor-5", () => {
     expect(mock.getText()).toBe("hello world");
   });
 
+  test("flushes pending CKEditor MutationObserver records before reading block context", () => {
+    // Simulates Firefox CKEditor-5 where the DOM shows "dThe" but the
+    // editor's MutationObserver hasn't yet reconciled the typed "d" into
+    // the model.  The bridge must flush the observer (via its public
+    // `flush()` method) so the block context it returns matches the DOM.
+    let modelText = "The";
+    let flushed = false;
+    const block = {
+      is(type: string) {
+        return type === "element" || type === "paragraph";
+      },
+      getChildren() {
+        return [{ data: modelText, is: (type: string) => type === "$text" }];
+      },
+    };
+    const editor = {
+      model: {
+        document: {
+          selection: {
+            getFirstPosition() {
+              return { parent: block, offset: flushed ? 1 : 0 };
+            },
+          },
+        },
+        change() {
+          // not used in this test
+        },
+      },
+      editing: {
+        view: {
+          _observers: new Map<unknown, { flush?: () => void; _mutationObserver?: unknown }>([
+            [
+              {},
+              {
+                _mutationObserver: {},
+                flush() {
+                  // Simulate processing pending records: the typed "d"
+                  // moves from the DOM into the model.
+                  modelText = "dThe";
+                  flushed = true;
+                },
+              },
+            ],
+          ]),
+        },
+      },
+    };
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    (editable as HTMLElement & { ckeditorInstance?: unknown }).ckeditorInstance = editor;
+    document.body.appendChild(editable);
+
+    const response = dispatchBridgeRequest(editable, { action: "getBlockContext" });
+
+    expect(response).toEqual({
+      ok: true,
+      blockContext: {
+        beforeCursor: "d",
+        afterCursor: "The",
+        blockText: "dThe",
+      },
+    });
+  });
+
+  test("rewrites block when host model lags the caller's view (Firefox leading-char lag)", () => {
+    // Simulates Firefox CKEditor-5 where the DOM shows "dThe" (the user
+    // just typed `d`) but the editor model is still "The".  The caller's
+    // view is "dThe" and it wants to replace [0,1] with "D".  The bridge
+    // should detect the lag and rewrite the whole block to "DThe" via
+    // model.change without duplicating the typed character.
+    const mock = createCKEditorMock("The", 0);
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    (editable as HTMLElement & { ckeditorInstance?: unknown }).ckeditorInstance = mock.editor;
+    document.body.appendChild(editable);
+
+    const response = dispatchBridgeRequest(editable, {
+      action: "applyBlockReplacement",
+      replaceStart: 0,
+      replaceEnd: 1,
+      replacementText: "D",
+      cursorAfter: 1,
+      expectedBlockText: "dThe",
+    });
+
+    expect(response).toEqual({ ok: true, result: { applied: true, didDispatchInput: false } });
+    expect(mock.getText()).toBe("DThe");
+    expect(mock.getCursorOffset()).toBe(1);
+  });
+
+  test("rejects stale-model rewrite when host model is not a plausible precursor", () => {
+    // Host model is "xyz" which is not "The" with the replace-range
+    // removed, so the "Firefox leading-char lag" rewrite is not safe.
+    const mock = createCKEditorMock("xyz", 0);
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    (editable as HTMLElement & { ckeditorInstance?: unknown }).ckeditorInstance = mock.editor;
+    document.body.appendChild(editable);
+
+    const response = dispatchBridgeRequest(editable, {
+      action: "applyBlockReplacement",
+      replaceStart: 0,
+      replaceEnd: 1,
+      replacementText: "D",
+      cursorAfter: 1,
+      expectedBlockText: "dThe",
+    });
+
+    expect(response).toEqual({ ok: true, result: { applied: false, didDispatchInput: false } });
+    expect(mock.getText()).toBe("xyz");
+  });
+
   test("does not activate for elements without ckeditorInstance", () => {
     const editable = document.createElement("div");
     editable.setAttribute("contenteditable", "true");
@@ -192,6 +438,64 @@ describe("HostEditorMainWorldBridge – CKEditor-5", () => {
     expect(response).toEqual({ ok: true, result: { applied: true, didDispatchInput: false } });
     expect(mock.getText()).toBe("the quick");
     expect(mock.getCursorOffset()).toBe(4);
+  });
+
+  test("returns block context from DOM selection when CKEditor model selection is stale", () => {
+    const mock = createCKEditorMockWithDomSelectionBlocks(["First line", "Second line"], {
+      blockIndex: 0,
+      offset: 0,
+    });
+    (mock.editable as HTMLElement & { ckeditorInstance?: unknown }).ckeditorInstance = mock.editor;
+    document.body.appendChild(mock.editable);
+
+    const secondParagraphText = mock.paragraphs[1].firstChild as Text;
+    const range = document.createRange();
+    range.setStart(secondParagraphText, 6);
+    range.collapse(true);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+
+    const response = dispatchBridgeRequest(mock.editable, { action: "getBlockContext" });
+
+    expect(response).toEqual({
+      ok: true,
+      blockContext: {
+        beforeCursor: "Second",
+        afterCursor: " line",
+        blockText: "Second line",
+      },
+    });
+  });
+
+  test("applies replacement from DOM selection when CKEditor model selection is stale", () => {
+    const mock = createCKEditorMockWithDomSelectionBlocks(["First line", "t"], {
+      blockIndex: 0,
+      offset: 0,
+    });
+    (mock.editable as HTMLElement & { ckeditorInstance?: unknown }).ckeditorInstance = mock.editor;
+    document.body.appendChild(mock.editable);
+
+    const secondParagraphText = mock.paragraphs[1].firstChild as Text;
+    const range = document.createRange();
+    range.setStart(secondParagraphText, 1);
+    range.collapse(true);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+
+    const response = dispatchBridgeRequest(mock.editable, {
+      action: "applyBlockReplacement",
+      replaceStart: 0,
+      replaceEnd: 1,
+      replacementText: "T",
+      cursorAfter: 1,
+      expectedBlockText: "t",
+    });
+
+    expect(response).toEqual({ ok: true, result: { applied: true, didDispatchInput: false } });
+    expect(mock.getTexts()).toEqual(["First line", "T"]);
+    expect(mock.getSelection()).toEqual({ blockIndex: 1, offset: 1 });
   });
 
   test("prefers LineEditorController over CKEditor-5 when both are present", () => {

@@ -629,11 +629,38 @@ export class SuggestionTextEditService {
           }
         }
         if (applyResult === null) {
+          applyResult = this.tryHostGrammarEditWithMatchingBlockText(
+            entry.elem as HTMLElement,
+            blockSourceText,
+            blockReplaceStart,
+            blockReplaceEnd,
+            replacement,
+            blockCursorAfter,
+          );
+        }
+        if (applyResult === null) {
           // The primary match may fail when getBlockContext returns a
           // BR-separated line but the host editor (e.g. CKEditor-5) uses
           // the full paragraph block.  Translate local offsets into the
           // host's full-block coordinate space and retry.
           applyResult = this.tryHostGrammarEditWithFullBlockOffsets(
+            entry.elem as HTMLElement,
+            blockSourceText,
+            blockReplaceStart,
+            blockReplaceEnd,
+            replacement,
+            blockCursorAfter,
+          );
+        }
+        if (applyResult === null) {
+          // Last-resort host path for hosts whose model lags the DOM
+          // (Firefox CKEditor-5 can expose a newly typed character in
+          // the DOM before its model observes it).  Bypass the parity
+          // check and hand the request to the bridge, which will
+          // rewrite the block through the editor's own model API so
+          // CKEditor reconciles through its normal rendering pipeline
+          // instead of racing against a foreign DOM mutation.
+          applyResult = this.tryHostGrammarEditWithStaleHostRewrite(
             entry.elem as HTMLElement,
             blockSourceText,
             blockReplaceStart,
@@ -1176,6 +1203,85 @@ export class SuggestionTextEditService {
       replaceEnd: fullReplaceEnd,
       replacementText,
       cursorAfter: fullCursorAfter,
+    });
+    if (!hostResult.applied) {
+      return null;
+    }
+    return {
+      didMutateDom: true,
+      didDispatchInput: hostResult.didDispatchInput,
+    };
+  }
+
+  private tryHostGrammarEditWithStaleHostRewrite(
+    elem: HTMLElement,
+    blockText: string,
+    replaceStart: number,
+    replaceEnd: number,
+    replacementText: string,
+    cursorAfter: number,
+  ): { didMutateDom: boolean; didDispatchInput: boolean } | null {
+    const session = this.hostEditorAdapterResolver.resolve(elem);
+    if (!session) {
+      return null;
+    }
+    // The bridge validates request bounds against the expected block
+    // text and, when its model is stale, rewrites the block by
+    // replacing its content with the post-edit text via the editor's
+    // own model API.  We therefore don't need a parity check here.
+    const hostResult = session.applyBlockReplacement({
+      replaceStart,
+      replaceEnd,
+      replacementText,
+      cursorAfter,
+      expectedBlockText: blockText,
+    });
+    if (!hostResult.applied) {
+      return null;
+    }
+    return {
+      didMutateDom: true,
+      didDispatchInput: hostResult.didDispatchInput,
+    };
+  }
+
+  private tryHostGrammarEditWithMatchingBlockText(
+    elem: HTMLElement,
+    blockText: string,
+    replaceStart: number,
+    replaceEnd: number,
+    replacementText: string,
+    cursorAfter: number,
+  ): { didMutateDom: boolean; didDispatchInput: boolean } | null {
+    const session = this.hostEditorAdapterResolver.resolve(elem);
+    if (!session) {
+      return null;
+    }
+    const hostBlockContext = session.getBlockContextAtSelection();
+    if (!hostBlockContext) {
+      return null;
+    }
+    if (
+      this.normalizeComparableBlockText(hostBlockContext.blockText) !==
+      this.normalizeComparableBlockText(blockText)
+    ) {
+      return null;
+    }
+
+    const hostSlice = hostBlockContext.blockText.slice(replaceStart, replaceEnd);
+    const expectedSlice = blockText.slice(replaceStart, replaceEnd);
+    if (
+      this.normalizeComparableBlockText(hostSlice) !==
+      this.normalizeComparableBlockText(expectedSlice)
+    ) {
+      return null;
+    }
+
+    const hostResult = session.applyBlockReplacement({
+      replaceStart,
+      replaceEnd,
+      replacementText,
+      cursorAfter,
     });
     if (!hostResult.applied) {
       return null;

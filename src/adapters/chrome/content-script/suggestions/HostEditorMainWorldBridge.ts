@@ -40,8 +40,45 @@ interface CKEditorModel {
   change(callback: (writer: any) => void): void;
 }
 
+interface CKEditorEditingViewDomConverter {
+  domPositionToView(domParent: Node, domOffset?: number): any;
+}
+
+interface CKEditorViewObserver {
+  flush?: () => void;
+  _mutationObserver?: unknown;
+}
+
+interface CKEditorEditingView {
+  domConverter?: CKEditorEditingViewDomConverter;
+  _observers?: Map<unknown, CKEditorViewObserver>;
+}
+
+interface CKEditorEditingMapper {
+  toModelPosition(viewPosition: any): any;
+}
+
+interface CKEditorEditing {
+  mapper?: CKEditorEditingMapper;
+  view?: CKEditorEditingView;
+}
+
+interface CKEditorUiEditable {
+  element?: HTMLElement | null;
+}
+
+interface CKEditorUiView {
+  editable?: CKEditorUiEditable;
+}
+
+interface CKEditorUi {
+  view?: CKEditorUiView;
+}
+
 interface CKEditorInstance {
   model: CKEditorModel;
+  editing?: CKEditorEditing;
+  ui?: CKEditorUi;
 }
 
 const ckEditorInstanceCache = new WeakMap<HTMLElement, CKEditorInstance | null>();
@@ -150,10 +187,51 @@ function modelOffsetToTextOffset(modelOffset: number, softBreakModelOffsets: num
   return modelOffset - adjustment;
 }
 
+function getCKEditorEditableElement(editor: CKEditorInstance): HTMLElement | null {
+  const editable = editor.ui?.view?.editable?.element;
+  return editable instanceof HTMLElement ? editable : null;
+}
+
+function getCKEditor5SelectionPosition(editor: CKEditorInstance): any {
+  const editable = getCKEditorEditableElement(editor);
+  const domSelection = document.getSelection();
+  if (
+    editable &&
+    domSelection &&
+    domSelection.rangeCount > 0 &&
+    typeof editor.editing?.view?.domConverter?.domPositionToView === "function" &&
+    typeof editor.editing?.mapper?.toModelPosition === "function"
+  ) {
+    try {
+      const range = domSelection.getRangeAt(0);
+      if (editable === range.startContainer || editable.contains(range.startContainer)) {
+        const viewPosition = editor.editing.view.domConverter.domPositionToView(
+          range.startContainer,
+          range.startOffset,
+        );
+        if (viewPosition) {
+          const modelPosition = editor.editing.mapper.toModelPosition(viewPosition);
+          if (modelPosition) {
+            return modelPosition;
+          }
+        }
+      }
+    } catch {
+      // Fall through to CKEditor's current model selection.
+    }
+  }
+
+  return editor.model.document.selection.getFirstPosition();
+}
+
 function getCKEditor5BlockContext(
   editor: CKEditorInstance,
 ): { beforeCursor: string; afterCursor: string; blockText: string } | null {
-  const position = editor.model.document.selection.getFirstPosition();
+  // Drain any pending DOM mutation records so the returned block text
+  // reflects what the user sees in the DOM, not a stale model snapshot
+  // (Firefox CKEditor-5 may briefly lag by one character after typing).
+  flushCKEditor5PendingMutations(editor);
+  const position = getCKEditor5SelectionPosition(editor);
   if (!position) {
     return null;
   }
@@ -179,11 +257,43 @@ function getCKEditor5BlockContext(
   };
 }
 
+/**
+ * Synchronously drain any pending DOM mutation records that CKEditor-5's
+ * MutationObserver has queued but not yet reconciled into the model.  On
+ * Firefox, a character typed into the DOM can sit in this queue briefly
+ * while the observer's microtask is still pending.  Flushing here before we
+ * read or write the model ensures we operate on a state that agrees with
+ * what the user sees in the DOM.
+ */
+function flushCKEditor5PendingMutations(editor: CKEditorInstance): void {
+  const observers = editor.editing?.view?._observers;
+  if (!observers || typeof observers.values !== "function") {
+    return;
+  }
+  for (const observer of observers.values()) {
+    // The MutationObserver wrapper is the only observer that owns a
+    // native `_mutationObserver` instance.  Its `flush()` synchronously
+    // processes any pending records and reconciles them into the model.
+    if (observer && observer._mutationObserver && typeof observer.flush === "function") {
+      try {
+        observer.flush();
+      } catch {
+        // Best-effort: if flushing throws, proceed without it.
+      }
+      return;
+    }
+  }
+}
+
 function applyCKEditor5BlockReplacement(
   editor: CKEditorInstance,
   request: Extract<BridgeRequest, { action: "applyBlockReplacement" }>,
 ): { applied: boolean; didDispatchInput: boolean } {
-  const position = editor.model.document.selection.getFirstPosition();
+  // Drain any pending DOM mutation records before reading the model so that
+  // a freshly-typed character already in the DOM (Firefox CKEditor-5 lag)
+  // is reflected in the model we plan to edit.
+  flushCKEditor5PendingMutations(editor);
+  const position = getCKEditor5SelectionPosition(editor);
   if (!position) {
     return { applied: false, didDispatchInput: false };
   }
@@ -192,21 +302,62 @@ function applyCKEditor5BlockReplacement(
     return { applied: false, didDispatchInput: false };
   }
   const mapping = extractModelBlockMapping(block);
+  if (mapping === null) {
+    return { applied: false, didDispatchInput: false };
+  }
+  // Validate the request bounds against the caller's view of the block,
+  // not the host model.  When the host is lagging (Firefox can expose a
+  // newly typed character in the DOM before CKEditor's model observes
+  // it) the caller's view is the authoritative pre-edit state.
   if (
-    mapping === null ||
-    mapping.text !== request.expectedBlockText ||
     request.replaceStart < 0 ||
     request.replaceEnd < request.replaceStart ||
-    request.replaceEnd > mapping.text.length
+    request.replaceEnd > request.expectedBlockText.length
   ) {
     return { applied: false, didDispatchInput: false };
   }
   const expectedLength =
-    mapping.text.length -
+    request.expectedBlockText.length -
     (request.replaceEnd - request.replaceStart) +
     request.replacementText.length;
   if (request.cursorAfter < 0 || request.cursorAfter > expectedLength) {
     return { applied: false, didDispatchInput: false };
+  }
+
+  if (mapping.text !== request.expectedBlockText) {
+    // Host model is stale relative to the caller's view.  Only take the
+    // rewrite path when the mismatch looks like a Firefox CKEditor-5
+    // "typed char not yet observed" lag: the host model should look
+    // exactly like the caller's pre-edit view with the character(s) the
+    // caller is about to replace removed.  This both avoids losing
+    // softBreaks (which we don't attempt to rewrite) and guards against
+    // unrelated mismatches corrupting the block.
+    if (mapping.softBreakModelOffsets.length > 0) {
+      return { applied: false, didDispatchInput: false };
+    }
+    const expectedMissingLeading =
+      request.expectedBlockText.slice(0, request.replaceStart) +
+      request.expectedBlockText.slice(request.replaceEnd);
+    if (mapping.text !== expectedMissingLeading) {
+      return { applied: false, didDispatchInput: false };
+    }
+    const expectedPostEditText =
+      request.expectedBlockText.slice(0, request.replaceStart) +
+      request.replacementText +
+      request.expectedBlockText.slice(request.replaceEnd);
+    try {
+      editor.model.change((writer: any) => {
+        writer.remove(writer.createRangeIn(block));
+        if (expectedPostEditText.length > 0) {
+          writer.insertText(expectedPostEditText, writer.createPositionAt(block, 0));
+        }
+        const cursorPos = writer.createPositionAt(block, request.cursorAfter);
+        writer.setSelection(cursorPos);
+      });
+    } catch {
+      return { applied: false, didDispatchInput: false };
+    }
+    return { applied: true, didDispatchInput: false };
   }
 
   // Translate text offsets to model offsets (accounting for softBreaks).
@@ -242,7 +393,7 @@ function applyCKEditor5BlockReplacement(
   // the inserted text preserves the surrounding formatting.
   let textAttrs: Record<string, unknown> | null = null;
   try {
-    const probePos = editor.model.document.selection.getFirstPosition();
+    const probePos = position;
     if (probePos) {
       const node = probePos.textNode ?? probePos.nodeBefore ?? probePos.nodeAfter;
       if (node && typeof node.getAttributes === "function") {
