@@ -2222,15 +2222,15 @@ describe("SuggestionTextEditService", () => {
     expect(editable.textContent).toBe("DThe");
   });
 
-  test("bypasses host session and uses direct DOM mutation when host block text is stale", () => {
-    // Firefox CKEditor-5 can expose a newly typed character in the DOM before
-    // the host editor's model has observed it.  Historic fallbacks tried to
-    // patch the host model anyway, which raced with the host's pending sync
-    // and duplicated the typed character ("DdThe" instead of "DThe").  Now we
-    // detect that the host adapter is present but its reported state is
-    // stale, and route the fallback through a direct DOM mutation.  The host
-    // editor's MutationObserver then sees a single clean diff and reconciles
-    // its model in one step.
+  test("routes grammar edit through host bridge with caller's block text when host model is stale", () => {
+    // Firefox CKEditor-5 can expose a newly typed character in the DOM
+    // before its model observes it.  Historic fallbacks tried to patch the
+    // host through beforeinput or a targeted model insertion and then
+    // "repair" the aftermath, which raced with the host's pending sync and
+    // duplicated the typed character.  We now forward the caller's view
+    // ("dThe") as expectedBlockText and let the bridge decide how to apply
+    // – for CKEditor-5 a stale model triggers a full block rewrite through
+    // the editor's own model API, which reconciles in one step.
     const editable = document.createElement("div");
     editable.setAttribute("contenteditable", "true");
     Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
@@ -2238,14 +2238,35 @@ describe("SuggestionTextEditService", () => {
     document.body.appendChild(editable);
     setContentEditableCursor(editable, 1);
 
-    // Host reports stale state: "The" instead of the DOM's "dThe".
-    let applyCalls = 0;
+    // Host initially reports stale state: "The" instead of the DOM's "dThe".
+    let blockText = "The";
+    let beforeCursor = "";
+    let afterCursor = "The";
+    const applyCalls: Array<{
+      replaceStart: number;
+      replaceEnd: number;
+      replacementText: string;
+      cursorAfter: number;
+      expectedBlockText: string;
+    }> = [];
     const pageBridge: HostEditorPageBridge = {
       getBlockContextAtSelection() {
-        return { beforeCursor: "", afterCursor: "The", blockText: "The" };
+        return { beforeCursor, afterCursor, blockText };
       },
-      applyBlockReplacement() {
-        applyCalls += 1;
+      applyBlockReplacement(_elem, args) {
+        applyCalls.push({ ...args });
+        // Simulate the bridge's full-block rewrite when the caller's view
+        // diverges from the host model.  Post-edit block text:
+        //   expectedBlockText[0..replaceStart] + replacementText +
+        //   expectedBlockText[replaceEnd..]
+        blockText =
+          args.expectedBlockText.slice(0, args.replaceStart) +
+          args.replacementText +
+          args.expectedBlockText.slice(args.replaceEnd);
+        beforeCursor = blockText.slice(0, args.cursorAfter);
+        afterCursor = blockText.slice(args.cursorAfter);
+        editable.textContent = blockText;
+        setContentEditableCursor(editable, args.cursorAfter);
         return { applied: true, didDispatchInput: false };
       },
     };
@@ -2280,9 +2301,17 @@ describe("SuggestionTextEditService", () => {
     );
 
     expect(result.applied).toBe(true);
-    // Never routed through the stale host model – the host mutation would
-    // race with the host's pending sync and duplicate the typed char.
-    expect(applyCalls).toBe(0);
+    // Exactly one host call, with the caller's view of the block text
+    // attached so the bridge can rewrite through CKEditor's own model
+    // API rather than racing the pending DOM sync.
+    expect(applyCalls).toHaveLength(1);
+    expect(applyCalls[0]).toEqual({
+      replaceStart: 0,
+      replaceEnd: 1,
+      replacementText: "D",
+      cursorAfter: 1,
+      expectedBlockText: "dThe",
+    });
     expect(editable.textContent).toBe("DThe");
   });
 

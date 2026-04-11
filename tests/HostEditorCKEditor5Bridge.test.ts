@@ -36,6 +36,9 @@ function createCKEditorMock(initialText: string, initialCursorOffset: number) {
     createRange(start: { offset: number }, end: { offset: number }) {
       return { start, end };
     },
+    createRangeIn() {
+      return { start: { offset: 0 }, end: { offset: text.length } };
+    },
     remove(range: { start: { offset: number }; end: { offset: number } }) {
       text = text.slice(0, range.start.offset) + text.slice(range.end.offset);
     },
@@ -271,6 +274,54 @@ describe("HostEditorMainWorldBridge – CKEditor-5", () => {
 
     expect(response).toEqual({ ok: true, result: { applied: false, didDispatchInput: false } });
     expect(mock.getText()).toBe("hello world");
+  });
+
+  test("rewrites block when host model lags the caller's view (Firefox leading-char lag)", () => {
+    // Simulates Firefox CKEditor-5 where the DOM shows "dThe" (the user
+    // just typed `d`) but the editor model is still "The".  The caller's
+    // view is "dThe" and it wants to replace [0,1] with "D".  The bridge
+    // should detect the lag and rewrite the whole block to "DThe" via
+    // model.change without duplicating the typed character.
+    const mock = createCKEditorMock("The", 0);
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    (editable as HTMLElement & { ckeditorInstance?: unknown }).ckeditorInstance = mock.editor;
+    document.body.appendChild(editable);
+
+    const response = dispatchBridgeRequest(editable, {
+      action: "applyBlockReplacement",
+      replaceStart: 0,
+      replaceEnd: 1,
+      replacementText: "D",
+      cursorAfter: 1,
+      expectedBlockText: "dThe",
+    });
+
+    expect(response).toEqual({ ok: true, result: { applied: true, didDispatchInput: false } });
+    expect(mock.getText()).toBe("DThe");
+    expect(mock.getCursorOffset()).toBe(1);
+  });
+
+  test("rejects stale-model rewrite when host model is not a plausible precursor", () => {
+    // Host model is "xyz" which is not "The" with the replace-range
+    // removed, so the "Firefox leading-char lag" rewrite is not safe.
+    const mock = createCKEditorMock("xyz", 0);
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    (editable as HTMLElement & { ckeditorInstance?: unknown }).ckeditorInstance = mock.editor;
+    document.body.appendChild(editable);
+
+    const response = dispatchBridgeRequest(editable, {
+      action: "applyBlockReplacement",
+      replaceStart: 0,
+      replaceEnd: 1,
+      replacementText: "D",
+      cursorAfter: 1,
+      expectedBlockText: "dThe",
+    });
+
+    expect(response).toEqual({ ok: true, result: { applied: false, didDispatchInput: false } });
+    expect(mock.getText()).toBe("xyz");
   });
 
   test("does not activate for elements without ckeditorInstance", () => {

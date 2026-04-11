@@ -260,21 +260,62 @@ function applyCKEditor5BlockReplacement(
     return { applied: false, didDispatchInput: false };
   }
   const mapping = extractModelBlockMapping(block);
+  if (mapping === null) {
+    return { applied: false, didDispatchInput: false };
+  }
+  // Validate the request bounds against the caller's view of the block,
+  // not the host model.  When the host is lagging (Firefox can expose a
+  // newly typed character in the DOM before CKEditor's model observes
+  // it) the caller's view is the authoritative pre-edit state.
   if (
-    mapping === null ||
-    mapping.text !== request.expectedBlockText ||
     request.replaceStart < 0 ||
     request.replaceEnd < request.replaceStart ||
-    request.replaceEnd > mapping.text.length
+    request.replaceEnd > request.expectedBlockText.length
   ) {
     return { applied: false, didDispatchInput: false };
   }
   const expectedLength =
-    mapping.text.length -
+    request.expectedBlockText.length -
     (request.replaceEnd - request.replaceStart) +
     request.replacementText.length;
   if (request.cursorAfter < 0 || request.cursorAfter > expectedLength) {
     return { applied: false, didDispatchInput: false };
+  }
+
+  if (mapping.text !== request.expectedBlockText) {
+    // Host model is stale relative to the caller's view.  Only take the
+    // rewrite path when the mismatch looks like a Firefox CKEditor-5
+    // "typed char not yet observed" lag: the host model should look
+    // exactly like the caller's pre-edit view with the character(s) the
+    // caller is about to replace removed.  This both avoids losing
+    // softBreaks (which we don't attempt to rewrite) and guards against
+    // unrelated mismatches corrupting the block.
+    if (mapping.softBreakModelOffsets.length > 0) {
+      return { applied: false, didDispatchInput: false };
+    }
+    const expectedMissingLeading =
+      request.expectedBlockText.slice(0, request.replaceStart) +
+      request.expectedBlockText.slice(request.replaceEnd);
+    if (mapping.text !== expectedMissingLeading) {
+      return { applied: false, didDispatchInput: false };
+    }
+    const expectedPostEditText =
+      request.expectedBlockText.slice(0, request.replaceStart) +
+      request.replacementText +
+      request.expectedBlockText.slice(request.replaceEnd);
+    try {
+      editor.model.change((writer: any) => {
+        writer.remove(writer.createRangeIn(block));
+        if (expectedPostEditText.length > 0) {
+          writer.insertText(expectedPostEditText, writer.createPositionAt(block, 0));
+        }
+        const cursorPos = writer.createPositionAt(block, request.cursorAfter);
+        writer.setSelection(cursorPos);
+      });
+    } catch {
+      return { applied: false, didDispatchInput: false };
+    }
+    return { applied: true, didDispatchInput: false };
   }
 
   // Translate text offsets to model offsets (accounting for softBreaks).

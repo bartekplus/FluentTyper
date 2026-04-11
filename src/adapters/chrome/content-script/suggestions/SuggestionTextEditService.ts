@@ -652,22 +652,26 @@ export class SuggestionTextEditService {
             blockCursorAfter,
           );
         }
+        if (applyResult === null) {
+          // Last-resort host path for hosts whose model lags the DOM
+          // (Firefox CKEditor-5 can expose a newly typed character in
+          // the DOM before its model observes it).  Bypass the parity
+          // check and hand the request to the bridge, which will
+          // rewrite the block through the editor's own model API so
+          // CKEditor reconciles through its normal rendering pipeline
+          // instead of racing against a foreign DOM mutation.
+          applyResult = this.tryHostGrammarEditWithStaleHostRewrite(
+            entry.elem as HTMLElement,
+            blockSourceText,
+            blockReplaceStart,
+            blockReplaceEnd,
+            replacement,
+            blockCursorAfter,
+          );
+        }
       }
     }
     if (applyResult === null) {
-      // When every host-editor path above failed, the host's model state
-      // is inconsistent with the DOM view the extension built its edit
-      // from (e.g. Firefox CKEditor-5 hasn't yet synced the character the
-      // user just typed).  In that situation routing the fallback through
-      // beforeinput/execCommand re-enters the host's stale model and
-      // produces a duplicated character.  Force a direct DOM mutation
-      // instead so the host's MutationObserver sees a single clean diff
-      // and reconciles its model in one step.
-      const hostAdapterPresent =
-        !TextTargetAdapter.isTextValue(entry.elem) &&
-        this.hostEditorAdapterResolver.resolve(entry.elem as HTMLElement) !== null;
-      const preferDomMutation =
-        this.shouldPreferDomMutationForGrammar(entry.elem) || hostAdapterPresent;
       applyResult =
         !TextTargetAdapter.isTextValue(entry.elem) &&
         activeBlock !== null &&
@@ -682,7 +686,7 @@ export class SuggestionTextEditService {
               replacement,
               blockCursorAfter,
               {
-                preferDomMutation,
+                preferDomMutation: this.shouldPreferDomMutationForGrammar(entry.elem),
                 scopeRoot: activeBlock,
               },
             )
@@ -693,7 +697,7 @@ export class SuggestionTextEditService {
               replaceEnd,
               replacement,
               cursorAfter,
-              { preferDomMutation },
+              { preferDomMutation: this.shouldPreferDomMutationForGrammar(entry.elem) },
             );
     }
     // For edits with cursorOffset on contenteditable, schedule deferred cursor
@@ -1199,6 +1203,38 @@ export class SuggestionTextEditService {
       replaceEnd: fullReplaceEnd,
       replacementText,
       cursorAfter: fullCursorAfter,
+    });
+    if (!hostResult.applied) {
+      return null;
+    }
+    return {
+      didMutateDom: true,
+      didDispatchInput: hostResult.didDispatchInput,
+    };
+  }
+
+  private tryHostGrammarEditWithStaleHostRewrite(
+    elem: HTMLElement,
+    blockText: string,
+    replaceStart: number,
+    replaceEnd: number,
+    replacementText: string,
+    cursorAfter: number,
+  ): { didMutateDom: boolean; didDispatchInput: boolean } | null {
+    const session = this.hostEditorAdapterResolver.resolve(elem);
+    if (!session) {
+      return null;
+    }
+    // The bridge validates request bounds against the expected block
+    // text and, when its model is stale, rewrites the block by
+    // replacing its content with the post-edit text via the editor's
+    // own model API.  We therefore don't need a parity check here.
+    const hostResult = session.applyBlockReplacement({
+      replaceStart,
+      replaceEnd,
+      replacementText,
+      cursorAfter,
+      expectedBlockText: blockText,
     });
     if (!hostResult.applied) {
       return null;

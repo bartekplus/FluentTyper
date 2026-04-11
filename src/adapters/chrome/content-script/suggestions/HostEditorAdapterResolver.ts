@@ -27,6 +27,14 @@ export interface HostEditorSession {
     replaceEnd: number;
     replacementText: string;
     cursorAfter: number;
+    /**
+     * The caller's view of the block text (pre-edit).  When omitted,
+     * the session uses the block text captured at resolve time.  Pass
+     * this explicitly when the extension's DOM view may diverge from
+     * the host model (e.g. Firefox CKEditor-5 lag) so the bridge can
+     * decide whether to apply an incremental edit or rewrite the block.
+     */
+    expectedBlockText?: string;
   }): HostEditorApplyResult;
   createPostEditFingerprint(): PostEditFingerprint;
 }
@@ -108,18 +116,20 @@ class BridgedLineEditorHostSession implements HostEditorSession {
     replaceEnd,
     replacementText,
     cursorAfter,
+    expectedBlockText,
   }: {
     replaceStart: number;
     replaceEnd: number;
     replacementText: string;
     cursorAfter: number;
+    expectedBlockText?: string;
   }): HostEditorApplyResult {
     return this.pageBridge.applyBlockReplacement(this.elem, {
       replaceStart,
       replaceEnd,
       replacementText,
       cursorAfter,
-      expectedBlockText: this.expectedBlockText,
+      expectedBlockText: expectedBlockText ?? this.expectedBlockText,
     });
   }
 
@@ -150,7 +160,11 @@ class LineEditorHostSession implements HostEditorSession {
     replaceEnd: number;
     replacementText: string;
     cursorAfter: number;
+    expectedBlockText?: string;
   }): HostEditorApplyResult {
+    // LineEditor host (CodeMirror) owns both its DOM and its model, so
+    // there is no staleness window and we ignore the caller's
+    // expectedBlockText hint.
     const cursor = this.readCursor();
     if (!cursor) {
       return { applied: false, didDispatchInput: false };
