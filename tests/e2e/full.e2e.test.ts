@@ -3640,6 +3640,104 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "CKEditor inline preview hides trailing word chars when caret is mid-word",
+    async () => {
+      try {
+        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, true);
+        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+        await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+        await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+        await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, false);
+        await applyConfigChange(browser, worker!);
+
+        await gotoTestPage(page, { enableCkEditor: true });
+        await page.bringToFront();
+        await waitForInputReady(page, CKEDITOR_SELECTOR);
+
+        // Seed the editor with "The dog walked the street".
+        await page.evaluate(() => {
+          const ckEditor = (
+            window as typeof window & {
+              __testCkEditor?: { setData: (data: string) => void };
+            }
+          ).__testCkEditor;
+          if (!ckEditor) {
+            throw new Error("CKEditor test instance not found");
+          }
+          ckEditor.setData("<p>The dog walked the street</p>");
+        });
+
+        await page.focus(CKEDITOR_SELECTOR);
+        // Place the caret inside the first word, after "Th".
+        await page.evaluate(() => {
+          const editable = document.querySelector(".ck-editor__editable");
+          const firstParagraph = editable?.querySelector("p");
+          const textNode = firstParagraph?.firstChild;
+          if (!(textNode instanceof Text)) {
+            throw new Error("CKEditor first paragraph text node missing");
+          }
+          const selection = window.getSelection();
+          if (!selection) {
+            throw new Error("Selection unavailable");
+          }
+          const range = document.createRange();
+          range.setStart(textNode, 2); // "Th|e dog walked the street"
+          range.collapse(true);
+          selection.removeAllRanges();
+          selection.addRange(range);
+        });
+
+        // Type "r" so the text becomes "Thr|e dog walked the street".
+        await page.keyboard.type("r");
+
+        // Wait for the inline preview to render.
+        const previewText = await waitUntil(
+          "CKEditor inline preview for mid-word typing",
+          async () => {
+            const text = await page.evaluate(() => {
+              const preview = document.querySelector(".ft-suggestion-inline");
+              const raw = preview?.textContent ?? "";
+              return raw.replace(/\u00a0/g, " ");
+            });
+            return text.length > 0 ? text : false;
+          },
+          { timeoutMs: browserTimeout(3000, 6000), intervalMs: 50 },
+        );
+
+        // The preview must read as the post-acceptance text: a single word
+        // starting with "Thr" followed by " dog walked the street" with no
+        // stale "e" from the original word leaking through after the ghost
+        // suffix (the pre-fix bug produced "Threee dog walked the street").
+        expect(previewText).toMatch(/^thr\S* dog walked the street$/i);
+
+        // Accepting the suggestion yields the exact text the preview showed,
+        // validating the "WYSIWYG" invariant the preview is supposed to
+        // guarantee (with insert-space-after-accept disabled so we can
+        // compare directly).
+        await page.keyboard.press("Tab");
+        const finalText = await waitUntil(
+          "CKEditor first-paragraph text after accepting inline suggestion",
+          async () => {
+            const text = await page.evaluate(() => {
+              const editable = document.querySelector(".ck-editor__editable");
+              const firstParagraph = editable?.querySelector("p");
+              return (firstParagraph?.textContent ?? "").replace(/\u00a0/g, " ").trim();
+            });
+            return text === previewText ? text : false;
+          },
+          { timeoutMs: browserTimeout(3000, 6000), intervalMs: 50 },
+        );
+        expect(finalText).toBe(previewText);
+      } finally {
+        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
+        await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, true);
+        await applyConfigChange(browser, worker!);
+      }
+    },
+    browserTimeout(45000, 70000),
+  );
+
+  test(
     "Enabled languages restrict popup language list",
     async () => {
       const enabledLanguages = ["en_US", "de_DE"];

@@ -545,6 +545,145 @@ describe("InlineSuggestionView", () => {
     container.remove();
   });
 
+  test("renderContentEditableMirrorPreview removes trailing token chars from cloned text when cursor is mid-word", () => {
+    // Regression for CKEditor-5 inline preview bug: user types "r" inside
+    // "the" (cursor at "Th|e") and the suggestion "Three" should show the
+    // final text — not leave the stale "e" after the ghost suffix.
+    const container = document.createElement("div");
+    container.contentEditable = "true";
+    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(container);
+
+    const p = document.createElement("p");
+    p.textContent = "Thre dog walked the street";
+    container.appendChild(p);
+
+    const textNode = p.firstChild!;
+    const range = document.createRange();
+    range.setStart(textNode, 3); // cursor after "Thr"
+    range.collapse(true);
+    const sel = window.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    const mirror = InlineSuggestionView.renderContentEditableMirrorPreview({
+      target: container,
+      suffix: "ee",
+      trailingTokenText: "e",
+      doc: document,
+    });
+
+    expect(mirror).not.toBeNull();
+    const suffixSpan = mirror!.querySelector("span");
+    expect(suffixSpan).not.toBeNull();
+    expect(suffixSpan!.textContent).toBe("ee");
+    expect(suffixSpan!.style.opacity).toBe("0.5");
+    // The stale trailing "e" must be gone so the preview reads "Three dog walked the street".
+    expect(mirror!.textContent).toBe("Three dog walked the street");
+
+    container.remove();
+  });
+
+  test("renderContentEditableMirrorPreview leaves trailing text intact when trailingTokenText is empty", () => {
+    // When cursor sits at a word boundary (end of word, before space),
+    // no trailing chars should be consumed — this matches the acceptance
+    // behaviour where trailingTokenText is empty and "with…" stays as-is.
+    const container = document.createElement("div");
+    container.contentEditable = "true";
+    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(container);
+
+    const p = document.createElement("p");
+    p.textContent = "highest stand with Spell Checker";
+    container.appendChild(p);
+
+    const textNode = p.firstChild!;
+    const range = document.createRange();
+    range.setStart(textNode, 14);
+    range.collapse(true);
+    const sel = window.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    const mirror = InlineSuggestionView.renderContentEditableMirrorPreview({
+      target: container,
+      suffix: "ards",
+      trailingTokenText: "",
+      doc: document,
+    });
+
+    expect(mirror).not.toBeNull();
+    expect(mirror!.textContent).toBe("highest stand ardswith Spell Checker");
+
+    container.remove();
+  });
+
+  test("renderContentEditableMirrorPreview removes trailing token across inline element boundaries", () => {
+    // Caret inside <strong>, with the rest of the word in a following
+    // <em> sibling — the trailing-token removal must walk forward across
+    // element boundaries so formatted words are handled correctly.
+    const container = document.createElement("div");
+    container.contentEditable = "true";
+    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(container);
+
+    const p = document.createElement("p");
+    const strong = document.createElement("strong");
+    strong.textContent = "Th";
+    const em = document.createElement("em");
+    em.textContent = "re";
+    p.appendChild(strong);
+    p.appendChild(em);
+    p.appendChild(document.createTextNode(" more"));
+    container.appendChild(p);
+
+    const strongText = strong.firstChild!;
+    const range = document.createRange();
+    range.setStart(strongText, 2); // caret at end of "Th" inside <strong>
+    range.collapse(true);
+    const sel = window.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    const mirror = InlineSuggestionView.renderContentEditableMirrorPreview({
+      target: container,
+      suffix: "ree",
+      trailingTokenText: "re",
+      doc: document,
+    });
+
+    expect(mirror).not.toBeNull();
+    // Expect the "re" that lived in <em> to be removed, leaving the preview
+    // as "Th" + "ree" (ghost) + " more".
+    expect(mirror!.textContent).toBe("Three more");
+
+    container.remove();
+  });
+
+  test("renderMirrorPreview removes trailing token chars from after-cursor text for input mid-word", () => {
+    const input = document.createElement("input");
+    input.value = "Thre dog walked the street";
+    document.body.appendChild(input);
+
+    const mirror = InlineSuggestionView.renderMirrorPreview({
+      target: input,
+      suffix: "ee",
+      cursorOffset: 3,
+      trailingTokenText: "e",
+      doc: document,
+    });
+
+    expect(mirror).not.toBeNull();
+    const spans = mirror!.querySelectorAll("span");
+    expect(spans.length).toBe(3);
+    expect(spans[0]!.textContent).toBe("Thr");
+    expect(spans[1]!.textContent).toBe("ee");
+    // The trailing "e" is gone; the after-span starts at the space.
+    expect(spans[2]!.textContent).toBe("\u00A0dog\u00A0walked\u00A0the\u00A0street");
+
+    input.remove();
+  });
+
   test("renderContentEditableMirrorPreview preserves pre whitespace for <pre> blocks", () => {
     const container = document.createElement("div");
     container.contentEditable = "true";

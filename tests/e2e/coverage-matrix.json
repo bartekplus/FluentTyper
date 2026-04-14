@@ -186,6 +186,32 @@
       ]
     },
     {
+      "id": "inline_preview_midword_trailing_token",
+      "description": "Inline suggestion preview hides the trailing word chars under the caret so the mid-text preview reflects the post-acceptance text (no stale characters leaking past the ghost suffix).",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "CKEditor inline preview hides trailing word chars when caret is mid-word"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/InlineSuggestionView.test.ts",
+          "test": "renderContentEditableMirrorPreview removes trailing token chars from cloned text when cursor is mid-word"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/InlineSuggestionView.test.ts",
+          "test": "renderMirrorPreview removes trailing token chars from after-cursor text for input mid-word"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/InlineSuggestionPresenter.test.ts",
+          "test": "passes trailingTokenText from resolveTrailingToken into mid-text previews"
+        }
+      ]
+    },
+    {
       "id": "ckeditor_paragraph_preservation",
       "description": "CKEditor suggestion acceptance preserves paragraph structure.",
       "coverage": [
