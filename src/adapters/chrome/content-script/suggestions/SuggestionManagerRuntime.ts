@@ -748,6 +748,18 @@ export class SuggestionManagerRuntime {
           resolveMentionToken: this.predictionCoordinator.findMentionToken.bind(
             this.predictionCoordinator,
           ),
+          // Mirror acceptance's findTrailingToken so the mid-text preview
+          // hides the characters that acceptance will replace.
+          resolveTrailingToken: (afterCursor: string) => {
+            let end = 0;
+            while (
+              end < afterCursor.length &&
+              !this.predictionCoordinator.isSeparator(afterCursor.charAt(end))
+            ) {
+              end += 1;
+            }
+            return afterCursor.slice(0, end);
+          },
         }),
       recordSuggestionShown: (context) => this.telemetry.recordSuggestionShown(context),
       recordSuggestionAccepted: (context) => this.telemetry.recordSuggestionAccepted(context),

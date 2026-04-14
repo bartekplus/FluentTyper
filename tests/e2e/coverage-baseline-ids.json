@@ -15,6 +15,7 @@
     "dev_ai_predictor_latency_fallback",
     "dev_predictor_debug_toggle",
     "prediction_accept_tab_and_click",
+    "inline_preview_midword_trailing_token",
     "ckeditor_paragraph_preservation",
     "contenteditable_enter_dismisses_popup",
     "contenteditable_enter_restores_previous_block_prediction",

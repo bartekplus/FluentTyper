@@ -43,10 +43,12 @@ export class InlineSuggestionPresenter {
     enabled,
     entry,
     resolveMentionToken,
+    resolveTrailingToken,
   }: {
     enabled: boolean;
     entry: SuggestionEntry;
     resolveMentionToken: (beforeCursor: string) => { token: string; start: number };
+    resolveTrailingToken?: (afterCursor: string) => string;
   }): void {
     if (!enabled) {
       this.clearForEntry(entry.id);
@@ -86,6 +88,9 @@ export class InlineSuggestionPresenter {
     }
 
     const isMidText = snapshot.afterCursor.length > 0;
+    // Acceptance consumes the trailing word chars under the caret, so hide
+    // them in the preview to match the post-acceptance rendering.
+    const trailingTokenText = isMidText ? (resolveTrailingToken?.(snapshot.afterCursor) ?? "") : "";
 
     let ghost: HTMLDivElement | null;
     if (isMidText && TextTargetAdapter.isTextValue(entry.elem as TextTarget)) {
@@ -93,6 +98,7 @@ export class InlineSuggestionPresenter {
         target: entry.elem as HTMLInputElement | HTMLTextAreaElement,
         suffix,
         cursorOffset: snapshot.cursorOffset,
+        trailingTokenText,
         entryId: entry.id,
         doc: this.doc,
       });
@@ -100,6 +106,7 @@ export class InlineSuggestionPresenter {
       ghost = InlineSuggestionView.renderContentEditableMirrorPreview({
         target: entry.elem,
         suffix,
+        trailingTokenText,
         entryId: entry.id,
         doc: this.doc,
       });
@@ -115,7 +122,8 @@ export class InlineSuggestionPresenter {
 
     this.activeGhost = ghost;
     this.activeEntryId = entry.id;
-    this.pendingRerender = () => this.renderForEntry({ enabled, entry, resolveMentionToken });
+    this.pendingRerender = () =>
+      this.renderForEntry({ enabled, entry, resolveMentionToken, resolveTrailingToken });
     this.observeGhostRemoval();
   }
 

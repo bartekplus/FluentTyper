@@ -237,12 +237,14 @@ export class InlineSuggestionView {
     target,
     suffix,
     cursorOffset,
+    trailingTokenText = "",
     entryId,
     doc = document,
   }: {
     target: HTMLInputElement | HTMLTextAreaElement;
     suffix: string;
     cursorOffset: number;
+    trailingTokenText?: string;
     entryId?: number;
     doc?: Document;
   }): HTMLDivElement | null {
@@ -282,7 +284,9 @@ export class InlineSuggestionView {
     // would look after accepting, with only the suffix ghost-styled.
     const value = target.value ?? "";
     const beforeText = value.slice(0, cursorOffset);
-    const afterText = value.slice(cursorOffset);
+    // Skip the trailing token chars — acceptance would replace them, so
+    // the preview must reflect the post-acceptance text.
+    const afterText = value.slice(cursorOffset + trailingTokenText.length);
     const textColor = computed.color;
 
     const beforeSpan = doc.createElement("span");
@@ -330,11 +334,13 @@ export class InlineSuggestionView {
   static renderContentEditableMirrorPreview({
     target,
     suffix,
+    trailingTokenText = "",
     entryId,
     doc = document,
   }: {
     target: HTMLElement;
     suffix: string;
+    trailingTokenText?: string;
     entryId?: number;
     doc?: Document;
   }): HTMLDivElement | null {
@@ -396,6 +402,7 @@ export class InlineSuggestionView {
       const textNode = cloneTarget as Text;
       const afterNode = textNode.splitText(range.startOffset);
       afterNode.parentNode!.insertBefore(suffixSpan, afterNode);
+      InlineSuggestionView.stripLeadingTextChars(afterNode, mirror, trailingTokenText.length);
     } else if (cloneTarget && cloneTarget.nodeType === Node.ELEMENT_NODE) {
       // Caret is on an element node (common in Lexical / ProseMirror /
       // TinyMCE when the selection sits between inline children).
@@ -403,6 +410,9 @@ export class InlineSuggestionView {
       const parent = cloneTarget as HTMLElement;
       const refChild = parent.childNodes[range.startOffset] ?? null;
       parent.insertBefore(suffixSpan, refChild);
+      if (refChild) {
+        InlineSuggestionView.stripLeadingTextChars(refChild, mirror, trailingTokenText.length);
+      }
     } else {
       // Fallback: append suffix at end if we can't resolve the position.
       mirror.appendChild(suffixSpan);
@@ -417,6 +427,40 @@ export class InlineSuggestionView {
 
     resolveSuggestionOverlayRoot(doc).appendChild(mirror);
     return mirror;
+  }
+
+  /**
+   * Remove `count` leading text characters from the subtree starting at
+   * `startNode`, walking forward in document order within `root`.
+   *
+   * Used by the mid-text mirror preview to swallow the trailing chars of
+   * the word under the caret — these will be replaced on acceptance, so
+   * the preview must hide them to match the final rendered text.
+   */
+  private static stripLeadingTextChars(startNode: Node, root: Node, count: number): void {
+    if (count <= 0) {
+      return;
+    }
+    const doc = startNode.ownerDocument ?? document;
+    // NodeFilter.SHOW_TEXT = 0x4; use the numeric constant directly so the
+    // code stays compatible with test environments that do not expose the
+    // NodeFilter global.
+    const walker = doc.createTreeWalker(root, 0x4);
+    walker.currentNode = startNode;
+
+    let current: Node | null =
+      startNode.nodeType === Node.TEXT_NODE ? startNode : walker.nextNode();
+    let remaining = count;
+
+    while (current && remaining > 0) {
+      const text = current as Text;
+      const toRemove = Math.min(remaining, text.data.length);
+      if (toRemove > 0) {
+        text.deleteData(0, toRemove);
+        remaining -= toRemove;
+      }
+      current = walker.nextNode();
+    }
   }
 
   /** Compute the path (child-node indices) from root to target. */

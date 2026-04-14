@@ -195,6 +195,81 @@ describe("InlineSuggestionPresenter", () => {
     container.remove();
   });
 
+  test("passes trailingTokenText from resolveTrailingToken into mid-text previews", () => {
+    const mirrorPreviewSpy = jest
+      .spyOn(InlineSuggestionView, "renderMirrorPreview")
+      .mockImplementation(() => undefined);
+    const ceMirrorSpy = jest
+      .spyOn(InlineSuggestionView, "renderContentEditableMirrorPreview")
+      .mockImplementation(() => undefined);
+    const positioning = {
+      getCaretRect: jest.fn(() => createRect()),
+    } as unknown as SuggestionPositioningService;
+    const presenter = new InlineSuggestionPresenter({ positioningService: positioning });
+
+    // Input mid-text: cursor at "Thr|e dog…" — trailing token is "e".
+    const input = document.createElement("input");
+    input.value = "Thre dog walked the street";
+    input.selectionStart = 3;
+    input.selectionEnd = 3;
+    const inputEntry = createSuggestionEntry({
+      elem: input,
+      inlineSuggestion: "Three",
+      latestMentionText: "Thr",
+    });
+
+    presenter.renderForEntry({
+      enabled: true,
+      entry: inputEntry,
+      resolveMentionToken: () => ({ token: "Thr", start: 0 }),
+      resolveTrailingToken: (afterCursor) => {
+        const match = afterCursor.match(/^\S+/);
+        return match?.[0] ?? "";
+      },
+    });
+
+    expect(mirrorPreviewSpy).toHaveBeenCalledTimes(1);
+    expect(mirrorPreviewSpy.mock.calls[0]?.[0].suffix).toBe("ee");
+    expect(mirrorPreviewSpy.mock.calls[0]?.[0].trailingTokenText).toBe("e");
+
+    // Contenteditable mid-text: same expectation for the CE preview path.
+    const container = document.createElement("div");
+    container.contentEditable = "true";
+    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
+    container.textContent = "Thre dog walked the street";
+    document.body.appendChild(container);
+
+    const textNode = container.firstChild!;
+    const range = document.createRange();
+    range.setStart(textNode, 3);
+    range.collapse(true);
+    const sel = window.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    const ceEntry = createSuggestionEntry({
+      elem: container,
+      inlineSuggestion: "Three",
+      latestMentionText: "Thr",
+    });
+
+    presenter.renderForEntry({
+      enabled: true,
+      entry: ceEntry,
+      resolveMentionToken: () => ({ token: "Thr", start: 0 }),
+      resolveTrailingToken: (afterCursor) => {
+        const match = afterCursor.match(/^\S+/);
+        return match?.[0] ?? "";
+      },
+    });
+
+    expect(ceMirrorSpy).toHaveBeenCalledTimes(1);
+    expect(ceMirrorSpy.mock.calls[0]?.[0].suffix).toBe("ee");
+    expect(ceMirrorSpy.mock.calls[0]?.[0].trailingTokenText).toBe("e");
+
+    container.remove();
+  });
+
   test("uses standard render when caret is at end of text", () => {
     const renderSpy = jest
       .spyOn(InlineSuggestionView, "render")
