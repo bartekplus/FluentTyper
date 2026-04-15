@@ -2,12 +2,11 @@
   "compilerOptions": {
     "target": "ES2022",
     "module": "ES2022",
-    "baseUrl": "./src",
     "paths": {
-      "@core/*": ["core/*"],
-      "@adapters/*": ["adapters/*"],
-      "@ui/*": ["ui/*"],
-      "@third-party/*": ["third_party/*"]
+      "@core/*": ["./src/core/*"],
+      "@adapters/*": ["./src/adapters/*"],
+      "@ui/*": ["./src/ui/*"],
+      "@third-party/*": ["./src/third_party/*"]
     },
     "strict": true,
     "esModuleInterop": true,
@@ -16,7 +15,6 @@
     "lib": ["ES2022", "DOM"],
     "skipLibCheck": true,
     "moduleResolution": "bundler",
-    "ignoreDeprecations": "6.0",
     "typeRoots": ["node_modules/@types"],
     "noEmit": true,
     "isolatedModules": true,
