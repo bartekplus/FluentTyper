@@ -270,13 +270,6 @@ async function openOnboardingPageWithPermissionHooks(
   return page;
 }
 
-function toLocalDateKey(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
 let domainTestUrl: string;
 let activeBrowserForWorkerRecovery: Browser | null = null;
 let latestWorkerContext: BackgroundContext | null = null;
@@ -1121,6 +1114,74 @@ async function waitForVisibleSuggestions(
   return suggestions.length;
 }
 
+async function getVisibleSuggestionTexts(page: Page): Promise<string[]> {
+  return await page.evaluate(() => {
+    const getMenuRoot = (container: Element): ParentNode =>
+      (container as HTMLElement).shadowRoot ?? container;
+    const getDeepActiveElement = (): HTMLElement | null => {
+      let active: Element | null = document.activeElement;
+      while (active instanceof HTMLElement && active.shadowRoot?.activeElement) {
+        active = active.shadowRoot.activeElement;
+      }
+      return active instanceof HTMLElement ? active : null;
+    };
+    const getMenuHostId = (entryId: string): string => `ft-menu-${entryId}`;
+    const collectManagedElements = (root: ParentNode): HTMLElement[] => [
+      ...Array.from(root.querySelectorAll<HTMLElement>('[data-suggestion="true"]')),
+      ...Array.from(root.querySelectorAll<HTMLElement>("*")).flatMap((element) =>
+        element.shadowRoot ? collectManagedElements(element.shadowRoot) : [],
+      ),
+    ];
+    const getKnownMenus = (): Element[] => {
+      const seen = new Set<Element>();
+      return [
+        ...collectManagedElements(document)
+          .map((element) => element.getAttribute("data-ft-suggestion-id"))
+          .filter((entryId): entryId is string => typeof entryId === "string" && entryId.length > 0)
+          .map((entryId) => document.getElementById(getMenuHostId(entryId)))
+          .filter((menu): menu is Element => menu instanceof Element),
+        ...Array.from(document.querySelectorAll<HTMLElement>('[id^="ft-menu-"]')),
+      ]
+        .filter((menu): menu is Element => menu instanceof Element)
+        .filter((menu) => {
+          if (seen.has(menu)) {
+            return false;
+          }
+          seen.add(menu);
+          return true;
+        });
+    };
+    const activeElement = getDeepActiveElement();
+    const activeEntryId = activeElement?.getAttribute("data-ft-suggestion-id");
+    const activeMenu =
+      typeof activeEntryId === "string"
+        ? document.getElementById(getMenuHostId(activeEntryId))
+        : null;
+    const containers = [
+      ...(activeMenu instanceof Element ? [activeMenu] : []),
+      ...getKnownMenus().filter((container) => container !== activeMenu),
+    ];
+    for (const container of containers) {
+      const style = window.getComputedStyle(container);
+      if (
+        style.display === "none" ||
+        style.visibility === "hidden" ||
+        style.opacity === "0" ||
+        container.getClientRects().length === 0
+      ) {
+        continue;
+      }
+      const visibleTexts = Array.from(getMenuRoot(container).querySelectorAll("li[data-index]"))
+        .map((li) => li.textContent ?? "")
+        .filter((text) => text.length > 0);
+      if (visibleTexts.length > 0) {
+        return visibleTexts;
+      }
+    }
+    return [];
+  });
+}
+
 async function waitForVisibleSuggestionTexts(
   page: Page,
   timeoutMs = SUGGESTION_TIMEOUT_MS,
@@ -1128,73 +1189,7 @@ async function waitForVisibleSuggestionTexts(
   return await waitUntil(
     "visible suggestions",
     async () => {
-      const texts = await page.evaluate(() => {
-        const getMenuRoot = (container: Element): ParentNode =>
-          (container as HTMLElement).shadowRoot ?? container;
-        const getDeepActiveElement = (): HTMLElement | null => {
-          let active: Element | null = document.activeElement;
-          while (active instanceof HTMLElement && active.shadowRoot?.activeElement) {
-            active = active.shadowRoot.activeElement;
-          }
-          return active instanceof HTMLElement ? active : null;
-        };
-        const getMenuHostId = (entryId: string): string => `ft-menu-${entryId}`;
-        const collectManagedElements = (root: ParentNode): HTMLElement[] => [
-          ...Array.from(root.querySelectorAll<HTMLElement>('[data-suggestion="true"]')),
-          ...Array.from(root.querySelectorAll<HTMLElement>("*")).flatMap((element) =>
-            element.shadowRoot ? collectManagedElements(element.shadowRoot) : [],
-          ),
-        ];
-        const getKnownMenus = (): Element[] => {
-          const seen = new Set<Element>();
-          return [
-            ...collectManagedElements(document)
-              .map((element) => element.getAttribute("data-ft-suggestion-id"))
-              .filter(
-                (entryId): entryId is string => typeof entryId === "string" && entryId.length > 0,
-              )
-              .map((entryId) => document.getElementById(getMenuHostId(entryId)))
-              .filter((menu): menu is Element => menu instanceof Element),
-            ...Array.from(document.querySelectorAll<HTMLElement>('[id^="ft-menu-"]')),
-          ]
-            .filter((menu): menu is Element => menu instanceof Element)
-            .filter((menu) => {
-              if (seen.has(menu)) {
-                return false;
-              }
-              seen.add(menu);
-              return true;
-            });
-        };
-        const activeElement = getDeepActiveElement();
-        const activeEntryId = activeElement?.getAttribute("data-ft-suggestion-id");
-        const activeMenu =
-          typeof activeEntryId === "string"
-            ? document.getElementById(getMenuHostId(activeEntryId))
-            : null;
-        const containers = [
-          ...(activeMenu instanceof Element ? [activeMenu] : []),
-          ...getKnownMenus().filter((container) => container !== activeMenu),
-        ];
-        for (const container of containers) {
-          const style = window.getComputedStyle(container);
-          if (
-            style.display === "none" ||
-            style.visibility === "hidden" ||
-            style.opacity === "0" ||
-            container.getClientRects().length === 0
-          ) {
-            continue;
-          }
-          const visibleTexts = Array.from(getMenuRoot(container).querySelectorAll("li[data-index]"))
-            .map((li) => li.textContent ?? "")
-            .filter((text) => text.length > 0);
-          if (visibleTexts.length > 0) {
-            return visibleTexts;
-          }
-        }
-        return [];
-      });
+      const texts = await getVisibleSuggestionTexts(page);
       return texts.length > 0 ? texts : false;
     },
     { timeoutMs, intervalMs: 50 },
@@ -3827,11 +3822,20 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   test(
     "Productivity dashboard shows compact popup summary and advanced stats in options",
     async () => {
-      const now = new Date();
-      const today = toLocalDateKey(now);
-      const yesterday = toLocalDateKey(
-        new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1),
-      );
+      const { today, yesterday } = await worker!.evaluate(() => {
+        const toLocalDateKey = (date: Date): string => {
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, "0");
+          const day = String(date.getDate()).padStart(2, "0");
+          return `${year}-${month}-${day}`;
+        };
+        const now = new Date();
+        const previousDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+        return {
+          today: toLocalDateKey(now),
+          yesterday: toLocalDateKey(previousDay),
+        };
+      });
       const productivityState = {
         schemaVersion: 2,
         acceptedSuggestions: 8,
@@ -4299,9 +4303,30 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitForNoVisibleSuggestions(page, browserTimeout(2000, 5000)).catch(() => undefined);
       await typeInInput(page, selector, testData.input);
 
-      const allSuggestionTexts = (
-        await waitForVisibleSuggestionTexts(page, suggestionTimeoutMs).catch(() => [])
-      ).map((text) => text.toLowerCase());
+      let latestSuggestionTexts: string[] = [];
+      await waitUntil(
+        `prediction for ${lang} in ${selector}`,
+        async () => {
+          const visibleSuggestionTexts = (
+            await getVisibleSuggestionTexts(page).catch(() => [])
+          ).map((text) => text.toLowerCase());
+          if (visibleSuggestionTexts.length === 0) {
+            return false;
+          }
+          latestSuggestionTexts = visibleSuggestionTexts;
+          if (selector === "#test-textarea" || selector === CKEDITOR_SELECTOR) {
+            return visibleSuggestionTexts;
+          }
+          return visibleSuggestionTexts.some((text) =>
+            text.includes(testData.expected.toLowerCase()),
+          )
+            ? visibleSuggestionTexts
+            : false;
+        },
+        { timeoutMs: suggestionTimeoutMs, intervalMs: 50 },
+      ).catch(() => undefined);
+
+      const allSuggestionTexts = latestSuggestionTexts;
       if (allSuggestionTexts.length > 0) {
         const found = allSuggestionTexts.some((text) =>
           text.includes(testData.expected.toLowerCase()),
@@ -4311,7 +4336,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         } else if (selector === "#test-textarea" || selector === CKEDITOR_SELECTOR) {
           expect(allSuggestionTexts.length).toBeGreaterThan(0);
         } else {
-          expect(found).toBe(true);
+          throw new Error(
+            `Expected ${lang} suggestion containing "${testData.expected}" in ${selector}, got: ${allSuggestionTexts.join(" | ")}`,
+          );
         }
       } else {
         const currentInput = await getInputContent(page, selector);
