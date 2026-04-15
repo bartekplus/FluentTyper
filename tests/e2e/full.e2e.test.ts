@@ -1137,9 +1137,7 @@ async function getVisibleSuggestionTexts(page: Page): Promise<string[]> {
       return [
         ...collectManagedElements(document)
           .map((element) => element.getAttribute("data-ft-suggestion-id"))
-          .filter(
-            (entryId): entryId is string => typeof entryId === "string" && entryId.length > 0,
-          )
+          .filter((entryId): entryId is string => typeof entryId === "string" && entryId.length > 0)
           .map((entryId) => document.getElementById(getMenuHostId(entryId)))
           .filter((menu): menu is Element => menu instanceof Element),
         ...Array.from(document.querySelectorAll<HTMLElement>('[id^="ft-menu-"]')),
@@ -1156,7 +1154,9 @@ async function getVisibleSuggestionTexts(page: Page): Promise<string[]> {
     const activeElement = getDeepActiveElement();
     const activeEntryId = activeElement?.getAttribute("data-ft-suggestion-id");
     const activeMenu =
-      typeof activeEntryId === "string" ? document.getElementById(getMenuHostId(activeEntryId)) : null;
+      typeof activeEntryId === "string"
+        ? document.getElementById(getMenuHostId(activeEntryId))
+        : null;
     const containers = [
       ...(activeMenu instanceof Element ? [activeMenu] : []),
       ...getKnownMenus().filter((container) => container !== activeMenu),
@@ -4317,7 +4317,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           if (selector === "#test-textarea" || selector === CKEDITOR_SELECTOR) {
             return visibleSuggestionTexts;
           }
-          return visibleSuggestionTexts.some((text) => text.includes(testData.expected.toLowerCase()))
+          return visibleSuggestionTexts.some((text) =>
+            text.includes(testData.expected.toLowerCase()),
+          )
             ? visibleSuggestionTexts
             : false;
         },

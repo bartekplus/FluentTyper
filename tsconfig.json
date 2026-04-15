@@ -16,6 +16,7 @@
     "lib": ["ES2022", "DOM"],
     "skipLibCheck": true,
     "moduleResolution": "bundler",
+    "ignoreDeprecations": "6.0",
     "typeRoots": ["node_modules/@types"],
     "noEmit": true,
     "isolatedModules": true,
