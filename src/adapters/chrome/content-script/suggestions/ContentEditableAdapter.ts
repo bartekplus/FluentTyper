@@ -143,6 +143,12 @@ export class ContentEditableAdapter {
       if (shouldTryNativeReplacement) {
         const nativeReplacementResult = this.tryNativeReplacement(elem, replacementText);
         if (nativeReplacementResult.didMutateDom) {
+          // execCommand leaves the caret at the end of the inserted text. Plain
+          // contenteditable has no async host reconciliation to override us, so
+          // place the caret at the final offset synchronously. This prevents a
+          // race where a fast follow-up keystroke (e.g. auto-close "()" then an
+          // immediate "x") lands before a deferred caret correction runs.
+          this.setCaret(editScope, cursorAfter);
           logger.debug("Contenteditable replacement handled by execCommand fallback", {
             didDispatchInput: nativeReplacementResult.didDispatchInput,
             editorTextLength: (elem.textContent ?? "").length,
