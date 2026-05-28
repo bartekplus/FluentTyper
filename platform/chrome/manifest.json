@@ -54,7 +54,7 @@
   },
   "permissions": ["storage", "activeTab"],
   "update_url": "https://clients2.google.com/service/update2/crx",
-  "version": "2026.19.1",
+  "version": "2026.20.0",
   "manifest_version": 3,
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
