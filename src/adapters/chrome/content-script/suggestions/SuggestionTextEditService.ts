@@ -706,7 +706,19 @@ export class SuggestionTextEditService {
     // DOM asynchronously via microtask. This means didMutateDom is false at check
     // time even though the edit WILL be applied. The deferred callback validates
     // that the expected text appeared before moving the cursor.
-    if (edit.cursorOffset !== undefined && !TextTargetAdapter.isTextValue(entry.elem)) {
+    //
+    // Plain contenteditable applied via the DOM path ("fallback-dom") already had
+    // its caret placed synchronously at the final offset by the adapter, so skip
+    // the deferred relative move-back there — running it would double-correct the
+    // caret. Only host editors (React via beforeinput, CKEditor via host session)
+    // reconcile asynchronously and still need the deferred reposition.
+    const caretPlacedSynchronously =
+      "appliedBy" in applyResult && applyResult.appliedBy === "fallback-dom";
+    if (
+      edit.cursorOffset !== undefined &&
+      !TextTargetAdapter.isTextValue(entry.elem) &&
+      !caretPlacedSynchronously
+    ) {
       const moveBackCount = replacement.length - edit.cursorOffset;
       if (moveBackCount > 0) {
         const targetElem = entry.elem as HTMLElement;
