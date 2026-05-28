@@ -6069,6 +6069,11 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await typeInInput(page, selector, "hello (");
       await waitForInputContentMatch(page, selector, /^hello \(\)$/, browserTimeout(5000, 9000));
 
+      // Wait for deferred cursor repositioning (rAF + setTimeout in content script).
+      // For contenteditable the caret is moved between the brackets asynchronously,
+      // so typing immediately can race and land "x" after ")" -> "hello ()x".
+      await sleep(200);
+
       // Verify cursor position: typing after auto-close should insert between brackets
       await typeInInput(page, selector, "x");
       await waitForInputContentMatch(page, selector, /^hello \(x\)$/, browserTimeout(5000, 9000));
