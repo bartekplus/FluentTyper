@@ -319,5 +319,7 @@ describe("SpacingRule", () => {
     expect(ruleA.apply(getContext("Hello.\xA0w"))).toBeNull();
     expect(ruleA.apply(getContext("old_word.\xA0X"))).toBeNull();
     expect(ruleA.apply(getContext("Read on.\xA0Duplicate.\xA0W"))).toBeNull();
+    expect(ruleA.apply(getContext("9 a.m.\xA0a"))).toBeNull();
+    expect(ruleA.apply(getContext("Use e.g.\xA0examples"))).toBeNull();
   });
 });

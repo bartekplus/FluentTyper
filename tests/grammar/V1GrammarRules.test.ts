@@ -313,6 +313,8 @@ describe("V1 grammar rules", () => {
       expect(rule.apply(context("Hello. w"))).toBeNull();
       expect(rule.apply(context("old_word. X"))).toBeNull();
       expect(rule.apply(context("Read on. Duplicate. W"))).toBeNull();
+      expect(rule.apply(context("9 a.m. a"))).toBeNull();
+      expect(rule.apply(context("Use e.g. examples"))).toBeNull();
     });
   });
 

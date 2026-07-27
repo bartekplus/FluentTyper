@@ -5083,6 +5083,19 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await typeInInput(page, selector, "w");
       await waitForNormalizedValue("Hello. w");
 
+      await clearInputContent(page, selector);
+      // Prime an already-authored abbreviation so this isolates typing after its trailing space.
+      await page.$eval(selector, (element) => {
+        if (!(element instanceof HTMLInputElement)) {
+          throw new Error("Expected test input");
+        }
+        element.value = "9 a.m. ";
+        element.focus();
+        element.setSelectionRange(element.value.length, element.value.length);
+      });
+      await typeInInput(page, selector, "and");
+      await waitForNormalizedValue("9 a.m. and");
+
       await setSettingAndWaitStable(
         worker!,
         KEY_ENABLED_GRAMMAR_RULES,

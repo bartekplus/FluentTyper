@@ -175,6 +175,13 @@ export abstract class SpacingRuleShared {
   }
 
   protected shouldCompactAccessor(inputStr: string, punctIndex: number): boolean {
+    const throughPunctuation = inputStr.slice(0, punctIndex + 1);
+    // Dotted initialisms are prose, even though their final segment resembles
+    // a chained accessor when the user continues typing after the trailing dot.
+    if (/(?:^|[^A-Za-z0-9_$.])(?:[A-Za-z]\.){2,}$/.test(throughPunctuation)) {
+      return false;
+    }
+
     const tokenEnd = punctIndex - 1;
     let tokenStart = tokenEnd;
 
