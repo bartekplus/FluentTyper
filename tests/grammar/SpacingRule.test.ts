@@ -289,35 +289,16 @@ describe("SpacingRule", () => {
     });
   });
 
-  test("compacts conservative accessor contexts with code cues", () => {
-    expect(ruleA.apply(getContext("obj.cfg_1.\xA0x"))).toEqual({
-      replacement: ".x",
-      deleteBackwards: 3,
-      deleteForwards: 0,
-      confidence: "high",
-      description: "Compacted technical punctuation spacing for code accessor",
-    });
-
-    expect(ruleA.apply(getContext("obj.user.\xA0n"))).toEqual({
-      replacement: ".n",
-      deleteBackwards: 3,
-      deleteForwards: 0,
-      confidence: "high",
-      description: "Compacted technical punctuation spacing for code accessor",
-    });
-
-    expect(ruleA.apply(getContext("cfg_1.\xA0x"))).toEqual({
-      replacement: ".x",
-      deleteBackwards: 3,
-      deleteForwards: 0,
-      confidence: "high",
-      description: "Compacted technical punctuation spacing for code accessor",
-    });
-  });
-
-  test("does not compact prose continuation without code cues", () => {
+  test("preserves spacing after dotted words without language-specific detection", () => {
     expect(ruleA.apply(getContext("Hello.\xA0w"))).toBeNull();
     expect(ruleA.apply(getContext("old_word.\xA0X"))).toBeNull();
     expect(ruleA.apply(getContext("Read on.\xA0Duplicate.\xA0W"))).toBeNull();
+    expect(ruleA.apply(getContext("obj.cfg_1.\xA0x"))).toBeNull();
+    expect(ruleA.apply(getContext("a.b.\xA0c"))).toBeNull();
+    expect(ruleA.apply(getContext("return a.b.\xA0c"))).toBeNull();
+    expect(ruleA.apply(getContext("9 a.m.\xA0a"))).toBeNull();
+    expect(ruleA.apply(getContext("Use e.g.\xA0examples"))).toBeNull();
+    expect(ruleA.apply(getContext("Siehe z.B.\xA0examples"))).toBeNull();
+    expect(ruleA.apply(getContext("Użyj m.in.\xA0examples"))).toBeNull();
   });
 });

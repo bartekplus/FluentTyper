@@ -280,7 +280,7 @@ describe("V1 grammar rules", () => {
   });
 
   describe("TechnicalTokenCompactionRule", () => {
-    test("compacts decimal, time/ratio, and accessor spacing conservatively", () => {
+    test("compacts decimal and time/ratio spacing", () => {
       const rule = new TechnicalTokenCompactionRule(true);
 
       expect(rule.apply(context("3. 1"))).toEqual({
@@ -298,21 +298,20 @@ describe("V1 grammar rules", () => {
         confidence: "high",
         description: "Compacted technical time or ratio notation",
       });
-
-      expect(rule.apply(context("obj.cfg_1. x"))).toEqual({
-        replacement: ".x",
-        deleteBackwards: 3,
-        deleteForwards: 0,
-        confidence: "high",
-        description: "Compacted technical accessor spacing",
-      });
     });
 
-    test("does not compact prose continuation", () => {
+    test("preserves spacing after dotted words without language-specific detection", () => {
       const rule = new TechnicalTokenCompactionRule(true);
       expect(rule.apply(context("Hello. w"))).toBeNull();
       expect(rule.apply(context("old_word. X"))).toBeNull();
       expect(rule.apply(context("Read on. Duplicate. W"))).toBeNull();
+      expect(rule.apply(context("obj.cfg_1. x"))).toBeNull();
+      expect(rule.apply(context("a.b. c"))).toBeNull();
+      expect(rule.apply(context("return a.b. c"))).toBeNull();
+      expect(rule.apply(context("9 a.m. a"))).toBeNull();
+      expect(rule.apply(context("Use e.g. examples"))).toBeNull();
+      expect(rule.apply(context("Siehe z.B. examples"))).toBeNull();
+      expect(rule.apply(context("Użyj m.in. examples"))).toBeNull();
     });
   });
 

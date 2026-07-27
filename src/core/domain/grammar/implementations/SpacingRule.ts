@@ -107,14 +107,6 @@ export class SpacingRule extends SpacingRuleShared implements GrammarRule {
       return this.createTechnicalCompactionEdit(":", lastChar, "time or ratio notation");
     }
 
-    if (
-      punctChar === "." &&
-      this.isIdentifierStartChar(lastChar) &&
-      this.shouldCompactAccessor(inputStr, length - 3)
-    ) {
-      return this.createTechnicalCompactionEdit(".", lastChar, "code accessor");
-    }
-
     return null;
   }
 

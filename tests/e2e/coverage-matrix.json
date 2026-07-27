@@ -804,17 +804,17 @@
     },
     {
       "id": "grammar_punctuation_spacing",
-      "description": "Grammar spacing compacts technical punctuation while preserving prose continuation.",
+      "description": "Grammar spacing compacts numeric punctuation while preserving dotted-word continuation.",
       "coverage": [
         {
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
-          "test": "Grammar Rule Engine compacts technical punctuation spacing and preserves prose continuation"
+          "test": "Grammar Rule Engine compacts numeric punctuation spacing and preserves prose continuation"
         },
         {
           "layer": "unit",
           "file": "tests/grammar/V1GrammarRules.test.ts",
-          "test": "compacts decimal, time/ratio, and accessor spacing conservatively"
+          "test": "compacts decimal and time/ratio spacing"
         }
       ]
     },

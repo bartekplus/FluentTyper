@@ -174,35 +174,6 @@ export abstract class SpacingRuleShared {
     return leftSingleIdentifier && rightSingleIdentifier;
   }
 
-  protected shouldCompactAccessor(inputStr: string, punctIndex: number): boolean {
-    const tokenEnd = punctIndex - 1;
-    let tokenStart = tokenEnd;
-
-    while (tokenStart >= 0 && this.isIdentifierChar(inputStr[tokenStart])) {
-      tokenStart -= 1;
-    }
-
-    tokenStart += 1;
-    if (tokenStart > tokenEnd) {
-      return false;
-    }
-
-    const previousSignificantIndex = this.findPreviousSignificantIndex(inputStr, tokenStart - 1);
-    if (previousSignificantIndex === null) {
-      const token = inputStr.slice(tokenStart, tokenEnd + 1);
-      return /\d/.test(token) || token.startsWith("$");
-    }
-
-    // Treat cue chars as code context only when tightly attached to the token
-    // before the dot (e.g. "obj.user. x"), not across sentence whitespace.
-    if (previousSignificantIndex !== tokenStart - 1) {
-      return false;
-    }
-
-    const previousSignificant = inputStr[previousSignificantIndex];
-    return previousSignificant === "." || SpacingRuleShared.CODE_CUE_CHARS.has(previousSignificant);
-  }
-
   protected isTightlyAttached(inputStr: string, index: number): boolean {
     if (index <= 0) {
       return false;

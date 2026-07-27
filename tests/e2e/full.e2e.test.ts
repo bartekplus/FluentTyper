@@ -5028,7 +5028,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
-    "Grammar Rule Engine compacts technical punctuation spacing and preserves prose continuation",
+    "Grammar Rule Engine compacts numeric punctuation spacing and preserves prose continuation",
     async () => {
       const selector = "#test-input";
 
@@ -5074,14 +5074,23 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitForNormalizedValue("12:30");
 
       await clearInputContent(page, selector);
-      await typeInInput(page, selector, "cfg_1.x");
-      await waitForNormalizedValue("cfg_1.x");
-
-      await clearInputContent(page, selector);
       await typeInInput(page, selector, "Hello.");
       await waitForNormalizedValue("Hello. ");
       await typeInInput(page, selector, "w");
       await waitForNormalizedValue("Hello. w");
+
+      await clearInputContent(page, selector);
+      // Prime an already-authored abbreviation so this isolates typing after its trailing space.
+      await page.$eval(selector, (element) => {
+        if (!(element instanceof HTMLInputElement)) {
+          throw new Error("Expected test input");
+        }
+        element.value = "9 a.m. ";
+        element.focus();
+        element.setSelectionRange(element.value.length, element.value.length);
+      });
+      await typeInInput(page, selector, "and");
+      await waitForNormalizedValue("9 a.m. and");
 
       await setSettingAndWaitStable(
         worker!,
