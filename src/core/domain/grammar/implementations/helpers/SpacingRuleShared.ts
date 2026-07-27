@@ -174,42 +174,6 @@ export abstract class SpacingRuleShared {
     return leftSingleIdentifier && rightSingleIdentifier;
   }
 
-  protected shouldCompactAccessor(inputStr: string, punctIndex: number): boolean {
-    const throughPunctuation = inputStr.slice(0, punctIndex + 1);
-    // Dotted initialisms are prose, even though their final segment resembles
-    // a chained accessor when the user continues typing after the trailing dot.
-    if (/(?:^|[^A-Za-z0-9_$.])(?:[A-Za-z]\.){2,}$/.test(throughPunctuation)) {
-      return false;
-    }
-
-    const tokenEnd = punctIndex - 1;
-    let tokenStart = tokenEnd;
-
-    while (tokenStart >= 0 && this.isIdentifierChar(inputStr[tokenStart])) {
-      tokenStart -= 1;
-    }
-
-    tokenStart += 1;
-    if (tokenStart > tokenEnd) {
-      return false;
-    }
-
-    const previousSignificantIndex = this.findPreviousSignificantIndex(inputStr, tokenStart - 1);
-    if (previousSignificantIndex === null) {
-      const token = inputStr.slice(tokenStart, tokenEnd + 1);
-      return /\d/.test(token) || token.startsWith("$");
-    }
-
-    // Treat cue chars as code context only when tightly attached to the token
-    // before the dot (e.g. "obj.user. x"), not across sentence whitespace.
-    if (previousSignificantIndex !== tokenStart - 1) {
-      return false;
-    }
-
-    const previousSignificant = inputStr[previousSignificantIndex];
-    return previousSignificant === "." || SpacingRuleShared.CODE_CUE_CHARS.has(previousSignificant);
-  }
-
   protected isTightlyAttached(inputStr: string, index: number): boolean {
     if (index <= 0) {
       return false;

@@ -31,14 +31,6 @@ export class TechnicalTokenCompactionRule extends SpacingRuleShared implements G
       return this.createEdit(`:${lastChar}`, 3, "Compacted technical time or ratio notation");
     }
 
-    if (
-      punctChar === "." &&
-      this.isIdentifierStartChar(lastChar) &&
-      this.shouldCompactAccessor(inputStr, length - 3)
-    ) {
-      return this.createEdit(`.${lastChar}`, 3, "Compacted technical accessor spacing");
-    }
-
     return null;
   }
 }
