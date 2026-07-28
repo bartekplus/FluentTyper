@@ -77,7 +77,9 @@ export class BackgroundServiceWorker {
       },
     });
     this.languageDetector = new LanguageDetector(this.settingsManager);
-    this.predictionManager = new PredictionManager();
+    this.predictionManager = new PredictionManager({
+      getPersonalizationSnapshot: () => this.personalizationService.getRankingSnapshot(),
+    });
     this.tabMessenger = new TabMessenger();
     this.productivityStatsManager = new ProductivityStatsManager(this.settingsManager);
     this.observabilityService = new ObservabilityService({

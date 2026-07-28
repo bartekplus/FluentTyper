@@ -17,13 +17,15 @@ function createLiveConfig(textExpansions: Array<[string, string]>) {
   };
 }
 
-async function createLiveHandler(): Promise<PresageHandler> {
+async function createLiveHandler(
+  options?: ConstructorParameters<typeof PresageHandler>[1],
+): Promise<PresageHandler> {
   const root = process.cwd();
   const Module = await libPresageMod({
     wasmBinary: readFileSync(`${root}/src/third_party/libpresage/libpresage.wasm`),
     locateFile: (name: string) => `${root}/public/third_party/libpresage/${name}`,
   });
-  return new PresageHandler(Module);
+  return new PresageHandler(Module, options);
 }
 
 describe("PresageHandler live user dictionary", () => {
@@ -115,5 +117,29 @@ describe("PresageHandler live text expansion config refresh", () => {
     expect(refreshed.predictions).toEqual(
       expect.arrayContaining(["as soon as possible ", "at some available point "]),
     );
+  });
+});
+
+describe("PresageHandler live personalized ranking", () => {
+  test("promotes an existing tenth Presage candidate before the visible cutoff", async () => {
+    const handler = await createLiveHandler({
+      getPersonalizationSnapshot: () => ({
+        en_US: {
+          through: { display: "through", score: 3, updatedAtMs: 1_000 },
+        },
+      }),
+      now: () => 1_000,
+    });
+    handler.setConfig({
+      ...createLiveConfig([]),
+      numSuggestions: 3,
+      engineNumSuggestions: 10,
+      insertSpaceAfterAutocomplete: false,
+      personalizationEnabled: true,
+    });
+
+    const result = await handler.runPrediction("th", "", "en_US");
+
+    expect(result.predictions).toEqual(["through", "the", "that"]);
   });
 });
