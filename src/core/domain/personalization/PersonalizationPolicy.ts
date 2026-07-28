@@ -30,7 +30,7 @@ export function isPersonalizationLanguage(language: unknown): language is string
     typeof language === "string" &&
     language !== "auto_detect" &&
     language !== "textExpander" &&
-    language in SUPPORTED_LANGUAGES
+    Object.hasOwn(SUPPORTED_LANGUAGES, language)
   );
 }
 
@@ -125,11 +125,11 @@ export function sanitizePersonalizationStore(
         ) {
           continue;
         }
-        words[normalized.normalizedWord] = {
+        defineOwnProperty(words, normalized.normalizedWord, {
           display: display.display,
           score: rawWord.score,
           updatedAtMs: rawWord.updatedAtMs,
-        };
+        });
       }
       const pruned = prunePersonalizationLanguage(words, nowMs);
       if (Object.keys(pruned).length > 0) {
@@ -145,18 +145,23 @@ export function sanitizePersonalizationStore(
         continue;
       }
       const language = rawEvent.language;
-      if (!isPersonalizationLanguage(language) || typeof rawEvent.applied !== "boolean") {
+      if (
+        !isPersonalizationLanguage(language) ||
+        !isValidTimestamp(rawEvent.acceptedAtMs) ||
+        typeof rawEvent.applied !== "boolean"
+      ) {
         continue;
       }
       const normalized = normalizePersonalizationWord(rawEvent.normalizedWord, language);
       if (!normalized || normalized.normalizedWord !== rawEvent.normalizedWord) {
         continue;
       }
-      recentEvents[eventId] = {
+      defineOwnProperty(recentEvents, eventId, {
         language,
         normalizedWord: normalized.normalizedWord,
+        acceptedAtMs: rawEvent.acceptedAtMs,
         applied: rawEvent.applied,
-      };
+      });
     }
   }
 
@@ -192,4 +197,13 @@ function isPositiveFiniteNumber(value: unknown): value is number {
 
 function isValidTimestamp(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0;
+}
+
+function defineOwnProperty<T>(record: Record<string, T>, key: string, value: T): void {
+  Object.defineProperty(record, key, {
+    configurable: true,
+    enumerable: true,
+    value,
+    writable: true,
+  });
 }

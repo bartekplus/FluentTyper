@@ -5,6 +5,8 @@ type StorageSnapshot = Record<string, string>;
 type ChromeStorageMockOptions = {
   initialState?: StorageSnapshot;
   setDelayMs?: number;
+  getError?: string;
+  removeError?: string;
 };
 
 let importNonce = 0;
@@ -30,8 +32,14 @@ function installChromeStorageMock(options: ChromeStorageMockOptions = {}): {
     (values: Record<string, string>, callback?: (() => void) | undefined) => void
   >;
 } {
-  const { initialState = {}, setDelayMs = 0 } = options;
+  const { initialState = {}, setDelayMs = 0, getError, removeError } = options;
   const storageState: StorageSnapshot = { ...initialState };
+  const runtime: {
+    getManifest: () => { version: string };
+    lastError?: { message: string };
+  } = {
+    getManifest: () => ({ version: "test-version" }),
+  };
   const localSet = jest.fn(
     (values: Record<string, string>, callback?: (() => void) | undefined): void => {
       setTimeout(() => {
@@ -44,6 +52,12 @@ function installChromeStorageMock(options: ChromeStorageMockOptions = {}): {
   const localGet = jest.fn(
     (key: string | string[] | null, callback: (result: Record<string, string>) => void): void => {
       setTimeout(() => {
+        if (getError) {
+          runtime.lastError = { message: getError };
+          callback({});
+          delete runtime.lastError;
+          return;
+        }
         if (typeof key === "string") {
           callback({ [key]: storageState[key] });
           return;
@@ -65,15 +79,19 @@ function installChromeStorageMock(options: ChromeStorageMockOptions = {}): {
 
   const localRemove = jest.fn((key: string, callback?: (() => void) | undefined): void => {
     setTimeout(() => {
+      if (removeError) {
+        runtime.lastError = { message: removeError };
+        callback?.();
+        delete runtime.lastError;
+        return;
+      }
       delete storageState[key];
       callback?.();
     }, 0);
   });
 
   setGlobalProperty("chrome", {
-    runtime: {
-      getManifest: () => ({ version: "test-version" }),
-    },
+    runtime,
     i18n: {
       getMessage: (key: string) => key,
     },
@@ -160,6 +178,26 @@ describe("ChromeStorageBackend.getAll", () => {
       enable: "true",
       language: '"en"',
     });
+  });
+});
+
+describe("ChromeStorageBackend failures", () => {
+  test("rejects a failed browser storage read", async () => {
+    installChromeStorageMock({ getError: "read denied" });
+    const { ChromeStorageBackend } = await import(
+      freshModulePath("../src/core/application/storage/ChromeStorageBackend.js")
+    );
+
+    await expect(new ChromeStorageBackend(true).get("key")).rejects.toThrow("read denied");
+  });
+
+  test("rejects a failed browser storage removal", async () => {
+    installChromeStorageMock({ removeError: "remove denied" });
+    const { ChromeStorageBackend } = await import(
+      freshModulePath("../src/core/application/storage/ChromeStorageBackend.js")
+    );
+
+    await expect(new ChromeStorageBackend(true).remove("key")).rejects.toThrow("remove denied");
   });
 });
 

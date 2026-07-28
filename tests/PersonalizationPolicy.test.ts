@@ -23,6 +23,11 @@ describe("PersonalizationPolicy", () => {
     },
   );
 
+  test("rejects inherited object keys as languages", () => {
+    expect(normalizePersonalizationWord("word", "constructor")).toBeNull();
+    expect(normalizePersonalizationWord("word", "__proto__")).toBeNull();
+  });
+
   test("decays scores deterministically", () => {
     const score = calculateEffectivePersonalizationScore(
       { score: 4, updatedAtMs: 1_000 },
@@ -61,8 +66,18 @@ describe("PersonalizationPolicy", () => {
           unknown: { word: { display: "word", score: 2, updatedAtMs: 100 } },
         },
         recentEvents: {
-          accepted: { language: "en_US", normalizedWord: "valid", applied: true },
-          bad: { language: "unknown", normalizedWord: "word", applied: true },
+          accepted: {
+            language: "en_US",
+            normalizedWord: "valid",
+            acceptedAtMs: 150,
+            applied: true,
+          },
+          bad: {
+            language: "unknown",
+            normalizedWord: "word",
+            acceptedAtMs: 150,
+            applied: true,
+          },
         },
       },
       200,
@@ -75,7 +90,12 @@ describe("PersonalizationPolicy", () => {
         },
       },
       recentEvents: {
-        accepted: { language: "en_US", normalizedWord: "valid", applied: true },
+        accepted: {
+          language: "en_US",
+          normalizedWord: "valid",
+          acceptedAtMs: 150,
+          applied: true,
+        },
       },
     });
   });

@@ -63,7 +63,7 @@ export class PersonalizationService {
       if (
         !isValidEventId(event.eventId) ||
         !(await this.safeIsEnabled()) ||
-        this.store.recentEvents[event.eventId]
+        getOwnProperty(this.store.recentEvents, event.eventId)
       ) {
         return false;
       }
@@ -75,19 +75,24 @@ export class PersonalizationService {
 
       const nowMs = this.now();
       const next = cloneStore(this.store);
-      const languageWords = next.languages[event.language] ?? {};
-      const current = languageWords[normalized.normalizedWord];
-      languageWords[normalized.normalizedWord] = {
+      const languageWords = getOwnProperty(next.languages, event.language) ?? {};
+      const current = getOwnProperty(languageWords, normalized.normalizedWord);
+      defineOwnProperty(languageWords, normalized.normalizedWord, {
         display: normalized.display,
         score: (current ? calculateEffectivePersonalizationScore(current, nowMs) : 0) + 1,
         updatedAtMs: nowMs,
-      };
-      next.languages[event.language] = prunePersonalizationLanguage(languageWords, nowMs);
-      next.recentEvents[event.eventId] = {
+      });
+      defineOwnProperty(
+        next.languages,
+        event.language,
+        prunePersonalizationLanguage(languageWords, nowMs),
+      );
+      defineOwnProperty(next.recentEvents, event.eventId, {
         language: event.language,
         normalizedWord: normalized.normalizedWord,
+        acceptedAtMs: nowMs,
         applied: true,
-      };
+      });
       next.recentEvents = trimRecentEvents(next.recentEvents);
       await this.commit(next);
       return true;
@@ -99,26 +104,36 @@ export class PersonalizationService {
       if (!isValidEventId(eventId)) {
         return false;
       }
-      const recentEvent = this.store.recentEvents[eventId];
+      const recentEvent = getOwnProperty(this.store.recentEvents, eventId);
       if (!recentEvent?.applied) {
         return false;
       }
 
       const nowMs = this.now();
       const next = cloneStore(this.store);
-      const nextEvent = next.recentEvents[eventId];
-      const languageWords = next.languages[nextEvent.language];
-      const word = languageWords?.[nextEvent.normalizedWord];
-      if (word) {
-        const reversedScore = calculateEffectivePersonalizationScore(word, nowMs) - 1;
+      const nextEvent = getOwnProperty(next.recentEvents, eventId);
+      if (!nextEvent) {
+        return false;
+      }
+      const languageWords = getOwnProperty(next.languages, nextEvent.language);
+      const word = languageWords
+        ? getOwnProperty(languageWords, nextEvent.normalizedWord)
+        : undefined;
+      if (word && languageWords) {
+        const acceptedContribution = calculateEffectivePersonalizationScore(
+          { score: 1, updatedAtMs: nextEvent.acceptedAtMs },
+          nowMs,
+        );
+        const reversedScore =
+          calculateEffectivePersonalizationScore(word, nowMs) - acceptedContribution;
         if (reversedScore <= Number.EPSILON) {
           delete languageWords[nextEvent.normalizedWord];
         } else {
-          languageWords[nextEvent.normalizedWord] = {
+          defineOwnProperty(languageWords, nextEvent.normalizedWord, {
             ...word,
             score: reversedScore,
             updatedAtMs: nowMs,
-          };
+          });
         }
         if (Object.keys(languageWords).length === 0) {
           delete next.languages[nextEvent.language];
@@ -133,8 +148,8 @@ export class PersonalizationService {
   async clear(): Promise<void> {
     await this.serializeMutation(async () => {
       const empty = createEmptyPersonalizationStore();
-      this.replaceInMemoryStore(empty);
       await this.repository.clear();
+      this.replaceInMemoryStore(empty);
     });
   }
 
@@ -221,4 +236,17 @@ function createImmutableSnapshot(store: PersonalizationStoreV1): Personalization
     languages[language] = Object.freeze(immutableWords);
   }
   return Object.freeze(languages) as PersonalizationRankingSnapshot;
+}
+
+function getOwnProperty<T>(record: Record<string, T>, key: string): T | undefined {
+  return Object.hasOwn(record, key) ? record[key] : undefined;
+}
+
+function defineOwnProperty<T>(record: Record<string, T>, key: string, value: T): void {
+  Object.defineProperty(record, key, {
+    configurable: true,
+    enumerable: true,
+    value,
+    writable: true,
+  });
 }

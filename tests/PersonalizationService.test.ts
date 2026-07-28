@@ -2,12 +2,14 @@ import { jest } from "bun:test";
 import { PersonalizationRepository } from "../src/core/application/personalization/PersonalizationRepository";
 import { PersonalizationService } from "../src/core/application/personalization/PersonalizationService";
 import type { StorageBackend } from "../src/core/application/storage/StorageBackend";
+import { PERSONALIZATION_DECAY_WINDOW_MS } from "../src/core/domain/personalization/PersonalizationPolicy";
 
 class CountingMemoryStorageBackend implements StorageBackend {
   values = new Map<string, string>();
   reads = 0;
   writes = 0;
   removes = 0;
+  removeError: Error | null = null;
 
   async get(key: string) {
     this.reads += 1;
@@ -21,6 +23,9 @@ class CountingMemoryStorageBackend implements StorageBackend {
 
   async remove(key: string) {
     this.removes += 1;
+    if (this.removeError) {
+      throw this.removeError;
+    }
     this.values.delete(key);
   }
 
@@ -110,11 +115,36 @@ describe("PersonalizationService", () => {
       now: () => nowMs,
     });
     await service.accept(accepted("first"));
+    nowMs += PERSONALIZATION_DECAY_WINDOW_MS;
     await service.accept(accepted("second"));
-    nowMs += 10;
 
     expect(await service.revert("first")).toBe(true);
     expect(service.getRankingSnapshot().en_US.hello.score).toBeCloseTo(1, 5);
+  });
+
+  test("learns prototype-named words as own persisted entries", async () => {
+    const backend = new CountingMemoryStorageBackend();
+    const repository = new PersonalizationRepository(backend);
+    const service = new PersonalizationService({
+      repository,
+      isEnabled: () => true,
+      now: () => 1_000,
+    });
+
+    expect(await service.accept(accepted("constructor", "constructor"))).toBe(true);
+    expect(await service.accept(accepted("__proto__", "__proto__"))).toBe(true);
+
+    const restarted = new PersonalizationService({
+      repository,
+      isEnabled: () => true,
+      now: () => 1_000,
+    });
+    await restarted.initialize();
+    const words = restarted.getRankingSnapshot().en_US;
+    expect(Object.hasOwn(words, "constructor")).toBe(true);
+    expect(words.constructor.score).toBe(1);
+    expect(Object.hasOwn(words, "__proto__")).toBe(true);
+    expect(words.__proto__.score).toBe(1);
   });
 
   test("disabled mode and text expansions do not learn or persist events", async () => {
@@ -153,6 +183,20 @@ describe("PersonalizationService", () => {
     await service.clear();
     expect(service.getRankingSnapshot()).toEqual({});
     expect(backend.removes).toBe(1);
+  });
+
+  test("preserves in-memory ranking when persisted data cannot be cleared", async () => {
+    const backend = new CountingMemoryStorageBackend();
+    const service = new PersonalizationService({
+      repository: new PersonalizationRepository(backend),
+      isEnabled: () => true,
+      now: () => 1_000,
+    });
+    await service.accept(accepted("one"));
+    backend.removeError = new Error("remove denied");
+
+    await expect(service.clear()).rejects.toThrow("remove denied");
+    expect(service.getRankingSnapshot().en_US.hello.score).toBe(1);
   });
 
   test("repairs malformed persisted data without breaking initialization", async () => {

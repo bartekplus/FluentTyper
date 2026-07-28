@@ -7,6 +7,7 @@ export interface PersonalizationWord {
 export interface PersonalizationRecentEvent {
   language: string;
   normalizedWord: string;
+  acceptedAtMs: number;
   applied: boolean;
 }
 
