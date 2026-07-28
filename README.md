@@ -113,8 +113,8 @@ bun run build --platform=firefox
 
 ```bash
 bun run check          # lint + format + typecheck
-bun run lint           # ESLint only
-bun run typecheck      # TypeScript only
+bun run lint           # Oxlint with TypeScript-aware rules
+bun run typecheck      # TypeScript 7 only
 bun run format:check   # Prettier only
 ```
 
@@ -153,7 +153,7 @@ src/
     onboarding/    # First-run experience
 ```
 
-Layer boundaries are enforced by ESLint `no-restricted-imports` rules. See [docs/agents/architecture.md](docs/agents/architecture.md) for details.
+Layer boundaries are enforced by Oxlint `no-restricted-imports` rules. See [docs/agents/architecture.md](docs/agents/architecture.md) for details.
 
 ## Bug Reporting
 

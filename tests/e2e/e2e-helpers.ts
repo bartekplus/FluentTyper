@@ -390,7 +390,7 @@ export async function getBackgroundContext(browser: Browser): Promise<Background
                 }
               ).chrome?.storage?.local;
               if (!storage) {
-                throw new Error("chrome.storage.local is unavailable");
+                throw new Error("chrome.storage.local is unavailable", { cause: error });
               }
             });
             return worker;

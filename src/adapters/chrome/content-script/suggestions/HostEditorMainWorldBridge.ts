@@ -34,7 +34,7 @@ type BridgeRequest =
 // the problems caused by dispatching synthetic beforeinput events which
 // CKEditor-5 handles using its own (stale) model selection.
 
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument */
+/* oxlint-disable typescript/no-explicit-any, typescript/no-unsafe-member-access, typescript/no-unsafe-assignment, typescript/no-unsafe-call, typescript/no-unsafe-argument */
 interface CKEditorModel {
   document: { selection: { getFirstPosition(): any } };
   change(callback: (writer: any) => void): void;
@@ -433,7 +433,7 @@ function applyCKEditor5BlockReplacement(
 
   return { applied: true, didDispatchInput: false };
 }
-/* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument */
+/* oxlint-enable typescript/no-explicit-any, typescript/no-unsafe-member-access, typescript/no-unsafe-assignment, typescript/no-unsafe-call, typescript/no-unsafe-argument */
 
 function findLineEditorController(elem: HTMLElement): LineEditorController | null {
   let current: HTMLElement | null = elem;

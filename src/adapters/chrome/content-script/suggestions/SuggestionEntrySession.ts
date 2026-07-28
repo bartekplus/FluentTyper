@@ -14,7 +14,7 @@ import {
   shouldReleaseAcceptedSuggestionSuppressionOnKeydown as shouldReleaseAcceptedSuggestionSuppressionOnKeydownHelper,
   syncAcceptedSuggestionTrailingSpaceState as syncAcceptedSuggestionTrailingSpaceStateHelper,
 } from "./SuggestionAcceptedState";
-import { TextTargetAdapter, type TextTarget } from "./TextTargetAdapter";
+import { TextTargetAdapter } from "./TextTargetAdapter";
 import { buildCaretTrace, clipTraceText, collapseTraceWhitespace } from "./traceUtils";
 import type {
   PendingKeyFallback,
@@ -95,7 +95,7 @@ export class SuggestionEntrySession {
   }
 
   public requestPrediction(): void {
-    const snapshot = TextTargetAdapter.snapshot(this.entry.elem as TextTarget);
+    const snapshot = TextTargetAdapter.snapshot(this.entry.elem);
     const context = this.resolveEditableCursorContext(this.entry, snapshot);
     this.predictionCoordinator.schedule(this.entry, {
       force: true,
@@ -212,7 +212,7 @@ export class SuggestionEntrySession {
       return;
     }
     if (this.entry.suppressNextSuggestionInputPrediction) {
-      const snapshot = TextTargetAdapter.snapshot(this.entry.elem as TextTarget);
+      const snapshot = TextTargetAdapter.snapshot(this.entry.elem);
       const preservesPendingExtensionEdit = this.shouldPreservePendingExtensionEdit(snapshot);
       logger.debug("Evaluating post-accept input suppression", {
         suggestionId: this.entry.id,
@@ -395,7 +395,7 @@ export class SuggestionEntrySession {
     }
 
     controls.clearPendingFallback();
-    const reconcileSnapshot = TextTargetAdapter.snapshot(this.entry.elem as TextTarget);
+    const reconcileSnapshot = TextTargetAdapter.snapshot(this.entry.elem);
     logger.debug("Proceeding with key fallback reconcile", {
       suggestionId: this.entry.id,
       inputAction: pending.inputAction,
@@ -495,7 +495,7 @@ export class SuggestionEntrySession {
       return;
     }
     if (TextTargetAdapter.isTextValue(this.entry.elem)) {
-      if (!TextTargetAdapter.hasCollapsedSelection(this.entry.elem as TextTarget)) {
+      if (!TextTargetAdapter.hasCollapsedSelection(this.entry.elem)) {
         controls.dismissEntry();
         return;
       }
@@ -550,7 +550,7 @@ export class SuggestionEntrySession {
       return false;
     }
 
-    const snapshot = TextTargetAdapter.snapshot(this.entry.elem as TextTarget);
+    const snapshot = TextTargetAdapter.snapshot(this.entry.elem);
     const currentFullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
     const textChanged =
       pending.expectedFullText !== null && currentFullText !== pending.expectedFullText;
@@ -635,7 +635,7 @@ export class SuggestionEntrySession {
   ): void {
     controls.clearPendingFallback();
     const shouldWaitForTextChange = inputAction === "insert" && observeMutations;
-    const currentSnapshot = TextTargetAdapter.snapshot(this.entry.elem as TextTarget);
+    const currentSnapshot = TextTargetAdapter.snapshot(this.entry.elem);
     const currentBeforeCursor = this.resolveBeforeCursorForPrediction(this.entry, {
       snapshot: currentSnapshot,
     });
@@ -796,7 +796,7 @@ export class SuggestionEntrySession {
   }
 
   private resolveCurrentPredictionContext(): { beforeCursor: string; fullText: string } {
-    const snapshot = TextTargetAdapter.snapshot(this.entry.elem as TextTarget);
+    const snapshot = TextTargetAdapter.snapshot(this.entry.elem);
     const context = this.resolveEditableCursorContext(this.entry, snapshot);
     return {
       beforeCursor: context.beforeCursor,
@@ -820,7 +820,7 @@ export class SuggestionEntrySession {
   ): string {
     return this.resolveEditableCursorContext(
       entry,
-      snapshot ?? TextTargetAdapter.snapshot(entry.elem as TextTarget),
+      snapshot ?? TextTargetAdapter.snapshot(entry.elem),
       {
         inputAction,
         hasMultipleBlockDescendants,
@@ -847,9 +847,7 @@ export class SuggestionEntrySession {
     if (eventIsComposing === true) {
       return "event_composing";
     }
-    return TextTargetAdapter.hasCollapsedSelection(entry.elem as TextTarget)
-      ? null
-      : "selection_not_collapsed";
+    return TextTargetAdapter.hasCollapsedSelection(entry.elem) ? null : "selection_not_collapsed";
   }
 
   private shouldAllowContentEditableFallbackPredictionWithNonCollapsedSelection(
@@ -973,7 +971,7 @@ export class SuggestionEntrySession {
               typeof globalThis.performance?.now === "function"
                 ? globalThis.performance.now()
                 : Date.now();
-            const resolved = TextTargetAdapter.snapshot(this.entry.elem as TextTarget);
+            const resolved = TextTargetAdapter.snapshot(this.entry.elem);
             snapshotDurationMs =
               (typeof globalThis.performance?.now === "function"
                 ? globalThis.performance.now()
@@ -1062,7 +1060,7 @@ export class SuggestionEntrySession {
           return;
         }
 
-        snapshot = TextTargetAdapter.snapshot(this.entry.elem as TextTarget);
+        snapshot = TextTargetAdapter.snapshot(this.entry.elem);
         if (this.shouldSkipPredictionForUnstableInputState(this.entry)) {
           this.handleSuppressedInput();
           return;
@@ -1430,16 +1428,9 @@ export class SuggestionEntrySession {
       !TextTargetAdapter.isTextValue(this.entry.elem) &&
       (this.entry.elem as HTMLElement).isContentEditable
     ) {
-      const activeBlock = this.contentEditableAdapter.getActiveBlockElement(
-        this.entry.elem as HTMLElement,
-      );
-      const blockContext = this.contentEditableAdapter.getBlockContext(
-        this.entry.elem as HTMLElement,
-      );
-      if (
-        !blockContext ||
-        !TextTargetAdapter.hasCollapsedSelection(this.entry.elem as TextTarget)
-      ) {
+      const activeBlock = this.contentEditableAdapter.getActiveBlockElement(this.entry.elem);
+      const blockContext = this.contentEditableAdapter.getBlockContext(this.entry.elem);
+      if (!blockContext || !TextTargetAdapter.hasCollapsedSelection(this.entry.elem)) {
         return false;
       }
       const blockFullText = `${blockContext.beforeCursor}${blockContext.afterCursor}`;
@@ -1454,10 +1445,10 @@ export class SuggestionEntrySession {
     if (
       !TextTargetAdapter.isTextValue(this.entry.elem) &&
       pendingEdit.source === "grammar" &&
-      TextTargetAdapter.hasCollapsedSelection(this.entry.elem as TextTarget)
+      TextTargetAdapter.hasCollapsedSelection(this.entry.elem)
     ) {
       const actualFingerprint = TextTargetAdapter.createPostEditFingerprint(
-        this.entry.elem as TextTarget,
+        this.entry.elem,
         snapshot,
       );
       if (
@@ -1471,7 +1462,7 @@ export class SuggestionEntrySession {
       }
     }
     return TextTargetAdapter.matchesPostEditFingerprint(
-      this.entry.elem as TextTarget,
+      this.entry.elem,
       pendingEdit.postEditFingerprint,
       snapshot,
     );
@@ -1552,7 +1543,7 @@ export class SuggestionEntrySession {
     if (!this.isFocused() || this.shouldSkipPredictionForUnstableInputState(this.entry)) {
       return;
     }
-    const snapshot = TextTargetAdapter.snapshot(this.entry.elem as TextTarget);
+    const snapshot = TextTargetAdapter.snapshot(this.entry.elem);
     const grammarContext = this.resolveEditableCursorContext(this.entry, snapshot);
     const grammarEdit = grammarContext.safeForGrammar
       ? this.grammarCoordinator.run({
@@ -1576,7 +1567,7 @@ export class SuggestionEntrySession {
     if (applyResult.didDispatchInput) {
       return;
     }
-    const updatedSnapshot = TextTargetAdapter.snapshot(this.entry.elem as TextTarget);
+    const updatedSnapshot = TextTargetAdapter.snapshot(this.entry.elem);
     const predictionContext = this.resolveEditableCursorContext(this.entry, updatedSnapshot);
     this.predictionCoordinator.schedule(this.entry, {
       force: true,
@@ -1651,12 +1642,8 @@ export class SuggestionEntrySession {
     if (TextTargetAdapter.isTextValue(this.entry.elem)) {
       return null;
     }
-    const activeBlock = this.contentEditableAdapter.getActiveBlockElement(
-      this.entry.elem as HTMLElement,
-    );
-    const blockContext = this.contentEditableAdapter.getBlockContext(
-      this.entry.elem as HTMLElement,
-    );
+    const activeBlock = this.contentEditableAdapter.getActiveBlockElement(this.entry.elem);
+    const blockContext = this.contentEditableAdapter.getBlockContext(this.entry.elem);
     if (!activeBlock || !blockContext) {
       return null;
     }

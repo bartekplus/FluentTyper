@@ -59,9 +59,7 @@ export class ObservabilitySettingsRepository extends SettingsRepositoryBase {
 
     return {
       enabled: typeof enabled === "boolean" ? enabled : DEFAULT_OBSERVABILITY_ENABLED,
-      defaultLevel: isLogLevel(defaultLevel)
-        ? defaultLevel
-        : (DEFAULT_OBSERVABILITY_DEFAULT_LEVEL as LogLevel),
+      defaultLevel: isLogLevel(defaultLevel) ? defaultLevel : DEFAULT_OBSERVABILITY_DEFAULT_LEVEL,
       moduleOverrides: sanitizeModuleOverrides(moduleOverrides),
     };
   }

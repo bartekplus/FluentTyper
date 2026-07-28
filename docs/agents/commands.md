@@ -2,8 +2,8 @@
 
 Use Bun for installs, scripts, and versioning. `bun.lock` is the canonical lockfile.
 
-- Primary language: TypeScript with strict type-checking.
-- Linting and formatting are handled with ESLint and Prettier through the Bun scripts in `package.json`.
+- Primary language: TypeScript 7 with strict type-checking.
+- Linting and formatting are handled with Oxlint and Prettier through the Bun scripts in `package.json`.
 
 ## Common Commands
 
@@ -79,7 +79,7 @@ Run the full check suite and fix all errors before pushing:
 bun run check
 ```
 
-This runs lint (`eslint`), format check (`prettier --check`), and typecheck in sequence. All three must pass. Do not push a branch with a failing `bun run check`.
+This runs lint (`oxlint`), format check (`prettier --check`), and TypeScript 7 typecheck in sequence. All three must pass. Do not push a branch with a failing `bun run check`.
 
 ## PR Notes
 

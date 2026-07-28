@@ -571,6 +571,6 @@ export class SuggestionPositioningService {
       right: left + width,
       bottom: top + height,
       toJSON: () => ({ left, top, width, height }),
-    } as DOMRect;
+    };
   }
 }

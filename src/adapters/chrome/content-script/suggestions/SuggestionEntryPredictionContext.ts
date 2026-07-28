@@ -1,5 +1,5 @@
 import type { PredictionInputAction } from "@core/domain/messageTypes";
-import { TextTargetAdapter, type TextTarget } from "./TextTargetAdapter";
+import { TextTargetAdapter } from "./TextTargetAdapter";
 import type { SuggestionEntry, SuggestionSnapshot } from "./types";
 
 type SuggestionEntryCursorContextSource = Pick<
@@ -81,7 +81,7 @@ export function resolveEditableCursorContext({
   typedKey?: string | null;
 }): EditableCursorContext {
   if (TextTargetAdapter.isTextValue(entry.elem)) {
-    const resolvedSnapshot = snapshot ?? TextTargetAdapter.snapshot(entry.elem as TextTarget);
+    const resolvedSnapshot = snapshot ?? TextTargetAdapter.snapshot(entry.elem);
     return {
       beforeCursor: resolvedSnapshot.beforeCursor,
       afterCursor: resolvedSnapshot.afterCursor,
@@ -107,7 +107,7 @@ export function resolveEditableCursorContext({
   }
 
   const beforeBlockBoundary = contentEditableAdapter.isCollapsedSelectionBeforeBlockBoundary(
-    entry.elem as HTMLElement,
+    entry.elem,
   );
   const useFullTextOffsets =
     blockContext.beforeCursor.length === 0 &&
@@ -115,7 +115,7 @@ export function resolveEditableCursorContext({
     beforeBlockBoundary;
   if (useFullTextOffsets) {
     const previousBlockFallback = hasMultipleBlockDescendants
-      ? contentEditableAdapter.getPreviousBlockTextBySelection(entry.elem as HTMLElement)
+      ? contentEditableAdapter.getPreviousBlockTextBySelection(entry.elem)
       : null;
     return {
       beforeCursor: previousBlockFallback ?? "",

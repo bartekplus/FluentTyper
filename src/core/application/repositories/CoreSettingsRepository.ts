@@ -190,7 +190,7 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
         continue;
       }
       if (typeof expansion === "string") {
-        normalized.push([shortcut, expansion as unknown as object]);
+        normalized.push([shortcut, expansion]);
         continue;
       }
       if (!expansion || typeof expansion !== "object" || Array.isArray(expansion)) {
