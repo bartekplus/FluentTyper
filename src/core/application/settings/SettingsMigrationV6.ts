@@ -28,7 +28,7 @@ export async function migrateSettingsV6(settings: SettingsManager): Promise<void
 
     const backup = await readRawSetting(settings, KEY_GRAMMAR_RULES_V3_BACKUP);
     if (!Array.isArray(backup)) {
-      await writeRawSetting(settings, KEY_GRAMMAR_RULES_V3_BACKUP, rawSnapshot as never);
+      await writeRawSetting(settings, KEY_GRAMMAR_RULES_V3_BACKUP, rawSnapshot);
     }
 
     const current = await readRawSetting(settings, KEY_ENABLED_GRAMMAR_RULES);
@@ -40,10 +40,10 @@ export async function migrateSettingsV6(settings: SettingsManager): Promise<void
       !rulesChangedSinceSnapshot &&
       areStringArraysEqual(normalizedExisting, PRE_V3_RECOMMENDED_GRAMMAR_RULES)
     ) {
-      await writeRawSetting(settings, KEY_ENABLED_GRAMMAR_RULES, DEFAULT_V3_GRAMMAR_RULES as never);
+      await writeRawSetting(settings, KEY_ENABLED_GRAMMAR_RULES, DEFAULT_V3_GRAMMAR_RULES);
     }
 
-    await writeRawSetting(settings, KEY_GRAMMAR_RULES_V3_MIGRATED, true as never);
+    await writeRawSetting(settings, KEY_GRAMMAR_RULES_V3_MIGRATED, true);
   } catch (error) {
     console.warn("[SettingsMigrationV6] Failed to migrate settings:", error);
   }

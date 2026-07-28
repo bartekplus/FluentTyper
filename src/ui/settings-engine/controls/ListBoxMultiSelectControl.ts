@@ -70,7 +70,7 @@ export class ListBoxMultiSelectControl extends BaseControl<string[]> {
       return;
     }
 
-    const optObj = options as { groups?: string[]; values: OptionEntry[] };
+    const optObj = options;
     for (const opt of optObj.values ?? []) {
       appendOption(select, opt);
     }

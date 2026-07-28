@@ -7,7 +7,7 @@ const LEGACY_SOURCE_RULE_IDS = new Set(["spacingRule", "capitalizeFirstLetter"])
 type LegacyGrammarRuleId = "spacingRule" | "capitalizeFirstLetter";
 
 function isLegacySourceRuleId(ruleId: GrammarRule["id"]): ruleId is LegacyGrammarRuleId {
-  return LEGACY_SOURCE_RULE_IDS.has(ruleId as LegacyGrammarRuleId);
+  return LEGACY_SOURCE_RULE_IDS.has(ruleId);
 }
 
 export class GrammarRuleEngine {

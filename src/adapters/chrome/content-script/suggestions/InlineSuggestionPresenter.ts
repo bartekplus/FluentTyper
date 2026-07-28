@@ -61,7 +61,7 @@ export class InlineSuggestionPresenter {
       return;
     }
 
-    const snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+    const snapshot = TextTargetAdapter.snapshot(entry.elem);
     const mentionText = resolveMentionToken(snapshot.beforeCursor).token || entry.latestMentionText;
     if (!mentionText) {
       this.clearForEntry(entry.id);

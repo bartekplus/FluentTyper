@@ -1,4 +1,4 @@
-import { TextTargetAdapter, type TextTarget } from "./TextTargetAdapter";
+import { TextTargetAdapter } from "./TextTargetAdapter";
 import type { PredictionRequest, PredictionResponse, SuggestionEntry } from "./types";
 import type { PredictionInputAction } from "@core/domain/messageTypes";
 import { extractPredictionTokenSuffix } from "@core/domain/predictionToken";
@@ -71,7 +71,7 @@ export class SuggestionPredictionCoordinator {
     this.cancelPending(entry);
 
     const beforeCursor =
-      beforeCursorOverride ?? TextTargetAdapter.snapshot(entry.elem as TextTarget).beforeCursor;
+      beforeCursorOverride ?? TextTargetAdapter.snapshot(entry.elem).beforeCursor;
     const traceContext = createPredictionTraceContext();
 
     if (force) {
@@ -127,7 +127,7 @@ export class SuggestionPredictionCoordinator {
   ): void {
     this.cancelPending(entry);
     const beforeCursor =
-      beforeCursorOverride ?? TextTargetAdapter.snapshot(entry.elem as TextTarget).beforeCursor;
+      beforeCursorOverride ?? TextTargetAdapter.snapshot(entry.elem).beforeCursor;
     this.requestPrediction(
       entry,
       false,
@@ -182,7 +182,7 @@ export class SuggestionPredictionCoordinator {
   ): void {
     const snapshot =
       beforeCursorOverride === undefined || afterCursorOverride === undefined
-        ? TextTargetAdapter.snapshot(entry.elem as TextTarget)
+        ? TextTargetAdapter.snapshot(entry.elem)
         : null;
     const beforeCursor = beforeCursorOverride ?? snapshot?.beforeCursor ?? "";
     const afterCursor = afterCursorOverride ?? snapshot?.afterCursor ?? "";

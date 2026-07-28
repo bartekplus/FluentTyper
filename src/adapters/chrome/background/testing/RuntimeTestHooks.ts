@@ -40,7 +40,7 @@ const TEST_TRIGGER_COMMAND_ALLOW_LIST = new Set<string>([
 ]);
 
 function getWebLLMTestGlobals(): WebLLMTestGlobals {
-  return globalThis as WebLLMTestGlobals;
+  return globalThis;
 }
 
 function normalizePredictions(predictions: unknown[]): string[] {

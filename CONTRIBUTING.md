@@ -69,7 +69,7 @@ Additionally, background and content-script are isolated from each other:
 - `src/adapters/chrome/background/` must not import from `content-script/`
 - `src/adapters/chrome/content-script/` must not import from `background/`
 
-These boundaries are enforced by ESLint `no-restricted-imports` rules.
+These boundaries are enforced by Oxlint `no-restricted-imports` rules.
 
 ### Entry Points
 

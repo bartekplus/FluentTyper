@@ -56,16 +56,16 @@ export async function migrateSettingsV7(settings: SettingsManager): Promise<void
       await writeRawSetting(
         settings,
         KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT,
-        DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionHighlightBgLight as never,
+        DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionHighlightBgLight,
       );
       await writeRawSetting(
         settings,
         KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT,
-        DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionHighlightTextLight as never,
+        DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionHighlightTextLight,
       );
     }
 
-    await writeRawSetting(settings, KEY_SUGGESTION_THEME_V1_MIGRATED, true as never);
+    await writeRawSetting(settings, KEY_SUGGESTION_THEME_V1_MIGRATED, true);
   } catch (error) {
     console.warn("[SettingsMigrationV7] Failed to migrate settings:", error);
   }

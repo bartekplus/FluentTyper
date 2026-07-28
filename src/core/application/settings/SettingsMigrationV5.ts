@@ -34,19 +34,15 @@ export async function migrateSettingsV5(settings: SettingsManager): Promise<void
 
     const backup = await readRawSetting(settings, KEY_GRAMMAR_RULES_V2_BACKUP);
     if (!Array.isArray(backup)) {
-      await writeRawSetting(settings, KEY_GRAMMAR_RULES_V2_BACKUP, rawSnapshot as never);
+      await writeRawSetting(settings, KEY_GRAMMAR_RULES_V2_BACKUP, rawSnapshot);
     }
 
     const current = await readRawSetting(settings, KEY_ENABLED_GRAMMAR_RULES);
     const currentSnapshot = readStringArraySnapshot(current);
     if (areStringArraysEqual(currentSnapshot, rawSnapshot) && shouldForceV2Defaults(rawSnapshot)) {
-      await writeRawSetting(
-        settings,
-        KEY_ENABLED_GRAMMAR_RULES,
-        RECOMMENDED_V2_GRAMMAR_RULES as never,
-      );
+      await writeRawSetting(settings, KEY_ENABLED_GRAMMAR_RULES, RECOMMENDED_V2_GRAMMAR_RULES);
     }
-    await writeRawSetting(settings, KEY_GRAMMAR_RULES_V2_MIGRATED, true as never);
+    await writeRawSetting(settings, KEY_GRAMMAR_RULES_V2_MIGRATED, true);
   } catch (error) {
     console.warn("[SettingsMigrationV5] Failed to migrate settings:", error);
   }

@@ -4,7 +4,7 @@ import { SPACING_RULES, Spacing } from "@core/domain/spacingRules";
 import { ContentEditableAdapter, type ContentEditableEditResult } from "./ContentEditableAdapter";
 import { HostEditorAdapterResolver, type HostEditorSession } from "./HostEditorAdapterResolver";
 import { CURSOR_MOVE_COUNT_ATTR, CURSOR_MOVE_EVENT } from "./HostEditorBridgeProtocol";
-import { TextTargetAdapter, type TextTarget } from "./TextTargetAdapter";
+import { TextTargetAdapter } from "./TextTargetAdapter";
 import { buildCaretTrace, clipTraceText, collapseTraceWhitespace } from "./traceUtils";
 import type {
   ExtensionEditSnapshot,
@@ -118,7 +118,7 @@ export class SuggestionTextEditService {
       return this.acceptContentEditableSuggestion(entry, suggestion, blockContext, blockTokenInfo);
     }
 
-    let snapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+    let snapshot = TextTargetAdapter.snapshot(entry.elem);
     const tokenInfo = this.findMentionToken(snapshot.beforeCursor);
     const triggerText = tokenInfo.token || entry.latestMentionText;
 
@@ -234,12 +234,12 @@ export class SuggestionTextEditService {
       entry.pendingExtensionEdit = null;
       return null;
     }
-    const postEditSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+    const postEditSnapshot = TextTargetAdapter.snapshot(entry.elem);
 
     if (entry.pendingExtensionEdit) {
       entry.pendingExtensionEdit.cursorAfter = postEditSnapshot.cursorOffset;
       entry.pendingExtensionEdit.postEditFingerprint = TextTargetAdapter.createPostEditFingerprint(
-        entry.elem as TextTarget,
+        entry.elem,
         postEditSnapshot,
       );
     }
@@ -324,7 +324,7 @@ export class SuggestionTextEditService {
       });
     }
 
-    const snapshot: SuggestionSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+    const snapshot: SuggestionSnapshot = TextTargetAdapter.snapshot(entry.elem);
     const pendingEdit = entry.pendingExtensionEdit;
     const {
       replaceStart,
@@ -342,14 +342,11 @@ export class SuggestionTextEditService {
       source === "grammar" &&
       "isContentEditable" in entry.elem &&
       (entry.elem as HTMLElement).isContentEditable &&
-      TextTargetAdapter.hasCollapsedSelection(entry.elem as TextTarget);
+      TextTargetAdapter.hasCollapsedSelection(entry.elem);
 
     const fingerprintMatch = isContentEditableGrammar
       ? (() => {
-          const actual = TextTargetAdapter.createPostEditFingerprint(
-            entry.elem as TextTarget,
-            snapshot,
-          );
+          const actual = TextTargetAdapter.createPostEditFingerprint(entry.elem, snapshot);
           return (
             actual.fullText === postEditFingerprint.fullText &&
             actual.selectionCollapsed === postEditFingerprint.selectionCollapsed &&
@@ -357,11 +354,7 @@ export class SuggestionTextEditService {
             snapshot.cursorOffset <= replaceStart + replacementText.length
           );
         })()
-      : TextTargetAdapter.matchesPostEditFingerprint(
-          entry.elem as TextTarget,
-          postEditFingerprint,
-          snapshot,
-        );
+      : TextTargetAdapter.matchesPostEditFingerprint(entry.elem, postEditFingerprint, snapshot);
 
     if (!fingerprintMatch) {
       entry.pendingExtensionEdit = null;
@@ -429,7 +422,7 @@ export class SuggestionTextEditService {
     if (
       !activeBlock ||
       !blockContext ||
-      !TextTargetAdapter.hasCollapsedSelection(entry.elem as TextTarget) ||
+      !TextTargetAdapter.hasCollapsedSelection(entry.elem) ||
       activeBlock !== (pendingEdit.blockElement ?? null)
     ) {
       entry.pendingExtensionEdit = null;
@@ -480,7 +473,7 @@ export class SuggestionTextEditService {
     if (!entry.manualAutoFixSuppression) {
       return;
     }
-    const snapshot = snapshotOverride ?? TextTargetAdapter.snapshot(entry.elem as TextTarget);
+    const snapshot = snapshotOverride ?? TextTargetAdapter.snapshot(entry.elem);
     const fullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
     const tokenContext = this.resolveTokenContext(fullText, snapshot.cursorOffset);
     if (
@@ -513,8 +506,7 @@ export class SuggestionTextEditService {
       typeof edit.deleteForwards === "number" && Number.isFinite(edit.deleteForwards)
         ? Math.max(0, edit.deleteForwards)
         : 0;
-    const snapshot: SuggestionSnapshot =
-      context.snapshot ?? TextTargetAdapter.snapshot(entry.elem as TextTarget);
+    const snapshot: SuggestionSnapshot = context.snapshot ?? TextTargetAdapter.snapshot(entry.elem);
     this.syncManualAutoFixSuppression(entry, snapshot);
     const fullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
 
@@ -580,7 +572,7 @@ export class SuggestionTextEditService {
           replaceStart,
           Math.min(fullText.length, blockStart + blockCursor + deleteForwards),
         );
-        activeBlock = this.contentEditableAdapter.getActiveBlockElement(entry.elem as HTMLElement);
+        activeBlock = this.contentEditableAdapter.getActiveBlockElement(entry.elem);
       }
     }
     const expectedFullText = `${fullText.slice(0, replaceStart)}${replacement}${fullText.slice(replaceEnd)}`;
@@ -621,10 +613,9 @@ export class SuggestionTextEditService {
       blockSourceText !== null
     ) {
       const blockContext =
-        context.contentEditableContext ??
-        this.contentEditableAdapter.getBlockContext(entry.elem as HTMLElement);
+        context.contentEditableContext ?? this.contentEditableAdapter.getBlockContext(entry.elem);
       if (blockContext) {
-        const hostEditorSession = this.resolveHostEditorSession(entry.elem as HTMLElement, {
+        const hostEditorSession = this.resolveHostEditorSession(entry.elem, {
           beforeCursor: blockContext.beforeCursor,
           afterCursor: blockContext.afterCursor,
           blockText: blockSourceText,
@@ -645,7 +636,7 @@ export class SuggestionTextEditService {
         }
         if (applyResult === null) {
           applyResult = this.tryHostGrammarEditWithMatchingBlockText(
-            entry.elem as HTMLElement,
+            entry.elem,
             blockSourceText,
             blockReplaceStart,
             blockReplaceEnd,
@@ -659,7 +650,7 @@ export class SuggestionTextEditService {
           // the full paragraph block.  Translate local offsets into the
           // host's full-block coordinate space and retry.
           applyResult = this.tryHostGrammarEditWithFullBlockOffsets(
-            entry.elem as HTMLElement,
+            entry.elem,
             blockSourceText,
             blockReplaceStart,
             blockReplaceEnd,
@@ -676,7 +667,7 @@ export class SuggestionTextEditService {
           // CKEditor reconciles through its normal rendering pipeline
           // instead of racing against a foreign DOM mutation.
           applyResult = this.tryHostGrammarEditWithStaleHostRewrite(
-            entry.elem as HTMLElement,
+            entry.elem,
             blockSourceText,
             blockReplaceStart,
             blockReplaceEnd,
@@ -787,7 +778,7 @@ export class SuggestionTextEditService {
           }
         : null;
     if (postEditSnapshot === null) {
-      postEditSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+      postEditSnapshot = TextTargetAdapter.snapshot(entry.elem);
     }
     let finalApplyResult = applyResult;
 
@@ -803,7 +794,7 @@ export class SuggestionTextEditService {
         expectedBlockCursorAfter,
       });
       if (corrected) {
-        this.domPreferredGrammarTargets.add(entry.elem as HTMLElement);
+        this.domPreferredGrammarTargets.add(entry.elem);
         finalApplyResult = corrected.applyResult;
         postEditSnapshot = corrected.postEditSnapshot;
       }
@@ -816,7 +807,7 @@ export class SuggestionTextEditService {
       cursorBefore: snapshot.cursorOffset,
       cursorAfter: postEditSnapshot.cursorOffset,
       postEditFingerprint: TextTargetAdapter.createPostEditFingerprint(
-        entry.elem as TextTarget,
+        entry.elem,
         postEditSnapshot,
       ),
       source: "grammar",
@@ -853,7 +844,7 @@ export class SuggestionTextEditService {
         : null;
     const snapshot =
       isTextValueTarget || !entry.expectedCursorPosIsBlockLocal
-        ? TextTargetAdapter.snapshot(entry.elem as TextTarget)
+        ? TextTargetAdapter.snapshot(entry.elem)
         : null;
     const currentCursorOffset =
       blockContext !== null ? blockContext.beforeCursor.length : (snapshot?.cursorOffset ?? -1);
@@ -1145,7 +1136,7 @@ export class SuggestionTextEditService {
     if (TextTargetAdapter.isTextValue(elem)) {
       return false;
     }
-    return this.domPreferredGrammarTargets.has(elem as HTMLElement);
+    return this.domPreferredGrammarTargets.has(elem);
   }
 
   private matchesExpectedGrammarResult(
@@ -1508,7 +1499,7 @@ export class SuggestionTextEditService {
       postEditFingerprint: {
         fullText: "",
         cursorOffset: cursorAfter,
-        selectionCollapsed: TextTargetAdapter.hasCollapsedSelection(entry.elem as TextTarget),
+        selectionCollapsed: TextTargetAdapter.hasCollapsedSelection(entry.elem),
       },
       source: "suggestion",
       blockScoped: true,
@@ -1572,7 +1563,7 @@ export class SuggestionTextEditService {
         : {
             fullText: "",
             cursorOffset: postEditCursorAfter,
-            selectionCollapsed: TextTargetAdapter.hasCollapsedSelection(entry.elem as TextTarget),
+            selectionCollapsed: TextTargetAdapter.hasCollapsedSelection(entry.elem),
           };
       entry.pendingExtensionEdit.blockElement = activeBlock;
       entry.pendingExtensionEdit.postEditBlockText = postEditBlockText;
@@ -1625,7 +1616,7 @@ export class SuggestionTextEditService {
     applyResult: ContentEditableEditResult | { didMutateDom: boolean; didDispatchInput: boolean };
     postEditSnapshot: SuggestionSnapshot;
   } | null {
-    const currentSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+    const currentSnapshot = TextTargetAdapter.snapshot(entry.elem);
     const currentFullText = `${currentSnapshot.beforeCursor}${currentSnapshot.afterCursor}`;
     if (
       currentFullText === expectedFullText &&
@@ -1687,7 +1678,7 @@ export class SuggestionTextEditService {
       if (!TextTargetAdapter.isTextValue(elem)) {
         this.contentEditableAdapter.setCaret(elem, cursorAfter);
       }
-      const postEditSnapshot = TextTargetAdapter.snapshot(elem as TextTarget);
+      const postEditSnapshot = TextTargetAdapter.snapshot(elem);
       return {
         applyResult: {
           didMutateDom: false,
@@ -1735,7 +1726,7 @@ export class SuggestionTextEditService {
     }
     return {
       applyResult,
-      postEditSnapshot: TextTargetAdapter.snapshot(elem as TextTarget),
+      postEditSnapshot: TextTargetAdapter.snapshot(elem),
     };
   }
 

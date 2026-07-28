@@ -84,7 +84,7 @@ function createElementWrapper(tag: string, props: Record<string, unknown>): Elem
       return this;
     },
     addEvent(type, fn) {
-      el.addEventListener(type, fn as EventListener);
+      el.addEventListener(type, fn);
     },
     set(key, value) {
       if (key === "placeholder") {

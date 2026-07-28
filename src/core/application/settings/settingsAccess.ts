@@ -8,7 +8,7 @@ type RawSettingsAccess = {
 };
 
 function getRawSettingsAccess(settings: SettingsManager): RawSettingsAccess {
-  return settings as unknown as RawSettingsAccess;
+  return settings;
 }
 
 export async function readRawSetting(settings: SettingsManager, key: string): Promise<unknown> {

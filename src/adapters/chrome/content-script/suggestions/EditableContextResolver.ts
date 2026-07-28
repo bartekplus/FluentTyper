@@ -1,6 +1,5 @@
 import { ContentEditableAdapter } from "./ContentEditableAdapter";
 import { TextTargetAdapter } from "./TextTargetAdapter";
-import type { TextTarget } from "./TextTargetAdapter";
 import type { SuggestionElement, EditableContext } from "./types";
 
 export class EditableContextResolver {
@@ -24,7 +23,7 @@ export class EditableContextResolver {
       return null;
     }
 
-    const snapshot = TextTargetAdapter.snapshot(elem as TextTarget);
+    const snapshot = TextTargetAdapter.snapshot(elem);
     const blockContext = this.contentEditableAdapter.getBlockContext(elem);
 
     return {

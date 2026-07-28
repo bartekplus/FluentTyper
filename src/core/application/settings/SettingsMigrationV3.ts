@@ -46,7 +46,7 @@ export async function migrateSettingsV3(settings: SettingsManager): Promise<void
           await writeRawSetting(settings, grammarKey, ["spacingRule"] as never);
         }
       }
-      await writeRawSetting(settings, KEY_LEGACY_APPLY_SPACING_RULES, false as never);
+      await writeRawSetting(settings, KEY_LEGACY_APPLY_SPACING_RULES, false);
     }
 
     // Migrate legacy autoCapitalize boolean to grammar rule selection once.
@@ -64,7 +64,7 @@ export async function migrateSettingsV3(settings: SettingsManager): Promise<void
           "capitalizeFirstLetter",
         ] as never);
       }
-      await writeRawSetting(settings, KEY_AUTO_CAPITALIZE, false as never);
+      await writeRawSetting(settings, KEY_AUTO_CAPITALIZE, false);
     }
   } catch (error) {
     console.warn("[SettingsMigrationV3] Failed to migrate settings:", error);

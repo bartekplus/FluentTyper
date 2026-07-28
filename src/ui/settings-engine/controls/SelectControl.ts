@@ -1,4 +1,4 @@
-import type { SelectConfig, OptionEntry } from "../types.js";
+import type { SelectConfig } from "../types.js";
 import type { Store } from "@core/application/storage/Store.js";
 import type { SelectFieldControl } from "./FieldControl.js";
 import {
@@ -82,7 +82,7 @@ export class SelectControl extends BaseControl<string> implements SelectFieldCon
     }
 
     // Object with optional groups and values
-    const optObj = options as { groups?: string[]; values: OptionEntry[] };
+    const optObj = options;
     const groups: Record<string, HTMLOptGroupElement> = {};
 
     if (optObj.groups) {

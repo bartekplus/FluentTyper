@@ -42,7 +42,7 @@ function cloneConfig(config: ObservabilityConfig): ObservabilityConfig {
         moduleId,
         override ? { ...override } : override,
       ]),
-    ) as ObservabilityConfig["moduleOverrides"],
+    ),
   };
 }
 

@@ -1,4 +1,4 @@
-import { TextTargetAdapter, type TextTarget } from "./TextTargetAdapter";
+import { TextTargetAdapter } from "./TextTargetAdapter";
 import { InjectedHostEditorPageBridge, type HostEditorPageBridge } from "./HostEditorPageBridge";
 import {
   isLineEditorController,
@@ -134,7 +134,7 @@ class BridgedLineEditorHostSession implements HostEditorSession {
   }
 
   public createPostEditFingerprint(): PostEditFingerprint {
-    const target = (this.backingTarget ?? this.elem) as TextTarget;
+    const target = this.backingTarget ?? this.elem;
     return TextTargetAdapter.createPostEditFingerprint(target);
   }
 }
@@ -203,7 +203,7 @@ class LineEditorHostSession implements HostEditorSession {
   }
 
   public createPostEditFingerprint(): PostEditFingerprint {
-    const target = (this.backingTarget ?? this.elem) as TextTarget;
+    const target = this.backingTarget ?? this.elem;
     return TextTargetAdapter.createPostEditFingerprint(target);
   }
 

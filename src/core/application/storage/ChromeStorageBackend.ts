@@ -87,7 +87,7 @@ export class ChromeStorageBackend implements StorageBackend {
             Object.defineProperty(result, key.substring(prefix.length), {
               configurable: true,
               enumerable: true,
-              value: value as string,
+              value: value,
               writable: true,
             });
           }
