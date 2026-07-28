@@ -19,6 +19,7 @@ import {
   KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
   KEY_MIN_WORD_LENGTH_TO_PREDICT,
   KEY_NUM_SUGGESTIONS,
+  KEY_PERSONALIZATION_ENABLED,
   KEY_OBSERVABILITY_DEFAULT_LEVEL,
   KEY_OBSERVABILITY_ENABLED,
   KEY_OBSERVABILITY_MODULE_OVERRIDES,
@@ -86,6 +87,7 @@ describe("options workspace panels", () => {
       [KEY_PREFER_NATIVE_AUTOCOMPLETE]: new MockPanelControl("Prefer native autocomplete"),
       [KEY_NUM_SUGGESTIONS]: new MockPanelControl("Number of suggestions"),
       [KEY_MIN_WORD_LENGTH_TO_PREDICT]: new MockPanelControl("Minimum characters"),
+      [KEY_PERSONALIZATION_ENABLED]: new MockPanelControl("Learn from accepted suggestions"),
       [KEY_AUTOCOMPLETE_ON_TAB]: new MockPanelControl("Accept on Tab"),
       [KEY_AUTOCOMPLETE_ON_ENTER]: new MockPanelControl("Accept on Enter"),
       [KEY_AUTOCOMPLETE]: new MockPanelControl("Accept on Space"),
@@ -101,6 +103,7 @@ describe("options workspace panels", () => {
     createGroup(tab, "Prediction", [
       registry[KEY_NUM_SUGGESTIONS] as unknown as MockPanelControl,
       registry[KEY_MIN_WORD_LENGTH_TO_PREDICT] as unknown as MockPanelControl,
+      registry[KEY_PERSONALIZATION_ENABLED] as unknown as MockPanelControl,
     ]);
     createGroup(tab, "Accept", [
       registry[KEY_AUTOCOMPLETE_ON_TAB] as unknown as MockPanelControl,
@@ -118,6 +121,7 @@ describe("options workspace panels", () => {
     expect(panelRoot.textContent).toContain("Enable FluentTyper");
     expect(panelRoot.textContent).toContain("Prefer native autocomplete");
     expect(panelRoot.textContent).toContain("Number of suggestions");
+    expect(panelRoot.textContent).toContain("Learn from accepted suggestions");
     expect(panelRoot.textContent).toContain("Inline suggestion");
     expect(tab.querySelectorAll(".settings-group.is-empty-workspace-group")).toHaveLength(4);
   });
@@ -134,6 +138,7 @@ describe("options workspace panels", () => {
       resetProductivityStatsButton: new MockPanelControl("Reset stats"),
       importSettingButton: new MockPanelControl("Import settings"),
       exportSettingButton: new MockPanelControl("Export settings"),
+      clearPersonalizationButton: new MockPanelControl("Clear learned words"),
     } as unknown as SettingsRegistry;
 
     createGroup(tab, "Productivity", [
@@ -143,11 +148,13 @@ describe("options workspace panels", () => {
     createGroup(tab, "Config", [
       registry.importSettingButton as unknown as MockPanelControl,
       registry.exportSettingButton as unknown as MockPanelControl,
+      registry.clearPersonalizationButton as unknown as MockPanelControl,
     ]);
     new DataDiagnosticsPanel(panelRoot, registry);
 
     expect(panelRoot.textContent).toContain("Productivity graph");
     expect(panelRoot.textContent).toContain("Import settings");
+    expect(panelRoot.textContent).toContain("Clear learned words");
     expect(panelRoot.textContent).toContain(i18n.get("data_panel_transfer_copy"));
     expect(panelRoot.textContent).not.toContain("Debug dashboard");
     expect(

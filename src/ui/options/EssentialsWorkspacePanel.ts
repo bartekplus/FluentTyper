@@ -8,6 +8,7 @@ import {
   KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
   KEY_MIN_WORD_LENGTH_TO_PREDICT,
   KEY_NUM_SUGGESTIONS,
+  KEY_PERSONALIZATION_ENABLED,
   KEY_PREFER_NATIVE_AUTOCOMPLETE,
   KEY_PREFIX_ONLY_MODE,
   KEY_SELECT_BY_DIGIT,
@@ -42,6 +43,7 @@ export class EssentialsWorkspacePanel {
     moveControlToBody(this.registry, KEY_PREFIX_ONLY_MODE, general.body);
 
     const prediction = createWorkspaceCard(i18n.get("prediction_engine"));
+    moveControlToBody(this.registry, KEY_PERSONALIZATION_ENABLED, prediction.body);
     moveControlToBody(this.registry, KEY_NUM_SUGGESTIONS, prediction.body);
     moveControlToBody(this.registry, KEY_MIN_WORD_LENGTH_TO_PREDICT, prediction.body);
     if (this.isDevBuild) {

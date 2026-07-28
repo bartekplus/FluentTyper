@@ -50,6 +50,7 @@ import {
   KEY_SUGGESTION_PADDING_HORIZONTAL,
   KEY_INLINE_SUGGESTION,
   KEY_PREFIX_ONLY_MODE,
+  KEY_PERSONALIZATION_ENABLED,
   DEFAULT_NUM_SUGGESTIONS,
   DEFAULT_AI_MODEL_ID,
   DEFAULT_AI_PREDICTION_TIMEOUT_MS,
@@ -360,6 +361,17 @@ const manifest: ManifestDefinition = {
       name: KEY_PREFIX_ONLY_MODE,
       type: "checkbox",
       label: buildFieldLabel(i18n.get("prefix_only_mode_label"), i18n.get("prefix_only_mode_desc")),
+      default: false,
+    },
+    {
+      tab: "core_settings",
+      group: i18n.get("prediction_engine"),
+      name: KEY_PERSONALIZATION_ENABLED,
+      type: "checkbox",
+      label: buildFieldLabel(
+        i18n.get("personalization_enabled_label"),
+        i18n.get("personalization_enabled_desc"),
+      ),
       default: false,
     },
     {
@@ -758,6 +770,14 @@ const manifest: ManifestDefinition = {
       type: "button",
       text: i18n.get("reset_productivity_stats_btn"),
       label: i18n.get("reset_productivity_stats_desc"),
+    },
+    {
+      tab: "advanced_tab",
+      group: i18n.get("config_data"),
+      name: "clearPersonalizationButton",
+      type: "button",
+      text: i18n.get("clear_personalization_btn"),
+      label: i18n.get("clear_personalization_desc"),
     },
     {
       tab: "advanced_tab",

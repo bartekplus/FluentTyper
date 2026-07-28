@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "capturedAt": "2026-03-05",
+  "capturedAt": "2026-07-28",
   "behaviors": [
     {
       "id": "install_page_reachable",
@@ -1254,6 +1254,48 @@
           "layer": "e2e-smoke",
           "file": "tests/e2e/smoke.e2e.test.ts",
           "test": "discovers input in shadow root created on a host already in the DOM"
+        }
+      ]
+    },
+    {
+      "id": "personalized_suggestion_ranking",
+      "description": "Repeated local suggestion acceptance promotes an existing Presage candidate in later menu and inline results, persists across runtime restart, and remains isolated from disabled ordering.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/PersonalizationRanker.test.ts",
+          "test": "promotes eligible candidates by score without mutating input"
+        },
+        {
+          "layer": "integration",
+          "file": "tests/PresageHandler.live.test.ts",
+          "test": "promotes an existing tenth Presage candidate before the visible cutoff"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Personalized menu and inline ranking survives runtime restart and clears locally"
+        }
+      ]
+    },
+    {
+      "id": "personalization_local_privacy_controls",
+      "description": "Personalization is opt-in, local learned state is omitted from settings transfer, and the confirmed clear action removes persisted and in-memory ranking state.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/options.personalization.test.ts",
+          "test": "excludes learned words from settings export and import"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/PersonalizationService.test.ts",
+          "test": "clears persisted data and in-memory ranking immediately"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Personalized menu and inline ranking survives runtime restart and clears locally"
         }
       ]
     }

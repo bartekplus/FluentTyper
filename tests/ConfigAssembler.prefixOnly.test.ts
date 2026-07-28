@@ -25,6 +25,7 @@ describe("ConfigAssembler.assemblePredictionRuntimeConfig prefixOnlyMode", () =>
     aiPredictionTimeoutMs: 120,
     debugPresagePredictorEnabled: true,
     debugAiPredictorEnabled: true,
+    personalizationEnabled: false,
   };
 
   test("prefixOnlyMode=false, inlineSuggestion=false → false", async () => {
@@ -67,5 +68,21 @@ describe("ConfigAssembler.assemblePredictionRuntimeConfig prefixOnlyMode", () =>
     });
     const result = await assembler.assemblePredictionRuntimeConfig();
     expect(result.predictionConfig.prefixOnlyMode).toBe(true);
+  });
+
+  test("passes opt-in personalization state to prediction config", async () => {
+    const sm = createSettingsManagerMock({
+      ...baseSettings,
+      prefixOnlyMode: false,
+      inline_suggestion: false,
+      personalizationEnabled: true,
+    });
+    const assembler = new ConfigAssembler(sm, {
+      enableAIPredictor: false,
+      isDevBuild: false,
+    });
+
+    const result = await assembler.assemblePredictionRuntimeConfig();
+    expect(result.predictionConfig.personalizationEnabled).toBe(true);
   });
 });

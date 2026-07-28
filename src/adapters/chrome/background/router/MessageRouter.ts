@@ -7,6 +7,7 @@ import {
   CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_MODULES,
   CMD_CONTENT_SCRIPT_REPORT_RUNTIME_STATUS,
   CMD_CONTENT_SCRIPT_USAGE_EVENT,
+  CMD_CONTENT_SCRIPT_PERSONALIZATION_EVENT,
   CMD_GET_AUTO_LANGUAGE_STATUS,
   CMD_OPTIONS_CLEAR_OBSERVABILITY_EVENTS,
   CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE,
@@ -16,6 +17,7 @@ import {
   CMD_OPTIONS_REPORT_OBSERVABILITY_MODULES,
   CMD_OPTIONS_PAGE_CONFIG_CHANGE,
   CMD_OPTIONS_RESET_PRODUCTIVITY_STATS,
+  CMD_OPTIONS_CLEAR_PERSONALIZATION,
   CMD_POPUP_ACK_DONATION_MILESTONE,
   CMD_POPUP_ACK_WEEKLY_RECAP,
   CMD_POPUP_GET_PRODUCTIVITY_STATS,
@@ -53,6 +55,7 @@ const ROUTED_MESSAGE_COMMANDS = [
   CMD_OPTIONS_PAGE_CONFIG_CHANGE,
   CMD_CONTENT_SCRIPT_GET_CONFIG,
   CMD_CONTENT_SCRIPT_USAGE_EVENT,
+  CMD_CONTENT_SCRIPT_PERSONALIZATION_EVENT,
   CMD_CONTENT_SCRIPT_REPORT_RUNTIME_STATUS,
   CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_EVENT,
   CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_MODULES,
@@ -61,6 +64,7 @@ const ROUTED_MESSAGE_COMMANDS = [
   CMD_POPUP_ACK_WEEKLY_RECAP,
   CMD_POPUP_ACK_DONATION_MILESTONE,
   CMD_OPTIONS_RESET_PRODUCTIVITY_STATS,
+  CMD_OPTIONS_CLEAR_PERSONALIZATION,
   CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT,
   CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE,
   CMD_OPTIONS_GET_OBSERVABILITY_SNAPSHOT,
@@ -122,6 +126,8 @@ const MESSAGE_ERROR_LABELS: Record<RoutedMessageCommand, string> = {
   [CMD_OPTIONS_PAGE_CONFIG_CHANGE]: "handleOptionsPageConfigChange",
   [CMD_CONTENT_SCRIPT_GET_CONFIG]: "MessageRouter.handleContentScriptGetConfig",
   [CMD_CONTENT_SCRIPT_USAGE_EVENT]: "MessageRouter.handleContentScriptUsageEvent",
+  [CMD_CONTENT_SCRIPT_PERSONALIZATION_EVENT]:
+    "MessageRouter.handleContentScriptPersonalizationEvent",
   [CMD_CONTENT_SCRIPT_REPORT_RUNTIME_STATUS]: "MessageRouter.handleContentScriptRuntimeStatus",
   [CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_EVENT]:
     "MessageRouter.handleContentScriptReportObservabilityEvent",
@@ -132,6 +138,7 @@ const MESSAGE_ERROR_LABELS: Record<RoutedMessageCommand, string> = {
   [CMD_POPUP_ACK_WEEKLY_RECAP]: "MessageRouter.handlePopupAckWeeklyRecap",
   [CMD_POPUP_ACK_DONATION_MILESTONE]: "MessageRouter.handlePopupAckDonationMilestone",
   [CMD_OPTIONS_RESET_PRODUCTIVITY_STATS]: "MessageRouter.handleOptionsResetProductivityStats",
+  [CMD_OPTIONS_CLEAR_PERSONALIZATION]: "MessageRouter.handleOptionsClearPersonalization",
   [CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT]:
     "MessageRouter.handleOptionsGetPredictorDebugSnapshot",
   [CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE]: "MessageRouter.handleOptionsClearPredictorDebugTrace",
@@ -181,6 +188,10 @@ export class MessageRouter {
     register(CMD_CONTENT_SCRIPT_GET_CONFIG, this.handleContentScriptGetConfig.bind(this));
     register(CMD_CONTENT_SCRIPT_USAGE_EVENT, this.handleContentScriptUsageEvent.bind(this));
     register(
+      CMD_CONTENT_SCRIPT_PERSONALIZATION_EVENT,
+      this.handleContentScriptPersonalizationEvent.bind(this),
+    );
+    register(
       CMD_CONTENT_SCRIPT_REPORT_RUNTIME_STATUS,
       this.handleContentScriptRuntimeStatus.bind(this),
     );
@@ -200,6 +211,7 @@ export class MessageRouter {
       CMD_OPTIONS_RESET_PRODUCTIVITY_STATS,
       this.handleOptionsResetProductivityStats.bind(this),
     );
+    register(CMD_OPTIONS_CLEAR_PERSONALIZATION, this.handleOptionsClearPersonalization.bind(this));
     register(
       CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT,
       this.handleOptionsGetPredictorDebugSnapshot.bind(this),
@@ -441,6 +453,14 @@ export class MessageRouter {
     this.respondOk(sendResponse);
   }
 
+  private async handleContentScriptPersonalizationEvent(
+    payload: CommandPayload<typeof CMD_CONTENT_SCRIPT_PERSONALIZATION_EVENT>,
+  ): Promise<void> {
+    const { request, sendResponse, worker } = payload;
+    await worker.handlePersonalizationEvent(request.context);
+    this.respondOk(sendResponse);
+  }
+
   private handleContentScriptRuntimeStatus(
     payload: CommandPayload<typeof CMD_CONTENT_SCRIPT_REPORT_RUNTIME_STATUS>,
   ): void {
@@ -552,6 +572,14 @@ export class MessageRouter {
   ): Promise<void> {
     const { sendResponse, worker } = payload;
     await worker.productivityStatsManager.resetStats();
+    this.respondOk(sendResponse);
+  }
+
+  private async handleOptionsClearPersonalization(
+    payload: CommandPayload<typeof CMD_OPTIONS_CLEAR_PERSONALIZATION>,
+  ): Promise<void> {
+    const { sendResponse, worker } = payload;
+    await worker.clearPersonalization();
     this.respondOk(sendResponse);
   }
 

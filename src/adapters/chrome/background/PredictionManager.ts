@@ -15,6 +15,11 @@ import { WebLLMPredictor } from "./WebLLMPredictor";
 import { createLogger } from "@core/application/logging/Logger";
 import { DEFAULT_AI_PREDICTION_TIMEOUT_MS } from "@core/domain/constants";
 import { PredictorError, getErrorMessage } from "@core/domain/error";
+import type { PersonalizationRankingSnapshot } from "@core/domain/personalization/types";
+
+interface PredictionManagerOptions {
+  getPersonalizationSnapshot?: () => PersonalizationRankingSnapshot;
+}
 
 export interface PredictionDebugRequestMeta {
   traceId?: string;
@@ -97,9 +102,11 @@ export class PredictionManager {
   private debugTraces: PredictorDebugTrace[] = [];
   private debugTraceById: Map<string, PredictorDebugTrace> = new Map();
   private currentConfig: PredictionConfig | null = null;
+  private readonly getPersonalizationSnapshot: () => PersonalizationRankingSnapshot;
 
-  constructor() {
+  constructor(options: PredictionManagerOptions = {}) {
     this.libPresageMod = libPresageMod as () => Promise<PresageModule>;
+    this.getPersonalizationSnapshot = options.getPersonalizationSnapshot ?? (() => ({}));
     void this.initialize();
   }
 
@@ -113,7 +120,9 @@ export class PredictionManager {
   private async _doInitializePresage(): Promise<void> {
     try {
       const Module = await this.libPresageMod();
-      this.presageHandler = new PresageHandler(Module);
+      this.presageHandler = new PresageHandler(Module, {
+        getPersonalizationSnapshot: this.getPersonalizationSnapshot,
+      });
       this.predictionOrchestrator = new PredictionOrchestrator(
         this.presageHandler,
         this.getWebLLMPredictor(),

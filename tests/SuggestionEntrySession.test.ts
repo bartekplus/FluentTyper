@@ -51,6 +51,7 @@ function makeSession({
   contentEditableAdapter = new ContentEditableAdapter(),
   getPendingFallback = () => undefined,
   recordSuggestionAccepted = jest.fn(),
+  recordPersonalizationAccepted = jest.fn(() => "accept-fixed"),
   getLang = () => "en_US",
   insertSpaceAfterAutocomplete = true,
 }: {
@@ -98,6 +99,7 @@ function makeSession({
   contentEditableAdapter?: ContentEditableAdapter;
   getPendingFallback?: () => PendingKeyFallback | undefined;
   recordSuggestionAccepted?: ReturnType<typeof jest.fn>;
+  recordPersonalizationAccepted?: ReturnType<typeof jest.fn>;
   getLang?: () => string;
   insertSpaceAfterAutocomplete?: boolean;
 } = {}): SuggestionEntrySession {
@@ -119,6 +121,7 @@ function makeSession({
     renderInline,
     recordSuggestionShown,
     recordSuggestionAccepted,
+    recordPersonalizationAccepted,
     getLang,
     insertSpaceAfterAutocomplete,
     logRenderedSuggestionPopup,
@@ -377,6 +380,7 @@ test("session acceptance lifecycle applies accepted suggestion state", () => {
     syncManualAutoFixSuppression: jest.fn(),
   };
   const recordSuggestionAccepted = jest.fn();
+  const recordPersonalizationAccepted = jest.fn(() => "accept-fixed");
   const clearPendingFallback = jest.fn();
   const predictionCoordinator = {
     shouldProcessResponse: (_entry: SuggestionEntry, context: PredictionResponse) =>
@@ -397,6 +401,7 @@ test("session acceptance lifecycle applies accepted suggestion state", () => {
     predictionCoordinator,
     textEditService,
     recordSuggestionAccepted,
+    recordPersonalizationAccepted,
     insertSpaceAfterAutocomplete: true,
     getLang: () => "en_US",
   });
@@ -419,6 +424,11 @@ test("session acceptance lifecycle applies accepted suggestion state", () => {
   expect(recordSuggestionAccepted).toHaveBeenCalledWith({
     triggerText: "bet",
     insertedText: "beta",
+    language: "en_US",
+  });
+  expect(recordPersonalizationAccepted).toHaveBeenCalledWith({
+    suggestion: "beta",
+    triggerText: "bet",
     language: "en_US",
   });
 });

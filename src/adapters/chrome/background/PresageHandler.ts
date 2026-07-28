@@ -13,6 +13,8 @@ import { PresageEngine } from "./PresageEngine";
 import { MAX_NUM_SUGGESTIONS } from "@core/domain/constants";
 import type { PredictionResult } from "./PredictionTypes";
 import { SPACING_RULES, Spacing } from "@core/domain/spacingRules";
+import { rankPersonalizedCandidates } from "@core/domain/personalization/PersonalizationRanker";
+import type { PersonalizationRankingSnapshot } from "@core/domain/personalization/types";
 const SUGGESTION_COUNT = 5;
 const MIN_WORD_LENGTH_TO_PREDICT = 1;
 const logger = createLogger("PresageHandler");
@@ -25,10 +27,16 @@ export interface PresageConfig {
   autoCapitalize: boolean;
   textExpansions: Array<[string, object]>;
   prefixOnlyMode: boolean;
+  personalizationEnabled?: boolean;
 
   timeFormat?: string;
   dateFormat?: string;
   userDictionaryList?: string[];
+}
+
+interface PresageHandlerOptions {
+  getPersonalizationSnapshot?: () => PersonalizationRankingSnapshot;
+  now?: () => number;
 }
 
 export interface PresagePredictionContext {
@@ -61,9 +69,13 @@ export class PresageHandler {
   private dateFormat?: string;
   private engineNumSuggestions: number;
   private textExpansionsSignature = "";
+  private textExpansionShortcuts = new Set<string>();
   private userDictionarySignature = "";
+  private personalizationEnabled = false;
+  private readonly getPersonalizationSnapshot: () => PersonalizationRankingSnapshot;
+  private readonly now: () => number;
 
-  constructor(Module: PresageModule) {
+  constructor(Module: PresageModule, options: PresageHandlerOptions = {}) {
     const engineConfig: PresageEngineConfig = {
       numSuggestions: SUGGESTION_COUNT,
       prefixOnlyMode: false,
@@ -77,6 +89,8 @@ export class PresageHandler {
     this.autoCapitalize = true;
     this.prefixOnlyMode = false;
     this.userDictionaryList = [];
+    this.getPersonalizationSnapshot = options.getPersonalizationSnapshot ?? (() => ({}));
+    this.now = options.now ?? Date.now;
 
     this.predictionInputProcessor = new PredictionInputProcessor(
       this.minWordLengthToPredict,
@@ -116,6 +130,10 @@ export class PresageHandler {
     this.insertSpaceAfterAutocomplete = config.insertSpaceAfterAutocomplete;
     this.autoCapitalize = config.autoCapitalize;
     this.prefixOnlyMode = config.prefixOnlyMode;
+    this.personalizationEnabled = config.personalizationEnabled ?? false;
+    this.textExpansionShortcuts = new Set(
+      (config.textExpansions ?? []).map(([shortcut]) => shortcut.trim().toLocaleLowerCase()),
+    );
 
     this.timeFormat = config.timeFormat;
     this.dateFormat = config.dateFormat;
@@ -235,7 +253,26 @@ export class PresageHandler {
     ) {
       return [];
     }
-    return this.doPredictionHandler(context.predictionInput, context.lang, context.tabId);
+    const predictions = await this.doPredictionHandler(
+      context.predictionInput,
+      context.lang,
+      context.tabId,
+    );
+    if (!this.personalizationEnabled || this.isTextExpansionRequest(context.predictionInput)) {
+      return predictions;
+    }
+
+    const inputLower = context.predictionInput.trim().toLocaleLowerCase();
+    const pinnedCandidates = new Set(
+      predictions.filter((candidate) => candidate.toLocaleLowerCase() === inputLower),
+    );
+    return rankPersonalizedCandidates({
+      candidates: predictions,
+      language: context.lang,
+      snapshot: this.getPersonalizationSnapshot(),
+      nowMs: this.now(),
+      pinnedCandidates,
+    });
   }
 
   finalizePrediction(
@@ -333,5 +370,10 @@ export class PresageHandler {
     for (const presageEngine of Object.values(this.presageEngines)) {
       presageEngine.reinitialize();
     }
+  }
+
+  private isTextExpansionRequest(predictionInput: string): boolean {
+    const finalToken = predictionInput.trim().split(/\s+/u).at(-1)?.toLocaleLowerCase();
+    return finalToken ? this.textExpansionShortcuts.has(finalToken) : false;
   }
 }

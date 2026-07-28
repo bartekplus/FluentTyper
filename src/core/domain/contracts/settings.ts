@@ -21,6 +21,7 @@ import {
   KEY_FALLBACK_LANGUAGE,
   KEY_INLINE_SUGGESTION,
   KEY_PREFIX_ONLY_MODE,
+  KEY_PERSONALIZATION_ENABLED,
   KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
   KEY_LANGUAGE,
   KEY_MIN_WORD_LENGTH_TO_PREDICT,
@@ -58,6 +59,7 @@ export const SETTINGS_KEYS = {
   enabledLanguages: KEY_ENABLED_LANGUAGES,
   inlineSuggestion: KEY_INLINE_SUGGESTION,
   prefixOnlyMode: KEY_PREFIX_ONLY_MODE,
+  personalizationEnabled: KEY_PERSONALIZATION_ENABLED,
   preferNativeAutocomplete: KEY_PREFER_NATIVE_AUTOCOMPLETE,
   numSuggestions: KEY_NUM_SUGGESTIONS,
   minWordLengthToPredict: KEY_MIN_WORD_LENGTH_TO_PREDICT,
@@ -113,6 +115,7 @@ export interface SettingsSchema {
   enabledLanguages: string[];
   inlineSuggestion: boolean;
   prefixOnlyMode: boolean;
+  personalizationEnabled: boolean;
   preferNativeAutocomplete: boolean;
   numSuggestions: number;
   minWordLengthToPredict: number;
