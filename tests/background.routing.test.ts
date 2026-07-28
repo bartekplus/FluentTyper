@@ -8,9 +8,11 @@ import {
   CMD_CONTENT_SCRIPT_PREDICT_REQ,
   CMD_CONTENT_SCRIPT_REPORT_RUNTIME_STATUS,
   CMD_CONTENT_SCRIPT_USAGE_EVENT,
+  CMD_CONTENT_SCRIPT_PERSONALIZATION_EVENT,
   CMD_GET_AUTO_LANGUAGE_STATUS,
   CMD_OPTIONS_PAGE_CONFIG_CHANGE,
   CMD_OPTIONS_RESET_PRODUCTIVITY_STATS,
+  CMD_OPTIONS_CLEAR_PERSONALIZATION,
   CMD_POPUP_ACK_DONATION_MILESTONE,
   CMD_POPUP_ACK_WEEKLY_RECAP,
   CMD_POPUP_GET_PRODUCTIVITY_STATS,
@@ -101,6 +103,9 @@ const backgroundHarnessMocks = {
   isEnabledForDomain: jest.fn(async () => true),
   logError: jest.fn(),
   migrateToLocalStore: jest.fn(async () => undefined),
+  personalizationInitialize: jest.fn(async () => undefined),
+  personalizationHandleEvent: jest.fn(async () => true),
+  personalizationClear: jest.fn(async () => undefined),
 };
 
 function installBackgroundHarnessModuleMocks(): void {
@@ -135,6 +140,19 @@ function installBackgroundHarnessModuleMocks(): void {
         backgroundHarnessMocks.predictionRecordTraceTimelineEvent(...args),
     })),
   }));
+
+  jest.unstable_mockModule(
+    "../src/core/application/personalization/PersonalizationService",
+    () => ({
+      PersonalizationService: jest.fn().mockImplementation(() => ({
+        initialize: () => backgroundHarnessMocks.personalizationInitialize(),
+        handleEvent: (...args: [unknown]) =>
+          backgroundHarnessMocks.personalizationHandleEvent(...args),
+        clear: () => backgroundHarnessMocks.personalizationClear(),
+        getRankingSnapshot: () => ({}),
+      })),
+    }),
+  );
 
   jest.unstable_mockModule("../src/adapters/chrome/background/TabMessenger", () => ({
     TabMessenger: jest.fn().mockImplementation(() => ({
@@ -279,6 +297,9 @@ async function loadBackgroundHarness(stateOverrides: Record<string, unknown> = {
   const isEnabledForDomain = jest.fn(async () => true);
   const logError = jest.fn();
   const migrateToLocalStore = jest.fn(async () => undefined);
+  const personalizationInitialize = jest.fn(async () => undefined);
+  const personalizationHandleEvent = jest.fn(async () => true);
+  const personalizationClear = jest.fn(async () => undefined);
 
   const onInstalledAddListener = jest.fn();
   const onCommandAddListener = jest.fn();
@@ -341,6 +362,9 @@ async function loadBackgroundHarness(stateOverrides: Record<string, unknown> = {
   backgroundHarnessMocks.isEnabledForDomain = isEnabledForDomain;
   backgroundHarnessMocks.logError = logError;
   backgroundHarnessMocks.migrateToLocalStore = migrateToLocalStore;
+  backgroundHarnessMocks.personalizationInitialize = personalizationInitialize;
+  backgroundHarnessMocks.personalizationHandleEvent = personalizationHandleEvent;
+  backgroundHarnessMocks.personalizationClear = personalizationClear;
 
   const { BackgroundServiceWorker } =
     await import("../src/adapters/chrome/background/BackgroundServiceWorker");
@@ -384,6 +408,9 @@ async function loadBackgroundHarness(stateOverrides: Record<string, unknown> = {
     isEnabledForDomain,
     logError,
     migrateToLocalStore,
+    personalizationInitialize,
+    personalizationHandleEvent,
+    personalizationClear,
     onInstalled,
     onCommand,
     onMessage,
@@ -405,6 +432,7 @@ describe("background routing and lifecycle", () => {
 
     expect(harness.migrateToLocalStore).toHaveBeenCalledWith("2025.12.0");
     expect(harness.predictionInitialize).toHaveBeenCalled();
+    expect(harness.personalizationInitialize).toHaveBeenCalled();
     expect(harness.predictionSetConfig).toHaveBeenCalledWith(
       expect.objectContaining({
         aiPredictorEnabled: false,
@@ -1277,6 +1305,44 @@ describe("background routing and lifecycle", () => {
     await flushPromises();
     expect(resetSpy).toHaveBeenCalled();
     expect(resetResponse).toHaveBeenCalledWith({ ok: true });
+  });
+
+  test("routes personalization acceptance, reversal, and clear commands", async () => {
+    const harness = await loadBackgroundHarness();
+    const sendResponse = jest.fn();
+    const acceptance = {
+      eventType: "suggestion_accepted",
+      eventId: "accept-1",
+      suggestion: "hello",
+      triggerText: "hel",
+      language: "en_US",
+    };
+
+    harness.onMessage(
+      { command: CMD_CONTENT_SCRIPT_PERSONALIZATION_EVENT, context: acceptance },
+      { tab: { id: 1 } as chrome.tabs.Tab, frameId: 0 },
+      sendResponse,
+    );
+    await flushPromises();
+    expect(harness.personalizationHandleEvent).toHaveBeenCalledWith(acceptance);
+    expect(sendResponse).toHaveBeenCalledWith({ ok: true });
+
+    const reversal = { eventType: "suggestion_reverted", eventId: "accept-1" };
+    harness.onMessage(
+      { command: CMD_CONTENT_SCRIPT_PERSONALIZATION_EVENT, context: reversal },
+      { tab: { id: 1 } as chrome.tabs.Tab, frameId: 0 },
+      sendResponse,
+    );
+    await flushPromises();
+    expect(harness.personalizationHandleEvent).toHaveBeenCalledWith(reversal);
+
+    harness.onMessage(
+      { command: CMD_OPTIONS_CLEAR_PERSONALIZATION, context: {} },
+      {} as chrome.runtime.MessageSender,
+      sendResponse,
+    );
+    await flushPromises();
+    expect(harness.personalizationClear).toHaveBeenCalledTimes(1);
   });
 
   // ---------------------------------------------------------------------------

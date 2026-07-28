@@ -7,6 +7,7 @@ import { CURSOR_MOVE_COUNT_ATTR, CURSOR_MOVE_EVENT } from "./HostEditorBridgePro
 import { TextTargetAdapter, type TextTarget } from "./TextTargetAdapter";
 import { buildCaretTrace, clipTraceText, collapseTraceWhitespace } from "./traceUtils";
 import type {
+  ExtensionEditSnapshot,
   ManualAutoFixSuppressionSnapshot,
   SuggestionEntry,
   SuggestionElement,
@@ -257,14 +258,17 @@ export class SuggestionTextEditService {
     {
       consumeKeyboardEvent,
       clearSuggestions,
+      onSuccessfulUndo,
     }: {
       consumeKeyboardEvent: (event: KeyboardEvent) => void;
       clearSuggestions: () => void;
+      onSuccessfulUndo?: (edit: ExtensionEditSnapshot) => void;
     },
   ): boolean {
     return this.tryUndoPendingExtensionEdit(entry, event, {
       consumeEvent: (undoEvent) => consumeKeyboardEvent(undoEvent as KeyboardEvent),
       clearSuggestions,
+      onSuccessfulUndo,
     });
   }
 
@@ -274,9 +278,11 @@ export class SuggestionTextEditService {
     {
       consumeInputEvent,
       clearSuggestions,
+      onSuccessfulUndo,
     }: {
       consumeInputEvent: (event: InputEvent) => void;
       clearSuggestions: () => void;
+      onSuccessfulUndo?: (edit: ExtensionEditSnapshot) => void;
     },
   ): boolean {
     if (event.inputType !== "historyUndo") {
@@ -285,6 +291,7 @@ export class SuggestionTextEditService {
     return this.tryUndoPendingExtensionEdit(entry, event, {
       consumeEvent: (undoEvent) => consumeInputEvent(undoEvent as InputEvent),
       clearSuggestions,
+      onSuccessfulUndo,
     });
   }
 
@@ -294,9 +301,11 @@ export class SuggestionTextEditService {
     {
       consumeEvent,
       clearSuggestions,
+      onSuccessfulUndo,
     }: {
       consumeEvent: (event: Event) => void;
       clearSuggestions: () => void;
+      onSuccessfulUndo?: (edit: ExtensionEditSnapshot) => void;
     },
   ): boolean {
     if (!entry.pendingExtensionEdit) {
@@ -311,10 +320,12 @@ export class SuggestionTextEditService {
       return this.tryUndoBlockScopedExtensionEdit(entry, event, {
         consumeEvent,
         clearSuggestions,
+        onSuccessfulUndo,
       });
     }
 
     const snapshot: SuggestionSnapshot = TextTargetAdapter.snapshot(entry.elem as TextTarget);
+    const pendingEdit = entry.pendingExtensionEdit;
     const {
       replaceStart,
       originalText,
@@ -323,7 +334,7 @@ export class SuggestionTextEditService {
       postEditFingerprint,
       source,
       sourceRuleId,
-    } = entry.pendingExtensionEdit;
+    } = pendingEdit;
     const fullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
     const replaceEnd = replaceStart + replacementText.length;
 
@@ -389,6 +400,7 @@ export class SuggestionTextEditService {
     );
 
     clearSuggestions();
+    onSuccessfulUndo?.(pendingEdit);
     return true;
   }
 
@@ -398,9 +410,11 @@ export class SuggestionTextEditService {
     {
       consumeEvent,
       clearSuggestions,
+      onSuccessfulUndo,
     }: {
       consumeEvent: (event: Event) => void;
       clearSuggestions: () => void;
+      onSuccessfulUndo?: (edit: ExtensionEditSnapshot) => void;
     },
   ): boolean {
     const pendingEdit = entry.pendingExtensionEdit;
@@ -455,6 +469,7 @@ export class SuggestionTextEditService {
     );
 
     clearSuggestions();
+    onSuccessfulUndo?.(pendingEdit);
     return true;
   }
 

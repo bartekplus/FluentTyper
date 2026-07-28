@@ -104,6 +104,10 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
     return this.getBooleanField("prefixOnlyMode");
   }
 
+  async getPersonalizationEnabled(): Promise<boolean> {
+    return this.getBooleanField("personalizationEnabled");
+  }
+
   async getPreferNativeAutocomplete(): Promise<boolean> {
     return this.getBooleanField("preferNativeAutocomplete", true);
   }

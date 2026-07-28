@@ -20,6 +20,7 @@ import { SuggestionPredictionCoordinator } from "./SuggestionPredictionCoordinat
 import { resolveSuggestionStateHost } from "./SuggestionStateHost";
 import { SuggestionMenuView } from "./SuggestionMenuView";
 import { SuggestionTelemetryService } from "./SuggestionTelemetryService";
+import { SuggestionPersonalizationService } from "./SuggestionPersonalizationService";
 import { resolveSuggestionOverlayRoot } from "./SuggestionOverlayRoot";
 import { EditableContextResolver } from "./EditableContextResolver";
 import { SuggestionTextEditService } from "./SuggestionTextEditService";
@@ -38,6 +39,7 @@ import type {
   SuggestionElement,
   SuggestionEntry,
   SuggestionManagerOptions,
+  SuggestionPersonalization,
   SuggestionTelemetry,
 } from "./types";
 
@@ -82,6 +84,7 @@ export class SuggestionManagerRuntime {
   private readonly textEditService: SuggestionTextEditService;
   private readonly keyboardHandler: SuggestionKeyboardHandler;
   private readonly telemetry: SuggestionTelemetry;
+  private readonly personalization: SuggestionPersonalization;
   private readonly pendingKeyFallbacks = new Map<number, PendingKeyFallback>();
 
   private readonly displayLangHeader: boolean;
@@ -136,6 +139,7 @@ export class SuggestionManagerRuntime {
       separatorRegex: this.separatorRegex,
     });
     this.telemetry = options.telemetry ?? new SuggestionTelemetryService();
+    this.personalization = options.personalization ?? new SuggestionPersonalizationService();
     this.textEditService = new SuggestionTextEditService({
       findMentionToken: this.predictionCoordinator.findMentionToken.bind(
         this.predictionCoordinator,
@@ -159,6 +163,7 @@ export class SuggestionManagerRuntime {
         this.textEditService.tryUndoLastExtensionEdit(entry, event, {
           consumeKeyboardEvent: this.consumeCancelableEvent.bind(this),
           clearSuggestions: () => this.clearSuggestions(entry),
+          onSuccessfulUndo: (edit) => this.recordPersonalizationReversal(edit),
         }),
       consumeKeyboardEvent: this.consumeCancelableEvent.bind(this),
       clearSuggestions: this.clearSuggestions.bind(this),
@@ -681,6 +686,7 @@ export class SuggestionManagerRuntime {
     const handled = this.textEditService.tryUndoLastExtensionEditOnBeforeInput(entry, inputEvent, {
       consumeInputEvent: this.consumeCancelableEvent.bind(this),
       clearSuggestions: () => this.clearSuggestions(entry),
+      onSuccessfulUndo: (edit) => this.recordPersonalizationReversal(edit),
     });
     if (handled) {
       this.clearPendingKeyFallback(id);
@@ -763,6 +769,8 @@ export class SuggestionManagerRuntime {
         }),
       recordSuggestionShown: (context) => this.telemetry.recordSuggestionShown(context),
       recordSuggestionAccepted: (context) => this.telemetry.recordSuggestionAccepted(context),
+      recordPersonalizationAccepted: (context) =>
+        this.personalization.recordSuggestionAccepted(context),
       getLang: () => this.lang,
       insertSpaceAfterAutocomplete: this.insertSpaceAfterAutocomplete,
       logRenderedSuggestionPopup: (context, details) => {
@@ -786,6 +794,17 @@ export class SuggestionManagerRuntime {
         });
       },
     });
+  }
+
+  private recordPersonalizationReversal(
+    edit: Pick<
+      NonNullable<SuggestionEntry["pendingExtensionEdit"]>,
+      "source" | "personalizationEventId"
+    >,
+  ): void {
+    if (edit.source === "suggestion" && edit.personalizationEventId) {
+      this.personalization.recordSuggestionReverted(edit.personalizationEventId);
+    }
   }
 
   private reconcileEntrySelection(entry: SuggestionEntry): void {

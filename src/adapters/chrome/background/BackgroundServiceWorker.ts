@@ -32,6 +32,10 @@ import {
 } from "./config/runtimeSettings";
 import { ConfigAssembler } from "./config/ConfigAssembler";
 import { ObservabilityService } from "./ObservabilityService";
+import { ChromeStorageBackend } from "@core/application/storage/ChromeStorageBackend";
+import { PersonalizationRepository } from "@core/application/personalization/PersonalizationRepository";
+import { PersonalizationService } from "@core/application/personalization/PersonalizationService";
+import type { PersonalizationEvent } from "@core/domain/personalization/types";
 
 declare const __FT_DEV_BUILD__: boolean | undefined;
 
@@ -49,6 +53,7 @@ export class BackgroundServiceWorker {
   productivityStatsManager!: ProductivityStatsManager;
   observabilityService!: ObservabilityService;
   configAssembler!: ConfigAssembler;
+  personalizationService!: PersonalizationService;
   language!: string;
   private runtimeConfigReady = false;
   private runtimeConfigLoadPromise: Promise<void> | null = null;
@@ -60,6 +65,17 @@ export class BackgroundServiceWorker {
     }
     this.settingsManager = new SettingsManager();
     this.coreSettingsRepository = new CoreSettingsRepository(this.settingsManager);
+    this.personalizationService = new PersonalizationService({
+      repository: new PersonalizationRepository(new ChromeStorageBackend(true)),
+      isEnabled: () => this.coreSettingsRepository.getPersonalizationEnabled(),
+      isTextExpansionTrigger: async (triggerText) => {
+        const normalizedTrigger = triggerText.trim().toLocaleLowerCase();
+        const expansions = await this.coreSettingsRepository.getTextExpansions();
+        return expansions.some(
+          ([shortcut]) => shortcut.trim().toLocaleLowerCase() === normalizedTrigger,
+        );
+      },
+    });
     this.languageDetector = new LanguageDetector(this.settingsManager);
     this.predictionManager = new PredictionManager();
     this.tabMessenger = new TabMessenger();
@@ -216,7 +232,10 @@ export class BackgroundServiceWorker {
   async updatePresageConfig(): Promise<void> {
     await sanitizeSiteProfilesSetting(this.settingsManager);
     await sanitizeAutoLanguagePriorsSetting(this.settingsManager);
-    await this.predictionManager.initialize();
+    await Promise.all([
+      this.personalizationService.initialize(),
+      this.predictionManager.initialize(),
+    ]);
     const runtimeConfig = await this.configAssembler.assemblePredictionRuntimeConfig();
     this.language = runtimeConfig.language;
     this.observabilityService.setConfig(runtimeConfig.observabilityConfig);
@@ -304,13 +323,24 @@ export class BackgroundServiceWorker {
         await migrateSettingsV5(this.settingsManager);
         await migrateSettingsV6(this.settingsManager);
         await migrateSettingsV7(this.settingsManager);
-        await this.predictionManager.initialize();
+        await Promise.all([
+          this.personalizationService.initialize(),
+          this.predictionManager.initialize(),
+        ]);
         await this.updatePresageConfig();
       } catch (error) {
         logError("lastVersion handler", error);
       }
     })();
     await this.initializationPromise;
+  }
+
+  async handlePersonalizationEvent(event: PersonalizationEvent): Promise<boolean> {
+    return this.personalizationService.handleEvent(event);
+  }
+
+  async clearPersonalization(): Promise<void> {
+    await this.personalizationService.clear();
   }
 
   private async ensureRuntimeConfigReady(): Promise<void> {

@@ -1690,6 +1690,9 @@ describe("SuggestionTextEditService", () => {
     });
 
     service.acceptSuggestion(entry, "hi ");
+    if (entry.pendingExtensionEdit) {
+      entry.pendingExtensionEdit.personalizationEventId = "accept-fixed";
+    }
     expect(input.value).toBe("hi ");
 
     const keyboardEvent = new Event("keydown", {
@@ -1702,10 +1705,12 @@ describe("SuggestionTextEditService", () => {
       event.preventDefault();
       event.stopPropagation();
     };
+    const onSuccessfulUndo = jest.fn();
 
     const handled = service.tryUndoLastExtensionEdit(entry, keyboardEvent, {
       consumeKeyboardEvent,
       clearSuggestions: () => undefined,
+      onSuccessfulUndo,
     });
 
     expect(handled).toBe(true);
@@ -1713,6 +1718,12 @@ describe("SuggestionTextEditService", () => {
     expect(input.selectionStart).toBe(1);
     expect(entry.pendingExtensionEdit).toBeNull();
     expect(entry.manualAutoFixSuppression).toBeNull();
+    expect(onSuccessfulUndo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "suggestion",
+        personalizationEventId: "accept-fixed",
+      }),
+    );
   });
 
   test("undoes latest grammar auto-fix on Cmd/Ctrl+Z when caret is unchanged", () => {

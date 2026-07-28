@@ -60,6 +60,9 @@ export class SuggestionEntrySession {
   private readonly renderInline: () => void;
   private readonly recordSuggestionShown: SuggestionEntrySessionOptions["recordSuggestionShown"];
   private readonly recordSuggestionAccepted: SuggestionEntrySessionOptions["recordSuggestionAccepted"];
+  private readonly recordPersonalizationAccepted: NonNullable<
+    SuggestionEntrySessionOptions["recordPersonalizationAccepted"]
+  >;
   private readonly getLang: () => string;
   private readonly insertSpaceAfterAutocomplete: boolean;
   private readonly logRenderedSuggestionPopup: SuggestionEntrySessionOptions["logRenderedSuggestionPopup"];
@@ -84,6 +87,7 @@ export class SuggestionEntrySession {
     this.renderInline = options.renderInline;
     this.recordSuggestionShown = options.recordSuggestionShown;
     this.recordSuggestionAccepted = options.recordSuggestionAccepted;
+    this.recordPersonalizationAccepted = options.recordPersonalizationAccepted ?? (() => "");
     this.getLang = options.getLang;
     this.insertSpaceAfterAutocomplete = options.insertSpaceAfterAutocomplete;
     this.logRenderedSuggestionPopup = options.logRenderedSuggestionPopup;
@@ -1242,6 +1246,14 @@ export class SuggestionEntrySession {
       return false;
     }
     this.lastAcceptedSuggestion = suggestion;
+    const personalizationEventId = this.recordPersonalizationAccepted({
+      suggestion,
+      triggerText: accepted.triggerText,
+      language: this.getLang(),
+    });
+    if (personalizationEventId && this.entry.pendingExtensionEdit?.source === "suggestion") {
+      this.entry.pendingExtensionEdit.personalizationEventId = personalizationEventId;
+    }
     this.finishAcceptedSuggestion(
       accepted.triggerText,
       accepted.insertedText,

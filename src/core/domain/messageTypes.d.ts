@@ -3,6 +3,7 @@ import type {
   ObservabilityEvent,
   ObservabilitySnapshot,
 } from "./observability";
+import type { PersonalizationEvent } from "./personalization/types";
 
 // Context for CMD_BACKGROUND_PAGE_SET_CONFIG
 export interface SuggestionThemeConfig {
@@ -173,6 +174,8 @@ export interface PopupAckDonationMilestoneContext {
 }
 
 export type OptionsResetProductivityStatsContext = Record<string, never>;
+export type OptionsClearPersonalizationContext = Record<string, never>;
+export type ContentScriptPersonalizationEventContext = PersonalizationEvent;
 export type OptionsGetPredictorDebugSnapshotContext = Record<string, never>;
 export type OptionsClearPredictorDebugTraceContext = Record<string, never>;
 export type OptionsGetObservabilitySnapshotContext = Record<string, never>;
@@ -304,6 +307,10 @@ export type Message =
       context: ContentScriptUsageEventContext;
     }
   | {
+      command: "CMD_CONTENT_SCRIPT_PERSONALIZATION_EVENT";
+      context: ContentScriptPersonalizationEventContext;
+    }
+  | {
       command: "CMD_CONTENT_SCRIPT_REPORT_RUNTIME_STATUS";
       context: ContentScriptRuntimeStatusContext;
     }
@@ -322,6 +329,10 @@ export type Message =
   | {
       command: "CMD_OPTIONS_RESET_PRODUCTIVITY_STATS";
       context: OptionsResetProductivityStatsContext;
+    }
+  | {
+      command: "CMD_OPTIONS_CLEAR_PERSONALIZATION";
+      context: OptionsClearPersonalizationContext;
     }
   | {
       command: "CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT";
@@ -392,6 +403,14 @@ export type PopupPageStatusMessage = Extract<Message, { command: "CMD_STATUS_COM
 export type ContentScriptUsageEventMessage = Extract<
   Message,
   { command: "CMD_CONTENT_SCRIPT_USAGE_EVENT" }
+>;
+export type ContentScriptPersonalizationEventMessage = Extract<
+  Message,
+  { command: "CMD_CONTENT_SCRIPT_PERSONALIZATION_EVENT" }
+>;
+export type OptionsClearPersonalizationMessage = Extract<
+  Message,
+  { command: "CMD_OPTIONS_CLEAR_PERSONALIZATION" }
 >;
 export type ContentScriptRuntimeStatusMessage = Extract<
   Message,

@@ -68,6 +68,7 @@ export interface SuggestionManagerOptions {
   userDictionaryList: string[];
   getPrediction: (context: PredictionRequest) => void;
   telemetry?: SuggestionTelemetry;
+  personalization?: SuggestionPersonalization;
   onShadowRootDiscovered?: (root: ShadowRoot) => void;
 }
 
@@ -80,6 +81,15 @@ export interface SuggestionTelemetry {
   }): void;
 }
 
+export interface SuggestionPersonalization {
+  recordSuggestionAccepted(args: {
+    suggestion: string;
+    triggerText: string;
+    language: string;
+  }): string;
+  recordSuggestionReverted(eventId: string): void;
+}
+
 export interface ExtensionEditSnapshot {
   replaceStart: number;
   originalText: string;
@@ -90,6 +100,7 @@ export interface ExtensionEditSnapshot {
   awaitingHostInputEcho?: boolean;
   source: "suggestion" | "grammar";
   sourceRuleId?: string;
+  personalizationEventId?: string;
   blockScoped?: boolean;
   postEditBlockText?: string | null;
   blockElement?: HTMLElement | null;
@@ -193,6 +204,11 @@ export interface SuggestionEntrySessionOptions {
     insertedText: string;
     language: string;
   }) => void;
+  recordPersonalizationAccepted?: (context: {
+    suggestion: string;
+    triggerText: string;
+    language: string;
+  }) => string;
   getLang: () => string;
   insertSpaceAfterAutocomplete: boolean;
   logRenderedSuggestionPopup: (
