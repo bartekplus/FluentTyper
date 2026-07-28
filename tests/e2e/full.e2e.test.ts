@@ -3,10 +3,13 @@ import path from "path";
 import * as fs from "fs";
 import type { Server } from "http";
 import { createServer } from "http";
+import { PERSONALIZATION_STORAGE_KEY } from "../../src/core/application/personalization/PersonalizationRepository";
 import {
   CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT,
+  CMD_OPTIONS_CLEAR_PERSONALIZATION,
   CMD_OPTIONS_PAGE_CONFIG_CHANGE,
   KEY_AI_PREDICTOR_ENABLED,
+  KEY_AUTOCOMPLETE_ON_TAB,
   KEY_AUTO_LANGUAGE_SITE_PRIORS,
   KEY_DEBUG_AI_PREDICTOR_ENABLED,
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
@@ -17,6 +20,8 @@ import {
   KEY_INLINE_SUGGESTION,
   KEY_NUM_SUGGESTIONS,
   KEY_MIN_WORD_LENGTH_TO_PREDICT,
+  KEY_PERSONALIZATION_ENABLED,
+  KEY_PREFIX_ONLY_MODE,
   KEY_PRODUCTIVITY_STATS,
   KEY_SITE_PROFILES,
   KEY_TEXT_EXPANSIONS,
@@ -477,6 +482,104 @@ async function getSetting<T>(worker: BackgroundContext, key: string): Promise<T 
     }
   }
   throw lastError;
+}
+
+async function getLocalStorageValue<T>(
+  worker: BackgroundContext,
+  storageKey: string,
+): Promise<T | undefined> {
+  return (await worker.evaluate(
+    (storageKeyInner) =>
+      new Promise((resolve, reject) => {
+        chrome.storage.local.get(storageKeyInner, (result) => {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+            return;
+          }
+          const rawValue = (result as Record<string, string | undefined>)[storageKeyInner];
+          resolve(rawValue ? JSON.parse(rawValue) : undefined);
+        });
+      }),
+    storageKey,
+  )) as T | undefined;
+}
+
+async function sendRuntimeCommand(
+  browser: Browser,
+  worker: BackgroundContext,
+  command: string,
+): Promise<void> {
+  const extensionPage = await openExtensionPage(browser, worker, "options/options.html");
+  try {
+    await extensionPage.evaluate((commandInner) => {
+      return new Promise<void>((resolve, reject) => {
+        chrome.runtime.sendMessage(
+          { command: commandInner, context: {} },
+          (response: { ok?: boolean } | undefined) => {
+            if (chrome.runtime.lastError) {
+              reject(new Error(chrome.runtime.lastError.message));
+              return;
+            }
+            if (!response?.ok) {
+              reject(new Error(`Runtime command ${commandInner} returned not ok`));
+              return;
+            }
+            resolve();
+          },
+        );
+      });
+    }, command);
+  } finally {
+    if (!extensionPage.isClosed()) {
+      await extensionPage.close();
+    }
+  }
+}
+
+async function restartExtensionRuntime(
+  browser: Browser,
+  worker: BackgroundContext,
+): Promise<BackgroundContext> {
+  if (!isFirefox() && typeof worker.close === "function") {
+    const wakePage = await openExtensionPage(browser, worker, "options/options.html");
+    try {
+      await worker.close();
+      await sleep(100);
+      await wakePage.evaluate((command) => {
+        return new Promise<void>((resolve, reject) => {
+          chrome.runtime.sendMessage(
+            { command, context: {} },
+            (response: { ok?: boolean } | undefined) => {
+              if (chrome.runtime.lastError) {
+                reject(new Error(chrome.runtime.lastError.message));
+                return;
+              }
+              if (!response?.ok) {
+                reject(new Error("Restart wake command returned not ok"));
+                return;
+              }
+              resolve();
+            },
+          );
+        });
+      }, CMD_OPTIONS_PAGE_CONFIG_CHANGE);
+      return await reacquireWorkerContext(browser, "restarted extension runtime");
+    } finally {
+      await wakePage.close();
+    }
+  } else {
+    try {
+      await worker.evaluate(() => {
+        chrome.runtime.reload();
+      });
+    } catch (error) {
+      if (!isRetriableWorkerError(error)) {
+        throw error;
+      }
+    }
+  }
+  await sleep(250);
+  return await reacquireWorkerContext(browser, "restarted extension runtime");
 }
 
 async function waitForSettingMatch<T>(
@@ -2323,6 +2426,169 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       });
     },
     browserTimeout(45000, 70000),
+  );
+
+  test(
+    "Personalized menu and inline ranking survives runtime restart and clears locally",
+    async () => {
+      type PersonalizationStoreSnapshot = {
+        languages?: Record<string, Record<string, { score?: number }>>;
+      };
+
+      const waitForLearnedScore = async (minimumScore: number): Promise<number> => {
+        return await waitUntil(
+          `personalization score for through >= ${minimumScore}`,
+          async () => {
+            const store = await getLocalStorageValue<PersonalizationStoreSnapshot>(
+              worker!,
+              PERSONALIZATION_STORAGE_KEY,
+            );
+            const score = store?.languages?.en_US?.through?.score;
+            return typeof score === "number" && score >= minimumScore ? score : false;
+          },
+          { timeoutMs: browserTimeout(5000, 10000), intervalMs: 50 },
+        );
+      };
+
+      const openReadyInput = async (): Promise<void> => {
+        await gotoTestPage(page);
+        await page.bringToFront();
+        await waitForInputReady(page, "#test-input");
+      };
+
+      const acceptThroughFromMenu = async (minimumScore: number): Promise<void> => {
+        await openReadyInput();
+        await typeInInput(page, "#test-input", "th");
+        const suggestions = await waitForVisibleSuggestionTexts(page);
+        const throughIndex = suggestions.map(normalizeSuggestionText).indexOf("through");
+        expect(throughIndex).toBeGreaterThanOrEqual(0);
+
+        for (let index = 0; index < throughIndex; index += 1) {
+          await page.keyboard.press("ArrowDown");
+        }
+        await page.keyboard.press("Tab");
+        await waitUntil(
+          "menu acceptance to insert through",
+          async () =>
+            normalizeSuggestionText(await getInputContent(page, "#test-input")) === "through"
+              ? true
+              : false,
+          { timeoutMs: browserTimeout(4000, 10000), intervalMs: 50 },
+        );
+        await waitForLearnedScore(minimumScore);
+      };
+
+      const expectFirstMenuSuggestion = async (expected: string): Promise<void> => {
+        await openReadyInput();
+        await typeInInput(page, "#test-input", "th");
+        const [firstSuggestion] = await waitForVisibleSuggestionTexts(page);
+        expect(normalizeSuggestionText(firstSuggestion ?? "")).toBe(expected);
+      };
+
+      const expectInlineThrough = async (): Promise<void> => {
+        await openReadyInput();
+        await typeInInput(page, "#test-input", "th");
+        const suffix = await waitUntil(
+          "personalized inline suggestion",
+          async () => {
+            const text = await page.evaluate(
+              () => document.querySelector(".ft-suggestion-inline")?.textContent ?? "",
+            );
+            return normalizeSuggestionText(text) === "rough" ? text : false;
+          },
+          { timeoutMs: browserTimeout(5000, 10000), intervalMs: 50 },
+        );
+        expect(normalizeSuggestionText(suffix)).toBe("rough");
+      };
+
+      try {
+        await sendRuntimeCommand(browser, worker!, CMD_OPTIONS_CLEAR_PERSONALIZATION);
+        await setSettingAndWait(worker!, KEY_PERSONALIZATION_ENABLED, true);
+        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+        await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+        await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+        await setSettingAndWait(worker!, KEY_NUM_SUGGESTIONS, 10);
+        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
+        await setSettingAndWait(worker!, KEY_PREFIX_ONLY_MODE, false);
+        await setSettingAndWait(worker!, KEY_AUTOCOMPLETE_ON_TAB, true);
+        await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, false);
+        await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
+        await applyConfigChange(browser, worker!);
+
+        // Three deliberate selections put the decayed score safely above the
+        // two-acceptance promotion threshold even on slower E2E machines.
+        await acceptThroughFromMenu(1);
+        await acceptThroughFromMenu(1.9);
+        await acceptThroughFromMenu(2.9);
+
+        await setSettingAndWait(worker!, KEY_NUM_SUGGESTIONS, 3);
+        await applyConfigChange(browser, worker!);
+        await expectFirstMenuSuggestion("through");
+
+        worker = await restartExtensionRuntime(browser, worker!);
+        await expectFirstMenuSuggestion("through");
+
+        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, true);
+        await applyConfigChange(browser, worker!);
+        await expectInlineThrough();
+        await page.keyboard.press("Tab");
+        await waitUntil(
+          "inline acceptance to insert through",
+          async () =>
+            normalizeSuggestionText(await getInputContent(page, "#test-input")) === "through"
+              ? true
+              : false,
+          { timeoutMs: browserTimeout(4000, 10000), intervalMs: 50 },
+        );
+        await waitForLearnedScore(3.8);
+        await expectInlineThrough();
+
+        const optionsPage = await openOptionsPage(browser, worker!);
+        try {
+          await optionsPage.evaluate(() => {
+            window.confirm = () => true;
+          });
+          await optionsPage.waitForSelector('input[type="button"][value="Clear learned words"]', {
+            timeout: browserTimeout(5000, 10000),
+          });
+          await sleep(100);
+          await optionsPage.evaluate(() => {
+            const button = document.querySelector<HTMLInputElement>(
+              'input[type="button"][value="Clear learned words"]',
+            );
+            if (!button) {
+              throw new Error("Clear learned words button not found");
+            }
+            button.click();
+          });
+          await waitUntil(
+            "personalization storage to clear",
+            async () =>
+              (await getLocalStorageValue(worker!, PERSONALIZATION_STORAGE_KEY)) === undefined
+                ? true
+                : false,
+            { timeoutMs: browserTimeout(5000, 10000), intervalMs: 50 },
+          );
+        } finally {
+          await optionsPage.close();
+        }
+
+        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
+        await applyConfigChange(browser, worker!);
+        await expectFirstMenuSuggestion("the");
+      } finally {
+        await sendRuntimeCommand(browser, worker!, CMD_OPTIONS_CLEAR_PERSONALIZATION).catch(
+          () => undefined,
+        );
+        await setSettingAndWait(worker!, KEY_PERSONALIZATION_ENABLED, false);
+        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
+        await setSettingAndWait(worker!, KEY_PREFIX_ONLY_MODE, false);
+        await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, true);
+        await setSettingAndWait(worker!, KEY_NUM_SUGGESTIONS, 5);
+        await applyConfigChange(browser, worker!);
+      }
+    },
+    browserTimeout(120000, 180000),
   );
 
   test(

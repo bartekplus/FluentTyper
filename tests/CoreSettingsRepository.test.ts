@@ -49,6 +49,16 @@ describe("CoreSettingsRepository", () => {
     await expect(repository.getPrefixOnlyMode()).resolves.toBe(false);
   });
 
+  test("keeps personalization opt-in", async () => {
+    const defaults = new CoreSettingsRepository(createSettingsManagerMock({}));
+    const enabled = new CoreSettingsRepository(
+      createSettingsManagerMock({ personalizationEnabled: true }),
+    );
+
+    await expect(defaults.getPersonalizationEnabled()).resolves.toBe(false);
+    await expect(enabled.getPersonalizationEnabled()).resolves.toBe(true);
+  });
+
   test("keeps object entries and filters invalid rows", async () => {
     const repository = new CoreSettingsRepository(
       createSettingsManagerMock({

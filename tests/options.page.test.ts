@@ -35,6 +35,32 @@ describe("options page scripts", () => {
     );
   });
 
+  test("exposes opt-in personalization and a separate clear action", async () => {
+    const { manifest } = await import("../src/ui/options/settingsManifest.js");
+    const personalization = manifest.settings.find(
+      (setting) => setting.name === "personalizationEnabled",
+    );
+    const clearAction = manifest.settings.find(
+      (setting) => setting.name === "clearPersonalizationButton",
+    );
+
+    expect(personalization).toEqual(
+      expect.objectContaining({
+        type: "checkbox",
+        default: false,
+      }),
+    );
+    expect("label" in personalization! && personalization.label).toContain(
+      "Learn from accepted suggestions",
+    );
+    expect(clearAction).toEqual(
+      expect.objectContaining({
+        type: "button",
+        text: "Clear learned words",
+      }),
+    );
+  });
+
   test("prioritizes activation flow over demo and support content on onboarding", () => {
     const onboardingHtmlPath = path.resolve(process.cwd(), "public/new_installation/index.html");
     const html = fs.readFileSync(onboardingHtmlPath, "utf8");

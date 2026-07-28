@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "capturedAt": "2026-03-05",
+  "capturedAt": "2026-07-28",
   "baselineBehaviorIds": [
     "install_page_reachable",
     "popup_page_loads",
@@ -76,6 +76,8 @@
     "input_type_eligibility",
     "disabled_input_dynamic_reattach",
     "shadow_dom_discovery",
-    "shadow_dom_late_attach"
+    "shadow_dom_late_attach",
+    "personalized_suggestion_ranking",
+    "personalization_local_privacy_controls"
   ]
 }

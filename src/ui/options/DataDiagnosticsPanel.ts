@@ -34,6 +34,7 @@ export class DataDiagnosticsPanel {
     );
     moveControlToBody(this.registry, "importSettingButton", config.body);
     moveControlToBody(this.registry, "exportSettingButton", config.body);
+    moveControlToBody(this.registry, "clearPersonalizationButton", config.body);
     shell.appendChild(config.card);
 
     this.root.replaceChildren(shell);

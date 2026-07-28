@@ -53,6 +53,7 @@ import {
   KEY_DISPLAY_LANG_HEADER,
   KEY_INLINE_SUGGESTION,
   KEY_PREFIX_ONLY_MODE,
+  KEY_PERSONALIZATION_ENABLED,
   KEY_EXTENSION_LANGUAGE,
   KEY_SITE_PROFILES,
   KEY_ENABLED_GRAMMAR_RULES,
@@ -81,11 +82,13 @@ import {
   CMD_OPTIONS_CLEAR_OBSERVABILITY_EVENTS,
   CMD_OPTIONS_GET_OBSERVABILITY_SNAPSHOT,
   CMD_OPTIONS_RESET_PRODUCTIVITY_STATS,
+  CMD_OPTIONS_CLEAR_PERSONALIZATION,
   CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT,
   CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE,
   CMD_OPTIONS_REPORT_OBSERVABILITY_EVENT,
   CMD_OPTIONS_REPORT_OBSERVABILITY_MODULES,
 } from "@core/domain/constants";
+import { PERSONALIZATION_STORAGE_KEY } from "@core/application/personalization/PersonalizationRepository";
 import { DEFAULT_SUGGESTION_THEME_SETTINGS } from "@core/domain/themeDefaults";
 import { i18n } from "./fluenttyperI18n.js";
 import { manifest } from "./settingsManifest.js";
@@ -189,6 +192,7 @@ const CONFIG_REFRESH_KEYS = [
   KEY_USER_DICTIONARY_LIST,
   KEY_DISPLAY_LANG_HEADER,
   KEY_INLINE_SUGGESTION,
+  KEY_PERSONALIZATION_ENABLED,
   KEY_EXTENSION_LANGUAGE,
   KEY_AI_PREDICTOR_ENABLED,
   KEY_AI_MODEL_ID,
@@ -278,7 +282,7 @@ function wireValidationHandlers(registry: SettingsRegistry, store: Store): void 
 function wireImportExportHandlers(registry: SettingsRegistry): void {
   registry.exportSettingButton.addEvent("action", function () {
     chrome.storage.local.get(null, function (items) {
-      const result = JSON.stringify(items);
+      const result = JSON.stringify(createSettingsExportSnapshot(items));
       const blob = new Blob([result], { type: "application/json" });
       const exportFilename = "FluentTyperSettings.json";
       const dlink = document.createElement("a");
@@ -438,8 +442,9 @@ function importSettingButtonFileSelected(
   const fr = new FileReader();
   fr.addEventListener("load", () => {
     try {
-      const jsonSettings = JSON.parse(fr.result as string) as Record<string, unknown>;
-      delete jsonSettings["store.settings.revertOnBackspace"];
+      const jsonSettings = sanitizeSettingsImportSnapshot(
+        JSON.parse(fr.result as string) as Record<string, unknown>,
+      );
       void chrome.storage.local.set(jsonSettings);
       dispatchSettingsSaveStatus("saved", { message: i18n.get("settings_imported") });
       optionsPageConfigChange();
@@ -457,6 +462,23 @@ function importSettingButtonFileSelected(
 
   fr.readAsText((importInputElem.files as FileList)[0]);
   importInputElem.value = "";
+}
+
+export function createSettingsExportSnapshot(
+  items: Record<string, unknown>,
+): Record<string, unknown> {
+  const exportableItems = { ...items };
+  delete exportableItems[PERSONALIZATION_STORAGE_KEY];
+  return exportableItems;
+}
+
+export function sanitizeSettingsImportSnapshot(
+  items: Record<string, unknown>,
+): Record<string, unknown> {
+  const importableItems = { ...items };
+  delete importableItems["store.settings.revertOnBackspace"];
+  delete importableItems[PERSONALIZATION_STORAGE_KEY];
+  return importableItems;
 }
 
 const themePresets = {
@@ -2953,6 +2975,27 @@ window.addEventListener("DOMContentLoaded", function () {
         const root = document.getElementById("productivityStatsRoot");
         if (root) {
           await loadProductivityInsights(root);
+        }
+      })();
+    });
+    registry.clearPersonalizationButton.addEvent("action", function () {
+      if (!window.confirm(i18n.get("clear_personalization_confirm"))) {
+        return;
+      }
+      void (async () => {
+        const response = await sendRuntimeMessage({
+          command: CMD_OPTIONS_CLEAR_PERSONALIZATION,
+          context: {},
+        });
+        if (
+          response &&
+          typeof response === "object" &&
+          !Array.isArray(response) &&
+          (response as { ok?: boolean }).ok
+        ) {
+          dispatchSettingsSaveStatus("saved", {
+            message: i18n.get("clear_personalization_success"),
+          });
         }
       })();
     });
