@@ -102,6 +102,14 @@ describe("V2 english grammar rules", () => {
       });
     });
 
+    test("preserves ambiguous id forms", () => {
+      const rule = new EnglishContractionNormalizationRule();
+
+      expect(rule.apply(context("ID ", { lang: "en_US", inputAction: "insert" }))).toBeNull();
+      expect(rule.apply(context("Id ", { lang: "en_US", inputAction: "insert" }))).toBeNull();
+      expect(rule.apply(context("id ", { lang: "en_US", inputAction: "insert" }))).toBeNull();
+    });
+
     test("does not normalize on delete action or non-English context", () => {
       const rule = new EnglishContractionNormalizationRule();
       expect(rule.apply(context("im ", { lang: "en_US", inputAction: "delete" }))).toBeNull();
