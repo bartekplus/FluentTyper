@@ -10,7 +10,6 @@ const ENGLISH_CONTRACTION_MAP: Record<string, string> = {
   im: "i'm",
   ive: "i've",
   ill: "i'll",
-  id: "i'd",
   dont: "don't",
   cant: "can't",
   wont: "won't",
@@ -28,7 +27,7 @@ const ENGLISH_CONTRACTION_MAP: Record<string, string> = {
   wouldnt: "wouldn't",
   mustnt: "mustn't",
 };
-const FORCE_PRONOUN_I_PREFIX = new Set(["im", "ive", "ill", "id"]);
+const FORCE_PRONOUN_I_PREFIX = new Set(["im", "ive", "ill"]);
 
 export class EnglishContractionNormalizationRule implements GrammarRule {
   readonly id = "englishContractionNormalization" as const;

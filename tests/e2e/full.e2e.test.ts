@@ -5640,6 +5640,10 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitForInputContentEqual(page, selector, "I'm ready", browserTimeout(5000, 9000));
 
       await clearInputContent(page, selector);
+      await typeInInput(page, selector, "ID ");
+      await waitForInputContentEqual(page, selector, "ID ", browserTimeout(5000, 9000));
+
+      await clearInputContent(page, selector);
       await typeInInput(page, selector, "teh ");
       await waitForInputContentEqual(page, selector, "the ", browserTimeout(5000, 9000));
       await typeInInput(page, selector, "cat");
