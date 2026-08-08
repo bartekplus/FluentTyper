@@ -1,6 +1,6 @@
 {
   "name": "fluenttyper",
-  "version": "2026.20.0",
+  "version": "2026.21.0",
   "description": "Type less, do more. Get smart autocomplete, spell check, and text expansion to boost your productivity on any website.",
   "type": "module",
   "packageManager": "bun@1.3.10",
