@@ -601,9 +601,8 @@ export class SuggestionTextEditService {
             replacement,
           );
     let applyResult:
-      | ContentEditableEditResult
-      | { didMutateDom: boolean; didDispatchInput: boolean }
-      | null = null;
+      ContentEditableEditResult | { didMutateDom: boolean; didDispatchInput: boolean } | null =
+      null;
     if (
       !TextTargetAdapter.isTextValue(entry.elem) &&
       activeBlock !== null &&

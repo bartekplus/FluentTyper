@@ -54,8 +54,7 @@ export type ChatMessageContent =
   | undefined;
 
 export type ChatCreateResponse =
-  | ChatCompletionResponse
-  | AsyncIterable<ChatCompletionChunkResponse>;
+  ChatCompletionResponse | AsyncIterable<ChatCompletionChunkResponse>;
 
 export type CompletionCreateResponse = CompletionResponse | AsyncIterable<CompletionChunkResponse>;
 

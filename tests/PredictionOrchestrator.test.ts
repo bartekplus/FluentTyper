@@ -214,8 +214,7 @@ describe("PredictionOrchestrator coverage", () => {
     );
 
     let spacingEvent:
-      | { presage?: { skipReason?: string }; webllm?: { skipReason?: string } }
-      | undefined;
+      { presage?: { skipReason?: string }; webllm?: { skipReason?: string } } | undefined;
     await orchestrator.runPrediction("a .", "", "en_US", {
       debugListener: (event) => {
         spacingEvent = event;
@@ -233,8 +232,7 @@ describe("PredictionOrchestrator coverage", () => {
     );
 
     let inputEvent:
-      | { presage?: { skipReason?: string }; webllm?: { skipReason?: string } }
-      | undefined;
+      { presage?: { skipReason?: string }; webllm?: { skipReason?: string } } | undefined;
     await orchestrator.runPrediction("ab", "", "en_US", {
       debugListener: (event) => {
         inputEvent = event;

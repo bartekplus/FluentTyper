@@ -263,8 +263,7 @@ describe("WebLLMPredictor", () => {
 
   test("cancels stale generation and returns only newest request output", async () => {
     let resolveFirst:
-      | ((value: { choices: Array<{ message: { content: string } }> }) => void)
-      | undefined;
+      ((value: { choices: Array<{ message: { content: string } }> }) => void) | undefined;
     const firstPromise = new Promise<{
       choices: Array<{ message: { content: string } }>;
     }>((resolve) => {
@@ -301,11 +300,9 @@ describe("WebLLMPredictor", () => {
     }
     const [firstResult, secondResult] = await Promise.all([firstRequest, secondRequest]);
     const firstCallArgs = chatCreateMock.mock.calls[0]?.[0] as
-      | { messages?: Array<{ content?: string }> }
-      | undefined;
+      { messages?: Array<{ content?: string }> } | undefined;
     const secondCallArgs = chatCreateMock.mock.calls[1]?.[0] as
-      | { messages?: Array<{ content?: string }> }
-      | undefined;
+      { messages?: Array<{ content?: string }> } | undefined;
 
     expect(chatCreateMock).toHaveBeenCalledTimes(2);
     expect(firstCallArgs?.messages?.[1]?.content).toContain("Context: abc");
