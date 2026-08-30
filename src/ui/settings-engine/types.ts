@@ -68,10 +68,7 @@ export type SelectConfig = {
   name?: string;
   label?: string;
   options?:
-    | OptionTuple[]
-    | OptionEntry[]
-    | OptionEntry[][]
-    | { groups?: string[]; values: OptionEntry[] };
+    OptionTuple[] | OptionEntry[] | OptionEntry[][] | { groups?: string[]; values: OptionEntry[] };
   default?: string;
 };
 

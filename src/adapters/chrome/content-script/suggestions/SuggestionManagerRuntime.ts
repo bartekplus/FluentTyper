@@ -818,8 +818,7 @@ export class SuggestionManagerRuntime {
     const item = (
       typeof event.composedPath === "function" ? event.composedPath() : [event.target]
     ).find((node) => node instanceof HTMLElement && node.matches("li[data-index]")) as
-      | HTMLElement
-      | undefined;
+      HTMLElement | undefined;
     if (!item) {
       return;
     }

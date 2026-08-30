@@ -12,7 +12,7 @@ Thanks for your interest in improving FluentTyper. This document is for develope
 
 ### Requirements
 
-- [Bun](https://bun.sh/) `1.3.10` (pinned in `packageManager`)
+- [Bun](https://bun.sh/) `1.4.0` (pinned in `packageManager`)
 
 ### Local Setup
 

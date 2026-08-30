@@ -120,10 +120,7 @@ function createCKEditorMockWithDomSelectionBlocks(
     insertText(
       insertText: string,
       attrsOrPosition:
-        | { parent: unknown; offset: number }
-        | Record<string, unknown>
-        | null
-        | undefined,
+        { parent: unknown; offset: number } | Record<string, unknown> | null | undefined,
       maybePosition?: { parent: unknown; offset: number },
     ) {
       const position = maybePosition ?? (attrsOrPosition as { parent: unknown; offset: number });

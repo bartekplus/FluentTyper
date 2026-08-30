@@ -308,8 +308,7 @@ describe("content_script behavior", () => {
       }),
     );
     const firstRequest = sendMessage.mock.calls.at(-1)?.[0] as
-      | { context?: { runtimeGeneration?: number } }
-      | undefined;
+      { context?: { runtimeGeneration?: number } } | undefined;
     const runtimeGeneration = firstRequest?.context?.runtimeGeneration;
     expect(typeof runtimeGeneration).toBe("number");
 
@@ -373,8 +372,7 @@ describe("content_script behavior", () => {
       requestId: 1,
     });
     const firstRequest = sendMessage.mock.calls.at(-1)?.[0] as
-      | { context?: { runtimeGeneration?: number } }
-      | undefined;
+      { context?: { runtimeGeneration?: number } } | undefined;
     const runtimeGeneration = firstRequest?.context?.runtimeGeneration;
     expect(typeof runtimeGeneration).toBe("number");
 

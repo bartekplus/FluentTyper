@@ -6,12 +6,7 @@ import {
 } from "@core/domain/contracts/settings";
 
 export type JsonValue =
-  | string
-  | number
-  | boolean
-  | null
-  | JsonValue[]
-  | { [key: string]: JsonValue };
+  string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
 export interface Settings {
   get: (key: string) => Promise<JsonValue>;
