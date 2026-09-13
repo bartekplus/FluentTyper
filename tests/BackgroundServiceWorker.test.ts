@@ -100,6 +100,7 @@ describe("BackgroundServiceWorker", () => {
     if (BackgroundServiceWorkerClass) {
       (BackgroundServiceWorkerClass as unknown as { instance: unknown }).instance = undefined;
       worker = new BackgroundServiceWorkerClass();
+      (worker as unknown as { runtimeConfigReady: boolean }).runtimeConfigReady = true;
     }
   });
 
