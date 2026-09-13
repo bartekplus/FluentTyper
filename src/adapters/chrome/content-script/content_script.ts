@@ -16,8 +16,10 @@ import type {
   PredictResponseContext,
   SetConfigContext,
 } from "@core/domain/messageTypes";
-import { ContentMessageHandler } from "./ContentMessageHandler";
-import type { ContentMessageHandlerDependencies } from "./ContentMessageHandler";
+import {
+  ContentMessageHandler,
+  type ContentMessageHandlerDependencies,
+} from "./ContentMessageHandler";
 import { ContentRuntimeController } from "./ContentRuntimeController";
 import { HostChangeWatcher, type HostChangeWatcherDependencies } from "./HostChangeWatcher";
 import { isEarlyTabAcceptMessage } from "./suggestions/EarlyTabAcceptBridgeProtocol";

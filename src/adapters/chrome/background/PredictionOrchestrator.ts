@@ -14,8 +14,7 @@ import type {
   PredictorStageDebugInfo,
   SecondaryPredictor,
 } from "./PredictionTypes";
-import type { PresageHandler } from "./PresageHandler";
-import type { PresageConfig, PresagePredictionContext } from "./PresageHandler";
+import type { PresageConfig, PresageHandler, PresagePredictionContext } from "./PresageHandler";
 import { mergePredictions } from "./PredictionMerger";
 
 const logger = createLogger("PredictionOrchestrator");

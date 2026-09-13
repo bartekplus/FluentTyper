@@ -8,11 +8,6 @@ import {
 export type JsonValue =
   string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
-export interface Settings {
-  get: (key: string) => Promise<JsonValue>;
-  set?: (key: string, value: JsonValue) => Promise<void>;
-}
-
 export class SettingsManager {
   private settings: Store;
   constructor() {

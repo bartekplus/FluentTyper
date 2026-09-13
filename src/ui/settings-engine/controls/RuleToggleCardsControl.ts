@@ -17,16 +17,10 @@ interface RuleControl {
   input: HTMLInputElement;
   card: HTMLLabelElement;
   rule: NormalizedRule;
-  sectionType: "safe" | "advanced";
 }
 
 interface FilterButton {
   key: string;
-  button: HTMLButtonElement;
-}
-
-interface ActionButton {
-  values: string[];
   button: HTMLButtonElement;
 }
 
@@ -77,12 +71,10 @@ function normalizeRule(option: unknown): NormalizedRule {
 export class RuleToggleCardsControl extends BaseControl<string[]> {
   private readonly ruleControls: RuleControl[] = [];
   private readonly filterButtons: FilterButton[] = [];
-  private readonly actionButtons: ActionButton[] = [];
   private readonly safeSection: SectionBundle;
   private readonly advancedSection: SectionBundle;
   private readonly summary: HTMLElement;
   private readonly noResults: HTMLElement;
-  private readonly searchInput: HTMLInputElement;
   private activeFilter = "all";
   private searchQuery = "";
   private rovingIndex = 0;
@@ -128,7 +120,6 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
     searchInput.className = "input is-small grammar-rule-search-input";
     searchInput.placeholder = params.searchPlaceholder ?? "Search grammar rules...";
     searchInput.setAttribute("aria-label", "Search grammar rules");
-    this.searchInput = searchInput;
 
     const clearBtn = document.createElement("button");
     clearBtn.type = "button";
@@ -206,7 +197,6 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
           this.set(values);
         });
         actionsEl.appendChild(btn);
-        this.actionButtons.push({ values, button: btn });
       }
 
       toolbar.appendChild(actionsEl);
@@ -388,7 +378,7 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
       }
     });
 
-    return { value: rule.value, input, card, rule, sectionType: rule.safetyTier };
+    return { value: rule.value, input, card, rule };
   }
 
   private getVisibleRuleControls(): RuleControl[] {

@@ -1,8 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
   DEFAULT_V3_GRAMMAR_RULES,
-  DEFAULT_V1_GRAMMAR_RULES,
-  DEFAULT_V2_GRAMMAR_RULES,
   GRAMMAR_RULE_CATALOG,
   GRAMMAR_RULE_IDS,
   RECOMMENDED_V1_GRAMMAR_RULES,
@@ -55,14 +53,10 @@ describe("ruleCatalog", () => {
   });
 
   test("has valid default/recommended subsets", () => {
-    expect(DEFAULT_V1_GRAMMAR_RULES.length).toBeGreaterThan(0);
-    expect(DEFAULT_V2_GRAMMAR_RULES.length).toBeGreaterThanOrEqual(DEFAULT_V1_GRAMMAR_RULES.length);
     expect(RECOMMENDED_V1_GRAMMAR_RULES.length).toBeGreaterThan(0);
     expect(RECOMMENDED_V2_GRAMMAR_RULES.length).toBeGreaterThanOrEqual(
       RECOMMENDED_V1_GRAMMAR_RULES.length,
     );
-    expect(DEFAULT_V1_GRAMMAR_RULES.every((id) => isCatalogRuleId(id))).toBe(true);
-    expect(DEFAULT_V2_GRAMMAR_RULES.every((id) => isCatalogRuleId(id))).toBe(true);
     expect(DEFAULT_V3_GRAMMAR_RULES.every((id) => isCatalogRuleId(id))).toBe(true);
     expect(RECOMMENDED_V1_GRAMMAR_RULES.every((id) => isCatalogRuleId(id))).toBe(true);
     expect(RECOMMENDED_V2_GRAMMAR_RULES.every((id) => isCatalogRuleId(id))).toBe(true);

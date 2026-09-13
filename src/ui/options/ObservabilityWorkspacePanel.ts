@@ -9,9 +9,9 @@ import {
   KEY_OBSERVABILITY_MODULE_OVERRIDES,
 } from "@core/domain/constants";
 import { i18n } from "./fluenttyperI18n.js";
-import { createWorkspaceShell } from "./workspacePanelUtils.js";
 import {
   createWorkspaceCard,
+  createWorkspaceShell,
   moveControlToBody,
   pruneEmptySettingsGroups,
 } from "./workspacePanelUtils.js";

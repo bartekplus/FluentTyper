@@ -7,11 +7,11 @@ import { SettingsManager } from "@core/application/settingsManager";
 import { CoreSettingsRepository } from "@core/application/repositories/CoreSettingsRepository";
 import { SiteProfileRepository } from "@core/application/repositories/SiteProfileRepository";
 import { SUPPORTED_LANGUAGES } from "@core/domain/lang";
-import type { SiteProfile } from "@core/domain/siteProfiles";
 import {
   getSiteProfileForDomain,
   removeSiteProfileForDomain,
   setSiteProfileForDomain,
+  type SiteProfile,
 } from "@core/domain/siteProfiles";
 import {
   parseInlineOverride,

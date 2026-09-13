@@ -1,7 +1,9 @@
-import type { JsonValue } from "../settingsManager";
-import { SettingsManager } from "../settingsManager";
-import type { SettingField, SettingsSchema } from "@core/domain/contracts/settings";
-import { getSettingStorageKey } from "@core/domain/contracts/settings";
+import { SettingsManager, type JsonValue } from "../settingsManager";
+import {
+  getSettingStorageKey,
+  type SettingField,
+  type SettingsSchema,
+} from "@core/domain/contracts/settings";
 import { readSettingWithAliases } from "../settings/settingsAccess";
 
 export class SettingsRepositoryBase {

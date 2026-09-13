@@ -1,10 +1,5 @@
 import type { Presage, PresageModule, PresageCallback } from "./PresageTypes";
 
-export interface PresagePrediction {
-  prediction: string;
-  probability: number;
-}
-
 export interface PresageEngineConfig {
   numSuggestions: number;
   prefixOnlyMode: boolean;

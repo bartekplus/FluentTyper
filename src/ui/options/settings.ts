@@ -1,5 +1,4 @@
-import { SettingsEngine } from "@ui/settings-engine/SettingsEngine.js";
-import type { SettingsRegistry } from "@ui/settings-engine/SettingsEngine.js";
+import { SettingsEngine, type SettingsRegistry } from "@ui/settings-engine/SettingsEngine.js";
 import {
   createLogger,
   getRegisteredObservabilityModules,

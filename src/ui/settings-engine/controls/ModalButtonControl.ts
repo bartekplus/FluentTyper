@@ -1,12 +1,12 @@
 import type { ModalButtonConfig, FieldConfig } from "../types.js";
 import type { Store } from "@core/application/storage/Store.js";
-import type { FieldControl } from "./FieldControl.js";
 import {
   BaseControl,
   appendLabel,
   createButtonInput,
   createControlContainer,
   createFieldRoot,
+  type FieldControl,
 } from "./FieldControl.js";
 
 type ControlFactory = (params: FieldConfig) => FieldControl;

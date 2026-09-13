@@ -1,12 +1,12 @@
 import type { ListBoxConfig } from "../types.js";
 import type { Store } from "@core/application/storage/Store.js";
-import type { ListBoxFieldControl } from "./FieldControl.js";
 import {
   BaseControl,
   appendLabel,
   createControlContainer,
   createFieldRoot,
   createOptionElement,
+  type ListBoxFieldControl,
 } from "./FieldControl.js";
 
 export class ListBoxControl extends BaseControl<string[]> implements ListBoxFieldControl {

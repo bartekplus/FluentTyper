@@ -1,8 +1,4 @@
 // Shared types for Presage-related managers
-export type PresageInstance = {
-  config: (key: string, value: string) => void;
-};
-
 // Define minimal types for Module and Presage if not available
 export interface PresageCallback {
   pastStream: string;

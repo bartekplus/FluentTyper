@@ -408,10 +408,6 @@ export type ContentScriptPersonalizationEventMessage = Extract<
   Message,
   { command: "CMD_CONTENT_SCRIPT_PERSONALIZATION_EVENT" }
 >;
-export type OptionsClearPersonalizationMessage = Extract<
-  Message,
-  { command: "CMD_OPTIONS_CLEAR_PERSONALIZATION" }
->;
 export type ContentScriptRuntimeStatusMessage = Extract<
   Message,
   { command: "CMD_CONTENT_SCRIPT_REPORT_RUNTIME_STATUS" }
@@ -428,45 +424,3 @@ export type PopupAckDonationMilestoneMessage = Extract<
   Message,
   { command: "CMD_POPUP_ACK_DONATION_MILESTONE" }
 >;
-export type OptionsResetProductivityStatsMessage = Extract<
-  Message,
-  { command: "CMD_OPTIONS_RESET_PRODUCTIVITY_STATS" }
->;
-export type OptionsGetPredictorDebugSnapshotMessage = Extract<
-  Message,
-  { command: "CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT" }
->;
-export type OptionsClearPredictorDebugTraceMessage = Extract<
-  Message,
-  { command: "CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE" }
->;
-export type OptionsGetObservabilitySnapshotMessage = Extract<
-  Message,
-  { command: "CMD_OPTIONS_GET_OBSERVABILITY_SNAPSHOT" }
->;
-export type OptionsClearObservabilityEventsMessage = Extract<
-  Message,
-  { command: "CMD_OPTIONS_CLEAR_OBSERVABILITY_EVENTS" }
->;
-export type ContentScriptReportObservabilityEventMessage = Extract<
-  Message,
-  { command: "CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_EVENT" }
->;
-export type ContentScriptReportObservabilityModulesMessage = Extract<
-  Message,
-  { command: "CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_MODULES" }
->;
-export type OptionsReportObservabilityEventMessage = Extract<
-  Message,
-  { command: "CMD_OPTIONS_REPORT_OBSERVABILITY_EVENT" }
->;
-export type OptionsReportObservabilityModulesMessage = Extract<
-  Message,
-  { command: "CMD_OPTIONS_REPORT_OBSERVABILITY_MODULES" }
->;
-export type GetAutoLanguageStatusMessage = Extract<
-  Message,
-  { command: "CMD_GET_AUTO_LANGUAGE_STATUS" }
->;
-
-export type ObservabilitySnapshotResponse = ObservabilitySnapshot;
