@@ -1,5 +1,4 @@
-import type { SiteProfiles } from "@core/domain/siteProfiles";
-import { resolveSiteProfiles } from "@core/domain/siteProfiles";
+import { resolveSiteProfiles, type SiteProfiles } from "@core/domain/siteProfiles";
 import { resolveEnabledLanguages } from "@core/domain/lang";
 import { SettingsRepositoryBase } from "./SettingsRepositoryBase";
 

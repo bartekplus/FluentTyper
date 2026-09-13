@@ -1,6 +1,5 @@
 import type { SettingsManager } from "@core/application/settingsManager";
-import type { DomainRuntimeSettings } from "./runtimeSettings";
-import { resolveDomainRuntimeSettings } from "./runtimeSettings";
+import { resolveDomainRuntimeSettings, type DomainRuntimeSettings } from "./runtimeSettings";
 
 const DEFAULT_TTL_MS = 500;
 

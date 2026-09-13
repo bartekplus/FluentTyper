@@ -59,6 +59,13 @@ describe("V1 grammar rules", () => {
       expect(rule.apply(context("Hello.w"))).toBeNull();
       expect(rule.apply(context("Hello, w"))).toBeNull();
     });
+
+    test("capitalizes Unicode letters", () => {
+      const rule = new CapitalizeSentenceStartRule();
+      expect(rule.apply(context("ż"))?.replacement).toBe("Ż");
+      expect(rule.apply(context("Cześć. ć"))?.replacement).toBe("Ć");
+      expect(rule.apply(context("Привет. п"))?.replacement).toBe("П");
+    });
   });
 
   describe("CapitalizeAfterLineBreakRule", () => {

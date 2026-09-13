@@ -1,8 +1,7 @@
 // Handles prediction routing logic for FluentTyper
 import type { PresageModule } from "./PresageTypes";
 import { PresageHandler } from "./PresageHandler";
-import type { PredictionConfig } from "./PredictionOrchestrator";
-import { PredictionOrchestrator } from "./PredictionOrchestrator";
+import { PredictionOrchestrator, type PredictionConfig } from "./PredictionOrchestrator";
 import type {
   AIPredictorStageDebugInfo,
   PredictionDebugEvent,

@@ -142,4 +142,4 @@ export {
   EARLY_TAB_ACCEPT_MESSAGE_TYPE,
   EARLY_TAB_ACCEPT_REQUEST_EVENT,
   EARLY_TAB_ACCEPT_VISIBLE_ATTR,
-} from "./EarlyTabAcceptBridgeProtocol";
+};

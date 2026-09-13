@@ -361,11 +361,7 @@ const V2_RECOMMENDED_RULES: CatalogRuleId[] = [
 
 const copyRuleIds = (ruleIds: readonly CatalogRuleId[]): CatalogRuleId[] => [...ruleIds];
 
-export const DEFAULT_V1_GRAMMAR_RULES: CatalogRuleId[] = copyRuleIds(V1_RECOMMENDED_RULES);
-
 export const RECOMMENDED_V1_GRAMMAR_RULES: CatalogRuleId[] = copyRuleIds(V1_RECOMMENDED_RULES);
-
-export const DEFAULT_V2_GRAMMAR_RULES: CatalogRuleId[] = copyRuleIds(V2_RECOMMENDED_RULES);
 
 export const RECOMMENDED_V2_GRAMMAR_RULES: CatalogRuleId[] = copyRuleIds(V2_RECOMMENDED_RULES);
 

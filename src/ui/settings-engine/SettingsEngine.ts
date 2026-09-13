@@ -1,4 +1,4 @@
-import type { FieldConfig, ManifestDefinition } from "./types.js";
+import type { FieldConfig, ManifestDefinition, TabConfig } from "./types.js";
 import type { FieldControl } from "./controls/FieldControl.js";
 import { Store } from "@core/application/storage/Store.js";
 import { TabManager } from "./layout/TabManager.js";
@@ -18,7 +18,6 @@ import { DescriptionControl } from "./controls/DescriptionControl.js";
 import { ValueOnlyControl } from "./controls/ValueOnlyControl.js";
 import { RuleToggleCardsControl } from "./controls/RuleToggleCardsControl.js";
 import { CustomPanelControl } from "./controls/CustomPanelControl.js";
-import type { TabConfig } from "./types.js";
 
 export type SettingsRegistry = Record<string, FieldControl>;
 
@@ -180,8 +179,7 @@ export class SettingsEngine {
     const tab = this.tabs[tabId];
 
     if (!(groupLabel in tab.groups)) {
-      const groupBundle = createGroup(tabContent, groupLabel || tab.meta?.label || tabId);
-      tab.groups[groupLabel] = groupBundle.content;
+      tab.groups[groupLabel] = createGroup(tabContent, groupLabel || tab.meta?.label || tabId);
     }
 
     return tab.groups[groupLabel];

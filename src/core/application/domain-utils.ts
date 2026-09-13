@@ -21,11 +21,6 @@ function toDomainListEntry(value: unknown): string | null {
   return null;
 }
 
-export const DOMAIN_LIST_MODE = {
-  blackList: "Blacklist - enabled on all websites, disabled on specific sites",
-  whiteList: "Whitelist - disabled on all websites, enabled on specific sites",
-};
-
 function isDomainAllowedByMode(
   mode: "blackList" | "whiteList",
   isDomainOnBWList: boolean,

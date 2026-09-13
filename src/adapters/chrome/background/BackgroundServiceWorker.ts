@@ -3,11 +3,11 @@ import { createLogger } from "@core/application/logging/Logger";
 import { getErrorMessage, logError } from "@core/domain/error";
 import { SettingsManager } from "@core/application/settingsManager";
 import { CoreSettingsRepository } from "@core/application/repositories/CoreSettingsRepository";
-import { LanguageDetector } from "./LanguageDetector";
-import type {
-  AutoLanguageLiveRuntimeStatus,
-  AutoLanguageSessionLookup,
-  AutoLanguageSessionStatus,
+import {
+  LanguageDetector,
+  type AutoLanguageLiveRuntimeStatus,
+  type AutoLanguageSessionLookup,
+  type AutoLanguageSessionStatus,
 } from "./LanguageDetector";
 import { PredictionManager } from "./PredictionManager";
 import { TabMessenger } from "./TabMessenger";

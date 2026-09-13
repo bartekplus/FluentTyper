@@ -1,8 +1,4 @@
-export interface GroupBundle {
-  content: HTMLDivElement;
-}
-
-export function createGroup(tabContent: HTMLElement, label: string): GroupBundle {
+export function createGroup(tabContent: HTMLElement, label: string): HTMLDivElement {
   const groupDiv = document.createElement("section");
   groupDiv.className = "settings-group";
 
@@ -20,5 +16,5 @@ export function createGroup(tabContent: HTMLElement, label: string): GroupBundle
 
   tabContent.appendChild(groupDiv);
 
-  return { content: body };
+  return body;
 }

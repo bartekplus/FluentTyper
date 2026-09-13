@@ -1,5 +1,4 @@
-import { CreateMLCEngine } from "@mlc-ai/web-llm";
-import type { InitProgressReport, MLCEngineInterface } from "@mlc-ai/web-llm";
+import { CreateMLCEngine, type InitProgressReport, type MLCEngineInterface } from "@mlc-ai/web-llm";
 import { createLogger } from "@core/application/logging/Logger";
 import { getErrorMessage } from "@core/domain/error";
 import type { InitProgressEntry } from "./types";

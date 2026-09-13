@@ -1,19 +1,20 @@
-import type { SettingField } from "@core/domain/contracts/settings";
 import {
   getAliasedSettingFields,
   getSettingStorageAliases,
   getSettingStorageKey,
+  type SettingField,
 } from "@core/domain/contracts/settings";
 import { KEY_AUTO_CAPITALIZE, KEY_LEGACY_APPLY_SPACING_RULES } from "@core/domain/constants";
 import type { SettingsManager } from "../settingsManager";
 import {
   readFirstDefinedSetting,
   readRawSetting,
+  readSettingWithAliases,
   removeRawSetting,
   writeRawSetting,
 } from "./settingsAccess";
 
-export { readSettingWithAliases } from "./settingsAccess";
+export { readSettingWithAliases };
 
 export async function migrateSettingsV3(settings: SettingsManager): Promise<void> {
   try {

@@ -1,4 +1,3 @@
-import { SuggestionKeyboardController } from "./SuggestionKeyboardController";
 import { isNativeUndoChord } from "./keyboardShortcuts";
 import type { SuggestionEntry } from "./types";
 
@@ -25,7 +24,6 @@ export class SuggestionKeyboardHandler {
   private readonly autocompleteOnTab: boolean;
   private readonly selectByDigit: boolean;
   private readonly inlineSuggestionEnabled: boolean;
-  private readonly activeKeys: string[];
   private readonly handleMissingSpaceAfterAccept: (
     entry: SuggestionEntry,
     event: KeyboardEvent,
@@ -48,10 +46,6 @@ export class SuggestionKeyboardHandler {
     this.autocompleteOnTab = options.autocompleteOnTab;
     this.selectByDigit = options.selectByDigit;
     this.inlineSuggestionEnabled = options.inlineSuggestionEnabled;
-    this.activeKeys = SuggestionKeyboardController.buildActiveKeys({
-      autocompleteOnEnter: this.autocompleteOnEnter,
-      autocompleteOnTab: this.autocompleteOnTab,
-    });
     this.handleMissingSpaceAfterAccept = options.handleMissingSpaceAfterAccept;
     this.tryUndoLastExtensionEdit = options.tryUndoLastExtensionEdit;
     this.consumeKeyboardEvent = options.consumeKeyboardEvent;
@@ -77,12 +71,15 @@ export class SuggestionKeyboardHandler {
 
     const digitIndex = this.selectByDigit ? this.mapDigitToIndex(key) : null;
     const isInlineTab = this.inlineSuggestionEnabled && key === "Tab";
+    const isActiveKey =
+      key === "Escape" ||
+      key === "ArrowUp" ||
+      key === "ArrowDown" ||
+      key === " " ||
+      (key === "Enter" && this.autocompleteOnEnter) ||
+      (key === "Tab" && this.autocompleteOnTab);
 
-    if (
-      !SuggestionKeyboardController.isActiveKey(this.activeKeys, key) &&
-      !isInlineTab &&
-      digitIndex === null
-    ) {
+    if (!isActiveKey && !isInlineTab && digitIndex === null) {
       return;
     }
 

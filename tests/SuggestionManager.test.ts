@@ -2709,7 +2709,7 @@ describe("SuggestionManager", () => {
     }
     const lexicalTextNode = lexicalSpan.appendChild(document.createTextNode(""));
 
-    const runtime = (manager as unknown as { runtime: Record<string, unknown> }).runtime;
+    const runtime = manager as unknown as Record<string, unknown>;
     const originalResolveEditableCursorContext = runtime.resolveEditableCursorContext as (
       entry: unknown,
       snapshot: unknown,

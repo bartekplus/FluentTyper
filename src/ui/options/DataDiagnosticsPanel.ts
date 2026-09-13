@@ -1,8 +1,8 @@
 import type { SettingsRegistry } from "@ui/settings-engine/SettingsEngine.js";
 import { i18n } from "./fluenttyperI18n.js";
-import { createWorkspaceShell } from "./workspacePanelUtils.js";
 import {
   createWorkspaceCard,
+  createWorkspaceShell,
   moveControlToBody,
   pruneEmptySettingsGroups,
 } from "./workspacePanelUtils.js";
