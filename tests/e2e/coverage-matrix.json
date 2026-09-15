@@ -1316,6 +1316,17 @@
       ]
     },
     {
+      "id": "gdocs_releases_an_unverified_write_after_the_next_user_interaction_without_replay",
+      "description": "Google Docs model/transaction unit regression: releases an unverified write after the next user interaction without replay",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsTransaction.test.ts",
+          "test": "releases an unverified write after the next user interaction without replay"
+        }
+      ]
+    },
+    {
       "id": "gdocs_removes_only_outer_sentinels_and_preserves_logical_bidi_offsets",
       "description": "Google Docs model/transaction unit regression: removes only outer sentinels and preserves logical bidi offsets",
       "coverage": [
@@ -1829,6 +1840,17 @@
           "layer": "integration",
           "file": "tests/e2e/google-docs.e2e.test.ts",
           "test": "multiple visible carets use a fixed palette without choosing a collaborator"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_a_colored_collaborator_caret_does_not_displace_the_local_caret_anchor",
+      "description": "Mock editor/browser fixture, not a live Google Docs claim: a colored collaborator caret does not displace the local caret anchor",
+      "coverage": [
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "a colored collaborator caret does not displace the local caret anchor"
         }
       ]
     },

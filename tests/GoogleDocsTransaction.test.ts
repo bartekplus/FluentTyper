@@ -150,6 +150,17 @@ describe("Google Docs verified transactions", () => {
     expect((await transaction.read()).history).toBe("applied");
     expect(host.pastes).toBe(1);
   });
+  test("releases an unverified write after the next user interaction without replay", async () => {
+    const { host, transaction, token } = await setup();
+    host.onPaste = () => {};
+    await transaction.apply(token, edit);
+    expect((await transaction.read()).status).toBe("unverified");
+    host.interaction += 1;
+    const reply = await transaction.read();
+    expect(reply.status).toBe("ready");
+    expect(reply.history).toBeUndefined();
+    expect(host.pastes).toBe(1);
+  });
   test("cannot clear uncertain writes by toggling the extension", async () => {
     const { host, transaction, token } = await setup();
     host.onPaste = () => {};

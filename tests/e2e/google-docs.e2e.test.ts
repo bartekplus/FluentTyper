@@ -286,6 +286,18 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
     await page.keyboard.press("Tab");
     await expectText("hello");
   });
+  test("a colored collaborator caret does not displace the local caret anchor", async () => {
+    await page.evaluate(() => {
+      const remote = document.querySelector(".kix-cursor-caret")!.cloneNode(true) as HTMLElement;
+      remote.style.left = "500px";
+      remote.style.borderLeft = "2px solid rgb(66, 133, 244)";
+      document.body.appendChild(remote);
+    });
+    await seed("hel", ["hello"], { inline_suggestion: true });
+    expect(await page.$(".ft-suggestion-inline")).not.toBeNull();
+    await page.keyboard.press("Tab");
+    await expectText("hello");
+  });
   test("RTL text uses logical offsets and a direction-aware menu", async () => {
     await page.$eval(".kix-cursor-caret", (element) => {
       (element as HTMLElement).style.direction = "rtl";

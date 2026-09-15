@@ -64,6 +64,8 @@
         setSelection: (a, f) => {
           model.anchor = a - 1;
           model.focus = f - 1;
+          // Live Docs blurs the editable target while the frame stays focused.
+          input.blur();
           draw();
         },
       });
