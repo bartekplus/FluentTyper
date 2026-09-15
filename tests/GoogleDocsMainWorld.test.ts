@@ -27,18 +27,28 @@ class MemoryTransfer {
     return this.values.get(type) ?? "";
   }
 }
-// Normalize capture options for server-side EventTarget implementations used by unit runners.
-class HostEventTarget extends EventTarget {
-  override removeEventListener(
-    type: string,
-    callback: EventListenerOrEventListenerObject | null,
-    options?: boolean | EventListenerOptions,
-  ): void {
-    super.removeEventListener(
-      type,
-      callback,
-      typeof options === "boolean" ? { capture: options } : options,
-    );
+// A small host event bus, not a DOM implementation. The Bun preload installs JSDOM's
+// Event but not its EventTarget, so mixing global DOM/server constructors is unsafe.
+const immediatePropagationStopped = Symbol("immediatePropagationStopped");
+class HostEventTarget {
+  private readonly listeners = new Map<string, Set<EventListener>>();
+  addEventListener(type: string, listener: EventListener): void {
+    let listeners = this.listeners.get(type);
+    if (!listeners) {
+      listeners = new Set();
+      this.listeners.set(type, listeners);
+    }
+    listeners.add(listener);
+  }
+  removeEventListener(type: string, listener: EventListener): void {
+    this.listeners.get(type)?.delete(listener);
+  }
+  dispatchEvent(event: Event & { [immediatePropagationStopped]?: boolean }): boolean {
+    for (const listener of [...(this.listeners.get(event.type) ?? [])]) {
+      listener(event);
+      if (event[immediatePropagationStopped]) break;
+    }
+    return !event.defaultPrevented;
   }
 }
 class HostElement extends HostEventTarget {
@@ -197,11 +207,22 @@ function harness(mode: ClipboardMode = "firefox") {
   };
 }
 function keyEvent(overrides: Record<string, unknown> = {}): Event {
-  // Native trust is simulated only in this unit fixture; production never overwrites it.
-  const event = new Event("keydown", { cancelable: true });
-  for (const [name, value] of Object.entries({ isTrusted: true, key: "Tab", ...overrides }))
-    Object.defineProperty(event, name, { value });
-  return event;
+  // Simulate trust only in this host fixture; do not redefine a native/JSDOM isTrusted.
+  const event = {
+    type: "keydown",
+    isTrusted: true,
+    key: "Tab",
+    defaultPrevented: false,
+    [immediatePropagationStopped]: false,
+    preventDefault() {
+      this.defaultPrevented = true;
+    },
+    stopImmediatePropagation() {
+      this[immediatePropagationStopped] = true;
+    },
+    ...overrides,
+  };
+  return event as unknown as Event;
 }
 const completion: DocsEdit = { start: 0, end: 3, replacement: "hello", cursorAfter: 5 };
 
