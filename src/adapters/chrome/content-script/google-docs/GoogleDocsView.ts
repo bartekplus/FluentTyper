@@ -156,6 +156,8 @@ export class GoogleDocsView implements DocsView {
         // The anchor is a thin caret, not the text area's right edge. The generic
         // presenter otherwise clamps this canvas ghost to the caret's 1px width.
         ghost.style.maxWidth = `${Math.max(0, window.innerWidth - caret.rect.left - 8)}px`;
+        // Docs paints canvas glyphs ~1px lower per 17px line than a CSS line box does.
+        ghost.style.top = `${caret.rect.top + caret.rect.height * 0.06}px`;
         ghost.style.whiteSpace = "pre";
         ghost.style.overflow = "hidden";
         ghost.style.textOverflow = "ellipsis";
