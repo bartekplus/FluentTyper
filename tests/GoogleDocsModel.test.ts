@@ -141,4 +141,33 @@ describe("Google Docs logical edits", () => {
     ).toBe(false);
     expect(validEdit("a", { start: 0.5, end: 1, replacement: "x", cursorAfter: 1 })).toBe(false);
   });
+  test("lands the caret after an existing following space when no space is appended", () => {
+    const text = "the wond next";
+    const snapshot = {
+      token: "t",
+      scope: "s",
+      text,
+      windowStart: 0,
+      documentLength: text.length,
+      anchor: 8,
+      focus: 8,
+    };
+    const findToken = (value: string) => {
+      const match = /\S+$/.exec(value);
+      return { token: match?.[0] ?? "", start: match ? match.index : value.length };
+    };
+    const isSeparator = (char: string) => /\s/.test(char);
+    expect(planCompletion(snapshot, "wonderful", findToken, isSeparator, true)).toEqual({
+      start: 4,
+      end: 9,
+      replacement: "wonderful ",
+      cursorAfter: 14,
+    });
+    expect(planCompletion(snapshot, "wonderful", findToken, isSeparator)).toEqual({
+      start: 4,
+      end: 8,
+      replacement: "wonderful",
+      cursorAfter: 13,
+    });
+  });
 });

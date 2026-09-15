@@ -247,6 +247,7 @@ export function planCompletion(
   suggestion: string,
   findToken: (text: string) => { token: string; start: number },
   isSeparator: (char: string) => boolean,
+  skipFollowingSpace = false,
 ): DocsEdit | null {
   const context = snapshotContext(snapshot);
   const token = findToken(context.beforeCursor);
@@ -260,6 +261,11 @@ export function planCompletion(
       while (end < snapshot.text.length && !isSeparator(snapshot.text[end])) end += 1;
     }
     if (/[ \xa0]$/.test(suggestion) && /[ \xa0]/.test(snapshot.text[end] ?? "")) end += 1;
+    // No space was appended because one already follows: land the caret after it.
+    else if (skipFollowingSpace && /[ \xa0]/.test(snapshot.text[end] ?? "")) {
+      suggestion += snapshot.text[end];
+      end += 1;
+    }
   }
   if (
     !context.selectedText &&

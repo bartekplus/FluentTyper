@@ -336,6 +336,7 @@ export class GoogleDocsAdapter {
         text,
         (value) => this.prediction.findMentionToken(value),
         (char) => this.prediction.isSeparator(char),
+        this.options.insertSpaceAfterAutocomplete,
       )
     );
   }
