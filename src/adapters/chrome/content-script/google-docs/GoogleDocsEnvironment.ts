@@ -39,7 +39,7 @@ export function getDocsInput(doc: Document = document): DocsInput | null {
   }
 }
 
-/** Read visual geometry only; never move selection to measure or choose by collaborator color. */
+/** Read visual geometry only; never move the selection to measure. */
 export function getDocsCaret(
   doc: Document = document,
 ): { element: HTMLElement; rect: DOMRect } | null {
@@ -60,10 +60,15 @@ export function getDocsCaret(
         rect.right >= 0 &&
         rect.left < view.innerWidth,
     );
-  // Bidi can show coincident caret fragments. Deduplicate geometry, not identity by color.
-  const unique = visible.filter(
+  // Collaborator carets are colored; Docs draws the local caret with a black border.
+  const own = visible.filter(
+    ({ element }) => view.getComputedStyle(element).borderLeftColor === "rgb(0, 0, 0)",
+  );
+  const candidates = own.length ? own : visible;
+  // Bidi can show coincident caret fragments. Deduplicate geometry.
+  const unique = candidates.filter(
     (item, index) =>
-      !visible
+      !candidates
         .slice(0, index)
         .some(
           (other) =>
