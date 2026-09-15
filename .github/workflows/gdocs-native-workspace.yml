@@ -1,0 +1,39 @@
+name: Google Docs native validation workspace
+
+on:
+  push:
+    branches: [fix/google-docs-v2-20260915]
+    paths: [.github/workflows/gdocs-native-workspace.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  workspace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      PUPPETEER_SKIP_DOWNLOAD: "true"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 058cde147b78a36e4ab5c3d4e52a4f44cdfe1b74
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.0"
+      - run: bun install --frozen-lockfile
+      - name: Archive public source and installed build toolchain without credentials
+        run: |
+          mkdir -p "$RUNNER_TEMP/gdocs-validation"
+          git archive --format=tar HEAD | gzip > "$RUNNER_TEMP/gdocs-validation/source.tar.gz"
+          cp "$(command -v bun)" "$RUNNER_TEMP/gdocs-validation/bun"
+          tar -czf "$RUNNER_TEMP/gdocs-validation/dependencies.tar.gz" node_modules
+          cd "$RUNNER_TEMP/gdocs-validation"
+          sha256sum source.tar.gz dependencies.tar.gz bun > SHA256SUMS
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: gdocs-native-validation-workspace
+          path: ${{ runner.temp }}/gdocs-validation/
+          retention-days: 1
+          compression-level: 0
