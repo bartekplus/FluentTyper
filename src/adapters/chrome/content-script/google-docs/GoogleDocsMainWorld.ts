@@ -153,7 +153,10 @@ export function installGoogleDocsMainWorld(win: Window = window): () => void {
         const payload = text.replace(/^ +| +$/g, (run) => "\u00a0".repeat(run.length));
         data.setData("text/plain", payload);
         // Do not dispatch a malformed event, including an empty deletion without its MIME type.
-        if (!Array.from(data.types).includes("text/plain") || data.getData("text/plain") !== payload)
+        if (
+          !Array.from(data.types).includes("text/plain") ||
+          data.getData("text/plain") !== payload
+        )
           throw new DocsHostError("unavailable");
         // A request to the editor, NOT trusted/native paste. Its return value is irrelevant.
         input.element.dispatchEvent(paste);
