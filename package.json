@@ -23,7 +23,9 @@
     "fix": "bun run lint:fix && bun run format",
     "format": "prettier . --cache --write",
     "format:check": "prettier . --cache --check",
-    "bump": "bun pm version"
+    "bump": "bun pm version",
+    "test:e2e:docs": "bun test --timeout=12000 tests/e2e/google-docs.e2e.test.ts",
+    "test:e2e:docs:live": "bun scripts/test-google-docs-live.ts"
   },
   "repository": {
     "type": "git",

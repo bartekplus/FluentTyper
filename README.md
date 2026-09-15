@@ -71,7 +71,9 @@ Site profiles never bypass domain enable/disable logic. If a domain is blocked b
 
 ## Compatibility
 
-FluentTyper works on most websites. Some rich text editors (for example Google Docs) can be partially or fully incompatible.
+FluentTyper works on most websites, including Google Docs.
+
+Google Docs support activates on any document edit page when FluentTyper is enabled for docs.google.com. Suggestions are applied through a single synthetic plain-text paste into the editor, and the edit is verified against the document model before local learning records it. See [docs/google-docs-integration.md](docs/google-docs-integration.md) for details and limits. Other canvas-based rich text editors can still be partially or fully incompatible.
 
 If you hit an unsupported site, please open a bug report so compatibility can be improved.
 

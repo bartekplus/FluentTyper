@@ -53,3 +53,11 @@ When adding a user-facing setting:
 - Production logging should stay minimal, typically warn and error only.
 - Do not log full user text content.
 - Guard extra debug logging behind development mode or the existing logging level controls.
+
+## Google Docs
+
+- Code lives in `src/adapters/chrome/content-script/google-docs/`. `ContentRuntimeController` creates `GoogleDocsAdapter` only on a top-level Docs edit page; the generic `SuggestionManager` is disabled only inside the hidden `iframe.docs-texteventtarget-iframe`.
+- `GoogleDocsMainWorld` runs from `content_script_main_world_start.ts` (MAIN world, `document_start`) and sets `window._docs_annotate_canvas_by_ext` to FluentTyper's own extension ID so Docs exposes `_docs_annotate_getAnnotatedText`. Never impersonate another extension's ID.
+- Isolated and MAIN worlds talk only through `CustomEvent`s with JSON string payloads; the bridge exposes no extension APIs to the page.
+- Edits are single-use-token transactions: read model, select the minimal range, dispatch one synthetic plain-text paste, verify text. Unverified edits are never retried.
+- Tests: `bun test tests/GoogleDocsModel.test.ts tests/GoogleDocsTransaction.test.ts` and `bun run test:e2e:docs` (Chromium fixture with real MAIN/isolated worlds, mocked Docs API). Live check: `bun run test:e2e:docs:live -- --help`.
