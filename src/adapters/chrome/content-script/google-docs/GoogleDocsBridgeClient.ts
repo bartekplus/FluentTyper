@@ -1,0 +1,97 @@
+import {
+  REQUEST_EVENT,
+  RESPONSE_EVENT,
+  parseObject,
+  snapshotFrom,
+  type DocsReply,
+  type DocsEdit,
+  type DocsStatus,
+} from "./GoogleDocsModel";
+const STATUSES = new Set<DocsStatus>([
+  "ready",
+  "applied",
+  "stale",
+  "inactive",
+  "unavailable",
+  "invalid",
+  "busy",
+  "composing",
+  "cancelled",
+  "unverified",
+  "unsupported-selection",
+]);
+export interface DocsBridge {
+  read(): Promise<DocsReply>;
+  apply(token: string, edit: DocsEdit): Promise<DocsReply>;
+  cancel(): void;
+  dispose(): void;
+}
+export class GoogleDocsBridgeClient implements DocsBridge {
+  private readonly pending = new Map<
+    string,
+    { resolve: (value: DocsReply) => void; timer: number }
+  >();
+  private disposed = false;
+  private readonly listener = (event: Event) => {
+    const value = parseObject((event as CustomEvent<unknown>).detail);
+    if (!value || typeof value.id !== "string" || !STATUSES.has(value.status as DocsStatus)) return;
+    const request = this.pending.get(value.id);
+    if (!request) return;
+    const snapshot = snapshotFrom(value.snapshot);
+    if (value.status === "ready" && !snapshot) return;
+    this.win.clearTimeout(request.timer);
+    this.pending.delete(value.id);
+    request.resolve({
+      status: value.status as DocsStatus,
+      ...(snapshot ? { snapshot } : {}),
+      ...(typeof value.operationId === "string" && value.operationId.length <= 100
+        ? { operationId: value.operationId }
+        : {}),
+      ...(value.history === "applied" || value.history === "undone"
+        ? { history: value.history }
+        : {}),
+    });
+  };
+  constructor(private readonly win: Window = window) {
+    win.document.addEventListener(RESPONSE_EVENT, this.listener);
+  }
+  read(): Promise<DocsReply> {
+    return this.request("read");
+  }
+  apply(token: string, edit: DocsEdit): Promise<DocsReply> {
+    return this.request("apply", { token, edit });
+  }
+  cancel(): void {
+    if (!this.disposed)
+      this.win.document.dispatchEvent(
+        new CustomEvent(REQUEST_EVENT, {
+          detail: JSON.stringify({ kind: "cancel", id: this.win.crypto.randomUUID() }),
+        }),
+      );
+  }
+  dispose(): void {
+    this.cancel();
+    this.disposed = true;
+    this.win.document.removeEventListener(RESPONSE_EVENT, this.listener);
+    for (const value of this.pending.values()) {
+      this.win.clearTimeout(value.timer);
+      value.resolve({ status: "cancelled" });
+    }
+    this.pending.clear();
+  }
+  private request(kind: "read" | "apply", payload: object = {}): Promise<DocsReply> {
+    if (this.disposed) return Promise.resolve({ status: "cancelled" });
+    if (this.pending.size >= 2) return Promise.resolve({ status: "busy" });
+    return new Promise((resolve) => {
+      const id = this.win.crypto.randomUUID();
+      const timer = this.win.setTimeout(() => {
+        this.pending.delete(id);
+        resolve({ status: kind === "apply" ? "unverified" : "unavailable" });
+      }, 3500);
+      this.pending.set(id, { resolve, timer });
+      this.win.document.dispatchEvent(
+        new CustomEvent(REQUEST_EVENT, { detail: JSON.stringify({ id, kind, ...payload }) }),
+      );
+    });
+  }
+}

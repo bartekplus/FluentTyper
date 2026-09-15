@@ -1,0 +1,87 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>FluentTyper canvas adapter fixture (NOT Google Docs)</title>
+  </head>
+  <body style="font: 16px system-ui">
+    <p>This is a local synthetic editor, not Google Docs.</p>
+    <input id="title" aria-label="Document title" /><textarea
+      id="comment"
+      aria-label="Comment"
+    ></textarea>
+    <canvas width="800" height="350" style="border: 1px solid #999"></canvas>
+    <div
+      class="kix-cursor-caret"
+      style="
+        position: fixed;
+        top: 150px;
+        left: 80px;
+        width: 1px;
+        height: 20px;
+        font: 16px Arial;
+        direction: ltr;
+      "
+    ></div>
+    <iframe
+      class="docs-texteventtarget-iframe"
+      style="position: fixed; left: 0; top: 500px; width: 100px; height: 40px"
+    ></iframe>
+    <script>
+      window.fixtureScope =
+        "https://docs.google.com/document/d/fluenttyper-fixture/edit?fluentTyperDocs=1&tab=t.1";
+      window.model = { text: "", anchor: 0, focus: 0, pastes: 0, mode: "apply" };
+      const iframe = document.querySelector("iframe");
+      iframe.contentDocument.open();
+      iframe.contentDocument.write(
+        '<html><body><div id="input" contenteditable="true" role="textbox"></div></body></html>',
+      );
+      iframe.contentDocument.close();
+      const input = iframe.contentDocument.querySelector("#input");
+      function draw() {
+        const ctx = document.querySelector("canvas").getContext("2d");
+        ctx.clearRect(0, 0, 800, 350);
+        ctx.font = "16px Arial";
+        model.text.split("\n").forEach((line, i) => ctx.fillText(line, 20, 60 + i * 24));
+        document.querySelector(".kix-cursor-caret").style.left = 80 + model.anchor * 8 + "px";
+      }
+      window.setModel = (text, anchor = text.length, focus = anchor) => {
+        model.text = text;
+        model.anchor = anchor;
+        model.focus = focus;
+        draw();
+      };
+      function replace(text) {
+        const start = Math.min(model.anchor, model.focus),
+          end = Math.max(model.anchor, model.focus);
+        model.text = model.text.slice(0, start) + text + model.text.slice(end);
+        model.anchor = start + text.length;
+        model.focus = model.anchor;
+        draw();
+      }
+      window._docs_annotate_getAnnotatedText = async () => ({
+        getText: () => "\u0003" + model.text + "\n",
+        getSelection: () => [{ anchor: model.anchor + 1, focus: model.focus + 1 }],
+        setSelection: (a, f) => {
+          model.anchor = a - 1;
+          model.focus = f - 1;
+          draw();
+        },
+      });
+      input.addEventListener("input", (event) => {
+        if (event.isComposing) return;
+        if (event.inputType.startsWith("insert")) replace(event.data || "");
+        input.textContent = "";
+      });
+      input.addEventListener("paste", (event) => {
+        model.pastes++;
+        event.preventDefault();
+        if (model.mode === "ignore") return;
+        replace(event.clipboardData.getData("text/plain"));
+      });
+      window.focusEditor = () => input.focus();
+      focusEditor();
+      draw();
+    </script>
+  </body>
+</html>

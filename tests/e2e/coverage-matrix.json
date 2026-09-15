@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "capturedAt": "2026-07-28",
+  "capturedAt": "2026-09-15",
   "behaviors": [
     {
       "id": "install_page_reachable",
@@ -1301,6 +1301,600 @@
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
           "test": "Personalized menu and inline ranking survives runtime restart and clears locally"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_opt_in_only_applies_to_an_actual_docs_edit_url",
+      "description": "Google Docs model/transaction unit regression: opt-in only applies to an actual Docs edit URL",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsModel.test.ts",
+          "test": "opt-in only applies to an actual Docs edit URL"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_removes_only_outer_sentinels_and_preserves_logical_bidi_offsets",
+      "description": "Google Docs model/transaction unit regression: removes only outer sentinels and preserves logical bidi offsets",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsModel.test.ts",
+          "test": "removes only outer sentinels and preserves logical bidi offsets"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_rejects_ambiguous_selection_metadata_and_multiple_selections",
+      "description": "Google Docs model/transaction unit regression: rejects ambiguous selection metadata and multiple selections",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsModel.test.ts",
+          "test": "rejects ambiguous selection metadata and multiple selections"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_preserves_graphemes_including_accents_emoji_zwj_flags_and_indic_clusters",
+      "description": "Google Docs model/transaction unit regression: preserves graphemes including accents emoji ZWJ flags and Indic clusters",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsModel.test.ts",
+          "test": "preserves graphemes including accents emoji ZWJ flags and Indic clusters"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_performs_spelling_replacements_rather_than_suffix_only_completion",
+      "description": "Google Docs model/transaction unit regression: performs spelling replacements rather than suffix-only completion",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsModel.test.ts",
+          "test": "performs spelling replacements rather than suffix-only completion"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_replaces_the_suffix_under_a_mid_word_caret",
+      "description": "Google Docs model/transaction unit regression: replaces the suffix under a mid-word caret",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsModel.test.ts",
+          "test": "replaces the suffix under a mid-word caret"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_expands_multiline_snippets_without_dropping_whitespace",
+      "description": "Google Docs model/transaction unit regression: expands multiline snippets without dropping whitespace",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsModel.test.ts",
+          "test": "expands multiline snippets without dropping whitespace"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_next_word_prediction_never_deletes_the_next_word",
+      "description": "Google Docs model/transaction unit regression: next-word prediction never deletes the next word",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsModel.test.ts",
+          "test": "next-word prediction never deletes the next word"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_consumes_a_duplicate_following_space_exactly_once",
+      "description": "Google Docs model/transaction unit regression: consumes a duplicate following space exactly once",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsModel.test.ts",
+          "test": "consumes a duplicate following space exactly once"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_allows_explicit_reversed_selection_replacements",
+      "description": "Google Docs model/transaction unit regression: allows explicit reversed selection replacements",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsModel.test.ts",
+          "test": "allows explicit reversed selection replacements"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_does_not_edit_across_table_object_control_markers",
+      "description": "Google Docs model/transaction unit regression: does not edit across table/object control markers",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsModel.test.ts",
+          "test": "does not edit across table/object control markers"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_allows_grammar_cursor_placement_inside_paired_brackets",
+      "description": "Google Docs model/transaction unit regression: allows grammar cursor placement inside paired brackets",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsModel.test.ts",
+          "test": "allows grammar cursor placement inside paired brackets"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_rejects_grammar_outside_available_context_and_invalid_cursor_offsets",
+      "description": "Google Docs model/transaction unit regression: rejects grammar outside available context and invalid cursor offsets",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsModel.test.ts",
+          "test": "rejects grammar outside available context and invalid cursor offsets"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_minimizes_replacement_to_retain_unchanged_formatting_runs",
+      "description": "Google Docs model/transaction unit regression: minimizes replacement to retain unchanged formatting runs",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsModel.test.ts",
+          "test": "minimizes replacement to retain unchanged formatting runs"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_minimal_edits_never_split_a_grapheme",
+      "description": "Google Docs model/transaction unit regression: minimal edits never split a grapheme",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsModel.test.ts",
+          "test": "minimal edits never split a grapheme"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_maps_large_bounded_context_back_to_full_document_offsets",
+      "description": "Google Docs model/transaction unit regression: maps large bounded context back to full document offsets",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsModel.test.ts",
+          "test": "maps large bounded context back to full document offsets"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_refuses_a_token_truncated_by_either_end_of_the_context_window",
+      "description": "Google Docs model/transaction unit regression: refuses a token truncated by either end of the context window",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsModel.test.ts",
+          "test": "refuses a token truncated by either end of the context window"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_rejects_malformed_page_messages_and_excessive_replacement_size",
+      "description": "Google Docs model/transaction unit regression: rejects malformed page messages and excessive replacement size",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsModel.test.ts",
+          "test": "rejects malformed page messages and excessive replacement size"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_performs_one_minimal_paste_and_places_the_final_caret",
+      "description": "Google Docs model/transaction unit regression: performs one minimal paste and places the final caret",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsTransaction.test.ts",
+          "test": "performs one minimal paste and places the final caret"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_replayed_tokens_never_produce_a_second_insertion",
+      "description": "Google Docs model/transaction unit regression: replayed tokens never produce a second insertion",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsTransaction.test.ts",
+          "test": "replayed tokens never produce a second insertion"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_serializes_overlapping_apply_requests",
+      "description": "Google Docs model/transaction unit regression: serializes overlapping apply requests",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsTransaction.test.ts",
+          "test": "serializes overlapping apply requests"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_rechecks_after_selecting_the_replacement_range",
+      "description": "Google Docs model/transaction unit regression: rechecks after selecting the replacement range",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsTransaction.test.ts",
+          "test": "rechecks after selecting the replacement range"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_cancellation_invalidates_an_already_issued_snapshot",
+      "description": "Google Docs model/transaction unit regression: cancellation invalidates an already-issued snapshot",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsTransaction.test.ts",
+          "test": "cancellation invalidates an already-issued snapshot"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_never_treats_a_silently_ignored_paste_as_success_or_retries_it",
+      "description": "Google Docs model/transaction unit regression: never treats a silently ignored paste as success or retries it",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsTransaction.test.ts",
+          "test": "never treats a silently ignored paste as success or retries it"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_recovers_on_a_late_model_acknowledgement_without_replay",
+      "description": "Google Docs model/transaction unit regression: recovers on a late model acknowledgement without replay",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsTransaction.test.ts",
+          "test": "recovers on a late model acknowledgement without replay"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_never_retries_a_handler_that_mutates_then_throws",
+      "description": "Google Docs model/transaction unit regression: never retries a handler that mutates then throws",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsTransaction.test.ts",
+          "test": "never retries a handler that mutates then throws"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_cannot_clear_uncertain_writes_by_toggling_the_extension",
+      "description": "Google Docs model/transaction unit regression: cannot clear uncertain writes by toggling the extension",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsTransaction.test.ts",
+          "test": "cannot clear uncertain writes by toggling the extension"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_observes_exact_native_undo_and_redo_without_dispatching_either",
+      "description": "Google Docs model/transaction unit regression: observes exact native undo and redo without dispatching either",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsTransaction.test.ts",
+          "test": "observes exact native undo and redo without dispatching either"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_rejects_stale_expiry_with_no_write",
+      "description": "Google Docs model/transaction unit regression: rejects stale expiry with no write",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsTransaction.test.ts",
+          "test": "rejects stale expiry with no write"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_reports_missing_api_as_unavailable",
+      "description": "Google Docs model/transaction unit regression: reports missing API as unavailable",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/GoogleDocsTransaction.test.ts",
+          "test": "reports missing API as unavailable"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_real_typing_crosses_worlds_and_tab_commits_exactly_once",
+      "description": "Mock editor/browser fixture, not a live Google Docs claim: real typing crosses worlds and Tab commits exactly once",
+      "coverage": [
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "real typing crosses worlds and Tab commits exactly once"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_non_prefix_spelling_and_mid_word_replacement",
+      "description": "Mock editor/browser fixture, not a live Google Docs claim: non-prefix spelling and mid-word replacement",
+      "coverage": [
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "non-prefix spelling and mid-word replacement"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_title_and_comment_fields_retain_the_ordinary_fluenttyper_helper",
+      "description": "Mock editor/browser fixture, not a live Google Docs claim: title and comment fields retain the ordinary FluentTyper helper",
+      "coverage": [
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "title and comment fields retain the ordinary FluentTyper helper"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_the_shared_menu_honors_existing_theme_variables",
+      "description": "Mock editor/browser fixture, not a live Google Docs claim: the shared menu honors existing theme variables",
+      "coverage": [
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "the shared menu honors existing theme variables"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_digit_shortcuts_select_the_requested_suggestion",
+      "description": "Mock editor/browser fixture, not a live Google Docs claim: digit shortcuts select the requested suggestion",
+      "coverage": [
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "digit shortcuts select the requested suggestion"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_arrow_navigation_and_enter_acceptance",
+      "description": "Mock editor/browser fixture, not a live Google Docs claim: arrow navigation and Enter acceptance",
+      "coverage": [
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "arrow navigation and Enter acceptance"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_space_acceptance_follows_the_configured_setting",
+      "description": "Mock editor/browser fixture, not a live Google Docs claim: space acceptance follows the configured setting",
+      "coverage": [
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "space acceptance follows the configured setting"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_multiline_snippets_preserve_their_line_breaks",
+      "description": "Mock editor/browser fixture, not a live Google Docs claim: multiline snippets preserve their line breaks",
+      "coverage": [
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "multiline snippets preserve their line breaks"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_next_word_prediction_uses_the_shared_coordinator",
+      "description": "Mock editor/browser fixture, not a live Google Docs claim: next-word prediction uses the shared coordinator",
+      "coverage": [
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "next-word prediction uses the shared coordinator"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_inline_mode_renders_an_owned_ghost_and_accepts_it",
+      "description": "Mock editor/browser fixture, not a live Google Docs claim: inline mode renders an owned ghost and accepts it",
+      "coverage": [
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "inline mode renders an owned ghost and accepts it"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_inline_spelling_fallback_stays_selectable",
+      "description": "Mock editor/browser fixture, not a live Google Docs claim: inline spelling fallback stays selectable",
+      "coverage": [
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "inline spelling fallback stays selectable"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_explicit_noncollapsed_selection_replacement",
+      "description": "Mock editor/browser fixture, not a live Google Docs claim: explicit noncollapsed selection replacement",
+      "coverage": [
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "explicit noncollapsed selection replacement"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_mouse_acceptance_retains_editor_focus",
+      "description": "Mock editor/browser fixture, not a live Google Docs claim: mouse acceptance retains editor focus",
+      "coverage": [
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "mouse acceptance retains editor focus"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_ignored_writes_are_never_learned_or_retried",
+      "description": "Mock editor/browser fixture, not a live Google Docs claim: ignored writes are never learned or retried",
+      "coverage": [
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "ignored writes are never learned or retried"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_native_undo_observation_reverses_personalization_once",
+      "description": "Mock editor/browser fixture, not a live Google Docs claim: native undo observation reverses personalization once",
+      "coverage": [
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "native undo observation reverses personalization once"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_ime_composition_suppresses_accepting_suggestions",
+      "description": "Mock editor/browser fixture, not a live Google Docs claim: IME composition suppresses accepting suggestions",
+      "coverage": [
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "IME composition suppresses accepting suggestions"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_the_shared_local_grammar_catalog_performs_automatic_correction",
+      "description": "Mock editor/browser fixture, not a live Google Docs claim: the shared local grammar catalog performs automatic correction",
+      "coverage": [
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "the shared local grammar catalog performs automatic correction"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_multiple_visible_carets_use_a_fixed_palette_without_choosing_a_collaborator",
+      "description": "Mock editor/browser fixture, not a live Google Docs claim: multiple visible carets use a fixed palette without choosing a collaborator",
+      "coverage": [
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "multiple visible carets use a fixed palette without choosing a collaborator"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_rtl_text_uses_logical_offsets_and_a_direction_aware_menu",
+      "description": "Mock editor/browser fixture, not a live Google Docs claim: RTL text uses logical offsets and a direction-aware menu",
+      "coverage": [
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "RTL text uses logical offsets and a direction-aware menu"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_offline_fixture_uses_no_network_service_for_local_suggestions",
+      "description": "Mock editor/browser fixture, not a live Google Docs claim: offline fixture uses no network service for local suggestions",
+      "coverage": [
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "offline fixture uses no network service for local suggestions"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_document_tab_changes_invalidate_the_old_snapshot_before_editing",
+      "description": "Mock editor/browser fixture, not a live Google Docs claim: document tab changes invalidate the old snapshot before editing",
+      "coverage": [
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "document tab changes invalidate the old snapshot before editing"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_late_acknowledged_writes_recover_and_learn_only_once",
+      "description": "Mock editor/browser fixture, not a live Google Docs claim: late acknowledged writes recover and learn only once",
+      "coverage": [
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "late acknowledged writes recover and learn only once"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_disposing_removes_ui_and_keyboard_interception",
+      "description": "Mock editor/browser fixture, not a live Google Docs claim: disposing removes UI and keyboard interception",
+      "coverage": [
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "disposing removes UI and keyboard interception"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_visible_suggestions_remain_usable_across_repeated_snapshot_refreshes",
+      "description": "Mock editor/browser fixture, not a live Google Docs claim: visible suggestions remain usable across repeated snapshot refreshes",
+      "coverage": [
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "visible suggestions remain usable across repeated snapshot refreshes"
         }
       ]
     }

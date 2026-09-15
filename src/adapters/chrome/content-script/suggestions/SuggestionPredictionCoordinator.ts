@@ -12,6 +12,12 @@ import {
 const FIRST_CHAR_DEBOUNCE_CAP_MS = 12;
 const logger = createLogger("SuggestionPredictionCoordinator");
 
+export type PredictionSessionState = Pick<
+  SuggestionEntry,
+  "id" | "requestId" | "latestMentionText" | "latestMentionStart" | "pendingRequestTimer"
+> &
+  Partial<Pick<SuggestionEntry, "elem">>;
+
 interface SuggestionPredictionCoordinatorOptions {
   debounceByAction: {
     insert: number;
@@ -53,7 +59,7 @@ export class SuggestionPredictionCoordinator {
   }
 
   public schedule(
-    entry: SuggestionEntry,
+    entry: PredictionSessionState,
     {
       force,
       clearSuggestions,
@@ -71,7 +77,8 @@ export class SuggestionPredictionCoordinator {
     this.cancelPending(entry);
 
     const beforeCursor =
-      beforeCursorOverride ?? TextTargetAdapter.snapshot(entry.elem).beforeCursor;
+      beforeCursorOverride ??
+      (entry.elem ? TextTargetAdapter.snapshot(entry.elem).beforeCursor : "");
     const traceContext = createPredictionTraceContext();
 
     if (force) {
@@ -112,7 +119,7 @@ export class SuggestionPredictionCoordinator {
   }
 
   public reconcile(
-    entry: SuggestionEntry,
+    entry: PredictionSessionState,
     {
       clearSuggestions,
       inputAction,
@@ -127,7 +134,8 @@ export class SuggestionPredictionCoordinator {
   ): void {
     this.cancelPending(entry);
     const beforeCursor =
-      beforeCursorOverride ?? TextTargetAdapter.snapshot(entry.elem).beforeCursor;
+      beforeCursorOverride ??
+      (entry.elem ? TextTargetAdapter.snapshot(entry.elem).beforeCursor : "");
     this.requestPrediction(
       entry,
       false,
@@ -139,7 +147,7 @@ export class SuggestionPredictionCoordinator {
     );
   }
 
-  public cancelPending(entry: SuggestionEntry): void {
+  public cancelPending(entry: PredictionSessionState): void {
     if (entry.pendingRequestTimer === null) {
       return;
     }
@@ -148,7 +156,7 @@ export class SuggestionPredictionCoordinator {
   }
 
   public shouldProcessResponse(
-    entry: SuggestionEntry,
+    entry: PredictionSessionState,
     response: PredictionResponse,
     {
       isEntryFocused,
@@ -172,7 +180,7 @@ export class SuggestionPredictionCoordinator {
   }
 
   private requestPrediction(
-    entry: SuggestionEntry,
+    entry: PredictionSessionState,
     force: boolean,
     clearSuggestions: () => void,
     inputAction?: PredictionInputAction,
@@ -182,7 +190,9 @@ export class SuggestionPredictionCoordinator {
   ): void {
     const snapshot =
       beforeCursorOverride === undefined || afterCursorOverride === undefined
-        ? TextTargetAdapter.snapshot(entry.elem)
+        ? entry.elem
+          ? TextTargetAdapter.snapshot(entry.elem)
+          : null
         : null;
     const beforeCursor = beforeCursorOverride ?? snapshot?.beforeCursor ?? "";
     const afterCursor = afterCursorOverride ?? snapshot?.afterCursor ?? "";

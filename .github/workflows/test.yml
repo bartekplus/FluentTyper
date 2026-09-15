@@ -116,6 +116,9 @@ jobs:
       - name: Install Firefox for Puppeteer
         if: matrix.browser == 'firefox'
         run: bunx puppeteer browsers install firefox
+      - name: Google Docs cross-world fixtures (not live Docs)
+        if: matrix.browser == 'chrome'
+        run: bun run test:e2e:docs
       - run: bun run test:e2e:full --platform=${{ matrix.browser }}
         env:
           CI: "true"

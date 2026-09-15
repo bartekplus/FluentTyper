@@ -13,6 +13,10 @@ import { ThemeApplicator } from "./ThemeApplicator";
 import { SuggestionManager } from "./SuggestionManager";
 import type { EarlyTabAcceptResult } from "./suggestions/SuggestionManagerRuntime";
 
+import { GoogleDocsAdapter } from "./google-docs/GoogleDocsAdapter";
+import { DOCS_SESSION_ID } from "./google-docs/GoogleDocsModel";
+import { isGoogleDocsPage, isGoogleDocsInputFrame } from "./google-docs/GoogleDocsEnvironment";
+
 const logger = createLogger("ContentRuntimeController");
 
 export class ContentRuntimeController {
@@ -22,6 +26,7 @@ export class ContentRuntimeController {
   private static readonly MAX_MUTATION_BATCH_SIZE = 200;
   private static readonly MAX_MUTATION_ROOTS = 64;
 
+  private googleDocs: GoogleDocsAdapter | null = null;
   public suggestionManager: SuggestionManager | null = null;
   public config: SetConfigContext = {
     enabled: false,
@@ -145,9 +150,11 @@ export class ContentRuntimeController {
     }
     this.config.lang = lang;
     this.suggestionManager?.updateLangConfig(this.config.lang);
+    this.googleDocs?.updateLanguage(this.config.lang);
   }
 
   triggerActiveSuggestion(): void {
+    this.googleDocs?.triggerActiveSuggestion();
     this.suggestionManager?.triggerActiveSuggestion();
   }
 
@@ -180,6 +187,10 @@ export class ContentRuntimeController {
         suggestionId: context.suggestionId,
         requestId: context.requestId,
       });
+      return;
+    }
+    if (context.suggestionId === DOCS_SESSION_ID && this.googleDocs) {
+      this.googleDocs.fulfillPrediction(context);
       return;
     }
     this.suggestionManager?.fulfillPrediction(context);
@@ -222,9 +233,11 @@ export class ContentRuntimeController {
 
   enable(): void {
     logger.info("Enabling content runtime");
-    if (!this.suggestionManager) {
+    if (!this.suggestionManager || (isGoogleDocsPage() && !this.googleDocs)) {
+      this.suggestionManager?.detachAllHelpers();
       this.initializeSuggestionManager();
     }
+    this.googleDocs?.start();
     this.suggestionManager?.queryAndAttachHelper();
     this.suggestionManager?.triggerActiveSuggestion();
     this.attachMutationObserver();
@@ -235,6 +248,8 @@ export class ContentRuntimeController {
   }
 
   disable(): void {
+    this.googleDocs?.dispose();
+    this.googleDocs = null;
     logger.info("Disabling content runtime");
     if (this.pendingRestartTimer !== null) {
       clearTimeout(this.pendingRestartTimer);
@@ -388,8 +403,9 @@ export class ContentRuntimeController {
       minWordLengthToPredict: this.config.minWordLengthToPredict,
       generation,
     });
-    this.suggestionManager = new SuggestionManager({
-      selectors: ContentRuntimeController.SELECTORS,
+    const managerOptions = {
+      // Only Docs' hidden input iframe is excluded; titles/comments keep the normal helper.
+      selectors: isGoogleDocsInputFrame() ? ":not(*)" : ContentRuntimeController.SELECTORS,
       minWordLengthToPredict: this.config.minWordLengthToPredict,
       autocomplete: this.config.autocomplete,
       autocompleteOnEnter: this.config.autocompleteOnEnter,
@@ -408,7 +424,9 @@ export class ContentRuntimeController {
           runtimeGeneration: generation,
         }),
       onShadowRootDiscovered: this.registerShadowRoot.bind(this),
-    });
+    };
+    this.suggestionManager = new SuggestionManager(managerOptions);
+    if (isGoogleDocsPage()) this.googleDocs = new GoogleDocsAdapter(managerOptions);
     this.reportRuntimeActivity();
   }
 
