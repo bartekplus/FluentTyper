@@ -26,9 +26,13 @@ export function getDocsInput(doc: Document = document): DocsInput | null {
   try {
     const iframe = frame as HTMLIFrameElement;
     const inner = iframe.contentDocument;
-    const element = inner?.activeElement as HTMLElement | null;
-    if (!inner || !element?.isContentEditable || element.getAttribute("aria-readonly") === "true")
-      return null;
+    // Docs' setSelection blurs the inner editable while the frame stays focused; fall back
+    // to the frame's editable target instead of treating that transient blur as inactive.
+    const active = inner?.activeElement as HTMLElement | null;
+    const element = active?.isContentEditable
+      ? active
+      : inner?.querySelector<HTMLElement>('[contenteditable="true"]');
+    if (!inner || !element || element.getAttribute("aria-readonly") === "true") return null;
     return { frame: iframe, document: inner, element };
   } catch {
     return null;

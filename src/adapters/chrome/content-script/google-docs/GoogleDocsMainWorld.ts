@@ -116,6 +116,8 @@ export function installGoogleDocsMainWorld(win: Window = window): () => void {
         if (!api || getDocsInput(win.document)?.element !== state.input)
           throw new DocsHostError("stale");
         api.setSelection(anchor + state.model.offset, focus + state.model.offset);
+        // setSelection blurs the editable target; paste must reach a focused editor.
+        (state.input as HTMLElement).focus();
       },
       paste: (state, text) => {
         const input = getDocsInput(win.document);
@@ -130,7 +132,12 @@ export function installGoogleDocsMainWorld(win: Window = window): () => void {
         const realm = input.document.defaultView;
         if (!realm) throw new DocsHostError("inactive");
         const data = new realm.DataTransfer();
-        data.setData("text/plain", text);
+        // Docs strips leading/trailing ASCII spaces from pasted text but converts NBSP to a
+        // regular space, so edge spaces travel as NBSP and the model still shows " ".
+        data.setData(
+          "text/plain",
+          text.replace(/^ +| +$/g, (run) => "\u00a0".repeat(run.length)),
+        );
         // A request to the editor, NOT trusted/native paste. Its return value is irrelevant.
         input.element.dispatchEvent(
           new realm.ClipboardEvent("paste", {

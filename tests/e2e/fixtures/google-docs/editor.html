@@ -77,7 +77,13 @@
         model.pastes++;
         event.preventDefault();
         if (model.mode === "ignore") return;
-        replace(event.clipboardData.getData("text/plain"));
+        // Mirror live Docs: plain edge spaces are stripped, NBSP becomes a regular space.
+        replace(
+          event.clipboardData
+            .getData("text/plain")
+            .replace(/^ +| +$/g, "")
+            .replace(/\u00a0/g, " "),
+        );
       });
       window.focusEditor = () => input.focus();
       focusEditor();

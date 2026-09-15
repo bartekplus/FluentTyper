@@ -264,11 +264,8 @@ export class GoogleDocsAdapter {
     }
     this.failureStatus = null;
     this.observeHistory(reply);
-    if (this.uncertain) {
-      this.clearVisual();
-      this.view.status("unverified");
-      return;
-    }
+    // A ready host has acknowledged or dropped its journal; a dropped edit is not learned.
+    this.uncertain = null;
     const snapshot = reply.snapshot;
     const changed = !this.snapshot || !sameSnapshot(this.snapshot, snapshot);
     if (this.hasNativePopup()) {

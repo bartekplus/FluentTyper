@@ -70,6 +70,16 @@ site configuration, and personalization settings keep their existing code paths.
 | Offline                                   | No new network dependency; offline browser fixture passes.                                                                                | Does not verify Google Docs' offline cache, save synchronization or persistence.                                                           |
 | Smart Compose / other extensions          | Respects configured preference for visible `aria-controls` native popups.                                                                 | Canvas Smart Compose and arbitrary third-party overlays are NOT reliably detected. Disable competitors in the initial live test profile.   |
 
+## Live editor quirks (verified in Chrome against real Google Docs)
+
+- `setSelection` blurs the editable inside `iframe.docs-texteventtarget-iframe` while the
+  frame itself stays focused. The bridge refocuses the editable before pasting and treats a
+  blurred editable as active as long as the frame is.
+- Docs strips leading/trailing ASCII spaces from a plain-text paste but converts NBSP to a
+  regular space. Edge spaces are sent as NBSP; the verified model still contains `" "`.
+- An unverified write blocks the adapter only until the next trusted user interaction; it is
+  then forgotten without being retried or learned.
+
 ## Edit transaction invariants
 
 `GoogleDocsModel.ts` validates metadata, Unicode boundaries and edit ranges.

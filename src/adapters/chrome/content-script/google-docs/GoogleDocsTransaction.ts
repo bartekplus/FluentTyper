@@ -68,10 +68,15 @@ export class GoogleDocsTransaction {
       const state = await this.readHost();
       if (epoch !== this.epoch) return { status: "cancelled" };
       if (this.journal?.uncertain) {
-        if (!this.isExpected(state, this.journal))
+        if (this.isExpected(state, this.journal)) {
+          // Late acknowledgement: reopen only after the exact expected model is observed.
+          this.journal.uncertain = false;
+        } else if (state.interaction === this.journal.before.interaction) {
           return { status: "unverified", operationId: this.journal.id };
-        // Late acknowledgement: reopen only after the exact expected model is observed.
-        this.journal.uncertain = false;
+        } else {
+          // The user acted after the unverified write; stop blocking, never retry it.
+          this.journal = null;
+        }
       }
       const snapshot = this.cache(state);
       if (!snapshot) return { status: "unsupported-selection" };
