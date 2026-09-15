@@ -83,6 +83,7 @@ export class GoogleDocsView implements DocsView {
   private readonly elements = SuggestionMenuView.ensureMenu();
   private readonly presenter = new SuggestionMenuPresenter(new DocsPositioning());
   private readonly live = document.createElement("div");
+  private readonly font = document.createElement("div");
   private readonly labels = LABELS[(navigator.language || "en").split(/[-_]/)[0]] ?? LABELS.en;
   private target: HTMLElement | null = null;
   constructor(
@@ -102,6 +103,10 @@ export class GoogleDocsView implements DocsView {
     this.live.style.cssText =
       "position:fixed;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);pointer-events:none";
     document.body.appendChild(this.live);
+    this.font.setAttribute("data-ft-suggestion-owned", "true");
+    this.font.setAttribute("aria-hidden", "true");
+    this.font.style.cssText = "position:fixed;left:-9999px;top:0;visibility:hidden";
+    document.body.appendChild(this.font);
     // Preserve Docs focus. Shadow DOM composedPath is required for option hit-testing.
     this.elements.list.addEventListener("pointerdown", (event) => {
       if (event.button !== 0) return;
@@ -139,8 +144,9 @@ export class GoogleDocsView implements DocsView {
       getComputedStyle(caret.element).direction !== "rtl";
     let visible = false;
     if (canGhost) {
+      this.syncFont(caret.rect);
       const ghost = InlineSuggestionView.render({
-        target: caret.element,
+        target: this.font,
         text: candidate.slice(token.length),
         caretRect: caret.rect,
         entryId: DOCS_SESSION_ID,
@@ -175,6 +181,24 @@ export class GoogleDocsView implements DocsView {
     this.elements.list.querySelectorAll("li").forEach((item) => item.setAttribute("dir", "auto"));
     return visible;
   }
+  /** Canvas text has no DOM style; mirror the toolbar's font, size and zoom onto a style host. */
+  private syncFont(caretRect: DOMRect): void {
+    const family = document
+      .querySelector("#docs-font-family .goog-toolbar-menu-button-caption")
+      ?.textContent?.trim();
+    const points = parseFloat(
+      document.querySelector<HTMLInputElement>("#fontSizeSelect input")?.value ?? "",
+    );
+    const zoom = parseFloat(
+      document.querySelector<HTMLInputElement>("#zoomSelect input")?.value ?? "",
+    );
+    const px =
+      points > 0 ? (points * 96 * (zoom > 0 ? zoom / 100 : 1)) / 72 : caretRect.height / 1.15;
+    this.font.style.fontFamily = family ? `${family}, Arial, sans-serif` : "Arial, sans-serif";
+    this.font.style.fontSize = `${px}px`;
+    this.font.style.lineHeight = caretRect.height > 0 ? `${caretRect.height}px` : "normal";
+    this.font.style.color = "rgb(0, 0, 0)";
+  }
   clear(keepAnnouncement = false): void {
     this.presenter.hide(this.elements.menu, this.elements.list, this.target ?? undefined);
     InlineSuggestionView.removeForEntry(DOCS_SESSION_ID);
@@ -193,5 +217,6 @@ export class GoogleDocsView implements DocsView {
     this.clear();
     this.elements.menu.remove();
     this.live.remove();
+    this.font.remove();
   }
 }
