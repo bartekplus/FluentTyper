@@ -79,7 +79,7 @@
     "shadow_dom_late_attach",
     "personalized_suggestion_ranking",
     "personalization_local_privacy_controls",
-    "gdocs_opt_in_only_applies_to_an_actual_docs_edit_url",
+    "gdocs_applies_only_to_an_actual_docs_edit_url",
     "gdocs_removes_only_outer_sentinels_and_preserves_logical_bidi_offsets",
     "gdocs_rejects_ambiguous_selection_metadata_and_multiple_selections",
     "gdocs_preserves_graphemes_including_accents_emoji_zwj_flags_and_indic_clusters",

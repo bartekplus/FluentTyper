@@ -1305,13 +1305,13 @@
       ]
     },
     {
-      "id": "gdocs_opt_in_only_applies_to_an_actual_docs_edit_url",
-      "description": "Google Docs model/transaction unit regression: opt-in only applies to an actual Docs edit URL",
+      "id": "gdocs_applies_only_to_an_actual_docs_edit_url",
+      "description": "Google Docs model/transaction unit regression: applies only to an actual Docs edit URL",
       "coverage": [
         {
           "layer": "unit",
           "file": "tests/GoogleDocsModel.test.ts",
-          "test": "opt-in only applies to an actual Docs edit URL"
+          "test": "applies only to an actual Docs edit URL"
         }
       ]
     },
