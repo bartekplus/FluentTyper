@@ -41,6 +41,7 @@ export function installGoogleDocsMainWorld(win: Window = window): () => void {
   let stopped = false;
   let interaction = 0;
   let inner: Document | null = null;
+  let unbindFrameKeys: (() => void) | null = null;
   let composing = false;
   let compositionSettlesAt = 0;
   const states = new WeakMap<DocsHostState, AnnotatedText>();
@@ -58,6 +59,8 @@ export function installGoogleDocsMainWorld(win: Window = window): () => void {
     interaction += 1;
   };
   const bind = (doc: Document | null) => {
+    unbindFrameKeys?.();
+    unbindFrameKeys = null;
     for (const kind of ["keydown", "pointerdown", "beforeinput"])
       inner?.removeEventListener(kind, onInteraction, true);
     inner?.removeEventListener("compositionstart", onCompositionStart, true);
@@ -67,6 +70,9 @@ export function installGoogleDocsMainWorld(win: Window = window): () => void {
       inner?.addEventListener(kind, onInteraction, true);
     inner?.addEventListener("compositionstart", onCompositionStart, true);
     inner?.addEventListener("compositionend", onCompositionEnd, true);
+    // Firefox skips document_start content scripts in empty about:blank frames. Bind
+    // from the parent MAIN world too; an acknowledged key stops either listener path.
+    if (doc?.defaultView) unbindFrameKeys = installFrameKeys(doc.defaultView);
   };
   const transactions = new GoogleDocsTransaction(
     {
@@ -131,21 +137,26 @@ export function installGoogleDocsMainWorld(win: Window = window): () => void {
         }
         const realm = input.document.defaultView;
         if (!realm) throw new DocsHostError("inactive");
-        const data = new realm.DataTransfer();
+        const paste = new realm.ClipboardEvent("paste", {
+          bubbles: true,
+          cancelable: true,
+          composed: true,
+          clipboardData: new realm.DataTransfer(),
+        });
+        // Firefox ignores ClipboardEventInit.clipboardData (Mozilla bug 2027025).
+        // Populate the event's own store in the input's MAIN realm, not the discarded
+        // constructor argument or an isolated-world/Xray view of the clipboard data.
+        const data = paste.clipboardData;
+        if (!data) throw new DocsHostError("unavailable");
         // Docs strips leading/trailing ASCII spaces from pasted text but converts NBSP to a
         // regular space, so edge spaces travel as NBSP and the model still shows " ".
-        data.setData(
-          "text/plain",
-          text.replace(/^ +| +$/g, (run) => "\u00a0".repeat(run.length)),
-        );
+        const payload = text.replace(/^ +| +$/g, (run) => "\u00a0".repeat(run.length));
+        data.setData("text/plain", payload);
+        // Do not dispatch a malformed event, including an empty deletion without its MIME type.
+        if (!Array.from(data.types).includes("text/plain") || data.getData("text/plain") !== payload)
+          throw new DocsHostError("unavailable");
         // A request to the editor, NOT trusted/native paste. Its return value is irrelevant.
-        input.element.dispatchEvent(
-          new realm.ClipboardEvent("paste", {
-            bubbles: true,
-            cancelable: true,
-            clipboardData: data,
-          }),
-        );
+        input.element.dispatchEvent(paste);
       },
     },
     () => win.crypto.randomUUID(),
