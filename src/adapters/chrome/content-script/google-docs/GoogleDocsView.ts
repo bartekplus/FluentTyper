@@ -199,7 +199,16 @@ export class GoogleDocsView implements DocsView {
     this.font.style.fontFamily = family ? `${family}, Arial, sans-serif` : "Arial, sans-serif";
     this.font.style.fontSize = `${px}px`;
     this.font.style.lineHeight = caretRect.height > 0 ? `${caretRect.height}px` : "normal";
-    this.font.style.color = "rgb(0, 0, 0)";
+    const pressed = (id: string) =>
+      document.getElementById(id)?.getAttribute("aria-pressed") === "true";
+    this.font.style.fontWeight = pressed("boldButton") ? "bold" : "normal";
+    this.font.style.fontStyle = pressed("italicButton") ? "italic" : "normal";
+    this.font.style.textDecoration = pressed("underlineButton") ? "underline" : "none";
+    // ponytail: strikethrough and super/subscript are only in the Format menu; not mirrored.
+    const swatch = document.querySelector<HTMLElement>(
+      "#textColorButton [style*='border-bottom-color']",
+    );
+    this.font.style.color = swatch?.style.borderBottomColor || "rgb(0, 0, 0)";
   }
   clear(keepAnnouncement = false): void {
     this.presenter.hide(this.elements.menu, this.elements.list, this.target ?? undefined);
