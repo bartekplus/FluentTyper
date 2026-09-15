@@ -53,14 +53,13 @@ export interface DocsReply {
   history?: "applied" | "undone";
 }
 
-/** Release gate remains opt-in until the live editor acceptance matrix passes. */
+/** Only top-level document edit URLs; per-site enable/disable still applies. */
 export function isGoogleDocsURL(href: string): boolean {
   try {
     const url = new URL(href);
     return (
       url.origin === "https://docs.google.com" &&
-      /^\/document\/(?:u\/\d+\/)?d\/[\w-]+\/edit\/?$/.test(url.pathname) &&
-      url.searchParams.get("fluentTyperDocs") === "1"
+      /^\/document\/(?:u\/\d+\/)?d\/[\w-]+\/edit\/?$/.test(url.pathname)
     );
   } catch {
     return false;

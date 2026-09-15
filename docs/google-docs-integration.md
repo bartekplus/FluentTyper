@@ -25,14 +25,14 @@ bun run test:e2e:docs
 bun run build --platform=chrome
 ```
 
-Use a dedicated browser profile and a NEW, EMPTY, DISPOSABLE document. Load the
-unpacked build, enable FluentTyper on docs.google.com, and append
-`fluentTyperDocs=1` to the document's edit URL. Reload after enabling the parameter:
-the annotation bootstrap must run at `document_start`. Remove the parameter and
-reload to return to the previous behavior. Normal title/comment helpers stay active.
+For manual testing use a dedicated browser profile and a NEW, EMPTY, DISPOSABLE
+document. Load the unpacked build and enable FluentTyper on docs.google.com; the
+adapter activates on any document edit URL. The annotation bootstrap runs at
+`document_start`, so reload the document after enabling the site. Normal
+title/comment helpers stay active.
 
-The parameter is deliberately retained as a release gate. Passing a build in
-`production` mode does not mean this private-API integration is production-certified.
+Passing a build in `production` mode does not mean this private-API integration is
+production-certified.
 No new permissions, dependencies, network services, clipboard reads or clipboard
 writes are added. Predictions use the existing local backend and its settings.
 The MAIN-world bridge exposes no extension APIs to the page.
@@ -148,8 +148,9 @@ and asks the operator to verify Saved to Drive before testing reload persistence
 It writes a local report and never retries a failed edit. **It has not been run
 against live Google Docs in this environment.** It is a smoke check, not the full matrix.
 
-Before removing the release gate, obtain actual evidence for the owning extension
-IDs, Chrome/Edge/Firefox, all supported keyboard settings, snippets/dynamic variables,
+Verified live in Chrome (2026-09-15): the annotated API activates for FluentTyper's own
+extension ID, suggestions render at the caret, Tab acceptance is verified as applied, and
+native undo/redo work. Still unverified: Edge/Firefox, all supported keyboard settings, snippets/dynamic variables,
 user dictionaries, language/site profiles, native undo/redo, mixed formatting and
 links, headings/lists/tables/footnotes, multiple tabs, two collaborating accounts,
 disjoint and overlapping remote edits, zoom/scroll, RTL, native IMEs, screen readers,

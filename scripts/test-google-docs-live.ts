@@ -47,7 +47,6 @@ async function main(): Promise<void> {
   ) {
     throw new Error("A real Google Docs document edit URL is required.");
   }
-  url.searchParams.set("fluentTyperDocs", "1");
   const extension = path.resolve(extensionValue);
   const profile = path.resolve(profileValue);
   await mkdir(profile, { recursive: true });
@@ -67,13 +66,9 @@ async function main(): Promise<void> {
       "Sign in locally if necessary. Set up FluentTyper, open this disposable document, and click its empty writing area. Then press Enter here. ",
     );
     const current = new URL(page.url());
-    if (
-      current.origin !== url.origin ||
-      current.pathname !== url.pathname ||
-      current.searchParams.get("fluentTyperDocs") !== "1"
-    ) {
+    if (current.origin !== url.origin || current.pathname !== url.pathname) {
       throw new Error(
-        "The selected page is not the specified opted-in test document. No typing was attempted.",
+        "The selected page is not the specified test document. No typing was attempted.",
       );
     }
     const before = await read(page);

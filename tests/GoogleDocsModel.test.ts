@@ -28,14 +28,16 @@ function complete(text: string, suggestion: string, anchor = text.length, focus 
   return { edit, result: text.slice(0, edit.start) + edit.replacement + text.slice(edit.end) };
 }
 describe("Google Docs logical edits", () => {
-  test("opt-in only applies to an actual Docs edit URL", () => {
-    expect(isGoogleDocsURL("https://docs.google.com/document/d/123/edit?fluentTyperDocs=1")).toBe(
-      true,
-    );
+  test("applies only to an actual Docs edit URL", () => {
     for (const url of [
-      "https://evil.example/document/d/123/edit?fluentTyperDocs=1",
       "https://docs.google.com/document/d/123/edit",
-      "https://docs.google.com/document/d/123/view?fluentTyperDocs=1",
+      "https://docs.google.com/document/u/0/d/123/edit?tab=t.0",
+    ])
+      expect(isGoogleDocsURL(url)).toBe(true);
+    for (const url of [
+      "https://evil.example/document/d/123/edit",
+      "https://docs.google.com/document/d/123/view",
+      "https://docs.google.com/spreadsheets/d/123/edit",
     ])
       expect(isGoogleDocsURL(url)).toBe(false);
   });
