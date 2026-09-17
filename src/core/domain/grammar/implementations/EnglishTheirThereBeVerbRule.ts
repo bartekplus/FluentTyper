@@ -9,7 +9,6 @@ const THEIR_THERE_BE_REGEX = /\btheir\s+(is|are|was|were)$/i;
 
 export class EnglishTheirThereBeVerbRule implements GrammarRule {
   readonly id = "englishTheirThereBeVerb" as const;
-  readonly name = "English Their There Be Verb";
   readonly triggers: GrammarEventType[] = ["wordBoundary"];
 
   apply(context: GrammarContext): GrammarEdit | null {
@@ -37,9 +36,6 @@ export class EnglishTheirThereBeVerbRule implements GrammarRule {
       replacement: `${applyWordCase("there", style)} ${applyWordCase(verb.toLowerCase(), detectWordCase(verb))}${boundaryContext.trailing}`,
       deleteBackwards: boundaryContext.input.length - phraseStart,
       deleteForwards: 0,
-      confidence: "high",
-      safetyTier: "safe",
-      description: "Corrected their/there phrase",
     };
   }
 }

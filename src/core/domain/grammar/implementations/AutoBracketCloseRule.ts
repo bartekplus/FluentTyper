@@ -23,7 +23,6 @@ const WORD_CHAR_REGEX = /[\p{L}\p{N}]/u;
 
 export class AutoBracketCloseRule implements GrammarRule {
   readonly id = "autoBracketClose" as const;
-  readonly name = "Auto-close Brackets and Quotes";
   readonly triggers: GrammarEventType[] = ["insertChar"];
 
   apply(context: GrammarContext): GrammarEdit | null {
@@ -90,10 +89,7 @@ export class AutoBracketCloseRule implements GrammarRule {
       deleteBackwards: 1,
       deleteForwards: 0,
       cursorOffset: 1,
-      confidence: "medium",
-      safetyTier: "advanced",
       sourceRuleId: "autoBracketClose",
-      description: `Auto-closed ${openChar}${closeChar}`,
     };
   }
 
@@ -123,10 +119,7 @@ export class AutoBracketCloseRule implements GrammarRule {
       replacement: closeChar,
       deleteBackwards: 1,
       deleteForwards: 1,
-      confidence: "high",
-      safetyTier: "advanced",
       sourceRuleId: "autoBracketClose",
-      description: `Skipped over auto-inserted ${closeChar}`,
     };
   }
 }

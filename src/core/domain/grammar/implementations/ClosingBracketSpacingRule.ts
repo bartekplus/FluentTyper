@@ -1,10 +1,10 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
 import { SPACE_CHARS } from "../../spacingRules";
+import { resolveInputAction } from "./helpers/GenericRuleShared";
 import { SpacingRuleShared } from "./helpers/SpacingRuleShared";
 
 export class ClosingBracketSpacingRule extends SpacingRuleShared implements GrammarRule {
   readonly id = "closingBracketSpacing" as const;
-  readonly name = "Closing Bracket Spacing";
   readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
 
   apply(context: GrammarContext): GrammarEdit | null {
@@ -26,7 +26,7 @@ export class ClosingBracketSpacingRule extends SpacingRuleShared implements Gram
       this.insertSpaceAfterAutocomplete &&
       this.isProseLikeClosingContext(inputStr, closingBracket, closingIndex);
 
-    const inputAction = this.resolveInputAction(context);
+    const inputAction = resolveInputAction(context);
     if (inputAction === "delete" && !spaceBeforeViolated && insertSpaceAfter) {
       return null;
     }
@@ -38,7 +38,6 @@ export class ClosingBracketSpacingRule extends SpacingRuleShared implements Gram
     return this.createEdit(
       `${closingBracket}${insertSpaceAfter ? " " : ""}`,
       spaceBeforeViolated ? 2 : 1,
-      "Applied closing bracket spacing",
     );
   }
 
@@ -77,10 +76,6 @@ export class ClosingBracketSpacingRule extends SpacingRuleShared implements Gram
         return false;
       }
       return true;
-    }
-
-    if (openingBracket === "(" && this.isControlKeywordBeforeIndex(inputStr, openingIndex)) {
-      return false;
     }
 
     return false;

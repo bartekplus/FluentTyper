@@ -39,10 +39,7 @@ describe("AutoBracketCloseRule", () => {
         deleteBackwards: 1,
         deleteForwards: 0,
         cursorOffset: 1,
-        confidence: "medium",
-        safetyTier: "advanced",
         sourceRuleId: "autoBracketClose",
-        description: `Auto-closed ${replacement}`,
       });
     });
 
@@ -123,10 +120,7 @@ describe("AutoBracketCloseRule", () => {
         replacement: ")",
         deleteBackwards: 1,
         deleteForwards: 1,
-        confidence: "high",
-        safetyTier: "advanced",
         sourceRuleId: "autoBracketClose",
-        description: "Skipped over auto-inserted )",
       });
     });
 

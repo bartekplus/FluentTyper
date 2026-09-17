@@ -39,11 +39,9 @@ type LoadedContentScript = {
     enabled: boolean;
     config: Record<string, unknown>;
     suggestionManager: SuggestionLike | null;
-    domObserver: DomObserverLike;
     handleGetPrediction: (context: Record<string, unknown>) => void;
     messageHandler: (
-      message: { command: string; context: Record<string, unknown> } | null,
-      sender?: chrome.runtime.MessageSender,
+      message: { command: string; context?: Record<string, unknown> } | null,
       sendResponse?: (response: unknown) => void,
     ) => void;
     processMutations: (mutations: MutationRecord[]) => void;
@@ -110,28 +108,24 @@ jest.unstable_mockModule("../src/core/application/dom-utils", () => ({
   getDeepActiveElement: (doc: Document) => doc.activeElement,
 }));
 
-jest.unstable_mockModule("../src/adapters/chrome/content-script/SuggestionManager", () => ({
-  SuggestionManager: jest.fn().mockImplementation(() => {
-    const instance: SuggestionLike = {
-      queryAndAttachHelper: jest.fn(() => false),
-      detachAllHelpers: jest.fn(),
-      removeHelpersNotInDocument: jest.fn(),
-      updateLangConfig: jest.fn(),
-      triggerActiveSuggestion: jest.fn(),
-      fulfillPrediction: jest.fn(),
-      handleEarlyTabAcceptRequest: jest.fn(() => ({
-        accepted: false,
-        reason: "entry_not_found",
-        entryId: "0",
-        suggestionCount: 0,
-        menuVisible: false,
-        hasInlineSuggestion: false,
-      })),
-    };
-    behaviorHarness.suggestionInstances.push(instance);
-    return instance;
+jest.unstable_mockModule(
+  "../src/adapters/chrome/content-script/suggestions/SuggestionManagerRuntime",
+  () => ({
+    SuggestionManagerRuntime: jest.fn().mockImplementation(() => {
+      const instance: SuggestionLike = {
+        queryAndAttachHelper: jest.fn(() => false),
+        detachAllHelpers: jest.fn(),
+        removeHelpersNotInDocument: jest.fn(),
+        updateLangConfig: jest.fn(),
+        triggerActiveSuggestion: jest.fn(),
+        fulfillPrediction: jest.fn(),
+        handleEarlyTabAcceptRequest: jest.fn(() => false),
+      };
+      behaviorHarness.suggestionInstances.push(instance);
+      return instance;
+    }),
   }),
-}));
+);
 
 jest.unstable_mockModule("../src/adapters/chrome/content-script/DomObserver", () => ({
   DomObserver: jest.fn().mockImplementation((initialNode: unknown) => {
@@ -230,14 +224,7 @@ describe("content_script behavior", () => {
 
     fluentTyper.enable();
     const suggestionManager = suggestionInstances[0];
-    suggestionManager.handleEarlyTabAcceptRequest.mockReturnValue({
-      accepted: true,
-      reason: "accepted_menu",
-      entryId: "17",
-      suggestionCount: 1,
-      menuVisible: true,
-      hasInlineSuggestion: false,
-    });
+    suggestionManager.handleEarlyTabAcceptRequest.mockReturnValue(true);
 
     const event = new window.MessageEvent("message", {
       source: window,
@@ -257,14 +244,7 @@ describe("content_script behavior", () => {
 
     fluentTyper.enable();
     const suggestionManager = suggestionInstances[0];
-    suggestionManager.handleEarlyTabAcceptRequest.mockReturnValue({
-      accepted: true,
-      reason: "accepted_menu",
-      entryId: "23",
-      suggestionCount: 1,
-      menuVisible: true,
-      hasInlineSuggestion: false,
-    });
+    suggestionManager.handleEarlyTabAcceptRequest.mockReturnValue(true);
 
     const channel = new MessageChannel();
     const event = new window.MessageEvent("message", {
@@ -511,10 +491,10 @@ describe("content_script behavior", () => {
   });
 
   test("setConfig applies theme and restarts when already enabled", async () => {
-    const { fluentTyper } = await loadContentScript();
-    const restartSpy = jest.spyOn(fluentTyper, "restart");
+    const { fluentTyper, suggestionInstances } = await loadContentScript();
 
     fluentTyper.enabled = true;
+    const initialManager = suggestionInstances[0];
     fluentTyper.setConfig(
       defaultConfig({
         enabled: true,
@@ -540,7 +520,7 @@ describe("content_script behavior", () => {
     expect(style).not.toBeNull();
     expect(style!.textContent).toContain("--suggestion-bg-light: #ffffff");
     expect(style!.textContent).toContain("--ft-theme-suggestion-text-dark: #f4f4f4");
-    expect(restartSpy).toHaveBeenCalled();
+    expect(initialManager.detachAllHelpers).toHaveBeenCalled();
   });
 
   test("messageHandler handles config/lang/toggle/trigger commands and status replies", async () => {
@@ -553,7 +533,6 @@ describe("content_script behavior", () => {
         command: CMD_BACKGROUND_PAGE_SET_CONFIG,
         context: defaultConfig({ enabled: true }),
       },
-      undefined,
       (response) => statusResponses.push(response),
     );
     expect(statusResponses[0]).toEqual({
@@ -567,30 +546,21 @@ describe("content_script behavior", () => {
         command: CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG,
         context: { lang: "fr_FR" },
       },
-      undefined,
       (response) => statusResponses.push(response),
     );
     expect(suggestionManager.updateLangConfig).toHaveBeenCalledWith("fr_FR");
 
-    fluentTyper.messageHandler(
-      { command: CMD_POPUP_PAGE_DISABLE, context: {} },
-      undefined,
-      (response) => statusResponses.push(response),
+    fluentTyper.messageHandler({ command: CMD_POPUP_PAGE_DISABLE, context: {} }, (response) =>
+      statusResponses.push(response),
     );
-    fluentTyper.messageHandler(
-      { command: CMD_POPUP_PAGE_ENABLE, context: {} },
-      undefined,
-      (response) => statusResponses.push(response),
+    fluentTyper.messageHandler({ command: CMD_POPUP_PAGE_ENABLE, context: {} }, (response) =>
+      statusResponses.push(response),
     );
-    fluentTyper.messageHandler(
-      { command: CMD_TOGGLE_FT_ACTIVE_TAB, context: {} },
-      undefined,
-      (response) => statusResponses.push(response),
+    fluentTyper.messageHandler({ command: CMD_TOGGLE_FT_ACTIVE_TAB, context: {} }, (response) =>
+      statusResponses.push(response),
     );
-    fluentTyper.messageHandler(
-      { command: CMD_TRIGGER_FT_ACTIVE_TAB, context: {} },
-      undefined,
-      (response) => statusResponses.push(response),
+    fluentTyper.messageHandler({ command: CMD_TRIGGER_FT_ACTIVE_TAB, context: {} }, (response) =>
+      statusResponses.push(response),
     );
 
     expect(suggestionManager.triggerActiveSuggestion).toHaveBeenCalled();
@@ -725,6 +695,36 @@ describe("content_script behavior", () => {
     expect(restartSpy).toHaveBeenCalled();
     expect(domObserver.setNode).toHaveBeenCalledWith(document.body || document.documentElement);
     expect(sendMessage).toHaveBeenCalled();
+  });
+
+  test("watchdog prefers a host change over a node change and skips the DOM restart", async () => {
+    const { fluentTyper, domObserverInstances } = await loadContentScript();
+    const domObserver = domObserverInstances[0];
+    const getConfigSpy = jest.spyOn(fluentTyper, "getConfig");
+
+    (fluentTyper as unknown as { hostName: string }).hostName = "example.com";
+    domObserver.getNode.mockReturnValue(document.createElement("div"));
+    fluentTyper.enabled = true;
+    domObserver.setNode.mockClear();
+
+    fluentTyper.watchDog();
+
+    expect(getConfigSpy).toHaveBeenCalled();
+    expect(domObserver.setNode).not.toHaveBeenCalled();
+  });
+
+  test("watchdog does nothing when host and observed node are unchanged", async () => {
+    const { fluentTyper, domObserverInstances } = await loadContentScript();
+    const domObserver = domObserverInstances[0];
+    const getConfigSpy = jest.spyOn(fluentTyper, "getConfig");
+
+    domObserver.getNode.mockReturnValue(document.body || document.documentElement);
+    domObserver.setNode.mockClear();
+
+    fluentTyper.watchDog();
+
+    expect(getConfigSpy).not.toHaveBeenCalled();
+    expect(domObserver.setNode).not.toHaveBeenCalled();
   });
 
   test("getConfig requests config and passes callback response to messageHandler", async () => {

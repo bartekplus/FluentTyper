@@ -112,7 +112,10 @@ function installBackgroundHarnessModuleMocks(): void {
   jest.unstable_mockModule("../src/core/application/settingsManager", () => ({
     SettingsManager: jest.fn().mockImplementation(() => ({
       get: (...args: [string]) => backgroundHarnessMocks.settingsGet(...args),
+      getRaw: (...args: [string]) => backgroundHarnessMocks.settingsGet(...args),
       set: (...args: [string, unknown]) => backgroundHarnessMocks.settingsSet(...args),
+      setRaw: (...args: [string, unknown]) => backgroundHarnessMocks.settingsSet(...args),
+      removeRaw: jest.fn(async () => undefined),
     })),
   }));
 
@@ -176,8 +179,9 @@ function installBackgroundHarnessModuleMocks(): void {
     isEnabledForDomain: (...args: [unknown, string]) =>
       backgroundHarnessMocks.isEnabledForDomain(...args),
     isLetter: (character: string) => /^\p{L}/u.test(character),
-    isWhiteSpace: (character: string, matchNewLine = true) =>
-      (matchNewLine ? /\s+/ : /[^\S\r\n]+/).test(character),
+    toStoredString: (value: unknown) =>
+      typeof value === "string" ? value : typeof value === "number" ? String(value) : null,
+    isWhiteSpace: (character: string) => /\s+/.test(character),
     isNumber: (value: string) =>
       (!Number.isNaN(Number(value)) && !Number.isNaN(Number.parseFloat(value))) ||
       value.replace(/[^0-9]/g, "").length > 1,
@@ -920,7 +924,7 @@ describe("background routing and lifecycle", () => {
     expect(updateSpy).toHaveBeenCalled();
     expect(sendResponse).toHaveBeenCalledWith({ ok: false });
     expect(harness.logError).toHaveBeenCalledWith(
-      "handleOptionsPageConfigChange.config.message_update_runtime_config_failed",
+      "MessageRouter.CMD_OPTIONS_PAGE_CONFIG_CHANGE.config.message_update_runtime_config_failed",
       expect.any(Error),
     );
   });

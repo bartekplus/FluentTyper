@@ -247,7 +247,6 @@ export interface DailyTrendPoint {
 export interface DonationPromptSummary {
   promptId: string;
   kind: "first_value" | "milestone" | "weekly_recap";
-  source: "lifetime_threshold" | "weekly_recap";
   milestoneHours: number | null;
   message: string;
 }

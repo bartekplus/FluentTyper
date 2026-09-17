@@ -4,7 +4,9 @@ import type { SettingsManager } from "../src/core/application/settingsManager";
 function createSettingsManagerMock(seed: Record<string, unknown>): SettingsManager {
   return {
     get: async (key: string) => seed[key] as never,
+    getRaw: async (key: string) => seed[key] as never,
     set: async () => undefined,
+    setRaw: async () => undefined,
   } as unknown as SettingsManager;
 }
 

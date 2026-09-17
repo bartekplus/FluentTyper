@@ -3,7 +3,6 @@ import { SPACE_CHARS } from "../../spacingRules";
 
 export class TrimSpaceBeforeLineBreakRule implements GrammarRule {
   readonly id = "trimSpaceBeforeLineBreak" as const;
-  readonly name = "Trim Space Before Line Break";
   readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
 
   apply(context: GrammarContext): GrammarEdit | null {
@@ -26,8 +25,6 @@ export class TrimSpaceBeforeLineBreakRule implements GrammarRule {
       replacement: "\n",
       deleteBackwards: spacesBeforeNewline + 1,
       deleteForwards: 0,
-      confidence: "high",
-      description: "Trimmed spaces before line break",
     };
   }
 }

@@ -86,10 +86,6 @@ export class ProductivityStatsService {
     this.snippetShortcuts = new Set(shortcuts);
   }
 
-  async recordSuggestionAccepted(event: ContentScriptUsageEventContext): Promise<void> {
-    await this.recordUsageEvent(event);
-  }
-
   async recordUsageEvent(event: ContentScriptUsageEventContext): Promise<void> {
     await this.enqueueMutation((state) => {
       const { todayKey, todayBucket } = this.getTodayBucket(state, this.now());
@@ -212,19 +208,19 @@ export class ProductivityStatsService {
       state.charactersSaved,
     );
 
-    const lifetimeEvents = this.aggregator.eventsFromCounters(
-      state.suggestionsShown,
-      state.snippetsExpanded,
-      state.charsInsertedFromSnippet,
-      state.charsTypedForTrigger,
-    );
+    const lifetimeEvents = {
+      suggestionsShown: state.suggestionsShown,
+      snippetsExpanded: state.snippetsExpanded,
+      charsInsertedFromSnippet: state.charsInsertedFromSnippet,
+      charsTypedForTrigger: state.charsTypedForTrigger,
+    };
 
-    const last7DaysEvents = this.aggregator.eventsFromCounters(
-      last7Range.suggestionsShown,
-      last7Range.snippetsExpanded,
-      last7Range.charsInsertedFromSnippet,
-      last7Range.charsTypedForTrigger,
-    );
+    const last7DaysEvents = {
+      suggestionsShown: last7Range.suggestionsShown,
+      snippetsExpanded: last7Range.snippetsExpanded,
+      charsInsertedFromSnippet: last7Range.charsInsertedFromSnippet,
+      charsTypedForTrigger: last7Range.charsTypedForTrigger,
+    };
 
     const perLanguageLifetime = this.aggregator.getLanguageSummaries(state.languageUsage);
     const perLanguageLast7Days = this.aggregator.getLanguageSummaries(last7Range.languageUsage);
@@ -316,7 +312,7 @@ export class ProductivityStatsService {
 
   async resetStats(): Promise<void> {
     const operation = this.mutationQueue.then(async () => {
-      await this.saveState(this.sanitizer.createDefaultStatsState());
+      await this.repository.saveState(this.sanitizer.createDefaultStatsState());
     });
 
     this.mutationQueue = operation.catch((error: unknown) => {
@@ -331,7 +327,7 @@ export class ProductivityStatsService {
     const operation = this.mutationQueue.then(async () => {
       const state = await this.loadState();
       await mutation(state);
-      await this.saveState(state);
+      await this.repository.saveState(state);
     });
 
     this.mutationQueue = operation.catch((error: unknown) => {
@@ -342,9 +338,5 @@ export class ProductivityStatsService {
 
   private async loadState(): Promise<ProductivityStatsState> {
     return this.sanitizer.sanitizeStatsState(await this.repository.loadState());
-  }
-
-  private async saveState(state: ProductivityStatsState): Promise<void> {
-    await this.repository.saveState(state);
   }
 }

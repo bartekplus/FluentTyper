@@ -1,3 +1,4 @@
+import { BLOCK_TAGS } from "./ContentEditableAdapter";
 import { resolveSuggestionOverlayRoot } from "./SuggestionOverlayRoot";
 import { TextTargetAdapter } from "./TextTargetAdapter";
 
@@ -63,22 +64,6 @@ const INLINE_STYLE_PROPERTIES = [
   "textTransform",
 ] as const;
 
-const BLOCK_TAGS = new Set([
-  "P",
-  "DIV",
-  "LI",
-  "BLOCKQUOTE",
-  "PRE",
-  "TD",
-  "TH",
-  "H1",
-  "H2",
-  "H3",
-  "H4",
-  "H5",
-  "H6",
-]);
-
 export class InlineSuggestionView {
   static readonly CLASS_NAME = "ft-suggestion-inline";
   static readonly OWNED_ATTR = "data-ft-suggestion-owned";
@@ -136,87 +121,6 @@ export class InlineSuggestionView {
 
     const targetRect = target.getBoundingClientRect();
     const maxWidth = Math.max(0, targetRect.right - caretRect.left);
-    if (maxWidth > 0) {
-      ghost.style.maxWidth = `${maxWidth}px`;
-    }
-
-    resolveSuggestionOverlayRoot(doc).appendChild(ghost);
-    return ghost;
-  }
-
-  /**
-   * Render a replace-preview ghost for mid-text suggestions.
-   *
-   * Instead of appending a suffix at the caret (which overlaps following text),
-   * this overlays the full suggested word over the current word position with a
-   * background colour so the suggestion is always readable.
-   */
-  static renderReplacePreview({
-    target,
-    fullWord,
-    typedPrefix,
-    caretRect,
-    entryId,
-    doc = document,
-  }: {
-    target: HTMLElement;
-    fullWord: string;
-    typedPrefix: string;
-    caretRect: DOMRect;
-    entryId?: number;
-    doc?: Document;
-  }): HTMLDivElement | null {
-    InlineSuggestionView.removeForEntry(entryId, doc);
-
-    const suffix = fullWord.slice(typedPrefix.length);
-    if (!suffix) {
-      return null;
-    }
-
-    const ghost = doc.createElement("div");
-    ghost.className = InlineSuggestionView.CLASS_NAME;
-    ghost.setAttribute(InlineSuggestionView.OWNED_ATTR, "true");
-    ghost.setAttribute(InlineSuggestionView.ROLE_ATTR, InlineSuggestionView.INLINE_ROLE);
-    if (entryId !== undefined) {
-      ghost.setAttribute(ENTRY_ID_ATTR, String(entryId));
-    }
-
-    const styleTarget = InlineSuggestionView.resolveCaretElement(target, doc) ?? target;
-    const computedStyle = window.getComputedStyle(styleTarget);
-
-    InlineSuggestionView.applyFontStyles(ghost, computedStyle);
-
-    const prefixSpan = doc.createElement("span");
-    prefixSpan.textContent = typedPrefix;
-
-    const suffixSpan = doc.createElement("span");
-    suffixSpan.style.opacity = "0.5";
-    suffixSpan.textContent = suffix;
-
-    ghost.appendChild(prefixSpan);
-    ghost.appendChild(suffixSpan);
-
-    const lineHeightPx = parseFloat(computedStyle.lineHeight);
-    const leadingOffset =
-      caretRect.height > 0 && lineHeightPx > caretRect.height
-        ? (lineHeightPx - caretRect.height) / 2
-        : 0;
-
-    const prefixWidth = InlineSuggestionView.measureTextWidth(typedPrefix, computedStyle, doc);
-    const wordStartLeft = caretRect.left - prefixWidth;
-
-    ghost.style.color = computedStyle.color;
-    ghost.style.backgroundColor = InlineSuggestionView.resolveBackgroundColor(target);
-    ghost.style.position = "fixed";
-    ghost.style.left = `${wordStartLeft}px`;
-    ghost.style.top = `${caretRect.top - leadingOffset}px`;
-    ghost.style.pointerEvents = "none";
-    ghost.style.whiteSpace = "pre";
-    ghost.style.zIndex = "10000";
-    ghost.style.overflow = "hidden";
-
-    const targetRect = target.getBoundingClientRect();
-    const maxWidth = Math.max(0, targetRect.right - wordStartLeft);
     if (maxWidth > 0) {
       ghost.style.maxWidth = `${maxWidth}px`;
     }
@@ -561,33 +465,6 @@ export class InlineSuggestionView {
     ghost.style.fontFeatureSettings = computedStyle.fontFeatureSettings;
     ghost.style.fontKerning = computedStyle.fontKerning;
     ghost.style.textAlign = computedStyle.textAlign;
-  }
-
-  private static measureTextWidth(
-    text: string,
-    computedStyle: CSSStyleDeclaration,
-    doc: Document,
-  ): number {
-    const span = doc.createElement("span");
-    span.style.position = "absolute";
-    span.style.visibility = "hidden";
-    span.style.whiteSpace = "pre";
-    span.style.font = computedStyle.font;
-    span.style.fontFamily = computedStyle.fontFamily;
-    span.style.fontSize = computedStyle.fontSize;
-    span.style.fontWeight = computedStyle.fontWeight;
-    span.style.fontStyle = computedStyle.fontStyle;
-    span.style.fontVariant = computedStyle.fontVariant;
-    span.style.letterSpacing = computedStyle.letterSpacing;
-    span.style.wordSpacing = computedStyle.wordSpacing;
-    span.style.textTransform = computedStyle.textTransform;
-    span.style.fontFeatureSettings = computedStyle.fontFeatureSettings;
-    span.style.fontKerning = computedStyle.fontKerning;
-    span.textContent = text;
-    doc.body.appendChild(span);
-    const width = span.getBoundingClientRect().width;
-    span.remove();
-    return width;
   }
 
   private static resolveBackgroundColor(target: HTMLElement): string {

@@ -1,20 +1,22 @@
-import { globSync } from "glob";
-
 const POPUP_TEST = "tests/popup.dashboard.retry.test.ts";
 const SUGGESTION_MANAGER_TEST = "tests/SuggestionManager.test.ts";
 
 const UTILS_TEST = "tests/utils.test.ts";
 const PERSONALIZATION_SERVICE_TEST = "tests/PersonalizationService.test.ts";
 
+// The content_script suites module-mock SuggestionManagerRuntime, which would leak into
+// tests/SuggestionManagerRuntime.test.ts when run in the same process.
 const ISOLATED_TESTS = new Set([
+  "tests/content_script.behavior.test.ts",
+  "tests/content_script.watchdog.test.ts",
   POPUP_TEST,
   SUGGESTION_MANAGER_TEST,
   UTILS_TEST,
   PERSONALIZATION_SERVICE_TEST,
 ]);
 
-function sortedUnique(entries: string[]): string[] {
-  return [...new Set(entries)].sort((left, right) => left.localeCompare(right));
+function sorted(entries: string[]): string[] {
+  return [...entries].sort((left, right) => left.localeCompare(right));
 }
 
 async function runSuite(patterns: string[], label: string): Promise<void> {
@@ -33,9 +35,11 @@ async function runSuite(patterns: string[], label: string): Promise<void> {
   }
 }
 
-const rootTests = sortedUnique(globSync("tests/*.test.ts"));
-const jsTests = sortedUnique(globSync("tests/*.test.js"));
-const grammarTests = sortedUnique(globSync("tests/grammar/*.test.ts"));
+const rootTests = sorted(new Bun.Glob("tests/*.test.ts").scanSync({ onlyFiles: true }).toArray());
+const jsTests = sorted(new Bun.Glob("tests/*.test.js").scanSync({ onlyFiles: true }).toArray());
+const grammarTests = sorted(
+  new Bun.Glob("tests/grammar/*.test.ts").scanSync({ onlyFiles: true }).toArray(),
+);
 
 const isolatedTests = rootTests.filter((path) => ISOLATED_TESTS.has(path));
 const remainingRootTests = rootTests.filter((path) => !ISOLATED_TESTS.has(path));

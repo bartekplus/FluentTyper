@@ -39,13 +39,4 @@ export interface ProductivityStatsState {
   donationSnoozedUntil: string | null;
 }
 
-export interface AggregatedCounters {
-  acceptedSuggestions: number;
-  charactersSaved: number;
-  suggestionsShown: number;
-  snippetsExpanded: number;
-  charsInsertedFromSnippet: number;
-  charsTypedForTrigger: number;
-  snippetUsage: Record<string, SnippetUsageCounters>;
-  languageUsage: Record<string, LanguageUsageCounters>;
-}
+export type AggregatedCounters = DailyProductivityState;

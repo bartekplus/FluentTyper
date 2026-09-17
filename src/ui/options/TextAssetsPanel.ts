@@ -13,8 +13,8 @@ import { formatTranslation, i18n } from "./fluenttyperI18n.js";
 import {
   bindControlEvents,
   createStackField,
-  createWorkspaceGrid,
   createWorkspaceShell,
+  formatLooseText,
 } from "./workspacePanelUtils.js";
 
 type TextExpansionEntry = [string, string];
@@ -38,16 +38,6 @@ const VARIABLE_SNIPPETS = [
   "${page_title}",
   "${page_domain}",
 ];
-
-function toTextValue(value: unknown): string {
-  if (typeof value === "string") {
-    return value;
-  }
-  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
-    return String(value);
-  }
-  return "";
-}
 
 export class TextAssetsPanel {
   private readonly root: HTMLElement;
@@ -80,31 +70,31 @@ export class TextAssetsPanel {
     bindControlEvents(this.registry[KEY_USER_DICTIONARY_LIST], [
       ["action", () => void this.load()],
     ]);
-    bindControlEvents(this.registry[KEY_DATE_FORMAT], [["action", () => void this.render()]]);
-    bindControlEvents(this.registry[KEY_TIME_FORMAT], [["action", () => void this.render()]]);
     bindControlEvents(this.registry[KEY_DATE_FORMAT], [
+      ["action", () => void this.render()],
       [
         "change",
         () => {
-          this.liveDateFormat = toTextValue(this.registry[KEY_DATE_FORMAT].get());
+          this.liveDateFormat = formatLooseText(this.registry[KEY_DATE_FORMAT].get());
           this.refreshActiveSnippetPreview();
           void this.render();
         },
       ],
     ]);
     bindControlEvents(this.registry[KEY_TIME_FORMAT], [
+      ["action", () => void this.render()],
       [
         "change",
         () => {
-          this.liveTimeFormat = toTextValue(this.registry[KEY_TIME_FORMAT].get());
+          this.liveTimeFormat = formatLooseText(this.registry[KEY_TIME_FORMAT].get());
           this.refreshActiveSnippetPreview();
           void this.render();
         },
       ],
     ]);
 
-    this.liveDateFormat = toTextValue(this.registry[KEY_DATE_FORMAT]?.get());
-    this.liveTimeFormat = toTextValue(this.registry[KEY_TIME_FORMAT]?.get());
+    this.liveDateFormat = formatLooseText(this.registry[KEY_DATE_FORMAT]?.get());
+    this.liveTimeFormat = formatLooseText(this.registry[KEY_TIME_FORMAT]?.get());
     void this.load();
   }
 
@@ -124,9 +114,9 @@ export class TextAssetsPanel {
             typeof entry[1] === "string",
         )
       : [];
-    this.reconcileSnippetRows(expansions);
+    this.syncPersistedRows(expansions);
     this.dictionary = Array.isArray(rawDictionary)
-      ? rawDictionary.map((entry) => toTextValue(entry)).filter(Boolean)
+      ? rawDictionary.map((entry) => formatLooseText(entry)).filter(Boolean)
       : [];
     this.liveDateFormat = typeof rawDateFormat === "string" ? rawDateFormat : "";
     this.liveTimeFormat = typeof rawTimeFormat === "string" ? rawTimeFormat : "";
@@ -135,7 +125,7 @@ export class TextAssetsPanel {
 
   render(): void {
     const shell = createWorkspaceShell();
-    const lowerGrid = createWorkspaceGrid("workspace-main-grid");
+    const lowerGrid = createWorkspaceShell("workspace-main-grid");
     lowerGrid.append(this.createDictionaryWorkspace(), this.createVariableWorkspace());
     shell.append(this.createSnippetWorkspaceCard(), lowerGrid);
     this.root.replaceChildren(shell);
@@ -203,7 +193,7 @@ export class TextAssetsPanel {
         }) as unknown[][];
         const imported = parsed
           .filter((row) => row.length === 2)
-          .map((row) => [toTextValue(row[0]), toTextValue(row[1])] as TextExpansionEntry);
+          .map((row) => [formatLooseText(row[0]), formatLooseText(row[1])] as TextExpansionEntry);
         this.syncPersistedRows(this.mergeExpansions(this.getPersistedExpansions(), imported));
         this.setSnippetStatus(i18n.get("settings_status_saved"));
         this.persistSnippetRows();
@@ -364,8 +354,16 @@ export class TextAssetsPanel {
     actions.className = "text-assets-actions";
     actions.appendChild(
       this.createButton(i18n.get("text_assets_save_snippet"), () => {
-        const targetRow =
-          this.getSelectedSnippet() || this.createDetachedSnippetDraft(shortcut.value, body.value);
+        let targetRow = this.getSelectedSnippet();
+        if (!targetRow) {
+          targetRow = this.createSnippetRow({
+            shortcut: shortcut.value,
+            text: body.value,
+            persisted: false,
+          });
+          this.snippetRows = [targetRow, ...this.snippetRows];
+          this.selectedSnippetId = targetRow.id;
+        }
         const nextEntry: TextExpansionEntry = [shortcut.value.trim(), body.value];
         if (!nextEntry[0]) {
           return;
@@ -577,7 +575,7 @@ export class TextAssetsPanel {
       }
       const reader = new FileReader();
       reader.addEventListener("load", () => {
-        const words = toTextValue(reader.result)
+        const words = formatLooseText(reader.result)
           .split(/\r?\n/)
           .map((entry) => entry.trim())
           .filter(Boolean);
@@ -633,7 +631,7 @@ export class TextAssetsPanel {
 
     const dateInput = document.createElement("input");
     dateInput.className = "input";
-    dateInput.value = toTextValue(this.registry[KEY_DATE_FORMAT].get());
+    dateInput.value = formatLooseText(this.registry[KEY_DATE_FORMAT].get());
     dateInput.placeholder = i18n.get("custom_date_format_label");
     dateInput.addEventListener("input", () => {
       this.liveDateFormat = dateInput.value;
@@ -646,7 +644,7 @@ export class TextAssetsPanel {
 
     const timeInput = document.createElement("input");
     timeInput.className = "input";
-    timeInput.value = toTextValue(this.registry[KEY_TIME_FORMAT].get());
+    timeInput.value = formatLooseText(this.registry[KEY_TIME_FORMAT].get());
     timeInput.placeholder = i18n.get("custom_time_format_label");
     timeInput.addEventListener("input", () => {
       this.liveTimeFormat = timeInput.value;
@@ -783,13 +781,6 @@ export class TextAssetsPanel {
     };
   }
 
-  private createDetachedSnippetDraft(shortcut: string, text: string): SnippetRow {
-    const row = this.createSnippetRow({ shortcut, text, persisted: false });
-    this.snippetRows = [row, ...this.snippetRows];
-    this.selectedSnippetId = row.id;
-    return row;
-  }
-
   private nextSnippetRowId(): string {
     this.snippetRowSeq += 1;
     return `snippet-row-${this.snippetRowSeq}`;
@@ -823,10 +814,6 @@ export class TextAssetsPanel {
     if (!this.selectedSnippetId || !this.getSelectedSnippet()) {
       this.selectedSnippetId = this.snippetRows[0]?.id ?? null;
     }
-  }
-
-  private reconcileSnippetRows(expansions: TextExpansionEntry[]): void {
-    this.syncPersistedRows(expansions);
   }
 
   private updateSnippetPreview(target: HTMLElement, rawValue: string): void {

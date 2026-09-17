@@ -89,7 +89,7 @@ describe("bugs", () => {
 
       await testContext.ph.runPrediction("L'agglo", "", lang);
       const expectedPastStream = (lang === "fr_FR" ? "L agglo" : "L'agglo").toLocaleLowerCase();
-      expect(testContext.ph.getLastPredictionInput(lang)).toBe(expectedPastStream);
+      expect(mod.lastPastStream).toBe(expectedPastStream);
     });
 
     test("#5 #6 - letter case after a single quote", async () => {
@@ -150,7 +150,7 @@ describe("bugs", () => {
 
     await testContext.ph.runPrediction("Whb", "", "en_US", undefined, "tsoever");
 
-    expect(testContext.ph.getLastPredictionInput("en_US")).toBe("whbtsoever");
+    expect(mod.lastPastStream).toBe("whbtsoever");
   });
 });
 

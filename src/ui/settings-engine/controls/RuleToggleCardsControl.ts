@@ -1,22 +1,12 @@
-import type { RuleToggleCardsConfig } from "../types.js";
+import type { RuleOption, RuleToggleCardsConfig } from "../types.js";
 import type { Store } from "@core/application/storage/Store.js";
 import { BaseControl } from "./FieldControl.js";
-
-interface NormalizedRule {
-  value: string;
-  text: string;
-  description?: string;
-  example?: string;
-  badge?: string;
-  safetyTier: "safe" | "advanced";
-  languageScope: "all" | "en_US";
-}
 
 interface RuleControl {
   value: string;
   input: HTMLInputElement;
   card: HTMLLabelElement;
-  rule: NormalizedRule;
+  rule: RuleOption;
 }
 
 interface FilterButton {
@@ -28,44 +18,6 @@ interface SectionBundle {
   section: HTMLElement;
   list: HTMLElement;
   details?: HTMLDetailsElement;
-}
-
-function toRuleString(value: unknown): string | null {
-  if (typeof value === "string") {
-    return value;
-  }
-  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
-    return String(value);
-  }
-  return null;
-}
-
-function normalizeRule(option: unknown): NormalizedRule {
-  if (Array.isArray(option)) {
-    const [v, t] = option as [unknown, unknown];
-    const value = toRuleString(v) ?? "";
-    return {
-      value,
-      text: toRuleString(t) ?? value,
-      safetyTier: "safe",
-      languageScope: "all",
-    };
-  }
-  if (option && typeof option === "object") {
-    const o = option as Record<string, unknown>;
-    const value = toRuleString(o["value"]) ?? "";
-    return {
-      value,
-      text: toRuleString(o["text"]) ?? value,
-      description: toRuleString(o["description"]) ?? undefined,
-      example: toRuleString(o["example"]) ?? undefined,
-      badge: toRuleString(o["badge"]) ?? undefined,
-      safetyTier: o["safetyTier"] === "advanced" ? "advanced" : "safe",
-      languageScope: o["languageScope"] === "en_US" ? "en_US" : "all",
-    };
-  }
-  const sv = toRuleString(option) ?? "";
-  return { value: sv, text: sv, safetyTier: "safe", languageScope: "all" };
 }
 
 export class RuleToggleCardsControl extends BaseControl<string[]> {
@@ -83,8 +35,8 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
 
   constructor(params: RuleToggleCardsConfig, store: Store) {
     super(params, store);
-    this.summaryLabel = params.summaryLabel ?? "Active rules";
-    this.emptyStateText = params.emptyStateText ?? "No grammar rules enabled.";
+    this.summaryLabel = params.summaryLabel;
+    this.emptyStateText = params.emptyStateText;
 
     const root = document.createElement("div");
     root.className = "field grammar-rule-selector-field";
@@ -118,7 +70,7 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
     const searchInput = document.createElement("input");
     searchInput.type = "search";
     searchInput.className = "input is-small grammar-rule-search-input";
-    searchInput.placeholder = params.searchPlaceholder ?? "Search grammar rules...";
+    searchInput.placeholder = params.searchPlaceholder;
     searchInput.setAttribute("aria-label", "Search grammar rules");
 
     const clearBtn = document.createElement("button");
@@ -136,11 +88,11 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
     filtersEl.className = "buttons has-addons grammar-rule-selector-filters";
 
     const filterDefs = [
-      { key: "all", label: params.filterAllLabel ?? "All" },
-      { key: "safe", label: params.filterSafeLabel ?? "Safe" },
-      { key: "advanced", label: params.filterAdvancedLabel ?? "Advanced" },
-      { key: "english", label: params.filterEnglishOnlyLabel ?? "English only" },
-      { key: "enabled", label: params.filterEnabledOnlyLabel ?? "Enabled only" },
+      { key: "all", label: params.filterAllLabel },
+      { key: "safe", label: params.filterSafeLabel },
+      { key: "advanced", label: params.filterAdvancedLabel },
+      { key: "english", label: params.filterEnglishOnlyLabel },
+      { key: "enabled", label: params.filterEnabledOnlyLabel },
     ];
 
     for (const { key, label } of filterDefs) {
@@ -172,29 +124,22 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
     this.summary = summary;
     toolbar.appendChild(summary);
 
-    if (Array.isArray(params.actions) && params.actions.length > 0) {
+    if (params.actions.length > 0) {
       const actionsEl = document.createElement("div");
       actionsEl.className = "buttons has-addons grammar-rule-selector-actions";
 
       for (const action of params.actions) {
-        if (!action || !Array.isArray(action.values) || !action.text) {
-          continue;
-        }
-
         const btn = document.createElement("button");
         btn.type = "button";
         btn.className = "button is-small is-light";
-        btn.textContent = toRuleString(action.text) ?? "";
+        btn.textContent = action.text;
         if (action.actionKey?.trim()) {
           btn.dataset["action"] = action.actionKey.trim();
         }
 
-        const values = action.values
-          .map((value) => toRuleString(value))
-          .filter((value): value is string => typeof value === "string");
         btn.addEventListener("click", (e) => {
           e.preventDefault();
-          this.set(values);
+          this.set(action.values);
         });
         actionsEl.appendChild(btn);
       }
@@ -207,7 +152,7 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
     // --- No-results indicator ---
     const noResults = document.createElement("p");
     noResults.className = "grammar-rule-selector-no-results is-hidden";
-    noResults.textContent = params.noMatchesText ?? "No grammar rules match your search.";
+    noResults.textContent = params.noMatchesText;
     this.noResults = noResults;
     container.appendChild(noResults);
 
@@ -215,27 +160,15 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
     const ruleList = document.createElement("div");
     ruleList.className = "grammar-rule-sections";
 
-    this.safeSection = this.createSection(params.sectionSafeLabel ?? "Safe rules", "safe");
-    this.advancedSection = this.createSection(
-      params.sectionAdvancedLabel ?? "Advanced (optional)",
-      "advanced",
-    );
+    this.safeSection = this.createSection(params.sectionSafeLabel, "safe");
+    this.advancedSection = this.createSection(params.sectionAdvancedLabel, "advanced");
     ruleList.appendChild(this.safeSection.section);
     ruleList.appendChild(this.advancedSection.section);
     container.appendChild(ruleList);
     root.appendChild(container);
 
     // --- Build rule cards ---
-    let rawOptions: unknown[] = [];
-    if (Array.isArray(params.options)) {
-      rawOptions = params.options;
-    } else if (params.options && Array.isArray((params.options as { values?: unknown[] }).values)) {
-      rawOptions = (params.options as { values: unknown[] }).values;
-    }
-
-    const rules = rawOptions.map(normalizeRule).filter((r) => r.value.length > 0);
-
-    for (const rule of rules) {
+    for (const rule of params.options) {
       const section = rule.safetyTier === "advanced" ? this.advancedSection : this.safeSection;
       const ruleControl = this.createCard(rule, section.list);
       this.ruleControls.push(ruleControl);
@@ -296,7 +229,7 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
     return { section, list };
   }
 
-  private createCard(rule: NormalizedRule, container: HTMLElement): RuleControl {
+  private createCard(rule: RuleOption, container: HTMLElement): RuleControl {
     const card = document.createElement("label");
     card.className = "grammar-rule-card";
     card.setAttribute("role", "checkbox");
@@ -465,7 +398,7 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
     }
   }
 
-  private matchesSearch(rule: NormalizedRule): boolean {
+  private matchesSearch(rule: RuleOption): boolean {
     if (!this.searchQuery) {
       return true;
     }

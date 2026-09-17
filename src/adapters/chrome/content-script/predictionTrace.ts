@@ -1,14 +1,12 @@
+import { randomUUID } from "@core/domain/randomId";
+
 export interface PredictionTraceContext {
   traceId: string;
   traceStartedAtMs: number;
 }
 
-export function generatePredictionTraceId(): string {
-  const randomPart =
-    typeof globalThis.crypto?.randomUUID === "function"
-      ? globalThis.crypto.randomUUID()
-      : `${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`;
-  return `pred-${randomPart}`;
+function generatePredictionTraceId(): string {
+  return `pred-${randomUUID()}`;
 }
 
 export function createPredictionTraceContext(

@@ -15,7 +15,6 @@ import type { BackgroundServiceWorker } from "../BackgroundServiceWorker";
 import {
   createErrorMappingMiddleware,
   createLoggingMiddleware,
-  createValidationMiddleware,
   HandlerRegistry,
 } from "./HandlerRegistry";
 
@@ -45,13 +44,13 @@ export class CommandRouter {
         const message: ToggleActiveTabMessage = {
           command: CMD_TOGGLE_FT_ACTIVE_TAB,
         };
-        getWorker().sendCommandToActiveTabContentScript(message);
+        getWorker().tabMessenger.sendToActiveTab(message);
       },
       [CMD_TRIGGER_FT_ACTIVE_TAB]: () => {
         const message: TriggerActiveTabMessage = {
           command: CMD_TRIGGER_FT_ACTIVE_TAB,
         };
-        getWorker().sendCommandToActiveTabContentScript(message);
+        getWorker().tabMessenger.sendToActiveTab(message);
       },
       [CMD_TOGGLE_FT_ACTIVE_LANG]: async () => {
         const worker = getWorker();
@@ -75,21 +74,17 @@ export class CommandRouter {
             updateLangConfigMessage,
           );
         } else {
-          worker.sendCommandToActiveTabContentScript(updateLangConfigMessage);
+          worker.tabMessenger.sendToActiveTab(updateLangConfigMessage);
         }
       },
     };
 
     this.registry = new HandlerRegistry<RuntimeCommand, void, void>([
       createErrorMappingMiddleware<void, void>({
-        mapUnknownCommand: (command) => {
-          logError("onCommand", `Unknown command: ${command}`);
-        },
         mapError: (error) => {
           logError("CommandRouter.handle", error);
         },
       }),
-      createValidationMiddleware<void, void, RuntimeCommand>(isRuntimeCommand),
       createLoggingMiddleware(logger),
     ]);
 
@@ -100,7 +95,7 @@ export class CommandRouter {
   }
 
   async handle(command: string): Promise<void> {
-    if (!this.registry.has(command)) {
+    if (!isRuntimeCommand(command)) {
       logError("onCommand", `Unknown command: ${command}`);
       return;
     }

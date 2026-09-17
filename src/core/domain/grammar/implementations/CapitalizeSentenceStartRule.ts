@@ -7,7 +7,6 @@ const CLOSING_CHARS = new Set([")", "]", "}", '"', "'", "”", "’"]);
 
 export class CapitalizeSentenceStartRule implements GrammarRule {
   readonly id = "capitalizeSentenceStart" as const;
-  readonly name = "Capitalize Sentence Start";
   readonly triggers: GrammarEventType[] = ["insertChar"];
 
   apply(context: GrammarContext): GrammarEdit | null {
@@ -32,8 +31,6 @@ export class CapitalizeSentenceStartRule implements GrammarRule {
         replacement: lastChar.toUpperCase(),
         deleteBackwards: 1,
         deleteForwards: 0,
-        confidence: "medium",
-        description: "Capitalized sequence start",
       };
     }
 
@@ -47,8 +44,6 @@ export class CapitalizeSentenceStartRule implements GrammarRule {
         replacement: lastChar.toUpperCase(),
         deleteBackwards: 1,
         deleteForwards: 0,
-        confidence: "high",
-        description: "Capitalized sentence start",
       };
     }
 

@@ -74,11 +74,6 @@ export interface GrammarEditApplyContext {
   } | null;
 }
 
-type GrammarEditInput = GrammarEdit & {
-  replacementText?: string;
-  replaceBackwardCount?: number;
-};
-
 export class SuggestionTextEditService {
   private readonly findMentionToken: (beforeCursor: string) => { token: string; start: number };
   private readonly isSeparator: (value: string) => boolean;
@@ -486,22 +481,13 @@ export class SuggestionTextEditService {
 
   public applyGrammarEdit(
     entry: SuggestionEntry,
-    edit: GrammarEditInput,
+    edit: GrammarEdit,
     context: GrammarEditApplyContext = {},
   ): TextEditApplyResult {
-    const replacement =
-      typeof edit.replacement === "string"
-        ? edit.replacement
-        : typeof edit.replacementText === "string"
-          ? edit.replacementText
-          : "";
-    const deleteBackwards =
-      typeof edit.deleteBackwards === "number" && Number.isFinite(edit.deleteBackwards)
-        ? Math.max(0, edit.deleteBackwards)
-        : typeof edit.replaceBackwardCount === "number" &&
-            Number.isFinite(edit.replaceBackwardCount)
-          ? Math.max(0, edit.replaceBackwardCount)
-          : 0;
+    const replacement = typeof edit.replacement === "string" ? edit.replacement : "";
+    const deleteBackwards = Number.isFinite(edit.deleteBackwards)
+      ? Math.max(0, edit.deleteBackwards)
+      : 0;
     const deleteForwards =
       typeof edit.deleteForwards === "number" && Number.isFinite(edit.deleteForwards)
         ? Math.max(0, edit.deleteForwards)
@@ -963,7 +949,7 @@ export class SuggestionTextEditService {
     entry.expectedCursorPosBlockText = null;
   }
 
-  private findTrailingToken(afterCursor: string): string {
+  public findTrailingToken(afterCursor: string): string {
     let end = 0;
     while (end < afterCursor.length) {
       const current = afterCursor.charAt(end);
@@ -1086,7 +1072,7 @@ export class SuggestionTextEditService {
         elem.selectionStart = cursorAfter;
         elem.selectionEnd = cursorAfter;
       }
-      this.dispatchInputEvent(elem);
+      elem.dispatchEvent(new Event("input", { bubbles: true }));
       return {
         didMutateDom: true,
         didDispatchInput: true,
@@ -1402,8 +1388,7 @@ export class SuggestionTextEditService {
     blockContext: { beforeCursor: string; afterCursor: string },
     blockTokenInfo: { token: string; start: number },
   ): AcceptedSuggestionEditResult | null {
-    const startedAt =
-      typeof globalThis.performance?.now === "function" ? globalThis.performance.now() : Date.now();
+    const startedAt = performance.now();
     const activeBlock = this.contentEditableAdapter.getActiveBlockElement(
       entry.elem as HTMLElement,
     );
@@ -1568,8 +1553,7 @@ export class SuggestionTextEditService {
       entry.pendingExtensionEdit.postEditBlockText = postEditBlockText;
     }
 
-    const finishedAt =
-      typeof globalThis.performance?.now === "function" ? globalThis.performance.now() : Date.now();
+    const finishedAt = performance.now();
     const durationMs = finishedAt - startedAt;
     logger.debug("Accepted contenteditable suggestion", {
       suggestionLength: suggestion.length,
@@ -1727,9 +1711,5 @@ export class SuggestionTextEditService {
       applyResult,
       postEditSnapshot: TextTargetAdapter.snapshot(elem),
     };
-  }
-
-  private dispatchInputEvent(elem: SuggestionElement): void {
-    elem.dispatchEvent(new Event("input", { bubbles: true }));
   }
 }

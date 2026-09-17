@@ -33,10 +33,7 @@ describe("MutationPipeline", () => {
       childListMutation(nodes),
     ];
 
-    expect(pipeline.buildPlan(mutations)).toEqual({
-      type: "full-scan",
-      reason: "large-batch",
-    });
+    expect(pipeline.buildPlan(mutations)).toEqual({ type: "full-scan" });
   });
 
   test("returns top-level targeted roots only", () => {
@@ -68,9 +65,6 @@ describe("MutationPipeline", () => {
 
     const plan = pipeline.buildPlan([childListMutation([first]), childListMutation([second])]);
 
-    expect(plan).toEqual({
-      type: "full-scan",
-      reason: "too-many-roots",
-    });
+    expect(plan).toEqual({ type: "full-scan" });
   });
 });

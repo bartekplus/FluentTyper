@@ -73,13 +73,7 @@ class DocsPositioning extends SuggestionPositioningService {
     return getDocsCaret()?.rect ?? new DOMRect(16, Math.max(16, window.innerHeight - 80), 0, 20);
   }
 }
-export interface DocsView {
-  render(suggestions: string[], index: number, snapshot: DocsSnapshot, language: string): boolean;
-  clear(): void;
-  status(status: DocsStatus): void;
-  dispose(): void;
-}
-export class GoogleDocsView implements DocsView {
+export class GoogleDocsView {
   private readonly elements = SuggestionMenuView.ensureMenu();
   private readonly presenter = new SuggestionMenuPresenter(new DocsPositioning());
   private readonly live = document.createElement("div");

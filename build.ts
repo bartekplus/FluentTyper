@@ -3,6 +3,7 @@ import process from "process";
 import { fileURLToPath } from "url";
 import { cp, mkdir, readFile, readdir, rm, writeFile } from "fs/promises";
 import { watch as fsWatch, type FSWatcher } from "fs";
+import { parseArgs } from "node:util";
 
 type BuildMode = "production" | "development";
 
@@ -28,7 +29,6 @@ interface BuildContext {
   platform: string;
   includeWebLLMRuntime: boolean;
   configuredLogLevel: string;
-  rootDir: string;
   srcDir: string;
   buildDir: string;
   publicDir: string;
@@ -38,30 +38,29 @@ interface BuildContext {
 }
 
 function parseCliOptions(argv: string[]): CliOptions {
-  const outDirEqualsArg = argv.find((arg) => arg.startsWith("--outdir="));
-  const outDirIndex = argv.indexOf("--outdir");
-  const outDirValueFromNext = outDirIndex >= 0 ? argv[outDirIndex + 1] : undefined;
+  const { values } = parseArgs({
+    args: argv,
+    options: {
+      mode: { type: "string" },
+      platform: { type: "string" },
+      watch: { type: "boolean" },
+      outdir: { type: "string" },
+    },
+    strict: false,
+    allowPositionals: true,
+  });
 
-  const platformEqualsArg = argv.find((arg) => arg.startsWith("--platform="));
-  const platformIndex = argv.indexOf("--platform");
-  const platformValueFromNext = platformIndex >= 0 ? argv[platformIndex + 1] : undefined;
-  const platformRaw = platformEqualsArg
-    ? platformEqualsArg.slice("--platform=".length)
-    : platformValueFromNext;
-
-  const modeEqualsArg = argv.find((arg) => arg.startsWith("--mode="));
-  const modeIndex = argv.indexOf("--mode");
-  const modeValueFromNext = modeIndex >= 0 ? argv[modeIndex + 1] : undefined;
-  const modeRaw = modeEqualsArg ? modeEqualsArg.slice("--mode=".length) : modeValueFromNext;
+  const modeRaw = typeof values.mode === "string" ? values.mode : undefined;
   const mode: BuildMode =
     modeRaw === "development" || modeRaw === "production" ? modeRaw : "production";
 
+  const platformRaw = typeof values.platform === "string" ? values.platform : undefined;
+
   return {
     mode,
-    watch: argv.includes("--watch"),
+    watch: values.watch === true,
     outDir:
-      outDirEqualsArg?.slice("--outdir=".length) ??
-      (outDirValueFromNext && outDirValueFromNext.length > 0 ? outDirValueFromNext : undefined),
+      typeof values.outdir === "string" && values.outdir.length > 0 ? values.outdir : undefined,
     platform: platformRaw && platformRaw.length > 0 ? platformRaw : "chrome",
   };
 }
@@ -339,7 +338,6 @@ async function main(): Promise<void> {
     platform,
     includeWebLLMRuntime: cliOptions.mode === "development",
     configuredLogLevel,
-    rootDir,
     srcDir,
     buildDir,
     publicDir,
@@ -375,8 +373,6 @@ async function main(): Promise<void> {
 }
 
 void main().catch((error) => {
-  const message = error instanceof Error ? error.message : String(error);
   console.error(error);
-  console.error(`Build failed: ${message}`);
   process.exit(1);
 });

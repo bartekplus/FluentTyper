@@ -1,10 +1,10 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
 import { SPACE_CHARS, SPACING_OR_FILLER_CHARS } from "../../spacingRules";
+import { resolveInputAction } from "./helpers/GenericRuleShared";
 import { SpacingRuleShared } from "./helpers/SpacingRuleShared";
 
 export class CommaPeriodSpacingRule extends SpacingRuleShared implements GrammarRule {
   readonly id = "commaPeriodSpacing" as const;
-  readonly name = "Comma and Period Spacing";
   readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
 
   apply(context: GrammarContext): GrammarEdit | null {
@@ -32,7 +32,7 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
 
     const spaceBeforeViolated = spaceRunLength > 0;
     const insertSpaceAfter = this.insertSpaceAfterAutocomplete;
-    const inputAction = this.resolveInputAction(context);
+    const inputAction = resolveInputAction(context);
 
     // Repeated punctuation bursts (",,,,", ", , ,") should be handled by
     // duplicate-collapse logic; avoid emitting spacing edits that can create
@@ -50,18 +50,9 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
       return null;
     }
 
-    if (spaceBeforeViolated) {
-      return this.createEdit(
-        `${lastChar}${insertSpaceAfter ? " " : ""}`,
-        spaceRunLength + 1,
-        "Applied comma/period spacing",
-      );
-    }
-
     return this.createEdit(
       `${lastChar}${insertSpaceAfter ? " " : ""}`,
-      1,
-      "Applied comma/period spacing",
+      spaceBeforeViolated ? spaceRunLength + 1 : 1,
     );
   }
 }

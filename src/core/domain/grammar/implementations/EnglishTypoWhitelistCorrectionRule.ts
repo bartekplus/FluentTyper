@@ -1,12 +1,11 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
 import {
-  applyCasePattern,
   findTrailingLetterToken,
   isLikelyCodeLikeContext,
-  normalizeWordSet,
   resolveEnglishBoundaryContext,
   resolveUserDictionarySet,
 } from "./helpers/EnglishRuleShared";
+import { applyWordCase, detectWordCase, normalizeWordSet } from "./helpers/GenericRuleShared";
 
 const TYPO_WHITELIST: Record<string, string> = {
   teh: "the",
@@ -23,7 +22,6 @@ const TYPO_WHITELIST: Record<string, string> = {
 
 export class EnglishTypoWhitelistCorrectionRule implements GrammarRule {
   readonly id = "englishTypoWhitelistCorrection" as const;
-  readonly name = "English Typo Whitelist Correction";
   readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
 
   private readonly fallbackUserDictionary: Set<string>;
@@ -57,7 +55,7 @@ export class EnglishTypoWhitelistCorrectionRule implements GrammarRule {
       return null;
     }
 
-    const replacementToken = applyCasePattern(tokenInfo.token, correction);
+    const replacementToken = applyWordCase(correction, detectWordCase(tokenInfo.token));
     if (replacementToken === tokenInfo.token) {
       return null;
     }
@@ -66,8 +64,6 @@ export class EnglishTypoWhitelistCorrectionRule implements GrammarRule {
       replacement: `${replacementToken}${tokenInfo.trailing}`,
       deleteBackwards: boundaryContext.input.length - tokenInfo.tokenStart,
       deleteForwards: 0,
-      confidence: "high",
-      description: "Corrected common English typo",
     };
   }
 }

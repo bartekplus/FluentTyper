@@ -10,10 +10,6 @@ export class I18n {
   }
 
   get(value: string): string {
-    if (value === "lang") {
-      return this.lang;
-    }
-
     if (!Object.prototype.hasOwnProperty.call(this, value)) {
       return value;
     }

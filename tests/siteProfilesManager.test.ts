@@ -110,14 +110,7 @@ describe("SiteProfilesManager", () => {
     root.id = "siteProfilesEditorRoot";
     document.body.appendChild(root);
 
-    new SiteProfilesManager(
-      {
-        siteProfilesEditor: {
-          rootElement: root,
-        },
-      },
-      new Store("settings"),
-    );
+    new SiteProfilesManager(root, new Store("settings"));
 
     await flushAsyncWork();
 
@@ -154,14 +147,7 @@ describe("SiteProfilesManager", () => {
     const root = document.createElement("div");
     document.body.appendChild(root);
 
-    new SiteProfilesManager(
-      {
-        siteProfilesEditor: {
-          rootElement: root,
-        },
-      },
-      createStore(values),
-    );
+    new SiteProfilesManager(root, createStore(values));
 
     await flushAsyncWork();
 

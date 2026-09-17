@@ -24,8 +24,8 @@ import {
   type DocsEdit,
 } from "./GoogleDocsModel";
 import { getDocsInput, type DocsInput } from "./GoogleDocsEnvironment";
-import { GoogleDocsBridgeClient, type DocsBridge } from "./GoogleDocsBridgeClient";
-import { GoogleDocsView, type DocsView } from "./GoogleDocsView";
+import { GoogleDocsBridgeClient } from "./GoogleDocsBridgeClient";
+import { GoogleDocsView } from "./GoogleDocsView";
 
 interface Acceptance {
   triggerText: string;
@@ -55,8 +55,8 @@ export class GoogleDocsAdapter {
     latestMentionStart: 0,
     pendingRequestTimer: null,
   };
-  private readonly bridge: DocsBridge;
-  private readonly view: DocsView;
+  private readonly bridge = new GoogleDocsBridgeClient();
+  private readonly view: GoogleDocsView;
   private readonly telemetry;
   private readonly personalization;
   private snapshot: DocsSnapshot | null = null;
@@ -113,11 +113,7 @@ export class GoogleDocsAdapter {
     input.frame.setAttribute(KEY_ACK_ATTR, value.id);
   };
 
-  constructor(
-    private readonly options: SuggestionManagerOptions,
-    dependencies: { bridge?: DocsBridge; view?: DocsView } = {},
-  ) {
-    this.bridge = dependencies.bridge ?? new GoogleDocsBridgeClient();
+  constructor(private readonly options: SuggestionManagerOptions) {
     this.telemetry = options.telemetry ?? new SuggestionTelemetryService();
     this.personalization = options.personalization ?? new SuggestionPersonalizationService();
     this.prediction = new SuggestionPredictionCoordinator({
@@ -137,17 +133,15 @@ export class GoogleDocsAdapter {
       lang: options.lang,
       userDictionaryList: options.userDictionaryList,
     });
-    this.view =
-      dependencies.view ??
-      new GoogleDocsView({
-        inline: options.inline_suggestion,
-        digits: options.selectByDigit,
-        langHeader: options.displayLangHeader,
-        findToken: (text) => this.prediction.findMentionToken(text),
-        accept: (index) => {
-          this.accept(index);
-        },
-      });
+    this.view = new GoogleDocsView({
+      inline: options.inline_suggestion,
+      digits: options.selectByDigit,
+      langHeader: options.displayLangHeader,
+      findToken: (text) => this.prediction.findMentionToken(text),
+      accept: (index) => {
+        this.accept(index);
+      },
+    });
   }
 
   start(): void {

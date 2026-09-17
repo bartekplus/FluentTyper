@@ -30,16 +30,12 @@ describe("V1 grammar rules", () => {
         replacement: "H",
         deleteBackwards: 1,
         deleteForwards: 0,
-        confidence: "medium",
-        description: "Capitalized sequence start",
       });
 
       expect(rule.apply(context("Hello. w"))).toEqual({
         replacement: "W",
         deleteBackwards: 1,
         deleteForwards: 0,
-        confidence: "high",
-        description: "Capitalized sentence start",
       });
     });
 
@@ -49,8 +45,6 @@ describe("V1 grammar rules", () => {
         replacement: "W",
         deleteBackwards: 1,
         deleteForwards: 0,
-        confidence: "high",
-        description: "Capitalized sentence start",
       });
     });
 
@@ -76,16 +70,12 @@ describe("V1 grammar rules", () => {
         replacement: "W",
         deleteBackwards: 1,
         deleteForwards: 0,
-        confidence: "high",
-        description: "Capitalized after line break",
       });
 
       expect(rule.apply(context("Hello\n\n   w"))).toEqual({
         replacement: "W",
         deleteBackwards: 1,
         deleteForwards: 0,
-        confidence: "high",
-        description: "Capitalized after line break",
       });
     });
 
@@ -103,29 +93,21 @@ describe("V1 grammar rules", () => {
         replacement: ". ",
         deleteBackwards: 1,
         deleteForwards: 0,
-        confidence: "high",
-        description: "Applied comma/period spacing",
       });
       expect(rule.apply(context("Hello ."))).toEqual({
         replacement: ". ",
         deleteBackwards: 2,
         deleteForwards: 0,
-        confidence: "high",
-        description: "Applied comma/period spacing",
       });
       expect(rule.apply(context("Hello  ."))).toEqual({
         replacement: ". ",
         deleteBackwards: 3,
         deleteForwards: 0,
-        confidence: "high",
-        description: "Applied comma/period spacing",
       });
       expect(rule.apply(context("Hello   ,"))).toEqual({
         replacement: ", ",
         deleteBackwards: 4,
         deleteForwards: 0,
-        confidence: "high",
-        description: "Applied comma/period spacing",
       });
     });
 
@@ -139,22 +121,16 @@ describe("V1 grammar rules", () => {
         replacement: ".",
         deleteBackwards: 2,
         deleteForwards: 0,
-        confidence: "high",
-        description: "Applied comma/period spacing",
       });
       expect(noInsertRule.apply(context("Hello  ."))).toEqual({
         replacement: ".",
         deleteBackwards: 3,
         deleteForwards: 0,
-        confidence: "high",
-        description: "Applied comma/period spacing",
       });
       expect(noInsertRule.apply(context("Hello   ,"))).toEqual({
         replacement: ",",
         deleteBackwards: 4,
         deleteForwards: 0,
-        confidence: "high",
-        description: "Applied comma/period spacing",
       });
     });
 
@@ -176,16 +152,12 @@ describe("V1 grammar rules", () => {
         replacement: " (",
         deleteBackwards: 1,
         deleteForwards: 0,
-        confidence: "high",
-        description: "Applied opening bracket spacing",
       });
 
       expect(rule.apply(context("if (x){"))).toEqual({
         replacement: " {",
         deleteBackwards: 1,
         deleteForwards: 0,
-        confidence: "high",
-        description: "Applied opening bracket spacing",
       });
 
       expect(rule.apply(context("console.log("))).toBeNull();
@@ -201,16 +173,12 @@ describe("V1 grammar rules", () => {
         replacement: ")",
         deleteBackwards: 2,
         deleteForwards: 0,
-        confidence: "high",
-        description: "Applied closing bracket spacing",
       });
 
       expect(rule.apply(context("Hello (world)"))).toEqual({
         replacement: ") ",
         deleteBackwards: 1,
         deleteForwards: 0,
-        confidence: "high",
-        description: "Applied closing bracket spacing",
       });
 
       expect(rule.apply(context("foo(bar())"))).toBeNull();
@@ -233,16 +201,12 @@ describe("V1 grammar rules", () => {
         replacement: "/",
         deleteBackwards: 2,
         deleteForwards: 0,
-        confidence: "high",
-        description: "Compacted protocol slash spacing",
       });
 
       expect(rule.apply(context("x /"))).toEqual({
         replacement: "/ ",
         deleteBackwards: 1,
         deleteForwards: 0,
-        confidence: "high",
-        description: "Applied slash operator spacing",
       });
 
       expect(rule.apply(context("src/"))).toBeNull();
@@ -258,24 +222,18 @@ describe("V1 grammar rules", () => {
         replacement: "x = y",
         deleteBackwards: 3,
         deleteForwards: 0,
-        confidence: "high",
-        description: "Applied context-aware math operator spacing",
       });
 
       expect(rule.apply(context("y+1"))).toEqual({
         replacement: "y + 1",
         deleteBackwards: 3,
         deleteForwards: 0,
-        confidence: "high",
-        description: "Applied context-aware math operator spacing",
       });
 
       expect(rule.apply(context("x*y"))).toEqual({
         replacement: "x * y",
         deleteBackwards: 3,
         deleteForwards: 0,
-        confidence: "high",
-        description: "Applied context-aware math operator spacing",
       });
     });
 
@@ -294,16 +252,12 @@ describe("V1 grammar rules", () => {
         replacement: ".1",
         deleteBackwards: 3,
         deleteForwards: 0,
-        confidence: "high",
-        description: "Compacted technical decimal notation",
       });
 
       expect(rule.apply(context("12: 3"))).toEqual({
         replacement: ":3",
         deleteBackwards: 3,
         deleteForwards: 0,
-        confidence: "high",
-        description: "Compacted technical time or ratio notation",
       });
     });
 
@@ -330,16 +284,12 @@ describe("V1 grammar rules", () => {
         replacement: " ",
         deleteBackwards: 2,
         deleteForwards: 0,
-        confidence: "high",
-        description: "Collapsed repeated spaces",
       });
 
       expect(rule.apply(context("hello   "))).toEqual({
         replacement: " ",
         deleteBackwards: 3,
         deleteForwards: 0,
-        confidence: "high",
-        description: "Collapsed repeated spaces",
       });
     });
 
@@ -358,16 +308,12 @@ describe("V1 grammar rules", () => {
         replacement: "\n",
         deleteBackwards: 2,
         deleteForwards: 0,
-        confidence: "high",
-        description: "Trimmed spaces before line break",
       });
 
       expect(rule.apply(context("Hello   \n"))).toEqual({
         replacement: "\n",
         deleteBackwards: 4,
         deleteForwards: 0,
-        confidence: "high",
-        description: "Trimmed spaces before line break",
       });
     });
 

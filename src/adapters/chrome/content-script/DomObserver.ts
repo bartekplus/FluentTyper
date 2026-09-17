@@ -1,9 +1,5 @@
 import { SHADOW_ATTACH_MARKER_ATTR } from "./ShadowRootInterceptor";
 
-/**
- * Wraps a MutationObserver around a single root node and forwards only
- * non-empty mutation batches to the runtime callback.
- */
 export class DomObserver {
   private observer: MutationObserver | null = null;
   private node: Node;
@@ -17,9 +13,7 @@ export class DomObserver {
   attach(): void {
     if (!this.observer) {
       this.observer = new MutationObserver((mutationsList) => {
-        if (mutationsList.length > 0) {
-          this.callback(mutationsList);
-        }
+        this.callback(mutationsList);
       });
     }
     this.observer.observe(this.node, {

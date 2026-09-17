@@ -15,14 +15,12 @@ export class SuggestionLifecycleController {
   private readonly doc: Document;
   private readonly keydownListenerByEntryId = new Map<number, EventListener>();
   private attachedEntryCount = 0;
-  private documentPointerDownListenerAttached = false;
-  private documentKeyDownListenerAttached = false;
-  private documentSelectionChangeListenerAttached = false;
-  private readonly onDocumentPointerDownBound: EventListener =
-    this.onDocumentPointerDown.bind(this);
-  private readonly onDocumentKeyDownBound: EventListener = this.onDocumentKeyDown.bind(this);
-  private readonly onDocumentSelectionChangeBound: EventListener =
-    this.onDocumentSelectionChange.bind(this);
+  private documentListenersAttached = false;
+  private readonly documentListeners: readonly [string, EventListener][] = [
+    ["mousedown", this.onDocumentPointerDown.bind(this)],
+    ["keydown", this.onDocumentKeyDown.bind(this)],
+    ["selectionchange", this.onDocumentSelectionChange.bind(this)],
+  ];
 
   constructor(options: SuggestionLifecycleControllerOptions) {
     this.getEntries = options.getEntries;
@@ -46,9 +44,7 @@ export class SuggestionLifecycleController {
     entry.list.addEventListener("click", entry.handlers.menuClick);
 
     this.attachedEntryCount += 1;
-    this.ensureDocumentPointerDownListener();
-    this.ensureDocumentKeyDownListener();
-    this.ensureDocumentSelectionChangeListener();
+    this.toggleDocumentListeners(true);
   }
 
   public detachEntryListeners(entry: SuggestionEntry): void {
@@ -68,9 +64,7 @@ export class SuggestionLifecycleController {
 
     this.attachedEntryCount = Math.max(0, this.attachedEntryCount - 1);
     if (this.attachedEntryCount === 0) {
-      this.removeDocumentPointerDownListener();
-      this.removeDocumentKeyDownListener();
-      this.removeDocumentSelectionChangeListener();
+      this.toggleDocumentListeners(false);
     }
   }
 
@@ -107,52 +101,15 @@ export class SuggestionLifecycleController {
     return listener;
   }
 
-  private ensureDocumentPointerDownListener(): void {
-    if (this.documentPointerDownListenerAttached) {
+  private toggleDocumentListeners(attach: boolean): void {
+    if (this.documentListenersAttached === attach) {
       return;
     }
-    this.doc.addEventListener("mousedown", this.onDocumentPointerDownBound, true);
-    this.documentPointerDownListenerAttached = true;
-  }
-
-  private removeDocumentPointerDownListener(): void {
-    if (!this.documentPointerDownListenerAttached) {
-      return;
+    const method = attach ? "addEventListener" : "removeEventListener";
+    for (const [eventName, listener] of this.documentListeners) {
+      this.doc[method](eventName, listener, true);
     }
-    this.doc.removeEventListener("mousedown", this.onDocumentPointerDownBound, true);
-    this.documentPointerDownListenerAttached = false;
-  }
-
-  private ensureDocumentKeyDownListener(): void {
-    if (this.documentKeyDownListenerAttached) {
-      return;
-    }
-    this.doc.addEventListener("keydown", this.onDocumentKeyDownBound, true);
-    this.documentKeyDownListenerAttached = true;
-  }
-
-  private removeDocumentKeyDownListener(): void {
-    if (!this.documentKeyDownListenerAttached) {
-      return;
-    }
-    this.doc.removeEventListener("keydown", this.onDocumentKeyDownBound, true);
-    this.documentKeyDownListenerAttached = false;
-  }
-
-  private ensureDocumentSelectionChangeListener(): void {
-    if (this.documentSelectionChangeListenerAttached) {
-      return;
-    }
-    this.doc.addEventListener("selectionchange", this.onDocumentSelectionChangeBound, true);
-    this.documentSelectionChangeListenerAttached = true;
-  }
-
-  private removeDocumentSelectionChangeListener(): void {
-    if (!this.documentSelectionChangeListenerAttached) {
-      return;
-    }
-    this.doc.removeEventListener("selectionchange", this.onDocumentSelectionChangeBound, true);
-    this.documentSelectionChangeListenerAttached = false;
+    this.documentListenersAttached = attach;
   }
 
   private onDocumentPointerDown(event: Event): void {

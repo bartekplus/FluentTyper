@@ -82,12 +82,6 @@ export class TabManager {
       },
     };
 
-    tabA.addEventListener("click", (e) => {
-      e.preventDefault();
-      bundle.activate();
-    });
-
-    // Auto-activate the first tab
     if (!this.activeBundle) {
       bundle.activate();
     }

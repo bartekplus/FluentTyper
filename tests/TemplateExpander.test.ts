@@ -7,34 +7,34 @@ describe("TemplateExpander", () => {
     jest.restoreAllMocks();
   });
 
-  test("parseStringTemplate replaces known placeholders", () => {
-    const result = TemplateExpander.parseStringTemplate("Hello ${name}!", {
-      name: "World",
-    });
+  test("parseStringTemplateAsync replaces known placeholders", async () => {
+    const result = await TemplateExpander.parseStringTemplateAsync(
+      "Hello ${name}!",
+      async (name) => (name === "name" ? "World" : undefined),
+    );
 
     expect(result).toBe("Hello World!");
   });
 
-  test("parseStringTemplate keeps missing placeholders and preserves empty values", () => {
-    const result = TemplateExpander.parseStringTemplate("${known}-${missing}-${empty}", {
-      known: "ok",
-      empty: "",
-    });
+  test("parseStringTemplateAsync keeps missing placeholders and preserves empty values", async () => {
+    const values: Record<string, string> = { known: "ok", empty: "" };
+    const result = await TemplateExpander.parseStringTemplateAsync(
+      "${known}-${missing}-${empty}",
+      async (name) => values[name],
+    );
 
     expect(result).toBe("ok-${missing}-");
   });
 
-  test("getExpandedVariables uses date/time providers with language and formats", () => {
+  test("createResolver resolves date/time variables with language and formats", async () => {
     const timeSpy = jest.spyOn(DATE_TIME_VARIABLES, "time").mockReturnValue("10:30");
     const dateSpy = jest.spyOn(DATE_TIME_VARIABLES, "date").mockReturnValue("2026-01-02");
 
-    const result = TemplateExpander.getExpandedVariables("fr_FR", "HH:mm", "yyyy-MM-dd");
+    const resolver = TemplateExpander.createResolver("fr_FR", "HH:mm", "yyyy-MM-dd");
+    const result = await TemplateExpander.parseStringTemplateAsync("${time} ${date}", resolver);
 
     expect(timeSpy).toHaveBeenCalledWith("fr_FR", "HH:mm");
     expect(dateSpy).toHaveBeenCalledWith("fr_FR", "yyyy-MM-dd", undefined);
-    expect(result).toEqual({
-      time: "10:30",
-      date: "2026-01-02",
-    });
+    expect(result).toBe("10:30 2026-01-02");
   });
 });

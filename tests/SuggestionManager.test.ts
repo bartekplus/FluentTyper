@@ -217,9 +217,9 @@ let importNonce = 0;
 async function loadSuggestionManagerClass() {
   importNonce += 1;
   const module = await import(
-    `../src/adapters/chrome/content-script/SuggestionManager?bun_test_nonce_manager=${importNonce}`
+    `../src/adapters/chrome/content-script/suggestions/SuggestionManagerRuntime?bun_test_nonce_manager=${importNonce}`
   );
-  return module.SuggestionManager;
+  return module.SuggestionManagerRuntime;
 }
 
 async function loadContentEditableAdapterClass() {

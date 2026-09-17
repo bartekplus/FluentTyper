@@ -9,7 +9,6 @@ import {
 
 export class SmartQuoteNormalizationRule implements GrammarRule {
   readonly id = "smartQuoteNormalization" as const;
-  readonly name = "Smart Quote Normalization";
   readonly triggers: GrammarEventType[] = ["insertChar"];
 
   apply(context: GrammarContext): GrammarEdit | null {
@@ -68,9 +67,6 @@ export class SmartQuoteNormalizationRule implements GrammarRule {
       replacement,
       deleteBackwards,
       deleteForwards: 0,
-      confidence: "medium",
-      safetyTier: "advanced",
-      description: "Normalized straight quote",
     };
   }
 

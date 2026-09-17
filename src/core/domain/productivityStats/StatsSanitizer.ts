@@ -1,3 +1,4 @@
+import { isObjectRecord } from "@core/domain/guards";
 import { DONATION_MILESTONE_HOURS, STATS_SCHEMA_VERSION } from "./constants";
 import type {
   DailyProductivityState,
@@ -7,17 +8,6 @@ import type {
 } from "./types";
 
 export class StatsSanitizer {
-  isObjectRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === "object" && value !== null && !Array.isArray(value);
-  }
-
-  private normalizeTrimmedString(value: unknown): string {
-    if (typeof value !== "string") {
-      return "";
-    }
-    return value.trim();
-  }
-
   clampCount(value: unknown): number {
     if (typeof value !== "number" || !Number.isFinite(value)) {
       return 0;
@@ -33,11 +23,11 @@ export class StatsSanitizer {
   }
 
   normalizeSnippetKey(value: unknown): string {
-    return this.normalizeTrimmedString(value).toLocaleLowerCase().slice(0, 80);
+    return (typeof value === "string" ? value.trim() : "").toLocaleLowerCase().slice(0, 80);
   }
 
   normalizeLanguageKey(value: unknown): string {
-    const normalized = this.normalizeTrimmedString(value);
+    const normalized = typeof value === "string" ? value.trim() : "";
     if (!normalized) {
       return "unknown";
     }
@@ -94,7 +84,7 @@ export class StatsSanitizer {
     };
   }
 
-  private createZeroCounters(): DailyProductivityState {
+  createDailyState(): DailyProductivityState {
     return {
       acceptedSuggestions: 0,
       charactersSaved: 0,
@@ -107,14 +97,10 @@ export class StatsSanitizer {
     };
   }
 
-  createDailyState(): DailyProductivityState {
-    return this.createZeroCounters();
-  }
-
   createDefaultStatsState(): ProductivityStatsState {
     return {
       schemaVersion: STATS_SCHEMA_VERSION,
-      ...this.createZeroCounters(),
+      ...this.createDailyState(),
       daily: {},
       shownMilestones: [],
       firstValuePromptAcknowledged: false,
@@ -125,14 +111,14 @@ export class StatsSanitizer {
   }
 
   sanitizeLanguageUsageMap(value: unknown): Record<string, LanguageUsageCounters> {
-    if (!this.isObjectRecord(value)) {
+    if (!isObjectRecord(value)) {
       return {};
     }
 
     const sanitized: Record<string, LanguageUsageCounters> = {};
     for (const [language, counters] of Object.entries(value)) {
       const normalizedLanguage = this.normalizeLanguageKey(language);
-      if (!this.isObjectRecord(counters)) {
+      if (!isObjectRecord(counters)) {
         continue;
       }
       const acceptedSuggestions = this.clampCount(counters.acceptedSuggestions);
@@ -150,7 +136,7 @@ export class StatsSanitizer {
   }
 
   sanitizeSnippetUsageMap(value: unknown): Record<string, SnippetUsageCounters> {
-    if (!this.isObjectRecord(value)) {
+    if (!isObjectRecord(value)) {
       return {};
     }
 
@@ -168,7 +154,7 @@ export class StatsSanitizer {
           counters = this.createSnippetCounters();
           counters.count = count;
         }
-      } else if (this.isObjectRecord(rawValue)) {
+      } else if (isObjectRecord(rawValue)) {
         const count = this.clampCount(rawValue.count);
         const charactersSaved = this.clampCount(rawValue.charactersSaved);
         const charsInserted = this.clampCount(rawValue.charsInserted);
@@ -191,13 +177,13 @@ export class StatsSanitizer {
   }
 
   sanitizeDailyMap(value: unknown): Record<string, DailyProductivityState> {
-    if (!this.isObjectRecord(value)) {
+    if (!isObjectRecord(value)) {
       return {};
     }
 
     const sanitized: Record<string, DailyProductivityState> = {};
     for (const [dateKey, entry] of Object.entries(value)) {
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey) || !this.isObjectRecord(entry)) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey) || !isObjectRecord(entry)) {
         continue;
       }
 
@@ -239,7 +225,7 @@ export class StatsSanitizer {
   }
 
   sanitizeStatsState(value: unknown): ProductivityStatsState {
-    if (!this.isObjectRecord(value)) {
+    if (!isObjectRecord(value)) {
       return this.createDefaultStatsState();
     }
 

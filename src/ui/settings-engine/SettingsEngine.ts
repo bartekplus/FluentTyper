@@ -2,18 +2,11 @@ import type { FieldConfig, ManifestDefinition, TabConfig } from "./types.js";
 import type { FieldControl } from "./controls/FieldControl.js";
 import { Store } from "@core/application/storage/Store.js";
 import { TabManager } from "./layout/TabManager.js";
-import { createGroup } from "./layout/GroupManager.js";
 
 import { CheckboxControl } from "./controls/CheckboxControl.js";
 import { SliderControl } from "./controls/SliderControl.js";
-import { TextControl } from "./controls/TextControl.js";
-import { TextareaControl } from "./controls/TextareaControl.js";
 import { SelectControl } from "./controls/SelectControl.js";
-import { ListBoxControl } from "./controls/ListBoxControl.js";
-import { ListBoxMultiSelectControl } from "./controls/ListBoxMultiSelectControl.js";
-import { RadioControl } from "./controls/RadioControl.js";
 import { ButtonControl } from "./controls/ButtonControl.js";
-import { ModalButtonControl } from "./controls/ModalButtonControl.js";
 import { DescriptionControl } from "./controls/DescriptionControl.js";
 import { ValueOnlyControl } from "./controls/ValueOnlyControl.js";
 import { RuleToggleCardsControl } from "./controls/RuleToggleCardsControl.js";
@@ -69,10 +62,6 @@ export class SettingsEngine {
       if (faviconEl) {
         faviconEl.href = options.icon;
       }
-      const iconEl = document.getElementById("icon") as HTMLImageElement | null;
-      if (iconEl) {
-        iconEl.src = options.icon;
-      }
     }
 
     window.addEventListener("hashchange", () => {
@@ -99,7 +88,9 @@ export class SettingsEngine {
 
     for (const params of manifest.settings) {
       const control = this.createControl(params);
-      this.registerControl(registry, params, control);
+      if (params.name !== undefined) {
+        registry[params.name] = control;
+      }
     }
 
     // Apply initial hash routing after all tabs are created
@@ -128,7 +119,8 @@ export class SettingsEngine {
       const meta = this.tabMetaMap[tabId] ?? { id: tabId, label: tabId };
       const bundle = this.tabManager.create(meta);
 
-      bundle.tabA.addEventListener("click", () => {
+      bundle.tabA.addEventListener("click", (event) => {
+        event.preventDefault();
         this.activateTabById(tabId);
         history.replaceState(null, "", `#${tabId}`);
       });
@@ -179,10 +171,31 @@ export class SettingsEngine {
     const tab = this.tabs[tabId];
 
     if (!(groupLabel in tab.groups)) {
-      tab.groups[groupLabel] = createGroup(tabContent, groupLabel || tab.meta?.label || tabId);
+      tab.groups[groupLabel] = this.createGroup(tabContent, groupLabel || tab.meta?.label || tabId);
     }
 
     return tab.groups[groupLabel];
+  }
+
+  private createGroup(tabContent: HTMLElement, label: string): HTMLDivElement {
+    const groupDiv = document.createElement("section");
+    groupDiv.className = "settings-group";
+
+    const header = document.createElement("div");
+    header.className = "settings-group-header";
+    const title = document.createElement("h3");
+    title.className = "settings-group-title divider";
+    title.textContent = label;
+    header.appendChild(title);
+    groupDiv.appendChild(header);
+
+    const body = document.createElement("div");
+    body.className = "settings-group-body";
+    groupDiv.appendChild(body);
+
+    tabContent.appendChild(groupDiv);
+
+    return body;
   }
 
   private createControl(params: FieldConfig): FieldControl {
@@ -199,38 +212,16 @@ export class SettingsEngine {
     return control;
   }
 
-  private registerControl(
-    registry: SettingsRegistry,
-    params: FieldConfig,
-    control: FieldControl,
-  ): void {
-    if (params.name !== undefined) {
-      registry[params.name] = control;
-    }
-  }
-
   private instantiateControl(params: FieldConfig): FieldControl {
     switch (params.type) {
       case "checkbox":
         return new CheckboxControl(params, this.store);
       case "slider":
         return new SliderControl(params, this.store);
-      case "text":
-        return new TextControl(params, this.store);
-      case "textarea":
-        return new TextareaControl(params, this.store);
       case "popupButton":
         return new SelectControl(params, this.store);
-      case "listBox":
-        return new ListBoxControl(params, this.store);
-      case "listBoxMultiselect":
-        return new ListBoxMultiSelectControl(params, this.store);
-      case "radioButtons":
-        return new RadioControl(params, this.store);
       case "button":
         return new ButtonControl(params, this.store);
-      case "modalButton":
-        return new ModalButtonControl(params, this.store, (p) => this.instantiateControl(p));
       case "description":
         return new DescriptionControl(params, this.store);
       case "customPanel":

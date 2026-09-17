@@ -23,9 +23,7 @@ import {
 import { ContentRuntimeController } from "./ContentRuntimeController";
 import { HostChangeWatcher, type HostChangeWatcherDependencies } from "./HostChangeWatcher";
 import { isEarlyTabAcceptMessage } from "./suggestions/EarlyTabAcceptBridgeProtocol";
-import { ThemeApplicator } from "./ThemeApplicator";
-import type { DomObserver } from "./DomObserver";
-import type { SuggestionManager } from "./SuggestionManager";
+import type { SuggestionManagerRuntime } from "./suggestions/SuggestionManagerRuntime";
 
 declare global {
   interface Window {
@@ -70,9 +68,9 @@ class FluentTyper {
   private readonly hostChangeWatcher: HostChangeWatcher;
   private readonly boundMessageHandler = (
     message: Message | null,
-    sender?: chrome.runtime.MessageSender,
+    _sender?: chrome.runtime.MessageSender,
     sendResponse?: (response: unknown) => void,
-  ) => this.messageHandler(message, sender, sendResponse);
+  ) => this.messageHandler(message, sendResponse);
   private readonly boundEarlyTabAcceptHandler = (event: MessageEvent) =>
     this.handleEarlyTabAccept(event);
 
@@ -81,8 +79,7 @@ class FluentTyper {
       host: window.location.hostname,
     });
 
-    this.runtimeController = new ContentRuntimeController(new ThemeApplicator());
-    this.runtimeController.setRestartRequestHandler(() => this.restart());
+    this.runtimeController = new ContentRuntimeController();
 
     this.contentMessageHandler = new ContentMessageHandler(
       this.createContentMessageHandlerDependencies(),
@@ -101,16 +98,12 @@ class FluentTyper {
     this.getConfig();
   }
 
-  get suggestionManager(): SuggestionManager | null {
+  get suggestionManager(): SuggestionManagerRuntime | null {
     return this.runtimeController.suggestionManager;
   }
 
   get config(): SetConfigContext {
     return this.runtimeController.config;
-  }
-
-  get domObserver(): DomObserver {
-    return this.runtimeController.domObserver;
   }
 
   get hostName(): string {
@@ -137,20 +130,12 @@ class FluentTyper {
     this.hostChangeWatcher.watchDog();
   }
 
-  attachMutationObserver(): void {
-    this.runtimeController.attachMutationObserver();
-  }
-
   handleGetPrediction(context: ContentScriptPredictRequestContext): void {
     this.contentMessageHandler.handleGetPrediction(context);
   }
 
   processMutations(mutationsList: MutationRecord[]): void {
     this.runtimeController.processMutations(mutationsList);
-  }
-
-  mutationCallback(mutationsList: MutationRecord[]): void {
-    this.runtimeController.mutationCallback(mutationsList);
   }
 
   setConfig(config: SetConfigContext): void {
@@ -185,12 +170,8 @@ class FluentTyper {
     this.runtimeController.handleEarlyTabAcceptRequest(event.data.entryId);
   }
 
-  messageHandler(
-    message: Message | null,
-    sender?: chrome.runtime.MessageSender,
-    sendResponse?: (response: unknown) => void,
-  ): void {
-    this.contentMessageHandler.handleMessage(message, sender, sendResponse);
+  messageHandler(message: Message | null, sendResponse?: (response: unknown) => void): void {
+    this.contentMessageHandler.handleMessage(message, sendResponse);
   }
 
   private createContentMessageHandlerDependencies(): ContentMessageHandlerDependencies {

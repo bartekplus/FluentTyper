@@ -1,8 +1,11 @@
 import { jest } from "bun:test";
 import type { PresageModule } from "../src/adapters/chrome/background/PresageTypes";
-import { TextExpansionManager } from "../src/adapters/chrome/background/TextExpansionManager";
+import {
+  setTextExpansions,
+  setUserDictionaryList,
+} from "../src/adapters/chrome/background/PresageFiles";
 
-describe("TextExpansionManager", () => {
+describe("PresageFiles", () => {
   test("writes lowercase expansions to file and updates all presage engines", () => {
     const writeFile = jest.fn();
     const configEn = jest.fn();
@@ -12,15 +15,17 @@ describe("TextExpansionManager", () => {
       FS: { writeFile },
     } as unknown as PresageModule;
 
-    const manager = new TextExpansionManager(module, {
-      en_US: { libPresage: { config: configEn } },
-      fr_FR: { libPresage: { config: configFr } },
-    } as never);
-
-    manager.setTextExpansions([
-      ["BRB", { phrase: "be right back" }],
-      ["IDK", { phrase: "I don't know" }],
-    ]);
+    setTextExpansions(
+      module,
+      {
+        en_US: { libPresage: { config: configEn } },
+        fr_FR: { libPresage: { config: configFr } },
+      } as never,
+      [
+        ["BRB", { phrase: "be right back" }],
+        ["IDK", { phrase: "I don't know" }],
+      ],
+    );
 
     expect(writeFile).toHaveBeenCalledWith(
       "/textExpansions.txt",
@@ -43,16 +48,31 @@ describe("TextExpansionManager", () => {
       FS: { writeFile },
     } as unknown as PresageModule;
 
-    const manager = new TextExpansionManager(module, {
-      en_US: { libPresage: { config } },
-    } as never);
-
-    manager.setTextExpansions([]);
+    setTextExpansions(module, { en_US: { libPresage: { config } } } as never, []);
 
     expect(writeFile).toHaveBeenCalledWith("/textExpansions.txt", "");
     expect(config).toHaveBeenCalledWith(
       "Presage.Predictors.DefaultAbbreviationExpansionPredictor.ABBREVIATIONS",
       "/textExpansions.txt",
+    );
+  });
+
+  test("writes the user dictionary as newline separated words", () => {
+    const writeFile = jest.fn();
+    const config = jest.fn();
+    const module = {
+      FS: { writeFile },
+    } as unknown as PresageModule;
+
+    setUserDictionaryList(module, { en_US: { libPresage: { config } } } as never, [
+      "fluenttyper",
+      "presage",
+    ]);
+
+    expect(writeFile).toHaveBeenCalledWith("/userDictionary.txt", "fluenttyper\npresage");
+    expect(config).toHaveBeenCalledWith(
+      "Presage.Predictors.DefaultDictionaryPredictor.DICTIONARY",
+      "/userDictionary.txt",
     );
   });
 });

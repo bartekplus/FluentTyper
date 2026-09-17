@@ -6,7 +6,7 @@ import {
   shouldInvalidatePendingExtensionEditOnKeydown,
   shouldReleaseAcceptedSuggestionSuppressionOnKeydown,
   syncAcceptedSuggestionTrailingSpaceState,
-  type SuggestionEntrySessionContentEditableAdapter,
+  type AcceptedSuggestionContentEditableAdapter,
 } from "../src/adapters/chrome/content-script/suggestions/SuggestionAcceptedState";
 import type {
   ExtensionEditSnapshot,
@@ -61,8 +61,8 @@ function createPendingEdit(overrides: Partial<ExtensionEditSnapshot> = {}) {
 }
 
 function createContentEditableAdapter(
-  overrides: Partial<SuggestionEntrySessionContentEditableAdapter> = {},
-): SuggestionEntrySessionContentEditableAdapter {
+  overrides: Partial<AcceptedSuggestionContentEditableAdapter> = {},
+): AcceptedSuggestionContentEditableAdapter {
   return {
     getActiveBlockElement: () => null,
     getBlockContext: () => null,

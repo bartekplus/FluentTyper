@@ -1,7 +1,6 @@
 import {
   SUPPORTED_PREDICTION_LANGUAGE_KEYS,
   resolveEnabledLanguages,
-  resolveEnabledPredictionLanguages,
 } from "../src/core/domain/lang";
 
 describe("language settings helpers", () => {
@@ -15,8 +14,8 @@ describe("language settings helpers", () => {
     expect(result).toEqual(["en_US", "de_DE"]);
   });
 
-  test("resolveEnabledPredictionLanguages excludes auto_detect and never returns empty", () => {
-    const result = resolveEnabledPredictionLanguages(["auto_detect"]);
+  test("resolveEnabledLanguages excludes auto_detect and never returns empty", () => {
+    const result = resolveEnabledLanguages(["auto_detect"]);
     expect(result).toEqual(SUPPORTED_PREDICTION_LANGUAGE_KEYS);
   });
 });

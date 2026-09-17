@@ -1,9 +1,7 @@
-import type { GrammarContext, GrammarEdit } from "../../types";
+import type { GrammarEdit } from "../../types";
 import { SPACE_CHARS } from "../../../spacingRules";
-import { resolveInputAction as resolveGrammarInputAction } from "./GenericRuleShared";
 
 export abstract class SpacingRuleShared {
-  protected static readonly CODE_CUE_CHARS = new Set("=([{:+-*/%&|!<>?,".split(""));
   protected static readonly MATH_OPERATORS = new Set(["=", "+", "*"]);
   protected static readonly OPENING_BRACKETS = new Set(["(", "[", "{"]);
   protected static readonly CLOSING_BRACKETS = new Set([")", "]", "}"]);
@@ -16,21 +14,11 @@ export abstract class SpacingRuleShared {
     this.insertSpaceAfterAutocomplete = insertSpaceAfterAutocomplete;
   }
 
-  protected resolveInputAction(context: GrammarContext): "insert" | "delete" | "other" | null {
-    return resolveGrammarInputAction(context);
-  }
-
-  protected createEdit(
-    replacement: string,
-    deleteBackwards: number,
-    description: string,
-  ): GrammarEdit {
+  protected createEdit(replacement: string, deleteBackwards: number): GrammarEdit {
     return {
       replacement,
       deleteBackwards,
       deleteForwards: 0,
-      confidence: "high",
-      description,
     };
   }
 

@@ -26,9 +26,6 @@ describe("V3 rule expansion", () => {
       replacement: ". ",
       deleteBackwards: 2,
       deleteForwards: 0,
-      confidence: "high",
-      safetyTier: "safe",
-      description: "Replaced double-space with sentence period",
     });
 
     expect(rule.apply(context("Hello.  ", { inputAction: "insert" }))).toBeNull();
@@ -43,9 +40,6 @@ describe("V3 rule expansion", () => {
       replacement: "…",
       deleteBackwards: 3,
       deleteForwards: 0,
-      confidence: "medium",
-      safetyTier: "advanced",
-      description: "Replaced three dots with ellipsis",
     });
 
     expect(rule.apply(context("https://example.com...", { inputAction: "insert" }))).toBeNull();
@@ -57,9 +51,6 @@ describe("V3 rule expansion", () => {
       replacement: "—",
       deleteBackwards: 2,
       deleteForwards: 0,
-      confidence: "medium",
-      safetyTier: "advanced",
-      description: "Replaced double hyphen with em dash",
     });
 
     expect(rule.apply(context(" --", { inputAction: "insert" }))).toBeNull();
@@ -73,45 +64,30 @@ describe("V3 rule expansion", () => {
       replacement: "“",
       deleteBackwards: 1,
       deleteForwards: 0,
-      confidence: "medium",
-      safetyTier: "advanced",
-      description: "Normalized straight quote",
     });
 
     expect(rule.apply(context('hello"', { inputAction: "insert" }))).toEqual({
       replacement: "”",
       deleteBackwards: 1,
       deleteForwards: 0,
-      confidence: "medium",
-      safetyTier: "advanced",
-      description: "Normalized straight quote",
     });
 
     expect(rule.apply(context('This is “awesome "', { inputAction: "insert" }))).toEqual({
       replacement: "”",
       deleteBackwards: 2,
       deleteForwards: 0,
-      confidence: "medium",
-      safetyTier: "advanced",
-      description: "Normalized straight quote",
     });
 
     expect(rule.apply(context('This is “awesome   "', { inputAction: "insert" }))).toEqual({
       replacement: "”",
       deleteBackwards: 4,
       deleteForwards: 0,
-      confidence: "medium",
-      safetyTier: "advanced",
-      description: "Normalized straight quote",
     });
 
     expect(rule.apply(context('This is “awesome\u00A0"', { inputAction: "insert" }))).toEqual({
       replacement: "”",
       deleteBackwards: 2,
       deleteForwards: 0,
-      confidence: "medium",
-      safetyTier: "advanced",
-      description: "Normalized straight quote",
     });
 
     expect(rule.apply(context('”"', { inputAction: "insert" }))).toBeNull();
@@ -127,117 +103,78 @@ describe("V3 rule expansion", () => {
       replacement: ",",
       deleteBackwards: 2,
       deleteForwards: 0,
-      confidence: "medium",
-      safetyTier: "advanced",
-      description: "Collapsed duplicate punctuation",
     });
 
     expect(rule.apply(context("Hello,,,,", { inputAction: "insert" }))).toEqual({
       replacement: ",",
       deleteBackwards: 4,
       deleteForwards: 0,
-      confidence: "medium",
-      safetyTier: "advanced",
-      description: "Collapsed duplicate punctuation",
     });
 
     expect(rule.apply(context("Oops.. ", { inputAction: "insert" }))).toEqual({
       replacement: ". ",
       deleteBackwards: 3,
       deleteForwards: 0,
-      confidence: "medium",
-      safetyTier: "advanced",
-      description: "Collapsed accidental double period",
     });
 
     expect(rule.apply(context("Hello,, ", { inputAction: "insert" }))).toEqual({
       replacement: ", ",
       deleteBackwards: 3,
       deleteForwards: 0,
-      confidence: "medium",
-      safetyTier: "advanced",
-      description: "Collapsed duplicate punctuation",
     });
 
     expect(rule.apply(context("Hello,,\u00A0", { inputAction: "insert" }))).toEqual({
       replacement: ",\u00A0",
       deleteBackwards: 3,
       deleteForwards: 0,
-      confidence: "medium",
-      safetyTier: "advanced",
-      description: "Collapsed duplicate punctuation",
     });
 
     expect(rule.apply(context("Hello,, ,", { inputAction: "insert" }))).toEqual({
       replacement: ", ",
       deleteBackwards: 4,
       deleteForwards: 0,
-      confidence: "medium",
-      safetyTier: "advanced",
-      description: "Collapsed duplicate punctuation",
     });
 
     expect(rule.apply(context("Hello,,\u00A0,", { inputAction: "insert" }))).toEqual({
       replacement: ",\u00A0",
       deleteBackwards: 4,
       deleteForwards: 0,
-      confidence: "medium",
-      safetyTier: "advanced",
-      description: "Collapsed duplicate punctuation",
     });
 
     expect(rule.apply(context("Hello,,\u00A0\u00A0,", { inputAction: "insert" }))).toEqual({
       replacement: ",\u00A0",
       deleteBackwards: 5,
       deleteForwards: 0,
-      confidence: "medium",
-      safetyTier: "advanced",
-      description: "Collapsed duplicate punctuation",
     });
 
     expect(rule.apply(context("Hello,,\u200B ", { inputAction: "insert" }))).toEqual({
       replacement: ",\u200B ",
       deleteBackwards: 4,
       deleteForwards: 0,
-      confidence: "medium",
-      safetyTier: "advanced",
-      description: "Collapsed duplicate punctuation",
     });
 
     expect(rule.apply(context("Hello,,\u200B,", { inputAction: "insert" }))).toEqual({
       replacement: ",\u200B",
       deleteBackwards: 4,
       deleteForwards: 0,
-      confidence: "medium",
-      safetyTier: "advanced",
-      description: "Collapsed duplicate punctuation",
     });
 
     expect(rule.apply(context("This is,,,,,,,,,,,, ", { inputAction: "insert" }))).toEqual({
       replacement: ", ",
       deleteBackwards: 13,
       deleteForwards: 0,
-      confidence: "medium",
-      safetyTier: "advanced",
-      description: "Collapsed duplicate punctuation",
     });
 
     expect(rule.apply(context("What the fewer ,,,,,,,,,, ", { inputAction: "insert" }))).toEqual({
       replacement: ", ",
       deleteBackwards: 12,
       deleteForwards: 0,
-      confidence: "medium",
-      safetyTier: "advanced",
-      description: "Collapsed duplicate punctuation",
     });
 
     expect(rule.apply(context("What the fewer , ,", { inputAction: "insert" }))).toEqual({
       replacement: ", ",
       deleteBackwards: 4,
       deleteForwards: 0,
-      confidence: "medium",
-      safetyTier: "advanced",
-      description: "Collapsed duplicate punctuation",
     });
 
     expect(rule.apply(context("Wait... ", { inputAction: "insert" }))).toBeNull();
@@ -251,18 +188,12 @@ describe("V3 rule expansion", () => {
       replacement: "could have ",
       deleteBackwards: "could of ".length,
       deleteForwards: 0,
-      confidence: "high",
-      safetyTier: "safe",
-      description: "Corrected modal phrase typo",
     });
 
     expect(rule.apply(context("COULD OF ", { lang: "en_US", inputAction: "insert" }))).toEqual({
       replacement: "COULD HAVE ",
       deleteBackwards: "COULD OF ".length,
       deleteForwards: 0,
-      confidence: "high",
-      safetyTier: "safe",
-      description: "Corrected modal phrase typo",
     });
   });
 
@@ -273,9 +204,6 @@ describe("V3 rule expansion", () => {
       replacement: "you're welcome!",
       deleteBackwards: "your welcome!".length,
       deleteForwards: 0,
-      confidence: "high",
-      safetyTier: "safe",
-      description: "Corrected your welcome phrase",
     });
   });
 
@@ -286,9 +214,6 @@ describe("V3 rule expansion", () => {
       replacement: "there is ",
       deleteBackwards: "their is ".length,
       deleteForwards: 0,
-      confidence: "high",
-      safetyTier: "safe",
-      description: "Corrected their/there phrase",
     });
 
     expect(rule.apply(context("their is ", { lang: "pl_PL", inputAction: "insert" }))).toBeNull();
@@ -304,9 +229,6 @@ describe("V3 rule expansion", () => {
       replacement: "a lot ",
       deleteBackwards: "alot ".length,
       deleteForwards: 0,
-      confidence: "high",
-      safetyTier: "safe",
-      description: "Corrected alot typo",
     });
   });
 
@@ -317,18 +239,12 @@ describe("V3 rule expansion", () => {
       replacement: "I am ",
       deleteBackwards: "I is ".length,
       deleteForwards: 0,
-      confidence: "high",
-      safetyTier: "safe",
-      description: "Corrected whitelisted pronoun-verb mismatch",
     });
 
     expect(rule.apply(context("YOU WAS ", { lang: "en_US", inputAction: "insert" }))).toEqual({
       replacement: "YOU WERE ",
       deleteBackwards: "YOU WAS ".length,
       deleteForwards: 0,
-      confidence: "high",
-      safetyTier: "safe",
-      description: "Corrected whitelisted pronoun-verb mismatch",
     });
 
     expect(rule.apply(context("they is ", { lang: "en_US", inputAction: "insert" }))).toBeNull();

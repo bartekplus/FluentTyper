@@ -1,15 +1,10 @@
 import type { HostEditorApplyResult } from "./HostEditorAdapterResolver";
+import type { LineEditorBlockContext } from "./HostEditorControllerUtils";
 import {
   HOST_EDITOR_REQUEST_ATTR,
   HOST_EDITOR_REQUEST_EVENT,
   HOST_EDITOR_RESPONSE_ATTR,
 } from "./HostEditorBridgeProtocol";
-
-export interface HostEditorBridgeBlockContext {
-  beforeCursor: string;
-  afterCursor: string;
-  blockText: string;
-}
 
 export interface HostEditorBridgeApplyArgs {
   replaceStart: number;
@@ -20,7 +15,7 @@ export interface HostEditorBridgeApplyArgs {
 }
 
 export interface HostEditorPageBridge {
-  getBlockContextAtSelection(elem: HTMLElement): HostEditorBridgeBlockContext | null;
+  getBlockContextAtSelection(elem: HTMLElement): LineEditorBlockContext | null;
   applyBlockReplacement(elem: HTMLElement, args: HostEditorBridgeApplyArgs): HostEditorApplyResult;
 }
 
@@ -35,7 +30,7 @@ type BridgeRequest =
 type BridgeResponse =
   | {
       ok: true;
-      blockContext: HostEditorBridgeBlockContext;
+      blockContext: LineEditorBlockContext;
     }
   | {
       ok: true;
@@ -48,7 +43,7 @@ type BridgeResponse =
 export class InjectedHostEditorPageBridge implements HostEditorPageBridge {
   constructor(private readonly doc: Document = document) {}
 
-  public getBlockContextAtSelection(elem: HTMLElement): HostEditorBridgeBlockContext | null {
+  public getBlockContextAtSelection(elem: HTMLElement): LineEditorBlockContext | null {
     const response = this.dispatchRequest(elem, { action: "getBlockContext" });
     if (!response || !response.ok || !("blockContext" in response)) {
       return null;

@@ -10,10 +10,14 @@ export function createWorkspaceShell(className = "workspace-panel-stack"): HTMLD
   return shell;
 }
 
-export function createWorkspaceGrid(className: "workspace-top-grid" | "workspace-main-grid") {
-  const grid = document.createElement("div");
-  grid.className = className;
-  return grid;
+export function formatLooseText(value: unknown, fallback = ""): string {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
+    return String(value);
+  }
+  return fallback;
 }
 
 export function createWorkspaceCard(titleText?: string, bodyText?: string) {

@@ -46,13 +46,8 @@ export interface ResolveAutoLanguageDecisionResult {
     | "provisional_page"
     | "provisional_site_prior"
     | "fallback";
-  changed: boolean;
   switched: boolean;
   hasQualifiedEvidence: boolean;
-  sampleText: string;
-  topLanguage: string | null;
-  topScore: number;
-  stableScore: number;
 }
 
 export const AUTO_LANGUAGE_MAX_SAMPLE_CHARS = 160;
@@ -290,13 +285,8 @@ export function resolveAutoLanguageDecision(
       manualLockLanguage,
       switchSuppressedUntilBoundary,
       source: "manual_lock",
-      changed: stableLanguage !== manualLockLanguage,
       switched: stableLanguage !== null && stableLanguage !== manualLockLanguage,
       hasQualifiedEvidence,
-      sampleText,
-      topLanguage: manualLockLanguage,
-      topScore: 1,
-      stableScore: stableLanguage === manualLockLanguage ? 1 : 0,
     };
   }
 
@@ -354,13 +344,8 @@ export function resolveAutoLanguageDecision(
         manualLockLanguage: null,
         switchSuppressedUntilBoundary: false,
         source: "strong_script",
-        changed: true,
         switched: false,
         hasQualifiedEvidence,
-        sampleText,
-        topLanguage,
-        topScore,
-        stableScore: 0,
       };
     }
     if (hasQualifiedEvidence && topLanguage && topScore >= INITIAL_COMMIT_THRESHOLD) {
@@ -372,13 +357,8 @@ export function resolveAutoLanguageDecision(
         manualLockLanguage: null,
         switchSuppressedUntilBoundary: false,
         source: "detection",
-        changed: true,
         switched: false,
         hasQualifiedEvidence,
-        sampleText,
-        topLanguage,
-        topScore,
-        stableScore: 0,
       };
     }
     return {
@@ -395,13 +375,8 @@ export function resolveAutoLanguageDecision(
           : sitePriorLanguage
             ? "provisional_site_prior"
             : "fallback",
-      changed: false,
       switched: false,
       hasQualifiedEvidence,
-      sampleText,
-      topLanguage,
-      topScore,
-      stableScore: 0,
     };
   }
 
@@ -414,13 +389,8 @@ export function resolveAutoLanguageDecision(
       manualLockLanguage: null,
       switchSuppressedUntilBoundary: true,
       source: "strong_script",
-      changed: true,
       switched: true,
       hasQualifiedEvidence,
-      sampleText,
-      topLanguage,
-      topScore,
-      stableScore,
     };
   }
 
@@ -433,13 +403,8 @@ export function resolveAutoLanguageDecision(
       manualLockLanguage: null,
       switchSuppressedUntilBoundary,
       source: "stable",
-      changed: false,
       switched: false,
       hasQualifiedEvidence,
-      sampleText,
-      topLanguage,
-      topScore,
-      stableScore,
     };
   }
 
@@ -452,13 +417,8 @@ export function resolveAutoLanguageDecision(
       manualLockLanguage: null,
       switchSuppressedUntilBoundary,
       source: "stable",
-      changed: false,
       switched: false,
       hasQualifiedEvidence,
-      sampleText,
-      topLanguage,
-      topScore,
-      stableScore,
     };
   }
 
@@ -475,13 +435,8 @@ export function resolveAutoLanguageDecision(
       manualLockLanguage: null,
       switchSuppressedUntilBoundary,
       source: "stable",
-      changed: false,
       switched: false,
       hasQualifiedEvidence,
-      sampleText,
-      topLanguage,
-      topScore,
-      stableScore,
     };
   }
 
@@ -501,13 +456,8 @@ export function resolveAutoLanguageDecision(
       manualLockLanguage: null,
       switchSuppressedUntilBoundary: true,
       source: "detection",
-      changed: true,
       switched: true,
       hasQualifiedEvidence,
-      sampleText,
-      topLanguage,
-      topScore,
-      stableScore,
     };
   }
 
@@ -519,12 +469,7 @@ export function resolveAutoLanguageDecision(
     manualLockLanguage: null,
     switchSuppressedUntilBoundary,
     source: "stable",
-    changed: false,
     switched: false,
     hasQualifiedEvidence,
-    sampleText,
-    topLanguage,
-    topScore,
-    stableScore,
   };
 }

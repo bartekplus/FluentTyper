@@ -1,17 +1,15 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
 import {
-  normalizeWordSet,
   isLikelyCodeLikeContext,
   resolveEnglishBoundaryContext,
   resolveUserDictionarySet,
 } from "./helpers/EnglishRuleShared";
-import { detectWordCase } from "./helpers/GenericRuleShared";
+import { detectWordCase, normalizeWordSet } from "./helpers/GenericRuleShared";
 
 const ALOT_REGEX = /\balot$/i;
 
 export class EnglishAlotCorrectionRule implements GrammarRule {
   readonly id = "englishAlotCorrection" as const;
-  readonly name = "English Alot Correction";
   readonly triggers: GrammarEventType[] = ["wordBoundary"];
 
   private readonly fallbackUserDictionary: Set<string>;
@@ -49,9 +47,6 @@ export class EnglishAlotCorrectionRule implements GrammarRule {
       replacement: `${replacementPhrase}${boundaryContext.trailing}`,
       deleteBackwards: boundaryContext.input.length - phraseStart,
       deleteForwards: 0,
-      confidence: "high",
-      safetyTier: "safe",
-      description: "Corrected alot typo",
     };
   }
 }

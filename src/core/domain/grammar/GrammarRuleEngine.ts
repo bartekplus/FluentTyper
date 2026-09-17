@@ -3,29 +3,22 @@ import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from 
 
 const MAX_PROCESS_ITERATIONS = 5;
 const RULE_ERROR_THROTTLE_MS = 60_000;
-const LEGACY_SOURCE_RULE_IDS = new Set(["spacingRule", "capitalizeFirstLetter"]);
-type LegacyGrammarRuleId = "spacingRule" | "capitalizeFirstLetter";
-
-function isLegacySourceRuleId(ruleId: GrammarRule["id"]): ruleId is LegacyGrammarRuleId {
-  return LEGACY_SOURCE_RULE_IDS.has(ruleId);
-}
 
 export class GrammarRuleEngine {
   private rules: Map<string, GrammarRule> = new Map();
-  private pipelines: Map<GrammarEventType, string[]> = new Map();
+  private pipelines: Record<GrammarEventType, string[]> = {
+    insertChar: [],
+    wordBoundary: [],
+    idle: [],
+    paste: [],
+  };
   private errorCounters: Map<string, number> = new Map();
   private lastErrorTime: Map<string, number> = new Map();
-
-  constructor() {
-    for (const trigger of ["insertChar", "wordBoundary", "idle", "paste"] as const) {
-      this.pipelines.set(trigger, []);
-    }
-  }
 
   registerRule(rule: GrammarRule) {
     this.rules.set(rule.id, rule);
     for (const trigger of rule.triggers) {
-      this.getPipeline(trigger).push(rule.id);
+      this.pipelines[trigger].push(rule.id);
     }
   }
 
@@ -34,7 +27,7 @@ export class GrammarRuleEngine {
     context: GrammarContext,
     enabledRules?: string[],
   ): GrammarEdit[] {
-    const pipeline = this.getPipeline(event);
+    const pipeline = this.pipelines[event];
     let currentContext = { ...context };
     const appliedEdits: GrammarEdit[] = [];
 
@@ -66,7 +59,7 @@ export class GrammarRuleEngine {
           for (const edit of edits) {
             const enrichedEdit: GrammarEdit = {
               ...edit,
-              sourceRuleId: this.getSourceRuleId(rule, edit),
+              sourceRuleId: edit.sourceRuleId ?? (rule.id as GrammarEdit["sourceRuleId"]),
             };
             appliedEdits.push(enrichedEdit);
             currentContext = applyGrammarEditToContext(currentContext, enrichedEdit);
@@ -108,35 +101,8 @@ export class GrammarRuleEngine {
     return mergeSequentialGrammarEdits(accumulatedEdits)[0] ?? null;
   }
 
-  getDebugSnapshot(): { errorCounters: Record<string, number> } {
-    return {
-      errorCounters: Object.fromEntries(this.errorCounters),
-    };
-  }
-
-  private getPipeline(event: GrammarEventType): string[] {
-    const pipeline = this.pipelines.get(event);
-    if (pipeline) {
-      return pipeline;
-    }
-
-    const nextPipeline: string[] = [];
-    this.pipelines.set(event, nextPipeline);
-    return nextPipeline;
-  }
-
   private shouldRunRule(ruleId: string, enabledRules?: string[]): boolean {
     return !enabledRules || enabledRules.includes(ruleId);
-  }
-
-  private getSourceRuleId(rule: GrammarRule, edit: GrammarEdit): GrammarEdit["sourceRuleId"] {
-    if (edit.sourceRuleId) {
-      return edit.sourceRuleId;
-    }
-    if (isLegacySourceRuleId(rule.id)) {
-      return undefined;
-    }
-    return rule.id;
   }
 
   private recordRuleError(ruleId: string, error: unknown): void {

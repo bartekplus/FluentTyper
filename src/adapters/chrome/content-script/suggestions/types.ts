@@ -20,14 +20,8 @@ export interface SuggestionSnapshot {
 export interface EditableContext {
   kind: "text-value" | "contenteditable";
   beforeCursor: string;
-  afterCursor: string;
   fullText: string;
-  cursorOffset: number;
   selectionStable: boolean;
-  blockContext?: {
-    beforeCursor: string;
-    afterCursor: string;
-  } | null;
 }
 
 export interface PendingKeyFallback {
@@ -48,7 +42,6 @@ export interface PostEditFingerprint {
 }
 
 export type SuggestionElement = (HTMLInputElement | HTMLTextAreaElement | HTMLElement) & {
-  tributeMenu?: HTMLElement | null;
   suggestionMenu?: HTMLElement | null;
 };
 

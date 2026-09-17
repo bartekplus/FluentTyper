@@ -1,12 +1,6 @@
 import { resolveDynamicVariable } from "@core/domain/variables";
 
-export interface TemplateVariables {
-  [key: string]: string;
-}
-
 const TEMPLATE_REGEX = /\$\{(?!\d)[a-zA-Z0-9_æøåÆØÅ]+(?::[^}]+)?\}/g;
-const TEMPLATE_SPLIT_REGEX = /\$\{(?!\d)[a-zA-Z0-9_æøåÆØÅ]+(?::[^}]+)?\}/;
-const TEMPLATE_ARG_REGEX = /[^{}]+(?=})/g;
 
 export class TemplateExpander {
   static async parseStringTemplateAsync(
@@ -24,16 +18,6 @@ export class TemplateExpander {
       }),
     );
 
-    return String.raw({ raw: parts }, ...parameters);
-  }
-
-  static parseStringTemplate(str: string, obj: TemplateVariables): string {
-    const parts = str.split(TEMPLATE_SPLIT_REGEX);
-    const args = str.match(TEMPLATE_ARG_REGEX) || [];
-    const parameters = args.map(
-      (argument) =>
-        obj[argument] || (obj[argument] === undefined ? `\${${argument}}` : obj[argument]),
-    );
     return String.raw({ raw: parts }, ...parameters);
   }
 
@@ -69,24 +53,6 @@ export class TemplateExpander {
 
       return undefined;
     };
-  }
-
-  static getExpandedVariables(
-    lang: string,
-    timeFormat: string,
-    dateFormat: string,
-  ): TemplateVariables {
-    const expandedTemplateVariables: TemplateVariables = {};
-
-    const timeVal = resolveDynamicVariable("time", undefined, lang, timeFormat, dateFormat);
-    const dateVal = resolveDynamicVariable("date", undefined, lang, timeFormat, dateFormat);
-    if (timeVal) {
-      expandedTemplateVariables["time"] = timeVal;
-    }
-    if (dateVal) {
-      expandedTemplateVariables["date"] = dateVal;
-    }
-    return expandedTemplateVariables;
   }
 
   private static async resolvePageVariable(

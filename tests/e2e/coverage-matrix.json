@@ -690,7 +690,7 @@
         },
         {
           "layer": "unit",
-          "file": "tests/TextExpansionManager.test.ts",
+          "file": "tests/PresageFiles.test.ts",
           "test": "writes lowercase expansions to file and updates all presage engines"
         }
       ]

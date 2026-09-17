@@ -1,4 +1,6 @@
-import type { InFlightPredictorRequest, PredictorRequest } from "./types";
+import type { SecondaryPredictorRequest } from "../PredictionTypes";
+
+type InFlightPredictorRequest = Pick<SecondaryPredictorRequest, "lang" | "predictionInput">;
 
 export class GenerationCoordinator {
   private activeGenerationSeq = 0;
@@ -42,7 +44,7 @@ export class GenerationCoordinator {
     return this.cancelledGenerationSeqs.has(seq);
   }
 
-  registerGeneration(seq: number, request: PredictorRequest): void {
+  registerGeneration(seq: number, request: SecondaryPredictorRequest): void {
     const deferred = this.createDeferred();
     this.generationDonePromises.set(seq, deferred.promise);
     this.generationDoneResolvers.set(seq, deferred.resolve);

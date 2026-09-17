@@ -4,7 +4,9 @@ import type { SettingsManager } from "../src/core/application/settingsManager";
 function createSettingsManagerMock(seed: Record<string, unknown>): SettingsManager {
   return {
     get: async (key: string) => seed[key] as never,
+    getRaw: async (key: string) => seed[key] as never,
     set: async () => undefined,
+    setRaw: async () => undefined,
   } as unknown as SettingsManager;
 }
 
@@ -35,7 +37,6 @@ describe("ConfigAssembler.assemblePredictionRuntimeConfig prefixOnlyMode", () =>
       inline_suggestion: false,
     });
     const assembler = new ConfigAssembler(sm, {
-      enableAIPredictor: false,
       isDevBuild: false,
     });
     const result = await assembler.assemblePredictionRuntimeConfig();
@@ -49,7 +50,6 @@ describe("ConfigAssembler.assemblePredictionRuntimeConfig prefixOnlyMode", () =>
       inline_suggestion: false,
     });
     const assembler = new ConfigAssembler(sm, {
-      enableAIPredictor: false,
       isDevBuild: false,
     });
     const result = await assembler.assemblePredictionRuntimeConfig();
@@ -63,7 +63,6 @@ describe("ConfigAssembler.assemblePredictionRuntimeConfig prefixOnlyMode", () =>
       inline_suggestion: true,
     });
     const assembler = new ConfigAssembler(sm, {
-      enableAIPredictor: false,
       isDevBuild: false,
     });
     const result = await assembler.assemblePredictionRuntimeConfig();
@@ -78,7 +77,6 @@ describe("ConfigAssembler.assemblePredictionRuntimeConfig prefixOnlyMode", () =>
       personalizationEnabled: true,
     });
     const assembler = new ConfigAssembler(sm, {
-      enableAIPredictor: false,
       isDevBuild: false,
     });
 

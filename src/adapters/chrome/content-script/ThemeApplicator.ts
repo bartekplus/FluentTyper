@@ -51,19 +51,19 @@ const THEME_SETTING_SPECS: ThemeSettingSpec[] = [
 ];
 
 export class ThemeApplicator {
-  apply(themeSettings: ThemeSettings, doc: Document = document): void {
-    const safeThemeSettings = this.sanitizeThemeSettings(themeSettings, doc);
-    const existingStyle = doc.getElementById("fluent-typer-theme-overrides");
+  apply(themeSettings: ThemeSettings): void {
+    const safeThemeSettings = this.sanitizeThemeSettings(themeSettings);
+    const existingStyle = document.getElementById("fluent-typer-theme-overrides");
     if (existingStyle) {
       existingStyle.remove();
     }
 
-    const styleElement = doc.createElement("style");
+    const styleElement = document.createElement("style");
     styleElement.id = "fluent-typer-theme-overrides";
 
     styleElement.textContent = this.buildThemeOverrideCss(safeThemeSettings);
 
-    doc.head.appendChild(styleElement);
+    document.head.appendChild(styleElement);
   }
 
   private buildThemeOverrideCss(themeSettings: ThemeSettings): string {
@@ -77,7 +77,7 @@ export class ThemeApplicator {
     return lines.join("\n");
   }
 
-  private sanitizeThemeSettings(themeSettings: ThemeSettings, doc: Document): ThemeSettings {
+  private sanitizeThemeSettings(themeSettings: ThemeSettings): ThemeSettings {
     const sanitizedThemeSettings = {} as ThemeSettings;
     for (const spec of THEME_SETTING_SPECS) {
       const fallbackValue = DEFAULT_SUGGESTION_THEME_SETTINGS[spec.key];
@@ -85,18 +85,12 @@ export class ThemeApplicator {
         themeSettings[spec.key],
         fallbackValue,
         spec.cssProperty,
-        doc,
       );
     }
     return sanitizedThemeSettings;
   }
 
-  private sanitizeCssValue(
-    value: unknown,
-    fallback: string,
-    property: string,
-    doc: Document,
-  ): string {
+  private sanitizeCssValue(value: unknown, fallback: string, property: string): string {
     if (typeof value !== "string") {
       return fallback;
     }
@@ -106,7 +100,7 @@ export class ThemeApplicator {
       return fallback;
     }
 
-    const probe = doc.createElement("div");
+    const probe = document.createElement("div");
     probe.style.setProperty(property, trimmedValue);
     return probe.style.getPropertyValue(property) ? trimmedValue : fallback;
   }

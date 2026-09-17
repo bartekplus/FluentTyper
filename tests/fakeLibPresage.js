@@ -7,8 +7,10 @@ class PresageCallback {
     return this.predictions;
   }
 
-  implement() {
-    return this.getPredictions.bind(this);
+  implement(callback) {
+    const getPredictions = this.getPredictions.bind(this);
+    getPredictions.callback = callback;
+    return getPredictions;
   }
 }
 
@@ -31,6 +33,7 @@ class FakeLibPresage {
     this.getPredictions = getPredictions;
   }
   predictWithProbability() {
+    mod.lastPastStream = this.getPredictions.callback?.get_past_stream() ?? "";
     return new NativePredictions(this.getPredictions());
   }
   config() {}

@@ -7,11 +7,10 @@ export const SETTINGS_DOMAIN_BLACKLIST = getSettingStorageKey("domainList");
 const SETTINGS_ENABLED = getSettingStorageKey("enabled");
 const SETTINGS_DOMAIN_LIST_MODE = getSettingStorageKey("domainListMode");
 const WHITESPACE_REGEX = /\s+/;
-const WHITESPACE_EXCLUDING_NEWLINE_REGEX = /[^\S\r\n]+/;
 const LETTER_REGEX = /^\p{L}/u;
 const DIGITS_ONLY_REGEX = /[^0-9]/g;
 
-function toDomainListEntry(value: unknown): string | null {
+export function toStoredString(value: unknown): string | null {
   if (typeof value === "string") {
     return value;
   }
@@ -32,7 +31,7 @@ async function getDomainList(settings: SettingsManager): Promise<string[]> {
   const domainList = await settings.get(SETTINGS_DOMAIN_BLACKLIST);
   return Array.isArray(domainList)
     ? domainList
-        .map((entry) => toDomainListEntry(entry))
+        .map((entry) => toStoredString(entry))
         .filter((entry): entry is string => typeof entry === "string")
     : [];
 }
@@ -152,10 +151,8 @@ export async function blockUnBlockDomain(
   }
 }
 
-export function isWhiteSpace(character: string, matchNewLine: boolean = true): boolean {
-  return matchNewLine
-    ? WHITESPACE_REGEX.test(character)
-    : WHITESPACE_EXCLUDING_NEWLINE_REGEX.test(character);
+export function isWhiteSpace(character: string): boolean {
+  return WHITESPACE_REGEX.test(character);
 }
 
 export function isLetter(character: string): boolean {

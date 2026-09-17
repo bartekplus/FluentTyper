@@ -1,4 +1,4 @@
-import { resolveSuggestionMenuHostId, SUGGESTION_MENU_HOST_ID_PREFIX } from "./SuggestionMenuHost";
+import { resolveSuggestionMenuHostId } from "./SuggestionMenuHost";
 import { SUGGESTION_POPUP_SHADOW_CSS } from "./SuggestionPopupShadowStyles";
 
 export interface SuggestionMenuElements {
@@ -8,7 +8,6 @@ export interface SuggestionMenuElements {
 
 export class SuggestionMenuView {
   static readonly CONTAINER_CLASS = "ft-suggestion-container";
-  static readonly HOST_ID_PREFIX = SUGGESTION_MENU_HOST_ID_PREFIX;
   static readonly OWNED_ATTR = "data-ft-suggestion-owned";
   static readonly ROLE_ATTR = "data-ft-suggestion-role";
   static readonly MENU_ROLE = "menu";

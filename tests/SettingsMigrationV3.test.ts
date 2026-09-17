@@ -1,8 +1,6 @@
 import { describe, test, expect } from "bun:test";
-import {
-  migrateSettingsV3,
-  readSettingWithAliases,
-} from "../src/core/application/settings/SettingsMigrationV3";
+import { migrateSettingsV3 } from "../src/core/application/settings/SettingsMigrationV3";
+import { readSettingWithAliases } from "../src/core/application/settings/settingsAccess";
 import type { SettingsManager } from "../src/core/application/settingsManager";
 
 function createMockSettingsManager(

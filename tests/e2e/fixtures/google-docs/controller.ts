@@ -5,7 +5,7 @@ if (!crypto.randomUUID)
         byte.toString(16).padStart(2, "0"),
       ).join(""),
   });
-import { SuggestionManager } from "../../../../src/adapters/chrome/content-script/SuggestionManager";
+import { SuggestionManagerRuntime } from "../../../../src/adapters/chrome/content-script/suggestions/SuggestionManagerRuntime";
 import { GoogleDocsAdapter } from "../../../../src/adapters/chrome/content-script/google-docs/GoogleDocsAdapter";
 import type {
   SuggestionManagerOptions,
@@ -13,7 +13,7 @@ import type {
 } from "../../../../src/adapters/chrome/content-script/suggestions/types";
 const fixture = globalThis as unknown as {
   docs: GoogleDocsAdapter;
-  generic: SuggestionManager;
+  generic: SuggestionManagerRuntime;
   requests: PredictionRequest[];
   events: string[];
   predictions: string[];
@@ -64,7 +64,7 @@ fixture.startDocs = (options = {}) => {
     },
     ...options,
   };
-  fixture.generic = new SuggestionManager(config);
+  fixture.generic = new SuggestionManagerRuntime(config);
   fixture.generic.queryAndAttachHelper();
   fixture.docs = new GoogleDocsAdapter(config);
   fixture.docs.start();

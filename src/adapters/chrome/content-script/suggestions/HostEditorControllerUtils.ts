@@ -40,6 +40,25 @@ export function isLineEditorController(value: unknown): value is LineEditorContr
   );
 }
 
+export function findLineEditorController(elem: HTMLElement): LineEditorController | null {
+  let current: HTMLElement | null = elem;
+  while (current) {
+    for (const key of Object.getOwnPropertyNames(current)) {
+      let value: unknown;
+      try {
+        value = (current as unknown as Record<string, unknown>)[key];
+      } catch {
+        continue;
+      }
+      if (isLineEditorController(value)) {
+        return value;
+      }
+    }
+    current = current.parentElement;
+  }
+  return null;
+}
+
 export function readLineEditorCursor(controller: LineEditorController): LineEditorCursor | null {
   const cursor = controller.getCursor();
   if (

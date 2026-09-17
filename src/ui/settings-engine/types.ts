@@ -1,10 +1,14 @@
-export interface OptionEntry {
+export type OptionTuple = [string, string];
+
+export interface RuleOption {
   value: string;
   text: string;
-  group?: string;
+  description?: string;
+  example?: string;
+  badge?: string;
+  safetyTier: "safe" | "advanced";
+  languageScope: "all" | "en_US";
 }
-
-export type OptionTuple = [string, string];
 
 export interface RuleToggleAction {
   actionKey?: string;
@@ -31,34 +35,7 @@ export type SliderConfig = {
   max?: number;
   step?: number;
   display?: boolean;
-  displayModifier?: (value: number) => string;
   default?: number;
-};
-
-export type TextConfig = {
-  type: "text";
-  tab: string;
-  group: string;
-  name?: string;
-  label?: string;
-  text?: string;
-  subtype?: "color" | "password" | "email" | "url" | "search";
-  pattern?: string;
-  required?: boolean;
-  masked?: boolean;
-  colorPicker?: boolean;
-  store?: false;
-  default?: string;
-};
-
-export type TextareaConfig = {
-  type: "textarea";
-  tab: string;
-  group: string;
-  name?: string;
-  label?: string;
-  text?: string;
-  default?: string;
 };
 
 export type SelectConfig = {
@@ -67,36 +44,7 @@ export type SelectConfig = {
   group: string;
   name?: string;
   label?: string;
-  options?:
-    OptionTuple[] | OptionEntry[] | OptionEntry[][] | { groups?: string[]; values: OptionEntry[] };
-  default?: string;
-};
-
-export type ListBoxConfig = {
-  type: "listBox";
-  tab: string;
-  group: string;
-  name?: string;
-  label?: string;
-};
-
-export type ListBoxMultiselectConfig = {
-  type: "listBoxMultiselect";
-  tab: string;
-  group: string;
-  name?: string;
-  label?: string;
-  options?: { groups?: string[]; values: OptionEntry[] } | OptionEntry[][];
-  default?: string[];
-};
-
-export type RadioConfig = {
-  type: "radioButtons";
-  tab: string;
-  group: string;
-  name?: string;
-  label?: string;
-  options?: [string, string][];
+  options?: OptionTuple[];
   default?: string;
 };
 
@@ -108,19 +56,6 @@ export type ButtonConfig = {
   label?: string;
   text?: string;
   store?: false;
-};
-
-export type ModalButtonConfig = {
-  type: "modalButton";
-  tab: string;
-  group: string;
-  name?: string;
-  label?: string;
-  text?: string;
-  modal?: {
-    title?: string;
-    contents: FieldConfig[];
-  };
 };
 
 export type DescriptionConfig = {
@@ -149,19 +84,19 @@ export type RuleToggleCardsConfig = {
   name?: string;
   label?: string;
   helpText?: string;
-  searchPlaceholder?: string;
-  sectionSafeLabel?: string;
-  sectionAdvancedLabel?: string;
-  filterAllLabel?: string;
-  filterSafeLabel?: string;
-  filterAdvancedLabel?: string;
-  filterEnglishOnlyLabel?: string;
-  filterEnabledOnlyLabel?: string;
-  summaryLabel?: string;
-  emptyStateText?: string;
-  noMatchesText?: string;
-  options?: unknown[];
-  actions?: RuleToggleAction[];
+  searchPlaceholder: string;
+  sectionSafeLabel: string;
+  sectionAdvancedLabel: string;
+  filterAllLabel: string;
+  filterSafeLabel: string;
+  filterAdvancedLabel: string;
+  filterEnglishOnlyLabel: string;
+  filterEnabledOnlyLabel: string;
+  summaryLabel: string;
+  emptyStateText: string;
+  noMatchesText: string;
+  options: RuleOption[];
+  actions: RuleToggleAction[];
   default?: string[];
 };
 
@@ -176,14 +111,8 @@ export type ValueOnlyConfig = {
 export type FieldConfig =
   | CheckboxConfig
   | SliderConfig
-  | TextConfig
-  | TextareaConfig
   | SelectConfig
-  | ListBoxConfig
-  | ListBoxMultiselectConfig
-  | RadioConfig
   | ButtonConfig
-  | ModalButtonConfig
   | DescriptionConfig
   | CustomPanelConfig
   | RuleToggleCardsConfig

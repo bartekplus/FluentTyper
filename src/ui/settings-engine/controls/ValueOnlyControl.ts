@@ -2,11 +2,6 @@ import type { ValueOnlyConfig } from "../types.js";
 import type { Store } from "@core/application/storage/Store.js";
 import { BaseControl, createFieldRoot, createInputElement } from "./FieldControl.js";
 
-/**
- * Invisible control — stores a value in chrome.storage with no UI widget.
- * The rootElement is a visible empty <div> (can serve as a render container).
- * The element is a <input type="hidden"> inside it.
- */
 export class ValueOnlyControl extends BaseControl<unknown> {
   private _value: unknown;
 

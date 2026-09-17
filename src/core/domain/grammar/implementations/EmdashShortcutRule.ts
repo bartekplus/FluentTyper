@@ -3,7 +3,6 @@ import { isDeleteInputAction, shouldSkipGenericReplacement } from "./helpers/Gen
 
 export class EmdashShortcutRule implements GrammarRule {
   readonly id = "emdashShortcut" as const;
-  readonly name = "Emdash Shortcut";
   readonly triggers: GrammarEventType[] = ["insertChar"];
 
   apply(context: GrammarContext): GrammarEdit | null {
@@ -29,9 +28,6 @@ export class EmdashShortcutRule implements GrammarRule {
       replacement: "—",
       deleteBackwards: 2,
       deleteForwards: 0,
-      confidence: "medium",
-      safetyTier: "advanced",
-      description: "Replaced double hyphen with em dash",
     };
   }
 }

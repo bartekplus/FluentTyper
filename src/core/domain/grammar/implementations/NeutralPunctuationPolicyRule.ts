@@ -2,7 +2,6 @@ import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from 
 
 export class NeutralPunctuationPolicyRule implements GrammarRule {
   readonly id = "neutralPunctuationPolicy" as const;
-  readonly name = "Neutral Punctuation Policy";
   readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
 
   apply(context: GrammarContext): GrammarEdit | null {

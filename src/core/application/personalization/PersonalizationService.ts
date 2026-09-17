@@ -1,6 +1,7 @@
 import {
   calculateEffectivePersonalizationScore,
   createEmptyPersonalizationStore,
+  defineOwnProperty,
   isValidEventId,
   normalizePersonalizationWord,
   prunePersonalizationLanguage,
@@ -74,7 +75,7 @@ export class PersonalizationService {
       }
 
       const nowMs = this.now();
-      const next = cloneStore(this.store);
+      const next = structuredClone(this.store);
       const languageWords = getOwnProperty(next.languages, event.language) ?? {};
       const current = getOwnProperty(languageWords, normalized.normalizedWord);
       defineOwnProperty(languageWords, normalized.normalizedWord, {
@@ -110,7 +111,7 @@ export class PersonalizationService {
       }
 
       const nowMs = this.now();
-      const next = cloneStore(this.store);
+      const next = structuredClone(this.store);
       const nextEvent = getOwnProperty(next.recentEvents, eventId);
       if (!nextEvent) {
         return false;
@@ -179,7 +180,7 @@ export class PersonalizationService {
   }
 
   private replaceInMemoryStore(store: PersonalizationStoreV1): void {
-    this.store = cloneStore(store);
+    this.store = structuredClone(store);
     this.snapshot = createImmutableSnapshot(this.store);
   }
 
@@ -212,21 +213,6 @@ export class PersonalizationService {
   }
 }
 
-function cloneStore(store: PersonalizationStoreV1): PersonalizationStoreV1 {
-  return {
-    version: 1,
-    languages: Object.fromEntries(
-      Object.entries(store.languages).map(([language, words]) => [
-        language,
-        Object.fromEntries(Object.entries(words).map(([key, word]) => [key, { ...word }])),
-      ]),
-    ),
-    recentEvents: Object.fromEntries(
-      Object.entries(store.recentEvents).map(([eventId, event]) => [eventId, { ...event }]),
-    ),
-  };
-}
-
 function createImmutableSnapshot(store: PersonalizationStoreV1): PersonalizationRankingSnapshot {
   const languages: Record<string, Readonly<Record<string, Readonly<object>>>> = {};
   for (const [language, words] of Object.entries(store.languages)) {
@@ -240,13 +226,4 @@ function createImmutableSnapshot(store: PersonalizationStoreV1): Personalization
 
 function getOwnProperty<T>(record: Record<string, T>, key: string): T | undefined {
   return Object.hasOwn(record, key) ? record[key] : undefined;
-}
-
-function defineOwnProperty<T>(record: Record<string, T>, key: string, value: T): void {
-  Object.defineProperty(record, key, {
-    configurable: true,
-    enumerable: true,
-    value,
-    writable: true,
-  });
 }

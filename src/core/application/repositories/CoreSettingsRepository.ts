@@ -1,39 +1,17 @@
 import { DEFAULT_NUM_SUGGESTIONS } from "@core/domain/constants";
-import type { DomainListMode, SettingField, SettingsSchema } from "@core/domain/contracts/settings";
+import type { SettingField } from "@core/domain/contracts/settings";
 import { resolveEnabledLanguages } from "@core/domain/lang";
-import { DEFAULT_SUGGESTION_THEME_SETTINGS } from "@core/domain/themeDefaults";
+import {
+  DEFAULT_SUGGESTION_THEME_SETTINGS,
+  type SuggestionThemeSettings,
+} from "@core/domain/themeDefaults";
+import { toStoredString } from "../domain-utils";
 import { SettingsRepositoryBase } from "./SettingsRepositoryBase";
 
-const DEFAULT_DOMAIN_LIST_MODE: DomainListMode = "blackList";
 const DEFAULT_LANGUAGE = "en_US";
 const DEFAULT_MIN_WORD_LENGTH_TO_PREDICT = 1;
 
-type ThemeSettings = Pick<
-  SettingsSchema,
-  | "suggestionBgLight"
-  | "suggestionTextLight"
-  | "suggestionHighlightBgLight"
-  | "suggestionHighlightTextLight"
-  | "suggestionBorderLight"
-  | "suggestionBgDark"
-  | "suggestionTextDark"
-  | "suggestionHighlightBgDark"
-  | "suggestionHighlightTextDark"
-  | "suggestionBorderDark"
-  | "suggestionFontSize"
-  | "suggestionPaddingVertical"
-  | "suggestionPaddingHorizontal"
->;
-
-function toStoredString(value: unknown): string | null {
-  if (typeof value === "string") {
-    return value;
-  }
-  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
-    return String(value);
-  }
-  return null;
-}
+type ThemeField = keyof SuggestionThemeSettings & SettingField;
 
 export class CoreSettingsRepository extends SettingsRepositoryBase {
   private static toBoolean(value: unknown, fallback = false): boolean {
@@ -81,10 +59,6 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
     return this.getStringField("fallbackLanguage", DEFAULT_LANGUAGE);
   }
 
-  async setFallbackLanguage(language: string): Promise<void> {
-    await this.setField("fallbackLanguage", language);
-  }
-
   async getEnabledLanguages(): Promise<string[]> {
     return resolveEnabledLanguages(await this.getField("enabledLanguages"));
   }
@@ -110,19 +84,6 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
 
   async getPreferNativeAutocomplete(): Promise<boolean> {
     return this.getBooleanField("preferNativeAutocomplete", true);
-  }
-
-  async getDomainListMode(): Promise<DomainListMode> {
-    const mode = await this.getField("domainListMode");
-    return mode === "whiteList" ? "whiteList" : DEFAULT_DOMAIN_LIST_MODE;
-  }
-
-  async getDomainList(): Promise<string[]> {
-    return this.getStringArrayField("domainList");
-  }
-
-  async setDomainList(list: string[]): Promise<void> {
-    await this.setField("domainList", list);
   }
 
   async getAutocomplete(): Promise<boolean> {
@@ -155,10 +116,6 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
 
   async getInsertSpaceAfterAutocomplete(): Promise<boolean> {
     return this.getBooleanField("insertSpaceAfterAutocomplete");
-  }
-
-  async getAutoCapitalize(): Promise<boolean> {
-    return this.getBooleanField("autoCapitalize");
   }
 
   async getAutoLanguageSitePriors(): Promise<Record<string, Record<string, number>>> {
@@ -213,91 +170,16 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
     return this.getStringArrayField("userDictionaryList");
   }
 
-  async getThemeSettings(): Promise<ThemeSettings> {
-    const defaults = DEFAULT_SUGGESTION_THEME_SETTINGS;
-    const [
-      suggestionBgLight,
-      suggestionTextLight,
-      suggestionHighlightBgLight,
-      suggestionHighlightTextLight,
-      suggestionBorderLight,
-      suggestionBgDark,
-      suggestionTextDark,
-      suggestionHighlightBgDark,
-      suggestionHighlightTextDark,
-      suggestionBorderDark,
-      suggestionFontSize,
-      suggestionPaddingVertical,
-      suggestionPaddingHorizontal,
-    ] = await Promise.all([
-      this.getField("suggestionBgLight"),
-      this.getField("suggestionTextLight"),
-      this.getField("suggestionHighlightBgLight"),
-      this.getField("suggestionHighlightTextLight"),
-      this.getField("suggestionBorderLight"),
-      this.getField("suggestionBgDark"),
-      this.getField("suggestionTextDark"),
-      this.getField("suggestionHighlightBgDark"),
-      this.getField("suggestionHighlightTextDark"),
-      this.getField("suggestionBorderDark"),
-      this.getField("suggestionFontSize"),
-      this.getField("suggestionPaddingVertical"),
-      this.getField("suggestionPaddingHorizontal"),
-    ]);
-
-    return {
-      suggestionBgLight: CoreSettingsRepository.toString(
-        suggestionBgLight,
-        defaults.suggestionBgLight,
-      ),
-      suggestionTextLight: CoreSettingsRepository.toString(
-        suggestionTextLight,
-        defaults.suggestionTextLight,
-      ),
-      suggestionHighlightBgLight: CoreSettingsRepository.toString(
-        suggestionHighlightBgLight,
-        defaults.suggestionHighlightBgLight,
-      ),
-      suggestionHighlightTextLight: CoreSettingsRepository.toString(
-        suggestionHighlightTextLight,
-        defaults.suggestionHighlightTextLight,
-      ),
-      suggestionBorderLight: CoreSettingsRepository.toString(
-        suggestionBorderLight,
-        defaults.suggestionBorderLight,
-      ),
-      suggestionBgDark: CoreSettingsRepository.toString(
-        suggestionBgDark,
-        defaults.suggestionBgDark,
-      ),
-      suggestionTextDark: CoreSettingsRepository.toString(
-        suggestionTextDark,
-        defaults.suggestionTextDark,
-      ),
-      suggestionHighlightBgDark: CoreSettingsRepository.toString(
-        suggestionHighlightBgDark,
-        defaults.suggestionHighlightBgDark,
-      ),
-      suggestionHighlightTextDark: CoreSettingsRepository.toString(
-        suggestionHighlightTextDark,
-        defaults.suggestionHighlightTextDark,
-      ),
-      suggestionBorderDark: CoreSettingsRepository.toString(
-        suggestionBorderDark,
-        defaults.suggestionBorderDark,
-      ),
-      suggestionFontSize: CoreSettingsRepository.toString(
-        suggestionFontSize,
-        defaults.suggestionFontSize,
-      ),
-      suggestionPaddingVertical: CoreSettingsRepository.toString(
-        suggestionPaddingVertical,
-        defaults.suggestionPaddingVertical,
-      ),
-      suggestionPaddingHorizontal: CoreSettingsRepository.toString(
-        suggestionPaddingHorizontal,
-        defaults.suggestionPaddingHorizontal,
-      ),
-    };
+  async getThemeSettings(): Promise<SuggestionThemeSettings> {
+    const fields = Object.keys(DEFAULT_SUGGESTION_THEME_SETTINGS) as ThemeField[];
+    const values = await Promise.all(fields.map((field) => this.getField(field)));
+    const settings = { ...DEFAULT_SUGGESTION_THEME_SETTINGS };
+    fields.forEach((field, index) => {
+      settings[field] = CoreSettingsRepository.toString(
+        values[index],
+        DEFAULT_SUGGESTION_THEME_SETTINGS[field],
+      );
+    });
+    return settings;
   }
 }

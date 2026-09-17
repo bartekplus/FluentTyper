@@ -1,8 +1,5 @@
 import type { GrammarContext } from "../../types";
-import {
-  normalizeWordSet as normalizeWordSetEntries,
-  resolveInputAction as resolveGrammarInputAction,
-} from "./GenericRuleShared";
+import { normalizeWordSet, resolveInputAction } from "./GenericRuleShared";
 
 const TRAILING_DELIMITER_REGEX = /[\s.,!?;:)\]"}]/;
 const LETTER_REGEX = /[A-Za-z]/;
@@ -26,8 +23,6 @@ export function isEnglishLanguageContext(context: GrammarContext): boolean {
   return context.hints?.lang === "en_US";
 }
 
-export { normalizeWordSetEntries as normalizeWordSet };
-
 export function splitTrailingDelimiters(input: string): { core: string; trailing: string } {
   let coreEnd = input.length;
   while (coreEnd > 0 && TRAILING_DELIMITER_REGEX.test(input[coreEnd - 1])) {
@@ -43,12 +38,10 @@ export function resolveEnglishBoundaryContext(
   context: GrammarContext,
   options: { ignoreDeleteInputAction?: boolean } = {},
 ): EnglishBoundaryContext | null {
-  // Returns only edit-worthy English word-boundary contexts and keeps the
-  // original input plus the split core/trailing slices for rule-specific logic.
   if (!isEnglishLanguageContext(context)) {
     return null;
   }
-  if (!options.ignoreDeleteInputAction && resolveGrammarInputAction(context) === "delete") {
+  if (!options.ignoreDeleteInputAction && resolveInputAction(context) === "delete") {
     return null;
   }
 
@@ -114,20 +107,6 @@ export function isLikelyCodeLikeContext(
   return false;
 }
 
-export function applyCasePattern(inputWord: string, replacementWord: string): string {
-  if (inputWord.toUpperCase() === inputWord) {
-    return replacementWord.toUpperCase();
-  }
-  const isTitleCase =
-    inputWord.length > 1 &&
-    inputWord[0].toUpperCase() === inputWord[0] &&
-    inputWord.slice(1).toLowerCase() === inputWord.slice(1);
-  if (isTitleCase) {
-    return replacementWord[0].toUpperCase() + replacementWord.slice(1).toLowerCase();
-  }
-  return replacementWord.toLowerCase();
-}
-
 export function resolveUserDictionarySet(
   context: GrammarContext,
   fallbackSet: Set<string>,
@@ -136,5 +115,5 @@ export function resolveUserDictionarySet(
   if (!Array.isArray(dictionary)) {
     return fallbackSet;
   }
-  return normalizeWordSetEntries(dictionary);
+  return normalizeWordSet(dictionary);
 }

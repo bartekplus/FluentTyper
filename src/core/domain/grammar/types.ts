@@ -48,21 +48,13 @@ export interface GrammarEdit {
   deleteBackwards: number; // Number of characters to delete before the cursor
   deleteForwards: number; // Number of characters to delete after the cursor
   cursorOffset?: number; // If set, cursor is placed at replaceStart + cursorOffset instead of end of replacement
-  confidence?: "high" | "medium";
   sourceRuleId?: Exclude<GrammarRuleId, "spacingRule" | "capitalizeFirstLetter">;
-  safetyTier?: "safe" | "advanced";
-  description?: string;
 }
 
 export interface GrammarRule {
   readonly id: GrammarRuleId;
-  readonly name: string;
   readonly triggers: GrammarEventType[];
 
-  /**
-   * Applies the rule to the current context.
-   * Returns an array of edits (often just one), or null/empty array if no edit is needed.
-   */
   apply(context: GrammarContext): GrammarEdit[] | GrammarEdit | null;
 }
 
@@ -76,6 +68,5 @@ export interface GrammarRuleCatalogEntry {
   safetyTier: "safe" | "advanced";
   defaultRollout: "on" | "off";
   recommended: boolean;
-  defaultEnabled: boolean;
   priority: number;
 }

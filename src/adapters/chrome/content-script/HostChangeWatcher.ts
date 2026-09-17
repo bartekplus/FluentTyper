@@ -1,5 +1,4 @@
 import { createLogger } from "@core/application/logging/Logger";
-import { HostChangeStateMachine } from "./HostChangeStateMachine";
 
 export type HostChangeWatcherDependencies = {
   watchDogRunner: () => void;
@@ -17,16 +16,13 @@ const HOST_CHANGE_WATCHDOG_DEBOUNCE_MS = 250;
 export class HostChangeWatcher {
   private watchDogTimeoutId: number | null = null;
   private rootNodeObserver: MutationObserver | null = null;
-  private readonly stateMachine: HostChangeStateMachine;
-  private readonly scheduleWatchDogCheckBound: () => void;
+  private hostName = window.location.hostname;
+  private readonly scheduleWatchDogCheckBound = this.scheduleWatchDogCheck.bind(this);
 
   constructor(
     private readonly dependencies: HostChangeWatcherDependencies,
     private readonly debounceMs = HOST_CHANGE_WATCHDOG_DEBOUNCE_MS,
-  ) {
-    this.stateMachine = new HostChangeStateMachine(window.location.hostname);
-    this.scheduleWatchDogCheckBound = this.scheduleWatchDogCheck.bind(this);
-  }
+  ) {}
 
   start(): void {
     this.attachRootNodeObserver();
@@ -47,48 +43,47 @@ export class HostChangeWatcher {
   }
 
   getHostName(): string {
-    return this.stateMachine.getHostName();
+    return this.hostName;
   }
 
   setHostName(hostName: string): void {
-    this.stateMachine.setHostName(hostName);
+    this.hostName = hostName;
   }
 
   checkHostName(): boolean {
-    const decision = this.stateMachine.evaluateHost(window.location.hostname);
-    if (decision.type === "host-changed") {
-      this.handleHostChange(decision.previousHostName, decision.nextHostName);
-      return true;
+    const currentHostName = window.location.hostname;
+    if (this.hostName === currentHostName) {
+      return false;
     }
-    return false;
+    const previousHostName = this.hostName;
+    this.hostName = currentHostName;
+    logger.info("Host changed; refetching config", {
+      previousHost: previousHostName,
+      nextHost: currentHostName,
+    });
+    this.dependencies.requestConfig();
+    return true;
   }
 
   watchDog(): void {
-    const currentNode = document.body || document.documentElement;
-    const decision = this.stateMachine.evaluateWatchDog({
-      currentHostName: window.location.hostname,
-      observedNode: this.dependencies.getObservedNode(),
-      currentNode,
-      runtimeEnabled: this.dependencies.isRuntimeEnabled(),
-    });
-
-    switch (decision.type) {
-      case "host-changed":
-        this.handleHostChange(decision.previousHostName, decision.nextHostName);
-        logger.debug("Host changed during watchdog cycle; skipping DOM restart");
-        return;
-      case "node-changed":
-        logger.warn("Observed root node changed; restarting runtime", {
-          runtimeEnabled: decision.runtimeEnabled,
-        });
-        if (decision.runtimeEnabled) {
-          this.dependencies.restartRuntime();
-        }
-        this.dependencies.setObservedNode(decision.nextObservedNode);
-        return;
-      default:
-        return;
+    // A host change already triggers a config refetch; restarting the DOM runtime on
+    // top of it would race the incoming config.
+    if (this.checkHostName()) {
+      logger.debug("Host changed during watchdog cycle; skipping DOM restart");
+      return;
     }
+
+    const currentNode = document.body || document.documentElement;
+    if (this.dependencies.getObservedNode() === currentNode) {
+      return;
+    }
+
+    const runtimeEnabled = this.dependencies.isRuntimeEnabled();
+    logger.warn("Observed root node changed; restarting runtime", { runtimeEnabled });
+    if (runtimeEnabled) {
+      this.dependencies.restartRuntime();
+    }
+    this.dependencies.setObservedNode(currentNode);
   }
 
   scheduleWatchDogCheck(): void {
@@ -111,14 +106,6 @@ export class HostChangeWatcher {
     this.rootNodeObserver.observe(document.documentElement, {
       childList: true,
     });
-  }
-
-  private handleHostChange(previousHostName: string, nextHostName: string): void {
-    logger.info("Host changed; refetching config", {
-      previousHost: previousHostName,
-      nextHost: nextHostName,
-    });
-    this.dependencies.requestConfig();
   }
 
   private attachWatchDogEventListeners(): void {

@@ -40,9 +40,14 @@ function assert(condition: unknown, message: string): asserts condition {
   }
 }
 
-function parseCoverageMatrix(filePath: string): CoverageMatrix {
+function readJsonFile<T>(
+  filePath: string,
+  missingLabel: string,
+  rootLabel: string,
+  validate: (parsed: Partial<T>) => void,
+): T {
   if (!existsSync(filePath)) {
-    fail(`Missing coverage matrix file: ${filePath}`);
+    fail(`Missing ${missingLabel}: ${filePath}`);
   }
 
   let parsed: unknown;
@@ -52,44 +57,35 @@ function parseCoverageMatrix(filePath: string): CoverageMatrix {
     fail(`Failed to parse JSON from ${filePath}: ${String(error)}`);
   }
 
-  assert(typeof parsed === "object" && parsed !== null, "Matrix root must be an object");
-  const matrix = parsed as Partial<CoverageMatrix>;
+  assert(typeof parsed === "object" && parsed !== null, `${rootLabel} root must be an object`);
+  const value = parsed as Partial<T>;
+  validate(value);
 
-  assert(matrix.version === 1, "Matrix version must be 1");
-  assert(
-    typeof matrix.capturedAt === "string" && matrix.capturedAt.length > 0,
-    "capturedAt must be a non-empty string",
-  );
-  assert(Array.isArray(matrix.behaviors), "behaviors must be an array");
-  assert(matrix.behaviors.length > 0, "behaviors must not be empty");
+  return value as T;
+}
 
-  return matrix as CoverageMatrix;
+function parseCoverageMatrix(filePath: string): CoverageMatrix {
+  return readJsonFile<CoverageMatrix>(filePath, "coverage matrix file", "Matrix", (matrix) => {
+    assert(matrix.version === 1, "Matrix version must be 1");
+    assert(
+      typeof matrix.capturedAt === "string" && matrix.capturedAt.length > 0,
+      "capturedAt must be a non-empty string",
+    );
+    assert(Array.isArray(matrix.behaviors), "behaviors must be an array");
+    assert(matrix.behaviors.length > 0, "behaviors must not be empty");
+  });
 }
 
 function parseCoverageBaseline(filePath: string): CoverageBaseline {
-  if (!existsSync(filePath)) {
-    fail(`Missing baseline IDs file: ${filePath}`);
-  }
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(readFileSync(filePath, "utf8"));
-  } catch (error) {
-    fail(`Failed to parse JSON from ${filePath}: ${String(error)}`);
-  }
-
-  assert(typeof parsed === "object" && parsed !== null, "Baseline root must be an object");
-  const baseline = parsed as Partial<CoverageBaseline>;
-
-  assert(baseline.version === 1, "Baseline version must be 1");
-  assert(
-    typeof baseline.capturedAt === "string" && baseline.capturedAt.length > 0,
-    "baseline capturedAt must be a non-empty string",
-  );
-  assert(Array.isArray(baseline.baselineBehaviorIds), "baselineBehaviorIds must be an array");
-  assert(baseline.baselineBehaviorIds.length > 0, "baselineBehaviorIds must not be empty");
-
-  return baseline as CoverageBaseline;
+  return readJsonFile<CoverageBaseline>(filePath, "baseline IDs file", "Baseline", (baseline) => {
+    assert(baseline.version === 1, "Baseline version must be 1");
+    assert(
+      typeof baseline.capturedAt === "string" && baseline.capturedAt.length > 0,
+      "baseline capturedAt must be a non-empty string",
+    );
+    assert(Array.isArray(baseline.baselineBehaviorIds), "baselineBehaviorIds must be an array");
+    assert(baseline.baselineBehaviorIds.length > 0, "baselineBehaviorIds must not be empty");
+  });
 }
 
 function validateCoverageMatrix(matrix: CoverageMatrix, repoRoot: string): void {

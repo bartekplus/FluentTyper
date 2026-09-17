@@ -6,7 +6,6 @@ export type MutationPlan =
     }
   | {
       type: "full-scan";
-      reason: "large-batch" | "too-many-roots";
     }
   | {
       type: "targeted-scan";
@@ -25,10 +24,7 @@ export class MutationPipeline {
     }
 
     if (mutationsList.length >= this.maxMutationBatchSize) {
-      return {
-        type: "full-scan",
-        reason: "large-batch",
-      };
+      return { type: "full-scan" };
     }
 
     const roots = this.collectMutationRoots(mutationsList);
@@ -37,10 +33,7 @@ export class MutationPipeline {
     }
 
     if (roots.length >= this.maxMutationRoots) {
-      return {
-        type: "full-scan",
-        reason: "too-many-roots",
-      };
+      return { type: "full-scan" };
     }
 
     return {

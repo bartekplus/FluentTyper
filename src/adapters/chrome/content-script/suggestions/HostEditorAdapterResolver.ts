@@ -1,19 +1,14 @@
 import { TextTargetAdapter } from "./TextTargetAdapter";
 import { InjectedHostEditorPageBridge, type HostEditorPageBridge } from "./HostEditorPageBridge";
 import {
-  isLineEditorController,
+  findLineEditorController,
   readLineEditorBlockContext,
   readLineEditorCursor,
+  type LineEditorBlockContext,
   type LineEditorController,
   type LineEditorCursor,
 } from "./HostEditorControllerUtils";
 import type { PostEditFingerprint } from "./types";
-
-export interface HostEditorBlockContext {
-  beforeCursor: string;
-  afterCursor: string;
-  blockText: string;
-}
 
 export interface HostEditorApplyResult {
   applied: boolean;
@@ -21,7 +16,7 @@ export interface HostEditorApplyResult {
 }
 
 export interface HostEditorSession {
-  getBlockContextAtSelection(): HostEditorBlockContext | null;
+  getBlockContextAtSelection(): LineEditorBlockContext | null;
   applyBlockReplacement(args: {
     replaceStart: number;
     replaceEnd: number;
@@ -49,7 +44,7 @@ export class HostEditorAdapterResolver {
       return null;
     }
 
-    const controller = this.findLineEditorController(elem);
+    const controller = findLineEditorController(elem);
     if (!controller) {
       const bridgedBlockContext = this.pageBridge.getBlockContextAtSelection(elem);
       if (!bridgedBlockContext) {
@@ -70,33 +65,6 @@ export class HostEditorAdapterResolver {
       TextTargetAdapter.findBackingTextValueTarget(elem),
     );
   }
-
-  private findLineEditorController(elem: HTMLElement): LineEditorController | null {
-    let current: HTMLElement | null = elem;
-    while (current) {
-      const controller = this.findControllerOnElement(current);
-      if (controller) {
-        return controller;
-      }
-      current = current.parentElement;
-    }
-    return null;
-  }
-
-  private findControllerOnElement(elem: HTMLElement): LineEditorController | null {
-    for (const key of Object.getOwnPropertyNames(elem)) {
-      let value: unknown;
-      try {
-        value = (elem as unknown as Record<string, unknown>)[key];
-      } catch {
-        continue;
-      }
-      if (isLineEditorController(value)) {
-        return value;
-      }
-    }
-    return null;
-  }
 }
 
 class BridgedLineEditorHostSession implements HostEditorSession {
@@ -107,7 +75,7 @@ class BridgedLineEditorHostSession implements HostEditorSession {
     private readonly backingTarget: HTMLInputElement | HTMLTextAreaElement | null,
   ) {}
 
-  public getBlockContextAtSelection(): HostEditorBlockContext | null {
+  public getBlockContextAtSelection(): LineEditorBlockContext | null {
     return this.pageBridge.getBlockContextAtSelection(this.elem);
   }
 
@@ -146,7 +114,7 @@ class LineEditorHostSession implements HostEditorSession {
     private readonly backingTarget: HTMLInputElement | HTMLTextAreaElement | null,
   ) {}
 
-  public getBlockContextAtSelection(): HostEditorBlockContext | null {
+  public getBlockContextAtSelection(): LineEditorBlockContext | null {
     return readLineEditorBlockContext(this.controller);
   }
 
@@ -165,7 +133,7 @@ class LineEditorHostSession implements HostEditorSession {
     // LineEditor host (CodeMirror) owns both its DOM and its model, so
     // there is no staleness window and we ignore the caller's
     // expectedBlockText hint.
-    const cursor = this.readCursor();
+    const cursor = readLineEditorCursor(this.controller);
     if (!cursor) {
       return { applied: false, didDispatchInput: false };
     }
@@ -205,10 +173,6 @@ class LineEditorHostSession implements HostEditorSession {
   public createPostEditFingerprint(): PostEditFingerprint {
     const target = this.backingTarget ?? this.elem;
     return TextTargetAdapter.createPostEditFingerprint(target);
-  }
-
-  private readCursor(): LineEditorCursor | null {
-    return readLineEditorCursor(this.controller);
   }
 
   private syncBackingSelection(position: LineEditorCursor): void {

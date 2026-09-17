@@ -1,5 +1,10 @@
 import type { SuggestionElement } from "./types";
 
+export function isVisiblyInteractive(elem: HTMLElement): boolean {
+  const style = window.getComputedStyle(elem);
+  return style.display !== "none" && style.visibility !== "hidden";
+}
+
 export interface SuggestionElementDiscoveryOptions {
   selectors: string;
   isCandidateElement: (elem: HTMLElement) => elem is SuggestionElement;
@@ -47,14 +52,9 @@ export class SuggestionElementDiscovery {
     if (!this.isCandidateElementPredicate(elem)) {
       return false;
     }
-    if (!this.isVisiblyInteractive(elem)) {
+    if (!isVisiblyInteractive(elem)) {
       return false;
     }
     return true;
-  }
-
-  private isVisiblyInteractive(elem: HTMLElement): boolean {
-    const style = window.getComputedStyle(elem);
-    return style.display !== "none" && style.visibility !== "hidden";
   }
 }

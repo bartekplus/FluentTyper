@@ -9,7 +9,6 @@ const YOUR_WELCOME_REGEX = /\byour\s+welcome$/i;
 
 export class EnglishYourWelcomeCorrectionRule implements GrammarRule {
   readonly id = "englishYourWelcomeCorrection" as const;
-  readonly name = "English Your Welcome Correction";
   readonly triggers: GrammarEventType[] = ["wordBoundary"];
 
   apply(context: GrammarContext): GrammarEdit | null {
@@ -37,9 +36,6 @@ export class EnglishYourWelcomeCorrectionRule implements GrammarRule {
       replacement: `${correctedFirst} ${applyWordCase("welcome", style === "upper" ? "upper" : "lower")}${boundaryContext.trailing}`,
       deleteBackwards: boundaryContext.input.length - phraseStart,
       deleteForwards: 0,
-      confidence: "high",
-      safetyTier: "safe",
-      description: "Corrected your welcome phrase",
     };
   }
 }

@@ -4,7 +4,6 @@ import { SpacingRuleShared } from "./helpers/SpacingRuleShared";
 
 export class TechnicalTokenCompactionRule extends SpacingRuleShared implements GrammarRule {
   readonly id = "technicalTokenCompaction" as const;
-  readonly name = "Technical Token Compaction";
   readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
 
   apply(context: GrammarContext): GrammarEdit | null {
@@ -24,11 +23,11 @@ export class TechnicalTokenCompactionRule extends SpacingRuleShared implements G
     }
 
     if (punctChar === "." && this.isDigit(lastChar) && this.isDigit(charBeforePunct)) {
-      return this.createEdit(`.${lastChar}`, 3, "Compacted technical decimal notation");
+      return this.createEdit(`.${lastChar}`, 3);
     }
 
     if (punctChar === ":" && this.isDigit(lastChar) && this.isDigit(charBeforePunct)) {
-      return this.createEdit(`:${lastChar}`, 3, "Compacted technical time or ratio notation");
+      return this.createEdit(`:${lastChar}`, 3);
     }
 
     return null;

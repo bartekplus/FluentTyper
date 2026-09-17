@@ -93,29 +93,12 @@ describe("InlineSuggestionPresenter", () => {
     expect(removeAllSpy).not.toHaveBeenCalled();
   });
 
-  test("clearAll removes all ghost elements globally", () => {
-    const removeAllSpy = jest
-      .spyOn(InlineSuggestionView, "removeAll")
-      .mockImplementation(() => undefined);
-    const positioning = {
-      getCaretRect: jest.fn(() => createRect()),
-    } as unknown as SuggestionPositioningService;
-    const presenter = new InlineSuggestionPresenter({ positioningService: positioning });
-
-    presenter.clearAll();
-
-    expect(removeAllSpy).toHaveBeenCalledTimes(1);
-  });
-
   test("uses renderMirrorPreview for input mid-text", () => {
     const renderSpy = jest
       .spyOn(InlineSuggestionView, "render")
       .mockImplementation(() => undefined);
     const mirrorPreviewSpy = jest
       .spyOn(InlineSuggestionView, "renderMirrorPreview")
-      .mockImplementation(() => undefined);
-    const replacePreviewSpy = jest
-      .spyOn(InlineSuggestionView, "renderReplacePreview")
       .mockImplementation(() => undefined);
     const positioning = {
       getCaretRect: jest.fn(() => createRect()),
@@ -139,7 +122,6 @@ describe("InlineSuggestionPresenter", () => {
     });
 
     expect(renderSpy).not.toHaveBeenCalled();
-    expect(replacePreviewSpy).not.toHaveBeenCalled();
     expect(mirrorPreviewSpy).toHaveBeenCalledTimes(1);
     expect(mirrorPreviewSpy.mock.calls[0]?.[0].suffix).toBe("ards");
     expect(mirrorPreviewSpy.mock.calls[0]?.[0].cursorOffset).toBe(14);
@@ -277,9 +259,6 @@ describe("InlineSuggestionPresenter", () => {
     const mirrorPreviewSpy = jest
       .spyOn(InlineSuggestionView, "renderMirrorPreview")
       .mockImplementation(() => undefined);
-    const replacePreviewSpy = jest
-      .spyOn(InlineSuggestionView, "renderReplacePreview")
-      .mockImplementation(() => undefined);
     const positioning = {
       getCaretRect: jest.fn(() => createRect()),
     } as unknown as SuggestionPositioningService;
@@ -303,7 +282,6 @@ describe("InlineSuggestionPresenter", () => {
 
     expect(renderSpy).toHaveBeenCalledTimes(1);
     expect(mirrorPreviewSpy).not.toHaveBeenCalled();
-    expect(replacePreviewSpy).not.toHaveBeenCalled();
   });
 
   test("re-renders ghost when externally removed from DOM", async () => {

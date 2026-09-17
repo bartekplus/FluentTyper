@@ -1,6 +1,6 @@
 import { createLogger } from "@core/application/logging/Logger";
 
-const BLOCK_TAGS = new Set([
+export const BLOCK_TAGS = new Set([
   "P",
   "DIV",
   "LI",

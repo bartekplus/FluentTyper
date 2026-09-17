@@ -35,11 +35,7 @@ export class SiteManagementPanel {
     this.onConfigChange = onConfigChange;
     this.siteProfilesRoot = document.createElement("div");
     this.siteProfilesManager = new SiteProfilesManager(
-      {
-        siteProfilesEditor: {
-          rootElement: this.siteProfilesRoot,
-        },
-      },
+      this.siteProfilesRoot,
       this.store,
       this.onConfigChange,
     );

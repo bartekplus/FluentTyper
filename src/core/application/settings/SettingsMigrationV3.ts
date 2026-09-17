@@ -9,12 +9,9 @@ import type { SettingsManager } from "../settingsManager";
 import {
   readFirstDefinedSetting,
   readRawSetting,
-  readSettingWithAliases,
   removeRawSetting,
   writeRawSetting,
 } from "./settingsAccess";
-
-export { readSettingWithAliases };
 
 export async function migrateSettingsV3(settings: SettingsManager): Promise<void> {
   try {

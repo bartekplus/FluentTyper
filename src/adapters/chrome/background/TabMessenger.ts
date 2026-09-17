@@ -1,5 +1,5 @@
 import type { SettingsManager } from "@core/application/settingsManager";
-import { isEnabledForDomain } from "@core/application/domain-utils";
+import { getDomain, isEnabledForDomain } from "@core/application/domain-utils";
 import { checkLastError, promisifiedSendMessage } from "@core/application/transport-utils";
 import type { Message, ConfigMessage } from "@core/domain/messageTypes";
 import { getErrorMessage } from "@core/domain/error";
@@ -46,17 +46,6 @@ export class TabMessenger {
     return this.lastActiveTabId;
   }
 
-  private extractHostname(url: string | undefined): string {
-    if (typeof url !== "string" || url.length === 0) {
-      return "";
-    }
-    try {
-      return new URL(url).hostname || "";
-    } catch {
-      return "";
-    }
-  }
-
   private isWebsiteUrl(url: string | undefined): boolean {
     return typeof url === "string" && /^(https?):\/\//i.test(url);
   }
@@ -67,7 +56,7 @@ export class TabMessenger {
     if (!tab || typeof tab.id !== "number" || !this.isWebsiteUrl(tab.url)) {
       return undefined;
     }
-    const hostname = this.extractHostname(tab.url);
+    const hostname = getDomain(tab.url ?? "") ?? "";
     if (!hostname) {
       return undefined;
     }
@@ -97,7 +86,7 @@ export class TabMessenger {
     try {
       const tab = await chrome.tabs.query({ active: true, currentWindow: true });
       const activeTab = tab.find((entry) => entry.id === tabId) || tab[0];
-      return { tabId, hostname: this.extractHostname(activeTab?.url) };
+      return { tabId, hostname: getDomain(activeTab?.url ?? "") ?? "" };
     } catch {
       return { tabId, hostname: "" };
     }

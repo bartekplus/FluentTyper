@@ -1,4 +1,5 @@
 import { MAX_NUM_SUGGESTIONS } from "./constants";
+import { isObjectRecord } from "./guards";
 
 export interface SiteProfile {
   language: string;
@@ -8,13 +9,6 @@ export interface SiteProfile {
 }
 
 export type SiteProfiles = Record<string, SiteProfile>;
-
-function toRecord(value: unknown): Record<string, unknown> | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return null;
-  }
-  return value as Record<string, unknown>;
-}
 
 export function normalizeDomainHost(domainOrUrl: string): string | undefined {
   if (typeof domainOrUrl !== "string") {
@@ -69,24 +63,23 @@ export function sanitizeSiteProfile(
   profileRaw: unknown,
   enabledLanguages: string[],
 ): SiteProfile | undefined {
-  const profile = toRecord(profileRaw);
-  if (!profile) {
+  if (!isObjectRecord(profileRaw)) {
     return undefined;
   }
-  const language = normalizeLanguage(profile.language, enabledLanguages);
+  const language = normalizeLanguage(profileRaw.language, enabledLanguages);
   if (!language) {
     return undefined;
   }
   const siteProfile: SiteProfile = { language };
-  const numSuggestions = normalizeNumSuggestions(profile.numSuggestions);
+  const numSuggestions = normalizeNumSuggestions(profileRaw.numSuggestions);
   if (typeof numSuggestions === "number") {
     siteProfile.numSuggestions = numSuggestions;
   }
-  if (typeof profile.inline_suggestion === "boolean") {
-    siteProfile.inline_suggestion = profile.inline_suggestion;
+  if (typeof profileRaw.inline_suggestion === "boolean") {
+    siteProfile.inline_suggestion = profileRaw.inline_suggestion;
   }
-  if (typeof profile.preferNativeAutocomplete === "boolean") {
-    siteProfile.preferNativeAutocomplete = profile.preferNativeAutocomplete;
+  if (typeof profileRaw.preferNativeAutocomplete === "boolean") {
+    siteProfile.preferNativeAutocomplete = profileRaw.preferNativeAutocomplete;
   }
   return siteProfile;
 }
@@ -95,12 +88,11 @@ export function resolveSiteProfiles(
   profilesRaw: unknown,
   enabledLanguages: string[],
 ): SiteProfiles {
-  const profiles = toRecord(profilesRaw);
-  if (!profiles) {
+  if (!isObjectRecord(profilesRaw)) {
     return {};
   }
   const resolvedProfiles: SiteProfiles = {};
-  for (const [domainKey, profileRaw] of Object.entries(profiles)) {
+  for (const [domainKey, profileRaw] of Object.entries(profilesRaw)) {
     const normalizedDomain = normalizeDomainHost(domainKey);
     if (!normalizedDomain) {
       continue;

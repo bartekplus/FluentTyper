@@ -2,7 +2,6 @@ import {
   CMD_BACKGROUND_PAGE_SET_CONFIG,
   DEFAULT_DEBUG_AI_PREDICTOR_ENABLED,
   DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED,
-  MAX_NUM_SUGGESTIONS,
 } from "@core/domain/constants";
 import type { SettingsManager } from "@core/application/settingsManager";
 import type { ConfigMessage } from "@core/domain/messageTypes";
@@ -15,7 +14,6 @@ import { normalizeGrammarRuleSelection } from "@core/domain/grammar/ruleCatalog"
 import type { ObservabilityConfig } from "@core/domain/observability";
 
 interface ConfigAssemblerOptions {
-  enableAIPredictor: boolean;
   isDevBuild: boolean;
 }
 
@@ -135,7 +133,6 @@ export class ConfigAssembler {
       observabilityConfig: observability,
       predictionConfig: {
         numSuggestions,
-        engineNumSuggestions: MAX_NUM_SUGGESTIONS,
         minWordLengthToPredict,
         insertSpaceAfterAutocomplete,
         autoCapitalize,
@@ -146,9 +143,7 @@ export class ConfigAssembler {
         timeFormat,
         dateFormat,
         userDictionaryList,
-        aiPredictorEnabled: this.options.enableAIPredictor
-          ? predictorSettings.aiPredictorEnabled
-          : false,
+        aiPredictorEnabled: this.options.isDevBuild ? predictorSettings.aiPredictorEnabled : false,
         aiModelId: predictorSettings.aiModelId,
         aiPredictionTimeoutMs: predictorSettings.aiPredictionTimeoutMs,
         debugPresagePredictorEnabled: this.options.isDevBuild

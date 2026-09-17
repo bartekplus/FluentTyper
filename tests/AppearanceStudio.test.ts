@@ -23,6 +23,7 @@ import {
   KEY_SUGGESTION_TEXT_DARK,
   KEY_SUGGESTION_TEXT_LIGHT,
 } from "../src/core/domain/constants.js";
+import { i18n } from "../src/ui/options/fluenttyperI18n.js";
 
 const DEFAULT_THEME = {
   [KEY_SUGGESTION_BG_LIGHT]: "#ffffff",
@@ -319,5 +320,26 @@ describe("AppearanceStudio theme value compatibility", () => {
     expect(root.textContent).toContain("Very clear.");
     expect(root.textContent).not.toContain(":1");
     expect(root.textContent).not.toContain("Popup on light pages · Text");
+  });
+
+  test("contrast refresh keeps the section helper copy", () => {
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    const { registry } = createRegistry(DEFAULT_THEME);
+
+    new AppearanceStudio(root, registry as never, {
+      default: DEFAULT_THEME,
+      compact: COMPACT_THEME,
+    });
+
+    const helperCopy = i18n.get("appearance_contrast_copy");
+    expect(root.textContent).toContain(helperCopy);
+
+    const colorInputs = root.querySelectorAll<HTMLInputElement>('input[type="color"]');
+    colorInputs[0]!.value = "#112233";
+    colorInputs[0]!.dispatchEvent(new Event("input"));
+
+    expect(root.textContent).toContain(helperCopy);
+    expect(root.querySelectorAll(".appearance-contrast-warning")).toHaveLength(4);
   });
 });

@@ -70,60 +70,51 @@ function appendSupportActions(container: HTMLElement): void {
   });
 }
 
-export class AboutWorkspacePanel {
-  private readonly root: HTMLElement;
+export function renderAboutWorkspacePanel(root: HTMLElement): void {
+  const shell = createWorkspaceShell();
 
-  constructor(root: HTMLElement) {
-    this.root = root;
-    this.render();
-  }
+  const productCard = createWorkspaceCard(i18n.get("about_fluent_typer_group"));
+  const productCopy = document.createElement("p");
+  productCopy.className = "settings-inline-help";
+  setSafeHtmlContent(productCopy, i18n.get("x-FluentTyper"));
+  const version = document.createElement("span");
+  version.className = "version-chip";
+  version.textContent = formatTranslation("options_version_chip", {
+    version: EXTENSION_VERSION,
+  });
+  const highlightRow = document.createElement("div");
+  highlightRow.className = "about-highlights";
+  [
+    "about_highlight_autocomplete",
+    "about_highlight_text_expander",
+    "about_highlight_multilingual",
+    "about_highlight_site_profiles",
+  ].forEach((key) => {
+    const pill = document.createElement("span");
+    pill.className = "about-pill";
+    pill.textContent = i18n.get(key);
+    highlightRow.appendChild(pill);
+  });
+  productCard.body.append(productCopy, version, highlightRow);
 
-  render(): void {
-    const shell = createWorkspaceShell();
+  const supportCard = createWorkspaceCard(i18n.get("support_development_group"));
+  appendSupportActions(supportCard.body);
 
-    const productCard = createWorkspaceCard(i18n.get("about_fluent_typer_group"));
-    const productCopy = document.createElement("p");
-    productCopy.className = "settings-inline-help";
-    setSafeHtmlContent(productCopy, i18n.get("x-FluentTyper"));
-    const version = document.createElement("span");
-    version.className = "version-chip";
-    version.textContent = formatTranslation("options_version_chip", {
-      version: EXTENSION_VERSION,
-    });
-    const highlightRow = document.createElement("div");
-    highlightRow.className = "about-highlights";
-    [
-      "about_highlight_autocomplete",
-      "about_highlight_text_expander",
-      "about_highlight_multilingual",
-      "about_highlight_site_profiles",
-    ].forEach((key) => {
-      const pill = document.createElement("span");
-      pill.className = "about-pill";
-      pill.textContent = i18n.get(key);
-      highlightRow.appendChild(pill);
-    });
-    productCard.body.append(productCopy, version, highlightRow);
+  const donateCard = createWorkspaceCard(
+    i18n.get("support_donate_link"),
+    i18n.get("support_donate_note"),
+  );
+  const donateLink = document.createElement("a");
+  donateLink.className = "support-donate-link";
+  donateLink.href = "https://www.buymeacoffee.com/FluentTyper";
+  donateLink.target = "_blank";
+  donateLink.rel = "noopener noreferrer";
+  donateLink.textContent = i18n.get("support_donate_link");
+  donateCard.body.append(donateLink);
 
-    const supportCard = createWorkspaceCard(i18n.get("support_development_group"));
-    appendSupportActions(supportCard.body);
+  const secondaryGrid = createWorkspaceShell("workspace-card-grid");
+  secondaryGrid.append(supportCard.card, donateCard.card);
 
-    const donateCard = createWorkspaceCard(
-      i18n.get("support_donate_link"),
-      i18n.get("support_donate_note"),
-    );
-    const donateLink = document.createElement("a");
-    donateLink.className = "support-donate-link";
-    donateLink.href = "https://www.buymeacoffee.com/FluentTyper";
-    donateLink.target = "_blank";
-    donateLink.rel = "noopener noreferrer";
-    donateLink.textContent = i18n.get("support_donate_link");
-    donateCard.body.append(donateLink);
-
-    const secondaryGrid = createWorkspaceShell("workspace-card-grid");
-    secondaryGrid.append(supportCard.card, donateCard.card);
-
-    shell.append(productCard.card, secondaryGrid);
-    this.root.replaceChildren(shell);
-  }
+  shell.append(productCard.card, secondaryGrid);
+  root.replaceChildren(shell);
 }

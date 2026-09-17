@@ -8,7 +8,7 @@ import {
 } from "../src/core/domain/constants";
 import {
   DEFAULT_V3_GRAMMAR_RULES,
-  PRE_V3_RECOMMENDED_GRAMMAR_RULES,
+  RECOMMENDED_V2_GRAMMAR_RULES,
 } from "../src/core/domain/grammar/ruleCatalog";
 
 function createMockSettingsManager(
@@ -34,13 +34,13 @@ function createMockSettingsManager(
 describe("migrateSettingsV6", () => {
   test("upgrades to v3 safe-on defaults only when selection still equals pre-v3 recommended set", async () => {
     const settings = createMockSettingsManager({
-      [KEY_ENABLED_GRAMMAR_RULES]: PRE_V3_RECOMMENDED_GRAMMAR_RULES.slice(),
+      [KEY_ENABLED_GRAMMAR_RULES]: RECOMMENDED_V2_GRAMMAR_RULES.slice(),
     });
 
     await migrateSettingsV6(settings);
 
     expect(settings.store[KEY_ENABLED_GRAMMAR_RULES]).toEqual(DEFAULT_V3_GRAMMAR_RULES);
-    expect(settings.store[KEY_GRAMMAR_RULES_V3_BACKUP]).toEqual(PRE_V3_RECOMMENDED_GRAMMAR_RULES);
+    expect(settings.store[KEY_GRAMMAR_RULES_V3_BACKUP]).toEqual(RECOMMENDED_V2_GRAMMAR_RULES);
     expect(settings.store[KEY_GRAMMAR_RULES_V3_MIGRATED]).toBe(true);
   });
 

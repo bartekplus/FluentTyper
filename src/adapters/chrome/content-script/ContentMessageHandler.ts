@@ -24,13 +24,6 @@ import type {
 } from "@core/domain/messageTypes";
 import { createPredictionTraceContext, resolveTraceAgeMs } from "./predictionTrace";
 
-type RuntimeInboundMessage =
-  | Message
-  | {
-      command: string;
-      context?: unknown;
-    };
-
 const logger = createLogger("ContentMessageHandler");
 
 function isNonEmptyString(value: unknown): value is string {
@@ -126,12 +119,7 @@ export class ContentMessageHandler {
     void chrome.runtime.sendMessage(message);
   }
 
-  handleMessage(
-    message: RuntimeInboundMessage | null,
-    sender?: chrome.runtime.MessageSender,
-    sendResponse?: (response: unknown) => void,
-  ): void {
-    void sender;
+  handleMessage(message: Message | null, sendResponse?: (response: unknown) => void): void {
     checkLastError();
     if (!message) {
       logger.error("Received empty runtime message");
@@ -143,16 +131,15 @@ export class ContentMessageHandler {
     });
 
     switch (message.command) {
-      case CMD_BACKGROUND_PAGE_PREDICT_RESP: {
-        this.handlePredictionResponse((message as { context: PredictResponseContext }).context);
+      case CMD_BACKGROUND_PAGE_PREDICT_RESP:
+        this.handlePredictionResponse(message.context);
         return;
-      }
       case CMD_BACKGROUND_PAGE_SET_CONFIG:
-        this.dependencies.setConfig((message as { context: SetConfigContext }).context);
+        this.dependencies.setConfig(message.context);
         this.sendRuntimeStatus(sendResponse);
         return;
       case CMD_BACKGROUND_PAGE_UPDATE_LANG_CONFIG:
-        this.dependencies.updateLanguage((message as { context: { lang: string } }).context.lang);
+        this.dependencies.updateLanguage(message.context.lang);
         this.sendRuntimeStatus(sendResponse);
         return;
       case CMD_POPUP_PAGE_DISABLE:
