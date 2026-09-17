@@ -77,11 +77,11 @@ const WEBLLM_DEV_MODEL_OPTIONS: OptionTuple[] = [
   ["Mistral-7B-Instruct-v0.3-q4f16_1-MLC", "Mistral 7B Instruct v0.3 q4f16"],
 ];
 
-const LOG_LEVEL_OPTIONS = [
-  { value: "debug", text: "Debug" },
-  { value: "info", text: "Info" },
-  { value: "warn", text: "Warn" },
-  { value: "error", text: "Error" },
+const LOG_LEVEL_OPTIONS: OptionTuple[] = [
+  ["debug", "Debug"],
+  ["info", "Info"],
+  ["warn", "Warn"],
+  ["error", "Error"],
 ];
 
 function buildFieldLabel(label: string, description: string): string {
@@ -232,28 +232,14 @@ const DEV_OBSERVABILITY_SETTINGS: FieldConfig[] = [
   },
 ];
 
-const SAFE_GRAMMAR_RULE_IDS = new Set(
-  GRAMMAR_RULE_CATALOG.filter((rule) => rule.safetyTier === "safe").map((rule) => rule.id),
-);
-const RECOMMENDED_GRAMMAR_RULE_IDS = new Set(
-  GRAMMAR_RULE_CATALOG.filter((rule) => rule.recommended).map((rule) => rule.id),
-);
-const HAS_DISTINCT_RECOMMENDED_BADGE =
-  SAFE_GRAMMAR_RULE_IDS.size !== RECOMMENDED_GRAMMAR_RULE_IDS.size ||
-  [...RECOMMENDED_GRAMMAR_RULE_IDS].some((ruleId) => !SAFE_GRAMMAR_RULE_IDS.has(ruleId));
-
 const GRAMMAR_RULE_OPTIONS = GRAMMAR_RULE_CATALOG.map((rule) => {
   const rolloutBadge =
     rule.defaultRollout === "on"
       ? i18n.get("grammar_rule_rollout_safe_badge")
       : i18n.get("grammar_rule_rollout_advanced_badge");
-  const recommendedBadge =
-    HAS_DISTINCT_RECOMMENDED_BADGE && rule.recommended
-      ? i18n.get("grammar_rule_recommended_badge")
-      : "";
   const scopeBadge =
     rule.languageScope === "en_US" ? i18n.get("grammar_rule_scope_en_us_badge") : "";
-  const badge = [rolloutBadge, recommendedBadge, scopeBadge].filter(Boolean).join(" · ");
+  const badge = [rolloutBadge, scopeBadge].filter(Boolean).join(" · ");
   return {
     value: rule.id,
     text: i18n.get(rule.titleI18nKey) || rule.name,
@@ -266,11 +252,9 @@ const GRAMMAR_RULE_OPTIONS = GRAMMAR_RULE_CATALOG.map((rule) => {
           badge,
         }
       : {}),
-    ...(rule.recommended ? { recommended: true } : {}),
   };
 });
 
-// --- Manifest Definition ---
 const manifest: ManifestDefinition = {
   name: i18n.get("options_page_title"),
   icon: "/icon/icon128.png",

@@ -240,10 +240,8 @@ describe("Store async semantics", () => {
     const { Store } = await import(freshModulePath("../src/core/application/storage/Store.js"));
     const store = new Store("settings", { enable: true, language: "en" });
 
-    await expect(store.getAll()).resolves.toEqual({
-      enable: true,
-      language: "en",
-    });
+    await expect(store.get("enable")).resolves.toBe(true);
+    await expect(store.get("language")).resolves.toBe("en");
     expect(storageState["store.settings.enable"]).toBe("true");
     expect(storageState["store.settings.language"]).toBe('"en"');
     expect(storageState["extensionState.enabled"]).toBe("false");
@@ -259,10 +257,8 @@ describe("Store async semantics", () => {
     const { Store } = await import(freshModulePath("../src/core/application/storage/Store.js"));
     const store = new Store("settings", { enable: true, language: "en" });
 
-    await expect(store.getAll()).resolves.toEqual({
-      enable: true,
-      language: "en",
-    });
+    await expect(store.get("enable")).resolves.toBe(true);
+    await expect(store.get("language")).resolves.toBe("en");
     expect(storageState["store.settings.enable"]).toBe("true");
     expect(storageState["store.settings.language"]).toBe('"en"');
     expect(storageState["extensionState.enabled"]).toBe("false");

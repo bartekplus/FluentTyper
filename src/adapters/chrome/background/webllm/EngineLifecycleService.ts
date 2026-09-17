@@ -46,10 +46,6 @@ export class EngineLifecycleService {
     return this.engine;
   }
 
-  getStatus(): PredictorStatus {
-    return this.status;
-  }
-
   hasWebGPU(): boolean {
     const maybeNavigator = (globalThis as { navigator?: { gpu?: unknown } }).navigator;
     return Boolean(maybeNavigator?.gpu);

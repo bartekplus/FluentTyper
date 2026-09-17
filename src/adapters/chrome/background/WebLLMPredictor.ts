@@ -23,10 +23,6 @@ import type {
 const MAX_GENERATION_CHOICES = 5;
 const logger = createLogger("WebLLMPredictor");
 
-export type WebLLMPredictorConfig = SecondaryPredictorConfig;
-
-export type WebLLMPredictRequest = SecondaryPredictorRequest;
-
 export interface WebLLMPredictorDebugState {
   enabled: boolean;
   modelId: string;
@@ -68,7 +64,7 @@ export class WebLLMPredictor implements SecondaryPredictor {
   private lastPredictOutputCount = 0;
   private lastPredictError: string | null = null;
 
-  setConfig(config: WebLLMPredictorConfig): void {
+  setConfig(config: SecondaryPredictorConfig): void {
     const nextEnabled =
       typeof config.enabled === "boolean" ? config.enabled : DEFAULT_AI_PREDICTOR_ENABLED;
     const nextModelId =
@@ -123,7 +119,7 @@ export class WebLLMPredictor implements SecondaryPredictor {
 
   interruptActiveGeneration(
     reason = "generation_interrupted",
-    expectedRequest?: Pick<WebLLMPredictRequest, "lang" | "predictionInput">,
+    expectedRequest?: Pick<SecondaryPredictorRequest, "lang" | "predictionInput">,
   ): boolean {
     const inFlightGenerationSeq = this.generationCoordinator.getInFlightGenerationSeq();
     const engine = this.engineLifecycleService.getEngine();
@@ -146,7 +142,7 @@ export class WebLLMPredictor implements SecondaryPredictor {
     return true;
   }
 
-  async predict(request: WebLLMPredictRequest): Promise<string[]> {
+  async predict(request: SecondaryPredictorRequest): Promise<string[]> {
     if (!this.enabled || request.numSuggestions <= 0) {
       return [];
     }
@@ -304,7 +300,7 @@ export class WebLLMPredictor implements SecondaryPredictor {
   }
 
   private async predictWithChatCompletion(
-    request: WebLLMPredictRequest,
+    request: SecondaryPredictorRequest,
     modeContext: PredictionModeContext,
   ): Promise<PredictionResponsePayload> {
     const engine = this.engineLifecycleService.getEngine();
@@ -332,7 +328,7 @@ export class WebLLMPredictor implements SecondaryPredictor {
   }
 
   private async predictWithSimpleChatCompletion(
-    request: WebLLMPredictRequest,
+    request: SecondaryPredictorRequest,
     modeContext: PredictionModeContext,
   ): Promise<PredictionResponsePayload> {
     const engine = this.engineLifecycleService.getEngine();
@@ -359,7 +355,7 @@ export class WebLLMPredictor implements SecondaryPredictor {
   }
 
   private async predictWithCompletion(
-    request: WebLLMPredictRequest,
+    request: SecondaryPredictorRequest,
     modeContext: PredictionModeContext,
   ): Promise<PredictionResponsePayload> {
     const engine = this.engineLifecycleService.getEngine();

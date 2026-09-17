@@ -8,7 +8,7 @@ import {
   resolveManualAttachIconUrl,
 } from "./ManualAttachUiManager";
 import { NativeAutocompleteConflictDetector } from "./NativeAutocompleteConflictDetector";
-import { SuggestionElementDiscovery } from "./SuggestionElementDiscovery";
+import { isVisiblyInteractive, SuggestionElementDiscovery } from "./SuggestionElementDiscovery";
 import { SuggestionEntrySession } from "./SuggestionEntrySession";
 import { SuggestionEntryRegistry } from "./SuggestionEntryRegistry";
 import { SuggestionGrammarCoordinator } from "./SuggestionGrammarCoordinator";
@@ -49,21 +49,6 @@ const SUGGESTION_DEBOUNCE_BY_ACTION = {
   other: 20,
 };
 const logger = createLogger("SuggestionManagerRuntime");
-
-export interface EarlyTabAcceptResult {
-  accepted: boolean;
-  reason:
-    | "entry_not_found"
-    | "session_not_found"
-    | "accepted_inline"
-    | "accepted_menu"
-    | "accept_failed"
-    | "no_visible_suggestion_state";
-  entryId: string;
-  suggestionCount: number;
-  menuVisible: boolean;
-  hasInlineSuggestion: boolean;
-}
 
 export class SuggestionManagerRuntime {
   private readonly discovery: SuggestionElementDiscovery;
@@ -228,43 +213,17 @@ export class SuggestionManagerRuntime {
     this.getSession(entry.id)?.requestPrediction();
   }
 
-  public handleEarlyTabAcceptRequest(entryId: string): EarlyTabAcceptResult {
+  public handleEarlyTabAcceptRequest(entryId: string): boolean {
     const entry = this.resolveEntryForBridgeEntryId(entryId);
-    if (!entry) {
-      return {
-        accepted: false,
-        reason: "entry_not_found",
-        entryId,
-        suggestionCount: 0,
-        menuVisible: false,
-        hasInlineSuggestion: false,
-      };
-    }
-
-    const session = this.getSession(entry.id);
-    if (!session) {
-      return {
-        accepted: false,
-        reason: "session_not_found",
-        entryId,
-        suggestionCount: entry.suggestions.length,
-        menuVisible: this.menuPresenter.isVisible(entry.menu, entry.suggestions.length),
-        hasInlineSuggestion: entry.inlineSuggestion !== null,
-      };
+    const session = entry ? this.getSession(entry.id) : undefined;
+    if (!entry || !session) {
+      return false;
     }
 
     this.activeEntryId = entry.id;
 
     if (this.inlineSuggestionEnabled && entry.inlineSuggestion) {
-      const accepted = session.acceptSuggestion(entry.inlineSuggestion);
-      return {
-        accepted,
-        reason: accepted ? "accepted_inline" : "accept_failed",
-        entryId,
-        suggestionCount: entry.suggestions.length,
-        menuVisible: this.menuPresenter.isVisible(entry.menu, entry.suggestions.length),
-        hasInlineSuggestion: true,
-      };
+      return session.acceptSuggestion(entry.inlineSuggestion);
     }
 
     if (
@@ -272,25 +231,10 @@ export class SuggestionManagerRuntime {
       this.menuPresenter.isVisible(entry.menu, entry.suggestions.length) &&
       entry.suggestions.length > 0
     ) {
-      const accepted = session.acceptSuggestionAtIndex(entry.selectedIndex);
-      return {
-        accepted,
-        reason: accepted ? "accepted_menu" : "accept_failed",
-        entryId,
-        suggestionCount: entry.suggestions.length,
-        menuVisible: true,
-        hasInlineSuggestion: entry.inlineSuggestion !== null,
-      };
+      return session.acceptSuggestionAtIndex(entry.selectedIndex);
     }
 
-    return {
-      accepted: false,
-      reason: "no_visible_suggestion_state",
-      entryId,
-      suggestionCount: entry.suggestions.length,
-      menuVisible: this.menuPresenter.isVisible(entry.menu, entry.suggestions.length),
-      hasInlineSuggestion: entry.inlineSuggestion !== null,
-    };
+    return false;
   }
 
   public updateLangConfig(lang: string): void {
@@ -334,11 +278,6 @@ export class SuggestionManagerRuntime {
     );
   }
 
-  private isVisiblyInteractiveElement(elem: HTMLElement): boolean {
-    const style = window.getComputedStyle(elem);
-    return style.display !== "none" && style.visibility !== "hidden";
-  }
-
   private hasNativeAutocompleteConflict(elem: SuggestionElement): boolean {
     return this.nativeAutocompleteConflictDetector.isNativeAutocompletePreferred(elem);
   }
@@ -372,7 +311,7 @@ export class SuggestionManagerRuntime {
       if (
         !isInDocument(element) ||
         !this.isStructurallyEligibleElement(element) ||
-        !this.isVisiblyInteractiveElement(element)
+        !isVisiblyInteractive(element)
       ) {
         this.forcedNativeConflictElements.delete(element);
         this.manualAttachUiManager.removeForElement(element);
@@ -531,7 +470,6 @@ export class SuggestionManagerRuntime {
     };
     entry.handlers.menuClick = this.onMenuClick.bind(this, id);
 
-    stateHost.setAttribute("data-tribute", "true");
     stateHost.setAttribute("data-suggestion", "true");
     stateHost.setAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR, String(id));
     stateHost.setAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR, String(this.autocompleteOnTab));
@@ -541,7 +479,6 @@ export class SuggestionManagerRuntime {
     );
     stateHost.setAttribute(EARLY_TAB_ACCEPT_VISIBLE_ATTR, "false");
     menu.id = SuggestionMenuView.resolveHostId(id);
-    elem.tributeMenu = menu;
     elem.suggestionMenu = menu;
 
     const session = this.buildEntrySession(entry);
@@ -571,9 +508,7 @@ export class SuggestionManagerRuntime {
     entry.menu.remove();
     const stateHost = resolveSuggestionStateHost(entry.elem);
 
-    delete entry.elem.tributeMenu;
     delete entry.elem.suggestionMenu;
-    stateHost.removeAttribute("data-tribute");
     stateHost.removeAttribute("data-suggestion");
     stateHost.removeAttribute(EARLY_TAB_ACCEPT_ENTRY_ID_ATTR);
     stateHost.removeAttribute(EARLY_TAB_ACCEPT_ENABLED_ATTR);
@@ -669,10 +604,6 @@ export class SuggestionManagerRuntime {
 
   private onElementInput(id: number, event: Event): void {
     this.activeEntryId = id;
-    const entry = this.entryRegistry.getById(id);
-    if (!entry) {
-      return;
-    }
     this.getSession(id)?.handleInput(event);
   }
 
@@ -700,19 +631,11 @@ export class SuggestionManagerRuntime {
 
   private onElementCompositionStart(id: number): void {
     this.activeEntryId = id;
-    const entry = this.entryRegistry.getById(id);
-    if (!entry) {
-      return;
-    }
     this.getSession(id)?.handleCompositionStart();
   }
 
   private onElementCompositionEnd(id: number): void {
     this.activeEntryId = id;
-    const entry = this.entryRegistry.getById(id);
-    if (!entry) {
-      return;
-    }
     this.getSession(id)?.handleCompositionEnd();
   }
 
@@ -754,18 +677,10 @@ export class SuggestionManagerRuntime {
           resolveMentionToken: this.predictionCoordinator.findMentionToken.bind(
             this.predictionCoordinator,
           ),
-          // Mirror acceptance's findTrailingToken so the mid-text preview
+          // Mirror acceptance's trailing-token scan so the mid-text preview
           // hides the characters that acceptance will replace.
-          resolveTrailingToken: (afterCursor: string) => {
-            let end = 0;
-            while (
-              end < afterCursor.length &&
-              !this.predictionCoordinator.isSeparator(afterCursor.charAt(end))
-            ) {
-              end += 1;
-            }
-            return afterCursor.slice(0, end);
-          },
+          resolveTrailingToken: (afterCursor: string) =>
+            this.textEditService.findTrailingToken(afterCursor),
         }),
       recordSuggestionShown: (context) => this.telemetry.recordSuggestionShown(context),
       recordSuggestionAccepted: (context) => this.telemetry.recordSuggestionAccepted(context),

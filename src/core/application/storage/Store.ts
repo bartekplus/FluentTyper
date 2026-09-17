@@ -112,18 +112,4 @@ export class Store {
     await this.initializationPromise;
     await this.storageBackend.remove(this.buildKey(name));
   }
-
-  async getAll(): Promise<Record<string, unknown>> {
-    await this.initializationPromise;
-    const raw = await this.storageBackend.getAll(this.buildKey(""));
-    const result: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(raw)) {
-      try {
-        result[key] = JSON.parse(value);
-      } catch {
-        result[key] = value;
-      }
-    }
-    return result;
-  }
 }

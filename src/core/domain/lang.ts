@@ -31,9 +31,6 @@ export function resolveEnabledLanguages(enabledLanguages: unknown): string[] {
   return filtered.length > 0 ? filtered : SUPPORTED_PREDICTION_LANGUAGE_KEYS.slice();
 }
 
-export function resolveEnabledPredictionLanguages(enabledLanguages: unknown): string[] {
-  return resolveEnabledLanguages(enabledLanguages);
-}
 export const SUPPORTED_LANGUAGES_SHORT_CODE: Record<string, string> = {
   en: "en_US",
   fr: "fr_FR",

@@ -1,5 +1,6 @@
 import { DateTime, Settings } from "luxon";
 import { getErrorMessage } from "./error";
+import { randomUUID } from "./randomId";
 
 function getCurrentDateTime(lang: string): DateTime {
   let now = DateTime.now();
@@ -102,9 +103,7 @@ export function resolveDynamicVariable(
     );
   }
   if (varName === "uuid") {
-    return typeof crypto !== "undefined" && crypto.randomUUID
-      ? crypto.randomUUID()
-      : "00000000-0000-0000-0000-000000000000"; // fallback if crypto unavailable
+    return randomUUID();
   }
   if (varName === "random" && arg) {
     const options = arg.split("|");

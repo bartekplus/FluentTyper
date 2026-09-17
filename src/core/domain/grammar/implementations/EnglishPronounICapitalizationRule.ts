@@ -10,7 +10,6 @@ const ENGLISH_APOSTROPHE_PRONOUN_REGEX = /(^|[^A-Za-z0-9_])(i)(['’](?:m|ve|ll|
 
 export class EnglishPronounICapitalizationRule implements GrammarRule {
   readonly id = "englishPronounICapitalization" as const;
-  readonly name = "English Pronoun I Capitalization";
   readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
 
   apply(context: GrammarContext): GrammarEdit | null {
@@ -39,8 +38,6 @@ export class EnglishPronounICapitalizationRule implements GrammarRule {
       replacement,
       deleteBackwards: boundaryContext.input.length - tokenInfo.tokenStart,
       deleteForwards: 0,
-      confidence: "high",
-      description: "Capitalized English pronoun I",
     };
   }
 
@@ -65,8 +62,6 @@ export class EnglishPronounICapitalizationRule implements GrammarRule {
       replacement,
       deleteBackwards: input.length - replaceStart,
       deleteForwards: 0,
-      confidence: "high",
-      description: "Capitalized English pronoun in contraction",
     };
   }
 }

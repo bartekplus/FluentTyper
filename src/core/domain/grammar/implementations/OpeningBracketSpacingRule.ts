@@ -4,7 +4,6 @@ import { SpacingRuleShared } from "./helpers/SpacingRuleShared";
 
 export class OpeningBracketSpacingRule extends SpacingRuleShared implements GrammarRule {
   readonly id = "openingBracketSpacing" as const;
-  readonly name = "Opening Bracket Spacing";
   readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
 
   apply(context: GrammarContext): GrammarEdit | null {
@@ -36,7 +35,7 @@ export class OpeningBracketSpacingRule extends SpacingRuleShared implements Gram
     }
 
     if (requiresSpaceBefore && !hasSpaceBefore) {
-      return this.createEdit(` ${openingBracket}`, 1, "Applied opening bracket spacing");
+      return this.createEdit(` ${openingBracket}`, 1);
     }
 
     return null;

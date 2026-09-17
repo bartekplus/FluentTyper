@@ -1,6 +1,6 @@
 import "./setup";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { AboutWorkspacePanel } from "../src/ui/options/AboutWorkspacePanel.js";
+import { renderAboutWorkspacePanel } from "../src/ui/options/AboutWorkspacePanel.js";
 import { i18n } from "../src/ui/options/fluenttyperI18n.js";
 
 describe("AboutWorkspacePanel", () => {
@@ -16,7 +16,7 @@ describe("AboutWorkspacePanel", () => {
     const root = document.createElement("div");
     document.body.appendChild(root);
 
-    new AboutWorkspacePanel(root);
+    renderAboutWorkspacePanel(root);
 
     const productLink = Array.from(root.querySelectorAll("a")).find((entry) =>
       entry.href.includes("github.com/bartekplus/FluentTyper"),

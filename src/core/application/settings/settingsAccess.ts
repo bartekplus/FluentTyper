@@ -1,22 +1,8 @@
 import { getSettingStorageAliases, type SettingField } from "@core/domain/contracts/settings";
 import type { JsonValue, SettingsManager } from "../settingsManager";
 
-type RawSettingsAccess = {
-  getRaw?: (key: string) => Promise<unknown>;
-  setRaw?: (key: string, value: JsonValue) => Promise<void>;
-  removeRaw?: (key: string) => Promise<void>;
-};
-
-function getRawSettingsAccess(settings: SettingsManager): RawSettingsAccess {
-  return settings;
-}
-
 export async function readRawSetting(settings: SettingsManager, key: string): Promise<unknown> {
-  const maybeRawSettings = getRawSettingsAccess(settings);
-  if (typeof maybeRawSettings.getRaw === "function") {
-    return maybeRawSettings.getRaw(key);
-  }
-  return settings.get(key);
+  return settings.getRaw(key);
 }
 
 export async function writeRawSetting(
@@ -24,21 +10,11 @@ export async function writeRawSetting(
   key: string,
   value: JsonValue,
 ): Promise<void> {
-  const maybeRawSettings = getRawSettingsAccess(settings);
-  if (typeof maybeRawSettings.setRaw === "function") {
-    await maybeRawSettings.setRaw(key, value);
-    return;
-  }
-  await settings.set(key, value);
+  await settings.setRaw(key, value);
 }
 
 export async function removeRawSetting(settings: SettingsManager, key: string): Promise<void> {
-  const maybeRawSettings = getRawSettingsAccess(settings);
-  if (typeof maybeRawSettings.removeRaw === "function") {
-    await maybeRawSettings.removeRaw(key);
-    return;
-  }
-  await settings.set(key, undefined as unknown as JsonValue);
+  await settings.removeRaw(key);
 }
 
 export async function readFirstDefinedSetting(

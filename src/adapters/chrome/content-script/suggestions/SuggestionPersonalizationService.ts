@@ -1,5 +1,6 @@
 import { CMD_CONTENT_SCRIPT_PERSONALIZATION_EVENT } from "@core/domain/constants";
 import type { ContentScriptPersonalizationEventMessage } from "@core/domain/messageTypes";
+import { randomUUID } from "@core/domain/randomId";
 import type { SuggestionPersonalization } from "./types";
 
 interface SuggestionPersonalizationServiceOptions {
@@ -72,9 +73,5 @@ export class SuggestionPersonalizationService implements SuggestionPersonalizati
 }
 
 function generateEventId(): string {
-  const value =
-    typeof globalThis.crypto?.randomUUID === "function"
-      ? globalThis.crypto.randomUUID()
-      : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
-  return `accept-${value}`;
+  return `accept-${randomUUID()}`;
 }

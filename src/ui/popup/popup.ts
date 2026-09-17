@@ -14,8 +14,7 @@ import {
   type SiteProfile,
 } from "@core/domain/siteProfiles";
 import {
-  parseInlineOverride,
-  parsePreferNativeAutocompleteOverride,
+  parseBooleanOverride,
   parseSuggestionsOverride,
   resolveGlobalNumSuggestions,
 } from "@core/domain/siteProfileService";
@@ -39,6 +38,7 @@ import type {
   PopupAckDonationMilestoneMessage,
 } from "@core/domain/messageTypes";
 import { formatTranslation, i18n } from "@ui/options/fluenttyperI18n.js";
+import { formatMetricNumber as formatNumber, formatWeekRange } from "@ui/shared/formatMetrics.js";
 import {
   type WebsiteAccessPermissionState,
   WebsiteAccessPermissionController,
@@ -71,13 +71,6 @@ type PopupPageState =
       body: string;
       url?: string;
     };
-
-function translateLabel(key: string, fallback: string): string {
-  const translated = i18n.get(key);
-  return typeof translated === "string" && translated.length > 0 && translated !== key
-    ? translated
-    : fallback;
-}
 
 function getPageStateElements() {
   return {
@@ -148,37 +141,21 @@ function renderNonActionablePageState(
   section?.classList.toggle("is-hidden", !showDomainSection);
 }
 
-function setSiteSpecificControlsEnabled(enabled: boolean): void {
-  const domainToggle = document.getElementById("checkboxDomainInput") as HTMLInputElement | null;
-  const profileToggle = document.getElementById(
-    "checkboxSiteProfileInput",
-  ) as HTMLInputElement | null;
-  const profileLanguage = document.getElementById("siteLanguageSelect") as HTMLSelectElement | null;
-  const profileSuggestions = document.getElementById(
-    "siteNumSuggestionsSelect",
-  ) as HTMLSelectElement | null;
-  const profileInline = document.getElementById("siteInlineModeSelect") as HTMLSelectElement | null;
-  const profilePreferNativeAutocomplete = document.getElementById(
-    "sitePreferNativeAutocompleteSelect",
-  ) as HTMLSelectElement | null;
+const SITE_SPECIFIC_CONTROL_IDS = [
+  "checkboxDomainInput",
+  "checkboxSiteProfileInput",
+  "siteLanguageSelect",
+  "siteNumSuggestionsSelect",
+  "siteInlineModeSelect",
+  "sitePreferNativeAutocompleteSelect",
+];
 
-  if (domainToggle) {
-    domainToggle.disabled = !enabled;
-  }
-  if (profileToggle) {
-    profileToggle.disabled = !enabled;
-  }
-  if (profileLanguage) {
-    profileLanguage.disabled = !enabled;
-  }
-  if (profileSuggestions) {
-    profileSuggestions.disabled = !enabled;
-  }
-  if (profileInline) {
-    profileInline.disabled = !enabled;
-  }
-  if (profilePreferNativeAutocomplete) {
-    profilePreferNativeAutocomplete.disabled = !enabled;
+function setSiteSpecificControlsEnabled(enabled: boolean): void {
+  for (const id of SITE_SPECIFIC_CONTROL_IDS) {
+    const control = document.getElementById(id) as HTMLInputElement | HTMLSelectElement | null;
+    if (control) {
+      control.disabled = !enabled;
+    }
   }
 }
 
@@ -186,12 +163,9 @@ function getCurrentPageState(url?: string): PopupPageState {
   if (!url) {
     return {
       kind: "non_actionable",
-      badge: translateLabel("popup_page_state_no_page_badge", "No active page"),
-      title: translateLabel("popup_page_state_no_page_title", "Open a website"),
-      body: translateLabel(
-        "popup_page_state_no_page_body",
-        "Open a website to manage site controls here.",
-      ),
+      badge: i18n.get("popup_page_state_no_page_badge"),
+      title: i18n.get("popup_page_state_no_page_title"),
+      body: i18n.get("popup_page_state_no_page_body"),
     };
   }
 
@@ -209,12 +183,9 @@ function getCurrentPageState(url?: string): PopupPageState {
   if (restrictedPrefixes.some((prefix) => normalizedUrl.startsWith(prefix))) {
     return {
       kind: "restricted",
-      badge: translateLabel("popup_page_state_restricted_badge", "Restricted page"),
-      title: translateLabel("popup_page_state_restricted_title", "Browser internal page"),
-      body: translateLabel(
-        "popup_page_state_restricted_body",
-        "FluentTyper cannot run on browser internal pages.",
-      ),
+      badge: i18n.get("popup_page_state_restricted_badge"),
+      title: i18n.get("popup_page_state_restricted_title"),
+      body: i18n.get("popup_page_state_restricted_body"),
       url,
     };
   }
@@ -225,12 +196,9 @@ function getCurrentPageState(url?: string): PopupPageState {
   ) {
     return {
       kind: "non_actionable",
-      badge: translateLabel("popup_page_state_extension_badge", "Extension page"),
-      title: translateLabel("popup_page_state_extension_title", "Extension surface"),
-      body: translateLabel(
-        "popup_page_state_extension_body",
-        "Extension pages do not use site controls.",
-      ),
+      badge: i18n.get("popup_page_state_extension_badge"),
+      title: i18n.get("popup_page_state_extension_title"),
+      body: i18n.get("popup_page_state_extension_body"),
       url,
     };
   }
@@ -238,9 +206,9 @@ function getCurrentPageState(url?: string): PopupPageState {
   if (normalizedUrl.startsWith("file://")) {
     return {
       kind: "non_actionable",
-      badge: translateLabel("popup_page_state_file_badge", "Local file"),
-      title: translateLabel("popup_page_state_file_title", "File page"),
-      body: translateLabel("popup_page_state_file_body", "Local files do not use site controls."),
+      badge: i18n.get("popup_page_state_file_badge"),
+      title: i18n.get("popup_page_state_file_title"),
+      body: i18n.get("popup_page_state_file_body"),
       url,
     };
   }
@@ -254,12 +222,9 @@ function getCurrentPageState(url?: string): PopupPageState {
 
   return {
     kind: "non_actionable",
-    badge: translateLabel("popup_page_state_other_badge", "Page unavailable"),
-    title: translateLabel("popup_page_state_other_title", "No site controls here"),
-    body: translateLabel(
-      "popup_page_state_other_body",
-      "Site controls are not available on this page.",
-    ),
+    badge: i18n.get("popup_page_state_other_badge"),
+    title: i18n.get("popup_page_state_other_title"),
+    body: i18n.get("popup_page_state_other_body"),
     url,
   };
 }
@@ -321,22 +286,13 @@ function renderPermissionBlockedPageState(state: WebsiteAccessPermissionState): 
   const permissionBlockedState =
     state === "missing"
       ? {
-          badge: translateLabel("permission_status_missing_badge", "Website access required"),
-          body: translateLabel(
-            "popup_page_state_permission_missing_body",
-            "Allow website access to use FluentTyper on this site.",
-          ),
+          badge: i18n.get("permission_status_missing_badge"),
+          body: i18n.get("popup_page_state_permission_missing_body"),
           kind: "paused" as const,
         }
       : {
-          badge: translateLabel(
-            "permission_status_unavailable_badge",
-            "Website access unavailable",
-          ),
-          body: translateLabel(
-            "popup_page_state_permission_unavailable_body",
-            "FluentTyper could not verify website access on this site.",
-          ),
+          badge: i18n.get("permission_status_unavailable_badge"),
+          body: i18n.get("popup_page_state_permission_unavailable_body"),
           kind: "non_actionable" as const,
         };
   renderNonActionablePageState(
@@ -398,30 +354,27 @@ async function renderActionablePageState(): Promise<void> {
   const languageLabel = SUPPORTED_LANGUAGES[languageCode] || languageCode;
   const badgeLabel = globallyEnabled
     ? siteAllowed
-      ? translateLabel("popup_page_state_active_badge", "Active here")
-      : translateLabel("popup_page_state_site_disabled_badge", "Off on this site")
-    : translateLabel("popup_page_state_global_disabled_badge", "Paused globally");
+      ? i18n.get("popup_page_state_active_badge")
+      : i18n.get("popup_page_state_site_disabled_badge")
+    : i18n.get("popup_page_state_global_disabled_badge");
   const activityCopy = globallyEnabled
     ? siteAllowed
-      ? translateLabel("popup_page_state_active_body", "Ready on this site.")
-      : translateLabel("popup_page_state_site_disabled_body", "Disabled on this site.")
-    : translateLabel("popup_page_state_global_disabled_body", "Paused everywhere.");
+      ? i18n.get("popup_page_state_active_body")
+      : i18n.get("popup_page_state_site_disabled_body")
+    : i18n.get("popup_page_state_global_disabled_body");
   const autoDetectReasonCopy =
     configuredLanguage === "auto_detect" && globallyEnabled && siteAllowed
       ? autoLanguageStatus?.locked
-        ? translateLabel("popup_auto_detect_reason_locked", "Locked for this typing session.")
+        ? i18n.get("popup_auto_detect_reason_locked")
         : autoLanguageStatus?.language
-          ? translateLabel(
-              "popup_auto_detect_reason_active",
-              "Switches only after sustained nearby text. Single foreign words do not flip it.",
-            )
+          ? i18n.get("popup_auto_detect_reason_active")
           : formatTranslation("popup_auto_detect_reason_waiting", {
               language: fallbackLanguageLabel,
             })
       : "";
   const profileCopy = profile
-    ? translateLabel("popup_page_state_profile_active", "Site profile")
-    : translateLabel("popup_page_state_profile_global", "Global defaults");
+    ? i18n.get("popup_page_state_profile_active")
+    : i18n.get("popup_page_state_profile_global");
   const {
     badge,
     body,
@@ -654,12 +607,12 @@ function readSiteProfileFromEditor(): SiteProfile {
   if (typeof numSuggestions === "number") {
     profile.numSuggestions = numSuggestions;
   }
-  const inlineSuggestion = inline ? parseInlineOverride(inline.value) : undefined;
+  const inlineSuggestion = inline ? parseBooleanOverride(inline.value) : undefined;
   if (typeof inlineSuggestion === "boolean") {
     profile.inline_suggestion = inlineSuggestion;
   }
   const preferNativeAutocompleteOverride = preferNativeAutocomplete
-    ? parsePreferNativeAutocompleteOverride(preferNativeAutocomplete.value)
+    ? parseBooleanOverride(preferNativeAutocomplete.value)
     : undefined;
   if (typeof preferNativeAutocompleteOverride === "boolean") {
     profile.preferNativeAutocomplete = preferNativeAutocompleteOverride;
@@ -724,26 +677,6 @@ function translateUI() {
       }
     }
   });
-}
-
-function formatNumber(value: number): string {
-  return new Intl.NumberFormat(undefined, {
-    maximumFractionDigits: 1,
-  }).format(value);
-}
-
-function formatWeekRange(weekKey: string): string {
-  const startDate = new Date(`${weekKey}T00:00:00`);
-  if (Number.isNaN(startDate.getTime())) {
-    return weekKey;
-  }
-  const endDate = new Date(startDate);
-  endDate.setDate(endDate.getDate() + 6);
-  const formatter = new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-  });
-  return `${formatter.format(startDate)} - ${formatter.format(endDate)}`;
 }
 
 async function copyTextToClipboard(text: string): Promise<boolean> {
@@ -1241,18 +1174,10 @@ async function addRemoveDomain(tabId: number, domainURL: string) {
   if (!checkboxNode) {
     return;
   }
-  let message: PopupPageEnableMessage | PopupPageDisableMessage;
-  if (checkboxNode.checked) {
-    message = {
-      command: CMD_POPUP_PAGE_ENABLE,
-      context: {},
-    };
-  } else {
-    message = {
-      command: CMD_POPUP_PAGE_DISABLE,
-      context: {},
-    };
-  }
+  const message: PopupPageEnableMessage | PopupPageDisableMessage = {
+    command: checkboxNode.checked ? CMD_POPUP_PAGE_ENABLE : CMD_POPUP_PAGE_DISABLE,
+    context: {},
+  };
   await blockUnBlockDomain(settings, domainURL, !checkboxNode.checked);
   await refreshThisSiteSection();
   void chrome.tabs.sendMessage(tabId, message);
@@ -1275,23 +1200,14 @@ async function toggleOnOff() {
   const newMode = !(await coreSettingsRepository.isEnabled());
   await coreSettingsRepository.setEnabled(newMode);
   await refreshThisSiteSection();
+  const message: PopupPageEnableMessage | PopupPageDisableMessage = {
+    command: newMode ? CMD_POPUP_PAGE_ENABLE : CMD_POPUP_PAGE_DISABLE,
+    context: {},
+  };
   chrome.tabs.query({}, function (tabs) {
-    for (let i = 0; i < tabs.length; i++) {
-      let message: PopupPageEnableMessage | PopupPageDisableMessage;
-      if (newMode) {
-        message = {
-          command: CMD_POPUP_PAGE_ENABLE,
-          context: {},
-        };
-      } else {
-        message = {
-          command: CMD_POPUP_PAGE_DISABLE,
-          context: {},
-        };
-      }
-      const tabId = tabs[i].id;
-      if (typeof tabId === "number") {
-        void chrome.tabs.sendMessage(tabId, message);
+    for (const tab of tabs) {
+      if (typeof tab.id === "number") {
+        void chrome.tabs.sendMessage(tab.id, message);
       }
     }
   });

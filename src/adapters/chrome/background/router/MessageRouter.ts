@@ -43,7 +43,6 @@ import type { BackgroundServiceWorker } from "../BackgroundServiceWorker";
 import {
   createErrorMappingMiddleware,
   createLoggingMiddleware,
-  createValidationMiddleware,
   HandlerRegistry,
 } from "./HandlerRegistry";
 import { mapRuntimeError } from "./RuntimeErrorMapper";
@@ -121,34 +120,6 @@ function resolveSenderRoutingContext(
   };
 }
 
-const MESSAGE_ERROR_LABELS: Record<RoutedMessageCommand, string> = {
-  [CMD_CONTENT_SCRIPT_PREDICT_REQ]: "MessageRouter.handleContentScriptPredictReq",
-  [CMD_OPTIONS_PAGE_CONFIG_CHANGE]: "handleOptionsPageConfigChange",
-  [CMD_CONTENT_SCRIPT_GET_CONFIG]: "MessageRouter.handleContentScriptGetConfig",
-  [CMD_CONTENT_SCRIPT_USAGE_EVENT]: "MessageRouter.handleContentScriptUsageEvent",
-  [CMD_CONTENT_SCRIPT_PERSONALIZATION_EVENT]:
-    "MessageRouter.handleContentScriptPersonalizationEvent",
-  [CMD_CONTENT_SCRIPT_REPORT_RUNTIME_STATUS]: "MessageRouter.handleContentScriptRuntimeStatus",
-  [CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_EVENT]:
-    "MessageRouter.handleContentScriptReportObservabilityEvent",
-  [CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_MODULES]:
-    "MessageRouter.handleContentScriptReportObservabilityModules",
-  [CMD_GET_AUTO_LANGUAGE_STATUS]: "MessageRouter.handleGetAutoLanguageStatus",
-  [CMD_POPUP_GET_PRODUCTIVITY_STATS]: "MessageRouter.handlePopupGetProductivityStats",
-  [CMD_POPUP_ACK_WEEKLY_RECAP]: "MessageRouter.handlePopupAckWeeklyRecap",
-  [CMD_POPUP_ACK_DONATION_MILESTONE]: "MessageRouter.handlePopupAckDonationMilestone",
-  [CMD_OPTIONS_RESET_PRODUCTIVITY_STATS]: "MessageRouter.handleOptionsResetProductivityStats",
-  [CMD_OPTIONS_CLEAR_PERSONALIZATION]: "MessageRouter.handleOptionsClearPersonalization",
-  [CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT]:
-    "MessageRouter.handleOptionsGetPredictorDebugSnapshot",
-  [CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE]: "MessageRouter.handleOptionsClearPredictorDebugTrace",
-  [CMD_OPTIONS_GET_OBSERVABILITY_SNAPSHOT]: "MessageRouter.handleOptionsGetObservabilitySnapshot",
-  [CMD_OPTIONS_CLEAR_OBSERVABILITY_EVENTS]: "MessageRouter.handleOptionsClearObservabilityEvents",
-  [CMD_OPTIONS_REPORT_OBSERVABILITY_EVENT]: "MessageRouter.handleOptionsReportObservabilityEvent",
-  [CMD_OPTIONS_REPORT_OBSERVABILITY_MODULES]:
-    "MessageRouter.handleOptionsReportObservabilityModules",
-};
-
 export class MessageRouter {
   private readonly getWorker: () => BackgroundServiceWorker;
   private readonly registry: HandlerRegistry<RoutedMessageCommand, MessageDispatchPayload, void>;
@@ -158,21 +129,15 @@ export class MessageRouter {
     this.getWorker = getWorker;
     this.registry = new HandlerRegistry<RoutedMessageCommand, MessageDispatchPayload, void>([
       createErrorMappingMiddleware<MessageDispatchPayload, void>({
-        mapUnknownCommand: (command) => {
-          logError("onMessage", `Unknown command: ${command}`);
-        },
         mapError: (error, context) => {
-          const label = isRoutedMessageCommand(context.command)
-            ? MESSAGE_ERROR_LABELS[context.command]
-            : "MessageRouter.handle";
           const mappedError = mapRuntimeError(error);
-          logError(`${label}.${mappedError.category}.${mappedError.code}`, error);
+          logError(
+            `MessageRouter.${context.command}.${mappedError.category}.${mappedError.code}`,
+            error,
+          );
           context.payload.sendResponse(mappedError.response);
         },
       }),
-      createValidationMiddleware<MessageDispatchPayload, void, RoutedMessageCommand>(
-        isRoutedMessageCommand,
-      ),
       createLoggingMiddleware(logger),
     ]);
 
@@ -180,7 +145,10 @@ export class MessageRouter {
       command: TCommand,
       handler: (payload: CommandPayload<TCommand>) => Promise<void> | void,
     ): void => {
-      this.registry.register(command, this.createCommandHandler(command, handler));
+      this.registry.register(
+        command,
+        handler as (payload: MessageDispatchPayload) => Promise<void> | void,
+      );
     };
 
     register(CMD_CONTENT_SCRIPT_PREDICT_REQ, this.handleContentScriptPredictReq.bind(this));
@@ -274,26 +242,6 @@ export class MessageRouter {
     return runtimeMessage.command !== CMD_CONTENT_SCRIPT_PREDICT_REQ;
   }
 
-  private createCommandHandler<TCommand extends RoutedMessageCommand>(
-    command: TCommand,
-    handler: (payload: CommandPayload<TCommand>) => Promise<void> | void,
-  ): (payload: MessageDispatchPayload) => Promise<void> {
-    return async (payload) => {
-      if (payload.request.command !== command) {
-        throw new TransportError(
-          `Command/payload mismatch: expected ${command}, received ${payload.request.command}`,
-          {
-            code: "message_command_payload_mismatch",
-          },
-        );
-      }
-      await handler({
-        ...payload,
-        request: payload.request as RoutedMessageByCommand[TCommand],
-      });
-    };
-  }
-
   private respondOk(sendResponse: (response?: unknown) => void): void {
     sendResponse({ ok: true });
   }
@@ -330,7 +278,7 @@ export class MessageRouter {
 
     if (language === "auto_detect") {
       try {
-        const resolution = await worker.resolveAutoLanguage({
+        const resolution = await worker.languageDetector.resolveLanguage({
           ...request.context,
           tabId,
           frameId,
@@ -457,7 +405,7 @@ export class MessageRouter {
     payload: CommandPayload<typeof CMD_CONTENT_SCRIPT_PERSONALIZATION_EVENT>,
   ): Promise<void> {
     const { request, sendResponse, worker } = payload;
-    await worker.handlePersonalizationEvent(request.context);
+    await worker.personalizationService.handleEvent(request.context);
     this.respondOk(sendResponse);
   }
 
@@ -531,7 +479,7 @@ export class MessageRouter {
     }
     const domainURL = request.context.domainURL || fallbackTab?.hostname || undefined;
     sendResponse({
-      status: await worker.getAutoLanguageStatusForScope({
+      status: await worker.languageDetector.getRecentSessionStatusForScope({
         tabId,
         frameId: request.context.frameId,
         runtimeGeneration: request.context.runtimeGeneration,
@@ -579,7 +527,7 @@ export class MessageRouter {
     payload: CommandPayload<typeof CMD_OPTIONS_CLEAR_PERSONALIZATION>,
   ): Promise<void> {
     const { sendResponse, worker } = payload;
-    await worker.clearPersonalization();
+    await worker.personalizationService.clear();
     this.respondOk(sendResponse);
   }
 
@@ -588,7 +536,7 @@ export class MessageRouter {
   ): Promise<void> {
     const { sendResponse, worker } = payload;
     await worker.predictionManager.initialize();
-    sendResponse(worker.observabilityService.getLegacyPredictorSnapshot());
+    sendResponse(worker.predictionManager.getPredictorDebugSnapshot());
   }
 
   private handleOptionsClearPredictorDebugTrace(

@@ -3,7 +3,6 @@ import { isDeleteInputAction, shouldSkipGenericReplacement } from "./helpers/Gen
 
 export class EllipsisShortcutRule implements GrammarRule {
   readonly id = "ellipsisShortcut" as const;
-  readonly name = "Ellipsis Shortcut";
   readonly triggers: GrammarEventType[] = ["insertChar"];
 
   apply(context: GrammarContext): GrammarEdit | null {
@@ -25,9 +24,6 @@ export class EllipsisShortcutRule implements GrammarRule {
       replacement: "…",
       deleteBackwards: 3,
       deleteForwards: 0,
-      confidence: "medium",
-      safetyTier: "advanced",
-      description: "Replaced three dots with ellipsis",
     };
   }
 }

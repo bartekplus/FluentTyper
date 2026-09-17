@@ -11,11 +11,12 @@ import { LanguageSettingsPanel } from "@ui/options/LanguageSettingsPanel";
 import { TextAssetsPanel } from "@ui/options/TextAssetsPanel";
 import { SiteManagementPanel } from "@ui/options/SiteManagementPanel";
 import { AppearanceStudio } from "@ui/options/AppearanceStudio";
-import { DataDiagnosticsPanel } from "@ui/options/DataDiagnosticsPanel";
-import { AboutWorkspacePanel } from "@ui/options/AboutWorkspacePanel";
-import { EssentialsWorkspacePanel } from "@ui/options/EssentialsWorkspacePanel";
-import { GrammarWorkspacePanel } from "@ui/options/GrammarWorkspacePanel";
-import { ObservabilityWorkspacePanel } from "@ui/options/ObservabilityWorkspacePanel";
+import { renderDataDiagnosticsPanel } from "@ui/options/DataDiagnosticsPanel";
+import { renderAboutWorkspacePanel } from "@ui/options/AboutWorkspacePanel";
+import { formatMetricNumber, formatWeekRange } from "@ui/shared/formatMetrics.js";
+import { renderEssentialsWorkspacePanel } from "@ui/options/EssentialsWorkspacePanel";
+import { renderGrammarWorkspacePanel } from "@ui/options/GrammarWorkspacePanel";
+import { renderObservabilityWorkspacePanel } from "@ui/options/ObservabilityWorkspacePanel";
 import { resolveSiteProfiles } from "@core/domain/siteProfiles";
 import { sanitizeAutoLanguageSitePriors } from "@core/domain/autoLanguageDetection";
 import {
@@ -82,8 +83,6 @@ import {
   CMD_OPTIONS_GET_OBSERVABILITY_SNAPSHOT,
   CMD_OPTIONS_RESET_PRODUCTIVITY_STATS,
   CMD_OPTIONS_CLEAR_PERSONALIZATION,
-  CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT,
-  CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE,
   CMD_OPTIONS_REPORT_OBSERVABILITY_EVENT,
   CMD_OPTIONS_REPORT_OBSERVABILITY_MODULES,
 } from "@core/domain/constants";
@@ -91,18 +90,14 @@ import { PERSONALIZATION_STORAGE_KEY } from "@core/application/personalization/P
 import { DEFAULT_SUGGESTION_THEME_SETTINGS } from "@core/domain/themeDefaults";
 import { i18n } from "./fluenttyperI18n.js";
 import { manifest } from "./settingsManifest.js";
+import { createWorkspaceShell, formatLooseText } from "./workspacePanelUtils.js";
 
 const PRODUCTIVITY_INSIGHTS_MAX_RETRIES = 5;
 const PRODUCTIVITY_INSIGHTS_RETRY_DELAY_MS = 200;
-const PREDICTOR_DEBUG_MAX_RETRIES = 4;
-const PREDICTOR_DEBUG_RETRY_DELAY_MS = 250;
-const PREDICTOR_DEBUG_POLL_INTERVAL_MS = 1500;
 const OBSERVABILITY_MAX_RETRIES = 4;
 const OBSERVABILITY_RETRY_DELAY_MS = 250;
 const OBSERVABILITY_POLL_INTERVAL_MS = 1500;
 const IS_DEV_BUILD = typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
-let predictorDebugLastSignature = "";
-let predictorDebugBindingsInitialized = false;
 let observabilityLastSignature = "";
 let observabilityBindingsInitialized = false;
 let observabilityCurrentSnapshot: ObservabilitySnapshot | null = null;
@@ -215,14 +210,6 @@ const CONFIG_REFRESH_KEYS = [
   KEY_SUGGESTION_PADDING_HORIZONTAL,
 ] as const;
 
-const PREDICTOR_DEBUG_REFRESH_KEYS = new Set([
-  KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
-  KEY_DEBUG_AI_PREDICTOR_ENABLED,
-  KEY_AI_PREDICTOR_ENABLED,
-  KEY_AI_MODEL_ID,
-  KEY_AI_PREDICTION_TIMEOUT_MS,
-]);
-
 const OBSERVABILITY_REFRESH_KEYS = new Set([
   KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
   KEY_DEBUG_AI_PREDICTOR_ENABLED,
@@ -234,15 +221,6 @@ const OBSERVABILITY_REFRESH_KEYS = new Set([
 
 function bindActionHandler(registry: SettingsRegistry, key: string, handler: () => void): void {
   registry[key]?.addEvent("action", handler);
-}
-
-function refreshPredictorDebug(rootId: string): void {
-  const root = document.getElementById(rootId);
-  if (!root) {
-    return;
-  }
-  predictorDebugLastSignature = "";
-  void loadPredictorDebugSnapshot(root);
 }
 
 function refreshObservabilitySnapshot(rootId: string): void {
@@ -261,9 +239,6 @@ function handleConfigRefreshTrigger(registry: SettingsRegistry, key: string): vo
 
   optionsPageConfigChange();
 
-  if (PREDICTOR_DEBUG_REFRESH_KEYS.has(key)) {
-    refreshPredictorDebug("predictorDebugRoot");
-  }
   if (OBSERVABILITY_REFRESH_KEYS.has(key)) {
     refreshObservabilitySnapshot("observabilityRoot");
   }
@@ -353,7 +328,7 @@ function arraysEqual(a: unknown, b: unknown): boolean {
   return true;
 }
 
-export async function sanitizeSiteProfilesForEnabledLanguages(
+async function sanitizeSiteProfilesForEnabledLanguages(
   store: Store,
   enabledLanguages: string[] | null,
 ) {
@@ -369,7 +344,7 @@ export async function sanitizeSiteProfilesForEnabledLanguages(
   return hasChanges;
 }
 
-export async function sanitizeAutoLanguagePriorsForEnabledLanguages(
+async function sanitizeAutoLanguagePriorsForEnabledLanguages(
   store: Store,
   enabledLanguages: string[] | null,
 ) {
@@ -555,42 +530,6 @@ let lastMarkedDonationPromptId: string | null = null;
 
 function t(key: string) {
   return i18n.get(key);
-}
-
-function formatMetricNumber(value: unknown) {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return "0";
-  }
-  return new Intl.NumberFormat(undefined, {
-    maximumFractionDigits: 1,
-  }).format(value);
-}
-
-function formatLooseText(value: unknown, fallback = ""): string {
-  if (typeof value === "string") {
-    return value;
-  }
-  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
-    return String(value);
-  }
-  return fallback;
-}
-
-function formatWeekRange(weekKey: unknown) {
-  if (typeof weekKey !== "string") {
-    return "n/a";
-  }
-  const startDate = new Date(`${weekKey}T00:00:00`);
-  if (Number.isNaN(startDate.getTime())) {
-    return weekKey;
-  }
-  const endDate = new Date(startDate);
-  endDate.setDate(endDate.getDate() + 6);
-  const formatter = new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-  });
-  return `${formatter.format(startDate)} - ${formatter.format(endDate)}`;
 }
 
 function formatLanguageLabel(language: unknown) {
@@ -1045,38 +984,6 @@ function setupProductivityInsights() {
   void loadProductivityInsights(root);
 }
 
-type PredictorSnapshot = Record<string, unknown>;
-
-function isPredictorDebugSnapshot(snapshot: unknown): snapshot is PredictorSnapshot {
-  return (
-    !!snapshot &&
-    typeof snapshot === "object" &&
-    !Array.isArray(snapshot) &&
-    typeof (snapshot as Record<string, unknown>).generatedAtMs === "number" &&
-    !!(snapshot as Record<string, unknown>).runtime &&
-    typeof (snapshot as Record<string, unknown>).runtime === "object" &&
-    Array.isArray((snapshot as Record<string, unknown>).traces)
-  );
-}
-
-function formatDurationMs(value: unknown) {
-  const numericValue = Number(value);
-  if (!Number.isFinite(numericValue)) {
-    return "0 ms";
-  }
-  const rounded = Math.max(0, Math.round(numericValue * 10) / 10);
-  return `${rounded} ms`;
-}
-
-function formatProgressPercent(value: unknown) {
-  const numericValue = Number(value);
-  if (!Number.isFinite(numericValue)) {
-    return "n/a";
-  }
-  const clamped = Math.max(0, Math.min(1, numericValue));
-  return `${Math.round(clamped * 100)}%`;
-}
-
 function formatClockTime(timestampMs: unknown) {
   const date = new Date(timestampMs as number);
   if (Number.isNaN(date.getTime())) {
@@ -1087,137 +994,6 @@ function formatClockTime(timestampMs: unknown) {
     minute: "2-digit",
     second: "2-digit",
   }).format(date);
-}
-
-function previewValue(value: unknown, maxLen = 180) {
-  if (typeof value !== "string") {
-    return "";
-  }
-  const trimmed = value.replace(/\s+/g, " ").trim();
-  if (trimmed.length <= maxLen) {
-    return trimmed;
-  }
-  return `${trimmed.slice(0, maxLen)}...`;
-}
-
-function formatPredictionList(predictions: unknown) {
-  if (!Array.isArray(predictions) || predictions.length === 0) {
-    return "[]";
-  }
-  return (predictions as string[]).join(" | ");
-}
-
-function formatTraceTimeline(events: unknown) {
-  const items = Array.isArray(events) ? (events as Record<string, unknown>[]) : [];
-  if (items.length === 0) {
-    return "<none>";
-  }
-  return items
-    .slice(-8)
-    .map((event) => {
-      const stage =
-        typeof event?.stage === "string" && event.stage.trim().length > 0
-          ? event.stage.trim()
-          : "event";
-      const at = formatClockTime(event?.timestampMs);
-      const detail =
-        typeof event?.detail === "string" && event.detail.trim().length > 0
-          ? ` (${previewValue(event.detail, 60)})`
-          : "";
-      return `${at} ${stage}${detail}`;
-    })
-    .join(" -> ");
-}
-
-function buildPredictorDebugSnapshotSignature(snapshot: PredictorSnapshot) {
-  try {
-    return JSON.stringify({
-      config: snapshot?.config || null,
-      runtime: snapshot?.runtime || null,
-      traces: Array.isArray(snapshot?.traces) ? snapshot.traces : [],
-    });
-  } catch {
-    return "";
-  }
-}
-
-function getPredictorDebugRootElement() {
-  return document.getElementById("predictorDebugRoot");
-}
-
-function summarizePredictorTraces(traces: unknown[]) {
-  const items = traces as Record<string, unknown>[];
-  let totalDuration = 0;
-  let presageAttempts = 0;
-  let presageDuration = 0;
-  let aiAttempts = 0;
-  let aiDuration = 0;
-  let aiTimeouts = 0;
-
-  items.forEach((trace) => {
-    totalDuration += Number(trace?.totalDurationMs) || 0;
-    const presage = trace?.presage as Record<string, unknown> | undefined;
-    if (presage?.attempted) {
-      presageAttempts += 1;
-      presageDuration += Number(presage.durationMs) || 0;
-    }
-    const webllm = trace?.webllm as Record<string, unknown> | undefined;
-    if (webllm?.attempted) {
-      aiAttempts += 1;
-      aiDuration += Number(webllm.durationMs) || 0;
-      if (webllm.timedOut) {
-        aiTimeouts += 1;
-      }
-    }
-  });
-
-  return {
-    requestCount: items.length,
-    avgTotalDurationMs: items.length > 0 ? totalDuration / items.length : 0,
-    presageAttempts,
-    avgPresageDurationMs: presageAttempts > 0 ? presageDuration / presageAttempts : 0,
-    aiAttempts,
-    avgAIDurationMs: aiAttempts > 0 ? aiDuration / aiAttempts : 0,
-    aiTimeouts,
-  };
-}
-
-function createPredictorDebugMetric(label: string, value: string, subValue?: string) {
-  const card = document.createElement("article");
-  card.className = "predictor-debug-metric";
-
-  const title = document.createElement("h4");
-  title.textContent = label;
-  card.appendChild(title);
-
-  const main = document.createElement("p");
-  main.className = "predictor-debug-metric-main";
-  main.textContent = value;
-  card.appendChild(main);
-
-  if (subValue) {
-    const sub = document.createElement("p");
-    sub.className = "predictor-debug-metric-sub";
-    sub.textContent = subValue;
-    card.appendChild(sub);
-  }
-
-  return card;
-}
-
-function appendPredictorInfoItem(container: HTMLElement, label: string, value: string) {
-  const row = document.createElement("div");
-  row.className = "predictor-debug-info-row";
-
-  const key = document.createElement("span");
-  key.textContent = label;
-  row.appendChild(key);
-
-  const val = document.createElement("strong");
-  val.textContent = value;
-  row.appendChild(val);
-
-  container.appendChild(row);
 }
 
 function createPredictorToggleAction(label: string, key: string, enabled: boolean) {
@@ -1241,512 +1017,6 @@ function createPredictorToggleAction(label: string, key: string, enabled: boolea
 
   return row;
 }
-
-function renderPredictorDebugStatus(root: HTMLElement, text: string, isError = false) {
-  root.innerHTML = "";
-  const shell = document.createElement("div");
-  shell.className = "predictor-debug-status";
-  if (isError) {
-    shell.classList.add("is-error");
-  }
-
-  const message = document.createElement("p");
-  message.textContent = text;
-  shell.appendChild(message);
-
-  const refreshButton = document.createElement("button");
-  refreshButton.type = "button";
-  refreshButton.className = "button is-small is-light";
-  refreshButton.textContent = "Refresh";
-  refreshButton.setAttribute("data-action", "refresh-predictor-debug");
-  shell.appendChild(refreshButton);
-
-  root.appendChild(shell);
-}
-
-function renderPredictorDebugSnapshot(root: HTMLElement, snapshot: PredictorSnapshot) {
-  const pageScrollX = window.scrollX;
-  const pageScrollY = window.scrollY;
-  const currentTraceList = root.querySelector(".predictor-debug-trace-list");
-  const traceScrollTop = currentTraceList instanceof HTMLElement ? currentTraceList.scrollTop : 0;
-
-  const traces = Array.isArray(snapshot.traces)
-    ? (snapshot.traces as Record<string, unknown>[])
-    : [];
-  const stats = summarizePredictorTraces(traces);
-  const config = snapshot.config as Record<string, unknown> | undefined;
-  const runtime = snapshot.runtime as Record<string, unknown> | undefined;
-  const runtimeWebllm = (runtime?.webllm as Record<string, unknown>) ?? {};
-  const runtimePresage = (runtime?.presage as Record<string, unknown>) ?? {};
-
-  root.innerHTML = "";
-  const shell = document.createElement("section");
-  shell.className = "predictor-debug";
-  shell.id = "predictorDebugRoot";
-
-  const header = document.createElement("div");
-  header.className = "predictor-debug-header";
-  const headingBlock = document.createElement("div");
-  const heading = document.createElement("h3");
-  heading.textContent = "Predictor Debug Dashboard";
-  const subtitle = document.createElement("p");
-  subtitle.textContent = `Updated ${formatClockTime(snapshot.generatedAtMs)}`;
-  headingBlock.appendChild(heading);
-  headingBlock.appendChild(subtitle);
-  header.appendChild(headingBlock);
-
-  const actions = document.createElement("div");
-  actions.className = "predictor-debug-actions";
-  const refreshButton = document.createElement("button");
-  refreshButton.type = "button";
-  refreshButton.className = "button is-small is-light";
-  refreshButton.textContent = "Refresh";
-  refreshButton.setAttribute("data-action", "refresh-predictor-debug");
-  const clearButton = document.createElement("button");
-  clearButton.type = "button";
-  clearButton.className = "button is-small is-light";
-  clearButton.textContent = "Clear Trace";
-  clearButton.setAttribute("data-action", "clear-predictor-debug");
-  actions.appendChild(refreshButton);
-  actions.appendChild(clearButton);
-  header.appendChild(actions);
-  shell.appendChild(header);
-
-  const infoGrid = document.createElement("div");
-  infoGrid.className = "predictor-debug-info-grid";
-
-  const configCard = document.createElement("article");
-  configCard.className = "predictor-debug-info-card";
-  const configTitle = document.createElement("h4");
-  configTitle.textContent = "Configuration";
-  configCard.appendChild(configTitle);
-  appendPredictorInfoItem(
-    configCard,
-    "AI predictor",
-    config?.aiPredictorEnabled ? "enabled" : "disabled",
-  );
-  appendPredictorInfoItem(configCard, "AI model", formatLooseText(config?.aiModelId, "n/a"));
-  appendPredictorInfoItem(
-    configCard,
-    "Presage route",
-    config?.debugPresagePredictorEnabled ? "enabled" : "disabled",
-  );
-  appendPredictorInfoItem(
-    configCard,
-    "WebLLM route",
-    config?.debugAIPredictorEnabled ? "enabled" : "disabled",
-  );
-  appendPredictorInfoItem(
-    configCard,
-    "WebLLM timeout budget",
-    `${Math.max(20, Number(config?.aiPredictionTimeoutMs) || 0)} ms`,
-  );
-  configCard.appendChild(
-    createPredictorToggleAction(
-      "Presage route toggle",
-      KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED,
-      Boolean(config?.debugPresagePredictorEnabled),
-    ),
-  );
-  configCard.appendChild(
-    createPredictorToggleAction(
-      "WebLLM route toggle",
-      KEY_DEBUG_AI_PREDICTOR_ENABLED,
-      Boolean(config?.debugAIPredictorEnabled),
-    ),
-  );
-  infoGrid.appendChild(configCard);
-
-  const runtimeCard = document.createElement("article");
-  runtimeCard.className = "predictor-debug-info-card";
-  const runtimeTitle = document.createElement("h4");
-  runtimeTitle.textContent = "Runtime";
-  runtimeCard.appendChild(runtimeTitle);
-  appendPredictorInfoItem(
-    runtimeCard,
-    "Presage engines",
-    formatMetricNumber(runtimePresage?.languageEngineCount),
-  );
-  appendPredictorInfoItem(
-    runtimeCard,
-    "WebGPU",
-    runtimeWebllm?.hasWebGPU ? "available" : "missing",
-  );
-  appendPredictorInfoItem(
-    runtimeCard,
-    "WebLLM status",
-    formatLooseText(runtimeWebllm?.status, "n/a"),
-  );
-  appendPredictorInfoItem(
-    runtimeCard,
-    "WebLLM init attempts",
-    formatMetricNumber(runtimeWebllm?.initAttemptCount),
-  );
-  const initStartedAt = runtimeWebllm?.lastInitStartedAt;
-  appendPredictorInfoItem(
-    runtimeCard,
-    "Last WebLLM init start",
-    typeof initStartedAt === "number" ? formatClockTime(initStartedAt) : "n/a",
-  );
-  appendPredictorInfoItem(
-    runtimeCard,
-    "Last WebLLM init duration",
-    runtimeWebllm?.lastInitDurationMs != null
-      ? formatDurationMs(runtimeWebllm.lastInitDurationMs)
-      : "n/a",
-  );
-  appendPredictorInfoItem(
-    runtimeCard,
-    "Last WebLLM init progress",
-    runtimeWebllm?.lastInitProgress != null
-      ? formatProgressPercent(runtimeWebllm.lastInitProgress)
-      : "n/a",
-  );
-  appendPredictorInfoItem(
-    runtimeCard,
-    "Last WebLLM init stage",
-    runtimeWebllm?.lastInitProgressText
-      ? previewValue(runtimeWebllm.lastInitProgressText, 80)
-      : "none",
-  );
-  appendPredictorInfoItem(
-    runtimeCard,
-    "Last WebLLM init error",
-    runtimeWebllm?.lastInitError ? previewValue(runtimeWebllm.lastInitError, 80) : "none",
-  );
-  appendPredictorInfoItem(
-    runtimeCard,
-    "WebLLM generating",
-    runtimeWebllm?.isGenerating ? "yes" : "no",
-  );
-  const lastFailureAt = runtimeWebllm?.lastFailureAt;
-  appendPredictorInfoItem(
-    runtimeCard,
-    "Last WebLLM failure",
-    typeof lastFailureAt === "number" ? formatClockTime(lastFailureAt) : "none",
-  );
-  appendPredictorInfoItem(
-    runtimeCard,
-    "Last WebLLM source",
-    formatLooseText(runtimeWebllm?.lastPredictSource, "n/a"),
-  );
-  appendPredictorInfoItem(
-    runtimeCard,
-    "Last WebLLM duration",
-    runtimeWebllm?.lastPredictDurationMs != null
-      ? formatDurationMs(runtimeWebllm.lastPredictDurationMs)
-      : "n/a",
-  );
-  appendPredictorInfoItem(
-    runtimeCard,
-    "Last WebLLM output count",
-    formatMetricNumber(runtimeWebllm?.lastPredictOutputCount),
-  );
-  appendPredictorInfoItem(
-    runtimeCard,
-    "Last WebLLM error",
-    runtimeWebllm?.lastPredictError ? previewValue(runtimeWebllm.lastPredictError, 80) : "none",
-  );
-  const rawPreview = document.createElement("p");
-  rawPreview.className = "predictor-debug-stage";
-  rawPreview.textContent = `Last raw output: ${
-    previewValue(runtimeWebllm?.lastRawOutputPreview || "", 220) || "<empty>"
-  }`;
-  runtimeCard.appendChild(rawPreview);
-  const initProgressLog = Array.isArray(runtimeWebllm?.lastInitProgressLog)
-    ? (runtimeWebllm.lastInitProgressLog as Record<string, unknown>[])
-    : [];
-  const initProgressPreview = document.createElement("p");
-  initProgressPreview.className = "predictor-debug-stage";
-  initProgressPreview.textContent =
-    initProgressLog.length > 0
-      ? `Init progress: ${initProgressLog
-          .map((entry) => {
-            const label =
-              typeof entry?.text === "string" && entry.text.trim().length > 0
-                ? entry.text.trim()
-                : "stage";
-            const progress = formatProgressPercent(entry?.progress);
-            const at = formatClockTime(entry?.atMs);
-            return `${at} ${progress} ${label}`;
-          })
-          .join(" | ")}`
-      : "Init progress: <none>";
-  runtimeCard.appendChild(initProgressPreview);
-  infoGrid.appendChild(runtimeCard);
-
-  shell.appendChild(infoGrid);
-
-  const metrics = document.createElement("div");
-  metrics.className = "predictor-debug-metrics";
-  metrics.appendChild(
-    createPredictorDebugMetric("Requests", String(stats.requestCount), "recent traces"),
-  );
-  metrics.appendChild(
-    createPredictorDebugMetric(
-      "Avg Total",
-      formatDurationMs(stats.avgTotalDurationMs),
-      "end-to-end",
-    ),
-  );
-  metrics.appendChild(
-    createPredictorDebugMetric(
-      "Presage",
-      formatDurationMs(stats.avgPresageDurationMs),
-      `${stats.presageAttempts} attempts`,
-    ),
-  );
-  metrics.appendChild(
-    createPredictorDebugMetric(
-      "WebLLM",
-      formatDurationMs(stats.avgAIDurationMs),
-      `${stats.aiAttempts} attempts / ${stats.aiTimeouts} timeouts`,
-    ),
-  );
-  shell.appendChild(metrics);
-
-  const traceSection = document.createElement("section");
-  traceSection.className = "predictor-debug-traces";
-  const traceTitle = document.createElement("h4");
-  traceTitle.textContent = "Recent Requests";
-  traceSection.appendChild(traceTitle);
-
-  if (traces.length === 0) {
-    const empty = document.createElement("p");
-    empty.className = "predictor-debug-empty";
-    empty.textContent = "No prediction trace captured yet.";
-    traceSection.appendChild(empty);
-  } else {
-    const traceList = document.createElement("div");
-    traceList.className = "predictor-debug-trace-list";
-    traces.slice(0, 40).forEach((trace) => {
-      const card = document.createElement("article");
-      card.className = "predictor-debug-trace";
-
-      const topRow = document.createElement("div");
-      topRow.className = "predictor-debug-trace-top";
-      const mainLabel = document.createElement("strong");
-      const requestLabel = typeof trace.requestId === "number" ? `#${trace.requestId}` : "#n/a";
-      const traceLabel =
-        typeof trace.traceId === "string" && trace.traceId.trim().length > 0
-          ? trace.traceId
-          : "n/a";
-      mainLabel.textContent = `${traceLabel} • ${requestLabel} • ${formatLooseText(trace.lang, "n/a")} • ${formatClockTime(trace.timestampMs)}`;
-      const total = document.createElement("span");
-      total.textContent = formatDurationMs(trace.totalDurationMs);
-      topRow.appendChild(mainLabel);
-      topRow.appendChild(total);
-      card.appendChild(topRow);
-
-      const routeRow = document.createElement("p");
-      routeRow.className = "predictor-debug-stage";
-      routeRow.textContent = `Route: tab=${formatLooseText(trace.tabId, "n/a")} frame=${formatLooseText(trace.frameId, "n/a")} suggestion=${formatLooseText(trace.suggestionId, "n/a")}`;
-      card.appendChild(routeRow);
-
-      const stageRow = document.createElement("p");
-      stageRow.className = "predictor-debug-stage";
-      const tracePresage = trace.presage as Record<string, unknown> | undefined;
-      const traceWebllm = trace.webllm as Record<string, unknown> | undefined;
-      const presageStage = tracePresage?.attempted
-        ? `${formatDurationMs(tracePresage.durationMs)} (${((tracePresage?.predictions as unknown[]) || []).length})`
-        : `skipped (${formatLooseText(tracePresage?.skipReason, "unknown")})`;
-      const webllmStage = traceWebllm?.attempted
-        ? `${formatDurationMs(traceWebllm.durationMs)} (${((traceWebllm?.predictions as unknown[]) || []).length}${traceWebllm?.timedOut ? ", timeout" : ""})`
-        : `skipped (${formatLooseText(traceWebllm?.skipReason, "unknown")})`;
-      stageRow.textContent = `Presage: ${presageStage} | WebLLM: ${webllmStage}`;
-      card.appendChild(stageRow);
-
-      const input = document.createElement("p");
-      input.className = "predictor-debug-input";
-      input.textContent = `Input: ${previewValue(trace.predictionInput || trace.text || "")}`;
-      card.appendChild(input);
-
-      const output = document.createElement("p");
-      output.className = "predictor-debug-output";
-      output.textContent = `Final: ${formatPredictionList(trace.finalPredictions)}`;
-      card.appendChild(output);
-
-      const presageOutput = document.createElement("p");
-      presageOutput.className = "predictor-debug-stage";
-      presageOutput.textContent = `Presage output: ${formatPredictionList(tracePresage?.predictions)}`;
-      card.appendChild(presageOutput);
-
-      const webllmOutput = document.createElement("p");
-      webllmOutput.className = "predictor-debug-stage";
-      webllmOutput.textContent = `WebLLM output: ${formatPredictionList(traceWebllm?.predictions)}`;
-      card.appendChild(webllmOutput);
-
-      const timeline = document.createElement("p");
-      timeline.className = "predictor-debug-stage";
-      timeline.textContent = `Timeline: ${formatTraceTimeline(trace.timeline)}`;
-      card.appendChild(timeline);
-
-      traceList.appendChild(card);
-    });
-    traceSection.appendChild(traceList);
-  }
-
-  shell.appendChild(traceSection);
-  root.appendChild(shell);
-
-  window.requestAnimationFrame(() => {
-    window.scrollTo(pageScrollX, pageScrollY);
-    const nextTraceList = root.querySelector(".predictor-debug-trace-list");
-    if (nextTraceList instanceof HTMLElement) {
-      nextTraceList.scrollTop = traceScrollTop;
-    }
-  });
-}
-
-async function loadPredictorDebugSnapshot(root: HTMLElement, retryCount = 0) {
-  const hasRenderedDashboard = Boolean(root.querySelector(".predictor-debug"));
-  if (retryCount === 0 && !hasRenderedDashboard) {
-    renderPredictorDebugStatus(root, "Loading predictor telemetry...");
-  }
-  const response = await sendRuntimeMessage({
-    command: CMD_OPTIONS_GET_PREDICTOR_DEBUG_SNAPSHOT,
-    context: {},
-  });
-  if (!isPredictorDebugSnapshot(response)) {
-    if (retryCount < PREDICTOR_DEBUG_MAX_RETRIES) {
-      window.setTimeout(() => {
-        void loadPredictorDebugSnapshot(root, retryCount + 1);
-      }, PREDICTOR_DEBUG_RETRY_DELAY_MS);
-      return;
-    }
-    if (!hasRenderedDashboard) {
-      renderPredictorDebugStatus(
-        root,
-        "Predictor telemetry unavailable. Background worker may still be starting.",
-        true,
-      );
-    }
-    return;
-  }
-  const snapshotSignature = buildPredictorDebugSnapshotSignature(response);
-  const hasMountedDashboard = Boolean(
-    root.querySelector(".predictor-debug, .predictor-debug-status"),
-  );
-  if (
-    snapshotSignature &&
-    snapshotSignature === predictorDebugLastSignature &&
-    hasMountedDashboard
-  ) {
-    return;
-  }
-  predictorDebugLastSignature = snapshotSignature;
-  renderPredictorDebugSnapshot(root, response);
-}
-
-function setPredictorDebugToggle(
-  registry: ReturnType<SettingsEngine["buildFromManifest"]>,
-  key: string,
-  enabled: boolean,
-) {
-  const setting = registry?.[key];
-  if (!setting || typeof setting.set !== "function") {
-    return;
-  }
-  setting.set(Boolean(enabled));
-}
-
-function setupPredictorDebugDashboard(registry: ReturnType<SettingsEngine["buildFromManifest"]>) {
-  const mountIfNeeded = () => {
-    const root = getPredictorDebugRootElement();
-    if (!root) {
-      return null;
-    }
-    if (root.dataset.bound !== "true") {
-      root.dataset.bound = "true";
-      predictorDebugLastSignature = "";
-      void loadPredictorDebugSnapshot(root);
-    }
-    return root;
-  };
-
-  const initialRoot = mountIfNeeded();
-  if (!initialRoot) {
-    return;
-  }
-
-  if (predictorDebugBindingsInitialized) {
-    return;
-  }
-  predictorDebugBindingsInitialized = true;
-
-  document.addEventListener("click", (event) => {
-    void (async () => {
-      const target = event.target;
-      if (!(target instanceof HTMLElement)) {
-        return;
-      }
-      const actionTarget = target.closest("#predictorDebugRoot [data-action]");
-      if (!(actionTarget instanceof HTMLElement)) {
-        return;
-      }
-      const root = mountIfNeeded();
-      if (!root) {
-        return;
-      }
-      const action = actionTarget.getAttribute("data-action");
-      if (action === "refresh-predictor-debug") {
-        predictorDebugLastSignature = "";
-        void loadPredictorDebugSnapshot(root);
-        return;
-      }
-      if (action === "clear-predictor-debug") {
-        await sendRuntimeMessage({
-          command: CMD_OPTIONS_CLEAR_PREDICTOR_DEBUG_TRACE,
-          context: {},
-        });
-        predictorDebugLastSignature = "";
-        void loadPredictorDebugSnapshot(root);
-        return;
-      }
-      if (action === "set-predictor-toggle") {
-        const key = actionTarget.getAttribute("data-key");
-        const nextEnabled = actionTarget.getAttribute("data-enabled") === "true";
-        if (key === KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED || key === KEY_DEBUG_AI_PREDICTOR_ENABLED) {
-          setPredictorDebugToggle(registry, key, nextEnabled);
-          predictorDebugLastSignature = "";
-          window.setTimeout(() => {
-            const latestRoot = mountIfNeeded();
-            if (latestRoot) {
-              void loadPredictorDebugSnapshot(latestRoot);
-            }
-          }, 80);
-        }
-      }
-    })();
-  });
-
-  window.addEventListener("focus", () => {
-    const root = mountIfNeeded();
-    if (root) {
-      void loadPredictorDebugSnapshot(root);
-    }
-  });
-  document.addEventListener("visibilitychange", () => {
-    if (document.hidden) {
-      return;
-    }
-    const root = mountIfNeeded();
-    if (root) {
-      void loadPredictorDebugSnapshot(root);
-    }
-  });
-  window.setInterval(() => {
-    if (document.hidden) {
-      return;
-    }
-    const root = mountIfNeeded();
-    if (root) {
-      void loadPredictorDebugSnapshot(root);
-    }
-  }, PREDICTOR_DEBUG_POLL_INTERVAL_MS);
-}
-
-void setupPredictorDebugDashboard;
 
 type ObservabilitySnapshotRecord = ObservabilitySnapshot;
 
@@ -2355,8 +1625,7 @@ function renderObservabilitySnapshot(
   summaryGrid.appendChild(predictorCard);
   shell.appendChild(summaryGrid);
 
-  const workspaceGrid = document.createElement("div");
-  workspaceGrid.className = "workspace-main-grid";
+  const workspaceGrid = createWorkspaceShell("workspace-main-grid");
 
   const modulesSection = document.createElement("section");
   modulesSection.className = "observability-pane";
@@ -2943,8 +2212,12 @@ window.addEventListener("DOMContentLoaded", function () {
   const registry = engine.buildFromManifest(manifest);
 
   void (async () => {
-    new EssentialsWorkspacePanel(registry.essentialsWorkspacePanel.element, registry, IS_DEV_BUILD);
-    new GrammarWorkspacePanel(registry.grammarWorkspacePanel.element, registry);
+    renderEssentialsWorkspacePanel(
+      registry.essentialsWorkspacePanel.element,
+      registry,
+      IS_DEV_BUILD,
+    );
+    renderGrammarWorkspacePanel(registry.grammarWorkspacePanel.element, registry);
     new LanguageSettingsPanel(registry.languagePreferencesPanel.element, registry, store);
     new TextAssetsPanel(registry.writingAssetsPanel.element, registry, store);
     new SiteManagementPanel(
@@ -2954,11 +2227,11 @@ window.addEventListener("DOMContentLoaded", function () {
       optionsPageConfigChange,
     );
     new AppearanceStudio(registry.appearanceStudioPanel.element, registry, themePresets);
-    new DataDiagnosticsPanel(registry.dataDiagnosticsPanel.element, registry);
+    renderDataDiagnosticsPanel(registry.dataDiagnosticsPanel.element, registry);
     if (IS_DEV_BUILD && registry.observabilityWorkspacePanel?.element) {
-      new ObservabilityWorkspacePanel(registry.observabilityWorkspacePanel.element, registry);
+      renderObservabilityWorkspacePanel(registry.observabilityWorkspacePanel.element, registry);
     }
-    new AboutWorkspacePanel(registry.aboutWorkspacePanel.element);
+    renderAboutWorkspacePanel(registry.aboutWorkspacePanel.element);
     applyOptionsObservabilityRuntime(registry);
 
     wireValidationHandlers(registry, store);

@@ -12,9 +12,7 @@ export class EditableContextResolver {
       return {
         kind: "text-value",
         beforeCursor: snapshot.beforeCursor,
-        afterCursor: snapshot.afterCursor,
         fullText: `${snapshot.beforeCursor}${snapshot.afterCursor}`,
-        cursorOffset: snapshot.cursorOffset,
         selectionStable: true,
       };
     }
@@ -29,11 +27,8 @@ export class EditableContextResolver {
     return {
       kind: "contenteditable",
       beforeCursor: blockContext?.beforeCursor ?? snapshot.beforeCursor,
-      afterCursor: blockContext?.afterCursor ?? snapshot.afterCursor,
       fullText: `${snapshot.beforeCursor}${snapshot.afterCursor}`,
-      cursorOffset: snapshot.cursorOffset,
       selectionStable: !this.contentEditableAdapter.hasUnstableSelection(elem),
-      blockContext: blockContext ?? null,
     };
   }
 }

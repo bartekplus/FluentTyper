@@ -3,7 +3,6 @@ import { SpacingRuleShared } from "./helpers/SpacingRuleShared";
 
 export class MathOperatorSpacingRule extends SpacingRuleShared implements GrammarRule {
   readonly id = "mathOperatorSpacing" as const;
-  readonly name = "Math Operator Spacing";
   readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
 
   apply(context: GrammarContext): GrammarEdit | null {
@@ -36,7 +35,6 @@ export class MathOperatorSpacingRule extends SpacingRuleShared implements Gramma
     return this.createEdit(
       `${leftOperand.text} ${operatorChar} ${rightChar}`,
       inputStr.length - leftOperand.start,
-      "Applied context-aware math operator spacing",
     );
   }
 }

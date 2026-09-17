@@ -1,4 +1,4 @@
-// Handles prediction routing logic for FluentTyper
+import { randomUUID } from "@core/domain/randomId";
 import type { PresageModule } from "./PresageTypes";
 import { PresageHandler } from "./PresageHandler";
 import { PredictionOrchestrator, type PredictionConfig } from "./PredictionOrchestrator";
@@ -10,7 +10,7 @@ import type {
   PredictorStageDebugInfo,
 } from "./PredictionTypes";
 import libPresageMod from "@third-party/libpresage/libpresage.js";
-import { WebLLMPredictor } from "./WebLLMPredictor";
+import { WebLLMPredictor, type WebLLMPredictorDebugState } from "./WebLLMPredictor";
 import { createLogger } from "@core/application/logging/Logger";
 import { DEFAULT_AI_PREDICTION_TIMEOUT_MS } from "@core/domain/constants";
 import { PredictorError, getErrorMessage } from "@core/domain/error";
@@ -56,33 +56,7 @@ export interface PredictorDebugSnapshot {
     presage: {
       languageEngineCount: number;
     };
-    webllm: {
-      enabled: boolean;
-      modelId: string;
-      status: string;
-      hasWebGPU: boolean;
-      initAttemptCount: number;
-      isGenerating: boolean;
-      lastFailureAt: number | null;
-      lastInitStartedAt: number | null;
-      lastInitDurationMs: number | null;
-      lastInitProgress: number | null;
-      lastInitProgressAt: number | null;
-      lastInitProgressText: string | null;
-      lastInitError: string | null;
-      lastInitProgressLog: Array<{
-        atMs: number;
-        progress: number;
-        text: string;
-      }>;
-      lastPredictAt: number | null;
-      lastPredictDurationMs: number | null;
-      lastPredictSource: string;
-      lastPredictInput: string | null;
-      lastRawOutputPreview: string | null;
-      lastPredictOutputCount: number;
-      lastPredictError: string | null;
-    };
+    webllm: WebLLMPredictorDebugState;
   };
   traces: PredictorDebugTrace[];
 }
@@ -96,7 +70,7 @@ export class PredictionManager {
   private libPresageMod: () => Promise<PresageModule>;
   private presageHandler: PresageHandler | undefined;
   private predictionOrchestrator: PredictionOrchestrator | undefined;
-  private webLLMPredictor: WebLLMPredictor | null = null;
+  private readonly webLLMPredictor = new WebLLMPredictor();
   private initializationPromise: Promise<void> | null = null;
   private debugTraces: PredictorDebugTrace[] = [];
   private debugTraceById: Map<string, PredictorDebugTrace> = new Map();
@@ -124,7 +98,7 @@ export class PredictionManager {
       });
       this.predictionOrchestrator = new PredictionOrchestrator(
         this.presageHandler,
-        this.getWebLLMPredictor(),
+        this.webLLMPredictor,
       );
       if (this.currentConfig) {
         this.predictionOrchestrator.setConfig(this.currentConfig);
@@ -215,7 +189,7 @@ export class PredictionManager {
   }
 
   getPredictorDebugSnapshot(): PredictorDebugSnapshot {
-    const webllmDebugState = this.getWebLLMPredictor().getDebugState();
+    const webllmDebugState = this.webLLMPredictor.getDebugState();
     const presageDebugState = this.presageHandler?.getDebugState();
     const orchestratorDebugState = this.predictionOrchestrator?.getDebugState().predictorConfig;
     const aiPredictorEnabled =
@@ -244,27 +218,9 @@ export class PredictionManager {
           languageEngineCount: presageDebugState?.languageEngineCount ?? 0,
         },
         webllm: {
+          ...webllmDebugState,
           enabled: aiPredictorEnabled && webllmDebugState.enabled,
-          modelId: webllmDebugState.modelId,
-          status: webllmDebugState.status,
-          hasWebGPU: webllmDebugState.hasWebGPU,
-          initAttemptCount: webllmDebugState.initAttemptCount,
-          isGenerating: webllmDebugState.isGenerating,
-          lastFailureAt: webllmDebugState.lastFailureAt,
-          lastInitStartedAt: webllmDebugState.lastInitStartedAt,
-          lastInitDurationMs: webllmDebugState.lastInitDurationMs,
-          lastInitProgress: webllmDebugState.lastInitProgress,
-          lastInitProgressAt: webllmDebugState.lastInitProgressAt,
-          lastInitProgressText: webllmDebugState.lastInitProgressText,
-          lastInitError: webllmDebugState.lastInitError,
           lastInitProgressLog: webllmDebugState.lastInitProgressLog.slice(),
-          lastPredictAt: webllmDebugState.lastPredictAt,
-          lastPredictDurationMs: webllmDebugState.lastPredictDurationMs,
-          lastPredictSource: webllmDebugState.lastPredictSource,
-          lastPredictInput: webllmDebugState.lastPredictInput,
-          lastRawOutputPreview: webllmDebugState.lastRawOutputPreview,
-          lastPredictOutputCount: webllmDebugState.lastPredictOutputCount,
-          lastPredictError: webllmDebugState.lastPredictError,
         },
       },
       traces: this.debugTraces.map((trace) => ({
@@ -299,16 +255,10 @@ export class PredictionManager {
     timestampMs: number = Date.now(),
   ): string {
     const trace = this.upsertTrace(debugMeta);
-    const normalizedStage =
-      typeof stage === "string" && stage.trim().length > 0 ? stage.trim() : "event";
-    const normalizedDetail = this.normalizeTimelineDetail(detail);
-    const normalizedTimestamp =
-      typeof timestampMs === "number" && Number.isFinite(timestampMs) ? timestampMs : Date.now();
-
     trace.timeline.push({
-      timestampMs: normalizedTimestamp,
-      stage: normalizedStage,
-      detail: normalizedDetail,
+      timestampMs,
+      stage: stage.trim() || "event",
+      detail: this.normalizeTimelineDetail(detail),
     });
     if (trace.timeline.length > MAX_TRACE_TIMELINE_EVENTS) {
       trace.timeline = trace.timeline.slice(trace.timeline.length - MAX_TRACE_TIMELINE_EVENTS);
@@ -355,27 +305,13 @@ export class PredictionManager {
     this.promoteTrace(trace);
   }
 
-  private getWebLLMPredictor(): WebLLMPredictor {
-    if (!this.webLLMPredictor) {
-      this.webLLMPredictor = new WebLLMPredictor();
-    }
-    return this.webLLMPredictor;
-  }
-
+  // traceId arrives in a runtime message payload, so its static type is not guaranteed.
   private normalizeTraceId(traceId: unknown): string | null {
-    if (typeof traceId !== "string") {
-      return null;
-    }
-    const normalized = traceId.trim();
-    return normalized.length > 0 ? normalized : null;
+    return typeof traceId === "string" ? traceId.trim() || null : null;
   }
 
   private generateTraceId(): string {
-    const randomPart =
-      typeof globalThis.crypto?.randomUUID === "function"
-        ? globalThis.crypto.randomUUID()
-        : `${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`;
-    return `pred-${randomPart}`;
+    return `pred-${randomUUID()}`;
   }
 
   private resolveDebugMeta(debugMeta?: PredictionDebugRequestMeta): PredictionDebugRequestMeta {

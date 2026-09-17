@@ -20,9 +20,7 @@ test("resolves full text-input context from one snapshot", () => {
   expect(context).toMatchObject({
     kind: "text-value",
     beforeCursor: "hello",
-    afterCursor: "",
     fullText: "hello",
-    cursorOffset: 5,
     selectionStable: true,
   });
 });
@@ -64,14 +62,8 @@ test("resolves contenteditable with exact block-local values when block context 
   expect(context).toMatchObject({
     kind: "contenteditable",
     beforeCursor: "Alpha",
-    afterCursor: " beta",
     fullText: "Alpha betaGamma",
-    cursorOffset: 5,
     selectionStable: true,
-    blockContext: {
-      beforeCursor: "Alpha",
-      afterCursor: " beta",
-    },
   });
 });
 
@@ -172,9 +164,7 @@ test("marks contenteditable selectionStable false when selection is outside the 
   expect(context).toMatchObject({
     kind: "contenteditable",
     fullText: "Alpha beta",
-    cursorOffset: "Alpha beta".length,
     selectionStable: false,
-    blockContext: null,
   });
 });
 
@@ -201,14 +191,8 @@ test("uses contenteditable adapter block context and selection-safety results di
     expect(context).toMatchObject({
       kind: "contenteditable",
       beforeCursor: "Block before",
-      afterCursor: " block after",
       selectionStable: false,
       fullText: "Snapshot text",
-      cursorOffset: "Snapshot text".length,
-      blockContext: {
-        beforeCursor: "Block before",
-        afterCursor: " block after",
-      },
     });
   } finally {
     ContentEditableAdapter.prototype.getBlockContext = originalGetBlockContext;

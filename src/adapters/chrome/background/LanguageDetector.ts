@@ -10,7 +10,7 @@ import {
   type AutoLanguageBrowserDetection,
 } from "@core/domain/autoLanguageDetection";
 import { normalizeDomainHost } from "@core/domain/siteProfiles";
-import { resolveEnabledPredictionLanguages } from "@core/domain/lang";
+import { resolveEnabledLanguages } from "@core/domain/lang";
 import type { PredictionInputAction } from "@core/domain/messageTypes";
 import { createLogger } from "@core/application/logging/Logger";
 
@@ -32,12 +32,7 @@ export interface AutoLanguageRequest {
 
 export interface AutoLanguageResolution {
   language: string;
-  changed: boolean;
   source: string;
-  isLocked: boolean;
-  switched: boolean;
-  tabId: number;
-  frameId: number;
 }
 
 export interface AutoLanguageSessionStatus {
@@ -114,7 +109,7 @@ export class LanguageDetector {
     const now = Date.now();
     await this.pruneStaleState(now);
 
-    const allowedLanguages = resolveEnabledPredictionLanguages(request.enabledLanguages);
+    const allowedLanguages = resolveEnabledLanguages(request.enabledLanguages);
     const [fallbackLanguageRaw, priorsRaw] = await Promise.all([
       this.settingsRepository.getFallbackLanguage(),
       this.settingsRepository.getAutoLanguageSitePriors(),
@@ -174,7 +169,6 @@ export class LanguageDetector {
       },
     });
 
-    const previousLanguage = session.resolvedLanguage;
     session.stableLanguage = decision.stableLanguage;
     session.resolvedLanguage = decision.resolvedLanguage;
     session.pendingLanguage = decision.pendingLanguage;
@@ -188,12 +182,7 @@ export class LanguageDetector {
 
     return {
       language: decision.resolvedLanguage,
-      changed: decision.resolvedLanguage !== previousLanguage,
       source: decision.source,
-      isLocked: Boolean(decision.manualLockLanguage),
-      switched: decision.switched,
-      tabId: request.tabId,
-      frameId: request.frameId,
     };
   }
 
@@ -267,10 +256,7 @@ export class LanguageDetector {
     this.trackLiveRuntime(scope);
   }
 
-  getDebugState(): {
-    liveRuntimes: AutoLanguageLiveRuntimeStatus[];
-    sessionCount: number;
-  } {
+  getDebugState(): { liveRuntimes: AutoLanguageLiveRuntimeStatus[] } {
     return {
       liveRuntimes: [...this.liveRuntimes.values()]
         .sort((left, right) => right.lastSeenAt - left.lastSeenAt)
@@ -281,7 +267,6 @@ export class LanguageDetector {
           domain: runtime.domain,
           updatedAt: runtime.lastSeenAt,
         })),
-      sessionCount: this.sessions.size,
     };
   }
 
@@ -335,10 +320,6 @@ export class LanguageDetector {
     return session ? this.toSessionStatus(session) : null;
   }
 
-  clearSessions(): void {
-    this.sessions.clear();
-  }
-
   private async getScopedSession(
     scope: AutoLanguageSessionLookup,
   ): Promise<AutoLanguageSessionState | null> {
@@ -372,10 +353,7 @@ export class LanguageDetector {
   }
 
   private getSessionKey(request: AutoLanguageRequest): string {
-    const runtimeGeneration =
-      typeof request.runtimeGeneration === "number" && Number.isFinite(request.runtimeGeneration)
-        ? request.runtimeGeneration
-        : 0;
+    const runtimeGeneration = this.resolveRuntimeGeneration(request.runtimeGeneration);
     return `${request.tabId}:${request.frameId}:${runtimeGeneration}:${request.suggestionId}`;
   }
 
@@ -384,10 +362,7 @@ export class LanguageDetector {
   }
 
   private trackLiveRuntime(scope: AutoLanguageSessionLookup): AutoLanguageLiveRuntimeState | null {
-    const runtimeGeneration =
-      typeof scope.runtimeGeneration === "number" && Number.isFinite(scope.runtimeGeneration)
-        ? scope.runtimeGeneration
-        : 0;
+    const runtimeGeneration = this.resolveRuntimeGeneration(scope.runtimeGeneration);
     if (runtimeGeneration <= 0) {
       return null;
     }
@@ -440,8 +415,9 @@ export class LanguageDetector {
       return [];
     }
     try {
+      // Firefox exposes the extension APIs as `browser`; Chrome/Edge only as `chrome`.
       const globalAny = globalThis as { browser?: typeof chrome };
-      const api = typeof globalAny.browser === "undefined" ? chrome : globalAny.browser;
+      const api = globalAny.browser ?? chrome;
       const result = await api.i18n.detectLanguage(text);
       return Array.isArray(result?.languages) ? result.languages : [];
     } catch {
@@ -451,8 +427,9 @@ export class LanguageDetector {
 
   private async detectPageLanguage(tabId: number): Promise<string | null> {
     try {
+      // Firefox exposes the extension APIs as `browser`; Chrome/Edge only as `chrome`.
       const globalAny = globalThis as { browser?: typeof chrome };
-      const api = typeof globalAny.browser === "undefined" ? chrome : globalAny.browser;
+      const api = globalAny.browser ?? chrome;
       return (await api.tabs.detectLanguage(tabId)) || null;
     } catch {
       return null;

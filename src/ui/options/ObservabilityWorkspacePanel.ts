@@ -16,51 +16,43 @@ import {
   pruneEmptySettingsGroups,
 } from "./workspacePanelUtils.js";
 
-export class ObservabilityWorkspacePanel {
-  private readonly root: HTMLElement;
-  private readonly registry: SettingsRegistry;
+export function renderObservabilityWorkspacePanel(
+  root: HTMLElement,
+  registry: SettingsRegistry,
+): void {
+  const shell = createWorkspaceShell();
 
-  constructor(root: HTMLElement, registry: SettingsRegistry) {
-    this.root = root;
-    this.registry = registry;
-    this.render();
-  }
+  const controls = createWorkspaceCard(
+    i18n.get("observability_controls_group"),
+    i18n.get("observability_desc"),
+  );
+  moveControlToBody(registry, "observabilityHint", controls.body);
+  moveControlToBody(registry, KEY_OBSERVABILITY_ENABLED, controls.body);
+  moveControlToBody(registry, KEY_OBSERVABILITY_DEFAULT_LEVEL, controls.body);
+  shell.appendChild(controls.card);
 
-  render(): void {
-    const shell = createWorkspaceShell();
+  const predictor = createWorkspaceCard(
+    i18n.get("observability_predictor_group"),
+    i18n.get("predictor_debug_desc"),
+  );
+  moveControlToBody(registry, KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED, predictor.body);
+  moveControlToBody(registry, KEY_DEBUG_AI_PREDICTOR_ENABLED, predictor.body);
+  moveControlToBody(registry, KEY_AI_MODEL_ID, predictor.body);
+  moveControlToBody(registry, KEY_AI_PREDICTION_TIMEOUT_MS, predictor.body);
+  shell.appendChild(predictor.card);
 
-    const controls = createWorkspaceCard(
-      i18n.get("observability_controls_group"),
-      i18n.get("observability_desc"),
-    );
-    moveControlToBody(this.registry, "observabilityHint", controls.body);
-    moveControlToBody(this.registry, KEY_OBSERVABILITY_ENABLED, controls.body);
-    moveControlToBody(this.registry, KEY_OBSERVABILITY_DEFAULT_LEVEL, controls.body);
-    shell.appendChild(controls.card);
+  const dashboard = createWorkspaceCard(
+    i18n.get("observability_dashboard_group"),
+    i18n.get("observability_dashboard_desc"),
+  );
+  moveControlToBody(registry, "observabilityPanel", dashboard.body);
+  shell.appendChild(dashboard.card);
 
-    const predictor = createWorkspaceCard(
-      i18n.get("observability_predictor_group"),
-      i18n.get("predictor_debug_desc"),
-    );
-    moveControlToBody(this.registry, KEY_DEBUG_PRESAGE_PREDICTOR_ENABLED, predictor.body);
-    moveControlToBody(this.registry, KEY_DEBUG_AI_PREDICTOR_ENABLED, predictor.body);
-    moveControlToBody(this.registry, KEY_AI_MODEL_ID, predictor.body);
-    moveControlToBody(this.registry, KEY_AI_PREDICTION_TIMEOUT_MS, predictor.body);
-    shell.appendChild(predictor.card);
+  const hiddenHost = document.createElement("div");
+  hiddenHost.hidden = true;
+  moveControlToBody(registry, KEY_OBSERVABILITY_MODULE_OVERRIDES, hiddenHost);
+  shell.appendChild(hiddenHost);
 
-    const dashboard = createWorkspaceCard(
-      i18n.get("observability_dashboard_group"),
-      i18n.get("observability_dashboard_desc"),
-    );
-    moveControlToBody(this.registry, "observabilityPanel", dashboard.body);
-    shell.appendChild(dashboard.card);
-
-    const hiddenHost = document.createElement("div");
-    hiddenHost.hidden = true;
-    moveControlToBody(this.registry, KEY_OBSERVABILITY_MODULE_OVERRIDES, hiddenHost);
-    shell.appendChild(hiddenHost);
-
-    this.root.replaceChildren(shell);
-    pruneEmptySettingsGroups(this.root);
-  }
+  root.replaceChildren(shell);
+  pruneEmptySettingsGroups(root);
 }

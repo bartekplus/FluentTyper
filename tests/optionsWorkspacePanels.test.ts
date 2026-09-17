@@ -1,10 +1,10 @@
 import "./setup";
 import { afterEach, describe, expect, test } from "bun:test";
 import type { SettingsRegistry } from "../src/ui/settings-engine/SettingsEngine.js";
-import { EssentialsWorkspacePanel } from "../src/ui/options/EssentialsWorkspacePanel.js";
-import { DataDiagnosticsPanel } from "../src/ui/options/DataDiagnosticsPanel.js";
-import { GrammarWorkspacePanel } from "../src/ui/options/GrammarWorkspacePanel.js";
-import { ObservabilityWorkspacePanel } from "../src/ui/options/ObservabilityWorkspacePanel.js";
+import { renderEssentialsWorkspacePanel } from "../src/ui/options/EssentialsWorkspacePanel.js";
+import { renderDataDiagnosticsPanel } from "../src/ui/options/DataDiagnosticsPanel.js";
+import { renderGrammarWorkspacePanel } from "../src/ui/options/GrammarWorkspacePanel.js";
+import { renderObservabilityWorkspacePanel } from "../src/ui/options/ObservabilityWorkspacePanel.js";
 import { i18n } from "../src/ui/options/fluenttyperI18n.js";
 import {
   KEY_AI_MODEL_ID,
@@ -116,7 +116,7 @@ describe("options workspace panels", () => {
       registry[KEY_INLINE_SUGGESTION] as unknown as MockPanelControl,
     ]);
 
-    new EssentialsWorkspacePanel(panelRoot, registry, false);
+    renderEssentialsWorkspacePanel(panelRoot, registry, false);
 
     expect(panelRoot.textContent).toContain("Enable FluentTyper");
     expect(panelRoot.textContent).toContain("Prefer native autocomplete");
@@ -150,7 +150,7 @@ describe("options workspace panels", () => {
       registry.exportSettingButton as unknown as MockPanelControl,
       registry.clearPersonalizationButton as unknown as MockPanelControl,
     ]);
-    new DataDiagnosticsPanel(panelRoot, registry);
+    renderDataDiagnosticsPanel(panelRoot, registry);
 
     expect(panelRoot.textContent).toContain("Productivity graph");
     expect(panelRoot.textContent).toContain("Import settings");
@@ -195,7 +195,7 @@ describe("options workspace panels", () => {
     ]);
     createGroup(tab, "Dashboard", [registry.observabilityPanel as unknown as MockPanelControl]);
 
-    new ObservabilityWorkspacePanel(panelRoot, registry);
+    renderObservabilityWorkspacePanel(panelRoot, registry);
 
     expect(panelRoot.textContent).toContain("Observability enabled");
     expect(panelRoot.textContent).toContain("Trace Presage");
@@ -220,7 +220,7 @@ describe("options workspace panels", () => {
       registry[KEY_ENABLED_GRAMMAR_RULES] as unknown as MockPanelControl,
     ]);
 
-    new GrammarWorkspacePanel(panelRoot, registry);
+    renderGrammarWorkspacePanel(panelRoot, registry);
 
     expect(panelRoot.querySelector(".workspace-panel-stack")).not.toBeNull();
     expect(panelRoot.querySelector(".settings-inline-card")).not.toBeNull();

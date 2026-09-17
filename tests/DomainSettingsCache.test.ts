@@ -1,43 +1,29 @@
 import "./setup";
 import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
+import type { SettingsManager } from "../src/core/application/settingsManager";
 import { DomainSettingsCache } from "../src/adapters/chrome/background/config/DomainSettingsCache";
-import type { DomainRuntimeSettings } from "../src/adapters/chrome/background/config/runtimeSettings";
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function makeFakeSettings(): DomainRuntimeSettings {
-  return {
-    language: "en_US",
-    enabledLanguages: ["en_US"],
-    inlineSuggestion: false,
-    numSuggestions: 5,
-    hasNumSuggestionsOverride: false,
-  };
-}
 
 /**
- * Subclass that overrides the protected resolver so tests never touch
- * chrome.storage.  The `resolveDelayMs` field simulates storage latency.
+ * Fake SettingsManager that counts every storage read. Returning `undefined`
+ * for every key makes `resolveDomainRuntimeSettings` fall back to defaults,
+ * which is enough to observe how often it hits storage.
  */
-class InstrumentedCache extends DomainSettingsCache {
-  public resolveCount = 0;
-  public resolveDelayMs = 0;
-  public resolveResult: DomainRuntimeSettings = makeFakeSettings();
-
-  protected override async resolveFromStorage(): Promise<DomainRuntimeSettings> {
-    this.resolveCount++;
-    if (this.resolveDelayMs > 0) {
-      await new Promise<void>((r) => setTimeout(r, this.resolveDelayMs));
+function makeFakeSettingsManager(readDelayMs = 0) {
+  const read = jest.fn(async () => {
+    if (readDelayMs > 0) {
+      await new Promise<void>((resolve) => setTimeout(resolve, readDelayMs));
     }
-    return { ...this.resolveResult };
-  }
+    return undefined;
+  });
+  const manager = {
+    get: read,
+    getRaw: read,
+    set: jest.fn(async () => undefined),
+    setRaw: jest.fn(async () => undefined),
+    removeRaw: jest.fn(async () => undefined),
+  } as unknown as SettingsManager;
+  return { manager, read };
 }
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe("DomainSettingsCache", () => {
   beforeEach(() => {
@@ -50,163 +36,150 @@ describe("DomainSettingsCache", () => {
   });
 
   describe("cache hit / miss", () => {
-    test("returns a value on the first call (cache miss)", async () => {
-      // The real resolveDomainRuntimeSettings is not available in unit-test
-      // env (no chrome.storage), so all tests use InstrumentedCache which
-      // overrides the protected resolver.
-      const ic = new InstrumentedCache();
-      const result = await ic.resolve({} as never, "example.com");
+    test("resolves settings on the first call", async () => {
+      const { manager, read } = makeFakeSettingsManager();
+      const cache = new DomainSettingsCache();
+
+      const result = await cache.resolve(manager, "example.com");
+
       expect(result.language).toBe("en_US");
-      expect(ic.misses).toBe(1);
-      expect(ic.hits).toBe(0);
+      expect(read.mock.calls.length).toBeGreaterThan(0);
     });
 
-    test("returns cached value on second call within TTL", async () => {
-      const ic = new InstrumentedCache(500);
-      await ic.resolve({} as never, "example.com");
-      await ic.resolve({} as never, "example.com");
-      await ic.resolve({} as never, "example.com");
+    test("returns cached value without re-reading storage within TTL", async () => {
+      const { manager, read } = makeFakeSettingsManager();
+      const cache = new DomainSettingsCache(500);
 
-      expect(ic.resolveCount).toBe(1);
-      expect(ic.hits).toBe(2);
-      expect(ic.misses).toBe(1);
+      const first = await cache.resolve(manager, "example.com");
+      const readsAfterFirst = read.mock.calls.length;
+      const second = await cache.resolve(manager, "example.com");
+      await cache.resolve(manager, "example.com");
+
+      expect(second).toBe(first);
+      expect(read.mock.calls.length).toBe(readsAfterFirst);
     });
 
     test("re-resolves after TTL expires", async () => {
-      const ic = new InstrumentedCache(10 /* 10 ms TTL */);
-      await ic.resolve({} as never, "example.com");
-      await new Promise<void>((r) => setTimeout(r, 20));
-      await ic.resolve({} as never, "example.com");
+      const { manager, read } = makeFakeSettingsManager();
+      const cache = new DomainSettingsCache(10);
 
-      expect(ic.resolveCount).toBe(2);
-      expect(ic.misses).toBe(2);
+      await cache.resolve(manager, "example.com");
+      const readsPerResolve = read.mock.calls.length;
+      await new Promise<void>((resolve) => setTimeout(resolve, 20));
+      await cache.resolve(manager, "example.com");
+
+      expect(read.mock.calls.length).toBe(readsPerResolve * 2);
     });
 
     test("caches entries per domain independently", async () => {
-      const ic = new InstrumentedCache(500);
-      await ic.resolve({} as never, "alpha.com");
-      await ic.resolve({} as never, "beta.com");
-      await ic.resolve({} as never, "alpha.com"); // hit
-      await ic.resolve({} as never, "beta.com"); // hit
+      const { manager, read } = makeFakeSettingsManager();
+      const cache = new DomainSettingsCache(500);
 
-      expect(ic.resolveCount).toBe(2);
-      expect(ic.hits).toBe(2);
+      await cache.resolve(manager, "alpha.com");
+      const readsPerResolve = read.mock.calls.length;
+      await cache.resolve(manager, "beta.com");
+      await cache.resolve(manager, "alpha.com");
+      await cache.resolve(manager, "beta.com");
+
+      expect(read.mock.calls.length).toBe(readsPerResolve * 2);
     });
 
     test("treats undefined domain as a distinct cache key", async () => {
-      const ic = new InstrumentedCache(500);
-      await ic.resolve({} as never, undefined);
-      await ic.resolve({} as never, undefined); // hit
-      await ic.resolve({} as never, "something.com"); // miss
+      const { manager, read } = makeFakeSettingsManager();
+      const cache = new DomainSettingsCache(500);
 
-      expect(ic.resolveCount).toBe(2);
-      expect(ic.hits).toBe(1);
+      await cache.resolve(manager, undefined);
+      const readsPerResolve = read.mock.calls.length;
+      await cache.resolve(manager, undefined);
+      await cache.resolve(manager, "something.com");
+
+      expect(read.mock.calls.length).toBe(readsPerResolve * 2);
     });
   });
 
   describe("invalidate()", () => {
     test("forces a re-resolve on the next call", async () => {
-      const ic = new InstrumentedCache(500);
-      await ic.resolve({} as never, "example.com");
-      ic.invalidate();
-      await ic.resolve({} as never, "example.com");
+      const { manager, read } = makeFakeSettingsManager();
+      const cache = new DomainSettingsCache(500);
 
-      expect(ic.resolveCount).toBe(2);
+      await cache.resolve(manager, "example.com");
+      const readsPerResolve = read.mock.calls.length;
+      cache.invalidate();
+      await cache.resolve(manager, "example.com");
+
+      expect(read.mock.calls.length).toBe(readsPerResolve * 2);
     });
 
     test("invalidates all domains", async () => {
-      const ic = new InstrumentedCache(500);
-      await ic.resolve({} as never, "alpha.com");
-      await ic.resolve({} as never, "beta.com");
-      ic.invalidate();
-      await ic.resolve({} as never, "alpha.com");
-      await ic.resolve({} as never, "beta.com");
+      const { manager, read } = makeFakeSettingsManager();
+      const cache = new DomainSettingsCache(500);
 
-      expect(ic.resolveCount).toBe(4);
-    });
+      await cache.resolve(manager, "alpha.com");
+      const readsPerResolve = read.mock.calls.length;
+      await cache.resolve(manager, "beta.com");
+      cache.invalidate();
+      await cache.resolve(manager, "alpha.com");
+      await cache.resolve(manager, "beta.com");
 
-    test("size resets to 0 after invalidate", async () => {
-      const ic = new InstrumentedCache(500);
-      await ic.resolve({} as never, "alpha.com");
-      await ic.resolve({} as never, "beta.com");
-      expect(ic.size).toBe(2);
-      ic.invalidate();
-      expect(ic.size).toBe(0);
+      expect(read.mock.calls.length).toBe(readsPerResolve * 4);
     });
   });
 
   describe("performance — cache eliminates redundant storage reads", () => {
-    /**
-     * Simulates rapid keystroke prediction requests (50 calls in quick
-     * succession for the same domain) and asserts that the underlying
-     * storage resolver is called only once per domain while hits dominate.
-     */
-    test("50 consecutive requests for the same domain make 1 storage read", async () => {
-      const ic = new InstrumentedCache(500);
-      const REQUESTS = 50;
+    test("50 consecutive requests for the same domain make 1 storage resolve", async () => {
+      const { manager, read } = makeFakeSettingsManager();
+      const cache = new DomainSettingsCache(500);
 
-      for (let i = 0; i < REQUESTS; i++) {
-        await ic.resolve({} as never, "typing.example.com");
+      await cache.resolve(manager, "typing.example.com");
+      const readsPerResolve = read.mock.calls.length;
+      for (let i = 1; i < 50; i++) {
+        await cache.resolve(manager, "typing.example.com");
       }
 
-      expect(ic.resolveCount).toBe(1);
-      expect(ic.hits).toBe(REQUESTS - 1);
-      expect(ic.misses).toBe(1);
+      expect(read.mock.calls.length).toBe(readsPerResolve);
     });
 
     /**
-     * Measures wall-clock time: 50 cached requests must complete much faster
-     * than 50 uncached requests (which incur simulated 2 ms storage delay).
-     *
-     * This is the concrete latency regression guard — if the cache is removed
-     * or broken, this test will fail.
+     * Concrete latency regression guard: if the cache is removed or broken,
+     * the cached loop pays the simulated storage delay on every request.
      */
     test("cached requests are at least 5x faster than uncached for slow storage", async () => {
       const DELAY_MS = 2;
       const REQUESTS = 50;
 
-      // Uncached baseline: a fresh cache per call so every request misses.
       const uncachedStart = Date.now();
       for (let i = 0; i < REQUESTS; i++) {
-        const fresh = new InstrumentedCache(500);
-        fresh.resolveDelayMs = DELAY_MS;
-        await fresh.resolve({} as never, "example.com");
+        const { manager } = makeFakeSettingsManager(DELAY_MS);
+        await new DomainSettingsCache(500).resolve(manager, "example.com");
       }
       const uncachedMs = Date.now() - uncachedStart;
 
-      // Cached: single cache instance, all requests after the first hit.
-      const cachedCache = new InstrumentedCache(500);
-      cachedCache.resolveDelayMs = DELAY_MS;
+      const { manager } = makeFakeSettingsManager(DELAY_MS);
+      const cache = new DomainSettingsCache(500);
       const cachedStart = Date.now();
       for (let i = 0; i < REQUESTS; i++) {
-        await cachedCache.resolve({} as never, "example.com");
+        await cache.resolve(manager, "example.com");
       }
       const cachedMs = Date.now() - cachedStart;
 
-      // Cached must be at least 5× faster than uncached.
       expect(cachedMs * 5).toBeLessThan(uncachedMs);
     });
 
-    /**
-     * Multi-word typing sequence benchmark: simulates typing a full word
-     * character by character ("hello") with two domains. Each keystroke
-     * triggers a prediction request. Asserts O(domains) storage reads, not
-     * O(keystrokes).
-     */
-    test("typing a 5-char word on 2 domains makes 2 storage reads total", async () => {
-      const ic = new InstrumentedCache(500);
+    test("typing a 5-char word on 2 domains resolves storage twice", async () => {
+      const { manager, read } = makeFakeSettingsManager();
+      const cache = new DomainSettingsCache(500);
       const word = "hello";
       const domains = ["site-a.com", "site-b.com"];
 
+      await cache.resolve(manager, domains[0]);
+      const readsPerResolve = read.mock.calls.length;
       for (const domain of domains) {
         for (let i = 1; i <= word.length; i++) {
-          // Each "keystroke" dispatches a prediction request for the same domain.
-          await ic.resolve({} as never, domain);
+          await cache.resolve(manager, domain);
         }
       }
 
-      expect(ic.resolveCount).toBe(domains.length);
-      expect(ic.hits).toBe(word.length * domains.length - domains.length);
+      expect(read.mock.calls.length).toBe(readsPerResolve * domains.length);
     });
   });
 });

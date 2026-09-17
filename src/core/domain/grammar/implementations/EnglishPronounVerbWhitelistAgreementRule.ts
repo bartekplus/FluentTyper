@@ -28,7 +28,6 @@ function resolveAgreementCorrection(lowerPhrase: string): string | null {
 
 export class EnglishPronounVerbWhitelistAgreementRule implements GrammarRule {
   readonly id = "englishPronounVerbWhitelistAgreement" as const;
-  readonly name = "English Pronoun Verb Whitelist Agreement";
   readonly triggers: GrammarEventType[] = ["wordBoundary"];
 
   apply(context: GrammarContext): GrammarEdit | null {
@@ -63,9 +62,6 @@ export class EnglishPronounVerbWhitelistAgreementRule implements GrammarRule {
       replacement: `${applyWordCase(pronoun, pronounStyle)} ${applyWordCase(verb, verbStyle)}${boundaryContext.trailing}`,
       deleteBackwards: boundaryContext.input.length - phraseStart,
       deleteForwards: 0,
-      confidence: "high",
-      safetyTier: "safe",
-      description: "Corrected whitelisted pronoun-verb mismatch",
     };
   }
 }

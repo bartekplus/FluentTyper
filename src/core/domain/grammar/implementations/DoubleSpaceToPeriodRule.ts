@@ -9,7 +9,6 @@ const DOUBLE_SPACE_REGEX = /[ \xA0]{2}$/;
 
 export class DoubleSpaceToPeriodRule implements GrammarRule {
   readonly id = "doubleSpaceToPeriod" as const;
-  readonly name = "Double Space To Period";
   readonly triggers: GrammarEventType[] = ["wordBoundary"];
 
   apply(context: GrammarContext): GrammarEdit | null {
@@ -44,9 +43,6 @@ export class DoubleSpaceToPeriodRule implements GrammarRule {
       replacement: ". ",
       deleteBackwards: 2,
       deleteForwards: 0,
-      confidence: "high",
-      safetyTier: "safe",
-      description: "Replaced double-space with sentence period",
     };
   }
 }

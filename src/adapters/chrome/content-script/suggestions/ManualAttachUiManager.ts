@@ -1,3 +1,4 @@
+import { clampColorChannel, relativeLuminance } from "@core/domain/color";
 import { isInDocument } from "@core/application/dom-utils";
 
 const BUTTON_SIZE_PX = 18;
@@ -73,7 +74,7 @@ export class ManualAttachUiManager {
     const existing = this.handles.get(element);
     if (existing) {
       this.updatePlacement(element, existing);
-      this.updateSurfaceTone(element, existing);
+      existing.surfaceTone = this.resolveSurfaceTone(element);
       if (!existing.successPending) {
         this.applyIdleState(existing);
       }
@@ -308,10 +309,6 @@ export class ManualAttachUiManager {
     });
   }
 
-  private updateSurfaceTone(element: ManualAttachTarget, handle: ManualAttachUiHandle): void {
-    handle.surfaceTone = this.resolveSurfaceTone(element);
-  }
-
   private updatePlacement(element: ManualAttachTarget, handle: ManualAttachUiHandle): void {
     const elementRect = element.getBoundingClientRect();
     const isTextarea = element.tagName.toLowerCase() === "textarea";
@@ -411,7 +408,7 @@ export class ManualAttachUiManager {
     const obstacles = [...sameWrapperCandidates, ...siblingCandidates]
       .map((candidate) => candidate.getBoundingClientRect())
       .filter((rect) => rect.width > 0 && rect.height > 0)
-      .filter((rect) => this.hasVerticalOverlap(rect, elementRect))
+      .filter((rect) => rect.bottom > elementRect.top && rect.top < elementRect.bottom)
       .filter((rect) => (isRtl ? rect.right <= elementMidpoint : rect.left >= elementMidpoint));
     if (obstacles.length === 0) {
       return null;
@@ -422,10 +419,6 @@ export class ManualAttachUiManager {
     }
     const nearest = obstacles.reduce((best, rect) => (rect.left < best.left ? rect : best));
     return { start: nearest.left, end: nearest.right };
-  }
-
-  private hasVerticalOverlap(candidateRect: DOMRect, elementRect: DOMRect): boolean {
-    return candidateRect.bottom > elementRect.top && candidateRect.top < elementRect.bottom;
   }
 
   private isInlineObstacleCandidate(candidate: HTMLElement): boolean {
@@ -445,7 +438,7 @@ export class ManualAttachUiManager {
         candidate.ownerDocument.defaultView?.getComputedStyle(candidate).backgroundColor;
       const parsed = this.parseCssColor(backgroundColor);
       if (parsed && parsed.a > 0.05) {
-        return this.relativeLuminance(parsed) < 0.36 ? "dark" : "light";
+        return relativeLuminance(parsed) < 0.36 ? "dark" : "light";
       }
     }
     return element.ownerDocument.defaultView?.matchMedia?.("(prefers-color-scheme: dark)").matches
@@ -500,23 +493,11 @@ export class ManualAttachUiManager {
       return null;
     }
     return {
-      r: this.clampChannel(r),
-      g: this.clampChannel(g),
-      b: this.clampChannel(b),
+      r: clampColorChannel(r),
+      g: clampColorChannel(g),
+      b: clampColorChannel(b),
       a: Math.min(Math.max(a, 0), 1),
     };
-  }
-
-  private relativeLuminance(color: RgbaColor): number {
-    const channels = [color.r, color.g, color.b].map((channel) => {
-      const normalized = this.clampChannel(channel) / 255;
-      return normalized <= 0.03928 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
-    });
-    return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
-  }
-
-  private clampChannel(channel: number): number {
-    return Math.min(Math.max(Math.round(channel), 0), 255);
   }
 
   private resolveOffsetTop(
@@ -543,23 +524,13 @@ export class ManualAttachUiManager {
     const { ownerDocument } = element;
     const { parentElement } = element;
     if (this.isHtmlElement(parentElement, ownerDocument)) {
-      return this.createMountTarget(parentElement, parentElement);
+      return { containerParent: parentElement, positioningParent: parentElement };
     }
     const root = element.getRootNode();
     if (this.isShadowRoot(root, ownerDocument) && this.isHtmlElement(root.host, ownerDocument)) {
-      return this.createMountTarget(root, null);
+      return { containerParent: root, positioningParent: null };
     }
-    return this.createMountTarget(ownerDocument.body, ownerDocument.body);
-  }
-
-  private createMountTarget(
-    containerParent: ManualAttachMountTarget["containerParent"],
-    positioningParent: ManualAttachMountTarget["positioningParent"],
-  ): ManualAttachMountTarget {
-    return {
-      containerParent,
-      positioningParent,
-    };
+    return { containerParent: ownerDocument.body, positioningParent: ownerDocument.body };
   }
 
   private reserveParent(parent: HTMLElement): void {

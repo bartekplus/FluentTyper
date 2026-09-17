@@ -1,14 +1,3 @@
-export interface PredictorRequest {
-  lang: string;
-  predictionInput: string;
-  numSuggestions: number;
-}
-
-export interface InFlightPredictorRequest {
-  lang: string;
-  predictionInput: string;
-}
-
 export interface PredictionResponsePayload {
   predictions: string[];
   rawOutput: string;

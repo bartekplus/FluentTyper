@@ -7,7 +7,7 @@ import {
   HOST_EDITOR_RESPONSE_ATTR,
 } from "./HostEditorBridgeProtocol";
 import {
-  isLineEditorController,
+  findLineEditorController,
   readLineEditorBlockContext,
   readLineEditorCursor,
   type LineEditorController,
@@ -435,29 +435,6 @@ function applyCKEditor5BlockReplacement(
 }
 /* oxlint-enable typescript/no-explicit-any, typescript/no-unsafe-member-access, typescript/no-unsafe-assignment, typescript/no-unsafe-call, typescript/no-unsafe-argument */
 
-function findLineEditorController(elem: HTMLElement): LineEditorController | null {
-  let current: HTMLElement | null = elem;
-  while (current) {
-    for (const key of Object.getOwnPropertyNames(current)) {
-      let value: unknown;
-      try {
-        value = (current as unknown as Record<string, unknown>)[key];
-      } catch {
-        continue;
-      }
-      if (isLineEditorController(value)) {
-        return value;
-      }
-    }
-    current = current.parentElement;
-  }
-  return null;
-}
-
-function getBlockContext(controller: LineEditorController) {
-  return readLineEditorBlockContext(controller);
-}
-
 // Intentionally duplicated from TextTargetAdapter: the main-world bridge runs in
 // a separate injected bundle and stays self-contained instead of importing
 // extension-world helpers across the world boundary.
@@ -602,7 +579,7 @@ export function installHostEditorMainWorldBridge(doc: Document = document): void
         const controller = findLineEditorController(source);
         if (controller) {
           if (request.action === "getBlockContext") {
-            const blockContext = getBlockContext(controller);
+            const blockContext = readLineEditorBlockContext(controller);
             if (blockContext) {
               response = { ok: true, blockContext };
             }

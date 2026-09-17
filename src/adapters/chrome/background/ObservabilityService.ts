@@ -33,19 +33,6 @@ interface ObservabilityServiceOptions {
   now?: () => number;
 }
 
-function cloneConfig(config: ObservabilityConfig): ObservabilityConfig {
-  return {
-    enabled: config.enabled,
-    defaultLevel: config.defaultLevel,
-    moduleOverrides: Object.fromEntries(
-      Object.entries(config.moduleOverrides).map(([moduleId, override]) => [
-        moduleId,
-        override ? { ...override } : override,
-      ]),
-    ),
-  };
-}
-
 function normalizeDomain(domainURL?: string): string | null {
   if (typeof domainURL !== "string" || domainURL.trim().length === 0) {
     return null;
@@ -58,7 +45,7 @@ export class ObservabilityService {
   private readonly getPredictorSnapshot: () => PredictorDebugSnapshot;
   private readonly getAutoLanguageRuntimes: () => AutoLanguageLiveRuntimeStatus[];
   private readonly now: () => number;
-  private config: ObservabilityConfig = cloneConfig(DEFAULT_OBSERVABILITY_CONFIG);
+  private config: ObservabilityConfig = structuredClone(DEFAULT_OBSERVABILITY_CONFIG);
   private events: ObservabilityEvent[] = [];
   private readonly moduleSources = new Map<string, Set<ObservabilityEvent["source"]>>();
   private readonly remotelyRegisteredModules = new Map<string, Set<ObservabilityEvent["source"]>>();
@@ -85,7 +72,7 @@ export class ObservabilityService {
   }
 
   setConfig(config?: ObservabilityConfig): void {
-    this.config = cloneConfig(config || DEFAULT_OBSERVABILITY_CONFIG);
+    this.config = structuredClone(config || DEFAULT_OBSERVABILITY_CONFIG);
     if (!this.isDevBuild) {
       return;
     }
@@ -168,7 +155,7 @@ export class ObservabilityService {
         devBuild: false,
         available: false,
         reason: "dev_build_required",
-        config: cloneConfig(DEFAULT_OBSERVABILITY_CONFIG),
+        config: structuredClone(DEFAULT_OBSERVABILITY_CONFIG),
         modules: [],
         summary: {
           totalEvents: 0,
@@ -186,7 +173,7 @@ export class ObservabilityService {
       generatedAtMs: Date.now(),
       devBuild: this.isDevBuild,
       available: true,
-      config: cloneConfig(this.config),
+      config: structuredClone(this.config),
       modules: this.buildModuleStates(),
       summary: this.buildSummary(),
       events: this.events.map((event) => ({
@@ -211,14 +198,6 @@ export class ObservabilityService {
         updatedAt: runtime.updatedAt,
       })),
     };
-  }
-
-  getLegacyPredictorSnapshot(): PredictorDebugSnapshot {
-    return this.getPredictorSnapshot();
-  }
-
-  pruneStaleState(): void {
-    this.pruneContentRuntimes(this.now());
   }
 
   private buildSummary(): ObservabilitySnapshot["summary"] {

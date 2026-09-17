@@ -7,37 +7,23 @@ import {
   pruneEmptySettingsGroups,
 } from "./workspacePanelUtils.js";
 
-export class DataDiagnosticsPanel {
-  private readonly root: HTMLElement;
-  private readonly registry: SettingsRegistry;
+export function renderDataDiagnosticsPanel(root: HTMLElement, registry: SettingsRegistry): void {
+  const shell = createWorkspaceShell();
 
-  constructor(root: HTMLElement, registry: SettingsRegistry) {
-    this.root = root;
-    this.registry = registry;
-    this.render();
-  }
+  const productivity = createWorkspaceCard(
+    i18n.get("productivity_dashboard_group"),
+    i18n.get("productivity_insights_subtitle"),
+  );
+  moveControlToBody(registry, "productivityStatsPanel", productivity.body);
+  moveControlToBody(registry, "resetProductivityStatsButton", productivity.body);
+  shell.appendChild(productivity.card);
 
-  render(): void {
-    const shell = createWorkspaceShell();
+  const config = createWorkspaceCard(i18n.get("config_data"), i18n.get("data_panel_transfer_copy"));
+  moveControlToBody(registry, "importSettingButton", config.body);
+  moveControlToBody(registry, "exportSettingButton", config.body);
+  moveControlToBody(registry, "clearPersonalizationButton", config.body);
+  shell.appendChild(config.card);
 
-    const productivity = createWorkspaceCard(
-      i18n.get("productivity_dashboard_group"),
-      i18n.get("productivity_insights_subtitle"),
-    );
-    moveControlToBody(this.registry, "productivityStatsPanel", productivity.body);
-    moveControlToBody(this.registry, "resetProductivityStatsButton", productivity.body);
-    shell.appendChild(productivity.card);
-
-    const config = createWorkspaceCard(
-      i18n.get("config_data"),
-      i18n.get("data_panel_transfer_copy"),
-    );
-    moveControlToBody(this.registry, "importSettingButton", config.body);
-    moveControlToBody(this.registry, "exportSettingButton", config.body);
-    moveControlToBody(this.registry, "clearPersonalizationButton", config.body);
-    shell.appendChild(config.card);
-
-    this.root.replaceChildren(shell);
-    pruneEmptySettingsGroups(this.root);
-  }
+  root.replaceChildren(shell);
+  pruneEmptySettingsGroups(root);
 }

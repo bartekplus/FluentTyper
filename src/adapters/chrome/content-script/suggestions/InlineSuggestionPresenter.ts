@@ -21,14 +21,6 @@ export class InlineSuggestionPresenter {
     this.doc = options.doc ?? document;
   }
 
-  public clearAll(): void {
-    this.stopObservingRemoval();
-    this.activeGhost = null;
-    this.activeEntryId = null;
-    this.pendingRerender = null;
-    InlineSuggestionView.removeAll(this.doc);
-  }
-
   public clearForEntry(entryId: number): void {
     if (this.activeEntryId === entryId) {
       this.stopObservingRemoval();

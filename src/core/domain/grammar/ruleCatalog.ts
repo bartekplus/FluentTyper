@@ -11,7 +11,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     safetyTier: "safe",
     defaultRollout: "on",
     recommended: true,
-    defaultEnabled: true,
     priority: 10,
   },
   {
@@ -24,7 +23,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     safetyTier: "safe",
     defaultRollout: "on",
     recommended: true,
-    defaultEnabled: true,
     priority: 20,
   },
   {
@@ -37,7 +35,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     safetyTier: "safe",
     defaultRollout: "on",
     recommended: true,
-    defaultEnabled: true,
     priority: 25,
   },
   {
@@ -50,7 +47,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     safetyTier: "safe",
     defaultRollout: "on",
     recommended: true,
-    defaultEnabled: true,
     priority: 26,
   },
   {
@@ -63,7 +59,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     safetyTier: "safe",
     defaultRollout: "on",
     recommended: true,
-    defaultEnabled: true,
     priority: 27,
   },
   {
@@ -76,7 +71,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     safetyTier: "safe",
     defaultRollout: "on",
     recommended: true,
-    defaultEnabled: true,
     priority: 28,
   },
   {
@@ -89,7 +83,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     safetyTier: "safe",
     defaultRollout: "on",
     recommended: true,
-    defaultEnabled: true,
     priority: 29,
   },
   {
@@ -102,7 +95,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     safetyTier: "safe",
     defaultRollout: "on",
     recommended: true,
-    defaultEnabled: true,
     priority: 30,
   },
   {
@@ -115,7 +107,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     safetyTier: "safe",
     defaultRollout: "on",
     recommended: true,
-    defaultEnabled: true,
     priority: 31,
   },
   {
@@ -128,7 +119,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     safetyTier: "safe",
     defaultRollout: "on",
     recommended: true,
-    defaultEnabled: true,
     priority: 32,
   },
   {
@@ -141,7 +131,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     safetyTier: "safe",
     defaultRollout: "on",
     recommended: true,
-    defaultEnabled: true,
     priority: 33,
   },
   {
@@ -154,7 +143,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     safetyTier: "safe",
     defaultRollout: "on",
     recommended: true,
-    defaultEnabled: true,
     priority: 40,
   },
   {
@@ -167,7 +155,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     safetyTier: "safe",
     defaultRollout: "on",
     recommended: true,
-    defaultEnabled: true,
     priority: 50,
   },
   {
@@ -180,7 +167,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     safetyTier: "safe",
     defaultRollout: "on",
     recommended: true,
-    defaultEnabled: true,
     priority: 60,
   },
   {
@@ -193,7 +179,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     safetyTier: "safe",
     defaultRollout: "on",
     recommended: true,
-    defaultEnabled: true,
     priority: 70,
   },
   {
@@ -206,7 +191,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     safetyTier: "safe",
     defaultRollout: "on",
     recommended: true,
-    defaultEnabled: true,
     priority: 80,
   },
   {
@@ -219,7 +203,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     safetyTier: "safe",
     defaultRollout: "on",
     recommended: true,
-    defaultEnabled: true,
     priority: 90,
   },
   {
@@ -232,7 +215,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     safetyTier: "safe",
     defaultRollout: "on",
     recommended: true,
-    defaultEnabled: true,
     priority: 100,
   },
   {
@@ -245,7 +227,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     safetyTier: "safe",
     defaultRollout: "on",
     recommended: true,
-    defaultEnabled: true,
     priority: 110,
   },
   {
@@ -258,7 +239,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     safetyTier: "safe",
     defaultRollout: "on",
     recommended: true,
-    defaultEnabled: true,
     priority: 120,
   },
   {
@@ -271,7 +251,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     safetyTier: "advanced",
     defaultRollout: "off",
     recommended: false,
-    defaultEnabled: false,
     priority: 130,
   },
   {
@@ -284,7 +263,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     safetyTier: "advanced",
     defaultRollout: "off",
     recommended: false,
-    defaultEnabled: false,
     priority: 131,
   },
   {
@@ -297,7 +275,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     safetyTier: "advanced",
     defaultRollout: "off",
     recommended: false,
-    defaultEnabled: false,
     priority: 132,
   },
   {
@@ -310,7 +287,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     safetyTier: "advanced",
     defaultRollout: "off",
     recommended: false,
-    defaultEnabled: false,
     priority: 133,
   },
   {
@@ -323,7 +299,6 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     safetyTier: "advanced",
     defaultRollout: "off",
     recommended: false,
-    defaultEnabled: false,
     priority: 134,
   },
 ] as const;
@@ -359,11 +334,9 @@ const V2_RECOMMENDED_RULES: CatalogRuleId[] = [
   ...V1_RECOMMENDED_RULES.slice(2),
 ];
 
-const copyRuleIds = (ruleIds: readonly CatalogRuleId[]): CatalogRuleId[] => [...ruleIds];
+export const RECOMMENDED_V1_GRAMMAR_RULES: CatalogRuleId[] = [...V1_RECOMMENDED_RULES];
 
-export const RECOMMENDED_V1_GRAMMAR_RULES: CatalogRuleId[] = copyRuleIds(V1_RECOMMENDED_RULES);
-
-export const RECOMMENDED_V2_GRAMMAR_RULES: CatalogRuleId[] = copyRuleIds(V2_RECOMMENDED_RULES);
+export const RECOMMENDED_V2_GRAMMAR_RULES: CatalogRuleId[] = [...V2_RECOMMENDED_RULES];
 
 export const DEFAULT_V3_GRAMMAR_RULES: CatalogRuleId[] = GRAMMAR_RULE_CATALOG.filter(
   (entry) => entry.defaultRollout === "on",
@@ -372,8 +345,6 @@ export const DEFAULT_V3_GRAMMAR_RULES: CatalogRuleId[] = GRAMMAR_RULE_CATALOG.fi
 export const RECOMMENDED_V3_GRAMMAR_RULES: CatalogRuleId[] = GRAMMAR_RULE_CATALOG.filter(
   (entry) => entry.recommended,
 ).map((entry) => entry.id);
-
-export const PRE_V3_RECOMMENDED_GRAMMAR_RULES: CatalogRuleId[] = RECOMMENDED_V2_GRAMMAR_RULES;
 
 const LEGACY_RULE_MAP: Record<string, CatalogRuleId[]> = {
   spacingRule: [

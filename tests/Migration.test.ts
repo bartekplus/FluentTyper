@@ -6,7 +6,9 @@ const settingsSet = jest.fn<(key: string, value: unknown) => Promise<unknown>>()
 const settingsRemoveRaw = jest.fn<(key: string) => Promise<unknown>>();
 const settingsManagerCtor = jest.fn().mockImplementation(() => ({
   get: settingsGet,
+  getRaw: settingsGet,
   set: settingsSet,
+  setRaw: settingsSet,
   removeRaw: settingsRemoveRaw,
 }));
 let importNonce = 0;

@@ -389,8 +389,8 @@ describe("SuggestionTextEditService", () => {
     });
 
     service.applyGrammarEdit(entry, {
-      replacementText: "the ",
-      replaceBackwardCount: 4,
+      replacement: "the ",
+      deleteBackwards: 4,
       evaluatedTextLength: 4,
       expectedReplacedText: "teh ",
     });
@@ -417,8 +417,8 @@ describe("SuggestionTextEditService", () => {
     });
 
     const result = service.applyGrammarEdit(entry, {
-      replacementText: "the ",
-      replaceBackwardCount: 4,
+      replacement: "the ",
+      deleteBackwards: 4,
       evaluatedTextLength: 4,
       expectedReplacedText: "teh ",
     });
@@ -470,8 +470,8 @@ describe("SuggestionTextEditService", () => {
     });
 
     const result = service.applyGrammarEdit(entry, {
-      replacementText: "the ",
-      replaceBackwardCount: 4,
+      replacement: "the ",
+      deleteBackwards: 4,
       evaluatedTextLength: 4,
       expectedReplacedText: "the ",
     });
@@ -547,8 +547,8 @@ describe("SuggestionTextEditService", () => {
     });
 
     service.applyGrammarEdit(entry, {
-      replacementText: "the ",
-      replaceBackwardCount: 4,
+      replacement: "the ",
+      deleteBackwards: 4,
       evaluatedTextLength: 4,
       expectedReplacedText: "teh ",
     });
@@ -570,8 +570,8 @@ describe("SuggestionTextEditService", () => {
     const entry = createSuggestionEntry({ elem: editable });
 
     const result = service.applyGrammarEdit(entry, {
-      replacementText: "the ",
-      replaceBackwardCount: 4,
+      replacement: "the ",
+      deleteBackwards: 4,
       evaluatedTextLength: 4,
       expectedReplacedText: "teh ",
     });
@@ -605,8 +605,8 @@ describe("SuggestionTextEditService", () => {
 
     const entry = createSuggestionEntry({ elem: editable });
     service.applyGrammarEdit(entry, {
-      replacementText: ". ",
-      replaceBackwardCount: 2,
+      replacement: ". ",
+      deleteBackwards: 2,
       evaluatedTextLength: 7,
       expectedReplacedText: " .",
       expectedPrefixToken: "fixed",
@@ -1739,8 +1739,8 @@ describe("SuggestionTextEditService", () => {
     const entry = createSuggestionEntry({ elem: input });
 
     service.applyGrammarEdit(entry, {
-      replacementText: "the ",
-      replaceBackwardCount: 4,
+      replacement: "the ",
+      deleteBackwards: 4,
       evaluatedTextLength: 4,
       expectedReplacedText: "teh ",
     });
@@ -1783,8 +1783,8 @@ describe("SuggestionTextEditService", () => {
     const entry = createSuggestionEntry({ elem: input });
 
     service.applyGrammarEdit(entry, {
-      replacementText: "a lot",
-      replaceBackwardCount: 4,
+      replacement: "a lot",
+      deleteBackwards: 4,
       evaluatedTextLength: 4,
       expectedReplacedText: "alot",
       sourceRuleId: "englishAlotCorrection",
@@ -1805,8 +1805,8 @@ describe("SuggestionTextEditService", () => {
     expect(input.value).toBe("alot");
 
     const reapplyResult = service.applyGrammarEdit(entry, {
-      replacementText: "a lot",
-      replaceBackwardCount: 4,
+      replacement: "a lot",
+      deleteBackwards: 4,
       evaluatedTextLength: 4,
       expectedReplacedText: "alot",
       sourceRuleId: "englishAlotCorrection",
@@ -1833,8 +1833,8 @@ describe("SuggestionTextEditService", () => {
     const entry = createSuggestionEntry({ elem: input });
 
     service.applyGrammarEdit(entry, {
-      replacementText: "a lot",
-      replaceBackwardCount: 4,
+      replacement: "a lot",
+      deleteBackwards: 4,
       evaluatedTextLength: 4,
       expectedReplacedText: "alot",
       sourceRuleId: "englishAlotCorrection",
@@ -1861,8 +1861,8 @@ describe("SuggestionTextEditService", () => {
     input.selectionStart = 4;
     input.selectionEnd = 4;
     const applyResult = service.applyGrammarEdit(entry, {
-      replacementText: "a lot",
-      replaceBackwardCount: 4,
+      replacement: "a lot",
+      deleteBackwards: 4,
       evaluatedTextLength: 4,
       expectedReplacedText: "alot",
       sourceRuleId: "englishAlotCorrection",
@@ -1884,8 +1884,8 @@ describe("SuggestionTextEditService", () => {
     const entry = createSuggestionEntry({ elem: input });
 
     service.applyGrammarEdit(entry, {
-      replacementText: "the ",
-      replaceBackwardCount: 4,
+      replacement: "the ",
+      deleteBackwards: 4,
       evaluatedTextLength: 4,
       expectedReplacedText: "teh ",
     });
@@ -1941,8 +1941,8 @@ describe("SuggestionTextEditService", () => {
     const entry = createSuggestionEntry({ elem: input });
 
     service.applyGrammarEdit(entry, {
-      replacementText: "the ",
-      replaceBackwardCount: 4,
+      replacement: "the ",
+      deleteBackwards: 4,
       evaluatedTextLength: input.value.length,
       expectedReplacedText: "teh ",
     });
@@ -1982,8 +1982,8 @@ describe("SuggestionTextEditService", () => {
     const entry = createSuggestionEntry({ elem: input });
 
     service.applyGrammarEdit(entry, {
-      replacementText: "the ",
-      replaceBackwardCount: 4,
+      replacement: "the ",
+      deleteBackwards: 4,
       evaluatedTextLength: 4,
       expectedReplacedText: "teh ",
     });
@@ -2022,8 +2022,8 @@ describe("SuggestionTextEditService", () => {
     const entry = createSuggestionEntry({ elem: input });
 
     service.applyGrammarEdit(entry, {
-      replacementText: "the ",
-      replaceBackwardCount: 4,
+      replacement: "the ",
+      deleteBackwards: 4,
       evaluatedTextLength: 4,
       expectedReplacedText: "teh ",
     });

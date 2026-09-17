@@ -1,3 +1,4 @@
+import { isObjectRecord } from "../guards";
 import { SUPPORTED_LANGUAGES } from "../lang";
 import type {
   PersonalizationRecentEvent,
@@ -99,19 +100,19 @@ export function sanitizePersonalizationStore(
   value: unknown,
   nowMs: number,
 ): PersonalizationStoreV1 {
-  if (!isRecord(value) || value.version !== PERSONALIZATION_STORE_VERSION) {
+  if (!isObjectRecord(value) || value.version !== PERSONALIZATION_STORE_VERSION) {
     return createEmptyPersonalizationStore();
   }
 
   const languages: PersonalizationStoreV1["languages"] = {};
-  if (isRecord(value.languages)) {
+  if (isObjectRecord(value.languages)) {
     for (const [language, rawWords] of Object.entries(value.languages)) {
-      if (!isPersonalizationLanguage(language) || !isRecord(rawWords)) {
+      if (!isPersonalizationLanguage(language) || !isObjectRecord(rawWords)) {
         continue;
       }
       const words: Record<string, PersonalizationWord> = {};
       for (const [rawKey, rawWord] of Object.entries(rawWords)) {
-        if (!isRecord(rawWord)) {
+        if (!isObjectRecord(rawWord)) {
           continue;
         }
         const normalized = normalizePersonalizationWord(rawKey, language);
@@ -139,9 +140,9 @@ export function sanitizePersonalizationStore(
   }
 
   const recentEvents: Record<string, PersonalizationRecentEvent> = {};
-  if (isRecord(value.recentEvents)) {
+  if (isObjectRecord(value.recentEvents)) {
     for (const [eventId, rawEvent] of Object.entries(value.recentEvents)) {
-      if (!isValidEventId(eventId) || !isRecord(rawEvent)) {
+      if (!isValidEventId(eventId) || !isObjectRecord(rawEvent)) {
         continue;
       }
       const language = rawEvent.language;
@@ -187,10 +188,6 @@ function resolveLocale(language: string): string {
   return language.replace("_", "-");
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 function isPositiveFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value > 0;
 }
@@ -199,7 +196,7 @@ function isValidTimestamp(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0;
 }
 
-function defineOwnProperty<T>(record: Record<string, T>, key: string, value: T): void {
+export function defineOwnProperty<T>(record: Record<string, T>, key: string, value: T): void {
   Object.defineProperty(record, key, {
     configurable: true,
     enumerable: true,

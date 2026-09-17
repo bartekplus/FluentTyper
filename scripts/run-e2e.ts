@@ -1,6 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
+import { parseArgs } from "node:util";
 
 type E2EMode = "production" | "development";
 type BrowserPlatform = "chrome" | "firefox";
@@ -14,72 +15,55 @@ interface CliOptions {
   passthroughArgs: string[];
 }
 
-function parseCliOptions(argv: string[]): CliOptions {
-  let mode: E2EMode = "production";
-  let platform: BrowserPlatform = "chrome";
-  let suite: E2ESuite = "smoke";
-  let headed = false;
-  const passthroughArgs: string[] = [];
-
-  for (let index = 0; index < argv.length; index += 1) {
-    const arg = argv[index];
-    if (arg.startsWith("--mode=")) {
-      const value = arg.slice("--mode=".length);
-      if (value === "production" || value === "development") {
-        mode = value;
-        continue;
-      }
-      throw new Error(`Unsupported mode: ${value}`);
-    }
-    if (arg === "--mode") {
-      const value = argv[index + 1];
-      if (value === "production" || value === "development") {
-        mode = value;
-        index += 1;
-        continue;
-      }
-      throw new Error(`Unsupported mode: ${String(value)}`);
-    }
-    if (arg.startsWith("--platform=")) {
-      const value = arg.slice("--platform=".length);
-      if (value === "chrome" || value === "firefox") {
-        platform = value;
-        continue;
-      }
-      throw new Error(`Unsupported platform: ${value}`);
-    }
-    if (arg === "--platform") {
-      const value = argv[index + 1];
-      if (value === "chrome" || value === "firefox") {
-        platform = value;
-        index += 1;
-        continue;
-      }
-      throw new Error(`Unsupported platform: ${String(value)}`);
-    }
-    if (arg.startsWith("--suite=")) {
-      const value = arg.slice("--suite=".length);
-      if (value === "smoke" || value === "full") {
-        suite = value;
-        continue;
-      }
-      throw new Error(`Unsupported suite: ${value}`);
-    }
-    if (arg === "--suite") {
-      const value = argv[index + 1];
-      if (value === "smoke" || value === "full") {
-        suite = value;
-        index += 1;
-        continue;
-      }
-      throw new Error(`Unsupported suite: ${String(value)}`);
-    }
-    if (arg === "--headed") {
-      headed = true;
-      continue;
-    }
-    passthroughArgs.push(arg);
+function readEnumOption<T extends string>(
+  values: Record<string, string | boolean | undefined>,
+  name: string,
+  allowed: readonly T[],
+): T | undefined {
+  if (!(name in values)) {
+    return undefined;
   }
+  const raw = values[name];
+  if (typeof raw === "string" && (allowed as readonly string[]).includes(raw)) {
+    return raw as T;
+  }
+  throw new Error(`Unsupported ${name}: ${String(raw)}`);
+}
+
+export function parseCliOptions(argv: string[]): CliOptions {
+  const { values, tokens } = parseArgs({
+    args: argv,
+    options: {
+      mode: { type: "string" },
+      platform: { type: "string" },
+      suite: { type: "string" },
+      headed: { type: "boolean" },
+    },
+    strict: false,
+    allowPositionals: true,
+    tokens: true,
+  });
+
+  const mode =
+    readEnumOption(values, "mode", ["production", "development"] as const) ?? "production";
+  const platform = readEnumOption(values, "platform", ["chrome", "firefox"] as const) ?? "chrome";
+  const suite = readEnumOption(values, "suite", ["smoke", "full"] as const) ?? "smoke";
+  if ("headed" in values && values.headed !== true) {
+    throw new Error(`Unsupported headed: ${String(values.headed)}`);
+  }
+  const headed = values.headed === true;
+
+  // Everything that is not one of our own options goes to `bun test` verbatim.
+  const ownIndices = new Set<number>();
+  for (const token of tokens) {
+    if (token.kind === "option" && ["mode", "platform", "suite", "headed"].includes(token.name)) {
+      ownIndices.add(token.index);
+      if (token.value !== undefined && !token.inlineValue) {
+        ownIndices.add(token.index + 1);
+      }
+    }
+  }
+  const passthroughArgs = argv.filter((_, index) => !ownIndices.has(index));
 
   return { mode, platform, suite, headed, passthroughArgs };
 }
@@ -162,8 +146,10 @@ async function main(): Promise<void> {
   );
 }
 
-void main().catch((error) => {
-  const message = error instanceof Error ? error.message : String(error);
-  console.error(message);
-  process.exit(1);
-});
+if (import.meta.main) {
+  void main().catch((error) => {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(message);
+    process.exit(1);
+  });
+}

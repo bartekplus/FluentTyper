@@ -73,13 +73,7 @@ export interface ObservabilityContentRuntimeStatus {
   updatedAt: number;
 }
 
-export interface ObservabilityAutoLanguageRuntimeStatus {
-  tabId: number;
-  frameId: number;
-  runtimeGeneration: number;
-  domain: string | null;
-  updatedAt: number;
-}
+export type ObservabilityAutoLanguageRuntimeStatus = ObservabilityContentRuntimeStatus;
 
 export interface ObservabilitySummary {
   totalEvents: number;

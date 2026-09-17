@@ -21,40 +21,30 @@ describe("V2 english grammar rules", () => {
         replacement: "I ",
         deleteBackwards: 2,
         deleteForwards: 0,
-        confidence: "high",
-        description: "Capitalized English pronoun I",
       });
 
       expect(rule.apply(context("i'm ", { lang: "en_US" }))).toEqual({
         replacement: "I'm ",
         deleteBackwards: 4,
         deleteForwards: 0,
-        confidence: "high",
-        description: "Capitalized English pronoun in contraction",
       });
 
       expect(rule.apply(context("i've ", { lang: "en_US" }))).toEqual({
         replacement: "I've ",
         deleteBackwards: 5,
         deleteForwards: 0,
-        confidence: "high",
-        description: "Capitalized English pronoun in contraction",
       });
 
       expect(rule.apply(context("i'll ", { lang: "en_US" }))).toEqual({
         replacement: "I'll ",
         deleteBackwards: 5,
         deleteForwards: 0,
-        confidence: "high",
-        description: "Capitalized English pronoun in contraction",
       });
 
       expect(rule.apply(context("i'd ", { lang: "en_US" }))).toEqual({
         replacement: "I'd ",
         deleteBackwards: 4,
         deleteForwards: 0,
-        confidence: "high",
-        description: "Capitalized English pronoun in contraction",
       });
     });
 
@@ -75,8 +65,6 @@ describe("V2 english grammar rules", () => {
         replacement: "I.",
         deleteBackwards: 2,
         deleteForwards: 0,
-        confidence: "high",
-        description: "Capitalized English pronoun I",
       });
     });
   });
@@ -89,16 +77,12 @@ describe("V2 english grammar rules", () => {
         replacement: "I'm ",
         deleteBackwards: 3,
         deleteForwards: 0,
-        confidence: "high",
-        description: "Normalized English contraction",
       });
 
       expect(rule.apply(context("DONT ", { lang: "en_US", inputAction: "insert" }))).toEqual({
         replacement: "DON'T ",
         deleteBackwards: 5,
         deleteForwards: 0,
-        confidence: "high",
-        description: "Normalized English contraction",
       });
     });
 
@@ -124,8 +108,6 @@ describe("V2 english grammar rules", () => {
         replacement: "I'm.",
         deleteBackwards: 3,
         deleteForwards: 0,
-        confidence: "high",
-        description: "Normalized English contraction",
       });
     });
   });
@@ -138,16 +120,12 @@ describe("V2 english grammar rules", () => {
         replacement: "the ",
         deleteBackwards: 4,
         deleteForwards: 0,
-        confidence: "high",
-        description: "Corrected common English typo",
       });
 
       expect(rule.apply(context("Teh ", { lang: "en_US", inputAction: "insert" }))).toEqual({
         replacement: "The ",
         deleteBackwards: 4,
         deleteForwards: 0,
-        confidence: "high",
-        description: "Corrected common English typo",
       });
     });
 
@@ -166,8 +144,6 @@ describe("V2 english grammar rules", () => {
         replacement: "the.",
         deleteBackwards: 4,
         deleteForwards: 0,
-        confidence: "high",
-        description: "Corrected common English typo",
       });
     });
   });

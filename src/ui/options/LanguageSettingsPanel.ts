@@ -19,7 +19,6 @@ import { formatTranslation, i18n } from "./fluenttyperI18n.js";
 import {
   bindRerender,
   createWorkspaceCard,
-  createWorkspaceGrid,
   createWorkspaceShell,
   moveControlToBody,
   pruneEmptySettingsGroups,
@@ -67,13 +66,13 @@ export class LanguageSettingsPanel {
 
     const shell = createWorkspaceShell();
 
-    const topGrid = createWorkspaceGrid("workspace-top-grid");
+    const topGrid = createWorkspaceShell("workspace-top-grid");
     topGrid.append(
       this.createExtensionUiCard(),
       this.createSummary(enabledLanguages, language, fallbackLanguage, autoLanguageStatus),
     );
 
-    const lowerGrid = createWorkspaceGrid("workspace-main-grid");
+    const lowerGrid = createWorkspaceShell("workspace-main-grid");
     const languageDisplayCard = this.createLanguageDisplayCard();
     languageDisplayCard.classList.add("workspace-span-full");
     const languageGridSection = this.createLanguageGridSection(enabledLanguages, usageCounts);

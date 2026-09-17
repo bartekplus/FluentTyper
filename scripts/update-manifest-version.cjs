@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// scripts/update-manifest-version.js
+// scripts/update-manifest-version.cjs
 // Updates the version in all manifest.json files under the platform directory to match package.json
 
 const fs = require("fs");
@@ -10,20 +10,11 @@ const packageJson = JSON.parse(fs.readFileSync("package.json", "utf8"));
 const version = packageJson.version;
 const platformDir = path.join(__dirname, "../platform");
 
-function findManifestFiles(dir) {
-  return fs.readdirSync(dir).flatMap((file) => {
-    const fullPath = path.join(dir, file);
-    if (fs.statSync(fullPath).isDirectory()) {
-      return findManifestFiles(fullPath);
-    } else if (file === "manifest.json") {
-      return [fullPath];
-    } else {
-      return [];
-    }
-  });
-}
-
-const manifests = findManifestFiles(platformDir);
+const manifests = fs
+  .readdirSync(platformDir, { withFileTypes: true })
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => path.join(platformDir, entry.name, "manifest.json"))
+  .filter((manifestPath) => fs.existsSync(manifestPath));
 
 manifests.forEach((manifestPath) => {
   const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));

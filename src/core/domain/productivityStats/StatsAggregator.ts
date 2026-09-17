@@ -1,7 +1,6 @@
 import type {
   LanguageUsageSummary,
   ProductivityDashboardStats,
-  ProductivityEventSummary,
   ProductivityMetricSummary,
   TopSnippetUsage,
 } from "@core/domain/messageTypes";
@@ -70,20 +69,6 @@ export class StatsAggregator {
       acceptedSuggestions,
       charactersSaved,
       estimatedMinutesSaved: this.estimateMinutesSaved(acceptedSuggestions, charactersSaved),
-    };
-  }
-
-  eventsFromCounters(
-    suggestionsShown: number,
-    snippetsExpanded: number,
-    charsInsertedFromSnippet: number,
-    charsTypedForTrigger: number,
-  ): ProductivityEventSummary {
-    return {
-      suggestionsShown,
-      snippetsExpanded,
-      charsInsertedFromSnippet,
-      charsTypedForTrigger,
     };
   }
 

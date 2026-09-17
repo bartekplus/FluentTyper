@@ -20,13 +20,7 @@ const STATUSES = new Set<DocsStatus>([
   "unverified",
   "unsupported-selection",
 ]);
-export interface DocsBridge {
-  read(): Promise<DocsReply>;
-  apply(token: string, edit: DocsEdit): Promise<DocsReply>;
-  cancel(): void;
-  dispose(): void;
-}
-export class GoogleDocsBridgeClient implements DocsBridge {
+export class GoogleDocsBridgeClient {
   private readonly pending = new Map<
     string,
     { resolve: (value: DocsReply) => void; timer: number }
@@ -39,7 +33,7 @@ export class GoogleDocsBridgeClient implements DocsBridge {
     if (!request) return;
     const snapshot = snapshotFrom(value.snapshot);
     if (value.status === "ready" && !snapshot) return;
-    this.win.clearTimeout(request.timer);
+    window.clearTimeout(request.timer);
     this.pending.delete(value.id);
     request.resolve({
       status: value.status as DocsStatus,
@@ -52,8 +46,8 @@ export class GoogleDocsBridgeClient implements DocsBridge {
         : {}),
     });
   };
-  constructor(private readonly win: Window = window) {
-    win.document.addEventListener(RESPONSE_EVENT, this.listener);
+  constructor() {
+    document.addEventListener(RESPONSE_EVENT, this.listener);
   }
   read(): Promise<DocsReply> {
     return this.request("read");
@@ -63,18 +57,18 @@ export class GoogleDocsBridgeClient implements DocsBridge {
   }
   cancel(): void {
     if (!this.disposed)
-      this.win.document.dispatchEvent(
+      document.dispatchEvent(
         new CustomEvent(REQUEST_EVENT, {
-          detail: JSON.stringify({ kind: "cancel", id: this.win.crypto.randomUUID() }),
+          detail: JSON.stringify({ kind: "cancel", id: crypto.randomUUID() }),
         }),
       );
   }
   dispose(): void {
     this.cancel();
     this.disposed = true;
-    this.win.document.removeEventListener(RESPONSE_EVENT, this.listener);
+    document.removeEventListener(RESPONSE_EVENT, this.listener);
     for (const value of this.pending.values()) {
-      this.win.clearTimeout(value.timer);
+      window.clearTimeout(value.timer);
       value.resolve({ status: "cancelled" });
     }
     this.pending.clear();
@@ -83,13 +77,13 @@ export class GoogleDocsBridgeClient implements DocsBridge {
     if (this.disposed) return Promise.resolve({ status: "cancelled" });
     if (this.pending.size >= 2) return Promise.resolve({ status: "busy" });
     return new Promise((resolve) => {
-      const id = this.win.crypto.randomUUID();
-      const timer = this.win.setTimeout(() => {
+      const id = crypto.randomUUID();
+      const timer = window.setTimeout(() => {
         this.pending.delete(id);
         resolve({ status: kind === "apply" ? "unverified" : "unavailable" });
       }, 3500);
       this.pending.set(id, { resolve, timer });
-      this.win.document.dispatchEvent(
+      document.dispatchEvent(
         new CustomEvent(REQUEST_EVENT, { detail: JSON.stringify({ id, kind, ...payload }) }),
       );
     });

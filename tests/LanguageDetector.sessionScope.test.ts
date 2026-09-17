@@ -30,6 +30,7 @@ function createSettingsManager(initialState: Partial<SettingsState> = {}) {
     state,
     manager: {
       get: jest.fn(async (key: string) => state[key]),
+      getRaw: jest.fn(async (key: string) => state[key]),
       set: jest.fn(async (key: string, value: unknown) => {
         state[key] = value;
       }),

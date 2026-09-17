@@ -9,7 +9,6 @@ const MODAL_OF_REGEX = /\b(could|would|should|must)\s+of$/i;
 
 export class EnglishModalOfCorrectionRule implements GrammarRule {
   readonly id = "englishModalOfCorrection" as const;
-  readonly name = "English Modal Of Correction";
   readonly triggers: GrammarEventType[] = ["wordBoundary"];
 
   apply(context: GrammarContext): GrammarEdit | null {
@@ -38,9 +37,6 @@ export class EnglishModalOfCorrectionRule implements GrammarRule {
       replacement: `${normalizedModal} ${haveWord}${boundaryContext.trailing}`,
       deleteBackwards: boundaryContext.input.length - phraseStart,
       deleteForwards: 0,
-      confidence: "high",
-      safetyTier: "safe",
-      description: "Corrected modal phrase typo",
     };
   }
 }

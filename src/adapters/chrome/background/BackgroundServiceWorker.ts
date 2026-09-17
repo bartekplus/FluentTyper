@@ -3,12 +3,7 @@ import { createLogger } from "@core/application/logging/Logger";
 import { getErrorMessage, logError } from "@core/domain/error";
 import { SettingsManager } from "@core/application/settingsManager";
 import { CoreSettingsRepository } from "@core/application/repositories/CoreSettingsRepository";
-import {
-  LanguageDetector,
-  type AutoLanguageLiveRuntimeStatus,
-  type AutoLanguageSessionLookup,
-  type AutoLanguageSessionStatus,
-} from "./LanguageDetector";
+import { LanguageDetector, type AutoLanguageSessionLookup } from "./LanguageDetector";
 import { PredictionManager } from "./PredictionManager";
 import { TabMessenger } from "./TabMessenger";
 import { ProductivityStatsManager } from "./ProductivityStatsManager";
@@ -19,7 +14,6 @@ import { migrateSettingsV6 } from "@core/application/settings/SettingsMigrationV
 import { migrateSettingsV7 } from "@core/application/settings/SettingsMigrationV7";
 import { migrateToLocalStore } from "./Migration";
 import type {
-  ContentScriptPredictRequestContext,
   ConfigMessage,
   PredictRequestMessage,
   PredictResponseMessage,
@@ -35,12 +29,10 @@ import { ObservabilityService } from "./ObservabilityService";
 import { ChromeStorageBackend } from "@core/application/storage/ChromeStorageBackend";
 import { PersonalizationRepository } from "@core/application/personalization/PersonalizationRepository";
 import { PersonalizationService } from "@core/application/personalization/PersonalizationService";
-import type { PersonalizationEvent } from "@core/domain/personalization/types";
 
 declare const __FT_DEV_BUILD__: boolean | undefined;
 
 export const IS_DEV_BUILD = typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
-export const ENABLE_AI_PREDICTOR = IS_DEV_BUILD;
 const logger = createLogger("BackgroundServiceWorker");
 
 export class BackgroundServiceWorker {
@@ -87,10 +79,7 @@ export class BackgroundServiceWorker {
       getPredictorSnapshot: () => this.predictionManager.getPredictorDebugSnapshot(),
       getAutoLanguageRuntimes: () => this.languageDetector.getDebugState().liveRuntimes,
     });
-    this.configAssembler = new ConfigAssembler(this.settingsManager, {
-      enableAIPredictor: ENABLE_AI_PREDICTOR,
-      isDevBuild: IS_DEV_BUILD,
-    });
+    this.configAssembler = new ConfigAssembler(this.settingsManager, { isDevBuild: IS_DEV_BUILD });
     this.language = "auto_detect";
     BackgroundServiceWorker.instance = this;
   }
@@ -190,20 +179,6 @@ export class BackgroundServiceWorker {
     }
   }
 
-  async resolveAutoLanguage(
-    context: Pick<
-      ContentScriptPredictRequestContext,
-      "text" | "nextChar" | "suggestionId" | "runtimeGeneration" | "inputAction" | "documentLang"
-    > & {
-      tabId: number;
-      frameId: number;
-      domainURL?: string;
-      enabledLanguages?: string[];
-    },
-  ) {
-    return this.languageDetector.resolveLanguage(context);
-  }
-
   reportAutoLanguageRuntime(
     context: Pick<AutoLanguageSessionLookup, "runtimeGeneration" | "domainURL"> & {
       tabId: number;
@@ -211,10 +186,6 @@ export class BackgroundServiceWorker {
     },
   ): void {
     this.languageDetector.reportRuntimeActivity(context);
-  }
-
-  sendCommandToActiveTabContentScript(message: import("@core/domain/messageTypes").Message): void {
-    this.tabMessenger.sendToActiveTab(message);
   }
 
   sendCommandToTabContentScript(
@@ -255,18 +226,6 @@ export class BackgroundServiceWorker {
     );
   }
 
-  async getAutoLanguageStatusForScope(
-    scope: AutoLanguageSessionLookup,
-  ): Promise<AutoLanguageSessionStatus | null> {
-    return this.languageDetector.getRecentSessionStatusForScope(scope);
-  }
-
-  async getLiveAutoLanguageRuntime(
-    scope: AutoLanguageSessionLookup,
-  ): Promise<AutoLanguageLiveRuntimeStatus | null> {
-    return this.languageDetector.getLiveRuntimeStatus(scope);
-  }
-
   async handleActiveLanguageToggle(scope: AutoLanguageSessionLookup): Promise<{
     language: string;
     tabId?: number;
@@ -274,7 +233,7 @@ export class BackgroundServiceWorker {
   }> {
     const tabId = scope.tabId;
     if (typeof tabId === "number") {
-      const liveRuntime = await this.getLiveAutoLanguageRuntime(scope);
+      const liveRuntime = await this.languageDetector.getLiveRuntimeStatus(scope);
       const effectiveDomainURL = liveRuntime?.domain || scope.domainURL;
       const effectiveScope: AutoLanguageSessionLookup = {
         tabId,
@@ -335,14 +294,6 @@ export class BackgroundServiceWorker {
       }
     })();
     await this.initializationPromise;
-  }
-
-  async handlePersonalizationEvent(event: PersonalizationEvent): Promise<boolean> {
-    return this.personalizationService.handleEvent(event);
-  }
-
-  async clearPersonalization(): Promise<void> {
-    await this.personalizationService.clear();
   }
 
   private async ensureRuntimeConfigReady(): Promise<void> {

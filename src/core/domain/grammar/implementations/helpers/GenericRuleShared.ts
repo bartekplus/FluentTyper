@@ -1,6 +1,6 @@
 import type { GrammarContext } from "../../types";
 
-const SPACE_REGEX = /[ \xA0]/;
+const SPACE_CHARS = [" ", "\xA0"];
 const URL_OR_SCHEME_REGEX = /(https?:\/\/|www\.|mailto:)/i;
 const EMAIL_LIKE_REGEX = /[^\s@]+@[^\s@]+\.[^\s@]+/;
 const CODE_TOKEN_REGEX = /[\\/_=<>`$]|::|->|=>|\w+\.\w+/;
@@ -17,9 +17,12 @@ export function resolveInputAction(context: GrammarContext): "insert" | "delete"
   return null;
 }
 
-export function splitTrailingSpaces(input: string): { core: string; trailingSpaces: string } {
+export function splitTrailingSpaces(
+  input: string,
+  spaceChars: readonly string[] = SPACE_CHARS,
+): { core: string; trailingSpaces: string } {
   let idx = input.length;
-  while (idx > 0 && SPACE_REGEX.test(input[idx - 1])) {
+  while (idx > 0 && spaceChars.includes(input.charAt(idx - 1))) {
     idx -= 1;
   }
   return {

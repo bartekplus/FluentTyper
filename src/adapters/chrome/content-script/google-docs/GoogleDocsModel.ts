@@ -78,13 +78,16 @@ export function parseObject(value: unknown): Record<string, unknown> | null {
   }
 }
 
+// Lazy: this module loads on every page, and Intl.Segmenter is missing in older Firefox.
+let graphemeSegmenter: Intl.Segmenter | undefined;
+
 export function isBoundary(text: string, index: number): boolean {
   if (!Number.isSafeInteger(index) || index < 0 || index > text.length) return false;
   if (index === 0 || index === text.length) return true;
   // Segment the local string, not a multi-megabyte document per boundary query.
   // Callers use the bounded context/range for editing, and full text only for selections.
-  const segments = new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(text);
-  return segments.containing(index)?.index === index;
+  graphemeSegmenter ??= new Intl.Segmenter(undefined, { granularity: "grapheme" });
+  return graphemeSegmenter.segment(text).containing(index)?.index === index;
 }
 
 export function readModel(raw: unknown, selection: unknown): DocsModel | null {

@@ -10,8 +10,7 @@ import { MutationPipeline, type MutationPlan } from "./MutationPipeline";
 import { MutationScheduler } from "./MutationScheduler";
 import { ShadowRootInterceptor } from "./ShadowRootInterceptor";
 import { ThemeApplicator } from "./ThemeApplicator";
-import { SuggestionManager } from "./SuggestionManager";
-import type { EarlyTabAcceptResult } from "./suggestions/SuggestionManagerRuntime";
+import { SuggestionManagerRuntime } from "./suggestions/SuggestionManagerRuntime";
 
 import { GoogleDocsAdapter } from "./google-docs/GoogleDocsAdapter";
 import { DOCS_SESSION_ID } from "./google-docs/GoogleDocsModel";
@@ -27,7 +26,7 @@ export class ContentRuntimeController {
   private static readonly MAX_MUTATION_ROOTS = 64;
 
   private googleDocs: GoogleDocsAdapter | null = null;
-  public suggestionManager: SuggestionManager | null = null;
+  public suggestionManager: SuggestionManagerRuntime | null = null;
   public config: SetConfigContext = {
     enabled: false,
     autocomplete: false,
@@ -56,7 +55,7 @@ export class ContentRuntimeController {
   private onPredictionRequest: ((context: ContentScriptPredictRequestContext) => void) | null =
     null;
   private onRuntimeActivity: ((runtimeGeneration: number) => void) | null = null;
-  private onRestartRequest: () => void;
+  private readonly onRestartRequest = this.restart.bind(this);
   private readonly mutationPipeline: MutationPipeline;
   private readonly mutationScheduler: MutationScheduler;
   private predictionGeneration = 0;
@@ -71,27 +70,21 @@ export class ContentRuntimeController {
     this.mutationScheduler = new MutationScheduler(
       ContentRuntimeController.MUTATION_COALESCE_DELAY_MS,
       (mutations) => {
-        if (!this.enabled || mutations.length === 0) {
-          return;
+        if (this.enabled) {
+          this.processMutations(mutations);
         }
-        this.processMutations(mutations);
       },
     );
     this.mutationPipeline = new MutationPipeline(
       ContentRuntimeController.MAX_MUTATION_BATCH_SIZE,
       ContentRuntimeController.MAX_MUTATION_ROOTS,
     );
-    this.onRestartRequest = this.restart.bind(this);
   }
 
   setPredictionRequestHandler(
     handler: (context: ContentScriptPredictRequestContext) => void,
   ): void {
     this.onPredictionRequest = handler;
-  }
-
-  setRestartRequestHandler(handler: () => void): void {
-    this.onRestartRequest = handler;
   }
 
   setRuntimeActivityHandler(handler: (runtimeGeneration: number) => void): void {
@@ -158,17 +151,8 @@ export class ContentRuntimeController {
     this.suggestionManager?.triggerActiveSuggestion();
   }
 
-  handleEarlyTabAcceptRequest(entryId: string): EarlyTabAcceptResult {
-    return (
-      this.suggestionManager?.handleEarlyTabAcceptRequest(entryId) ?? {
-        accepted: false,
-        reason: "entry_not_found",
-        entryId,
-        suggestionCount: 0,
-        menuVisible: false,
-        hasInlineSuggestion: false,
-      }
-    );
+  handleEarlyTabAcceptRequest(entryId: string): void {
+    this.suggestionManager?.handleEarlyTabAcceptRequest(entryId);
   }
 
   getPredictionGeneration(): number {
@@ -201,7 +185,7 @@ export class ContentRuntimeController {
   }
 
   mutationCallback(mutationsList: MutationRecord[]): void {
-    if (mutationsList.length === 0 || !this.enabled) {
+    if (!this.enabled) {
       return;
     }
     this.mutationScheduler.enqueue(mutationsList);
@@ -425,7 +409,7 @@ export class ContentRuntimeController {
         }),
       onShadowRootDiscovered: this.registerShadowRoot.bind(this),
     };
-    this.suggestionManager = new SuggestionManager(managerOptions);
+    this.suggestionManager = new SuggestionManagerRuntime(managerOptions);
     if (isGoogleDocsPage()) this.googleDocs = new GoogleDocsAdapter(managerOptions);
     this.reportRuntimeActivity();
   }

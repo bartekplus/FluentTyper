@@ -261,15 +261,12 @@ describe("SuggestionManagerRuntime", () => {
       expect(entry.menu.parentElement).toBe(document.documentElement);
       expect(document.body.querySelector(`#${entry.menu.id}`)).toBeNull();
       expect(document.body.hasAttribute("data-suggestion")).toBe(false);
-      expect(document.body.hasAttribute("data-tribute")).toBe(false);
       expect(document.body.hasAttribute("data-ft-suggestion-id")).toBe(false);
       expect(document.documentElement.getAttribute("data-suggestion")).toBe("true");
-      expect(document.documentElement.getAttribute("data-tribute")).toBe("true");
       expect(document.documentElement.getAttribute("data-ft-suggestion-id")).toBe(String(entry.id));
 
       runtime.detachAllHelpers();
       expect(document.documentElement.hasAttribute("data-suggestion")).toBe(false);
-      expect(document.documentElement.hasAttribute("data-tribute")).toBe(false);
       expect(document.documentElement.hasAttribute("data-ft-suggestion-id")).toBe(false);
     } finally {
       document.body.removeAttribute("contenteditable");
@@ -658,11 +655,9 @@ describe("SuggestionManagerRuntime", () => {
 
     expect(
       (
-        runtime as unknown as {
-          handleEarlyTabAcceptRequest: (entryId: string) => { accepted: boolean };
-        }
+        runtime as unknown as { handleEarlyTabAcceptRequest: (entryId: string) => boolean }
       ).handleEarlyTabAcceptRequest(String(entry.id)),
-    ).toEqual(expect.objectContaining({ accepted: true }));
+    ).toBe(true);
     expect(acceptSuggestionAtIndex).toHaveBeenCalledTimes(1);
     expect(acceptSuggestionAtIndex).toHaveBeenCalledWith(0);
   });
@@ -695,19 +690,9 @@ describe("SuggestionManagerRuntime", () => {
 
     expect(
       (
-        runtime as unknown as {
-          handleEarlyTabAcceptRequest: (entryId: string) => {
-            accepted: boolean;
-            reason: string;
-          };
-        }
+        runtime as unknown as { handleEarlyTabAcceptRequest: (entryId: string) => boolean }
       ).handleEarlyTabAcceptRequest(String(entry.id)),
-    ).toEqual(
-      expect.objectContaining({
-        accepted: false,
-        reason: "no_visible_suggestion_state",
-      }),
-    );
+    ).toBe(false);
     expect(acceptSuggestionAtIndex).not.toHaveBeenCalled();
   });
 
@@ -733,20 +718,15 @@ describe("SuggestionManagerRuntime", () => {
     entry.menu.style.display = "block";
 
     const session = getAttachedSession(runtime, entry.id);
-    session.acceptSuggestionAtIndex = jest.fn(() => false);
+    const acceptSuggestionAtIndex = jest.fn(() => false);
+    session.acceptSuggestionAtIndex = acceptSuggestionAtIndex;
 
     expect(
       (
-        runtime as unknown as {
-          handleEarlyTabAcceptRequest: (entryId: string) => { accepted: boolean; reason: string };
-        }
+        runtime as unknown as { handleEarlyTabAcceptRequest: (entryId: string) => boolean }
       ).handleEarlyTabAcceptRequest(String(entry.id)),
-    ).toEqual(
-      expect.objectContaining({
-        accepted: false,
-        reason: "accept_failed",
-      }),
-    );
+    ).toBe(false);
+    expect(acceptSuggestionAtIndex).toHaveBeenCalledWith(0);
   });
 
   test("document-level Tab capture ignores suggestions when the popup host was removed", () => {

@@ -1,4 +1,3 @@
-// Handles all settings-related logic for FluentTyper
 import { Store } from "./storage/Store.js";
 import {
   getAliasesForCanonicalSettingKey,
@@ -48,13 +47,5 @@ export class SettingsManager {
 
   async removeRaw(key: string): Promise<void> {
     return this.settings.remove(key);
-  }
-
-  async getAll(keys: string[]): Promise<Record<string, JsonValue>> {
-    const result: Record<string, JsonValue> = {};
-    for (const key of keys) {
-      result[key] = await this.get(key);
-    }
-    return result;
   }
 }

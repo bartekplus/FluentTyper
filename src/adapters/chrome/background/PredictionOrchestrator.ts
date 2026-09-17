@@ -1,4 +1,5 @@
 import {
+  clampAIPredictionTimeoutMs,
   DEFAULT_AI_MODEL_ID,
   DEFAULT_AI_PREDICTION_TIMEOUT_MS,
   DEFAULT_DEBUG_AI_PREDICTOR_ENABLED,
@@ -18,13 +19,6 @@ import type { PresageConfig, PresageHandler, PresagePredictionContext } from "./
 import { mergePredictions } from "./PredictionMerger";
 
 const logger = createLogger("PredictionOrchestrator");
-
-function clampAIPredictionTimeoutMs(value: unknown): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return DEFAULT_AI_PREDICTION_TIMEOUT_MS;
-  }
-  return Math.min(2000, Math.max(20, Math.round(value)));
-}
 
 interface AIPredictionResult {
   predictions: string[];

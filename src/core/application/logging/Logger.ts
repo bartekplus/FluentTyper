@@ -23,10 +23,6 @@ export interface LogContext {
   [key: string]: unknown;
 }
 
-export interface LoggerOptions {
-  minLevel?: LogLevel;
-}
-
 type ObservabilitySink = (event: ObservabilityEvent) => void;
 
 interface LoggerRuntimeGlobals {
@@ -75,19 +71,6 @@ function nextObservabilitySequence(): number {
   return nextValue;
 }
 
-function cloneConfig(config: ObservabilityConfig): ObservabilityConfig {
-  return {
-    enabled: config.enabled,
-    defaultLevel: config.defaultLevel,
-    moduleOverrides: Object.fromEntries(
-      Object.entries(config.moduleOverrides).map(([moduleId, override]) => [
-        moduleId,
-        override ? { ...override } : override,
-      ]),
-    ),
-  };
-}
-
 function sanitizeContext(context?: LogContext): Record<string, unknown> | undefined {
   if (!context) {
     return undefined;
@@ -106,7 +89,7 @@ export function setGlobalObservabilityRuntime(options: {
 }): void {
   const globals = getLoggingGlobals();
   if (options.config) {
-    globals.__FT_OBSERVABILITY_CONFIG__ = cloneConfig(options.config);
+    globals.__FT_OBSERVABILITY_CONFIG__ = structuredClone(options.config);
   }
   if ("sink" in options) {
     globals.__FT_OBSERVABILITY_SINK__ = options.sink;
@@ -139,16 +122,9 @@ export function resetGlobalObservabilityRuntime(): void {
 
 export class Logger {
   private readonly scope: string;
-  private explicitMinLevel?: LogLevel;
-
-  constructor(scope: string, options: LoggerOptions = {}) {
+  constructor(scope: string) {
     this.scope = scope;
-    this.explicitMinLevel = options.minLevel;
     registerObservabilityModule(scope);
-  }
-
-  setMinLevel(level: LogLevel): void {
-    this.explicitMinLevel = level;
   }
 
   debug(message: string, context?: LogContext): void {
@@ -168,9 +144,6 @@ export class Logger {
   }
 
   private resolveEffectiveMinLevel(): LogLevel {
-    if (this.explicitMinLevel) {
-      return this.explicitMinLevel;
-    }
     const config = getGlobalObservabilityConfig();
     const moduleOverride =
       config.moduleOverrides[this.scope as keyof typeof config.moduleOverrides];
@@ -234,6 +207,6 @@ export class Logger {
   }
 }
 
-export function createLogger(scope: string, options?: LoggerOptions): Logger {
-  return new Logger(scope, options);
+export function createLogger(scope: string): Logger {
+  return new Logger(scope);
 }

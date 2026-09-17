@@ -95,16 +95,6 @@ describe("Logger", () => {
     });
   });
 
-  test("supports per-logger minLevel override", () => {
-    const logger = createLogger("LoggerCustom", { minLevel: "info" });
-
-    logger.debug("hidden");
-    logger.info("visible");
-
-    expect(console.debug).not.toHaveBeenCalled();
-    expect(console.info).toHaveBeenCalledWith("[LoggerCustom] visible");
-  });
-
   test("supports runtime module overrides", () => {
     setGlobalObservabilityRuntime({
       config: {

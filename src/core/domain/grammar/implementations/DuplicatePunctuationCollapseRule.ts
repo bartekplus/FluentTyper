@@ -1,10 +1,9 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
 import { SPACE_CHARS, SPACING_OR_FILLER_CHARS } from "../../spacingRules";
-import { shouldSkipGenericReplacement } from "./helpers/GenericRuleShared";
+import { shouldSkipGenericReplacement, splitTrailingSpaces } from "./helpers/GenericRuleShared";
 
 export class DuplicatePunctuationCollapseRule implements GrammarRule {
   readonly id = "duplicatePunctuationCollapse" as const;
-  readonly name = "Duplicate Punctuation Collapse";
   readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
   private static readonly COLLAPSIBLE_PUNCTUATION = new Set([",", ";", ":"]);
   apply(context: GrammarContext): GrammarEdit | null {
@@ -53,9 +52,6 @@ export class DuplicatePunctuationCollapseRule implements GrammarRule {
       replacement: last,
       deleteBackwards: leadingSpaceCount + runLength,
       deleteForwards: 0,
-      confidence: "medium",
-      safetyTier: "advanced",
-      description: "Collapsed duplicate punctuation",
     };
   }
 
@@ -98,14 +94,14 @@ export class DuplicatePunctuationCollapseRule implements GrammarRule {
       replacement: `${last}${collapsedSpacing}`,
       deleteBackwards: leadingSpaceCount + duplicateRunLength + spaceRunLength + 1,
       deleteForwards: 0,
-      confidence: "medium",
-      safetyTier: "advanced",
-      description: "Collapsed duplicate punctuation",
     };
   }
 
   private resolveTrailingDuplicateBeforeSpace(input: string): GrammarEdit | null {
-    const { core, trailingSpacing } = this.splitTrailingSpacing(input);
+    const { core, trailingSpaces: trailingSpacing } = splitTrailingSpaces(
+      input,
+      SPACING_OR_FILLER_CHARS,
+    );
     if (trailingSpacing.length === 0 || core.length < 2) {
       return null;
     }
@@ -131,20 +127,6 @@ export class DuplicatePunctuationCollapseRule implements GrammarRule {
       replacement: `${last}${trailingSpacing}`,
       deleteBackwards: leadingSpaceCount + runLength + trailingSpacing.length,
       deleteForwards: 0,
-      confidence: "medium",
-      safetyTier: "advanced",
-      description: "Collapsed duplicate punctuation",
-    };
-  }
-
-  private splitTrailingSpacing(input: string): { core: string; trailingSpacing: string } {
-    let idx = input.length;
-    while (idx > 0 && SPACING_OR_FILLER_CHARS.includes(input.charAt(idx - 1))) {
-      idx -= 1;
-    }
-    return {
-      core: input.slice(0, idx),
-      trailingSpacing: input.slice(idx),
     };
   }
 
@@ -195,9 +177,6 @@ export class DuplicatePunctuationCollapseRule implements GrammarRule {
       replacement: ". ",
       deleteBackwards: 3,
       deleteForwards: 0,
-      confidence: "medium",
-      safetyTier: "advanced",
-      description: "Collapsed accidental double period",
     };
   }
 }

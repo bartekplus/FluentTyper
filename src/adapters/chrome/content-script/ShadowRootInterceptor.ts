@@ -45,16 +45,11 @@ const INTERCEPT_SNIPPET = `(function(){
 })();`;
 
 export class ShadowRootInterceptor {
-  private readonly handler: EventListener;
+  private readonly handler: EventListener = this.onEvent.bind(this);
   private attached = false;
   private injected = false;
 
-  constructor(
-    private readonly onShadowAttached: (root: ShadowRoot) => void,
-    private readonly doc: Document = document,
-  ) {
-    this.handler = this.onEvent.bind(this);
-  }
+  constructor(private readonly onShadowAttached: (root: ShadowRoot) => void) {}
 
   public attach(): void {
     if (this.attached) {
@@ -64,7 +59,7 @@ export class ShadowRootInterceptor {
       this.inject();
       this.injected = true;
     }
-    this.doc.addEventListener(INTERCEPT_EVENT, this.handler, true);
+    document.addEventListener(INTERCEPT_EVENT, this.handler, true);
     this.attached = true;
   }
 
@@ -72,7 +67,7 @@ export class ShadowRootInterceptor {
     if (!this.attached) {
       return;
     }
-    this.doc.removeEventListener(INTERCEPT_EVENT, this.handler, true);
+    document.removeEventListener(INTERCEPT_EVENT, this.handler, true);
     this.attached = false;
   }
 
@@ -80,9 +75,9 @@ export class ShadowRootInterceptor {
     // The script runs in the page's context (MAIN world), bypassing the
     // extension's isolated-world boundary. It degrades silently on pages with
     // a strict CSP that blocks inline scripts.
-    const script = this.doc.createElement("script");
+    const script = document.createElement("script");
     script.textContent = INTERCEPT_SNIPPET;
-    (this.doc.head ?? this.doc.documentElement).appendChild(script);
+    (document.head ?? document.documentElement).appendChild(script);
     script.remove();
   }
 

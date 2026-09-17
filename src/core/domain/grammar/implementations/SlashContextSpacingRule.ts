@@ -4,7 +4,6 @@ import { SpacingRuleShared } from "./helpers/SpacingRuleShared";
 
 export class SlashContextSpacingRule extends SpacingRuleShared implements GrammarRule {
   readonly id = "slashContextSpacing" as const;
-  readonly name = "Slash Context Spacing";
   readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
 
   apply(context: GrammarContext): GrammarEdit | null {
@@ -19,11 +18,11 @@ export class SlashContextSpacingRule extends SpacingRuleShared implements Gramma
     }
 
     if (this.shouldCompactProtocolSlash(inputStr, slashIndex)) {
-      return this.createEdit("/", 2, "Compacted protocol slash spacing");
+      return this.createEdit("/", 2);
     }
 
     if (this.isSlashOperatorContext(inputStr, slashIndex) && this.insertSpaceAfterAutocomplete) {
-      return this.createEdit("/ ", 1, "Applied slash operator spacing");
+      return this.createEdit("/ ", 1);
     }
 
     return null;

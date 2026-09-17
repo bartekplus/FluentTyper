@@ -2,7 +2,7 @@ import { i18n } from "@ui/options/fluenttyperI18n.js";
 
 export type WebsiteAccessPermissionState = "missing" | "granted" | "unavailable";
 
-export const WEBSITE_ACCESS_PERMISSION: chrome.permissions.Permissions = {
+const WEBSITE_ACCESS_PERMISSION: chrome.permissions.Permissions = {
   origins: ["<all_urls>"],
 };
 
@@ -13,9 +13,9 @@ type PermissionCopy = {
   title: string;
 };
 
-export type WebsiteAccessPermissionCopy = Record<WebsiteAccessPermissionState, PermissionCopy>;
+type WebsiteAccessPermissionCopy = Record<WebsiteAccessPermissionState, PermissionCopy>;
 
-export interface WebsiteAccessPermissionElements {
+interface WebsiteAccessPermissionElements {
   action: HTMLButtonElement | null;
   badge: HTMLElement;
   body: HTMLElement;
@@ -27,14 +27,14 @@ type PermissionFunction = (
   options: chrome.permissions.Permissions,
 ) => Promise<boolean | undefined> | boolean | undefined;
 
-export interface WebsiteAccessPermissionApi {
+interface WebsiteAccessPermissionApi {
   permissions?: {
     contains?: PermissionFunction;
     request?: PermissionFunction;
   };
 }
 
-export interface WebsiteAccessPermissionTestHooks {
+interface WebsiteAccessPermissionTestHooks {
   contains?: PermissionFunction;
   request?: PermissionFunction;
 }
@@ -47,39 +47,23 @@ interface WebsiteAccessPermissionControllerOptions {
   visibleStates?: WebsiteAccessPermissionState[];
 }
 
-function translate(key: string, fallback: string): string {
-  const translated = i18n.get(key);
-  return typeof translated === "string" && translated.length > 0 && translated !== key
-    ? translated
-    : fallback;
-}
-
-export function getWebsiteAccessPermissionCopy(): WebsiteAccessPermissionCopy {
+function getWebsiteAccessPermissionCopy(): WebsiteAccessPermissionCopy {
   return {
     missing: {
-      badge: translate("permission_status_missing_badge", "Website access required"),
-      title: translate("permission_status_missing_title", "Allow page access"),
-      body: translate(
-        "permission_status_missing_body",
-        "FluentTyper needs website access to show suggestions in text fields, and everything stays local in your browser.",
-      ),
-      actionLabel: translate("permission_status_action", "Allow page access"),
+      badge: i18n.get("permission_status_missing_badge"),
+      title: i18n.get("permission_status_missing_title"),
+      body: i18n.get("permission_status_missing_body"),
+      actionLabel: i18n.get("permission_status_action"),
     },
     granted: {
-      badge: translate("permission_status_granted_badge", "Website access ready"),
-      title: translate("permission_status_granted_title", "Access granted"),
-      body: translate(
-        "permission_status_granted_body",
-        "FluentTyper can now show suggestions in text fields, and everything still stays local in your browser.",
-      ),
+      badge: i18n.get("permission_status_granted_badge"),
+      title: i18n.get("permission_status_granted_title"),
+      body: i18n.get("permission_status_granted_body"),
     },
     unavailable: {
-      badge: translate("permission_status_unavailable_badge", "Website access unavailable"),
-      title: translate("permission_status_unavailable_title", "Check browser access"),
-      body: translate(
-        "permission_status_unavailable_body",
-        "FluentTyper could not verify website access right now. Reopen FluentTyper or reload this page, then try again. Your typing still stays local in your browser.",
-      ),
+      badge: i18n.get("permission_status_unavailable_badge"),
+      title: i18n.get("permission_status_unavailable_title"),
+      body: i18n.get("permission_status_unavailable_body"),
     },
   };
 }
@@ -88,79 +72,42 @@ export class WebsiteAccessPermissionService {
   constructor(
     private readonly api: WebsiteAccessPermissionApi | undefined,
     private readonly hooks: WebsiteAccessPermissionTestHooks = {},
-    private readonly requestOptions: chrome.permissions.Permissions = WEBSITE_ACCESS_PERMISSION,
   ) {}
 
   async getState(): Promise<WebsiteAccessPermissionState> {
-    if (!this.hasCheckHandler()) {
-      return "unavailable";
-    }
-
-    try {
-      const granted = await this.runCheck();
-      if (typeof granted !== "boolean") {
-        return "unavailable";
-      }
-      return granted ? "granted" : "missing";
-    } catch {
-      return "unavailable";
-    }
+    return this.resolve("contains");
   }
 
   async requestAccess(): Promise<WebsiteAccessPermissionState> {
-    if (!this.hasRequestHandler()) {
+    return this.resolve("request");
+  }
+
+  private async resolve(kind: "contains" | "request"): Promise<WebsiteAccessPermissionState> {
+    const permissions = this.api?.permissions;
+    const hook = this.hooks[kind];
+    const apiCall = permissions?.[kind];
+    if (typeof hook !== "function" && typeof apiCall !== "function") {
       return "unavailable";
     }
 
     try {
-      const granted = await this.runRequest();
-      if (typeof granted !== "boolean") {
+      let granted: boolean | undefined;
+      if (typeof hook === "function") {
+        const hooked = await hook(WEBSITE_ACCESS_PERMISSION);
+        if (typeof hooked === "boolean") {
+          granted = hooked;
+        }
+      }
+      if (granted === undefined && typeof apiCall === "function") {
+        granted = Boolean(await apiCall.call(permissions, WEBSITE_ACCESS_PERMISSION));
+      }
+      if (granted === undefined) {
         return "unavailable";
       }
       return granted ? "granted" : "missing";
     } catch {
       return "unavailable";
     }
-  }
-
-  private hasCheckHandler(): boolean {
-    return (
-      typeof this.hooks.contains === "function" ||
-      typeof this.api?.permissions?.contains === "function"
-    );
-  }
-
-  private hasRequestHandler(): boolean {
-    return (
-      typeof this.hooks.request === "function" ||
-      typeof this.api?.permissions?.request === "function"
-    );
-  }
-
-  private async runCheck(): Promise<boolean | undefined> {
-    if (typeof this.hooks.contains === "function") {
-      const hookedResult = await this.hooks.contains(this.requestOptions);
-      if (typeof hookedResult === "boolean") {
-        return hookedResult;
-      }
-    }
-    if (typeof this.api?.permissions?.contains === "function") {
-      return Boolean(await this.api.permissions.contains(this.requestOptions));
-    }
-    return undefined;
-  }
-
-  private async runRequest(): Promise<boolean | undefined> {
-    if (typeof this.hooks.request === "function") {
-      const hookedResult = await this.hooks.request(this.requestOptions);
-      if (typeof hookedResult === "boolean") {
-        return hookedResult;
-      }
-    }
-    if (typeof this.api?.permissions?.request === "function") {
-      return Boolean(await this.api.permissions.request(this.requestOptions));
-    }
-    return undefined;
   }
 }
 

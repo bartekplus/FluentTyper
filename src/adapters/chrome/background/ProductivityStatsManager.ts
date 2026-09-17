@@ -20,10 +20,6 @@ export class ProductivityStatsManager {
     this.service.setSnippetShortcuts(textExpansions);
   }
 
-  async recordSuggestionAccepted(event: ContentScriptUsageEventContext): Promise<void> {
-    await this.service.recordSuggestionAccepted(event);
-  }
-
   async recordUsageEvent(event: ContentScriptUsageEventContext): Promise<void> {
     logger.debug("Recording productivity usage event", {
       eventType: event.eventType,
@@ -38,10 +34,6 @@ export class ProductivityStatsManager {
 
   async acknowledgeWeeklyRecap(weekKey: string): Promise<void> {
     await this.service.acknowledgeWeeklyRecap(weekKey);
-  }
-
-  async acknowledgeDonationMilestone(milestoneHours: number): Promise<void> {
-    await this.service.acknowledgeDonationMilestone(milestoneHours);
   }
 
   async handleDonationPromptAction(

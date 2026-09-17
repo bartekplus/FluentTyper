@@ -1,10 +1,10 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
 import {
-  applyCasePattern,
   findTrailingLetterToken,
   isLikelyCodeLikeContext,
   resolveEnglishBoundaryContext,
 } from "./helpers/EnglishRuleShared";
+import { applyWordCase, detectWordCase } from "./helpers/GenericRuleShared";
 
 const ENGLISH_CONTRACTION_MAP: Record<string, string> = {
   im: "i'm",
@@ -31,7 +31,6 @@ const FORCE_PRONOUN_I_PREFIX = new Set(["im", "ive", "ill"]);
 
 export class EnglishContractionNormalizationRule implements GrammarRule {
   readonly id = "englishContractionNormalization" as const;
-  readonly name = "English Contraction Normalization";
   readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
 
   apply(context: GrammarContext): GrammarEdit | null {
@@ -54,7 +53,7 @@ export class EnglishContractionNormalizationRule implements GrammarRule {
     }
 
     const normalizedInput = tokenInfo.token.toLowerCase();
-    let normalizedToken = applyCasePattern(tokenInfo.token, canonical);
+    let normalizedToken = applyWordCase(canonical, detectWordCase(tokenInfo.token));
     if (
       FORCE_PRONOUN_I_PREFIX.has(normalizedInput) &&
       tokenInfo.token !== tokenInfo.token.toUpperCase()
@@ -69,8 +68,6 @@ export class EnglishContractionNormalizationRule implements GrammarRule {
       replacement: `${normalizedToken}${tokenInfo.trailing}`,
       deleteBackwards: boundaryContext.input.length - tokenInfo.tokenStart,
       deleteForwards: 0,
-      confidence: "high",
-      description: "Normalized English contraction",
     };
   }
 }

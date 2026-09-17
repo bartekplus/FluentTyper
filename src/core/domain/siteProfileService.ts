@@ -18,15 +18,7 @@ export function parseSuggestionsOverride(value: string): number | undefined {
   return Math.min(MAX_NUM_SUGGESTIONS, Math.max(0, parsed));
 }
 
-export function parseInlineOverride(value: string): boolean | undefined {
-  return parseBooleanOverride(value);
-}
-
-export function parsePreferNativeAutocompleteOverride(value: string): boolean | undefined {
-  return parseBooleanOverride(value);
-}
-
-function parseBooleanOverride(value: string): boolean | undefined {
+export function parseBooleanOverride(value: string): boolean | undefined {
   if (value === "on") {
     return true;
   }

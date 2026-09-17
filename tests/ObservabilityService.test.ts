@@ -225,7 +225,6 @@ describe("ObservabilityService", () => {
       domainURL: "https://old.example",
     });
     now += 5 * 60 * 1000 + 1;
-    service.pruneStaleState();
 
     expect(service.getSnapshot().contentRuntimes).toHaveLength(0);
   });

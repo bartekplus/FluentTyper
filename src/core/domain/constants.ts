@@ -107,3 +107,10 @@ export const DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED = true;
 export const DEFAULT_DEBUG_AI_PREDICTOR_ENABLED = true;
 export const DEFAULT_OBSERVABILITY_ENABLED = true;
 export const DEFAULT_OBSERVABILITY_DEFAULT_LEVEL = "debug";
+
+export function clampAIPredictionTimeoutMs(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return DEFAULT_AI_PREDICTION_TIMEOUT_MS;
+  }
+  return Math.min(2000, Math.max(20, Math.round(value)));
+}

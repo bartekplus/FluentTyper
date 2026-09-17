@@ -3,7 +3,6 @@ import { SPACE_CHARS } from "../../spacingRules";
 
 export class CollapseRepeatedSpacesRule implements GrammarRule {
   readonly id = "collapseRepeatedSpaces" as const;
-  readonly name = "Collapse Repeated Spaces";
   readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
 
   apply(context: GrammarContext): GrammarEdit | null {
@@ -44,8 +43,6 @@ export class CollapseRepeatedSpacesRule implements GrammarRule {
       replacement: " ",
       deleteBackwards: trailingSpaces,
       deleteForwards: 0,
-      confidence: "high",
-      description: "Collapsed repeated spaces",
     };
   }
 }

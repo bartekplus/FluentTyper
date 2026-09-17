@@ -12,7 +12,11 @@ function createSettingsManagerMock(seed: Record<string, unknown> = {}): {
     state,
     manager: {
       get: jest.fn(async (key: string) => state[key] as never),
+      getRaw: jest.fn(async (key: string) => state[key] as never),
       set: jest.fn(async (key: string, value: unknown) => {
+        state[key] = value;
+      }),
+      setRaw: jest.fn(async (key: string, value: unknown) => {
         state[key] = value;
       }),
     } as unknown as SettingsManager,
@@ -165,7 +169,7 @@ describe("ProductivityStatsManager", () => {
     expect(afterTrigger.shouldShowWeeklyRecap).toBe(true);
   });
 
-  test("prioritizes weekly recap donation ask with source tag and recap enrichments", async () => {
+  test("prioritizes weekly recap donation ask with recap enrichments", async () => {
     const { manager: settingsManager } = createSettingsManagerMock({
       [KEY_PRODUCTIVITY_STATS]: {
         schemaVersion: 2,
@@ -215,7 +219,6 @@ describe("ProductivityStatsManager", () => {
     expect(stats.weeklyRecap.milestonesCrossedHours).toContain(1);
     expect(stats.weeklyRecap.equivalentTasks).toBeGreaterThan(0);
     expect(stats.donationPrompt?.kind).toBe("weekly_recap");
-    expect(stats.donationPrompt?.source).toBe("weekly_recap");
     expect(stats.donationPrompt?.promptId).toBe("weekly_recap_2026-02-09");
   });
 

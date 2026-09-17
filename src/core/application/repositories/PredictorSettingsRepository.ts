@@ -1,7 +1,7 @@
 import {
+  clampAIPredictionTimeoutMs,
   DEFAULT_AI_MODEL_ID,
   DEFAULT_AI_PREDICTOR_ENABLED,
-  DEFAULT_AI_PREDICTION_TIMEOUT_MS,
   DEFAULT_DEBUG_AI_PREDICTOR_ENABLED,
   DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED,
 } from "@core/domain/constants";
@@ -13,13 +13,6 @@ export interface PredictorSettingsSnapshot {
   aiPredictionTimeoutMs: number;
   debugPresagePredictorEnabled: boolean;
   debugAIPredictorEnabled: boolean;
-}
-
-function clampTimeout(value: unknown): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return DEFAULT_AI_PREDICTION_TIMEOUT_MS;
-  }
-  return Math.min(2000, Math.max(20, Math.round(value)));
 }
 
 export class PredictorSettingsRepository extends SettingsRepositoryBase {
@@ -45,7 +38,7 @@ export class PredictorSettingsRepository extends SettingsRepositoryBase {
         typeof aiModelId === "string" && aiModelId.trim().length > 0
           ? aiModelId
           : DEFAULT_AI_MODEL_ID,
-      aiPredictionTimeoutMs: clampTimeout(aiPredictionTimeoutMs),
+      aiPredictionTimeoutMs: clampAIPredictionTimeoutMs(aiPredictionTimeoutMs),
       debugPresagePredictorEnabled:
         typeof debugPresagePredictorEnabled === "boolean"
           ? debugPresagePredictorEnabled

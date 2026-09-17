@@ -4,15 +4,15 @@ import type { PredictionInputAction } from "@core/domain/messageTypes";
 import { SPACE_CHARS } from "@core/domain/spacingRules";
 import {
   resolveEditableCursorContext as resolveEditableCursorContextHelper,
-  resolvePredictionInputAction as resolvePredictionInputActionHelper,
+  resolvePredictionInputAction,
 } from "./SuggestionEntryPredictionContext";
 import {
   clearAcceptedSuggestionTransientState as clearAcceptedSuggestionTransientEntryState,
   resolveAcceptedSuggestionSpaceState,
-  shouldDismissSuggestionsOnKeydown as shouldDismissSuggestionsOnKeydownHelper,
-  shouldInvalidatePendingExtensionEditOnKeydown as shouldInvalidatePendingExtensionEditOnKeydownHelper,
-  shouldReleaseAcceptedSuggestionSuppressionOnKeydown as shouldReleaseAcceptedSuggestionSuppressionOnKeydownHelper,
-  syncAcceptedSuggestionTrailingSpaceState as syncAcceptedSuggestionTrailingSpaceStateHelper,
+  shouldDismissSuggestionsOnKeydown,
+  shouldInvalidatePendingExtensionEditOnKeydown,
+  shouldReleaseAcceptedSuggestionSuppressionOnKeydown,
+  syncAcceptedSuggestionTrailingSpaceState,
 } from "./SuggestionAcceptedState";
 import { TextTargetAdapter } from "./TextTargetAdapter";
 import { buildCaretTrace, clipTraceText, collapseTraceWhitespace } from "./traceUtils";
@@ -155,16 +155,23 @@ export class SuggestionEntrySession {
       return;
     }
 
-    if (this.shouldReleaseAcceptedSuggestionSuppressionOnKeydown(keyboardEvent)) {
+    if (
+      shouldReleaseAcceptedSuggestionSuppressionOnKeydown({
+        event: keyboardEvent,
+        suppressNextSuggestionInputPrediction: this.entry.suppressNextSuggestionInputPrediction,
+        missingTrailingSpace: this.entry.missingTrailingSpace,
+        awaitingHostInputEcho: this.entry.pendingExtensionEdit?.awaitingHostInputEcho === true,
+      })
+    ) {
       this.clearAcceptedSuggestionTransientState();
       this.entry.suppressNextSuggestionInputPrediction = false;
     }
 
-    if (this.shouldInvalidatePendingExtensionEditOnKeydown(keyboardEvent)) {
+    if (shouldInvalidatePendingExtensionEditOnKeydown(keyboardEvent)) {
       this.clearAcceptedSuggestionTransientState();
     }
 
-    if (this.shouldDismissSuggestionsOnKeydown(keyboardEvent)) {
+    if (shouldDismissSuggestionsOnKeydown(keyboardEvent)) {
       controls.dismissEntry(true);
       return;
     }
@@ -481,10 +488,6 @@ export class SuggestionEntrySession {
       return false;
     }
     return this.acceptSuggestion(suggestion);
-  }
-
-  public acceptSuggestion(suggestion: string): boolean {
-    return this.acceptSuggestionInternal(suggestion);
   }
 
   public reconcileSelection(controls: { dismissEntry: () => void }): void {
@@ -829,13 +832,6 @@ export class SuggestionEntrySession {
     ).beforeCursor;
   }
 
-  private shouldSkipPredictionForUnstableInputState(
-    entry: SuggestionEntry,
-    event?: Event,
-  ): boolean {
-    return this.resolveUnstableInputSkipReason(entry, event) !== null;
-  }
-
   private resolveUnstableInputSkipReason(
     entry: SuggestionEntry,
     event?: Event,
@@ -938,8 +934,7 @@ export class SuggestionEntrySession {
     typedKey?: string | null;
     scheduleIdle: boolean;
   }): void {
-    const processingStartedAt =
-      typeof globalThis.performance?.now === "function" ? globalThis.performance.now() : Date.now();
+    const processingStartedAt = performance.now();
     const unstableInputSkipReason = this.resolveUnstableInputSkipReason(this.entry, event);
     const allowPredictionWithNonCollapsedSelection =
       unstableInputSkipReason === "selection_not_collapsed" &&
@@ -967,15 +962,9 @@ export class SuggestionEntrySession {
       this.entry.manualAutoFixSuppression !== null ||
       this.entry.pendingExtensionEdit !== null
         ? (() => {
-            const startedAt =
-              typeof globalThis.performance?.now === "function"
-                ? globalThis.performance.now()
-                : Date.now();
+            const startedAt = performance.now();
             const resolved = TextTargetAdapter.snapshot(this.entry.elem);
-            snapshotDurationMs =
-              (typeof globalThis.performance?.now === "function"
-                ? globalThis.performance.now()
-                : Date.now()) - startedAt;
+            snapshotDurationMs = performance.now() - startedAt;
             return resolved;
           })()
         : null);
@@ -983,37 +972,32 @@ export class SuggestionEntrySession {
     if (snapshot) {
       this.textEditService.syncManualAutoFixSuppression(this.entry, snapshot);
       if (this.entry.pendingExtensionEdit && !this.shouldPreservePendingExtensionEdit(snapshot)) {
-        this.clearPendingExtensionEdit();
+        this.entry.pendingExtensionEdit = null;
       }
-      this.syncAcceptedSuggestionTrailingSpaceState();
+      syncAcceptedSuggestionTrailingSpaceState(this.entry, this.contentEditableAdapter);
     }
 
     const resolvedHasMultipleBlockDescendants =
       hasMultipleBlockDescendants ?? this.resolveHasMultipleBlockDescendants();
-    const provisionalStartedAt =
-      typeof globalThis.performance?.now === "function" ? globalThis.performance.now() : Date.now();
+    const provisionalStartedAt = performance.now();
     const provisionalContext = this.resolveEditableCursorContext(this.entry, snapshot, {
       hasMultipleBlockDescendants: resolvedHasMultipleBlockDescendants,
       typedKey,
     });
-    const provisionalContextDurationMs =
-      (typeof globalThis.performance?.now === "function"
-        ? globalThis.performance.now()
-        : Date.now()) - provisionalStartedAt;
+    const provisionalContextDurationMs = performance.now() - provisionalStartedAt;
     const inputAction =
       inputActionOverride ??
-      this.resolveInputAction(event ?? new Event("input"), provisionalContext.beforeCursor);
-    const predictionStartedAt =
-      typeof globalThis.performance?.now === "function" ? globalThis.performance.now() : Date.now();
+      resolvePredictionInputAction(event ?? new Event("input"), provisionalContext.beforeCursor, {
+        lastKeydownKey: this.entry.lastKeydownKey,
+        lastBeforeCursorText: this.entry.lastBeforeCursorText,
+      });
+    const predictionStartedAt = performance.now();
     const cursorContext = this.resolveEditableCursorContext(this.entry, snapshot, {
       hasMultipleBlockDescendants: resolvedHasMultipleBlockDescendants,
       inputAction,
       typedKey,
     });
-    const predictionContextDurationMs =
-      (typeof globalThis.performance?.now === "function"
-        ? globalThis.performance.now()
-        : Date.now()) - predictionStartedAt;
+    const predictionContextDurationMs = performance.now() - predictionStartedAt;
     const grammarEdit =
       !allowPredictionWithNonCollapsedSelection && cursorContext.safeForGrammar
         ? this.grammarCoordinator.run({
@@ -1061,15 +1045,15 @@ export class SuggestionEntrySession {
         }
 
         snapshot = TextTargetAdapter.snapshot(this.entry.elem);
-        if (this.shouldSkipPredictionForUnstableInputState(this.entry)) {
+        if (this.resolveUnstableInputSkipReason(this.entry) !== null) {
           this.handleSuppressedInput();
           return;
         }
         this.textEditService.syncManualAutoFixSuppression(this.entry, snapshot);
         if (this.entry.pendingExtensionEdit && !this.shouldPreservePendingExtensionEdit(snapshot)) {
-          this.clearPendingExtensionEdit();
+          this.entry.pendingExtensionEdit = null;
         }
-        this.syncAcceptedSuggestionTrailingSpaceState();
+        syncAcceptedSuggestionTrailingSpaceState(this.entry, this.contentEditableAdapter);
 
         if (
           this.dispatchAdjustedGrammarPrediction({
@@ -1149,10 +1133,7 @@ export class SuggestionEntrySession {
       this.scheduleIdleGrammar();
     }
 
-    const totalProcessingDurationMs =
-      (typeof globalThis.performance?.now === "function"
-        ? globalThis.performance.now()
-        : Date.now()) - processingStartedAt;
+    const totalProcessingDurationMs = performance.now() - processingStartedAt;
     if (!isTextValueTarget && totalProcessingDurationMs >= SLOW_INPUT_PROCESSING_LOG_THRESHOLD_MS) {
       logger.debug("Slow contenteditable input processing", {
         suggestionId: this.entry.id,
@@ -1228,7 +1209,7 @@ export class SuggestionEntrySession {
     return true;
   }
 
-  private acceptSuggestionInternal(suggestion: string): boolean {
+  public acceptSuggestion(suggestion: string): boolean {
     if (
       this.lastAcceptedSuggestion === suggestion &&
       this.entry.suppressNextSuggestionInputPrediction &&
@@ -1324,30 +1305,9 @@ export class SuggestionEntrySession {
     });
   }
 
-  private clearPendingExtensionEdit(): void {
-    this.entry.pendingExtensionEdit = null;
-  }
-
   private clearAcceptedSuggestionTransientState(): void {
     this.lastAcceptedSuggestion = null;
     clearAcceptedSuggestionTransientEntryState(this.entry);
-  }
-
-  private shouldInvalidatePendingExtensionEditOnKeydown(event: KeyboardEvent): boolean {
-    return shouldInvalidatePendingExtensionEditOnKeydownHelper(event);
-  }
-
-  private shouldDismissSuggestionsOnKeydown(event: KeyboardEvent): boolean {
-    return shouldDismissSuggestionsOnKeydownHelper(event);
-  }
-
-  private shouldReleaseAcceptedSuggestionSuppressionOnKeydown(event: KeyboardEvent): boolean {
-    return shouldReleaseAcceptedSuggestionSuppressionOnKeydownHelper({
-      event,
-      suppressNextSuggestionInputPrediction: this.entry.suppressNextSuggestionInputPrediction,
-      missingTrailingSpace: this.entry.missingTrailingSpace,
-      awaitingHostInputEcho: this.entry.pendingExtensionEdit?.awaitingHostInputEcho === true,
-    });
   }
 
   private shouldScheduleInsertFallback(event: KeyboardEvent): boolean {
@@ -1383,13 +1343,6 @@ export class SuggestionEntrySession {
       this.entry.hasMultipleBlockDescendants = true;
     }
     return hasMultipleBlockDescendants;
-  }
-
-  private resolveInputAction(event: Event, currentBeforeCursor: string): PredictionInputAction {
-    return resolvePredictionInputActionHelper(event, currentBeforeCursor, {
-      lastKeydownKey: this.entry.lastKeydownKey,
-      lastBeforeCursorText: this.entry.lastBeforeCursorText,
-    });
   }
 
   private resolveLocalGrammarTriggers(
@@ -1468,10 +1421,6 @@ export class SuggestionEntrySession {
     );
   }
 
-  private syncAcceptedSuggestionTrailingSpaceState(): void {
-    syncAcceptedSuggestionTrailingSpaceStateHelper(this.entry, this.contentEditableAdapter);
-  }
-
   private shouldDeferContentEditableInputToFallback(context: {
     beforeCursor: string;
     fullText: string;
@@ -1540,7 +1489,7 @@ export class SuggestionEntrySession {
   }
 
   private runIdleGrammar(): void {
-    if (!this.isFocused() || this.shouldSkipPredictionForUnstableInputState(this.entry)) {
+    if (!this.isFocused() || this.resolveUnstableInputSkipReason(this.entry) !== null) {
       return;
     }
     const snapshot = TextTargetAdapter.snapshot(this.entry.elem);

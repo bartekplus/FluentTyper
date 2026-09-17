@@ -34,7 +34,6 @@ export class DonationPromptPolicy {
       return {
         promptId: `weekly_recap_${weeklyRecap.weekKey}`,
         kind: "weekly_recap",
-        source: "weekly_recap",
         milestoneHours:
           weeklyRecap.milestonesCrossedHours[weeklyRecap.milestonesCrossedHours.length - 1] || null,
         message:
@@ -62,7 +61,6 @@ export class DonationPromptPolicy {
       return {
         promptId: "first_value",
         kind: "first_value",
-        source: "lifetime_threshold",
         milestoneHours: null,
         message:
           "You are saving real time already. If this helps your workflow, support FluentTyper.",
@@ -82,7 +80,6 @@ export class DonationPromptPolicy {
     return {
       promptId: `milestone_${nextMilestone}`,
       kind: "milestone",
-      source: "lifetime_threshold",
       milestoneHours: nextMilestone,
       message: `You just saved your ${ordinal} ${hoursLabel}. Buy the dev a coffee?`,
     };

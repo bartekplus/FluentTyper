@@ -72,24 +72,6 @@ describe("migrateSettingsV4", () => {
     expect(settings.store[KEY_GRAMMAR_RULES_V1_MIGRATED]).toBe(true);
   });
 
-  test("falls back to get/set when getRaw/setRaw are unavailable", async () => {
-    const store: Record<string, unknown> = {
-      [KEY_ENABLED_GRAMMAR_RULES]: ["spacingRule"],
-    };
-    const settings = {
-      get: async (key: string) => store[key] as never,
-      set: async (key: string, value: unknown) => {
-        store[key] = value;
-      },
-    } as unknown as SettingsManager;
-
-    await migrateSettingsV4(settings);
-
-    expect(store[KEY_ENABLED_GRAMMAR_RULES]).toEqual(RECOMMENDED_V1_GRAMMAR_RULES);
-    expect(store[KEY_GRAMMAR_RULES_V1_BACKUP]).toEqual(["spacingRule"]);
-    expect(store[KEY_GRAMMAR_RULES_V1_MIGRATED]).toBe(true);
-  });
-
   test("stores only string entries when existing value is a mixed array", async () => {
     const settings = createMockSettingsManager({
       [KEY_ENABLED_GRAMMAR_RULES]: ["spacingRule", 42, "spacingRule"],

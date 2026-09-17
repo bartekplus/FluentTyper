@@ -6,15 +6,14 @@ import {
 import { checkAutoCapitalize, Capitalization } from "./CapitalizationHelper";
 import { isNumber } from "@core/application/domain-utils";
 
-export const NEW_SENTENCE_CHARS = [".", "?", "!"];
-export const PAST_WORDS_COUNT = 5;
+const NEW_SENTENCE_CHARS = [".", "?", "!"];
+const PAST_WORDS_COUNT = 5;
 export const MIN_WORD_LENGTH_TO_PREDICT = 1;
 
 export class PredictionInputProcessor {
   readonly separatorCharRegex: RegExp;
   readonly keepPredCharRegex: RegExp;
   readonly whiteSpaceRegex: RegExp;
-  readonly letterRegex: RegExp;
   readonly minWordLengthToPredict: number;
   readonly autoCapitalize: boolean;
 
@@ -22,7 +21,6 @@ export class PredictionInputProcessor {
     this.separatorCharRegex = RegExp(DEFAULT_SEPARATOR_CHARS_REGEX);
     this.keepPredCharRegex = KEEP_PREDICTION_TOKEN_CHARS_REGEX;
     this.whiteSpaceRegex = /\s+/;
-    this.letterRegex = /^\p{L}/u;
     this.minWordLengthToPredict = minWordLengthToPredict;
     this.autoCapitalize = autoCapitalize;
   }

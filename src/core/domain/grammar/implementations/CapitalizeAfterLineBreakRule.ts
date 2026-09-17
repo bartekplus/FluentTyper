@@ -4,7 +4,6 @@ import { isLowercaseLetter } from "./helpers/GenericRuleShared";
 
 export class CapitalizeAfterLineBreakRule implements GrammarRule {
   readonly id = "capitalizeAfterLineBreak" as const;
-  readonly name = "Capitalize After Line Break";
   readonly triggers: GrammarEventType[] = ["insertChar"];
 
   apply(context: GrammarContext): GrammarEdit | null {
@@ -28,8 +27,6 @@ export class CapitalizeAfterLineBreakRule implements GrammarRule {
         replacement: lastChar.toUpperCase(),
         deleteBackwards: 1,
         deleteForwards: 0,
-        confidence: "high",
-        description: "Capitalized after line break",
       };
     }
 

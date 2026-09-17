@@ -23,7 +23,7 @@ interface LanguageState {
   enabledLanguages: string[];
 }
 
-export function clampNumSuggestions(value: unknown): number {
+function clampNumSuggestions(value: unknown): number {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     return 0;
   }

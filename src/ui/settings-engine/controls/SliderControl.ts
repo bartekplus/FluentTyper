@@ -13,11 +13,9 @@ import {
 export class SliderControl extends BaseControl<number> {
   private display?: HTMLOutputElement;
   private tooltip?: HTMLDivElement;
-  private readonly displayModifier?: (v: number) => string;
 
   constructor(params: SliderConfig, store: Store) {
     super(params, store);
-    this.displayModifier = params.displayModifier;
 
     const root = createFieldRoot();
     this._rootElement = root;
@@ -39,7 +37,6 @@ export class SliderControl extends BaseControl<number> {
       input.step = String(params.step);
     }
 
-    // Floating tooltip (UX improvement)
     const tooltip = document.createElement("div");
     tooltip.className = "slider-tooltip";
     this.tooltip = tooltip;
@@ -75,7 +72,6 @@ export class SliderControl extends BaseControl<number> {
       this.tooltip?.classList.remove("slider-tooltip--visible");
     });
 
-    // Load initial value, fallback to 0
     if (params.name !== undefined) {
       store
         .get(params.name)
@@ -88,12 +84,8 @@ export class SliderControl extends BaseControl<number> {
     }
   }
 
-  private formatValue(value: number): string {
-    return this.displayModifier ? this.displayModifier(value) : String(value);
-  }
-
   private updateDisplay(value: number, input: HTMLInputElement): void {
-    const formatted = this.formatValue(value);
+    const formatted = String(value);
     if (this.display) {
       this.display.innerText = formatted;
     }
@@ -114,9 +106,8 @@ export class SliderControl extends BaseControl<number> {
   set(value: number, silent?: boolean): this {
     (this._element as HTMLInputElement).value = String(value);
 
-    const formatted = this.formatValue(value);
     if (this.display) {
-      this.display.innerText = formatted;
+      this.display.innerText = String(value);
     }
 
     if (!silent) {

@@ -6,7 +6,7 @@ import type { SuggestionEntry } from "./types";
 /**
  * Narrow contenteditable surface used to validate accepted-suggestion trailing-space state.
  */
-export type SuggestionEntrySessionContentEditableAdapter = Pick<
+export type AcceptedSuggestionContentEditableAdapter = Pick<
   ContentEditableAdapter,
   "getActiveBlockElement" | "getBlockContext"
 >;
@@ -30,9 +30,6 @@ type AcceptedSuggestionSpaceState = Pick<
   | "expectedCursorPosBlockText"
 >;
 
-/**
- * Clears the transient state armed after a suggestion accept.
- */
 export function clearAcceptedSuggestionTransientState(
   state: AcceptedSuggestionTransientState,
 ): void {
@@ -80,9 +77,6 @@ export function resolveAcceptedSuggestionSpaceState(args: {
   };
 }
 
-/**
- * Returns true for keys that should dismiss the suggestion popup.
- */
 export function shouldDismissSuggestionsOnKeydown(
   event: Pick<KeyboardEvent, "key" | "metaKey" | "ctrlKey">,
 ): boolean {
@@ -92,9 +86,6 @@ export function shouldDismissSuggestionsOnKeydown(
   return ["ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"].includes(event.key);
 }
 
-/**
- * Returns true when the pending extension edit should be invalidated by the keydown.
- */
 export function shouldInvalidatePendingExtensionEditOnKeydown(
   event: Pick<
     KeyboardEvent,
@@ -148,7 +139,7 @@ export function shouldReleaseAcceptedSuggestionSuppressionOnKeydown(args: {
  */
 export function syncAcceptedSuggestionTrailingSpaceState(
   entry: SuggestionEntry,
-  contentEditableAdapter: SuggestionEntrySessionContentEditableAdapter,
+  contentEditableAdapter: AcceptedSuggestionContentEditableAdapter,
 ): void {
   if (!entry.missingTrailingSpace || !entry.expectedCursorPosIsBlockLocal) {
     return;

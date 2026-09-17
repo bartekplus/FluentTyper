@@ -17,7 +17,6 @@ describe("GrammarRuleEngine", () => {
 
     const rule1: GrammarRule = {
       id: "rule1",
-      name: "Rule 1",
       triggers: ["insertChar"],
       apply: () => {
         applyOrder.push("rule1");
@@ -27,7 +26,6 @@ describe("GrammarRuleEngine", () => {
 
     const rule2: GrammarRule = {
       id: "rule2",
-      name: "Rule 2",
       triggers: ["insertChar"],
       apply: () => {
         applyOrder.push("rule2");
@@ -48,7 +46,6 @@ describe("GrammarRuleEngine", () => {
 
     const rule1: GrammarRule = {
       id: "rule1",
-      name: "Rule 1",
       triggers: ["insertChar"],
       apply: () => {
         applyOrder.push("rule1");
@@ -58,7 +55,6 @@ describe("GrammarRuleEngine", () => {
 
     const rule2: GrammarRule = {
       id: "rule2",
-      name: "Rule 2",
       triggers: ["insertChar"],
       apply: () => {
         applyOrder.push("rule2");
@@ -77,7 +73,6 @@ describe("GrammarRuleEngine", () => {
   test("mergeEdits correctness across multiple rule applications", () => {
     const rule1: GrammarRule = {
       id: "rule1",
-      name: "Rule 1",
       triggers: ["insertChar"],
       apply: (ctx) => {
         if (ctx.beforeCursor.endsWith("a")) {
@@ -93,7 +88,6 @@ describe("GrammarRuleEngine", () => {
 
     const rule2: GrammarRule = {
       id: "rule2",
-      name: "Rule 2",
       triggers: ["insertChar"],
       apply: (ctx) => {
         if (ctx.afterCursor.startsWith("b")) {
@@ -121,7 +115,6 @@ describe("GrammarRuleEngine", () => {
       deleteBackwards: 1,
       deleteForwards: 1,
       sourceRuleId: "rule2",
-      description: "Merged edits",
     });
   });
 
@@ -129,7 +122,6 @@ describe("GrammarRuleEngine", () => {
     let runs = 0;
     const rule1: GrammarRule = {
       id: "incrementRule",
-      name: "Increment Rule",
       triggers: ["insertChar"],
       apply: (ctx) => {
         runs++;
@@ -163,7 +155,6 @@ describe("GrammarRuleEngine", () => {
   test("processSequence applies trigger outputs in order using shared merge semantics", () => {
     const insertRule: GrammarRule = {
       id: "rule1",
-      name: "Insert Rule",
       triggers: ["insertChar"],
       apply: (ctx) => {
         if (ctx.beforeCursor.endsWith("a")) {
@@ -179,7 +170,6 @@ describe("GrammarRuleEngine", () => {
 
     const boundaryRule: GrammarRule = {
       id: "rule2",
-      name: "Boundary Rule",
       triggers: ["wordBoundary"],
       apply: (ctx) => {
         if (ctx.afterCursor.startsWith("b")) {
@@ -210,7 +200,6 @@ describe("GrammarRuleEngine", () => {
       deleteBackwards: 1,
       deleteForwards: 1,
       sourceRuleId: "rule2",
-      description: "Merged edits",
     });
   });
 
@@ -218,7 +207,6 @@ describe("GrammarRuleEngine", () => {
     let invoked = false;
     const rule: GrammarRule = {
       id: "forwardDeleteRule",
-      name: "Forward Delete Rule",
       triggers: ["insertChar"],
       apply: () => {
         if (invoked) {
@@ -261,10 +249,7 @@ describe("GrammarRuleEngine", () => {
         replacement: ", ",
         deleteBackwards: 14,
         deleteForwards: 0,
-        confidence: "medium",
         sourceRuleId: "duplicatePunctuationCollapse",
-        safetyTier: "advanced",
-        description: "Merged edits",
       },
     ]);
   });
@@ -284,10 +269,7 @@ describe("GrammarRuleEngine", () => {
         replacement: ", ",
         deleteBackwards: 12,
         deleteForwards: 0,
-        confidence: "medium",
         sourceRuleId: "duplicatePunctuationCollapse",
-        safetyTier: "advanced",
-        description: "Merged edits",
       },
     ]);
   });
@@ -320,10 +302,7 @@ describe("GrammarRuleEngine", () => {
           replacement: `,${filler}`,
           deleteBackwards: 4,
           deleteForwards: 0,
-          confidence: "medium",
           sourceRuleId: "duplicatePunctuationCollapse",
-          safetyTier: "advanced",
-          description: "Merged edits",
         },
       ]);
     }

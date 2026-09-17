@@ -1,3 +1,4 @@
+import { clampColorChannel, relativeLuminance } from "@core/domain/color";
 import type { SettingsRegistry } from "@ui/settings-engine/SettingsEngine.js";
 import {
   KEY_SELECT_BY_DIGIT,
@@ -19,8 +20,8 @@ import { i18n } from "./fluenttyperI18n.js";
 import {
   bindRerender,
   createStackField,
-  createWorkspaceGrid,
   createWorkspaceShell,
+  formatLooseText,
 } from "./workspacePanelUtils.js";
 
 type ThemePreset = Record<string, string>;
@@ -46,10 +47,6 @@ type ThemeKey = (typeof THEME_KEYS)[number];
 const LIGHT_THEME_CANVAS = "#ffffff";
 const DARK_THEME_CANVAS = "#020617";
 
-function clampChannel(value: number): number {
-  return Math.max(0, Math.min(255, Math.round(value)));
-}
-
 function clampAlpha(value: number): number {
   return Math.max(0, Math.min(1, value));
 }
@@ -63,22 +60,12 @@ function normalizeAlphaString(alpha: number): string {
 
 function parseRgbPart(value: string): number | null {
   const numericValue = Number.parseFloat(value);
-  return Number.isFinite(numericValue) ? clampChannel(numericValue) : null;
+  return Number.isFinite(numericValue) ? clampColorChannel(numericValue) : null;
 }
 
 function parseAlphaPart(value: string): number | null {
   const numericValue = Number.parseFloat(value);
   return Number.isFinite(numericValue) ? clampAlpha(numericValue) : null;
-}
-
-function readThemeValue(value: unknown): string {
-  if (typeof value === "string") {
-    return value;
-  }
-  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
-    return String(value);
-  }
-  return "";
 }
 
 export function parseThemeColor(rawValue: string): RGBAColor | null {
@@ -137,24 +124,24 @@ export function parseThemeColor(rawValue: string): RGBAColor | null {
   return { r, g, b, a };
 }
 
-export function toOpaqueHex(color: RGBAColor): string {
+function toOpaqueHex(color: RGBAColor): string {
   return `#${[color.r, color.g, color.b]
-    .map((channel) => clampChannel(channel).toString(16).padStart(2, "0"))
+    .map((channel) => clampColorChannel(channel).toString(16).padStart(2, "0"))
     .join("")}`;
 }
 
 function toAlphaHex(color: RGBAColor): string {
   return `#${[color.r, color.g, color.b, Math.round(clampAlpha(color.a) * 255)]
-    .map((channel) => clampChannel(channel).toString(16).padStart(2, "0"))
+    .map((channel) => clampColorChannel(channel).toString(16).padStart(2, "0"))
     .join("")}`;
 }
 
 function toRgbString(color: RGBAColor): string {
-  return `rgb(${clampChannel(color.r)}, ${clampChannel(color.g)}, ${clampChannel(color.b)})`;
+  return `rgb(${clampColorChannel(color.r)}, ${clampColorChannel(color.g)}, ${clampColorChannel(color.b)})`;
 }
 
 function toRgbaString(color: RGBAColor): string {
-  return `rgba(${clampChannel(color.r)}, ${clampChannel(color.g)}, ${clampChannel(color.b)}, ${normalizeAlphaString(color.a)})`;
+  return `rgba(${clampColorChannel(color.r)}, ${clampColorChannel(color.g)}, ${clampColorChannel(color.b)}, ${normalizeAlphaString(color.a)})`;
 }
 
 export function getColorPickerValue(rawValue: string): string {
@@ -162,7 +149,7 @@ export function getColorPickerValue(rawValue: string): string {
   return parsed ? toOpaqueHex(parsed) : "#000000";
 }
 
-export function isThemeColorEditableWithPicker(rawValue: string): boolean {
+function isThemeColorEditableWithPicker(rawValue: string): boolean {
   return parseThemeColor(rawValue) !== null;
 }
 
@@ -185,10 +172,7 @@ export function mergeColorPickerValue(pickerHex: string, previousRawValue: strin
   if (previousValue.startsWith("rgb(")) {
     return toRgbString(nextColor);
   }
-  if (previousValue.startsWith("#") && previousValue.length === 5) {
-    return toAlphaHex(nextColor);
-  }
-  if (previousValue.startsWith("#") && previousValue.length === 9) {
+  if (previousValue.startsWith("#") && (previousValue.length === 5 || previousValue.length === 9)) {
     return toAlphaHex(nextColor);
   }
   if (previous.a < 1) {
@@ -237,14 +221,6 @@ export function calculateThemeContrast(
   return (lighter + 0.05) / (darker + 0.05);
 }
 
-function relativeLuminance(color: RGBAColor): number {
-  const channels = [color.r, color.g, color.b].map((channel) => {
-    const normalized = clampChannel(channel) / 255;
-    return normalized <= 0.03928 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
-  });
-  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
-}
-
 export class AppearanceStudio {
   private readonly root: HTMLElement;
   private readonly registry: SettingsRegistry;
@@ -267,10 +243,10 @@ export class AppearanceStudio {
   render(): void {
     const theme = this.readThemeValues();
     const shell = createWorkspaceShell();
-    const topGrid = createWorkspaceGrid("workspace-main-grid");
+    const topGrid = createWorkspaceShell("workspace-main-grid");
     topGrid.append(this.createPresetCards(), this.createPreviewCard(theme));
 
-    const lowerGrid = createWorkspaceGrid("workspace-main-grid");
+    const lowerGrid = createWorkspaceShell("workspace-main-grid");
     lowerGrid.append(this.createTypographyCard(theme), this.createContrastWarnings(theme));
 
     shell.append(topGrid, lowerGrid, this.createAdvancedColors(theme));
@@ -579,7 +555,7 @@ export class AppearanceStudio {
   private readThemeValues(): Record<ThemeKey, string> {
     return THEME_KEYS.reduce(
       (acc, key) => {
-        acc[key] = readThemeValue(this.registry[key].get());
+        acc[key] = formatLooseText(this.registry[key].get());
         return acc;
       },
       {} as Record<ThemeKey, string>,
@@ -628,8 +604,6 @@ export class AppearanceStudio {
       theme[KEY_SUGGESTION_PADDING_HORIZONTAL],
     );
     preview.style.color = text;
-
-    preview.setAttribute("data-mode", this.previewMode);
   }
 
   private updateContrastWarnings(theme: Record<ThemeKey, string>): void {
@@ -637,7 +611,7 @@ export class AppearanceStudio {
       return;
     }
     this.liveContrastSection
-      .querySelectorAll(".settings-inline-help")
+      .querySelectorAll(".appearance-contrast-warning")
       .forEach((item) => item.remove());
 
     const warnings = [
@@ -677,7 +651,7 @@ export class AppearanceStudio {
 
     warnings.forEach((warning) => {
       const item = document.createElement("p");
-      item.className = "settings-inline-help";
+      item.className = "settings-inline-help appearance-contrast-warning";
       item.textContent = `${warning.label}: ${this.describeContrast(warning.ratio)}`;
       this.liveContrastSection?.appendChild(item);
     });

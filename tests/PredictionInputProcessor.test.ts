@@ -18,7 +18,6 @@ describe("PredictionInputProcessor", () => {
       expect(processor.separatorCharRegex).toBeInstanceOf(RegExp);
       expect(processor.keepPredCharRegex).toBeInstanceOf(RegExp);
       expect(processor.whiteSpaceRegex).toBeInstanceOf(RegExp);
-      expect(processor.letterRegex).toBeInstanceOf(RegExp);
     });
   });
 
