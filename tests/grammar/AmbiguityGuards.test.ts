@@ -63,6 +63,23 @@ describe("default-on rules never rewrite ambiguous input", () => {
     "He said (quietly) that it works ",
     "Call foo(bar) now ",
     "Use arr[0] here ",
+    // Suffixes and signs, not arithmetic.
+    "100+ users ",
+    "Requires Node 18+ to run ",
+    "Call +1 555 123 4567 ",
+    // Flags, env vars and query strings, not assignment spacing.
+    "Run --port=8080 now ",
+    "FOO=bar npm start ",
+    // A markdown checkbox, not an empty bracket pair.
+    "- [ ] todo item ",
+    // A label, not a URL scheme.
+    "Path: /home/user ",
+    // Titles and company forms are abbreviations.
+    "Mr. and Mrs. Smith ",
+    "Apple Inc. is a company ",
+    "John Smith, Ph.D. is here ",
+    // A capitalized name, not a missing apostrophe.
+    "Jony Ive said ",
     // Consecutive periods: a relative path or an ellipsis, never sentence spacing.
     "Spread [...arr] here ",
     "Call f(...args) now ",
@@ -106,6 +123,12 @@ describe("unambiguous corrections still apply", () => {
     // eaten by that same cleanup. Better than "Path. ./. ./src"; not perfect.
     ["Path ../../src here ", "Path../../src here "],
     ["see [link](http://x.test) here ", "See [link](http://x.test) here "],
+    // "d" and "g" are not a day and a gram in prose.
+    ["a 3d printer ", "A 3d printer "],
+    ["the 5g network ", "The 5g network "],
+    // ponytail: known-wrong. "Chapter 3: 5 tips" reads as a clock because the
+    // minute digit that would disprove it is not typed yet.
+    ["Chapter 3: 5 tips ", "Chapter 3:5 tips "],
   ])
     test(input, () => expect(type(input)).toBe(expected));
 });
@@ -138,6 +161,12 @@ describe("non-English locales keep their punctuation", () => {
       "Tekst (cicho) dziala ",
     ])
       test(`${lang} ${input}`, () => expect(type(input, lang)).toBe(input));
+
+  test("ordinals keep their period", () => {
+    expect(type("der 1. und 2. Platz ", "de_DE")).toBe("Der 1. und 2. Platz ");
+    expect(type("el 1.\u00ba de mayo ", "es_ES")).toBe("El 1.\u00ba de mayo ");
+    expect(type("np. to jest ", "pl_PL")).toBe("Np. to jest ");
+  });
 
   test("a space before a comma is still removed in every locale", () => {
     expect(type("Bonjour , le monde ", "fr_FR")).toBe("Bonjour, le monde ");

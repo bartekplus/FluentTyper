@@ -21,6 +21,12 @@ export class ClosingBracketSpacingRule extends SpacingRuleShared implements Gram
 
     const prevChar = inputStr[closingIndex - 1];
     const hasSpaceBefore = SPACE_CHARS.includes(prevChar);
+
+    // "- [ ] todo": an empty pair is a markdown checkbox, not prose spacing.
+    const openingChar = this.getOpeningBracket(closingBracket);
+    if (openingChar && hasSpaceBefore && inputStr[closingIndex - 2] === openingChar) {
+      return null;
+    }
     const spaceBeforeViolated = hasSpaceBefore;
     const insertSpaceAfter =
       this.insertSpaceAfterAutocomplete &&

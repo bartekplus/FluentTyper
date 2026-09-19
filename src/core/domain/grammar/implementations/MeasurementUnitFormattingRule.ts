@@ -31,7 +31,9 @@ export class MeasurementUnitFormattingRule implements GrammarRule {
       !parsed ||
       parsed.unitStart !== parsed.numberEnd ||
       // Single capital letters also denote grades, models, resolutions, and names.
-      /^[A-Z]$/.test(prefixAndExpression.slice(parsed.unitStart)) ||
+      // Single capitals denote grades and resolutions; "3d" and "5g" are not
+      // a day and a gram either.
+      /^([A-Z]|[dg])$/.test(prefixAndExpression.slice(parsed.unitStart)) ||
       !isProsePrefix(prefixAndExpression.slice(0, parsed.start))
     ) {
       return null;

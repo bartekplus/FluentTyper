@@ -18,18 +18,56 @@ const ABBREVIATIONS = new Set([
   "est",
   "min",
   "max",
+  // Titles and company forms.
+  "mr",
+  "mrs",
+  "ms",
+  "dr",
+  "prof",
+  "jr",
+  "sr",
+  "inc",
+  "ltd",
+  "co",
+  "corp",
+  "dept",
+  "univ",
+  "ave",
+  "blvd",
+  // de_DE, pl_PL, es/pt, sv_SE, hr_HR.
+  "usw",
+  "bzw",
+  "evtl",
+  "ggf",
+  "vgl",
+  "inkl",
+  "np",
+  "tzn",
+  "itd",
+  "itp",
+  "tj",
+  "tys",
+  "sra",
+  "ej",
+  "dvs",
+  "osv",
+  "npr",
+  "tzv",
 ]);
 
 /** True when the period at `index` closes an initial or a known abbreviation. */
-function closesAbbreviation(text: string, index: number): boolean {
+// Locales that write ordinals as "1." inside a sentence ("der 1. und 2. Platz").
+const ORDINAL_PERIOD_LOCALES = new Set(["de_DE", "hr_HR", "pl_PL", "sv_SE"]);
+
+function closesAbbreviation(text: string, index: number, lang?: string): boolean {
   let start = index;
   while (start > 0 && /[\p{L}\p{N}.]/u.test(text[start - 1])) {
     start -= 1;
   }
   const token = text.slice(start, index);
   if (!/\p{L}/u.test(token)) {
-    // "2026." and "12." end sentences; only lettered tokens abbreviate.
-    return false;
+    // "2026." and "12." end sentences in English; elsewhere they are ordinals.
+    return token.length > 0 && ORDINAL_PERIOD_LOCALES.has(lang ?? "");
   }
   return token.length <= 1 || token.includes(".") || ABBREVIATIONS.has(token.toLowerCase());
 }
@@ -73,7 +111,7 @@ export class CapitalizeSentenceStartRule implements GrammarRule {
       i >= 0 &&
       SENTENCE_ENDING_CHARS.has(text[i]) &&
       hadWhitespaceGap &&
-      !(text[i] === "." && closesAbbreviation(text, i))
+      !(text[i] === "." && closesAbbreviation(text, i, context.hints?.lang))
     ) {
       return {
         replacement: lastChar.toUpperCase(),

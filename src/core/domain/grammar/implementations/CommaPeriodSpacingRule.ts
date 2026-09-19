@@ -4,6 +4,18 @@ import { resolveInputAction } from "./helpers/GenericRuleShared";
 import { SpacingRuleShared } from "./helpers/SpacingRuleShared";
 import { resolveMeasurementLocale } from "../measurement/registry";
 
+/** True when the period at `index` closes an initial or a short abbreviation. */
+function closesAbbreviation(text: string, index: number): boolean {
+  let start = index;
+  while (start > 0 && /[A-Za-z]/.test(text[start - 1])) {
+    start -= 1;
+  }
+  const token = text.slice(start, index);
+  // "e.g", "p.m", "U.S" and "Ph.D", "Mr", "St": one letter, or two with a
+  // capital, reads as an abbreviation at least as often as a sentence end.
+  return token.length <= 1 || (token.length <= 2 && /^[A-Z]/.test(token));
+}
+
 export class CommaPeriodSpacingRule extends SpacingRuleShared implements GrammarRule {
   readonly id = "commaPeriodSpacing" as const;
   readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
@@ -33,7 +45,9 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
 
     // The continuation is a letter (prose resumes) or a space the user typed,
     // which also rules out "..." and "../".
-    const letterContinuation = /^\p{L}$/u.test(lastChar) && !/^[eE]$/u.test(lastChar);
+    // "1.º", "2.ª", "3.°" are ordinal markers, not a word resuming.
+    const letterContinuation =
+      /^\p{L}$/u.test(lastChar) && !/^[eE]$/u.test(lastChar) && !/^[ºª°]$/u.test(lastChar);
     const spaceContinuation = continuation === " ";
     if (
       canDefer &&
@@ -52,8 +66,12 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
         context.hints?.measurementContext === "prose" &&
         resolveMeasurementLocale(context.hints.lang) &&
         /(?:^|[\s([{])[-+]?\d+(?:[.,]\d*)?$/u.test(prefix);
-      // A period closing a word: prose resumes, so the deferred space goes in.
-      const wordContinuation = punctuation === "." && /\p{L}\p{L}$/u.test(prefix);
+      // A period closing a word: prose resumes, so the deferred space goes in,
+      // unless that word is an abbreviation ("Ph.D", "e.g").
+      const wordContinuation =
+        punctuation === "." &&
+        /\p{L}\p{L}$/u.test(prefix) &&
+        !closesAbbreviation(inputStr, punctuationIndex);
       // Nothing to do when the text already reads correctly.
       const wouldChange = spacesBefore > 0 || letterContinuation;
       if (wouldChange && ((numericContinuation && spacesBefore === 0) || wordContinuation)) {
@@ -99,11 +117,12 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
 
     // "e.g", "p.m", "U.S": a period after a one-letter token is an abbreviation
     // as often as a sentence end, so never insert the space for the user.
+    // "Ph.D", "Mr", "St": a short capitalized token abbreviates just as often.
     if (
       !spaceBeforeViolated &&
       lastChar === "." &&
       /[A-Za-z]/.test(previousSignificantChar) &&
-      !/[A-Za-z]/.test(inputStr[i - 1] ?? "")
+      closesAbbreviation(inputStr, i + 1)
     ) {
       return null;
     }

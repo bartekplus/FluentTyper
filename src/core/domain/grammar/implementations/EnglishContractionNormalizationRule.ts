@@ -51,6 +51,15 @@ export class EnglishContractionNormalizationRule implements GrammarRule {
       return null;
     }
     const normalizedInput = tokenInfo.token.toLowerCase();
+    // "Jony Ive", "Ada Ill": a capitalized token following another capitalized
+    // word is a name, not a contraction someone forgot an apostrophe in.
+    if (/^[A-Z][a-z]/.test(tokenInfo.token)) {
+      const before = tokenInfo.core.slice(0, tokenInfo.tokenStart).trimEnd();
+      if (/[A-Z][a-z]*$/.test(before)) {
+        return null;
+      }
+    }
+
     // "IM" is an acronym, not a missing apostrophe. Unambiguous forms such as
     // "DONT" stay corrected.
     if (
