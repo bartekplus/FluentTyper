@@ -2,11 +2,18 @@ import { describe, expect, test } from "bun:test";
 import { GrammarRuleEngine } from "../../src/core/domain/grammar/GrammarRuleEngine";
 import { applyGrammarEditToContext } from "../../src/core/domain/grammar/GrammarEditSequencing";
 import { createGrammarRuleCatalogRuntime } from "../../src/core/domain/grammar/ruleFactory";
-import { DEFAULT_CURRENT_GRAMMAR_RULES } from "../../src/core/domain/grammar/ruleCatalog";
+import {
+  DEFAULT_CURRENT_GRAMMAR_RULES,
+  GRAMMAR_RULE_IDS,
+} from "../../src/core/domain/grammar/ruleCatalog";
 import type { GrammarContext } from "../../src/core/domain/grammar/types";
 
-/** Types `input` one character at a time through every default-on rule. */
-function type(input: string, lang = "en_US"): string {
+/** Types `input` one character at a time through the given rules. */
+function type(
+  input: string,
+  lang = "en_US",
+  rules: readonly string[] = DEFAULT_CURRENT_GRAMMAR_RULES,
+): string {
   const engine = new GrammarRuleEngine();
   for (const rule of createGrammarRuleCatalogRuntime({
     insertSpaceAfterAutocomplete: true,
@@ -23,7 +30,7 @@ function type(input: string, lang = "en_US"): string {
     const edits = engine.process(
       char === " " || char === "\n" ? "wordBoundary" : "insertChar",
       context,
-      DEFAULT_CURRENT_GRAMMAR_RULES,
+      [...rules],
     );
     for (const edit of edits) context = applyGrammarEditToContext(context, edit);
   }
@@ -56,6 +63,12 @@ describe("default-on rules never rewrite ambiguous input", () => {
     "He said (quietly) that it works ",
     "Call foo(bar) now ",
     "Use arr[0] here ",
+    // Consecutive periods: a relative path or an ellipsis, never sentence spacing.
+    "Path ../../src here ",
+    "Spread [...arr] here ",
+    "Call f(...args) now ",
+    "Hmm... ok ",
+    "Ratio 1.5 and 2.5 ",
   ])
     test(input, () => expect(type(input)).toBe(input));
 });
@@ -88,4 +101,39 @@ describe("unambiguous corrections still apply", () => {
     ["see [link](http://x.test) here ", "See [link](http://x.test) here "],
   ])
     test(input, () => expect(type(input)).toBe(expected));
+});
+
+describe("advanced opt-in rules never rewrite code punctuation", () => {
+  const all = GRAMMAR_RULE_IDS;
+  for (const input of [
+    // "::" is a scope operator, not a doubled colon.
+    "Std::vector<int> x ",
+    "Ratio a::b here ",
+    // Spread syntax, not an ellipsis.
+    "Spread [...arr] here ",
+    "Call f(...args) now ",
+  ])
+    test(input, () => expect(type(input, "en_US", all)).toBe(input));
+
+  test("the prose forms still convert", () => {
+    expect(type("Hmm... ok ", "en_US", all)).toBe("Hmm\u2026 ok ");
+    expect(type("Csv a,,b here ", "en_US", all)).toBe("Csv a, b here ");
+  });
+});
+
+describe("non-English locales keep their punctuation", () => {
+  for (const lang of ["fr_FR", "de_DE", "pl_PL", "es_ES", "sv_SE", "el_GR", "hr_HR", "pt_BR"])
+    for (const input of [
+      "Il a dit : oui ",
+      "Prix 1,50 euros ",
+      "Kosten 1.234,56 Euro ",
+      "Voir ../../src ici ",
+      "Zobacz [link](http://x.test) tutaj ",
+      "Tekst (cicho) dziala ",
+    ])
+      test(`${lang} ${input}`, () => expect(type(input, lang)).toBe(input));
+
+  test("a space before a comma is still removed in every locale", () => {
+    expect(type("Bonjour , le monde ", "fr_FR")).toBe("Bonjour, le monde ");
+  });
 });

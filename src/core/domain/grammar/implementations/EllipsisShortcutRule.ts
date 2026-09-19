@@ -19,6 +19,10 @@ export class EllipsisShortcutRule implements GrammarRule {
     if (shouldSkipGenericReplacement(prefix)) {
       return null;
     }
+    // "[...arr]", "f(...args)", "{...rest}": spread syntax, not an ellipsis.
+    if (/[[({]$/.test(prefix)) {
+      return null;
+    }
 
     return {
       replacement: "…",

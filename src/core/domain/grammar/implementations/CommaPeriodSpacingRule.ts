@@ -23,22 +23,43 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
     const continuation = deferredExponent ? inputStr.slice(-2) : lastChar;
     const punctuationIndex = length - continuation.length - 1;
     const punctuation = inputStr[punctuationIndex];
-    if (
+    // Only where a deferred decision can still be completed; suppressing the
+    // space anywhere else would drop it for good.
+    const canDefer =
       this.insertSpaceAfterAutocomplete &&
       !context.afterCursor &&
       !context.hints?.isPaste &&
-      resolveInputAction(context) === "insert" &&
-      context.hints?.measurementContext === "prose" &&
-      resolveMeasurementLocale(context.hints.lang) &&
+      resolveInputAction(context) === "insert";
+
+    // The continuation is a letter (prose resumes) or a space the user typed,
+    // which also rules out "..." and "../".
+    const letterContinuation = /^\p{L}$/u.test(lastChar) && !/^[eE]$/u.test(lastChar);
+    const spaceContinuation = continuation === " ";
+    if (
+      canDefer &&
       (punctuation === "." || punctuation === ",") &&
-      /^\p{L}$/u.test(lastChar) &&
-      !/^[eE]$/u.test(lastChar)
+      (letterContinuation || spaceContinuation)
     ) {
-      const numericPrefix = inputStr.slice(Math.max(0, punctuationIndex - 34), punctuationIndex);
-      if (/(?:^|[\s([{])[-+]?\d+(?:[.,]\d*)?$/u.test(numericPrefix)) {
+      // A deferred period may have had spaces before it ("path ."); the repair
+      // reclaims them so the result matches the immediate edit.
+      let spacesBefore = 0;
+      while (SPACE_CHARS.includes(inputStr[punctuationIndex - 1 - spacesBefore] ?? "")) {
+        spacesBefore += 1;
+      }
+      const prefixEnd = punctuationIndex - spacesBefore;
+      const prefix = inputStr.slice(Math.max(0, prefixEnd - 34), prefixEnd);
+      const numericContinuation =
+        context.hints?.measurementContext === "prose" &&
+        resolveMeasurementLocale(context.hints.lang) &&
+        /(?:^|[\s([{])[-+]?\d+(?:[.,]\d*)?$/u.test(prefix);
+      // A period closing a word: prose resumes, so the deferred space goes in.
+      const wordContinuation = punctuation === "." && /\p{L}\p{L}$/u.test(prefix);
+      // Nothing to do when the text already reads correctly.
+      const wouldChange = spacesBefore > 0 || letterContinuation;
+      if (wouldChange && ((numericContinuation && spacesBefore === 0) || wordContinuation)) {
         return this.createEdit(
           `${punctuation} ${continuation}`,
-          punctuation.length + continuation.length,
+          spacesBefore + punctuation.length + continuation.length,
         );
       }
     }
@@ -84,6 +105,25 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
       /[A-Za-z]/.test(previousSignificantChar) &&
       !/[A-Za-z]/.test(inputStr[i - 1] ?? "")
     ) {
+      return null;
+    }
+
+    // A period may still be the first of "...", of a spread operator, or of a
+    // relative path. Wait: the next character resumes prose or it does not, and
+    // an ellipsis, "[...arr]" and "../../src" survive untouched either way.
+    // A period that does not close a word is never sentence punctuation:
+    // "[...arr]", "f(...args)", "../src". This holds even mid-text, where the
+    // deferral below cannot run because the decision can never be revisited.
+    if (
+      lastChar === "." &&
+      !spaceBeforeViolated &&
+      previousSignificantChar !== "" &&
+      !/[\p{L}\p{N}]/u.test(previousSignificantChar)
+    ) {
+      return null;
+    }
+
+    if (canDefer && lastChar === ".") {
       return null;
     }
 

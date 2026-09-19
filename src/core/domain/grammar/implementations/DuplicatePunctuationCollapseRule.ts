@@ -5,7 +5,9 @@ import { shouldSkipGenericReplacement, splitTrailingSpaces } from "./helpers/Gen
 export class DuplicatePunctuationCollapseRule implements GrammarRule {
   readonly id = "duplicatePunctuationCollapse" as const;
   readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
-  private static readonly COLLAPSIBLE_PUNCTUATION = new Set([",", ";", ":"]);
+  // ":" is excluded: "std::vector" and "a::b" are scope operators, and nothing
+  // available here separates them from a doubled prose colon.
+  private static readonly COLLAPSIBLE_PUNCTUATION = new Set([",", ";"]);
   apply(context: GrammarContext): GrammarEdit | null {
     const input = context.beforeCursor;
     if (input.length < 2) {
