@@ -126,11 +126,11 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
       return this.createEdit(".", spaceRunLength + 1);
     }
 
-    // A period the user typed after a space ("path ../..") may open a relative
-    // path rather than close a sentence; wait for the character that says which.
-    if (canDefer && lastChar === "." && spaceBeforeViolated) {
-      return null;
-    }
+    // ponytail: "path ../.." still loses the space before the path, because
+    // nothing here records whether the space was the user's or ours. Deferring
+    // instead would delay the much commoner "Hello ." cleanup, so this keeps
+    // the periods intact and accepts the lost space. Revisit if the engine ever
+    // carries edit provenance.
 
     // Repeated punctuation bursts (",,,,", ", , ,") should be handled by
     // duplicate-collapse logic; avoid emitting spacing edits that can create
