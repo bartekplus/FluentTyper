@@ -123,6 +123,20 @@ bun run test:e2e:dev --platform=firefox
 
 # Cross-browser smoke (recommended):
 bun run test:e2e --platform=firefox
+
+# A single browser test, for debugging:
+RUN_E2E=1 E2E_SUITE=full bun test tests/e2e/full.e2e.test.ts -t "<test name>"
+```
+
+If Chrome fails to launch with `dlopen ... Google Chrome for Testing Framework
+(no such file)`, puppeteer's installer extracted a stub. Check the size — a
+working install is around 350 MB, a stub around 450 KB — and extract the
+downloaded archive yourself:
+
+```bash
+cd ~/.cache/puppeteer/chrome
+rm -rf mac_arm-<version> && mkdir mac_arm-<version>
+unzip -q <version>-chrome-mac-arm64.zip -d mac_arm-<version>
 ```
 
 ### Autofix
