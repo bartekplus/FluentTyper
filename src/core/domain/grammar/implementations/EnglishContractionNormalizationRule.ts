@@ -9,10 +9,7 @@ import { applyWordCase, detectWordCase } from "./helpers/GenericRuleShared";
 const ENGLISH_CONTRACTION_MAP: Record<string, string> = {
   im: "i'm",
   ive: "i've",
-  ill: "i'll",
   dont: "don't",
-  cant: "can't",
-  wont: "won't",
   isnt: "isn't",
   arent: "aren't",
   wasnt: "wasn't",
@@ -27,7 +24,9 @@ const ENGLISH_CONTRACTION_MAP: Record<string, string> = {
   wouldnt: "wouldn't",
   mustnt: "mustn't",
 };
-const FORCE_PRONOUN_I_PREFIX = new Set(["im", "ive", "ill"]);
+// "ill", "cant" and "wont" are ordinary English words; expanding them corrupts
+// valid input, and no context available here disambiguates them.
+const FORCE_PRONOUN_I_PREFIX = new Set(["im", "ive"]);
 
 export class EnglishContractionNormalizationRule implements GrammarRule {
   readonly id = "englishContractionNormalization" as const;
@@ -51,8 +50,16 @@ export class EnglishContractionNormalizationRule implements GrammarRule {
     if (!canonical) {
       return null;
     }
-
     const normalizedInput = tokenInfo.token.toLowerCase();
+    // "IM" is an acronym, not a missing apostrophe. Unambiguous forms such as
+    // "DONT" stay corrected.
+    if (
+      FORCE_PRONOUN_I_PREFIX.has(normalizedInput) &&
+      tokenInfo.token === tokenInfo.token.toUpperCase()
+    ) {
+      return null;
+    }
+
     let normalizedToken = applyWordCase(canonical, detectWordCase(tokenInfo.token));
     if (
       FORCE_PRONOUN_I_PREFIX.has(normalizedInput) &&

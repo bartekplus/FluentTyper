@@ -1,0 +1,72 @@
+import { describe, expect, test } from "bun:test";
+import { GrammarRuleEngine } from "../../src/core/domain/grammar/GrammarRuleEngine";
+import { applyGrammarEditToContext } from "../../src/core/domain/grammar/GrammarEditSequencing";
+import { createGrammarRuleCatalogRuntime } from "../../src/core/domain/grammar/ruleFactory";
+import { DEFAULT_CURRENT_GRAMMAR_RULES } from "../../src/core/domain/grammar/ruleCatalog";
+import type { GrammarContext } from "../../src/core/domain/grammar/types";
+
+/** Types `input` one character at a time through every default-on rule. */
+function type(input: string, lang = "en_US"): string {
+  const engine = new GrammarRuleEngine();
+  for (const rule of createGrammarRuleCatalogRuntime({
+    insertSpaceAfterAutocomplete: true,
+    userDictionaryList: [],
+  }))
+    engine.registerRule(rule);
+  let context: GrammarContext = {
+    beforeCursor: "",
+    afterCursor: "",
+    hints: { lang, inputAction: "insert", measurementContext: "prose" },
+  };
+  for (const char of input) {
+    context.beforeCursor += char;
+    const edits = engine.process(
+      char === " " || char === "\n" ? "wordBoundary" : "insertChar",
+      context,
+      DEFAULT_CURRENT_GRAMMAR_RULES,
+    );
+    for (const edit of edits) context = applyGrammarEditToContext(context, edit);
+  }
+  return context.beforeCursor;
+}
+
+describe("default-on rules never rewrite ambiguous input", () => {
+  for (const input of [
+    // Abbreviations, not sentence ends.
+    "Use fruit e.g. apples and pears ",
+    "Use fruit i.e. apples here ",
+    "Buy milk etc. and bread ",
+    "Java vs. python here ",
+    "We left at 5 p.m. and came back ",
+    // "of course" after a modal is valid English.
+    "You must of course agree ",
+    "We should of course try ",
+    "They could of necessity leave ",
+    // Possessive "your", not the phrase.
+    "Your welcome package arrived ",
+    // Ordinary English words that look like contractions.
+    "I feel ill today ",
+    "As is his wont he left ",
+    "The cant of the deck ",
+    // Acronym, not a contraction.
+    "Please IM me later ",
+    // A sentence boundary, not a decimal.
+    "We sold 12. 5 were returned ",
+  ])
+    test(input, () => expect(type(input)).toBe(input));
+});
+
+describe("unambiguous corrections still apply", () => {
+  for (const [input, expected] of [
+    ["and so did i. Then we left ", "And so did I. Then we left "],
+    ["They could of gone ", "They could have gone "],
+    ["Your welcome! ", "You're welcome! "],
+    ["I dont know ", "I don't know "],
+    ["im going now ", "I'm going now "],
+    ["I have alot to do ", "I have a lot to do "],
+    ["Their is a problem ", "There is a problem "],
+    ["Meeting at 9: 30 today ", "Meeting at 9:30 today "],
+    ["we sold 2026. next year ", "We sold 2026. Next year "],
+  ])
+    test(input, () => expect(type(input)).toBe(expected));
+});

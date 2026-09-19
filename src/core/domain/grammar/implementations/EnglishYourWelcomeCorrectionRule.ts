@@ -28,6 +28,12 @@ export class EnglishYourWelcomeCorrectionRule implements GrammarRule {
       return null;
     }
 
+    // "Your welcome email arrived" is possessive; only the sentence-final phrase
+    // is unambiguously "you're welcome".
+    if (!/^[.!?\n]/.test(boundaryContext.trailing)) {
+      return null;
+    }
+
     const firstToken = phrase.split(/\s+/)[0] || "your";
     const style = detectWordCase(firstToken);
     const correctedFirst = style === "upper" ? "YOU'RE" : style === "title" ? "You're" : "you're";

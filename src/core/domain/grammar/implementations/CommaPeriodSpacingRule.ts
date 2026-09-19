@@ -76,6 +76,17 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
       return null;
     }
 
+    // "e.g", "p.m", "U.S": a period after a one-letter token is an abbreviation
+    // as often as a sentence end, so never insert the space for the user.
+    if (
+      !spaceBeforeViolated &&
+      lastChar === "." &&
+      /[A-Za-z]/.test(previousSignificantChar) &&
+      !/[A-Za-z]/.test(inputStr[i - 1] ?? "")
+    ) {
+      return null;
+    }
+
     // Repeated punctuation bursts (",,,,", ", , ,") should be handled by
     // duplicate-collapse logic; avoid emitting spacing edits that can create
     // comma-space ladders under rapid input.

@@ -29,6 +29,11 @@ export class EnglishPronounICapitalizationRule implements GrammarRule {
     if (!tokenInfo || tokenInfo.token !== "i") {
       return null;
     }
+    // A bare "i." is the pronoun or the start of "i.e."; the next character
+    // tells us which, and by then the token is no longer "i".
+    if (tokenInfo.trailing === ".") {
+      return null;
+    }
     if (isLikelyCodeLikeContext(tokenInfo.core, tokenInfo.tokenStart, tokenInfo.tokenEnd)) {
       return null;
     }

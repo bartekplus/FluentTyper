@@ -290,14 +290,11 @@ describe("V1 grammar rules", () => {
   });
 
   describe("TechnicalTokenCompactionRule", () => {
-    test("compacts decimal and time/ratio spacing", () => {
+    test("compacts time/ratio spacing but never a digit-period-digit sentence", () => {
       const rule = new TechnicalTokenCompactionRule(true);
 
-      expect(rule.apply(context("3. 1"))).toEqual({
-        replacement: ".1",
-        deleteBackwards: 3,
-        deleteForwards: 0,
-      });
+      // "We sold 12. 5 were returned" is a sentence boundary, not a decimal.
+      expect(rule.apply(context("3. 1"))).toBeNull();
 
       expect(rule.apply(context("12: 3"))).toEqual({
         replacement: ":3",

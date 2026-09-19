@@ -184,17 +184,27 @@ describe("V3 rule expansion", () => {
   test("EnglishModalOfCorrectionRule normalizes could of style phrases", () => {
     const rule = new EnglishModalOfCorrectionRule();
 
-    expect(rule.apply(context("could of ", { lang: "en_US", inputAction: "insert" }))).toEqual({
-      replacement: "could have ",
-      deleteBackwards: "could of ".length,
-      deleteForwards: 0,
-    });
+    // The following word disambiguates: "must of course" is valid English.
+    expect(rule.apply(context("could of ", { lang: "en_US", inputAction: "insert" }))).toBeNull();
+    expect(
+      rule.apply(context("must of course ", { lang: "en_US", inputAction: "insert" })),
+    ).toBeNull();
 
-    expect(rule.apply(context("COULD OF ", { lang: "en_US", inputAction: "insert" }))).toEqual({
-      replacement: "COULD HAVE ",
-      deleteBackwards: "COULD OF ".length,
-      deleteForwards: 0,
-    });
+    expect(rule.apply(context("could of gone ", { lang: "en_US", inputAction: "insert" }))).toEqual(
+      {
+        replacement: "could have gone ",
+        deleteBackwards: "could of gone ".length,
+        deleteForwards: 0,
+      },
+    );
+
+    expect(rule.apply(context("COULD OF GONE ", { lang: "en_US", inputAction: "insert" }))).toEqual(
+      {
+        replacement: "COULD HAVE GONE ",
+        deleteBackwards: "COULD OF GONE ".length,
+        deleteForwards: 0,
+      },
+    );
   });
 
   test("EnglishYourWelcomeCorrectionRule normalizes phrase", () => {

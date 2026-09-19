@@ -22,9 +22,8 @@ export class TechnicalTokenCompactionRule extends SpacingRuleShared implements G
       return null;
     }
 
-    if (punctChar === "." && this.isDigit(lastChar) && this.isDigit(charBeforePunct)) {
-      return this.createEdit(`.${lastChar}`, 3);
-    }
+    // "We sold 12. 5 were returned" is a sentence boundary, not a decimal, and
+    // nothing here tells the two apart - only the clock form is unambiguous.
 
     if (punctChar === ":" && this.isDigit(lastChar) && this.isDigit(charBeforePunct)) {
       return this.createEdit(`:${lastChar}`, 3);

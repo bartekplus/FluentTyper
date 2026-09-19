@@ -61,9 +61,12 @@ describe("V2 english grammar rules", () => {
     test("applies only after a token boundary delimiter", () => {
       const rule = new EnglishPronounICapitalizationRule();
       expect(rule.apply(context("i", { lang: "en_US", inputAction: "insert" }))).toBeNull();
-      expect(rule.apply(context("i.", { lang: "en_US", inputAction: "insert" }))).toEqual({
-        replacement: "I.",
-        deleteBackwards: 2,
+      // A bare "i." could still become "i.e."; the decision waits one character.
+      expect(rule.apply(context("i.", { lang: "en_US", inputAction: "insert" }))).toBeNull();
+      expect(rule.apply(context("i.e", { lang: "en_US", inputAction: "insert" }))).toBeNull();
+      expect(rule.apply(context("i. ", { lang: "en_US", inputAction: "insert" }))).toEqual({
+        replacement: "I. ",
+        deleteBackwards: 3,
         deleteForwards: 0,
       });
     });

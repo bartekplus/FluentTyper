@@ -3,6 +3,36 @@ import { SPACE_CHARS } from "../../spacingRules";
 import { isLowercaseLetter } from "./helpers/GenericRuleShared";
 
 const SENTENCE_ENDING_CHARS = new Set([".", "!", "?"]);
+// A period closing one of these is an abbreviation at least as often as a
+// sentence end, so the following word is left exactly as the user typed it.
+const ABBREVIATIONS = new Set([
+  "etc",
+  "vs",
+  "cf",
+  "al",
+  "approx",
+  "eg",
+  "ie",
+  "fig",
+  "resp",
+  "est",
+  "min",
+  "max",
+]);
+
+/** True when the period at `index` closes an initial or a known abbreviation. */
+function closesAbbreviation(text: string, index: number): boolean {
+  let start = index;
+  while (start > 0 && /[\p{L}\p{N}.]/u.test(text[start - 1])) {
+    start -= 1;
+  }
+  const token = text.slice(start, index);
+  if (!/\p{L}/u.test(token)) {
+    // "2026." and "12." end sentences; only lettered tokens abbreviate.
+    return false;
+  }
+  return token.length <= 1 || token.includes(".") || ABBREVIATIONS.has(token.toLowerCase());
+}
 const CLOSING_CHARS = new Set([")", "]", "}", '"', "'", "”", "’"]);
 
 export class CapitalizeSentenceStartRule implements GrammarRule {
@@ -39,7 +69,12 @@ export class CapitalizeSentenceStartRule implements GrammarRule {
       i -= 1;
     }
 
-    if (i >= 0 && SENTENCE_ENDING_CHARS.has(text[i]) && hadWhitespaceGap) {
+    if (
+      i >= 0 &&
+      SENTENCE_ENDING_CHARS.has(text[i]) &&
+      hadWhitespaceGap &&
+      !(text[i] === "." && closesAbbreviation(text, i))
+    ) {
       return {
         replacement: lastChar.toUpperCase(),
         deleteBackwards: 1,
