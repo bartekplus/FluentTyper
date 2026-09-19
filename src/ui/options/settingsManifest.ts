@@ -57,11 +57,16 @@ import {
 } from "@core/domain/constants";
 import { DEFAULT_SUGGESTION_THEME_SETTINGS } from "@core/domain/themeDefaults";
 import {
-  DEFAULT_CURRENT_GRAMMAR_RULES,
   GRAMMAR_RULE_CATALOG,
   GRAMMAR_RULE_IDS,
   RECOMMENDED_CURRENT_GRAMMAR_RULES,
 } from "@core/domain/grammar/ruleCatalog";
+import {
+  grammarRuleSelectionToOverrides,
+  isGrammarRuleOverrides,
+  migrateLegacyGrammarRuleSelection,
+  resolveGrammarRuleSelection,
+} from "@core/domain/grammar/GrammarRuleSettings";
 
 const IS_DEV_BUILD = typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
 
@@ -469,7 +474,18 @@ const manifest: ManifestDefinition = {
         },
       ],
       options: GRAMMAR_RULE_OPTIONS,
-      default: DEFAULT_CURRENT_GRAMMAR_RULES,
+      default: {},
+      storageAdapter: {
+        getSelection: resolveGrammarRuleSelection,
+        setSelection: grammarRuleSelectionToOverrides,
+        setChoice(value, rule, enabled) {
+          const overrides = isGrammarRuleOverrides(value)
+            ? value
+            : (migrateLegacyGrammarRuleSelection(value) ??
+              (value === undefined ? {} : grammarRuleSelectionToOverrides([])));
+          return { ...overrides, [rule]: enabled };
+        },
+      },
     },
 
     // =========================================================================

@@ -1,3 +1,7 @@
+import {
+  grammarRuleSelectionToOverrides,
+  resolveGrammarRuleSelection,
+} from "../../src/core/domain/grammar/GrammarRuleSettings";
 import type { Browser, Page } from "puppeteer";
 import path from "path";
 import * as fs from "fs";
@@ -126,7 +130,7 @@ const PER_TEST_RESET_SETTINGS: readonly SettingEntry[] = [
   [KEY_ENABLED_LANGUAGES, ["en_US", "de_DE", "textExpander"]],
   [KEY_LANGUAGE, "en_US"],
   [KEY_TEXT_EXPANSIONS, []],
-  [KEY_ENABLED_GRAMMAR_RULES, []],
+  [KEY_ENABLED_GRAMMAR_RULES, grammarRuleSelectionToOverrides([])],
   [KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, true],
   [KEY_DOMAIN_LIST_MODE, "blackList"],
   ["domainBlackList", []],
@@ -1289,7 +1293,11 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
   test(
     "grammar tab supports grouped rules, search/filter, and setting persistence",
     async () => {
-      await setSettingAndWait(worker, KEY_ENABLED_GRAMMAR_RULES, []);
+      await setSettingAndWait(
+        worker,
+        KEY_ENABLED_GRAMMAR_RULES,
+        grammarRuleSelectionToOverrides([]),
+      );
       await sendConfigChange(browser, worker);
 
       const optionsPage = await openOptionsPage(browser, worker);
@@ -1427,7 +1435,12 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       const storedRules = await waitUntil<string[]>(
         "grammar tab recommended action persistence",
         async () => {
-          const current = await getSetting<string[]>(worker, KEY_ENABLED_GRAMMAR_RULES);
+          const stored = await getSetting<Record<string, boolean>>(
+            worker,
+            KEY_ENABLED_GRAMMAR_RULES,
+          );
+          if (!stored || Array.isArray(stored)) return false;
+          const current = resolveGrammarRuleSelection(stored);
           const expectedRules = [...RECOMMENDED_CURRENT_GRAMMAR_RULES].sort();
           if (
             Array.isArray(current) &&
@@ -1586,15 +1599,18 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
   test(
     "options config change command updates grammar rules in runtime storage",
     async () => {
-      await setSettingAndWait(worker, KEY_ENABLED_GRAMMAR_RULES, []);
+      await setSettingAndWait(
+        worker,
+        KEY_ENABLED_GRAMMAR_RULES,
+        grammarRuleSelectionToOverrides([]),
+      );
       await sendConfigChange(browser, worker);
 
       const optionsPage = await openOptionsPage(browser, worker);
       try {
         settingsDirty = true;
         await optionsPage.evaluate(
-          (key, command) => {
-            const rules = ["capitalizeSentenceStart", "commaPeriodSpacing"];
+          (key, command, rules) => {
             const storageKey = `store.settings.${key}`;
             localStorage.setItem(storageKey, JSON.stringify(rules));
             chrome.storage.local.set({ [storageKey]: JSON.stringify(rules) });
@@ -1602,6 +1618,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
           },
           KEY_ENABLED_GRAMMAR_RULES,
           CMD_OPTIONS_PAGE_CONFIG_CHANGE,
+          grammarRuleSelectionToOverrides(["capitalizeSentenceStart", "commaPeriodSpacing"]),
         );
       } finally {
         if (!optionsPage.isClosed()) {
@@ -1612,7 +1629,12 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       const storedRules = await waitUntil<string[]>(
         "grammar rules to update",
         async () => {
-          const current = await getSetting<string[]>(worker, KEY_ENABLED_GRAMMAR_RULES);
+          const stored = await getSetting<Record<string, boolean>>(
+            worker,
+            KEY_ENABLED_GRAMMAR_RULES,
+          );
+          if (!stored || Array.isArray(stored)) return false;
+          const current = resolveGrammarRuleSelection(stored);
           if (
             Array.isArray(current) &&
             current.includes("capitalizeSentenceStart") &&

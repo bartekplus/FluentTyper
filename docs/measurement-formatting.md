@@ -57,7 +57,9 @@ Google Docs intentionally supplies a protected context for this rule. Its curren
 
 ## Settings and upgrades
 
-Historical V3 snapshots are frozen. Fresh/default/reset selections use the new current catalog. Stored selections lack reliable inherited-default provenance, so **every existing stored selection remains unchanged**, including old-default-equal, custom, and empty lists. No migration guesses intent or re-enables global grammar. Existing users can enable the ordinary rule toggle or choose the recommended preset. Tests cover persistence, runtime configuration, reset defaults, and opt-out.
+Historical V3 snapshots are frozen. Grammar settings now store explicit per-rule boolean choices under the existing storage key. Missing choices inherit the live catalog default; explicit `false` stays off and explicit `true` stays on. Fresh/reset settings use an empty map. Individual toggle changes record only that rule's choice; presets choose all currently offered rules, leaving future rules free to inherit defaults.
+
+The one-time V8 schema migration converts old enabled-rule arrays into explicit choices for the frozen pre-measurement rule inventory. This preserves existing choices (including custom/empty lists) for old rules while the new measurement rule inherits its on default. No feature-specific migration marker is required: the stored map distinguishes the new schema. Missing settings remain unset and malformed settings are preserved and fail closed. Global extension enablement is unchanged. Tests cover legacy migration, failed-write retry, missing defaults, explicit opt-out, settings persistence, runtime resolution, and reset behavior.
 
 ## Reproduction and evidence
 
@@ -65,25 +67,25 @@ Source versions, licenses, curated-data generation, and explicit refresh instruc
 
 Environment: macOS 27.0 (26A428), Apple M2 Max, arm64, Bun 1.4.2 (repository pins 1.4.0). No dependency or version changes were made.
 
-| Command                                    | Result                                                                                |
-| ------------------------------------------ | ------------------------------------------------------------------------------------- |
-| `bun run check`                            | Lint, format, typecheck pass                                                          |
-| `bun run test`                             | 1,696 pass across main and six isolated processes; zero failures                      |
-| `bun run build`                            | Chrome production pass                                                                |
-| `bun run build --platform=firefox`         | Firefox production pass                                                               |
-| `bun run build --platform=edge`            | Edge production pass; no Edge live browser available                                  |
-| `bun run test:e2e`                         | Earlier Chrome: 26 pass; latest: 13 pass / 13 fail, reproduced on clean baseline      |
-| `bun run test:e2e:full`                    | Earlier Chrome: 66 pass / 7 existing skips; later worker-startup timeout before tests |
-| `bun run test:e2e:docs`                    | Chromium cross-world fixture: 26 pass; not live Google Docs                           |
-| `bun run check:e2e:coverage`               | Pass: 134 mapped behaviors                                                            |
-| `bun run test:e2e --platform=firefox`      | Blocked before extension loading: browser launch/profile failure                      |
-| `bun run test:e2e:full --platform=firefox` | Blocked before extension loading: browser launch/profile failure                      |
-| `bun scripts/measurement-data.ts`          | Offline generation and byte-for-byte reproducibility pass                             |
-| `bun scripts/benchmark-measurement.ts`     | Results below                                                                         |
+| Command                                    | Result                                                                        |
+| ------------------------------------------ | ----------------------------------------------------------------------------- |
+| `bun run check`                            | Lint, format, typecheck pass                                                  |
+| `bun run test`                             | 1,727 pass across main and six isolated processes; zero failures              |
+| `bun run build`                            | Chrome production pass                                                        |
+| `bun run build --platform=firefox`         | Firefox production pass                                                       |
+| `bun run build --platform=edge`            | Edge production pass; no Edge live browser available                          |
+| `bun run test:e2e`                         | Latest Chrome: 26 pass; prior host-load failures reproduced on clean baseline |
+| `bun run test:e2e:full`                    | Latest Chrome: 66 pass / 7 existing skips; zero failures                      |
+| `bun run test:e2e:docs`                    | Chromium cross-world fixture: 26 pass; not live Google Docs                   |
+| `bun run check:e2e:coverage`               | Pass: 134 mapped behaviors                                                    |
+| `bun run test:e2e --platform=firefox`      | Blocked before extension loading: browser launch/profile failure              |
+| `bun run test:e2e:full --platform=firefox` | Blocked before extension loading: browser launch/profile failure              |
+| `bun scripts/measurement-data.ts`          | Offline generation and byte-for-byte reproducibility pass                     |
+| `bun scripts/benchmark-measurement.ts`     | Results below                                                                 |
 
 The default Chrome cache lacked its framework. An isolated install was completed with native unzip, then Chrome commands ran with `PUPPETEER_CACHE_DIR=/tmp/fluenttyper-measurement-browsers`. Initial failed launch attempts are not test passes. System Chrome also ran the Docs fixture successfully, but cannot load this unpacked extension through the current launch flags. Cached Firefox timed out; installed Firefox 156 failed with “Could not find profile folder,” also reproduced in independent Node/Puppeteer launches, including an explicit fresh profile. Firefox runtime compatibility is **unverified**, and there was no live Google Docs or Edge browser test.
 
-Late reruns also experienced Chromium worker/startup timeouts during heavy unrelated host load (load average above 50). A clean `bce365b5` archive reproduced smoke failures (13 pass / 13 fail) under the same conditions. The final dedicated measurement browser test (`bun run test:e2e:full -t "Grammar Rule Engine formats measurement units"`) passed again without assertion or timeout changes (1 pass, 72 filtered). The latest full-suite attempt was blocked at worker startup; the final smoke rerun again matched the baseline 13 pass / 13 fail result. Final browser gates are therefore not wholly green. These transient failed runs are recorded separately from successful runs.
+Earlier reruns experienced Chromium worker/startup timeouts during heavy unrelated host load (load average above 50). A clean `bce365b5` archive reproduced smoke failures (13 pass / 13 fail) under the same conditions. After the per-rule settings schema update, final Chrome smoke (26 pass) and full (66 pass, 7 existing skips) runs passed. The full run includes both measurement typing and the new options test proving default inheritance, explicit opt-out persistence, and reload behavior. Firefox runtime remains unverified; the earlier failures are retained here as environment history rather than reported as current Chrome results.
 
 The new browser test types an English measurement, protects a path, and types a Polish decimal with punctuation rules enabled. Rich-node preservation, stale input, and immediate undo are verified in DOM integration tests; that is not a claim of testing every rich editor live. The broader existing suite checks editor/IME/selection/revert behaviors.
 
@@ -94,11 +96,11 @@ Chrome production JavaScript compared with clean `bce365b5`, same build options 
 | Bundle             | Uncompressed increase | gzip increase |
 | ------------------ | --------------------: | ------------: |
 | content_script.js  |          18,148 bytes |   4,147 bytes |
-| background.js      |             895 bytes |      98 bytes |
-| settings.js        |           2,723 bytes |     776 bytes |
-| popup.js           |           1,828 bytes |     596 bytes |
+| background.js      |           2,198 bytes |     225 bytes |
+| settings.js        |           5,025 bytes |   1,338 bytes |
+| popup.js           |          13,020 bytes |   2,392 bytes |
 | onboarding.js      |           1,828 bytes |     643 bytes |
 | MAIN-world bundles |                     0 |             0 |
-| Total              |          25,422 bytes |   6,260 bytes |
+| Total              |          40,219 bytes |   8,745 bytes |
 
 The remaining release limitations are Firefox runtime verification, Docs measurement support, conservative context/numeric/name gaps, and the explicitly unsupported source inventory. No release or version bump is included.

@@ -828,6 +828,11 @@
           "test": "Grammar Rule Engine formats measurement units only in verified prose typing"
         },
         {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Grammar rule options inherit defaults and persist an explicit override"
+        },
+        {
           "layer": "integration",
           "file": "tests/e2e/google-docs.e2e.test.ts",
           "test": "measurement formatting stays disabled without a verified prose context"
@@ -841,6 +846,16 @@
           "layer": "unit",
           "file": "tests/MeasurementEditTransaction.test.ts",
           "test": "inserts only the separator and retains adjacent rich-text nodes"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SettingsMigrationV8.test.ts",
+          "test": "inherits measurement formatting after V6 upgrades the historical selection"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/GrammarRuleSettings.test.ts",
+          "test": "preserves explicit off and on overrides"
         }
       ]
     },

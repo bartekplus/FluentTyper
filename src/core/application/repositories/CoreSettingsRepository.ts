@@ -1,5 +1,6 @@
 import { DEFAULT_NUM_SUGGESTIONS } from "@core/domain/constants";
 import type { SettingField } from "@core/domain/contracts/settings";
+import { resolveGrammarRuleSelection } from "@core/domain/grammar/GrammarRuleSettings";
 import { resolveEnabledLanguages } from "@core/domain/lang";
 import {
   DEFAULT_SUGGESTION_THEME_SETTINGS,
@@ -128,7 +129,7 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
   }
 
   async getEnabledGrammarRules(): Promise<string[]> {
-    return this.getStringArrayField("enabledGrammarRules");
+    return resolveGrammarRuleSelection(await this.getField("enabledGrammarRules"));
   }
 
   async getTextExpansions(): Promise<Array<[string, object]>> {

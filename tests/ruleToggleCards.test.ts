@@ -7,13 +7,17 @@ import { RuleToggleCardsControl } from "../src/ui/settings-engine/controls/RuleT
 import { Store } from "../src/core/application/storage/Store.js";
 import {
   DEFAULT_CURRENT_GRAMMAR_RULES,
+  GRAMMAR_RULE_IDS,
   RECOMMENDED_CURRENT_GRAMMAR_RULES,
 } from "../src/core/domain/grammar/ruleCatalog.js";
+import type { RuleToggleCardsConfig } from "../src/ui/settings-engine/types.js";
 
-function buildRuleToggleCardsHost() {
+function buildRuleToggleCardsHost(
+  overrides: Partial<RuleToggleCardsConfig> = {},
+  store = new Store("test"),
+) {
   const host = document.createElement("div");
   document.body.appendChild(host);
-  const store = new Store("test");
   const control = new RuleToggleCardsControl(
     {
       type: "ruleToggleCards",
@@ -75,11 +79,26 @@ function buildRuleToggleCardsHost() {
         },
       ],
       default: [],
+      ...overrides,
     },
     store,
   );
   host.appendChild(control.rootElement);
   return { host, bundle: control };
+}
+
+function localStore(name: string): Store {
+  const chromeApi = globalThis.chrome;
+  (globalThis as { chrome?: typeof chrome }).chrome = undefined;
+  const store = new Store(name);
+  globalThis.chrome = chromeApi;
+  return store;
+}
+
+async function flushStorage(): Promise<void> {
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
 }
 
 function visibleRuleValues(host: HTMLElement): string[] {
@@ -180,7 +199,7 @@ describe("ruleToggleCards setting", () => {
       i18n.get("grammar_rules_disable_all"),
     ]);
     expect(actionLabels).not.toContain(i18n.get("grammar_rules_safe_defaults"));
-    expect(grammarSetting?.default).toEqual(DEFAULT_CURRENT_GRAMMAR_RULES);
+    expect(grammarSetting?.default).toEqual({});
     expect(actions[0]?.values).toEqual(RECOMMENDED_CURRENT_GRAMMAR_RULES);
     expect(DEFAULT_CURRENT_GRAMMAR_RULES).toContain("measurementUnitFormatting");
   });
@@ -313,5 +332,79 @@ describe("ruleToggleCards setting", () => {
     const noMatches = host.querySelector(".grammar-rule-selector-no-results");
     expect(noMatches).toBeInstanceOf(HTMLElement);
     expect((noMatches as HTMLElement).classList.contains("is-hidden")).toBe(true);
+  });
+
+  test("grammar storage resolves defaults and keeps explicit choices as overrides", async () => {
+    const grammarSetting = manifest.settings.find(
+      (entry) => entry.name === KEY_ENABLED_GRAMMAR_RULES,
+    ) as RuleToggleCardsConfig;
+    const store = localStore("grammar-rule-overrides");
+    await store.set(KEY_ENABLED_GRAMMAR_RULES, { futureRule: true, commaPeriodSpacing: false });
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const bundle = new RuleToggleCardsControl(grammarSetting, store);
+    host.appendChild(bundle.rootElement);
+    await flushStorage();
+
+    expect(bundle.get()).not.toContain("commaPeriodSpacing");
+    expect(bundle.get()).toContain("capitalizeSentenceStart");
+    const punctuation = findRuleCard(host, "commaPeriodSpacing");
+    const punctuationInput = punctuation.querySelector("input") as HTMLInputElement;
+    punctuationInput.checked = true;
+    punctuationInput.dispatchEvent(new Event("change"));
+    await flushStorage();
+
+    expect(await store.get(KEY_ENABLED_GRAMMAR_RULES)).toEqual({
+      futureRule: true,
+      commaPeriodSpacing: true,
+    });
+
+    bundle.set(["commaPeriodSpacing"]);
+    await flushStorage();
+    const stored = (await store.get(KEY_ENABLED_GRAMMAR_RULES)) as Record<string, boolean>;
+    expect(Object.keys(stored)).toHaveLength(GRAMMAR_RULE_IDS.length);
+    expect(stored.futureRule).toBeUndefined();
+    expect(stored.commaPeriodSpacing).toBe(true);
+  });
+
+  test("loads a legacy selection without making the generic control catalog-specific", async () => {
+    const grammarSetting = manifest.settings.find(
+      (entry) => entry.name === KEY_ENABLED_GRAMMAR_RULES,
+    ) as RuleToggleCardsConfig;
+    const store = localStore("legacy-grammar-rule-selection");
+    await store.set(KEY_ENABLED_GRAMMAR_RULES, ["commaPeriodSpacing"]);
+    const control = new RuleToggleCardsControl(grammarSetting, store);
+    document.body.appendChild(control.rootElement);
+    await flushStorage();
+
+    expect(control.get()).toContain("commaPeriodSpacing");
+    expect(control.get()).not.toContain("capitalizeSentenceStart");
+  });
+
+  test("a choice after malformed storage keeps the fail-closed selection", async () => {
+    const grammarSetting = manifest.settings.find(
+      (entry) => entry.name === KEY_ENABLED_GRAMMAR_RULES,
+    ) as RuleToggleCardsConfig;
+    const store = localStore("malformed-grammar-rule-overrides");
+    await store.set(KEY_ENABLED_GRAMMAR_RULES, "invalid");
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const control = new RuleToggleCardsControl(grammarSetting, store);
+    host.appendChild(control.rootElement);
+    await flushStorage();
+
+    expect(control.get()).toEqual([]);
+    const input = findRuleCard(host, "commaPeriodSpacing").querySelector(
+      "input",
+    ) as HTMLInputElement;
+    input.checked = true;
+    input.dispatchEvent(new Event("change"));
+    await flushStorage();
+
+    const stored = (await store.get(KEY_ENABLED_GRAMMAR_RULES)) as Record<string, boolean>;
+    expect(control.get()).toEqual(["commaPeriodSpacing"]);
+    expect(Object.keys(stored)).toHaveLength(GRAMMAR_RULE_IDS.length);
+    expect(stored.commaPeriodSpacing).toBe(true);
+    expect(stored.capitalizeSentenceStart).toBe(false);
   });
 });
