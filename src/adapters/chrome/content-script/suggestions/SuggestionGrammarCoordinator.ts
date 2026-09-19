@@ -59,9 +59,9 @@ export class SuggestionGrammarCoordinator {
       afterCursor,
       hints: {
         inputAction,
-        measurementContext: this.options.enabledGrammarRules.includes("measurementUnitFormatting")
-          ? measurementContext
-          : undefined,
+        // The engine already skips disabled rules; the numeric guards in the
+        // punctuation rules need this context regardless of that toggle.
+        measurementContext,
         isPaste: triggers.includes("paste"),
         lang: this.options.lang,
         userDictionary: Array.isArray(this.options.userDictionaryList)

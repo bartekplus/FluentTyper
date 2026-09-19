@@ -159,6 +159,26 @@ describe("V1 grammar rules", () => {
       expect(rule.apply({ ...context("Value 2.n", prose), afterCursor: "ow" })).toBeNull();
     });
 
+    test("only defers numeric punctuation where the repair can complete it", () => {
+      const rule = new CommaPeriodSpacingRule(true);
+      const prose = {
+        lang: "en_US",
+        inputAction: "insert" as const,
+        measurementContext: "prose" as const,
+      };
+      const spaced = { replacement: ", ", deleteBackwards: 1, deleteForwards: 0 };
+
+      // Deferring in a context the repair cannot reach would drop the space forever.
+      expect(rule.apply({ ...context("There were 2,", prose), afterCursor: "xyz" })).toEqual(
+        spaced,
+      );
+      expect(rule.apply(context("There were 2,", { ...prose, isPaste: true }))).toEqual(spaced);
+      expect(rule.apply(context("There were 2,", { ...prose, inputAction: "other" }))).toEqual(
+        spaced,
+      );
+      expect(rule.apply(context("There were 2,", prose))).toBeNull();
+    });
+
     test("treats zero-width fillers as ignorable separators for duplicate commas", () => {
       const rule = new CommaPeriodSpacingRule(true);
 

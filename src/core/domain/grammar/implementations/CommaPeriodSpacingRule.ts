@@ -61,10 +61,15 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
     const insertSpaceAfter = this.insertSpaceAfterAutocomplete;
     const inputAction = resolveInputAction(context);
 
-    // Decimal/grouping punctuation is unfinished numeric input, not yet prose punctuation.
+    // Decimal/grouping punctuation is unfinished numeric input, not yet prose
+    // punctuation. Only defer where the repair above can actually complete it;
+    // otherwise the space would be dropped and never restored.
     if (
       !spaceBeforeViolated &&
       this.isDigit(previousSignificantChar) &&
+      !context.afterCursor &&
+      !context.hints?.isPaste &&
+      inputAction === "insert" &&
       context.hints?.measurementContext === "prose" &&
       resolveMeasurementLocale(context.hints.lang)
     ) {

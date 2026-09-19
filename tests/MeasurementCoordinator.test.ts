@@ -31,9 +31,14 @@ test("coordinator keeps paste and protected contexts outside measurement formatt
   expect(grammar.run(input)).toBeNull();
 });
 
-test("disabling measurement formatting retains existing punctuation behavior", () => {
+test("numeric punctuation stays protected regardless of the measurement toggle", () => {
   const comma = { ...input, beforeCursor: "List: 1,", triggers: ["insertChar" as const] };
-  expect(coordinator(["commaPeriodSpacing"]).run(comma)?.replacement).toBe(", ");
+  // The guard protects numeric text, so it must not depend on an unrelated rule
+  // being enabled; otherwise "1,234" is mangled into "1, 234".
+  expect(coordinator(["commaPeriodSpacing"]).run(comma)).toBeNull();
   expect(coordinator(["commaPeriodSpacing", "measurementUnitFormatting"]).run(comma)).toBeNull();
+  expect(
+    coordinator(["commaPeriodSpacing"]).run({ ...comma, beforeCursor: "List: 1,a" })?.replacement,
+  ).toBe(", a");
   expect(coordinator([]).run(input)).toBeNull();
 });
