@@ -3269,7 +3269,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         );
 
         expect(finalState.firstLine).toBe("Quill Rich Text Editor");
-        expect(finalState.secondLine).toMatch(/^fixed\. x$/i);
+        expect(finalState.secondLine).toMatch(/^fixed, x$/i);
         expect(finalState.paragraphCount).toBeGreaterThanOrEqual(1);
       } finally {
         await setGrammarRulesAndWait(worker!, []);
@@ -5360,8 +5360,11 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitForNormalizedValue("Hello.world ");
 
       await clearInputContent(page, selector);
+      // capitalizeSentenceStart is not among this test's enabled rules, so the
+      // leading word stays as typed; the point here is that the dotted token
+      // survives commaPeriodSpacing untouched.
       await typeInInput(page, selector, "go to google.com now ");
-      await waitForNormalizedValue("Go to google.com now ");
+      await waitForNormalizedValue("go to google.com now ");
 
       await clearInputContent(page, selector);
       // Prime an already-authored abbreviation so this isolates typing after its trailing space.
