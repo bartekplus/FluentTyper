@@ -78,5 +78,11 @@ function isProsePrefix(prefix: string): boolean {
   if (!/\p{L}/u.test(line) || /(?:https?:\/\/|www\.|[\\/]|[`{}[\]$]|(?:^|\s)--?\w)/iu.test(line)) {
     return false;
   }
-  return /(?:[:：]\s*|\p{L}[\p{L}\p{M}'’.-]*\s+)$/u.test(line);
+  // "the mass (10kg) is" is prose in brackets, so look past an opening bracket
+  // that follows a space. "f(10kg)" keeps its bracket attached and is refused.
+  const unbracketed = /(?<=^|\s)[([]$/u.test(line) ? line.slice(0, -1) : line;
+  if (unbracketed.trim().length === 0) {
+    return true;
+  }
+  return /(?:[:：]\s*|\p{L}[\p{L}\p{M}'’.-]*\s+)$/u.test(unbracketed);
 }

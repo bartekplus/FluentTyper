@@ -54,7 +54,11 @@ export class EnglishContractionNormalizationRule implements GrammarRule {
     // "Jony Ive", "Ada Ill": a capitalized token following another capitalized
     // word is a name, not a contraction someone forgot an apostrophe in.
     if (/^[A-Z][a-z]/.test(tokenInfo.token)) {
-      const before = tokenInfo.core.slice(0, tokenInfo.tokenStart).trimEnd();
+      const beforeToken = tokenInfo.core.slice(0, tokenInfo.tokenStart);
+      const lineStart = Math.max(beforeToken.lastIndexOf("\n"), beforeToken.lastIndexOf("\r")) + 1;
+      // Only a capitalized word on the same line suggests a name; one that
+      // merely ends the previous line says nothing about this token.
+      const before = beforeToken.slice(lineStart).trimEnd();
       if (/[A-Z][a-z]*$/.test(before)) {
         return null;
       }
