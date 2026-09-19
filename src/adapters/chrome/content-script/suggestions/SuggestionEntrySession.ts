@@ -1263,7 +1263,52 @@ export class SuggestionEntrySession {
       accepted.cursorAfter,
       accepted.cursorAfterIsBlockLocal,
     );
+    this.runAcceptedSuggestionGrammar();
     return true;
+  }
+
+  /**
+   * Accepting a suggestion finishes a word exactly as typing its last letter
+   * and a space would, but it reaches the field through the edit service
+   * rather than through keystrokes, so the word-boundary rules never saw it:
+   * typing "was " capitalized, picking "was" from the menu did not.
+   */
+  private runAcceptedSuggestionGrammar(): void {
+    if (
+      !this.grammarCoordinator.hasEnabledRules() ||
+      this.resolveUnstableInputSkipReason(this.entry) !== null
+    ) {
+      return;
+    }
+    const snapshot = TextTargetAdapter.snapshot(this.entry.elem);
+    const grammarContext = this.resolveEditableCursorContext(this.entry, snapshot);
+    if (!grammarContext.safeForGrammar || grammarContext.beforeCursor.length === 0) {
+      return;
+    }
+    const measurementContext = measurementEditingContext(this.entry.elem);
+    // The accepted text carries its own trailing space when that setting is on;
+    // without one the boundary has to be supplied the way Enter does it.
+    const endsAtBoundary = /[\s\u00a0]$/u.test(grammarContext.beforeCursor);
+    const grammarEdit = endsAtBoundary
+      ? this.grammarCoordinator.run({
+          measurementContext,
+          beforeCursor: grammarContext.beforeCursor,
+          afterCursor: grammarContext.afterCursor,
+          inputAction: "insert",
+          triggers: ["wordBoundary"],
+        })
+      : this.grammarCoordinator.runVirtualWordBoundary({
+          measurementContext,
+          beforeCursor: grammarContext.beforeCursor,
+          afterCursor: grammarContext.afterCursor,
+        });
+    if (!grammarEdit) {
+      return;
+    }
+    this.textEditService.applyGrammarEdit(this.entry, grammarEdit, {
+      snapshot: grammarContext.snapshot,
+      contentEditableContext: grammarContext.applyContext,
+    });
   }
 
   private finishAcceptedSuggestion(

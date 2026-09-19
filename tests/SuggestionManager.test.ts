@@ -378,6 +378,32 @@ describe("SuggestionManager", () => {
     ).toBeUndefined();
   });
 
+  test("capitalizes an accepted suggestion the way typing the word would", async () => {
+    // Typing "was " capitalized while picking "was" from the menu did not:
+    // acceptance finishes a word without ever reaching the keystroke path.
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+      enabledGrammarRules: ["capitalizeSentenceStart"],
+    });
+    const input = document.createElement("input");
+    input.type = "text";
+    document.body.appendChild(input);
+    manager.queryAndAttachHelper();
+
+    input.value = "w";
+    input.selectionStart = 1;
+    input.selectionEnd = 1;
+    input.dispatchEvent(new Event("focus", { bubbles: true }));
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+
+    const request = await waitForNextCall(getPrediction);
+    manager.fulfillPrediction(buildResponse(request, { predictions: ["was\xA0"] }));
+    expect(querySuggestionMenuItems().length).toBe(1);
+
+    dispatchKeydown(input, "Tab");
+    expect(input.value).toBe("Was\xA0");
+  });
+
   test("renders popup suggestions and accepts via Tab and click", async () => {
     const { manager, getPrediction } = await createManager();
     const input = document.createElement("input");
@@ -2966,7 +2992,7 @@ describe("SuggestionManager", () => {
     expect(textarea.value).toBe("hello");
   });
 
-  test("accepts the open suggestion on Enter instead of capitalizing", async () => {
+  test("accepts the open suggestion on Enter and still applies the word boundary", async () => {
     const { manager, getPrediction } = await createManager({
       minWordLengthToPredict: 1,
       autocompleteOnEnter: true,
@@ -2988,8 +3014,10 @@ describe("SuggestionManager", () => {
 
     const event = dispatchKeydown(textarea, "Enter");
 
+    // Enter accepts rather than being consumed by the grammar pass, and the
+    // accepted word is finished exactly as typing it would have been.
     expect(event.defaultPrevented).toBe(true);
-    expect(textarea.value).toBe("hello\xA0");
+    expect(textarea.value).toBe("Hello\xA0");
   });
 
   test("shows popup when a host-handled grammar edit re-dispatches input (Reddit grammar scenario)", async () => {

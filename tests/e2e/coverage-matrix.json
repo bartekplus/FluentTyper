@@ -786,7 +786,7 @@
         {
           "layer": "unit",
           "file": "tests/SuggestionManager.test.ts",
-          "test": "accepts the open suggestion on Enter instead of capitalizing"
+          "test": "accepts the open suggestion on Enter and still applies the word boundary"
         }
       ]
     },
