@@ -43,12 +43,14 @@ export class SuggestionGrammarCoordinator {
     inputAction,
     triggers,
     measurementContext,
+    excludeRules,
   }: {
     beforeCursor: string;
     afterCursor: string;
     inputAction?: PredictionInputAction;
     triggers: GrammarEventType[];
     measurementContext?: GrammarHints["measurementContext"];
+    excludeRules?: readonly string[];
   }): GrammarEdit | null {
     if (!this.hasEnabledRules() || triggers.length === 0) {
       return null;
@@ -69,7 +71,10 @@ export class SuggestionGrammarCoordinator {
           : [],
       },
     };
-    return this.grammarEngine.processSequence(triggers, context, this.options.enabledGrammarRules);
+    const rules = excludeRules?.length
+      ? this.options.enabledGrammarRules.filter((id) => !excludeRules.includes(id))
+      : this.options.enabledGrammarRules;
+    return this.grammarEngine.processSequence(triggers, context, rules);
   }
 
   /**
@@ -91,6 +96,9 @@ export class SuggestionGrammarCoordinator {
       measurementContext: args.measurementContext,
       inputAction: "insert",
       triggers: ["wordBoundary"],
+      // The newline is virtual: when Enter submits, no line break ever exists,
+      // so trimming the space before it would delete text the user typed.
+      excludeRules: ["trimSpaceBeforeLineBreak"],
     });
     if (
       !edit ||
