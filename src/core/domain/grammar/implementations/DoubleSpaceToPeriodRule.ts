@@ -26,13 +26,10 @@ export class DoubleSpaceToPeriodRule implements GrammarRule {
       return null;
     }
 
-    const lastChar = core.charAt(core.length - 1);
-    // A period never follows these, so "I,  " must not become "I,. ".
-    if (/[.!?…,;:]/.test(lastChar)) {
-      return null;
-    }
-
-    if (/\d$/.test(core.trimEnd())) {
+    // Only a word can end a sentence. Punctuation, brackets and quotes reach
+    // here when an earlier rule already appended its own space, and turning
+    // that pair into ". " wrecks "(quietly) that" and "{a: 1} now".
+    if (!/\p{L}$/u.test(core)) {
       return null;
     }
 

@@ -21,6 +21,13 @@ export class OpeningBracketSpacingRule extends SpacingRuleShared implements Gram
     const previousChar = inputStr[openingIndex - 1];
     const hasSpaceBefore = SPACE_CHARS.includes(previousChar);
 
+    // "[label](url)": the closing-bracket rule appended a prose space after "]"
+    // before it could know a link target followed. Take it back, the way the
+    // slash rule compacts "https: //".
+    if (openingBracket === "(" && hasSpaceBefore && inputStr[openingIndex - 2] === "]") {
+      return this.createEdit("(", 2);
+    }
+
     let requiresSpaceBefore = true;
     if (openingBracket === "(" && this.isControlKeywordBeforeIndex(inputStr, openingIndex)) {
       requiresSpaceBefore = true;
@@ -29,6 +36,9 @@ export class OpeningBracketSpacingRule extends SpacingRuleShared implements Gram
       this.findPreviousSignificantChar(inputStr, openingIndex - 1) === ")"
     ) {
       requiresSpaceBefore = true;
+    } else if (SpacingRuleShared.CLOSING_BRACKETS.has(previousChar)) {
+      // "[link](url)" and "foo()[0]": a bracket against a bracket is structure.
+      requiresSpaceBefore = false;
     } else if (this.isTightlyAttached(inputStr, openingIndex)) {
       // Preserve attached code-like forms such as function calls.
       requiresSpaceBefore = false;

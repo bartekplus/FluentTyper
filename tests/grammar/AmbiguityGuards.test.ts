@@ -52,6 +52,10 @@ describe("default-on rules never rewrite ambiguous input", () => {
     "Please IM me later ",
     // A sentence boundary, not a decimal.
     "We sold 12. 5 were returned ",
+    // An auto-inserted space plus the user's own must not become ". ".
+    "He said (quietly) that it works ",
+    "Call foo(bar) now ",
+    "Use arr[0] here ",
   ])
     test(input, () => expect(type(input)).toBe(input));
 });
@@ -79,6 +83,9 @@ describe("unambiguous corrections still apply", () => {
     ["it are null here ", "It are null here "],
     ["if i is None then ", "If i is None then "],
     ["when i = 3 then ", "When i = 3 then "],
+    // Only the sentence-start capital changes; brackets and links are intact.
+    ["set x = {a: 1} now ", "Set x = {a: 1} now "],
+    ["see [link](http://x.test) here ", "See [link](http://x.test) here "],
   ])
     test(input, () => expect(type(input)).toBe(expected));
 });
