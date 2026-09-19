@@ -27,7 +27,8 @@ export class DoubleSpaceToPeriodRule implements GrammarRule {
     }
 
     const lastChar = core.charAt(core.length - 1);
-    if (/[.!?…]/.test(lastChar)) {
+    // A period never follows these, so "I,  " must not become "I,. ".
+    if (/[.!?…,;:]/.test(lastChar)) {
       return null;
     }
 

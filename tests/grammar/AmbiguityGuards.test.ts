@@ -67,6 +67,18 @@ describe("unambiguous corrections still apply", () => {
     ["Their is a problem ", "There is a problem "],
     ["Meeting at 9: 30 today ", "Meeting at 9:30 today "],
     ["we sold 2026. next year ", "We sold 2026. Next year "],
+    ["i think i am right ", "I think I am right "],
+    ["so do i, and you ", "So do I, and you "],
+    ["i was there too ", "I was there too "],
+    ["i is wrong here ", "I am wrong here "],
+    ["he are going ", "He is going "],
+    // "i"/"it" are identifiers here: only the sentence-start capital changes,
+    // the identifiers and their verbs are left exactly as typed.
+    ["for i in range(10) ", "For i in range(10) "],
+    ["print(i) if i is not None ", "Print(i) if i is not None "],
+    ["it are null here ", "It are null here "],
+    ["if i is None then ", "If i is None then "],
+    ["when i = 3 then ", "When i = 3 then "],
   ])
     test(input, () => expect(type(input)).toBe(expected));
 });
