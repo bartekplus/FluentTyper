@@ -1,5 +1,6 @@
 export const SUPPORTED_LANGUAGES: Record<string, string> = {
   auto_detect: "Auto detect",
+  ar_SA: "Arabic",
   en_US: "English (US)",
   fr_FR: "French",
   hr_HR: "Croatian",
@@ -32,6 +33,7 @@ export function resolveEnabledLanguages(enabledLanguages: unknown): string[] {
 }
 
 export const SUPPORTED_LANGUAGES_SHORT_CODE: Record<string, string> = {
+  ar: "ar_SA",
   en: "en_US",
   fr: "fr_FR",
   hr: "hr_HR",
@@ -52,6 +54,7 @@ const DEFAULT_SEPARATOR_CHARS_REGEX_SOURCE = `${BASE_SEPARATOR_CHARS_REGEX_SOURC
 export const DEFAULT_SEPARATOR_CHARS_REGEX: RegExp = RegExp(DEFAULT_SEPARATOR_CHARS_REGEX_SOURCE);
 export const LANG_SEPARATOR_CHARS_REGEX: Record<string, RegExp> = {
   auto_detect: DEFAULT_SEPARATOR_CHARS_REGEX,
+  ar_SA: RegExp(`${DEFAULT_SEPARATOR_CHARS_REGEX_SOURCE}|\\u060C|\\u061B|\\u061F|\\u0640`),
   en_US: DEFAULT_SEPARATOR_CHARS_REGEX,
   fr_FR: RegExp(`${DEFAULT_SEPARATOR_CHARS_REGEX_SOURCE}|'|\\u2019`),
   hr_HR: DEFAULT_SEPARATOR_CHARS_REGEX,

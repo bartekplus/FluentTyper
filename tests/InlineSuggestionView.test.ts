@@ -213,6 +213,80 @@ describe("InlineSuggestionView", () => {
     container.remove();
   });
 
+  test("anchors RTL ghost to the caret's right edge and grows leftward", () => {
+    const container = document.createElement("div");
+    container.contentEditable = "true";
+    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
+    container.style.direction = "rtl";
+    document.body.appendChild(container);
+
+    const p = document.createElement("p");
+    p.textContent = "مرحبا";
+    container.appendChild(p);
+
+    const textNode = p.firstChild!;
+    const range = document.createRange();
+    range.setStart(textNode, 5);
+    range.collapse(true);
+    const sel = window.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    // Caret at left=300, right=300 (zero-width).
+    const ghost = InlineSuggestionView.render({
+      target: container,
+      text: " بالعالم",
+      caretRect: { left: 300, right: 300, top: 20, width: 0, height: 16 } as DOMRect,
+      doc: document,
+    });
+
+    expect(ghost).not.toBeNull();
+    const style = ghost!.style;
+    // RTL ghost is direction-aware and anchored on the right, not the left.
+    expect(style.direction).toBe("rtl");
+    expect(style.left).toBe("auto");
+    expect(style.right).toBe(`${window.innerWidth - 300}px`);
+    // maxWidth is the space to the LEFT of the caret (caret.left - target.left).
+    const targetLeft = container.getBoundingClientRect().left;
+    expect(style.maxWidth).toBe(`${300 - targetLeft}px`);
+
+    container.remove();
+  });
+
+  test("keeps LTR ghost anchored to the caret's left edge (regression)", () => {
+    const container = document.createElement("div");
+    container.contentEditable = "true";
+    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(container);
+
+    const p = document.createElement("p");
+    p.textContent = "hello";
+    container.appendChild(p);
+
+    const textNode = p.firstChild!;
+    const range = document.createRange();
+    range.setStart(textNode, 5);
+    range.collapse(true);
+    const sel = window.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    const ghost = InlineSuggestionView.render({
+      target: container,
+      text: " world",
+      caretRect: { left: 300, top: 20, width: 0, height: 16 } as DOMRect,
+      doc: document,
+    });
+
+    expect(ghost).not.toBeNull();
+    // LTR path is unchanged: anchored left, no explicit right override.
+    expect(ghost!.style.left).toBe("300px");
+    expect(ghost!.style.direction).not.toBe("rtl");
+    expect(ghost!.style.right).toBe("");
+
+    container.remove();
+  });
+
   test("renderMirrorPreview creates three spans: before (normal), suffix (ghost), after (normal)", () => {
     const input = document.createElement("input");
     input.value = "highest stand with Spell Checker";

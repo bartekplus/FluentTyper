@@ -113,16 +113,29 @@ export class InlineSuggestionView {
     ghost.style.color = computedStyle.color;
     ghost.style.opacity = "0.5";
     ghost.style.position = "fixed";
-    ghost.style.left = `${caretRect.left}px`;
     ghost.style.top = `${caretRect.top - leadingOffset}px`;
     ghost.style.pointerEvents = "none";
     ghost.style.whiteSpace = "pre-wrap";
     ghost.style.zIndex = "10000";
 
     const targetRect = target.getBoundingClientRect();
-    const maxWidth = Math.max(0, targetRect.right - caretRect.left);
-    if (maxWidth > 0) {
-      ghost.style.maxWidth = `${maxWidth}px`;
+    if (computedStyle.direction === "rtl") {
+      // RTL: the continuation extends to the LEFT of the caret. Anchor the
+      // ghost's right edge at the caret's right edge and let it grow leftward,
+      // mirroring the LTR behaviour (which anchors left and grows right).
+      ghost.style.direction = "rtl";
+      ghost.style.left = "auto";
+      ghost.style.right = `${window.innerWidth - caretRect.right}px`;
+      const rtlMaxWidth = Math.max(0, caretRect.left - targetRect.left);
+      if (rtlMaxWidth > 0) {
+        ghost.style.maxWidth = `${rtlMaxWidth}px`;
+      }
+    } else {
+      ghost.style.left = `${caretRect.left}px`;
+      const maxWidth = Math.max(0, targetRect.right - caretRect.left);
+      if (maxWidth > 0) {
+        ghost.style.maxWidth = `${maxWidth}px`;
+      }
     }
 
     resolveSuggestionOverlayRoot(doc).appendChild(ghost);

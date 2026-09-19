@@ -63,6 +63,7 @@ const SITE_PRIOR_MAX_BONUS = 0.1;
 const MAX_SITE_PRIOR_ENTRIES = 3;
 const STICKY_BONUS = 0.05;
 const GREEK_SCRIPT_REGEX = /[\u0370-\u03FF\u1F00-\u1FFF]/u;
+const ARABIC_SCRIPT_REGEX = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/u;
 const LETTER_REGEX = /\p{L}/u;
 const TOKEN_REGEX = /\p{L}+/gu;
 const BOUNDARY_REGEX = /[\s.,!?;:()[\]{}"'`~@#$%^&*+=|\\/<>_-]/;
@@ -109,6 +110,9 @@ function resolveHintLanguage(
 }
 
 function getStrongScriptLanguage(sampleText: string, allowedLanguages: string[]): string | null {
+  if (allowedLanguages.includes("ar_SA") && ARABIC_SCRIPT_REGEX.test(sampleText)) {
+    return "ar_SA";
+  }
   if (allowedLanguages.includes("el_GR") && GREEK_SCRIPT_REGEX.test(sampleText)) {
     return "el_GR";
   }
