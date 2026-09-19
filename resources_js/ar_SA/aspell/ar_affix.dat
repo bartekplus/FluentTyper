@@ -1,0 +1,1318 @@
+﻿# This file was created automatically on 6/22/2006.  Do not edit!
+# It was created with:
+#   perl aspell-source-from-Buckwalter.pl . . .
+SET UTF-8
+
+# Pref-Wa
+PFX ے Y 2
+PFX ے 0 و .
+PFX ے 0 ف .
+
+# IVPref-hmA-tu
+PFX ü Y 6
+PFX ü 0 وست .
+PFX ü 0 فست .
+PFX ü 0 فت .
+PFX ü 0 وت .
+PFX ü 0 ست .
+PFX ü 0 ت .
+
+# IVPref-hw-ya
+PFX û Y 6
+PFX û 0 ي .
+PFX û 0 سي .
+PFX û 0 في .
+PFX û 0 فسي .
+PFX û 0 وسي .
+PFX û 0 وي .
+
+# IVPref-nHn-linu
+PFX ْ Y 3
+PFX ْ 0 ولن .
+PFX ْ 0 لن .
+PFX ْ 0 فلن .
+
+# IVPref-hy-litu
+PFX ù Y 3
+PFX ù 0 لت .
+PFX ù 0 ولت .
+PFX ù 0 فلت .
+
+# IVPref-AntmA-lita
+PFX ّ Y 3
+PFX ّ 0 لت .
+PFX ّ 0 ولت .
+PFX ّ 0 فلت .
+
+# IVPref-hn-ya
+PFX ÷ Y 6
+PFX ÷ 0 ي .
+PFX ÷ 0 سي .
+PFX ÷ 0 في .
+PFX ÷ 0 فسي .
+PFX ÷ 0 وسي .
+PFX ÷ 0 وي .
+
+# NPref-LiAl
+PFX ِ Y 3
+PFX ِ 0 ل .
+PFX ِ 0 فل .
+PFX ِ 0 ول .
+
+# IVPref-hmA-litu
+PFX ُ Y 3
+PFX ُ 0 لت .
+PFX ُ 0 ولت .
+PFX ُ 0 فلت .
+
+# IVPref-Anta-litu
+PFX ô Y 3
+PFX ô 0 لت .
+PFX ô 0 ولت .
+PFX ô 0 فلت .
+
+# IVPref-hm-liya
+PFX َ Y 3
+PFX َ 0 ولي .
+PFX َ 0 فلي .
+PFX َ 0 لي .
+
+# NPref-Al
+PFX ٍ Y 3
+PFX ٍ 0 فال .
+PFX ٍ 0 ال .
+PFX ٍ 0 وال .
+
+# IVPref-Antn-tu
+PFX ٌ Y 6
+PFX ٌ 0 وست .
+PFX ٌ 0 فست .
+PFX ٌ 0 فت .
+PFX ٌ 0 وت .
+PFX ٌ 0 ست .
+PFX ٌ 0 ت .
+
+# IVPref-Antn-ta
+PFX ً Y 6
+PFX ً 0 وست .
+PFX ً 0 فست .
+PFX ً 0 فت .
+PFX ً 0 وت .
+PFX ً 0 ست .
+PFX ً 0 ت .
+
+# IVPref-Anta-ta
+PFX ï Y 6
+PFX ï 0 وست .
+PFX ï 0 فست .
+PFX ï 0 فت .
+PFX ï 0 وت .
+PFX ï 0 ست .
+PFX ï 0 ت .
+
+# IVPref-hn-liyu
+PFX ی Y 3
+PFX ی 0 ولي .
+PFX ی 0 فلي .
+PFX ی 0 لي .
+
+# NPref-Li
+PFX ي Y 3
+PFX ي 0 ل .
+PFX ي 0 فل .
+PFX ي 0 ول .
+
+# IVPref-Anti-tu
+PFX ى Y 6
+PFX ى 0 وست .
+PFX ى 0 فست .
+PFX ى 0 فت .
+PFX ى 0 وت .
+PFX ى 0 ست .
+PFX ى 0 ت .
+
+# IVPref-hmA-liyu
+PFX ë Y 3
+PFX ë 0 ولي .
+PFX ë 0 فلي .
+PFX ë 0 لي .
+
+# IVPref-AnA->u
+PFX ê Y 12
+PFX ê 0 سا .
+PFX ê 0 ا .
+PFX ê 0 فسأ .
+PFX ê 0 أ .
+PFX ê 0 فا .
+PFX ê 0 وسأ .
+PFX ê 0 وأ .
+PFX ê 0 وا .
+PFX ê 0 وسا .
+PFX ê 0 سأ .
+PFX ê 0 فسا .
+PFX ê 0 فأ .
+
+# IVPref-hm-yu
+PFX é Y 6
+PFX é 0 ي .
+PFX é 0 سي .
+PFX é 0 في .
+PFX é 0 فسي .
+PFX é 0 وسي .
+PFX é 0 وي .
+
+# IVPref-hmA-liya
+PFX è Y 3
+PFX è 0 ولي .
+PFX è 0 فلي .
+PFX è 0 لي .
+
+# IVPref-nHn-nu
+PFX ç Y 6
+PFX ç 0 وسن .
+PFX ç 0 ون .
+PFX ç 0 ن .
+PFX ç 0 فسن .
+PFX ç 0 سن .
+PFX ç 0 فن .
+
+# IVPref-AntmA-litu
+PFX و Y 3
+PFX و 0 لت .
+PFX و 0 ولت .
+PFX و 0 فلت .
+
+# IVPref-Anti-ta
+PFX ه Y 6
+PFX ه 0 وست .
+PFX ه 0 فست .
+PFX ه 0 فت .
+PFX ه 0 وت .
+PFX ه 0 ست .
+PFX ه 0 ت .
+
+# IVPref-hw-liya
+PFX ن Y 3
+PFX ن 0 ولي .
+PFX ن 0 فلي .
+PFX ن 0 لي .
+
+# IVPref-AnA-li>u
+PFX م Y 6
+PFX م 0 فلأ .
+PFX م 0 ولا .
+PFX م 0 لأ .
+PFX م 0 لا .
+PFX م 0 ولأ .
+PFX م 0 فلا .
+
+# IVPref-Anta-lita
+PFX â Y 3
+PFX â 0 لت .
+PFX â 0 ولت .
+PFX â 0 فلت .
+
+# IVPref-AnA->a
+PFX ل Y 12
+PFX ل 0 سا .
+PFX ل 0 ا .
+PFX ل 0 فسأ .
+PFX ل 0 أ .
+PFX ل 0 فا .
+PFX ل 0 وسأ .
+PFX ل 0 وأ .
+PFX ل 0 وا .
+PFX ل 0 وسا .
+PFX ل 0 سأ .
+PFX ل 0 فسا .
+PFX ل 0 فأ .
+
+# IVPref-hw-liyu
+PFX à Y 3
+PFX à 0 ولي .
+PFX à 0 فلي .
+PFX à 0 لي .
+
+# IVPref-AnA-|
+PFX ك Y 12
+PFX ك 0 سا .
+PFX ك 0 ا .
+PFX ك 0 سآ .
+PFX ك 0 آ .
+PFX ك 0 فا .
+PFX ك 0 وآ .
+PFX ك 0 وا .
+PFX ك 0 وسا .
+PFX ك 0 فآ .
+PFX ك 0 فسآ .
+PFX ك 0 فسا .
+PFX ك 0 وسآ .
+
+# NPref-La
+PFX ق Y 1
+PFX ق 0 ل .
+
+# IVPref-hmA-ta
+PFX ف Y 6
+PFX ف 0 وست .
+PFX ف 0 فست .
+PFX ف 0 فت .
+PFX ف 0 وت .
+PFX ف 0 ست .
+PFX ف 0 ت .
+
+# IVPref-Antn-litu
+PFX ـ Y 3
+PFX ـ 0 لت .
+PFX ـ 0 ولت .
+PFX ـ 0 فلت .
+
+# IVPref-hmA-ya
+PFX غ Y 6
+PFX غ 0 ي .
+PFX غ 0 سي .
+PFX غ 0 في .
+PFX غ 0 فسي .
+PFX غ 0 وسي .
+PFX غ 0 وي .
+
+# IVPref-hn-liya
+PFX ع Y 3
+PFX ع 0 ولي .
+PFX ع 0 فلي .
+PFX ع 0 لي .
+
+# IVPref-hy-tu
+PFX ظ Y 6
+PFX ظ 0 وست .
+PFX ظ 0 فست .
+PFX ظ 0 فت .
+PFX ظ 0 وت .
+PFX ظ 0 ست .
+PFX ظ 0 ت .
+
+# IVPref-AnA-li>a
+PFX ط Y 6
+PFX ط 0 فلأ .
+PFX ط 0 ولا .
+PFX ط 0 لأ .
+PFX ط 0 لا .
+PFX ط 0 ولأ .
+PFX ط 0 فلا .
+
+# NPref-Bi
+PFX × Y 6
+PFX × 0 وك .
+PFX × 0 وب .
+PFX × 0 ك .
+PFX × 0 ب .
+PFX × 0 فب .
+PFX × 0 فك .
+
+# IVPref-Antm-tu
+PFX ض Y 6
+PFX ض 0 وست .
+PFX ض 0 فست .
+PFX ض 0 فت .
+PFX ض 0 وت .
+PFX ض 0 ست .
+PFX ض 0 ت .
+
+# IVPref-Antm-ta
+PFX ص Y 6
+PFX ص 0 وست .
+PFX ص 0 فست .
+PFX ص 0 فت .
+PFX ص 0 وت .
+PFX ص 0 ست .
+PFX ص 0 ت .
+
+# IVPref-Anti-litu
+PFX ش Y 3
+PFX ش 0 لت .
+PFX ش 0 ولت .
+PFX ش 0 فلت .
+
+# IVPref-hy-ta
+PFX س Y 6
+PFX س 0 وست .
+PFX س 0 فست .
+PFX س 0 فت .
+PFX س 0 وت .
+PFX س 0 ست .
+PFX س 0 ت .
+
+# PVPref-La
+PFX ز Y 1
+PFX ز 0 ل .
+
+# IVPref-AntmA-ta
+PFX ر Y 6
+PFX ر 0 وست .
+PFX ر 0 فست .
+PFX ر 0 فت .
+PFX ر 0 وت .
+PFX ر 0 ست .
+PFX ر 0 ت .
+
+# IVPref-nHn-na
+PFX ذ Y 6
+PFX ذ 0 وسن .
+PFX ذ 0 ون .
+PFX ذ 0 ن .
+PFX ذ 0 فسن .
+PFX ذ 0 سن .
+PFX ذ 0 فن .
+
+# IVPref-Antn-lita
+PFX د Y 3
+PFX د 0 لت .
+PFX د 0 ولت .
+PFX د 0 فلت .
+
+# IVPref-hn-yu
+PFX خ Y 6
+PFX خ 0 ي .
+PFX خ 0 سي .
+PFX خ 0 في .
+PFX خ 0 فسي .
+PFX خ 0 وسي .
+PFX خ 0 وي .
+
+# IVPref-hm-liyu
+PFX ح Y 3
+PFX ح 0 ولي .
+PFX ح 0 فلي .
+PFX ح 0 لي .
+
+# IVPref-hy-lita
+PFX ج Y 3
+PFX ج 0 لت .
+PFX ج 0 ولت .
+PFX ج 0 فلت .
+
+# IVPref-hmA-yu
+PFX ث Y 6
+PFX ث 0 ي .
+PFX ث 0 سي .
+PFX ث 0 في .
+PFX ث 0 فسي .
+PFX ث 0 وسي .
+PFX ث 0 وي .
+
+# IVPref-AnA-li|
+PFX ت Y 6
+PFX ت 0 ولا .
+PFX ت 0 فلآ .
+PFX ت 0 لا .
+PFX ت 0 ولآ .
+PFX ت 0 لآ .
+PFX ت 0 فلا .
+
+# IVPref-Anti-lita
+PFX ة Y 3
+PFX ة 0 لت .
+PFX ة 0 ولت .
+PFX ة 0 فلت .
+
+# NPref-Lil
+PFX ب Y 3
+PFX ب 0 لل .
+PFX ب 0 فلل .
+PFX ب 0 ولل .
+
+# IVPref-hw-yu
+PFX ا Y 6
+PFX ا 0 ي .
+PFX ا 0 سي .
+PFX ا 0 في .
+PFX ا 0 فسي .
+PFX ا 0 وسي .
+PFX ا 0 وي .
+
+# IVPref-Antm-lita
+PFX ئ Y 3
+PFX ئ 0 لت .
+PFX ئ 0 ولت .
+PFX ئ 0 فلت .
+
+# NPref-BiAl
+PFX إ Y 6
+PFX إ 0 كال .
+PFX إ 0 فكال .
+PFX إ 0 فبال .
+PFX إ 0 بال .
+PFX إ 0 وبال .
+PFX إ 0 وكال .
+
+# IVPref-Antm-litu
+PFX ؤ Y 3
+PFX ؤ 0 لت .
+PFX ؤ 0 ولت .
+PFX ؤ 0 فلت .
+
+# IVPref-hmA-lita
+PFX أ Y 3
+PFX أ 0 لت .
+PFX أ 0 ولت .
+PFX أ 0 فلت .
+
+# IVPref-AntmA-tu
+PFX آ Y 6
+PFX آ 0 وست .
+PFX آ 0 فست .
+PFX آ 0 فت .
+PFX آ 0 وت .
+PFX آ 0 ست .
+PFX آ 0 ت .
+
+# IVPref-hm-ya
+PFX ء Y 6
+PFX ء 0 ي .
+PFX ء 0 سي .
+PFX ء 0 في .
+PFX ء 0 فسي .
+PFX ء 0 وسي .
+PFX ء 0 وي .
+
+# IVPref-Anta-tu
+PFX ہ Y 6
+PFX ہ 0 وست .
+PFX ہ 0 فست .
+PFX ہ 0 فت .
+PFX ہ 0 وت .
+PFX ہ 0 ست .
+PFX ہ 0 ت .
+
+# IVPref-nHn-lina
+PFX ؟ Y 3
+PFX ؟ 0 ولن .
+PFX ؟ 0 لن .
+PFX ؟ 0 فلن .
+
+# IVSuff-yh
+SFX ¾ Y 7
+SFX ¾ 0 يهن .
+SFX ¾ 0 يني .
+SFX ¾ 0 يهما .
+SFX ¾ 0 ينا .
+SFX ¾ 0 يهم .
+SFX ¾ 0 يه .
+SFX ¾ 0 يها .
+
+# IVSuff-ynh
+SFX ½ Y 7
+SFX ½ 0 يننا .
+SFX ½ 0 ينهما .
+SFX ½ 0 ينها .
+SFX ½ 0 ينه .
+SFX ½ 0 ينني .
+SFX ½ 0 ينهم .
+SFX ½ 0 ينهن .
+
+# FWSuff-k
+SFX ¼ Y 4
+SFX ¼ 0 كما .
+SFX ¼ 0 كم .
+SFX ¼ 0 ك .
+SFX ¼ 0 كن .
+
+# IVSuff-k
+SFX » Y 4
+SFX » 0 كما .
+SFX » 0 كم .
+SFX » 0 ك .
+SFX » 0 كن .
+
+# CVSuff-wA
+SFX ؛ Y 1
+SFX ؛ 0 وا .
+
+# NSuff-ap
+SFX ¹ Y 1
+SFX ¹ 0 ة .
+
+# IVSuff-~nh
+SFX ¸ Y 7
+SFX ¸ 0 ني .
+SFX ¸ 0 هما .
+SFX ¸ 0 ها .
+SFX ¸ 0 ه .
+SFX ¸ 0 نا .
+SFX ¸ 0 هن .
+SFX ¸ 0 هم .
+
+# IVSuff-|k
+SFX · Y 4
+SFX · 0 كما .
+SFX · 0 كم .
+SFX · 0 ك .
+SFX · 0 كن .
+
+# PVSuff-A
+SFX ¶ Y 1
+SFX ¶ 0 ا .
+
+# NSuff-tayn
+SFX ´ Y 1
+SFX ´ 0 تين .
+
+# IVSuff-Ah
+SFX ³ Y 7
+SFX ³ 0 اهن .
+SFX ³ 0 اهم .
+SFX ³ 0 اها .
+SFX ³ 0 اهما .
+SFX ³ 0 انا .
+SFX ³ 0 اني .
+SFX ³ 0 اه .
+
+# IVSuff-Anh
+SFX ² Y 7
+SFX ² 0 انهن .
+SFX ² 0 انهما .
+SFX ² 0 اننا .
+SFX ² 0 انها .
+SFX ² 0 انهم .
+SFX ² 0 انه .
+SFX ² 0 انني .
+
+# IVSuff-yn
+SFX ± Y 1
+SFX ± 0 ين .
+
+# NSuff-ayh
+SFX ° Y 11
+SFX ° 0 يكم .
+SFX ° 0 يكما .
+SFX ° 0 ي .
+SFX ° 0 يهن .
+SFX ° 0 يهما .
+SFX ° 0 ينا .
+SFX ° 0 يكن .
+SFX ° 0 يه .
+SFX ° 0 يهم .
+SFX ° 0 يها .
+SFX ° 0 يك .
+
+# IVSuff-awnh
+SFX ¯ Y 7
+SFX ¯ 0 وننا .
+SFX ¯ 0 ونني .
+SFX ¯ 0 ونهم .
+SFX ¯ 0 ونها .
+SFX ¯ 0 ونهما .
+SFX ¯ 0 ونه .
+SFX ¯ 0 ونهن .
+
+# NSuff-|t
+SFX ® Y 1
+SFX ® 0 آت .
+
+# IVSuff-Ak
+SFX ­ Y 4
+SFX ­ 0 اكن .
+SFX ­ 0 اكما .
+SFX ­ 0 اكم .
+SFX ­ 0 اك .
+
+# NSuff-atAh
+SFX ¬ Y 12
+SFX ¬ 0 تاي .
+SFX ¬ 0 تاها .
+SFX ¬ 0 تاكم .
+SFX ¬ 0 تاكما .
+SFX ¬ 0 تاهما .
+SFX ¬ 0 تاهن .
+SFX ¬ 0 تاه .
+SFX ¬ 0 تانا .
+SFX ¬ 0 تاكن .
+SFX ¬ 0 تاهم .
+SFX ¬ 0 تاك .
+SFX ¬ 0 تا .
+
+# IVSuff-An
+SFX « Y 1
+SFX « 0 ان .
+
+# NSuff-h
+SFX ھ Y 10
+SFX ھ 0 كما .
+SFX ھ 0 كم .
+SFX ھ 0 كن .
+SFX ھ 0 هن .
+SFX ھ 0 هم .
+SFX ھ 0 هما .
+SFX ھ 0 ه .
+SFX ھ 0 ها .
+SFX ھ 0 ك .
+SFX ھ 0 نا .
+
+# IVSuff-nh
+SFX © Y 7
+SFX © 0 نهن .
+SFX © 0 نني .
+SFX © 0 نهما .
+SFX © 0 نها .
+SFX © 0 نه .
+SFX © 0 ننا .
+SFX © 0 نهم .
+
+# NSuff-ath
+SFX ¨ Y 11
+SFX ¨ 0 تهم .
+SFX ¨ 0 تها .
+SFX ¨ 0 تهن .
+SFX ¨ 0 تهما .
+SFX ¨ 0 تنا .
+SFX ¨ 0 تكما .
+SFX ¨ 0 تكم .
+SFX ¨ 0 تي .
+SFX ¨ 0 ته .
+SFX ¨ 0 تك .
+SFX ¨ 0 تكن .
+
+# PVSuff-~nh
+SFX § Y 20
+SFX § 0 كما .
+SFX § 0 كم .
+SFX § 0 هن .
+SFX § 0 اه .
+SFX § 0 اهم .
+SFX § 0 اها .
+SFX § 0 هما .
+SFX § 0 ه .
+SFX § 0 ك .
+SFX § 0 نا .
+SFX § 0 اك .
+SFX § 0 كن .
+SFX § 0 اكم .
+SFX § 0 هم .
+SFX § 0 اهن .
+SFX § 0 ني .
+SFX § 0 اكن .
+SFX § 0 ها .
+SFX § 0 اهما .
+SFX § 0 اكما .
+
+# IVSuff-y
+SFX ¦ Y 1
+SFX ¦ 0 ي .
+
+# NSuff-An
+SFX ¥ Y 1
+SFX ¥ 0 ان .
+
+# NSuff-|-ni
+SFX ¤ Y 1
+SFX ¤ 0 ن .
+
+# IVSuff-wk
+SFX £ Y 4
+SFX £ 0 وكن .
+SFX £ 0 وك .
+SFX £ 0 وكما .
+SFX £ 0 وكم .
+
+# FWSuff-iy-I
+SFX ¢ Y 1
+SFX ¢ 0 ي .
+
+# IVSuff-~nk
+SFX ، Y 4
+SFX ، 0 كما .
+SFX ، 0 كم .
+SFX ، 0 ك .
+SFX ، 0 كن .
+
+# PVSuff-th
+SFX ں Y 32
+SFX ں 0 تمونا .
+SFX ں 0 تمانا .
+SFX ں 0 تماهما .
+SFX ں 0 تموني .
+SFX ں 0 تنني .
+SFX ں 0 تنها .
+SFX ں 0 تهن .
+SFX ں 0 تموهم .
+SFX ں 0 تماه .
+SFX ں 0 تني .
+SFX ں 0 تنا .
+SFX ں 0 تماني .
+SFX ں 0 تماهم .
+SFX ں 0 ته .
+SFX ں 0 تنهن .
+SFX ں 0 تهم .
+SFX ں 0 تها .
+SFX ں 0 تنهما .
+SFX ں 0 تنهم .
+SFX ں 0 تموها .
+SFX ں 0 تموه .
+SFX ں 0 تهما .
+SFX ں 0 تماهن .
+SFX ں 0 تننا .
+SFX ں 0 تموهما .
+SFX ں 0 تكما .
+SFX ں 0 تموهن .
+SFX ں 0 تكم .
+SFX ں 0 تنه .
+SFX ں 0 تماها .
+SFX ں 0 تكن .
+SFX ں 0 تك .
+
+# PVSuff-nh
+SFX ڑ Y 20
+SFX ڑ 0 ناهن .
+SFX ڑ 0 نكم .
+SFX ڑ 0 نه .
+SFX ڑ 0 ناكما .
+SFX ڑ 0 ناهم .
+SFX ڑ 0 نكن .
+SFX ڑ 0 ناه .
+SFX ڑ 0 نهم .
+SFX ڑ 0 ناهما .
+SFX ڑ 0 نهن .
+SFX ڑ 0 ناك .
+SFX ڑ 0 ناها .
+SFX ڑ 0 نك .
+SFX ڑ 0 ناكن .
+SFX ڑ 0 نني .
+SFX ڑ 0 نهما .
+SFX ڑ 0 نها .
+SFX ڑ 0 نكما .
+SFX ڑ 0 ناكم .
+SFX ڑ 0 ننا .
+
+# NSuff-|th
+SFX ک Y 11
+SFX ک 0 آتي .
+SFX ک 0 آتك .
+SFX ک 0 آتهم .
+SFX ک 0 آتكن .
+SFX ک 0 آتنا .
+SFX ک 0 آتهن .
+SFX ک 0 آتها .
+SFX ک 0 آتكم .
+SFX ک 0 آتكما .
+SFX ک 0 آتهما .
+SFX ک 0 آته .
+
+# NSuff-|h
+SFX گ Y 11
+SFX گ 0 كما .
+SFX گ 0 كم .
+SFX گ 0 كن .
+SFX گ 0 هن .
+SFX گ 0 هم .
+SFX گ 0 ي .
+SFX گ 0 هما .
+SFX گ 0 ه .
+SFX گ 0 ها .
+SFX گ 0 ك .
+SFX گ 0 نا .
+
+# NSuff-iyh
+SFX ڈ Y 11
+SFX ڈ 0 يكم .
+SFX ڈ 0 يكما .
+SFX ڈ 0 ي .
+SFX ڈ 0 يهن .
+SFX ڈ 0 يهما .
+SFX ڈ 0 ينا .
+SFX ڈ 0 يكن .
+SFX ڈ 0 يه .
+SFX ڈ 0 يهم .
+SFX ڈ 0 يها .
+SFX ڈ 0 يك .
+
+# PVSuff-~t
+SFX ژ Y 3
+SFX ژ 0 ن .
+SFX ژ 0 ما .
+SFX ژ 0 م .
+
+# IVSuff-|nk
+SFX چ Y 4
+SFX چ 0 نكم .
+SFX چ 0 نك .
+SFX چ 0 نكن .
+SFX چ 0 نكما .
+
+# PVSuff-Ah
+SFX ٹ Y 11
+SFX ٹ 0 اكم .
+SFX ٹ 0 اه .
+SFX ٹ 0 اهم .
+SFX ٹ 0 اهن .
+SFX ٹ 0 اها .
+SFX ٹ 0 اكن .
+SFX ٹ 0 اهما .
+SFX ٹ 0 انا .
+SFX ٹ 0 اني .
+SFX ٹ 0 اكما .
+SFX ٹ 0 اك .
+
+# NSuff-At
+SFX پ Y 1
+SFX پ 0 ات .
+
+# NSuff-wn
+SFX  Y 1
+SFX  0 ون .
+
+# FWSuff-niy-I
+SFX ~ Y 1
+SFX ~ 0 ني .
+
+# IVSuff-nk
+SFX } Y 4
+SFX } 0 نكم .
+SFX } 0 نك .
+SFX } 0 نكن .
+SFX } 0 نكما .
+
+# IVSuff-ny-nA
+SFX | Y 2
+SFX | 0 ني .
+SFX | 0 نا .
+
+# NSuff-Ath
+SFX { Y 11
+SFX { 0 اتها .
+SFX { 0 اتنا .
+SFX { 0 اته .
+SFX { 0 اتك .
+SFX { 0 اتهم .
+SFX { 0 اتكم .
+SFX { 0 اتي .
+SFX { 0 اتهن .
+SFX { 0 اتكما .
+SFX { 0 اتكن .
+SFX { 0 اتهما .
+
+# IVSuff-|n
+SFX z Y 1
+SFX z 0 ن .
+
+# IVSuff-wnk
+SFX y Y 4
+SFX y 0 ونكم .
+SFX y 0 ونك .
+SFX y 0 ونكما .
+SFX y 0 ونكن .
+
+# PVSuff-awA
+SFX x Y 1
+SFX x 0 وا .
+
+# FWSuff-niy-me
+SFX w Y 1
+SFX w 0 ني .
+
+# PVSuff-ah
+SFX v Y 11
+SFX v 0 كما .
+SFX v 0 كم .
+SFX v 0 كن .
+SFX v 0 هن .
+SFX v 0 هم .
+SFX v 0 ني .
+SFX v 0 هما .
+SFX v 0 ه .
+SFX v 0 ها .
+SFX v 0 ك .
+SFX v 0 نا .
+
+# IVSuff-Ank
+SFX u Y 4
+SFX u 0 انكما .
+SFX u 0 انكم .
+SFX u 0 انك .
+SFX u 0 انكن .
+
+# IVSuff-n
+SFX t Y 1
+SFX t 0 ن .
+
+# PVSuff-~n
+SFX s Y 1
+SFX s 0 ا .
+
+# IVSuff-wnh
+SFX r Y 7
+SFX r 0 وننا .
+SFX r 0 ونني .
+SFX r 0 ونهم .
+SFX r 0 ونها .
+SFX r 0 ونهما .
+SFX r 0 ونه .
+SFX r 0 ونهن .
+
+# CVSuff-wh
+SFX q Y 7
+SFX q 0 ونا .
+SFX q 0 وها .
+SFX q 0 وه .
+SFX q 0 وني .
+SFX q 0 وهم .
+SFX q 0 وهن .
+SFX q 0 وهما .
+
+# NSuff-atAn
+SFX p Y 1
+SFX p 0 تان .
+
+# CVSuff-oh
+SFX o Y 7
+SFX o 0 ني .
+SFX o 0 هما .
+SFX o 0 ها .
+SFX o 0 ه .
+SFX o 0 نا .
+SFX o 0 هن .
+SFX o 0 هم .
+
+# FWSuff-~A
+SFX n Y 1
+SFX n 0 ا .
+
+# FWSuff-nA-us
+SFX m Y 1
+SFX m 0 نا .
+
+# IVSuff-awk
+SFX l Y 4
+SFX l 0 وكن .
+SFX l 0 وك .
+SFX l 0 وكما .
+SFX l 0 وكم .
+
+# PVSuff-0ah
+SFX k Y 11
+SFX k 0 كما .
+SFX k 0 كم .
+SFX k 0 كن .
+SFX k 0 هن .
+SFX k 0 هم .
+SFX k 0 ني .
+SFX k 0 هما .
+SFX k 0 ه .
+SFX k 0 ها .
+SFX k 0 ك .
+SFX k 0 نا .
+
+# PVSuff-uwA
+SFX j Y 1
+SFX j 0 وا .
+
+# IVSuff-A
+SFX i Y 1
+SFX i 0 ا .
+
+# NSuff-iyna
+SFX h Y 1
+SFX h 0 ين .
+
+# IVSuff-|nh
+SFX g Y 7
+SFX g 0 نهن .
+SFX g 0 نني .
+SFX g 0 نهما .
+SFX g 0 نها .
+SFX g 0 نه .
+SFX g 0 ننا .
+SFX g 0 نهم .
+
+# FWSuff-hu-he
+SFX f Y 5
+SFX f 0 هما .
+SFX f 0 ها .
+SFX f 0 ه .
+SFX f 0 هن .
+SFX f 0 هم .
+
+# IVSuff-wA
+SFX e Y 1
+SFX e 0 وا .
+
+# IVSuff-h
+SFX d Y 5
+SFX d 0 هما .
+SFX d 0 ها .
+SFX d 0 ه .
+SFX d 0 هن .
+SFX d 0 هم .
+
+# PVSuff-n
+SFX c Y 2
+SFX c 0 ن .
+SFX c 0 نا .
+
+# FWSuff-ya
+SFX b Y 1
+SFX b 0 ي .
+
+# IVSuff-awh
+SFX a Y 7
+SFX a 0 ونا .
+SFX a 0 وها .
+SFX a 0 وه .
+SFX a 0 وني .
+SFX a 0 وهم .
+SFX a 0 وهن .
+SFX a 0 وهما .
+
+# NSuff-iy
+SFX ` Y 1
+SFX ` 0 ي .
+
+# PVSuff-awh
+SFX _ Y 11
+SFX _ 0 ونا .
+SFX _ 0 وكن .
+SFX _ 0 وها .
+SFX _ 0 وني .
+SFX _ 0 وكما .
+SFX _ 0 وهم .
+SFX _ 0 وهن .
+SFX _ 0 وهما .
+SFX _ 0 وه .
+SFX _ 0 وك .
+SFX _ 0 وكم .
+
+# NSuff-tay
+SFX ^ Y 11
+SFX ^ 0 تيكم .
+SFX ^ 0 تيهما .
+SFX ^ 0 تيه .
+SFX ^ 0 تيك .
+SFX ^ 0 تيكما .
+SFX ^ 0 تينا .
+SFX ^ 0 تيكن .
+SFX ^ 0 تيهن .
+SFX ^ 0 تي .
+SFX ^ 0 تيهم .
+SFX ^ 0 تيها .
+
+# PVSuff-ath
+SFX ] Y 22
+SFX ] 0 تاكم .
+SFX ] 0 تاه .
+SFX ] 0 تانا .
+SFX ] 0 تاني .
+SFX ] 0 تهن .
+SFX ] 0 تني .
+SFX ] 0 تنا .
+SFX ] 0 ته .
+SFX ] 0 تهم .
+SFX ] 0 تاها .
+SFX ] 0 تاكما .
+SFX ] 0 تها .
+SFX ] 0 تاهما .
+SFX ] 0 تاهن .
+SFX ] 0 تاكن .
+SFX ] 0 تهما .
+SFX ] 0 تاهم .
+SFX ] 0 تكما .
+SFX ] 0 تاك .
+SFX ] 0 تكم .
+SFX ] 0 تكن .
+SFX ] 0 تك .
+
+# CVSuff-yh
+SFX [ Y 7
+SFX [ 0 يهن .
+SFX [ 0 يني .
+SFX [ 0 يهما .
+SFX [ 0 ينا .
+SFX [ 0 يهم .
+SFX [ 0 يه .
+SFX [ 0 يها .
+
+# PVSuff-t
+SFX Z Y 4
+SFX Z 0 تما .
+SFX Z 0 تن .
+SFX Z 0 تم .
+SFX Z 0 ت .
+
+# FWSuff-hu-him
+SFX Y Y 5
+SFX Y 0 هما .
+SFX Y 0 ها .
+SFX Y 0 ه .
+SFX Y 0 هن .
+SFX Y 0 هم .
+
+# FWSuff-nA-we
+SFX X Y 1
+SFX X 0 نا .
+
+# FWSuff-hi
+SFX W Y 5
+SFX W 0 هما .
+SFX W 0 ها .
+SFX W 0 ه .
+SFX W 0 هن .
+SFX W 0 هم .
+
+# IVSuff-awnk
+SFX V Y 4
+SFX V 0 ونكم .
+SFX V 0 ونك .
+SFX V 0 ونكما .
+SFX V 0 ونكن .
+
+# IVSuff-wh
+SFX U Y 7
+SFX U 0 ونا .
+SFX U 0 وها .
+SFX U 0 وه .
+SFX U 0 وني .
+SFX U 0 وهم .
+SFX U 0 وهن .
+SFX U 0 وهما .
+
+# CVSuff-y
+SFX T Y 1
+SFX T 0 ي .
+
+# PVSuff-~th
+SFX S Y 32
+SFX S 0 كما .
+SFX S 0 موهما .
+SFX S 0 هن .
+SFX S 0 نه .
+SFX S 0 مونا .
+SFX S 0 ك .
+SFX S 0 ماها .
+SFX S 0 ماهما .
+SFX S 0 نهن .
+SFX S 0 نني .
+SFX S 0 نهما .
+SFX S 0 هم .
+SFX S 0 ماهن .
+SFX S 0 ننا .
+SFX S 0 مانا .
+SFX S 0 كم .
+SFX S 0 موها .
+SFX S 0 ماهم .
+SFX S 0 موني .
+SFX S 0 هما .
+SFX S 0 ه .
+SFX S 0 نا .
+SFX S 0 موهن .
+SFX S 0 نهم .
+SFX S 0 ماه .
+SFX S 0 كن .
+SFX S 0 موهم .
+SFX S 0 نها .
+SFX S 0 ني .
+SFX S 0 ها .
+SFX S 0 موه .
+SFX S 0 ماني .
+
+# IVSuff-|h
+SFX R Y 7
+SFX R 0 ني .
+SFX R 0 هما .
+SFX R 0 ها .
+SFX R 0 ه .
+SFX R 0 نا .
+SFX R 0 هن .
+SFX R 0 هم .
+
+# PVSuff-|h
+SFX Q Y 11
+SFX Q 0 كما .
+SFX Q 0 كم .
+SFX Q 0 كن .
+SFX Q 0 هن .
+SFX Q 0 هم .
+SFX Q 0 ني .
+SFX Q 0 هما .
+SFX Q 0 ه .
+SFX Q 0 ها .
+SFX Q 0 ك .
+SFX Q 0 نا .
+
+# NSuff-Ah
+SFX P Y 12
+SFX P 0 اي .
+SFX P 0 ا .
+SFX P 0 اكم .
+SFX P 0 اه .
+SFX P 0 اهم .
+SFX P 0 اهن .
+SFX P 0 اها .
+SFX P 0 اكن .
+SFX P 0 اهما .
+SFX P 0 انا .
+SFX P 0 اكما .
+SFX P 0 اك .
+
+# FWSuff-~iy
+SFX O Y 1
+SFX O 0 ي .
+
+# PVSuff-at
+SFX N Y 2
+SFX N 0 تا .
+SFX N 0 ت .
+
+# IVSuff-wn
+SFX M Y 1
+SFX M 0 ون .
+
+# FWSuff-iy-me
+SFX L Y 1
+SFX L 0 ي .
+
+# NSuff-ayn
+SFX K Y 1
+SFX K 0 ين .
+
+# PVSuff-uwh
+SFX J Y 11
+SFX J 0 ونا .
+SFX J 0 وكن .
+SFX J 0 وها .
+SFX J 0 وني .
+SFX J 0 وكما .
+SFX J 0 وهم .
+SFX J 0 وهن .
+SFX J 0 وهما .
+SFX J 0 وه .
+SFX J 0 وك .
+SFX J 0 وكم .
+
+# FWSuff-A
+SFX I Y 1
+SFX I 0 ا .
+
+# NSuff-wh
+SFX H Y 12
+SFX H 0 ونا .
+SFX H 0 و .
+SFX H 0 وكن .
+SFX H 0 وها .
+SFX H 0 وكما .
+SFX H 0 وهم .
+SFX H 0 وهن .
+SFX H 0 وهما .
+SFX H 0 ي .
+SFX H 0 وه .
+SFX H 0 وك .
+SFX H 0 وكم .
+
+# IVSuff-awA
+SFX G Y 1
+SFX G 0 وا .
+
+# IVSuff-awn
+SFX F Y 1
+SFX F 0 ون .
+
+# NSuff-AF
+SFX E Y 1
+SFX E 0 ا .
