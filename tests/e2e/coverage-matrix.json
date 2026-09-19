@@ -309,6 +309,16 @@
           "layer": "unit",
           "file": "tests/SuggestionManager.test.ts",
           "test": "applies grammar locally for contenteditable when caret stays stale"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionManager.test.ts",
+          "test": "shows popup when a host-handled grammar edit re-dispatches input (Reddit grammar scenario)"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionManager.test.ts",
+          "test": "shows popup when the host prevents a grammar edit without a sync DOM change (Reddit async grammar scenario)"
         }
       ]
     },

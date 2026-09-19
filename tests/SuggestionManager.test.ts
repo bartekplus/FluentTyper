@@ -2991,4 +2991,134 @@ describe("SuggestionManager", () => {
     expect(event.defaultPrevented).toBe(true);
     expect(textarea.value).toBe("hello\xA0");
   });
+
+  test("shows popup when a host-handled grammar edit re-dispatches input (Reddit grammar scenario)", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+      enabledGrammarRules: ["mathOperatorSpacing"],
+    });
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML =
+      '<p class="first:mt-0 last:mb-0" dir="auto"><span data-lexical-text="true">x=y</span></p>';
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    const paragraph = editable.querySelector("p");
+    const lexicalTextNode = editable.querySelector("span")?.firstChild as Text | null;
+    if (!paragraph || !lexicalTextNode) {
+      throw new Error("Expected Lexical-like paragraph");
+    }
+
+    let handledReplacements = 0;
+    editable.addEventListener("beforeinput", (event) => {
+      const inputEvent = event as InputEvent;
+      if (inputEvent.inputType !== "insertReplacementText") {
+        return;
+      }
+      handledReplacements += 1;
+      event.preventDefault();
+      lexicalTextNode.textContent = inputEvent.data ?? "";
+
+      // Lexical applies the text but keeps the live selection anchored at the
+      // block boundary until a later reconcile.
+      const hostSelection = window.getSelection();
+      if (!hostSelection) {
+        return;
+      }
+      const staleRange = document.createRange();
+      staleRange.setStart(paragraph, 0);
+      staleRange.collapse(true);
+      hostSelection.removeAllRanges();
+      hostSelection.addRange(staleRange);
+
+      // ...and then fires its own input event, re-entering our input handler
+      // while the grammar edit is still being applied.
+      editable.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    const initialRange = document.createRange();
+    initialRange.setStart(lexicalTextNode, 3);
+    initialRange.collapse(true);
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Expected selection");
+    }
+    selection.removeAllRanges();
+    selection.addRange(initialRange);
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+    dispatchInput(editable, { inputType: "insertText" });
+
+    const request = await waitForNextCall(getPrediction);
+    expect(handledReplacements).toBe(1);
+    expect(lexicalTextNode.textContent).toBe("x = y");
+    expect(request.text).toBe("x = y");
+
+    // The host's re-entrant input must be coalesced into the edit's own
+    // request, not shipped as a second one built from the stale caret.
+    await new Promise<void>((resolve) => setTimeout(resolve, 60));
+    expect(getPrediction).toHaveBeenCalledTimes(1);
+
+    manager.fulfillPrediction(buildResponse(request, { predictions: ["Word\xA0"] }));
+
+    const menuItems = querySuggestionMenuItems();
+    expect(menuItems.length).toBe(1);
+    expect(menuItems[0]?.querySelector(".ft-suggestion-label")?.textContent).toBe("Word\xA0");
+  });
+
+  test("shows popup when the host prevents a grammar edit without a sync DOM change (Reddit async grammar scenario)", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+      enabledGrammarRules: ["mathOperatorSpacing"],
+    });
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    editable.innerHTML =
+      '<p class="first:mt-0 last:mb-0" dir="auto"><span data-lexical-text="true">x=y</span></p>';
+    Object.defineProperty(editable, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(editable);
+    manager.queryAndAttachHelper();
+
+    const lexicalTextNode = editable.querySelector("span")?.firstChild as Text | null;
+    if (!lexicalTextNode) {
+      throw new Error("Expected Lexical-like paragraph");
+    }
+
+    let handledReplacements = 0;
+    editable.addEventListener("beforeinput", (event) => {
+      const inputEvent = event as InputEvent;
+      if (inputEvent.inputType !== "insertReplacementText") {
+        return;
+      }
+      handledReplacements += 1;
+      // Lexical claims the edit but reconciles asynchronously, so the DOM is
+      // unchanged by the time our handler regains control.
+      event.preventDefault();
+    });
+
+    const initialRange = document.createRange();
+    initialRange.setStart(lexicalTextNode, 3);
+    initialRange.collapse(true);
+    const selection = window.getSelection();
+    if (!selection) {
+      throw new Error("Expected selection");
+    }
+    selection.removeAllRanges();
+    selection.addRange(initialRange);
+    editable.dispatchEvent(new Event("focus", { bubbles: true }));
+    dispatchInput(editable, { inputType: "insertText" });
+
+    const request = await waitForNextCall(getPrediction);
+    expect(handledReplacements).toBe(1);
+    expect(lexicalTextNode.textContent).toBe("x=y");
+    // The prediction follows the edit the host accepted responsibility for,
+    // not the DOM it has not reconciled yet.
+    expect(request.text).toBe("x = y");
+
+    manager.fulfillPrediction(buildResponse(request, { predictions: ["Word\xA0"] }));
+
+    const menuItems = querySuggestionMenuItems();
+    expect(menuItems.length).toBe(1);
+  });
 });
