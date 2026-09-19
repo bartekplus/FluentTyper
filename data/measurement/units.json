@@ -1,0 +1,875 @@
+[
+  {
+    "identity": "second",
+    "symbol": "s",
+    "prefixes": "decimal",
+    "safe": true,
+    "source": "BIPM-SI-9-4.01",
+    "composition": true,
+    "ucum": "s"
+  },
+  {
+    "identity": "metre",
+    "symbol": "m",
+    "prefixes": "decimal",
+    "safe": true,
+    "source": "BIPM-SI-9-4.01",
+    "composition": true,
+    "ucum": "m"
+  },
+  {
+    "identity": "gram",
+    "symbol": "g",
+    "prefixes": "decimal",
+    "safe": true,
+    "source": "BIPM-SI-9-4.01",
+    "composition": true,
+    "ucum": "g"
+  },
+  {
+    "identity": "ampere",
+    "symbol": "A",
+    "prefixes": "decimal",
+    "safe": true,
+    "source": "BIPM-SI-9-4.01",
+    "composition": true,
+    "ucum": "A"
+  },
+  {
+    "identity": "kelvin",
+    "symbol": "K",
+    "prefixes": "decimal",
+    "safe": true,
+    "source": "BIPM-SI-9-4.01",
+    "composition": true,
+    "ucum": "K"
+  },
+  {
+    "identity": "mole",
+    "symbol": "mol",
+    "prefixes": "decimal",
+    "safe": true,
+    "source": "BIPM-SI-9-4.01",
+    "composition": true,
+    "ucum": "mol"
+  },
+  {
+    "identity": "candela",
+    "symbol": "cd",
+    "prefixes": "decimal",
+    "safe": true,
+    "source": "BIPM-SI-9-4.01",
+    "composition": true,
+    "ucum": "cd"
+  },
+  {
+    "identity": "radian",
+    "symbol": "rad",
+    "prefixes": "decimal",
+    "safe": false,
+    "ambiguity": "radian or rad absorbed-dose unit",
+    "source": "BIPM-SI-9-4.01",
+    "composition": true,
+    "ucum": "rad"
+  },
+  {
+    "identity": "steradian",
+    "symbol": "sr",
+    "prefixes": "decimal",
+    "safe": true,
+    "source": "BIPM-SI-9-4.01",
+    "composition": true,
+    "ucum": "sr"
+  },
+  {
+    "identity": "hertz",
+    "symbol": "Hz",
+    "prefixes": "decimal",
+    "safe": true,
+    "source": "BIPM-SI-9-4.01",
+    "composition": true,
+    "ucum": "Hz"
+  },
+  {
+    "identity": "newton",
+    "symbol": "N",
+    "prefixes": "decimal",
+    "safe": true,
+    "source": "BIPM-SI-9-4.01",
+    "composition": true,
+    "ucum": "N"
+  },
+  {
+    "identity": "pascal",
+    "symbol": "Pa",
+    "prefixes": "decimal",
+    "safe": false,
+    "ambiguity": "kinship word in supported locales",
+    "source": "BIPM-SI-9-4.01",
+    "composition": true,
+    "ucum": "Pa"
+  },
+  {
+    "identity": "joule",
+    "symbol": "J",
+    "prefixes": "decimal",
+    "safe": true,
+    "source": "BIPM-SI-9-4.01",
+    "composition": true,
+    "ucum": "J"
+  },
+  {
+    "identity": "watt",
+    "symbol": "W",
+    "prefixes": "decimal",
+    "safe": true,
+    "source": "BIPM-SI-9-4.01",
+    "composition": true,
+    "ucum": "W"
+  },
+  {
+    "identity": "coulomb",
+    "symbol": "C",
+    "prefixes": "decimal",
+    "safe": true,
+    "source": "BIPM-SI-9-4.01",
+    "composition": true,
+    "ucum": "C"
+  },
+  {
+    "identity": "volt",
+    "symbol": "V",
+    "prefixes": "decimal",
+    "safe": true,
+    "source": "BIPM-SI-9-4.01",
+    "composition": true,
+    "ucum": "V"
+  },
+  {
+    "identity": "farad",
+    "symbol": "F",
+    "prefixes": "decimal",
+    "safe": true,
+    "source": "BIPM-SI-9-4.01",
+    "composition": true,
+    "ucum": "F"
+  },
+  {
+    "identity": "ohm",
+    "symbol": "Ω",
+    "prefixes": "decimal",
+    "safe": true,
+    "source": "BIPM-SI-9-4.01",
+    "composition": true,
+    "ucum": "Ohm"
+  },
+  {
+    "identity": "siemens",
+    "symbol": "S",
+    "prefixes": "decimal",
+    "safe": true,
+    "source": "BIPM-SI-9-4.01",
+    "composition": true,
+    "ucum": "S"
+  },
+  {
+    "identity": "weber",
+    "symbol": "Wb",
+    "prefixes": "decimal",
+    "safe": true,
+    "source": "BIPM-SI-9-4.01",
+    "composition": true,
+    "ucum": "Wb"
+  },
+  {
+    "identity": "tesla",
+    "symbol": "T",
+    "prefixes": "decimal",
+    "safe": true,
+    "source": "BIPM-SI-9-4.01",
+    "composition": true,
+    "ucum": "T"
+  },
+  {
+    "identity": "henry",
+    "symbol": "H",
+    "prefixes": "decimal",
+    "safe": true,
+    "source": "BIPM-SI-9-4.01",
+    "composition": true,
+    "ucum": "H"
+  },
+  {
+    "identity": "degree Celsius",
+    "symbol": "°C",
+    "prefixes": "none",
+    "safe": true,
+    "source": "BIPM-SI-9-4.01",
+    "composition": false,
+    "ucum": "Cel"
+  },
+  {
+    "identity": "lumen",
+    "symbol": "lm",
+    "prefixes": "decimal",
+    "safe": true,
+    "source": "BIPM-SI-9-4.01",
+    "composition": true,
+    "ucum": "lm"
+  },
+  {
+    "identity": "lux",
+    "symbol": "lx",
+    "prefixes": "decimal",
+    "safe": true,
+    "source": "BIPM-SI-9-4.01",
+    "composition": true,
+    "ucum": "lx"
+  },
+  {
+    "identity": "becquerel",
+    "symbol": "Bq",
+    "prefixes": "decimal",
+    "safe": true,
+    "source": "BIPM-SI-9-4.01",
+    "composition": true,
+    "ucum": "Bq"
+  },
+  {
+    "identity": "gray",
+    "symbol": "Gy",
+    "prefixes": "decimal",
+    "safe": true,
+    "source": "BIPM-SI-9-4.01",
+    "composition": true,
+    "ucum": "Gy"
+  },
+  {
+    "identity": "sievert",
+    "symbol": "Sv",
+    "prefixes": "decimal",
+    "safe": true,
+    "source": "BIPM-SI-9-4.01",
+    "composition": true,
+    "ucum": "Sv"
+  },
+  {
+    "identity": "katal",
+    "symbol": "kat",
+    "prefixes": "decimal",
+    "safe": true,
+    "source": "BIPM-SI-9-4.01",
+    "composition": true,
+    "ucum": "kat"
+  },
+  {
+    "identity": "minute",
+    "symbol": "min",
+    "prefixes": "none",
+    "safe": true,
+    "source": "NIST-SP-811",
+    "composition": true,
+    "ucum": "min"
+  },
+  {
+    "identity": "hour",
+    "symbol": "h",
+    "prefixes": "none",
+    "safe": true,
+    "source": "NIST-SP-811",
+    "composition": true,
+    "ucum": "h"
+  },
+  {
+    "identity": "day",
+    "symbol": "d",
+    "prefixes": "none",
+    "safe": true,
+    "source": "NIST-SP-811",
+    "composition": true,
+    "ucum": "d"
+  },
+  {
+    "identity": "degree",
+    "symbol": "°",
+    "prefixes": "none",
+    "safe": false,
+    "ambiguity": "angular symbols are printed directly after the number",
+    "source": "NIST-SP-811",
+    "composition": true,
+    "ucum": "deg"
+  },
+  {
+    "identity": "arcminute",
+    "symbol": "′",
+    "prefixes": "none",
+    "safe": false,
+    "ambiguity": "angular symbols are printed directly after the number",
+    "source": "NIST-SP-811",
+    "composition": true,
+    "ucum": "'"
+  },
+  {
+    "identity": "arcsecond",
+    "symbol": "″",
+    "prefixes": "none",
+    "safe": false,
+    "ambiguity": "angular symbols are printed directly after the number",
+    "source": "NIST-SP-811",
+    "composition": true
+  },
+  {
+    "identity": "hectare",
+    "symbol": "ha",
+    "prefixes": "none",
+    "safe": true,
+    "source": "NIST-SP-811",
+    "composition": true,
+    "ucum": "har"
+  },
+  {
+    "identity": "litre",
+    "symbol": "L",
+    "prefixes": "decimal",
+    "safe": true,
+    "source": "BIPM-SI-9-4.01",
+    "composition": true,
+    "ucum": "L"
+  },
+  {
+    "identity": "tonne",
+    "symbol": "t",
+    "prefixes": "decimal",
+    "safe": true,
+    "source": "BIPM-SI-9-4.01",
+    "composition": true,
+    "ucum": "t"
+  },
+  {
+    "identity": "neper",
+    "symbol": "Np",
+    "prefixes": "none",
+    "safe": true,
+    "source": "NIST-SP-811",
+    "composition": true
+  },
+  {
+    "identity": "decibel",
+    "symbol": "dB",
+    "prefixes": "none",
+    "safe": true,
+    "source": "NIST-SP-811",
+    "composition": true
+  },
+  {
+    "identity": "electronvolt",
+    "symbol": "eV",
+    "prefixes": "decimal",
+    "safe": true,
+    "source": "BIPM-SI-9-4.01",
+    "composition": true,
+    "ucum": "eV"
+  },
+  {
+    "identity": "astronomical unit",
+    "symbol": "au",
+    "prefixes": "none",
+    "safe": true,
+    "source": "BIPM-SI-9-4.01",
+    "composition": true,
+    "ucum": "AU"
+  },
+  {
+    "identity": "dalton",
+    "symbol": "Da",
+    "prefixes": "decimal",
+    "safe": true,
+    "source": "BIPM-SI-9-4.01",
+    "composition": true,
+    "ucum": "Da"
+  },
+  {
+    "identity": "unified atomic mass unit",
+    "symbol": "u",
+    "prefixes": "none",
+    "safe": true,
+    "source": "BIPM-SI-9-4.01",
+    "composition": true,
+    "ucum": "u"
+  },
+  {
+    "identity": "nautical mile",
+    "symbol": "nmi",
+    "prefixes": "none",
+    "safe": true,
+    "source": "NIST-SP-811",
+    "composition": true,
+    "ucum": "[nmi_i]"
+  },
+  {
+    "identity": "knot",
+    "symbol": "kn",
+    "prefixes": "none",
+    "safe": true,
+    "source": "NIST-SP-811",
+    "composition": true,
+    "ucum": "[kn_i]"
+  },
+  {
+    "identity": "angstrom",
+    "symbol": "Å",
+    "prefixes": "none",
+    "safe": true,
+    "source": "NIST-SP-811",
+    "composition": true,
+    "ucum": "Ao"
+  },
+  {
+    "identity": "are",
+    "symbol": "a",
+    "prefixes": "none",
+    "safe": false,
+    "ambiguity": "common article and year symbol",
+    "source": "NIST-SP-811",
+    "composition": true,
+    "ucum": "ar"
+  },
+  {
+    "identity": "barn",
+    "symbol": "b",
+    "prefixes": "decimal",
+    "safe": false,
+    "ambiguity": "common word and bit abbreviation",
+    "source": "NIST-SP-811",
+    "composition": true,
+    "ucum": "b"
+  },
+  {
+    "identity": "bar",
+    "symbol": "bar",
+    "prefixes": "decimal",
+    "safe": true,
+    "source": "NIST-SP-811",
+    "composition": true,
+    "ucum": "bar"
+  },
+  {
+    "identity": "millimetre of mercury",
+    "symbol": "mmHg",
+    "prefixes": "none",
+    "safe": true,
+    "source": "NIST-SP-811",
+    "composition": true,
+    "ucum": "mm[Hg]"
+  },
+  {
+    "identity": "bit",
+    "symbol": "bit",
+    "prefixes": "both",
+    "safe": true,
+    "source": "UCUM-2.2",
+    "composition": true,
+    "ucum": "bit"
+  },
+  {
+    "identity": "byte",
+    "symbol": "B",
+    "prefixes": "both",
+    "safe": false,
+    "ambiguity": "byte or bel without context",
+    "source": "CLDR-48.2",
+    "composition": true
+  },
+  {
+    "identity": "inch",
+    "symbol": "in",
+    "prefixes": "none",
+    "safe": false,
+    "ambiguity": "common English preposition",
+    "source": "UCUM-2.2",
+    "composition": true,
+    "ucum": "[in_i]"
+  },
+  {
+    "identity": "foot",
+    "symbol": "ft",
+    "prefixes": "none",
+    "safe": true,
+    "source": "UCUM-2.2",
+    "composition": true,
+    "ucum": "[ft_i]"
+  },
+  {
+    "identity": "yard",
+    "symbol": "yd",
+    "prefixes": "none",
+    "safe": true,
+    "source": "UCUM-2.2",
+    "composition": true,
+    "ucum": "[yd_i]"
+  },
+  {
+    "identity": "mile",
+    "symbol": "mi",
+    "prefixes": "none",
+    "safe": true,
+    "source": "UCUM-2.2",
+    "composition": true,
+    "ucum": "[mi_i]"
+  },
+  {
+    "identity": "ounce",
+    "symbol": "oz",
+    "prefixes": "none",
+    "safe": false,
+    "source": "UCUM-2.2",
+    "composition": true,
+    "ucum": "[oz_av]",
+    "ambiguity": "avoirdupois or troy ounce"
+  },
+  {
+    "identity": "pound",
+    "symbol": "lb",
+    "prefixes": "none",
+    "safe": false,
+    "source": "UCUM-2.2",
+    "composition": true,
+    "ucum": "[lb_av]",
+    "ambiguity": "avoirdupois or historical pound"
+  },
+  {
+    "identity": "stone",
+    "symbol": "st",
+    "prefixes": "none",
+    "safe": false,
+    "ambiguity": "English ordinal suffix",
+    "source": "CLDR-48.2",
+    "composition": true
+  },
+  {
+    "identity": "gallon",
+    "symbol": "gal",
+    "prefixes": "none",
+    "safe": false,
+    "ambiguity": "US and imperial gallons differ",
+    "source": "UCUM-2.2",
+    "composition": true,
+    "ucum": "[gal_us]"
+  },
+  {
+    "identity": "quart",
+    "symbol": "qt",
+    "prefixes": "none",
+    "safe": false,
+    "ambiguity": "US and imperial quarts differ",
+    "source": "UCUM-2.2",
+    "composition": true,
+    "ucum": "[qt_us]"
+  },
+  {
+    "identity": "pint",
+    "symbol": "pt",
+    "prefixes": "none",
+    "safe": false,
+    "ambiguity": "US and imperial pints differ",
+    "source": "UCUM-2.2",
+    "composition": true,
+    "ucum": "[pt_us]"
+  },
+  {
+    "identity": "cup",
+    "symbol": "cup",
+    "prefixes": "none",
+    "safe": false,
+    "ambiguity": "cup size is region-dependent",
+    "source": "UCUM-2.2",
+    "composition": true,
+    "ucum": "[cup_us]"
+  },
+  {
+    "identity": "tablespoon",
+    "symbol": "tbsp",
+    "prefixes": "none",
+    "safe": false,
+    "ambiguity": "tablespoon size is region-dependent",
+    "source": "CLDR-48.2",
+    "composition": true
+  },
+  {
+    "identity": "teaspoon",
+    "symbol": "tsp",
+    "prefixes": "none",
+    "safe": false,
+    "ambiguity": "teaspoon size is region-dependent",
+    "source": "CLDR-48.2",
+    "composition": true
+  },
+  {
+    "identity": "degree Fahrenheit",
+    "symbol": "°F",
+    "prefixes": "none",
+    "safe": true,
+    "source": "UCUM-2.2",
+    "composition": false,
+    "ucum": "[degF]"
+  },
+  {
+    "identity": "calorie",
+    "symbol": "cal",
+    "prefixes": "decimal",
+    "safe": false,
+    "ambiguity": "thermochemical and international-table calories differ",
+    "source": "UCUM-2.2",
+    "composition": true,
+    "ucum": "cal_th"
+  },
+  {
+    "identity": "atmosphere",
+    "symbol": "atm",
+    "prefixes": "none",
+    "safe": true,
+    "source": "UCUM-2.2",
+    "composition": true,
+    "ucum": "atm"
+  },
+  {
+    "identity": "parsec",
+    "symbol": "pc",
+    "prefixes": "decimal",
+    "safe": true,
+    "source": "UCUM-2.2",
+    "composition": true,
+    "ucum": "pc"
+  },
+  {
+    "identity": "light year",
+    "symbol": "ly",
+    "prefixes": "none",
+    "safe": true,
+    "source": "CLDR-48.2",
+    "composition": true
+  },
+  {
+    "identity": "revolution per minute",
+    "symbol": "rpm",
+    "prefixes": "none",
+    "safe": true,
+    "source": "CLDR-48.2",
+    "composition": false
+  },
+  {
+    "identity": "kilometre per hour",
+    "symbol": "km/h",
+    "prefixes": "none",
+    "safe": true,
+    "source": "CLDR-48.2",
+    "composition": false
+  },
+  {
+    "identity": "mile per hour",
+    "symbol": "mph",
+    "prefixes": "none",
+    "safe": true,
+    "source": "CLDR-48.2",
+    "composition": false
+  },
+  {
+    "identity": "kilowatt hour",
+    "symbol": "kWh",
+    "prefixes": "none",
+    "safe": true,
+    "source": "CLDR-48.2",
+    "composition": false
+  },
+  {
+    "identity": "pound per square inch",
+    "symbol": "psi",
+    "prefixes": "none",
+    "safe": true,
+    "source": "CLDR-48.2",
+    "composition": false
+  },
+  {
+    "identity": "attosecond",
+    "symbol": "as",
+    "prefixes": "none",
+    "safe": false,
+    "ambiguity": "common English conjunction",
+    "source": "BIPM-SI-9-4.01",
+    "composition": true
+  },
+  {
+    "identity": "megasecond",
+    "symbol": "Ms",
+    "prefixes": "none",
+    "safe": false,
+    "ambiguity": "English honorific",
+    "source": "BIPM-SI-9-4.01",
+    "composition": true
+  },
+  {
+    "identity": "attometre",
+    "symbol": "am",
+    "prefixes": "none",
+    "safe": false,
+    "ambiguity": "common English verb",
+    "source": "BIPM-SI-9-4.01",
+    "composition": true
+  },
+  {
+    "identity": "decametre",
+    "symbol": "dam",
+    "prefixes": "none",
+    "safe": false,
+    "ambiguity": "common English word",
+    "source": "BIPM-SI-9-4.01",
+    "composition": true
+  },
+  {
+    "identity": "dyne",
+    "symbol": "dyn",
+    "prefixes": "decimal",
+    "safe": true,
+    "source": "NIST-SP-811",
+    "composition": true,
+    "ucum": "dyn"
+  },
+  {
+    "identity": "erg",
+    "symbol": "erg",
+    "prefixes": "decimal",
+    "safe": true,
+    "source": "NIST-SP-811",
+    "composition": true,
+    "ucum": "erg"
+  },
+  {
+    "identity": "poise",
+    "symbol": "P",
+    "prefixes": "decimal",
+    "safe": true,
+    "source": "NIST-SP-811",
+    "composition": true,
+    "ucum": "P"
+  },
+  {
+    "identity": "stokes",
+    "symbol": "St",
+    "prefixes": "decimal",
+    "safe": true,
+    "source": "NIST-SP-811",
+    "composition": true,
+    "ucum": "St"
+  },
+  {
+    "identity": "maxwell",
+    "symbol": "Mx",
+    "prefixes": "decimal",
+    "safe": true,
+    "source": "NIST-SP-811",
+    "composition": true,
+    "ucum": "Mx"
+  },
+  {
+    "identity": "gauss",
+    "symbol": "G",
+    "prefixes": "decimal",
+    "safe": false,
+    "source": "NIST-SP-811",
+    "composition": true,
+    "ucum": "G",
+    "ambiguity": "gauss or mobile network generation"
+  },
+  {
+    "identity": "oersted",
+    "symbol": "Oe",
+    "prefixes": "decimal",
+    "safe": true,
+    "source": "NIST-SP-811",
+    "composition": true,
+    "ucum": "Oe"
+  },
+  {
+    "identity": "curie",
+    "symbol": "Ci",
+    "prefixes": "decimal",
+    "safe": true,
+    "source": "NIST-SP-811",
+    "composition": true,
+    "ucum": "Ci"
+  },
+  {
+    "identity": "roentgen",
+    "symbol": "R",
+    "prefixes": "decimal",
+    "safe": true,
+    "source": "NIST-SP-811",
+    "composition": true,
+    "ucum": "R"
+  },
+  {
+    "identity": "rem",
+    "symbol": "rem",
+    "prefixes": "decimal",
+    "safe": false,
+    "source": "NIST-SP-811",
+    "composition": true,
+    "ucum": "REM",
+    "ambiguity": "radiation dose or CSS root-em length"
+  },
+  {
+    "identity": "torr",
+    "symbol": "Torr",
+    "prefixes": "none",
+    "safe": true,
+    "source": "UCUM-2.2",
+    "composition": true,
+    "ucum": "Torr"
+  },
+  {
+    "identity": "acre",
+    "symbol": "ac",
+    "prefixes": "none",
+    "safe": false,
+    "source": "UCUM-2.2",
+    "composition": true,
+    "ucum": "[acr_us]",
+    "ambiguity": "international or US survey acre"
+  },
+  {
+    "identity": "horsepower",
+    "symbol": "hp",
+    "prefixes": "none",
+    "safe": false,
+    "source": "UCUM-2.2",
+    "composition": true,
+    "ucum": "[HP]",
+    "ambiguity": "multiple horsepower definitions"
+  },
+  {
+    "identity": "litre",
+    "symbol": "l",
+    "prefixes": "decimal",
+    "safe": true,
+    "source": "BIPM-SI-9-4.01",
+    "composition": true,
+    "ucum": "l"
+  },
+  {
+    "identity": "gal",
+    "symbol": "Gal",
+    "prefixes": "decimal",
+    "safe": true,
+    "source": "BIPM-SI-9-4.01",
+    "composition": true,
+    "ucum": "Gal"
+  },
+  {
+    "identity": "volt ampere reactive",
+    "symbol": "var",
+    "prefixes": "decimal",
+    "safe": true,
+    "source": "BIPM-SI-9-4.01",
+    "composition": true
+  }
+]

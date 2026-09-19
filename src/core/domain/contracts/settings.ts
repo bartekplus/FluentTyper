@@ -1,3 +1,4 @@
+import type { GrammarRuleOverrides } from "../grammar/GrammarRuleSettings";
 import {
   KEY_AI_MODEL_ID,
   KEY_AI_PREDICTION_TIMEOUT_MS,
@@ -143,7 +144,7 @@ export interface SettingsSchema {
   observabilityDefaultLevel: LogLevel;
   observabilityModuleOverrides: Record<string, ObservabilityModuleOverride>;
   productivityStats: Record<string, unknown>;
-  enabledGrammarRules: string[];
+  enabledGrammarRules: GrammarRuleOverrides | string[];
   suggestionBgLight: string;
   suggestionTextLight: string;
   suggestionHighlightBgLight: string;

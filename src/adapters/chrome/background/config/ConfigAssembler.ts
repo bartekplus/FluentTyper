@@ -10,7 +10,6 @@ import { CoreSettingsRepository } from "@core/application/repositories/CoreSetti
 import { ObservabilitySettingsRepository } from "@core/application/repositories/ObservabilitySettingsRepository";
 import { PredictorSettingsRepository } from "@core/application/repositories/PredictorSettingsRepository";
 import { resolveActiveLanguage, resolveDomainRuntimeSettings } from "./runtimeSettings";
-import { normalizeGrammarRuleSelection } from "@core/domain/grammar/ruleCatalog";
 import type { ObservabilityConfig } from "@core/domain/observability";
 
 interface ConfigAssemblerOptions {
@@ -81,9 +80,7 @@ export class ConfigAssembler {
         displayLangHeader,
         inline_suggestion: domainSettings.inlineSuggestion,
         preferNativeAutocomplete: domainSettings.preferNativeAutocomplete,
-        enabledGrammarRules: normalizeGrammarRuleSelection(
-          await this.coreSettingsRepository.getEnabledGrammarRules(),
-        ),
+        enabledGrammarRules: await this.coreSettingsRepository.getEnabledGrammarRules(),
         userDictionaryList,
         themeConfig,
         observability,
@@ -124,8 +121,7 @@ export class ConfigAssembler {
       this.coreSettingsRepository.getInlineSuggestion(),
       this.coreSettingsRepository.getPersonalizationEnabled(),
     ]);
-    const normalizedGrammarRules = normalizeGrammarRuleSelection(enabledGrammarRules);
-    const autoCapitalize = normalizedGrammarRules.includes("capitalizeSentenceStart");
+    const autoCapitalize = enabledGrammarRules.includes("capitalizeSentenceStart");
 
     return {
       language,

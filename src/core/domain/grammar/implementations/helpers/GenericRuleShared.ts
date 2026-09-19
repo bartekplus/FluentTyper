@@ -3,7 +3,7 @@ import type { GrammarContext } from "../../types";
 const SPACE_CHARS = [" ", "\xA0"];
 const URL_OR_SCHEME_REGEX = /(https?:\/\/|www\.|mailto:)/i;
 const EMAIL_LIKE_REGEX = /[^\s@]+@[^\s@]+\.[^\s@]+/;
-const CODE_TOKEN_REGEX = /[\\/_=<>`$]|::|->|=>|\w+\.\w+/;
+const CODE_TOKEN_REGEX = /[\\/_=<>`$]|::|->|=>|[\p{L}\p{N}_]\.[\p{L}\p{N}_]/u;
 
 export function isDeleteInputAction(context: GrammarContext): boolean {
   return resolveInputAction(context) === "delete";
@@ -48,12 +48,22 @@ export function isLikelyUrlOrEmailContext(input: string): boolean {
   return URL_OR_SCHEME_REGEX.test(trimmed) || EMAIL_LIKE_REGEX.test(trimmed);
 }
 
+/**
+ * True when `token` may carry syntax: a dotted identifier ("user.save",
+ * "node.js"), a path, a mention or tag, a URL or an address. Rules that would
+ * insert a space, change case or drop punctuation inside it must leave it alone.
+ */
+export function isTechnicalToken(token: string): boolean {
+  return (
+    /^[@#]/.test(token) ||
+    URL_OR_SCHEME_REGEX.test(token) ||
+    EMAIL_LIKE_REGEX.test(token) ||
+    CODE_TOKEN_REGEX.test(token)
+  );
+}
+
 export function isLikelyCodeLikeTokenContext(input: string): boolean {
-  const token = getLastToken(input);
-  if (!token) {
-    return false;
-  }
-  return CODE_TOKEN_REGEX.test(token);
+  return isTechnicalToken(getLastToken(input));
 }
 
 export function shouldSkipGenericReplacement(input: string): boolean {

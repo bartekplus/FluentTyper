@@ -303,12 +303,22 @@
         {
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
-          "test": "Quill lowercase first-letter prediction works after newline without line jump"
+          "test": "CKEditor capitalizes at the start of an existing paragraph without touching the previous paragraph"
         },
         {
           "layer": "unit",
           "file": "tests/SuggestionManager.test.ts",
-          "test": "capitalizes first character locally for contenteditable when caret stays stale"
+          "test": "applies grammar locally for contenteditable when caret stays stale"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionManager.test.ts",
+          "test": "shows popup when a host-handled grammar edit re-dispatches input (Reddit grammar scenario)"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionManager.test.ts",
+          "test": "shows popup when the host prevents a grammar edit without a sync DOM change (Reddit async grammar scenario)"
         }
       ]
     },
@@ -755,8 +765,34 @@
       ]
     },
     {
+      "id": "grammar_enter_word_boundary",
+      "description": "Enter runs the word-boundary grammar pass before the host submits, so the final word is capitalized even when Enter never becomes text.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Grammar Rule Engine capitalizes the final word when Enter submits without inserting text"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionManager.test.ts",
+          "test": "capitalizes the pending word on Enter before the host submits"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionManager.test.ts",
+          "test": "leaves the pending word alone on Enter while composing"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionManager.test.ts",
+          "test": "accepts the open suggestion on Enter and still applies the word boundary"
+        }
+      ]
+    },
+    {
       "id": "grammar_manual_space_deletion",
-      "description": "Manual deletion of inserted sentence space is respected.",
+      "description": "Manual deletion of an inserted punctuation space is respected.",
       "coverage": [
         {
           "layer": "e2e-full",
@@ -814,7 +850,48 @@
         {
           "layer": "unit",
           "file": "tests/grammar/V1GrammarRules.test.ts",
-          "test": "compacts decimal and time/ratio spacing"
+          "test": "compacts time/ratio spacing but never a digit-period-digit sentence"
+        }
+      ]
+    },
+    {
+      "id": "grammar_measurement_unit_formatting",
+      "description": "Typed prose receives one nonbreaking separator before a known measurement unit while code-like paths remain unchanged.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Grammar Rule Engine formats measurement units only in verified prose typing"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Grammar rule options inherit defaults and persist an explicit override"
+        },
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "measurement formatting stays disabled without a verified prose context"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/MeasurementAdversarial.test.ts",
+          "test": "preserves the authored quantity and unit in every supported locale"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/MeasurementEditTransaction.test.ts",
+          "test": "inserts only the separator and retains adjacent rich-text nodes"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SettingsMigrationV8.test.ts",
+          "test": "inherits measurement formatting after V6 upgrades the historical selection"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/GrammarRuleSettings.test.ts",
+          "test": "preserves explicit off and on overrides"
         }
       ]
     },

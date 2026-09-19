@@ -27,8 +27,10 @@ import {
   KEY_TEXT_EXPANSIONS,
   KEY_ENABLED_GRAMMAR_RULES,
   KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
+  KEY_AUTOCOMPLETE_ON_ENTER,
 } from "../../src/core/domain/constants";
 import { SUPPORTED_PREDICTION_LANGUAGE_KEYS } from "../../src/core/domain/lang";
+import { grammarRuleSelectionToOverrides } from "../../src/core/domain/grammar/GrammarRuleSettings";
 import type { BackgroundContext } from "./e2e-helpers";
 import {
   BROWSER_TYPE,
@@ -647,6 +649,34 @@ async function setSettingAndWaitStable(
   throw lastError instanceof Error
     ? lastError
     : new Error(`Timed out waiting for setting ${key} to stabilize as ${expected}`);
+}
+
+async function setGrammarRulesAndWait(
+  worker: BackgroundContext,
+  selection: readonly string[],
+  timeoutMs = 15000,
+): Promise<void> {
+  await setSettingAndWait(
+    worker,
+    KEY_ENABLED_GRAMMAR_RULES,
+    grammarRuleSelectionToOverrides(selection),
+    timeoutMs,
+  );
+}
+
+async function setGrammarRulesAndWaitStable(
+  worker: BackgroundContext,
+  selection: readonly string[],
+  attempts = 3,
+  timeoutMs = 5000,
+): Promise<void> {
+  await setSettingAndWaitStable(
+    worker,
+    KEY_ENABLED_GRAMMAR_RULES,
+    grammarRuleSelectionToOverrides(selection),
+    attempts,
+    timeoutMs,
+  );
 }
 
 async function notifyConfigChange(browser: Browser, worker: BackgroundContext): Promise<void> {
@@ -1657,7 +1687,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     if (settingsDirty) {
       // Keep the legacy baseline for non-grammar E2E flows so popup/inline
       // prediction scenarios remain deterministic regardless of defaults.
-      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await setGrammarRulesAndWait(worker!, []);
       settingsDirty = false;
     }
     page = await ensurePrimaryPage(browser);
@@ -2719,7 +2749,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     "CKEditor grammar/text-edit replacement applies in active second paragraph",
     async () => {
       try {
-        await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, ["commaPeriodSpacing"]);
+        await setGrammarRulesAndWait(worker!, ["commaPeriodSpacing"]);
         await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, true);
         await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
         await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
@@ -2783,7 +2813,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           });
         });
 
-        await page.keyboard.type(".");
+        await page.keyboard.type(",");
         const state = await waitUntil(
           "ckeditor grammar replacement on second paragraph",
           async () => {
@@ -2802,7 +2832,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
               if (firstLine !== "Quill Rich Text Editor") {
                 return false;
               }
-              if (!/^fixed\.[ ]$/i.test(secondLine)) {
+              if (!/^fixed,[ ]$/i.test(secondLine)) {
                 return false;
               }
               return { firstLine, secondLine };
@@ -2813,9 +2843,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         );
 
         expect(state.firstLine).toBe("Quill Rich Text Editor");
-        expect(state.secondLine).toMatch(/^fixed\.[ ]$/i);
+        expect(state.secondLine).toMatch(/^fixed,[ ]$/i);
       } finally {
-        await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+        await setGrammarRulesAndWait(worker!, []);
         await applyConfigChange(browser, worker!);
       }
     },
@@ -2826,7 +2856,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     "CKEditor capitalizes at the start of an existing paragraph without touching the previous paragraph",
     async () => {
       try {
-        await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, ["capitalizeFirstLetter"]);
+        await setGrammarRulesAndWait(worker!, ["capitalizeFirstLetter"]);
         await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
         await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
         await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
@@ -2867,7 +2897,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         });
 
         await page.mouse.click(clickTarget.x, clickTarget.y);
-        await page.keyboard.type("d");
+        await page.keyboard.type("d ");
 
         try {
           await page.waitForFunction(
@@ -2887,7 +2917,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
                   .trim();
               return (
                 normalize(paragraphs[0]?.textContent ?? "") === "First line" &&
-                normalize(paragraphs[1]?.textContent ?? "") === "DThe"
+                normalize(paragraphs[1]?.textContent ?? "") === "D The"
               );
             },
             { timeout: browserTimeout(1500, 3000) },
@@ -2909,7 +2939,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           );
         }
       } finally {
-        await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+        await setGrammarRulesAndWait(worker!, []);
         await applyConfigChange(browser, worker!);
       }
     },
@@ -3004,7 +3034,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
         await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
         await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-        await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, ["capitalizeFirstLetter"]);
+        await setGrammarRulesAndWait(worker!, ["capitalizeFirstLetter"]);
         await applyConfigChange(browser, worker!);
 
         await gotoTestPage(page, { enableQuill: true });
@@ -3032,7 +3062,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await page.keyboard.type("w");
 
         const immediateGrammarState = await waitUntil(
-          "quill immediate local capitalization after newline",
+          "quill lowercase first letter stays on the new line",
           async () => {
             const state = await page.evaluate(() => {
               const quill = (
@@ -3052,7 +3082,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
               if (firstLine !== "Quill Rich Text Editor") {
                 return false;
               }
-              if (secondLine !== "W") {
+              if (secondLine !== "w") {
                 return false;
               }
               return {
@@ -3067,7 +3097,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         );
 
         expect(immediateGrammarState.firstLine).toBe("Quill Rich Text Editor");
-        expect(immediateGrammarState.secondLine).toBe("W");
+        expect(immediateGrammarState.secondLine).toBe("w");
 
         const liCount = await waitForVisibleSuggestions(page, browserTimeout(5000, 9000));
         expect(liCount).toBeGreaterThan(0);
@@ -3075,7 +3105,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           page,
           browserTimeout(5000, 9000),
         );
-        expect(firstSuggestion).toMatch(/^W/);
+        expect(firstSuggestion).toMatch(/^w/i);
         await page.keyboard.press("Tab");
 
         const acceptedState = await waitUntil(
@@ -3101,7 +3131,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
               if (firstLine !== "Quill Rich Text Editor") {
                 return false;
               }
-              if (!/^W\S*$/.test(secondLine)) {
+              if (!/^w\S*$/i.test(secondLine)) {
                 return false;
               }
               if (!selection || selection.index <= firstLine.length) {
@@ -3120,12 +3150,12 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         );
 
         expect(acceptedState.firstLine).toBe("Quill Rich Text Editor");
-        expect(acceptedState.secondLine).toMatch(/^W\S*$/);
+        expect(acceptedState.secondLine).toMatch(/^w\S*$/i);
         expect(acceptedState.selectionIndex).toBeGreaterThan(
           acceptedState.firstLine.length + acceptedState.secondLine.length,
         );
       } finally {
-        await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+        await setGrammarRulesAndWait(worker!, []);
         await applyConfigChange(browser, worker!);
       }
     },
@@ -3136,7 +3166,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     "Quill grammar/text-edit replacement applies once without model corruption",
     async () => {
       try {
-        await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, ["commaPeriodSpacing"]);
+        await setGrammarRulesAndWait(worker!, ["commaPeriodSpacing"]);
         await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, true);
         await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
         await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
@@ -3164,7 +3194,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           quill.setSelection("Quill Rich Text Editor\nfixed ".length, 0, "silent");
         });
 
-        await page.keyboard.type(".");
+        await page.keyboard.type(",");
         await waitUntil(
           "quill grammar spacing after punctuation",
           async () => {
@@ -3186,7 +3216,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
               if (firstLine !== "Quill Rich Text Editor") {
                 return false;
               }
-              if (!/^fixed\.[ ]$/i.test(secondLine)) {
+              if (!/^fixed,[ ]$/i.test(secondLine)) {
                 return false;
               }
               return true;
@@ -3217,9 +3247,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
               const firstLine = (lines[0] ?? "").trim();
               const secondLine = lines[1] ?? "";
               const paragraphCount = quill.root.querySelectorAll("p").length;
-              const hasDoubleSpace = secondLine.includes("fixed.  x");
-              const hasExpectedText = /^fixed\.[ ]x$/i.test(secondLine);
-              const spacingAppliedOnce = secondLine.split("fixed. ").length - 1 === 1;
+              const hasDoubleSpace = secondLine.includes("fixed,  x");
+              const hasExpectedText = /^fixed,[ ]x$/i.test(secondLine);
+              const spacingAppliedOnce = secondLine.split("fixed, ").length - 1 === 1;
               const firstLinePreserved = firstLine === "Quill Rich Text Editor";
               if (!hasExpectedText || hasDoubleSpace || !spacingAppliedOnce) {
                 return false;
@@ -3240,10 +3270,10 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         );
 
         expect(finalState.firstLine).toBe("Quill Rich Text Editor");
-        expect(finalState.secondLine).toMatch(/^fixed\. x$/i);
+        expect(finalState.secondLine).toMatch(/^fixed, x$/i);
         expect(finalState.paragraphCount).toBeGreaterThanOrEqual(1);
       } finally {
-        await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+        await setGrammarRulesAndWait(worker!, []);
         await applyConfigChange(browser, worker!);
       }
     },
@@ -4918,64 +4948,62 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
-    "Grammar rule changes on options page trigger runtime reconfiguration",
+    "Grammar rule options inherit defaults and persist an explicit override",
     async () => {
-      // Start with grammar rules disabled
-      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
-      await applyConfigChange(browser, worker!);
-
-      const storedBefore = await getSetting<string[]>(worker!, KEY_ENABLED_GRAMMAR_RULES);
-      expect(storedBefore).toEqual([]);
-
-      // Open the options page and programmatically toggle the grammar rules
-      // multiselect via the fancier-settings manifest API, which should fire
-      // the "action" event and call optionsPageConfigChange().
-      const optionsPage = await openOptionsPage(browser, worker!);
+      let optionsPage = await openOptionsPage(browser, worker!);
       try {
         settingsDirty = true;
-        await optionsPage.evaluate(
-          (key: string, command: string) => {
-            // The fancier-settings framework exposes each manifest entry by name.
-            // Access the multiselect element, set a new value, and trigger the
-            // action event — exactly what happens when a user clicks a checkbox.
-            const settingsEl = document.querySelector("#content") as HTMLElement;
-            if (!settingsEl) {
-              throw new Error("Options page content not found");
-            }
-            // Use chrome.storage.local directly (mimicking what the action handler does)
-            const newRules = ["capitalizeSentenceStart", "commaPeriodSpacing"];
-            const storageKey = `store.settings.${key}`;
-            localStorage.setItem(storageKey, JSON.stringify(newRules));
-            chrome.storage.local.set({ [storageKey]: JSON.stringify(newRules) });
-            // Fire the config change message
-            chrome.runtime.sendMessage({
-              command,
-              context: {},
-            });
-          },
+        await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, {});
+        expect(
+          await getSetting<Record<string, boolean>>(worker!, KEY_ENABLED_GRAMMAR_RULES),
+        ).toEqual({});
+      } finally {
+        await optionsPage.close();
+      }
+
+      optionsPage = await openOptionsPage(browser, worker!);
+      try {
+        const selector = '.grammar-rule-card-toggle[value="measurementUnitFormatting"]';
+        await optionsPage.waitForSelector(selector);
+        await optionsPage.waitForFunction(
+          (inputSelector) =>
+            (document.querySelector(inputSelector) as HTMLInputElement | null)?.checked === true,
+          {},
+          selector,
+        );
+        await optionsPage.$eval(selector, (input) => (input as HTMLInputElement).click());
+
+        const storedAfter = await waitForSettingMatch<Record<string, boolean>>(
+          worker!,
           KEY_ENABLED_GRAMMAR_RULES,
-          CMD_OPTIONS_PAGE_CONFIG_CHANGE,
+          (value) => value?.measurementUnitFormatting === false,
+          browserTimeout(5000, 10000),
+        );
+        expect(storedAfter).toEqual({ measurementUnitFormatting: false });
+      } finally {
+        await optionsPage.close();
+      }
+
+      optionsPage = await openOptionsPage(browser, worker!);
+      try {
+        const selector = '.grammar-rule-card-toggle[value="measurementUnitFormatting"]';
+        const readySelector = '.grammar-rule-card-toggle[value="capitalizeSentenceStart"]';
+        await optionsPage.waitForSelector(selector);
+        await optionsPage.waitForFunction(
+          (inputSelector, loadedSelector) => {
+            const input = document.querySelector(inputSelector) as HTMLInputElement | null;
+            const loaded = document.querySelector(loadedSelector) as HTMLInputElement | null;
+            return input?.checked === false && loaded?.checked === true;
+          },
+          {},
+          selector,
+          readySelector,
         );
       } finally {
         await optionsPage.close();
       }
 
-      // Verify the setting was persisted and the runtime picked it up
-      const storedAfter = await waitForSettingMatch<string[]>(
-        worker!,
-        KEY_ENABLED_GRAMMAR_RULES,
-        (value) =>
-          Array.isArray(value) &&
-          value.includes("capitalizeSentenceStart") &&
-          value.includes("commaPeriodSpacing"),
-        browserTimeout(5000, 10000),
-      );
-      expect(storedAfter).toEqual(
-        expect.arrayContaining(["capitalizeSentenceStart", "commaPeriodSpacing"]),
-      );
-
-      // Cleanup
-      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await setGrammarRulesAndWait(worker!, []);
       await applyConfigChange(browser, worker!);
     },
     browserTimeout(15000, 25000),
@@ -4985,10 +5013,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     "Grammar Rule Engine auto-capitalizes and applies spacing in %s",
     async (selector) => {
       // Enable required grammar rules internally for predictive evaluations
-      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, [
-        "capitalizeSentenceStart",
-        "commaPeriodSpacing",
-      ]);
+      await setGrammarRulesAndWait(worker!, ["capitalizeSentenceStart", "commaPeriodSpacing"]);
       await setSettingAndWait(worker!, KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE, true);
       await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
       // Keep the normal prediction threshold to ensure grammar spacing still runs
@@ -5006,26 +5031,31 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitForInputReady(page, selector);
       const element = await page.$(selector);
 
-      // Type "t" first, then pause to let the grammar rule engine process the
-      // capitalize-first-letter correction before typing more characters.
-      await element!.type("t");
-      await waitForInputContentMatch(page, selector, /^T$/, browserTimeout(5000, 8000));
-
-      // Continue typing the rest of "testing ."
-      await element!.type("esting .");
+      // The first word is capitalized once its boundary is typed.
+      await element!.type("testing ");
       await waitForInputContentMatch(
         page,
         selector,
-        /esting\.[\xA0 ]/i,
+        /^Testing[\xA0 ]$/,
         browserTimeout(5000, 8000),
       );
 
-      // Type "w" and verify sentence-start capitalization applies
-      await element!.type("w");
+      // A stray space before the period is tidied once the user's own space
+      // confirms the sentence end.
+      await element!.type(". ");
       await waitForInputContentMatch(
         page,
         selector,
-        /Testing\.[\xA0 ]W/,
+        /^Testing\.[\xA0 ]$/,
+        browserTimeout(5000, 8000),
+      );
+
+      // The next word is capitalized at its boundary too.
+      await element!.type("world ");
+      await waitForInputContentMatch(
+        page,
+        selector,
+        /^Testing\.[\xA0 ]World[\xA0 ]$/,
         browserTimeout(5000, 8000),
       );
 
@@ -5034,11 +5064,45 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         (el) => ((el as HTMLInputElement).value ?? el.textContent) as string,
       );
       const elementText = finalVal.replace(/\xA0/g, " ");
-      // Capitalize sentence-start rule capitalizes T at start AND W after ". "
-      expect(elementText).toContain("Testing. W");
+      expect(elementText).toContain("Testing. World");
 
       // Cleanup
-      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await setGrammarRulesAndWait(worker!, []);
+      await applyConfigChange(browser, worker!);
+    },
+    browserTimeout(30000, 45000),
+  );
+
+  test(
+    "Grammar Rule Engine capitalizes the final word when Enter submits without inserting text",
+    async () => {
+      const selector = "#test-input";
+      await setGrammarRulesAndWait(worker!, ["capitalizeSentenceStart"]);
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+      // Enter has to reach the grammar pass, not the suggestion popup; accepting
+      // a suggestion on Enter is covered elsewhere and must keep winning.
+      await setSettingAndWait(worker!, KEY_AUTOCOMPLETE_ON_ENTER, false);
+      await applyConfigChange(browser, worker!);
+
+      await gotoTestPage(page);
+      await page.bringToFront();
+
+      await waitForInputReady(page, selector);
+      const element = await page.$(selector);
+
+      // A bare text input never turns Enter into text, which is the chat-box
+      // submit case: without the keydown pass the word would stay lowercase.
+      await element!.type("hello");
+      await waitForInputContentMatch(page, selector, /^hello$/, browserTimeout(5000, 8000));
+
+      await page.keyboard.press("Enter");
+      await waitForInputContentMatch(page, selector, /^Hello$/, browserTimeout(5000, 8000));
+
+      // Cleanup
+      await setSettingAndWait(worker!, KEY_AUTOCOMPLETE_ON_ENTER, true);
+      await setGrammarRulesAndWait(worker!, []);
       await applyConfigChange(browser, worker!);
     },
     browserTimeout(30000, 45000),
@@ -5047,9 +5111,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   test.each(GENERIC_INPUT_SELECTORS)(
     "Grammar Rule Engine respects manual deletion of auto-inserted sentence space in %s",
     async (selector) => {
-      await setSettingAndWaitStable(
+      await setGrammarRulesAndWaitStable(
         worker!,
-        KEY_ENABLED_GRAMMAR_RULES,
         ["commaPeriodSpacing"],
         4,
         browserTimeout(5000, 7000),
@@ -5069,11 +5132,11 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitForInputReady(page, selector);
       const element = await page.$(selector);
 
-      await element!.type("This is awsome.");
+      await element!.type("This is awsome,");
       await waitForInputContentMatch(
         page,
         selector,
-        /This is awsome\.[\xA0 ]/,
+        /This is awsome,[\xA0 ]/,
         browserTimeout(5000, 8000),
       );
 
@@ -5082,13 +5145,13 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await waitForInputContentEqual(
           page,
           selector,
-          "This is awsome.",
+          "This is awsome,",
           browserTimeout(5000, 8000),
         )
       ).replace(/\xA0/g, " ");
-      expect(afterDelete).toBe("This is awsome.");
+      expect(afterDelete).toBe("This is awsome,");
 
-      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await setGrammarRulesAndWait(worker!, []);
       await applyConfigChange(browser, worker!);
     },
     browserTimeout(30000, 45000),
@@ -5097,9 +5160,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   test.each(GENERIC_INPUT_SELECTORS)(
     "Grammar Rule Engine preserves code-style brackets and slash technical contexts while keeping prose spacing in %s",
     async (selector) => {
-      await setSettingAndWaitStable(
+      await setGrammarRulesAndWaitStable(
         worker!,
-        KEY_ENABLED_GRAMMAR_RULES,
         ["openingBracketSpacing", "closingBracketSpacing", "slashContextSpacing"],
         4,
         browserTimeout(5000, 7000),
@@ -5199,13 +5261,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await typeInInput(page, selector, "y");
       await waitForNormalizedValue("x / y");
 
-      await setSettingAndWaitStable(
-        worker!,
-        KEY_ENABLED_GRAMMAR_RULES,
-        [],
-        2,
-        browserTimeout(3000, 5000),
-      );
+      await setGrammarRulesAndWaitStable(worker!, [], 2, browserTimeout(3000, 5000));
       await applyConfigChange(browser, worker!);
     },
     browserTimeout(35000, 55000),
@@ -5216,9 +5272,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-input";
 
-      await setSettingAndWaitStable(
+      await setGrammarRulesAndWaitStable(
         worker!,
-        KEY_ENABLED_GRAMMAR_RULES,
         ["mathOperatorSpacing"],
         3,
         browserTimeout(5000, 7000),
@@ -5281,13 +5336,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await typeInInput(page, selector, "C++");
       await waitForNormalizedValue("C++");
 
-      await setSettingAndWaitStable(
-        worker!,
-        KEY_ENABLED_GRAMMAR_RULES,
-        [],
-        2,
-        browserTimeout(3000, 5000),
-      );
+      await setGrammarRulesAndWaitStable(worker!, [], 2, browserTimeout(3000, 5000));
       await applyConfigChange(browser, worker!);
     },
     browserTimeout(30000, 45000),
@@ -5298,9 +5347,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-input";
 
-      await setSettingAndWaitStable(
+      await setGrammarRulesAndWaitStable(
         worker!,
-        KEY_ENABLED_GRAMMAR_RULES,
         ["technicalTokenCompaction", "commaPeriodSpacing"],
         3,
         browserTimeout(5000, 7000),
@@ -5340,10 +5388,19 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitForNormalizedValue("12:30");
 
       await clearInputContent(page, selector);
+      // A period is never spaced by the rule: "Hello." may still become
+      // "Hello.world". The user's own space confirms the sentence end.
       await typeInInput(page, selector, "Hello.");
-      await waitForNormalizedValue("Hello. ");
-      await typeInInput(page, selector, "w");
-      await waitForNormalizedValue("Hello. w");
+      await waitForNormalizedValue("Hello.");
+      await typeInInput(page, selector, "world ");
+      await waitForNormalizedValue("Hello.world ");
+
+      await clearInputContent(page, selector);
+      // capitalizeSentenceStart is not among this test's enabled rules, so the
+      // leading word stays as typed; the point here is that the dotted token
+      // survives commaPeriodSpacing untouched.
+      await typeInInput(page, selector, "go to google.com now ");
+      await waitForNormalizedValue("go to google.com now ");
 
       await clearInputContent(page, selector);
       // Prime an already-authored abbreviation so this isolates typing after its trailing space.
@@ -5355,16 +5412,64 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         element.focus();
         element.setSelectionRange(element.value.length, element.value.length);
       });
-      await typeInInput(page, selector, "and");
-      await waitForNormalizedValue("9 a.m. and");
+      await typeInInput(page, selector, "and ");
+      await waitForNormalizedValue("9 a.m. and ");
 
-      await setSettingAndWaitStable(
+      await setGrammarRulesAndWaitStable(worker!, [], 2, browserTimeout(3000, 5000));
+      await applyConfigChange(browser, worker!);
+    },
+    browserTimeout(25000, 40000),
+  );
+
+  test(
+    "Grammar Rule Engine formats measurement units only in verified prose typing",
+    async () => {
+      const selector = "#test-input";
+      await setGrammarRulesAndWaitStable(
         worker!,
-        KEY_ENABLED_GRAMMAR_RULES,
-        [],
-        2,
-        browserTimeout(3000, 5000),
+        ["measurementUnitFormatting"],
+        3,
+        browserTimeout(5000, 7000),
       );
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await applyConfigChange(browser, worker!);
+      await gotoTestPage(page, { enableCkEditor: false });
+      await page.bringToFront();
+      await waitForInputReady(page, selector);
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "Mass: 10kg ");
+      await waitUntil(
+        "measurement separator",
+        async () => (await getInputContent(page, selector)) === "Mass: 10\u00a0kg ",
+        { timeoutMs: browserTimeout(5000, 8000), intervalMs: 50 },
+      );
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "Path: /tmp/10kg ");
+      expect(await getInputContent(page, selector)).toBe("Path: /tmp/10kg ");
+
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "pl_PL");
+      await setGrammarRulesAndWaitStable(
+        worker!,
+        ["measurementUnitFormatting", "commaPeriodSpacing", "mathOperatorSpacing"],
+        3,
+        browserTimeout(5000, 7000),
+      );
+      await applyConfigChange(browser, worker!);
+      await gotoTestPage(page, { enableCkEditor: false });
+      await waitForInputReady(page, selector);
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "Masa: 1,50kg ");
+      await waitUntil(
+        "Polish decimal measurement",
+        async () => (await getInputContent(page, selector)) === "Masa: 1,50\u00a0kg ",
+        { timeoutMs: browserTimeout(5000, 8000), intervalMs: 50 },
+      );
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+
+      await setGrammarRulesAndWaitStable(worker!, [], 2, browserTimeout(3000, 5000));
       await applyConfigChange(browser, worker!);
     },
     browserTimeout(25000, 40000),
@@ -5375,9 +5480,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-input";
 
-      await setSettingAndWaitStable(
+      await setGrammarRulesAndWaitStable(
         worker!,
-        KEY_ENABLED_GRAMMAR_RULES,
         ["capitalizeFirstLetter", "spacingRule"],
         3,
         browserTimeout(5000, 7000),
@@ -5395,14 +5499,20 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitForInputReady(page, selector);
 
       await clearInputContent(page, selector);
-      await typeInInput(page, selector, "t");
-      await waitForInputContentEqual(page, selector, "T", browserTimeout(5000, 9000));
+      // The first letter is capitalized once the word is complete; "u" may
+      // still become "user.save()".
+      await typeInInput(page, selector, "t ");
+      await waitForInputContentEqual(page, selector, "T ", browserTimeout(5000, 9000));
 
       await clearInputContent(page, selector);
-      await typeInInput(page, selector, "Hello .");
+      await typeInInput(page, selector, "user.save() ");
+      await waitForInputContentEqual(page, selector, "user.save() ", browserTimeout(5000, 9000));
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "Hello . ");
       await waitForInputContentEqual(page, selector, "Hello. ", browserTimeout(5000, 9000));
 
-      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await setGrammarRulesAndWait(worker!, []);
       await applyConfigChange(browser, worker!);
     },
     browserTimeout(25000, 40000),
@@ -5413,9 +5523,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-textarea";
 
-      await setSettingAndWaitStable(
+      await setGrammarRulesAndWaitStable(
         worker!,
-        KEY_ENABLED_GRAMMAR_RULES,
         ["capitalizeAfterLineBreak"],
         3,
         browserTimeout(5000, 7000),
@@ -5435,7 +5544,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await typeInInput(page, selector, "hello\nw");
       await waitForInputContentEqual(page, selector, "hello\nW", browserTimeout(5000, 9000));
 
-      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await setGrammarRulesAndWait(worker!, []);
       await applyConfigChange(browser, worker!);
     },
     browserTimeout(25000, 40000),
@@ -5446,9 +5555,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-input";
 
-      await setSettingAndWaitStable(
+      await setGrammarRulesAndWaitStable(
         worker!,
-        KEY_ENABLED_GRAMMAR_RULES,
         ["collapseRepeatedSpaces"],
         3,
         browserTimeout(5000, 7000),
@@ -5468,7 +5576,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await typeInInput(page, selector, "Hello   ");
       await waitForInputContentEqual(page, selector, "Hello ", browserTimeout(5000, 9000));
 
-      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await setGrammarRulesAndWait(worker!, []);
       await applyConfigChange(browser, worker!);
     },
     browserTimeout(25000, 40000),
@@ -5479,9 +5587,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-textarea";
 
-      await setSettingAndWaitStable(
+      await setGrammarRulesAndWaitStable(
         worker!,
-        KEY_ENABLED_GRAMMAR_RULES,
         ["trimSpaceBeforeLineBreak"],
         3,
         browserTimeout(5000, 7000),
@@ -5501,7 +5608,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await typeInInput(page, selector, "Hello   \n");
       await waitForInputContentEqual(page, selector, "Hello\n", browserTimeout(5000, 9000));
 
-      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await setGrammarRulesAndWait(worker!, []);
       await applyConfigChange(browser, worker!);
     },
     browserTimeout(25000, 40000),
@@ -5512,9 +5619,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-input";
 
-      await setSettingAndWaitStable(
+      await setGrammarRulesAndWaitStable(
         worker!,
-        KEY_ENABLED_GRAMMAR_RULES,
         ["neutralPunctuationPolicy"],
         3,
         browserTimeout(5000, 7000),
@@ -5549,7 +5655,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         );
       }
 
-      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await setGrammarRulesAndWait(worker!, []);
       await applyConfigChange(browser, worker!);
     },
     browserTimeout(25000, 40000),
@@ -5560,9 +5666,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-input";
 
-      await setSettingAndWaitStable(
+      await setGrammarRulesAndWaitStable(
         worker!,
-        KEY_ENABLED_GRAMMAR_RULES,
         ["commaPeriodSpacing"],
         3,
         browserTimeout(5000, 7000),
@@ -5580,7 +5685,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitForInputReady(page, selector);
 
       await clearInputContent(page, selector);
-      await typeInInput(page, selector, "Hello .");
+      await typeInInput(page, selector, "Hello . ");
       await waitForInputContentEqual(page, selector, "Hello. ", browserTimeout(5000, 9000));
       try {
         await waitForNoVisibleSuggestions(page, browserTimeout(2000, 5000));
@@ -5594,7 +5699,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       expect(hasPredictions).toBe(false);
 
       await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
-      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await setGrammarRulesAndWait(worker!, []);
       await applyConfigChange(browser, worker!);
     },
     browserTimeout(25000, 40000),
@@ -5605,9 +5710,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-input";
 
-      await setSettingAndWaitStable(
+      await setGrammarRulesAndWaitStable(
         worker!,
-        KEY_ENABLED_GRAMMAR_RULES,
         [
           "englishPronounICapitalization",
           "englishContractionNormalization",
@@ -5628,8 +5732,10 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitForInputReady(page, selector);
 
       await clearInputContent(page, selector);
+      // A lone "i " could still be a loop variable ("for i in range"), so the
+      // capital waits for the word that identifies it as the pronoun.
       await typeInInput(page, selector, "i ");
-      await waitForInputContentEqual(page, selector, "I ", browserTimeout(5000, 9000));
+      await waitForInputContentEqual(page, selector, "i ", browserTimeout(5000, 9000));
       await typeInInput(page, selector, "am here");
       await waitForInputContentEqual(page, selector, "I am here", browserTimeout(5000, 9000));
 
@@ -5649,7 +5755,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await typeInInput(page, selector, "cat");
       await waitForInputContentEqual(page, selector, "the cat", browserTimeout(5000, 9000));
 
-      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await setGrammarRulesAndWait(worker!, []);
       await applyConfigChange(browser, worker!);
     },
     browserTimeout(25000, 45000),
@@ -5660,9 +5766,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-input";
 
-      await setSettingAndWaitStable(
+      await setGrammarRulesAndWaitStable(
         worker!,
-        KEY_ENABLED_GRAMMAR_RULES,
         [
           "englishPronounICapitalization",
           "englishContractionNormalization",
@@ -5687,7 +5792,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitForInputContentEqual(page, selector, "i am teh", browserTimeout(5000, 9000));
 
       await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await setGrammarRulesAndWait(worker!, []);
       await applyConfigChange(browser, worker!);
     },
     browserTimeout(25000, 45000),
@@ -5699,7 +5804,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       const selector = "#test-input";
 
       await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await setGrammarRulesAndWait(worker!, []);
       await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
       await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
       await applyConfigChange(browser, worker!);
@@ -5732,9 +5837,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-input";
 
-      await setSettingAndWaitStable(
+      await setGrammarRulesAndWaitStable(
         worker!,
-        KEY_ENABLED_GRAMMAR_RULES,
         ["englishAlotCorrection"],
         3,
         browserTimeout(5000, 7000),
@@ -5757,7 +5861,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await pressNativeUndo(page, selector);
       await waitForInputContentEqual(page, selector, "alot ", browserTimeout(5000, 9000));
 
-      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await setGrammarRulesAndWait(worker!, []);
       await applyConfigChange(browser, worker!);
     },
     browserTimeout(25000, 45000),
@@ -5768,9 +5872,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-input";
 
-      await setSettingAndWaitStable(
+      await setGrammarRulesAndWaitStable(
         worker!,
-        KEY_ENABLED_GRAMMAR_RULES,
         ["englishAlotCorrection"],
         3,
         browserTimeout(5000, 7000),
@@ -5799,7 +5902,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await typeInInput(page, selector, "x alot ");
       await waitForInputContentEqual(page, selector, "alot x a lot ", browserTimeout(5000, 9000));
 
-      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await setGrammarRulesAndWait(worker!, []);
       await applyConfigChange(browser, worker!);
     },
     browserTimeout(30000, 50000),
@@ -5810,9 +5913,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-input";
 
-      await setSettingAndWaitStable(
+      await setGrammarRulesAndWaitStable(
         worker!,
-        KEY_ENABLED_GRAMMAR_RULES,
         ["englishAlotCorrection"],
         3,
         browserTimeout(5000, 7000),
@@ -5848,7 +5950,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         },
       );
 
-      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await setGrammarRulesAndWait(worker!, []);
       await applyConfigChange(browser, worker!);
     },
     browserTimeout(25000, 45000),
@@ -5860,7 +5962,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       const selector = "#test-input";
 
       await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await setGrammarRulesAndWait(worker!, []);
       await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
       await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
       await applyConfigChange(browser, worker!);
@@ -5904,9 +6006,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-input";
 
-      await setSettingAndWaitStable(
+      await setGrammarRulesAndWaitStable(
         worker!,
-        KEY_ENABLED_GRAMMAR_RULES,
         ["englishAlotCorrection"],
         3,
         browserTimeout(5000, 7000),
@@ -5929,7 +6030,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await page.keyboard.press("Backspace");
       await waitForInputContentEqual(page, selector, "a lot", browserTimeout(5000, 9000));
 
-      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await setGrammarRulesAndWait(worker!, []);
       await applyConfigChange(browser, worker!);
     },
     browserTimeout(25000, 45000),
@@ -5940,9 +6041,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-input";
 
-      await setSettingAndWaitStable(
+      await setGrammarRulesAndWaitStable(
         worker!,
-        KEY_ENABLED_GRAMMAR_RULES,
         ["doubleSpaceToPeriod", "englishAlotCorrection"],
         3,
         browserTimeout(5000, 7000),
@@ -5966,7 +6066,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await typeInInput(page, selector, "Hello  ");
       await waitForInputContentEqual(page, selector, "Hello. ", browserTimeout(5000, 9000));
 
-      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await setGrammarRulesAndWait(worker!, []);
       await applyConfigChange(browser, worker!);
     },
     browserTimeout(25000, 45000),
@@ -5977,9 +6077,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-input";
 
-      await setSettingAndWaitStable(
+      await setGrammarRulesAndWaitStable(
         worker!,
-        KEY_ENABLED_GRAMMAR_RULES,
         ["ellipsisShortcut", "emdashShortcut", "smartQuoteNormalization"],
         3,
         browserTimeout(5000, 7000),
@@ -6011,7 +6110,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await typeInInput(page, selector, 'hello"');
       await waitForInputContentEqual(page, selector, "hello”", browserTimeout(5000, 9000));
 
-      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await setGrammarRulesAndWait(worker!, []);
       await applyConfigChange(browser, worker!);
     },
     browserTimeout(30000, 50000),
@@ -6022,9 +6121,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-input";
 
-      await setSettingAndWaitStable(
+      await setGrammarRulesAndWaitStable(
         worker!,
-        KEY_ENABLED_GRAMMAR_RULES,
         ["duplicatePunctuationCollapse"],
         3,
         browserTimeout(5000, 7000),
@@ -6057,7 +6155,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         browserTimeout(5000, 9000),
       );
 
-      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await setGrammarRulesAndWait(worker!, []);
       await applyConfigChange(browser, worker!);
     },
     browserTimeout(30000, 50000),
@@ -6068,9 +6166,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-contenteditable";
 
-      await setSettingAndWaitStable(
+      await setGrammarRulesAndWaitStable(
         worker!,
-        KEY_ENABLED_GRAMMAR_RULES,
         ["duplicatePunctuationCollapse"],
         3,
         browserTimeout(5000, 7000),
@@ -6121,7 +6218,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         browserTimeout(5000, 9000),
       );
 
-      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await setGrammarRulesAndWait(worker!, []);
       await applyConfigChange(browser, worker!);
     },
     browserTimeout(30000, 50000),
@@ -6132,9 +6229,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-input";
 
-      await setSettingAndWaitStable(
+      await setGrammarRulesAndWaitStable(
         worker!,
-        KEY_ENABLED_GRAMMAR_RULES,
         ["commaPeriodSpacing", "duplicatePunctuationCollapse"],
         3,
         browserTimeout(5000, 7000),
@@ -6160,7 +6256,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         browserTimeout(5000, 9000),
       );
 
-      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await setGrammarRulesAndWait(worker!, []);
       await applyConfigChange(browser, worker!);
     },
     browserTimeout(30000, 50000),
@@ -6171,9 +6267,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-input";
 
-      await setSettingAndWaitStable(
+      await setGrammarRulesAndWaitStable(
         worker!,
-        KEY_ENABLED_GRAMMAR_RULES,
         ["ellipsisShortcut", "emdashShortcut", "smartQuoteNormalization"],
         3,
         browserTimeout(5000, 7000),
@@ -6211,7 +6306,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await typeInInput(page, selector, 'const s = "');
       await waitForInputContentEqual(page, selector, 'const s = "', browserTimeout(5000, 9000));
 
-      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await setGrammarRulesAndWait(worker!, []);
       await applyConfigChange(browser, worker!);
     },
     browserTimeout(30000, 50000),
@@ -6222,9 +6317,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-input";
 
-      await setSettingAndWaitStable(
+      await setGrammarRulesAndWaitStable(
         worker!,
-        KEY_ENABLED_GRAMMAR_RULES,
         [
           "englishModalOfCorrection",
           "englishYourWelcomeCorrection",
@@ -6256,7 +6350,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       );
 
       await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
-      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await setGrammarRulesAndWait(worker!, []);
       await applyConfigChange(browser, worker!);
     },
     browserTimeout(30000, 50000),
@@ -6267,9 +6361,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-input";
 
-      await setSettingAndWaitStable(
+      await setGrammarRulesAndWaitStable(
         worker!,
-        KEY_ENABLED_GRAMMAR_RULES,
         ["autoBracketClose"],
         3,
         browserTimeout(5000, 7000),
@@ -6313,7 +6406,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await typeInInput(page, selector, ")");
       await waitForInputContentEqual(page, selector, "test (ok)", browserTimeout(5000, 9000));
 
-      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await setGrammarRulesAndWait(worker!, []);
       await applyConfigChange(browser, worker!);
     },
     browserTimeout(30000, 50000),
@@ -6324,9 +6417,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = "#test-contenteditable";
 
-      await setSettingAndWaitStable(
+      await setGrammarRulesAndWaitStable(
         worker!,
-        KEY_ENABLED_GRAMMAR_RULES,
         ["autoBracketClose"],
         3,
         browserTimeout(5000, 7000),
@@ -6354,7 +6446,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await typeInInput(page, selector, "x");
       await waitForInputContentMatch(page, selector, /^hello \(x\)$/, browserTimeout(5000, 9000));
 
-      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await setGrammarRulesAndWait(worker!, []);
       await applyConfigChange(browser, worker!);
     },
     browserTimeout(30000, 50000),
@@ -6365,9 +6457,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     async () => {
       const selector = LEXICAL_SELECTOR;
 
-      await setSettingAndWaitStable(
+      await setGrammarRulesAndWaitStable(
         worker!,
-        KEY_ENABLED_GRAMMAR_RULES,
         ["autoBracketClose"],
         3,
         browserTimeout(5000, 7000),
@@ -6393,7 +6484,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await page.keyboard.type("x");
       await waitForInputContentMatch(page, selector, /^hello \(x\)$/, browserTimeout(5000, 9000));
 
-      await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, []);
+      await setGrammarRulesAndWait(worker!, []);
       await applyConfigChange(browser, worker!);
     },
     browserTimeout(30000, 50000),

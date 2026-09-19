@@ -158,6 +158,18 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     priority: 50,
   },
   {
+    id: "measurementUnitFormatting",
+    name: "Format measurement units",
+    titleI18nKey: "grammar_rule_measurement_unit_formatting",
+    descriptionI18nKey: "grammar_rule_measurement_unit_formatting_desc",
+    exampleI18nKey: "grammar_rule_measurement_unit_formatting_example",
+    languageScope: "all",
+    safetyTier: "safe",
+    defaultRollout: "on",
+    recommended: true,
+    priority: 55,
+  },
+  {
     id: "slashContextSpacing",
     name: "Slash context spacing",
     titleI18nKey: "grammar_rule_slash_context_spacing",
@@ -338,11 +350,35 @@ export const RECOMMENDED_V1_GRAMMAR_RULES: CatalogRuleId[] = [...V1_RECOMMENDED_
 
 export const RECOMMENDED_V2_GRAMMAR_RULES: CatalogRuleId[] = [...V2_RECOMMENDED_RULES];
 
-export const DEFAULT_V3_GRAMMAR_RULES: CatalogRuleId[] = GRAMMAR_RULE_CATALOG.filter(
+// Historical snapshots used by V6 migration. Keep these exact when the live catalog grows.
+export const DEFAULT_V3_GRAMMAR_RULES: CatalogRuleId[] = [
+  "capitalizeSentenceStart",
+  "capitalizeAfterLineBreak",
+  "englishPronounICapitalization",
+  "englishContractionNormalization",
+  "englishTypoWhitelistCorrection",
+  "doubleSpaceToPeriod",
+  "englishModalOfCorrection",
+  "englishYourWelcomeCorrection",
+  "englishTheirThereBeVerb",
+  "englishAlotCorrection",
+  "englishPronounVerbWhitelistAgreement",
+  "technicalTokenCompaction",
+  "mathOperatorSpacing",
+  "slashContextSpacing",
+  "openingBracketSpacing",
+  "closingBracketSpacing",
+  "commaPeriodSpacing",
+  "collapseRepeatedSpaces",
+  "trimSpaceBeforeLineBreak",
+  "neutralPunctuationPolicy",
+];
+
+export const DEFAULT_CURRENT_GRAMMAR_RULES: CatalogRuleId[] = GRAMMAR_RULE_CATALOG.filter(
   (entry) => entry.defaultRollout === "on",
 ).map((entry) => entry.id);
 
-export const RECOMMENDED_V3_GRAMMAR_RULES: CatalogRuleId[] = GRAMMAR_RULE_CATALOG.filter(
+export const RECOMMENDED_CURRENT_GRAMMAR_RULES: CatalogRuleId[] = GRAMMAR_RULE_CATALOG.filter(
   (entry) => entry.recommended,
 ).map((entry) => entry.id);
 

@@ -25,6 +25,7 @@ import { EnglishTheirThereBeVerbRule } from "./implementations/EnglishTheirThere
 import { EnglishAlotCorrectionRule } from "./implementations/EnglishAlotCorrectionRule";
 import { EnglishPronounVerbWhitelistAgreementRule } from "./implementations/EnglishPronounVerbWhitelistAgreementRule";
 import { AutoBracketCloseRule } from "./implementations/AutoBracketCloseRule";
+import { MeasurementUnitFormattingRule } from "./implementations/MeasurementUnitFormattingRule";
 
 export function createGrammarRuleCatalogRuntime(options: {
   insertSpaceAfterAutocomplete: boolean;
@@ -54,6 +55,7 @@ export function createGrammarRuleCatalogRuntime(options: {
     closingBracketSpacing: new ClosingBracketSpacingRule(insertSpaceAfterAutocomplete),
     slashContextSpacing: new SlashContextSpacingRule(insertSpaceAfterAutocomplete),
     mathOperatorSpacing: new MathOperatorSpacingRule(insertSpaceAfterAutocomplete),
+    measurementUnitFormatting: new MeasurementUnitFormattingRule(),
     technicalTokenCompaction: new TechnicalTokenCompactionRule(insertSpaceAfterAutocomplete),
     collapseRepeatedSpaces: new CollapseRepeatedSpacesRule(),
     trimSpaceBeforeLineBreak: new TrimSpaceBeforeLineBreakRule(),

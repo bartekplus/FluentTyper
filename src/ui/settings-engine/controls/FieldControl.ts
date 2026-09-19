@@ -174,7 +174,7 @@ export abstract class BaseControl<TValue> implements FieldControl<TValue> {
     }
   }
 
-  protected persistToStorage(value: TValue): void {
+  protected persistToStorage(value: unknown): void {
     if (this.name === undefined) {
       return;
     }

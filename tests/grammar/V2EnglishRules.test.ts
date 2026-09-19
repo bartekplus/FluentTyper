@@ -17,9 +17,12 @@ describe("V2 english grammar rules", () => {
     test("capitalizes standalone i and apostrophe contractions in English context", () => {
       const rule = new EnglishPronounICapitalizationRule();
 
-      expect(rule.apply(context("i ", { lang: "en_US" }))).toEqual({
-        replacement: "I ",
-        deleteBackwards: 2,
+      // A lone "i " could still be a loop variable; the following word decides.
+      expect(rule.apply(context("i ", { lang: "en_US" }))).toBeNull();
+      expect(rule.apply(context("for i in", { lang: "en_US" }))).toBeNull();
+      expect(rule.apply(context("i think ", { lang: "en_US" }))).toEqual({
+        replacement: "I think ",
+        deleteBackwards: 8,
         deleteForwards: 0,
       });
 
@@ -61,9 +64,12 @@ describe("V2 english grammar rules", () => {
     test("applies only after a token boundary delimiter", () => {
       const rule = new EnglishPronounICapitalizationRule();
       expect(rule.apply(context("i", { lang: "en_US", inputAction: "insert" }))).toBeNull();
-      expect(rule.apply(context("i.", { lang: "en_US", inputAction: "insert" }))).toEqual({
-        replacement: "I.",
-        deleteBackwards: 2,
+      // A bare "i." could still become "i.e."; the decision waits one character.
+      expect(rule.apply(context("i.", { lang: "en_US", inputAction: "insert" }))).toBeNull();
+      expect(rule.apply(context("i.e", { lang: "en_US", inputAction: "insert" }))).toBeNull();
+      expect(rule.apply(context("i. ", { lang: "en_US", inputAction: "insert" }))).toEqual({
+        replacement: "I. ",
+        deleteBackwards: 3,
         deleteForwards: 0,
       });
     });

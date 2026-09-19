@@ -3,6 +3,7 @@ import { normalizeWordSet, resolveInputAction } from "./GenericRuleShared";
 
 const TRAILING_DELIMITER_REGEX = /[\s.,!?;:)\]"}]/;
 const LETTER_REGEX = /[A-Za-z]/;
+const OPENING_BRACKETS = new Set(["(", "[", "{"]);
 const CODE_CONTEXT_CHARS = new Set(["=", "(", "[", "{", ":", "+", "-", "*", "/", "%", "&", "|"]);
 
 export interface EnglishBoundaryContext {
@@ -101,6 +102,11 @@ export function isLikelyCodeLikeContext(
     const ch = core[i];
     if (ch.trim().length === 0) {
       continue;
+    }
+    if (OPENING_BRACKETS.has(ch)) {
+      // "I said (dont do it)" is prose in brackets; "call foo(dont)" is a call.
+      // The space before the bracket is the whole difference, so do not trim it.
+      return /[\p{L}\p{N}_]/u.test(core[i - 1] ?? "");
     }
     return CODE_CONTEXT_CHARS.has(ch);
   }

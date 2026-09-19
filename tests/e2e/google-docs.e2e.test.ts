@@ -275,6 +275,11 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
     await expectText("the ");
     expect((await evaluate<string[]>("events")).includes("accepted")).toBe(false);
   });
+  test("measurement formatting stays disabled without a verified prose context", async () => {
+    await evaluate('predictions=[];startDocs({enabledGrammarRules:["measurementUnitFormatting"]})');
+    await page.keyboard.type("Mass: 10kg ");
+    await expectText("Mass: 10kg ");
+  });
   test("multiple visible carets use a fixed palette without choosing a collaborator", async () => {
     await page.evaluate(() => {
       const remote = document.querySelector(".kix-cursor-caret")!.cloneNode(true) as HTMLElement;

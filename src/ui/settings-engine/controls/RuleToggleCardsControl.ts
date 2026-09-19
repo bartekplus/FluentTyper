@@ -1,4 +1,4 @@
-import type { RuleOption, RuleToggleCardsConfig } from "../types.js";
+import type { RuleOption, RuleToggleCardsConfig, RuleToggleStorageAdapter } from "../types.js";
 import type { Store } from "@core/application/storage/Store.js";
 import { BaseControl } from "./FieldControl.js";
 
@@ -32,11 +32,14 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
   private rovingIndex = 0;
   private readonly summaryLabel: string;
   private readonly emptyStateText: string;
+  private readonly storageAdapter: RuleToggleStorageAdapter;
+  private storedValue: unknown;
 
   constructor(params: RuleToggleCardsConfig, store: Store) {
     super(params, store);
     this.summaryLabel = params.summaryLabel;
     this.emptyStateText = params.emptyStateText;
+    this.storageAdapter = params.storageAdapter;
 
     const root = document.createElement("div");
     root.className = "field grammar-rule-selector-field";
@@ -190,7 +193,7 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
     this.updateFilterButtons();
     this.updateStateUI();
 
-    void this.loadFromStorage();
+    void this.loadSelectionFromStorage();
   }
 
   private createSection(title: string, sectionType: "safe" | "advanced"): SectionBundle {
@@ -287,7 +290,7 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
     input.addEventListener("change", () => {
       this.updateStateUI();
       const value = this.get();
-      this.persistToStorage(value);
+      this.persistValue(this.storageAdapter.setChoice(this.storedValue, rule.value, input.checked));
       this.emitter.fireEvent("action", value);
     });
 
@@ -488,9 +491,24 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
     this.updateStateUI();
     if (!silent) {
       const value = this.get();
-      this.persistToStorage(value);
+      this.persistValue(this.storageAdapter.setSelection(value));
       this.emitter.fireEvent("action", value);
     }
     return this;
+  }
+
+  private async loadSelectionFromStorage(): Promise<void> {
+    if (this.name === undefined) return;
+    try {
+      this.storedValue = await this.storage.get(this.name);
+      this.set(this.storageAdapter.getSelection(this.storedValue), true);
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  private persistValue(value: unknown): void {
+    this.storedValue = value;
+    this.persistToStorage(value);
   }
 }

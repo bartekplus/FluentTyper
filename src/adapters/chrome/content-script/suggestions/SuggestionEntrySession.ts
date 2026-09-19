@@ -15,6 +15,7 @@ import {
   syncAcceptedSuggestionTrailingSpaceState,
 } from "./SuggestionAcceptedState";
 import { TextTargetAdapter } from "./TextTargetAdapter";
+import { measurementEditingContext } from "./MeasurementEditingContext";
 import { buildCaretTrace, clipTraceText, collapseTraceWhitespace } from "./traceUtils";
 import type {
   PendingKeyFallback,
@@ -37,6 +38,23 @@ const DUPLICATE_PUNCTUATION_TAIL_REGEX = new RegExp(
   `[,;:](?:${SPACING_OR_FILLER_PATTERN})*[,;:](?:${SPACING_OR_FILLER_PATTERN})*$`,
 );
 const logger = createLogger("SuggestionEntrySession");
+
+/**
+ * Plain Enter and Shift+Enter both commit the line — one submits or inserts a
+ * newline, the other inserts a soft break — so both are word boundaries.
+ * Ctrl/Cmd/Alt+Enter is an application chord that may not touch the text at
+ * all, and capitalizing behind a chord that did nothing would be a surprise.
+ */
+function shouldRunEnterWordBoundaryGrammar(event: KeyboardEvent, entryComposing: boolean): boolean {
+  return (
+    event.key === "Enter" &&
+    !event.isComposing &&
+    !entryComposing &&
+    !event.ctrlKey &&
+    !event.metaKey &&
+    !event.altKey
+  );
+}
 
 export class SuggestionEntrySession {
   private readonly entry: SuggestionEntry;
@@ -174,6 +192,10 @@ export class SuggestionEntrySession {
     if (shouldDismissSuggestionsOnKeydown(keyboardEvent)) {
       controls.dismissEntry(true);
       return;
+    }
+
+    if (shouldRunEnterWordBoundaryGrammar(keyboardEvent, this.entry.isComposing)) {
+      this.runEnterWordBoundaryGrammar();
     }
 
     if (keyboardEvent.key === "Enter" && !TextTargetAdapter.isTextValue(this.entry.elem)) {
@@ -744,6 +766,7 @@ export class SuggestionEntrySession {
 
     const grammarEdit = predictionContext.safeForGrammar
       ? this.grammarCoordinator.run({
+          measurementContext: measurementEditingContext(this.entry.elem),
           beforeCursor: predictionContext.beforeCursor,
           afterCursor: predictionContext.afterCursor,
           inputAction: "insert",
@@ -1001,6 +1024,7 @@ export class SuggestionEntrySession {
     const grammarEdit =
       !allowPredictionWithNonCollapsedSelection && cursorContext.safeForGrammar
         ? this.grammarCoordinator.run({
+            measurementContext: measurementEditingContext(this.entry.elem),
             beforeCursor: cursorContext.beforeCursor,
             afterCursor: cursorContext.afterCursor,
             inputAction,
@@ -1239,7 +1263,52 @@ export class SuggestionEntrySession {
       accepted.cursorAfter,
       accepted.cursorAfterIsBlockLocal,
     );
+    this.runAcceptedSuggestionGrammar();
     return true;
+  }
+
+  /**
+   * Accepting a suggestion finishes a word exactly as typing its last letter
+   * and a space would, but it reaches the field through the edit service
+   * rather than through keystrokes, so the word-boundary rules never saw it:
+   * typing "was " capitalized, picking "was" from the menu did not.
+   */
+  private runAcceptedSuggestionGrammar(): void {
+    if (
+      !this.grammarCoordinator.hasEnabledRules() ||
+      this.resolveUnstableInputSkipReason(this.entry) !== null
+    ) {
+      return;
+    }
+    const snapshot = TextTargetAdapter.snapshot(this.entry.elem);
+    const grammarContext = this.resolveEditableCursorContext(this.entry, snapshot);
+    if (!grammarContext.safeForGrammar || grammarContext.beforeCursor.length === 0) {
+      return;
+    }
+    const measurementContext = measurementEditingContext(this.entry.elem);
+    // The accepted text carries its own trailing space when that setting is on;
+    // without one the boundary has to be supplied the way Enter does it.
+    const endsAtBoundary = /[\s\u00a0]$/u.test(grammarContext.beforeCursor);
+    const grammarEdit = endsAtBoundary
+      ? this.grammarCoordinator.run({
+          measurementContext,
+          beforeCursor: grammarContext.beforeCursor,
+          afterCursor: grammarContext.afterCursor,
+          inputAction: "insert",
+          triggers: ["wordBoundary"],
+        })
+      : this.grammarCoordinator.runVirtualWordBoundary({
+          measurementContext,
+          beforeCursor: grammarContext.beforeCursor,
+          afterCursor: grammarContext.afterCursor,
+        });
+    if (!grammarEdit) {
+      return;
+    }
+    this.textEditService.applyGrammarEdit(this.entry, grammarEdit, {
+      snapshot: grammarContext.snapshot,
+      contentEditableContext: grammarContext.applyContext,
+    });
   }
 
   private finishAcceptedSuggestion(
@@ -1488,6 +1557,41 @@ export class SuggestionEntrySession {
     }, LOCAL_GRAMMAR_IDLE_DELAY_MS);
   }
 
+  /**
+   * Enter ends the line whether or not the host turns it into text, so the
+   * word-boundary rules get one pass over the pending word before the key
+   * reaches the host. The key itself is left untouched: the host's own submit
+   * or newline still happens exactly as before.
+   */
+  private runEnterWordBoundaryGrammar(): void {
+    if (
+      !this.grammarCoordinator.hasEnabledRules() ||
+      this.resolveUnstableInputSkipReason(this.entry) !== null
+    ) {
+      return;
+    }
+    const snapshot = TextTargetAdapter.snapshot(this.entry.elem);
+    const grammarContext = this.resolveEditableCursorContext(this.entry, snapshot);
+    if (!grammarContext.safeForGrammar || grammarContext.beforeCursor.length === 0) {
+      return;
+    }
+    const grammarEdit = this.grammarCoordinator.runVirtualWordBoundary({
+      measurementContext: measurementEditingContext(this.entry.elem),
+      beforeCursor: grammarContext.beforeCursor,
+      afterCursor: grammarContext.afterCursor,
+    });
+    if (!grammarEdit) {
+      return;
+    }
+    const applyResult = this.textEditService.applyGrammarEdit(this.entry, grammarEdit, {
+      snapshot: grammarContext.snapshot,
+      contentEditableContext: grammarContext.applyContext,
+    });
+    if (applyResult.applied) {
+      this.clearSuggestions();
+    }
+  }
+
   private runIdleGrammar(): void {
     if (!this.isFocused() || this.resolveUnstableInputSkipReason(this.entry) !== null) {
       return;
@@ -1496,6 +1600,7 @@ export class SuggestionEntrySession {
     const grammarContext = this.resolveEditableCursorContext(this.entry, snapshot);
     const grammarEdit = grammarContext.safeForGrammar
       ? this.grammarCoordinator.run({
+          measurementContext: measurementEditingContext(this.entry.elem),
           beforeCursor: grammarContext.beforeCursor,
           afterCursor: grammarContext.afterCursor,
           inputAction: this.entry.lastInputAction ?? "other",

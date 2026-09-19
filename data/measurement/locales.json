@@ -1,0 +1,11 @@
+[
+  { "locale": "en_US", "separator": " ", "decimalMarks": ["."] },
+  { "locale": "fr_FR", "separator": " ", "decimalMarks": [","] },
+  { "locale": "hr_HR", "separator": " ", "decimalMarks": [","] },
+  { "locale": "es_ES", "separator": " ", "decimalMarks": [","] },
+  { "locale": "el_GR", "separator": " ", "decimalMarks": [","] },
+  { "locale": "sv_SE", "separator": " ", "decimalMarks": [","] },
+  { "locale": "de_DE", "separator": " ", "decimalMarks": [","] },
+  { "locale": "pl_PL", "separator": " ", "decimalMarks": [","] },
+  { "locale": "pt_BR", "separator": " ", "decimalMarks": [","] }
+]
