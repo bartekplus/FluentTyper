@@ -49,38 +49,6 @@ function withFakeTimers(fn: () => void, ms: number): void {
   }
 }
 
-async function waitForNextCall(
-  mock: jest.Mock<(context: ContentScriptPredictRequestContext) => void>,
-  { timeout = 2000 }: { timeout?: number } = {},
-): Promise<ContentScriptPredictRequestContext> {
-  const baseline = mock.mock.calls.length;
-  const deadline = Date.now() + timeout;
-  while (Date.now() < deadline) {
-    if (mock.mock.calls.length > baseline) {
-      const last = mock.mock.calls.at(-1)?.[0];
-      if (last) {
-        return last;
-      }
-    }
-    await new Promise<void>((r) => setTimeout(r, 5));
-  }
-  throw new Error(`Expected getPrediction to be called within ${timeout}ms`);
-}
-
-async function waitFor(
-  condition: () => boolean,
-  { timeout = 2000 }: { timeout?: number } = {},
-): Promise<void> {
-  const deadline = Date.now() + timeout;
-  while (Date.now() < deadline) {
-    if (condition()) {
-      return;
-    }
-    await new Promise<void>((r) => setTimeout(r, 5));
-  }
-  throw new Error(`Condition was not met within ${timeout}ms`);
-}
-
 function dispatchKeydown(
   target: HTMLElement,
   key: string,
@@ -2954,5 +2922,73 @@ describe("SuggestionManager", () => {
     }
     expect(normalizedParagraphs).toContain("next");
     expect(normalizedParagraphs).toContain("he");
+  });
+
+  test("capitalizes the pending word on Enter before the host submits", async () => {
+    const { manager } = await createManager({
+      minWordLengthToPredict: 1,
+      enabledGrammarRules: ["capitalizeSentenceStart"],
+    });
+    const textarea = document.createElement("textarea");
+    document.body.appendChild(textarea);
+    manager.queryAndAttachHelper();
+
+    textarea.value = "hello";
+    textarea.selectionStart = 5;
+    textarea.selectionEnd = 5;
+    textarea.dispatchEvent(new Event("focus", { bubbles: true }));
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+
+    const event = dispatchKeydown(textarea, "Enter");
+
+    // The host still owns the key: we only slipped one grammar pass in first.
+    expect(event.defaultPrevented).toBe(false);
+    expect(textarea.value).toBe("Hello");
+  });
+
+  test("leaves the pending word alone on Enter while composing", async () => {
+    const { manager } = await createManager({
+      minWordLengthToPredict: 1,
+      enabledGrammarRules: ["capitalizeSentenceStart"],
+    });
+    const textarea = document.createElement("textarea");
+    document.body.appendChild(textarea);
+    manager.queryAndAttachHelper();
+
+    textarea.value = "hello";
+    textarea.selectionStart = 5;
+    textarea.selectionEnd = 5;
+    textarea.dispatchEvent(new Event("focus", { bubbles: true }));
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+
+    dispatchKeydown(textarea, "Enter", { isComposing: true });
+
+    expect(textarea.value).toBe("hello");
+  });
+
+  test("accepts the open suggestion on Enter instead of capitalizing", async () => {
+    const { manager, getPrediction } = await createManager({
+      minWordLengthToPredict: 1,
+      autocompleteOnEnter: true,
+      enabledGrammarRules: ["capitalizeSentenceStart"],
+    });
+    const textarea = document.createElement("textarea");
+    document.body.appendChild(textarea);
+    manager.queryAndAttachHelper();
+
+    textarea.value = "hel";
+    textarea.selectionStart = 3;
+    textarea.selectionEnd = 3;
+    textarea.dispatchEvent(new Event("focus", { bubbles: true }));
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+
+    const request = await waitForNextCall(getPrediction);
+    manager.fulfillPrediction(buildResponse(request, { predictions: ["hello\xA0"] }));
+    expect(querySuggestionMenuItems().length).toBe(1);
+
+    const event = dispatchKeydown(textarea, "Enter");
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(textarea.value).toBe("hello\xA0");
   });
 });

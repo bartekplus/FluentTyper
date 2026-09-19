@@ -71,4 +71,43 @@ export class SuggestionGrammarCoordinator {
     };
     return this.grammarEngine.processSequence(triggers, context, this.options.enabledGrammarRules);
   }
+
+  /**
+   * Runs the word-boundary rules as if the boundary the caller is about to hand
+   * to the host had already been typed, then shifts the edit back off that
+   * virtual character so only the text the user really typed changes.
+   *
+   * Enter needs this because a chat box that submits never turns the key into
+   * text, so the boundary rules would otherwise never see the final word.
+   */
+  public runVirtualWordBoundary(args: {
+    beforeCursor: string;
+    afterCursor: string;
+    measurementContext?: GrammarHints["measurementContext"];
+  }): GrammarEdit | null {
+    const edit = this.run({
+      beforeCursor: `${args.beforeCursor}\n`,
+      afterCursor: args.afterCursor,
+      measurementContext: args.measurementContext,
+      inputAction: "insert",
+      triggers: ["wordBoundary"],
+    });
+    if (
+      !edit ||
+      edit.cursorOffset !== undefined ||
+      edit.deleteForwards > 0 ||
+      edit.deleteBackwards < 1 ||
+      !edit.replacement.endsWith("\n")
+    ) {
+      // The edit either never reached the virtual boundary or rewrote around
+      // it; unshifting those safely is not worth guessing at.
+      return null;
+    }
+    const replacement = edit.replacement.slice(0, -1);
+    const deleteBackwards = edit.deleteBackwards - 1;
+    if (replacement.length === 0 && deleteBackwards === 0) {
+      return null;
+    }
+    return { ...edit, replacement, deleteBackwards };
+  }
 }

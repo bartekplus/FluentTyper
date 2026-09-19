@@ -169,7 +169,10 @@ export interface SuggestionEntrySessionOptions {
     SuggestionPredictionCoordinator,
     "shouldProcessResponse" | "schedule" | "reconcile" | "cancelPending" | "findMentionToken"
   >;
-  grammarCoordinator: Pick<SuggestionGrammarCoordinator, "hasEnabledRules" | "run">;
+  grammarCoordinator: Pick<
+    SuggestionGrammarCoordinator,
+    "hasEnabledRules" | "run" | "runVirtualWordBoundary"
+  >;
   textEditService: Pick<
     SuggestionTextEditService,
     "applyGrammarEdit" | "syncManualAutoFixSuppression" | "acceptSuggestion"

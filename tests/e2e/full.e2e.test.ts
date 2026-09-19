@@ -27,6 +27,7 @@ import {
   KEY_TEXT_EXPANSIONS,
   KEY_ENABLED_GRAMMAR_RULES,
   KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE,
+  KEY_AUTOCOMPLETE_ON_ENTER,
 } from "../../src/core/domain/constants";
 import { SUPPORTED_PREDICTION_LANGUAGE_KEYS } from "../../src/core/domain/lang";
 import { grammarRuleSelectionToOverrides } from "../../src/core/domain/grammar/GrammarRuleSettings";
@@ -5066,6 +5067,41 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       expect(elementText).toContain("Testing. World");
 
       // Cleanup
+      await setGrammarRulesAndWait(worker!, []);
+      await applyConfigChange(browser, worker!);
+    },
+    browserTimeout(30000, 45000),
+  );
+
+  test(
+    "Grammar Rule Engine capitalizes the final word when Enter submits without inserting text",
+    async () => {
+      const selector = "#test-input";
+      await setGrammarRulesAndWait(worker!, ["capitalizeSentenceStart"]);
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+      // Enter has to reach the grammar pass, not the suggestion popup; accepting
+      // a suggestion on Enter is covered elsewhere and must keep winning.
+      await setSettingAndWait(worker!, KEY_AUTOCOMPLETE_ON_ENTER, false);
+      await applyConfigChange(browser, worker!);
+
+      await gotoTestPage(page);
+      await page.bringToFront();
+
+      await waitForInputReady(page, selector);
+      const element = await page.$(selector);
+
+      // A bare text input never turns Enter into text, which is the chat-box
+      // submit case: without the keydown pass the word would stay lowercase.
+      await element!.type("hello");
+      await waitForInputContentMatch(page, selector, /^hello$/, browserTimeout(5000, 8000));
+
+      await page.keyboard.press("Enter");
+      await waitForInputContentMatch(page, selector, /^Hello$/, browserTimeout(5000, 8000));
+
+      // Cleanup
+      await setSettingAndWait(worker!, KEY_AUTOCOMPLETE_ON_ENTER, true);
       await setGrammarRulesAndWait(worker!, []);
       await applyConfigChange(browser, worker!);
     },

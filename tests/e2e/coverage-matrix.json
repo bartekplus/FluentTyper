@@ -755,6 +755,32 @@
       ]
     },
     {
+      "id": "grammar_enter_word_boundary",
+      "description": "Enter runs the word-boundary grammar pass before the host submits, so the final word is capitalized even when Enter never becomes text.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Grammar Rule Engine capitalizes the final word when Enter submits without inserting text"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionManager.test.ts",
+          "test": "capitalizes the pending word on Enter before the host submits"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionManager.test.ts",
+          "test": "leaves the pending word alone on Enter while composing"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionManager.test.ts",
+          "test": "accepts the open suggestion on Enter instead of capitalizing"
+        }
+      ]
+    },
+    {
       "id": "grammar_manual_space_deletion",
       "description": "Manual deletion of an inserted punctuation space is respected.",
       "coverage": [

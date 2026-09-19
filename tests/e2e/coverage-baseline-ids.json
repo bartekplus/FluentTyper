@@ -49,6 +49,7 @@
     "min_word_length_negative",
     "options_config_runtime_reconfigure",
     "grammar_autocap_spacing",
+    "grammar_enter_word_boundary",
     "grammar_manual_space_deletion",
     "grammar_technical_spacing",
     "grammar_math_spacing",

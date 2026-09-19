@@ -39,6 +39,23 @@ const DUPLICATE_PUNCTUATION_TAIL_REGEX = new RegExp(
 );
 const logger = createLogger("SuggestionEntrySession");
 
+/**
+ * Plain Enter and Shift+Enter both commit the line — one submits or inserts a
+ * newline, the other inserts a soft break — so both are word boundaries.
+ * Ctrl/Cmd/Alt+Enter is an application chord that may not touch the text at
+ * all, and capitalizing behind a chord that did nothing would be a surprise.
+ */
+function shouldRunEnterWordBoundaryGrammar(event: KeyboardEvent, entryComposing: boolean): boolean {
+  return (
+    event.key === "Enter" &&
+    !event.isComposing &&
+    !entryComposing &&
+    !event.ctrlKey &&
+    !event.metaKey &&
+    !event.altKey
+  );
+}
+
 export class SuggestionEntrySession {
   private readonly entry: SuggestionEntry;
   private readonly editableContextResolver: SuggestionEntrySessionOptions["editableContextResolver"];
@@ -175,6 +192,10 @@ export class SuggestionEntrySession {
     if (shouldDismissSuggestionsOnKeydown(keyboardEvent)) {
       controls.dismissEntry(true);
       return;
+    }
+
+    if (shouldRunEnterWordBoundaryGrammar(keyboardEvent, this.entry.isComposing)) {
+      this.runEnterWordBoundaryGrammar();
     }
 
     if (keyboardEvent.key === "Enter" && !TextTargetAdapter.isTextValue(this.entry.elem)) {
@@ -1489,6 +1510,41 @@ export class SuggestionEntrySession {
       this.entry.pendingIdleTimer = null;
       this.runIdleGrammar();
     }, LOCAL_GRAMMAR_IDLE_DELAY_MS);
+  }
+
+  /**
+   * Enter ends the line whether or not the host turns it into text, so the
+   * word-boundary rules get one pass over the pending word before the key
+   * reaches the host. The key itself is left untouched: the host's own submit
+   * or newline still happens exactly as before.
+   */
+  private runEnterWordBoundaryGrammar(): void {
+    if (
+      !this.grammarCoordinator.hasEnabledRules() ||
+      this.resolveUnstableInputSkipReason(this.entry) !== null
+    ) {
+      return;
+    }
+    const snapshot = TextTargetAdapter.snapshot(this.entry.elem);
+    const grammarContext = this.resolveEditableCursorContext(this.entry, snapshot);
+    if (!grammarContext.safeForGrammar || grammarContext.beforeCursor.length === 0) {
+      return;
+    }
+    const grammarEdit = this.grammarCoordinator.runVirtualWordBoundary({
+      measurementContext: measurementEditingContext(this.entry.elem),
+      beforeCursor: grammarContext.beforeCursor,
+      afterCursor: grammarContext.afterCursor,
+    });
+    if (!grammarEdit) {
+      return;
+    }
+    const applyResult = this.textEditService.applyGrammarEdit(this.entry, grammarEdit, {
+      snapshot: grammarContext.snapshot,
+      contentEditableContext: grammarContext.applyContext,
+    });
+    if (applyResult.applied) {
+      this.clearSuggestions();
+    }
   }
 
   private runIdleGrammar(): void {
