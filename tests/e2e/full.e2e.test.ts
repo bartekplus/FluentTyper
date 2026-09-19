@@ -5677,8 +5677,10 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitForInputReady(page, selector);
 
       await clearInputContent(page, selector);
+      // A lone "i " could still be a loop variable ("for i in range"), so the
+      // capital waits for the word that identifies it as the pronoun.
       await typeInInput(page, selector, "i ");
-      await waitForInputContentEqual(page, selector, "I ", browserTimeout(5000, 9000));
+      await waitForInputContentEqual(page, selector, "i ", browserTimeout(5000, 9000));
       await typeInInput(page, selector, "am here");
       await waitForInputContentEqual(page, selector, "I am here", browserTimeout(5000, 9000));
 
