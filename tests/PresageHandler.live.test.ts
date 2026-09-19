@@ -143,3 +143,20 @@ describe("PresageHandler live personalized ranking", () => {
     expect(result.predictions).toEqual(["through", "the", "that"]);
   });
 });
+
+describe("PresageHandler live Arabic (ar_SA)", () => {
+  test("ar_SA engine creates and returns Arabic predictions", async () => {
+    const handler = await createLiveHandler();
+    handler.setConfig({ ...createLiveConfig([]) });
+
+    // The ar_SA n-gram corpus (OSCAR 2024-38) contains common words; "الي"
+    // should complete to "اليوم" (today) and "في ال" should yield
+    // definite-article completions. This locks in the Arabic engine + data
+    // pipeline end-to-end.
+    const result = await handler.runPrediction("الي", "", "ar_SA");
+    expect(result.predictions.map((p) => p.trim())).toContain("اليوم");
+
+    const phrase = await handler.runPrediction("في ال", "", "ar_SA");
+    expect(phrase.predictions.map((p) => p.trim())).toContain("العالم");
+  });
+});
