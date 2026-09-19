@@ -119,6 +119,19 @@ def ensure_presage(env: dict[str, str], jobs: int) -> None:
     clone_if_missing("git@github.com:bartekplus/presage.git", target, ["--depth", "1"])
 
     if not (target / "Makefile").is_file():
+        # presage's configure.ac uses PKG_CHECK_MODULES, but the bundled m4/ dir
+        # lacks pkg.m4. On systems where pkg-config ships its macro under
+        # /usr/share/aclocal, copy it in so autoreconf can expand the macro.
+        pkg_m4 = target / "m4" / "pkg.m4"
+        if not pkg_m4.is_file():
+            for candidate in (
+                Path("/usr/share/aclocal/pkg.m4"),
+                Path("/usr/local/share/aclocal/pkg.m4"),
+            ):
+                if candidate.is_file():
+                    pkg_m4.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(candidate, pkg_m4)
+                    break
         run_cmd(["emconfigure", "autoreconf", "-i", "-f"], cwd=target, env=env, quiet=True)
         run_cmd(["emconfigure", "./bootstrap"], cwd=target, env=env, quiet=True)
         configure_cmd = [
@@ -206,12 +219,19 @@ def link_library(debug: bool, pre_js_files: list[Path], gen_dir: Path) -> None:
     marisa_lib = BUILD_DIR / "marisa-trie" / "lib" / "marisa" / ".libs"
     hunspell_lib = BUILD_DIR / "hunspell" / "src" / "hunspell" / ".libs"
     aspell_lib = BUILD_DIR / "aspell" / ".libs"
+    # Link presage's shared object with em++ (not emcc): em++ resolves the C++
+    # symbols that presage's embind bindings reference, and the resulting wasm
+    # is self-contained (no runtime .so fetch). A plain -lpresage / .a without
+    # --whole-archive lets the linker drop presage's unreferenced objects
+    # (including the embind class registrations); --whole-archive on the .a in
+    # turn over-includes and the link can DCE down to a stub. The .so path is
+    # the one that reproduces the committed self-contained build.
     presage_so = BUILD_DIR / "presage" / "src" / "lib" / ".libs" / "libpresage.so.1.1.1"
 
     compile_options = ["-O0", "-sASSERTIONS", "-fwasm-exceptions"] if debug else ["-O3", "-s", "NO_EXIT_RUNTIME=1", "-fwasm-exceptions"]
 
     cmd = [
-        "emcc",
+        "em++",
         str(presage_so),
         "-o",
         "libpresage.js",
@@ -283,8 +303,11 @@ def main() -> int:
     jobs = cpu_jobs()
 
     base_env = os.environ.copy()
-    base_env["CFLAGS"] = "-O3 -fwasm-exceptions"
-    base_env["CXXFLAGS"] = "-O3 -fwasm-exceptions"
+    # -fPIC is required by recent Emscripten (wasm-ld) when linking static C++
+    # libraries into the WASM module; without it the link fails with
+    # "relocation R_WASM_MEMORY_ADDR_LEB ... recompile with -fPIC".
+    base_env["CFLAGS"] = "-O3 -fPIC -fwasm-exceptions"
+    base_env["CXXFLAGS"] = "-O3 -fPIC -fwasm-exceptions"
     base_env["LIBTOOLIZE"] = "glibtoolize"
     base_env["EM_CACHE"] = str(EM_CACHE_DIR)
 
@@ -296,7 +319,7 @@ def main() -> int:
 
     if build_presage:
         presage_env = base_env.copy()
-        presage_env["CXXFLAGS"] = "-O2 -std=c++17 -fwasm-exceptions"
+        presage_env["CXXFLAGS"] = "-O2 -std=c++17 -fPIC -fwasm-exceptions"
         presage_env["CPPFLAGS"] = (
             f"-I{BUILD_DIR / 'marisa-trie' / 'include'} "
             f"-I{BUILD_DIR / 'hunspell' / 'src'} "

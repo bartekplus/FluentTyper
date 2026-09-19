@@ -8,6 +8,7 @@ import os
 import shlex
 import shutil
 import subprocess
+import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -117,6 +118,12 @@ def prepare_tasks(
 
 def process_task(task: PipelineTask, lang_variant: str) -> None:
     print(f"Extracting and filtering data from {task.zst_path}")
+    # Point hunspell at the language's dictionary. We pass the full path to the
+    # dictionary (rather than relying on DICPATH + a bare name) because the
+    # emscripten/micromamba hunspell build used here does not honor the DICPATH
+    # environment variable — it resolves dictionaries against a hardcoded
+    # default directory. The explicit `-d <dir>/<variant>` form works in both.
+    dict_path = (SCRIPT_DIR / ".." / "resources_js" / lang_variant / "hunspell" / lang_variant).resolve()
     env = os.environ.copy()
     env["DICPATH"] = str((SCRIPT_DIR / ".." / "resources_js" / lang_variant / "hunspell").resolve())
 
@@ -125,7 +132,7 @@ def process_task(task: PipelineTask, lang_variant: str) -> None:
         f"jq --argjson prob {LANGUAGE_DETECTION_PROB} --argjson harmful {HARMFUL_SCORE} -r {shlex.quote(JQ_FILTER)} | "
         "awk 'NF>=3' | "
         f"grep -vE '{GREP_FILTER}' | "
-        f"hunspell -i utf-8 -d {shlex.quote(lang_variant)} -G -L"
+        f"hunspell -i utf-8 -d {shlex.quote(str(dict_path))} -G -L"
     )
 
     with task.cache_file.open("wb") as out:
@@ -200,7 +207,7 @@ def main() -> int:
         gen_ngram_script = (SCRIPT_DIR / "gen_ngram.py").resolve()
         marisa_script = (SCRIPT_DIR / "ngramtxt2marisa.py").resolve()
         gen_ngram_cmd = [
-            "python3",
+            sys.executable,
             str(gen_ngram_script),
             "-i",
             str(merged_output),
@@ -212,7 +219,7 @@ def main() -> int:
         run_cmd(gen_ngram_cmd)
         run_cmd(
             [
-                "python3",
+                sys.executable,
                 str(marisa_script),
                 "--overwrite",
                 "--output",

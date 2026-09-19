@@ -25,7 +25,55 @@ def extract_archive(archive_path: Path, cwd: Path) -> None:
             return
         except subprocess.CalledProcessError:
             continue
+    # Some dictionaries (e.g. aspell-ar) ship as RPMs whose payload is zstd/xz
+    # compressed rather than a plain tarball.  Fall back to a minimal RPM
+    # extractor that locates the compressed payload, decompresses it, and runs
+    # `cpio` to unpack the file list.
+    try:
+        _extract_rpm(archive_path, cwd)
+        return
+    except (RuntimeError, subprocess.CalledProcessError):
+        pass
     raise RuntimeError(f"Unable to extract archive: {archive_path}")
+
+
+def _extract_rpm(archive_path: Path, cwd: Path) -> None:
+    import gzip
+    import lzma
+
+    data = archive_path.read_bytes()
+    if len(data) < 96:
+        raise RuntimeError("RPM file too small")
+    # The RPM lead is 96 bytes; the compressed payload starts at the first
+    # known compression magic after it.  Locating the magic directly is more
+    # robust than walking the (variable-length) signature/data headers.
+    magics = (b"\x1f\x8b", b"\xfd7zXZ\x00", b"\x28\xb5\x2f\xfd")
+    start = None
+    for magic in magics:
+        offset = data.find(magic, 96)
+        if offset != -1 and (start is None or offset < start):
+            start = offset
+    if start is None:
+        raise RuntimeError("No recognizable compressed payload in RPM")
+    payload = data[start:]
+    if payload[:2] == b"\x1f\x8b":
+        cpio = gzip.decompress(payload)
+    elif payload[:6] == b"\xfd7zXZ\x00":
+        cpio = lzma.decompress(payload)
+    elif payload[:4] == b"\x28\xb5\x2f\xfd":
+        result = subprocess.run(["zstd", "-d", "-q", "-c", "-"], input=payload, capture_output=True)
+        if result.returncode != 0:
+            raise RuntimeError("zstd decompression failed")
+        cpio = result.stdout
+    else:
+        raise RuntimeError("Unknown RPM payload compression")
+    cpio_path = cwd / "_payload.cpio"
+    cpio_path.write_bytes(cpio)
+    try:
+        with cpio_path.open("rb") as handle:
+            subprocess.run(["cpio", "-idm", "--quiet"], cwd=str(cwd), stdin=handle, check=True)
+    finally:
+        cpio_path.unlink(missing_ok=True)
 
 
 def copy_tree_contents(source_dir: Path, destination_dir: Path) -> None:
