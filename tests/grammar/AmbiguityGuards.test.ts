@@ -98,6 +98,9 @@ describe("unambiguous corrections still apply", () => {
     ["when i = 3 then ", "When i = 3 then "],
     // Only the sentence-start capital changes; brackets and links are intact.
     ["set x = {a: 1} now ", "Set x = {a: 1} now "],
+    // A sentence period is still spaced on the very next keystroke.
+    ["Hello.", "Hello. "],
+    ["this is awsome.", "This is awsome. "],
     ["see [link](http://x.test) here ", "See [link](http://x.test) here "],
   ])
     test(input, () => expect(type(input)).toBe(expected));

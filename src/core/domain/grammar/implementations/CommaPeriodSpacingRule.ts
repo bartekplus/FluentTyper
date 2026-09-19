@@ -108,9 +108,6 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
       return null;
     }
 
-    // A period may still be the first of "...", of a spread operator, or of a
-    // relative path. Wait: the next character resumes prose or it does not, and
-    // an ellipsis, "[...arr]" and "../../src" survive untouched either way.
     // A period that does not close a word is never sentence punctuation:
     // "[...arr]", "f(...args)", "../src". This holds even mid-text, where the
     // deferral below cannot run because the decision can never be revisited.
@@ -123,7 +120,15 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
       return null;
     }
 
-    if (canDefer && lastChar === ".") {
+    // "word. " + "." means the previous period ended a run, not a sentence.
+    // Take the space back rather than delay every sentence by a keystroke.
+    if (lastChar === "." && spaceBeforeViolated && previousSignificantChar === ".") {
+      return this.createEdit(".", spaceRunLength + 1);
+    }
+
+    // A period the user typed after a space ("path ../..") may open a relative
+    // path rather than close a sentence; wait for the character that says which.
+    if (canDefer && lastChar === "." && spaceBeforeViolated) {
       return null;
     }
 
