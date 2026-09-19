@@ -37,6 +37,15 @@ describe("measurement formatting during typing", () => {
     ["Flux: 2W/(m·K) ", "en_US", "Flux: 2\u00a0W/(m·K) "],
     ["Area: 3m² ", "en_US", "Area: 3\u00a0m² "],
     ["Scientific: 1.e3 and 1.e+3kg ", "en_US", "Scientific: 1.e3 and 1.e+3kg "],
+    // The same text twice must format the same way: nothing before a
+    // measurement is not evidence against prose.
+    ["2Mbit 2Mbit ", "en_US", "2\u00a0Mbit 2\u00a0Mbit "],
+    ["2kg 2kg ", "en_US", "2\u00a0kg 2\u00a0kg "],
+    ["10kg ", "en_US", "10\u00a0kg "],
+    ["/tmp/10kg ", "en_US", "/tmp/10kg "],
+    // The leading word is capitalized by a different rule; what matters here
+    // is that the shell context still blocks the measurement spacing.
+    ["npm 10kg ", "en_US", "Npm 10kg "],
   ])
     test(input, () => expect(type(input, lang)).toBe(expected));
 

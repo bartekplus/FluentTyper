@@ -54,6 +54,12 @@ function isProsePrefix(prefix: string): boolean {
     return false;
   }
   const line = prefix.slice(lineStart);
+  // Nothing before the measurement is not evidence against prose, and treating
+  // it as such formatted "2Mbit 2Mbit" into "2Mbit 2 Mbit": the same text
+  // twice, spaced only where a word happened to precede it.
+  if (line.trim().length === 0) {
+    return true;
+  }
   if (
     /(?:^|[;\s])(?:(?:min|max)-)?(?:width|height|margin(?:-[a-z]+)?|padding(?:-[a-z]+)?|font(?:-[a-z]+)?|line-height|gap|inset|top|right|bottom|left|border(?:-[a-z]+)?|stroke(?:-[a-z]+)?)\s*:/iu.test(
       line,
@@ -61,7 +67,9 @@ function isProsePrefix(prefix: string): boolean {
   )
     return false;
   if (
-    /^\s*(?:sudo|doas|git|npm|npx|bun|node|python\d*|pip\d*|curl|wget|echo|printf|export|let|const|var|return|import|docker|kubectl|cargo|apt|brew)(?:\s|$)/u.test(
+    // Case-insensitive: at the start of a field the capitalization rule turns
+    // "npm" into "Npm" before this guard ever sees it.
+    /^\s*(?:sudo|doas|git|npm|npx|bun|node|python\d*|pip\d*|curl|wget|echo|printf|export|let|const|var|return|import|docker|kubectl|cargo|apt|brew)(?:\s|$)/iu.test(
       line,
     )
   ) {
