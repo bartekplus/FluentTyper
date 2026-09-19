@@ -374,8 +374,6 @@ export const DEFAULT_V3_GRAMMAR_RULES: CatalogRuleId[] = [
   "neutralPunctuationPolicy",
 ];
 
-export const RECOMMENDED_V3_GRAMMAR_RULES: CatalogRuleId[] = [...DEFAULT_V3_GRAMMAR_RULES];
-
 export const DEFAULT_CURRENT_GRAMMAR_RULES: CatalogRuleId[] = GRAMMAR_RULE_CATALOG.filter(
   (entry) => entry.defaultRollout === "on",
 ).map((entry) => entry.id);

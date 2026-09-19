@@ -41,6 +41,7 @@ export class MeasurementUnitFormattingRule implements GrammarRule {
       replacement: `${prefixAndExpression.slice(parsed.start, parsed.numberEnd)}${locale.separator}${prefixAndExpression.slice(parsed.unitStart)}${trailing}`,
       deleteBackwards: context.beforeCursor.length - parsed.start,
       deleteForwards: 0,
+      strict: true,
     };
   }
 }

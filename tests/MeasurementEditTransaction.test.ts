@@ -38,6 +38,7 @@ describe("measurement edit transaction", () => {
         deleteBackwards: 5,
         deleteForwards: 0,
         sourceRuleId: "measurementUnitFormatting",
+        strict: true,
       },
       { snapshot },
     );
@@ -66,6 +67,7 @@ describe("measurement edit transaction", () => {
         deleteBackwards: 5,
         deleteForwards: 0,
         sourceRuleId: "measurementUnitFormatting",
+        strict: true,
       },
       { snapshot },
     );
@@ -88,6 +90,7 @@ describe("measurement edit transaction", () => {
         deleteBackwards: 5,
         deleteForwards: 0,
         sourceRuleId: "measurementUnitFormatting",
+        strict: true,
       }).applied,
     ).toBe(true);
     const event = new window.KeyboardEvent("keydown", {

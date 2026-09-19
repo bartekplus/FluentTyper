@@ -485,7 +485,7 @@ export class SuggestionTextEditService {
     context: GrammarEditApplyContext = {},
   ): TextEditApplyResult {
     let replacement = typeof edit.replacement === "string" ? edit.replacement : "";
-    const isMeasurementEdit = edit.sourceRuleId === "measurementUnitFormatting";
+    const isStrictEdit = edit.strict === true;
     const deleteBackwards = Number.isFinite(edit.deleteBackwards)
       ? Math.max(0, edit.deleteBackwards)
       : 0;
@@ -494,7 +494,7 @@ export class SuggestionTextEditService {
         ? Math.max(0, edit.deleteForwards)
         : 0;
     const snapshot: SuggestionSnapshot = context.snapshot ?? TextTargetAdapter.snapshot(entry.elem);
-    if (isMeasurementEdit) {
+    if (isStrictEdit) {
       const live = TextTargetAdapter.snapshot(entry.elem);
       if (
         !TextTargetAdapter.hasCollapsedSelection(entry.elem) ||
@@ -584,8 +584,8 @@ export class SuggestionTextEditService {
             replaceEnd,
             replacement,
           );
-    if (isMeasurementEdit) {
-      // Insert only the separator; do not flatten styled number/unit nodes.
+    if (isStrictEdit) {
+      // Narrow to what actually changed; do not flatten styled nodes around it.
       const original = fullText.slice(replaceStart, replaceEnd);
       let prefix = 0;
       while (prefix < original.length && original[prefix] === replacement[prefix]) prefix += 1;
@@ -673,7 +673,7 @@ export class SuggestionTextEditService {
             blockCursorAfter,
           );
         }
-        if (applyResult === null && !isMeasurementEdit) {
+        if (applyResult === null && !isStrictEdit) {
           // Last-resort host path for hosts whose model lags the DOM
           // (Firefox CKEditor-5 can expose a newly typed character in
           // the DOM before its model observes it).  Bypass the parity
@@ -694,7 +694,7 @@ export class SuggestionTextEditService {
     }
     if (
       applyResult === null &&
-      isMeasurementEdit &&
+      isStrictEdit &&
       this.hostEditorAdapterResolver.resolve(entry.elem)
     ) {
       return { applied: false, didDispatchInput: false };
@@ -803,7 +803,7 @@ export class SuggestionTextEditService {
       postEditSnapshot = TextTargetAdapter.snapshot(entry.elem);
     }
     if (
-      isMeasurementEdit &&
+      isStrictEdit &&
       !this.matchesExpectedGrammarResult(postEditSnapshot, expectedFullText, cursorAfter)
     ) {
       return { applied: false, didDispatchInput: applyResult.didDispatchInput };
@@ -811,7 +811,7 @@ export class SuggestionTextEditService {
     let finalApplyResult = applyResult;
 
     if (
-      !isMeasurementEdit &&
+      !isStrictEdit &&
       !TextTargetAdapter.isTextValue(entry.elem) &&
       !this.shouldPreferDomMutationForGrammar(entry.elem) &&
       !this.matchesExpectedGrammarResult(postEditSnapshot, expectedFullText, cursorAfter)

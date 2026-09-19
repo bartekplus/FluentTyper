@@ -6,7 +6,6 @@ import {
   GRAMMAR_RULE_IDS,
   RECOMMENDED_V1_GRAMMAR_RULES,
   RECOMMENDED_V2_GRAMMAR_RULES,
-  RECOMMENDED_V3_GRAMMAR_RULES,
   RECOMMENDED_CURRENT_GRAMMAR_RULES,
   isCatalogRuleId,
   normalizeGrammarRuleSelection,
@@ -73,7 +72,6 @@ describe("ruleCatalog", () => {
       (entry) => entry.safetyTier === "advanced",
     ).map((entry) => entry.id);
 
-    expect(DEFAULT_V3_GRAMMAR_RULES).toEqual(RECOMMENDED_V3_GRAMMAR_RULES);
     expect(DEFAULT_V3_GRAMMAR_RULES).not.toContain("measurementUnitFormatting");
     expect(DEFAULT_CURRENT_GRAMMAR_RULES).toEqual(defaultRolloutOnIds);
     expect(RECOMMENDED_CURRENT_GRAMMAR_RULES).toContain("measurementUnitFormatting");

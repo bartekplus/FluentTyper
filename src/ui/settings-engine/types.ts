@@ -104,7 +104,7 @@ export type RuleToggleCardsConfig = {
   options: RuleOption[];
   actions: RuleToggleAction[];
   default?: unknown;
-  storageAdapter?: RuleToggleStorageAdapter;
+  storageAdapter: RuleToggleStorageAdapter;
 };
 
 export type ValueOnlyConfig = {

@@ -63,9 +63,46 @@ Historical V3 snapshots are frozen. Grammar settings now store explicit per-rule
 
 The one-time V8 schema migration converts old enabled-rule arrays into explicit choices for the frozen pre-measurement rule inventory. This preserves existing choices (including custom/empty lists) for old rules while the new measurement rule inherits its on default. No feature-specific migration marker is required: the stored map distinguishes the new schema. Missing settings remain unset and malformed settings are preserved and fail closed. Global extension enablement is unchanged. Tests cover legacy migration, failed-write retry, missing defaults, explicit opt-out, settings persistence, runtime resolution, and reset behavior.
 
+## Data sources and generation
+
+The measurement registry recognizes prose symbols; it does not convert values or implement UCUM. Exact symbols are case-sensitive. A single SI decimal or IEC binary prefix is expanded only for units that opt in, and exact entries win so ambiguous words such as `in`, `as`, and `Ms` stay unsafe. Written unit names are preserved and are not converted to symbols.
+
+### Pinned sources and licenses
+
+- **BIPM-SI-9-4.01** — _The International System of Units (SI)_, 9th edition, version 4.01 (2026), DOI 10.59161/AUEZ1291. CC BY 4.0. Used for SI symbols, SI prefixes through quetta/quecto, and accepted non-SI units.
+- **NIST-SP-811** — _Guide for the Use of the International System of Units (SI)_ (2008), DOI 10.6028/NIST.SP.811e2008. US government work; source credit requested. Used for Chapters 5–7 classifications and US prose conventions.
+- **CLDR-48.2** — Unicode CLDR 48.2 / UTS #35 LDML Units, tag `release-48-2`, commit `11299982335beb974c1c63c45265184e759c0f41`. Unicode License v3. Used for locale punctuation, binary data-unit forms, practical unit forms, and the distinction between localized display names and stable identities.
+- **UCUM-2.2** — unmodified `ucum-essence.xml` at commit `ef4c31cd7d3bc81de1a1bf2cc8414bf502b6304f`, SHA-256 `dfccea1b5dc284245ebae97edd1dc03c45864da4e87df55bc9851797b4fd0b61`. Copyright ©1999–2024 Regenstrief Institute, Inc.; UCUM License 1.0. The complete pinned copyright notice, license, warranty disclaimer, and liability terms are distributed beside the snapshot as `data/measurement/UCUM-LICENSE.txt`. Used only as the atomic-code coverage baseline. The application makes no UCUM conformance claim.
+
+Machine-readable citations live in `data/measurement/sources.json`. The complete UCUM atom audit is generated at `data/measurement/ucum-coverage.md`; every pinned atom is classified as recognized-safe, recognized-ambiguous, or unsupported. “Recognized” means that the prose registry has an explicit human-facing symbol for the UCUM atom; parser acceptance still depends on the symbol's `safe` and `composition` metadata and grammar tokenization. Unsupported includes clinical, legacy, bracketed customary, expression-syntax, and conversion-oriented codes that are outside prose spacing.
+
+### Offline generation and explicit refresh
+
+Run `bun scripts/measurement-data.ts` to validate curated data and regenerate the TypeScript registry plus the coverage report entirely offline. The pinned UCUM snapshot is committed under `data/measurement/`.
+
+Run `bun scripts/measurement-data.ts --refresh` only when deliberately refreshing the snapshot. The URL contains the reviewed commit, so this command reproduces the pinned file rather than following a moving branch. Update the commit and SHA-256 in the source inventory and this document as part of a separately reviewed source upgrade.
+
+The locale allowlist is exact: `en_US`, `fr_FR`, `hr_HR`, `es_ES`, `el_GR`, `sv_SE`, `de_DE`, `pl_PL`, and `pt_BR`. Hyphenated spellings of the same tags are accepted. Bare languages, `en_GB`, `pt_PT`, and all unknown locales fail closed. Every policy inserts U+00A0 NO-BREAK SPACE between the number and unit; decimal marks remain locale-specific.
+
+The binary prefix inventory follows BIPM v4.01, page 139, including robi (Ri) and quebi (Qi), which references IEC 80000-13:2025. The curated entries are adapted factual subsets with FluentTyper-specific ambiguity flags, not publisher-endorsed autocorrection decisions. BIPM credit: Bureau International des Poids et Mesures, [SI Brochure v4.01](https://www.bipm.org/documents/20126/41483022/SI-Brochure-9-EN.pdf), adapted under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The complete Unicode notice is in `data/measurement/UNICODE-LICENSE.txt`; the CLDR pin is the dereferenced commit of annotated tag `release-48-2`.
+
+## Verification
+
+The rule inserts one U+00A0 separator between an authored number and a known unit. Verification treats every other character as immutable and uses hand-written expected strings rather than parser output.
+
+Run the focused checks:
+
+```sh
+bun test tests/grammar/MeasurementUnitFormattingRule.test.ts tests/grammar/MeasurementAdversarial.test.ts tests/MeasurementEditTransaction.test.ts tests/MeasurementEditingContext.test.ts
+```
+
+The adversarial suite covers all nine supported locales, decimal marks, signs, prefixes, unit exponents, compounds, grouped expressions, existing separators, malformed tails, ambiguous symbols, identifiers, URLs, paths, code-like text, paste, non-insert actions, protected contexts, and all-default pipeline stability. Transaction checks require a live collapsed snapshot, preserve adjacent rich formatting nodes, and verify immediate undo.
+
+Google Docs intentionally remains fail-closed for this feature. Its current model does not expose enough semantic information to distinguish prose from protected or code-like content, so it supplies no `measurementContext: "prose"` hint.
+
 ## Reproduction and evidence
 
-Source versions, licenses, curated-data generation, and explicit refresh instructions are in [measurement-data.md](measurement-data.md). Generation is offline and verifies the pinned UCUM SHA-256, duplicate symbols/mappings, source identifiers, and live-language completeness. Two consecutive generations produced identical registry and coverage hashes.
+Source versions, licenses, curated-data generation, and explicit refresh instructions are above. Generation is offline and verifies the pinned UCUM SHA-256, duplicate symbols/mappings, source identifiers, and live-language completeness. Two consecutive generations produced identical registry and coverage hashes.
 
 Environment: macOS 27.0 (26A428), Apple M2 Max, arm64, Bun 1.4.2 (repository pins 1.4.0). No dependency or version changes were made.
 
@@ -83,7 +120,6 @@ Environment: macOS 27.0 (26A428), Apple M2 Max, arm64, Bun 1.4.2 (repository pin
 | `bun run test:e2e --platform=firefox`      | Blocked before extension loading: browser launch/profile failure              |
 | `bun run test:e2e:full --platform=firefox` | Blocked before extension loading: browser launch/profile failure              |
 | `bun scripts/measurement-data.ts`          | Offline generation and byte-for-byte reproducibility pass                     |
-| `bun scripts/benchmark-measurement.ts`     | Results below                                                                 |
 
 The default Chrome cache lacked its framework. An isolated install was completed with native unzip, then Chrome commands ran with `PUPPETEER_CACHE_DIR=/tmp/fluenttyper-measurement-browsers`. Initial failed launch attempts are not test passes. System Chrome also ran the Docs fixture successfully, but cannot load this unpacked extension through the current launch flags. Cached Firefox timed out; installed Firefox 156 failed with “Could not find profile folder,” also reproduced in independent Node/Puppeteer launches, including an explicit fresh profile. Firefox runtime compatibility is **unverified**, and there was no live Google Docs or Edge browser test.
 
@@ -91,7 +127,7 @@ Earlier reruns experienced Chromium worker/startup timeouts during heavy unrelat
 
 The new browser test types an English measurement, protects a path, and types a Polish decimal with punctuation rules enabled. Rich-node preservation, stale input, and immediate undo are verified in DOM integration tests; that is not a claim of testing every rich editor live. The broader existing suite checks editor/IME/selection/revert behaviors.
 
-Benchmark: 100,000 operations/case, fixed inputs, same machine. Typical match **661 ns/op**, ordinary non-match **444 ns/op**, over-limit prose **24 ns/op**, malformed adversarial expression **1,386 ns/op**. These are rule-only timings, not total keystroke latency or a cross-machine guarantee. No per-miss lookup cache retains user strings.
+The parser's bounded tail scan keeps rule runtime independent of document length beyond the bound, and no per-miss lookup cache retains user strings.
 
 Chrome production JavaScript compared with clean `bce365b5`, same build options and gzip with mtime zero:
 

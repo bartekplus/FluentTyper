@@ -7,8 +7,6 @@ const units = new Map<string, MeasurementUnit>(
 const locales = new Map<string, MeasurementLocalePolicy>(
   MEASUREMENT_LOCALES.map((locale) => [locale.locale, locale]),
 );
-const prefixedUnits = new Map<string, MeasurementUnit>();
-
 const decimalPrefixes = [
   ["da", "deca"],
   ["Q", "quetta"],
@@ -55,37 +53,29 @@ function prefixedUnit(
   name: string,
   kind: "decimal" | "binary",
 ): MeasurementUnit | undefined {
+  if (!symbol.startsWith(prefix)) return;
   const base = units.get(symbol.slice(prefix.length));
   if (!base || (base.prefixes !== kind && base.prefixes !== "both")) return;
-  const binaryByte = kind === "binary" && base.symbol === "B";
   const source = `BIPM-SI-9-4.01; ${base.source}`;
-  if (binaryByte) {
+  if (kind === "binary" && base.symbol === "B") {
     const { ambiguity: _ambiguity, ...byte } = base;
     return { ...byte, identity: `${name}${base.identity}`, symbol, safe: true, source };
   }
   return { ...base, identity: `${name}${base.identity}`, symbol, source };
 }
 
-for (const base of units.values()) {
-  if (base.prefixes === "decimal" || base.prefixes === "both") {
-    for (const [prefix, name] of decimalPrefixes) {
-      const symbol = prefix + base.symbol;
-      const unit = prefixedUnit(symbol, prefix, name, "decimal");
-      if (unit) prefixedUnits.set(symbol, unit);
-    }
-  }
-  if (base.prefixes === "binary" || base.prefixes === "both") {
-    for (const [prefix, name] of binaryPrefixes) {
-      const symbol = prefix + base.symbol;
-      const unit = prefixedUnit(symbol, prefix, name, "binary");
-      if (unit) prefixedUnits.set(symbol, unit);
-    }
-  }
-}
-
 /** Exact, case-sensitive prose-symbol lookup with one permitted prefix. */
 export function lookupMeasurementUnit(symbol: string): MeasurementUnit | undefined {
-  return units.get(symbol) ?? prefixedUnits.get(symbol);
+  const exact = units.get(symbol);
+  if (exact) return exact;
+  // Longest-prefix order is not unique ("dag" is deca-gram or deci-ag), so the
+  // last declared prefix wins, matching the declaration order of the tables.
+  let prefixed: MeasurementUnit | undefined;
+  for (const [prefix, name] of decimalPrefixes)
+    prefixed = prefixedUnit(symbol, prefix, name, "decimal") ?? prefixed;
+  for (const [prefix, name] of binaryPrefixes)
+    prefixed = prefixedUnit(symbol, prefix, name, "binary") ?? prefixed;
+  return prefixed;
 }
 
 /** Resolve only the nine writing locales supported by the grammar policy. */

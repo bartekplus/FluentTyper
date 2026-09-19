@@ -32,7 +32,7 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
   private rovingIndex = 0;
   private readonly summaryLabel: string;
   private readonly emptyStateText: string;
-  private readonly storageAdapter?: RuleToggleStorageAdapter;
+  private readonly storageAdapter: RuleToggleStorageAdapter;
   private storedValue: unknown;
 
   constructor(params: RuleToggleCardsConfig, store: Store) {
@@ -290,9 +290,7 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
     input.addEventListener("change", () => {
       this.updateStateUI();
       const value = this.get();
-      this.persistValue(
-        this.storageAdapter?.setChoice(this.storedValue, rule.value, input.checked) ?? value,
-      );
+      this.persistValue(this.storageAdapter.setChoice(this.storedValue, rule.value, input.checked));
       this.emitter.fireEvent("action", value);
     });
 
@@ -493,7 +491,7 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
     this.updateStateUI();
     if (!silent) {
       const value = this.get();
-      this.persistValue(this.storageAdapter?.setSelection(value) ?? value);
+      this.persistValue(this.storageAdapter.setSelection(value));
       this.emitter.fireEvent("action", value);
     }
     return this;
@@ -503,8 +501,7 @@ export class RuleToggleCardsControl extends BaseControl<string[]> {
     if (this.name === undefined) return;
     try {
       this.storedValue = await this.storage.get(this.name);
-      const value = this.storageAdapter?.getSelection(this.storedValue) ?? this.storedValue;
-      if (value !== undefined) this.set(value as string[], true);
+      this.set(this.storageAdapter.getSelection(this.storedValue), true);
     } catch (error) {
       console.error(error);
     }

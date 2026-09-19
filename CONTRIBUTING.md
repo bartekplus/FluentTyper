@@ -43,9 +43,8 @@ Load the unpacked extension from the `build/` directory:
 
 ## Architecture
 
-Measurement data is generated offline with `bun scripts/measurement-data.ts`; run
-`bun scripts/benchmark-measurement.ts` for the formatter benchmark. See the
-[source inventory](docs/measurement-data.md) and [safety assessment](docs/measurement-formatting.md).
+Measurement data is generated offline with `bun scripts/measurement-data.ts`. See the
+[implementation and safety assessment](docs/measurement-formatting.md) for sources, licenses, and verification.
 
 FluentTyper uses a strict layered clean architecture. Imports flow downward only:
 
