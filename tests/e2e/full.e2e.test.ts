@@ -2812,7 +2812,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           });
         });
 
-        await page.keyboard.type(".");
+        await page.keyboard.type(",");
         const state = await waitUntil(
           "ckeditor grammar replacement on second paragraph",
           async () => {
@@ -2831,7 +2831,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
               if (firstLine !== "Quill Rich Text Editor") {
                 return false;
               }
-              if (!/^fixed\.[ ]$/i.test(secondLine)) {
+              if (!/^fixed,[ ]$/i.test(secondLine)) {
                 return false;
               }
               return { firstLine, secondLine };
@@ -2842,7 +2842,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         );
 
         expect(state.firstLine).toBe("Quill Rich Text Editor");
-        expect(state.secondLine).toMatch(/^fixed\.[ ]$/i);
+        expect(state.secondLine).toMatch(/^fixed,[ ]$/i);
       } finally {
         await setGrammarRulesAndWait(worker!, []);
         await applyConfigChange(browser, worker!);
@@ -2896,7 +2896,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         });
 
         await page.mouse.click(clickTarget.x, clickTarget.y);
-        await page.keyboard.type("d");
+        await page.keyboard.type("d ");
 
         try {
           await page.waitForFunction(
@@ -2916,7 +2916,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
                   .trim();
               return (
                 normalize(paragraphs[0]?.textContent ?? "") === "First line" &&
-                normalize(paragraphs[1]?.textContent ?? "") === "DThe"
+                normalize(paragraphs[1]?.textContent ?? "") === "D The"
               );
             },
             { timeout: browserTimeout(1500, 3000) },
@@ -3061,7 +3061,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await page.keyboard.type("w");
 
         const immediateGrammarState = await waitUntil(
-          "quill immediate local capitalization after newline",
+          "quill lowercase first letter stays on the new line",
           async () => {
             const state = await page.evaluate(() => {
               const quill = (
@@ -3081,7 +3081,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
               if (firstLine !== "Quill Rich Text Editor") {
                 return false;
               }
-              if (secondLine !== "W") {
+              if (secondLine !== "w") {
                 return false;
               }
               return {
@@ -3096,7 +3096,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         );
 
         expect(immediateGrammarState.firstLine).toBe("Quill Rich Text Editor");
-        expect(immediateGrammarState.secondLine).toBe("W");
+        expect(immediateGrammarState.secondLine).toBe("w");
 
         const liCount = await waitForVisibleSuggestions(page, browserTimeout(5000, 9000));
         expect(liCount).toBeGreaterThan(0);
@@ -3104,7 +3104,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           page,
           browserTimeout(5000, 9000),
         );
-        expect(firstSuggestion).toMatch(/^W/);
+        expect(firstSuggestion).toMatch(/^w/i);
         await page.keyboard.press("Tab");
 
         const acceptedState = await waitUntil(
@@ -3130,7 +3130,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
               if (firstLine !== "Quill Rich Text Editor") {
                 return false;
               }
-              if (!/^W\S*$/.test(secondLine)) {
+              if (!/^w\S*$/i.test(secondLine)) {
                 return false;
               }
               if (!selection || selection.index <= firstLine.length) {
@@ -3149,7 +3149,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         );
 
         expect(acceptedState.firstLine).toBe("Quill Rich Text Editor");
-        expect(acceptedState.secondLine).toMatch(/^W\S*$/);
+        expect(acceptedState.secondLine).toMatch(/^w\S*$/i);
         expect(acceptedState.selectionIndex).toBeGreaterThan(
           acceptedState.firstLine.length + acceptedState.secondLine.length,
         );
@@ -3193,7 +3193,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           quill.setSelection("Quill Rich Text Editor\nfixed ".length, 0, "silent");
         });
 
-        await page.keyboard.type(".");
+        await page.keyboard.type(",");
         await waitUntil(
           "quill grammar spacing after punctuation",
           async () => {
@@ -3215,7 +3215,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
               if (firstLine !== "Quill Rich Text Editor") {
                 return false;
               }
-              if (!/^fixed\.[ ]$/i.test(secondLine)) {
+              if (!/^fixed,[ ]$/i.test(secondLine)) {
                 return false;
               }
               return true;
@@ -3246,9 +3246,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
               const firstLine = (lines[0] ?? "").trim();
               const secondLine = lines[1] ?? "";
               const paragraphCount = quill.root.querySelectorAll("p").length;
-              const hasDoubleSpace = secondLine.includes("fixed.  x");
-              const hasExpectedText = /^fixed\.[ ]x$/i.test(secondLine);
-              const spacingAppliedOnce = secondLine.split("fixed. ").length - 1 === 1;
+              const hasDoubleSpace = secondLine.includes("fixed,  x");
+              const hasExpectedText = /^fixed,[ ]x$/i.test(secondLine);
+              const spacingAppliedOnce = secondLine.split("fixed, ").length - 1 === 1;
               const firstLinePreserved = firstLine === "Quill Rich Text Editor";
               if (!hasExpectedText || hasDoubleSpace || !spacingAppliedOnce) {
                 return false;
@@ -5030,26 +5030,31 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitForInputReady(page, selector);
       const element = await page.$(selector);
 
-      // Type "t" first, then pause to let the grammar rule engine process the
-      // capitalize-first-letter correction before typing more characters.
-      await element!.type("t");
-      await waitForInputContentMatch(page, selector, /^T$/, browserTimeout(5000, 8000));
-
-      // Continue typing the rest of "testing ."
-      await element!.type("esting .");
+      // The first word is capitalized once its boundary is typed.
+      await element!.type("testing ");
       await waitForInputContentMatch(
         page,
         selector,
-        /esting\.[\xA0 ]/i,
+        /^Testing[\xA0 ]$/,
         browserTimeout(5000, 8000),
       );
 
-      // Type "w" and verify sentence-start capitalization applies
-      await element!.type("w");
+      // A stray space before the period is tidied once the user's own space
+      // confirms the sentence end.
+      await element!.type(". ");
       await waitForInputContentMatch(
         page,
         selector,
-        /Testing\.[\xA0 ]W/,
+        /^Testing\.[\xA0 ]$/,
+        browserTimeout(5000, 8000),
+      );
+
+      // The next word is capitalized at its boundary too.
+      await element!.type("world ");
+      await waitForInputContentMatch(
+        page,
+        selector,
+        /^Testing\.[\xA0 ]World[\xA0 ]$/,
         browserTimeout(5000, 8000),
       );
 
@@ -5058,8 +5063,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         (el) => ((el as HTMLInputElement).value ?? el.textContent) as string,
       );
       const elementText = finalVal.replace(/\xA0/g, " ");
-      // Capitalize sentence-start rule capitalizes T at start AND W after ". "
-      expect(elementText).toContain("Testing. W");
+      expect(elementText).toContain("Testing. World");
 
       // Cleanup
       await setGrammarRulesAndWait(worker!, []);
@@ -5092,11 +5096,11 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitForInputReady(page, selector);
       const element = await page.$(selector);
 
-      await element!.type("This is awsome.");
+      await element!.type("This is awsome,");
       await waitForInputContentMatch(
         page,
         selector,
-        /This is awsome\.[\xA0 ]/,
+        /This is awsome,[\xA0 ]/,
         browserTimeout(5000, 8000),
       );
 
@@ -5105,11 +5109,11 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await waitForInputContentEqual(
           page,
           selector,
-          "This is awsome.",
+          "This is awsome,",
           browserTimeout(5000, 8000),
         )
       ).replace(/\xA0/g, " ");
-      expect(afterDelete).toBe("This is awsome.");
+      expect(afterDelete).toBe("This is awsome,");
 
       await setGrammarRulesAndWait(worker!, []);
       await applyConfigChange(browser, worker!);
@@ -5348,10 +5352,16 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitForNormalizedValue("12:30");
 
       await clearInputContent(page, selector);
+      // A period is never spaced by the rule: "Hello." may still become
+      // "Hello.world". The user's own space confirms the sentence end.
       await typeInInput(page, selector, "Hello.");
-      await waitForNormalizedValue("Hello. ");
-      await typeInInput(page, selector, "w");
-      await waitForNormalizedValue("Hello. w");
+      await waitForNormalizedValue("Hello.");
+      await typeInInput(page, selector, "world ");
+      await waitForNormalizedValue("Hello.world ");
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "go to google.com now ");
+      await waitForNormalizedValue("Go to google.com now ");
 
       await clearInputContent(page, selector);
       // Prime an already-authored abbreviation so this isolates typing after its trailing space.
@@ -5363,8 +5373,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         element.focus();
         element.setSelectionRange(element.value.length, element.value.length);
       });
-      await typeInInput(page, selector, "and");
-      await waitForNormalizedValue("9 a.m. and");
+      await typeInInput(page, selector, "and ");
+      await waitForNormalizedValue("9 a.m. and ");
 
       await setGrammarRulesAndWaitStable(worker!, [], 2, browserTimeout(3000, 5000));
       await applyConfigChange(browser, worker!);
@@ -5450,11 +5460,17 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitForInputReady(page, selector);
 
       await clearInputContent(page, selector);
-      await typeInInput(page, selector, "t");
-      await waitForInputContentEqual(page, selector, "T", browserTimeout(5000, 9000));
+      // The first letter is capitalized once the word is complete; "u" may
+      // still become "user.save()".
+      await typeInInput(page, selector, "t ");
+      await waitForInputContentEqual(page, selector, "T ", browserTimeout(5000, 9000));
 
       await clearInputContent(page, selector);
-      await typeInInput(page, selector, "Hello .");
+      await typeInInput(page, selector, "user.save() ");
+      await waitForInputContentEqual(page, selector, "user.save() ", browserTimeout(5000, 9000));
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "Hello . ");
       await waitForInputContentEqual(page, selector, "Hello. ", browserTimeout(5000, 9000));
 
       await setGrammarRulesAndWait(worker!, []);
@@ -5630,7 +5646,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       await waitForInputReady(page, selector);
 
       await clearInputContent(page, selector);
-      await typeInInput(page, selector, "Hello .");
+      await typeInInput(page, selector, "Hello . ");
       await waitForInputContentEqual(page, selector, "Hello. ", browserTimeout(5000, 9000));
       try {
         await waitForNoVisibleSuggestions(page, browserTimeout(2000, 5000));
