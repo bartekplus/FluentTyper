@@ -814,7 +814,7 @@
         {
           "layer": "unit",
           "file": "tests/grammar/V1GrammarRules.test.ts",
-          "test": "compacts decimal and time/ratio spacing"
+          "test": "compacts time/ratio spacing but never a digit-period-digit sentence"
         }
       ]
     },
