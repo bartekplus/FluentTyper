@@ -53,6 +53,7 @@
     "grammar_technical_spacing",
     "grammar_math_spacing",
     "grammar_punctuation_spacing",
+    "grammar_measurement_unit_formatting",
     "grammar_linebreak_capitalization",
     "grammar_whitespace_cleanup",
     "grammar_neutral_punctuation_policy",

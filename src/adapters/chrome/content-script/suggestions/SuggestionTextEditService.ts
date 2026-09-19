@@ -484,7 +484,8 @@ export class SuggestionTextEditService {
     edit: GrammarEdit,
     context: GrammarEditApplyContext = {},
   ): TextEditApplyResult {
-    const replacement = typeof edit.replacement === "string" ? edit.replacement : "";
+    let replacement = typeof edit.replacement === "string" ? edit.replacement : "";
+    const isMeasurementEdit = edit.sourceRuleId === "measurementUnitFormatting";
     const deleteBackwards = Number.isFinite(edit.deleteBackwards)
       ? Math.max(0, edit.deleteBackwards)
       : 0;
@@ -493,6 +494,17 @@ export class SuggestionTextEditService {
         ? Math.max(0, edit.deleteForwards)
         : 0;
     const snapshot: SuggestionSnapshot = context.snapshot ?? TextTargetAdapter.snapshot(entry.elem);
+    if (isMeasurementEdit) {
+      const live = TextTargetAdapter.snapshot(entry.elem);
+      if (
+        !TextTargetAdapter.hasCollapsedSelection(entry.elem) ||
+        live.beforeCursor !== snapshot.beforeCursor ||
+        live.afterCursor !== snapshot.afterCursor ||
+        live.cursorOffset !== snapshot.cursorOffset
+      ) {
+        return { applied: false, didDispatchInput: false };
+      }
+    }
     this.syncManualAutoFixSuppression(entry, snapshot);
     const fullText = `${snapshot.beforeCursor}${snapshot.afterCursor}`;
 
@@ -563,6 +575,33 @@ export class SuggestionTextEditService {
     }
     const expectedFullText = `${fullText.slice(0, replaceStart)}${replacement}${fullText.slice(replaceEnd)}`;
 
+    const cursorAfter =
+      edit.cursorOffset !== undefined
+        ? replaceStart + Math.max(0, Math.min(replacement.length, edit.cursorOffset))
+        : this.resolveCursorAfterTextEdit(
+            snapshot.cursorOffset,
+            replaceStart,
+            replaceEnd,
+            replacement,
+          );
+    if (isMeasurementEdit) {
+      // Insert only the separator; do not flatten styled number/unit nodes.
+      const original = fullText.slice(replaceStart, replaceEnd);
+      let prefix = 0;
+      while (prefix < original.length && original[prefix] === replacement[prefix]) prefix += 1;
+      let suffix = 0;
+      while (
+        suffix < original.length - prefix &&
+        suffix < replacement.length - prefix &&
+        original[original.length - 1 - suffix] === replacement[replacement.length - 1 - suffix]
+      )
+        suffix += 1;
+      replaceStart += prefix;
+      replaceEnd -= suffix;
+      if (blockReplaceStart !== null) blockReplaceStart += prefix;
+      if (blockReplaceEnd !== null) blockReplaceEnd -= suffix;
+      replacement = replacement.slice(prefix, replacement.length - suffix);
+    }
     const originalText = fullText.slice(replaceStart, replaceEnd);
     const sourceRuleKey = this.resolveAutoFixRuleKey(edit.sourceRuleId, originalText, replacement);
     if (
@@ -577,15 +616,6 @@ export class SuggestionTextEditService {
       return { applied: false, didDispatchInput: false, suppressedByManualRevert: true };
     }
 
-    const cursorAfter =
-      edit.cursorOffset !== undefined
-        ? replaceStart + Math.max(0, Math.min(replacement.length, edit.cursorOffset))
-        : this.resolveCursorAfterTextEdit(
-            snapshot.cursorOffset,
-            replaceStart,
-            replaceEnd,
-            replacement,
-          );
     let applyResult:
       ContentEditableEditResult | { didMutateDom: boolean; didDispatchInput: boolean } | null =
       null;
@@ -643,7 +673,7 @@ export class SuggestionTextEditService {
             blockCursorAfter,
           );
         }
-        if (applyResult === null) {
+        if (applyResult === null && !isMeasurementEdit) {
           // Last-resort host path for hosts whose model lags the DOM
           // (Firefox CKEditor-5 can expose a newly typed character in
           // the DOM before its model observes it).  Bypass the parity
@@ -661,6 +691,13 @@ export class SuggestionTextEditService {
           );
         }
       }
+    }
+    if (
+      applyResult === null &&
+      isMeasurementEdit &&
+      this.hostEditorAdapterResolver.resolve(entry.elem)
+    ) {
+      return { applied: false, didDispatchInput: false };
     }
     if (applyResult === null) {
       applyResult =
@@ -765,9 +802,16 @@ export class SuggestionTextEditService {
     if (postEditSnapshot === null) {
       postEditSnapshot = TextTargetAdapter.snapshot(entry.elem);
     }
+    if (
+      isMeasurementEdit &&
+      !this.matchesExpectedGrammarResult(postEditSnapshot, expectedFullText, cursorAfter)
+    ) {
+      return { applied: false, didDispatchInput: applyResult.didDispatchInput };
+    }
     let finalApplyResult = applyResult;
 
     if (
+      !isMeasurementEdit &&
       !TextTargetAdapter.isTextValue(entry.elem) &&
       !this.shouldPreferDomMutationForGrammar(entry.elem) &&
       !this.matchesExpectedGrammarResult(postEditSnapshot, expectedFullText, cursorAfter)

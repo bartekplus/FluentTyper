@@ -1,10 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import {
+  DEFAULT_CURRENT_GRAMMAR_RULES,
   DEFAULT_V3_GRAMMAR_RULES,
   GRAMMAR_RULE_CATALOG,
   GRAMMAR_RULE_IDS,
   RECOMMENDED_V1_GRAMMAR_RULES,
   RECOMMENDED_V2_GRAMMAR_RULES,
+  RECOMMENDED_V3_GRAMMAR_RULES,
+  RECOMMENDED_CURRENT_GRAMMAR_RULES,
   isCatalogRuleId,
   normalizeGrammarRuleSelection,
 } from "../../src/core/domain/grammar/ruleCatalog";
@@ -57,12 +60,12 @@ describe("ruleCatalog", () => {
     expect(RECOMMENDED_V2_GRAMMAR_RULES.length).toBeGreaterThanOrEqual(
       RECOMMENDED_V1_GRAMMAR_RULES.length,
     );
-    expect(DEFAULT_V3_GRAMMAR_RULES.every((id) => isCatalogRuleId(id))).toBe(true);
+    expect(DEFAULT_CURRENT_GRAMMAR_RULES.every((id) => isCatalogRuleId(id))).toBe(true);
     expect(RECOMMENDED_V1_GRAMMAR_RULES.every((id) => isCatalogRuleId(id))).toBe(true);
     expect(RECOMMENDED_V2_GRAMMAR_RULES.every((id) => isCatalogRuleId(id))).toBe(true);
   });
 
-  test("v3 defaults keep Safe-ON + Advanced-OFF contract", () => {
+  test("keeps v3 snapshots frozen while current defaults follow the catalog", () => {
     const defaultRolloutOnIds = GRAMMAR_RULE_CATALOG.filter(
       (entry) => entry.defaultRollout === "on",
     ).map((entry) => entry.id);
@@ -70,14 +73,17 @@ describe("ruleCatalog", () => {
       (entry) => entry.safetyTier === "advanced",
     ).map((entry) => entry.id);
 
-    expect(DEFAULT_V3_GRAMMAR_RULES).toEqual(defaultRolloutOnIds);
+    expect(DEFAULT_V3_GRAMMAR_RULES).toEqual(RECOMMENDED_V3_GRAMMAR_RULES);
+    expect(DEFAULT_V3_GRAMMAR_RULES).not.toContain("measurementUnitFormatting");
+    expect(DEFAULT_CURRENT_GRAMMAR_RULES).toEqual(defaultRolloutOnIds);
+    expect(RECOMMENDED_CURRENT_GRAMMAR_RULES).toContain("measurementUnitFormatting");
     expect(
-      GRAMMAR_RULE_CATALOG.filter((entry) => DEFAULT_V3_GRAMMAR_RULES.includes(entry.id)).every(
-        (entry) => entry.safetyTier === "safe",
-      ),
+      GRAMMAR_RULE_CATALOG.filter((entry) =>
+        DEFAULT_CURRENT_GRAMMAR_RULES.includes(entry.id),
+      ).every((entry) => entry.safetyTier === "safe"),
     ).toBe(true);
     expect(advancedRuleIds.length).toBeGreaterThan(0);
-    expect(advancedRuleIds.some((id) => DEFAULT_V3_GRAMMAR_RULES.includes(id))).toBe(false);
+    expect(advancedRuleIds.some((id) => DEFAULT_CURRENT_GRAMMAR_RULES.includes(id))).toBe(false);
   });
 
   test("validates catalog ids", () => {

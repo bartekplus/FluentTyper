@@ -819,6 +819,32 @@
       ]
     },
     {
+      "id": "grammar_measurement_unit_formatting",
+      "description": "Typed prose receives one nonbreaking separator before a known measurement unit while code-like paths remain unchanged.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Grammar Rule Engine formats measurement units only in verified prose typing"
+        },
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "measurement formatting stays disabled without a verified prose context"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/MeasurementAdversarial.test.ts",
+          "test": "preserves the authored quantity and unit in every supported locale"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/MeasurementEditTransaction.test.ts",
+          "test": "inserts only the separator and retains adjacent rich-text nodes"
+        }
+      ]
+    },
+    {
       "id": "grammar_linebreak_capitalization",
       "description": "Grammar capitalizes the first letter after line breaks.",
       "coverage": [

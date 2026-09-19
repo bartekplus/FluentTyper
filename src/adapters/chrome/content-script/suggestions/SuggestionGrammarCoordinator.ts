@@ -1,6 +1,11 @@
 import { GrammarRuleEngine } from "@core/domain/grammar/GrammarRuleEngine";
 import { createGrammarRuleCatalogRuntime } from "@core/domain/grammar/ruleFactory";
-import type { GrammarContext, GrammarEdit, GrammarEventType } from "@core/domain/grammar/types";
+import type {
+  GrammarContext,
+  GrammarEdit,
+  GrammarEventType,
+  GrammarHints,
+} from "@core/domain/grammar/types";
 import type { PredictionInputAction } from "@core/domain/messageTypes";
 
 export class SuggestionGrammarCoordinator {
@@ -37,11 +42,13 @@ export class SuggestionGrammarCoordinator {
     afterCursor,
     inputAction,
     triggers,
+    measurementContext,
   }: {
     beforeCursor: string;
     afterCursor: string;
     inputAction?: PredictionInputAction;
     triggers: GrammarEventType[];
+    measurementContext?: GrammarHints["measurementContext"];
   }): GrammarEdit | null {
     if (!this.hasEnabledRules() || triggers.length === 0) {
       return null;
@@ -52,6 +59,10 @@ export class SuggestionGrammarCoordinator {
       afterCursor,
       hints: {
         inputAction,
+        measurementContext: this.options.enabledGrammarRules.includes("measurementUnitFormatting")
+          ? measurementContext
+          : undefined,
+        isPaste: triggers.includes("paste"),
         lang: this.options.lang,
         userDictionary: Array.isArray(this.options.userDictionaryList)
           ? this.options.userDictionaryList.slice()

@@ -296,6 +296,8 @@ export class GoogleDocsAdapter {
       const paragraphStart = context.beforeCursor.lastIndexOf("\n") + 1;
       if (snapshot.windowStart === 0 || paragraphStart > 0) {
         const grammar = this.grammar.run({
+          // The Docs model exposes no protected/code styling context for measurement edits.
+          measurementContext: "protected",
           beforeCursor: context.beforeCursor.slice(paragraphStart),
           afterCursor: context.afterCursor.split("\n")[0],
           inputAction: action,

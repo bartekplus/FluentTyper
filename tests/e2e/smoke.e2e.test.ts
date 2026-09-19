@@ -30,7 +30,7 @@ import {
   KEY_SITE_PROFILES,
   KEY_TEXT_EXPANSIONS,
 } from "../../src/core/domain/constants";
-import { RECOMMENDED_V3_GRAMMAR_RULES } from "../../src/core/domain/grammar/ruleCatalog";
+import { RECOMMENDED_CURRENT_GRAMMAR_RULES } from "../../src/core/domain/grammar/ruleCatalog";
 import { DEFAULT_SUGGESTION_THEME_SETTINGS } from "../../src/core/domain/themeDefaults";
 
 const RUN_E2E = process.env.RUN_E2E === "1" || process.env.RUN_E2E === "true";
@@ -1428,7 +1428,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
         "grammar tab recommended action persistence",
         async () => {
           const current = await getSetting<string[]>(worker, KEY_ENABLED_GRAMMAR_RULES);
-          const expectedRules = [...RECOMMENDED_V3_GRAMMAR_RULES].sort();
+          const expectedRules = [...RECOMMENDED_CURRENT_GRAMMAR_RULES].sort();
           if (
             Array.isArray(current) &&
             current.includes(selectedRuleId) &&
@@ -1442,7 +1442,7 @@ describeE2E(`E2E Smoke [${BROWSER_TYPE}]`, () => {
       );
 
       expect(storedRules).toContain(selectedRuleId);
-      expect([...storedRules].sort()).toEqual([...RECOMMENDED_V3_GRAMMAR_RULES].sort());
+      expect([...storedRules].sort()).toEqual([...RECOMMENDED_CURRENT_GRAMMAR_RULES].sort());
     },
     suiteTimeout(10000, 15000),
   );

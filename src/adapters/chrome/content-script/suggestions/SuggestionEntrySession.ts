@@ -15,6 +15,7 @@ import {
   syncAcceptedSuggestionTrailingSpaceState,
 } from "./SuggestionAcceptedState";
 import { TextTargetAdapter } from "./TextTargetAdapter";
+import { measurementEditingContext } from "./MeasurementEditingContext";
 import { buildCaretTrace, clipTraceText, collapseTraceWhitespace } from "./traceUtils";
 import type {
   PendingKeyFallback,
@@ -744,6 +745,7 @@ export class SuggestionEntrySession {
 
     const grammarEdit = predictionContext.safeForGrammar
       ? this.grammarCoordinator.run({
+          measurementContext: measurementEditingContext(this.entry.elem),
           beforeCursor: predictionContext.beforeCursor,
           afterCursor: predictionContext.afterCursor,
           inputAction: "insert",
@@ -1001,6 +1003,7 @@ export class SuggestionEntrySession {
     const grammarEdit =
       !allowPredictionWithNonCollapsedSelection && cursorContext.safeForGrammar
         ? this.grammarCoordinator.run({
+            measurementContext: measurementEditingContext(this.entry.elem),
             beforeCursor: cursorContext.beforeCursor,
             afterCursor: cursorContext.afterCursor,
             inputAction,
@@ -1496,6 +1499,7 @@ export class SuggestionEntrySession {
     const grammarContext = this.resolveEditableCursorContext(this.entry, snapshot);
     const grammarEdit = grammarContext.safeForGrammar
       ? this.grammarCoordinator.run({
+          measurementContext: measurementEditingContext(this.entry.elem),
           beforeCursor: grammarContext.beforeCursor,
           afterCursor: grammarContext.afterCursor,
           inputAction: this.entry.lastInputAction ?? "other",

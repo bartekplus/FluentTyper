@@ -57,10 +57,10 @@ import {
 } from "@core/domain/constants";
 import { DEFAULT_SUGGESTION_THEME_SETTINGS } from "@core/domain/themeDefaults";
 import {
-  DEFAULT_V3_GRAMMAR_RULES,
+  DEFAULT_CURRENT_GRAMMAR_RULES,
   GRAMMAR_RULE_CATALOG,
   GRAMMAR_RULE_IDS,
-  RECOMMENDED_V3_GRAMMAR_RULES,
+  RECOMMENDED_CURRENT_GRAMMAR_RULES,
 } from "@core/domain/grammar/ruleCatalog";
 
 const IS_DEV_BUILD = typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
@@ -455,7 +455,7 @@ const manifest: ManifestDefinition = {
         {
           actionKey: "recommended",
           text: i18n.get("grammar_rules_recommended"),
-          values: RECOMMENDED_V3_GRAMMAR_RULES,
+          values: RECOMMENDED_CURRENT_GRAMMAR_RULES,
         },
         {
           actionKey: "enable_all",
@@ -469,7 +469,7 @@ const manifest: ManifestDefinition = {
         },
       ],
       options: GRAMMAR_RULE_OPTIONS,
-      default: DEFAULT_V3_GRAMMAR_RULES,
+      default: DEFAULT_CURRENT_GRAMMAR_RULES,
     },
 
     // =========================================================================

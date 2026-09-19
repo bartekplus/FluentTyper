@@ -1,0 +1,39 @@
+{
+  "sources": [
+    {
+      "id": "BIPM-SI-9-4.01",
+      "title": "The International System of Units (SI), 9th edition, version 4.01",
+      "version": "4.01 (2026)",
+      "url": "https://www.bipm.org/documents/20126/41483022/SI-Brochure-9-EN.pdf",
+      "license": "CC BY 4.0",
+      "scope": "SI units, accepted non-SI units, symbols, and decimal prefixes"
+    },
+    {
+      "id": "NIST-SP-811",
+      "title": "NIST Special Publication 811, 2008 edition",
+      "version": "2008",
+      "url": "https://doi.org/10.6028/NIST.SP.811e2008",
+      "license": "US government work; credit requested",
+      "scope": "US writing rules and non-SI unit classifications"
+    },
+    {
+      "id": "CLDR-48.2",
+      "title": "Unicode CLDR 48.2 / UTS #35 LDML Units",
+      "version": "48.2",
+      "commit": "11299982335beb974c1c63c45265184e759c0f41",
+      "url": "https://unicode.org/reports/tr35/tr35-48/tr35-general.html#Unit_Elements",
+      "license": "Unicode License v3",
+      "scope": "Locale-specific unit spacing and decimal punctuation"
+    },
+    {
+      "id": "UCUM-2.2",
+      "title": "Unified Code for Units of Measure 2.2 essence",
+      "version": "2.2 (2024-06-17)",
+      "commit": "ef4c31cd7d3bc81de1a1bf2cc8414bf502b6304f",
+      "sha256": "dfccea1b5dc284245ebae97edd1dc03c45864da4e87df55bc9851797b4fd0b61",
+      "url": "https://github.com/ucum-org/ucum/blob/ef4c31cd7d3bc81de1a1bf2cc8414bf502b6304f/ucum-essence.xml",
+      "license": "UCUM License 1.0; copyright Regenstrief Institute, Inc.",
+      "scope": "Coverage baseline for atomic unit codes; not a claim of UCUM conformance"
+    }
+  ]
+}

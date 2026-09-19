@@ -18,6 +18,15 @@ export class MathOperatorSpacingRule extends SpacingRuleShared implements Gramma
     if (!SpacingRuleShared.MATH_OPERATORS.has(operatorChar)) {
       return null;
     }
+    if (
+      context.hints?.measurementContext === "prose" &&
+      (/(?:^|[^\p{L}\p{N}_.])[-+]?[0-9]+(?:[.,][0-9]+)?[eE][+-][0-9]$/u.test(
+        inputStr.slice(-128),
+      ) ||
+        /[0-9]-[0-9]$/.test(inputStr))
+    ) {
+      return null;
+    }
 
     const leftOperand = this.readLeftOperand(inputStr, operatorIndex);
     if (!leftOperand) {

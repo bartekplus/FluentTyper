@@ -1,6 +1,7 @@
 export type GrammarEventType = "insertChar" | "wordBoundary" | "idle" | "paste";
 
 export type GrammarRuleId =
+  | "measurementUnitFormatting"
   | "capitalizeSentenceStart"
   | "capitalizeAfterLineBreak"
   | "englishPronounICapitalization"
@@ -31,6 +32,9 @@ export type GrammarRuleId =
   | "capitalizeFirstLetter";
 
 export interface GrammarHints {
+  /** Adapter-verified editing context; missing information fails closed. */
+  measurementContext?: "prose" | "protected";
+  isPaste?: boolean;
   inputAction?: "insert" | "delete" | "other";
   lang?: string;
   userDictionary?: string[];

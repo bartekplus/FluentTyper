@@ -2,6 +2,7 @@ import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from 
 import { SPACE_CHARS, SPACING_OR_FILLER_CHARS } from "../../spacingRules";
 import { resolveInputAction } from "./helpers/GenericRuleShared";
 import { SpacingRuleShared } from "./helpers/SpacingRuleShared";
+import { resolveMeasurementLocale } from "../measurement/registry";
 
 export class CommaPeriodSpacingRule extends SpacingRuleShared implements GrammarRule {
   readonly id = "commaPeriodSpacing" as const;
@@ -33,6 +34,16 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
     const spaceBeforeViolated = spaceRunLength > 0;
     const insertSpaceAfter = this.insertSpaceAfterAutocomplete;
     const inputAction = resolveInputAction(context);
+
+    // Decimal/grouping punctuation is unfinished numeric input, not yet prose punctuation.
+    if (
+      !spaceBeforeViolated &&
+      this.isDigit(previousSignificantChar) &&
+      context.hints?.measurementContext === "prose" &&
+      resolveMeasurementLocale(context.hints.lang)
+    ) {
+      return null;
+    }
 
     // Repeated punctuation bursts (",,,,", ", , ,") should be handled by
     // duplicate-collapse logic; avoid emitting spacing edits that can create

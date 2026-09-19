@@ -5,6 +5,10 @@ import { manifest } from "../src/ui/options/settingsManifest.js";
 import { i18n } from "../src/ui/options/fluenttyperI18n.js";
 import { RuleToggleCardsControl } from "../src/ui/settings-engine/controls/RuleToggleCardsControl.js";
 import { Store } from "../src/core/application/storage/Store.js";
+import {
+  DEFAULT_CURRENT_GRAMMAR_RULES,
+  RECOMMENDED_CURRENT_GRAMMAR_RULES,
+} from "../src/core/domain/grammar/ruleCatalog.js";
 
 function buildRuleToggleCardsHost() {
   const host = document.createElement("div");
@@ -176,6 +180,26 @@ describe("ruleToggleCards setting", () => {
       i18n.get("grammar_rules_disable_all"),
     ]);
     expect(actionLabels).not.toContain(i18n.get("grammar_rules_safe_defaults"));
+    expect(grammarSetting?.default).toEqual(DEFAULT_CURRENT_GRAMMAR_RULES);
+    expect(actions[0]?.values).toEqual(RECOMMENDED_CURRENT_GRAMMAR_RULES);
+    expect(DEFAULT_CURRENT_GRAMMAR_RULES).toContain("measurementUnitFormatting");
+  });
+
+  test("ships measurement formatting copy in every UI locale", () => {
+    const previousLanguage = i18n.lang;
+    for (const language of ["en", "fr", "hr", "es", "el", "sv", "de", "pl", "pr"]) {
+      i18n.lang = language;
+      for (const key of [
+        "grammar_rule_measurement_unit_formatting",
+        "grammar_rule_measurement_unit_formatting_desc",
+        "grammar_rule_measurement_unit_formatting_example",
+      ]) {
+        expect(i18n[key]).toHaveProperty(language);
+        expect(i18n.get(key)).not.toBe(key);
+      }
+      expect(i18n.get("grammar_rule_measurement_unit_formatting_desc")).toBeTruthy();
+    }
+    i18n.lang = previousLanguage;
   });
 
   test("search updates immediately and clear-search restores all results", () => {

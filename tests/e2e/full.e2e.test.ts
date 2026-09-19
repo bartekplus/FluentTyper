@@ -5371,6 +5371,68 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   );
 
   test(
+    "Grammar Rule Engine formats measurement units only in verified prose typing",
+    async () => {
+      const selector = "#test-input";
+      await setSettingAndWaitStable(
+        worker!,
+        KEY_ENABLED_GRAMMAR_RULES,
+        ["measurementUnitFormatting"],
+        3,
+        browserTimeout(5000, 7000),
+      );
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+      await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await applyConfigChange(browser, worker!);
+      await gotoTestPage(page, { enableCkEditor: false });
+      await page.bringToFront();
+      await waitForInputReady(page, selector);
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "Mass: 10kg ");
+      await waitUntil(
+        "measurement separator",
+        async () => (await getInputContent(page, selector)) === "Mass: 10\u00a0kg ",
+        { timeoutMs: browserTimeout(5000, 8000), intervalMs: 50 },
+      );
+
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "Path: /tmp/10kg ");
+      expect(await getInputContent(page, selector)).toBe("Path: /tmp/10kg ");
+
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "pl_PL");
+      await setSettingAndWaitStable(
+        worker!,
+        KEY_ENABLED_GRAMMAR_RULES,
+        ["measurementUnitFormatting", "commaPeriodSpacing", "mathOperatorSpacing"],
+        3,
+        browserTimeout(5000, 7000),
+      );
+      await applyConfigChange(browser, worker!);
+      await gotoTestPage(page, { enableCkEditor: false });
+      await waitForInputReady(page, selector);
+      await clearInputContent(page, selector);
+      await typeInInput(page, selector, "Masa: 1,50kg ");
+      await waitUntil(
+        "Polish decimal measurement",
+        async () => (await getInputContent(page, selector)) === "Masa: 1,50\u00a0kg ",
+        { timeoutMs: browserTimeout(5000, 8000), intervalMs: 50 },
+      );
+      await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+
+      await setSettingAndWaitStable(
+        worker!,
+        KEY_ENABLED_GRAMMAR_RULES,
+        [],
+        2,
+        browserTimeout(3000, 5000),
+      );
+      await applyConfigChange(browser, worker!);
+    },
+    browserTimeout(25000, 40000),
+  );
+
+  test(
     "Grammar Rule Engine keeps legacy grammar rule IDs compatible in runtime",
     async () => {
       const selector = "#test-input";
