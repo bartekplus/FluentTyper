@@ -40,11 +40,11 @@ describe("ruleFactory", () => {
     expect(commaWithInsert).toBeDefined();
     expect(commaWithoutInsert).toBeDefined();
 
-    expect(commaWithInsert?.apply(context("Hello."))).toEqual(
+    expect(commaWithInsert?.apply(context("Hello,"))).toEqual(
       expect.objectContaining({
-        replacement: ". ",
+        replacement: ", ",
       }),
     );
-    expect(commaWithoutInsert?.apply(context("Hello."))).toBeNull();
+    expect(commaWithoutInsert?.apply(context("Hello,"))).toBeNull();
   });
 });

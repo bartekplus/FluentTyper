@@ -26,39 +26,61 @@ describe("V1 grammar rules", () => {
     test("capitalizes sequence start and sentence start after punctuation", () => {
       const rule = new CapitalizeSentenceStartRule();
 
-      expect(rule.apply(context("h"))).toEqual({
-        replacement: "H",
-        deleteBackwards: 1,
+      expect(rule.apply(context("hello "))).toEqual({
+        replacement: "Hello ",
+        deleteBackwards: 6,
         deleteForwards: 0,
       });
 
-      expect(rule.apply(context("Hello. w"))).toEqual({
-        replacement: "W",
-        deleteBackwards: 1,
+      expect(rule.apply(context("Hello. world "))).toEqual({
+        replacement: "World ",
+        deleteBackwards: 6,
+        deleteForwards: 0,
+      });
+
+      expect(rule.apply(context("hello,\n"))).toEqual({
+        replacement: "Hello,\n",
+        deleteBackwards: 7,
         deleteForwards: 0,
       });
     });
 
     test("supports optional closing quotes/brackets after sentence punctuation", () => {
       const rule = new CapitalizeSentenceStartRule();
-      expect(rule.apply(context('Hello." w'))).toEqual({
-        replacement: "W",
-        deleteBackwards: 1,
+      expect(rule.apply(context('Hello." world '))).toEqual({
+        replacement: "World ",
+        deleteBackwards: 6,
         deleteForwards: 0,
       });
     });
 
+    test("waits for the word boundary", () => {
+      const rule = new CapitalizeSentenceStartRule();
+      expect(rule.apply(context("h"))).toBeNull();
+      expect(rule.apply(context("Hello. w"))).toBeNull();
+      expect(rule.apply(context("hello  "))).toBeNull();
+      expect(rule.apply(context("hello ", { inputAction: "delete" }))).toBeNull();
+    });
+
     test("does not capitalize without sentence boundary gap", () => {
       const rule = new CapitalizeSentenceStartRule();
-      expect(rule.apply(context("Hello.w"))).toBeNull();
-      expect(rule.apply(context("Hello, w"))).toBeNull();
+      expect(rule.apply(context("Hello.w "))).toBeNull();
+      expect(rule.apply(context("Hello, w "))).toBeNull();
+    });
+
+    test("leaves technical tokens alone", () => {
+      const rule = new CapitalizeSentenceStartRule();
+      for (const token of ["user.save()", "node.js", "google.com", "@john.doe", "src/index.ts"]) {
+        expect(rule.apply(context(`${token} `))).toBeNull();
+        expect(rule.apply(context(`Done. ${token} `))).toBeNull();
+      }
     });
 
     test("capitalizes Unicode letters", () => {
       const rule = new CapitalizeSentenceStartRule();
-      expect(rule.apply(context("ż"))?.replacement).toBe("Ż");
-      expect(rule.apply(context("Cześć. ć"))?.replacement).toBe("Ć");
-      expect(rule.apply(context("Привет. п"))?.replacement).toBe("П");
+      expect(rule.apply(context("ż "))?.replacement).toBe("Ż ");
+      expect(rule.apply(context("Cześć. ć "))?.replacement).toBe("Ć ");
+      expect(rule.apply(context("Привет. п "))?.replacement).toBe("П ");
     });
   });
 
@@ -89,21 +111,25 @@ describe("V1 grammar rules", () => {
   describe("CommaPeriodSpacingRule", () => {
     test("normalizes comma/period spacing with regular spaces", () => {
       const rule = new CommaPeriodSpacingRule(true);
-      expect(rule.apply(context("Hello."))).toEqual({
-        replacement: ". ",
-        deleteBackwards: 1,
-        deleteForwards: 0,
-      });
-      expect(rule.apply(context("Hello ."))).toEqual({
-        replacement: ". ",
-        deleteBackwards: 2,
-        deleteForwards: 0,
-      });
-      expect(rule.apply(context("Hello  ."))).toEqual({
+      const prose = { inputAction: "insert" as const };
+      // A period is never spaced by the rule: "Hello." may be "Hello.world".
+      expect(rule.apply(context("Hello."))).toBeNull();
+      expect(rule.apply(context("Hello ."))).toBeNull();
+      expect(rule.apply(context("Hello.w", prose))).toBeNull();
+      // The user's space after it confirms the sentence end, and the stray
+      // spaces before it go.
+      expect(rule.apply(context("Hello . ", prose))).toEqual({
         replacement: ". ",
         deleteBackwards: 3,
         deleteForwards: 0,
       });
+      expect(rule.apply(context("Hello  . ", prose))).toEqual({
+        replacement: ". ",
+        deleteBackwards: 4,
+        deleteForwards: 0,
+      });
+      expect(rule.apply(context("Hello. ", prose))).toBeNull();
+      expect(rule.apply(context("Path .. ", prose))).toBeNull();
       expect(rule.apply(context("Hello   ,"))).toEqual({
         replacement: ", ",
         deleteBackwards: 4,
@@ -115,15 +141,11 @@ describe("V1 grammar rules", () => {
       const insertRule = new CommaPeriodSpacingRule(true);
       const noInsertRule = new CommaPeriodSpacingRule(false);
 
-      expect(insertRule.apply(context("Hello.", { inputAction: "delete" }))).toBeNull();
-      expect(noInsertRule.apply(context("Hello."))).toBeNull();
-      expect(noInsertRule.apply(context("Hello ."))).toEqual({
-        replacement: ".",
-        deleteBackwards: 2,
-        deleteForwards: 0,
-      });
-      expect(noInsertRule.apply(context("Hello  ."))).toEqual({
-        replacement: ".",
+      expect(insertRule.apply(context("Hello,", { inputAction: "delete" }))).toBeNull();
+      expect(insertRule.apply(context("Hello . ", { inputAction: "delete" }))).toBeNull();
+      expect(noInsertRule.apply(context("Hello,"))).toBeNull();
+      expect(noInsertRule.apply(context("Hello . ", { inputAction: "insert" }))).toEqual({
+        replacement: ". ",
         deleteBackwards: 3,
         deleteForwards: 0,
       });

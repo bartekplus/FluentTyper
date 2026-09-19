@@ -85,8 +85,26 @@ describe("default-on rules never rewrite ambiguous input", () => {
     "Call f(...args) now ",
     "Hmm... ok ",
     "Ratio 1.5 and 2.5 ",
+    // Dotted identifiers, paths and mentions: a period inside a token is not a
+    // sentence end, and its first letter is not a sentence start.
+    "Hello.world ",
+    "google.com ",
+    "node.js ",
+    "README.md ",
+    "user.save() ",
+    "@john.doe ",
+    "Open src/index.ts ",
+    "Path ../../src here ",
   ])
     test(input, () => expect(type(input)).toBe(input));
+
+  // Every keystroke is checked, so the text is not corrupted before a whole
+  // token exists for a detector to see.
+  test("technical tokens survive every intermediate keystroke", () => {
+    for (const input of ["Go to google.com now ", "user.save() now ", "Path ../../src here "])
+      for (let end = 1; end <= input.length; end += 1)
+        expect(type(input.slice(0, end))).toBe(input.slice(0, end));
+  });
 });
 
 describe("unambiguous corrections still apply", () => {
@@ -114,15 +132,15 @@ describe("unambiguous corrections still apply", () => {
     ["when i = 3 then ", "When i = 3 then "],
     // Only the sentence-start capital changes; brackets and links are intact.
     ["set x = {a: 1} now ", "Set x = {a: 1} now "],
-    // A sentence period is still spaced on the very next keystroke.
-    ["Hello.", "Hello. "],
-    ["this is awsome.", "This is awsome. "],
-    // A stray space before a period is still tidied on the spot.
-    ["Hello .", "Hello. "],
-    // ponytail: the periods survive, but the space before a relative path is
-    // eaten by that same cleanup. Better than "Path. ./. ./src"; not perfect.
-    ["Path ../../src here ", "Path../../src here "],
+    // A sentence period is never spaced by the rule; the user's space after
+    // it (or a stray one before it) is all the confirmation there is.
+    ["Hello.", "Hello."],
+    ["this is awsome. ", "This is awsome. "],
+    ["Hello . ", "Hello. "],
+    ["Hello. world ", "Hello. World "],
     ["see [link](http://x.test) here ", "See [link](http://x.test) here "],
+    // A citation followed by a parenthesis: the user's space stays.
+    ["see [1] (the paper) ", "See [1] (the paper) "],
     // "d" and "g" are not a day and a gram in prose.
     ["a 3d printer ", "A 3d printer "],
     ["the 5g network ", "The 5g network "],

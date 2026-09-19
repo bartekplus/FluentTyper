@@ -28,8 +28,11 @@ export class ClosingBracketSpacingRule extends SpacingRuleShared implements Gram
       return null;
     }
     const spaceBeforeViolated = hasSpaceBefore;
+    // "[label](url)": a link target may follow "]", and once a space is in,
+    // "see [1] (the paper)" cannot be told from it. So "]" gets no space.
     const insertSpaceAfter =
       this.insertSpaceAfterAutocomplete &&
+      closingBracket !== "]" &&
       this.isProseLikeClosingContext(inputStr, closingBracket, closingIndex);
 
     const inputAction = resolveInputAction(context);

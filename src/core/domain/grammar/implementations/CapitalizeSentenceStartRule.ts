@@ -1,6 +1,10 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
 import { SPACE_CHARS } from "../../spacingRules";
-import { isLowercaseLetter } from "./helpers/GenericRuleShared";
+import {
+  isLowercaseLetter,
+  isTechnicalToken,
+  resolveInputAction,
+} from "./helpers/GenericRuleShared";
 
 const SENTENCE_ENDING_CHARS = new Set([".", "!", "?"]);
 // A period closing one of these is an abbreviation at least as often as a
@@ -72,54 +76,66 @@ function closesAbbreviation(text: string, index: number, lang?: string): boolean
   return token.length <= 1 || token.includes(".") || ABBREVIATIONS.has(token.toLowerCase());
 }
 const CLOSING_CHARS = new Set([")", "]", "}", '"', "'", "”", "’"]);
+const WORD_BOUNDARY_CHARS = [...SPACE_CHARS, "\n"];
+// Punctuation that closes a prose word without making it a token: "done.",
+// "hello,", "(quietly)".
+const TRAILING_PUNCTUATION_REGEX = /[.,!?;:)\]}"'”’]+$/u;
 
 export class CapitalizeSentenceStartRule implements GrammarRule {
   readonly id = "capitalizeSentenceStart" as const;
-  readonly triggers: GrammarEventType[] = ["insertChar"];
+  // The first letter is only capitalized once the word is complete: "u" may
+  // become "user.save()", and no keystroke before the boundary says otherwise.
+  // A newline arrives as insertChar, hence both triggers.
+  readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
 
   apply(context: GrammarContext): GrammarEdit | null {
     const text = context.beforeCursor;
-    if (text.length === 0) {
+    const boundary = text.length - 1;
+    if (
+      boundary < 1 ||
+      !WORD_BOUNDARY_CHARS.includes(text[boundary]) ||
+      WORD_BOUNDARY_CHARS.includes(text[boundary - 1]) ||
+      resolveInputAction(context) === "delete"
+    ) {
       return null;
     }
 
-    const lastChar = text[text.length - 1];
-    if (!isLowercaseLetter(lastChar)) {
+    let wordStart = boundary;
+    while (wordStart > 0 && !WORD_BOUNDARY_CHARS.includes(text[wordStart - 1])) {
+      wordStart -= 1;
+    }
+    const word = text.slice(wordStart, boundary);
+    if (
+      !isLowercaseLetter(word[0]) ||
+      isTechnicalToken(word.replace(TRAILING_PUNCTUATION_REGEX, "")) ||
+      !this.startsSentence(text, wordStart, context.hints?.lang)
+    ) {
       return null;
     }
 
-    let i = text.length - 2;
-    while (i >= 0 && SPACE_CHARS.includes(text[i]) && text[i] !== "\n") {
+    return {
+      replacement: `${word[0].toUpperCase()}${text.slice(wordStart + 1)}`,
+      deleteBackwards: text.length - wordStart,
+      deleteForwards: 0,
+    };
+  }
+
+  private startsSentence(text: string, wordStart: number, lang?: string): boolean {
+    let i = wordStart - 1;
+    // A newline is left to the line-break rule.
+    while (i >= 0 && SPACE_CHARS.includes(text[i])) {
       i -= 1;
     }
-
-    // Capitalize first letter of a fresh sequence.
     if (i < 0) {
-      return {
-        replacement: lastChar.toUpperCase(),
-        deleteBackwards: 1,
-        deleteForwards: 0,
-      };
+      return true;
     }
-
-    const hadWhitespaceGap = i < text.length - 2;
     while (i >= 0 && CLOSING_CHARS.has(text[i])) {
       i -= 1;
     }
-
-    if (
+    return (
       i >= 0 &&
       SENTENCE_ENDING_CHARS.has(text[i]) &&
-      hadWhitespaceGap &&
-      !(text[i] === "." && closesAbbreviation(text, i, context.hints?.lang))
-    ) {
-      return {
-        replacement: lastChar.toUpperCase(),
-        deleteBackwards: 1,
-        deleteForwards: 0,
-      };
-    }
-
-    return null;
+      !(text[i] === "." && closesAbbreviation(text, i, lang))
+    );
   }
 }

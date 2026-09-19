@@ -42,10 +42,11 @@ describe("measurement formatting during typing", () => {
 
   test("defers numeric punctuation until prose continuation is known", () => {
     expect(type("There were 2,and", "en_US")).toBe("There were 2, and");
-    expect(type("It ended in 2026.next", "en_US")).toBe("It ended in 2026. Next");
-    expect(type("It ended in 2026.ended", "en_US")).toBe("It ended in 2026. ended");
+    // A period after a number is left alone: "v2.next" and "1.x" are tokens.
+    expect(type("It ended in 2026.next", "en_US")).toBe("It ended in 2026.next");
+    expect(type("It ended in 2026. next ", "en_US")).toBe("It ended in 2026. Next ");
     expect(type("It cost 1.50,and", "en_US")).toBe("It cost 1.50, and");
-    expect(type("It cost 1.50.next", "en_US")).toBe("It cost 1.50. Next");
+    expect(type("It cost 1.50.next", "en_US")).toBe("It cost 1.50.next");
     expect(type("There were 1,234,and", "en_US")).toBe("There were 1,234, and");
     expect(type("Values: 1.50 and 1,234", "en_US")).toBe("Values: 1.50 and 1,234");
   });

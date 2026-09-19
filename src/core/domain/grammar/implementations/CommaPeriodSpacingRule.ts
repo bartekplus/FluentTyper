@@ -4,18 +4,6 @@ import { resolveInputAction } from "./helpers/GenericRuleShared";
 import { SpacingRuleShared } from "./helpers/SpacingRuleShared";
 import { resolveMeasurementLocale } from "../measurement/registry";
 
-/** True when the period at `index` closes an initial or a short abbreviation. */
-function closesAbbreviation(text: string, index: number): boolean {
-  let start = index;
-  while (start > 0 && /[A-Za-z]/.test(text[start - 1])) {
-    start -= 1;
-  }
-  const token = text.slice(start, index);
-  // "e.g", "p.m", "U.S" and "Ph.D", "Mr", "St": one letter, or two with a
-  // capital, reads as an abbreviation at least as often as a sentence end.
-  return token.length <= 1 || (token.length <= 2 && /^[A-Z]/.test(token));
-}
-
 export class CommaPeriodSpacingRule extends SpacingRuleShared implements GrammarRule {
   readonly id = "commaPeriodSpacing" as const;
   readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
@@ -28,61 +16,55 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
 
     const length = inputStr.length;
     const lastChar = inputStr[length - 1];
-
-    // A digit followed by punctuation is ambiguous until the next character:
-    // keep decimal/group input intact, then repair an unambiguous prose continuation.
-    const deferredExponent = /[eE]/.test(inputStr[length - 2] ?? "");
-    const continuation = deferredExponent ? inputStr.slice(-2) : lastChar;
-    const punctuationIndex = length - continuation.length - 1;
-    const punctuation = inputStr[punctuationIndex];
     // Only where a deferred decision can still be completed; suppressing the
     // space anywhere else would drop it for good.
     const canDefer =
-      this.insertSpaceAfterAutocomplete &&
-      !context.afterCursor &&
-      !context.hints?.isPaste &&
-      resolveInputAction(context) === "insert";
+      !context.afterCursor && !context.hints?.isPaste && resolveInputAction(context) === "insert";
 
-    // The continuation is a letter (prose resumes) or a space the user typed,
-    // which also rules out "..." and "../".
-    // "1.º", "2.ª", "3.°" are ordinal markers, not a word resuming.
-    const letterContinuation =
-      /^\p{L}$/u.test(lastChar) && !/^[eE]$/u.test(lastChar) && !/^[ºª°]$/u.test(lastChar);
-    const spaceContinuation = continuation === " ";
-    if (
-      canDefer &&
-      (punctuation === "." || punctuation === ",") &&
-      (letterContinuation || spaceContinuation)
-    ) {
-      // A deferred period may have had spaces before it ("path ."); the repair
-      // reclaims them so the result matches the immediate edit.
+    // A period never gets a space from this rule: "google.com", "node.js" and
+    // "user.save()" all begin as a word and a period, and the letter that
+    // follows says nothing about which one it was. Only a space the user typed
+    // after "Hello ." confirms a sentence end; then the stray space before the
+    // period can go. Until then "path ." may still become "path ../..".
+    if (lastChar === " ") {
+      const periodIndex = length - 2;
+      if (!canDefer || inputStr[periodIndex] !== ".") {
+        return null;
+      }
       let spacesBefore = 0;
-      while (SPACE_CHARS.includes(inputStr[punctuationIndex - 1 - spacesBefore] ?? "")) {
+      while (SPACE_CHARS.includes(inputStr[periodIndex - 1 - spacesBefore] ?? "")) {
         spacesBefore += 1;
       }
-      const prefixEnd = punctuationIndex - spacesBefore;
-      const prefix = inputStr.slice(Math.max(0, prefixEnd - 34), prefixEnd);
+      const wordEnd = inputStr[periodIndex - 1 - spacesBefore] ?? "";
+      if (spacesBefore === 0 || !/[\p{L}\p{N}]/u.test(wordEnd)) {
+        return null;
+      }
+      return this.createEdit(". ", spacesBefore + 2);
+    }
+
+    // A digit followed by a comma is ambiguous until the next character: keep
+    // "1,5" intact, then repair an unambiguous prose continuation ("2,a").
+    const deferredExponent = /[eE]/.test(inputStr[length - 2] ?? "");
+    const continuation = deferredExponent ? inputStr.slice(-2) : lastChar;
+    const punctuationIndex = length - continuation.length - 1;
+    if (
+      canDefer &&
+      this.insertSpaceAfterAutocomplete &&
+      inputStr[punctuationIndex] === "," &&
+      /^\p{L}$/u.test(lastChar) &&
+      !/^[eE]$/u.test(lastChar)
+    ) {
+      const prefix = inputStr.slice(Math.max(0, punctuationIndex - 34), punctuationIndex);
       const numericContinuation =
         context.hints?.measurementContext === "prose" &&
         resolveMeasurementLocale(context.hints.lang) &&
         /(?:^|[\s([{])[-+]?\d+(?:[.,]\d*)?$/u.test(prefix);
-      // A period closing a word: prose resumes, so the deferred space goes in,
-      // unless that word is an abbreviation ("Ph.D", "e.g").
-      const wordContinuation =
-        punctuation === "." &&
-        /\p{L}\p{L}$/u.test(prefix) &&
-        !closesAbbreviation(inputStr, punctuationIndex);
-      // Nothing to do when the text already reads correctly.
-      const wouldChange = spacesBefore > 0 || letterContinuation;
-      if (wouldChange && ((numericContinuation && spacesBefore === 0) || wordContinuation)) {
-        return this.createEdit(
-          `${punctuation} ${continuation}`,
-          spacesBefore + punctuation.length + continuation.length,
-        );
+      if (numericContinuation) {
+        return this.createEdit(`, ${continuation}`, 1 + continuation.length);
       }
     }
 
-    if (lastChar !== "." && lastChar !== ",") {
+    if (lastChar !== ",") {
       return null;
     }
 
@@ -106,50 +88,12 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
     if (
       !spaceBeforeViolated &&
       this.isDigit(previousSignificantChar) &&
-      !context.afterCursor &&
-      !context.hints?.isPaste &&
-      inputAction === "insert" &&
+      canDefer &&
       context.hints?.measurementContext === "prose" &&
       resolveMeasurementLocale(context.hints.lang)
     ) {
       return null;
     }
-
-    // "e.g", "p.m", "U.S": a period after a one-letter token is an abbreviation
-    // as often as a sentence end, so never insert the space for the user.
-    // "Ph.D", "Mr", "St": a short capitalized token abbreviates just as often.
-    if (
-      !spaceBeforeViolated &&
-      lastChar === "." &&
-      /[A-Za-z]/.test(previousSignificantChar) &&
-      closesAbbreviation(inputStr, i + 1)
-    ) {
-      return null;
-    }
-
-    // A period that does not close a word is never sentence punctuation:
-    // "[...arr]", "f(...args)", "../src". This holds even mid-text, where the
-    // deferral below cannot run because the decision can never be revisited.
-    if (
-      lastChar === "." &&
-      !spaceBeforeViolated &&
-      previousSignificantChar !== "" &&
-      !/[\p{L}\p{N}]/u.test(previousSignificantChar)
-    ) {
-      return null;
-    }
-
-    // "word. " + "." means the previous period ended a run, not a sentence.
-    // Take the space back rather than delay every sentence by a keystroke.
-    if (lastChar === "." && spaceBeforeViolated && previousSignificantChar === ".") {
-      return this.createEdit(".", spaceRunLength + 1);
-    }
-
-    // ponytail: "path ../.." still loses the space before the path, because
-    // nothing here records whether the space was the user's or ours. Deferring
-    // instead would delay the much commoner "Hello ." cleanup, so this keeps
-    // the periods intact and accepts the lost space. Revisit if the engine ever
-    // carries edit provenance.
 
     // Repeated punctuation bursts (",,,,", ", , ,") should be handled by
     // duplicate-collapse logic; avoid emitting spacing edits that can create

@@ -21,13 +21,6 @@ export class OpeningBracketSpacingRule extends SpacingRuleShared implements Gram
     const previousChar = inputStr[openingIndex - 1];
     const hasSpaceBefore = SPACE_CHARS.includes(previousChar);
 
-    // "[label](url)": the closing-bracket rule appended a prose space after "]"
-    // before it could know a link target followed. Take it back, the way the
-    // slash rule compacts "https: //".
-    if (openingBracket === "(" && hasSpaceBefore && inputStr[openingIndex - 2] === "]") {
-      return this.createEdit("(", 2);
-    }
-
     let requiresSpaceBefore = true;
     if (openingBracket === "(" && this.isControlKeywordBeforeIndex(inputStr, openingIndex)) {
       requiresSpaceBefore = true;

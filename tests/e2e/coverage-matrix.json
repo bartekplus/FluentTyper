@@ -303,12 +303,12 @@
         {
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
-          "test": "Quill lowercase first-letter prediction works after newline without line jump"
+          "test": "CKEditor capitalizes at the start of an existing paragraph without touching the previous paragraph"
         },
         {
           "layer": "unit",
           "file": "tests/SuggestionManager.test.ts",
-          "test": "capitalizes first character locally for contenteditable when caret stays stale"
+          "test": "applies grammar locally for contenteditable when caret stays stale"
         }
       ]
     },
@@ -756,7 +756,7 @@
     },
     {
       "id": "grammar_manual_space_deletion",
-      "description": "Manual deletion of inserted sentence space is respected.",
+      "description": "Manual deletion of an inserted punctuation space is respected.",
       "coverage": [
         {
           "layer": "e2e-full",
