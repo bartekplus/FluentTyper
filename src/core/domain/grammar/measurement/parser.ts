@@ -6,14 +6,11 @@ const MAX_GROUP_DEPTH = 4;
 const UNIT_CHAR = /[\p{L}%°Ωµμ]/u;
 const DIGIT = /[0-9]/;
 const SUPERSCRIPT = /[⁰¹²³⁴⁵⁶⁷⁸⁹⁻]/u;
-const PROSE_AMBIGUITIES = new Set(["in", "as", "am", "Ms"]);
 
 export interface ParsedMeasurementExpression {
   start: number;
-  end: number;
   numberEnd: number;
   unitStart: number;
-  text: string;
 }
 
 /** Parses a complete number + unit expression ending at the end of `text`. */
@@ -46,7 +43,7 @@ export function parseMeasurementExpression(
       continue;
     }
 
-    return { start, end: text.length, numberEnd, unitStart, text: text.slice(start) };
+    return { start, numberEnd, unitStart };
   }
   return null;
 }
@@ -80,6 +77,8 @@ function readNumber(text: string, start: number, locale: MeasurementLocalePolicy
 function parseUnitExpression(text: string, start: number): boolean {
   // A leading group could be algebraic multiplication, not a unit designation.
   if (text[start] === "(") return false;
+  // "pm" is a clock suffix in prose; explicit compounds such as "pm/s" remain valid.
+  if (text.slice(start) === "pm") return false;
   let index = start;
   let atomCount = 0;
   let invalidComposition = false;
@@ -104,7 +103,6 @@ function parseUnitExpression(text: string, start: number): boolean {
         return false;
       }
       const symbol = text.slice(symbolStart, index);
-      if (PROSE_AMBIGUITIES.has(symbol)) return false;
       const unit = lookupMeasurementUnit(symbol);
       if (!unit?.safe || unit.ambiguity) {
         return false;

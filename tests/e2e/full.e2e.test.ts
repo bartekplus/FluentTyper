@@ -4949,15 +4949,19 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
   test(
     "Grammar rule options inherit defaults and persist an explicit override",
     async () => {
-      const optionsPage = await openOptionsPage(browser, worker!);
+      let optionsPage = await openOptionsPage(browser, worker!);
       try {
         settingsDirty = true;
         await setSettingAndWait(worker!, KEY_ENABLED_GRAMMAR_RULES, {});
-        await optionsPage.reload({ waitUntil: "domcontentloaded" });
         expect(
           await getSetting<Record<string, boolean>>(worker!, KEY_ENABLED_GRAMMAR_RULES),
         ).toEqual({});
+      } finally {
+        await optionsPage.close();
+      }
 
+      optionsPage = await openOptionsPage(browser, worker!);
+      try {
         const selector = '.grammar-rule-card-toggle[value="measurementUnitFormatting"]';
         await optionsPage.waitForSelector(selector);
         await optionsPage.waitForFunction(
@@ -4975,12 +4979,25 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
           browserTimeout(5000, 10000),
         );
         expect(storedAfter).toEqual({ measurementUnitFormatting: false });
+      } finally {
+        await optionsPage.close();
+      }
 
-        await optionsPage.reload({ waitUntil: "domcontentloaded" });
+      optionsPage = await openOptionsPage(browser, worker!);
+      try {
+        const selector = '.grammar-rule-card-toggle[value="measurementUnitFormatting"]';
+        const readySelector = '.grammar-rule-card-toggle[value="capitalizeSentenceStart"]';
         await optionsPage.waitForSelector(selector);
-        expect(
-          await optionsPage.$eval(selector, (input) => (input as HTMLInputElement).checked),
-        ).toBe(false);
+        await optionsPage.waitForFunction(
+          (inputSelector, loadedSelector) => {
+            const input = document.querySelector(inputSelector) as HTMLInputElement | null;
+            const loaded = document.querySelector(loadedSelector) as HTMLInputElement | null;
+            return input?.checked === false && loaded?.checked === true;
+          },
+          {},
+          selector,
+          readySelector,
+        );
       } finally {
         await optionsPage.close();
       }

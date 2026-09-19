@@ -101,6 +101,8 @@ describe("measurement formatting adversarial verification", () => {
 
   test("does not reinterpret localized words or written unit names as symbols", () => {
     const cases = [
+      ["en_US", "He came 1st "],
+      ["en_US", "Meet at 10pm "],
       ["pl_PL", "Zdanie: 10Pa "],
       ["de_DE", "Termin: 10am "],
       ["sv_SE", "Tid: 10minuter "],
@@ -128,6 +130,7 @@ describe("measurement formatting adversarial verification", () => {
       "Value: +2MiB ",
       "Area: 3m² ",
       "Rate: 4kg/m³ ",
+      "Speed: 5pm/s ",
       "Flux: 2W/(m·K) ",
     ];
     for (const input of cases) {

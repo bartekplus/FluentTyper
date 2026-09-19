@@ -26,13 +26,15 @@ The live writing-language registry is checked by the generator and tests. The ni
 
 ## Exact coverage and deliberate gaps
 
-The curated registry contains **96 exact prose entries**, with all 24 current SI decimal prefixes (including Q/R/r/q and both micro glyphs) and ten binary prefixes Ki through Qi where permitted. Finite lookup tables recognize **1,383 exact/prefixed forms**; 1,169 can receive spacing in the test context `Measured: 1<form> `, while 214 are preserved. These counts exclude the unbounded combinations of supported atoms. They do not count unknown no-ops as support.
+The curated registry contains **96 exact prose entries**, with all 24 current SI decimal prefixes (including Q/R/r/q and both micro glyphs) and ten binary prefixes Ki through Qi where permitted. Finite lookup tables recognize **1,383 exact/prefixed forms**; 1,167 can receive spacing in the test context `Measured: 1<form> `, while 216 are preserved. These counts exclude the unbounded combinations of supported atoms. They do not count unknown no-ops as support.
 
 Composition supports `/`, `·`, `⋅`, `*`, signed integer caret exponents, superscript exponents, and explicit denominator/operator grouping. It never simplifies expressions or reassociates divisions. Token matching consumes complete symbols, so `ms`, `mmHg`, and identifiers cannot match a shorter prefix accidentally. Absolute Celsius/Fahrenheit compound expressions are rejected; no temperature/difference inference is attempted.
 
 All **312 UCUM 2.2 atomic codes** are audited in the generated [coverage matrix](../data/measurement/ucum-coverage.md): **42** have standalone spacing-eligible prose mappings, **32** map to preserved ambiguous notation, and **238** are unsupported. The matrix is about prose mappings, not accepting UCUM machine identifiers. Many clinical, legacy, constants, qualified customary-volume/mass definitions, and specialized scientific codes remain unsupported. Bare regional volume/mass abbreviations are not assigned a region. This is broad SI/practical symbol coverage, not “all units.”
 
 Default behavior deliberately leaves these unchanged:
+
+- Ordinals such as `He came 1st ` and clock suffixes such as `Meet at 10pm `. Stone notation `st` is preserved as ambiguous; explicitly compound picometre notation such as `5pm/s` remains eligible.
 
 - `C`, `F`, and `K` never acquire a degree sign. Standalone capital Latin symbols also remain unchanged because they can denote grades, product models, or resolutions (`4K`, `10A`). They can still participate in unambiguous compounds.
 - `ms`, `Ms`, `mW`, `MW`, `Mb`, `MB`, `kB`, `KiB`, `kW`, `kWh`, and `nm` retain their exact symbols. Ambiguous bit/barn and byte/bel forms are preserved; binary bytes are distinguished from decimal quantities.

@@ -541,7 +541,8 @@
     "identity": "stone",
     "symbol": "st",
     "prefixes": "none",
-    "safe": true,
+    "safe": false,
+    "ambiguity": "English ordinal suffix",
     "source": "CLDR-48.2",
     "composition": true
   },

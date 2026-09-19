@@ -5,10 +5,10 @@ import { createGrammarRuleCatalogRuntime } from "../../src/core/domain/grammar/r
 import { DEFAULT_CURRENT_GRAMMAR_RULES } from "../../src/core/domain/grammar/ruleCatalog";
 import type { GrammarContext } from "../../src/core/domain/grammar/types";
 
-function type(input: string, lang: string): string {
+function type(input: string, lang: string, insertSpaceAfterAutocomplete = true): string {
   const engine = new GrammarRuleEngine();
   for (const rule of createGrammarRuleCatalogRuntime({
-    insertSpaceAfterAutocomplete: true,
+    insertSpaceAfterAutocomplete,
     userDictionaryList: [],
   }))
     engine.registerRule(rule);
@@ -36,6 +36,21 @@ describe("measurement formatting during typing", () => {
     ["Speed: 5m/s ", "en_US", "Speed: 5\u00a0m/s "],
     ["Flux: 2W/(m·K) ", "en_US", "Flux: 2\u00a0W/(m·K) "],
     ["Area: 3m² ", "en_US", "Area: 3\u00a0m² "],
+    ["Scientific: 1.e3 and 1.e+3kg ", "en_US", "Scientific: 1.e3 and 1.e+3kg "],
   ])
     test(input, () => expect(type(input, lang)).toBe(expected));
+
+  test("defers numeric punctuation until prose continuation is known", () => {
+    expect(type("There were 2,and", "en_US")).toBe("There were 2, and");
+    expect(type("It ended in 2026.next", "en_US")).toBe("It ended in 2026. Next");
+    expect(type("It ended in 2026.ended", "en_US")).toBe("It ended in 2026. ended");
+    expect(type("It cost 1.50,and", "en_US")).toBe("It cost 1.50, and");
+    expect(type("It cost 1.50.next", "en_US")).toBe("It cost 1.50. Next");
+    expect(type("There were 1,234,and", "en_US")).toBe("There were 1,234, and");
+    expect(type("Values: 1.50 and 1,234", "en_US")).toBe("Values: 1.50 and 1,234");
+  });
+
+  test("leaves deferred punctuation alone when automatic spacing is disabled", () => {
+    expect(type("There were 2,and", "en_US", false)).toBe("There were 2,and");
+  });
 });

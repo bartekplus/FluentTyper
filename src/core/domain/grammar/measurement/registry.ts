@@ -51,40 +51,33 @@ const binaryPrefixes = [
 
 function prefixedUnit(
   symbol: string,
-  prefixes: readonly (readonly [string, string])[],
+  prefix: string,
+  name: string,
   kind: "decimal" | "binary",
 ): MeasurementUnit | undefined {
-  for (const [prefix, name] of prefixes) {
-    if (!symbol.startsWith(prefix)) continue;
-    const base = units.get(symbol.slice(prefix.length));
-    if (!base || (base.prefixes !== kind && base.prefixes !== "both")) continue;
-    const binaryByte = kind === "binary" && base.symbol === "B";
-    const source = `BIPM-SI-9-4.01; ${base.source}`;
-    if (binaryByte) {
-      const { ambiguity: _ambiguity, ...byte } = base;
-      return { ...byte, identity: `${name}${base.identity}`, symbol, safe: true, source };
-    }
-    return {
-      ...base,
-      identity: `${name}${base.identity}`,
-      symbol,
-      source,
-    };
+  const base = units.get(symbol.slice(prefix.length));
+  if (!base || (base.prefixes !== kind && base.prefixes !== "both")) return;
+  const binaryByte = kind === "binary" && base.symbol === "B";
+  const source = `BIPM-SI-9-4.01; ${base.source}`;
+  if (binaryByte) {
+    const { ambiguity: _ambiguity, ...byte } = base;
+    return { ...byte, identity: `${name}${base.identity}`, symbol, safe: true, source };
   }
+  return { ...base, identity: `${name}${base.identity}`, symbol, source };
 }
 
 for (const base of units.values()) {
   if (base.prefixes === "decimal" || base.prefixes === "both") {
-    for (const [prefix] of decimalPrefixes) {
+    for (const [prefix, name] of decimalPrefixes) {
       const symbol = prefix + base.symbol;
-      const unit = prefixedUnit(symbol, decimalPrefixes, "decimal");
+      const unit = prefixedUnit(symbol, prefix, name, "decimal");
       if (unit) prefixedUnits.set(symbol, unit);
     }
   }
   if (base.prefixes === "binary" || base.prefixes === "both") {
-    for (const [prefix] of binaryPrefixes) {
+    for (const [prefix, name] of binaryPrefixes) {
       const symbol = prefix + base.symbol;
-      const unit = prefixedUnit(symbol, binaryPrefixes, "binary");
+      const unit = prefixedUnit(symbol, prefix, name, "binary");
       if (unit) prefixedUnits.set(symbol, unit);
     }
   }

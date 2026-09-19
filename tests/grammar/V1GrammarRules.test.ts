@@ -134,6 +134,31 @@ describe("V1 grammar rules", () => {
       });
     });
 
+    test("only completes deferred numeric punctuation for direct prose typing", () => {
+      const rule = new CommaPeriodSpacingRule(true);
+      const prose = {
+        lang: "en_US",
+        inputAction: "insert" as const,
+        measurementContext: "prose" as const,
+      };
+
+      expect(rule.apply(context("There were 2,a", prose))).toEqual({
+        replacement: ", a",
+        deleteBackwards: 2,
+        deleteForwards: 0,
+      });
+      expect(rule.apply(context("Values: 1.5", prose))).toBeNull();
+      expect(rule.apply(context("Values: 1,2", prose))).toBeNull();
+      expect(rule.apply(context("Value 1.e", prose))).toBeNull();
+      expect(rule.apply(context("Value 1.e3", prose))).toBeNull();
+      expect(rule.apply(context("Value 1.e+", prose))).toBeNull();
+      expect(rule.apply(context("Value 1e2.n", prose))).toBeNull();
+      expect(rule.apply(context("file2.n", prose))).toBeNull();
+      expect(rule.apply(context("Value 2.n", { ...prose, inputAction: "delete" }))).toBeNull();
+      expect(rule.apply(context("Value 2.n", { ...prose, isPaste: true }))).toBeNull();
+      expect(rule.apply({ ...context("Value 2.n", prose), afterCursor: "ow" })).toBeNull();
+    });
+
     test("treats zero-width fillers as ignorable separators for duplicate commas", () => {
       const rule = new CommaPeriodSpacingRule(true);
 

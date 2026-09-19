@@ -20,7 +20,7 @@ export class MathOperatorSpacingRule extends SpacingRuleShared implements Gramma
     }
     if (
       context.hints?.measurementContext === "prose" &&
-      (/(?:^|[^\p{L}\p{N}_.])[-+]?[0-9]+(?:[.,][0-9]+)?[eE][+-][0-9]$/u.test(
+      (/(?:^|[^\p{L}\p{N}_.])[-+]?[0-9]+(?:[.,][0-9]*)?[eE][+-][0-9]$/u.test(
         inputStr.slice(-128),
       ) ||
         /[0-9]-[0-9]$/.test(inputStr))
