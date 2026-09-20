@@ -871,7 +871,12 @@
         {
           "layer": "integration",
           "file": "tests/e2e/google-docs.e2e.test.ts",
-          "test": "measurement formatting stays disabled without a verified prose context"
+          "test": "measurement formatting still runs deep inside a long document"
+        },
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "the caret follows a correction the host rewrites on insertion"
         },
         {
           "layer": "unit",
