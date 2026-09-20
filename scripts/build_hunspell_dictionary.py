@@ -58,12 +58,17 @@ def install_pt_br_dictionary(lang: str, dest_dir: Path) -> None:
 def _clean_ayaspell_dictionary(dic_path: Path) -> int:
     """Normalize AyaSpell's raw build dict into clean hunspell format.
 
-    AyaSpell's arb.dic is a build artifact, not a clean hunspell dictionary:
-    it contains `::::::::` section separators, `#` comment lines, section-name
-    lines (e.g. `stopwords.dic`), and AyaSpell-specific plural-suffix entries
-    (`word/np`, `word/mp`) that standard hunspell cannot load. The wooorm
-    dictionaries used for the other languages are already clean, so this
-    normalization is only needed for Arabic.
+    AyaSpell's arb.dic is a concatenation of build dictionaries, so it carries
+    structural junk: a ``<count> <name>.dic`` header line, ``::::::::`` section
+    separators, section-name lines (e.g. ``stopwords.dic``), ``#`` comment
+    lines, and per-entry trailing comments (``word/np<TAB>#note``).
+
+    Only that junk is removed.  Affix flags are preserved verbatim: the
+    dictionary declares ``FLAG long`` and the shipped ``.aff`` defines real
+    ``PFX np`` / ``PFX mp`` classes, so ``word/np`` and ``word/mp`` are
+    ordinary flagged entries whose prefixed forms (``وأريزونا``, ``للأدرياتيكي``)
+    must stay accepted.  The wooorm dictionaries used for the other languages
+    are already clean, so this normalization is only needed for Arabic.
     """
     words: list[str] = []
     seen: set[str] = set()
@@ -78,10 +83,11 @@ def _clean_ayaspell_dictionary(dic_path: Path) -> int:
                 continue
             if re.fullmatch(r"[A-Za-z0-9_.\-]+\.dic", line):
                 continue
-            # Strip AyaSpell plural-suffix markers, keeping the base word.
-            if line.endswith("/np") or line.endswith("/mp"):
-                line = line.rsplit("/", 1)[0]
-            line = line.strip()
+            # AyaSpell's roll-up header, e.g. "465929 arb.tmp.dic".
+            if re.fullmatch(r"\d+\s+\S+\.dic", line):
+                continue
+            # Drop a trailing inline comment, keeping the entry's affix flags.
+            line = re.split(r"\s+#", line, maxsplit=1)[0].strip()
             if not line or line in seen:
                 continue
             seen.add(line)
