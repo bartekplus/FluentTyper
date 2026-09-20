@@ -164,6 +164,10 @@ def create_lang_config_from_template(lang: LanguageConfig, debug: bool) -> None:
     update_template(dst / "presage.xml", lang, debug)
     if not lang.use_aspell:
         _drop_aspell_predictor(dst / "presage.xml")
+        # No aspell predictor means no aspell data files are needed either —
+        # drop the template's aspell dir so it is not downloaded, installed,
+        # or packaged (it would otherwise ship ~20 MB of unused data).
+        shutil.rmtree(dst / "aspell", ignore_errors=True)
 
 
 def _drop_aspell_predictor(presage_xml: Path) -> None:
@@ -250,10 +254,19 @@ def prepare_language(
     if skip_dictionaries:
         print(f"Skipping dictionaries for {lang.variant}")
         return
-    if not refresh_dictionaries and has_aspell_dictionary(lang) and has_hunspell_dictionary(lang):
+    aspell_present = lang.use_aspell and has_aspell_dictionary(lang)
+    if not refresh_dictionaries and aspell_present and has_hunspell_dictionary(lang):
         print(f"Using existing dictionaries for {lang.variant}")
         return
-    install_aspell_dictionary(lang)
+    if lang.use_aspell:
+        install_aspell_dictionary(lang)
+    else:
+        # use_aspell=False: the aspell predictor is dropped from presage.xml,
+        # so no aspell data files are needed. Skip the download/install and
+        # remove any stale aspell dir left over from a previous build so it
+        # does not get packaged.
+        print(f"Skipping aspell dictionary for {lang.variant} (use_aspell=False)")
+        shutil.rmtree(RESOURCES_DIR / lang.variant / "aspell", ignore_errors=True)
     install_hunspell_dictionary(lang)
 
 
