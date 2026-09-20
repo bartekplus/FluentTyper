@@ -28,7 +28,7 @@ async function Module(moduleArg={}){var moduleRtn;var Module=moduleArg;var ENVIR
         }
         if (!Module['dataFileDownloads']) Module['dataFileDownloads'] = {};
         try {
-          var response = await fetch(packageName);
+          var response = await fetch(chrome.runtime.getURL("third_party/libpresage/" + packageName));
         } catch (e) {
           throw new Error(`Network Error: ${packageName}`, {e});
         }
