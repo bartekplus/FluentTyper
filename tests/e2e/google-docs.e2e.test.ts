@@ -265,6 +265,37 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
       ]),
     ).toEqual(["true", 1, 0]);
   });
+  // Any second render of unchanged suggestions hides and re-shows the menu, replaying its
+  // pop-in animation: the popup blinks once, shortly after it appears.
+  test.each([[[]], [["englishTypoWhitelistCorrection"]]])(
+    "the menu is rendered once for one set of suggestions (rules: %p)",
+    async (rules) => {
+      await evaluate(
+        `predictions=["hello","help"];startDocs({enabledGrammarRules:${JSON.stringify(rules)}})`,
+      );
+      await page.evaluate(() => {
+        const w = window as unknown as { renders: string[]; model: { text: string } };
+        w.renders = [];
+        const menu = document.querySelector<HTMLElement>("#ft-menu--1")!;
+        new MutationObserver((records) => {
+          if (records.some((r) => r.addedNodes.length)) w.renders.push(w.model.text);
+        }).observe(menu.shadowRoot!.querySelector("ul")!, { childList: true });
+      });
+      await page.keyboard.type("hel", { delay: TYPING_DELAY_MS });
+      await waitUntil("completion", () =>
+        evaluate<boolean>(
+          "document.querySelector('iframe').hasAttribute('data-ft-docs-key-state')",
+        ),
+      );
+      // Long enough for the idle trigger (240ms) and several polls (200ms each).
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      const renders = await page.evaluate(
+        () => (window as unknown as { renders: string[] }).renders,
+      );
+      expect(renders.filter((text) => text === "hel")).toEqual(["hel"]);
+      expect((await evaluate<unknown[]>("requests")).length).toBeLessThanOrEqual(3);
+    },
+  );
   test("space acceptance follows the configured setting", async () => {
     await seed("hel", ["hello "], { autocomplete: true });
     await page.keyboard.press("Space");

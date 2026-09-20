@@ -412,6 +412,13 @@ export class GoogleDocsAdapter {
       this.grammarSuppressed = null;
     const context = snapshotContext(snapshot);
     if (this.runGrammar(snapshot)) return;
+    // A trigger on an unchanged document (the idle one, 240ms after every burst) is
+    // grammar's business only. Its suggestions are already requested or on screen, and
+    // asking again renders them again, which replays the pop-in: the popup blinks.
+    if (!changed && !force) {
+      this.updateKeyState();
+      return;
+    }
     if (snapshot.anchor !== snapshot.focus && !force) {
       this.clearVisual();
       return;
@@ -428,6 +435,11 @@ export class GoogleDocsAdapter {
 
   /** Judges the snapshot and dispatches any correction. True when one is on its way. */
   private runGrammar(snapshot: DocsSnapshot): boolean {
+    // Consumed whether or not grammar can use them. Left pending (no rules enabled, a
+    // selection, a suppressed undo) they made every poll look like fresh input forever.
+    const collected = [...this.pendingTriggers];
+    const collectedAction = this.pendingAction;
+    this.clearPendingTriggers();
     if (
       // Deliberately not gated on a pending key trigger. Replayed positions carry triggers
       // derived from their own character, and apply() clears the set, so gating here let
@@ -437,9 +449,6 @@ export class GoogleDocsAdapter {
       this.grammar.hasEnabledRules() &&
       snapshot.anchor === snapshot.focus
     ) {
-      const collected = [...this.pendingTriggers];
-      const collectedAction = this.pendingAction;
-      this.clearPendingTriggers();
       // The baseline is left alone while an edit is outstanding: apply() advances it only
       // once the write lands, so a write that never happened is retried from the same spot.
       const edit = this.planGrammarEdit(snapshot, this.grammarBaseline, collected, collectedAction);
