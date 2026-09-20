@@ -238,4 +238,57 @@ describe("auto language detection — Arabic", () => {
     expect(result.resolvedLanguage).toBe("el_GR");
     expect(result.source).toBe("strong_script");
   });
+
+  // The sample is a rolling window, so after typing Arabic it still contains
+  // Arabic while the user types English in the same sentence.  Deciding the
+  // strong script from the whole window pinned the language to Arabic and the
+  // Arabic engine then predicted Latin words.
+  test("returns to English when Latin is typed after Arabic in the same sentence", () => {
+    const result = resolveAutoLanguageDecision({
+      allowedLanguages: ["en_US", "ar_SA"],
+      fallbackLanguage: "en_US",
+      sampleText: "السلام عليكم hello",
+      browserDetections: [{ language: "ar", percentage: 72 }],
+      session: { ...emptySession, stableLanguage: "ar_SA" },
+    });
+
+    expect(result.resolvedLanguage).toBe("en_US");
+  });
+
+  test("returns to English mid-word after Arabic in the same sentence", () => {
+    const result = resolveAutoLanguageDecision({
+      allowedLanguages: ["en_US", "ar_SA"],
+      fallbackLanguage: "en_US",
+      sampleText: "السلام hel",
+      browserDetections: [{ language: "ar", percentage: 72 }],
+      session: { ...emptySession, stableLanguage: "ar_SA" },
+    });
+
+    expect(result.resolvedLanguage).toBe("en_US");
+  });
+
+  test("stays on Arabic while the token being typed is Arabic", () => {
+    const result = resolveAutoLanguageDecision({
+      allowedLanguages: ["en_US", "ar_SA"],
+      fallbackLanguage: "en_US",
+      sampleText: "hello مرحبا",
+      browserDetections: [{ language: "ar", percentage: 60 }],
+      session: { ...emptySession, stableLanguage: "ar_SA" },
+    });
+
+    expect(result.resolvedLanguage).toBe("ar_SA");
+  });
+
+  // The reverse direction must keep working: English session, Arabic typed.
+  test("switches to Arabic when Arabic is typed after English in a sentence", () => {
+    const result = resolveAutoLanguageDecision({
+      allowedLanguages: ["en_US", "ar_SA"],
+      fallbackLanguage: "en_US",
+      sampleText: "hello مرحبا",
+      browserDetections: [{ language: "en", percentage: 70 }],
+      session: { ...emptySession, stableLanguage: "en_US" },
+    });
+
+    expect(result.resolvedLanguage).toBe("ar_SA");
+  });
 });
