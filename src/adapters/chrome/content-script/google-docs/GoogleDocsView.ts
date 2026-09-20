@@ -172,10 +172,24 @@ export class GoogleDocsView {
     const panel = SuggestionMenuView.resolvePanel(this.elements.menu);
     panel.setAttribute("aria-label", this.labels[0]);
     panel.setAttribute("dir", "auto");
-    const announcement = `${this.labels[1]} ${index + 1}/${suggestions.length}: ${candidate}`;
-    if (this.live.textContent !== announcement) this.live.textContent = announcement;
+    this.announce(suggestions, index);
     this.elements.list.querySelectorAll("li").forEach((item) => item.setAttribute("dir", "auto"));
     return visible;
+  }
+  /**
+   * Move the selection of a menu that is already showing. A full render hides it first,
+   * and showing it again replays the panel's pop-in animation: the popup blinks on every
+   * arrow press. False when there is no open menu to move within (the inline ghost).
+   */
+  highlight(suggestions: string[], index: number): boolean {
+    if (!this.presenter.isVisible(this.elements.menu, suggestions.length)) return false;
+    this.presenter.updateHighlight(this.elements.list, index);
+    this.announce(suggestions, index);
+    return true;
+  }
+  private announce(suggestions: string[], index: number): void {
+    const announcement = `${this.labels[1]} ${index + 1}/${suggestions.length}: ${suggestions[index]}`;
+    if (this.live.textContent !== announcement) this.live.textContent = announcement;
   }
   /** Canvas text has no DOM style; mirror the toolbar's font, size and zoom onto a style host. */
   private syncFont(caretRect: DOMRect): void {
