@@ -50,6 +50,13 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run test
       - run: bun run check:e2e:coverage
+      - name: Python build-tooling tests
+        run: |
+          for suite in scripts/test_*.py; do
+            echo "::group::$suite"
+            python3 "$suite"
+            echo "::endgroup::"
+          done
 
   e2e-smoke:
     name: E2E Smoke (${{ matrix.browser }})

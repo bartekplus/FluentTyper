@@ -254,7 +254,11 @@ def prepare_language(
     if skip_dictionaries:
         print(f"Skipping dictionaries for {lang.variant}")
         return
-    aspell_present = lang.use_aspell and has_aspell_dictionary(lang)
+    # A language with the aspell predictor disabled (use_aspell=False) never
+    # installs an aspell dictionary, so requiring one here would make the
+    # cached-dictionary early return unreachable and re-download hunspell on
+    # every rebuild.
+    aspell_present = (not lang.use_aspell) or has_aspell_dictionary(lang)
     if not refresh_dictionaries and aspell_present and has_hunspell_dictionary(lang):
         print(f"Using existing dictionaries for {lang.variant}")
         return

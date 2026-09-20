@@ -18,4 +18,13 @@ describe("language settings helpers", () => {
     const result = resolveEnabledLanguages(["auto_detect"]);
     expect(result).toEqual(SUPPORTED_PREDICTION_LANGUAGE_KEYS);
   });
+
+  test("ar_SA is a supported prediction language", () => {
+    expect(SUPPORTED_PREDICTION_LANGUAGE_KEYS).toContain("ar_SA");
+  });
+
+  test("resolveEnabledLanguages round-trips ar_SA", () => {
+    expect(resolveEnabledLanguages(["ar_SA"])).toEqual(["ar_SA"]);
+    expect(resolveEnabledLanguages(["ar_SA", "en_US"])).toEqual(["ar_SA", "en_US"]);
+  });
 });

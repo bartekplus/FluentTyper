@@ -35,6 +35,18 @@ async function runSuite(patterns: string[], label: string): Promise<void> {
   }
 }
 
+async function runCommand(cmd: string[], label: string): Promise<void> {
+  const process = Bun.spawn(cmd, {
+    stdin: "inherit",
+    stdout: "inherit",
+    stderr: "inherit",
+  });
+  const exitCode = await process.exited;
+  if (exitCode !== 0) {
+    throw new Error(`${label} failed with exit code ${exitCode}`);
+  }
+}
+
 const rootTests = sorted(new Bun.Glob("tests/*.test.ts").scanSync({ onlyFiles: true }).toArray());
 const jsTests = sorted(new Bun.Glob("tests/*.test.js").scanSync({ onlyFiles: true }).toArray());
 const grammarTests = sorted(
@@ -48,3 +60,19 @@ for (const testFile of isolatedTests) {
   await runSuite([testFile], `Isolated: ${testFile}`);
 }
 await runSuite([...remainingRootTests, ...jsTests, ...grammarTests], "Main unit test suite");
+
+// The scripts/ suites are Python — they cover the dictionary/RPM build tooling,
+// which no bun test file exercises.  Run them here so they are part of the
+// standard test command instead of only being run by hand.
+const pythonSuites = sorted(
+  new Bun.Glob("scripts/test_*.py").scanSync({ onlyFiles: true }).toArray(),
+);
+if (pythonSuites.length > 0) {
+  const python = Bun.which("python3") ?? Bun.which("python");
+  if (!python) {
+    throw new Error("python3 is required to run the scripts/ test suites");
+  }
+  for (const suite of pythonSuites) {
+    await runCommand([python, suite], `Python suite: ${suite}`);
+  }
+}

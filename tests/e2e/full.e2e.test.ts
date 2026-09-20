@@ -4531,6 +4531,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     de_DE: { input: "schmetterl", expected: "schmetterling" },
     pl_PL: { input: "chrabą", expected: "chrabąszcz" },
     pt_BR: { input: "caipir", expected: "caipira" },
+    ar_SA: { input: "الي", expected: "اليوم" },
     textExpander: { input: "asap", expected: "as soon as possible" },
   };
 

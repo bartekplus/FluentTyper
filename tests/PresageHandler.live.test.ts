@@ -159,4 +159,17 @@ describe("PresageHandler live Arabic (ar_SA)", () => {
     const phrase = await handler.runPrediction("في ال", "", "ar_SA");
     expect(phrase.predictions.map((p) => p.trim())).toContain("العالم");
   });
+
+  test("the other engines still initialize alongside ar_SA", async () => {
+    const handler = await createLiveHandler();
+    handler.setConfig({ ...createLiveConfig([]) });
+
+    // PresageHandler builds one engine per language at startup, so adding
+    // ar_SA must not disturb the engines that were already working.
+    const english = await handler.runPrediction("th", "", "en_US");
+    expect(english.predictions.map((p) => p.trim())).toContain("the");
+
+    const french = await handler.runPrediction("champig", "", "fr_FR");
+    expect(french.predictions.map((p) => p.trim())).toContain("champignon");
+  });
 });
