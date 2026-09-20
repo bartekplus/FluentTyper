@@ -238,6 +238,33 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
     await page.keyboard.press("Enter");
     await expectText("help");
   });
+  // Hiding and re-rendering the menu for every arrow press replays the panel's pop-in
+  // animation, which the user sees as the popup blinking.
+  test("arrow navigation moves the highlight without re-rendering the menu", async () => {
+    await seed("hel", ["hello", "help"]);
+    await page.evaluate(() => {
+      const w = window as unknown as { hides: number };
+      w.hides = 0;
+      const menu = document.querySelector<HTMLElement>("#ft-menu--1")!;
+      menu.shadowRoot!.querySelector("li")!.setAttribute("data-kept", "true");
+      new MutationObserver(() => {
+        if (menu.style.display === "none") w.hides++;
+      }).observe(menu, { attributes: true, attributeFilter: ["style"] });
+    });
+    await page.keyboard.press("ArrowDown");
+    await waitUntil("the highlight to move", () =>
+      page.$eval("#ft-menu--1", (el) =>
+        el.shadowRoot!.querySelectorAll("li")[1].classList.contains("highlight"),
+      ),
+    );
+    expect(
+      await page.$eval("#ft-menu--1", (el) => [
+        el.shadowRoot!.querySelector("li")!.getAttribute("data-kept"),
+        el.shadowRoot!.querySelectorAll("li.highlight").length,
+        (window as unknown as { hides: number }).hides,
+      ]),
+    ).toEqual(["true", 1, 0]);
+  });
   test("space acceptance follows the configured setting", async () => {
     await seed("hel", ["hello "], { autocomplete: true });
     await page.keyboard.press("Space");

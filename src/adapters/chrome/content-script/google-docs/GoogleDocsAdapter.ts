@@ -629,7 +629,7 @@ export class GoogleDocsAdapter {
       this.selectedIndex =
         (this.selectedIndex + (key === "ArrowDown" ? 1 : -1) + this.suggestions.length) %
         this.suggestions.length;
-      this.render();
+      if (!this.view.highlight(this.suggestions, this.selectedIndex)) this.render();
       return true;
     }
     if (this.options.selectByDigit && /^\d$/.test(key))
