@@ -1437,6 +1437,13 @@ export class SuggestionEntrySession {
     triggers.push(
       beforeCursor.length > 0 && SPACE_CHARS.includes(lastChar) ? "wordBoundary" : "insertChar",
     );
+    // A word also ends at the punctuation that closes its sentence. Without this the
+    // boundary rules that require trailing "." / "!" / "?" - englishYourWelcomeCorrection
+    // asks for exactly that - can never run, because the boundary they need and the
+    // character they test for cannot both be the last one typed.
+    if (/[.!?]/.test(lastChar)) {
+      triggers.push("wordBoundary");
+    }
     return triggers;
   }
 

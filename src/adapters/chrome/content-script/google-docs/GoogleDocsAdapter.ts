@@ -72,6 +72,15 @@ export class GoogleDocsAdapter {
   private uncertain: TrackedEdit | null = null;
   private lastEdit: HistoryEdit | null = null;
   private grammarSuppressed: DocsSnapshot | null = null;
+  // Reading the Docs model is a cross-world round trip, so a refresh scheduled for one
+  // keystroke is routinely cancelled by the next one. Triggers outlive that cancellation
+  // and are consumed only once grammar has actually looked at them, otherwise the
+  // wordBoundary that completes a word is lost whenever typing does not pause.
+  private readonly pendingTriggers = new Set<GrammarEventType>();
+  private pendingAction: PredictionInputAction | undefined;
+  // A refresh that arrives while the host is busy must not be dropped: the keystroke
+  // that produced it is the only thing that will ever carry its triggers.
+  private rerun = false;
   private visible = false;
   private failureStatus: string | null = null;
   private pollTimer: ReturnType<typeof setInterval> | null = null;
@@ -227,7 +236,13 @@ export class GoogleDocsAdapter {
     action?: PredictionInputAction,
     triggers: GrammarEventType[] = [],
   ): Promise<void> {
-    if (this.disposed || this.applying || this.composing || this.reading || document.hidden) return;
+    for (const trigger of triggers) this.pendingTriggers.add(trigger);
+    if (action) this.pendingAction = action;
+    if (this.disposed || this.composing || document.hidden) return;
+    if (this.applying || this.reading) {
+      if (this.pendingTriggers.size || force) this.rerun = true;
+      return;
+    }
     const input = getDocsInput();
     if (!input) {
       this.bind(null);
@@ -244,6 +259,7 @@ export class GoogleDocsAdapter {
       reply = { status: "unavailable" };
     } finally {
       this.reading = false;
+      this.drainRerun();
     }
     if (this.disposed || epoch !== this.epoch || this.applying) return;
     if (reply.status !== "ready" || !reply.snapshot) {
@@ -267,7 +283,7 @@ export class GoogleDocsAdapter {
       this.clearVisual();
       return;
     }
-    if (!changed && !force && !triggers.length) {
+    if (!changed && !force && !this.pendingTriggers.size) {
       // Reads rotate the bounded single-use-token cache even while the text is unchanged.
       // Renew the visible edit capability without re-requesting or re-announcing suggestions.
       this.snapshot = snapshot;
@@ -287,21 +303,35 @@ export class GoogleDocsAdapter {
       this.grammarSuppressed = null;
     const context = snapshotContext(snapshot);
     if (
-      triggers.length &&
+      this.pendingTriggers.size &&
       !this.grammarSuppressed &&
       this.grammar.hasEnabledRules() &&
       snapshot.anchor === snapshot.focus
     ) {
-      // Local grammar is paragraph-scoped; never capitalize from a truncated context window.
-      const paragraphStart = context.beforeCursor.lastIndexOf("\n") + 1;
-      if (snapshot.windowStart === 0 || paragraphStart > 0) {
+      // A truncated context window must never look like a document start to the rules.
+      // Anchor on a real line break and keep it: capitalizeAfterLineBreak needs the break
+      // that opens the current paragraph, and trimSpaceBeforeLineBreak needs the line
+      // before it, so the anchor is the break one paragraph further back.
+      const lastBreak = context.beforeCursor.lastIndexOf("\n");
+      const paragraphStart =
+        snapshot.windowStart === 0
+          ? 0
+          : lastBreak > 0
+            ? context.beforeCursor.lastIndexOf("\n", lastBreak - 1)
+            : -1;
+      if (paragraphStart >= 0) {
+        const collected = [...this.pendingTriggers];
+        const collectedAction = this.pendingAction;
+        this.clearPendingTriggers();
         const grammar = this.grammar.run({
-          // The Docs model exposes no protected/code styling context for measurement edits.
-          measurementContext: "protected",
+          // A Docs body is prose. The model exposes no code/readonly styling, so the
+          // DOM-based probe the generic path uses has nothing to inspect here; the
+          // single-use-token transaction supplies the re-verification `strict` wants.
+          measurementContext: "prose",
           beforeCursor: context.beforeCursor.slice(paragraphStart),
           afterCursor: context.afterCursor.split("\n")[0],
-          inputAction: action,
-          triggers,
+          inputAction: collectedAction,
+          triggers: collected,
         });
         const edit = grammar && planGrammar(snapshot, grammar);
         if (edit) {
@@ -317,7 +347,7 @@ export class GoogleDocsAdapter {
     // Selected text is supplied as the explicit trigger; no autonomous selection replacement.
     this.prediction.schedule(this.state, {
       force,
-      inputAction: action,
+      inputAction: action ?? this.pendingAction,
       beforeCursorOverride: context.beforeCursor + context.selectedText,
       afterCursorOverride: context.afterCursor,
       clearSuggestions: () => this.clearVisual(),
@@ -364,6 +394,7 @@ export class GoogleDocsAdapter {
     const snapshot = this.snapshot;
     if (!snapshot || this.applying || this.disposed || this.uncertain) return;
     this.applying = true;
+    this.clearPendingTriggers();
     this.invalidatePrediction();
     this.clearVisual();
     const tracked: TrackedEdit = { acceptance, before: snapshot };
@@ -374,6 +405,7 @@ export class GoogleDocsAdapter {
       reply = { status: "unverified" };
     }
     this.applying = false;
+    this.drainRerun();
     if (this.disposed) return;
     tracked.operationId = reply.operationId;
     if (reply.status === "applied" && reply.operationId)
@@ -460,6 +492,29 @@ export class GoogleDocsAdapter {
     }
     // Native undo/redo is deliberately not intercepted. History is checked against the model.
     this.dismiss();
+    this.queueEditFromKey(event);
+  }
+
+  /**
+   * Docs consumes keystrokes on keydown and paints the canvas itself, so the hidden
+   * input iframe never fires `input`. Grammar triggers are derived from the key instead;
+   * the model is already updated by the time the scheduled macrotask reads it.
+   */
+  private queueEditFromKey(event: KeyboardEvent): void {
+    if (event.altKey || event.metaKey || event.ctrlKey) {
+      if (event.key === "v" || event.key === "V") this.queueEdit("insert", ["insertChar", "paste"]);
+      return;
+    }
+    const key = event.key;
+    const printable = key === "Enter" || [...key].length === 1;
+    if (!printable && key !== "Backspace" && key !== "Delete") return;
+    if (!printable) {
+      this.queueEdit("delete", []);
+      return;
+    }
+    const triggers: GrammarEventType[] = ["insertChar"];
+    if (key === "Enter" || this.prediction.isSeparator(key)) triggers.push("wordBoundary");
+    this.queueEdit("insert", triggers);
   }
   private onInput(event: InputEvent): void {
     if (this.applying || this.disposed) return;
@@ -475,14 +530,25 @@ export class GoogleDocsAdapter {
     if (type === "insertFromPaste") triggers.push("paste");
     if (event.data && this.prediction.isSeparator(event.data.slice(-1)))
       triggers.push("wordBoundary");
-    this.scheduleRefresh(action, triggers, 25);
+    this.queueEdit(action, triggers);
+  }
+  private queueEdit(action: PredictionInputAction, triggers: GrammarEventType[]): void {
+    for (const trigger of triggers) this.pendingTriggers.add(trigger);
+    this.pendingAction = action;
+    // The host applies the keystroke later in this same dispatch, so the earliest
+    // correct moment to read it back is the next task, not a fixed settle delay.
+    // Waiting longer only lets the following keystroke cancel this pass and take the
+    // word boundary with it.
+    this.scheduleRefresh(action, [], 0);
+    if (this.idleTimer !== null) clearTimeout(this.idleTimer);
+    this.idleTimer = null;
     if (action === "insert")
       this.idleTimer = setTimeout(() => {
         void this.refresh(false, action, ["idle"]);
       }, 240);
   }
   private scheduleRefresh(
-    action: PredictionInputAction,
+    action: PredictionInputAction | undefined,
     triggers: GrammarEventType[],
     delay: number,
   ): void {
@@ -540,6 +606,15 @@ export class GoogleDocsAdapter {
     this.selectedIndex = 0;
     this.prediction.cancelPending(this.state);
   }
+  private drainRerun(): void {
+    if (!this.rerun || this.disposed) return;
+    this.rerun = false;
+    this.scheduleRefresh(this.pendingAction, [], 0);
+  }
+  private clearPendingTriggers(): void {
+    this.pendingTriggers.clear();
+    this.pendingAction = undefined;
+  }
   private clearVisual(): void {
     this.visible = false;
     this.view.clear();
@@ -559,6 +634,7 @@ export class GoogleDocsAdapter {
   }
   private bind(input: DocsInput | null): void {
     if (input?.document === this.input?.document && input?.element === this.input?.element) return;
+    this.clearPendingTriggers();
     const old = this.input;
     old?.frame.removeAttribute(KEY_STATE_ATTR);
     old?.document.removeEventListener("keydown", this.keyListener, true);

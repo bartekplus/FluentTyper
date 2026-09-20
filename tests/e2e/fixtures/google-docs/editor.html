@@ -69,10 +69,25 @@
           draw();
         },
       });
-      input.addEventListener("input", (event) => {
-        if (event.isComposing) return;
-        if (event.inputType.startsWith("insert")) replace(event.data || "");
-        input.textContent = "";
+      // Live Docs consumes keystrokes on keydown, paints the canvas itself and never lets
+      // the hidden editable produce an `input` event.
+      input.addEventListener("keydown", (event) => {
+        if (event.isComposing || event.keyCode === 229 || event.defaultPrevented) return;
+        if (event.ctrlKey || event.altKey || event.metaKey) return;
+        const key = event.key;
+        let apply;
+        if (key === "Backspace")
+          apply = () => {
+            if (model.anchor === model.focus && model.anchor > 0) model.anchor -= 1;
+            replace("");
+          };
+        else if (key === "Enter") apply = () => replace("\n");
+        else if ([...key].length === 1) apply = () => replace(key);
+        else return;
+        // Live Docs applies the key inside this same dispatch, after any capture-phase
+        // listener has already run and scheduled its follow-up work.
+        event.preventDefault();
+        apply();
       });
       input.addEventListener("paste", (event) => {
         model.pastes++;

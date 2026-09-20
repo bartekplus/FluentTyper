@@ -22,6 +22,14 @@ export interface DocsHost {
   read(): Promise<DocsHostState>;
   select(state: DocsHostState, anchor: number, focus: number): void;
   paste(state: DocsHostState, text: string): void;
+  /**
+   * The text the host will really end up holding for `text`, when its insertion
+   * channel rewrites characters. Verification compares against the result, so an
+   * edit whose replacement the host normalizes must predict that here or it can
+   * never be confirmed: the caret is then left wherever the insertion put it and
+   * the adapter blocks on an edit that in fact applied.
+   */
+  normalize?(text: string): string;
 }
 export class DocsHostError extends Error {
   constructor(public readonly status: DocsStatus) {
@@ -105,6 +113,10 @@ export class GoogleDocsTransaction {
     const cached = this.tokens.get(token);
     this.tokens.delete(token); // Single use, including validation failure and concurrent replays.
     if (!cached || this.now() - cached.at > SNAPSHOT_LIFETIME_MS) return { status: "stale" };
+    const normalized = this.host.normalize?.(edit.replacement) ?? edit.replacement;
+    // Length-preserving by contract, so the caller's cursorAfter still holds.
+    if (normalized.length !== edit.replacement.length) return { status: "invalid" };
+    edit = { ...edit, replacement: normalized };
     if (!validEdit(cached.state.model.text, edit)) return { status: "invalid" };
     this.busy = true;
     const epoch = this.epoch;

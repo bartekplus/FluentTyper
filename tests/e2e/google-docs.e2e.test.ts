@@ -1,6 +1,56 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import puppeteer, { type Browser, type Page, type CDPSession } from "puppeteer";
 import { waitUntil } from "./e2e-helpers";
+import { GRAMMAR_RULE_IDS } from "../../src/core/domain/grammar/ruleCatalog";
+
+/**
+ * [rule id, keys typed, resulting Docs text, resulting text on an ordinary page].
+ *
+ * Expectations are the observed behaviour of both paths, not a restatement of what each
+ * rule does: the point is that Google Docs corrects exactly what a normal field corrects.
+ * The fourth entry is present only where the two legitimately differ, and says why.
+ */
+const GRAMMAR_CASES: Array<[string, string, string] | [string, string, string, string]> = [
+  ["capitalizeSentenceStart", "hello. world ", "Hello. World "],
+  ["capitalizeAfterLineBreak", "hello\nworld ", "hello\nWorld "],
+  ["englishPronounICapitalization", "i am here ", "I am here "],
+  ["englishContractionNormalization", "im ready ", "I'm ready "],
+  ["englishTypoWhitelistCorrection", "teh cat ", "the cat "],
+  ["doubleSpaceToPeriod", "Hello  ", "Hello. "],
+  ["englishModalOfCorrection", "could of gone ", "could have gone "],
+  ["englishYourWelcomeCorrection", "your welcome.", "you're welcome."],
+  ["englishTheirThereBeVerb", "their is one ", "there is one "],
+  ["englishAlotCorrection", "alot ", "a lot "],
+  ["englishPronounVerbWhitelistAgreement", "you was late ", "you were late "],
+  // Only the unambiguous clock form compacts; "3. 14" is deliberately left alone.
+  ["technicalTokenCompaction", "at 12: 30 ", "at 12:30 "],
+  ["mathOperatorSpacing", "x=y ", "x = y "],
+  // Docs converts every pasted NBSP to a plain space, so the rule's non-breaking space
+  // cannot survive the only edit channel Docs offers. A plain space is the best available.
+  ["measurementUnitFormatting", "10kg ", "10 kg ", "10\u00a0kg "],
+  ["slashContextSpacing", "https: //x ", "https://x "],
+  ["openingBracketSpacing", "if(x ", "if (x "],
+  ["closingBracketSpacing", "Hello (world )", "Hello (world)"],
+  // The space after the comma is a deferred repair that needs a typing pause, so both
+  // paths stop here while text keeps arriving. Asserted to keep the two in step.
+  ["commaPeriodSpacing", "Hello ,world ", "Hello,world "],
+  ["collapseRepeatedSpaces", "hello  world ", "hello world "],
+  ["trimSpaceBeforeLineBreak", "hello  \n", "hello\n"],
+  // Deliberate no-op rule: the assertion guards against a spurious edit.
+  ["neutralPunctuationPolicy", "Bonjour : ", "Bonjour : "],
+  ["ellipsisShortcut", "wait... ", "wait\u2026 "],
+  ["emdashShortcut", "word--x ", "word\u2014x "],
+  ["smartQuoteNormalization", 'say "hi" ', "say \u201chi\u201d "],
+  ["duplicatePunctuationCollapse", "hello,, ", "hello, "],
+  ["autoBracketClose", "f(", "f()"],
+];
+
+/**
+ * Docs edits are a cross-world round trip, so a correction is evaluated between
+ * keystrokes rather than during one. 60ms is faster than sustained human typing
+ * (~150ms/char) and still leaves the adapter its 25ms settle.
+ */
+const TYPING_DELAY_MS = Number(process.env.FT_DELAY ?? 15);
 
 let browser: Browser;
 let page: Page;
@@ -275,10 +325,52 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
     await expectText("the ");
     expect((await evaluate<string[]>("events")).includes("accepted")).toBe(false);
   });
-  test("measurement formatting stays disabled without a verified prose context", async () => {
+  // A correction that the host rewrites on insertion (Docs turns a pasted no-break
+  // space into an ordinary one) used to fail verification, so the caret was never
+  // moved off the spot the paste left it and everything typed next landed mid-word.
+  test("the caret follows a correction the host rewrites on insertion", async () => {
     await evaluate('predictions=[];startDocs({enabledGrammarRules:["measurementUnitFormatting"]})');
-    await page.keyboard.type("Mass: 10kg ");
-    await expectText("Mass: 10kg ");
+    await page.keyboard.type("10kg ", { delay: TYPING_DELAY_MS });
+    await expectText("10 kg ");
+    const caret = await page.evaluate(
+      () => (window as unknown as { model: { anchor: number; focus: number } }).model,
+    );
+    expect([caret.anchor, caret.focus]).toEqual([6, 6]);
+    await page.keyboard.type("x", { delay: TYPING_DELAY_MS });
+    await expectText("10 kg x");
+  });
+  test("every catalog rule is covered by a Docs typing case", async () => {
+    const covered = new Set(GRAMMAR_CASES.map(([ruleId]) => ruleId));
+    expect(GRAMMAR_RULE_IDS.filter((ruleId) => !covered.has(ruleId))).toEqual([]);
+  });
+  // Docs must correct exactly what an ordinary page corrects. Every catalog rule is
+  // typed through the real cross-world path and compared against the generic helper
+  // on the same fixture, so a Docs-only regression cannot pass unnoticed again.
+  test.each(GRAMMAR_CASES)("grammar rule %s behaves the same in Docs", async (...args) => {
+    const [ruleId, typed, expected, genericExpected = expected] = args as [
+      string,
+      string,
+      string,
+      string?,
+    ];
+    await evaluate(`predictions=[];startDocs({enabledGrammarRules:${JSON.stringify([ruleId])}})`);
+    await page.evaluate(() => {
+      const fixture = window as unknown as {
+        setModel: (text: string, a: number, f: number) => void;
+        focusEditor: () => void;
+      };
+      fixture.setModel("", 0, 0);
+      fixture.focusEditor();
+    });
+    await page.keyboard.type(typed, { delay: TYPING_DELAY_MS });
+    await expectText(expected);
+
+    await page.focus("#comment");
+    await page.keyboard.type(typed, { delay: TYPING_DELAY_MS });
+    await waitUntil(
+      `generic parity for ${ruleId}`,
+      async () => (await page.$eval("#comment", (field) => field.value)) === genericExpected,
+    );
   });
   test("multiple visible carets use a fixed palette without choosing a collaborator", async () => {
     await page.evaluate(() => {
