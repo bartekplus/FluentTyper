@@ -5,30 +5,29 @@ import { TextTargetAdapter } from "./TextTargetAdapter";
 const ENTRY_ID_ATTR = "data-ft-suggestion-entry-id";
 
 // Strong-script ranges used to determine the direction of the SUGGESTION TEXT
-// ITSELF (the continuation run), which is what governs ghost anchoring.  The
-// containing element's computed `direction` only describes the paragraph — a
-// Latin run inside an RTL paragraph still continues rightward, so anchoring
-// must follow the run, not the paragraph.
+// (the continuation run).  The containing element's computed `direction` only
+// describes the paragraph — a Latin run inside an RTL paragraph still
+// continues rightward — so anchoring must follow the run.
 const RTL_SCRIPT_REGEX = /[\u0590-\u08FF\uFB1D-\uFDFD\uFE70-\uFEFF]/u;
 const LTR_SCRIPT_REGEX =
   /[\u0041-\u005A\u0061-\u007A\u00C0-\u024F\u0370-\u03FF\u0400-\u04FF\u1E00-\u1EFF]/u;
 
 /**
- * Resolve the direction of the text run that the suggestion continues.
- *
- * Strong scripts in the suggestion text decide (Arabic/Hebrew → rtl,
- * Latin/Greek/Cyrillic → ltr).  When the text is direction-neutral (e.g. a
- * pure-space or punctuation completion) fall back to the containing
- * element's computed direction so the previous behaviour is preserved.
+ * Direction of the text run that the suggestion continues, taken from its
+ * FIRST strong character — a suffix that opens with a Latin letter is an LTR
+ * run even when Arabic characters follow.  Returns null when the text is
+ * direction-neutral (spaces, punctuation).
  */
-function resolveRunDirection(text: string, fallback: string): "ltr" | "rtl" {
-  if (RTL_SCRIPT_REGEX.test(text)) {
-    return "rtl";
+function resolveRunDirection(text: string): "ltr" | "rtl" | null {
+  for (const char of text) {
+    if (RTL_SCRIPT_REGEX.test(char)) {
+      return "rtl";
+    }
+    if (LTR_SCRIPT_REGEX.test(char)) {
+      return "ltr";
+    }
   }
-  if (LTR_SCRIPT_REGEX.test(text)) {
-    return "ltr";
-  }
-  return fallback === "rtl" ? "rtl" : "ltr";
+  return null;
 }
 
 /** Properties copied from the target to the mirror div for pixel-perfect overlay. */
@@ -146,13 +145,15 @@ export class InlineSuggestionView {
     ghost.style.zIndex = "10000";
 
     const targetRect = target.getBoundingClientRect();
-    // Anchor by the direction of the SUGGESTION RUN, not the paragraph: a
-    // Latin completion inside an RTL paragraph continues rightward (LTR
-    // anchoring), while an Arabic completion continues leftward (RTL
-    // anchoring).  resolveRunDirection falls back to the element's computed
-    // direction only for direction-neutral suggestion text.
-    const runDirection = resolveRunDirection(text, computedStyle.direction);
-    if (runDirection === "rtl") {
+    const runDirection = resolveRunDirection(text);
+    // Right-anchor only when the paragraph is RTL and the continuation run is
+    // not explicitly LTR: a neutral run (space/punctuation) follows the
+    // paragraph, but a Latin run inside an RTL paragraph still advances to the
+    // RIGHT, and an Arabic run inside an LTR editor does too — anchoring those
+    // rightward would draw the preview over the typed text and off the
+    // editor's left edge.
+    const anchorRtl = computedStyle.direction === "rtl" && runDirection !== "ltr";
+    if (anchorRtl) {
       // RTL: the continuation extends to the LEFT of the caret. Anchor the
       // ghost's right edge at the caret's right edge and let it grow leftward,
       // mirroring the LTR behaviour (which anchors left and grows right).

@@ -274,7 +274,7 @@ describe("InlineSuggestionView", () => {
     const ghost = InlineSuggestionView.render({
       target: container,
       text: " world",
-      caretRect: { left: 300, top: 20, width: 0, height: 16 } as DOMRect,
+      caretRect: { left: 300, right: 300, top: 20, width: 0, height: 16 } as DOMRect,
       doc: document,
     });
 
@@ -360,6 +360,78 @@ describe("InlineSuggestionView", () => {
     expect(style.direction).toBe("rtl");
     expect(style.left).toBe("auto");
     expect(style.right).toBe(`${window.innerWidth - 300}px`);
+
+    container.remove();
+  });
+
+  test("anchors an Arabic completion in an LTR editor to the LEFT edge", () => {
+    // Review gap: a plain <input>/contenteditable with no dir is the common
+    // case for an Arabic user, and there the accepted text lands to the RIGHT
+    // of the caret. The ghost must anchor left, not right.
+    const container = document.createElement("div");
+    container.contentEditable = "true";
+    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
+    container.style.direction = "ltr";
+    document.body.appendChild(container);
+
+    const p = document.createElement("p");
+    p.textContent = "الي";
+    container.appendChild(p);
+
+    const textNode = p.firstChild!;
+    const range = document.createRange();
+    range.setStart(textNode, textNode.data.length);
+    range.collapse(true);
+    const sel = window.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    const ghost = InlineSuggestionView.render({
+      target: container,
+      text: "وم",
+      caretRect: { left: 108, right: 108, top: 20, width: 0, height: 16 } as DOMRect,
+      doc: document,
+    });
+
+    expect(ghost).not.toBeNull();
+    const style = ghost!.style;
+    expect(style.direction).toBe("ltr");
+    expect(style.left).toBe("108px");
+    expect(style.right).toBe("");
+
+    container.remove();
+  });
+
+  test("anchors a suffix that OPENS with Latin inside an RTL paragraph to the LEFT edge", () => {
+    // First strong character wins: "abc" followed by Arabic is still an LTR run.
+    const container = document.createElement("div");
+    container.contentEditable = "true";
+    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
+    container.style.direction = "rtl";
+    document.body.appendChild(container);
+
+    const p = document.createElement("p");
+    p.textContent = "مرحبا";
+    container.appendChild(p);
+
+    const textNode = p.firstChild!;
+    const range = document.createRange();
+    range.setStart(textNode, textNode.data.length);
+    range.collapse(true);
+    const sel = window.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    const ghost = InlineSuggestionView.render({
+      target: container,
+      text: "abc مرحبا",
+      caretRect: { left: 300, right: 300, top: 20, width: 0, height: 16 } as DOMRect,
+      doc: document,
+    });
+
+    expect(ghost).not.toBeNull();
+    expect(ghost!.style.direction).toBe("ltr");
+    expect(ghost!.style.left).toBe("300px");
 
     container.remove();
   });

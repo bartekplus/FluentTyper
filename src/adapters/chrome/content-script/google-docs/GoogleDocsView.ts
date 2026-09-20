@@ -149,6 +149,9 @@ export class GoogleDocsView {
         ghost.setAttribute("aria-hidden", "true");
         // The anchor is a thin caret, not the text area's right edge. The generic
         // presenter otherwise clamps this canvas ghost to the caret's 1px width.
+        // The ghost grows to the RIGHT of the caret here: canGhost above already
+        // rejects RTL documents, and InlineSuggestionView.render only anchors a
+        // ghost rightward when the surrounding paragraph is RTL.
         ghost.style.maxWidth = `${Math.max(0, window.innerWidth - caret.rect.left - 8)}px`;
         // Docs paints canvas glyphs ~1px lower per 17px line than a CSS line box does.
         ghost.style.top = `${caret.rect.top + caret.rect.height * 0.06}px`;
