@@ -23,6 +23,13 @@ export interface DocsHost {
   select(state: DocsHostState, anchor: number, focus: number): void;
   paste(state: DocsHostState, text: string): void;
   /**
+   * Read the model synchronously, without yielding. Between handing the user's own
+   * selection to an edit range and pasting over it there must be no await at all: a
+   * keystroke arriving in that gap is typed INTO the range and destroys the word being
+   * corrected. Returns null when the target is gone.
+   */
+  peek(state: DocsHostState): DocsHostState | null;
+  /**
    * The text the host will really end up holding for `text`, when its insertion
    * channel rewrites characters. Verification compares against the result, so an
    * edit whose replacement the host normalizes must predict that here or it can
@@ -128,16 +135,6 @@ export class GoogleDocsTransaction {
       if (!this.matches(cached.state, current) || epoch !== this.epoch) return { status: "stale" };
       const minimal = minimizeEdit(current.model.text, edit);
       if (minimal.start === minimal.end && !minimal.replacement) return { status: "invalid" };
-      this.host.select(current, minimal.start, minimal.end);
-      selected = {
-        ...current,
-        model: { ...current.model, anchor: minimal.start, focus: minimal.end },
-      };
-      const check = await this.readHost();
-      if (epoch !== this.epoch || !this.matches(selected, check)) {
-        await this.restoreSelection(selected, current, epoch);
-        return { status: "stale" };
-      }
       const text =
         current.model.text.slice(0, edit.start) +
         edit.replacement +
@@ -146,18 +143,42 @@ export class GoogleDocsTransaction {
         current.model.raw.slice(0, current.model.offset) +
         text +
         current.model.raw.slice(current.model.offset + current.model.text.length);
+      const naturalCaret = minimal.start + minimal.replacement.length;
+
+      // ONE SYNCHRONOUS TASK from here to the paste. Awaiting anything in between hands
+      // the user a selected range and then lets a keystroke replace it, which mangles the
+      // text instead of correcting it. JavaScript is single threaded: with no yield, a
+      // keystroke lands entirely before or entirely after this write.
+      this.host.select(current, minimal.start, minimal.end);
+      selected = {
+        ...current,
+        model: { ...current.model, anchor: minimal.start, focus: minimal.end },
+      };
+      const check = this.host.peek(current);
+      if (!check || epoch !== this.epoch || !this.matches(selected, check)) {
+        this.restoreSelectionNow(current);
+        return { status: "stale" };
+      }
       operationId = this.createId();
       this.journal = { id: operationId, before: current, expectedRaw, edit, uncertain: true };
       this.tokens.clear();
       // Mark before dispatch: a handler can mutate and THEN throw.
       dispatched = true;
       this.host.paste(check, minimal.replacement);
+      // Still the same task. A host that applied the paste inline gets its final caret
+      // now, rather than leaving it mid-word for a round trip the user can type into.
+      const settled = this.host.peek(current);
+      if (settled?.model.raw === expectedRaw) {
+        this.journal.uncertain = false;
+        if (settled.model.anchor !== edit.cursorAfter || settled.model.focus !== edit.cursorAfter)
+          this.host.select(current, edit.cursorAfter, edit.cursorAfter);
+        return { status: "applied", operationId };
+      }
       const deadline = this.now() + 600;
       do {
         const observed = await this.readHost();
         if (this.isExpected(observed, this.journal)) {
           this.journal.uncertain = false;
-          const naturalCaret = minimal.start + minimal.replacement.length;
           // Respect intervening navigation/composition. Reposition only a known post-paste caret.
           if (
             epoch === this.epoch &&
@@ -184,6 +205,14 @@ export class GoogleDocsTransaction {
     }
   }
 
+  /** Synchronous counterpart, for the window where yielding is what causes the damage. */
+  private restoreSelectionNow(original: DocsHostState): void {
+    try {
+      this.host.select(original, original.model.anchor, original.model.focus);
+    } catch {
+      /* Never edit to repair a failed selection operation. */
+    }
+  }
   private async restoreSelection(
     selected: DocsHostState,
     original: DocsHostState,

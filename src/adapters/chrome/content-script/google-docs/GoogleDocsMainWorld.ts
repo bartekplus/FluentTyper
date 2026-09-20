@@ -125,6 +125,20 @@ export function installGoogleDocsMainWorld(win: Window = window): () => void {
         // setSelection blurs the editable target; paste must reach a focused editor.
         (state.input as HTMLElement).focus();
       },
+      peek: (state) => {
+        const api = states.get(state);
+        const input = getDocsInput(win.document);
+        if (
+          stopped ||
+          !api ||
+          !input ||
+          input.element !== state.input ||
+          state.scope !== win.location.href
+        )
+          return null;
+        const model = readModel(api.getText(), api.getSelection());
+        return model ? { model, scope: state.scope, input: state.input, interaction } : null;
+      },
       // Docs turns every pasted no-break space into an ordinary space, so a rule that
       // asks for one (measurement formatting does) cannot get it through this channel.
       normalize: (text) => text.replace(/\u00a0/g, " "),

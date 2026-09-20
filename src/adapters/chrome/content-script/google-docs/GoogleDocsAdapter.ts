@@ -27,8 +27,13 @@ import { getDocsInput, type DocsInput } from "./GoogleDocsEnvironment";
 import { GoogleDocsBridgeClient } from "./GoogleDocsBridgeClient";
 import { GoogleDocsView } from "./GoogleDocsView";
 
-/** Beyond this, the change is not a typing burst worth re-judging character by character. */
-const MAX_REPLAY = 64;
+/**
+ * How far back a single pass will catch up, in characters. Too small and a correction
+ * early in a long sentence is never reached once the caret has run past it; too large and
+ * the pass itself costs more than the gap it is trying to use. A sentence is the unit that
+ * matters, so this is sized like one.
+ */
+const MAX_REPLAY = 128;
 
 /** These read the start of the context as a real beginning; a cut window is not one. */
 const START_SENSITIVE_RULES = ["capitalizeSentenceStart", "capitalizeAfterLineBreak"] as const;
@@ -63,15 +68,23 @@ function replayCursors(baseline: GrammarBaseline | null, snapshot: DocsSnapshot)
     was < 0 ||
     judged < 0 ||
     inserted < 0 ||
-    inserted > MAX_REPLAY ||
     count <= 0 ||
-    count > MAX_REPLAY ||
     caret !== was + inserted ||
     snapshot.text.slice(0, was) !== baseline.text.slice(0, was) ||
     snapshot.text.slice(caret) !== baseline.text.slice(was)
   )
     return [caret];
-  return Array.from({ length: count }, (_, index) => judged + index + 1);
+  return trailing(caret, count);
+}
+
+/**
+ * The last `count` positions before the caret. An overlong run keeps the ones nearest the
+ * caret rather than giving up on all of them, and never reaches back past what the user
+ * has just typed, so text they have not touched is left alone.
+ */
+function trailing(caret: number, count: number): number[] {
+  const capped = Math.max(0, Math.min(count, MAX_REPLAY, caret));
+  return capped > 0 ? Array.from({ length: capped }, (_, i) => caret - capped + i + 1) : [caret];
 }
 
 /** The baseline the document reaches once `edit` lands, judged up to the text it wrote. */
@@ -368,6 +381,23 @@ export class GoogleDocsAdapter {
     if (this.grammarSuppressed && !sameSnapshot(this.grammarSuppressed, snapshot))
       this.grammarSuppressed = null;
     const context = snapshotContext(snapshot);
+    if (this.runGrammar(snapshot)) return;
+    if (snapshot.anchor !== snapshot.focus && !force) {
+      this.clearVisual();
+      return;
+    }
+    // Selected text is supplied as the explicit trigger; no autonomous selection replacement.
+    this.prediction.schedule(this.state, {
+      force,
+      inputAction: action ?? this.pendingAction,
+      beforeCursorOverride: context.beforeCursor + context.selectedText,
+      afterCursorOverride: context.afterCursor,
+      clearSuggestions: () => this.clearVisual(),
+    });
+  }
+
+  /** Judges the snapshot and dispatches any correction. True when one is on its way. */
+  private runGrammar(snapshot: DocsSnapshot): boolean {
     if (
       this.pendingTriggers.size &&
       !this.grammarSuppressed &&
@@ -382,23 +412,12 @@ export class GoogleDocsAdapter {
       const edit = this.planGrammarEdit(snapshot, this.grammarBaseline, collected, collectedAction);
       if (edit) {
         void this.apply(edit, null);
-        return;
+        return true;
       }
     }
     // Nothing left to rule on before the caret.
     this.grammarBaseline = { ...snapshot, judged: snapshot.anchor };
-    if (snapshot.anchor !== snapshot.focus && !force) {
-      this.clearVisual();
-      return;
-    }
-    // Selected text is supplied as the explicit trigger; no autonomous selection replacement.
-    this.prediction.schedule(this.state, {
-      force,
-      inputAction: action ?? this.pendingAction,
-      beforeCursorOverride: context.beforeCursor + context.selectedText,
-      afterCursorOverride: context.afterCursor,
-      clearSuggestions: () => this.clearVisual(),
-    });
+    return false;
   }
 
   /**

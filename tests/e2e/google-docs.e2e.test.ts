@@ -49,11 +49,12 @@ const GRAMMAR_CASES: Array<[string, string, string] | [string, string, string, s
 /**
  * Docs edits are a cross-world round trip, so corrections are judged between keystrokes.
  * The adapter replays the positions a burst skipped, so this does not have to be anywhere
- * near human speed: 5ms/char is ~2400 WPM. `FT_DELAY` re-measures the floor, which sits
- * at 2ms/char - below that our own write and the user's keystrokes race for the same
- * range, which no corrector outside the editor can win.
+ * near human speed: 25ms/char is ~500 WPM. `FT_DELAY` re-measures the floor, which sits
+ * at ~20ms/char once the fixture models the host honestly - the earlier 2ms figure came
+ * from a fixture whose reads resolved in a microtask, which made the whole read-write
+ * sequence atomic in tests and hid every race it was supposed to measure.
  */
-const TYPING_DELAY_MS = Number(process.env.FT_DELAY ?? 5);
+const TYPING_DELAY_MS = Number(process.env.FT_DELAY ?? 25);
 
 let browser: Browser;
 let page: Page;
@@ -348,6 +349,73 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
     }, paragraph);
     await page.keyboard.type("teh ", { delay: TYPING_DELAY_MS });
     await expectText(`${paragraph}the `);
+  });
+  // Writing to Docs means setting the user's real selection and then pasting over it. If
+  // anything is awaited in between, a keystroke arriving in that gap is typed INTO the
+  // selected range and destroys the word being corrected. The correction may be lost -
+  // that is only latency - but the text must never come out mangled.
+  test("a keystroke during an in-flight correction never destroys text", async () => {
+    await evaluate(
+      'predictions=[];startDocs({enabledGrammarRules:["englishTypoWhitelistCorrection"]})',
+    );
+    await page.evaluate(() => {
+      (window as unknown as { annotateDelayMs: number }).annotateDelayMs = 40;
+    });
+    // Each pause lands the next keystroke at a different point of the write: 120ms and
+    // 140ms used to fall between selecting the range and pasting over it, turning
+    // "teh " + "X" into "tX ", and 160ms fell after the paste but before the caret was
+    // put back, giving "theX ".
+    for (const pause of [120, 140, 160]) {
+      await page.evaluate(() => {
+        const fixture = window as unknown as {
+          setModel: (value: string, a: number, f: number) => void;
+          focusEditor: () => void;
+        };
+        fixture.setModel("", 0, 0);
+        fixture.focusEditor();
+      });
+      await page.keyboard.type("teh ");
+      await new Promise((resolve) => setTimeout(resolve, pause));
+      await page.keyboard.type("X");
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      expect([`the X`, `teh X`]).toContain((await model()).text);
+    }
+  });
+  // Reading the model costs one round trip, and on a large document that round trip can
+  // be longer than the gap between keystrokes - so no read ever completes inside a
+  // sentence. A read that spanned a keystroke is still a self-consistent model and a
+  // perfectly good baseline; discarding it left long documents uncorrected entirely.
+  // KNOWN GAP, not yet fixed. Every keystroke cancels the read in flight, so on a document
+  // slow enough to read, no snapshot is ever produced inside a sentence and the correction
+  // is dropped rather than merely delayed. Fixing it means letting a read that spanned a
+  // keystroke still serve as a baseline without consuming the triggers a later pass needs.
+  test.skip("corrections survive a model read slower than the typing", async () => {
+    await evaluate(
+      'predictions=[];startDocs({enabledGrammarRules:["englishTypoWhitelistCorrection"]})',
+    );
+    await page.evaluate(() => {
+      (window as unknown as { annotateDelayMs: number }).annotateDelayMs = 120;
+    });
+    await page.keyboard.type("teh cat ", { delay: 90 });
+    await expectText("the cat ");
+  });
+  // When no read completes for the whole sentence, every position since the last baseline
+  // has to be replayed at once. Capping that at 64 and judging only the caret beyond it
+  // wrote off the rest of the sentence permanently.
+  // KNOWN GAP, not yet fixed. Depends on the same read-cancellation issue above: with no
+  // snapshot completing mid-sentence, the catch-up window is the only thing reaching back
+  // to the correction, and a long enough sentence outruns it.
+  test.skip("a correction survives a sentence longer than the replay window", async () => {
+    await evaluate(
+      'predictions=[];startDocs({enabledGrammarRules:["englishTypoWhitelistCorrection"]})',
+    );
+    await page.evaluate(() => {
+      (window as unknown as { annotateDelayMs: number }).annotateDelayMs = 300;
+    });
+    const rest = "cat sat on the mat and looked at the dog for a while longer now ok ";
+    expect(rest.length).toBeGreaterThan(64);
+    await page.keyboard.type(`teh ${rest}`, { delay: 15 });
+    await expectText(`the ${rest}`);
   });
   // Typing does not pause for the model read, so by the time the text comes back the
   // boundary that earned the correction is several keystrokes behind the caret. The whole

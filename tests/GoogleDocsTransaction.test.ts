@@ -20,6 +20,7 @@ class Host implements DocsHost {
   reads = 0;
   selections: number[][] = [];
   beforeRead: ((host: Host) => void) | null = null;
+  beforePeek: ((host: Host) => void) | null = null;
   onPaste: ((host: Host, text: string) => void) | null = null;
   async read(): Promise<DocsHostState> {
     this.reads += 1;
@@ -35,6 +36,17 @@ class Host implements DocsHost {
     this.selections.push([anchor, focus]);
     this.anchor = anchor;
     this.focus = focus;
+  }
+  peek(_state: DocsHostState): DocsHostState | null {
+    const hook = this.beforePeek;
+    this.beforePeek = null;
+    hook?.(this);
+    return {
+      model: readModel(this.raw, [{ anchor: this.anchor + 1, focus: this.focus + 1 }])!,
+      scope: this.scope,
+      input: this.input,
+      interaction: this.interaction,
+    };
   }
   paste(_state: DocsHostState, text: string): void {
     this.pastes += 1;
@@ -105,13 +117,27 @@ describe("Google Docs verified transactions", () => {
       expect(host.pastes).toBe(0);
     });
   }
-  test("rechecks after selecting the replacement range", async () => {
+  test("rechecks after selecting the replacement range, without yielding", async () => {
     const { host, transaction, token } = await setup();
-    host.beforeRead = (h) => {
-      if (h.reads === 3) h.raw = "\u0003helo!\n";
+    host.beforePeek = (h) => {
+      h.raw = "\u0003helo!\n";
     };
     expect((await transaction.apply(token, edit)).status).toBe("stale");
     expect(host.pastes).toBe(0);
+  });
+  // Handing the user a selected range and then awaiting anything lets a keystroke replace
+  // it. The recheck between select and paste therefore has to be synchronous, which shows
+  // up as the apply doing no second asynchronous read before it writes.
+  test("does not read asynchronously between selecting and pasting", async () => {
+    const { host, transaction, token } = await setup();
+    const before = host.reads;
+    let readsWhenPasted = -1;
+    host.onPaste = (h, text) => {
+      readsWhenPasted = h.reads;
+      h.insert(text);
+    };
+    expect((await transaction.apply(token, edit)).status).toBe("applied");
+    expect(readsWhenPasted - before).toBe(1);
   });
   test("cancellation invalidates an already-issued snapshot", async () => {
     const { host, transaction, token } = await setup();
