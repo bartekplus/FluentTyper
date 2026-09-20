@@ -36,6 +36,12 @@ import { GoogleDocsView } from "./GoogleDocsView";
  */
 const MAX_REPLAY = 2048;
 
+/**
+ * The most preceding text any rule still in play asks for once the start-sensitive ones
+ * are excluded. It is also the largest context measurement formatting will accept.
+ */
+const RULE_CONTEXT = 512;
+
 /** These read the start of the context as a real beginning; a cut window is not one. */
 const START_SENSITIVE_RULES = ["capitalizeSentenceStart", "capitalizeAfterLineBreak"] as const;
 
@@ -461,14 +467,21 @@ export class GoogleDocsAdapter {
       // the window has no break to anchor on at all - which is an ordinary long document,
       // not an edge case. Only the two rules that read position 0 as a real beginning can
       // be misled by that, so they sit it out instead of every rule doing so.
+      //
+      // Once they are out, nothing left needs more than a line of history, and handing
+      // over the whole window actively breaks things: measurement formatting refuses any
+      // context longer than 512 characters outright, so "10kg " went unformatted in every
+      // long document. Trim to that, and trim an over-long anchored paragraph the same way.
+      const cut = anchored < 0 || cursor - anchored > RULE_CONTEXT;
+      const from = cut ? Math.max(0, cursor - RULE_CONTEXT) : anchored;
       const grammar = this.grammar.run({
         // A Docs body is prose. The model exposes no code/readonly styling, so the
         // DOM-based probe the generic path uses has nothing to inspect here; the
         // single-use-token transaction supplies the re-verification `strict` wants.
         measurementContext: "prose",
-        beforeCursor: beforeCursor.slice(Math.max(0, anchored)),
+        beforeCursor: beforeCursor.slice(from),
         afterCursor: snapshot.text.slice(cursor).split("\n")[0],
-        excludeRules: anchored < 0 ? START_SENSITIVE_RULES : undefined,
+        excludeRules: cut ? START_SENSITIVE_RULES : undefined,
         // A replayed position is an insertion by construction, and its triggers come
         // from the character itself rather than from a key event that is long gone.
         inputAction: cursor === caret ? action : "insert",

@@ -436,6 +436,24 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
     await page.keyboard.type("teh cat sat down ", { delay: 25 });
     await expectText(`${paragraph}the cat sat down `);
   });
+  // Rules see the text before the caret, and in a long document that was the whole 8KB
+  // window. Measurement formatting refuses any context over 512 characters, so it never
+  // fired anywhere but at the top of a short document.
+  test("measurement formatting still runs deep inside a long document", async () => {
+    await evaluate('predictions=[];startDocs({enabledGrammarRules:["measurementUnitFormatting"]})');
+    const paragraph = "lorem ipsum dolor sit amet ".repeat(500);
+    expect(paragraph.length).toBeGreaterThan(MAX_CONTEXT);
+    await page.evaluate((text) => {
+      const fixture = window as unknown as {
+        setModel: (value: string, a: number, f: number) => void;
+        focusEditor: () => void;
+      };
+      fixture.setModel(text, text.length, text.length);
+      fixture.focusEditor();
+    }, paragraph);
+    await page.keyboard.type("10kg ", { delay: TYPING_DELAY_MS });
+    await expectText(`${paragraph}10 kg `);
+  });
   // Typing does not pause for the model read, so by the time the text comes back the
   // boundary that earned the correction is several keystrokes behind the caret. The whole
   // phrase is typed as one burst here: without replaying the skipped positions only the
