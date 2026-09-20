@@ -1,4 +1,5 @@
 import {
+  hostInserted,
   REQUEST_EVENT,
   RESPONSE_EVENT,
   KEY_EVENT,
@@ -141,7 +142,7 @@ export function installGoogleDocsMainWorld(win: Window = window): () => void {
       },
       // Docs turns every pasted no-break space into an ordinary space, so a rule that
       // asks for one (measurement formatting does) cannot get it through this channel.
-      normalize: (text) => text.replace(/\u00a0/g, " "),
+      normalize: hostInserted,
       paste: (state, text) => {
         const input = getDocsInput(win.document);
         if (

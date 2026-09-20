@@ -294,6 +294,14 @@ export function planCompletion(
  * that point, and carries the caret along by the length it changed instead of claiming
  * the position the rule asked for: the user has already typed beyond it.
  */
+/**
+ * What Docs really inserts for `text`: every pasted no-break space becomes an ordinary
+ * one. Length-preserving, so offsets computed against the request still hold.
+ */
+export function hostInserted(text: string): string {
+  return text.replace(/\u00a0/g, " ");
+}
+
 export function planGrammar(
   snapshot: DocsSnapshot,
   edit: GrammarEdit,
@@ -305,7 +313,9 @@ export function planGrammar(
   const start = cursor - edit.deleteBackwards,
     end = cursor + edit.deleteForwards;
   const replayed = cursor !== caret;
-  if (replayed && end > caret) return null;
+  // A replayed position is handed the text after the CARET as its suffix, so a forward
+  // delete from it would land on the user's own later typing instead.
+  if (replayed && edit.deleteForwards > 0) return null;
   const local = {
     start,
     end,

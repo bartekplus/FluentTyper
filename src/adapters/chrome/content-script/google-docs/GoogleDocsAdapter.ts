@@ -14,6 +14,7 @@ import {
   KEY_EVENT,
   KEY_STATE_ATTR,
   KEY_ACK_ATTR,
+  hostInserted,
   parseObject,
   planCompletion,
   planGrammar,
@@ -37,13 +38,17 @@ import { GoogleDocsView } from "./GoogleDocsView";
 const MAX_REPLAY = 2048;
 
 /**
- * The most preceding text any rule still in play asks for once the start-sensitive ones
- * are excluded. It is also the largest context measurement formatting will accept.
+ * How much preceding text the rules are handed. No rule needs more than a line or two of
+ * history, and it is also the largest context measurement formatting will accept.
  */
 const RULE_CONTEXT = 512;
 
-/** These read the start of the context as a real beginning; a cut window is not one. */
-const START_SENSITIVE_RULES = ["capitalizeSentenceStart", "capitalizeAfterLineBreak"] as const;
+/**
+ * The one rule that reads "nothing before this word" as the start of the document. Where
+ * the context is a cut rather than a real beginning, that is the only reading it must not
+ * be allowed; a line break or full stop it can actually see is as real as anywhere else.
+ */
+const ASSUMES_DOCUMENT_START = ["capitalizeSentenceStart"] as const;
 
 /** The model as grammar last saw it, plus how far through it grammar has ruled. */
 interface GrammarBaseline extends DocsSnapshot {
@@ -52,16 +57,22 @@ interface GrammarBaseline extends DocsSnapshot {
 }
 
 /**
- * The positions to judge, oldest first. The document must be the baseline with a plain
- * insertion run at its caret - anything else (a deletion, a moved selection, a shifted
- * window, an edit made elsewhere, a host that rewrote our own write) gives the caret
- * alone, which is what the adapter did before. `judged` is what lets a correction made
- * mid-burst resume: the characters typed after it have still never been ruled on.
+ * The typed positions to judge, oldest first, or null when this is not a verified typing
+ * run. The document must be the baseline with a plain insertion run at its caret, no
+ * longer than the keystrokes that were actually seen - anything else (a paste, a deletion,
+ * a moved selection, a shifted window, an edit made elsewhere, a host that rewrote our own
+ * write) is judged at the caret alone, which is what the adapter did before. `judged` is
+ * what lets a correction made mid-burst resume: the characters typed after it have still
+ * never been ruled on.
  */
-function replayCursors(baseline: GrammarBaseline | null, snapshot: DocsSnapshot): number[] {
+function replayCursors(
+  baseline: GrammarBaseline | null,
+  snapshot: DocsSnapshot,
+  typed: number,
+): number[] | null {
   const caret = snapshot.anchor - snapshot.windowStart;
   if (!baseline || baseline.scope !== snapshot.scope || baseline.anchor !== baseline.focus)
-    return [caret];
+    return null;
   // Everything here is in absolute document offsets. Past MAX_CONTEXT the readable window
   // slides with the caret, so the two snapshots of a burst no longer begin at the same
   // place; comparing them by position within their own window made every long document
@@ -70,8 +81,10 @@ function replayCursors(baseline: GrammarBaseline | null, snapshot: DocsSnapshot)
   const count = snapshot.anchor - baseline.judged;
   const overlap = Math.max(baseline.windowStart, snapshot.windowStart);
   // The unjudged run has to be visible in both windows for the comparison to mean anything.
-  if (inserted < 0 || count <= 0 || overlap > baseline.judged) return [caret];
-  if (snapshot.anchor !== baseline.anchor + inserted) return [caret];
+  if (inserted < 0 || count <= 0 || overlap > baseline.judged) return null;
+  // A diff says text arrived, not that it was typed: more characters than keystrokes means
+  // some of them came from somewhere else, and which ones is not recoverable.
+  if (count > typed || snapshot.anchor !== baseline.anchor + inserted) return null;
   const wasInBaseline = baseline.anchor - baseline.windowStart;
   const wasInSnapshot = baseline.anchor - snapshot.windowStart;
   const tail = Math.min(baseline.text.length - wasInBaseline, snapshot.text.length - caret);
@@ -84,18 +97,12 @@ function replayCursors(baseline: GrammarBaseline | null, snapshot: DocsSnapshot)
     snapshot.text.slice(caret, caret + tail) !==
       baseline.text.slice(wasInBaseline, wasInBaseline + tail)
   )
-    return [caret];
-  return trailing(caret, count);
-}
-
-/**
- * The last `count` positions before the caret. An overlong run keeps the ones nearest the
- * caret rather than giving up on all of them, and never reaches back past what the user
- * has just typed, so text they have not touched is left alone.
- */
-function trailing(caret: number, count: number): number[] {
-  const capped = Math.max(0, Math.min(count, MAX_REPLAY, caret));
-  return capped > 0 ? Array.from({ length: capped }, (_, i) => caret - capped + i + 1) : [caret];
+    return null;
+  // An overlong run keeps the positions nearest the caret rather than giving up on all of
+  // them. `count` never reaches back past what the user has just typed (judged is inside
+  // this window), so text they have not touched is left alone.
+  const capped = Math.min(count, MAX_REPLAY);
+  return Array.from({ length: capped }, (_, i) => caret - capped + i + 1);
 }
 
 /** The baseline the document reaches once `edit` lands, judged up to the text it wrote. */
@@ -103,7 +110,10 @@ function projectBaseline(snapshot: DocsSnapshot, edit: DocsEdit): GrammarBaselin
   const start = edit.start - snapshot.windowStart;
   const end = edit.end - snapshot.windowStart;
   if (start < 0 || end < start || end > snapshot.text.length) return null;
-  const text = snapshot.text.slice(0, start) + edit.replacement + snapshot.text.slice(end);
+  // As the host will hold it, or the next snapshot never matches and the rest of the
+  // burst is written off.
+  const text =
+    snapshot.text.slice(0, start) + hostInserted(edit.replacement) + snapshot.text.slice(end);
   return {
     ...snapshot,
     text,
@@ -171,6 +181,9 @@ export class GoogleDocsAdapter {
   // The model as it stood when grammar last looked at it. The difference against the
   // next snapshot is what tells us which characters the user typed in between.
   private grammarBaseline: GrammarBaseline | null = null;
+  // Insertion keystrokes seen since grammar last caught up with a quiet document. Replay
+  // trusts a text diff only as far as this accounts for it; a paste zeroes it.
+  private typed = 0;
   private visible = false;
   private failureStatus: string | null = null;
   private pollTimer: ReturnType<typeof setInterval> | null = null;
@@ -178,6 +191,12 @@ export class GoogleDocsAdapter {
   private idleTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly keyListener = (event: Event) => this.onKey(event as KeyboardEvent);
   private readonly inputListener = (event: Event) => this.onInput(event as InputEvent);
+  // Only Ctrl/Cmd+V is recognisable from its key. The Edit and context menus and
+  // Shift+Insert are not, and Docs produces no `input` event to classify them either, so
+  // the paste event itself is the marker. Our own write is a synthetic paste: skip it.
+  private readonly pasteListener = () => {
+    if (!this.applying && !this.disposed) this.queueEdit("insert", ["insertChar", "paste"]);
+  };
   private readonly compositionStart = () => {
     this.composing = true;
     this.dismiss();
@@ -429,8 +448,10 @@ export class GoogleDocsAdapter {
         return true;
       }
     }
-    // Nothing left to rule on before the caret.
+    // Nothing left to rule on before the caret. A keystroke that arrived during the read
+    // has a refresh queued and may not be in this snapshot yet, so its count is kept.
     this.grammarBaseline = { ...snapshot, judged: snapshot.anchor };
+    if (this.refreshTimer === null && !this.rerun) this.typed = 0;
     return false;
   }
 
@@ -450,42 +471,39 @@ export class GoogleDocsAdapter {
   ): DocsEdit | null {
     const caret = snapshot.anchor - snapshot.windowStart;
     // A paste is one event, not a run of keystrokes; it is judged only where it landed.
-    const cursors = collected.includes("paste") ? [caret] : replayCursors(baseline, snapshot);
-    for (const cursor of cursors) {
-      const beforeCursor = snapshot.text.slice(0, cursor);
-      // Anchor on a real line break and keep it: capitalizeAfterLineBreak needs the break
-      // that opens the current paragraph, and trimSpaceBeforeLineBreak needs the line
-      // before it, so the anchor is the break one paragraph further back.
-      const lastBreak = beforeCursor.lastIndexOf("\n");
-      const anchored =
-        snapshot.windowStart === 0
-          ? 0
-          : lastBreak > 0
-            ? beforeCursor.lastIndexOf("\n", lastBreak - 1)
-            : -1;
-      // Failing that, the context begins at an arbitrary cut, and a paragraph longer than
-      // the window has no break to anchor on at all - which is an ordinary long document,
-      // not an edge case. Only the two rules that read position 0 as a real beginning can
-      // be misled by that, so they sit it out instead of every rule doing so.
-      //
-      // Once they are out, nothing left needs more than a line of history, and handing
-      // over the whole window actively breaks things: measurement formatting refuses any
-      // context longer than 512 characters outright, so "10kg " went unformatted in every
-      // long document. Trim to that, and trim an over-long anchored paragraph the same way.
-      const cut = anchored < 0 || cursor - anchored > RULE_CONTEXT;
-      const from = cut ? Math.max(0, cursor - RULE_CONTEXT) : anchored;
+    const replay = collected.includes("paste")
+      ? null
+      : replayCursors(baseline, snapshot, this.typed);
+    // A replayed position is judged where it was typed, so what followed it THEN is what
+    // counts: the rest of the run did not exist yet. Handing it over as existing text trips
+    // every guard against editing mid-text, measurement formatting's included.
+    const afterCursor = snapshot.text.slice(caret).split("\n")[0];
+    for (const cursor of replay ?? [caret]) {
+      const from = Math.max(0, cursor - RULE_CONTEXT);
+      const beforeCursor = snapshot.text.slice(from, cursor);
+      // Past the first RULE_CONTEXT characters the context opens at an arbitrary cut, in
+      // any ordinary long document. That misleads a rule only if it reads all the way back
+      // to the cut, and with a previous word in view it stops there instead.
+      const opensAtCut = (from > 0 || snapshot.windowStart > 0) && !/\S\s+\S/u.test(beforeCursor);
+      // A replayed position is an insertion by construction, and its triggers come from
+      // the character itself rather than from a key event that is long gone - the caret's
+      // included, once an earlier correction in the same burst has used those events up.
+      const typedHere = this.charTriggers(snapshot.text[cursor - 1]);
+      const triggers = !replay
+        ? collected
+        : cursor === caret
+          ? [...new Set([...typedHere, ...collected])]
+          : typedHere;
       const grammar = this.grammar.run({
         // A Docs body is prose. The model exposes no code/readonly styling, so the
         // DOM-based probe the generic path uses has nothing to inspect here; the
         // single-use-token transaction supplies the re-verification `strict` wants.
         measurementContext: "prose",
-        beforeCursor: beforeCursor.slice(from),
-        afterCursor: snapshot.text.slice(cursor).split("\n")[0],
-        excludeRules: cut ? START_SENSITIVE_RULES : undefined,
-        // A replayed position is an insertion by construction, and its triggers come
-        // from the character itself rather than from a key event that is long gone.
-        inputAction: cursor === caret ? action : "insert",
-        triggers: cursor === caret ? collected : this.charTriggers(snapshot.text[cursor - 1]),
+        beforeCursor,
+        afterCursor,
+        excludeRules: opensAtCut ? ASSUMES_DOCUMENT_START : undefined,
+        inputAction: replay ? "insert" : action,
+        triggers,
       });
       const edit = grammar && planGrammar(snapshot, grammar, cursor);
       if (edit) return edit;
@@ -687,6 +705,8 @@ export class GoogleDocsAdapter {
   }
   private queueEdit(action: PredictionInputAction, triggers: GrammarEventType[]): void {
     for (const trigger of triggers) this.pendingTriggers.add(trigger);
+    if (triggers.includes("paste")) this.typed = 0;
+    else if (triggers.includes("insertChar")) this.typed += 1;
     this.pendingAction = action;
     // The host applies the keystroke later in this same dispatch, so the earliest
     // correct moment to read it back is the next task, not a fixed settle delay.
@@ -789,10 +809,12 @@ export class GoogleDocsAdapter {
     if (input?.document === this.input?.document && input?.element === this.input?.element) return;
     this.clearPendingTriggers();
     this.grammarBaseline = null;
+    this.typed = 0;
     const old = this.input;
     old?.frame.removeAttribute(KEY_STATE_ATTR);
     old?.document.removeEventListener("keydown", this.keyListener, true);
     old?.document.removeEventListener("input", this.inputListener, true);
+    old?.document.removeEventListener("paste", this.pasteListener, true);
     old?.document.removeEventListener("compositionstart", this.compositionStart, true);
     old?.document.removeEventListener("compositionend", this.compositionEnd, true);
     old?.document.removeEventListener("pointerdown", this.navigationListener, true);
@@ -800,6 +822,7 @@ export class GoogleDocsAdapter {
     this.composing = false;
     input?.document.addEventListener("keydown", this.keyListener, true);
     input?.document.addEventListener("input", this.inputListener, true);
+    input?.document.addEventListener("paste", this.pasteListener, true);
     input?.document.addEventListener("compositionstart", this.compositionStart, true);
     input?.document.addEventListener("compositionend", this.compositionEnd, true);
     input?.document.addEventListener("pointerdown", this.navigationListener, true);

@@ -210,6 +210,8 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
     expect((await model()).pastes).toBe(0);
   });
   test("the shared menu honors existing theme variables", async () => {
+    // The variable set below is the light one; a dark-mode developer machine reads another.
+    await page.emulateMediaFeatures([{ name: "prefers-color-scheme", value: "light" }]);
     await page.evaluate(() => {
       document.documentElement.style.setProperty(
         "--ft-theme-suggestion-bg-light",
@@ -478,6 +480,102 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
     expect([caret.anchor, caret.focus]).toEqual([6, 6]);
     await page.keyboard.type("x", { delay: TYPING_DELAY_MS });
     await expectText("10 kg x");
+  });
+  // A text diff does not say the user typed it. Only Ctrl/Cmd+V is recognisable from the
+  // key, so a paste from the menu or Shift+Insert used to reach the next read unmarked and
+  // be replayed as typing, rewriting text the user never typed.
+  test.each([
+    ["the Edit menu", null],
+    ["Shift+Insert", { key: "Insert", shiftKey: true }],
+    ["Ctrl+V", { key: "v", ctrlKey: true }],
+  ] as Array<[string, KeyboardEventInit | null]>)(
+    "a paste from %s is never replayed as typing",
+    async (_name, key) => {
+      await evaluate(
+        'predictions=[];startDocs({enabledGrammarRules:["englishTypoWhitelistCorrection","measurementUnitFormatting"]})',
+      );
+      await waitUntil("a first model read", () => evaluate<boolean>("events.length >= 0"));
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      await page.frames()[1].evaluate((init) => {
+        const input = document.querySelector("#input")!;
+        if (init) input.dispatchEvent(new KeyboardEvent("keydown", { ...init, bubbles: true }));
+        const clipboardData = new DataTransfer();
+        clipboardData.setData("text/plain", "teh 10kg cat");
+        input.dispatchEvent(new ClipboardEvent("paste", { clipboardData, bubbles: true }));
+      }, key);
+      await new Promise((resolve) => setTimeout(resolve, 700));
+      expect(await model()).toMatchObject({ text: "teh 10kg cat", pastes: 1 });
+      // Typing resumes as typing once the paste has been accounted for.
+      await page.keyboard.type(" teh ", { delay: TYPING_DELAY_MS });
+      await expectText("teh 10kg cat the ");
+    },
+  );
+  // The last position of a replayed run is the caret itself. After an earlier correction
+  // lands, the key events that would have triggered it are gone, so it was judged with no
+  // triggers at all - that is, not judged - and then marked as done.
+  test("a burst ending exactly on a second correction gets both", async () => {
+    await evaluate(
+      'predictions=[];startDocs({enabledGrammarRules:["englishTypoWhitelistCorrection"]})',
+    );
+    await page.evaluate(() => {
+      (window as unknown as { annotateDelayMs: number }).annotateDelayMs = 40;
+    });
+    await page.keyboard.type("teh teh ", { delay: 0 });
+    await expectText("the the ");
+  });
+  // Trimming the context to 512 characters is not the same as losing the boundary: a real
+  // line break or full stop a few characters back is still right there in what is left.
+  test.each([
+    ["capitalizeAfterLineBreak", `${"a".repeat(600)}\n`, "h", "H"],
+    ["capitalizeSentenceStart", `${"lorem ".repeat(100)}done. `, "next ", "Next "],
+    ["capitalizeAfterLineBreak", `${"lorem ipsum ".repeat(1200)}\n`, "h", "H"],
+    ["capitalizeSentenceStart", `${"lorem ipsum ".repeat(1200)}done. `, "next ", "Next "],
+    // The cut is not a beginning: nothing here says this word opens a sentence.
+    ["capitalizeSentenceStart", `${"a".repeat(600)}${" ".repeat(520)}`, "next ", "next "],
+  ])("%s still sees a real boundary %#  past the context cut", async (rule, before, keys, out) => {
+    await evaluate(`predictions=[];startDocs({enabledGrammarRules:["${rule}"]})`);
+    const text = before.replace("\\n", "\n");
+    await page.evaluate((value) => {
+      const fixture = window as unknown as {
+        setModel: (value: string, a: number, f: number) => void;
+        focusEditor: () => void;
+      };
+      fixture.setModel(value, value.length, value.length);
+      fixture.focusEditor();
+    }, text);
+    await page.keyboard.type(keys, { delay: TYPING_DELAY_MS });
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await expectText(text + out);
+  });
+  // A replayed boundary is judged where it was typed, so what followed it THEN is what
+  // counts. Handing it the rest of the burst as if it had already been there tripped the
+  // measurement rule's guard against editing mid-text.
+  test.each([
+    ["10kg cat ", "10 kg cat "],
+    ["10kg and 5km ok ", "10 kg and 5 km ok "],
+  ])("a measurement is formatted when the burst %p runs past it", async (keys, expected) => {
+    await evaluate('predictions=[];startDocs({enabledGrammarRules:["measurementUnitFormatting"]})');
+    await page.evaluate(() => {
+      (window as unknown as { annotateDelayMs: number }).annotateDelayMs = 40;
+    });
+    await page.keyboard.type(keys, { delay: 0 });
+    await expectText(expected);
+  });
+  test("a measurement typed in front of existing text is still left alone", async () => {
+    await evaluate('predictions=[];startDocs({enabledGrammarRules:["measurementUnitFormatting"]})');
+    await page.evaluate(() => {
+      const fixture = window as unknown as {
+        setModel: (value: string, a: number, f: number) => void;
+        focusEditor: () => void;
+        annotateDelayMs: number;
+      };
+      fixture.setModel("cat", 0, 0);
+      fixture.focusEditor();
+      fixture.annotateDelayMs = 40;
+    });
+    await page.keyboard.type("10kg and ", { delay: 0 });
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    expect(await model()).toMatchObject({ text: "10kg and cat", pastes: 0 });
   });
   test("every catalog rule is covered by a Docs typing case", async () => {
     const covered = new Set(GRAMMAR_CASES.map(([ruleId]) => ruleId));
