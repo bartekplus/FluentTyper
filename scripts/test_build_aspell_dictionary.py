@@ -21,7 +21,11 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from build_aspell_dictionary import _extract_newc_cpio, _extract_rpm  # noqa: E402
+from build_aspell_dictionary import (  # noqa: E402
+    _extract_newc_cpio,
+    _extract_rpm,
+    extract_archive,
+)
 
 # newc cpio mode values (S_IFMT | permissions)
 MODE_FILE = stat.S_IFREG | 0o644
@@ -186,6 +190,51 @@ class RpmExtractionTest(unittest.TestCase):
         }
         self.assertEqual(outside, set(), f"files created outside dest: {outside}")
         self.assertEqual(self.marker.stat().st_mtime_ns, self.marker_mtime, "marker was modified")
+
+    # ---- ordered forward-symlink escape (review finding) -----------------
+    #
+    # No member name contains ".." and the leaf check passes for every write,
+    # because `pivot` is a valid link when it is created and only becomes an
+    # escape once the later `next -> .` member lands.  The parent chain must
+    # therefore be re-validated at write time, not once when the link is made.
+    FORWARD_SYMLINK_MEMBERS: list[tuple[str, int, bytes]] = [
+        ("pivot", MODE_SYMLINK, b"next/.."),
+        ("next", MODE_SYMLINK, b"."),
+        ("pivot/outside-marker.txt", MODE_FILE, b"REVIEW_MARKER"),
+    ]
+
+    def _assert_marker_unchanged(self) -> None:
+        self.assertEqual(self.marker.read_text(), "sentinel", "outside marker was overwritten")
+        self.assertEqual(self.marker.stat().st_mtime_ns, self.marker_mtime, "marker was modified")
+
+    def test_ordered_forward_symlink_confined_newc(self) -> None:
+        _extract_newc_cpio(cpio_archive(self.FORWARD_SYMLINK_MEMBERS), self.dest)
+        self._assert_marker_unchanged()
+        self._assert_no_outside_writes()
+
+    def test_ordered_forward_symlink_confined_rpm(self) -> None:
+        rpm_path = self.parent / "dict.rpm"
+        rpm_path.write_bytes(rpm_with_gzip_payload(cpio_archive(self.FORWARD_SYMLINK_MEMBERS)))
+        _extract_rpm(rpm_path, self.dest)
+        self._assert_marker_unchanged()
+
+    def test_ordered_forward_symlink_confined_extract_archive(self) -> None:
+        archive_path = self.parent / "dict.rpm"
+        archive_path.write_bytes(rpm_with_gzip_payload(cpio_archive(self.FORWARD_SYMLINK_MEMBERS)))
+        # tar rejects the RPM, so this exercises the RPM fallback path.
+        extract_archive(archive_path, self.dest)
+        self._assert_marker_unchanged()
+
+    def test_absolute_link_target_escape_is_confined(self) -> None:
+        cpio = cpio_archive(
+            [
+                ("evil", MODE_SYMLINK, str(self.parent).encode("utf-8")),
+                ("evil/payload.txt", MODE_FILE, b"escaped\n"),
+            ]
+        )
+        _extract_newc_cpio(cpio, self.dest)
+        self.assertFalse((self.parent / "payload.txt").exists())
+        self._assert_no_outside_writes()
 
 
 if __name__ == "__main__":

@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import argparse
+import os
 import shlex
 import shutil
 import subprocess
 import tempfile
 import urllib.error
 import urllib.request
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 
 def download_file(url: str, output_path: Path, timeout: int = 20) -> None:
@@ -103,44 +104,87 @@ def _extract_newc_cpio(data: bytes, dest: Path) -> None:
         pos = (content_end + 3) & ~3
         if name == "TRAILER!!!":
             break
-        if name in (".", "") or name.startswith("/"):
+        if name in (".", "") or name.startswith("/") or name.startswith("../") or name == "..":
             continue  # archive root / absolute path — never write outside dest
-        relative = Path(name)
-        if any(part == ".." for part in relative.parts):
+        parts = [part for part in PurePosixPath(name).parts if part not in ("", ".")]
+        if not parts or any(part == ".." for part in parts):
             continue  # parent traversal — skip rather than write outside dest
-        target = dest / relative
+        target = dest.joinpath(*parts)
         if stat_module.S_ISDIR(mode):
-            target.mkdir(parents=True, exist_ok=True)
+            _ensure_dir(dest, dest_resolved, target)
         elif stat_module.S_ISLNK(mode):
             link_target = data[content_start:content_end].decode("utf-8", "surrogateescape")
-            if _link_target_contained(dest_resolved, link_target):
-                target.parent.mkdir(parents=True, exist_ok=True)
-                if target.is_symlink() or target.exists():
-                    target.unlink()
-                os.symlink(link_target, target)
-        elif stat_module.S_ISREG(mode) or stat_module.S_ISLNK(mode):
+            # Create the link's parent first: a symlink member must never be
+            # placed inside a directory chain that an earlier member redirected.
+            if not _ensure_dir(dest, dest_resolved, target.parent):
+                continue
+            if not _link_target_contained(dest_resolved, target, link_target):
+                continue
+            if target.is_symlink() or target.exists():
+                target.unlink()
+            os.symlink(link_target, target)
+        elif stat_module.S_ISREG(mode):
             # Regular files and hardlinks (materialized as plain copies so a
             # hardlink to a member that appears later in the archive cannot
-            # dangle).  Never write through a pre-existing symlink that
-            # escapes the destination.
-            if target.is_symlink() and not _link_target_contained(dest_resolved, os.readlink(target)):
+            # dangle).  The parent chain is re-validated here, at write time:
+            # an earlier member can leave behind a symlink whose target only
+            # becomes escaping once a *later* member is created, so a check
+            # made when the link was created is not enough.
+            if not _ensure_dir(dest, dest_resolved, target.parent):
                 continue
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_bytes(data[content_start:content_end])
+            if target.is_symlink() or target.exists():
+                # Never write through an archive-created link.
+                target.unlink()
+            fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o644)
+            try:
+                os.write(fd, data[content_start:content_end])
+            finally:
+                os.close(fd)
         # FIFOs, sockets, block/char devices, and unknown types: skip.
 
 
-def _link_target_contained(dest_resolved: Path, link_target: str) -> bool:
-    """True if a link target stays inside the destination directory.
+def _real_within(dest_resolved: Path, path: Path) -> bool:
+    """True if `path` resolves (following existing symlinks) to `dest_resolved` or below."""
+    real = Path(os.path.realpath(path))
+    return real == dest_resolved or dest_resolved in real.parents
 
-    Relative targets are resolved against the destination root (conservative:
-    the link's own directory is always inside dest, so resolving from dest is
-    at least as strict as resolving from the link's parent).  Absolute targets
-    must point inside dest outright.
+
+def _ensure_dir(dest: Path, dest_resolved: Path, path: Path) -> bool:
+    """Create `path` as a directory, one component at a time, under `dest`.
+
+    Refuses to descend through an existing symlink and re-checks containment
+    after every step, so an archive member can never redirect a later write
+    outside the destination.  Returns False when the path is unsafe.
+    """
+    try:
+        relative = path.relative_to(dest)
+    except ValueError:
+        return False
+    current = dest
+    for part in relative.parts:
+        current = current / part
+        if current.is_symlink():
+            return False  # never traverse an archive-created link
+        if current.exists():
+            if not current.is_dir():
+                return False
+        else:
+            current.mkdir()
+        if not _real_within(dest_resolved, current):
+            return False
+    return True
+
+
+def _link_target_contained(dest_resolved: Path, link_path: Path, link_target: str) -> bool:
+    """True if a symlink's target stays inside the destination directory.
+
+    Relative targets resolve against the link's own directory (POSIX
+    semantics), then the real path is checked against the destination so an
+    existing link in the ancestor chain cannot redirect it outside.
     """
     target = Path(link_target)
-    resolved = target.resolve() if target.is_absolute() else (dest_resolved / target).resolve()
-    return resolved == dest_resolved or dest_resolved in resolved.parents
+    candidate = target if target.is_absolute() else (link_path.parent / target)
+    return _real_within(dest_resolved, candidate)
 
 
 def copy_tree_contents(source_dir: Path, destination_dir: Path) -> None:
