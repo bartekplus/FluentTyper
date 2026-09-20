@@ -287,6 +287,83 @@ describe("InlineSuggestionView", () => {
     container.remove();
   });
 
+  test("anchors a Latin completion in an RTL paragraph to the LEFT edge (run direction wins)", () => {
+    // R2 regression: the paragraph is RTL, but the completion run is Latin,
+    // so it continues rightward — the ghost must anchor left (LTR), not be
+    // anchored right and overlap the already-typed text.
+    const container = document.createElement("div");
+    container.contentEditable = "true";
+    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
+    container.style.direction = "rtl";
+    document.body.appendChild(container);
+
+    const p = document.createElement("p");
+    p.textContent = "مرحبا hel";
+    container.appendChild(p);
+
+    const textNode = p.firstChild!;
+    const range = document.createRange();
+    range.setStart(textNode, textNode.data.length);
+    range.collapse(true);
+    const sel = window.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    const ghost = InlineSuggestionView.render({
+      target: container,
+      text: "lo",
+      caretRect: { left: 300, right: 300, top: 20, width: 0, height: 16 } as DOMRect,
+      doc: document,
+    });
+
+    expect(ghost).not.toBeNull();
+    const style = ghost!.style;
+    // Latin run → LTR anchoring even though the element is direction: rtl.
+    expect(style.left).toBe("300px");
+    expect(style.right).toBe("");
+    expect(style.direction).not.toBe("rtl");
+
+    container.remove();
+  });
+
+  test("anchors a neutral completion in an RTL paragraph using the element direction", () => {
+    // Direction-neutral suggestion text (no strong script) falls back to the
+    // containing element's computed direction — preserving the previous
+    // behaviour for space/punctuation completions in RTL paragraphs.
+    const container = document.createElement("div");
+    container.contentEditable = "true";
+    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
+    container.style.direction = "rtl";
+    document.body.appendChild(container);
+
+    const p = document.createElement("p");
+    p.textContent = "مرحبا";
+    container.appendChild(p);
+
+    const textNode = p.firstChild!;
+    const range = document.createRange();
+    range.setStart(textNode, textNode.data.length);
+    range.collapse(true);
+    const sel = window.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    const ghost = InlineSuggestionView.render({
+      target: container,
+      text: " ",
+      caretRect: { left: 300, right: 300, top: 20, width: 0, height: 16 } as DOMRect,
+      doc: document,
+    });
+
+    expect(ghost).not.toBeNull();
+    const style = ghost!.style;
+    expect(style.direction).toBe("rtl");
+    expect(style.left).toBe("auto");
+    expect(style.right).toBe(`${window.innerWidth - 300}px`);
+
+    container.remove();
+  });
+
   test("renderMirrorPreview creates three spans: before (normal), suffix (ghost), after (normal)", () => {
     const input = document.createElement("input");
     input.value = "highest stand with Spell Checker";
