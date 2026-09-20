@@ -25,14 +25,19 @@ class Host implements DocsHost {
   async read(): Promise<DocsHostState> {
     this.reads += 1;
     this.beforeRead?.(this);
-    return {
+    const state = {
       model: readModel(this.raw, [{ anchor: this.anchor + 1, focus: this.focus + 1 }])!,
       scope: this.scope,
       input: this.input,
       interaction: this.interaction,
     };
+    this.handles.add(state);
+    return state;
   }
-  select(_state: DocsHostState, anchor: number, focus: number): void {
+  // Like the real host: only a state that read() handed out can be selected through.
+  private readonly handles = new WeakSet<DocsHostState>();
+  select(state: DocsHostState, anchor: number, focus: number): void {
+    if (!this.handles.has(state)) throw new DocsHostError("stale");
     this.selections.push([anchor, focus]);
     this.anchor = anchor;
     this.focus = focus;
@@ -124,6 +129,58 @@ describe("Google Docs verified transactions", () => {
     };
     expect((await transaction.apply(token, edit)).status).toBe("stale");
     expect(host.pastes).toBe(0);
+  });
+  // A failed recheck means the transaction can no longer prove what it owns. Putting the
+  // ORIGINAL selection back then overwrites wherever the user has since moved to, and their
+  // next keystroke lands at a position this transaction has no claim on.
+  for (const [name, mutate, selection] of [
+    [
+      "a moved caret",
+      (h: Host) => {
+        h.anchor = h.focus = 1;
+        h.interaction++;
+      },
+      [1, 1],
+    ],
+    ["a replaced target", (h: Host) => void (h.input = {}), [3, 3]],
+  ] as Array<[string, (h: Host) => void, number[]]>) {
+    test(`leaves the selection alone when the recheck finds ${name}`, async () => {
+      const { host, transaction, token } = await setup();
+      host.beforePeek = mutate;
+      expect((await transaction.apply(token, edit)).status).toBe("stale");
+      expect(host.pastes).toBe(0);
+      expect([host.anchor, host.focus]).toEqual(selection);
+    });
+  }
+  test("leaves the selection alone when cancelled during the recheck", async () => {
+    const { host, transaction, token } = await setup();
+    host.beforePeek = () => transaction.cancel();
+    expect((await transaction.apply(token, edit)).status).toBe("stale");
+    expect(host.pastes).toBe(0);
+    expect([host.anchor, host.focus]).toEqual([3, 3]);
+  });
+  test("hands back the caret it took when only the text changed under it", async () => {
+    const { host, transaction, token } = await setup();
+    host.beforePeek = (h) => {
+      h.raw = "helo!\n";
+    };
+    expect((await transaction.apply(token, edit)).status).toBe("stale");
+    expect([host.anchor, host.focus]).toEqual([4, 4]);
+  });
+  // Removing the await stops another task interleaving; it does not stop the host calling
+  // back re-entrantly while the paste is dispatched. The write is still acknowledged, but
+  // a selection newer than the paste is the user's.
+  test("acknowledges an inline paste without overriding a newer selection", async () => {
+    const { host, transaction, token } = await setup();
+    host.onPaste = (h, text) => {
+      h.insert(text);
+      h.anchor = h.focus = 0;
+      h.interaction++;
+      transaction.cancel();
+    };
+    expect((await transaction.apply(token, edit)).status).toBe("applied");
+    expect(host.raw).toBe("hello\n");
+    expect([host.anchor, host.focus]).toEqual([0, 0]);
   });
   // Handing the user a selected range and then awaiting anything lets a keystroke replace
   // it. The recheck between select and paste therefore has to be synchronous, which shows

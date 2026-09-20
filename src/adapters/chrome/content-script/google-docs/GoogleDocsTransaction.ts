@@ -156,7 +156,10 @@ export class GoogleDocsTransaction {
       };
       const check = this.host.peek(current);
       if (!check || epoch !== this.epoch || !this.matches(selected, check)) {
-        this.restoreSelectionNow(current);
+        // Hand the caret back only while the range is provably still the one installed
+        // above. Anything else is a selection this transaction does not own.
+        if (check && epoch === this.epoch && this.sameSelection(selected, check))
+          this.restoreSelectionNow(current);
         return { status: "stale" };
       }
       operationId = this.createId();
@@ -167,11 +170,12 @@ export class GoogleDocsTransaction {
       this.host.paste(check, minimal.replacement);
       // Still the same task. A host that applied the paste inline gets its final caret
       // now, rather than leaving it mid-word for a round trip the user can type into.
+      // Dispatch can still call back re-entrantly, so the caret is owed the same proof.
       const settled = this.host.peek(current);
-      if (settled?.model.raw === expectedRaw) {
+      if (settled && this.isExpected(settled, this.journal)) {
         this.journal.uncertain = false;
-        if (settled.model.anchor !== edit.cursorAfter || settled.model.focus !== edit.cursorAfter)
-          this.host.select(current, edit.cursorAfter, edit.cursorAfter);
+        // A peeked state is not a handle the host can select through; `current` is.
+        this.placeCaret(settled, current, current, epoch, naturalCaret, edit.cursorAfter);
         return { status: "applied", operationId };
       }
       const deadline = this.now() + 600;
@@ -179,16 +183,7 @@ export class GoogleDocsTransaction {
         const observed = await this.readHost();
         if (this.isExpected(observed, this.journal)) {
           this.journal.uncertain = false;
-          // Respect intervening navigation/composition. Reposition only a known post-paste caret.
-          if (
-            epoch === this.epoch &&
-            observed.interaction === current.interaction &&
-            observed.model.anchor === naturalCaret &&
-            observed.model.focus === naturalCaret &&
-            edit.cursorAfter !== naturalCaret
-          ) {
-            this.host.select(observed, edit.cursorAfter, edit.cursorAfter);
-          }
+          this.placeCaret(observed, observed, current, epoch, naturalCaret, edit.cursorAfter);
           return { status: "applied", operationId };
         }
         if (epoch !== this.epoch || this.now() >= deadline) break;
@@ -205,6 +200,34 @@ export class GoogleDocsTransaction {
     }
   }
 
+  /** Respect intervening navigation/composition. Reposition only a known post-paste caret. */
+  private placeCaret(
+    observed: DocsHostState,
+    handle: DocsHostState,
+    before: DocsHostState,
+    epoch: number,
+    naturalCaret: number,
+    cursorAfter: number,
+  ): void {
+    if (
+      epoch === this.epoch &&
+      observed.interaction === before.interaction &&
+      observed.model.anchor === naturalCaret &&
+      observed.model.focus === naturalCaret &&
+      cursorAfter !== naturalCaret
+    )
+      this.host.select(handle, cursorAfter, cursorAfter);
+  }
+  /** Same target, same interaction, same range: the text is allowed to have moved on. */
+  private sameSelection(a: DocsHostState, b: DocsHostState): boolean {
+    return (
+      a.scope === b.scope &&
+      a.input === b.input &&
+      a.interaction === b.interaction &&
+      a.model.anchor === b.model.anchor &&
+      a.model.focus === b.model.focus
+    );
+  }
   /** Synchronous counterpart, for the window where yielding is what causes the damage. */
   private restoreSelectionNow(original: DocsHostState): void {
     try {
