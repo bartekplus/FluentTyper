@@ -67,13 +67,80 @@ def _extract_rpm(archive_path: Path, cwd: Path) -> None:
         cpio = result.stdout
     else:
         raise RuntimeError("Unknown RPM payload compression")
-    cpio_path = cwd / "_payload.cpio"
-    cpio_path.write_bytes(cpio)
-    try:
-        with cpio_path.open("rb") as handle:
-            subprocess.run(["cpio", "-idm", "--quiet"], cwd=str(cwd), stdin=handle, check=True)
-    finally:
-        cpio_path.unlink(missing_ok=True)
+    # Extract the newc cpio stream in-process (no `cpio` subprocess): the
+    # member names come from an untrusted downloaded package, so every path
+    # and link target is validated to stay inside `cwd` before anything is
+    # written.
+    _extract_newc_cpio(cpio, cwd)
+
+
+def _extract_newc_cpio(data: bytes, dest: Path) -> None:
+    """Extract a newc-format cpio archive into `dest` with path containment.
+
+    Rejects absolute member paths, `..` traversal, and symlink/hardlink
+    targets that resolve outside `dest`.  Only regular files, directories,
+    symlinks, and hardlinks are materialized; other member types are skipped.
+    """
+    import os
+    import stat as stat_module
+
+    dest_resolved = dest.resolve()
+    pos = 0
+    while pos + 110 <= len(data):
+        if data[pos : pos + 6] != b"070701":
+            raise RuntimeError("Not a newc cpio archive")
+        namesize = int(data[pos + 94 : pos + 102], 16)
+        filesize = int(data[pos + 54 : pos + 62], 16)
+        mode = int(data[pos + 14 : pos + 22], 16)
+        name_end = pos + 110 + namesize
+        if name_end > len(data):
+            raise RuntimeError("Truncated cpio header")
+        name = data[pos + 110 : name_end].rstrip(b"\x00").decode("utf-8", "surrogateescape")
+        content_start = (name_end + 3) & ~3
+        content_end = content_start + filesize
+        if content_end > len(data):
+            raise RuntimeError("Truncated cpio member data")
+        pos = (content_end + 3) & ~3
+        if name == "TRAILER!!!":
+            break
+        if name in (".", "") or name.startswith("/"):
+            continue  # archive root / absolute path — never write outside dest
+        relative = Path(name)
+        if any(part == ".." for part in relative.parts):
+            continue  # parent traversal — skip rather than write outside dest
+        target = dest / relative
+        if stat_module.S_ISDIR(mode):
+            target.mkdir(parents=True, exist_ok=True)
+        elif stat_module.S_ISLNK(mode):
+            link_target = data[content_start:content_end].decode("utf-8", "surrogateescape")
+            if _link_target_contained(dest_resolved, link_target):
+                target.parent.mkdir(parents=True, exist_ok=True)
+                if target.is_symlink() or target.exists():
+                    target.unlink()
+                os.symlink(link_target, target)
+        elif stat_module.S_ISREG(mode) or stat_module.S_ISLNK(mode):
+            # Regular files and hardlinks (materialized as plain copies so a
+            # hardlink to a member that appears later in the archive cannot
+            # dangle).  Never write through a pre-existing symlink that
+            # escapes the destination.
+            if target.is_symlink() and not _link_target_contained(dest_resolved, os.readlink(target)):
+                continue
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(data[content_start:content_end])
+        # FIFOs, sockets, block/char devices, and unknown types: skip.
+
+
+def _link_target_contained(dest_resolved: Path, link_target: str) -> bool:
+    """True if a link target stays inside the destination directory.
+
+    Relative targets are resolved against the destination root (conservative:
+    the link's own directory is always inside dest, so resolving from dest is
+    at least as strict as resolving from the link's parent).  Absolute targets
+    must point inside dest outright.
+    """
+    target = Path(link_target)
+    resolved = target.resolve() if target.is_absolute() else (dest_resolved / target).resolve()
+    return resolved == dest_resolved or dest_resolved in resolved.parents
 
 
 def copy_tree_contents(source_dir: Path, destination_dir: Path) -> None:
