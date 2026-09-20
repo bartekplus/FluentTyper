@@ -30,6 +30,9 @@ import { GoogleDocsView } from "./GoogleDocsView";
 /** Beyond this, the change is not a typing burst worth re-judging character by character. */
 const MAX_REPLAY = 64;
 
+/** These read the start of the context as a real beginning; a cut window is not one. */
+const START_SENSITIVE_RULES = ["capitalizeSentenceStart", "capitalizeAfterLineBreak"] as const;
+
 /** The model as grammar last saw it, plus how far through it grammar has ruled. */
 interface GrammarBaseline extends DocsSnapshot {
   /** Absolute offset; everything before it has already been judged. */
@@ -417,25 +420,28 @@ export class GoogleDocsAdapter {
     const cursors = collected.includes("paste") ? [caret] : replayCursors(baseline, snapshot);
     for (const cursor of cursors) {
       const beforeCursor = snapshot.text.slice(0, cursor);
-      // A truncated context window must never look like a document start to the rules.
       // Anchor on a real line break and keep it: capitalizeAfterLineBreak needs the break
       // that opens the current paragraph, and trimSpaceBeforeLineBreak needs the line
       // before it, so the anchor is the break one paragraph further back.
       const lastBreak = beforeCursor.lastIndexOf("\n");
-      const paragraphStart =
+      const anchored =
         snapshot.windowStart === 0
           ? 0
           : lastBreak > 0
             ? beforeCursor.lastIndexOf("\n", lastBreak - 1)
             : -1;
-      if (paragraphStart < 0) continue;
+      // Failing that, the context begins at an arbitrary cut, and a paragraph longer than
+      // the window has no break to anchor on at all - which is an ordinary long document,
+      // not an edge case. Only the two rules that read position 0 as a real beginning can
+      // be misled by that, so they sit it out instead of every rule doing so.
       const grammar = this.grammar.run({
         // A Docs body is prose. The model exposes no code/readonly styling, so the
         // DOM-based probe the generic path uses has nothing to inspect here; the
         // single-use-token transaction supplies the re-verification `strict` wants.
         measurementContext: "prose",
-        beforeCursor: beforeCursor.slice(paragraphStart),
+        beforeCursor: beforeCursor.slice(Math.max(0, anchored)),
         afterCursor: snapshot.text.slice(cursor).split("\n")[0],
+        excludeRules: anchored < 0 ? START_SENSITIVE_RULES : undefined,
         // A replayed position is an insertion by construction, and its triggers come
         // from the character itself rather than from a key event that is long gone.
         inputAction: cursor === caret ? action : "insert",

@@ -2,6 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:tes
 import puppeteer, { type Browser, type Page, type CDPSession } from "puppeteer";
 import { waitUntil } from "./e2e-helpers";
 import { GRAMMAR_RULE_IDS } from "../../src/core/domain/grammar/ruleCatalog";
+import { MAX_CONTEXT } from "../../src/adapters/chrome/content-script/google-docs/GoogleDocsModel";
 
 /**
  * [rule id, keys typed, resulting Docs text, resulting text on an ordinary page].
@@ -326,6 +327,27 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
     await page.keyboard.type("teh ");
     await expectText("the ");
     expect((await evaluate<string[]>("events")).includes("accepted")).toBe(false);
+  });
+  // The readable context is a window around the caret, so in a long document it starts at
+  // an arbitrary cut. Gating all of grammar on finding a line break inside that window
+  // turned every paragraph longer than the window - an ordinary long document - into one
+  // where nothing was corrected at all.
+  test("corrections still run where the context window starts mid-paragraph", async () => {
+    await evaluate(
+      'predictions=[];startDocs({enabledGrammarRules:["englishTypoWhitelistCorrection","capitalizeSentenceStart"]})',
+    );
+    const paragraph = "lorem ipsum dolor sit amet ".repeat(500);
+    expect(paragraph.length).toBeGreaterThan(MAX_CONTEXT);
+    await page.evaluate((text) => {
+      const fixture = window as unknown as {
+        setModel: (value: string, a: number, f: number) => void;
+        focusEditor: () => void;
+      };
+      fixture.setModel(text, text.length, text.length);
+      fixture.focusEditor();
+    }, paragraph);
+    await page.keyboard.type("teh ", { delay: TYPING_DELAY_MS });
+    await expectText(`${paragraph}the `);
   });
   // Typing does not pause for the model read, so by the time the text comes back the
   // boundary that earned the correction is several keystrokes behind the caret. The whole
