@@ -410,6 +410,32 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
     await page.keyboard.type(`teh ${rest}`, { delay: 15 });
     await expectText(`the ${rest}`);
   });
+  // The readable window slides with the caret once the document outgrows it, so the two
+  // snapshots of a burst no longer begin at the same offset. Comparing them by position
+  // within their own window meant replay never ran at all in a long document, and a
+  // correction landed only if a read AND a write fitted between two keystrokes.
+  test("a burst is still caught up in a document longer than the window", async () => {
+    await evaluate(
+      'predictions=[];startDocs({enabledGrammarRules:["englishTypoWhitelistCorrection"]})',
+    );
+    const paragraph = "lorem ipsum dolor sit amet ".repeat(500);
+    expect(paragraph.length).toBeGreaterThan(MAX_CONTEXT);
+    await page.evaluate((text) => {
+      const fixture = window as unknown as {
+        setModel: (value: string, a: number, f: number) => void;
+        focusEditor: () => void;
+        annotateDelayMs: number;
+      };
+      fixture.setModel(text, text.length, text.length);
+      fixture.focusEditor();
+      fixture.annotateDelayMs = 40;
+    }, paragraph);
+    // Let the adapter see the document once, as it would have long before the user types.
+    await waitUntil("a first model read", async () => (await model()).text === paragraph);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    await page.keyboard.type("teh cat sat down ", { delay: 25 });
+    await expectText(`${paragraph}the cat sat down `);
+  });
   // Typing does not pause for the model read, so by the time the text comes back the
   // boundary that earned the correction is several keystrokes behind the caret. The whole
   // phrase is typed as one burst here: without replaying the skipped positions only the

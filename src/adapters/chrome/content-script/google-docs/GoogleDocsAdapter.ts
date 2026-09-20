@@ -28,12 +28,13 @@ import { GoogleDocsBridgeClient } from "./GoogleDocsBridgeClient";
 import { GoogleDocsView } from "./GoogleDocsView";
 
 /**
- * How far back a single pass will catch up, in characters. Too small and a correction
- * early in a long sentence is never reached once the caret has run past it; too large and
- * the pass itself costs more than the gap it is trying to use. A sentence is the unit that
- * matters, so this is sized like one.
+ * How far back a single pass will catch up, in characters. This is a cost bound, not a
+ * correctness one: whatever it drops is never judged, so it has to be far larger than any
+ * real burst. Measured over the full rule set against a full context window, a pass costs
+ * ~4.6us per position - 2048 of them is ~9.5ms, and even the longest sentence anyone types
+ * between two model reads is an order of magnitude short of that.
  */
-const MAX_REPLAY = 128;
+const MAX_REPLAY = 2048;
 
 /** These read the start of the context as a real beginning; a cut window is not one. */
 const START_SENSITIVE_RULES = ["capitalizeSentenceStart", "capitalizeAfterLineBreak"] as const;
@@ -53,25 +54,29 @@ interface GrammarBaseline extends DocsSnapshot {
  */
 function replayCursors(baseline: GrammarBaseline | null, snapshot: DocsSnapshot): number[] {
   const caret = snapshot.anchor - snapshot.windowStart;
-  if (
-    !baseline ||
-    baseline.scope !== snapshot.scope ||
-    baseline.windowStart !== snapshot.windowStart ||
-    baseline.anchor !== baseline.focus
-  )
+  if (!baseline || baseline.scope !== snapshot.scope || baseline.anchor !== baseline.focus)
     return [caret];
-  const was = baseline.anchor - baseline.windowStart;
-  const judged = baseline.judged - snapshot.windowStart;
+  // Everything here is in absolute document offsets. Past MAX_CONTEXT the readable window
+  // slides with the caret, so the two snapshots of a burst no longer begin at the same
+  // place; comparing them by position within their own window made every long document
+  // look like an unrelated edit and collapse to the caret.
   const inserted = snapshot.documentLength - baseline.documentLength;
-  const count = caret - judged;
+  const count = snapshot.anchor - baseline.judged;
+  const overlap = Math.max(baseline.windowStart, snapshot.windowStart);
+  // The unjudged run has to be visible in both windows for the comparison to mean anything.
+  if (inserted < 0 || count <= 0 || overlap > baseline.judged) return [caret];
+  if (snapshot.anchor !== baseline.anchor + inserted) return [caret];
+  const wasInBaseline = baseline.anchor - baseline.windowStart;
+  const wasInSnapshot = baseline.anchor - snapshot.windowStart;
+  const tail = Math.min(baseline.text.length - wasInBaseline, snapshot.text.length - caret);
   if (
-    was < 0 ||
-    judged < 0 ||
-    inserted < 0 ||
-    count <= 0 ||
-    caret !== was + inserted ||
-    snapshot.text.slice(0, was) !== baseline.text.slice(0, was) ||
-    snapshot.text.slice(caret) !== baseline.text.slice(was)
+    wasInBaseline < 0 ||
+    wasInSnapshot < 0 ||
+    tail < 0 ||
+    snapshot.text.slice(overlap - snapshot.windowStart, wasInSnapshot) !==
+      baseline.text.slice(overlap - baseline.windowStart, wasInBaseline) ||
+    snapshot.text.slice(caret, caret + tail) !==
+      baseline.text.slice(wasInBaseline, wasInBaseline + tail)
   )
     return [caret];
   return trailing(caret, count);
@@ -399,7 +404,10 @@ export class GoogleDocsAdapter {
   /** Judges the snapshot and dispatches any correction. True when one is on its way. */
   private runGrammar(snapshot: DocsSnapshot): boolean {
     if (
-      this.pendingTriggers.size &&
+      // Deliberately not gated on a pending key trigger. Replayed positions carry triggers
+      // derived from their own character, and apply() clears the set, so gating here let
+      // the read after one correction declare the rest of the burst judged without ever
+      // looking at it - which is how the second correction in a burst was lost.
       !this.grammarSuppressed &&
       this.grammar.hasEnabledRules() &&
       snapshot.anchor === snapshot.focus
