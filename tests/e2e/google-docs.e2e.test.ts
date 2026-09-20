@@ -46,11 +46,13 @@ const GRAMMAR_CASES: Array<[string, string, string] | [string, string, string, s
 ];
 
 /**
- * Docs edits are a cross-world round trip, so a correction is evaluated between
- * keystrokes rather than during one. 60ms is faster than sustained human typing
- * (~150ms/char) and still leaves the adapter its 25ms settle.
+ * Docs edits are a cross-world round trip, so corrections are judged between keystrokes.
+ * The adapter replays the positions a burst skipped, so this does not have to be anywhere
+ * near human speed: 5ms/char is ~2400 WPM. `FT_DELAY` re-measures the floor, which sits
+ * at 2ms/char - below that our own write and the user's keystrokes race for the same
+ * range, which no corrector outside the editor can win.
  */
-const TYPING_DELAY_MS = Number(process.env.FT_DELAY ?? 15);
+const TYPING_DELAY_MS = Number(process.env.FT_DELAY ?? 5);
 
 let browser: Browser;
 let page: Page;
@@ -324,6 +326,17 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
     await page.keyboard.type("teh ");
     await expectText("the ");
     expect((await evaluate<string[]>("events")).includes("accepted")).toBe(false);
+  });
+  // Typing does not pause for the model read, so by the time the text comes back the
+  // boundary that earned the correction is several keystrokes behind the caret. The whole
+  // phrase is typed as one burst here: without replaying the skipped positions only the
+  // final caret is ever judged, and the correction is lost.
+  test("a correction is still made when the burst runs past it", async () => {
+    await evaluate(
+      'predictions=[];startDocs({enabledGrammarRules:["englishTypoWhitelistCorrection"]})',
+    );
+    await page.keyboard.type("teh cat sat down ", { delay: 0 });
+    await expectText("the cat sat down ");
   });
   // A correction that the host rewrites on insertion (Docs turns a pasted no-break
   // space into an ordinary one) used to fail verification, so the caret was never

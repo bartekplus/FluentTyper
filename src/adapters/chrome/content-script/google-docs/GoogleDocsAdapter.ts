@@ -27,6 +27,66 @@ import { getDocsInput, type DocsInput } from "./GoogleDocsEnvironment";
 import { GoogleDocsBridgeClient } from "./GoogleDocsBridgeClient";
 import { GoogleDocsView } from "./GoogleDocsView";
 
+/** Beyond this, the change is not a typing burst worth re-judging character by character. */
+const MAX_REPLAY = 64;
+
+/** The model as grammar last saw it, plus how far through it grammar has ruled. */
+interface GrammarBaseline extends DocsSnapshot {
+  /** Absolute offset; everything before it has already been judged. */
+  judged: number;
+}
+
+/**
+ * The positions to judge, oldest first. The document must be the baseline with a plain
+ * insertion run at its caret - anything else (a deletion, a moved selection, a shifted
+ * window, an edit made elsewhere, a host that rewrote our own write) gives the caret
+ * alone, which is what the adapter did before. `judged` is what lets a correction made
+ * mid-burst resume: the characters typed after it have still never been ruled on.
+ */
+function replayCursors(baseline: GrammarBaseline | null, snapshot: DocsSnapshot): number[] {
+  const caret = snapshot.anchor - snapshot.windowStart;
+  if (
+    !baseline ||
+    baseline.scope !== snapshot.scope ||
+    baseline.windowStart !== snapshot.windowStart ||
+    baseline.anchor !== baseline.focus
+  )
+    return [caret];
+  const was = baseline.anchor - baseline.windowStart;
+  const judged = baseline.judged - snapshot.windowStart;
+  const inserted = snapshot.documentLength - baseline.documentLength;
+  const count = caret - judged;
+  if (
+    was < 0 ||
+    judged < 0 ||
+    inserted < 0 ||
+    inserted > MAX_REPLAY ||
+    count <= 0 ||
+    count > MAX_REPLAY ||
+    caret !== was + inserted ||
+    snapshot.text.slice(0, was) !== baseline.text.slice(0, was) ||
+    snapshot.text.slice(caret) !== baseline.text.slice(was)
+  )
+    return [caret];
+  return Array.from({ length: count }, (_, index) => judged + index + 1);
+}
+
+/** The baseline the document reaches once `edit` lands, judged up to the text it wrote. */
+function projectBaseline(snapshot: DocsSnapshot, edit: DocsEdit): GrammarBaseline | null {
+  const start = edit.start - snapshot.windowStart;
+  const end = edit.end - snapshot.windowStart;
+  if (start < 0 || end < start || end > snapshot.text.length) return null;
+  const text = snapshot.text.slice(0, start) + edit.replacement + snapshot.text.slice(end);
+  return {
+    ...snapshot,
+    text,
+    documentLength: snapshot.documentLength + edit.replacement.length - (end - start),
+    anchor: edit.cursorAfter,
+    focus: edit.cursorAfter,
+    judged: edit.start + edit.replacement.length,
+  };
+}
+
 interface Acceptance {
   triggerText: string;
   insertedText: string;
@@ -81,6 +141,9 @@ export class GoogleDocsAdapter {
   // A refresh that arrives while the host is busy must not be dropped: the keystroke
   // that produced it is the only thing that will ever carry its triggers.
   private rerun = false;
+  // The model as it stood when grammar last looked at it. The difference against the
+  // next snapshot is what tells us which characters the user typed in between.
+  private grammarBaseline: GrammarBaseline | null = null;
   private visible = false;
   private failureStatus: string | null = null;
   private pollTimer: ReturnType<typeof setInterval> | null = null;
@@ -308,38 +371,19 @@ export class GoogleDocsAdapter {
       this.grammar.hasEnabledRules() &&
       snapshot.anchor === snapshot.focus
     ) {
-      // A truncated context window must never look like a document start to the rules.
-      // Anchor on a real line break and keep it: capitalizeAfterLineBreak needs the break
-      // that opens the current paragraph, and trimSpaceBeforeLineBreak needs the line
-      // before it, so the anchor is the break one paragraph further back.
-      const lastBreak = context.beforeCursor.lastIndexOf("\n");
-      const paragraphStart =
-        snapshot.windowStart === 0
-          ? 0
-          : lastBreak > 0
-            ? context.beforeCursor.lastIndexOf("\n", lastBreak - 1)
-            : -1;
-      if (paragraphStart >= 0) {
-        const collected = [...this.pendingTriggers];
-        const collectedAction = this.pendingAction;
-        this.clearPendingTriggers();
-        const grammar = this.grammar.run({
-          // A Docs body is prose. The model exposes no code/readonly styling, so the
-          // DOM-based probe the generic path uses has nothing to inspect here; the
-          // single-use-token transaction supplies the re-verification `strict` wants.
-          measurementContext: "prose",
-          beforeCursor: context.beforeCursor.slice(paragraphStart),
-          afterCursor: context.afterCursor.split("\n")[0],
-          inputAction: collectedAction,
-          triggers: collected,
-        });
-        const edit = grammar && planGrammar(snapshot, grammar);
-        if (edit) {
-          void this.apply(edit, null);
-          return;
-        }
+      const collected = [...this.pendingTriggers];
+      const collectedAction = this.pendingAction;
+      this.clearPendingTriggers();
+      // The baseline is left alone while an edit is outstanding: apply() advances it only
+      // once the write lands, so a write that never happened is retried from the same spot.
+      const edit = this.planGrammarEdit(snapshot, this.grammarBaseline, collected, collectedAction);
+      if (edit) {
+        void this.apply(edit, null);
+        return;
       }
     }
+    // Nothing left to rule on before the caret.
+    this.grammarBaseline = { ...snapshot, judged: snapshot.anchor };
     if (snapshot.anchor !== snapshot.focus && !force) {
       this.clearVisual();
       return;
@@ -354,6 +398,59 @@ export class GoogleDocsAdapter {
     });
   }
 
+  /**
+   * Judge every position the user typed through since grammar last looked, not only the
+   * one the caret has ended up on. Reading the Docs model is a cross-world round trip, so
+   * at speed the boundary that completes a word is already buried under the next few
+   * keystrokes by the time the text comes back, and a rule that anchors at the caret can
+   * never see it. Two snapshots are enough to recover which characters are new and to
+   * rule on each of them where it was actually typed.
+   */
+  private planGrammarEdit(
+    snapshot: DocsSnapshot,
+    baseline: GrammarBaseline | null,
+    collected: GrammarEventType[],
+    action: PredictionInputAction | undefined,
+  ): DocsEdit | null {
+    const caret = snapshot.anchor - snapshot.windowStart;
+    // A paste is one event, not a run of keystrokes; it is judged only where it landed.
+    const cursors = collected.includes("paste") ? [caret] : replayCursors(baseline, snapshot);
+    for (const cursor of cursors) {
+      const beforeCursor = snapshot.text.slice(0, cursor);
+      // A truncated context window must never look like a document start to the rules.
+      // Anchor on a real line break and keep it: capitalizeAfterLineBreak needs the break
+      // that opens the current paragraph, and trimSpaceBeforeLineBreak needs the line
+      // before it, so the anchor is the break one paragraph further back.
+      const lastBreak = beforeCursor.lastIndexOf("\n");
+      const paragraphStart =
+        snapshot.windowStart === 0
+          ? 0
+          : lastBreak > 0
+            ? beforeCursor.lastIndexOf("\n", lastBreak - 1)
+            : -1;
+      if (paragraphStart < 0) continue;
+      const grammar = this.grammar.run({
+        // A Docs body is prose. The model exposes no code/readonly styling, so the
+        // DOM-based probe the generic path uses has nothing to inspect here; the
+        // single-use-token transaction supplies the re-verification `strict` wants.
+        measurementContext: "prose",
+        beforeCursor: beforeCursor.slice(paragraphStart),
+        afterCursor: snapshot.text.slice(cursor).split("\n")[0],
+        // A replayed position is an insertion by construction, and its triggers come
+        // from the character itself rather than from a key event that is long gone.
+        inputAction: cursor === caret ? action : "insert",
+        triggers: cursor === caret ? collected : this.charTriggers(snapshot.text[cursor - 1]),
+      });
+      const edit = grammar && planGrammar(snapshot, grammar, cursor);
+      if (edit) return edit;
+    }
+    return null;
+  }
+  private charTriggers(char: string): GrammarEventType[] {
+    const triggers: GrammarEventType[] = ["insertChar"];
+    if (char === "\n" || this.prediction.isSeparator(char)) triggers.push("wordBoundary");
+    return triggers;
+  }
   private completion(text: string): DocsEdit | null {
     return (
       this.snapshot &&
@@ -395,6 +492,13 @@ export class GoogleDocsAdapter {
     if (!snapshot || this.applying || this.disposed || this.uncertain) return;
     this.applying = true;
     this.clearPendingTriggers();
+    // Project what the document becomes, so the characters typed after the point this
+    // edit corrects are still replayed instead of being written off as already judged.
+    // Only our own grammar writes carry over; an accepted suggestion is not typing, and
+    // a host that rewrites the text fails the baseline checks and falls back to the caret.
+    const projected: GrammarBaseline | null = acceptance ? null : projectBaseline(snapshot, edit);
+    const resume = this.grammarBaseline;
+    this.grammarBaseline = null;
     this.invalidatePrediction();
     this.clearVisual();
     const tracked: TrackedEdit = { acceptance, before: snapshot };
@@ -407,6 +511,9 @@ export class GoogleDocsAdapter {
     this.applying = false;
     this.drainRerun();
     if (this.disposed) return;
+    // "unverified" is the one status that may or may not have written, so it keeps nothing.
+    if (reply.status === "applied") this.grammarBaseline = projected;
+    else if (reply.status !== "unverified") this.grammarBaseline = resume;
     tracked.operationId = reply.operationId;
     if (reply.status === "applied" && reply.operationId)
       this.recordApplied(tracked, reply.operationId);
@@ -635,6 +742,7 @@ export class GoogleDocsAdapter {
   private bind(input: DocsInput | null): void {
     if (input?.document === this.input?.document && input?.element === this.input?.element) return;
     this.clearPendingTriggers();
+    this.grammarBaseline = null;
     const old = this.input;
     old?.frame.removeAttribute(KEY_STATE_ATTR);
     old?.document.removeEventListener("keydown", this.keyListener, true);

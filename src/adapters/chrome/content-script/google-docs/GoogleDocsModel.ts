@@ -203,11 +203,11 @@ export function validEdit(text: string, edit: DocsEdit): boolean {
   if (protectedControls.test(replacement) || protectedControls.test(text.slice(start, end)))
     return false;
   const result = text.slice(0, start) + replacement + text.slice(end);
-  return (
-    isBoundary(result, cursorAfter) &&
-    cursorAfter >= start &&
-    cursorAfter <= start + replacement.length
-  );
+  // The caret may legitimately sit outside the replaced run: a correction replayed for
+  // a character typed earlier in a burst must leave the caret where the user has since
+  // got to, not drag it back into the edit. Range limits above are what bound the write;
+  // this only has to be a position that exists in the result.
+  return isBoundary(result, cursorAfter) && cursorAfter >= 0 && cursorAfter <= result.length;
 }
 
 /** Preserve unchanged prefix/suffix runs instead of rewriting a whole styled token. */
@@ -288,16 +288,31 @@ export function planCompletion(
   };
 }
 
-export function planGrammar(snapshot: DocsSnapshot, edit: GrammarEdit): DocsEdit | null {
+/**
+ * `cursor` is where the rule was judged, which is the caret unless the edit is being
+ * replayed for a character typed earlier in a burst. A replayed edit never reaches past
+ * that point, and carries the caret along by the length it changed instead of claiming
+ * the position the rule asked for: the user has already typed beyond it.
+ */
+export function planGrammar(
+  snapshot: DocsSnapshot,
+  edit: GrammarEdit,
+  cursor: number = snapshot.anchor - snapshot.windowStart,
+): DocsEdit | null {
   if (snapshot.anchor !== snapshot.focus) return null;
-  const cursor = snapshot.anchor - snapshot.windowStart;
+  const caret = snapshot.anchor - snapshot.windowStart;
+  if (!Number.isSafeInteger(cursor) || cursor < 0 || cursor > caret) return null;
   const start = cursor - edit.deleteBackwards,
     end = cursor + edit.deleteForwards;
+  const replayed = cursor !== caret;
+  if (replayed && end > caret) return null;
   const local = {
     start,
     end,
     replacement: edit.replacement,
-    cursorAfter: start + (edit.cursorOffset ?? edit.replacement.length),
+    cursorAfter: replayed
+      ? caret + edit.replacement.length - (end - start)
+      : start + (edit.cursorOffset ?? edit.replacement.length),
   };
   if (!validEdit(snapshot.text, local)) return null;
   return {
