@@ -385,11 +385,7 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
   // be longer than the gap between keystrokes - so no read ever completes inside a
   // sentence. A read that spanned a keystroke is still a self-consistent model and a
   // perfectly good baseline; discarding it left long documents uncorrected entirely.
-  // KNOWN GAP, not yet fixed. Every keystroke cancels the read in flight, so on a document
-  // slow enough to read, no snapshot is ever produced inside a sentence and the correction
-  // is dropped rather than merely delayed. Fixing it means letting a read that spanned a
-  // keystroke still serve as a baseline without consuming the triggers a later pass needs.
-  test.skip("corrections survive a model read slower than the typing", async () => {
+  test("corrections survive a model read slower than the typing", async () => {
     await evaluate(
       'predictions=[];startDocs({enabledGrammarRules:["englishTypoWhitelistCorrection"]})',
     );
@@ -402,10 +398,7 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
   // When no read completes for the whole sentence, every position since the last baseline
   // has to be replayed at once. Capping that at 64 and judging only the caret beyond it
   // wrote off the rest of the sentence permanently.
-  // KNOWN GAP, not yet fixed. Depends on the same read-cancellation issue above: with no
-  // snapshot completing mid-sentence, the catch-up window is the only thing reaching back
-  // to the correction, and a long enough sentence outruns it.
-  test.skip("a correction survives a sentence longer than the replay window", async () => {
+  test("a correction survives a sentence longer than the replay window", async () => {
     await evaluate(
       'predictions=[];startDocs({enabledGrammarRules:["englishTypoWhitelistCorrection"]})',
     );
