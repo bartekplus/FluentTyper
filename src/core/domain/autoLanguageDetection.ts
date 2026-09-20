@@ -64,6 +64,13 @@ const MAX_SITE_PRIOR_ENTRIES = 3;
 const STICKY_BONUS = 0.05;
 const GREEK_SCRIPT_REGEX = /[\u0370-\u03FF\u1F00-\u1FFF]/u;
 const ARABIC_SCRIPT_REGEX = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/u;
+// The Arabic block is shared with Persian, Urdu and Pashto.  These letters are
+// exclusive to those languages (Farsi yeh/keheh, Urdu tteh/heh-goal, Pashto
+// dzhe/tshe/...), so a sample containing one is not unambiguously Arabic and
+// must not take the strong-script shortcut — it falls through to scored
+// detection, where the user's enabled languages decide.
+const SHARED_ARABIC_BLOCK_EXCLUSIVE_REGEX =
+  /[\u0679\u067E\u0681\u0685\u0686\u0688\u0689\u0691\u0693\u0696\u0698\u069A\u069B\u06A9\u06AB\u06AF\u06BA\u06BC\u06BE\u06C1\u06C2\u06C3\u06CC\u06CD\u06D0\u06D2\u06D3]/u;
 const LETTER_REGEX = /\p{L}/u;
 const TOKEN_REGEX = /\p{L}+/gu;
 const BOUNDARY_REGEX = /[\s.,!?;:()[\]{}"'`~@#$%^&*+=|\\/<>_-]/;
@@ -110,7 +117,11 @@ function resolveHintLanguage(
 }
 
 function getStrongScriptLanguage(sampleText: string, allowedLanguages: string[]): string | null {
-  if (allowedLanguages.includes("ar_SA") && ARABIC_SCRIPT_REGEX.test(sampleText)) {
+  if (
+    allowedLanguages.includes("ar_SA") &&
+    ARABIC_SCRIPT_REGEX.test(sampleText) &&
+    !SHARED_ARABIC_BLOCK_EXCLUSIVE_REGEX.test(sampleText)
+  ) {
     return "ar_SA";
   }
   if (allowedLanguages.includes("el_GR") && GREEK_SCRIPT_REGEX.test(sampleText)) {

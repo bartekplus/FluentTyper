@@ -1,4 +1,8 @@
-import { DEFAULT_SEPARATOR_CHARS_REGEX, LANG_ADDITIONAL_SEPARATOR_REGEX } from "@core/domain/lang";
+import {
+  DEFAULT_SEPARATOR_CHARS_REGEX,
+  LANG_ADDITIONAL_SEPARATOR_REGEX,
+  LANG_STRIPPED_CHARS_REGEX,
+} from "@core/domain/lang";
 import {
   extractPredictionTokenSuffix,
   KEEP_PREDICTION_TOKEN_CHARS_REGEX,
@@ -70,6 +74,22 @@ export class PredictionInputProcessor {
     return value.replaceAll(RegExp(additionalSeparatorRegex, "g"), " ");
   }
 
+  /**
+   * Removes language-specific filler characters before tokenising, so a word
+   * like "كتـــاب" is treated as "كتاب" instead of being split on the filler.
+   */
+  private stripIgnoredChars(value: string, language: string): string {
+    const strippedCharsRegex = LANG_STRIPPED_CHARS_REGEX[language];
+    if (!strippedCharsRegex) {
+      return value;
+    }
+    return value.replaceAll(RegExp(strippedCharsRegex, "g"), "");
+  }
+
+  private normalizeForTokenizing(value: string, language: string): string {
+    return this.stripIgnoredChars(this.normalizeAdditionalSeparators(value, language), language);
+  }
+
   private resolveCurrentWordSuffix(
     afterCursorTokenSuffix: string | undefined,
     language: string,
@@ -77,10 +97,7 @@ export class PredictionInputProcessor {
     if (typeof afterCursorTokenSuffix !== "string" || afterCursorTokenSuffix.length === 0) {
       return "";
     }
-    const normalizedAfterCursor = this.normalizeAdditionalSeparators(
-      afterCursorTokenSuffix,
-      language,
-    );
+    const normalizedAfterCursor = this.normalizeForTokenizing(afterCursorTokenSuffix, language);
     return extractPredictionTokenSuffix(normalizedAfterCursor, (char) =>
       this.separatorCharRegex.test(char),
     );
@@ -107,7 +124,7 @@ export class PredictionInputProcessor {
       };
     }
     const endsWithSpace = predictionInput !== predictionInput.trimEnd();
-    const normalizedInput = this.normalizeAdditionalSeparators(predictionInput, language);
+    const normalizedInput = this.normalizeForTokenizing(predictionInput, language);
     const currentWordSuffix = this.resolveCurrentWordSuffix(afterCursorTokenSuffix, language);
     const predictionInputWithCurrentWord = `${normalizedInput}${currentWordSuffix}`;
     const lastWordsArray = predictionInputWithCurrentWord

@@ -179,3 +179,63 @@ describe("auto language detection decision engine", () => {
     expect(sample).toBe("seven eight nine ten eleven twelve");
   });
 });
+
+describe("auto language detection — Arabic", () => {
+  const emptySession = {
+    stableLanguage: null,
+    pendingLanguage: null,
+    pendingConfirmations: 0,
+    manualLockLanguage: null,
+    switchSuppressedUntilBoundary: false,
+  };
+
+  function decide(sampleText: string, allowed: string[]) {
+    return resolveAutoLanguageDecision({
+      allowedLanguages: allowed,
+      fallbackLanguage: "en_US",
+      sampleText,
+      browserDetections: [],
+      session: emptySession,
+    });
+  }
+
+  test("commits an Arabic sample via strong script", () => {
+    const result = decide("مرحبا بالعالم", ["en_US", "ar_SA"]);
+    expect(result.resolvedLanguage).toBe("ar_SA");
+    expect(result.source).toBe("strong_script");
+  });
+
+  test("a mixed Latin + Arabic sample still commits via strong script", () => {
+    const result = decide("hello مرحبا بالعالم", ["en_US", "ar_SA"]);
+    expect(result.resolvedLanguage).toBe("ar_SA");
+    expect(result.source).toBe("strong_script");
+  });
+
+  test("does not commit to ar_SA when it is not an allowed language", () => {
+    const result = decide("مرحبا بالعالم", ["en_US", "fr_FR"]);
+    expect(result.resolvedLanguage).not.toBe("ar_SA");
+  });
+
+  // The Arabic block is shared with Persian, Urdu and Pashto.  Their samples
+  // must not take the immediate strong-script commit that skips scoring.
+  test("Persian does not take the Arabic strong-script shortcut", () => {
+    const result = decide("سلام دنیا", ["en_US", "ar_SA"]);
+    expect(result.source).not.toBe("strong_script");
+  });
+
+  test("Urdu does not take the Arabic strong-script shortcut", () => {
+    const result = decide("ہیلو دنیا", ["en_US", "ar_SA"]);
+    expect(result.source).not.toBe("strong_script");
+  });
+
+  test("Pashto does not take the Arabic strong-script shortcut", () => {
+    const result = decide("ښه راغلاست", ["en_US", "ar_SA"]);
+    expect(result.source).not.toBe("strong_script");
+  });
+
+  test("Greek still commits via strong script (control)", () => {
+    const result = decide("φιλοσοφία", ["en_US", "el_GR"]);
+    expect(result.resolvedLanguage).toBe("el_GR");
+    expect(result.source).toBe("strong_script");
+  });
+});
