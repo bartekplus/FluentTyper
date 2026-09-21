@@ -8,5 +8,5 @@
   { "locale": "de_DE", "separator": " ", "decimalMarks": [","] },
   { "locale": "pl_PL", "separator": " ", "decimalMarks": [","] },
   { "locale": "pt_BR", "separator": " ", "decimalMarks": [","] },
-  { "locale": "ar_SA", "separator": " ", "decimalMarks": ["٫", ","] }
+  { "locale": "ar_SA", "separator": " ", "decimalMarks": [","] }
 ]

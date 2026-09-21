@@ -59,7 +59,11 @@ describe("measurement formatting adversarial verification", () => {
       ["de_DE", "Masse: 1,50kg ", `Masse: 1,50${NBSP}kg `],
       ["pl_PL", "Masa: 1,50kg ", `Masa: 1,50${NBSP}kg `],
       ["pt_BR", "Massa: 1,50kg ", `Massa: 1,50${NBSP}kg `],
-      ["ar_SA", "\u0627\u0644\u0643\u062a\u0644\u0629: 1\u066b5kg ", `\u0627\u0644\u0643\u062a\u0644\u0629: 1\u066b5${NBSP}kg `],
+      [
+        "ar_SA",
+        "\u0627\u0644\u0643\u062a\u0644\u0629: 1,50kg ",
+        `\u0627\u0644\u0643\u062a\u0644\u0629: 1,50${NBSP}kg `,
+      ],
     ] as const;
     expect(cases.map(([lang]) => lang).sort()).toEqual(
       Object.keys(SUPPORTED_LANGUAGES)
