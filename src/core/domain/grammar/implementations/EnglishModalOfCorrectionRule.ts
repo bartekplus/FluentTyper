@@ -5,7 +5,39 @@ import {
 } from "./helpers/EnglishRuleShared";
 import { applyWordCase, detectWordCase } from "./helpers/GenericRuleShared";
 
-const MODAL_OF_REGEX = /\b(could|would|should|must)\s+of$/i;
+const MODAL_OF_REGEX = /\b(could|would|should|must)\s+of\s+([A-Za-z]+)$/i;
+// "must of course", "would of necessity": prepositional "of" reads as a mistake
+// until the following word arrives, so the correction waits for it.
+const OF_IDIOMS = new Set([
+  "course",
+  "necessity",
+  "itself",
+  "himself",
+  "herself",
+  "themselves",
+  "late",
+  "old",
+  "sorts",
+  "note",
+  "interest",
+  "value",
+  "which",
+  "whom",
+  "them",
+  "us",
+  "these",
+  "those",
+  "the",
+  "a",
+  "an",
+  "his",
+  "her",
+  "their",
+  "its",
+  "our",
+  "my",
+  "your",
+]);
 
 export class EnglishModalOfCorrectionRule implements GrammarRule {
   readonly id = "englishModalOfCorrection" as const;
@@ -24,6 +56,10 @@ export class EnglishModalOfCorrectionRule implements GrammarRule {
 
     const phrase = match[0];
     const modal = match[1];
+    const following = match[2];
+    if (OF_IDIOMS.has(following.toLowerCase())) {
+      return null;
+    }
     const phraseStart = boundaryContext.core.length - phrase.length;
     if (isLikelyCodeLikeContext(boundaryContext.core, phraseStart, boundaryContext.core.length)) {
       return null;
@@ -34,7 +70,7 @@ export class EnglishModalOfCorrectionRule implements GrammarRule {
     const haveWord = style === "upper" ? "HAVE" : "have";
 
     return {
-      replacement: `${normalizedModal} ${haveWord}${boundaryContext.trailing}`,
+      replacement: `${normalizedModal} ${haveWord} ${following}${boundaryContext.trailing}`,
       deleteBackwards: boundaryContext.input.length - phraseStart,
       deleteForwards: 0,
     };

@@ -22,10 +22,12 @@ export class TechnicalTokenCompactionRule extends SpacingRuleShared implements G
       return null;
     }
 
-    if (punctChar === "." && this.isDigit(lastChar) && this.isDigit(charBeforePunct)) {
-      return this.createEdit(`.${lastChar}`, 3);
-    }
+    // "We sold 12. 5 were returned" is a sentence boundary, not a decimal, and
+    // nothing here tells the two apart - only the clock form is unambiguous.
 
+    // ponytail: "Chapter 3: 5 tips" compacts to "3:5" too. The minute digit
+    // that would prove a clock has not been typed yet, and deferring would
+    // change every "12: 30" fix into a two-keystroke one.
     if (punctChar === ":" && this.isDigit(lastChar) && this.isDigit(charBeforePunct)) {
       return this.createEdit(`:${lastChar}`, 3);
     }

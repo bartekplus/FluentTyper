@@ -9,10 +9,7 @@ import { applyWordCase, detectWordCase } from "./helpers/GenericRuleShared";
 const ENGLISH_CONTRACTION_MAP: Record<string, string> = {
   im: "i'm",
   ive: "i've",
-  ill: "i'll",
   dont: "don't",
-  cant: "can't",
-  wont: "won't",
   isnt: "isn't",
   arent: "aren't",
   wasnt: "wasn't",
@@ -27,7 +24,9 @@ const ENGLISH_CONTRACTION_MAP: Record<string, string> = {
   wouldnt: "wouldn't",
   mustnt: "mustn't",
 };
-const FORCE_PRONOUN_I_PREFIX = new Set(["im", "ive", "ill"]);
+// "ill", "cant" and "wont" are ordinary English words; expanding them corrupts
+// valid input, and no context available here disambiguates them.
+const FORCE_PRONOUN_I_PREFIX = new Set(["im", "ive"]);
 
 export class EnglishContractionNormalizationRule implements GrammarRule {
   readonly id = "englishContractionNormalization" as const;
@@ -51,8 +50,29 @@ export class EnglishContractionNormalizationRule implements GrammarRule {
     if (!canonical) {
       return null;
     }
-
     const normalizedInput = tokenInfo.token.toLowerCase();
+    // "Jony Ive", "Ada Ill": a capitalized token following another capitalized
+    // word is a name, not a contraction someone forgot an apostrophe in.
+    if (/^[A-Z][a-z]/.test(tokenInfo.token)) {
+      const beforeToken = tokenInfo.core.slice(0, tokenInfo.tokenStart);
+      const lineStart = Math.max(beforeToken.lastIndexOf("\n"), beforeToken.lastIndexOf("\r")) + 1;
+      // Only a capitalized word on the same line suggests a name; one that
+      // merely ends the previous line says nothing about this token.
+      const before = beforeToken.slice(lineStart).trimEnd();
+      if (/[A-Z][a-z]*$/.test(before)) {
+        return null;
+      }
+    }
+
+    // "IM" is an acronym, not a missing apostrophe. Unambiguous forms such as
+    // "DONT" stay corrected.
+    if (
+      FORCE_PRONOUN_I_PREFIX.has(normalizedInput) &&
+      tokenInfo.token === tokenInfo.token.toUpperCase()
+    ) {
+      return null;
+    }
+
     let normalizedToken = applyWordCase(canonical, detectWordCase(tokenInfo.token));
     if (
       FORCE_PRONOUN_I_PREFIX.has(normalizedInput) &&

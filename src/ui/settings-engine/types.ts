@@ -16,6 +16,12 @@ export interface RuleToggleAction {
   values: string[];
 }
 
+export interface RuleToggleStorageAdapter {
+  getSelection(value: unknown): string[];
+  setSelection(selection: readonly string[]): unknown;
+  setChoice(value: unknown, rule: string, enabled: boolean): unknown;
+}
+
 export type CheckboxConfig = {
   type: "checkbox";
   tab: string;
@@ -97,7 +103,8 @@ export type RuleToggleCardsConfig = {
   noMatchesText: string;
   options: RuleOption[];
   actions: RuleToggleAction[];
-  default?: string[];
+  default?: unknown;
+  storageAdapter: RuleToggleStorageAdapter;
 };
 
 export type ValueOnlyConfig = {

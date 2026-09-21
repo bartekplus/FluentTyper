@@ -29,6 +29,9 @@ export class OpeningBracketSpacingRule extends SpacingRuleShared implements Gram
       this.findPreviousSignificantChar(inputStr, openingIndex - 1) === ")"
     ) {
       requiresSpaceBefore = true;
+    } else if (SpacingRuleShared.CLOSING_BRACKETS.has(previousChar)) {
+      // "[link](url)" and "foo()[0]": a bracket against a bracket is structure.
+      requiresSpaceBefore = false;
     } else if (this.isTightlyAttached(inputStr, openingIndex)) {
       // Preserve attached code-like forms such as function calls.
       requiresSpaceBefore = false;

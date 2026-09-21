@@ -58,7 +58,13 @@
         model.focus = model.anchor;
         draw();
       }
-      window._docs_annotate_getAnnotatedText = async () => ({
+      // Live Docs resolves this across at least one task, which is what lets a keystroke
+      // interleave with a correction that is already under way. Resolving in a microtask
+      // (a bare `async` function) makes read/select/paste atomic and hides every race.
+      window.annotateDelayMs = 0;
+      window._docs_annotate_getAnnotatedText = () =>
+        new Promise((resolve) => setTimeout(() => resolve(annotated), window.annotateDelayMs));
+      const annotated = {
         getText: () => "\u0003" + model.text + "\n",
         getSelection: () => [{ anchor: model.anchor + 1, focus: model.focus + 1 }],
         setSelection: (a, f) => {
@@ -68,11 +74,26 @@
           input.blur();
           draw();
         },
-      });
-      input.addEventListener("input", (event) => {
-        if (event.isComposing) return;
-        if (event.inputType.startsWith("insert")) replace(event.data || "");
-        input.textContent = "";
+      };
+      // Live Docs consumes keystrokes on keydown, paints the canvas itself and never lets
+      // the hidden editable produce an `input` event.
+      input.addEventListener("keydown", (event) => {
+        if (event.isComposing || event.keyCode === 229 || event.defaultPrevented) return;
+        if (event.ctrlKey || event.altKey || event.metaKey) return;
+        const key = event.key;
+        let apply;
+        if (key === "Backspace")
+          apply = () => {
+            if (model.anchor === model.focus && model.anchor > 0) model.anchor -= 1;
+            replace("");
+          };
+        else if (key === "Enter") apply = () => replace("\n");
+        else if ([...key].length === 1) apply = () => replace(key);
+        else return;
+        // Live Docs applies the key inside this same dispatch, after any capture-phase
+        // listener has already run and scheduled its follow-up work.
+        event.preventDefault();
+        apply();
       });
       input.addEventListener("paste", (event) => {
         model.pastes++;

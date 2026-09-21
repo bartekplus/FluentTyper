@@ -25,6 +25,7 @@ FluentTyper helps you write faster and with fewer mistakes:
 - Predictive autocomplete while typing
 - Local prediction with libPresage (WebLLM path is currently dev/debug-only)
 - Spelling suggestions
+- Offline [measurement-unit spacing](docs/measurement-formatting.md) in verified prose contexts
 - Text expansion snippets for repeated phrases
 - Keyboard-first suggestion selection with arrow keys and `Tab`
 

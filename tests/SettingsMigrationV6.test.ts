@@ -57,6 +57,19 @@ describe("migrateSettingsV6", () => {
     expect(settings.store[KEY_GRAMMAR_RULES_V3_MIGRATED]).toBe(true);
   });
 
+  test.each([[[]], [["capitalizeSentenceStart"]]])(
+    "keeps explicit opt-out selection unchanged: %j",
+    async (selection) => {
+      const settings = createMockSettingsManager({
+        [KEY_ENABLED_GRAMMAR_RULES]: selection,
+      });
+
+      await migrateSettingsV6(settings);
+
+      expect(settings.store[KEY_ENABLED_GRAMMAR_RULES]).toEqual(selection);
+    },
+  );
+
   test("is idempotent when migration marker exists", async () => {
     const customRules = ["capitalizeSentenceStart"];
     const settings = createMockSettingsManager({

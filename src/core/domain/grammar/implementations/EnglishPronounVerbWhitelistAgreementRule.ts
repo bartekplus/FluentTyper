@@ -5,7 +5,19 @@ import {
 } from "./helpers/EnglishRuleShared";
 import { applyWordCase, detectWordCase } from "./helpers/GenericRuleShared";
 
-const AGREEMENT_REGEX = /\b(i\s+is|i\s+has|you\s+was|(he|she|it)\s+are)$/i;
+const AGREEMENT_REGEX = /\b(i\s+is|i\s+has|you\s+was|(he|she|it)\s+are)(\s+\S+)$/i;
+// "i is None", "it are null": a language singleton after the verb means `i` and
+// `it` are identifiers, so the phrase is code rather than a grammar slip.
+const CODE_SINGLETONS = new Set([
+  "none",
+  "true",
+  "false",
+  "null",
+  "nil",
+  "undefined",
+  "nan",
+  "not",
+]);
 
 function resolveAgreementCorrection(lowerPhrase: string): string | null {
   switch (lowerPhrase) {
@@ -41,8 +53,13 @@ export class EnglishPronounVerbWhitelistAgreementRule implements GrammarRule {
       return null;
     }
 
-    const phrase = match[0];
-    const phraseStart = boundaryContext.core.length - phrase.length;
+    const trailingWord = (match[3] ?? "").trim();
+    if (CODE_SINGLETONS.has(trailingWord.toLowerCase())) {
+      return null;
+    }
+
+    const phrase = match[1];
+    const phraseStart = boundaryContext.core.length - (match[0] ?? "").length;
     if (isLikelyCodeLikeContext(boundaryContext.core, phraseStart, boundaryContext.core.length)) {
       return null;
     }
@@ -59,7 +76,7 @@ export class EnglishPronounVerbWhitelistAgreementRule implements GrammarRule {
       pronounStyle === "upper" && (inputPronoun || "").toLowerCase() !== "i" ? "upper" : "lower";
 
     return {
-      replacement: `${applyWordCase(pronoun, pronounStyle)} ${applyWordCase(verb, verbStyle)}${boundaryContext.trailing}`,
+      replacement: `${applyWordCase(pronoun, pronounStyle)} ${applyWordCase(verb, verbStyle)}${match[3] ?? ""}${boundaryContext.trailing}`,
       deleteBackwards: boundaryContext.input.length - phraseStart,
       deleteForwards: 0,
     };

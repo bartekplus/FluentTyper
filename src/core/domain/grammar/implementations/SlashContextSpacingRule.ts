@@ -49,8 +49,9 @@ export class SlashContextSpacingRule extends SpacingRuleShared implements Gramma
       return false;
     }
 
-    const scheme = inputStr.slice(schemeStart, colonIndex);
-    return /^[A-Za-z][A-Za-z0-9+.-]*$/.test(scheme);
+    // "Path: /home/user" is a label, not a URL: only real schemes compact.
+    const scheme = inputStr.slice(schemeStart, colonIndex).toLowerCase();
+    return ["http", "https", "ftp", "ftps", "file", "ssh", "git", "ws", "wss"].includes(scheme);
   }
 
   private isSlashOperatorContext(inputStr: string, slashIndex: number): boolean {

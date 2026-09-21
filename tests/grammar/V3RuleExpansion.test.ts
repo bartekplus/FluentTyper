@@ -184,17 +184,27 @@ describe("V3 rule expansion", () => {
   test("EnglishModalOfCorrectionRule normalizes could of style phrases", () => {
     const rule = new EnglishModalOfCorrectionRule();
 
-    expect(rule.apply(context("could of ", { lang: "en_US", inputAction: "insert" }))).toEqual({
-      replacement: "could have ",
-      deleteBackwards: "could of ".length,
-      deleteForwards: 0,
-    });
+    // The following word disambiguates: "must of course" is valid English.
+    expect(rule.apply(context("could of ", { lang: "en_US", inputAction: "insert" }))).toBeNull();
+    expect(
+      rule.apply(context("must of course ", { lang: "en_US", inputAction: "insert" })),
+    ).toBeNull();
 
-    expect(rule.apply(context("COULD OF ", { lang: "en_US", inputAction: "insert" }))).toEqual({
-      replacement: "COULD HAVE ",
-      deleteBackwards: "COULD OF ".length,
-      deleteForwards: 0,
-    });
+    expect(rule.apply(context("could of gone ", { lang: "en_US", inputAction: "insert" }))).toEqual(
+      {
+        replacement: "could have gone ",
+        deleteBackwards: "could of gone ".length,
+        deleteForwards: 0,
+      },
+    );
+
+    expect(rule.apply(context("COULD OF GONE ", { lang: "en_US", inputAction: "insert" }))).toEqual(
+      {
+        replacement: "COULD HAVE GONE ",
+        deleteBackwards: "COULD OF GONE ".length,
+        deleteForwards: 0,
+      },
+    );
   });
 
   test("EnglishYourWelcomeCorrectionRule normalizes phrase", () => {
@@ -235,17 +245,22 @@ describe("V3 rule expansion", () => {
   test("EnglishPronounVerbWhitelistAgreementRule applies strict whitelist", () => {
     const rule = new EnglishPronounVerbWhitelistAgreementRule();
 
-    expect(rule.apply(context("I is ", { lang: "en_US", inputAction: "insert" }))).toEqual({
-      replacement: "I am ",
-      deleteBackwards: "I is ".length,
+    // "i is None" is Python; the word after the verb decides.
+    expect(rule.apply(context("I is ", { lang: "en_US", inputAction: "insert" }))).toBeNull();
+    expect(rule.apply(context("i is None ", { lang: "en_US", inputAction: "insert" }))).toBeNull();
+    expect(rule.apply(context("I is wrong ", { lang: "en_US", inputAction: "insert" }))).toEqual({
+      replacement: "I am wrong ",
+      deleteBackwards: "I is wrong ".length,
       deleteForwards: 0,
     });
 
-    expect(rule.apply(context("YOU WAS ", { lang: "en_US", inputAction: "insert" }))).toEqual({
-      replacement: "YOU WERE ",
-      deleteBackwards: "YOU WAS ".length,
-      deleteForwards: 0,
-    });
+    expect(rule.apply(context("YOU WAS THERE ", { lang: "en_US", inputAction: "insert" }))).toEqual(
+      {
+        replacement: "YOU WERE THERE ",
+        deleteBackwards: "YOU WAS THERE ".length,
+        deleteForwards: 0,
+      },
+    );
 
     expect(rule.apply(context("they is ", { lang: "en_US", inputAction: "insert" }))).toBeNull();
   });

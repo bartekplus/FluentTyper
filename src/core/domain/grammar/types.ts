@@ -1,6 +1,7 @@
 export type GrammarEventType = "insertChar" | "wordBoundary" | "idle" | "paste";
 
 export type GrammarRuleId =
+  | "measurementUnitFormatting"
   | "capitalizeSentenceStart"
   | "capitalizeAfterLineBreak"
   | "englishPronounICapitalization"
@@ -31,6 +32,9 @@ export type GrammarRuleId =
   | "capitalizeFirstLetter";
 
 export interface GrammarHints {
+  /** Adapter-verified editing context; missing information fails closed. */
+  measurementContext?: "prose" | "protected";
+  isPaste?: boolean;
   inputAction?: "insert" | "delete" | "other";
   lang?: string;
   userDictionary?: string[];
@@ -49,6 +53,9 @@ export interface GrammarEdit {
   deleteForwards: number; // Number of characters to delete after the cursor
   cursorOffset?: number; // If set, cursor is placed at replaceStart + cursorOffset instead of end of replacement
   sourceRuleId?: Exclude<GrammarRuleId, "spacingRule" | "capitalizeFirstLetter">;
+  // Apply only if the field is untouched and the result lands exactly as computed;
+  // never fall back to a host-editor bypass. For edits that must not corrupt markup.
+  strict?: boolean;
 }
 
 export interface GrammarRule {

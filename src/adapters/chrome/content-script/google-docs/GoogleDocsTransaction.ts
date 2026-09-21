@@ -22,6 +22,21 @@ export interface DocsHost {
   read(): Promise<DocsHostState>;
   select(state: DocsHostState, anchor: number, focus: number): void;
   paste(state: DocsHostState, text: string): void;
+  /**
+   * Read the model synchronously, without yielding. Between handing the user's own
+   * selection to an edit range and pasting over it there must be no await at all: a
+   * keystroke arriving in that gap is typed INTO the range and destroys the word being
+   * corrected. Returns null when the target is gone.
+   */
+  peek(state: DocsHostState): DocsHostState | null;
+  /**
+   * The text the host will really end up holding for `text`, when its insertion
+   * channel rewrites characters. Verification compares against the result, so an
+   * edit whose replacement the host normalizes must predict that here or it can
+   * never be confirmed: the caret is then left wherever the insertion put it and
+   * the adapter blocks on an edit that in fact applied.
+   */
+  normalize?(text: string): string;
 }
 export class DocsHostError extends Error {
   constructor(public readonly status: DocsStatus) {
@@ -105,6 +120,10 @@ export class GoogleDocsTransaction {
     const cached = this.tokens.get(token);
     this.tokens.delete(token); // Single use, including validation failure and concurrent replays.
     if (!cached || this.now() - cached.at > SNAPSHOT_LIFETIME_MS) return { status: "stale" };
+    const normalized = this.host.normalize?.(edit.replacement) ?? edit.replacement;
+    // Length-preserving by contract, so the caller's cursorAfter still holds.
+    if (normalized.length !== edit.replacement.length) return { status: "invalid" };
+    edit = { ...edit, replacement: normalized };
     if (!validEdit(cached.state.model.text, edit)) return { status: "invalid" };
     this.busy = true;
     const epoch = this.epoch;
@@ -116,16 +135,6 @@ export class GoogleDocsTransaction {
       if (!this.matches(cached.state, current) || epoch !== this.epoch) return { status: "stale" };
       const minimal = minimizeEdit(current.model.text, edit);
       if (minimal.start === minimal.end && !minimal.replacement) return { status: "invalid" };
-      this.host.select(current, minimal.start, minimal.end);
-      selected = {
-        ...current,
-        model: { ...current.model, anchor: minimal.start, focus: minimal.end },
-      };
-      const check = await this.readHost();
-      if (epoch !== this.epoch || !this.matches(selected, check)) {
-        await this.restoreSelection(selected, current, epoch);
-        return { status: "stale" };
-      }
       const text =
         current.model.text.slice(0, edit.start) +
         edit.replacement +
@@ -134,28 +143,47 @@ export class GoogleDocsTransaction {
         current.model.raw.slice(0, current.model.offset) +
         text +
         current.model.raw.slice(current.model.offset + current.model.text.length);
+      const naturalCaret = minimal.start + minimal.replacement.length;
+
+      // ONE SYNCHRONOUS TASK from here to the paste. Awaiting anything in between hands
+      // the user a selected range and then lets a keystroke replace it, which mangles the
+      // text instead of correcting it. JavaScript is single threaded: with no yield, a
+      // keystroke lands entirely before or entirely after this write.
+      this.host.select(current, minimal.start, minimal.end);
+      selected = {
+        ...current,
+        model: { ...current.model, anchor: minimal.start, focus: minimal.end },
+      };
+      const check = this.host.peek(current);
+      if (!check || epoch !== this.epoch || !this.matches(selected, check)) {
+        // Hand the caret back only while the range is provably still the one installed
+        // above. Anything else is a selection this transaction does not own.
+        if (check && epoch === this.epoch && this.sameSelection(selected, check))
+          this.restoreSelectionNow(current);
+        return { status: "stale" };
+      }
       operationId = this.createId();
       this.journal = { id: operationId, before: current, expectedRaw, edit, uncertain: true };
       this.tokens.clear();
       // Mark before dispatch: a handler can mutate and THEN throw.
       dispatched = true;
       this.host.paste(check, minimal.replacement);
+      // Still the same task. A host that applied the paste inline gets its final caret
+      // now, rather than leaving it mid-word for a round trip the user can type into.
+      // Dispatch can still call back re-entrantly, so the caret is owed the same proof.
+      const settled = this.host.peek(current);
+      if (settled && this.isExpected(settled, this.journal)) {
+        this.journal.uncertain = false;
+        // A peeked state is not a handle the host can select through; `current` is.
+        this.placeCaret(settled, current, current, epoch, naturalCaret, edit.cursorAfter);
+        return { status: "applied", operationId };
+      }
       const deadline = this.now() + 600;
       do {
         const observed = await this.readHost();
         if (this.isExpected(observed, this.journal)) {
           this.journal.uncertain = false;
-          const naturalCaret = minimal.start + minimal.replacement.length;
-          // Respect intervening navigation/composition. Reposition only a known post-paste caret.
-          if (
-            epoch === this.epoch &&
-            observed.interaction === current.interaction &&
-            observed.model.anchor === naturalCaret &&
-            observed.model.focus === naturalCaret &&
-            edit.cursorAfter !== naturalCaret
-          ) {
-            this.host.select(observed, edit.cursorAfter, edit.cursorAfter);
-          }
+          this.placeCaret(observed, observed, current, epoch, naturalCaret, edit.cursorAfter);
           return { status: "applied", operationId };
         }
         if (epoch !== this.epoch || this.now() >= deadline) break;
@@ -172,6 +200,42 @@ export class GoogleDocsTransaction {
     }
   }
 
+  /** Respect intervening navigation/composition. Reposition only a known post-paste caret. */
+  private placeCaret(
+    observed: DocsHostState,
+    handle: DocsHostState,
+    before: DocsHostState,
+    epoch: number,
+    naturalCaret: number,
+    cursorAfter: number,
+  ): void {
+    if (
+      epoch === this.epoch &&
+      observed.interaction === before.interaction &&
+      observed.model.anchor === naturalCaret &&
+      observed.model.focus === naturalCaret &&
+      cursorAfter !== naturalCaret
+    )
+      this.host.select(handle, cursorAfter, cursorAfter);
+  }
+  /** Same target, same interaction, same range: the text is allowed to have moved on. */
+  private sameSelection(a: DocsHostState, b: DocsHostState): boolean {
+    return (
+      a.scope === b.scope &&
+      a.input === b.input &&
+      a.interaction === b.interaction &&
+      a.model.anchor === b.model.anchor &&
+      a.model.focus === b.model.focus
+    );
+  }
+  /** Synchronous counterpart, for the window where yielding is what causes the damage. */
+  private restoreSelectionNow(original: DocsHostState): void {
+    try {
+      this.host.select(original, original.model.anchor, original.model.focus);
+    } catch {
+      /* Never edit to repair a failed selection operation. */
+    }
+  }
   private async restoreSelection(
     selected: DocsHostState,
     original: DocsHostState,
