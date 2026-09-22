@@ -22,8 +22,10 @@ async function createLiveHandler(
 ): Promise<PresageHandler> {
   const root = process.cwd();
   const Module = await libPresageMod({
-    wasmBinary: readFileSync(`${root}/src/third_party/libpresage/libpresage.wasm`),
-    locateFile: (name: string) => `${root}/public/third_party/libpresage/${name}`,
+    locateFile: (name: string) =>
+      name.endsWith(".wasm")
+        ? `${root}/src/third_party/libpresage/${name}`
+        : `${root}/public/third_party/libpresage/${name}`,
   });
   return new PresageHandler(Module, options);
 }

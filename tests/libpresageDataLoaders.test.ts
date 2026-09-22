@@ -37,10 +37,11 @@ describe("libpresage data loaders", () => {
     const pkgNameAt = LOADER.search(/PACKAGE_NAME\s*=\s*['"]ar_SA\.data['"]/);
     expect(pkgNameAt).toBeGreaterThan(-1);
     const match = LOADER.slice(pkgNameAt).match(
-      /loadPackage\((\{"files":[\s\S]*?"remote_package_size":\s*\d+\})\)/,
+      /loadPackage\((\{"?files"?:[\s\S]*?"?remote_package_size"?:\s*\d+\})\)/,
     );
     expect(match).not.toBeNull();
-    const metadata = JSON.parse(match![1]) as {
+    // Minified emscripten output leaves object keys unquoted; quote them for JSON.
+    const metadata = JSON.parse(match![1].replace(/([{,])(\w+):/g, '$1"$2":')) as {
       files: { filename: string; start: number; end: number }[];
       remote_package_size: number;
     };
