@@ -1,4 +1,4 @@
-import { SUPPORTED_LANGUAGES } from "@core/domain/lang";
+import { RTL_LETTER_REGEX, SUPPORTED_LANGUAGES } from "@core/domain/lang";
 import { SuggestionMenuView } from "../suggestions/SuggestionMenuView";
 import { SuggestionMenuPresenter } from "../suggestions/SuggestionMenuPresenter";
 import { SuggestionPositioningService } from "../suggestions/SuggestionPositioningService";
@@ -135,6 +135,9 @@ export class GoogleDocsView {
       candidate.length > token.length &&
       !/[^\n\r]/.test(context.afterCursor.split("\n")[0]) &&
       !candidate.includes("\n") &&
+      // The caret element's direction follows the Docs UI language, not the
+      // canvas paragraph, so also reject any RTL text in the completion.
+      !RTL_LETTER_REGEX.test(candidate) &&
       getComputedStyle(caret.element).direction !== "rtl";
     let visible = false;
     if (canGhost) {
@@ -149,9 +152,8 @@ export class GoogleDocsView {
         ghost.setAttribute("aria-hidden", "true");
         // The anchor is a thin caret, not the text area's right edge. The generic
         // presenter otherwise clamps this canvas ghost to the caret's 1px width.
-        // The ghost grows to the RIGHT of the caret here: canGhost above already
-        // rejects RTL documents, and InlineSuggestionView.render only anchors a
-        // ghost rightward when the surrounding paragraph is RTL.
+        // The ghost grows to the RIGHT of the caret here: canGhost above rejects
+        // RTL completions (the typed token is its prefix) and an RTL Docs UI.
         ghost.style.maxWidth = `${Math.max(0, window.innerWidth - caret.rect.left - 8)}px`;
         // Docs paints canvas glyphs ~1px lower per 17px line than a CSS line box does.
         ghost.style.top = `${caret.rect.top + caret.rect.height * 0.06}px`;
@@ -176,7 +178,6 @@ export class GoogleDocsView {
     panel.setAttribute("aria-label", this.labels[0]);
     panel.setAttribute("dir", "auto");
     this.announce(suggestions, index);
-    this.elements.list.querySelectorAll("li").forEach((item) => item.setAttribute("dir", "auto"));
     return visible;
   }
   /**

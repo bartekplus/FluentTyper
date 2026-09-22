@@ -1,38 +1,38 @@
+import { RTL_LETTER_REGEX } from "@core/domain/lang";
 import { BLOCK_TAGS } from "./ContentEditableAdapter";
 import { resolveSuggestionOverlayRoot } from "./SuggestionOverlayRoot";
 import { TextTargetAdapter } from "./TextTargetAdapter";
 
 const ENTRY_ID_ATTR = "data-ft-suggestion-entry-id";
 
-// Strong-script ranges used to determine the direction of the SUGGESTION TEXT
-// (the continuation run).  The containing element's computed `direction` only
-// describes the paragraph — a Latin run inside an RTL paragraph still
-// continues rightward — so anchoring must follow the run.
-const RTL_SCRIPT_REGEX = /[\u0590-\u08FF\uFB1D-\uFDFD\uFE70-\uFEFF]/u;
-const LTR_SCRIPT_REGEX =
-  /[\u0041-\u005A\u0061-\u007A\u00C0-\u024F\u0370-\u03FF\u0400-\u04FF\u1E00-\u1EFF]/u;
+function charDirection(char: string): "ltr" | "rtl" | null {
+  if (RTL_LETTER_REGEX.test(char)) {
+    return "rtl";
+  }
+  return /\p{L}/u.test(char) ? "ltr" : null;
+}
 
 /**
- * Direction of the text run that the suggestion continues, taken from its
- * FIRST strong character — a suffix that opens with a Latin letter is an LTR
- * run even when Arabic characters follow.  Returns null when the text is
- * direction-neutral (spaces, punctuation).
+ * Direction of the text run that the suggestion continues: the suffix's FIRST
+ * strong character (a suffix opening with Latin is an LTR run even when Arabic
+ * follows), else the typed token's LAST strong character ("mp" + "3" is LTR).
+ * Null when both are direction-neutral.
  */
-function resolveRunDirection(text: string): "ltr" | "rtl" | null {
-  for (const char of text) {
-    if (RTL_SCRIPT_REGEX.test(char)) {
-      return "rtl";
-    }
-    if (LTR_SCRIPT_REGEX.test(char)) {
-      return "ltr";
+function resolveRunDirection(suffix: string, token = ""): "ltr" | "rtl" | null {
+  for (const char of [...suffix, ...Array.from(token).reverse()]) {
+    const dir = charDirection(char);
+    if (dir) {
+      return dir;
     }
   }
   return null;
 }
 
-/** Properties copied from the target to the mirror div for pixel-perfect overlay. */
-const MIRROR_PROPERTIES = [
+/** Box-model and font properties that determine where text lays out; shared
+ *  with the caret-measurement mirror in SuggestionPositioningService. */
+export const MIRROR_LAYOUT_PROPERTIES = [
   "direction",
+  "unicodeBidi",
   "boxSizing",
   "width",
   "height",
@@ -47,7 +47,6 @@ const MIRROR_PROPERTIES = [
   "paddingRight",
   "paddingBottom",
   "paddingLeft",
-  "color",
   "fontStyle",
   "fontVariant",
   "fontWeight",
@@ -62,6 +61,12 @@ const MIRROR_PROPERTIES = [
   "textDecoration",
   "letterSpacing",
   "wordSpacing",
+] as const;
+
+/** Properties copied from the target to the mirror div for pixel-perfect overlay. */
+const MIRROR_PROPERTIES = [
+  ...MIRROR_LAYOUT_PROPERTIES,
+  "color",
   "whiteSpace",
   "wordWrap",
   "overflowWrap",
@@ -95,6 +100,31 @@ export class InlineSuggestionView {
   static readonly OWNED_ATTR = "data-ft-suggestion-owned";
   static readonly ROLE_ATTR = "data-ft-suggestion-role";
   static readonly INLINE_ROLE = "inline";
+
+  /**
+   * True when the continuation run's direction differs from the paragraph's.
+   * A floating ghost cannot be placed then (bidi reorders the typed run around
+   * the caret), so callers must use a mirror preview that lets the browser lay
+   * out the accepted text.
+   */
+  static runOpposesParagraph({
+    target,
+    token,
+    suffix,
+    doc = document,
+  }: {
+    target: HTMLElement;
+    token: string;
+    suffix: string;
+    doc?: Document;
+  }): boolean {
+    const run = resolveRunDirection(suffix, token);
+    if (!run) {
+      return false;
+    }
+    const styleTarget = InlineSuggestionView.resolveCaretElement(target, doc) ?? target;
+    return (window.getComputedStyle(styleTarget).direction === "rtl" ? "rtl" : "ltr") !== run;
+  }
 
   static render({
     target,
@@ -145,23 +175,25 @@ export class InlineSuggestionView {
     ghost.style.zIndex = "10000";
 
     const targetRect = target.getBoundingClientRect();
-    const runDirection = resolveRunDirection(text);
+    // Less room than ~one glyph (caret at the start edge) would wrap one
+    // character per line; leave the ghost uncapped instead.
+    const minWidth = parseFloat(computedStyle.fontSize) || 1;
     // Right-anchor only when the paragraph is RTL and the continuation run is
-    // not explicitly LTR: a neutral run (space/punctuation) follows the
-    // paragraph, but a Latin run inside an RTL paragraph still advances to the
-    // RIGHT, and an Arabic run inside an LTR editor does too — anchoring those
-    // rightward would draw the preview over the typed text and off the
-    // editor's left edge.
-    const anchorRtl = computedStyle.direction === "rtl" && runDirection !== "ltr";
+    // not explicitly LTR.  Runs opposing the paragraph direction never reach
+    // here in the generic presenter (see runOpposesParagraph).
+    const anchorRtl = computedStyle.direction === "rtl" && resolveRunDirection(text) !== "ltr";
     if (anchorRtl) {
       // RTL: the continuation extends to the LEFT of the caret. Anchor the
       // ghost's right edge at the caret's right edge and let it grow leftward,
       // mirroring the LTR behaviour (which anchors left and grows right).
+      // clientWidth excludes the vertical scrollbar, which `right` is measured from.
+      const viewportWidth =
+        doc.documentElement.clientWidth || (doc.defaultView ?? window).innerWidth;
       ghost.style.direction = "rtl";
       ghost.style.left = "auto";
-      ghost.style.right = `${window.innerWidth - caretRect.right}px`;
-      const rtlMaxWidth = Math.max(0, caretRect.left - targetRect.left);
-      if (rtlMaxWidth > 0) {
+      ghost.style.right = `${viewportWidth - caretRect.right}px`;
+      const rtlMaxWidth = caretRect.left - targetRect.left;
+      if (rtlMaxWidth >= minWidth) {
         ghost.style.maxWidth = `${rtlMaxWidth}px`;
       }
     } else {
@@ -170,8 +202,8 @@ export class InlineSuggestionView {
       // rtl even when the run is Latin.
       ghost.style.direction = "ltr";
       ghost.style.left = `${caretRect.left}px`;
-      const maxWidth = Math.max(0, targetRect.right - caretRect.left);
-      if (maxWidth > 0) {
+      const maxWidth = targetRect.right - caretRect.left;
+      if (maxWidth >= minWidth) {
         ghost.style.maxWidth = `${maxWidth}px`;
       }
     }
@@ -513,6 +545,7 @@ export class InlineSuggestionView {
     ghost.style.textTransform = computedStyle.textTransform;
     ghost.style.lineHeight = computedStyle.lineHeight;
     ghost.style.direction = computedStyle.direction;
+    ghost.style.unicodeBidi = computedStyle.unicodeBidi;
     ghost.style.fontFeatureSettings = computedStyle.fontFeatureSettings;
     ghost.style.fontKerning = computedStyle.fontKerning;
     ghost.style.textAlign = computedStyle.textAlign;

@@ -13,4 +13,6 @@ export interface MeasurementLocalePolicy {
   locale: string;
   separator: string;
   decimalMarks: readonly string[];
+  /** A second, locale-native digit system (e.g. CLDR `arab`) with its own decimal mark. */
+  nativeDigits?: { readonly digits: string; readonly decimalMark: string };
 }

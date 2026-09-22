@@ -42,6 +42,7 @@ Example: type `callMe` and expand it to `Call me back once you're free`.
 - Polish
 - German
 - Brazilian Portuguese
+- Arabic
 
 ## Installation
 

@@ -25,6 +25,10 @@ describe("language settings helpers", () => {
 
   test("resolveEnabledLanguages round-trips ar_SA", () => {
     expect(resolveEnabledLanguages(["ar_SA"])).toEqual(["ar_SA"]);
-    expect(resolveEnabledLanguages(["ar_SA", "en_US"])).toEqual(["ar_SA", "en_US"]);
+    expect(resolveEnabledLanguages(["ar_SA", "en_US"])).toEqual(["en_US", "ar_SA"]);
+  });
+
+  test("en_US stays the first prediction language (first-enabled fallback)", () => {
+    expect(SUPPORTED_PREDICTION_LANGUAGE_KEYS[0]).toBe("en_US");
   });
 });

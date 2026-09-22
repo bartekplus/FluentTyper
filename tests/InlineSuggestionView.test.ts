@@ -232,6 +232,11 @@ describe("InlineSuggestionView", () => {
     sel.removeAllRanges();
     sel.addRange(range);
 
+    // Anchor from the layout viewport (excludes the vertical scrollbar), not innerWidth.
+    Object.defineProperty(document.documentElement, "clientWidth", {
+      value: 1000,
+      configurable: true,
+    });
     // Caret at left=300, right=300 (zero-width).
     const ghost = InlineSuggestionView.render({
       target: container,
@@ -245,11 +250,12 @@ describe("InlineSuggestionView", () => {
     // RTL ghost is direction-aware and anchored on the right, not the left.
     expect(style.direction).toBe("rtl");
     expect(style.left).toBe("auto");
-    expect(style.right).toBe(`${window.innerWidth - 300}px`);
+    expect(style.right).toBe("700px");
     // maxWidth is the space to the LEFT of the caret (caret.left - target.left).
     const targetLeft = container.getBoundingClientRect().left;
     expect(style.maxWidth).toBe(`${300 - targetLeft}px`);
 
+    delete (document.documentElement as unknown as Record<string, unknown>).clientWidth;
     container.remove();
   });
 
@@ -434,6 +440,77 @@ describe("InlineSuggestionView", () => {
     expect(ghost!.style.left).toBe("300px");
 
     container.remove();
+  });
+
+  test("runOpposesParagraph detects run/paragraph direction mismatch (Arabic, Hebrew, neutral suffix, Armenian)", () => {
+    const ltr = document.createElement("input");
+    const rtl = document.createElement("textarea");
+    rtl.style.direction = "rtl";
+    document.body.append(ltr, rtl);
+    const opposes = (target: HTMLElement, token: string, suffix: string) =>
+      InlineSuggestionView.runOpposesParagraph({ target, token, suffix, doc: document });
+
+    expect(opposes(ltr, "الي", "وم")).toBe(true);
+    expect(opposes(ltr, "של", "ום")).toBe(true);
+    expect(opposes(rtl, "של", "ום")).toBe(false);
+    expect(opposes(rtl, "الي", "وم")).toBe(false);
+    // Neutral suffix follows the typed token's last strong character.
+    expect(opposes(rtl, "mp", "3")).toBe(true);
+    expect(opposes(ltr, "كتاب", "2")).toBe(true);
+    expect(opposes(ltr, "mp", "3")).toBe(false);
+    // Any non-RTL letter (Armenian, CJK...) is an LTR run.
+    expect(opposes(rtl, "բա", "րև")).toBe(true);
+    // Fully neutral text follows the paragraph.
+    expect(opposes(rtl, "12", "3")).toBe(false);
+
+    ltr.remove();
+    rtl.remove();
+  });
+
+  test("does not cap ghost width when the caret sits at the target's start edge", () => {
+    const container = document.createElement("div");
+    container.contentEditable = "true";
+    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
+    container.style.direction = "rtl";
+    container.style.fontSize = "16px";
+    document.body.appendChild(container);
+    const targetLeft = container.getBoundingClientRect().left;
+
+    const ghost = InlineSuggestionView.render({
+      target: container,
+      text: "بالعالم",
+      caretRect: {
+        left: targetLeft + 2,
+        right: targetLeft + 2,
+        top: 20,
+        width: 0,
+        height: 16,
+      } as DOMRect,
+      doc: document,
+    });
+
+    expect(ghost).not.toBeNull();
+    expect(ghost!.style.maxWidth).toBe("");
+
+    container.remove();
+  });
+
+  test("renderMirrorPreview copies unicode-bidi from target", () => {
+    const input = document.createElement("input");
+    input.value = "hello";
+    input.style.unicodeBidi = "plaintext";
+    document.body.appendChild(input);
+
+    const mirror = InlineSuggestionView.renderMirrorPreview({
+      target: input,
+      suffix: "!",
+      cursorOffset: 5,
+      doc: document,
+    });
+
+    expect(mirror!.style.unicodeBidi).toBe("plaintext");
+
+    input.remove();
   });
 
   test("renderMirrorPreview creates three spans: before (normal), suffix (ghost), after (normal)", () => {

@@ -47,6 +47,7 @@ const locales = JSON.parse(localesText) as {
   locale: string;
   separator: string;
   decimalMarks: string[];
+  nativeDigits?: { digits: string; decimalMark: string };
 }[];
 const sources = JSON.parse(sourceText) as {
   sources: { id: string; sha256?: string }[];
@@ -72,11 +73,26 @@ const expectedLocales = new Set(
   ),
 );
 if (locales.length !== expectedLocales.size) throw new Error("measurement locale count mismatch");
-for (const { locale, separator, decimalMarks } of locales) {
+for (const { locale, separator, decimalMarks, nativeDigits } of locales) {
   if (!expectedLocales.delete(locale)) throw new Error(`unknown or duplicate locale: ${locale}`);
-  const expectedMark = locale === "en_US" ? "." : ",";
+  // Arabic with Latin digits follows CLDR and uses "." like en_US.
+  const expectedMark = ["en_US", "ar_SA"].includes(locale) ? "." : ",";
   if (separator !== "\u00a0" || decimalMarks.length !== 1 || decimalMarks[0] !== expectedMark) {
     throw new Error(`invalid locale punctuation: ${locale}`);
+  }
+  // A native system is 10 distinct Unicode decimal digits plus its own decimal mark.
+  if (nativeDigits) {
+    const digits = [...nativeDigits.digits];
+    const mark = nativeDigits.decimalMark;
+    if (
+      digits.length !== 10 ||
+      new Set(digits).size !== 10 ||
+      !digits.every((digit) => /^\p{Nd}$/u.test(digit)) ||
+      [...mark].length !== 1 ||
+      digits.includes(mark)
+    ) {
+      throw new Error(`invalid locale native digits: ${locale}`);
+    }
   }
 }
 if (expectedLocales.size) throw new Error(`missing locales: ${[...expectedLocales].join(", ")}`);

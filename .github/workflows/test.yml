@@ -50,11 +50,13 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run test
       - run: bun run check:e2e:coverage
+      - name: Install hunspell and bsdtar for build-tooling tests
+        run: sudo apt-get update && sudo apt-get install -y hunspell libarchive-tools
       - name: Python build-tooling tests
         run: |
           for suite in scripts/test_*.py; do
             echo "::group::$suite"
-            python3 "$suite"
+            python3 -B "$suite"
             echo "::endgroup::"
           done
 

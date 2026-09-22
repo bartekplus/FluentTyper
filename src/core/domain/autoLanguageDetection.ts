@@ -1,4 +1,8 @@
-import { SUPPORTED_LANGUAGES_SHORT_CODE, SUPPORTED_PREDICTION_LANGUAGE_KEYS } from "./lang";
+import {
+  SUPPORTED_LANGUAGES_SHORT_CODE,
+  SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+  TEXT_EXPANDER_LANG,
+} from "./lang";
 
 export interface AutoLanguageBrowserDetection {
   language: string;
@@ -64,7 +68,9 @@ const SITE_PRIOR_MAX_BONUS = 0.1;
 const MAX_SITE_PRIOR_ENTRIES = 3;
 const STICKY_BONUS = 0.05;
 const GREEK_SCRIPT_REGEX = /[\u0370-\u03FF\u1F00-\u1FFF]/u;
-const ARABIC_SCRIPT_REGEX = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/u;
+// Letters only: the Arabic blocks also hold digits and punctuation (١٢٣ ، ؛ ؟),
+// which say nothing about the language being typed.
+const ARABIC_SCRIPT_REGEX = /(?=\p{L})\p{Script=Arabic}/u;
 // The Arabic block is shared with Persian, Urdu and Pashto.  These letters are
 // exclusive to those languages (Farsi yeh/keheh, Urdu tteh/heh-goal, Pashto
 // dzhe/tshe/...), so a sample containing one is not unambiguously Arabic and
@@ -73,7 +79,9 @@ const ARABIC_SCRIPT_REGEX = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFD
 const SHARED_ARABIC_BLOCK_EXCLUSIVE_REGEX =
   /[\u0679\u067E\u0681\u0685\u0686\u0688\u0689\u0691\u0693\u0696\u0698\u069A\u069B\u06A9\u06AB\u06AF\u06BA\u06BC\u06BE\u06C1\u06C2\u06C3\u06CC\u06CD\u06D0\u06D2\u06D3]/u;
 const LETTER_REGEX = /\p{L}/u;
-const TOKEN_REGEX = /\p{L}+/gu;
+// Combining marks (Arabic tashkeel, Indic vowel signs) and ZWNJ are part of a
+// word; splitting on them inflated the token evidence count.
+const TOKEN_REGEX = /\p{L}[\p{L}\p{M}\u200C]*/gu;
 const BOUNDARY_REGEX = /[\s.,!?;:()[\]{}"'`~@#$%^&*+=|\\/<>_-]/;
 
 function clampProbability(value: unknown): number {
@@ -298,15 +306,18 @@ export function getAutoLanguageSitePrior(
 export function resolveAutoLanguageDecision(
   input: ResolveAutoLanguageDecisionInput,
 ): ResolveAutoLanguageDecisionResult {
+  // Text Expander is not a prediction language: never a detection candidate.
+  // It stays reachable only through an explicit manual lock or the fallback
+  // (e.g. when it is the only enabled language).
+  const candidateLanguages = input.allowedLanguages.filter(
+    (language) => language !== TEXT_EXPANDER_LANG,
+  );
   const sampleText = extractAutoLanguageSample(input.sampleText);
   const atTokenBoundary = isTokenBoundary(input.sampleText);
   const pasteLikeInput = input.inputAction === "other";
-  const documentLanguageHint = resolveHintLanguage(
-    input.documentLanguageHint,
-    input.allowedLanguages,
-  );
-  const pageLanguageHint = resolveHintLanguage(input.pageLanguageHint, input.allowedLanguages);
-  const sitePriorLanguage = resolveHintLanguage(input.sitePriorLanguage, input.allowedLanguages);
+  const documentLanguageHint = resolveHintLanguage(input.documentLanguageHint, candidateLanguages);
+  const pageLanguageHint = resolveHintLanguage(input.pageLanguageHint, candidateLanguages);
+  const sitePriorLanguage = resolveHintLanguage(input.sitePriorLanguage, candidateLanguages);
   const currentToken = extractCurrentToken(input.sampleText);
   // The strong script is judged on the token being typed, not on the whole
   // rolling sample: the sample still contains the previous script after a
@@ -315,7 +326,7 @@ export function resolveAutoLanguageDecision(
   const strongScriptLanguage = getStrongScriptLanguage(
     currentToken || sampleText,
     sampleText,
-    input.allowedLanguages,
+    candidateLanguages,
   );
   const hasQualifiedEvidence =
     Boolean(strongScriptLanguage) ||
@@ -355,11 +366,11 @@ export function resolveAutoLanguageDecision(
   }
 
   const scores = new Map<string, number>();
-  for (const language of input.allowedLanguages) {
+  for (const language of candidateLanguages) {
     scores.set(language, 0);
   }
   for (const detection of input.browserDetections) {
-    const language = resolveHintLanguage(detection.language, input.allowedLanguages);
+    const language = resolveHintLanguage(detection.language, candidateLanguages);
     if (!language) {
       continue;
     }
@@ -381,7 +392,7 @@ export function resolveAutoLanguageDecision(
         SITE_PRIOR_MAX_BONUS * clampProbability(input.sitePriorConfidence),
     );
   }
-  if (stableLanguage) {
+  if (stableLanguage && candidateLanguages.includes(stableLanguage)) {
     scores.set(stableLanguage, (scores.get(stableLanguage) || 0) + STICKY_BONUS);
   }
   if (strongScriptLanguage) {
@@ -404,10 +415,26 @@ export function resolveAutoLanguageDecision(
   // mid-word, because switching there is gated on a token boundary.
   if (stableLanguage) {
     const tokenScript = textScript(currentToken);
-    if (!strongScriptLanguage && tokenScript && tokenScript !== languageScript(stableLanguage)) {
+    if (
+      !strongScriptLanguage &&
+      tokenScript &&
+      tokenScript !== languageScript(stableLanguage) &&
+      // Same guard as the strong-script shortcut: Persian/Urdu/Pashto letters
+      // mean the Arabic-block text is not necessarily Arabic.
+      !(tokenScript === "arabic" && SHARED_ARABIC_BLOCK_EXCLUSIVE_REGEX.test(sampleText))
+    ) {
+      // Mid-word most candidates score 0; picking among those would fall to
+      // the alphabetical tie-break.  Take a candidate with evidence, else the
+      // fallback language, else stay put.
+      const scored = ranked.find(
+        (candidate) => candidate.score > 0 && languageScript(candidate.language) === tokenScript,
+      );
       const compatible =
-        ranked.find((candidate) => languageScript(candidate.language) === tokenScript)?.language ??
-        null;
+        scored?.language ??
+        (languageScript(fallbackLanguage) === tokenScript &&
+        candidateLanguages.includes(fallbackLanguage)
+          ? fallbackLanguage
+          : null);
       if (compatible && compatible !== stableLanguage) {
         return {
           resolvedLanguage: compatible,

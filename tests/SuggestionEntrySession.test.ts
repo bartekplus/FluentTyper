@@ -1,12 +1,19 @@
-import { expect, jest, test } from "bun:test";
+import { afterEach, expect, jest, test } from "bun:test";
 import { ContentEditableAdapter } from "../src/adapters/chrome/content-script/suggestions/ContentEditableAdapter";
+import { InlineSuggestionPresenter } from "../src/adapters/chrome/content-script/suggestions/InlineSuggestionPresenter";
+import { InlineSuggestionView } from "../src/adapters/chrome/content-script/suggestions/InlineSuggestionView";
 import { SuggestionEntrySession } from "../src/adapters/chrome/content-script/suggestions/SuggestionEntrySession";
+import type { SuggestionPositioningService } from "../src/adapters/chrome/content-script/suggestions/SuggestionPositioningService";
 import type {
   PendingKeyFallback,
   PredictionResponse,
   SuggestionEntry,
 } from "../src/adapters/chrome/content-script/suggestions/types";
-import { createSuggestionEntry } from "./suggestionTestUtils";
+import { createHandler, createRect, createSuggestionEntry } from "./suggestionTestUtils";
+
+afterEach(() => {
+  jest.restoreAllMocks();
+});
 
 function makeSession({
   entry = createSuggestionEntry({ requestId: 2 }),
@@ -1268,6 +1275,178 @@ test("session ignores stale responses and renders fresh menu responses", () => {
   expect(entry.suggestions).toEqual(["beta"]);
   expect(recordSuggestionShown).toHaveBeenCalledWith({ suggestionCount: 1, language: "en_US" });
   expect(logRenderedSuggestionPopup).toHaveBeenCalledTimes(1);
+});
+
+test("session does not fulfill pending inline accept when the ghost render is vetoed", () => {
+  const textEditService = {
+    acceptSuggestion: jest.fn(() => null),
+    applyGrammarEdit: jest.fn(() => ({ applied: false, didDispatchInput: false })),
+    syncManualAutoFixSuppression: jest.fn(),
+  };
+  const entry = createSuggestionEntry({ requestId: 2, pendingInlineAccept: true });
+  // Mirrors InlineSuggestionPresenter.dropForEntry when the caret cannot be measured.
+  const renderInline = jest.fn(() => {
+    entry.inlineSuggestion = null;
+    entry.inlineRenderRejected = true;
+  });
+  const session = makeSession({
+    entry,
+    renderInline,
+    textEditService,
+    inlineSuggestionEnabled: true,
+  });
+
+  session.handlePredictionResponse({ requestId: 2, suggestionId: 1, predictions: ["beta"] });
+
+  expect(renderInline).toHaveBeenCalledTimes(1);
+  expect(entry.pendingInlineAccept).toBe(false);
+  expect(entry.suggestions).toEqual(["beta"]);
+  expect(textEditService.acceptSuggestion).not.toHaveBeenCalled();
+});
+
+// Real keyboard handler + session + presenter; only caret measurement, ghost
+// DOM, prediction transport and the text edit are stubbed.
+function makeInlineTabHarness({
+  value,
+  caretMeasurable,
+}: {
+  value: string;
+  caretMeasurable: boolean;
+}) {
+  const input = document.createElement("input");
+  input.value = value;
+  input.setSelectionRange(value.length, value.length);
+  const entry = createSuggestionEntry({ elem: input, requestId: 1, latestMentionText: value });
+  jest
+    .spyOn(InlineSuggestionView, "render")
+    .mockImplementation(() => document.createElement("div"));
+  jest.spyOn(InlineSuggestionView, "runOpposesParagraph").mockImplementation(() => false);
+  const presenter = new InlineSuggestionPresenter({
+    positioningService: {
+      getCaretRect: () => (caretMeasurable ? createRect() : null),
+    } as unknown as SuggestionPositioningService,
+  });
+  const findMentionToken = (beforeCursor: string) => ({ token: beforeCursor, start: 0 });
+  const textEditService = {
+    acceptSuggestion: jest.fn(() => ({
+      triggerText: value,
+      insertedText: value,
+      cursorAfter: value.length,
+      cursorAfterIsBlockLocal: false,
+    })),
+    applyGrammarEdit: jest.fn(() => ({ applied: false, didDispatchInput: false })),
+    syncManualAutoFixSuppression: jest.fn(),
+  };
+  const session = makeSession({
+    entry,
+    inlineSuggestionEnabled: true,
+    textEditService,
+    editableContextResolver: {
+      resolve: () => ({
+        kind: "text-value" as const,
+        beforeCursor: value,
+        afterCursor: "",
+        fullText: value,
+        cursorOffset: value.length,
+        selectionStable: true,
+      }),
+    },
+    predictionCoordinator: {
+      shouldProcessResponse: (_entry: SuggestionEntry, context: PredictionResponse) =>
+        context.requestId === entry.requestId,
+      schedule: jest.fn(() => {
+        entry.requestId += 1;
+      }),
+      reconcile: jest.fn(),
+      cancelPending: jest.fn(),
+      findMentionToken,
+    },
+    renderInline: () =>
+      presenter.renderForEntry({ enabled: true, entry, resolveMentionToken: findMentionToken }),
+  });
+  const handler = createHandler({
+    autocompleteOnSpace: false,
+    autocompleteOnEnter: false,
+    autocompleteOnTab: false,
+    selectByDigit: false,
+    consumeKeyboardEvent: (event) => event.preventDefault(),
+    clearSuggestions: () => session.clearSuggestions(),
+    acceptSuggestion: (_entry, suggestion) => session.acceptSuggestion(suggestion),
+    acceptSuggestionAtIndex: (_entry, index) => session.acceptSuggestionAtIndex(index),
+    requestInlineSuggestion: () => session.requestInlineSuggestion(),
+  });
+  const pressTab = () => {
+    const event = new window.KeyboardEvent("keydown", { key: "Tab", cancelable: true });
+    handler.handle(entry, event);
+    return event.defaultPrevented;
+  };
+  const respond = (predictions: string[]) =>
+    session.handlePredictionResponse({ requestId: entry.requestId, suggestionId: 1, predictions });
+  return { entry, session, textEditService, pressTab, respond };
+}
+
+test("inline Tab never accepts or traps focus when the renderer rejects the suggestion", () => {
+  const { entry, textEditService, pressTab, respond } = makeInlineTabHarness({
+    value: "fun",
+    caretMeasurable: false,
+  });
+  // Tab arrives before the first prediction lands.
+  entry.suggestions = ["function"];
+  expect(pressTab()).toBe(true);
+  expect(entry.pendingInlineAccept).toBe(true);
+
+  respond(["function"]);
+
+  expect(entry.pendingInlineAccept).toBe(false);
+  expect(entry.inlineSuggestion).toBeNull();
+  expect(textEditService.acceptSuggestion).not.toHaveBeenCalled();
+
+  // The rejected suggestion must let Tab move focus natively.
+  expect(pressTab()).toBe(false);
+  expect(entry.pendingInlineAccept).toBe(false);
+  expect(textEditService.acceptSuggestion).not.toHaveBeenCalled();
+});
+
+test("typing after a rejected render lets an early Tab wait for the fresh prediction", () => {
+  const { entry, session, pressTab, respond } = makeInlineTabHarness({
+    value: "fun",
+    caretMeasurable: false,
+  });
+  respond(["function"]);
+  expect(entry.inlineRenderRejected).toBe(true);
+
+  // The stale suggestion is dropped again during input; that must not veto Tab.
+  entry.inlineSuggestion = "function";
+  session.handleInput(new Event("input"));
+
+  expect(entry.inlineRenderRejected).toBe(false);
+  expect(pressTab()).toBe(true);
+  expect(entry.pendingInlineAccept).toBe(true);
+});
+
+test("inline Tab before arrival accepts once the ghost renders", () => {
+  const { entry, textEditService, pressTab, respond } = makeInlineTabHarness({
+    value: "fun",
+    caretMeasurable: true,
+  });
+  entry.suggestions = ["function"];
+  expect(pressTab()).toBe(true);
+
+  respond(["function"]);
+
+  expect(textEditService.acceptSuggestion).toHaveBeenCalledWith(entry, "function");
+});
+
+test("inline Tab accepts an exact-match suggestion with no ghost suffix", () => {
+  const { entry, textEditService, pressTab, respond } = makeInlineTabHarness({
+    value: "function",
+    caretMeasurable: true,
+  });
+  respond(["function"]);
+
+  expect(entry.inlineSuggestion).toBe("function");
+  expect(pressTab()).toBe(true);
+  expect(textEditService.acceptSuggestion).toHaveBeenCalledWith(entry, "function");
 });
 
 test("session falls back to empty suggestions for invalid prediction payloads", () => {

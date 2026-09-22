@@ -122,6 +122,8 @@ export interface SuggestionEntry {
   visibleSuggestionFullText: string | null;
   inlineSuggestion: string | null;
   pendingInlineAccept: boolean;
+  // The renderer vetoed the current suggestions; Tab must not wait on them.
+  inlineRenderRejected: boolean;
   missingTrailingSpace: boolean;
   expectedCursorPos: number;
   expectedCursorPosIsBlockLocal: boolean;

@@ -170,7 +170,17 @@ describe("advanced opt-in rules never rewrite code punctuation", () => {
 });
 
 describe("non-English locales keep their punctuation", () => {
-  for (const lang of ["fr_FR", "de_DE", "pl_PL", "es_ES", "sv_SE", "el_GR", "hr_HR", "pt_BR"])
+  for (const lang of [
+    "fr_FR",
+    "de_DE",
+    "pl_PL",
+    "es_ES",
+    "sv_SE",
+    "el_GR",
+    "hr_HR",
+    "pt_BR",
+    "ar_SA",
+  ])
     for (const input of [
       "Il a dit : oui ",
       "Prix 1,50 euros ",
@@ -188,5 +198,35 @@ describe("non-English locales keep their punctuation", () => {
 
   test("a space before a comma is still removed in every locale", () => {
     expect(type("Bonjour , le monde ", "fr_FR")).toBe("Bonjour, le monde ");
+  });
+});
+
+describe("Arabic punctuation", () => {
+  test("default rules leave well-formed Arabic prose unchanged", () => {
+    for (const input of [
+      "\u0643\u062a\u0627\u0628\u060c \u0642\u0644\u0645\u061f ",
+      "\u0646\u0639\u0645\u061b \u0644\u0627 ",
+      '\u0642\u0627\u0644 "\u0645\u0631\u062d\u0628\u0627" \u0644\u0647 ',
+    ])
+      expect(type(input, "ar_SA")).toBe(input);
+  });
+
+  test("opt-in rules treat Arabic punctuation like its Latin forms", () => {
+    const all = GRAMMAR_RULE_IDS;
+    expect(type("\u0643\u062a\u0627\u0628\u060c \u0642\u0644\u0645\u061f ", "ar_SA", all)).toBe(
+      "\u0643\u062a\u0627\u0628\u060c \u0642\u0644\u0645\u061f ",
+    );
+    expect(type("\u0643\u062a\u0627\u0628\u060c\u060c \u0642\u0644\u0645 ", "ar_SA", all)).toBe(
+      "\u0643\u062a\u0627\u0628\u060c \u0642\u0644\u0645 ",
+    );
+    expect(type("\u0646\u0639\u0645\u061b\u061b \u0644\u0627 ", "ar_SA", all)).toBe(
+      "\u0646\u0639\u0645\u061b \u0644\u0627 ",
+    );
+  });
+
+  test("a space before an Arabic comma is removed like before a Latin comma", () => {
+    expect(type("\u0643\u062a\u0627\u0628 \u060c \u0642\u0644\u0645 ", "ar_SA")).toBe(
+      "\u0643\u062a\u0627\u0628\u060c \u0642\u0644\u0645 ",
+    );
   });
 });

@@ -160,6 +160,19 @@ describe("PresageHandler live Arabic (ar_SA)", () => {
     expect(phrase.predictions.map((p) => p.trim())).toContain("العالم");
   });
 
+  test("ar_SA hunspell corrects a final ha/taa-marbuta misspelling", async () => {
+    const handler = await createLiveHandler();
+    handler.setConfig({ ...createLiveConfig([]), insertSpaceAfterAutocomplete: false });
+
+    // "ه" typed for "ة" is a very common Arabic spelling slip; the spelling
+    // predictor must offer the corrected form.
+    const government = await handler.runPrediction("الحكومه", "", "ar_SA");
+    expect(government.predictions.map((p) => p.trim())).toContain("الحكومة");
+
+    const university = await handler.runPrediction("الجامعه", "", "ar_SA");
+    expect(university.predictions.map((p) => p.trim())).toContain("الجامعة");
+  });
+
   test("the other engines still initialize alongside ar_SA", async () => {
     const handler = await createLiveHandler();
     handler.setConfig({ ...createLiveConfig([]) });

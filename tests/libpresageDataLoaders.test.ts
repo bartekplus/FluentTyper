@@ -32,15 +32,29 @@ describe("libpresage data loaders", () => {
     expect(LOADER).toContain("/resources_js/ar_SA/hunspell/ar_SA.dic");
   });
 
-  test("the Arabic package excludes the disabled aspell data", () => {
+  test("the Arabic loader metadata matches ar_SA.data and excludes aspell", () => {
+    // Parse ar_SA's own loadPackage({...}) metadata, not the whole bundle.
+    const pkgNameAt = LOADER.search(/PACKAGE_NAME\s*=\s*['"]ar_SA\.data['"]/);
+    expect(pkgNameAt).toBeGreaterThan(-1);
+    const match = LOADER.slice(pkgNameAt).match(
+      /loadPackage\((\{"files":[\s\S]*?"remote_package_size":\s*\d+\})\)/,
+    );
+    expect(match).not.toBeNull();
+    const metadata = JSON.parse(match![1]) as {
+      files: { filename: string; start: number; end: number }[];
+      remote_package_size: number;
+    };
+
+    expect(metadata.remote_package_size).toBe(statSync(`${PACKAGE_DIR}/ar_SA.data`).size);
+    expect(metadata.files.length).toBeGreaterThan(0);
     // use_aspell=False: the predictor is dropped from presage.xml, so the
     // packaged ar_SA tree must not carry aspell files.
-    const arPackage = LOADER.slice(LOADER.indexOf("ar_SA.data"));
-    const files = arPackage
-      .slice(0, arPackage.indexOf("})})();"))
-      .match(/\/resources_js\/ar_SA\/[^"]+/g);
-    expect(files).not.toBeNull();
-    expect(files!.some((file) => file.includes("/aspell/"))).toBe(false);
+    for (const file of metadata.files) {
+      expect(file.filename.startsWith("/resources_js/ar_SA/")).toBe(true);
+      expect(file.filename).not.toContain("/aspell/");
+    }
+    const totalBytes = metadata.files.reduce((sum, file) => sum + (file.end - file.start), 0);
+    expect(totalBytes).toBe(metadata.remote_package_size);
   });
 
   test("every packaged .data file is referenced and its size matches the loader", () => {

@@ -10,3 +10,4 @@ scripts/community-oscar
 .cache
 .worktrees
 .claude
+__pycache__/

@@ -9,7 +9,15 @@ export interface SpacingRule {
   spaceAfter: Spacing;
 }
 
-export const SPACING_RULES: Record<string, SpacingRule> = {
+// Non-Latin punctuation that behaves exactly like an ASCII mark: Arabic
+// comma, semicolon and question mark.
+export const PUNCTUATION_EQUIVALENTS: Readonly<Record<string, string>> = {
+  "،": ",",
+  "؛": ";",
+  "؟": "?",
+};
+
+const BASE_SPACING_RULES: Record<string, SpacingRule> = {
   ".": { spaceBefore: Spacing.REMOVE_SPACE, spaceAfter: Spacing.INSERT_SPACE },
   ",": { spaceBefore: Spacing.REMOVE_SPACE, spaceAfter: Spacing.INSERT_SPACE },
   "]": { spaceBefore: Spacing.REMOVE_SPACE, spaceAfter: Spacing.INSERT_SPACE },
@@ -32,6 +40,16 @@ export const SPACING_RULES: Record<string, SpacingRule> = {
   "*": { spaceBefore: Spacing.NO_CHANGE, spaceAfter: Spacing.NO_CHANGE },
   "+": { spaceBefore: Spacing.NO_CHANGE, spaceAfter: Spacing.NO_CHANGE },
   "=": { spaceBefore: Spacing.NO_CHANGE, spaceAfter: Spacing.NO_CHANGE },
+};
+
+export const SPACING_RULES: Record<string, SpacingRule> = {
+  ...BASE_SPACING_RULES,
+  ...Object.fromEntries(
+    Object.entries(PUNCTUATION_EQUIVALENTS).map(([mark, ascii]) => [
+      mark,
+      BASE_SPACING_RULES[ascii],
+    ]),
+  ),
 };
 
 export const SPACE_CHARS: string[] = ["\xA0", " "];

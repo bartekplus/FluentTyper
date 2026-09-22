@@ -19,34 +19,25 @@ from typing import Iterable
 class LanguageConfig:
     short: str
     variant: str
-    aspell_urls: tuple[str, ...]
+    aspell_urls: tuple[str, ...] = ()
     aspell_lang: str | None = None
-    # Arabic's aspell dictionary declares the "l-ar" (logical Arabic) charset,
-    # whose l-ar.cmap is a symlink to l-fa.cmap (logical Persian, not shipped in
-    # the aspell-ar package). In the WASM build aspell resolves charset files
-    # from its default data dir rather than the language dir, so the
-    # DefaultAspellPredictor fails to initialize and throws the whole engine.
-    # The n-gram predictor is primary and Hunspell already covers
-    # spell-correction, so we drop the aspell predictor for such languages.
-    use_aspell: bool = True
 
 
+# aspell_urls must be i586 builds: compiled .rws word lists are arch-dependent
+# and the WASM engine is 32-bit (x86_64/Leap .rws differ byte-wise). Only
+# Tumbleweed ports ships i586, and its release suffix (-4.6) bumps on rebuild,
+# so these URLs rot; refresh from the ports/i586 tumbleweed directory listing.
 LANGUAGES: tuple[LanguageConfig, ...] = (
-    LanguageConfig(
-        short="ar",
-        variant="ar_SA",
-        aspell_urls=(
-            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-ar-1.2.0-4.6.i586.rpm",
-        ),
-        aspell_lang="ar",
-        use_aspell=False,
-    ),
+    # No aspell_urls: aspell-ar's "l-ar" charset needs l-fa.cmap, which the
+    # WASM build cannot find, so the aspell predictor would break the engine.
+    # The n-gram predictor is primary and Hunspell covers spell-correction.
+    LanguageConfig(short="ar", variant="ar_SA"),
     LanguageConfig(
         short="de",
         variant="de_DE",
         aspell_urls=(
-            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-de-20161207.7.0-4.1.i586.rpm",
-            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-de-20161207.7.0-4.4.i586.rpm",
+            "https://download.opensuse.org/ports/i586/tumbleweed/repo/oss/i586/aspell-de-20161207.7.0-4.6.i586.rpm",
+            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-de-20161207.7.0-4.6.i586.rpm",
         ),
         aspell_lang="de",
     ),
@@ -54,8 +45,8 @@ LANGUAGES: tuple[LanguageConfig, ...] = (
         short="el",
         variant="el_GR",
         aspell_urls=(
-            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-el-0.50.3+0.08-4.1.i586.rpm",
-            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-el-0.50.3+0.08-4.4.i586.rpm",
+            "https://download.opensuse.org/ports/i586/tumbleweed/repo/oss/i586/aspell-el-0.50.3+0.08-4.6.i586.rpm",
+            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-el-0.50.3+0.08-4.6.i586.rpm",
         ),
         aspell_lang="el",
     ),
@@ -63,16 +54,16 @@ LANGUAGES: tuple[LanguageConfig, ...] = (
         short="en",
         variant="en_US",
         aspell_urls=(
-            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-en-2020.12.07-2.5.i586.rpm",
-            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-en-2020.12.07-2.8.i586.rpm",
+            "https://download.opensuse.org/ports/i586/tumbleweed/repo/oss/i586/aspell-en-2026.02.25-1.2.i586.rpm",
+            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-en-2026.02.25-1.2.i586.rpm",
         ),
     ),
     LanguageConfig(
         short="es",
         variant="es_ES",
         aspell_urls=(
-            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-es-1.11.2-4.1.i586.rpm",
-            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-es-1.11.2-4.4.i586.rpm",
+            "https://download.opensuse.org/ports/i586/tumbleweed/repo/oss/i586/aspell-es-1.11.2-4.6.i586.rpm",
+            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-es-1.11.2-4.6.i586.rpm",
         ),
         aspell_lang="es",
     ),
@@ -80,16 +71,16 @@ LANGUAGES: tuple[LanguageConfig, ...] = (
         short="fr",
         variant="fr_FR",
         aspell_urls=(
-            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-fr-0.50.3-4.1.i586.rpm",
-            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-fr-0.50.3-4.4.i586.rpm",
+            "https://download.opensuse.org/ports/i586/tumbleweed/repo/oss/i586/aspell-fr-0.50.3-4.6.i586.rpm",
+            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-fr-0.50.3-4.6.i586.rpm",
         ),
     ),
     LanguageConfig(
         short="hr",
         variant="hr_HR",
         aspell_urls=(
-            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-hr-0.51.0-4.1.i586.rpm",
-            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-hr-0.51.0-4.4.i586.rpm",
+            "https://download.opensuse.org/ports/i586/tumbleweed/repo/oss/i586/aspell-hr-0.51.0-4.6.i586.rpm",
+            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-hr-0.51.0-4.6.i586.rpm",
         ),
         aspell_lang="hr",
     ),
@@ -97,8 +88,8 @@ LANGUAGES: tuple[LanguageConfig, ...] = (
         short="pl",
         variant="pl_PL",
         aspell_urls=(
-            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-pl-0.60.2015.04.28-4.1.i586.rpm",
-            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-pl-0.60.2015.04.28-4.4.i586.rpm",
+            "https://download.opensuse.org/ports/i586/tumbleweed/repo/oss/i586/aspell-pl-0.60.2015.04.28-4.6.i586.rpm",
+            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-pl-0.60.2015.04.28-4.6.i586.rpm",
         ),
         aspell_lang="pl",
     ),
@@ -106,16 +97,16 @@ LANGUAGES: tuple[LanguageConfig, ...] = (
         short="pt",
         variant="pt_BR",
         aspell_urls=(
-            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-pt_BR-20131030.12.0-4.1.i586.rpm",
-            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-pt_BR-20131030.12.0-4.4.i586.rpm",
+            "https://download.opensuse.org/ports/i586/tumbleweed/repo/oss/i586/aspell-pt_BR-20131030.12.0-4.6.i586.rpm",
+            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-pt_BR-20131030.12.0-4.6.i586.rpm",
         ),
     ),
     LanguageConfig(
         short="sv",
         variant="sv_SE",
         aspell_urls=(
-            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-sv-0.51.0-4.1.i586.rpm",
-            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-sv-0.51.0-4.4.i586.rpm",
+            "https://download.opensuse.org/ports/i586/tumbleweed/repo/oss/i586/aspell-sv-0.51.0-4.6.i586.rpm",
+            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-sv-0.51.0-4.6.i586.rpm",
         ),
         aspell_lang="sv",
     ),
@@ -162,7 +153,7 @@ def create_lang_config_from_template(lang: LanguageConfig, debug: bool) -> None:
     (dst / "hunspell").mkdir(parents=True, exist_ok=True)
     shutil.copytree(RESOURCES_LANG_TEMPLATE_DIR, dst, dirs_exist_ok=True)
     update_template(dst / "presage.xml", lang, debug)
-    if not lang.use_aspell:
+    if not lang.aspell_urls:
         _drop_aspell_predictor(dst / "presage.xml")
         # No aspell predictor means no aspell data files are needed either —
         # drop the template's aspell dir so it is not downloaded, installed,
@@ -174,21 +165,24 @@ def _drop_aspell_predictor(presage_xml: Path) -> None:
     """Remove the DefaultAspellPredictor from a generated presage.xml.
 
     Used for languages whose aspell dictionary cannot initialize in the WASM
-    build (see LanguageConfig.use_aspell). The n-gram predictor is primary and
+    build (e.g. ar_SA). The n-gram predictor is primary and
     Hunspell covers spell-correction, so dropping aspell is safe.
     """
     import re
 
+    name = "DefaultAspellPredictor"
     text = presage_xml.read_text(encoding="utf-8")
-    # Drop the predictor from the PREDICTORS registry list.
-    text = text.replace("DefaultAspellPredictor ", "")
-    # Drop the <DefaultAspellPredictor>...</DefaultAspellPredictor> block.
+    # Drop the predictor from the whitespace-separated PREDICTORS list.
     text = re.sub(
-        r"\s*<DefaultAspellPredictor>.*?</DefaultAspellPredictor>",
-        "",
+        r"(<PREDICTORS>)(.*?)(</PREDICTORS>)",
+        lambda m: m[1] + " ".join(t for t in m[2].split() if t != name) + m[3],
         text,
         flags=re.DOTALL,
     )
+    # Drop the <DefaultAspellPredictor>...</DefaultAspellPredictor> block.
+    text = re.sub(rf"\s*<{name}>.*?</{name}>", "", text, flags=re.DOTALL)
+    if name in text:
+        raise RuntimeError(f"{name} still referenced in {presage_xml}")
     presage_xml.write_text(text, encoding="utf-8")
 
 
@@ -254,22 +248,21 @@ def prepare_language(
     if skip_dictionaries:
         print(f"Skipping dictionaries for {lang.variant}")
         return
-    # A language with the aspell predictor disabled (use_aspell=False) never
-    # installs an aspell dictionary, so requiring one here would make the
-    # cached-dictionary early return unreachable and re-download hunspell on
-    # every rebuild.
-    aspell_present = (not lang.use_aspell) or has_aspell_dictionary(lang)
+    # A language without aspell_urls never installs an aspell dictionary, so
+    # requiring one here would make the cached-dictionary early return
+    # unreachable and re-download hunspell on every rebuild.
+    aspell_present = not lang.aspell_urls or has_aspell_dictionary(lang)
     if not refresh_dictionaries and aspell_present and has_hunspell_dictionary(lang):
         print(f"Using existing dictionaries for {lang.variant}")
         return
-    if lang.use_aspell:
+    if lang.aspell_urls:
         install_aspell_dictionary(lang)
     else:
-        # use_aspell=False: the aspell predictor is dropped from presage.xml,
+        # No aspell_urls: the aspell predictor is dropped from presage.xml,
         # so no aspell data files are needed. Skip the download/install and
         # remove any stale aspell dir left over from a previous build so it
         # does not get packaged.
-        print(f"Skipping aspell dictionary for {lang.variant} (use_aspell=False)")
+        print(f"Skipping aspell dictionary for {lang.variant} (no aspell_urls)")
         shutil.rmtree(RESOURCES_DIR / lang.variant / "aspell", ignore_errors=True)
     install_hunspell_dictionary(lang)
 

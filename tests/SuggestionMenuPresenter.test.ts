@@ -29,6 +29,10 @@ describe("SuggestionMenuPresenter", () => {
     expect(rendered).toBe(true);
     expect(menu.querySelector(".ft-suggestion-header")?.textContent).toBe("Lang: English");
     expect(list.querySelectorAll("li").length).toBe(2);
+    // Each item resolves its own base direction (Arabic with trailing digits in an LTR page).
+    expect(
+      Array.from(list.querySelectorAll("li")).every((li) => li.getAttribute("dir") === "auto"),
+    ).toBe(true);
     expect(list.querySelector("li")?.getAttribute("data-shortcut")).toBe("1");
     expect(list.querySelector("li .ft-suggestion-shortcut")?.textContent).toBe("1");
     expect(list.querySelector("li.highlight")?.getAttribute("data-index")).toBe("1");

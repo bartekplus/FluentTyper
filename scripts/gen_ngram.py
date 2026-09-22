@@ -3,12 +3,8 @@
 import argparse
 import os
 from codecs import encode, decode
-from nltk import sent_tokenize
-from nltk.util import ngrams
-from nltk.tokenize import TweetTokenizer
 from collections import Counter
 import re
-import nltk
 import multiprocessing
 import itertools
 import functools
@@ -66,11 +62,18 @@ def fix_common_errors(line):
     return line
 
 
-def filter_tokens(tokens_raw):
+# Arabic tatweel (U+0640) and harakat (U+064B-U+0652, U+0670): the runtime
+# strips tatweel from typed input, so keys containing these never match.
+ARABIC_STRIP = dict.fromkeys([0x0640, *range(0x064B, 0x0653), 0x0670])
+
+
+def filter_tokens(tokens_raw, language=None):
     tokens_array = []
     tokens = []
     for token in tokens_raw:
         split = False
+        if language == "ar":
+            token = token.translate(ARABIC_STRIP)
         token_orig = token.strip()
         token = token.strip().lower()
 
@@ -104,6 +107,8 @@ def filter_tokens(tokens_raw):
 
 
 def ensure_nltk_tokenizers():
+    import nltk
+
     required = (
         ("punkt", "tokenizers/punkt"),
         ("punkt_tab", "tokenizers/punkt_tab"),
@@ -128,6 +133,10 @@ def ensure_nltk_tokenizers():
 
 def process_chunk(language, chunk):
     """Processes a chunk of lines to count n-grams."""
+    from nltk import sent_tokenize
+    from nltk.tokenize import TweetTokenizer
+    from nltk.util import ngrams
+
     local_ngram_counters = [Counter() for _ in range(NGRAM_COUNT)]
     tk = TweetTokenizer(match_phone_numbers=False)  # Initialize tokenizer per process
     lines_processed_in_chunk = 0
@@ -148,7 +157,7 @@ def process_chunk(language, chunk):
         ):
             sentence = fix_common_errors(sentence)
             tokens_raw = tk.tokenize(sentence)
-            tokens_array = filter_tokens(tokens_raw)
+            tokens_array = filter_tokens(tokens_raw, language)
 
             for tokens in tokens_array:
                 if not tokens:

@@ -178,13 +178,12 @@ function installBackgroundHarnessModuleMocks(): void {
     getDomain: (...args: [string]) => backgroundHarnessMocks.getDomain(...args),
     isEnabledForDomain: (...args: [unknown, string]) =>
       backgroundHarnessMocks.isEnabledForDomain(...args),
-    isLetter: (character: string) => /^\p{L}/u.test(character),
     toStoredString: (value: unknown) =>
       typeof value === "string" ? value : typeof value === "number" ? String(value) : null,
     isWhiteSpace: (character: string) => /\s+/.test(character),
     isNumber: (value: string) =>
       (!Number.isNaN(Number(value)) && !Number.isNaN(Number.parseFloat(value))) ||
-      value.replace(/[^0-9]/g, "").length > 1,
+      value.replace(/\P{Nd}/gu, "").length > 1,
   }));
 
   jest.unstable_mockModule("../src/core/domain/error", () => ({

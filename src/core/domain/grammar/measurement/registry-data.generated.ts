@@ -846,6 +846,10 @@ export const MEASUREMENT_LOCALES = [
   {
     locale: "ar_SA",
     separator: " ",
-    decimalMarks: [","],
+    decimalMarks: ["."],
+    nativeDigits: {
+      digits: "٠١٢٣٤٥٦٧٨٩",
+      decimalMark: "٫",
+    },
   },
 ] as const;

@@ -56,6 +56,8 @@ export class SuggestionMenuPresenter {
       });
       li.setAttribute("data-index", String(index));
       li.setAttribute("role", "option");
+      // Per-item base direction: Arabic with trailing digits/punctuation in an LTR page.
+      li.setAttribute("dir", "auto");
       li.setAttribute("aria-selected", index === model.selectedIndex ? "true" : "false");
       if (model.showShortcutDigits) {
         li.classList.add("has-shortcut");

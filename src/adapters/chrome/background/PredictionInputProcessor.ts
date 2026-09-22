@@ -1,8 +1,9 @@
 import {
   DEFAULT_SEPARATOR_CHARS_REGEX,
   LANG_ADDITIONAL_SEPARATOR_REGEX,
-  LANG_STRIPPED_CHARS_REGEX,
+  stripIgnoredWordChars,
 } from "@core/domain/lang";
+import { PUNCTUATION_EQUIVALENTS } from "@core/domain/spacingRules";
 import {
   extractPredictionTokenSuffix,
   KEEP_PREDICTION_TOKEN_CHARS_REGEX,
@@ -11,6 +12,12 @@ import { checkAutoCapitalize, Capitalization } from "./CapitalizationHelper";
 import { isNumber } from "@core/application/domain-utils";
 
 const NEW_SENTENCE_CHARS = [".", "?", "!"];
+// Equivalent punctuation tokenizes exactly like its ASCII counterpart, so
+// "مرحبا،كي" is not one prefix and "؟" ends a sentence.
+const EQUIVALENT_PUNCTUATION_REGEX = new RegExp(
+  `[${Object.keys(PUNCTUATION_EQUIVALENTS).join("")}]`,
+  "g",
+);
 const PAST_WORDS_COUNT = 5;
 export const MIN_WORD_LENGTH_TO_PREDICT = 1;
 
@@ -71,23 +78,14 @@ export class PredictionInputProcessor {
     if (!additionalSeparatorRegex) {
       return value;
     }
-    return value.replaceAll(RegExp(additionalSeparatorRegex, "g"), " ");
-  }
-
-  /**
-   * Removes language-specific filler characters before tokenising, so a word
-   * like "كتـــاب" is treated as "كتاب" instead of being split on the filler.
-   */
-  private stripIgnoredChars(value: string, language: string): string {
-    const strippedCharsRegex = LANG_STRIPPED_CHARS_REGEX[language];
-    if (!strippedCharsRegex) {
-      return value;
-    }
-    return value.replaceAll(RegExp(strippedCharsRegex, "g"), "");
+    return value.replaceAll(additionalSeparatorRegex, " ");
   }
 
   private normalizeForTokenizing(value: string, language: string): string {
-    return this.stripIgnoredChars(this.normalizeAdditionalSeparators(value, language), language);
+    return stripIgnoredWordChars(this.normalizeAdditionalSeparators(value, language)).replace(
+      EQUIVALENT_PUNCTUATION_REGEX,
+      (char) => PUNCTUATION_EQUIVALENTS[char],
+    );
   }
 
   private resolveCurrentWordSuffix(
