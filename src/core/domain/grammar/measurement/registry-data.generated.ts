@@ -843,4 +843,9 @@ export const MEASUREMENT_LOCALES = [
     separator: " ",
     decimalMarks: [","],
   },
+  {
+    locale: "ar_SA",
+    separator: " ",
+    decimalMarks: [","],
+  },
 ] as const;

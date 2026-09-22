@@ -1,5 +1,6 @@
 export const SUPPORTED_LANGUAGES: Record<string, string> = {
   auto_detect: "Auto detect",
+  ar_SA: "Arabic",
   en_US: "English (US)",
   fr_FR: "French",
   hr_HR: "Croatian",
@@ -32,6 +33,7 @@ export function resolveEnabledLanguages(enabledLanguages: unknown): string[] {
 }
 
 export const SUPPORTED_LANGUAGES_SHORT_CODE: Record<string, string> = {
+  ar: "ar_SA",
   en: "en_US",
   fr: "fr_FR",
   hr: "hr_HR",
@@ -52,6 +54,11 @@ const DEFAULT_SEPARATOR_CHARS_REGEX_SOURCE = `${BASE_SEPARATOR_CHARS_REGEX_SOURC
 export const DEFAULT_SEPARATOR_CHARS_REGEX: RegExp = RegExp(DEFAULT_SEPARATOR_CHARS_REGEX_SOURCE);
 export const LANG_SEPARATOR_CHARS_REGEX: Record<string, RegExp> = {
   auto_detect: DEFAULT_SEPARATOR_CHARS_REGEX,
+  // U+0640 (ARABIC TATWEEL) is deliberately NOT a separator: it is an
+  // intra-word joining filler, so "كتـــاب" is a single word. Splitting on it
+  // would hand Presage a fragment ("اب"). It is stripped instead, see
+  // LANG_STRIPPED_CHARS_REGEX.
+  ar_SA: RegExp(`${DEFAULT_SEPARATOR_CHARS_REGEX_SOURCE}|\\u060C|\\u061B|\\u061F`),
   en_US: DEFAULT_SEPARATOR_CHARS_REGEX,
   fr_FR: RegExp(`${DEFAULT_SEPARATOR_CHARS_REGEX_SOURCE}|'|\\u2019`),
   hr_HR: DEFAULT_SEPARATOR_CHARS_REGEX,
@@ -65,8 +72,26 @@ export const LANG_SEPARATOR_CHARS_REGEX: Record<string, RegExp> = {
 };
 export const LANG_ADDITIONAL_SEPARATOR_REGEX: Record<string, RegExp | null> = {
   auto_detect: null,
+  ar_SA: null,
   en_US: null,
   fr_FR: RegExp(/['\u2019]/g),
+  hr_HR: null,
+  es_ES: null,
+  el_GR: null,
+  sv_SE: null,
+  de_DE: null,
+  pl_PL: null,
+  pt_BR: null,
+  textExpander: null,
+};
+// Characters removed from the prediction input before it is tokenised.
+// U+0640 ARABIC TATWEEL is an intra-word joining filler rather than a letter,
+// so "كتـــاب" has to reach Presage as "كتاب" — not split into fragments.
+export const LANG_STRIPPED_CHARS_REGEX: Record<string, RegExp | null> = {
+  auto_detect: null,
+  ar_SA: /\u0640/g,
+  en_US: null,
+  fr_FR: null,
   hr_HR: null,
   es_ES: null,
   el_GR: null,

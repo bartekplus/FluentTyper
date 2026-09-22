@@ -4,6 +4,32 @@ import { TextTargetAdapter } from "./TextTargetAdapter";
 
 const ENTRY_ID_ATTR = "data-ft-suggestion-entry-id";
 
+// Strong-script ranges used to determine the direction of the SUGGESTION TEXT
+// (the continuation run).  The containing element's computed `direction` only
+// describes the paragraph — a Latin run inside an RTL paragraph still
+// continues rightward — so anchoring must follow the run.
+const RTL_SCRIPT_REGEX = /[\u0590-\u08FF\uFB1D-\uFDFD\uFE70-\uFEFF]/u;
+const LTR_SCRIPT_REGEX =
+  /[\u0041-\u005A\u0061-\u007A\u00C0-\u024F\u0370-\u03FF\u0400-\u04FF\u1E00-\u1EFF]/u;
+
+/**
+ * Direction of the text run that the suggestion continues, taken from its
+ * FIRST strong character — a suffix that opens with a Latin letter is an LTR
+ * run even when Arabic characters follow.  Returns null when the text is
+ * direction-neutral (spaces, punctuation).
+ */
+function resolveRunDirection(text: string): "ltr" | "rtl" | null {
+  for (const char of text) {
+    if (RTL_SCRIPT_REGEX.test(char)) {
+      return "rtl";
+    }
+    if (LTR_SCRIPT_REGEX.test(char)) {
+      return "ltr";
+    }
+  }
+  return null;
+}
+
 /** Properties copied from the target to the mirror div for pixel-perfect overlay. */
 const MIRROR_PROPERTIES = [
   "direction",
@@ -113,16 +139,41 @@ export class InlineSuggestionView {
     ghost.style.color = computedStyle.color;
     ghost.style.opacity = "0.5";
     ghost.style.position = "fixed";
-    ghost.style.left = `${caretRect.left}px`;
     ghost.style.top = `${caretRect.top - leadingOffset}px`;
     ghost.style.pointerEvents = "none";
     ghost.style.whiteSpace = "pre-wrap";
     ghost.style.zIndex = "10000";
 
     const targetRect = target.getBoundingClientRect();
-    const maxWidth = Math.max(0, targetRect.right - caretRect.left);
-    if (maxWidth > 0) {
-      ghost.style.maxWidth = `${maxWidth}px`;
+    const runDirection = resolveRunDirection(text);
+    // Right-anchor only when the paragraph is RTL and the continuation run is
+    // not explicitly LTR: a neutral run (space/punctuation) follows the
+    // paragraph, but a Latin run inside an RTL paragraph still advances to the
+    // RIGHT, and an Arabic run inside an LTR editor does too — anchoring those
+    // rightward would draw the preview over the typed text and off the
+    // editor's left edge.
+    const anchorRtl = computedStyle.direction === "rtl" && runDirection !== "ltr";
+    if (anchorRtl) {
+      // RTL: the continuation extends to the LEFT of the caret. Anchor the
+      // ghost's right edge at the caret's right edge and let it grow leftward,
+      // mirroring the LTR behaviour (which anchors left and grows right).
+      ghost.style.direction = "rtl";
+      ghost.style.left = "auto";
+      ghost.style.right = `${window.innerWidth - caretRect.right}px`;
+      const rtlMaxWidth = Math.max(0, caretRect.left - targetRect.left);
+      if (rtlMaxWidth > 0) {
+        ghost.style.maxWidth = `${rtlMaxWidth}px`;
+      }
+    } else {
+      // LTR run: anchor left and grow right.  Set direction explicitly —
+      // applyFontStyles copied the element's computed direction, which may be
+      // rtl even when the run is Latin.
+      ghost.style.direction = "ltr";
+      ghost.style.left = `${caretRect.left}px`;
+      const maxWidth = Math.max(0, targetRect.right - caretRect.left);
+      if (maxWidth > 0) {
+        ghost.style.maxWidth = `${maxWidth}px`;
+      }
     }
 
     resolveSuggestionOverlayRoot(doc).appendChild(ghost);

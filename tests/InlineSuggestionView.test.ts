@@ -213,6 +213,229 @@ describe("InlineSuggestionView", () => {
     container.remove();
   });
 
+  test("anchors RTL ghost to the caret's right edge and grows leftward", () => {
+    const container = document.createElement("div");
+    container.contentEditable = "true";
+    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
+    container.style.direction = "rtl";
+    document.body.appendChild(container);
+
+    const p = document.createElement("p");
+    p.textContent = "مرحبا";
+    container.appendChild(p);
+
+    const textNode = p.firstChild!;
+    const range = document.createRange();
+    range.setStart(textNode, 5);
+    range.collapse(true);
+    const sel = window.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    // Caret at left=300, right=300 (zero-width).
+    const ghost = InlineSuggestionView.render({
+      target: container,
+      text: " بالعالم",
+      caretRect: { left: 300, right: 300, top: 20, width: 0, height: 16 } as DOMRect,
+      doc: document,
+    });
+
+    expect(ghost).not.toBeNull();
+    const style = ghost!.style;
+    // RTL ghost is direction-aware and anchored on the right, not the left.
+    expect(style.direction).toBe("rtl");
+    expect(style.left).toBe("auto");
+    expect(style.right).toBe(`${window.innerWidth - 300}px`);
+    // maxWidth is the space to the LEFT of the caret (caret.left - target.left).
+    const targetLeft = container.getBoundingClientRect().left;
+    expect(style.maxWidth).toBe(`${300 - targetLeft}px`);
+
+    container.remove();
+  });
+
+  test("keeps LTR ghost anchored to the caret's left edge (regression)", () => {
+    const container = document.createElement("div");
+    container.contentEditable = "true";
+    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
+    document.body.appendChild(container);
+
+    const p = document.createElement("p");
+    p.textContent = "hello";
+    container.appendChild(p);
+
+    const textNode = p.firstChild!;
+    const range = document.createRange();
+    range.setStart(textNode, 5);
+    range.collapse(true);
+    const sel = window.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    const ghost = InlineSuggestionView.render({
+      target: container,
+      text: " world",
+      caretRect: { left: 300, right: 300, top: 20, width: 0, height: 16 } as DOMRect,
+      doc: document,
+    });
+
+    expect(ghost).not.toBeNull();
+    // LTR path is unchanged: anchored left, no explicit right override.
+    expect(ghost!.style.left).toBe("300px");
+    expect(ghost!.style.direction).not.toBe("rtl");
+    expect(ghost!.style.right).toBe("");
+
+    container.remove();
+  });
+
+  test("anchors a Latin completion in an RTL paragraph to the LEFT edge (run direction wins)", () => {
+    // R2 regression: the paragraph is RTL, but the completion run is Latin,
+    // so it continues rightward — the ghost must anchor left (LTR), not be
+    // anchored right and overlap the already-typed text.
+    const container = document.createElement("div");
+    container.contentEditable = "true";
+    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
+    container.style.direction = "rtl";
+    document.body.appendChild(container);
+
+    const p = document.createElement("p");
+    p.textContent = "مرحبا hel";
+    container.appendChild(p);
+
+    const textNode = p.firstChild!;
+    const range = document.createRange();
+    range.setStart(textNode, textNode.data.length);
+    range.collapse(true);
+    const sel = window.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    const ghost = InlineSuggestionView.render({
+      target: container,
+      text: "lo",
+      caretRect: { left: 300, right: 300, top: 20, width: 0, height: 16 } as DOMRect,
+      doc: document,
+    });
+
+    expect(ghost).not.toBeNull();
+    const style = ghost!.style;
+    // Latin run → LTR anchoring even though the element is direction: rtl.
+    expect(style.left).toBe("300px");
+    expect(style.right).toBe("");
+    expect(style.direction).not.toBe("rtl");
+
+    container.remove();
+  });
+
+  test("anchors a neutral completion in an RTL paragraph using the element direction", () => {
+    // Direction-neutral suggestion text (no strong script) falls back to the
+    // containing element's computed direction — preserving the previous
+    // behaviour for space/punctuation completions in RTL paragraphs.
+    const container = document.createElement("div");
+    container.contentEditable = "true";
+    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
+    container.style.direction = "rtl";
+    document.body.appendChild(container);
+
+    const p = document.createElement("p");
+    p.textContent = "مرحبا";
+    container.appendChild(p);
+
+    const textNode = p.firstChild!;
+    const range = document.createRange();
+    range.setStart(textNode, textNode.data.length);
+    range.collapse(true);
+    const sel = window.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    const ghost = InlineSuggestionView.render({
+      target: container,
+      text: " ",
+      caretRect: { left: 300, right: 300, top: 20, width: 0, height: 16 } as DOMRect,
+      doc: document,
+    });
+
+    expect(ghost).not.toBeNull();
+    const style = ghost!.style;
+    expect(style.direction).toBe("rtl");
+    expect(style.left).toBe("auto");
+    expect(style.right).toBe(`${window.innerWidth - 300}px`);
+
+    container.remove();
+  });
+
+  test("anchors an Arabic completion in an LTR editor to the LEFT edge", () => {
+    // Review gap: a plain <input>/contenteditable with no dir is the common
+    // case for an Arabic user, and there the accepted text lands to the RIGHT
+    // of the caret. The ghost must anchor left, not right.
+    const container = document.createElement("div");
+    container.contentEditable = "true";
+    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
+    container.style.direction = "ltr";
+    document.body.appendChild(container);
+
+    const p = document.createElement("p");
+    p.textContent = "الي";
+    container.appendChild(p);
+
+    const textNode = p.firstChild!;
+    const range = document.createRange();
+    range.setStart(textNode, textNode.data.length);
+    range.collapse(true);
+    const sel = window.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    const ghost = InlineSuggestionView.render({
+      target: container,
+      text: "وم",
+      caretRect: { left: 108, right: 108, top: 20, width: 0, height: 16 } as DOMRect,
+      doc: document,
+    });
+
+    expect(ghost).not.toBeNull();
+    const style = ghost!.style;
+    expect(style.direction).toBe("ltr");
+    expect(style.left).toBe("108px");
+    expect(style.right).toBe("");
+
+    container.remove();
+  });
+
+  test("anchors a suffix that OPENS with Latin inside an RTL paragraph to the LEFT edge", () => {
+    // First strong character wins: "abc" followed by Arabic is still an LTR run.
+    const container = document.createElement("div");
+    container.contentEditable = "true";
+    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
+    container.style.direction = "rtl";
+    document.body.appendChild(container);
+
+    const p = document.createElement("p");
+    p.textContent = "مرحبا";
+    container.appendChild(p);
+
+    const textNode = p.firstChild!;
+    const range = document.createRange();
+    range.setStart(textNode, textNode.data.length);
+    range.collapse(true);
+    const sel = window.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    const ghost = InlineSuggestionView.render({
+      target: container,
+      text: "abc مرحبا",
+      caretRect: { left: 300, right: 300, top: 20, width: 0, height: 16 } as DOMRect,
+      doc: document,
+    });
+
+    expect(ghost).not.toBeNull();
+    expect(ghost!.style.direction).toBe("ltr");
+    expect(ghost!.style.left).toBe("300px");
+
+    container.remove();
+  });
+
   test("renderMirrorPreview creates three spans: before (normal), suffix (ghost), after (normal)", () => {
     const input = document.createElement("input");
     input.value = "highest stand with Spell Checker";

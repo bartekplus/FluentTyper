@@ -21,9 +21,26 @@ class LanguageConfig:
     variant: str
     aspell_urls: tuple[str, ...]
     aspell_lang: str | None = None
+    # Arabic's aspell dictionary declares the "l-ar" (logical Arabic) charset,
+    # whose l-ar.cmap is a symlink to l-fa.cmap (logical Persian, not shipped in
+    # the aspell-ar package). In the WASM build aspell resolves charset files
+    # from its default data dir rather than the language dir, so the
+    # DefaultAspellPredictor fails to initialize and throws the whole engine.
+    # The n-gram predictor is primary and Hunspell already covers
+    # spell-correction, so we drop the aspell predictor for such languages.
+    use_aspell: bool = True
 
 
 LANGUAGES: tuple[LanguageConfig, ...] = (
+    LanguageConfig(
+        short="ar",
+        variant="ar_SA",
+        aspell_urls=(
+            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-ar-1.2.0-4.6.i586.rpm",
+        ),
+        aspell_lang="ar",
+        use_aspell=False,
+    ),
     LanguageConfig(
         short="de",
         variant="de_DE",
@@ -145,6 +162,34 @@ def create_lang_config_from_template(lang: LanguageConfig, debug: bool) -> None:
     (dst / "hunspell").mkdir(parents=True, exist_ok=True)
     shutil.copytree(RESOURCES_LANG_TEMPLATE_DIR, dst, dirs_exist_ok=True)
     update_template(dst / "presage.xml", lang, debug)
+    if not lang.use_aspell:
+        _drop_aspell_predictor(dst / "presage.xml")
+        # No aspell predictor means no aspell data files are needed either —
+        # drop the template's aspell dir so it is not downloaded, installed,
+        # or packaged (it would otherwise ship ~20 MB of unused data).
+        shutil.rmtree(dst / "aspell", ignore_errors=True)
+
+
+def _drop_aspell_predictor(presage_xml: Path) -> None:
+    """Remove the DefaultAspellPredictor from a generated presage.xml.
+
+    Used for languages whose aspell dictionary cannot initialize in the WASM
+    build (see LanguageConfig.use_aspell). The n-gram predictor is primary and
+    Hunspell covers spell-correction, so dropping aspell is safe.
+    """
+    import re
+
+    text = presage_xml.read_text(encoding="utf-8")
+    # Drop the predictor from the PREDICTORS registry list.
+    text = text.replace("DefaultAspellPredictor ", "")
+    # Drop the <DefaultAspellPredictor>...</DefaultAspellPredictor> block.
+    text = re.sub(
+        r"\s*<DefaultAspellPredictor>.*?</DefaultAspellPredictor>",
+        "",
+        text,
+        flags=re.DOTALL,
+    )
+    presage_xml.write_text(text, encoding="utf-8")
 
 
 def has_hunspell_dictionary(lang: LanguageConfig) -> bool:
@@ -209,10 +254,23 @@ def prepare_language(
     if skip_dictionaries:
         print(f"Skipping dictionaries for {lang.variant}")
         return
-    if not refresh_dictionaries and has_aspell_dictionary(lang) and has_hunspell_dictionary(lang):
+    # A language with the aspell predictor disabled (use_aspell=False) never
+    # installs an aspell dictionary, so requiring one here would make the
+    # cached-dictionary early return unreachable and re-download hunspell on
+    # every rebuild.
+    aspell_present = (not lang.use_aspell) or has_aspell_dictionary(lang)
+    if not refresh_dictionaries and aspell_present and has_hunspell_dictionary(lang):
         print(f"Using existing dictionaries for {lang.variant}")
         return
-    install_aspell_dictionary(lang)
+    if lang.use_aspell:
+        install_aspell_dictionary(lang)
+    else:
+        # use_aspell=False: the aspell predictor is dropped from presage.xml,
+        # so no aspell data files are needed. Skip the download/install and
+        # remove any stale aspell dir left over from a previous build so it
+        # does not get packaged.
+        print(f"Skipping aspell dictionary for {lang.variant} (use_aspell=False)")
+        shutil.rmtree(RESOURCES_DIR / lang.variant / "aspell", ignore_errors=True)
     install_hunspell_dictionary(lang)
 
 

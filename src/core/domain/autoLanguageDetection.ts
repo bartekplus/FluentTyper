@@ -40,6 +40,7 @@ export interface ResolveAutoLanguageDecisionResult {
   source:
     | "manual_lock"
     | "strong_script"
+    | "script_switch"
     | "detection"
     | "stable"
     | "provisional_document"
@@ -63,6 +64,14 @@ const SITE_PRIOR_MAX_BONUS = 0.1;
 const MAX_SITE_PRIOR_ENTRIES = 3;
 const STICKY_BONUS = 0.05;
 const GREEK_SCRIPT_REGEX = /[\u0370-\u03FF\u1F00-\u1FFF]/u;
+const ARABIC_SCRIPT_REGEX = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/u;
+// The Arabic block is shared with Persian, Urdu and Pashto.  These letters are
+// exclusive to those languages (Farsi yeh/keheh, Urdu tteh/heh-goal, Pashto
+// dzhe/tshe/...), so a sample containing one is not unambiguously Arabic and
+// must not take the strong-script shortcut — it falls through to scored
+// detection, where the user's enabled languages decide.
+const SHARED_ARABIC_BLOCK_EXCLUSIVE_REGEX =
+  /[\u0679\u067E\u0681\u0685\u0686\u0688\u0689\u0691\u0693\u0696\u0698\u069A\u069B\u06A9\u06AB\u06AF\u06BA\u06BC\u06BE\u06C1\u06C2\u06C3\u06CC\u06CD\u06D0\u06D2\u06D3]/u;
 const LETTER_REGEX = /\p{L}/u;
 const TOKEN_REGEX = /\p{L}+/gu;
 const BOUNDARY_REGEX = /[\s.,!?;:()[\]{}"'`~@#$%^&*+=|\\/<>_-]/;
@@ -108,8 +117,21 @@ function resolveHintLanguage(
   return resolved && allowedLanguages.includes(resolved) ? resolved : null;
 }
 
-function getStrongScriptLanguage(sampleText: string, allowedLanguages: string[]): string | null {
-  if (allowedLanguages.includes("el_GR") && GREEK_SCRIPT_REGEX.test(sampleText)) {
+function getStrongScriptLanguage(
+  tokenText: string,
+  sampleText: string,
+  allowedLanguages: string[],
+): string | null {
+  if (
+    allowedLanguages.includes("ar_SA") &&
+    ARABIC_SCRIPT_REGEX.test(tokenText) &&
+    // The exclusivity evidence is taken from the whole sample: Persian, Urdu
+    // and Pashto letters need not appear in the same token that looks Arabic.
+    !SHARED_ARABIC_BLOCK_EXCLUSIVE_REGEX.test(sampleText)
+  ) {
+    return "ar_SA";
+  }
+  if (allowedLanguages.includes("el_GR") && GREEK_SCRIPT_REGEX.test(tokenText)) {
     return "el_GR";
   }
   return null;
@@ -118,6 +140,39 @@ function getStrongScriptLanguage(sampleText: string, allowedLanguages: string[])
 function isTokenBoundary(sampleText: string): boolean {
   const lastChar = sampleText.charAt(sampleText.length - 1);
   return !lastChar || BOUNDARY_REGEX.test(lastChar);
+}
+
+const LATIN_SCRIPT_REGEX = /\p{Script=Latin}/u;
+
+type ScriptKind = "arabic" | "greek" | "latin";
+
+/** Languages that are not written in Latin script; everything else is. */
+const NON_LATIN_LANGUAGE_SCRIPTS: Record<string, ScriptKind> = {
+  ar_SA: "arabic",
+  el_GR: "greek",
+};
+
+function languageScript(language: string): ScriptKind {
+  return NON_LATIN_LANGUAGE_SCRIPTS[language] ?? "latin";
+}
+
+function textScript(text: string): ScriptKind | null {
+  if (!text) {
+    return null;
+  }
+  if (ARABIC_SCRIPT_REGEX.test(text)) {
+    return "arabic";
+  }
+  if (GREEK_SCRIPT_REGEX.test(text)) {
+    return "greek";
+  }
+  return LATIN_SCRIPT_REGEX.test(text) ? "latin" : null;
+}
+
+/** The word currently being typed: the last token in the sample. */
+function extractCurrentToken(sampleText: string): string {
+  const tokens = [...sampleText.matchAll(TOKEN_REGEX)].map((match) => match[0]);
+  return tokens.at(-1) ?? "";
 }
 
 function compareCandidateScores(
@@ -252,7 +307,16 @@ export function resolveAutoLanguageDecision(
   );
   const pageLanguageHint = resolveHintLanguage(input.pageLanguageHint, input.allowedLanguages);
   const sitePriorLanguage = resolveHintLanguage(input.sitePriorLanguage, input.allowedLanguages);
-  const strongScriptLanguage = getStrongScriptLanguage(sampleText, input.allowedLanguages);
+  const currentToken = extractCurrentToken(input.sampleText);
+  // The strong script is judged on the token being typed, not on the whole
+  // rolling sample: the sample still contains the previous script after a
+  // language switch, which pinned Arabic for the rest of the sentence and made
+  // the Arabic engine predict Latin words.
+  const strongScriptLanguage = getStrongScriptLanguage(
+    currentToken || sampleText,
+    sampleText,
+    input.allowedLanguages,
+  );
   const hasQualifiedEvidence =
     Boolean(strongScriptLanguage) ||
     countAlphaChars(sampleText) >= QUALIFIED_ALPHA_THRESHOLD ||
@@ -333,6 +397,32 @@ export function resolveAutoLanguageDecision(
   const stableScore = stableLanguage ? scores.get(stableLanguage) || 0 : 0;
   const provisionalLanguage =
     documentLanguageHint || pageLanguageHint || sitePriorLanguage || fallbackLanguage;
+
+  // A language can only predict a token written in its own script.  Arabic
+  // cannot predict a Latin word, so a stable Arabic session must hand over as
+  // soon as the token being typed is Latin - the scored path cannot do this
+  // mid-word, because switching there is gated on a token boundary.
+  if (stableLanguage) {
+    const tokenScript = textScript(currentToken);
+    if (!strongScriptLanguage && tokenScript && tokenScript !== languageScript(stableLanguage)) {
+      const compatible =
+        ranked.find((candidate) => languageScript(candidate.language) === tokenScript)?.language ??
+        null;
+      if (compatible && compatible !== stableLanguage) {
+        return {
+          resolvedLanguage: compatible,
+          stableLanguage: compatible,
+          pendingLanguage: null,
+          pendingConfirmations: 0,
+          manualLockLanguage: null,
+          switchSuppressedUntilBoundary: true,
+          source: "script_switch",
+          switched: true,
+          hasQualifiedEvidence,
+        };
+      }
+    }
+  }
 
   if (!stableLanguage) {
     if (strongScriptLanguage) {

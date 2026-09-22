@@ -48,4 +48,22 @@ describe("lang separators", () => {
     expect(LANG_SEPARATOR_CHARS_REGEX.fr_FR.test("\u2019")).toBe(true);
     expect(findMentionToken("l\u2019amour", LANG_SEPARATOR_CHARS_REGEX.fr_FR)).toBe("amour");
   });
+
+  test("Arabic separator profile includes the Arabic punctuation marks", () => {
+    expect(LANG_SEPARATOR_CHARS_REGEX.ar_SA.test("\u060C")).toBe(true); // ،
+    expect(LANG_SEPARATOR_CHARS_REGEX.ar_SA.test("\u061B")).toBe(true); // ؛
+    expect(LANG_SEPARATOR_CHARS_REGEX.ar_SA.test("\u061F")).toBe(true); // ؟
+  });
+
+  test("tatweel is NOT an Arabic separator — it joins within a word", () => {
+    // U+0640 ARABIC TATWEEL is an intra-word filler: "كتـــاب" is one word.
+    // Treating it as a separator split the token into fragments and handed
+    // Presage only the tail ("اب").
+    expect(LANG_SEPARATOR_CHARS_REGEX.ar_SA.test("\u0640")).toBe(false);
+    expect(findMentionToken("كتـــاب", LANG_SEPARATOR_CHARS_REGEX.ar_SA)).toBe("كتـــاب");
+  });
+
+  test("Arabic punctuation still ends the mention token", () => {
+    expect(findMentionToken("كتاب،", LANG_SEPARATOR_CHARS_REGEX.ar_SA)).toBe("");
+  });
 });

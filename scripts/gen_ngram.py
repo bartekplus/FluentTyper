@@ -18,6 +18,7 @@ NGRAM_COUNT = 4
 NGRAM_DIV = 1.33
 NGRAM_MIN_COUNT = 10
 LANGS = {
+    "ar": "arabic",
     "de": "german",
     "el": "greek",
     "en": "english",
@@ -85,7 +86,11 @@ def filter_tokens(tokens_raw):
             split = True
         elif not token[0].isalpha():
             split = True
-        elif len(token) > 1 and token_orig == token_orig.upper():
+        elif (
+            len(token) > 1
+            and token_orig == token_orig.upper()
+            and any(c.isupper() for c in token_orig)
+        ):
             split = True
 
         if split:
@@ -136,7 +141,11 @@ def process_chunk(language, chunk):
 
         lines_processed_in_chunk += 1  # Count successfully decoded lines
         # Assuming LANGS is accessible globally or passed if needed
-        for sentence in sent_tokenize(line, language=LANGS[language]):
+        for sentence in (
+            [s for s in re.split(r"[؟.!]+", line) if s.strip()]
+            if language == "ar"
+            else sent_tokenize(line, language=LANGS[language])
+        ):
             sentence = fix_common_errors(sentence)
             tokens_raw = tk.tokenize(sentence)
             tokens_array = filter_tokens(tokens_raw)

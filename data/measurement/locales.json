@@ -7,5 +7,6 @@
   { "locale": "sv_SE", "separator": " ", "decimalMarks": [","] },
   { "locale": "de_DE", "separator": " ", "decimalMarks": [","] },
   { "locale": "pl_PL", "separator": " ", "decimalMarks": [","] },
-  { "locale": "pt_BR", "separator": " ", "decimalMarks": [","] }
+  { "locale": "pt_BR", "separator": " ", "decimalMarks": [","] },
+  { "locale": "ar_SA", "separator": " ", "decimalMarks": [","] }
 ]

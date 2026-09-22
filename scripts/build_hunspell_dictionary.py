@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import re
 import shutil
 import tempfile
 import urllib.error
@@ -13,6 +14,8 @@ from pathlib import Path
 
 BASE_URL = "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries"
 PT_BR_ZIP_URL = "https://pt-br.libreoffice.org/assets/Uploads/PT-BR-Documents/VERO/ptBR-2013-10-30AOC-2.zip"
+# Arabic is not in wooorm/dictionaries; use the AyaSpell hunspell dictionary.
+AYASPELL_BASE_URL = "https://raw.githubusercontent.com/linuxscout/ayaspell/master/dict/builddict"
 
 
 def download_file(url: str, output_path: Path, timeout: int = 15) -> None:
@@ -52,6 +55,60 @@ def install_pt_br_dictionary(lang: str, dest_dir: Path) -> None:
         shutil.copy2(dic_source, dest_dir / f"{lang}.dic")
 
 
+def _clean_ayaspell_dictionary(dic_path: Path) -> int:
+    """Normalize AyaSpell's raw build dict into clean hunspell format.
+
+    AyaSpell's arb.dic is a concatenation of build dictionaries, so it carries
+    structural junk: a ``<count> <name>.dic`` header line, ``::::::::`` section
+    separators, section-name lines (e.g. ``stopwords.dic``), ``#`` comment
+    lines, and per-entry trailing comments (``word/np<TAB>#note``).
+
+    Only that junk is removed.  Affix flags are preserved verbatim: the
+    dictionary declares ``FLAG long`` and the shipped ``.aff`` defines real
+    ``PFX np`` / ``PFX mp`` classes, so ``word/np`` and ``word/mp`` are
+    ordinary flagged entries whose prefixed forms (``وأريزونا``, ``للأدرياتيكي``)
+    must stay accepted.  The wooorm dictionaries used for the other languages
+    are already clean, so this normalization is only needed for Arabic.
+    """
+    words: list[str] = []
+    seen: set[str] = set()
+    with dic_path.open("r", encoding="utf-8") as handle:
+        for raw_line in handle:
+            line = raw_line.strip()
+            if not line:
+                continue
+            if line.startswith("#"):
+                continue
+            if line.startswith("::::::::"):
+                continue
+            if re.fullmatch(r"[A-Za-z0-9_.\-]+\.dic", line):
+                continue
+            # AyaSpell's roll-up header, e.g. "465929 arb.tmp.dic".
+            if re.fullmatch(r"\d+\s+\S+\.dic", line):
+                continue
+            # Drop a trailing inline comment, keeping the entry's affix flags.
+            line = re.split(r"\s+#", line, maxsplit=1)[0].strip()
+            if not line or line in seen:
+                continue
+            seen.add(line)
+            words.append(line)
+    with dic_path.open("w", encoding="utf-8") as handle:
+        handle.write(f"{len(words)}\n")
+        handle.write("\n".join(words) + "\n")
+    return len(words)
+
+
+def install_arabic_dictionary(dest_dir: Path) -> None:
+    # AyaSpell ships the dictionary under non-standard names (arb.aff/arb.dic);
+    # fetch them and rename to the <variant>.aff/.dic layout the rest of the
+    # pipeline (has_hunspell_dictionary, the `hunspell -d ar_SA` filter) expects.
+    dic_target = dest_dir / "ar_SA.dic"
+    download_file(f"{AYASPELL_BASE_URL}/arb.aff", dest_dir / "ar_SA.aff")
+    download_file(f"{AYASPELL_BASE_URL}/arb.dic", dic_target)
+    word_count = _clean_ayaspell_dictionary(dic_target)
+    print(f"Cleaned AyaSpell Arabic dictionary to {word_count} words")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Download and install hunspell dictionary files.")
     parser.add_argument("-l", "--lang", required=True, help="Language code (for example: en_US)")
@@ -64,6 +121,10 @@ def main() -> int:
 
     if lang == "pt_BR":
         install_pt_br_dictionary(lang, dest_dir)
+        return 0
+
+    if lang == "ar_SA":
+        install_arabic_dictionary(dest_dir)
         return 0
 
     if try_download_language(lang, lang, dest_dir):
