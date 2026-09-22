@@ -16,69 +16,14 @@ const SENTENCE_START_REGEX = /(?:^|[.!?]\s+|\n\s*)["'([“‘]?$/;
 // independent of b", "option a early" and the SQL alias in "from users an group
 // by" are identifiers. So the article must also follow a word that is itself
 // followed by an article in prose, or open a sentence.
-const ARTICLE_CONTEXT_WORDS = new Set([
-  "is",
-  "was",
-  "are",
-  "were",
-  "am",
-  "be",
-  "been",
-  "being",
-  "isn't",
-  "wasn't",
-  "it's",
-  "that's",
-  "there's",
-  "here's",
-  "what's",
-  "he's",
-  "she's",
-  "have",
-  "has",
-  "had",
-  "need",
-  "needs",
-  "needed",
-  "want",
-  "wants",
-  "wanted",
-  "get",
-  "gets",
-  "got",
-  "take",
-  "takes",
-  "took",
-  "buy",
-  "bought",
-  "wait",
-  "for",
-  "with",
-  "in",
-  "of",
-  "to",
-  "at",
-  "on",
-  "about",
-  "like",
-  "into",
-  "after",
-  "before",
-  "without",
-  "within",
-  "during",
-  "such",
-  "what",
-  "quite",
-  "rather",
-  "half",
-  "not",
-  "just",
-  "only",
-  "also",
-  "and",
-  "but",
-]);
+const ARTICLE_CONTEXT_WORDS = new Set(
+  (
+    "is was are were am be been being isn't wasn't it's that's there's here's what's he's " +
+    "she's have has had need needs needed want wants wanted get gets got take takes took buy " +
+    "bought wait for with in of to at on about like into after before without within during " +
+    "such what quite rather half not just only also and but"
+  ).split(" "),
+);
 // "Is a important here?": a sentence-initial verb inverts a question, so the
 // word after it is the subject, which may be a variable.
 const QUESTION_OPENERS = new Set(["is", "was", "are", "were", "isn't", "wasn't"]);
@@ -88,180 +33,31 @@ const PRECEDING_WORD_REGEX = /(^|\s)([A-Za-z']+)\s+$/;
 // takes "an", "one" takes "a" but "onerous" takes "an". Anything unlisted is
 // left alone, and so is any word with more than one accepted initial sound
 // ("a ukulele" and "an ukulele" are both correct).
-const TAKES_AN = new Set([
-  "hour",
-  "hourly",
-  "honest",
-  "honor",
-  "honour",
-  "honorable",
-  "honourable",
-  "heir",
-  "error",
-  "idea",
-  "example",
-  "image",
-  "item",
-  "article",
-  "apple",
-  "application",
-  "app",
-  "office",
-  "officer",
-  "event",
-  "element",
-  "engineer",
-  "employee",
-  "egg",
-  "elephant",
-  "orange",
-  "umbrella",
-  "uncle",
-  "important",
-  "interesting",
-  "easy",
-  "excellent",
-  "old",
-  "awful",
-  "awesome",
-  "amazing",
-  "early",
-  "extra",
-  "entire",
-  "unusual",
-  "unknown",
-  "unexpected",
-  "ugly",
-  "obvious",
-  "independent",
-  "internal",
-  "external",
-  "additional",
-  "average",
-  "official",
-  "original",
-  "ordinary",
-  "effective",
-  "efficient",
-  "elegant",
-  "essential",
-  "enormous",
-  "expensive",
-  "extreme",
-  "evil",
-  "opinion",
-  "opportunity",
-  "argument",
-  "adult",
-  "animal",
-  "actor",
-  "artist",
-  "author",
-  "agent",
-  "airport",
-  "island",
-  "insect",
-  "invoice",
-  "iphone",
-  "ocean",
-  "understanding",
-  "unfair",
-  "unhappy",
-  "unlikely",
-]);
-const TAKES_A = new Set([
+const TAKES_AN = new Set(
+  (
+    "hour hourly honest honor honour honorable honourable heir error idea example image item " +
+    "article apple application app office officer event element engineer employee egg " +
+    "elephant orange umbrella uncle important interesting easy excellent old awful awesome " +
+    "amazing early extra entire unusual unknown unexpected ugly obvious independent internal " +
+    "external additional average official original ordinary effective efficient elegant " +
+    "essential enormous expensive extreme evil opinion opportunity argument adult animal " +
+    "actor artist author agent airport island insect invoice iphone ocean understanding " +
+    "unfair unhappy unlikely"
+  ).split(" "),
+);
+const TAKES_A = new Set(
   // Vowel letter, consonant sound.
-  "university",
-  "universe",
-  "universal",
-  "unit",
-  "union",
-  "unique",
-  "uniform",
-  "unicorn",
-  "united",
-  "user",
-  "username",
-  "useful",
-  "useless",
-  "usual",
-  "utility",
-  "utensil",
-  "unanimous",
-  "euro",
-  "eulogy",
-  "ewe",
-  "one",
-  // Consonant words that are never read as initialisms.
-  "good",
-  "great",
-  "big",
-  "small",
-  "new",
-  "year",
-  "book",
-  "car",
-  "day",
-  "man",
-  "woman",
-  "person",
-  "problem",
-  "question",
-  "little",
-  "bit",
-  "very",
-  "really",
-  "simple",
-  "single",
-  "short",
-  "long",
-  "large",
-  "nice",
-  "bad",
-  "different",
-  "specific",
-  "special",
-  "particular",
-  "company",
-  "team",
-  "test",
-  "file",
-  "website",
-  "page",
-  "table",
-  "list",
-  "number",
-  "name",
-  "word",
-  "way",
-  "time",
-  "thing",
-  "place",
-  "group",
-  "project",
-  "meeting",
-  "message",
-  "friend",
-  "family",
-  "child",
-  "house",
-  "home",
-  "job",
-  "world",
-  "story",
-  "second",
-  "minute",
-  "week",
-  "month",
-  "bug",
-  "feature",
-  "request",
-  "response",
-  "server",
-  "function",
-  "method",
-  "value",
-]);
+  (
+    "university universe universal unit union unique uniform unicorn united user username " +
+    "useful useless usual utility utensil unanimous euro eulogy ewe one " +
+    // Consonant words that are never read as initialisms.
+    "good great big small new year book car day man woman person problem question little bit " +
+    "very really simple single short long large nice bad different specific special " +
+    "particular company team test file website page table list number name word way time " +
+    "thing place group project meeting message friend family child house home job world " +
+    "story second minute week month bug feature request response server function method value"
+  ).split(" "),
+);
 
 function isArticleContext(beforeArticle: string): boolean {
   if (SENTENCE_START_REGEX.test(beforeArticle)) return true;
@@ -309,15 +105,11 @@ export class EnglishArticleAnCorrectionRule implements GrammarRule {
       return null;
     }
 
-    const isAn = article.length === 2;
-    let corrected: string;
-    if (!isAn && TAKES_AN.has(word)) {
-      corrected = isTitle ? "An" : "an";
-    } else if (isAn && TAKES_A.has(word)) {
-      corrected = isTitle ? "A" : "a";
-    } else {
+    const fix = article.length === 2 ? TAKES_A.has(word) && "a" : TAKES_AN.has(word) && "an";
+    if (!fix) {
       return null;
     }
+    const corrected = isTitle ? `A${fix.slice(1)}` : fix;
 
     const between = core.slice(articleStart + article.length, core.length - word.length);
     return {
