@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import libPresageMod from "../src/third_party/libpresage/libpresage.js";
 import { PresageHandler } from "../src/adapters/chrome/background/PresageHandler";
 
