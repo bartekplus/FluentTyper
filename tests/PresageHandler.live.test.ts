@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import libPresageMod from "../src/third_party/libpresage/libpresage.js";
 import { PresageHandler } from "../src/adapters/chrome/background/PresageHandler";
 
@@ -22,8 +21,10 @@ async function createLiveHandler(
 ): Promise<PresageHandler> {
   const root = process.cwd();
   const Module = await libPresageMod({
-    wasmBinary: readFileSync(`${root}/src/third_party/libpresage/libpresage.wasm`),
-    locateFile: (name: string) => `${root}/public/third_party/libpresage/${name}`,
+    locateFile: (name: string) =>
+      name.endsWith(".wasm")
+        ? `${root}/src/third_party/libpresage/${name}`
+        : `${root}/public/third_party/libpresage/${name}`,
   });
   return new PresageHandler(Module, options);
 }
@@ -158,6 +159,22 @@ describe("PresageHandler live Arabic (ar_SA)", () => {
 
     const phrase = await handler.runPrediction("في ال", "", "ar_SA");
     expect(phrase.predictions.map((p) => p.trim())).toContain("العالم");
+  });
+
+  test("ar_SA n-gram predictions carry no tatweel or harakat", async () => {
+    const handler = await createLiveHandler();
+    handler.setConfig({ ...createLiveConfig([]), insertSpaceAfterAutocomplete: false });
+
+    // gen_ngram.py strips tatweel/harakat from Arabic keys because the
+    // runtime strips tatweel from typed input. Data built before that fix
+    // suggested "علماً" for "علم" instead of the bare "علما".
+    const marks = /[ـً-ْٰ]/;
+    const ilm = await handler.runPrediction("علم", "", "ar_SA");
+    expect(ilm.predictions).toContain("علما");
+    for (const prefix of ["علم", "الم", "الت", "وال", "مست", "است"]) {
+      const { predictions } = await handler.runPrediction(prefix, "", "ar_SA");
+      expect(predictions.filter((p) => marks.test(p))).toEqual([]);
+    }
   });
 
   test("ar_SA hunspell corrects a final ha/taa-marbuta misspelling", async () => {

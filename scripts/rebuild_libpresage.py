@@ -320,13 +320,20 @@ def main() -> int:
     if build_presage:
         presage_env = base_env.copy()
         presage_env["CXXFLAGS"] = "-O2 -std=c++17 -fPIC -fwasm-exceptions"
+        # presage.cpp guards its embind bindings with the legacy EMSCRIPTEN
+        # macro, which Emscripten 6.0 no longer predefines (only __EMSCRIPTEN__).
         presage_env["CPPFLAGS"] = (
+            "-DEMSCRIPTEN "
             f"-I{BUILD_DIR / 'marisa-trie' / 'include'} "
             f"-I{BUILD_DIR / 'hunspell' / 'src'} "
             f"-I{BUILD_DIR / 'aspell' / 'interfaces' / 'cc'}"
         )
+        # Emscripten 6.0 turned FAKE_DYLIBS off (added in 4.0.21), so `-shared` emits a real
+        # side module that the final link would load at runtime instead of
+        # embedding. Keep the object-file .so the link step relies on; -Wc, is
+        # needed because libtool drops unknown -s flags from shared links.
         presage_env["LDFLAGS"] = (
-            "--bind "
+            "-Wc,-sFAKE_DYLIBS --bind "
             f"-L{BUILD_DIR / 'marisa-trie' / 'lib' / 'marisa' / '.libs'} "
             f"-L{BUILD_DIR / 'hunspell' / 'src' / 'hunspell' / '.libs'} "
             f"-L{BUILD_DIR / 'aspell' / '.libs'}"
