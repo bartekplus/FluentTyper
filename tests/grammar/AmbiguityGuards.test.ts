@@ -95,27 +95,6 @@ describe("default-on rules never rewrite ambiguous input", () => {
     "@john.doe ",
     "Open src/index.ts ",
     "Path ../../src here ",
-    // Articles by sound, not by first letter: all already correct.
-    "It took an hour ",
-    "She is a university student ",
-    "We need a user account ",
-    "It is a one-time fee ",
-    "An honest answer ",
-    "A euro coin ",
-    "An unimportant detail ",
-    "A unicorn appeared ",
-    "Take an x-ray ",
-    // Names, acronyms and numbers: pronunciation is a guess, so no edit.
-    "We met a Uber driver ",
-    "Write an sql query ",
-    "Get an mri scan ",
-    "Sign an nda first ",
-    "It was a 8 hour day ",
-    // The letter "a", not the article.
-    "Pick option a or b ",
-    "Grade A apples ",
-    "Plan A is fine ",
-    "Let a equals b ",
   ])
     test(input, () => expect(type(input)).toBe(input));
 
@@ -151,6 +130,8 @@ describe("unambiguous corrections still apply", () => {
     ["a apple a day ", "An apple a day "],
     // ponytail: hyphenated compounds are skipped even when wrong.
     ["It was an one-off ", "It was an one-off "],
+    ["We need an unit ", "We need a unit "],
+    ["Hold a umbrella ", "Hold an umbrella "],
     ["He is an good man ", "He is a good man "],
     ["an year ago ", "A year ago "],
     ["Wait a hour, ok ", "Wait an hour, ok "],
@@ -183,6 +164,59 @@ describe("unambiguous corrections still apply", () => {
     ["Chapter 3: 5 tips ", "Chapter 3:5 tips "],
   ])
     test(input, () => expect(type(input)).toBe(expected));
+});
+
+describe("a/an correction never changes valid text", () => {
+  const withoutRule = DEFAULT_CURRENT_GRAMMAR_RULES.filter(
+    (id) => id !== "englishArticleAnCorrection",
+  );
+  for (const input of [
+    // Already correct: articles follow sound, not spelling.
+    "It took an hour ",
+    "She is a university student ",
+    "We need a user account ",
+    "An honest answer ",
+    "A euro coin ",
+    "An unimportant detail ",
+    "A unicorn appeared ",
+    "She bought a onesie ",
+    "He was a onetime teacher ",
+    "We received an unitemized bill ",
+    "It was an onerous task ",
+    "Take an x-ray ",
+    "It is a one-time fee ",
+    // Names: the "an" inside a word is not an article.
+    "Read the Qur'an carefully ",
+    "The Qur'an was revealed ",
+    "We visited Xi'an last year ",
+    "We met a Uber driver ",
+    // Initialisms and numbers.
+    "We need an sla ",
+    "Just an fyi ",
+    "Write an sql query ",
+    "Get an mri scan ",
+    "It was a 8 hour day ",
+    // The letter or a variable, not the article.
+    "Let a equal b ",
+    "Let a equals b ",
+    "We chose option a instead ",
+    "If a exists ",
+    "Press a eight times ",
+    "Pick option a or b ",
+    "Grade A apples ",
+    "Plan A is fine ",
+    // Code and string literals.
+    "Type `return a instanceof Foo` here ",
+    "```\nreturn a instanceof Foo;\n``` ",
+    "Type `a error` here ",
+    'Set text = "a error " ',
+  ])
+    test(input, () => {
+      for (let end = 1; end <= input.length; end += 1) {
+        const prefix = input.slice(0, end);
+        expect(type(prefix)).toBe(type(prefix, "en_US", withoutRule));
+      }
+    });
 });
 
 describe("advanced opt-in rules never rewrite code punctuation", () => {

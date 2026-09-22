@@ -8,6 +8,7 @@ import { DuplicatePunctuationCollapseRule } from "../../src/core/domain/grammar/
 import { EnglishModalOfCorrectionRule } from "../../src/core/domain/grammar/implementations/EnglishModalOfCorrectionRule";
 import { EnglishYourWelcomeCorrectionRule } from "../../src/core/domain/grammar/implementations/EnglishYourWelcomeCorrectionRule";
 import { EnglishTheirThereBeVerbRule } from "../../src/core/domain/grammar/implementations/EnglishTheirThereBeVerbRule";
+import { EnglishArticleAnCorrectionRule } from "../../src/core/domain/grammar/implementations/EnglishArticleAnCorrectionRule";
 import { EnglishAlotCorrectionRule } from "../../src/core/domain/grammar/implementations/EnglishAlotCorrectionRule";
 import { EnglishPronounVerbWhitelistAgreementRule } from "../../src/core/domain/grammar/implementations/EnglishPronounVerbWhitelistAgreementRule";
 
@@ -240,6 +241,20 @@ describe("V3 rule expansion", () => {
       deleteBackwards: "alot ".length,
       deleteForwards: 0,
     });
+  });
+
+  test("EnglishArticleAnCorrectionRule skips adapter-protected fields", () => {
+    const rule = new EnglishArticleAnCorrectionRule();
+    const hints = { lang: "en_US", inputAction: "insert" } as const;
+
+    expect(rule.apply(context("a error ", hints))).toEqual({
+      replacement: "an error ",
+      deleteBackwards: "a error ".length,
+      deleteForwards: 0,
+    });
+    expect(
+      rule.apply(context("a error ", { ...hints, measurementContext: "protected" })),
+    ).toBeNull();
   });
 
   test("EnglishPronounVerbWhitelistAgreementRule applies strict whitelist", () => {

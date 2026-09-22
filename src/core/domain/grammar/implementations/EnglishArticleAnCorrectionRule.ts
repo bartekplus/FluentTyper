@@ -4,119 +4,202 @@ import {
   resolveEnglishBoundaryContext,
 } from "./helpers/EnglishRuleShared";
 
-// Article, then a finished all-lowercase word: names, acronyms, numbers and
-// hyphenated compounds never match, because their pronunciation is a guess.
-const ARTICLE_REGEX = /(^|[\s"'([“‘])(a|an|A|An)\s+([a-z]{2,})$/;
+// Article, then a finished word. The article must start a token: after a space,
+// or after an opening quote/bracket that itself starts a token, so the "an" in
+// "Qur'an" or "Xi'an" is never an article.
+const ARTICLE_REGEX = /(?:^|(?<=\s)|(?<=(?:^|\s)["'([“‘]))(a|an|A|An)\s+([a-z]+)$/;
 // A capital article is only an article at a sentence start; "grade A apples",
 // "Plan A is" use the letter.
-const SENTENCE_START_REGEX = /(^|[.!?]\s+|\n\s*)$/;
+const SENTENCE_START_REGEX = /(?:^|[.!?]\s+|\n\s*)["'([“‘]?$/;
+// A quote opened right after code punctuation starts a literal: `text = "a error`.
+const OPEN_LITERAL_REGEX = /[=(,[{:+]\s*(["'])[^"'\n]*$/;
 
-// The rule is pronunciation, not spelling. Only starts whose sound is certain are
-// listed; anything else is left alone.
-const SILENT_H_STARTS = ["hour", "honest", "honor", "honour", "heir"];
-// Vowel letter, consonant sound: "a university", "a euro", "a one-off".
-const CONSONANT_SOUND_VOWEL_STARTS = [
-  "eu",
-  "ewe",
-  "univers",
-  "unique",
-  "unicorn",
-  "uniform",
-  "union",
+// Whole words only, never spelling prefixes: "unit" takes "a" but "unitemized"
+// takes "an", "one" takes "a" but "onerous" takes "an". Anything unlisted is
+// left alone. Words that read naturally after a variable or letter ("let a equal
+// b", "option a instead", "if a exists", "a eight") are deliberately absent, so
+// only nouns and adjectives that never follow a bare "a" identifier are listed.
+const TAKES_AN = new Set([
+  "hour",
+  "hourly",
+  "honest",
+  "honor",
+  "honour",
+  "honorable",
+  "honourable",
+  "heir",
+  "error",
+  "idea",
+  "example",
+  "image",
+  "item",
+  "article",
+  "apple",
+  "application",
+  "app",
+  "office",
+  "officer",
+  "event",
+  "element",
+  "engineer",
+  "employee",
+  "egg",
+  "elephant",
+  "orange",
+  "umbrella",
+  "uncle",
+  "important",
+  "interesting",
+  "easy",
+  "excellent",
+  "old",
+  "awful",
+  "awesome",
+  "amazing",
+  "early",
+  "extra",
+  "entire",
+  "unusual",
+  "unknown",
+  "unexpected",
+  "ugly",
+  "obvious",
+  "independent",
+  "internal",
+  "external",
+  "additional",
+  "average",
+  "official",
+  "original",
+  "ordinary",
+  "effective",
+  "efficient",
+  "elegant",
+  "essential",
+  "enormous",
+  "expensive",
+  "extreme",
+  "evil",
+  "opinion",
+  "opportunity",
+  "argument",
+  "adult",
+  "animal",
+  "actor",
+  "artist",
+  "author",
+  "agent",
+  "airport",
+  "island",
+  "insect",
+  "invoice",
+  "iphone",
+  "ocean",
+  "understanding",
+  "unfair",
+  "unhappy",
+  "unlikely",
+]);
+const TAKES_A = new Set([
+  // Vowel letter, consonant sound.
+  "university",
+  "universe",
+  "universal",
   "unit",
-  "unison",
-  "unilateral",
-  "unanim",
-  "use",
-  "usu",
-  "util",
-  "uten",
-  "uter",
-  "utop",
-  "urin",
-  "uran",
-  "ubiq",
-  "ukul",
-];
-const CONSONANT_SOUND_VOWEL_WORDS = new Set(["one", "once", "ouija"]);
-// "u" is split: "an umbrella" but "a unit". "uni" itself is both ("a unicorn",
-// "an unimportant"), so it appears in neither list.
-const VOWEL_SOUND_U_STARTS = ["um", "up", "ug", "ul", "ud", "urg", "urb", "ush", "utter"];
-const VOWEL_SOUND_UN = /^un(?!i|an)/;
-// Consonant letters whose sound never varies. "h" (hotel, herb, historic) and
-// "x" (x-ray, xylophone) are skipped.
-const PLAIN_CONSONANT = /^[bcdfgjklmnpqrstvwyz]/;
-// A real word start: consonant + vowel, or a common English cluster. Lowercase
-// acronyms ("an sql query", "an mri", "an nda") fail this and are left alone.
-// ponytail: word-shaped lowercase acronyms ("an sla") still get "a"; a
-// dictionary lookup would close that gap.
-const WORD_ONSET =
-  /^(?:[bcdfgjklmnpqrstvwz][aeiouy]|bl|br|ch|cl|cr|dr|dw|fl|fr|gl|gn|gr|kn|ph|pl|pr|ps|rh|sc|sh|sk|sl|sm|sn|sp|st|sw|th|tr|tw|wh|wr|y[aeiou])/;
-// "a" can be the letter or a variable ("option a or b", "if a is null"); the
-// words that follow it then are never ones an article could take.
-const NOT_AFTER_ARTICLE = new Set([
-  "and",
-  "or",
-  "is",
-  "in",
-  "of",
-  "on",
-  "at",
-  "as",
-  "if",
-  "it",
-  "its",
-  "are",
-  "am",
-  "an",
-  "into",
-  "onto",
-  "our",
-  "off",
-  "out",
-  "up",
-  "us",
-  "each",
-  "either",
-  "else",
-  "even",
-  "ever",
-  "every",
-  "also",
-  "all",
-  "any",
-  "about",
-  "after",
-  "again",
-  "against",
-  "among",
-  "although",
-  "always",
-  "until",
-  "unless",
-  "upon",
-  "under",
-  "equals",
+  "union",
+  "unique",
+  "uniform",
+  "unicorn",
+  "united",
+  "user",
+  "username",
+  "useful",
+  "useless",
+  "usual",
+  "utility",
+  "utensil",
+  "ukulele",
+  "unanimous",
+  "euro",
+  "eulogy",
+  "ewe",
+  "one",
+  // Consonant words that are never read as initialisms.
+  "good",
+  "great",
+  "big",
+  "small",
+  "new",
+  "year",
+  "book",
+  "car",
+  "day",
+  "man",
+  "woman",
+  "person",
+  "problem",
+  "question",
+  "little",
+  "bit",
+  "very",
+  "really",
+  "simple",
+  "single",
+  "short",
+  "long",
+  "large",
+  "nice",
+  "bad",
+  "different",
+  "specific",
+  "special",
+  "particular",
+  "company",
+  "team",
+  "test",
+  "file",
+  "website",
+  "page",
+  "table",
+  "list",
+  "number",
+  "name",
+  "word",
+  "way",
+  "time",
+  "thing",
+  "place",
+  "group",
+  "project",
+  "meeting",
+  "message",
+  "friend",
+  "family",
+  "child",
+  "house",
+  "home",
+  "job",
+  "world",
+  "story",
+  "second",
+  "minute",
+  "week",
+  "month",
+  "bug",
+  "feature",
+  "request",
+  "response",
+  "server",
+  "function",
+  "method",
+  "value",
 ]);
 
-const startsWithAny = (word: string, starts: readonly string[]): boolean =>
-  starts.some((start) => word.startsWith(start));
-
-export function takesAn(word: string): boolean {
-  if (startsWithAny(word, SILENT_H_STARTS)) return true;
-  if (!/^[aeiou]/.test(word)) return false;
-  if (CONSONANT_SOUND_VOWEL_WORDS.has(word)) return false;
-  if (startsWithAny(word, CONSONANT_SOUND_VOWEL_STARTS)) return false;
-  if (word.startsWith("u")) {
-    return VOWEL_SOUND_UN.test(word) || startsWithAny(word, VOWEL_SOUND_U_STARTS);
-  }
-  return true;
-}
-
-export function takesA(word: string): boolean {
-  if (CONSONANT_SOUND_VOWEL_WORDS.has(word)) return true;
-  if (startsWithAny(word, CONSONANT_SOUND_VOWEL_STARTS)) return true;
-  return PLAIN_CONSONANT.test(word) && WORD_ONSET.test(word) && /[aeiouy]/.test(word);
+// ponytail: `...`, fences and code-opened quotes are tracked from the text before
+// the cursor only; a multi-line string opened in an earlier paragraph is missed.
+function isInsideCodeOrLiteral(beforeArticle: string): boolean {
+  if ((beforeArticle.match(/`/g)?.length ?? 0) % 2 === 1) return true;
+  return OPEN_LITERAL_REGEX.test(beforeArticle);
 }
 
 export class EnglishArticleAnCorrectionRule implements GrammarRule {
@@ -124,6 +207,9 @@ export class EnglishArticleAnCorrectionRule implements GrammarRule {
   readonly triggers: GrammarEventType[] = ["wordBoundary"];
 
   apply(context: GrammarContext): GrammarEdit | null {
+    if (context.hints?.measurementContext === "protected") {
+      return null;
+    }
     const boundaryContext = resolveEnglishBoundaryContext(context);
     if (!boundaryContext) {
       return null;
@@ -135,22 +221,25 @@ export class EnglishArticleAnCorrectionRule implements GrammarRule {
       return null;
     }
 
-    const [, lead, article, word] = match;
-    const articleStart = match.index + lead.length;
+    const [, article, word] = match;
+    const articleStart = match.index;
+    const beforeArticle = core.slice(0, articleStart);
     const isTitle = article[0] === "A";
-    const beforeArticle = core.slice(0, articleStart).replace(/["'([“‘]$/, "");
     if (isTitle && !SENTENCE_START_REGEX.test(beforeArticle)) {
       return null;
     }
-    if (isLikelyCodeLikeContext(core, articleStart, core.length)) {
+    if (
+      isInsideCodeOrLiteral(beforeArticle) ||
+      isLikelyCodeLikeContext(core, articleStart, core.length)
+    ) {
       return null;
     }
 
     const isAn = article.length === 2;
     let corrected: string;
-    if (!isAn && takesAn(word) && !NOT_AFTER_ARTICLE.has(word)) {
+    if (!isAn && TAKES_AN.has(word)) {
       corrected = isTitle ? "An" : "an";
-    } else if (isAn && takesA(word)) {
+    } else if (isAn && TAKES_A.has(word)) {
       corrected = isTitle ? "A" : "a";
     } else {
       return null;
