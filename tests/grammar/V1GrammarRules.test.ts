@@ -279,6 +279,12 @@ describe("V1 grammar rules", () => {
       expect(rule.apply(context("src/"))).toBeNull();
       expect(rule.apply(context("</"))).toBeNull();
     });
+
+    test("does not re-insert the space after the slash when the user deletes it", () => {
+      const rule = new SlashContextSpacingRule(true);
+
+      expect(rule.apply(context("A /", { inputAction: "delete" }))).toBeNull();
+    });
   });
 
   describe("MathOperatorSpacingRule", () => {

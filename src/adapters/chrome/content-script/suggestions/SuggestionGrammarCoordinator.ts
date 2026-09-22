@@ -52,6 +52,15 @@ export class SuggestionGrammarCoordinator {
     measurementContext?: GrammarHints["measurementContext"];
     excludeRules?: readonly string[];
   }): GrammarEdit | null {
+    // Backspace stays native: text left behind by a delete looks exactly like
+    // text just typed, so typing rules would rewrite it - re-adding the space
+    // after "A /" the user just removed - and the user could never correct it.
+    // The Google Docs adapter already sends no typing triggers on delete.
+    if (inputAction === "delete") {
+      triggers = triggers.filter(
+        (trigger) => trigger !== "insertChar" && trigger !== "wordBoundary",
+      );
+    }
     if (!this.hasEnabledRules() || triggers.length === 0) {
       return null;
     }
