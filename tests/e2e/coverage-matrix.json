@@ -1172,6 +1172,11 @@
           "layer": "unit",
           "file": "tests/grammar/V3RuleExpansion.test.ts",
           "test": "EnglishAlotCorrectionRule corrects typo and respects user dictionary"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/AmbiguityGuards.test.ts",
+          "test": "She is an university student "
         }
       ]
     },

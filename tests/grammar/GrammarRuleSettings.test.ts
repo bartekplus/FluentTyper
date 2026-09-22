@@ -18,6 +18,7 @@ const DEFAULT_RULES = [
   "englishTheirThereBeVerb",
   "englishAlotCorrection",
   "englishPronounVerbWhitelistAgreement",
+  "englishArticleAnCorrection",
   "technicalTokenCompaction",
   "mathOperatorSpacing",
   "measurementUnitFormatting",

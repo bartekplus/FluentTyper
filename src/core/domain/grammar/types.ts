@@ -13,6 +13,7 @@ export type GrammarRuleId =
   | "englishTheirThereBeVerb"
   | "englishAlotCorrection"
   | "englishPronounVerbWhitelistAgreement"
+  | "englishArticleAnCorrection"
   | "commaPeriodSpacing"
   | "openingBracketSpacing"
   | "closingBracketSpacing"

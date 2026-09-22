@@ -95,6 +95,27 @@ describe("default-on rules never rewrite ambiguous input", () => {
     "@john.doe ",
     "Open src/index.ts ",
     "Path ../../src here ",
+    // Articles by sound, not by first letter: all already correct.
+    "It took an hour ",
+    "She is a university student ",
+    "We need a user account ",
+    "It is a one-time fee ",
+    "An honest answer ",
+    "A euro coin ",
+    "An unimportant detail ",
+    "A unicorn appeared ",
+    "Take an x-ray ",
+    // Names, acronyms and numbers: pronunciation is a guess, so no edit.
+    "We met a Uber driver ",
+    "Write an sql query ",
+    "Get an mri scan ",
+    "Sign an nda first ",
+    "It was a 8 hour day ",
+    // The letter "a", not the article.
+    "Pick option a or b ",
+    "Grade A apples ",
+    "Plan A is fine ",
+    "Let a equals b ",
   ])
     test(input, () => expect(type(input)).toBe(input));
 
@@ -123,6 +144,19 @@ describe("unambiguous corrections still apply", () => {
     ["i was there too ", "I was there too "],
     ["i is wrong here ", "I am wrong here "],
     ["he are going ", "He is going "],
+    ["This is a error. ", "This is an error. "],
+    ["It took a hour. ", "It took an hour. "],
+    ["She is an university student ", "She is a university student "],
+    ["We need an user account ", "We need a user account "],
+    ["a apple a day ", "An apple a day "],
+    // ponytail: hyphenated compounds are skipped even when wrong.
+    ["It was an one-off ", "It was an one-off "],
+    ["He is an good man ", "He is a good man "],
+    ["an year ago ", "A year ago "],
+    ["Wait a hour, ok ", "Wait an hour, ok "],
+    ["It is a umbrella ", "It is an umbrella "],
+    ["Buy an euro coin ", "Buy a euro coin "],
+    ["Hello. A error occurred ", "Hello. An error occurred "],
     // "i"/"it" are identifiers here: only the sentence-start capital changes,
     // the identifiers and their verbs are left exactly as typed.
     ["for i in range(10) ", "For i in range(10) "],
