@@ -319,22 +319,26 @@ class RpmExtractionTest(unittest.TestCase):
             _extract_rpm(rpm_path, self.dest)
 
     def test_hardlink_group_members_all_get_data(self) -> None:
-        # newc stores hardlink data only on the LAST member of a group.
-        cpio = cpio_archive(
-            [
-                ("a.dat", MODE_FILE, b"", 7, 3),
-                ("b.dat", MODE_FILE, b"", 7, 3),
-                ("c.dat", MODE_FILE, b"shared\n", 7, 3),
-                ("other.dat", MODE_FILE, b"", 8, 2),
-                ("solo.dat", MODE_FILE, b"solo\n", 9, 1),
-            ]
-        )
-        _extract_newc_cpio(cpio, self.dest)
-        for name in ("a.dat", "b.dat", "c.dat"):
-            self.assertEqual((self.dest / name).read_text(), "shared\n", name)
-        self.assertEqual((self.dest / "solo.dat").read_text(), "solo\n")
-        self._assert_no_outside_writes()
-
+        # newc usually stores hardlink data on the LAST member of a group, but
+        # GNU cpio gives every alias the data wherever it appears.
+        for data_index, where in enumerate(("first", "middle", "last")):
+            with self.subTest(data=where):
+                names = [f"{where}_{n}.dat" for n in ("a", "b", "c")]
+                cpio = cpio_archive(
+                    [
+                        (name, MODE_FILE, b"shared\n" if i == data_index else b"", 7, 3)
+                        for i, name in enumerate(names)
+                    ]
+                    + [
+                        ("other.dat", MODE_FILE, b"", 8, 2),
+                        ("solo.dat", MODE_FILE, b"solo\n", 9, 1),
+                    ]
+                )
+                _extract_newc_cpio(cpio, self.dest)
+                for name in names:
+                    self.assertEqual((self.dest / name).read_text(), "shared\n", name)
+                self.assertEqual((self.dest / "solo.dat").read_text(), "solo\n")
+                self._assert_no_outside_writes()
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

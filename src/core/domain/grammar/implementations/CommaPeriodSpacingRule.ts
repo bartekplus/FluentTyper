@@ -58,7 +58,7 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
       const numericContinuation =
         context.hints?.measurementContext === "prose" &&
         resolveMeasurementLocale(context.hints.lang) &&
-        /(?:^|[\s([{])[-+]?\p{Nd}+(?:[.,]\p{Nd}*)?$/u.test(prefix);
+        /(?:^|[\s([{])[-+]?\p{Nd}+(?:[.,\u066B]\p{Nd}*)?$/u.test(prefix);
       if (numericContinuation) {
         return this.createEdit(`, ${continuation}`, 1 + continuation.length);
       }
@@ -88,6 +88,8 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
     // otherwise the space would be dropped and never restored.
     if (
       !spaceBeforeViolated &&
+      // Only ASCII "," is ambiguous; the Arabic comma is never numeric.
+      lastChar === "," &&
       // \p{Nd}: "١,٥" is as ambiguous as "1,5".
       /^\p{Nd}$/u.test(previousSignificantChar) &&
       canDefer &&

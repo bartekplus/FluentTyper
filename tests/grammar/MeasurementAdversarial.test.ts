@@ -280,6 +280,18 @@ describe("measurement formatting adversarial verification", () => {
     }
   });
 
+  test("ar_SA comma after a digit keeps its autospace once prose resumes", () => {
+    for (const [input, expected] of [
+      ["العدد ٢،ثم", "العدد ٢، ثم"], // ، is never numeric: no deferral
+      ["القيمة ١٫٥,ثم", "القيمة ١٫٥, ثم"], // ٫ is part of the deferred number
+      ["العدد ٢,ثم", "العدد ٢, ثم"],
+      ["كتاب،قلم", "كتاب، قلم"],
+      ["١,٥", "١,٥"],
+    ]) {
+      expect(typeThroughAllRules(input, "ar_SA")).toBe(expected);
+    }
+  });
+
   test("Arabic-Indic digits stay unrecognised outside ar_SA", () => {
     for (const lang of MEASUREMENT_LOCALES.map(({ locale }) => locale).filter(
       (locale) => locale !== "ar_SA",

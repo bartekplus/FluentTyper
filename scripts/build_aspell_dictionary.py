@@ -98,9 +98,11 @@ def _extract_newc_cpio(data: bytes, dest: Path) -> None:
     import stat as stat_module
 
     dest_resolved = dest.resolve()
-    # newc stores a hardlink group's data only on its last member; earlier
-    # members are written empty and filled in when the data arrives.
+    # newc stores a hardlink group's data on one member (normally the last).
+    # Members before it are written empty and backfilled when the data
+    # arrives; members after it reuse the stored data, as GNU cpio does.
     hardlinks: dict[tuple[int, int, int], list[Path]] = {}
+    hardlink_data: dict[tuple[int, int, int], bytes] = {}
     pos = 0
     seen_trailer = False
     while pos + 110 <= len(data):
@@ -146,12 +148,15 @@ def _extract_newc_cpio(data: bytes, dest: Path) -> None:
         elif stat_module.S_ISREG(mode):
             content = data[content_start:content_end]
             if nlink > 1:
-                group = hardlinks.setdefault((*dev, ino), [])
+                key = (*dev, ino)
+                group = hardlinks.setdefault(key, [])
                 group.append(target)
                 if filesize:
+                    hardlink_data[key] = content
                     for member in group:
                         _write_file(dest, dest_resolved, member, content)
                     continue
+                content = hardlink_data.get(key, content)
             _write_file(dest, dest_resolved, target, content)
         # FIFOs, sockets, block/char devices, and unknown types: skip.
     if not seen_trailer:

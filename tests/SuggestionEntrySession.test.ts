@@ -1270,6 +1270,32 @@ test("session ignores stale responses and renders fresh menu responses", () => {
   expect(logRenderedSuggestionPopup).toHaveBeenCalledTimes(1);
 });
 
+test("session does not fulfill pending inline accept when the ghost render is vetoed", () => {
+  const textEditService = {
+    acceptSuggestion: jest.fn(() => null),
+    applyGrammarEdit: jest.fn(() => ({ applied: false, didDispatchInput: false })),
+    syncManualAutoFixSuppression: jest.fn(),
+  };
+  const entry = createSuggestionEntry({ requestId: 2, pendingInlineAccept: true });
+  // Mirrors InlineSuggestionPresenter.dropForEntry when the caret cannot be measured.
+  const renderInline = jest.fn(() => {
+    entry.inlineSuggestion = null;
+  });
+  const session = makeSession({
+    entry,
+    renderInline,
+    textEditService,
+    inlineSuggestionEnabled: true,
+  });
+
+  session.handlePredictionResponse({ requestId: 2, suggestionId: 1, predictions: ["beta"] });
+
+  expect(renderInline).toHaveBeenCalledTimes(1);
+  expect(entry.pendingInlineAccept).toBe(false);
+  expect(entry.suggestions).toEqual(["beta"]);
+  expect(textEditService.acceptSuggestion).not.toHaveBeenCalled();
+});
+
 test("session falls back to empty suggestions for invalid prediction payloads", () => {
   const renderMenu = jest.fn();
   const logNoVisibleSuggestions = jest.fn();

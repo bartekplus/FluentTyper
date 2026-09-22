@@ -376,7 +376,9 @@ export class SuggestionEntrySession {
 
     if (this.entry.pendingInlineAccept) {
       this.entry.pendingInlineAccept = false;
-      const suggested = this.entry.inlineSuggestion ?? this.entry.suggestions[0] ?? null;
+      // Only accept what the presenter actually rendered; a vetoed ghost
+      // leaves inlineSuggestion null and Tab must not insert unseen text.
+      const suggested = this.entry.inlineSuggestion;
       if (suggested) {
         this.acceptSuggestion(suggested);
       }
