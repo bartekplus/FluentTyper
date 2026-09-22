@@ -88,6 +88,8 @@ def _clean_ayaspell_dictionary(dic_path: Path) -> int:
                 continue
             # Drop a trailing inline comment, keeping the entry's affix flags.
             line = re.split(r"\s+#", line, maxsplit=1)[0].strip()
+            # A bare trailing "/" (e.g. "بسم/") is an empty flag set.
+            line = line.removesuffix("/")
             if not line or line in seen:
                 continue
             seen.add(line)

@@ -1,4 +1,5 @@
-import { isLetter } from "@core/application/domain-utils";
+const UPPERCASE_LETTER_REGEX = /\p{Lu}/u;
+const LOWERCASE_LETTER_REGEX = /\p{Ll}/u;
 
 export enum Capitalization {
   FirstLetter = "letter",
@@ -21,16 +22,17 @@ export function checkAutoCapitalize({
   endsWithSpace,
   autoCapitalize,
 }: CheckAutoCapitalizeParams): Capitalization {
-  if (!endsWithSpace && lastWord && lastWord.length > 1 && lastWord === lastWord.toUpperCase()) {
+  if (
+    !endsWithSpace &&
+    lastWord.length > 1 &&
+    UPPERCASE_LETTER_REGEX.test(lastWord) &&
+    !LOWERCASE_LETTER_REGEX.test(lastWord)
+  ) {
     return Capitalization.WholeWord;
   }
 
-  const firstCharacterOfLastWord = lastWord.slice(0, 1);
-  if (
-    !endsWithSpace &&
-    isLetter(firstCharacterOfLastWord) &&
-    firstCharacterOfLastWord === firstCharacterOfLastWord.toUpperCase()
-  ) {
+  // Caseless scripts (Arabic) have no \p{Lu}, so they never force capitalization.
+  if (!endsWithSpace && UPPERCASE_LETTER_REGEX.test(lastWord.slice(0, 1))) {
     return Capitalization.FirstLetter;
   }
 

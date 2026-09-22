@@ -2001,6 +2001,229 @@
           "test": "visible suggestions remain usable across repeated snapshot refreshes"
         }
       ]
+    },
+    {
+      "id": "arabic_prediction_engine",
+      "description": "ar_SA engine loads its packaged data and predicts Arabic completions; the per-language e2e fails when no Arabic suggestion appears.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Prediction works for all supported languages in %s"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/PresageHandler.live.test.ts",
+          "test": "ar_SA engine creates and returns Arabic predictions"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/PresageHandler.live.test.ts",
+          "test": "ar_SA hunspell corrects a final ha/taa-marbuta misspelling"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/libpresageDataLoaders.test.ts",
+          "test": "the Arabic loader metadata matches ar_SA.data and excludes aspell"
+        }
+      ]
+    },
+    {
+      "id": "rtl_inline_ghost_placement",
+      "description": "In an RTL editor an Arabic inline ghost anchors its right edge at the caret, stays inside the editor, and accepts on TAB.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Arabic inline ghost in an RTL textarea anchors at the caret and accepts on TAB"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/InlineSuggestionView.test.ts",
+          "test": "anchors RTL ghost to the caret's right edge and grows leftward"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/InlineSuggestionPresenter.test.ts",
+          "test": "uses the floating ghost for an RTL completion in an RTL textarea"
+        }
+      ]
+    },
+    {
+      "id": "opposing_direction_inline_mirror",
+      "description": "A completion run opposing the paragraph direction (Arabic in an LTR input) previews through the mirror without overlapping typed text and accepts on TAB.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Arabic in an LTR input previews through the mirror without overlapping typed text"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/InlineSuggestionPresenter.test.ts",
+          "test": "uses the mirror preview when an RTL completion ends an LTR input"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/InlineSuggestionView.test.ts",
+          "test": "runOpposesParagraph detects run/paragraph direction mismatch"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/InlineSuggestionView.test.ts",
+          "test": "renderMirrorPreview copies unicode-bidi from target"
+        }
+      ]
+    },
+    {
+      "id": "arabic_strong_script_detection",
+      "description": "Auto-detect commits Arabic via strong script, while Persian/Urdu/Pashto text, digits and punctuation alone do not.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Auto-detect switches to Arabic for Arabic-script typing"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/autoLanguageDetection.test.ts",
+          "test": "commits an Arabic sample via strong script"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/autoLanguageDetection.test.ts",
+          "test": "Persian does not take the Arabic strong-script shortcut"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/autoLanguageDetection.test.ts",
+          "test": "Urdu does not take the Arabic strong-script shortcut"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/autoLanguageDetection.test.ts",
+          "test": "Arabic digits alone do not commit Arabic"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/autoLanguageDetection.test.ts",
+          "test": "Arabic punctuation alone does not commit Arabic"
+        }
+      ]
+    },
+    {
+      "id": "script_switch_handover",
+      "description": "Mid-sentence script switches hand over to a scored candidate, same-script hint, or the fallback language, never to the text expander, and Persian does not switch to Arabic.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/autoLanguageDetection.test.ts",
+          "test": "stable Arabic + Latin word switches to the fallback, not the alphabetical first"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/autoLanguageDetection.test.ts",
+          "test": "script switch prefers a scored Latin candidate over the fallback"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/autoLanguageDetection.test.ts",
+          "test": "does not script-switch without a scored or fallback candidate"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/autoLanguageDetection.test.ts",
+          "test": "never switches to the text expander"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/autoLanguageDetection.test.ts",
+          "test": "Persian token does not script-switch an English session to Arabic"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/autoLanguageDetection.test.ts",
+          "test": "switches to Arabic when Arabic is typed after English in a sentence"
+        }
+      ]
+    },
+    {
+      "id": "arabic_tatweel_stripping",
+      "description": "Arabic tatweel is stripped from the predicted word in the background and ignored when the inline presenter matches the suggestion.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/PredictionInputProcessor.test.ts",
+          "test": "should strip tatweel from the active word and the suffix after the cursor"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/InlineSuggestionPresenter.test.ts",
+          "test": "ignores Arabic tatweel in the typed word when matching the suggestion"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/langSeparators.test.ts",
+          "test": "tatweel is NOT an Arabic separator"
+        }
+      ]
+    },
+    {
+      "id": "arabic_punctuation_handling",
+      "description": "Arabic comma, semicolon and question mark tokenize, end sentences and get spacing like their Latin forms.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/langSeparators.test.ts",
+          "test": "Arabic separator profile includes the Arabic punctuation marks"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/langSeparators.test.ts",
+          "test": "Arabic punctuation still ends the mention token"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/PredictionInputProcessor.test.ts",
+          "test": "should treat Arabic comma/semicolon like their ASCII counterparts"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/PredictionInputProcessor.test.ts",
+          "test": "should start a new sentence after the Arabic question mark"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/AmbiguityGuards.test.ts",
+          "test": "opt-in rules treat Arabic punctuation like its Latin forms"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/AmbiguityGuards.test.ts",
+          "test": "a space before an Arabic comma is removed like before a Latin comma"
+        }
+      ]
+    },
+    {
+      "id": "arabic_measurement_formatting",
+      "description": "ar_SA measurement formatting accepts Arabic-Indic digits with the Arabic decimal separator and fails closed on mixed or foreign digit systems.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/grammar/MeasurementAdversarial.test.ts",
+          "test": "ar_SA accepts Arabic-Indic digits"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/MeasurementAdversarial.test.ts",
+          "test": "ar_SA fails closed on mixed digit systems"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/MeasurementAdversarial.test.ts",
+          "test": "Arabic-Indic digits stay unrecognised outside ar_SA"
+        }
+      ]
     }
   ]
 }

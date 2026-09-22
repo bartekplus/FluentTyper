@@ -3,6 +3,9 @@ import { SuggestionPositioningService } from "./SuggestionPositioningService";
 import { TextTargetAdapter, type TextTarget } from "./TextTargetAdapter";
 import type { SuggestionEntry } from "./types";
 
+// Arabic tatweel is a visual filler the predictor strips ("كتـــا" -> "كتا").
+const TATWEEL_REGEX = /\u0640/g;
+
 interface InlineSuggestionPresenterOptions {
   positioningService?: SuggestionPositioningService;
   doc?: Document;
@@ -31,6 +34,12 @@ export class InlineSuggestionPresenter {
     InlineSuggestionView.removeForEntry(entryId, this.doc);
   }
 
+  // An unrendered suggestion must not stay armed for Tab acceptance.
+  private dropForEntry(entry: SuggestionEntry): void {
+    entry.inlineSuggestion = null;
+    this.clearForEntry(entry.id);
+  }
+
   public renderForEntry({
     enabled,
     entry,
@@ -49,43 +58,53 @@ export class InlineSuggestionPresenter {
 
     const suggestion = entry.inlineSuggestion;
     if (!suggestion) {
-      this.clearForEntry(entry.id);
+      this.dropForEntry(entry);
       return;
     }
 
     const snapshot = TextTargetAdapter.snapshot(entry.elem);
     const mentionText = resolveMentionToken(snapshot.beforeCursor).token || entry.latestMentionText;
     if (!mentionText) {
-      this.clearForEntry(entry.id);
+      this.dropForEntry(entry);
       return;
     }
 
-    const lowerSuggestion = suggestion.toLowerCase();
-    const lowerMention = mentionText.toLowerCase();
-    if (!lowerSuggestion.startsWith(lowerMention)) {
-      this.clearForEntry(entry.id);
+    const plainSuggestion = suggestion.replace(TATWEEL_REGEX, "");
+    const plainMention = mentionText.replace(TATWEEL_REGEX, "");
+    if (!plainSuggestion.toLowerCase().startsWith(plainMention.toLowerCase())) {
+      this.dropForEntry(entry);
       return;
     }
 
-    const suffix = suggestion.slice(mentionText.length);
+    const suffix = plainSuggestion.slice(plainMention.length);
     if (!suffix) {
-      this.clearForEntry(entry.id);
+      this.dropForEntry(entry);
       return;
     }
 
     const caretRect = this.positioningService.getCaretRect(entry.elem);
     if (!caretRect) {
-      this.clearForEntry(entry.id);
+      this.dropForEntry(entry);
       return;
     }
 
     const isMidText = snapshot.afterCursor.length > 0;
+    // A floating ghost can't be placed when the run opposes the paragraph
+    // direction (e.g. Arabic in an LTR input): let the mirror lay out bidi.
+    const useMirror =
+      isMidText ||
+      InlineSuggestionView.runOpposesParagraph({
+        target: entry.elem,
+        token: mentionText,
+        suffix,
+        doc: this.doc,
+      });
     // Acceptance consumes the trailing word chars under the caret, so hide
     // them in the preview to match the post-acceptance rendering.
     const trailingTokenText = isMidText ? (resolveTrailingToken?.(snapshot.afterCursor) ?? "") : "";
 
     let ghost: HTMLDivElement | null;
-    if (isMidText && TextTargetAdapter.isTextValue(entry.elem as TextTarget)) {
+    if (useMirror && TextTargetAdapter.isTextValue(entry.elem as TextTarget)) {
       ghost = InlineSuggestionView.renderMirrorPreview({
         target: entry.elem as HTMLInputElement | HTMLTextAreaElement,
         suffix,
@@ -94,7 +113,7 @@ export class InlineSuggestionPresenter {
         entryId: entry.id,
         doc: this.doc,
       });
-    } else if (isMidText) {
+    } else if (useMirror) {
       ghost = InlineSuggestionView.renderContentEditableMirrorPreview({
         target: entry.elem,
         suffix,
@@ -110,6 +129,10 @@ export class InlineSuggestionPresenter {
         entryId: entry.id,
         doc: this.doc,
       });
+    }
+    if (ghost === null) {
+      this.dropForEntry(entry);
+      return;
     }
 
     this.activeGhost = ghost;

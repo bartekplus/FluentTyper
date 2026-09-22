@@ -58,13 +58,14 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
       const numericContinuation =
         context.hints?.measurementContext === "prose" &&
         resolveMeasurementLocale(context.hints.lang) &&
-        /(?:^|[\s([{])[-+]?\d+(?:[.,]\d*)?$/u.test(prefix);
+        /(?:^|[\s([{])[-+]?\p{Nd}+(?:[.,]\p{Nd}*)?$/u.test(prefix);
       if (numericContinuation) {
         return this.createEdit(`, ${continuation}`, 1 + continuation.length);
       }
     }
 
-    if (lastChar !== ",") {
+    // "\u060C" is the Arabic comma.
+    if (lastChar !== "," && lastChar !== "\u060C") {
       return null;
     }
 
@@ -87,7 +88,8 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
     // otherwise the space would be dropped and never restored.
     if (
       !spaceBeforeViolated &&
-      this.isDigit(previousSignificantChar) &&
+      // \p{Nd}: "١,٥" is as ambiguous as "1,5".
+      /^\p{Nd}$/u.test(previousSignificantChar) &&
       canDefer &&
       context.hints?.measurementContext === "prose" &&
       resolveMeasurementLocale(context.hints.lang)

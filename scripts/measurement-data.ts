@@ -47,6 +47,7 @@ const locales = JSON.parse(localesText) as {
   locale: string;
   separator: string;
   decimalMarks: string[];
+  nativeDigits?: { digits: string; decimalMark: string };
 }[];
 const sources = JSON.parse(sourceText) as {
   sources: { id: string; sha256?: string }[];
@@ -72,11 +73,18 @@ const expectedLocales = new Set(
   ),
 );
 if (locales.length !== expectedLocales.size) throw new Error("measurement locale count mismatch");
-for (const { locale, separator, decimalMarks } of locales) {
+for (const { locale, separator, decimalMarks, nativeDigits } of locales) {
   if (!expectedLocales.delete(locale)) throw new Error(`unknown or duplicate locale: ${locale}`);
-  const expectedMark = locale === "en_US" ? "." : ",";
+  // Arabic with Latin digits follows CLDR and uses "." like en_US.
+  const expectedMark = ["en_US", "ar_SA"].includes(locale) ? "." : ",";
   if (separator !== "\u00a0" || decimalMarks.length !== 1 || decimalMarks[0] !== expectedMark) {
     throw new Error(`invalid locale punctuation: ${locale}`);
+  }
+  // Only ar_SA gets a native system: CLDR `arab` digits U+0660-0669 with U+066B.
+  const expectedNative =
+    locale === "ar_SA" ? JSON.stringify({ digits: "٠١٢٣٤٥٦٧٨٩", decimalMark: "٫" }) : undefined;
+  if (JSON.stringify(nativeDigits) !== expectedNative) {
+    throw new Error(`invalid locale native digits: ${locale}`);
   }
 }
 if (expectedLocales.size) throw new Error(`missing locales: ${[...expectedLocales].join(", ")}`);

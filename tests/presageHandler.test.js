@@ -238,6 +238,10 @@ describe("features", () => {
       ["test", "", false, "test"],
       ["test", " ", true, "test"],
       ["test", " ", false, "test"],
+      ["test", ",", true, "test"],
+      ["test", "\u060C", true, "test"],
+      ["test", "\u061B", true, "test"],
+      ["test", "\u061F", true, "test"],
     ])(
       "input: '%s', nextChar: '%s', insertSpaceAfterAutocomplete: %s, expected: '%s'",
       async (input, nextChar, insertSpaceAfterAutocomplete, expected) => {

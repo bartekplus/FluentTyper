@@ -3930,6 +3930,183 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(30000, 45000),
   );
 
+  async function enableArabicInlineSuggestions() {
+    await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
+    await setSettingAndWait(worker!, KEY_LANGUAGE, "ar_SA");
+    await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
+    await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+    await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, true);
+    await applyConfigChange(browser, worker!);
+  }
+
+  async function resetArabicInlineSuggestions() {
+    await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
+    await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+    await applyConfigChange(browser, worker!);
+  }
+
+  async function waitForInlineGhostText(label: string): Promise<string> {
+    return waitUntil(
+      label,
+      async () => {
+        const text = await page.evaluate(
+          () => document.querySelector(".ft-suggestion-inline")?.textContent ?? "",
+        );
+        return text.length > 0 ? text : false;
+      },
+      { timeoutMs: browserTimeout(5000, 10000), intervalMs: 50 },
+    );
+  }
+
+  test(
+    "Arabic inline ghost in an RTL textarea anchors at the caret and accepts on TAB",
+    async () => {
+      const selector = "#test-textarea";
+      try {
+        await enableArabicInlineSuggestions();
+        await gotoTestPage(page);
+        await page.bringToFront();
+        await page.evaluate(() =>
+          document.getElementById("test-textarea")!.setAttribute("dir", "rtl"),
+        );
+        await waitForInputReady(page, selector);
+        await clearInputContent(page, selector);
+        await typeInInput(page, selector, "الي");
+        await waitForInlineGhostText("RTL Arabic inline ghost");
+
+        const geometry = await page.evaluate(() => {
+          const textarea = document.getElementById("test-textarea") as HTMLTextAreaElement;
+          const ghost = document.querySelector(".ft-suggestion-inline") as HTMLElement;
+          // Measure the caret with a throwaway mirror: in an RTL paragraph the
+          // caret after the typed run sits at the run's LEFT edge.
+          const computed = getComputedStyle(textarea);
+          const probe = document.createElement("div");
+          for (const prop of [
+            "boxSizing",
+            "width",
+            "paddingTop",
+            "paddingRight",
+            "paddingBottom",
+            "paddingLeft",
+            "borderTopWidth",
+            "borderRightWidth",
+            "borderBottomWidth",
+            "borderLeftWidth",
+            "borderStyle",
+            "fontFamily",
+            "fontSize",
+            "fontWeight",
+            "letterSpacing",
+            "direction",
+            "textAlign",
+          ] as const) {
+            (probe.style as unknown as Record<string, string>)[prop] = computed[prop];
+          }
+          const rect = textarea.getBoundingClientRect();
+          Object.assign(probe.style, {
+            position: "fixed",
+            left: `${rect.left}px`,
+            top: `${rect.top}px`,
+            whiteSpace: "pre-wrap",
+            visibility: "hidden",
+          });
+          const run = document.createElement("span");
+          run.textContent = textarea.value;
+          probe.appendChild(run);
+          document.body.appendChild(probe);
+          const caretX = run.getBoundingClientRect().left;
+          probe.remove();
+          const ghostRect = ghost.getBoundingClientRect();
+          return {
+            isMirror: ghost.children.length > 0,
+            caretX,
+            ghostLeft: ghostRect.left,
+            ghostRight: ghostRect.right,
+            editorLeft: rect.left,
+            editorRight: rect.right,
+          };
+        });
+        // A floating ghost (not the mirror) grows leftward from the caret.
+        expect(geometry.isMirror).toBe(false);
+        expect(Math.abs(geometry.ghostRight - geometry.caretX)).toBeLessThanOrEqual(4);
+        expect(geometry.ghostLeft).toBeGreaterThanOrEqual(geometry.editorLeft - 1);
+        expect(geometry.ghostRight).toBeLessThanOrEqual(geometry.editorRight + 1);
+
+        await page.keyboard.press("Tab");
+        const accepted = await waitForInputContentMatch(
+          page,
+          selector,
+          /^اليوم[ \xa0]?$/,
+          browserTimeout(3000, 6000),
+        );
+        expect(accepted).toMatch(/^اليوم[ \xa0]?$/);
+      } finally {
+        await resetArabicInlineSuggestions();
+      }
+    },
+    browserTimeout(30000, 45000),
+  );
+
+  test(
+    "Arabic in an LTR input previews through the mirror without overlapping typed text",
+    async () => {
+      const selector = "#test-input";
+      try {
+        await enableArabicInlineSuggestions();
+        await gotoTestPage(page);
+        await page.bringToFront();
+        await waitForInputReady(page, selector);
+        await clearInputContent(page, selector);
+        await typeInInput(page, selector, "الي");
+        await waitForInlineGhostText("LTR-input Arabic mirror preview");
+
+        const layout = await page.evaluate(() => {
+          const mirror = document.querySelector(".ft-suggestion-inline") as HTMLElement;
+          const [before, suffix] = Array.from(mirror.children) as HTMLElement[];
+          // Measure only the letters: a trailing (auto-space) NBSP resolves to
+          // the LTR paragraph direction and sits right of the Arabic run.
+          const lettersRect = (span: HTMLElement | undefined) => {
+            const node = span?.firstChild;
+            if (!node || !node.textContent) {
+              return null;
+            }
+            const range = document.createRange();
+            range.setStart(node, 0);
+            range.setEnd(node, node.textContent.replace(/[\s\u00a0]+$/u, "").length);
+            return range.getBoundingClientRect();
+          };
+          const beforeRect = lettersRect(before);
+          const suffixRect = lettersRect(suffix);
+          return {
+            spanCount: mirror.children.length,
+            beforeText: before?.textContent ?? "",
+            suffixText: suffix?.textContent ?? "",
+            beforeLeft: beforeRect?.left ?? 0,
+            suffixRight: suffixRect?.right ?? Number.POSITIVE_INFINITY,
+          };
+        });
+        // The opposing-direction run uses the mirror (before | suffix | after).
+        expect(layout.spanCount).toBe(3);
+        expect(layout.beforeText).toBe("الي");
+        expect(layout.suffixText.length).toBeGreaterThan(0);
+        // Bidi lays the Arabic continuation to the LEFT of the typed run.
+        expect(layout.suffixRight).toBeLessThanOrEqual(layout.beforeLeft + 1);
+
+        await page.keyboard.press("Tab");
+        const accepted = await waitForInputContentMatch(
+          page,
+          selector,
+          /^اليوم[ \xa0]?$/,
+          browserTimeout(3000, 6000),
+        );
+        expect(accepted).toMatch(/^اليوم[ \xa0]?$/);
+      } finally {
+        await resetArabicInlineSuggestions();
+      }
+    },
+    browserTimeout(30000, 45000),
+  );
+
   test(
     "CKEditor inline preview hides trailing word chars when caret is mid-word",
     async () => {
@@ -4468,6 +4645,52 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(20000, 35000),
   );
 
+  test(
+    "Auto-detect switches to Arabic for Arabic-script typing",
+    async () => {
+      const selector = "#test-input";
+      try {
+        await setSettingAndWait(worker!, "enable", true);
+        await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, ["en_US", "ar_SA"]);
+        await setSettingAndWait(worker!, KEY_LANGUAGE, "auto_detect");
+        await setSettingAndWait(worker!, KEY_FALLBACK_LANGUAGE, "en_US");
+        await setSettingAndWait(worker!, KEY_AUTO_LANGUAGE_SITE_PRIORS, {});
+        await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
+        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
+        await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+        await setSettingAndWait(worker!, KEY_NUM_SUGGESTIONS, 5);
+        await applyConfigChange(browser, worker!);
+
+        await gotoTestPage(page);
+        await page.bringToFront();
+        await waitForInputReady(page, selector);
+        await clearInputContent(page, selector);
+        await typeInInput(page, selector, "الي");
+        let latest: string[] = [];
+        await waitUntil(
+          "Arabic auto-detect suggestion",
+          async () => {
+            latest = await getVisibleSuggestionTexts(page).catch(() => []);
+            return latest.some((text) => text.includes("اليوم")) ? latest : false;
+          },
+          { timeoutMs: browserTimeout(12000, 15000), intervalMs: 50 },
+        ).catch(() => {
+          throw new Error(
+            `Expected an Arabic suggestion containing "اليوم", got: ${latest.join(" | ")}`,
+          );
+        });
+        expect(await getSetting<string>(worker!, KEY_LANGUAGE)).toBe("auto_detect");
+      } finally {
+        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+        await setSettingAndWait(worker!, KEY_FALLBACK_LANGUAGE, "en_US");
+        await setSettingAndWait(worker!, KEY_AUTO_LANGUAGE_SITE_PRIORS, {});
+        await setSettingAndWait(worker!, KEY_SITE_PROFILES, {});
+        await applyConfigChange(browser, worker!);
+      }
+    },
+    browserTimeout(20000, 35000),
+  );
+
   devRuntimeTest(
     "CMD_TOGGLE_FT_ACTIVE_LANG creates an auto-detect session lock without persisting site overrides",
     async () => {
@@ -4551,19 +4774,22 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(30000, 50000),
   );
 
-  const LANGUAGE_TEST_DATA: Record<string, { input: string; expected: string }> = {
-    en_US: { input: "impor", expected: "important" },
-    fr_FR: { input: "champig", expected: "champignon" },
-    hr_HR: { input: "prijat", expected: "prijatelj" },
-    es_ES: { input: "estup", expected: "estupenda" },
-    el_GR: { input: "φιλοσ", expected: "φιλοσοφία" },
-    sv_SE: { input: "tillsamm", expected: "tillsammans" },
-    de_DE: { input: "schmetterl", expected: "schmetterling" },
-    pl_PL: { input: "chrabą", expected: "chrabąszcz" },
-    pt_BR: { input: "caipir", expected: "caipira" },
-    ar_SA: { input: "الي", expected: "اليوم" },
-    textExpander: { input: "asap", expected: "as soon as possible" },
-  };
+  // `strict` languages must show the expected word in #test-input; the rest
+  // tolerate a slow engine (input still holds the typed text).
+  const LANGUAGE_TEST_DATA: Record<string, { input: string; expected: string; strict?: boolean }> =
+    {
+      en_US: { input: "impor", expected: "important" },
+      fr_FR: { input: "champig", expected: "champignon" },
+      hr_HR: { input: "prijat", expected: "prijatelj" },
+      es_ES: { input: "estup", expected: "estupenda" },
+      el_GR: { input: "φιλοσ", expected: "φιλοσοφία" },
+      sv_SE: { input: "tillsamm", expected: "tillsammans" },
+      de_DE: { input: "schmetterl", expected: "schmetterling" },
+      pl_PL: { input: "chrabą", expected: "chrabąszcz" },
+      pt_BR: { input: "caipir", expected: "caipira" },
+      ar_SA: { input: "الي", expected: "اليوم", strict: true },
+      textExpander: { input: "asap", expected: "as soon as possible" },
+    };
 
   async function runPredictionForAllLanguagesScenario(selector: string) {
     await setSettingAndWait(worker!, KEY_ENABLED_LANGUAGES, SUPPORTED_PREDICTION_LANGUAGE_KEYS);
@@ -4637,6 +4863,10 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             `Expected ${lang} suggestion containing "${testData.expected}" in ${selector}, got: ${allSuggestionTexts.join(" | ")}`,
           );
         }
+      } else if (testData.strict && selector === "#test-input") {
+        throw new Error(
+          `Expected ${lang} suggestion containing "${testData.expected}" in ${selector}, got none`,
+        );
       } else {
         const currentInput = await getInputContent(page, selector);
         expect(currentInput.toLowerCase()).toContain(testData.input.toLowerCase());

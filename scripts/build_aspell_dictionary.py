@@ -41,58 +41,77 @@ def extract_archive(archive_path: Path, cwd: Path) -> None:
 def _extract_rpm(archive_path: Path, cwd: Path) -> None:
     import gzip
     import lzma
+    import struct
+    import zlib
 
-    data = archive_path.read_bytes()
-    if len(data) < 96:
-        raise RuntimeError("RPM file too small")
-    # The RPM lead is 96 bytes; the compressed payload starts at the first
-    # known compression magic after it.  Locating the magic directly is more
-    # robust than walking the (variable-length) signature/data headers.
-    magics = (b"\x1f\x8b", b"\xfd7zXZ\x00", b"\x28\xb5\x2f\xfd")
-    start = None
-    for magic in magics:
-        offset = data.find(magic, 96)
-        if offset != -1 and (start is None or offset < start):
-            start = offset
-    if start is None:
-        raise RuntimeError("No recognizable compressed payload in RPM")
-    payload = data[start:]
-    if payload[:2] == b"\x1f\x8b":
-        cpio = gzip.decompress(payload)
-    elif payload[:6] == b"\xfd7zXZ\x00":
-        cpio = lzma.decompress(payload)
-    elif payload[:4] == b"\x28\xb5\x2f\xfd":
-        result = subprocess.run(["zstd", "-d", "-q", "-c", "-"], input=payload, capture_output=True)
-        if result.returncode != 0:
-            raise RuntimeError("zstd decompression failed")
-        cpio = result.stdout
-    else:
-        raise RuntimeError("Unknown RPM payload compression")
-    # Extract the newc cpio stream in-process (no `cpio` subprocess): the
-    # member names come from an untrusted downloaded package, so every path
-    # and link target is validated to stay inside `cwd` before anything is
-    # written.
-    _extract_newc_cpio(cpio, cwd)
+    # Any parse/decompress failure on this untrusted input is reported as
+    # RuntimeError so the caller prints a clean message instead of a traceback.
+    try:
+        data = archive_path.read_bytes()
+        payload = data[_rpm_payload_offset(data) :]
+        if payload[:2] == b"\x1f\x8b":
+            cpio = gzip.decompress(payload)
+        elif payload[:6] == b"\xfd7zXZ\x00":
+            cpio = lzma.decompress(payload)
+        elif payload[:4] == b"\x28\xb5\x2f\xfd":
+            result = subprocess.run(["zstd", "-d", "-q", "-c", "-"], input=payload, capture_output=True)
+            if result.returncode != 0:
+                raise RuntimeError("zstd decompression failed")
+            cpio = result.stdout
+        else:
+            raise RuntimeError("Unknown RPM payload compression")
+        # Extract the newc cpio stream in-process (no `cpio` subprocess): the
+        # member names come from an untrusted downloaded package, so every path
+        # and link target is validated to stay inside `cwd` before anything is
+        # written.
+        _extract_newc_cpio(cpio, cwd)
+    except (ValueError, OSError, EOFError, lzma.LZMAError, zlib.error, struct.error) as exc:
+        raise RuntimeError(f"Malformed RPM {archive_path.name}: {exc}") from exc
+
+
+def _rpm_payload_offset(data: bytes) -> int:
+    """Offset of the payload: 96-byte lead, signature header padded to 8
+    bytes, then the main header.  Each header is magic(3) version(1)
+    reserved(4) nindex(4) hsize(4), 16-byte index entries, then hsize bytes."""
+    import struct
+
+    offset = 96
+    for pad in (True, False):
+        if data[offset : offset + 3] != b"\x8e\xad\xe8":
+            raise RuntimeError("Missing RPM header magic")
+        nindex, hsize = struct.unpack(">II", data[offset + 8 : offset + 16])
+        offset += 16 + 16 * nindex + hsize
+        if pad:
+            offset = (offset + 7) & ~7
+    return offset
 
 
 def _extract_newc_cpio(data: bytes, dest: Path) -> None:
     """Extract a newc-format cpio archive into `dest` with path containment.
 
-    Rejects absolute member paths, `..` traversal, and symlink/hardlink
-    targets that resolve outside `dest`.  Only regular files, directories,
-    symlinks, and hardlinks are materialized; other member types are skipped.
+    Rejects absolute member paths, `..` traversal, and symlink targets that
+    are absolute, contain `..`, or resolve outside `dest`.  Only regular
+    files, directories, symlinks, and hardlinks are materialized; other member
+    types are skipped.  Raises RuntimeError/ValueError/OSError on malformed input.
     """
     import os
     import stat as stat_module
 
     dest_resolved = dest.resolve()
+    # newc stores a hardlink group's data only on its last member; earlier
+    # members are written empty and filled in when the data arrives.
+    hardlinks: dict[tuple[int, int, int], list[Path]] = {}
     pos = 0
+    seen_trailer = False
     while pos + 110 <= len(data):
         if data[pos : pos + 6] != b"070701":
             raise RuntimeError("Not a newc cpio archive")
         namesize = int(data[pos + 94 : pos + 102], 16)
         filesize = int(data[pos + 54 : pos + 62], 16)
         mode = int(data[pos + 14 : pos + 22], 16)
+        ino = int(data[pos + 6 : pos + 14], 16)
+        nlink = int(data[pos + 38 : pos + 46], 16)
+        dev = (int(data[pos + 62 : pos + 70], 16), int(data[pos + 70 : pos + 78], 16))
         name_end = pos + 110 + namesize
         if name_end > len(data):
             raise RuntimeError("Truncated cpio header")
@@ -103,6 +122,7 @@ def _extract_newc_cpio(data: bytes, dest: Path) -> None:
             raise RuntimeError("Truncated cpio member data")
         pos = (content_end + 3) & ~3
         if name == "TRAILER!!!":
+            seen_trailer = True
             break
         if name in (".", "") or name.startswith("/") or name.startswith("../") or name == "..":
             continue  # archive root / absolute path — never write outside dest
@@ -124,23 +144,35 @@ def _extract_newc_cpio(data: bytes, dest: Path) -> None:
                 target.unlink()
             os.symlink(link_target, target)
         elif stat_module.S_ISREG(mode):
-            # Regular files and hardlinks (materialized as plain copies so a
-            # hardlink to a member that appears later in the archive cannot
-            # dangle).  The parent chain is re-validated here, at write time:
-            # an earlier member can leave behind a symlink whose target only
-            # becomes escaping once a *later* member is created, so a check
-            # made when the link was created is not enough.
-            if not _ensure_dir(dest, dest_resolved, target.parent):
-                continue
-            if target.is_symlink() or target.exists():
-                # Never write through an archive-created link.
-                target.unlink()
-            fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o644)
-            try:
-                os.write(fd, data[content_start:content_end])
-            finally:
-                os.close(fd)
+            content = data[content_start:content_end]
+            if nlink > 1:
+                group = hardlinks.setdefault((*dev, ino), [])
+                group.append(target)
+                if filesize:
+                    for member in group:
+                        _write_file(dest, dest_resolved, member, content)
+                    continue
+            _write_file(dest, dest_resolved, target, content)
         # FIFOs, sockets, block/char devices, and unknown types: skip.
+    if not seen_trailer:
+        raise RuntimeError("cpio archive has no TRAILER!!! member (truncated?)")
+
+
+def _write_file(dest: Path, dest_resolved: Path, target: Path, content: bytes) -> None:
+    """Write a regular file.  The parent chain is re-validated here, at write
+    time: an earlier member can leave behind a symlink whose target only
+    becomes escaping once a *later* member is created, so a check made when
+    the link was created is not enough."""
+    if not _ensure_dir(dest, dest_resolved, target.parent):
+        return
+    if target.is_symlink() or target.exists():
+        # Never write through an archive-created link.
+        target.unlink()
+    fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o644)
+    try:
+        os.write(fd, content)
+    finally:
+        os.close(fd)
 
 
 def _real_within(dest_resolved: Path, path: Path) -> bool:
@@ -178,29 +210,30 @@ def _ensure_dir(dest: Path, dest_resolved: Path, path: Path) -> bool:
 def _link_target_contained(dest_resolved: Path, link_path: Path, link_target: str) -> bool:
     """True if a symlink's target stays inside the destination directory.
 
-    Relative targets resolve against the link's own directory (POSIX
-    semantics), then the real path is checked against the destination so an
-    existing link in the ancestor chain cannot redirect it outside.
+    Absolute targets and any `..` component are rejected outright: realpath
+    collapses `missing/..` textually, so a target through a not-yet-created
+    component can be re-pointed outside by a later link.  The remaining
+    relative target is then checked from the link's own directory.
     """
-    target = Path(link_target)
-    candidate = target if target.is_absolute() else (link_path.parent / target)
-    return _real_within(dest_resolved, candidate)
+    target = PurePosixPath(link_target)
+    if target.is_absolute() or ".." in target.parts:
+        return False
+    return _real_within(dest_resolved, link_path.parent / target)
 
 
-def copy_tree_contents(source_dir: Path, destination_dir: Path) -> None:
+def copy_tree_contents(source_dir: Path, destination_dir: Path, root: Path) -> None:
+    """Copy the regular files directly under `source_dir`, following links
+    only when they resolve inside the extraction `root`."""
     if not source_dir.is_dir():
         return
 
+    root_resolved = root.resolve()
     for path in source_dir.iterdir():
-        target = destination_dir / path.name
-        if path.is_symlink():
-            resolved = path.resolve()
-            if resolved.is_file():
-                shutil.copy2(resolved, target)
+        if not _real_within(root_resolved, path):
             continue
-
-        if path.is_file():
-            shutil.copy2(path, target)
+        resolved = path.resolve()
+        if resolved.is_file():
+            shutil.copy2(resolved, destination_dir / path.name)
 
 
 def main() -> int:
@@ -217,8 +250,8 @@ def main() -> int:
         archive_path = tmp_path / "dict.rpm"
         download_file(args.url, archive_path)
         extract_archive(archive_path, tmp_path)
-        copy_tree_contents(tmp_path / "usr/lib/aspell-0.60", dest_dir)
-        copy_tree_contents(tmp_path / "var/lib/aspell-0.60", dest_dir)
+        copy_tree_contents(tmp_path / "usr/lib/aspell-0.60", dest_dir, tmp_path)
+        copy_tree_contents(tmp_path / "var/lib/aspell-0.60", dest_dir, tmp_path)
 
     return 0
 

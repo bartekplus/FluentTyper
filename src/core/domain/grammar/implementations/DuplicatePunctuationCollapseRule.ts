@@ -6,8 +6,9 @@ export class DuplicatePunctuationCollapseRule implements GrammarRule {
   readonly id = "duplicatePunctuationCollapse" as const;
   readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
   // ":" is excluded: "std::vector" and "a::b" are scope operators, and nothing
-  // available here separates them from a doubled prose colon.
-  private static readonly COLLAPSIBLE_PUNCTUATION = new Set([",", ";"]);
+  // available here separates them from a doubled prose colon. "\u060C" and
+  // "\u061B" are the Arabic comma and semicolon.
+  private static readonly COLLAPSIBLE_PUNCTUATION = new Set([",", ";", "\u060C", "\u061B"]);
   apply(context: GrammarContext): GrammarEdit | null {
     const input = context.beforeCursor;
     if (input.length < 2) {

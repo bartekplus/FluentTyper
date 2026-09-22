@@ -36,6 +36,7 @@ stopwords.dic
 أريزونا/np
 الأدرياتيكي/mp\t#مكان:بحر/خليج/مضيق
 زروقي/np\t# المطوّر
+بسم/
 """
 
 # Minimal affix file mirroring the shipped semantics: FLAG long, plus real
@@ -86,19 +87,14 @@ class DictionaryCleanerTest(unittest.TestCase):
         self.assertIn("مرحبا", lines)
         self.assertIn("كتاب", lines)
 
+    def test_trailing_bare_slash_is_stripped(self) -> None:
+        lines = self.cleaned_lines()
+        self.assertIn("بسم", lines)
+        self.assertNotIn("بسم/", lines)
+
     def test_header_count_is_rewritten(self) -> None:
         lines = self.cleaned_lines()
         self.assertEqual(self.dic.read_text(encoding="utf-8").splitlines()[0], str(len(lines)))
-
-
-def _find_hunspell() -> str | None:
-    for candidate in (
-        "/tmp/mamba/autotools/bin/hunspell",
-        shutil.which("hunspell"),
-    ):
-        if candidate and Path(candidate).exists():
-            return str(candidate)
-    return None
 
 
 class HunspellRoundTripTest(unittest.TestCase):
@@ -108,7 +104,7 @@ class HunspellRoundTripTest(unittest.TestCase):
     minimal CI images; the cleaner unit tests above always run.
     """
 
-    HUNSPELL = _find_hunspell()
+    HUNSPELL = shutil.which("hunspell")
 
     def setUp(self) -> None:
         if not self.HUNSPELL:
@@ -136,7 +132,7 @@ class HunspellRoundTripTest(unittest.TestCase):
 
     def test_flagged_base_and_prefixed_forms_are_accepted(self) -> None:
         # np: و + ب prefixes; mp: و prefix and ال -> لل substitution.
-        accepted = ["أريزونا", "وأريزونا", "بأريزونا", "الأدرياتيكي", "والأدرياتيكي", "للأدرياتيكي", "مرحبا"]
+        accepted = ["أريزونا", "وأريزونا", "بأريزونا", "الأدرياتيكي", "والأدرياتيكي", "للأدرياتيكي", "مرحبا", "بسم"]
         self.assertEqual(self._misspelled(accepted), set())
 
     def test_unflagged_word_does_not_gain_prefixed_forms(self) -> None:

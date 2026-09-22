@@ -8,7 +8,7 @@ const SETTINGS_ENABLED = getSettingStorageKey("enabled");
 const SETTINGS_DOMAIN_LIST_MODE = getSettingStorageKey("domainListMode");
 const WHITESPACE_REGEX = /\s+/;
 const LETTER_REGEX = /^\p{L}/u;
-const DIGITS_ONLY_REGEX = /[^0-9]/g;
+const DIGITS_ONLY_REGEX = /\P{Nd}/gu;
 
 export function toStoredString(value: unknown): string | null {
   if (typeof value === "string") {

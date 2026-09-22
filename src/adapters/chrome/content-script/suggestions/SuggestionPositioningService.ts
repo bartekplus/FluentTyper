@@ -110,6 +110,7 @@ export class SuggestionPositioningService {
     const position = elem.selectionStart ?? elem.value.length;
     const properties = [
       "direction",
+      "unicodeBidi",
       "boxSizing",
       "width",
       "height",

@@ -61,8 +61,8 @@ describe("measurement formatting adversarial verification", () => {
       ["pt_BR", "Massa: 1,50kg ", `Massa: 1,50${NBSP}kg `],
       [
         "ar_SA",
-        "\u0627\u0644\u0643\u062a\u0644\u0629: 1,50kg ",
-        `\u0627\u0644\u0643\u062a\u0644\u0629: 1,50${NBSP}kg `,
+        "\u0627\u0644\u0643\u062a\u0644\u0629: 1.50kg ",
+        `\u0627\u0644\u0643\u062a\u0644\u0629: 1.50${NBSP}kg `,
       ],
     ] as const;
     expect(cases.map(([lang]) => lang).sort()).toEqual(
@@ -179,6 +179,13 @@ describe("measurement formatting adversarial verification", () => {
       "Temperature: 10°C² ",
     ];
     for (const input of rejected) expect(rule.apply(context(input))).toBeNull();
+    // Arabic with Latin digits uses "." as its decimal mark (CLDR), so a comma
+    // is grouping or a list, never a decimal.
+    for (const input of [
+      "\u0627\u0644\u0648\u0632\u0646: 1,5kg ",
+      "\u0627\u0644\u0648\u0632\u0646: 1,500kg ",
+    ])
+      expect(rule.apply(context(input, "ar_SA"))).toBeNull();
     expect(rule.apply(context("Mass: 10kg ", "en_US", { isPaste: true }))).toBeNull();
     expect(rule.apply(context("Mass: 10kg ", "en_US", { inputAction: "delete" }))).toBeNull();
     expect(
@@ -224,10 +231,62 @@ describe("measurement formatting adversarial verification", () => {
       ["en_US", "Scientific: -1.2e-3kg ", "Scientific: -1.2e-3kg "],
       ["en_US", "Grouped: 1,234.50kg ", "Grouped: 1,234.50kg "],
       ["pl_PL", "Grupa: 1.234,50kg ", "Grupa: 1.234,50kg "],
+      [
+        "ar_SA",
+        "\u0627\u0644\u0648\u0632\u0646: 1.5kg ",
+        `\u0627\u0644\u0648\u0632\u0646: 1.5${NBSP}kg `,
+      ],
+      [
+        "ar_SA",
+        "\u0627\u0644\u0648\u0632\u0646: 1,500.5kg ",
+        "\u0627\u0644\u0648\u0632\u0646: 1,500.5kg ",
+      ],
       ["en_US", "Range: 10-12kg ", "Range: 10-12kg "],
     ] as const;
     for (const [lang, input, expected] of cases) {
       expect(typeThroughAllRules(input, lang)).toBe(expected);
+    }
+  });
+
+  test("ar_SA accepts Arabic-Indic digits with ٫ and keeps the authored digit system", () => {
+    const label = "الوزن: ";
+    for (const number of ["١٫٥", "١٠", "-٢٫٢٥", "1.5"]) {
+      const input = `${label}${number}kg `;
+      const expected = `${label}${number}${NBSP}kg `;
+      expect(apply(input, rule.apply(context(input, "ar_SA")))).toBe(expected);
+      expect(typeThroughAllRules(input, "ar_SA")).toBe(expected);
+    }
+  });
+
+  test("ar_SA fails closed on mixed digit systems, foreign marks, grouping, and Persian digits", () => {
+    const label = "الوزن: ";
+    for (const number of [
+      "1٫5", // Latin digits, Arabic decimal separator
+      "١.٥", // Arabic-Indic digits, Latin decimal mark
+      "١,٥",
+      "١5",
+      "1٥",
+      "1.٥",
+      "١٫5",
+      "١٬٥٠٠", // grouping is never parsed, as for Latin "1,500"
+      "١٬٥٠٠٫٥",
+      "۱٫۵", // Persian digits are not Arabic-Indic digits
+      "۱۵",
+      "١۵",
+    ]) {
+      const input = `${label}${number}kg `;
+      expect(rule.apply(context(input, "ar_SA"))).toBeNull();
+      expect(typeThroughAllRules(input, "ar_SA")).toBe(input);
+    }
+  });
+
+  test("Arabic-Indic digits stay unrecognised outside ar_SA", () => {
+    for (const lang of MEASUREMENT_LOCALES.map(({ locale }) => locale).filter(
+      (locale) => locale !== "ar_SA",
+    )) {
+      for (const input of ["Mass: ١٠kg ", "Mass: ١٫٥kg "]) {
+        expect(rule.apply(context(input, lang))).toBeNull();
+      }
     }
   });
 });

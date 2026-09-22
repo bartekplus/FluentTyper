@@ -19,7 +19,7 @@ from typing import Iterable
 class LanguageConfig:
     short: str
     variant: str
-    aspell_urls: tuple[str, ...]
+    aspell_urls: tuple[str, ...] = ()
     aspell_lang: str | None = None
     # Arabic's aspell dictionary declares the "l-ar" (logical Arabic) charset,
     # whose l-ar.cmap is a symlink to l-fa.cmap (logical Persian, not shipped in
@@ -35,10 +35,6 @@ LANGUAGES: tuple[LanguageConfig, ...] = (
     LanguageConfig(
         short="ar",
         variant="ar_SA",
-        aspell_urls=(
-            "https://rpmfind.net/linux/opensuse/ports/i586/tumbleweed/repo/oss/i586/aspell-ar-1.2.0-4.6.i586.rpm",
-        ),
-        aspell_lang="ar",
         use_aspell=False,
     ),
     LanguageConfig(
@@ -179,16 +175,19 @@ def _drop_aspell_predictor(presage_xml: Path) -> None:
     """
     import re
 
+    name = "DefaultAspellPredictor"
     text = presage_xml.read_text(encoding="utf-8")
-    # Drop the predictor from the PREDICTORS registry list.
-    text = text.replace("DefaultAspellPredictor ", "")
-    # Drop the <DefaultAspellPredictor>...</DefaultAspellPredictor> block.
+    # Drop the predictor from the whitespace-separated PREDICTORS list.
     text = re.sub(
-        r"\s*<DefaultAspellPredictor>.*?</DefaultAspellPredictor>",
-        "",
+        r"(<PREDICTORS>)(.*?)(</PREDICTORS>)",
+        lambda m: m[1] + " ".join(t for t in m[2].split() if t != name) + m[3],
         text,
         flags=re.DOTALL,
     )
+    # Drop the <DefaultAspellPredictor>...</DefaultAspellPredictor> block.
+    text = re.sub(rf"\s*<{name}>.*?</{name}>", "", text, flags=re.DOTALL)
+    if name in text:
+        raise RuntimeError(f"{name} still referenced in {presage_xml}")
     presage_xml.write_text(text, encoding="utf-8")
 
 

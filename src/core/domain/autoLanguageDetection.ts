@@ -64,7 +64,9 @@ const SITE_PRIOR_MAX_BONUS = 0.1;
 const MAX_SITE_PRIOR_ENTRIES = 3;
 const STICKY_BONUS = 0.05;
 const GREEK_SCRIPT_REGEX = /[\u0370-\u03FF\u1F00-\u1FFF]/u;
-const ARABIC_SCRIPT_REGEX = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/u;
+// Letters only: the Arabic blocks also hold digits and punctuation (١٢٣ ، ؛ ؟),
+// which say nothing about the language being typed.
+const ARABIC_SCRIPT_REGEX = /(?=\p{L})\p{Script=Arabic}/u;
 // The Arabic block is shared with Persian, Urdu and Pashto.  These letters are
 // exclusive to those languages (Farsi yeh/keheh, Urdu tteh/heh-goal, Pashto
 // dzhe/tshe/...), so a sample containing one is not unambiguously Arabic and
@@ -72,8 +74,12 @@ const ARABIC_SCRIPT_REGEX = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFD
 // detection, where the user's enabled languages decide.
 const SHARED_ARABIC_BLOCK_EXCLUSIVE_REGEX =
   /[\u0679\u067E\u0681\u0685\u0686\u0688\u0689\u0691\u0693\u0696\u0698\u069A\u069B\u06A9\u06AB\u06AF\u06BA\u06BC\u06BE\u06C1\u06C2\u06C3\u06CC\u06CD\u06D0\u06D2\u06D3]/u;
+/** Not a prediction language: never a detection candidate. */
+const TEXT_EXPANDER = "textExpander";
 const LETTER_REGEX = /\p{L}/u;
-const TOKEN_REGEX = /\p{L}+/gu;
+// Combining marks (Arabic tashkeel, Indic vowel signs) and ZWNJ are part of a
+// word; splitting on them inflated the token evidence count.
+const TOKEN_REGEX = /\p{L}[\p{L}\p{M}\u200C]*/gu;
 const BOUNDARY_REGEX = /[\s.,!?;:()[\]{}"'`~@#$%^&*+=|\\/<>_-]/;
 
 function clampProbability(value: unknown): number {
@@ -389,6 +395,7 @@ export function resolveAutoLanguageDecision(
   }
 
   const ranked = [...scores.entries()]
+    .filter(([language]) => language !== TEXT_EXPANDER)
     .map(([language, score]) => ({ language, score }))
     .sort(compareCandidateScores);
   const topCandidate = ranked[0] || null;
@@ -404,10 +411,25 @@ export function resolveAutoLanguageDecision(
   // mid-word, because switching there is gated on a token boundary.
   if (stableLanguage) {
     const tokenScript = textScript(currentToken);
-    if (!strongScriptLanguage && tokenScript && tokenScript !== languageScript(stableLanguage)) {
+    if (
+      !strongScriptLanguage &&
+      tokenScript &&
+      tokenScript !== languageScript(stableLanguage) &&
+      // Same guard as the strong-script shortcut: Persian/Urdu/Pashto letters
+      // mean the Arabic-block text is not necessarily Arabic.
+      !(tokenScript === "arabic" && SHARED_ARABIC_BLOCK_EXCLUSIVE_REGEX.test(sampleText))
+    ) {
+      // Mid-word most candidates score 0; picking among those would fall to
+      // the alphabetical tie-break.  Take a candidate with evidence, else the
+      // fallback language, else stay put.
+      const scored = ranked.find(
+        (candidate) => candidate.score > 0 && languageScript(candidate.language) === tokenScript,
+      );
       const compatible =
-        ranked.find((candidate) => languageScript(candidate.language) === tokenScript)?.language ??
-        null;
+        scored?.language ??
+        (languageScript(fallbackLanguage) === tokenScript && fallbackLanguage !== TEXT_EXPANDER
+          ? fallbackLanguage
+          : null);
       if (compatible && compatible !== stableLanguage) {
         return {
           resolvedLanguage: compatible,

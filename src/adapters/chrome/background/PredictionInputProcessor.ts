@@ -11,6 +11,14 @@ import { checkAutoCapitalize, Capitalization } from "./CapitalizationHelper";
 import { isNumber } from "@core/application/domain-utils";
 
 const NEW_SENTENCE_CHARS = [".", "?", "!"];
+// Arabic comma/semicolon/question mark tokenize exactly like their ASCII
+// counterparts, so "مرحبا،كي" is not one prefix and "؟" ends a sentence.
+const ARABIC_PUNCTUATION_REGEX = /[\u060C\u061B\u061F]/g;
+const ARABIC_PUNCTUATION_TO_ASCII: Record<string, string> = {
+  "\u060C": ",",
+  "\u061B": ";",
+  "\u061F": "?",
+};
 const PAST_WORDS_COUNT = 5;
 export const MIN_WORD_LENGTH_TO_PREDICT = 1;
 
@@ -87,7 +95,10 @@ export class PredictionInputProcessor {
   }
 
   private normalizeForTokenizing(value: string, language: string): string {
-    return this.stripIgnoredChars(this.normalizeAdditionalSeparators(value, language), language);
+    return this.stripIgnoredChars(
+      this.normalizeAdditionalSeparators(value, language),
+      language,
+    ).replace(ARABIC_PUNCTUATION_REGEX, (char) => ARABIC_PUNCTUATION_TO_ASCII[char]);
   }
 
   private resolveCurrentWordSuffix(

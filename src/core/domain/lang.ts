@@ -1,6 +1,5 @@
 export const SUPPORTED_LANGUAGES: Record<string, string> = {
   auto_detect: "Auto detect",
-  ar_SA: "Arabic",
   en_US: "English (US)",
   fr_FR: "French",
   hr_HR: "Croatian",
@@ -10,6 +9,7 @@ export const SUPPORTED_LANGUAGES: Record<string, string> = {
   de_DE: "German",
   pl_PL: "Polish",
   pt_BR: "Brazilian Portuguese",
+  ar_SA: "Arabic",
   textExpander: "Text Expander",
 };
 

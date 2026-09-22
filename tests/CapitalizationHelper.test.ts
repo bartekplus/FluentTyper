@@ -75,4 +75,19 @@ describe("checkAutoCapitalize", () => {
       }),
     ).toBe(Capitalization.None);
   });
+
+  const base = { wordCount: 2, newSentence: false, endsWithSpace: false, autoCapitalize: false };
+
+  it("should return None for caseless-script words (Arabic)", () => {
+    expect(checkAutoCapitalize({ ...base, lastWord: "مرحبا" })).toBe(Capitalization.None);
+    expect(checkAutoCapitalize({ ...base, lastWord: "ك" })).toBe(Capitalization.None);
+  });
+
+  it("should keep WholeWord only for cased uppercase words without lowercase", () => {
+    expect(checkAutoCapitalize({ ...base, lastWord: "ΑΒΓ" })).toBe(Capitalization.WholeWord);
+    expect(checkAutoCapitalize({ ...base, lastWord: "AB1" })).toBe(Capitalization.WholeWord);
+    expect(checkAutoCapitalize({ ...base, lastWord: "ABc" })).toBe(Capitalization.FirstLetter);
+    expect(checkAutoCapitalize({ ...base, lastWord: "A" })).toBe(Capitalization.FirstLetter);
+    expect(checkAutoCapitalize({ ...base, lastWord: "12" })).toBe(Capitalization.None);
+  });
 });

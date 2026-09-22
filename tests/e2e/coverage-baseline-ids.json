@@ -136,6 +136,14 @@
     "gdocs_disposing_removes_ui_and_keyboard_interception",
     "gdocs_visible_suggestions_remain_usable_across_repeated_snapshot_refreshes",
     "gdocs_a_colored_collaborator_caret_does_not_displace_the_local_caret_anchor",
-    "gdocs_releases_an_unverified_write_after_the_next_user_interaction_without_replay"
+    "gdocs_releases_an_unverified_write_after_the_next_user_interaction_without_replay",
+    "arabic_prediction_engine",
+    "rtl_inline_ghost_placement",
+    "opposing_direction_inline_mirror",
+    "arabic_strong_script_detection",
+    "script_switch_handover",
+    "arabic_tatweel_stripping",
+    "arabic_punctuation_handling",
+    "arabic_measurement_formatting"
   ]
 }

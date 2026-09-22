@@ -292,3 +292,139 @@ describe("auto language detection — Arabic", () => {
     expect(result.resolvedLanguage).toBe("ar_SA");
   });
 });
+
+describe("auto language detection — script switch", () => {
+  const emptySession = {
+    stableLanguage: null,
+    pendingLanguage: null,
+    pendingConfirmations: 0,
+    manualLockLanguage: null,
+    switchSuppressedUntilBoundary: false,
+  };
+
+  function decideStable(
+    sampleText: string,
+    allowed: string[],
+    stableLanguage: string,
+    extra: Partial<Parameters<typeof resolveAutoLanguageDecision>[0]> = {},
+  ) {
+    return resolveAutoLanguageDecision({
+      allowedLanguages: allowed,
+      fallbackLanguage: "en_US",
+      sampleText,
+      browserDetections: [],
+      session: { ...emptySession, stableLanguage },
+      ...extra,
+    });
+  }
+
+  test("switches by script and suppresses further switches until a boundary", () => {
+    const result = decideStable("مرحبا hel", ["en_US", "ar_SA"], "ar_SA");
+    expect(result.resolvedLanguage).toBe("en_US");
+    expect(result.source).toBe("script_switch");
+    expect(result.switched).toBe(true);
+    expect(result.switchSuppressedUntilBoundary).toBe(true);
+  });
+
+  test("stable Greek + Latin word switches to the fallback, not the alphabetical first", () => {
+    const result = decideStable("Καλημέρα email", ["de_DE", "el_GR", "en_US", "fr_FR"], "el_GR");
+    expect(result.resolvedLanguage).toBe("en_US");
+    expect(result.source).toBe("script_switch");
+  });
+
+  test("stable Arabic + Latin word switches to the fallback, not the alphabetical first", () => {
+    const result = decideStable("مرحبا iPhone", ["ar_SA", "de_DE", "en_US", "fr_FR"], "ar_SA");
+    expect(result.resolvedLanguage).toBe("en_US");
+  });
+
+  test("script switch prefers a scored Latin candidate over the fallback", () => {
+    const result = decideStable("مرحبا bonjour", ["ar_SA", "de_DE", "en_US", "fr_FR"], "ar_SA", {
+      browserDetections: [{ language: "fr", percentage: 60 }],
+    });
+    expect(result.resolvedLanguage).toBe("fr_FR");
+    expect(result.source).toBe("script_switch");
+  });
+
+  test("script switch uses a same-script page hint", () => {
+    const result = decideStable("مرحبا hallo", ["ar_SA", "de_DE", "en_US", "fr_FR"], "ar_SA", {
+      pageLanguageHint: "de",
+    });
+    expect(result.resolvedLanguage).toBe("de_DE");
+  });
+
+  test("does not script-switch without a scored or fallback candidate", () => {
+    const result = decideStable("مرحبا hallo", ["ar_SA", "de_DE", "fr_FR"], "ar_SA", {
+      fallbackLanguage: "ar_SA",
+    });
+    expect(result.resolvedLanguage).toBe("ar_SA");
+    expect(result.source).not.toBe("script_switch");
+  });
+
+  test("never switches to the text expander", () => {
+    const result = decideStable("مرحبا hello", ["ar_SA", "textExpander"], "ar_SA", {
+      fallbackLanguage: "ar_SA",
+    });
+    expect(result.resolvedLanguage).toBe("ar_SA");
+  });
+
+  test("Persian token does not script-switch an English session to Arabic", () => {
+    const result = decideStable("hello پیام", ["en_US", "ar_SA"], "en_US");
+    expect(result.resolvedLanguage).toBe("en_US");
+  });
+
+  test("Persian sample does not script-switch an English session to Arabic", () => {
+    const result = decideStable("سلام چطوری", ["en_US", "ar_SA"], "en_US");
+    expect(result.resolvedLanguage).toBe("en_US");
+  });
+
+  // Pins current behaviour: a script mismatch overrides an active suppression.
+  test("script switch still applies while a previous switch is suppressed", () => {
+    const result = resolveAutoLanguageDecision({
+      allowedLanguages: ["en_US", "ar_SA"],
+      fallbackLanguage: "en_US",
+      sampleText: "مرحبا hel",
+      browserDetections: [],
+      session: { ...emptySession, stableLanguage: "ar_SA", switchSuppressedUntilBoundary: true },
+    });
+    expect(result.resolvedLanguage).toBe("en_US");
+    expect(result.source).toBe("script_switch");
+    expect(result.switchSuppressedUntilBoundary).toBe(true);
+  });
+
+  test("Arabic digits alone do not commit Arabic", () => {
+    const result = resolveAutoLanguageDecision({
+      allowedLanguages: ["en_US", "ar_SA"],
+      fallbackLanguage: "en_US",
+      sampleText: "١٢٣",
+      browserDetections: [],
+      session: emptySession,
+    });
+    expect(result.resolvedLanguage).toBe("en_US");
+    expect(result.source).not.toBe("strong_script");
+  });
+
+  test("Arabic punctuation alone does not commit Arabic", () => {
+    const result = resolveAutoLanguageDecision({
+      allowedLanguages: ["en_US", "ar_SA"],
+      fallbackLanguage: "en_US",
+      sampleText: "؟",
+      browserDetections: [],
+      session: emptySession,
+    });
+    expect(result.source).not.toBe("strong_script");
+  });
+
+  test("tashkeel and ZWNJ do not split a word into several tokens", () => {
+    expect(extractAutoLanguageSample("كَتَبَ")).toBe("كَتَبَ");
+    expect(extractAutoLanguageSample("می‌خواهم")).toBe("می‌خواهم");
+    // Three diacritised letters must not count as three tokens of evidence.
+    const result = resolveAutoLanguageDecision({
+      allowedLanguages: ["en_US", "fr_FR"],
+      fallbackLanguage: "en_US",
+      sampleText: "كَتَبَ",
+      browserDetections: [],
+      session: emptySession,
+    });
+    expect(result.hasQualifiedEvidence).toBe(false);
+  });
+});

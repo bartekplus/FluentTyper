@@ -73,6 +73,37 @@ describe("InlineSuggestionPresenter", () => {
 
     expect(renderSpy).not.toHaveBeenCalled();
     expect(removeForEntrySpy).toHaveBeenCalled();
+    // A hidden ghost must not stay armed for Tab acceptance.
+    expect(entry.inlineSuggestion).toBeNull();
+  });
+
+  test("drops the accept target when the caret cannot be measured", () => {
+    const renderSpy = jest
+      .spyOn(InlineSuggestionView, "render")
+      .mockImplementation(() => undefined);
+    const positioning = {
+      getCaretRect: jest.fn(() => null),
+    } as unknown as SuggestionPositioningService;
+    const presenter = new InlineSuggestionPresenter({ positioningService: positioning });
+
+    const input = document.createElement("input");
+    input.value = "fun";
+    input.selectionStart = 3;
+    input.selectionEnd = 3;
+    const entry = createSuggestionEntry({
+      elem: input,
+      inlineSuggestion: "function",
+      latestMentionText: "fun",
+    });
+
+    presenter.renderForEntry({
+      enabled: true,
+      entry,
+      resolveMentionToken: () => ({ token: "fun", start: 0 }),
+    });
+
+    expect(renderSpy).not.toHaveBeenCalled();
+    expect(entry.inlineSuggestion).toBeNull();
   });
 
   test("clearForEntry only removes ghost for the specified entry", () => {
@@ -282,6 +313,110 @@ describe("InlineSuggestionPresenter", () => {
 
     expect(renderSpy).toHaveBeenCalledTimes(1);
     expect(mirrorPreviewSpy).not.toHaveBeenCalled();
+  });
+
+  test("uses the mirror preview when an RTL completion ends an LTR input (floating ghost cannot place it)", () => {
+    const renderSpy = jest
+      .spyOn(InlineSuggestionView, "render")
+      .mockImplementation(() => undefined);
+    const mirrorPreviewSpy = jest
+      .spyOn(InlineSuggestionView, "renderMirrorPreview")
+      .mockImplementation(() => undefined);
+    const positioning = {
+      getCaretRect: jest.fn(() => createRect()),
+    } as unknown as SuggestionPositioningService;
+    const presenter = new InlineSuggestionPresenter({ positioningService: positioning });
+
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+    input.value = "الي";
+    input.selectionStart = 3;
+    input.selectionEnd = 3;
+    const entry = createSuggestionEntry({
+      elem: input,
+      inlineSuggestion: "اليوم",
+      latestMentionText: "الي",
+    });
+
+    presenter.renderForEntry({
+      enabled: true,
+      entry,
+      resolveMentionToken: () => ({ token: "الي", start: 0 }),
+    });
+
+    expect(renderSpy).not.toHaveBeenCalled();
+    expect(mirrorPreviewSpy).toHaveBeenCalledTimes(1);
+    expect(mirrorPreviewSpy.mock.calls[0]?.[0].suffix).toBe("وم");
+    input.remove();
+  });
+
+  test("uses the floating ghost for an RTL completion in an RTL textarea", () => {
+    const renderSpy = jest
+      .spyOn(InlineSuggestionView, "render")
+      .mockImplementation(() => undefined);
+    const mirrorPreviewSpy = jest
+      .spyOn(InlineSuggestionView, "renderMirrorPreview")
+      .mockImplementation(() => undefined);
+    const positioning = {
+      getCaretRect: jest.fn(() => createRect()),
+    } as unknown as SuggestionPositioningService;
+    const presenter = new InlineSuggestionPresenter({ positioningService: positioning });
+
+    const textarea = document.createElement("textarea");
+    textarea.dir = "rtl";
+    textarea.style.direction = "rtl";
+    document.body.appendChild(textarea);
+    textarea.value = "של";
+    textarea.selectionStart = 2;
+    textarea.selectionEnd = 2;
+    const entry = createSuggestionEntry({
+      elem: textarea,
+      inlineSuggestion: "שלום",
+      latestMentionText: "של",
+    });
+
+    presenter.renderForEntry({
+      enabled: true,
+      entry,
+      resolveMentionToken: () => ({ token: "של", start: 0 }),
+    });
+
+    expect(mirrorPreviewSpy).not.toHaveBeenCalled();
+    expect(renderSpy).toHaveBeenCalledTimes(1);
+    expect(renderSpy.mock.calls[0]?.[0].text).toBe("ום");
+    textarea.remove();
+  });
+
+  test("ignores Arabic tatweel in the typed word when matching the suggestion", () => {
+    const renderSpy = jest
+      .spyOn(InlineSuggestionView, "render")
+      .mockImplementation(() => undefined);
+    const positioning = {
+      getCaretRect: jest.fn(() => createRect()),
+    } as unknown as SuggestionPositioningService;
+    const presenter = new InlineSuggestionPresenter({ positioningService: positioning });
+
+    const input = document.createElement("input");
+    input.style.direction = "rtl";
+    document.body.appendChild(input);
+    input.value = "كتـــا";
+    input.selectionStart = input.value.length;
+    input.selectionEnd = input.value.length;
+    const entry = createSuggestionEntry({
+      elem: input,
+      inlineSuggestion: "كتاب",
+      latestMentionText: "كتـــا",
+    });
+
+    presenter.renderForEntry({
+      enabled: true,
+      entry,
+      resolveMentionToken: () => ({ token: "كتـــا", start: 0 }),
+    });
+
+    expect(renderSpy).toHaveBeenCalledTimes(1);
+    expect(renderSpy.mock.calls[0]?.[0].text).toBe("ب");
+    input.remove();
   });
 
   test("re-renders ghost when externally removed from DOM", async () => {

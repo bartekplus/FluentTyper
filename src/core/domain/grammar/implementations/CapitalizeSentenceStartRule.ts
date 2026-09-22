@@ -9,6 +9,7 @@ import {
 const SENTENCE_ENDING_CHARS = new Set([".", "!", "?"]);
 // A period closing one of these is an abbreviation at least as often as a
 // sentence end, so the following word is left exactly as the user typed it.
+// ar_SA needs no entries: Arabic script is uncased, so the rule never fires on it.
 const ABBREVIATIONS = new Set([
   "etc",
   "vs",

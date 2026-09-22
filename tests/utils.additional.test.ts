@@ -122,5 +122,8 @@ describe("shared utils additional coverage", () => {
     expect(domainUtils.isNumber("4.2")).toBe(true);
     expect(domainUtils.isNumber("a1b2")).toBe(true);
     expect(domainUtils.isNumber("abc")).toBe(false);
+    expect(domainUtils.isNumber("١٢٣")).toBe(true); // Arabic-Indic
+    expect(domainUtils.isNumber("۱۲")).toBe(true); // Persian
+    expect(domainUtils.isNumber("ك١")).toBe(false);
   });
 });

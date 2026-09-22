@@ -97,6 +97,43 @@ describe("PredictionInputProcessor", () => {
       expect(typographicResult.predictionInput).toContain(" ");
     });
 
+    it("should treat Arabic comma/semicolon like their ASCII counterparts", () => {
+      // "مرحبا،كي" must not reach Presage as one prefix token.
+      expect(processor.processInput("مرحبا،كي", "ar_SA", 1, true).doPrediction).toBe(false);
+      expect(processor.processInput("hello,wo", "en_US", 1, true).doPrediction).toBe(false);
+      expect(processor.processInput("مرحبا؛كي", "ar_SA", 1, true).doPrediction).toBe(false);
+      expect(processor.processInput("مرحبا،", "ar_SA", 1, true).doPrediction).toBe(false);
+      const spaced = processor.processInput("مرحبا، كي", "ar_SA", 1, true);
+      expect(spaced.lastWord).toBe("كي");
+      expect(spaced.doPrediction).toBe(true);
+    });
+
+    it("should start a new sentence after the Arabic question mark", () => {
+      const result = processor.processInput("ما اسمك؟ أنا ذا", "ar_SA", 1, true);
+      expect(result.predictionInput).toBe("أنا ذا");
+      expect(result.lastWord).toBe("ذا");
+    });
+
+    it("should not predict for Arabic-Indic and Persian digit runs", () => {
+      expect(processor.processInput("رقم ١٢٣", "ar_SA", 1, true).doPrediction).toBe(false);
+      expect(processor.processInput("رقم ۱۲", "ar_SA", 1, true).doPrediction).toBe(false);
+    });
+
+    it("should not force WholeWord capitalization for caseless Arabic words", () => {
+      const result = processor.processInput("مرحبا كت", "ar_SA", 1, true);
+      expect(result.doCapitalize).toBe(Capitalization.None);
+    });
+
+    it("should strip tatweel from the active word and the suffix after the cursor", () => {
+      const before = processor.processInput("كتـــاب", "ar_SA", 1, true);
+      expect(before.lastWord).toBe("كتاب");
+      expect(before.predictionInput).toBe("كتاب");
+
+      const withSuffix = processor.processInput("كتـ", "ar_SA", 1, true, "ـــاب ثم");
+      expect(withSuffix.lastWord).toBe("كتاب");
+      expect(withSuffix.predictionInput).toBe("كتاب");
+    });
+
     it("should treat typographic punctuation as separators via shared defaults", () => {
       const proc = new PredictionInputProcessor();
       const result = proc.processInput("alpha\u2014beta", "en_US", 1, true);
