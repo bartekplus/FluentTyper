@@ -161,6 +161,22 @@ describe("PresageHandler live Arabic (ar_SA)", () => {
     expect(phrase.predictions.map((p) => p.trim())).toContain("العالم");
   });
 
+  test("ar_SA n-gram predictions carry no tatweel or harakat", async () => {
+    const handler = await createLiveHandler();
+    handler.setConfig({ ...createLiveConfig([]), insertSpaceAfterAutocomplete: false });
+
+    // gen_ngram.py strips tatweel/harakat from Arabic keys because the
+    // runtime strips tatweel from typed input. Data built before that fix
+    // suggested "علماً" for "علم" instead of the bare "علما".
+    const marks = /[ـً-ْٰ]/;
+    const ilm = await handler.runPrediction("علم", "", "ar_SA");
+    expect(ilm.predictions).toContain("علما");
+    for (const prefix of ["علم", "الم", "الت", "وال", "مست", "است"]) {
+      const { predictions } = await handler.runPrediction(prefix, "", "ar_SA");
+      expect(predictions.filter((p) => marks.test(p))).toEqual([]);
+    }
+  });
+
   test("ar_SA hunspell corrects a final ha/taa-marbuta misspelling", async () => {
     const handler = await createLiveHandler();
     handler.setConfig({ ...createLiveConfig([]), insertSpaceAfterAutocomplete: false });
