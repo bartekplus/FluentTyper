@@ -134,6 +134,18 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     priority: 33,
   },
   {
+    id: "englishArticleAnCorrection",
+    name: "Correct a versus an",
+    titleI18nKey: "grammar_rule_english_article_an",
+    descriptionI18nKey: "grammar_rule_english_article_an_desc",
+    exampleI18nKey: "grammar_rule_english_article_an_example",
+    languageScope: "en_US",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 34,
+  },
+  {
     id: "technicalTokenCompaction",
     name: "Compact technical token spacing",
     titleI18nKey: "grammar_rule_technical_compaction",

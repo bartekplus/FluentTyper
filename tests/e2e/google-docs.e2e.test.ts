@@ -23,6 +23,7 @@ const GRAMMAR_CASES: Array<[string, string, string] | [string, string, string, s
   ["englishTheirThereBeVerb", "their is one ", "there is one "],
   ["englishAlotCorrection", "alot ", "a lot "],
   ["englishPronounVerbWhitelistAgreement", "you was late ", "you were late "],
+  ["englishArticleAnCorrection", "a hour ", "an hour "],
   // Only the unambiguous clock form compacts; "3. 14" is deliberately left alone.
   ["technicalTokenCompaction", "at 12: 30 ", "at 12:30 "],
   ["mathOperatorSpacing", "x=y ", "x = y "],

@@ -24,6 +24,7 @@ import { EnglishYourWelcomeCorrectionRule } from "./implementations/EnglishYourW
 import { EnglishTheirThereBeVerbRule } from "./implementations/EnglishTheirThereBeVerbRule";
 import { EnglishAlotCorrectionRule } from "./implementations/EnglishAlotCorrectionRule";
 import { EnglishPronounVerbWhitelistAgreementRule } from "./implementations/EnglishPronounVerbWhitelistAgreementRule";
+import { EnglishArticleAnCorrectionRule } from "./implementations/EnglishArticleAnCorrectionRule";
 import { AutoBracketCloseRule } from "./implementations/AutoBracketCloseRule";
 import { MeasurementUnitFormattingRule } from "./implementations/MeasurementUnitFormattingRule";
 
@@ -48,6 +49,7 @@ export function createGrammarRuleCatalogRuntime(options: {
     englishTheirThereBeVerb: new EnglishTheirThereBeVerbRule(),
     englishAlotCorrection: new EnglishAlotCorrectionRule(options.userDictionaryList),
     englishPronounVerbWhitelistAgreement: new EnglishPronounVerbWhitelistAgreementRule(),
+    englishArticleAnCorrection: new EnglishArticleAnCorrectionRule(),
 
     // Spacing and punctuation rules share the autocomplete spacing toggle.
     commaPeriodSpacing: new CommaPeriodSpacingRule(insertSpaceAfterAutocomplete),

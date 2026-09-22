@@ -70,6 +70,7 @@
     "extension_backspace_native_after_extension_edit",
     "grammar_autofix_manual_revert_cooldown",
     "grammar_v3_safe_rules",
+    "grammar_english_article_an",
     "grammar_v3_advanced_shortcuts",
     "grammar_v3_advanced_context_guard",
     "grammar_v3_english_language_guard",

@@ -1176,6 +1176,17 @@
       ]
     },
     {
+      "id": "grammar_english_article_an",
+      "description": "Opt-in a/an correction fixes listed words and leaves names, identifiers, code and literals unchanged.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/grammar/AmbiguityGuards.test.ts",
+          "test": "opt-in a/an correction"
+        }
+      ]
+    },
+    {
       "id": "grammar_v3_advanced_shortcuts",
       "description": "V3 advanced typography shortcuts normalize prose punctuation and quotes.",
       "coverage": [
