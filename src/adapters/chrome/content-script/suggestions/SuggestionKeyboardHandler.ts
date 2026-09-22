@@ -90,7 +90,11 @@ export class SuggestionKeyboardHandler {
         return;
       }
 
-      if (entry.suggestions.length > 0 && entry.latestMentionText.length > 0) {
+      if (
+        entry.suggestions.length > 0 &&
+        entry.latestMentionText.length > 0 &&
+        !entry.inlineRenderRejected
+      ) {
         this.consumeKeyboardEvent(keyboardEvent);
         this.requestInlineSuggestion(entry);
         return;

@@ -340,5 +340,29 @@ class RpmExtractionTest(unittest.TestCase):
                 self.assertEqual((self.dest / "solo.dat").read_text(), "solo\n")
                 self._assert_no_outside_writes()
 
+    def test_all_empty_hardlink_group_creates_empty_files(self) -> None:
+        cpio = cpio_archive([(name, MODE_FILE, b"", 7, 3) for name in ("a.dat", "b.dat", "c.dat")])
+        _extract_newc_cpio(cpio, self.dest)
+        for name in ("a.dat", "b.dat", "c.dat"):
+            self.assertEqual((self.dest / name).read_bytes(), b"", name)
+        self._assert_no_outside_writes()
+
+    def test_hardlink_aliases_under_escaping_symlink_are_not_written(self) -> None:
+        # Pre-planted link (archive-created escaping links are already
+        # rejected), so this isolates the write-time containment check.
+        (self.dest / "evil").symlink_to(self.parent)
+        cpio = cpio_archive(
+            [
+                ("evil/before.dat", MODE_FILE, b"", 7, 3),  # backfilled alias
+                ("a.dat", MODE_FILE, b"shared\n", 7, 3),
+                ("evil/after.dat", MODE_FILE, b"", 7, 3),  # stored-data alias
+            ]
+        )
+        _extract_newc_cpio(cpio, self.dest)
+        self.assertEqual((self.dest / "a.dat").read_text(), "shared\n")
+        self.assertFalse((self.parent / "before.dat").exists())
+        self.assertFalse((self.parent / "after.dat").exists())
+        self._assert_no_outside_writes()
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

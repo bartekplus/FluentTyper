@@ -11,6 +11,10 @@ import type { SuggestionTextEditService } from "./SuggestionTextEditService";
 export type PredictionRequest = ContentScriptPredictRequestContext;
 export type PredictionResponse = PredictResponseContext;
 
+// "rejected": a suggestion was armed but could not be shown (and is dropped).
+// "exact-match": the typed word already equals the suggestion; stays armed.
+export type InlineRenderResult = "rendered" | "exact-match" | "rejected" | "idle";
+
 export interface SuggestionSnapshot {
   beforeCursor: string;
   afterCursor: string;
@@ -122,6 +126,8 @@ export interface SuggestionEntry {
   visibleSuggestionFullText: string | null;
   inlineSuggestion: string | null;
   pendingInlineAccept: boolean;
+  // The renderer vetoed the current suggestions; Tab must not wait on them.
+  inlineRenderRejected: boolean;
   missingTrailingSpace: boolean;
   expectedCursorPos: number;
   expectedCursorPosIsBlockLocal: boolean;
@@ -193,7 +199,7 @@ export interface SuggestionEntrySessionOptions {
     menuHeader: string | null;
     mentionText: string;
   }) => void;
-  renderInline: () => void;
+  renderInline: () => InlineRenderResult;
   recordSuggestionShown: (context: { suggestionCount: number; language: string }) => void;
   recordSuggestionAccepted: (context: {
     triggerText: string;

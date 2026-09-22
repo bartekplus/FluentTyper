@@ -95,6 +95,31 @@ describe("SuggestionKeyboardHandler", () => {
     expect(requestInlineSuggestion).not.toHaveBeenCalled();
   });
 
+  test("lets Tab through when the renderer rejected the current suggestions", () => {
+    const requestInlineSuggestion = jest.fn();
+    const consumeKeyboardEvent = jest.fn((event: KeyboardEvent) => {
+      event.preventDefault();
+    });
+    const handler = createHandler({
+      autocompleteOnTab: false,
+      consumeKeyboardEvent,
+      requestInlineSuggestion,
+    });
+    const entry = createSuggestionEntry({
+      inlineSuggestion: null,
+      latestMentionText: "fu",
+      suggestions: ["function"],
+    });
+    entry.inlineRenderRejected = true;
+    const event = createEvent("Tab");
+
+    handler.handle(entry, event);
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(consumeKeyboardEvent).not.toHaveBeenCalled();
+    expect(requestInlineSuggestion).not.toHaveBeenCalled();
+  });
+
   test("tries unified extension undo on Cmd/Ctrl+Z before native undo", () => {
     const tryUndoLastExtensionEdit = jest.fn(() => true);
     const handler = createHandler({

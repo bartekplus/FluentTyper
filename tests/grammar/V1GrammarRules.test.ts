@@ -201,6 +201,42 @@ describe("V1 grammar rules", () => {
       expect(rule.apply(context("There were 2,", prose))).toBeNull();
     });
 
+    test("every deferred comma is repaired once prose resumes (typed char by char)", () => {
+      const type = (input: string, lang: string): string => {
+        const rule = new CommaPeriodSpacingRule(true);
+        let text = "";
+        for (const char of input) {
+          text += char;
+          const edit = rule.apply(
+            context(text, { lang, inputAction: "insert", measurementContext: "prose" }),
+          );
+          if (edit) text = text.slice(0, text.length - edit.deleteBackwards) + edit.replacement;
+        }
+        return text;
+      };
+      const cases: [string, string, string][] = [
+        ["ar_SA", "العدد ٢,ثم", "العدد ٢, ثم"],
+        ["ar_SA", "العدد ٢،ثم", "العدد ٢، ثم"],
+        ["ar_SA", "القيمة ١٫٥,ثم", "القيمة ١٫٥, ثم"],
+        ["ar_SA", "كتاب،قلم", "كتاب، قلم"],
+        ["ar_SA", "١,٥", "١,٥"],
+        ["en_US", "x 1,500,000,and", "x 1,500,000, and"],
+        ["en_US", "x 1,500,000,000", "x 1,500,000,000"],
+        ["en_US", "x 1.5.3,and", "x 1.5.3, and"],
+        ["en_US", "file2,and", "file2, and"],
+        ["en_US", "x 2​,and", "x 2​, and"],
+        ["en_US", "x 2,eel", "x 2, eel"],
+        ["en_US", "x 2,e5", "x 2,e5"],
+      ];
+      for (const [lang, input, expected] of cases) {
+        expect(type(input, lang)).toBe(expected);
+      }
+      // Repair keeps the authored comma: ، is never swapped for ASCII ",".
+      const arabic = type("العدد ٢،ثم", "ar_SA");
+      expect(arabic).toContain("،");
+      expect(arabic).not.toContain(",");
+    });
+
     test("treats zero-width fillers as ignorable separators for duplicate commas", () => {
       const rule = new CommaPeriodSpacingRule(true);
 

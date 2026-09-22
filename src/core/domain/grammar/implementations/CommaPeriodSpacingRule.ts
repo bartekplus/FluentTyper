@@ -4,6 +4,13 @@ import { resolveInputAction } from "./helpers/GenericRuleShared";
 import { SpacingRuleShared } from "./helpers/SpacingRuleShared";
 import { resolveMeasurementLocale } from "../measurement/registry";
 
+// A standalone number ending right before a comma: "2", "-1.5", "(١٫٥",
+// "1,500,000". Deferral and repair must both use it, or a deferred space can
+// never be restored.
+const NUMERIC_PREFIX = /(?:^|[\s([{])[-+]?\p{Nd}+(?:[.,\u066B]\p{Nd}*)*$/u;
+const numericPrefixBefore = (text: string, index: number): boolean =>
+  NUMERIC_PREFIX.test(text.slice(Math.max(0, index - 34), index));
+
 export class CommaPeriodSpacingRule extends SpacingRuleShared implements GrammarRule {
   readonly id = "commaPeriodSpacing" as const;
   readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
@@ -52,13 +59,13 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
       this.insertSpaceAfterAutocomplete &&
       inputStr[punctuationIndex] === "," &&
       /^\p{L}$/u.test(lastChar) &&
-      !/^[eE]$/u.test(lastChar)
+      // A lone "e" may still become an exponent ("2,e5"); "2,ee" cannot.
+      (deferredExponent || !/^[eE]$/u.test(lastChar))
     ) {
-      const prefix = inputStr.slice(Math.max(0, punctuationIndex - 34), punctuationIndex);
       const numericContinuation =
         context.hints?.measurementContext === "prose" &&
         resolveMeasurementLocale(context.hints.lang) &&
-        /(?:^|[\s([{])[-+]?\p{Nd}+(?:[.,\u066B]\p{Nd}*)?$/u.test(prefix);
+        numericPrefixBefore(inputStr, punctuationIndex);
       if (numericContinuation) {
         return this.createEdit(`, ${continuation}`, 1 + continuation.length);
       }
@@ -92,6 +99,7 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
       lastChar === "," &&
       // \p{Nd}: "١,٥" is as ambiguous as "1,5".
       /^\p{Nd}$/u.test(previousSignificantChar) &&
+      numericPrefixBefore(inputStr, length - 1) &&
       canDefer &&
       context.hints?.measurementContext === "prose" &&
       resolveMeasurementLocale(context.hints.lang)

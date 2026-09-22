@@ -96,14 +96,45 @@ describe("InlineSuggestionPresenter", () => {
       latestMentionText: "fun",
     });
 
-    presenter.renderForEntry({
+    const result = presenter.renderForEntry({
       enabled: true,
       entry,
       resolveMentionToken: () => ({ token: "fun", start: 0 }),
     });
 
+    expect(result).toBe("rejected");
     expect(renderSpy).not.toHaveBeenCalled();
     expect(entry.inlineSuggestion).toBeNull();
+  });
+
+  test("keeps an exact-match suggestion armed without rendering a ghost", () => {
+    const renderSpy = jest
+      .spyOn(InlineSuggestionView, "render")
+      .mockImplementation(() => undefined);
+    const positioning = {
+      getCaretRect: jest.fn(() => createRect()),
+    } as unknown as SuggestionPositioningService;
+    const presenter = new InlineSuggestionPresenter({ positioningService: positioning });
+
+    const input = document.createElement("input");
+    input.value = "function";
+    input.selectionStart = 8;
+    input.selectionEnd = 8;
+    const entry = createSuggestionEntry({
+      elem: input,
+      inlineSuggestion: "function",
+      latestMentionText: "function",
+    });
+
+    const result = presenter.renderForEntry({
+      enabled: true,
+      entry,
+      resolveMentionToken: () => ({ token: "function", start: 0 }),
+    });
+
+    expect(result).toBe("exact-match");
+    expect(renderSpy).not.toHaveBeenCalled();
+    expect(entry.inlineSuggestion).toBe("function");
   });
 
   test("clearForEntry only removes ghost for the specified entry", () => {
@@ -452,5 +483,36 @@ describe("InlineSuggestionPresenter", () => {
 
     const ghostsAfter = document.querySelectorAll(`.${InlineSuggestionView.CLASS_NAME}`);
     expect(ghostsAfter.length).toBe(1);
+  });
+
+  test("records a rejected re-render after external ghost removal", async () => {
+    let caret: ReturnType<typeof createRect> | null = createRect();
+    const positioning = {
+      getCaretRect: jest.fn(() => caret),
+    } as unknown as SuggestionPositioningService;
+    const presenter = new InlineSuggestionPresenter({ positioningService: positioning });
+
+    const input = document.createElement("input");
+    input.value = "he";
+    input.selectionStart = 2;
+    input.selectionEnd = 2;
+    const entry = createSuggestionEntry({
+      elem: input,
+      inlineSuggestion: "hello",
+      latestMentionText: "he",
+    });
+
+    presenter.renderForEntry({
+      enabled: true,
+      entry,
+      resolveMentionToken: () => ({ token: "he", start: 0 }),
+    });
+
+    caret = null;
+    document.querySelector(`.${InlineSuggestionView.CLASS_NAME}`)!.remove();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(entry.inlineSuggestion).toBeNull();
+    expect(entry.inlineRenderRejected).toBe(true);
   });
 });
