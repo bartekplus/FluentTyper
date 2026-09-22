@@ -123,21 +123,6 @@ describe("unambiguous corrections still apply", () => {
     ["i was there too ", "I was there too "],
     ["i is wrong here ", "I am wrong here "],
     ["he are going ", "He is going "],
-    ["This is a error. ", "This is an error. "],
-    ["It took a hour. ", "It took an hour. "],
-    ["She is an university student ", "She is a university student "],
-    ["We need an user account ", "We need a user account "],
-    ["a apple a day ", "An apple a day "],
-    // ponytail: hyphenated compounds are skipped even when wrong.
-    ["It was an one-off ", "It was an one-off "],
-    ["We need an unit ", "We need a unit "],
-    ["Hold a umbrella ", "Hold an umbrella "],
-    ["He is an good man ", "He is a good man "],
-    ["an year ago ", "A year ago "],
-    ["Wait a hour, ok ", "Wait an hour, ok "],
-    ["It is a umbrella ", "It is an umbrella "],
-    ["Buy an euro coin ", "Buy a euro coin "],
-    ["Hello. A error occurred ", "Hello. An error occurred "],
     // "i"/"it" are identifiers here: only the sentence-start capital changes,
     // the identifiers and their verbs are left exactly as typed.
     ["for i in range(10) ", "For i in range(10) "],
@@ -166,10 +151,32 @@ describe("unambiguous corrections still apply", () => {
     test(input, () => expect(type(input)).toBe(expected));
 });
 
-describe("a/an correction never changes valid text", () => {
-  const withoutRule = DEFAULT_CURRENT_GRAMMAR_RULES.filter(
-    (id) => id !== "englishArticleAnCorrection",
-  );
+describe("opt-in a/an correction", () => {
+  const withRule = [...DEFAULT_CURRENT_GRAMMAR_RULES, "englishArticleAnCorrection"];
+
+  for (const [input, expected] of [
+    ["This is a error. ", "This is an error. "],
+    ["It took a hour. ", "It took an hour. "],
+    ["She is an university student ", "She is a university student "],
+    ["We need an user account ", "We need a user account "],
+    ["a apple a day ", "An apple a day "],
+    ["We need an unit ", "We need a unit "],
+    ["I have a umbrella ", "I have an umbrella "],
+    ["He is an good man ", "He is a good man "],
+    ["an year ago ", "A year ago "],
+    ["Wait a hour, ok ", "Wait an hour, ok "],
+    ["It is a umbrella ", "It is an umbrella "],
+    ["Buy an euro coin ", "Buy a euro coin "],
+    ["Hello. A error occurred ", "Hello. An error occurred "],
+    ["This is a error in `code` here ", "This is an error in `code` here "],
+    ["He said it's a error ", "He said it's an error "],
+    ["```\ncode\n```\nThis is a error ", "```\nCode\n```\nThis is an error "],
+  ])
+    test(`corrects ${JSON.stringify(input)}`, () =>
+      expect(type(input, "en_US", withRule)).toBe(expected));
+
+  // Every keystroke, full default pipeline with the rule on versus off, so only
+  // this rule's edits are judged.
   for (const input of [
     // Already correct: articles follow sound, not spelling.
     "It took an hour ",
@@ -196,6 +203,11 @@ describe("a/an correction never changes valid text", () => {
     "Write an sql query ",
     "Get an mri scan ",
     "It was a 8 hour day ",
+    "It was an one-off ",
+    // Both pronunciations are accepted.
+    "She plays an ukulele ",
+    "I bought an ukulele yesterday ",
+    "She plays a ukulele ",
     // The letter or a variable, not the article.
     "Let a equal b ",
     "Let a equals b ",
@@ -210,11 +222,28 @@ describe("a/an correction never changes valid text", () => {
     "```\nreturn a instanceof Foo;\n``` ",
     "Type `a error` here ",
     'Set text = "a error " ',
+    // Re-review: identifiers before listed words, in both directions.
+    "Keep a independent of b ",
+    "We chose option a early ",
+    "Make a unknown ",
+    "Please make a internal ",
+    "Is a important here? ",
+    "select an.name from users an group by an.name ",
+    // Re-review: quotes of the other kind, and escapes, inside a literal.
+    'Set text = "don\'t type a error " ',
+    'const text = "it\'s a error message"; ',
+    "const text = 'write \"example\" then a error here'; ",
+    'const text = "write \\"example\\" then a error here"; ',
+    // Re-review: code spans and fences by delimiter run, not backtick parity.
+    "Type ``this is a error here`` now ",
+    "````\na error \n```` ",
+    "~~~\na error \n~~~ ",
+    "```js\nconst text = `got a error here`;\n``` ",
   ])
-    test(input, () => {
+    test(`leaves ${JSON.stringify(input)}`, () => {
       for (let end = 1; end <= input.length; end += 1) {
         const prefix = input.slice(0, end);
-        expect(type(prefix)).toBe(type(prefix, "en_US", withoutRule));
+        expect(type(prefix, "en_US", withRule)).toBe(type(prefix));
       }
     });
 });

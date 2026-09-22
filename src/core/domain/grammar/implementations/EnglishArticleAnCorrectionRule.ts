@@ -3,6 +3,7 @@ import {
   isLikelyCodeLikeContext,
   resolveEnglishBoundaryContext,
 } from "./helpers/EnglishRuleShared";
+import { isInsideProtectedSpan } from "./helpers/ProtectedSpanShared";
 
 // Article, then a finished word. The article must start a token: after a space,
 // or after an opening quote/bracket that itself starts a token, so the "an" in
@@ -11,14 +12,82 @@ const ARTICLE_REGEX = /(?:^|(?<=\s)|(?<=(?:^|\s)["'([“‘]))(a|an|A|An)\s+([a-
 // A capital article is only an article at a sentence start; "grade A apples",
 // "Plan A is" use the letter.
 const SENTENCE_START_REGEX = /(?:^|[.!?]\s+|\n\s*)["'([“‘]?$/;
-// A quote opened right after code punctuation starts a literal: `text = "a error`.
-const OPEN_LITERAL_REGEX = /[=(,[{:+]\s*(["'])[^"'\n]*$/;
+// Knowing a word's sound does not make the "a" before it an article: "keep a
+// independent of b", "option a early" and the SQL alias in "from users an group
+// by" are identifiers. So the article must also follow a word that is itself
+// followed by an article in prose, or open a sentence.
+const ARTICLE_CONTEXT_WORDS = new Set([
+  "is",
+  "was",
+  "are",
+  "were",
+  "am",
+  "be",
+  "been",
+  "being",
+  "isn't",
+  "wasn't",
+  "it's",
+  "that's",
+  "there's",
+  "here's",
+  "what's",
+  "he's",
+  "she's",
+  "have",
+  "has",
+  "had",
+  "need",
+  "needs",
+  "needed",
+  "want",
+  "wants",
+  "wanted",
+  "get",
+  "gets",
+  "got",
+  "take",
+  "takes",
+  "took",
+  "buy",
+  "bought",
+  "wait",
+  "for",
+  "with",
+  "in",
+  "of",
+  "to",
+  "at",
+  "on",
+  "about",
+  "like",
+  "into",
+  "after",
+  "before",
+  "without",
+  "within",
+  "during",
+  "such",
+  "what",
+  "quite",
+  "rather",
+  "half",
+  "not",
+  "just",
+  "only",
+  "also",
+  "and",
+  "but",
+]);
+// "Is a important here?": a sentence-initial verb inverts a question, so the
+// word after it is the subject, which may be a variable.
+const QUESTION_OPENERS = new Set(["is", "was", "are", "were", "isn't", "wasn't"]);
+const PRECEDING_WORD_REGEX = /(^|\s)([A-Za-z']+)\s+$/;
 
 // Whole words only, never spelling prefixes: "unit" takes "a" but "unitemized"
 // takes "an", "one" takes "a" but "onerous" takes "an". Anything unlisted is
-// left alone. Words that read naturally after a variable or letter ("let a equal
-// b", "option a instead", "if a exists", "a eight") are deliberately absent, so
-// only nouns and adjectives that never follow a bare "a" identifier are listed.
+// left alone, and so is any word with more than one accepted initial sound
+// ("a ukulele" and "an ukulele" are both correct).
 const TAKES_AN = new Set([
   "hour",
   "hourly",
@@ -118,7 +187,6 @@ const TAKES_A = new Set([
   "usual",
   "utility",
   "utensil",
-  "ukulele",
   "unanimous",
   "euro",
   "eulogy",
@@ -195,11 +263,16 @@ const TAKES_A = new Set([
   "value",
 ]);
 
-// ponytail: `...`, fences and code-opened quotes are tracked from the text before
-// the cursor only; a multi-line string opened in an earlier paragraph is missed.
-function isInsideCodeOrLiteral(beforeArticle: string): boolean {
-  if ((beforeArticle.match(/`/g)?.length ?? 0) % 2 === 1) return true;
-  return OPEN_LITERAL_REGEX.test(beforeArticle);
+function isArticleContext(beforeArticle: string): boolean {
+  if (SENTENCE_START_REGEX.test(beforeArticle)) return true;
+  const match = beforeArticle.match(PRECEDING_WORD_REGEX);
+  if (!match || match.index === undefined) return false;
+  const preceding = match[2].toLowerCase();
+  const beforePreceding = beforeArticle.slice(0, match.index + match[1].length);
+  if (QUESTION_OPENERS.has(preceding) && SENTENCE_START_REGEX.test(beforePreceding)) {
+    return false;
+  }
+  return ARTICLE_CONTEXT_WORDS.has(preceding);
 }
 
 export class EnglishArticleAnCorrectionRule implements GrammarRule {
@@ -229,7 +302,8 @@ export class EnglishArticleAnCorrectionRule implements GrammarRule {
       return null;
     }
     if (
-      isInsideCodeOrLiteral(beforeArticle) ||
+      !isArticleContext(beforeArticle) ||
+      isInsideProtectedSpan(beforeArticle) ||
       isLikelyCodeLikeContext(core, articleStart, core.length)
     ) {
       return null;

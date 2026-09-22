@@ -140,9 +140,9 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     descriptionI18nKey: "grammar_rule_english_article_an_desc",
     exampleI18nKey: "grammar_rule_english_article_an_example",
     languageScope: "en_US",
-    safetyTier: "safe",
-    defaultRollout: "on",
-    recommended: true,
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
     priority: 34,
   },
   {
