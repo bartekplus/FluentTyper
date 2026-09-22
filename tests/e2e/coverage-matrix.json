@@ -2118,7 +2118,7 @@
         {
           "layer": "unit",
           "file": "tests/autoLanguageDetection.test.ts",
-          "test": "stable Arabic + Latin word switches to the fallback, not the alphabetical first"
+          "test": "stable %s + Latin word switches to the fallback, not the alphabetical first"
         },
         {
           "layer": "unit",
@@ -2175,7 +2175,7 @@
         {
           "layer": "unit",
           "file": "tests/langSeparators.test.ts",
-          "test": "Arabic separator profile includes the Arabic punctuation marks"
+          "test": "%s separator profile includes the Arabic punctuation marks"
         },
         {
           "layer": "unit",

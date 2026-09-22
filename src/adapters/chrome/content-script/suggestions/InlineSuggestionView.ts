@@ -1,15 +1,9 @@
+import { RTL_LETTER_REGEX } from "@core/domain/lang";
 import { BLOCK_TAGS } from "./ContentEditableAdapter";
 import { resolveSuggestionOverlayRoot } from "./SuggestionOverlayRoot";
 import { TextTargetAdapter } from "./TextTargetAdapter";
 
 const ENTRY_ID_ATTR = "data-ft-suggestion-entry-id";
-
-// Strong RTL letters (digits, marks and U+FEFF are neutral).  Any other letter
-// is a strong LTR character.  The containing element's computed `direction`
-// only describes the paragraph — a Latin run inside an RTL paragraph still
-// continues rightward — so anchoring must follow the run.
-export const RTL_LETTER_REGEX =
-  /(?=\p{L})[\p{Script=Arabic}\p{Script=Hebrew}\p{Script=Syriac}\p{Script=Thaana}\p{Script=Nko}]/u;
 
 function charDirection(char: string): "ltr" | "rtl" | null {
   if (RTL_LETTER_REGEX.test(char)) {
@@ -25,13 +19,7 @@ function charDirection(char: string): "ltr" | "rtl" | null {
  * Null when both are direction-neutral.
  */
 function resolveRunDirection(suffix: string, token = ""): "ltr" | "rtl" | null {
-  for (const char of suffix) {
-    const dir = charDirection(char);
-    if (dir) {
-      return dir;
-    }
-  }
-  for (const char of Array.from(token).reverse()) {
+  for (const char of [...suffix, ...Array.from(token).reverse()]) {
     const dir = charDirection(char);
     if (dir) {
       return dir;
@@ -40,8 +28,9 @@ function resolveRunDirection(suffix: string, token = ""): "ltr" | "rtl" | null {
   return null;
 }
 
-/** Properties copied from the target to the mirror div for pixel-perfect overlay. */
-const MIRROR_PROPERTIES = [
+/** Box-model and font properties that determine where text lays out; shared
+ *  with the caret-measurement mirror in SuggestionPositioningService. */
+export const MIRROR_LAYOUT_PROPERTIES = [
   "direction",
   "unicodeBidi",
   "boxSizing",
@@ -58,7 +47,6 @@ const MIRROR_PROPERTIES = [
   "paddingRight",
   "paddingBottom",
   "paddingLeft",
-  "color",
   "fontStyle",
   "fontVariant",
   "fontWeight",
@@ -73,6 +61,12 @@ const MIRROR_PROPERTIES = [
   "textDecoration",
   "letterSpacing",
   "wordSpacing",
+] as const;
+
+/** Properties copied from the target to the mirror div for pixel-perfect overlay. */
+const MIRROR_PROPERTIES = [
+  ...MIRROR_LAYOUT_PROPERTIES,
+  "color",
   "whiteSpace",
   "wordWrap",
   "overflowWrap",

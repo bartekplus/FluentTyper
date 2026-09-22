@@ -1,9 +1,11 @@
+import { jest } from "bun:test";
 import type {
   SuggestionEntry,
   SuggestionElement,
 } from "../src/adapters/chrome/content-script/suggestions/types";
 import { EARLY_TAB_ACCEPT_ENTRY_ID_ATTR } from "../src/adapters/chrome/content-script/suggestions/EarlyTabAcceptMainWorldBridge";
 import { SuggestionMenuView } from "../src/adapters/chrome/content-script/suggestions/SuggestionMenuView";
+import { SuggestionKeyboardHandler } from "../src/adapters/chrome/content-script/suggestions/SuggestionKeyboardHandler";
 
 export function createSuggestionEntry(
   overrides: Partial<SuggestionEntry> & { elem?: SuggestionElement } = {},
@@ -31,6 +33,7 @@ export function createSuggestionEntry(
     visibleSuggestionFullText: overrides.visibleSuggestionFullText ?? null,
     inlineSuggestion: overrides.inlineSuggestion ?? null,
     pendingInlineAccept: overrides.pendingInlineAccept ?? false,
+    inlineRenderRejected: overrides.inlineRenderRejected ?? false,
     missingTrailingSpace: overrides.missingTrailingSpace ?? false,
     expectedCursorPos: overrides.expectedCursorPos ?? 0,
     expectedCursorPosIsBlockLocal: overrides.expectedCursorPosIsBlockLocal ?? false,
@@ -61,6 +64,28 @@ export function createSuggestionEntry(
       menuClick: () => undefined,
     },
   };
+}
+
+export function createHandler(
+  overrides: Partial<ConstructorParameters<typeof SuggestionKeyboardHandler>[0]> = {},
+): SuggestionKeyboardHandler {
+  return new SuggestionKeyboardHandler({
+    autocompleteOnSpace: true,
+    autocompleteOnEnter: true,
+    autocompleteOnTab: true,
+    selectByDigit: true,
+    inlineSuggestionEnabled: true,
+    handleMissingSpaceAfterAccept: jest.fn(),
+    tryUndoLastExtensionEdit: jest.fn(() => false),
+    consumeKeyboardEvent: jest.fn(),
+    clearSuggestions: jest.fn(),
+    isMenuVisible: jest.fn(() => false),
+    updateSelectionHighlight: jest.fn(),
+    acceptSuggestion: jest.fn(),
+    acceptSuggestionAtIndex: jest.fn(),
+    requestInlineSuggestion: jest.fn(),
+    ...overrides,
+  });
 }
 
 export function createRect(left = 10, top = 20, width = 30, height = 12): DOMRect {

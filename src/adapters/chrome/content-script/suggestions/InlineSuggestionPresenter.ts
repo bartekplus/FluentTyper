@@ -1,10 +1,8 @@
+import { stripIgnoredWordChars } from "@core/domain/lang";
 import { InlineSuggestionView } from "./InlineSuggestionView";
 import { SuggestionPositioningService } from "./SuggestionPositioningService";
 import { TextTargetAdapter, type TextTarget } from "./TextTargetAdapter";
-import type { InlineRenderResult, SuggestionEntry } from "./types";
-
-// Arabic tatweel is a visual filler the predictor strips ("كتـــا" -> "كتا").
-const TATWEEL_REGEX = /\u0640/g;
+import type { SuggestionEntry } from "./types";
 
 interface InlineSuggestionPresenterOptions {
   positioningService?: SuggestionPositioningService;
@@ -35,10 +33,10 @@ export class InlineSuggestionPresenter {
   }
 
   // An unrendered suggestion must not stay armed for Tab acceptance.
-  private dropForEntry(entry: SuggestionEntry): InlineRenderResult {
+  private dropForEntry(entry: SuggestionEntry): void {
     entry.inlineSuggestion = null;
+    entry.inlineRenderRejected = true;
     this.clearForEntry(entry.id);
-    return "rejected";
   }
 
   public renderForEntry({
@@ -51,40 +49,43 @@ export class InlineSuggestionPresenter {
     entry: SuggestionEntry;
     resolveMentionToken: (beforeCursor: string) => { token: string; start: number };
     resolveTrailingToken?: (afterCursor: string) => string;
-  }): InlineRenderResult {
+  }): void {
     if (!enabled) {
       this.clearForEntry(entry.id);
-      return "idle";
+      return;
     }
 
     const suggestion = entry.inlineSuggestion;
     if (!suggestion) {
       this.clearForEntry(entry.id);
-      return "idle";
+      return;
     }
 
     const snapshot = TextTargetAdapter.snapshot(entry.elem);
     const mentionText = resolveMentionToken(snapshot.beforeCursor).token || entry.latestMentionText;
     if (!mentionText) {
-      return this.dropForEntry(entry);
+      this.dropForEntry(entry);
+      return;
     }
 
-    const plainSuggestion = suggestion.replace(TATWEEL_REGEX, "");
-    const plainMention = mentionText.replace(TATWEEL_REGEX, "");
+    const plainSuggestion = stripIgnoredWordChars(suggestion);
+    const plainMention = stripIgnoredWordChars(mentionText);
     if (!plainSuggestion.toLowerCase().startsWith(plainMention.toLowerCase())) {
-      return this.dropForEntry(entry);
+      this.dropForEntry(entry);
+      return;
     }
 
     const suffix = plainSuggestion.slice(plainMention.length);
     if (!suffix) {
       // Nothing to preview, but Tab may still accept (a no-op completion).
       this.clearForEntry(entry.id);
-      return "exact-match";
+      return;
     }
 
     const caretRect = this.positioningService.getCaretRect(entry.elem);
     if (!caretRect) {
-      return this.dropForEntry(entry);
+      this.dropForEntry(entry);
+      return;
     }
 
     const isMidText = snapshot.afterCursor.length > 0;
@@ -130,23 +131,15 @@ export class InlineSuggestionPresenter {
       });
     }
     if (ghost === null) {
-      return this.dropForEntry(entry);
+      this.dropForEntry(entry);
+      return;
     }
 
     this.activeGhost = ghost;
     this.activeEntryId = entry.id;
-    this.pendingRerender = () => {
-      const result = this.renderForEntry({
-        enabled,
-        entry,
-        resolveMentionToken,
-        resolveTrailingToken,
-      });
-      // Keep the Tab veto in sync when the re-render itself is rejected.
-      entry.inlineRenderRejected = result === "rejected";
-    };
+    this.pendingRerender = () =>
+      this.renderForEntry({ enabled, entry, resolveMentionToken, resolveTrailingToken });
     this.observeGhostRemoval();
-    return "rendered";
   }
 
   private observeGhostRemoval(): void {

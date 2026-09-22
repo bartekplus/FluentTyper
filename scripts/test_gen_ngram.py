@@ -6,30 +6,22 @@ Run:  python3 -B scripts/test_gen_ngram.py
 
 from __future__ import annotations
 
-import importlib.util
 import sys
 import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from gen_ngram import filter_tokens  # noqa: E402
 
-HAS_NLTK = importlib.util.find_spec("nltk") is not None
 
-
-@unittest.skipUnless(HAS_NLTK, "nltk not installed")
 class FilterTokensTest(unittest.TestCase):
-    def setUp(self) -> None:
-        from gen_ngram import filter_tokens
-
-        self.filter_tokens = filter_tokens
-
     def test_arabic_tatweel_and_harakat_are_stripped(self) -> None:
         # كتـــاب (tatweel), كِتَابٌ (kasra/fatha/dammatan), هٰذا (superscript alef)
         tokens = ["كتـــاب", "كِتَابٌ", "هٰذا", "ـــ"]
-        self.assertEqual(self.filter_tokens(tokens, "ar"), [["كتاب", "كتاب", "هذا"], []])
+        self.assertEqual(filter_tokens(tokens, "ar"), [["كتاب", "كتاب", "هذا"], []])
 
     def test_other_languages_are_untouched(self) -> None:
-        self.assertEqual(self.filter_tokens(["Hello", "world"], "en"), [["hello", "world"]])
+        self.assertEqual(filter_tokens(["Hello", "world"], "en"), [["hello", "world"]])
 
 
 if __name__ == "__main__":

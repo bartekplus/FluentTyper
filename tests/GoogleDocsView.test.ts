@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { GoogleDocsView } from "../src/adapters/chrome/content-script/google-docs/GoogleDocsView";
 import { InlineSuggestionView } from "../src/adapters/chrome/content-script/suggestions/InlineSuggestionView";
+import { createRect } from "./suggestionTestUtils";
 
 function mountCaret(): HTMLElement {
   // Other suites in the same run may leave ghosts behind.
@@ -8,17 +9,7 @@ function mountCaret(): HTMLElement {
   const caret = document.createElement("div");
   caret.className = "kix-cursor-caret";
   caret.style.borderLeftColor = "rgb(0, 0, 0)";
-  caret.getBoundingClientRect = () =>
-    ({
-      x: 100,
-      y: 100,
-      left: 100,
-      top: 100,
-      right: 101,
-      bottom: 118,
-      width: 1,
-      height: 18,
-    }) as DOMRect;
+  caret.getBoundingClientRect = () => createRect(100, 100, 1, 18);
   document.body.appendChild(caret);
   return caret;
 }

@@ -1,33 +1,10 @@
 import { describe, expect, jest, test } from "bun:test";
-import { SuggestionKeyboardHandler } from "../src/adapters/chrome/content-script/suggestions/SuggestionKeyboardHandler";
-import { createSuggestionEntry } from "./suggestionTestUtils";
+import { createHandler, createSuggestionEntry } from "./suggestionTestUtils";
 
 function createEvent(key: string): KeyboardEvent {
   const event = new Event("keydown", { bubbles: true, cancelable: true }) as KeyboardEvent;
   Object.defineProperty(event, "key", { value: key });
   return event;
-}
-
-function createHandler(
-  overrides: Partial<ConstructorParameters<typeof SuggestionKeyboardHandler>[0]> = {},
-) {
-  return new SuggestionKeyboardHandler({
-    autocompleteOnSpace: true,
-    autocompleteOnEnter: true,
-    autocompleteOnTab: true,
-    selectByDigit: true,
-    inlineSuggestionEnabled: true,
-    handleMissingSpaceAfterAccept: jest.fn(),
-    tryUndoLastExtensionEdit: jest.fn(() => false),
-    consumeKeyboardEvent: jest.fn(),
-    clearSuggestions: jest.fn(),
-    isMenuVisible: jest.fn(() => false),
-    updateSelectionHighlight: jest.fn(),
-    acceptSuggestion: jest.fn(),
-    acceptSuggestionAtIndex: jest.fn(),
-    requestInlineSuggestion: jest.fn(),
-    ...overrides,
-  });
 }
 
 describe("SuggestionKeyboardHandler", () => {

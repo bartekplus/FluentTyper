@@ -117,8 +117,6 @@ describe("shared utils additional coverage", () => {
   test("character helpers correctly classify input", () => {
     expect(domainUtils.isWhiteSpace("\n")).toBe(true);
     expect(domainUtils.isWhiteSpace("a")).toBe(false);
-    expect(domainUtils.isLetter("Ż")).toBe(true);
-    expect(domainUtils.isLetter("1")).toBe(false);
     expect(domainUtils.isNumber("4.2")).toBe(true);
     expect(domainUtils.isNumber("a1b2")).toBe(true);
     expect(domainUtils.isNumber("abc")).toBe(false);

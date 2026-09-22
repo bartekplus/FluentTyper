@@ -12,7 +12,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from rebuild_all import LANGUAGES, RESOURCES_LANG_TEMPLATE_DIR, _drop_aspell_predictor  # noqa: E402
+from rebuild_all import RESOURCES_LANG_TEMPLATE_DIR, _drop_aspell_predictor  # noqa: E402
 
 
 class DropAspellPredictorTest(unittest.TestCase):
@@ -44,12 +44,6 @@ class DropAspellPredictorTest(unittest.TestCase):
         self.assertNotIn("DefaultAspellPredictor", result)
         self.assertEqual(self._predictors(result), ["A"])
         self.assertIn("<A><Y/></A>", result)
-
-    def test_no_aspell_config_without_aspell(self) -> None:
-        for lang in LANGUAGES:
-            if not lang.use_aspell:
-                self.assertEqual(lang.aspell_urls, (), lang.variant)
-                self.assertIsNone(lang.aspell_lang, lang.variant)
 
 
 if __name__ == "__main__":

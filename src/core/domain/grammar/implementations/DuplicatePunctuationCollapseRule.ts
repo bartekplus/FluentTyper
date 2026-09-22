@@ -1,14 +1,20 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
-import { SPACE_CHARS, SPACING_OR_FILLER_CHARS } from "../../spacingRules";
+import { PUNCTUATION_EQUIVALENTS, SPACE_CHARS, SPACING_OR_FILLER_CHARS } from "../../spacingRules";
 import { shouldSkipGenericReplacement, splitTrailingSpaces } from "./helpers/GenericRuleShared";
 
 export class DuplicatePunctuationCollapseRule implements GrammarRule {
   readonly id = "duplicatePunctuationCollapse" as const;
   readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
   // ":" is excluded: "std::vector" and "a::b" are scope operators, and nothing
-  // available here separates them from a doubled prose colon. "\u060C" and
-  // "\u061B" are the Arabic comma and semicolon.
-  private static readonly COLLAPSIBLE_PUNCTUATION = new Set([",", ";", "\u060C", "\u061B"]);
+  // available here separates them from a doubled prose colon. Equivalent
+  // marks (Arabic "،", "؛") collapse like their ASCII forms.
+  private static readonly COLLAPSIBLE_PUNCTUATION = new Set([
+    ",",
+    ";",
+    ...Object.keys(PUNCTUATION_EQUIVALENTS).filter((mark) =>
+      [",", ";"].includes(PUNCTUATION_EQUIVALENTS[mark]),
+    ),
+  ]);
   apply(context: GrammarContext): GrammarEdit | null {
     const input = context.beforeCursor;
     if (input.length < 2) {

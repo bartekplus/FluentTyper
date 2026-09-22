@@ -305,7 +305,7 @@ describe("auto language detection — script switch", () => {
   function decideStable(
     sampleText: string,
     allowed: string[],
-    stableLanguage: string,
+    stableLanguage: string | null,
     extra: Partial<Parameters<typeof resolveAutoLanguageDecision>[0]> = {},
   ) {
     return resolveAutoLanguageDecision({
@@ -326,16 +326,18 @@ describe("auto language detection — script switch", () => {
     expect(result.switchSuppressedUntilBoundary).toBe(true);
   });
 
-  test("stable Greek + Latin word switches to the fallback, not the alphabetical first", () => {
-    const result = decideStable("Καλημέρα email", ["de_DE", "el_GR", "en_US", "fr_FR"], "el_GR");
-    expect(result.resolvedLanguage).toBe("en_US");
-    expect(result.source).toBe("script_switch");
-  });
-
-  test("stable Arabic + Latin word switches to the fallback, not the alphabetical first", () => {
-    const result = decideStable("مرحبا iPhone", ["ar_SA", "de_DE", "en_US", "fr_FR"], "ar_SA");
-    expect(result.resolvedLanguage).toBe("en_US");
-  });
+  test.each([
+    ["Greek", "Καλημέρα email", "el_GR"],
+    ["Arabic", "مرحبا iPhone", "ar_SA"],
+  ])(
+    "stable %s + Latin word switches to the fallback, not the alphabetical first",
+    (_script, sampleText, stableLanguage) => {
+      const allowed = ["ar_SA", "de_DE", "el_GR", "en_US", "fr_FR"];
+      const result = decideStable(sampleText, allowed, stableLanguage);
+      expect(result.resolvedLanguage).toBe("en_US");
+      expect(result.source).toBe("script_switch");
+    },
+  );
 
   test("script switch prefers a scored Latin candidate over the fallback", () => {
     const result = decideStable("مرحبا bonjour", ["ar_SA", "de_DE", "en_US", "fr_FR"], "ar_SA", {
@@ -367,6 +369,14 @@ describe("auto language detection — script switch", () => {
     expect(result.resolvedLanguage).toBe("ar_SA");
   });
 
+  test("text expander alone still resolves to the text expander", () => {
+    const result = decideStable("hello world again", ["textExpander"], null, {
+      fallbackLanguage: "textExpander",
+    });
+    expect(result.resolvedLanguage).toBe("textExpander");
+    expect(result.source).toBe("fallback");
+  });
+
   test("Persian token does not script-switch an English session to Arabic", () => {
     const result = decideStable("hello پیام", ["en_US", "ar_SA"], "en_US");
     expect(result.resolvedLanguage).toBe("en_US");
@@ -379,11 +389,7 @@ describe("auto language detection — script switch", () => {
 
   // Pins current behaviour: a script mismatch overrides an active suppression.
   test("script switch still applies while a previous switch is suppressed", () => {
-    const result = resolveAutoLanguageDecision({
-      allowedLanguages: ["en_US", "ar_SA"],
-      fallbackLanguage: "en_US",
-      sampleText: "مرحبا hel",
-      browserDetections: [],
+    const result = decideStable("مرحبا hel", ["en_US", "ar_SA"], "ar_SA", {
       session: { ...emptySession, stableLanguage: "ar_SA", switchSuppressedUntilBoundary: true },
     });
     expect(result.resolvedLanguage).toBe("en_US");
@@ -392,25 +398,13 @@ describe("auto language detection — script switch", () => {
   });
 
   test("Arabic digits alone do not commit Arabic", () => {
-    const result = resolveAutoLanguageDecision({
-      allowedLanguages: ["en_US", "ar_SA"],
-      fallbackLanguage: "en_US",
-      sampleText: "١٢٣",
-      browserDetections: [],
-      session: emptySession,
-    });
+    const result = decideStable("١٢٣", ["en_US", "ar_SA"], null);
     expect(result.resolvedLanguage).toBe("en_US");
     expect(result.source).not.toBe("strong_script");
   });
 
   test("Arabic punctuation alone does not commit Arabic", () => {
-    const result = resolveAutoLanguageDecision({
-      allowedLanguages: ["en_US", "ar_SA"],
-      fallbackLanguage: "en_US",
-      sampleText: "؟",
-      browserDetections: [],
-      session: emptySession,
-    });
+    const result = decideStable("؟", ["en_US", "ar_SA"], null);
     expect(result.source).not.toBe("strong_script");
   });
 
@@ -418,13 +412,7 @@ describe("auto language detection — script switch", () => {
     expect(extractAutoLanguageSample("كَتَبَ")).toBe("كَتَبَ");
     expect(extractAutoLanguageSample("می‌خواهم")).toBe("می‌خواهم");
     // Three diacritised letters must not count as three tokens of evidence.
-    const result = resolveAutoLanguageDecision({
-      allowedLanguages: ["en_US", "fr_FR"],
-      fallbackLanguage: "en_US",
-      sampleText: "كَتَبَ",
-      browserDetections: [],
-      session: emptySession,
-    });
+    const result = decideStable("كَتَبَ", ["en_US", "fr_FR"], null);
     expect(result.hasQualifiedEvidence).toBe(false);
   });
 });

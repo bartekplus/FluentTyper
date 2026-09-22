@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { DEFAULT_SEPARATOR_CHARS_REGEX, LANG_SEPARATOR_CHARS_REGEX } from "../src/core/domain/lang";
+import {
+  DEFAULT_SEPARATOR_CHARS_REGEX,
+  LANG_SEPARATOR_CHARS_REGEX,
+  stripIgnoredWordChars,
+} from "../src/core/domain/lang";
 
 function findMentionToken(beforeCursor: string, separatorRegex: RegExp): string {
   let start = beforeCursor.length;
@@ -49,10 +53,18 @@ describe("lang separators", () => {
     expect(findMentionToken("l\u2019amour", LANG_SEPARATOR_CHARS_REGEX.fr_FR)).toBe("amour");
   });
 
-  test("Arabic separator profile includes the Arabic punctuation marks", () => {
-    expect(LANG_SEPARATOR_CHARS_REGEX.ar_SA.test("\u060C")).toBe(true); // ،
-    expect(LANG_SEPARATOR_CHARS_REGEX.ar_SA.test("\u061B")).toBe(true); // ؛
-    expect(LANG_SEPARATOR_CHARS_REGEX.ar_SA.test("\u061F")).toBe(true); // ؟
+  test.each(["ar_SA", "en_US", "fr_FR"])(
+    "%s separator profile includes the Arabic punctuation marks",
+    (lang) => {
+      for (const mark of ["\u060C", "\u061B", "\u061F"]) {
+        expect(LANG_SEPARATOR_CHARS_REGEX[lang].test(mark)).toBe(true); // ، ؛ ؟
+      }
+    },
+  );
+
+  test("stripIgnoredWordChars removes tatweel regardless of language", () => {
+    expect(stripIgnoredWordChars("كتـــاب")).toBe("كتاب");
+    expect(stripIgnoredWordChars("hello")).toBe("hello");
   });
 
   test("tatweel is NOT an Arabic separator — it joins within a word", () => {

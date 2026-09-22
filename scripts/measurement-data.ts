@@ -80,11 +80,19 @@ for (const { locale, separator, decimalMarks, nativeDigits } of locales) {
   if (separator !== "\u00a0" || decimalMarks.length !== 1 || decimalMarks[0] !== expectedMark) {
     throw new Error(`invalid locale punctuation: ${locale}`);
   }
-  // Only ar_SA gets a native system: CLDR `arab` digits U+0660-0669 with U+066B.
-  const expectedNative =
-    locale === "ar_SA" ? JSON.stringify({ digits: "٠١٢٣٤٥٦٧٨٩", decimalMark: "٫" }) : undefined;
-  if (JSON.stringify(nativeDigits) !== expectedNative) {
-    throw new Error(`invalid locale native digits: ${locale}`);
+  // A native system is 10 distinct Unicode decimal digits plus its own decimal mark.
+  if (nativeDigits) {
+    const digits = [...nativeDigits.digits];
+    const mark = nativeDigits.decimalMark;
+    if (
+      digits.length !== 10 ||
+      new Set(digits).size !== 10 ||
+      !digits.every((digit) => /^\p{Nd}$/u.test(digit)) ||
+      [...mark].length !== 1 ||
+      digits.includes(mark)
+    ) {
+      throw new Error(`invalid locale native digits: ${locale}`);
+    }
   }
 }
 if (expectedLocales.size) throw new Error(`missing locales: ${[...expectedLocales].join(", ")}`);

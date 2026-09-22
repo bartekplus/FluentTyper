@@ -178,7 +178,6 @@ function installBackgroundHarnessModuleMocks(): void {
     getDomain: (...args: [string]) => backgroundHarnessMocks.getDomain(...args),
     isEnabledForDomain: (...args: [unknown, string]) =>
       backgroundHarnessMocks.isEnabledForDomain(...args),
-    isLetter: (character: string) => /^\p{L}/u.test(character),
     toStoredString: (value: unknown) =>
       typeof value === "string" ? value : typeof value === "number" ? String(value) : null,
     isWhiteSpace: (character: string) => /\s+/.test(character),

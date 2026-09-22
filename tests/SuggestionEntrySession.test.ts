@@ -1,16 +1,19 @@
-import { expect, jest, test } from "bun:test";
+import { afterEach, expect, jest, test } from "bun:test";
 import { ContentEditableAdapter } from "../src/adapters/chrome/content-script/suggestions/ContentEditableAdapter";
 import { InlineSuggestionPresenter } from "../src/adapters/chrome/content-script/suggestions/InlineSuggestionPresenter";
 import { InlineSuggestionView } from "../src/adapters/chrome/content-script/suggestions/InlineSuggestionView";
 import { SuggestionEntrySession } from "../src/adapters/chrome/content-script/suggestions/SuggestionEntrySession";
-import { SuggestionKeyboardHandler } from "../src/adapters/chrome/content-script/suggestions/SuggestionKeyboardHandler";
 import type { SuggestionPositioningService } from "../src/adapters/chrome/content-script/suggestions/SuggestionPositioningService";
 import type {
   PendingKeyFallback,
   PredictionResponse,
   SuggestionEntry,
 } from "../src/adapters/chrome/content-script/suggestions/types";
-import { createRect, createSuggestionEntry } from "./suggestionTestUtils";
+import { createHandler, createRect, createSuggestionEntry } from "./suggestionTestUtils";
+
+afterEach(() => {
+  jest.restoreAllMocks();
+});
 
 function makeSession({
   entry = createSuggestionEntry({ requestId: 2 }),
@@ -83,7 +86,7 @@ function makeSession({
     menuHeader: string | null;
     mentionText: string;
   }) => void;
-  renderInline?: () => unknown;
+  renderInline?: () => void;
   recordSuggestionShown?: (context: { suggestionCount: number; language?: string }) => void;
   logRenderedSuggestionPopup?: (context: PredictionResponse & { predictionCount: number }) => void;
   logNoVisibleSuggestions?: (context: PredictionResponse) => void;
@@ -1284,6 +1287,7 @@ test("session does not fulfill pending inline accept when the ghost render is ve
   // Mirrors InlineSuggestionPresenter.dropForEntry when the caret cannot be measured.
   const renderInline = jest.fn(() => {
     entry.inlineSuggestion = null;
+    entry.inlineRenderRejected = true;
   });
   const session = makeSession({
     entry,
@@ -1360,18 +1364,13 @@ function makeInlineTabHarness({
     renderInline: () =>
       presenter.renderForEntry({ enabled: true, entry, resolveMentionToken: findMentionToken }),
   });
-  const handler = new SuggestionKeyboardHandler({
+  const handler = createHandler({
     autocompleteOnSpace: false,
     autocompleteOnEnter: false,
     autocompleteOnTab: false,
     selectByDigit: false,
-    inlineSuggestionEnabled: true,
-    handleMissingSpaceAfterAccept: () => undefined,
-    tryUndoLastExtensionEdit: () => false,
     consumeKeyboardEvent: (event) => event.preventDefault(),
     clearSuggestions: () => session.clearSuggestions(),
-    isMenuVisible: () => false,
-    updateSelectionHighlight: () => undefined,
     acceptSuggestion: (_entry, suggestion) => session.acceptSuggestion(suggestion),
     acceptSuggestionAtIndex: (_entry, index) => session.acceptSuggestionAtIndex(index),
     requestInlineSuggestion: () => session.requestInlineSuggestion(),
@@ -1383,7 +1382,7 @@ function makeInlineTabHarness({
   };
   const respond = (predictions: string[]) =>
     session.handlePredictionResponse({ requestId: entry.requestId, suggestionId: 1, predictions });
-  return { entry, textEditService, pressTab, respond };
+  return { entry, session, textEditService, pressTab, respond };
 }
 
 test("inline Tab never accepts or traps focus when the renderer rejects the suggestion", () => {
@@ -1391,25 +1390,38 @@ test("inline Tab never accepts or traps focus when the renderer rejects the sugg
     value: "fun",
     caretMeasurable: false,
   });
-  try {
-    // Tab arrives before the first prediction lands.
-    entry.suggestions = ["function"];
-    expect(pressTab()).toBe(true);
-    expect(entry.pendingInlineAccept).toBe(true);
+  // Tab arrives before the first prediction lands.
+  entry.suggestions = ["function"];
+  expect(pressTab()).toBe(true);
+  expect(entry.pendingInlineAccept).toBe(true);
 
-    respond(["function"]);
+  respond(["function"]);
 
-    expect(entry.pendingInlineAccept).toBe(false);
-    expect(entry.inlineSuggestion).toBeNull();
-    expect(textEditService.acceptSuggestion).not.toHaveBeenCalled();
+  expect(entry.pendingInlineAccept).toBe(false);
+  expect(entry.inlineSuggestion).toBeNull();
+  expect(textEditService.acceptSuggestion).not.toHaveBeenCalled();
 
-    // The rejected suggestion must let Tab move focus natively.
-    expect(pressTab()).toBe(false);
-    expect(entry.pendingInlineAccept).toBe(false);
-    expect(textEditService.acceptSuggestion).not.toHaveBeenCalled();
-  } finally {
-    jest.restoreAllMocks();
-  }
+  // The rejected suggestion must let Tab move focus natively.
+  expect(pressTab()).toBe(false);
+  expect(entry.pendingInlineAccept).toBe(false);
+  expect(textEditService.acceptSuggestion).not.toHaveBeenCalled();
+});
+
+test("typing after a rejected render lets an early Tab wait for the fresh prediction", () => {
+  const { entry, session, pressTab, respond } = makeInlineTabHarness({
+    value: "fun",
+    caretMeasurable: false,
+  });
+  respond(["function"]);
+  expect(entry.inlineRenderRejected).toBe(true);
+
+  // The stale suggestion is dropped again during input; that must not veto Tab.
+  entry.inlineSuggestion = "function";
+  session.handleInput(new Event("input"));
+
+  expect(entry.inlineRenderRejected).toBe(false);
+  expect(pressTab()).toBe(true);
+  expect(entry.pendingInlineAccept).toBe(true);
 });
 
 test("inline Tab before arrival accepts once the ghost renders", () => {
@@ -1417,16 +1429,12 @@ test("inline Tab before arrival accepts once the ghost renders", () => {
     value: "fun",
     caretMeasurable: true,
   });
-  try {
-    entry.suggestions = ["function"];
-    expect(pressTab()).toBe(true);
+  entry.suggestions = ["function"];
+  expect(pressTab()).toBe(true);
 
-    respond(["function"]);
+  respond(["function"]);
 
-    expect(textEditService.acceptSuggestion).toHaveBeenCalledWith(entry, "function");
-  } finally {
-    jest.restoreAllMocks();
-  }
+  expect(textEditService.acceptSuggestion).toHaveBeenCalledWith(entry, "function");
 });
 
 test("inline Tab accepts an exact-match suggestion with no ghost suffix", () => {
@@ -1434,15 +1442,11 @@ test("inline Tab accepts an exact-match suggestion with no ghost suffix", () => 
     value: "function",
     caretMeasurable: true,
   });
-  try {
-    respond(["function"]);
+  respond(["function"]);
 
-    expect(entry.inlineSuggestion).toBe("function");
-    expect(pressTab()).toBe(true);
-    expect(textEditService.acceptSuggestion).toHaveBeenCalledWith(entry, "function");
-  } finally {
-    jest.restoreAllMocks();
-  }
+  expect(entry.inlineSuggestion).toBe("function");
+  expect(pressTab()).toBe(true);
+  expect(textEditService.acceptSuggestion).toHaveBeenCalledWith(entry, "function");
 });
 
 test("session falls back to empty suggestions for invalid prediction payloads", () => {

@@ -3,12 +3,8 @@
 import argparse
 import os
 from codecs import encode, decode
-from nltk import sent_tokenize
-from nltk.util import ngrams
-from nltk.tokenize import TweetTokenizer
 from collections import Counter
 import re
-import nltk
 import multiprocessing
 import itertools
 import functools
@@ -111,6 +107,8 @@ def filter_tokens(tokens_raw, language=None):
 
 
 def ensure_nltk_tokenizers():
+    import nltk
+
     required = (
         ("punkt", "tokenizers/punkt"),
         ("punkt_tab", "tokenizers/punkt_tab"),
@@ -135,6 +133,10 @@ def ensure_nltk_tokenizers():
 
 def process_chunk(language, chunk):
     """Processes a chunk of lines to count n-grams."""
+    from nltk import sent_tokenize
+    from nltk.tokenize import TweetTokenizer
+    from nltk.util import ngrams
+
     local_ngram_counters = [Counter() for _ in range(NGRAM_COUNT)]
     tk = TweetTokenizer(match_phone_numbers=False)  # Initialize tokenizer per process
     lines_processed_in_chunk = 0

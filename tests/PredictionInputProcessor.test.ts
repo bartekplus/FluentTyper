@@ -106,6 +106,8 @@ describe("PredictionInputProcessor", () => {
       const spaced = processor.processInput("مرحبا، كي", "ar_SA", 1, true);
       expect(spaced.lastWord).toBe("كي");
       expect(spaced.doPrediction).toBe(true);
+      // Language-independent: the same holds under any language profile.
+      expect(processor.processInput("مرحبا،كي", "en_US", 1, true).doPrediction).toBe(false);
     });
 
     it("should start a new sentence after the Arabic question mark", () => {
@@ -127,6 +129,7 @@ describe("PredictionInputProcessor", () => {
     it("should strip tatweel from the active word and the suffix after the cursor", () => {
       const before = processor.processInput("كتـــاب", "ar_SA", 1, true);
       expect(before.lastWord).toBe("كتاب");
+      expect(processor.processInput("كتـــاب", "en_US", 1, true).lastWord).toBe("كتاب");
       expect(before.predictionInput).toBe("كتاب");
 
       const withSuffix = processor.processInput("كتـ", "ar_SA", 1, true, "ـــاب ثم");

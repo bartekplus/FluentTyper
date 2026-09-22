@@ -135,7 +135,10 @@ export class SuggestionEntrySession {
     if (!this.inlineSuggestionEnabled) {
       return;
     }
+    // A focus re-render doesn't change what Tab may do with the current suggestions.
+    const rejected = this.entry.inlineRenderRejected;
     this.renderInline();
+    this.entry.inlineRenderRejected = rejected;
   }
 
   public handlePaste(): void {
@@ -364,7 +367,7 @@ export class SuggestionEntrySession {
     if (this.inlineSuggestionEnabled) {
       this.entry.inlineSuggestion = this.entry.suggestions[0] ?? null;
       this.hideMenu();
-      this.entry.inlineRenderRejected = this.renderInline() === "rejected";
+      this.renderInline();
     } else {
       this.entry.inlineSuggestion = null;
       this.clearInlinePresenter();
@@ -379,7 +382,7 @@ export class SuggestionEntrySession {
     if (this.entry.pendingInlineAccept) {
       this.entry.pendingInlineAccept = false;
       // Only accept what the presenter showed; Tab must not insert unseen text.
-      const suggested = this.entry.inlineRenderRejected ? null : this.entry.inlineSuggestion;
+      const suggested = this.entry.inlineSuggestion;
       if (suggested) {
         this.acceptSuggestion(suggested);
       }
@@ -1135,12 +1138,13 @@ export class SuggestionEntrySession {
       ? tokenInfo.start
       : -1;
 
-    // New text means a fresh prediction is on its way; an earlier veto no
-    // longer applies, so an early Tab may wait for it again.
-    this.entry.inlineRenderRejected = false;
     if (this.inlineSuggestionEnabled) {
       this.renderInline();
     }
+    // New text means a fresh prediction is on its way; no veto (earlier, or
+    // from dropping the stale suggestion above) applies, so an early Tab may
+    // wait for it again.
+    this.entry.inlineRenderRejected = false;
 
     if (predictionMode === "reconcile") {
       this.predictionCoordinator.reconcile(this.entry, {

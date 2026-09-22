@@ -1,8 +1,8 @@
-import { SUPPORTED_LANGUAGES } from "@core/domain/lang";
+import { RTL_LETTER_REGEX, SUPPORTED_LANGUAGES } from "@core/domain/lang";
 import { SuggestionMenuView } from "../suggestions/SuggestionMenuView";
 import { SuggestionMenuPresenter } from "../suggestions/SuggestionMenuPresenter";
 import { SuggestionPositioningService } from "../suggestions/SuggestionPositioningService";
-import { InlineSuggestionView, RTL_LETTER_REGEX } from "../suggestions/InlineSuggestionView";
+import { InlineSuggestionView } from "../suggestions/InlineSuggestionView";
 import {
   DOCS_SESSION_ID,
   snapshotContext,

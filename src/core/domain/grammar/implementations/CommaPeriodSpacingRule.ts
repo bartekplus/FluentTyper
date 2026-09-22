@@ -1,5 +1,5 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
-import { SPACE_CHARS, SPACING_OR_FILLER_CHARS } from "../../spacingRules";
+import { PUNCTUATION_EQUIVALENTS, SPACE_CHARS, SPACING_OR_FILLER_CHARS } from "../../spacingRules";
 import { resolveInputAction } from "./helpers/GenericRuleShared";
 import { SpacingRuleShared } from "./helpers/SpacingRuleShared";
 import { resolveMeasurementLocale } from "../measurement/registry";
@@ -71,8 +71,8 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
       }
     }
 
-    // "\u060C" is the Arabic comma.
-    if (lastChar !== "," && lastChar !== "\u060C") {
+    // Includes equivalent commas such as the Arabic "،".
+    if ((PUNCTUATION_EQUIVALENTS[lastChar] ?? lastChar) !== ",") {
       return null;
     }
 

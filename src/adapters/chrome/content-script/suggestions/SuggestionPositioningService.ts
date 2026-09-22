@@ -1,4 +1,5 @@
 import { TextTargetAdapter } from "./TextTargetAdapter";
+import { MIRROR_LAYOUT_PROPERTIES } from "./InlineSuggestionView";
 import {
   SUGGESTION_POPUP_FONT_FAMILY,
   SUGGESTION_POPUP_FONT_STRETCH,
@@ -108,39 +109,7 @@ export class SuggestionPositioningService {
 
   private getTextValueCaretRect(elem: HTMLInputElement | HTMLTextAreaElement): DOMRect | null {
     const position = elem.selectionStart ?? elem.value.length;
-    const properties = [
-      "direction",
-      "unicodeBidi",
-      "boxSizing",
-      "width",
-      "height",
-      "overflowX",
-      "overflowY",
-      "borderTopWidth",
-      "borderRightWidth",
-      "borderBottomWidth",
-      "borderLeftWidth",
-      "borderStyle",
-      "paddingTop",
-      "paddingRight",
-      "paddingBottom",
-      "paddingLeft",
-      "fontStyle",
-      "fontVariant",
-      "fontWeight",
-      "fontStretch",
-      "fontSize",
-      "fontSizeAdjust",
-      "lineHeight",
-      "fontFamily",
-      "textAlign",
-      "textTransform",
-      "textIndent",
-      "textDecoration",
-      "letterSpacing",
-      "wordSpacing",
-    ] as const;
-    type MirrorProperty = (typeof properties)[number];
+    type MirrorProperty = (typeof MIRROR_LAYOUT_PROPERTIES)[number];
 
     const mirror = document.createElement("div");
     mirror.style.whiteSpace = "pre-wrap";
@@ -154,7 +123,7 @@ export class SuggestionPositioningService {
 
     const computed = window.getComputedStyle(elem);
     const mirrorStyle = mirror.style as unknown as Record<MirrorProperty, string>;
-    for (const property of properties) {
+    for (const property of MIRROR_LAYOUT_PROPERTIES) {
       mirrorStyle[property] = computed[property];
     }
 

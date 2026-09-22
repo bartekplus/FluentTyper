@@ -1,3 +1,23 @@
+import { PUNCTUATION_EQUIVALENTS } from "./spacingRules";
+
+export const TEXT_EXPANDER_LANG = "textExpander";
+
+// Strong RTL letters (digits, marks and U+FEFF are neutral).  Any other letter
+// is a strong LTR character.  The containing element's computed `direction`
+// only describes the paragraph — a Latin run inside an RTL paragraph still
+// continues rightward — so anchoring must follow the run.
+export const RTL_LETTER_REGEX =
+  /(?=\p{L})[\p{Script=Arabic}\p{Script=Hebrew}\p{Script=Syriac}\p{Script=Thaana}\p{Script=Nko}]/u;
+
+// Characters that are never part of a word in any language. U+0640 ARABIC
+// TATWEEL is an intra-word joining filler rather than a letter, so "كتـــاب"
+// has to reach Presage as "كتاب" — not split into fragments.
+const IGNORED_WORD_CHARS_REGEX = /\u0640/g;
+
+export function stripIgnoredWordChars(text: string): string {
+  return text.replace(IGNORED_WORD_CHARS_REGEX, "");
+}
+
 export const SUPPORTED_LANGUAGES: Record<string, string> = {
   auto_detect: "Auto detect",
   en_US: "English (US)",
@@ -10,7 +30,7 @@ export const SUPPORTED_LANGUAGES: Record<string, string> = {
   pl_PL: "Polish",
   pt_BR: "Brazilian Portuguese",
   ar_SA: "Arabic",
-  textExpander: "Text Expander",
+  [TEXT_EXPANDER_LANG]: "Text Expander",
 };
 
 export const SUPPORTED_LANGUAGE_KEYS = Object.keys(SUPPORTED_LANGUAGES);
@@ -47,8 +67,10 @@ export const SUPPORTED_LANGUAGES_SHORT_CODE: Record<string, string> = {
 
 const BASE_SEPARATOR_CHARS_REGEX_SOURCE =
   '\\s+|!|"|#|\\$|%|&|\\(|\\)|\\*|\\+|,|-|\\.|\\/|:|;|<|=|>|\\?|@|\\[|\\\\|\\]|\\^|_|`|{|\\||}|~';
-const TYPOGRAPHIC_SEPARATOR_CHARS_REGEX_SOURCE =
-  "\\u201C|\\u201D|\\u2018|\\u2014|\\u2013|\\u2026|\\u201E|\\u00AB|\\u00BB|\\u2039|\\u203A";
+const TYPOGRAPHIC_SEPARATOR_CHARS_REGEX_SOURCE = [
+  "\\u201C|\\u201D|\\u2018|\\u2014|\\u2013|\\u2026|\\u201E|\\u00AB|\\u00BB|\\u2039|\\u203A",
+  ...Object.keys(PUNCTUATION_EQUIVALENTS),
+].join("|");
 const DEFAULT_SEPARATOR_CHARS_REGEX_SOURCE = `${BASE_SEPARATOR_CHARS_REGEX_SOURCE}|${TYPOGRAPHIC_SEPARATOR_CHARS_REGEX_SOURCE}`;
 
 export const DEFAULT_SEPARATOR_CHARS_REGEX: RegExp = RegExp(DEFAULT_SEPARATOR_CHARS_REGEX_SOURCE);
@@ -57,8 +79,8 @@ export const LANG_SEPARATOR_CHARS_REGEX: Record<string, RegExp> = {
   // U+0640 (ARABIC TATWEEL) is deliberately NOT a separator: it is an
   // intra-word joining filler, so "كتـــاب" is a single word. Splitting on it
   // would hand Presage a fragment ("اب"). It is stripped instead, see
-  // LANG_STRIPPED_CHARS_REGEX.
-  ar_SA: RegExp(`${DEFAULT_SEPARATOR_CHARS_REGEX_SOURCE}|\\u060C|\\u061B|\\u061F`),
+  // stripIgnoredWordChars.
+  ar_SA: DEFAULT_SEPARATOR_CHARS_REGEX,
   en_US: DEFAULT_SEPARATOR_CHARS_REGEX,
   fr_FR: RegExp(`${DEFAULT_SEPARATOR_CHARS_REGEX_SOURCE}|'|\\u2019`),
   hr_HR: DEFAULT_SEPARATOR_CHARS_REGEX,
@@ -75,23 +97,6 @@ export const LANG_ADDITIONAL_SEPARATOR_REGEX: Record<string, RegExp | null> = {
   ar_SA: null,
   en_US: null,
   fr_FR: RegExp(/['\u2019]/g),
-  hr_HR: null,
-  es_ES: null,
-  el_GR: null,
-  sv_SE: null,
-  de_DE: null,
-  pl_PL: null,
-  pt_BR: null,
-  textExpander: null,
-};
-// Characters removed from the prediction input before it is tokenised.
-// U+0640 ARABIC TATWEEL is an intra-word joining filler rather than a letter,
-// so "كتـــاب" has to reach Presage as "كتاب" — not split into fragments.
-export const LANG_STRIPPED_CHARS_REGEX: Record<string, RegExp | null> = {
-  auto_detect: null,
-  ar_SA: /\u0640/g,
-  en_US: null,
-  fr_FR: null,
   hr_HR: null,
   es_ES: null,
   el_GR: null,

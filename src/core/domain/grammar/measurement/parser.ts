@@ -22,7 +22,7 @@ export function parseMeasurementExpression(
 
   for (let start = text.length - 1; start >= boundedStart; start -= 1) {
     const signed = text[start] === "+" || text[start] === "-";
-    if (!digitSystemAt(text[signed ? start + 1 : start] ?? "", locale)) {
+    if (!digitSystemAt(text[signed ? start + 1 : start], locale)) {
       continue;
     }
     // Arabic ٫ and ٬ are number punctuation too: "١٬٥٠٠kg" must not start at "٥".
@@ -47,21 +47,27 @@ export function parseMeasurementExpression(
   return null;
 }
 
+const LATIN_DIGITS = "0123456789";
+
 interface DigitSystem {
-  digit(char: string): boolean;
+  digits: string;
   decimalMarks: readonly string[];
 }
 
-function digitSystemAt(char: string, locale: MeasurementLocalePolicy): DigitSystem | null {
-  if (DIGIT.test(char)) {
-    return { digit: (c) => DIGIT.test(c), decimalMarks: locale.decimalMarks };
+function isDigitOf(digits: string, char: string | undefined): boolean {
+  return !!char && digits.includes(char);
+}
+
+function digitSystemAt(
+  char: string | undefined,
+  locale: MeasurementLocalePolicy,
+): DigitSystem | null {
+  if (isDigitOf(LATIN_DIGITS, char)) {
+    return { digits: LATIN_DIGITS, decimalMarks: locale.decimalMarks };
   }
   const native = locale.nativeDigits;
-  if (native && char !== "" && native.digits.includes(char)) {
-    return {
-      digit: (c) => c !== "" && native.digits.includes(c),
-      decimalMarks: [native.decimalMark],
-    };
+  if (native && isDigitOf(native.digits, char)) {
+    return { digits: native.digits, decimalMarks: [native.decimalMark] };
   }
   return null;
 }
@@ -73,18 +79,18 @@ function readNumber(text: string, start: number, locale: MeasurementLocalePolicy
   }
   // One number uses one digit system and that system's decimal mark; "1٫5" and
   // "١.٥" stop at the foreign mark and so fail as unit expressions.
-  const system = digitSystemAt(text[index] ?? "", locale);
+  const system = digitSystemAt(text[index], locale);
   if (!system) {
     return null;
   }
-  while (system.digit(text[index] ?? "")) {
+  while (isDigitOf(system.digits, text[index])) {
     index += 1;
   }
 
   if (system.decimalMarks.includes(text[index])) {
     index += 1;
     const fractionStart = index;
-    while (system.digit(text[index] ?? "")) {
+    while (isDigitOf(system.digits, text[index])) {
       index += 1;
     }
     if (index === fractionStart) {
