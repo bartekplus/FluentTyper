@@ -27,6 +27,7 @@ export type GrammarRuleId =
   | "ellipsisShortcut"
   | "emdashShortcut"
   | "smartQuoteNormalization"
+  | "frenchPunctuationSpacing"
   | "duplicatePunctuationCollapse"
   | "autoBracketClose"
   // Legacy ids kept for compatibility and migration handling.

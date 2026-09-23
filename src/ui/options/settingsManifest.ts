@@ -60,6 +60,7 @@ import {
   GRAMMAR_RULE_CATALOG,
   GRAMMAR_RULE_IDS,
   RECOMMENDED_CURRENT_GRAMMAR_RULES,
+  TYPOGRAPHY_GRAMMAR_RULES,
 } from "@core/domain/grammar/ruleCatalog";
 import {
   grammarRuleSelectionToOverrides,
@@ -461,6 +462,11 @@ const manifest: ManifestDefinition = {
           actionKey: "recommended",
           text: i18n.get("grammar_rules_recommended"),
           values: RECOMMENDED_CURRENT_GRAMMAR_RULES,
+        },
+        {
+          actionKey: "typography",
+          text: i18n.get("grammar_rules_typography"),
+          values: TYPOGRAPHY_GRAMMAR_RULES,
         },
         {
           actionKey: "enable_all",
