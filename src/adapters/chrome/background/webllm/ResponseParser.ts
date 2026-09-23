@@ -56,7 +56,7 @@ export class ResponseParser {
     }
   }
 
-  parsePredictionLines(rawOutput: string, limit: number): string[] {
+  private parsePredictionLines(rawOutput: string, limit: number): string[] {
     const result: string[] = [];
     const seen = new Set<string>();
     const lines = rawOutput.split(/\r?\n|,/g);

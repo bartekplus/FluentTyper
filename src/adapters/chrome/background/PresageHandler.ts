@@ -236,41 +236,7 @@ export class PresageHandler {
     predictionCandidates: string[],
     context: PresagePredictionContext,
   ): PredictionResult {
-    return this.applyPredictionOutputRules(
-      predictionCandidates,
-      context.predictionInput,
-      context.nextChar,
-      context.doCapitalize,
-      context.effectiveNumSuggestions,
-    );
-  }
-
-  async runPrediction(
-    text: string,
-    nextChar: string,
-    lang: string,
-    configOverride?: { numSuggestions?: number; tabId?: number },
-    afterCursorTokenSuffix?: string,
-  ): Promise<PredictionResult> {
-    const context = this.preparePredictionContext(
-      text,
-      nextChar,
-      lang,
-      configOverride?.numSuggestions,
-      configOverride?.tabId,
-      afterCursorTokenSuffix,
-    );
-    const predictions = await this.predictPresage(context);
-    return this.finalizePrediction(predictions, context);
-  }
-
-  private applyPredictionOutputRules(
-    predictionCandidates: string[],
-    predictionInput: string,
-    nextChar: string,
-    doCapitalize: Capitalization,
-    effectiveNumSuggestions: number,
-  ): PredictionResult {
+    const { predictionInput, nextChar, doCapitalize, effectiveNumSuggestions } = context;
     let predictions = predictionCandidates.slice();
     if (predictions.length > effectiveNumSuggestions) {
       predictions = predictions.slice(0, effectiveNumSuggestions);
@@ -317,6 +283,25 @@ export class PresageHandler {
       default:
     }
     return { predictions };
+  }
+
+  async runPrediction(
+    text: string,
+    nextChar: string,
+    lang: string,
+    configOverride?: { numSuggestions?: number; tabId?: number },
+    afterCursorTokenSuffix?: string,
+  ): Promise<PredictionResult> {
+    const context = this.preparePredictionContext(
+      text,
+      nextChar,
+      lang,
+      configOverride?.numSuggestions,
+      configOverride?.tabId,
+      afterCursorTokenSuffix,
+    );
+    const predictions = await this.predictPresage(context);
+    return this.finalizePrediction(predictions, context);
   }
 
   private refreshPresageEngines(): void {

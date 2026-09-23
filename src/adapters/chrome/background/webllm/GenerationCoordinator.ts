@@ -16,10 +16,6 @@ export class GenerationCoordinator {
     return this.activeGenerationSeq;
   }
 
-  advanceGenerationSeq(): void {
-    this.activeGenerationSeq += 1;
-  }
-
   getActiveGenerationSeq(): number {
     return this.activeGenerationSeq;
   }

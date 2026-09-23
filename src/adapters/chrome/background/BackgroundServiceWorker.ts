@@ -267,11 +267,7 @@ export class BackgroundServiceWorker {
   }
 
   async initialize(lastVersion: string | undefined): Promise<void> {
-    if (this.initializationPromise) {
-      await this.initializationPromise;
-      return;
-    }
-    this.initializationPromise = (async () => {
+    this.initializationPromise ??= (async () => {
       try {
         await migrateToLocalStore(lastVersion);
         await migrateSettingsV3(this.settingsManager);

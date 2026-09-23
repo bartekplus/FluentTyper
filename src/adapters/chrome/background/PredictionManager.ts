@@ -84,9 +84,7 @@ export class PredictionManager {
   }
 
   async initialize(): Promise<void> {
-    if (!this.initializationPromise) {
-      this.initializationPromise = this._doInitializePresage();
-    }
+    this.initializationPromise ??= this._doInitializePresage();
     return this.initializationPromise;
   }
 
