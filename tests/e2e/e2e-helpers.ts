@@ -73,8 +73,9 @@ export async function waitUntil<T>(
 // without ever resolving puppeteer's navigation lifecycle events.
 // Keep these short so the fallback readiness checks can run quickly.
 const EXTENSION_NAVIGATION_TIMEOUT_MS = isFirefox() ? 300 : 5000;
-const FIREFOX_DEBUGGING_NAVIGATION_TIMEOUT_MS = 300;
-const FIREFOX_DEBUGGING_SELECTOR_TIMEOUT_MS = 20000;
+// Pinned moz-extension host; Firefox no longer lets automation open about:debugging to discover it.
+const FIREFOX_EXTENSION_ID = "{22ce0bca-91d0-4eac-8fd3-9b2045c7a6db}";
+const FIREFOX_EXTENSION_HOST = "3f1c8a52-6b7e-4d19-9a0e-5c2f7b8d4e61";
 const FIREFOX_NAVIGATION_RECOVERY_TIMEOUT_MS = 3000;
 const EXTENSION_NAVIGATION_RECOVERY_TIMEOUT_MS = 3000;
 
@@ -270,69 +271,25 @@ function getExtensionIdFromContextUrl(context: BackgroundContext): string | null
   }
 }
 
-async function resolveFirefoxExtensionHost(browser: Browser, extensionId: string): Promise<string> {
-  const page = await browser.newPage();
-  try {
-    try {
-      await page.goto("about:debugging#/runtime/this-firefox", {
-        timeout: FIREFOX_DEBUGGING_NAVIGATION_TIMEOUT_MS,
-      });
-    } catch (error) {
-      if (!String(error).includes("Timeout")) {
-        throw error;
-      }
-    }
-    await page.waitForSelector(".qa-debug-target-item", {
-      timeout: FIREFOX_DEBUGGING_SELECTOR_TIMEOUT_MS,
-    });
-
-    const host = await page.evaluate((targetExtensionId) => {
-      const extensionItems = Array.from(
-        document.querySelectorAll(".qa-debug-target-item[data-qa-target-type='extension']"),
-      );
-      for (const item of extensionItems) {
-        const values = Array.from(item.querySelectorAll(".fieldpair__description")).map(
-          (el) => el.textContent?.trim() || "",
-        );
-        if (!values.includes(targetExtensionId)) {
-          continue;
-        }
-        const manifestLink = item.querySelector<HTMLAnchorElement>("a.qa-manifest-url");
-        if (!manifestLink?.href) {
-          continue;
-        }
-        try {
-          return new URL(manifestLink.href).host;
-        } catch {
-          return "";
-        }
-      }
-      return "";
-    }, extensionId);
-
-    if (!host) {
-      throw new Error("Could not resolve Firefox extension host from about:debugging");
-    }
-    return host;
-  } finally {
-    if (!page.isClosed()) {
-      await page.close();
-    }
-  }
-}
-
 async function launchFirefox(): Promise<Browser> {
   const browser = await puppeteer.launch({
     browser: "firefox",
     headless: !IS_HEADED,
     defaultViewport: null,
+    // Firefox's WebDriver BiDi refuses moz-extension:// navigation without this.
+    args: ["--remote-allow-system-access"],
+    extraPrefsFirefox: {
+      "extensions.webextensions.uuids": JSON.stringify({
+        [FIREFOX_EXTENSION_ID]: FIREFOX_EXTENSION_HOST,
+      }),
+    },
   });
 
   const extensionId = await browser.installExtension(EXTENSION_PATH);
-  if (!extensionId) {
-    throw new Error("Failed to install Firefox extension");
+  if (extensionId !== FIREFOX_EXTENSION_ID) {
+    throw new Error(`Unexpected Firefox extension id: ${extensionId}`);
   }
-  firefoxExtensionHost = await resolveFirefoxExtensionHost(browser, extensionId);
+  firefoxExtensionHost = FIREFOX_EXTENSION_HOST;
   return browser;
 }
 
