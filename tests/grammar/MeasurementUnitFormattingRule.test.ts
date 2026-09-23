@@ -115,7 +115,7 @@ describe("MeasurementUnitFormattingRule", () => {
       expect(apply(`${cmd} 5kg `)).toBeNull();
   });
 
-  test("tab-indented prose paragraph still formats", () => {
-    expect(result("\tThe box weighs 5kg ")).toBe("\tThe box weighs 5 kg ");
+  test("indented lines fail closed, even when they read as a sentence", () => {
+    expect(apply("\tThe box weighs 5kg ")).toBeNull();
   });
 });

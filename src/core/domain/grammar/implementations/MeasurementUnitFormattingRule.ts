@@ -55,15 +55,10 @@ export function isProsePrefix(prefix: string): boolean {
   }
   const line = prefix.slice(lineStart);
   // Four spaces or a tab open an indented Markdown code block; a textarea
-  // cannot tell us whether that applies, so fail closed by default. But a
-  // paragraph that just happens to be indented ("\tThe box weighs 5kg") still
-  // reads as a sentence: a capitalized start and at least two words before the
-  // number. Anything else ("\tcopy 250EUR", "    Price: 250EUR") is refused.
+  // cannot tell us whether that applies, so fail closed, even for an indented
+  // sentence ("\tCopy source 250EUR" reads as one too).
   if (/^(?: {4}|\t)/u.test(line)) {
-    const afterIndent = line.replace(/^(?: {4}|\t)+/u, "");
-    if (!/^\p{Lu}\S*\s+\S+/u.test(afterIndent) || /[:：]\s*$/u.test(afterIndent)) {
-      return false;
-    }
+    return false;
   }
   // Nothing before the measurement is not evidence against prose, and treating
   // it as such formatted "2Mbit 2Mbit" into "2Mbit 2 Mbit": the same text

@@ -141,7 +141,11 @@ describe("currency spacing", () => {
       "Example:\n\n    250EUR ",
       "Example:\n\n\t250EUR ",
       "    Price: 250EUR ",
-      // Indented lines only read as prose when they look like a sentence.
+      // Nothing tells an indented code block from prose, so indentation
+      // always fails closed.
+      "\tCopy source 250EUR ",
+      "    Copy source 250EUR ",
+      "Example:\n\n\tCopy source 250EUR ",
       "\tcopy 250EUR ",
       "    copy 250EUR ",
       "\tcp file 250EUR ",

@@ -156,13 +156,19 @@ describe("measurement formatting on indented lines", () => {
     (id) => id !== "measurementUnitFormatting",
   );
 
-  // An indented line may be a Markdown code block: only a sentence formats.
-  for (const input of ["\tcopy 5kg ", "    copy 5kg ", "\tcp file 5kg ", "    x = 5kg "])
+  // An indented line may be a Markdown code block and no editor signal says
+  // otherwise, so indentation fails closed by design, even for a sentence.
+  for (const input of [
+    "\tcopy 5kg ",
+    "    copy 5kg ",
+    "\tcp file 5kg ",
+    "    x = 5kg ",
+    "\tCopy source 5kg ",
+    "    Copy source 5kg ",
+    "\tThe box weighs 5kg ",
+  ])
     test(`leaves ${JSON.stringify(input)}`, () =>
       expect(type(input)).toBe(type(input, "en_US", withoutRule)));
-
-  test("formats an indented sentence", () =>
-    expect(type("\tThe box weighs 5kg ")).toBe("\tThe box weighs 5 kg "));
 });
 
 describe("comma/period spacing never adds a space before a closing quote", () => {
