@@ -93,7 +93,7 @@ export function isLogLevel(value: unknown): value is LogLevel {
   return value === "debug" || value === "info" || value === "warn" || value === "error";
 }
 
-export function isObservabilityModuleId(value: unknown): value is ObservabilityModuleId {
+function isObservabilityModuleId(value: unknown): value is ObservabilityModuleId {
   return (
     typeof value === "string" && OBSERVABILITY_MODULE_IDS.includes(value as ObservabilityModuleId)
   );

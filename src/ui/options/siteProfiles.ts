@@ -17,16 +17,18 @@ import {
   type SiteProfiles,
 } from "@core/domain/siteProfiles";
 import {
+  appendLanguageOptions,
   buildSiteProfile,
   getInheritLabel,
   getOnOffLabel,
   getPreferNativeAutocompleteLabel,
+  languageLabel,
   populateBooleanOverrideOptions,
   populateSuggestionOptions,
   toOverrideValue,
 } from "@ui/shared/siteProfileEditor";
 import { formatTranslation, i18n } from "./fluenttyperI18n.js";
-import { appendLanguageOptions, createStackField, languageLabel } from "./workspacePanelUtils.js";
+import { createStackField } from "./workspacePanelUtils.js";
 
 interface SiteProfilesElements {
   editingBadge: HTMLElement;

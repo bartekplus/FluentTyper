@@ -1,4 +1,5 @@
 import { MAX_NUM_SUGGESTIONS } from "@core/domain/constants";
+import { SUPPORTED_LANGUAGES } from "@core/domain/lang";
 import { parseBooleanOverride, parseSuggestionsOverride } from "@core/domain/siteProfileService";
 import type { SiteProfile } from "@core/domain/siteProfiles";
 import { i18n } from "@ui/options/fluenttyperI18n.js";
@@ -26,6 +27,16 @@ export function createSelectOption(value: string, text: string): HTMLOptionEleme
   option.value = value;
   option.textContent = text;
   return option;
+}
+
+export function languageLabel(languageKey: string): string {
+  return SUPPORTED_LANGUAGES[languageKey] || languageKey;
+}
+
+export function appendLanguageOptions(select: HTMLSelectElement, languageKeys: string[]): void {
+  for (const languageKey of languageKeys) {
+    select.appendChild(createSelectOption(languageKey, languageLabel(languageKey)));
+  }
 }
 
 export function populateSuggestionOptions(

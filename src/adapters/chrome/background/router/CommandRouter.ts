@@ -16,20 +16,10 @@ import { HandlerRegistry } from "./HandlerRegistry";
 
 const logger = createLogger("CommandRouter");
 
-const SUPPORTED_RUNTIME_COMMANDS = [
-  CMD_TOGGLE_FT_ACTIVE_TAB,
-  CMD_TRIGGER_FT_ACTIVE_TAB,
-  CMD_TOGGLE_FT_ACTIVE_LANG,
-] as const;
-
-type RuntimeCommand = (typeof SUPPORTED_RUNTIME_COMMANDS)[number];
-type RuntimeCommandHandler = () => Promise<void> | void;
-
-const RUNTIME_COMMAND_SET = new Set<string>(SUPPORTED_RUNTIME_COMMANDS);
-
-function isRuntimeCommand(command: string): command is RuntimeCommand {
-  return RUNTIME_COMMAND_SET.has(command);
-}
+type RuntimeCommand =
+  | typeof CMD_TOGGLE_FT_ACTIVE_TAB
+  | typeof CMD_TRIGGER_FT_ACTIVE_TAB
+  | typeof CMD_TOGGLE_FT_ACTIVE_LANG;
 
 export class CommandRouter {
   private readonly registry = new HandlerRegistry<RuntimeCommand, void>(logger, (error) => {
@@ -37,7 +27,7 @@ export class CommandRouter {
   });
 
   constructor(getWorker: () => BackgroundServiceWorker) {
-    const handlers: Record<RuntimeCommand, RuntimeCommandHandler> = {
+    const handlers: Record<RuntimeCommand, () => Promise<void> | void> = {
       [CMD_TOGGLE_FT_ACTIVE_TAB]: () => {
         const message: ToggleActiveTabMessage = {
           command: CMD_TOGGLE_FT_ACTIVE_TAB,
@@ -77,13 +67,13 @@ export class CommandRouter {
       },
     };
 
-    for (const command of SUPPORTED_RUNTIME_COMMANDS) {
-      this.registry.register(command, handlers[command]);
+    for (const [command, handler] of Object.entries(handlers)) {
+      this.registry.register(command as RuntimeCommand, handler);
     }
   }
 
   async handle(command: string): Promise<void> {
-    if (!isRuntimeCommand(command)) {
+    if (!this.registry.has(command)) {
       logError("onCommand", `Unknown command: ${command}`);
       return;
     }

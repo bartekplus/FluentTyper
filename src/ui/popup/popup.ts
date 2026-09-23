@@ -42,9 +42,11 @@ import {
 } from "@ui/shared/runtimeMessaging";
 import {
   buildSiteProfile,
+  appendLanguageOptions,
   createSelectOption,
   getOnOffLabel,
   getPreferNativeAutocompleteLabel,
+  languageLabel,
   populateBooleanOverrideOptions,
   populateSuggestionOptions,
   toOverrideValue,
@@ -324,9 +326,9 @@ async function renderActionablePageState(): Promise<void> {
     currentProfileLanguageFallback,
     currentEnabledLanguages,
   );
-  const fallbackLanguageLabel = SUPPORTED_LANGUAGES[fallbackLanguageCode] || fallbackLanguageCode;
+  const fallbackLanguageLabel = languageLabel(fallbackLanguageCode);
   const languageCode = autoLanguageStatus?.language || configuredLanguage;
-  const languageLabel = SUPPORTED_LANGUAGES[languageCode] || languageCode;
+  const activeLanguageLabel = languageLabel(languageCode);
   const badgeLabel = globallyEnabled
     ? siteAllowed
       ? i18n.get("popup_page_state_active_badge")
@@ -371,11 +373,11 @@ async function renderActionablePageState(): Promise<void> {
     : activityCopy;
   if (configuredLanguage === "auto_detect" && autoLanguageStatus?.language) {
     const liveLabel = formatTranslation("language_panel_auto_detect_current", {
-      language: languageLabel,
+      language: activeLanguageLabel,
     });
     setNodeTextAndTitle(language, liveLabel);
   } else {
-    setNodeTextAndTitle(language, languageLabel);
+    setNodeTextAndTitle(language, activeLanguageLabel);
   }
   setNodeTextAndTitle(profileNode, profileCopy);
   meta.classList.remove("is-hidden");
@@ -437,13 +439,6 @@ function getProfileStatusLabel(profileEnabled: boolean): string {
     : i18n.get("popup_site_profile_status_global");
 }
 
-function populateLanguageOptions(select: HTMLSelectElement, languages: string[]): void {
-  select.replaceChildren();
-  for (const langCode of languages) {
-    select.appendChild(createSelectOption(langCode, SUPPORTED_LANGUAGES[langCode] || langCode));
-  }
-}
-
 function notifyConfigChange(): Promise<unknown> {
   const message: OptionsPageConfigChangeMessage = {
     command: CMD_OPTIONS_PAGE_CONFIG_CHANGE,
@@ -484,7 +479,8 @@ async function loadSiteProfileEditor() {
     return;
   }
 
-  populateLanguageOptions(language, currentEnabledLanguages);
+  language.replaceChildren();
+  appendLanguageOptions(language, currentEnabledLanguages);
   populateSuggestionOptions(suggestions, globalNumSuggestions);
 
   populateBooleanOverrideOptions(inline, globalInlineSuggestion, getOnOffLabel);
@@ -622,8 +618,7 @@ function formatLanguageSummary(stats: ProductivityDashboardStats): string {
     return i18n.get("popup_dashboard_languages_empty");
   }
   const topLanguages = source.slice(0, 2).map((entry) => {
-    const languageLabel = SUPPORTED_LANGUAGES[entry.language] || entry.language;
-    return `${languageLabel}: ${formatNumber(entry.estimatedMinutesSaved)} ${i18n.get("popup_short_minutes")}`;
+    return `${languageLabel(entry.language)}: ${formatNumber(entry.estimatedMinutesSaved)} ${i18n.get("popup_short_minutes")}`;
   });
   const periodLabel = stats.perLanguageLast7Days.length
     ? i18n.get("popup_short_last7")

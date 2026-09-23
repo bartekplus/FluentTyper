@@ -15,7 +15,7 @@ export type ChatMessageContent =
   | null
   | undefined;
 
-export interface ChatCompletionResponse {
+interface ChatCompletionResponse {
   choices?: Array<{
     message?: {
       content?: ChatMessageContent;

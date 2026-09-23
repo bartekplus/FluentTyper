@@ -1,4 +1,4 @@
-export interface LineEditorCursor {
+interface LineEditorCursor {
   line: number;
   ch: number;
 }

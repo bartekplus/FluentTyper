@@ -73,7 +73,7 @@ type MessageCommand = (typeof MESSAGE_COMMANDS)[number];
 
 const COMMAND_SET = new Set<string>(MESSAGE_COMMANDS);
 
-export function isMessageCommand(value: unknown): value is MessageCommand {
+function isMessageCommand(value: unknown): value is MessageCommand {
   return typeof value === "string" && COMMAND_SET.has(value);
 }
 

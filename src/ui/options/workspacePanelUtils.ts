@@ -1,6 +1,5 @@
 import type { SettingsRegistry } from "@ui/settings-engine/SettingsEngine.js";
 import { toStoredString } from "@core/application/domain-utils";
-import { SUPPORTED_LANGUAGES } from "@core/domain/lang";
 
 type ControlEventTarget = {
   addEvent?: (type: string, fn: () => void) => void;
@@ -36,19 +35,6 @@ export function downloadBlob(blob: Blob, filename: string, revokeDelayMs: number
   link.download = filename;
   link.click();
   window.setTimeout(() => window.URL.revokeObjectURL(link.href), revokeDelayMs);
-}
-
-export function languageLabel(languageKey: string): string {
-  return SUPPORTED_LANGUAGES[languageKey] || languageKey;
-}
-
-export function appendLanguageOptions(select: HTMLSelectElement, languageKeys: string[]): void {
-  languageKeys.forEach((languageKey) => {
-    const option = document.createElement("option");
-    option.value = languageKey;
-    option.textContent = languageLabel(languageKey);
-    select.appendChild(option);
-  });
 }
 
 export function createWorkspaceCard(titleText?: string, bodyText?: string) {

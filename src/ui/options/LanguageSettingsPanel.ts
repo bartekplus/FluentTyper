@@ -11,13 +11,12 @@ import {
 } from "@core/domain/constants";
 import { resolveSiteProfiles } from "@core/domain/siteProfiles";
 import { fetchAutoLanguageStatus } from "@ui/shared/runtimeMessaging";
+import { appendLanguageOptions, languageLabel } from "@ui/shared/siteProfileEditor";
 import { formatTranslation, i18n } from "./fluenttyperI18n.js";
 import {
-  appendLanguageOptions,
   bindRerender,
   createWorkspaceCard,
   createWorkspaceShell,
-  languageLabel,
   moveControlToBody,
   pruneEmptySettingsGroups,
 } from "./workspacePanelUtils.js";

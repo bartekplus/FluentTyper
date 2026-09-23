@@ -1,4 +1,5 @@
 import { Store } from "./storage/Store.js";
+import { readFirstDefinedSetting } from "./settings/settingsAccess";
 import {
   getAliasesForCanonicalSettingKey,
   resolveCanonicalSettingKey,
@@ -20,20 +21,10 @@ export class SettingsManager {
 
   async get(key: string): Promise<JsonValue> {
     const canonicalKey = resolveCanonicalSettingKey(key);
-    const canonicalValue = await this.getRaw(canonicalKey);
-    if (typeof canonicalValue !== "undefined") {
-      return canonicalValue;
-    }
-
-    const aliases = getAliasesForCanonicalSettingKey(canonicalKey);
-    for (const alias of aliases) {
-      const aliasValue = await this.getRaw(alias);
-      if (typeof aliasValue !== "undefined") {
-        return aliasValue;
-      }
-    }
-
-    return canonicalValue as unknown as JsonValue;
+    return (await readFirstDefinedSetting(this, [
+      canonicalKey,
+      ...getAliasesForCanonicalSettingKey(canonicalKey),
+    ])) as JsonValue;
   }
 
   async set(key: string, value: JsonValue): Promise<void> {

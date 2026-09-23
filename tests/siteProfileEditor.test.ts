@@ -1,10 +1,13 @@
 import "./setup";
 import { describe, expect, test } from "bun:test";
 import { MAX_NUM_SUGGESTIONS } from "../src/core/domain/constants";
+import { SUPPORTED_LANGUAGES } from "../src/core/domain/lang";
 import { i18n } from "../src/ui/options/fluenttyperI18n.js";
 import {
+  appendLanguageOptions,
   buildSiteProfile,
   getOnOffLabel,
+  languageLabel,
   populateBooleanOverrideOptions,
   populateSuggestionOptions,
   toOverrideValue,
@@ -15,6 +18,20 @@ function optionPairs(select: HTMLSelectElement): Array<[string, string | null]> 
 }
 
 describe("siteProfileEditor", () => {
+  test("languageLabel falls back to key; appendLanguageOptions appends labelled options", () => {
+    expect(languageLabel("en_US")).toBe(SUPPORTED_LANGUAGES.en_US);
+    expect(languageLabel("xx_YY")).toBe("xx_YY");
+
+    const select = document.createElement("select");
+    select.appendChild(document.createElement("option"));
+    appendLanguageOptions(select, ["en_US", "xx_YY"]);
+    expect(optionPairs(select)).toEqual([
+      ["", ""],
+      ["en_US", SUPPORTED_LANGUAGES.en_US],
+      ["xx_YY", "xx_YY"],
+    ]);
+  });
+
   test("populateSuggestionOptions renders inherit + 0..MAX options", () => {
     const select = document.createElement("select");
     select.appendChild(document.createElement("option"));

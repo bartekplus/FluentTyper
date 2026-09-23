@@ -78,12 +78,8 @@ import { PERSONALIZATION_STORAGE_KEY } from "@core/application/personalization/P
 import { DEFAULT_SUGGESTION_THEME_SETTINGS } from "@core/domain/themeDefaults";
 import { i18n } from "./fluenttyperI18n.js";
 import { manifest } from "./settingsManifest.js";
-import {
-  createWorkspaceShell,
-  downloadBlob,
-  formatLooseText,
-  languageLabel,
-} from "./workspacePanelUtils.js";
+import { languageLabel } from "@ui/shared/siteProfileEditor";
+import { createWorkspaceShell, downloadBlob, formatLooseText } from "./workspacePanelUtils.js";
 
 const PRODUCTIVITY_INSIGHTS_MAX_RETRIES = 5;
 const PRODUCTIVITY_INSIGHTS_RETRY_DELAY_MS = 200;
