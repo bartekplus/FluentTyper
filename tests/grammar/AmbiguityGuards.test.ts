@@ -186,6 +186,13 @@ describe("comma/period spacing never adds a space before a closing quote", () =>
     '```\nx = ", "\n```',
     'foo(a, ", ") ',
     '{"sep": ", "} ',
+    // No punctuation-only quote, and no statement keyword, is ever dialogue.
+    'return ". " ',
+    'yield ". " ',
+    'sep: ". " ',
+    'return "Hi, " ',
+    'print("a, ") ',
+    'x: ", " ',
   ])
     test(`leaves the literal ${JSON.stringify(input)}`, () =>
       expect(type(input)).toBe(type(input, "en_US", withoutCommaPeriod)));

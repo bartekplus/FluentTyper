@@ -20,33 +20,52 @@ const numericPrefixBefore = (text: string, index: number): boolean =>
 const CURLY_QUOTE_OPENERS = /[“„]/g;
 const CURLY_QUOTE_CLOSERS = /”/g;
 
-// Whether the quote just typed at `index` closes an earlier, still-open quote
-// in the current paragraph (the text since the last newline) rather than
-// opening a new one.
-function isClosingQuote(inputStr: string, index: number, ch: string): boolean {
+// Where the still-open quote that the one just typed at `index` closes starts,
+// or -1 when that quote opens a new one (or the pairing is ambiguous). Only the
+// current paragraph (the text since the last newline) counts.
+function closedQuoteStart(inputStr: string, index: number, ch: string): number {
   const paragraphStart = inputStr.lastIndexOf("\n", index - 1) + 1;
   const before = inputStr.slice(paragraphStart, index);
   if (ch === '"') {
     // Classify each " rather than counting them: one right after a digit is an
     // inch mark (5"), one at a word start opens, anything else closes. A
     // second opener or a stray closer is ambiguous, so do nothing.
-    let open = false;
+    let opener = -1;
     for (let i = 0; i < before.length; i += 1) {
       if (before[i] !== '"') continue;
       const previous = before[i - 1] ?? "";
       if (/\p{Nd}/u.test(previous)) continue;
       const opens = /^[\s([{—–]?$/u.test(previous);
-      if (opens === open) return false;
-      open = opens;
+      const isOpen = opener >= 0;
+      if (opens === isOpen) return -1;
+      opener = opens ? i : -1;
     }
-    return open;
+    return opener < 0 ? -1 : paragraphStart + opener;
   }
   if (ch === "”") {
     const openers = before.match(CURLY_QUOTE_OPENERS)?.length ?? 0;
     const closers = before.match(CURLY_QUOTE_CLOSERS)?.length ?? 0;
-    return openers > closers;
+    if (openers <= closers) return -1;
+    return paragraphStart + Math.max(before.lastIndexOf("“"), before.lastIndexOf("„"));
   }
-  return false;
+  return -1;
+}
+
+// A statement keyword before the quote makes it a string literal, not dialogue.
+const CODE_STATEMENT_START =
+  /^\s*(?:return|yield|throw|await|case|echo|print|printf|puts|console\.\w+|export|const|let|var|def|if|elif|else|when)\b/iu;
+
+// Positive evidence that the quote from `openerIndex` to the "," / "." at
+// `punctuationIndex` is dialogue: the quote holds a word ("Hi", not ". "), the
+// paragraph does not open like a statement, and a colon right before the quote
+// ends a word ("He said:", not "1:").
+function isProseQuote(inputStr: string, openerIndex: number, punctuationIndex: number): boolean {
+  const quoted = inputStr.slice(openerIndex + 1, punctuationIndex);
+  if (!/^[\p{L}\p{N}]/u.test(quoted) || !/\p{L}/u.test(quoted)) return false;
+  const lead = inputStr.slice(inputStr.lastIndexOf("\n", openerIndex) + 1, openerIndex);
+  if (CODE_STATEMENT_START.test(lead)) return false;
+  const wordBefore = /(\S+)\s+$/u.exec(lead)?.[1] ?? "";
+  return !wordBefore.endsWith(":") || /^\p{L}[\p{L}'’-]*:$/u.test(wordBefore);
 }
 
 export class CommaPeriodSpacingRule extends SpacingRuleShared implements GrammarRule {
@@ -98,10 +117,11 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
       // the paragraph looks like code or sits in a fence.
       const paragraph = prefix.slice(prefix.lastIndexOf("\n") + 1);
       const codeLike = /[=({[;`]/.test(paragraph) || /```|~~~/.test(prefix);
+      const openerIndex = closedQuoteStart(inputStr, length - 1, lastChar);
       if (
         context.hints?.measurementContext === "protected" ||
         (codeLike && isInsideProtectedSpan(prefix)) ||
-        !isClosingQuote(inputStr, length - 1, lastChar)
+        openerIndex < 0
       ) {
         return null;
       }
@@ -112,7 +132,11 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
         j -= 1;
       }
       const punctuationChar = j >= 0 ? inputStr[j] : "";
-      if (spaceRun > 0 && (punctuationChar === "," || punctuationChar === ".")) {
+      if (
+        spaceRun > 0 &&
+        (punctuationChar === "," || punctuationChar === ".") &&
+        isProseQuote(inputStr, openerIndex, j)
+      ) {
         return this.createEdit(lastChar, spaceRun + 1);
       }
       return null;
