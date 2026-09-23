@@ -57,4 +57,25 @@ describe("ThemeApplicator", () => {
       `--ft-theme-suggestion-padding-horizontal: ${DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionPaddingHorizontal}`,
     );
   });
+
+  test("falls back for mixed-case unsafe tokens and CSS-breaking punctuation", () => {
+    new ThemeApplicator().apply({
+      ...DEFAULT_SUGGESTION_THEME_SETTINGS,
+      suggestionBgLight: "VAR(--page-bg)",
+      suggestionTextLight: "Url(https://example.com/x)",
+      suggestionBgDark: "#111827;",
+      suggestionTextDark: "#f8fafc}",
+      suggestionBorderDark: "{#000",
+      suggestionFontSize: "CALC(1px + Var(--x))",
+    });
+
+    const css = document.getElementById("fluent-typer-theme-overrides")?.textContent ?? "";
+    const d = DEFAULT_SUGGESTION_THEME_SETTINGS;
+    expect(css).toContain(`--ft-theme-suggestion-bg-light: ${d.suggestionBgLight} `);
+    expect(css).toContain(`--ft-theme-suggestion-text-light: ${d.suggestionTextLight} `);
+    expect(css).toContain(`--ft-theme-suggestion-bg-dark: ${d.suggestionBgDark} `);
+    expect(css).toContain(`--ft-theme-suggestion-text-dark: ${d.suggestionTextDark} `);
+    expect(css).toContain(`--ft-theme-suggestion-border-color-dark: ${d.suggestionBorderDark} `);
+    expect(css).toContain(`--ft-theme-suggestion-font-size: ${d.suggestionFontSize} `);
+  });
 });
