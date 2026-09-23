@@ -1,4 +1,5 @@
 import { createLogger } from "@core/application/logging/Logger";
+import type { GrammarEventType } from "@core/domain/grammar/types";
 import { SUPPORTED_LANGUAGES } from "@core/domain/lang";
 import type { PredictionInputAction } from "@core/domain/messageTypes";
 import { SPACE_CHARS } from "@core/domain/spacingRules";
@@ -14,7 +15,7 @@ import {
   shouldReleaseAcceptedSuggestionSuppressionOnKeydown,
   syncAcceptedSuggestionTrailingSpaceState,
 } from "./SuggestionAcceptedState";
-import { TextTargetAdapter } from "./TextTargetAdapter";
+import { rangeInsideTarget, TextTargetAdapter } from "./TextTargetAdapter";
 import { measurementEditingContext } from "./MeasurementEditingContext";
 import { buildCaretTrace, clipTraceText, collapseTraceWhitespace } from "./traceUtils";
 import type {
@@ -483,6 +484,13 @@ export class SuggestionEntrySession {
   }
 
   public handleBlur(controls: { dismissEntry: () => void }): void {
+    const dismiss = () => {
+      this.clearAcceptedSuggestionTransientState();
+      this.entry.isComposing = false;
+      this.entry.pendingGrammarPaste = false;
+      this.clearPendingIdleTimer();
+      controls.dismissEntry();
+    };
     if (this.inlineSuggestionEnabled && this.entry.inlineSuggestion !== null) {
       // Hide the inline ghost and clear the cached suggestion immediately
       // so the mirror overlay does not linger visibly while the deferred
@@ -501,20 +509,12 @@ export class SuggestionEntrySession {
       // checking whether the entry is still focused.
       void Promise.resolve().then(() => {
         if (!this.isFocused()) {
-          this.clearAcceptedSuggestionTransientState();
-          this.entry.isComposing = false;
-          this.entry.pendingGrammarPaste = false;
-          this.clearPendingIdleTimer();
-          controls.dismissEntry();
+          dismiss();
         }
       });
       return;
     }
-    this.clearAcceptedSuggestionTransientState();
-    this.entry.isComposing = false;
-    this.entry.pendingGrammarPaste = false;
-    this.clearPendingIdleTimer();
-    controls.dismissEntry();
+    dismiss();
   }
 
   public acceptSuggestionAtIndex(index: number): boolean {
@@ -532,13 +532,14 @@ export class SuggestionEntrySession {
     if (!this.isFocused()) {
       return;
     }
-    if (TextTargetAdapter.isTextValue(this.entry.elem)) {
-      if (!TextTargetAdapter.hasCollapsedSelection(this.entry.elem)) {
-        controls.dismissEntry();
-        return;
-      }
+    if (
+      TextTargetAdapter.isTextValue(this.entry.elem) &&
+      !TextTargetAdapter.hasCollapsedSelection(this.entry.elem)
+    ) {
+      controls.dismissEntry();
+      return;
     }
-    if (!this.shouldCheckCaretContextOnSelectionChange()) {
+    if (this.entry.lastKeydownKey !== null) {
       return;
     }
     if (this.entry.visibleSuggestionBeforeCursorText === null) {
@@ -649,15 +650,11 @@ export class SuggestionEntrySession {
       return false;
     }
 
-    if (remainingMs > 0) {
-      pending.reconcileScheduled = false;
-      controls.rescheduleFallback(
-        Math.max(1, Math.min(INSERT_INPUT_FALLBACK_RETRY_INTERVAL_MS, remainingMs)),
-      );
-      return true;
-    }
-
-    return false;
+    pending.reconcileScheduled = false;
+    controls.rescheduleFallback(
+      Math.max(1, Math.min(INSERT_INPUT_FALLBACK_RETRY_INTERVAL_MS, remainingMs)),
+    );
+    return true;
   }
 
   private scheduleKeyFallbackReconcile(
@@ -759,22 +756,14 @@ export class SuggestionEntrySession {
       }
     })();
 
-    if (!predictionContext) {
-      this.entry.lastInputAction = "insert";
-      this.entry.lastKeydownKey = null;
-      this.entry.lastBeforeCursorText = predictionBeforeCursor;
-      this.entry.pendingGrammarPaste = false;
-      const tokenInfo = this.predictionCoordinator.findMentionToken(predictionBeforeCursor);
-      this.entry.latestMentionText = tokenInfo.token;
-      this.entry.latestMentionStart = -1;
-      this.predictionCoordinator.reconcile(this.entry, {
-        clearSuggestions: () => this.clearSuggestions(),
-        inputAction: "insert",
-        beforeCursorOverride: predictionBeforeCursor,
-        afterCursorOverride: "",
-      });
+    const reconcileInsert = (afterCursor: string) => {
+      this.recordPredictionInput("insert", predictionBeforeCursor, false);
+      this.dispatchPrediction("reconcile", false, "insert", predictionBeforeCursor, afterCursor);
       this.scheduleIdleGrammar();
       return true;
+    };
+    if (!predictionContext) {
+      return reconcileInsert("");
     }
 
     const grammarEdit = predictionContext.safeForGrammar
@@ -817,21 +806,7 @@ export class SuggestionEntrySession {
       }
     }
 
-    this.entry.lastInputAction = "insert";
-    this.entry.lastKeydownKey = null;
-    this.entry.lastBeforeCursorText = predictionBeforeCursor;
-    this.entry.pendingGrammarPaste = false;
-    const tokenInfo = this.predictionCoordinator.findMentionToken(predictionBeforeCursor);
-    this.entry.latestMentionText = tokenInfo.token;
-    this.entry.latestMentionStart = -1;
-    this.predictionCoordinator.reconcile(this.entry, {
-      clearSuggestions: () => this.clearSuggestions(),
-      inputAction: "insert",
-      beforeCursorOverride: predictionBeforeCursor,
-      afterCursorOverride: predictionContext.afterCursor,
-    });
-    this.scheduleIdleGrammar();
-    return true;
+    return reconcileInsert(predictionContext.afterCursor);
   }
 
   private resolveCurrentPredictionContext(): { beforeCursor: string; fullText: string } {
@@ -912,12 +887,7 @@ export class SuggestionEntrySession {
       return false;
     }
 
-    const targetNode = entry.elem as Node;
-    const range = selection.getRangeAt(0);
-    const startInside =
-      range.startContainer === targetNode || targetNode.contains(range.startContainer);
-    const endInside = range.endContainer === targetNode || targetNode.contains(range.endContainer);
-    if (!startInside || !endInside) {
+    if (!rangeInsideTarget(selection.getRangeAt(0), entry.elem)) {
       return false;
     }
 
@@ -944,13 +914,6 @@ export class SuggestionEntrySession {
       selectionRangeCount: selection?.rangeCount ?? 0,
       selectionCollapsed: selection?.isCollapsed ?? true,
     });
-  }
-
-  private shouldForceImmediatePunctuationRequest(
-    beforeCursor: string,
-    inputAction: PredictionInputAction,
-  ): boolean {
-    return inputAction === "insert" && DUPLICATE_PUNCTUATION_TAIL_REGEX.test(beforeCursor);
   }
 
   private processEntryAfterEdit({
@@ -1006,11 +969,7 @@ export class SuggestionEntrySession {
         : null);
 
     if (snapshot) {
-      this.textEditService.syncManualAutoFixSuppression(this.entry, snapshot);
-      if (this.entry.pendingExtensionEdit && !this.shouldPreservePendingExtensionEdit(snapshot)) {
-        this.entry.pendingExtensionEdit = null;
-      }
-      syncAcceptedSuggestionTrailingSpaceState(this.entry, this.contentEditableAdapter);
+      this.syncEditStateWithSnapshot(snapshot);
     }
 
     const resolvedHasMultipleBlockDescendants =
@@ -1086,11 +1045,7 @@ export class SuggestionEntrySession {
           this.handleSuppressedInput();
           return;
         }
-        this.textEditService.syncManualAutoFixSuppression(this.entry, snapshot);
-        if (this.entry.pendingExtensionEdit && !this.shouldPreservePendingExtensionEdit(snapshot)) {
-          this.entry.pendingExtensionEdit = null;
-        }
-        syncAcceptedSuggestionTrailingSpaceState(this.entry, this.contentEditableAdapter);
+        this.syncEditStateWithSnapshot(snapshot);
 
         if (
           this.dispatchAdjustedGrammarPrediction({
@@ -1133,17 +1088,11 @@ export class SuggestionEntrySession {
       typedKey,
     });
     const predictionBeforeCursor = predictionContext.beforeCursor;
-    const predictionAfterCursor = predictionContext.afterCursor;
-    this.entry.lastInputAction = inputAction;
-    this.entry.lastKeydownKey = null;
-    this.entry.lastBeforeCursorText = predictionBeforeCursor;
-    this.entry.pendingGrammarPaste = false;
-
-    const tokenInfo = this.predictionCoordinator.findMentionToken(predictionBeforeCursor);
-    this.entry.latestMentionText = tokenInfo.token;
-    this.entry.latestMentionStart = TextTargetAdapter.isTextValue(this.entry.elem)
-      ? tokenInfo.start
-      : -1;
+    this.recordPredictionInput(
+      inputAction,
+      predictionBeforeCursor,
+      TextTargetAdapter.isTextValue(this.entry.elem),
+    );
 
     if (this.inlineSuggestionEnabled) {
       this.renderInline();
@@ -1153,22 +1102,13 @@ export class SuggestionEntrySession {
     // wait for it again.
     this.entry.inlineRenderRejected = false;
 
-    if (predictionMode === "reconcile") {
-      this.predictionCoordinator.reconcile(this.entry, {
-        clearSuggestions: () => this.clearSuggestions(),
-        inputAction,
-        beforeCursorOverride: predictionBeforeCursor,
-        afterCursorOverride: predictionAfterCursor,
-      });
-    } else {
-      this.predictionCoordinator.schedule(this.entry, {
-        force: this.shouldForceImmediatePunctuationRequest(predictionBeforeCursor, inputAction),
-        clearSuggestions: () => this.clearSuggestions(),
-        inputAction,
-        beforeCursorOverride: predictionBeforeCursor,
-        afterCursorOverride: predictionAfterCursor,
-      });
-    }
+    this.dispatchPrediction(
+      predictionMode,
+      inputAction === "insert" && DUPLICATE_PUNCTUATION_TAIL_REGEX.test(predictionBeforeCursor),
+      inputAction,
+      predictionBeforeCursor,
+      predictionContext.afterCursor,
+    );
 
     if (scheduleIdle) {
       this.scheduleIdleGrammar();
@@ -1190,6 +1130,14 @@ export class SuggestionEntrySession {
         safeForGrammar: cursorContext.safeForGrammar,
       });
     }
+  }
+
+  private syncEditStateWithSnapshot(snapshot: SuggestionSnapshot): void {
+    this.textEditService.syncManualAutoFixSuppression(this.entry, snapshot);
+    if (this.entry.pendingExtensionEdit && !this.shouldPreservePendingExtensionEdit(snapshot)) {
+      this.entry.pendingExtensionEdit = null;
+    }
+    syncAcceptedSuggestionTrailingSpaceState(this.entry, this.contentEditableAdapter);
   }
 
   private dispatchAdjustedGrammarPrediction({
@@ -1217,37 +1165,48 @@ export class SuggestionEntrySession {
     const adjustedBeforeCursor =
       beforeCursor.slice(0, Math.max(0, beforeCursor.length - grammarDeleteBackwards)) +
       grammarReplacement;
-    this.entry.lastInputAction = inputAction;
-    this.entry.lastKeydownKey = null;
-    this.entry.lastBeforeCursorText = adjustedBeforeCursor;
-    this.entry.pendingGrammarPaste = false;
-
-    const tokenInfo = this.predictionCoordinator.findMentionToken(adjustedBeforeCursor);
-    this.entry.latestMentionText = tokenInfo.token;
-    this.entry.latestMentionStart = isTextValue ? tokenInfo.start : -1;
-
-    if (predictionMode === "reconcile") {
-      this.predictionCoordinator.reconcile(this.entry, {
-        clearSuggestions: () => this.clearSuggestions(),
-        inputAction,
-        beforeCursorOverride: adjustedBeforeCursor,
-        afterCursorOverride: afterCursor,
-      });
-    } else {
-      this.predictionCoordinator.schedule(this.entry, {
-        force: false,
-        clearSuggestions: () => this.clearSuggestions(),
-        inputAction,
-        beforeCursorOverride: adjustedBeforeCursor,
-        afterCursorOverride: afterCursor,
-      });
-    }
+    this.recordPredictionInput(inputAction, adjustedBeforeCursor, isTextValue);
+    this.dispatchPrediction(predictionMode, false, inputAction, adjustedBeforeCursor, afterCursor);
 
     if (scheduleIdle) {
       this.scheduleIdleGrammar();
     }
 
     return true;
+  }
+
+  private recordPredictionInput(
+    inputAction: PredictionInputAction,
+    beforeCursor: string,
+    isTextValue: boolean,
+  ): void {
+    this.entry.lastInputAction = inputAction;
+    this.entry.lastKeydownKey = null;
+    this.entry.lastBeforeCursorText = beforeCursor;
+    this.entry.pendingGrammarPaste = false;
+    const tokenInfo = this.predictionCoordinator.findMentionToken(beforeCursor);
+    this.entry.latestMentionText = tokenInfo.token;
+    this.entry.latestMentionStart = isTextValue ? tokenInfo.start : -1;
+  }
+
+  private dispatchPrediction(
+    predictionMode: "schedule" | "reconcile",
+    force: boolean,
+    inputAction: PredictionInputAction,
+    beforeCursor: string,
+    afterCursor: string,
+  ): void {
+    const options = {
+      clearSuggestions: () => this.clearSuggestions(),
+      inputAction,
+      beforeCursorOverride: beforeCursor,
+      afterCursorOverride: afterCursor,
+    };
+    if (predictionMode === "reconcile") {
+      this.predictionCoordinator.reconcile(this.entry, options);
+    } else {
+      this.predictionCoordinator.schedule(this.entry, { force, ...options });
+    }
   }
 
   public acceptSuggestion(suggestion: string): boolean {
@@ -1345,6 +1304,9 @@ export class SuggestionEntrySession {
     this.entry.latestMentionStart = TextTargetAdapter.isTextValue(this.entry.elem) ? 0 : -1;
     this.entry.pendingGrammarPaste = false;
     this.clearSuggestions();
+    const pendingEdit = this.entry.pendingExtensionEdit;
+    const pendingEditText =
+      pendingEdit?.postEditBlockText ?? pendingEdit?.postEditFingerprint.fullText ?? "";
     logger.debug("Accepted suggestion state armed", {
       suggestionId: this.entry.id,
       requestId: this.entry.requestId,
@@ -1356,34 +1318,25 @@ export class SuggestionEntrySession {
       pendingExtensionEditSource: this.entry.pendingExtensionEdit?.source ?? null,
       pendingExtensionEditBlockScoped: this.entry.pendingExtensionEdit?.blockScoped ?? false,
       recentInteractionTrail: this.entry.recentInteractionTrail.slice(),
-      pendingEditCaretTrace:
-        this.entry.pendingExtensionEdit !== null
-          ? buildCaretTrace(
-              (
-                this.entry.pendingExtensionEdit.postEditBlockText ??
-                this.entry.pendingExtensionEdit.postEditFingerprint.fullText
-              ).slice(0, this.entry.pendingExtensionEdit.cursorAfter),
-              (
-                this.entry.pendingExtensionEdit.postEditBlockText ??
-                this.entry.pendingExtensionEdit.postEditFingerprint.fullText
-              ).slice(this.entry.pendingExtensionEdit.cursorAfter),
-              CARET_TRACE_TEXT_LIMIT,
-            )
-          : null,
+      pendingEditCaretTrace: pendingEdit
+        ? buildCaretTrace(
+            pendingEditText.slice(0, pendingEdit.cursorAfter),
+            pendingEditText.slice(pendingEdit.cursorAfter),
+            CARET_TRACE_TEXT_LIMIT,
+          )
+        : null,
       activeBlockTrace: this.buildActiveBlockTrace(),
     });
-    const acceptedSpaceState = resolveAcceptedSuggestionSpaceState({
-      entry: this.entry,
-      insertSpaceAfterAutocomplete: this.insertSpaceAfterAutocomplete,
-      insertedText,
-      cursorAfter,
-      cursorAfterIsBlockLocal,
-    });
-    this.entry.missingTrailingSpace = acceptedSpaceState.missingTrailingSpace;
-    this.entry.expectedCursorPos = acceptedSpaceState.expectedCursorPos;
-    this.entry.expectedCursorPosIsBlockLocal = acceptedSpaceState.expectedCursorPosIsBlockLocal;
-    this.entry.expectedCursorPosBlockElement = acceptedSpaceState.expectedCursorPosBlockElement;
-    this.entry.expectedCursorPosBlockText = acceptedSpaceState.expectedCursorPosBlockText;
+    Object.assign(
+      this.entry,
+      resolveAcceptedSuggestionSpaceState({
+        entry: this.entry,
+        insertSpaceAfterAutocomplete: this.insertSpaceAfterAutocomplete,
+        insertedText,
+        cursorAfter,
+        cursorAfterIsBlockLocal,
+      }),
+    );
     this.recordSuggestionAccepted({
       triggerText,
       insertedText,
@@ -1419,33 +1372,24 @@ export class SuggestionEntrySession {
     if (TextTargetAdapter.isTextValue(this.entry.elem)) {
       return false;
     }
-    if (this.entry.hasMultipleBlockDescendants) {
-      return true;
+    if (!this.entry.hasMultipleBlockDescendants) {
+      this.entry.hasMultipleBlockDescendants =
+        this.contentEditableAdapter.hasMultipleBlockDescendants(this.entry.elem);
     }
-    const hasMultipleBlockDescendants = this.contentEditableAdapter.hasMultipleBlockDescendants(
-      this.entry.elem,
-    );
-    if (hasMultipleBlockDescendants) {
-      this.entry.hasMultipleBlockDescendants = true;
-    }
-    return hasMultipleBlockDescendants;
+    return this.entry.hasMultipleBlockDescendants;
   }
 
   private resolveLocalGrammarTriggers(
     event: Event | undefined,
     beforeCursor: string,
-  ): import("@core/domain/grammar/types").GrammarEventType[] {
+  ): GrammarEventType[] {
     if (!this.grammarCoordinator.hasEnabledRules()) {
       return [];
     }
-    const triggers: import("@core/domain/grammar/types").GrammarEventType[] = [];
-    const inputType =
-      typeof (event as InputEvent | undefined)?.inputType === "string"
-        ? (event as InputEvent).inputType
-        : "";
+    const triggers: GrammarEventType[] = [];
     if (
       this.entry.pendingGrammarPaste ||
-      inputType === "insertFromPaste" ||
+      this.resolveInputType(event) === "insertFromPaste" ||
       event?.type === "paste"
     ) {
       triggers.push("paste");
@@ -1551,20 +1495,13 @@ export class SuggestionEntrySession {
       inputAction?: PredictionInputAction;
       typedKey?: string | null;
     } = {},
-  ): {
-    beforeCursor: string;
-    afterCursor: string;
-    snapshot: SuggestionSnapshot;
-    applyContext: { beforeCursor: string; afterCursor: string; useFullTextOffsets: boolean } | null;
-    safeForGrammar: boolean;
-  } {
-    const resolvedHasMultipleBlockDescendants =
-      hasMultipleBlockDescendants ?? this.resolveHasMultipleBlockDescendants();
+  ) {
     return resolveEditableCursorContextHelper({
       entry,
       snapshot,
       contentEditableAdapter: this.contentEditableAdapter,
-      hasMultipleBlockDescendants: resolvedHasMultipleBlockDescendants,
+      hasMultipleBlockDescendants:
+        hasMultipleBlockDescendants ?? this.resolveHasMultipleBlockDescendants(),
       inputAction,
       typedKey,
     });
@@ -1657,15 +1594,8 @@ export class SuggestionEntrySession {
   }
 
   private handleSuppressedInput(): void {
-    this.clearPendingIdleTimer();
     this.entry.requestId += 1;
-    this.entry.lastInputAction = null;
-    this.entry.lastKeydownKey = null;
-    this.entry.pendingGrammarPaste = false;
-    this.entry.lastBeforeCursorText = null;
-    this.entry.visibleSuggestionBeforeCursorText = null;
-    this.entry.visibleSuggestionFullText = null;
-    this.clearSuggestions();
+    this.suppressAcceptedSuggestionInput();
   }
 
   private suppressAcceptedSuggestionInput(): void {
@@ -1680,7 +1610,7 @@ export class SuggestionEntrySession {
   }
 
   private pushInteractionTrace(step: string): void {
-    if (typeof step !== "string" || step.length === 0) {
+    if (step.length === 0) {
       return;
     }
     this.entry.recentInteractionTrail.push(step);
@@ -1747,14 +1677,9 @@ export class SuggestionEntrySession {
     };
   }
 
-  private resolveInputType(event: Event): string {
-    return typeof (event as InputEvent).inputType === "string"
-      ? (event as InputEvent).inputType
-      : "";
-  }
-
-  private shouldCheckCaretContextOnSelectionChange(): boolean {
-    return this.entry.lastKeydownKey === null;
+  private resolveInputType(event: Event | undefined): string {
+    const inputType = (event as InputEvent | undefined)?.inputType;
+    return typeof inputType === "string" ? inputType : "";
   }
 
   private hasVisibleSuggestionState(): boolean {

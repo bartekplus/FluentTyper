@@ -31,17 +31,12 @@ interface SuggestionPredictionCoordinatorOptions {
 }
 
 export class SuggestionPredictionCoordinator {
-  private readonly debounceByAction: {
-    insert: number;
-    delete: number;
-    other: number;
-  };
+  private readonly debounceByAction: SuggestionPredictionCoordinatorOptions["debounceByAction"];
   private readonly getPrediction: (context: PredictionRequest) => void;
 
   private lang: string;
   private minWordLengthToPredict: number;
   private separatorRegex: RegExp;
-  private separatorRegexNeedsReset: boolean;
 
   constructor(options: SuggestionPredictionCoordinatorOptions) {
     this.debounceByAction = options.debounceByAction;
@@ -49,13 +44,11 @@ export class SuggestionPredictionCoordinator {
     this.lang = options.lang;
     this.minWordLengthToPredict = options.minWordLengthToPredict;
     this.separatorRegex = options.separatorRegex;
-    this.separatorRegexNeedsReset = options.separatorRegex.global || options.separatorRegex.sticky;
   }
 
   public updateLang(lang: string, separatorRegex: RegExp): void {
     this.lang = lang;
     this.separatorRegex = separatorRegex;
-    this.separatorRegexNeedsReset = separatorRegex.global || separatorRegex.sticky;
   }
 
   public schedule(
@@ -133,17 +126,13 @@ export class SuggestionPredictionCoordinator {
     },
   ): void {
     this.cancelPending(entry);
-    const beforeCursor =
-      beforeCursorOverride ??
-      (entry.elem ? TextTargetAdapter.snapshot(entry.elem).beforeCursor : "");
     this.requestPrediction(
       entry,
       false,
       clearSuggestions,
       inputAction,
-      beforeCursor,
+      beforeCursorOverride,
       afterCursorOverride,
-      createPredictionTraceContext(),
     );
   }
 
@@ -166,8 +155,7 @@ export class SuggestionPredictionCoordinator {
       clearSuggestions: () => void;
     },
   ): boolean {
-    const isCurrentRequest = entry.requestId === response.requestId;
-    if (!isCurrentRequest) {
+    if (entry.requestId !== response.requestId) {
       return false;
     }
 
@@ -231,63 +219,33 @@ export class SuggestionPredictionCoordinator {
       tokenLength: tokenInfo.token.length,
     });
 
-    this.getPrediction(
-      this.createPredictionRequest({
-        beforeCursor,
-        afterCursor,
-        suggestionId: entry.id,
-        requestId: entry.requestId,
-        inputAction,
-        traceContext,
-      }),
-    );
-  }
-
-  private createPredictionRequest({
-    beforeCursor,
-    afterCursor,
-    suggestionId,
-    requestId,
-    inputAction,
-    traceContext,
-  }: {
-    beforeCursor: string;
-    afterCursor: string;
-    suggestionId: number;
-    requestId: number;
-    inputAction?: PredictionInputAction;
-    traceContext: PredictionTraceContext;
-  }): PredictionRequest {
-    const afterCursorTokenSuffix = this.extractAfterCursorTokenSuffix(afterCursor);
-    return {
+    this.getPrediction({
       text: beforeCursor,
-      nextChar: afterCursor.charAt(0) || "",
-      afterCursorTokenSuffix,
-      suggestionId,
-      requestId,
+      nextChar: afterCursor.charAt(0),
+      afterCursorTokenSuffix: extractPredictionTokenSuffix(afterCursor, (char) =>
+        this.isSeparator(char),
+      ),
+      suggestionId: entry.id,
+      requestId: entry.requestId,
       lang: this.lang,
       traceId: traceContext.traceId,
       traceStartedAtMs: traceContext.traceStartedAtMs,
       ...(inputAction ? { inputAction } : {}),
-    };
+    });
   }
 
   private resolveDebounceMs(
-    inputAction?: PredictionInputAction,
-    beforeCursor: string = "",
+    inputAction: PredictionInputAction | undefined,
+    beforeCursor: string,
   ): number {
-    const isFirstTokenChar = this.findMentionToken(beforeCursor).token.length <= 1;
-    if (inputAction === "insert") {
-      return isFirstTokenChar
-        ? Math.min(this.debounceByAction.insert, FIRST_CHAR_DEBOUNCE_CAP_MS)
-        : this.debounceByAction.insert;
-    }
     if (inputAction === "delete") {
       return this.debounceByAction.delete;
     }
-    return isFirstTokenChar
-      ? Math.min(this.debounceByAction.other, FIRST_CHAR_DEBOUNCE_CAP_MS)
-      : this.debounceByAction.other;
+    const debounceMs =
+      inputAction === "insert" ? this.debounceByAction.insert : this.debounceByAction.other;
+    return this.findMentionToken(beforeCursor).token.length <= 1
+      ? Math.min(debounceMs, FIRST_CHAR_DEBOUNCE_CAP_MS)
+      : debounceMs;
   }
 
   private shouldPredict(beforeCursor: string): boolean {
@@ -295,7 +253,7 @@ export class SuggestionPredictionCoordinator {
       return false;
     }
 
-    const lastChar = beforeCursor.charAt(beforeCursor.length - 1) || "";
+    const lastChar = beforeCursor.charAt(beforeCursor.length - 1);
     if (lastChar && this.isSeparator(lastChar)) {
       return this.minWordLengthToPredict === 0;
     }
@@ -305,9 +263,8 @@ export class SuggestionPredictionCoordinator {
   }
 
   public isSeparator(value: string): boolean {
-    if (this.separatorRegexNeedsReset) {
-      this.separatorRegex.lastIndex = 0;
-    }
+    // Global/sticky regexes carry lastIndex between test() calls; others ignore it.
+    this.separatorRegex.lastIndex = 0;
     return this.separatorRegex.test(value);
   }
 
@@ -321,9 +278,5 @@ export class SuggestionPredictionCoordinator {
       start -= 1;
     }
     return { token: beforeCursor.slice(start), start };
-  }
-
-  private extractAfterCursorTokenSuffix(afterCursor: string): string {
-    return extractPredictionTokenSuffix(afterCursor, (char) => this.isSeparator(char));
   }
 }
