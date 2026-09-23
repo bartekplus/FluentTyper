@@ -4363,16 +4363,32 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         }, selector);
         await page.keyboard.type("b");
 
-        await waitUntil(
-          "inline text expansion preview above the signature",
-          async () =>
-            page.evaluate(() =>
-              (document.querySelector(".ft-suggestion-inline")?.textContent ?? "").includes(
-                "be right back",
+        try {
+          await waitUntil(
+            "inline text expansion preview above the signature",
+            async () =>
+              page.evaluate(() =>
+                (document.querySelector(".ft-suggestion-inline")?.textContent ?? "").includes(
+                  "be right back",
+                ),
               ),
-            ),
-          { timeoutMs: browserTimeout(3000, 6000), intervalMs: 50 },
-        );
+            { timeoutMs: browserTimeout(3000, 6000), intervalMs: 50 },
+          );
+        } catch (error) {
+          const diagnostics = await page.evaluate((sel) => {
+            const target = document.querySelector(sel) as HTMLElement;
+            const selection = window.getSelection();
+            const anchor = selection?.anchorNode;
+            return {
+              html: target.innerHTML,
+              anchor: anchor ? `${anchor.nodeName}:${anchor.textContent}` : null,
+              anchorOffset: selection?.anchorOffset,
+              inline: document.querySelector(".ft-suggestion-inline")?.textContent ?? null,
+              menu: document.querySelector(".ft-suggestion-menu, [class*='suggestion']")?.textContent,
+            };
+          }, selector);
+          throw new Error(`${String(error)} ${JSON.stringify(diagnostics)}`);
+        }
 
         await page.keyboard.press("Tab");
         const state = await waitUntil(
