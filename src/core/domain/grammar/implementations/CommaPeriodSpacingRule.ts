@@ -19,7 +19,6 @@ const numericPrefixBefore = (text: string, index: number): boolean =>
 // than closes in German/Danish, so none of those are touched at all.
 const CURLY_QUOTE_OPENERS = /[“„]/g;
 const CURLY_QUOTE_CLOSERS = /”/g;
-const STRAIGHT_QUOTES = /"/g;
 
 // Whether the quote just typed at `index` closes an earlier, still-open quote
 // in the current paragraph (the text since the last newline) rather than
@@ -28,7 +27,19 @@ function isClosingQuote(inputStr: string, index: number, ch: string): boolean {
   const paragraphStart = inputStr.lastIndexOf("\n", index - 1) + 1;
   const before = inputStr.slice(paragraphStart, index);
   if (ch === '"') {
-    return (before.match(STRAIGHT_QUOTES)?.length ?? 0) % 2 === 1;
+    // Classify each " rather than counting them: one right after a digit is an
+    // inch mark (5"), one at a word start opens, anything else closes. A
+    // second opener or a stray closer is ambiguous, so do nothing.
+    let open = false;
+    for (let i = 0; i < before.length; i += 1) {
+      if (before[i] !== '"') continue;
+      const previous = before[i - 1] ?? "";
+      if (/\p{Nd}/u.test(previous)) continue;
+      const opens = /^[\s([{—–]?$/u.test(previous);
+      if (opens === open) return false;
+      open = opens;
+    }
+    return open;
   }
   if (ch === "”") {
     const openers = before.match(CURLY_QUOTE_OPENERS)?.length ?? 0;
