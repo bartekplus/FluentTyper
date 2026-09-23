@@ -158,16 +158,27 @@ describe("currency spacing", () => {
       expectUnchanged(input);
     }
 
-    // Shell arguments are file names and patterns, not prices. Only the
-    // lowercase spelling is treated as the command: capitalized ("Cat",
-    // "Touch") also reads as an ordinary sentence-initial word elsewhere.
+    // Shell arguments are file names and patterns, not prices. Unambiguous
+    // command names are refused in any case: capitalizeSentenceStart turns a
+    // field-initial "cp" into "Cp" before currencySpacing runs.
     for (const input of [
-      ...["cp", "mv", "rm", "cd", "cat", "touch", "grep", "ls", "mkdir"].flatMap((cmd) => [
+      ...["cp", "mv", "rm", "cd", "grep", "ls", "mkdir"].flatMap((cmd) => [
         `${cmd} 250EUR `,
+        `${cmd[0].toUpperCase()}${cmd.slice(1)} 250EUR `,
         `${cmd} -r 250EUR `,
       ]),
       "cp 250EUR backup ",
     ]) {
+      expectUnchanged(input);
+    }
+
+    // "Cat" and "Touch" also read as ordinary sentence-initial words, so only
+    // the lowercase spelling is the command; typed from a blank field the
+    // default pipeline capitalizes it into prose first.
+    for (const input of ["cat", "touch"].flatMap((cmd) => [
+      `${cmd} 250EUR `,
+      `${cmd} -r 250EUR `,
+    ])) {
       expectUnchangedByRuleAlone(input);
     }
   });

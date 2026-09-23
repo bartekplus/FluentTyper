@@ -81,13 +81,13 @@ export function isProsePrefix(prefix: string): boolean {
   if (
     // Case-insensitive: at the start of a field the capitalization rule turns
     // "npm" into "Npm" before this guard ever sees it.
-    /^\s*(?:sudo|doas|git|npm|npx|bun|node|python\d*|pip\d*|curl|wget|echo|printf|export|let|const|var|return|import|docker|kubectl|cargo|apt|brew)(?:\s|$)/iu.test(
+    /^\s*(?:sudo|doas|git|npm|npx|bun|node|python\d*|pip\d*|curl|wget|echo|printf|export|let|const|var|return|import|docker|kubectl|cargo|apt|brew|cp|mv|rm|cd|ls|grep|mkdir|chmod|chown|ln|scp|rsync|ssh|awk|yarn|pnpm)(?:\s|$)/iu.test(
       line,
     ) ||
     // These also read as ordinary capitalized English (and other-language)
     // words at a sentence start ("Cat weighs 5kg", "Tar det 5kg"), so only
     // treat the lowercase spelling as the shell command.
-    /^\s*(?:cp|mv|rm|cd|ls|cat|touch|grep|mkdir|chmod|chown|ln|scp|rsync|ssh|sed|awk|tar|yarn|pnpm)(?:\s|$)/u.test(
+    /^\s*(?:cat|touch|sed|tar)(?:\s|$)/u.test(
       line,
     )
   ) {
