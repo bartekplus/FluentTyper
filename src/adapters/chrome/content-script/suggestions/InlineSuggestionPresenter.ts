@@ -75,27 +75,22 @@ export class InlineSuggestionPresenter {
       return;
     }
 
-    const plainSuggestion = stripIgnoredWordChars(suggestion);
-    const plainMention = stripIgnoredWordChars(mentionText);
-    const isCompletion = plainSuggestion.toLowerCase().startsWith(plainMention.toLowerCase());
-    // A text expansion replaces the typed shortcut instead of extending it.
-    // That is only valid for the token it was predicted for: after further
-    // typing the suggestion is stale and must not stay armed.
-    const isReplacement =
-      !isCompletion &&
-      entry.inlineSuggestionToken !== null &&
-      stripIgnoredWordChars(entry.inlineSuggestionToken) === plainMention &&
-      snapshot.beforeCursor.endsWith(mentionText);
-    if (!isCompletion && !isReplacement) {
+    const { isReplacement, text: suffix } = InlineSuggestionView.previewText(
+      suggestion,
+      mentionText,
+    );
+    // A text expansion is only valid for the token it was predicted for: after
+    // further typing the suggestion is stale and must not stay armed.
+    if (
+      isReplacement &&
+      (entry.inlineSuggestionToken === null ||
+        stripIgnoredWordChars(entry.inlineSuggestionToken) !== stripIgnoredWordChars(mentionText) ||
+        !snapshot.beforeCursor.endsWith(mentionText))
+    ) {
       this.dropForEntry(entry);
       return;
     }
 
-    // Keep the typed shortcut visible and annotate what replaces it.
-    // ponytail: arrow is LTR-oriented; mirror it if RTL snippets need it.
-    const suffix = isReplacement
-      ? ` → ${suggestion.trimEnd()}`
-      : plainSuggestion.slice(plainMention.length);
     if (!suffix) {
       // Nothing to preview, but Tab may still accept (a no-op completion).
       this.clearForEntry(entry.id);

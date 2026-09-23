@@ -353,9 +353,9 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
     await page.keyboard.press("Tab");
     await expectText("hello");
   });
-  test("inline spelling fallback stays selectable", async () => {
+  test("inline spelling correction previews as a replacement", async () => {
     await seed("helo", ["hello"], { inline_suggestion: true });
-    expect(await page.$(".ft-suggestion-inline")).toBeNull();
+    expect(await page.$eval(".ft-suggestion-inline", (el) => el.textContent)).toBe(" → hello");
     await page.keyboard.press("Tab");
     await expectText("hello");
   });

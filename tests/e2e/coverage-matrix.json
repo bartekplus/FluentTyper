@@ -1959,12 +1959,12 @@
     },
     {
       "id": "gdocs_inline_spelling_fallback_stays_selectable",
-      "description": "Mock editor/browser fixture, not a live Google Docs claim: inline spelling fallback stays selectable",
+      "description": "Mock editor/browser fixture, not a live Google Docs claim: inline spelling correction previews as a replacement",
       "coverage": [
         {
           "layer": "integration",
           "file": "tests/e2e/google-docs.e2e.test.ts",
-          "test": "inline spelling fallback stays selectable"
+          "test": "inline spelling correction previews as a replacement"
         }
       ]
     },

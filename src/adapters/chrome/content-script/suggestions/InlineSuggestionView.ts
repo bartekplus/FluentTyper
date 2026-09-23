@@ -1,4 +1,4 @@
-import { RTL_LETTER_REGEX } from "@core/domain/lang";
+import { RTL_LETTER_REGEX, stripIgnoredWordChars } from "@core/domain/lang";
 import { BLOCK_TAGS } from "./ContentEditableAdapter";
 import { resolveSuggestionOverlayRoot } from "./SuggestionOverlayRoot";
 import { TextTargetAdapter } from "./TextTargetAdapter";
@@ -100,6 +100,23 @@ export class InlineSuggestionView {
   static readonly OWNED_ATTR = "data-ft-suggestion-owned";
   static readonly ROLE_ATTR = "data-ft-suggestion-role";
   static readonly INLINE_ROLE = "inline";
+
+  /**
+   * The ghost text for `suggestion` after the typed `token`. A completion shows
+   * its untyped suffix (empty when nothing is left to preview). Anything else is
+   * a text expansion that replaces the token on acceptance: keep the typed
+   * shortcut visible and annotate what replaces it. Callers decide whether a
+   * replacement is still valid for the current token.
+   */
+  static previewText(suggestion: string, token: string): { isReplacement: boolean; text: string } {
+    const plainSuggestion = stripIgnoredWordChars(suggestion);
+    const plainToken = stripIgnoredWordChars(token);
+    if (plainSuggestion.toLowerCase().startsWith(plainToken.toLowerCase())) {
+      return { isReplacement: false, text: plainSuggestion.slice(plainToken.length) };
+    }
+    // ponytail: arrow is LTR-oriented; mirror it if RTL snippets need it.
+    return { isReplacement: true, text: ` → ${suggestion.trimEnd()}` };
+  }
 
   /**
    * True when the continuation run's direction differs from the paragraph's.
