@@ -4325,6 +4325,76 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(30000, 45000),
   );
 
+  // Regression: in a contenteditable (e.g. Gmail) a later block such as a
+  // signature must not make the caret look mid-text and disarm Tab.
+  test(
+    "Inline text expansion is accepted on Tab above a contenteditable signature block",
+    async () => {
+      const selector = "#test-contenteditable";
+      const readBlocks = () =>
+        page.evaluate((sel) => {
+          const target = document.querySelector(sel) as HTMLElement;
+          return {
+            blocks: Array.from(target.children, (child) =>
+              (child.textContent ?? "").replace(/ /g, " "),
+            ),
+            focused: document.activeElement === target,
+          };
+        }, selector);
+      try {
+        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, true);
+        await setSettingAndWait(worker!, KEY_LANGUAGE, "textExpander");
+        await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+        await setSettingAndWait(worker!, KEY_TEXT_EXPANSIONS, [["brb", "be right back"]]);
+        await applyConfigChange(browser, worker!);
+
+        await gotoTestPage(page);
+        await page.bringToFront();
+        await waitForInputReady(page, selector);
+        await page.evaluate((sel) => {
+          const target = document.querySelector(sel) as HTMLElement;
+          target.innerHTML = "<div>ok br</div><div>-- Bart</div>";
+          target.focus();
+          const range = document.createRange();
+          range.setStart(target.firstChild!.firstChild!, 5);
+          range.collapse(true);
+          window.getSelection()!.removeAllRanges();
+          window.getSelection()!.addRange(range);
+        }, selector);
+        await page.keyboard.type("b");
+
+        await waitUntil(
+          "inline text expansion preview above the signature",
+          async () =>
+            page.evaluate(() =>
+              (document.querySelector(".ft-suggestion-inline")?.textContent ?? "").includes(
+                "be right back",
+              ),
+            ),
+          { timeoutMs: browserTimeout(3000, 6000), intervalMs: 50 },
+        );
+
+        await page.keyboard.press("Tab");
+        const state = await waitUntil(
+          "text expansion inserted above the signature",
+          async () => {
+            const current = await readBlocks();
+            return /^ok be right back ?$/.test(current.blocks[0] ?? "") ? current : false;
+          },
+          { timeoutMs: browserTimeout(3000, 6000), intervalMs: 50 },
+        );
+        expect(state.blocks[1]).toBe("-- Bart");
+        expect(state.focused).toBeTrue();
+      } finally {
+        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
+        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+        await setSettingAndWait(worker!, KEY_TEXT_EXPANSIONS, []);
+        await applyConfigChange(browser, worker!);
+      }
+    },
+    browserTimeout(30000, 45000),
+  );
+
   test(
     "Enabled languages restrict popup language list",
     async () => {
