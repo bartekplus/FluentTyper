@@ -1,4 +1,4 @@
-import "./setup";
+import { mockChrome } from "./setup";
 import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
 import type { Store } from "../src/core/application/storage/Store.js";
 import {
@@ -12,7 +12,8 @@ import { validateLanguageSettings } from "../src/ui/options/settings.js";
 import { acquireDomGlobalLock } from "./support/domGlobalLock";
 
 type SettingsMap = Record<string, unknown>;
-const baseChrome = (globalThis as unknown as { chrome: unknown }).chrome;
+// Earlier suites may leave a partial chrome stub behind; start from the canonical mock.
+const baseChrome: unknown = mockChrome;
 let releaseDomGlobalLock: (() => void) | null = null;
 
 class MockControl {
@@ -39,6 +40,7 @@ function createStore(values: SettingsMap): Store {
 describe.serial("validateLanguageSettings", () => {
   beforeEach(async () => {
     releaseDomGlobalLock = await acquireDomGlobalLock();
+    (globalThis as unknown as { chrome: unknown }).chrome = baseChrome;
     (
       globalThis.chrome as typeof chrome & {
         runtime: typeof chrome.runtime & { sendMessage: ReturnType<typeof jest.fn> };

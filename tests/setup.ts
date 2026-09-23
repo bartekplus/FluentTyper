@@ -26,7 +26,7 @@ const mockLocalStorage = {
   },
 };
 
-const mockChrome = {
+export const mockChrome = {
   runtime: {
     onInstalled: { addListener: jest.fn() },
     onMessage: { addListener: jest.fn() },

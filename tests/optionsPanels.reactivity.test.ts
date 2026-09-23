@@ -1,4 +1,4 @@
-import "./setup";
+import { mockChrome } from "./setup";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import type { Store } from "../src/core/application/storage/Store.js";
 import type { SettingsRegistry } from "../src/ui/settings-engine/SettingsEngine.js";
@@ -19,7 +19,8 @@ import {
 import { acquireDomGlobalLock } from "./support/domGlobalLock";
 
 type SettingsMap = Record<string, unknown>;
-const baseChrome = (globalThis as unknown as { chrome: unknown }).chrome;
+// Earlier suites may leave a partial chrome stub behind; start from the canonical mock.
+const baseChrome: unknown = mockChrome;
 let releaseDomGlobalLock: (() => void) | null = null;
 
 class MockControl {
@@ -104,6 +105,7 @@ function findButtonByText(root: HTMLElement, text: string): HTMLButtonElement {
 describe.serial("options panel reactivity", () => {
   beforeEach(async () => {
     releaseDomGlobalLock = await acquireDomGlobalLock();
+    (globalThis as unknown as { chrome: unknown }).chrome = baseChrome;
     i18n.lang = "en";
     (
       globalThis.chrome as typeof chrome & {
