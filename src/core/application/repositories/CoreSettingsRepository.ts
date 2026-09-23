@@ -15,16 +15,13 @@ const DEFAULT_MIN_WORD_LENGTH_TO_PREDICT = 1;
 type ThemeField = keyof SuggestionThemeSettings & SettingField;
 
 export class CoreSettingsRepository extends SettingsRepositoryBase {
-  private static toBoolean(value: unknown, fallback = false): boolean {
-    return typeof value === "boolean" ? value : fallback;
-  }
-
   private static toString(value: unknown, fallback = ""): string {
     return typeof value === "string" ? value : fallback;
   }
 
   private async getBooleanField(field: SettingField, fallback = false): Promise<boolean> {
-    return CoreSettingsRepository.toBoolean(await this.getField(field), fallback);
+    const value = await this.getField(field);
+    return typeof value === "boolean" ? value : fallback;
   }
 
   private async getStringField(field: SettingField, fallback = ""): Promise<string> {
@@ -142,16 +139,14 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
       if (!Array.isArray(entry) || entry.length < 2) {
         continue;
       }
-      const shortcut = entry[0];
-      const expansion = entry[1];
+      const [shortcut, expansion] = entry;
       if (typeof shortcut !== "string") {
         continue;
       }
-      if (typeof expansion === "string") {
-        normalized.push([shortcut, expansion]);
-        continue;
-      }
-      if (!expansion || typeof expansion !== "object" || Array.isArray(expansion)) {
+      if (
+        typeof expansion !== "string" &&
+        (!expansion || typeof expansion !== "object" || Array.isArray(expansion))
+      ) {
         continue;
       }
       normalized.push([shortcut, expansion]);

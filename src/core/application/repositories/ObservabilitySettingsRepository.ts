@@ -43,7 +43,7 @@ function sanitizeModuleOverrides(value: unknown): ObservabilityConfig["moduleOve
   return result;
 }
 
-export interface ObservabilitySettingsSnapshot {
+interface ObservabilitySettingsSnapshot {
   enabled: boolean;
   defaultLevel: LogLevel;
   moduleOverrides: ObservabilityConfig["moduleOverrides"];

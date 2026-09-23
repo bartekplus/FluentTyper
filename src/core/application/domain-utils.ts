@@ -63,13 +63,7 @@ export async function isDomainOnList(
   }
   try {
     const domainList = await getDomainList(settings);
-    for (let i = 0; i < domainList.length; i++) {
-      const listDomain = normalizeDomainHost(domainList[i]);
-      if (listDomain && normalizedDomain === listDomain) {
-        return true;
-      }
-    }
-    return false;
+    return domainList.some((entry) => normalizeDomainHost(entry) === normalizedDomain);
   } catch (error: unknown) {
     console.error(`Error checking domain list: ${getErrorMessage(error)}`);
     return false;
@@ -100,13 +94,10 @@ export async function removeDomainFromList(
   }
   try {
     const domainList = await getDomainList(settings);
-    for (let i = 0; i < domainList.length; i++) {
-      const listDomain = normalizeDomainHost(domainList[i]);
-      if (listDomain && normalizedDomain === listDomain) {
-        domainList.splice(i, 1);
-        await settings.set(SETTINGS_DOMAIN_BLACKLIST, domainList);
-        break;
-      }
+    const index = domainList.findIndex((entry) => normalizeDomainHost(entry) === normalizedDomain);
+    if (index !== -1) {
+      domainList.splice(index, 1);
+      await settings.set(SETTINGS_DOMAIN_BLACKLIST, domainList);
     }
   } catch (error: unknown) {
     console.error(`Error removing domain from list: ${getErrorMessage(error)}`);
@@ -154,10 +145,9 @@ export function isWhiteSpace(character: string): boolean {
   return WHITESPACE_REGEX.test(character);
 }
 
-function countDigits(str: string): number {
-  return str.replace(DIGITS_ONLY_REGEX, "").length;
-}
-
 export function isNumber(str: string): boolean {
-  return (!isNaN(Number(str)) && !isNaN(parseFloat(str))) || countDigits(str) > 1;
+  return (
+    (!isNaN(Number(str)) && !isNaN(parseFloat(str))) ||
+    str.replace(DIGITS_ONLY_REGEX, "").length > 1
+  );
 }

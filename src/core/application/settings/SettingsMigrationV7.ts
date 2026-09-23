@@ -5,7 +5,6 @@ import {
 } from "@core/domain/constants";
 import { DEFAULT_SUGGESTION_THEME_SETTINGS } from "@core/domain/themeDefaults";
 import type { SettingsManager } from "../settingsManager";
-import { readRawSetting, writeRawSetting } from "./settingsAccess";
 
 const LEGACY_LIGHT_HIGHLIGHT_DEFAULTS = [
   {
@@ -42,30 +41,28 @@ function matchesAnyLegacyLightDefault(background: unknown, text: unknown): boole
 
 export async function migrateSettingsV7(settings: SettingsManager): Promise<void> {
   try {
-    const migrated = await readRawSetting(settings, KEY_SUGGESTION_THEME_V1_MIGRATED);
+    const migrated = await settings.getRaw(KEY_SUGGESTION_THEME_V1_MIGRATED);
     if (migrated === true) {
       return;
     }
 
     const [highlightBgLight, highlightTextLight] = await Promise.all([
-      readRawSetting(settings, KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT),
-      readRawSetting(settings, KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT),
+      settings.getRaw(KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT),
+      settings.getRaw(KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT),
     ]);
 
     if (matchesAnyLegacyLightDefault(highlightBgLight, highlightTextLight)) {
-      await writeRawSetting(
-        settings,
+      await settings.setRaw(
         KEY_SUGGESTION_HIGHLIGHT_BG_LIGHT,
         DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionHighlightBgLight,
       );
-      await writeRawSetting(
-        settings,
+      await settings.setRaw(
         KEY_SUGGESTION_HIGHLIGHT_TEXT_LIGHT,
         DEFAULT_SUGGESTION_THEME_SETTINGS.suggestionHighlightTextLight,
       );
     }
 
-    await writeRawSetting(settings, KEY_SUGGESTION_THEME_V1_MIGRATED, true);
+    await settings.setRaw(KEY_SUGGESTION_THEME_V1_MIGRATED, true);
   } catch (error) {
     console.warn("[SettingsMigrationV7] Failed to migrate settings:", error);
   }
