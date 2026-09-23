@@ -5,6 +5,13 @@ import {
   migrateLegacyGrammarRuleSelection,
   resolveGrammarRuleSelection,
 } from "../../src/core/domain/grammar/GrammarRuleSettings";
+import {
+  GRAMMAR_RULE_IDS,
+  RECOMMENDED_CURRENT_GRAMMAR_RULES,
+  RECOMMENDED_V1_GRAMMAR_RULES,
+  RECOMMENDED_V2_GRAMMAR_RULES,
+  DEFAULT_V3_GRAMMAR_RULES,
+} from "../../src/core/domain/grammar/ruleCatalog";
 
 const DEFAULT_RULES = [
   "capitalizeSentenceStart",
@@ -126,5 +133,46 @@ describe("GrammarRuleSettings", () => {
     expect(overrides.ellipsisShortcut).toBe(true);
     expect(overrides.capitalizeSentenceStart).toBe(false);
     expect(overrides).not.toHaveProperty("unknownRule");
+  });
+
+  describe("opt-in ordinal suffix rule", () => {
+    const RULE = "englishOrdinalSuffix";
+
+    test("is off on fresh install and after reset", () => {
+      expect(resolveGrammarRuleSelection(undefined)).not.toContain(RULE);
+      expect(resolveGrammarRuleSelection({})).not.toContain(RULE);
+    });
+
+    test("is off after every legacy upgrade path and is not materialized", () => {
+      for (const legacy of [
+        [],
+        ["commaPeriodSpacing"],
+        RECOMMENDED_V1_GRAMMAR_RULES,
+        RECOMMENDED_V2_GRAMMAR_RULES,
+        DEFAULT_V3_GRAMMAR_RULES,
+      ]) {
+        expect(migrateLegacyGrammarRuleSelection(legacy)).not.toHaveProperty(RULE);
+        expect(resolveGrammarRuleSelection(legacy)).not.toContain(RULE);
+      }
+    });
+
+    test("is not in the recommended preset", () => {
+      expect(RECOMMENDED_CURRENT_GRAMMAR_RULES).not.toContain(RULE);
+      const overrides = grammarRuleSelectionToOverrides(RECOMMENDED_CURRENT_GRAMMAR_RULES);
+      expect(overrides[RULE]).toBe(false);
+      expect(resolveGrammarRuleSelection(overrides)).not.toContain(RULE);
+    });
+
+    test("saving the inherited defaults records an opt-out, never an opt-in", () => {
+      const overrides = grammarRuleSelectionToOverrides(resolveGrammarRuleSelection({}));
+      expect(overrides[RULE]).toBe(false);
+    });
+
+    test("is on only after an explicit opt-in", () => {
+      expect(resolveGrammarRuleSelection({ [RULE]: true })).toContain(RULE);
+      expect(
+        resolveGrammarRuleSelection(grammarRuleSelectionToOverrides(GRAMMAR_RULE_IDS)),
+      ).toContain(RULE);
+    });
   });
 });

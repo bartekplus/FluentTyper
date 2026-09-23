@@ -146,6 +146,18 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     priority: 34,
   },
   {
+    id: "englishOrdinalSuffix",
+    name: "Fix ordinal suffixes",
+    titleI18nKey: "grammar_rule_english_ordinal_suffix",
+    descriptionI18nKey: "grammar_rule_english_ordinal_suffix_desc",
+    exampleI18nKey: "grammar_rule_english_ordinal_suffix_example",
+    languageScope: "en_US",
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
+    priority: 35,
+  },
+  {
     id: "technicalTokenCompaction",
     name: "Compact technical token spacing",
     titleI18nKey: "grammar_rule_technical_compaction",

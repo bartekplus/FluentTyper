@@ -15,6 +15,7 @@ export type GrammarRuleId =
   | "englishAlotCorrection"
   | "englishPronounVerbWhitelistAgreement"
   | "englishArticleAnCorrection"
+  | "englishOrdinalSuffix"
   | "commaPeriodSpacing"
   | "openingBracketSpacing"
   | "closingBracketSpacing"

@@ -1244,6 +1244,22 @@
       ]
     },
     {
+      "id": "grammar_english_ordinal_suffix",
+      "description": "Opt-in ordinal suffix repair fixes lowercase th/nd tokens in prose, is off by default and outside the recommended preset, and preserves st, rd, capitals, quotations, identifiers and code.",
+      "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/grammar/AmbiguityGuards.test.ts",
+          "test": "opt-in ordinal suffix repair"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionManager.test.ts",
+          "test": "reverts an ordinal suffix fix on Ctrl+Z without reapplying it"
+        }
+      ]
+    },
+    {
       "id": "grammar_language_typography",
       "description": "Opt-in Typography preset uses the writing language's quotation marks and French (France) punctuation spacing, and leaves code and protected fields unchanged.",
       "coverage": [
