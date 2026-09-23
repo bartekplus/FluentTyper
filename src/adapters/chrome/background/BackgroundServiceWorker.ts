@@ -16,6 +16,7 @@ import { migrateSettingsV8 } from "@core/application/settings/SettingsMigrationV
 import { migrateToLocalStore } from "./Migration";
 import type {
   ConfigMessage,
+  Message,
   PredictRequestMessage,
   PredictResponseMessage,
 } from "@core/domain/messageTypes";
@@ -33,7 +34,7 @@ import { PersonalizationService } from "@core/application/personalization/Person
 
 declare const __FT_DEV_BUILD__: boolean | undefined;
 
-export const IS_DEV_BUILD = typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
+const IS_DEV_BUILD = typeof __FT_DEV_BUILD__ !== "undefined" && Boolean(__FT_DEV_BUILD__);
 const logger = createLogger("BackgroundServiceWorker");
 
 export class BackgroundServiceWorker {
@@ -189,11 +190,7 @@ export class BackgroundServiceWorker {
     this.languageDetector.reportRuntimeActivity(context);
   }
 
-  sendCommandToTabContentScript(
-    tabId: number,
-    frameId: number,
-    message: import("@core/domain/messageTypes").Message,
-  ): void {
+  sendCommandToTabContentScript(tabId: number, frameId: number, message: Message): void {
     this.tabMessenger.sendToTab(tabId, frameId, message);
   }
 
@@ -235,16 +232,16 @@ export class BackgroundServiceWorker {
     const tabId = scope.tabId;
     if (typeof tabId === "number") {
       const liveRuntime = await this.languageDetector.getLiveRuntimeStatus(scope);
-      const effectiveDomainURL = liveRuntime?.domain || scope.domainURL;
+      const effectiveDomainURL = liveRuntime?.domain || scope.domainURL || undefined;
       const effectiveScope: AutoLanguageSessionLookup = {
         tabId,
         frameId: liveRuntime?.frameId,
         runtimeGeneration: liveRuntime?.runtimeGeneration,
-        domainURL: effectiveDomainURL || undefined,
+        domainURL: effectiveDomainURL,
       };
       const domainSettings = await resolveDomainRuntimeSettings(
         this.settingsManager,
-        effectiveDomainURL || undefined,
+        effectiveDomainURL,
       );
       if (domainSettings.language === "auto_detect") {
         const status = await this.languageDetector.cycleManualLockForScope(effectiveScope);
@@ -256,10 +253,7 @@ export class BackgroundServiceWorker {
           };
         }
       }
-      const nextLang = await rotateLanguageForDomain(
-        this.settingsManager,
-        effectiveDomainURL || undefined,
-      );
+      const nextLang = await rotateLanguageForDomain(this.settingsManager, effectiveDomainURL);
       return {
         language: nextLang,
         tabId,

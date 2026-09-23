@@ -33,6 +33,10 @@ interface ObservabilityServiceOptions {
   now?: () => number;
 }
 
+function cloneEvent(event: ObservabilityEvent): ObservabilityEvent {
+  return { ...event, context: event.context ? { ...event.context } : undefined };
+}
+
 function normalizeDomain(domainURL?: string): string | null {
   if (typeof domainURL !== "string" || domainURL.trim().length === 0) {
     return null;
@@ -58,11 +62,7 @@ export class ObservabilityService {
     this.getAutoLanguageRuntimes = options.getAutoLanguageRuntimes;
     this.now = options.now || (() => Date.now());
     if (this.isDevBuild) {
-      setGlobalObservabilityRuntime({
-        config: this.config,
-        sink: (event) => this.recordEvent(event),
-        source: "background",
-      });
+      this.installGlobalRuntime();
     } else {
       resetGlobalObservabilityRuntime();
       setGlobalObservabilityRuntime({
@@ -76,11 +76,7 @@ export class ObservabilityService {
     if (!this.isDevBuild) {
       return;
     }
-    setGlobalObservabilityRuntime({
-      config: this.config,
-      sink: (event) => this.recordEvent(event),
-      source: "background",
-    });
+    this.installGlobalRuntime();
     logger.info("Updated observability config", {
       enabled: this.config.enabled,
       defaultLevel: this.config.defaultLevel,
@@ -89,10 +85,7 @@ export class ObservabilityService {
   }
 
   recordEvent(event: ObservabilityEvent): void {
-    this.events.unshift({
-      ...event,
-      context: event.context ? { ...event.context } : undefined,
-    });
+    this.events.unshift(cloneEvent(event));
     this.lastEventAt.set(event.moduleId, event.timestampMs);
     const sourceSet =
       this.moduleSources.get(event.moduleId) || new Set<ObservabilityEvent["source"]>();
@@ -129,7 +122,7 @@ export class ObservabilityService {
     if (!Number.isFinite(scope.runtimeGeneration) || scope.runtimeGeneration <= 0) {
       return;
     }
-    const key = this.getContentRuntimeKey(scope.tabId, scope.frameId);
+    const key = `${scope.tabId}:${scope.frameId}`;
     this.contentRuntimes.set(key, {
       key,
       tabId: scope.tabId,
@@ -171,15 +164,12 @@ export class ObservabilityService {
 
     return {
       generatedAtMs: Date.now(),
-      devBuild: this.isDevBuild,
+      devBuild: true,
       available: true,
       config: structuredClone(this.config),
       modules: this.buildModuleStates(),
       summary: this.buildSummary(),
-      events: this.events.map((event) => ({
-        ...event,
-        context: event.context ? { ...event.context } : undefined,
-      })),
+      events: this.events.map(cloneEvent),
       predictor: this.getPredictorSnapshot(),
       contentRuntimes: [...this.contentRuntimes.values()]
         .sort((left, right) => right.updatedAt - left.updatedAt)
@@ -237,9 +227,8 @@ export class ObservabilityService {
         const override =
           this.config.moduleOverrides[moduleId as keyof typeof this.config.moduleOverrides];
         const sources = new Set<ObservabilityEvent["source"]>([
-          ...(this.moduleSources.get(moduleId) || new Set<ObservabilityEvent["source"]>()),
-          ...(this.remotelyRegisteredModules.get(moduleId) ||
-            new Set<ObservabilityEvent["source"]>()),
+          ...(this.moduleSources.get(moduleId) ?? []),
+          ...(this.remotelyRegisteredModules.get(moduleId) ?? []),
         ]);
         return {
           moduleId,
@@ -257,8 +246,12 @@ export class ObservabilityService {
       });
   }
 
-  private getContentRuntimeKey(tabId: number, frameId: number): string {
-    return `${tabId}:${frameId}`;
+  private installGlobalRuntime(): void {
+    setGlobalObservabilityRuntime({
+      config: this.config,
+      sink: (event) => this.recordEvent(event),
+      source: "background",
+    });
   }
 
   private pruneContentRuntimes(now: number): void {

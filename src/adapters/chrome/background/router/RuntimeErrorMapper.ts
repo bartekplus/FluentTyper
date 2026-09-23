@@ -1,10 +1,10 @@
 import { type FluentTyperErrorKind, getErrorMessage, isFluentTyperError } from "@core/domain/error";
 
-export interface RuntimeErrorResponse {
+interface RuntimeErrorResponse {
   ok: false;
 }
 
-export interface RuntimeMappedError {
+interface RuntimeMappedError {
   category: FluentTyperErrorKind | "unknown";
   code: string;
   message: string;

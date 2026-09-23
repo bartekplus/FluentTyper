@@ -36,13 +36,10 @@ async function resolveLanguageState(settingsManager: SettingsManager): Promise<L
     settingsRepository.getLanguage(),
     settingsRepository.getEnabledLanguages(),
   ]);
-  if (currentLanguage === "auto_detect" && enabledLanguages.length > 1) {
-    return {
-      language: currentLanguage,
-      enabledLanguages,
-    };
-  }
-  if (enabledLanguages.includes(currentLanguage)) {
+  if (
+    (currentLanguage === "auto_detect" && enabledLanguages.length > 1) ||
+    enabledLanguages.includes(currentLanguage)
+  ) {
     return {
       language: currentLanguage,
       enabledLanguages,

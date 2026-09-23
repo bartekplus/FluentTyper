@@ -2,9 +2,7 @@ import type { MLCEngineInterface } from "@mlc-ai/web-llm";
 import type {
   ChatCreateResponse,
   ChatCompletionChunkResponse,
-  ChatCompletionResponse,
   ChatMessageContent,
-  CompletionChunkResponse,
   CompletionCreateResponse,
   CompletionResponse,
   PredictionResponsePayload,
@@ -15,44 +13,22 @@ export class ResponseParser {
     response: ChatCreateResponse,
     limit: number,
   ): Promise<PredictionResponsePayload> {
-    if (this.isAsyncIterable<ChatCompletionChunkResponse>(response)) {
-      let rawOutput = "";
-      for await (const chunk of response) {
-        for (const choice of chunk.choices ?? []) {
-          const content = choice?.delta?.content;
-          if (typeof content === "string") {
-            rawOutput += content;
-          }
-        }
-      }
-      return {
-        predictions: this.parsePredictionLines(rawOutput, limit),
-        rawOutput,
-      };
-    }
-    return this.parseChatCompletionOutput(response, limit);
+    const rawOutput = this.isAsyncIterable<ChatCompletionChunkResponse>(response)
+      ? await this.collectStream(response, (choice) => choice?.delta?.content)
+      : (response.choices ?? [])
+          .map((choice) => this.extractMessageContent(choice.message?.content))
+          .join("\n");
+    return this.toPayload(rawOutput, limit);
   }
 
   async parseCompletionCreateResponse(
     response: CompletionCreateResponse,
     limit: number,
   ): Promise<PredictionResponsePayload> {
-    if (this.isAsyncIterable<CompletionChunkResponse>(response)) {
-      let rawOutput = "";
-      for await (const chunk of response) {
-        for (const choice of chunk.choices ?? []) {
-          const text = choice?.text;
-          if (typeof text === "string") {
-            rawOutput += text;
-          }
-        }
-      }
-      return {
-        predictions: this.parsePredictionLines(rawOutput, limit),
-        rawOutput,
-      };
-    }
-    return this.parseCompletionOutput(response, limit);
+    const rawOutput = this.isAsyncIterable<CompletionResponse>(response)
+      ? await this.collectStream(response, (choice) => choice?.text)
+      : (response.choices ?? []).map((choice) => choice.text ?? "").join("\n");
+    return this.toPayload(rawOutput, limit);
   }
 
   async enrichFromEngineMessage(
@@ -74,10 +50,7 @@ export class ResponseParser {
       if (typeof message !== "string" || message.trim().length === 0) {
         return result;
       }
-      return {
-        predictions: this.parsePredictionLines(message, limit),
-        rawOutput: message,
-      };
+      return this.toPayload(message, limit);
     } catch {
       return result;
     }
@@ -111,28 +84,27 @@ export class ResponseParser {
     return result;
   }
 
-  private parseChatCompletionOutput(
-    chatCompletion: ChatCompletionResponse,
-    limit: number,
-  ): PredictionResponsePayload {
-    const rawOutput = (chatCompletion.choices ?? [])
-      .map((choice) => this.extractMessageContent(choice.message?.content))
-      .join("\n");
+  private toPayload(rawOutput: string, limit: number): PredictionResponsePayload {
     return {
       predictions: this.parsePredictionLines(rawOutput, limit),
       rawOutput,
     };
   }
 
-  private parseCompletionOutput(
-    completion: CompletionResponse,
-    limit: number,
-  ): PredictionResponsePayload {
-    const rawOutput = (completion.choices ?? []).map((choice) => choice.text ?? "").join("\n");
-    return {
-      predictions: this.parsePredictionLines(rawOutput, limit),
-      rawOutput,
-    };
+  private async collectStream<TChoice>(
+    stream: AsyncIterable<{ choices?: TChoice[] }>,
+    getText: (choice: TChoice) => string | null | undefined,
+  ): Promise<string> {
+    let rawOutput = "";
+    for await (const chunk of stream) {
+      for (const choice of chunk.choices ?? []) {
+        const text = getText(choice);
+        if (typeof text === "string") {
+          rawOutput += text;
+        }
+      }
+    }
+    return rawOutput;
   }
 
   private extractMessageContent(content: ChatMessageContent): string {

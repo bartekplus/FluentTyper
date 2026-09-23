@@ -1,89 +1,35 @@
 import type { Logger } from "@core/application/logging/Logger";
 
-export type Handler<TPayload, TResult> = (payload: TPayload) => Promise<TResult> | TResult;
+type Handler<TPayload> = (payload: TPayload) => Promise<void> | void;
 
-export interface DispatchContext<TPayload, TResult> {
-  command: string;
-  payload: TPayload;
-  handler?: Handler<TPayload, TResult>;
-}
+/** Dispatches commands to registered handlers, logging each dispatch and routing failures to `onError`. */
+export class HandlerRegistry<TCommand extends string, TPayload> {
+  private readonly handlers = new Map<TCommand, Handler<TPayload>>();
 
-export type HandlerMiddleware<TPayload, TResult> = (
-  context: DispatchContext<TPayload, TResult>,
-  next: () => Promise<TResult>,
-) => Promise<TResult>;
+  constructor(
+    private readonly logger: Logger,
+    private readonly onError: (error: unknown, command: TCommand, payload: TPayload) => void,
+  ) {}
 
-export class HandlerRegistry<TCommand extends string, TPayload, TResult = void> {
-  private readonly handlers = new Map<TCommand, Handler<TPayload, TResult>>();
-  private readonly middlewares: readonly HandlerMiddleware<TPayload, TResult>[];
-
-  constructor(middlewares: readonly HandlerMiddleware<TPayload, TResult>[] = []) {
-    this.middlewares = middlewares;
-  }
-
-  register(command: TCommand, handler: Handler<TPayload, TResult>): this {
+  register(command: TCommand, handler: Handler<TPayload>): void {
     this.handlers.set(command, handler);
-    return this;
   }
 
-  async dispatch(command: TCommand, payload: TPayload): Promise<TResult> {
-    const context: DispatchContext<TPayload, TResult> = {
-      command,
-      payload,
-      handler: this.handlers.get(command),
-    };
-    return this.executeMiddleware(0, context);
-  }
-
-  private async executeMiddleware(
-    index: number,
-    context: DispatchContext<TPayload, TResult>,
-  ): Promise<TResult> {
-    if (index >= this.middlewares.length) {
-      if (!context.handler) {
-        throw new Error(`No handler registered for command: ${context.command}`);
-      }
-      return context.handler(context.payload);
-    }
-    const middleware = this.middlewares[index];
-    return middleware(context, () => this.executeMiddleware(index + 1, context));
-  }
-}
-
-export function createLoggingMiddleware<TPayload, TResult>(
-  logger: Logger,
-): HandlerMiddleware<TPayload, TResult> {
-  return async (context, next) => {
-    logger.debug("Dispatching command", { command: context.command });
+  async dispatch(command: TCommand, payload: TPayload): Promise<void> {
+    this.logger.debug("Dispatching command", { command });
     try {
-      const result = await next();
-      logger.debug("Command handled", { command: context.command });
-      return result;
+      const handler = this.handlers.get(command);
+      if (!handler) {
+        throw new Error(`No handler registered for command: ${command}`);
+      }
+      await handler(payload);
+      this.logger.debug("Command handled", { command });
     } catch (error) {
-      logger.error("Command handler failed", {
-        command: context.command,
+      this.logger.error("Command handler failed", {
+        command,
         error: error instanceof Error ? error.message : String(error),
       });
-      throw error;
+      this.onError(error, command, payload);
     }
-  };
-}
-
-export interface ErrorMappingMiddlewareOptions<TPayload, TResult> {
-  mapError: (
-    error: unknown,
-    context: DispatchContext<TPayload, TResult>,
-  ) => TResult | Promise<TResult>;
-}
-
-export function createErrorMappingMiddleware<TPayload, TResult>(
-  options: ErrorMappingMiddlewareOptions<TPayload, TResult>,
-): HandlerMiddleware<TPayload, TResult> {
-  return async (context, next) => {
-    try {
-      return await next();
-    } catch (error) {
-      return options.mapError(error, context);
-    }
-  };
+  }
 }

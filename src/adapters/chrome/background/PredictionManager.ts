@@ -20,7 +20,7 @@ interface PredictionManagerOptions {
   getPersonalizationSnapshot?: () => PersonalizationRankingSnapshot;
 }
 
-export interface PredictionDebugRequestMeta {
+interface PredictionDebugRequestMeta {
   traceId?: string;
   requestId?: number;
   tabId?: number;
@@ -28,13 +28,13 @@ export interface PredictionDebugRequestMeta {
   suggestionId?: number;
 }
 
-export interface PredictorTraceTimelineEvent {
+interface PredictorTraceTimelineEvent {
   timestampMs: number;
   stage: string;
   detail?: string;
 }
 
-export interface PredictorDebugTrace extends PredictionDebugEvent {
+interface PredictorDebugTrace extends PredictionDebugEvent {
   traceId: string;
   requestId: number | null;
   tabId: number | null;
@@ -135,7 +135,7 @@ export class PredictionManager {
 
     const runConfig: PredictionRunConfig = {
       numSuggestions: configOverride?.numSuggestions,
-      tabId: resolvedDebugMeta.tabId !== null ? resolvedDebugMeta.tabId : undefined,
+      tabId: resolvedDebugMeta.tabId ?? undefined,
       debugListener: (debugEvent) => {
         this.recordDebugTrace(debugEvent, resolvedDebugMeta);
       },
@@ -241,11 +241,7 @@ export class PredictionManager {
   }
 
   ensureTraceId(traceId?: string): string {
-    const normalized = this.normalizeTraceId(traceId);
-    if (normalized) {
-      return normalized;
-    }
-    return this.generateTraceId();
+    return this.normalizeTraceId(traceId) ?? `pred-${randomUUID()}`;
   }
 
   recordTraceTimelineEvent(
@@ -255,15 +251,7 @@ export class PredictionManager {
     timestampMs: number = Date.now(),
   ): string {
     const trace = this.upsertTrace(debugMeta);
-    trace.timeline.push({
-      timestampMs,
-      stage: stage.trim() || "event",
-      detail: this.normalizeTimelineDetail(detail),
-    });
-    if (trace.timeline.length > MAX_TRACE_TIMELINE_EVENTS) {
-      trace.timeline = trace.timeline.slice(trace.timeline.length - MAX_TRACE_TIMELINE_EVENTS);
-    }
-    this.promoteTrace(trace);
+    this.appendTimelineEvent(trace, timestampMs, stage.trim() || "event", detail);
     return trace.traceId;
   }
 
@@ -273,32 +261,29 @@ export class PredictionManager {
   ): void {
     const trace = this.upsertTrace(debugMeta);
 
-    trace.timestampMs = debugEvent.timestampMs;
-    trace.text = debugEvent.text;
-    trace.nextChar = debugEvent.nextChar;
-    trace.lang = debugEvent.lang;
-    trace.predictionInput = debugEvent.predictionInput;
-    trace.numSuggestions = debugEvent.numSuggestions;
-    trace.doPrediction = debugEvent.doPrediction;
-    trace.totalDurationMs = debugEvent.totalDurationMs;
-    trace.presage = {
-      ...debugEvent.presage,
-      predictions: debugEvent.presage.predictions.slice(),
-    };
-    trace.webllm = {
-      ...debugEvent.webllm,
-      predictions: debugEvent.webllm.predictions.slice(),
-    };
-    trace.mergedPredictions = debugEvent.mergedPredictions.slice();
-    trace.finalPredictions = debugEvent.finalPredictions.slice();
-
-    trace.timeline.push({
-      timestampMs: debugEvent.timestampMs,
-      stage: "predictor.debug.snapshot",
-      detail: this.normalizeTimelineDetail(
-        `total=${Math.round(debugEvent.totalDurationMs)}ms final=${debugEvent.finalPredictions.length}`,
-      ),
+    Object.assign(trace, {
+      ...debugEvent,
+      presage: { ...debugEvent.presage, predictions: debugEvent.presage.predictions.slice() },
+      webllm: { ...debugEvent.webllm, predictions: debugEvent.webllm.predictions.slice() },
+      mergedPredictions: debugEvent.mergedPredictions.slice(),
+      finalPredictions: debugEvent.finalPredictions.slice(),
     });
+
+    this.appendTimelineEvent(
+      trace,
+      debugEvent.timestampMs,
+      "predictor.debug.snapshot",
+      `total=${Math.round(debugEvent.totalDurationMs)}ms final=${debugEvent.finalPredictions.length}`,
+    );
+  }
+
+  private appendTimelineEvent(
+    trace: PredictorDebugTrace,
+    timestampMs: number,
+    stage: string,
+    detail: string | undefined,
+  ): void {
+    trace.timeline.push({ timestampMs, stage, detail: this.normalizeTimelineDetail(detail) });
     if (trace.timeline.length > MAX_TRACE_TIMELINE_EVENTS) {
       trace.timeline = trace.timeline.slice(trace.timeline.length - MAX_TRACE_TIMELINE_EVENTS);
     }
@@ -308,10 +293,6 @@ export class PredictionManager {
   // traceId arrives in a runtime message payload, so its static type is not guaranteed.
   private normalizeTraceId(traceId: unknown): string | null {
     return typeof traceId === "string" ? traceId.trim() || null : null;
-  }
-
-  private generateTraceId(): string {
-    return `pred-${randomUUID()}`;
   }
 
   private resolveDebugMeta(debugMeta?: PredictionDebugRequestMeta): PredictionDebugRequestMeta {
@@ -428,5 +409,3 @@ export class PredictionManager {
     return `${compact.slice(0, TIMELINE_DETAIL_MAX_LENGTH)}...`;
   }
 }
-
-export type { PredictionConfig };

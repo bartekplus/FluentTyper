@@ -7,14 +7,14 @@ const FAILURE_RETRY_MS = 30000;
 const INIT_PROGRESS_LOG_LIMIT = 12;
 const logger = createLogger("EngineLifecycleService");
 
-export enum PredictorStatus {
+enum PredictorStatus {
   Idle = "idle",
   Loading = "loading",
   Ready = "ready",
   Failed = "failed",
 }
 
-export interface EngineLifecycleRawState {
+interface EngineLifecycleRawState {
   status: PredictorStatus;
   hasWebGPU: boolean;
   initAttemptCount: number;
@@ -163,9 +163,6 @@ export class EngineLifecycleService {
   private resetInitTracking(initStartedAt: number): void {
     this.lastInitStartedAt = initStartedAt;
     this.lastInitDurationMs = 0;
-    this.lastInitProgress = 0;
-    this.lastInitProgressAt = initStartedAt;
-    this.lastInitProgressText = "initializing";
     this.lastInitError = null;
     this.lastInitProgressLog = [];
     this.recordInitProgress({
@@ -179,9 +176,6 @@ export class EngineLifecycleService {
     this.status = PredictorStatus.Ready;
     this.lastFailureAt = 0;
     this.lastInitDurationMs = Date.now() - initStartedAt;
-    this.lastInitProgress = 1;
-    this.lastInitProgressAt = Date.now();
-    this.lastInitProgressText = "ready";
     this.recordInitProgress({
       progress: 1,
       timeElapsed: this.lastInitDurationMs,
@@ -195,14 +189,9 @@ export class EngineLifecycleService {
     this.lastFailureAt = Date.now();
     this.lastInitDurationMs = Date.now() - initStartedAt;
     this.lastInitError = errorMessage;
-    this.lastInitProgressAt = Date.now();
-    this.lastInitProgressText = "failed";
-    const progress =
-      this.lastInitProgress >= 0 && Number.isFinite(this.lastInitProgress)
-        ? this.lastInitProgress
-        : 0;
+    // recordInitProgress clamps negative/non-finite progress to 0.
     this.recordInitProgress({
-      progress,
+      progress: this.lastInitProgress,
       timeElapsed: this.lastInitDurationMs,
       text: `failed: ${this.lastInitError}`,
     });
