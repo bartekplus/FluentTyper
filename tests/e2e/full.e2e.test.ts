@@ -4384,10 +4384,11 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
               anchor: anchor ? `${anchor.nodeName}:${anchor.textContent}` : null,
               anchorOffset: selection?.anchorOffset,
               inline: document.querySelector(".ft-suggestion-inline")?.textContent ?? null,
-              menu: document.querySelector(".ft-suggestion-menu, [class*='suggestion']")?.textContent,
+              menu: document.querySelector(".ft-suggestion-menu, [class*='suggestion']")
+                ?.textContent,
             };
           }, selector);
-          throw new Error(`${String(error)} ${JSON.stringify(diagnostics)}`);
+          throw new Error(`${String(error)} ${JSON.stringify(diagnostics)}`, { cause: error });
         }
 
         await page.keyboard.press("Tab");
