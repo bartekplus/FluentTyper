@@ -1,12 +1,5 @@
 import type { StorageBackend } from "./StorageBackend.js";
 
-function toError(error: unknown): Error {
-  if (error instanceof Error) {
-    return error;
-  }
-  return new Error(typeof error === "string" ? error : String(error));
-}
-
 function callStorage<T, R = void>(
   invoke: (done: (result: T) => void) => void,
   map: (result: T) => R = () => undefined as R,
@@ -22,7 +15,7 @@ function callStorage<T, R = void>(
         resolve(map(result));
       });
     } catch (ex) {
-      reject(toError(ex));
+      reject(ex instanceof Error ? ex : new Error(String(ex)));
     }
   });
 }

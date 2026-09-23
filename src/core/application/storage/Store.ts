@@ -20,20 +20,20 @@ export class Store {
   private readonly storageBackend: StorageBackend;
   private readonly initializationPromise: Promise<void>;
 
-  constructor(storageName: string, defaults?: Record<string, unknown>, useLocalBackend = true) {
+  constructor(storageName: string, defaults?: Record<string, unknown>) {
     this.storageName = storageName;
     this.storageBackend =
       typeof chrome !== "undefined" && chrome.storage
-        ? new ChromeStorageBackend(useLocalBackend)
+        ? new ChromeStorageBackend(true)
         : new LocalStorageBackend();
     this.initializationPromise = this.initializeDefaults(defaults);
   }
 
-  buildKey(name: string): string {
+  private buildKey(name: string): string {
     return `store.${this.storageName}.${name}`;
   }
 
-  static serializeValue(value: unknown): string | null {
+  private static serializeValue(value: unknown): string | null {
     if (typeof value === "function") {
       return null;
     }
