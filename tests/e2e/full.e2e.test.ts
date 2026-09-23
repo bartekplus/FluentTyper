@@ -817,6 +817,7 @@ interface PredictorDebugSnapshot {
     doPrediction?: boolean;
     timestampMs?: number;
     requestId?: number | null;
+    finalPredictions?: string[];
   }>;
 }
 
@@ -4389,7 +4390,28 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             };
           }, selector);
           const optionsPage = await openOptionsPage(browser, worker!);
-          const traces = (await getPredictorDebugSnapshot(optionsPage)).traces?.slice(-3);
+          const traces = ((await getPredictorDebugSnapshot(optionsPage)).traces ?? [])
+            .toSorted((a, b) => (b.timestampMs ?? 0) - (a.timestampMs ?? 0))
+            .slice(0, 4)
+            .map(
+              ({
+                text,
+                lang,
+                predictionInput,
+                doPrediction,
+                requestId,
+                timestampMs,
+                finalPredictions,
+              }) => ({
+                finalPredictions,
+                text,
+                lang,
+                predictionInput,
+                doPrediction,
+                requestId,
+                timestampMs,
+              }),
+            );
           await optionsPage.close();
           throw new Error(`${String(error)} ${JSON.stringify({ ...diagnostics, traces })}`, {
             cause: error,
