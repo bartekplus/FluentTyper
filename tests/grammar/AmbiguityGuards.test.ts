@@ -248,31 +248,48 @@ describe("opt-in a/an correction", () => {
     });
 });
 
-describe("ordinal suffix repair", () => {
+describe("opt-in ordinal suffix repair", () => {
+  const RULE = "englishOrdinalSuffix";
   const pipelines = [
-    ["default", DEFAULT_CURRENT_GRAMMAR_RULES],
-    ["all", GRAMMAR_RULE_IDS],
+    ["default + rule", [...DEFAULT_CURRENT_GRAMMAR_RULES, RULE]],
+    ["all rules", GRAMMAR_RULE_IDS],
   ] as const;
+  const without = (rules: readonly string[]) => rules.filter((id) => id !== RULE);
+
+  test("is off by default", () => {
+    expect(DEFAULT_CURRENT_GRAMMAR_RULES).not.toContain(RULE);
+    expect(type("my 3th attempt ")).toBe("My 3th attempt ");
+  });
 
   for (const [input, expected] of [
+    ["my 3th attempt ", "My 3rd attempt "],
     ["1th place ", "1st place "],
     ["2th attempt ", "2nd attempt "],
-    ["3th version ", "3rd version "],
+    ["the 3nd lap ", "The 3rd lap "],
+    ["the 4nd lap ", "The 4th lap "],
     ["the 12nd item ", "The 12th item "],
     ["the 21th birthday ", "The 21st birthday "],
     ["the 112nd floor ", "The 112th floor "],
-    ["the 1013rd entry ", "The 1013th entry "],
     ["her 102th year. ", "Her 102nd year. "],
-    ["THE 3TH ROW ", "THE 3RD ROW "],
     ["on the (22th) ", "On the (22nd) "],
+    // Documented: an unquoted example is corrected once the rule is enabled.
+    ["Never write 3th ", "Never write 3rd "],
   ])
     for (const [name, rules] of pipelines)
-      test(`corrects ${JSON.stringify(input)} (${name} rules)`, () =>
-        expect(type(input, "en_US", rules)).toBe(expected));
+      test(`corrects ${JSON.stringify(input)} (${name})`, () => {
+        // Nothing changes before the token is finished, then the fix lands.
+        const boundary =
+          input.search(/\d+(?:nd|th)[\s.)]/) + input.match(/\d+(?:nd|th)/)![0].length;
+        for (let end = 1; end <= boundary; end += 1) {
+          const prefix = input.slice(0, end);
+          expect(type(prefix, "en_US", rules)).toBe(type(prefix, "en_US", without(rules)));
+        }
+        expect(type(input, "en_US", rules)).toBe(expected);
+      });
 
   // Measurement formatting must not split the corrected token into "1 st".
   for (const [name, rules] of pipelines)
-    test(`keeps "1st" intact after correction (${name} rules)`, () => {
+    test(`keeps "1st" intact after correction (${name})`, () => {
       const input = "Took 1th place in 2 laps ";
       const corrected = input.indexOf("1th ") + "1th ".length;
       for (let end = corrected; end <= input.length; end += 1)
@@ -285,14 +302,30 @@ describe("ordinal suffix repair", () => {
     // Already correct, and bare numbers never gain a suffix.
     "1st 2nd 3rd 4th 11th 12th 13th 21st 22nd 23rd 101st 111th ",
     "We had 21 guests ",
-    // A typed "st" is never rewritten: it may be stone, the weight unit.
+    // "st" is never rewritten: it is also stone.
     "He is 11st ",
     "Currently 12st ",
     "11st 4lb ",
     "He weighs 11st now ",
     "I lost 2st last year ",
     "We took 11st place ",
+    // "rd" is never rewritten: it is also rod.
+    "a 16rd chain ",
+    "the 5rd mark ",
+    // Uppercase and mixed case are never rewritten: "RD" is also road.
+    "at 42RD ",
+    "sheet 3TH ",
+    "row 4ND ",
     "It was 2ST ",
+    "Mixed 1St case ",
+    "Mixed 2Th case ",
+    // Quotations.
+    '"21th" is wrong ',
+    'Write "never 3th" now ',
+    "He said \u201cuse 3th here\u201d ",
+    "She wrote \u20183th\u2019 today ",
+    "He wrote '1th' today ",
+    'He said "the\n3th line" ',
     // Not a whole ordinal token.
     "Use v1th here ",
     "Call f(2th) now ",
@@ -300,8 +333,6 @@ describe("ordinal suffix repair", () => {
     "Version 1.1th here ",
     "Tag #1th here ",
     "the 21th-century view ",
-    "Mixed 1St case ",
-    "Mixed 2Th case ",
     // Technical tokens containing those sequences.
     "Use v11st now ",
     "Set id_12st here ",
@@ -318,11 +349,10 @@ describe("ordinal suffix repair", () => {
     'Set text = "1th " ',
   ])
     for (const [name, rules] of pipelines)
-      test(`leaves ${JSON.stringify(input)} (${name} rules)`, () => {
-        const withoutRule = rules.filter((id) => id !== "englishOrdinalSuffix");
+      test(`leaves ${JSON.stringify(input)} (${name})`, () => {
         for (let end = 1; end <= input.length; end += 1) {
           const prefix = input.slice(0, end);
-          expect(type(prefix, "en_US", rules)).toBe(type(prefix, "en_US", withoutRule));
+          expect(type(prefix, "en_US", rules)).toBe(type(prefix, "en_US", without(rules)));
         }
       });
 });

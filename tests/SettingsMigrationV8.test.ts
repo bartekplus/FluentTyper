@@ -48,7 +48,6 @@ describe("migrateSettingsV8", () => {
       expect(Array.isArray(settings.store[KEY_ENABLED_GRAMMAR_RULES])).toBe(false);
       expect(resolveGrammarRuleSelection(settings.store[KEY_ENABLED_GRAMMAR_RULES])).toEqual([
         ...selection,
-        "englishOrdinalSuffix",
         "measurementUnitFormatting",
       ]);
       expect(settings.store.enable).toBe(false);
@@ -82,9 +81,9 @@ describe("migrateSettingsV8", () => {
     await migrateSettingsV8(settings);
 
     const resolved = resolveGrammarRuleSelection(settings.store[KEY_ENABLED_GRAMMAR_RULES]);
-    // Rules added after V3 are inherited as defaults.
-    const inherited = ["englishOrdinalSuffix", "measurementUnitFormatting"];
-    expect(resolved.filter((id) => !inherited.includes(id))).toEqual(DEFAULT_V3_GRAMMAR_RULES);
+    expect(resolved.filter((id) => id !== "measurementUnitFormatting")).toEqual(
+      DEFAULT_V3_GRAMMAR_RULES,
+    );
     expect(resolved).toContain("measurementUnitFormatting");
   });
 
@@ -107,7 +106,6 @@ describe("migrateSettingsV8", () => {
 
     await migrateSettingsV8(settings);
     expect(resolveGrammarRuleSelection(settings.store[KEY_ENABLED_GRAMMAR_RULES])).toEqual([
-      "englishOrdinalSuffix",
       "measurementUnitFormatting",
     ]);
   });

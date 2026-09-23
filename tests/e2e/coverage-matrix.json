@@ -1188,12 +1188,12 @@
     },
     {
       "id": "grammar_english_ordinal_suffix",
-      "description": "Ordinal suffix repair fixes whole ordinal tokens in prose never rewrites a typed st suffix, and leaves bare numbers, identifiers and code unchanged.",
+      "description": "Opt-in ordinal suffix repair fixes lowercase th/nd tokens in prose, is off by default and outside the recommended preset, and preserves st, rd, capitals, quotations, identifiers and code.",
       "coverage": [
         {
           "layer": "unit",
           "file": "tests/grammar/AmbiguityGuards.test.ts",
-          "test": "ordinal suffix repair"
+          "test": "opt-in ordinal suffix repair"
         },
         {
           "layer": "unit",

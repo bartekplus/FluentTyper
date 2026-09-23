@@ -2,6 +2,9 @@
 // rather than prose quotation.
 const LITERAL_OPENERS = new Set(["=", "(", ",", "[", "{", ":", "+"]);
 const FENCE_OPEN_REGEX = /^ {0,3}(`{3,}|~{3,})/;
+// Prose quotation marks and their closers. A straight single quote is left out:
+// it is also an apostrophe ("don't", "the 90's").
+const PROSE_QUOTE_CLOSERS: Record<string, string> = { '"': '"', "“": "”", "‘": "’" };
 
 /**
  * True when the end of `text` (the text before the cursor) sits inside Markdown
@@ -16,10 +19,16 @@ const FENCE_OPEN_REGEX = /^ {0,3}(`{3,}|~{3,})/;
  * - String literals: a quote opened after code punctuation stays open until the
  *   same quote, skipping backslash escapes, so `"it's a` and `'say "hi" a` are
  *   still inside the string.
+ * - Prose quotations, only with `quotations`: a double or curly quote opened at
+ *   a word start stays open, across lines, until its closing mark.
  */
-export function isInsideProtectedSpan(text: string): boolean {
+export function isInsideProtectedSpan(
+  text: string,
+  options: { quotations?: boolean } = {},
+): boolean {
   let fence: { char: string; length: number } | null = null;
   let spanRun = 0;
+  let proseCloser = "";
   const lines = text.split("\n");
 
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
@@ -61,10 +70,18 @@ export function isInsideProtectedSpan(text: string): boolean {
         else if (ch === quote) quote = "";
       } else if ((ch === '"' || ch === "'") && LITERAL_OPENERS.has(lastNonSpace)) {
         quote = ch;
+      } else if (proseCloser) {
+        if (ch === proseCloser) proseCloser = "";
+      } else if (
+        options.quotations &&
+        ch in PROSE_QUOTE_CLOSERS &&
+        /^[\s([]?$/.test(line[i - 1] ?? "")
+      ) {
+        proseCloser = PROSE_QUOTE_CLOSERS[ch];
       }
       if (ch.trim()) lastNonSpace = ch;
     }
     if (lineIndex === lines.length - 1 && quote) return true;
   }
-  return fence !== null || spanRun > 0;
+  return fence !== null || spanRun > 0 || proseCloser !== "";
 }

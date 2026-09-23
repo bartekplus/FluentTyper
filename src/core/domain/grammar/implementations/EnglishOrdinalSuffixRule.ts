@@ -5,10 +5,15 @@ import {
 } from "./helpers/EnglishRuleShared";
 import { isInsideProtectedSpan } from "./helpers/ProtectedSpanShared";
 
-// A whole token of digits plus a lowercase or uppercase suffix. It must start
-// after a space, an opening quote or bracket, or the text start, so "v1th",
-// "1.1th" and "x=2st" are never touched.
-const ORDINAL_REGEX = /(?<=^|[\s(["'“‘])(\d+)(st|nd|rd|th|ST|ND|RD|TH)$/;
+// Only a whole token of digits plus a lowercase "nd" or "th" is a candidate. It
+// must start after a space, an opening bracket or the text start, so "v1th",
+// "1.1th", "x=2th" and a token wrapped in quotes are never touched.
+//
+// Other suffixes are preserved on purpose, because they have other meanings:
+// "st" is also stone ("He is 11st", "11st 4lb"), "rd" is also rod ("a 16rd
+// chain"), and uppercase or mixed case is also an abbreviation ("42RD" for
+// road). None of them can be told apart from a typo by the text alone.
+const ORDINAL_REGEX = /(?<=^|[\s([])(\d+)(nd|th)$/;
 
 function ordinalSuffix(digits: string): string {
   const lastTwo = Number(digits.slice(-2));
@@ -37,24 +42,22 @@ export class EnglishOrdinalSuffixRule implements GrammarRule {
 
     const [token, digits, suffix] = match;
     const expected = ordinalSuffix(digits);
-    // Ambiguity guard: a typed "st" is never rewritten. "11st" and "12st" are
-    // also stone, the British body-weight unit ("He is 11st", "11st 4lb"), and
-    // the surrounding words cannot tell the two apart reliably.
-    if (suffix.toLowerCase() === "st" || suffix.toLowerCase() === expected) {
+    if (suffix === expected) {
       return null;
     }
     const tokenStart = match.index;
     const beforeToken = core.slice(0, tokenStart);
+    // Quoted text is often a deliberate example ("never write "3th""). Unquoted
+    // examples are still corrected once the user opts in to this rule.
     if (
-      isInsideProtectedSpan(beforeToken) ||
+      isInsideProtectedSpan(beforeToken, { quotations: true }) ||
       isLikelyCodeLikeContext(core, tokenStart, core.length)
     ) {
       return null;
     }
 
-    const fixed = suffix === suffix.toUpperCase() ? expected.toUpperCase() : expected;
     return {
-      replacement: `${digits}${fixed}${boundaryContext.trailing}`,
+      replacement: `${digits}${expected}${boundaryContext.trailing}`,
       deleteBackwards: token.length + boundaryContext.trailing.length,
       deleteForwards: 0,
     };

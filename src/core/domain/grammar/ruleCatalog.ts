@@ -152,9 +152,9 @@ export const GRAMMAR_RULE_CATALOG: readonly GrammarRuleCatalogEntry[] = [
     descriptionI18nKey: "grammar_rule_english_ordinal_suffix_desc",
     exampleI18nKey: "grammar_rule_english_ordinal_suffix_example",
     languageScope: "en_US",
-    safetyTier: "safe",
-    defaultRollout: "on",
-    recommended: true,
+    safetyTier: "advanced",
+    defaultRollout: "off",
+    recommended: false,
     priority: 35,
   },
   {
