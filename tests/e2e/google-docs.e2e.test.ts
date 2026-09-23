@@ -30,6 +30,7 @@ const GRAMMAR_CASES: Array<[string, string, string] | [string, string, string, s
   // Docs converts every pasted NBSP to a plain space, so the rule's non-breaking space
   // cannot survive the only edit channel Docs offers. A plain space is the best available.
   ["measurementUnitFormatting", "10kg ", "10 kg ", "10\u00a0kg "],
+  ["currencySpacing", "250EUR ", "250 EUR ", "250\u00a0EUR "],
   ["slashContextSpacing", "https: //x ", "https://x "],
   ["openingBracketSpacing", "if(x ", "if (x "],
   ["closingBracketSpacing", "Hello (world )", "Hello (world)"],
