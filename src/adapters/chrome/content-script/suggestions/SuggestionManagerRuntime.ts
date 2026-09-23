@@ -423,6 +423,7 @@ export class SuggestionManagerRuntime {
       visibleSuggestionBeforeCursorText: null,
       visibleSuggestionFullText: null,
       inlineSuggestion: null,
+      inlineSuggestionToken: null,
       pendingInlineAccept: false,
       inlineRenderRejected: false,
       missingTrailingSpace: false,

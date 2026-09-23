@@ -70,12 +70,21 @@ export class InlineSuggestionPresenter {
 
     const plainSuggestion = stripIgnoredWordChars(suggestion);
     const plainMention = stripIgnoredWordChars(mentionText);
-    if (!plainSuggestion.toLowerCase().startsWith(plainMention.toLowerCase())) {
+    const isCompletion = plainSuggestion.toLowerCase().startsWith(plainMention.toLowerCase());
+    // A text expansion replaces the typed shortcut instead of extending it.
+    // That is only valid for the token it was predicted for: after further
+    // typing the suggestion is stale and must not stay armed.
+    const isReplacement =
+      !isCompletion &&
+      entry.inlineSuggestionToken !== null &&
+      stripIgnoredWordChars(entry.inlineSuggestionToken) === plainMention &&
+      snapshot.beforeCursor.endsWith(mentionText);
+    if (!isCompletion && !isReplacement) {
       this.dropForEntry(entry);
       return;
     }
 
-    const suffix = plainSuggestion.slice(plainMention.length);
+    const suffix = isReplacement ? suggestion : plainSuggestion.slice(plainMention.length);
     if (!suffix) {
       // Nothing to preview, but Tab may still accept (a no-op completion).
       this.clearForEntry(entry.id);
@@ -92,6 +101,7 @@ export class InlineSuggestionPresenter {
     // A floating ghost can't be placed when the run opposes the paragraph
     // direction (e.g. Arabic in an LTR input): let the mirror lay out bidi.
     const useMirror =
+      isReplacement ||
       isMidText ||
       InlineSuggestionView.runOpposesParagraph({
         target: entry.elem,
@@ -105,14 +115,30 @@ export class InlineSuggestionPresenter {
 
     let ghost: HTMLDivElement | null;
     if (useMirror && TextTargetAdapter.isTextValue(entry.elem as TextTarget)) {
+      // Replacements render in place of the typed token: WYSIWYG.
       ghost = InlineSuggestionView.renderMirrorPreview({
         target: entry.elem as HTMLInputElement | HTMLTextAreaElement,
         suffix,
         cursorOffset: snapshot.cursorOffset,
+        replacedTokenText: isReplacement ? mentionText : "",
         trailingTokenText,
         entryId: entry.id,
         doc: this.doc,
       });
+    } else if (isReplacement) {
+      // Contenteditable can't hide the typed token in a floating ghost, so
+      // annotate it instead.
+      // ponytail: no mid-text contenteditable replacement preview (would need
+      // stripping the token from the cloned DOM), so Tab isn't armed there.
+      ghost = isMidText
+        ? null
+        : InlineSuggestionView.render({
+            target: entry.elem,
+            text: ` → ${suggestion.trimEnd()}`,
+            caretRect,
+            entryId: entry.id,
+            doc: this.doc,
+          });
     } else if (useMirror) {
       ghost = InlineSuggestionView.renderContentEditableMirrorPreview({
         target: entry.elem,

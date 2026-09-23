@@ -224,6 +224,7 @@ export class InlineSuggestionView {
     target,
     suffix,
     cursorOffset,
+    replacedTokenText = "",
     trailingTokenText = "",
     entryId,
     doc = document,
@@ -231,6 +232,8 @@ export class InlineSuggestionView {
     target: HTMLInputElement | HTMLTextAreaElement;
     suffix: string;
     cursorOffset: number;
+    /** Typed chars before the caret that acceptance replaces (a text expansion's shortcut). */
+    replacedTokenText?: string;
     trailingTokenText?: string;
     entryId?: number;
     doc?: Document;
@@ -270,7 +273,7 @@ export class InlineSuggestionView {
     // fully replaces the input's visual — the user sees the text as it
     // would look after accepting, with only the suffix ghost-styled.
     const value = target.value ?? "";
-    const beforeText = value.slice(0, cursorOffset);
+    const beforeText = value.slice(0, cursorOffset - replacedTokenText.length);
     // Skip the trailing token chars — acceptance would replace them, so
     // the preview must reflect the post-acceptance text.
     const afterText = value.slice(cursorOffset + trailingTokenText.length);
@@ -306,6 +309,9 @@ export class InlineSuggestionView {
     // Sync scroll after appending so the mirror is in the DOM.
     mirror.scrollTop = target.scrollTop;
     mirror.scrollLeft = target.scrollLeft;
+    // The ghost may land past the clipped edge (e.g. a long replacement near
+    // the end of a narrow input): scroll the mirror so it is actually shown.
+    InlineSuggestionView.scrollIntoMirrorView(mirror, suffixSpan);
 
     return mirror;
   }
@@ -414,6 +420,23 @@ export class InlineSuggestionView {
 
     resolveSuggestionOverlayRoot(doc).appendChild(mirror);
     return mirror;
+  }
+
+  private static scrollIntoMirrorView(mirror: HTMLElement, span: HTMLElement): void {
+    const right = span.offsetLeft + span.offsetWidth;
+    if (right > mirror.scrollLeft + mirror.clientWidth) {
+      mirror.scrollLeft = right - mirror.clientWidth;
+    }
+    if (span.offsetLeft < mirror.scrollLeft) {
+      mirror.scrollLeft = span.offsetLeft;
+    }
+    const bottom = span.offsetTop + span.offsetHeight;
+    if (bottom > mirror.scrollTop + mirror.clientHeight) {
+      mirror.scrollTop = bottom - mirror.clientHeight;
+    }
+    if (span.offsetTop < mirror.scrollTop) {
+      mirror.scrollTop = span.offsetTop;
+    }
   }
 
   /**

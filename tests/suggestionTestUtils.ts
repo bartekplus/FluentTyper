@@ -32,6 +32,7 @@ export function createSuggestionEntry(
     visibleSuggestionBeforeCursorText: overrides.visibleSuggestionBeforeCursorText ?? null,
     visibleSuggestionFullText: overrides.visibleSuggestionFullText ?? null,
     inlineSuggestion: overrides.inlineSuggestion ?? null,
+    inlineSuggestionToken: overrides.inlineSuggestionToken ?? null,
     pendingInlineAccept: overrides.pendingInlineAccept ?? false,
     inlineRenderRejected: overrides.inlineRenderRejected ?? false,
     missingTrailingSpace: overrides.missingTrailingSpace ?? false,

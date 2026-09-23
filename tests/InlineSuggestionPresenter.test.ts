@@ -7,11 +7,13 @@ import { createRect, createSuggestionEntry } from "./suggestionTestUtils";
 function setupInputPresenter({
   value,
   suggestion,
+  token = value,
   direction,
   getCaretRect = () => createRect(),
 }: {
   value: string;
   suggestion: string;
+  token?: string;
   direction?: "ltr" | "rtl";
   getCaretRect?: () => DOMRect | null;
 }) {
@@ -30,15 +32,15 @@ function setupInputPresenter({
   const entry = createSuggestionEntry({
     elem: input,
     inlineSuggestion: suggestion,
-    latestMentionText: value,
+    latestMentionText: token,
   });
   const render = () =>
     presenter.renderForEntry({
       enabled: true,
       entry,
-      resolveMentionToken: () => ({ token: value, start: 0 }),
+      resolveMentionToken: () => ({ token, start: value.length - token.length }),
     });
-  return { entry, render };
+  return { entry, render, presenter };
 }
 
 describe("InlineSuggestionPresenter", () => {
@@ -81,38 +83,110 @@ describe("InlineSuggestionPresenter", () => {
     expect(removeForEntrySpy).not.toHaveBeenCalled();
   });
 
-  test("clears inline UI when suggestion does not match mention prefix", () => {
+  // Snippet expansions (#397) replace the typed shortcut instead of extending it.
+  test("previews a text expansion in place of the typed shortcut", () => {
+    const { entry, render, presenter } = setupInputPresenter({
+      value: "fun brb",
+      token: "brb",
+      suggestion: "hello ",
+    });
+    entry.inlineSuggestionToken = "brb";
+
+    render();
+
+    const mirror = document.querySelector(".ft-suggestion-inline");
+    // WYSIWYG: the preview reads as the post-acceptance text.
+    expect(mirror?.textContent?.replace(/\u00a0/g, " ")).toBe("fun hello ");
+    expect(entry.inlineSuggestion).toBe("hello ");
+    expect(entry.inlineRenderRejected).toBe(false);
+    // Stop the removal observer: later tests reuse the entry id.
+    presenter.clearForEntry(entry.id);
+  });
+
+  test("drops a non-extending suggestion predicted for a different token", () => {
+    const renderSpy = jest.spyOn(InlineSuggestionView, "render");
+    const mirrorSpy = jest.spyOn(InlineSuggestionView, "renderMirrorPreview");
+    // "function" was predicted for "fun"; the user has since typed "fund".
+    const { entry, render } = setupInputPresenter({ value: "fund", suggestion: "function" });
+    entry.inlineSuggestionToken = "fun";
+
+    render();
+
+    expect(renderSpy).not.toHaveBeenCalled();
+    expect(mirrorSpy).not.toHaveBeenCalled();
+    // A hidden ghost must not stay armed for Tab acceptance.
+    expect(entry.inlineSuggestion).toBeNull();
+    expect(entry.inlineRenderRejected).toBe(true);
+  });
+
+  test("annotates a text expansion at the end of a contenteditable", () => {
     const renderSpy = jest
       .spyOn(InlineSuggestionView, "render")
-      .mockImplementation(() => undefined);
-    const removeForEntrySpy = jest
-      .spyOn(InlineSuggestionView, "removeForEntry")
-      .mockImplementation(() => undefined);
-    const positioning = {
-      getCaretRect: jest.fn(() => createRect()),
-    } as unknown as SuggestionPositioningService;
-    const presenter = new InlineSuggestionPresenter({ positioningService: positioning });
-
-    const input = document.createElement("input");
-    input.value = "fun";
-    input.selectionStart = 3;
-    input.selectionEnd = 3;
+      .mockImplementation(() => document.createElement("div"));
+    const presenter = new InlineSuggestionPresenter({
+      positioningService: {
+        getCaretRect: () => createRect(),
+      } as unknown as SuggestionPositioningService,
+    });
+    const container = document.createElement("div");
+    container.contentEditable = "true";
+    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
+    container.textContent = "ok brb";
+    document.body.appendChild(container);
+    const range = document.createRange();
+    range.setStart(container.firstChild!, 6);
+    range.collapse(true);
+    window.getSelection()!.removeAllRanges();
+    window.getSelection()!.addRange(range);
     const entry = createSuggestionEntry({
-      elem: input,
-      inlineSuggestion: "hello",
-      latestMentionText: "fun",
+      elem: container,
+      inlineSuggestion: "be right back ",
+      inlineSuggestionToken: "brb",
+      latestMentionText: "brb",
     });
 
     presenter.renderForEntry({
       enabled: true,
       entry,
-      resolveMentionToken: () => ({ token: "fun", start: 0 }),
+      resolveMentionToken: () => ({ token: "brb", start: 3 }),
     });
 
-    expect(renderSpy).not.toHaveBeenCalled();
-    expect(removeForEntrySpy).toHaveBeenCalled();
-    // A hidden ghost must not stay armed for Tab acceptance.
+    expect(renderSpy).toHaveBeenCalledTimes(1);
+    expect(renderSpy.mock.calls[0]?.[0].text).toBe(" → be right back");
+    expect(entry.inlineSuggestion).toBe("be right back ");
+  });
+
+  test("does not arm a text expansion mid-text in a contenteditable", () => {
+    const presenter = new InlineSuggestionPresenter({
+      positioningService: {
+        getCaretRect: () => createRect(),
+      } as unknown as SuggestionPositioningService,
+    });
+    const container = document.createElement("div");
+    container.contentEditable = "true";
+    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
+    container.textContent = "brb later";
+    document.body.appendChild(container);
+    const range = document.createRange();
+    range.setStart(container.firstChild!, 3);
+    range.collapse(true);
+    window.getSelection()!.removeAllRanges();
+    window.getSelection()!.addRange(range);
+    const entry = createSuggestionEntry({
+      elem: container,
+      inlineSuggestion: "be right back ",
+      inlineSuggestionToken: "brb",
+      latestMentionText: "brb",
+    });
+
+    presenter.renderForEntry({
+      enabled: true,
+      entry,
+      resolveMentionToken: () => ({ token: "brb", start: 0 }),
+    });
+
     expect(entry.inlineSuggestion).toBeNull();
+    expect(entry.inlineRenderRejected).toBe(true);
   });
 
   test("drops the accept target when the caret cannot be measured", () => {

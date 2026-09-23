@@ -1344,10 +1344,10 @@ function makeInlineTabHarness({
     editableContextResolver: {
       resolve: () => ({
         kind: "text-value" as const,
-        beforeCursor: value,
+        beforeCursor: input.value,
         afterCursor: "",
-        fullText: value,
-        cursorOffset: value.length,
+        fullText: input.value,
+        cursorOffset: input.value.length,
         selectionStable: true,
       }),
     },
@@ -1382,7 +1382,13 @@ function makeInlineTabHarness({
   };
   const respond = (predictions: string[]) =>
     session.handlePredictionResponse({ requestId: entry.requestId, suggestionId: 1, predictions });
-  return { entry, session, textEditService, pressTab, respond };
+  // Types more text; the next prediction is held back until `respond`.
+  const type = (text: string) => {
+    input.value += text;
+    input.setSelectionRange(input.value.length, input.value.length);
+    session.handleInput(new Event("input"));
+  };
+  return { entry, session, textEditService, pressTab, respond, type };
 }
 
 test("inline Tab never accepts or traps focus when the renderer rejects the suggestion", () => {
@@ -1447,6 +1453,47 @@ test("inline Tab accepts an exact-match suggestion with no ghost suffix", () => 
   expect(entry.inlineSuggestion).toBe("function");
   expect(pressTab()).toBe(true);
   expect(textEditService.acceptSuggestion).toHaveBeenCalledWith(entry, "function");
+});
+
+// Regression for #397: a snippet expansion replaces its shortcut, so it never
+// starts with the typed word.
+test("inline Tab accepts a text expansion that replaces the typed shortcut", () => {
+  const { entry, textEditService, pressTab, respond } = makeInlineTabHarness({
+    value: "brb",
+    caretMeasurable: true,
+  });
+  respond(["be right back "]);
+
+  expect(entry.inlineSuggestion).toBe("be right back ");
+  expect(pressTab()).toBe(true);
+  expect(textEditService.acceptSuggestion).toHaveBeenCalledWith(entry, "be right back ");
+});
+
+test("inline Tab does not accept a stale prediction after diverging typing", () => {
+  const { entry, textEditService, pressTab, respond, type } = makeInlineTabHarness({
+    value: "fun",
+    caretMeasurable: true,
+  });
+  respond(["function"]);
+  // The next response is delayed; "fund" no longer extends "function".
+  type("d");
+
+  expect(entry.inlineSuggestion).toBeNull();
+  pressTab();
+  expect(textEditService.acceptSuggestion).not.toHaveBeenCalled();
+});
+
+test("inline Tab does not accept a stale expansion after the shortcut is edited", () => {
+  const { entry, textEditService, pressTab, respond, type } = makeInlineTabHarness({
+    value: "brb",
+    caretMeasurable: true,
+  });
+  respond(["be right back "]);
+  type("x");
+
+  expect(entry.inlineSuggestion).toBeNull();
+  pressTab();
+  expect(textEditService.acceptSuggestion).not.toHaveBeenCalled();
 });
 
 test("session falls back to empty suggestions for invalid prediction payloads", () => {

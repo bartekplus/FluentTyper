@@ -4205,6 +4205,80 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     browserTimeout(45000, 70000),
   );
 
+  // Regression for #397: a text expansion replaces its shortcut, so the
+  // preview must show the replacement (visibly, even in a narrow input) and
+  // Tab must yield exactly the previewed text.
+  test(
+    "Inline text expansion previews and replaces the shortcut mid-text in a narrow input",
+    async () => {
+      const selector = "#test-input";
+      try {
+        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, true);
+        await setSettingAndWait(worker!, KEY_LANGUAGE, "textExpander");
+        await setSettingAndWait(worker!, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+        await setSettingAndWait(worker!, KEY_TEXT_EXPANSIONS, [["longshortcutxx", "OK"]]);
+        await applyConfigChange(browser, worker!);
+
+        await gotoTestPage(page);
+        await page.bringToFront();
+        await waitForInputReady(page, selector);
+        await page.evaluate(() => {
+          const input = document.getElementById("test-input") as HTMLInputElement;
+          Object.assign(input.style, {
+            boxSizing: "border-box",
+            width: "190px",
+            font: "20px/24px monospace",
+            padding: "2px",
+            border: "1px solid",
+          });
+          input.value = "longshortcutx rest";
+          input.focus();
+          input.setSelectionRange(13, 13);
+        });
+        await page.keyboard.type("x");
+
+        const preview = await waitUntil(
+          "visible inline text expansion preview",
+          async () =>
+            page.evaluate(() => {
+              const mirror = document.querySelector(".ft-suggestion-inline") as HTMLElement | null;
+              const ghost = mirror?.children[1];
+              if (!mirror || !ghost || !(ghost.textContent ?? "").includes("OK")) {
+                return false;
+              }
+              const mirrorRect = mirror.getBoundingClientRect();
+              const ghostRect = ghost.getBoundingClientRect();
+              const visible =
+                ghostRect.left >= mirrorRect.left - 1 && ghostRect.right <= mirrorRect.right + 1;
+              return visible ? (mirror.textContent ?? "").replace(/ /g, " ") : false;
+            }),
+          { timeoutMs: browserTimeout(3000, 6000), intervalMs: 50 },
+        );
+        // The shortcut is replaced, not kept alongside the expansion.
+        expect(preview).not.toContain("longshortcut");
+
+        await page.keyboard.press("Tab");
+        const finalText = await waitUntil(
+          "input value after accepting the text expansion",
+          async () => {
+            const value = await page.$eval(selector, (el) =>
+              (el as HTMLInputElement).value.replace(/ /g, " "),
+            );
+            return value === preview ? value : false;
+          },
+          { timeoutMs: browserTimeout(3000, 6000), intervalMs: 50 },
+        );
+        expect(finalText).toBe(preview);
+      } finally {
+        await setSettingAndWait(worker!, KEY_INLINE_SUGGESTION, false);
+        await setSettingAndWait(worker!, KEY_LANGUAGE, "en_US");
+        await setSettingAndWait(worker!, KEY_TEXT_EXPANSIONS, []);
+        await applyConfigChange(browser, worker!);
+      }
+    },
+    browserTimeout(30000, 45000),
+  );
+
   test(
     "Enabled languages restrict popup language list",
     async () => {
