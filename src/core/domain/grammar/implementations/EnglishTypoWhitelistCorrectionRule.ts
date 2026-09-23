@@ -7,18 +7,20 @@ import {
 } from "./helpers/EnglishRuleShared";
 import { applyWordCase, detectWordCase, normalizeWordSet } from "./helpers/GenericRuleShared";
 
-const TYPO_WHITELIST: Record<string, string> = {
-  teh: "the",
-  adn: "and",
-  recieve: "receive",
-  seperate: "separate",
-  occured: "occurred",
-  untill: "until",
-  wich: "which",
-  thier: "their",
-  becuase: "because",
-  definately: "definitely",
-};
+const TYPO_WHITELIST = new Map(
+  Object.entries({
+    teh: "the",
+    adn: "and",
+    recieve: "receive",
+    seperate: "separate",
+    occured: "occurred",
+    untill: "until",
+    wich: "which",
+    thier: "their",
+    becuase: "because",
+    definately: "definitely",
+  }),
+);
 
 export class EnglishTypoWhitelistCorrectionRule implements GrammarRule {
   readonly id = "englishTypoWhitelistCorrection" as const;
@@ -45,7 +47,7 @@ export class EnglishTypoWhitelistCorrectionRule implements GrammarRule {
     }
 
     const normalizedToken = tokenInfo.token.toLowerCase();
-    const correction = TYPO_WHITELIST[normalizedToken];
+    const correction = TYPO_WHITELIST.get(normalizedToken);
     if (!correction) {
       return null;
     }
