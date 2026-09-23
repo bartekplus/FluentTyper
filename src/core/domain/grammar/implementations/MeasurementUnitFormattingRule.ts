@@ -54,6 +54,11 @@ export function isProsePrefix(prefix: string): boolean {
     return false;
   }
   const line = prefix.slice(lineStart);
+  // Four spaces or a tab open an indented Markdown code block; a textarea
+  // cannot tell us whether that applies, so fail closed.
+  if (/^(?: {4}|\t)/u.test(line)) {
+    return false;
+  }
   // Nothing before the measurement is not evidence against prose, and treating
   // it as such formatted "2Mbit 2Mbit" into "2Mbit 2 Mbit": the same text
   // twice, spaced only where a word happened to precede it.
@@ -69,7 +74,7 @@ export function isProsePrefix(prefix: string): boolean {
   if (
     // Case-insensitive: at the start of a field the capitalization rule turns
     // "npm" into "Npm" before this guard ever sees it.
-    /^\s*(?:sudo|doas|git|npm|npx|bun|node|python\d*|pip\d*|curl|wget|echo|printf|export|let|const|var|return|import|docker|kubectl|cargo|apt|brew)(?:\s|$)/iu.test(
+    /^\s*(?:sudo|doas|git|npm|npx|bun|node|python\d*|pip\d*|curl|wget|echo|printf|export|let|const|var|return|import|docker|kubectl|cargo|apt|brew|cp|mv|rm|cd|ls|cat|touch|grep|mkdir|chmod|chown|ln|scp|rsync|ssh|sed|awk|tar|yarn|pnpm)(?:\s|$)/iu.test(
       line,
     )
   ) {

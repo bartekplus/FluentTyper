@@ -912,7 +912,12 @@
         {
           "layer": "unit",
           "file": "tests/grammar/CurrencySpacing.test.ts",
-          "test": "requires prose context and a verified locale"
+          "test": "leaves code, commands and literal text unchanged"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/grammar/CurrencySpacing.test.ts",
+          "test": "coordinator leaves protected, paste, delete and idle input alone"
         }
       ]
     },

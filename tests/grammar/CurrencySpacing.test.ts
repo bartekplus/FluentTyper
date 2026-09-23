@@ -2,11 +2,15 @@ import { describe, expect, test } from "bun:test";
 import { GrammarRuleEngine } from "../../src/core/domain/grammar/GrammarRuleEngine";
 import { applyGrammarEditToContext } from "../../src/core/domain/grammar/GrammarEditSequencing";
 import { createGrammarRuleCatalogRuntime } from "../../src/core/domain/grammar/ruleFactory";
+import { DEFAULT_CURRENT_GRAMMAR_RULES } from "../../src/core/domain/grammar/ruleCatalog";
 import { CurrencySpacingRule } from "../../src/core/domain/grammar/implementations/CurrencySpacingRule";
 import type { GrammarContext } from "../../src/core/domain/grammar/types";
+import { SuggestionGrammarCoordinator } from "../../src/adapters/chrome/content-script/suggestions/SuggestionGrammarCoordinator";
 
 const NBSP = " ";
 const rule = new CurrencySpacingRule();
+const DEFAULTS: string[] = DEFAULT_CURRENT_GRAMMAR_RULES;
+const DEFAULTS_WITHOUT_RULE = DEFAULTS.filter((id) => id !== "currencySpacing");
 
 function context(
   beforeCursor: string,
@@ -26,7 +30,8 @@ function applyRule(input: string, lang = "en_US", hints: GrammarContext["hints"]
   return input.slice(0, input.length - edit.deleteBackwards) + edit.replacement;
 }
 
-function typeThroughAllRules(input: string, lang: string): string {
+/** Types `input` one keystroke at a time; `rules` undefined runs every registered rule. */
+function type(input: string, lang: string, rules?: string[]): string {
   const engine = new GrammarRuleEngine();
   for (const item of createGrammarRuleCatalogRuntime({
     insertSpaceAfterAutocomplete: true,
@@ -38,13 +43,24 @@ function typeThroughAllRules(input: string, lang: string): string {
   for (const char of input) {
     state.beforeCursor += char;
     const event = char === " " || char === "\n" ? "wordBoundary" : "insertChar";
-    const edit = engine.processSequence([event], state);
+    const edit = engine.processSequence([event], state, rules);
     if (edit) state = applyGrammarEditToContext(state, edit);
   }
   return state.beforeCursor + state.afterCursor;
 }
 
+/** The rule leaves `input` alone on its own, keystroke by keystroke, and in the default pipeline. */
+function expectUnchanged(input: string, lang = "en_US"): void {
+  expect(applyRule(input, lang)).toBe(input);
+  expect(type(input, lang, ["currencySpacing"])).toBe(input);
+  expect(type(input, lang, DEFAULTS)).toBe(type(input, lang, DEFAULTS_WITHOUT_RULE));
+}
+
 describe("currency spacing", () => {
+  test("is on in the production default selection", () => {
+    expect(DEFAULTS).toContain("currencySpacing");
+  });
+
   test("inserts one NBSP and keeps number, decimals, zeros and marker exactly", () => {
     const cases = [
       ["pl_PL", "Cena: 120zł ", `Cena: 120${NBSP}zł `],
@@ -61,7 +77,9 @@ describe("currency spacing", () => {
     ] as const;
     for (const [lang, input, expected] of cases) {
       expect(applyRule(input, lang)).toBe(expected);
-      expect(typeThroughAllRules(input, lang)).toBe(expected);
+      expect(type(input, lang, ["currencySpacing"])).toBe(expected);
+      expect(type(input, lang, DEFAULTS)).toBe(expected);
+      expect(type(input, lang)).toBe(expected);
     }
   });
 
@@ -78,13 +96,12 @@ describe("currency spacing", () => {
       ["en_US", "Rate: 1.5e3USD "],
     ] as const;
     for (const [lang, input] of unchanged) {
-      expect(applyRule(input, lang)).toBe(input);
-      expect(typeThroughAllRules(input, lang)).toBe(input);
+      expectUnchanged(input, lang);
     }
   });
 
   test("leaves existing separators, unknown markers and non-currency words alone", () => {
-    const unchanged = [
+    for (const input of [
       "Budget: 250 EUR ",
       `Budget: 250${NBSP}EUR `,
       "Budget: 250 EUR ",
@@ -100,44 +117,79 @@ describe("currency spacing", () => {
       "Budget: 250zl ",
       "Budget: 250ZŁ ",
       "Budget: 250kr. ",
-      "Budget: 250EUR",
       "Budget: 250EUR, ",
-    ];
-    for (const input of unchanged) {
-      expect(applyRule(input)).toBe(input);
+    ]) {
+      expectUnchanged(input);
+    }
+    expect(applyRule("Budget: 250EUR")).toBe("Budget: 250EUR");
+  });
+
+  test("leaves code, commands and literal text unchanged", () => {
+    for (const input of [
+      "let price = 250EUR ",
+      "const x = 5USD ",
+      "https://shop.example/250EUR ",
+      "path/to/250EUR ",
+      "`250EUR ",
+      "```\n250EUR ",
+      "f(250EUR ",
+      "id_250EUR ",
+      "$250EUR ",
+      // Shell arguments are file names and patterns, not prices.
+      ...["cp", "mv", "rm", "cd", "cat", "touch", "grep", "ls", "mkdir"].flatMap((cmd) => [
+        `${cmd} 250EUR `,
+        `${cmd[0].toUpperCase()}${cmd.slice(1)} 250EUR `,
+        `${cmd} -r 250EUR `,
+      ]),
+      "cp 250EUR backup ",
+      // Indented Markdown code blocks are literal.
+      "    250EUR ",
+      "\t250EUR ",
+      "Example:\n\n    250EUR ",
+      "Example:\n\n\t250EUR ",
+      "    Price: 250EUR ",
+    ]) {
+      expectUnchanged(input);
     }
   });
 
-  test("requires prose context and a verified locale", () => {
-    const unchanged: Array<[string, string, GrammarContext["hints"]?]> = [
-      ["let price = 250EUR ", "en_US"],
-      ["const x = 5USD ", "en_US"],
-      ["https://shop.example/250EUR ", "en_US"],
-      ["path/to/250EUR ", "en_US"],
-      ["`250EUR ", "en_US"],
-      ["```\n250EUR ", "en_US"],
-      ["f(250EUR ", "en_US"],
-      ["id_250EUR ", "en_US"],
-      ["$250EUR ", "en_US"],
-      ["Budget: 250EUR ", "en_GB"],
-      ["Budget: 250EUR ", "pt_PT"],
-      ["Budget: 250EUR ", "en"],
-      ["Budget: 250EUR ", "en_US", { measurementContext: "protected" }],
-      ["Budget: 250EUR ", "en_US", { measurementContext: undefined }],
-      ["Budget: 250EUR ", "en_US", { isPaste: true }],
-      ["Budget: 250EUR ", "en_US", { inputAction: "delete" }],
-    ];
-    for (const [input, lang, hints] of unchanged) {
-      expect(applyRule(input, lang, hints)).toBe(input);
+  test("requires a verified locale", () => {
+    for (const lang of ["en_GB", "pt_PT", "en"]) {
+      expectUnchanged("Budget: 250EUR ", lang);
     }
     expect(rule.apply({ ...context("Budget: 250EUR "), afterCursor: "x" })).toBeNull();
   });
 
-  test("does not fire on idle or ordinary characters, and output is stable", () => {
-    expect(rule.triggers).toEqual(["wordBoundary"]);
+  test("coordinator leaves protected, paste, delete and idle input alone", () => {
+    const grammar = new SuggestionGrammarCoordinator({
+      enabledGrammarRules: DEFAULTS,
+      insertSpaceAfterAutocomplete: true,
+      lang: "en_US",
+      userDictionaryList: [],
+    });
+    const input = {
+      beforeCursor: "Budget: 250EUR ",
+      afterCursor: "",
+      inputAction: "insert" as const,
+      measurementContext: "prose" as const,
+      triggers: ["wordBoundary" as const],
+    };
+    const edit = grammar.run(input);
+    expect(edit?.sourceRuleId).toBe("currencySpacing");
+    expect(edit?.replacement).toBe(`250${NBSP}EUR `);
+    expect(grammar.run({ ...input, measurementContext: "protected" })).toBeNull();
+    expect(grammar.run({ ...input, measurementContext: undefined })).toBeNull();
+    expect(grammar.run({ ...input, triggers: ["paste", "wordBoundary"] })).toBeNull();
+    expect(grammar.run({ ...input, inputAction: "delete" })).toBeNull();
+    expect(grammar.run({ ...input, triggers: ["idle"] })).toBeNull();
+    grammar.updateLanguage("en-GB");
+    expect(grammar.run(input)).toBeNull();
+  });
+
+  test("output is stable and repeated amounts are each spaced once", () => {
     const once = applyRule("Cena: 120zł ", "pl_PL");
     expect(applyRule(once, "pl_PL")).toBe(once);
-    expect(typeThroughAllRules("Cena: 120zł i 5,50zł dopłaty ", "pl_PL")).toBe(
+    expect(type("Cena: 120zł i 5,50zł dopłaty ", "pl_PL", DEFAULTS)).toBe(
       `Cena: 120${NBSP}zł i 5,50${NBSP}zł dopłaty `,
     );
   });
