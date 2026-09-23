@@ -56,8 +56,12 @@ function closedQuoteStart(inputStr: string, index: number, ch: string): number {
 }
 
 // A statement keyword before the quote makes it a string literal, not dialogue.
+// Case-insensitive because sentence capitalization turns "return" into
+// "Return"; words that also open English sentences ("If", "When") only count
+// in lowercase.
 const CODE_STATEMENT_START =
-  /^\s*(?:return|yield|throw|await|case|echo|print|printf|puts|console\.\w+|export|const|let|var|def|if|elif|else|when)\b/iu;
+  /^\s*(?:return|yield|throw|await|echo|printf|puts|console\.\w+|export|const|var|def|elif)\b/iu;
+const LOWERCASE_STATEMENT_START = /^\s*(?:case|print|let|if|else|when)\b/u;
 
 // Positive evidence that the quote from `openerIndex` to the "," / "." at
 // `punctuationIndex` is dialogue: the quote holds a word ("Hi", not ". "), the
@@ -67,7 +71,7 @@ function isProseQuote(inputStr: string, openerIndex: number, punctuationIndex: n
   const quoted = inputStr.slice(openerIndex + 1, punctuationIndex);
   if (!/^[\p{L}\p{N}]/u.test(quoted) || !/\p{L}/u.test(quoted)) return false;
   const lead = inputStr.slice(inputStr.lastIndexOf("\n", openerIndex) + 1, openerIndex);
-  if (CODE_STATEMENT_START.test(lead)) return false;
+  if (CODE_STATEMENT_START.test(lead) || LOWERCASE_STATEMENT_START.test(lead)) return false;
   const wordBefore = /(\S+)\s+$/u.exec(lead)?.[1] ?? "";
   return !wordBefore.endsWith(":") || /^\p{L}[\p{L}'’-]*:$/u.test(wordBefore);
 }

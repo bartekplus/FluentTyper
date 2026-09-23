@@ -198,7 +198,13 @@ describe("comma/period spacing never adds a space before a closing quote", () =>
       expect(type(input)).toBe(type(input, "en_US", withoutCommaPeriod)));
 
   // Dialogue after ", " or ": " is prose, not a string literal.
-  for (const input of ['He said, "Hi," she replied ', 'He said: "No," and left '])
+  for (const input of [
+    'He said, "Hi," she replied ',
+    'He said: "No," and left ',
+    'When she said, "Hi," he left ',
+    'If he says "no," stop ',
+    'Let him say "yes," then go ',
+  ])
     test(`closes dialogue tight ${JSON.stringify(input)}`, () => expect(type(input)).toBe(input));
 
   // An inch mark after a digit is not a quote, so the next " opens one.
