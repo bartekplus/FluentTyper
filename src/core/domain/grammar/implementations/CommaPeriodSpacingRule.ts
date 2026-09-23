@@ -1,6 +1,7 @@
 import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
 import { PUNCTUATION_EQUIVALENTS, SPACE_CHARS, SPACING_OR_FILLER_CHARS } from "../../spacingRules";
 import { resolveInputAction } from "./helpers/GenericRuleShared";
+import { isInsideProtectedSpan } from "./helpers/ProtectedSpanShared";
 import { SpacingRuleShared } from "./helpers/SpacingRuleShared";
 import { resolveMeasurementLocale } from "../measurement/registry";
 
@@ -10,6 +11,70 @@ import { resolveMeasurementLocale } from "../measurement/registry";
 const NUMERIC_PREFIX = /(?:^|[\s([{])[-+]?\p{Nd}+(?:[.,\u066B]\p{Nd}*)*$/u;
 const numericPrefixBefore = (text: string, index: number): boolean =>
   NUMERIC_PREFIX.test(text.slice(Math.max(0, index - 34), index));
+
+// A closing quote sits tight against the punctuation before it: "Hi," not
+// "Hi, ". Only " and " are judged, and only as closers: an opening quote
+// right after a comma/period ('He said, "hello"') must keep its space.
+// Straight/curly single quotes are apostrophe-ambiguous and » opens rather
+// than closes in German/Danish, so none of those are touched at all.
+const CURLY_QUOTE_OPENERS = /[“„]/g;
+const CURLY_QUOTE_CLOSERS = /”/g;
+
+// Where the still-open quote that the one just typed at `index` closes starts,
+// or -1 when that quote opens a new one (or the pairing is ambiguous). Only the
+// current paragraph (the text since the last newline) counts.
+function closedQuoteStart(inputStr: string, index: number, ch: string): number {
+  const paragraphStart = inputStr.lastIndexOf("\n", index - 1) + 1;
+  const before = inputStr.slice(paragraphStart, index);
+  if (ch === '"') {
+    // Classify each " rather than counting them: one right after a digit is an
+    // inch mark (5"), one at a word start opens, anything else closes. A
+    // second opener or a stray closer is ambiguous, so do nothing. Inside an
+    // open quote a " after a digit may close it ("5") as well, so do nothing.
+    let opener = -1;
+    for (let i = 0; i < before.length; i += 1) {
+      if (before[i] !== '"') continue;
+      const previous = before[i - 1] ?? "";
+      if (/\p{Nd}/u.test(previous)) {
+        if (opener >= 0) return -1;
+        continue;
+      }
+      const opens = /^[\s([{—–]?$/u.test(previous);
+      const isOpen = opener >= 0;
+      if (opens === isOpen) return -1;
+      opener = opens ? i : -1;
+    }
+    return opener < 0 ? -1 : paragraphStart + opener;
+  }
+  if (ch === "”") {
+    const openers = before.match(CURLY_QUOTE_OPENERS)?.length ?? 0;
+    const closers = before.match(CURLY_QUOTE_CLOSERS)?.length ?? 0;
+    if (openers <= closers) return -1;
+    return paragraphStart + Math.max(before.lastIndexOf("“"), before.lastIndexOf("„"));
+  }
+  return -1;
+}
+
+// A statement keyword before the quote makes it a string literal, not dialogue.
+// Case-insensitive because sentence capitalization turns "return" into
+// "Return"; words that also open English sentences ("If", "When") only count
+// in lowercase.
+const CODE_STATEMENT_START =
+  /^\s*(?:return|yield|throw|await|echo|printf|puts|console\.\w+|export|const|var|def|elif)\b/iu;
+const LOWERCASE_STATEMENT_START = /^\s*(?:case|print|let|if|else|when)\b/u;
+
+// Positive evidence that the quote from `openerIndex` to the "," / "." at
+// `punctuationIndex` is dialogue: the quote holds a word ("Hi", not ". "), the
+// paragraph does not open like a statement, and a colon right before the quote
+// ends a word ("He said:", not "1:").
+function isProseQuote(inputStr: string, openerIndex: number, punctuationIndex: number): boolean {
+  const quoted = inputStr.slice(openerIndex + 1, punctuationIndex);
+  if (!/^[\p{L}\p{N}]/u.test(quoted) || !/\p{L}/u.test(quoted)) return false;
+  const lead = inputStr.slice(inputStr.lastIndexOf("\n", openerIndex) + 1, openerIndex);
+  if (CODE_STATEMENT_START.test(lead) || LOWERCASE_STATEMENT_START.test(lead)) return false;
+  const wordBefore = /(\S+)\s+$/u.exec(lead)?.[1] ?? "";
+  return !wordBefore.endsWith(":") || /^\p{L}[\p{L}'’-]*:$/u.test(wordBefore);
+}
 
 export class CommaPeriodSpacingRule extends SpacingRuleShared implements GrammarRule {
   readonly id = "commaPeriodSpacing" as const;
@@ -47,6 +112,42 @@ export class CommaPeriodSpacingRule extends SpacingRuleShared implements Grammar
         return null;
       }
       return this.createEdit(". ", spacesBefore + 2);
+    }
+
+    // A closing quote closes tight: strip a space this rule (or the user)
+    // left between "," / "." and the quote that follows it. An opening quote
+    // is left untouched, so its space survives. Inside code or a string
+    // literal (`x = ", "`) that space is content, so fail closed there.
+    if (lastChar === '"' || lastChar === "”") {
+      const prefix = inputStr.slice(0, -1);
+      // The span helper treats any quote after "," or ":" as a string literal,
+      // which is also ordinary dialogue (He said, "Hi,"). Only trust it where
+      // the paragraph looks like code or sits in a fence.
+      const paragraph = prefix.slice(prefix.lastIndexOf("\n") + 1);
+      const codeLike = /[=({[;`]/.test(paragraph) || /```|~~~/.test(prefix);
+      const openerIndex = closedQuoteStart(inputStr, length - 1, lastChar);
+      if (
+        context.hints?.measurementContext === "protected" ||
+        (codeLike && isInsideProtectedSpan(prefix)) ||
+        openerIndex < 0
+      ) {
+        return null;
+      }
+      let spaceRun = 0;
+      let j = length - 2;
+      while (j >= 0 && SPACE_CHARS.includes(inputStr[j])) {
+        spaceRun += 1;
+        j -= 1;
+      }
+      const punctuationChar = j >= 0 ? inputStr[j] : "";
+      if (
+        spaceRun > 0 &&
+        (punctuationChar === "," || punctuationChar === ".") &&
+        isProseQuote(inputStr, openerIndex, j)
+      ) {
+        return this.createEdit(lastChar, spaceRun + 1);
+      }
+      return null;
     }
 
     // A digit followed by a comma is ambiguous until the next character: keep

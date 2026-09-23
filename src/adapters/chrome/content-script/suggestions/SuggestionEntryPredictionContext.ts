@@ -217,23 +217,33 @@ export function resolveEditableCursorContext({
     };
   }
 
-  const typedKeyLooksMergedIntoPreviousBlock =
+  const mayBeTypedKeyMergedIntoPreviousBlock =
     inputAction !== "delete" &&
     hasMultipleBlockDescendants &&
     beforeBlockBoundary &&
     typeof typedKey === "string" &&
-    typedKey.length === 1 &&
-    blockContext.beforeCursor === resolvedSnapshot.beforeCursor &&
-    (resolvedSnapshot.beforeCursor.endsWith(typedKey) ||
-      resolvedSnapshot.beforeCursor.endsWith(typedKey.toLocaleUpperCase()));
+    typedKey.length === 1;
+  // The merge check compares against the whole editor, so it needs a real
+  // snapshot: one synthesized from the block always matches the block and
+  // drops the text after it (callers such as the input path pass null).
+  const fullSnapshot = mayBeTypedKeyMergedIntoPreviousBlock
+    ? (snapshot ?? TextTargetAdapter.snapshot(entry.elem))
+    : resolvedSnapshot;
+  const typedKeyLooksMergedIntoPreviousBlock =
+    mayBeTypedKeyMergedIntoPreviousBlock &&
+    blockContext.beforeCursor === fullSnapshot.beforeCursor &&
+    // A key that leaked out of a freshly split empty block leaves nothing after
+    // the caret. Text there (e.g. a signature below the line) means the user
+    // is simply typing at the end of this block.
+    fullSnapshot.afterCursor.trim().length === 0 &&
+    (fullSnapshot.beforeCursor.endsWith(typedKey) ||
+      fullSnapshot.beforeCursor.endsWith(typedKey.toLocaleUpperCase()));
   if (typedKeyLooksMergedIntoPreviousBlock) {
-    const trailingChar = resolvedSnapshot.beforeCursor.charAt(
-      resolvedSnapshot.beforeCursor.length - 1,
-    );
+    const trailingChar = fullSnapshot.beforeCursor.charAt(fullSnapshot.beforeCursor.length - 1);
     return {
       beforeCursor: trailingChar,
       afterCursor: "",
-      snapshot: resolvedSnapshot,
+      snapshot: fullSnapshot,
       applyContext: {
         beforeCursor: trailingChar,
         afterCursor: "",

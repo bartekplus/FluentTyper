@@ -10,7 +10,9 @@ export type GrammarRuleOverrides = Record<string, boolean>;
 
 // Frozen inventory from the last array-based settings schema. New rules must not
 // be added here: absence for a newly introduced rule means inherit its default.
-const LEGACY_RULE_IDS: readonly CatalogRuleId[] = [
+// Also the lower bound for detecting "Disable all": every rule stored here has
+// existed since before any override map could have opted every rule out at once.
+export const LEGACY_RULE_IDS: readonly CatalogRuleId[] = [
   ...DEFAULT_V3_GRAMMAR_RULES,
   "ellipsisShortcut",
   "emdashShortcut",
@@ -40,6 +42,10 @@ export function migrateLegacyGrammarRuleSelection(
 }
 
 export function resolveGrammarRuleSelection(value: unknown): CatalogRuleId[] {
+  // A legacy empty array ("Disable all") means every rule was off, including
+  // ones added since. Treat it the same as an override map that explicitly
+  // turns every known rule off: don't let new rules inherit their default.
+  if (Array.isArray(value) && value.length === 0) return [];
   const choices =
     value === undefined
       ? {}
@@ -47,6 +53,15 @@ export function resolveGrammarRuleSelection(value: unknown): CatalogRuleId[] {
         ? migrateLegacyGrammarRuleSelection(value)
         : value;
   if (!isGrammarRuleOverrides(choices)) return [];
+  // "Disable all" writes every rule known at the time as false. An ordinary
+  // partial override (a user switching off one or two rules) only ever names
+  // the rules it touches, so only treat the map as a disable-all once it's
+  // explicit about every rule that has ever existed: comprehensive over
+  // LEGACY_RULE_IDS, and false throughout.
+  const isExplicitDisableAll =
+    LEGACY_RULE_IDS.every((id) => choices[id] === false) &&
+    Object.values(choices).every((choice) => choice === false);
+  if (isExplicitDisableAll) return [];
   return GRAMMAR_RULE_IDS.filter((id) => {
     const explicit = Object.hasOwn(choices, id) ? choices[id] : undefined;
     return explicit ?? DEFAULT_CURRENT_GRAMMAR_RULES.includes(id);

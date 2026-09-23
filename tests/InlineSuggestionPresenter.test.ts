@@ -204,6 +204,75 @@ describe("InlineSuggestionPresenter", () => {
     expect(entry.inlineRenderRejected).toBe(true);
   });
 
+  // The preview must judge the caret's own block, like acceptance does, not the
+  // whole editor (a signature below, or the text of the line above).
+  function armInContentEditable(
+    html: string,
+    caretBlock: "first" | "last",
+    caretOffset: number,
+    suggestion: string,
+    token: string,
+  ) {
+    jest
+      .spyOn(InlineSuggestionView, "render")
+      .mockImplementation(() => document.createElement("div"));
+    const presenter = new InlineSuggestionPresenter({
+      positioningService: {
+        getCaretRect: () => createRect(),
+      } as unknown as SuggestionPositioningService,
+    });
+    const container = document.createElement("div");
+    container.contentEditable = "true";
+    Object.defineProperty(container, "isContentEditable", { value: true, configurable: true });
+    container.innerHTML = html;
+    document.body.appendChild(container);
+    const block = caretBlock === "first" ? container.firstChild! : container.lastChild!;
+    const range = document.createRange();
+    range.setStart(block.firstChild!, caretOffset);
+    range.collapse(true);
+    window.getSelection()!.removeAllRanges();
+    window.getSelection()!.addRange(range);
+    const entry = createSuggestionEntry({
+      elem: container,
+      inlineSuggestion: suggestion,
+      inlineSuggestionToken: token,
+      latestMentionText: token,
+    });
+    const findMentionToken = (beforeCursor: string) => {
+      const match = /\S*$/.exec(beforeCursor)!;
+      return { token: match[0], start: match.index };
+    };
+    presenter.renderForEntry({ enabled: true, entry, resolveMentionToken: findMentionToken });
+    return entry;
+  }
+
+  test("arms a text expansion at the end of a line followed by another block (signature)", () => {
+    const entry = armInContentEditable(
+      "<div>ok brb</div><div>-- Bart</div>",
+      "first",
+      6,
+      "be right back ",
+      "brb",
+    );
+    expect(entry.inlineSuggestion).toBe("be right back ");
+  });
+
+  test("arms a text expansion typed on the second line of a contenteditable", () => {
+    const entry = armInContentEditable(
+      "<div>Hi</div><div>brb</div>",
+      "last",
+      3,
+      "be right back ",
+      "brb",
+    );
+    expect(entry.inlineSuggestion).toBe("be right back ");
+  });
+
+  test("arms a completion typed on the second line of a contenteditable", () => {
+    const entry = armInContentEditable("<div>Hi</div><div>fun</div>", "last", 3, "function", "fun");
+    expect(entry.inlineSuggestion).toBe("function");
+  });
+
   test("drops the accept target when the caret cannot be measured", () => {
     const renderSpy = jest
       .spyOn(InlineSuggestionView, "render")

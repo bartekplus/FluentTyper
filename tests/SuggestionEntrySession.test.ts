@@ -1496,6 +1496,70 @@ test("inline Tab does not accept a stale expansion after the shortcut is edited"
   expect(textEditService.acceptSuggestion).not.toHaveBeenCalled();
 });
 
+// A response still in flight when more text is typed carries the text it was
+// predicted for; it must not be armed against the newer token.
+test("inline Tab does not accept a stale in-flight response after further typing", async () => {
+  const { SuggestionPredictionCoordinator } =
+    await import("../src/adapters/chrome/content-script/suggestions/SuggestionPredictionCoordinator");
+  const input = document.createElement("input");
+  input.value = "fun";
+  input.setSelectionRange(3, 3);
+  const entry = createSuggestionEntry({ elem: input, requestId: 0, latestMentionText: "" });
+  jest
+    .spyOn(InlineSuggestionView, "render")
+    .mockImplementation(() => document.createElement("div"));
+  jest
+    .spyOn(InlineSuggestionView, "renderMirrorPreview")
+    .mockImplementation(() => document.createElement("div"));
+  jest.spyOn(InlineSuggestionView, "runOpposesParagraph").mockImplementation(() => false);
+  const presenter = new InlineSuggestionPresenter({
+    positioningService: {
+      getCaretRect: () => createRect(),
+    } as unknown as SuggestionPositioningService,
+  });
+  const coordinator = new SuggestionPredictionCoordinator({
+    debounceByAction: { insert: 60, delete: 60, other: 60 },
+    getPrediction: () => undefined,
+    lang: "en_US",
+    minWordLengthToPredict: 1,
+    separatorRegex: /\s/,
+  });
+  const findMentionToken = (beforeCursor: string) => coordinator.findMentionToken(beforeCursor);
+  const session = makeSession({
+    entry,
+    inlineSuggestionEnabled: true,
+    editableContextResolver: {
+      resolve: () => ({
+        kind: "text-value" as const,
+        beforeCursor: input.value,
+        afterCursor: "",
+        fullText: input.value,
+        cursorOffset: input.value.length,
+        selectionStable: true,
+      }),
+    },
+    predictionCoordinator: coordinator as never,
+    renderInline: () =>
+      presenter.renderForEntry({ enabled: true, entry, resolveMentionToken: findMentionToken }),
+  });
+
+  session.requestPrediction();
+  const inFlightRequestId = entry.requestId;
+  // "d" is typed; its prediction is still debounced when the "fun" reply lands.
+  input.value = "fund";
+  input.setSelectionRange(4, 4);
+  session.handleInput(new Event("input"));
+  session.handlePredictionResponse({
+    requestId: inFlightRequestId,
+    suggestionId: 1,
+    text: "fun",
+    predictions: ["function"],
+  } as PredictionResponse);
+  coordinator.cancelPending(entry);
+
+  expect(entry.inlineSuggestion).toBeNull();
+});
+
 test("session falls back to empty suggestions for invalid prediction payloads", () => {
   const renderMenu = jest.fn();
   const logNoVisibleSuggestions = jest.fn();

@@ -149,6 +149,66 @@ describe("resolveEditableCursorContext", () => {
     });
   });
 
+  function resolveAtFirstBlockEnd(afterCursor: string) {
+    return resolveEditableCursorContext({
+      entry: createSuggestionEntry({ elem: createContentEditableElement() }),
+      snapshot: { beforeCursor: "ok brb", afterCursor, cursorOffset: 6 },
+      contentEditableAdapter: createContentEditableAdapter({
+        getBlockContext: () => ({ beforeCursor: "ok brb", afterCursor: "" }),
+        isCollapsedSelectionBeforeBlockBoundary: () => true,
+      }),
+      hasMultipleBlockDescendants: true,
+      inputAction: "insert",
+      typedKey: "b",
+    });
+  }
+
+  test("keeps the whole line when typing at the end of a block followed by another block", () => {
+    // e.g. a line above an email signature: the key did not leak out of a new empty block.
+    expect(resolveAtFirstBlockEnd("-- Bart").beforeCursor).toBe("ok brb");
+  });
+
+  test("treats a key at the very end of the editor as merged from a new empty block", () => {
+    expect(resolveAtFirstBlockEnd("").beforeCursor).toBe("b");
+  });
+
+  // Firefox's input path resolves the context without a precomputed snapshot,
+  // so the merge check must read what follows the caret from the live DOM.
+  function resolveAtFirstBlockEndWithoutSnapshot(html: string) {
+    const elem = createContentEditableElement();
+    elem.innerHTML = html;
+    document.body.appendChild(elem);
+    const range = document.createRange();
+    range.setStart(elem.firstChild!.firstChild!, "ok brb".length);
+    window.getSelection()!.removeAllRanges();
+    window.getSelection()!.addRange(range);
+    try {
+      return resolveEditableCursorContext({
+        entry: createSuggestionEntry({ elem }),
+        snapshot: null,
+        contentEditableAdapter: createContentEditableAdapter({
+          getBlockContext: () => ({ beforeCursor: "ok brb", afterCursor: "" }),
+          isCollapsedSelectionBeforeBlockBoundary: () => true,
+        }),
+        hasMultipleBlockDescendants: true,
+        inputAction: "insert",
+        typedKey: "b",
+      }).beforeCursor;
+    } finally {
+      elem.remove();
+    }
+  }
+
+  test("keeps the whole line above another block when no snapshot is provided", () => {
+    expect(resolveAtFirstBlockEndWithoutSnapshot("<div>ok brb</div><div>-- Bart</div>")).toBe(
+      "ok brb",
+    );
+  });
+
+  test("still treats a key at the editor end as merged when no snapshot is provided", () => {
+    expect(resolveAtFirstBlockEndWithoutSnapshot("<div>ok brb</div><div><br></div>")).toBe("b");
+  });
+
   test("seeds a pending grammar replacement into block-local prediction context", () => {
     const entry = createSuggestionEntry({ elem: createContentEditableElement() });
     entry.pendingExtensionEdit = createGrammarPendingEdit({

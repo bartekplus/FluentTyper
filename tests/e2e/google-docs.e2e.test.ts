@@ -110,8 +110,30 @@ async function seed(
     evaluate<boolean>("document.querySelector('iframe').hasAttribute('data-ft-docs-key-state')"),
   );
 }
+/**
+ * A fresh adapter with only these rules, once grammar has read the document. Until then it
+ * has no baseline, so it cannot tell typed text from text that was already there and judges
+ * only the caret. Live Docs is read long before anyone types; typing into that gap is what
+ * lost the correction whenever the first keystroke beat the first read.
+ */
+async function startGrammar(rules: string[]) {
+  await evaluate(`predictions=[];startDocs({enabledGrammarRules:${JSON.stringify(rules)}})`);
+  await waitUntil("the adapter's first model read", () =>
+    evaluate<boolean>("docs.grammarBaseline !== null"),
+  );
+}
 async function expectText(text: string) {
-  await waitUntil("verified model text", async () => (await model()).text === text);
+  try {
+    await waitUntil("verified model text", async () => (await model()).text === text);
+  } catch (error) {
+    // What the host ended up with says whether a correction was lost or text was corrupted.
+    const state = await page.evaluate(() => (window as unknown as { model: object }).model);
+    const events = await evaluate<string[]>("events").catch(() => null);
+    throw new Error(
+      `${(error as Error).message}: expected ${JSON.stringify(text)}, model ${JSON.stringify(state)}, events ${JSON.stringify(events)}`,
+      { cause: error },
+    );
+  }
 }
 
 describe("Google Docs cross-world fixture (not live Docs)", () => {
@@ -162,6 +184,8 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
       })
     ).executionContextId;
     await evaluate(controllerCode);
+    // `FT_CPU=6` replays the suite on a host this many times slower, roughly a loaded CI runner.
+    if (process.env.FT_CPU) await page.emulateCPUThrottling(Number(process.env.FT_CPU));
   });
   afterAll(async () => {
     await browser?.close();
@@ -387,9 +411,7 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
     ).toBe(false);
   });
   test("the shared local grammar catalog performs automatic correction", async () => {
-    await evaluate(
-      'predictions=[];startDocs({enabledGrammarRules:["englishTypoWhitelistCorrection"]})',
-    );
+    await startGrammar(["englishTypoWhitelistCorrection"]);
     await page.keyboard.type("teh ");
     await expectText("the ");
     expect((await evaluate<string[]>("events")).includes("accepted")).toBe(false);
@@ -399,9 +421,7 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
   // turned every paragraph longer than the window - an ordinary long document - into one
   // where nothing was corrected at all.
   test("corrections still run where the context window starts mid-paragraph", async () => {
-    await evaluate(
-      'predictions=[];startDocs({enabledGrammarRules:["englishTypoWhitelistCorrection","capitalizeSentenceStart"]})',
-    );
+    await startGrammar(["englishTypoWhitelistCorrection", "capitalizeSentenceStart"]);
     const paragraph = "lorem ipsum dolor sit amet ".repeat(500);
     expect(paragraph.length).toBeGreaterThan(MAX_CONTEXT);
     await page.evaluate((text) => {
@@ -420,9 +440,7 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
   // selected range and destroys the word being corrected. The correction may be lost -
   // that is only latency - but the text must never come out mangled.
   test("a keystroke during an in-flight correction never destroys text", async () => {
-    await evaluate(
-      'predictions=[];startDocs({enabledGrammarRules:["englishTypoWhitelistCorrection"]})',
-    );
+    await startGrammar(["englishTypoWhitelistCorrection"]);
     await page.evaluate(() => {
       (window as unknown as { annotateDelayMs: number }).annotateDelayMs = 40;
     });
@@ -451,9 +469,7 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
   // sentence. A read that spanned a keystroke is still a self-consistent model and a
   // perfectly good baseline; discarding it left long documents uncorrected entirely.
   test("corrections survive a model read slower than the typing", async () => {
-    await evaluate(
-      'predictions=[];startDocs({enabledGrammarRules:["englishTypoWhitelistCorrection"]})',
-    );
+    await startGrammar(["englishTypoWhitelistCorrection"]);
     await page.evaluate(() => {
       (window as unknown as { annotateDelayMs: number }).annotateDelayMs = 120;
     });
@@ -464,9 +480,7 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
   // has to be replayed at once. Capping that at 64 and judging only the caret beyond it
   // wrote off the rest of the sentence permanently.
   test("a correction survives a sentence longer than the replay window", async () => {
-    await evaluate(
-      'predictions=[];startDocs({enabledGrammarRules:["englishTypoWhitelistCorrection"]})',
-    );
+    await startGrammar(["englishTypoWhitelistCorrection"]);
     await page.evaluate(() => {
       (window as unknown as { annotateDelayMs: number }).annotateDelayMs = 300;
     });
@@ -480,9 +494,7 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
   // within their own window meant replay never ran at all in a long document, and a
   // correction landed only if a read AND a write fitted between two keystrokes.
   test("a burst is still caught up in a document longer than the window", async () => {
-    await evaluate(
-      'predictions=[];startDocs({enabledGrammarRules:["englishTypoWhitelistCorrection"]})',
-    );
+    await startGrammar(["englishTypoWhitelistCorrection"]);
     const paragraph = "lorem ipsum dolor sit amet ".repeat(500);
     expect(paragraph.length).toBeGreaterThan(MAX_CONTEXT);
     await page.evaluate((text) => {
@@ -505,7 +517,7 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
   // window. Measurement formatting refuses any context over 512 characters, so it never
   // fired anywhere but at the top of a short document.
   test("measurement formatting still runs deep inside a long document", async () => {
-    await evaluate('predictions=[];startDocs({enabledGrammarRules:["measurementUnitFormatting"]})');
+    await startGrammar(["measurementUnitFormatting"]);
     const paragraph = "lorem ipsum dolor sit amet ".repeat(500);
     expect(paragraph.length).toBeGreaterThan(MAX_CONTEXT);
     await page.evaluate((text) => {
@@ -524,9 +536,15 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
   // phrase is typed as one burst here: without replaying the skipped positions only the
   // final caret is ever judged, and the correction is lost.
   test("a correction is still made when the burst runs past it", async () => {
-    await evaluate(
-      'predictions=[];startDocs({enabledGrammarRules:["englishTypoWhitelistCorrection"]})',
-    );
+    await startGrammar(["englishTypoWhitelistCorrection"]);
+    await page.keyboard.type("teh cat sat down ", { delay: 0 });
+    await expectText("the cat sat down ");
+  });
+  // The same burst on a host several times slower: no model read finishes between two
+  // keystrokes, so the correction rests entirely on replay from the pre-burst baseline.
+  test("a correction is still made when every read loses to the burst", async () => {
+    await page.emulateCPUThrottling(6);
+    await startGrammar(["englishTypoWhitelistCorrection"]);
     await page.keyboard.type("teh cat sat down ", { delay: 0 });
     await expectText("the cat sat down ");
   });
@@ -534,7 +552,7 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
   // space into an ordinary one) used to fail verification, so the caret was never
   // moved off the spot the paste left it and everything typed next landed mid-word.
   test("the caret follows a correction the host rewrites on insertion", async () => {
-    await evaluate('predictions=[];startDocs({enabledGrammarRules:["measurementUnitFormatting"]})');
+    await startGrammar(["measurementUnitFormatting"]);
     await page.keyboard.type("10kg ", { delay: TYPING_DELAY_MS });
     await expectText("10 kg ");
     const caret = await page.evaluate(
@@ -554,11 +572,7 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
   ] as Array<[string, KeyboardEventInit | null]>)(
     "a paste from %s is never replayed as typing",
     async (_name, key) => {
-      await evaluate(
-        'predictions=[];startDocs({enabledGrammarRules:["englishTypoWhitelistCorrection","measurementUnitFormatting"]})',
-      );
-      await waitUntil("a first model read", () => evaluate<boolean>("events.length >= 0"));
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      await startGrammar(["englishTypoWhitelistCorrection", "measurementUnitFormatting"]);
       await page.frames()[1].evaluate((init) => {
         const input = document.querySelector("#input")!;
         if (init) input.dispatchEvent(new KeyboardEvent("keydown", { ...init, bubbles: true }));
@@ -577,9 +591,7 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
   // lands, the key events that would have triggered it are gone, so it was judged with no
   // triggers at all - that is, not judged - and then marked as done.
   test("a burst ending exactly on a second correction gets both", async () => {
-    await evaluate(
-      'predictions=[];startDocs({enabledGrammarRules:["englishTypoWhitelistCorrection"]})',
-    );
+    await startGrammar(["englishTypoWhitelistCorrection"]);
     await page.evaluate(() => {
       (window as unknown as { annotateDelayMs: number }).annotateDelayMs = 40;
     });
@@ -596,7 +608,7 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
     // The cut is not a beginning: nothing here says this word opens a sentence.
     ["capitalizeSentenceStart", `${"a".repeat(600)}${" ".repeat(520)}`, "next ", "next "],
   ])("%s still sees a real boundary %#  past the context cut", async (rule, before, keys, out) => {
-    await evaluate(`predictions=[];startDocs({enabledGrammarRules:["${rule}"]})`);
+    await startGrammar([rule]);
     const text = before.replace("\\n", "\n");
     await page.evaluate((value) => {
       const fixture = window as unknown as {
@@ -617,7 +629,7 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
     ["10kg cat ", "10 kg cat "],
     ["10kg and 5km ok ", "10 kg and 5 km ok "],
   ])("a measurement is formatted when the burst %p runs past it", async (keys, expected) => {
-    await evaluate('predictions=[];startDocs({enabledGrammarRules:["measurementUnitFormatting"]})');
+    await startGrammar(["measurementUnitFormatting"]);
     await page.evaluate(() => {
       (window as unknown as { annotateDelayMs: number }).annotateDelayMs = 40;
     });
@@ -625,7 +637,7 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
     await expectText(expected);
   });
   test("a measurement typed in front of existing text is still left alone", async () => {
-    await evaluate('predictions=[];startDocs({enabledGrammarRules:["measurementUnitFormatting"]})');
+    await startGrammar(["measurementUnitFormatting"]);
     await page.evaluate(() => {
       const fixture = window as unknown as {
         setModel: (value: string, a: number, f: number) => void;
@@ -654,7 +666,7 @@ describe("Google Docs cross-world fixture (not live Docs)", () => {
       string,
       string?,
     ];
-    await evaluate(`predictions=[];startDocs({enabledGrammarRules:${JSON.stringify([ruleId])}})`);
+    await startGrammar([ruleId]);
     await page.evaluate(() => {
       const fixture = window as unknown as {
         setModel: (text: string, a: number, f: number) => void;

@@ -1,4 +1,5 @@
 import { stripIgnoredWordChars } from "@core/domain/lang";
+import { ContentEditableAdapter } from "./ContentEditableAdapter";
 import { InlineSuggestionView } from "./InlineSuggestionView";
 import { SuggestionPositioningService } from "./SuggestionPositioningService";
 import { TextTargetAdapter, type TextTarget } from "./TextTargetAdapter";
@@ -12,6 +13,7 @@ interface InlineSuggestionPresenterOptions {
 export class InlineSuggestionPresenter {
   private readonly positioningService: SuggestionPositioningService;
   private readonly doc: Document;
+  private readonly contentEditableAdapter = new ContentEditableAdapter();
   private activeGhost: HTMLDivElement | null = null;
   private activeEntryId: number | null = null;
   private removalObserver: MutationObserver | null = null;
@@ -61,7 +63,12 @@ export class InlineSuggestionPresenter {
       return;
     }
 
-    const snapshot = TextTargetAdapter.snapshot(entry.elem);
+    // Judge the caret's block like acceptance does: the whole-editor text joins
+    // blocks without separators and counts later blocks (e.g. a signature).
+    const snapshot =
+      (!TextTargetAdapter.isTextValue(entry.elem) &&
+        this.contentEditableAdapter.getBlockContext(entry.elem)) ||
+      TextTargetAdapter.snapshot(entry.elem);
     const mentionText = resolveMentionToken(snapshot.beforeCursor).token || entry.latestMentionText;
     if (!mentionText) {
       this.dropForEntry(entry);
@@ -122,7 +129,7 @@ export class InlineSuggestionPresenter {
       ghost = InlineSuggestionView.renderMirrorPreview({
         target: entry.elem as HTMLInputElement | HTMLTextAreaElement,
         suffix,
-        cursorOffset: snapshot.cursorOffset,
+        cursorOffset: snapshot.beforeCursor.length,
         trailingTokenText,
         entryId: entry.id,
         doc: this.doc,

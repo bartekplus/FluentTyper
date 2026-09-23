@@ -2,10 +2,12 @@ import { describe, expect, test } from "bun:test";
 import {
   grammarRuleSelectionToOverrides,
   isGrammarRuleOverrides,
+  LEGACY_RULE_IDS,
   migrateLegacyGrammarRuleSelection,
   resolveGrammarRuleSelection,
 } from "../../src/core/domain/grammar/GrammarRuleSettings";
 import {
+  DEFAULT_CURRENT_GRAMMAR_RULES,
   GRAMMAR_RULE_IDS,
   RECOMMENDED_CURRENT_GRAMMAR_RULES,
   RECOMMENDED_V1_GRAMMAR_RULES,
@@ -173,6 +175,29 @@ describe("GrammarRuleSettings", () => {
       expect(
         resolveGrammarRuleSelection(grammarRuleSelectionToOverrides(GRAMMAR_RULE_IDS)),
       ).toContain(RULE);
+    });
+  });
+
+  describe("upgrade after Disable all", () => {
+    test("keeps every rule off, including rules added later", () => {
+      const beforeUpgrade = GRAMMAR_RULE_IDS.filter((id) => id !== "currencySpacing");
+      const stored = Object.fromEntries(beforeUpgrade.map((id) => [id, false]));
+      expect(resolveGrammarRuleSelection(stored)).toEqual([]);
+    });
+
+    test("an all-off map covering only the legacy rule inventory is still a disable-all", () => {
+      const stored = Object.fromEntries(LEGACY_RULE_IDS.map((id) => [id, false]));
+      expect(resolveGrammarRuleSelection(stored)).toEqual([]);
+    });
+
+    test("switching off just a couple of rules is not a disable-all", () => {
+      const stored = { commaPeriodSpacing: false, mathOperatorSpacing: false };
+      expect(resolveGrammarRuleSelection(stored)).toEqual(
+        GRAMMAR_RULE_IDS.filter((id) => {
+          if (id === "commaPeriodSpacing" || id === "mathOperatorSpacing") return false;
+          return DEFAULT_CURRENT_GRAMMAR_RULES.includes(id);
+        }),
+      );
     });
   });
 });

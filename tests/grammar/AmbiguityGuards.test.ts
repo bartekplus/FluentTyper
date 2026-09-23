@@ -151,6 +151,100 @@ describe("unambiguous corrections still apply", () => {
     test(input, () => expect(type(input)).toBe(expected));
 });
 
+describe("measurement formatting on indented lines", () => {
+  const withoutRule = DEFAULT_CURRENT_GRAMMAR_RULES.filter(
+    (id) => id !== "measurementUnitFormatting",
+  );
+
+  // An indented line may be a Markdown code block and no editor signal says
+  // otherwise, so indentation fails closed by design, even for a sentence.
+  for (const input of [
+    "\tcopy 5kg ",
+    "    copy 5kg ",
+    "\tcp file 5kg ",
+    "    x = 5kg ",
+    "\tCopy source 5kg ",
+    "    Copy source 5kg ",
+    "\tThe box weighs 5kg ",
+  ])
+    test(`leaves ${JSON.stringify(input)}`, () =>
+      expect(type(input)).toBe(type(input, "en_US", withoutRule)));
+});
+
+describe("comma/period spacing never adds a space before a closing quote", () => {
+  for (const input of ['"Hi," he said ', 'She said "stop." Then ', "He wrote “done.” Ok "])
+    test(input, () => expect(type(input)).toBe(input));
+
+  // String literals and code keep their meaningful spaces.
+  const withoutCommaPeriod = DEFAULT_CURRENT_GRAMMAR_RULES.filter(
+    (id) => id !== "commaPeriodSpacing",
+  );
+  for (const input of [
+    'const separator = ", " ',
+    'const padding = ". " ',
+    '`a, "b, "` ',
+    '```\nx = ", "\n```',
+    'foo(a, ", ") ',
+    '{"sep": ", "} ',
+    // No punctuation-only quote, and no statement keyword, is ever dialogue.
+    'return ". " ',
+    'yield ". " ',
+    'sep: ". " ',
+    'return "Hi, " ',
+    'print("a, ") ',
+    'x: ", " ',
+  ])
+    test(`leaves the literal ${JSON.stringify(input)}`, () =>
+      expect(type(input)).toBe(type(input, "en_US", withoutCommaPeriod)));
+
+  // Dialogue after ", " or ": " is prose, not a string literal.
+  for (const input of [
+    'He said, "Hi," she replied ',
+    'He said: "No," and left ',
+    'When she said, "Hi," he left ',
+    'If he says "no," stop ',
+    'Let him say "yes," then go ',
+  ])
+    test(`closes dialogue tight ${JSON.stringify(input)}`, () => expect(type(input)).toBe(input));
+
+  // An inch mark after a digit is not a quote, so the next " opens one.
+  for (const input of ['The 5" screen. "Next" ', 'He is 6" tall, "really" '])
+    test(`keeps the space after an inch mark ${JSON.stringify(input)}`, () =>
+      expect(type(input)).toBe(input));
+
+  // A " after a digit inside an open quote may close it or be an inch mark:
+  // too ambiguous to pair the next quote, so nothing is trimmed.
+  for (const input of [
+    'He said "5". "Next" ',
+    'The year "2026". "Next" ',
+    'He said "Room 5". "Next" ',
+    'She wrote "Size 6", "ok" ',
+  ])
+    test(`keeps the space after a quoted number ${JSON.stringify(input)}`, () =>
+      expect(type(input)).toBe(input));
+
+  // Normal comma spacing before an ordinary word is untouched.
+  test("normal comma spacing still applies", () => {
+    expect(type("a,b ")).toBe("A, b ");
+  });
+
+  // An opening quote right after a comma/period is not a closing quote: only
+  // an unmatched " or " earlier in the paragraph makes the current one a
+  // closer, so these keep their space, straight or curly, default pipeline
+  // or all rules on (smart-quote normalization included, which is why the
+  // quote characters differ between the two expectations below).
+  for (const [input, allRulesExpected] of [
+    ['He said, "hello" ', "He said, “hello” "],
+    ['End. "Next" one ', "End. “Next” one "],
+    ["He said, 'hi' ", "He said, ‘hi’ "],
+  ] as const) {
+    test(`keeps the space before an opening quote ${JSON.stringify(input)}`, () =>
+      expect(type(input)).toBe(input));
+    test(`keeps the space before an opening quote, all rules ${JSON.stringify(input)}`, () =>
+      expect(type(input, "en_US", GRAMMAR_RULE_IDS)).toBe(allRulesExpected));
+  }
+});
+
 describe("opt-in a/an correction", () => {
   const withRule = [...DEFAULT_CURRENT_GRAMMAR_RULES, "englishArticleAnCorrection"];
 
@@ -296,6 +390,19 @@ describe("opt-in ordinal suffix repair", () => {
         expect(type(input.slice(0, end), "en_US", rules)).toMatch(/^Took 1st( |$)/);
       expect(type(input, "en_US", rules)).toBe("Took 1st place in 2 laps ");
     });
+
+  // Quoted text is left alone even when the opening quote follows a dash, or
+  // is a guillemet rather than a straight/curly quote.
+  const rules = [...DEFAULT_CURRENT_GRAMMAR_RULES, RULE];
+  for (const input of ['He said—"use 3th" ', "Il a dit « 3th » "])
+    test(`leaves quoted ${JSON.stringify(input)}`, () => {
+      expect(type(input, "en_US", rules)).toBe(type(input, "en_US", without(rules)));
+    });
+
+  // A Markdown bullet marker is prose, not a code operator.
+  test("corrects a bulleted item", () => {
+    expect(type("- 3th item ", "en_US", rules)).toBe("- 3rd item ");
+  });
 
   // Every keystroke, each pipeline with the rule on versus off.
   for (const input of [

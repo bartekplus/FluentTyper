@@ -104,4 +104,18 @@ describe("MeasurementUnitFormattingRule", () => {
     expect(apply("Mass: 10kg. ")).toBeNull();
     expect(rule.triggers).toEqual(["wordBoundary"]);
   });
+
+  test("sentence-initial words that happen to be shell commands are prose", () => {
+    expect(result("Cat weighs 5kg ")).toBe("Cat weighs 5 kg ");
+    expect(result("Touch the 5kg ")).toBe("Touch the 5 kg ");
+    expect(result("Tar det 5kg ", "sv_SE")).toBe("Tar det 5 kg ");
+    expect(result("Sed de 5kg ", "es_ES")).toBe("Sed de 5 kg ");
+    // A bare command word directly before the number is a file name in any case.
+    for (const cmd of ["cat", "Cat", "touch", "Touch", "tar", "Tar", "sed", "Sed"])
+      expect(apply(`${cmd} 5kg `)).toBeNull();
+  });
+
+  test("indented lines fail closed, even when they read as a sentence", () => {
+    expect(apply("\tThe box weighs 5kg ")).toBeNull();
+  });
 });

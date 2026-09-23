@@ -54,12 +54,23 @@ export class SmartQuoteNormalizationRule implements GrammarRule {
         return null;
       }
       const { core, trailingSpaces } = splitTrailingSpaces(beforeQuote);
+      // Nothing was typed between the marks ("" ), only the opener's own
+      // padding: close it instead of opening another one over that padding.
+      const openedEmpty =
+        pad.length > 0 &&
+        trailingSpaces === pad &&
+        core.endsWith(doubleOpen) &&
+        (quoteBalance(core, typed, doubleOpen, doubleClose) ?? 0) > 0;
       const forceClosingQuoteWithSpaceTrim =
+        !openedEmpty &&
         trailingSpaces.length > 0 &&
         (quoteBalance(core, typed, doubleOpen, doubleClose) ?? 0) > 0 &&
-        endsWithLikelyQuoteContent(core);
+        endsWithLikelyQuoteContent(core, doubleClose, singleClose);
 
-      if (forceClosingQuoteWithSpaceTrim) {
+      if (openedEmpty) {
+        replacement = `${pad}${doubleClose}`;
+        deleteBackwards = 1;
+      } else if (forceClosingQuoteWithSpaceTrim) {
         replacement = `${pad}${doubleClose}`;
         deleteBackwards = 1 + trailingSpaces.length;
       } else {
@@ -137,8 +148,21 @@ function quoteBalance(input: string, straight: string, open: string, close: stri
   return balance;
 }
 
-function endsWithLikelyQuoteContent(input: string): boolean {
-  return /[\p{L}\p{N}\])}»›”’“‘!?.,:;]$/u.test(input);
+// "”", "’" and "»" always close a quote in every profile they appear in, so
+// they unambiguously mark quoted content. "“" and "‘" don't: "“" is also
+// French's nested-quote opener and "‘" is English's single opener, so they
+// only count when they are the active profile's own closing mark.
+const UNAMBIGUOUS_QUOTE_CONTENT_REGEX = /[\p{L}\p{N}\])}»’!?.,:;]$/u;
+
+function endsWithLikelyQuoteContent(
+  input: string,
+  doubleClose: string,
+  singleClose: string,
+): boolean {
+  const last = input.charAt(input.length - 1);
+  return (
+    UNAMBIGUOUS_QUOTE_CONTENT_REGEX.test(input) || last === doubleClose || last === singleClose
+  );
 }
 
 function isWordChar(value: string): boolean {

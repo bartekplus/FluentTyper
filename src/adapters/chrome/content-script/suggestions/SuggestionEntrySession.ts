@@ -363,7 +363,12 @@ export class SuggestionEntrySession {
     const currentPredictionContext = this.resolveCurrentPredictionContext();
     this.entry.visibleSuggestionBeforeCursorText = currentPredictionContext.beforeCursor;
     this.entry.visibleSuggestionFullText = currentPredictionContext.fullText;
-    this.entry.inlineSuggestionToken = this.entry.latestMentionText;
+    // Stamp the token the response was predicted for: latestMentionText may
+    // already reflect newer typing whose request is still debounced.
+    this.entry.inlineSuggestionToken =
+      typeof context.text === "string"
+        ? this.predictionCoordinator.findMentionToken(context.text).token
+        : this.entry.latestMentionText;
 
     this.entry.inlineRenderRejected = false;
     if (this.inlineSuggestionEnabled) {

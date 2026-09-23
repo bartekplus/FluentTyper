@@ -6,6 +6,7 @@ import {
   RECOMMENDED_CURRENT_GRAMMAR_RULES,
   TYPOGRAPHY_GRAMMAR_RULES,
 } from "../../src/core/domain/grammar/ruleCatalog";
+import { FrenchPunctuationSpacingRule } from "../../src/core/domain/grammar/implementations/FrenchPunctuationSpacingRule";
 import type {
   GrammarContext,
   GrammarEventType,
@@ -77,7 +78,9 @@ describe("language-aware typography preset", () => {
       `Bonjour${NNBSP}! Ça va${NNBSP}? Oui${NNBSP}; enfin${NBSP}: presque.`,
     );
     // A plain space the writer typed is replaced, not doubled.
-    expect(type("Quoi ? Voici :", "fr_FR")).toBe(`Quoi${NNBSP}? Voici${NBSP}:`);
+    // A trailing space is typed here (unlike above) because a colon only gets
+    // spaced once it is confirmed to end a word, not on its own keystroke.
+    expect(type("Quoi ? Voici : ", "fr_FR")).toBe(`Quoi${NNBSP}? Voici${NBSP}: `);
     expect(type("Quoi?! ", "fr_FR")).toBe(`Quoi${NNBSP}?! `);
     expect(type('Il dit "non"!', "fr_FR")).toBe(`Il dit «${NBSP}non${NBSP}»${NNBSP}!`);
   });
@@ -120,6 +123,63 @@ describe("language-aware typography preset", () => {
       expect(type(`Entité ${reference} `, "fr_FR")).toBe(`Entité ${reference} `);
     }
     expect(type("Oui; enfin ", "fr_FR")).toBe(`Oui${NNBSP}; enfin `);
+  });
+
+  test("French colon spacing leaves a colon inside a token alone", () => {
+    expect(type("C:\\Users\\moi ", "fr_FR")).toBe("C:\\Users\\moi ");
+  });
+
+  test("French colon spacing leaves emoji shortcodes alone", () => {
+    expect(type("Merci :smile: ", "fr_FR")).toBe("Merci :smile: ");
+  });
+
+  test("French question spacing leaves x?y alone", () => {
+    // Written mid-sentence so the unrelated sentence-start capitalization rule
+    // (which also applies in English, since "?" mid-word isn't a word boundary)
+    // doesn't capitalize "x" and obscure what this test is checking.
+    expect(type("Vu x?y ", "fr_FR")).toBe("Vu x?y ");
+  });
+
+  test("French question spacing only retracts a space it inserted itself", () => {
+    const rule = new FrenchPunctuationSpacingRule();
+    for (const space of [NBSP, NNBSP]) {
+      for (const input of [`Run \`a${space}?b`, `\`\`\`\na${space}?b`, `const x = "a${space}?b`]) {
+        // Only the tail: sentence capitalization is a separate rule.
+        expect(type(input, "fr_FR").slice(-3)).toBe(`${space}?b`);
+        expect(
+          rule.apply({
+            beforeCursor: input,
+            afterCursor: "",
+            hints: { lang: "fr_FR", inputAction: "insert", measurementContext: "prose" },
+          }),
+        ).toBeNull();
+      }
+    }
+    // A space the writer typed before "?" is normalized, never removed.
+    expect(type(`Vu a${NNBSP}?b `, "fr_FR")).toBe(`Vu a${NNBSP}?b `);
+    expect(type(`Vu a${NBSP}?b `, "fr_FR")).toBe(`Vu a${NNBSP}?b `);
+    expect(type("Vu a ?b ", "fr_FR")).toBe(`Vu a${NNBSP}?b `);
+  });
+
+  test("French colon spacing still spaces a sentence colon", () => {
+    expect(type("Note: ", "fr_FR")).toBe(`Note${NBSP}: `);
+  });
+
+  test("French colon spacing leaves other technical tokens alone", () => {
+    expect(type("std::vector a:b localhost:3000 ", "fr_FR")).toBe(
+      "std::vector a:b localhost:3000 ",
+    );
+  });
+
+  test("French empty quotes open and close", () => {
+    expect(type('Il dit "" ', "fr_FR")).toBe(`Il dit «${NBSP}${NBSP}» `);
+  });
+
+  test("an English opening quote followed by a space is not closed over the typed space", () => {
+    // A second "“" here is a German-style closer only for German; in English
+    // it's just another opener typed after whitespace, so the space must
+    // survive rather than being swallowed into a bogus close-with-trim.
+    expect(type('Type " " here', "en_US")).toBe("Type “ “ here");
   });
 
   test("straight quotes stay straight in code and protected contexts", () => {

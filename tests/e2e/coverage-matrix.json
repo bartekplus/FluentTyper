@@ -429,7 +429,7 @@
     },
     {
       "id": "inline_text_expansion_replacement",
-      "description": "Inline mode previews a text expansion after its shortcut (visible even in a narrow mid-text input) and Tab inserts exactly the previewed text; a stale prediction is never accepted after further typing. An expansion that starts with its shortcut previews as a plain continuation without the arrow.",
+      "description": "Inline mode previews a text expansion after its shortcut (visible even in a narrow mid-text input) and Tab inserts exactly the previewed text; a stale prediction is never accepted after further typing, including a response still in flight. An expansion that starts with its shortcut previews as a plain continuation without the arrow. In a contenteditable the preview judges the caret's block, so a following block (e.g. a signature) or the previous line does not disarm Tab.",
       "coverage": [
         {
           "layer": "e2e-full",
@@ -460,6 +460,31 @@
           "layer": "unit",
           "file": "tests/InlineSuggestionPresenter.test.ts",
           "test": "renders a text expansion that extends the shortcut as a plain continuation"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "Inline text expansion is accepted on Tab above a contenteditable signature block"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionEntrySession.test.ts",
+          "test": "inline Tab does not accept a stale in-flight response after further typing"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/InlineSuggestionPresenter.test.ts",
+          "test": "arms a text expansion at the end of a line followed by another block (signature)"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/InlineSuggestionPresenter.test.ts",
+          "test": "arms a text expansion typed on the second line of a contenteditable"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/InlineSuggestionPresenter.test.ts",
+          "test": "arms a completion typed on the second line of a contenteditable"
         }
       ]
     },
@@ -2083,6 +2108,17 @@
           "layer": "integration",
           "file": "tests/e2e/google-docs.e2e.test.ts",
           "test": "disposing removes UI and keyboard interception"
+        }
+      ]
+    },
+    {
+      "id": "gdocs_burst_correction_survives_a_host_slower_than_typing",
+      "description": "Mock editor/browser fixture, not a live Google Docs claim: with the page CPU throttled 6x so no model read completes between keystrokes, a correction the burst typed past is still replayed and made",
+      "coverage": [
+        {
+          "layer": "integration",
+          "file": "tests/e2e/google-docs.e2e.test.ts",
+          "test": "a correction is still made when every read loses to the burst"
         }
       ]
     },
