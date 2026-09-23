@@ -254,4 +254,37 @@ describe("ObservabilityService", () => {
     expect(snapshot.contentRuntimes.some((runtime) => runtime.runtimeGeneration === 80)).toBe(true);
     expect(snapshot.contentRuntimes.some((runtime) => runtime.runtimeGeneration === 1)).toBe(false);
   });
+
+  test("projects content and auto-language runtimes to plain status objects", () => {
+    const service = new ObservabilityService({
+      isDevBuild: true,
+      getPredictorSnapshot: () => createPredictorSnapshot(),
+      getAutoLanguageRuntimes: () => [
+        {
+          tabId: 3,
+          frameId: 1,
+          runtimeGeneration: 2,
+          domain: "example.com",
+          updatedAt: 50,
+          extra: "dropped",
+        } as never,
+      ],
+      now: () => 100,
+    });
+    service.recordContentRuntimeStatus({
+      tabId: 7,
+      frameId: 0,
+      runtimeGeneration: 3,
+      domainURL: " Example.COM ",
+    });
+
+    const snapshot = service.getSnapshot();
+
+    expect(snapshot.contentRuntimes).toEqual([
+      { tabId: 7, frameId: 0, runtimeGeneration: 3, domain: "example.com", updatedAt: 100 },
+    ]);
+    expect(snapshot.autoLanguageRuntimes).toEqual([
+      { tabId: 3, frameId: 1, runtimeGeneration: 2, domain: "example.com", updatedAt: 50 },
+    ]);
+  });
 });

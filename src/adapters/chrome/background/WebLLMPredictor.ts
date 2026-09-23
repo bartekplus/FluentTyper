@@ -114,7 +114,7 @@ export class WebLLMPredictor implements SecondaryPredictor {
   }
 
   preload(): void {
-    void this.ensureReady();
+    void this.engineLifecycleService.ensureReady(this.enabled, this.modelId);
   }
 
   interruptActiveGeneration(
@@ -154,7 +154,7 @@ export class WebLLMPredictor implements SecondaryPredictor {
       }
       return testOverridePredictions;
     }
-    const ready = await this.ensureReady();
+    const ready = await this.engineLifecycleService.ensureReady(this.enabled, this.modelId);
     if (!ready || !this.engineLifecycleService.getEngine() || this.isRequestStale(requestSeq)) {
       return [];
     }
@@ -275,10 +275,7 @@ export class WebLLMPredictor implements SecondaryPredictor {
 
   private isExpectedRequestInFlight(lang: string, predictionInput: string): boolean {
     const inFlightRequest = this.generationCoordinator.getInFlightRequest();
-    if (!inFlightRequest) {
-      return false;
-    }
-    return inFlightRequest.lang === lang && inFlightRequest.predictionInput === predictionInput;
+    return inFlightRequest?.lang === lang && inFlightRequest.predictionInput === predictionInput;
   }
 
   private isRequestStale(seq: number): boolean {
@@ -286,10 +283,6 @@ export class WebLLMPredictor implements SecondaryPredictor {
       seq !== this.generationCoordinator.getActiveGenerationSeq() ||
       this.generationCoordinator.isCancelled(seq)
     );
-  }
-
-  private async ensureReady(): Promise<boolean> {
-    return this.engineLifecycleService.ensureReady(this.enabled, this.modelId);
   }
 
   private createEmptyPredictionPayload(): PredictionResponsePayload {
@@ -304,7 +297,7 @@ export class WebLLMPredictor implements SecondaryPredictor {
   }
 
   private resetEngine(): void {
-    this.generationCoordinator.advanceGenerationSeq();
+    this.generationCoordinator.nextGenerationSeq();
     this.interruptActiveGeneration("reset");
     this.generationCoordinator.clearGenerationTracking();
     this.engineLifecycleService.reset();

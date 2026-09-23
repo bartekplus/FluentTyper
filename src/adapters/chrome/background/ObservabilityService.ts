@@ -37,6 +37,18 @@ function cloneEvent(event: ObservabilityEvent): ObservabilityEvent {
   return { ...event, context: event.context ? { ...event.context } : undefined };
 }
 
+function toRuntimeStatus(
+  runtime: ObservabilityContentRuntimeStatus,
+): ObservabilityContentRuntimeStatus {
+  return {
+    tabId: runtime.tabId,
+    frameId: runtime.frameId,
+    runtimeGeneration: runtime.runtimeGeneration,
+    domain: runtime.domain,
+    updatedAt: runtime.updatedAt,
+  };
+}
+
 function normalizeDomain(domainURL?: string): string | null {
   if (typeof domainURL !== "string" || domainURL.trim().length === 0) {
     return null;
@@ -173,20 +185,8 @@ export class ObservabilityService {
       predictor: this.getPredictorSnapshot(),
       contentRuntimes: [...this.contentRuntimes.values()]
         .sort((left, right) => right.updatedAt - left.updatedAt)
-        .map((runtime) => ({
-          tabId: runtime.tabId,
-          frameId: runtime.frameId,
-          runtimeGeneration: runtime.runtimeGeneration,
-          domain: runtime.domain,
-          updatedAt: runtime.updatedAt,
-        })),
-      autoLanguageRuntimes: this.getAutoLanguageRuntimes().map((runtime) => ({
-        tabId: runtime.tabId,
-        frameId: runtime.frameId,
-        runtimeGeneration: runtime.runtimeGeneration,
-        domain: runtime.domain,
-        updatedAt: runtime.updatedAt,
-      })),
+        .map(toRuntimeStatus),
+      autoLanguageRuntimes: this.getAutoLanguageRuntimes().map(toRuntimeStatus),
     };
   }
 
