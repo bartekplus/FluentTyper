@@ -15,7 +15,7 @@ import type {
 } from "@core/domain/personalization/types";
 import type { PersonalizationRepository } from "./PersonalizationRepository";
 
-export interface PersonalizationServiceOptions {
+interface PersonalizationServiceOptions {
   repository: PersonalizationRepository;
   isEnabled: () => boolean | Promise<boolean>;
   isTextExpansionTrigger?: (triggerText: string) => boolean | Promise<boolean>;

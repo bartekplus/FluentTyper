@@ -1,4 +1,4 @@
-import { SettingsManager, type JsonValue } from "../settingsManager";
+import type { JsonValue, SettingsManager } from "../settingsManager";
 import {
   getSettingStorageKey,
   type SettingField,
@@ -7,11 +7,7 @@ import {
 import { readSettingWithAliases } from "../settings/settingsAccess";
 
 export class SettingsRepositoryBase {
-  protected readonly settings: SettingsManager;
-
-  constructor(settings?: SettingsManager) {
-    this.settings = settings || new SettingsManager();
-  }
+  constructor(protected readonly settings: SettingsManager) {}
 
   protected async getField<K extends SettingField>(
     field: K,

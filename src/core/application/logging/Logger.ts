@@ -13,7 +13,7 @@ const LOG_LEVEL_PRIORITY: Record<LogLevel, number> = {
   error: 40,
 };
 
-export interface LogContext {
+interface LogContext {
   traceId?: string;
   command?: string;
   requestId?: number;
@@ -100,15 +100,11 @@ export function setGlobalObservabilityRuntime(options: {
 }
 
 export function getRegisteredObservabilityModules(): string[] {
-  return [...(getLoggingGlobals().__FT_OBSERVABILITY_REGISTERED_MODULES__ || new Set<string>())];
+  return [...(getLoggingGlobals().__FT_OBSERVABILITY_REGISTERED_MODULES__ ?? [])];
 }
 
-export function registerObservabilityModule(scope: string): void {
-  const globals = getLoggingGlobals();
-  if (!globals.__FT_OBSERVABILITY_REGISTERED_MODULES__) {
-    globals.__FT_OBSERVABILITY_REGISTERED_MODULES__ = new Set<string>();
-  }
-  globals.__FT_OBSERVABILITY_REGISTERED_MODULES__.add(scope);
+function registerObservabilityModule(scope: string): void {
+  (getLoggingGlobals().__FT_OBSERVABILITY_REGISTERED_MODULES__ ??= new Set<string>()).add(scope);
 }
 
 export function resetGlobalObservabilityRuntime(): void {

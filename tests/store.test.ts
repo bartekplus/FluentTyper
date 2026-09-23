@@ -248,6 +248,29 @@ describe("Store async semantics", () => {
     expect(storageState["extensionState.language"]).toBe('"pl"');
   });
 
+  test("default seeding respects valid legacy keys and repairs invalid stored values", async () => {
+    const { storageState } = installChromeStorageMock({
+      initialState: {
+        "store.settings.enabled": "false",
+        "store.settings.tributeFontSize": "{broken",
+        "store.settings.language": "{broken",
+      },
+    });
+    const { Store } = await import(freshModulePath("../src/core/application/storage/Store.js"));
+    const store = new Store("settings", {
+      enable: true,
+      suggestionFontSize: "14px",
+      language: "en",
+      numSuggestions: 5,
+    });
+
+    await store.get("enable");
+    expect(storageState["store.settings.enable"]).toBeUndefined();
+    expect(storageState["store.settings.suggestionFontSize"]).toBe('"14px"');
+    expect(storageState["store.settings.language"]).toBe('"en"');
+    expect(storageState["store.settings.numSuggestions"]).toBe("5");
+  });
+
   test("default seeding ignores unrelated localStorage keys in fallback mode", async () => {
     delete (globalThis as { chrome?: unknown }).chrome;
     const { storageState } = installLocalStorageMock({

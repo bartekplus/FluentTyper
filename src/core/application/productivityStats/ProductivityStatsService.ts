@@ -281,14 +281,6 @@ export class ProductivityStatsService {
     });
   }
 
-  async acknowledgeDonationMilestone(milestoneHours: number): Promise<void> {
-    await this.handleDonationPromptAction(
-      `milestone_${this.sanitizer.clampCount(milestoneHours)}`,
-      "supported",
-      milestoneHours,
-    );
-  }
-
   async handleDonationPromptAction(
     promptId: string,
     action: DonationPromptAction,
