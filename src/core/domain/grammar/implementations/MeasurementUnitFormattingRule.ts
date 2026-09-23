@@ -85,8 +85,11 @@ export function isProsePrefix(prefix: string): boolean {
     ) ||
     // These also read as ordinary capitalized English (and other-language)
     // words at a sentence start ("Cat weighs 5kg", "Tar det 5kg"), so only
-    // treat the lowercase spelling as the shell command.
-    /^\s*(?:cat|touch|sed|tar)(?:\s|$)/u.test(line)
+    // treat the lowercase spelling as the shell command...
+    /^\s*(?:cat|touch|sed|tar)(?:\s|$)/u.test(line) ||
+    // ...unless nothing but spaces follows it: "Cat 250EUR" is a file name
+    // however capitalizeSentenceStart spelled it.
+    /^\s*(?:cat|touch|sed|tar)\s*$/iu.test(line)
   ) {
     return false;
   }

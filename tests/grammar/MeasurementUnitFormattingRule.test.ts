@@ -110,6 +110,9 @@ describe("MeasurementUnitFormattingRule", () => {
     expect(result("Touch the 5kg ")).toBe("Touch the 5 kg ");
     expect(result("Tar det 5kg ", "sv_SE")).toBe("Tar det 5 kg ");
     expect(result("Sed de 5kg ", "es_ES")).toBe("Sed de 5 kg ");
+    // A bare command word directly before the number is a file name in any case.
+    for (const cmd of ["cat", "Cat", "touch", "Touch", "tar", "Tar", "sed", "Sed"])
+      expect(apply(`${cmd} 5kg `)).toBeNull();
   });
 
   test("tab-indented prose paragraph still formats", () => {

@@ -56,19 +56,6 @@ function expectUnchanged(input: string, lang = "en_US"): void {
   expect(type(input, lang, DEFAULTS)).toBe(type(input, lang, DEFAULTS_WITHOUT_RULE));
 }
 
-/**
- * Same as `expectUnchanged`, but skips the full-default-pipeline check for
- * inputs that open with a lowercase word from the (lowercase-only) newly
- * added command denylist. Typed from a blank document, capitalizeSentenceStart
- * capitalizes that word before currencySpacing ever runs; a capitalized word
- * then reads as ordinary prose (see isProsePrefix), which is the intended
- * fix for "Cat weighs 5kg" and not something currencySpacing can special-case.
- */
-function expectUnchangedByRuleAlone(input: string, lang = "en_US"): void {
-  expect(applyRule(input, lang)).toBe(input);
-  expect(type(input, lang, ["currencySpacing"])).toBe(input);
-}
-
 describe("currency spacing", () => {
   test("is on in the production default selection", () => {
     expect(DEFAULTS).toContain("currencySpacing");
@@ -177,15 +164,21 @@ describe("currency spacing", () => {
       expectUnchanged(input);
     }
 
-    // "Cat" and "Touch" also read as ordinary sentence-initial words, so only
-    // the lowercase spelling is the command; typed from a blank field the
-    // default pipeline capitalizes it into prose first.
-    for (const input of ["cat", "touch"].flatMap((cmd) => [
+    // "cat", "touch", "tar" and "sed" also read as ordinary sentence-initial
+    // words ("Cat weighs 5kg"), but a bare command word directly followed by
+    // the amount is a file name in any case: capitalizeSentenceStart turns a
+    // field-initial "cat" into "Cat" before currencySpacing runs.
+    for (const input of ["cat", "touch", "tar", "sed"].flatMap((cmd) => [
       `${cmd} 250EUR `,
+      `${cmd[0].toUpperCase()}${cmd.slice(1)} 250EUR `,
       `${cmd} -r 250EUR `,
     ])) {
-      expectUnchangedByRuleAlone(input);
+      expectUnchanged(input);
     }
+    // Known limit: with a plain word between them, the pipeline's "Cat file
+    // 250EUR" is indistinguishable from "Cat weighs 250EUR" and formats as
+    // prose. The lowercase spelling is still refused by the rule itself.
+    expect(applyRule("cat file 250EUR ")).toBe("cat file 250EUR ");
   });
 
   test("requires a verified locale", () => {
